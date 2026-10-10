@@ -24,6 +24,7 @@ import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
+import { useOwnerActivityStore } from '@proj-airi/stage-ui/stores/owner-activity'
 import { usePerfTracerBridgeStore } from '@proj-airi/stage-ui/stores/perf-tracer-bridge'
 import { listProvidersForPluginHost, shouldPublishPluginHostCapabilities } from '@proj-airi/stage-ui/stores/plugin-host-capabilities'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
@@ -38,6 +39,7 @@ import { toast, Toaster } from 'vue-sonner'
 import ResizeHandler from './components/ResizeHandler.vue'
 
 import {
+  electron,
   electronGetServerChannelConfig,
   electronGodotStageGetStatus,
   electronGodotStageStatusChanged,
@@ -158,6 +160,8 @@ function createFullStageRuntime() {
   const cardStore = useAiriCardStore()
   const serverChannelStore = useModsServerChannelStore()
   const characterOrchestratorStore = useCharacterOrchestratorStore()
+  const ownerActivityStore = useOwnerActivityStore()
+  let stopInputProbe: (() => void) | undefined
   const inferencePreload = useInferencePreload()
   const pluginHostInspectorStore = usePluginHostInspectorStore()
   const stageWindowLifecycleStore = useStageWindowLifecycleStore()
@@ -192,6 +196,8 @@ function createFullStageRuntime() {
 
   const { activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions } = storeToRefs(artistryStore)
   const getServerChannelConfig = useElectronEventaInvoke(electronGetServerChannelConfig)
+  const getSystemIdleTime = useElectronEventaInvoke(electron.powerMonitor.getSystemIdleTime)
+  const getCursorScreenPoint = useElectronEventaInvoke(electron.screen.getCursorScreenPoint)
   const listPlugins = useElectronEventaInvoke(electronPluginList)
   const preparePluginDirectoryImport = useElectronEventaInvoke(electronPluginPrepareDirectoryImport)
   const commitPluginDirectoryImport = useElectronEventaInvoke(electronPluginCommitDirectoryImport)
@@ -325,7 +331,9 @@ function createFullStageRuntime() {
       }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
       contextBridgeStore.initialize()
       if (!isWidgetsWindow) {
-        characterOrchestratorStore.initialize()
+        // Automations see input in every app, not only in AIRI's own windows.
+        stopInputProbe = ownerActivityStore.useInputProbe(async () => ({ idleSeconds: await getSystemIdleTime(), cursor: await getCursorScreenPoint() }))
+        characterOrchestratorStore.initialize(syncedPinia)
       }
 
       defineInvokeHandler(context.value, pluginProtocolListProviders, async () => listProvidersForPluginHost())
@@ -345,6 +353,8 @@ function createFullStageRuntime() {
     dispose() {
       stopAuthenticatedSetup?.()
       stopLoggedOutSetup?.()
+      stopInputProbe?.()
+      characterOrchestratorStore.dispose()
       contextBridgeStore.dispose()
     },
   }

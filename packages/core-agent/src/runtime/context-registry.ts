@@ -30,6 +30,14 @@ export interface ContextIngestResult {
   entryCount: number
 }
 
+/** Identifies a session and its scene bindings when it reads the context pool. */
+export interface ContextReader {
+  /** Exact reader identities that object destinations can name. A match never grants instruction or tool authority. */
+  ids: readonly string[]
+  /** Whether the reader is the owner's own conversation. Observations without object destinations reach only the owner. */
+  owner: boolean
+}
+
 /**
  * Mutable runtime registry for active context buckets and bounded ingest history.
  */
@@ -38,8 +46,10 @@ export interface ContextRegistry {
   ingest: (envelope: ContextMessage) => ContextIngestResult | undefined
   /** Clears active context buckets and ingest history. */
   reset: () => void
-  /** Returns a cloned active context bucket snapshot. */
-  snapshot: () => Record<string, ContextMessage[]>
+  /** Removes one writer's active entries, for example after the module leaves. */
+  removeWriter: (sourceKey: string) => boolean
+  /** Returns a cloned active context bucket snapshot. With a reader, only the entries that it can read. */
+  snapshot: (reader?: ContextReader) => Record<string, ContextMessage[]>
   /** Returns cloned active context buckets for callers that prefer explicit naming. */
   activeContexts: () => Record<string, ContextMessage[]>
   /** Returns cloned ingest history entries in chronological order. */
@@ -78,6 +88,23 @@ function defaultGetSourceKey(event: EventSourcePayload, fallback = 'unknown') {
     ?? event.source
     ?? fallback
   )
+}
+
+/**
+ * Object destinations name logical readers. Array destinations are transport addresses, so they decide nothing here.
+ * Without object destinations, an observation reaches only the owner's own conversation, never an external scene.
+ */
+function isVisibleToReader(message: ContextMessage, reader: ContextReader) {
+  const destinations = message.destinations
+  if (!destinations || Array.isArray(destinations))
+    return reader.owner
+  if ('all' in destinations)
+    return destinations.all === true
+  if (destinations.exclude?.some(id => reader.ids.includes(id)))
+    return false
+  if (destinations.include !== undefined)
+    return destinations.include.some(id => reader.ids.includes(id))
+  return reader.owner
 }
 
 /**
@@ -144,20 +171,21 @@ export function createContextRegistry(options: CreateContextRegistryOptions = {}
     currentContextHistory = []
   }
 
-  function snapshot() {
+  function snapshot(reader?: ContextReader) {
     return Object.fromEntries(
       Array.from(currentActiveContexts, ([sourceKey, messages]) => [
         sourceKey,
-        structuredClone(messages),
-      ]),
+        structuredClone(reader ? messages.filter(message => isVisibleToReader(message, reader)) : messages),
+      ] as const).filter(([, messages]) => !reader || messages.length > 0),
     )
   }
 
   return {
     ingest,
     reset,
+    removeWriter: sourceKey => currentActiveContexts.delete(sourceKey),
     snapshot,
-    activeContexts: snapshot,
+    activeContexts: () => snapshot(),
     contextHistory: () => structuredClone(currentContextHistory),
   }
 }

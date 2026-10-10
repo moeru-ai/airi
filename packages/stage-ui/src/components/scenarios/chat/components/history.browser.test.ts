@@ -174,6 +174,70 @@ describe('chat history', () => {
     })
   })
 
+  // A notice is not owner speech, so it shows as a folded label instead of an owner bubble, and nobody replies to it.
+  it('shows a stored notice as a folded label with its source', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [
+          { id: 'notice-1', role: 'user', content: 'The background task "Research" finished.\nThree builds compared.', notice: { source: 'recipe:Research' } },
+        ],
+        style: 'height: 240px; width: 320px;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(screen.container.textContent).toContain('Background notice')
+      expect(screen.container.textContent).toContain('Research')
+      expect(screen.container.textContent).not.toContain('Three builds compared.')
+    })
+    expect(screen.container.querySelector('[data-chat-message-role="user"] .chat-message-item-container')).toBeNull()
+
+    screen.getByRole('button', { name: /Research/ }).element().dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await vi.waitFor(() => {
+      expect(screen.container.textContent).toContain('Three builds compared.')
+    })
+  })
+
+  // The owner must see when a reply handed a task to a recipe.
+  it('names the recipe that a reply used', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [
+          {
+            id: 'assistant-1',
+            role: 'assistant',
+            content: 'Next step: open the editor.',
+            slices: [
+              { type: 'tool-call', toolCall: { toolCallId: 'call-1', toolCallType: 'function', toolName: 'builtIn_useRecipe', args: '{"name":"Research","task":"Compare PC builds for 3000 yuan."}' } },
+              { type: 'text', text: 'Next step: open the editor.' },
+            ],
+            tool_results: [{ id: 'call-1', result: JSON.stringify({ status: 'started', name: 'Research', task: 'Compare PC builds for 3000 yuan.' }) }],
+          },
+        ],
+        style: 'height: 240px; width: 320px;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      const bubble = screen.container.querySelector<HTMLElement>('.chat-message-item-container')
+      expect(bubble?.textContent).toContain('Handed to recipe')
+      expect(bubble?.textContent).toContain('Research')
+      expect(bubble?.textContent).not.toContain('Compare PC builds for 3000 yuan.')
+    })
+
+    // The details show the task handed over. The recipe's steps stay in its own space.
+    screen.getByRole('button', { name: /Research/ }).element().dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await vi.waitFor(() => {
+      expect(screen.container.textContent).toContain('Compare PC builds for 3000 yuan.')
+    })
+  })
+
   // ROOT CAUSE:
   //
   // ChatHistoryMessageFrame always applied opacity-0, then added opacity-100

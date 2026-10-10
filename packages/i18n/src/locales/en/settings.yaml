@@ -885,6 +885,173 @@ pages:
               filtering had no effect on the last transcription.
     memory-long-term:
       description: Long-term memory specific settings and management
+      enable: Use long-term memory
+      enable-description: The character can save, read, and forget memories. Turn it off and no memory reaches a prompt.
+      memories:
+        title: Memories
+        description: Each character keeps these facts on its own card, and other cards do not read them. Make an entry general to add it to every card. You can remove any entry here.
+        empty: No memories yet.
+        forget: 'Forget {name}'
+        make_general: 'Make {name} general'
+        general: General
+        entry:
+          title: Memories
+          description: Each character card's memories, and general memories that every card reads.
+      recipes:
+        title: Recipes
+        empty: No recipes yet.
+        sources:
+          user: Yours
+          model: Proposed by the model
+        pending: Waiting for your approval. After one approval, it runs without asking again.
+        approve: Approve
+        remove: Remove
+        add:
+          name: Name
+          description: When to use it
+          instructions: What to do
+          keywords:
+            label: Trigger keywords
+            description: Comma-separated. A message that contains one points the character to this recipe.
+          submit: Add
+        decision:
+          question: Question
+          type:
+            label: Answer type
+            noul: Yes or no
+            choice: Choose one option
+            score: Score on levels
+          yes_means: Yes means
+          no_means: No means
+          option: Option meaning
+          level: Level meaning (lowest first)
+          add_option: Add an answer
+          remove_option: Remove
+          action:
+            label: Then
+            reply: Reply as usual
+            stay_quiet: Read without replying
+            hint: Add a hint to the reply
+            recipe: Point to another recipe
+          hint_text: Hint
+          target_recipe: Recipe
+          keywords: Comma-separated. The decision runs only after a message contains one of them.
+          note: After a keyword appears, the character answers the question with the whole conversation. It always picks one answer, and that answer leads to its action.
+        entry:
+          title: Recipes
+          description: Skills the character can use, triggers that start them, and proposals waiting for you.
+        add_button: Add recipe
+        types:
+          title: Choose a recipe type
+          instructions:
+            title: Instructions
+            description: Steps the character loads when they fit. Keywords can point to it, and the chat shows each use.
+          decision:
+            title: Decision
+            description: A question that the character answers after a keyword matches and before the reply. Each answer can lead to its own action.
+        styles:
+          instructions: Instructions
+          decision: Decision
+        cancel: Cancel
+        edit: Edit
+        save: Save
+        enabled: 'Use {name}'
+        keywords_summary: 'Keywords: {words}'
+        tabs:
+          conversation: In conversation
+          auto_run: Auto-run
+          conversation_description: Recipes the character uses in a conversation. They act only when a message arrives.
+          auto_run_description: Recipes that start on their own when a trigger fires, without your message. Each run costs a model call. With all of them off, nothing is called.
+        background:
+          label: Run in the background
+          description: For a task with a result, such as research. It runs in its own space, and its result reaches the conversation later. Without it, the character follows the steps in the conversation.
+          tag: Runs in the background
+        grants: 'Approving lets it: {what}'
+        proposals:
+          label: The character can propose recipes
+          description: It saves a recipe you ask for. Each proposal waits for your approval. Turn this off and it cannot propose any.
+        auto_run:
+          title: Auto-run recipe
+          timing:
+            label: When it runs
+            owner: On the triggers I set
+            model: Decided by the model when it uses the recipe
+            keywords: When your message has one of these words, the model sets when the recipe runs. Each run that it sets happens once. A repeat that you ask for becomes a new recipe that waits for your approval.
+          flow:
+            owner: The instructions I write
+            model: Decided by the model each time
+          triggers:
+            label: Triggers
+            description: Any trigger starts the check below.
+            add: Add trigger
+            remove: Remove trigger
+          conditions:
+            label: Conditions
+            description: Optional. When a trigger fires, every condition must hold. Otherwise the recipe skips this time.
+            add: Add condition
+            remove: Remove condition
+          source:
+            label: Source
+            clock: Clock
+            chat: Chat
+            mouse: Mouse
+            keyboard: Keyboard
+            module: Registered module
+          event:
+            label: Event
+            at: At a time
+            every: At a fixed interval
+            message: When I send a message
+            idle: After a quiet time
+            active: When used
+            observation: When it reports something new
+          time:
+            label: Time
+            description: The local time.
+          days:
+            label: Days
+            description: Select no day to run every day.
+          minutes:
+            label: Minutes
+            every: Starts every this many minutes.
+            idle: Fires after this many minutes without use. It fires once per quiet time and waits for the next use.
+          after_idle:
+            label: Only after an absence (minutes)
+            description: Fires only on the first use after this many minutes without use. Enter 0 to fire on every use. On the desktop app, input in any app counts.
+          module:
+            label: Module
+            description: A module that registered with AIRI.
+            none: No module has registered yet. Connect a module that reports observations, then choose it here.
+          condition:
+            label: Check
+            time: Time range
+            weekday: Day of the week
+            state: Quiet or in use
+            from: From
+            to: To
+            range: A range that ends before it starts crosses midnight.
+            state_label: State
+            idle: Quiet for at least
+            active: Used within
+          cooldown:
+            label: Cooldown (minutes)
+            description: The shortest time between two runs. Enter 0 for none.
+          summary:
+            at: 'At {time}'
+            at_days: 'At {time} on {days}'
+            every: 'Every {minutes} min'
+            message: When you send a message
+            idle: '{source} quiet for {minutes} min'
+            active: '{source} used'
+            back: '{source} used after {minutes} min away'
+            observation: 'When {module} reports'
+            time: 'Only {from}–{to}'
+            weekday: 'Only on {days}'
+            state_idle: 'Only if {source} quiet for {minutes} min'
+            state_active: 'Only if {source} used within {minutes} min'
+            cooldown: 'At most every {minutes} min'
+            model: The model sets when it runs, once each time
+            model_flow: The model decides what each run does
       title: Long-Term Memory
     memory-short-term:
       description: Short-term memory specific settings and management

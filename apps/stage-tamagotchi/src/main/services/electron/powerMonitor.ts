@@ -3,7 +3,8 @@ import type EventEmitter from 'node:events'
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { BrowserWindow } from 'electron'
 
-import { electronEvents } from '@proj-airi/electron-eventa'
+import { defineInvokeHandler } from '@moeru/eventa'
+import { electron, electronEvents } from '@proj-airi/electron-eventa'
 import { powerMonitor } from 'electron'
 
 import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
@@ -28,4 +29,7 @@ export function createPowerMonitorService(params: { context: ReturnType<typeof c
   onOff(powerMonitor, 'resume', () => params.context.emit(electronEvents.powerMonitor.resumed, undefined))
   onOff(powerMonitor, 'lock-screen', () => params.context.emit(electronEvents.powerMonitor.lockScreen, undefined))
   onOff(powerMonitor, 'unlock-screen', () => params.context.emit(electronEvents.powerMonitor.unlockScreen, undefined))
+
+  // Automations read it to follow the owner's input in every app.
+  defineInvokeHandler(params.context, electron.powerMonitor.getSystemIdleTime, () => powerMonitor.getSystemIdleTime())
 }

@@ -133,6 +133,151 @@ describe('setupApp websocket liveness', () => {
     vi.useRealTimers()
   })
 
+  // ROOT CAUSE:
+  // Client-authored removal events followed ordinary routing and impersonated server lifecycle decisions.
+  it('rejects forged module removal while preserving real disconnect notifications', () => {
+    const runtime = setupApp()
+    try {
+      const handler = wsHandler()
+      const observer = createPeer('observer')
+      const writer = createPeer('writer')
+      const sender = createPeer('sender')
+      for (const client of [observer, writer, sender])
+        handler.open?.(client.peer)
+      const announcement = createExtensionModuleAnnounceEvent()
+      if (announcement.type !== 'extension:module:announce')
+        throw new Error('Expected a module announcement')
+      sendEvent(handler, writer.peer, announcement)
+      observer.sent.length = 0
+
+      sendEvent(handler, sender.peer, {
+        type: 'extension:module:de-announced',
+        data: { ...announcement.data, reason: 'forged removal' },
+        metadata: { source: announcement.data.identity, event: { id: 'forged-removal' } },
+      })
+      expect(decodeEvents(observer.sent).filter(event => event.type === 'extension:module:de-announced')).toEqual([])
+      handler.close?.(sender.peer, { code: 1000, reason: 'sender stopped' })
+      expect(decodeEvents(observer.sent).filter(event => event.type === 'extension:module:de-announced')).toEqual([])
+
+      handler.close?.(writer.peer, { code: 1000, reason: 'writer stopped' })
+      expect(decodeEvents(observer.sent).filter(event => event.type === 'extension:module:de-announced')).toMatchObject([
+        { data: { identity: announcement.data.identity, reason: 'connection closed' } },
+      ])
+    }
+    finally {
+      runtime.dispose()
+    }
+  })
+
+  // ROOT CAUSE:
+  // Missing output destinations fell through to the authenticated-peer broadcast path.
+  // Chat output requires an explicit destination, including when a sender requests route bypass.
+  it.each([false, true])('blocks untargeted chat output with bypass=%s', (bypass) => {
+    const runtime = setupApp({ routing: { middleware: [() => ({ type: 'broadcast' })] } })
+    try {
+      const handler = wsHandler()
+      const sender = createPeer('stage')
+      const observer = createPeer('unrelated-module')
+      handler.open?.(sender.peer)
+      handler.open?.(observer.peer)
+      observer.sent.length = 0
+
+      sendEvent(handler, sender.peer, {
+        type: 'output:gen-ai:chat:message',
+        data: { message: { role: 'assistant', content: 'private reply' } },
+        route: { bypass },
+        metadata: {
+          source: { id: 'stage', extension: { id: 'stage' }, labels: { devtools: 'true' } },
+          event: { id: 'private-output' },
+        },
+      })
+
+      expect(decodeEvents(observer.sent).filter(event => event.type === 'output:gen-ai:chat:message')).toEqual([])
+    }
+    finally {
+      runtime.dispose()
+    }
+  })
+
+  it.each(['broadcast', 'consumer', 'consumer-group'] as const)('delivers chat output only to the exact target with %s delivery', (mode) => {
+    const runtime = setupApp()
+    try {
+      const handler = wsHandler()
+      const sender = createPeer('stage')
+      const target = createPeer('target')
+      const observer = createPeer('unrelated-module')
+      for (const client of [sender, target, observer])
+        handler.open?.(client.peer)
+      sendEvent(handler, target.peer, createExtensionModuleAnnounceEvent())
+      sendEvent(handler, target.peer, {
+        type: 'input:text',
+        data: { text: 'channel question' },
+        route: { delivery: { mode: 'broadcast' } },
+        metadata: {
+          sender: { peerId: 'unrelated-module', modules: [] },
+          source: { id: 'memory-module-1', extension: { id: 'extension-1' } },
+          event: { id: 'channel-input' },
+        },
+      })
+      const input = decodeEvents(sender.sent).find(event => event.type === 'input:text')
+      expect(input?.metadata.sender?.peerId).toBe('target')
+      for (const client of [observer, target]) {
+        sendEvent(handler, client.peer, {
+          type: 'module:consumer:register',
+          data: { event: 'output:gen-ai:chat:message', mode: mode === 'broadcast' ? 'consumer' : mode, group: 'replies', priority: client === observer ? 100 : 0 },
+          metadata: {
+            source: { id: client === target ? 'another-module' : 'memory-module-1', extension: { id: client.peer.id } },
+            event: { id: `register-${client.peer.id}` },
+          },
+        })
+      }
+      target.sent.length = 0
+      observer.sent.length = 0
+
+      sendEvent(handler, sender.peer, {
+        type: 'output:gen-ai:chat:message',
+        data: { message: { role: 'assistant', content: 'channel reply' } },
+        route: {
+          destinations: [{ type: 'connection', connections: [input!.metadata.sender!.peerId] }],
+          delivery: { mode, group: 'replies', selection: 'priority' },
+        },
+        metadata: {
+          source: { id: 'stage', extension: { id: 'stage' } },
+          event: { id: 'directed-output' },
+        },
+      })
+
+      expect(decodeEvents(target.sent).filter(event => event.type === 'output:gen-ai:chat:message')).toHaveLength(1)
+      expect(decodeEvents(observer.sent).filter(event => event.type === 'output:gen-ai:chat:message')).toEqual([])
+    }
+    finally {
+      runtime.dispose()
+    }
+  })
+
+  // Module IDs can collide or change on a shared connection. Only the server knows the physical return address.
+  it('stamps each event with its sender connection and replaces a forged sender', () => {
+    const runtime = setupApp({ routing: { middleware: [() => ({ type: 'broadcast' })] } })
+    try {
+      const handler = wsHandler()
+      const host = createPeer('host')
+      const writer = createPeer('writer')
+      for (const client of [host, writer])
+        handler.open?.(client.peer)
+
+      sendEvent(handler, writer.peer, {
+        type: 'context:update',
+        data: { id: 'status', contextId: 'status', strategy: 'replace-self', text: 'status' },
+        metadata: { source: { id: 'writer', extension: { id: 'writer' } }, event: { id: 'writer-event' }, sender: { peerId: 'forged', modules: ['forged'] } },
+      } as WebSocketEvent)
+
+      expect(decodeEvents(host.sent).find(event => event.type === 'context:update')?.metadata.sender?.peerId).toBe('writer')
+    }
+    finally {
+      runtime.dispose()
+    }
+  })
+
   it('broadcasts extension module unhealthy events from better-ws liveness checks', () => {
     const runtime = setupApp({ heartbeat: { readTimeout: 20_000 } })
     const handler = wsHandler()
@@ -231,6 +376,52 @@ describe('setupApp websocket liveness', () => {
     runtime.dispose()
 
     expect(peer.peer.close).toHaveBeenCalledOnce()
+  })
+
+  // The host maps an event's origin connection to the module declaration, so the registry carries both.
+  it('lists each module with its connection and cognition declaration', () => {
+    const runtime = setupApp()
+    try {
+      const handler = wsHandler()
+      const observer = createPeer('observer')
+      const module = createPeer('module-connection')
+      handler.open?.(observer.peer)
+      handler.open?.(module.peer)
+      const announcement = createExtensionModuleAnnounceEvent()
+      if (announcement.type !== 'extension:module:announce')
+        throw new Error('Expected a module announcement')
+      const cognition = { scenes: [{ binding: 'discord:channel:' }] }
+      sendEvent(handler, module.peer, { ...announcement, data: { ...announcement.data, cognition } })
+
+      const syncs = decodeEvents(observer.sent).filter(event => event.type === 'registry:modules:sync')
+      expect(syncs.at(-1)?.data).toEqual({ modules: [expect.objectContaining({ name: 'memory', connectionId: 'module-connection', cognition })] })
+    }
+    finally {
+      runtime.dispose()
+    }
+  })
+
+  it('drops a module list forged by a peer', () => {
+    const runtime = setupApp()
+    try {
+      const handler = wsHandler()
+      const observer = createPeer('observer')
+      const forger = createPeer('forger')
+      handler.open?.(observer.peer)
+      handler.open?.(forger.peer)
+      observer.sent.length = 0
+
+      sendEvent(handler, forger.peer, {
+        type: 'registry:modules:sync',
+        data: { modules: [{ name: 'discord', identity: { kind: 'plugin', id: 'discord', plugin: { id: 'discord' } }, connectionId: 'forger' }] },
+        metadata: { source: { kind: 'plugin', id: 'forger', plugin: { id: 'forger' } }, event: { id: 'forged-sync' } },
+      })
+
+      expect(decodeEvents(observer.sent).filter(event => event.type === 'registry:modules:sync')).toEqual([])
+    }
+    finally {
+      runtime.dispose()
+    }
   })
 })
 

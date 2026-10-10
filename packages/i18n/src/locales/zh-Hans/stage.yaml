@@ -81,6 +81,30 @@ chat:
     listening: 正在聆听
     finalizing: 正在整理……
   voice-input: 语音输入
+  notice:
+    label: 后台通知
+  background-tasks:
+    label: 后台任务
+    stop: '停止{name}'
+    dismiss: '移除{name}'
+    status:
+      armed: 待触发
+      queued: 等待中
+      running: 正在执行
+      done: 已完成
+      failed: 失败
+      interrupted: 已停止
+  judgment:
+    label: 判断
+  recipe:
+    using: 正在启动配方
+    loaded: 使用配方
+    started: 交给了配方
+    pending: 配方等待批准
+    disabled: 配方已关闭
+    unknown: 没有这个配方
+    refused: 配方没有启动
+    failed: 配方没有启动
   error-details:
     show: 查看详情
     hide: 收起详情

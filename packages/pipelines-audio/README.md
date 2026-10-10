@@ -14,6 +14,11 @@ Shared audio-pipeline orchestration for AIRI. The package owns input sharing, ca
 - Provider credentials and product-specific error UI.
 - Browser sources and file encoding, which belong in `@proj-airi/audio`.
 
+## Speakable text
+
+`createSpeakableTextFilter` removes written-only markup from streamed text before speech. Code fenced with backticks or tildes is dropped, and inline code keeps its text.
+Heading, quote, and list markers at a line start are dropped. A link keeps its text and drops its address. Call `flush` after the last chunk.
+
 ## Input, capture, and observation
 
 `AudioInput` shares one `LiveAudioSource`, for example a microphone. The first subscriber opens the source, and the last one to leave closes it.

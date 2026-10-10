@@ -57,6 +57,15 @@ The stage answers the request. `getAsset` rejects when the asset is missing, whe
 The stage answers only a client that announced a module. The server tells the stage which connection asked, and the answer goes back to that connection only.
 - `client.onEvent()` returns an unsubscribe function
 
+Pass `cognition` to declare the module to the host. A module that serves external conversations declares its scenes:
+
+```typescript
+const client = new Client({
+  name: 'discord',
+  cognition: { scenes: [{ binding: 'discord:channel:' }] },
+})
+```
+
 ## License
 
 [MIT](../../LICENSE)

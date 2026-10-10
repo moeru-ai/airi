@@ -16,6 +16,7 @@ import ChatHistoryScrollContainer from './chat-history-scroll-container.vue'
 import ChatErrorItem from './error-item.vue'
 import ChatHistoryMessageFrame from './history-message-frame.vue'
 import ChatHistoryTimeSeparator from './history-time-separator.vue'
+import ChatNoticeItem from './notice-item.vue'
 import ChatUserItem from './user-item.vue'
 
 import { useChatHistoryScroll } from '../composables/use-chat-history-scroll'
@@ -116,6 +117,10 @@ function canReplyToMessage(message: ChatHistoryItem) {
     return false
 
   if (message.role !== 'assistant' && message.role !== 'user')
+    return false
+
+  // A notice is not a message from either side, so nobody replies to it.
+  if (message.role === 'user' && message.notice)
     return false
 
   if (message.role === 'assistant' && shouldShowPlaceholder(message) && showStreamingPlaceholder.value)
@@ -314,6 +319,11 @@ function emitToolCallRerun(
               @delete="emitDeleteMessage(message, index)"
               @reply="emitReplyMessage(message)"
               @tool-call-rerun="emitToolCallRerun(message, index, $event)"
+            />
+            <ChatNoticeItem
+              v-else-if="message.role === 'user' && message.notice"
+              :message="message"
+              :surface="surface"
             />
             <ChatUserItem
               v-else-if="message.role === 'user'"

@@ -10,6 +10,7 @@ import { createApp } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import { injectKeyPiniaSynced } from '../libs/pinia/synced-context'
+import { useMemoryStore } from '../stores/memory'
 import { useModsServerChannelStore } from '../stores/mods/api/channel-server'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useConsciousnessSettingsStore } from '../stores/modules/consciousness-settings'
@@ -20,6 +21,7 @@ import { useHearingStore } from '../stores/modules/hearing'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useTwitterStore } from '../stores/modules/twitter'
 import { useWebSearchStore } from '../stores/modules/web-search'
+import { useRecipesStore } from '../stores/recipes'
 import { useDataMaintenance } from './use-data-maintenance'
 
 const cleanups: Array<() => void> = []
@@ -109,6 +111,23 @@ it.each(['resetSettings', 'resetState'])('continues independent module resets wh
   expect(resetModules).toEqual(modules.map(module => module.$id))
   expect(useMinecraftStore(pinia).latestRuntimeContextText).toBe('')
   expect(useConsciousnessSettingsStore(leader.pinia).reasoning).toBe(action === 'resetState')
+})
+
+// ROOT CAUSE:
+// Deleting all data kept long-term memories and recipes, so the character still knew facts about the owner.
+it('forgets what the character learned when modules reset', async () => {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
+  const { pinia, runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
+  await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
+  const memory = useMemoryStore(pinia)
+  const recipes = useRecipesStore(pinia)
+  memory.write({ name: 'nickname', description: 'What the owner likes to be called.', body: 'Yumeka.' }, 'default')
+  recipes.add({ name: 'Check in', description: '', instructions: 'Greet softly.', triggers: [], enabled: true })
+
+  await maintenance.resetModulesSettings()
+
+  expect(memory.entries).toEqual([])
+  expect(recipes.recipes.filter(recipe => recipe.source === 'user')).toEqual([])
 })
 
 it('removes downloaded speech models when all data is deleted', async () => {

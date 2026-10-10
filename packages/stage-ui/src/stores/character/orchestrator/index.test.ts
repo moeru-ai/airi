@@ -1,4 +1,4 @@
-import type { Conversation } from '@proj-airi/core-agent'
+import type { Automation, Conversation } from '@proj-airi/core-agent'
 import type { WebSocketEventOf } from '@proj-airi/server-sdk'
 /* eslint-disable style/indent-binary-ops */
 /* eslint-disable style/operator-linebreak */
@@ -11,6 +11,7 @@ import type { StreamEvent } from '../../ai/chat-llm/llm'
 import type { AiriCard } from '../../modules'
 
 import { renderConversationPreview } from '@proj-airi/core-agent'
+import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { tool } from '@xsai/tool'
 import { nanoid } from 'nanoid'
 import { createPinia, setActivePinia } from 'pinia'
@@ -20,9 +21,15 @@ import { ref } from 'vue'
 import { sparkNotifyCommandSchema, useCharacterOrchestratorStore } from '.'
 import { useCharacterStore } from '..'
 import { useLLM } from '../../ai/chat-llm/llm'
+import { useChatStore } from '../../chat'
+import { useChatContextStore } from '../../chat/context-store'
+import { useChatSessionStore } from '../../chat/session-store'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
+import { useModuleDirectoryStore } from '../../mods/api/module-directory'
 import { useAiriCardStore, useConsciousnessStore } from '../../modules'
+import { useOwnerActivityStore } from '../../owner-activity'
 import { useProviderStore } from '../../providers/provider'
+import { useRecipesStore } from '../../recipes'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -353,5 +360,77 @@ describe('store character-orchestrator', () => {
     expect(String(renderedMessages?.[1])).toContain('Rendered board snapshot')
     expect(String(renderedMessages?.[1])).toContain('base.prompt.emotion')
     expect(String(renderedMessages?.[1])).toContain('base.prompt.emoji')
+  })
+
+  // ROOT CAUSE:
+  // Triggers reported to whatever conversation was open, a scene dropped the result, and event sources used unstable instance keys.
+  it('starts due recipes for an owner conversation and follows modules by name', async () => {
+    const chatSession = useChatSessionStore(pinia)
+    chatSession.sessionMetas = {
+      'owner-chat': { sessionId: 'owner-chat', userId: 'local', characterId: 'default', createdAt: 1, updatedAt: 5 },
+      'discord-scene': { sessionId: 'discord-scene', userId: 'local', characterId: 'default', bindings: ['discord:channel:a'], createdAt: 1, updatedAt: 9 },
+    }
+    chatSession.activeSessionId = 'discord-scene'
+    useModuleDirectoryStore(pinia).modules = [{ name: 'minecraft', identityId: 'bot-instance-7', connectionId: 'minecraft-connection' }]
+    const recipes = useRecipesStore(pinia)
+    recipes.add({ name: 'Game watch', description: '', instructions: 'Comment on the game.', triggers: [], automation: { triggers: [{ source: 'module', event: 'observation', module: 'minecraft' }], conditions: [] }, enabled: true })
+    // A started recipe runs a model request, so the test stops at the start and checks what the trigger asked for.
+    const startRecipe = vi.spyOn(useChatStore(pinia), 'startRecipe').mockResolvedValue({ status: 'started' })
+    const orchestrator = useCharacterOrchestratorStore(pinia)
+
+    await orchestrator.runAutomations(1_000)
+    useChatContextStore(pinia).ingestContextMessage({
+      id: 'status',
+      contextId: 'minecraft:status',
+      strategy: ContextUpdateStrategy.ReplaceSelf,
+      text: 'The player found diamonds.',
+      createdAt: 2_000,
+      metadata: { source: { id: 'bot-instance-7', kind: 'plugin', plugin: { id: 'minecraft' } } },
+    })
+    await orchestrator.runAutomations(3_000)
+
+    expect(startRecipe).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ name: 'Game watch' }),
+      { parentSessionId: 'owner-chat', task: expect.stringContaining('New observation from minecraft: The player found diamonds.') },
+    )
+  })
+  // "Remind me in 30 minutes unless I come back": the model set one automation without, and one with, a mouse idle condition.
+  it('starts an armed task once when its automation fires, and deletes one whose condition says no', async () => {
+    const minute = 60_000
+    const chatSession = useChatSessionStore(pinia)
+    const recipes = useRecipesStore(pinia)
+    recipes.add({ name: 'Remind me', description: '', instructions: 'Remind the owner.', triggers: [{ kind: 'keyword', keywords: ['提醒'] }], modelTimed: true, enabled: true })
+    const recipeId = recipes.recipes[0]!.id
+    const armedTask = (sessionId: string, automation: Automation) => ({
+      sessionId,
+      userId: 'local',
+      characterId: 'default',
+      hidden: true,
+      parentSessionId: 'owner-chat',
+      recipeId,
+      task: { status: 'armed' as const, startedAt: 0, armed: { automation, note: 'Drink water.' } },
+      createdAt: 0,
+      updatedAt: 0,
+    })
+    const inThirtyMinutes = { source: 'clock', event: 'every', minutes: 30 } as const
+    chatSession.sessionMetas = {
+      'owner-chat': { sessionId: 'owner-chat', userId: 'local', characterId: 'default', createdAt: 0, updatedAt: 0 },
+      'later': armedTask('later', { triggers: [inThirtyMinutes], conditions: [] }),
+      'unless-back': armedTask('unless-back', { triggers: [inThirtyMinutes], conditions: [{ kind: 'state', source: 'mouse', state: 'idle', minutes: 30 }] }),
+    }
+    chatSession.activeSessionId = 'owner-chat'
+    useOwnerActivityStore(pinia).markActive('mouse', 10 * minute)
+    const chat = useChatStore(pinia)
+    const startArmedTask = vi.spyOn(chat, 'startArmedTask').mockResolvedValue()
+    const discardArmedTask = vi.spyOn(chat, 'discardArmedTask').mockResolvedValue()
+    const orchestrator = useCharacterOrchestratorStore(pinia)
+
+    // The host started after the tasks were set. They still count from when they were set.
+    await orchestrator.runAutomations(29 * minute)
+    expect(startArmedTask).not.toHaveBeenCalled()
+    await orchestrator.runAutomations(30 * minute)
+
+    expect(startArmedTask).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ name: 'Remind me' }), 'later', expect.stringContaining('Your note: Drink water.'))
+    expect(discardArmedTask).toHaveBeenCalledExactlyOnceWith('unless-back')
   })
 })

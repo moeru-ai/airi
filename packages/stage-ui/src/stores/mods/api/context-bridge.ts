@@ -27,6 +27,7 @@ import { useContextObservabilityStore } from '../../devtools/context-observabili
 import { useConsciousnessStore } from '../../modules/consciousness'
 import { useModsServerChannelStore } from './channel-server'
 import { createContextChannel } from './context-channel'
+import { resolveInputScene, useModuleDirectoryStore } from './module-directory'
 
 export function normalizeContextSnapshot<C extends Pick<ChatStreamEventContext, 'contexts'>>(contexts: C): C {
   return {
@@ -40,6 +41,14 @@ export function normalizeContextSnapshot<C extends Pick<ChatStreamEventContext, 
         ]),
     ),
   }
+}
+
+/**
+ * Reads the logical readers of an input's side context. Array destinations route transport peers, so they never name readers.
+ * Side context without the object form belongs to the input's scene.
+ */
+function logicalReadersFrom(destinations: ContextMessage['destinations'], scene: string): ContextMessage['destinations'] {
+  return destinations && !Array.isArray(destinations) ? destinations : { include: [scene] }
 }
 
 export const useContextBridgeStore = defineStore('mods:api:context-bridge', () => {
@@ -56,6 +65,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
   const chatContext = useChatContextStore()
   const serverChannelStore = useModsServerChannelStore()
   const contextObservability = useContextObservabilityStore()
+  const moduleDirectory = useModuleDirectoryStore()
   const characterOrchestratorStore = useCharacterOrchestratorStore()
   const consciousnessStore = useConsciousnessStore()
   const { activeProvider, activeModel, activeTemperature, activeTopP } = storeToRefs(consciousnessStore)
@@ -597,6 +607,15 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       })
       disposeHookFns.value.push(stopSparkNotifyBridgeWatch)
 
+      disposeHookFns.value.push(moduleDirectory.listen())
+
+      // A module that leaves takes its observations with it.
+      disposeHookFns.value.push(serverChannelStore.onEvent('extension:module:de-announced', (event) => {
+        const sourceKey = getMetadataSourceLabel(event.data.identity)
+        if (sourceKey)
+          chatContext.removeContextWriter(sourceKey)
+      }))
+
       disposeHookFns.value.push(serverChannelStore.onContextUpdate((event) => {
         contextObservability.recordLifecycle({
           phase: 'server-received',
@@ -688,9 +707,17 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         const {
           text,
           textRaw,
-          overrides,
           contextUpdates,
         } = event.data
+
+        // A module that declares scenes reaches only those scenes. A module without scenes speaks for the owner.
+        // One connection can carry several modules, so the claimed identity picks the declaration on that connection.
+        const scene = resolveInputScene(moduleDirectory.senderOf(event.metadata?.sender?.peerId, event.metadata?.source?.id), event.data.overrides)
+        if (!scene.ok) {
+          console.warn('[context-bridge] Rejected input outside the sender\'s declared scenes:', scene.reason)
+          return
+        }
+        const overrides = scene.overrides
 
         const normalizedContextUpdates = contextUpdates?.map((update) => {
           const id = update.id ?? nanoid()
@@ -699,6 +726,8 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
             ...update,
             id,
             contextId,
+            // Input side context follows its scene unless the sender names readers.
+            destinations: logicalReadersFrom(update.destinations, overrides?.binding ?? overrides?.sessionId ?? chatSession.activeSessionId),
           }
         })
         const acceptedContextUpdates: typeof normalizedContextUpdates = normalizedContextUpdates ? [] : undefined
@@ -763,7 +792,6 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
         if (activeProvider.value && activeModel.value) {
           let messageText = text
-          const targetSessionId = overrides?.sessionId
 
           if (overrides?.messagePrefix) {
             messageText = `${overrides.messagePrefix}${text}`
@@ -793,8 +821,12 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           // - https://developer.mozilla.org/en-US/docs/Web/API/Web_Locks_API
           await withContextBridgeLock('context-bridge:event:input:text', async () => {
             try {
+              const targetSessionId = overrides?.binding
+                ? await chatSession.ensureBoundSession(overrides.binding)
+                : overrides?.sessionId ?? chatSession.activeSessionId
               await chatOrchestrator.send({
-                sessionId: targetSessionId ?? chatSession.activeSessionId,
+                sessionId: targetSessionId,
+                outputTarget: event.metadata?.sender?.peerId,
                 text: messageText,
                 temperature: activeTemperature.value,
                 topP: activeTopP.value,
@@ -872,31 +904,42 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           await contextChannel?.emitStream({ type: 'assistant-end', message, sessionId: context.sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
 
-        chatOrchestrator.onAssistantMessage(async (message, _messageText, context) => {
+        chatOrchestrator.onAssistantMessage(async (message, messageText, context) => {
+          if (remoteContexts.has(context))
+            return
+          // Directed output does not broadcast the reply, so other renderers, such as a devtools window, observe it through the same-origin channel.
+          await contextChannel?.emitStream({ type: 'assistant-message', message: structuredClone(toRaw(message)), messageText, sessionId: context.sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          // Local turns have no external recipient. Internal prompt snapshots never leave the host through chat output.
+          // A reply returns only to the connection that sent its message.
+          if (!context.outputTarget)
+            return
           // The stored user message of the turn holds its images and recordings as asset references.
           const userMessage = chatSession.getSessionMessagesIfLoaded(context.sessionId)?.find(item => item.id === context.turnId)
           const attachments = chatEventAttachmentsOf(userMessage)
           serverChannelStore.send({
             type: 'output:gen-ai:chat:message',
+            route: { destinations: [{ type: 'connection', connections: [context.outputTarget] }] },
             data: {
               ...context.input?.data,
               message,
               'stage-web': isStageWeb(),
               'stage-tamagotchi': isStageTamagotchi(),
-              'gen-ai:chat': {
-                message: context.message as UserMessage,
-                composedMessage: context.composedMessage,
-                contexts: context.contexts,
-                input: context.input,
-                ...(attachments.length ? { attachments } : {}),
-              },
+              // Receivers read the media of their own message here. The prompt snapshot and contexts stay on the host.
+              ...(attachments.length ? { 'gen-ai:chat': { message: context.message as UserMessage, attachments } } : {}),
             },
           })
         }),
 
         chatOrchestrator.onChatTurnComplete(async (chat, context) => {
+          if (remoteContexts.has(context))
+            return
+          await contextChannel?.emitStream({ type: 'chat-turn-complete', chat: structuredClone(toRaw(chat)), sessionId: context.sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          // A reply returns only to the connection that sent its message.
+          if (!context.outputTarget)
+            return
           serverChannelStore.send({
             type: 'output:gen-ai:chat:complete',
+            route: { destinations: [{ type: 'connection', connections: [context.outputTarget] }] },
             data: {
               ...context.input?.data,
               'message': chat.output,
@@ -910,12 +953,6 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
                 completionTokens: 0,
                 totalTokens: 0,
                 source: 'estimate-based',
-              },
-              'gen-ai:chat': {
-                message: context.message as UserMessage,
-                composedMessage: context.composedMessage,
-                contexts: context.contexts,
-                input: context.input,
               },
             },
           })
@@ -954,6 +991,13 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
               break
             case 'after-send':
               await chatOrchestrator.emitAfterSendHooks(event.message, event.context)
+              break
+            // Observation hooks only. They change no stream state in this renderer.
+            case 'assistant-message':
+              await chatOrchestrator.emitAssistantMessageHooks(event.message, event.messageText, event.context)
+              break
+            case 'chat-turn-complete':
+              await chatOrchestrator.emitChatTurnCompleteHooks(event.chat, event.context)
               break
             case 'token-literal':
               if (!current || guard.completed)

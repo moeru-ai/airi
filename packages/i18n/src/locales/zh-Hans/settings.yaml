@@ -835,6 +835,173 @@ pages:
               如果您的提供商没有返回 verbose_json 结果。置信度阈值将不会影响转录。
     memory-long-term:
       description: 长期记忆
+      enable: 使用长期记忆
+      enable-description: 角色可以保存、读取和忘掉记忆。关闭后，提示词里不会有任何记忆。
+      memories:
+        title: 记忆
+        description: 这些事实由角色自己维护，记在各自的角色卡上，其他角色卡读不到。把某一条设为通用后，每张角色卡都能读到。你可以在这里删除任意一条。
+        empty: 还没有记忆。
+        forget: '忘掉{name}'
+        make_general: '把{name}设为通用'
+        general: 通用记忆
+        entry:
+          title: 记忆
+          description: 每张角色卡的记忆，以及所有角色卡都能读到的通用记忆。
+      recipes:
+        title: 配方
+        empty: 还没有配方。
+        sources:
+          user: 你创建的
+          model: 模型提议的
+        pending: 等待你批准。批准一次之后，使用时不再询问。
+        approve: 批准
+        remove: 删除
+        add:
+          name: 名称
+          description: 什么时候使用
+          instructions: 怎么做
+          keywords:
+            label: 触发关键词
+            description: 用逗号分隔。消息里出现其中一个时，会提示角色使用这个配方。
+          submit: 添加
+        decision:
+          question: 问题
+          type:
+            label: 回答类型
+            noul: 是或否
+            choice: 从选项中选一个
+            score: 按等级打分
+          yes_means: “是”表示
+          no_means: “否”表示
+          option: 选项含义
+          level: 等级含义（从低到高）
+          add_option: 添加回答
+          remove_option: 删除
+          action:
+            label: 然后
+            reply: 照常回复
+            stay_quiet: 读了但不回复
+            hint: 给回复加一条提示
+            recipe: 指向另一个配方
+          hint_text: 提示
+          target_recipe: 配方
+          keywords: 用逗号分隔。消息里出现其中一个时，才会进行判断。
+          note: 关键词出现后，角色会结合整段对话回答这个问题。它一定会选定一个答案，并执行这个答案对应的动作。
+        entry:
+          title: 配方
+          description: 角色可以使用的技能、启动它们的触发器，以及等待你批准的提议。
+        add_button: 添加配方
+        types:
+          title: 选择配方类型
+          instructions:
+            title: 指令
+            description: 合适时角色会载入的做法。可以用关键词提示，聊天里会显示每次使用。
+          decision:
+            title: 判断
+            description: 关键词命中后，角色在回复之前回答的一道题。每个回答可以对应不同的动作。
+        styles:
+          instructions: 指令
+          decision: 判断
+        cancel: 取消
+        edit: 编辑
+        save: 保存
+        enabled: '使用{name}'
+        keywords_summary: '关键词：{words}'
+        tabs:
+          conversation: 对话中
+          auto_run: 自动运行
+          conversation_description: 角色在对话里使用的配方。它们只在有消息时起作用。
+          auto_run_description: 不用你发消息、按触发条件自己开始的配方。每次运行都会调用一次模型。全部关闭时，不会有任何调用。
+        background:
+          label: 在后台运行
+          description: 适合有结果的任务，比如调研。它在自己的空间里运行，结果之后交回对话。不勾选时，角色在对话里照着步骤做。
+          tag: 后台运行
+        grants: '批准后它可以：{what}'
+        proposals:
+          label: 允许角色提议配方
+          description: 你让它创建配方时，它会保存为提议，每个提议都要你批准。关掉后它无法提议任何配方。
+        auto_run:
+          title: 自动运行的配方
+          timing:
+            label: 什么时候运行
+            owner: 按我设定的触发器
+            model: 由模型使用该配方时决定
+            keywords: 你的消息里有这些词时，模型会决定这个配方什么时候运行。它设定的每次运行只运行一次。你要求重复运行时，会变成一个新配方，等你批准。
+          flow:
+            owner: 按我写的指令
+            model: 由模型每次决定
+          triggers:
+            label: 触发器
+            description: 任何一个触发器都会启动下面的检查。
+            add: 添加触发器
+            remove: 删除触发器
+          conditions:
+            label: 条件
+            description: 可选。触发器触发时，每个条件都要成立，否则这次跳过。
+            add: 添加条件
+            remove: 删除条件
+          source:
+            label: 来源
+            clock: 时钟
+            chat: 聊天
+            mouse: 鼠标
+            keyboard: 键盘
+            module: 已注册的模块
+          event:
+            label: 事件
+            at: 到某个时间
+            every: 每隔一段时间
+            message: 我发消息时
+            idle: 安静一段时间后
+            active: 有操作时
+            observation: 有新观察时
+          time:
+            label: 时间
+            description: 按本机时间。
+          days:
+            label: 星期
+            description: 一天都不选就是每天。
+          minutes:
+            label: 分钟
+            every: 每隔多少分钟开始一次。
+            idle: 多少分钟没有操作后触发。每段安静只触发一次，等到下次操作后重新计时。
+          after_idle:
+            label: 只在离开后（分钟）
+            description: 只在这么多分钟没有操作后的第一次操作时触发。填 0 表示每次操作都触发。桌面版里，在任何软件里的操作都算。
+          module:
+            label: 模块
+            description: 已在 AIRI 注册的模块。
+            none: 还没有模块注册。先连接一个会上报观察的模块，再回来选择。
+          condition:
+            label: 检查
+            time: 时间范围
+            weekday: 星期几
+            state: 安静或有操作
+            from: 从
+            to: 到
+            range: 结束早于开始时，范围跨过午夜。
+            state_label: 状态
+            idle: 至少安静了
+            active: 这段时间内有操作
+          cooldown:
+            label: 冷却（分钟）
+            description: 两次运行之间的最短间隔。填 0 表示不限。
+          summary:
+            at: '每天 {time}'
+            at_days: '{days} {time}'
+            every: '每 {minutes} 分钟'
+            message: 你发消息时
+            idle: '{source}安静 {minutes} 分钟后'
+            active: '{source}有操作时'
+            back: '离开 {minutes} 分钟后{source}有操作时'
+            observation: '{module} 上报时'
+            time: '仅限 {from}–{to}'
+            weekday: '仅限{days}'
+            state_idle: '仅当{source}安静了 {minutes} 分钟'
+            state_active: '仅当{source} {minutes} 分钟内有操作'
+            cooldown: '最多每 {minutes} 分钟一次'
+            model: 由模型决定时机，每次只运行一次
+            model_flow: 每次做什么由模型决定
       title: 长期记忆
     memory-short-term:
       description: 短期记忆

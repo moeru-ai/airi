@@ -7,12 +7,16 @@ import type { ChatToolCallRendererRegistry } from './tool-call-renderer'
 import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
 import { computed } from 'vue'
 
+import JudgeCallBlock from './judge-call-block.vue'
+import RecipeCallBlock from './recipe-call-block.vue'
 import ChatReplyQuote from './reply-quote.vue'
 import ResponseCitations from './response-citations.vue'
 import ChatResponsePart from './response-part.vue'
 import ChatSticker from './sticker.vue'
 import ChatToolCallBlock from './tool-call-block.vue'
 
+import { JUDGE_RECIPE_TOOL_NAME } from '../../../../tools/judge-recipe'
+import { USE_RECIPE_TOOL_NAME } from '../../../../tools/use-recipe'
 import { MarkdownRenderer } from '../../../markdown'
 import { getChatHistoryItemCopyText } from '../utils'
 import { ChatActionMenu } from './action-menu'
@@ -44,6 +48,12 @@ const emit = defineEmits<{
   (e: 'reply'): void
   (e: 'toolCallRerun', payload: ToolCallRerunRequest): void
 }>()
+
+/** Renderers that every chat surface shares. A runtime registry can still replace them. */
+const builtinToolCallRenderers: ChatToolCallRendererRegistry = {
+  [USE_RECIPE_TOOL_NAME]: RecipeCallBlock,
+  [JUDGE_RECIPE_TOOL_NAME]: JudgeCallBlock,
+}
 
 const resolvedSlices = computed<ChatSlices[]>(() => {
   if (props.message.slices?.length) {
@@ -102,7 +112,7 @@ function getToolCallRenderer(slice: ChatSlices) {
     return ChatToolCallBlock
   }
 
-  return props.toolCallRenderers[slice.toolCall.toolName] ?? ChatToolCallBlock
+  return props.toolCallRenderers[slice.toolCall.toolName] ?? builtinToolCallRenderers[slice.toolCall.toolName] ?? ChatToolCallBlock
 }
 
 const showLoader = computed(() => props.showPlaceholder && resolvedSlices.value.length === 0)

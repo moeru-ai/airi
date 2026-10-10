@@ -1,17 +1,17 @@
-import type { ChatAttachment, ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, Conversation, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
+import type { Automation, ChatAttachment, ChatInvokedSkill, ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, ContextReader, Conversation, Recipe, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
 import type { Message } from '@xsai/shared-chat'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
 import type { ChatHistoryItem, ChatToolReference } from '../types/chat'
-import type { StoredVoiceInterruption } from '../types/chat-session'
+import type { ChatSessionTaskStatus, StoredVoiceInterruption } from '../types/chat-session'
 import type { ToolCallRerunPayload } from './tool-call-rerun'
 
 import { errorMessageFrom } from '@moeru/std'
 import { decodeBase64 } from '@moeru/std/base64'
 import { fileSource } from '@proj-airi/audio/encoding'
-import { createChatOrchestratorRuntime, renderConversationPreview } from '@proj-airi/core-agent'
+import { createChatOrchestratorRuntime, isBackgroundRecipe, matchKeywordRecipes, renderConversationPreview } from '@proj-airi/core-agent'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -32,6 +32,11 @@ import {
   AIRI_CHAT_SESSION_ID_HEADER,
 } from '../libs/product-signals/headers'
 import { getSpeechBusContext, voiceGenerationEnded } from '../services/speech/bus'
+import { ARM_RECIPE_TOOL_NAME, createArmRecipeTool } from '../tools/arm-recipe'
+import { createJudgeRecipeTool, judgmentSkillText } from '../tools/judge-recipe'
+import { composeMemoryPrompt, createMemoryTools } from '../tools/memory'
+import { createProposeRecipeTool } from '../tools/propose-recipe'
+import { createUseRecipeTool } from '../tools/use-recipe'
 import { useLLM } from './ai/chat-llm/llm'
 import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
@@ -40,9 +45,12 @@ import { useAuthStore } from './auth'
 import { createMinecraftContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { describeChatImages, replaceToolResultImages } from './chat/image-projection'
+import { composeRecipeSpacePrompt, composeSystemPrompt } from './chat/prompt-recipe'
+import { staysLocal } from './chat/session-locality'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
 import { useContextObservabilityStore } from './devtools/context-observability'
+import { useMemoryStore } from './memory'
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
@@ -50,6 +58,7 @@ import { useHearingStore } from './modules/hearing'
 import { useStickersStore } from './modules/stickers'
 import { useVisionStore } from './modules/vision'
 import { useWebSearchStore } from './modules/web-search'
+import { useRecipesStore } from './recipes'
 import { executeToolCallRerun } from './tool-call-rerun'
 
 interface ForkOptions {
@@ -67,6 +76,8 @@ export interface ChatSendPayload {
   attachments?: ChatAttachment[]
   /** Original input metadata for chat hooks and telemetry. */
   input?: WebSocketEventInputs
+  /** Server connection for this reply. Local turns have no transport target. */
+  outputTarget?: ChatOrchestratorSendOptions['outputTarget']
   /** Session that owns the new turn. */
   sessionId: string
   /** Message that the new user turn replies to in the target session. */
@@ -86,6 +97,38 @@ export interface ChatSendPayload {
   temperature?: number
   /** Request-specific top_p override. */
   topP?: number
+}
+
+/** One background task for the task list: its own session, its recipe, and where it stands. */
+export interface BackgroundTask {
+  sessionId: string
+  recipeName: string
+  status: ChatSessionTaskStatus
+  /** The running turn, while the task runs. */
+  turnId?: string
+}
+
+/** Whether a background task still waits for its automation, waits in the queue, or runs. */
+export function isOpenTask(status: ChatSessionTaskStatus) {
+  return status === 'armed' || status === 'queued' || status === 'running'
+}
+
+/**
+ * Finished tasks whose sessions stay, so the task list can show how they ended. Older ones are deleted.
+ * The result already reached the conversation as a stored notice, so nothing else reads these sessions.
+ */
+const KEPT_FINISHED_TASKS = 3
+
+/**
+ * Characters of a background result that the notice keeps. The notice stays in the conversation history, so a long result is cut and marked as cut.
+ * The task session does not keep the rest for long, because old task sessions are deleted.
+ */
+const RECIPE_RESULT_NOTICE_LIMIT = 1500
+
+/** Cuts a background result to the notice limit and says so, so the conversation never mistakes a cut result for the whole one. */
+function noticeResultText(text: string) {
+  const trimmed = text.trim()
+  return trimmed.length > RECIPE_RESULT_NOTICE_LIMIT ? `${trimmed.slice(0, RECIPE_RESULT_NOTICE_LIMIT)}\n[The result was cut here.]` : trimmed
 }
 
 /** The durable messages appended while one chat request executes. */
@@ -230,6 +273,13 @@ export const useChatStore = defineStore('chat', () => {
   const chatStream = useChatStreamStore()
   const chatContext = useChatContextStore()
   const cardStore = useAiriCardStore()
+  const recipes = useRecipesStore()
+  const memory = useMemoryStore()
+
+  /** The persona of a session. A session without one uses the selected card. */
+  function personaOf(sessionId: string) {
+    return chatSession.sessionMetas[sessionId]?.characterId || cardStore.activeCardId || 'default'
+  }
   const stickersStore = useStickersStore()
   const contextObservability = useContextObservabilityStore()
   const { activeSessionId } = storeToRefs(chatSession)
@@ -240,6 +290,24 @@ export const useChatStore = defineStore('chat', () => {
   const activeSendSessionId = shallowRef<string>()
   const activeStreamingMessage = computed(() => chatStream.activeTurns.find(turn => turn.sessionId === activeSendSessionId.value)?.message)
   const pendingQueuedSendCount = shallowRef(0)
+  // A turn in a recipe's own session is a background task, so every window can show and stop it.
+  // Each task has its own recipe session, and the session keeps its status. Every window reads the list from the session metas.
+  const backgroundTasks = computed<BackgroundTask[]>(() => {
+    const tasks = Object.values(chatSession.sessionMetas)
+      .flatMap((meta): BackgroundTask[] => meta.recipeId && meta.task
+        ? [{
+            sessionId: meta.sessionId,
+            recipeName: recipes.recipes.find(entry => entry.id === meta.recipeId)?.name ?? meta.title ?? meta.recipeId,
+            status: meta.task.status,
+            turnId: activeTurns.value.find(turn => turn.sessionId === meta.sessionId)?.turnId,
+          }]
+        : [])
+      .sort((left, right) => (chatSession.sessionMetas[right.sessionId]?.task?.startedAt ?? 0) - (chatSession.sessionMetas[left.sessionId]?.task?.startedAt ?? 0))
+    const open = tasks.filter(task => isOpenTask(task.status))
+    return [...open, ...tasks.filter(task => !open.includes(task))]
+  })
+  // Background tasks run one at a time in this leader. Owner input never waits for them, because it runs in its own session.
+  let backgroundQueue: Promise<void> = Promise.resolve()
   let ownedActiveTurnSpan: typeof activeTurnSpan.value
   let stopLeadershipListener: (() => void) | undefined
   const analyticsHooks = createChatAnalyticsHooks({
@@ -260,9 +328,15 @@ export const useChatStore = defineStore('chat', () => {
       void chatSession.ensureCurrentSession().catch((error) => {
         console.error('[chat] Failed to start chat consumers after leader promotion:', error)
       })
+      void interruptOrphanedTasks().catch((error) => {
+        console.warn('[chat] Failed to mark interrupted background tasks:', errorMessageFrom(error))
+      })
     })
 
     await chatSession.initialize()
+    // The leadership callback can run before the session index loads, so the leader checks again once it has loaded.
+    if (syncedPinia.isLeader())
+      await interruptOrphanedTasks()
   }
 
   /** Stops chat consumers that belong to this window. */
@@ -294,6 +368,294 @@ export const useChatStore = defineStore('chat', () => {
       failedImageReads.set(sessionId, reads)
     }
     return reads
+  }
+
+  /** Whether a session is the owner's own conversation: it has no scene binding. */
+  function isOwnerSession(sessionId: string) {
+    return !chatSession.sessionMetas[sessionId]?.bindings?.length
+  }
+
+  /** Session bindings select the scene that a request reads. An unbound session reads the owner scene. */
+  function contextReaderFor(sessionId: string): ContextReader {
+    const bindings = chatSession.sessionMetas[sessionId]?.bindings
+    return bindings?.length
+      ? { ids: [sessionId, ...bindings], owner: false }
+      : { ids: [sessionId, 'character'], owner: true }
+  }
+
+  /**
+   * Tells a conversation about finished background work. The main agent reads the notice and decides what to say, or stays quiet.
+   * Only the owner's own conversation gets a notice, so background results never reach a scene.
+   */
+  async function notifyConversation(sessionId: string, notice: { source: string, text: string }) {
+    if (!isOwnerSession(sessionId))
+      return
+    try {
+      await executeSend({ sessionId, text: notice.text }, { notice: { source: notice.source } })
+    }
+    catch (error) {
+      console.warn('[chat] Failed to deliver a notice:', errorMessageFrom(error))
+    }
+  }
+
+  /** Whether a session is a background task's own space. */
+  function isTaskSession(sessionId: string) {
+    return Boolean(chatSession.sessionMetas[sessionId]?.recipeId)
+  }
+
+  /** Whether a turn answers the owner: not a background task, and not a reply to a stored notice. */
+  function isOwnerTurn(sessionId: string, sessionMessages: ChatHistoryItem[]) {
+    const lastUserMessage = sessionMessages.findLast(message => message.role === 'user')
+    return !isTaskSession(sessionId) && (lastUserMessage?.role !== 'user' || !lastUserMessage.notice)
+  }
+
+  /** Whether a session reaches cloud sync. A local-only session, such as a task or a scene, never syncs. */
+  function syncsToCloud(sessionId: string) {
+    const meta = chatSession.sessionMetas[sessionId]
+    return Boolean(meta && !staysLocal(meta))
+  }
+
+  /** Runs one queued task: its own send without voice, then its status and a notice to the parent conversation. */
+  async function runBackgroundTask(recipe: Recipe, sessionId: string, request: { parentSessionId: string, task: string, tools: ChatToolReference[] }) {
+    // The owner can stop a task while it waits.
+    if (!await chatSession.setSessionTask(sessionId, { status: 'running' }, ['queued']))
+      return
+    const notify = (ok: boolean, text: string) => notifyConversation(request.parentSessionId, {
+      source: `recipe:${recipe.name}`,
+      text: `${ok ? `The background task "${recipe.name}" finished.` : `The background task "${recipe.name}" could not finish.`}\n${noticeResultText(text)}`,
+    })
+    // A cancelled send ends without an error. Only the change that moves the task out of `running` reports, so a stopped task never reports a result.
+    try {
+      // A stop can land while the status write settles. The send registers in the same step as this check, so any later stop aborts it.
+      if (chatSession.sessionMetas[sessionId]?.task?.status !== 'running')
+        return
+      await startSend({ sessionId, text: request.task, tools: request.tools }, false, { background: true }).done
+      const reply = chatSession.getSessionMessagesIfLoaded(sessionId)?.findLast(message => message.role === 'assistant')
+      const text = reply ? extractMessageText(reply).trim() : ''
+      // A run with nothing to say, for example because its steps told it to stop, ends without a notice.
+      if (await chatSession.setSessionTask(sessionId, { status: 'done', endedAt: Date.now() }, ['running']) && text)
+        void notify(true, text)
+    }
+    catch (error) {
+      if (await chatSession.setSessionTask(sessionId, { status: 'failed', endedAt: Date.now() }, ['running']))
+        void notify(false, errorMessageFrom(error) ?? 'The recipe run failed')
+    }
+    finally {
+      await pruneFinishedTasks()
+    }
+  }
+
+  /**
+   * Queues a task recipe in a new session of its own, without voice. Each task starts with an empty history.
+   * Resolves once the task is queued or refused. When it settles, its result reaches the parent conversation as a notice.
+   */
+  async function startRecipe(recipe: Recipe, request: { parentSessionId: string, task: string }): Promise<{ status: 'started' } | { status: 'refused', reason: string }> {
+    // An empty send never runs, so an empty task ends as done without doing anything.
+    if (!request.task.trim())
+      return { status: 'refused', reason: 'A background recipe needs a task.' }
+    const tools = recipeRunTools()
+    let sessionId: string
+    try {
+      sessionId = await chatSession.createSession(personaOf(request.parentSessionId), {
+        setActive: false,
+        hidden: true,
+        title: recipe.name,
+        parentSessionId: request.parentSessionId,
+        recipeId: recipe.id,
+        task: { status: 'queued', startedAt: Date.now() },
+      })
+    }
+    catch (error) {
+      return { status: 'refused', reason: errorMessageFrom(error) ?? 'The recipe space could not open' }
+    }
+    queueBackgroundTask(recipe, sessionId, { ...request, tools })
+    return { status: 'started' }
+  }
+
+  function queueBackgroundTask(recipe: Recipe, sessionId: string, request: { parentSessionId: string, task: string, tools: ChatToolReference[] }) {
+    backgroundQueue = backgroundQueue.then(() => runBackgroundTask(recipe, sessionId, request)).catch((error: unknown) => {
+      console.warn('[chat] Background task failed:', errorMessageFrom(error))
+    })
+  }
+
+  /**
+   * Arms a model-timed recipe: a task in its own session that waits for the automation that the model set.
+   * The automation check starts it once when a trigger fires. Until then, the task list shows it, and the owner can stop it.
+   */
+  async function armRecipe(recipe: Recipe, request: { parentSessionId: string, automation: Automation, note: string }): Promise<{ status: 'armed' } | { status: 'refused', reason: string }> {
+    try {
+      await chatSession.createSession(personaOf(request.parentSessionId), {
+        setActive: false,
+        hidden: true,
+        title: recipe.name,
+        parentSessionId: request.parentSessionId,
+        recipeId: recipe.id,
+        task: { status: 'armed', startedAt: Date.now(), armed: { automation: request.automation, note: request.note } },
+      })
+      return { status: 'armed' }
+    }
+    catch (error) {
+      return { status: 'refused', reason: errorMessageFrom(error) ?? 'The recipe space could not open' }
+    }
+  }
+
+  /**
+   * Queues an armed task whose automation fired. It runs once and ends, so it is the owner's request, later.
+   * It gets the tools that the owner granted to that request, and needs no second approval.
+   */
+  async function startArmedTask(recipe: Recipe, sessionId: string, task: string) {
+    const parentSessionId = chatSession.sessionMetas[sessionId]?.parentSessionId
+    if (parentSessionId && await chatSession.setSessionTask(sessionId, { status: 'queued', startedAt: Date.now() }, ['armed']))
+      queueBackgroundTask(recipe, sessionId, { parentSessionId, task, tools: recipeRunTools() })
+  }
+
+  /** Deletes an armed task whose one event fired without a run, because a condition said no. */
+  async function discardArmedTask(sessionId: string) {
+    if (chatSession.sessionMetas[sessionId]?.task?.status === 'armed')
+      await deleteTaskSession(sessionId)
+  }
+
+  /** Stops a background task. An armed or waiting task never starts, and a running one is cancelled without a result. */
+  async function stopBackgroundTask(sessionId: string) {
+    if (!await chatSession.setSessionTask(sessionId, { status: 'interrupted', endedAt: Date.now() }, ['armed', 'queued', 'running']))
+      return
+    // The task can still be preparing, before its turn is active, so every request of its session stops.
+    abortSessionRequests(sessionId, new DOMException('Background task stopped', 'AbortError'))
+    const turn = activeTurns.value.find(entry => entry.sessionId === sessionId)
+    if (turn)
+      await cancelTurn(turn)
+  }
+
+  /** Removes a finished task from the list, with its session. */
+  async function dismissBackgroundTask(sessionId: string) {
+    const status = chatSession.sessionMetas[sessionId]?.task?.status
+    if (status && !isOpenTask(status))
+      await deleteTaskSession(sessionId)
+  }
+
+  /** Deletes a finished task's hidden session. It never moves the selected conversation. */
+  async function deleteTaskSession(sessionId: string) {
+    failedImageReads.delete(sessionId)
+    await chatSession.deleteHiddenSession(sessionId)
+  }
+
+  /** Deletes the sessions of finished tasks beyond the newest few, so periodic recipes never grow storage. */
+  async function pruneFinishedTasks() {
+    const finished = Object.values(chatSession.sessionMetas)
+      .filter(meta => meta.recipeId && meta.task && !isOpenTask(meta.task.status))
+      .sort((left, right) => (right.task?.endedAt ?? 0) - (left.task?.endedAt ?? 0))
+    for (const meta of finished.slice(KEPT_FINISHED_TASKS))
+      await deleteTaskSession(meta.sessionId)
+  }
+
+  /**
+   * A new leader has no queue, so tasks that waited or ran in an earlier leader are interrupted.
+   * Only this leader's own requests count. Replicated turns can still name a turn of the leader that left.
+   */
+  async function interruptOrphanedTasks() {
+    for (const meta of Object.values(chatSession.sessionMetas)) {
+      const status = meta.task?.status
+      if (status && isOpenTask(status) && !hasLocalRequest(meta.sessionId))
+        await chatSession.setSessionTask(meta.sessionId, { status: 'interrupted', endedAt: Date.now() }, ['queued', 'running'])
+    }
+    await pruneFinishedTasks()
+  }
+
+  /**
+   * Tools that a recipe run can use: every registered tool, computer use included.
+   * The owner approved the recipe, or asked for this one run, so a recipe run uses the tools of the app.
+   */
+  function recipeRunTools(): ChatToolReference[] {
+    return llmToolsStore.tools.map(tool => ({ name: tool.function.name }))
+  }
+
+  /** Whether a send answers the owner's own message in the owner's conversation: not a notice, a scene output, or a task. */
+  function isOwnerSend(payload: ChatSendPayload, extra: HostSendOptions) {
+    return !extra.notice && !payload.outputTarget && isOwnerSession(payload.sessionId) && !chatSession.sessionMetas[payload.sessionId]?.recipeId
+  }
+
+  /**
+   * Recipes that the owner's message invokes by keyword, like a slash command.
+   * Only the owner's own conversation invokes them, and a notice never does.
+   */
+  function keywordRecipesFor(payload: ChatSendPayload, extra: HostSendOptions) {
+    if (!isOwnerSend(payload, extra))
+      return []
+    return matchKeywordRecipes(recipes.usable, payload.text).filter(recipe => recipe.instructions.trim() || recipe.decision || recipe.modelFlow)
+  }
+
+  /**
+   * Recipes that a send can act on: those that the owner invoked by keyword in this conversation, now or in an earlier message,
+   * and those that their decisions lead to. The owner can answer a question in a later message without the keyword.
+   * A notice or a task never answers the owner, so it never judges or arms anything.
+   */
+  function reachableRecipesFor(payload: ChatSendPayload, extra: HostSendOptions, invoked: readonly Recipe[]) {
+    if (!isOwnerSend(payload, extra))
+      return []
+    const invokedEarlier = new Set(chatSession.getSessionMessages(payload.sessionId).flatMap(message => message.role === 'user' ? message.skills?.map(skill => skill.name) ?? [] : []))
+    const reached = recipes.usable.filter(recipe => invoked.some(entry => entry.id === recipe.id) || invokedEarlier.has(recipe.name))
+    // An answer can lead to another recipe, so follow the actions until nothing new appears.
+    for (let index = 0; index < reached.length; index++) {
+      for (const action of Object.values(reached[index]!.decision?.actions ?? {})) {
+        const target = action.kind === 'recipe' ? recipes.usable.find(recipe => recipe.id === action.recipeId) : undefined
+        if (target && !reached.includes(target))
+          reached.push(target)
+      }
+    }
+    return reached
+  }
+
+  /**
+   * What each invoked recipe gives the owner's message. It is stored with the message, so later replies keep it.
+   * A background recipe keeps its steps in its own space, so the message only says that it runs.
+   * A model-timed recipe runs later, so the message asks the model to set when.
+   * A decision gives only its question and answers. The judgment tool feeds what follows the answer.
+   */
+  function invokedSkillsOf(invoked: readonly Recipe[]): ChatInvokedSkill[] | undefined {
+    if (!invoked.length)
+      return undefined
+    return invoked.map(recipe => ({
+      name: recipe.name,
+      instructions: recipe.decision
+        ? judgmentSkillText(recipe)
+        : recipe.modelTimed
+          ? [
+              `It runs later. Set when with ${ARM_RECIPE_TOOL_NAME}, only from the owner's words, and add nothing that the owner did not ask for. If the owner gave no time or event, ask. Do not do its task now. Reply briefly when it is set.`,
+              recipe.modelFlow
+                ? `When it runs, it decides what to do from the owner's words and its purpose: ${recipe.description.trim()}`
+                : `When it runs, it follows these steps:\n${recipe.instructions.trim()}`,
+            ].join('\n')
+          : isBackgroundRecipe(recipe)
+            ? 'It runs in the background for this message, and its result reaches you later. Reply briefly, and do not do its task yourself.'
+            : recipe.instructions.trim(),
+    }))
+  }
+
+  /**
+   * Adds the run tools: memory for the session's persona, and the recipe tools in the owner's own conversation.
+   * They stay in every request of the session, so the tool list stays stable across turns.
+   */
+  function withRunTools(tools: StreamOptions['tools'], correlation: StreamOptions['requestCorrelation']): StreamOptions['tools'] {
+    if (!correlation)
+      return tools
+    const { conversationId: sessionId } = correlation
+    // Each character card keeps its own memories and reads the general ones. A scene's card keeps its own as well.
+    const persona = personaOf(sessionId)
+    const sourceTools = async () => [
+      ...(typeof tools === 'function' ? await tools() ?? [] : tools ?? []),
+      ...memory.enabled ? await createMemoryTools({ read: name => memory.read(name, persona), write: entry => memory.write(entry, persona), forget: name => memory.forget(name, persona) }) : [],
+    ]
+    // A recipe's own session runs only that recipe. It cannot start recipes, save them, or choose silence.
+    if (chatSession.sessionMetas[sessionId]?.recipeId)
+      return sourceTools
+    // Only the owner's private conversations start or save recipes. Each recipe runs in its own space.
+    const ownerOnly = isOwnerSession(sessionId)
+    return async () => [
+      ...await sourceTools(),
+      ...(ownerOnly ? await createUseRecipeTool({ recipes: () => recipes.recipes, start: (recipe, task) => startRecipe(recipe, { parentSessionId: sessionId, task }) }) : []),
+      // The owner can turn proposals off. Every proposal waits for the owner's approval.
+      ...(ownerOnly && recipes.proposalsEnabled ? await createProposeRecipeTool({ propose: recipe => recipes.propose(recipe) }) : []),
+    ]
   }
 
   async function streamWithStageAdapters(
@@ -474,6 +836,7 @@ export const useChatStore = defineStore('chat', () => {
     try {
       await llmStore.stream(model, chatProvider, providerContext, {
         ...options,
+        tools: withRunTools(options?.tools, options?.requestCorrelation),
         prepareStringContent: prepareTextOnlyAudioContext,
         headers,
         describeToolImage,
@@ -559,11 +922,11 @@ export const useChatStore = defineStore('chat', () => {
     },
     context: {
       ingest: envelope => chatContext.ingestContextMessage(envelope),
-      snapshot: () => {
-        const snapshot = { ...chatContext.getContextsSnapshot() }
+      snapshot: (sessionId) => {
+        const snapshot = chatContext.getContextsSnapshot(contextReaderFor(sessionId))
         // Account data belongs to this request, not the persistent context registry.
         // A signed-out request therefore cannot inherit the previous account snapshot.
-        const account = createUserAccountContext(authStore)
+        const account = chatSession.sessionMetas[sessionId]?.bindings?.length ? null : createUserAccountContext(authStore)
         if (account)
           snapshot[account.contextId] = [account]
         return snapshot
@@ -583,9 +946,19 @@ export const useChatStore = defineStore('chat', () => {
     getActiveSessionId: () => activeSessionId.value,
     getActiveProvider: () => activeProvider.value,
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
+    // Identity follows the session's persona at request time, so a card switch never rewrites another session.
+    // A recipe's own session adds the recipe's steps after the identity. They stay the same there, so its prefix stays cacheable.
+    getSystemPrompt: (sessionId) => {
+      // The memory index of the session's persona follows the identity: its own memories and the general ones.
+      const identity = composeSystemPrompt(cardStore.getSystemPrompt(personaOf(sessionId))) + (memory.enabled ? composeMemoryPrompt(memory.indexFor(personaOf(sessionId))) : '')
+      const recipeId = chatSession.sessionMetas[sessionId]?.recipeId
+      const recipe = recipeId ? recipes.recipes.find(entry => entry.id === recipeId) : undefined
+      return recipe ? identity + composeRecipeSpacePrompt(recipe) : identity
+    },
     runtimeContextProviders: [
       () => createRuntimePromptContext(runtimePrompt.value),
-      createMinecraftContext,
+      // Integration status belongs to the owner, so a scene never reads it.
+      sessionId => isOwnerSession(sessionId) ? createMinecraftContext() : undefined,
     ],
     createId: nanoid,
     unwrapMessage: message => toRaw(message),
@@ -595,9 +968,14 @@ export const useChatStore = defineStore('chat', () => {
       getSpeechBusContext().emit(voiceGenerationEnded, event)
     },
     ...analyticsHooks,
+    // A background task is not owner activity, so its rounds stay out of product signals.
+    onMessageRound: event => isTaskSession(event.conversationId) ? undefined : analyticsHooks.onMessageRound?.(event),
+    onMessageRoundFailed: event => isTaskSession(event.conversationId) ? undefined : analyticsHooks.onMessageRoundFailed?.(event),
     onLifecycle: record => contextObservability.recordLifecycle(record),
     onPromptProjection: payload => contextObservability.capturePromptProjection(payload),
     onUserMessageAppended: ({ sessionId, message, messageText, source, model, provider, roundId, turnIndex }) => {
+      if (isTaskSession(sessionId))
+        return
       analyticsHooks.onUserMessageAppended?.({
         sessionId,
         message,
@@ -608,7 +986,7 @@ export const useChatStore = defineStore('chat', () => {
         roundId,
         turnIndex,
       })
-      if (isCloudSyncableMessage(message)) {
+      if (isCloudSyncableMessage(message) && syncsToCloud(sessionId)) {
         void chatSession.pushMessageToCloud(sessionId, {
           id: message.id,
           role: 'user',
@@ -619,7 +997,7 @@ export const useChatStore = defineStore('chat', () => {
     },
     onAssistantMessageAppended: ({ sessionId, message, roundId }) => {
       const source = chatSession.getSessionMessages(sessionId).find(message => message.role === 'user' && message.id === roundId)
-      if (source && isCloudSyncableMessage(source) && isCloudSyncableMessage(message) && message.id) {
+      if (source && isCloudSyncableMessage(source) && isCloudSyncableMessage(message) && message.id && syncsToCloud(sessionId)) {
         void chatSession.pushMessageToCloud(sessionId, {
           id: message.id,
           role: 'assistant',
@@ -627,12 +1005,16 @@ export const useChatStore = defineStore('chat', () => {
         })
       }
     },
-    onUserTurnReady: ({ messageText, sessionMessages }) => {
+    onUserTurnReady: ({ sessionId, messageText, sessionMessages }) => {
+      if (!isOwnerTurn(sessionId, sessionMessages))
+        return
       const autonomousTarget = cardStore.activeCard?.extensions?.airi?.modules?.artistry?.autonomousTarget || 'user'
       if (autonomousTarget === 'user')
         void artistryAutonomousStore.runArtistTask(messageText, toProviderHistory(sessionMessages))
     },
-    onAssistantTurnReady: ({ messageText, sessionMessages }) => {
+    onAssistantTurnReady: ({ sessionId, messageText, sessionMessages }) => {
+      if (!isOwnerTurn(sessionId, sessionMessages))
+        return
       const artistry = cardStore.activeCard?.extensions?.airi?.modules?.artistry
       if (artistry?.autonomousEnabled && artistry?.autonomousTarget === 'assistant')
         void artistryAutonomousStore.runArtistTask(messageText, toProviderHistory(sessionMessages))
@@ -645,6 +1027,19 @@ export const useChatStore = defineStore('chat', () => {
     abort: AbortController
     request: ReturnType<typeof runtime.submit>
   }>()
+
+  /** Whether this window runs a request of the session. */
+  function hasLocalRequest(sessionId: string) {
+    return [...requests.values()].some(entry => entry.sessionId === sessionId)
+  }
+
+  /** Aborts every request of one session, including requests that still prepare. */
+  function abortSessionRequests(sessionId: string, reason: unknown) {
+    for (const entry of requests.values()) {
+      if (entry.sessionId === sessionId)
+        entry.abort.abort(reason)
+    }
+  }
 
   async function ingest(
     sendingMessage: string,
@@ -754,10 +1149,19 @@ export const useChatStore = defineStore('chat', () => {
     })
   }
 
-  /** Freeze request settings before asynchronous provider and session startup. */
-  async function prepareSend(payload: ChatSendPayload, signal: AbortSignal, voice: boolean): Promise<ChatOrchestratorSendOptions> {
+  /** Options that only the host sets: a background recipe task, a notice, and what keyword-matched recipes gave the message. */
+  type HostSendOptions = Pick<ChatOrchestratorSendOptions, 'background' | 'notice' | 'skills'>
+
+  /**
+   * Freeze request settings before asynchronous provider and session startup.
+   * `invoked` holds the recipes that this message invoked by keyword.
+   */
+  async function prepareSend(payload: ChatSendPayload, signal: AbortSignal, voice: boolean, extra: HostSendOptions = {}, invoked: readonly Recipe[] = []): Promise<ChatOrchestratorSendOptions> {
     if (!await chatSession.loadSession(payload.sessionId))
       throw new Error('Failed to load the target chat session')
+    const reachable = reachableRecipesFor(payload, extra, invoked)
+    const armable = reachable.filter(recipe => recipe.modelTimed)
+    const decisions = reachable.filter(recipe => recipe.decision)
 
     signal.throwIfAborted()
 
@@ -813,20 +1217,41 @@ export const useChatStore = defineStore('chat', () => {
       messageId: payload.messageId,
       attachments: await storeChatAttachments(payload.attachments, payload.sessionId),
       input: payload.input,
+      outputTarget: payload.outputTarget,
       replyToMessageId: payload.replyToMessageId,
       toolReferences: payload.tools,
+      // A session with scene bindings answers other people, so its reply never speaks on the host.
+      scene: !isOwnerSession(payload.sessionId) || undefined,
       temperature,
       topP,
       systemPromptSupplement,
+      ...extra,
       stickers,
       tools: async () => {
         const references = collectToolReferences(payload.sessionId, payload.tools)
-        return llmToolsStore.getToolsByNames(...references.map(tool => tool.name))
+        return [
+          ...llmToolsStore.getToolsByNames(...references.map(tool => tool.name)),
+          ...(armable.length
+            ? await createArmRecipeTool({
+                recipes: armable,
+                arm: (recipe, armed) => armRecipe(recipe, { parentSessionId: payload.sessionId, ...armed }),
+                // A repeating run needs the owner's approval, so it is a proposal, and the owner can turn proposals off.
+                ...(recipes.proposalsEnabled ? { propose: (recipe: Parameters<typeof recipes.propose>[0]) => void recipes.propose(recipe) } : {}),
+              })
+            : []),
+          ...(decisions.length
+            ? await createJudgeRecipeTool({
+                decisions,
+                recipes: recipes.usable,
+                start: recipe => startRecipe(recipe, { parentSessionId: payload.sessionId, task: `The owner said: ${payload.text}` }),
+              })
+            : []),
+        ]
       },
     }
   }
 
-  function startSend(payload: ChatSendPayload, voice = false): ReturnType<typeof runtime.submit> {
+  function startSend(payload: ChatSendPayload, voice = false, extra: HostSendOptions = {}): ReturnType<typeof runtime.submit> {
     const messageId = payload.messageId ?? nanoid()
     const key = JSON.stringify([payload.sessionId, messageId])
     const existing = requests.get(key)
@@ -834,12 +1259,20 @@ export const useChatStore = defineStore('chat', () => {
       return existing.request
 
     const abort = new AbortController()
-    const prepared = prepareSend({ ...payload, messageId }, abort.signal, voice)
+    // A keyword invokes its recipes like slash commands. A decision among them judges with the judgment tool.
+    const invoked = keywordRecipesFor(payload, extra)
+    const prepared = prepareSend({ ...payload, messageId }, abort.signal, voice, { ...extra, skills: invokedSkillsOf(invoked) }, invoked)
       .then(options => runtime.submit(payload.text, options, payload.sessionId))
     const request = {
       accepted: prepared.then(value => value.accepted),
       done: prepared.then(value => value.done),
     }
+    // A background recipe starts once the owner's message is stored, so its task never runs for a refused send.
+    // A model-timed recipe starts later, on the automation that this turn sets.
+    void request.accepted.then(() => {
+      for (const recipe of invoked.filter(recipe => isBackgroundRecipe(recipe) && !recipe.modelTimed))
+        void startRecipe(recipe, { parentSessionId: payload.sessionId, task: `The owner said: ${payload.text}` })
+    }).catch(() => {})
 
     requests.set(key, { sessionId: payload.sessionId, abort, request })
     void request.accepted.catch(() => {})
@@ -848,9 +1281,9 @@ export const useChatStore = defineStore('chat', () => {
     return request
   }
 
-  async function executeSend(payload: ChatSendPayload): Promise<ChatSendResult> {
+  async function executeSend(payload: ChatSendPayload, extra: HostSendOptions = {}): Promise<ChatSendResult> {
     const messageCount = chatSession.getSessionMessages(payload.sessionId).length
-    await startSend(payload).done
+    await startSend(payload, false, extra).done
     const completedMessages = chatSession.getSessionMessagesIfLoaded(payload.sessionId)
     if (!completedMessages)
       throw new Error('Chat session was removed before send completed')
@@ -917,12 +1350,13 @@ export const useChatStore = defineStore('chat', () => {
     // The new turn must not see the source turn or its replies, so the history ends before the source while it runs.
     const retryHistory = currentMessages.slice(0, sourceIndex)
     chatSession.setSessionMessages(payload.sessionId, retryHistory)
+    // A retried notice stays a notice, so it never becomes owner speech.
     const request = startSend({
       sessionId: payload.sessionId,
       ...retryContent,
       replyToMessageId: sourceMessage?.replyToMessageId,
       tools: payload.tools ?? sourceMessage?.tools?.filter(tool => !requiresToolSelection(tool.name)),
-    })
+    }, false, sourceMessage?.notice ? { notice: { source: sourceMessage.notice.source } } : {})
 
     try {
       await request.accepted
@@ -1023,8 +1457,10 @@ export const useChatStore = defineStore('chat', () => {
   return {
     sending,
     activeTurns,
+    contextReaderFor,
     activeSendSessionId,
     activeStreamingMessage,
+    backgroundTasks,
     pendingQueuedSendCount,
 
     initialize,
@@ -1036,6 +1472,12 @@ export const useChatStore = defineStore('chat', () => {
     rerunToolCall,
     retry,
     send,
+    startRecipe,
+    startArmedTask,
+    discardArmedTask,
+    stopBackgroundTask,
+    dismissBackgroundTask,
+    notifyConversation,
     submit,
     settleAudioTranscript,
     cancelTurn,
@@ -1069,7 +1511,7 @@ export const useChatStore = defineStore('chat', () => {
   }
 }, {
   synced: {
-    actions: ['submit', 'settleAudioTranscript', 'cancelTurn', 'receiveInterruption', 'cancelPendingSends', 'cleanup', 'deleteSession', 'rerunToolCall', 'retry', 'send'],
+    actions: ['submit', 'settleAudioTranscript', 'cancelTurn', 'receiveInterruption', 'cancelPendingSends', 'cleanup', 'deleteSession', 'dismissBackgroundTask', 'rerunToolCall', 'retry', 'send', 'stopBackgroundTask'],
     state: true,
   },
 })

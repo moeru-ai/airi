@@ -1,4 +1,4 @@
-import type { ContextHistoryEntry, ContextIngestResult, ContextMessage } from '@proj-airi/core-agent'
+import type { ContextHistoryEntry, ContextIngestResult, ContextMessage, ContextReader } from '@proj-airi/core-agent'
 
 import { createContextRegistry } from '@proj-airi/core-agent'
 import { defineStore } from 'pinia'
@@ -50,8 +50,17 @@ export const useChatContextStore = defineStore('chat-context', () => {
     syncRegistrySnapshot()
   }
 
-  function getContextsSnapshot() {
-    return registry.snapshot()
+  /** Removes the observations of one writer, for example a module that left. */
+  function removeContextWriter(sourceKey: string) {
+    const removed = registry.removeWriter(sourceKey)
+    if (removed)
+      syncRegistrySnapshot()
+    return removed
+  }
+
+  /** Returns the observations that a reader can see. Without a reader, every observation, for diagnostics only. */
+  function getContextsSnapshot(reader?: ContextReader) {
+    return registry.snapshot(reader)
   }
 
   function getContextBucketsSnapshot() {
@@ -70,6 +79,7 @@ export const useChatContextStore = defineStore('chat-context', () => {
   return {
     ingestContextMessage,
     resetContexts,
+    removeContextWriter,
     getContextsSnapshot,
     getContextBucketsSnapshot,
     activeContexts,
