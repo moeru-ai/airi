@@ -21,7 +21,7 @@ import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
 import { createQueue } from '@proj-airi/stream-kit'
 import { Callout } from '@proj-airi/ui'
-import { useBroadcastChannel } from '@vueuse/core'
+import { useBroadcastChannel, useEventListener } from '@vueuse/core'
 // import { createTransformers } from '@xsai-transformers/embed'
 // import embedWorkerURL from '@xsai-transformers/embed/worker?worker&url'
 // import { embed } from '@xsai/embed'
@@ -550,13 +550,10 @@ function resumeAudioContextOnInteraction() {
   })
 }
 
-// Add event listeners for user interaction
-if (typeof window !== 'undefined') {
-  const events = ['click', 'touchstart', 'keydown']
-  events.forEach((event) => {
-    window.addEventListener(event, resumeAudioContextOnInteraction, { once: true, passive: true })
-  })
-}
+// The listeners close over this setup scope, so a listener that outlives the
+// stage keeps the whole unmounted stage alive, including its WebGL canvas.
+// `useEventListener` removes them on unmount if no interaction came first.
+useEventListener(['click', 'touchstart', 'keydown'], resumeAudioContextOnInteraction, { once: true, passive: true })
 
 onMounted(async () => {
   await getDb() // stub for future update
