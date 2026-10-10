@@ -64,6 +64,17 @@ const serviceSlugPattern = /^[a-z0-9_]+$/
 /** Entity ids add one dot between the domain and the object id. */
 const entityIdPattern = /^[a-z0-9_]+\.[a-z0-9_]+$/
 
+/**
+ * Reads the domain from an entity id.
+ *
+ * Home Assistant writes every entity id as `<domain>.<object_id>`. A value
+ * without a dot is not a valid entity id, so it returns unchanged and the
+ * caller's validation decides what happens.
+ */
+export function domainOf(entityId: string): string {
+  return entityId.split('.')[0] ?? ''
+}
+
 function toEntity(entity: InferOutput<typeof entitySchema>): HomeAssistantEntity {
   return {
     entityId: entity.entity_id,

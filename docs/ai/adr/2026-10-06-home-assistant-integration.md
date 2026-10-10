@@ -90,6 +90,11 @@ result in the same turn:
 `data` is a JSON object string. The same constraint appears beside
 `builtIn_mcpCallTool`: `z.record()` emits `propertyNames`, which OpenAI rejects.
 
+`entity_id` is required on `home_assistant_call_service`. A call with no target
+reaches a whole domain at once, which is a larger action than the user asked
+for. The model calls the service once per entity, so "turn off the lights"
+costs one call per light.
+
 The tools mount only while an address and a token are stored. An unconfigured
 integration stays invisible to the model, because every call would fail.
 
@@ -121,6 +126,63 @@ The percent rule matters. The URL parser reads `%2e%2e` as a parent segment, so
 client builds every path from `[a-z0-9_.]`, so a `%` means a caller that is not
 the client.
 
+## Device access
+
+The user decides which devices the model reaches. The settings page offers three
+modes, and the tools apply the policy.
+
+| Mode | Reach |
+| --- | --- |
+| `all` (default) | Every device |
+| `allow` | The devices on the allow list, and nothing else |
+| `deny` | Every device except the ones on the block list |
+
+The unit is the device, not the domain. One domain holds both a harmless device
+and a door, so a domain rule cannot separate them. A domain is a way to browse
+the list instead: the settings page shows one tab per domain, named in the
+page language.
+
+An empty list keeps its literal meaning under each mode. An empty allow list
+reaches nothing, because "allow only these" with none chosen means "allow none".
+An empty block list reaches everything, which is why `all` and `deny` with an
+empty list behave alike. The default stays `all`, so a new user reaches every
+device.
+
+The two lists are separate in storage. One shared list would turn every allowed
+device into a blocked device the moment the user switched modes.
+
+The policy lives in the renderer store, beside the module switch, because the
+user owns the choice and the tools that read it live in the renderer.
+
+The tools apply the policy rather than the main process. The model reaches Home
+Assistant only through these tools, so this is where a blocked device stays out
+of reach. Two consequences follow.
+
+- A listing hides a blocked device and reports how many it hid. A silent empty
+  list would tell the model that the user owns no such device.
+- A read or a call on a blocked device fails with a message that names the
+  device and the list that holds it. The model reads that message and asks the
+  user for the one change that helps.
+
+The policy also appears in each tool description. The model plans from the tool
+list, so a policy stated there costs no failed call to discover.
+
+The picker lists every device the instance reports, including the blocked ones.
+The settings page needs the whole list, because a device the model cannot reach
+is exactly the one the user must be able to add.
+
+The tile grid shows a device that Home Assistant stopped reporting while the
+list holds it. The row keeps a zero count, so the user can still unselect it.
+
+The policy constrains the model, not a hostile renderer. Code that runs in the
+renderer can widen the policy through the settings handler, and it can build its
+own request. The main process owns the boundary against that.
+
+A per-device policy makes one model behaviour worse. A request to "turn off every
+light" now fails device by device when any light is blocked, where a domain rule
+failed once. The listing note and the tool description are the mitigation, and
+neither is perfect.
+
 ## Platform scope
 
 Stage Tamagotchi. Stage Web waits.
@@ -143,7 +205,8 @@ than a second client.
 
 ## Non-goals
 
-- No entity allowlist and no per-entity permission model in the first phase.
+- No per-domain policy. The unit is the device, so a user who wants to reach
+  every light selects each one, or selects none and leaves the deny list empty.
 - No Stage Web work.
 - No channel plugin. The scaffold under `plugins/` is gone, and a later Stage Web
   change adds a package back if it needs one.
@@ -155,6 +218,11 @@ than a second client.
 - Does the tool set need `requiresExplicitSelection` for `call_service`, the way
   `computer_use` has it? The shared composer sends no `tools` field, so the gate
   only works in the Tamagotchi renderer.
+- Does the settings page need a read and control split, so the model reads a
+  door sensor without unlocking it? One selection now grants both.
+- Does the main process own the policy, in addition to the request allowlist?
+  This phase constrains the model only. A renderer with code execution can widen
+  the policy through the settings handler.
 - Does an entity alias map belong in the settings page, so "the living room
   light" resolves without the model reading the entity list?
 - Does the token move to Electron `safeStorage`?

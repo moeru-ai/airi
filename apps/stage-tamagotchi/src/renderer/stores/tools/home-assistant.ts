@@ -1,8 +1,10 @@
 import type { HomeAssistantClient } from '@proj-airi/stage-ui/libs/home-assistant/client'
+import type { HomeAssistantEntitySummary } from '@proj-airi/stage-ui/libs/home-assistant/presentation'
 import type { ExecutableTool } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { createHomeAssistantClient } from '@proj-airi/stage-ui/libs/home-assistant/client'
+import { summarizeEntities } from '@proj-airi/stage-ui/libs/home-assistant/presentation'
 import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 import { useHomeAssistantStore } from '@proj-airi/stage-ui/stores/modules/home-assistant'
 import { createHomeAssistantTools } from '@proj-airi/stage-ui/tools/home-assistant'
@@ -53,6 +55,10 @@ export const useTamagotchiHomeAssistantStore = defineStore('tamagotchi-home-assi
    * Mounts the tools while the switch is on and Home Assistant holds a usable
    * address and token. Any other state unmounts them, because the model must not
    * see a tool that can only fail.
+   *
+   * The tools carry the exposure policy from the moment they are built. The
+   * policy is a tool argument rather than a runtime check because the model must
+   * read the policy in the tool description before it plans a call.
    */
   async function refresh() {
     llmToolsStore.removeToolsByIds(...registeredToolIds())
@@ -66,7 +72,7 @@ export const useTamagotchiHomeAssistantStore = defineStore('tamagotchi-home-assi
     if (!settings.enabled || !config.baseUrl || !config.hasToken)
       return
 
-    const tools = await createHomeAssistantTools(createClient())
+    const tools = await createHomeAssistantTools(createClient(), { exposure: settings.exposure })
     // NOTICE: these tools carry no `defaultActive: false` and no
     // `requiresExplicitSelection`, unlike the built-in store. The shared
     // `activeTools` filter drops both of those, so a tool that needs to be
@@ -77,19 +83,26 @@ export const useTamagotchiHomeAssistantStore = defineStore('tamagotchi-home-assi
     } satisfies ExecutableTool)))
   }
 
-  /** Reads the entity count, so the settings page can prove the connection works. */
-  async function testConnection(): Promise<number> {
-    return (await createClient().listEntities()).length
+  /**
+   * Lists every device the Home Assistant instance reports.
+   *
+   * The exposure policy does not apply here. The settings page needs the whole
+   * list, because a device the model cannot reach is exactly the one the user
+   * must be able to add.
+   */
+  async function listEntities(): Promise<HomeAssistantEntitySummary[]> {
+    return summarizeEntities(await createClient().listEntities())
   }
 
   function dispose() {
     llmToolsStore.removeToolsByIds(...registeredToolIds())
   }
 
-  // The switch and the saved credential both change `configured`. This store is
-  // created in every window, and `refresh` is a synchronized action, so the
-  // window that sees the change asks the leader to mount or unmount.
-  watch(() => settings.configured, () => {
+  // The switch, the saved credential, and the exposure policy each change what
+  // the model must see. This store is created in every window, and `refresh` is a
+  // synchronized action, so the window that sees the change asks the leader to
+  // mount or unmount.
+  watch([() => settings.configured, () => settings.exposure], () => {
     void refresh().catch((error) => {
       console.warn('[Home Assistant] Failed to refresh the tools:', error)
     })
@@ -98,7 +111,7 @@ export const useTamagotchiHomeAssistantStore = defineStore('tamagotchi-home-assi
   return {
     dispose,
     refresh,
-    testConnection,
+    listEntities,
   }
 }, {
   synced: {

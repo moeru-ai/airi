@@ -1,10 +1,14 @@
 import type { Tool } from '@xsai/shared-chat'
 
 import type { HomeAssistantClient, HomeAssistantEntity } from '../libs/home-assistant/client'
+import type { HomeAssistantExposure } from '../libs/home-assistant/exposure'
 
 import { errorMessageFrom } from '@moeru/std'
 import { tool } from '@xsai/tool'
 import { z } from 'zod'
+
+import { domainOf } from '../libs/home-assistant/client'
+import { allEntitiesExposure, assertEntityExposed, describeExposure, describeHidden, filterExposed } from '../libs/home-assistant/exposure'
 
 /**
  * Default cap on the entity list one lookup returns.
@@ -75,6 +79,10 @@ function parseServiceResponse(response: unknown) {
 /**
  * Builds the Home Assistant tools over one client.
  *
+ * The exposure policy is applied here, not in the client. The model reaches Home
+ * Assistant only through these tools, so this is where a blocked device stays
+ * out of reach and where a blocked call returns a message the model can act on.
+ *
  * Use when:
  * - A runtime owns a Home Assistant transport and exposes it to the model
  *
@@ -87,28 +95,43 @@ function parseServiceResponse(response: unknown) {
  */
 export async function createHomeAssistantTools(
   client: HomeAssistantClient,
-  options: { entityLimit?: number } = {},
+  options: { entityLimit?: number, exposure?: HomeAssistantExposure } = {},
 ): Promise<Tool[]> {
   const entityLimit = Math.min(
     MAX_ENTITY_LIMIT,
     Math.max(MIN_ENTITY_LIMIT, options.entityLimit ?? DEFAULT_ENTITY_LIMIT),
   )
+  const exposure = options.exposure ?? allEntitiesExposure
+  // Each description states the policy, because the model plans from the tool
+  // list alone. A hidden domain would otherwise cost a failed call to discover.
+  const policy = describeExposure(exposure)
 
   // `tool()` converts the Zod schema to JSON Schema asynchronously, so it
   // resolves to the tool rather than returning one.
   return await Promise.all([
     tool({
       name: 'home_assistant_list_entities',
-      description: 'List Home Assistant entities and their current states. Call this first to find the entity_id for a device the user named (match by the "name" field). Pass a domain like "light" or "climate" to filter. Results are capped; use domain filtering on large installations.',
+      description: `List Home Assistant entities and their current states. Call this first to find the entity_id for a device the user named (match by the "name" field). Pass a domain like "light" or "climate" to browse one kind of device. Results are capped, so pass a domain on a large installation. ${policy}`,
       execute: async ({ domain }) => {
         const entities = await client.listEntities()
-        const matching = domain ? entities.filter(entity => entity.entityId.startsWith(`${domain}.`)) : entities
+        const visible = filterExposed(exposure, entities)
+        // A blocked device must not appear, but the count must. A listing that
+        // drops rows silently reads as "the user owns no such device".
+        const hidden = describeHidden(exposure, entities.length - visible.length)
+        // The domain is a way to browse, not a permission. A domain the user
+        // blocked returns the rows it still holds, which can be none.
+        const matching = domain ? visible.filter(entity => domainOf(entity.entityId) === domain) : visible
         const capped = matching.slice(0, entityLimit)
+
+        const notes = [
+          ...(capped.length < matching.length ? [`Only the first ${capped.length} of ${matching.length} entities are shown. Pass a domain to narrow the list.`] : []),
+          ...(hidden ? [hidden] : []),
+        ]
 
         return JSON.stringify({
           count: capped.length,
           total: matching.length,
-          ...(capped.length < matching.length ? { note: `Only the first ${capped.length} of ${matching.length} entities are shown. Pass a domain to narrow the list.` } : {}),
+          ...(notes.length ? { note: notes.join(' ') } : {}),
           entities: capped.map(toSummary),
         })
       },
@@ -118,8 +141,10 @@ export async function createHomeAssistantTools(
     }),
     tool({
       name: 'home_assistant_get_state',
-      description: 'Read the current state and attributes of one Home Assistant entity. Use this to answer questions about a device or check a value before changing it.',
+      description: `Read the current state and attributes of one Home Assistant entity. Use this to answer questions about a device or check a value before changing it. ${policy}`,
       execute: async ({ entity_id: entityId }) => {
+        assertEntityExposed(exposure, entityId)
+
         const entity = await client.getState(entityId)
         return JSON.stringify({ ...toSummary(entity), attributes: entity.attributes })
       },
@@ -129,8 +154,10 @@ export async function createHomeAssistantTools(
     }),
     tool({
       name: 'home_assistant_call_service',
-      description: 'Call a Home Assistant service to control devices (turn on/off, set brightness, change temperature). Always list entities first to find the correct entity_id. Report the returned state changes to the user.',
+      description: `Call a Home Assistant service to control one device (turn on/off, set brightness, change temperature). Always list entities first to find the correct entity_id, then pass exactly one. Report the returned state changes to the user. ${policy}`,
       execute: async ({ domain, service, entity_id: entityId, data }) => {
+        assertEntityExposed(exposure, entityId)
+
         const response = await client.callService({
           domain,
           service,
@@ -143,7 +170,10 @@ export async function createHomeAssistantTools(
       parameters: z.object({
         domain: z.string().describe('Service domain, for example "light".'),
         service: z.string().describe('Service name, for example "turn_on".'),
-        entity_id: z.string().optional().describe('Target entity id. Omit it when the service targets a whole domain.'),
+        // Required on purpose. A call with no target reaches a whole domain at
+        // once, which is a larger action than the user asked for and one the
+        // exposure policy cannot check. The model calls the service per entity.
+        entity_id: z.string().describe('Target entity id, for example "light.living_room". Always pass one.'),
         // NOTICE: `data` is z.string() (JSON) because z.record() emits `propertyNames`,
         // which OpenAI rejects. The same reason appears beside builtIn_mcpCallTool.
         data: z.string().optional().describe('Extra service fields as a JSON object string, for example {"brightness": 200}.'),
