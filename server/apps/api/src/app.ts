@@ -71,6 +71,7 @@ import { createConfigKVService } from './services/adapters/config-kv'
 import { createConfigKVStore } from './services/adapters/config-kv/store'
 import { createS3ObjectStore } from './services/adapters/object-store'
 import { createOpenpanelSink } from './services/adapters/openpanel'
+import { createRevenuecatCancellation } from './services/adapters/revenuecat-cancellation'
 import { createRevenuecatSubscriberClient } from './services/adapters/revenuecat-subscriber'
 import { createRevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
 import { createBillingService } from './services/domain/billing/billing-service'
@@ -459,11 +460,12 @@ export async function buildApp(deps: AppDeps) {
     ))
 
     /**
-     * RevenueCat webhook ingress (capacitor Flux).
+     * RevenueCat webhook ingress and Capacitor reconciliation for the caller.
      */
     .route('/api/v1/revenuecat', createRevenuecatRoutes(
       deps.subscriptionSync,
       deps.env,
+      deps.otel?.rateLimit ?? null,
     ))
 
     /**
@@ -751,11 +753,18 @@ export async function createApp() {
   // Domain knowledge stays inside each service instead of being copied into
   // a parallel handler file. See `server/apps/api/docs/ai-context/account-deletion.md`.
   const userDeletionService = injeca.provide('services:userDeletion', {
-    dependsOn: { paymentService, fluxService, providerService, characterService, characterCardService, chatService },
+    dependsOn: { paymentService, fluxService, providerService, characterService, characterCardService, chatService, env: parsedEnv },
     build: ({ dependsOn }) => {
       const service = createUserDeletionService()
-      // priority: 20 = financial / cache state (Flux balance + Redis),
+      const subscriptionCancellation = createRevenuecatCancellation({
+        apiKey: dependsOn.env.REVENUECAT_V2_API_KEY ?? null,
+        projectId: dependsOn.env.REVENUECAT_PROJECT_ID ?? null,
+      })
+      // priority: 10 = external side effect without rollback (RevenueCat cancel),
+      //           20 = financial / cache state (Flux balance + Redis),
       //           30 = pure DB soft-delete (no external touch).
+      // A deleted user cannot open the management URL, so the renewal stops before the identity goes.
+      service.register({ name: 'subscriptions', priority: 10, softDelete: async ({ userId }) => void await subscriptionCancellation.cancelRenewals(userId) })
       service.register({ name: 'payment', priority: 30, softDelete: ({ userId }) => dependsOn.paymentService.deleteAllForUser(userId) })
       service.register({ name: 'flux', priority: 20, softDelete: ({ userId }) => dependsOn.fluxService.deleteAllForUser(userId) })
       service.register({ name: 'providers', priority: 30, softDelete: ({ userId }) => dependsOn.providerService.deleteAllForUser(userId) })

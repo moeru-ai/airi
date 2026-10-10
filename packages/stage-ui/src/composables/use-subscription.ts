@@ -134,7 +134,10 @@ function toCapacitorPackage(pkg: Package, metadata: unknown, locale: string): Ca
   }
 }
 
-/** Capacitor subscriptions through RevenueCat Web Billing. The SDK reports the capacitor. The webhook grants capacitor Flux. */
+/**
+ * Capacitor subscriptions through RevenueCat Web Billing. The SDK reports the capacitor.
+ * The server grants capacitor Flux on a webhook, and on the sync that this composable requests.
+ */
 export function useSubscription(options: {
   getUserId: () => string
   onChanged: () => Promise<unknown>
@@ -183,11 +186,24 @@ export function useSubscription(options: {
       applyCustomerInfo(info)
   }
 
-  /** Reads the capacitor from the SDK, then refreshes the balance, which carries the capacitor percent. */
+  /**
+   * Asks the server to read the capacitor from RevenueCat now.
+   * A webhook can be late or lost. This call grants the capacitor Flux without it.
+   * A rejected sync is not an error here. The webhook stays the usual path, and the balance read still runs.
+   */
+  async function syncWallet(): Promise<void> {
+    await client.api.v1.revenuecat.sync.$post()
+  }
+
+  /** Reads the capacitor from the SDK, syncs the wallet, then refreshes the balance, which carries the capacitor percent. */
   async function fetchStatus(): Promise<void> {
     const identity = captureIdentity()
     await refreshCustomer()
-    if (identity.userId && identity.isCurrent())
+    if (!identity.userId || !identity.isCurrent())
+      return
+    if (enabled)
+      await syncWallet()
+    if (identity.isCurrent())
       await options.onChanged()
   }
 
@@ -199,13 +215,21 @@ export function useSubscription(options: {
     const purchases = await ensurePurchases(identity.userId)
     if (!identity.isCurrent())
       return
-    const offerings = await purchases.getOfferings()
+    const [offerings, sold] = await Promise.all([
+      purchases.getOfferings(),
+      client.api.v1.revenuecat.capacitors.$get(),
+    ])
+    if (!sold.ok)
+      throw new Error(t('settings.pages.capacitor.packagesError'))
+    const { productIds } = await sold.json()
     const current = offerings.current
     if (!identity.isCurrent() || !current)
       return
     packages.value = current.availablePackages.flatMap((pkg) => {
       const capacitorPackage = toCapacitorPackage(pkg, current.metadata, locale.value)
-      return capacitorPackage ? [capacitorPackage] : []
+      // The server grants capacitor Flux only for the products that it maps.
+      // A package without a mapping takes the payment and grants nothing, so it is not listed.
+      return capacitorPackage && productIds.includes(capacitorPackage.productId) ? [capacitorPackage] : []
     })
   }
 
@@ -238,6 +262,9 @@ export function useSubscription(options: {
       if (!identity.isCurrent())
         return 'cancelled'
       applyCustomerInfo(customerInfo)
+      // The purchase is complete. A failed sync leaves the grant to the webhook,
+      // and the page then reports the charge as pending.
+      await syncWallet().catch(() => undefined)
       await options.onChanged().catch(() => undefined)
       if (!identity.isCurrent())
         return 'cancelled'

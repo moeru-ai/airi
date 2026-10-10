@@ -24,7 +24,7 @@ export function createRevenuecatSubscriptionSync(
     if (!capacitors || Object.keys(capacitors).length === 0)
       return
 
-    await billing.syncCapacitor(userId, async (): Promise<CapacitorPeriod | null> => {
+    const period = await billing.syncCapacitor(userId, async (): Promise<CapacitorPeriod | null> => {
       const now = new Date()
       // The latest purchase wins when two capacitors are active, so an upgrade
       // replaces the old capacitor. Capacitors without an expiry are not sold.
@@ -41,10 +41,16 @@ export function createRevenuecatSubscriptionSync(
         expiresAt: current.accessUntil!,
       }
     })
-    logger.withFields({ userId }).log('Capacitor Flux reconciled')
+    // The result tells an operator whether a paid customer got a Capacitor.
+    logger.withFields({ userId, quota: period?.quota ?? null, expiresAt: period?.expiresAt.toISOString() ?? null }).log('Capacitor Flux reconciled')
   }
 
-  return { reconcile }
+  /** The product ids that grant a Capacitor. A purchase of another product gets no Capacitor Flux. */
+  async function listProductIds(): Promise<string[]> {
+    return Object.keys(await configKV.getOptional('REVENUECAT_CAPACITORS') ?? {})
+  }
+
+  return { reconcile, listProductIds }
 }
 
 export type RevenuecatSubscriptionSync = ReturnType<typeof createRevenuecatSubscriptionSync>
