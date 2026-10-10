@@ -25,11 +25,12 @@ import { useSpeechStore } from './speech'
 
 const cleanups: Array<() => void> = []
 const initializations: Array<Promise<void>> = []
+const renderErrors: unknown[] = []
 
 /** Mounts a real renderer with a separate Pinia and BroadcastChannel runtime. */
-function mountRenderer(namespace: string, page?: Component) {
+function mountRenderer(namespace: string, page?: Component, leadership: 'leader-only' | 'follower-only' | 'follower-preferred' = page ? 'follower-only' : 'leader-only') {
   const pinia = createPinia()
-  const runtime = createSyncedPiniaPlugin({ namespace, leadership: page ? 'follower-only' : 'leader-only' })
+  const runtime = createSyncedPiniaPlugin({ namespace, leadership })
   pinia.use(runtime.plugin)
   const container = document.createElement('div')
   document.body.append(container)
@@ -42,6 +43,7 @@ function mountRenderer(namespace: string, page?: Component) {
       return () => page ? h(page) : null
     },
   })
+  app.config.errorHandler = error => renderErrors.push(error)
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:pathMatch(.*)*', component: { render: () => null } }] })
   app.provide(injectKeyPiniaSynced, runtime)
     .use(pinia)
@@ -50,13 +52,18 @@ function mountRenderer(namespace: string, page?: Component) {
     .use(MotionPlugin)
     .use(createI18n({ legacy: false, locale: 'en', messages: { en } }))
     .mount(container)
-  cleanups.push(() => {
+  let disposed = false
+  const dispose = () => {
+    if (disposed)
+      return
+    disposed = true
     app.unmount()
     disposePinia(pinia)
     runtime.dispose()
     container.remove()
-  })
-  return { app, pinia, runtime, container, speech: useSpeechStore(pinia) }
+  }
+  cleanups.push(dispose)
+  return { dispose, app, pinia, runtime, container, speech: useSpeechStore(pinia) }
 }
 
 /** Provides the external session needed by official speech discovery. */
@@ -76,6 +83,7 @@ afterEach(async () => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
   localStorage.clear()
+  expect(renderErrors.splice(0)).toEqual([])
 })
 
 // https://github.com/moeru-ai/airi/issues/2861
@@ -473,4 +481,125 @@ it('clears an old error after another window completes configuration (Issue #286
   await expect.poll(() => useAiriCardStore(follower.pinia).getModules('default').speech.voice_id).toBe('voice-a')
   await expect.poll(() => follower.container.querySelector('[data-speech-state="ready"]')).not.toBeNull()
   expect(follower.container.querySelector('[role="status"]')?.textContent).not.toContain('Voice service unavailable')
+})
+
+// https://github.com/moeru-ai/airi/issues/2861
+// ROOT CAUSE:
+// Model fields followed the runtime provider while selected values followed the character.
+// Derive field options and status from the same committed provider.
+it('issue #2861: model options use the committed provider during runtime divergence', async () => {
+  localStorage.clear()
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], data: [] })))
+  const namespace = crypto.randomUUID()
+  const leader = mountRenderer(namespace)
+  await expect.poll(() => leader.runtime.isLeader()).toBe(true)
+  await useProviderConfigStore(leader.pinia).ensureProvider('elevenlabs', 'elevenlabs', { apiKey: 'fixture' })
+  await useProviderStore(leader.pinia).forceProviderConfigured('elevenlabs')
+  const cards = useAiriCardStore(leader.pinia)
+  await cards.initialize()
+  await cards.updateActiveCardSpeech({ provider: 'elevenlabs', model: 'eleven_multilingual_v2', voice_id: 'saved' })
+  const follower = mountRenderer(namespace, SpeechSettings)
+  await expect.poll(() => follower.container.querySelector('input[value="eleven_multilingual_v2"]')).not.toBeNull()
+  await leader.speech.selectProviderModel('speech-noop', '', '')
+  await expect.poll(() => follower.speech.activeSpeechProvider).toBe('speech-noop')
+  expect(useAiriCardStore(follower.pinia).getModules('default').speech.provider).toBe('elevenlabs')
+  await expect.poll(() => follower.container.querySelector('input[value="eleven_multilingual_v2"]')).not.toBeNull()
+})
+
+// https://github.com/moeru-ai/airi/issues/2861
+// ROOT CAUSE:
+// The persisted active ID can arrive before its character snapshot.
+// Wait for the active card before resolving its modules.
+it('issue #2861: an initializing page tolerates a persisted missing active card', async () => {
+  localStorage.clear()
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], data: [] })))
+  const namespace = crypto.randomUUID()
+  const leader = mountRenderer(namespace)
+  await expect.poll(() => leader.runtime.isLeader()).toBe(true)
+  await useAiriCardStore(leader.pinia).initialize()
+  localStorage.setItem('airi-card-active-id', 'missing-card')
+  const follower = mountRenderer(namespace, SpeechSettings)
+  await Promise.all(initializations)
+  await nextTick()
+  expect(renderErrors.map(error => String(error))).toEqual([])
+  expect(follower.container.querySelector('[role="status"]')).not.toBeNull()
+})
+
+// https://github.com/moeru-ai/airi/issues/2861
+// ROOT CAUSE:
+// Discovery bypassed completed catalogs and repeated the voice request.
+// Reuse only a catalog whose model, configuration, and owner match.
+it('issue #2861: completed matching voice catalog is reused for discovery', async () => {
+  localStorage.clear()
+  let voiceRequests = 0
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
+    if (String(input).includes('voices'))
+      voiceRequests++
+    return Response.json({ models: [{ id: 'voice-pack', name: 'Voice pack' }], default: 'voice-pack', data: [], voices: [{ id: 'voice-a', name: 'Voice A', languages: [] }], recommended: { en: 'voice-a' } })
+  }))
+  const leader = mountRenderer(crypto.randomUUID())
+  await expect.poll(() => leader.runtime.isLeader()).toBe(true)
+  authenticate(leader.pinia)
+  const provider = 'official-provider-speech'
+  await useProviderConfigStore(leader.pinia).ensureProvider(provider, provider, {})
+  const catalogs = useProviderStore(leader.pinia)
+  await catalogs.forceProviderConfigured(provider)
+  await catalogs.fetchModelsForProvider(provider)
+  await leader.speech.loadVoicesForProvider(provider, 'voice-pack')
+  expect(leader.speech.getVoicesForProvider(provider)).toHaveLength(1)
+  const before = voiceRequests
+  await leader.speech.resolveSelection({ provider, model: 'voice-pack', voice_id: '' })
+  expect(voiceRequests).toBe(before)
+})
+
+// https://github.com/moeru-ai/airi/issues/2861
+// ROOT CAUSE:
+// The outgoing leader can finish discovery after another renderer takes ownership.
+// The new leader resumes configuration and disposal rejects the outgoing result.
+it('issue #2861: a new leader completes discovery and rejects the disposed leader result', async () => {
+  localStorage.clear()
+  const oldVoices = Promise.withResolvers<Response>()
+  let retired = false
+  let pendingLoads = 0
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
+    if (String(input).includes('voices')) {
+      if (!retired) {
+        pendingLoads++
+        return oldVoices.promise.then(response => response.clone())
+      }
+      return Response.json({ voices: [{ id: 'new-voice', name: 'New voice', languages: [] }], recommended: { en: 'new-voice' } })
+    }
+    return Response.json({ models: [{ id: 'voice-pack', name: 'Voice pack' }], default: 'voice-pack', data: [] })
+  }))
+  const namespace = crypto.randomUUID()
+  const leader = mountRenderer(namespace)
+  await expect.poll(() => leader.runtime.isLeader()).toBe(true)
+  authenticate(leader.pinia)
+  const provider = 'official-provider-speech'
+  await useProviderConfigStore(leader.pinia).ensureProvider(provider, provider, {})
+  await useProviderStore(leader.pinia).forceProviderConfigured(provider)
+  const survivor = mountRenderer(namespace, undefined, 'follower-preferred')
+  const cards = useAiriCardStore(leader.pinia)
+  await Promise.all(initializations)
+  const id = await cards.addCard({ name: 'Pending speech', version: '1.0', description: '', extensions: { airi: { modules: { speech: { provider, model: 'voice-pack', voice_id: '' } } } } }, 'scratch')
+  await cards.activateCard(id)
+  const nextCards = useAiriCardStore(survivor.pinia)
+  try {
+    await expect.poll(() => pendingLoads).toBeGreaterThan(0)
+    await expect.poll(() => nextCards.activeCardId).toBe(id)
+    const outgoing = expect(cards.configureSpeechSelection(id)).rejects.toThrow('runtime was disposed')
+    await nextTick()
+    retired = true
+    leader.dispose()
+    await outgoing
+    await expect.poll(() => survivor.runtime.isLeader(), { timeout: 5000 }).toBe(true)
+    await expect.poll(() => nextCards.getModules(id).speech.voice_id, { timeout: 5000 }).toBe('new-voice')
+    oldVoices.resolve(Response.json({ voices: [{ id: 'old-voice', name: 'Old voice', languages: [] }], recommended: { en: 'old-voice' } }))
+    await nextTick()
+    expect(nextCards.getModules(id).speech.voice_id).toBe('new-voice')
+    expect(cards.getCard(id)?.extensions.airi.modules.speech.voice_id).toBe('')
+  }
+  finally {
+    oldVoices.resolve(Response.json({ voices: [] }))
+  }
 })

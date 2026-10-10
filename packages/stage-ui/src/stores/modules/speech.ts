@@ -152,7 +152,7 @@ export const useSpeechStore = defineStore('speech', () => {
   const cancelPending = new Set<() => void>()
 
   /** Captures configuration and tracks this renderer's cancelable RPC wait. */
-  async function loadVoicesForProvider(provider: string, model?: string): Promise<VoiceInfo[]> {
+  async function loadVoicesForProvider(provider: string, model?: string, reuseCatalog = false): Promise<VoiceInfo[]> {
     if (!provider || disposed)
       return []
     const sequence = ++localRequestSequence
@@ -167,7 +167,7 @@ export const useSpeechStore = defineStore('speech', () => {
     try {
       const configuration = providersStore.getVoiceCatalogConfiguration(provider)
       return await Promise.race([
-        useSpeechStore(pinia).loadVoiceCatalog(provider, model, configuration, resetGeneration.value),
+        useSpeechStore(pinia).loadVoiceCatalog(provider, model, configuration, resetGeneration.value, reuseCatalog),
         interrupted,
       ])
     }
@@ -176,6 +176,8 @@ export const useSpeechStore = defineStore('speech', () => {
         errorMessage = errorMessageFrom(error) ?? 'Unknown error'
         console.error('Failed to load speech voice catalog:', errorMessage)
       }
+      if (reuseCatalog)
+        throw error
       return []
     }
     finally {
@@ -233,8 +235,8 @@ export const useSpeechStore = defineStore('speech', () => {
     cancelCatalogRequests()
   })
 
-  /** Executes a caller's immutable catalog request in the synchronization leader. */
-  async function loadVoiceCatalog(provider: string, model: string | undefined, configuration: VoiceCatalogConfiguration, generation = resetGeneration.value): Promise<VoiceInfo[]> {
+  /** Executes catalog requests in the leader. Discovery reuses matching catalogs and preserves the active selection. */
+  async function loadVoiceCatalog(provider: string, model: string | undefined, configuration: VoiceCatalogConfiguration, generation = resetGeneration.value, reuseCatalog = false): Promise<VoiceInfo[]> {
     // A queued caller request from before reset cannot start new leader work.
     if (!provider || disposed || generation !== resetGeneration.value) {
       return []
@@ -249,30 +251,39 @@ export const useSpeechStore = defineStore('speech', () => {
 
     const loadSequence = ++voiceLoadSequence
     latestVoiceLoads.set(provider, loadSequence)
-    if (voiceCatalogIdentities.value[provider]?.model !== model) {
+    if (!reuseCatalog && voiceCatalogIdentities.value[provider]?.model !== model) {
       discardVoiceCatalog(provider)
     }
     const identity = await providersStore.getVoiceCatalogIdentity(model, configuration)
     // Hashing yields. Reset, a newer request, or provider ownership changes
     // during that work must not clear or replace a newer catalog.
-    if (latestVoiceLoads.get(provider) !== loadSequence || identity.owner !== providersStore.voiceCatalogOwners[identity.definitionId])
+    if (disposed || generation !== resetGeneration.value || identity.owner !== providersStore.voiceCatalogOwners[identity.definitionId])
+      return []
+    if (!reuseCatalog && latestVoiceLoads.get(provider) !== loadSequence)
       return []
     // Keep valid choices during a refresh. A model or configuration change
     // invalidates them before auto-pick can select from the previous catalog.
-    if (!isEqual(voiceCatalogIdentities.value[provider], identity)) {
-      discardVoiceCatalog(provider)
+    if (latestVoiceLoads.get(provider) === loadSequence && !isEqual(voiceCatalogIdentities.value[provider], identity)) {
+      discardVoiceCatalog(provider, !reuseCatalog)
     }
+
+    // Discovery reuses only a complete identity match. Explicit refresh still fetches.
+    if (reuseCatalog && isEqual(voiceCatalogIdentities.value[provider], identity))
+      return availableVoices.value[provider] ?? []
 
     const voices = await providersStore.listProviderVoices(provider, model, configuration)
     // Undefined is an expired session. A cleared sequence also rejects work
     // from an outgoing leader or a reset, even if its network response arrives.
-    if (latestVoiceLoads.get(provider) !== loadSequence || identity.owner !== providersStore.voiceCatalogOwners[identity.definitionId])
+    if (disposed || generation !== resetGeneration.value || identity.owner !== providersStore.voiceCatalogOwners[identity.definitionId])
       return []
+    // Another model can own the visible catalog while this caller resolves its own tuple.
+    if (latestVoiceLoads.get(provider) !== loadSequence)
+      return reuseCatalog ? voices ?? [] : []
     if (voices === undefined) {
       // Session expiry also rejects persisted choices without a cached identity.
-      if (!voiceCatalogIdentities.value[provider] && activeSpeechProvider.value === provider)
+      if (!reuseCatalog && !voiceCatalogIdentities.value[provider] && activeSpeechProvider.value === provider)
         clearVoiceSelection()
-      discardVoiceCatalog(provider)
+      discardVoiceCatalog(provider, !reuseCatalog)
       return []
     }
     voiceCatalogIdentities.value = { ...voiceCatalogIdentities.value, [provider]: identity }
@@ -290,9 +301,9 @@ export const useSpeechStore = defineStore('speech', () => {
     activeSpeechVoice.value = undefined
   }
 
-  /** Drops catalog metadata and its selected voice together; initial discovery preserves unverified persisted choices. */
-  function discardVoiceCatalog(provider: string) {
-    if (voiceCatalogIdentities.value[provider] && activeSpeechProvider.value === provider)
+  /** Drops catalog metadata. Discovery preserves selection fields, while explicit invalidation clears the owned voice. */
+  function discardVoiceCatalog(provider: string, clearSelection = true) {
+    if (clearSelection && voiceCatalogIdentities.value[provider] && activeSpeechProvider.value === provider)
       clearVoiceSelection()
     delete voiceCatalogIdentities.value[provider]
     availableVoices.value = { ...availableVoices.value, [provider]: [] }
@@ -335,6 +346,7 @@ export const useSpeechStore = defineStore('speech', () => {
    * remain explicit, including custom names absent from a catalog.
    */
   async function resolveSelection(selection: SpeechSelection): Promise<SpeechSelection | undefined> {
+    const generation = resetGeneration.value
     const resolved = resolveSpeechOutputSelection(selection, providerStore.getProviderConfig(selection.provider))
     const provider = resolved.provider
     if (!provider || provider === 'speech-noop')
@@ -364,9 +376,10 @@ export const useSpeechStore = defineStore('speech', () => {
     }
     if (official && model && !voiceId) {
       const configuration = providersStore.getVoiceCatalogConfiguration(provider)
-      const voices = await providersStore.listProviderVoices(provider, model, configuration)
-      // An expired session cannot provide a configuration commit.
-      if (voices === undefined)
+      const identity = await providersStore.getVoiceCatalogIdentity(model, configuration)
+      const voices = await loadVoicesForProvider(provider, model, true)
+      const currentIdentity = await providersStore.getVoiceCatalogIdentity(model, providersStore.getVoiceCatalogConfiguration(provider))
+      if (disposed || generation !== resetGeneration.value || !isEqual(identity, currentIdentity))
         return undefined
       voiceId = pickOfficialSpeechVoice({
         activeSpeechProvider: provider,
@@ -375,6 +388,8 @@ export const useSpeechStore = defineStore('speech', () => {
         uiLocale: locale.value,
       }) ?? ''
     }
+    if (disposed || generation !== resetGeneration.value)
+      return undefined
     return { provider, model, voice_id: voiceId }
   }
 

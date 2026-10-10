@@ -94,6 +94,8 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
 /** Saves the provider voice, then updates the character only when it uses this provider. */
 async function selectVoice(value: string) {
   voice.value = value
+  if (!airiCardStore.activeCard || !airiCardStore.moduleDefaults)
+    return
   if (airiCardStore.getModules(airiCardStore.activeCardId).speech.provider !== providerId)
     return
 

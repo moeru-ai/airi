@@ -667,4 +667,68 @@ describe('speech synchronization', () => {
     expect(follower.speechStore.voiceCatalogStatus['microsoft-speech']?.loading).toBe(false)
     expect(leader.speechStore.voiceCatalogStatus['microsoft-speech']).toBeUndefined()
   })
+  // https://github.com/moeru-ai/airi/issues/2861
+  // ROOT CAUSE:
+  // Discovery bypassed catalog identity and repeated completed requests.
+  // Reuse requires matching model and credentials. Explicit refresh still requests new data.
+  it('reuses catalogs only for matching model and credentials (Issue #2861)', async () => {
+    const fetchCatalog = vi.fn<typeof fetch>(async () => Response.json({ voices: [] }))
+    vi.stubGlobal('fetch', fetchCatalog)
+    const leader = createSyncedContext(crypto.randomUUID(), 'leader-only')
+    await expect.poll(() => leader.runtime.isLeader()).toBe(true)
+    const config = useProviderConfigStore(leader.pinia)
+    const provider = 'microsoft-speech'
+    await config.ensureProvider(provider, provider, { apiKey: 'first-key', region: 'eastasia', baseUrl: 'https://voices.invalid/v1/' })
+    await leader.speechStore.loadVoicesForProvider(provider, 'first-model', true)
+    const initial = fetchCatalog.mock.calls.length
+    expect(initial).toBeGreaterThan(0)
+    await leader.speechStore.loadVoicesForProvider(provider, 'first-model', true)
+    expect(fetchCatalog.mock.calls.length).toBe(initial)
+    await leader.speechStore.loadVoicesForProvider(provider, 'second-model', true)
+    expect(fetchCatalog.mock.calls.length).toBe(initial + 1)
+    await config.patchProviderConfig(provider, { apiKey: 'second-key' })
+    await leader.speechStore.loadVoicesForProvider(provider, 'second-model', true)
+    expect(fetchCatalog.mock.calls.length).toBe(initial + 2)
+    await leader.speechStore.loadVoicesForProvider(provider, 'second-model')
+    expect(fetchCatalog.mock.calls.length).toBe(initial + 3)
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2861
+  // ROOT CAUSE:
+  // Direct provider discovery ignored the speech reset generation.
+  // The shared loader cancels the wait and the resolver rejects the expired result.
+  it('rejects a discovery tuple after speech reset (Issue #2861)', async () => {
+    const response = Promise.withResolvers<Response>()
+    let voiceRequests = 0
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
+      if (String(input).includes('voices')) {
+        voiceRequests++
+        return response.promise.then(value => value.clone())
+      }
+      return Response.json({ models: [{ id: 'voice-pack', name: 'Voice pack' }], default: 'voice-pack', data: [] })
+    }))
+    const leader = createSyncedContext(crypto.randomUUID(), 'leader-only')
+    await expect.poll(() => leader.runtime.isLeader()).toBe(true)
+    const now = new Date()
+    useAuthStore(leader.pinia).$patch({
+      token: 'access-token',
+      user: { id: 'owner', name: 'Owner', email: 'owner@example.com', emailVerified: true, createdAt: now, updatedAt: now },
+      session: { id: 'session', userId: 'owner', token: 'session-token', createdAt: now, updatedAt: now, expiresAt: new Date(now.getTime() + 60000) },
+    })
+    const provider = 'official-provider-speech'
+    await useProviderConfigStore(leader.pinia).ensureProvider(provider, provider, {})
+    await useProviderStore(leader.pinia).forceProviderConfigured(provider)
+    const pending = leader.speechStore.resolveSelection({ provider, model: 'voice-pack', voice_id: '' })
+    try {
+      await expect.poll(() => voiceRequests).toBeGreaterThan(0)
+      await leader.speechStore.resetState()
+      await expect(pending).resolves.toBeUndefined()
+      response.resolve(Response.json({ voices: [{ id: 'late', name: 'Late', languages: [] }] }))
+      expect(leader.speechStore.activeSpeechVoiceId).toBe('')
+      expect(leader.speechStore.availableVoices[provider]).toBeUndefined()
+    }
+    finally {
+      response.resolve(Response.json({ voices: [] }))
+    }
+  })
 })

@@ -85,9 +85,16 @@ function resolveSystemPrompt(card: AiriCard | undefined): string {
   return systemPromptParts.join('\n\n')
 }
 
+// Command failures belong to the renderer awaiting discovery, outside card snapshots.
+const useSpeechConfigurationRequests = defineStore('speech-configuration-requests', () => {
+  const failure = ref<{ characterId: string, selection: SpeechSelection, error: string } | null>(null)
+  return { failure }
+})
+
 export const useAiriCardStore = defineStore('airi-card', () => {
   const { t } = useI18n()
   const pinia = getActivePinia()!
+  const speechRequests = useSpeechConfigurationRequests(pinia)
   const runtime = hasInjectionContext() ? inject(injectKeyPiniaSynced, undefined) : undefined
   let disposed = false
   let speechConfigurationRevision = 0
@@ -242,7 +249,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
           ...intent,
         },
       }))
-      await applyActiveCardSettings()
+      await applyActiveCardSettings(activeCard.value, false)
       if (characterId !== activeCardId.value)
         return
     }
@@ -263,6 +270,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     if (!providers.configuredProviders[selection.provider])
       return selection
 
+    speechRequests.failure = null
     const operation = (async () => {
       const resolved = await speech.resolveSelection(selection)
       if (!resolved || disposed || revision !== speechConfigurationRevision
@@ -288,6 +296,11 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     pendingSpeechConfiguration = { revision, promise: operation }
     try {
       return await operation
+    }
+    catch (error) {
+      if (!disposed && revision === speechConfigurationRevision && characterId === activeCardId.value)
+        speechRequests.failure = { characterId, selection, error: errorMessageFrom(error) ?? 'Unknown error' }
+      throw error
     }
     finally {
       if (pendingSpeechConfiguration?.promise === operation)
@@ -1036,8 +1049,9 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return resolveSystemPrompt(cards.value.get(characterId))
   }
 
-  async function applyActiveCardSettings(newCard = activeCard.value) {
+  async function applyActiveCardSettings(newCard = activeCard.value, configureSpeech = true) {
     speechConfigurationRevision++
+    speechRequests.failure = null
     rememberInheritedSettings()
     const artistry = useArtistryStore()
 
@@ -1060,7 +1074,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     appliedModules = modules
     // The background task awaits its routed action. Catalog IO must not block
     // card edits or the authentication operation that completion waits for.
-    void requestSpeechConfiguration()
+    if (configureSpeech)
+      void requestSpeechConfiguration()
 
     if (extension.modules?.artistry) {
       const selection = resolveModuleSelection({
@@ -1120,6 +1135,12 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     activateCard,
     configureForAuthentication,
     configureSpeechSelection,
+    speechConfigurationError: computed(() => {
+      const failure = speechRequests.failure
+      if (!failure || !activeCard.value || !moduleDefaults.value || failure.characterId !== activeCardId.value)
+        return ''
+      return isEqual(failure.selection, getModules(activeCardId.value).speech) ? failure.error : ''
+    }),
     clearProviderSelections,
 
     currentModels: computed(() => {

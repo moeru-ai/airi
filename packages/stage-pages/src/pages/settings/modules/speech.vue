@@ -42,13 +42,7 @@ const airiCardStore = useAiriCardStore()
 const { allAudioSpeechProvidersMetadata, moduleSpeechProvidersMetadata } = storeToRefs(providersStore)
 const {
   pitch,
-  isLoadingSpeechProviderVoices,
-  supportsModelListing,
-  providerModels,
-  isLoadingActiveProviderModels,
-  activeProviderModelError,
   modelSearchQuery,
-  speechProviderError,
   voiceCatalogStatus,
   ssmlEnabled,
   availableVoices,
@@ -66,12 +60,20 @@ const {
 
 // The form and chat resolve the same committed character configuration.
 const emptySelection = Object.freeze({ provider: '', model: '', voice_id: '' })
-const selection = computed(() => airiCardStore.moduleDefaults
+const selection = computed(() => airiCardStore.activeCard && airiCardStore.moduleDefaults
   ? airiCardStore.getModules(airiCardStore.activeCardId).speech
   : emptySelection)
 const activeSpeechProvider = computed(() => selection.value.provider)
 const activeSpeechModel = computed(() => selection.value.model)
 const activeSpeechVoiceId = computed(() => selection.value.voice_id)
+const supportsModelListing = computed(() => providersStore.supportsModelListing(activeSpeechProvider.value))
+const providerModels = computed(() => providersStore.getModelsForProvider(activeSpeechProvider.value))
+const isLoadingActiveProviderModels = computed(() => providersStore.isLoadingModels[activeSpeechProvider.value] || false)
+const activeProviderModelError = computed(() => providersStore.modelLoadError[activeSpeechProvider.value] || null)
+const isLoadingSpeechProviderVoices = computed(() => voiceCatalogStatus.value[activeSpeechProvider.value]?.loading || false)
+const speechProviderError = computed(() => voiceCatalogStatus.value[activeSpeechProvider.value]?.error || null)
+const supportsSSML = computed(() => ['elevenlabs', 'microsoft-speech', 'azure-speech'].includes(activeSpeechProvider.value)
+  || (activeSpeechProvider.value === 'alibaba-cloud-model-studio' && activeSpeechModel.value === 'cosyvoice-v2'))
 const configurationPending = ref(false)
 const configurationError = ref('')
 const customVoiceName = ref('')
@@ -217,6 +219,7 @@ const displayedModelsLoading = computed(() => {
 // A complete committed choice does not require another catalog request to be usable.
 // Catalog errors still appear beside the fields, but cannot invalidate that choice.
 const configurationFailure = computed(() => configurationError.value
+  || airiCardStore.speechConfigurationError
   || providersStore.modelLoadError[selection.value.provider]
   || voiceCatalogStatus.value[selection.value.provider]?.error
   || '')
@@ -351,15 +354,15 @@ async function selectSpeechVoice(voiceId: string | undefined) {
 
 /** Persists the selection only after the leader commits its provider and model. */
 async function selectSpeechSource(sourceId: string) {
-  const selection = await configureSpeech({ provider: sourceId, model: '', voice_id: '' })
-  if (!selection)
+  const resolved = await configureSpeech({ provider: sourceId, model: '', voice_id: '' })
+  if (!resolved)
     return
   const providerId = providerStore.providers[sourceId]?.definitionId || sourceId
   // Use this command's receipt: another selection can reach the store before
   // this caller resumes, but must not relabel this analytics event.
   trackTtsProviderSelected({
     tts_provider_id: providerId,
-    tts_model_id: selection.model || 'unknown',
+    tts_model_id: resolved.model || 'unknown',
     source: 'settings',
   })
 }
@@ -497,7 +500,7 @@ async function generateTestSpeech() {
             pitch: ssmlEnabled.value ? pitch.value : undefined,
           },
           forceSSML: ssmlEnabled.value,
-          supportsSSML: speechStore.supportsSSML,
+          supportsSSML: supportsSSML.value,
         })
 
     if (isOfficialTtsProvider(previewProvider)) {

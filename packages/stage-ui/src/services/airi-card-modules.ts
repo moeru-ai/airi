@@ -34,7 +34,7 @@ export function resolveSpeechOutputSelection(selection: SpeechSelection, config?
   }
 }
 
-/** Keeps inherited fields empty when discovery saves a character-specific choice. */
+/** Keeps inherited fields empty. Compare the resolved provider because an empty source provider inherits defaults. */
 export function completeSpeechOverrides(source: SpeechSelection, defaults: SpeechSelection, resolved: SpeechSelection): SpeechSelection {
   const inheritsModel = !source.model && resolved.provider === defaults.provider && resolved.model === defaults.model
   const inheritsVoice = !source.voice_id && resolved.provider === defaults.provider && resolved.model === defaults.model && resolved.voice_id === defaults.voice_id
