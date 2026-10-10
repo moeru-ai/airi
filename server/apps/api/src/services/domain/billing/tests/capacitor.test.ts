@@ -1,7 +1,7 @@
 import type { Database } from '../../../../libs/db'
 
 import { eq } from 'drizzle-orm'
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../../../../libs/mock-db'
 import { createTestRedis } from '../../../../libs/tests/redis'
@@ -200,6 +200,37 @@ describe('capacitor Flux bucket', () => {
 
       expect(await wallet()).toMatchObject({ capacitorFlux: 70, flux: 9 })
     })
+  })
+
+  it('reads the reset policy outside the settlement transaction', async () => {
+    // A policy read inside the transaction needs a second pool client while the first is held.
+    let inTransaction = false
+    const readsInTransaction: string[] = []
+    const transaction = db.transaction.bind(db)
+    const spy = vi.spyOn(db, 'transaction').mockImplementation((run, config) => transaction(async (tx) => {
+      inTransaction = true
+      try {
+        return await run(tx)
+      }
+      finally {
+        inTransaction = false
+      }
+    }, config))
+    const guarded = createBillingService(db, createTestRedis(), {
+      getOptional: async (key) => {
+        if (inTransaction)
+          readsInTransaction.push(key)
+        return null
+      },
+    })
+
+    await guarded.syncCapacitor('wallet', async () => activeCapacitor(100))
+    await guarded.postFluxUsage({ userId: 'wallet', source: { type: 'test', id: 'a' }, amountMicroFlux: 4_000_000 })
+    await guarded.creditFlux({ userId: 'wallet', amount: 5, description: 'pack', source: 'test' })
+    spy.mockRestore()
+
+    expect(readsInTransaction).toEqual([])
+    expect((await wallet()).capacitorFlux).toBe(96)
   })
 
   it('keeps capacitor ledger rows out of the purchased Flux history', async () => {

@@ -3,7 +3,7 @@ import type Redis from 'ioredis'
 import type { Database } from '../../../libs/db'
 import type { RevenueMetrics } from '../../../otel'
 import type { ConfigKVService } from '../../adapters/config-kv'
-import type { FluxUsageInput } from './flux-posting'
+import type { CapacitorResetPolicy, FluxUsageInput } from './flux-posting'
 
 import { useLogger } from '@guiiai/logg'
 import { and, eq, isNull, sql } from 'drizzle-orm'
@@ -65,11 +65,12 @@ export function createBillingService(
   async function settleOutstanding(
     tx: BillingTransaction,
     stored: typeof fluxSchema.userFlux.$inferSelect,
+    policy: CapacitorResetPolicy,
     operationId: string,
     usageId?: string,
   ) {
     const now = new Date()
-    const wallet = refillCapacitor(stored, await readCapacitorResetPolicy(configKV), now)
+    const wallet = refillCapacitor(stored, policy, now)
     if (wallet.refilled) {
       await tx.insert(fluxTxSchema.fluxTransaction).values({
         userId: wallet.userId,
@@ -126,6 +127,9 @@ export function createBillingService(
     /** Posts a confirmed fee once per source. The wallet row lock serializes pooled settlement. */
     async postFluxUsage(input: FluxUsageInput) {
       const command = parse(fluxUsageInputSchema, input)
+      // The policy read needs its own pool client. It runs before the transaction, so a
+      // settlement never holds one client while it waits for a second.
+      const policy = await readCapacitorResetPolicy(configKV)
       const result = await db.transaction(async (tx) => {
         const wallet = await lockWallet(tx, command.userId)
         const [usage] = await tx.insert(fluxUsageSchema.fluxUsage).values({
@@ -147,7 +151,7 @@ export function createBillingService(
         }
         const outstanding = wallet.unsettledMicroFlux + command.amountMicroFlux
         parse(pipe(number(), safeInteger(), minValue(0)), outstanding)
-        const settled = await settleOutstanding(tx, { ...wallet, unsettledMicroFlux: outstanding }, `usage:${usage.id}:settle`, usage.id)
+        const settled = await settleOutstanding(tx, { ...wallet, unsettledMicroFlux: outstanding }, policy, `usage:${usage.id}:settle`, usage.id)
         return { ...settled, amountMicroFlux: command.amountMicroFlux, replay: false }
       })
       if (!result.replay)
@@ -179,6 +183,7 @@ export function createBillingService(
      * The wallet row stays unlocked during that read, so debits are not blocked.
      */
     async syncCapacitor(userId: string, resolve: () => Promise<CapacitorPeriod | null>): Promise<void> {
+      const policy = await readCapacitorResetPolicy(configKV)
       await db.transaction(async (tx) => {
         await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${userId}))`)
         const period = await resolve()
@@ -206,7 +211,7 @@ export function createBillingService(
           capacitorPeriodStart: period.periodStart,
         }
         await tx.update(fluxSchema.userFlux).set(capacitor).where(eq(fluxSchema.userFlux.userId, userId))
-        await settleOutstanding(tx, { ...wallet, ...capacitor }, `capacitor:${nanoid()}:settle`)
+        await settleOutstanding(tx, { ...wallet, ...capacitor }, policy, `capacitor:${nanoid()}:settle`)
       })
       await updateRedisCache(userId)
     },
@@ -245,6 +250,8 @@ export function createBillingService(
       parse(pipe(number(), safeInteger(), minValue(1)), input.amount)
       const ledgerType = input.type ?? 'credit'
 
+      // With `input.tx`, the caller already holds a client. That path is a purchase, not the request path.
+      const policy = await readCapacitorResetPolicy(configKV)
       const writeCredit = async (tx: BillingTransaction) => {
         await tx.insert(fluxSchema.userFlux)
           .values({ userId: input.userId, flux: 0 })
@@ -301,7 +308,7 @@ export function createBillingService(
           metadata: input.auditMetadata,
         }).returning({ id: fluxTxSchema.fluxTransaction.id })
 
-        const settled = await settleOutstanding(tx, { ...row!, flux: balanceAfter }, `credit:${insertedTx!.id}:settle`)
+        const settled = await settleOutstanding(tx, { ...row!, flux: balanceAfter }, policy, `credit:${insertedTx!.id}:settle`)
         return {
           balanceBefore,
           balanceAfter: settled.balance,
