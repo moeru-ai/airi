@@ -7,7 +7,7 @@ import type { WalletSnapshot } from './flux-cache'
 import { useLogger } from '@guiiai/logg'
 import { and, eq, isNull } from 'drizzle-orm'
 
-import { capacitorPercent, readCapacitorResetPolicy, refillCapacitor } from './billing/flux-posting'
+import { capacitorPercent, nextCapacitorRecharge, readCapacitorResetPolicy, refillCapacitor } from './billing/flux-posting'
 import { invalidateBalanceCache, readBalanceCache, writeBalanceCache } from './flux-cache'
 
 import * as schema from '../../schemas/flux'
@@ -32,6 +32,10 @@ function toBalance(userId: string, snapshot: WalletSnapshot) {
       capacitorQuota: snapshot.capacitorQuota,
       capacitorExpiresAt: snapshot.capacitorExpiresAt === null ? null : new Date(snapshot.capacitorExpiresAt),
     }),
+    // A cached time that has passed is not shown. The next uncached read gives the new one.
+    capacitorRechargesAt: snapshot.capacitorRechargesAt !== null && new Date(snapshot.capacitorRechargesAt) > new Date()
+      ? snapshot.capacitorRechargesAt
+      : null,
   }
 }
 
@@ -88,12 +92,14 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
       }
 
       // A due capacitor refill is counted in the snapshot. The cache can show the old amount for its TTL after a reset.
+      const policy = await readCapacitorResetPolicy(configKV)
       const snapshot = {
         flux: record.flux,
         unsettledMicroFlux: record.unsettledMicroFlux,
-        capacitorFlux: refillCapacitor(record, await readCapacitorResetPolicy(configKV)).capacitorFlux,
+        capacitorFlux: refillCapacitor(record, policy).capacitorFlux,
         capacitorQuota: record.capacitorQuota,
         capacitorExpiresAt: record.capacitorExpiresAt?.toISOString() ?? null,
+        capacitorRechargesAt: nextCapacitorRecharge(record, policy)?.toISOString() ?? null,
         fallbackToFlux: record.fallbackToFlux,
       }
       await writeBalanceCache(redis, userId, snapshot)

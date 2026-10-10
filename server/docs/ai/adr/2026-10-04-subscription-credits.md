@@ -99,7 +99,9 @@ No job clears it.
 
 ### Read
 
-`GET /api/v1/flux` returns `capacitorPercent` and `fallbackToFlux` with the balance.
+`GET /api/v1/flux` returns `capacitorPercent`, `capacitorRechargesAt`, and `fallbackToFlux` with the balance.
+`capacitorRechargesAt` is the start of the next reset window. It is null without a reset interval, because the Capacitor then recharges only on renewal.
+Windows count from each user's period start, so the client shows this time.
 The percent is `capacitor_flux / capacitor_quota`. It is null without an active Capacitor.
 The cached balance can show the amount before a reset for 60 seconds.
 The response omits Capacitor Flux counts.

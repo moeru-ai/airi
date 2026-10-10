@@ -1229,11 +1229,12 @@ pages:
       description: Flux packages to choose from.
   capacitor:
     title: Capacitor
-    description: A Capacitor holds Flux and recharges each month.
+    description: A Capacitor holds Flux and recharges by itself.
     packagesError: Failed to load Capacitors. Please try again later.
     preferenceError: Failed to save preference. Please try again later.
     noCapacitor: No Capacitor
     remaining: '{percent}% left'
+    rechargesAt: Recharges {date}
     renewsAt: Renews {date}
     expiresAt: Expires {date}
     perMonth: / month

@@ -11,7 +11,7 @@ import { ApiError } from '../../utils/error'
 
 function createMockFluxService(): FluxService {
   return {
-    getFlux: vi.fn(async (userId: string) => ({ userId, flux: 42, unsettledMicroFlux: 150_000, fallbackToFlux: false, capacitorPercent: 90 })),
+    getFlux: vi.fn(async (userId: string) => ({ userId, flux: 42, unsettledMicroFlux: 150_000, fallbackToFlux: false, capacitorPercent: 90, capacitorRechargesAt: null })),
     deleteAllForUser: vi.fn(async () => undefined),
   }
 }
@@ -68,7 +68,7 @@ describe('fluxRoutes', () => {
     const app = createTestApp(flux, createMockFluxTransactionService())
     const response = await app.request('/api/v1/flux')
     expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({ userId: 'user-1', flux: 42, unsettledMicroFlux: 150_000, fallbackToFlux: false, capacitorPercent: 90 })
+    expect(await response.json()).toEqual({ userId: 'user-1', flux: 42, unsettledMicroFlux: 150_000, fallbackToFlux: false, capacitorPercent: 90, capacitorRechargesAt: null })
     expect(flux.getFlux).toHaveBeenCalledWith('user-1')
   })
 

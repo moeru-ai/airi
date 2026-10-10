@@ -13,6 +13,7 @@ export const walletSnapshotSchema = object({
   capacitorFlux: pipe(number(), safeInteger(), minValue(0)),
   capacitorQuota: pipe(number(), safeInteger(), minValue(0)),
   capacitorExpiresAt: nullable(string()),
+  capacitorRechargesAt: nullable(string()),
   fallbackToFlux: boolean(),
 })
 export type WalletSnapshot = InferOutput<typeof walletSnapshotSchema>

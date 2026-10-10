@@ -1169,11 +1169,12 @@ pages:
       description: 可以选择购入的 Flux 电池包
   capacitor:
     title: Capacitor
-    description: Capacitor 装着 Flux，每月充满一次。
+    description: Capacitor 装着 Flux，会自动充满。
     packagesError: 暂时无法获取可用的 Capacitor，可以之后再试试吗？
     preferenceError: 偏好保存失败，请稍后再试。
     noCapacitor: 尚未装配 Capacitor
     remaining: 剩余 {percent}%
+    rechargesAt: '{date} 充满'
     renewsAt: '{date} 续订'
     expiresAt: '{date} 到期'
     perMonth: / 月

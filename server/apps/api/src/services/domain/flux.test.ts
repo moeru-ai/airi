@@ -11,10 +11,10 @@ import { createFluxService } from './flux'
 
 import * as schema from '../../schemas'
 
-const emptyCapacitor = { unsettledMicroFlux: 0, capacitorFlux: 0, capacitorQuota: 0, capacitorExpiresAt: null, fallbackToFlux: false }
+const emptyCapacitor = { unsettledMicroFlux: 0, capacitorFlux: 0, capacitorQuota: 0, capacitorExpiresAt: null, capacitorRechargesAt: null, fallbackToFlux: false }
 
-function createMockConfigKV(overrides: Record<string, number> = {}): ReturnType<typeof createConfigKVService> {
-  const defaults: Record<string, number> = { INITIAL_USER_FLUX: 100, FLUX_PER_REQUEST: 1, ...overrides }
+function createMockConfigKV(overrides: Record<string, number | string> = {}): ReturnType<typeof createConfigKVService> {
+  const defaults: Record<string, number | string> = { INITIAL_USER_FLUX: 100, FLUX_PER_REQUEST: 1, ...overrides }
   return {
     get: vi.fn(async (key: string) => defaults[key]),
     getOrThrow: vi.fn(async (key: string) => defaults[key]),
@@ -140,6 +140,28 @@ describe('fluxService (DB-backed)', () => {
     })
 
     expect((await service.getFlux(testUser.id)).flux).toBe(42)
+  })
+
+  it('reports the next recharge when a reset interval is configured', async () => {
+    const hour = 3_600_000
+    const periodStart = new Date(Date.now() - 2 * hour)
+    await db.insert(schema.userFlux).values({
+      userId: testUser.id,
+      flux: 42,
+      capacitorFlux: 25,
+      capacitorQuota: 100,
+      capacitorExpiresAt: new Date(Date.now() + 30 * 24 * hour),
+      capacitorPeriodStart: periodStart,
+      capacitorFilledAt: periodStart,
+    })
+
+    expect(await service.getFlux(testUser.id)).toMatchObject({ capacitorRechargesAt: null })
+
+    await redis.flushall()
+    const daily = createFluxService(db, redis, createMockConfigKV({ CAPACITOR_RESET_INTERVAL: 'day' }))
+    expect(await daily.getFlux(testUser.id)).toMatchObject({
+      capacitorRechargesAt: new Date(periodStart.getTime() + 24 * hour).toISOString(),
+    })
   })
 
   it('counts a due capacitor refill in the capacitor percent', async () => {

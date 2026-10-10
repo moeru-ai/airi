@@ -8,7 +8,7 @@ import { createTestRedis } from '../../../../libs/tests/redis'
 import { fluxTransaction, fluxUsage, userFlux } from '../../../../schemas'
 import { createFluxTransactionService } from '../../flux-transaction'
 import { createBillingService } from '../billing-service'
-import { availableMicroFlux, capacitorPercent, refillCapacitor, settleOutstandingMicroFlux } from '../flux-posting'
+import { availableMicroFlux, capacitorPercent, nextCapacitorRecharge, refillCapacitor, settleOutstandingMicroFlux } from '../flux-posting'
 
 import * as schema from '../../../../schemas'
 
@@ -268,6 +268,25 @@ describe('flux posting math', () => {
     expect(refillCapacitor(capacitor, { intervalMs: null, resetAt: new Date('2026-10-05T00:00:00.000Z') }, now).refilled).toBe(true)
     expect(refillCapacitor(capacitor, { intervalMs: null, resetAt: new Date('2026-10-20T00:00:00.000Z') }, now).refilled).toBe(false)
     expect(refillCapacitor({ ...capacitor, capacitorExpiresAt: new Date('2026-10-02T00:00:00.000Z') }, daily, now).refilled).toBe(false)
+  })
+
+  it('gives the next recharge as the start of the next window inside the billing period', () => {
+    const now = new Date('2026-10-10T12:00:00.000Z')
+    const capacitor = {
+      capacitorFlux: 0,
+      capacitorQuota: 100,
+      capacitorExpiresAt: new Date('2026-11-01T06:00:00.000Z'),
+      capacitorPeriodStart: new Date('2026-10-01T06:00:00.000Z'),
+      capacitorFilledAt: null,
+      capacitorResetAt: null,
+    }
+    const daily = { intervalMs: 24 * hour, resetAt: null }
+
+    expect(nextCapacitorRecharge(capacitor, daily, now)).toEqual(new Date('2026-10-11T06:00:00.000Z'))
+    expect(nextCapacitorRecharge(capacitor, { intervalMs: null, resetAt: null }, now)).toBeNull()
+    // The last window of the period ends at the expiry, so only a renewal recharges after it.
+    expect(nextCapacitorRecharge(capacitor, daily, new Date('2026-10-31T12:00:00.000Z'))).toBeNull()
+    expect(nextCapacitorRecharge({ ...capacitor, capacitorExpiresAt: new Date('2026-10-05T00:00:00.000Z') }, daily, now)).toBeNull()
   })
 
   it('refills once when the period start is ahead of this clock', () => {

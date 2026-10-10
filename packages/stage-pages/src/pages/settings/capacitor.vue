@@ -11,7 +11,7 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
-const { capacitorPercent, fallbackToFlux } = storeToRefs(authStore)
+const { capacitorPercent, capacitorRechargesAt, fallbackToFlux } = storeToRefs(authStore)
 
 const fluxPurchaseDisabled = isFluxPurchaseDisabled()
 
@@ -168,6 +168,9 @@ async function handleSubscribe(packageId: string) {
           </p>
           <p v-else :class="['text-sm text-neutral-500']">
             {{ t('settings.pages.capacitor.description') }}
+          </p>
+          <p v-if="capacitorRechargesAt" :class="['text-xs text-neutral-400']">
+            {{ t('settings.pages.capacitor.rechargesAt', { date: formatDate(capacitorRechargesAt) }) }}
           </p>
           <p v-if="currentCapacitor?.expiresAt" :class="['text-xs text-neutral-400']">
             {{ currentCapacitor.willRenew

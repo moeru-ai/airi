@@ -2919,7 +2919,7 @@ describe('issue #2479 hosted Responses', () => {
     const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => now)
     vi.mocked(flux.getFlux).mockImplementation(async () => {
       now = 1000
-      return { userId: 'user-1', flux: 100, unsettledMicroFlux: 0, fallbackToFlux: false, capacitorPercent: null }
+      return { userId: 'user-1', flux: 100, unsettledMicroFlux: 0, fallbackToFlux: false, capacitorPercent: null, capacitorRechargesAt: null }
     })
     vi.mocked(catalog.resolveEnabledAlias).mockImplementation(async () => {
       now = 2000

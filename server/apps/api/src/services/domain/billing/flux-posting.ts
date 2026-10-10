@@ -137,6 +137,19 @@ export function refillCapacitor<T extends CapacitorBucket>(capacitor: T, policy:
   }
 }
 
+/**
+ * The start of the next reset window, for display.
+ * Null without a reset interval, without an active capacitor, or when the capacitor expires before that window.
+ */
+export function nextCapacitorRecharge(capacitor: CapacitorBucket, policy: CapacitorResetPolicy, now: Date = new Date()): Date | null {
+  if (policy.intervalMs === null || capacitor.capacitorPeriodStart === null || capacitor.capacitorExpiresAt === null || capacitor.capacitorExpiresAt <= now)
+    return null
+  const start = capacitor.capacitorPeriodStart.getTime()
+  const windows = Math.floor(Math.max(0, now.getTime() - start) / policy.intervalMs) + 1
+  const next = start + windows * policy.intervalMs
+  return next < capacitor.capacitorExpiresAt.getTime() ? new Date(next) : null
+}
+
 /** Whole percent of the capacitor quota left. Null when no capacitor is active. */
 export function capacitorPercent(wallet: Pick<PooledWallet, 'capacitorFlux' | 'capacitorExpiresAt'> & { capacitorQuota: number }, now: Date = new Date()): number | null {
   if (wallet.capacitorExpiresAt === null || wallet.capacitorExpiresAt <= now || wallet.capacitorQuota <= 0)

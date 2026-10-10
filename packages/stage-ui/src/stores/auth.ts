@@ -98,6 +98,8 @@ export const useAuthStore = defineStore('auth', () => {
   const credits = ref(0)
   /** Whole percent of the capacitor Flux left. Null without an active capacitor. */
   const capacitorPercent = ref<number | null>(null)
+  /** Next recharge inside the billing period. Null when the Capacitor recharges only on renewal. */
+  const capacitorRechargesAt = ref<string | null>(null)
   const fallbackToFlux = ref(false)
 
   // The leader owns this cross-window login request. Web consumes it locally;
@@ -427,6 +429,7 @@ export const useAuthStore = defineStore('auth', () => {
       if (version === sessionVersion.value && isAuthenticated.value) {
         credits.value = data.flux
         capacitorPercent.value = data.capacitorPercent
+        capacitorRechargesAt.value = data.capacitorRechargesAt
         fallbackToFlux.value = data.fallbackToFlux
       }
     }
@@ -446,6 +449,7 @@ export const useAuthStore = defineStore('auth', () => {
     else {
       credits.value = 0
       capacitorPercent.value = null
+      capacitorRechargesAt.value = null
       fallbackToFlux.value = false
 
       if (wasAuthenticated)
@@ -474,6 +478,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     credits,
     capacitorPercent,
+    capacitorRechargesAt,
     fallbackToFlux,
     updateCredits,
     needsLogin,

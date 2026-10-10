@@ -158,7 +158,7 @@ describe('auth store sign-in requests', () => {
   })
 
   it('reads the capacitor percent and fallback choice with the Flux balance', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ flux: 5, capacitorPercent: 40, fallbackToFlux: true })))
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ flux: 5, capacitorPercent: 40, capacitorRechargesAt: '2026-10-11T06:00:00.000Z', fallbackToFlux: true })))
     const authStore = useAuthStore()
     authStore.$patch({ user, session })
 
@@ -166,6 +166,7 @@ describe('auth store sign-in requests', () => {
 
     expect(authStore.credits).toBe(5)
     expect(authStore.capacitorPercent).toBe(40)
+    expect(authStore.capacitorRechargesAt).toBe('2026-10-11T06:00:00.000Z')
     expect(authStore.fallbackToFlux).toBe(true)
   })
 
