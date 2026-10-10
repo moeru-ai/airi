@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { capacitorCatalogCopy, currentCapacitorFromCustomerInfo } from './use-subscription'
+import { capacitorCatalogCopy, currentCapacitorFromCustomerInfo, isOneMonthPeriod } from './use-subscription'
 
 const metadata = {
   capacitors: {
@@ -19,20 +19,23 @@ describe('currentCapacitorFromCustomerInfo', () => {
     expect(currentCapacitorFromCustomerInfo({ entitlements: { active: {} } })).toBeNull()
   })
 
-  it('keeps the entitlement that expires later', () => {
+  // The server grants the quota of the latest purchase. See `revenuecat-subscriptions.ts`.
+  it('keeps the entitlement with the latest purchase', () => {
     const capacitor = currentCapacitorFromCustomerInfo({
       entitlements: {
         active: {
           airi_go: {
             identifier: 'airi_go',
             productIdentifier: 'rc_go_monthly',
+            latestPurchaseDate: new Date('2026-10-01T00:00:00.000Z'),
             expirationDate: new Date('2026-11-01T00:00:00.000Z'),
             willRenew: false,
           },
           airi_plus: {
             identifier: 'airi_plus',
             productIdentifier: 'rc_plus_monthly',
-            expirationDate: new Date('2026-12-01T00:00:00.000Z'),
+            latestPurchaseDate: new Date('2026-10-15T00:00:00.000Z'),
+            expirationDate: new Date('2026-11-01T00:00:00.000Z'),
             willRenew: true,
           },
         },
@@ -41,31 +44,18 @@ describe('currentCapacitorFromCustomerInfo', () => {
     expect(capacitor).toEqual({
       entitlementId: 'airi_plus',
       productId: 'rc_plus_monthly',
-      expiresAt: '2026-12-01T00:00:00.000Z',
+      expiresAt: '2026-11-01T00:00:00.000Z',
       willRenew: true,
     })
   })
+})
 
-  it('prefers a lifetime entitlement', () => {
-    const capacitor = currentCapacitorFromCustomerInfo({
-      entitlements: {
-        active: {
-          dated: {
-            identifier: 'airi_go',
-            productIdentifier: 'rc_go_monthly',
-            expirationDate: new Date('2026-12-01T00:00:00.000Z'),
-            willRenew: true,
-          },
-          lifetime: {
-            identifier: 'airi_plus',
-            productIdentifier: 'rc_plus_lifetime',
-            expirationDate: null,
-            willRenew: true,
-          },
-        },
-      },
-    })
-    expect(capacitor).toMatchObject({ entitlementId: 'airi_plus', expiresAt: null })
+describe('isOneMonthPeriod', () => {
+  it('accepts one month only', () => {
+    expect(isOneMonthPeriod({ number: 1, unit: 'month' })).toBe(true)
+    expect(isOneMonthPeriod({ number: 3, unit: 'month' })).toBe(false)
+    expect(isOneMonthPeriod({ number: 1, unit: 'year' })).toBe(false)
+    expect(isOneMonthPeriod(null)).toBe(false)
   })
 })
 

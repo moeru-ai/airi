@@ -85,13 +85,14 @@ export function capacitorCatalogCopy(metadata: unknown, productId: string, local
 interface CapacitorEntitlement {
   identifier: string
   productIdentifier: string
+  latestPurchaseDate: Date
   expirationDate: Date | null
   willRenew: boolean
 }
 
 /**
- * Picks the active entitlement that lasts longest.
- * A lifetime entitlement has no expiry and outranks a dated one.
+ * Picks the active entitlement with the latest purchase.
+ * The server grants the quota by the same rule, so the page and the wallet show one Capacitor.
  */
 export function currentCapacitorFromCustomerInfo(info: {
   entitlements: { active: Record<string, CapacitorEntitlement> }
@@ -100,9 +101,7 @@ export function currentCapacitorFromCustomerInfo(info: {
   const chosen = active.reduce<typeof active[number] | null>((best, item) => {
     if (!best)
       return item
-    const bestExpiry = best.expirationDate?.getTime() ?? Number.POSITIVE_INFINITY
-    const itemExpiry = item.expirationDate?.getTime() ?? Number.POSITIVE_INFINITY
-    return itemExpiry > bestExpiry ? item : best
+    return item.latestPurchaseDate.getTime() > best.latestPurchaseDate.getTime() ? item : best
   }, null)
   if (!chosen)
     return null
@@ -114,9 +113,14 @@ export function currentCapacitorFromCustomerInfo(info: {
   }
 }
 
+/** A period of two or more months has the unit `month` too. Its price is not a monthly price. */
+export function isOneMonthPeriod(period: { number: number, unit: string } | null): boolean {
+  return period?.unit === 'month' && period.number === 1
+}
+
 /** Capacitors are sold by the month only. Packages with another billing period are not listed. */
 function toCapacitorPackage(pkg: Package, metadata: unknown, locale: string): CapacitorPackage | null {
-  if (pkg.webBillingProduct.period?.unit !== 'month')
+  if (!isOneMonthPeriod(pkg.webBillingProduct.period))
     return null
   const price = pkg.webBillingProduct.price
   const copy = capacitorCatalogCopy(metadata, pkg.webBillingProduct.identifier, locale)
