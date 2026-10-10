@@ -11,7 +11,7 @@ import { createFluxService } from './flux'
 
 import * as schema from '../../schemas'
 
-const emptyPlan = { unsettledMicroFlux: 0, planFlux: 0, planQuota: 0, planExpiresAt: null, fallbackToFlux: false }
+const emptyCapacitor = { unsettledMicroFlux: 0, capacitorFlux: 0, capacitorQuota: 0, capacitorExpiresAt: null, fallbackToFlux: false }
 
 function createMockConfigKV(overrides: Record<string, number> = {}): ReturnType<typeof createConfigKVService> {
   const defaults: Record<string, number> = { INITIAL_USER_FLUX: 100, FLUX_PER_REQUEST: 1, ...overrides }
@@ -56,7 +56,7 @@ describe('fluxService (DB-backed)', () => {
   it('getFlux should initialize new user with INITIAL_USER_FLUX and populate Redis', async () => {
     const record = await service.getFlux(testUser.id)
     expect(record.flux).toBe(100)
-    expect(set).toHaveBeenCalledWith(userFluxRedisKey(testUser.id), JSON.stringify({ flux: 100, ...emptyPlan }), 'EX', 60)
+    expect(set).toHaveBeenCalledWith(userFluxRedisKey(testUser.id), JSON.stringify({ flux: 100, ...emptyCapacitor }), 'EX', 60)
   })
 
   it('getFlux should write a transaction entry on initialization', async () => {
@@ -85,7 +85,7 @@ describe('fluxService (DB-backed)', () => {
 
     const record = await service.getFlux(testUser.id)
     expect(record.flux).toBe(42)
-    expect(set).toHaveBeenCalledWith(userFluxRedisKey(testUser.id), JSON.stringify({ flux: 42, ...emptyPlan }), 'EX', 60)
+    expect(set).toHaveBeenCalledWith(userFluxRedisKey(testUser.id), JSON.stringify({ flux: 42, ...emptyCapacitor }), 'EX', 60)
   })
 
   // ROOT CAUSE:
@@ -135,37 +135,37 @@ describe('fluxService (DB-backed)', () => {
     const get = redis.get.bind(redis)
     vi.spyOn(redis, 'get').mockImplementationOnce(async (requestedKey) => {
       const previous = await get(requestedKey)
-      await redis.set(key, JSON.stringify({ flux: 42, ...emptyPlan }), 'EX', 60)
+      await redis.set(key, JSON.stringify({ flux: 42, ...emptyCapacitor }), 'EX', 60)
       return previous
     })
 
     expect((await service.getFlux(testUser.id)).flux).toBe(42)
   })
 
-  it('counts a due plan refill in the plan percent', async () => {
+  it('counts a due capacitor refill in the capacitor percent', async () => {
     await db.insert(schema.userFlux).values({
       userId: testUser.id,
       flux: 42,
-      planFlux: 25,
-      planQuota: 100,
-      planExpiresAt: new Date(Date.now() + 60_000),
-      planPeriodStart: new Date(Date.now() - 60_000),
-      planFilledAt: new Date(Date.now() - 120_000),
+      capacitorFlux: 25,
+      capacitorQuota: 100,
+      capacitorExpiresAt: new Date(Date.now() + 60_000),
+      capacitorPeriodStart: new Date(Date.now() - 60_000),
+      capacitorFilledAt: new Date(Date.now() - 120_000),
     })
 
-    expect(await service.getFlux(testUser.id)).toMatchObject({ planRemainingPercent: 100 })
+    expect(await service.getFlux(testUser.id)).toMatchObject({ capacitorPercent: 100 })
   })
 
-  it('reports the plan percent and judges expiry on every read', async () => {
-    const planExpiresAt = new Date(Date.now() + 60_000)
-    await db.insert(schema.userFlux).values({ userId: testUser.id, flux: 42, planFlux: 25, planQuota: 100, planExpiresAt })
+  it('reports the capacitor percent and judges expiry on every read', async () => {
+    const capacitorExpiresAt = new Date(Date.now() + 60_000)
+    await db.insert(schema.userFlux).values({ userId: testUser.id, flux: 42, capacitorFlux: 25, capacitorQuota: 100, capacitorExpiresAt })
 
-    expect(await service.getFlux(testUser.id)).toMatchObject({ flux: 42, planRemainingPercent: 25 })
+    expect(await service.getFlux(testUser.id)).toMatchObject({ flux: 42, capacitorPercent: 25 })
 
-    // The cached snapshot keeps the raw expiry, so a later read sees an expired plan.
+    // The cached snapshot keeps the raw expiry, so a later read sees an expired capacitor.
     vi.useFakeTimers({ toFake: ['Date'], now: Date.now() + 120_000 })
     try {
-      expect(await service.getFlux(testUser.id)).toMatchObject({ planRemainingPercent: null })
+      expect(await service.getFlux(testUser.id)).toMatchObject({ capacitorPercent: null })
     }
     finally {
       vi.useRealTimers()

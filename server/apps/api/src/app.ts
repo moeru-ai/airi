@@ -459,7 +459,7 @@ export async function buildApp(deps: AppDeps) {
     ))
 
     /**
-     * RevenueCat webhook ingress (plan Flux).
+     * RevenueCat webhook ingress (capacitor Flux).
      */
     .route('/api/v1/revenuecat', createRevenuecatRoutes(
       deps.subscriptionSync,

@@ -146,15 +146,16 @@
       part-of-speech: proper noun
       status: preferred
       context: Payment successful! Your Flux has been topped up.
-- id: plan-credits
+- id: capacitor
   subject: payment
-  translatable: true
-  definition: The usage allowance granted by an active subscription. It is separate from Flux.
+  translatable: false
+  definition: The store of Flux that a subscription gives and recharges each billing period.
+  note: Do not call it a plan or credits. The Flux inside it is the same Flux that a user buys.
   terms:
-    - text: Plan credits
-      part-of-speech: noun
+    - text: Capacitor
+      part-of-speech: proper noun
       status: preferred
-      context: 1800 of 2000 plan credits left.
+      context: Use Flux when the Capacitor is empty.
 
 # ---------------------------------------------------------------------------------------
 # Rendering

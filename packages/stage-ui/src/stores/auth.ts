@@ -63,7 +63,7 @@ export interface AuthTokenSet {
 }
 
 /**
- * Auth store — holds identity state, Flux credits, and the plan remaining percent.
+ * Auth store — holds identity state, Flux credits, and the capacitor remaining percent.
  *
  * This store has no dependency on `stores/providers`, which allows
  * `providers` to safely depend on it without creating a circular import.
@@ -96,8 +96,8 @@ export const useAuthStore = defineStore('auth', () => {
   let signingOut = false
 
   const credits = ref(0)
-  /** Whole percent of the plan Flux left. Null without an active plan. */
-  const planRemaining = ref<number | null>(null)
+  /** Whole percent of the capacitor Flux left. Null without an active capacitor. */
+  const capacitorPercent = ref<number | null>(null)
   const fallbackToFlux = ref(false)
 
   // The leader owns this cross-window login request. Web consumes it locally;
@@ -426,7 +426,7 @@ export const useAuthStore = defineStore('auth', () => {
       const data = await res.json()
       if (version === sessionVersion.value && isAuthenticated.value) {
         credits.value = data.flux
-        planRemaining.value = data.planRemainingPercent
+        capacitorPercent.value = data.capacitorPercent
         fallbackToFlux.value = data.fallbackToFlux
       }
     }
@@ -445,7 +445,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
     else {
       credits.value = 0
-      planRemaining.value = null
+      capacitorPercent.value = null
       fallbackToFlux.value = false
 
       if (wasAuthenticated)
@@ -473,7 +473,7 @@ export const useAuthStore = defineStore('auth', () => {
     idToken,
     isAuthenticated,
     credits,
-    planRemaining,
+    capacitorPercent,
     fallbackToFlux,
     updateCredits,
     needsLogin,

@@ -81,8 +81,8 @@ function verifySignature(
 }
 
 /**
- * Verifies a RevenueCat webhook, then reconciles the plan Flux of the users that it names.
- * The event type does not select a plan rule, so a repeated or late delivery is safe.
+ * Verifies a RevenueCat webhook, then reconciles the capacitor Flux of the users that it names.
+ * The event type does not select a capacitor rule, so a repeated or late delivery is safe.
  */
 export function createWebhookOperation(
   subscriptionSync: RevenuecatSubscriptionSync,

@@ -157,15 +157,15 @@ describe('auth store sign-in requests', () => {
     expect(authStore.token).toBe('persisted-access-token')
   })
 
-  it('reads the plan percent and fallback choice with the Flux balance', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ flux: 5, planRemainingPercent: 40, fallbackToFlux: true })))
+  it('reads the capacitor percent and fallback choice with the Flux balance', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ flux: 5, capacitorPercent: 40, fallbackToFlux: true })))
     const authStore = useAuthStore()
     authStore.$patch({ user, session })
 
     await authStore.updateCredits()
 
     expect(authStore.credits).toBe(5)
-    expect(authStore.planRemaining).toBe(40)
+    expect(authStore.capacitorPercent).toBe(40)
     expect(authStore.fallbackToFlux).toBe(true)
   })
 

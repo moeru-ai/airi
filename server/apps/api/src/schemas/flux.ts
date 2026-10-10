@@ -8,21 +8,21 @@ export const userFlux = pgTable('user_flux', {
   userId: text('user_id').primaryKey(),
   flux: bigint('flux', { mode: 'number' }).notNull().default(0),
   unsettledMicroFlux: bigint('unsettled_micro_flux', { mode: 'number' }).notNull().default(0),
-  /** Plan bucket. It refills at each reset boundary and counts as 0 once `planExpiresAt` has passed. */
-  planFlux: bigint('plan_flux', { mode: 'number' }).notNull().default(0),
-  planQuota: bigint('plan_quota', { mode: 'number' }).notNull().default(0),
-  planExpiresAt: timestamp('plan_expires_at'),
+  /** Capacitor bucket. It refills at each reset boundary and counts as 0 once `capacitorExpiresAt` has passed. */
+  capacitorFlux: bigint('capacitor_flux', { mode: 'number' }).notNull().default(0),
+  capacitorQuota: bigint('capacitor_quota', { mode: 'number' }).notNull().default(0),
+  capacitorExpiresAt: timestamp('capacitor_expires_at'),
   /** Start of the billing period that the payment channel reports. */
-  planPeriodStart: timestamp('plan_period_start'),
+  capacitorPeriodStart: timestamp('capacitor_period_start'),
   /** Last refill to the quota. A refill is due when this is before the reset boundary. */
-  planFilledAt: timestamp('plan_filled_at'),
+  capacitorFilledAt: timestamp('capacitor_filled_at'),
   /** An admin sets this to refill this one wallet once at that time. */
-  planResetAt: timestamp('plan_reset_at'),
-  /** With an active plan, spend purchased Flux after the plan bucket runs out. Off by default. */
+  capacitorResetAt: timestamp('capacitor_reset_at'),
+  /** With an active capacitor, spend purchased Flux after the capacitor bucket runs out. Off by default. */
   fallbackToFlux: boolean('fallback_to_flux').notNull().default(false),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
 }, table => [
   check('user_flux_unsettled_nonnegative', sql`${table.unsettledMicroFlux} >= 0`),
-  check('user_flux_plan_nonnegative', sql`${table.planFlux} >= 0 AND ${table.planQuota} >= 0`),
+  check('user_flux_capacitor_nonnegative', sql`${table.capacitorFlux} >= 0 AND ${table.capacitorQuota} >= 0`),
 ])

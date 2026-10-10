@@ -10,9 +10,9 @@ import { userFluxRedisKey } from '../../utils/redis-keys'
 export const walletSnapshotSchema = object({
   flux: pipe(number(), safeInteger(), minValue(0)),
   unsettledMicroFlux: pipe(number(), safeInteger(), minValue(0)),
-  planFlux: pipe(number(), safeInteger(), minValue(0)),
-  planQuota: pipe(number(), safeInteger(), minValue(0)),
-  planExpiresAt: nullable(string()),
+  capacitorFlux: pipe(number(), safeInteger(), minValue(0)),
+  capacitorQuota: pipe(number(), safeInteger(), minValue(0)),
+  capacitorExpiresAt: nullable(string()),
   fallbackToFlux: boolean(),
 })
 export type WalletSnapshot = InferOutput<typeof walletSnapshotSchema>

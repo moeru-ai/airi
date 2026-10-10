@@ -1,5 +1,5 @@
 {
-  "id": "28a3d608-8124-4a08-8b4d-c940b447c6dc",
+  "id": "be9d42f8-6aea-4deb-8e0c-c4eb70b473ae",
   "prevId": "790786c0-b7ac-4e2c-9490-2492ad6bf99c",
   "version": "7",
   "dialect": "postgresql",
@@ -1112,40 +1112,40 @@
           "notNull": true,
           "default": 0
         },
-        "plan_flux": {
-          "name": "plan_flux",
+        "capacitor_flux": {
+          "name": "capacitor_flux",
           "type": "bigint",
           "primaryKey": false,
           "notNull": true,
           "default": 0
         },
-        "plan_quota": {
-          "name": "plan_quota",
+        "capacitor_quota": {
+          "name": "capacitor_quota",
           "type": "bigint",
           "primaryKey": false,
           "notNull": true,
           "default": 0
         },
-        "plan_expires_at": {
-          "name": "plan_expires_at",
+        "capacitor_expires_at": {
+          "name": "capacitor_expires_at",
           "type": "timestamp",
           "primaryKey": false,
           "notNull": false
         },
-        "plan_period_start": {
-          "name": "plan_period_start",
+        "capacitor_period_start": {
+          "name": "capacitor_period_start",
           "type": "timestamp",
           "primaryKey": false,
           "notNull": false
         },
-        "plan_filled_at": {
-          "name": "plan_filled_at",
+        "capacitor_filled_at": {
+          "name": "capacitor_filled_at",
           "type": "timestamp",
           "primaryKey": false,
           "notNull": false
         },
-        "plan_reset_at": {
-          "name": "plan_reset_at",
+        "capacitor_reset_at": {
+          "name": "capacitor_reset_at",
           "type": "timestamp",
           "primaryKey": false,
           "notNull": false
@@ -1181,9 +1181,9 @@
           "name": "user_flux_unsettled_nonnegative",
           "value": "\"user_flux\".\"unsettled_micro_flux\" >= 0"
         },
-        "user_flux_plan_nonnegative": {
-          "name": "user_flux_plan_nonnegative",
-          "value": "\"user_flux\".\"plan_flux\" >= 0 AND \"user_flux\".\"plan_quota\" >= 0"
+        "user_flux_capacitor_nonnegative": {
+          "name": "user_flux_capacitor_nonnegative",
+          "value": "\"user_flux\".\"capacitor_flux\" >= 0 AND \"user_flux\".\"capacitor_quota\" >= 0"
         }
       },
       "isRLSEnabled": false

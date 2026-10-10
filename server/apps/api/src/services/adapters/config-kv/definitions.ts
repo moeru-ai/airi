@@ -257,20 +257,20 @@ export const configEntrySchemas = {
       fluxAmount: pipe(number(), minValue(1, 'APPLE_FLUX_PACKS fluxAmount must be >= 1')),
     }),
   ), {}),
-  // RevenueCat subscription product id → entitlement and per-period plan Flux.
-  // Unused plan Flux dies with the billing period.
-  REVENUECAT_SUBSCRIPTION_PLANS: optional(record(
-    pipe(string(), nonEmpty('REVENUECAT_SUBSCRIPTION_PLANS product ids must not be empty')),
+  // RevenueCat subscription product id → entitlement and per-period capacitor Flux.
+  // Unused capacitor Flux dies with the billing period.
+  REVENUECAT_CAPACITORS: optional(record(
+    pipe(string(), nonEmpty('REVENUECAT_CAPACITORS product ids must not be empty')),
     object({
-      entitlementId: pipe(string(), nonEmpty('REVENUECAT_SUBSCRIPTION_PLANS entitlementId must not be empty')),
-      quotaCredit: pipe(number(), minValue(1, 'REVENUECAT_SUBSCRIPTION_PLANS quotaCredit must be >= 1')),
+      entitlementId: pipe(string(), nonEmpty('REVENUECAT_CAPACITORS entitlementId must not be empty')),
+      quota: pipe(number(), minValue(1, 'REVENUECAT_CAPACITORS quota must be >= 1')),
     }),
   ), {}),
-  // Refills the plan bucket on a shorter window inside the billing period.
+  // Refills the capacitor bucket on a shorter window inside the billing period.
   // Unset refills once per billing period.
-  PLAN_FLUX_RESET_INTERVAL: optional(picklist(['day', 'week'])),
-  // Refills every active plan bucket once at this time. An admin sets it.
-  PLAN_FLUX_RESET_AT: optional(pipe(string(), isoTimestamp('PLAN_FLUX_RESET_AT must be an ISO timestamp'))),
+  CAPACITOR_RESET_INTERVAL: optional(picklist(['day', 'week'])),
+  // Refills every active capacitor bucket once at this time. An admin sets it.
+  CAPACITOR_RESET_AT: optional(pipe(string(), isoTimestamp('CAPACITOR_RESET_AT must be an ISO timestamp'))),
   // No default — absent means top-up is not available yet
   STRIPE_FLUX_PRODUCT_ID: optional(string()),
   // No default — absent lets Stripe auto-select payment methods via Dashboard config

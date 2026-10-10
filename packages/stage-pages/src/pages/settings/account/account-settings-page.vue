@@ -518,7 +518,7 @@ async function handleConfirmDelete(event: Event) {
               </span>
             </RouterLink>
             <RouterLink
-              to="/settings/plan"
+              to="/settings/capacitor"
               :class="[
                 '-mx-2 flex items-center gap-2 px-2 py-1.5 rounded-md',
                 'text-sm no-underline text-inherit',
@@ -526,10 +526,10 @@ async function handleConfirmDelete(event: Event) {
               ]"
             >
               <span :class="['text-neutral-500 dark:text-neutral-400']">
-                {{ t('settings.pages.account.planEntry') }}
+                {{ t('settings.pages.account.capacitorEntry') }}
               </span>
               <span :class="['ml-auto flex items-center gap-1 text-primary-600 dark:text-primary-400']">
-                <span>{{ t('settings.pages.account.viewPlanDetails') }}</span>
+                <span>{{ t('settings.pages.account.viewCapacitor') }}</span>
                 <div :class="['i-solar:alt-arrow-right-linear', 'size-4']" />
               </span>
             </RouterLink>

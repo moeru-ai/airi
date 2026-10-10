@@ -1,4 +1,4 @@
-import type { PlanPeriod } from '../domain/billing/billing-service'
+import type { CapacitorPeriod } from '../domain/billing/billing-service'
 import type { ConfigDefinitions, ConfigKVService } from './config-kv'
 import type { SubscriberEntitlement } from './revenuecat-subscriber'
 
@@ -6,14 +6,14 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { createRevenuecatSubscriptionSync } from './revenuecat-subscriptions'
 
-const starterPlans: ConfigDefinitions['REVENUECAT_SUBSCRIPTION_PLANS'] = {
-  rc_go_monthly: { entitlementId: 'airi_go', quotaCredit: 2000 },
-  rc_plus_monthly: { entitlementId: 'airi_plus', quotaCredit: 5000 },
+const starterCapacitors: ConfigDefinitions['REVENUECAT_CAPACITORS'] = {
+  rc_go_monthly: { entitlementId: 'airi_go', quota: 2000 },
+  rc_plus_monthly: { entitlementId: 'airi_plus', quota: 5000 },
 }
 
-function createConfigKV(plans: ConfigDefinitions['REVENUECAT_SUBSCRIPTION_PLANS'] | null = starterPlans): ConfigKVService {
+function createConfigKV(capacitors: ConfigDefinitions['REVENUECAT_CAPACITORS'] | null = starterCapacitors): ConfigKVService {
   return {
-    getOptional: vi.fn(async () => plans),
+    getOptional: vi.fn(async () => capacitors),
     getOrThrow: vi.fn(),
     get: vi.fn(),
     refresh: vi.fn(),
@@ -33,10 +33,10 @@ const goEntitlement: SubscriberEntitlement = {
 
 /** Runs the resolver as the wallet does and returns the period that it selects. */
 async function reconcile(entitlements: SubscriberEntitlement[], configKV = createConfigKV()) {
-  const synced: (PlanPeriod | null)[] = []
+  const synced: (CapacitorPeriod | null)[] = []
   const fetchEntitlements = vi.fn(async () => entitlements)
   const sync = createRevenuecatSubscriptionSync(
-    { syncPlan: async (_userId, resolve) => { synced.push(await resolve()) } },
+    { syncCapacitor: async (_userId, resolve) => { synced.push(await resolve()) } },
     configKV,
     { fetchEntitlements },
   )
@@ -45,7 +45,7 @@ async function reconcile(entitlements: SubscriberEntitlement[], configKV = creat
 }
 
 describe('revenuecat subscription sync', () => {
-  it('syncs the active plan as a plan period', async () => {
+  it('syncs the active capacitor as a capacitor period', async () => {
     const { synced, fetchEntitlements } = await reconcile([goEntitlement])
 
     expect(fetchEntitlements).toHaveBeenCalledWith('user-1')
@@ -66,7 +66,7 @@ describe('revenuecat subscription sync', () => {
     expect(synced).toEqual([null])
   })
 
-  it('selects the latest purchase when two plans are active', async () => {
+  it('selects the latest purchase when two capacitors are active', async () => {
     const { synced } = await reconcile([
       goEntitlement,
       {
@@ -79,17 +79,17 @@ describe('revenuecat subscription sync', () => {
     expect(synced).toMatchObject([{ quota: 5000 }])
   })
 
-  it('ignores a product that has no plan', async () => {
+  it('ignores a product that has no capacitor', async () => {
     const { synced } = await reconcile([{ ...goEntitlement, productId: 'unknown' }])
     expect(synced).toEqual([null])
   })
 
-  it('ignores an entitlement that does not match the plan', async () => {
+  it('ignores an entitlement that does not match the capacitor', async () => {
     const { synced } = await reconcile([{ ...goEntitlement, entitlementId: 'other' }])
     expect(synced).toEqual([null])
   })
 
-  it('leaves the wallet as it is when no plans are configured', async () => {
+  it('leaves the wallet as it is when no capacitors are configured', async () => {
     const { synced, fetchEntitlements } = await reconcile([goEntitlement], createConfigKV(null))
     expect(synced).toEqual([])
     expect(fetchEntitlements).not.toHaveBeenCalled()

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { currentPlanFromCustomerInfo, planCatalogCopy } from './use-subscription'
+import { capacitorCatalogCopy, currentCapacitorFromCustomerInfo } from './use-subscription'
 
 const metadata = {
-  plans: {
+  capacitors: {
     'en': {
       airi_go_monthly: { name: 'Go', benefit: 'Chat and speech' },
       airi_plus_monthly: { name: 'Plus', benefit: 'More chat and speech' },
@@ -14,13 +14,13 @@ const metadata = {
   },
 }
 
-describe('currentPlanFromCustomerInfo', () => {
+describe('currentCapacitorFromCustomerInfo', () => {
   it('returns null when nothing is active', () => {
-    expect(currentPlanFromCustomerInfo({ entitlements: { active: {} } })).toBeNull()
+    expect(currentCapacitorFromCustomerInfo({ entitlements: { active: {} } })).toBeNull()
   })
 
   it('keeps the entitlement that expires later', () => {
-    const plan = currentPlanFromCustomerInfo({
+    const capacitor = currentCapacitorFromCustomerInfo({
       entitlements: {
         active: {
           airi_go: {
@@ -38,7 +38,7 @@ describe('currentPlanFromCustomerInfo', () => {
         },
       },
     })
-    expect(plan).toEqual({
+    expect(capacitor).toEqual({
       entitlementId: 'airi_plus',
       productId: 'rc_plus_monthly',
       expiresAt: '2026-12-01T00:00:00.000Z',
@@ -47,7 +47,7 @@ describe('currentPlanFromCustomerInfo', () => {
   })
 
   it('prefers a lifetime entitlement', () => {
-    const plan = currentPlanFromCustomerInfo({
+    const capacitor = currentCapacitorFromCustomerInfo({
       entitlements: {
         active: {
           dated: {
@@ -65,34 +65,34 @@ describe('currentPlanFromCustomerInfo', () => {
         },
       },
     })
-    expect(plan).toMatchObject({ entitlementId: 'airi_plus', expiresAt: null })
+    expect(capacitor).toMatchObject({ entitlementId: 'airi_plus', expiresAt: null })
   })
 })
 
-describe('planCatalogCopy', () => {
+describe('capacitorCatalogCopy', () => {
   it('reads the name and benefit for the current language', () => {
-    expect(planCatalogCopy(metadata, 'airi_go_monthly', 'zh-Hans')).toEqual({
+    expect(capacitorCatalogCopy(metadata, 'airi_go_monthly', 'zh-Hans')).toEqual({
       name: 'Go',
       benefit: '对话和语音',
     })
   })
 
   it('uses the English entry when the current language has no product', () => {
-    expect(planCatalogCopy(metadata, 'airi_plus_monthly', 'zh-Hans')).toEqual({
+    expect(capacitorCatalogCopy(metadata, 'airi_plus_monthly', 'zh-Hans')).toEqual({
       name: 'Plus',
       benefit: 'More chat and speech',
     })
   })
 
   it('returns empty copy when neither language has the product', () => {
-    expect(planCatalogCopy(metadata, 'airi_go_yearly', 'zh-Hans')).toEqual({
+    expect(capacitorCatalogCopy(metadata, 'airi_go_yearly', 'zh-Hans')).toEqual({
       name: null,
       benefit: null,
     })
   })
 
   it('returns empty copy when metadata is missing', () => {
-    expect(planCatalogCopy(null, 'airi_go_monthly', 'en')).toEqual({
+    expect(capacitorCatalogCopy(null, 'airi_go_monthly', 'en')).toEqual({
       name: null,
       benefit: null,
     })

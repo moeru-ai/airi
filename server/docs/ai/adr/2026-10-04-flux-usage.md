@@ -9,7 +9,7 @@ The contract contains no model, turn, attempt, pricing, provider, or pending sta
 `flux_usage` stores one confirmed micro-Flux fee for each source. Rows are append-only.
 `flux_transaction` stores integer balance changes only. Its `pool` column names the bucket that the balance columns describe.
 `user_flux.unsettled_micro_flux` stores the shared outstanding pool.
-`user_flux` also holds a plan bucket that pays before purchased Flux. See [the plan Flux ADR](./2026-10-04-subscription-credits.md).
+`user_flux` also holds a Capacitor that pays before purchased Flux. See [the Capacitor ADR](./2026-10-04-subscription-credits.md).
 One Flux equals 1,000,000 micro-Flux.
 A service puts its own evidence in `detail`. A new service needs a new `source.type` and no new table.
 

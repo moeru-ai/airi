@@ -1,4 +1,4 @@
-import type { BillingService, PlanPeriod } from '../domain/billing/billing-service'
+import type { BillingService, CapacitorPeriod } from '../domain/billing/billing-service'
 import type { ConfigKVService } from './config-kv'
 import type { RevenuecatSubscriberClient } from './revenuecat-subscriber'
 
@@ -7,39 +7,39 @@ import { useLogger } from '@guiiai/logg'
 const logger = useLogger('revenuecat-subscriptions')
 
 /**
- * Copies the plan period that RevenueCat reports into the plan bucket of the Flux wallet.
+ * Copies the capacitor period that RevenueCat reports into the capacitor bucket of the Flux wallet.
  * It reads the customer's current entitlements. It does not read webhook
  * event types, so event order and repeated deliveries do not change the result.
  */
 export function createRevenuecatSubscriptionSync(
-  billing: Pick<BillingService, 'syncPlan'>,
+  billing: Pick<BillingService, 'syncCapacitor'>,
   configKV: ConfigKVService,
   subscriber: RevenuecatSubscriberClient,
 ) {
   async function reconcile(userId: string): Promise<void> {
-    const plans = await configKV.getOptional('REVENUECAT_SUBSCRIPTION_PLANS')
-    // Plans are not sold when the map is unset. The wallet stays as it is.
-    if (!plans)
+    const capacitors = await configKV.getOptional('REVENUECAT_CAPACITORS')
+    // Capacitors are not sold when the map is unset. The wallet stays as it is.
+    if (!capacitors)
       return
 
-    await billing.syncPlan(userId, async (): Promise<PlanPeriod | null> => {
+    await billing.syncCapacitor(userId, async (): Promise<CapacitorPeriod | null> => {
       const now = new Date()
-      // The latest purchase wins when two plans are active, so an upgrade
-      // replaces the old plan. Plans without an expiry are not sold.
+      // The latest purchase wins when two capacitors are active, so an upgrade
+      // replaces the old capacitor. Capacitors without an expiry are not sold.
       const [current] = (await subscriber.fetchEntitlements(userId))
-        .filter(item => plans[item.productId]?.entitlementId === item.entitlementId)
+        .filter(item => capacitors[item.productId]?.entitlementId === item.entitlementId)
         .filter(item => item.accessUntil != null && item.accessUntil > now)
         .sort((left, right) => right.purchasedAt.getTime() - left.purchasedAt.getTime())
       if (!current)
         return null
 
       return {
-        quota: plans[current.productId]!.quotaCredit,
+        quota: capacitors[current.productId]!.quota,
         periodStart: current.purchasedAt,
         expiresAt: current.accessUntil!,
       }
     })
-    logger.withFields({ userId }).log('Plan Flux reconciled')
+    logger.withFields({ userId }).log('Capacitor Flux reconciled')
   }
 
   return { reconcile }

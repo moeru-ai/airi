@@ -22,14 +22,14 @@ import * as schema from '../../schemas'
 const signingSecret = 'test-signing-secret'
 const authorization = 'test-authorization-value'
 
-const starterPlans: ConfigDefinitions['REVENUECAT_SUBSCRIPTION_PLANS'] = {
-  rc_go_monthly: { entitlementId: 'airi_go', quotaCredit: 2000 },
-  rc_plus_monthly: { entitlementId: 'airi_plus', quotaCredit: 5000 },
+const starterCapacitors: ConfigDefinitions['REVENUECAT_CAPACITORS'] = {
+  rc_go_monthly: { entitlementId: 'airi_go', quota: 2000 },
+  rc_plus_monthly: { entitlementId: 'airi_plus', quota: 5000 },
 }
 
-function createPlansConfigKV(): ConfigKVService {
+function createCapacitorsConfigKV(): ConfigKVService {
   return {
-    getOptional: vi.fn(async (key: string) => key === 'REVENUECAT_SUBSCRIPTION_PLANS' ? starterPlans : null),
+    getOptional: vi.fn(async (key: string) => key === 'REVENUECAT_CAPACITORS' ? starterCapacitors : null),
     getOrThrow: vi.fn(),
     get: vi.fn(),
     refresh: vi.fn(),
@@ -98,7 +98,7 @@ describe('revenuecat routes', () => {
   let entitlements: Record<string, SubscriberEntitlement[]>
 
   async function setup() {
-    const configKV = createPlansConfigKV()
+    const configKV = createCapacitorsConfigKV()
     await db.delete(schema.fluxUsage)
     await db.delete(schema.fluxTransaction)
     await db.delete(schema.userFlux)
@@ -142,14 +142,14 @@ describe('revenuecat routes', () => {
     expect(res.status).toBe(401)
   })
 
-  it('grants plan Flux from what RevenueCat reports', async () => {
+  it('grants capacitor Flux from what RevenueCat reports', async () => {
     const { app } = await setup()
     entitlements['user-1'] = [goEntitlement]
 
     const res = await postWebhook(app, webhookBody())
     expect(res.status).toBe(200)
 
-    expect(await readWallet('user-1')).toMatchObject({ flux: 0, planFlux: 2000, planQuota: 2000 })
+    expect(await readWallet('user-1')).toMatchObject({ flux: 0, capacitorFlux: 2000, capacitorQuota: 2000 })
   })
 
   it('does not grant again on a repeated or later event of the same period', async () => {
@@ -161,10 +161,10 @@ describe('revenuecat routes', () => {
     await postWebhook(app, webhookBody())
     await postWebhook(app, webhookBody({ id: 'sub-event-2', type: 'CANCELLATION' }))
 
-    expect(await readWallet('user-1')).toMatchObject({ planFlux: 1500, planQuota: 2000 })
+    expect(await readWallet('user-1')).toMatchObject({ capacitorFlux: 1500, capacitorQuota: 2000 })
   })
 
-  it('grants the new plan on PRODUCT_CHANGE and not the old product in the event', async () => {
+  it('grants the new capacitor on PRODUCT_CHANGE and not the old product in the event', async () => {
     const { app } = await setup()
     entitlements['user-1'] = [goEntitlement]
     await postWebhook(app, webhookBody())
@@ -177,10 +177,10 @@ describe('revenuecat routes', () => {
     }]
     await postWebhook(app, webhookBody({ id: 'sub-event-2', type: 'PRODUCT_CHANGE', product_id: 'rc_go_monthly' }))
 
-    expect(await readWallet('user-1')).toMatchObject({ planFlux: 5000, planQuota: 5000 })
+    expect(await readWallet('user-1')).toMatchObject({ capacitorFlux: 5000, capacitorQuota: 5000 })
   })
 
-  it('expires the plan when RevenueCat reports no active plan', async () => {
+  it('expires the capacitor when RevenueCat reports no active capacitor', async () => {
     const { app } = await setup()
     entitlements['user-1'] = [goEntitlement]
     await postWebhook(app, webhookBody())
@@ -188,7 +188,7 @@ describe('revenuecat routes', () => {
     entitlements['user-1'] = []
     await postWebhook(app, webhookBody({ id: 'sub-event-2', type: 'EXPIRATION' }))
 
-    expect((await readWallet('user-1'))!.planExpiresAt!.getTime()).toBeLessThanOrEqual(Date.now())
+    expect((await readWallet('user-1'))!.capacitorExpiresAt!.getTime()).toBeLessThanOrEqual(Date.now())
   })
 
   it('reconciles both users of a TRANSFER', async () => {
@@ -204,8 +204,8 @@ describe('revenuecat routes', () => {
     })
 
     expect(res.status).toBe(200)
-    expect((await readWallet('user-1'))!.planExpiresAt!.getTime()).toBeLessThanOrEqual(Date.now())
-    expect(await readWallet('user-2')).toMatchObject({ planFlux: 2000 })
+    expect((await readWallet('user-1'))!.capacitorExpiresAt!.getTime()).toBeLessThanOrEqual(Date.now())
+    expect(await readWallet('user-2')).toMatchObject({ capacitorFlux: 2000 })
   })
 
   it('returns an error when RevenueCat cannot be read, so the event is sent again', async () => {

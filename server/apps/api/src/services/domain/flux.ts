@@ -7,7 +7,7 @@ import type { WalletSnapshot } from './flux-cache'
 import { useLogger } from '@guiiai/logg'
 import { and, eq, isNull } from 'drizzle-orm'
 
-import { planRemainingPercent, readPlanResetPolicy, refillPlan } from './billing/flux-posting'
+import { capacitorPercent, readCapacitorResetPolicy, refillCapacitor } from './billing/flux-posting'
 import { invalidateBalanceCache, readBalanceCache, writeBalanceCache } from './flux-cache'
 
 import * as schema from '../../schemas/flux'
@@ -20,17 +20,17 @@ const logger = useLogger('flux-service')
 // invisible. After account deletion the auth tables hard-delete the user
 // so this filter is mostly defense-in-depth against routes that bypass
 // `sessionMiddleware`. See `server/apps/api/docs/ai-context/account-deletion.md`.
-/** Plan expiry is judged on every read, so a cached snapshot never shows an expired plan. */
+/** Capacitor expiry is judged on every read, so a cached snapshot never shows an expired capacitor. */
 function toBalance(userId: string, snapshot: WalletSnapshot) {
   return {
     userId,
     flux: snapshot.flux,
     unsettledMicroFlux: snapshot.unsettledMicroFlux,
     fallbackToFlux: snapshot.fallbackToFlux,
-    planRemainingPercent: planRemainingPercent({
-      planFlux: snapshot.planFlux,
-      planQuota: snapshot.planQuota,
-      planExpiresAt: snapshot.planExpiresAt === null ? null : new Date(snapshot.planExpiresAt),
+    capacitorPercent: capacitorPercent({
+      capacitorFlux: snapshot.capacitorFlux,
+      capacitorQuota: snapshot.capacitorQuota,
+      capacitorExpiresAt: snapshot.capacitorExpiresAt === null ? null : new Date(snapshot.capacitorExpiresAt),
     }),
   }
 }
@@ -87,13 +87,13 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
         logger.withFields({ userId, initialFlux }).log('Initialized new user flux')
       }
 
-      // A due plan refill is counted in the snapshot. The cache can show the old amount for its TTL after a reset.
+      // A due capacitor refill is counted in the snapshot. The cache can show the old amount for its TTL after a reset.
       const snapshot = {
         flux: record.flux,
         unsettledMicroFlux: record.unsettledMicroFlux,
-        planFlux: refillPlan(record, await readPlanResetPolicy(configKV)).planFlux,
-        planQuota: record.planQuota,
-        planExpiresAt: record.planExpiresAt?.toISOString() ?? null,
+        capacitorFlux: refillCapacitor(record, await readCapacitorResetPolicy(configKV)).capacitorFlux,
+        capacitorQuota: record.capacitorQuota,
+        capacitorExpiresAt: record.capacitorExpiresAt?.toISOString() ?? null,
         fallbackToFlux: record.fallbackToFlux,
       }
       await writeBalanceCache(redis, userId, snapshot)

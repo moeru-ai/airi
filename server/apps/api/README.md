@@ -59,14 +59,14 @@ Admission reads PostgreSQL. The display cache contains both wallet fields and ex
 Credits settle affordable outstanding fees. Admin balance changes preserve outstanding fees.
 The ledger must always satisfy: sum of fees = debited Flux x 1,000,000 + outstanding micro-Flux.
 
-`user_flux` also holds the plan bucket: `plan_flux`, `plan_quota`, `plan_expires_at`, `plan_period_start`, `plan_filled_at`, and `plan_reset_at`.
-Purchased Flux does not expire. Plan Flux counts as 0 after `plan_expires_at`.
-Plan Flux refills to the quota when `plan_filled_at` is before the reset boundary. The boundary is the latest of the billing period start, the `PLAN_FLUX_RESET_INTERVAL` window, `PLAN_FLUX_RESET_AT`, and `plan_reset_at`.
+`user_flux` also holds the Capacitor: `capacitor_flux`, `capacitor_quota`, `capacitor_expires_at`, `capacitor_period_start`, `capacitor_filled_at`, and `capacitor_reset_at`.
+Purchased Flux does not expire. Capacitor Flux counts as 0 after `capacitor_expires_at`.
+Capacitor Flux refills to the quota when `capacitor_filled_at` is before the reset boundary. The boundary is the latest of the billing period start, the `CAPACITOR_RESET_INTERVAL` window, `CAPACITOR_RESET_AT`, and `capacitor_reset_at`.
 The next settlement writes a due refill. No job runs it.
-A pooled debit spends plan Flux first. While a plan is active, purchased Flux pays only when `fallback_to_flux` is on. The default is off.
-A fee that no bucket can pay stays outstanding. A new plan grant or a credit pays it later.
-`flux_transaction.pool` is `wallet` or `plan`. Its balance columns describe that bucket.
-`BillingService.syncPlan` stores a period, `setFallbackToFlux` saves the choice, and `GET /api/v1/flux` returns `planRemainingPercent`.
+A pooled debit spends Capacitor Flux first. While a Capacitor is active, purchased Flux pays only when `fallback_to_flux` is on. The default is off.
+A fee that no bucket can pay stays outstanding. A new Capacitor grant or a credit pays it later.
+`flux_transaction.pool` is `wallet` or `capacitor`. Its balance columns describe that bucket.
+`BillingService.syncCapacitor` stores a period, `setFallbackToFlux` saves the choice, and `GET /api/v1/flux` returns `capacitorPercent`.
 
 `GET /api/v1/flux/usage` returns paginated fees from `flux_usage`. Wallet history returns integer balance changes.
 
@@ -150,30 +150,30 @@ JWS proof from every app in `APPLE_IAP_APPS`, resolves the pack from
 `EvidenceReceipt`.
 RevenueCat lives on `/api/v1/revenuecat/*`. `POST /webhook` verifies the
 dashboard authorization header and HMAC signature over the raw body.
-Each event then reconciles the plan bucket from RevenueCat.
+Each event then reconciles the Capacitor from RevenueCat.
 RevenueCat does not sell Flux packs.
 The webhook stores no events.
 Flux balance stays self-managed. In-App Currency is not used.
 
 ## Subscriptions
 
-Go (`airi_go`, 2000 plan Flux) and Plus (`airi_plus`, 5000 plan Flux)
+Go (`airi_go`, 2000 Capacitor Flux) and Plus (`airi_plus`, 5000 Capacitor Flux)
 are sold through RevenueCat on every store. Apple, Google, Stripe, and Test
 Store all enter through the single RevenueCat webhook. `store` is only a
 field, so new channels need no server changes.
 
 The client RevenueCat SDK is the source for entitlement status.
-The plan page reads `customerInfo` for the current plan, expiry, and management URL.
-The server stores only the plan bucket in `user_flux`.
+The Capacitor page reads `customerInfo` for the current Capacitor, expiry, and management URL.
+The server stores only the Capacitor in `user_flux`.
 
 A webhook does not select a grant rule by its event type. The server reads
 `GET /v1/subscribers/{app_user_id}` with `REVENUECAT_API_KEY` and calls
-`BillingService.syncPlan`. A new period resets the bucket to the quota.
+`BillingService.syncCapacitor`. A new period resets the bucket to the quota.
 A known period keeps its spent Flux and takes the reported end time.
-No active plan expires the bucket now.
-Product-to-plan mapping lives in ConfigKV `REVENUECAT_SUBSCRIPTION_PLANS`.
+No active Capacitor expires the bucket now.
+Product-to-Capacitor mapping lives in ConfigKV `REVENUECAT_CAPACITORS`.
 A missed webhook delays the grant until the next webhook for that
-customer. The plan name and expiry come from the client SDK, so they do not wait for that webhook.
+customer. The Capacitor name and expiry come from the client SDK, so they do not wait for that webhook.
 
 ## Run locally
 

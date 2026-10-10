@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PlanPackage } from '@proj-airi/stage-ui/composables/use-subscription'
+import type { CapacitorPackage } from '@proj-airi/stage-ui/composables/use-subscription'
 
 import { isFluxPurchaseDisabled } from '@proj-airi/stage-shared'
 import { useSubscription } from '@proj-airi/stage-ui/composables/use-subscription'
@@ -11,11 +11,11 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
-const { planRemaining, fallbackToFlux } = storeToRefs(authStore)
+const { capacitorPercent, fallbackToFlux } = storeToRefs(authStore)
 
 const fluxPurchaseDisabled = isFluxPurchaseDisabled()
 
-const plan = useSubscription({
+const subscription = useSubscription({
   getUserId: () => authStore.user?.id ?? '',
   onChanged: () => authStore.updateCredits(),
 })
@@ -23,28 +23,28 @@ const plan = useSubscription({
 const message = ref<{ type: 'success' | 'error', text: string } | null>(null)
 const preferenceSaving = ref(false)
 
-type PlanAction = 'buy' | 'current' | 'upgrade' | 'downgrade'
+type CapacitorAction = 'buy' | 'current' | 'upgrade' | 'downgrade'
 
-const currentPlan = computed(() => plan.currentPlan.value)
+const currentCapacitor = computed(() => subscription.currentCapacitor.value)
 
-function planAction(pkg: PlanPackage): PlanAction {
-  const current = currentPlan.value
+function capacitorAction(pkg: CapacitorPackage): CapacitorAction {
+  const current = currentCapacitor.value
   if (!current)
     return 'buy'
   if (pkg.productId === current.productId)
     return 'current'
-  const currentPackage = plan.packages.value.find(item => item.productId === current.productId)
+  const currentPackage = subscription.packages.value.find(item => item.productId === current.productId)
   return currentPackage && pkg.amountMicros < currentPackage.amountMicros ? 'downgrade' : 'upgrade'
 }
 
-const ACTION_LABEL: Record<Exclude<PlanAction, 'buy'>, string> = {
-  current: 'settings.pages.plan.currentPackage',
-  upgrade: 'settings.pages.plan.upgrade',
-  downgrade: 'settings.pages.plan.downgrade',
+const ACTION_LABEL: Record<Exclude<CapacitorAction, 'buy'>, string> = {
+  current: 'settings.pages.capacitor.currentPackage',
+  upgrade: 'settings.pages.capacitor.upgrade',
+  downgrade: 'settings.pages.capacitor.downgrade',
 }
 
-function actionLabel(pkg: PlanPackage): string {
-  const action = planAction(pkg)
+function actionLabel(pkg: CapacitorPackage): string {
+  const action = capacitorAction(pkg)
   if (action === 'buy')
     return ''
   return t(ACTION_LABEL[action])
@@ -55,14 +55,14 @@ const fallbackChoice = computed({
   set: value => void savePreference(value),
 })
 
-const currentPlanName = computed(() => {
-  const current = currentPlan.value
+const currentCapacitorName = computed(() => {
+  const current = currentCapacitor.value
   if (!current)
-    return t('settings.pages.plan.noPlan')
-  return plan.packages.value.find(item => item.productId === current.productId)?.name ?? ''
+    return t('settings.pages.capacitor.noCapacitor')
+  return subscription.packages.value.find(item => item.productId === current.productId)?.name ?? ''
 })
 
-const quotaPercentage = computed(() => planRemaining.value ?? 0)
+const quotaPercentage = computed(() => capacitorPercent.value ?? 0)
 
 function formatDate(iso: string | null): string {
   if (!iso)
@@ -72,14 +72,14 @@ function formatDate(iso: string | null): string {
 
 onMounted(async () => {
   try {
-    await plan.fetchStatus()
+    await subscription.fetchStatus()
   }
   catch {
-    message.value = { type: 'error', text: t('settings.pages.plan.statusError') }
+    message.value = { type: 'error', text: t('settings.pages.capacitor.statusError') }
   }
   if (!fluxPurchaseDisabled) {
-    await plan.fetchPackages().catch(() => {
-      message.value = { type: 'error', text: t('settings.pages.plan.packagesError') }
+    await subscription.fetchPackages().catch(() => {
+      message.value = { type: 'error', text: t('settings.pages.capacitor.packagesError') }
     })
   }
 })
@@ -87,32 +87,32 @@ onMounted(async () => {
 async function savePreference(value: boolean) {
   preferenceSaving.value = true
   try {
-    await plan.setFallbackToFlux(value)
+    await subscription.setFallbackToFlux(value)
   }
   catch {
-    message.value = { type: 'error', text: t('settings.pages.plan.preferenceError') }
+    message.value = { type: 'error', text: t('settings.pages.capacitor.preferenceError') }
   }
   finally {
     preferenceSaving.value = false
   }
 }
 
-function planCardDisabled(pkg: PlanPackage): boolean {
-  if (plan.purchasingPackageId.value !== null)
+function capacitorCardDisabled(pkg: CapacitorPackage): boolean {
+  if (subscription.purchasingPackageId.value !== null)
     return true
-  const action = planAction(pkg)
-  return action === 'current' || (action !== 'buy' && !plan.managementUrl.value)
+  const action = capacitorAction(pkg)
+  return action === 'current' || (action !== 'buy' && !subscription.managementUrl.value)
 }
 
-function handlePlan(pkg: PlanPackage) {
-  const action = planAction(pkg)
+function handleCapacitor(pkg: CapacitorPackage) {
+  const action = capacitorAction(pkg)
   if (action === 'current')
     return
   if (action === 'buy') {
     void handleSubscribe(pkg.packageId)
     return
   }
-  const url = plan.managementUrl.value
+  const url = subscription.managementUrl.value
   if (url)
     window.open(url, '_blank', 'noopener')
 }
@@ -120,20 +120,20 @@ function handlePlan(pkg: PlanPackage) {
 async function handleSubscribe(packageId: string) {
   message.value = null
   try {
-    const outcome = await plan.purchasePlan(packageId)
+    const outcome = await subscription.purchaseCapacitor(packageId)
     if (outcome === 'cancelled') {
-      message.value = { type: 'error', text: t('settings.pages.plan.checkout.canceled') }
+      message.value = { type: 'error', text: t('settings.pages.capacitor.checkout.canceled') }
       return
     }
     message.value = {
       type: 'success',
       text: t(outcome === 'activated'
-        ? 'settings.pages.plan.checkout.success'
-        : 'settings.pages.plan.checkout.pending'),
+        ? 'settings.pages.capacitor.checkout.success'
+        : 'settings.pages.capacitor.checkout.pending'),
     }
   }
   catch {
-    message.value = { type: 'error', text: t('settings.pages.plan.checkout.error') }
+    message.value = { type: 'error', text: t('settings.pages.capacitor.checkout.error') }
   }
 }
 </script>
@@ -152,36 +152,36 @@ async function handleSubscribe(packageId: string) {
       {{ message.text }}
     </div>
 
-    <!-- Current plan card -->
+    <!-- Current capacitor card -->
     <div :class="['relative overflow-hidden rounded-2xl', 'bg-neutral-100 p-6 sm:p-8 dark:bg-neutral-800']">
       <div
-        :class="['plan-progress-bar absolute inset-y-0 left-0', 'bg-primary-500/20 dark:bg-primary-400/20']"
+        :class="['capacitor-progress-bar absolute inset-y-0 left-0', 'bg-primary-500/20 dark:bg-primary-400/20']"
       />
       <div :class="['relative z-1 flex items-center justify-start gap-4 text-left', 'sm:flex-col sm:justify-center sm:gap-2 sm:text-center']">
         <div :class="['i-solar:star-bold-duotone size-12 shrink-0 text-primary-500', 'sm:mx-auto sm:size-14']" />
         <div :class="['flex flex-col gap-1']">
-          <h2 v-if="currentPlanName" :class="['text-3xl font-bold tracking-tight', 'sm:text-4xl']">
-            {{ currentPlanName }}
+          <h2 v-if="currentCapacitorName" :class="['text-3xl font-bold tracking-tight', 'sm:text-4xl']">
+            {{ currentCapacitorName }}
           </h2>
-          <p v-if="planRemaining != null" :class="['text-sm text-neutral-500']">
-            {{ t('settings.pages.plan.creditsRemaining', { percent: planRemaining }) }}
+          <p v-if="capacitorPercent != null" :class="['text-sm text-neutral-500']">
+            {{ t('settings.pages.capacitor.remaining', { percent: capacitorPercent }) }}
           </p>
           <p v-else :class="['text-sm text-neutral-500']">
-            {{ t('settings.pages.plan.description') }}
+            {{ t('settings.pages.capacitor.description') }}
           </p>
-          <p v-if="currentPlan?.expiresAt" :class="['text-xs text-neutral-400']">
-            {{ currentPlan.willRenew
-              ? t('settings.pages.plan.renewsAt', { date: formatDate(currentPlan.expiresAt) })
-              : t('settings.pages.plan.expiresAt', { date: formatDate(currentPlan.expiresAt) }) }}
+          <p v-if="currentCapacitor?.expiresAt" :class="['text-xs text-neutral-400']">
+            {{ currentCapacitor.willRenew
+              ? t('settings.pages.capacitor.renewsAt', { date: formatDate(currentCapacitor.expiresAt) })
+              : t('settings.pages.capacitor.expiresAt', { date: formatDate(currentCapacitor.expiresAt) }) }}
           </p>
           <a
-            v-if="plan.managementUrl.value"
-            :href="plan.managementUrl.value"
+            v-if="subscription.managementUrl.value"
+            :href="subscription.managementUrl.value"
             target="_blank"
             rel="noopener"
             :class="['text-xs text-primary-600 underline underline-offset-2', 'dark:text-primary-400']"
           >
-            {{ t('settings.pages.plan.manageSubscription') }}
+            {{ t('settings.pages.capacitor.manageSubscription') }}
           </a>
         </div>
       </div>
@@ -190,17 +190,17 @@ async function handleSubscribe(packageId: string) {
     <!-- Flux fallback preference -->
     <FieldCheckbox
       v-model="fallbackChoice"
-      :disabled="preferenceSaving || !currentPlan"
-      :label="t('settings.pages.plan.fallbackToFlux')"
-      :description="t('settings.pages.plan.fallbackToFluxHint')"
+      :disabled="preferenceSaving || !currentCapacitor"
+      :label="t('settings.pages.capacitor.fallbackToFlux')"
+      :description="t('settings.pages.capacitor.fallbackToFluxHint')"
     />
 
     <!-- Packages -->
-    <div v-if="!fluxPurchaseDisabled && plan.packages.value.length > 0" :class="['flex flex-col gap-4']">
+    <div v-if="!fluxPurchaseDisabled && subscription.packages.value.length > 0" :class="['flex flex-col gap-4']">
       <div :class="['grid grid-cols-1 gap-4', 'sm:grid-cols-2']">
         <button
-          v-for="(pkg, index) in plan.packages.value" :key="pkg.packageId"
-          :disabled="planCardDisabled(pkg)"
+          v-for="(pkg, index) in subscription.packages.value" :key="pkg.packageId"
+          :disabled="capacitorCardDisabled(pkg)"
           :class="[
             'group relative flex flex-row items-center justify-between gap-4 overflow-hidden text-left',
             'sm:flex-col sm:items-center sm:justify-center sm:gap-2 sm:text-center',
@@ -209,13 +209,13 @@ async function handleSubscribe(packageId: string) {
             'transition-all duration-300 ease-out',
             'hover:-translate-y-1 hover:border-primary-400 hover:shadow-md dark:hover:border-primary-500',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
-            plan.purchasingPackageId.value !== null && plan.purchasingPackageId.value !== pkg.packageId ? 'opacity-50 grayscale-50 cursor-not-allowed' : '',
-            planCardDisabled(pkg) ? 'cursor-not-allowed' : 'cursor-pointer',
+            subscription.purchasingPackageId.value !== null && subscription.purchasingPackageId.value !== pkg.packageId ? 'opacity-50 grayscale-50 cursor-not-allowed' : '',
+            capacitorCardDisabled(pkg) ? 'cursor-not-allowed' : 'cursor-pointer',
           ]"
-          @click="handlePlan(pkg)"
+          @click="handleCapacitor(pkg)"
         >
           <div
-            v-if="plan.purchasingPackageId.value === pkg.packageId"
+            v-if="subscription.purchasingPackageId.value === pkg.packageId"
             :class="['absolute inset-0 z-10 flex items-center justify-center', 'bg-white/60 backdrop-blur-sm dark:bg-neutral-900/60']"
           >
             <div :class="['i-svg-spinners:90-ring-with-bg size-8 text-primary-500']" />
@@ -233,7 +233,7 @@ async function handleSubscribe(packageId: string) {
                 {{ pkg.formattedPrice }}
               </span>
               <span :class="['text-sm text-neutral-400']">
-                {{ t('settings.pages.plan.perMonth') }}
+                {{ t('settings.pages.capacitor.perMonth') }}
               </span>
             </div>
             <div v-if="actionLabel(pkg)" :class="['text-xs text-primary-600 font-medium', 'dark:text-primary-400']">
@@ -254,12 +254,12 @@ async function handleSubscribe(packageId: string) {
 </template>
 
 <style scoped>
-.plan-progress-bar {
+.capacitor-progress-bar {
   width: 100%;
-  animation: plan-progress-bar-grow 1s cubic-bezier(0.4, 0, 0.2, 1) 0.5s forwards;
+  animation: capacitor-progress-bar-grow 1s cubic-bezier(0.4, 0, 0.2, 1) 0.5s forwards;
 }
 
-@keyframes plan-progress-bar-grow {
+@keyframes capacitor-progress-bar-grow {
   0% {
     width: 100%;
     opacity: 0.5;
@@ -274,6 +274,6 @@ async function handleSubscribe(packageId: string) {
 <route lang="yaml">
 meta:
   layout: settings
-  titleKey: settings.pages.plan.title
+  titleKey: settings.pages.capacitor.title
   icon: i-solar:star-bold-duotone
 </route>

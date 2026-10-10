@@ -8,7 +8,7 @@ import { Hono } from 'hono'
 import { rateLimiter } from '../../middlewares/rate-limit'
 import { createWebhookOperation } from './operations/webhook'
 
-/** RevenueCat webhook ingress. Each event reconciles plan Flux from RevenueCat. */
+/** RevenueCat webhook ingress. Each event reconciles capacitor Flux from RevenueCat. */
 export function createRevenuecatRoutes(
   subscriptionSync: RevenuecatSubscriptionSync,
   env: Pick<Env, 'REVENUECAT_WEBHOOK_AUTH' | 'REVENUECAT_WEBHOOK_SECRET'>,

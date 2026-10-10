@@ -285,8 +285,8 @@ pages:
     logout: Sign out
     fluxBalance: Flux Balance
     viewFluxDetails: View details
-    planEntry: Plan
-    viewPlanDetails: View plan
+    capacitorEntry: Capacitor
+    viewCapacitor: View
     signedInAs: Signed in as
     profile:
       tab: Profile
@@ -1227,25 +1227,25 @@ pages:
       title: Flux Packages
       buy: Charge
       description: Flux packages to choose from.
-  plan:
-    title: Plan
-    description: Plan credits
-    packagesError: Failed to load plans. Please try again later.
+  capacitor:
+    title: Capacitor
+    description: A Capacitor holds Flux and recharges each month.
+    packagesError: Failed to load Capacitors. Please try again later.
     preferenceError: Failed to save preference. Please try again later.
-    noPlan: No active plan
-    creditsRemaining: '{percent}% left'
+    noCapacitor: No Capacitor
+    remaining: '{percent}% left'
     renewsAt: Renews {date}
     expiresAt: Expires {date}
     perMonth: / month
-    currentPackage: Current plan
+    currentPackage: Current
     upgrade: Upgrade
     downgrade: Downgrade
     manageSubscription: Manage subscription
-    fallbackToFlux: Use Flux after credits
-    fallbackToFluxHint: 'Off: stop when credits run out.'
+    fallbackToFlux: Use Flux when the Capacitor is empty
+    fallbackToFluxHint: When off, usage stops when the Capacitor is empty.
     checkout:
-      success: Subscription active! Your plan credits are ready.
-      pending: Payment received. Credits arrive shortly.
+      success: Your Capacitor is installed and charged.
+      pending: Payment received. Your Capacitor charges shortly.
       canceled: Purchase was canceled.
       error: Something went wrong. Please try again later.
   providers:

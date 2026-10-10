@@ -36,14 +36,14 @@ async function ensurePurchases(userId: string) {
   return purchases
 }
 
-export interface CurrentPlan {
+export interface CurrentCapacitor {
   entitlementId: string
   productId: string
   expiresAt: string | null
   willRenew: boolean
 }
 
-export interface PlanPackage {
+export interface CapacitorPackage {
   packageId: string
   productId: string
   name: string | null
@@ -52,37 +52,37 @@ export interface PlanPackage {
   amountMicros: number
 }
 
-export interface PlanCatalogCopy {
+export interface CapacitorCatalogCopy {
   name: string | null
   benefit: string | null
 }
 
-const planListingSchema = object({
+const capacitorListingSchema = object({
   name: optional(pipe(string(), trim())),
   benefit: optional(pipe(string(), trim())),
 })
 
-const planMetadataSchema = object({
-  plans: optional(record(string(), record(string(), planListingSchema))),
+const capacitorMetadataSchema = object({
+  capacitors: optional(record(string(), record(string(), capacitorListingSchema))),
 })
 
-const emptyPlanCatalogCopy: PlanCatalogCopy = { name: null, benefit: null }
+const emptyCapacitorCatalogCopy: CapacitorCatalogCopy = { name: null, benefit: null }
 
 /** Reads one product's name and benefit from offering metadata with English fallback. */
-export function planCatalogCopy(metadata: unknown, productId: string, locale: string): PlanCatalogCopy {
-  const parsed = safeParse(planMetadataSchema, metadata ?? {})
-  if (!parsed.success || !parsed.output.plans)
-    return emptyPlanCatalogCopy
-  const listing = parsed.output.plans[locale]?.[productId] ?? parsed.output.plans.en?.[productId]
+export function capacitorCatalogCopy(metadata: unknown, productId: string, locale: string): CapacitorCatalogCopy {
+  const parsed = safeParse(capacitorMetadataSchema, metadata ?? {})
+  if (!parsed.success || !parsed.output.capacitors)
+    return emptyCapacitorCatalogCopy
+  const listing = parsed.output.capacitors[locale]?.[productId] ?? parsed.output.capacitors.en?.[productId]
   if (!listing)
-    return emptyPlanCatalogCopy
+    return emptyCapacitorCatalogCopy
   return {
     name: listing.name || null,
     benefit: listing.benefit || null,
   }
 }
 
-interface PlanEntitlement {
+interface CapacitorEntitlement {
   identifier: string
   productIdentifier: string
   expirationDate: Date | null
@@ -93,9 +93,9 @@ interface PlanEntitlement {
  * Picks the active entitlement that lasts longest.
  * A lifetime entitlement has no expiry and outranks a dated one.
  */
-export function currentPlanFromCustomerInfo(info: {
-  entitlements: { active: Record<string, PlanEntitlement> }
-}): CurrentPlan | null {
+export function currentCapacitorFromCustomerInfo(info: {
+  entitlements: { active: Record<string, CapacitorEntitlement> }
+}): CurrentCapacitor | null {
   const active = Object.values(info.entitlements.active)
   const chosen = active.reduce<typeof active[number] | null>((best, item) => {
     if (!best)
@@ -114,12 +114,12 @@ export function currentPlanFromCustomerInfo(info: {
   }
 }
 
-/** Plans are sold by the month only. Packages with another billing period are not listed. */
-function toPlanPackage(pkg: Package, metadata: unknown, locale: string): PlanPackage | null {
+/** Capacitors are sold by the month only. Packages with another billing period are not listed. */
+function toCapacitorPackage(pkg: Package, metadata: unknown, locale: string): CapacitorPackage | null {
   if (pkg.webBillingProduct.period?.unit !== 'month')
     return null
   const price = pkg.webBillingProduct.price
-  const copy = planCatalogCopy(metadata, pkg.webBillingProduct.identifier, locale)
+  const copy = capacitorCatalogCopy(metadata, pkg.webBillingProduct.identifier, locale)
   return {
     packageId: pkg.identifier,
     productId: pkg.webBillingProduct.identifier,
@@ -130,7 +130,7 @@ function toPlanPackage(pkg: Package, metadata: unknown, locale: string): PlanPac
   }
 }
 
-/** Plan subscriptions through RevenueCat Web Billing. The SDK reports the plan. The webhook grants plan Flux. */
+/** Capacitor subscriptions through RevenueCat Web Billing. The SDK reports the capacitor. The webhook grants capacitor Flux. */
 export function useSubscription(options: {
   getUserId: () => string
   onChanged: () => Promise<unknown>
@@ -138,13 +138,13 @@ export function useSubscription(options: {
   const { t, locale } = useI18n()
   const enabled = !isFluxPurchaseDisabled() && getRevenuecatWebKey() != null
 
-  const currentPlan = ref<CurrentPlan | null>(null)
-  const packages = ref<PlanPackage[]>([])
+  const currentCapacitor = ref<CurrentCapacitor | null>(null)
+  const packages = ref<CapacitorPackage[]>([])
   const purchasingPackageId = ref<string | null>(null)
   const managementUrl = ref<string | null>(null)
 
   function applyCustomerInfo(info: CustomerInfo) {
-    currentPlan.value = currentPlanFromCustomerInfo(info)
+    currentCapacitor.value = currentCapacitorFromCustomerInfo(info)
     managementUrl.value = info.managementURL
   }
 
@@ -155,7 +155,7 @@ export function useSubscription(options: {
     applyCustomerInfo(await purchases.getCustomerInfo())
   }
 
-  /** Reads the plan from the SDK, then refreshes the balance, which carries the plan percent. */
+  /** Reads the capacitor from the SDK, then refreshes the balance, which carries the capacitor percent. */
   async function fetchStatus(): Promise<void> {
     await refreshCustomer().catch(() => undefined)
     await options.onChanged().catch(() => undefined)
@@ -171,19 +171,19 @@ export function useSubscription(options: {
     if (!current)
       return
     packages.value = current.availablePackages.flatMap((pkg) => {
-      const planPackage = toPlanPackage(pkg, current.metadata, locale.value)
-      return planPackage ? [planPackage] : []
+      const capacitorPackage = toCapacitorPackage(pkg, current.metadata, locale.value)
+      return capacitorPackage ? [capacitorPackage] : []
     })
   }
 
-  async function purchasePlan(packageId: string): Promise<'activated' | 'pending' | 'cancelled'> {
+  async function purchaseCapacitor(packageId: string): Promise<'activated' | 'pending' | 'cancelled'> {
     purchasingPackageId.value = packageId
     try {
       const purchases = await ensurePurchases(options.getUserId())
       const offerings = await purchases.getOfferings()
       const rcPackage = offerings.current?.availablePackages.find(pkg => pkg.identifier === packageId)
       if (!rcPackage)
-        throw new Error(t('settings.pages.plan.checkout.error'))
+        throw new Error(t('settings.pages.capacitor.checkout.error'))
 
       let customerInfo: CustomerInfo
       try {
@@ -197,7 +197,7 @@ export function useSubscription(options: {
 
       applyCustomerInfo(customerInfo)
       await options.onChanged().catch(() => undefined)
-      return currentPlan.value ? 'activated' : 'pending'
+      return currentCapacitor.value ? 'activated' : 'pending'
     }
     finally {
       purchasingPackageId.value = null
@@ -207,18 +207,18 @@ export function useSubscription(options: {
   async function setFallbackToFlux(fallbackToFlux: boolean): Promise<void> {
     const res = await client.api.v1.flux.fallback.$put({ json: { fallbackToFlux } })
     if (!res.ok)
-      throw new Error(t('settings.pages.plan.preferenceError'))
+      throw new Error(t('settings.pages.capacitor.preferenceError'))
     await options.onChanged().catch(() => undefined)
   }
 
   return {
     managementUrl,
-    currentPlan,
+    currentCapacitor,
     packages,
     purchasingPackageId,
     fetchStatus,
     fetchPackages,
-    purchasePlan,
+    purchaseCapacitor,
     setFallbackToFlux,
   }
 }

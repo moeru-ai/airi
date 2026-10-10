@@ -17,7 +17,7 @@ defineProps<{
 }>()
 
 const authStore = useAuthStore()
-const { isAuthenticated, user, credits, planRemaining } = storeToRefs(authStore)
+const { isAuthenticated, user, credits, capacitorPercent } = storeToRefs(authStore)
 const { t } = useI18n()
 
 const userName = computed(() => user.value?.name)
@@ -95,11 +95,11 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
             {{ userName }}
           </p>
           <div
-            v-if="planRemaining != null"
+            v-if="capacitorPercent != null"
             class="mt-1 flex items-center gap-1.5 text-xs text-primary-600 font-medium dark:text-primary-400"
           >
             <div class="i-solar:star-bold-duotone text-sm" />
-            <span>{{ planRemaining }}%</span>
+            <span>{{ capacitorPercent }}%</span>
           </div>
           <div class="mt-1 flex items-center gap-1.5 text-xs text-primary-600 font-medium dark:text-primary-400">
             <div class="i-solar:battery-charge-bold-duotone text-sm" />
@@ -141,7 +141,7 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
 
         <DropdownMenuItem as-child>
           <RouterLink
-            to="/settings/plan"
+            to="/settings/capacitor"
             :class="[
               'group w-full flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2',
               'text-sm leading-none outline-none text-neutral-700 dark:text-neutral-200',
@@ -150,7 +150,7 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
             ]"
           >
             <div class="i-solar:star-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
-            {{ t('settings.pages.plan.title') }}
+            {{ t('settings.pages.capacitor.title') }}
           </RouterLink>
         </DropdownMenuItem>
 
