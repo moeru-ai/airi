@@ -1,3 +1,7 @@
+import type { HomeAssistantConfigUpdate } from '../../../../shared/eventa/home-assistant'
+
+import { homeAssistantConfigRejections } from '../../../../shared/eventa/home-assistant'
+
 /**
  * Request rules for the Home Assistant service.
  *
@@ -20,13 +24,6 @@ export const apiPathPrefix = '/api/'
 export interface HomeAssistantStoredConfig {
   baseUrl: string
   token: string
-}
-
-/** One settings update, as the renderer sends it. */
-export interface HomeAssistantConfigUpdate {
-  baseUrl: string
-  /** Omit to keep the stored token. */
-  token?: string
 }
 
 /** Trims a user-entered base URL and rejects a scheme this process cannot fetch. */
@@ -59,7 +56,7 @@ export function normalizeBaseUrl(value: string): string {
  * leaving the secret in place.
  *
  * An empty address clears both, so an accidental blank field cannot leave a
- * secret behind for a later address.
+ * secret behind for a later address. An empty token clears the secret alone.
  */
 export function resolveConfigUpdate(
   current: HomeAssistantStoredConfig,
@@ -73,11 +70,17 @@ export function resolveConfigUpdate(
   if (supplied)
     return { baseUrl, token: supplied }
 
+  // The shared contract documents an empty token as the clear operation, and an
+  // absent token as the keep operation. The two differ, so the field is read
+  // rather than coalesced.
+  if (update.token !== undefined)
+    return { baseUrl, token: '' }
+
   if (!current.token)
-    throw new Error('Enter a Home Assistant access token.')
+    throw new Error(homeAssistantConfigRejections.tokenRequired)
 
   if (baseUrl !== current.baseUrl)
-    throw new Error('The address changed. Enter the access token for the new address.')
+    throw new Error(homeAssistantConfigRejections.addressChanged)
 
   return { baseUrl, token: current.token }
 }

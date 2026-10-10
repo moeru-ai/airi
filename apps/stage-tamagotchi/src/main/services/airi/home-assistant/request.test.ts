@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { homeAssistantConfigRejections } from '../../../../shared/eventa/home-assistant'
 import { assertAllowedRequest, normalizeBaseUrl, readBody, resolveConfigUpdate, resolveRequestUrl, toRequestError, toTokenPreview } from './request'
 
 describe('normalizeBaseUrl', () => {
@@ -106,10 +107,27 @@ describe('resolveConfigUpdate', () => {
     expect(resolveConfigUpdate(stored, { baseUrl: '   ' })).toEqual({ baseUrl: '', token: '' })
   })
 
-  it('treats a blank token as absent', () => {
-    expect(resolveConfigUpdate(stored, { baseUrl: stored.baseUrl, token: '  ' })).toEqual(stored)
-    expect(() => resolveConfigUpdate(stored, { baseUrl: 'https://other.example', token: '' }))
-      .toThrow('The address changed')
+  it('clears the secret when the caller sends an empty token', () => {
+    // The shared contract documents an empty token as the clear operation, and
+    // an omitted token as the keep operation.
+    expect(resolveConfigUpdate(stored, { baseUrl: stored.baseUrl, token: '' }))
+      .toEqual({ baseUrl: stored.baseUrl, token: '' })
+    expect(resolveConfigUpdate(stored, { baseUrl: stored.baseUrl, token: '  ' }))
+      .toEqual({ baseUrl: stored.baseUrl, token: '' })
+  })
+
+  it('moves the address with the cleared secret, which leaks nothing', () => {
+    expect(resolveConfigUpdate(stored, { baseUrl: 'https://other.example', token: '' }))
+      .toEqual({ baseUrl: 'https://other.example', token: '' })
+  })
+
+  it('refuses with the message the shared contract documents', () => {
+    // The renderer matches this message to show its own text, because only the
+    // message of an error crosses the IPC boundary.
+    expect(() => resolveConfigUpdate(stored, { baseUrl: 'https://other.example' }))
+      .toThrow(homeAssistantConfigRejections.addressChanged)
+    expect(() => resolveConfigUpdate({ baseUrl: '', token: '' }, { baseUrl: stored.baseUrl }))
+      .toThrow(homeAssistantConfigRejections.tokenRequired)
   })
 
   it('normalizes the address it stores', () => {

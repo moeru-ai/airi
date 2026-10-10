@@ -7,7 +7,7 @@ import { storeToRefs } from 'pinia'
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { homeAssistantGetConfig, homeAssistantSetConfig } from '../../../../shared/eventa/home-assistant'
+import { homeAssistantConfigRejections, homeAssistantGetConfig, homeAssistantSetConfig } from '../../../../shared/eventa/home-assistant'
 import { useTamagotchiHomeAssistantStore } from '../../../stores/tools/home-assistant'
 
 const { t } = useI18n()
@@ -34,6 +34,24 @@ const busy = ref(false)
 
 /** The line under the buttons: a key suffix, and the values that key interpolates. */
 const status = ref<{ suffix: string, params?: Record<string, unknown> } | null>(null)
+
+/**
+ * The text for each refusal the main process returns.
+ *
+ * The main process owns the rule, and only the message of its error crosses the
+ * IPC boundary. The page therefore reads the message and shows its own text.
+ */
+const rejectionKeys: Record<string, string> = {
+  [homeAssistantConfigRejections.addressChanged]: 'status.rejected-address',
+  [homeAssistantConfigRejections.tokenRequired]: 'status.rejected-token',
+}
+
+/** The status line for a failed save or test. */
+function failureStatus(error: unknown): { suffix: string, params?: Record<string, unknown> } {
+  const message = errorMessageFrom(error) ?? ''
+  const key = rejectionKeys[message]
+  return key ? { suffix: key } : { suffix: 'status.failed', params: { message } }
+}
 
 /** Mirrors what the main process holds, so the module card can show its state. */
 function recordCredentials(saved: { baseUrl: string, hasToken: boolean }) {
@@ -79,7 +97,7 @@ async function onSave() {
     status.value = { suffix: 'status.saved' }
   }
   catch (error) {
-    status.value = { suffix: 'status.failed', params: { message: errorMessageFrom(error) ?? '' } }
+    status.value = failureStatus(error)
   }
   finally {
     busy.value = false
@@ -95,7 +113,7 @@ async function onTest() {
     status.value = { suffix: 'status.reachable', params: { count } }
   }
   catch (error) {
-    status.value = { suffix: 'status.failed', params: { message: errorMessageFrom(error) ?? '' } }
+    status.value = failureStatus(error)
   }
   finally {
     busy.value = false

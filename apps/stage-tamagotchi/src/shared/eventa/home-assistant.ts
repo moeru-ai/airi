@@ -19,6 +19,18 @@ export interface HomeAssistantPublicConfig {
   tokenPreview: string
 }
 
+/**
+ * The reasons the main process refuses a settings update.
+ *
+ * Only the message of a thrown error crosses the IPC boundary, so the message
+ * stands in for a code. The renderer shows its own text for each of these and
+ * keeps the message as the fallback for anything else.
+ */
+export const homeAssistantConfigRejections = {
+  addressChanged: 'The address changed. Enter the access token for the new address.',
+  tokenRequired: 'Enter a Home Assistant access token.',
+} as const
+
 /** The settings the renderer writes. An absent token keeps the stored one. */
 export interface HomeAssistantConfigUpdate {
   baseUrl: string
