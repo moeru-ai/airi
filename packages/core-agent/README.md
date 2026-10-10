@@ -16,6 +16,8 @@
 
 When a caller supplies `resolveStep`, `streamFrom` reads current settings before each model request. It resolves the first request before projecting the conversation. A continuation scope change starts a new SDK stream. Completed rounds and usage remain in one assistant turn. The callback returns the current tools and header overrides for each request.
 
+To cap each request's output, set `StreamOptions.maxTokens`. Chat sends `max_tokens`, and Responses sends `max_output_tokens`. A `resolveStep` cap overrides the caller's cap. If the step omits its cap, the caller's cap applies. If both omit it, the provider's default applies. The cap applies to each tool continuation, not the whole turn. Providers enforce the value and define how reasoning tokens count. This option adds no UI setting.
+
 ```ts
 await streamFrom({
   model: 'selected-model',
