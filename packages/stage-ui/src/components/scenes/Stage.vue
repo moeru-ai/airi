@@ -26,11 +26,11 @@ import { useBroadcastChannel, useEventListener } from '@vueuse/core'
 // import embedWorkerURL from '@xsai-transformers/embed/worker?worker&url'
 // import { embed } from '@xsai/embed'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { computed, nextTick, onUnmounted, ref, shallowRef, watch } from 'vue'
 
 import StageRenderError from './stage-render-error.vue'
 
-import { useDuckDb } from '../../composables/use-duck-db'
+// import { useDuckDb } from '../../composables/use-duck-db'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { live2dMotionMagicProfiles, useLive2DMotionMagic, useLive2DMotionMagicSettings } from '../../features/motions/live2d'
 import { getSpeechBusContext, speechOutputGetPlaybackState, speechOutputPlaybackStateChangedEvent } from '../../services/speech/bus'
@@ -58,7 +58,8 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ error: [error: Error] }>()
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 
-const { getDb } = useDuckDb()
+// NOTICE: disabled together with the DuckDB start on mount below.
+// const { getDb } = useDuckDb()
 // const transformersProvider = createTransformers({ embedWorkerURL })
 
 const vrmViewerRef = ref<InstanceType<typeof ThreeScene>>()
@@ -567,9 +568,13 @@ function resumeAudioContextOnInteraction() {
 // `useEventListener` removes them on unmount if no interaction came first.
 useEventListener(['click', 'touchstart', 'keydown'], resumeAudioContextOnInteraction, { once: true, passive: true })
 
-onMounted(async () => {
-  await getDb() // stub for future update
-})
+// NOTICE:
+// DuckDB stays off until a separate layer owns it. Nothing reads it yet,
+// and its WebAssembly worker kept 320-390 MB of memory in iOS Safari.
+// Restore when a feature uses DuckDB.
+// onMounted(async () => {
+//   await getDb()
+// })
 
 watch([stageModelRenderer, () => props.paused], ([renderer]) => {
   if (renderer === 'godot') {
