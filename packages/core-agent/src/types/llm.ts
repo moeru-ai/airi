@@ -1,4 +1,4 @@
-import type { GenerationProvider } from '@proj-airi/provider-inference'
+import type { GenerationProvider, GenerationRequest } from '@proj-airi/provider-inference'
 import type { CommonContentPart, CompletionToolCall, Tool, ToolChoice } from '@xsai/shared-chat'
 
 import type { AssistantTurn, Conversation } from '../messages/types'
@@ -27,6 +27,20 @@ export type StreamEvent
 
 /** Options shared by generation adapters. SDK payloads stay inside each adapter. */
 export interface StreamOptions {
+  /**
+   * Adapts the conversation to the provider request that the runtime resolved.
+   *
+   * It runs before each SDK stream, after `resolveStep` and before the protocol adapter projects its input.
+   * A request scope change after a tool round starts a new stream, so the callback runs again for the new model.
+   * It returns a request copy. The caller's conversation and stored history stay unchanged.
+   */
+  prepareConversation?: (conversation: Conversation, target: {
+    /** Model of the resolved request. */
+    model: string
+    /** Provider registry identity of the resolved request. */
+    providerId?: string
+    request: GenerationRequest
+  }) => Promise<Conversation>
   /** Reads the pinned character's current settings before each model request. */
   resolveStep?: () => Promise<{
     model: string

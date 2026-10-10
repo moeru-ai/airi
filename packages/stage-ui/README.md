@@ -62,6 +62,7 @@ Rephrasing is off by default. A failure or a 10-second timeout submits the provi
 A recording is sent only when its control asks for it with `finish` and `send: true`, or with an explicit `send`. A failed send keeps the recording and its message identity, so the control can send it again or discard it.
 While a control records or dictates, the host publishes the microphone level on `voiceInputLevel`.
 Native audio requires declared model support and Chat Completions. Other models transcribe the recording with the configured Hearing provider.
+Each model request makes this decision again. A tool step that changes the model also changes the audio projection.
 Local history keeps the audio and cached transcription. Audio turns remain local because cloud text records cannot preserve their media.
 
 ### External wake-word adapters
@@ -138,6 +139,16 @@ recover historical global values that an older card already overwrote.
 Existing `speech-noop` selections are preserved because they may represent
 intentional silence. Users can explicitly choose **Inherit global settings**
 in the editor; importing or saving an unrelated card field does not change it.
+
+## Character sessions
+
+Each chat session belongs to one character. A send reads the provider, model, and system prompt of that character, not the selected card.
+Selecting another card while a turn waits in the queue does not change the turn.
+Before each model request, the turn reads its character's settings again. A tool that edits the character changes the next request.
+Each request rebuilds the analytics correlation headers for its provider.
+Tool and content-array compatibility failures belong to the model of the failing request, not the first model of the turn.
+Session resets and autonomous artistry hooks also use the session character.
+Each concurrent turn owns its IO trace. `activeTurnSpan` points to the most recently started turn that is still running.
 
 ## Button analytics
 
