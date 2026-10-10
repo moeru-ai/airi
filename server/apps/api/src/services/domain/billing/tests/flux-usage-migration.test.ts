@@ -4,11 +4,14 @@ import { PGlite } from '@electric-sql/pglite'
 import { readMigrationFiles } from 'drizzle-orm/migrator'
 import { expect, it } from 'vitest'
 
+// Index of 0029, the migration that adds usage storage. Later migrations do not move it.
+const usageMigration = 29
+
 it('adds usage storage, then drops the settlement archive and request-log Flux column, without touching wallets or ledger rows', async () => {
   const client = new PGlite()
   try {
     const migrations = readMigrationFiles({ migrationsFolder: fileURLToPath(new URL('../../../../../drizzle', import.meta.url)) })
-    for (const migration of migrations.slice(0, -3)) {
+    for (const migration of migrations.slice(0, usageMigration)) {
       for (const statement of migration.sql)
         await client.exec(statement)
     }
@@ -21,7 +24,7 @@ it('adds usage storage, then drops the settlement archive and request-log Flux c
         (id, user_id, type, amount, balance_before, balance_after, description, settlement_id)
         VALUES ('debit', 'historical', 'debit', 2, 9, 7, 'llm_request', 'receipt');
     `)
-    for (const statement of migrations.at(-3)!.sql)
+    for (const statement of migrations[usageMigration].sql)
       await client.exec(statement)
     expect((await client.query('SELECT flux, unsettled_micro_flux FROM user_flux')).rows).toEqual([{ flux: 7, unsettled_micro_flux: 0 }])
     expect((await client.query('SELECT billing_status, requested_flux, charged_flux, cost_usd FROM llm_request_settlement')).rows).toEqual([{ billing_status: 'settled', requested_flux: 3, charged_flux: 2, cost_usd: '0.0012' }])
@@ -31,7 +34,7 @@ it('adds usage storage, then drops the settlement archive and request-log Flux c
     await expect(client.exec('INSERT INTO flux_usage (id,user_id,source_type,source_id,amount_micro_flux) VALUES (\'duplicate\',\'historical\',\'llm\',\'request\',1)')).rejects.toThrow()
     await expect(client.exec('INSERT INTO flux_usage (id,user_id,source_type,source_id,amount_micro_flux) VALUES (\'negative\',\'historical\',\'llm\',\'other\',-1)')).rejects.toThrow()
     await expect(client.exec('UPDATE user_flux SET unsettled_micro_flux = -1')).rejects.toThrow()
-    for (const migration of migrations.slice(-2)) {
+    for (const migration of migrations.slice(usageMigration + 1, usageMigration + 3)) {
       for (const statement of migration.sql)
         await client.exec(statement)
     }
