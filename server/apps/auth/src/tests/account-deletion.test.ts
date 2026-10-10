@@ -12,6 +12,7 @@ import * as schema from '@proj-airi/auth-shared'
 
 import { createAuth } from '../auth'
 import { parseAuthEnv } from '../env'
+import { createSocialAuthorizationRevoker } from '../social-authorization'
 import { createTestDatabase } from './mock-db'
 
 describe('confirmed account deletion', () => {
@@ -19,6 +20,7 @@ describe('confirmed account deletion', () => {
   let auth: Pick<ReturnType<typeof betterAuth>, 'handler'>
   const secret = 'test-secret-test-secret-test-secret'
   const { publicKey, privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
+  let revoker: ReturnType<typeof createSocialAuthorizationRevoker>
   const revokeForUser = vi.fn(async (_userId: string) => {})
   const softDeleteUserData = vi.fn(async (_input: { userId: string, reason: string }) => {})
   const sendDeleteAccountVerification = vi.fn<EmailService['sendDeleteAccountVerification']>(async () => {})
@@ -32,7 +34,8 @@ describe('confirmed account deletion', () => {
       createdAt: new Date(),
     })
     // PGlite and node-postgres use the same Drizzle adapter contract in these handler tests.
-    const configured = createAuth(db as unknown as AuthDatabase, parseAuthEnv({
+    const authDb = db as unknown as AuthDatabase
+    const env = parseAuthEnv({
       DATABASE_URL: 'postgres://localhost/test',
       REDIS_URL: 'redis://localhost:6379',
       PUBLIC_URL: 'http://localhost:3000',
@@ -41,7 +44,9 @@ describe('confirmed account deletion', () => {
       AUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
       AUTH_GITHUB_CLIENT_ID: 'github-client',
       AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
-    }), {
+    })
+    revoker = createSocialAuthorizationRevoker(authDb, env, vi.fn<typeof fetch>())
+    const configured = createAuth(authDb, env, {
       send: vi.fn(),
       sendVerification: vi.fn(),
       sendPasswordReset: vi.fn(),
@@ -58,6 +63,7 @@ describe('confirmed account deletion', () => {
 
   beforeEach(async () => {
     vi.resetAllMocks()
+    revokeForUser.mockImplementation(revoker.revokeForUser)
     await db.delete(schema.user)
     await seedAccount()
   })
