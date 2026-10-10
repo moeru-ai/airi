@@ -325,7 +325,7 @@ describe('card inheritance with real module stores', () => {
     await cards.configureForAuthentication(true)
 
     await vi.waitFor(() => {
-      expect(voiceRequests.length).toBeGreaterThan(0)
+      expect(voiceRequests).toHaveLength(1)
       expect(speechStore.activeSpeechVoiceId).toBe('voice-a')
     })
   })
