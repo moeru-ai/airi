@@ -849,6 +849,20 @@ pages:
       configured: Discord已正确配置！
     speech:
       description: 语音合成
+      configuration:
+        loading: 正在配置语音…
+        ready: 语音已就绪
+        incomplete: 请选择模型和音色以启用语音
+        error: 语音配置失败
+        muted: 语音已关闭
+        retry: 重试
+        select: 选择语音设置
+        selection: '{model} · {voice}'
+        text-chat-available: 你仍然可以使用文字聊天。
+        source:
+          defaults: 使用全局默认设置
+          character: 使用角色设置
+          mixed: 使用角色设置及继承的默认值
       sections:
         section:
           playground:

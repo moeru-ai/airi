@@ -42,6 +42,17 @@ function authenticateOfficialProvider(): void {
   useAuthStore().$patch({ session, token: 'restored-access-token', user })
 }
 
+/** Applies an explicitly resolved test selection, as the card command does after persistence. */
+async function resolveAndApply(speech: ReturnType<typeof useSpeechStore>) {
+  const selection = await speech.resolveSelection({
+    provider: speech.activeSpeechProvider,
+    model: speech.activeSpeechModel,
+    voice_id: speech.activeSpeechVoiceId,
+  })
+  if (selection)
+    await speech.selectProviderModel(selection.provider, selection.model, selection.voice_id)
+}
+
 describe('speech store helpers', () => {
   beforeEach(() => {
     i18nState.locale.value = 'en-US'
@@ -278,7 +289,7 @@ describe('speech store helpers', () => {
     speechStore.activeSpeechProvider = OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
     speechStore.activeSpeechModel = ''
 
-    speechStore.ensureActiveSpeechModel()
+    await resolveAndApply(speechStore)
 
     expect(speechStore.activeSpeechModel).toBe('volcengine/seed-tts-2.0')
   })
@@ -296,12 +307,13 @@ describe('speech store helpers', () => {
       modelError: null,
     }
     await speech.selectProviderModel(OFFICIAL_SPEECH_PROVIDER_ID, '')
+    await resolveAndApply(speech)
     expect(speech.activeSpeechModel).toBe('snapshot-default')
   })
 
   /**
    * @example
-   * speechStore.ensureActiveSpeechModel()
+   * await resolveAndApply(speechStore)
    */
   it('keeps a real Voice Pack TTS model selected for the regular official provider', async () => {
     const providersStore = useProviderStore()
@@ -315,7 +327,7 @@ describe('speech store helpers', () => {
       { id: 'microsoft/v1', name: 'microsoft/v1', provider: OFFICIAL_SPEECH_PROVIDER_ID },
     ]
 
-    speechStore.ensureActiveSpeechModel()
+    await resolveAndApply(speechStore)
 
     expect(speechStore.activeSpeechModel).toBe('volcengine/pool-a')
     expect(speechStore.activeSpeechVoiceId).toBe('voice-a')
@@ -323,7 +335,7 @@ describe('speech store helpers', () => {
 
   /**
    * @example
-   * speechStore.ensureActiveSpeechModel()
+   * await resolveAndApply(speechStore)
    */
   it('resets stale streaming model to the server default when the regular official speech provider is active', async () => {
     vi.stubGlobal('localStorage', {
@@ -363,7 +375,7 @@ describe('speech store helpers', () => {
       await providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
       await providersStore.fetchModelsForProvider(OFFICIAL_SPEECH_PROVIDER_ID)
 
-      speechStore.ensureActiveSpeechModel()
+      await resolveAndApply(speechStore)
 
       expect(speechStore.activeSpeechModel).toBe('microsoft/v1')
       expect(speechStore.activeSpeechVoiceId).toBe('')
@@ -420,7 +432,7 @@ describe('speech store helpers', () => {
       await providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
       await providersStore.fetchModelsForProvider(OFFICIAL_SPEECH_PROVIDER_ID)
 
-      speechStore.ensureActiveSpeechModel()
+      await resolveAndApply(speechStore)
       await speechStore.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID, speechStore.activeSpeechModel)
 
       expect(speechStore.activeSpeechModel).toBe('microsoft/v1')
@@ -476,7 +488,7 @@ describe('speech store helpers', () => {
       await providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
       await providersStore.fetchModelsForProvider(OFFICIAL_SPEECH_PROVIDER_ID)
 
-      speechStore.ensureActiveSpeechModel()
+      await resolveAndApply(speechStore)
       await speechStore.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID, speechStore.activeSpeechModel)
 
       expect(speechStore.activeSpeechModel).toBe('microsoft/v1')
@@ -516,7 +528,7 @@ describe('single model speech providers', () => {
       { id: 'default', name: 'VOICEVOX', provider: 'voicevox' },
     ]
 
-    speechStore.ensureActiveSpeechModel()
+    await resolveAndApply(speechStore)
 
     expect(speechStore.activeSpeechModel).toBe('default')
   })
@@ -546,7 +558,7 @@ describe('single model speech providers', () => {
       { id: 'default', name: 'VOICEVOX', provider: 'voicevox' },
     ]
 
-    speechStore.ensureActiveSpeechModel()
+    await resolveAndApply(speechStore)
 
     expect(speechStore.activeSpeechVoiceId).toBe('3')
   })
@@ -562,7 +574,7 @@ describe('single model speech providers', () => {
       { id: 'eleven_flash_v2_5', name: 'flash', provider: 'elevenlabs' },
     ]
 
-    speechStore.ensureActiveSpeechModel()
+    await resolveAndApply(speechStore)
 
     expect(speechStore.activeSpeechModel).toBe('')
   })

@@ -128,6 +128,17 @@ Use card commands for activation and explicit edits. Settings pages must not
 save cards from watchers: authentication and remote snapshots also trigger them.
 The synchronization leader owns these commands; followers receive snapshots.
 
+Use `configureSpeechSelection` for automatic discovery and manual speech edits.
+Discovery returns provider, model, and voice fields without changing active speech.
+The leader commits the result to the character or inherited `moduleDefaults`,
+then applies that configuration to the speech runtime. Partial overrides keep
+inherited fields empty. Settings and each chat session read `getModules`.
+Late results cannot replace a later selection, another character, or a
+logged-out account. Background discovery does not block activation or logout.
+The settings page shows loading, ready, incomplete, failed, and muted states.
+Ready means the configuration is complete. It does not confirm successful synthesis.
+Incomplete and muted configurations keep text replies available.
+
 Models inherit only within the same provider. Voices also require the same
 model. Selecting a vision provider on the vision page stores the catalog default
 model of that provider on the active card. A different provider without a model stays unconfigured rather than

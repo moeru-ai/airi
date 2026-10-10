@@ -1,7 +1,7 @@
 import type { Card, ccv3 } from '@proj-airi/ccc'
 
 import type { DocumentFields, DocumentSnapshot, DocumentSyncClient, LocalDocumentChanges } from '../../libs/document-sync'
-import type { CardModuleDefaults } from '../../services/airi-card-modules'
+import type { CardModuleDefaults, SpeechSelection } from '../../services/airi-card-modules'
 import type { AiriCard, AiriExtension } from '../../types/airiCard'
 
 import localeMessages from '@proj-airi/i18n/locales'
@@ -11,9 +11,9 @@ import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { StorageSerializers, useDocumentVisibility, watchDebounced } from '@vueuse/core'
 import { isEqual } from 'es-toolkit'
 import { nanoid } from 'nanoid'
-import { defineStore, storeToRefs } from 'pinia'
+import { defineStore, getActivePinia, storeToRefs } from 'pinia'
 import { array, looseObject, object, parse, safeParse, string } from 'valibot'
-import { computed, ref, toRaw, watch } from 'vue'
+import { computed, hasInjectionContext, inject, onScopeDispose, ref, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
@@ -23,10 +23,11 @@ import { authedFetch } from '../../libs/auth-fetch'
 import { joinCard, splitCard } from '../../libs/character-card-sync'
 import { createDocumentSyncClient, syncedValues, synchronize } from '../../libs/document-sync'
 import { CHARACTER_CARD_SYNC_FLAG } from '../../libs/feature-flags'
+import { injectKeyPiniaSynced } from '../../libs/pinia/synced-context'
 import { captureAnalyticsEvent } from '../../libs/product-signals'
 import { SERVER_URL } from '../../libs/server'
 import { wakeWordSchema } from '../../libs/voice/wake-words'
-import { resolveModuleSelection } from '../../services/airi-card-modules'
+import { completeSpeechOverrides, resolveModuleSelection, resolveSpeechOutputSelection } from '../../services/airi-card-modules'
 import { useAuthStore } from '../auth'
 import { useFeatureFlagsStore } from '../feature-flags'
 import { useProviderConfigStore } from '../providers/config'
@@ -84,8 +85,19 @@ function resolveSystemPrompt(card: AiriCard | undefined): string {
   return systemPromptParts.join('\n\n')
 }
 
+// Command failures belong to the renderer awaiting discovery, outside card snapshots.
+const useSpeechConfigurationRequests = defineStore('speech-configuration-requests', () => {
+  const failure = ref<{ characterId: string, selection: SpeechSelection, error: string } | null>(null)
+  return { failure }
+})
+
 export const useAiriCardStore = defineStore('airi-card', () => {
   const { t } = useI18n()
+  const pinia = getActivePinia()!
+  const speechRequests = useSpeechConfigurationRequests(pinia)
+  const runtime = hasInjectionContext() ? inject(injectKeyPiniaSynced, undefined) : undefined
+  let disposed = false
+  let speechConfigurationRevision = 0
   const { userId } = storeToRefs(useAuthStore())
   const featureFlagsStore = useFeatureFlagsStore()
   /** Cloud sync is a device choice, off by default. Settings > System > Experimental Features owns it. */
@@ -142,7 +154,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     // A user can change an inherited setting through a module surface. Retain
     // those changes, but never promote the previous card's overrides to defaults.
     const next = structuredClone(toRaw(defaults))
-    for (const module of ['consciousness', 'vision', 'speech'] as const) {
+    for (const module of ['consciousness', 'vision'] as const) {
       const previous = appliedModules[module]
       if (previous.provider)
         continue
@@ -152,8 +164,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       if (!previous.model)
         next[module].model = runtime[module].model
     }
-    if (!appliedModules.speech.provider && !appliedModules.speech.model && !appliedModules.speech.voice_id)
-      next.speech.voice_id = runtime.speech.voice_id
     if (!appliedModules.displayModelId)
       next.displayModelId = runtime.displayModelId
     moduleDefaults.value = next
@@ -178,6 +188,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
    * The synchronization leader owns provider setup, persistence, and reapplication.
    */
   async function configureForAuthentication(authenticated: boolean) {
+    speechConfigurationRevision++
     const previous = pendingAuthenticationSetup
     const operation = (async () => {
       // A failed setup is reported to its caller. The next auth event must
@@ -185,13 +196,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       if (previous)
         await previous.catch(() => {})
       await applyAuthenticationDefaults(authenticated)
-      if (authenticated) {
-        // Voice discovery is owned by the speech action. It must not hold the
-        // authentication queue, card edits, or logout cleanup open on network IO.
-        void loadAuthenticatedSpeechVoices().catch((error) => {
-          console.error('Failed to refresh authenticated speech voices:', errorMessageFrom(error))
-        })
-      }
     })()
     pendingAuthenticationSetup = operation
     try {
@@ -221,19 +225,115 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
   }
 
-  /** Loads the effective auth-owned voice catalog after card setup finishes. */
-  async function loadAuthenticatedSpeechVoices(): Promise<void> {
-    const { speech } = useRuntimeModuleStores()
-    const provider = useProviderConfigStore().providers[speech.activeSpeechProvider]
-    if (provider?.configuredBy !== 'authentication')
-      return
+  // Each card or authentication command invalidates the previous configuration
+  // attempt. Discovery returns values, and only the current revision can commit.
+  let pendingSpeechConfiguration: { revision: number, promise: Promise<SpeechSelection | undefined> } | undefined
 
-    speech.ensureActiveSpeechModel()
-    await speech.loadVoicesForProvider(
-      speech.activeSpeechProvider,
-      speech.activeSpeechModel || undefined,
-    )
+  /**
+   * Resolves manual choices and automatic defaults through one commit boundary.
+   * The leader saves only changed override fields, then applies that same result.
+   * Repeated callers share discovery. Card changes and disposal reject old results.
+   */
+  async function configureSpeechSelection(characterId: string, intent?: Partial<SpeechSelection>): Promise<SpeechSelection | undefined> {
+    await pendingAuthenticationSetup
+    if (disposed || characterId !== activeCardId.value || !activeCard.value || !moduleDefaults.value)
+      return
+    if (intent) {
+      const previous = getModules(characterId).speech
+      const changedProvider = intent.provider !== undefined && intent.provider !== previous.provider
+      const changedModel = intent.model !== undefined && intent.model !== previous.model
+      updateActiveCardModules(({ modules }) => ({
+        speech: {
+          ...modules.speech,
+          ...(changedProvider ? { model: '', voice_id: '' } : changedModel ? { voice_id: '' } : {}),
+          ...intent,
+        },
+      }))
+      await applyActiveCardSettings(activeCard.value, false)
+      if (characterId !== activeCardId.value)
+        return
+    }
+    const revision = speechConfigurationRevision
+    if (pendingSpeechConfiguration?.revision === revision)
+      return pendingSpeechConfiguration.promise
+
+    const selection = getModules(characterId).speech
+    const speech = useSpeechStore(pinia)
+    if (!selection.provider || selection.provider === 'speech-noop')
+      return selection
+    const source = structuredClone(toRaw(activeCard.value.extensions.airi.modules.speech))
+    const defaults = structuredClone(toRaw(moduleDefaults.value.speech))
+    const providers = useProviderConfigStore(pinia)
+    const catalogs = useProviderStore(pinia)
+    const definitionId = providers.providers[selection.provider]?.definitionId || selection.provider
+    const owner = catalogs.voiceCatalogOwners[definitionId]
+    if (!providers.configuredProviders[selection.provider])
+      return selection
+
+    speechRequests.failure = null
+    const operation = (async () => {
+      const resolved = await speech.resolveSelection(selection)
+      if (!resolved || disposed || revision !== speechConfigurationRevision
+        || characterId !== activeCardId.value || (runtime && !runtime.isLeader())
+        || !providers.configuredProviders[selection.provider]
+        || owner !== catalogs.voiceCatalogOwners[definitionId]) {
+        return
+      }
+      if (!source.provider && !source.model && !source.voice_id) {
+        if (!isEqual(moduleDefaults.value!.speech, resolved))
+          moduleDefaults.value = { ...moduleDefaults.value!, speech: resolved }
+      }
+      else {
+        const overrides = completeSpeechOverrides(source, defaults, resolved)
+        if (!isEqual({ provider: source.provider, model: source.model, voice_id: source.voice_id }, overrides)) {
+          updateActiveCardModules(({ modules }) => ({ speech: { ...modules.speech, ...overrides } }))
+          appliedModules = activeCard.value?.extensions.airi.modules
+        }
+      }
+      await speech.selectProviderModel(resolved.provider, resolved.model, resolved.voice_id)
+      return resolved
+    })()
+    pendingSpeechConfiguration = { revision, promise: operation }
+    try {
+      return await operation
+    }
+    catch (error) {
+      if (!disposed && revision === speechConfigurationRevision && characterId === activeCardId.value)
+        speechRequests.failure = { characterId, selection, error: errorMessageFrom(error) ?? 'Unknown error' }
+      throw error
+    }
+    finally {
+      if (pendingSpeechConfiguration?.promise === operation)
+        pendingSpeechConfiguration = undefined
+    }
   }
+
+  async function requestSpeechConfiguration() {
+    if (disposed)
+      return
+    try {
+      await useAiriCardStore(pinia).configureSpeechSelection(activeCardId.value)
+    }
+    catch (error) {
+      if (!disposed)
+        console.error('Failed to configure character speech:', errorMessageFrom(error))
+    }
+  }
+
+  let observedSpeechLeader = runtime?.getLeaderId()
+  const stopSpeechCoordination = runtime?.onCoordinationChange(async ({ leaderId }) => {
+    if (!leaderId || leaderId === observedSpeechLeader)
+      return
+    observedSpeechLeader = leaderId
+    speechConfigurationRevision++
+    if (leaderId === runtime.participantId && moduleDefaults.value)
+      await requestSpeechConfiguration()
+  })
+  onScopeDispose(() => {
+    disposed = true
+    speechConfigurationRevision++
+    stopSpeechCoordination?.()
+  })
 
   /**
    * `source` feeds the `card_created` analytics event: `scratch` = built in
@@ -357,17 +457,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return await updateActiveCardVision({ provider, model })
   }
 
-  async function updateActiveCardSpeech(speech: Pick<AiriExtension['modules']['speech'], 'provider' | 'model' | 'voice_id'>) {
-    await pendingAuthenticationSetup
-    const updated = updateActiveCardModules(({ modules }) => ({
-      speech: {
-        ...modules.speech,
-        ...speech,
-      },
-    }))
-    if (updated)
-      await applyActiveCardSettings()
-    return updated
+  async function updateActiveCardSpeech(speech: Partial<SpeechSelection>) {
+    return Boolean(await useAiriCardStore(pinia).configureSpeechSelection(activeCardId.value, speech))
   }
 
   /** Clears a removed provider from defaults and the active card, not other cards. */
@@ -939,7 +1030,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       },
       displayModelId: modules.displayModelId || defaults.displayModelId,
     }
-    const providers = useProviderConfigStore().providers
+    const providers = useProviderConfigStore(pinia).providers
     for (const module of ['consciousness', 'vision', 'speech'] as const) {
       const provider = providers[resolved[module].provider]
       // Logout disables authenticated providers without deleting card choices.
@@ -950,6 +1041,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
           resolved.speech.voice_id = ''
       }
     }
+    resolved.speech = resolveSpeechOutputSelection(resolved.speech, useProviderConfigStore(pinia).getProviderConfig(resolved.speech.provider), useProviderStore(pinia).getDefaultModelForProvider(resolved.speech.provider))
     return resolved
   }
 
@@ -957,7 +1049,9 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return resolveSystemPrompt(cards.value.get(characterId))
   }
 
-  async function applyActiveCardSettings(newCard = activeCard.value) {
+  async function applyActiveCardSettings(newCard = activeCard.value, configureSpeech = true) {
+    speechConfigurationRevision++
+    speechRequests.failure = null
     rememberInheritedSettings()
     const artistry = useArtistryStore()
 
@@ -978,6 +1072,10 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     const resolved = resolveModules(modules, defaults)
     await writeRuntimeModules(resolved)
     appliedModules = modules
+    // The background task awaits its routed action. Catalog IO must not block
+    // card edits or the authentication operation that completion waits for.
+    if (configureSpeech)
+      void requestSpeechConfiguration()
 
     if (extension.modules?.artistry) {
       const selection = resolveModuleSelection({
@@ -996,6 +1094,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   }
 
   function resetState() {
+    speechConfigurationRevision++
     initialized = false
     appliedModules = undefined
     moduleDefaults.reset()
@@ -1035,6 +1134,13 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     initialize,
     activateCard,
     configureForAuthentication,
+    configureSpeechSelection,
+    speechConfigurationError: computed(() => {
+      const failure = speechRequests.failure
+      if (!failure || !activeCard.value || !moduleDefaults.value || failure.characterId !== activeCardId.value)
+        return ''
+      return isEqual(failure.selection, getModules(activeCardId.value).speech) ? failure.error : ''
+    }),
     clearProviderSelections,
 
     currentModels: computed(() => {
@@ -1072,6 +1178,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       'addCard',
       'initialize',
       'configureForAuthentication',
+      'configureSpeechSelection',
       'clearProviderSelections',
       'removeCard',
       'updateActiveCardConsciousness',
