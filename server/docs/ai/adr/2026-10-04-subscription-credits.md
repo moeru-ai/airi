@@ -56,6 +56,8 @@ Two webhooks for one user cannot write an older answer after a newer answer.
 The wallet row stays unlocked during the read, so debits continue.
 The read has a 5-second timeout.
 
+The server does not reconcile when `REVENUECAT_CAPACITORS` is unset or empty. The wallet stays as it is.
+A sync with no products would expire every active Capacitor.
 The webhook returns an error when the read fails or `REVENUECAT_API_KEY` is unset.
 RevenueCat then sends the event again.
 `TEST` events do not read RevenueCat.

@@ -89,6 +89,12 @@ describe('revenuecat subscription sync', () => {
     expect(synced).toEqual([null])
   })
 
+  it('leaves the wallet as it is when the capacitor map is empty', async () => {
+    const { synced, fetchEntitlements } = await reconcile([goEntitlement], createConfigKV({}))
+    expect(synced).toEqual([])
+    expect(fetchEntitlements).not.toHaveBeenCalled()
+  })
+
   it('leaves the wallet as it is when no capacitors are configured', async () => {
     const { synced, fetchEntitlements } = await reconcile([goEntitlement], createConfigKV(null))
     expect(synced).toEqual([])

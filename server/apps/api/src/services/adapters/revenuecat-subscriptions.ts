@@ -18,8 +18,10 @@ export function createRevenuecatSubscriptionSync(
 ) {
   async function reconcile(userId: string): Promise<void> {
     const capacitors = await configKV.getOptional('REVENUECAT_CAPACITORS')
-    // Capacitors are not sold when the map is unset. The wallet stays as it is.
-    if (!capacitors)
+    // Capacitors are not sold when the map is unset or empty. The wallet stays as it is.
+    // An unset ConfigKV row resolves to the empty default, so the empty map is the usual case.
+    // A sync with no products would expire every active Capacitor.
+    if (!capacitors || Object.keys(capacitors).length === 0)
       return
 
     await billing.syncCapacitor(userId, async (): Promise<CapacitorPeriod | null> => {
