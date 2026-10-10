@@ -6,6 +6,7 @@ import {
   SpeechPlayground,
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
@@ -26,6 +27,7 @@ const defaultModel = 'speech-2.8-hd'
 const defaultVoiceSettings = {}
 
 const speechStore = useSpeechStore()
+const airiCardStore = useAiriCardStore()
 const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
 const { configs: providers } = storeToRefs(providerStore)
@@ -89,18 +91,13 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   )
 }
 
-/**
- * Commits the picked voice to the provider config, and mirrors it into the
- * Speech module when that module already uses this provider. The module owns
- * the active selection, so a page for another provider must not take it over.
- */
+/** Saves the provider voice, then updates the character only when it uses this provider. */
 async function selectVoice(value: string) {
   voice.value = value
-  if (speechStore.activeSpeechProvider !== providerId)
+  if (airiCardStore.getModules(airiCardStore.activeCardId).speech.provider !== providerId)
     return
 
-  // An unchanged model keeps the leader from clearing the voice it then sets.
-  await speechStore.selectProviderModel(providerId, speechStore.activeSpeechModel, value)
+  await airiCardStore.updateActiveCardSpeech({ voice_id: value })
 }
 
 async function loadVoicesWhenConfigured() {

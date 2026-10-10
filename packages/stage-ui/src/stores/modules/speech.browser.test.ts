@@ -145,7 +145,8 @@ describe('speech synchronization', () => {
     outgoing.runtime.dispose()
     syncedContexts.splice(syncedContexts.indexOf(outgoing), 1)
     await vi.waitFor(() => expect(survivor.runtime.isLeader()).toBe(true), { timeout: 5000 })
-    await survivor.speechStore.selectProviderModel(provider, '')
+    const resolved = await survivor.speechStore.resolveSelection({ provider, model: '', voice_id: '' })
+    await survivor.speechStore.selectProviderModel(provider, resolved!.model, resolved!.voice_id)
     expect(survivor.speechStore.activeSpeechModel).toBe('preferred')
   })
   beforeEach(() => {
@@ -470,7 +471,7 @@ describe('speech synchronization', () => {
   })
   // https://github.com/moeru-ai/airi/pull/2490#discussion_r3960674493
   // ROOT CAUSE: A remote catalog triggered local auto-pick state proposals.
-  it('routes automatic voice selection to the leader without follower proposals', async () => {
+  it('keeps catalog recommendations separate from committed selections without follower proposals', async () => {
     const namespace = `speech:${crypto.randomUUID()}`
     const leader = createSyncedContext(namespace, 'leader-only')
     await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
@@ -501,7 +502,8 @@ describe('speech synchronization', () => {
     })
     await vi.waitFor(() => expect(useAuthStore(follower.pinia).isAuthenticated).toBe(true))
     await leader.speechStore.loadVoicesForProvider('official-provider-speech')
-    await vi.waitFor(() => expect(follower.speechStore.activeSpeechVoiceId).toBe('voice'))
+    await vi.waitFor(() => expect(follower.speechStore.availableVoices['official-provider-speech']).toHaveLength(2))
+    expect(follower.speechStore.activeSpeechVoiceId).toBe('')
     await new Promise(resolve => setTimeout(resolve, 100))
     expect(selections).toBeGreaterThan(0)
     expect(traffic.mock.calls.filter(([message]) => JSON.stringify(message).includes('replaceState'))).toHaveLength(0)

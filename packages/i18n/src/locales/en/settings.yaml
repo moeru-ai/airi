@@ -893,6 +893,20 @@ pages:
       configured: Discord is properly configured!
     speech:
       description: Speech synthesis
+      configuration:
+        loading: Configuring speech…
+        ready: Speech is ready
+        incomplete: Select a model and voice to enable speech
+        error: Speech configuration failed
+        muted: Speech is off
+        retry: Retry
+        select: Choose speech settings
+        selection: '{model} · {voice}'
+        text-chat-available: Text chat is still available.
+        source:
+          defaults: Uses global defaults
+          character: Uses character settings
+          mixed: Uses character settings and inherited defaults
       sections:
         section:
           playground:
