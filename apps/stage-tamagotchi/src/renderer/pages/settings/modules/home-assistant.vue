@@ -213,6 +213,11 @@ async function onTest() {
   try {
     await save()
     await loadEntities()
+    // `loadEntities` keeps its failure on the page so the picker can show it. A
+    // test must not report the connection as good, and must not report the row
+    // count of an earlier list.
+    if (entityError.value)
+      throw new Error(entityError.value)
     status.value = { suffix: 'status.reachable', params: { count: entities.value.length } }
   }
   catch (error) {
@@ -351,6 +356,7 @@ watch(exposureMode, async (mode) => {
               type="button"
               class="shrink-0 rounded-md px-2.5 py-0.5 text-xs transition-colors"
               :class="activeDomain === null ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300' : 'bg-neutral-400/10 text-neutral-600 dark:text-neutral-300'"
+              :aria-pressed="activeDomain === null"
               @click="activeDomain = null"
             >
               {{ tn('access.tab-all') }} · {{ gridEntities.length }}
@@ -361,6 +367,7 @@ watch(exposureMode, async (mode) => {
               type="button"
               class="shrink-0 rounded-md px-2.5 py-0.5 text-xs transition-colors"
               :class="activeDomain === tab.domain ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300' : 'bg-neutral-400/10 text-neutral-600 dark:text-neutral-300'"
+              :aria-pressed="activeDomain === tab.domain"
               @click="activeDomain = tab.domain"
             >
               {{ tab.label }} · {{ tab.count }}

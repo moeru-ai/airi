@@ -61,28 +61,54 @@ describe('home assistant client', () => {
     })
   })
 
-  it('calls a service with no target entity', async () => {
+  it('rejects a call that names no target', async () => {
     const transport = transportReturning([])
-
     const client = createHomeAssistantClient(transport)
-    await client.callService({ domain: 'script', service: 'good_night' })
 
-    expect(transport).toHaveBeenCalledWith({
-      path: '/api/services/script/good_night',
-      method: 'POST',
-      body: {},
-      signal: undefined,
-    })
+    await expect(client.callService({ domain: 'script', service: 'good_night', entityId: undefined as unknown as string }))
+      .rejects
+      .toThrow('is not a valid Home Assistant entity id')
+    expect(transport).not.toHaveBeenCalled()
+  })
+
+  it('rejects a list of targets, because a caller checks one string', async () => {
+    // Home Assistant reads "light.kitchen,lock.front_door" as two targets and
+    // acts on both. A caller that compares the string against its allow list
+    // sees only the first entry.
+    const transport = transportReturning([])
+    const client = createHomeAssistantClient(transport)
+
+    await expect(client.callService({
+      domain: 'homeassistant',
+      service: 'turn_off',
+      entityId: 'light.kitchen,lock.front_door',
+    })).rejects.toThrow('is not a valid Home Assistant entity id')
+    expect(transport).not.toHaveBeenCalled()
+  })
+
+  it('rejects a target hidden in the extra data', async () => {
+    const transport = transportReturning([])
+    const client = createHomeAssistantClient(transport)
+
+    for (const key of ['entity_id', 'target', 'device_id', 'area_id', 'floor_id', 'label_id']) {
+      await expect(client.callService({
+        domain: 'light',
+        service: 'turn_on',
+        entityId: 'light.kitchen',
+        data: { [key]: 'lock.front_door' },
+      })).rejects.toThrow(`may not carry "${key}"`)
+    }
+    expect(transport).not.toHaveBeenCalled()
   })
 
   it('rejects a service name that is not a Home Assistant slug', async () => {
     const transport = transportReturning([])
     const client = createHomeAssistantClient(transport)
 
-    await expect(client.callService({ domain: 'light', service: '../shell_command' }))
+    await expect(client.callService({ domain: 'light', service: '../shell_command', entityId: 'light.kitchen' }))
       .rejects
       .toThrow(HomeAssistantError)
-    await expect(client.callService({ domain: 'Light', service: 'turn_on' }))
+    await expect(client.callService({ domain: 'Light', service: 'turn_on', entityId: 'light.kitchen' }))
       .rejects
       .toThrow('"Light" is not a valid Home Assistant service domain.')
     // The request must not leave the client when the address is not valid.

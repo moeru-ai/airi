@@ -17,8 +17,14 @@ export interface HomeAssistantServiceCall {
   domain: string
   /** Service name, such as `turn_on`. */
   service: string
-  /** Target entity. Omit when the service targets a whole domain. */
-  entityId?: string
+  /**
+   * The one entity to act on.
+   *
+   * A call must name its target. A call without one reaches a whole domain at
+   * once, which is a larger action than the caller asked for, and no caller of
+   * this client can check a set it never saw.
+   */
+  entityId: string
   /** Extra service fields, such as `brightness`. */
   data?: Record<string, unknown>
 }
@@ -90,6 +96,34 @@ function assertSlug(value: string, label: string) {
 }
 
 /**
+ * Rejects anything that is not one entity id.
+ *
+ * Home Assistant reads a comma-separated `entity_id` as a list and acts on every
+ * entry. A caller that compares the string against a list of allowed devices
+ * would miss the second entry, so the shape is checked here, once, for every
+ * caller. `entityIdPattern` allows no comma and no space.
+ */
+function assertEntityId(entityId: string) {
+  if (!entityIdPattern.test(entityId))
+    throw new HomeAssistantError(`"${entityId}" is not a valid Home Assistant entity id. Pass exactly one, as "light.kitchen".`)
+}
+
+/**
+ * Service data keys that choose a target.
+ *
+ * The policy of a caller reads `entityId`. A target inside the extra data would
+ * reach a device that no caller checked, so the extra data may not carry one.
+ */
+const targetKeys = ['area_id', 'device_id', 'entity_id', 'floor_id', 'label_id', 'target']
+
+function assertNoTargetInData(data: Record<string, unknown> | undefined) {
+  for (const key of targetKeys) {
+    if (data && key in data)
+      throw new HomeAssistantError(`Extra service data may not carry "${key}". Pass the target as entityId.`)
+  }
+}
+
+/**
  * Builds the Home Assistant client over one transport.
  *
  * Callers provide the base URL and the access token in their transport, so this
@@ -109,12 +143,12 @@ export function createHomeAssistantClient(transport: HomeAssistantTransport) {
   async function callService(call: HomeAssistantServiceCall, signal?: AbortSignal): Promise<unknown> {
     assertSlug(call.domain, 'service domain')
     assertSlug(call.service, 'service name')
+    assertEntityId(call.entityId)
+    assertNoTargetInData(call.data)
 
     // `entity_id` sits in the body, not the path, so it needs no escaping. The
     // path segments are escaped because a caller can pass any string here.
-    const body: Record<string, unknown> = { ...call.data }
-    if (call.entityId)
-      body.entity_id = call.entityId
+    const body: Record<string, unknown> = { ...call.data, entity_id: call.entityId }
 
     return await transport({
       path: `/api/services/${encodeURIComponent(call.domain)}/${encodeURIComponent(call.service)}`,
@@ -128,8 +162,7 @@ export function createHomeAssistantClient(transport: HomeAssistantTransport) {
     // Home Assistant declares entity ids as `<domain>.<object_id>`. Keeping the
     // dot makes the slug check unusable, so this rejects only the characters that
     // would change the request path.
-    if (!entityIdPattern.test(entityId))
-      throw new HomeAssistantError(`"${entityId}" is not a valid Home Assistant entity id.`)
+    assertEntityId(entityId)
 
     const raw = await transport({ path: `/api/states/${encodeURIComponent(entityId)}`, method: 'GET', signal })
     const parsed = v.safeParse(entitySchema, raw)

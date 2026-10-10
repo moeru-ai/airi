@@ -272,6 +272,26 @@ describe('home assistant tools', () => {
     expect(result.note).toContain('not on the user\'s allow list')
   })
 
+  it('counts what a domain call hid, not what the whole instance hid', async () => {
+    // A caller that reads the whole-instance count cannot tell a domain that
+    // holds only blocked devices from a domain that holds nothing.
+    const client = createClient({
+      listEntities: vi.fn(async () => [
+        { entityId: 'light.kitchen', state: 'on', attributes: {} },
+        { entityId: 'lock.front_door', state: 'locked', attributes: {} },
+        { entityId: 'cover.garage', state: 'closed', attributes: {} },
+      ]),
+    })
+    const mounted = await tools(client, { exposure: allow('light.kitchen') })
+
+    const locks = JSON.parse(await execute(mounted.get('home_assistant_list_entities'), { domain: 'lock' }) as string)
+    expect(locks.total).toBe(0)
+    expect(locks.note).toContain('1 entity is not on the user\'s allow list')
+
+    const everything = JSON.parse(await execute(mounted.get('home_assistant_list_entities'), {}) as string)
+    expect(everything.note).toContain('2 entities are not on the user\'s allow list')
+  })
+
   it('refuses to read or control a device the user blocked', async () => {
     const client = createClient({
       getState: vi.fn(async () => ({ entityId: 'lock.front_door', state: 'locked', attributes: {} })),

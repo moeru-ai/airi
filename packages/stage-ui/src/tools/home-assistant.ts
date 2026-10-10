@@ -114,23 +114,24 @@ export async function createHomeAssistantTools(
       description: `List Home Assistant entities and their current states. Call this first to find the entity_id for a device the user named (match by the "name" field). Pass a domain like "light" or "climate" to browse one kind of device. Results are capped, so pass a domain on a large installation. ${policy}`,
       execute: async ({ domain }) => {
         const entities = await client.listEntities()
-        const visible = filterExposed(exposure, entities)
-        // A blocked device must not appear, but the count must. A listing that
-        // drops rows silently reads as "the user owns no such device".
-        const hidden = describeHidden(exposure, entities.length - visible.length)
         // The domain is a way to browse, not a permission. A domain the user
         // blocked returns the rows it still holds, which can be none.
-        const matching = domain ? visible.filter(entity => domainOf(entity.entityId) === domain) : visible
-        const capped = matching.slice(0, entityLimit)
+        const scoped = domain ? entities.filter(entity => domainOf(entity.entityId) === domain) : entities
+        const visible = filterExposed(exposure, scoped)
+        const capped = visible.slice(0, entityLimit)
+        // A blocked device must not appear, but the count must. The count covers
+        // the rows this call could have returned, so a domain that holds only
+        // blocked devices does not read as a domain that holds nothing.
+        const hidden = describeHidden(exposure, scoped.length - visible.length)
 
         const notes = [
-          ...(capped.length < matching.length ? [`Only the first ${capped.length} of ${matching.length} entities are shown. Pass a domain to narrow the list.`] : []),
+          ...(capped.length < visible.length ? [`Only the first ${capped.length} of ${visible.length} entities are shown. Pass a domain to narrow the list.`] : []),
           ...(hidden ? [hidden] : []),
         ]
 
         return JSON.stringify({
           count: capped.length,
-          total: matching.length,
+          total: visible.length,
           ...(notes.length ? { note: notes.join(' ') } : {}),
           entities: capped.map(toSummary),
         })
