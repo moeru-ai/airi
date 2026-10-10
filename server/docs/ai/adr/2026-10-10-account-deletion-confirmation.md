@@ -14,6 +14,67 @@ It preserves the native deletion order without changing shared options or genera
 Both session guards are necessary: the first requires database-backed authority, the second checks freshness.
 Both adapter calls remain: `deleteUserSessions` also clears secondary session storage when configured.
 
+## Architecture
+
+### Module dependencies
+
+```mermaid
+flowchart LR
+  Auth[auth.ts] --> Endpoint[account-deletion plugin]
+  Endpoint --> Native[Better Auth guards and adapter]
+  Endpoint --> Hooks[Configured deletion hooks]
+  Hooks --> Revoker[social-authorization.ts]
+  Hooks --> Resource[Resource API client]
+  Revoker --> Providers[Apple / Google / GitHub]
+  Native --> Storage[Auth database and session storage]
+```
+
+Steam OpenID has no external grant. Its account still passes through resource cleanup and local deletion.
+
+### Affected files
+
+```text
+server/
+├── apps/auth/
+│   ├── README.md
+│   └── src/
+│       ├── auth.ts
+│       ├── social-authorization.ts
+│       ├── plugins/account-deletion.ts
+│       └── tests/
+│           ├── account-deletion.test.ts
+│           └── social-authorization.test.ts
+└── docs/ai/adr/2026-10-10-account-deletion-confirmation.md
+```
+
+### Deletion sequence
+
+```mermaid
+sequenceDiagram
+  participant Client
+  participant Auth as Auth endpoint
+  participant Native as Better Auth
+  participant Hooks as Deletion hooks
+  Client->>Auth: POST /delete-account {confirm: true}
+  Auth->>Native: Validate body, Origin and authoritative fresh session
+  alt Request rejected
+    Native-->>Client: Error without cleanup
+  else Request accepted
+    Auth->>Hooks: beforeDelete(current user)
+    Hooks->>Hooks: Revoke external grants, then clean up resources
+    alt Revocation or resource cleanup fails
+      Hooks-->>Auth: Error
+      Auth-->>Client: Error, retain Auth account for retry
+    else Cleanup succeeds
+      Hooks-->>Auth: Complete
+      Auth->>Native: deleteUser, then deleteUserSessions
+      Auth->>Native: Expire session cookies
+      Auth->>Hooks: afterDelete, if configured
+      Auth-->>Client: Success
+    end
+  end
+```
+
 ## Security and failures
 
 - The session selects the account. The strict body schema rejects target IDs and missing or false confirmation.
