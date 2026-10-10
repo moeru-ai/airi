@@ -178,3 +178,18 @@ await response.finish()
 Producers can synthesize concurrently. Playback follows their reservation order.
 Cancelling an acknowledgment releases its place without reporting a user interruption.
 Whole-turn interruption aborts generation, synthesis, queued audio, and playback for that response.
+
+### Temporary synthesis failures
+
+For complete-clip output, `SpeechStream` retries a rejected synthesis request twice before it fails the producer.
+It retries HTTP 408, 425, 429, 500, 502, 503, and 504 from `APICallError`, and fetch transport `TypeError` messages.
+Other failures fail at once. A resolved `null` means intentional silence and does not retry.
+
+The default waits are 300ms and 600ms. A readable `Retry-After` header replaces the default wait.
+A provider wait longer than 30s fails at once. An unreadable or invalid header uses the default wait.
+Cancellation or a producer deadline ends the wait and prevents another attempt.
+Each attempt keeps the same segment ID and abort signal. Later audio retains its reserved playback order.
+
+Retries occur before local playback receives the clip.
+If a provider processed a request but its response was lost, retries can repeat remote work or charges.
+Bidirectional output does not retry. It can emit audio before a failure, so a repeat can play that audio twice.
