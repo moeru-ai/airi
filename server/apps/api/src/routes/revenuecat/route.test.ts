@@ -45,9 +45,16 @@ function signBody(rawBody: string, timestamp = Math.floor(Date.now() / 1000)): s
 function createTestApp(
   subscriptionSync: RevenuecatSubscriptionSync,
   env = { REVENUECAT_WEBHOOK_AUTH: authorization, REVENUECAT_WEBHOOK_SECRET: signingSecret },
+  /** The signed-in user of each request. Null leaves the request anonymous, as RevenueCat sends it. */
+  signedInUserId: string | null = null,
 ) {
-  const routes = createRevenuecatRoutes(subscriptionSync, env)
+  const routes = createRevenuecatRoutes(subscriptionSync, env, null)
   const app = new Hono<HonoEnv>()
+
+  app.use('*', async (c, next) => {
+    c.set('user', signedInUserId ? { id: signedInUserId, name: 'Test User', email: 'test@example.com', emailVerified: true, createdAt: new Date(), updatedAt: new Date() } : null)
+    await next()
+  })
 
   app.onError((err, c) => {
     if (err instanceof ApiError) {
@@ -97,7 +104,7 @@ describe('revenuecat routes', () => {
   /** What RevenueCat reports for each user. A test changes it between webhooks. */
   let entitlements: Record<string, SubscriberEntitlement[]>
 
-  async function setup() {
+  async function setup(signedInUserId: string | null = null) {
     const configKV = createCapacitorsConfigKV()
     await db.delete(schema.fluxUsage)
     await db.delete(schema.fluxTransaction)
@@ -106,7 +113,7 @@ describe('revenuecat routes', () => {
     const billing = createBillingService(db, createTestRedis(), { getOptional: async () => null })
     const fetchEntitlements = vi.fn(async (userId: string) => entitlements[userId] ?? [])
     const sync = createRevenuecatSubscriptionSync(billing, configKV, { fetchEntitlements })
-    return { billing, fetchEntitlements, app: createTestApp(sync) }
+    return { billing, fetchEntitlements, app: createTestApp(sync, undefined, signedInUserId) }
   }
 
   async function readWallet(userId: string) {
@@ -246,5 +253,32 @@ describe('revenuecat routes', () => {
       body: JSON.stringify(webhookBody()),
     })
     expect(res.status).toBe(503)
+  })
+
+  it('grants the Capacitor of the signed-in user on sync, without a webhook', async () => {
+    const { fetchEntitlements, app } = await setup('user-1')
+    entitlements['user-1'] = [goEntitlement]
+
+    const res = await app.request('/api/v1/revenuecat/sync', { method: 'POST' })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ synced: true })
+    expect(fetchEntitlements).toHaveBeenCalledWith('user-1')
+    expect(await readWallet('user-1')).toMatchObject({ capacitorFlux: 2000, capacitorQuota: 2000 })
+  })
+
+  it('rejects an anonymous sync', async () => {
+    const { fetchEntitlements, app } = await setup()
+
+    const res = await app.request('/api/v1/revenuecat/sync', { method: 'POST' })
+    expect(res.status).toBe(401)
+    expect(fetchEntitlements).not.toHaveBeenCalled()
+  })
+
+  it('lists the products that grant a Capacitor', async () => {
+    const { app } = await setup('user-1')
+
+    const res = await app.request('/api/v1/revenuecat/capacitors')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ productIds: ['rc_go_monthly', 'rc_plus_monthly'] })
   })
 })

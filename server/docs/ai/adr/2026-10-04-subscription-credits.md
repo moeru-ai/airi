@@ -39,6 +39,10 @@ Admission uses the same rule. It counts the buckets that can pay now.
 The server does not select a rule from the webhook event type.
 A webhook only tells the server that a customer changed.
 The server reads the customer's entitlements and calls `BillingService.syncCapacitor`.
+`POST /api/v1/revenuecat/sync` runs the same reconciliation for the signed-in user.
+The client calls it after a purchase and when the Capacitor page opens.
+Thus a late webhook does not reject the first requests of a new subscriber, and a lost webhook is repaired on the next page visit.
+The route allows 10 calls for each user in one minute, because each call reads RevenueCat.
 The latest purchase wins when two mapped Capacitors are active.
 
 `syncCapacitor` stores the quota, the expiry, and the period start. It does not grant Flux directly.
@@ -83,8 +87,10 @@ A boundary that is not later than the last refill does not refill.
 Thus a return to an earlier billing period keeps the spent amount.
 
 No job runs the refill.
-Admission counts a due refill when it reads the wallet.
-The next settlement writes the refill and its ledger row under the wallet row lock.
+Admission writes a due refill when it reads the wallet. It settles outstanding fees in the same transaction, under the wallet row lock.
+A settlement writes a due refill the same way.
+Admission must write the refill, because a rejected request never reaches a settlement.
+A refill that is only counted pays the same outstanding fee again after each reset.
 A reset for every wallet is one ConfigKV write.
 
 The admin tools write `CAPACITOR_RESET_INTERVAL`, `CAPACITOR_RESET_AT`, and `capacitor_reset_at`.
@@ -111,6 +117,8 @@ The percent is `capacitor_flux / capacitor_quota`. It is null without an active 
 The cached balance can show the amount before a reset for 60 seconds.
 The response omits Capacitor Flux counts.
 `PUT /api/v1/flux/fallback` saves `fallbackToFlux`.
+`GET /api/v1/revenuecat/capacitors` returns the product ids in `REVENUECAT_CAPACITORS`.
+The client lists only these products. A purchase of another product takes the payment and grants no Capacitor Flux.
 Chat and speech do not call RevenueCat.
 
 ### Ledger
@@ -124,6 +132,18 @@ Purchased Flux capacity and `GET /flux/history` read only the wallet pool.
 The web purchase SDK cannot replace a subscription in the app.
 A subscriber opens the management URL to change Capacitors.
 The webhook applies the new Capacitor Flux after the store changes the product.
+
+### Account deletion
+
+The deletion coordinator cancels the user's Web Billing subscriptions before it removes the identity.
+A deleted user cannot open the management URL, so an active subscription would renew.
+The handler `subscriptions` runs first, at priority 10. It lists the customer's subscriptions through the RevenueCat REST API v2.
+It cancels each subscription of the store `rc_billing` that gives access and still renews.
+The cancel stops the renewal. Access lasts until the period ends, and the deletion clears the wallet at once.
+A failed cancel stops the deletion. A repeated deletion finds no renewing subscription.
+API v2 needs `REVENUECAT_V2_API_KEY` and `REVENUECAT_PROJECT_ID`. The v1 key does not work with API v2.
+When one of them is unset, the handler logs a warning and cancels nothing.
+RevenueCat cannot cancel App Store or Google Play subscriptions. The user cancels these in the store.
 
 ## Scope
 
@@ -150,6 +170,9 @@ flowchart LR
   Speech[speech-billing.ts] --> Billing
   Billing --> Posting[flux-posting.ts]
   Webhook[RevenueCat webhook] --> Sync["revenuecat-subscriptions.ts"]
+  SyncRoute["POST /revenuecat/sync"] --> Sync
+  Deletion[user-deletion] --> Cancel["revenuecat-cancellation.ts"]
+  Cancel --> RC
   Sync --> Reader["revenuecat-subscriber.ts"]
   Reader --> RC[RevenueCat]
   Sync --> Billing
@@ -176,7 +199,11 @@ sequenceDiagram
   RC-->>API: Current entitlements
   API->>DB: Store the period, refill when due
   API-->>RC: 200
+  Client->>API: POST /revenuecat/sync after a purchase
+  API->>RC: GET /v1/subscribers/{app_user_id}
+  API->>DB: Store the period, refill when due
   Client->>API: Chat or speech
+  API->>DB: Admission writes a due refill
   API->>DB: Lock user_flux, refill when due, settle
 ```
 
@@ -190,7 +217,9 @@ server/apps/api/
   src/services/domain/{flux,flux-cache,flux-transaction}.ts
   src/services/adapters/revenuecat-subscriber.ts
   src/services/adapters/revenuecat-subscriptions.ts
+  src/services/adapters/revenuecat-cancellation.ts
   src/routes/flux/index.ts
+  src/routes/revenuecat/index.ts
   src/routes/revenuecat/operations/webhook.ts
 packages/stage-ui/src/stores/auth.ts
 packages/stage-ui/src/composables/use-subscription.ts
@@ -207,3 +236,7 @@ Run the RevenueCat subscription sync tests for Capacitor selection.
 Run the webhook tests for a repeated event, `PRODUCT_CHANGE`, `EXPIRATION`, `TRANSFER`, and a failed read.
 Run the flux route tests for the Capacitor percent and the fallback choice.
 Run the client test that maps `customerInfo` to the current Capacitor.
+Run the admission test for a due refill with an outstanding fee.
+Run the route tests for the sync of a signed-in user, an anonymous sync, and the product list.
+Run the cancellation tests for a renewing subscription, an unknown customer, a missing configuration, and upstream errors.
+Run the client tests for the sync before the balance read and for the product filter.
