@@ -56,7 +56,7 @@ function isStartable(recipe: Recipe) {
 
 /** A recipe name with the keywords that invoke it. */
 function withKeywords(recipe: Recipe) {
-  return `${recipe.name} (${recipe.triggers.flatMap(trigger => trigger.keywords).join(', ')})`
+  return `${recipe.name} (${recipe.keywords.join(', ')})`
 }
 
 /**

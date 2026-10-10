@@ -10,7 +10,7 @@ function recipe(overrides: Partial<Recipe>): Recipe {
     name: 'Play a game',
     description: 'Starts a game when the owner wants to play.',
     instructions: 'Open the requested game.',
-    triggers: [{ kind: 'keyword', keywords: ['想玩粥了'] }],
+    keywords: ['想玩粥了'],
     source: 'user',
     enabled: true,
     approved: true,
@@ -26,14 +26,14 @@ describe('recipes', () => {
     expect(usableRecipes(proposals).map(entry => entry.id)).toEqual(['user:play'])
   })
 
-  it('matches keyword triggers in the owner text, ignoring letter case', () => {
+  it('matches keywords in the owner text, ignoring letter case', () => {
     const recipes = [
       recipe({}),
-      recipe({ id: 'user:music', triggers: [{ kind: 'keyword', keywords: ['Play Music'] }] }),
+      recipe({ id: 'user:music', keywords: ['Play Music'] }),
       // A keyword once started an idle reminder at once, before its silence.
-      recipe({ id: 'user:remind', triggers: [{ kind: 'keyword', keywords: ['提醒'] }], automation: { triggers: [{ source: 'chat', event: 'idle', minutes: 10 }], conditions: [] } }),
+      recipe({ id: 'user:remind', keywords: ['提醒'], automation: { triggers: [{ source: 'chat', event: 'idle', minutes: 10 }], conditions: [] } }),
       // A keyword invokes a model-timed recipe, so the model can set when it runs.
-      recipe({ id: 'user:later', triggers: [{ kind: 'keyword', keywords: ['待会'] }], modelTimed: true }),
+      recipe({ id: 'user:later', keywords: ['待会'], modelTimed: true }),
     ]
 
     expect(matchKeywordRecipes(recipes, '今天想玩粥了').map(entry => entry.id)).toEqual(['user:play'])
@@ -63,7 +63,6 @@ describe('recipes', () => {
         { id: '1', key: 'option_1', meaning: 'Tired' },
         { id: '2', key: 'option_2', meaning: 'Excited' },
       ])
-      expect(decisionOptions({ type: 'score', instructions: 'How urgent?', criteria: ['Low', 'High'] }).map(option => [option.id, option.key])).toEqual([['0', '0'], ['1', '1']])
     })
 
     // A judgment always commits to one answer, so every answer leads to its action.

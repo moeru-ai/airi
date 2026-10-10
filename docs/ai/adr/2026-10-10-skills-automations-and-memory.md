@@ -23,7 +23,7 @@ A recipe is a skill, like a skill in a coding agent.
 
 ### Decisions
 
-- A decision recipe asks one question with a yes-or-no, choice, or score answer. A keyword in the owner's message invokes it.
+- A decision recipe asks one question with a yes-or-no or a choice answer. A keyword in the owner's message invokes it.
 - The main model answers through `builtIn_judge` in the same turn. It sees the question and the answers, and never what each answer leads to.
 - The model always picks one answer. A judgment has no confidence and no unsure answer.
 - Code runs the action of the chosen answer: reply as usual, read without replying, add a hint, or use another recipe.

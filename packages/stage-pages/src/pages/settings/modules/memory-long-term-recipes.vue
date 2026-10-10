@@ -4,10 +4,8 @@ import type { Recipe, RecipeFields } from '@proj-airi/stage-ui/stores/recipes'
 
 import { MODEL_DECIDES_STEPS } from '@proj-airi/core-agent'
 import { WebSocketEventSource } from '@proj-airi/server-sdk'
-import { useChatContextStore } from '@proj-airi/stage-ui/stores/chat/context-store'
 import { useModuleDirectoryStore } from '@proj-airi/stage-ui/stores/mods/api/module-directory'
 import { useRecipesStore } from '@proj-airi/stage-ui/stores/recipes'
-import { getEventSourceKey } from '@proj-airi/stage-ui/utils'
 import { Button, Checkbox, FieldCheckbox, GhostButton, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
@@ -27,18 +25,11 @@ const recipesStore = useRecipesStore()
 const { conversation, autoRun, proposalsEnabled } = storeToRefs(recipesStore)
 
 const KEY = 'settings.pages.modules.memory-long-term.recipes'
-const chatContext = useChatContextStore()
 const moduleDirectory = useModuleDirectoryStore()
 /** AIRI's own windows connect to the server channel too, but they report no observations, so a module trigger never follows them. */
 const hostNames = new Set<string>(Object.values(WebSocketEventSource))
-/**
- * Modules a module trigger can follow, named as the automation check names them.
- * A registered module goes by its name, which stays the same across restarts. Other writers that report now keep their source key.
- */
-const eventSources = computed(() => [...new Set([
-  ...moduleDirectory.modules.map(module => module.name),
-  ...Object.values(chatContext.getContextsSnapshot()).flat().map(message => moduleDirectory.nameOf(message.metadata?.source?.id) ?? getEventSourceKey(message)),
-])].filter(source => !hostNames.has(source)).sort())
+/** Registered modules that a module trigger can follow, by name. A name stays the same across restarts. */
+const eventSources = computed(() => [...new Set(moduleDirectory.modules.map(module => module.name))].filter(source => !hostNames.has(source)).sort())
 const addableTypes: RecipeType[] = ['instructions', 'decision']
 const KEYWORDS_SHOWN = 3
 
@@ -160,11 +151,9 @@ function grantsOf(recipe: Recipe) {
     parts.push(t(`${SUMMARY}.model`))
   if (recipe.instructions === MODEL_DECIDES_STEPS)
     parts.push(t(`${SUMMARY}.model_flow`))
-  for (const trigger of recipe.triggers) {
-    if (trigger.keywords.length) {
-      const extra = trigger.keywords.length - KEYWORDS_SHOWN
-      parts.push(t(`${KEY}.keywords_summary`, { words: trigger.keywords.slice(0, KEYWORDS_SHOWN).join(', ') }) + (extra > 0 ? ` +${extra}` : ''))
-    }
+  if (recipe.keywords.length) {
+    const extra = recipe.keywords.length - KEYWORDS_SHOWN
+    parts.push(t(`${KEY}.keywords_summary`, { words: recipe.keywords.slice(0, KEYWORDS_SHOWN).join(', ') }) + (extra > 0 ? ` +${extra}` : ''))
   }
   return parts
 }

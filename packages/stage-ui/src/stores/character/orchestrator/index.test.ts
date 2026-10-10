@@ -373,7 +373,7 @@ describe('store character-orchestrator', () => {
     chatSession.activeSessionId = 'discord-scene'
     useModuleDirectoryStore(pinia).modules = [{ name: 'minecraft', identityId: 'bot-instance-7' }]
     const recipes = useRecipesStore(pinia)
-    recipes.add({ name: 'Game watch', description: '', instructions: 'Comment on the game.', triggers: [], automation: { triggers: [{ source: 'module', event: 'observation', module: 'minecraft' }], conditions: [] }, enabled: true })
+    recipes.add({ name: 'Game watch', description: '', instructions: 'Comment on the game.', keywords: [], automation: { triggers: [{ source: 'module', event: 'observation', module: 'minecraft' }], conditions: [] }, enabled: true })
     // A started recipe runs a model request, so the test stops at the start and checks what the trigger asked for.
     const startRecipe = vi.spyOn(useChatStore(pinia), 'startRecipe').mockResolvedValue({ status: 'started' })
     const orchestrator = useCharacterOrchestratorStore(pinia)
@@ -399,7 +399,7 @@ describe('store character-orchestrator', () => {
     const minute = 60_000
     const chatSession = useChatSessionStore(pinia)
     const recipes = useRecipesStore(pinia)
-    recipes.add({ name: 'Remind me', description: '', instructions: 'Remind the owner.', triggers: [{ kind: 'keyword', keywords: ['提醒'] }], modelTimed: true, enabled: true })
+    recipes.add({ name: 'Remind me', description: '', instructions: 'Remind the owner.', keywords: ['提醒'], modelTimed: true, enabled: true })
     const recipeId = recipes.recipes[0]!.id
     const armedTask = (sessionId: string, automation: Automation) => ({
       sessionId,

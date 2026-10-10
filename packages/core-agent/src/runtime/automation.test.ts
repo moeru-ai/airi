@@ -15,7 +15,7 @@ function automated(automation: Partial<Automation>, id = 'user:auto'): Recipe {
     name: 'Auto',
     description: '',
     instructions: 'Say something.',
-    triggers: [],
+    keywords: [],
     source: 'user',
     enabled: true,
     approved: true,

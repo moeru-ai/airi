@@ -17,7 +17,7 @@ describe('chat prompt recipe', () => {
   })
   // A recipe runs in its own session, so its steps join that session's prefix and never the conversation's.
   it('describes a task recipe space', () => {
-    const recipe = { id: 'user:look', name: 'Look', description: '', instructions: 'Read the screen slot.', triggers: [], source: 'user' as const, enabled: true, approved: true }
+    const recipe = { id: 'user:look', name: 'Look', description: '', instructions: 'Read the screen slot.', keywords: [], source: 'user' as const, enabled: true, approved: true }
 
     expect(composeRecipeSpacePrompt(recipe)).toContain('Your reply is the recipe\'s result')
     expect(composeRecipeSpacePrompt(recipe)).toContain('Recipe steps:\nRead the screen slot.')

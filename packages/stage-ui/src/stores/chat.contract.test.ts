@@ -523,7 +523,7 @@ describe('chat store contract', () => {
       name: 'i-have-adhd',
       description: 'ADHD-friendly answers.',
       instructions: 'Start with the next step.',
-      triggers: [{ kind: 'keyword', keywords: ['/i-have-adhd'] }],
+      keywords: ['/i-have-adhd'],
       enabled: true,
     })
     const store = useChatStore()
@@ -546,7 +546,7 @@ describe('chat store contract', () => {
       toolNames.push(tools.map((tool: Tool) => tool.function.name))
       await options.onStreamEvent({ type: 'finish' })
     })
-    useRecipesStore().add({ name: 'Remind me', description: '', instructions: 'Remind the owner.', triggers: [{ kind: 'keyword', keywords: ['提醒我'] }], modelTimed: true, enabled: true })
+    useRecipesStore().add({ name: 'Remind me', description: '', instructions: 'Remind the owner.', keywords: ['提醒我'], modelTimed: true, enabled: true })
     const store = useChatStore()
 
     await store.send({ sessionId: 'session-1', text: 'hello' })
@@ -1636,11 +1636,7 @@ describe('chat store contract', () => {
     expect(ioTracerMocks.activeTurnSpan.value).toBeUndefined()
   })
 
-  // https://github.com/moeru-ai/airi/actions/runs/36826476027
-  // ROOT CAUSE:
-  // The session fixture omitted reader metadata, and runtime-context assertions still required persistent writes.
-  // The fixture exposes metadata through Pinia. Context assertions follow the request-only projection contract.
-  it('projects runtime contexts once without retaining them in the registry', async () => {
+  it('ingests the runtime prompt before composing prompt snapshots', async () => {
     const runtimePromptContext = {
       id: 'airi-runtime-prompt-context',
       contextId: 'system:airi-runtime-prompt',
@@ -1648,13 +1644,26 @@ describe('chat store contract', () => {
       text: 'Start every reply with an ACT token.\n\nDo not use emojis.',
       createdAt: 123,
     }
+    const minecraftContext = {
+      id: 'minecraft-context',
+      contextId: 'system:minecraft',
+      strategy: 'replace-self',
+      source: 'minecraft',
+      text: 'player is near spawn',
+      createdAt: 123,
+    }
     let composedMessages: Turn[] = []
 
     createRuntimePromptContextMock.mockReturnValue(runtimePromptContext)
-    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, context: Conversation, options: StreamOptions) => {
+    createMinecraftContextMock.mockReturnValue(minecraftContext)
+    getContextsSnapshotMock.mockReturnValue({
+      'system:airi-runtime-prompt': [runtimePromptContext],
+      'system:minecraft': [minecraftContext],
+    })
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, context: Conversation, options: any) => {
       composedMessages = context.turns
-      await options.onStreamEvent?.({ type: 'text-delta', text: 'minecraft reply' })
-      await options.onStreamEvent?.({ type: 'finish' })
+      await options.onStreamEvent({ type: 'text-delta', text: 'minecraft reply' })
+      await options.onStreamEvent({ type: 'finish' })
     })
 
     const store = useChatStore()
@@ -1666,15 +1675,19 @@ describe('chat store contract', () => {
 
     expect(createRuntimePromptContextMock).toHaveBeenCalledWith(expect.stringContaining('base.prompt.emotion'))
     expect(createRuntimePromptContextMock).toHaveBeenCalledWith(expect.stringContaining('base.prompt.emoji'))
-    expect(createRuntimePromptContextMock).toHaveBeenCalledOnce()
-    expect(getContextsSnapshotMock).toHaveBeenCalledOnce()
-    expect(ingestContextMessageMock).not.toHaveBeenCalled()
+    expect(ingestContextMessageMock).toHaveBeenCalledTimes(2)
+    expect(ingestContextMessageMock).toHaveBeenNthCalledWith(1, runtimePromptContext)
+    expect(ingestContextMessageMock).toHaveBeenNthCalledWith(2, minecraftContext)
+    expect(ingestContextMessageMock.mock.invocationCallOrder[0]).toBeLessThan(
+      getContextsSnapshotMock.mock.invocationCallOrder[0],
+    )
     if (composedMessages[1].type !== 'user')
       throw new Error('Expected user turn')
     expect(composedMessages[1].content[1]).toEqual({
       type: 'runtime-context',
       entries: [
         { source: 'system:airi-runtime-prompt', text: runtimePromptContext.text },
+        { source: 'system:minecraft', text: 'player is near spawn' },
       ],
     })
   })
@@ -1696,28 +1709,6 @@ describe('chat store contract', () => {
     await store.send({ sessionId: 'scene-session', text: 'Hello from Discord' })
 
     expect(speaks).toEqual([true, false])
-  })
-
-  it('projects module-owned Minecraft context from the context snapshot', async () => {
-    getContextsSnapshotMock.mockReturnValue({
-      'minecraft-bot': [{
-        id: 'minecraft-status',
-        contextId: 'minecraft:status',
-        strategy: 'replace-self',
-        text: 'Minecraft bot is online.',
-        createdAt: Date.now(),
-      }],
-    })
-    let prompt = ''
-    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, conversation: Conversation, options: StreamOptions) => {
-      prompt = JSON.stringify(conversation)
-      await options.onStreamEvent?.({ type: 'finish' })
-    })
-
-    await useChatStore().send({ sessionId: 'session-1', text: 'Is the bot online?' })
-
-    expect(prompt).toContain('Minecraft bot is online.')
-    expect(ingestContextMessageMock).not.toHaveBeenCalled()
   })
 
   it('adds account context only to the signed-in request without retaining it in the registry', async () => {

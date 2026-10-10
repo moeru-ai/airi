@@ -920,11 +920,9 @@ pages:
             label: Answer type
             noul: Yes or no
             choice: Choose one option
-            score: Score on levels
           yes_means: Yes means
           no_means: No means
           option: Option meaning
-          level: Level meaning (lowest first)
           add_option: Add an answer
           remove_option: Remove
           action:

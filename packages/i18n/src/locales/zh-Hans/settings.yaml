@@ -870,11 +870,9 @@ pages:
             label: 回答类型
             noul: 是或否
             choice: 从选项中选一个
-            score: 按等级打分
           yes_means: “是”表示
           no_means: “否”表示
           option: 选项含义
-          level: 等级含义（从低到高）
           add_option: 添加回答
           remove_option: 删除
           action:

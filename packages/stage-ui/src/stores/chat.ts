@@ -545,7 +545,7 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Whether a send answers the owner's own message in the owner's conversation: not a notice, a scene, or a task. */
   function isOwnerSend(payload: ChatSendPayload, extra: HostSendOptions) {
-    return !extra.notice && isOwnerSession(payload.sessionId) && !chatSession.sessionMetas[payload.sessionId]?.recipeId
+    return !extra.notice && isOwnerSession(payload.sessionId) && !isTaskSession(payload.sessionId)
   }
 
   /**
@@ -618,7 +618,7 @@ export const useChatStore = defineStore('chat', () => {
       ...memory.enabled ? await createMemoryTools({ read: name => memory.read(name, persona), write: entry => memory.write(entry, persona), forget: name => memory.forget(name, persona) }) : [],
     ]
     // A recipe's own session runs only that recipe. It cannot start recipes, save them, or choose silence.
-    if (chatSession.sessionMetas[sessionId]?.recipeId)
+    if (isTaskSession(sessionId))
       return sourceTools
     // Only the owner's private conversations start or save recipes. Each recipe runs in its own space.
     const ownerOnly = isOwnerSession(sessionId)

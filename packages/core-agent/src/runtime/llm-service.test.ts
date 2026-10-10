@@ -720,22 +720,3 @@ it('does not publish a generated turn when the terminal event consumer fails', a
   })).rejects.toThrow('terminal consumer failed')
   expect(onGeneratedTurn).not.toHaveBeenCalled()
 })
-
-// A caller abort, such as a cancel, ends the stream on purpose. That is not an error to report.
-it('reports no stream error when the caller aborts the request', async () => {
-  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
-  const controller = new AbortController()
-  streamTextMock.mockImplementation(() => {
-    controller.abort(new DOMException('BodyStreamBuffer was aborted', 'AbortError'))
-    const aborted = Promise.reject(controller.signal.reason)
-    for (let index = 0; index < 4; index++)
-      aborted.catch(() => {})
-    return { steps: aborted, messages: aborted, generatedTurn: aborted, usage: aborted, totalUsage: aborted }
-  })
-
-  await expect(streamFrom({ model: 'model-a', chatProvider: provider, conversation: { turns: [] }, options: { abortSignal: controller.signal } })).rejects.toThrow('BodyStreamBuffer was aborted')
-  await new Promise(resolve => setTimeout(resolve, 0))
-
-  expect(consoleError).not.toHaveBeenCalled()
-  consoleError.mockRestore()
-})

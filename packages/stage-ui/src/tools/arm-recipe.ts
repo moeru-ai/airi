@@ -85,7 +85,7 @@ export async function createArmRecipeTool(options: CreateArmRecipeToolOptions): 
       name: `${recipe.name}: ${run.note}`.slice(0, 80),
       description: run.note,
       instructions: [recipe.instructions.trim(), `This run: ${run.note}`].filter(Boolean).join('\n\n'),
-      triggers: [],
+      keywords: [],
       automation: run.automation,
     }
   }

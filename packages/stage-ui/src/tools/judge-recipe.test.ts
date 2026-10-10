@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createJudgeRecipeTool, judgmentSkillText } from './judge-recipe'
 
 function recipe(overrides: Partial<Recipe>): Recipe {
-  return { id: 'user:recipe', name: 'Recipe', description: '', instructions: '', triggers: [{ kind: 'keyword', keywords: ['烦'] }], source: 'user', enabled: true, approved: true, ...overrides }
+  return { id: 'user:recipe', name: 'Recipe', description: '', instructions: '', keywords: ['烦'], source: 'user', enabled: true, approved: true, ...overrides }
 }
 
 const remind = recipe({ id: 'user:remind', name: 'Remind me', instructions: 'Remind the owner.', modelTimed: true })

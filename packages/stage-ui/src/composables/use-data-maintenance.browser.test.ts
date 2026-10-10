@@ -122,7 +122,7 @@ it('forgets what the character learned when modules reset', async () => {
   const memory = useMemoryStore(pinia)
   const recipes = useRecipesStore(pinia)
   memory.write({ name: 'nickname', description: 'What the owner likes to be called.', body: 'Yumeka.' }, 'default')
-  recipes.add({ name: 'Check in', description: '', instructions: 'Greet softly.', triggers: [], enabled: true })
+  recipes.add({ name: 'Check in', description: '', instructions: 'Greet softly.', keywords: [], enabled: true })
 
   await maintenance.resetModulesSettings()
 

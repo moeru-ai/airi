@@ -13,8 +13,9 @@ import WeekdayPicker from './weekday-picker.vue'
 
 /** Recipe types that the owner can write. */
 type RecipeType = 'instructions' | 'decision'
-type QuestionType = 'noul' | 'choice' | 'score'
-type ActionKind = DecisionAction['kind']
+type QuestionType = 'noul' | 'choice'
+/** What an answer row does. `reply` replies as usual, so it stores no action. */
+type ActionKind = DecisionAction['kind'] | 'reply'
 
 /** A row of the form. Every field keeps a value, so switching a source or a check keeps what the owner typed. */
 type Filled<T> = Omit<{ [K in keyof T]: NonNullable<T[K]> }, 'days'> & { days: Weekday[] }
@@ -80,14 +81,12 @@ function rowFrom(meaning: string, action: DecisionAction | undefined): AnswerRow
   }
 }
 
-/** Reads the answer rows of a stored decision. Choices keep their order, and levels go from low to high. */
+/** Reads the answer rows of a stored decision. Choices keep their order. */
 function rowsFrom(decision: NonNullable<Recipe['decision']>): AnswerRow[] {
   const { question, actions } = decision
   if (question.type === 'noul')
     return [rowFrom(question.criteria.true, actions.true), rowFrom(question.criteria.false, actions.false)]
-  if (question.type === 'choice')
-    return Object.entries(question.criteria).map(([key, meaning]) => rowFrom(meaning, actions[key]))
-  return question.criteria.map((meaning, index) => rowFrom(meaning, actions[String(index)]))
+  return Object.entries(question.criteria).map(([key, meaning]) => rowFrom(meaning, actions[key]))
 }
 
 const decision = props.recipe?.decision
@@ -96,7 +95,7 @@ const automation = props.recipe?.automation
 const name = ref(props.recipe?.name ?? '')
 const description = ref(props.recipe?.description ?? '')
 const instructions = ref(props.recipe?.instructions ?? '')
-const keywords = ref(props.recipe?.triggers.flatMap(trigger => trigger.kind === 'keyword' ? trigger.keywords : []).join(', ') ?? '')
+const keywords = ref(props.recipe?.keywords.join(', ') ?? '')
 const triggerRows = ref<TriggerRow[]>(automation?.triggers.map(trigger => triggerRow(trigger)) ?? [triggerRow()])
 const conditionRows = ref<ConditionRow[]>(automation?.conditions.map(condition => conditionRow(condition)) ?? [])
 const cooldown = ref(automation?.cooldownMinutes ?? 0)
@@ -140,7 +139,7 @@ const builtAutomation = computed(() => automationFromInput({
 }))
 const words = computed(() => keywords.value.split(/[,，]/).map(word => word.trim()).filter(Boolean))
 
-const questionTypeOptions = computed(() => (['noul', 'choice', 'score'] as const).map(type => ({ label: t(`${KEY}.decision.type.${type}`), value: type })))
+const questionTypeOptions = computed(() => (['noul', 'choice'] as const).map(type => ({ label: t(`${KEY}.decision.type.${type}`), value: type })))
 const actionOptions = computed(() => [
   { label: t(`${KEY}.decision.action.reply`), value: 'reply' },
   { label: t(`${KEY}.decision.action.stay_quiet`), value: 'stay-quiet' },
@@ -152,17 +151,18 @@ const recipeOptions = computed(() => props.targets.filter(target => target.id !=
 function answerLabel(index: number) {
   if (questionType.value === 'noul')
     return t(index === 0 ? `${KEY}.decision.yes_means` : `${KEY}.decision.no_means`)
-  return t(questionType.value === 'choice' ? `${KEY}.decision.option` : `${KEY}.decision.level`)
+  return t(`${KEY}.decision.option`)
 }
 
-/** Answer keys are true and false, option names, or level indexes. */
+/** Answer keys are true and false, or option names. */
 function answerKey(index: number) {
   if (questionType.value === 'noul')
     return index === 0 ? 'true' : 'false'
-  return questionType.value === 'choice' ? `option_${index + 1}` : String(index)
+  return `option_${index + 1}`
 }
 
-function rowAction(row: AnswerRow): DecisionAction {
+/** The action of an answer row. A row that replies as usual has none. */
+function rowAction(row: AnswerRow): DecisionAction | undefined {
   switch (row.action) {
     case 'hint':
       return { kind: 'hint', text: row.hint.trim() }
@@ -171,7 +171,7 @@ function rowAction(row: AnswerRow): DecisionAction {
     case 'stay-quiet':
       return { kind: 'stay-quiet' }
     default:
-      return { kind: 'reply' }
+      return undefined
   }
 }
 
@@ -180,12 +180,13 @@ function decisionOf(): NonNullable<Recipe['decision']> {
   const text = question.value.trim()
   const questionShape = questionType.value === 'noul'
     ? { type: 'noul' as const, instructions: text, criteria: { true: rows[0]!.meaning.trim(), false: rows[1]!.meaning.trim() } }
-    : questionType.value === 'choice'
-      ? { type: 'choice' as const, instructions: text, criteria: Object.fromEntries(rows.map((row, index) => [answerKey(index), row.meaning.trim()])) }
-      : { type: 'score' as const, instructions: text, criteria: rows.map(row => row.meaning.trim()) }
+    : { type: 'choice' as const, instructions: text, criteria: Object.fromEntries(rows.map((row, index) => [answerKey(index), row.meaning.trim()])) }
   return {
     question: questionShape,
-    actions: Object.fromEntries(rows.map((row, index) => [answerKey(index), rowAction(row)])),
+    actions: Object.fromEntries(rows.flatMap((row, index) => {
+      const action = rowAction(row)
+      return action ? [[answerKey(index), action]] : []
+    })),
   }
 }
 
@@ -211,14 +212,13 @@ const canSave = computed(() => {
 function save() {
   if (!canSave.value)
     return
-  const keywordTriggers: Recipe['triggers'] = words.value.length ? [{ kind: 'keyword', keywords: words.value }] : []
   if (props.type === 'decision') {
     emit('save', {
       name: name.value.trim(),
       description: description.value.trim(),
       instructions: '',
       decision: decisionOf(),
-      triggers: keywordTriggers,
+      keywords: words.value,
       automation: undefined,
       modelTimed: undefined,
       background: undefined,
@@ -234,7 +234,7 @@ function save() {
     description: description.value.trim(),
     instructions: modelDecides.value ? MODEL_DECIDES_STEPS : instructions.value.trim(),
     decision: undefined,
-    triggers: automated ? [] : keywordTriggers,
+    keywords: automated ? [] : words.value,
     automation: automated,
     modelTimed: modelTimed || undefined,
     background: !props.autoRun && background.value ? true : undefined,

@@ -8,11 +8,6 @@ Shared character behavior belongs in `packages/stage-ui`. Use `stage-web` for br
 From the repository root, run `pnpm install`, then `pnpm dev:tamagotchi`.
 Run `pnpm -F @proj-airi/stage-tamagotchi build` to build the app.
 
-## Background notifications
-
-The main renderer keeps background throttling disabled because its elected leader runs reminder and recipe trigger ticks.
-This setting does not prevent operating-system sleep. Live minimized-window timing still requires desktop verification.
-
 ## Local model files
 
 Sherpaw downloads remote model files into the app user data directory. The main

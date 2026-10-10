@@ -310,7 +310,7 @@ export interface ChatOrchestratorRuntimeDeps {
    * With it, history carries no identity. Stored system messages are skipped, so a persona edit or switch reaches the next send of its own sessions only.
    */
   getSystemPrompt?: (sessionId: string) => string | undefined
-  /** Request-owned context providers evaluated once per send for its session, outside the shared pool. */
+  /** Runtime context providers ingested immediately before prompt composition. */
   runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
   /** Clock used for persisted message timestamps. @default Date.now */
   now?: () => number
@@ -573,15 +573,12 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       deps.foregroundStream.reset()
   }
 
-  /** Projects pool observations, then adds request-owned providers. */
-  function getRequestContexts() {
-    const snapshot = deps.context.snapshot()
+  function ingestRuntimeContexts() {
     for (const provider of deps.runtimeContextProviders ?? []) {
-      const context = provider()
-      if (context)
-        snapshot[context.contextId] = [context]
+      const contextMessage = provider()
+      if (contextMessage)
+        deps.context.ingest(contextMessage)
     }
-    return snapshot
   }
 
   function getStablePromptTimestamp(message: ChatHistoryItem, fallbackCreatedAt: number) {
@@ -641,10 +638,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     // It is applied at message-assembly time (see below) as a system-prompt
     // date anchor + per-message [HH:MM] prefixes, which is more KV-cache
     // friendly and less prone to weak models echoing timestamps verbatim.
-    const requestContexts = getRequestContexts()
+    ingestRuntimeContexts()
 
     const sendingCreatedAt = now()
 
+    // TODO: Expire or prune stale runtime contexts from disconnected services before composing.
     // Allocate the three per-round ids in their historical order so callers
     // with deterministic id factories keep the same durable message ids.
     const streamContextMessageId = createId()
@@ -660,7 +658,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         id: streamContextMessageId,
         ...(replyToMessageId ? { replyToMessageId } : {}),
       },
-      contexts: requestContexts,
+      contexts: deps.context.snapshot(),
       composedMessage: [],
       input: options.input,
       // The owner hears the reply unless it answers a scene or runs in the background.
@@ -930,7 +928,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           context.turns.unshift({ id: 'system-supplement', type: 'system', authority: 'system', content: [{ type: 'text', text: systemPromptSupplement }] })
       }
 
-      const contextsSnapshot = requestContexts
+      const contextsSnapshot = deps.context.snapshot()
       const entries = Object.entries(contextsSnapshot).flatMap(([source, messages]) => messages.map(message => ({ source, text: message.text })))
       if (entries.length) {
         const lastMessage = context.turns.at(-1)

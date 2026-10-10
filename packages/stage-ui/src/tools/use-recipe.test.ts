@@ -12,7 +12,7 @@ function recipe(overrides: Partial<Recipe>): Recipe {
     name: 'Research',
     description: 'Researches a purchase.',
     instructions: 'Compare three options with prices.',
-    triggers: [],
+    keywords: [],
     source: 'user',
     enabled: true,
     approved: true,

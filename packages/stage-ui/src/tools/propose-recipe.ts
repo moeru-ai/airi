@@ -39,17 +39,18 @@ const proposeRecipeParameters = strictObject({
   instructions: nullable(pipe(string(), maxLength(4000), description('For instructions: what to do, step by step. Null for decision.'))),
   keywords: nullable(pipe(array(pipe(string(), maxLength(60))), description('Words in a message that point to this recipe. A decision needs at least one. Null with an automation, and when none.'))),
   question: nullable(pipe(string(), maxLength(400), description('For decision: the question about the latest message. Null for instructions.'))),
-  answerType: nullable(pipe(picklist(['noul', 'choice', 'score']), description('For decision: noul is yes or no with exactly two answers, yes first. choice picks one answer. score orders answers from lowest to highest. Null for instructions.'))),
+  answerType: nullable(pipe(picklist(['noul', 'choice']), description('For decision: noul is yes or no with exactly two answers, yes first. choice picks one answer. Null for instructions.'))),
   answers: nullable(pipe(array(answerSchema), description('For decision: the possible answers and their actions. Null for instructions.'))),
   background: pipe(boolean(), description('For instructions: true for a task that runs in its own space and reports a result later. False for steps you follow in the conversation.')),
   automation: nullable(pipe(automationInputSchema, description('For instructions that run on their own, without a message. Null for recipes that a conversation uses, and when modelTimed.'))),
   modelTimed: pipe(boolean(), description('For instructions: true when you set when it runs, each time a keyword invokes it. It needs keywords and no automation. False otherwise.')),
 })
 
-function toAction(answer: { action: 'reply' | 'stay-quiet' | 'hint', hint: string | null }): DecisionAction {
+/** The action of an answer. An answer that replies as usual has none. */
+function toAction(answer: { action: 'reply' | 'stay-quiet' | 'hint', hint: string | null }): DecisionAction | undefined {
   if (answer.action === 'hint')
     return { kind: 'hint', text: answer.hint?.trim() ?? '' }
-  return { kind: answer.action }
+  return answer.action === 'stay-quiet' ? { kind: 'stay-quiet' } : undefined
 }
 
 /**
@@ -75,7 +76,7 @@ function recipeFromInput(input: InferOutput<typeof proposeRecipeParameters>): Om
     name: input.name.trim(),
     description: input.description.trim(),
     instructions,
-    triggers: keywords.length ? [{ kind: 'keyword' as const, keywords }] : [],
+    keywords,
     ...(automation ? { automation } : {}),
     ...(input.modelTimed ? { modelTimed: true } : {}),
     // A recipe that runs on its own always runs in its own space, so only conversation recipes choose.
@@ -83,7 +84,7 @@ function recipeFromInput(input: InferOutput<typeof proposeRecipeParameters>): Om
   }
 }
 
-/** Builds a decision recipe. Its answer keys are true and false, option names, or level indexes. */
+/** Builds a decision recipe. Its answer keys are true and false, or option names. */
 function decisionRecipeFromInput(input: InferOutput<typeof proposeRecipeParameters>, keywords: string[]): Omit<Recipe, 'id' | 'source' | 'approved' | 'enabled'> | string {
   const answers = input.answers ?? []
   const type = input.answerType ?? 'noul'
@@ -96,22 +97,23 @@ function decisionRecipeFromInput(input: InferOutput<typeof proposeRecipeParamete
   if (answers.some(answer => answer.action === 'hint' && !answer.hint?.trim()))
     return 'A hint answer needs hint text.'
 
-  const keys = answers.map((_answer, index) => type === 'noul' ? (index === 0 ? 'true' : 'false') : type === 'choice' ? `option_${index + 1}` : String(index))
+  const keys = answers.map((_answer, index) => type === 'noul' ? (index === 0 ? 'true' : 'false') : `option_${index + 1}`)
   const instructions = input.question.trim()
   const question = type === 'noul'
     ? { type, instructions, criteria: { true: answers[0]!.meaning, false: answers[1]!.meaning } }
-    : type === 'choice'
-      ? { type, instructions, criteria: Object.fromEntries(answers.map((answer, index) => [keys[index]!, answer.meaning])) }
-      : { type, instructions, criteria: answers.map(answer => answer.meaning) }
+    : { type, instructions, criteria: Object.fromEntries(answers.map((answer, index) => [keys[index]!, answer.meaning])) }
   return {
     name: input.name.trim(),
     description: input.description.trim(),
     instructions: '',
     decision: {
       question,
-      actions: Object.fromEntries(answers.map((answer, index) => [keys[index]!, toAction(answer)])),
+      actions: Object.fromEntries(answers.flatMap((answer, index) => {
+        const action = toAction(answer)
+        return action ? [[keys[index]!, action]] : []
+      })),
     },
-    triggers: [{ kind: 'keyword', keywords }],
+    keywords,
   }
 }
 

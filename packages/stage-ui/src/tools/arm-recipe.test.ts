@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createArmRecipeTool } from './arm-recipe'
 
 function recipe(overrides: Partial<Recipe>): Recipe {
-  return { id: 'user:recipe', name: 'Recipe', description: '', instructions: '', triggers: [{ kind: 'keyword', keywords: ['提醒我'] }], source: 'user', enabled: true, approved: true, ...overrides }
+  return { id: 'user:recipe', name: 'Recipe', description: '', instructions: '', keywords: ['提醒我'], source: 'user', enabled: true, approved: true, ...overrides }
 }
 
 const remind = recipe({ id: 'user:remind', name: 'Remind me', instructions: 'Remind the owner.', modelTimed: true })
@@ -45,7 +45,7 @@ describe('arming tool', () => {
       name: 'Remind me: Drink water.',
       description: 'Drink water.',
       instructions: 'Remind the owner.\n\nThis run: Drink water.',
-      triggers: [],
+      keywords: [],
       automation: { triggers: [{ source: 'clock', event: 'at', time: '15:00' }], conditions: [], cooldownMinutes: 60 },
     })
     expect(result).toContain('Saved "Remind me" as a repeating proposal.')

@@ -16,27 +16,17 @@ interface ChoiceQuestion {
   criteria: Record<string, string>
 }
 
-/** Rates on an ordered scale. Level `0` is the lowest. */
-interface ScoreQuestion {
-  type: 'score'
-  instructions: string
-  /** Level meanings, lowest first. */
-  criteria: string[]
-}
-
-/** The question of a decision: yes or no, one of some options, or a level on a scale. */
-export type DecisionQuestion = NoulQuestion | ChoiceQuestion | ScoreQuestion
+/** The question of a decision: yes or no, or one of some options. */
+export type DecisionQuestion = NoulQuestion | ChoiceQuestion
 
 /**
- * What one answer of a decision does.
- * - `reply`: the character replies as usual.
+ * What one answer of a decision does. An answer without an action replies as usual.
  * - `stay-quiet`: the character reads the message and does not reply.
  * - `hint`: the character replies and keeps a sentence in mind.
  * - `recipe`: the character uses another recipe. It sets when a model-timed one runs.
  */
 export type DecisionAction
-  = | { kind: 'reply' }
-    | { kind: 'stay-quiet' }
+  = | { kind: 'stay-quiet' }
     | { kind: 'hint', text: string }
     | { kind: 'recipe', recipeId: string }
 
@@ -46,12 +36,9 @@ export type DecisionAction
  */
 export interface RecipeDecision {
   question: DecisionQuestion
-  /** Answer key to action. The keys are `true` and `false`, the option names, or the level indexes. */
+  /** Answer key to action. The keys are `true` and `false`, or the option names. An answer without an action replies as usual. */
   actions: Record<string, DecisionAction>
 }
-
-/** A keyword in the owner's message that points to a conversation recipe. Without one, only the conversation run chooses the recipe. */
-interface RecipeTrigger { kind: 'keyword', keywords: string[] }
 
 /** One recipe. The user or a model proposal supplies it. */
 export interface Recipe {
@@ -70,7 +57,8 @@ export interface Recipe {
    * Each automation that the model sets runs the recipe once in its own session. The owner approves what the recipe does, not each time.
    */
   modelTimed?: boolean
-  triggers: RecipeTrigger[]
+  /** Words in the owner's message that invoke the recipe. Without one, only the conversation run chooses it. */
+  keywords: string[]
   source: 'user' | 'model'
   enabled: boolean
   /**
@@ -113,8 +101,8 @@ export function isBackgroundRecipe(recipe: Recipe) {
  */
 export function matchKeywordRecipes(recipes: readonly Recipe[], text: string) {
   const lower = text.toLowerCase()
-  return usableRecipes(recipes).filter(recipe => !recipe.automation?.triggers.length && recipe.triggers.some(trigger => trigger.kind === 'keyword'
-    && trigger.keywords.some(keyword => keyword.trim() && lower.includes(keyword.trim().toLowerCase()))))
+  return usableRecipes(recipes).filter(recipe => !recipe.automation?.triggers.length
+    && recipe.keywords.some(keyword => keyword.trim() && lower.includes(keyword.trim().toLowerCase())))
 }
 
 /** One answer that the character can give: the id that it answers with, the action key, and what the answer means. */
@@ -125,15 +113,13 @@ export interface DecisionOption {
 }
 
 /**
- * The answers of a decision in order: yes then no, the options, or the levels from low to high.
- * The character answers with the id: `yes` or `no`, an option number from 1, or a level number from 0.
+ * The answers of a decision in order: yes then no, or the options.
+ * The character answers with the id: `yes` or `no`, or an option number from 1.
  */
 export function decisionOptions(question: DecisionQuestion): DecisionOption[] {
   if (question.type === 'noul')
     return [{ id: 'yes', key: 'true', meaning: question.criteria.true }, { id: 'no', key: 'false', meaning: question.criteria.false }]
-  if (question.type === 'choice')
-    return Object.entries(question.criteria).map(([key, meaning], index) => ({ id: String(index + 1), key, meaning }))
-  return question.criteria.map((meaning, index) => ({ id: String(index), key: String(index), meaning }))
+  return Object.entries(question.criteria).map(([key, meaning], index) => ({ id: String(index + 1), key, meaning }))
 }
 
 /**

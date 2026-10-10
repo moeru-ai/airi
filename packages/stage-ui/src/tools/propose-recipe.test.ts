@@ -45,7 +45,7 @@ describe('recipe proposal tool', () => {
       name: 'Summarize context',
       description: 'When the owner asks for a recap.',
       instructions: 'Collect the relevant turns, drop small talk, and list goals, decisions, and open questions.',
-      triggers: [{ kind: 'keyword', keywords: ['总结一下'] }],
+      keywords: ['总结一下'],
     }])
     expect(result).toContain('waits for the owner\'s approval')
   })
@@ -88,9 +88,9 @@ describe('recipe proposal tool', () => {
 
     expect(proposals[0]?.decision).toEqual({
       question: { type: 'choice', instructions: 'How does the owner seem?', criteria: { option_1: 'Tired', option_2: 'Fine' } },
-      actions: { option_1: { kind: 'hint', text: 'Keep it short.' }, option_2: { kind: 'reply' } },
+      actions: { option_1: { kind: 'hint', text: 'Keep it short.' } },
     })
-    expect(proposals[0]?.triggers).toEqual([{ kind: 'keyword', keywords: ['累'] }])
+    expect(proposals[0]?.keywords).toEqual(['累'])
     expect((await proposeWith({ ...input, keywords: null })).result).toBe('Recipe not saved: A decision runs only after a keyword matches, so it needs keywords.')
   })
 
@@ -136,7 +136,7 @@ describe('recipe proposal tool', () => {
       name: 'Remind me',
       description: 'Reminds the owner later.',
       instructions: 'Remind the owner of the note.',
-      triggers: [{ kind: 'keyword', keywords: ['提醒我'] }],
+      keywords: ['提醒我'],
       modelTimed: true,
     }])
     expect((await proposeWith({ ...base, keywords: null })).result)

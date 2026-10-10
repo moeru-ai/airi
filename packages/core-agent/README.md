@@ -34,7 +34,6 @@ The existing session store uses Chat-shaped UI records. The orchestrator decodes
 
 Runtime context keeps one bucket per writer. `replace-self` replaces the writer's entries, and `append-self` adds an event.
 `removeWriter()` removes one writer's entries, for example after its module leaves.
-Request-owned context providers run once per send. They bypass the shared pool.
 
 ## Turn history
 
