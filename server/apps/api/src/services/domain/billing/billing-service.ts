@@ -12,6 +12,7 @@ import { minValue, number, parse, pipe, safeInteger } from 'valibot'
 import { nanoid } from '../../../utils/id'
 import { invalidateBalanceCache } from '../flux-cache'
 import { fluxUsageInputSchema, readCapacitorResetPolicy, refillCapacitor, settleOutstandingMicroFlux } from './flux-posting'
+import { initializeWallet } from './wallet-initialization'
 
 import * as fluxSchema from '../../../schemas/flux'
 import * as fluxTxSchema from '../../../schemas/flux-transaction'
@@ -184,13 +185,15 @@ export function createBillingService(
      */
     async syncCapacitor(userId: string, resolve: () => Promise<CapacitorPeriod | null>): Promise<void> {
       const policy = await readCapacitorResetPolicy(configKV)
+      // INITIAL_USER_FLUX has a zero default when no initial grant is configured.
+      const initialFlux = await configKV.getOptional('INITIAL_USER_FLUX') ?? 0
       await db.transaction(async (tx) => {
         await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${userId}))`)
         const period = await resolve()
         const now = new Date()
 
         if (period)
-          await tx.insert(fluxSchema.userFlux).values({ userId, flux: 0 }).onConflictDoNothing({ target: fluxSchema.userFlux.userId })
+          await initializeWallet(tx, userId, initialFlux)
         const [wallet] = await tx.select().from(fluxSchema.userFlux).where(and(
           eq(fluxSchema.userFlux.userId, userId),
           isNull(fluxSchema.userFlux.deletedAt),

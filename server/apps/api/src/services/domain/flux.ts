@@ -8,10 +8,10 @@ import { useLogger } from '@guiiai/logg'
 import { and, eq, isNull } from 'drizzle-orm'
 
 import { capacitorPercent, nextCapacitorRecharge, readCapacitorResetPolicy, refillCapacitor } from './billing/flux-posting'
+import { initializeWallet } from './billing/wallet-initialization'
 import { invalidateBalanceCache, readBalanceCache, writeBalanceCache } from './flux-cache'
 
 import * as schema from '../../schemas/flux'
-import * as fluxTxSchema from '../../schemas/flux-transaction'
 
 const logger = useLogger('flux-service')
 
@@ -56,24 +56,8 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
       if (!record) {
         const initialFlux = await configKV.getOrThrow('INITIAL_USER_FLUX')
 
-        // Transaction: create user_flux + flux_transaction atomically
         await db.transaction(async (tx) => {
-          const [inserted] = await tx.insert(schema.userFlux)
-            .values({ userId, flux: initialFlux })
-            .onConflictDoNothing({ target: schema.userFlux.userId })
-            .returning()
-
-          // Only write transaction if we actually created the record (not a conflict)
-          if (inserted) {
-            await tx.insert(fluxTxSchema.fluxTransaction).values({
-              userId,
-              type: 'initial',
-              amount: initialFlux,
-              balanceBefore: 0,
-              balanceAfter: initialFlux,
-              description: 'Initial grant',
-            })
-          }
+          await initializeWallet(tx, userId, initialFlux)
         })
 
         // Re-read to handle race condition (another request may have initialized first)

@@ -42,6 +42,9 @@ The server reads the customer's entitlements and calls `BillingService.syncCapac
 The latest purchase wins when two mapped Capacitors are active.
 
 `syncCapacitor` stores the quota, the expiry, and the period start. It does not grant Flux directly.
+
+When a webhook creates the first wallet, it preserves `INITIAL_USER_FLUX` and writes the initial ledger row in the same transaction.
+The balance read and the webhook use the same wallet initialization operation. Repeated deliveries do not repeat the initial grant.
 The refill rule below decides the grant.
 A smaller quota caps the bucket.
 With no active Capacitor, `capacitor_expires_at` becomes now.

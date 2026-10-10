@@ -6,6 +6,8 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockDB } from '../../../../libs/mock-db'
 import { createTestRedis } from '../../../../libs/tests/redis'
 import { fluxTransaction, fluxUsage, userFlux } from '../../../../schemas'
+import { createConfigKVService } from '../../../adapters/config-kv'
+import { createFluxService } from '../../flux'
 import { createFluxTransactionService } from '../../flux-transaction'
 import { createBillingService } from '../billing-service'
 import { availableMicroFlux, capacitorPercent, nextCapacitorRecharge, refillCapacitor, settleOutstandingMicroFlux } from '../flux-posting'
@@ -45,6 +47,31 @@ describe('capacitor Flux bucket', () => {
   })
 
   describe('syncCapacitor', () => {
+    // https://github.com/moeru-ai/airi/pull/2813#discussion_r4237747699
+    // ROOT CAUSE:
+    // Webhooks created zero-balance wallets before the initial grant path ran.
+    // Both entry points now create the wallet and initial ledger row together.
+    it('preserves the initial wallet grant when a webhook arrives first', async () => {
+      const configKV = createConfigKVService({
+        getRaw: async key => key === 'INITIAL_USER_FLUX' ? '25' : null,
+        getFreshRaw: async () => null,
+        invalidateCache: async () => {},
+      })
+      const firstTouch = createBillingService(db, createTestRedis(), configKV)
+
+      await firstTouch.syncCapacitor('new-subscriber', async () => activeCapacitor(100))
+      await firstTouch.syncCapacitor('new-subscriber', async () => activeCapacitor(100))
+      const balance = await createFluxService(db, createTestRedis(), configKV).getFlux('new-subscriber')
+      expect(balance.flux).toBe(25)
+
+      const [subscriber] = await db.select().from(userFlux).where(eq(userFlux.userId, 'new-subscriber'))
+      expect(subscriber).toMatchObject({ flux: 25, capacitorFlux: 100 })
+      const initial = await db.select().from(fluxTransaction).where(eq(fluxTransaction.type, 'initial'))
+      expect(initial).toEqual([
+        expect.objectContaining({ userId: 'new-subscriber', pool: 'wallet', amount: 25, balanceBefore: 0, balanceAfter: 25 }),
+      ])
+    })
+
     it('grants the quota and records a capacitor ledger row', async () => {
       await billing.syncCapacitor('wallet', async () => activeCapacitor(100))
 
