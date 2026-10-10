@@ -97,6 +97,18 @@ export const useHomeAssistantStore = defineStore('home-assistant', () => {
     setEntitiesSelected([entityId], selected)
   }
 
+  /**
+   * Empties both lists.
+   *
+   * The settings page calls this when the address changes. An id means one
+   * device on one instance, so a list written for the old instance would allow
+   * or block a different device on the new one.
+   */
+  function clearSelection() {
+    allowedEntities.value = []
+    deniedEntities.value = []
+  }
+
   function resetState() {
     enabled.reset()
     hasCredentials.reset()
@@ -116,6 +128,7 @@ export const useHomeAssistantStore = defineStore('home-assistant', () => {
     selectedEntityIds,
 
     setHasCredentials,
+    clearSelection,
     setEntitySelected,
     setEntitiesSelected,
     resetState,

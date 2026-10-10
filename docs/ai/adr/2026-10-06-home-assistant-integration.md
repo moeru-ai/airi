@@ -154,6 +154,30 @@ device into a blocked device the moment the user switched modes.
 The policy lives in the renderer store, beside the module switch, because the
 user owns the choice and the tools that read it live in the renderer.
 
+### What a call may run
+
+The policy names devices, and a device check is only as good as the service that
+acts on it. Two kinds of service break the link between the device a caller
+checked and what the call changes.
+
+- A service that is its own target. A script registers a service named after it,
+  so `POST /api/services/script/good_night` runs that script and ignores the
+  `entity_id` in the body. Measurement: the script ran while the body named an
+  unrelated switch.
+- A service that expands its target. A service call on a group entity reaches
+  every member. Measurement: a group with two members changed both.
+
+The integration therefore runs only the services that act on the device the
+caller named. A service outside the list fails, and the message names what the
+domain accepts. A call whose target reports a member list fails too, and the
+model asks the user for one device by name.
+
+### One instance
+
+An entity id means one device on one instance. Changing the address clears both
+lists, because a list written for the old instance would reach a different device
+on the new one.
+
 The tools apply the policy rather than the main process. The model reaches Home
 Assistant only through these tools, so this is where a blocked device stays out
 of reach. Two consequences follow.

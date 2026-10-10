@@ -1082,6 +1082,7 @@ pages:
         test: Test
       status:
         saved: Saved.
+        saved-cleared: Saved. The address changed, so the device lists are empty.
         testing: Testing the connection...
         reachable: 'Connected. Home Assistant reported {count} entities.'
         failed: 'Could not connect. {message}'

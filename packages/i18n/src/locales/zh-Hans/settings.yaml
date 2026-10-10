@@ -1025,6 +1025,7 @@ pages:
         test: 测试
       status:
         saved: 已保存。
+        saved-cleared: 已保存。地址已更改，设备名单已清空。
         testing: 正在测试连接……
         reachable: '已连接。Home Assistant 报告了 {count} 个实体。'
         failed: '无法连接。{message}'

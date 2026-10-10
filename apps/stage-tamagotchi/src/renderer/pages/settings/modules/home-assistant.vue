@@ -32,6 +32,8 @@ const getConfig = useElectronEventaInvoke(homeAssistantGetConfig)
 const setConfig = useElectronEventaInvoke(homeAssistantSetConfig)
 
 const baseUrl = ref('')
+/** The address the main process holds, so a save can tell that it moved. */
+const storedBaseUrl = ref('')
 const token = ref('')
 const hasToken = ref(false)
 const tokenPreview = ref('')
@@ -161,6 +163,7 @@ async function loadEntities() {
 onMounted(async () => {
   const config = await getConfig()
   baseUrl.value = config.baseUrl
+  storedBaseUrl.value = config.baseUrl
   hasToken.value = config.hasToken
   tokenPreview.value = config.tokenPreview
   recordCredentials(config)
@@ -176,12 +179,20 @@ onMounted(async () => {
  * address without pasting the secret again.
  */
 async function save() {
+  const previousBaseUrl = storedBaseUrl.value
   const saved = await setConfig({
     baseUrl: baseUrl.value,
     ...(token.value ? { token: token.value } : {}),
   })
 
+  // An entity id means one device on one instance. A list written for the old
+  // instance would allow or block a different device on the new one, so it goes.
+  const movedAddress = Boolean(previousBaseUrl) && saved.baseUrl !== previousBaseUrl
+  if (movedAddress)
+    settings.clearSelection()
+
   baseUrl.value = saved.baseUrl
+  storedBaseUrl.value = saved.baseUrl
   token.value = ''
   hasToken.value = saved.hasToken
   tokenPreview.value = saved.tokenPreview
@@ -190,14 +201,14 @@ async function save() {
   // leader mounts or unmounts them without a reload.
   await toolsStore.refresh()
 
-  return saved
+  return { movedAddress, saved }
 }
 
 async function onSave() {
   busy.value = true
   try {
-    await save()
-    status.value = { suffix: 'status.saved' }
+    const { movedAddress } = await save()
+    status.value = { suffix: movedAddress ? 'status.saved-cleared' : 'status.saved' }
   }
   catch (error) {
     status.value = { suffix: 'status.failed', params: { message: errorMessageFrom(error) ?? '' } }

@@ -9,6 +9,7 @@ import { z } from 'zod'
 
 import { domainOf } from '../libs/home-assistant/client'
 import { allEntitiesExposure, assertEntityExposed, describeExposure, describeHidden, filterExposed } from '../libs/home-assistant/exposure'
+import { assertServiceAllowed, isGroupEntity } from '../libs/home-assistant/services'
 
 /**
  * Default cap on the entity list one lookup returns.
@@ -155,9 +156,21 @@ export async function createHomeAssistantTools(
     }),
     tool({
       name: 'home_assistant_call_service',
-      description: `Call a Home Assistant service to control one device (turn on/off, set brightness, change temperature). Always list entities first to find the correct entity_id, then pass exactly one. Report the returned state changes to the user. ${policy}`,
+      description: `Call a Home Assistant service to control one device (turn on/off, set brightness, change temperature). Always list entities first to find the correct entity_id, then pass exactly one. Use the service of the device domain, for example light.turn_on for a light, or homeassistant.turn_on for any device. Report the returned state changes to the user. ${policy}`,
       execute: async ({ domain, service, entity_id: entityId, data }) => {
         assertEntityExposed(exposure, entityId)
+        // A service that is its own target, such as a script named as the
+        // service, would run what the user never allowed. The list holds the
+        // services that act on the entity the caller named.
+        assertServiceAllowed(domain, service)
+
+        // A service on a group reaches every member. Read the target first, so a
+        // call cannot change a device this check never saw. A target Home
+        // Assistant cannot report fails the call, because nothing can be
+        // checked without it.
+        const target = await client.getState(entityId)
+        if (isGroupEntity(target.attributes))
+          throw new Error(`Entity "${entityId}" is a group of other devices. A service on it changes every member. Ask the user for one device by name, or list the entities and call the service on the member you need.`)
 
         const response = await client.callService({
           domain,

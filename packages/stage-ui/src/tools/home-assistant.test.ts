@@ -348,4 +348,98 @@ describe('home assistant tools', () => {
     for (const entry of denying.values())
       expect(entry.function.description).toContain('The user blocks 2 devices.')
   })
+
+  it('refuses a script that names itself as the service', async () => {
+    // Measured on a test instance: POST /api/services/script/turn_on_bed ran the
+    // script while the body named an unrelated switch, so the entity check saw
+    // only the switch.
+    const callService = vi.fn(async () => [])
+    const mounted = await tools(createClient({ callService }))
+
+    await expect(execute(mounted.get('home_assistant_call_service'), {
+      domain: 'script',
+      service: 'turn_on_bed',
+      entity_id: 'light.kitchen',
+    })).rejects.toThrow('"script.turn_on_bed" is not one this integration runs')
+    expect(callService).not.toHaveBeenCalled()
+  })
+
+  it('refuses a service domain the list does not hold', async () => {
+    const callService = vi.fn(async () => [])
+    const mounted = await tools(createClient({ callService }))
+
+    await expect(execute(mounted.get('home_assistant_call_service'), {
+      domain: 'homeassistant',
+      service: 'restart',
+      entity_id: 'light.kitchen',
+    })).rejects.toThrow('"homeassistant.restart" is not one this integration runs')
+    expect(callService).not.toHaveBeenCalled()
+  })
+
+  it('names the services a domain accepts', async () => {
+    const mounted = await tools(createClient())
+
+    await expect(execute(mounted.get('home_assistant_call_service'), {
+      domain: 'light',
+      service: 'reload',
+      entity_id: 'light.kitchen',
+    })).rejects.toThrow('The "light" domain accepts: toggle, turn_off, turn_on.')
+  })
+
+  it('refuses a target that stands for several devices', async () => {
+    // Measured: light.turn_on on a group changed both of its members, so a
+    // check on the group alone would have reached a device nobody named.
+    const callService = vi.fn(async () => [])
+    const client = createClient({
+      callService,
+      getState: vi.fn(async () => ({
+        entityId: 'group.all_lights',
+        state: 'on',
+        attributes: { entity_id: ['light.bed_light', 'light.kitchen_lights'] },
+      })),
+    })
+    const mounted = await tools(client, { exposure: deny() })
+
+    await expect(execute(mounted.get('home_assistant_call_service'), {
+      domain: 'light',
+      service: 'turn_on',
+      entity_id: 'group.all_lights',
+    })).rejects.toThrow('is a group of other devices')
+    expect(callService).not.toHaveBeenCalled()
+  })
+
+  it('refuses a call whose target Home Assistant cannot report', async () => {
+    // Nothing can be checked without the target, so the call fails rather than
+    // skipping the group test.
+    const callService = vi.fn(async () => [])
+    const client = createClient({
+      callService,
+      getState: vi.fn(async () => {
+        throw new Error('Home Assistant answered 404 Not Found.')
+      }),
+    })
+    const mounted = await tools(client)
+
+    await expect(execute(mounted.get('home_assistant_call_service'), {
+      domain: 'light',
+      service: 'turn_on',
+      entity_id: 'light.kitchen',
+    })).rejects.toThrow('404')
+    expect(callService).not.toHaveBeenCalled()
+  })
+
+  it('accepts the service of the device domain and the generic actuator', async () => {
+    const callService = vi.fn(async () => [])
+    const mounted = await tools(createClient({ callService }))
+
+    for (const [domain, service] of [['light', 'turn_on'], ['lock', 'unlock'], ['homeassistant', 'turn_off'], ['scene', 'turn_on']]) {
+      await expect(execute(mounted.get('home_assistant_call_service'), {
+        domain,
+        service,
+        entity_id: 'light.kitchen',
+      })).resolves.toBeDefined()
+    }
+
+    expect(callService).toHaveBeenCalledTimes(4)
+  })
 })

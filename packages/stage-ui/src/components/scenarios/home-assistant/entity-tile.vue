@@ -20,6 +20,7 @@ const emit = defineEmits<{ toggle: [] }>()
     type="button"
     :disabled="props.disabled"
     :aria-pressed="props.selected"
+    :title="props.entity.entityId"
     class="flex items-center gap-3 border-2 rounded-xl p-2.5 text-left transition-colors"
     :class="[
       props.selected
@@ -43,6 +44,10 @@ const emit = defineEmits<{ toggle: [] }>()
       </div>
       <div class="truncate text-xs text-neutral-500 dark:text-neutral-400">
         {{ props.stateLabel }}
+      </div>
+      <!-- The policy stores ids, and two devices can share a name. -->
+      <div class="truncate text-[11px] text-neutral-400 dark:text-neutral-500">
+        {{ props.entity.entityId }}
       </div>
     </div>
 
