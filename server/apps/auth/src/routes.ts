@@ -201,21 +201,22 @@ const CheckEmailIdentifierBodySchema = object({
   ),
 })
 
-async function checkEmailIdentifier(db: AuthDatabase, body: { email?: unknown } | null) {
+/** Returns navigation hints from persisted account state without authenticating the caller. */
+async function checkEmailIdentifier(db: AuthDatabase, body: unknown) {
   const parsed = safeParse(CheckEmailIdentifierBodySchema, body)
   if (!parsed.success)
     throw createBadRequestError('Invalid email', 'INVALID_EMAIL')
 
-  const [matched] = await db.select({ id: user.id }).from(user).where(eq(user.email, parsed.output.email)).limit(1)
+  const [matched] = await db.select({ id: user.id, emailVerified: user.emailVerified }).from(user).where(eq(user.email, parsed.output.email)).limit(1)
   if (!matched)
-    return { exists: false, hasPassword: false }
+    return { exists: false, hasPassword: false, emailVerified: false }
 
   const [credential] = await db
     .select({ id: account.id })
     .from(account)
     .where(and(eq(account.userId, matched.id), eq(account.providerId, 'credential')))
     .limit(1)
-  return { exists: true, hasPassword: !!credential }
+  return { exists: true, hasPassword: !!credential, emailVerified: matched.emailVerified }
 }
 
 function createAuthUiRoutes(env: AuthEnv) {
@@ -349,6 +350,7 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
      * social provider when only social accounts exist).
      *
      * Returns:
+     * - `emailVerified`: the stored verification flag, or false for an unknown email.
      * - `exists`: a `user` row matches the email (case-insensitive).
      * - `hasPassword`: that user has an account row with `providerId='credential'`,
      *   i.e. can sign in via email + password (vs. social-only).
@@ -359,7 +361,7 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
      * per-IP request limit to `/api/auth/*` and throttles enumeration attempts.
      */
     .on('POST', '/api/auth/check-email', async (c) => {
-      const body = await c.req.json().catch(() => null) as { email?: unknown } | null
+      const body: unknown = await c.req.json().catch(() => null)
       return c.json(await checkEmailIdentifier(deps.db, body))
     })
     .on(['POST', 'GET'], '/api/auth/*', async (c) => {
