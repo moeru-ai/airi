@@ -1230,6 +1230,7 @@ pages:
   capacitor:
     title: Capacitor
     description: A Capacitor holds Flux and recharges by itself.
+    statusError: Failed to load your Capacitor. Please try again later.
     packagesError: Failed to load Capacitors. Please try again later.
     preferenceError: Failed to save preference. Please try again later.
     noCapacitor: No Capacitor

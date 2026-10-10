@@ -1170,6 +1170,7 @@ pages:
   capacitor:
     title: Capacitor
     description: Capacitor 装着 Flux，会自动充满。
+    statusError: 暂时无法获取 Capacitor 的状态，可以之后再试试吗？
     packagesError: 暂时无法获取可用的 Capacitor，可以之后再试试吗？
     preferenceError: 偏好保存失败，请稍后再试。
     noCapacitor: 尚未装配 Capacitor
