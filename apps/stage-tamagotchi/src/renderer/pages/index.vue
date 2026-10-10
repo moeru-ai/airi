@@ -360,7 +360,16 @@ useModelSettingsRuntimeOwner({
 const voice = useVoiceStore()
 const openInlay = useElectronEventaInvoke(electronOpenInlay)
 useVoiceListening()
-usePushToTalkShortcut()
+const pushToTalk = usePushToTalkShortcut()
+// A global hold happens while another app has focus, so the inlay shows that AIRI listens before any text arrives.
+// It opens after capture starts. A begin that fails, for example without microphone permission, opens no empty window.
+watch(
+  () => pushToTalk.held.value && voice.state?.phase === 'capturing',
+  (capturing) => {
+    if (capturing)
+      void openInlay()
+  },
+)
 watch(() => voice.error, (error) => {
   if (error)
     toast.error(error)
