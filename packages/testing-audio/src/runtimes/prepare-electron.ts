@@ -3,20 +3,18 @@ import type { Page } from 'playwright'
 
 import type { AudioInputSession } from '../types'
 
-import { piniaActionTracingChannelName } from '@proj-airi/stage-shared/types/pinia-action-event'
-
-import { stubForBrowser } from '../setup/browser-probe'
+import { browserProbeOptions, stubForBrowser } from '../setup/browser-probe'
 import { createSession } from '../setup/session'
 
 /** Adapts a Fakemic Electron process into an AIRI desktop audio session. */
 export default async function prepareElectronRuntime(context: FakemicElectronPrepareContext): Promise<AudioInputSession> {
-  await context.app.context().addInitScript(stubForBrowser, piniaActionTracingChannelName)
+  await context.app.context().addInitScript(stubForBrowser, browserProbeOptions)
   const page = await waitForPage(context, (page) => {
     const url = new URL(page.url())
     return url.pathname.endsWith('/index.html') && url.hash === '#/'
   })
   await page.locator('[i-solar\\:alt-arrow-up-line-duotone]').first().waitFor({ state: 'visible', timeout: 30_000 })
-  await page.evaluate(stubForBrowser, piniaActionTracingChannelName)
+  await page.evaluate(stubForBrowser, browserProbeOptions)
 
   return createSession({
     electronApp: context.app,

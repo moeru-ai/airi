@@ -7,6 +7,9 @@ export const audioInputTargets = ['web', 'electron'] as const
 
 export type AudioInputTarget = (typeof audioInputTargets)[number]
 
+/** Audio pipelines that need case-specific runner preparation. */
+export type AudioInputPipeline = 'kws'
+
 /** Values available when one case resolves its preflight callbacks. */
 export interface AudioInputPreflightContext {
   /** Environment variables loaded for this case. */
@@ -21,7 +24,14 @@ export interface AudioInputPreflightContext {
 export type AudioInputPreflightCallback = AudioTestPreflightCallback<AudioInputPreflightContext>
 
 /** One AIRI audio-input test definition. */
-export type AudioInputTestCase = AudioTestCase<AudioInputPreflightContext>
+export interface AudioInputTestCase extends AudioTestCase<AudioInputPreflightContext> {
+  /**
+   * Selects pipelines that the runner prepares before the file microphone starts.
+   * For `kws` on Web, the runner downloads and verifies the pinned wake word model.
+   * @default []
+   */
+  pipelines?: readonly AudioInputPipeline[]
+}
 
 /** Snapshot of the observable AIRI audio pipeline state. */
 export interface AudioInputSnapshot {
@@ -29,6 +39,14 @@ export interface AudioInputSnapshot {
   spans: SerializedIOSpan[]
   streamingTranscriptionUpdates: string[]
   transcriptionResults: string[]
+  voiceInputs: AudioInputVoiceInput[]
+}
+
+/** One speech input that the voice host began, from the first host snapshot that contains it. */
+export interface AudioInputVoiceInput {
+  requestId: string
+  /** Chat session that receives the transcript. A wake selects the session of the character that owns the wake word. */
+  sessionId: string
 }
 
 /** One rendered chat message from the completed turn. */
@@ -88,6 +106,17 @@ export interface AudioInputObservations {
   waitForVadReady: () => Promise<void>
   /** Waits until a streaming transcription transport accepts microphone audio. */
   waitForStreamingTranscriptionReady: () => Promise<void>
+  /**
+   * Waits until the voice host begins a speech input, and returns the first input since the page loaded.
+   *
+   * @example
+   * const input = await audio.waitForVoiceInput({ timeout: 90_000 })
+   * expect(input.sessionId).toBe(expectedSessionId)
+   */
+  waitForVoiceInput: (options?: {
+    /** @default 60000 */
+    timeout?: number
+  }) => Promise<AudioInputVoiceInput>
   /**
    * Waits for the next matching Pinia action event after this method is called.
    *

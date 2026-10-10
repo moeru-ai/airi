@@ -1,5 +1,8 @@
 import type { SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
 import type { PiniaActionEvent } from '@proj-airi/stage-shared/types/pinia-action-event'
+import type { WakeWordPreparation } from '@proj-airi/stage-ui/libs/voice/wake-word-detector'
+
+import type { AudioInputVoiceInput } from '../types'
 
 declare global {
   interface BrowserAudioInputState {
@@ -10,6 +13,9 @@ declare global {
     transcriptionAudio: Array<{ base64: string, format: 'pcm' | 'wav' }>
     transcriptionResults: string[]
     vadReady: boolean
+    voiceInputs: AudioInputVoiceInput[]
+    /** Latest wake word preparation that the voice host published. It is undefined before the first snapshot. */
+    wakeWordPreparation?: WakeWordPreparation
   }
 
   interface Window {

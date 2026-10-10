@@ -101,6 +101,18 @@ export function createSession(options: {
     async waitForStreamingTranscriptionReady() {
       await options.page.waitForFunction(() => window.__airiAudioInputE2E?.streamingTranscriptionReady === true, undefined, { timeout: 30_000 })
     },
+    async waitForVoiceInput(waitOptions = {}) {
+      try {
+        await options.page.waitForFunction(() => (window.__airiAudioInputE2E?.voiceInputs.length ?? 0) > 0, undefined, { timeout: waitOptions.timeout ?? 60_000 })
+      }
+      catch (error) {
+        // The wake word preparation tells if the timeout came from the model, or from detection after the model was ready.
+        const wakeWordPreparation = await options.page.evaluate(() => window.__airiAudioInputE2E?.wakeWordPreparation)
+        throw new Error(`Timed out waiting for a voice input. Wake word preparation: ${wakeWordPreparation ?? 'not published'}`, { cause: error })
+      }
+      const [input] = await options.page.evaluate(() => window.__airiAudioInputE2E?.voiceInputs ?? [])
+      return input
+    },
     async waitForPiniaAction(waitOptions) {
       return options.page.evaluate(({ actionName, channelName, status, storeId, timeout }) => new Promise<PiniaActionEvent>((resolve, reject) => {
         const channel = new BroadcastChannel(channelName)
@@ -136,6 +148,7 @@ export function createSession(options: {
         spans: runtimeState?.spans ?? [],
         streamingTranscriptionUpdates: interactionState?.streamingTranscriptionUpdates ?? [],
         transcriptionResults: runtimeState?.transcriptionResults ?? [],
+        voiceInputs: runtimeState?.voiceInputs ?? [],
       }
     },
     close: options.close,

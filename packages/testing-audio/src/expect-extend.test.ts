@@ -52,6 +52,9 @@ function createAudioInputSession(
       throw new Error('This matcher fixture does not observe completed turns.')
     },
     waitForVadReady: async () => {},
+    waitForVoiceInput: async () => {
+      throw new Error('This matcher fixture does not observe voice inputs.')
+    },
   }
 }
 
