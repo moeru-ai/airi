@@ -36,7 +36,7 @@ A rejected operation does not establish an implementation.
 | [src-web/src/shared](../src-web/src/shared) | AIRI Eventa contracts |
 | [src-godot/scripts](../src-godot/scripts) | C# services, managers, permissions, and authentication |
 | [src-godot](../src-godot) | Native scenes |
-| `addons/kirie/` | Installed addon and CEF metadata from the [official release](https://github.com/moeru-ai/godot-kirie/releases/tag/v0.8.0) |
+| `addons/kirie/` | Installed addon and CEF metadata from the [official release](https://github.com/moeru-ai/godot-kirie/releases/tag/v0.10.0) |
 | [tests/StageTamagotchiKirie.Tests](../tests/StageTamagotchiKirie.Tests) | C# contract checks |
 | [kirie.config.ts](../kirie.config.ts) | Web build, aliases, and route selection |
 
