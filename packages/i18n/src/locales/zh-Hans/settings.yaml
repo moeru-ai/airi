@@ -546,6 +546,7 @@ pages:
         title: 已下载的语音模型
         description: 管理保存在此设备上的 Sherpaw 模型文件。
         empty: 尚无已下载的语音模型。
+        wake-word-model: 唤醒词模型
         refresh: 刷新
       modules:
         title: 模块
@@ -809,6 +810,14 @@ pages:
             always-on-description: AIRI 一直聆听，你说话时就会回应。
             push-to-talk: 按住说话
             push-to-talk-description: 只有按住「按住说话」按键时 AIRI 才会聆听。麦克风只在按住期间开启。
+            wake-word: 唤醒词
+            wake-word-description: 麦克风保持开启，但只有说出角色的唤醒词后 AIRI 才会聆听。
+            wake-word-status:
+              no-words: 还没有角色设置唤醒词。可以在聊天中请角色设置它的唤醒词。
+              unconfigured: 麦克风开启后开始检测唤醒词。
+              preparing: 正在准备唤醒词模型…
+              ready: 唤醒词已就绪。
+              error: 唤醒词模型不可用：{error}
           rephrase:
             title: 转写改写
             description: 在转写成为草稿之前，由对话模型修正识别错误并去掉口头禅。原始文本会被保留。

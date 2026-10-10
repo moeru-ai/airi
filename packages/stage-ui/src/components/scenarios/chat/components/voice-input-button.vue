@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { HearingInputMode } from '../../../../stores/modules/hearing'
 import type { ChatToolReference } from '../../../../types/chat'
 import type { VoiceComposerMode } from '../composables/use-voice-composer'
 
@@ -63,6 +64,12 @@ const LEVEL_MONITOR_RENEW_MS = 1000
 const { t } = useI18n()
 const mode = useLocalStorage<VoiceComposerMode>('ui/chat/voice-mode', 'audio')
 const { autoSendEnabled, inputMode } = storeToRefs(useHearingStore())
+/** The menu switch turns the selected Hearing input mode on, so its label names that mode. */
+const listenLabelKeys = {
+  'always-on': 'stage.chat.voice-composer.listen',
+  'push-to-talk': 'stage.chat.voice-composer.push-to-talk',
+  'wake-word': 'stage.chat.voice-composer.wake-word',
+} as const satisfies Record<HearingInputMode, string>
 const devices = useSettingsAudioDevice()
 const { audioInputOptions, selectedAudioInput, enabled: listening } = storeToRefs(devices)
 const controls = useVoiceControlsStore()
@@ -365,7 +372,7 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
         </DropdownMenuCheckboxItem>
         <DropdownMenuCheckboxItem :model-value="listening" data-testid="voice-menu-listen" :class="itemClasses" @update:model-value="setListening" @select.prevent>
           <!-- The switch turns on the Hearing input mode. The mode itself is chosen in Hearing settings. -->
-          <span :class="['flex-1']">{{ t(inputMode === 'push-to-talk' ? 'stage.chat.voice-composer.push-to-talk' : 'stage.chat.voice-composer.listen') }}</span>
+          <span :class="['flex-1']">{{ t(listenLabelKeys[inputMode]) }}</span>
           <span aria-hidden="true" :class="switchTrackClasses(listening)">
             <span :class="switchThumbClasses(listening)" />
           </span>
