@@ -10,10 +10,10 @@ import { createHash } from 'node:crypto'
 import { account, isUserBannedNow, user } from '@proj-airi/auth-shared'
 import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
-import { email, nonEmpty, object, pipe, regex, safeParse, string, transform } from 'valibot'
+import { boolean, email, nonEmpty, object, pipe, regex, safeParse, string, transform } from 'valibot'
 
 import { ensureDynamicFirstPartyRedirectUri } from './auth'
-import { createBadRequestError, createForbiddenError } from './error'
+import { createBadRequestError, createForbiddenError, createInternalError } from './error'
 import { createOidcAccessTokenVerifier } from './oidc-access-token'
 import { rateLimiter } from './rate-limit'
 
@@ -201,6 +201,12 @@ const CheckEmailIdentifierBodySchema = object({
   ),
 })
 
+const CheckEmailIdentifierResponseSchema = object({
+  exists: boolean(),
+  hasPassword: boolean(),
+  emailVerified: boolean(),
+})
+
 /** Returns navigation hints from persisted account state without authenticating the caller. */
 async function checkEmailIdentifier(db: AuthDatabase, body: unknown) {
   const parsed = safeParse(CheckEmailIdentifierBodySchema, body)
@@ -360,9 +366,13 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
      * accept the disclosure since the existing rate limiter applies a fixed
      * per-IP request limit to `/api/auth/*` and throttles enumeration attempts.
      */
+    // Reject malformed adapter output without exposing internal validation details.
     .on('POST', '/api/auth/check-email', async (c) => {
       const body: unknown = await c.req.json().catch(() => null)
-      return c.json(await checkEmailIdentifier(deps.db, body))
+      const result = safeParse(CheckEmailIdentifierResponseSchema, await checkEmailIdentifier(deps.db, body))
+      if (!result.success)
+        throw createInternalError()
+      return c.json(result.output)
     })
     .on(['POST', 'GET'], '/api/auth/*', async (c) => {
       return handleAuthRequest(c.req.raw)

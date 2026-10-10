@@ -33,4 +33,4 @@ sequenceDiagram
   AuthAPI-->>Client: exists, hasPassword, emailVerified
 ```
 
-Route tests cover unknown users, both verification states, credential presence, and invalid input. Deploy the service first; older clients ignore the added field. Password authentication remains authoritative.
+Route tests cover unknown users, both verification states, credential presence, and invalid input. Deploy the service first; older clients ignore the added field. Password authentication remains authoritative. A Valibot response schema rejects malformed adapter output with a generic 500 error before serialization.

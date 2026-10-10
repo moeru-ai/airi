@@ -8,7 +8,7 @@ import { ApiError } from '../error'
 import { createAuthRoutes } from '../routes'
 
 /** Replaces database I/O while exercising the public discovery route and its validation. */
-async function buildRoute(rows: Array<Array<{ id: string, emailVerified?: boolean }>>) {
+async function buildRoute(rows: Array<Array<{ id: string, emailVerified?: unknown }>>) {
   const limit = vi.fn()
   for (const result of rows)
     limit.mockResolvedValueOnce(result)
@@ -28,8 +28,10 @@ async function buildRoute(rows: Array<Array<{ id: string, emailVerified?: boolea
 }
 
 describe('email verification discovery', () => {
-  // Report: unverified accounts enter the password page before returning to verification.
-  // ROOT CAUSE: discovery omitted the persisted verification flag.
+  // Source: user report in a private development conversation, tracked in https://github.com/moeru-ai/airi/pull/2893.
+  // ROOT CAUSE:
+  // Before: discovery omitted verification status, so unverified users reached password entry.
+  // Fix: return the stored flag so clients can route directly to verification.
   it.each([
     [false, false],
     [false, true],
@@ -45,6 +47,17 @@ describe('email verification discovery', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ exists: true, hasPassword, emailVerified })
     expect(select).toHaveBeenNthCalledWith(1, { id: user.id, emailVerified: user.emailVerified })
+  })
+
+  // Report: https://github.com/moeru-ai/airi/pull/2893#discussion_r4236517844
+  // ROOT CAUSE:
+  // Before: the route serialized adapter output without validating its response contract.
+  // Fix: reject malformed verification flags before sending a successful response.
+  it.each([null, undefined, 'false', 0])('rejects malformed adapter verification status %s', async (emailVerified) => {
+    const { app } = await buildRoute([[{ id: 'user-1', emailVerified }], []])
+    const response = await app.request('/api/auth/check-email', { method: 'POST', body: JSON.stringify({ email: 'user@example.com' }) })
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({ error: 'INTERNAL_SERVER_ERROR' })
   })
 
   it('returns false for an unknown email without reading credential accounts', async () => {
