@@ -1025,9 +1025,159 @@ pages:
         test: 测试
       status:
         saved: 已保存。
+        saved-cleared: 已保存。地址已更改，设备名单已清空。
         testing: 正在测试连接……
         reachable: '已连接。Home Assistant 报告了 {count} 个实体。'
         failed: '无法连接。{message}'
+      access:
+        label: 设备访问范围
+        description: 选择 AIRI 可以读取和控制的设备。
+        mode-all: 全部设备
+        mode-allow: 白名单
+        mode-deny: 黑名单
+        all-hint: AIRI 可以访问全部设备。选择一个名单即可限制范围。
+        rule-allow: 只有你勾选的设备可以访问。
+        rule-deny: 除了你勾选的设备，其他设备都可以访问。
+        selected-count: '已选 {count} 个'
+        empty-warning: 至少勾选一个设备，否则 AIRI 无法访问任何设备。
+        search: 搜索设备
+        reload: 重新加载设备
+        loading: 正在加载设备……
+        no-devices: Home Assistant 没有报告任何设备。
+        no-match: 没有匹配的设备。
+        tab-all: 全部
+        shown-count: '显示 {shown} / {total} 个设备'
+        select-shown: 全选当前
+        clear-shown: 取消当前
+      states:
+        generic:
+          'on': 开启
+          'off': 关闭
+          above_horizon: 白天
+          armed: 已布防
+          armed_away: 离家布防
+          armed_custom_bypass: 已布防自定义旁路
+          armed_home: 在家布防
+          armed_night: 夜间布防
+          armed_vacation: 度假布防
+          arming: 正在布防
+          auto: 自动
+          below_horizon: 夜晚
+          buffering: 正在缓冲
+          cleaning: 正在清扫
+          clear-night: 晴
+          closed: 已关闭
+          closing: 正在关闭
+          cloudy: 阴
+          cool: 制冷
+          disarmed: 已撤防
+          disarming: 正在撤防
+          docked: 已停靠
+          dry: 除湿
+          eco: 节能
+          electric: 电热
+          error: 错误
+          exceptional: 特殊
+          fan_only: 仅送风
+          fog: 雾
+          gas: 燃气
+          hail: 冰雹
+          heat: 制热
+          heat_cool: 制热/制冷
+          heat_pump: 热泵
+          high_demand: 急需
+          home: 在家
+          idle: 空闲
+          jammed: 卡住
+          lightning: 雷电
+          lightning-rainy: 雷阵雨
+          locked: 已锁定
+          locking: 正在锁定
+          mowing: 正在割草
+          not_home: 离家
+          ok: 正常
+          open: 已打开
+          opening: 正在打开
+          partlycloudy: 多云
+          paused: 已暂停
+          pending: 待定
+          performance: 高性能
+          playing: 正在播放
+          pouring: 暴雨
+          problem: 异常
+          rainy: 雨
+          recording: 录制中
+          snowy: 雪
+          snowy-rainy: 雨夹雪
+          standby: 待机
+          stopped: 已停止
+          streaming: 监控中
+          sunny: 晴
+          triggered: 已触发
+          unlocked: 已解锁
+          unlocking: 正在解锁
+          windy: 大风
+          windy-variant: 有风、多云
+          unknown: 未知
+          unavailable: 不可用
+        lawn_mower:
+          returning: 正在返回
+        update:
+          'off': 最新
+          'on': 可用更新
+        vacuum:
+          returning: 正在返回基座
+      domains:
+        air_quality: 空气质量
+        alarm_control_panel: 安防面板
+        automation: 自动化
+        binary_sensor: 二元传感器
+        button: 按钮
+        calendar: 日历
+        camera: 摄像头
+        climate: 温控
+        conversation: 对话
+        cover: 窗帘
+        date: 日期
+        datetime: 日期时间
+        device_tracker: 设备追踪
+        event: 事件
+        fan: 风扇
+        geo_location: 地理位置
+        group: 分组
+        humidifier: 加湿器
+        image: 图像
+        image_processing: 图像处理
+        input_boolean: 开关辅助
+        input_datetime: 日期时间辅助
+        input_number: 数值辅助
+        input_select: 下拉辅助
+        input_text: 文本辅助
+        light: 灯
+        lock: 锁
+        media_player: 媒体播放器
+        notify: 通知
+        number: 数值
+        person: 人员
+        remote: 遥控器
+        scene: 场景
+        script: 脚本
+        select: 选择器
+        sensor: 传感器
+        siren: 警报器
+        stt: 语音转文字
+        sun: 太阳
+        switch: 开关
+        text: 文本
+        time: 时间
+        todo: 待办
+        tts: 文字转语音
+        update: 更新
+        vacuum: 扫地机器人
+        valve: 阀门
+        water_heater: 热水器
+        weather: 天气
+        zone: 区域
     web-search:
       title: 网络搜索
       description: 让 AIRI 联网搜索最新信息

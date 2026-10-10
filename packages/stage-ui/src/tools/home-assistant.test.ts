@@ -1,4 +1,5 @@
 import type { HomeAssistantClient } from '../libs/home-assistant/client'
+import type { HomeAssistantExposure } from '../libs/home-assistant/exposure'
 
 import { describe, expect, it, vi } from 'vitest'
 
@@ -13,8 +14,16 @@ function createClient(overrides: Partial<HomeAssistantClient> = {}): HomeAssista
   }
 }
 
-async function tools(client: HomeAssistantClient, options?: { entityLimit?: number }) {
-  const created = await createHomeAssistantTools(client, options)
+const allow = (...entityIds: string[]): HomeAssistantExposure => ({ mode: 'allow', entityIds })
+const deny = (...entityIds: string[]): HomeAssistantExposure => ({ mode: 'deny', entityIds })
+
+async function tools(client: HomeAssistantClient, options?: { entityLimit?: number, exposure?: HomeAssistantExposure | (() => HomeAssistantExposure), readInstance?: () => Promise<string> }) {
+  const exposure = options?.exposure
+  const created = await createHomeAssistantTools(client, {
+    ...(options?.entityLimit === undefined ? {} : { entityLimit: options.entityLimit }),
+    ...(options?.readInstance === undefined ? {} : { readInstance: options.readInstance }),
+    ...(exposure === undefined ? {} : { exposure: typeof exposure === 'function' ? exposure : () => exposure }),
+  })
   return new Map(created.map(entry => [entry.function.name, entry]))
 }
 
@@ -121,23 +130,37 @@ describe('home assistant tools', () => {
       service: 'turn_on',
       entityId: 'light.kitchen',
       data: { brightness: 200 },
-    })
+    }, {})
     // Home Assistant answers with the states it changed. The model reads them back.
     expect(JSON.parse(result as string)).toEqual({ changed: [{ entityId: 'light.kitchen', state: 'on' }] })
   })
 
-  it('calls a service without a target entity or data', async () => {
+  it('calls a service on a script entity with no extra data', async () => {
     const callService = vi.fn(async () => [])
     const mounted = await tools(createClient({ callService }))
 
-    await execute(mounted.get('home_assistant_call_service'), { domain: 'script', service: 'good_night' })
+    await execute(mounted.get('home_assistant_call_service'), {
+      domain: 'script',
+      service: 'turn_on',
+      entity_id: 'script.good_night',
+    })
 
     expect(callService).toHaveBeenCalledWith({
       domain: 'script',
-      service: 'good_night',
-      entityId: undefined,
+      service: 'turn_on',
+      entityId: 'script.good_night',
       data: undefined,
-    })
+    }, {})
+  })
+
+  it('requires a target entity, so no call reaches a whole domain', async () => {
+    const mounted = await tools(createClient())
+
+    const parameters = mounted.get('home_assistant_call_service')?.function.parameters as {
+      required?: string[]
+    }
+
+    expect(parameters.required).toContain('entity_id')
   })
 
   it('rejects service data that is not a JSON object', async () => {
@@ -147,11 +170,13 @@ describe('home assistant tools', () => {
     await expect(execute(mounted.get('home_assistant_call_service'), {
       domain: 'light',
       service: 'turn_on',
+      entity_id: 'light.kitchen',
       data: 'not json',
     })).rejects.toThrow('data is not valid JSON')
     await expect(execute(mounted.get('home_assistant_call_service'), {
       domain: 'light',
       service: 'turn_on',
+      entity_id: 'light.kitchen',
       data: '[1,2]',
     })).rejects.toThrow('data must be a JSON object')
     // A malformed payload must never reach Home Assistant.
@@ -164,7 +189,8 @@ describe('home assistant tools', () => {
 
     const result = await execute(mounted.get('home_assistant_call_service'), {
       domain: 'script',
-      service: 'reload',
+      service: 'turn_on',
+      entity_id: 'script.good_night',
     })
 
     expect(JSON.parse(result as string)).toEqual({ changed: [] })
@@ -182,10 +208,309 @@ describe('home assistant tools', () => {
     const result = await execute(mounted.get('home_assistant_call_service'), {
       domain: 'light',
       service: 'turn_on',
+      entity_id: 'light.kitchen',
     })
 
     expect(JSON.parse(result as string)).toEqual({
       changed: [{ entityId: 'light.kitchen', state: 'on' }],
     })
+  })
+
+  it('hides a blocked device from a listing and reports how many it hid', async () => {
+    const client = createClient({
+      listEntities: vi.fn(async () => [
+        { entityId: 'light.kitchen', state: 'on', attributes: {} },
+        { entityId: 'lock.front_door', state: 'locked', attributes: {} },
+      ]),
+    })
+    const mounted = await tools(client, { exposure: allow('light.kitchen') })
+
+    const result = JSON.parse(await execute(mounted.get('home_assistant_list_entities'), {}) as string)
+
+    expect(result.entities).toEqual([{ entityId: 'light.kitchen', state: 'on' }])
+    expect(result.total).toBe(1)
+    // The model must know that the list is partial, or it reports that the user
+    // owns no lock.
+    expect(result.note).toContain('1 entity is not on the user\'s allow list')
+  })
+
+  it('reports the blocked list rather than the allow list under "deny"', async () => {
+    const client = createClient({
+      listEntities: vi.fn(async () => [
+        { entityId: 'light.kitchen', state: 'on', attributes: {} },
+        { entityId: 'lock.front_door', state: 'locked', attributes: {} },
+      ]),
+    })
+    const mounted = await tools(client, { exposure: deny('lock.front_door') })
+
+    const result = JSON.parse(await execute(mounted.get('home_assistant_list_entities'), {}) as string)
+
+    expect(result.entities.map((entry: { entityId: string }) => entry.entityId)).toEqual(['light.kitchen'])
+    expect(result.note).toContain('1 entity is on the user\'s blocked list')
+  })
+
+  it('treats a domain as a browse filter, not as a permission', async () => {
+    // A device the user blocked under one domain must not turn the whole domain
+    // into a refusal. Another device of that domain is still listed.
+    const client = createClient({
+      listEntities: vi.fn(async () => [
+        { entityId: 'light.kitchen', state: 'on', attributes: {} },
+        { entityId: 'light.hall', state: 'off', attributes: {} },
+      ]),
+    })
+    const mounted = await tools(client, { exposure: allow('light.hall') })
+
+    const result = JSON.parse(await execute(mounted.get('home_assistant_list_entities'), { domain: 'light' }) as string)
+
+    expect(result.entities).toEqual([{ entityId: 'light.hall', state: 'off' }])
+  })
+
+  it('returns nothing for a domain whose devices are all blocked', async () => {
+    const client = createClient({
+      listEntities: vi.fn(async () => [{ entityId: 'lock.front_door', state: 'locked', attributes: {} }]),
+    })
+    const mounted = await tools(client, { exposure: allow('light.kitchen') })
+
+    const result = JSON.parse(await execute(mounted.get('home_assistant_list_entities'), { domain: 'lock' }) as string)
+
+    expect(result.entities).toEqual([])
+    expect(result.note).toContain('not on the user\'s allow list')
+  })
+
+  it('counts what a domain call hid, not what the whole instance hid', async () => {
+    // A caller that reads the whole-instance count cannot tell a domain that
+    // holds only blocked devices from a domain that holds nothing.
+    const client = createClient({
+      listEntities: vi.fn(async () => [
+        { entityId: 'light.kitchen', state: 'on', attributes: {} },
+        { entityId: 'lock.front_door', state: 'locked', attributes: {} },
+        { entityId: 'cover.garage', state: 'closed', attributes: {} },
+      ]),
+    })
+    const mounted = await tools(client, { exposure: allow('light.kitchen') })
+
+    const locks = JSON.parse(await execute(mounted.get('home_assistant_list_entities'), { domain: 'lock' }) as string)
+    expect(locks.total).toBe(0)
+    expect(locks.note).toContain('1 entity is not on the user\'s allow list')
+
+    const everything = JSON.parse(await execute(mounted.get('home_assistant_list_entities'), {}) as string)
+    expect(everything.note).toContain('2 entities are not on the user\'s allow list')
+  })
+
+  it('refuses to read or control a device the user blocked', async () => {
+    const client = createClient({
+      getState: vi.fn(async () => ({ entityId: 'lock.front_door', state: 'locked', attributes: {} })),
+    })
+    const mounted = await tools(client, { exposure: deny('lock.front_door') })
+
+    await expect(execute(mounted.get('home_assistant_get_state'), { entity_id: 'lock.front_door' }))
+      .rejects
+      .toThrow('The user blocks this device')
+    await expect(execute(mounted.get('home_assistant_call_service'), {
+      domain: 'lock',
+      service: 'unlock',
+      entity_id: 'lock.front_door',
+    })).rejects.toThrow('The user blocks this device')
+
+    // A blocked call must never leave the process.
+    expect(client.getState).not.toHaveBeenCalled()
+    expect(client.callService).not.toHaveBeenCalled()
+  })
+
+  it('names the device when an allow list excludes it', async () => {
+    const mounted = await tools(createClient(), { exposure: allow('light.kitchen') })
+
+    await expect(execute(mounted.get('home_assistant_get_state'), { entity_id: 'light.hall' }))
+      .rejects
+      .toThrow('Entity "light.hall" is not available')
+  })
+
+  it('reaches a device the allow list names, and every device under "all"', async () => {
+    const hallService = vi.fn(async () => [])
+    const allowed = await tools(createClient({ callService: hallService }), { exposure: allow('light.hall') })
+
+    await execute(allowed.get('home_assistant_call_service'), {
+      domain: 'light',
+      service: 'turn_on',
+      entity_id: 'light.hall',
+    })
+    expect(hallService).toHaveBeenCalled()
+
+    const blocked = await tools(createClient({ callService: vi.fn(async () => []) }), { exposure: allow('light.kitchen') })
+    await expect(execute(blocked.get('home_assistant_call_service'), {
+      domain: 'light',
+      service: 'turn_on',
+      entity_id: 'light.hall',
+    })).rejects.toThrow('is not available')
+  })
+
+  it('states the policy in every tool description', async () => {
+    const allowing = await tools(createClient(), { exposure: allow('light.kitchen') })
+    for (const entry of allowing.values())
+      expect(entry.function.description).toContain('The user exposes only 1 chosen device.')
+
+    const denying = await tools(createClient(), { exposure: deny('lock.front_door', 'cover.garage') })
+    for (const entry of denying.values())
+      expect(entry.function.description).toContain('The user blocks 2 devices.')
+  })
+
+  it('refuses a script that names itself as the service', async () => {
+    // Measured on a test instance: POST /api/services/script/turn_on_bed ran the
+    // script while the body named an unrelated switch, so the entity check saw
+    // only the switch.
+    const callService = vi.fn(async () => [])
+    const mounted = await tools(createClient({ callService }))
+
+    await expect(execute(mounted.get('home_assistant_call_service'), {
+      domain: 'script',
+      service: 'turn_on_bed',
+      entity_id: 'light.kitchen',
+    })).rejects.toThrow('"script.turn_on_bed" is not one this integration runs')
+    expect(callService).not.toHaveBeenCalled()
+  })
+
+  it('refuses a service domain the list does not hold', async () => {
+    const callService = vi.fn(async () => [])
+    const mounted = await tools(createClient({ callService }))
+
+    await expect(execute(mounted.get('home_assistant_call_service'), {
+      domain: 'homeassistant',
+      service: 'restart',
+      entity_id: 'light.kitchen',
+    })).rejects.toThrow('"homeassistant.restart" is not one this integration runs')
+    expect(callService).not.toHaveBeenCalled()
+  })
+
+  it('names the services a domain accepts', async () => {
+    const mounted = await tools(createClient())
+
+    await expect(execute(mounted.get('home_assistant_call_service'), {
+      domain: 'light',
+      service: 'reload',
+      entity_id: 'light.kitchen',
+    })).rejects.toThrow('The "light" domain accepts: toggle, turn_off, turn_on.')
+  })
+
+  it('accepts the service of the device domain and the generic actuator', async () => {
+    const callService = vi.fn(async () => [])
+    const mounted = await tools(createClient({ callService }))
+
+    for (const [domain, service] of [['light', 'turn_on'], ['lock', 'unlock'], ['homeassistant', 'turn_off'], ['scene', 'turn_on']]) {
+      await expect(execute(mounted.get('home_assistant_call_service'), {
+        domain,
+        service,
+        entity_id: 'light.kitchen',
+      })).resolves.toBeDefined()
+    }
+
+    expect(callService).toHaveBeenCalledTimes(4)
+  })
+
+  it('reads the policy at the moment of the call, not when the tools mount', async () => {
+    // A model request holds these executors for the whole turn. A policy change
+    // during that turn must reach the calls the turn still makes.
+    let policy: HomeAssistantExposure = { mode: 'all' }
+    const callService = vi.fn(async () => [])
+    const client = createClient({
+      callService,
+      listEntities: vi.fn(async () => [{ entityId: 'light.kitchen', state: 'on', attributes: {} }]),
+    })
+    const mounted = await tools(client, { exposure: () => policy })
+
+    const before = JSON.parse(await execute(mounted.get('home_assistant_list_entities'), {}) as string)
+    expect(before.total).toBe(1)
+    await execute(mounted.get('home_assistant_call_service'), { domain: 'light', service: 'turn_on', entity_id: 'light.kitchen' })
+    expect(callService).toHaveBeenCalledTimes(1)
+
+    policy = { mode: 'deny', entityIds: ['light.kitchen'] }
+
+    const after = JSON.parse(await execute(mounted.get('home_assistant_list_entities'), {}) as string)
+    expect(after.total).toBe(0)
+    expect(after.note).toContain('blocked list')
+    await expect(execute(mounted.get('home_assistant_call_service'), { domain: 'light', service: 'turn_on', entity_id: 'light.kitchen' }))
+      .rejects
+      .toThrow('The user blocks this device')
+    expect(callService).toHaveBeenCalledTimes(1)
+  })
+
+  it('refuses a target that stands for several devices', async () => {
+    // Measured: light.turn_on on a group with two members changed both.
+    const callService = vi.fn(async () => [])
+    const client = createClient({
+      callService,
+      getState: vi.fn(async () => ({
+        entityId: 'group.all_lights',
+        state: 'on',
+        attributes: { entity_id: ['light.bed_light', 'light.kitchen_lights'] },
+      })),
+    })
+    const mounted = await tools(client)
+
+    await expect(execute(mounted.get('home_assistant_call_service'), {
+      domain: 'light',
+      service: 'turn_on',
+      entity_id: 'group.all_lights',
+    })).rejects.toThrow('is a group of other devices')
+    expect(callService).not.toHaveBeenCalled()
+  })
+
+  it('allows a scene, which carries a member list on purpose', async () => {
+    // Measured: scene.movie_night reports its members the way a group does.
+    const callService = vi.fn(async () => [])
+    const client = createClient({
+      callService,
+      getState: vi.fn(async () => ({
+        entityId: 'scene.movie_night',
+        state: 'unknown',
+        attributes: { entity_id: ['light.bed_light', 'light.kitchen_lights'] },
+      })),
+    })
+    const mounted = await tools(client)
+
+    await execute(mounted.get('home_assistant_call_service'), {
+      domain: 'scene',
+      service: 'turn_on',
+      entity_id: 'scene.movie_night',
+    })
+
+    expect(callService).toHaveBeenCalled()
+  })
+
+  it('blocks the device when the user blocks it during the target read', async () => {
+    // The read of the target takes a round trip, and the policy is read after it.
+    let policy: HomeAssistantExposure = { mode: 'all' }
+    const callService = vi.fn(async () => [])
+    const client = createClient({
+      callService,
+      getState: vi.fn(async () => {
+        policy = { mode: 'deny', entityIds: ['light.kitchen'] }
+        return { entityId: 'light.kitchen', state: 'on', attributes: {} }
+      }),
+    })
+    const mounted = await tools(client, { exposure: () => policy })
+
+    await expect(execute(mounted.get('home_assistant_call_service'), {
+      domain: 'light',
+      service: 'turn_on',
+      entity_id: 'light.kitchen',
+    })).rejects.toThrow('The user blocks this device')
+    expect(callService).not.toHaveBeenCalled()
+  })
+
+  it('pins the call to the instance it read the device on', async () => {
+    const callService = vi.fn(async () => [])
+    const client = createClient({ callService })
+    const mounted = await tools(client, { readInstance: async () => 'http://homeassistant.local:8123' })
+
+    await execute(mounted.get('home_assistant_call_service'), {
+      domain: 'light',
+      service: 'turn_on',
+      entity_id: 'light.kitchen',
+    })
+
+    expect(callService).toHaveBeenCalledWith(
+      expect.objectContaining({ entityId: 'light.kitchen' }),
+      { expectBaseUrl: 'http://homeassistant.local:8123' },
+    )
   })
 })

@@ -1,10 +1,15 @@
 import type { Tool } from '@xsai/shared-chat'
 
 import type { HomeAssistantClient, HomeAssistantEntity } from '../libs/home-assistant/client'
+import type { HomeAssistantExposure } from '../libs/home-assistant/exposure'
 
 import { errorMessageFrom } from '@moeru/std'
 import { tool } from '@xsai/tool'
 import { z } from 'zod'
+
+import { domainOf } from '../libs/home-assistant/client'
+import { allEntitiesExposure, assertEntityExposed, describeExposure, describeHidden, filterExposed } from '../libs/home-assistant/exposure'
+import { assertServiceAllowed, isGroupEntity } from '../libs/home-assistant/services'
 
 /**
  * Default cap on the entity list one lookup returns.
@@ -75,6 +80,10 @@ function parseServiceResponse(response: unknown) {
 /**
  * Builds the Home Assistant tools over one client.
  *
+ * The exposure policy is applied here, not in the client. The model reaches Home
+ * Assistant only through these tools, so this is where a blocked device stays
+ * out of reach and where a blocked call returns a message the model can act on.
+ *
  * Use when:
  * - A runtime owns a Home Assistant transport and exposes it to the model
  *
@@ -87,28 +96,60 @@ function parseServiceResponse(response: unknown) {
  */
 export async function createHomeAssistantTools(
   client: HomeAssistantClient,
-  options: { entityLimit?: number } = {},
+  options: {
+    entityLimit?: number
+    exposure?: () => HomeAssistantExposure
+    /**
+     * Reads the address the tools act on.
+     *
+     * A call that reads a device and then changes it pins the address it read,
+     * so the transport can refuse a request whose instance moved in between.
+     */
+    readInstance?: () => Promise<string>
+  } = {},
 ): Promise<Tool[]> {
   const entityLimit = Math.min(
     MAX_ENTITY_LIMIT,
     Math.max(MIN_ENTITY_LIMIT, options.entityLimit ?? DEFAULT_ENTITY_LIMIT),
   )
+  // The policy is read at the moment of each call. The settings page can change
+  // the list while a model request runs, and that request already holds these
+  // executors, so a captured value would let it reach a device the user blocked
+  // a moment ago.
+  const readExposure = () => options.exposure?.() ?? allEntitiesExposure
+
+  // Each description states the policy, because the model plans from the tool
+  // list alone. A hidden domain would otherwise cost a failed call to discover.
+  const policy = describeExposure(readExposure())
 
   // `tool()` converts the Zod schema to JSON Schema asynchronously, so it
   // resolves to the tool rather than returning one.
   return await Promise.all([
     tool({
       name: 'home_assistant_list_entities',
-      description: 'List Home Assistant entities and their current states. Call this first to find the entity_id for a device the user named (match by the "name" field). Pass a domain like "light" or "climate" to filter. Results are capped; use domain filtering on large installations.',
+      description: `List Home Assistant entities and their current states. Call this first to find the entity_id for a device the user named (match by the "name" field). Pass a domain like "light" or "climate" to browse one kind of device. Results are capped, so pass a domain on a large installation. ${policy}`,
       execute: async ({ domain }) => {
+        const exposure = readExposure()
         const entities = await client.listEntities()
-        const matching = domain ? entities.filter(entity => entity.entityId.startsWith(`${domain}.`)) : entities
-        const capped = matching.slice(0, entityLimit)
+        // The domain is a way to browse, not a permission. A domain the user
+        // blocked returns the rows it still holds, which can be none.
+        const scoped = domain ? entities.filter(entity => domainOf(entity.entityId) === domain) : entities
+        const visible = filterExposed(exposure, scoped)
+        const capped = visible.slice(0, entityLimit)
+        // A blocked device must not appear, but the count must. The count covers
+        // the rows this call could have returned, so a domain that holds only
+        // blocked devices does not read as a domain that holds nothing.
+        const hidden = describeHidden(exposure, scoped.length - visible.length)
+
+        const notes = [
+          ...(capped.length < visible.length ? [`Only the first ${capped.length} of ${visible.length} entities are shown. Pass a domain to narrow the list.`] : []),
+          ...(hidden ? [hidden] : []),
+        ]
 
         return JSON.stringify({
           count: capped.length,
-          total: matching.length,
-          ...(capped.length < matching.length ? { note: `Only the first ${capped.length} of ${matching.length} entities are shown. Pass a domain to narrow the list.` } : {}),
+          total: visible.length,
+          ...(notes.length ? { note: notes.join(' ') } : {}),
           entities: capped.map(toSummary),
         })
       },
@@ -118,8 +159,11 @@ export async function createHomeAssistantTools(
     }),
     tool({
       name: 'home_assistant_get_state',
-      description: 'Read the current state and attributes of one Home Assistant entity. Use this to answer questions about a device or check a value before changing it.',
+      description: `Read the current state and attributes of one Home Assistant entity. Use this to answer questions about a device or check a value before changing it. ${policy}`,
       execute: async ({ entity_id: entityId }) => {
+        const exposure = readExposure()
+        assertEntityExposed(exposure, entityId)
+
         const entity = await client.getState(entityId)
         return JSON.stringify({ ...toSummary(entity), attributes: entity.attributes })
       },
@@ -129,21 +173,45 @@ export async function createHomeAssistantTools(
     }),
     tool({
       name: 'home_assistant_call_service',
-      description: 'Call a Home Assistant service to control devices (turn on/off, set brightness, change temperature). Always list entities first to find the correct entity_id. Report the returned state changes to the user.',
+      description: `Call a Home Assistant service to control one device (turn on/off, set brightness, change temperature). Always list entities first to find the correct entity_id, then pass exactly one. Use the service of the device domain, for example light.turn_on for a light, or homeassistant.turn_on for any device. Report the returned state changes to the user. ${policy}`,
       execute: async ({ domain, service, entity_id: entityId, data }) => {
-        const response = await client.callService({
-          domain,
-          service,
-          entityId,
-          data: parseServiceData(data),
-        })
+        // A service that is its own target, such as a script named as the
+        // service, would run what the user never allowed. The list holds the
+        // services that act on the entity the caller named.
+        assertServiceAllowed(domain, service)
+
+        // Fail before the reads below, so a blocked device costs no request.
+        assertEntityExposed(readExposure(), entityId)
+
+        // The instance this call will reach, so the request can be pinned to it.
+        const instance = options.readInstance ? await options.readInstance() : undefined
+
+        // A service on a group reaches every member. Read the target first, so a
+        // call cannot change a device the policy never saw. A target Home
+        // Assistant cannot report fails the call, because nothing can be checked
+        // without it.
+        const target = await client.getState(entityId)
+        if (isGroupEntity(entityId, target.attributes))
+          throw new Error(`Entity "${entityId}" is a group of other devices. A service on it changes every member. Ask the user for one device by name, or list the entities and call the service on the member you need.`)
+
+        // The policy is read after every await, so a user who blocks the device
+        // while the reads above are in flight loses the call.
+        assertEntityExposed(readExposure(), entityId)
+
+        const response = await client.callService(
+          { domain, service, entityId, data: parseServiceData(data) },
+          instance === undefined ? {} : { expectBaseUrl: instance },
+        )
 
         return JSON.stringify({ changed: parseServiceResponse(response) })
       },
       parameters: z.object({
         domain: z.string().describe('Service domain, for example "light".'),
         service: z.string().describe('Service name, for example "turn_on".'),
-        entity_id: z.string().optional().describe('Target entity id. Omit it when the service targets a whole domain.'),
+        // Required on purpose. A call with no target reaches a whole domain at
+        // once, which is a larger action than the user asked for and one the
+        // exposure policy cannot check. The model calls the service per entity.
+        entity_id: z.string().describe('Target entity id, for example "light.living_room". Always pass one.'),
         // NOTICE: `data` is z.string() (JSON) because z.record() emits `propertyNames`,
         // which OpenAI rejects. The same reason appears beside builtIn_mcpCallTool.
         data: z.string().optional().describe('Extra service fields as a JSON object string, for example {"brightness": 200}.'),

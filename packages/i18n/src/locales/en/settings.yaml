@@ -1082,9 +1082,159 @@ pages:
         test: Test
       status:
         saved: Saved.
+        saved-cleared: Saved. The address changed, so the device lists are empty.
         testing: Testing the connection...
         reachable: 'Connected. Home Assistant reported {count} entities.'
         failed: 'Could not connect. {message}'
+      access:
+        label: Device access
+        description: Choose which devices AIRI reads and controls.
+        mode-all: Every device
+        mode-allow: Allow list
+        mode-deny: Block list
+        all-hint: AIRI reaches every device. Pick a list to limit it.
+        rule-allow: Only the devices you select are reachable.
+        rule-deny: Every device except the ones you select is reachable.
+        selected-count: '{count} selected'
+        empty-warning: Pick at least one device. AIRI reaches nothing until you do.
+        search: Search devices
+        reload: Reload devices
+        loading: Loading devices...
+        no-devices: Home Assistant reported no devices.
+        no-match: No device matches.
+        tab-all: All
+        shown-count: '{shown} of {total} devices'
+        select-shown: Select shown
+        clear-shown: Clear shown
+      states:
+        generic:
+          'on': 'On'
+          'off': 'Off'
+          above_horizon: Above horizon
+          armed: Armed
+          armed_away: Armed away
+          armed_custom_bypass: Armed custom bypass
+          armed_home: Armed home
+          armed_night: Armed night
+          armed_vacation: Armed vacation
+          arming: Arming
+          auto: Auto
+          below_horizon: Below horizon
+          buffering: Buffering
+          cleaning: Cleaning
+          clear-night: Clear, night
+          closed: Closed
+          closing: Closing
+          cloudy: Cloudy
+          cool: Cool
+          disarmed: Disarmed
+          disarming: Disarming
+          docked: Docked
+          dry: Dry
+          eco: Eco
+          electric: Electric
+          error: Error
+          exceptional: Exceptional
+          fan_only: Fan only
+          fog: Fog
+          gas: Gas
+          hail: Hail
+          heat: Heat
+          heat_cool: Heat/Cool
+          heat_pump: Heat pump
+          high_demand: High demand
+          home: Home
+          idle: Idle
+          jammed: Jammed
+          lightning: Lightning
+          lightning-rainy: Lightning, rainy
+          locked: Locked
+          locking: Locking
+          mowing: Mowing
+          not_home: Away
+          ok: OK
+          open: Open
+          opening: Opening
+          partlycloudy: Partly cloudy
+          paused: Paused
+          pending: Pending
+          performance: Performance
+          playing: Playing
+          pouring: Pouring
+          problem: Problem
+          rainy: Rainy
+          recording: Recording
+          snowy: Snowy
+          snowy-rainy: Snowy, rainy
+          standby: Standby
+          stopped: Stopped
+          streaming: Streaming
+          sunny: Sunny
+          triggered: Triggered
+          unlocked: Unlocked
+          unlocking: Unlocking
+          windy: Windy
+          windy-variant: Windy, cloudy
+          unknown: Unknown
+          unavailable: Unavailable
+        lawn_mower:
+          returning: Returning
+        update:
+          'off': Up-to-date
+          'on': Update available
+        vacuum:
+          returning: Returning to dock
+      domains:
+        air_quality: Air quality
+        alarm_control_panel: Alarm panel
+        automation: Automation
+        binary_sensor: Binary sensor
+        button: Button
+        calendar: Calendar
+        camera: Camera
+        climate: Climate
+        conversation: Conversation
+        cover: Cover
+        date: Date
+        datetime: Date and time
+        device_tracker: Device tracker
+        event: Event
+        fan: Fan
+        geo_location: Geolocation
+        group: Group
+        humidifier: Humidifier
+        image: Image
+        image_processing: Image processing
+        input_boolean: Toggle helper
+        input_datetime: Date and time helper
+        input_number: Number helper
+        input_select: Dropdown helper
+        input_text: Text helper
+        light: Light
+        lock: Lock
+        media_player: Media player
+        notify: Notification
+        number: Number
+        person: Person
+        remote: Remote
+        scene: Scene
+        script: Script
+        select: Select
+        sensor: Sensor
+        siren: Siren
+        stt: Speech to text
+        sun: Sun
+        switch: Switch
+        text: Text
+        time: Time
+        todo: To-do list
+        tts: Text to speech
+        update: Update
+        vacuum: Vacuum
+        valve: Valve
+        water_heater: Water heater
+        weather: Weather
+        zone: Zone
     web-search:
       title: Web Search
       description: Let AIRI search the web for current information
