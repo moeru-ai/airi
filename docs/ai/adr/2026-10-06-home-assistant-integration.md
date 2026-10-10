@@ -99,8 +99,10 @@ The main process owns the address and the token, in
 `home-assistant-v1.json` under the Electron user data directory. The renderer
 reads back the address and whether a token exists, and never the token.
 
-An empty token field in the settings page keeps the stored token, so a user can
-correct the address without pasting the secret again.
+An empty token field keeps the stored token. A token belongs to one instance, so
+a save that changes the address needs the token for the new address, and the main
+process refuses the save without one. An empty token field therefore keeps the
+secret only while the address stays.
 
 The token is stored in plain text. Every other settings file in this repository
 stores its secrets the same way, and no code here uses Electron `safeStorage`.

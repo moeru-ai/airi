@@ -69,8 +69,9 @@ onMounted(async () => {
 /**
  * Writes the form into the main process.
  *
- * An empty token field keeps the stored token, so the user can change the
- * address without pasting the secret again.
+ * An empty token field keeps the stored token, so a user can correct the address
+ * to the same value without pasting the secret again. A token belongs to one
+ * instance, so a save that changes the address needs a token for the new one.
  */
 async function save() {
   const saved = await setConfig({
