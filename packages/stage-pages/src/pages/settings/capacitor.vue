@@ -150,9 +150,11 @@ async function handleSubscribe(packageId: string) {
       message.value = { type: 'error', text: t('settings.pages.capacitor.checkout.canceled') }
       return
     }
+    // RevenueCat reports the entitlement before the webhook charges the wallet.
+    // The API reports a percent only after that charge.
     message.value = {
       type: 'success',
-      text: t(outcome === 'activated'
+      text: t(outcome === 'activated' && capacitorPercent.value != null
         ? 'settings.pages.capacitor.checkout.success'
         : 'settings.pages.capacitor.checkout.pending'),
     }
