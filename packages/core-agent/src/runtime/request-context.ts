@@ -20,8 +20,11 @@ export function modelKey(model: string, { protocol, config }: GenerationRequest)
   return `${protocol === 'responses' ? 'responses:' : ''}${config.baseURL}-${model}`
 }
 
-/** Applies a caller override before the learned tool compatibility for this exact model request. */
+/** Applies the generation tool policy before capability overrides and learned model compatibility. */
 export function supportsTools(model: string, request: GenerationRequest, options?: StreamOptions): boolean {
+  if (options?.toolsEnabled === false)
+    return false
+
   return options?.supportsTools ?? (options?.toolsCompatibility?.get(modelKey(model, request)) !== false)
 }
 
