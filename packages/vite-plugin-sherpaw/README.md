@@ -61,6 +61,8 @@ The option wins over the variable. A trailing slash is accepted either way.
 
 The endpoint covers both downloads and the URL that a remote model keeps at runtime. Artifact paths keep the pinned `moeru-ai` repository and revision, so a mirror only has to serve the same layout.
 
+A host that downloads remote models outside Vite calls `resolveModelEndpoint` to get the same base URL. Stage Tamagotchi uses it for downloads in the Electron main process.
+
 All presets use published data and metadata pairs from pinned Hugging Face revisions in the `moeru-ai` repositories.
 The plugin copies these pairs without repacking ONNX files. Model licenses remain those of their source repositories.
 

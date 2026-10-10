@@ -32,7 +32,7 @@ vi.hoisted(() => {
 const ioTracerMocks = vi.hoisted(() => {
   const activeTurnSpan = { value: undefined as any }
   const spans: any[] = []
-  const startSpanMock = vi.fn((name: string) => {
+  const startSpanMock = vi.fn((name: string, _parent?: unknown) => {
     const span = {
       name,
       addEvent: vi.fn(),
@@ -80,12 +80,13 @@ const getChatProviderInstanceMock = vi.fn()
 const getToolsByNamesMock = vi.fn<(names: string[]) => Tool[]>()
 const visionMocks = vi.hoisted(() => ({ configured: false, model: 'system', runInference: vi.fn(), useForToolImages: true }))
 /** A catalog model can omit its abilities, as most provider catalogs do. */
-interface CatalogModel { id: string, metadata: { abilities?: { vision: boolean } } }
+interface CatalogModel { id: string, inputModalities?: string[], metadata: { abilities?: { vision: boolean } } }
 const consciousnessModels = vi.hoisted(() => ({ value: [{ id: 'gpt-test', metadata: { abilities: { vision: false } } }] as CatalogModel[] }))
 
 const activeSessionIdRef = ref('session-1')
 const activeProviderRef = ref('mock-provider')
 const cardSelections = new Map<string, { provider: string, model: string }>()
+const sessionSystemPrompts = new Map<string, string>()
 const activeModelRef = ref('gpt-test')
 const chatReadyRef = computed(() => !!activeProviderRef.value && !!activeModelRef.value)
 const streamingMessageRef = ref<any>({ role: 'assistant', content: '', slices: [], tool_results: [] })
@@ -155,6 +156,8 @@ vi.mock('./chat/context-store', () => ({
 }))
 
 // IndexedDB is a browser boundary. Browser tests exercise the real sticker repository.
+vi.mock('../database/repos/chat-assets.repo')
+
 vi.mock('../database/repos/stickers.repo', () => ({
   stickersRepo: { read: async () => ({ records: [], images: [] }) },
 }))
@@ -204,6 +207,7 @@ vi.mock('./chat/session-store', () => ({
     },
     sessionMetas: { 'session-1': { characterId: 'alice' }, 'session-2': { characterId: 'bob' }, 'session-b': { characterId: 'bob' }, 'session-forked': { characterId: 'alice' } },
     getSessionMessages: (sessionId: string) => sessionMessages[sessionId] ?? [],
+    getSessionSystemPrompt: (sessionId: string) => sessionSystemPrompts.get(sessionId) ?? 'system prompt',
     getSessionMessagesIfLoaded: (sessionId: string) => sessionMessages[sessionId],
     loadSession: loadSessionMock,
     deleteSession: deleteSessionMock,
@@ -364,6 +368,7 @@ describe('chat store contract', () => {
     activeSessionIdRef.value = 'session-1'
     activeProviderRef.value = 'mock-provider'
     cardSelections.clear()
+    sessionSystemPrompts.clear()
     streamingMessageRef.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
     currentGeneration = 1
 
@@ -388,7 +393,9 @@ describe('chat store contract', () => {
   })
 
   it('waits for the transcript of a submitted voice message instead of transcribing the file', async () => {
-    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+    const requests: Conversation[] = []
+    llmStreamMock.mockImplementation(async (model: string, chatProvider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
+      requests.push(await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model) }))
       await options.onStreamEvent?.({ type: 'finish' })
     })
     const store = useChatStore()
@@ -407,9 +414,8 @@ describe('chat store contract', () => {
 
     await store.settleAudioTranscript({ sessionId: 'session-1', messageId: 'voice-1', transcript: 'hello there' })
 
-    await vi.waitFor(() => expect(llmStreamMock).toHaveBeenCalledTimes(1))
-    const context = llmStreamMock.mock.calls[0]![2] as Conversation
-    expect(context.turns.findLast(turn => turn.type === 'user')).toMatchObject({
+    await vi.waitFor(() => expect(requests).toHaveLength(1))
+    expect(requests[0].turns.findLast(turn => turn.type === 'user')).toMatchObject({
       content: expect.arrayContaining([{ type: 'text', text: 'hello there' }]),
     })
     expect(sessionMessages['session-1'].find(message => message.id === 'voice-1')?.audioTranscripts).toEqual(['hello there'])
@@ -432,7 +438,7 @@ describe('chat store contract', () => {
     expect(llmStreamMock).not.toHaveBeenCalled()
   })
 
-  it('uses the active provider for a text send to another session', async () => {
+  it('uses the target character settings for a text send to another session', async () => {
     cardSelections.set('bob', { provider: 'bob-provider', model: 'bob-model' })
     llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
       await options.onStreamEvent?.({ type: 'finish' })
@@ -440,9 +446,103 @@ describe('chat store contract', () => {
     const store = useChatStore()
     await store.send({ sessionId: 'session-2', text: 'For Bob' })
 
-    expect(getChatProviderInstanceMock).toHaveBeenCalledWith('mock-provider', { reasoning: 'disabled' })
-    expect(llmStreamMock.mock.calls[0]?.[0]).toBe('gpt-test')
+    expect(getChatProviderInstanceMock).toHaveBeenCalledWith('bob-provider', { reasoning: 'disabled' })
+    expect(getChatProviderInstanceMock).not.toHaveBeenCalledWith('mock-provider', expect.anything())
+    expect(llmStreamMock.mock.calls[0]?.[0]).toBe('bob-model')
     expect(activeSessionIdRef.value).toBe('session-1')
+  })
+
+  it('keeps a queued typed turn on its session character after the active card changes', async () => {
+    cardSelections.set('alice', { provider: 'alice-provider', model: 'alice-model' })
+    const firstStream = Promise.withResolvers<void>()
+    const steps: Array<{ model: string, providerId: string }> = []
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
+      if (llmStreamMock.mock.calls.length === 1)
+        await firstStream.promise
+      const step = await options.resolveStep!()
+      steps.push({ model: step.model, providerId: step.providerId })
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    const store = useChatStore()
+    const first = store.send({ sessionId: 'session-1', text: 'First' })
+    await vi.waitFor(() => expect(llmStreamMock).toHaveBeenCalledOnce())
+    const queued = store.send({ sessionId: 'session-1', text: 'Queued' })
+    await vi.waitFor(() => expect(store.pendingQueuedSendCount).toBe(1))
+
+    // Selecting another card writes its selection into the active consciousness settings.
+    activeProviderRef.value = 'selected-card-provider'
+    activeModelRef.value = 'selected-card-model'
+    try {
+      firstStream.resolve()
+      await Promise.all([first, queued])
+    }
+    finally {
+      activeModelRef.value = 'gpt-test'
+    }
+
+    expect(llmStreamMock.mock.calls[1]?.[0]).toBe('alice-model')
+    expect(steps).toEqual([
+      { model: 'alice-model', providerId: 'alice-provider' },
+      { model: 'alice-model', providerId: 'alice-provider' },
+    ])
+    expect(getChatProviderInstanceMock).not.toHaveBeenCalledWith('selected-card-provider', expect.anything())
+  })
+
+  it('reads the session character settings and prompt again before each model step', async () => {
+    cardSelections.set('alice', { provider: 'alice-provider', model: 'alice-model' })
+    sessionSystemPrompts.set('session-1', 'Alice prompt')
+    const steps: Awaited<ReturnType<NonNullable<StreamOptions['resolveStep']>>>[] = []
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
+      steps.push(await options.resolveStep!())
+      // A tool round edits the character before the next model request.
+      cardSelections.set('alice', { provider: 'official-provider', model: 'chat-auto' })
+      sessionSystemPrompts.set('session-1', 'Edited Alice prompt')
+      steps.push(await options.resolveStep!())
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    const store = useChatStore()
+    await store.send({ sessionId: 'session-1', text: 'Use a tool' })
+
+    expect(steps[0]).toMatchObject({ model: 'alice-model', providerId: 'alice-provider', systemPrompt: 'Alice prompt\n\nPlugin toolset guidance.' })
+    expect(steps[0]?.headers).not.toHaveProperty(AIRI_CHAT_SESSION_ID_HEADER)
+    expect(steps[1]).toMatchObject({ model: 'chat-auto', providerId: 'official-provider', systemPrompt: 'Edited Alice prompt\n\nPlugin toolset guidance.' })
+    expect(steps[1]?.headers).toMatchObject({
+      [AIRI_CHAT_SESSION_ID_HEADER]: 'session-1',
+      [AIRI_CHAT_ROUND_ID_HEADER]: expect.any(String),
+    })
+    expect(getChatProviderInstanceMock).toHaveBeenLastCalledWith('official-provider', { reasoning: 'disabled' })
+  })
+
+  it('projects stored audio again when a tool step changes to a text-only model', async () => {
+    cardSelections.set('alice', { provider: 'mock-provider', model: 'audio-model' })
+    consciousnessModels.value = [
+      { id: 'audio-model', inputModalities: ['text', 'audio'], metadata: {} },
+      { id: 'text-model', inputModalities: ['text'], metadata: {} },
+    ]
+    const requests: Conversation[] = []
+    llmStreamMock.mockImplementation(async (model: string, chatProvider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
+      requests.push(await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model) }))
+      // Core passes a new conversation with the completed tool round after a scope change.
+      const continued: Conversation = { turns: [...context.turns] }
+      requests.push(await options.prepareConversation!(continued, { model: 'text-model', providerId: 'mock-provider', request: chatProvider.generation('text-model') }))
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    const store = useChatStore()
+    await store.send({
+      sessionId: 'session-1',
+      text: '',
+      attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'UklGRg==', transcript: 'spoken words' }],
+    })
+
+    expect(requests[0]?.turns.findLast(turn => turn.type === 'user')?.content).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'audio' }),
+    ]))
+    expect(requests[1]?.turns.findLast(turn => turn.type === 'user')?.content).toEqual(expect.arrayContaining([
+      { type: 'text', text: 'spoken words' },
+    ]))
+    expect(requests[1]?.turns.findLast(turn => turn.type === 'user')?.content).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'audio' }),
+    ]))
   })
 
   it('uses the target character settings for a voice submission', async () => {
@@ -507,11 +607,16 @@ describe('chat store contract', () => {
     const store = useChatStore()
     await store.retry({ sessionId: 'session-1', index: 2 })
 
+    // The retried turn stores the image as an asset reference. The provider still receives its bytes.
     const retried = sessionMessages['session-1'].findLast(message => message.role === 'user')
     expect(retried.content).toEqual([
       { type: 'text', text: 'What is this?' },
-      { type: 'image_url', image_url: { url: 'data:image/png;base64,aW1hZ2U=' } },
+      { type: 'image_url', image_url: { url: expect.stringMatching(/^airi-asset:[0-9a-f]{64}$/) } },
     ])
+    const context = llmStreamMock.mock.calls.at(-1)![2] as Conversation
+    expect(context.turns.findLast(turn => turn.type === 'user')).toMatchObject({
+      content: expect.arrayContaining([expect.objectContaining({ type: 'image', url: 'data:image/png;base64,aW1hZ2U=' })]),
+    })
   })
 
   // ROOT CAUSE:
@@ -1500,6 +1605,41 @@ describe('chat store contract', () => {
     await send
 
     expect(turnSpan.end).toHaveBeenCalledTimes(1)
+    expect(ioTracerMocks.activeTurnSpan.value).toBeUndefined()
+  })
+
+  it('keeps a separate interaction turn span for each concurrent session', async () => {
+    const releases = new Map<string, () => void>()
+    const llmParents = new Map<string, { name: string, end: ReturnType<typeof vi.fn> }>()
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
+      const sessionId = options.requestCorrelation!.conversationId
+      // The LLM span starts synchronously before the stream call, so it is the latest span.
+      llmParents.set(sessionId, ioTracerMocks.startSpanMock.mock.calls.at(-1)![1] as { name: string, end: ReturnType<typeof vi.fn> })
+      await new Promise<void>(resolve => releases.set(sessionId, resolve))
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    const store = useChatStore()
+    const alice = store.send({ sessionId: 'session-1', text: 'For Alice' })
+    const bob = store.send({ sessionId: 'session-2', text: 'For Bob' })
+    await vi.waitFor(() => expect(releases.size).toBe(2))
+
+    const aliceTurn = llmParents.get('session-1')
+    const bobTurn = llmParents.get('session-2')
+    expect(aliceTurn?.name).toBe(IOSpanNames.InteractionTurn)
+    expect(bobTurn?.name).toBe(IOSpanNames.InteractionTurn)
+    expect(aliceTurn).not.toBe(bobTurn)
+
+    releases.get('session-2')!()
+    await bob
+
+    expect(bobTurn?.end).toHaveBeenCalledOnce()
+    expect(aliceTurn?.end).not.toHaveBeenCalled()
+    expect(ioTracerMocks.activeTurnSpan.value).toBe(aliceTurn)
+
+    releases.get('session-1')!()
+    await alice
+
+    expect(aliceTurn?.end).toHaveBeenCalledOnce()
     expect(ioTracerMocks.activeTurnSpan.value).toBeUndefined()
   })
 

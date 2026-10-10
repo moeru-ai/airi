@@ -108,16 +108,20 @@ function hasAssistantOutput(message: StreamingAssistantMessage) {
     || !!message.categorization?.reasoning.trim()
 }
 
-/** Encoded attachments belong to one user message. Media capture and storage stay outside chat orchestration. */
+/**
+ * Attachments belong to one user message. Media capture and storage stay outside chat orchestration.
+ *
+ * `data` holds base64 bytes. `url` holds a reference that the application stores in the message as it is,
+ * such as an asset URL, and resolves before provider rendering.
+ */
 export type ChatAttachment
-  = { type: 'image', data: string, mimeType: string }
-    | {
+  = ({ type: 'image' } & ({ data: string, mimeType: string, url?: never } | { url: string, mimeType?: string, data?: never }))
+    | ({
       type: 'audio'
-      data: string
       mimeType: 'audio/wav' | 'audio/mpeg'
       /** Speech recognized while the recording was captured. Text-only models receive it instead of the audio. */
       transcript?: string
-    }
+    } & ({ data: string, url?: never } | { url: string, data?: never }))
 
 /** Options accepted by the chat orchestrator runtime for one user send. */
 export interface ChatOrchestratorSendOptions {
@@ -144,6 +148,12 @@ export interface ChatOrchestratorSendOptions {
   attachments?: ChatAttachment[]
   /** Tool definitions passed through to the LLM stream port. */
   tools?: StreamOptions['tools']
+  /**
+   * Reads the current settings of the request owner before each model request.
+   * The runtime appends this request's system prompt supplement to the returned prompt.
+   * Omission keeps `model`, `chatProvider`, and the composed system prompt for every step.
+   */
+  resolveStep?: StreamOptions['resolveStep']
   /** Serializable tool names stored with the user message for later requests. */
   toolReferences?: ChatToolReference[]
   /** Original transport input metadata used by bridge/devtools observers. */
@@ -692,13 +702,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (options.attachments) {
         for (const attachment of options.attachments) {
           if (attachment.type === 'audio') {
-            contentParts.push({ type: 'input_audio', input_audio: { data: attachment.data, format: attachment.mimeType === 'audio/wav' ? 'wav' : 'mp3' } })
+            contentParts.push({ type: 'input_audio', input_audio: { data: attachment.url ?? attachment.data, format: attachment.mimeType === 'audio/wav' ? 'wav' : 'mp3' } })
           }
           if (attachment.type === 'image') {
             contentParts.push({
               type: 'image_url',
               image_url: {
-                url: `data:${attachment.mimeType};base64,${attachment.data}`,
+                url: attachment.url ?? `data:${attachment.mimeType};base64,${attachment.data}`,
               },
             })
           }
@@ -924,9 +934,17 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         hasVoice,
       })
 
+      const resolveOwnerStep = options.resolveStep
       await waitForProvider(deps.llm.stream(options.model, options.chatProvider, context, {
         headers,
         providerId: activeProvider,
+        // A resolved prompt replaces the composed system message, so it must carry the same supplement.
+        resolveStep: resolveOwnerStep
+          ? async () => {
+            const step = await resolveOwnerStep()
+            return { ...step, systemPrompt: [step.systemPrompt, systemPromptSupplement].filter(Boolean).join('\n\n') }
+          }
+          : undefined,
         supportsAudioInput: options.supportsAudioInput,
         supportsVisionInput: options.supportsVisionInput,
         abortSignal,

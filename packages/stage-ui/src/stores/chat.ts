@@ -1,5 +1,5 @@
 import type { ChatAttachment, ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, Conversation, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
-import type { GenerationProvider } from '@proj-airi/provider-inference'
+import type { GenerationProvider, GenerationRequest } from '@proj-airi/provider-inference'
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
 import type { Message } from '@xsai/shared-chat'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
@@ -23,6 +23,7 @@ import { useAiriRuntimePrompt } from '../composables/use-airi-runtime-prompt'
 import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
 import { useChatVision } from '../composables/vision/use-chat-vision'
 import { useVisionInference } from '../composables/vision/use-vision-inference'
+import { chatAssetIdFrom, inlineConversationAssets, storeChatAttachments } from '../libs/chat-assets'
 import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
 import { createChatAnalyticsHooks, getProviderMode } from '../libs/product-signals/events/chat'
 import {
@@ -137,6 +138,11 @@ function waitWithSignal<T>(promise: Promise<T>, signal: AbortSignal) {
   })
 }
 
+/** Whether a consciousness selection can send. The `prompt-api` provider runs without a selected model. */
+function isChatSelectionReady(providerId: string, modelId: string) {
+  return !!providerId && (!!modelId || providerId === 'prompt-api')
+}
+
 function retryContentFrom(message: ChatHistoryItem | undefined): Pick<ChatSendPayload, 'attachments' | 'text'> | null {
   if (!message || message.role !== 'user')
     return null
@@ -161,11 +167,17 @@ function retryContentFrom(message: ChatHistoryItem | undefined): Pick<ChatSendPa
   }, []).join('\n\n')
 
   const attachments = message.content.flatMap((part): ChatAttachment[] => {
-    if (part.type === 'input_audio')
-      return [{ type: 'audio', data: part.input_audio.data, mimeType: part.input_audio.format === 'wav' ? 'audio/wav' : 'audio/mpeg' }]
+    if (part.type === 'input_audio') {
+      const mimeType = part.input_audio.format === 'wav' ? 'audio/wav' : 'audio/mpeg'
+      return [chatAssetIdFrom(part.input_audio.data)
+        ? { type: 'audio', url: part.input_audio.data, mimeType }
+        : { type: 'audio', data: part.input_audio.data, mimeType }]
+    }
     if (part.type !== 'image_url')
       return []
 
+    if (chatAssetIdFrom(part.image_url.url))
+      return [{ type: 'image', url: part.image_url.url }]
     const match = /^data:([^;,]+);base64,(.+)$/.exec(part.image_url.url)
     return match ? [{ type: 'image' as const, mimeType: match[1], data: match[2] }] : []
   })
@@ -218,7 +230,7 @@ export const useChatStore = defineStore('chat', () => {
   const consciousnessStore = useConsciousnessStore()
   const chatVision = useChatVision()
   const artistryAutonomousStore = useAutonomousArtistryStore()
-  const { activeProvider, activeModel, chatReady } = storeToRefs(consciousnessStore)
+  const { activeProvider, activeModel } = storeToRefs(consciousnessStore)
   const chatSession = useChatSessionStore()
   const chatStream = useChatStreamStore()
   const chatContext = useChatContextStore()
@@ -233,7 +245,11 @@ export const useChatStore = defineStore('chat', () => {
   const activeSendSessionId = shallowRef<string>()
   const activeStreamingMessage = computed(() => chatStream.activeTurns.find(turn => turn.sessionId === activeSendSessionId.value)?.message)
   const pendingQueuedSendCount = shallowRef(0)
-  let ownedActiveTurnSpan: typeof activeTurnSpan.value
+  /**
+   * Interaction turn spans that this store started, keyed by `JSON.stringify([sessionId, turnId])`.
+   * Concurrent sessions each own one trace. `onSendSettled` ends the span of its own turn only.
+   */
+  const ownedTurnSpans = new Map<string, NonNullable<typeof activeTurnSpan.value>>()
   let stopLeadershipListener: (() => void) | undefined
   const analyticsHooks = createChatAnalyticsHooks({
     getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId),
@@ -280,6 +296,14 @@ export const useChatStore = defineStore('chat', () => {
   /** Turns that a voice message without speech removed. Their cancellation is not reported as a send error. */
   const droppedTurns = new Set<string>()
 
+  /** Audio input reaches only Chat Completions models whose catalog entry lists audio input. Other requests get transcripts. */
+  async function supportsAudioInput(providerId: string, modelId: string, request: GenerationRequest) {
+    if (request.protocol !== 'chat-completions')
+      return false
+    const model = (await consciousnessStore.getModelsForProvider(providerId)).find(model => model.id === modelId)
+    return model?.inputModalities?.includes('audio') === true
+  }
+
   function failedImageReadsOf(sessionId: string) {
     let reads = failedImageReads.get(sessionId)
     if (!reads) {
@@ -298,26 +322,39 @@ export const useChatStore = defineStore('chat', () => {
     let llmTextLength = 0
     let llmOutputChunkCount = 0
     const llmOutputChunkLengths: number[] = []
-    const headers = { ...options?.headers }
-
-    if (getProviderMode(options?.providerId ?? activeProvider.value) === 'official' && options?.requestCorrelation) {
-      headers[AIRI_CHAT_SESSION_ID_HEADER] = options.requestCorrelation.conversationId
-      headers[AIRI_CHAT_ROUND_ID_HEADER] = options.requestCorrelation.turnId
-      headers[AIRI_CHAT_APP_SURFACE_HEADER] = getConversationAnalyticsSurface()
+    // Analytics correlation goes only to the official provider. A resolved step can change the provider, so each request rebuilds it.
+    function requestHeaders(providerId: string | undefined) {
+      const headers = { ...options?.headers }
+      if (getProviderMode(providerId ?? activeProvider.value) === 'official' && options?.requestCorrelation) {
+        headers[AIRI_CHAT_SESSION_ID_HEADER] = options.requestCorrelation.conversationId
+        headers[AIRI_CHAT_ROUND_ID_HEADER] = options.requestCorrelation.turnId
+        headers[AIRI_CHAT_APP_SURFACE_HEADER] = getConversationAnalyticsSurface()
+      }
+      return headers
     }
 
-    const hadExistingTurn = !!activeTurnSpan.value
-    if (!hadExistingTurn) {
-      const turnSpan = startSpan(IOSpanNames.InteractionTurn)
+    // The runtime always correlates its turns. A call without correlation has no settle event, so it starts no turn span.
+    const turnKey = options?.requestCorrelation
+      ? JSON.stringify([options.requestCorrelation.conversationId, options.requestCorrelation.turnId])
+      : undefined
+    let turnSpan = turnKey ? ownedTurnSpans.get(turnKey) : activeTurnSpan.value
+    if (!turnSpan && turnKey) {
+      turnSpan = startSpan(IOSpanNames.InteractionTurn)
+      ownedTurnSpans.set(turnKey, turnSpan)
+    }
+    // Speech recognition, speech output, and streaming control attach to the most recently started turn.
+    if (turnSpan)
       activeTurnSpan.value = turnSpan
-      ownedActiveTurnSpan = turnSpan
-    }
+
+    // Stored messages reference their images and recordings. The provider request carries the bytes.
+    context = await inlineConversationAssets(context)
 
     const visionStore = useVisionStore()
     // NOTICE:
-    // These decisions read the model of the first step and hold for the stream.
-    // `resolveStep` (#2709) can change the model between steps, and no stage-ui
-    // caller uses it yet. Decide for each step when one does.
+    // These image decisions read the model of the first step and hold for the stream.
+    // `resolveStep` (#2709) can change the model between steps. Audio follows each step
+    // through `prepareConversation`, but image reading runs once before the stream.
+    // Move image projection into `prepareConversation` to decide it for each step.
     const describeToolImage = chatVision.toolImageReader(model, options?.abortSignal)
     // The vision model reads new tool images, so stored ones follow the same
     // decision. Without a reader, stored tool images replay as they are.
@@ -443,14 +480,18 @@ export const useChatStore = defineStore('chat', () => {
       return projected
     }
 
-    if (!options?.supportsAudioInput)
-      providerContext = await prepareTextOnlyAudioContext(providerContext)
+    // The first request is projected before the LLM span starts, so transcription time stays outside model latency.
+    // Its transcripts are stored, so a later projection for another model reuses them.
+    const initialProjection = options?.supportsAudioInput ? providerContext : await prepareTextOnlyAudioContext(providerContext)
+    const isInitialTarget = (target: { model: string, providerId?: string }) => target.model === model && target.providerId === options?.providerId
 
-    const providerMessages = renderConversationPreview(providerContext)
+    const providerMessages = renderConversationPreview(initialProjection)
     if (options?.requestCorrelation?.conversationId)
       contextObservability.captureProviderPromptProjection(options.requestCorrelation.conversationId, providerMessages)
 
-    const llmSpan = startSpan(IOSpanNames.LLMInference, activeTurnSpan.value, {
+    const resolveStep = options?.resolveStep
+
+    const llmSpan = startSpan(IOSpanNames.LLMInference, turnSpan, {
       [IOAttributes.Subsystem]: IOSubsystems.LLM,
       [IOAttributes.GenAIRequestModel]: model,
       [IOAttributes.LLMInputMessageCount]: providerMessages.length,
@@ -465,7 +506,25 @@ export const useChatStore = defineStore('chat', () => {
       await llmStore.stream(model, chatProvider, providerContext, {
         ...options,
         prepareStringContent: prepareTextOnlyAudioContext,
-        headers,
+        headers: requestHeaders(options?.providerId),
+        resolveStep: resolveStep
+          ? async () => {
+            const step = await resolveStep()
+            return { ...step, headers: requestHeaders(step.providerId) }
+          }
+          : undefined,
+        // Audio projection follows the model of each request. A tool step can switch between audio and text models.
+        prepareConversation: async (conversation, target) => {
+          if (conversation === providerContext && isInitialTarget(target))
+            return initialProjection
+          if (target.providerId && await supportsAudioInput(target.providerId, target.model, target.request))
+            return conversation
+
+          const projected = await prepareTextOnlyAudioContext(conversation)
+          if (projected !== conversation && options?.requestCorrelation?.conversationId)
+            contextObservability.captureProviderPromptProjection(options.requestCorrelation.conversationId, renderConversationPreview(projected))
+          return projected
+        },
         describeToolImage,
         onStreamEvent: async (event: StreamEvent) => {
           if (isTextDelta(event)) {
@@ -503,14 +562,23 @@ export const useChatStore = defineStore('chat', () => {
     pendingQueuedSendCount.value = state.pendingQueuedSendCount
   }
 
-  function settleOwnedActiveTurnSpan() {
-    if (!ownedActiveTurnSpan)
+  function settleOwnedTurnSpan(turn: { sessionId: string, turnId: string }) {
+    const key = JSON.stringify([turn.sessionId, turn.turnId])
+    const span = ownedTurnSpans.get(key)
+    if (!span)
       return
 
-    ownedActiveTurnSpan.end()
-    if (activeTurnSpan.value === ownedActiveTurnSpan)
-      activeTurnSpan.value = undefined
-    ownedActiveTurnSpan = undefined
+    span.end()
+    ownedTurnSpans.delete(key)
+    // Another session can still generate. Its turn becomes the active one again.
+    if (activeTurnSpan.value === span)
+      activeTurnSpan.value = [...ownedTurnSpans.values()].at(-1)
+  }
+
+  /** The character that owns a session. A queued turn keeps it when another window selects a different card. */
+  function sessionCard(sessionId: string) {
+    const characterId = chatSession.sessionMetas[sessionId]?.characterId
+    return characterId ? cardStore.getCard(characterId) : undefined
   }
 
   function getImageDescription(sessionId: string, turnId: string, imageIndex: number) {
@@ -581,7 +649,7 @@ export const useChatStore = defineStore('chat', () => {
     unwrapMessage: message => toRaw(message),
     onStateChange: syncRuntimeState,
     onSendSettled: (event) => {
-      settleOwnedActiveTurnSpan()
+      settleOwnedTurnSpan(event)
       getSpeechBusContext().emit(voiceGenerationEnded, event)
     },
     ...analyticsHooks,
@@ -617,13 +685,13 @@ export const useChatStore = defineStore('chat', () => {
         })
       }
     },
-    onUserTurnReady: ({ messageText, sessionMessages }) => {
-      const autonomousTarget = cardStore.activeCard?.extensions?.airi?.modules?.artistry?.autonomousTarget || 'user'
+    onUserTurnReady: ({ sessionId, messageText, sessionMessages }) => {
+      const autonomousTarget = sessionCard(sessionId)?.extensions?.airi?.modules?.artistry?.autonomousTarget || 'user'
       if (autonomousTarget === 'user')
         void artistryAutonomousStore.runArtistTask(messageText, toProviderHistory(sessionMessages))
     },
-    onAssistantTurnReady: ({ messageText, sessionMessages }) => {
-      const artistry = cardStore.activeCard?.extensions?.airi?.modules?.artistry
+    onAssistantTurnReady: ({ sessionId, messageText, sessionMessages }) => {
+      const artistry = sessionCard(sessionId)?.extensions?.airi?.modules?.artistry
       if (artistry?.autonomousEnabled && artistry?.autonomousTarget === 'assistant')
         void artistryAutonomousStore.runArtistTask(messageText, toProviderHistory(sessionMessages))
     },
@@ -751,17 +819,13 @@ export const useChatStore = defineStore('chat', () => {
 
     signal.throwIfAborted()
 
-    let providerId = activeProvider.value
-    let modelId = activeModel.value
-    if (voice) {
-      const characterId = chatSession.sessionMetas[payload.sessionId]?.characterId
-      if (!characterId)
-        throw new Error('The target session has no character')
+    // Typed and voice turns use the character that owns the session, not the selected card.
+    // Selecting another card while this turn waits in the queue cannot redirect it.
+    const characterId = chatSession.sessionMetas[payload.sessionId]?.characterId
+    if (!characterId)
+      throw new Error('The target session has no character')
 
-      const selection = cardStore.getModules(characterId).consciousness
-      providerId = selection.provider
-      modelId = selection.model
-    }
+    const { provider: providerId, model: modelId } = cardStore.getModules(characterId).consciousness
 
     const temperature = payload.temperature ?? consciousnessStore.activeTemperature
     const topP = payload.topP ?? consciousnessStore.activeTopP
@@ -776,10 +840,9 @@ export const useChatStore = defineStore('chat', () => {
 
     const systemPromptSupplement = supplements.filter(Boolean).join('\n\n')
 
-    // Voice turns use the session character's selection, which the active-selection readiness check does not cover.
-    const ready = voice ? !!providerId && (!!modelId || providerId === 'prompt-api') : chatReady.value
-    if (!ready)
-      throw new Error('No active chat provider or model configured')
+    // The active-selection readiness check does not cover the session character's selection.
+    if (!isChatSelectionReady(providerId, modelId))
+      throw new Error('No chat provider or model configured for this character')
 
     const stickers = await stickersStore.selectCatalogForReply()
     signal.throwIfAborted()
@@ -791,17 +854,40 @@ export const useChatStore = defineStore('chat', () => {
       throw new Error(`Failed to resolve chat provider "${providerId}"`)
 
     const selectedModel = (await consciousnessStore.getModelsForProvider(providerId)).find(model => model.id === modelId)
-    const supportsAudioInput = selectedModel?.inputModalities?.includes('audio') === true && chatProvider.generation(modelId).protocol === 'chat-completions'
+
+    /**
+     * Reads the session character's current consciousness settings and prompt before each model request.
+     * A tool step that edits the character changes the next request. Card selection does not.
+     */
+    const resolveStep = async () => {
+      const selection = cardStore.getModules(characterId).consciousness
+      if (!isChatSelectionReady(selection.provider, selection.model))
+        throw new Error('No chat provider or model configured for this character')
+
+      const stepProvider = await consciousnessStore.getChatProviderInstance(selection.provider)
+      if (!stepProvider)
+        throw new Error(`Failed to resolve chat provider "${selection.provider}"`)
+
+      return {
+        model: selection.model,
+        chatProvider: stepProvider,
+        providerId: selection.provider,
+        systemPrompt: chatSession.getSessionSystemPrompt(payload.sessionId),
+        temperature,
+        topP,
+      }
+    }
 
     return {
       providerId,
-      supportsAudioInput,
+      supportsAudioInput: await supportsAudioInput(providerId, modelId, chatProvider.generation(modelId)),
       supportsVisionInput: selectedModel?.metadata?.abilities?.vision === true,
+      resolveStep,
       signal,
       model: modelId,
       chatProvider,
       messageId: payload.messageId,
-      attachments: payload.attachments,
+      attachments: await storeChatAttachments(payload.attachments, payload.sessionId),
       input: payload.input,
       replyToMessageId: payload.replyToMessageId,
       toolReferences: payload.tools,

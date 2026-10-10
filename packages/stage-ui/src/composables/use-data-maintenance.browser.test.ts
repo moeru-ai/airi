@@ -110,3 +110,20 @@ it.each(['resetSettings', 'resetState'])('continues independent module resets wh
   expect(useMinecraftStore(pinia).latestRuntimeContextText).toBe('')
   expect(useConsciousnessSettingsStore(leader.pinia).reasoning).toBe(action === 'resetState')
 })
+
+it('removes downloaded speech models when all data is deleted', async () => {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
+  const origin = await navigator.storage.getDirectory()
+  const root = await origin.getDirectoryHandle('airi-model-assets', { create: true })
+  const stored = await (await root.getDirectoryHandle('speech', { create: true }))
+    .getDirectoryHandle('v1', { create: true })
+  const writable = await (await stored.getFileHandle('data', { create: true })).createWritable()
+  await writable.write('model data')
+  await writable.close()
+  const { runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
+  await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
+
+  await maintenance.deleteAllData()
+
+  await expect(origin.getDirectoryHandle('airi-model-assets')).rejects.toThrow()
+})

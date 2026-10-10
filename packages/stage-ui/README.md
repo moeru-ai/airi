@@ -62,6 +62,7 @@ Rephrasing is off by default. A failure or a 10-second timeout submits the provi
 A recording is sent only when its control asks for it with `finish` and `send: true`, or with an explicit `send`. A failed send keeps the recording and its message identity, so the control can send it again or discard it.
 While a control records or dictates, the host publishes the microphone level on `voiceInputLevel`.
 Native audio requires declared model support and Chat Completions. Other models transcribe the recording with the configured Hearing provider.
+Each model request makes this decision again. A tool step that changes the model also changes the audio projection.
 Local history keeps the audio and cached transcription. Audio turns remain local because cloud text records cannot preserve their media.
 
 ### External wake-word adapters
@@ -139,6 +140,16 @@ Existing `speech-noop` selections are preserved because they may represent
 intentional silence. Users can explicitly choose **Inherit global settings**
 in the editor; importing or saving an unrelated card field does not change it.
 
+## Character sessions
+
+Each chat session belongs to one character. A send reads the provider, model, and system prompt of that character, not the selected card.
+Selecting another card while a turn waits in the queue does not change the turn.
+Before each model request, the turn reads its character's settings again. A tool that edits the character changes the next request.
+Each request rebuilds the analytics correlation headers for its provider.
+Tool and content-array compatibility failures belong to the model of the failing request, not the first model of the turn.
+Session resets and autonomous artistry hooks also use the session character.
+Each concurrent turn owns its IO trace. `activeTurnSpan` points to the most recently started turn that is still running.
+
 ## Button analytics
 
 Register the shared plugin once in each Vue application:
@@ -192,13 +203,18 @@ the Provider configuration and replaces its runtime.
 Each speech session currently owns a Worker, released when the session ends or is cancelled.
 
 Hosts must enable `@proj-airi/vite-plugin-sherpaw` to expose model assets.
-`provider-inference` owns recognition and Worker cleanup. `stage-ui` supplies model URLs, cached fetching, the Worker URL, and the Hearing view.
+`provider-inference` owns recognition and Worker cleanup. `stage-ui` supplies model URLs, local asset fetching, the Worker URL, and the Hearing view.
 The Provider is unavailable when the host does not include models.
 Use this Provider for local streaming recognition without API credentials.
-It requires Workers and WebAssembly. Web and Pocket load the selected model from its pinned remote URL.
-Desktop development uses cached local files. Desktop releases bundle all three models.
+It requires Workers and WebAssembly. Web and Pocket store selected remote models in OPFS.
+Desktop development stores selected models in the app user data directory.
+Desktop releases bundle X-ASR and store other models in the user data directory.
+Sherpaw settings show download state and let users install or remove remote models.
 Use a remote Provider when model download size or local memory makes that unsuitable.
 The existing VAD pipeline has separate model and runtime downloads.
+
+`libs/inference/transformers-cache` manages the browser cache used by Transformers
+and Kokoro. Sherpaw file pairs use the shared model asset repository.
 
 ### Compact Stage status
 

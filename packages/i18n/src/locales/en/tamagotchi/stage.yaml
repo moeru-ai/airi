@@ -3,6 +3,11 @@ operations:
   load-models-status:
     loading: Loading
     ready: Ready
+'resource-island':
+  loading: Preparing resources...
+  ready: Resources ready
+  preparing: Preparing model files
+  failed: Model download failed
 docs:
   theme:
     navbar:
@@ -23,6 +28,7 @@ docs:
   'unmute': Unmute
   'switch-to-light-mode': Switch to light mode
   'switch-to-dark-mode': Switch to dark mode
+  'switch-to-system-mode': Follow the system theme
   'pin-on-top': Pin on top
   'unpin-from-top': Unpin from top
   'switch-profile': Switch Profile

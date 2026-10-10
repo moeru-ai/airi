@@ -3,6 +3,11 @@ operations:
   load-models-status:
     loading: 加载中
     ready: 已就绪
+'resource-island':
+  loading: 正在准备资源…
+  ready: 资源已就绪
+  preparing: 正在准备模型文件
+  failed: 模型下载失败
 docs:
   theme:
     navbar:
@@ -23,6 +28,7 @@ docs:
   'unmute': 取消静音
   'switch-to-light-mode': 切换到亮色模式
   'switch-to-dark-mode': 切换到暗色模式
+  'switch-to-system-mode': 跟随系统主题
   'pin-on-top': 置顶窗口
   'unpin-from-top': 取消置顶
   'switch-profile': 切换角色
