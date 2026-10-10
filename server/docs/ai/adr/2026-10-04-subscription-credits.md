@@ -46,7 +46,7 @@ The latest purchase wins when two mapped Capacitors are active.
 When a webhook creates the first wallet, it preserves `INITIAL_USER_FLUX` and writes the initial ledger row in the same transaction.
 The balance read and the webhook use the same wallet initialization operation. Repeated deliveries do not repeat the initial grant.
 The refill rule below decides the grant.
-A smaller quota caps the bucket.
+A smaller quota caps the bucket. The cap writes a `capacitor_quota_cap` ledger row in the same transaction.
 With no active Capacitor, `capacitor_expires_at` becomes now.
 
 These rules cover purchase, renewal, product change, extension, expiration, refund, and transfer.

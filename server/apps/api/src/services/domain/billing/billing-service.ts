@@ -207,6 +207,7 @@ export function createBillingService(
           return
         }
 
+        const operationId = `capacitor:${nanoid()}`
         const capacitor = {
           capacitorFlux: Math.min(wallet.capacitorFlux, period.quota),
           capacitorQuota: period.quota,
@@ -214,7 +215,20 @@ export function createBillingService(
           capacitorPeriodStart: period.periodStart,
         }
         await tx.update(fluxSchema.userFlux).set(capacitor).where(eq(fluxSchema.userFlux.userId, userId))
-        await settleOutstanding(tx, { ...wallet, ...capacitor }, policy, `capacitor:${nanoid()}:settle`)
+        if (capacitor.capacitorFlux < wallet.capacitorFlux) {
+          await tx.insert(fluxTxSchema.fluxTransaction).values({
+            userId,
+            operationId: `${operationId}:cap`,
+            type: 'debit',
+            pool: 'capacitor',
+            amount: wallet.capacitorFlux - capacitor.capacitorFlux,
+            balanceBefore: wallet.capacitorFlux,
+            balanceAfter: capacitor.capacitorFlux,
+            description: 'capacitor_quota_cap',
+            metadata: { source: 'capacitor.quota_cap', quota: period.quota },
+          })
+        }
+        await settleOutstanding(tx, { ...wallet, ...capacitor }, policy, `${operationId}:settle`)
       })
       await updateRedisCache(userId)
     },

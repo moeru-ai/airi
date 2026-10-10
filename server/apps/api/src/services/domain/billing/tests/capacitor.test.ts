@@ -121,6 +121,10 @@ describe('capacitor Flux bucket', () => {
 
       expect(await wallet()).toMatchObject({ capacitorFlux: 100, capacitorQuota: 100 })
       expect(await db.select().from(fluxTransaction).where(eq(fluxTransaction.description, 'capacitor_refill'))).toHaveLength(2)
+      // The cap from 500 to 100 has a ledger row, so each capacitor row starts where the last one ended.
+      expect(await db.select().from(fluxTransaction).where(eq(fluxTransaction.description, 'capacitor_quota_cap'))).toMatchObject([
+        { type: 'debit', pool: 'capacitor', amount: 400, balanceBefore: 500, balanceAfter: 100 },
+      ])
     })
 
     it('creates no wallet for a user without a capacitor', async () => {
