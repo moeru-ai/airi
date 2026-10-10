@@ -242,7 +242,9 @@ describe('checkLocales', () => {
 
     const issues = await checkLocales({ root })
 
-    expect(issues).toEqual([expect.objectContaining({ level: 'error', locale: 'en', file: 'settings.yaml', key: 'providers.anthropic' })])
+    // A warning, not an error: the call site decides which form a message uses,
+    // and `t(key, plural)` selects one with a bare number.
+    expect(issues).toEqual([expect.objectContaining({ level: 'warning', locale: 'en', file: 'settings.yaml', key: 'providers.anthropic' })])
   })
 
   it('accepts a pipe that the message writes as a literal', async () => {
@@ -269,6 +271,18 @@ describe('checkLocales', () => {
 
     const issues = await checkLocales({ root })
 
-    expect(issues).toEqual([expect.objectContaining({ level: 'error', locale: 'ja', key: 'animation.title' })])
+    expect(issues).toEqual([expect.objectContaining({ level: 'warning', locale: 'ja', key: 'animation.title' })])
+  })
+
+  it('accepts a separator that a bare number selects', async () => {
+    // t(key, plural) picks a form with the number itself, so the message needs no
+    // placeholder. This is why the check reports a warning and not an error.
+    const root = await locales({
+      'en/settings.yaml': 'files:\n  car: car | cars\n',
+    })
+
+    const reported = await checkLocales({ root })
+
+    expect(reported.every(issue => issue.level === 'warning')).toBe(true)
   })
 })

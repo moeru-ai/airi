@@ -181,7 +181,7 @@ function findMovedTranslations(
  * - Error: a file does not parse.
  * - Error: a key does not exist in the source locale.
  * - Error: a translation does not keep the placeholders of its source string.
- * - Error: a message holds a choice separator that no `count` can select.
+ * - Warning: a message holds a choice separator that its own placeholders cannot select.
  * - Error: a translation disappears although its English did not change.
  * - Warning: a changed translation repeats the translation of an unrelated key.
  *
@@ -214,7 +214,7 @@ export async function checkLocales(options: {
     for (const [key, value] of values) {
       const message = unselectableChoice(value)
       if (message)
-        issues.push({ level: 'error', locale: SOURCE_LOCALE, file, key, message })
+        issues.push({ level: 'warning', locale: SOURCE_LOCALE, file, key, message })
     }
   }
   const entries = await readdir(options.root, { withFileTypes: true })
@@ -244,7 +244,7 @@ export async function checkLocales(options: {
         }
         const choice = unselectableChoice(value)
         if (choice)
-          issues.push({ level: level(file, key, value), locale, file, key, message: choice })
+          issues.push({ level: 'warning', locale, file, key, message: choice })
 
         const expected = placeholders(english)
         const actual = placeholders(value)
