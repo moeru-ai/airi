@@ -2,87 +2,32 @@
 
 Status: proposed
 
-## Decision and scope
+## Decision
 
-Add `POST /api/auth/delete-account` for clients that show a permanent-deletion confirmation.
-The request body is `{ "confirm": true }`. The authenticated session identifies the account.
-Require an authoritative session and Better Auth's configured session freshness check.
-An old session returns `SESSION_NOT_FRESH`. The client must request sign-in before another deletion attempt.
+Accounts with placeholder emails cannot receive deletion links.
+Add `/api/auth/delete-account` with explicit `{ "confirm": true }` for in-app confirmation.
+Keep `/delete-user` as a separate email-confirmed method so existing send-email prompts do not delete accounts immediately.
 
-Steam accounts use an email placeholder. These accounts cannot receive the current deletion email.
-The new endpoint does not send email or accept a target user ID.
-It calls the existing deletion hooks before deleting the Auth account and sessions.
-External authorization revocation and resource cleanup keep their current order and failure behavior.
+Without a deletion token, Better Auth's public `deleteUser` endpoint sends email when its verification hook is configured.
+The new endpoint therefore uses the same native session guards, adapter methods, cookies, and configured deletion hooks.
+It preserves the native deletion order without changing shared options or generating artificial email tokens.
+Both session guards are necessary: the first requires database-backed authority, the second checks freshness.
+Both adapter calls remain: `deleteUserSessions` also clears secondary session storage when configured.
 
-The email-confirmed `/delete-user` flow remains a supported deletion method.
-It retains its existing meaning for clients that display a send-email confirmation.
-Clients select one explicit method. There is no automatic fallback between methods.
+## Security and failures
 
-## Non-goals
+- The session selects the account. The strict body schema rejects target IDs and missing or false confirmation.
+- JWTs require their own active original session. Token refresh cannot renew that session's creation time.
+- Session freshness follows Better Auth configuration, currently 24 hours by default. Stale sessions require sign-in again.
+- Browser cookies retain Origin checks. Native bearer requests use the same session authority and freshness rules.
+- Provider revocation and resource cleanup run before Auth deletion. Failure preserves the account for retry.
+- External cleanup and Auth deletion are not atomic. A retry can repeat completed cleanup, as in the existing flow.
+- Success deletes the account and its sessions and expires cookies. A lost response requires account-state reconciliation.
 
-- No changes to the iOS or web confirmation screens in this PR.
-- No database migration or changes to resource retention rules.
-- No bypass of provider revocation, cleanup errors, or session freshness.
+## Verification and rollout
 
-## Module dependencies
-
-```mermaid
-flowchart LR
-  Client -->|confirm true| Plugin[Account deletion endpoint]
-  Plugin --> Session[Better Auth session guards]
-  Plugin --> Hooks[Configured deletion hooks]
-  Hooks --> Providers[Social authorization revocation]
-  Hooks --> Resources[Resource API cleanup]
-  Plugin --> Adapter[Better Auth account and session deletion]
-```
-
-## Affected files
-
-```text
-server/apps/auth/
-├── README.md
-└── src/
-    ├── auth.ts
-    ├── plugins/account-deletion.ts
-    └── tests/account-deletion.test.ts
-```
-
-## Sequence and failures
-
-```mermaid
-sequenceDiagram
-  participant C as Client
-  participant A as Auth
-  participant P as Providers
-  participant R as Resource API
-  participant D as Auth database
-  C->>A: POST delete-account, confirm true
-  A->>D: Require active, fresh session
-  alt Session or confirmation rejected
-    A-->>C: Error, no deletion
-  else Request accepted
-    A->>P: Revoke external authorization
-    A->>R: Soft-delete resource data
-    alt External cleanup fails
-      A-->>C: Error, Auth account remains for retry
-    else Cleanup succeeds
-      A->>D: Delete account and sessions
-      A-->>C: Success and expired session cookies
-    end
-  end
-```
-
-External cleanup and Auth deletion are not one transaction.
-A partial failure can leave some external effects complete. Existing cleanup operations support retry.
-Clients must show success only after a successful response. A lost response requires reconciliation of the account state.
-
-## Test plan and rollout
-
-Exercise the real Auth handler and an in-memory database with external cleanup doubles.
-Cover placeholder email, ordinary email, missing confirmation, unauthorized requests, stale sessions, and external cleanup failures.
-Check account isolation, session invalidation, retry, and unchanged email-confirmed deletion.
-Run Auth tests, typecheck, and lint.
-
-Deploy the server before clients use the new endpoint.
-Update client confirmation text, stale-session recovery, and success handling before enabling that client flow.
-Physical-device deletion and production deployment remain separate acceptance steps.
+Handler tests use a real in-memory database and external-service doubles.
+They cover confirmation, authentication, freshness, JWT ownership, account isolation, Origin, retry, session invalidation, and unchanged email requests.
+Deploy Auth before clients switch endpoints. Clients must update confirmation text, reauthentication, and success handling.
+This PR changes no client UI, schema, provider-revocation policy, or resource-retention policy.
+Production deployment and physical-device acceptance require separate verification.

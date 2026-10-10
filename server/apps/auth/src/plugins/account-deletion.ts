@@ -5,11 +5,7 @@ import { createAuthEndpoint, freshSessionMiddleware, sensitiveSessionMiddleware 
 import { deleteSessionCookie } from 'better-auth/cookies'
 import { literal, strictObject } from 'valibot'
 
-/**
- * Offers explicit account deletion without an email round trip.
- * An authoritative, fresh session owns the target account. Existing deletion
- * hooks retain responsibility for provider revocation and resource cleanup.
- */
+/** Deletes the signed-in account after explicit confirmation and the existing cleanup hooks. */
 export function accountDeletion(): BetterAuthPlugin {
   return {
     id: 'account-deletion',
@@ -17,8 +13,7 @@ export function accountDeletion(): BetterAuthPlugin {
       deleteAccount: createAuthEndpoint('/delete-account', {
         method: 'POST',
         body: strictObject({ confirm: literal(true) }),
-        // The authoritative guard excludes JWT identities without an active
-        // original session. Refreshing a token does not renew session creation.
+        // Reject request-only JWT identities before checking session age.
         use: [sensitiveSessionMiddleware, freshSessionMiddleware],
       }, async (ctx) => {
         const deletion = ctx.context.options.user?.deleteUser
@@ -26,8 +21,7 @@ export function accountDeletion(): BetterAuthPlugin {
           throw APIError.fromStatus('NOT_FOUND')
 
         const { user } = ctx.context.session
-        // Cleanup must finish before the Auth identity disappears. A failure
-        // leaves the account available for another authenticated attempt.
+        // Keep Better Auth's deletion order without invoking its email-verification branch.
         await deletion.beforeDelete?.(user, ctx.request)
         await ctx.context.internalAdapter.deleteUser(user.id)
         await ctx.context.internalAdapter.deleteUserSessions(user.id)

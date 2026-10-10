@@ -59,40 +59,41 @@ describe('confirmed account deletion', () => {
   beforeEach(async () => {
     vi.resetAllMocks()
     await db.delete(schema.user)
+    await seedAccount()
   })
 
   afterAll(async () => {
     await db.$client.close()
   })
 
-  /** Creates real persisted identity and sessions without contacting a social provider. */
-  async function seedAccount(email = 'steam-id@steam.placeholder.local', ageHours = 0, id = 'owner') {
-    const createdAt = new Date(Date.now() - ageHours * 60 * 60 * 1000)
-    await db.insert(schema.user).values({ id, name: id, email, emailVerified: true, createdAt, updatedAt: createdAt })
-    await db.insert(schema.account).values({
-      id: `account-${id}`,
-      userId: id,
-      providerId: 'steam',
-      accountId: id,
-      createdAt,
-      updatedAt: createdAt,
-    })
+  /** Seeds an account with a fresh persisted session, without contacting a social provider. */
+  async function seedAccount(id = 'owner', email = 'person@example.com') {
+    await db.insert(schema.user).values({ id, name: id, email, emailVerified: true })
+    await db.insert(schema.account).values({ id, userId: id, providerId: 'steam', accountId: id })
     await db.insert(schema.session).values({
       id: `session-${id}`,
       token: `token-${id}`,
       userId: id,
-      createdAt,
-      updatedAt: new Date(),
       expiresAt: new Date(Date.now() + 60 * 60 * 1000),
     })
-    return `token-${id}`
   }
 
-  /** Sends a native bearer request through the real Auth router. */
-  async function requestDeletion(body: unknown = { confirm: true }, token = 'token-owner', path = '/delete-account') {
+  /** Exercises the real router with bearer credentials or a browser cookie when an origin is supplied. */
+  async function requestDeletion({ body = { confirm: true }, token = 'token-owner', path = '/delete-account', origin }: {
+    body?: unknown
+    token?: string
+    path?: string
+    origin?: string
+  } = {}) {
     const headers = new Headers({ 'Content-Type': 'application/json' })
-    if (token)
+    if (origin) {
+      const signature = createHmac('sha256', secret).update(token).digest('base64')
+      headers.set('Cookie', `better-auth.session_token=${encodeURIComponent(`${token}.${signature}`)}`)
+      headers.set('Origin', origin)
+    }
+    else if (token) {
       headers.set('Authorization', `Bearer ${token}`)
+    }
     return auth.handler(new Request(`http://localhost:3000/api/auth${path}`, {
       method: 'POST',
       headers,
@@ -112,34 +113,15 @@ describe('confirmed account deletion', () => {
       .sign(privateKey)
   }
 
-  /** Sends browser requests with a signed session cookie to exercise origin protection. */
-  async function cookieDeletion(origin: string) {
-    const token = 'token-owner'
-    const signature = createHmac('sha256', secret).update(token).digest('base64')
-    return auth.handler(new Request('http://localhost:3000/api/auth/delete-account', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin,
-        'Cookie': `better-auth.session_token=${encodeURIComponent(`${token}.${signature}`)}`,
-      },
-      body: JSON.stringify({ confirm: true }),
-    }))
-  }
-
-  // ROOT CAUSE: Placeholder email accounts cannot receive deletion links.
-  // Explicit confirmation now selects a separate endpoint with session checks and the same cleanup hooks.
   it.each(['steam-id@steam.placeholder.local', 'apple-id@apple.placeholder.local', 'person@example.com'])(
     'deletes %s without sending email and leaves other accounts intact',
     async (email) => {
-      await seedAccount(email)
-      await seedAccount('other@example.com', 0, 'other')
+      await db.update(schema.user).set({ email }).where(eq(schema.user.id, 'owner'))
+      await seedAccount('other', 'other@example.com')
       await db.insert(schema.session).values({
         id: 'second-session',
         token: 'second-token',
         userId: 'owner',
-        createdAt: new Date(),
-        updatedAt: new Date(),
         expiresAt: new Date(Date.now() + 60 * 60 * 1000),
       })
 
@@ -161,59 +143,44 @@ describe('confirmed account deletion', () => {
   )
 
   it.each([{}, { confirm: false }, { confirm: 'true' }, { confirm: true, userId: 'other' }])('rejects invalid confirmation %j', async (body) => {
-    await seedAccount()
-    expect((await requestDeletion(body)).status).toBe(400)
+    expect((await requestDeletion({ body })).status).toBe(400)
     expect(revokeForUser).not.toHaveBeenCalled()
     expect(await db.select().from(schema.user)).toHaveLength(1)
   })
 
   it.each(['', 'invalid-token'])('rejects missing or invalid authentication (%s)', async (token) => {
-    await seedAccount()
-    expect((await requestDeletion({ confirm: true }, token)).status).toBe(401)
+    expect((await requestDeletion({ token })).status).toBe(401)
     expect(revokeForUser).not.toHaveBeenCalled()
   })
 
-  it('rejects an old session even after its updatedAt timestamp changes', async () => {
-    await seedAccount(undefined, 25)
-    const response = await requestDeletion()
+  it.each(['session', 'JWT'])('rejects stale sessions even with a fresh %s credential', async (credential) => {
+    await db.update(schema.session).set({ createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000) })
+    const token = credential === 'JWT' ? await accessToken('session-owner') : 'token-owner'
+    const response = await requestDeletion({ token })
     expect(response.status).toBe(403)
     expect(await response.json()).toMatchObject({ code: 'SESSION_NOT_FRESH' })
     expect(revokeForUser).not.toHaveBeenCalled()
   })
 
-  it('rejects an untrusted browser origin before cleanup', async () => {
-    await seedAccount()
-    expect((await cookieDeletion('https://untrusted.example')).status).toBe(403)
-    expect(revokeForUser).not.toHaveBeenCalled()
-  })
-
-  it('accepts an authenticated browser confirmation from the trusted origin', async () => {
-    await seedAccount()
-    expect((await cookieDeletion('http://localhost:3000')).status).toBe(200)
+  it.each([
+    ['https://untrusted.example', 403],
+    ['http://localhost:3000', 200],
+  ])('checks browser origin %s (status %s)', async (origin, status) => {
+    expect((await requestDeletion({ origin })).status).toBe(status)
+    expect(revokeForUser).toHaveBeenCalledTimes(status === 200 ? 1 : 0)
   })
 
   it('accepts a native JWT with its active original session', async () => {
-    await seedAccount()
-    expect((await requestDeletion({ confirm: true }, await accessToken('session-owner'))).status).toBe(200)
+    expect((await requestDeletion({ token: await accessToken('session-owner') })).status).toBe(200)
   })
 
   it.each([undefined, 'missing-session', 'session-other'])('rejects a native JWT without its own active session (%s)', async (sid) => {
-    await seedAccount()
-    await seedAccount('other@example.com', 0, 'other')
-    expect((await requestDeletion({ confirm: true }, await accessToken(sid))).status).toBe(401)
-    expect(revokeForUser).not.toHaveBeenCalled()
-  })
-
-  it('rejects a newly issued JWT when its original session is stale', async () => {
-    await seedAccount(undefined, 25)
-    const response = await requestDeletion({ confirm: true }, await accessToken('session-owner'))
-    expect(response.status).toBe(403)
-    expect(await response.json()).toMatchObject({ code: 'SESSION_NOT_FRESH' })
+    await seedAccount('other', 'other@example.com')
+    expect((await requestDeletion({ token: await accessToken(sid) })).status).toBe(401)
     expect(revokeForUser).not.toHaveBeenCalled()
   })
 
   it.each(['revocation', 'resource cleanup'])('preserves the account after %s failure and permits retry', async (step) => {
-    await seedAccount()
     if (step === 'revocation')
       revokeForUser.mockRejectedValueOnce(new Error('provider unavailable'))
     else
@@ -228,8 +195,7 @@ describe('confirmed account deletion', () => {
   })
 
   it('keeps the send-email endpoint from deleting an account immediately', async () => {
-    await seedAccount('person@example.com')
-    const response = await requestDeletion({}, 'token-owner', '/delete-user')
+    const response = await requestDeletion({ body: {}, path: '/delete-user' })
     expect(response.status).toBe(200)
     expect(sendDeleteAccountVerification).toHaveBeenCalledOnce()
     expect(revokeForUser).not.toHaveBeenCalled()

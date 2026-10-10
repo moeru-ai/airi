@@ -26,20 +26,10 @@ Auth schema-generation wiring is isolated under `src/tooling`.
 
 ## Account deletion
 
-`POST /api/auth/delete-account` accepts `{ "confirm": true }` after a client displays a permanent-deletion confirmation.
-It requires an active, authoritative session and Better Auth's configured freshness check (24 hours by default).
-It does not require a deliverable email address. Cookie sessions and bearer credentials use the same checks.
-OIDC access tokens require their original active session. Token refresh does not make that session fresh.
-
-The endpoint uses the existing deletion hooks to revoke provider authorization and soft-delete resource data.
-Then it deletes the Auth account and sessions and expires session cookies.
-It returns `{ "success": true, "message": "User deleted" }` only after these operations complete.
-On `SESSION_NOT_FRESH`, the client must request sign-in before another attempt.
-On cleanup failure, the client must display the error and retain a retry path.
-
-The email-confirmed `/api/auth/delete-user` endpoint remains available with its original behavior.
-Clients that display a send-email prompt must keep that endpoint until their confirmation flow changes.
-See [the deletion ADR](../../docs/ai/adr/2026-10-10-account-deletion-confirmation.md) for the contract and rollout.
+`POST /api/auth/delete-account` accepts `{ "confirm": true }` after the client confirms permanent deletion.
+It requires an authoritative, fresh session and returns `{ "success": true, "message": "User deleted" }` without email confirmation.
+On `SESSION_NOT_FRESH`, the client must request sign-in again.
+The existing `/api/auth/delete-user` email flow is unchanged. See [deletion policy and rollout](../../docs/ai/adr/2026-10-10-account-deletion-confirmation.md).
 
 ## Run locally
 
