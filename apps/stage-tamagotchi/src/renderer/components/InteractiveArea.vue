@@ -9,7 +9,7 @@ import type { ChatDraftHandover } from '../../shared/eventa'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useChatInterruption } from '@proj-airi/stage-layouts/composables/use-chat-interruption'
 import { ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
-import { ChatImageAttachmentPreview, ChatReplyPreview, ChatSendButton, useChatComposer, useChatImages, VoiceInputButton } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSendButton, useChatComposer, useChatImages, VoiceInputButton } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -18,7 +18,7 @@ import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store
 import { useJournalPreviewStore } from '@proj-airi/stage-ui/stores/journal-preview'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { BasicButton, BasicTextarea, Callout, GhostButton } from '@proj-airi/ui'
+import { BasicTextarea, GhostButton } from '@proj-airi/ui'
 import { until, useLocalStorage } from '@vueuse/core'
 import { nanoid } from 'nanoid/non-secure'
 import { storeToRefs } from 'pinia'
@@ -422,25 +422,11 @@ defineExpose({
       >
         <div :class="[composerFolded ? 'i-solar:alt-arrow-up-linear' : 'i-solar:alt-arrow-down-linear', 'size-4']" />
       </button>
-      <Callout
+      <ChatProviderSetupCallout
         v-if="!chatReady"
-        class="mx-2 mb-1"
-        theme="orange"
-        :label="t('stage.chat.provider-configuration.title')"
-      >
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <span class="min-w-48 flex-1 text-sm">
-            {{ t('stage.chat.provider-configuration.description') }}
-          </span>
-          <BasicButton
-            size="unset"
-            class="rounded-lg bg-primary-500 px-3 py-1 text-sm text-white"
-            @click="openSettings({ route: '/settings/providers' })"
-          >
-            {{ t('stage.chat.provider-configuration.action') }}
-          </BasicButton>
-        </div>
-      </Callout>
+        :class="['mx-2 mb-1']"
+        @configure="openSettings({ route: '/settings/providers' })"
+      />
       <div
         ref="message-composer"
         :class="[

@@ -23,6 +23,7 @@ import { useAiriRuntimePrompt } from '../composables/use-airi-runtime-prompt'
 import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
 import { useChatVision } from '../composables/vision/use-chat-vision'
 import { useVisionInference } from '../composables/vision/use-vision-inference'
+import { chatAssetIdFrom, inlineConversationAssets, storeChatAttachments } from '../libs/chat-assets'
 import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
 import { createChatAnalyticsHooks, getProviderMode } from '../libs/product-signals/events/chat'
 import {
@@ -161,11 +162,17 @@ function retryContentFrom(message: ChatHistoryItem | undefined): Pick<ChatSendPa
   }, []).join('\n\n')
 
   const attachments = message.content.flatMap((part): ChatAttachment[] => {
-    if (part.type === 'input_audio')
-      return [{ type: 'audio', data: part.input_audio.data, mimeType: part.input_audio.format === 'wav' ? 'audio/wav' : 'audio/mpeg' }]
+    if (part.type === 'input_audio') {
+      const mimeType = part.input_audio.format === 'wav' ? 'audio/wav' : 'audio/mpeg'
+      return [chatAssetIdFrom(part.input_audio.data)
+        ? { type: 'audio', url: part.input_audio.data, mimeType }
+        : { type: 'audio', data: part.input_audio.data, mimeType }]
+    }
     if (part.type !== 'image_url')
       return []
 
+    if (chatAssetIdFrom(part.image_url.url))
+      return [{ type: 'image', url: part.image_url.url }]
     const match = /^data:([^;,]+);base64,(.+)$/.exec(part.image_url.url)
     return match ? [{ type: 'image' as const, mimeType: match[1], data: match[2] }] : []
   })
@@ -312,6 +319,9 @@ export const useChatStore = defineStore('chat', () => {
       activeTurnSpan.value = turnSpan
       ownedActiveTurnSpan = turnSpan
     }
+
+    // Stored messages reference their images and recordings. The provider request carries the bytes.
+    context = await inlineConversationAssets(context)
 
     const visionStore = useVisionStore()
     // NOTICE:
@@ -801,7 +811,7 @@ export const useChatStore = defineStore('chat', () => {
       model: modelId,
       chatProvider,
       messageId: payload.messageId,
-      attachments: payload.attachments,
+      attachments: await storeChatAttachments(payload.attachments, payload.sessionId),
       input: payload.input,
       replyToMessageId: payload.replyToMessageId,
       toolReferences: payload.tools,

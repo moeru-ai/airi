@@ -357,7 +357,6 @@ pages:
           model-options:
             title: 모델 옵션
             thinking:
-              label: Thinking
               required-description: 이 모델은 Thinking이 필요합니다.
               provider-default-description: AIRI에서 이 모델의 Thinking 정보를 찾지 못했습니다. OpenRouter 기본 설정을 적용합니다.
       title: 의식

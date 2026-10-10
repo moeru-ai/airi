@@ -1571,7 +1571,7 @@ describe('chat stickers', () => {
     })
     harness.stream.mockImplementationOnce(async (_model, _provider, context, options) => {
       expect(JSON.stringify(context)).toContain('<|STICKER heart|>')
-      for (const text of ['Hello! ', '<', '|STI', 'CKER heart|', '>', '<|STICKER heart|>', '<|EMOTE happy|>'])
+      for (const text of ['Hello! ', '<', '|STI', 'CKER heart|', '>', '<|STICKER heart|>', '<|ACT|>'])
         await options?.onStreamEvent?.({ type: 'text-delta', text })
     })
     await harness.runtime.ingest('Send a heart', { model: 'test', chatProvider: provider, stickers })
@@ -1582,8 +1582,8 @@ describe('chat stickers', () => {
       slices: [{ type: 'text', text: 'Hello! ' }, { type: 'sticker', stickerId: 'heart' }],
     })
     expect(literals.join('')).toBe('Hello! ')
-    expect(specials).toEqual(['<|EMOTE happy|>'])
-    expect(saved?.role === 'assistant' && saved.categorization?.speech).toBe('Hello! <|EMOTE happy|>')
+    expect(specials).toEqual(['<|ACT|>'])
+    expect(saved?.role === 'assistant' && saved.categorization?.speech).toBe('Hello! <|ACT|>')
   })
 
   it('ignores unknown IDs, model URLs, and an unfinished marker', async () => {

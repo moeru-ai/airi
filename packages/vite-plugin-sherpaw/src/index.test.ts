@@ -7,7 +7,7 @@ import { paraformerBilingualZhEn, sherpawModelPath, xAsrBilingualZhEnInt8, zipfo
 import { build, createServer } from 'vite'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
-import { Sherpaw } from './index'
+import { resolveModelEndpoint, Sherpaw } from './index'
 
 const models = [paraformerBilingualZhEn, zipformerMultilingual, xAsrBilingualZhEnInt8]
 let root: string
@@ -211,4 +211,11 @@ it('reads the endpoint from HF_ENDPOINT', async () => {
 
   expect(code).toContain(`https://env-mirror.example.test/${xAsrBilingualZhEnInt8.repository}/resolve/${xAsrBilingualZhEnInt8.revision}`)
   expect(code).not.toContain('https://huggingface.co/')
+})
+
+it('prefers the endpoint option over HF_ENDPOINT', () => {
+  vi.stubEnv('HF_ENDPOINT', 'https://env-mirror.example.test')
+
+  expect(resolveModelEndpoint(' https://option-mirror.example.test ')).toBe('https://option-mirror.example.test')
+  expect(resolveModelEndpoint()).toBe('https://env-mirror.example.test')
 })
