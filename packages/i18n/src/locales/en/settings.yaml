@@ -886,24 +886,24 @@ pages:
     memory-long-term:
       description: Long-term memory specific settings and management
       enable: Use long-term memory
-      enable-description: The character can save, read, and forget memories. Turn it off and no memory reaches a prompt.
+      enable-description: The character remembers what you talk about. When this is off, it remembers nothing.
       memories:
         title: Memories
-        description: Each character keeps these facts on its own card, and other cards do not read them. Make an entry general to add it to every card. You can remove any entry here.
+        description: Each character keeps its own secrets, and the others cannot see them. After you share a secret, every character knows it, and you cannot take it back. You can delete any secret, but you cannot rewrite one.
         empty: No memories yet.
         forget: 'Forget {name}'
-        make_general: 'Make {name} general'
-        general: General
+        make_general: 'Share {name} with every character'
+        general: Shared secrets
         entry:
           title: Memories
-          description: Each character card's memories, and general memories that every card reads.
+          description: Each character's secrets, and the secrets that they share.
       recipes:
         title: Recipes
         empty: No recipes yet.
         sources:
           user: Yours
-          model: Proposed by the model
-        pending: Waiting for your approval. After one approval, it runs without asking again.
+          model: Proposed by the character
+        pending: Waits for your approval. After one approval, it never asks again.
         approve: Approve
         remove: Remove
         add:
@@ -911,42 +911,42 @@ pages:
           description: When to use it
           instructions: What to do
           keywords:
-            label: Trigger keywords
-            description: Comma-separated. A message that contains one points the character to this recipe.
+            label: Code words
+            description: Separate them with commas. Say a code word, and the character uses this recipe.
           submit: Add
         decision:
           question: Question
           type:
-            label: Answer type
+            label: How to answer
             noul: Yes or no
-            choice: Choose one option
-          yes_means: Yes means
-          no_means: No means
-          option: Option meaning
-          add_option: Add an answer
+            choice: Pick one option
+          yes_means: '"Yes" means'
+          no_means: '"No" means'
+          option: What this option means
+          add_option: Add an option
           remove_option: Remove
           action:
             label: Then
             reply: Reply as usual
             stay_quiet: Read without replying
-            hint: Add a hint to the reply
-            recipe: Point to another recipe
-          hint_text: Hint
+            hint: Reply with a note in mind
+            recipe: Use another recipe next
+          hint_text: Note to keep in mind
           target_recipe: Recipe
-          keywords: Comma-separated. The decision runs only after a message contains one of them.
-          note: After a keyword appears, the character answers the question with the whole conversation. It always picks one answer, and that answer leads to its action.
+          keywords: Separate them with commas. The character judges only after you say a code word.
+          note: After a code word, the character reads the conversation, picks one answer, and acts on it.
         entry:
           title: Recipes
-          description: Skills the character can use, triggers that start them, and proposals waiting for you.
+          description: The character's skills, the cues that start them, and the proposals that wait for you.
         add_button: Add recipe
         types:
           title: Choose a recipe type
           instructions:
             title: Instructions
-            description: Steps the character loads when they fit. Keywords can point to it, and the chat shows each use.
+            description: Steps that the character uses when they fit, or when you say a code word.
           decision:
             title: Decision
-            description: A question that the character answers after a keyword matches and before the reply. Each answer can lead to its own action.
+            description: After a code word, the character answers a question before it replies. Each answer leads to its own action.
         styles:
           instructions: Instructions
           decision: Decision
@@ -954,102 +954,103 @@ pages:
         edit: Edit
         save: Save
         enabled: 'Use {name}'
-        keywords_summary: 'Keywords: {words}'
+        keywords_summary: 'Code words: {words}'
         tabs:
           conversation: In conversation
           auto_run: Auto-run
-          conversation_description: Recipes the character uses in a conversation. They act only when a message arrives.
-          auto_run_description: Recipes that start on their own when a trigger fires, without your message. Each run costs a model call. With all of them off, nothing is called.
+          conversation_description: Recipes for chatting. They act only when you send a message.
+          auto_run_description: Recipes that start on their own when a cue comes. Each run costs a model call.
         background:
           label: Run in the background
-          description: For a task with a result, such as research. It runs in its own space, and its result reaches the conversation later. Without it, the character follows the steps in the conversation.
-          tag: Runs in the background
+          description: For tasks that take time, such as research. It works in the background and brings the result back.
+          tag: Background
         grants: 'Approving lets it: {what}'
         proposals:
-          label: The character can propose recipes
-          description: It saves a recipe you ask for. Each proposal waits for your approval. Turn this off and it cannot propose any.
+          label: Let the character propose recipes
+          description: A recipe that you ask for is saved as a proposal. It works only after you approve it.
         auto_run:
           title: Auto-run recipe
           timing:
             label: When it runs
-            owner: On the triggers I set
-            model: Decided by the model when it uses the recipe
-            keywords: When your message has one of these words, the model sets when the recipe runs. Each run that it sets happens once. A repeat that you ask for becomes a new recipe that waits for your approval.
+            owner: On the cues I set
+            model: The character decides each time
+            keywords: When you say a code word, the character sets when this recipe runs, once. A repeat becomes a new recipe that waits for your approval.
           flow:
-            owner: The instructions I write
-            model: Decided by the model each time
+            owner: The steps I write
+            model: The character decides each time
           triggers:
-            label: Triggers
-            description: Any trigger starts the check below.
-            add: Add trigger
-            remove: Remove trigger
+            label: Cues
+            description: When any cue comes, the character checks the promises below.
+            add: Add cue
+            remove: Remove cue
           conditions:
-            label: Conditions
-            description: Optional. When a trigger fires, every condition must hold. Otherwise the recipe skips this time.
-            add: Add condition
-            remove: Remove condition
+            label: Promises
+            description: Optional. The recipe runs only when every promise is kept.
+            add: Add promise
+            remove: Remove promise
           source:
             label: Source
             clock: Clock
             chat: Chat
             mouse: Mouse
             keyboard: Keyboard
-            module: Registered module
+            module: Connected module
+            linux_note: On Linux, some desktops, such as Wayland sessions, do not report input from other apps. This source can then have no effect.
           event:
-            label: Event
-            at: At a time
+            label: When
+            at: At a set time
             every: At a fixed interval
             message: When I send a message
             idle: After a quiet time
-            active: When used
-            observation: When it reports something new
+            active: When there is activity
+            observation: When the module has news
           time:
             label: Time
-            description: The local time.
+            description: The time on this device.
           days:
             label: Days
             description: Select no day to run every day.
           minutes:
             label: Minutes
-            every: Starts every this many minutes.
-            idle: Fires after this many minutes without use. It fires once per quiet time and waits for the next use.
+            every: Runs every this many minutes.
+            idle: Runs once after this much quiet. The count starts again after the next activity.
           after_idle:
-            label: Only after an absence (minutes)
-            description: Fires only on the first use after this many minutes without use. Enter 0 to fire on every use. On the desktop app, input in any app counts.
+            label: Away for at least (minutes)
+            description: Only the first activity after this long away counts. Enter 0 to count all. On the desktop app, input in any app counts.
           module:
             label: Module
-            description: A module that registered with AIRI.
-            none: No module has registered yet. Connect a module that reports observations, then choose it here.
+            description: A module that is connected to AIRI.
+            none: No module is connected yet. Connect one that reports news, then choose it here.
           condition:
-            label: Check
+            label: Promise
             time: Time range
             weekday: Day of the week
-            state: Quiet or in use
+            state: Quiet or active
             from: From
             to: To
             range: A range that ends before it starts crosses midnight.
             state_label: State
             idle: Quiet for at least
-            active: Used within
+            active: Active within
           cooldown:
             label: Cooldown (minutes)
-            description: The shortest time between two runs. Enter 0 for none.
+            description: The shortest gap between two runs. Enter 0 for none.
           summary:
             at: 'At {time}'
             at_days: 'At {time} on {days}'
             every: 'Every {minutes} min'
             message: When you send a message
             idle: '{source} quiet for {minutes} min'
-            active: '{source} used'
-            back: '{source} used after {minutes} min away'
-            observation: 'When {module} reports'
+            active: '{source} active'
+            back: '{source} active after {minutes} min away'
+            observation: 'When {module} has news'
             time: 'Only {from}–{to}'
             weekday: 'Only on {days}'
             state_idle: 'Only if {source} quiet for {minutes} min'
-            state_active: 'Only if {source} used within {minutes} min'
+            state_active: 'Only if {source} active within {minutes} min'
             cooldown: 'At most every {minutes} min'
-            model: The model sets when it runs, once each time
-            model_flow: The model decides what each run does
+            model: The character sets when it runs, once each time
+            model_flow: The character decides what each run does
       title: Long-Term Memory
     memory-short-term:
       description: Short-term memory specific settings and management

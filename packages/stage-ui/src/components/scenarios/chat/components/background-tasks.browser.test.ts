@@ -31,7 +31,7 @@ describe('chat background tasks', () => {
       global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })] },
     })
 
-    expect(screen.container.textContent).toContain('Failed')
+    expect(screen.container.textContent).toContain('Not finished')
 
     await screen.getByRole('button', { name: 'Dismiss Research' }).click()
 

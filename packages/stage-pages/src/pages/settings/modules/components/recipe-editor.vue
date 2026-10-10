@@ -4,6 +4,7 @@ import type { DecisionAction, Recipe, RecipeFields } from '@proj-airi/stage-ui/s
 import type { ConditionInput, TriggerInput } from '@proj-airi/stage-ui/tools/automation-input'
 
 import { MODEL_DECIDES_STEPS } from '@proj-airi/core-agent'
+import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { automationFromInput } from '@proj-airi/stage-ui/tools/automation-input'
 import { Button, FieldCheckbox, FieldInput, FieldSelect, FieldTextArea, Textarea } from '@proj-airi/ui'
 import { computed, ref } from 'vue'
@@ -123,6 +124,14 @@ function setSource(row: TriggerRow, source: TriggerSource) {
 
 const flowOptions = computed(() => (['owner', 'model'] as const).map(value => ({ label: t(`${KEY}.auto_run.flow.${value}`), value })))
 const timingOptions = computed(() => (['owner', 'model'] as const).map(value => ({ label: t(`${KEY}.auto_run.timing.${value}`), value })))
+/** The desktop app on Linux, where some desktops do not report input from other apps. */
+const linuxDesktop = isStageTamagotchi() && globalThis.navigator?.userAgent.includes('Linux')
+
+/** A note under a mouse or keyboard source on Linux. */
+function inputSourceNote(source: string) {
+  return linuxDesktop && (source === 'mouse' || source === 'keyboard') ? t(`${KEY}.auto_run.source.linux_note`) : undefined
+}
+
 const sourceOptions = computed(() => (Object.keys(SOURCE_EVENTS) as TriggerSource[]).map(source => ({ label: t(`${KEY}.auto_run.source.${source}`), value: source })))
 const eventOptions = (source: TriggerSource) => SOURCE_EVENTS[source].map(event => ({ label: t(`${KEY}.auto_run.event.${event}`), value: event }))
 // A stored module stays selectable while it is offline.
@@ -272,7 +281,7 @@ function save() {
             :key="index"
             :class="['flex flex-col', 'gap-3', 'rounded-lg', 'bg-neutral-100 dark:bg-neutral-900/60', 'p-3']"
           >
-            <FieldSelect :model-value="row.source" :label="t(`${KEY}.auto_run.source.label`)" :options="sourceOptions" @update:model-value="value => setSource(row, value as TriggerSource)" />
+            <FieldSelect :model-value="row.source" :label="t(`${KEY}.auto_run.source.label`)" :description="inputSourceNote(row.source)" :options="sourceOptions" @update:model-value="value => setSource(row, value as TriggerSource)" />
             <FieldSelect v-model="row.event" :label="t(`${KEY}.auto_run.event.label`)" :options="eventOptions(row.source)" />
             <template v-if="row.event === 'at'">
               <FieldInput v-model="row.time" type="time" :label="t(`${KEY}.auto_run.time.label`)" :description="t(`${KEY}.auto_run.time.description`)" />
@@ -315,7 +324,7 @@ function save() {
             </template>
             <WeekdayPicker v-else-if="row.kind === 'weekday'" v-model="row.days" :label="t(`${KEY}.auto_run.days.label`)" />
             <template v-else>
-              <FieldSelect v-model="row.source" :label="t(`${KEY}.auto_run.source.label`)" :options="stateSourceOptions" />
+              <FieldSelect v-model="row.source" :label="t(`${KEY}.auto_run.source.label`)" :description="inputSourceNote(row.source)" :options="stateSourceOptions" />
               <FieldSelect v-model="row.state" :label="t(`${KEY}.auto_run.condition.state_label`)" :options="stateOptions" />
               <FieldInput v-model="row.minutes" type="number" :label="t(`${KEY}.auto_run.minutes.label`)" />
             </template>

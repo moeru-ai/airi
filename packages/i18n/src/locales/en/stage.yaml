@@ -81,26 +81,26 @@ chat:
     finalizing: Finishing…
   voice-input: Voice input
   notice:
-    label: Background notice
+    label: Background report
   background-tasks:
     label: Background tasks
     stop: 'Stop {name}'
     dismiss: 'Dismiss {name}'
     status:
-      armed: Set
+      armed: Waiting for a cue
       running: Working on
       done: Done
-      failed: Failed
+      failed: Not finished
       interrupted: Stopped
   judgment:
     label: Judged
   recipe:
-    using: Starting recipe
-    loaded: Using recipe
+    using: Using recipe
+    loaded: Used recipe
     started: Handed to recipe
     pending: Recipe waits for approval
     disabled: Recipe is off
-    unknown: No such recipe
+    unknown: Recipe not found
     refused: Recipe did not start
     failed: Recipe did not start
   error-details:

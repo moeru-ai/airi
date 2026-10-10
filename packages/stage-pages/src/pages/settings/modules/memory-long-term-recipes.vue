@@ -189,7 +189,8 @@ function removeRecipe(id: string) {
       <p :class="['min-w-0 flex-1', 'text-sm', 'text-neutral-500 dark:text-neutral-400']">
         {{ t(isAutoRunTab ? `${KEY}.tabs.auto_run_description` : `${KEY}.tabs.conversation_description`) }}
       </p>
-      <Button v-if="!adding" size="sm" variant="primary" icon="i-solar:add-circle-linear" :label="t(`${KEY}.add_button`)" @click="startAdding" />
+      <!-- The hover outline grows 4px past the button, so the button keeps that space inside the page edge. -->
+      <Button v-if="!adding" :class="['m-1']" size="sm" variant="primary" icon="i-solar:add-circle-linear" :label="t(`${KEY}.add_button`)" @click="startAdding" />
     </div>
 
     <!-- Add flow: choose a type, then fill in its fields. -->

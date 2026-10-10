@@ -189,7 +189,7 @@ describe('chat history', () => {
     })
 
     await vi.waitFor(() => {
-      expect(screen.container.textContent).toContain('Background notice')
+      expect(screen.container.textContent).toContain('Background report')
       expect(screen.container.textContent).toContain('Research')
       expect(screen.container.textContent).not.toContain('Three builds compared.')
     })
