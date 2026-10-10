@@ -44,9 +44,10 @@ const { trackChatSessionSelected, trackChatSessionStarted } = useAnalytics()
 const isCreatingSession = ref(false)
 
 // Keep another account's sessions hidden while an account swap rehydrates.
+// Background recipe sessions are hidden too. Their results reach the conversation as notices.
 const ownedSessions = computed(() => {
   const effectiveUserId = userId.value || 'local'
-  return Object.values(sessionMetas.value).filter(meta => meta.userId === effectiveUserId)
+  return Object.values(sessionMetas.value).filter(meta => meta.userId === effectiveUserId && !meta.hidden)
 })
 
 /**

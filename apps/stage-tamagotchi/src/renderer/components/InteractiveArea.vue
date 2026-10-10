@@ -8,7 +8,7 @@ import type { ChatDraftHandover } from '../../shared/eventa'
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useChatInterruption } from '@proj-airi/stage-layouts/composables/use-chat-interruption'
-import { ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
+import { ChatBackgroundTasks, ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
 import { ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSendButton, useChatComposer, useChatImages, VoiceInputButton } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
@@ -91,7 +91,7 @@ const airiCardStore = useAiriCardStore()
 
 const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
-const { activeTurns } = storeToRefs(chatStore)
+const { activeTurns, backgroundTasks } = storeToRefs(chatStore)
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
 const { chatReady } = storeToRefs(useConsciousnessStore())
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
@@ -450,6 +450,7 @@ defineExpose({
             'min-h-0 overflow-y-auto scrollbar-none',
           ]"
         >
+          <ChatBackgroundTasks :tasks="backgroundTasks" @stop="task => chatStore.stopBackgroundTask(task.sessionId)" @dismiss="task => chatStore.dismissBackgroundTask(task.sessionId)" />
           <div ref="voice-attachment" :class="['px-2 pt-1 empty:hidden']" />
           <!-- Journal Preview Chips -->
           <div v-if="latestImageEntries.length > 0" class="flex gap-2 overflow-x-auto px-2 py-1 scrollbar-none">

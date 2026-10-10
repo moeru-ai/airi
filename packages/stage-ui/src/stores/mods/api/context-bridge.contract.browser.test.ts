@@ -226,6 +226,7 @@ vi.mock('../../chat/session-store', () => ({
       return activeSessionIdRef.value
     },
     getSessionGenerationValue: () => currentGeneration,
+    ensureBoundSession: async (binding: string) => `bound:${binding}`,
     getSessionMessagesIfLoaded: (sessionId: string) => storedSessionMessages[sessionId],
     refreshSession: (sessionId: string) => refreshSessionMock(sessionId),
   }),
@@ -403,6 +404,24 @@ describe('context bridge contract', () => {
       metadata: { event: { parentId: 'request-2' } },
     }))
     await chatAssetsRepo.clear()
+  })
+
+  it('sends input with a scene binding to the bound session', async () => {
+    consciousness.activeProvider = 'mock-provider'
+    consciousness.activeModel = 'mock-model'
+    const store = useContextBridgeStore()
+    await store.initialize()
+
+    await emitServerEvent('input:text', {
+      type: 'input:text',
+      source: 'discord',
+      metadata: createMetadata('discord', 'bot'),
+      data: { text: 'hello', overrides: { binding: 'discord:channel:a' } },
+    })
+
+    expect(chatOrchestratorMock.send).toHaveBeenCalledTimes(1)
+    expect(chatOrchestratorMock.send.mock.calls[0]?.[0]).toMatchObject({ sessionId: 'bound:discord:channel:a' })
+    await store.dispose()
   })
 
   it('records core ingest result for broadcast context updates', async () => {
@@ -858,6 +877,7 @@ describe('context bridge contract', () => {
     const outgoingStreamMessages = collectChannelMessages<{ sessionId: string }>(CHAT_STREAM_CHANNEL_NAME)
     const store = useContextBridgeStore()
     await store.initialize()
+    // The context names its own session. Concurrent sends cannot borrow another send's owner.
     const context = {
       sessionId: 'session-a',
       turnId: 'turn-1',
@@ -866,7 +886,7 @@ describe('context bridge contract', () => {
       composedMessage: [],
     } satisfies ChatStreamEventContext
 
-    chatOrchestratorMock.activeSendSessionId = 'session-a'
+    chatOrchestratorMock.activeSendSessionId = 'session-c'
     activeSessionIdRef.value = 'session-b'
     await chatOrchestratorMock.emitTokenLiteralHooks('session A token', context)
     await vi.waitFor(() => expect(outgoingStreamMessages).toHaveLength(1))

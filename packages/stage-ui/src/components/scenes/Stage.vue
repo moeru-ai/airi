@@ -508,7 +508,14 @@ watch(speechMuted, (muted) => {
   }
 })
 
+// Only a reply that speaks drives speech and expression. Background work and scene replies never speak here.
+function holdsVoice(context: { speaks?: boolean }) {
+  return context.speaks ?? false
+}
+
 chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
+  if (!holdsVoice(context))
+    return
   voice.startResponse(context)
   if (context.sessionId === chatSession.activeSessionId)
     resetAssistantSpeechSurface('new-message')
@@ -516,16 +523,19 @@ chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   await setupLipSync()
 }))
 
-chatHookCleanups.push(onBeforeSend(async () => {
-  currentMotion.value = { group: EmotionThinkMotionName }
+chatHookCleanups.push(onBeforeSend(async (_message, context) => {
+  if (holdsVoice(context))
+    currentMotion.value = { group: EmotionThinkMotionName }
 }))
 
 chatHookCleanups.push(onTokenLiteral(async (literal, context) => {
-  if (!speechMuted.value)
+  if (holdsVoice(context) && !speechMuted.value)
     await voice.getSpeech(context)?.write(literal)
 }))
 
 chatHookCleanups.push(onTokenSpecial(async (special, context) => {
+  if (!holdsVoice(context))
+    return
   if (speechMuted.value)
     await playSpecialToken(special, { turnId: context.turnId })
   else
@@ -537,6 +547,8 @@ chatHookCleanups.push(onStreamEnd(async (context) => {
 }))
 
 chatHookCleanups.push(onAssistantResponseEnd(async (_message, context) => {
+  if (!holdsVoice(context))
+    return
   void voice.finishResponse(context).catch(error => console.error('Speech response completion failed', error))
 }))
 

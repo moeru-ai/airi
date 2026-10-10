@@ -12,6 +12,7 @@ import { useChatStore } from '../stores/chat'
 import { useChatSessionStore } from '../stores/chat/session-store'
 import { useDisplayModelsStore } from '../stores/display-models'
 import { useMcpStore } from '../stores/mcp'
+import { useMemoryStore } from '../stores/memory'
 import { useAiriCardStore } from '../stores/modules/airi-card'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useConsciousnessSettingsStore } from '../stores/modules/consciousness-settings'
@@ -24,6 +25,7 @@ import { useTwitterStore } from '../stores/modules/twitter'
 import { useWebSearchStore } from '../stores/modules/web-search'
 import { useOnboardingStore } from '../stores/onboarding'
 import { useProviderStore } from '../stores/providers/provider'
+import { useRecipesStore } from '../stores/recipes'
 import { useSettings, useSettingsAudioDevice } from '../stores/settings'
 
 export function useDataMaintenance() {
@@ -50,6 +52,8 @@ export function useDataMaintenance() {
   const mcpStore = useMcpStore()
   const onboardingStore = useOnboardingStore()
   const airiCardStore = useAiriCardStore()
+  const memoryStore = useMemoryStore()
+  const recipesStore = useRecipesStore()
 
   async function deleteAllModels() {
     await displayModelsStore.resetDisplayModels()
@@ -75,6 +79,9 @@ export function useDataMaintenance() {
       () => discordStore.resetState(),
       () => factorioStore.resetState(),
       () => minecraftStore.resetState(),
+      // Memories and recipes hold what the character learned about the owner.
+      () => memoryStore.resetState(),
+      () => recipesStore.resetState(),
     ].map(reset => Promise.resolve().then(reset)))
     const failure = results.find(result => result.status === 'rejected')
     if (failure)

@@ -3,7 +3,7 @@ import type { ChatHistoryReplyPayload, ChatImageAttachment } from '@proj-airi/st
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
-import { CharacterSwitcherDrawer, ChatHistory, HearingConfig, HearingStatus, VoiceDrafts } from '@proj-airi/stage-ui/components'
+import { CharacterSwitcherDrawer, ChatBackgroundTasks, ChatHistory, HearingConfig, HearingStatus, VoiceDrafts } from '@proj-airi/stage-ui/components'
 import { ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSessionsDrawer, useChatComposer, useChatImages, VoiceComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
@@ -40,7 +40,7 @@ const chatSession = useChatSessionStore()
 const chatStream = useChatStreamStore()
 const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
-const { activeTurns } = storeToRefs(chatOrchestrator)
+const { activeTurns, backgroundTasks } = storeToRefs(chatOrchestrator)
 const { isReceivingRemoteStream } = storeToRefs(useContextBridgeStore())
 const { chatReady } = storeToRefs(useConsciousnessStore())
 const historyMessages = computed(() => messages.value)
@@ -468,6 +468,7 @@ onUnmounted(() => {
             :class="['w-full', voiceActive && 'invisible']"
             @cancel="handleCancelReply"
           />
+          <ChatBackgroundTasks :tasks="backgroundTasks" @stop="task => chatOrchestrator.stopBackgroundTask(task.sessionId)" @dismiss="task => chatOrchestrator.dismissBackgroundTask(task.sessionId)" />
           <div v-if="attachments.length" :class="['flex gap-2 overflow-x-auto p-2', voiceActive && 'invisible']">
             <ChatImageAttachmentPreview v-for="(attachment, index) in attachments" :key="attachment.previewId" :file="attachment.file" @remove="removeAttachment(index)" />
           </div>
