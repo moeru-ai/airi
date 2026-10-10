@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { errorMessageFrom } from '@moeru/std'
+import { isCapacitorAvailable } from '@proj-airi/stage-shared'
 import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth'
 import { resolveLinkedAccountOAuthErrorMessageKey, useAnalytics, useLinkedAccounts } from '@proj-airi/stage-ui/composables'
 import { authClient } from '@proj-airi/stage-ui/libs/auth'
@@ -55,6 +56,7 @@ const gravatarProfileUrl = computed(() => {
 // (44,965 / 44 965 / 44.965 depending on region) without us having to ship a
 // formatter.
 const formattedCredits = computed(() => credits.value.toLocaleString())
+const capacitorAvailable = isCapacitorAvailable()
 
 // Profile form. Initialized from store and re-synced when user changes (e.g.
 // after a successful save we mutate the store).
@@ -518,6 +520,7 @@ async function handleConfirmDelete(event: Event) {
               </span>
             </RouterLink>
             <RouterLink
+              v-if="capacitorAvailable"
               to="/settings/capacitor"
               :class="[
                 '-mx-2 flex items-center gap-2 px-2 py-1.5 rounded-md',

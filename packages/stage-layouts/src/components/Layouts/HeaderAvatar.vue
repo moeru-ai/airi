@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isCapacitorAvailable } from '@proj-airi/stage-shared'
 import { signOut } from '@proj-airi/stage-ui/libs/auth'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Avatar, DropdownMenu } from '@proj-airi/ui'
@@ -24,6 +25,7 @@ const userName = computed(() => user.value?.name)
 const userAvatar = computed(() => user.value?.image)
 
 const formattedCredits = computed(() => credits.value.toLocaleString())
+const capacitorAvailable = isCapacitorAvailable()
 </script>
 
 <template>
@@ -139,7 +141,7 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
           </RouterLink>
         </DropdownMenuItem>
 
-        <DropdownMenuItem as-child>
+        <DropdownMenuItem v-if="capacitorAvailable" as-child>
           <RouterLink
             to="/settings/capacitor"
             :class="[

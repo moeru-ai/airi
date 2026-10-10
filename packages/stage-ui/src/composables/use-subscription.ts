@@ -1,6 +1,6 @@
 import type { CustomerInfo, Package } from '@revenuecat/purchases-js'
 
-import { getRevenuecatWebKey, isFluxPurchaseDisabled } from '@proj-airi/stage-shared'
+import { getRevenuecatWebKey, isCapacitorAvailable } from '@proj-airi/stage-shared'
 import { ErrorCode, Purchases, PurchasesError } from '@revenuecat/purchases-js'
 import { object, optional, pipe, record, safeParse, string, trim } from 'valibot'
 import { ref } from 'vue'
@@ -136,7 +136,7 @@ export function useSubscription(options: {
   onChanged: () => Promise<unknown>
 }) {
   const { t, locale } = useI18n()
-  const enabled = !isFluxPurchaseDisabled() && getRevenuecatWebKey() != null
+  const enabled = isCapacitorAvailable()
 
   const currentCapacitor = ref<CurrentCapacitor | null>(null)
   const packages = ref<CapacitorPackage[]>([])

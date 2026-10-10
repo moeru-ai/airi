@@ -19,6 +19,14 @@ export function getRevenuecatWebKey(): string | null {
   return key && key.trim().length > 0 ? key : null
 }
 
+/**
+ * Whether this build can show and sell a Capacitor.
+ * Builds without the web key, such as the desktop and mobile releases, hide every Capacitor entry.
+ */
+export function isCapacitorAvailable(): boolean {
+  return !isFluxPurchaseDisabled() && getRevenuecatWebKey() != null
+}
+
 export function isCustomProvidersDisabled(): boolean {
   return isEnvTruthy(import.meta.env.VITE_DISABLE_CUSTOM_PROVIDERS)
 }
