@@ -1018,7 +1018,7 @@ pages:
         label: 长期访问令牌
         placeholder: 粘贴 Home Assistant 个人资料里的令牌
         description: 在 Home Assistant 个人资料的「安全」里创建一个。
-        saved: 已保存令牌。留空则保持不变。
+        saved: 已保存令牌。留空则保持不变。更改地址时需要重新填写。
       note: 令牌只保存在这台设备上，不会同步到你的账号。
       actions:
         save: 保存
