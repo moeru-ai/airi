@@ -2,14 +2,17 @@ import type Redis from 'ioredis'
 
 import type { Database } from '../../../libs/db'
 import type { RevenueMetrics } from '../../../otel'
-import type { FluxUsageInput } from './flux-posting'
+import type { ConfigKVService } from '../../adapters/config-kv'
+import type { CapacitorResetPolicy, FluxUsageInput } from './flux-posting'
 
 import { useLogger } from '@guiiai/logg'
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, isNull, sql } from 'drizzle-orm'
 import { minValue, number, parse, pipe, safeInteger } from 'valibot'
 
+import { nanoid } from '../../../utils/id'
 import { invalidateBalanceCache } from '../flux-cache'
-import { fluxUsageInputSchema, MICRO_FLUX_PER_FLUX } from './flux-posting'
+import { fluxUsageInputSchema, readCapacitorResetPolicy, refillCapacitor, settleOutstandingMicroFlux } from './flux-posting'
+import { initializeWallet } from './wallet-initialization'
 
 import * as fluxSchema from '../../../schemas/flux'
 import * as fluxTxSchema from '../../../schemas/flux-transaction'
@@ -20,9 +23,17 @@ const logger = useLogger('billing-service')
 /** Database handle used when the caller owns the outer transaction. */
 export type BillingTransaction = Pick<Database, 'insert' | 'update' | 'select'>
 
+/** The capacitor period that the payment channel reports as active now. */
+export interface CapacitorPeriod {
+  quota: number
+  periodStart: Date
+  expiresAt: Date
+}
+
 export function createBillingService(
   db: Database,
   redis: Redis,
+  configKV: Pick<ConfigKVService, 'getOptional'>,
   metrics?: RevenueMetrics | null,
 ) {
   /**
@@ -48,37 +59,78 @@ export function createBillingService(
     return wallet
   }
 
-  /** Integer debits settle the shared pool, independent of the service that crossed its threshold. */
+  /**
+   * Refills the capacitor bucket when a refill is due, then settles integer debits from the shared pool.
+   * The capacitor bucket pays first, then purchased Flux.
+   */
   async function settleOutstanding(
     tx: BillingTransaction,
-    wallet: typeof fluxSchema.userFlux.$inferSelect,
+    stored: typeof fluxSchema.userFlux.$inferSelect,
+    policy: CapacitorResetPolicy,
     operationId: string,
     usageId?: string,
   ) {
-    const requested = Math.floor(wallet.unsettledMicroFlux / MICRO_FLUX_PER_FLUX)
-    const charged = Math.min(requested, Math.max(0, wallet.flux))
-    const balance = wallet.flux - charged
-    const unsettledMicroFlux = wallet.unsettledMicroFlux - charged * MICRO_FLUX_PER_FLUX
-    await tx.update(fluxSchema.userFlux).set({ flux: balance, unsettledMicroFlux, updatedAt: new Date() }).where(eq(fluxSchema.userFlux.userId, wallet.userId))
-    if (charged > 0) {
+    const now = new Date()
+    const wallet = refillCapacitor(stored, policy, now)
+    if (wallet.refilled) {
+      await tx.insert(fluxTxSchema.fluxTransaction).values({
+        userId: wallet.userId,
+        operationId: `${operationId}:refill`,
+        type: 'credit',
+        pool: 'capacitor',
+        amount: wallet.capacitorQuota,
+        balanceBefore: stored.capacitorFlux,
+        balanceAfter: wallet.capacitorQuota,
+        description: 'capacitor_refill',
+        metadata: { source: 'capacitor.refill', periodStart: wallet.capacitorPeriodStart?.toISOString(), forfeited: stored.capacitorFlux },
+      })
+    }
+    const settled = settleOutstandingMicroFlux(wallet, now)
+    await tx.update(fluxSchema.userFlux).set({
+      flux: settled.flux,
+      capacitorFlux: settled.capacitorFlux,
+      capacitorFilledAt: wallet.capacitorFilledAt,
+      unsettledMicroFlux: settled.unsettledMicroFlux,
+      updatedAt: now,
+    }).where(eq(fluxSchema.userFlux.userId, wallet.userId))
+
+    const metadata = { source: 'usage.settlement', usageId, unsettledBefore: wallet.unsettledMicroFlux, unsettledAfter: settled.unsettledMicroFlux }
+    if (settled.fromPurchased > 0) {
       await tx.insert(fluxTxSchema.fluxTransaction).values({
         userId: wallet.userId,
         operationId,
         type: 'debit',
-        amount: charged,
+        pool: 'wallet',
+        amount: settled.fromPurchased,
         balanceBefore: wallet.flux,
-        balanceAfter: balance,
+        balanceAfter: settled.flux,
         description: 'usage_settlement',
-        metadata: { source: 'usage.settlement', usageId, unsettledBefore: wallet.unsettledMicroFlux, unsettledAfter: unsettledMicroFlux },
+        metadata,
       })
     }
-    return { charged, requested, balance, unsettledMicroFlux }
+    if (settled.fromCapacitor > 0) {
+      await tx.insert(fluxTxSchema.fluxTransaction).values({
+        userId: wallet.userId,
+        operationId: `${operationId}:capacitor`,
+        type: 'debit',
+        pool: 'capacitor',
+        amount: settled.fromCapacitor,
+        balanceBefore: wallet.capacitorFlux,
+        balanceAfter: settled.capacitorFlux,
+        description: 'usage_settlement',
+        metadata,
+      })
+    }
+    return { charged: settled.charged, requested: settled.requested, balance: settled.flux, unsettledMicroFlux: settled.unsettledMicroFlux }
   }
 
   return {
     /** Posts a confirmed fee once per source. The wallet row lock serializes pooled settlement. */
     async postFluxUsage(input: FluxUsageInput) {
       const command = parse(fluxUsageInputSchema, input)
+      // The policy read needs its own pool client. It runs before the transaction, so a
+      // settlement never holds one client while it waits for a second.
+      const policy = await readCapacitorResetPolicy(configKV)
       const result = await db.transaction(async (tx) => {
         const wallet = await lockWallet(tx, command.userId)
         const [usage] = await tx.insert(fluxUsageSchema.fluxUsage).values({
@@ -100,7 +152,7 @@ export function createBillingService(
         }
         const outstanding = wallet.unsettledMicroFlux + command.amountMicroFlux
         parse(pipe(number(), safeInteger(), minValue(0)), outstanding)
-        const settled = await settleOutstanding(tx, { ...wallet, unsettledMicroFlux: outstanding }, `usage:${usage.id}:settle`, usage.id)
+        const settled = await settleOutstanding(tx, { ...wallet, unsettledMicroFlux: outstanding }, policy, `usage:${usage.id}:settle`, usage.id)
         return { ...settled, amountMicroFlux: command.amountMicroFlux, replay: false }
       })
       if (!result.replay)
@@ -108,7 +160,10 @@ export function createBillingService(
       return result
     },
 
-    /** Reads authoritative admission state. Cached balances cannot authorize concurrent usage. */
+    /**
+     * Reads authoritative admission state. Cached balances cannot authorize concurrent usage.
+     * A due capacitor refill is counted here. The next settlement writes it.
+     */
     async getWallet(userId: string) {
       const [wallet] = await db.select().from(fluxSchema.userFlux).where(and(
         eq(fluxSchema.userFlux.userId, userId),
@@ -116,7 +171,77 @@ export function createBillingService(
       ))
       if (!wallet)
         throw new Error(`No active flux record for user ${userId}`)
-      return wallet
+      return refillCapacitor(wallet, await readCapacitorResetPolicy(configKV))
+    },
+
+    /**
+     * Stores the period that `resolve` returns. `null` means no active capacitor, so the capacitor expires now.
+     * The refill rule then decides the grant: a later period start refills the bucket,
+     * and the same or an earlier start keeps the spent amount.
+     * A smaller quota caps the bucket.
+     *
+     * An advisory lock per user serializes syncs while `resolve` reads the payment channel.
+     * The wallet row stays unlocked during that read, so debits are not blocked.
+     */
+    async syncCapacitor(userId: string, resolve: () => Promise<CapacitorPeriod | null>): Promise<void> {
+      const policy = await readCapacitorResetPolicy(configKV)
+      // INITIAL_USER_FLUX has a zero default when no initial grant is configured.
+      const initialFlux = await configKV.getOptional('INITIAL_USER_FLUX') ?? 0
+      await db.transaction(async (tx) => {
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${userId}))`)
+        const period = await resolve()
+        const now = new Date()
+
+        if (period)
+          await initializeWallet(tx, userId, initialFlux)
+        const [wallet] = await tx.select().from(fluxSchema.userFlux).where(and(
+          eq(fluxSchema.userFlux.userId, userId),
+          isNull(fluxSchema.userFlux.deletedAt),
+        )).for('update')
+        if (!wallet)
+          return
+
+        if (!period) {
+          if (wallet.capacitorExpiresAt !== null && wallet.capacitorExpiresAt > now)
+            await tx.update(fluxSchema.userFlux).set({ capacitorExpiresAt: now, updatedAt: now }).where(eq(fluxSchema.userFlux.userId, userId))
+          return
+        }
+
+        const operationId = `capacitor:${nanoid()}`
+        const capacitor = {
+          capacitorFlux: Math.min(wallet.capacitorFlux, period.quota),
+          capacitorQuota: period.quota,
+          capacitorExpiresAt: period.expiresAt,
+          capacitorPeriodStart: period.periodStart,
+        }
+        await tx.update(fluxSchema.userFlux).set(capacitor).where(eq(fluxSchema.userFlux.userId, userId))
+        if (capacitor.capacitorFlux < wallet.capacitorFlux) {
+          await tx.insert(fluxTxSchema.fluxTransaction).values({
+            userId,
+            operationId: `${operationId}:cap`,
+            type: 'debit',
+            pool: 'capacitor',
+            amount: wallet.capacitorFlux - capacitor.capacitorFlux,
+            balanceBefore: wallet.capacitorFlux,
+            balanceAfter: capacitor.capacitorFlux,
+            description: 'capacitor_quota_cap',
+            metadata: { source: 'capacitor.quota_cap', quota: period.quota },
+          })
+        }
+        await settleOutstanding(tx, { ...wallet, ...capacitor }, policy, `${operationId}:settle`)
+      })
+      await updateRedisCache(userId)
+    },
+
+    /** Chooses whether purchased Flux pays after the capacitor bucket runs out. Needs an initialized wallet. */
+    async setFallbackToFlux(userId: string, fallbackToFlux: boolean): Promise<void> {
+      const updated = await db.update(fluxSchema.userFlux)
+        .set({ fallbackToFlux, updatedAt: new Date() })
+        .where(and(eq(fluxSchema.userFlux.userId, userId), isNull(fluxSchema.userFlux.deletedAt)))
+        .returning({ userId: fluxSchema.userFlux.userId })
+      if (updated.length === 0)
+        throw new Error(`No active flux record for user ${userId}`)
+      await updateRedisCache(userId)
     },
 
     /** Credits integer Flux, then settles affordable outstanding fees in the same transaction. Replay returns the current wallet balance. */
@@ -142,6 +267,8 @@ export function createBillingService(
       parse(pipe(number(), safeInteger(), minValue(1)), input.amount)
       const ledgerType = input.type ?? 'credit'
 
+      // With `input.tx`, the caller already holds a client. That path is a purchase, not the request path.
+      const policy = await readCapacitorResetPolicy(configKV)
       const writeCredit = async (tx: BillingTransaction) => {
         await tx.insert(fluxSchema.userFlux)
           .values({ userId: input.userId, flux: 0 })
@@ -198,7 +325,7 @@ export function createBillingService(
           metadata: input.auditMetadata,
         }).returning({ id: fluxTxSchema.fluxTransaction.id })
 
-        const settled = await settleOutstanding(tx, { ...row!, flux: balanceAfter }, `credit:${insertedTx!.id}:settle`)
+        const settled = await settleOutstanding(tx, { ...row!, flux: balanceAfter }, policy, `credit:${insertedTx!.id}:settle`)
         return {
           balanceBefore,
           balanceAfter: settled.balance,

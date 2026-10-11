@@ -12,6 +12,8 @@ export const fluxTransaction = pgTable('flux_transaction', {
   userId: text('user_id').notNull(),
   type: text('type').notNull(), // 'credit' | 'debit' | 'initial' | 'promo' | 'admin_set'
   amount: bigint('amount', { mode: 'number' }).notNull(), // always positive
+  /** Which bucket the balance columns describe: purchased Flux or the capacitor bucket. */
+  pool: text('pool').notNull().default('wallet'), // 'wallet' | 'capacitor'
   balanceBefore: bigint('balance_before', { mode: 'number' }).notNull(),
   balanceAfter: bigint('balance_after', { mode: 'number' }).notNull(),
   requestId: text('request_id'), // nullable; used for idempotency on debit/credit
