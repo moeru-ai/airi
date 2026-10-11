@@ -385,9 +385,10 @@ async function save() {
       settings.allowedEntities = [...previousAllowed]
       await applyPolicy()
       // The rows describe the instance the main process still holds, so they come
-      // back. Leaving them empty hides every device that is still reachable until
-      // the user reloads by hand.
-      await loadEntities()
+      // back. A closed grid reads no row, and the list of a large instance is not
+      // worth sending to nobody.
+      if (gridIsOpen())
+        await loadEntities()
     }
     throw error
   }
@@ -574,7 +575,13 @@ watch(exposureMode, async (mode) => {
         </div>
       </div>
 
-      <div :class="['flex flex-col gap-2']">
+      <!-- A fieldset disables the whole group, and it reaches the radios the
+           group holds. The mode setter drops an edit made during a run, so an
+           enabled radio would move while the mode it shows stayed. -->
+      <fieldset
+        :disabled="pickerHeld"
+        :class="['m-0 min-w-0 border-0 p-0', 'flex flex-col gap-2', pickerHeld ? 'opacity-60' : '']"
+      >
         <Radio
           id="home-assistant-exposure-all"
           v-model="modeSelection"
@@ -596,7 +603,7 @@ watch(exposureMode, async (mode) => {
           value="deny"
           :title="tn('access.mode-deny')"
         />
-      </div>
+      </fieldset>
 
       <template v-if="exposureMode === 'all'">
         <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">

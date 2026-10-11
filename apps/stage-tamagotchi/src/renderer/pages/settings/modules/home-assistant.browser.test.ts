@@ -46,6 +46,7 @@ const reloadLabel = 'settings.pages.modules.home-assistant.access.reload'
 const testLabel = 'settings.pages.modules.home-assistant.actions.test'
 const testingStatus = 'settings.pages.modules.home-assistant.status.testing'
 const failedPolicyMove = 'settings.pages.modules.home-assistant.status.failed-policy-move'
+const failedStatus = 'settings.pages.modules.home-assistant.status.failed'
 const exposureModeKey = 'settings/home-assistant/exposure-mode'
 
 /**
@@ -242,11 +243,14 @@ describe('homeAssistantSettings', () => {
   })
 
   // https://github.com/moeru-ai/airi/pull/2903#discussion_r4241520165
-  it('keeps the mode controls out of the load a test owns (PR #2903)', async () => {
+  // https://github.com/moeru-ai/airi/pull/2903#discussion_r4242007121
+  it('holds the mode controls out of the load a test owns (PR #2903)', async () => {
     //
     // The test reports the count of the list it read. A mode change during that
-    // load started a second load, which took the rows from the first, and the
-    // test then reported the count of a list nobody read.
+    // load started a second load, which took the rows from the first, so the
+    // test reported a count nobody read.
+    //
+    // The setter drops such an edit, and the group is a disabled fieldset.
     invokeMocks.getConfig.mockResolvedValue(storedConfig)
     invokeMocks.request.mockImplementation(() => new Promise(() => {}))
     invokeMocks.setConfig.mockResolvedValue(storedConfig)
@@ -258,8 +262,11 @@ describe('homeAssistantSettings', () => {
     await page.getByRole('button', { name: testLabel }).click()
     await expect.element(page.getByText(testingStatus)).toBeInTheDocument()
 
-    await modeControl('deny').click()
-
+    const radios = page.getByRole('radio').elements()
+    expect(radios.length).toBe(3)
+    // A fieldset disables its controls without setting the attribute on each one,
+    // so the selector is the check.
+    for (const radio of radios) expect(radio.matches(':disabled')).toBe(true)
     expect(settings.exposureMode).toBe('allow')
   })
 
@@ -295,5 +302,29 @@ describe('homeAssistantSettings', () => {
     // `postMessage` clones with this algorithm, so a throw here is the throw the
     // settings window takes on the wire.
     expect(() => structuredClone(published[0])).not.toThrow()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2903#discussion_r4242007119
+  it('reads no device list when a rejected save rolls back on a closed grid (PR #2903)', async () => {
+    // ROOT CAUSE:
+    //
+    // The rollback reloaded the rows of the instance the main process still holds,
+    // whoever opened the page. A closed grid reads no row, so a rejected save sent
+    // the whole list to nobody.
+    //
+    // The reload waits for a grid that shows it.
+    invokeMocks.getConfig.mockResolvedValue(storedConfig)
+    invokeMocks.request.mockResolvedValue([])
+    invokeMocks.setConfig.mockRejectedValue(new Error('the main process refused the change'))
+    localStorage.setItem(exposureModeKey, 'all')
+
+    const pinia = (await renderPage()).pinia
+    vi.spyOn(useTamagotchiHomeAssistantStore(pinia), 'setPolicy').mockResolvedValue(undefined)
+
+    await page.getByPlaceholder(addressPlaceholder).fill('http://home-b.local:8123')
+    await page.getByRole('button', { name: saveLabel }).click()
+
+    await expect.element(page.getByText(failedStatus)).toBeInTheDocument()
+    expect(invokeMocks.request).not.toHaveBeenCalled()
   })
 })
