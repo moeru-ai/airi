@@ -11,6 +11,7 @@ const sdk = vi.hoisted(() => ({
   getCustomerInfo: vi.fn<() => Promise<CustomerInfo>>(),
   changeUser: vi.fn(),
   getOfferings: vi.fn<() => Promise<{ current: unknown }>>(async () => ({ current: null })),
+  purchase: vi.fn(),
 }))
 
 vi.mock('@revenuecat/purchases-js', async (importOriginal) => {
@@ -133,6 +134,29 @@ describe('subscription account ownership', () => {
     await subscription.fetchStatus()
 
     expect(order).toEqual(['sync', 'balance'])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2910#discussion_r4240500700
+  it('reads the balance when the sync cannot reach the server', async () => {
+    vi.mocked(globalThis.fetch).mockRejectedValue(new TypeError('Failed to fetch'))
+    let balanceReads = 0
+    const { subscription } = mountSubscription(async () => void (balanceReads += 1))
+
+    await subscription.fetchStatus()
+
+    expect(balanceReads).toBe(1)
+    expect(subscription.currentCapacitor.value?.productId).toBe('monthly')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2910#discussion_r4240500691
+  it('does not start a checkout for a product that the server no longer maps', async () => {
+    sdk.getOfferings.mockResolvedValue({
+      current: { metadata: null, availablePackages: [monthlyPackage('unmapped')] },
+    })
+    const { subscription } = mountSubscription()
+
+    await expect(subscription.purchaseCapacitor('$rc_unmapped')).rejects.toThrow()
+    expect(sdk.purchase).not.toHaveBeenCalled()
   })
 
   it('lists only the packages that the server grants a Capacitor for', async () => {

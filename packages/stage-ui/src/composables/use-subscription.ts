@@ -201,10 +201,20 @@ export function useSubscription(options: {
     await refreshCustomer()
     if (!identity.userId || !identity.isCurrent())
       return
+    // The SDK already reported the capacitor. A sync that cannot reach the server must not hide it,
+    // so the balance read still runs.
     if (enabled)
-      await syncWallet()
+      await syncWallet().catch(() => undefined)
     if (identity.isCurrent())
       await options.onChanged()
+  }
+
+  /** The products that the server maps to a Capacitor. Another product takes the payment and grants nothing. */
+  async function fetchSoldProductIds(): Promise<string[]> {
+    const sold = await client.api.v1.revenuecat.capacitors.$get()
+    if (!sold.ok)
+      throw new Error(t('settings.pages.capacitor.packagesError'))
+    return (await sold.json()).productIds
   }
 
   async function fetchPackages(): Promise<void> {
@@ -215,13 +225,7 @@ export function useSubscription(options: {
     const purchases = await ensurePurchases(identity.userId)
     if (!identity.isCurrent())
       return
-    const [offerings, sold] = await Promise.all([
-      purchases.getOfferings(),
-      client.api.v1.revenuecat.capacitors.$get(),
-    ])
-    if (!sold.ok)
-      throw new Error(t('settings.pages.capacitor.packagesError'))
-    const { productIds } = await sold.json()
+    const [offerings, productIds] = await Promise.all([purchases.getOfferings(), fetchSoldProductIds()])
     const current = offerings.current
     if (!identity.isCurrent() || !current)
       return
@@ -242,11 +246,12 @@ export function useSubscription(options: {
       const purchases = await ensurePurchases(identity.userId)
       if (!identity.isCurrent())
         return 'cancelled'
-      const offerings = await purchases.getOfferings()
+      // The mapping can change after the page listed the packages, so the checkout reads it again.
+      const [offerings, productIds] = await Promise.all([purchases.getOfferings(), fetchSoldProductIds()])
       if (!identity.isCurrent())
         return 'cancelled'
       const rcPackage = offerings.current?.availablePackages.find(pkg => pkg.identifier === packageId)
-      if (!rcPackage)
+      if (!rcPackage || !productIds.includes(rcPackage.webBillingProduct.identifier))
         throw new Error(t('settings.pages.capacitor.checkout.error'))
 
       let customerInfo: CustomerInfo
