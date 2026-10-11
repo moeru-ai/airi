@@ -44,9 +44,10 @@ const PLURAL_SELECTOR = /\{\s*(?:count|n)\s*\}/
  * A literal span, which vue-i18n renders as text.
  *
  * The compiler reads the body up to the first quote it does not escape, and it
- * accepts `\\`, `\'`, and the two unicode escapes.
+ * accepts `\\`, `\'`, and the two unicode escapes. It reads spaces around the
+ * body as well, so `{ '{count}' }` is a literal too.
  */
-const LITERAL = /\{'(?:\\[\s\S]|''|[^'\\])*'\}/g
+const LITERAL = /\{\s*'(?:\\[\s\S]|''|[^'\\])*'\s*\}/g
 
 /**
  * Warns about a choice separator that the message itself cannot select.

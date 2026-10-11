@@ -267,15 +267,17 @@ describe('checkLocales', () => {
   })
 
   // https://github.com/moeru-ai/airi/pull/2904#discussion_r4241724158
+  // https://github.com/moeru-ai/airi/pull/2904#discussion_r4241866639
   it('reports a separator beside a literal that holds a selector (PR #2904)', async () => {
     // ROOT CAUSE:
     //
     // The check read a `{count}` inside a literal span as a selector, so a message
     // that explains the token and holds a raw pipe passed.
     //
-    // The spans are removed before the selector is read now.
+    // The spans are removed before the selector is read now. The compiler reads
+    // spaces around the body as well, so the pattern accepts them too.
     const root = await locales({
-      'en/settings.yaml': 'files:\n  hint: Use {\'{count}\'} | total\n  other: Use {\'don\\\'t type {count}\'} | total\n',
+      'en/settings.yaml': 'files:\n  hint: Use {\'{count}\'} | total\n  other: Use {\'don\\\'t type {count}\'} | total\n  spaced: Use { \'{count}\' } | total\n',
     })
 
     const issues = await checkLocales({ root })
@@ -283,6 +285,7 @@ describe('checkLocales', () => {
     expect(issues).toEqual([
       expect.objectContaining({ level: 'warning', key: 'files.hint' }),
       expect.objectContaining({ level: 'warning', key: 'files.other' }),
+      expect.objectContaining({ level: 'warning', key: 'files.spaced' }),
     ])
   })
 
