@@ -135,20 +135,28 @@ The webhook applies the new Capacitor Flux after the store changes the product.
 
 ### Account deletion
 
-A deleted user cannot open the management URL, so a subscription that still renews stops the deletion.
+A deleted user cannot open the management URL, so a subscription that can still charge refuses the deletion.
 The server does not cancel a subscription. The user cancels it, and then deletes the account.
 This rule needs only the v1 subscriber read, and it also covers App Store and Google Play subscriptions.
 
-A subscription renews while it gives access, `unsubscribe_detected_at` is null, and `refunded_at` is null.
-A cancelled subscription keeps its access until the period ends. It does not stop the deletion, and the deletion clears the wallet.
+A cancelled or refunded subscription does not refuse. It has `unsubscribe_detected_at` or `refunded_at`.
+A cancelled subscription keeps its access until the period ends, and the deletion clears the wallet.
+Of the other subscriptions, one refuses in two cases:
 
-The rule runs at two points:
+- It gives access now. It renews at the end of the period.
+- `billing_issues_detected_at` is less than 30 days old. A failed renewal can expire the subscription at once, but RevenueCat retries the payment for up to 30 days.
 
-- `GET /api/v1/revenuecat/subscription` returns `renewing` for the signed-in user. The account page reads it before it requests the confirmation email.
-- The deletion handler `subscriptions` runs first, at priority 10. It returns 409 `SUBSCRIPTION_ACTIVE` while a subscription renews. The Auth service then returns 409 `user-deletion/subscription_active`, and the identity stays.
+The Auth service asks `POST /internal/auth/user-deletion/check` on the private network. The check changes nothing.
+It returns 409 `SUBSCRIPTION_ACTIVE` for a refusal. Auth then returns the Better Auth error `SUBSCRIPTION_ACTIVE`, which the account page shows.
+Auth asks at two points:
 
-The second point covers a client that skips the read, and a purchase after the email.
-A failed read of RevenueCat stops the deletion. Without `REVENUECAT_API_KEY` no subscription is sold, and the rule passes.
+- Before the deletion request sends the confirmation email. A Better Auth `before` hook on `/delete-user` runs the check, because the email callback can run in the background.
+- First in `beforeDelete`, before it revokes external authorizations. The user can subscribe after the email.
+
+The resource cleanup has no subscription rule. A refusal after the revocation would leave the account without its social grants.
+A failed read of RevenueCat refuses the deletion.
+Without `REVENUECAT_API_KEY`, the check passes when no webhook secret is set, because that deployment sells no subscriptions.
+With a webhook secret, the missing key is a configuration error, and the check returns 503.
 
 ## Scope
 
@@ -176,8 +184,8 @@ flowchart LR
   Billing --> Posting[flux-posting.ts]
   Webhook[RevenueCat webhook] --> Sync["revenuecat-subscriptions.ts"]
   SyncRoute["POST /revenuecat/sync"] --> Sync
-  Deletion[user-deletion] --> Reader
-  AccountPage["GET /revenuecat/subscription"] --> Reader
+  Auth[Auth service] --> Check["POST /internal/auth/user-deletion/check"]
+  Check --> Reader
   Sync --> Reader["revenuecat-subscriber.ts"]
   Reader --> RC[RevenueCat]
   Sync --> Billing
@@ -243,5 +251,7 @@ Run the client test that maps `customerInfo` to the current Capacitor.
 Run the admission test for a due refill with an outstanding fee.
 Run the route tests for the sync of a signed-in user, an anonymous sync, and the product list.
 Run the subscriber client tests for a renewing, a cancelled, a refunded, and an expired subscription, and for a failed read.
-Run the route test for the renewal status, and the Auth test for the 409 of the resource API.
+Run the subscriber client tests for a failed payment inside and outside the retry window, and for a missing API key.
+Run the internal route tests for the deletion check.
+Run the Auth tests for a refused request without an email, and for a refused email link without a revocation.
 Run the client tests for the sync before the balance read and for the product filter.

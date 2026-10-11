@@ -91,7 +91,7 @@ import { createRequestLogService } from './services/domain/request-log'
 import { createUserDeletionService } from './services/domain/user-deletion'
 import { createVoicePackService } from './services/domain/voice-packs'
 import { createEnvelopeCrypto } from './utils/envelope-crypto'
-import { ApiError, createInternalError, createSubscriptionActiveError } from './utils/error'
+import { ApiError, createInternalError } from './utils/error'
 import { nanoid } from './utils/id'
 import { getTrustedOrigin } from './utils/origin'
 
@@ -404,6 +404,7 @@ export async function buildApp(deps: AppDeps) {
     .route('/internal/auth', createInternalAuthRoutes({
       userDeletionService: deps.userDeletionService,
       productEventService: deps.productEventService,
+      revenuecatSubscriber: deps.revenuecatSubscriber,
     }))
 
     /**
@@ -465,7 +466,6 @@ export async function buildApp(deps: AppDeps) {
      */
     .route('/api/v1/revenuecat', createRevenuecatRoutes(
       deps.subscriptionSync,
-      deps.revenuecatSubscriber,
       deps.env,
       deps.otel?.rateLimit ?? null,
     ))
@@ -740,7 +740,10 @@ export async function createApp() {
 
   const revenuecatSubscriber = injeca.provide('adapters:revenuecatSubscriber', {
     dependsOn: { env: parsedEnv },
-    build: ({ dependsOn }) => createRevenuecatSubscriberClient({ apiKey: dependsOn.env.REVENUECAT_API_KEY ?? null }),
+    build: ({ dependsOn }) => createRevenuecatSubscriberClient({
+      apiKey: dependsOn.env.REVENUECAT_API_KEY ?? null,
+      sellsSubscriptions: Boolean(dependsOn.env.REVENUECAT_WEBHOOK_AUTH || dependsOn.env.REVENUECAT_WEBHOOK_SECRET),
+    }),
   })
 
   const subscriptionSync = injeca.provide('services:revenuecatSubscriptionSync', {
@@ -760,21 +763,11 @@ export async function createApp() {
   // Domain knowledge stays inside each service instead of being copied into
   // a parallel handler file. See `server/apps/api/docs/ai-context/account-deletion.md`.
   const userDeletionService = injeca.provide('services:userDeletion', {
-    dependsOn: { paymentService, fluxService, providerService, characterService, characterCardService, chatService, revenuecatSubscriber },
+    dependsOn: { paymentService, fluxService, providerService, characterService, characterCardService, chatService },
     build: ({ dependsOn }) => {
       const service = createUserDeletionService()
-      // priority: 10 = precondition that can stop the deletion (renewing subscription),
-      //           20 = financial / cache state (Flux balance + Redis),
+      // priority: 20 = financial / cache state (Flux balance + Redis),
       //           30 = pure DB soft-delete (no external touch).
-      // A deleted user cannot open the management URL, so a subscription that renews stops the deletion.
-      service.register({
-        name: 'subscriptions',
-        priority: 10,
-        softDelete: async ({ userId }) => {
-          if (await dependsOn.revenuecatSubscriber.hasRenewingSubscription(userId))
-            throw createSubscriptionActiveError()
-        },
-      })
       service.register({ name: 'payment', priority: 30, softDelete: ({ userId }) => dependsOn.paymentService.deleteAllForUser(userId) })
       service.register({ name: 'flux', priority: 20, softDelete: ({ userId }) => dependsOn.fluxService.deleteAllForUser(userId) })
       service.register({ name: 'providers', priority: 30, softDelete: ({ userId }) => dependsOn.providerService.deleteAllForUser(userId) })

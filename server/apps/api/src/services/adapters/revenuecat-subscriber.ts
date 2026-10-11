@@ -23,8 +23,17 @@ const subscriptionSchema = object({
   grace_period_expires_date: optional(nullable(instantSchema)),
   /** The time at which the store reported that the customer turned off the renewal. */
   unsubscribe_detected_at: nullable(instantSchema),
+  /** The time of a failed renewal payment. The store retries the payment after it. */
+  billing_issues_detected_at: nullable(instantSchema),
   refunded_at: nullable(instantSchema),
 })
+
+/**
+ * RevenueCat Web Billing retries a failed renewal payment for up to 30 days.
+ * A recovered payment charges the customer and starts the subscription again.
+ * https://www.revenuecat.com/docs/web/web-billing/subscription-lifecycle
+ */
+const PAYMENT_RETRY_MS = 30 * 86_400_000
 
 const subscriberResponseSchema = object({
   subscriber: object({
@@ -61,6 +70,11 @@ function accessUntil(entitlement: Pick<InferOutput<typeof entitlementSchema>, 'e
 export function createRevenuecatSubscriberClient(input: {
   /** Secret API key. Reads fail with 503 when it is null. */
   apiKey: string | null
+  /**
+   * True when this deployment receives RevenueCat webhooks, so it sells subscriptions.
+   * A missing API key is then a configuration error, not a deployment without subscriptions.
+   */
+  sellsSubscriptions: boolean
   fetch?: typeof globalThis.fetch
 }) {
   const fetchImpl = input.fetch ?? globalThis.fetch
@@ -111,19 +125,31 @@ export function createRevenuecatSubscriberClient(input: {
   }
 
   /**
-   * Tells whether the store will charge the customer again.
-   * A subscription renews while it gives access and the customer did not turn off the renewal.
-   * A cancelled subscription keeps its access until the period ends, and it does not count.
-   * Without an API key no subscription is sold, so the answer is no.
+   * Tells whether the store can charge the customer again.
+   * A cancelled or refunded subscription does not count. It keeps its access until the period ends.
+   * Of the others, a subscription counts in two cases:
+   * - It gives access now, so it renews at the end of the period.
+   * - A renewal payment failed inside the retry window. It can be expired, but a recovered payment charges the customer.
+   *
+   * Without an API key the answer is no for a deployment that sells no subscriptions.
+   * A deployment that sells them fails, because its subscriptions cannot be read.
    */
   async function hasRenewingSubscription(userId: string): Promise<boolean> {
-    if (!input.apiKey)
+    if (!input.apiKey) {
+      if (input.sellsSubscriptions)
+        throw createServiceUnavailableError('RevenueCat is not configured', 'REVENUECAT_NOT_CONFIGURED')
       return false
+    }
 
-    const now = new Date()
+    const now = Date.now()
     return Object.values((await fetchSubscriber(userId)).subscriptions).some((subscription) => {
+      if (subscription.unsubscribe_detected_at !== null || subscription.refunded_at !== null)
+        return false
       const until = accessUntil(subscription)
-      return until !== null && until > now && subscription.unsubscribe_detected_at === null && subscription.refunded_at === null
+      if (until !== null && until.getTime() > now)
+        return true
+      return subscription.billing_issues_detected_at !== null
+        && now - Date.parse(subscription.billing_issues_detected_at) < PAYMENT_RETRY_MS
     })
   }
 

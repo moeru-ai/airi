@@ -176,9 +176,9 @@ Product-to-Capacitor mapping lives in ConfigKV `REVENUECAT_CAPACITORS`.
 A missed webhook delays the grant until the next webhook for that
 customer, or until the client calls `POST /sync`. The Capacitor name and expiry come from the client SDK, so they do not wait for that webhook.
 
-Account deletion stops with 409 `SUBSCRIPTION_ACTIVE` while a subscription still renews. The user cancels the
-subscription first. `GET /subscription` returns `renewing` for the signed-in user, and the account page reads it
-before it requests the deletion.
+The Auth service asks `POST /internal/auth/user-deletion/check` before it sends the deletion email, and again
+before it deletes. The check returns 409 `SUBSCRIPTION_ACTIVE` while a subscription can still charge. The user
+cancels the subscription first.
 
 ## Run locally
 
