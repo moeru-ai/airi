@@ -82,14 +82,15 @@ Generation validation uses the configured model before consulting the endpoint m
 
 ## AnonRouter
 
-AnonRouter exposes an OpenAI-compatible chat API. AIRI uses bearer authentication with a compatible inference key.
+AnonRouter exposes an OpenAI-compatible chat API. AIRI discovers available models from the endpoint and uses bearer authentication with a compatible inference key.
 
 1. Create an account and an API key at [AnonRouter](https://anonrouter.ai/).
-2. Keep the key private. Do not commit it or include it in screenshots.
-3. Open **Settings → Providers → Chat → AnonRouter**.
-4. Enter the API key. Keep the default Base URL, `https://api.anonrouter.ai/v1`.
-5. Wait for automatic validation. If **Ping API** appears, use it for a live request.
-6. Open **Settings → Modules → Consciousness** and select the provider and model.
+2. Enable **OpenAI-compatible access** for the key. See [compatibility mode](https://docs.anonrouter.ai/compatibility).
+3. Keep the key private. Do not commit it or include it in screenshots.
+4. Open **Settings → Providers → Chat → AnonRouter**.
+5. Enter the API key. Keep the default Base URL, `https://api.anonrouter.ai/v1`.
+6. Wait for automatic validation. If **Ping API** appears, use it for a live request.
+7. Open **Settings → Modules → Consciousness** and select the provider and model.
 
 Model IDs use the `creator/model` format, for example `openai/gpt-4o-mini`. The provider catalog gives each exact ID.
 If the catalog cannot load, enter the exact model ID manually on the Consciousness page.
