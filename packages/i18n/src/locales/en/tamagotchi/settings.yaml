@@ -56,7 +56,7 @@ pages:
         conflict: Shortcut already in use.
         failed: Failed to update shortcut
         requiresModifier: Use at least one of Cmd, Ctrl, Alt, or Super.
-        requiresHoldModifier: Use a modifier key, or a function key such as F13.
+        requiresHoldModifier: Use Cmd, Ctrl, Alt, or Super, or use a function key such as F13. Shift alone is not enough.
         denied: AIRI cannot read global keys. Allow AIRI in Accessibility settings, then try again.
         unsupported: This system cannot detect when you release a global shortcut.
       toggle-move:

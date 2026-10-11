@@ -10,6 +10,7 @@ import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
 import { electronShortcutRegister, electronShortcutTriggered, electronShortcutUnregister } from '../../shared/eventa'
+import { isSafeSpotlightAccelerator } from '../../shared/spotlight-shortcut'
 
 /** Stable binding ID. A changed accelerator keeps this ID, so the main process replaces the earlier binding. */
 const SHORTCUT_ID = 'voice-push-to-talk'
@@ -21,11 +22,12 @@ export function defaultPushToTalkAccelerator(): ShortcutAccelerator {
 
 /**
  * Tells if an accelerator can be a global hold key.
- * The global hook observes keys in every app and does not consume them, so a plain letter would start Push to Talk while the user types.
- * A modifier or a function key prevents that.
+ * The global hook observes keys in every app and does not consume them, so a key that occurs in ordinary typing starts
+ * Push to Talk while the user types. Shift alone is not enough, because Shift+A and Shift+Space occur in ordinary typing.
+ * Cmd, Ctrl, Alt, or Super prevents that, and so does a function key.
  */
 export function isHoldableAccelerator(accelerator: ShortcutAccelerator) {
-  return accelerator.modifiers.length > 0 || /^F\d{1,2}$/.test(accelerator.key)
+  return isSafeSpotlightAccelerator(accelerator) || /^F\d{1,2}$/.test(accelerator.key)
 }
 
 /**

@@ -56,7 +56,7 @@ pages:
         conflict: 该快捷键已被占用
         failed: 快捷键更新失败
         requiresModifier: 请至少使用 Cmd、Ctrl、Alt 或 Super 中的一个修饰键。
-        requiresHoldModifier: 请使用修饰键，或 F13 等功能键。
+        requiresHoldModifier: 请使用 Cmd、Ctrl、Alt 或 Super，或使用 F13 等功能键。仅使用 Shift 不够。
         denied: AIRI 无法读取全局按键。请在「辅助功能」设置中允许 AIRI，然后重试。
         unsupported: 此系统无法检测全局快捷键的松开。
       toggle-move:
