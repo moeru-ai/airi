@@ -79,15 +79,6 @@ const useVADThreshold = shallowRef(0.6) // 0.1 - 0.9
 const useVolumeThreshold = shallowRef(10) // 1 - 80
 const useVADMinSilenceDurationMs = shallowRef(800)
 const useVADModel = shallowRef(true) // Toggle between VAD and volume-based detection
-const sortedProviderModels = computed(() => {
-  return providerModels.value.toSorted((left, right) => {
-    if (left.id === activeTranscriptionModel.value)
-      return -1
-    if (right.id === activeTranscriptionModel.value)
-      return 1
-    return 0
-  })
-})
 const usesOpenRouterTranscription = computed(() => activeTranscriptionProvider.value === 'openrouter-audio-transcription')
 const providerModelStorageKey = (providerId: string) => `settings/hearing/provider-model/${encodeURIComponent(providerId)}`
 
@@ -524,7 +515,7 @@ onUnmounted(() => {
               <RadioCardManySelect
                 v-model="activeTranscriptionModel"
                 v-model:search-query="transcriptionModelSearchQuery"
-                :items="sortedProviderModels"
+                :items="providerModels"
                 :search-key-of="model => moduleModelSearchKey('transcription', activeTranscriptionProvider, model.id)"
                 :searchable="true"
                 :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
