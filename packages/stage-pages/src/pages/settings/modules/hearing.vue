@@ -13,6 +13,8 @@ import { CONFIDENCE_THRESHOLD_DISABLED, useHearingStore } from '@proj-airi/stage
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useVoiceControlsStore } from '@proj-airi/stage-ui/stores/voice-controls'
+import { useWakeWordDetectionStore } from '@proj-airi/stage-ui/stores/wake-word-detection'
 import { SileroVad } from '@proj-airi/stage-ui/workers/vad/silero-vad'
 import { Button, FieldCheckbox, FieldCombobox, FieldInput, FieldRange, FieldSelect, SettingsCard } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -58,7 +60,28 @@ const inputModeOptions = computed(() => [
       : t('settings.pages.modules.hearing.sections.section.input-mode.push-to-talk-unavailable'),
     disabled: !pushToTalkAvailable.value,
   },
+  {
+    value: 'wake-word' as const,
+    label: t('settings.pages.modules.hearing.sections.section.input-mode.wake-word'),
+    description: t('settings.pages.modules.hearing.sections.section.input-mode.wake-word-description'),
+  },
 ])
+const wakeWordDetection = useWakeWordDetectionStore()
+const voiceControls = useVoiceControlsStore()
+/**
+ * Wake word setup shown under the mode selector. The voice host owns the detector, so preparation comes from its snapshot.
+ * Without an active pronunciation, the hint explains that a character must set wake words first.
+ */
+const wakeWordStatus = computed(() => {
+  if (wakeWordDetection.pronunciations.length === 0)
+    return { tone: 'hint', text: t('settings.pages.modules.hearing.sections.section.input-mode.wake-word-status.no-words') }
+
+  const status = voiceControls.snapshot.wakeWords
+  const preparation = status?.preparation ?? 'unconfigured'
+  if (preparation === 'error')
+    return { tone: 'error', text: t('settings.pages.modules.hearing.sections.section.input-mode.wake-word-status.error', { error: status?.error ?? '' }) }
+  return { tone: preparation === 'ready' ? 'ready' : 'hint', text: t(`settings.pages.modules.hearing.sections.section.input-mode.wake-word-status.${preparation}`) }
+})
 const providersStore = useProviderStore()
 const { configuredChatProvidersMetadata } = storeToRefs(providersStore)
 const rephraseProviderOptions = computed(() => [
@@ -593,6 +616,17 @@ onUnmounted(() => {
             :options="inputModeOptions"
             layout="vertical"
           />
+          <div
+            v-if="inputMode === 'wake-word'"
+            data-testid="hearing-wake-word-status"
+            :class="[
+              'mt-2 flex items-center gap-1.5 text-sm',
+              wakeWordStatus.tone === 'error' ? 'text-red-500 dark:text-red-400' : wakeWordStatus.tone === 'ready' ? 'text-emerald-600 dark:text-emerald-400' : 'text-neutral-500 dark:text-neutral-400',
+            ]"
+          >
+            <div :class="[wakeWordStatus.tone === 'error' ? 'i-solar:danger-circle-line-duotone' : wakeWordStatus.tone === 'ready' ? 'i-solar:check-circle-line-duotone' : 'i-solar:info-circle-line-duotone', 'shrink-0']" />
+            {{ wakeWordStatus.text }}
+          </div>
 
           <Alert v-if="pushToTalkStranded" type="warning" data-testid="hearing-input-mode-stranded" :class="['mt-4']">
             <template #title>

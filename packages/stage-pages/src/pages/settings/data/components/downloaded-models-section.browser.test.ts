@@ -1,6 +1,7 @@
 import en from '@proj-airi/i18n/locales/en'
 
 import { updateModelAssetStatus } from '@proj-airi/stage-ui/composables/use-model-asset-status'
+import { kwsModel } from '@proj-airi/stage-ui/libs/voice/kws-model-info'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { createI18n } from 'vue-i18n'
@@ -68,5 +69,13 @@ describe('downloaded speech models in Data settings', () => {
 
     await expect.poll(() => cancel).toHaveBeenCalledWith(model.id)
     await expect.element(screen.getByText('No speech models are downloaded.')).toBeVisible()
+  })
+  it('lists a downloaded wake word model by its purpose', async () => {
+    const wakeWordModel = { id: kwsModel.id, revision: kwsModel.revision }
+    updateModelAssetStatus({ ...wakeWordModel, state: 'installed' })
+    const screen = await renderSection()
+
+    await expect.element(screen.getByText('Wake word model')).toBeVisible()
+    updateModelAssetStatus({ ...wakeWordModel, state: 'missing' })
   })
 })
