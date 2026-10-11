@@ -308,6 +308,10 @@ function findRemovedTranslations(
  *
  * A pipe ends a cell, and the messages and the keys can hold one. The warning that
  * explains a choice separator holds one by design, because it shows `{'|'}`.
+ *
+ * @example
+ * markdownCell('Anthropic | Claude')
+ * // => 'Anthropic \| Claude'
  */
 function markdownCell(value: string) {
   return value.replace(/\|/g, '\\|')
