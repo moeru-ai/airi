@@ -13,7 +13,7 @@ import { electronShortcutRegister, electronShortcutTriggered, electronShortcutUn
 import { isSafeSpotlightAccelerator } from '../../shared/spotlight-shortcut'
 
 /** Stable binding ID. A changed accelerator keeps this ID, so the main process replaces the earlier binding. */
-const SHORTCUT_ID = 'voice-push-to-talk'
+export const PUSH_TO_TALK_SHORTCUT_ID = 'voice-push-to-talk'
 
 /** Returns the default hold shortcut. Ctrl+Shift+Space has no default system meaning on macOS, Windows, or common Linux desktops. */
 export function defaultPushToTalkAccelerator(): ShortcutAccelerator {
@@ -64,7 +64,7 @@ export function usePushToTalkShortcut() {
 
   async function applyRegistration() {
     // A reloaded renderer can leave its earlier binding in the main process. Removing it first makes registration idempotent.
-    await unregister({ id: SHORTCUT_ID })
+    await unregister({ id: PUSH_TO_TALK_SHORTCUT_ID })
     if (disposed || !hold.enabled.value) {
       registrationError.value = ''
       return
@@ -72,7 +72,7 @@ export function usePushToTalkShortcut() {
 
     // IPC uses structured cloning, which rejects the reactive proxy of the stored value.
     const binding = { modifiers: [...accelerator.value.modifiers], key: accelerator.value.key }
-    const result = await register({ id: SHORTCUT_ID, accelerator: binding, scope: 'global', receiveKeyUps: true, description: 'Push to Talk' })
+    const result = await register({ id: PUSH_TO_TALK_SHORTCUT_ID, accelerator: binding, scope: 'global', receiveKeyUps: true, description: 'Push to Talk' })
     registrationError.value = result.ok ? '' : result.reason
   }
 
@@ -87,7 +87,7 @@ export function usePushToTalkShortcut() {
 
   const stopTrigger = getElectronEventaContext().on(electronShortcutTriggered, ({ body }) => {
     // The main process sends every global shortcut to each registered window. Other IDs belong to other features.
-    if (body?.id !== SHORTCUT_ID)
+    if (body?.id !== PUSH_TO_TALK_SHORTCUT_ID)
       return
     if (body.phase === 'down')
       hold.press()

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   formatAccelerator,
   formatElectronAccelerator,
+  isSameKeyCombination,
   isValidAccelerator,
   KEY_NAMES,
   parseAccelerator,
@@ -227,5 +228,30 @@ describe('constant KEY_NAMES', () => {
     expect(KEY_NAMES.has('K')).toBe(false)
     expect(KEY_NAMES.has('Up')).toBe(false)
     expect(KEY_NAMES.has('Esc')).toBe(false)
+  })
+})
+
+describe('isSameKeyCombination', () => {
+  it('ignores modifier order', () => {
+    expect(isSameKeyCombination(parseAccelerator('Ctrl+Shift+Space'), parseAccelerator('Shift+Ctrl+Space'), { isMacOS: true })).toBe(true)
+  })
+
+  it('resolves cmd-or-ctrl to Cmd on macOS', () => {
+    expect(isSameKeyCombination(parseAccelerator('Mod+KeyK'), parseAccelerator('Cmd+KeyK'), { isMacOS: true })).toBe(true)
+    expect(isSameKeyCombination(parseAccelerator('Mod+KeyK'), parseAccelerator('Ctrl+KeyK'), { isMacOS: true })).toBe(false)
+  })
+
+  it('resolves cmd-or-ctrl to Ctrl on other systems', () => {
+    expect(isSameKeyCombination(parseAccelerator('Mod+KeyK'), parseAccelerator('Ctrl+KeyK'), { isMacOS: false })).toBe(true)
+    expect(isSameKeyCombination(parseAccelerator('Mod+KeyK'), parseAccelerator('Super+KeyK'), { isMacOS: false })).toBe(false)
+  })
+
+  it('treats Cmd and Super as the same Meta key', () => {
+    expect(isSameKeyCombination(parseAccelerator('Cmd+KeyK'), parseAccelerator('Super+KeyK'), { isMacOS: true })).toBe(true)
+  })
+
+  it('tells apart different keys and different modifiers', () => {
+    expect(isSameKeyCombination(parseAccelerator('Ctrl+Shift+KeyA'), parseAccelerator('Ctrl+Shift+Space'), { isMacOS: true })).toBe(false)
+    expect(isSameKeyCombination(parseAccelerator('Ctrl+Shift+KeyA'), parseAccelerator('Ctrl+KeyA'), { isMacOS: true })).toBe(false)
   })
 })

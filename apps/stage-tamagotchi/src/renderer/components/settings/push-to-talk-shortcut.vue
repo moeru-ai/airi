@@ -1,15 +1,19 @@
 <script setup lang="ts">
-import type { ShortcutFailureReason } from '@proj-airi/stage-shared/global-shortcut'
+import type { ShortcutAccelerator, ShortcutFailureReason } from '@proj-airi/stage-shared/global-shortcut'
 
-import { formatAccelerator, ShortcutFailureReasons } from '@proj-airi/stage-shared/global-shortcut'
+import { errorMessageFrom } from '@moeru/std'
+import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { formatAccelerator, isSameKeyCombination, ShortcutFailureReasons } from '@proj-airi/stage-shared/global-shortcut'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { Button } from '@proj-airi/ui'
+import { isMacOS } from 'std-env'
 import { computed, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
-import { defaultPushToTalkAccelerator, isHoldableAccelerator, usePushToTalkShortcutSettings } from '../../composables/use-push-to-talk-shortcut'
+import { electronShortcutList } from '../../../shared/eventa'
+import { defaultPushToTalkAccelerator, isHoldableAccelerator, PUSH_TO_TALK_SHORTCUT_ID, usePushToTalkShortcutSettings } from '../../composables/use-push-to-talk-shortcut'
 import { acceleratorFromKeyboardEvent } from '../../utils/shortcut-recording'
 
 const { t } = useI18n()
@@ -18,6 +22,7 @@ const hearing = useHearingStore()
 const devices = useSettingsAudioDevice()
 // The stage window applies these settings. This page only edits them and shows its latest registration result.
 const { accelerator, registrationError } = usePushToTalkShortcutSettings()
+const listShortcuts = useElectronEventaInvoke(electronShortcutList)
 const recording = shallowRef(false)
 const active = computed(() => devices.enabled && hearing.inputMode === 'push-to-talk')
 
@@ -39,6 +44,35 @@ function errorKeyForReason(reason: ShortcutFailureReason) {
   }
 }
 
+/**
+ * Tells if another app shortcut, such as Spotlight, already uses the key combination.
+ * The main process rejects such a registration too. This check shows the reason before the stage window tries.
+ * The list contains only the shortcuts that are registered now. A disabled Push to Talk shortcut is not in it.
+ */
+async function usedByAnotherShortcut(next: ShortcutAccelerator) {
+  try {
+    const bindings = await listShortcuts()
+    return bindings.some(binding => binding.id !== PUSH_TO_TALK_SHORTCUT_ID && isSameKeyCombination(binding.accelerator, next, { isMacOS }))
+  }
+  catch (error) {
+    // The registration in the stage window checks again and reports a conflict, so the recorder can accept the value.
+    console.warn('[push-to-talk] Cannot list shortcuts:', errorMessageFrom(error))
+    return false
+  }
+}
+
+async function applyShortcut(next: ShortcutAccelerator) {
+  if (!isHoldableAccelerator(next)) {
+    toast.error(tt('errors.requiresHoldModifier'))
+    return
+  }
+  if (await usedByAnotherShortcut(next)) {
+    toast.error(tt('errors.conflict'))
+    return
+  }
+  accelerator.value = next
+}
+
 function recordShortcut(event: KeyboardEvent) {
   if (!recording.value)
     return
@@ -54,11 +88,7 @@ function recordShortcut(event: KeyboardEvent) {
   if (!next)
     return
   recording.value = false
-  if (!isHoldableAccelerator(next)) {
-    toast.error(tt('errors.requiresHoldModifier'))
-    return
-  }
-  accelerator.value = next
+  void applyShortcut(next)
 }
 </script>
 
