@@ -8,7 +8,11 @@ RevenueCat is the source for entitlement status.
 The local database does not store subscription status and does not store webhook events.
 
 The app reads `customerInfo` in the client SDK for the current Capacitor, expiry, and management URL.
-The server reads `GET /v1/subscribers/{app_user_id}` to grant Capacitor Flux.
+The server reads the RevenueCat REST API v2 to grant Capacitor Flux.
+It reads the customer's subscriptions, the active entitlements, and the product of each subscription that gives access.
+The subscription gives the billing period start, the active entitlement gives the end of access, and the product gives the store identifier.
+API v2 reports `status` and `auto_renewal_status`, so the server infers nothing from dates.
+A customer that RevenueCat does not know has no subscriptions.
 
 Capacitor Flux is a second bucket in the Flux wallet. It is not a second billing system.
 `user_flux` holds both buckets in one row:
@@ -65,7 +69,7 @@ The read has a 5-second timeout.
 
 The server does not reconcile when `REVENUECAT_CAPACITORS` is unset or empty. The wallet stays as it is.
 A sync with no products would expire every active Capacitor.
-The webhook returns an error when the read fails or `REVENUECAT_API_KEY` is unset.
+The webhook returns an error when the read fails, or when `REVENUECAT_V2_API_KEY` or `REVENUECAT_PROJECT_ID` is unset.
 RevenueCat then sends the event again.
 `TEST` events do not read RevenueCat.
 RevenueCat sells Capacitors only. Flux packs stay on Stripe and Apple IAP.
@@ -137,14 +141,11 @@ The webhook applies the new Capacitor Flux after the store changes the product.
 
 A deleted user cannot open the management URL, so a subscription that can still charge refuses the deletion.
 The server does not cancel a subscription. The user cancels it, and then deletes the account.
-This rule needs only the v1 subscriber read, and it also covers App Store and Google Play subscriptions.
+The rule also covers App Store and Google Play subscriptions, which the server cannot cancel.
 
-A cancelled or refunded subscription does not refuse. It has `unsubscribe_detected_at` or `refunded_at`.
-A cancelled subscription keeps its access until the period ends, and the deletion clears the wallet.
-Of the other subscriptions, one refuses in two cases:
-
-- It gives access now. It renews at the end of the period.
-- `billing_issues_detected_at` is less than 30 days old. A failed renewal can expire the subscription at once, but RevenueCat retries the payment for up to 30 days.
+A subscription can still charge unless its `status` is `expired`, `incomplete`, or `unknown`, or its `auto_renewal_status` is `will_not_renew`.
+Thus a cancelled subscription does not refuse. It keeps its access until the period ends, and the deletion clears the wallet.
+A subscription in `in_billing_retry` refuses. It gives no access, but a recovered payment charges the customer.
 
 The Auth service asks `POST /internal/auth/user-deletion/check` on the private network. The check changes nothing.
 It returns 409 `SUBSCRIPTION_ACTIVE` for a refusal. Auth then returns the Better Auth error `SUBSCRIPTION_ACTIVE`, which the account page shows.
@@ -155,8 +156,8 @@ Auth asks at two points:
 
 The resource cleanup has no subscription rule. A refusal after the revocation would leave the account without its social grants.
 A failed read of RevenueCat refuses the deletion.
-Without `REVENUECAT_API_KEY`, the check passes when no webhook secret is set, because that deployment sells no subscriptions.
-With a webhook secret, the missing key is a configuration error, and the check returns 503.
+Without the API v2 key or the project id, the check passes when no webhook secret is set, because that deployment sells no subscriptions.
+With a webhook secret, the missing configuration is an error, and the check returns 503.
 
 ## Scope
 
@@ -208,12 +209,12 @@ sequenceDiagram
   API-->>Client: Balance and capacitor percent
   RC->>API: Webhook for a customer
   API->>DB: Lock the user
-  API->>RC: GET /v1/subscribers/{app_user_id}
+  API->>RC: GET /v2 subscriptions, active entitlements, product
   RC-->>API: Current entitlements
   API->>DB: Store the period, refill when due
   API-->>RC: 200
   Client->>API: POST /revenuecat/sync after a purchase
-  API->>RC: GET /v1/subscribers/{app_user_id}
+  API->>RC: GET /v2 subscriptions, active entitlements, product
   API->>DB: Store the period, refill when due
   Client->>API: Chat or speech
   API->>DB: Admission writes a due refill
@@ -243,15 +244,14 @@ packages/stage-pages/src/pages/settings/capacitor.vue
 Run the Capacitor Flux tests for a new period, a known period, a changed period, an earlier period, no period, and expiry.
 Run the reset tests for the interval window, the reset for every wallet, the reset for one wallet, and an expired Capacitor.
 Run the settlement tests for the Capacitor-first order, a fee across both buckets, and the fallback switch.
-Run the RevenueCat subscriber client tests for the response contract and upstream errors.
+Run the RevenueCat subscriber client tests for the join of subscription, entitlement, and product, for pages, and for upstream errors.
 Run the RevenueCat subscription sync tests for Capacitor selection.
 Run the webhook tests for a repeated event, `PRODUCT_CHANGE`, `EXPIRATION`, `TRANSFER`, and a failed read.
 Run the flux route tests for the Capacitor percent and the fallback choice.
 Run the client test that maps `customerInfo` to the current Capacitor.
 Run the admission test for a due refill with an outstanding fee.
 Run the route tests for the sync of a signed-in user, an anonymous sync, and the product list.
-Run the subscriber client tests for a renewing, a cancelled, a refunded, and an expired subscription, and for a failed read.
-Run the subscriber client tests for a failed payment inside and outside the retry window, and for a missing API key.
+Run the subscriber client tests for each renewal status, for `in_billing_retry`, and for a missing configuration.
 Run the internal route tests for the deletion check.
 Run the Auth tests for a refused request without an email, and for a refused email link without a revocation.
 Run the client tests for the sync before the balance read and for the product filter.

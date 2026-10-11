@@ -168,7 +168,8 @@ The Capacitor page reads `customerInfo` for the current Capacitor, expiry, and m
 The server stores only the Capacitor in `user_flux`.
 
 A webhook does not select a grant rule by its event type. The server reads
-`GET /v1/subscribers/{app_user_id}` with `REVENUECAT_API_KEY` and calls
+the customer's subscriptions and active entitlements from the RevenueCat REST API v2, with `REVENUECAT_V2_API_KEY`
+and `REVENUECAT_PROJECT_ID`, and calls
 `BillingService.syncCapacitor`. A new period resets the bucket to the quota.
 A known period keeps its spent Flux and takes the reported end time.
 No active Capacitor expires the bucket now.

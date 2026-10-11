@@ -741,7 +741,8 @@ export async function createApp() {
   const revenuecatSubscriber = injeca.provide('adapters:revenuecatSubscriber', {
     dependsOn: { env: parsedEnv },
     build: ({ dependsOn }) => createRevenuecatSubscriberClient({
-      apiKey: dependsOn.env.REVENUECAT_API_KEY ?? null,
+      apiKey: dependsOn.env.REVENUECAT_V2_API_KEY ?? null,
+      projectId: dependsOn.env.REVENUECAT_PROJECT_ID ?? null,
       sellsSubscriptions: Boolean(dependsOn.env.REVENUECAT_WEBHOOK_AUTH || dependsOn.env.REVENUECAT_WEBHOOK_SECRET),
     }),
   })
