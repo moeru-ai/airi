@@ -338,6 +338,8 @@ describe('checkLocales', () => {
 
     const reported = await checkLocales({ root })
 
-    expect(reported.every(issue => issue.level === 'warning')).toBe(true)
+    expect(reported).toEqual([
+      expect.objectContaining({ level: 'warning', key: 'files.car' }),
+    ])
   })
 })
