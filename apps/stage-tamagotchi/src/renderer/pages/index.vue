@@ -355,27 +355,19 @@ type StageLayoutBounds = Awaited<ReturnType<typeof enterFullscreenWindow>>['boun
 interface FullscreenMotion { duration: number, curve: FullscreenGlideCurve }
 /**
  * The parts of the fullscreen transition. `height` also moves the window and scales the stage, so the bottom edge of
- * the stage and the area stays in place. `width` is slower, so the area fills the height first.
+ * the stage and the area stays in place. `width` is slower, so the area fills the height first. Closing runs every part
+ * along `close`, an ease-out curve that overshoots a little, so the character lands with a slight spring.
  */
 const FULLSCREEN_MOTION = {
   height: { duration: 350, curve: [0.25, 1, 0.5, 1] },
   width: { duration: 500, curve: [0.33, 1, 0.68, 1] },
+  close: { duration: 400, curve: [0.34, 1.1, 0.64, 1] },
 } satisfies Record<string, FullscreenMotion>
-/** The opening runs as long as its slowest part. The closing plays it backwards, so every part ends together. */
-const FULLSCREEN_OPENING_MS = Math.max(FULLSCREEN_MOTION.height.duration, FULLSCREEN_MOTION.width.duration)
 /** The share of the work area width that the stage takes on the left. The surface takes the rest on the right. */
 const FULLSCREEN_STAGE_SHARE = 0.42
 
 function planFor(home: StageLayoutBounds, workArea: StageLayoutBounds) {
   return { home, workArea, stage: { width: Math.round(workArea.width * FULLSCREEN_STAGE_SHARE), height: workArea.height } }
-}
-
-/** A part of the transition in a direction. Backwards, a part runs its curve reversed and starts late by the time it ended early. */
-function motionPart(part: FullscreenMotion, direction: 'open' | 'close') {
-  if (direction === 'open')
-    return { duration: part.duration, curve: part.curve, delay: 0 }
-  const [x1, y1, x2, y2] = part.curve
-  return { duration: part.duration, curve: [1 - x2, 1 - y2, 1 - x1, 1 - y1] satisfies FullscreenGlideCurve, delay: FULLSCREEN_OPENING_MS - part.duration }
 }
 
 /** The CSS transitions of `parts` in the current direction, and none while nothing moves. */
@@ -384,8 +376,8 @@ function motionTransitions(...parts: [property: string, part: FullscreenMotion][
   if (!direction)
     return []
   return parts.map(([property, part]) => {
-    const { duration, curve, delay } = motionPart(part, direction)
-    return `${property} ${duration}ms cubic-bezier(${curve.join(', ')}) ${delay}ms`
+    const { duration, curve } = direction === 'open' ? part : FULLSCREEN_MOTION.close
+    return `${property} ${duration}ms cubic-bezier(${curve.join(', ')})`
   })
 }
 
@@ -478,21 +470,21 @@ async function expandToFullscreen() {
 }
 
 /**
- * Closes the fullscreen mode with the opening played backwards. The area closes to the left while the window glides
- * back and the stage shrinks, then the window shrinks from its top left. The stage returns
- * to its normal layout only after that, because its scaled layout fits both window sizes.
+ * Closes the fullscreen mode. The area closes to the left while the window glides back and the stage shrinks, all
+ * along the closing curve, then the window shrinks from its top left. The stage returns to its normal layout only
+ * after that, because its scaled layout fits both window sizes.
  */
 async function collapseFromFullscreen() {
   try {
     const plan = fullscreenPlan
     if (plan) {
-      const height = motionPart(FULLSCREEN_MOTION.height, 'close')
+      const { close } = FULLSCREEN_MOTION
       commitFullscreenLayout()
       fullscreenMotion.value = 'close'
       stageLayout.value = homeStageLayout(plan)
       fullscreenArea.value = { width: 0, height: plan.home.height }
       await Promise.all([
-        setFullscreenWindowBounds({ bounds: { ...plan.workArea, x: plan.home.x, y: plan.home.y }, ...height }),
+        setFullscreenWindowBounds({ bounds: { ...plan.workArea, x: plan.home.x, y: plan.home.y }, ...close }),
         fullscreenTransitionsEnded(),
       ])
 
