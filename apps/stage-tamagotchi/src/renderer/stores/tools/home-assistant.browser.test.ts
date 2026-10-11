@@ -1,9 +1,10 @@
-import type { LeadershipMode, SyncedPiniaRuntime } from 'pinia-plugin-synced'
+import type { LeadershipMode } from '@proj-airi/stage-ui/libs/pinia/setup-synced'
 
+import { setupSynced, usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia/setup-synced'
 import { useHomeAssistantStore } from '@proj-airi/stage-ui/stores/modules/home-assistant'
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
-import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createApp } from 'vue'
 
 import { useTamagotchiHomeAssistantStore } from './home-assistant'
 
@@ -12,21 +13,41 @@ vi.mock('@proj-airi/electron-vueuse', () => ({
   useElectronEventaInvoke: () => vi.fn(async () => ({ baseUrl: '', hasToken: false, tokenPreview: '' })),
 }))
 
-const contexts: Array<{ pinia: ReturnType<typeof createPinia>, runtime: SyncedPiniaRuntime }> = []
+type SyncedRuntime = ReturnType<typeof usePiniaSynced>
+const windows: Array<{ app: ReturnType<typeof createApp>, pinia: ReturnType<typeof createPinia> }> = []
 
-function createSyncedContext(namespace: string, leadership: LeadershipMode) {
+/**
+ * Opens one renderer window over the synchronization runtime of the application.
+ *
+ * A component reads the runtime, which is how every window of the application
+ * receives it.
+ */
+function openWindow(leadership: LeadershipMode) {
+  const plugins = setupSynced({ leadership })
   const pinia = createPinia()
-  const runtime = createSyncedPiniaPlugin({ callTimeout: 1000, leadership, namespace })
-  pinia.use(runtime.plugin)
-  contexts.push({ pinia, runtime })
-  return { pinia, runtime }
+  pinia.use(plugins.pinia)
+  let runtime: SyncedRuntime | undefined
+  const app = createApp({
+    setup() {
+      runtime = usePiniaSynced()
+      return () => null
+    },
+  })
+  const host = document.createElement('div')
+  document.body.append(host)
+  app.use(pinia)
+  app.use(plugins.vue)
+  app.mount(host)
+  windows.push({ app, pinia })
+
+  return { pinia, runtime: runtime as SyncedRuntime }
 }
 
 describe('tamagotchiHomeAssistantStore', () => {
   afterEach(() => {
-    for (const context of contexts.splice(0)) {
-      context.runtime.dispose()
-      disposePinia(context.pinia)
+    for (const window of windows.splice(0)) {
+      window.app.unmount()
+      disposePinia(window.pinia)
     }
     localStorage.clear()
   })
@@ -40,18 +61,17 @@ describe('tamagotchiHomeAssistantStore', () => {
     // the real action had no coverage across windows.
     //
     // This test runs the real action between two windows.
-    const namespace = `home-assistant-tools:${crypto.randomUUID()}`
-    const leaderContext = createSyncedContext(namespace, 'leader-only')
-    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
-    setActivePinia(leaderContext.pinia)
+    const leader = openWindow('leader-only')
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    setActivePinia(leader.pinia)
     const leaderPolicy = useHomeAssistantStore()
     useTamagotchiHomeAssistantStore()
 
-    const followerContext = createSyncedContext(namespace, 'follower-only')
-    setActivePinia(followerContext.pinia)
+    const follower = openWindow('follower-only')
+    setActivePinia(follower.pinia)
     const followerPolicy = useHomeAssistantStore()
     const followerTools = useTamagotchiHomeAssistantStore()
-    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+    await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
 
     await followerTools.setPolicy('deny', [], ['lock.front_door'])
 
