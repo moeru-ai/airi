@@ -1,3 +1,7 @@
+import type { HomeAssistantConfigUpdate } from '../../../../shared/eventa/home-assistant'
+
+import { homeAssistantConfigRejections } from '../../../../shared/eventa/home-assistant'
+
 /**
  * Request rules for the Home Assistant service.
  *
@@ -15,6 +19,12 @@ export const requestTimeoutMs = 15_000
 
 /** Home Assistant serves its API under this prefix. */
 export const apiPathPrefix = '/api/'
+
+/** One stored Home Assistant setting: where it lives, and the secret to reach it. */
+export interface HomeAssistantStoredConfig {
+  baseUrl: string
+  token: string
+}
 
 /** Trims a user-entered base URL and rejects a scheme this process cannot fetch. */
 export function normalizeBaseUrl(value: string): string {
@@ -37,28 +47,79 @@ export function normalizeBaseUrl(value: string): string {
 }
 
 /**
- * Rejects a path that would leave the Home Assistant API surface.
+ * Applies one settings update to the stored configuration.
  *
- * Percent escapes stay out on purpose. The URL parser decodes `%2e%2e` into a
- * parent segment, so a path that reads as `/api/…` would resolve outside it.
- * Every path the client builds matches `[a-z0-9_.]`, which means a `%` comes
- * from a caller that is not the client.
+ * A token belongs to one Home Assistant instance, so changing the address
+ * requires the token for the new address. Keeping the old one across a move is
+ * wrong for the user, and it is also the only way a renderer could send the
+ * stored token to a server it controls: no update can move the address while
+ * leaving the secret in place.
+ *
+ * An empty address clears both, so an accidental blank field cannot leave a
+ * secret behind for a later address. An empty token clears the secret alone.
  */
-export function assertApiPath(path: string): void {
-  if (!path.startsWith(apiPathPrefix) || path.includes('..') || path.includes('//') || path.includes('%') || /\s/.test(path))
-    throw new Error(`A Home Assistant request path must start with ${apiPathPrefix}, received "${path}".`)
+export function resolveConfigUpdate(
+  current: HomeAssistantStoredConfig,
+  update: HomeAssistantConfigUpdate,
+): HomeAssistantStoredConfig {
+  const baseUrl = normalizeBaseUrl(update.baseUrl)
+  if (!baseUrl)
+    return { baseUrl: '', token: '' }
+
+  const supplied = update.token?.trim() ?? ''
+  if (supplied)
+    return { baseUrl, token: supplied }
+
+  // The shared contract documents an empty token as the clear operation, and an
+  // absent token as the keep operation. The two differ, so the field is read
+  // rather than coalesced.
+  if (update.token !== undefined)
+    return { baseUrl, token: '' }
+
+  if (!current.token)
+    throw new Error(homeAssistantConfigRejections.tokenRequired)
+
+  if (baseUrl !== current.baseUrl)
+    throw new Error(homeAssistantConfigRejections.addressChanged)
+
+  return { baseUrl, token: current.token }
 }
 
 /**
- * Builds the URL for one request, and checks it again after normalization.
+ * The only request shapes the client builds.
  *
- * The text check in {@link assertApiPath} reads the path as written. This one
- * reads the path the request will use, which is the value that decides where the
- * request lands. A base URL under a subpath keeps that subpath, because a
- * reverse proxy can serve Home Assistant there.
+ * The renderer chooses the path, so this list decides what leaves the
+ * application. Two shapes matter beyond the obvious ones: `POST /api/template`
+ * runs arbitrary Jinja on the Home Assistant host, and `POST /api/states/{id}`
+ * writes a state. The client produces neither, so neither is allowed.
+ *
+ * The patterns are strict enough to reject a percent escape, a `..` segment, a
+ * doubled slash, and whitespace, because every segment the client builds
+ * matches `[a-z0-9_.]`.
  */
-export function resolveRequestUrl(baseUrl: string, path: string): URL {
-  assertApiPath(path)
+const allowedRequests: Array<{ method: 'GET' | 'POST', pattern: RegExp }> = [
+  { method: 'GET', pattern: /^\/api\/states$/ },
+  { method: 'GET', pattern: /^\/api\/states\/[a-z0-9_]+\.[a-z0-9_]+$/ },
+  { method: 'POST', pattern: /^\/api\/services\/[a-z0-9_]+\/[a-z0-9_]+$/ },
+]
+
+/** Rejects a request the client would never build. */
+export function assertAllowedRequest(method: string, path: string): void {
+  const allowed = allowedRequests.some(entry => entry.method === method && entry.pattern.test(path))
+  if (!allowed)
+    throw new Error(`Home Assistant accepts only the requests this client builds, received "${method} ${path}".`)
+}
+
+/**
+ * Builds the URL for one request, and checks the resolved result too.
+ *
+ * {@link assertAllowedRequest} reads the path as written. This reads the path
+ * the request will use, which is the value that decides where it lands. A base
+ * URL under a subpath keeps that subpath, because a reverse proxy can serve
+ * Home Assistant there.
+ */
+export function resolveRequestUrl(baseUrl: string, method: string, path: string): URL {
+  assertAllowedRequest(method, path)
 
   const target = new URL(`${baseUrl}${path}`)
   const basePath = new URL(baseUrl).pathname.replace(/\/+$/, '')
@@ -82,7 +143,8 @@ export function toTokenPreview(token: string): string {
   return `${'•'.repeat(8)}${tail}`
 }
 
-/** Reads a response body that can be JSON, text, or empty. */export async function readBody(response: Response): Promise<unknown> {
+/** Reads a response body that can be JSON, text, or empty. */
+export async function readBody(response: Response): Promise<unknown> {
   const text = await response.text()
   if (!text)
     return undefined
