@@ -27,7 +27,7 @@ import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
-import { animate, utils } from 'animejs'
+import { animate, cubicBezier, utils } from 'animejs'
 import { defu } from 'defu'
 import { BrowserWindow, ipcMain, screen } from 'electron'
 import { isLinux, isMacOS } from 'std-env'
@@ -319,7 +319,7 @@ export async function setupMainWindow(params: {
     // Bounds outside fullscreen mode would leave the window changed with nothing to restore it.
     if (!payload || !boundsBeforeFullscreen || window.isDestroyed())
       throw new Error('The main window is not in fullscreen mode')
-    const { bounds, duration } = payload
+    const { bounds, duration, delay, curve } = payload
     if (!duration) {
       window.setBounds(bounds)
       return
@@ -334,7 +334,8 @@ export async function setupMainWindow(params: {
           x: bounds.x,
           y: bounds.y,
           duration,
-          ease: 'outCubic',
+          delay: delay ?? 0,
+          ease: curve ? cubicBezier(...curve) : 'outCubic',
           modifier: utils.round(0),
           onRender: () => {
             if (!window.isDestroyed())

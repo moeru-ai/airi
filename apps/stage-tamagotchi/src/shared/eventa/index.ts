@@ -51,11 +51,13 @@ export type MainWindowFullscreenSurface = 'settings' | 'chat'
  * Returns its bounds and the work area of its display, so the page can plan the move.
  */
 export const electronMainWindowEnterFullscreen = defineInvokeEventa<{ bounds: Rectangle, workArea: Rectangle }>('eventa:invoke:electron:windows:main:fullscreen:enter')
+/** The control points of a CSS `cubic-bezier()` curve, so a window glide can move with a CSS transition. */
+export type FullscreenGlideCurve = [x1: number, y1: number, x2: number, y2: number]
 /**
- * Sets the main window bounds in fullscreen mode. With a duration, the window keeps its size and glides to the position,
- * and the call resolves when the glide ends.
+ * Sets the main window bounds in fullscreen mode. With a duration, the window keeps its size and glides to the position
+ * along `curve` after `delay`, and the call resolves when the glide ends.
  */
-export const electronMainWindowSetFullscreenBounds = defineInvokeEventa<void, { bounds: Rectangle, duration?: number }>('eventa:invoke:electron:windows:main:fullscreen:bounds')
+export const electronMainWindowSetFullscreenBounds = defineInvokeEventa<void, { bounds: Rectangle, duration?: number, delay?: number, curve?: FullscreenGlideCurve }>('eventa:invoke:electron:windows:main:fullscreen:bounds')
 /**
  * Reports what the page shows on the right, or nothing once fullscreen mode closes. The main process reads it to hand
  * the chat draft over and to show the same surface after a reload.

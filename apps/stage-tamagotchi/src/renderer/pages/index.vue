@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { ModelSettingsRuntimeSnapshot } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 
+import type { FullscreenGlideCurve } from '../../shared/eventa'
+
 import { errorMessageFrom } from '@moeru/std'
 import { electron } from '@proj-airi/electron-eventa'
 import {
@@ -27,7 +29,7 @@ import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/
 import { useVoiceStore } from '@proj-airi/stage-ui/stores/voice'
 import { refDebounced } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, provide, ref, shallowRef, toRef, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, provide, ref, shallowRef, toRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
@@ -338,19 +340,55 @@ watch(() => featureFlags.isEnabled(MAIN_WINDOW_FULLSCREEN_FLAG.key), async (enab
  */
 interface StageLayout { width: number, height: number, offsetX: number, scale: number }
 const stageLayout = shallowRef<StageLayout>()
-const stageLayoutAnimated = shallowRef(false)
-/** The bounds of the main window before fullscreen mode, and the stage size in it. */
-let fullscreenPlan: { home: { x: number, y: number, width: number, height: number }, workArea: { x: number, y: number, width: number, height: number }, stage: { width: number, height: number } } | undefined
-const FULLSCREEN_GLIDE_MS = 650
-// The CSS curve of the `outCubic` ease that the main process uses for the window glide, so the scale and the glide move together.
-const FULLSCREEN_EASING = 'cubic-bezier(0.33, 1, 0.68, 1)'
+/**
+ * The area of the fullscreen mode, from the top left of the window. It clips the backdrop, the island, and the surface,
+ * which keep their final layout, so they show as the area grows.
+ */
+const fullscreenArea = shallowRef<{ width: number, height: number }>()
+/** The direction that the stage and the area move in now. `false` sets them at once. */
+const fullscreenMotion = shallowRef<'open' | 'close' | false>(false)
+/** The bounds of the main window before fullscreen mode, the work area, and the stage size in it. */
+let fullscreenPlan: { home: StageLayoutBounds, workArea: StageLayoutBounds, stage: { width: number, height: number } } | undefined
+type StageLayoutBounds = Awaited<ReturnType<typeof enterFullscreenWindow>>['bounds']
+
+/** A part of the fullscreen transition. The window glide and the CSS transitions use the same curve. */
+interface FullscreenMotion { duration: number, curve: FullscreenGlideCurve }
+/**
+ * The parts of the fullscreen transition. `height` also moves the window and scales the stage, so the bottom edge of
+ * the stage and the area stays in place. `width` is slower, so the area fills the height first.
+ */
+const FULLSCREEN_MOTION = {
+  move: { duration: 450, curve: [0.65, 0, 0.35, 1] },
+  height: { duration: 600, curve: [0.25, 1, 0.5, 1] },
+  width: { duration: 900, curve: [0.33, 1, 0.68, 1] },
+} satisfies Record<string, FullscreenMotion>
+/** The opening runs as long as its slowest part. The closing plays it backwards, so every part ends together. */
+const FULLSCREEN_OPENING_MS = Math.max(FULLSCREEN_MOTION.height.duration, FULLSCREEN_MOTION.width.duration)
 /** The share of the work area width that the stage takes on the left. The surface takes the rest on the right. */
 const FULLSCREEN_STAGE_SHARE = 0.42
 
 function planFor(home: StageLayoutBounds, workArea: StageLayoutBounds) {
   return { home, workArea, stage: { width: Math.round(workArea.width * FULLSCREEN_STAGE_SHARE), height: workArea.height } }
 }
-type StageLayoutBounds = NonNullable<typeof fullscreenPlan>['home']
+
+/** A part of the transition in a direction. Backwards, a part runs its curve reversed and starts late by the time it ended early. */
+function motionPart(part: FullscreenMotion, direction: 'open' | 'close') {
+  if (direction === 'open')
+    return { duration: part.duration, curve: part.curve, delay: 0 }
+  const [x1, y1, x2, y2] = part.curve
+  return { duration: part.duration, curve: [1 - x2, 1 - y2, 1 - x1, 1 - y1] satisfies FullscreenGlideCurve, delay: FULLSCREEN_OPENING_MS - part.duration }
+}
+
+/** The CSS transition of `parts` in the current direction, or `none` while nothing moves. */
+function motionTransition(...parts: [property: string, part: FullscreenMotion][]) {
+  const direction = fullscreenMotion.value
+  if (!direction)
+    return 'none'
+  return parts.map(([property, part]) => {
+    const { duration, curve, delay } = motionPart(part, direction)
+    return `${property} ${duration}ms cubic-bezier(${curve.join(', ')}) ${delay}ms`
+  }).join(', ')
+}
 
 const stageFrameStyle = computed(() => {
   const layout = stageLayout.value
@@ -364,7 +402,18 @@ const stageFrameStyle = computed(() => {
     height: `${layout.height}px`,
     transformOrigin: '0 0',
     transform: `translateX(${layout.offsetX}px) scale(${layout.scale})`,
-    transition: stageLayoutAnimated.value ? `transform ${FULLSCREEN_GLIDE_MS}ms ${FULLSCREEN_EASING}` : 'none',
+    transition: motionTransition(['transform', FULLSCREEN_MOTION.height]),
+  }
+})
+
+const fullscreenAreaStyle = computed(() => {
+  const area = fullscreenArea.value
+  if (!area)
+    return undefined
+  return {
+    width: `${area.width}px`,
+    height: `${area.height}px`,
+    transition: motionTransition(['width', FULLSCREEN_MOTION.width], ['height', FULLSCREEN_MOTION.height]),
   }
 })
 
@@ -375,25 +424,30 @@ function homeStageLayout(plan: NonNullable<typeof fullscreenPlan>): StageLayout 
 }
 
 const stageFrameElement = ref<HTMLElement>()
+const fullscreenAreaElement = ref<HTMLElement>()
 
-/** Starts the next stage transition from the layout that the stage has now, by making the browser commit that layout first. */
-function commitStageLayout() {
+/** Starts the next transition from the layout that the stage and the area have now, by making the browser commit it first. */
+function commitFullscreenLayout() {
   stageFrameElement.value?.getBoundingClientRect()
+  fullscreenAreaElement.value?.getBoundingClientRect()
 }
 
-/** Resolves when every transition running on the stage has ended. A stage with none resolves at once. */
-async function stageTransitionsEnded() {
-  await Promise.all(stageFrameElement.value?.getAnimations().map(animation => animation.finished) ?? [])
+/** Resolves when every transition that the latest layout change started on the stage and the area has ended. */
+async function fullscreenTransitionsEnded() {
+  await nextTick()
+  const animations = [stageFrameElement.value, fullscreenAreaElement.value].flatMap(element => element?.getAnimations() ?? [])
+  await Promise.all(animations.map(animation => animation.finished))
 }
 
 /**
- * Opens the fullscreen mode in three steps. A resize keeps the window's top left corner, and a glide keeps its size,
- * so the content never shifts against the window and the stage never blinks.
+ * Opens the fullscreen mode. A resize keeps the window's top left corner, and a glide keeps its size, so the content
+ * never shifts against the window and the stage never blinks. The islands hide as soon as the mode starts.
  *
- * 1. The stage takes its fullscreen size, scaled to look unchanged, and then the window grows from its top left
- *    to that size. The scaled stage looks the same at both window sizes, so the step does not wait for the resize.
- * 2. The window glides to the top left of the work area while the stage scales up to full size.
- * 3. The window grows over the whole work area, and the backdrop, the island, and the surface fade in.
+ * 1. The window glides straight to the left edge of the work area.
+ * 2. The stage takes its fullscreen size, scaled to look unchanged, and the window grows from its top left to the size
+ *    of the work area. The area starts with no width, so nothing on screen changes.
+ * 3. The window glides up while the stage and the area grow along the same curve. The area opens to the right along a
+ *    slower curve and shows the island and the surface.
  *
  * The mode ends fully open or fully closed: any failed step rolls everything back through {@link leaveFullscreen}.
  */
@@ -402,18 +456,24 @@ async function expandToFullscreen() {
     const { bounds, workArea } = await enterFullscreenWindow()
     const plan = planFor(bounds, workArea)
     fullscreenPlan = plan
+    const { move, height } = FULLSCREEN_MOTION
 
-    stageLayoutAnimated.value = false
+    if (bounds.x !== workArea.x)
+      await setFullscreenWindowBounds({ bounds: { ...bounds, x: workArea.x }, duration: move.duration, curve: move.curve })
+
+    fullscreenMotion.value = false
     stageLayout.value = homeStageLayout(plan)
-    await setFullscreenWindowBounds({ bounds: { x: bounds.x, y: bounds.y, ...plan.stage } })
+    fullscreenArea.value = { width: 0, height: bounds.height }
+    await setFullscreenWindowBounds({ bounds: { x: workArea.x, y: bounds.y, width: workArea.width, height: workArea.height } })
 
-    commitStageLayout()
-    stageLayoutAnimated.value = true
+    commitFullscreenLayout()
+    fullscreenMotion.value = 'open'
     stageLayout.value = { ...plan.stage, scale: 1, offsetX: 0 }
-    await setFullscreenWindowBounds({ bounds: { x: workArea.x, y: workArea.y, ...plan.stage }, duration: FULLSCREEN_GLIDE_MS })
-    await stageTransitionsEnded()
-
-    await setFullscreenWindowBounds({ bounds: workArea })
+    fullscreenArea.value = { width: workArea.width, height: workArea.height }
+    await Promise.all([
+      setFullscreenWindowBounds({ bounds: workArea, duration: height.duration, curve: height.curve }),
+      fullscreenTransitionsEnded(),
+    ])
     fullscreen.settle('open')
   }
   catch (error) {
@@ -422,34 +482,32 @@ async function expandToFullscreen() {
   }
 }
 
-/** Resolves when the backdrop finishes fading out. Vue reports the end of the leave transition through `after-leave`. */
-let resolveBackdropLeft: (() => void) | undefined
-function backdropLeft() {
-  return new Promise<void>((resolve) => {
-    resolveBackdropLeft = resolve
-  })
-}
-
 /**
- * Closes the fullscreen mode with the same three steps in reverse, after the surface and backdrop fade out.
- * The stage returns to its normal layout only after the window has shrunk, because its scaled layout fits both sizes.
+ * Closes the fullscreen mode with the opening played backwards. The area closes to the left while the window glides
+ * down and the stage shrinks, then the window shrinks from its top left and glides straight back. The stage returns
+ * to its normal layout only after that, because its scaled layout fits both window sizes.
  */
 async function collapseFromFullscreen() {
   try {
     const plan = fullscreenPlan
-    await backdropLeft()
     if (plan) {
-      await setFullscreenWindowBounds({ bounds: { x: plan.workArea.x, y: plan.workArea.y, ...plan.stage } })
-      commitStageLayout()
-      stageLayoutAnimated.value = true
+      const { move } = FULLSCREEN_MOTION
+      const height = motionPart(FULLSCREEN_MOTION.height, 'close')
+      commitFullscreenLayout()
+      fullscreenMotion.value = 'close'
       stageLayout.value = homeStageLayout(plan)
-      await setFullscreenWindowBounds({ bounds: { x: plan.home.x, y: plan.home.y, ...plan.stage }, duration: FULLSCREEN_GLIDE_MS })
-      await stageTransitionsEnded()
+      fullscreenArea.value = { width: 0, height: plan.home.height }
+      await Promise.all([
+        setFullscreenWindowBounds({ bounds: { ...plan.workArea, y: plan.home.y }, ...height }),
+        fullscreenTransitionsEnded(),
+      ])
+
+      await setFullscreenWindowBounds({ bounds: { ...plan.home, x: plan.workArea.x } })
+      if (plan.home.x !== plan.workArea.x)
+        await setFullscreenWindowBounds({ bounds: plan.home, duration: move.duration, curve: move.curve })
     }
     await exitFullscreenWindow({ reason: 'the user closed it' })
-    stageLayoutAnimated.value = false
-    stageLayout.value = undefined
-    fullscreenPlan = undefined
+    clearFullscreenLayout()
     fullscreen.settle('closed')
   }
   catch (error) {
@@ -458,14 +516,20 @@ async function collapseFromFullscreen() {
   }
 }
 
+/** Returns the stage to its normal layout and unmounts the area. */
+function clearFullscreenLayout() {
+  fullscreenMotion.value = false
+  stageLayout.value = undefined
+  fullscreenArea.value = undefined
+  fullscreenPlan = undefined
+}
+
 /**
  * The way out after any failed step: the window and the stage return to their state before the mode, and it closes.
  * The main process restores its bounds and always on top, and does nothing when it was never in fullscreen mode.
  */
 async function leaveFullscreen(reason: string) {
-  stageLayoutAnimated.value = false
-  stageLayout.value = undefined
-  fullscreenPlan = undefined
+  clearFullscreenLayout()
   try {
     await exitFullscreenWindow({ reason })
   }
@@ -492,8 +556,9 @@ async function resumeFullscreen() {
     }
     const plan = planFor(state.home, state.workArea)
     fullscreenPlan = plan
-    stageLayoutAnimated.value = false
+    fullscreenMotion.value = false
     stageLayout.value = { ...plan.stage, scale: 1, offsetX: 0 }
+    fullscreenArea.value = { width: plan.workArea.width, height: plan.workArea.height }
     await setFullscreenWindowBounds({ bounds: plan.workArea })
     await fullscreen.resume(state.surface ?? 'settings')
   }
@@ -777,48 +842,44 @@ const cursorPosition = computed(() => ({
       />
     </div>
   </Transition>
-  <!-- The fullscreen mode of the main window. Nothing of it mounts until it opens. -->
-  <Transition
-    enter-active-class="transition-opacity duration-500 ease-out"
-    enter-from-class="opacity-0"
-    leave-active-class="transition-opacity duration-500 ease-in"
-    leave-to-class="opacity-0"
-    @after-leave="resolveBackdropLeft?.()"
+  <!--
+    The fullscreen mode of the main window. Nothing of it mounts until it opens. Two layers share the size of the area:
+    the backdrop under the stage, and the island and the surface over it. Their content keeps its final layout from
+    the bottom left, so it shows from left to right as the area grows.
+  -->
+  <div
+    v-if="fullscreenAreaStyle"
+    ref="fullscreenAreaElement"
+    :style="fullscreenAreaStyle"
+    :class="['fixed left-0 top-0 z-1 overflow-hidden']"
   >
-    <div v-if="fullscreenPhase === 'open'" :class="['fixed inset-0 z-1', 'bg-neutral-100 dark:bg-neutral-900']" />
-  </Transition>
-  <Transition
-    enter-active-class="transition-all duration-500 delay-150 ease-out"
-    enter-from-class="opacity-0 -translate-x-4"
-    leave-active-class="transition-all duration-300 ease-in"
-    leave-to-class="opacity-0 -translate-x-4"
+    <div :class="['absolute bottom-0 left-0 h-screen w-screen', 'bg-neutral-100 dark:bg-neutral-900']" />
+  </div>
+  <div
+    v-if="fullscreenAreaStyle"
+    :style="fullscreenAreaStyle"
+    :class="['pointer-events-none fixed left-0 top-0 z-3 overflow-hidden']"
   >
-    <FullscreenIsland v-if="fullscreenPhase === 'open'" :class="['fixed left-6 top-1/2 z-3 -translate-y-1/2']" />
-  </Transition>
-  <Transition
-    enter-active-class="transition-all duration-500 delay-150 ease-out"
-    enter-from-class="opacity-0 translate-x-8"
-    leave-active-class="transition-all duration-300 ease-in"
-    leave-to-class="opacity-0 translate-x-8"
-  >
-    <div
-      v-if="fullscreenPhase === 'open'"
-      :class="[
-        'fixed z-3',
-        'bottom-6 right-6 top-6',
-        'w-[54%]',
-        'rounded-3xl',
-        'bg-$bg-color',
-        'shadow-2xl shadow-neutral-900/10',
-        'overflow-hidden',
-      ]"
-    >
-      <!-- Each surface that showed stays mounted until the mode closes, so switching back finds it as it was. -->
-      <div v-for="id in mountedSurfaces" v-show="id === fullscreenSurface" :key="id" :class="['h-full w-full']">
-        <component :is="fullscreenSurfaces[id].panel" />
+    <div :class="['absolute bottom-0 left-0 h-screen w-screen']">
+      <FullscreenIsland :class="['pointer-events-auto absolute left-6 top-1/2 -translate-y-1/2']" />
+      <div
+        :class="[
+          'pointer-events-auto absolute',
+          'bottom-6 right-6 top-6',
+          'w-[54%]',
+          'rounded-3xl',
+          'bg-$bg-color',
+          'shadow-2xl shadow-neutral-900/10',
+          'overflow-hidden',
+        ]"
+      >
+        <!-- Each surface that showed stays mounted until the mode closes, so switching back finds it as it was. -->
+        <div v-for="id in mountedSurfaces" v-show="id === fullscreenSurface" :key="id" :class="['h-full w-full']">
+          <component :is="fullscreenSurfaces[id].panel" />
+        </div>
       </div>
     </div>
-  </Transition>
+  </div>
 </template>
 
 <style scoped>
