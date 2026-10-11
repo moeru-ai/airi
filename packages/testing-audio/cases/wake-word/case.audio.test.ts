@@ -12,7 +12,7 @@ describe('wake word detection', () => {
     pipelines: ['kws'],
     preflight: [
       configureOnboarding(() => ({ completed: true })),
-      configureWakeWord(() => ({ targetCardId, text: 'Light up', tokens: ['L', 'AY1', 'T', 'AH1', 'P'] })),
+      configureWakeWord(() => [{ targetCardId, text: 'Light up', pronunciations: [['L', 'AY1', 'T', 'AH1', 'P']] }]),
     ],
   }, async ({ audio }) => {
     // In wake word mode, speech alone begins no input. So the first voice input comes from a wake.

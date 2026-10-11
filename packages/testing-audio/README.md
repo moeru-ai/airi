@@ -68,7 +68,7 @@ A case can independently choose its VAD behavior, ASR, LLM, and TTS configuratio
 
 ## Test wake word detection
 
-Use `configureWakeWord` to add one AIRI Card with a wake word. The callback also turns on the microphone and selects the `wake-word` Hearing input mode. The case does not need an ASR Provider.
+Use `configureWakeWord` to add AIRI Cards with wake words. Each configuration adds one card with one wake word and its pronunciations. The callback also turns on the microphone and selects the `wake-word` Hearing input mode. The case does not need an ASR Provider.
 
 Set `pipelines: ['kws']`. Then the Web runner downloads and verifies the pinned KWS model before the file microphone starts. The Web page gets the model from the workspace cache, not from the network. Electron uses its bundled model.
 
@@ -83,11 +83,11 @@ describe('wake word detection', () => {
     pipelines: ['kws'],
     preflight: [
       configureOnboarding(() => ({ completed: true })),
-      configureWakeWord(() => ({
+      configureWakeWord(() => [{
         targetCardId: 'testing-audio-wake-word',
         text: 'Light up',
-        tokens: ['L', 'AY1', 'T', 'AH1', 'P'],
-      })),
+        pronunciations: [['L', 'AY1', 'T', 'AH1', 'P']],
+      }]),
     ],
   }, async ({ audio }) => {
     const input = await audio.waitForVoiceInput({ timeout: 90_000 })

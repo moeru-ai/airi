@@ -14,25 +14,25 @@ export interface WakeWordConfiguration {
   targetCardId: string
   /** Written wake word, for example the character name. */
   text: string
-  /** One pronunciation as tokens of the pinned KWS model vocabulary. */
-  tokens: string[]
+  /** Pronunciations as token sequences of the pinned KWS model vocabulary. A match of any one wakes the card. */
+  pronunciations: string[][]
 }
 
-type WakeWordResolver = (context: AudioInputPreflightContext) => WakeWordConfiguration | undefined | Promise<WakeWordConfiguration | undefined>
+type WakeWordResolver = (context: AudioInputPreflightContext) => WakeWordConfiguration[] | undefined | Promise<WakeWordConfiguration[] | undefined>
 
 /**
- * Adds one AIRI Card with a wake word and selects the `wake-word` Hearing input mode with the microphone on.
+ * Adds one AIRI Card with a wake word for each configuration, and selects the `wake-word` Hearing input mode with the microphone on.
  *
  * The case needs no ASR Provider. On Web, the callback serves the verified model from the workspace cache, so the
  * model asset repository installs it without a network download. Electron loads the pack from its bundle.
  *
  * @example
- * configureWakeWord(() => ({ targetCardId: 'wake-target', text: 'Light up', tokens: ['L', 'AY1', 'T', 'AH1', 'P'] }))
+ * configureWakeWord(() => [{ targetCardId: 'wake-target', text: 'Light up', pronunciations: [['L', 'AY1', 'T', 'AH1', 'P']] }])
  */
 export function configureWakeWord(resolve: WakeWordResolver): AudioInputPreflightCallback {
   return async (context) => {
-    const configuration = await resolve(context)
-    if (!configuration)
+    const configurations = await resolve(context)
+    if (!configurations)
       return
 
     if (context.runtime.target === 'web') {
@@ -48,8 +48,11 @@ export function configureWakeWord(resolve: WakeWordResolver): AudioInputPrefligh
       }
     }
 
-    const wakeWord: WakeWord = { text: configuration.text, modelId: kwsModel.id, pronunciations: [configuration.tokens] }
-    await context.runtime.runtimePage.evaluate(({ configuredWakeWord, targetCardId }) => {
+    const targets = configurations.map(configuration => ({
+      cardId: configuration.targetCardId,
+      wakeWord: { text: configuration.text, modelId: kwsModel.id, pronunciations: configuration.pronunciations } satisfies WakeWord,
+    }))
+    await context.runtime.runtimePage.evaluate((configuredTargets) => {
       const serializedCards = localStorage.getItem('airi-cards')
       if (!serializedCards)
         throw new Error('The AIRI Card store is not initialized.')
@@ -60,15 +63,17 @@ export function configureWakeWord(resolve: WakeWordResolver): AudioInputPrefligh
       if (!activeCard)
         throw new Error(`The active AIRI Card "${activeCardId}" does not exist.`)
 
-      if (cards.some(([cardId]) => cardId === targetCardId))
-        throw new Error(`The AIRI Card "${targetCardId}" already exists.`)
+      for (const target of configuredTargets) {
+        if (cards.some(([cardId]) => cardId === target.cardId))
+          throw new Error(`The AIRI Card "${target.cardId}" already exists.`)
 
-      // The copy keeps valid Provider modules. Only the wake word separates the target from the active card.
-      const targetCard = structuredClone(activeCard)
-      targetCard.extensions.airi.wakeWords = [configuredWakeWord]
-      cards.push([targetCardId, targetCard])
+        // The copy keeps valid Provider modules. Only the wake word separates the target from the active card.
+        const targetCard = structuredClone(activeCard)
+        targetCard.extensions.airi.wakeWords = [target.wakeWord]
+        cards.push([target.cardId, targetCard])
+      }
       localStorage.setItem('airi-cards', JSON.stringify(cards))
-    }, { configuredWakeWord: wakeWord, targetCardId: configuration.targetCardId })
+    }, targets)
 
     const microphoneInput = await context.runtime.runtimePage.evaluate(async () => {
       const devices = await navigator.mediaDevices.enumerateDevices()
