@@ -235,7 +235,7 @@ describe('checkLocales', () => {
   })
 
   // https://github.com/moeru-ai/airi/pull/2904
-  it('reports a choice separator that no count can select', async () => {
+  it('reports a choice separator that no count can select (PR #2904)', async () => {
     // ROOT CAUSE:
     //
     // vue-i18n reads `|` as a choice separator and picks a form with the `count`
@@ -282,8 +282,8 @@ describe('checkLocales', () => {
     expect(issues).toEqual([expect.objectContaining({ level: 'warning', locale: 'ja', key: 'animation.title' })])
   })
 
-  it('escapes a pipe in the summary so the row keeps its five columns', async () => {
-    // https://github.com/moeru-ai/airi/pull/2904#discussion_r4241505158
+  // https://github.com/moeru-ai/airi/pull/2904#discussion_r4241505158
+  it('escapes a pipe in the summary so the row keeps its five columns (PR #2904)', async () => {
     //
     // The Crowdin workflow appends this table to the step summary. The warning that
     // explains a choice separator shows a literal pipe, so an unescaped pipe in that
