@@ -4,6 +4,7 @@ import type { OtelInstance } from './otel'
 import type { Verifier as AppleIapVerifier } from './routes/apple-iap/verifier'
 import type { StreamingTtsVoiceType } from './routes/audio-speech-ws/session'
 import type { ConfigKVService } from './services/adapters/config-kv'
+import type { RevenuecatSubscriberClient } from './services/adapters/revenuecat-subscriber'
 import type { RevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
 import type { BillingService } from './services/domain/billing/billing-service'
 import type { LlmBillingService } from './services/domain/billing/llm-billing'
@@ -109,6 +110,7 @@ interface AppDeps {
   billingService: BillingService
   speechBilling: SpeechBilling
   subscriptionSync: RevenuecatSubscriptionSync
+  revenuecatSubscriber: RevenuecatSubscriberClient
   requestLogService: RequestLogService
   voicePackService: VoicePackService
   productEventService: ProductEventService
@@ -402,6 +404,7 @@ export async function buildApp(deps: AppDeps) {
     .route('/internal/auth', createInternalAuthRoutes({
       userDeletionService: deps.userDeletionService,
       productEventService: deps.productEventService,
+      revenuecatSubscriber: deps.revenuecatSubscriber,
     }))
 
     /**
@@ -459,11 +462,12 @@ export async function buildApp(deps: AppDeps) {
     ))
 
     /**
-     * RevenueCat webhook ingress (capacitor Flux).
+     * RevenueCat webhook ingress and Capacitor reconciliation for the caller.
      */
     .route('/api/v1/revenuecat', createRevenuecatRoutes(
       deps.subscriptionSync,
       deps.env,
+      deps.otel?.rateLimit ?? null,
     ))
 
     /**
@@ -734,12 +738,21 @@ export async function createApp() {
     build: ({ dependsOn }) => createPaymentService(dependsOn.db, dependsOn.billingService),
   })
 
+  const revenuecatSubscriber = injeca.provide('adapters:revenuecatSubscriber', {
+    dependsOn: { env: parsedEnv },
+    build: ({ dependsOn }) => createRevenuecatSubscriberClient({
+      apiKey: dependsOn.env.REVENUECAT_V2_API_KEY ?? null,
+      projectId: dependsOn.env.REVENUECAT_PROJECT_ID ?? null,
+      sellsSubscriptions: Boolean(dependsOn.env.REVENUECAT_WEBHOOK_AUTH || dependsOn.env.REVENUECAT_WEBHOOK_SECRET),
+    }),
+  })
+
   const subscriptionSync = injeca.provide('services:revenuecatSubscriptionSync', {
-    dependsOn: { billingService, configKV, env: parsedEnv },
+    dependsOn: { billingService, configKV, revenuecatSubscriber },
     build: ({ dependsOn }) => createRevenuecatSubscriptionSync(
       dependsOn.billingService,
       dependsOn.configKV,
-      createRevenuecatSubscriberClient({ apiKey: dependsOn.env.REVENUECAT_API_KEY ?? null }),
+      dependsOn.revenuecatSubscriber,
     ),
   })
 
@@ -814,6 +827,7 @@ export async function createApp() {
     env: parsedEnv,
     otel,
     userDeletionService,
+    revenuecatSubscriber,
     llmRouter,
     providerCatalogService,
     ttsConcurrencyLedger,
@@ -847,6 +861,7 @@ export async function createApp() {
     env: resolved.env,
     otel: resolved.otel,
     userDeletionService: resolved.userDeletionService,
+    revenuecatSubscriber: resolved.revenuecatSubscriber,
     llmRouter: resolved.llmRouter,
     providerCatalogService: resolved.providerCatalogService,
   }

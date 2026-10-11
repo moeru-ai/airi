@@ -147,9 +147,11 @@ const EnvSchema = intersect([S3EnvironmentSchema, object({
   // return 503 when both are unset.
   REVENUECAT_WEBHOOK_AUTH: optional(string()),
   REVENUECAT_WEBHOOK_SECRET: optional(string()),
-  // Secret API key for GET /v1/subscribers. A subscription webhook returns
-  // 503 when it is unset, so RevenueCat sends the event again.
-  REVENUECAT_API_KEY: optional(string()),
+  // RevenueCat REST API v2 secret key and project id, for the reads of a customer's
+  // subscriptions. A v1 key does not work. A subscription webhook returns 503 when
+  // one of them is unset, so RevenueCat sends the event again.
+  REVENUECAT_V2_API_KEY: optional(string()),
+  REVENUECAT_PROJECT_ID: optional(string()),
   // Testing-only bearer token bypass. Keep unset in production. When set,
   // Authorization: Bearer $TEST_AUTH_TOKEN resolves to the virtual user below
   // through resolveRequestAuth without creating an Auth session row.

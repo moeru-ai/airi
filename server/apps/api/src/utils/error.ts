@@ -69,6 +69,14 @@ export function createConflictError(message: string, details?: unknown) {
 }
 
 /**
+ * Creates the conflict error (409) of an account deletion check with a subscription that can still charge.
+ * The Auth service reads the status and tells the user to cancel the subscription first.
+ */
+export function createSubscriptionActiveError() {
+  return new ApiError(409, 'SUBSCRIPTION_ACTIVE', 'Cancel the active subscription before you delete the account')
+}
+
+/**
  * Creates a service unavailable error (503)
  */
 export function createServiceUnavailableError(message = 'Service Unavailable', errorCode = 'SERVICE_UNAVAILABLE', details?: unknown) {
