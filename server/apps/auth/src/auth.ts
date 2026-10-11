@@ -16,7 +16,7 @@ import { oauthProvider } from '@better-auth/oauth-provider'
 import { useLogger } from '@guiiai/logg'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { createAuthMiddleware } from 'better-auth/api'
+import { createAuthMiddleware, getSessionFromCtx } from 'better-auth/api'
 import { deleteSessionCookie } from 'better-auth/cookies'
 import { bearer, jwt, magicLink } from 'better-auth/plugins'
 import { eq } from 'drizzle-orm'
@@ -605,6 +605,9 @@ export function createAuth(
           })
         },
         async beforeDelete(user) {
+          // The check runs first. A refusal must leave the external authorizations in place.
+          // It repeats the check of the deletion request, because the user can subscribe after the email.
+          await requireResourceApi(resourceApi).checkUserDeletion({ userId: user.id })
           await socialAuthorization.revokeForUser(user.id)
           await requireResourceApi(resourceApi).softDeleteUserData({
             userId: user.id,
@@ -729,6 +732,15 @@ export function createAuth(
         const isAuthAttempt = ctx.path.includes('/sign-in') || ctx.path.includes('/sign-up')
         if (isAuthAttempt) {
           metrics?.attempts.add(1, { 'auth.method': ctx.path.split('/').pop() ?? 'unknown' })
+        }
+
+        // A deletion request that the resource API refuses sends no confirmation email.
+        // `sendDeleteAccountVerification` can run in the background, so the check cannot live there.
+        // The endpoint rejects a request without a session.
+        if (ctx.path === '/delete-user') {
+          const session = await getSessionFromCtx(ctx)
+          if (session)
+            await requireResourceApi(resourceApi).checkUserDeletion({ userId: session.user.id })
         }
       }),
       after: createAuthMiddleware(async (ctx) => {

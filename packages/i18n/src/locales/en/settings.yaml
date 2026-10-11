@@ -362,7 +362,7 @@ pages:
         action: Delete account
         modal:
           title: Delete account?
-          warning: This cannot be undone. Active subscription will be canceled, Flux balance cleared.
+          warning: This cannot be undone. Your Flux balance is cleared. Cancel an active subscription first.
           confirmEmail:
             label: Type your email to confirm
             placeholder: ''
@@ -373,6 +373,7 @@ pages:
           emailSent: Check {email} for the deletion link.
         error:
           fallback: Could not start deletion. Try again later.
+          subscriptionActive: Your subscription is still active. Cancel it on the Capacitor page first, then delete your account.
   card:
     sync:
       notice: Character cards sync to your account. A deleted card stays restorable for 30 days.
