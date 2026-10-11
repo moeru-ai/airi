@@ -67,22 +67,36 @@ export function createConfig<TSchema extends PersistedSchema>(
   schema: TSchema,
   options?: CreateConfigOptions<InferOutput<TSchema>>,
 ): Config<TSchema> {
-  const key = `${namespace}:${filename}`
   const autoHeal = options?.autoHeal ?? Boolean(options?.default)
 
-  const configPath = () => createConfigPath(namespace, filename)
+  // The path resolves once, on first use. A save runs later than the call that
+  // scheduled it, and `app.getPath('userData')` can answer with another root by
+  // then. A write that followed the new root left this config's value in the file
+  // of a config that never read it.
+  let resolvedPath: string | undefined
+  const configPath = () => (resolvedPath ??= createConfigPath(namespace, filename))
+
+  // The state maps carry the path with the name, so one root never reads the
+  // value of another. Two configs for the same file still share one entry.
+  const key = () => `${namespace}:${filename}:${configPath()}`
 
   const recordDiagnostics = (diagnostics: ConfigDiagnostics<InferOutput<TSchema>>) => {
-    diagnosticsMap.set(key, diagnostics)
+    diagnosticsMap.set(key(), diagnostics)
     return diagnostics
   }
 
   const save = throttle(async () => {
+    const value = persistenceMap.get(key())
+    // A config whose value this root never held has nothing to write. Writing an
+    // empty document would only make the next read of that root heal it.
+    if (value === undefined)
+      return
+
     try {
       const path = configPath()
       await ensureConfigDirectory(path)
       const tmpPath = `${path}.${randomUUID()}.tmp`
-      await writeFile(tmpPath, JSON.stringify(persistenceMap.get(key)))
+      await writeFile(tmpPath, JSON.stringify(value))
       await rename(tmpPath, path)
     }
     catch (error) {
@@ -114,7 +128,7 @@ export function createConfig<TSchema extends PersistedSchema>(
         path,
         value: options?.default,
       })
-      persistenceMap.set(key, options?.default)
+      persistenceMap.set(key(), options?.default)
       return diagnostics
     }
 
@@ -127,7 +141,7 @@ export function createConfig<TSchema extends PersistedSchema>(
           path,
           value: parsed.value,
         })
-        persistenceMap.set(key, parsed.value)
+        persistenceMap.set(key(), parsed.value)
         return diagnostics
       }
 
@@ -140,12 +154,12 @@ export function createConfig<TSchema extends PersistedSchema>(
         value: fallback,
       })
       options?.onValidationFailure?.(diagnostics)
-      persistenceMap.set(key, fallback)
+      persistenceMap.set(key(), fallback)
 
       if (autoHeal && fallback !== undefined) {
         void writeHealingConfig(fallback).then((healed) => {
           if (healed) {
-            diagnosticsMap.set(key, { ...diagnostics, healed })
+            diagnosticsMap.set(key(), { ...diagnostics, healed })
           }
         })
       }
@@ -160,19 +174,19 @@ export function createConfig<TSchema extends PersistedSchema>(
         value: fallback,
       })
       options?.onReadError?.(diagnostics)
-      persistenceMap.set(key, fallback)
+      persistenceMap.set(key(), fallback)
       return diagnostics
     }
   }
 
   const update = (newData: InferOutput<TSchema>) => {
-    persistenceMap.set(key, newData)
+    persistenceMap.set(key(), newData)
     save()
   }
 
-  const get = () => persistenceMap.get(key) as InferOutput<TSchema> | undefined
+  const get = () => persistenceMap.get(key()) as InferOutput<TSchema> | undefined
 
-  const getDiagnostics = () => diagnosticsMap.get(key) as ConfigDiagnostics<InferOutput<TSchema>> | undefined
+  const getDiagnostics = () => diagnosticsMap.get(key()) as ConfigDiagnostics<InferOutput<TSchema>> | undefined
 
   return {
     setup,

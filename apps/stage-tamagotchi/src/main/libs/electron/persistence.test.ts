@@ -113,4 +113,74 @@ describe('createConfig', () => {
     expect(new Set(renameMock.mock.calls.map(([from]) => from)).size).toBe(2)
     saveErrorSpy.mockRestore()
   })
+
+  /**
+   * @example
+   * expect(second.get()).toEqual({ value: 0 })
+   *
+   * ROOT CAUSE:
+   *
+   * `save` runs on a throttle and `update` does not await it, and it asked
+   * `app.getPath('userData')` for the path when it ran rather than when the
+   * config was created. A write that ran after the root moved therefore landed
+   * in the new root with the value of the old one.
+   *
+   * The extension host suite hit this. One case read the enabled extensions of
+   * the case before it, whose directories were already gone, and refused to
+   * activate them:
+   *
+   * Error: Enabled Extension "a-dispose-consumer" is not installed.
+   */
+  it('writes a deferred save to the root its own config read from', async () => {
+    const files = new Map<string, string>()
+    const appMock = { getPath: vi.fn(() => '/tmp/airi-user-data-a') }
+    let runPendingSave: (() => unknown) | undefined
+
+    vi.doMock('electron', () => ({
+      app: appMock,
+    }))
+    // Hold the throttled write, so the test can run it after the root moved.
+    vi.doMock('es-toolkit', () => ({
+      throttle: (handler: () => unknown) => () => {
+        runPendingSave = handler
+      },
+    }))
+    vi.doMock('node:fs', () => ({
+      existsSync: (path: string) => files.has(path),
+      readFileSync: (path: string) => files.get(path),
+    }))
+    vi.doMock('node:fs/promises', () => ({
+      copyFile: vi.fn(async () => {}),
+      mkdir: vi.fn(async () => {}),
+      rename: vi.fn(async (from: string, to: string) => {
+        files.set(to, files.get(from) ?? '')
+        files.delete(from)
+      }),
+      writeFile: vi.fn(async (path: string, body: string) => {
+        files.set(path, body)
+      }),
+    }))
+
+    const { createConfig } = await import('./persistence')
+    const schema = object({ value: number() })
+
+    const first = createConfig('app', 'options.json', schema, { default: { value: 0 } })
+    first.setup()
+    first.update({ value: 7 })
+    const deferredSave = runPendingSave
+    if (!deferredSave) {
+      throw new Error('Expected the throttled write.')
+    }
+
+    // The root moves before that write runs, the way each case of the extension
+    // host suite receives its own directory.
+    appMock.getPath.mockReturnValue('/tmp/airi-user-data-b')
+    await deferredSave()
+
+    const second = createConfig('app', 'options.json', schema, { default: { value: 0 } })
+    second.setup()
+
+    expect(second.get()).toEqual({ value: 0 })
+    expect(first.get()).toEqual({ value: 7 })
+  })
 })
