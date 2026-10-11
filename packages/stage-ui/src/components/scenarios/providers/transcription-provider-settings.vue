@@ -2,7 +2,7 @@
 import { errorMessageFrom } from '@moeru/std'
 import { computedAsync, useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { nextTick, onMounted, shallowRef, watch } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -99,6 +99,11 @@ async function persistProviderConfig() {
 }
 
 const debouncedUpdate = useDebounceFn(persistProviderConfig, 1000)
+
+onBeforeUnmount(() => {
+  if (hasLocalEdits)
+    void persistProviderConfig()
+})
 
 watch([apiKey, baseUrl], () => {
   if (!settingsInitialized || applyingSnapshot)
