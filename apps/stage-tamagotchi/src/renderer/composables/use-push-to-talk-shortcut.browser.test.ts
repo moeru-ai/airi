@@ -12,7 +12,7 @@ import { defineComponent } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import { electronShortcutRegister, electronShortcutTriggered } from '../../shared/eventa'
-import { usePushToTalkShortcut } from './use-push-to-talk-shortcut'
+import { usePushToTalkShortcut, usePushToTalkShortcutSettings } from './use-push-to-talk-shortcut'
 
 const mocks = vi.hoisted(() => ({
   context: undefined as ReturnType<typeof createContext> | undefined,
@@ -120,6 +120,23 @@ describe('usePushToTalkShortcut', () => {
     trigger('up')
 
     expect(attempt.cancel).toHaveBeenCalledOnce()
+    expect(attempt.end).not.toHaveBeenCalled()
+  })
+
+  it('cancels the running hold when the shortcut changes during the hold', async () => {
+    // Review: https://github.com/moeru-ai/airi/pull/2729#discussion_r4239147479
+    const { devices, hearing, attempt } = await mountShortcut()
+    devices.enabled = true
+    hearing.inputMode = 'push-to-talk'
+    await vi.waitFor(() => expect(mocks.register).toHaveBeenCalledOnce())
+
+    trigger('down')
+    usePushToTalkShortcutSettings().accelerator.value = { modifiers: ['alt'], key: 'KeyP' }
+
+    await vi.waitFor(() => expect(attempt.cancel).toHaveBeenCalledOnce())
+    await vi.waitFor(() => expect(mocks.register).toHaveBeenLastCalledWith(expect.objectContaining({ accelerator: { modifiers: ['alt'], key: 'KeyP' } })))
+    // The old key up never arrives after rebinding. A later key up from the new binding must not end the cancelled attempt.
+    trigger('up')
     expect(attempt.end).not.toHaveBeenCalled()
   })
 

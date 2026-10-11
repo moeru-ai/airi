@@ -83,6 +83,9 @@ export function usePushToTalkShortcut() {
     })
   }
 
+  // Rebinding drops the pressed state of the old uiohook entry, so the old key up never arrives and the input never ends.
+  // This watcher runs before the registration watcher. `useVoiceHold` cancels on disable.
+  watch(accelerator, () => hold.cancel('Push to Talk shortcut changed during the hold'), { deep: true })
   watch([hold.enabled, accelerator], scheduleRegistration, { immediate: true, deep: true })
 
   const stopTrigger = getElectronEventaContext().on(electronShortcutTriggered, ({ body }) => {
