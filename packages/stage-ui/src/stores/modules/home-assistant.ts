@@ -2,7 +2,7 @@ import type { HomeAssistantExposure, HomeAssistantExposureMode } from '../../lib
 
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 
 import * as v from 'valibot'
 
@@ -38,13 +38,15 @@ export const useHomeAssistantStore = defineStore('home-assistant', () => {
   const allowedEntities = useLocalStorageManualReset<string[]>('settings/home-assistant/allowed-entities', [])
   const deniedEntities = useLocalStorageManualReset<string[]>('settings/home-assistant/denied-entities', [])
 
-  // `localStorage` holds whatever a stale build or a hand edit wrote, and the
-  // grid and the tools both fail on a value that is not a list. The reset writes
-  // the default back, so the next read of the key is valid as well.
-  if (!v.is(entityIdList, allowedEntities.value))
-    allowedEntities.reset()
-  if (!v.is(entityIdList, deniedEntities.value))
-    deniedEntities.reset()
+  // A stale build or a hand edit can write a value that is not a list of ids, and
+  // a storage event assigns one straight to the ref after startup. The grid and
+  // the tools fail on it, so validate every assignment. The reset heals the key.
+  watch([allowedEntities, deniedEntities], () => {
+    if (!v.is(entityIdList, allowedEntities.value))
+      allowedEntities.reset()
+    if (!v.is(entityIdList, deniedEntities.value))
+      deniedEntities.reset()
+  }, { flush: 'sync', immediate: true })
 
   const configured = computed(() => enabled.value && hasCredentials.value)
 
