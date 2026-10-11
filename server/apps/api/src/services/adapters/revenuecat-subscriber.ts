@@ -10,8 +10,11 @@ const REQUEST_TIMEOUT_MS = 5_000
 const PAGE_LIMIT = 100
 
 const subscriptionSchema = object({
-  /** RevenueCat's own product id. `GET /products/{id}` gives the store identifier. */
-  product_id: string(),
+  /**
+   * RevenueCat's own product id. `GET /products/{id}` gives the store identifier.
+   * Null for a promotional subscription, which a person grants and no store sells.
+   */
+  product_id: nullable(string()),
   status: string(),
   auto_renewal_status: string(),
   /** True while the customer has the entitlements of this subscription, grace period included. */
@@ -52,8 +55,11 @@ export interface SubscriberEntitlement {
   accessUntil: Date | null
 }
 
-/** A subscription in one of these states is over or was never paid. The store does not charge it. */
-const ENDED_STATUSES = new Set(['expired', 'incomplete', 'unknown'])
+/**
+ * A subscription in one of these states is over or was never paid. The store does not charge it.
+ * `unknown` is not here: RevenueCat cannot tell the access, and the renewal status then decides.
+ */
+const ENDED_STATUSES = new Set(['expired', 'incomplete'])
 
 /**
  * The store can charge this subscription again.
@@ -126,7 +132,8 @@ export function createRevenuecatSubscriberClient(input: {
       if (!parsed.success)
         throw createBadGatewayError('RevenueCat subscriber response is invalid')
       subscriptions.push(...parsed.output.items)
-      url = parsed.output.next_page
+      // The API returned an absolute URL in a real response. Its reference shows a path, so both resolve here.
+      url = parsed.output.next_page === null ? null : new URL(parsed.output.next_page, url).toString()
     }
     return subscriptions
   }
@@ -155,7 +162,8 @@ export function createRevenuecatSubscriberClient(input: {
     const seen = new Set<string>()
     for (const subscription of granting) {
       const granted = subscription.entitlements.items.filter(item => accessUntil.has(item.id) && !seen.has(item.id))
-      if (granted.length === 0)
+      // A promotional subscription has no product. No Capacitor is mapped to it, so it grants none.
+      if (granted.length === 0 || subscription.product_id === null)
         continue
       const product = safeParse(productSchema, await read(projectUrl(`/products/${encodeURIComponent(subscription.product_id)}`)))
       if (!product.success)

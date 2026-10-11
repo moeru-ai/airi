@@ -143,7 +143,9 @@ A deleted user cannot open the management URL, so a subscription that can still 
 The server does not cancel a subscription. The user cancels it, and then deletes the account.
 The rule also covers App Store and Google Play subscriptions, which the server cannot cancel.
 
-A subscription can still charge unless its `status` is `expired`, `incomplete`, or `unknown`, or its `auto_renewal_status` is `will_not_renew`.
+A subscription can still charge unless its `status` is `expired` or `incomplete`, or its `auto_renewal_status` is `will_not_renew`.
+For the status `unknown`, the renewal status decides.
+A promotional subscription has no product, so it grants no Capacitor.
 Thus a cancelled subscription does not refuse. It keeps its access until the period ends, and the deletion clears the wallet.
 A subscription in `in_billing_retry` refuses. It gives no access, but a recovered payment charges the customer.
 

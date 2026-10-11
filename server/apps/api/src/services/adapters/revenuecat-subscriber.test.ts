@@ -39,7 +39,9 @@ function revenuecat(customer: Customer | null) {
       return json({ items: customer.activeEntitlements ?? [], next_page: null })
     // The list has one item for each page, so a test with two subscriptions needs the second page.
     const index = Number(url.searchParams.get('page') ?? 0)
-    const next = index + 1 < customer.subscriptions.length ? `${url.origin}${url.pathname}?page=${index + 1}` : null
+    // The second page is a path, and the third is an absolute URL. RevenueCat documents one and returns the other.
+    const nextPath = `${url.pathname}?page=${index + 1}`
+    const next = index + 1 < customer.subscriptions.length ? (index === 0 ? nextPath : `${url.origin}${nextPath}`) : null
     return json({ items: customer.subscriptions.slice(index, index + 1), next_page: next })
   })
   const client = createRevenuecatSubscriberClient({ apiKey: 'sk_v2', projectId: 'proj1', sellsSubscriptions: true, fetch })
@@ -93,6 +95,18 @@ describe('revenuecat subscriber client', () => {
 
       expect(entitlements.map(item => [item.entitlementId, item.productId])).toEqual([['airi_plus', 'rc_plus_monthly']])
       expect(paths).not.toContain('/products/prod_go')
+    })
+
+    // https://github.com/moeru-ai/airi/pull/2910#discussion_r4240813205
+    it('grants nothing for a promotional subscription, which has no product', async () => {
+      const promotional = { ...goSubscription, product_id: null }
+      const { client, paths } = revenuecat({
+        subscriptions: [promotional],
+        activeEntitlements: [{ entitlement_id: 'entl_go', expires_at: periodEnd }],
+      })
+
+      expect(await client.fetchEntitlements('user-1')).toEqual([])
+      expect(paths.filter(path => path.startsWith('/products'))).toEqual([])
     })
 
     it('takes the later billing period when two subscriptions grant one entitlement', async () => {
@@ -164,11 +178,18 @@ describe('revenuecat subscriber client', () => {
       expect(await revenuecat(null).client.hasRenewingSubscription('user-1')).toBe(false)
     })
 
-    it('finds a renewing subscription on a later page', async () => {
-      const expired = { ...goSubscription, status: 'expired', auto_renewal_status: 'will_not_renew', gives_access: false }
-      const { client } = revenuecat({ subscriptions: [expired, goSubscription] })
+    // https://github.com/moeru-ai/airi/pull/2910#discussion_r4240813197
+    it('is true for an unknown status while the renewal is on', async () => {
+      expect(await renewing({ status: 'unknown', gives_access: false })).toBe(true)
+      expect(await renewing({ status: 'unknown', auto_renewal_status: 'will_not_renew' })).toBe(false)
+    })
 
-      expect(await client.hasRenewingSubscription('user-1')).toBe(true)
+    // https://github.com/moeru-ai/airi/pull/2910#discussion_r4240813200
+    it('finds a renewing subscription on a later page, for a path and for an absolute URL', async () => {
+      const expired = { ...goSubscription, status: 'expired', auto_renewal_status: 'will_not_renew', gives_access: false }
+
+      expect(await revenuecat({ subscriptions: [expired, goSubscription] }).client.hasRenewingSubscription('user-1')).toBe(true)
+      expect(await revenuecat({ subscriptions: [expired, expired, goSubscription] }).client.hasRenewingSubscription('user-1')).toBe(true)
     })
 
     it('is false without a read in a deployment that sells no subscriptions', async () => {
