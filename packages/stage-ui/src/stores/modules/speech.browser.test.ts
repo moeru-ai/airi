@@ -487,6 +487,11 @@ describe('speech synchronization', () => {
     const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
     vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({
       flux: 0,
+      // The Flux response from #2813 also carries the Capacitor state. A missing field becomes `undefined` in the follower,
+      // and that change sends a `replaceState` proposal that this test forbids.
+      capacitorPercent: null,
+      capacitorRechargesAt: null,
+      fallbackToFlux: false,
       voices: [
         { id: 'fallback', name: 'Fallback', languages: [{ code: 'en-US', title: 'English' }] },
         { id: 'voice', name: 'Voice', languages: [{ code: 'en-US', title: 'English' }] },
