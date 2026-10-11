@@ -3,6 +3,7 @@ import process from 'node:process'
 import { existsSync } from 'node:fs'
 import { readdir, readFile, writeFile } from 'node:fs/promises'
 import { join, relative } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 import { parseDocument } from 'yaml'
 
@@ -365,7 +366,7 @@ async function main(): Promise<void> {
     process.exitCode = 1
 }
 
-if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((error: unknown) => {
     console.error(error)
     process.exitCode = 1
