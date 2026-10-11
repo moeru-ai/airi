@@ -390,6 +390,9 @@ async function handleConfirmDelete(event: Event) {
     // request came from.
     const callbackURL = new URL('/auth/delete-account', SERVER_URL).toString()
     const { error } = await authClient.deleteUser({ callbackURL })
+    // The server sends no email while a subscription can still charge. A deleted user cannot cancel it.
+    if (error?.code === 'SUBSCRIPTION_ACTIVE')
+      throw new Error(t('settings.pages.account.danger.deleteAccount.error.subscriptionActive'))
     if (error)
       throw new Error(error.message ?? 'deleteUser failed')
 

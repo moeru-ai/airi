@@ -151,6 +151,8 @@ JWS proof from every app in `APPLE_IAP_APPS`, resolves the pack from
 RevenueCat lives on `/api/v1/revenuecat/*`. `POST /webhook` verifies the
 dashboard authorization header and HMAC signature over the raw body.
 Each event then reconciles the Capacitor from RevenueCat.
+`POST /sync` reconciles the Capacitor of the signed-in user. The client calls it after a purchase and when the Capacitor page opens.
+`GET /capacitors` returns the product ids that grant a Capacitor.
 RevenueCat does not sell Flux packs.
 The webhook stores no events.
 Flux balance stays self-managed. In-App Currency is not used.
@@ -166,13 +168,18 @@ The Capacitor page reads `customerInfo` for the current Capacitor, expiry, and m
 The server stores only the Capacitor in `user_flux`.
 
 A webhook does not select a grant rule by its event type. The server reads
-`GET /v1/subscribers/{app_user_id}` with `REVENUECAT_API_KEY` and calls
+the customer's subscriptions and active entitlements from the RevenueCat REST API v2, with `REVENUECAT_V2_API_KEY`
+and `REVENUECAT_PROJECT_ID`, and calls
 `BillingService.syncCapacitor`. A new period resets the bucket to the quota.
 A known period keeps its spent Flux and takes the reported end time.
 No active Capacitor expires the bucket now.
 Product-to-Capacitor mapping lives in ConfigKV `REVENUECAT_CAPACITORS`.
 A missed webhook delays the grant until the next webhook for that
-customer. The Capacitor name and expiry come from the client SDK, so they do not wait for that webhook.
+customer, or until the client calls `POST /sync`. The Capacitor name and expiry come from the client SDK, so they do not wait for that webhook.
+
+The Auth service asks `POST /internal/auth/user-deletion/check` before it sends the deletion email, and again
+before it deletes. The check returns 409 `SUBSCRIPTION_ACTIVE` while a subscription can still charge. The user
+cancels the subscription first.
 
 ## Run locally
 
