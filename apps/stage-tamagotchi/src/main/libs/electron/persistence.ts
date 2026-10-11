@@ -89,8 +89,8 @@ export function createConfig<TSchema extends PersistedSchema>(
     try {
       const path = configPath()
       await ensureConfigDirectory(path)
-      // The value is read here, after the wait, so a save that overlaps this one
-      // writes the value of the newer update rather than an older one it read
+      // The value is read here, after the wait. A save that overlaps this one
+      // then writes the value of the newer update, not an older value it read
       // before the wait.
       const value = persistenceMap.get(key())
       // A root this config never read from holds no value. An empty document
