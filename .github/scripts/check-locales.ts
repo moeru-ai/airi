@@ -53,13 +53,14 @@ const LITERAL = /\{\s*'(?:\\[\s\S]|''|[^'\\])*'\s*\}/g
 /**
  * Warns about a choice separator that the message itself cannot select.
  *
- * vue-i18n splits a message on \`|\` and picks a form with a selector. A message that holds a
- * separator and no \`{count}\` leaves the choice to its call site, and a call such as
- * \`t(key, 2)\` makes one with a number. This check reads locale files alone, so it reports a
- * warning rather than a fault. \`Anthropic | Claude\` reached a provider card as \`Anthropic\`,
+ * vue-i18n splits a message on `|` and picks a form with a selector. A message that holds a
+ * separator and no `{count}` leaves the choice to its call site, and a call such as
+ * `t(key, 2)` makes one with a number. This check reads locale files alone, so it reports a
+ * warning rather than a fault. `Anthropic | Claude` reached a provider card as `Anthropic`,
  * because no call site passed a number.
  *
- * @returns A warning for the separator, or \`undefined\` when the message holds none.
+ * @returns A warning for a separator the message cannot select itself. `undefined` when
+ * the message holds no separator, or when a `{count}` in it selects a form already.
  */
 function choiceSeparatorWarning(value: string): string | undefined {
   // A literal is text, and the text of one can hold a selector. Removing the spans
@@ -70,7 +71,6 @@ function choiceSeparatorWarning(value: string): string | undefined {
 
   return "A choice separator renders its first form unless a {count} or a number at the call site selects another. Write a literal pipe as {'|'}."
 }
-
 
 function flatten(value: unknown, prefix: string, into: Map<string, string>) {
   if (typeof value === 'string') {
