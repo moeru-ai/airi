@@ -14,6 +14,10 @@ export const providerOpenRouterAudioTranscription = defineProvider<OpenRouterAud
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.openrouter.description'),
   tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
   icon: 'i-lobe-icons:openrouter',
+  /**
+   * Most OpenRouter transcription models support timestamps. A few return HTTP 400 for `verbose_json`.
+   * The model catalog does not expose this support status.
+   */
   capabilities: {
     transcription: { protocol: 'http', generateOutput: true, streamOutput: false, streamInput: false },
   },
