@@ -358,9 +358,8 @@ interface FullscreenMotion { duration: number, curve: FullscreenGlideCurve }
  * the stage and the area stays in place. `width` is slower, so the area fills the height first.
  */
 const FULLSCREEN_MOTION = {
-  move: { duration: 450, curve: [0.65, 0, 0.35, 1] },
-  height: { duration: 600, curve: [0.25, 1, 0.5, 1] },
-  width: { duration: 900, curve: [0.33, 1, 0.68, 1] },
+  height: { duration: 350, curve: [0.25, 1, 0.5, 1] },
+  width: { duration: 500, curve: [0.33, 1, 0.68, 1] },
 } satisfies Record<string, FullscreenMotion>
 /** The opening runs as long as its slowest part. The closing plays it backwards, so every part ends together. */
 const FULLSCREEN_OPENING_MS = Math.max(FULLSCREEN_MOTION.height.duration, FULLSCREEN_MOTION.width.duration)
@@ -379,15 +378,15 @@ function motionPart(part: FullscreenMotion, direction: 'open' | 'close') {
   return { duration: part.duration, curve: [1 - x2, 1 - y2, 1 - x1, 1 - y1] satisfies FullscreenGlideCurve, delay: FULLSCREEN_OPENING_MS - part.duration }
 }
 
-/** The CSS transition of `parts` in the current direction, or `none` while nothing moves. */
-function motionTransition(...parts: [property: string, part: FullscreenMotion][]) {
+/** The CSS transitions of `parts` in the current direction, and none while nothing moves. */
+function motionTransitions(...parts: [property: string, part: FullscreenMotion][]) {
   const direction = fullscreenMotion.value
   if (!direction)
-    return 'none'
+    return []
   return parts.map(([property, part]) => {
     const { duration, curve, delay } = motionPart(part, direction)
     return `${property} ${duration}ms cubic-bezier(${curve.join(', ')}) ${delay}ms`
-  }).join(', ')
+  })
 }
 
 const stageFrameStyle = computed(() => {
@@ -402,7 +401,7 @@ const stageFrameStyle = computed(() => {
     height: `${layout.height}px`,
     transformOrigin: '0 0',
     transform: `translateX(${layout.offsetX}px) scale(${layout.scale})`,
-    transition: motionTransition(['transform', FULLSCREEN_MOTION.height]),
+    transition: motionTransitions(['transform', FULLSCREEN_MOTION.height]).join(', ') || 'none',
   }
 })
 
@@ -413,7 +412,7 @@ const fullscreenAreaStyle = computed(() => {
   return {
     width: `${area.width}px`,
     height: `${area.height}px`,
-    transition: motionTransition(['width', FULLSCREEN_MOTION.width], ['height', FULLSCREEN_MOTION.height]),
+    transition: motionTransitions(['width', FULLSCREEN_MOTION.width], ['height', FULLSCREEN_MOTION.height]).join(', ') || 'none',
   }
 })
 
@@ -443,11 +442,10 @@ async function fullscreenTransitionsEnded() {
  * Opens the fullscreen mode. A resize keeps the window's top left corner, and a glide keeps its size, so the content
  * never shifts against the window and the stage never blinks. The islands hide as soon as the mode starts.
  *
- * 1. The window glides straight to the left edge of the work area.
- * 2. The stage takes its fullscreen size, scaled to look unchanged, and the window grows from its top left to the size
+ * 1. The stage takes its fullscreen size, scaled to look unchanged, and the window grows from its top left to the size
  *    of the work area. The area starts with no width, so nothing on screen changes.
- * 3. The window glides up while the stage and the area grow along the same curve. The area opens to the right along a
- *    slower curve and shows the island and the surface.
+ * 2. The window glides to the top left of the work area while the stage and the area grow along the same curve. The
+ *    area opens to the right along a slower curve and shows the island and the surface.
  *
  * The mode ends fully open or fully closed: any failed step rolls everything back through {@link leaveFullscreen}.
  */
@@ -456,15 +454,12 @@ async function expandToFullscreen() {
     const { bounds, workArea } = await enterFullscreenWindow()
     const plan = planFor(bounds, workArea)
     fullscreenPlan = plan
-    const { move, height } = FULLSCREEN_MOTION
-
-    if (bounds.x !== workArea.x)
-      await setFullscreenWindowBounds({ bounds: { ...bounds, x: workArea.x }, duration: move.duration, curve: move.curve })
+    const { height } = FULLSCREEN_MOTION
 
     fullscreenMotion.value = false
     stageLayout.value = homeStageLayout(plan)
     fullscreenArea.value = { width: 0, height: bounds.height }
-    await setFullscreenWindowBounds({ bounds: { x: workArea.x, y: bounds.y, width: workArea.width, height: workArea.height } })
+    await setFullscreenWindowBounds({ bounds: { x: bounds.x, y: bounds.y, width: workArea.width, height: workArea.height } })
 
     commitFullscreenLayout()
     fullscreenMotion.value = 'open'
@@ -484,27 +479,24 @@ async function expandToFullscreen() {
 
 /**
  * Closes the fullscreen mode with the opening played backwards. The area closes to the left while the window glides
- * down and the stage shrinks, then the window shrinks from its top left and glides straight back. The stage returns
+ * back and the stage shrinks, then the window shrinks from its top left. The stage returns
  * to its normal layout only after that, because its scaled layout fits both window sizes.
  */
 async function collapseFromFullscreen() {
   try {
     const plan = fullscreenPlan
     if (plan) {
-      const { move } = FULLSCREEN_MOTION
       const height = motionPart(FULLSCREEN_MOTION.height, 'close')
       commitFullscreenLayout()
       fullscreenMotion.value = 'close'
       stageLayout.value = homeStageLayout(plan)
       fullscreenArea.value = { width: 0, height: plan.home.height }
       await Promise.all([
-        setFullscreenWindowBounds({ bounds: { ...plan.workArea, y: plan.home.y }, ...height }),
+        setFullscreenWindowBounds({ bounds: { ...plan.workArea, x: plan.home.x, y: plan.home.y }, ...height }),
         fullscreenTransitionsEnded(),
       ])
 
-      await setFullscreenWindowBounds({ bounds: { ...plan.home, x: plan.workArea.x } })
-      if (plan.home.x !== plan.workArea.x)
-        await setFullscreenWindowBounds({ bounds: plan.home, duration: move.duration, curve: move.curve })
+      await setFullscreenWindowBounds({ bounds: plan.home })
     }
     await exitFullscreenWindow({ reason: 'the user closed it' })
     clearFullscreenLayout()
