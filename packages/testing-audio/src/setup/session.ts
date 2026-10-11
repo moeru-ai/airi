@@ -106,6 +106,9 @@ export function createSession(options: {
         await options.page.waitForFunction(() => (window.__airiAudioInputE2E?.voiceInputs.length ?? 0) > 0, undefined, { timeout: waitOptions.timeout ?? 60_000 })
       }
       catch (error) {
+        // REVIEW:
+        // Wake word cases sometimes time out with the model `ready`, about 1 of 4 Mandarin runs on Web.
+        // Reruns of the same fixture pass. The cause is unknown.
         // The wake word preparation tells if the timeout came from the model, or from detection after the model was ready.
         const wakeWordPreparation = await options.page.evaluate(() => window.__airiAudioInputE2E?.wakeWordPreparation)
         throw new Error(`Timed out waiting for a voice input. Wake word preparation: ${wakeWordPreparation ?? 'not published'}`, { cause: error })
