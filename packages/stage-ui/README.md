@@ -81,6 +81,17 @@ To add a mode, extend `HearingInputMode`, `listensContinuously`, and `useVoiceLi
 `useVoiceHoldKey` drives a hold with an in-page key, Space by default. It ignores text fields, controls, and modified keys, and cancels when the page loses focus.
 The web stage uses Space. The desktop stage uses a configurable global shortcut.
 
+Each host app declares whether it has a Push to Talk trigger. It provides `pushToTalkTriggerKey` from `composables/push-to-talk-trigger` at the app level.
+Without a provider, the host has no trigger. The Hearing settings page then disables the Push to Talk option.
+If the saved mode is already `push-to-talk` on such a host, listening stays off. The Hearing page and the voice button menu show a warning.
+The mode does not fall back to `always-on`, because that opens the microphone all the time.
+
+| Host | Trigger |
+| --- | --- |
+| stage-tamagotchi | Yes. All windows share one app, so the settings window offers the mode too. |
+| stage-web | Only with a fine pointer, `(any-pointer: fine)`. Space is the only trigger, and no Web API reports a hardware keyboard. |
+| stage-pocket, stage-tamagotchi-kirie | No. They provide nothing. |
+
 
 `useWakeWordsStore` validates pronunciations against a supplied model vocabulary and preserves them in exported character cards.
 Its device-local catalog pauses unresolved pronunciation conflicts. `chooseOwner` activates the selected character's copy.

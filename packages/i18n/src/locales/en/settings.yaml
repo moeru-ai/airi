@@ -857,6 +857,9 @@ pages:
             always-on-description: AIRI listens all the time and replies when you speak.
             push-to-talk: Push to Talk
             push-to-talk-description: AIRI listens only while you hold the Push to Talk key. The microphone is open only during the hold.
+            push-to-talk-unavailable: Not available here. This app has no Push to Talk key on this device.
+            stranded-title: Push to Talk is not available here
+            stranded-description: This app has no Push to Talk key on this device, so AIRI does not listen. To talk to AIRI here, choose Always on.
           rephrase:
             title: Transcript rewrite
             description: A chat model fixes recognition errors and removes filler words before a transcript becomes a draft. The original text is kept.
