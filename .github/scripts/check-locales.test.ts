@@ -11,8 +11,6 @@ import { checkLocales } from './check-locales'
 
 const roots: string[] = []
 
-const run = promisify(execFile)
-
 /** The command line the Crowdin workflow runs, so the summary is read as it is written there. */
 const script = fileURLToPath(new URL('check-locales.ts', import.meta.url))
 
@@ -322,7 +320,7 @@ describe('checkLocales', () => {
     })
     const summary = join(root, 'summary.md')
 
-    await run(process.execPath, [script, '--root', root, '--summary', summary])
+    await promisify(execFile)(process.execPath, [script, '--root', root, '--summary', summary])
 
     const table = await readFile(summary, 'utf8')
     const row = table.split('\n').find(line => line.includes('providers.anthropic')) ?? ''
