@@ -349,6 +349,10 @@ pages:
           fallback: 无法开始删除操作，请稍后重试。
           subscriptionActive: 您的订阅仍在生效。请先在 Capacitor 页面取消订阅，再删除帐户。
   card:
+    wake-word-conflicts:
+      title: '{count} 个共享的唤醒词发音需要选择角色'
+      description: 两张角色卡使用了相同的发音。选择角色之前，没有角色会回应它。
+      action: 选择回应的角色
     sync:
       notice: 角色卡会同步到账号。删除的角色卡可在 30 天内恢复。
       off_notice: 你已登录，但角色卡同步还没有打开。
@@ -801,10 +805,48 @@ pages:
     hearing:
       description: 语音识别
       title: 听觉
+      transcriber:
+        title: 语音识别
+        description: 选择转写服务和模型，并测试麦克风。
+      wake-words:
+        title: 唤醒词
+        description: 查看每个角色的唤醒词，并选择由谁回应共享的发音。
+        intro: 唤醒词保存在每个角色的角色卡上。如需修改，可以在聊天中请角色更改。
+        empty: 这个角色还没有唤醒词。
+        state:
+          active: 已启用
+          paused: 已暂停。请选择回应它的角色。
+          other: '由 {name} 回应'
+          unsupported: 当前唤醒词模型不支持
+        conflicts:
+          title: 共享的发音
+          description: 多个角色使用了相同的发音。请选择在此设备上回应它的角色。每张角色卡都会保留自己的唤醒词。
+          choose-label: 回应的角色
+          choose: '{name}（「{word}」）'
+          answered-by: '由 {name} 回应'
+          unresolved: 还没有角色回应这个发音。
       sections:
         section:
           provider-selection:
             description: 选择合适的语音转文本的服务来源
+          microphone:
+            title: 麦克风
+            label: 麦克风
+            description: 为听觉打开麦克风。输入模式决定 AIRI 何时聆听。
+            error: 麦克风不可用
+          input-device:
+            label: 输入设备
+            description: 选择 AIRI 使用的麦克风。
+            playground-description: 听觉和测试区都使用这个麦克风。
+            placeholder: 选择麦克风
+          auto-send:
+            title: 转写文本
+            description: 选择 AIRI 如何处理识别出的文字。
+            label: 自动发送
+            label-description: AIRI 会在延迟后把转写文本发送到聊天。关闭后可以先阅读和编辑文字。每条发送的消息都会消耗 token。
+            delay: 发送延迟
+            delay-description: AIRI 发送转写文本之前等待的时间。
+            immediate: 立即
           input-mode:
             title: 输入模式
             description: 选择麦克风开启时 AIRI 如何开始聆听。
