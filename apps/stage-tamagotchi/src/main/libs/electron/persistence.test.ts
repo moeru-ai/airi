@@ -19,31 +19,14 @@ describe('createConfig', () => {
     vi.restoreAllMocks()
   })
 
-  /**
-   * @example
-   * it('uses a unique temp file per save to avoid concurrent rename collisions', async () => {
-   *   await vi.waitFor(() => {
-   *     expect(renameMock).toHaveBeenCalledTimes(2)
-   *   })
-   * })
-   *
-   * Failed to save config Error: ENOENT: no such file or directory, rename '/path/to/the/electron/app/data/app-config.json.tmp' -> '/path/to/the/electron/app/data/app-config.json'
-   *   at async rename (node:internal/fs/promises:785:10)
-   *   at async file://./airi/apps/stage-tamagotchi/out/main/index.js:3327:4 {
-   *     errno: -2,
-   *     code: 'ENOENT',
-   *     syscall: 'rename',
-   *     path: '/path/to/the/electron/app/data/app-config.json.tmp',
-   *     dest: '/path/to/the/electron/app/data/app-config.json'
-   *   }
-   *
-   * ROOT CAUSE:
-   *
-   * If concurrent save calls share one temporary file path, one rename removes the file first.
-   * This causes a second rename attempt to fail with ENOENT, and the save path logs an error.
-   *
-   * We fixed this by asserting each save operation writes and renames a distinct temp file path.
-   */
+  // https://github.com/moeru-ai/airi/commit/d2d5493136af4614798546c674d5707618429ca6
+  //
+  // ROOT CAUSE:
+  //
+  // If concurrent save calls share one temporary file path, one rename removes the file first.
+  // A second rename attempt then fails with ENOENT and the save path logs an error.
+  //
+  // We fixed this by asserting each save operation writes and renames a distinct temp file path.
   it('uses a unique temp file per save to avoid concurrent rename collisions', async () => {
     const appMock = {
       getPath: vi.fn(() => join(tmpdir(), 'airi-user-data')),
