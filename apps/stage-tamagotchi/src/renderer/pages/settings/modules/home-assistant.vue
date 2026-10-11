@@ -577,7 +577,7 @@ watch(exposureMode, async (mode) => {
 
       <!-- A fieldset disables the whole group, and it reaches the radios the
            group holds. The mode setter drops an edit made during a run, so an
-           enabled radio would move while the mode it shows stayed. -->
+           enabled radio moves while the mode it shows stays. -->
       <fieldset
         :disabled="pickerHeld"
         :class="['m-0 min-w-0 border-0 p-0', 'flex flex-col gap-2', pickerHeld ? 'opacity-60' : '']"
