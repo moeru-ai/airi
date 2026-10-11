@@ -265,15 +265,19 @@ describe('checkLocales', () => {
   })
 
   // https://github.com/moeru-ai/airi/pull/2904#discussion_r4241724158
+  // https://github.com/moeru-ai/airi/pull/2904#discussion_r4241821862
   // https://github.com/moeru-ai/airi/pull/2904#discussion_r4241866639
   it('reports a separator beside a literal that holds a selector (PR #2904)', async () => {
     // ROOT CAUSE:
     //
     // The check read a `{count}` inside a literal span as a selector, so a message
-    // that explains the token and holds a raw pipe passed.
+    // that explains the token and holds a raw pipe passed. The pattern also read the
+    // body up to the first apostrophe it met, so an escaped one ended the span early
+    // and left the rest of the message bare.
     //
-    // The spans are removed before the selector is read now. The compiler reads
-    // spaces around the body as well, so the pattern accepts them too.
+    // The spans are removed before the selector is read now. The body follows the
+    // escape grammar of the compiler, and the pattern accepts spaces around the body
+    // as well.
     const root = await locales({
       'en/settings.yaml': 'files:\n  hint: Use {\'{count}\'} | total\n  other: Use {\'don\\\'t type {count}\'} | total\n  spaced: Use { \'{count}\' } | total\n',
     })
