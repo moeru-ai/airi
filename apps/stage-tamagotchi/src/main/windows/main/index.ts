@@ -35,7 +35,7 @@ import { array, number, object, optional, string } from 'valibot'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { electronMainWindowCloseFullscreen, electronMainWindowEnterFullscreen, electronMainWindowExitFullscreen, electronMainWindowFullscreenSurfaceChanged, electronMainWindowGetFullscreenState, electronMainWindowOpenFullscreen, electronMainWindowSetFullscreenBounds, electronStartDraggingWindow } from '../../../shared/eventa'
+import { electronMainWindowCloseFullscreen, electronMainWindowEnterFullscreen, electronMainWindowExitFullscreen, electronMainWindowFullscreenSurfaceChanged, electronMainWindowGetFullscreenState, electronMainWindowOpenFullscreen, electronMainWindowSetFullscreenBounds, electronMainWindowSetFullscreenEnabled, electronStartDraggingWindow } from '../../../shared/eventa'
 import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
@@ -73,10 +73,15 @@ export async function setupMainWindow(params: {
   devtoolsWindow: DevtoolsWindowManager
   globalShortcut: GlobalShortcutService
   spotlightWindow: SpotlightWindowManager
-  /** Receives the function that shows a surface in fullscreen mode, for every settings entry point of the app. */
-  onFullscreenOpener?: (open: (surface: MainWindowFullscreenSurface, route?: string) => void) => void
+  /**
+   * Receives the function that shows a surface in fullscreen mode, for the settings entry points of the app. It
+   * returns `false` while the fullscreen mode experiment is off, so the caller opens the settings window instead.
+   */
+  onFullscreenOpener?: (open: (surface: MainWindowFullscreenSurface, route?: string) => boolean) => void
   /** Reports when fullscreen mode starts and ends. */
   onFullscreenChange?: (active: boolean) => void
+  /** Reports each time the page tells whether the fullscreen mode experiment is on, once a fullscreen chat has left it. */
+  onFullscreenEnabled?: (enabled: boolean) => void
 }) {
   const {
     setup: setupConfig,
@@ -189,9 +194,8 @@ export async function setupMainWindow(params: {
     window.setFullScreenable(false)
     window.setWindowButtonVisibility(false)
   }
-  // The main window's pin has one owner. `pinned` is the user's choice, and every pin request of the page goes through
-  // `setPinned`. The window is on top only while the user pinned it and fullscreen mode is off, because fullscreen
-  // covers the display and must let other apps come above it.
+  // The pin has one owner. `pinned` is the user's choice, and every pin request goes through `setPinned`. The window
+  // is on top only while pinned and out of fullscreen mode, so other apps can come above a fullscreen window.
   let pinned = true
   function applyPin() {
     setWindowAlwaysOnTop(window, pinned && !boundsBeforeFullscreen)
@@ -264,15 +268,13 @@ export async function setupMainWindow(params: {
     })
   }
 
-  // Fullscreen mode: the window covers the work area of its display, and the page shows a surface, such as settings or
-  // the chat, beside the character. The page moves the window in steps that never change its size and its position
-  // together: a frame from before the change shows at the new position for a moment, and the stage would blink.
-  //
-  // Fullscreen mode is all or nothing. While `boundsBeforeFullscreen` is set, the window covers its display and the pin
-  // owner keeps it off the top. `leaveFullscreen` is the only way out, and it is safe to call at any time. A page that reloads reads the mode
-  // and shows it again. A renderer that dies shows nothing, so the window leaves fullscreen mode then.
+  // Fullscreen mode covers the work area, and the page shows a surface beside the character. Each step changes the
+  // size or the position, never both, or a stale frame makes the stage blink. The mode is all or nothing, and
+  // `leaveFullscreen` is the only way out.
   /** What the page shows on the right, as it reports it. */
   let fullscreenSurface: MainWindowFullscreenSurface | undefined
+  /** Whether the user turned the fullscreen mode experiment on, as the page reports it. Off until the page reports. */
+  let fullscreenEnabled = false
   const fullscreenLog = useLogg('main-window-fullscreen').useGlobalConfig()
   let fullscreenGlide: { animation: ReturnType<typeof animate>, finish: () => void } | undefined
 
@@ -356,22 +358,37 @@ export async function setupMainWindow(params: {
     ? { home: boundsBeforeFullscreen, workArea: screen.getDisplayMatching(boundsBeforeFullscreen).workArea, surface: fullscreenSurface }
     : undefined)
 
-  /** Shows a surface in fullscreen mode. A hidden or minimized window comes back first, because the surface lives here. */
+  const cleanUpSetFullscreenEnabled = defineInvokeHandler(fullscreenContext, electronMainWindowSetFullscreenEnabled, async (payload) => {
+    fullscreenEnabled = payload?.enabled ?? false
+    // The fullscreen chat mode goes away with the experiment. A chat in it moves to the default mode first, while
+    // the page still shows it, so its draft moves too. The page closes the fullscreen mode after this resolves.
+    if (!fullscreenEnabled)
+      await params.chatWindow.leaveFullscreenMode()
+    params.onFullscreenEnabled?.(fullscreenEnabled)
+  })
+
+  /**
+   * Shows a surface in fullscreen mode, and returns `false` without doing anything while the experiment is off.
+   * A hidden or minimized window comes back first, because the surface lives here.
+   */
   function openFullscreen(surface: MainWindowFullscreenSurface, route?: string) {
-    if (window.isDestroyed())
-      return
+    if (!fullscreenEnabled || window.isDestroyed())
+      return false
     if (window.isMinimized())
       window.restore()
     if (!window.isVisible())
       window.show()
     fullscreenContext.emit(electronMainWindowOpenFullscreen, { surface, route })
+    return true
   }
 
   params.onFullscreenOpener?.(openFullscreen)
   params.chatWindow.attachFullscreen({
     window,
     context: fullscreenContext,
-    open: () => openFullscreen('chat'),
+    open: () => {
+      openFullscreen('chat')
+    },
     close: () => {
       if (!window.isDestroyed())
         fullscreenContext.emit(electronMainWindowCloseFullscreen, { surface: 'chat' })
@@ -388,6 +405,7 @@ export async function setupMainWindow(params: {
     cleanUpSurfaceChanged()
     cleanUpExitFullscreen()
     cleanUpGetFullscreenState()
+    cleanUpSetFullscreenEnabled()
   })
 
   initScreenCaptureForWindow(window)

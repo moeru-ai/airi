@@ -3,19 +3,21 @@ import type { InferOutput } from 'valibot'
 import type { FeatureFlag } from '../libs/feature-flags'
 
 import { errorMessageFrom } from '@moeru/std'
+import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 import { parse } from 'valibot'
 import { computed, onScopeDispose, shallowRef, watch } from 'vue'
 
 import { useCloudFetch } from '../composables/cloud'
-import { featureFlagPreferencesSchema, featureFlagResponseSchema, featureFlags, resolveFeatureFlag } from '../libs/feature-flags'
+import { featureFlagPreferencesSchema, featureFlagResponseSchema, offeredFeatureFlags, resolveFeatureFlag } from '../libs/feature-flags'
 import { useAuthStore } from './auth'
 
 /** Owns device preferences and a non-persisted policy snapshot for the current account. */
 export const useFeatureFlagsStore = defineStore('feature-flags', () => {
   const auth = useAuthStore()
   const cloudFetch = useCloudFetch()
+  const offered = offeredFeatureFlags(isStageTamagotchi())
   const preferences = useLocalStorageManualReset<Record<string, boolean>>('settings/feature-flags', {}, {
     serializer: {
       read: value => parse(featureFlagPreferencesSchema, JSON.parse(value)),
@@ -36,14 +38,14 @@ export const useFeatureFlagsStore = defineStore('feature-flags', () => {
     return resolveFeatureFlag(feature, preferences.value[preferenceKey(feature)], policies.value.find(policy => policy.key === feature.key), Boolean(auth.user?.id && auth.token))
   }
 
-  const features = computed(() => featureFlags.map(feature => ({
+  const features = computed(() => offered.map(feature => ({
     ...feature,
     ...decision(feature),
     preference: preferences.value[preferenceKey(feature)],
   })).filter(feature => feature.selectable))
 
   function setPreference(key: string, value: boolean | undefined) {
-    const feature = featureFlags.find(feature => feature.key === key)
+    const feature = offered.find(feature => feature.key === key)
     if (!feature || !decision(feature).selectable)
       return
     const storageKey = preferenceKey(feature)
@@ -58,9 +60,9 @@ export const useFeatureFlagsStore = defineStore('feature-flags', () => {
     preferences.value = next
   }
 
-  /** Unknown features stay disabled. */
+  /** Unknown features, and features that this app does not offer, stay disabled. */
   function isEnabled(key: string): boolean {
-    const feature = featureFlags.find(feature => feature.key === key)
+    const feature = offered.find(feature => feature.key === key)
     if (!feature)
       return false
 

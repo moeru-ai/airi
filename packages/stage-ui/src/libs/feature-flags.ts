@@ -18,6 +18,8 @@ export interface FeatureFlag {
   descriptionKey: string
   defaultEnabled: boolean
   availability: 'local' | 'cloud'
+  /** Only the desktop app has the feature, so other apps neither list nor enable it. */
+  desktopOnly?: boolean
 }
 
 export interface FeatureFlagDecision {
@@ -38,8 +40,26 @@ export const CHARACTER_CARD_SYNC_FLAG: FeatureFlag = {
   availability: 'local',
 }
 
+/**
+ * The fullscreen mode of the desktop main window, where settings and the chat open beside the character. It is a
+ * device choice, off by default, and the standalone settings window stays the default.
+ */
+export const MAIN_WINDOW_FULLSCREEN_FLAG: FeatureFlag = {
+  key: 'main-window-fullscreen',
+  titleKey: 'settings.pages.system.experimental.features.main_window_fullscreen.title',
+  descriptionKey: 'settings.pages.system.experimental.features.main_window_fullscreen.description',
+  defaultEnabled: false,
+  availability: 'local',
+  desktopOnly: true,
+}
+
 /** Only implemented experiments belong here. An empty catalog produces an empty settings page. */
-export const featureFlags: readonly FeatureFlag[] = [CHARACTER_CARD_SYNC_FLAG]
+export const featureFlags: readonly FeatureFlag[] = [CHARACTER_CARD_SYNC_FLAG, MAIN_WINDOW_FULLSCREEN_FLAG]
+
+/** The experiments that an app offers. An app other than the desktop app leaves out the desktop-only ones. */
+export function offeredFeatureFlags(desktop: boolean): readonly FeatureFlag[] {
+  return featureFlags.filter(feature => desktop || !feature.desktopOnly)
+}
 
 /** Missing cloud grants disable features. Only local and account-granted opt-in features expose settings. */
 export function resolveFeatureFlag(feature: FeatureFlag, preference: boolean | undefined, policy: InferOutput<typeof featureFlagPolicySchema> | undefined, authenticated: boolean): FeatureFlagDecision {

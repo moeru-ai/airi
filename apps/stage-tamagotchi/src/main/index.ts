@@ -156,9 +156,16 @@ electronApp.setAppUserModelId('ai.moeru.airi')
 // The second-instance handler should restore the main UI instead of accidentally surfacing internals.
 let userFacingMainWindow: BrowserWindow | undefined
 let settingsWindowManager: SettingsWindowManager | undefined
-/** Shows a surface in the fullscreen mode of the main window. Every settings entry point uses it once the main window exists. */
-let openFullscreenInMainWindow: ((surface: MainWindowFullscreenSurface, route?: string) => void) | undefined
+/** Shows a surface in the fullscreen mode of the main window, and returns `false` while its experiment is off. */
+let openFullscreenInMainWindow: ((surface: MainWindowFullscreenSurface, route?: string) => boolean) | undefined
 let extensionManagementWebContentsId: number | undefined
+
+/** Opens settings in the fullscreen mode of the main window while the user has its experiment on, otherwise in the settings window. */
+async function openSettings(route?: string) {
+  if (openFullscreenInMainWindow?.('settings', route))
+    return
+  await settingsWindowManager?.openWindow(route)
+}
 const shouldStartMainProcess = installSingleInstanceGuard({ app, getWindow: () => userFacingMainWindow })
 
 if (shouldStartMainProcess) {
@@ -308,11 +315,11 @@ app.whenReady().then(async () => {
       ...dependsOn,
       getMainWindow: () => userFacingMainWindow,
       // NOTICE:
-      // Chat cannot depend on the main window in injeca, because the main window
-      // depends on Chat. The main window is built before any window accepts
-      // input, so Chat resolves it lazily.
-      // Removal condition: the main window no longer depends on Chat.
-      openSettingsWindow: async (route) => { openFullscreenInMainWindow?.('settings', route) },
+      // Settings and the main window depend on Chat through injeca, so Chat
+      // cannot depend on them. Both exist before any window takes input, so
+      // Chat resolves them lazily.
+      // Removal condition: neither depends on Chat.
+      openSettingsWindow: openSettings,
     }),
   })
 
@@ -342,16 +349,8 @@ app.whenReady().then(async () => {
           })
         },
       })
-      // NOTICE:
-      // Settings open in the fullscreen mode of the main window now, so every entry point that asks the settings
-      // window to open goes to the main window instead. The settings window itself is not created any more.
-      // Removal condition: the next change removes the settings window and its manager.
-      return {
-        ...settingsWindowManager,
-        openWindow: async (route?: string) => {
-          openFullscreenInMainWindow?.('settings', route)
-        },
-      }
+      // Every settings entry point asks this manager, so the fullscreen mode experiment decides here where settings open.
+      return { ...settingsWindowManager, openWindow: openSettings }
     },
   })
 
@@ -369,6 +368,13 @@ app.whenReady().then(async () => {
       // the main window, so while it lasts, that interface is the main window.
       onFullscreenChange: (active) => {
         extensionManagementWebContentsId = active ? userFacingMainWindow?.webContents.id : undefined
+      },
+      // Settings follow the experiment. Turning it on moves an open settings window into the fullscreen mode, on the
+      // page it showed. The page moves settings the other way when it goes off.
+      onFullscreenEnabled: (enabled) => {
+        const route = enabled ? settingsWindowManager?.closeWindow() : undefined
+        if (route)
+          openFullscreenInMainWindow?.('settings', route)
       },
     }),
   })

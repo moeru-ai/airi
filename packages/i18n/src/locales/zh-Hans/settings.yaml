@@ -1705,6 +1705,9 @@ pages:
         character_card_sync:
           title: 角色卡云同步
           description: 登录后把角色卡同步到账号，方便在其他设备上使用。默认关闭。删除的角色卡会在账号里保留 30 天。
+        main_window_fullscreen:
+          title: 主窗口全屏模式
+          description: 在主窗口里打开设置和聊天。窗口会铺满屏幕，角色移到左边。默认关闭。
     color-scheme:
       description: 更改舞台的配色方案
       title: 配色方案

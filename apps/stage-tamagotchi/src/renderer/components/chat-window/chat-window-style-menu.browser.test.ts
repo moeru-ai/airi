@@ -26,6 +26,11 @@ vi.mock('@proj-airi/electron-vueuse', async () => {
   }
 })
 
+// The experiments store loads account policies from the cloud. The menu only reads whether the fullscreen mode is on.
+vi.mock('@proj-airi/stage-ui/stores/feature-flags', () => ({
+  useFeatureFlagsStore: () => ({ isEnabled: () => false }),
+}))
+
 async function choose(style: string) {
   await page.getByRole('button', { name: 'tamagotchi.stage.chat-window.style.title' }).click()
   await page.getByRole('menuitemradio', { name: `tamagotchi.stage.chat-window.style.${style}` }).click()

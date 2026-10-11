@@ -20,6 +20,8 @@ import {
 } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composables/canvas-alpha'
+import { MAIN_WINDOW_FULLSCREEN_FLAG } from '@proj-airi/stage-ui/libs/feature-flags'
+import { useFeatureFlagsStore } from '@proj-airi/stage-ui/stores/feature-flags'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useVoiceStore } from '@proj-airi/stage-ui/stores/voice'
@@ -35,7 +37,7 @@ import ControlsIslandRoot from '../components/stage-islands/controls-island/cont
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
 
-import { electronAppIsWayland, electronMainWindowCloseFullscreen, electronMainWindowEnterFullscreen, electronMainWindowExitFullscreen, electronMainWindowGetFullscreenState, electronMainWindowOpenFullscreen, electronMainWindowSetFullscreenBounds, electronOpenInlay, electronOpenOnboarding } from '../../shared/eventa'
+import { electronAppIsWayland, electronMainWindowCloseFullscreen, electronMainWindowEnterFullscreen, electronMainWindowExitFullscreen, electronMainWindowGetFullscreenState, electronMainWindowOpenFullscreen, electronMainWindowSetFullscreenBounds, electronMainWindowSetFullscreenEnabled, electronOpenInlay, electronOpenOnboarding, electronOpenSettings } from '../../shared/eventa'
 import { fullscreenPanelKey } from '../components/fullscreen/panel'
 import { fullscreenSurfaceOf, fullscreenSurfaces } from '../components/fullscreen/surfaces'
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
@@ -307,6 +309,28 @@ const enterFullscreenWindow = useElectronEventaInvoke(electronMainWindowEnterFul
 const setFullscreenWindowBounds = useElectronEventaInvoke(electronMainWindowSetFullscreenBounds)
 const exitFullscreenWindow = useElectronEventaInvoke(electronMainWindowExitFullscreen)
 const getFullscreenWindowState = useElectronEventaInvoke(electronMainWindowGetFullscreenState)
+const setFullscreenEnabled = useElectronEventaInvoke(electronMainWindowSetFullscreenEnabled)
+const openSettingsWindow = useElectronEventaInvoke(electronOpenSettings)
+const featureFlags = useFeatureFlagsStore()
+
+// The choice lives in page storage, so the page reports it. Turning it off closes the mode after the main process
+// moves a fullscreen chat out, and the settings page that showed opens in the settings window. A blocked leave keeps
+// the mode.
+watch(() => featureFlags.isEnabled(MAIN_WINDOW_FULLSCREEN_FLAG.key), async (enabled) => {
+  const route = router.currentRoute.value
+  const settingsPage = !enabled && fullscreenSurfaceOf(route.path) === 'settings' ? route.fullPath : undefined
+  try {
+    await setFullscreenEnabled({ enabled })
+  }
+  catch (error) {
+    console.error('[Main window fullscreen] Failed to report the experiment:', errorMessageFrom(error))
+  }
+  if (enabled)
+    return
+  await fullscreen.close()
+  if (settingsPage && fullscreenPhase.value !== 'open')
+    await openSettingsWindow({ route: settingsPage })
+}, { immediate: true })
 
 /**
  * The stage in fullscreen mode. It keeps one size in window pixels, so the canvas resizes only when the mode starts

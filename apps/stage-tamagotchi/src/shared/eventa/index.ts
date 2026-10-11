@@ -68,7 +68,13 @@ export const electronMainWindowFullscreenSurfaceChanged = defineInvokeEventa<voi
 export const electronMainWindowGetFullscreenState = defineInvokeEventa<{ home: Rectangle, workArea: Rectangle, surface?: MainWindowFullscreenSurface } | undefined>('eventa:invoke:electron:windows:main:fullscreen:state')
 /** Returns the main window to the bounds and the always-on-top state that it had before fullscreen mode. The main process logs `reason`. */
 export const electronMainWindowExitFullscreen = defineInvokeEventa<void, { reason: string }>('eventa:invoke:electron:windows:main:fullscreen:exit')
-/** Asks the main window page to show a surface in fullscreen mode. Every settings entry point and the fullscreen chat mode send it. */
+/**
+ * Reports whether the user turned the fullscreen mode experiment on. The main process treats it as off until the
+ * main window page reports. While it is off, settings open in the settings window and no chat uses the fullscreen
+ * mode. Resolves after a chat in the fullscreen mode has moved to the default mode.
+ */
+export const electronMainWindowSetFullscreenEnabled = defineInvokeEventa<void, { enabled: boolean }>('eventa:invoke:electron:windows:main:fullscreen:enabled')
+/** Asks the main window page to show a surface in fullscreen mode. Settings entry points and the fullscreen chat mode send it while the experiment is on. */
 export const electronMainWindowOpenFullscreen = defineEventa<{ surface: MainWindowFullscreenSurface, route?: string }>('eventa:event:electron:windows:main:fullscreen:open')
 /** Asks the main window page to close fullscreen mode when it shows `surface`, for a chat mode switch that leaves the fullscreen chat. */
 export const electronMainWindowCloseFullscreen = defineEventa<{ surface: MainWindowFullscreenSurface }>('eventa:event:electron:windows:main:fullscreen:close')

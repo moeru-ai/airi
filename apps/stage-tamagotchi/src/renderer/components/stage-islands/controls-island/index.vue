@@ -24,10 +24,10 @@ import {
   electron,
   electronAppQuit,
   electronCenterMainWindow,
+  electronOpenSettings,
   electronStartDraggingWindow,
   electronWindowSetAlwaysOnTop,
 } from '../../../../shared/eventa'
-import { useMainWindowFullscreenStore } from '../../../stores/main-window-fullscreen'
 import { useControlsIslandLayout } from './use-controls-island-layout'
 import { useControlsIslandPlacement } from './use-controls-island-placement'
 
@@ -74,7 +74,7 @@ const settingsStore = useSettings()
 const context = useElectronEventaContext()
 const { enabled } = storeToRefs(settingsAudioDeviceStore)
 const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
-const fullscreen = useMainWindowFullscreenStore()
+const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const isLinux = useElectronEventaInvoke(electron.app.isLinux)
 const quitApp = useElectronEventaInvoke(electronAppQuit)
 const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
@@ -338,7 +338,7 @@ function resetMainWindowPosition() {
                       v-track-button="{ name: 'controls_island_action', action: 'toggle_settings' }"
                       :button-style="adjustStyleClasses.button"
                       :aria-label="t('tamagotchi.stage.controls-island.open-settings')"
-                      @click="fullscreen.open('settings')"
+                      @click="openSettings({ route: '/settings' })"
                     >
                       <div i-solar:settings-minimalistic-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
                     </ControlButton>

@@ -21,13 +21,14 @@ import { createI18n } from 'vue-i18n'
 
 import ControlsIsland from './index.vue'
 
-import { useMainWindowFullscreenStore } from '../../../stores/main-window-fullscreen'
+import { electronOpenSettings } from '../../../../shared/eventa'
 import { controlsIslandPlacementKey } from './use-controls-island-placement'
 
 import '@unocss/reset/tailwind.css'
 import 'virtual:uno.css'
 
 const isOutside = ref(false)
+const openSettings = vi.fn().mockResolvedValue(undefined)
 const authState = vi.hoisted(() => ({
   credits: { value: 0 },
   isAuthenticated: { value: false },
@@ -42,7 +43,7 @@ const authState = vi.hoisted(() => ({
 
 vi.mock('@proj-airi/electron-vueuse', () => ({
   useElectronEventaContext: () => ref({ on: vi.fn(() => vi.fn()), emit: vi.fn() }),
-  useElectronEventaInvoke: () => vi.fn().mockResolvedValue(false),
+  useElectronEventaInvoke: (event: unknown) => event === electronOpenSettings ? openSettings : vi.fn().mockResolvedValue(false),
   useElectronMouseInElement: () => ({ isOutside }),
 }))
 
@@ -121,11 +122,12 @@ function mountControlsIsland(dock: ControlsIslandDock, size: typeof sizes[number
   })
   useSettings(pinia).controlsIslandIconSize = size
 
-  return { cards: useAiriCardStore(pinia), auth: authState, dock: dockRef, fullscreen: useMainWindowFullscreenStore(pinia), i18n, screen, settings: useSettings(pinia) }
+  return { cards: useAiriCardStore(pinia), auth: authState, dock: dockRef, i18n, screen, settings: useSettings(pinia) }
 }
 
 beforeEach(() => {
   isOutside.value = false
+  openSettings.mockClear()
   authState.credits.value = 0
   authState.isAuthenticated.value = false
   authState.needsLogin.value = false
@@ -142,8 +144,7 @@ describe('controls Island overflow', () => {
       // https://github.com/moeru-ai/airi/issues/2400
       it(`Issue #2400 keeps ${dock} ${size} controls reachable across measured boundaries`, async () => {
         await page.viewport(450, 600)
-        const { fullscreen, i18n, screen } = mountControlsIsland(dock, size)
-        const openFullscreen = vi.spyOn(fullscreen, 'open').mockResolvedValue()
+        const { i18n, screen } = mountControlsIsland(dock, size)
         await nextTick()
         const island = screen.getByTestId('controls-island').element() as HTMLElement
         const main = screen.getByTestId('main-controls').element() as HTMLElement
@@ -199,7 +200,7 @@ describe('controls Island overflow', () => {
         settingsElement.focus()
         await expect.poll(() => settingsElement.getBoundingClientRect().top).toBeGreaterThanOrEqual(8)
         await settings.click()
-        expect(openFullscreen).toHaveBeenCalledWith('settings')
+        expect(openSettings).toHaveBeenCalledWith({ route: '/settings' })
 
         await screen.getByLabelText(label('collapse'), { exact: true }).click()
         await expect.poll(() => menu.closest('[aria-hidden]')?.getAttribute('aria-hidden')).toBe('true')

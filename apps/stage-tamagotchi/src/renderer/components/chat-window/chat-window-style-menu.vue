@@ -2,6 +2,8 @@
 import type { ChatWindowPreferences } from '../../../shared/eventa'
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { MAIN_WINDOW_FULLSCREEN_FLAG } from '@proj-airi/stage-ui/libs/feature-flags'
+import { useFeatureFlagsStore } from '@proj-airi/stage-ui/stores/feature-flags'
 import { DropdownMenu } from '@proj-airi/ui'
 import {
   DropdownMenuCheckboxItem,
@@ -45,13 +47,15 @@ const styleChoices = {
 
 type ChatWindowStyleId = keyof typeof styleChoices
 
-const styles = computed(() => [
+const featureFlags = useFeatureFlagsStore()
+// The fullscreen chat shows in the fullscreen mode of the main window, so it is a choice only while that experiment is on.
+const styles = computed(() => ([
   { id: 'legacy', icon: 'i-solar:window-frame-bold-duotone', label: t('tamagotchi.stage.chat-window.style.legacy') },
   { id: 'floating-attached', icon: 'i-solar:magnet-bold-duotone', label: t('tamagotchi.stage.chat-window.style.floating-attached') },
   { id: 'floating-free', icon: 'i-solar:chat-round-dots-bold-duotone', label: t('tamagotchi.stage.chat-window.style.floating-free') },
   { id: 'floating-danmaku', icon: 'i-solar:subtitles-bold-duotone', label: t('tamagotchi.stage.chat-window.style.floating-danmaku') },
   { id: 'fullscreen', icon: 'i-solar:full-screen-square-bold-duotone', label: t('tamagotchi.stage.chat-window.style.fullscreen') },
-] satisfies { id: ChatWindowStyleId, icon: string, label: string }[])
+] satisfies { id: ChatWindowStyleId, icon: string, label: string }[]).filter(style => style.id !== 'fullscreen' || featureFlags.isEnabled(MAIN_WINDOW_FULLSCREEN_FLAG.key)))
 
 const currentStyleId = computed<ChatWindowStyleId | undefined>(() => {
   if (!preferences.value)

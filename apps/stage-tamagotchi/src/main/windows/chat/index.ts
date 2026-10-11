@@ -102,6 +102,11 @@ export interface ChatWindowManager {
   attachFullscreen: (host: FullscreenChatHost) => void
   /** Hides the floating chat while the main window covers its display, and shows it again after. */
   setMainWindowCovered: (covered: boolean) => void
+  /**
+   * Moves a chat in the fullscreen mode to the default mode, when the user turns the fullscreen mode experiment off.
+   * A shown fullscreen chat switches with its draft. Otherwise only the saved mode changes, and no window opens.
+   */
+  leaveFullscreenMode: () => Promise<void>
 }
 
 /**
@@ -324,5 +329,18 @@ export function setupChatWindowManager(params: {
       setupDraftHandover(host.window, host.context, 'fullscreen')
     },
     setMainWindowCovered: covered => floating.setCovered(covered),
+    async leaveFullscreenMode() {
+      if (getConfig().mode !== 'fullscreen')
+        return
+      try {
+        if (fullscreenHost?.isShown())
+          await modeSwitch.switchTo(defaultChatWindowConfig.mode)
+        else
+          await modeSwitch.run(async () => updateConfig({ ...getConfig(), mode: defaultChatWindowConfig.mode }))
+      }
+      finally {
+        emitButtonState()
+      }
+    },
   }
 }
