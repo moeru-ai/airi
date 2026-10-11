@@ -57,7 +57,7 @@ function unselectableChoice(value: string): string | undefined {
   if (!separators.includes('|') || PLURAL_SELECTOR.test(separators))
     return undefined
 
-  return "A choice separator needs a {count} to select a form, so this message always renders its first choice. Write a literal pipe as {'|'}."
+  return "A choice separator renders its first form unless a {count} or a number at the call site selects another. Write a literal pipe as {'|'}."
 }
 
 
@@ -292,10 +292,23 @@ function findRemovedTranslations(
   return issues
 }
 
-function formatSummary(issues: LocaleIssue[]) {
+/**
+ * Writes one value for a cell of the Markdown summary.
+ *
+ * A pipe ends a cell, and the messages and the keys can hold one. The warning that
+ * explains a choice separator holds one by design, because it shows `{'|'}`.
+ */
+function markdownCell(value: string) {
+  return value.replace(/\|/g, '\\|')
+}
+
+/**
+ * Builds the Markdown summary that the Crowdin workflow appends to the step summary.
+ */
+export function formatSummary(issues: LocaleIssue[]) {
   if (issues.length === 0)
     return 'The locale check found no issues.\n'
-  const rows = issues.map(issue => `| ${issue.level} | ${issue.locale} | \`${issue.file}\` | \`${issue.key}\` | ${issue.message} |`)
+  const rows = issues.map(issue => `| ${markdownCell(issue.level)} | ${markdownCell(issue.locale)} | \`${markdownCell(issue.file)}\` | \`${markdownCell(issue.key)}\` | ${markdownCell(issue.message)} |`)
   return [
     `The locale check found ${issues.filter(issue => issue.level === 'error').length} errors and ${issues.filter(issue => issue.level === 'warning').length} warnings.`,
     '',

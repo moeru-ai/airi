@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { checkLocales } from './check-locales'
+import { checkLocales, formatSummary } from './check-locales'
 
 const roots: string[] = []
 
@@ -272,6 +272,27 @@ describe('checkLocales', () => {
     const issues = await checkLocales({ root })
 
     expect(issues).toEqual([expect.objectContaining({ level: 'warning', locale: 'ja', key: 'animation.title' })])
+  })
+
+  it('escapes a pipe in the summary so the row keeps its five columns', () => {
+    // https://github.com/moeru-ai/airi/pull/2904#discussion_r4241505158
+    //
+    // The Crowdin workflow appends this table to the step summary. The warning that
+    // explains a choice separator shows a literal pipe, so an unescaped pipe in that
+    // message ended the cell early and the row grew a column.
+    const summary = formatSummary([{
+      level: 'warning',
+      locale: 'en',
+      file: 'settings.yaml',
+      key: 'providers.anthropic',
+      message: "Write a literal pipe as {'|'}.",
+    }])
+
+    const row = summary.split('\n').find(line => line.includes('providers.anthropic')) ?? ''
+    console.warn('[probe]', JSON.stringify(row))
+    expect(row).toContain("{'\\|'}")
+    // Five columns hold six delimiters. An escaped pipe adds none.
+    expect(row.replace(/\\\|/g, '').split('|')).toHaveLength(7)
   })
 
   it('accepts a separator that a bare number selects', async () => {
