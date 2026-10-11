@@ -98,6 +98,8 @@ const sortedProviderModels = computed(() => {
     return 0
   })
 })
+const usesOpenRouterTranscription = computed(() => activeTranscriptionProvider.value === 'openrouter-audio-transcription')
+const providerModelStorageKey = (providerId: string) => `settings/hearing/provider-model/${encodeURIComponent(providerId)}`
 
 function formatVADThreshold(value: number) {
   return value.toFixed(2)
@@ -328,7 +330,7 @@ watch([selectedAudioInput, useVADModel], async () => {
   await setupAudioMonitoring()
 })
 
-watch(activeTranscriptionProvider, async (provider) => {
+watch(activeTranscriptionProvider, async (provider, previousProvider) => {
   const shouldRestartMonitoring = isMonitoring.value
 
   if (shouldRestartMonitoring) {
@@ -341,12 +343,21 @@ watch(activeTranscriptionProvider, async (provider) => {
   if (!provider)
     return
 
+  if (previousProvider !== undefined && typeof localStorage !== 'undefined') {
+    localStorage.setItem(providerModelStorageKey(previousProvider), activeTranscriptionModel.value)
+    const savedModel = localStorage.getItem(providerModelStorageKey(provider))
+    activeTranscriptionModel.value = savedModel ?? ''
+    activeCustomModelName.value = savedModel ?? ''
+  }
+
   await hearingStore.loadModelsForProvider(provider)
   syncOpenAICompatibleSettings()
 
   const models = providerModels.value
-  if (models.length > 0 && !models.some(model => model.id === activeTranscriptionModel.value))
+  if (models.length > 0 && !activeTranscriptionModel.value) {
     activeTranscriptionModel.value = models[0].id
+    activeCustomModelName.value = models[0].id
+  }
 
   if (shouldRestartMonitoring)
     await setupAudioMonitoring()
@@ -480,14 +491,14 @@ onUnmounted(() => {
 
             <!-- Error state -->
             <ErrorContainer
-              v-else-if="activeProviderModelError && supportsModelListing"
+              v-if="activeProviderModelError && supportsModelListing"
               :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
               :error="activeProviderModelError"
             />
 
             <!-- Manual input for providers without model listing or when no models are available -->
             <div
-              v-else-if="!supportsModelListing || (activeTranscriptionProvider === 'openai-compatible-audio-transcription' && providerModels.length === 0 && !isLoadingActiveProviderModels)"
+              v-if="!usesOpenRouterTranscription && (!supportsModelListing || (activeTranscriptionProvider === 'openai-compatible-audio-transcription' && providerModels.length === 0 && !isLoadingActiveProviderModels))"
               class="mt-2"
             >
               <FieldInput
@@ -499,7 +510,7 @@ onUnmounted(() => {
 
             <!-- No models available (for other providers with model listing but no models) -->
             <Alert
-              v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels && supportsModelListing"
+              v-else-if="!usesOpenRouterTranscription && providerModels.length === 0 && !isLoadingActiveProviderModels && supportsModelListing && !activeProviderModelError"
               type="warning"
             >
               <template #title>
@@ -511,7 +522,7 @@ onUnmounted(() => {
             </Alert>
 
             <!-- Using the new RadioCardManySelect component for providers with models -->
-            <template v-else-if="providerModels.length > 0 && supportsModelListing">
+            <template v-if="providerModels.length > 0 && supportsModelListing">
               <RadioCardManySelect
                 v-model="activeTranscriptionModel"
                 v-model:search-query="transcriptionModelSearchQuery"
@@ -522,12 +533,20 @@ onUnmounted(() => {
                 :search-no-results-description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results_description', { query: transcriptionModelSearchQuery })"
                 :search-results-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_results', { count: '{count}', total: '{total}' })"
                 :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
+                :allow-custom="usesOpenRouterTranscription"
                 :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
                 :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
                 expanded-class="mb-12"
                 @update:custom-value="updateCustomModelName"
               />
             </template>
+            <FieldInput
+              v-if="usesOpenRouterTranscription"
+              :model-value="activeTranscriptionModel || activeCustomModelName || ''"
+              :label="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.model_id_label')"
+              :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
+              @update:model-value="updateCustomModelName"
+            />
           </div>
         </div>
 
