@@ -1,12 +1,20 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { execFile } from 'node:child_process'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { promisify } from 'node:util'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { checkLocales, formatSummary } from './check-locales'
+import { checkLocales } from './check-locales'
 
 const roots: string[] = []
+
+const run = promisify(execFile)
+
+/** The command line the Crowdin workflow runs, so the summary is read as it is written there. */
+const script = fileURLToPath(new URL('check-locales.ts', import.meta.url))
 
 /** Writes `{ 'en/settings.yaml': '...' }` style files into a new locales directory. */
 async function locales(files: Record<string, string>) {
@@ -274,22 +282,21 @@ describe('checkLocales', () => {
     expect(issues).toEqual([expect.objectContaining({ level: 'warning', locale: 'ja', key: 'animation.title' })])
   })
 
-  it('escapes a pipe in the summary so the row keeps its five columns', () => {
+  it('escapes a pipe in the summary so the row keeps its five columns', async () => {
     // https://github.com/moeru-ai/airi/pull/2904#discussion_r4241505158
     //
     // The Crowdin workflow appends this table to the step summary. The warning that
     // explains a choice separator shows a literal pipe, so an unescaped pipe in that
     // message ended the cell early and the row grew a column.
-    const summary = formatSummary([{
-      level: 'warning',
-      locale: 'en',
-      file: 'settings.yaml',
-      key: 'providers.anthropic',
-      message: "Write a literal pipe as {'|'}.",
-    }])
+    const root = await locales({
+      'en/settings.yaml': 'providers:\n  anthropic: Anthropic | Claude\n',
+    })
+    const summary = join(root, 'summary.md')
 
-    const row = summary.split('\n').find(line => line.includes('providers.anthropic')) ?? ''
-    console.warn('[probe]', JSON.stringify(row))
+    await run(process.execPath, [script, '--root', root, '--summary', summary])
+
+    const table = await readFile(summary, 'utf8')
+    const row = table.split('\n').find(line => line.includes('providers.anthropic')) ?? ''
     expect(row).toContain("{'\\|'}")
     // Five columns hold six delimiters. An escaped pipe adds none.
     expect(row.replace(/\\\|/g, '').split('|')).toHaveLength(7)

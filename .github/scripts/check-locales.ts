@@ -35,7 +35,8 @@ type LocaleStrings = Map<string, Map<string, string>>
 const PLACEHOLDER = /\{\s*([a-z_][\w-]*|\d+)\s*\}|@(?:\.\w+)?:[\w.-]+/gi
 
 /**
- * The parameter vue-i18n reads to pick one form of a message that holds a choice separator.
+ * The in-message selector vue-i18n reads to pick one form of a message that holds a choice
+ * separator. A call site can pass a number instead, which no locale file shows.
  */
 const PLURAL_SELECTOR = /\{\s*(?:count|n)\s*\}/
 
@@ -43,15 +44,17 @@ const PLURAL_SELECTOR = /\{\s*(?:count|n)\s*\}/
 const LITERAL_PIPE = /\{'\|'\}/g
 
 /**
- * Checks a choice separator that nothing can select.
+ * Warns about a choice separator that the message itself cannot select.
  *
- * vue-i18n splits a message on \`|\` and picks a form with the \`count\` parameter. A message
- * with a separator and no \`count\` has nothing to select a form, so every render returns the
- * first choice. \`Anthropic | Claude\` reached a provider card as \`Anthropic\` this way.
+ * vue-i18n splits a message on \`|\` and picks a form with a selector. A message that holds a
+ * separator and no \`{count}\` leaves the choice to its call site, and a call such as
+ * \`t(key, 2)\` makes one with a number. This check reads locale files alone, so it reports a
+ * warning rather than a fault. \`Anthropic | Claude\` reached a provider card as \`Anthropic\`,
+ * because no call site passed a number.
  *
- * @returns A message for the problem, or \`undefined\` when the value is fine.
+ * @returns A warning for the separator, or \`undefined\` when the message holds none.
  */
-function unselectableChoice(value: string): string | undefined {
+function choiceSeparatorWarning(value: string): string | undefined {
   // A literal pipe is written "{'|'}". Removing those leaves only the separators.
   const separators = value.replace(LITERAL_PIPE, '')
   if (!separators.includes('|') || PLURAL_SELECTOR.test(separators))
@@ -212,9 +215,9 @@ export async function checkLocales(options: {
   // The source locale owns the strings, so a separator mistake can live here too.
   for (const [file, values] of source) {
     for (const [key, value] of values) {
-      const message = unselectableChoice(value)
-      if (message)
-        issues.push({ level: 'warning', locale: SOURCE_LOCALE, file, key, message })
+      const warning = choiceSeparatorWarning(value)
+      if (warning)
+        issues.push({ level: 'warning', locale: SOURCE_LOCALE, file, key, message: warning })
     }
   }
   const entries = await readdir(options.root, { withFileTypes: true })
@@ -242,9 +245,9 @@ export async function checkLocales(options: {
           issues.push({ level: level(file, key, value), locale, file, key, message: `The key does not exist in ${SOURCE_LOCALE}/${file}.` })
           continue
         }
-        const choice = unselectableChoice(value)
-        if (choice)
-          issues.push({ level: 'warning', locale, file, key, message: choice })
+        const warning = choiceSeparatorWarning(value)
+        if (warning)
+          issues.push({ level: 'warning', locale, file, key, message: warning })
 
         const expected = placeholders(english)
         const actual = placeholders(value)
@@ -302,10 +305,7 @@ function markdownCell(value: string) {
   return value.replace(/\|/g, '\\|')
 }
 
-/**
- * Builds the Markdown summary that the Crowdin workflow appends to the step summary.
- */
-export function formatSummary(issues: LocaleIssue[]) {
+function formatSummary(issues: LocaleIssue[]) {
   if (issues.length === 0)
     return 'The locale check found no issues.\n'
   const rows = issues.map(issue => `| ${markdownCell(issue.level)} | ${markdownCell(issue.locale)} | \`${markdownCell(issue.file)}\` | \`${markdownCell(issue.key)}\` | ${markdownCell(issue.message)} |`)
