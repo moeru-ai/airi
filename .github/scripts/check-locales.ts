@@ -40,8 +40,10 @@ const PLACEHOLDER = /\{\s*([a-z_][\w-]*|\d+)\s*\}|@(?:\.\w+)?:[\w.-]+/gi
  */
 const PLURAL_SELECTOR = /\{\s*(?:count|n)\s*\}/
 
-/** A literal pipe, which is text and not a separator. */
-const LITERAL_PIPE = /\{'\|'\}/g
+/**
+ * A literal span, which vue-i18n renders as text. A quote inside one is written twice.
+ */
+const LITERAL = /\{'(?:''|[^'])*'\}/g
 
 /**
  * Warns about a choice separator that the message itself cannot select.
@@ -55,9 +57,10 @@ const LITERAL_PIPE = /\{'\|'\}/g
  * @returns A warning for the separator, or \`undefined\` when the message holds none.
  */
 function choiceSeparatorWarning(value: string): string | undefined {
-  // A literal pipe is written "{'|'}". Removing those leaves only the separators.
-  const separators = value.replace(LITERAL_PIPE, '')
-  if (!separators.includes('|') || PLURAL_SELECTOR.test(separators))
+  // A literal is text, and the text of one can hold a selector. Removing the spans
+  // leaves the separators and the selectors the message itself reads.
+  const text = value.replace(LITERAL, '')
+  if (!text.includes('|') || PLURAL_SELECTOR.test(text))
     return undefined
 
   return "A choice separator renders its first form unless a {count} or a number at the call site selects another. Write a literal pipe as {'|'}."

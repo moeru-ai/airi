@@ -263,6 +263,23 @@ describe('checkLocales', () => {
     expect(await checkLocales({ root })).toEqual([])
   })
 
+  // https://github.com/moeru-ai/airi/pull/2904#discussion_r4241724158
+  it('reports a separator beside a literal that holds a selector (PR #2904)', async () => {
+    // ROOT CAUSE:
+    //
+    // The check read a `{count}` inside a literal span as a selector, so a message
+    // that explains the token and holds a raw pipe passed.
+    //
+    // The spans are removed before the selector is read now.
+    const root = await locales({
+      'en/settings.yaml': 'files:\n  hint: Use {\'{count}\'} | total\n',
+    })
+
+    const issues = await checkLocales({ root })
+
+    expect(issues).toEqual([expect.objectContaining({ level: 'warning', key: 'files.hint' })])
+  })
+
   it('accepts a separator that a count selects', async () => {
     const root = await locales({
       'en/settings.yaml': 'files:\n  count: \'{count} file | {count} files\'\n',
