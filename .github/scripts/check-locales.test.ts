@@ -244,6 +244,9 @@ describe('checkLocales', () => {
     // appeared.
     //
     //   providers.anthropic: Anthropic | Claude
+    //
+    // We fixed this by writing the pipe as {'|'}, and by warning about a separator
+    // that the message itself cannot select.
     const root = await locales({
       'en/settings.yaml': 'providers:\n  anthropic: Anthropic | Claude\n',
     })
@@ -272,12 +275,15 @@ describe('checkLocales', () => {
     //
     // The spans are removed before the selector is read now.
     const root = await locales({
-      'en/settings.yaml': 'files:\n  hint: Use {\'{count}\'} | total\n',
+      'en/settings.yaml': 'files:\n  hint: Use {\'{count}\'} | total\n  other: Use {\'don\\\'t type {count}\'} | total\n',
     })
 
     const issues = await checkLocales({ root })
 
-    expect(issues).toEqual([expect.objectContaining({ level: 'warning', key: 'files.hint' })])
+    expect(issues).toEqual([
+      expect.objectContaining({ level: 'warning', key: 'files.hint' }),
+      expect.objectContaining({ level: 'warning', key: 'files.other' }),
+    ])
   })
 
   it('accepts a separator that a count selects', async () => {
@@ -301,10 +307,13 @@ describe('checkLocales', () => {
 
   // https://github.com/moeru-ai/airi/pull/2904#discussion_r4241505158
   it('escapes a pipe in the summary so the row keeps its five columns (PR #2904)', async () => {
+    // ROOT CAUSE:
     //
-    // The Crowdin workflow appends this table to the step summary. The warning that
-    // explains a choice separator shows a literal pipe, so an unescaped pipe in that
-    // message ended the cell early and the row grew a column.
+    // The Crowdin workflow appends this table to the step summary, and the warning
+    // shows a literal pipe. An unescaped pipe in that message ended the cell early, so
+    // the row grew a column.
+    //
+    // We fixed this by escaping every dynamic cell of the table.
     const root = await locales({
       'en/settings.yaml': 'providers:\n  anthropic: Anthropic | Claude\n',
     })

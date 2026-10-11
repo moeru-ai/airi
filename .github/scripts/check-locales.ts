@@ -41,9 +41,12 @@ const PLACEHOLDER = /\{\s*([a-z_][\w-]*|\d+)\s*\}|@(?:\.\w+)?:[\w.-]+/gi
 const PLURAL_SELECTOR = /\{\s*(?:count|n)\s*\}/
 
 /**
- * A literal span, which vue-i18n renders as text. A quote inside one is written twice.
+ * A literal span, which vue-i18n renders as text.
+ *
+ * The compiler reads the body up to the first quote it does not escape, and it
+ * accepts `\\`, `\'`, and the two unicode escapes.
  */
-const LITERAL = /\{'(?:''|[^'])*'\}/g
+const LITERAL = /\{'(?:\\[\s\S]|''|[^'\\])*'\}/g
 
 /**
  * Warns about a choice separator that the message itself cannot select.
