@@ -23,6 +23,10 @@ const emit = defineEmits<{ toggle: [] }>()
     :title="props.entity.entityId"
     :class="[
       'flex items-center gap-3 border-2 rounded-xl p-2.5 text-left transition-colors',
+      // The outline of every other control on this page, so a keyboard user sees
+      // where the focus is.
+      'outline outline-2 outline-offset-0 outline-transparent',
+      'focus-visible:outline-offset-2 focus-visible:outline-primary-400 dark:focus-visible:outline-primary-500',
       props.selected
         ? 'border-primary-400 bg-primary-50 dark:border-primary-500/60 dark:bg-primary-900/20'
         : 'border-neutral-100 bg-white hover:border-neutral-200 dark:border-neutral-900 dark:bg-neutral-900/20 dark:hover:border-neutral-800',
