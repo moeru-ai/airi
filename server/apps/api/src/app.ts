@@ -4,6 +4,7 @@ import type { OtelInstance } from './otel'
 import type { Verifier as AppleIapVerifier } from './routes/apple-iap/verifier'
 import type { StreamingTtsVoiceType } from './routes/audio-speech-ws/session'
 import type { ConfigKVService } from './services/adapters/config-kv'
+import type { RevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
 import type { BillingService } from './services/domain/billing/billing-service'
 import type { LlmBillingService } from './services/domain/billing/llm-billing'
 import type { CharacterCardService } from './services/domain/character-cards'
@@ -63,12 +64,15 @@ import { createInternalAuthRoutes } from './routes/internal-auth'
 import { createLlmRequestRoutes } from './routes/llm-requests'
 import { createV1Routes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
+import { createRevenuecatRoutes } from './routes/revenuecat'
 import { createStripeRoutes } from './routes/stripe'
 import { createVoicePackRoutes } from './routes/voice-packs'
 import { createConfigKVService } from './services/adapters/config-kv'
 import { createConfigKVStore } from './services/adapters/config-kv/store'
 import { createS3ObjectStore } from './services/adapters/object-store'
 import { createOpenpanelSink } from './services/adapters/openpanel'
+import { createRevenuecatSubscriberClient } from './services/adapters/revenuecat-subscriber'
+import { createRevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
 import { createBillingService } from './services/domain/billing/billing-service'
 import { createLlmBillingService } from './services/domain/billing/llm-billing'
 import { SpeechBilling } from './services/domain/billing/speech-billing'
@@ -104,6 +108,7 @@ interface AppDeps {
   llmBilling: LlmBillingService
   billingService: BillingService
   speechBilling: SpeechBilling
+  subscriptionSync: RevenuecatSubscriptionSync
   requestLogService: RequestLogService
   voicePackService: VoicePackService
   productEventService: ProductEventService
@@ -436,7 +441,7 @@ export async function buildApp(deps: AppDeps) {
     /**
      * Flux routes.
      */
-    .route('/api/v1/flux', createFluxRoutes(deps.fluxService, deps.fluxTransactionService))
+    .route('/api/v1/flux', createFluxRoutes(deps.fluxService, deps.fluxTransactionService, deps.billingService))
     .route('/api/v1/llm-requests', createLlmRequestRoutes(deps.requestLogService))
 
     /**
@@ -451,6 +456,14 @@ export async function buildApp(deps: AppDeps) {
       deps.otel?.revenue ?? null,
       deps.otel?.rateLimit ?? null,
       deps.productEventService,
+    ))
+
+    /**
+     * RevenueCat webhook ingress (capacitor Flux).
+     */
+    .route('/api/v1/revenuecat', createRevenuecatRoutes(
+      deps.subscriptionSync,
+      deps.env,
     ))
 
     /**
@@ -707,8 +720,8 @@ export async function createApp() {
   })
 
   const billingService = injeca.provide('services:billing', {
-    dependsOn: { db, redis, otel },
-    build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.otel?.revenue),
+    dependsOn: { db, redis, configKV, otel },
+    build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.configKV, dependsOn.otel?.revenue),
   })
 
   const llmBilling = injeca.provide('services:llmBilling', {
@@ -719,6 +732,15 @@ export async function createApp() {
   const paymentService = injeca.provide('services:payment', {
     dependsOn: { db, billingService },
     build: ({ dependsOn }) => createPaymentService(dependsOn.db, dependsOn.billingService),
+  })
+
+  const subscriptionSync = injeca.provide('services:revenuecatSubscriptionSync', {
+    dependsOn: { billingService, configKV, env: parsedEnv },
+    build: ({ dependsOn }) => createRevenuecatSubscriptionSync(
+      dependsOn.billingService,
+      dependsOn.configKV,
+      createRevenuecatSubscriberClient({ apiKey: dependsOn.env.REVENUECAT_API_KEY ?? null }),
+    ),
   })
 
   // NOTICE:
@@ -780,6 +802,7 @@ export async function createApp() {
     voicePackService,
     productEventService,
     paymentService,
+    subscriptionSync,
     appleIapVerifier,
     stripe,
     billingService,
@@ -809,6 +832,7 @@ export async function createApp() {
     fluxService: resolved.fluxService,
     fluxTransactionService: resolved.fluxTransactionService,
     paymentService: resolved.paymentService,
+    subscriptionSync: resolved.subscriptionSync,
     appleIapVerifier: resolved.appleIapVerifier,
     stripe: resolved.stripe,
     voicePackService: resolved.voicePackService,

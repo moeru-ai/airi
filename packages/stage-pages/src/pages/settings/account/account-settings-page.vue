@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { errorMessageFrom } from '@moeru/std'
+import { isCapacitorAvailable } from '@proj-airi/stage-shared'
 import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth'
 import { resolveLinkedAccountOAuthErrorMessageKey, useAnalytics, useLinkedAccounts } from '@proj-airi/stage-ui/composables'
 import { authClient } from '@proj-airi/stage-ui/libs/auth'
@@ -55,6 +56,7 @@ const gravatarProfileUrl = computed(() => {
 // (44,965 / 44 965 / 44.965 depending on region) without us having to ship a
 // formatter.
 const formattedCredits = computed(() => credits.value.toLocaleString())
+const capacitorAvailable = isCapacitorAvailable()
 
 // Profile form. Initialized from store and re-synced when user changes (e.g.
 // after a successful save we mutate the store).
@@ -514,6 +516,23 @@ async function handleConfirmDelete(event: Event) {
               </span>
               <span :class="['ml-auto flex items-center gap-1 text-primary-600 dark:text-primary-400']">
                 <span>{{ t('settings.pages.account.viewFluxDetails') }}</span>
+                <div :class="['i-solar:alt-arrow-right-linear', 'size-4']" />
+              </span>
+            </RouterLink>
+            <RouterLink
+              v-if="capacitorAvailable"
+              to="/settings/capacitor"
+              :class="[
+                '-mx-2 flex items-center gap-2 px-2 py-1.5 rounded-md',
+                'text-sm no-underline text-inherit',
+                'hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors',
+              ]"
+            >
+              <span :class="['text-neutral-500 dark:text-neutral-400']">
+                {{ t('settings.pages.account.capacitorEntry') }}
+              </span>
+              <span :class="['ml-auto flex items-center gap-1 text-primary-600 dark:text-primary-400']">
+                <span>{{ t('settings.pages.account.viewCapacitor') }}</span>
                 <div :class="['i-solar:alt-arrow-right-linear', 'size-4']" />
               </span>
             </RouterLink>
