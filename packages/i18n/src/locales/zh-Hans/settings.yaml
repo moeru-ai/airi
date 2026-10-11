@@ -1048,6 +1048,7 @@ pages:
         failed-policy: 设备名单没能同步到运行工具的窗口，地址未更改，请重试。
         failed-policy-edit: 改动没能同步到运行工具的窗口，模型仍在用改动前的名单，请重试。
         failed-policy-move: 地址已更改，但设备名单没能同步到运行工具的窗口，请重试。
+        failed-policy-rollback: 保存被拒绝，设备名单也没能同步回运行工具的窗口，模型现在访问不到任何设备，请重试。
       access:
         label: 设备访问范围
         description: 选择 AIRI 可以读取和控制的设备。

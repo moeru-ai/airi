@@ -47,6 +47,7 @@ const testLabel = 'settings.pages.modules.home-assistant.actions.test'
 const testingStatus = 'settings.pages.modules.home-assistant.status.testing'
 const failedPolicyMove = 'settings.pages.modules.home-assistant.status.failed-policy-move'
 const failedStatus = 'settings.pages.modules.home-assistant.status.failed'
+const failedPolicyRollback = 'settings.pages.modules.home-assistant.status.failed-policy-rollback'
 const exposureModeKey = 'settings/home-assistant/exposure-mode'
 
 /**
@@ -326,5 +327,30 @@ describe('homeAssistantSettings', () => {
 
     await expect.element(page.getByText(failedStatus)).toBeInTheDocument()
     expect(invokeMocks.request).not.toHaveBeenCalled()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2903#discussion_r4242298234
+  it('reports a rollback that did not reach the leader (PR #2903)', async () => {
+    // ROOT CAUSE:
+    //
+    // The refused save restored the allow list and dropped the result of the
+    // publication that puts it back. A rollback that failed left the leader on the
+    // empty list, so the model reached no device and the page named the refusal.
+    //
+    // The page reads that result now.
+    invokeMocks.getConfig.mockResolvedValue(storedConfig)
+    invokeMocks.request.mockResolvedValue([])
+    invokeMocks.setConfig.mockRejectedValue(new Error('the main process refused the change'))
+
+    const pinia = (await renderPage()).pinia
+    const toolsStore = useTamagotchiHomeAssistantStore(pinia)
+    vi.spyOn(toolsStore, 'setPolicy')
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('the leader window is gone'))
+
+    await page.getByPlaceholder(addressPlaceholder).fill('http://home-b.local:8123')
+    await page.getByRole('button', { name: saveLabel }).click()
+
+    await expect.element(page.getByText(failedPolicyRollback)).toBeInTheDocument()
   })
 })

@@ -185,6 +185,9 @@ function recordCredentials(saved: { baseUrl: string, hasToken: boolean }) {
  */
 class PolicyNotPublishedError extends Error {}
 
+/** A refused save whose rollback did not reach the leader either. */
+class PolicyRollbackError extends Error {}
+
 /**
  * Applies the access policy of this window, and reports whether the leader holds it.
  *
@@ -240,6 +243,8 @@ const rejectionKeys: Record<string, string> = {
 function failureStatus(error: unknown): { suffix: string, params?: Record<string, unknown> } {
   if (error instanceof PolicyNotPublishedError)
     return { suffix: 'status.failed-policy' }
+  if (error instanceof PolicyRollbackError)
+    return { suffix: 'status.failed-policy-rollback' }
 
   const message = errorMessageFrom(error) ?? ''
   const key = rejectionKeys[message]
@@ -383,12 +388,17 @@ async function save() {
     // The save was refused, so the instance did not move and the lists stand.
     if (willMove) {
       settings.allowedEntities = [...previousAllowed]
-      await applyPolicy()
+      // The leader holds the empty list this save opened with until the rollback
+      // reaches it, so a publication that fails leaves the model without a device
+      // while the page names the list it restored.
+      const policyRestored = await applyPolicy()
       // The rows describe the instance the main process still holds, so they come
       // back. A closed grid reads no row, and the list of a large instance is not
       // worth sending to nobody.
       if (gridIsOpen())
         await loadEntities()
+      if (!policyRestored)
+        throw new PolicyRollbackError()
     }
     throw error
   }

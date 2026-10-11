@@ -1105,6 +1105,7 @@ pages:
         failed-policy: The device list did not reach the window that runs the tools, so the address did not change. Try again.
         failed-policy-edit: The change did not reach the window that runs the tools. The model still holds the list from before the change. Try again.
         failed-policy-move: The address changed, but the device lists did not reach the window that runs the tools. Try again.
+        failed-policy-rollback: The save was refused. The device list did not reach the window that runs the tools, so the model reaches no device. Try again.
       access:
         label: Device access
         description: Choose which devices AIRI reads and controls.
