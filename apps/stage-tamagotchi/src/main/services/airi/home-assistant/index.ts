@@ -72,6 +72,12 @@ export function setupHomeAssistant(context: ReturnType<typeof createContext>['co
     if (!current.token)
       throw new Error('Home Assistant has no access token yet. Ask the user to add one in settings.')
 
+    // A caller that read the target of a call sends the address it read. This
+    // refuses the call when the address moved after that read, so a check cannot
+    // land on one instance and the call on another.
+    if (input.expectBaseUrl !== undefined && input.expectBaseUrl !== current.baseUrl)
+      throw new Error(`The Home Assistant address changed from "${input.expectBaseUrl}" to "${current.baseUrl}". Ask the user, then read the device again before you change it.`)
+
     // The renderer picks the path, so this call is the boundary that decides
     // what leaves the application.
     const target = resolveRequestUrl(current.baseUrl, input.method, input.path)
