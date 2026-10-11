@@ -86,15 +86,18 @@ export function createConfig<TSchema extends PersistedSchema>(
   }
 
   const save = throttle(async () => {
-    const value = persistenceMap.get(key())
-    // A config whose value this root never held has nothing to write. Writing an
-    // empty document would only make the next read of that root heal it.
-    if (value === undefined)
-      return
-
     try {
       const path = configPath()
       await ensureConfigDirectory(path)
+      // The value is read here, after the wait, so a save that overlaps this one
+      // writes the value of the newer update rather than an older one it read
+      // before the wait.
+      const value = persistenceMap.get(key())
+      // A root this config never read from holds no value. An empty document
+      // makes the next read of that root heal it.
+      if (value === undefined)
+        return
+
       const tmpPath = `${path}.${randomUUID()}.tmp`
       await writeFile(tmpPath, JSON.stringify(value))
       await rename(tmpPath, path)

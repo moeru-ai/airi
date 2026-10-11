@@ -1,3 +1,6 @@
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 import { number, object } from 'valibot'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -43,7 +46,7 @@ describe('createConfig', () => {
    */
   it('uses a unique temp file per save to avoid concurrent rename collisions', async () => {
     const appMock = {
-      getPath: vi.fn(() => '/tmp/airi-user-data'),
+      getPath: vi.fn(() => join(tmpdir(), 'airi-user-data')),
     }
     const mkdirMock = vi.fn(async () => {})
     const existingTempFiles = new Set<string>()
@@ -114,26 +117,21 @@ describe('createConfig', () => {
     saveErrorSpy.mockRestore()
   })
 
-  /**
-   * @example
-   * expect(second.get()).toEqual({ value: 0 })
-   *
-   * ROOT CAUSE:
-   *
-   * `save` runs on a throttle and `update` does not await it, and it asked
-   * `app.getPath('userData')` for the path when it ran rather than when the
-   * config was created. A write that ran after the root moved therefore landed
-   * in the new root with the value of the old one.
-   *
-   * The extension host suite hit this. One case read the enabled extensions of
-   * the case before it, whose directories were already gone, and refused to
-   * activate them:
-   *
-   * Error: Enabled Extension "a-dispose-consumer" is not installed.
-   */
+  // https://github.com/moeru-ai/airi/actions/runs/38099469838/job/114352217426
+
+  // ROOT CAUSE:
+  //
+  // `save` is throttled and `update` does not await it, and it read
+  // `app.getPath('userData')` while it ran. A write that a case scheduled
+  // therefore landed in the root the next case had already created.
+  //
+  // It now reaches the root its own config read from.
   it('writes a deferred save to the root its own config read from', async () => {
     const files = new Map<string, string>()
-    const appMock = { getPath: vi.fn(() => '/tmp/airi-user-data-a') }
+    const rootA = join(tmpdir(), 'airi-user-data-a')
+    const rootB = join(tmpdir(), 'airi-user-data-b')
+    const fileOf = (root: string) => join(root, 'app-options.json')
+    const appMock = { getPath: vi.fn(() => rootA) }
     let runPendingSave: (() => unknown) | undefined
 
     vi.doMock('electron', () => ({
@@ -174,8 +172,13 @@ describe('createConfig', () => {
 
     // The root moves before that write runs, the way each case of the extension
     // host suite receives its own directory.
-    appMock.getPath.mockReturnValue('/tmp/airi-user-data-b')
+    appMock.getPath.mockReturnValue(rootB)
     await deferredSave()
+
+    // The write reached the root its config read from, and the other root holds
+    // no file at all.
+    expect(files.get(fileOf(rootA))).toBe(JSON.stringify({ value: 7 }))
+    expect(files.has(fileOf(rootB))).toBe(false)
 
     const second = createConfig('app', 'options.json', schema, { default: { value: 0 } })
     second.setup()
