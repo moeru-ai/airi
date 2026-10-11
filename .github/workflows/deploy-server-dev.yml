@@ -1,0 +1,81 @@
+name: Deploy to server-dev
+
+run-name: Deploy ${{ inputs.ref }} to server-dev (@${{ github.actor }})
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch, tag, commit SHA, or refs/pull/<number>/head to deploy'
+        required: true
+        type: string
+      reset_database:
+        description: 'Reset the server-dev Neon branch to its parent before the deploy'
+        required: true
+        type: boolean
+        default: true
+
+# The dev environment is one shared slot. Queue the runs so that a database
+# reset and a branch update from two runs cannot interleave.
+concurrency:
+  group: server-dev
+  cancel-in-progress: false
+
+# All writes use SERVER_DEV_PUSH_TOKEN, so the job needs nothing from GITHUB_TOKEN.
+permissions: {}
+
+jobs:
+  deploy:
+    name: Deploy - server-dev
+    runs-on: ubuntu-latest
+
+    steps:
+      # NOTICE:
+      # The push below cannot use GITHUB_TOKEN.
+      # GitHub rejects a GITHUB_TOKEN push that changes files under
+      # .github/workflows, and such a push does not start the
+      # "Cloudflare Workers (server-dev)" workflow.
+      # https://docs.github.com/en/actions/concepts/security/github_token
+      # Remove the token when Railway and Cloudflare deploy from this workflow
+      # and server-dev is no longer a branch.
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+          # A shallow clone cannot push a commit whose history the remote
+          # branch does not already contain.
+          fetch-depth: 0
+          token: ${{ secrets.SERVER_DEV_PUSH_TOKEN }}
+
+      # The API runs migrations on startup, and the Drizzle migrator only
+      # applies migrations newer than the last applied one. A database that
+      # another branch migrated makes it skip older migrations of this ref
+      # without an error. Reset first so that the new deploy migrates a clean
+      # baseline.
+      - name: Reset the Neon branch
+        if: inputs.reset_database
+        uses: neondatabase/reset-branch-action@v1
+        with:
+          project_id: ${{ vars.NEON_PROJECT_ID }}
+          branch: ${{ vars.NEON_SERVER_DEV_BRANCH }}
+          parent: true
+          api_key: ${{ secrets.NEON_API_KEY }}
+
+      # Railway and the Cloudflare workflow both deploy from the server-dev
+      # branch. The branch is a pointer to the ref under test, not a branch to
+      # merge into.
+      - name: Point server-dev at the ref
+        run: git push --force origin HEAD:refs/heads/server-dev
+
+      - name: Summary
+        env:
+          DEPLOY_REF: ${{ inputs.ref }}
+          RESET_DATABASE: ${{ inputs.reset_database }}
+        run: |
+          {
+            echo "| | |"
+            echo "| --- | --- |"
+            echo "| Ref | \`${DEPLOY_REF}\` |"
+            echo "| Commit | \`$(git rev-parse HEAD)\` |"
+            echo "| Database reset | ${RESET_DATABASE} |"
+            echo "| Actor | @${GITHUB_ACTOR} |"
+          } >> "$GITHUB_STEP_SUMMARY"

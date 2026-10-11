@@ -65,6 +65,53 @@ migrations. After either service deploys, Railway must receive `200` from that
 service's `/readyz`; deployment success alone is not sufficient evidence that
 the service can reach its required dependencies.
 
+## Dev environment
+
+The Railway `dev` environment is one shared slot. It has fixed public URLs, so
+OAuth callbacks and payment webhooks stay registered when the code changes.
+
+Railway and the `Cloudflare Workers (server-dev)` workflow deploy from the
+`server-dev` branch. Use that branch as a pointer to the ref under test. Do not
+merge into it and do not open a pull request against it.
+
+To deploy a ref, run the `Deploy to server-dev` workflow:
+
+```sh
+gh workflow run deploy-server-dev.yml -f ref=<branch> -f reset_database=true
+```
+
+`ref` accepts a branch, a tag, a commit SHA, or `refs/pull/<number>/head` for a
+pull request from a fork. A pull request from a fork then runs with the dev
+secrets, so read its diff first.
+
+The workflow does these steps in order:
+
+1. It resets the dev Neon branch to its parent branch.
+2. It force-pushes the ref to `server-dev`.
+3. Railway and Cloudflare deploy the new commit. The API applies its migrations
+   to the reset database on startup.
+
+The reset removes all data that the previous ref wrote. Set
+`reset_database=false` only when the two refs have the same migrations. The
+Drizzle migrator applies only migrations that are newer than the last applied
+migration. If the database already has a newer migration from a different ref,
+the migrator skips the older migrations of the new ref and reports no error.
+
+The reset does not clear Redis. Cached values from the previous ref can stay
+until they expire.
+
+The workflow needs this repository configuration:
+
+| Name | Kind | Value |
+| --- | --- | --- |
+| `SERVER_DEV_PUSH_TOKEN` | Secret | Token with `contents: write` and `workflows: write` on this repository |
+| `NEON_API_KEY` | Secret | Neon API key for the project that holds the dev database |
+| `NEON_PROJECT_ID` | Variable | Neon project ID |
+| `NEON_SERVER_DEV_BRANCH` | Variable | Name of the Neon branch that the dev `DATABASE_URL` points to |
+
+The dev Neon branch must be a child branch. Keep its parent at the `main`
+schema, and keep the shared test accounts in the parent.
+
 ## Package boundaries
 
 Frontend applications remain under `apps/`. Hosted-backend packages that
