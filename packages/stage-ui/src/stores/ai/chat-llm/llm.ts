@@ -39,8 +39,14 @@ export const useLLM = defineStore('llm', () => {
       options: {
         ...streamOptions,
         // Core uses only the tools of a resolved step, so each step carries the complete tool list.
+        // Live model settings still resolve when this generation skips Stage tool loading.
         resolveStep: resolveStep
-          ? async () => ({ ...await resolveStep(), tools: await resolveLlmTools({ customTools, describeImage: describeToolImage }) })
+          ? async () => ({
+            ...await resolveStep(),
+            tools: streamOptions.toolsEnabled === false
+              ? undefined
+              : await resolveLlmTools({ customTools, describeImage: describeToolImage }),
+          })
           : undefined,
         prepareConversation: async (conversation, target) => {
           key = modelKey(target.model, target.request)

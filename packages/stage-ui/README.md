@@ -77,6 +77,16 @@ The detector remains active during playback. A supplied `acceptSpeech` classifie
 The default policy allows barge-in when the browser reports echo cancellation. Without that support, automatic admission waits for playback to end.
 Model selection, acoustic echo classification, and enrollment remain external integrations.
 
+## Generation tool policy
+
+Pass `toolsEnabled: false` to `useLLM().stream` for a generation that must not use tools.
+The Stage adapter skips caller and built-in tool loading, including when `resolveStep` supplies live settings.
+It still reads the current model, provider, system prompt, and sampling parameters.
+Core omits tools, tool choice, and Responses web search from the request.
+
+An absent or `true` value keeps existing tool behavior. This option does not change compatibility caches or stored tool results.
+Use this option for request policy, not as a provider-side security sandbox.
+
 ## Chat sampling
 
 In **Settings → Modules → Consciousness**, custom temperature and Top P are off
