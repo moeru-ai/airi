@@ -20,7 +20,7 @@ export async function setupEditorWindowInvokes(params: {
   // TODO: Remove this once Eventa supports window-namespaced Electron contexts.
   ipcMain.setMaxListeners(0)
 
-  const { context } = createContext(ipcMain, params.window)
+  const { context } = createContext(ipcMain, params.window, { onlySameWindow: true })
 
   await setupBaseWindowElectronInvokes({
     context,

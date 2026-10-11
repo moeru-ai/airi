@@ -65,7 +65,7 @@ export function setupOnboardingWindowManager(params: {
     // manage events within eventa's context system.
     ipcMain.setMaxListeners(0)
 
-    const { context } = createContext(ipcMain, newWindow)
+    const { context } = createContext(ipcMain, newWindow, { onlySameWindow: true })
 
     defineInvokeHandler(context, electronOnboardingClose, async () => {
       safeClose(newWindow)
