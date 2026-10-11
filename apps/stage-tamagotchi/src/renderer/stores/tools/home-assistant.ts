@@ -69,7 +69,6 @@ export const useTamagotchiHomeAssistantStore = defineStore('tamagotchi-home-assi
    */
   async function refresh() {
     const generation = ++refreshGeneration
-    llmToolsStore.removeToolsByIds(...registeredToolIds())
 
     const config = await getConfig()
     // A refresh a later change started owns the tools. This run read the address
@@ -83,24 +82,30 @@ export const useTamagotchiHomeAssistantStore = defineStore('tamagotchi-home-assi
     // who then turns the switch on changes nothing the watcher can see.
     settings.setHasCredentials(Boolean(config.baseUrl) && config.hasToken)
 
-    if (!settings.enabled || !config.baseUrl || !config.hasToken)
-      return
+    // The replacements are built before the swap. A model request that resolves
+    // its tools during this build still finds the set of the state before it, and
+    // a build that fails leaves that set alone.
+    const replacements = settings.enabled && config.baseUrl && config.hasToken
+      ? await createHomeAssistantTools(createClient(), {
+          exposure: () => settings.exposure,
+          readInstance: async () => (await getConfig()).baseUrl,
+        })
+      : []
 
-    const tools = await createHomeAssistantTools(createClient(), {
-      exposure: () => settings.exposure,
-      readInstance: async () => (await getConfig()).baseUrl,
-    })
     if (generation !== refreshGeneration)
       return
 
+    llmToolsStore.removeToolsByIds(...registeredToolIds())
     // NOTICE: these tools carry no `defaultActive: false` and no
     // `requiresExplicitSelection`, unlike the built-in store. The shared
     // `activeTools` filter drops both of those, so a tool that needs to be
     // visible to the model must not set them.
-    llmToolsStore.addTools(...tools.map(tool => ({
-      ...tool,
-      id: `${toolIdPrefix}${tool.function.name}`,
-    } satisfies ExecutableTool)))
+    if (replacements.length) {
+      llmToolsStore.addTools(...replacements.map(tool => ({
+        ...tool,
+        id: `${toolIdPrefix}${tool.function.name}`,
+      } satisfies ExecutableTool)))
+    }
   }
 
   /**
