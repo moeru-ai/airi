@@ -1,13 +1,15 @@
 <script setup lang="ts">
+import { useElectronEventaContext } from '@proj-airi/electron-vueuse'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { storeToRefs } from 'pinia'
-import { shallowRef, useTemplateRef } from 'vue'
+import { onUnmounted, shallowRef, useTemplateRef } from 'vue'
 
 import ChatSpeechMuteButton from '../chat-window/chat-speech-mute-button.vue'
 import ChatWindowStyleMenu from '../chat-window/chat-window-style-menu.vue'
 import InteractiveArea from '../InteractiveArea.vue'
 
+import { electronMainWindowOpenFullscreen } from '../../../shared/eventa'
 import { useChatDraftHandover } from '../../composables/use-chat-draft-handover'
 
 // The page of the chat surface: the legacy chat window, inside the fullscreen panel. The header takes the place of its
@@ -16,7 +18,14 @@ const { activeCard } = storeToRefs(useAiriCardStore())
 const sessionsDrawerOpen = shallowRef(false)
 const interactiveArea = useTemplateRef<InstanceType<typeof InteractiveArea>>('interactive-area')
 
-useChatDraftHandover(interactiveArea)
+const { receiveDraft } = useChatDraftHandover(interactiveArea)
+// The panel stays mounted while the mode is open, so a chat mode switch that shows it again takes the draft here.
+// The first request mounts the panel, and the panel takes that draft when it mounts.
+const stopOpenListener = useElectronEventaContext().value.on(electronMainWindowOpenFullscreen, (event) => {
+  if (event?.body?.surface === 'chat')
+    void receiveDraft()
+})
+onUnmounted(stopOpenListener)
 </script>
 
 <template>

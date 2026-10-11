@@ -26,6 +26,11 @@ interface DraftComposer {
  *
  * Outside a switch the main process has no draft for this window and ignores
  * the report.
+ *
+ * Returns:
+ * - `receiveDraft`, which takes the draft and reports the result. The page
+ *   runs it once when it mounts. A page that stays mounted between switches,
+ *   such as the fullscreen chat, runs it again when a switch shows it.
  */
 export function useChatDraftHandover(composer: MaybeRefOrGetter<DraftComposer | null | undefined>) {
   const takeDraft = useElectronEventaInvoke(electronChatWindowTakeDraft)
@@ -35,9 +40,13 @@ export function useChatDraftHandover(composer: MaybeRefOrGetter<DraftComposer | 
   // shows can already collect from it.
   onScopeDispose(defineInvokeHandler(getElectronEventaContext(), electronChatWindowCollectDraft, async () => toValue(composer)?.snapshotDraft()))
 
-  onMounted(async () => {
+  async function receiveDraft() {
     const draft = await takeDraft()
     const restored = !draft || (await toValue(composer)?.restoreDraft(draft) ?? false)
     await settleDraft({ restored })
-  })
+  }
+
+  onMounted(receiveDraft)
+
+  return { receiveDraft }
 }
