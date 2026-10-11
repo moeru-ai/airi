@@ -61,6 +61,14 @@ export interface Config<TSchema extends PersistedSchema> {
   getDiagnostics: () => ConfigDiagnostics<InferOutput<TSchema>> | undefined
 }
 
+/**
+ * Creates one persisted config over a JSON file under the user data directory.
+ *
+ * Each instance binds to the root it resolves on first use and keeps that binding
+ * for its life, so a later `app.getPath('userData')` does not move where it reads
+ * or writes. Two instances that name the same file share one value while they
+ * resolve the same root.
+ */
 export function createConfig<TSchema extends PersistedSchema>(
   namespace: string,
   filename: string,
