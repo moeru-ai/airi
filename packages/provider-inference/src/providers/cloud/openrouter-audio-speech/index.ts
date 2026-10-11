@@ -1,18 +1,12 @@
+import type { OpenRouterAudioConfig } from '../openrouter-audio/shared'
+
 import { toWavFromPCM16 } from '@proj-airi/audio/encoding'
-import { z } from 'zod'
 
 import { defineProvider } from '../../registry'
 import { OPENROUTER_ATTRIBUTION_HEADERS } from '../openrouter-ai'
+import { normalizeOpenRouterAudioBaseUrl, openRouterAudioConfigSchema } from '../openrouter-audio/shared'
 
-const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1/'
 const DEFAULT_MODEL = 'openai/gpt-audio-mini'
-
-const openRouterAudioConfigSchema = z.object({
-  apiKey: z.string(),
-  baseUrl: z.string().default(DEFAULT_BASE_URL),
-})
-
-type OpenRouterAudioConfig = z.input<typeof openRouterAudioConfigSchema>
 
 const openAIVoices = [
   'alloy',
@@ -29,11 +23,6 @@ const openAIVoices = [
   'marin',
   'cedar',
 ] as const
-
-function normalizeBaseUrl(baseUrl: string | undefined) {
-  const value = baseUrl?.trim() || DEFAULT_BASE_URL
-  return value.endsWith('/') ? value : `${value}/`
-}
 
 function ttsPrompt(input: string) {
   return `Read this text aloud exactly as written, without any commentary or extra words:\n\n${input}`
@@ -134,7 +123,7 @@ export const providerOpenRouterAudioSpeech = defineProvider<OpenRouterAudioConfi
   createProviderConfig: () => openRouterAudioConfigSchema,
   createProvider(config) {
     const apiKey = config.apiKey.trim()
-    const baseUrl = normalizeBaseUrl(config.baseUrl)
+    const baseUrl = normalizeOpenRouterAudioBaseUrl(config.baseUrl)
     return {
       speech: (model?: string) => {
         const resolvedModel = model || DEFAULT_MODEL
@@ -167,7 +156,7 @@ export const providerOpenRouterAudioSpeech = defineProvider<OpenRouterAudioConfi
   extraMethods: {
     listModels: async (config) => {
       try {
-        const response = await fetch(new URL('models?output_modality=audio', normalizeBaseUrl(config.baseUrl)), {
+        const response = await fetch(new URL('models?output_modality=audio', normalizeOpenRouterAudioBaseUrl(config.baseUrl)), {
           headers: OPENROUTER_ATTRIBUTION_HEADERS,
         })
         if (!response.ok)
