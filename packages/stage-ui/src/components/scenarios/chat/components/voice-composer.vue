@@ -27,7 +27,7 @@ const emit = defineEmits<{
   sent: []
   /** Recording UI opened or closed. The host hides its own input content while it is open. */
   recordingChange: [active: boolean]
-  /** Dictation needs Hearing setup. The host opens Hearing settings in its own window or route. */
+  /** Dictation needs a transcription provider. The host opens the speech recognition settings in its own window or route. */
   configure: []
 }>()
 const draft = defineModel<string>({ required: true })
