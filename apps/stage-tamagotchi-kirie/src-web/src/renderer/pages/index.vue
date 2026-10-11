@@ -18,12 +18,13 @@ import {
 } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composables/canvas-alpha'
+import { useVoiceListening } from '@proj-airi/stage-ui/composables/voice-input-mode'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
-import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useVoiceStore } from '@proj-airi/stage-ui/stores/voice'
 import { refDebounced } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
+import { computed, onMounted, ref, shallowRef, toRef, watch } from 'vue'
 import { toast } from 'vue-sonner'
 
 import ControlsIslandRoot from '../components/stage-islands/controls-island/controls-island-root.vue'
@@ -297,13 +298,7 @@ useModelSettingsRuntimeOwner({
 })
 
 const voice = useVoiceStore()
-const { enabled } = storeToRefs(useSettingsAudioDevice())
-watch(enabled, (value) => {
-  if (value)
-    voice.startListening()
-  else
-    void voice.stopListening()
-}, { immediate: true })
+useVoiceListening()
 watch(() => voice.error, (error) => {
   if (error)
     toast.error(error)
@@ -311,9 +306,6 @@ watch(() => voice.error, (error) => {
 onMounted(() => {
   if (onboardingStore.needsOnboarding)
     openOnboarding()
-})
-onUnmounted(() => {
-  void voice.stopListening()
 })
 
 const cursorPosition = computed(() => ({

@@ -19,12 +19,13 @@ import {
 } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composables/canvas-alpha'
+import { useVoiceListening } from '@proj-airi/stage-ui/composables/voice-input-mode'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
-import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useVoiceStore } from '@proj-airi/stage-ui/stores/voice'
 import { refDebounced } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
+import { computed, onMounted, ref, shallowRef, toRef, watch } from 'vue'
 import { toast } from 'vue-sonner'
 
 import AuthStatusIsland from '../components/stage-islands/auth-status-island.vue'
@@ -34,6 +35,7 @@ import ResourceStatusIsland from '../components/stage-islands/resource-status-is
 
 import { electronAppIsWayland, electronOpenInlay, electronOpenOnboarding } from '../../shared/eventa'
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
+import { usePushToTalkShortcut } from '../composables/use-push-to-talk-shortcut'
 import { useScreenAmbientLight } from '../composables/use-screen-ambient-light'
 import { stageOpaqueAttribute } from '../composables/use-stage-painted-mask'
 import { useControlsIslandStore } from '../stores/controls-island'
@@ -357,13 +359,17 @@ useModelSettingsRuntimeOwner({
 
 const voice = useVoiceStore()
 const openInlay = useElectronEventaInvoke(electronOpenInlay)
-const { enabled } = storeToRefs(useSettingsAudioDevice())
-watch(enabled, (value) => {
-  if (value)
-    voice.startListening()
-  else
-    void voice.stopListening()
-}, { immediate: true })
+useVoiceListening()
+const pushToTalk = usePushToTalkShortcut()
+// A global hold happens while another app has focus, so the inlay shows that AIRI listens before any text arrives.
+// It opens after capture starts. A begin that fails, for example without microphone permission, opens no empty window.
+watch(
+  () => pushToTalk.held.value && voice.state?.phase === 'capturing',
+  (capturing) => {
+    if (capturing)
+      void openInlay()
+  },
+)
 watch(() => voice.error, (error) => {
   if (error)
     toast.error(error)
@@ -387,9 +393,6 @@ watch(
 onMounted(() => {
   if (onboardingStore.needsOnboarding)
     openOnboarding()
-})
-onUnmounted(() => {
-  void voice.stopListening()
 })
 
 const cursorPosition = computed(() => ({

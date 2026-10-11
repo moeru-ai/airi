@@ -6,6 +6,7 @@ import { encodeWav } from '@proj-airi/audio/encoding'
 import { Alert, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
 import { useAnalytics, useHearingPlaygroundSegments } from '@proj-airi/stage-ui/composables'
 import { useVoiceController } from '@proj-airi/stage-ui/composables/audio/voice-controller'
+import { usePushToTalkTrigger } from '@proj-airi/stage-ui/composables/push-to-talk-trigger'
 import { hearingProviderViewContextKey } from '@proj-airi/stage-ui/libs'
 import { createVoiceActivityPlugin } from '@proj-airi/stage-ui/libs/voice/voice-activity-plugin'
 import { CONFIDENCE_THRESHOLD_DISABLED, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
@@ -13,7 +14,7 @@ import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/con
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { SileroVad } from '@proj-airi/stage-ui/workers/vad/silero-vad'
-import { Button, FieldCheckbox, FieldCombobox, FieldInput, FieldRange, SettingsCard } from '@proj-airi/ui'
+import { Button, FieldCheckbox, FieldCombobox, FieldInput, FieldRange, FieldSelect, SettingsCard } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, defineAsyncComponent, onMounted, onUnmounted, provide, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -32,6 +33,7 @@ const {
   supportsModelListing,
   transcriptionModelSearchQuery,
   activeCustomModelName,
+  inputMode,
   autoSendEnabled,
   autoSendDelay,
   confidenceThreshold,
@@ -40,6 +42,23 @@ const {
   rephraseModel,
   verboseJsonNotSupported,
 } = storeToRefs(hearingStore)
+const { available: pushToTalkAvailable, stranded: pushToTalkStranded } = usePushToTalkTrigger()
+const inputModeOptions = computed(() => [
+  {
+    value: 'always-on' as const,
+    label: t('settings.pages.modules.hearing.sections.section.input-mode.always-on'),
+    description: t('settings.pages.modules.hearing.sections.section.input-mode.always-on-description'),
+  },
+  {
+    value: 'push-to-talk' as const,
+    label: t('settings.pages.modules.hearing.sections.section.input-mode.push-to-talk'),
+    // Without a trigger the mode leaves the microphone closed, so the option stays visible but cannot be chosen.
+    description: pushToTalkAvailable.value
+      ? t('settings.pages.modules.hearing.sections.section.input-mode.push-to-talk-description')
+      : t('settings.pages.modules.hearing.sections.section.input-mode.push-to-talk-unavailable'),
+    disabled: !pushToTalkAvailable.value,
+  },
+])
 const providersStore = useProviderStore()
 const { configuredChatProvidersMetadata } = storeToRefs(providersStore)
 const rephraseProviderOptions = computed(() => [
@@ -555,6 +574,34 @@ onUnmounted(() => {
             <div i-solar:warning-circle-line-duotone class="shrink-0" />
             {{ t('settings.pages.modules.hearing.sections.section.confidence-threshold.verbose-json-unsupported') }}
           </div>
+        </div>
+
+        <div class="border-t border-neutral-200 pt-4 dark:border-neutral-700">
+          <div class="mb-4">
+            <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">
+              {{ t('settings.pages.modules.hearing.sections.section.input-mode.title') }}
+            </h2>
+            <div text="neutral-400 dark:neutral-400">
+              {{ t('settings.pages.modules.hearing.sections.section.input-mode.description') }}
+            </div>
+          </div>
+
+          <FieldSelect
+            v-model="inputMode"
+            data-testid="hearing-input-mode"
+            :label="t('settings.pages.modules.hearing.sections.section.input-mode.label')"
+            :options="inputModeOptions"
+            layout="vertical"
+          />
+
+          <Alert v-if="pushToTalkStranded" type="warning" data-testid="hearing-input-mode-stranded" :class="['mt-4']">
+            <template #title>
+              {{ t('settings.pages.modules.hearing.sections.section.input-mode.stranded-title') }}
+            </template>
+            <template #content>
+              {{ t('settings.pages.modules.hearing.sections.section.input-mode.stranded-description') }}
+            </template>
+          </Alert>
         </div>
 
         <!-- Auto-send settings -->

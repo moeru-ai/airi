@@ -277,6 +277,27 @@ export function resolveTranscriptionProviderOptions(providerConfig?: Record<stri
   }
 }
 
+/**
+ * How Hearing starts a speech input while microphone input is on.
+ *
+ * - `always-on`: voice activity detection starts an input when the user speaks. The microphone stays open.
+ * - `push-to-talk`: an input starts only while the user holds the Push to Talk key. The microphone opens only during the hold.
+ */
+export type HearingInputMode = 'always-on' | 'push-to-talk'
+
+/**
+ * Tells if a mode keeps the microphone open and runs voice activity detection.
+ * The microphone settings store and `useVoiceListening` both read this, so they open and close the microphone together.
+ */
+export function listensContinuously(mode: HearingInputMode): boolean {
+  switch (mode) {
+    case 'always-on':
+      return true
+    case 'push-to-talk':
+      return false
+  }
+}
+
 export const useHearingStore = defineStore('hearing-store', () => {
   const providersStore = useProviderStore()
   const providerStore = useProviderConfigStore()
@@ -297,6 +318,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const activeTranscriptionModel = useLocalStorageManualReset('settings/hearing/active-model', '', persistenceOptions)
   const activeCustomModelName = useLocalStorageManualReset('settings/hearing/active-custom-model', '', persistenceOptions)
   const transcriptionModelSearchQuery = refManualReset<string>('')
+  const inputMode = useLocalStorageManualReset<HearingInputMode>('settings/hearing/input-mode', 'always-on', persistenceOptions)
   const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', false, persistenceOptions)
   const autoSendDelay = useLocalStorageManualReset<number>('settings/hearing/auto-send-delay', 2000, persistenceOptions) // Default 2 seconds
   const confidenceThreshold = useLocalStorageManualReset<number>('settings/hearing/confidence-threshold', CONFIDENCE_THRESHOLD_DISABLED, persistenceOptions)
@@ -373,6 +395,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     activeTranscriptionModel.reset()
     activeCustomModelName.reset()
     transcriptionModelSearchQuery.reset()
+    inputMode.reset()
     autoSendEnabled.reset()
     autoSendDelay.reset()
     confidenceThreshold.reset()
@@ -592,6 +615,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     availableProvidersMetadata,
     activeCustomModelName,
     transcriptionModelSearchQuery,
+    inputMode,
     autoSendEnabled,
     autoSendDelay,
     confidenceThreshold,

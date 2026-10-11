@@ -108,7 +108,8 @@ async function setupMocks() {
 
   vi.doMock('./global-shortcut-uiohook', () => ({
     createUiohookDriver: () => ({
-      tryRegister: vi.fn(async (binding: ShortcutBinding) => ({ id: binding.id, ok: true })),
+      // The real driver answers at once. An async double would leave the binding out of the active map.
+      tryRegister: vi.fn((binding: ShortcutBinding) => ({ id: binding.id, ok: true })),
       unregisterById: vi.fn(),
       unregisterAll: vi.fn(),
       dispose: vi.fn(),
@@ -271,6 +272,47 @@ describe('setupGlobalShortcutService', () => {
     m.triggerCallbacks.get('CmdOrCtrl+Shift+A')?.()
     expect(oldTriggered).not.toHaveBeenCalled()
     expect(nextTriggered).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects a uiohook binding whose key combination a main-owned Electron binding uses', async () => {
+    // Review: https://github.com/moeru-ai/airi/pull/2729#discussion_r4239027482
+    // The uiohook driver does not consume key events, so a hold binding on the Spotlight accelerator fired both.
+    const m = await setupMocks()
+    const service = m.setupGlobalShortcutService()
+    service.registerMainShortcut({ binding: exampleBinding('spotlight', 'KeyA'), onTriggered: vi.fn() })
+    const ctx = createMockContext()
+    registerMockWindow(service, ctx)
+
+    const handler = ctx.invokeHandlers.get('eventa:invoke:electron:shortcut:register')!
+    const result = await handler({ id: 'ptt', accelerator: { modifiers: ['shift', 'cmd-or-ctrl'], key: 'KeyA' }, scope: 'global', receiveKeyUps: true })
+
+    expect(result).toEqual({ id: 'ptt', ok: false, reason: ShortcutFailureReasons.Conflict })
+    const list = ctx.invokeHandlers.get('eventa:invoke:electron:shortcut:list')!
+    expect(list(undefined)).toEqual([exampleBinding('spotlight', 'KeyA')])
+  })
+
+  it('rejects a main-owned rebinding to a key combination that a uiohook binding uses', async () => {
+    const m = await setupMocks()
+    const service = m.setupGlobalShortcutService()
+    const ctx = createMockContext()
+    registerMockWindow(service, ctx)
+    const handler = ctx.invokeHandlers.get('eventa:invoke:electron:shortcut:register')!
+    await handler({ ...exampleBinding('ptt', 'Space'), receiveKeyUps: true })
+
+    const result = service.registerMainShortcut({ binding: exampleBinding('spotlight', 'Space'), onTriggered: vi.fn() })
+
+    expect(result).toEqual({ id: 'spotlight', ok: false, reason: ShortcutFailureReasons.Conflict })
+    expect(m.registerMock).not.toHaveBeenCalled()
+  })
+
+  it('allows a binding to keep its own key combination when it rebinds', async () => {
+    const m = await setupMocks()
+    const service = m.setupGlobalShortcutService()
+    service.registerMainShortcut({ binding: exampleBinding('spotlight', 'KeyA'), onTriggered: vi.fn() })
+
+    const result = service.registerMainShortcut({ binding: exampleBinding('spotlight', 'KeyA'), onTriggered: vi.fn() })
+
+    expect(result).toEqual({ id: 'spotlight', ok: true })
   })
 
   it('allows re-register after explicit unregister', async () => {
