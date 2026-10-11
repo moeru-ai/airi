@@ -9,6 +9,8 @@ import { useI18n } from 'vue-i18n'
 import ChatReplyQuote from './reply-quote.vue'
 import VoiceMessagePlayer from './voice-message-player.vue'
 
+import { useChatAssetUrls } from '../../../../composables/use-chat-asset-urls'
+import { chatAssetIdFrom } from '../../../../libs/chat-assets'
 import { useVoiceControlsStore } from '../../../../stores/voice-controls'
 import { MarkdownRenderer } from '../../../markdown'
 import { ChatActionMenu } from '../components/action-menu'
@@ -49,20 +51,24 @@ const content = computed(() => {
   return ''
 })
 
-const emptyImages: readonly string[] = Object.freeze([])
-const images = computed(() => typeof props.message.content === 'string'
-  ? emptyImages
+const emptySources: readonly string[] = Object.freeze([])
+/** Stored messages reference their images and recordings. A message from before asset references holds the bytes. */
+const images = useChatAssetUrls(() => typeof props.message.content === 'string'
+  ? emptySources
   : props.message.content.filter(part => part.type === 'image_url').map(part => part.image_url.url))
 const voiceControls = useVoiceControlsStore()
 /** The voice host still transcribes this message after its submit. */
 const transcribing = computed(() => voiceControls.messages.some(item => item.id === props.message.id && (item.phase === 'sending' || item.phase === 'transcribing')))
+const audioSources = useChatAssetUrls(() => typeof props.message.content === 'string'
+  ? emptySources
+  : props.message.content.filter(part => part.type === 'input_audio').map(part => chatAssetIdFrom(part.input_audio.data)
+      ? part.input_audio.data
+      : `data:audio/${part.input_audio.format === 'mp3' ? 'mpeg' : 'wav'};base64,${part.input_audio.data}`))
 /** Each recording with its transcript, when one was stored. Transcripts follow the audio part order. */
-const audio = computed(() => typeof props.message.content === 'string'
-  ? []
-  : props.message.content.filter(part => part.type === 'input_audio').map((part, index) => ({
-      source: `data:audio/${part.input_audio.format === 'mp3' ? 'mpeg' : 'wav'};base64,${part.input_audio.data}`,
-      transcript: props.message.audioTranscripts?.[index]?.trim(),
-    })))
+const audio = computed(() => audioSources.value.map((source, index) => ({
+  source,
+  transcript: props.message.audioTranscripts?.[index]?.trim(),
+})))
 
 /** A message that only holds recordings is a voice message. Its bubble fits the player instead of a text block. */
 const voiceOnly = computed(() => audio.value.length > 0 && !images.value.length && !content.value.trim() && !props.replyTarget)

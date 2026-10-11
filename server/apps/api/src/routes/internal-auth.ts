@@ -1,3 +1,4 @@
+import type { RevenuecatSubscriberClient } from '../services/adapters/revenuecat-subscriber'
 import type { ProductEventService } from '../services/domain/product-events'
 import type { UserDeletionExecutor, UserDeletionReason } from '../services/domain/user-deletion'
 import type { HonoEnv } from '../types/hono'
@@ -5,9 +6,15 @@ import type { HonoEnv } from '../types/hono'
 import { Hono } from 'hono'
 import { nonEmpty, object, picklist, pipe, safeParse, string, trim } from 'valibot'
 
+import { createSubscriptionActiveError } from '../utils/error'
+
 const UserDeletionRequestSchema = object({
   userId: pipe(string(), trim(), nonEmpty()),
   reason: picklist(['user-requested', 'admin', 'compliance']),
+})
+
+const UserDeletionCheckRequestSchema = object({
+  userId: pipe(string(), trim(), nonEmpty()),
 })
 
 const AuthEventRequestSchema = object({
@@ -24,8 +31,21 @@ const AuthEventRequestSchema = object({
 export function createInternalAuthRoutes(input: {
   userDeletionService: UserDeletionExecutor
   productEventService: Pick<ProductEventService, 'track'>
+  revenuecatSubscriber: Pick<RevenuecatSubscriberClient, 'hasRenewingSubscription'>
 }) {
   return new Hono<HonoEnv>()
+    // Auth asks this before it sends the deletion email, and again before it revokes
+    // external authorizations. The check changes nothing, so a refusal leaves the account whole.
+    // A deleted user cannot open the management URL, so a subscription that can still charge refuses.
+    .post('/user-deletion/check', async (c) => {
+      const parsed = safeParse(UserDeletionCheckRequestSchema, await c.req.json().catch(() => null))
+      if (!parsed.success)
+        return c.json({ error: 'BAD_REQUEST', message: 'Invalid user deletion check' }, 400)
+
+      if (await input.revenuecatSubscriber.hasRenewingSubscription(parsed.output.userId))
+        throw createSubscriptionActiveError()
+      return c.json({ deletable: true })
+    })
     .post('/user-deletion', async (c) => {
       const parsed = safeParse(UserDeletionRequestSchema, await c.req.json().catch(() => null))
       if (!parsed.success)

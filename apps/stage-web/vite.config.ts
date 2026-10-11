@@ -20,6 +20,7 @@ import VueRouter from 'vue-router/vite'
 import { tryCatch } from '@moeru/std'
 import { localeRemap, serializeStartupFallbackLocales } from '@proj-airi/i18n'
 import { paraformerBilingualZhEn, xAsrBilingualZhEnInt8, zipformerMultilingual } from '@proj-airi/provider-inference/sherpaw-transcription/models'
+import { kwsModel } from '@proj-airi/stage-ui/libs/voice/kws-model-info'
 import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
 import { Sherpaw } from '@proj-airi/vite-plugin-sherpaw'
@@ -226,6 +227,21 @@ export default defineConfig({
           },
           workbox: {
             maximumFileSizeToCacheInBytes: 64 * 1024 * 1024,
+            // The WebAssembly files are over 80% of the build (DuckDB alone ships
+            // three variants and a browser loads one). Precaching them downloads
+            // them all at install, so they are cached on first use instead.
+            globIgnores: ['**/*.wasm'],
+            runtimeCaching: [
+              {
+                urlPattern: ({ url }) => url.pathname.endsWith('.wasm'),
+                // The file names carry a content hash, so a cached file never goes stale.
+                handler: 'CacheFirst',
+                options: {
+                  cacheName: 'wasm',
+                  expiration: { maxEntries: 8 },
+                },
+              },
+            ],
             // Cloudflare redirects /index.html to /. Cache the canonical response
             // so navigation fallbacks never replay a redirected response.
             modifyURLPrefix: { 'index.html': './' },
@@ -251,7 +267,8 @@ export default defineConfig({
     ...(env.VITEST ? [] : [VueDevTools()]),
 
     // Web exposes pinned remote models. The browser downloads only the selected model.
-    Sherpaw({ models: [paraformerBilingualZhEn, zipformerMultilingual, xAsrBilingualZhEnInt8], cacheDir: sharedCacheDir }),
+    // The wake word model downloads when wake word detection first prepares.
+    Sherpaw({ models: [paraformerBilingualZhEn, zipformerMultilingual, xAsrBilingualZhEnInt8, kwsModel], cacheDir: sharedCacheDir }),
     DownloadLive2DSDK(),
     Download('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
     Download('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),

@@ -7,6 +7,7 @@ import { useLive2dParams } from '@proj-airi/stage-ui-live2d/stores/model-paramet
 import { useModelStore } from '@proj-airi/stage-ui-three'
 
 import { useLive2DMotionMagicSettings } from '../features/motions/live2d'
+import { clearSherpawModelAssets } from '../libs/providers/providers/sherpaw/model-assets'
 import { useChatStore } from '../stores/chat'
 import { useChatSessionStore } from '../stores/chat/session-store'
 import { useDisplayModelsStore } from '../stores/display-models'
@@ -18,6 +19,7 @@ import { useDiscordStore } from '../stores/modules/discord'
 import { useFactorioStore } from '../stores/modules/gaming-factorio'
 import { useMinecraftStore } from '../stores/modules/gaming-minecraft'
 import { useHearingStore } from '../stores/modules/hearing'
+import { useHomeAssistantStore } from '../stores/modules/home-assistant'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useTwitterStore } from '../stores/modules/twitter'
 import { useWebSearchStore } from '../stores/modules/web-search'
@@ -38,6 +40,7 @@ export function useDataMaintenance() {
   const screenAmbientLightSettingsStore = useSettingsScreenAmbientLight()
   const threeStore = useModelStore()
   const hearingStore = useHearingStore()
+  const homeAssistantStore = useHomeAssistantStore()
   const speechStore = useSpeechStore()
   const consciousnessStore = useConsciousnessStore()
   const consciousnessSettingsStore = useConsciousnessSettingsStore()
@@ -66,6 +69,7 @@ export function useDataMaintenance() {
     // leader RPCs leave the other modules free to finish their cleanup.
     const results = await Promise.allSettled([
       () => hearingStore.resetState(),
+      () => homeAssistantStore.resetState(),
       () => speechStore.resetState(),
       () => consciousnessStore.resetState(),
       () => consciousnessSettingsStore.resetState(),
@@ -122,6 +126,7 @@ export function useDataMaintenance() {
     await resetModulesSettings()
     await deleteAllChatSessions()
     await resetSettingsState()
+    await clearSherpawModelAssets()
   }
 
   async function resetDesktopApplicationState() {

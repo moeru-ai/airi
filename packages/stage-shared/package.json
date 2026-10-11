@@ -21,6 +21,7 @@
     "./beat-sync": "./src/beat-sync/index.ts",
     "./global-shortcut": "./src/global-shortcut/index.ts",
     "./godot-stage": "./src/godot-stage/index.ts",
+    "./model-assets": "./src/model-assets/index.ts",
     "./perf/io-trace": "./src/perf/io-trace.ts",
     "./plugin-host": "./src/plugin-host.ts",
     "./screen-ambient-light": "./src/screen-ambient-light/index.ts",

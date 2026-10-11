@@ -6,9 +6,10 @@ import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/el
 import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
 import { artistrySyncConfig } from '@proj-airi/stage-shared'
 import { ToasterRoot } from '@proj-airi/stage-ui/components'
-import { useInferencePreload } from '@proj-airi/stage-ui/composables'
+import { updateModelAssetStatus, useInferencePreload } from '@proj-airi/stage-ui/composables'
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { initializeAnalytics } from '@proj-airi/stage-ui/libs/product-signals'
+import { isSherpawModelBundled, setSherpawModelAssetHost } from '@proj-airi/stage-ui/libs/providers/providers/sherpaw/model-assets'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -44,6 +45,7 @@ import {
   i18nGetLocale,
   i18nSetLocale,
 } from '../shared/eventa'
+import { electronModelAssetCancel, electronModelAssetEnsure, electronModelAssetRemove, electronModelAssetsClear, electronModelAssetsList, electronModelAssetStatusChanged } from '../shared/eventa/model-assets'
 import {
   electronPluginUpdateCapability,
   pluginProtocolListProviders,
@@ -82,6 +84,26 @@ const { language, themeColorsHue, themeColorsHueDynamic } = storeToRefs(settings
 const router = useRouter()
 const route = useRoute()
 const context = useElectronEventaContext()
+const listModelAssets = useElectronEventaInvoke(electronModelAssetsList)
+const ensureModelAsset = useElectronEventaInvoke(electronModelAssetEnsure)
+const cancelModelAsset = useElectronEventaInvoke(electronModelAssetCancel)
+const removeModelAsset = useElectronEventaInvoke(electronModelAssetRemove)
+const clearModelAssets = useElectronEventaInvoke(electronModelAssetsClear)
+const stopModelAssetStatus = context.value.on(electronModelAssetStatusChanged, (event) => {
+  if (event.body && !isSherpawModelBundled(event.body.id))
+    updateModelAssetStatus(event.body)
+})
+setSherpawModelAssetHost({
+  fetch: (model, fileName, signal) => fetch(
+    `airi-model://assets/${encodeURIComponent(model.id)}/${encodeURIComponent(model.revision)}/${fileName}`,
+    { signal },
+  ),
+  list: listModelAssets,
+  ensure: ensureModelAsset,
+  cancel: cancelModelAsset,
+  remove: removeModelAsset,
+  clear: clearModelAssets,
+})
 const getMainLocale = useElectronEventaInvoke(i18nGetLocale)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
 const windowContext = resolveRendererWindowContext()
@@ -353,6 +375,13 @@ if (isSettingsWindow) {
 }
 
 onMounted(async () => {
+  void listModelAssets().then((statuses) => {
+    for (const status of statuses) {
+      if (!isSherpawModelBundled(status.id))
+        updateModelAssetStatus(status)
+    }
+  }).catch(error => console.warn('Failed to read model asset status:', error))
+
   // NOTICE: Issue #1658
   // When Electron restarts, renderer localStorage may not be flushed to disk.
   // The store's onMounted hook falls back to navigator.language, which triggers
@@ -376,6 +405,7 @@ watch(themeColorsHueDynamic, () => {
 
 onUnmounted(() => {
   stopIOTraceRecordingBridge?.()
+  stopModelAssetStatus()
   stopLeadershipListener?.()
   chatStore.dispose()
   fullStageRuntime?.dispose()

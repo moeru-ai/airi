@@ -36,6 +36,7 @@ const saveIndexMock = vi.fn<(idx: ChatSessionsIndex) => Promise<void>>()
 const getSessionMock = vi.fn<(id: string) => Promise<ChatSessionRecord | null>>()
 const saveSessionMock = vi.fn<(id: string, rec: ChatSessionRecord) => Promise<void>>()
 const deleteSessionRepoMock = vi.fn<(id: string) => Promise<void>>()
+const releaseAssetsMock = vi.fn<(id: string, ids: Iterable<string>) => Promise<void>>()
 const getOutboxMock = vi.fn<(uid: string) => Promise<import('../../database/repos/chat-sessions.repo').ChatSendOutboxEntry[]>>()
 const dropOutboxForSessionMock = vi.fn<(uid: string, id: string) => Promise<void>>()
 const getTombstonesMock = vi.fn<(uid: string) => Promise<string[]>>()
@@ -55,6 +56,7 @@ vi.mock('../../database/repos/chat-sessions.repo', () => ({
     getSession: (id: string) => getSessionMock(id),
     saveSession: (id: string, rec: ChatSessionRecord) => saveSessionMock(id, rec),
     deleteSession: (id: string) => deleteSessionRepoMock(id),
+    releaseAssets: (id: string, ids: Iterable<string>) => releaseAssetsMock(id, ids),
     getOutbox: (uid: string) => getOutboxMock(uid),
     enqueueOutbox: vi.fn().mockResolvedValue(undefined),
     dequeueOutbox: vi.fn().mockResolvedValue(undefined),
@@ -136,6 +138,7 @@ beforeEach(() => {
   getSessionMock.mockReset().mockResolvedValue(null)
   saveSessionMock.mockReset().mockResolvedValue(undefined)
   deleteSessionRepoMock.mockReset().mockResolvedValue(undefined)
+  releaseAssetsMock.mockReset().mockResolvedValue(undefined)
   getOutboxMock.mockReset().mockResolvedValue([])
   dropOutboxForSessionMock.mockReset().mockResolvedValue(undefined)
   getTombstonesMock.mockReset().mockResolvedValue([])
@@ -1039,6 +1042,27 @@ describe('chat-session-store · synchronized data actions', () => {
     })
 
     expect(store.getSessionMessages('session-1').map(message => message.id)).toEqual(['keep'])
+  })
+
+  it('releases the assets of a deleted message that no other message references', async () => {
+    const store = useChatSessionStore()
+    const recording = (id: string) => ({ type: 'input_audio' as const, input_audio: { data: `airi-asset:${id}`, format: 'wav' as const } })
+    store.applyRemoteSnapshot({
+      activeSessionId: 'session-1',
+      sessionMessages: {
+        'session-1': [
+          { id: 'keep', role: 'user', content: [recording('shared')] },
+          { id: 'delete', role: 'user', content: [recording('shared'), recording('only-here'), { type: 'image_url', image_url: { url: 'airi-asset:image' } }] },
+        ],
+      },
+      sessionMetas: {},
+    })
+
+    await store.deleteMessage({ sessionId: 'session-1', messageId: 'delete' })
+
+    expect(releaseAssetsMock).toHaveBeenCalledTimes(1)
+    expect([...releaseAssetsMock.mock.calls[0][1]].sort()).toEqual(['image', 'only-here'])
+    expect(releaseAssetsMock.mock.calls[0][0]).toBe('session-1')
   })
 
   it('keeps window-local selection out of synchronized and persisted session state', async () => {

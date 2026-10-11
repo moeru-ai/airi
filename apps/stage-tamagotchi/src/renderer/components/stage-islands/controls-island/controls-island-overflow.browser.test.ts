@@ -11,6 +11,7 @@ import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision/store'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
+import { useTheme } from '@proj-airi/ui'
 import { createPinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
@@ -400,6 +401,22 @@ describe('controls Island overflow', () => {
 })
 
 // https://github.com/moeru-ai/airi/issues/2521
+it('cycles the theme through light, dark, and the system scheme', async () => {
+  const { i18n, screen } = mountControlsIsland('bottom-right')
+  const label = (key: string) => i18n.global.t(`tamagotchi.stage.controls-island.${key}`)
+  await screen.getByLabelText(label('expand'), { exact: true }).click()
+
+  const { themeMode } = useTheme()
+  const order = ['light', 'dark', 'auto'] as const
+  const labelKeys = { light: 'switch-to-light-mode', dark: 'switch-to-dark-mode', auto: 'switch-to-system-mode' }
+  // Three presses return to the starting theme, so the test leaves the stored theme as it was.
+  for (let press = 0; press < order.length; press++) {
+    const next = order[(order.indexOf(themeMode.value) + 1) % order.length]
+    await screen.getByLabelText(label(labelKeys[next]), { exact: true }).click()
+    expect(themeMode.value).toBe(next)
+  }
+})
+
 it('keeps the menu open while genuinely hovered even if the Electron cursor signal reports outside', async () => {
   // ROOT CAUSE:
   //

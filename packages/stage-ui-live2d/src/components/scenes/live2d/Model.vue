@@ -273,6 +273,13 @@ const disposeShouldUpdateView = live2dStore.onShouldUpdateView(() => {
   loadModel()
 })
 
+// The textures sit in the global Pixi texture cache under the model's blob URLs.
+// Each cached texture holds a listener into the renderer that uploaded it, so a
+// texture left there keeps that renderer's WebGL context and GPU memory alive.
+function destroyModel(target: Live2DModel) {
+  target.destroy({ texture: true, baseTexture: true })
+}
+
 async function loadModel() {
   await until(modelLoading).not.toBeTruthy()
 
@@ -311,7 +318,7 @@ async function performModelLoad() {
 
     try {
       pixiApp.value.stage.removeChild(model.value)
-      model.value.destroy()
+      destroyModel(model.value)
     }
     catch (error) {
       console.warn('Error removing old model:', error)
@@ -339,6 +346,12 @@ async function performModelLoad() {
 
     const live2DModel = new Live2DModel<PixiLive2DInternalModel>()
     await Live2DFactory.setupLive2DModel(live2DModel, { url: pendingModel.src, id: pendingModel.id }, { autoInteract: false })
+    // The unmount hook ran while the model was loading, so it had no model to destroy.
+    if (isUnmounted) {
+      destroyModel(live2DModel)
+      return
+    }
+
     availableMotions.value.forEach((motion) => {
       if (motion.motionName in Emotion) {
         motionMap.value[motion.fileName] = motion.motionName
@@ -477,7 +490,7 @@ async function performModelLoad() {
       const selectedMotionIndex = localStorage.getItem('selected-runtime-motion-index')
 
       if (selectedMotionGroup !== null && selectedMotionIndex && live2dIdleAnimationEnabled.value) {
-        // Restart the selected runtime motion immediately for seamless looping
+        // Restart the selected runtime motion at once, so the loop has no gap
         console.info('Motion finished, restarting runtime motion:', selectedMotionGroup, selectedMotionIndex)
         // Use requestAnimationFrame to restart on the next frame for smooth transition
         requestAnimationFrame(() => {
@@ -917,6 +930,16 @@ onUnmounted(() => {
     model.value.filters = []
   screenAmbientLightFilter.value.destroy()
   dropShadowFilter.value.destroy()
+
+  // The model registers on the global `Ticker.shared` when it is built, and only
+  // `destroy()` removes it. Without this, each stage remount leaves the old model
+  // updating every frame and holding its Cubism memory. This component unmounts
+  // before the canvas, so the stage still exists here.
+  if (model.value) {
+    pixiApp.value?.stage?.removeChild(model.value)
+    destroyModel(model.value)
+    model.value = undefined
+  }
 })
 
 function listMotionGroups() {

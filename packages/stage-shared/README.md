@@ -12,6 +12,10 @@ The `plugin-host` entrypoint owns the serializable Plugin Host snapshots exchang
 import type { PluginHostDebugSnapshot } from '@proj-airi/stage-shared/plugin-host'
 ```
 
+The `model-assets` entrypoint owns model file manifests, download status, and
+the storage adapter contract. Use a platform adapter to store and open files.
+It does not own a recognizer or Worker.
+
 ## Do not use this package
 
 Keep Electron IPC definitions in the Electron application. Keep UI state and actions in `@proj-airi/stage-ui`. Keep Extension runtime and manifest behavior in `@proj-airi/plugin-sdk`.

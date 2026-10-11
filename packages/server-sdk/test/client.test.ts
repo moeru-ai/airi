@@ -400,6 +400,59 @@ describe('client', () => {
     expect(connection.sent.at(-1)?.metadata.event.id).toEqual(expect.any(String))
   })
 
+  it('reads an asset from the answer to its own request', async () => {
+    const connector = new FakeConnector()
+    const client = new Client({
+      autoConnect: false,
+      autoReconnect: false,
+      connector,
+      handshake: 'manual',
+      name: 'test-extension',
+    })
+
+    const connected = client.connect()
+    const connection = connector.open()
+    await connected
+
+    const asset = client.getAsset('airi-asset:abc')
+    const request = connection.sent.at(-1)!
+    expect(request).toMatchObject({ type: 'asset:get:request', data: { ref: 'airi-asset:abc' } })
+
+    const answer = (data: WebSocketEventOf<'asset:get:response'>['data'], parentId: string) => ({
+      ...serverEvent('asset:get:response', data),
+      metadata: { source: { kind: 'plugin', plugin: { id: 'stage' }, id: 'stage-1' }, event: { id: `answer-${parentId}`, parentId } },
+    }) as WebSocketEventOf<'asset:get:response'>
+    // An answer to another request does not settle this one.
+    connector.emit(answer({ ref: 'airi-asset:abc', error: 'not mine' }, 'other'))
+    connector.emit(answer({ ref: 'airi-asset:abc', mimeType: 'audio/wav', data: 'UklGRg==' }, request.metadata.event.id))
+
+    await expect(asset).resolves.toEqual({ mimeType: 'audio/wav', data: new Uint8Array([82, 73, 70, 70]) })
+  })
+
+  it('rejects an asset read with the stage error', async () => {
+    const connector = new FakeConnector()
+    const client = new Client({
+      autoConnect: false,
+      autoReconnect: false,
+      connector,
+      handshake: 'manual',
+      name: 'test-extension',
+    })
+
+    const connected = client.connect()
+    const connection = connector.open()
+    await connected
+
+    const asset = client.getAsset('airi-asset:gone')
+    const request = connection.sent.at(-1)!
+    connector.emit({
+      ...serverEvent('asset:get:response', { ref: 'airi-asset:gone', error: 'Chat asset is missing' }),
+      metadata: { source: { kind: 'plugin', plugin: { id: 'stage' }, id: 'stage-1' }, event: { id: 'answer', parentId: request.metadata.event.id } },
+    } as WebSocketEventOf<'asset:get:response'>)
+
+    await expect(asset).rejects.toThrow('Chat asset is missing')
+  })
+
   it('can disable protocol heartbeat', async () => {
     const connector = new FakeConnector()
     const client = new Client({

@@ -41,7 +41,8 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 <template>
   <!-- macOS vibrancy and Windows acrylic draw the window surface. The page stays transparent and drags the window. -->
   <main :class="['drag-region h-full w-full flex flex-col bg-transparent text-neutral-900 dark:text-neutral-100']">
-    <VoiceDrafts variant="composer" @presence="handlePresence">
+    <!-- Push to Talk opens the inlay when capture starts, before any transcript text. -->
+    <VoiceDrafts variant="composer" show-silent-speech @presence="handlePresence">
       <template #hint>
         <kbd
           :class="[

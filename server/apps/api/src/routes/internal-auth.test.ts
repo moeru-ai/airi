@@ -1,12 +1,15 @@
+import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
 
+import { ApiError } from '../utils/error'
 import { createInternalAuthRoutes } from './internal-auth'
 
 describe('internal auth routes', () => {
   it('rejects an invalid deletion contract before calling business services', async () => {
     const userDeletionService = { register: vi.fn(), softDeleteAll: vi.fn() }
     const productEventService = { track: vi.fn() }
-    const app = createInternalAuthRoutes({ userDeletionService, productEventService })
+    const revenuecatSubscriber = { hasRenewingSubscription: vi.fn(async () => false) }
+    const app = createInternalAuthRoutes({ userDeletionService, productEventService, revenuecatSubscriber })
 
     const response = await app.request('/user-deletion', { method: 'POST', body: '{}' })
 
@@ -17,7 +20,8 @@ describe('internal auth routes', () => {
   it('delegates private cleanup to the API-owned deletion workflow', async () => {
     const userDeletionService = { register: vi.fn(), softDeleteAll: vi.fn(async () => undefined) }
     const productEventService = { track: vi.fn() }
-    const app = createInternalAuthRoutes({ userDeletionService, productEventService })
+    const revenuecatSubscriber = { hasRenewingSubscription: vi.fn(async () => false) }
+    const app = createInternalAuthRoutes({ userDeletionService, productEventService, revenuecatSubscriber })
 
     const response = await app.request('/user-deletion', {
       method: 'POST',
@@ -37,9 +41,11 @@ describe('internal auth routes', () => {
   it('records private auth lifecycle events in the API-owned event service', async () => {
     const userDeletionService = { register: vi.fn(), softDeleteAll: vi.fn() }
     const productEventService = { track: vi.fn(async () => undefined) }
+    const revenuecatSubscriber = { hasRenewingSubscription: vi.fn(async () => false) }
     const app = createInternalAuthRoutes({
       userDeletionService,
       productEventService,
+      revenuecatSubscriber,
     })
 
     const response = await app.request('/events', {
@@ -61,6 +67,41 @@ describe('internal auth routes', () => {
       action: 'user_signed_up',
       status: 'succeeded',
       source: 'better-auth.user.create',
+    })
+  })
+
+  describe('deletion check', () => {
+    function checkApp(renewing: boolean) {
+      const revenuecatSubscriber = { hasRenewingSubscription: vi.fn(async () => renewing) }
+      const userDeletionService = { register: vi.fn(), softDeleteAll: vi.fn() }
+      const app = new Hono()
+        .onError((error, c) => error instanceof ApiError ? c.json({ error: error.errorCode }, error.statusCode) : c.json({}, 500))
+        .route('/', createInternalAuthRoutes({ userDeletionService, productEventService: { track: vi.fn() }, revenuecatSubscriber }))
+      const check = () => app.request('/user-deletion/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: 'user-1' }),
+      })
+      return { check, revenuecatSubscriber, userDeletionService }
+    }
+
+    it('accepts a user without a subscription that can still charge', async () => {
+      const { check, revenuecatSubscriber } = checkApp(false)
+
+      const response = await check()
+
+      expect(response.status).toBe(200)
+      expect(revenuecatSubscriber.hasRenewingSubscription).toHaveBeenCalledWith('user-1')
+    })
+
+    it('refuses with 409 and deletes nothing while a subscription can still charge', async () => {
+      const { check, userDeletionService } = checkApp(true)
+
+      const response = await check()
+
+      expect(response.status).toBe(409)
+      expect(await response.json()).toEqual({ error: 'SUBSCRIPTION_ACTIVE' })
+      expect(userDeletionService.softDeleteAll).not.toHaveBeenCalled()
     })
   })
 })

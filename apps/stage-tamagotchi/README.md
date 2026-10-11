@@ -8,6 +8,13 @@ Shared character behavior belongs in `packages/stage-ui`. Use `stage-web` for br
 From the repository root, run `pnpm install`, then `pnpm dev:tamagotchi`.
 Run `pnpm -F @proj-airi/stage-tamagotchi build` to build the app.
 
+## Local model files
+
+Sherpaw downloads remote model files into the app user data directory. The main
+process serves installed files to the renderer through `airi-model`. The desktop
+release bundles X-ASR through `airi-sherpaw`. Sherpaw settings control
+remote downloads. The Resource Status Island shows transfer progress and errors.
+
 ## Computer use
 
 The desktop chat composer starts with **Use computer** on. Turn it off to send a request without desktop access.

@@ -17,6 +17,7 @@ import { useDiscordStore } from '../stores/modules/discord'
 import { useFactorioStore } from '../stores/modules/gaming-factorio'
 import { useMinecraftStore } from '../stores/modules/gaming-minecraft'
 import { useHearingStore } from '../stores/modules/hearing'
+import { useHomeAssistantStore } from '../stores/modules/home-assistant'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useTwitterStore } from '../stores/modules/twitter'
 import { useWebSearchStore } from '../stores/modules/web-search'
@@ -82,8 +83,13 @@ it.each(['resetSettings', 'resetState'])('continues independent module resets wh
   const { pinia } = follower
   await useConsciousnessSettingsStore(pinia).setReasoning(true)
   useMinecraftStore(pinia).latestRuntimeContextText = 'previous context'
+  // A policy that a module reset must clear, so the picker cannot restore it.
+  const homeAssistant = useHomeAssistantStore(pinia)
+  homeAssistant.exposureMode = 'deny'
+  homeAssistant.deniedEntities = ['lock.front_door']
   const modules = [
     useHearingStore(pinia),
+    homeAssistant,
     useSpeechStore(pinia),
     useConsciousnessStore(pinia),
     useTwitterStore(pinia),
@@ -108,5 +114,24 @@ it.each(['resetSettings', 'resetState'])('continues independent module resets wh
   await expect(follower.maintenance.resetModulesSettings()).rejects.toThrow('Reset transport unavailable')
   expect(resetModules).toEqual(modules.map(module => module.$id))
   expect(useMinecraftStore(pinia).latestRuntimeContextText).toBe('')
+  expect(homeAssistant.exposureMode).toBe('all')
+  expect(homeAssistant.deniedEntities).toEqual([])
   expect(useConsciousnessSettingsStore(leader.pinia).reasoning).toBe(action === 'resetState')
+})
+
+it('removes downloaded speech models when all data is deleted', async () => {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
+  const origin = await navigator.storage.getDirectory()
+  const root = await origin.getDirectoryHandle('airi-model-assets', { create: true })
+  const stored = await (await root.getDirectoryHandle('speech', { create: true }))
+    .getDirectoryHandle('v1', { create: true })
+  const writable = await (await stored.getFileHandle('data', { create: true })).createWritable()
+  await writable.write('model data')
+  await writable.close()
+  const { runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
+  await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
+
+  await maintenance.deleteAllData()
+
+  await expect(origin.getDirectoryHandle('airi-model-assets')).rejects.toThrow()
 })

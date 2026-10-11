@@ -225,6 +225,13 @@
       "when": 1791290026756,
       "tag": "0031_character_cards",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1791636328908,
+      "tag": "0032_capacitor",
+      "breakpoints": true
     }
   ]
 }

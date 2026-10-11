@@ -533,12 +533,24 @@ interface InputSource {
   'discord': Discord
 }
 
+/** An image or recording of the user message of a chat turn. Read its bytes with `asset:get:request`. */
+export interface ChatEventAttachment {
+  type: 'image' | 'audio'
+  /** `airi-asset:<id>`. */
+  ref: string
+  mimeType?: string
+  /** Speech recognized in a recording, when the stage has it. */
+  transcript?: string
+}
+
 interface OutputSource {
   'gen-ai:chat': {
     message: UserMessage
     contexts: Record<string, ContextUpdate<Record<string, any>, unknown>[]>
     composedMessage: Array<Message>
     input?: InputEventEnvelope
+    /** Images and recordings of the user message of this turn. `message` holds only its text. */
+    attachments?: ChatEventAttachment[]
   }
 }
 
@@ -1084,6 +1096,26 @@ type OutputGenAiChatCompleteEvent = {
   usage: OutputGenAiChatUsage
 } & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>> & Partial<WithOutputSource<'gen-ai:chat'>>
 
+/**
+ * Chat messages hold `airi-asset:<id>` in place of image and audio bytes, for example in `output:gen-ai:chat:message`.
+ * A module reads the bytes with `asset:get:request`.
+ */
+export const ASSET_REF_PREFIX = 'airi-asset:'
+
+/** Asks the stage for the bytes of one asset reference. */
+export interface AssetGetRequestEvent {
+  /** The reference as it appears in a message, `airi-asset:<id>`. */
+  ref: string
+}
+
+/**
+ * The stage answer to `asset:get:request`. `metadata.event.parentId` is the event ID of the request.
+ * It carries either the bytes or an error.
+ */
+export type AssetGetResponseEvent
+  = | { ref: string, mimeType: string, /** Base64 bytes. */ data: string }
+    | { ref: string, error: string }
+
 interface SparkNotifyEvent {
   id: string
   eventId: string
@@ -1279,6 +1311,9 @@ export const outputGenAiChatToolCall = defineProtocolEventa<OutputGenAiChatToolC
 export const outputGenAiChatMessage = defineProtocolEventa<OutputGenAiChatMessageEvent>('output:gen-ai:chat:message')
 export const outputGenAiChatComplete = defineProtocolEventa<OutputGenAiChatCompleteEvent>('output:gen-ai:chat:complete')
 
+export const assetGetRequest = defineProtocolEventa<AssetGetRequestEvent>('asset:get:request')
+export const assetGetResponse = defineProtocolEventa<AssetGetResponseEvent>('asset:get:response')
+
 export const sparkNotify = defineProtocolEventa<SparkNotifyEvent>('spark:notify')
 export const sparkEmit = defineProtocolEventa<SparkEmitEvent>('spark:emit')
 export const sparkCommand = defineProtocolEventa<SparkCommandEvent>('spark:command')
@@ -1465,6 +1500,24 @@ export interface ProtocolEvents<C = undefined> {
   'output:gen-ai:chat:tool-call': OutputGenAiChatToolCallEvent
   'output:gen-ai:chat:message': OutputGenAiChatMessageEvent
   'output:gen-ai:chat:complete': OutputGenAiChatCompleteEvent
+
+  /**
+   * Reads the bytes of an image or recording that a chat message references (module → stage).
+   *
+   * Use when:
+   * - A module needs the media of a chat message, which holds `airi-asset:<id>` in place of bytes
+   *
+   * Expectations:
+   * - The stage answers only a connection that announced a module. It reads the server-set `metadata.sender`, not `metadata.source`
+   * - The answer goes to the asking connection only, through the destination `peer:<peerId>`
+   * - Assets are at most 50 MB. A larger one answers with an error
+   * - A module that can ask can read any reference. References are SHA-256 IDs of the bytes and appear only in chat events
+   */
+  'asset:get:request': AssetGetRequestEvent
+  /**
+   * The stage answer to `asset:get:request` (stage → module). `metadata.event.parentId` names the request.
+   */
+  'asset:get:response': AssetGetResponseEvent
 
   /**
    * Spark used for allowing agents in a network to raise an event toward the other destinations (e.g. character).

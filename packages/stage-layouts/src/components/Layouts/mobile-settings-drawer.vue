@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { Avatar, BasicButton, BottomDrawer, Checkbox, GhostButton, useTheme } from '@proj-airi/ui'
+import { Avatar, BasicButton, BottomDrawer, Checkbox, GhostButton, SelectTab, useTheme } from '@proj-airi/ui'
 import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { shallowRef } from 'vue'
@@ -19,7 +19,7 @@ const emit = defineEmits<{
 }>()
 const characterVoiceEnabled = defineModel<boolean>('characterVoiceEnabled', { required: true })
 const { t } = useI18n()
-const { isDark } = useTheme()
+const { themeMode } = useTheme()
 const authStore = useAuthStore()
 const { isAuthenticated, user } = storeToRefs(authStore)
 const router = useRouter()
@@ -123,11 +123,26 @@ function finishSettingsClose() {
           {{ t('stage.mobile-tools.appearance') }}
         </h3>
         <div :class="['overflow-hidden rounded-2xl bg-white dark:bg-neutral-800/60']">
-          <label :class="['min-h-13 flex cursor-pointer items-center gap-3 px-4 py-3']">
-            <span aria-hidden="true" :class="['i-solar:moon-outline size-5 shrink-0 text-neutral-400']" />
-            <span :class="['flex-1 text-sm']">{{ t('stage.mobile-tools.dark-mode') }}</span>
-            <Checkbox v-model="isDark" :aria-label="t('stage.mobile-tools.dark-mode')" />
-          </label>
+          <div :class="['min-h-13 flex flex-wrap items-center gap-3 px-4 py-3']">
+            <span aria-hidden="true" :class="['i-lucide:contrast size-5 shrink-0 text-neutral-400']" />
+            <span :class="['shrink-0 text-sm']">{{ t('stage.theme.title') }}</span>
+            <!--
+              The indicator takes an equal share of the tabs, so the tabs must be equal.
+              On a narrow screen they move below the title instead of shrinking.
+            -->
+            <SelectTab
+              v-model="themeMode"
+              size="xs"
+              tab-space="compact"
+              :class="['flex-1 basis-48', '[&_[role=radio]]:min-w-0']"
+              :aria-label="t('stage.theme.title')"
+              :options="[
+                { value: 'auto', label: t('stage.theme.system') },
+                { value: 'light', label: t('stage.theme.light') },
+                { value: 'dark', label: t('stage.theme.dark') },
+              ]"
+            />
+          </div>
           <div :class="['mx-4 border-t border-neutral-100 dark:border-neutral-700/50']" />
           <GhostButton
             block size="unset"

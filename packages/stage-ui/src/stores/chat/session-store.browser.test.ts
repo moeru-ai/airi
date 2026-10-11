@@ -152,6 +152,26 @@ describe('chat session synchronization', () => {
     await expect(followerStore.ensureCharacterSession('missing')).rejects.toThrow('unavailable')
   })
 
+  it('resets a background session with the prompt of its own character', async () => {
+    const namespace = `chat-session:${crypto.randomUUID()}`
+    const leader = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    setActivePinia(leader.pinia)
+    const cards = useAiriCardStore()
+    const background = cards.getCard('background-character')!
+    cards.cards.set('background-character', { ...background, systemPrompt: 'Background character prompt' })
+    const store = useChatSessionStore()
+    await store.initialize()
+    const sessionId = await store.ensureCharacterSession('background-character')
+
+    store.cleanupMessages(sessionId)
+
+    expect(cards.activeCardId).toBe('default')
+    expect(store.getSessionMessages(sessionId)[0]?.content).toContain('Background character prompt')
+    expect(store.getSessionSystemPrompt(sessionId)).toContain('Background character prompt')
+    expect(store.getSessionSystemPrompt(store.activeSessionId)).not.toContain('Background character prompt')
+  })
+
   it('persists follower interruption retries once and preserves the first control event', async () => {
     const namespace = `chat-session:${crypto.randomUUID()}`
     const leader = createSyncedContext(namespace, 'leader-only')
