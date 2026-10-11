@@ -1,13 +1,16 @@
-import { Buffer } from 'node:buffer'
+import type { PcmBlock } from '@proj-airi/pipelines-audio'
+
 import { writeFile } from 'node:fs/promises'
 import { env } from 'node:process'
 import { fileURLToPath } from 'node:url'
+
+import { encodeWav, toFloat32FromPCM16 } from '@proj-airi/audio/encoding'
 
 import { loadCaseEnvironment } from '../cases/shared/configurations'
 
 /** OpenAI `pcm` speech is 24 kHz mono signed 16-bit little-endian PCM without a header. */
 const speechSampleRate = 24_000
-/** The pinned KWS model and the existing fixtures use 16 kHz mono 16-bit PCM. */
+/** The pinned KWS model and the existing fixtures use 16 kHz mono 16-bit PCM. `encodeWav` resamples to this rate. */
 const fixtureSampleRate = 16_000
 
 interface WakeWordFixture {
@@ -60,34 +63,7 @@ async function synthesize(phrase: string, environment: Record<string, string | u
   if (!response.ok)
     throw new Error(`The speech request for "${phrase}" failed with status ${response.status}.`)
 
-  const bytes = Buffer.from(await response.arrayBuffer())
-  const samples = new Float32Array(Math.floor(bytes.length / 2))
-  for (let index = 0; index < samples.length; index++)
-    samples[index] = bytes.readInt16LE(index * 2) / 32_768
-  return samples
-}
-
-/** Converts the sample rate with a Hann-windowed sinc filter that removes content above the target Nyquist rate. */
-function resample(samples: Float32Array, fromRate: number, toRate: number): Float32Array {
-  const ratio = fromRate / toRate
-  // A cutoff below the target Nyquist rate keeps aliasing out of the speech band.
-  const cutoff = 0.95 * Math.min(1, toRate / fromRate)
-  const halfWidth = 32
-  const output = new Float32Array(Math.floor(samples.length / ratio))
-  for (let index = 0; index < output.length; index++) {
-    const center = index * ratio
-    const first = Math.ceil(center - halfWidth)
-    const last = Math.floor(center + halfWidth)
-    let value = 0
-    for (let source = Math.max(0, first); source <= Math.min(samples.length - 1, last); source++) {
-      const offset = source - center
-      const sinc = offset === 0 ? 1 : Math.sin(Math.PI * cutoff * offset) / (Math.PI * cutoff * offset)
-      const window = 0.5 + 0.5 * Math.cos(Math.PI * offset / halfWidth)
-      value += samples[source] * cutoff * sinc * window
-    }
-    output[index] = value
-  }
-  return output
+  return toFloat32FromPCM16(new Uint8Array(await response.arrayBuffer()))
 }
 
 /**
@@ -103,35 +79,12 @@ function trimSilence(samples: Float32Array, sampleRate: number, threshold = 0.01
   return samples.subarray(Math.max(0, start - margin), Math.min(samples.length, end + 1 + margin))
 }
 
-function encodeWav(samples: Float32Array, sampleRate: number): Buffer {
-  const header = Buffer.alloc(44)
-  const dataSize = samples.length * 2
-  header.write('RIFF', 0, 'ascii')
-  header.writeUInt32LE(36 + dataSize, 4)
-  header.write('WAVE', 8, 'ascii')
-  header.write('fmt ', 12, 'ascii')
-  header.writeUInt32LE(16, 16)
-  header.writeUInt16LE(1, 20)
-  header.writeUInt16LE(1, 22)
-  header.writeUInt32LE(sampleRate, 24)
-  header.writeUInt32LE(sampleRate * 2, 28)
-  header.writeUInt16LE(2, 32)
-  header.writeUInt16LE(16, 34)
-  header.write('data', 36, 'ascii')
-  header.writeUInt32LE(dataSize, 40)
-
-  const data = Buffer.alloc(dataSize)
-  for (let index = 0; index < samples.length; index++)
-    data.writeInt16LE(Math.round(Math.min(1, Math.max(-1, samples[index])) * 32_767), index * 2)
-  return Buffer.concat([header, data])
-}
-
 async function generate(fixture: WakeWordFixture, environment: Record<string, string | undefined>) {
-  const parts: Float32Array[] = [new Float32Array(fixture.leadingSilenceSeconds * fixtureSampleRate)]
+  // The fixture is assembled at the speech rate. `encodeWav` resamples it to the fixture rate.
+  const parts: Float32Array[] = [new Float32Array(fixture.leadingSilenceSeconds * speechSampleRate)]
   for (const phrase of fixture.phrases) {
-    const speech = await synthesize(phrase, environment)
-    parts.push(trimSilence(resample(speech, speechSampleRate, fixtureSampleRate), fixtureSampleRate))
-    parts.push(new Float32Array(fixture.gapSeconds * fixtureSampleRate))
+    parts.push(trimSilence(await synthesize(phrase, environment), speechSampleRate))
+    parts.push(new Float32Array(fixture.gapSeconds * speechSampleRate))
   }
 
   const samples = new Float32Array(parts.reduce((total, part) => total + part.length, 0))
@@ -141,9 +94,21 @@ async function generate(fixture: WakeWordFixture, environment: Record<string, st
     offset += part.length
   }
 
+  const block: PcmBlock = { range: { sourceId: fixture.output, startFrame: 0, endFrame: samples.length }, sampleRate: speechSampleRate, channels: [samples] }
+  const stream = new ReadableStream<PcmBlock>({
+    start(controller) {
+      controller.enqueue(block)
+      controller.close()
+    },
+  })
+  // TODO:
+  // Mediabunny resamples with linear interpolation and no anti-aliasing filter (`resample.js`).
+  // Voice messages use this `encodeWav` before transcription too.
+  // Add a low-pass filter in `@proj-airi/audio`. These fixtures pass with it and with a sinc resampler.
+  const wav = await encodeWav(stream, { sampleRate: fixtureSampleRate, channels: 1 })
   const output = fileURLToPath(new URL(fixture.output, import.meta.url))
-  await writeFile(output, encodeWav(samples, fixtureSampleRate))
-  console.info(`Wrote ${fixture.output} (${(samples.length / fixtureSampleRate).toFixed(2)} s)`)
+  await writeFile(output, new Uint8Array(await wav.arrayBuffer()))
+  console.info(`Wrote ${fixture.output} (${(samples.length / speechSampleRate).toFixed(2)} s)`)
 }
 
 const environment = await loadCaseEnvironment(env)
