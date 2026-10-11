@@ -92,6 +92,7 @@ The mode does not fall back to `always-on`, because that opens the microphone al
 | stage-web | Only with a fine pointer, `(any-pointer: fine)`. Space is the only trigger, and no Web API reports a hardware keyboard. |
 | stage-pocket, stage-tamagotchi-kirie | No. They provide nothing. |
 
+### External wake-word adapters
 
 `useWakeWordsStore` validates pronunciations against a supplied model vocabulary and preserves them in exported character cards.
 Its device-local catalog pauses unresolved pronunciation conflicts. `chooseOwner` activates the selected character's copy.
