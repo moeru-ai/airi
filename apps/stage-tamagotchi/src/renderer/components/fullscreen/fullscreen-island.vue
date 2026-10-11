@@ -51,9 +51,7 @@ const themeLabel = computed(() => t({
       'flex flex-col items-center',
       'gap-1',
       'rounded-2xl p-1.5',
-      'bg-white/80 dark:bg-neutral-900/80',
-      'backdrop-blur-md',
-      'shadow-lg shadow-neutral-900/10',
+      'bg-neutral-200 dark:bg-neutral-800',
     ]"
   >
     <GhostButton

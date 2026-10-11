@@ -21,6 +21,8 @@ docs:
   switch-to-system-mode: Follow the system theme
   switch-to-light-mode: Switch to light mode
   exit: Exit fullscreen
+'fullscreen-surface':
+  resize: Drag to resize the panel
 'controls-island':
   'fade-on-hover':
     enable: Auto hide
