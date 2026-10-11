@@ -4,9 +4,11 @@ import type { BrowserWindow } from 'electron'
 
 import type { UiohookDriver } from './global-shortcut-uiohook'
 
+import process from 'node:process'
+
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
-import { formatElectronAccelerator, ShortcutFailureReasons } from '@proj-airi/stage-shared/global-shortcut'
+import { formatElectronAccelerator, isSameKeyCombination, ShortcutFailureReasons } from '@proj-airi/stage-shared/global-shortcut'
 import { globalShortcut } from 'electron'
 
 import {
@@ -60,6 +62,22 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
 
   let uiohookDriver: UiohookDriver | undefined
 
+  /**
+   * Tells if another binding already uses the key combination of `binding`.
+   *
+   * Electron `globalShortcut` rejects a second registration of one accelerator, but the uiohook driver does not
+   * register with the OS and does not consume key events. So a uiohook binding and an Electron binding with one
+   * combination would both fire on one press. This check covers both drivers. A binding with the same ID is the
+   * binding that a caller rebinds, so it is not a conflict.
+   */
+  function usedByAnotherBinding(binding: ShortcutBinding): boolean {
+    for (const [id, entry] of active) {
+      if (id !== binding.id && isSameKeyCombination(entry.binding.accelerator, binding.accelerator, { isMacOS: process.platform === 'darwin' }))
+        return true
+    }
+    return false
+  }
+
   function tryRegisterElectron(binding: ShortcutBinding): ShortcutRegistrationResult {
     const electronAccelerator = formatElectronAccelerator(binding.accelerator)
     const ok = globalShortcut.register(electronAccelerator, () => broadcastTriggered(binding.id, 'down'))
@@ -105,6 +123,8 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
     const existing = active.get(binding.id)
     if (existing && existing.owner !== 'main')
       return { id: binding.id, ok: false, reason: ShortcutFailureReasons.DuplicateId }
+    if (usedByAnotherBinding(binding))
+      return { id: binding.id, ok: false, reason: ShortcutFailureReasons.Conflict }
 
     const electronAccelerator = formatElectronAccelerator(binding.accelerator)
     const nextEntry: ActiveBinding = { binding, owner: 'main', driver: 'electron', electronAccelerator, onTriggered }
@@ -150,6 +170,8 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
     if (active.has(binding.id)) {
       return { id: binding.id, ok: false, reason: ShortcutFailureReasons.DuplicateId }
     }
+    if (usedByAnotherBinding(binding))
+      return { id: binding.id, ok: false, reason: ShortcutFailureReasons.Conflict }
 
     return binding.receiveKeyUps
       ? tryRegisterUiohook(binding)
