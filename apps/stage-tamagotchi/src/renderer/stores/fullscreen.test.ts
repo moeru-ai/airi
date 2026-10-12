@@ -207,4 +207,30 @@ describe('main window fullscreen store', () => {
     expect(fullscreen.phase).toBe('closing')
     expect(await fullscreen.pack()).toEqual({ surface: 'settings', surfaces: [{ id: 'settings', state: '/settings/airi-card' }] })
   })
+
+  // A second move can come before the chat panel of the first one mounts. The draft still travels with it.
+  it('packs a state that still waits for its panel to mount', async () => {
+    const { fullscreen } = await setup({ host: 'workspace-window' })
+    await fullscreen.unpack({ surface: 'chat', surfaces: [{ id: 'chat', state: 'unsent draft' }] })
+    fullscreen.settle('open')
+
+    expect(await fullscreen.pack()).toEqual({ surface: 'chat', surfaces: [{ id: 'chat', state: 'unsent draft' }] })
+  })
+
+  // Switching back during the close transition must not let the old close clear the surfaces that just moved in.
+  it('opens a pack that arrives while the mode closes once the close ends', async () => {
+    const { fullscreen } = await setup()
+    await fullscreen.open('settings')
+    fullscreen.settle('open')
+    await fullscreen.close()
+
+    const unpacking = fullscreen.unpack({ surface: 'chat', surfaces: [{ id: 'chat', state: 'unsent draft' }] })
+    expect(fullscreen.phase).toBe('closing')
+    fullscreen.settle('closed')
+    await unpacking
+
+    expect(fullscreen.phase).toBe('expanding')
+    expect([...fullscreen.mounted]).toEqual(['chat'])
+    expect(fullscreen.surface).toBe('chat')
+  })
 })

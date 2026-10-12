@@ -59,6 +59,10 @@ export const useFullscreenStore = defineStore('fullscreen', () => {
   const carriers = new Map<FullscreenSurfaceId, FullscreenCarrier>()
   /** States that the previous host packed. Each one waits until the panel of its surface mounts. */
   const pending = new Map<FullscreenSurfaceId, unknown>()
+  /** The restores that run now, by surface. A pack waits for them, so a panel never packs before it has its state. */
+  const restoring = new Map<FullscreenSurfaceId, Promise<void>>()
+  /** Resolves when the close in progress ends. An opening waits for it, so the old close never clears the new mode. */
+  let closeEnded: PromiseWithResolvers<void> | undefined
 
   /** Tells the main process what shows and what stays mounted. It needs them to hand the chat draft over and to restore after a reload. */
   function report(shown: FullscreenSurfaceId | undefined) {
@@ -72,6 +76,7 @@ export const useFullscreenStore = defineStore('fullscreen', () => {
 
   /** Shows a surface, opening the mode when it is closed. `page` goes to the surface, such as a settings page. */
   async function open(next: FullscreenSurfaceId, page?: string) {
+    await untilCloseEnds()
     await fullscreenSurfaces[next].prepare?.({ router, page })
     show(next)
     if (phase.value === 'closed')
@@ -82,9 +87,22 @@ export const useFullscreenStore = defineStore('fullscreen', () => {
 
   /** Hands a state to its carrier. A failed restore leaves the panel as it mounted. */
   function restoreWith(id: FullscreenSurfaceId, carrier: FullscreenCarrier, state: unknown) {
-    void Promise.resolve()
+    const run: Promise<void> = Promise.resolve()
       .then(() => carrier.restore(state))
       .catch(error => console.error(`[Fullscreen] Failed to restore the ${id} surface:`, error))
+      .finally(() => {
+        if (restoring.get(id) === run)
+          restoring.delete(id)
+      })
+    restoring.set(id, run)
+  }
+
+  /** Waits until a close in progress ends. It returns at once when the mode is not closing. */
+  async function untilCloseEnds() {
+    if (phase.value !== 'closing')
+      return
+    closeEnded ??= Promise.withResolvers<void>()
+    await closeEnded.promise
   }
 
   /**
@@ -113,7 +131,12 @@ export const useFullscreenStore = defineStore('fullscreen', () => {
   async function pack(): Promise<FullscreenPack | undefined> {
     if (phase.value !== 'open' && phase.value !== 'closing')
       return undefined
-    const surfaces = await Promise.all([...mounted].map(async id => ({ id, state: await carriers.get(id)?.collect() })))
+    const surfaces = await Promise.all([...mounted].map(async (id) => {
+      await restoring.get(id)
+      const carrier = carriers.get(id)
+      // A panel that has not mounted yet still holds the state that the previous host handed over.
+      return { id, state: carrier ? await carrier.collect() : pending.get(id) }
+    }))
     return { surface: surface.value, surfaces }
   }
 
@@ -122,6 +145,7 @@ export const useFullscreenStore = defineStore('fullscreen', () => {
    * its panel. It opens the mode like {@link open}.
    */
   async function unpack(packed: FullscreenPack) {
+    await untilCloseEnds()
     for (const { id, state } of packed.surfaces) {
       mounted.add(id)
       if (state === undefined)
@@ -188,6 +212,8 @@ export const useFullscreenStore = defineStore('fullscreen', () => {
     // A rollback can close the mode on a settings page, so the route returns to the page of the host too.
     if (fullscreenSurfaceOf(router.currentRoute.value.path))
       void router.replace(home.value)
+    closeEnded?.resolve()
+    closeEnded = undefined
   }
 
   return { phase, surface, mounted, active, home, open, resume, close, settle, carry, pack, unpack }

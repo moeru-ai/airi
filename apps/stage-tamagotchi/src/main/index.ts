@@ -200,6 +200,9 @@ const settingsWindowPlace: FullscreenPlace = {
   },
 }
 
+/** The move in progress. Each change of the window mode waits for the move before it, so two moves never interleave. */
+let fullscreenMove: Promise<void> = Promise.resolve()
+
 /** The place where the fullscreen mode shows in a mode. */
 function placeOf(mode: FullscreenMode): FullscreenPlace | undefined {
   if (mode === 'single-window')
@@ -452,7 +455,8 @@ app.whenReady().then(async () => {
       // What the mode shows moves to the place of the new mode, with every surface and its state.
       onFullscreenModeChange: (mode, previous) => {
         fullscreenMode = mode
-        void moveFullscreen(placeOf(previous), placeOf(mode))
+        fullscreenMove = fullscreenMove
+          .then(() => moveFullscreen(placeOf(previous), placeOf(mode)))
           .catch(error => log.withError(error).error('Failed to move the fullscreen mode to the new window mode'))
       },
     }),
