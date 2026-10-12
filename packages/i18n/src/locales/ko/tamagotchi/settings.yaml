@@ -88,7 +88,7 @@ devtools:
         reset-position: 오버레이 위치 초기화
         average: 평균
       controls:
-        start-recording: 녹음 시작
+        start-recording: 기록 시작
         enable-all:
           label: 사용 가능한 모든 지표 켜기
           description: 이 브라우저가 지원하는 모든 지표를 켭니다.
@@ -259,7 +259,7 @@ devtools:
     live2d-motion:
       preview:
         values:
-          mouth-open: 열기
+          mouth-open: 입 벌림
           squint: 눈 가늘게 뜨기
           mouth-form: 모양
         groups:
@@ -386,7 +386,7 @@ devtools:
         actions:
           import: 가져오기
           export: 내보내기
-          stop-recording: 녹음 중지
+          stop-recording: 기록 중지
           play: 재생
           record: 기록
           stop-playback: 재생 중지

@@ -225,7 +225,7 @@ startup:
   retry: Reintentar
   continue-without-model: Continuar de todas formas
   failed: Error al iniciar
-  failed-resource: No se pudo cargar {resource}
+  failed-resource: 'No se pudo cargar: {resource}'
   recover: Vuelve a intentarlo. Si falla de nuevo, abre los detalles de abajo.
   recover-model: Vuelve a intentarlo o continúa sin personaje. Puedes seleccionar otro modelo más tarde.
   details: ¿Qué ocurrió?

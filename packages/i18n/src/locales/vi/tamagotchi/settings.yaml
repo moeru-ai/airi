@@ -394,7 +394,7 @@ devtools:
           record: Ghi
           export: Xuất
           import: Nhập
-          stop-recording: Dừng ghi âm
+          stop-recording: Dừng ghi
           play: Phát
           stop-playback: Dừng phát
         status:

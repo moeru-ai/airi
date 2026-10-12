@@ -94,7 +94,7 @@ chat:
     failed: Ошибка операции с аудио.
   voice-message:
     recording: Запись
-    transcribing: Транскрибирование...
+    transcribing: Распознавание речи…
     starting: Запуск микрофона
     preview: Записанное голосовое сообщение
     position: Позиция воспроизведения
@@ -231,7 +231,7 @@ startup:
   retry: Повторить
   continue-without-model: Продолжить всё равно
   failed: Ошибка запуска
-  failed-resource: Не удалось загрузить {resource}
+  failed-resource: 'Не удалось загрузить: {resource}'
   recover: Попробуйте ещё раз. При повторной ошибке откройте подробности ниже.
   recover-model: Попробуйте ещё раз или продолжите без персонажа. Другую модель можно выбрать позже.
   details: Что произошло?
@@ -250,7 +250,7 @@ startup:
     model: модель персонажа
 status:
   sign-in-error: Не удалось войти
-  dismiss: Отменить
+  dismiss: Закрыть
   listening: Прослушивание
   preparing: Подготовка микрофона
   paused: Прослушивание приостановлено, пока AIRI говорит

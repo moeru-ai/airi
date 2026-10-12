@@ -106,7 +106,7 @@ chat:
     too-many: Đính kèm tối đa {count} ảnh mỗi lần.
     total-too-large: Tổng dung lượng ảnh đính kèm phải tối đa 3 MB.
     read-failed: Không thể đọc ảnh này. Hãy thử lại.
-    no-description: Mô hình thị giác không trả về mô tả ảnh. Kiểm tra Cài đặt → Mô-đun → Thị giác rồi thử lại.
+    no-description: Mô hình thị giác không trả về mô tả ảnh. Kiểm tra Cài Đặt → Module → Thị giác rồi thử lại.
     reading: Đang đọc ảnh…
     description: Ảnh đính kèm
   reply:

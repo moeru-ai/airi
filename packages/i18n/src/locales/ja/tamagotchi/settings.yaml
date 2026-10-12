@@ -263,7 +263,7 @@ devtools:
     live2d-motion:
       var:
         diagnostics:
-          source: 出典
+          source: 元データ
           fit: フィット
           run: 生成シーケンス
           model: モデル
@@ -292,7 +292,7 @@ devtools:
           run: シード {seed} · {duration}
       ar-hmm:
         diagnostics:
-          source: 出典
+          source: 元データ
           fit: フィット
           run: 生成シーケンス
           states: 状態占有率
@@ -389,7 +389,7 @@ devtools:
           record: 記録
           export: エクスポート
           import: インポート
-          stop-recording: 録音を停止
+          stop-recording: 記録を停止
           play: 再生
           stop-playback: 再生を停止
         status:

@@ -1054,7 +1054,7 @@ pages:
         description: 이미지 생성에 사용할 제공업체를 선택하세요. 캐릭터 카드 설정에서 이 값을 개별적으로 바꿀 수 있습니다.
       card:
         description: AIRI의 이미지 및 시각 콘텐츠 생성 방식을 설정하세요.
-        comfyui_empty: 설정된 ComfyUI 워크플로가 없습니다. 설정 → 제공업체 → ComfyUI에서 워크플로 템플릿을 업로드하세요.
+        comfyui_empty: 설정된 ComfyUI 워크플로가 없습니다. 설정 → 제공자 → ComfyUI에서 워크플로 템플릿을 업로드하세요.
         exposed_fields: 노출된 필드 {count}개
         open_on_replicate: Replicate에서 열기
         instruction_sync:
@@ -1188,8 +1188,8 @@ pages:
         generic:
           auto: 자동
           error: 에러
-          home: 홈
-          ok: 확인
+          home: 집
+          ok: 정상
           open: 열림
           unknown: 알 수 없음
           on: 켜짐
@@ -1793,7 +1793,7 @@ pages:
     filters:
       pricing: 요금
       all: 모두
-      cloud: 구름
+      cloud: 클라우드
       deployment: 배포
       free: 무료
       paid: 유료
@@ -1810,7 +1810,7 @@ pages:
         title: 음성
         description: '음성(TTS) 모델 제공자를 구성합니다. (예시: ElevenLabs, Azure Speech)'
       transcription:
-        description: '전사(speech에서 텍스트로) 모델 제공자를 구성합니다. (예시: Whisper.cpp, OpenAI, Azure Speech)'
+        description: '전사(음성에서 텍스트로) 모델 제공자를 구성합니다. (예시: Whisper.cpp, OpenAI, Azure Speech)'
         title: 음성 인식
       artistry:
         title: 이미지 생성
@@ -2059,7 +2059,7 @@ pages:
         title: 개발자 도구 열기
         button: 열기
   flux:
-    title: 플럭스
+    title: Flux
     terms: 약관
     privacy: 개인정보 처리방침
     audit:

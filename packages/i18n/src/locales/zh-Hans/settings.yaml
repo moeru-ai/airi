@@ -2316,7 +2316,7 @@ mmd:
     tracking: 模型注视方向
     options:
       cursor: 鼠标
-      camera: 摄像头
+      camera: 相机
       none: 已禁用
   animation:
     title: 动画

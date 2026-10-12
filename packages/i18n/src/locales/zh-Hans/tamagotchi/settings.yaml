@@ -321,7 +321,7 @@ devtools:
         values:
           squint: 眯眼
           mouth-form: 形状
-          mouth-open: 打开
+          mouth-open: 张嘴
       joystick-label: Live2D 动作摇杆
       wave:
         toggle: 小船模式
@@ -533,7 +533,7 @@ devtools:
       recording:
         actions:
           record: 录制
-          stop-recording: 停止录音
+          stop-recording: 停止录制
           play: 播放
           stop-playback: 停止播放
           export: 导出

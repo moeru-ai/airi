@@ -203,7 +203,7 @@ mobile-tools:
   title: Paramètres
   appearance: Apparence
   settings: Paramètres
-  view: Afficher
+  view: Vue
   hearing: Audition
   sign-in: Se connecter à AIRI
   account-description: Compte et préférences
@@ -217,7 +217,7 @@ startup:
   retry: Réessayer
   continue-without-model: Continuer quand même
   failed: Échec du démarrage
-  failed-resource: Impossible de charger {resource}
+  failed-resource: 'Impossible de charger : {resource}'
   recover: Réessayez. Si l’échec se reproduit, ouvrez les détails ci-dessous.
   recover-model: Réessayez ou continuez sans personnage. Vous pouvez choisir un autre modèle plus tard.
   details: Que s’est-il passé ?

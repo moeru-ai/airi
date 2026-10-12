@@ -18,7 +18,7 @@ chat:
     delete: 刪除對話
     delete-short: 刪除
     cancel: 取消
-    current: 目前版本
+    current: 目前
     confirm-delete-short: 確認刪除
     confirm-delete: 要刪除此對話及其訊息嗎？
   voice-composer:
@@ -54,7 +54,7 @@ chat:
     stop-send: 停止並傳送
     play: 播放錄音
   voice-preview:
-    speech: 發聲
+    speech: 人聲
     sensitivity: 靈敏度
     device-placeholder: 選擇麥克風
     processing: 正在完成轉錄
@@ -106,7 +106,7 @@ chat:
     too-many: 一次最多可附加 {count} 張圖片。
     total-too-large: 所有附件圖片的總大小不得超過 3 MB。
     read-failed: 無法讀取此圖片。請再試一次。
-    no-description: 視覺模型未傳回圖片說明。請檢查設定 → 模組 → 視覺，再試一次。
+    no-description: 視覺模型未傳回圖片說明。請檢查設定 → 機體模組 → 視覺，再試一次。
     reading: 正在讀取圖片…
     description: 圖片附件
   reply:
@@ -245,7 +245,7 @@ theme:
   switch-to-system: 跟隨系統主題
 status:
   sign-in-error: 登入失敗
-  dismiss: 取消
+  dismiss: 關閉提示
   listening: 聆聽中
   preparing: 正在準備麥克風
   paused: AIRI 說話時暫停聆聽

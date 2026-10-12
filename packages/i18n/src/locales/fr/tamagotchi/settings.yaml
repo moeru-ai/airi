@@ -251,7 +251,7 @@ devtools:
     live2d-motion:
       preview:
         values:
-          mouth-open: Ouvrir
+          mouth-open: Ouverture
           squint: Plissement des yeux
           mouth-form: Forme
         groups:

@@ -470,7 +470,7 @@ devtools:
         description: 最新收到的事件排在最前面。時間以來源渲染程序啟動後的毫秒數表示。
         empty: 尚未記錄資源事件。請在啟用追蹤時載入或切換 VRM 模型。
       controls:
-        start-recording: 開始錄音
+        start-recording: 開始記錄
         enable-all:
           label: 啟用所有可用指標
           description: 啟用此瀏覽器支援的所有指標。

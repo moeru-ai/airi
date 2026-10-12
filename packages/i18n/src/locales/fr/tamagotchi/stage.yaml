@@ -113,8 +113,8 @@ chat-window:
     floating-free: Flottante, n’importe où sur l’écran
     floating-danmaku: Flottante, fil de messages
     pinned: Toujours au premier plan
-  resize: Déplacez pour redimensionner le chat
-  move: Déplacez pour déplacer le chat
+  resize: Faites glisser pour redimensionner le chat
+  move: Faites glisser pour déplacer le chat
   fold: Masquer le chat
   composer:
     show: Afficher la zone de saisie

@@ -791,7 +791,7 @@ pages:
           provider-selection:
             description: 選擇合適的語音辨識提供者
           rephrase:
-            provider: 選擇語音合成服務來源
+            provider: 服務來源
             model: 模型
             model-placeholder: 選擇一個模型
             title: 轉錄文字修正
@@ -1188,8 +1188,8 @@ pages:
         generic:
           auto: 自動
           error: 錯誤
-          home: 首頁
-          ok: 好的
+          home: 在家
+          ok: 正常
           unknown: 未知
           on: 開啟
           off: 關閉
@@ -1796,7 +1796,7 @@ pages:
     filters:
       pricing: 定價
       all: 全部
-      cloud: 雲霧灰
+      cloud: 雲端
       deployment: 部署方式
       free: 免費
       paid: 付費
@@ -2092,7 +2092,7 @@ pages:
       canceled: 已取消付款。
       error: 發生錯誤，請稍後再試。
   capacitor:
-    currentPackage: 目前版本
+    currentPackage: 目前
     checkout:
       error: 發生錯誤，請稍後再試。
       success: 你的 Capacitor 已安裝並完成充能。
@@ -2253,7 +2253,7 @@ analytics:
     description: AIRI 收集匿名使用情況資料，以了解應用程式的使用方式並改善穩定性，不會收集個人資料。
     privacyPrefix: 閱讀
     privacyLink: 隱私權政策
-    onboardingHint: 之後可在「設定 > 系統 > 一般」中關閉使用情況分析。
+    onboardingHint: 之後可在「設定 > 系統 > 通用」中關閉使用情況分析。
     settingsHint: 你可以隨時關閉使用情況分析。
   toggle:
     title: 啟用使用情況分析
@@ -2274,7 +2274,7 @@ mmd:
     options:
       cursor: 滑鼠
       none: 已停用
-      camera: 攝影機
+      camera: 相機
     title: 視線
   animation:
     title: 動畫
