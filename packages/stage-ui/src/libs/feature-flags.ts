@@ -10,6 +10,7 @@ export const featureFlagPolicySchema = object({
 
 export const featureFlagResponseSchema = object({ flags: array(featureFlagPolicySchema) })
 export const featureFlagPreferencesSchema = record(string(), boolean())
+export const featureFlagVariantPreferencesSchema = record(string(), string())
 
 /** A client-owned experiment. Server policy cannot introduce executable client features. */
 export interface FeatureFlag {
@@ -20,6 +21,15 @@ export interface FeatureFlag {
   availability: 'local' | 'cloud'
   /** Only the desktop app has the feature, so other apps neither list nor enable it. */
   desktopOnly?: boolean
+  /**
+   * The ways to run the feature. They exclude each other, so the user picks one while the feature is on. The first
+   * option is the default.
+   */
+  variants?: {
+    titleKey: string
+    descriptionKey: string
+    options: readonly { value: string, titleKey: string }[]
+  }
 }
 
 export interface FeatureFlagDecision {
