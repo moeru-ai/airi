@@ -1,6 +1,7 @@
 import type { TurnRef } from '@proj-airi/core-agent'
 
 import type { VoiceMessageSnapshot } from '../../libs/voice/voice-message'
+import type { WakeWordPreparation } from '../../libs/voice/wake-word-detector'
 import type { ChatToolReference } from '../../types/chat'
 
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
@@ -87,6 +88,8 @@ export interface VoiceDraft {
 export interface VoiceHostSnapshot {
   readonly connected: boolean
   readonly microphone?: { readonly enabled: boolean, readonly ready: boolean, readonly error?: string }
+  /** Preparation of the host's wake word detector. Settings in other windows read it from here. */
+  readonly wakeWords?: { readonly preparation: WakeWordPreparation, readonly error?: string }
   readonly input?: {
     readonly requestId: string
     readonly sessionId: string

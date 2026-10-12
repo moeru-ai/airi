@@ -563,7 +563,7 @@ defineExpose({
               @pending-change="voicePending = $event"
               @sent="composer.clearReply()"
               @submit="handleSend"
-              @configure="openSettings({ route: '/settings/modules/hearing' })"
+              @configure="route => openSettings({ route })"
             />
             <GhostButton
               v-if="showStopAction"

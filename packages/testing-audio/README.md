@@ -66,6 +66,72 @@ describe('audio input pipeline', () => {
 
 A case can independently choose its VAD behavior, ASR, LLM, and TTS configuration. A configuration callback can read its own environment, write local storage, use another persistence mechanism, or deliberately leave onboarding incomplete.
 
+## Test wake word detection
+
+Use `configureWakeWord` to add AIRI Cards with wake words. Each configuration adds one card with one wake word and its pronunciations. The callback also turns on the microphone and selects the `wake-word` Hearing input mode. The case does not need an ASR Provider.
+
+Set `pipelines: ['kws']`. Then the Web runner downloads and verifies the pinned KWS model before the file microphone starts. The Web page gets the model from the workspace cache, not from the network. Electron uses its bundled model.
+
+```ts
+import { describe, expect, it } from '../../src'
+import { configureOnboarding, configureWakeWord } from '../shared/configurations'
+import { readSessionCharacterId } from '../shared/interactions'
+
+describe('wake word detection', () => {
+  it('begins a voice input for the character', {
+    input: new URL('./input.test.wav', import.meta.url),
+    pipelines: ['kws'],
+    preflight: [
+      configureOnboarding(() => ({ completed: true })),
+      configureWakeWord(() => [{
+        targetCardId: 'testing-audio-wake-word',
+        text: 'Light up',
+        pronunciations: [['L', 'AY1', 'T', 'AH1', 'P']],
+      }]),
+    ],
+  }, async ({ audio }) => {
+    const input = await audio.waitForVoiceInput({ timeout: 90_000 })
+    await expect(readSessionCharacterId(audio, input.sessionId)).resolves.toBe('testing-audio-wake-word')
+  })
+})
+```
+
+A wake does not change the active card. It begins a voice input in the chat session of the matched character. `waitForVoiceInput` reads that input from the voice host snapshot on the speech bus. `readSessionCharacterId` reads the session owner from the stored chat session index.
+
+In the `wake-word` mode, speech alone does not begin an input. Thus the first voice input of the case comes from a wake.
+
+Each pronunciation is a token sequence of the pinned zh/en Zipformer model. The vocabulary is in `packages/stage-ui/src/libs/voice/kws-vocabulary.json`. English tokens are CMU phonemes with stress digits, for example `AY1`. Mandarin tokens are pinyin initials and finals with tone marks, for example `zh ī m a k āi m én` for 芝麻开门. A neutral tone has no mark.
+
+The wake word cases:
+
+| Case | What it proves | Recording | Wake words (pronunciations) |
+| --- | --- | --- | --- |
+| `wake-word` | A wake begins the input in the owner's session, not the active card's session. | "Light up" 3 times, macOS Samantha voice, 35 s leading silence | "Light up": `L AY1 T AH1 P` |
+| `wake-word-routing` | One detector holds the words of two characters. The input goes to the character whose word was said. | "Hello computer" 3 times, OpenAI `tts-1` `alloy` voice, 15 s leading silence | "Light up": `L AY1 T AH1 P`. "Hello computer": `HH AH0 L OW1 K AH0 M P Y UW1 T ER0` |
+| `wake-word-second-pronunciation` | A pronunciation after the first one wakes the character, and a Mandarin token sequence matches Mandarin speech. | "芝麻开门" 3 times, OpenAI `tts-1` `alloy` voice, 15 s leading silence | "Open sesame": `OW1 P AH0 N S EH1 S AH0 M IY0`, then `zh ī m a k āi m én` |
+
+All fixtures are 16 kHz mono 16-bit PCM WAV files. The leading silence gives the detector time to start before speech begins. A pause of 1 second follows each phrase.
+
+### Generate the fixtures
+
+`scripts/generate-wake-word-fixtures.ts` writes the `wake-word-routing` and `wake-word-second-pronunciation` fixtures. It sends each phrase to the OpenAI-compatible `/audio/speech` endpoint and asks for 24 kHz `pcm` audio. Then it converts the audio to 16 kHz, removes silence around each phrase, and adds the fixture pauses. It does not need `ffmpeg`.
+
+The script reads the `TESTING_AUDIO_TTS_*` variables in the same way as the cases. Set them in `packages/testing-audio/.env.local` or `.env.test.local`. Then run:
+
+```bash
+pnpm -F @proj-airi/testing-audio exec tsx scripts/generate-wake-word-fixtures.ts
+```
+
+The speech changes a little on each request. After you generate the fixtures, run the cases on both hosts. If a phrase does not wake the character, change the phrase or its pronunciation. Do not change the assertions.
+
+Run the cases on both hosts:
+
+```bash
+pnpm -F @proj-airi/testing-audio test:run cases/wake-word
+```
+
+For one host, build its app and select `--project audio-web` or `--project audio-electron`.
+
 ## Provider environment
 
 Each case selects its environment variables. `loadCaseEnvironment` uses Vite test mode to read repository, `packages/stage-ui`, and package environment files. Process variables have the highest priority.

@@ -375,6 +375,10 @@ pages:
           fallback: Could not start deletion. Try again later.
           subscriptionActive: Your subscription is still active. Cancel it on the Capacitor page first, then delete your account.
   card:
+    wake-word-conflicts:
+      title: 'One shared wake word pronunciation needs a character | {count} shared wake word pronunciations need a character'
+      description: Two cards use the same pronunciation. No character answers it until you choose one.
+      action: Choose who answers
     sync:
       notice: Character cards sync to your account. A deleted card stays restorable for 30 days.
       off_notice: You are signed in, but character card sync is off.
@@ -580,6 +584,7 @@ pages:
         title: Downloaded speech models
         description: Sherpaw model files stored on this device.
         empty: No speech models are downloaded.
+        wake-word-model: Wake word model
         refresh: Refresh
       modules:
         title: Modules
@@ -845,10 +850,48 @@ pages:
     hearing:
       description: Configure how speech recognition works
       title: Hearing
+      transcriber:
+        title: Speech recognition
+        description: Choose the transcription provider and model, and test your microphone.
+      wake-words:
+        title: Wake words
+        description: See the wake words of each character, and choose who answers a shared pronunciation.
+        intro: Each character keeps its wake words on its card. To change the words, ask the character in chat.
+        empty: This character has no wake words.
+        state:
+          active: Active
+          paused: Paused. Choose a character to answer it.
+          other: 'Answered by {name}'
+          unsupported: Not available with the current wake word model
+        conflicts:
+          title: Shared pronunciations
+          description: Two or more characters use the same pronunciation. Choose the character that answers it on this device. Each card keeps its words.
+          choose-label: Character that answers
+          choose: '{name} ("{word}")'
+          answered-by: '{name} answers'
+          unresolved: No character answers this pronunciation.
       sections:
         section:
           provider-selection:
             description: Select the suitable speech recognition provider
+          microphone:
+            title: Microphone
+            label: Microphone
+            description: Turn on the microphone for Hearing. The input mode controls when AIRI listens.
+            error: The microphone is not available
+          input-device:
+            label: Input device
+            description: Select the microphone that AIRI uses.
+            playground-description: Hearing and the playground use this microphone.
+            placeholder: Select a microphone
+          auto-send:
+            title: Transcripts
+            description: Choose what AIRI does with the text of your speech.
+            label: Send automatically
+            label-description: AIRI sends the transcript to chat after a delay. Turn this off to read and edit the text first. Each sent message uses tokens.
+            delay: Send delay
+            delay-description: The time that AIRI waits before it sends the transcript.
+            immediate: Immediately
           input-mode:
             title: Input mode
             description: Choose how AIRI starts to listen while the microphone is on.
@@ -859,7 +902,15 @@ pages:
             push-to-talk-description: AIRI listens only while you hold the Push to Talk key. The microphone is open only during the hold.
             push-to-talk-unavailable: Not available here. This app has no Push to Talk key on this device.
             stranded-title: Push to Talk is not available here
-            stranded-description: This app has no Push to Talk key on this device, so AIRI does not listen. To talk to AIRI here, choose Always on.
+            stranded-description: This app has no Push to Talk key on this device, so AIRI does not listen. To talk to AIRI here, choose Always on or Wake words.
+            wake-word: Wake words
+            wake-word-description: The microphone stays on, but AIRI listens only after you say a character's wake word.
+            wake-word-status:
+              no-words: No character has wake words. Ask a character in chat to set its wake words.
+              unconfigured: Wake word detection starts when the microphone is on.
+              preparing: Preparing the wake word model…
+              ready: Wake words are ready.
+              error: 'The wake word model is not available: {error}'
           rephrase:
             title: Transcript rewrite
             description: A chat model fixes recognition errors and removes filler words before a transcript becomes a draft. The original text is kept.
@@ -1096,11 +1147,166 @@ pages:
         test: Test
       status:
         saved: Saved.
+        saved-cleared: Saved. The address changed, so the device lists are empty.
         testing: Testing the connection...
         reachable: 'Connected. Home Assistant reported {count} entities.'
         failed: 'Could not connect. {message}'
         rejected-token: Enter a Home Assistant access token.
         rejected-address: The address changed. Enter the access token for the new address.
+        failed-policy: The device list did not reach the window that runs the tools, so the address did not change. Try again.
+        failed-policy-edit: The change did not reach the window that runs the tools. The model still holds the list from before the change. Try again.
+        failed-policy-move: The address changed, but the device lists did not reach the window that runs the tools. Try again.
+        failed-policy-rollback: The save was refused. The device list did not reach the window that runs the tools, so the model reaches no device. Try again.
+      access:
+        label: Device access
+        description: Choose which devices AIRI reads and controls.
+        mode-all: Every device
+        mode-allow: Allow list
+        mode-deny: Block list
+        all-hint: AIRI reaches every device. Pick a list to limit it.
+        rule-allow: Only the devices you select are reachable.
+        rule-deny: Every device except the ones you select is reachable.
+        selected-count: '{count} selected'
+        empty-warning: Pick at least one device. AIRI reaches nothing until you do.
+        search: Search devices
+        reload: Reload devices
+        loading: Loading devices...
+        no-devices: Home Assistant reported no devices.
+        no-match: No device matches.
+        tab-all: All
+        shown-count: '{shown} of {total} devices'
+        load-more: 'Show {count} more'
+        select-matching: Select all matches
+        clear-matching: Clear all matches
+      states:
+        generic:
+          'on': 'On'
+          'off': 'Off'
+          above_horizon: Above horizon
+          armed: Armed
+          armed_away: Armed away
+          armed_custom_bypass: Armed custom bypass
+          armed_home: Armed home
+          armed_night: Armed night
+          armed_vacation: Armed vacation
+          arming: Arming
+          auto: Auto
+          below_horizon: Below horizon
+          buffering: Buffering
+          cleaning: Cleaning
+          clear-night: Clear, night
+          closed: Closed
+          closing: Closing
+          cloudy: Cloudy
+          cool: Cool
+          disarmed: Disarmed
+          disarming: Disarming
+          docked: Docked
+          dry: Dry
+          eco: Eco
+          electric: Electric
+          error: Error
+          exceptional: Exceptional
+          fan_only: Fan only
+          fog: Fog
+          gas: Gas
+          hail: Hail
+          heat: Heat
+          heat_cool: Heat/Cool
+          heat_pump: Heat pump
+          high_demand: High demand
+          home: Home
+          idle: Idle
+          jammed: Jammed
+          lightning: Lightning
+          lightning-rainy: Lightning, rainy
+          locked: Locked
+          locking: Locking
+          mowing: Mowing
+          not_home: Away
+          ok: OK
+          open: Open
+          opening: Opening
+          partlycloudy: Partly cloudy
+          paused: Paused
+          pending: Pending
+          performance: Performance
+          playing: Playing
+          pouring: Pouring
+          problem: Problem
+          rainy: Rainy
+          recording: Recording
+          snowy: Snowy
+          snowy-rainy: Snowy, rainy
+          standby: Standby
+          stopped: Stopped
+          streaming: Streaming
+          sunny: Sunny
+          triggered: Triggered
+          unlocked: Unlocked
+          unlocking: Unlocking
+          windy: Windy
+          windy-variant: Windy, cloudy
+          unknown: Unknown
+          unavailable: Unavailable
+        lawn_mower:
+          returning: Returning
+        update:
+          'off': Up-to-date
+          'on': Update available
+        vacuum:
+          returning: Returning to dock
+      domains:
+        air_quality: Air quality
+        alarm_control_panel: Alarm panel
+        automation: Automation
+        binary_sensor: Binary sensor
+        button: Button
+        calendar: Calendar
+        camera: Camera
+        climate: Climate
+        conversation: Conversation
+        cover: Cover
+        date: Date
+        datetime: Date and time
+        device_tracker: Device tracker
+        event: Event
+        fan: Fan
+        geo_location: Geolocation
+        group: Group
+        humidifier: Humidifier
+        image: Image
+        image_processing: Image processing
+        input_boolean: Toggle helper
+        input_datetime: Date and time helper
+        input_number: Number helper
+        input_select: Dropdown helper
+        input_text: Text helper
+        light: Light
+        lock: Lock
+        media_player: Media player
+        notify: Notification
+        number: Number
+        person: Person
+        remote: Remote
+        scene: Scene
+        script: Script
+        select: Select
+        sensor: Sensor
+        siren: Siren
+        stt: Speech to text
+        sun: Sun
+        switch: Switch
+        text: Text
+        time: Time
+        todo: To-do list
+        tts: Text to speech
+        update: Update
+        vacuum: Vacuum
+        valve: Valve
+        water_heater: Water heater
+        weather: Weather
+        zone: Zone
     web-search:
       title: Web Search
       description: Let AIRI search the web for current information
