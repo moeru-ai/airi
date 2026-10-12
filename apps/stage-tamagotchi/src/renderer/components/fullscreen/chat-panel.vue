@@ -1,17 +1,15 @@
 <script setup lang="ts">
 import type { ChatDraftHandover } from '../../../shared/eventa'
 
-import { useElectronEventaContext } from '@proj-airi/electron-vueuse'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { storeToRefs } from 'pinia'
-import { onUnmounted, shallowRef, useTemplateRef } from 'vue'
+import { shallowRef, useTemplateRef } from 'vue'
 
 import ChatSpeechMuteButton from '../chat-window/chat-speech-mute-button.vue'
 import ChatWindowStyleMenu from '../chat-window/chat-window-style-menu.vue'
 import InteractiveArea from '../InteractiveArea.vue'
 
-import { electronFullscreenOpen } from '../../../shared/eventa'
 import { useChatDraftHandover } from '../../composables/use-chat-draft-handover'
 import { useFullscreenCarry } from '../../composables/use-fullscreen-carry'
 
@@ -21,14 +19,8 @@ const { activeCard } = storeToRefs(useAiriCardStore())
 const sessionsDrawerOpen = shallowRef(false)
 const interactiveArea = useTemplateRef<InstanceType<typeof InteractiveArea>>('interactive-area')
 
-const { receiveDraft } = useChatDraftHandover(interactiveArea)
-// The panel stays mounted while the mode is open, so a chat mode switch that shows it again takes the draft here.
-// The first request mounts the panel, and the panel takes that draft when it mounts.
-const stopOpenListener = useElectronEventaContext().value.on(electronFullscreenOpen, (event) => {
-  if (event?.body?.surface === 'chat')
-    void receiveDraft()
-})
-onUnmounted(stopOpenListener)
+// The panel stays mounted while the mode is open, so a chat mode switch can carry a draft to it more than once.
+useChatDraftHandover(interactiveArea)
 
 // The chat carries its unsent draft when the mode moves to another window.
 useFullscreenCarry<ChatDraftHandover>('chat', {

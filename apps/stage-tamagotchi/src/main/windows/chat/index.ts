@@ -20,6 +20,7 @@ import icon from '../../../../resources/icon.png?asset'
 
 import {
   electronChatWindowCollectDraft,
+  electronChatWindowDraftOffered,
   electronChatWindowDraftSettled,
   electronChatWindowGetPreferences,
   electronChatWindowSetPreferences,
@@ -147,16 +148,37 @@ export function setupChatWindowManager(params: {
   }
 
   /**
-   * Asks a chat renderer for its unsent draft. Each chat window adds its own
-   * entry in setupDraftHandover, and the entry goes away with the window.
+   * The two requests of a draft handover to a chat renderer: `collect` asks for its unsent draft, and `offer` tells
+   * it that a switch carries a draft to it. Each chat window adds its own entry in setupDraftHandover, and the entry
+   * goes away with the window.
    */
-  const draftCollectors = new WeakMap<BrowserWindow, () => Promise<ChatDraftHandover | undefined>>()
+  const draftHandovers = new WeakMap<BrowserWindow, { collect: () => Promise<ChatDraftHandover | undefined>, offer: () => void }>()
 
   async function collectDraft(window: BrowserWindow | undefined) {
     // A closed window or a crashed renderer has no draft left to carry.
     if (!window || isRendererUnavailable(window))
       return undefined
-    return draftCollectors.get(window)?.()
+    return draftHandovers.get(window)?.collect()
+  }
+
+  function offerDraft(window: BrowserWindow | undefined) {
+    if (window && !isRendererUnavailable(window))
+      draftHandovers.get(window)?.offer()
+  }
+
+  /**
+   * Answers the style menu of a chat. `mode` is the mode of that chat, so the menu shows the style that the user
+   * looks at, and a choice moves the chat from there.
+   */
+  function setupPreferences(context: EventaContext, mode: ChatWindowMode) {
+    defineInvokeHandler(context, electronChatWindowGetPreferences, () => ({ ...getPreferences(), mode }))
+    // A switch that succeeds closes the window that asked for it, and its
+    // reply goes nowhere. A switch that fails answers with the error, and the
+    // menu reads the preferences again.
+    defineInvokeHandler(context, electronChatWindowSetPreferences, async (preferences) => {
+      if (preferences)
+        await setPreferences(preferences, mode)
+    })
   }
 
   async function setupChatInvokes(window: BrowserWindow, context: EventaContext, mode: ChatWindowMode) {
@@ -170,14 +192,7 @@ export function setupChatWindowManager(params: {
       openSettingsWindow: params.openSettingsWindow,
     })
 
-    defineInvokeHandler(context, electronChatWindowGetPreferences, () => getPreferences())
-    // A switch that succeeds closes the window that asked for it, and its
-    // reply goes nowhere. A switch that fails answers with the error, and the
-    // menu reads the saved preferences again.
-    defineInvokeHandler(context, electronChatWindowSetPreferences, async (preferences) => {
-      if (preferences)
-        await setPreferences(preferences)
-    })
+    setupPreferences(context, mode)
     setupDraftHandover(window, context, mode)
   }
 
@@ -273,10 +288,28 @@ export function setupChatWindowManager(params: {
     getMode: () => getConfig().mode,
     setMode: mode => updateConfig({ ...getConfig(), mode }),
     windows: {
-      legacy: { open: openLegacy, close: legacy.close, collectDraft: async () => collectDraft(legacy.getOpenWindow()) },
-      floating: { open: floating.open, close: floating.close, collectDraft: async () => collectDraft(floating.getOpenWindow()) },
+      legacy: {
+        ownsWindow: true,
+        isOpen: () => !!legacy.getOpenWindow(),
+        open: openLegacy,
+        offerDraft: () => offerDraft(legacy.getOpenWindow()),
+        close: legacy.close,
+        collectDraft: async () => collectDraft(legacy.getOpenWindow()),
+      },
+      floating: {
+        ownsWindow: true,
+        isOpen: () => !!floating.getOpenWindow(),
+        open: floating.open,
+        offerDraft: () => offerDraft(floating.getOpenWindow()),
+        close: floating.close,
+        collectDraft: async () => collectDraft(floating.getOpenWindow()),
+      },
       fullscreen: {
+        // The host shows other surfaces too, and its island shows the chat in any saved mode.
+        ownsWindow: false,
+        isOpen: () => hasChat(fullscreenHost()),
         open: async () => params.openFullscreenChat(),
+        offerDraft: () => offerDraft(fullscreenHost()?.window),
         close: closeFullscreenChat,
         // A host that never showed the chat has no chat composer to answer.
         collectDraft: async () => {
@@ -299,10 +332,14 @@ export function setupChatWindowManager(params: {
     })
 
     const requestDraft = defineInvoke(context, electronChatWindowCollectDraft)
-    draftCollectors.set(window, () => requestDraft(undefined, { signal: AbortSignal.timeout(draftCollectTimeout) }))
+    draftHandovers.set(window, {
+      collect: () => requestDraft(undefined, { signal: AbortSignal.timeout(draftCollectTimeout) }),
+      offer: () => context.emit(electronChatWindowDraftOffered, undefined),
+    })
   }
 
-  async function setPreferences(next: ChatWindowPreferences) {
+  /** Saves the preferences. `from` is the mode of the chat where the user chose them. */
+  async function setPreferences(next: ChatWindowPreferences, from: ChatWindowMode) {
     // The placement is saved first, so a floating window that the mode switch
     // below creates starts in it.
     await modeSwitch.run(async () => {
@@ -313,7 +350,7 @@ export function setupChatWindowManager(params: {
     })
 
     try {
-      await modeSwitch.switchTo(next.mode)
+      await modeSwitch.switchTo(next.mode, from)
     }
     finally {
       emitButtonState()
@@ -340,11 +377,7 @@ export function setupChatWindowManager(params: {
       fullscreenHosts.add(host)
       // A host already registers the services that every chat renderer uses, so it only needs the chat preferences
       // and the draft handover.
-      defineInvokeHandler(host.context, electronChatWindowGetPreferences, () => getPreferences())
-      defineInvokeHandler(host.context, electronChatWindowSetPreferences, async (preferences) => {
-        if (preferences)
-          await setPreferences(preferences)
-      })
+      setupPreferences(host.context, 'fullscreen')
       setupDraftHandover(host.window, host.context, 'fullscreen')
       return () => fullscreenHosts.delete(host)
     },
@@ -354,7 +387,7 @@ export function setupChatWindowManager(params: {
         return
       try {
         if (hasChat(fullscreenHost()))
-          await modeSwitch.switchTo(defaultChatWindowConfig.mode)
+          await modeSwitch.switchTo(defaultChatWindowConfig.mode, 'fullscreen')
         else
           await modeSwitch.run(async () => updateConfig({ ...getConfig(), mode: defaultChatWindowConfig.mode }))
       }

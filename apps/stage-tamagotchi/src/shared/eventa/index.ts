@@ -237,11 +237,16 @@ export interface ChatButtonState {
 export const electronGetChatButtonState = defineInvokeEventa<ChatButtonState>('eventa:invoke:electron:windows:chat:get-button-state')
 export const electronChatButtonStateChanged = defineEventa<ChatButtonState>('eventa:event:electron:windows:chat:button-state-changed')
 
+/**
+ * Reads the saved placement and pin, with the mode of the chat that asks. That mode is the saved mode, except in a
+ * fullscreen chat that the fullscreen island opened while another mode is saved.
+ */
 export const electronChatWindowGetPreferences = defineInvokeEventa<ChatWindowPreferences>('eventa:invoke:electron:windows:chat:get-preferences')
 /**
- * Persists the preferences and swaps the open chat window when the mode
- * changes. The swap carries the unsent draft over, and it rejects without
- * closing the open window when the draft cannot be carried.
+ * Persists the preferences. A mode that differs from the mode of the chat
+ * that asks moves the chat to the window of that mode. The move carries the
+ * unsent draft over, and it rejects without closing the chat that asked when
+ * the draft cannot be carried.
  */
 export const electronChatWindowSetPreferences = defineInvokeEventa<void, ChatWindowPreferences>('eventa:invoke:electron:windows:chat:set-preferences')
 /**
@@ -256,6 +261,11 @@ export const electronChatWindowCollectDraft = defineInvokeEventa<ChatDraftHandov
  * is nothing to put back.
  */
 export const electronChatWindowTakeDraft = defineInvokeEventa<ChatDraftHandover | undefined>('eventa:invoke:electron:windows:chat:take-draft')
+/**
+ * Tells a chat window that is already open that a mode switch carries a draft to it. The page takes the draft again,
+ * as it did when it mounted.
+ */
+export const electronChatWindowDraftOffered = defineEventa('eventa:event:electron:windows:chat:draft-offered')
 /**
  * Reports what happened to the taken draft. The mode switch closes the
  * previous window only after `restored: true`; with `false` it closes the new
