@@ -270,6 +270,13 @@ export async function setupMainWindow(params: {
     query: { 'synced-leader': 'true', 'fullscreen-host': 'main-window' },
   }))
 
+  // The inlay loads once and stays shown, so the first speech does not wait for a window and a page load.
+  // It is transparent and click-through until speech starts. Showing it inactive keeps focus in the main window.
+  void params.inlayWindow().then((inlay) => {
+    if (!inlay.isDestroyed())
+      inlay.showInactive()
+  }).catch(error => console.error('Failed to prepare the inlay window', error))
+
   /**
    * This is a know issue (or expected behavior maybe) to Electron.
    * We don't use this approach on Linux because it's not working.

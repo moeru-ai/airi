@@ -10,7 +10,7 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 const hearingStore = useHearingStore()
-const { configured, autoSendEnabled, autoSendDelay, rephraseEnabled, rephraseProvider, rephraseModel } = storeToRefs(hearingStore)
+const { configured, autoSendEnabled, autoSendDelay, endJudgeEnabled, rephraseEnabled, rephraseProvider, rephraseModel } = storeToRefs(hearingStore)
 const wakeWords = useWakeWordsStore()
 
 const providersStore = useProviderStore()
@@ -101,6 +101,22 @@ const pages = computed(() => [
           :step="100"
           :format-value="value => value === 0 ? t('settings.pages.modules.hearing.sections.section.auto-send.immediate') : `${(value / 1000).toFixed(1)}s`"
         />
+
+        <div :class="['border-t border-neutral-200 pt-4 dark:border-neutral-700', 'flex flex-col gap-4']">
+          <div>
+            <h3 :class="['text-base text-neutral-500 md:text-xl dark:text-neutral-500']">
+              {{ t('settings.pages.modules.hearing.sections.section.end-judge.title') }}
+            </h3>
+            <div :class="['text-neutral-400 dark:text-neutral-400']">
+              {{ t('settings.pages.modules.hearing.sections.section.end-judge.description') }}
+            </div>
+          </div>
+          <FieldCheckbox
+            v-model="endJudgeEnabled"
+            :label="t('settings.pages.modules.hearing.sections.section.end-judge.enabled')"
+            :description="t('settings.pages.modules.hearing.sections.section.end-judge.enabled-description')"
+          />
+        </div>
 
         <div :class="['border-t border-neutral-200 pt-4 dark:border-neutral-700', 'flex flex-col gap-4']">
           <div>

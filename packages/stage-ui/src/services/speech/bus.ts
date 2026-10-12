@@ -118,6 +118,12 @@ export type VoiceInputCommand
     target?: 'draft' | 'composer'
   }
   | { type: 'end' | 'cancel', requestId: string }
+  /**
+   * Cancels the input that the snapshot presents, also one that VAD or a wake word began.
+   * A dismiss control, such as Escape in the desktop inlay, sends the `requestId` that it shows.
+   * The host ignores the command when another input is presented now, so a stale control cannot cancel newer speech.
+   */
+  | { type: 'cancel-presented', requestId: string }
   | { type: 'edit-draft', draftId: string, text: string }
   | { type: 'send-draft' | 'discard-draft' | 'select-draft', draftId: string }
 

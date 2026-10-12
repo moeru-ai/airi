@@ -14,6 +14,8 @@ function isAbort(cause: unknown) {
  * Stores microphone preferences and keeps the selected microphone open while it is enabled.
  *
  * `input` is the shared input for the selected device. Consumers subscribe with their own signal.
+ * `unprocessedInput` is the same device without browser processing. Only keyword spotting subscribes to it, so the
+ * preference does not hold it open.
  * The enabled preference holds one extra subscription, so later consumers start without waiting for permission.
  * A Hearing input mode that does not listen continuously, such as Push to Talk, skips that subscription.
  * Then the microphone opens only while a speech input or a voice message uses it.
@@ -106,6 +108,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     permissionGranted: device.permissionGranted,
     stream: device.stream,
     input: device.input,
+    unprocessedInput: device.unprocessedInput,
     source: device.source,
     askPermission,
     initialize,

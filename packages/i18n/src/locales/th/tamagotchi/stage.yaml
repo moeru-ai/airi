@@ -1,0 +1,135 @@
+operations:
+  load-models: โหลดโมเดล
+  load-models-status:
+    loading: กำลังโหลด
+    ready: พร้อม
+'resource-island':
+  loading: กำลังเตรียมทรัพยากร...
+  ready: ทรัพยากรพร้อมแล้ว
+  preparing: กำลังเตรียมไฟล์โมเดล
+  failed: ดาวน์โหลดโมเดลไม่สำเร็จ
+docs:
+  theme:
+    navbar:
+      appearance:
+        title: รูปลักษณ์
+'controls-island':
+  'fade-on-hover':
+    enable: ซ่อนอัตโนมัติ
+    disable: แสดงตลอด
+  'open-settings': เปิดการตั้งค่า
+  'open-chat': เปิดแชท
+  'hide-chat': ซ่อนแชท
+  'refresh': รีเฟรช
+  'center-main-window': ย้ายไปกึ่งกลางหน้าจอ
+  'open-hearing-controls': เปิดการควบคุมการฟัง
+  'enable-microphone': เปิดไมโครโฟน
+  'disable-microphone': ปิดไมโครโฟน
+  'drag-to-move-window': ลากเพื่อย้ายหน้าต่าง
+  'mute': ปิดเสียง
+  'unmute': เปิดเสียง
+  'switch-to-light-mode': สลับเป็นโหมดสว่าง
+  'switch-to-dark-mode': สลับเป็นโหมดมืด
+  'switch-to-system-mode': ใช้ธีมตามระบบ
+  'pin-on-top': ปักหมุดไว้บนสุด
+  'unpin-from-top': เลิกปักหมุดไว้บนสุด
+  'switch-profile': สลับโปรไฟล์
+  'close': ปิด
+  'expand': ขยาย
+  'collapse': ย่อ
+  'login': เข้าสู่ระบบ
+  'logging-in': กำลังเข้าสู่ระบบ...
+  'account': บัญชี
+  'logout': ออกจากระบบ
+
+'chat-window':
+  style:
+    title: รูปแบบหน้าต่างแชท
+    legacy: หน้าต่างแบบคลาสสิก
+    floating-attached: ลอยอยู่ข้างตัวละคร
+    floating-free: ลอยได้ทุกที่บนหน้าจอ
+    floating-danmaku: ลอยแบบฟีดข้อความ
+    pinned: อยู่บนสุดเสมอ
+  resize: ลากเพื่อปรับขนาดแชท
+  move: ลากเพื่อย้ายแชท
+  fold: ซ่อนแชท
+  composer:
+    show: แสดงช่องพิมพ์ข้อความ
+    hide: ซ่อนช่องพิมพ์ข้อความ
+  danmaku-feed:
+    title: เวลาแสดงข้อความ
+    hide-read: ซ่อนข้อความที่อ่านแล้ว
+    hide-read-description: ข้อความจะหายไปเมื่ออ่านแล้ว ส่วนคำตอบที่พูดออกเสียงจะหายไปเมื่อพูดจบ
+    reading-speed: ความเร็วในการอ่าน
+    reading-speed-value: '{count} ตัวอักษร/วินาที'
+    minimum-time: เวลาขั้นต่ำ
+    minimum-time-value: '{count} วินาที'
+
+widgets:
+  close: ปิดวิดเจ็ต
+  empty:
+    title: ไม่มีวิดเจ็ตที่ทำงานอยู่
+    description: วิดเจ็ตจะปรากฏที่นี่เมื่อเครื่องมือหรือปลั๊กอินสร้างขึ้นมา
+  loading: กำลังโหลดวิดเจ็ต…
+  waiting: กำลังรอข้อมูลของวิดเจ็ต "{id}"…
+
+inlay:
+  hide: ซ่อน
+
+notice:
+  'fade-on-hover':
+    title: จางลงเมื่อเคอร์เซอร์อยู่ใกล้
+    intro: ทำให้ตัวละครจางลงโดยอัตโนมัติเมื่อเคอร์เซอร์เลื่อนเข้ามาใกล้ ช่วยลดสิ่งรบกวนโดยยังมองเห็นตัวละครอยู่
+    opacity: เมื่อเปิดใช้ ความทึบของ {targets} จะลดลงเหลือ {value} เมื่อเคอร์เซอร์อยู่ใกล้
+    toggle: คุณปิดได้โดยวางเคอร์เซอร์ที่ {controls} แล้วคลิก {icon} อีกครั้ง
+    controls-label: แผงควบคุมลอย
+    icon-label: ไอคอนรูปตาขีดฆ่า
+    targets: ตัวละครและ UI
+    confirm: เข้าใจแล้ว
+    dont-show-again: ไม่ต้องแสดงอีก
+    preparing: กำลังเตรียม…
+    read-more: อ่านเพิ่มเติม
+    preview-title: นี่คืออะไร?
+
+about:
+  subtitle: เวอร์ชันเดสก์ท็อป
+  current-version: เวอร์ชันปัจจุบัน
+  common:
+    cancel: ยกเลิก
+  links:
+    title: ลิงก์
+    home: หน้าแรก
+    documentation: เอกสาร
+  update:
+    lane:
+      label: ช่องทางอัปเดต
+      description: เลือกช่องทางรุ่นที่ต้องการติดตาม
+      placeholder: เลือกช่องทางอัปเดต
+    channels:
+      auto: อัตโนมัติ
+      stable: เสถียร
+      nightly: รายคืน
+    status:
+      downloading: กำลังดาวน์โหลดอัปเดต...
+      error-prefix: ข้อผิดพลาด
+      latest: เป็นเวอร์ชันล่าสุดแล้ว (v{version})
+      downloaded:
+        windows: อัปเดตพร้อมติดตั้งแบบเงียบแล้ว (v{version})
+        restart: อัปเดตพร้อมติดตั้งเมื่อรีสตาร์ต (v{version})
+    actions:
+      download: ดาวน์โหลดอัปเดต
+      download-short: ดาวน์โหลด
+      confirm-download: ยืนยันการดาวน์โหลด
+      check-for-updates: ตรวจหาอัปเดต
+      checking: กำลังตรวจสอบ...
+      latest-version: เวอร์ชันล่าสุด
+      disabled-dev: ปิดการอัปเดตในโหมด Dev
+      managed-by-store: การอัปเดตจัดการผ่านร้านแอปของคุณ
+      retry-check: ตรวจสอบอีกครั้ง
+      restart-silent: รีสตาร์ตเพื่ออัปเดตแบบเงียบ
+      restart-install: รีสตาร์ตเพื่อติดตั้งอัปเดต
+      confirm-restart: ยืนยันการรีสตาร์ต
+    dialog:
+      title: มีอัปเดตใหม่
+      description: เวอร์ชันใหม่ (v{version}) พร้อมให้ใช้งานแล้ว
+      no-release-notes-markdown: _ไม่มีบันทึกประจำรุ่น_
