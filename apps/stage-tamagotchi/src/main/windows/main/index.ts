@@ -384,8 +384,13 @@ export async function setupMainWindow(params: {
           ease: curve ? cubicBezier(...curve) : 'outCubic',
           modifier: utils.round(0),
           onRender: () => {
+            // NOTICE:
+            // Above 100% scaling on Windows, `setPosition` reuses the rounded window size, so each call changes it a
+            // little. A glide calls it each frame, and the window grows past the work area.
+            // Source: https://github.com/electron/electron/issues/9477
+            // Removal: Electron keeps the size of a window that `setPosition` moves.
             if (!window.isDestroyed())
-              window.setPosition(state.x, state.y)
+              window.setBounds({ x: state.x, y: state.y, width: bounds.width, height: bounds.height })
           },
           onComplete: () => {
             if (fullscreenGlide === glide)
