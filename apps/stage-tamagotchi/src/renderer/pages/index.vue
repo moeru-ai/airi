@@ -370,6 +370,8 @@ const FULLSCREEN_STAGE_SHARE = 0.42
 const FULLSCREEN_SURFACE_SHARE = 0.54
 /** The narrowest surface: the width of the settings window, which settings pages are laid out for. */
 const FULLSCREEN_SURFACE_MIN_WIDTH = 600
+/** The space between the surface and the top and right edges of the screen. */
+const FULLSCREEN_SURFACE_MARGIN = 24
 
 const { t } = useI18n()
 const { width: windowWidth } = useWindowSize()
@@ -388,7 +390,7 @@ const islandBounds = useElementBounding(fullscreenIslandElement)
  */
 function clampSurfaceWidth(width: number, areaWidth: number) {
   const islandRight = islandBounds.right.value
-  const widest = islandRight ? areaWidth - islandRight - islandBounds.left.value : Infinity
+  const widest = islandRight ? areaWidth - FULLSCREEN_SURFACE_MARGIN - islandRight - islandBounds.left.value : Infinity
   return Math.round(Math.min(Math.max(width, FULLSCREEN_SURFACE_MIN_WIDTH), widest))
 }
 
@@ -923,14 +925,14 @@ const cursorPosition = computed(() => ({
         <FullscreenIsland />
       </div>
       <div
-        :style="{ width: `${surfaceWidth}px` }"
-        :class="['pointer-events-auto absolute', 'bottom-0 right-0 top-6']"
+        :style="{ width: `${surfaceWidth}px`, top: `${FULLSCREEN_SURFACE_MARGIN}px`, right: `${FULLSCREEN_SURFACE_MARGIN}px` }"
+        :class="['pointer-events-auto absolute bottom-0']"
       >
-        <!-- The surface is a sheet that meets the right and bottom edges of the screen, as in the design draft. -->
+        <!-- The surface is a sheet that meets the bottom edge of the screen. It keeps a margin at the top and the right. -->
         <div
           :class="[
             'h-full w-full',
-            'rounded-tl-3xl',
+            'rounded-t-3xl',
             'bg-$bg-color',
             'overflow-hidden',
           ]"
