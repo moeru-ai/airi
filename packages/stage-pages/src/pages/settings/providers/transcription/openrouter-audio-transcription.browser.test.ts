@@ -157,4 +157,21 @@ describe('openRouter audio transcription settings', () => {
 
     await expect.element(page.getByText(translatedError)).toBeVisible()
   })
+
+  it('shows the model catalog error beside the disabled selector', async () => {
+    await renderPage(pinia)
+    const providersStore = useProviderStore(pinia)
+    providersStore.providerRuntimeState = {
+      ...providersStore.providerRuntimeState,
+      [providerId]: {
+        models: [],
+        defaultModel: null,
+        modelStatus: 'error',
+        modelError: 'OpenRouter transcription model list request failed: 401 Invalid API key',
+      },
+    }
+
+    await expect.element(page.getByRole('combobox')).toBeDisabled()
+    await expect.element(page.getByText('OpenRouter transcription model list request failed: 401 Invalid API key')).toBeVisible()
+  })
 })

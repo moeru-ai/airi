@@ -10,6 +10,7 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 import HearingPage from './index.vue'
+import TranscriberPage from './transcriber.vue'
 
 import 'virtual:uno.css'
 
@@ -40,6 +41,21 @@ async function renderHearing(trigger: boolean | undefined, width = 1280) {
     global: {
       plugins: [pinia, router, createI18n({ legacy: false, locale: 'en', messages: { en }, missingWarn: false, fallbackWarn: false })],
       provide: trigger === undefined ? {} : { [pushToTalkTriggerKey as symbol]: trigger },
+    },
+  })
+}
+
+async function renderTranscriber(pinia = createPinia()) {
+  pinias.push(pinia)
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/:path(.*)*', component: { template: '<div />' } }],
+  })
+  await router.push('/settings/modules/hearing/transcriber')
+
+  return render(TranscriberPage, {
+    global: {
+      plugins: [pinia, router, createI18n({ legacy: false, locale: 'en', messages: { en }, missingWarn: false, fallbackWarn: false })],
     },
   })
 }
@@ -137,5 +153,33 @@ describe('hearing input mode', () => {
 
     await expect.element(screen.getByTestId('hearing-input-mode')).toBeVisible()
     expect(screen.getByTestId('hearing-input-mode-stranded').query()).toBeNull()
+  })
+})
+
+describe('hearing provider changes', () => {
+  it('keeps the latest provider model when earlier model requests finish later', async () => {
+    localStorage.setItem('settings/hearing/active-provider', 'browser-web-speech-api')
+    localStorage.setItem('settings/hearing/active-model', 'browser-model')
+    localStorage.setItem('settings/hearing/active-custom-model', 'browser-model')
+    localStorage.setItem('settings/hearing/provider-model/openrouter-audio-transcription', 'openrouter-model')
+    localStorage.setItem('settings/hearing/provider-model/comet-api-transcription', 'comet-model')
+    const pinia = createPinia()
+    await renderTranscriber(pinia)
+    const hearingStore = useHearingStore(pinia)
+    const requests: Array<{ provider: string, resolve: () => void }> = []
+    vi.spyOn(hearingStore, 'loadModelsForProvider').mockImplementation(provider => new Promise((resolve) => {
+      requests.push({ provider, resolve })
+    }))
+
+    hearingStore.activeTranscriptionProvider = 'openrouter-audio-transcription'
+    await vi.waitFor(() => expect(requests.some(request => request.provider === 'openrouter-audio-transcription')).toBe(true))
+    hearingStore.activeTranscriptionProvider = 'comet-api-transcription'
+    await vi.waitFor(() => expect(requests.some(request => request.provider === 'comet-api-transcription')).toBe(true))
+
+    requests.forEach(request => request.resolve())
+
+    await vi.waitFor(() => expect(hearingStore.activeTranscriptionModel).toBe('comet-model'))
+    expect(hearingStore.getSavedProviderModel('browser-web-speech-api')).toBe('browser-model')
+    expect(hearingStore.getSavedProviderModel('openrouter-audio-transcription')).toBe('openrouter-model')
   })
 })

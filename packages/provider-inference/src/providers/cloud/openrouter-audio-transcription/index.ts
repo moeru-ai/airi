@@ -54,15 +54,18 @@ export const providerOpenRouterAudioTranscription = defineProvider<OpenRouterAud
     ],
   },
   extraMethods: {
-    listModels: async (config) => {
+    listModels: async (config, _provider, contextOptions) => {
       const response = await fetch(new URL('models?output_modalities=transcription', normalizeOpenRouterAudioBaseUrl(config.baseUrl)), {
         headers: {
           Authorization: `Bearer ${config.apiKey.trim()}`,
           ...OPENROUTER_ATTRIBUTION_HEADERS,
         },
       })
-      if (!response.ok)
-        throw new Error(`OpenRouter transcription model request failed: ${response.status} ${await response.text()}`)
+      if (!response.ok) {
+        const errorPrefix = contextOptions?.t('settings.pages.modules.hearing.sections.section.provider-model-selection.openrouter-catalog-error')
+        const errorDetail = await response.text()
+        throw new Error([errorPrefix, response.status, errorDetail].filter(Boolean).join(' '))
+      }
 
       const data = await response.json() as {
         data?: Array<{ id: string, name?: string, description?: string, context_length?: number }>
