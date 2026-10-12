@@ -271,9 +271,9 @@ describe('checkLocales', () => {
     // ROOT CAUSE:
     //
     // The check read a `{count}` inside a literal span as a selector, so a message
-    // that explains the token and holds a raw pipe passed. The pattern also read the
-    // body up to the first apostrophe it met, so an escaped one ended the span early
-    // and left the rest of the message bare.
+    // that explains the token and holds a raw pipe passed.
+    // The pattern also read the body up to the first apostrophe it met.
+    // An escaped apostrophe ended the span early and left the rest of the message bare.
     //
     // The spans are removed before the selector is read now. The body follows the
     // escape grammar of the compiler, and the pattern accepts spaces around the body
