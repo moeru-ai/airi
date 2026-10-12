@@ -22,6 +22,15 @@ describe('tool call count', () => {
     ))).toBe(2)
   })
 
+  it('keeps the calls of different choices apart when each choice starts at index 0', () => {
+    expect(countToolCalls(stream(
+      { choices: [{ index: 0, delta: { tool_calls: [{ index: 0, id: 'a', function: { name: 'weather', arguments: '{' } }] } }] },
+      { choices: [{ index: 1, delta: { tool_calls: [{ index: 0, id: 'b', function: { name: 'weather', arguments: '{' } }] } }] },
+      { choices: [{ index: 0, delta: { tool_calls: [{ index: 0, function: { arguments: '}' } }] } }] },
+      { choices: [{ index: 1, delta: { tool_calls: [{ index: 0, function: { arguments: '}' } }] } }] },
+    ))).toBe(2)
+  })
+
   it('merges streamed Responses item events and argument deltas by call ID', () => {
     expect(countToolCalls(stream(
       { type: 'response.output_item.added', item: { type: 'function_call', id: 'item-1', call_id: 'call-1', name: 'weather' } },

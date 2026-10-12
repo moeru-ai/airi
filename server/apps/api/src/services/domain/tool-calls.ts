@@ -4,6 +4,7 @@ import { array, literal, looseObject, number, optional, picklist, safeParse, str
 
 const chatChunkSchema = looseObject({
   choices: array(looseObject({
+    index: optional(number()),
     delta: optional(looseObject({ tool_calls: optional(array(looseObject({ index: optional(number()) }))) })),
   })),
 })
@@ -49,8 +50,9 @@ function countBodyCalls(body: unknown) {
 }
 
 function countStreamCalls(events: unknown[]) {
-  // A Chat Completions call arrives as deltas that share one index. A delta without an index continues call 0.
-  const chatIndexes = new Set<number>()
+  // A Chat Completions call arrives as deltas that share one index inside one choice.
+  // Each choice numbers its calls from 0, so the key holds both indexes. A missing index means 0.
+  const chatCalls = new Set<string>()
   // A Responses call arrives as item events and argument deltas. The item ID maps to the call ID once the item is known.
   const responseCalls = new Set<string>()
   const callByItem = new Map<string, string>()
@@ -59,7 +61,7 @@ function countStreamCalls(events: unknown[]) {
     if (chunk.success) {
       for (const choice of chunk.output.choices) {
         for (const piece of choice.delta?.tool_calls ?? [])
-          chatIndexes.add(piece.index ?? 0)
+          chatCalls.add(`${choice.index ?? 0}:${piece.index ?? 0}`)
       }
       continue
     }
@@ -76,7 +78,7 @@ function countStreamCalls(events: unknown[]) {
     if (delta.success)
       responseCalls.add(callByItem.get(delta.output.item_id) ?? delta.output.item_id)
   }
-  return chatIndexes.size + responseCalls.size
+  return chatCalls.size + responseCalls.size
 }
 
 /**
