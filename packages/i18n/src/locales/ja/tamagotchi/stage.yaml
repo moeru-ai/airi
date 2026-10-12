@@ -30,6 +30,12 @@ docs:
   'logging-in': サインイン中…
   'account': アカウント
   'logout': サインアウト
+  switch-to-system-mode: システムのテーマに合わせる
+  hide-chat: チャットを非表示
+  enable-microphone: マイクをオン
+  disable-microphone: マイクをオフ
+  mute: ミュート
+  unmute: ミュート解除
 widgets:
   close: ウィジェットを閉じる
   empty:
@@ -96,3 +102,32 @@ about:
       title: 利用可能なアップデートがあります
       description: 新しいバージョン({version})が利用可能です。
       no-release-notes-markdown: _リリースノートがありません。_
+resource-island:
+  loading: リソースを準備中...
+  ready: リソースの準備完了
+  preparing: モデルファイルを準備中
+  failed: モデルのダウンロードに失敗しました
+chat-window:
+  style:
+    title: チャットウィンドウのスタイル
+    legacy: 従来のウィンドウ
+    floating-attached: フローティング、キャラクターの隣
+    floating-free: フローティング、画面の好きな位置
+    floating-danmaku: フローティング、メッセージフィード
+    pinned: 常に最前面に表示
+  resize: ドラッグしてチャットのサイズを変更
+  move: ドラッグしてチャットを移動
+  fold: チャットを非表示
+  composer:
+    show: メッセージ入力欄を表示
+    hide: メッセージ入力欄を非表示
+  danmaku-feed:
+    title: メッセージの表示時間
+    hide-read: 既読メッセージを非表示
+    hide-read-description: 読み終わったメッセージは消えます。音声付きの返信は発話が終わると消えます。
+    reading-speed: 読む速さ
+    reading-speed-value: '{count}文字/秒'
+    minimum-time: 最短表示時間
+    minimum-time-value: '{count}秒'
+inlay:
+  dismiss: 閉じる

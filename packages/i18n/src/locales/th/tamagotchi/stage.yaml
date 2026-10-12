@@ -109,6 +109,8 @@ about:
       auto: อัตโนมัติ
       stable: เสถียร
       nightly: รายคืน
+      alpha: อัลฟา
+      beta: เบตา
     status:
       downloading: กำลังดาวน์โหลดอัปเดต...
       error-prefix: ข้อผิดพลาด
