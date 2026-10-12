@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { ProviderValidationCheck } from '../../../types'
 import { createOpenAICompatibleValidators } from '../../../validators'
 import { defineProvider } from '../../registry'
+import { withTranscriptionOptions } from '../../transcription'
 
 const cometApiConfigSchema = z.object({
   apiKey: z
@@ -88,16 +89,10 @@ export const providerCometAPITranscription = defineProvider<CometApiConfig, 'com
   },
   createProviderConfig: providerCometAPI.createProviderConfig,
   createProvider(config) {
-    const provider = merge(
+    return withTranscriptionOptions(merge(
       createModelProvider({ apiKey: config.apiKey, baseURL: config.baseUrl! }),
       createTranscriptionProvider({ apiKey: config.apiKey, baseURL: config.baseUrl! }),
-    )
-    const transcription = provider.transcription.bind(provider)
-    provider.transcription = (model: string, extraOptions?: Record<string, unknown>) => ({
-      ...transcription(model),
-      ...extraOptions,
-    })
-    return provider
+    ))
   },
   validationRequiredWhen: config => Boolean(config.apiKey?.trim()),
   validators: createOpenAICompatibleValidators({ checks: [ProviderValidationCheck.ModelList] }),

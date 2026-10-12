@@ -3,6 +3,7 @@ import type { OpenRouterAudioConfig } from '../openrouter-audio/shared'
 import { createOpenAI } from '@xsai-ext/providers/create'
 
 import { defineProvider } from '../../registry'
+import { withTranscriptionOptions } from '../../transcription'
 import { OPENROUTER_ATTRIBUTION_HEADERS } from '../openrouter-ai'
 import { normalizeOpenRouterAudioBaseUrl, openRouterAudioConfigSchema } from '../openrouter-audio/shared'
 
@@ -35,7 +36,7 @@ export const providerOpenRouterAudioTranscription = defineProvider<OpenRouterAud
     }),
   }),
   createProvider(config) {
-    return createOpenAI(config.apiKey.trim(), normalizeOpenRouterAudioBaseUrl(config.baseUrl))
+    return withTranscriptionOptions(createOpenAI(config.apiKey.trim(), normalizeOpenRouterAudioBaseUrl(config.baseUrl)))
   },
   validationRequiredWhen: config => Boolean(config.apiKey?.trim()),
   validators: {

@@ -24,5 +24,6 @@ export type { SherpawModelResource, SherpawTranscriptionHost } from './providers
 export * from './providers/local/sherpaw-transcription/models'
 export { joinTranscriptSegments } from './providers/local/sherpaw-transcription/transcript'
 export * from './providers/registry'
+export { withTranscriptionOptions } from './providers/transcription'
 export * from './types'
 export * from './validators'
