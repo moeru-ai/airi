@@ -10,6 +10,7 @@ import { createI18n } from 'vue-i18n'
 
 import VoiceInputButton from './voice-input-button.vue'
 
+import { pushToTalkTriggerKey } from '../../../../composables/push-to-talk-trigger'
 import { getSpeechBusContext, voiceInputCommand, voiceMessageCommand, voiceMessagesChanged, voiceRequestSnapshot, voiceSnapshotChanged } from '../../../../services/speech/bus'
 
 const cleanups: (() => void)[] = []
@@ -20,7 +21,7 @@ afterEach(() => {
 })
 
 /** Mounts the button against a scripted voice host. `afterFinish` is the message state the host reports after `finish`. */
-async function mountButton(options: { afterFinish?: Partial<VoiceMessageSnapshot>, dictation?: string, queued?: boolean } = {}) {
+async function mountButton(options: { afterFinish?: Partial<VoiceMessageSnapshot>, dictation?: string, queued?: boolean, pushToTalkTrigger?: boolean } = {}) {
   const commands: Array<VoiceInputCommand | VoiceMessageCommand> = []
   const context = getSpeechBusContext()
   const connected: VoiceHostSnapshot = { connected: true, drafts: [] }
@@ -65,12 +66,38 @@ async function mountButton(options: { afterFinish?: Partial<VoiceMessageSnapshot
       'onSubmit': () => submitted.push(true),
     })
   } })
-  const screen = await render(component, { global: { plugins: [pinia, createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false })] } })
+  const screen = await render(component, {
+    global: {
+      plugins: [pinia, createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false })],
+      provide: options.pushToTalkTrigger === undefined ? {} : { [pushToTalkTriggerKey as symbol]: options.pushToTalkTrigger },
+    },
+  })
   cleanups.push(() => screen.unmount())
   return { screen, commands, draft, submitted, button }
 }
 
 describe('voiceInputButton', () => {
+  // Review: https://github.com/moeru-ai/airi/pull/2729#discussion_r4239147482
+  it('warns in the menu when the saved mode is Push to Talk and the host has no trigger', async () => {
+    localStorage.setItem('settings/hearing/input-mode', 'push-to-talk')
+    const { screen } = await mountButton()
+
+    await screen.getByTestId('voice-input-button').click({ button: 'right' })
+
+    await expect.element(screen.getByTestId('voice-menu-push-to-talk-stranded')).toBeVisible()
+    await expect.element(screen.getByTestId('voice-menu-push-to-talk-stranded')).toHaveTextContent('stage.chat.voice-composer.push-to-talk-unavailable')
+  })
+
+  it('shows no Push to Talk warning in the menu when the host has a trigger', async () => {
+    localStorage.setItem('settings/hearing/input-mode', 'push-to-talk')
+    const { screen } = await mountButton({ pushToTalkTrigger: true })
+
+    await screen.getByTestId('voice-input-button').click({ button: 'right' })
+
+    await expect.element(screen.getByTestId('voice-menu-listen')).toBeVisible()
+    expect(screen.getByTestId('voice-menu-push-to-talk-stranded').query()).toBeNull()
+  })
+
   it('keeps a voice message pending when Auto send is off, and sends it with the composer text', async () => {
     const { screen, commands, button } = await mountButton()
     const control = screen.getByTestId('voice-input-button')

@@ -17,6 +17,7 @@ import { useDiscordStore } from '../stores/modules/discord'
 import { useFactorioStore } from '../stores/modules/gaming-factorio'
 import { useMinecraftStore } from '../stores/modules/gaming-minecraft'
 import { useHearingStore } from '../stores/modules/hearing'
+import { useHomeAssistantStore } from '../stores/modules/home-assistant'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useTwitterStore } from '../stores/modules/twitter'
 import { useWebSearchStore } from '../stores/modules/web-search'
@@ -82,8 +83,13 @@ it.each(['resetSettings', 'resetState'])('continues independent module resets wh
   const { pinia } = follower
   await useConsciousnessSettingsStore(pinia).setReasoning(true)
   useMinecraftStore(pinia).latestRuntimeContextText = 'previous context'
+  // A policy that a module reset must clear, so the picker cannot restore it.
+  const homeAssistant = useHomeAssistantStore(pinia)
+  homeAssistant.exposureMode = 'deny'
+  homeAssistant.deniedEntities = ['lock.front_door']
   const modules = [
     useHearingStore(pinia),
+    homeAssistant,
     useSpeechStore(pinia),
     useConsciousnessStore(pinia),
     useTwitterStore(pinia),
@@ -108,6 +114,8 @@ it.each(['resetSettings', 'resetState'])('continues independent module resets wh
   await expect(follower.maintenance.resetModulesSettings()).rejects.toThrow('Reset transport unavailable')
   expect(resetModules).toEqual(modules.map(module => module.$id))
   expect(useMinecraftStore(pinia).latestRuntimeContextText).toBe('')
+  expect(homeAssistant.exposureMode).toBe('all')
+  expect(homeAssistant.deniedEntities).toEqual([])
   expect(useConsciousnessSettingsStore(leader.pinia).reasoning).toBe(action === 'resetState')
 })
 

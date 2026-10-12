@@ -32,6 +32,7 @@ import {
   AIRI_CHAT_SESSION_ID_HEADER,
 } from '../libs/product-signals/headers'
 import { getSpeechBusContext, voiceGenerationEnded } from '../services/speech/bus'
+import { createWakeWordTool } from '../tools/wake-words'
 import { useLLM } from './ai/chat-llm/llm'
 import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
@@ -51,6 +52,7 @@ import { useStickersStore } from './modules/stickers'
 import { useVisionStore } from './modules/vision'
 import { useWebSearchStore } from './modules/web-search'
 import { executeToolCallRerun } from './tool-call-rerun'
+import { useWakeWordsStore } from './wake-words'
 
 interface ForkOptions {
   fromSessionId?: string
@@ -235,6 +237,7 @@ export const useChatStore = defineStore('chat', () => {
   const chatStream = useChatStreamStore()
   const chatContext = useChatContextStore()
   const cardStore = useAiriCardStore()
+  const wakeWords = useWakeWordsStore()
   const stickersStore = useStickersStore()
   const contextObservability = useContextObservabilityStore()
   const { activeSessionId } = storeToRefs(chatSession)
@@ -897,7 +900,8 @@ export const useChatStore = defineStore('chat', () => {
       stickers,
       tools: async () => {
         const references = collectToolReferences(payload.sessionId, payload.tools)
-        return llmToolsStore.getToolsByNames(...references.map(tool => tool.name))
+        const tools = llmToolsStore.getToolsByNames(...references.map(tool => tool.name))
+        return [...tools, await createWakeWordTool({ characterId, setWords: wakeWords.setWords })]
       },
     }
   }
