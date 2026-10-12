@@ -282,6 +282,7 @@ describe('social authorization revocation', () => {
       PUBLIC_URL: 'http://localhost:3000',
       BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
     }), undefined, undefined, {
+      checkUserDeletion: vi.fn(async () => {}),
       softDeleteUserData,
       trackAuthEvent: vi.fn(async () => {}),
     }, createSocialAuthorizationRevoker(db, credentials, fetchRequest))

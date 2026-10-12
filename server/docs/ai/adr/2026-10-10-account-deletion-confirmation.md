@@ -20,6 +20,9 @@ Both adapter calls remain: `deleteUserSessions` also clears secondary session st
 
 ```mermaid
 flowchart LR
+  Page[Shared account settings] -->|confirm| Endpoint
+  Page -->|fresh sign-in| OIDC[Shared OIDC login]
+  OIDC -->|prompt=login| Hosted[Hosted sign-in page]
   Auth[auth.ts] --> Endpoint[account-deletion plugin]
   Endpoint --> Native[Better Auth guards and adapter]
   Endpoint --> Hooks[Configured deletion hooks]
@@ -34,6 +37,14 @@ Steam OpenID has no external grant. Its account still passes through resource cl
 ### Affected files
 
 ```text
+packages/
+├── stage-pages/src/pages/settings/account/
+│   ├── account-settings-page.vue
+│   └── account-settings-page.browser.test.ts
+├── stage-ui/src/libs/
+│   ├── auth.ts
+│   └── auth.browser.test.ts
+└── i18n/src/locales/{en,zh-Hans}/settings.yaml
 server/
 ├── apps/auth/
 │   ├── README.md
@@ -43,6 +54,7 @@ server/
 │       ├── plugins/account-deletion.ts
 │       └── tests/
 │           ├── account-deletion.test.ts
+│           ├── confirmed-account-deletion.test.ts
 │           └── social-authorization.test.ts
 └── docs/ai/adr/2026-10-10-account-deletion-confirmation.md
 ```
@@ -61,7 +73,7 @@ sequenceDiagram
     Native-->>Client: Error without cleanup
   else Request accepted
     Auth->>Hooks: beforeDelete(current user)
-    Hooks->>Hooks: Revoke external grants, then clean up resources
+    Hooks->>Hooks: Check subscriptions, revoke grants, clean up resources
     alt Revocation or resource cleanup fails
       Hooks-->>Auth: Error
       Auth-->>Client: Error, retain Auth account for retry
@@ -79,7 +91,7 @@ sequenceDiagram
 
 - The session selects the account. The strict body schema rejects target IDs and missing or false confirmation.
 - JWTs require their own active original session. Token refresh cannot renew that session's creation time.
-- Session freshness follows Better Auth configuration, currently 24 hours by default. Stale sessions require sign-in again.
+- Session freshness follows Better Auth configuration, with an additional five-minute limit for this endpoint. Stale sessions require sign-in again.
 - Browser cookies retain Origin checks. Native bearer requests use the same session authority and freshness rules.
 - Steam uses OpenID 2.0 without an OAuth grant to revoke. Its local account and sessions still follow normal deletion.
 - Provider revocation and resource cleanup run before Auth deletion. Failure preserves the account for retry.
@@ -89,7 +101,14 @@ sequenceDiagram
 ## Verification and rollout
 
 Handler tests use a real in-memory database, the production provider revoker, and external-service doubles.
-They cover confirmation, authentication, freshness, JWT ownership, account isolation, Origin, retry, session invalidation, and unchanged email requests.
+They cover confirmation, authentication, password reauthentication, freshness, JWT ownership, account isolation, Origin, subscriptions, retry, session invalidation, and unchanged email requests.
+Browser tests cover the real shared page, confirmation with and without email, reauthentication, subscription refusal, account switches, and OIDC authorization parameters.
 Deploy Auth before clients switch endpoints. Clients must update confirmation text, reauthentication, and success handling.
-This PR changes no client UI, schema, or resource-retention policy.
+The shared account page uses the same confirmation flow for every provider. The separate native Swift client must adopt the endpoint separately. No schema or resource-retention policy changes.
+Explicit sign-in requests use `prompt=login` to bypass silent reuse of the Auth browser session.
+The hosted login page requires credential or provider authentication before it resumes authorization.
+The endpoint checks the persisted session creation time, never JWT issue time.
+After reauthentication, users must reopen deletion and confirm again. No deletion intent survives account changes or navigation.
+This proves recent AIRI sign-in, not a guarantee that every external provider requests a password or MFA.
+Cooldown and account recovery remain out of scope.
 Production deployment and physical-device acceptance require separate verification.

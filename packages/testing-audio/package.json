@@ -30,6 +30,8 @@
     "vitest": "catalog:vitest"
   },
   "devDependencies": {
+    "@proj-airi/audio": "workspace:^",
+    "@proj-airi/pipelines-audio": "workspace:^",
     "@types/node": "catalog:"
   }
 }

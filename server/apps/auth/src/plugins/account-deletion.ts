@@ -20,7 +20,14 @@ export function accountDeletion(): BetterAuthPlugin {
         if (!deletion?.enabled)
           throw APIError.fromStatus('NOT_FOUND')
 
-        const { user } = ctx.context.session
+        const { user, session } = ctx.context.session
+        // A refreshed JWT must not renew the persisted sign-in time.
+        if (Date.now() - session.createdAt.getTime() >= 5 * 60 * 1000) {
+          throw new APIError('FORBIDDEN', {
+            code: 'SESSION_NOT_FRESH',
+            message: 'Sign in again before deleting your account.',
+          })
+        }
         // Keep Better Auth's deletion order without invoking its email-verification branch.
         await deletion.beforeDelete?.(user, ctx.request)
         await ctx.context.internalAdapter.deleteUser(user.id)
