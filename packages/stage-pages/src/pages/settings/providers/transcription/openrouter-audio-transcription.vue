@@ -2,6 +2,7 @@
 import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import {
+  ErrorContainer,
   TranscriptionPlayground,
   TranscriptionProviderSettings,
 } from '@proj-airi/stage-ui/components'
@@ -23,6 +24,7 @@ const providerId = 'openrouter-audio-transcription'
 const apiKeyConfigured = computed(() => Boolean(providers.value[providerId]?.apiKey))
 const providerModels = computed(() => providersStore.getModelsForProvider(providerId))
 const isLoadingModels = computed(() => providersStore.isLoadingModels[providerId] || false)
+const modelLoadError = computed(() => providersStore.modelLoadError[providerId])
 const selectedModel = computed(() => {
   const model = providers.value[providerId]?.model
   return typeof model === 'string' ? model : ''
@@ -70,6 +72,11 @@ async function handleGenerateTranscription(file: File) {
         :options="providerModels.map(model => ({ value: model.id, label: model.name || model.id }))"
         :disabled="isLoadingModels || providerModels.length === 0"
         @update:model-value="handleModelChange"
+      />
+      <ErrorContainer
+        v-if="modelLoadError"
+        :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
+        :error="modelLoadError"
       />
     </template>
     <template #playground>

@@ -776,6 +776,7 @@ pages:
             no_models_description: No models were found for this provider
             no_search_results: No matching models
             no_search_results_description: No models match '{query}'. Try a different search term.
+            openrouter-catalog-error: 'OpenRouter transcription model list request failed:'
             not_supported: Model listing not supported
             not_supported_description: This provider doesn't support model listing functionality
             search_placeholder: Search models...

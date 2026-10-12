@@ -9,6 +9,7 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 import HearingPage from './index.vue'
+import TranscriberPage from './transcriber.vue'
 
 import 'virtual:uno.css'
 
@@ -34,6 +35,21 @@ async function renderHearing(trigger: boolean | undefined, pinia = createPinia()
     global: {
       plugins: [pinia, router, createI18n({ legacy: false, locale: 'en', messages: { en }, missingWarn: false, fallbackWarn: false })],
       provide: trigger === undefined ? {} : { [pushToTalkTriggerKey as symbol]: trigger },
+    },
+  })
+}
+
+async function renderTranscriber(pinia = createPinia()) {
+  pinias.push(pinia)
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/:path(.*)*', component: { template: '<div />' } }],
+  })
+  await router.push('/settings/modules/hearing/transcriber')
+
+  return render(TranscriberPage, {
+    global: {
+      plugins: [pinia, router, createI18n({ legacy: false, locale: 'en', messages: { en }, missingWarn: false, fallbackWarn: false })],
     },
   })
 }
@@ -115,7 +131,7 @@ describe('hearing provider changes', () => {
     localStorage.setItem('settings/hearing/provider-model/openrouter-audio-transcription', 'openrouter-model')
     localStorage.setItem('settings/hearing/provider-model/comet-api-transcription', 'comet-model')
     const pinia = createPinia()
-    await renderHearing(undefined, pinia)
+    await renderTranscriber(pinia)
     const hearingStore = useHearingStore(pinia)
     const requests: Array<{ provider: string, resolve: () => void }> = []
     vi.spyOn(hearingStore, 'loadModelsForProvider').mockImplementation(provider => new Promise((resolve) => {
