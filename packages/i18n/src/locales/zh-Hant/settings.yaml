@@ -56,8 +56,33 @@ dialogs:
       optionalHint: 即使沒有授予這些權限，您也可以繼續。
       stateGranted: 已授權
       stateNotGranted: 未授權
+    loginPrompt: 登入以使用 AIRI 官方服務，獲得最佳體驗。
+    loginAction: 登入
+    setupWithoutSigningIn: 使用自己的服務供應商設定
+    pricingLink: 定價
+    termsLink: 服務條款
+    buyFlux: 儲值 Flux
+  bug-report:
+    title: 回報問題 (´;ω;`)ヾ(･∀･`)
+    subtitle: 抱歉，發生了一些問題。可以告訴我們發生了什麼事嗎？
+    trigger-label: 回報問題
+    submit-label: 傳送問題回報
+    triage-description: 附上螢幕擷取畫面及頁面資訊，協助我們分析問題。
+    description-placeholder: 重現步驟、預期行為及實際行為
+    include-current-page-screenshot: 附上目前頁面的螢幕擷取畫面
+    manual-media:
+      label: 手動選擇螢幕擷取畫面 / 錄影
+      optional: 選填。
+    media-files:
+      label: 媒體檔案
+      description: 選填：手動選擇。
+      placeholder: 選擇螢幕擷取畫面或影片檔案
+      selected-count: 已選取 {count} 個檔案
+    last-submitted-preview: 上次提交的資料預覽
 language:
   title: 語言
+  description: |
+    介面語言。角色語言可稍後設定。
 controls-island:
   icon-size:
     title: 控制島嶼圖示大小
@@ -69,6 +94,46 @@ model-select:
   panel-callout:
     support-status: >
       點擊 {select-button} 選擇或匯入模型。目前支援 {zip}（適用於 Live2D 與 Spine 模型）、{vrm}（適用於 VRM 模型）和 {mmd}（適用於 MMD 模型，需與貼圖一起壓縮）。
+    support-status-header: 支援 2D 與 3D 模型
+    model-type-example: |
+      Neuro-sama 使用 Live2D Inc 開發的框架驅動 2D 模型；Grok Companion 中的 Grok Ani 則使用 VRM / MMD 開放格式驅動 3D 模型。
+  select-model:
+    import: 匯入
+    remove: 移除
+    title: 模型選擇器
+    button: 選擇模型
+    select: 選取
+    confirm: 確認
+  live2d-report:
+    close: 關閉
+    model:
+      title: 模型
+      files: '{count} 個檔案'
+      types:
+        unknown: 未知
+    resources:
+      expressions: 表情
+      parameters: 參數
+      title: 資源
+      motions: 動作
+      textures: 材質貼圖
+      referenced-and-found: 引用 {referenced} 個 · 找到 {found} 個
+      referenced: 引用 {count} 個
+      found: 找到 {count} 個
+    actions:
+      cancel: 取消
+      confirm: 確認匯入
+      import-anyway: 仍要匯入
+    title: 匯入前確認
+    description: 檢查模型資料及壓縮檔中發現的問題。
+    description-short: 檢查模型資料及問題。
+    issues:
+      title: 問題
+      errors: '{count} 個錯誤'
+      warnings: '{count} 個警告'
+      none: 未發現問題。
+      how-to-fix: 修正方式
+      resolve-before-import: 匯入前請先修正錯誤。
 live2d:
   change-model:
     from-file: 從檔案載入
@@ -122,6 +187,32 @@ live2d:
       placeholder: 選擇動畫
       disable-motion: 已停用
       disable-motion-description: 停用待機動畫
+    motion-driver:
+      title: 動作驅動器
+      description: 選擇 AIRI 產生待機身體與眼睛動作的方式。
+      options:
+        universal:
+          title: 通用
+          description: 使用模型動作、待機眼睛動作及滑鼠追蹤。
+        magic:
+          description: 使用內建 MAGIC 資料集產生動作。
+      magic:
+        profile:
+          title: MAGIC 設定檔
+          description: 選擇適合 MAGIC 驅動器的內建動作資料集。
+          options:
+            idle-calm:
+              title: 待機 / 平靜
+              description: 使用內建的待機與平靜動作錄製。
+            speaking-excited:
+              title: 說話 / 興奮
+              description: 使用內建的說話與興奮動作錄製。
+        skip-mouth-open:
+          title: 略過生成的張嘴動作
+          description: 保持語音口型同步。停用此選項可使用設定檔的張嘴動作。
+        force-view-target:
+          title: 強制視線目標朝向正前方
+          description: MAGIC 移動頭部時，保持眼睛看向正前方。
   parameters:
     title: 模型參數
     render-scale:
@@ -161,21 +252,88 @@ pages:
       tab: 個人資料
       title: 個人資料
       description: 管理您的公開顯示名稱。
+      name:
+        label: 顯示名稱
+        placeholder: 其他人看到的名稱
+      avatar:
+        gravatarNotice: 頭像由 Gravatar 提供。
+        gravatarLink: 前往 gravatar.com 管理
+      action:
+        save: 儲存變更
+      message:
+        saved: 個人資料已更新。
+      error:
+        fallback: 無法儲存你的變更。
     connections:
       error:
         accountAlreadyLinkedToDifferentUser: 這個 OAuth 帳戶已經連結到另一個 AIRI 帳戶了。請選擇另一個第三方帳戶，或先在另一個 AIRI 帳戶中解除連結。
         oauthCallbackFailed: 暫時無法連結這個 OAuth 帳戶。請重試，或選擇另一個第三方帳戶。
+        listFailed: 無法載入已連結的帳戶。
+        unlinkFailed: 無法解除此帳戶的連結。
+        linkFailed: 無法開始連結流程。
+        lastAccount: 這是你唯一的登入方式。解除連結前，請先設定密碼。
+      tab: 已連結的帳戶
+      title: 已連結的帳戶
+      description: 透過這些服務供應商登入 AIRI。解除連結可撤銷存取權，再次連結可改用其他帳戶。
+      status:
+        linked: 已連結
+        notLinked: 未連結
+        linkedSince: 連結日期：{date}
+      action:
+        link: 連結
+        unlink: 解除連結
+      message:
+        loading: 正在載入已連結的帳戶…
+        unlinked: 已中斷 {provider} 的連結。
+        linkStarted: 正在重新導向至 {provider}…
+        linked: 已連結 {provider}。
     danger:
       deleteAccount:
         modal:
           confirmEmail:
             mismatch: 電子郵件不符。
+            label: 輸入電子郵件地址以確認
           confirm: 傳送確認郵件
           cancel: 取消
+          title: 要刪除帳戶嗎？
+          warning: 此操作無法復原，Flux 餘額將會清空。請先取消有效的訂閱。
         message:
           emailSent: 請查看 {email} 中的刪除連結。
         error:
           fallback: 無法開始刪除操作，請稍後再試。
+          subscriptionActive: 訂閱仍然有效，請先在 Capacitor 頁面取消訂閱，再刪除帳戶。
+        title: 刪除帳戶
+        action: 刪除帳戶
+        description: 永久刪除你的帳戶及個人資料。
+      tab: 危險操作
+      title: 危險操作
+      description: 此處的帳戶操作無法復原。
+    security:
+      setDescription: 你透過第三方服務登入，尚未設定密碼。我們會寄送安全連結，讓你設定密碼。
+      currentPassword:
+        label: 目前密碼
+        placeholder: 輸入目前的密碼
+      newPassword:
+        label: 新密碼
+        placeholder: 至少 8 個字元
+      confirmPassword:
+        label: 確認新密碼
+        placeholder: 再次輸入新密碼
+      action:
+        changePassword: 變更密碼
+        sendSetLink: 寄送設定密碼的連結給我
+      message:
+        changed: 密碼已變更，其他工作階段已登出。
+        setLinkSent: 請查看 {email} 中的密碼設定連結。
+      error:
+        fallback: 無法變更密碼。
+        setLinkFailed: 無法寄送密碼設定連結。
+        passwordMismatch: 新密碼與確認密碼不相符。
+        passwordSameAsCurrent: 新密碼必須與目前密碼不同。
+      tab: 安全性
+      title: 安全性
+      description: 變更密碼，其他裝置將會登出。
+    viewCapacitor: 檢視
   card:
     activate: 啟用
     active: 已啟用
@@ -251,7 +409,15 @@ pages:
         systemprompt: '錯誤：請提供系統提示。'
         posthistoryinstructions: '錯誤：必須提供訊息歷史後的提示。'
         invalid_artistry_json: '錯誤：繪圖提供者選項包含無效 JSON。'
+        model_required: 請為每個指定的服務供應商選擇模型，無法繼承其他供應商的模型。
       none: 無
+      sections:
+        chat: 聊天
+        vision: 視覺
+        speech: 發聲
+        body: 身體
+      inherit_global_settings: 繼承全域設定
+      none_disabled: 無（已停用）
     modules: 模組
     name_asc: 名稱 (A-Z)
     name_desc: 名稱 (Z-A)
@@ -279,6 +445,80 @@ pages:
     import_invalid_file: 角色卡套件檔案無效
     upload: 上傳
     upload_desc: 點擊或拖曳 AIRI 角色卡套件以匯入
+    sync:
+      history:
+        fields:
+          name: 名字
+          nickname: 暱稱
+          version: 版本
+          description: 描述
+          personality: 個性
+          scenario: 情境
+          greetings: 問候語
+          source: 來源
+          artistry: 繪圖
+          creator: 建立者
+          systemPrompt: 系統提示詞
+          postHistoryInstructions: 歷史記錄後的指示
+          notes: 建立者備註
+          tags: 標籤
+          metadata: 中繼資料
+          assets: 素材
+          characterBook: 世界書
+          wakeWords: 喚醒詞
+          agents: 代理
+          consciousness: 意識模型
+          vision: 視覺模型
+          speech: 發聲模型
+          vrm: VRM 模型
+          live2d: Live2D 模型
+          displayModelId: 外觀模型
+          activeBackgroundId: 已固定的背景
+        restore_confirm_cancel: 取消
+        tab: 歷史記錄
+        empty: 此角色卡尚無歷史記錄。
+        loading: 正在載入歷史記錄…
+        load_failed: 無法載入此角色卡的歷史記錄。
+        current: 目前版本
+        changed_label: 已變更
+        removed_label: 已移除
+        restore: 還原此版本
+        restore_confirm_title: 要還原此版本嗎？
+        restore_confirm_body: 這會以 {date} 的內容取代 {name} 的目前內容。
+        restore_confirm_confirm: 還原
+        restore_success: 已將 {name} 還原至先前版本。
+        restore_failed: 無法還原此版本，伺服器可能已不再保留。
+      notice: 角色卡會同步至帳戶。已刪除的角色卡可在 30 天內還原。
+      off_notice: 你已登入，但角色卡同步尚未開啟。
+      off_notice_link: 請在實驗性功能中開啟。
+      state:
+        synced: 已同步至帳戶
+        pending: 等待上傳
+        refused: 尚未上傳。帳戶沒有空間容納更多角色卡，因此此卡片會保留在這部裝置上。
+      conflict_copy_name: '{name}（衝突副本）'
+      conflict_notice: 另一部裝置變更了同一個角色。AIRI 已將這部裝置上的版本保留為副本。
+      deleted:
+        restore: 還原
+        title: 最近刪除
+        empty: 沒有最近刪除的角色卡。
+        loading: 正在載入最近刪除的角色卡…
+        load_failed: 無法載入最近刪除的角色卡。
+        deleted_when: 刪除時間：{when}
+        days_left: 還有 {days} 天可還原
+        restore_success: 已還原 {name}。
+        restore_failed: 無法還原此角色卡，伺服器可能已不再保留其內容。
+    back: 返回
+    unsaved:
+      badge: 未儲存
+      title: 要捨棄變更嗎？
+      message: 變更尚未儲存，離開此頁面將會遺失變更。
+      keep_editing: 繼續編輯
+      discard: 捨棄變更
+    saved: 角色卡已儲存
+    wake-word-conflicts:
+      title: 一個共用喚醒詞發音需要指定角色 | {count} 個共用喚醒詞發音需要指定角色
+      description: 兩張角色卡使用相同的發音。指定角色前，不會有角色回應。
+      action: 選擇回應的角色
   memory:
     description: 存放記憶的地方，以及策略
     title: 記憶體
@@ -320,6 +560,12 @@ pages:
         description: 清除 AIRI 桌面設定與執行階段狀態
         center: 將桌面視窗移至中央
         reset: 重設桌面資料
+      model-downloads:
+        refresh: 重新整理
+        title: 已下載的語音模型
+        description: 儲存在這部裝置上的 Sherpaw 模型檔案。
+        empty: 尚未下載語音模型。
+        wake-word-model: 喚醒詞模型
     confirmations:
       tooltip: 您確定嗎？
       'yes': '是'
@@ -334,6 +580,8 @@ pages:
       all_deleted: 所有本機資料已刪除
       desktop_window_centered: 桌面視窗已移至螢幕中央。
       desktop_reset: 桌面資料已重設
+      model_download_cancelled: 已取消模型下載。
+      model_download_removed: 已移除下載的模型。
   models:
     description: 切換角色的 Live2D、VRM、Spine 模型
     title: 角色模型
@@ -430,6 +678,26 @@ pages:
           inline: 內嵌聊天
           widget: 覆蓋小工具
           bg_widget: 雙重（背景 + 小工具）
+      autonomous:
+        title: 自動生成場景（自主繪圖）
+        description: 啟用後，「製作人」會與角色同時運作，判斷是否需要畫面，避免角色忘記生成場景。
+        threshold: 生成門檻
+        threshold_description: 設為 {min} 可積極生成場景，設為 {max} 則需更充分的依據才生成。
+        threshold_min: 一律生成（0%）
+        threshold_max: 嚴格（100%）
+      model:
+        label: 繪圖模型（選填，可覆寫）
+        description: 服務供應商需要時使用的模型識別碼
+        placeholder: 例如：black-forest-labs/flux-schnell
+      prompt-prefix:
+        label: 繪圖提示詞的預設前綴
+        description: 加在傳送至圖片生成器的每個提示詞之前。
+        placeholder: 例如：Masterpiece, high quality, 1girl, anime,
+      options:
+        label: 繪圖服務供應商選項（JSON）
+      widget-instructions:
+        label: 小工具系統提示詞
+        description: 自訂 AI 如何使用生成功能的指示。
     consciousness:
       description: 人格設定、使用的模型等設定
       sections:
@@ -459,6 +727,18 @@ pages:
             show_more: 顯示更多
             subtitle: 從該提供者中選擇預設模型
             title: 模型
+            temperature_label: 溫度
+            temperature_enabled: 自訂溫度
+            top_p_enabled: 自訂 Top P
+            sampling_override_description: 預設停用。僅在模型支援此參數時啟用。部分模型一次只接受一個取樣參數。
+            temperature_description: 控制模型輸出的隨機程度。較低值（例如 0.2）產生更可預測、精確且具分析性的輸出；較高值（例如 1.0）增加創意與多樣性。
+            top_p_description: 透過核心取樣控制模型輸出的多樣性。較低值（例如 0.2）僅選擇高機率的 token；較高值（例如 1.0）包含更廣的可能性。
+          model-options:
+            title: 模型選項
+            thinking:
+              label: 思考
+              required-description: 此模型必須啟用思考。
+              provider-default-description: AIRI 未提供此模型的推理設定，將使用 OpenRouter 的預設值。
       title: 意識
     description: 思維、視覺、語音綜合、遊戲等
     gaming-factorio:
@@ -480,6 +760,29 @@ pages:
       title: 我的世界 Minecraft
       enable: 啟用我的世界集成
       configured: 我的世界已正確設定！
+      runtime:
+        connection: 連線
+        unknown: 未知
+        title: 觀察到的執行狀態
+        latest-context: 最新機器人上下文
+        waiting: 正在等待機器人傳送新的上下文。
+      enable-description: 在舞台對話中加入 Minecraft 自身資訊，並保持顯示被動執行狀態。
+      read-only:
+        title: 唯讀介面
+        description: 舞台目前以被動介面呈現 Minecraft。此處可查看執行狀態與通訊，服務設定仍保留在 Minecraft 服務檔案中。
+      setup:
+        title: 設定
+        description: 可在下列檔案中找到機器人的設定說明
+      debug:
+        title: Minecraft 通訊
+        empty: 尚未觀察到 Minecraft 通訊。
+        source: 來源：{source}
+      status:
+        service-online: 服務已上線
+        service-offline: 服務已離線
+        no-runtime-context: 尚未觀察到機器人上下文
+        last-context-seconds: 上次機器人上下文：{seconds} 秒前
+        last-context-stale: 上次機器人上下文：已過時
     hearing:
       description: 語音辨識
       title: 聽覺
@@ -487,6 +790,91 @@ pages:
         section:
           provider-selection:
             description: 選擇合適的語音辨識提供者
+          rephrase:
+            provider: 選擇語音合成服務來源
+            model: 模型
+            model-placeholder: 選擇一個模型
+            title: 轉錄文字修正
+            description: 對話模型會在建立草稿前修正辨識錯誤並移除贅詞，原始文字仍會保留。
+            enabled: 修正轉錄文字
+            enabled-description: 每份完成的轉錄文字會傳送至所選對話模型。若模型失敗或處理超過 10 秒，則使用原始文字。
+            provider-description: 預設使用意識模組的對話模型。
+            same-as-chat: 與對話相同
+          confidence-threshold:
+            disabled: 已停用
+            title: 信賴度門檻
+            description: 篩除低信賴度轉錄，以減少 Whisper 幻覺。數值越接近 0 越嚴格，拖到最左側可停用。僅適用於支援 Whisper API 的供應商，例如 OpenAI、Groq。
+            verbose-json-note: 注意：若服務供應商不支援 verbose_json 回應，此設定不會生效。
+            verbose-json-unsupported: 服務供應商未回傳 verbose_json 片段，信賴度篩選未影響上次轉錄。
+          input-mode:
+            wake-word: 喚醒詞
+            title: 輸入模式
+            description: 選擇麥克風開啟時，AIRI 開始聆聽的方式。
+            label: 開始聆聽
+            always-on: 持續開啟
+            always-on-description: AIRI 持續聆聽，並在你說話時回應。
+            push-to-talk: 按住說話
+            push-to-talk-description: AIRI 僅在你按住「按住說話」按鍵時聆聽，麥克風也只在按住期間開啟。
+            push-to-talk-unavailable: 此處無法使用。這部裝置上的應用程式未提供「按住說話」按鍵。
+            stranded-title: 此處無法使用「按住說話」
+            stranded-description: 這部裝置上的應用程式未提供「按住說話」按鍵，因此 AIRI 不會聆聽。請選擇「持續開啟」或「喚醒詞」來對話。
+            wake-word-description: 麥克風保持開啟，但 AIRI 只會在你說出角色的喚醒詞後聆聽。
+            wake-word-status:
+              no-words: 尚無角色設定喚醒詞，請在對話中請角色設定。
+              unconfigured: 麥克風開啟時，會開始偵測喚醒詞。
+              preparing: 正在準備喚醒詞模型…
+              ready: 喚醒詞已就緒。
+              error: 無法使用喚醒詞模型：{error}
+          microphone:
+            description: 開啟聽覺模組的麥克風。輸入模式控制 AIRI 何時聆聽。
+            error: 無法使用麥克風
+            title: 麥克風
+            label: 麥克風
+          input-device:
+            label: 輸入裝置
+            description: 選擇 AIRI 使用的麥克風。
+            playground-description: 聽覺模組與測試區使用此麥克風。
+            placeholder: 選擇麥克風
+          auto-send:
+            title: 轉錄文字
+            description: 選擇 AIRI 如何處理你的語音轉錄文字。
+            label: 自動傳送
+            label-description: AIRI 會在延遲後將轉錄文字傳送至對話。停用可先閱讀與編輯文字，每則傳送的訊息都會消耗 token。
+            delay: 傳送延遲
+            delay-description: AIRI 傳送轉錄文字前的等待時間。
+            immediate: 立即
+          playground:
+            current: 目前轉錄文字
+            description: 透過目前的聽覺處理流程聆聽，並在下方保留每個完成的語音片段。
+            empty: 開始監聽後，對著所選麥克風說話。
+            error-title: 轉錄錯誤
+            listening: 正在聆聽語音…
+            no-transcription: 此音訊未辨識出語音。
+            segment: 語音片段 {number}
+            start: 開始監聽
+            stop: 停止監聽
+            title: 聽覺測試區
+            transcribing: 正在轉錄…
+            transcription-failed: 轉錄失敗。
+      wake-words:
+        title: 喚醒詞
+        description: 查看各角色的喚醒詞，並選擇回應共用發音的角色。
+        intro: 各角色將喚醒詞保存在角色卡上。若要變更，請在對話中請角色修改。
+        empty: 此角色尚未設定喚醒詞。
+        state:
+          paused: 已暫停，請選擇回應的角色。
+          other: 由 {name} 回應
+          unsupported: 目前的喚醒詞模型不支援
+          active: 已啟用
+        conflicts:
+          title: 共用發音
+          description: 兩個以上的角色使用相同發音。請選擇在這部裝置上回應的角色，各角色卡仍會保留自己的喚醒詞。
+          choose-label: 回應的角色
+          answered-by: 由 {name} 回應
+          unresolved: 沒有角色回應此發音。
+      transcriber:
+        title: 語音辨識
+        description: 選擇語音轉文字服務供應商與模型，並測試麥克風。
     memory-long-term:
       description: 長期記憶
       title: 長期記憶
@@ -539,11 +927,43 @@ pages:
             use-ssml:
               description: 啟用後可以輸入原始 SSML 而不是純文字
               label: 使用自訂 SSML
+          voice-pack:
+            description: 為目前角色選擇預先準備的聲音
+            empty: 沒有可用的語音包
+            error: 載入語音包時發生錯誤
+            loading: 正在載入語音包…
+            title: 語音包
       title: 發聲
     title: 機體模組
     vision:
       description: 視覺
       title: 視覺
+      capture:
+        interval:
+          label: 擷取間隔
+          description: 數值越低，擷取越頻繁，消耗的資源也越多。
+        title: 視覺擷取頻率
+        description: 調整視覺定時處理擷取影格的頻率。
+      tool-images:
+        label: 使用視覺模型處理工具圖片
+        description: 視覺模型會在對話模型回覆前讀取工具傳回的圖片，例如「使用電腦」的螢幕擷取畫面。若對話模型供應商回報支援圖片輸入，則直接傳入圖片。文字描述不含像素位置。
+      stats:
+        captures: 擷取次數
+        context-updates: 上下文更新次數
+        inferences: 圖片辨識呼叫次數
+        inferences-description: 所有視覺模型呼叫，包含對話中的圖片
+        failed-inferences: 失敗的呼叫
+        last-inference: 上次呼叫
+        error: 錯誤：
+        last-update: 上次更新 {time}
+        since-start: 自應用程式啟動以來
+        never: 從未
+      ollama:
+        title: 服務供應商請求選項
+        description: 控制視覺推理的供應商專屬請求參數。
+        thinking:
+          label: 思考（Ollama）
+          description: '啟用時，Ollama 視覺請求包含 `think: true`；停用時包含 `think: false`。'
     x:
       description: X / Twitter 的瀏覽與使用
       enable: 啟用 X / Twitter 集成
@@ -604,6 +1024,7 @@ pages:
         cancel: 取消
         expand: 展開
         collapse: 收合
+        add-header: 新增標頭
       fields:
         identifier:
           label: 識別碼
@@ -624,11 +1045,298 @@ pages:
         env:
           label: 環境
           description: 傳遞給子程序的變數。
+          value-placeholder: 值
         enabled:
           label: 已啟用
+        transport:
+          label: 類型
+          description: AIRI 連線至此伺服器的方式。
+          stdio: 本機程序
+          http: 遠端 URL
+        url:
+          description: 伺服器的 Streamable HTTP 端點。
+          placeholder: 例如：https://example.com/api/mcp
+        headers:
+          label: 標頭
+          description: 每個請求都會傳送的標頭，例如授權權杖。
       json:
         title: 編輯 mcp.json
         description: '直接編輯原始 JSON。點擊「套用」將其載入表單，然後點擊「儲存並重新啟動」寫入磁碟。'
+        placeholder: 在此貼上 mcp.json…
+      test:
+        title: 測試連線
+        description: AIRI 會短暫連線至伺服器，列出其提供的工具。
+        pick-server-label: 伺服器
+        no-servers: 尚無可測試的伺服器
+        no-server-selected: 請先選擇伺服器。
+        server-disabled: 「{name}」已停用，請先在角色卡中啟用。
+        disabled-suffix: 已停用
+        untitled: 未命名
+        running: 正在測試…
+        success: 已連線！在 {ms} 毫秒內找到 {count} 個工具。
+        failure: 連線在 {ms} 毫秒後失敗
+      errors:
+        empty-identifier: 伺服器
+        duplicate-identifier: 識別碼「{name}」重複使用，名稱必須唯一。
+        empty-command: 「{name}」缺少命令。
+        empty-url: 「{name}」缺少 URL。
+        invalid-url: 「{name}」需要完整的 http 或 https URL。
+        invalid-shape: 這不是有效的 mcp.json，根節點需要「mcpServers」欄位。
+      messages:
+        opened: 已在檔案管理員中開啟 {path}
+        json-applied: JSON 已套用至表單。按一下「儲存並重新啟動」以寫入磁碟。
+        restarted: 已全部重新啟動！啟動 {started} 個、失敗 {failed} 個、略過 {skipped} 個。
+    categories:
+      artistry: 繪圖
+      essential: 基本功能
+      messaging: 訊息通訊
+      gaming: 遊戲
+    stickers:
+      image: 圖片
+      name: 名字
+      cancel: 取消
+      delete: 刪除
+      artwork:
+        airi-agree: 是
+        airi-happy: 開心
+        airi-sad: 難過
+        airi-confused: 困惑
+        airi-surprised: 驚訝
+        airi-celebrate: 慶祝
+        airi-angry: 生氣
+        airi-tired: 疲倦
+        airi-awkward: 尷尬
+        airi-thanks: 謝謝
+        airi-affectionate: 愛
+        airi-disagree: 不用了，謝謝
+      frequency: 貼圖頻率
+      frequency-description: 允許在此比例的回覆中使用貼圖，是否適合仍由角色決定。
+      frequency-options:
+        '25': 偶爾（25%）
+        '50': 有時（50%）
+        '75': 經常（75%）
+        '100': 適合時都可使用（100%）
+      title: 貼圖
+      description: 在對話回覆中加入可選的圖片反應
+      enable: 啟用貼圖
+      enable-description: 讓角色依名稱與情緒標籤，在符合條件的每則回覆中選擇一張貼圖。
+      local-only: 圖片會保留在這部裝置上，目前雲端對話同步僅傳送文字。
+      catalog: 可用貼圖
+      unavailable: 無法使用貼圖
+      import: 匯入圖片
+      editor: 貼圖編輯器
+      replace: 替換圖片（選填）
+      image-limits: PNG、JPG、WebP 或 GIF，最大 2 MB、4096 × 4096 像素。
+      choose-file: 選擇圖片
+      preview: 貼圖預覽
+      name-limit: 使用 1–80 個字元，模型會讀取此名稱。
+      emotions: 情緒標籤
+      save: 儲存貼圖
+      edit: 編輯
+      confirm-delete: 確認刪除
+      empty: 圖庫是空的，請匯入圖片以新增貼圖。
+      history-note: 刪除或替換貼圖會影響之後的回覆，已儲存與已準備好的回覆仍保留原始圖片。
+      saved-image: 已儲存的貼圖
+      errors:
+        name: 請輸入 1–80 個字元的名稱。
+        emotions: 請至少選擇一個有效的情緒標籤。
+        format: 請選擇 PNG、JPG、WebP 或 GIF 圖片。
+        size: 請選擇小於 2 MB 的圖片。
+        image: 無法開啟此圖片，請選擇其他檔案。
+        dimensions: 請選擇不超過 4096 × 4096 像素的圖片。
+        missing: 此貼圖已在另一個視窗中刪除。
+        storage: 無法儲存或載入貼圖庫，請再試一次。
+      emotion-labels:
+        happy: 開心
+        sad: 難過
+        confused: 困惑
+        surprised: 驚訝
+        thanks: 感謝
+        celebrate: 慶祝
+        angry: 生氣
+        tired: 疲倦
+        affectionate: 喜愛
+        awkward: 尷尬
+        agree: 同意
+        disagree: 不同意
+    home-assistant:
+      actions:
+        save: 儲存
+        test: 測試
+      access:
+        tab-all: 全部
+        label: 裝置存取權
+        description: 選擇 AIRI 可以讀取與控制的裝置。
+        mode-all: 所有裝置
+        mode-allow: 允許清單
+        mode-deny: 封鎖清單
+        all-hint: AIRI 可存取所有裝置，選擇清單即可限制存取範圍。
+        rule-allow: 僅可存取你選擇的裝置。
+        rule-deny: 可存取所有裝置，但你選擇的裝置除外。
+        selected-count: 已選取 {count} 個
+        empty-warning: 請至少選擇一個裝置。在選擇前，AIRI 無法存取任何裝置。
+        search: 搜尋裝置
+        reload: 重新載入裝置
+        loading: 正在載入裝置…
+        no-devices: Home Assistant 未回報任何裝置。
+        no-match: 沒有符合條件的裝置。
+        shown-count: '{shown} / {total} 個裝置'
+        load-more: 再顯示 {count} 個
+        select-matching: 選取所有符合項目
+        clear-matching: 取消選取所有符合項目
+      states:
+        generic:
+          auto: 自動
+          error: 錯誤
+          home: 首頁
+          ok: 好的
+          unknown: 未知
+          on: 開啟
+          off: 關閉
+          above_horizon: 地平線上方
+          armed: 已設防
+          armed_away: 已設防（外出）
+          armed_custom_bypass: 已設防（自訂排除）
+          armed_home: 已設防（在家）
+          armed_night: 已設防（夜間）
+          armed_vacation: 已設防（度假）
+          arming: 正在設防
+          below_horizon: 地平線下方
+          buffering: 正在緩衝
+          cleaning: 正在清掃
+          clear-night: 晴朗（夜間）
+          closed: 已關閉
+          closing: 正在關閉
+          cloudy: 陰天
+          cool: 製冷
+          disarmed: 已撤防
+          disarming: 正在撤防
+          docked: 已停靠
+          dry: 除濕
+          eco: 節能
+          electric: 電力
+          exceptional: 異常天氣
+          fan_only: 僅送風
+          fog: 有霧
+          gas: 燃氣
+          hail: 冰雹
+          heat: 暖氣
+          heat_cool: 暖氣／製冷
+          heat_pump: 熱泵
+          high_demand: 高需求
+          idle: 閒置
+          jammed: 卡住
+          lightning: 雷暴
+          lightning-rainy: 雷雨
+          locked: 已上鎖
+          locking: 正在上鎖
+          mowing: 正在割草
+          not_home: 外出
+          open: 已開啟
+          opening: 正在開啟
+          partlycloudy: 局部多雲
+          paused: 已暫停
+          pending: 等待中
+          performance: 效能
+          playing: 正在播放
+          pouring: 大雨
+          problem: 有問題
+          rainy: 下雨
+          recording: 正在錄製
+          snowy: 下雪
+          snowy-rainy: 雨雪
+          standby: 待命
+          stopped: 已停止
+          streaming: 正在串流
+          sunny: 晴天
+          triggered: 警報已觸發
+          unlocked: 已解鎖
+          unlocking: 正在解鎖
+          windy: 有風
+          windy-variant: 有風且多雲
+          unavailable: 無法使用
+        lawn_mower:
+          returning: 正在返回
+        update:
+          off: 已是最新版本
+          on: 有可用更新
+        vacuum:
+          returning: 正在返回停靠站
+      domains:
+        image: 圖片
+        scene: 場景
+        select: 選擇
+        air_quality: 空氣品質
+        alarm_control_panel: 警報面板
+        automation: 自動化
+        binary_sensor: 二元感測器
+        button: 按鈕
+        calendar: 行事曆
+        camera: 攝影機
+        climate: 空調
+        conversation: 對話
+        cover: 窗簾與捲門
+        date: 日期
+        datetime: 日期與時間
+        device_tracker: 裝置追蹤器
+        event: 事件
+        fan: 風扇
+        geo_location: 地理位置
+        group: 群組
+        humidifier: 加濕器
+        image_processing: 圖片處理
+        input_boolean: 切換輔助工具
+        input_datetime: 日期與時間輔助工具
+        input_number: 數值輔助工具
+        input_select: 下拉選單輔助工具
+        input_text: 文字輔助工具
+        light: 燈光
+        lock: 門鎖
+        media_player: 媒體播放器
+        notify: 通知
+        number: 數值
+        person: 人員
+        remote: 遙控器
+        script: 指令碼
+        sensor: 感測器
+        siren: 警報器
+        stt: 語音轉文字
+        sun: 太陽
+        switch: 開關
+        text: 文字
+        time: 時間
+        todo: 待辦清單
+        tts: 文字轉語音
+        update: 更新
+        vacuum: 吸塵器
+        valve: 閥門
+        water_heater: 熱水器
+        weather: 天氣
+        zone: 區域
+      description: 讓 AIRI 讀取並控制你的 Home Assistant 裝置。
+      enable: 啟用 Home Assistant
+      enable-description: 允許 AIRI 讀取與控制裝置
+      base-url:
+        label: 位址
+        description: 你的 Home Assistant 執行個體位址。
+      token:
+        label: 長效存取權杖
+        placeholder: 貼上 Home Assistant 個人資料中的權杖
+        description: 在 Home Assistant 個人資料的「安全性」中建立。
+        saved: 已儲存權杖。留空可保留原權杖，位址變更時請重新輸入。
+      note: 權杖保留在這部裝置上，不會同步至帳戶。
+      status:
+        saved: 已儲存。
+        saved-cleared: 已儲存。位址已變更，因此裝置清單已清空。
+        testing: 正在測試連線…
+        reachable: 已連線。Home Assistant 回報了 {count} 個實體。
+        failed: 無法連線。{message}
+        rejected-token: 請輸入 Home Assistant 存取權杖。
+        rejected-address: 位址已變更，請輸入新位址的存取權杖。
+        failed-policy: 裝置清單未傳至執行工具的視窗，因此位址未變更。請再試一次。
+        failed-policy-edit: 變更未傳至執行工具的視窗，模型仍保留變更前的清單。請再試一次。
+        failed-policy-move: 位址已變更，但裝置清單未傳至執行工具的視窗。請再試一次。
+        failed-policy-rollback: 儲存遭拒。裝置清單未傳至執行工具的視窗，因此模型無法存取任何裝置。請再試一次。
   providers:
     catalog:
       edit:
@@ -676,6 +1384,16 @@ pages:
                     low: 低
                     medium: 中
                     high: 高
+                web-search:
+                  label: 網路搜尋
+                  description: 允許支援的 OpenAI 模型在需要時搜尋。會使用你的 API 金鑰，並可能產生搜尋費用。需要 Responses API。
+                api-protocol:
+                  label: API 協定
+                  description: 選擇此服務供應商與模型支援的 API。
+          retry: 重試
+          loading: 正在載入服務供應商設定…
+          load-error: 無法載入服務供應商設定。
+          save-error: 無法儲存服務供應商設定。
         validators:
           actions:
             validate: 驗證
@@ -697,6 +1415,9 @@ pages:
             valid: 已通過
             invalid: 發生錯誤
           title: 檢查
+          apple-vision:
+            check-availability:
+              title: 可用性
         providers:
           provider:
             ollama:
@@ -796,6 +1517,10 @@ pages:
       deepseek:
         description: DeepSeek.com
         title: 深度求索 DeepSeek
+        fields:
+          field:
+            thinking-mode:
+              description: 控制 DeepSeek 推理模型是否在對話請求中使用思考模式。
       elevenlabs:
         description: Elevenlabs.io
         fields:
@@ -919,7 +1644,193 @@ pages:
           title: 實驗平台
       aihubmix:
         description: https://aihubmix.com (10% 優惠)
+      sherpaw-transcription:
+        model:
+          label: 模型
+          description: 選擇可用模型。辨識時會偵測其支援的其中一種語言，變更會重新啟動目前工作階段。
+        asset:
+          cancel: 取消
+          title: 模型檔案
+          unknown: 正在檢查檔案…
+          bundled: AIRI 內建
+          installed: 已儲存在這部裝置上
+          missing: 使用時下載
+          downloading: 正在下載…
+          error: 下載失敗
+          download: 立即下載
+          remove: 移除下載檔案
+        description: 使用內建或按需下載模型進行本機語音辨識，不需要 API 金鑰。
+        language:
+          label: 模型語言
+          description: 顯示支援此語言的模型。所選模型仍會偵測其支援的語言。
+          all: 所有語言
+      comfyui:
+        settings:
+          title: ComfyUI（本機）
+          connection:
+            title: 連線
+            connected: 已連線
+            error_prefix: 錯誤
+            test: 測試
+            failed: 連線失敗
+            testing: 正在測試…
+            unknown_error: 未知連線錯誤
+            unknown_gpu: 未知 GPU
+            server_url:
+              label: 伺服器 URL
+              description: ComfyUI 執行所在的位址
+          workflows:
+            cancel_upload: 取消
+            remove: 移除
+            title: 工作流程範本
+            upload: 上傳工作流程
+            empty: 尚未上傳工作流程。按一下「上傳工作流程」以匯入 ComfyUI 的 workflow_api.json。
+            exposed_parameters: 開放的參數
+            summary: '{nodes} 個節點 · {fields} 個開放欄位'
+            config_snippet: 繪圖設定片段
+            copy_json: 複製 JSON
+            paste_hint: 將此片段貼至 AIRI 角色卡的繪圖設定，以覆寫這些節點。
+          heading: ComfyUI 原生 API
+          description: 連線至本機 ComfyUI，並使用自己的工作流程。
+          info:
+            what_you_need:
+              label: 必要條件
+              value: 在本機或你的網路上執行的 ComfyUI。
+            how_to_export:
+              label: 匯出方式
+              value: 啟用 Dev Mode →「Save (API Format)」。
+            scope_boundary:
+              label: 支援範圍
+              value: 你需要自行下載模型與安裝節點。
+          cors:
+            title: 偵測到 CORS 封鎖
+            description: ComfyUI 預設封鎖其他應用程式的請求。若要允許 AIRI 連線，請使用 `--enable-cors-header "*"` 參數啟動 ComfyUI。
+          upload:
+            prompt: 拖放或選擇 workflow_api.json 檔案
+            invalid_json: 無效 JSON
+            workflow_name:
+              label: 工作流程名稱
+              description: 為此工作流程設定容易辨識的名稱
+              placeholder: 例如：動漫 Text2Img
+            select_fields: 選擇要開放給 AI 代理的欄位：
+            fields_exposed: 已開放 {count} 個欄位
+            save: 儲存工作流程
+      replicate:
+        settings:
+          api_key:
+            label: API 金鑰
+            description: 你的 Replicate API 權杖（以 r8_ 開頭）
+          heading: Replicate.ai 設定
+          description: 設定雲端圖片生成。
+          default_model:
+            label: 預設模型
+            description: 角色卡未指定時使用的 owner/model 字串
+          aspect_ratio:
+            label: 長寬比
+            description: 預設圖片長寬比，例如 16:9、1:1、9:16
+          inference_steps:
+            label: 推理步數
+            description: 擴散過程的步數，較少步數速度更快，較多步數品質更高。
+      nanobanana:
+        settings:
+          api_key:
+            label: API 金鑰
+            description: 你的 Google AI Studio API 金鑰
+          description: 設定 Google Gemini 的原生圖片生成功能。
+          preferred_model:
+            label: 偏好模型
+            description: 要使用的特定 Gemini 圖片預覽模型
+          default_resolution:
+            label: 預設解析度
+            description: 生成圖片的目標解析度
+      openrouter-audio-speech:
+        description: OpenRouter.ai
+      apple-vision:
+        description: 在 macOS 27 或更新版本上，使用 Apple Foundation Models 在裝置端理解圖片，不需要 API 金鑰。
+      apple-speech-transcription:
+        description: 在 macOS 26 或更新版本上進行裝置端語音辨識，不需要 API 金鑰。
+        fields:
+          locale:
+            label: 語言地區
+            description: 使用完整的 Apple Speech 語言地區代碼，例如 en-US 或 zh-CN。
+      amazon-bedrock:
+        config:
+          api-key:
+            label: Bedrock API 金鑰
+            description: Amazon Bedrock API 金鑰（在 AWS Console → Bedrock → API Keys 中建立）。
+          region:
+            label: AWS 區域
+            description: 已啟用 Bedrock 的 AWS 區域，例如 us-east-1、us-west-2。
+      voicevox:
+        fields:
+          field:
+            intonation:
+              description: 調整朗讀語調的變化幅度
+              label: 語調
+        callout_origin_title: 從瀏覽器連線至引擎
+        callout_origin: 瀏覽器只能連線至本機的引擎。若引擎位於其他裝置，請使用桌面應用程式。引擎也必須允許此網站存取，可使用 --cors_policy_mode all，或使用 --allow_origin 指定此位址。
+      aivis-speech:
+        callout_origin_title: 從瀏覽器連線至引擎
+        fields:
+          field:
+            intonation:
+              description: 調整說話風格的表現強度
+              label: 情感表現強度
+        callout_origin: 瀏覽器只能連線至本機的引擎。若引擎位於其他裝置，請使用桌面應用程式。引擎也必須允許此網站存取，可在 10101 連接埠的設定頁面中設定。
+      volcengine-coding-plan:
+        models:
+          ark-code-latest:
+            description: 使用 Coding Plan 控制台中選擇的模型，包括 Auto。變更會在 3–5 分鐘內生效。
+          legacy:
+            description: 此舊版 Coding Plan 模型即將停止服務，請切換至目前支援的模型。
+      official:
+        title: 官方服務供應商
+        description: AIRI 提供的官方 AI 服務。
+        speech-title: 官方語音服務供應商
+        speech-description: AIRI 提供的官方文字轉語音服務。
+        speech-streaming-title: 官方串流語音服務供應商
+        speech-streaming-description: AIRI 提供的官方低延遲文字轉語音服務（雙向 WebSocket）。
+        transcription-title: 官方語音轉文字服務供應商
+        transcription-description: AIRI 提供的官方語音轉文字服務。
     title: 服務來源
+    filters:
+      pricing: 定價
+      all: 全部
+      cloud: 雲霧灰
+      deployment: 部署方式
+      free: 免費
+      paid: 付費
+      internal: 內建
+      local: 本機
+    categories:
+      chat:
+        title: 聊天
+        description: 文字生成模型服務來源，例如 OpenRouter、OpenAI、Ollama
+      vision:
+        title: 視覺
+        description: 用於理解圖片的視覺模型服務供應商。
+      speech:
+        title: 發聲
+        description: 語音（文字轉語音）模型服務來源，例如 ElevenLabs、Azure Speech
+      transcription:
+        description: 轉錄（語音轉文字）模型服務來源，例如 Whisper.cpp、OpenAI、Azure Speech
+        title: 語音轉文字
+      artistry:
+        title: 繪圖
+        description: 圖片生成與設計模型服務供應商，例如 ComfyUI、Replicate。
+        items:
+          comfyui:
+            description: 本機圖片生成工具。
+          replicate:
+            description: 雲端模型推理服務。
+          nanobanana:
+            description: Google AI Studio 圖片預覽。
+    sync:
+      pending: 等待上傳
+      synced: 已同步
+      not-uploaded: 尚未上傳，請在這部裝置上完成此服務供應商的設定。
+    labels:
+      recommended: 推薦
   connection:
     description: 配置 WebSocket 伺服器連接
     title: 連線
@@ -933,6 +1844,7 @@ pages:
       label: Auth Token
       description: >-
         Security token required by remote clients that connect to this gateway. When left empty, AIRI generates a new token automatically.
+      placeholder: 自動產生
     qr:
       title: Connect from Stage Pocket
       description: >-
@@ -940,6 +1852,22 @@ pages:
       image-alt: AIRI server channel connection QR code
       token-hint: >-
         The QR code includes the auth token so Stage Pocket can authenticate after connecting. Do not share it publicly.
+      refresh: 重新整理
+      candidates: 候選位址
+      errors:
+        title: 無法使用 QR 碼
+        unavailable: 無法準備連線 QR 碼。
+    qr-scan:
+      title: 快速連線
+      description: 掃描桌面版的 QR 碼以快速連線
+      instructions: 將攝影機對準 AIRI 連線 QR 碼。
+      action: 掃描
+      success:
+        title: 已儲存連線位址
+        description: 使用的 URL：{url}
+      errors:
+        title: QR 碼掃描失敗
+        failed: 無法掃描 QR 碼或透過 QR 碼連線。
   system:
     color-scheme:
       description: 更改舞台的配色方案
@@ -997,6 +1925,7 @@ pages:
                 description: 圖片
               polaroid:
                 description: 模型快照工具
+                title: 拍立得
               context-flow:
                 description: >-
                   檢查傳入的上下文更新與傳出的聊天串流事件
@@ -1013,6 +1942,32 @@ pages:
               performance-playground:
                 title: 效能實驗場
                 description: VRM 表情 + TTS 嘴型同步實驗場
+              plugin-host:
+                actions:
+                  cancel-import: 取消
+                  enable-and-load: 啟用並載入
+                  disable-and-unload: 停用並卸載
+                  import-folder: 匯入資料夾
+                  confirm-import: 匯入擴充功能
+                errors:
+                  enable-and-load: 無法啟用並載入外掛 {extensionId}。
+                  disable-and-unload: 無法停用並卸載外掛 {extensionId}。
+                  prepare-import: 無法檢查擴充功能資料夾。
+                  commit-import: 無法匯入擴充功能 {extensionId}。
+                  cancel-import: 無法取消擴充功能匯入。
+                import:
+                  title: 檢查擴充功能匯入
+                  description: 匯入後，擴充功能仍保持停用且未載入。
+                  source: 來源資料夾
+                  runtimes: 執行環境
+                  entrypoints: 進入點
+                  package-size: 套件
+                  package-size-value: '{fileCount} 個檔案 · {totalBytes}'
+                  permissions: 權限
+                  kits: 工具套件
+                  no-permissions: 未宣告權限。
+                  no-kits: 未宣告工具套件。
+                  imported: 已匯入擴充功能 {extensionId}。
         theme-presets:
           presets:
             default:
@@ -1083,11 +2038,106 @@ pages:
               title: 中國傳統色彩
           title: 預設
     title: 外觀
+    experimental:
+      retry: 重試
+      reset: 使用預設
+      refresh: 重新整理策略
+      title: 實驗性功能
+      description: 試用開發中的功能，並管理你的選擇。
+      notice: 實驗性功能可能變更或移除。你的選擇適用於這部裝置。
+      empty-title: 沒有可用的實驗性功能
+      load-error: 雲端功能無法使用，本機功能仍可使用。
+      sources:
+        default: 應用程式預設值
+        local: 你的裝置選擇
+        global: 已登入帳戶可使用
+        account: 你的帳戶可使用
+      features:
+        character_card_sync:
+          title: 角色卡雲端同步
+          description: 登入時將角色卡同步至帳戶，讓其他裝置也能使用。預設停用，已刪除的角色卡會在帳戶歷史記錄中保留 30 天。
   page:
     developers:
       open-devtools:
         title: 開放開發者工具
         button: 開放
+  flux:
+    terms: 條款
+    privacy: 隱私權政策
+    audit:
+      time: 時間
+      type: 類型
+      title: 交易記錄
+      detail: 詳細資訊
+      amount: 金額
+      typeAddition: 儲值
+      typeConsumption: 用量
+      typeInitial: 初始贈送
+      typePromo: 活動贈送
+      loading: 正在載入記錄…
+      empty: 尚無交易記錄。
+      loadMore: 載入更多
+      delayHint: 用量記錄最多可能延遲 1 分鐘
+      ttsRequests: 請求
+    buy: 儲值
+    packages:
+      buy: 儲值
+      title: Flux 儲值組合
+      description: 可供選擇的 Flux 儲值組合。
+    currency: 貨幣
+    description: 目前 Flux
+    packagesError: 無法載入儲值組合，請稍後再試。
+    checkout:
+      success: 付款成功！Flux 已完成儲值。
+      canceled: 已取消付款。
+      error: 發生錯誤，請稍後再試。
+  capacitor:
+    currentPackage: 目前版本
+    checkout:
+      error: 發生錯誤，請稍後再試。
+      success: 你的 Capacitor 已安裝並完成充能。
+      pending: 已收到付款，Capacitor 即將充能。
+      canceled: 已取消購買。
+    description: Capacitor 儲存 Flux，並會自行充能。
+    statusError: 無法載入你的 Capacitor，請稍後再試。
+    packagesError: 無法載入 Capacitor 清單，請稍後再試。
+    preferenceError: 無法儲存偏好設定，請稍後再試。
+    noCapacitor: 沒有 Capacitor
+    remaining: 剩餘 {percent}
+    rechargesAt: '{date} 充能'
+    renewsAt: '{date} 續訂'
+    expiresAt: '{date} 到期'
+    perMonth: ／月
+    install: 安裝
+    upgrade: 升級
+    downgrade: 降級
+    manageSubscription: 管理訂閱
+    fallbackToFlux: Capacitor 耗盡時使用 Flux
+    fallbackToFluxHint: 停用時，Capacitor 耗盡後將停止使用。
+  credits:
+    buy: 購買
+  scene:
+    title: 場景
+    description: 自訂角色的虛擬環境。
+    beta_label: 場景系統
+    beta_description: 各角色卡從此圖庫指定偏好的背景。在此設定會將其設為目前角色的預設背景。
+    background_image:
+      title: 目前角色背景
+      no_background: 此角色尚無使用中的背景。上傳正方形或橫向圖片效果最佳。
+      upload: 上傳至圖庫
+      change: 變更背景
+      clear: 清除預設背景
+    gallery:
+      title: 場景圖庫
+      empty: 圖庫尚無圖片，請在上方上傳！
+      set_as_global: 設為角色預設背景
+      delete: 從圖庫刪除
+      global_badge: 角色預設背景
+      active_badge: 目前場景
+      delete_confirm: 確定要刪除此背景嗎？
+    tip:
+      label: 小提示！
+      description: 正方形圖片在直向模式下會使用 <b>cover</b> 裁切，聚焦場景中央。
 sections:
   section:
     general:
@@ -1096,6 +2146,9 @@ theme:
   title: 主題
   description: |
     切換 AIRI 的基礎主題，亮色模式或暗色模式。
+  auto: 外觀
+  light: 燈光
+  dark: 深色
 title: 設定
 voices: 聲線
 vrm:
@@ -1138,9 +2191,40 @@ vrm:
   skybox:
     skybox-intensity: 天空盒光照強度
     skybox-specular-mix: 漫反射／鏡面反射混合係數
+  fps:
+    title: 影格率上限
+    description: 限制舞台與模型預覽的 VRM 渲染影格率。較低上限可減少 GPU 用量，而不改變動畫速度。
+    options:
+      unlimited: 不限
 spine:
   appearance:
     title: 外觀
+  scale-and-position:
+    title: 縮放與位置
+    scale: 縮放
+  theme-color-from-model:
+    button-extract:
+      title: 提取
+    title: 從模型擷取色彩
+  animation:
+    title: 動畫
+    idle-animation: 待機動畫
+    mix-duration: 混合時間（秒）
+    speed: 動畫速度
+  rendering:
+    title: 渲染
+    render-scale: 渲染縮放
+    max-fps: 最高 FPS
+  fps:
+    options:
+      unlimited: 不限
+  title: Spine 設定
+  variant:
+    title: 變體
+    current-variant: 目前變體
+  skin:
+    title: 皮膚
+    current-skin: 目前皮膚
 tachie:
   title: Tachie 設定
   archive-description: Tachie 模型使用包含情緒命名圖片的 .tachie.zip 壓縮檔。
@@ -1163,3 +2247,59 @@ wip:
   title: 正在開發中
   description: >-
     此功能正在開發中，尚未公開發佈。請在未來的更新中再次查看此功能。
+analytics:
+  notice:
+    title: 使用情況分析
+    description: AIRI 收集匿名使用情況資料，以了解應用程式的使用方式並改善穩定性，不會收集個人資料。
+    privacyPrefix: 閱讀
+    privacyLink: 隱私權政策
+    onboardingHint: 之後可在「設定 > 系統 > 一般」中關閉使用情況分析。
+    settingsHint: 你可以隨時關閉使用情況分析。
+  toggle:
+    title: 啟用使用情況分析
+    description: 關閉此選項即可停止收集分析資料。
+  disabled:
+    title: 此開發版本已停用使用情況分析
+mmd:
+  scale-and-position:
+    title: 縮放與位置
+    scale: 縮放
+    rotation: 旋轉
+  theme-color-from-model:
+    button-extract:
+      title: 提取
+    title: 從模型擷取色彩
+  gaze:
+    tracking: 模型注視方向
+    options:
+      cursor: 滑鼠
+      none: 已停用
+      camera: 攝影機
+    title: 視線
+  animation:
+    title: 動畫
+    idle-motion: 待機動作
+    import-motion: 匯入動作（.vmd）
+    play-once: 預覽動畫
+    remove: 移除動作
+    description: 匯入 VMD 動作檔案，將其中一個設為循環待機動作，或單次播放任意動作。將情緒映射至動作後，動作可與臉部表情一同播放。
+  title: MMD 設定
+  physics:
+    title: 物理與骨骼
+    enabled: 啟用物理模擬（頭髮、裙子、配件）
+    ik: 啟用 IK（逆向運動學）
+    grant: 啟用附加骨骼變換傳遞
+    gravity: 重力強度
+  morphs:
+    title: 變形
+    auto: （自動）
+    revert: 恢復自動
+    no-morphs: 此模型沒有可用的變形。
+    description: 渲染器會自動偵測標準日文變形名稱（あいうえお、まばたき）。若模型使用其他名稱，請在此覆寫對應項。
+  materials:
+    no-materials: 此模型沒有可用的材質。
+    description: 調整各模型部位（臉、頭髮、服裝、配件）的不透明度，設為 0 可隱藏該部位。
+    title: 材質
+streamer-mode:
+  title: 直播模式
+  description: 隱藏角色視窗中的麥克風與登入狀態指示。

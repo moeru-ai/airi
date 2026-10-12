@@ -63,11 +63,14 @@ signIn:
     socialOnlyNoPassword: Este correo electrónico se registró con Google o GitHub. Inicia sesión con uno de los botones de abajo. Después de iniciar sesión, podrás agregar una contraseña en la configuración de tu cuenta.
     passwordMismatch: Las contraseñas no coinciden.
     invalidEmail: Por favor, introduzca una dirección de correo electrónico válida.
+    providerTimeout: El inicio de sesión con el proveedor agotó el tiempo de espera. Vuelve a intentarlo.
   footer:
     prefix: Al continuar, aceptas nuestros
     terms: Términos
     and: 'y'
     privacy: Política de Privacidad
+  message:
+    redirecting: Redirigiendo a {provider}…
 verifyEmail:
   title:
     pending: Revisa tu bandeja de entrada

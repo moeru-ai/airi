@@ -1,6 +1,9 @@
 chat:
   actions:
     retry: 重試
+    reply: 回覆
+    send: 傳送訊息
+    stop: 停止回覆
   message:
     character-name:
       core-system: 核心系統
@@ -13,6 +16,103 @@ chat:
     cloud-badge: 已同步至雲端
     new-chat-fallback: 新對話
     delete: 刪除對話
+    delete-short: 刪除
+    cancel: 取消
+    current: 目前版本
+    confirm-delete-short: 確認刪除
+    confirm-delete: 要刪除此對話及其訊息嗎？
+  voice-composer:
+    cancel: 取消
+    input-device: 麥克風
+    stop: 停止錄製
+    pause: 暫停
+    push-to-talk: 按住說話
+    recording: 正在錄製
+    audio: 語音訊息
+    transcription: 聽寫
+    hold-hint: 按住以錄音。點一下可切換語音訊息與聽寫，按 Enter 可在不按住的情況下錄音。
+    listening: 正在聆聽…
+    lock: 向上滑動以鎖定錄音
+    cancel-hint: 向左滑動以取消
+    processing: 正在完成…
+    send: 傳送語音訊息
+    insert: 插入文字
+    retry: 重新傳送語音訊息
+    discard: 捨棄語音訊息
+    failed: 語音輸入失敗
+    configure-title: 設定聽覺
+    configure-description: 若要使用聽寫，請在聽覺中選擇轉錄供應商和模型。
+    configure-action: 開啟聽覺
+    mode: 語音輸入
+    auto-send: 停止錄音時傳送
+    system-default: 系統預設
+    listen: 持續聆聽
+    push-to-talk-unavailable: 此裝置沒有按住說話按鍵，因此 AIRI 不會聆聽。請在聽覺設定中變更輸入模式。
+    wake-word: 聆聽喚醒詞
+    hearing-settings: 更多聽覺設定…
+    options-hint: 將游標移至此處或按右鍵以查看選項
+    stop-send: 停止並傳送
+    play: 播放錄音
+  voice-preview:
+    speech: 發聲
+    sensitivity: 靈敏度
+    device-placeholder: 選擇麥克風
+    processing: 正在完成轉錄
+    device: 音訊輸入裝置
+    device-description: 選擇此次錄音使用的麥克風。
+    level: 輸入音量
+    activity: 語音活動
+    silence: 靜音
+    threshold: 偵測閾值
+    sensitivity-description: 調整語音指示器的閾值。
+    start: 開始錄音
+    stop: 結束錄音
+    failed: 音訊操作失敗。
+  swipe-demo:
+    delete: 刪除
+    show-label: 顯示標籤
+    archive: 封存
+    pin: 釘選
+    actions: 顯示操作
+    row: 對話 {n}
+  voice-message:
+    transcribing: 正在轉錄…
+    recording: 正在錄製
+    starting: 正在啟動麥克風
+    preview: 已錄製的語音訊息
+    position: 播放位置
+    no-speech: 未辨識出語音，因此未傳送語音訊息。
+  provider-configuration:
+    title: 尚未設定對話服務供應商
+    description: 傳送訊息前，請在設定中選擇並驗證服務供應商。
+    action: 開啟服務供應商設定
+  voice-draft:
+    finalizing: 正在完成…
+    title: 語音草稿
+    discard: 捨棄草稿
+    listening: 聆聽中
+  voice-input: 語音輸入
+  error-details:
+    show: 顯示詳細資料
+    hide: 隱藏詳細資料
+  images:
+    empty: 分享想法或圖片。
+    use-vision: 使用視覺模型處理聊天圖片
+    use-vision-description: 在下方選擇供應商和模型。它會在聊天模型回覆前讀取附件圖片。若未選擇視覺模型，圖片會直接傳送給聊天模型。
+    attach: 附加圖片
+    remove: 移除 {name}
+    unsupported: 請使用 PNG、JPEG、WebP 或 GIF 圖片。
+    too-large: 每張圖片不得超過 3 MB。
+    too-many: 一次最多可附加 {count} 張圖片。
+    total-too-large: 所有附件圖片的總大小不得超過 3 MB。
+    read-failed: 無法讀取此圖片。請再試一次。
+    no-description: 視覺模型未傳回圖片說明。請檢查設定 → 模組 → 視覺，再試一次。
+    reading: 正在讀取圖片…
+    description: 圖片附件
+  reply:
+    cancel: 取消回覆
+    message: 訊息
+    replying-to: 正在回覆 {name}
 render-error:
   title: '{renderer} 無法算繪這個模型'
   description: 模型已經選取，但舞台無法顯示它。
@@ -99,3 +199,69 @@ websocket-status:
   connected: 已連線
   disconnected: 未連線
   open-settings: 開啟連線設定
+mobile-tools:
+  title: 設定
+  settings: 設定
+  hearing: 聽覺
+  view: 檢視
+  appearance: 外觀
+  sign-in: 登入 AIRI
+  account-description: 帳戶與偏好設定
+  sound: 聲音
+  character-voice: 角色聲音
+  application: 應用程式
+  more: 更多
+  background: 背景
+  about: 關於
+  close-view: 儲存並關閉視圖控制
+startup:
+  retry: 重試
+  continue-without-model: 仍然繼續
+  failed: 啟動失敗
+  failed-resource: 無法載入{resource}
+  recover: 請再試一次。若仍失敗，請開啟下方的詳細資料。
+  recover-model: 請再試一次，或不使用角色繼續。你可以稍後選擇其他模型。
+  details: 發生了什麼事？
+  close-details: 關閉詳細資料
+  model-timeout: 角色模型載入時間過長。請檢查連線後重試。
+  resources:
+    auth: 帳號設定
+    modelIndex: 模型清單
+    card: 角色設定
+    chat: 聊天記錄
+    services: 應用程式服務
+    modelData: 已儲存的模型
+    modelSelection: 模型設定
+    audio: 音訊設定
+    route: 頁面
+    model: 角色模型
+theme:
+  title: 主題
+  system: 外觀
+  light: 燈光
+  dark: 深色
+  switch-to-light: 切換為淺色主題
+  switch-to-dark: 切換為深色主題
+  switch-to-system: 跟隨系統主題
+status:
+  sign-in-error: 登入失敗
+  dismiss: 取消
+  listening: 聆聽中
+  preparing: 正在準備麥克風
+  paused: AIRI 說話時暫停聆聽
+  transcribing: 正在轉錄
+  hearing-error: 無法轉錄音訊
+  no-transcript: 辨識到的語音會顯示在此處。
+  signing-in: 在瀏覽器中完成登入
+  confirming: 正在確認登入
+  signed-in: 已登入
+  sign-in-unconfirmed: 無法確認你的工作階段。請重新登入。
+  configure-hearing: 在設定中選擇並設定聽覺供應商。
+character-switcher:
+  title: 切換角色
+  manage: 管理角色
+  empty: 尚無角色
+  failed: 無法切換角色，請再試一次。
+computer-use:
+  label: 使用電腦
+  description: 允許此聊天視窗檢視及控制這台電腦上的原生應用程式。

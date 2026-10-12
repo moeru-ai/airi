@@ -30,6 +30,12 @@ docs:
   'logging-in': Iniciando sesión...
   'account': Cuenta
   'logout': Cerrar sesión
+  switch-to-system-mode: Seguir el tema del sistema
+  hide-chat: Ocultar chat
+  enable-microphone: Encender micrófono
+  disable-microphone: Apagar micrófono
+  mute: Silenciar
+  unmute: Activar sonido
 widgets:
   close: Cerrar widget
   empty:
@@ -63,10 +69,13 @@ about:
   update:
     lane:
       description: Elija la versión del canal a seguir
+      label: Canal de actualización
+      placeholder: Elegir canal de actualización
     channels:
       auto: Automático
       stable: Estable
       alpha: Alfa
+      nightly: Compilación nocturna
     status:
       downloading: Descargando actualización...
       latest: Actualizado (v{version}).
@@ -90,3 +99,31 @@ about:
       title: Actualización disponible
       description: Una nueva versión (v{version}) está disponible.
       no-release-notes-markdown: _No se proporcionaron notas de lanzamiento._
+resource-island:
+  loading: Preparando recursos...
+  ready: Recursos listos
+  preparing: Preparando archivos del modelo
+  failed: La descarga del modelo falló
+chat-window:
+  style:
+    title: Estilo de ventana de chat
+    legacy: Ventana clásica
+    floating-attached: Flotante, junto al personaje
+    floating-free: Flotante, en cualquier lugar de la pantalla
+    floating-danmaku: Flotante, flujo de mensajes
+    pinned: Mantener siempre encima
+  resize: Arrastra para cambiar el tamaño del chat
+  move: Arrastra para mover el chat
+  fold: Ocultar chat
+  composer:
+    show: Mostrar el cuadro de mensajes
+    hide: Ocultar el cuadro de mensajes
+  danmaku-feed:
+    title: Tiempo de mensajes
+    hide-read: Ocultar mensajes leídos
+    hide-read-description: Los mensajes desaparecen tras leerlos. Las respuestas habladas desaparecen al terminar la voz.
+    reading-speed: Velocidad de lectura
+    reading-speed-value: '{count} caracteres/s'
+    minimum-time: Tiempo mínimo
+inlay:
+  hide: Ocultar

@@ -63,11 +63,14 @@ signIn:
     socialOnlyNoPassword: Cet e-mail a été enregistré avec Google ou GitHub. Connectez-vous avec un bouton ci-dessous, vous pouvez ajouter un mot de passe dans les paramètres du compte après vous être connecté.
     passwordMismatch: Problème de correspondance des mots de passe.
     invalidEmail: Veuillez saisir une adresse courriel valide.
+    providerTimeout: La connexion au fournisseur a expiré. Réessayez.
   footer:
     prefix: En continuant, vous acceptez nos
     terms: Conditions Générales d'Utilisation
     and: et
     privacy: Politique de Confidentialité
+  message:
+    redirecting: Redirection vers {provider}…
 verifyEmail:
   title:
     pending: Vérifiez votre boîte de réception

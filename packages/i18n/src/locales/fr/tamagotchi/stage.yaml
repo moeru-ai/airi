@@ -29,6 +29,13 @@ docs:
   'logging-in': Connexion en cours...
   'account': Compte
   'logout': Compte
+  switch-to-system-mode: Suivre le thème du système
+  hide-chat: Masquer le chat
+  center-main-window: Déplacer au centre de l’écran
+  enable-microphone: Activer le microphone
+  disable-microphone: Désactiver le microphone
+  mute: Couper le son
+  unmute: Rétablir le son
 widgets:
   close: Fermer le widget
   empty:
@@ -93,3 +100,31 @@ about:
       title: Mise à jour disponible
       description: Une nouvelle version (v{version}) est disponible.
       no-release-notes-markdown: _ Aucune note de mise à jour fournie._
+resource-island:
+  loading: Préparation des ressources...
+  ready: Ressources prêtes
+  preparing: Préparation des fichiers du modèle
+  failed: Échec du téléchargement du modèle
+chat-window:
+  style:
+    title: Style de fenêtre de chat
+    legacy: Fenêtre classique
+    floating-attached: Flottante, à côté du personnage
+    floating-free: Flottante, n’importe où sur l’écran
+    floating-danmaku: Flottante, fil de messages
+    pinned: Toujours au premier plan
+  resize: Déplacez pour redimensionner le chat
+  move: Déplacez pour déplacer le chat
+  fold: Masquer le chat
+  composer:
+    show: Afficher la zone de saisie
+    hide: Masquer la zone de saisie
+  danmaku-feed:
+    title: Durée d’affichage des messages
+    hide-read: Masquer les messages lus
+    hide-read-description: Les messages disparaissent après lecture. Les réponses vocales disparaissent à la fin de la parole.
+    reading-speed: Vitesse de lecture
+    reading-speed-value: '{count} caractères/s'
+    minimum-time: Durée minimale
+inlay:
+  hide: Masquer

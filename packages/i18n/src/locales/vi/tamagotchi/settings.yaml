@@ -31,6 +31,9 @@ pages:
         conflict: Phím tắt này đã được sử dụng.
         failed: Không cập nhật được phím tắt
         requiresModifier: Dùng ít nhất một trong các phím Cmd, Ctrl, Alt hoặc Super.
+        requiresHoldModifier: Dùng Cmd, Ctrl, Alt, Super hoặc phím chức năng như F13. Chỉ Shift là không đủ.
+        denied: AIRI không thể đọc phím toàn cục. Cho phép AIRI trong cài đặt Trợ năng rồi thử lại.
+        unsupported: Hệ thống này không thể phát hiện khi bạn thả phím tắt toàn cục.
       toggle-move:
         label: Bật/Tắt Di chuyển
       toggle-resize:
@@ -38,12 +41,22 @@ pages:
       toggle-ignore-mouse-event:
         label: Bật/Tắt Bỏ qua sự kiện chuột
       press-keys: Nhấn phím...
+      push-to-talk:
+        title: Phím tắt nhấn để nói
+        description: Giữ phím tắt này trong bất kỳ ứng dụng nào khi nói với AIRI. Nhấp vào phím tắt rồi nhấn tổ hợp mới. Nhấn Esc để hủy.
+        inactive: Phím tắt này chỉ hoạt động khi chế độ nhập của Nghe là nhấn để nói và micrô đang bật.
     developer:
       sections:
         section:
           use-window-mouse:
             title: Công cụ useWindowMouse
             description: Kiểm tra vị trí con trỏ chuột trong cửa sổ Electron
+    general:
+      hide-app-icon:
+        title: Ẩn biểu tượng trên thanh tác vụ / Dock
+        description: Chỉ giữ AIRI trong khay hệ thống. Dùng menu khay để mở cửa sổ hoặc thoát. Thay đổi có hiệu lực ngay.
+        load-error: Không thể tải cài đặt biểu tượng ứng dụng.
+        save-error: Không thể cập nhật cài đặt biểu tượng ứng dụng.
 devtools:
   title: Nhà phát triển
   pages:
@@ -76,6 +89,9 @@ devtools:
         memory:
           description: Dung lượng bộ nhớ JavaScript heap từ API performance.memory của Chromium.
           unsupported: Trình duyệt này không hiển thị dung lượng bộ nhớ JavaScript heap.
+          label: Heap JS (MB)
+        fps:
+          description: Tốc độ khung hình hoạt ảnh trong 10 giây gần nhất. Mỗi mẫu bằng 1000 chia cho khoảng giữa các khung hình tính bằng mili giây.
       recording:
         title: Bản ghi gần nhất
         duration: Thời lượng {duration} ms
@@ -88,13 +104,431 @@ devtools:
         stop: Dừng
         export: Xuất bản ghi gần nhất
         average: trung bình
+      resource-events:
+        columns:
+          textures: Kết cấu
+          materials: Vật liệu
+          time: Thời gian (ms)
+          phase: Giai đoạn
+          reason: Lý do
+          geometries: Hình học
+          meshes: Lưới
+        title: Sự kiện tài nguyên gần đây
+        description: Sự kiện nhận mới nhất ở đầu. Thời gian tính bằng mili giây từ khi tiến trình kết xuất nguồn khởi động.
+        empty: Chưa ghi sự kiện tài nguyên. Tải hoặc đổi mô hình VRM khi bật theo dõi.
+      history:
+        title: Lịch sử FPS
+        latest: Mới nhất
+        minimum: Tối thiểu
+        maximum: Tối đa
+        seconds-ago: -{seconds} giây
+        end: 0 giây
+        empty: Chưa có mẫu FPS. Bật FPS để thu thập mẫu.
     markdown-stress:
       title: Kiểm thử áp lực Markdown
       description: Kiểm tra khả năng xử lý và hiển thị Markdown với dữ liệu hội thoại lớn
     io-tracer:
       title: Trình theo dõi I/O (IO Tracer)
+      recording:
+        title: Tự động ghi dấu vết I/O
+        description: Lưu các khoảng I/O đã kết thúc dưới dạng JSON Lines trong thư mục dữ liệu ứng dụng để tác tử lập trình phân tích. Tệp cũ hơn bảy ngày sẽ bị xóa.
     widgets-calling:
       title: Gọi Widget
+    live2d-ambient-light:
+      diagnostics:
+        status:
+          disabled: Đã tắt
+          error: Lỗi
+          forced-color: Màu cố định
+          starting: Đang khởi động
+          capturing: Đang chụp
+        title: Chẩn đoán chụp màn hình
+        waiting: Đang chờ thông tin chẩn đoán từ cửa sổ chính của AIRI.
+        capture:
+          title: Trạng thái chụp
+          description: Kiểm tra màn hình đã chọn, kích thước chụp và tọa độ vùng loại trừ.
+          display: Màn hình và giới hạn
+          video-size: Video nguồn
+          sample-size: Khung hình mẫu
+          window-bounds: Giới hạn cửa sổ AIRI
+          excluded-region: Vùng loại trừ
+          exposure: Độ phơi sáng màn hình
+          behind-luminance: Ánh sáng phía sau nhân vật
+          updated: Cập nhật gần nhất
+        preview:
+          title: Ảnh chụp thu nhỏ
+          description: Hình chữ nhật đỏ đánh dấu cửa sổ AIRI. Hình chữ nhật nét đứt đánh dấu vùng mà bản đồ ánh sáng bao phủ.
+          unavailable: Không có khung hình đã chụp.
+        pixels:
+          title: Phân loại điểm ảnh
+          total: Tổng
+          accepted: Được chấp nhận
+          excluded: Đã tô
+          transparent: Trong suốt
+          see-through: Nhìn xuyên qua
+        maps:
+          title: Bản đồ ánh sáng
+          window: Mỗi bản đồ bao phủ cửa sổ AIRI và thêm nửa cửa sổ ở mỗi phía. Đường viền đánh dấu cửa sổ.
+          unavailable: Không có dữ liệu môi trường.
+          target: Đã đo
+          applied: Áp dụng sau khi làm mượt
+          surround:
+            title: Bản đồ xung quanh
+            description: Làm mờ rộng màn hình quanh và sau cửa sổ. Mang màu ánh sáng và hướng ánh sáng chiếu tới.
+          contact:
+            title: Bản đồ tiếp xúc
+            description: Làm mờ hẹp cùng nội dung. Bản đồ này điều khiển ánh sáng bọc viền và viền ngược sáng.
+      sampling:
+        capture-interval:
+          title: Khoảng thời gian chụp
+          description: Đặt khoảng thời gian giữa các mẫu màn hình. Luồng chụp chạy ở tốc độ này.
+        title: Lấy mẫu màn hình
+        response-time:
+          title: Thời gian phản hồi
+          description: Đặt tốc độ màu lấy mẫu thích nghi với thay đổi trên màn hình.
+        sample-width:
+          title: Kích thước mẫu
+          description: Đặt chiều rộng khung hình chụp thu nhỏ. Khung rộng hơn thêm chi tiết cho bản đồ ánh sáng. Chiều cao theo tỷ lệ màn hình.
+        neutral-color-weight:
+          title: Trọng số màu trung tính
+          description: Đặt trọng số tối thiểu cho màu có độ bão hòa thấp. Nội dung có màu được tính nhiều hơn màu xám.
+      main-window-note: Thay đổi xuất hiện trong cửa sổ chính của AIRI.
+      title: Ánh sáng môi trường Live2D
+      description: Điều chỉnh lấy mẫu màn hình và shader ánh sáng màu Live2D
+      controls:
+        title: Nguồn sáng và đầu ra
+      enabled:
+        title: Ánh sáng môi trường
+        description: Áp dụng bộ lọc ánh sáng môi trường cho mô hình Live2D đang hoạt động.
+      source:
+        title: Nguồn sáng
+        options:
+          screen-capture: Chụp màn hình
+          forced-color: Màu cố định
+      mode:
+        title: Chế độ chiếu sáng
+        options:
+          window-gradient: Chuyển màu theo cửa sổ
+          global: Ánh sáng môi trường toàn cục
+      forced-color:
+        title: Màu thử nghiệm
+        description: Áp dụng màu này mà không chụp màn hình.
+      strength:
+        title: Cường độ ánh sáng
+        description: Đặt cường độ tổng thể của hiệu ứng. 1 là diện mạo được thiết kế, tăng đến 3 làm ánh sáng viền và ngược sáng mạnh hơn.
+      squint:
+        title: Nheo mắt khi độ sáng tăng đột ngột
+        description: Nheo mắt khi màn hình sáng lên nhanh hơn khả năng thích nghi của nhân vật. Màn hình sáng ổn định sẽ để mắt mở. 0 tắt hiệu ứng này.
+      shader:
+        title: Phản hồi shader
+        dark-base:
+          title: Mức sáng tối thiểu
+          description: Đặt độ sáng mô hình trên màn hình đen. Màn hình trắng hiển thị hình gốc, màn hình tối giảm độ sáng về mức tối thiểu này.
+        base-curve:
+          title: Đường cong độ sáng
+          description: Đặt cách độ sáng mô hình tăng từ mức tối thiểu đến hình gốc. Trên 1, màn hình sáng một nửa giữ mô hình gần mức tối thiểu hơn.
+        local-share:
+          title: Tỷ lệ ánh sáng cục bộ
+          description: Đặt mức độ sáng mô hình theo ánh sáng cạnh nó thay vì toàn màn hình. Ở 0, độ sáng giữ nguyên dù cửa sổ ở đâu.
+        tint:
+          title: Sắc màu
+          description: Đặt mức mô hình nhận sắc màu từ màn hình. Ở 0, chỉ độ sáng màn hình ảnh hưởng đến mô hình.
+        color-boost:
+          title: Tăng màu trong ánh sáng yếu
+          description: Đặt lượng màu bổ sung mô hình nhận từ ánh sáng yếu nhưng bão hòa. Độ sáng giữ nguyên và không kênh nào giảm dưới mức mô hình chưa chiếu sáng.
+        wrap-intensity:
+          title: Cường độ ánh sáng bọc viền
+          description: Đặt mức màu nền lan lên rìa mô hình.
+        wrap-saturation:
+          title: Độ bão hòa ánh sáng bọc viền
+          description: Đặt mức ánh sáng bọc viền giữ sắc màu màn hình. 0 thêm ánh sáng trắng cùng độ sáng. 1 thêm toàn bộ màu màn hình.
+        backlight:
+          title: Ngược sáng
+          description: Đặt mức ánh sáng phía sau nhân vật chiếu lên đường viền mỏng quanh toàn bộ rìa.
+        wrap-diffuse:
+          title: Độ rộng ánh sáng bọc viền
+          description: Đặt khoảng cách màu nền bọc viền lan vào trong rìa mô hình.
+        translucent-wrap:
+          title: Giảm ánh sáng bọc viền ở phần bán trong suốt
+          description: Điều chỉnh ánh sáng bọc viền và viền theo bình phương alpha của mô hình. Phần có alpha một phần đã để lộ màn hình nền phía sau.
+      preview-shader:
+        title: Xem trước shader
+        description: Chạy shader thật trên thẻ thử nghiệm với môi trường hiện tại và cài đặt phía trên.
+        window-mapping: Bộ lọc coi canvas này là toàn bộ cửa sổ sân khấu, nên bản xem trước không sao chép sân khấu chính xác từng điểm ảnh.
+        filtered: Đầu ra shader
+        unavailable: Bản xem trước cần WebGL, nhưng cửa sổ này không thể tạo ngữ cảnh.
+        environment:
+          live: Ánh sáng lấy từ ảnh chụp trạng thái mới nhất do cửa sổ chính của AIRI công bố.
+          neutral: Chưa nhận được ảnh chụp trạng thái nên bản xem trước dùng môi trường trung tính.
+        regions:
+          title: Vùng trên thẻ thử nghiệm
+          body: Phần thân rộng có dải tông từ sRGB {low} đến {high}. Dải này thể hiện độ sáng, tương phản, độ đậm màu và khoảng dự phòng.
+          bars: Các thanh rộng {first}, {second}, {third}, {fourth} và {fifth} điểm ảnh. Chúng cho thấy ánh sáng bọc viền lan sâu vào hình mảnh đến đâu.
+          patches: Hai vùng được vẽ với alpha {strong} và {weak}, là các giá trị mà tùy chọn bọc viền phần bán trong suốt tác động lên.
+    live2d-motion:
+      var:
+        diagnostics:
+          source: Nguồn
+          fit: Khớp mô hình
+          run: Chuỗi đã tạo
+          model: Mô hình
+        title: Bộ tạo chuyển động nghỉ VAR
+        description: Khớp mô hình với chuyển động đã ghi rồi tạo chuỗi chuyển động nghỉ mới.
+        actions:
+          fit: Khớp với chuyển động hiện tại
+          refit: Khớp lại với chuyển động hiện tại
+          generate: Tạo chuyển động
+          stop: Dừng tạo
+          new-seed: Hạt giống mới
+        order:
+          label: Bậc VAR
+          description: Các khung hình trước dùng cho mỗi dự đoán.
+        residual:
+          label: Cường độ phần dư
+          description: Mức biến thiên được tạo. 0 cho kết quả xác định.
+        status:
+          no-source: Nhập hoặc ghi chuyển động trước
+          source-ready: '{count} mẫu · {duration} giây'
+          fit-failed: Khớp mô hình VAR thất bại.
+        values:
+          frames: '{count} khung hình'
+          model: '{channels} kênh · {features} số hạng'
+          fit: '{frames} khung hình · RMSE {error} · {duration}ms'
+          run: hạt giống {seed} · {duration}
+      ar-hmm:
+        diagnostics:
+          source: Nguồn
+          fit: Khớp mô hình
+          run: Chuỗi đã tạo
+          states: Tỷ lệ chiếm trạng thái
+          model: Mô hình
+        actions:
+          stop: Dừng
+          new-seed: Hạt giống mới
+          fit: Khớp với chuyển động
+          refit: Khớp lại
+          generate: Tạo
+        status:
+          no-source: Nhập hoặc ghi chuyển động trước
+          source-ready: '{count} mẫu · {duration} giây'
+          fit-failed: Khớp mô hình AR-HMM thất bại.
+        values:
+          frames: '{count} khung hình'
+          count: '{count} trạng thái'
+          model: '{states} trạng thái · {channels} kênh · {features} số hạng'
+          fit: log p/khung hình {likelihood} · {duration}ms
+          states: '{occupancy} · thời gian giữ {dwell} giây'
+          run: trạng thái {state} · hạt giống {seed} · {duration}
+        title: Bộ tạo chuyển động nghỉ AR-HMM
+        description: Học các trạng thái và chuyển tiếp chuyển động để tạo chuyển động nghỉ đa dạng.
+        states:
+          label: Trạng thái ẩn
+          description: Các mẫu chuyển động mà mô hình có thể học.
+        order:
+          label: Bậc AR
+          description: Các khung hình trước dùng trong mỗi trạng thái.
+        residual:
+          label: Cường độ đổi mới
+          description: Mức biến thiên trong mỗi trạng thái.
+      actions:
+        back: Quay lại
+      groups:
+        body: Cơ thể
+        eyes: Mắt
+        head: Đầu
+      editor:
+        input-actions:
+          stop: Dừng
+          start: Về đầu
+          step-backward: Lùi một bước
+          step-forward: Tiến một bước
+          end: Về cuối
+          play: Phát
+          restart-recording: Ghi lại
+          clear-timeline: Xóa dòng thời gian
+          previous-track: Chọn track trước
+          next-track: Chọn track tiếp theo
+        controls:
+          remove: Xóa
+          add: Thêm
+          replace: Thay thế
+          create-keyframes: Tạo khung hình chính
+          weight: Trọng số
+        tracks:
+          mouthOpen: Độ mở miệng
+          viewTargetX: Mục tiêu ánh nhìn X
+          viewTargetY: Mục tiêu ánh nhìn Y
+          eyeX: Mắt X
+          eyeY: Mắt Y
+          eyeOpen: Độ mở mắt
+          headX: Đầu X
+          headY: Đầu Y
+          headZ: Đầu Z
+          bodyX: Cơ thể X
+          bodyY: Cơ thể Y
+          bodyZ: Cơ thể Z
+          mouthForm: Hình miệng
+        title: Trình chỉnh sửa chuyển động
+        instructions: Đường cong xám là nguồn. Thêm lớp chuyển động hoặc khung hình chính cho mục tiêu ánh nhìn. Chọn một track rồi kéo các điểm của nó.
+        play: Phát dòng thời gian
+        pause: Tạm dừng dòng thời gian
+        undo: Hoàn tác
+        redo: Làm lại
+        crop-to-view: Cắt theo vùng đang xem
+        reset-view: Đặt lại chế độ xem
+        export-project: Xuất dự án
+        import-project: Nhập dự án
+        import-error: Tệp này không phải dự án chuyển động AIRI Live2D hợp lệ.
+        playback:
+          label: Điều khiển phát dòng thời gian
+          start: Về đầu
+          step-backward: Lùi một bước
+          step-forward: Tiến một bước
+          end: Về cuối
+          timecode: Mã thời gian hiện tại và tổng
+        timeline-label: Dòng thời gian chuyển động
+        timeline-help: Kéo thước để di chuyển theo thời gian. Dùng bánh xe để thu phóng. Giữ Shift và kéo để di chuyển vùng xem. Nhấp đúp đường cong đã chọn để thêm điểm. Mỗi khóa mục tiêu ánh nhìn giữ nguyên đến khóa tiếp theo.
+        overlay-count: '{count} lớp phủ'
+      recording:
+        actions:
+          record: Ghi
+          export: Xuất
+          import: Nhập
+          stop-recording: Dừng ghi âm
+          play: Phát
+          stop-playback: Dừng phát
+        status:
+          empty: Chưa có bản ghi chuyển động
+          recording: Đang ghi chuyển động
+          playing: Đang phát chuyển động
+          ready: '{count} mẫu · {duration}'
+        import-error: Tệp này không phải bản ghi chuyển động AIRI Live2D hợp lệ.
+      title: Điều khiển chuyển động Live2D
+      description: Điều khiển chuyển động mắt, đầu và cơ thể Live2D.
+      system-audio:
+        title: Đồng bộ môi với âm thanh hệ thống
+        description: Thu âm thanh từ trình phát khác. Cùng đầu vào điều khiển đồng bộ nhịp và chuyển động miệng Live2D.
+        signal: Tín hiệu đầu vào
+        mouth-open: Độ mở miệng
+        input-volume-threshold: Ngưỡng âm lượng đầu vào
+        random-close-delay: Độ trễ đóng ngẫu nhiên
+        random-close-probability: Xác suất đóng ngẫu nhiên
+        actions:
+          start: Bắt đầu đầu vào
+          stop: Dừng đầu vào
+      panels:
+        direct-control: Điều khiển trực tiếp
+        preview: Xem trước mô hình
+        timeline: Dòng thời gian
+        inference: Suy luận mô hình
+      preview:
+        groups:
+          expression: Biểu cảm
+          offset: Độ lệch vị trí
+        values:
+          squint: Nheo mắt
+          mouth-form: Hình dạng
+          mouth-open: Độ mở
+      joystick-label: Cần điều khiển chuyển động Live2D
+      wave:
+        toggle: Chế độ thuyền
+      instructions: Kéo cần điều khiển hoặc dùng phím mũi tên cho X/Y. R nheo mắt nhẹ. F nheo nhiều hơn. C nhắm mắt. W/S đổi hình miệng. Space mở miệng. A/D di chuyển cơ thể theo X. Q/E nghiêng đầu. Thả phím để trở về giữa mượt mà.
+      parameter-note: Cần điều khiển điều chỉnh X/Y. R nheo mắt 1/3, F 2/3, C nhắm hoàn toàn. W/S đặt hình miệng ±1. Space đặt độ mở miệng 1. A/D đặt cơ thể X ±10°. Q/E đặt đầu Z ±30°.
+      input:
+        keyboard: Bàn phím
+        controller: Tay cầm
+      input-actions:
+        move-body-head: Di chuyển cơ thể và đầu
+        tilt-head: Nghiêng đầu
+        blink: Chớp mắt
+        open-mouth: Mở miệng
+        mouth-shape: Đổi hình miệng
+      eye-view:
+        title: Ánh nhìn cố định
+        description: Chọn mục tiêu. Mắt bù chuyển động đầu để tiếp tục nhìn vào mục tiêu.
+        pad-label: Mục tiêu ánh nhìn cố định
+        actions:
+          enable: Bật cố định ánh nhìn
+          disable: Tắt cố định ánh nhìn
+          center: Đưa mục tiêu về giữa
+        counter:
+          label: Cường độ bù chuyển động đầu
+          description: Mức mắt bù chuyển động đầu theo X/Y.
+        values:
+          target: Mục tiêu
+          output: Đầu ra mắt
+      output-filter:
+        title: Bộ lọc đầu ra bộ tạo
+        description: Làm mượt đầu ra bộ tạo và giữ các thay đổi nhỏ trước khi lò xo nhận mỗi tư thế.
+        actions:
+          enable: Bật bộ lọc
+          disable: Tắt bộ lọc
+          reset: Đặt lại trạng thái
+        smoothing:
+          label: Làm mượt EMA
+          description: Trộn mỗi mục tiêu được chấp nhận với đầu ra trước. Giá trị cao giảm rung nhiều hơn nhưng tăng độ trễ.
+        cutoff:
+          label: Ngưỡng thay đổi
+          description: Giữ một kênh đến khi thay đổi chuẩn hóa tích lũy đạt giá trị này.
+        diagnostics:
+          status: Trạng thái
+          input-change: MAE thay đổi thô
+          output-change: MAE thay đổi đã lọc
+          cutoff-tracks: Kênh đang giữ
+        status:
+          waiting: Đang chờ bộ tạo
+          filtering: Đang lọc đầu ra bộ tạo
+          bypassed: Đang truyền đầu ra thô của bộ tạo
+      breath:
+        title: Hô hấp thủ công
+        description: Điều khiển ParamBreath với thời gian hít vào, thở ra và nghỉ tùy chỉnh, không thêm dữ liệu hô hấp vào bản ghi.
+        actions:
+          enable: Bật hô hấp
+          disable: Tắt hô hấp
+          reset: Đặt lại chu kỳ
+        cycle:
+          label: Thời lượng hô hấp
+          description: Đặt thời gian cho một lần hít vào và thở ra, trước khoảng nghỉ sau thở ra.
+        inhale:
+          label: Tỷ lệ hít vào
+          description: Đặt phần thời lượng hô hấp dành cho hít vào. Thời gian còn lại là thở ra.
+        dwell:
+          label: Nghỉ sau thở ra
+          description: Giữ ParamBreath ở mức tối thiểu trước lần hít vào tiếp theo.
+        stage:
+          dwell: Nghỉ sau thở ra
+          inhale: Hít vào
+          exhale: Thở ra
+        minimum:
+          label: Tối thiểu
+          description: Đặt giá trị thấp nhất ghi vào ParamBreath.
+        maximum:
+          label: Tối đa
+          description: Đặt giá trị cao nhất ghi vào ParamBreath.
+        diagnostics:
+          stage: Giai đoạn
+          phase: Tiến độ chu kỳ
+          output: Đầu ra ParamBreath
+      spring:
+        follow:
+          label: Bám theo
+          description: Tốc độ chuyển động bám theo cần điều khiển.
+        inertia:
+          label: Quán tính
+          description: Mức động lượng mà chuyển động giữ lại.
+    presence-bubble:
+      thinking:
+        title: Suy nghĩ
+        description: Hiện các dấu chấm. Ưu tiên hơn số tin nhắn chưa đọc.
+      title: Bong bóng hiện diện
+      description: Điều khiển bong bóng phía trên nhân vật và xem trong cửa sổ chính
+      override:
+        title: Điều khiển bong bóng từ đây
+        description: Khi tắt tùy chọn này, sân khấu chỉ hiện bong bóng khi đang xử lý một lượt trò chuyện.
+      unread:
+        title: Tin nhắn chưa đọc
+        description: Hiện thành bảng phía trên đầu, có ký hiệu và số lượng.
+      main-window-note: Thay đổi xuất hiện trong cửa sổ chính của AIRI.
 screen-capture:
   permissions-prompt:
     title: Chụp ảnh màn hình
@@ -105,3 +539,18 @@ screen-capture:
       step-1: Mở "Tùy chọn hệ thống", chọn "Quyền riêng tư & Bảo mật" từ thanh bên.
       step-2: Trong phần "Ghi màn hình & Âm thanh hệ thống" và "Chỉ ghi âm thanh hệ thống", hãy bật công tắc cho AIRI.
       step-2-note: Nếu không thấy AIRI trong danh sách, vui lòng thêm thủ công bằng cách nhấn nút "+" và chọn AIRI từ thư mục Ứng dụng (Applications).
+microphone-permission:
+  settings:
+    title: Micrô
+    description: Kiểm soát việc AIRI có thể dùng micrô hay không. Đặt lại lựa chọn này sẽ dừng luồng micrô hiện tại và hỏi lại vào lần sau.
+    revoke: Thu hồi quyền truy cập
+    reset: Đặt lại lựa chọn
+  states:
+    not-determined: Chưa đặt
+    granted: Đã cho phép
+    denied: Đã từ chối
+  prompt:
+    title: Cho phép truy cập micrô?
+    description: AIRI dùng micrô để nhập giọng nói và phiên âm. Lựa chọn này có hiệu lực cho đến khi bạn đặt lại trong Cài đặt.
+    allow: Cho phép
+    deny: Từ chối

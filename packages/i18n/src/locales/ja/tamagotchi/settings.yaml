@@ -31,6 +31,9 @@ pages:
         conflict: このショートカットは使用中です。
         failed: ショートカットの更新に失敗しました
         requiresModifier: Cmd、Ctrl、Alt、Super のいずれかを少なくとも 1 つ使用してください。
+        requiresHoldModifier: Cmd、Ctrl、Alt、Superのいずれか、またはF13などのファンクションキーを使用してください。Shiftだけでは使えません。
+        denied: AIRIがグローバルキーを読み取れません。アクセシビリティ設定でAIRIを許可してから再試行してください。
+        unsupported: このシステムはグローバルショートカットのキーを離したことを検出できません。
       toggle-move:
         label: 移動の切り替え
       toggle-resize:
@@ -38,12 +41,22 @@ pages:
       toggle-ignore-mouse-event:
         label: マウスイベント無視の切り替え
       press-keys: 何かキーを押してください…
+      push-to-talk:
+        title: プッシュトゥトークのショートカット
+        description: どのアプリでも、このショートカットを押しながらAIRIに話しかけられます。ショートカットをクリックして新しいキーの組み合わせを押してください。Escでキャンセルできます。
+        inactive: このショートカットは、聴覚の入力モードがプッシュトゥトークで、マイクがオンの場合のみ使えます。
     developer:
       sections:
         section:
           use-window-mouse:
             title: ウィンドウマウス ツールを使用
             description: Electronウィンドウのカーソル位置をテストします
+    general:
+      hide-app-icon:
+        title: タスクバー／Dockのアイコンを非表示
+        description: AIRIをトレイにのみ表示します。ウィンドウの表示や終了にはトレイメニューを使ってください。変更はすぐに適用されます。
+        load-error: アプリアイコンの設定を読み込めませんでした。
+        save-error: アプリアイコンの設定を更新できませんでした。
 devtools:
   title: 開発者
   pages:
@@ -77,6 +90,8 @@ devtools:
           label: JS ヒープ（MB）
           description: Chromiumのperformance.memory APIからのJavaScriptのヒープ使用量。
           unsupported: このブラウザはJavaScriptヒープの使用状況を公開しません。
+        fps:
+          description: 直近10秒間のアニメーションフレームレートです。各サンプルは1000をフレーム間隔のミリ秒数で割った値です。
       recording:
         title: 前回の録音
         duration: 期間 {duration} ms
@@ -89,11 +104,431 @@ devtools:
         stop: 停止
         export: 最後の録音をエクスポート
         average: 平均
+      resource-events:
+        columns:
+          textures: テクスチャ
+          materials: マテリアル
+          time: 時刻（ミリ秒）
+          phase: フェーズ
+          reason: 理由
+          geometries: ジオメトリ
+          meshes: メッシュ
+        title: 最近のリソースイベント
+        description: 受信した最新のイベントを先頭に表示します。時刻は送信元レンダラーの起動からのミリ秒です。
+        empty: リソースイベントは記録されていません。トレースを有効にしてVRMモデルを読み込むか切り替えてください。
+      history:
+        title: FPS履歴
+        latest: 最新
+        minimum: 最小
+        maximum: 最大
+        seconds-ago: -{seconds}秒
+        end: 0秒
+        empty: FPSサンプルがありません。FPSを有効にしてサンプルを収集してください。
     markdown-stress:
       title: Markdown ストレス
       description: 大量のチャットデータを含むMarkdownの解析とレンダリング負荷のテスト
     widgets-calling:
       title: ウィジェット呼び出し
+    live2d-ambient-light:
+      diagnostics:
+        status:
+          disabled: 無効
+          error: エラー
+          forced-color: 指定色
+          starting: 開始中
+          capturing: キャプチャ中
+        title: キャプチャ診断
+        waiting: AIRIのメインウィンドウからの診断を待機中です。
+        capture:
+          title: キャプチャ状態
+          description: 選択したディスプレイ、キャプチャサイズ、除外座標を確認します。
+          display: ディスプレイと範囲
+          video-size: 入力映像
+          sample-size: サンプルフレーム
+          window-bounds: AIRIウィンドウの範囲
+          excluded-region: 除外領域
+          exposure: 画面の露光
+          behind-luminance: キャラクターの背後の光
+          updated: 最終更新
+        preview:
+          title: 縮小キャプチャ
+          description: 赤い長方形はAIRIのウィンドウを示します。破線の長方形はライトマップが覆う領域を示します。
+          unavailable: キャプチャフレームがありません。
+        pixels:
+          title: ピクセルの判定
+          total: 合計
+          accepted: 採用
+          excluded: 描画済み
+          transparent: 透明
+          see-through: 透過
+        maps:
+          title: ライトマップ
+          window: 各マップはAIRIウィンドウと、その各辺から半ウィンドウ分までを覆います。輪郭線はウィンドウを示します。
+          unavailable: 環境データがありません。
+          target: 計測値
+          applied: 平滑化後の適用値
+          surround:
+            title: 周囲光マップ
+            description: ウィンドウの周囲と背後の画面を広くぼかします。光の色と入射方向を表します。
+          contact:
+            title: 接触光マップ
+            description: 同じ内容を狭い範囲でぼかします。このマップで光の回り込みと逆光の縁取りを制御します。
+      sampling:
+        capture-interval:
+          title: キャプチャ間隔
+          description: 画面サンプル間の時間を設定します。キャプチャストリームはこの頻度で動作します。
+        title: 画面サンプリング
+        response-time:
+          title: 応答時間
+          description: サンプリングした色が画面の変化に追従する速さを設定します。
+        sample-width:
+          title: サンプルサイズ
+          description: 縮小キャプチャフレームの幅を設定します。幅を広げるとライトマップの詳細が増えます。高さはディスプレイの比率に従います。
+        neutral-color-weight:
+          title: 無彩色の重み
+          description: 彩度の低い色の最小の重みを設定します。有彩色の内容は灰色より重く扱われます。
+      main-window-note: 変更はAIRIのメインウィンドウに反映されます。
+      title: Live2Dの環境光
+      description: 画面のサンプリングとLive2Dのカラーライティングシェーダーを調整します
+      controls:
+        title: 光源と出力
+      enabled:
+        title: 環境光
+        description: 使用中のLive2Dモデルに環境光フィルターを適用します。
+      source:
+        title: 光源
+        options:
+          screen-capture: 画面キャプチャ
+          forced-color: 指定色
+      mode:
+        title: ライティングモード
+        options:
+          window-gradient: ウィンドウのグラデーション
+          global: 全体の環境光
+      forced-color:
+        title: テスト用の色
+        description: 画面キャプチャを使わずにこの色を適用します。
+      strength:
+        title: 光の強さ
+        description: 効果全体の強さを設定します。1が想定した見た目で、3まで上げると縁への光の回り込みと逆光が強くなります。
+      squint:
+        title: 急な明るさの変化で目を細める
+        description: キャラクターの順応より速く画面が明るくなると、目を細めます。明るさが続く場合は目を開いたままにします。0で無効になります。
+      shader:
+        title: シェーダーの応答
+        dark-base:
+          title: 輝度の下限
+          description: 黒い画面上でのモデルの明るさを設定します。白い画面では原画の明るさになり、暗い画面ではこの下限に向けて暗くなります。
+        base-curve:
+          title: 輝度カーブ
+          description: 下限から原画までモデルの明るさが増す曲線を設定します。1より大きい値では、半分の明るさの画面でモデルが下限に近い明るさになります。
+        local-share:
+          title: 局所光の割合
+          description: モデルの明るさが画面全体よりも近くの光に従う割合を設定します。0ではウィンドウの位置に関係なく明るさが一定になります。
+        tint:
+          title: 色味
+          description: モデルが画面の色相を取り込む強さを設定します。0では画面の明るさだけが反映されます。
+        color-boost:
+          title: 暗い光の彩度強調
+          description: 暗く彩度の高い光から取り込む追加の色を設定します。明るさは維持され、どのチャンネルも照明なしのモデルの値より下がりません。
+        wrap-intensity:
+          title: 光の回り込みの強さ
+          description: 背景の色がモデルの縁ににじむ強さを設定します。
+        wrap-saturation:
+          title: 回り込む光の彩度
+          description: 回り込む光が画面の色相を保持する割合を設定します。0では同じ明るさの白い光を加え、1では画面の色をそのまま加えます。
+        backlight:
+          title: 逆光
+          description: キャラクターの背後からの光が、全体の縁にある細い輪郭を照らす強さを設定します。
+        wrap-diffuse:
+          title: 光の回り込みの幅
+          description: 背景の色がモデルの縁から内側へ届く距離を設定します。
+        translucent-wrap:
+          title: 半透明部分の光の回り込みを減らす
+          description: 光の回り込みと縁取りにモデルのアルファ値の二乗を掛けます。半透明で描かれた部分は、すでにデスクトップが透けて見えます。
+      preview-shader:
+        title: シェーダーのプレビュー
+        description: 現在の環境と上記の設定を使い、テストカードに実際のシェーダーを適用します。
+        window-mapping: フィルターはこのキャンバスをステージウィンドウ全体として扱うため、プレビューはステージをピクセル単位で正確に再現するものではありません。
+        filtered: シェーダー出力
+        unavailable: プレビューにはWebGLが必要ですが、このウィンドウではコンテキストを作成できませんでした。
+        environment:
+          live: 光はAIRIのメインウィンドウが公開した最新のスナップショットに基づきます。
+          neutral: スナップショットがまだ届いていないため、プレビューはニュートラルな環境を使います。
+        regions:
+          title: テストカードの領域
+          body: 幅広の本体にはsRGB {low}から{high}までの階調を配置しています。明るさ、コントラスト、彩度、余裕幅を確認できます。
+          bars: バーの幅は{first}、{second}、{third}、{fourth}、{fifth}ピクセルです。細い形状に光がどこまで回り込むかを示します。
+          patches: 2つのパッチはアルファ値{strong}と{weak}で描画され、半透明部分の光の回り込み設定はこれらに作用します。
+    live2d-motion:
+      var:
+        diagnostics:
+          source: 出典
+          fit: フィット
+          run: 生成シーケンス
+          model: モデル
+        title: VARアイドルモーション生成
+        description: 収録したモーションにモデルを当てはめ、新しいアイドルシーケンスを生成します。
+        actions:
+          fit: 現在のモーションにフィット
+          refit: 現在のモーションに再フィット
+          generate: モーションを生成
+          stop: 生成を停止
+          new-seed: 新しいシード
+        order:
+          label: VARの次数
+          description: 各予測に使う過去のフレーム数です。
+        residual:
+          label: 残差の強さ
+          description: 生成される揺らぎです。0では決定的な結果になります。
+        status:
+          no-source: まずモーションをインポートまたは収録してください
+          source-ready: '{count}サンプル · {duration}秒'
+          fit-failed: VARのフィットに失敗しました。
+        values:
+          frames: '{count}フレーム'
+          model: '{channels}チャンネル · {features}項'
+          fit: '{frames}フレーム · RMSE {error} · {duration}ミリ秒'
+          run: シード {seed} · {duration}
+      ar-hmm:
+        diagnostics:
+          source: 出典
+          fit: フィット
+          run: 生成シーケンス
+          states: 状態占有率
+          model: モデル
+        actions:
+          stop: 停止
+          new-seed: 新しいシード
+          fit: モーションにフィット
+          refit: 再フィット
+          generate: 生成
+        status:
+          no-source: まずモーションをインポートまたは収録してください
+          source-ready: '{count}サンプル · {duration}秒'
+          fit-failed: AR-HMMのフィットに失敗しました。
+        values:
+          frames: '{count}フレーム'
+          count: '{count}状態'
+          model: '{states}状態 · {channels}チャンネル · {features}項'
+          fit: log p/フレーム {likelihood} · {duration}ミリ秒
+          states: '{occupancy} · 滞在 {dwell}秒'
+          run: 状態 {state} · シード {seed} · {duration}
+        title: AR-HMMアイドルモーション生成
+        description: モーションの状態と遷移を学習し、多様なアイドルモーションを生成します。
+        states:
+          label: 隠れ状態
+          description: モデルが学習できるモーションのパターン数です。
+        order:
+          label: ARの次数
+          description: 各状態内で使う過去のフレーム数です。
+        residual:
+          label: 新規ノイズの強さ
+          description: 各状態内の揺らぎです。
+      actions:
+        back: 戻る
+      groups:
+        body: 体
+        eyes: 目
+        head: 頭
+      editor:
+        input-actions:
+          stop: 停止
+          start: 先頭へ移動
+          step-backward: 1ステップ戻る
+          step-forward: 1ステップ進む
+          end: 末尾へ移動
+          play: 再生
+          restart-recording: 再収録
+          clear-timeline: タイムラインをクリア
+          previous-track: 前のトラックを選択
+          next-track: 次のトラックを選択
+        controls:
+          remove: 削除
+          add: 追加
+          replace: 置換
+          create-keyframes: キーフレームを作成
+          weight: 重み
+        tracks:
+          mouthOpen: 口の開き
+          viewTargetX: 注視対象 X
+          viewTargetY: 注視対象 Y
+          eyeX: 目 X
+          eyeY: 目 Y
+          eyeOpen: 目の開き
+          headX: 頭 X
+          headY: 頭 Y
+          headZ: 頭 Z
+          bodyX: 体 X
+          bodyY: 体 Y
+          bodyZ: 体 Z
+          mouthForm: 口の形
+        title: モーションエディター
+        instructions: 灰色のカーブは元データです。モーションの重ね合わせや注視対象のキーフレームを追加できます。トラックを選択して点をドラッグしてください。
+        play: タイムラインを再生
+        pause: タイムラインを一時停止
+        undo: 元に戻す
+        redo: やり直す
+        crop-to-view: 表示範囲に切り詰める
+        reset-view: 表示をリセット
+        export-project: プロジェクトをエクスポート
+        import-project: プロジェクトをインポート
+        import-error: このファイルは有効なAIRI Live2Dモーションプロジェクトではありません。
+        playback:
+          label: タイムラインの再生操作
+          start: 先頭へ移動
+          step-backward: 1ステップ戻る
+          step-forward: 1ステップ進む
+          end: 末尾へ移動
+          timecode: 現在と合計のタイムコード
+        timeline-label: モーションタイムライン
+        timeline-help: ルーラーをドラッグして再生位置を移動します。ホイールでズームし、Shiftを押しながらドラッグすると表示を移動できます。選択したカーブをダブルクリックすると点を追加します。注視対象の各キーは次のキーまで保持されます。
+        overlay-count: '{count}個のオーバーレイ'
+      recording:
+        actions:
+          record: 記録
+          export: エクスポート
+          import: インポート
+          stop-recording: 録音を停止
+          play: 再生
+          stop-playback: 再生を停止
+        status:
+          empty: モーションの記録なし
+          recording: モーションを収録中
+          playing: モーションを再生中
+          ready: '{count}サンプル · {duration}'
+        import-error: このファイルは有効なAIRI Live2Dモーション記録ではありません。
+      title: Live2Dモーション制御
+      description: Live2Dの目、頭、体の動きを制御します。
+      system-audio:
+        title: システム音声でリップシンク
+        description: 他のプレーヤーの音声をキャプチャします。同じ入力でビート同期とLive2Dの口の動きを制御します。
+        signal: 入力信号
+        mouth-open: 口の開き
+        input-volume-threshold: 入力音量のしきい値
+        random-close-delay: ランダムな閉口の遅延
+        random-close-probability: ランダムな閉口の確率
+        actions:
+          start: 入力を開始
+          stop: 入力を停止
+      panels:
+        direct-control: 直接操作
+        preview: モデルのプレビュー
+        timeline: タイムライン
+        inference: モデル推論
+      preview:
+        groups:
+          expression: 表情
+          offset: 位置オフセット
+        values:
+          squint: 目を細める
+          mouth-form: 形状
+          mouth-open: 開き
+      joystick-label: Live2Dモーションジョイスティック
+      wave:
+        toggle: ボートモード
+      instructions: ジョイスティックをドラッグするか、矢印キーでX/Yを操作します。Rで少し、Fで強く目を細め、Cで目を閉じます。W/Sで口の形を変え、Spaceで口を開きます。A/Dで体をX方向に動かし、Q/Eで頭を傾けます。キーを離すと滑らかに中央に戻ります。
+      parameter-note: ジョイスティックはX/Yを制御します。Rで目を1/3、Fで2/3閉じ、Cで完全に閉じます。W/Sは口の形±1、Spaceは口の開き1、A/Dは体のX±10°、Q/Eは頭のZ±30°に対応します。
+      input:
+        keyboard: キーボード
+        controller: コントローラー
+      input-actions:
+        move-body-head: 体と頭を動かす
+        tilt-head: 頭を傾ける
+        blink: まばたき
+        open-mouth: 口を開く
+        mouth-shape: 口の形を変える
+      eye-view:
+        title: 視線固定
+        description: 注視する対象を選択します。頭の動きを目で補正し、対象を見続けます。
+        pad-label: 固定する視線の対象
+        actions:
+          enable: 視線固定を有効化
+          disable: 視線固定を無効化
+          center: 対象を中央に戻す
+        counter:
+          label: 頭の動きの補正強度
+          description: 頭のX/Yの動きを目で補正する強さです。
+        values:
+          target: 対象
+          output: 目の出力
+      output-filter:
+        title: 生成器の出力フィルター
+        description: 各ポーズをスプリングに渡す前に、生成器の出力を平滑化し、小さな変化を保留します。
+        actions:
+          enable: フィルターを有効化
+          disable: フィルターを無効化
+          reset: 状態をリセット
+        smoothing:
+          label: EMA平滑化
+          description: 採用した各目標値を前の出力と混ぜ合わせます。値を上げると揺れが減りますが、遅延が増えます。
+        cutoff:
+          label: 変化のしきい値
+          description: チャンネルの正規化された累積変化がこの値に達するまで保持します。
+        diagnostics:
+          status: 状態
+          input-change: 未処理の変化のMAE
+          output-change: フィルター後の変化のMAE
+          cutoff-tracks: 保持中のチャンネル
+        status:
+          waiting: 生成器を待機中
+          filtering: 生成器の出力をフィルター処理中
+          bypassed: 生成器の未処理出力を通過
+      breath:
+        title: 手動呼吸
+        description: 吸気、呼気、休止の時間を調整してParamBreathを制御します。収録データには呼吸を追加しません。
+        actions:
+          enable: 呼吸を有効化
+          disable: 呼吸を無効化
+          reset: 周期をリセット
+        cycle:
+          label: 呼吸時間
+          description: 呼気後の休止に入る前の、1回の吸気と呼気の時間を設定します。
+        inhale:
+          label: 吸気の割合
+          description: 呼吸時間のうち吸気に使う割合を設定します。残りは呼気に使います。
+        dwell:
+          label: 呼気後の休止
+          description: 次の吸気までParamBreathを最小値に保持します。
+        stage:
+          dwell: 呼気後の休止
+          inhale: 吸気
+          exhale: 呼気
+        minimum:
+          label: 最小値
+          description: ParamBreathに書き込む最小値を設定します。
+        maximum:
+          label: 最大値
+          description: ParamBreathに書き込む最大値を設定します。
+        diagnostics:
+          stage: 段階
+          phase: 周期の進行状況
+          output: ParamBreathの出力
+      spring:
+        follow:
+          label: 追従
+          description: モーションがジョイスティックに追従する速さです。
+        inertia:
+          label: 慣性
+          description: モーションが運動量を保持する強さです。
+    presence-bubble:
+      thinking:
+        title: 思考 (Thinking)
+        description: ドットを表示します。未読件数より優先されます。
+      title: プレゼンスバブル
+      description: キャラクターの頭上のバブルを操作し、メインウィンドウで確認します
+      override:
+        title: ここからバブルを操作
+        description: オフの場合、チャットのターン実行中以外はステージにバブルを表示しません。
+      unread:
+        title: 未読メッセージ
+        description: 頭上のパネルにマークと件数を表示します。
+      main-window-note: 変更はAIRIのメインウィンドウに反映されます。
+    io-tracer:
+      title: 入出力トレーサー
+      recording:
+        title: 入出力トレースを自動記録
+        description: 完了した入出力スパンをアプリのデータフォルダーにJSON Lines形式で保存し、コーディングエージェントが分析できるようにします。7日を過ぎたファイルは削除されます。
 screen-capture:
   permissions-prompt:
     title: 画面キャプチャ
@@ -104,3 +539,18 @@ screen-capture:
       step-1: '「システム設定」を開き、サイドバーから「プライバシーとセキュリティ」を選択します。'
       step-2: '「画面&システム音声録音」および「システム音声録音のみ」のセクションで、AIRI用のスイッチをオンにしてください。'
       step-2-note: AIRIが表示されていない場合は、「+」ボタンをクリックして「アプリケーション」フォルダから「AIRI」を選択して手動で追加してください。
+microphone-permission:
+  states:
+    not-determined: 未設定
+    granted: 許可済み
+    denied: 拒否済み
+  settings:
+    title: マイク
+    description: AIRIによるマイクの使用を管理します。この選択をリセットすると、現在のマイク入力が停止し、次回再び許可を求めます。
+    revoke: アクセスを取り消す
+    reset: 選択をリセット
+  prompt:
+    title: マイクへのアクセスを許可しますか？
+    description: AIRIは音声入力と文字起こしにマイクを使います。この選択は設定でリセットするまで有効です。
+    allow: 許可
+    deny: 拒否

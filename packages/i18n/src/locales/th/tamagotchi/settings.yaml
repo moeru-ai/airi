@@ -66,6 +66,12 @@ pages:
       toggle-ignore-mouse-event:
         label: สลับการไม่รับเหตุการณ์เมาส์
       press-keys: กดปุ่ม...
+    developer:
+      sections:
+        section:
+          use-window-mouse:
+            title: เครื่องมือ useWindowMouse
+            description: ทดสอบตำแหน่งเคอร์เซอร์ในหน้าต่าง Electron
 devtools:
   title: นักพัฒนา
   pages:
@@ -81,9 +87,11 @@ devtools:
         title: ข้อความที่ยังไม่ได้อ่าน
         description: แสดงเป็นแผงบนศีรษะ พร้อมเครื่องหมายและจำนวน
       main-window-note: การเปลี่ยนแปลงจะแสดงในหน้าต่างหลักของ AIRI
+      title: ฟองแสดงสถานะ
     editor:
       description: เปิดหน้าต่าง AIRI Editor แบบแยก
       button: เปิด Editor
+      title: ตัวแก้ไข AIRI
     performance-visualizer:
       description: ตรวจดูตัวชี้วัดประสิทธิภาพแบบสดและข้อมูลวินิจฉัยขณะทำงาน
       controls:
@@ -103,6 +111,10 @@ devtools:
           unsupported: เบราว์เซอร์นี้ไม่ได้เปิดเผยเวลาของงานที่ใช้เวลานาน
         memory:
           unsupported: เบราว์เซอร์นี้ไม่ได้เปิดเผยการใช้หน่วยความจำ heap ของ JavaScript
+          label: ฮีป JS (MB)
+          description: การใช้งานฮีป JavaScript จาก API performance.memory ของ Chromium
+        fps:
+          description: อัตราเฟรมแอนิเมชันใน 10 วินาทีล่าสุด แต่ละตัวอย่างคำนวณจาก 1000 หารด้วยช่วงระหว่างเฟรมในหน่วยมิลลิวินาที
       recording:
         title: การบันทึกล่าสุด
         duration: ระยะเวลา {duration} ms
@@ -113,6 +125,8 @@ devtools:
         minimum: ต่ำสุด
         maximum: สูงสุด
         empty: ไม่มีตัวอย่าง FPS เปิด FPS เพื่อเก็บตัวอย่าง
+        seconds-ago: -{seconds} วินาที
+        end: 0 วินาที
       overlay:
         title: ประสิทธิภาพ
         move: ย้ายแผงประสิทธิภาพ
@@ -121,10 +135,415 @@ devtools:
         stop: หยุด
         export: ส่งออกการบันทึกล่าสุด
         average: เฉลี่ย
+      resource-events:
+        columns:
+          textures: เทกซ์เจอร์
+          materials: วัสดุ
+          time: เวลา (มิลลิวินาที)
+          phase: ระยะ
+          reason: เหตุผล
+          geometries: เรขาคณิต
+          meshes: เมช
+        title: เหตุการณ์ทรัพยากรล่าสุด
+        description: แสดงเหตุการณ์ที่ได้รับล่าสุดก่อน เวลาเป็นมิลลิวินาทีนับจากตัวเรนเดอร์ต้นทางเริ่มทำงาน
+        empty: ยังไม่มีเหตุการณ์ทรัพยากรที่บันทึก โหลดหรือเปลี่ยนโมเดล VRM ขณะเปิดการติดตาม
+      title: ตัวแสดงประสิทธิภาพ
     io-tracer:
       recording:
         title: บันทึก IO trace โดยอัตโนมัติ
         description: บันทึก IO span ที่จบแล้วเป็นไฟล์ JSON Lines ในโฟลเดอร์ข้อมูลของแอป เพื่อให้เอเจนต์เขียนโค้ดวิเคราะห์ได้ ไฟล์ที่เก่ากว่าเจ็ดวันจะถูกลบ
+      title: ตัวติดตาม I/O
+    live2d-motion:
+      preview:
+        values:
+          mouth-open: เปิด
+          squint: หรี่ตา
+          mouth-form: รูปทรง
+        groups:
+          expression: สีหน้า
+          offset: ออฟเซ็ตตำแหน่ง
+      editor:
+        input-actions:
+          stop: หยุด
+          start: ไปจุดเริ่มต้น
+          step-backward: ย้อนหนึ่งขั้น
+          step-forward: เดินหน้าหนึ่งขั้น
+          end: ไปจุดสิ้นสุด
+          play: เล่น
+          restart-recording: บันทึกใหม่
+          clear-timeline: ล้างไทม์ไลน์
+          previous-track: เลือกแทร็กก่อนหน้า
+          next-track: เลือกแทร็กถัดไป
+        controls:
+          remove: ลบ
+          add: เพิ่ม
+          replace: แทนที่
+          create-keyframes: สร้างคีย์เฟรม
+          weight: น้ำหนัก
+        tracks:
+          mouthOpen: การอ้าปาก
+          viewTargetX: เป้าหมายสายตา X
+          viewTargetY: เป้าหมายสายตา Y
+          eyeX: ตา X
+          eyeY: ตา Y
+          eyeOpen: การลืมตา
+          headX: หัว X
+          headY: หัว Y
+          headZ: หัว Z
+          bodyX: ร่างกาย X
+          bodyY: ร่างกาย Y
+          bodyZ: ร่างกาย Z
+          mouthForm: รูปปาก
+        title: ตัวแก้ไขการเคลื่อนไหว
+        instructions: เส้นโค้งสีเทาคือต้นฉบับ เพิ่มเลเยอร์การเคลื่อนไหวหรือคีย์เฟรมเป้าหมายสายตา เลือกแทร็กแล้วลากจุดบนแทร็ก
+        play: เล่นไทม์ไลน์
+        pause: พักไทม์ไลน์
+        undo: เลิกทำ
+        redo: ทำซ้ำ
+        crop-to-view: ตัดให้พอดีพื้นที่ที่มองเห็น
+        reset-view: รีเซ็ตมุมมอง
+        export-project: ส่งออกโปรเจกต์
+        import-project: นำเข้าโปรเจกต์
+        import-error: ไฟล์นี้ไม่ใช่โปรเจกต์การเคลื่อนไหว AIRI Live2D ที่ถูกต้อง
+        playback:
+          label: ตัวควบคุมการเล่นไทม์ไลน์
+          start: ไปจุดเริ่มต้น
+          step-backward: ย้อนหนึ่งขั้น
+          step-forward: เดินหน้าหนึ่งขั้น
+          end: ไปจุดสิ้นสุด
+          timecode: ไทม์โค้ดปัจจุบันและทั้งหมด
+        timeline-label: ไทม์ไลน์การเคลื่อนไหว
+        timeline-help: ลากไม้บรรทัดเพื่อเลื่อนเวลา ใช้ล้อเมาส์เพื่อซูม กด Shift ค้างแล้วลากเพื่อเลื่อนมุมมอง ดับเบิลคลิกเส้นโค้งที่เลือกเพื่อเพิ่มจุด คีย์เป้าหมายสายตาแต่ละคีย์จะคงอยู่จนถึงคีย์ถัดไป
+        overlay-count: '{count} เลเยอร์'
+      var:
+        diagnostics:
+          source: แหล่งที่มา
+          fit: การปรับโมเดล
+          run: ลำดับที่สร้าง
+          model: โมเดล
+        title: ตัวสร้างการเคลื่อนไหวขณะพักแบบ VAR
+        description: ปรับโมเดลให้เข้ากับการเคลื่อนไหวที่บันทึก แล้วสร้างลำดับการเคลื่อนไหวขณะพักใหม่
+        actions:
+          fit: ปรับโมเดลตามการเคลื่อนไหวปัจจุบัน
+          refit: ปรับโมเดลใหม่ตามการเคลื่อนไหวปัจจุบัน
+          generate: สร้างการเคลื่อนไหว
+          stop: หยุดสร้าง
+          new-seed: ซีดใหม่
+        order:
+          label: อันดับ VAR
+          description: เฟรมก่อนหน้าที่ใช้ในการคาดการณ์แต่ละครั้ง
+        residual:
+          label: ความแรงของส่วนเหลือ
+          description: ความแปรผันที่สร้างขึ้น ค่า 0 ให้ผลลัพธ์ที่กำหนดแน่นอน
+        status:
+          no-source: นำเข้าหรือบันทึกการเคลื่อนไหวก่อน
+          source-ready: '{count} ตัวอย่าง · {duration} วินาที'
+          fit-failed: การปรับโมเดล VAR ล้มเหลว
+        values:
+          frames: '{count} เฟรม'
+          model: '{channels} ช่อง · {features} พจน์'
+          fit: '{frames} เฟรม · RMSE {error} · {duration} มิลลิวินาที'
+          run: ซีด {seed} · {duration}
+      ar-hmm:
+        actions:
+          stop: หยุด
+          new-seed: ซีดใหม่
+          fit: ปรับโมเดลตามการเคลื่อนไหว
+          refit: ปรับโมเดลใหม่
+          generate: สร้าง
+        diagnostics:
+          source: แหล่งที่มา
+          fit: การปรับโมเดล
+          run: ลำดับที่สร้าง
+          states: สัดส่วนการครองสถานะ
+          model: โมเดล
+        status:
+          no-source: นำเข้าหรือบันทึกการเคลื่อนไหวก่อน
+          source-ready: '{count} ตัวอย่าง · {duration} วินาที'
+          fit-failed: การปรับโมเดล AR-HMM ล้มเหลว
+        values:
+          frames: '{count} เฟรม'
+          count: '{count} สถานะ'
+          model: '{states} สถานะ · {channels} ช่อง · {features} พจน์'
+          fit: log p/เฟรม {likelihood} · {duration} มิลลิวินาที
+          states: '{occupancy} · คงสถานะ {dwell} วินาที'
+          run: สถานะ {state} · ซีด {seed} · {duration}
+        title: ตัวสร้างการเคลื่อนไหวขณะพักแบบ AR-HMM
+        description: เรียนรู้สถานะและการเปลี่ยนสถานะเพื่อสร้างการเคลื่อนไหวขณะพักที่หลากหลาย
+        states:
+          label: สถานะซ่อนเร้น
+          description: รูปแบบการเคลื่อนไหวที่โมเดลเรียนรู้ได้
+        order:
+          label: อันดับ AR
+          description: เฟรมก่อนหน้าที่ใช้ภายในแต่ละสถานะ
+        residual:
+          label: ความแรงของสัญญาณรบกวนใหม่
+          description: ความแปรผันภายในแต่ละสถานะ
+      groups:
+        body: ร่างกาย
+        eyes: ตา
+        head: หัว
+      recording:
+        actions:
+          record: บันทึก
+          stop-recording: หยุดบันทึก
+          export: ส่งออก
+          import: นำเข้า
+          play: เล่น
+          stop-playback: หยุดเล่น
+        status:
+          empty: ยังไม่มีการบันทึกการเคลื่อนไหว
+          recording: กำลังบันทึกการเคลื่อนไหว
+          playing: กำลังเล่นการเคลื่อนไหว
+          ready: '{count} ตัวอย่าง · {duration}'
+        import-error: ไฟล์นี้ไม่ใช่การบันทึกการเคลื่อนไหว AIRI Live2D ที่ถูกต้อง
+      title: ควบคุมการเคลื่อนไหว Live2D
+      description: ควบคุมการเคลื่อนไหวตา หัว และร่างกายของ Live2D
+      system-audio:
+        title: ลิปซิงก์ตามเสียงระบบ
+        description: จับเสียงจากเครื่องเล่นอื่น อินพุตเดียวกันใช้ขับการซิงก์จังหวะและการขยับปาก Live2D
+        signal: สัญญาณขาเข้า
+        mouth-open: การอ้าปาก
+        input-volume-threshold: เกณฑ์ระดับเสียงขาเข้า
+        random-close-delay: เวลาหน่วงการปิดแบบสุ่ม
+        random-close-probability: ความน่าจะเป็นในการปิดแบบสุ่ม
+        actions:
+          start: เริ่มรับอินพุต
+          stop: หยุดรับอินพุต
+      panels:
+        direct-control: ควบคุมโดยตรง
+        preview: ตัวอย่างโมเดล
+        timeline: ไทม์ไลน์
+        inference: การอนุมานโมเดล
+      joystick-label: จอยสติ๊กการเคลื่อนไหว Live2D
+      wave:
+        toggle: โหมดเรือ
+      instructions: ลากจอยสติ๊กหรือใช้ปุ่มลูกศรเพื่อควบคุม X/Y R หรี่ตาเล็กน้อย F หรี่ตามากขึ้น C ปิดตา W/S เปลี่ยนรูปปาก Space อ้าปาก A/D ขยับร่างกายตามแกน X Q/E เอียงหัว เมื่อปล่อยปุ่มจะค่อย ๆ กลับสู่กึ่งกลาง
+      parameter-note: จอยสติ๊กควบคุม X/Y R หรี่ตา 1/3 F หรี่ตา 2/3 C ปิดตาสนิท W/S ตั้งรูปปาก ±1 Space ตั้งการอ้าปาก 1 A/D ตั้งร่างกาย X ±10° Q/E ตั้งหัว Z ±30°
+      input:
+        keyboard: แป้นพิมพ์
+        controller: คอนโทรลเลอร์
+      input-actions:
+        move-body-head: ขยับร่างกายและหัว
+        tilt-head: เอียงหัว
+        blink: กะพริบตา
+        open-mouth: อ้าปาก
+        mouth-shape: เปลี่ยนรูปปาก
+      eye-view:
+        title: ตรึงสายตา
+        description: เลือกเป้าหมาย ตาจะชดเชยการเคลื่อนไหวหัวเพื่อมองเป้าหมายต่อไป
+        pad-label: เป้าหมายสายตาที่ตรึง
+        actions:
+          enable: เปิดการตรึงสายตา
+          disable: ปิดการตรึงสายตา
+          center: ย้ายเป้าหมายไปกึ่งกลาง
+        counter:
+          label: ความแรงการชดเชยหัว
+          description: ระดับที่ตาชดเชยการเคลื่อนไหวหัวตามแกน X/Y
+        values:
+          target: เป้าหมาย
+          output: เอาต์พุตตา
+      output-filter:
+        title: ตัวกรองเอาต์พุตตัวสร้าง
+        description: ปรับเอาต์พุตตัวสร้างให้เรียบและพักการเปลี่ยนแปลงเล็กน้อยก่อนส่งแต่ละท่าไปยังสปริง
+        actions:
+          enable: เปิดตัวกรอง
+          disable: ปิดตัวกรอง
+          reset: รีเซ็ตสถานะ
+        smoothing:
+          label: การปรับให้เรียบแบบ EMA
+          description: ผสมแต่ละเป้าหมายที่ยอมรับกับเอาต์พุตก่อนหน้า ค่าสูงลดการสั่นได้มากขึ้นแต่เพิ่มความหน่วง
+        cutoff:
+          label: เกณฑ์การเปลี่ยนแปลง
+          description: คงช่องไว้จนการเปลี่ยนแปลงสะสมที่ปรับเป็นมาตรฐานถึงค่านี้
+        diagnostics:
+          status: สถานะ
+          input-change: MAE ของการเปลี่ยนแปลงดิบ
+          output-change: MAE ของการเปลี่ยนแปลงหลังกรอง
+          cutoff-tracks: ช่องที่คงค่าไว้
+        status:
+          waiting: กำลังรอตัวสร้าง
+          filtering: กำลังกรองเอาต์พุตตัวสร้าง
+          bypassed: กำลังส่งผ่านเอาต์พุตดิบของตัวสร้าง
+      breath:
+        title: การหายใจแบบกำหนดเอง
+        description: ควบคุม ParamBreath โดยปรับเวลาหายใจเข้า หายใจออก และช่วงพักได้ โดยไม่เพิ่มข้อมูลการหายใจในการบันทึก
+        actions:
+          enable: เปิดการหายใจ
+          disable: ปิดการหายใจ
+          reset: รีเซ็ตวงจร
+        cycle:
+          label: ระยะเวลาหายใจ
+          description: ตั้งเวลาหายใจเข้าหนึ่งครั้งและหายใจออกหนึ่งครั้งก่อนช่วงพักหลังหายใจออก
+        inhale:
+          label: สัดส่วนหายใจเข้า
+          description: ตั้งสัดส่วนเวลาหายใจที่ใช้หายใจเข้า เวลาที่เหลือเป็นการหายใจออก
+        dwell:
+          label: พักหลังหายใจออก
+          description: คง ParamBreath ไว้ที่ค่าต่ำสุดก่อนหายใจเข้าครั้งถัดไป
+        stage:
+          dwell: พักหลังหายใจออก
+          inhale: หายใจเข้า
+          exhale: หายใจออก
+        minimum:
+          label: ต่ำสุด
+          description: ตั้งค่าต่ำสุดที่จะเขียนลง ParamBreath
+        maximum:
+          label: สูงสุด
+          description: ตั้งค่าสูงสุดที่จะเขียนลง ParamBreath
+        diagnostics:
+          stage: ช่วง
+          phase: ความคืบหน้าของวงจร
+          output: เอาต์พุต ParamBreath
+      spring:
+        follow:
+          label: การติดตาม
+          description: ความเร็วที่การเคลื่อนไหวติดตามจอยสติ๊ก
+        inertia:
+          label: ความเฉื่อย
+          description: ระดับโมเมนตัมที่การเคลื่อนไหวคงไว้
+      actions:
+        back: กลับ
+    live2d-ambient-light:
+      main-window-note: การเปลี่ยนแปลงจะแสดงในหน้าต่างหลักของ AIRI
+      diagnostics:
+        status:
+          disabled: ปิดอยู่
+          error: ข้อผิดพลาด
+          forced-color: สีที่กำหนด
+          starting: กำลังเริ่ม
+          capturing: กำลังจับภาพ
+        title: การวินิจฉัยการจับภาพ
+        waiting: กำลังรอข้อมูลวินิจฉัยจากหน้าต่างหลักของ AIRI
+        capture:
+          title: สถานะการจับภาพ
+          description: ตรวจสอบจอที่เลือก ขนาดภาพที่จับ และพิกัดที่ยกเว้น
+          display: จอและขอบเขต
+          video-size: วิดีโอต้นทาง
+          sample-size: เฟรมตัวอย่าง
+          window-bounds: ขอบเขตหน้าต่าง AIRI
+          excluded-region: พื้นที่ที่ยกเว้น
+          exposure: ค่าแสงของหน้าจอ
+          behind-luminance: แสงด้านหลังตัวละคร
+          updated: อัปเดตล่าสุด
+        preview:
+          title: ภาพจับหน้าจอที่ย่อขนาด
+          description: สี่เหลี่ยมสีแดงแสดงหน้าต่าง AIRI สี่เหลี่ยมเส้นประแสดงพื้นที่ที่แผนที่แสงครอบคลุม
+          unavailable: ไม่มีเฟรมที่จับไว้
+        pixels:
+          title: การจำแนกพิกเซล
+          total: ทั้งหมด
+          accepted: ยอมรับ
+          excluded: ระบายสีแล้ว
+          transparent: โปร่งใส
+          see-through: มองทะลุได้
+        maps:
+          title: แผนที่แสง
+          window: แต่ละแผนที่ครอบคลุมหน้าต่าง AIRI และขยายออกไปอีกครึ่งหน้าต่างทุกด้าน เส้นขอบแสดงตำแหน่งหน้าต่าง
+          unavailable: ไม่มีข้อมูลสภาพแวดล้อม
+          target: ค่าที่วัดได้
+          applied: ค่าที่ใช้หลังปรับให้เรียบ
+          surround:
+            title: แผนที่แสงโดยรอบ
+            description: เบลอภาพหน้าจอรอบและหลังหน้าต่างเป็นวงกว้าง โดยเก็บสีของแสงและทิศทางที่แสงมา
+          contact:
+            title: แผนที่แสงสัมผัส
+            description: เบลอเนื้อหาเดียวกันในวงแคบ แผนที่นี้ควบคุมแสงห่อขอบและขอบแสงย้อน
+      sampling:
+        capture-interval:
+          title: ช่วงเวลาการจับภาพ
+          description: ตั้งช่วงเวลาระหว่างการเก็บตัวอย่างหน้าจอ สตรีมจับภาพจะทำงานตามอัตรานี้
+        title: การสุ่มตัวอย่างหน้าจอ
+        response-time:
+          title: เวลาตอบสนอง
+          description: ตั้งความเร็วที่สีจากตัวอย่างปรับตามการเปลี่ยนแปลงของหน้าจอ
+        sample-width:
+          title: ขนาดตัวอย่าง
+          description: ตั้งความกว้างของเฟรมจับภาพที่ย่อขนาด เฟรมที่กว้างขึ้นจะเพิ่มรายละเอียดในแผนที่แสง ความสูงปรับตามสัดส่วนจอ
+        neutral-color-weight:
+          title: น้ำหนักสีเป็นกลาง
+          description: ตั้งน้ำหนักขั้นต่ำของสีที่มีความอิ่มตัวต่ำ เนื้อหาที่มีสีจะมีน้ำหนักมากกว่าสีเทา
+      title: แสงแวดล้อม Live2D
+      description: ปรับการสุ่มตัวอย่างหน้าจอและเชเดอร์แสงสีของ Live2D
+      controls:
+        title: แหล่งแสงและเอาต์พุต
+      enabled:
+        title: แสงแวดล้อม
+        description: ใช้ฟิลเตอร์แสงแวดล้อมกับโมเดล Live2D ที่ใช้งานอยู่
+      source:
+        title: แหล่งแสง
+        options:
+          screen-capture: การจับภาพหน้าจอ
+          forced-color: สีที่กำหนด
+      mode:
+        title: โหมดแสง
+        options:
+          window-gradient: ไล่สีตามหน้าต่าง
+          global: แสงแวดล้อมทั่วทั้งฉาก
+      forced-color:
+        title: สีทดสอบ
+        description: ใช้สีนี้โดยไม่จับภาพหน้าจอ
+      strength:
+        title: ความแรงของแสง
+        description: ตั้งค่าความแรงโดยรวมของเอฟเฟกต์ 1 คือรูปลักษณ์ที่ออกแบบไว้ และเพิ่มได้ถึง 3 เพื่อให้แสงห่อขอบและแสงย้อนแรงขึ้น
+      squint:
+        title: หรี่ตาเมื่อสว่างขึ้นอย่างรวดเร็ว
+        description: หรี่ตาเมื่อหน้าจอสว่างขึ้นเร็วกว่าที่ตัวละครปรับตัวได้ หากหน้าจอสว่างคงที่ตาจะเปิดตามปกติ 0 จะปิดเอฟเฟกต์นี้
+      shader:
+        title: การตอบสนองของเชเดอร์
+        dark-base:
+          title: ความสว่างขั้นต่ำ
+          description: ตั้งความสว่างของโมเดลบนหน้าจอดำ หน้าจอขาวแสดงโมเดลตามภาพต้นฉบับ และหน้าจอที่มืดลงจะลดความสว่างไปยังขั้นต่ำนี้
+        base-curve:
+          title: เส้นโค้งความสว่าง
+          description: ตั้งวิธีเพิ่มความสว่างโมเดลจากขั้นต่ำถึงภาพต้นฉบับ ค่ามากกว่า 1 ทำให้โมเดลอยู่ใกล้ขั้นต่ำเมื่อหน้าจอสว่างครึ่งหนึ่ง
+        local-share:
+          title: สัดส่วนแสงเฉพาะจุด
+          description: ตั้งว่าความสว่างโมเดลจะตามแสงข้างตัวมากกว่าทั้งหน้าจอเพียงใด ที่ 0 โมเดลมีความสว่างเท่าเดิมไม่ว่าหน้าต่างอยู่ที่ใด
+        tint:
+          title: สีแต้ม
+          description: ตั้งว่าโมเดลจะรับสีจากหน้าจอมากเพียงใด ที่ 0 มีเพียงความสว่างหน้าจอที่ส่งผลต่อโมเดล
+        color-boost:
+          title: เพิ่มสีในแสงสลัว
+          description: ตั้งสีเพิ่มเติมที่โมเดลรับจากแสงสลัวแต่สีอิ่มตัว ความสว่างคงเดิม และไม่มีช่องสีใดต่ำกว่าโมเดลที่ไม่มีแสง
+        wrap-intensity:
+          title: ความแรงของแสงห่อขอบ
+          description: ตั้งความแรงที่สีพื้นหลังแผ่ไปยังขอบโมเดล
+        wrap-saturation:
+          title: ความอิ่มตัวของแสงห่อขอบ
+          description: ตั้งว่าแสงห่อขอบจะคงสีหน้าจอไว้เพียงใด 0 เพิ่มแสงขาวที่สว่างเท่ากัน 1 เพิ่มสีหน้าจอเต็มที่
+        backlight:
+          title: แสงย้อน
+          description: ตั้งความแรงของแสงจากด้านหลังตัวละครที่ส่องขอบบาง ๆ รอบตัว
+        wrap-diffuse:
+          title: ความกว้างของแสงห่อขอบ
+          description: ตั้งระยะที่สีพื้นหลังจากแสงห่อขอบแผ่เข้าไปด้านในขอบโมเดล
+        translucent-wrap:
+          title: ลดแสงห่อขอบบนส่วนโปร่งแสง
+          description: ปรับแสงห่อขอบและขอบแสงตามกำลังสองของค่าอัลฟาโมเดล ส่วนที่มีอัลฟาบางส่วนแสดงเดสก์ท็อปทะลุผ่านอยู่แล้ว
+      preview-shader:
+        title: ตัวอย่างเชเดอร์
+        description: ใช้เชเดอร์จริงกับการ์ดทดสอบโดยใช้สภาพแวดล้อมปัจจุบันและการตั้งค่าด้านบน
+        window-mapping: ฟิลเตอร์ถือว่าแคนวาสนี้เป็นหน้าต่างเวทีทั้งหมด ตัวอย่างจึงไม่ได้ตรงกับเวทีทุกพิกเซล
+        filtered: เอาต์พุตเชเดอร์
+        unavailable: ตัวอย่างต้องใช้ WebGL แต่หน้าต่างนี้สร้างบริบทไม่ได้
+        environment:
+          live: แสงมาจากสแนปช็อตล่าสุดที่หน้าต่างหลักของ AIRI เผยแพร่
+          neutral: ยังไม่มีสแนปช็อตเข้ามา ตัวอย่างจึงใช้สภาพแวดล้อมเป็นกลาง
+        regions:
+          title: พื้นที่ของการ์ดทดสอบ
+          body: ส่วนกว้างมีแถบโทนจาก sRGB {low} ถึง {high} เพื่อแสดงความสว่าง คอนทราสต์ ความเข้มสี และช่วงเผื่อ
+          bars: แถบมีความกว้าง {first}, {second}, {third}, {fourth} และ {fifth} พิกเซล แสดงว่าแสงห่อขอบแผ่เข้าไปในรูปทรงบางได้เพียงใด
+          patches: พื้นที่สองส่วนวาดด้วยอัลฟา {strong} และ {weak} ซึ่งเป็นค่าที่ตัวเลือกแสงห่อขอบส่วนโปร่งแสงส่งผลต่อ
+    markdown-stress:
+      title: การทดสอบโหลด Markdown
+      description: ทดสอบการแยกวิเคราะห์และแสดงผล Markdown ด้วยข้อมูลแชทขนาดใหญ่
+    context-flow:
+      title: การไหลของบริบท
+    lag-visualizer:
+      title: เครื่องมือแสดงอาการหน่วง
+    widgets-calling:
+      title: การเรียกวิดเจ็ต
 
 screen-capture:
   permissions-prompt:
@@ -135,3 +554,4 @@ screen-capture:
     instructions:
       step-1: เปิด "การตั้งค่าระบบ" แล้วเลือก "ความเป็นส่วนตัวและความปลอดภัย" จากแถบด้านข้าง
       step-2-note: ถ้าไม่มี AIRI ในรายการ ให้เพิ่มเองโดยคลิกปุ่ม "+" แล้วเลือก AIRI จากโฟลเดอร์แอปพลิเคชัน
+      step-2: ในส่วน “การบันทึกหน้าจอและเสียงระบบ” และ “การบันทึกเฉพาะเสียงระบบ” ให้เปิดสวิตช์สำหรับ AIRI
