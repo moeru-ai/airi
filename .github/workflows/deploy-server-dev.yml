@@ -53,8 +53,7 @@ jobs:
           probe() {
             if out=$(railway "$@" 2>&1); then echo "OK   railway $*"; else echo "FAIL railway $* :: $(echo "$out" | head -c 160 | tr '\n' ' ')"; fi
           }
-          probe status --json
-          probe service list --json
+          probe environment edit --service-config ts-api source.branch server-dev --message "Probe the project token" --json
           probe service status --service ts-api --json
-          probe service status --service ts-api --environment dev --json
-          probe deployment list --service ts-api --limit 1 --json
+          probe service redeploy --service ts-api --from-source --yes --json
+          railway service status --service ts-api --json | jq -c '{status}'
