@@ -1,10 +1,11 @@
 import type { TurnRef } from '@proj-airi/core-agent'
-import type { AudioWindow } from '@proj-airi/pipelines-audio'
+import type { AudioInput, AudioWindow, Observer } from '@proj-airi/pipelines-audio'
 import type { KeywordEntry, KeywordSpotter } from '@sherpaw/kws'
 
 import type { WakePronunciation } from './wake-words'
 
 import { errorMessageFrom } from '@moeru/std'
+import { observe } from '@proj-airi/pipelines-audio'
 
 /** The session that a wake selects. The voice activity plugin starts one input for it. */
 export interface WakeTarget {
@@ -45,6 +46,29 @@ export interface WakeWordDetectorOptions {
    * @default 1000
    */
   readonly maxBacklogMs?: number
+  /**
+   * Non-speech that ends the current spotter stream. The next batch starts a new stream.
+   *
+   * A stream that runs for minutes carries decoder state from earlier noise and speech, and it missed most calls
+   * in recorded live speech. A reset in each pause matched the same calls. VAD supplies the speech evidence through
+   * {@link WakeWordDetector.take}.
+   *
+   * @default 500
+   */
+  readonly resetAfterSilenceMs?: number
+  /** Boost and probability threshold of every keyword. Omission uses the spotter defaults. */
+  readonly search?: { readonly score?: number, readonly threshold?: number }
+  /**
+   * Returns extra token sequences that also match a pronunciation, for example tone variants.
+   * A sequence that another pronunciation already uses stays with that pronunciation.
+   */
+  readonly variants?: (tokens: readonly string[]) => readonly (readonly string[])[]
+}
+
+/** VAD evidence for the window that the voice activity plugin observed with this call. */
+export interface WakeActivity {
+  readonly speech: boolean
+  readonly durationMs: number
 }
 
 /** A complete batch that waits for the Worker. `reset` starts a new stream before this batch. */
@@ -72,20 +96,25 @@ function toMonoSamples(window: AudioWindow) {
 }
 
 /**
- * Spots active wake word pronunciations in the ordered windows of the shared audio input.
+ * Spots active wake word pronunciations in the windows of an audio input.
  *
  * The detector owns one keyword spotter Worker. It does not own a microphone or an AudioContext.
+ * Its input is separate from the VAD input, because browser echo cancellation, noise suppression, and gain
+ * change the phones that the keyword model hears. {@link listen} feeds that input, and the voice activity plugin
+ * collects each resolved wake with {@link take} on its own windows.
+ *
  * Each keyword label is a {@link WakePronunciation.key}. A match maps back to the current catalog,
  * so a pronunciation that changed owner or became inactive during recognition cannot wake a character.
  *
- * Recognition runs off the ordered window path. {@link detect} queues complete batches and returns at once,
- * so a Worker slower than real time cannot delay VAD or make the shared observer fall behind.
- * A match resolves its target in the background, and the next window returns it.
+ * Recognition runs off the window path. Each window queues complete batches and returns at once,
+ * so a Worker slower than real time cannot make the input observer fall behind.
+ * A match resolves its target in the background, and the next {@link take} returns it.
  *
  * State:
  * - `pronunciations` is the latest active catalog for this model. {@link setPronunciations} replaces it.
  * - `spotter` is runtime-loaded state. It exists after the first non-empty catalog prepares.
- * - `queue` holds batches for the Worker. `wake` holds a resolved target until a window returns it.
+ * - `queue` holds batches for the Worker. `wake` holds a resolved target until {@link take} returns it.
+ * - `silenceMs` counts VAD non-speech. A pause starts a new spotter stream at the next batch.
  * - `generation` changes on {@link stop} and on keyword rebuilds. Work from an older generation discards its result.
  */
 export class WakeWordDetector {
@@ -105,6 +134,8 @@ export class WakeWordDetector {
   /** Sherpa-ONNX resamples to the model rate internally, but the rate must stay constant within one stream. */
   private streamSampleRate?: number
   private resetStream = false
+  /** Non-speech since the last VAD speech. A reset happens once per pause. */
+  private silenceMs = 0
 
   constructor(private readonly options: WakeWordDetectorOptions) {}
 
@@ -130,7 +161,7 @@ export class WakeWordDetector {
     this.invalidate()
     this.keywordsReady = false
     const generation = this.generation
-    const keywords: KeywordEntry[] = [...next.values()].map(pronunciation => ({ label: pronunciation.key, matches: [{ tokens: [...pronunciation.tokens] }] }))
+    const keywords = this.keywordsOf([...next.values()])
     const update = this.updates.then(async () => {
       // A newer list or a stop replaced this one while an earlier update ran.
       if (generation !== this.generation || next !== this.pronunciations)
@@ -175,21 +206,28 @@ export class WakeWordDetector {
   }
 
   /**
-   * Receives each ordered window of the shared input and returns without waiting for the Worker.
-   * It returns a target when background recognition resolved a wake since the previous window.
-   * A window with an aborted signal leaves that wake for the next window.
+   * Feeds the ordered windows of `input` to recognition until `signal` aborts.
    *
-   * This method never rejects. A failure of the shared observer callback ends the whole voice activity observation,
-   * so recognition failures change the preparation to `error` and target failures go to `onError`.
+   * The detector does not own the input. The caller selects it and starts a new listen after a device change.
+   * A listen that replaces an earlier one is allowed, and the windows of both reach the same stream until the
+   * caller aborts the earlier one. Recognition never blocks the input, because each window only queues audio.
    */
-  async detect(window: AudioWindow, signal: AbortSignal): Promise<WakeTarget | undefined> {
-    if (!this.ready) {
-      this.clearPending()
-      return undefined
-    }
+  listen(input: AudioInput, signal: AbortSignal): Observer {
+    return observe(input, { windowMs: this.options.batchMs ?? 100, hopMs: this.options.batchMs ?? 100, scheduling: 'ordered', signal }, async (window) => {
+      this.accept(window)
+    }, () => {})
+  }
 
-    this.collect(window)
-    void this.recognize(this.generation)
+  /**
+   * Returns a target when background recognition resolved a wake since the previous call.
+   * A call with an aborted signal leaves that wake for the next call.
+   *
+   * The voice activity plugin calls this for each of its windows and passes its VAD result as `activity`,
+   * so a pause can start a new spotter stream. This method never rejects.
+   */
+  take(signal: AbortSignal, activity?: WakeActivity): WakeTarget | undefined {
+    if (activity)
+      this.noteActivity(activity)
 
     const wake = this.wake
     if (!wake || signal.aborted)
@@ -197,6 +235,61 @@ export class WakeWordDetector {
 
     this.wake = undefined
     return wake
+  }
+
+  private noteActivity(activity: WakeActivity) {
+    if (activity.speech) {
+      this.silenceMs = 0
+      return
+    }
+
+    const before = this.silenceMs
+    this.silenceMs += activity.durationMs
+    const limit = this.options.resetAfterSilenceMs ?? 500
+    // Only the call that crosses the limit resets, so a long pause does not restart the stream on every window.
+    if (before < limit && this.silenceMs >= limit) {
+      this.clearPending()
+      this.resetStream = true
+    }
+  }
+
+  /**
+   * Queues one window for recognition without waiting for the Worker.
+   *
+   * Recognition failures change the preparation to `error` and target failures go to `onError`, so a failure
+   * never ends the observation of the input.
+   */
+  private accept(window: AudioWindow) {
+    if (!this.ready) {
+      this.clearPending()
+      return
+    }
+
+    this.collect(window)
+    void this.recognize(this.generation)
+  }
+
+  /**
+   * Builds one keyword for each pronunciation. The label is the catalog key, so a match maps back to its owner.
+   * Sherpa-ONNX requires unique token sequences, so a variant that equals any sequence before it is skipped.
+   * Card pronunciations claim their sequences before any variant does.
+   */
+  private keywordsOf(pronunciations: readonly WakePronunciation[]): KeywordEntry[] {
+    const claimed = new Set(pronunciations.map(pronunciation => pronunciation.tokens.join(' ')))
+    return pronunciations.map((pronunciation) => {
+      const variants = (this.options.variants?.(pronunciation.tokens) ?? []).filter((tokens) => {
+        const sequence = tokens.join(' ')
+        if (claimed.has(sequence))
+          return false
+        claimed.add(sequence)
+        return true
+      })
+      return {
+        label: pronunciation.key,
+        ...this.options.search,
+        matches: [pronunciation.tokens, ...variants].map(tokens => ({ tokens: [...tokens] })),
+      }
+    })
   }
 
   /** Disposes the spotter Worker. Queued recognition and a resolved wake from before the stop return no target. */

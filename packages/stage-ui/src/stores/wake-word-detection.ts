@@ -1,10 +1,13 @@
-import type { WakeTarget, WakeWordPreparation } from '../libs/voice/wake-word-detector'
+import type { AudioWindow } from '@proj-airi/pipelines-audio'
+
+import type { WakeActivity, WakeTarget, WakeWordPreparation } from '../libs/voice/wake-word-detector'
 
 import { defineStore } from 'pinia'
 import { computed, shallowRef, watch } from 'vue'
 
-import { createKwsSpotter, kwsModel } from '../libs/voice/kws-model'
+import { createKwsSpotter, kwsModel, kwsSearch, kwsToneVariants } from '../libs/voice/kws-model'
 import { WakeWordDetector } from '../libs/voice/wake-word-detector'
+import { useSettingsAudioDevice } from './settings/audio-device'
 import { useWakeWordsStore } from './wake-words'
 
 /** Inputs that the voice listener supplies when it starts wake word detection. */
@@ -22,16 +25,17 @@ export interface WakeWordDetectionOptions {
  */
 export const useWakeWordDetectionStore = defineStore('wake-word-detection', () => {
   const wakeWords = useWakeWordsStore()
+  const devices = useSettingsAudioDevice()
   const preparation = shallowRef<WakeWordPreparation>('unconfigured')
   const error = shallowRef<string>()
   /** Pronunciations of other models are not in the pinned vocabulary. They stay on their cards but do not run. */
   const pronunciations = computed(() => wakeWords.catalog.active.filter(pronunciation => pronunciation.modelId === kwsModel.id))
-  let running: { detector: WakeWordDetector, stopWatch: () => void } | undefined
+  let running: { detector: WakeWordDetector, stopWatches: readonly (() => void)[] } | undefined
 
   function stop() {
     const current = running
     running = undefined
-    current?.stopWatch()
+    current?.stopWatches.forEach(stopWatch => stopWatch())
     current?.detector.stop()
     preparation.value = 'unconfigured'
     error.value = undefined
@@ -40,13 +44,17 @@ export const useWakeWordDetectionStore = defineStore('wake-word-detection', () =
   /**
    * Starts detection for the active catalog and replaces an earlier detection.
    * The model loads only when the catalog has a pronunciation for the pinned model. Catalog changes rebuild the keywords.
-   * The returned `detect` returns undefined until the model is ready, so the listener can call it for every window.
+   * The detector listens to the unprocessed microphone input only while the catalog has such a pronunciation,
+   * so a device without wake words never opens the second capture. A device change moves the listen to the new input.
+   * The returned `detect` returns undefined until a wake resolves, so the listener can call it for every window.
    */
   function start(options: WakeWordDetectionOptions) {
     stop()
     const detector = new WakeWordDetector({
       modelId: kwsModel.id,
       createSpotter: createKwsSpotter,
+      search: { score: kwsSearch.score, threshold: kwsSearch.threshold },
+      variants: kwsToneVariants,
       resolveTarget: options.resolveTarget,
       onError: options.onError,
       onPreparationChange: (value, message) => {
@@ -57,14 +65,25 @@ export const useWakeWordDetectionStore = defineStore('wake-word-detection', () =
         error.value = message
       },
     })
-    const stopWatch = watch(pronunciations, (value) => {
+    const stopCatalog = watch(pronunciations, (value) => {
       // The detector reports a failed update as `error`. The next catalog change or restart retries.
       void detector.setPronunciations(value).catch(() => {})
     }, { immediate: true })
-    running = { detector, stopWatch }
+    const stopInput = watch([() => pronunciations.value.length > 0, () => devices.unprocessedInput], ([active, input], _previous, onCleanup) => {
+      if (!active)
+        return
+      const listening = new AbortController()
+      // A failed capture, for example a denied permission, stops recognition until the input or the catalog changes.
+      void detector.listen(input, listening.signal).done.then((outcome) => {
+        if (outcome.status === 'failed')
+          options.onError?.(outcome.error)
+      })
+      onCleanup(() => listening.abort('Wake word input changed'))
+    }, { immediate: true })
+    running = { detector, stopWatches: [stopCatalog, stopInput] }
 
     return {
-      detect: detector.detect.bind(detector),
+      detect: async (_window: AudioWindow, signal: AbortSignal, activity?: WakeActivity) => detector.take(signal, activity),
       stop: () => {
         if (running?.detector === detector)
           stop()
