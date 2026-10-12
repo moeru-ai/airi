@@ -330,6 +330,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const activeTranscriptionProvider = useLocalStorageManualReset('settings/hearing/active-provider', '', persistenceOptions)
   const activeTranscriptionModel = useLocalStorageManualReset('settings/hearing/active-model', '', persistenceOptions)
   const activeCustomModelName = useLocalStorageManualReset('settings/hearing/active-custom-model', '', persistenceOptions)
+  const activeModelProvider = refManualReset<string>('')
+  activeModelProvider.value = activeTranscriptionProvider.value
   const transcriptionModelSearchQuery = refManualReset<string>('')
   const inputMode = useLocalStorageManualReset<HearingInputMode>('settings/hearing/input-mode', 'always-on', persistenceOptions)
   const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', false, persistenceOptions)
@@ -400,6 +402,24 @@ export const useHearingStore = defineStore('hearing-store', () => {
     }
   }
 
+  /** Saves the previous provider's model and restores this provider's saved model on the leader. */
+  async function restoreProviderModel(provider: string) {
+    if (activeTranscriptionProvider.value !== provider)
+      return false
+
+    if (activeModelProvider.value === provider)
+      return true
+
+    if (activeModelProvider.value)
+      providerModelStorage.save(activeModelProvider.value, activeTranscriptionModel.value)
+
+    const model = provider ? providerModelStorage.get(provider) ?? '' : ''
+    activeTranscriptionModel.value = model
+    activeCustomModelName.value = model
+    activeModelProvider.value = provider
+    return true
+  }
+
   async function getModelsForProvider(provider: string) {
     if (providersStore.supportsModelListing(provider)) {
       return providersStore.getModelsForProvider(provider)
@@ -442,6 +462,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     rephraseModel.reset()
 
     providerModelStorage.clear()
+    activeModelProvider.reset()
   }
 
   async function transcription(
@@ -672,6 +693,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
 
     getSavedProviderModel: providerModelStorage.get,
     saveProviderModel: providerModelStorage.save,
+    restoreProviderModel,
 
     transcription,
     createTranscriber,
@@ -681,6 +703,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
   }
 }, {
   synced: {
+    actions: ['restoreProviderModel'],
     state: true,
   },
 })
