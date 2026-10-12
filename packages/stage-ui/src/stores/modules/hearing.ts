@@ -342,22 +342,29 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const rephraseModel = useLocalStorageManualReset('settings/hearing/rephrase-model', '', persistenceOptions)
   const verboseJsonNotSupported = ref(false)
 
-  function providerModelStorageKey(providerId: string) {
-    return `${PROVIDER_MODEL_STORAGE_PREFIX}${encodeURIComponent(providerId)}`
-  }
+  const providerModelStorage = {
+    get(providerId: string) {
+      if (typeof localStorage === 'undefined')
+        return null
 
-  function getSavedProviderModel(providerId: string) {
-    if (typeof localStorage === 'undefined')
-      return null
+      return localStorage.getItem(`${PROVIDER_MODEL_STORAGE_PREFIX}${encodeURIComponent(providerId)}`)
+    },
+    save(providerId: string, model: string) {
+      if (typeof localStorage === 'undefined')
+        return
 
-    return localStorage.getItem(providerModelStorageKey(providerId))
-  }
+      localStorage.setItem(`${PROVIDER_MODEL_STORAGE_PREFIX}${encodeURIComponent(providerId)}`, model)
+    },
+    clear() {
+      if (typeof localStorage === 'undefined')
+        return
 
-  function saveProviderModel(providerId: string, model: string) {
-    if (typeof localStorage === 'undefined')
-      return
-
-    localStorage.setItem(providerModelStorageKey(providerId), model)
+      for (let index = localStorage.length - 1; index >= 0; index--) {
+        const key = localStorage.key(index)
+        if (key?.startsWith(PROVIDER_MODEL_STORAGE_PREFIX))
+          localStorage.removeItem(key)
+      }
+    },
   }
 
   watch(activeTranscriptionProvider, () => {
@@ -433,6 +440,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
     rephraseEnabled.reset()
     rephraseProvider.reset()
     rephraseModel.reset()
+
+    providerModelStorage.clear()
   }
 
   async function transcription(
@@ -661,8 +670,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
     activeProviderModelError,
     configured,
 
-    getSavedProviderModel,
-    saveProviderModel,
+    getSavedProviderModel: providerModelStorage.get,
+    saveProviderModel: providerModelStorage.save,
 
     transcription,
     createTranscriber,
