@@ -224,7 +224,7 @@ function moveByKeyboard(delta: WindowDelta) {
   >
     <Transition
       :name="characterOnLeft ? 'chat-floating-fold-left' : 'chat-floating-fold-right'"
-      @after-enter="hitTest"
+      @after-enter="hitTest()"
       @after-leave="reportContentHidden()"
     >
       <div v-show="contentShown" :class="['absolute inset-0 flex flex-col gap-1 pt-3']">

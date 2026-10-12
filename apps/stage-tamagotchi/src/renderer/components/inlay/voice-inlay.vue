@@ -86,7 +86,9 @@ watch(view, (next, previous) => {
 const shown = computed<InlayView>(() => view.value === 'hidden' && sending.value ? 'sent' : view.value)
 
 // Content that appears or moves under a still cursor changes what the cursor is over.
-watch(shown, () => nextTick(hitTest), { flush: 'post' })
+// The hit test treats zero opacity as unpainted, and a transition starts or ends at zero opacity.
+// So `after-enter` runs it again once a card is visible, and `after-leave` once the card is gone.
+watch(shown, () => nextTick(() => hitTest()), { flush: 'post' })
 
 // Speech or a draft keeps the inlay where the user dragged it. Only an idle inlay returns home.
 const homeTimer = useTimeoutFn(() => void returnHome(), RETURN_HOME_DELAY_MS, { immediate: false })
@@ -146,7 +148,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
   <!-- The page anchors the inlay to the bottom edge. The space above it is room for the send animation. -->
   <main :class="['h-full w-full flex flex-col items-center justify-end px-4 pb-4', 'bg-transparent text-neutral-900 dark:text-neutral-100']">
     <!-- An explicit duration, because Vue otherwise also waits for the finished send animation on the leaving card. -->
-    <Transition :name="`inlay-${leave}`" :duration="{ enter: 220, leave: leave === 'dismiss' ? 220 : 160 }">
+    <Transition :name="`inlay-${leave}`" :duration="{ enter: 220, leave: leave === 'dismiss' ? 220 : 160 }" @after-enter="hitTest()" @after-leave="hitTest({ removed: true })">
       <div
         v-if="shown !== 'hidden'"
         data-testid="voice-inlay"

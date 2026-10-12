@@ -10,16 +10,20 @@ import { createI18n } from 'vue-i18n'
 
 import VoiceInlay from './voice-inlay.vue'
 
-const { returnHome, setIgnoreMouseEvents, registerShortcut, unregisterShortcut, shortcutListeners } = vi.hoisted(() => ({
+import 'virtual:uno.css'
+
+const { returnHome, setIgnoreMouseEvents, registerShortcut, unregisterShortcut, shortcutListeners, cursor } = vi.hoisted(() => ({
   returnHome: vi.fn(),
   setIgnoreMouseEvents: vi.fn(),
   registerShortcut: vi.fn(async () => ({ ok: true })),
   unregisterShortcut: vi.fn(async () => {}),
   /** Global shortcut triggers that the main process sends to this window. */
   shortcutListeners: new Set<(event: { body?: { id: string, phase: 'down' | 'up' } }) => void>(),
+  /** The cursor position that the main process reports. The mock factory fills it with refs. */
+  cursor: {} as { x?: { value: number }, y?: { value: number } },
 }))
 
-// The inlay talks to its Electron window through these IPC composables. The cursor stays outside the page.
+// The inlay talks to its Electron window through these IPC composables. The cursor starts outside the page.
 vi.mock('@proj-airi/electron-vueuse', async () => {
   const { shallowRef } = await import('vue')
   const { electronInlayReturnHome, electronShortcutRegister, electronShortcutUnregister } = await import('../../../shared/eventa')
@@ -37,7 +41,11 @@ vi.mock('@proj-airi/electron-vueuse', async () => {
       },
     }),
     useElectronMouse: () => ({ x: shallowRef(-1), y: shallowRef(-1) }),
-    useElectronRelativeMouse: () => ({ x: shallowRef(-1), y: shallowRef(-1) }),
+    useElectronRelativeMouse: () => {
+      cursor.x = shallowRef(-1)
+      cursor.y = shallowRef(-1)
+      return cursor
+    },
   }
 })
 
@@ -64,7 +72,8 @@ function hostCommands() {
 function renderInlay() {
   const pinia = createPinia()
   cleanups.push(() => disposePinia(pinia))
-  const view = render(VoiceInlay, { global: { plugins: [pinia, createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false })] } })
+  // Test Utils stubs <Transition> by default. The inlay depends on its leave hooks, so the real component runs.
+  const view = render(VoiceInlay, { global: { stubs: { transition: false }, plugins: [pinia, createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false })] } })
   cleanups.push(() => view.unmount())
   return view
 }
@@ -86,6 +95,22 @@ describe('voice inlay', () => {
 
     await expect.poll(() => setIgnoreMouseEvents.mock.calls.at(-1)).toEqual([[true, { forward: true }]])
     expect(inlayView()).toBe('hidden')
+  })
+
+  // Codex review on PR #2928: the hit test after a view change ran while the leaving card still covered the cursor.
+  it('takes clicks after the capsule appears, and passes them through again after it leaves, under a still cursor', async () => {
+    renderInlay()
+    publish({ drafts: [], input: { ...capturing, text: '', segments: [] } })
+    await expect.poll(inlayView).toBe('capsule')
+    const rect = document.querySelector('[data-testid="voice-inlay"]')!.getBoundingClientRect()
+    cursor.x!.value = Math.round(rect.left + rect.width / 2)
+    cursor.y!.value = Math.round(rect.top + rect.height / 2)
+    await expect.poll(() => setIgnoreMouseEvents.mock.calls.at(-1)).toEqual([[false, { forward: true }]])
+
+    publish({ drafts: [] })
+
+    await expect.poll(inlayView).toBe('hidden')
+    await expect.poll(() => setIgnoreMouseEvents.mock.calls.at(-1)).toEqual([[true, { forward: true }]])
   })
 
   it('shows a capsule when capture starts, and grows into the card when text arrives', async () => {
