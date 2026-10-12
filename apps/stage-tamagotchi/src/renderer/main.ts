@@ -57,10 +57,10 @@ pinia.use(synced.pinia)
 if (import.meta.env.DEV)
   pinia.use(piniaPluginTracing)
 
-/** The app routes with layouts. The main window page also routes the fullscreen surfaces under its own page. */
+/** The app routes with layouts. A window that hosts the fullscreen mode also routes the surfaces under its own page. */
 function windowRoutes(appRoutes: RouteRecordRaw[]) {
   const withLayouts = setupLayouts(appRoutes)
-  return windowContext.fullscreenHost ? nestFullscreenSurfaces(withLayouts) : withLayouts
+  return windowContext.fullscreenHost ? nestFullscreenSurfaces(withLayouts, windowContext.fullscreenHost) : withLayouts
 }
 
 const router = createRouter({

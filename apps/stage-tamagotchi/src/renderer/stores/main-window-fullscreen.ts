@@ -18,9 +18,6 @@ import { fullscreenSurfaceOf, fullscreenSurfaces } from '../components/fullscree
  */
 export type MainWindowFullscreenPhase = 'closed' | 'expanding' | 'open' | 'closing'
 
-/** The page of the main window outside the fullscreen mode. */
-const MAIN_PAGE = '/'
-
 /**
  * The fullscreen mode of the main window: the window covers its display, and a surface from
  * {@link fullscreenSurfaces} shows beside the character.
@@ -48,6 +45,8 @@ export const useMainWindowFullscreenStore = defineStore('main-window-fullscreen'
   /** The surfaces that showed since the mode opened. Their panels stay mounted until it closes. */
   const mounted = shallowReactive(new Set<MainWindowFullscreenSurface>())
   const active = computed(() => phase.value !== 'closed')
+  /** The page of the window that hosts the mode. The router returns to it when the mode leaves the surface pages. */
+  const home = ref('/')
 
   /** Tells the main process what shows, which it needs to hand the chat draft over and to restore after a reload. */
   function report(shown: MainWindowFullscreenSurface | undefined) {
@@ -87,7 +86,7 @@ export const useMainWindowFullscreenStore = defineStore('main-window-fullscreen'
     if (phase.value !== 'open')
       return
     if (fullscreenSurfaceOf(router.currentRoute.value.path)) {
-      const failure = await router.push(MAIN_PAGE)
+      const failure = await router.push(home.value)
       if (failure) {
         show('settings')
         report('settings')
@@ -126,10 +125,10 @@ export const useMainWindowFullscreenStore = defineStore('main-window-fullscreen'
       return
     }
     mounted.clear()
-    // A rollback can close the mode on a settings page, so the route returns to the main page too.
+    // A rollback can close the mode on a settings page, so the route returns to the page of the host too.
     if (fullscreenSurfaceOf(router.currentRoute.value.path))
-      void router.replace(MAIN_PAGE)
+      void router.replace(home.value)
   }
 
-  return { phase, surface, mounted, active, open, resume, close, dismiss, settle }
+  return { phase, surface, mounted, active, home, open, resume, close, dismiss, settle }
 })

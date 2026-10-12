@@ -48,7 +48,7 @@ const styleChoices = {
 type ChatWindowStyleId = keyof typeof styleChoices
 
 const featureFlags = useFeatureFlagsStore()
-// The fullscreen chat shows in the fullscreen mode of the main window, so it is a choice only while that experiment is on.
+// The fullscreen chat shows in the fullscreen mode, so it is a choice only while that experiment is on.
 const styles = computed(() => ([
   { id: 'legacy', icon: 'i-solar:window-frame-bold-duotone', label: t('tamagotchi.stage.chat-window.style.legacy') },
   { id: 'floating-attached', icon: 'i-solar:magnet-bold-duotone', label: t('tamagotchi.stage.chat-window.style.floating-attached') },

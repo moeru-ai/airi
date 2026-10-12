@@ -1926,8 +1926,13 @@ pages:
           title: Character card cloud sync
           description: Sync your character cards to your account when you are signed in, so they reach your other devices. Off by default. A card you delete stays in your account history for 30 days.
         main_window_fullscreen:
-          title: Main window fullscreen mode
-          description: Open settings and the chat inside the main window. The window covers the screen, and the character moves to the left. Off by default.
+          title: Fullscreen workspace
+          description: Open settings and the chat in a workspace that covers the screen, with the character on the left. Off by default.
+          window_mode:
+            title: Window mode
+            description: Choose where the workspace opens.
+            single_window: 'Single window: the character grows into the workspace'
+            multi_window: 'Separate window: the character stays on the desktop'
     color-scheme:
       description: Change the color scheme of the stage.
       title: Color Scheme

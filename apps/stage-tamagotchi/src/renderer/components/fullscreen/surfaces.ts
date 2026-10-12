@@ -2,6 +2,7 @@ import type { Component } from 'vue'
 import type { Router, RouteRecordRaw } from 'vue-router'
 
 import type { MainWindowFullscreenSurface } from '../../../shared/eventa'
+import type { FullscreenHost } from '../../window-context'
 
 import { defineAsyncComponent } from 'vue'
 
@@ -55,7 +56,13 @@ export const fullscreenSurfaces: Record<MainWindowFullscreenSurface, FullscreenS
   },
 }
 
-/** The surface that a route path belongs to, or `undefined` for the main page and every other page. */
+/** The page of each host of the fullscreen mode. The routes of the surfaces sit under it. */
+export const fullscreenHostPages: Record<FullscreenHost, string> = {
+  'main-window': '/',
+  'workspace-window': '/workspace',
+}
+
+/** The surface that a route path belongs to, or `undefined` for the page of a host and every other page. */
 export function fullscreenSurfaceOf(path: string): MainWindowFullscreenSurface | undefined {
   for (const [id, surface] of Object.entries(fullscreenSurfaces)) {
     if (surface.prefixes?.some(prefix => path === prefix || path.startsWith(`${prefix}/`)))
@@ -65,23 +72,25 @@ export function fullscreenSurfaceOf(path: string): MainWindowFullscreenSurface |
 }
 
 /**
- * Puts the routes of every surface under the main page, for the router of the main window.
+ * Puts the routes of every surface under the page of a host, for the router of that host.
  *
  * Use when:
- * - The main window page creates its router. Other windows keep the app routes as they are.
+ * - A window that hosts the fullscreen mode creates its router. Other windows keep the app routes as they are.
  *
  * Expects:
- * - The app routes after `setupLayouts`, where the main page sits in the stage layout at `/`.
+ * - The app routes after `setupLayouts`, where a layout wraps each page. The wrapped page keeps the path `/` under
+ *   the root, and has an empty path under every other wrapper.
  *
  * Returns:
- * - The routes with each surface route as a child of the main page. A child keeps its absolute path, so the URL is the
- *   same, and the main page stays mounted while the route moves between it and a surface.
+ * - The routes with each surface route as a child of the host page. A child keeps its absolute path, so the URL is the
+ *   same, and the host page stays mounted while the route moves between it and a surface.
  */
-export function nestFullscreenSurfaces(routes: RouteRecordRaw[]): RouteRecordRaw[] {
-  const stage = routes.find(route => route.path === '/')
-  const page = stage?.children?.find(route => route.path === '/')
+export function nestFullscreenSurfaces(routes: RouteRecordRaw[], host: FullscreenHost): RouteRecordRaw[] {
+  const hostPath = fullscreenHostPages[host]
+  const stage = routes.find(route => route.path === hostPath)
+  const page = stage?.children?.find(route => route.path === (hostPath === '/' ? '/' : ''))
   if (!stage?.children || !page)
-    throw new Error('The main page route is missing, so the fullscreen surfaces have no page to sit under')
+    throw new Error(`The page route of the ${host} is missing, so the fullscreen surfaces have no page to sit under`)
 
   const surfaceRoutes = routes.filter(route => fullscreenSurfaceOf(route.path))
   const nestedPage = { ...page, children: [...(page.children ?? []), ...surfaceRoutes] } as RouteRecordRaw

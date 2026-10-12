@@ -51,17 +51,28 @@ export const CHARACTER_CARD_SYNC_FLAG: FeatureFlag = {
 }
 
 /**
- * The fullscreen mode of the desktop main window, where settings and the chat open beside the character. It is a
- * device choice, off by default, and the standalone settings window stays the default.
+ * The fullscreen mode of the desktop app, where settings and the chat open beside the character. It is a device
+ * choice, off by default, and the standalone settings window stays the default.
+ *
+ * - `single-window`: the main window grows over the screen and shows the mode.
+ * - `multi-window`: a window of its own shows the mode, and the main window stays on the desktop as it is.
  */
-export const MAIN_WINDOW_FULLSCREEN_FLAG: FeatureFlag = {
+export const MAIN_WINDOW_FULLSCREEN_FLAG = {
   key: 'main-window-fullscreen',
   titleKey: 'settings.pages.system.experimental.features.main_window_fullscreen.title',
   descriptionKey: 'settings.pages.system.experimental.features.main_window_fullscreen.description',
   defaultEnabled: false,
   availability: 'local',
   desktopOnly: true,
-}
+  variants: {
+    titleKey: 'settings.pages.system.experimental.features.main_window_fullscreen.window_mode.title',
+    descriptionKey: 'settings.pages.system.experimental.features.main_window_fullscreen.window_mode.description',
+    options: [
+      { value: 'single-window', titleKey: 'settings.pages.system.experimental.features.main_window_fullscreen.window_mode.single_window' },
+      { value: 'multi-window', titleKey: 'settings.pages.system.experimental.features.main_window_fullscreen.window_mode.multi_window' },
+    ],
+  },
+} as const satisfies FeatureFlag
 
 /** Only implemented experiments belong here. An empty catalog produces an empty settings page. */
 export const featureFlags: readonly FeatureFlag[] = [CHARACTER_CARD_SYNC_FLAG, MAIN_WINDOW_FULLSCREEN_FLAG]

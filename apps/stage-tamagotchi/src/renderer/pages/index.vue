@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ModelSettingsRuntimeSnapshot } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 
-import type { FullscreenGlideCurve } from '../../shared/eventa'
+import type { FullscreenGlideCurve, FullscreenMode } from '../../shared/eventa'
 
 import { errorMessageFrom } from '@moeru/std'
 import { electron } from '@proj-airi/electron-eventa'
@@ -40,7 +40,7 @@ import ControlsIslandRoot from '../components/stage-islands/controls-island/cont
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
 
-import { electronAppIsWayland, electronMainWindowCloseFullscreen, electronMainWindowEnterFullscreen, electronMainWindowExitFullscreen, electronMainWindowGetFullscreenState, electronMainWindowOpenFullscreen, electronMainWindowSetFullscreenBounds, electronMainWindowSetFullscreenEnabled, electronOpenInlay, electronOpenOnboarding, electronOpenSettings } from '../../shared/eventa'
+import { electronAppIsWayland, electronMainWindowCloseFullscreen, electronMainWindowEnterFullscreen, electronMainWindowExitFullscreen, electronMainWindowGetFullscreenState, electronMainWindowOpenFullscreen, electronMainWindowSetFullscreenBounds, electronMainWindowSetFullscreenMode, electronOpenInlay, electronOpenOnboarding, electronOpenSettings } from '../../shared/eventa'
 import { fullscreenSurfaceOf } from '../components/fullscreen/surfaces'
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
 import { provideFullscreenLayout } from '../composables/use-fullscreen-layout'
@@ -310,23 +310,30 @@ const enterFullscreenWindow = useElectronEventaInvoke(electronMainWindowEnterFul
 const setFullscreenWindowBounds = useElectronEventaInvoke(electronMainWindowSetFullscreenBounds)
 const exitFullscreenWindow = useElectronEventaInvoke(electronMainWindowExitFullscreen)
 const getFullscreenWindowState = useElectronEventaInvoke(electronMainWindowGetFullscreenState)
-const setFullscreenEnabled = useElectronEventaInvoke(electronMainWindowSetFullscreenEnabled)
+const setFullscreenMode = useElectronEventaInvoke(electronMainWindowSetFullscreenMode)
 const openSettingsWindow = useElectronEventaInvoke(electronOpenSettings)
 const featureFlags = useFeatureFlagsStore()
 
-// The choice lives in page storage, so the page reports it. Turning it off closes the mode after the main process
-// moves a fullscreen chat out, and the settings page that showed opens in the settings window. A blocked leave keeps
-// the mode.
-watch(() => featureFlags.isEnabled(MAIN_WINDOW_FULLSCREEN_FLAG.key), async (enabled) => {
+/** The mode that the user chose: the experiment turns it on, and its variant names the window. */
+const fullscreenMode = computed<FullscreenMode>(() => {
+  if (!featureFlags.isEnabled(MAIN_WINDOW_FULLSCREEN_FLAG.key))
+    return 'off'
+  return featureFlags.variantOf(MAIN_WINDOW_FULLSCREEN_FLAG.key) === 'multi-window' ? 'multi-window' : 'single-window'
+})
+
+// The choice lives in page storage, so the page reports it. Any mode but `single-window` closes the mode in this
+// window, after the main process moved a fullscreen chat out. The settings page that showed opens where the new mode
+// says. A blocked leave keeps the mode.
+watch(fullscreenMode, async (mode) => {
   const route = router.currentRoute.value
-  const settingsPage = !enabled && fullscreenSurfaceOf(route.path) === 'settings' ? route.fullPath : undefined
+  const settingsPage = mode !== 'single-window' && fullscreenSurfaceOf(route.path) === 'settings' ? route.fullPath : undefined
   try {
-    await setFullscreenEnabled({ enabled })
+    await setFullscreenMode({ mode })
   }
   catch (error) {
-    console.error('[Main window fullscreen] Failed to report the experiment:', errorMessageFrom(error))
+    console.error('[Main window fullscreen] Failed to report the mode:', errorMessageFrom(error))
   }
-  if (enabled)
+  if (mode === 'single-window')
     return
   await fullscreen.close()
   if (settingsPage && fullscreenPhase.value !== 'open')

@@ -41,7 +41,7 @@ function appRoutes(): RouteRecordRaw[] {
 
 /** The main window page: the store inside an app whose router nests the settings under the main page. */
 async function setup(options: { startAt?: string } = {}) {
-  const router = createRouter({ history: createMemoryHistory(), routes: nestFullscreenSurfaces(appRoutes()) })
+  const router = createRouter({ history: createMemoryHistory(), routes: nestFullscreenSurfaces(appRoutes(), 'main-window') })
   await router.push(options.startAt ?? '/')
   const app = createApp(Page)
   app.use(router)

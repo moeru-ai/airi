@@ -1,13 +1,21 @@
 import type { LeadershipMode } from '@proj-airi/stage-ui/libs/pinia'
 
+/**
+ * A window that hosts the fullscreen mode.
+ *
+ * - `main-window`: the main window, which grows over its display.
+ * - `workspace-window`: the window of the `multi-window` mode, which shows the mode from the start.
+ */
+export type FullscreenHost = 'main-window' | 'workspace-window'
+
 /** Describes the synchronization and Stage runtime policy for one renderer. */
 export interface RendererWindowContext {
   /** Determines whether this renderer can own synchronized actions. */
   leadership: LeadershipMode
   /** Determines whether this renderer initializes Stage integrations. */
   stageRuntime: 'full' | 'minimal'
-  /** Whether this renderer is the main window page, which hosts the fullscreen mode and routes its surfaces. */
-  fullscreenHost: boolean
+  /** The host of the fullscreen mode that this renderer is. A host routes the fullscreen surfaces under its page. */
+  fullscreenHost?: FullscreenHost
 }
 
 function normalizeRoutePath(routePath: string) {
@@ -32,7 +40,7 @@ export function resolveInitialRendererRoutePath(routePath: string, hash = global
  *
  * @example
  * resolveRendererWindowContext('?synced-leader=false&stage-runtime=minimal')
- * // => { leadership: 'follower-only', stageRuntime: 'minimal', fullscreenHost: false }
+ * // => { leadership: 'follower-only', stageRuntime: 'minimal', fullscreenHost: undefined }
  */
 export function resolveRendererWindowContext(search = globalThis.location?.search ?? ''): RendererWindowContext {
   const query = new URLSearchParams(search)
@@ -46,9 +54,13 @@ export function resolveRendererWindowContext(search = globalThis.location?.searc
   if (stageRuntime !== null && stageRuntime !== 'minimal')
     throw new TypeError(`Invalid stage-runtime query: ${stageRuntime}`)
 
+  const fullscreenHost = query.get('fullscreen-host')
+  if (fullscreenHost !== null && fullscreenHost !== 'main-window' && fullscreenHost !== 'workspace-window')
+    throw new TypeError(`Invalid fullscreen-host query: ${fullscreenHost}`)
+
   return {
     leadership: syncedLeader === 'true' ? 'leader-only' : 'follower-only',
     stageRuntime: stageRuntime === 'minimal' ? 'minimal' : 'full',
-    fullscreenHost: query.get('fullscreen-host') === 'true',
+    fullscreenHost: fullscreenHost ?? undefined,
   }
 }

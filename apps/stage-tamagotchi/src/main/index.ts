@@ -1,8 +1,9 @@
 import type { BrowserWindow } from 'electron'
 
-import type { MainWindowFullscreenSurface } from '../shared/eventa'
+import type { FullscreenMode, MainWindowFullscreenSurface } from '../shared/eventa'
 import type { FileLoggerHandle } from './app/file-logger'
 import type { SettingsWindowManager } from './windows/settings'
+import type { WorkspaceWindowManager } from './windows/workspace'
 
 import process, { env, platform } from 'node:process'
 
@@ -63,6 +64,7 @@ import { setupOnboardingWindowManager } from './windows/onboarding'
 import { setupSettingsWindowReusableFunc } from './windows/settings'
 import { setupSpotlightWindowManager } from './windows/spotlight'
 import { setupWidgetsWindowManager } from './windows/widgets'
+import { setupWorkspaceWindowManager } from './windows/workspace'
 
 // TODO: once we refactored eventa to support window-namespaced contexts,
 // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -156,15 +158,42 @@ electronApp.setAppUserModelId('ai.moeru.airi')
 // The second-instance handler should restore the main UI instead of accidentally surfacing internals.
 let userFacingMainWindow: BrowserWindow | undefined
 let settingsWindowManager: SettingsWindowManager | undefined
-/** Shows a surface in the fullscreen mode of the main window, and returns `false` while its experiment is off. */
+let workspaceWindowManager: WorkspaceWindowManager | undefined
+/** The fullscreen mode that the user chose, as the main window page reports it. */
+let fullscreenMode: FullscreenMode = 'off'
+/** Shows a surface in the fullscreen mode of the main window, and returns `false` unless the mode is `single-window`. */
 let openFullscreenInMainWindow: ((surface: MainWindowFullscreenSurface, route?: string) => boolean) | undefined
+/** Keeps the main window above the others, for the window of the `multi-window` mode that covers the screen under it. */
+let keepMainWindowAbove: ((above: boolean) => void) | undefined
 let extensionManagementWebContentsId: number | undefined
 
-/** Opens settings in the fullscreen mode of the main window while the user has its experiment on, otherwise in the settings window. */
+/** Opens settings where the fullscreen mode says: in the main window, in the window of the `multi-window` mode, or in the settings window. */
 async function openSettings(route?: string) {
   if (openFullscreenInMainWindow?.('settings', route))
     return
+  if (fullscreenMode === 'multi-window' && workspaceWindowManager) {
+    await workspaceWindowManager.open('settings', route)
+    return
+  }
   await settingsWindowManager?.openWindow(route)
+}
+
+/** Shows the chat in the fullscreen mode, in the window that the mode names. */
+async function openFullscreenChat() {
+  if (fullscreenMode === 'multi-window')
+    await workspaceWindowManager?.open('chat')
+  else
+    openFullscreenInMainWindow?.('chat')
+}
+
+/** Lets only the window that shows the settings interface manage extensions, until that window closes. */
+function trackExtensionManagementWindow(window: BrowserWindow) {
+  const webContentsId = window.webContents.id
+  extensionManagementWebContentsId = webContentsId
+  window.once('closed', () => {
+    if (extensionManagementWebContentsId === webContentsId)
+      extensionManagementWebContentsId = undefined
+  })
 }
 const shouldStartMainProcess = installSingleInstanceGuard({ app, getWindow: () => userFacingMainWindow })
 
@@ -315,11 +344,12 @@ app.whenReady().then(async () => {
       ...dependsOn,
       getMainWindow: () => userFacingMainWindow,
       // NOTICE:
-      // Settings and the main window depend on Chat through injeca, so Chat
-      // cannot depend on them. Both exist before any window takes input, so
-      // Chat resolves them lazily.
-      // Removal condition: neither depends on Chat.
+      // Settings, the main window, and the fullscreen window depend on Chat
+      // through injeca, so Chat cannot depend on them. They exist before any
+      // window takes input, so Chat resolves them lazily.
+      // Removal condition: none of them depends on Chat.
       openSettingsWindow: openSettings,
+      openFullscreenChat,
     }),
   })
 
@@ -339,23 +369,31 @@ app.whenReady().then(async () => {
       settingsWindowManager = setupSettingsWindowReusableFunc({
         ...dependsOn,
         getMainWindow: () => userFacingMainWindow,
-        onWindowCreated: (window) => {
-          const webContentsId = window.webContents.id
-          extensionManagementWebContentsId = webContentsId
-          window.once('closed', () => {
-            if (extensionManagementWebContentsId === webContentsId) {
-              extensionManagementWebContentsId = undefined
-            }
-          })
-        },
+        onWindowCreated: trackExtensionManagementWindow,
       })
-      // Every settings entry point asks this manager, so the fullscreen mode experiment decides here where settings open.
+      // Every settings entry point asks this manager, so the fullscreen mode decides here where settings open.
       return { ...settingsWindowManager, openWindow: openSettings }
     },
   })
 
+  const workspaceWindow = injeca.provide('windows:workspace', {
+    dependsOn: { chatWindow, widgetsManager, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpManager, i18n, globalShortcut, spotlightWindow, ioTraceRecording },
+    build: ({ dependsOn }) => {
+      workspaceWindowManager = setupWorkspaceWindowManager({
+        ...dependsOn,
+        getMainWindow: () => userFacingMainWindow,
+        isActive: () => fullscreenMode === 'multi-window',
+        openSettings,
+        onWindowCreated: trackExtensionManagementWindow,
+        // The window covers the screen, so the main window stays above it and the character stays in view.
+        onOpenChange: open => keepMainWindowAbove?.(open),
+      })
+      return workspaceWindowManager
+    },
+  })
+
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { editorWindow, settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpManager, i18n, onboardingWindowManager, inlayWindow, appleSpeechTranscription, appleVision, ioTraceRecording, globalShortcut, spotlightWindow, devtoolsWindow: devtoolsMarkdownStressWindow },
+    dependsOn: { editorWindow, settingsWindow, workspaceWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpManager, i18n, onboardingWindowManager, inlayWindow, appleSpeechTranscription, appleVision, ioTraceRecording, globalShortcut, spotlightWindow, devtoolsWindow: devtoolsMarkdownStressWindow },
     build: async ({ dependsOn }) => setupMainWindow({
       ...dependsOn,
       onWindowCreated: (window) => {
@@ -369,12 +407,19 @@ app.whenReady().then(async () => {
       onFullscreenChange: (active) => {
         extensionManagementWebContentsId = active ? userFacingMainWindow?.webContents.id : undefined
       },
-      // Settings follow the experiment. Turning it on moves an open settings window into the fullscreen mode, on the
-      // page it showed. The page moves settings the other way when it goes off.
-      onFullscreenEnabled: (enabled) => {
-        const route = enabled ? settingsWindowManager?.closeWindow() : undefined
+      onKeepAbove: (keepAbove) => {
+        keepMainWindowAbove = keepAbove
+      },
+      // Settings follow the mode. A settings window or a `multi-window` mode window that the new mode does not use
+      // closes, and settings open on its page where the new mode says. The main window page does the same for its
+      // own settings.
+      onFullscreenModeChange: (mode) => {
+        fullscreenMode = mode
+        const settingsRoute = mode !== 'off' ? settingsWindowManager?.closeWindow() : undefined
+        const workspaceRoute = mode !== 'multi-window' ? workspaceWindowManager?.close() : undefined
+        const route = settingsRoute ?? workspaceRoute
         if (route)
-          openFullscreenInMainWindow?.('settings', route)
+          void openSettings(route)
       },
     }),
   })

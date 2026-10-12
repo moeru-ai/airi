@@ -1,7 +1,7 @@
 import type { Rectangle } from 'electron'
 import type { InferOutput } from 'valibot'
 
-import type { MainWindowFullscreenSurface } from '../../../shared/eventa'
+import type { FullscreenMode, MainWindowFullscreenSurface } from '../../../shared/eventa'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { GodotStageManager } from '../../services/airi/godot-stage'
@@ -35,7 +35,7 @@ import { array, number, object, optional, string } from 'valibot'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { electronMainWindowCloseFullscreen, electronMainWindowEnterFullscreen, electronMainWindowExitFullscreen, electronMainWindowFullscreenSurfaceChanged, electronMainWindowGetFullscreenState, electronMainWindowOpenFullscreen, electronMainWindowSetFullscreenBounds, electronMainWindowSetFullscreenEnabled, electronStartDraggingWindow } from '../../../shared/eventa'
+import { electronMainWindowCloseFullscreen, electronMainWindowEnterFullscreen, electronMainWindowExitFullscreen, electronMainWindowFullscreenSurfaceChanged, electronMainWindowGetFullscreenState, electronMainWindowOpenFullscreen, electronMainWindowSetFullscreenBounds, electronMainWindowSetFullscreenMode, electronStartDraggingWindow } from '../../../shared/eventa'
 import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
@@ -75,13 +75,18 @@ export async function setupMainWindow(params: {
   spotlightWindow: SpotlightWindowManager
   /**
    * Receives the function that shows a surface in fullscreen mode, for the settings entry points of the app. It
-   * returns `false` while the fullscreen mode experiment is off, so the caller opens the settings window instead.
+   * returns `false` unless the mode is `single-window`, so the caller opens settings elsewhere.
    */
   onFullscreenOpener?: (open: (surface: MainWindowFullscreenSurface, route?: string) => boolean) => void
   /** Reports when fullscreen mode starts and ends. */
   onFullscreenChange?: (active: boolean) => void
-  /** Reports each time the page tells whether the fullscreen mode experiment is on, once a fullscreen chat has left it. */
-  onFullscreenEnabled?: (enabled: boolean) => void
+  /** Reports each time the page tells the fullscreen mode that the user chose, once a fullscreen chat has left a mode that went off. */
+  onFullscreenModeChange?: (mode: FullscreenMode) => void
+  /**
+   * Receives the function that keeps this window above the others. The window of the `multi-window` mode covers the
+   * screen, so it asks for it while it is open, and the character stays in view on the desktop.
+   */
+  onKeepAbove?: (keepAbove: (above: boolean) => void) => void
 }) {
   const {
     setup: setupConfig,
@@ -194,12 +199,18 @@ export async function setupMainWindow(params: {
     window.setFullScreenable(false)
     window.setWindowButtonVisibility(false)
   }
-  // The pin has one owner. `pinned` is the user's choice, and every pin request goes through `setPinned`. The window
-  // is on top only while pinned and out of fullscreen mode, so other apps can come above a fullscreen window.
+  // The pin has one owner. `pinned` is the user's choice, and every pin request goes through `setPinned`. A
+  // fullscreen window is never on top, so other apps can come above it. The window is also on top while the
+  // `multi-window` mode window is open under it.
   let pinned = true
+  let keptAbove = false
   function applyPin() {
-    setWindowAlwaysOnTop(window, pinned && !boundsBeforeFullscreen)
+    setWindowAlwaysOnTop(window, (pinned || keptAbove) && !boundsBeforeFullscreen)
   }
+  params.onKeepAbove?.((above) => {
+    keptAbove = above
+    applyPin()
+  })
   function setPinned(value: boolean) {
     pinned = value
     applyPin()
@@ -232,7 +243,7 @@ export async function setupMainWindow(params: {
 
   await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/', {
     // The main window page hosts the fullscreen mode, so it routes the fullscreen surfaces under its own page.
-    query: { 'synced-leader': 'true', 'fullscreen-host': 'true' },
+    query: { 'synced-leader': 'true', 'fullscreen-host': 'main-window' },
   }))
 
   /**
@@ -273,8 +284,8 @@ export async function setupMainWindow(params: {
   // `leaveFullscreen` is the only way out.
   /** What the page shows on the right, as it reports it. */
   let fullscreenSurface: MainWindowFullscreenSurface | undefined
-  /** Whether the user turned the fullscreen mode experiment on, as the page reports it. Off until the page reports. */
-  let fullscreenEnabled = false
+  /** The fullscreen mode that the user chose, as the page reports it. Off until the page reports. */
+  let fullscreenMode: FullscreenMode = 'off'
   const fullscreenLog = useLogg('main-window-fullscreen').useGlobalConfig()
   let fullscreenGlide: { animation: ReturnType<typeof animate>, finish: () => void } | undefined
 
@@ -359,21 +370,22 @@ export async function setupMainWindow(params: {
     ? { home: boundsBeforeFullscreen, workArea: screen.getDisplayMatching(boundsBeforeFullscreen).workArea, surface: fullscreenSurface }
     : undefined)
 
-  const cleanUpSetFullscreenEnabled = defineInvokeHandler(fullscreenContext, electronMainWindowSetFullscreenEnabled, async (payload) => {
-    fullscreenEnabled = payload?.enabled ?? false
+  const cleanUpSetFullscreenMode = defineInvokeHandler(fullscreenContext, electronMainWindowSetFullscreenMode, async (payload) => {
+    const mode = payload?.mode ?? 'off'
     // The fullscreen chat mode goes away with the experiment. A chat in it moves to the default mode first, while
-    // the page still shows it, so its draft moves too. The page closes the fullscreen mode after this resolves.
-    if (!fullscreenEnabled)
+    // the window that shows it still does, so its draft moves too. The mode changes after that.
+    if (mode === 'off')
       await params.chatWindow.leaveFullscreenMode()
-    params.onFullscreenEnabled?.(fullscreenEnabled)
+    fullscreenMode = mode
+    params.onFullscreenModeChange?.(mode)
   })
 
   /**
-   * Shows a surface in fullscreen mode, and returns `false` without doing anything while the experiment is off.
-   * A hidden or minimized window comes back first, because the surface lives here.
+   * Shows a surface in fullscreen mode, and returns `false` without doing anything unless the mode is
+   * `single-window`. A hidden or minimized window comes back first, because the surface lives here.
    */
   function openFullscreen(surface: MainWindowFullscreenSurface, route?: string) {
-    if (!fullscreenEnabled || window.isDestroyed())
+    if (fullscreenMode !== 'single-window' || window.isDestroyed())
       return false
     if (window.isMinimized())
       window.restore()
@@ -387,14 +399,12 @@ export async function setupMainWindow(params: {
   params.chatWindow.attachFullscreen({
     window,
     context: fullscreenContext,
-    open: () => {
-      openFullscreen('chat')
-    },
     close: () => {
       if (!window.isDestroyed())
         fullscreenContext.emit(electronMainWindowCloseFullscreen, { surface: 'chat' })
     },
     isShown: () => fullscreenSurface === 'chat',
+    isActive: () => fullscreenMode === 'single-window',
   })
   // A reload stops the glide that the old page waited on. The new page sets the bounds again.
   window.webContents.on('did-start-loading', stopFullscreenGlide)
@@ -406,7 +416,7 @@ export async function setupMainWindow(params: {
     cleanUpSurfaceChanged()
     cleanUpExitFullscreen()
     cleanUpGetFullscreenState()
-    cleanUpSetFullscreenEnabled()
+    cleanUpSetFullscreenMode()
   })
 
   initScreenCaptureForWindow(window)
