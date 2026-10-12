@@ -83,13 +83,15 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
     function getOrCreateTurn(): IOTurn {
       let turn = turnsByTraceId.get(traceId)
       if (!turn) {
-        turn = {
+        turns.value.push({
           id: traceId,
           startTs: startMs,
           spans: [],
-        }
+        })
+        // The reactive copy, not the raw object. Later spans of this trace mutate it, and views that hold the turn
+        // list, such as the chart through its prop, only see mutations through the proxy.
+        turn = turns.value.at(-1)!
         turnsByTraceId.set(traceId, turn)
-        turns.value.push(turn)
 
         while (turns.value.length > MAX_TURNS) {
           const evicted = turns.value.shift()
