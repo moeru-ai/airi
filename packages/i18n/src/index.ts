@@ -51,4 +51,5 @@ export function resolveSupportedLocale(
     : fallbackLocale
 }
 
+export { createFallbackOptions } from './fallback'
 export { serializeStartupFallbackLocales } from './startup-fallback'
