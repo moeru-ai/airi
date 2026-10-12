@@ -32,6 +32,7 @@ import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
 import { animate, cubicBezier, utils } from 'animejs'
 import { defu } from 'defu'
 import { BrowserWindow, ipcMain, screen } from 'electron'
+import { Mutex } from 'es-toolkit/promise'
 import { isLinux, isMacOS } from 'std-env'
 import { array, number, object, optional, string } from 'valibot'
 
@@ -398,15 +399,23 @@ export async function setupMainWindow(params: {
     ? { home: boundsBeforeFullscreen, workArea: screen.getDisplayMatching(boundsBeforeFullscreen).workArea, surface: fullscreenSurface }
     : undefined)
 
+  // Reports apply one at a time and in order. A report that waits for the chat never overwrites a newer one.
+  const modeReports = new Mutex()
   defineInvokeHandler(fullscreenContext, electronFullscreenSetMode, async (payload) => {
-    const mode = payload?.mode ?? 'off'
-    // The fullscreen chat mode goes away with the experiment. A chat in it moves to the default mode first, while
-    // the window that shows it still does, so its draft moves too. The mode changes after that.
-    if (mode === 'off')
-      await params.chatWindow.leaveFullscreenMode()
-    const previous = fullscreenMode
-    fullscreenMode = mode
-    params.onFullscreenModeChange?.(mode, previous)
+    await modeReports.acquire()
+    try {
+      const mode = payload?.mode ?? 'off'
+      // The fullscreen chat mode goes away with the experiment. A chat in it moves to the default mode first, while
+      // the window that shows it still does, so its draft moves too. The mode changes after that.
+      if (mode === 'off')
+        await params.chatWindow.leaveFullscreenMode()
+      const previous = fullscreenMode
+      fullscreenMode = mode
+      params.onFullscreenModeChange?.(mode, previous)
+    }
+    finally {
+      modeReports.release()
+    }
   })
 
   /**
