@@ -22,7 +22,7 @@ import {
 } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composables/canvas-alpha'
-import { MAIN_WINDOW_FULLSCREEN_FLAG } from '@proj-airi/stage-ui/libs/feature-flags'
+import { FULLSCREEN_WORKSPACE_FLAG } from '@proj-airi/stage-ui/libs/feature-flags'
 import { useFeatureFlagsStore } from '@proj-airi/stage-ui/stores/feature-flags'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
@@ -40,14 +40,14 @@ import ControlsIslandRoot from '../components/stage-islands/controls-island/cont
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
 
-import { electronAppIsWayland, electronMainWindowCloseFullscreen, electronMainWindowEnterFullscreen, electronMainWindowExitFullscreen, electronMainWindowGetFullscreenState, electronMainWindowOpenFullscreen, electronMainWindowSetFullscreenBounds, electronMainWindowSetFullscreenMode, electronOpenInlay, electronOpenOnboarding, electronOpenSettings } from '../../shared/eventa'
+import { electronAppIsWayland, electronFullscreenClose, electronFullscreenExit, electronFullscreenGetState, electronFullscreenOpen, electronFullscreenSetMode, electronMainWindowEnterFullscreen, electronMainWindowSetFullscreenBounds, electronOpenInlay, electronOpenOnboarding, electronOpenSettings } from '../../shared/eventa'
 import { fullscreenSurfaceOf } from '../components/fullscreen/surfaces'
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
 import { provideFullscreenLayout } from '../composables/use-fullscreen-layout'
 import { useScreenAmbientLight } from '../composables/use-screen-ambient-light'
 import { stageOpaqueAttribute } from '../composables/use-stage-painted-mask'
 import { useControlsIslandStore } from '../stores/controls-island'
-import { useMainWindowFullscreenStore } from '../stores/main-window-fullscreen'
+import { useFullscreenStore } from '../stores/fullscreen'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
 import { resolveFadeOnHoverInteraction } from '../utils/fade-on-hover'
 import { shouldSampleStageTransparency } from '../utils/stage-three-transparency'
@@ -283,17 +283,17 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
   })
 })
 
-const fullscreen = useMainWindowFullscreenStore()
+const fullscreen = useFullscreenStore()
 const { phase: fullscreenPhase, active: fullscreenActive } = storeToRefs(fullscreen)
 const router = useRouter()
 const eventaContext = useElectronEventaContext()
 // Every settings entry point and the fullscreen chat mode ask the main process, which forwards the request here.
-const stopOpenFullscreenListener = eventaContext.value.on(electronMainWindowOpenFullscreen, (event) => {
+const stopOpenFullscreenListener = eventaContext.value.on(electronFullscreenOpen, (event) => {
   if (event?.body)
     void fullscreen.open(event.body.surface, event.body.route)
 })
 // A chat mode switch away from the fullscreen chat removes it once the new chat window holds the draft.
-const stopCloseFullscreenListener = eventaContext.value.on(electronMainWindowCloseFullscreen, (event) => {
+const stopCloseFullscreenListener = eventaContext.value.on(electronFullscreenClose, (event) => {
   if (event?.body)
     void fullscreen.dismiss(event.body.surface)
 })
@@ -308,17 +308,17 @@ watch(() => fullscreenSurfaceOf(router.currentRoute.value.path), (current, previ
 })
 const enterFullscreenWindow = useElectronEventaInvoke(electronMainWindowEnterFullscreen)
 const setFullscreenWindowBounds = useElectronEventaInvoke(electronMainWindowSetFullscreenBounds)
-const exitFullscreenWindow = useElectronEventaInvoke(electronMainWindowExitFullscreen)
-const getFullscreenWindowState = useElectronEventaInvoke(electronMainWindowGetFullscreenState)
-const setFullscreenMode = useElectronEventaInvoke(electronMainWindowSetFullscreenMode)
+const exitFullscreenWindow = useElectronEventaInvoke(electronFullscreenExit)
+const getFullscreenWindowState = useElectronEventaInvoke(electronFullscreenGetState)
+const setFullscreenMode = useElectronEventaInvoke(electronFullscreenSetMode)
 const openSettingsWindow = useElectronEventaInvoke(electronOpenSettings)
 const featureFlags = useFeatureFlagsStore()
 
 /** The mode that the user chose: the experiment turns it on, and its variant names the window. */
 const fullscreenMode = computed<FullscreenMode>(() => {
-  if (!featureFlags.isEnabled(MAIN_WINDOW_FULLSCREEN_FLAG.key))
+  if (!featureFlags.isEnabled(FULLSCREEN_WORKSPACE_FLAG.key))
     return 'off'
-  return featureFlags.variantOf(MAIN_WINDOW_FULLSCREEN_FLAG.key) === 'multi-window' ? 'multi-window' : 'single-window'
+  return featureFlags.variantOf(FULLSCREEN_WORKSPACE_FLAG.key) === 'multi-window' ? 'multi-window' : 'single-window'
 })
 
 // The choice lives in page storage, so the page reports it. Any mode but `single-window` closes the mode in this

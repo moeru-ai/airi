@@ -1,7 +1,7 @@
 import type { Component } from 'vue'
 import type { Router, RouteRecordRaw } from 'vue-router'
 
-import type { MainWindowFullscreenSurface } from '../../../shared/eventa'
+import type { FullscreenSurfaceId } from '../../../shared/eventa'
 import type { FullscreenHost } from '../../window-context'
 
 import { defineAsyncComponent } from 'vue'
@@ -11,7 +11,7 @@ const SETTINGS_HOME = '/settings'
 
 /**
  * A surface that the fullscreen mode can show beside the character. The mode, its island, and the main page read only
- * this registry, so a new surface needs one entry here and its id in {@link MainWindowFullscreenSurface}.
+ * this registry, so a new surface needs one entry here and its id in {@link FullscreenSurfaceId}.
  */
 export interface FullscreenSurface {
   /** The icon of its island button. */
@@ -32,7 +32,7 @@ export interface FullscreenSurface {
   prepare?: (context: { router: Router, page?: string }) => Promise<void>
 }
 
-export const fullscreenSurfaces: Record<MainWindowFullscreenSurface, FullscreenSurface> = {
+export const fullscreenSurfaces: Record<FullscreenSurfaceId, FullscreenSurface> = {
   settings: {
     icon: 'i-solar:settings-minimalistic-outline',
     label: 'tamagotchi.stage.fullscreen-island.settings',
@@ -63,10 +63,10 @@ export const fullscreenHostPages: Record<FullscreenHost, string> = {
 }
 
 /** The surface that a route path belongs to, or `undefined` for the page of a host and every other page. */
-export function fullscreenSurfaceOf(path: string): MainWindowFullscreenSurface | undefined {
+export function fullscreenSurfaceOf(path: string): FullscreenSurfaceId | undefined {
   for (const [id, surface] of Object.entries(fullscreenSurfaces)) {
     if (surface.prefixes?.some(prefix => path === prefix || path.startsWith(`${prefix}/`)))
-      return id as MainWindowFullscreenSurface
+      return id as FullscreenSurfaceId
   }
   return undefined
 }

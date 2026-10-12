@@ -57,25 +57,25 @@ export const CHARACTER_CARD_SYNC_FLAG: FeatureFlag = {
  * - `single-window`: the main window grows over the screen and shows the mode.
  * - `multi-window`: a window of its own shows the mode, and the main window stays on the desktop as it is.
  */
-export const MAIN_WINDOW_FULLSCREEN_FLAG = {
-  key: 'main-window-fullscreen',
-  titleKey: 'settings.pages.system.experimental.features.main_window_fullscreen.title',
-  descriptionKey: 'settings.pages.system.experimental.features.main_window_fullscreen.description',
+export const FULLSCREEN_WORKSPACE_FLAG = {
+  key: 'fullscreen-workspace',
+  titleKey: 'settings.pages.system.experimental.features.fullscreen_workspace.title',
+  descriptionKey: 'settings.pages.system.experimental.features.fullscreen_workspace.description',
   defaultEnabled: false,
   availability: 'local',
   desktopOnly: true,
   variants: {
-    titleKey: 'settings.pages.system.experimental.features.main_window_fullscreen.window_mode.title',
-    descriptionKey: 'settings.pages.system.experimental.features.main_window_fullscreen.window_mode.description',
+    titleKey: 'settings.pages.system.experimental.features.fullscreen_workspace.window_mode.title',
+    descriptionKey: 'settings.pages.system.experimental.features.fullscreen_workspace.window_mode.description',
     options: [
-      { value: 'single-window', titleKey: 'settings.pages.system.experimental.features.main_window_fullscreen.window_mode.single_window' },
-      { value: 'multi-window', titleKey: 'settings.pages.system.experimental.features.main_window_fullscreen.window_mode.multi_window' },
+      { value: 'single-window', titleKey: 'settings.pages.system.experimental.features.fullscreen_workspace.window_mode.single_window' },
+      { value: 'multi-window', titleKey: 'settings.pages.system.experimental.features.fullscreen_workspace.window_mode.multi_window' },
     ],
   },
 } as const satisfies FeatureFlag
 
 /** Only implemented experiments belong here. An empty catalog produces an empty settings page. */
-export const featureFlags: readonly FeatureFlag[] = [CHARACTER_CARD_SYNC_FLAG, MAIN_WINDOW_FULLSCREEN_FLAG]
+export const featureFlags: readonly FeatureFlag[] = [CHARACTER_CARD_SYNC_FLAG, FULLSCREEN_WORKSPACE_FLAG]
 
 /** The experiments that an app offers. An app other than the desktop app leaves out the desktop-only ones. */
 export function offeredFeatureFlags(desktop: boolean): readonly FeatureFlag[] {

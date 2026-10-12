@@ -1,6 +1,6 @@
 import type { BrowserWindow } from 'electron'
 
-import type { FullscreenMode, MainWindowFullscreenSurface } from '../shared/eventa'
+import type { FullscreenMode, FullscreenSurfaceId } from '../shared/eventa'
 import type { FileLoggerHandle } from './app/file-logger'
 import type { SettingsWindowManager } from './windows/settings'
 import type { WorkspaceWindowManager } from './windows/workspace'
@@ -162,7 +162,7 @@ let workspaceWindowManager: WorkspaceWindowManager | undefined
 /** The fullscreen mode that the user chose, as the main window page reports it. */
 let fullscreenMode: FullscreenMode = 'off'
 /** Shows a surface in the fullscreen mode of the main window, and returns `false` unless the mode is `single-window`. */
-let openFullscreenInMainWindow: ((surface: MainWindowFullscreenSurface, route?: string) => boolean) | undefined
+let openFullscreenInMainWindow: ((surface: FullscreenSurfaceId, route?: string) => boolean) | undefined
 /** Keeps the main window above the others, for the window of the `multi-window` mode that covers the screen under it. */
 let keepMainWindowAbove: ((above: boolean) => void) | undefined
 let extensionManagementWebContentsId: number | undefined

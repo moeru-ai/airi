@@ -3,7 +3,7 @@ import type { FeatureFlag } from './feature-flags'
 import { parse } from 'valibot'
 import { describe, expect, it } from 'vitest'
 
-import { CHARACTER_CARD_SYNC_FLAG, featureFlagResponseSchema, featureFlags, MAIN_WINDOW_FULLSCREEN_FLAG, offeredFeatureFlags, resolveFeatureFlag } from './feature-flags'
+import { CHARACTER_CARD_SYNC_FLAG, featureFlagResponseSchema, featureFlags, FULLSCREEN_WORKSPACE_FLAG, offeredFeatureFlags, resolveFeatureFlag } from './feature-flags'
 
 const feature: FeatureFlag = { key: 'test-feature', titleKey: 'test.title', descriptionKey: 'test.description', defaultEnabled: false, availability: 'local' }
 
@@ -64,14 +64,14 @@ describe('feature flag decisions', () => {
 
   // The standalone settings window stays the default, so a user opts in to the fullscreen mode.
   it('registers the main window fullscreen mode as a local, off-by-default choice', () => {
-    expect(featureFlags).toContain(MAIN_WINDOW_FULLSCREEN_FLAG)
-    expect(resolveFeatureFlag(MAIN_WINDOW_FULLSCREEN_FLAG, undefined, undefined, false)).toEqual({ enabled: false, source: 'default', selectable: true })
+    expect(featureFlags).toContain(FULLSCREEN_WORKSPACE_FLAG)
+    expect(resolveFeatureFlag(FULLSCREEN_WORKSPACE_FLAG, undefined, undefined, false)).toEqual({ enabled: false, source: 'default', selectable: true })
   })
 
   // The web and mobile apps have no main window, so their experiments page leaves the mode out.
   it('offers desktop-only experiments only in the desktop app', () => {
-    expect(offeredFeatureFlags(true)).toContain(MAIN_WINDOW_FULLSCREEN_FLAG)
-    expect(offeredFeatureFlags(false)).not.toContain(MAIN_WINDOW_FULLSCREEN_FLAG)
+    expect(offeredFeatureFlags(true)).toContain(FULLSCREEN_WORKSPACE_FLAG)
+    expect(offeredFeatureFlags(false)).not.toContain(FULLSCREEN_WORKSPACE_FLAG)
     expect(offeredFeatureFlags(false)).toContain(CHARACTER_CARD_SYNC_FLAG)
   })
 })

@@ -5,9 +5,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, defineComponent } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-import { electronMainWindowFullscreenSurfaceChanged } from '../../shared/eventa'
+import { electronFullscreenSurfaceChanged } from '../../shared/eventa'
 import { nestFullscreenSurfaces } from '../components/fullscreen/surfaces'
-import { useMainWindowFullscreenStore } from './main-window-fullscreen'
+import { useFullscreenStore } from './fullscreen'
 
 const mocks = vi.hoisted(() => ({
   reportSurface: vi.fn(async () => {}),
@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => ({
 // The fullscreen mode tells the main process only what shows. Any other call fails here.
 vi.mock('@proj-airi/electron-vueuse', () => ({
   useElectronEventaInvoke: (event: unknown) => {
-    if (event === electronMainWindowFullscreenSurfaceChanged)
+    if (event === electronFullscreenSurfaceChanged)
       return mocks.reportSurface
     throw new Error('Unexpected invoke')
   },
@@ -46,7 +46,7 @@ async function setup(options: { startAt?: string } = {}) {
   const app = createApp(Page)
   app.use(router)
   app.use(createPinia())
-  const fullscreen = app.runWithContext(() => useMainWindowFullscreenStore())
+  const fullscreen = app.runWithContext(() => useFullscreenStore())
   return { router, fullscreen }
 }
 

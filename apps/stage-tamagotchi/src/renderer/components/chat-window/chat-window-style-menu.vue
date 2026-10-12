@@ -2,7 +2,7 @@
 import type { ChatWindowPreferences } from '../../../shared/eventa'
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { MAIN_WINDOW_FULLSCREEN_FLAG } from '@proj-airi/stage-ui/libs/feature-flags'
+import { FULLSCREEN_WORKSPACE_FLAG } from '@proj-airi/stage-ui/libs/feature-flags'
 import { useFeatureFlagsStore } from '@proj-airi/stage-ui/stores/feature-flags'
 import { DropdownMenu } from '@proj-airi/ui'
 import {
@@ -55,7 +55,7 @@ const styles = computed(() => ([
   { id: 'floating-free', icon: 'i-solar:chat-round-dots-bold-duotone', label: t('tamagotchi.stage.chat-window.style.floating-free') },
   { id: 'floating-danmaku', icon: 'i-solar:subtitles-bold-duotone', label: t('tamagotchi.stage.chat-window.style.floating-danmaku') },
   { id: 'fullscreen', icon: 'i-solar:full-screen-square-bold-duotone', label: t('tamagotchi.stage.chat-window.style.fullscreen') },
-] satisfies { id: ChatWindowStyleId, icon: string, label: string }[]).filter(style => style.id !== 'fullscreen' || featureFlags.isEnabled(MAIN_WINDOW_FULLSCREEN_FLAG.key)))
+] satisfies { id: ChatWindowStyleId, icon: string, label: string }[]).filter(style => style.id !== 'fullscreen' || featureFlags.isEnabled(FULLSCREEN_WORKSPACE_FLAG.key)))
 
 const currentStyleId = computed<ChatWindowStyleId | undefined>(() => {
   if (!preferences.value)

@@ -1,25 +1,25 @@
-import type { MainWindowFullscreenSurface } from '../../shared/eventa'
+import type { FullscreenSurfaceId } from '../../shared/eventa'
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { defineStore } from 'pinia'
 import { computed, ref, shallowReactive } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { electronMainWindowFullscreenSurfaceChanged } from '../../shared/eventa'
+import { electronFullscreenSurfaceChanged } from '../../shared/eventa'
 import { fullscreenSurfaceOf, fullscreenSurfaces } from '../components/fullscreen/surfaces'
 
 /**
- * Where the fullscreen mode of the main window is.
+ * Where the fullscreen mode is, in the window that hosts it.
  *
  * - `closed`: nothing of the fullscreen mode is mounted.
- * - `expanding`: the window grows over its display, and the stage keeps its place on screen.
+ * - `expanding`: the host runs its open transition. The main window grows over its display here.
  * - `open`: the stage sits on the left, and the surface shows on the right.
- * - `closing`: the stage returns to its place, then the window shrinks back.
+ * - `closing`: the host runs its close transition. The main window shrinks back here.
  */
-export type MainWindowFullscreenPhase = 'closed' | 'expanding' | 'open' | 'closing'
+export type FullscreenPhase = 'closed' | 'expanding' | 'open' | 'closing'
 
 /**
- * The fullscreen mode of the main window: the window covers its display, and a surface from
+ * The fullscreen mode in the window that hosts it: the window covers its display, and a surface from
  * {@link fullscreenSurfaces} shows beside the character.
  *
  * Switching surfaces is not a navigation. Each surface that showed stays mounted until the mode closes, so it keeps what
@@ -27,39 +27,39 @@ export type MainWindowFullscreenPhase = 'closed' | 'expanding' | 'open' | 'closi
  * stop it, like the card editor does for unsaved changes.
  *
  * Use when:
- * - An entry point opens a surface, the island switches it, or the main page runs the open and close transitions.
+ * - An entry point opens a surface, the island switches it, or the host page runs the open and close transitions.
  *
  * Expects:
- * - The main page moves the window and the stage, and reports the end of each transition through `settle`.
+ * - The host page sets `home` to its own path, runs each transition, and reports its end through `settle`.
  *
  * Returns:
  * - The phase, the surface, the mounted surfaces, and actions that open, resume, close, and settle the mode.
  */
-export const useMainWindowFullscreenStore = defineStore('main-window-fullscreen', () => {
+export const useFullscreenStore = defineStore('fullscreen', () => {
   const router = useRouter()
-  const reportSurface = useElectronEventaInvoke(electronMainWindowFullscreenSurfaceChanged)
+  const reportSurface = useElectronEventaInvoke(electronFullscreenSurfaceChanged)
 
-  const phase = ref<MainWindowFullscreenPhase>('closed')
+  const phase = ref<FullscreenPhase>('closed')
   /** What shows on the right while the mode is active. */
-  const surface = ref<MainWindowFullscreenSurface>('settings')
+  const surface = ref<FullscreenSurfaceId>('settings')
   /** The surfaces that showed since the mode opened. Their panels stay mounted until it closes. */
-  const mounted = shallowReactive(new Set<MainWindowFullscreenSurface>())
+  const mounted = shallowReactive(new Set<FullscreenSurfaceId>())
   const active = computed(() => phase.value !== 'closed')
   /** The page of the window that hosts the mode. The router returns to it when the mode leaves the surface pages. */
   const home = ref('/')
 
   /** Tells the main process what shows, which it needs to hand the chat draft over and to restore after a reload. */
-  function report(shown: MainWindowFullscreenSurface | undefined) {
+  function report(shown: FullscreenSurfaceId | undefined) {
     void reportSurface({ surface: shown }).catch(error => console.error('[Main window fullscreen] Failed to report the surface:', error))
   }
 
-  function show(next: MainWindowFullscreenSurface) {
+  function show(next: FullscreenSurfaceId) {
     surface.value = next
     mounted.add(next)
   }
 
   /** Shows a surface, opening the mode when it is closed. `page` goes to the surface, such as a settings page. */
-  async function open(next: MainWindowFullscreenSurface, page?: string) {
+  async function open(next: FullscreenSurfaceId, page?: string) {
     await fullscreenSurfaces[next].prepare?.({ router, page })
     show(next)
     if (phase.value === 'closed')
@@ -69,7 +69,7 @@ export const useMainWindowFullscreenStore = defineStore('main-window-fullscreen'
   }
 
   /** Shows the mode at once, without a transition, when the main window kept it across a page reload. */
-  async function resume(kept: MainWindowFullscreenSurface) {
+  async function resume(kept: FullscreenSurfaceId) {
     if (phase.value !== 'closed')
       return
     await fullscreenSurfaces[kept].prepare?.({ router })
@@ -102,7 +102,7 @@ export const useMainWindowFullscreenStore = defineStore('main-window-fullscreen'
   }
 
   /** Hides a surface whose content moved elsewhere, such as the chat after a chat mode switch, and closes an empty mode. */
-  async function dismiss(gone: MainWindowFullscreenSurface) {
+  async function dismiss(gone: FullscreenSurfaceId) {
     if (phase.value !== 'open')
       return
     mounted.delete(gone)

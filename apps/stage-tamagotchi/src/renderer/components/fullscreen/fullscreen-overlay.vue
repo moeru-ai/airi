@@ -6,14 +6,14 @@ import { useI18n } from 'vue-i18n'
 import FullscreenIsland from './fullscreen-island.vue'
 
 import { useFullscreenLayout } from '../../composables/use-fullscreen-layout'
-import { useMainWindowFullscreenStore } from '../../stores/main-window-fullscreen'
+import { useFullscreenStore } from '../../stores/fullscreen'
 import { fullscreenPanelKey } from './panel'
 import { fullscreenSurfaces } from './surfaces'
 
 // The part of the fullscreen mode that sits over the stage: the island and the surface. Every page that hosts the
 // mode shows this one component, so the mode looks and works the same in each of them.
 const { t } = useI18n()
-const { surface, mounted } = storeToRefs(useMainWindowFullscreenStore())
+const { surface, mounted } = storeToRefs(useFullscreenStore())
 const { islandElement, surfaceMargin, surfaceWidth, surfaceDragging, startSurfaceDrag, moveSurfaceDrag, endSurfaceDrag } = useFullscreenLayout()
 
 // The settings layout draws the panel content instead of the settings window frame when it shows here.

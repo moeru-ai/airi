@@ -9,7 +9,7 @@ import ChatSpeechMuteButton from '../chat-window/chat-speech-mute-button.vue'
 import ChatWindowStyleMenu from '../chat-window/chat-window-style-menu.vue'
 import InteractiveArea from '../InteractiveArea.vue'
 
-import { electronMainWindowOpenFullscreen } from '../../../shared/eventa'
+import { electronFullscreenOpen } from '../../../shared/eventa'
 import { useChatDraftHandover } from '../../composables/use-chat-draft-handover'
 
 // The page of the chat surface: the legacy chat window, inside the fullscreen panel. The header takes the place of its
@@ -21,7 +21,7 @@ const interactiveArea = useTemplateRef<InstanceType<typeof InteractiveArea>>('in
 const { receiveDraft } = useChatDraftHandover(interactiveArea)
 // The panel stays mounted while the mode is open, so a chat mode switch that shows it again takes the draft here.
 // The first request mounts the panel, and the panel takes that draft when it mounts.
-const stopOpenListener = useElectronEventaContext().value.on(electronMainWindowOpenFullscreen, (event) => {
+const stopOpenListener = useElectronEventaContext().value.on(electronFullscreenOpen, (event) => {
   if (event?.body?.surface === 'chat')
     void receiveDraft()
 })

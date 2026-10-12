@@ -1,25 +1,25 @@
 <script setup lang="ts">
-import type { MainWindowFullscreenSurface } from '../../../shared/eventa'
+import type { FullscreenSurfaceId } from '../../../shared/eventa'
 
 import { GhostButton, useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useMainWindowFullscreenStore } from '../../stores/main-window-fullscreen'
+import { useFullscreenStore } from '../../stores/fullscreen'
 import { fullscreenSurfaces } from './surfaces'
 
 // The island of the fullscreen mode: one button for each registered surface, the theme switch, and the way out of
 // the mode.
 const { t } = useI18n()
-const fullscreen = useMainWindowFullscreenStore()
+const fullscreen = useFullscreenStore()
 const { surface } = storeToRefs(fullscreen)
 
 const KEY = 'tamagotchi.stage.fullscreen-island'
 
-const surfaces = Object.entries(fullscreenSurfaces).map(([id, definition]) => ({ id: id as MainWindowFullscreenSurface, ...definition }))
+const surfaces = Object.entries(fullscreenSurfaces).map(([id, definition]) => ({ id: id as FullscreenSurfaceId, ...definition }))
 
-function show(id: MainWindowFullscreenSurface) {
+function show(id: FullscreenSurfaceId) {
   void fullscreen.open(id).catch(error => console.error('[Fullscreen island] Failed to show the surface:', error))
 }
 

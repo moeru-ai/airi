@@ -1925,7 +1925,7 @@ pages:
         character_card_sync:
           title: Character card cloud sync
           description: Sync your character cards to your account when you are signed in, so they reach your other devices. Off by default. A card you delete stays in your account history for 30 days.
-        main_window_fullscreen:
+        fullscreen_workspace:
           title: Fullscreen workspace
           description: Open settings and the chat in a workspace that covers the screen, with the character on the left. Off by default.
           window_mode:

@@ -15,7 +15,7 @@ const SURFACE_MARGIN = 24
 function createFullscreenLayout() {
   const { width: windowWidth } = useWindowSize()
   /** The surface width that the user chose by dragging its edge. `0` keeps the default share. */
-  const surfaceWidthChoice = useLocalStorage('main-window-fullscreen/surface-width', 0)
+  const surfaceWidthChoice = useLocalStorage('fullscreen/surface-width', 0)
   /** The drag of the surface edge: the pointer, where it started, and the width it gives now. */
   const surfaceDrag = shallowRef<{ pointerId: number, startX: number, startWidth: number, width: number }>()
   /** The element of the island. The overlay sets it. */

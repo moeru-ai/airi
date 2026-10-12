@@ -10,15 +10,15 @@ import { useRouter } from 'vue-router'
 import FullscreenBackdrop from '../components/fullscreen/fullscreen-backdrop.vue'
 import FullscreenOverlay from '../components/fullscreen/fullscreen-overlay.vue'
 
-import { electronMainWindowCloseFullscreen, electronMainWindowExitFullscreen, electronMainWindowGetFullscreenState, electronMainWindowOpenFullscreen } from '../../shared/eventa'
+import { electronFullscreenClose, electronFullscreenExit, electronFullscreenGetState, electronFullscreenOpen } from '../../shared/eventa'
 import { fullscreenHostPages, fullscreenSurfaceOf } from '../components/fullscreen/surfaces'
 import { provideFullscreenLayout } from '../composables/use-fullscreen-layout'
-import { useMainWindowFullscreenStore } from '../stores/main-window-fullscreen'
+import { useFullscreenStore } from '../stores/fullscreen'
 
 // The page of the fullscreen mode in a window of its own. It shows the same backdrop, overlay, and layout as the main
 // window, around its own view of the character. The window covers the work area, so nothing moves when the mode
 // opens or closes.
-const fullscreen = useMainWindowFullscreenStore()
+const fullscreen = useFullscreenStore()
 fullscreen.home = fullscreenHostPages['workspace-window']
 const { phase } = storeToRefs(fullscreen)
 const router = useRouter()
@@ -38,12 +38,12 @@ const stageFrameStyle = computed(() => {
 
 const eventaContext = useElectronEventaContext()
 // A settings entry point or the fullscreen chat mode asks for another surface while the window is open.
-const stopOpenListener = eventaContext.value.on(electronMainWindowOpenFullscreen, (event) => {
+const stopOpenListener = eventaContext.value.on(electronFullscreenOpen, (event) => {
   if (event?.body)
     void fullscreen.open(event.body.surface, event.body.route)
 })
 // A chat mode switch away from the fullscreen chat removes it once the new chat window holds the draft.
-const stopCloseListener = eventaContext.value.on(electronMainWindowCloseFullscreen, (event) => {
+const stopCloseListener = eventaContext.value.on(electronFullscreenClose, (event) => {
   if (event?.body)
     void fullscreen.dismiss(event.body.surface)
 })
@@ -57,8 +57,8 @@ watch(() => fullscreenSurfaceOf(router.currentRoute.value.path), (current, previ
     void fullscreen.close()
 })
 
-const getWindowState = useElectronEventaInvoke(electronMainWindowGetFullscreenState)
-const closeWindow = useElectronEventaInvoke(electronMainWindowExitFullscreen)
+const getWindowState = useElectronEventaInvoke(electronFullscreenGetState)
+const closeWindow = useElectronEventaInvoke(electronFullscreenExit)
 
 watch(phase, (next) => {
   if (next === 'expanding') {
