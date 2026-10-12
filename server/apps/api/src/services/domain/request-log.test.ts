@@ -8,6 +8,7 @@ import { mockDB } from '../../libs/mock-db'
 import { createLlmRequestRoutes } from '../../routes/llm-requests'
 import { userFlux } from '../../schemas/flux'
 import { llmRequestAttempt } from '../../schemas/llm-request-attempt'
+import { llmRequestItem } from '../../schemas/llm-request-item'
 import { llmRequestLog } from '../../schemas/llm-request-log'
 import { captureRequestContent } from './request-content'
 import { createRequestLogService } from './request-log'
@@ -31,10 +32,11 @@ describe('request log and billing ownership', () => {
     providerUsage: { cost: 0.002, vendor_meter: { units: 3 } },
   }
   beforeAll(async () => {
-    db = await mockDB({ userFlux, llmRequestLog, llmRequestAttempt })
+    db = await mockDB({ userFlux, llmRequestLog, llmRequestAttempt, llmRequestItem })
   })
   beforeEach(async () => {
     await db.delete(llmRequestAttempt)
+    await db.delete(llmRequestItem)
     await db.delete(llmRequestLog)
     await db.delete(userFlux)
     await db.insert(userFlux).values({ userId: observation.userId, flux: 100 })
@@ -47,6 +49,32 @@ describe('request log and billing ownership', () => {
     const entries = await db.select().from(llmRequestLog)
     expect(entries).toHaveLength(2)
     expect(entries[0].providerUsage).toEqual(observation.providerUsage)
+  })
+
+  it('stores the new input and the output of a request as items, one time', async () => {
+    const logs = createRequestLogService(db)
+    const startedAt = new Date('2026-10-13T00:00:00Z')
+    const prompt = captureRequestContent({ messages: [{ role: 'user', content: 'Hello' }, { role: 'assistant', content: 'Hi' }, { role: 'user', content: 'What is the weather?' }] })
+    const completion = captureRequestContent({ choices: [{ message: { role: 'assistant', content: 'Let me check.', tool_calls: [{ id: 'call-1', function: { name: 'weather', arguments: '{}' } }] } }] })
+    await logs.beginRequest({ ...observation, sessionId: 'session-1', interactionId: 'round-1', startedAt, prompt })
+    await logs.logRequest({ ...observation, completion })
+    await logs.logRequest({ ...observation, completion })
+
+    const items = await db.select().from(llmRequestItem).orderBy(llmRequestItem.direction, llmRequestItem.position)
+    expect(items.map(item => [item.direction, item.position, item.kind, item.text, item.toolName, item.toolCallId])).toEqual([
+      ['input', 0, 'user_message', 'What is the weather?', null, null],
+      ['output', 0, 'assistant_message', 'Let me check.', null, null],
+      ['output', 1, 'tool_call', '{}', 'weather', 'call-1'],
+    ])
+    expect(items.every(item => item.userId === observation.userId && item.requestId === observation.requestId)).toBe(true)
+    expect(items.every(item => item.sessionId === 'session-1' && item.interactionId === 'round-1')).toBe(true)
+    expect(items.every(item => item.createdAt.getTime() === startedAt.getTime())).toBe(true)
+  })
+
+  it('writes no items for a request without a request ID', async () => {
+    const logs = createRequestLogService(db)
+    await logs.logRequest({ ...observation, requestId: undefined, completion: captureRequestContent({ choices: [{ message: { content: 'Hi' } }] }) })
+    expect(await db.select().from(llmRequestItem)).toHaveLength(0)
   })
 
   it('records each dispatch, isolates users, and finishes only the selected attempt', async () => {

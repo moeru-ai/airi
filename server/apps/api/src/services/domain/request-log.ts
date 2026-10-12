@@ -1,25 +1,80 @@
 import type { Database } from '../../libs/db'
 import type { GenerationObservation } from './generation-observation'
 import type { AttemptObserver } from './llm-router/attempt'
+import type { RequestItem } from './request-items'
 
+import { useLogger } from '@guiiai/logg'
 import { and, desc, eq, inArray, lt, sql } from 'drizzle-orm'
 import { parse } from 'valibot'
 
 import { llmRequestAttempt } from '../../schemas/llm-request-attempt'
+import { llmRequestItem } from '../../schemas/llm-request-item'
 import { nanoid } from '../../utils/id'
 import { generationObservationSchema } from './generation-observation'
 import { attemptResultSchema, attemptStartSchema } from './llm-router/attempt'
+import { splitInputItems, splitOutputItems } from './request-items'
 
 import * as schema from '../../schemas/llm-request-log'
 
 /** Owns diagnostic request and attempt lifecycles; settlement evidence has an independent retention boundary. */
 export function createRequestLogService(db: Database) {
+  const logger = useLogger('request-log').useGlobalConfig()
+
+  interface ItemOwner {
+    userId: string
+    requestId: string
+    sessionId: string | null
+    interactionId: string | null
+    startedAt: Date | null
+    createdAt: Date
+  }
+
+  /**
+   * Replaces the items of one direction of one request.
+   *
+   * The items are derived, so a failed write is logged and does not fail the request.
+   */
+  async function writeItems(owner: ItemOwner, direction: 'input' | 'output', items: RequestItem[]) {
+    const table = llmRequestItem
+    const rows = items.map((item, position) => ({
+      ...item,
+      userId: owner.userId,
+      requestId: owner.requestId,
+      sessionId: owner.sessionId,
+      interactionId: owner.interactionId,
+      direction,
+      position,
+      createdAt: owner.startedAt ?? owner.createdAt,
+    }))
+    try {
+      await db.transaction(async (tx) => {
+        await tx.delete(table).where(and(eq(table.userId, owner.userId), eq(table.requestId, owner.requestId), eq(table.direction, direction)))
+        if (rows.length > 0)
+          await tx.insert(table).values(rows)
+      })
+    }
+    catch (error) {
+      logger.withError(error).withFields({ requestId: owner.requestId, direction }).warn('Failed to write llm_request_item rows')
+    }
+  }
+
+  const itemOwner = {
+    userId: schema.llmRequestLog.userId,
+    requestId: schema.llmRequestLog.requestId,
+    sessionId: schema.llmRequestLog.sessionId,
+    interactionId: schema.llmRequestLog.interactionId,
+    startedAt: schema.llmRequestLog.startedAt,
+    createdAt: schema.llmRequestLog.createdAt,
+  }
+
   return {
     async beginRequest(entry: GenerationObservation) {
       const observation = parse(generationObservationSchema, entry)
       if (!observation.requestId)
         throw new Error('A tracked request requires a request ID')
-      await db.insert(schema.llmRequestLog).values({ ...observation, state: 'running', startedAt: observation.startedAt ?? new Date() })
+      const [row] = await db.insert(schema.llmRequestLog).values({ ...observation, state: 'running', startedAt: observation.startedAt ?? new Date() }).returning(itemOwner)
+      if (observation.prompt)
+        await writeItems({ ...row, requestId: observation.requestId }, 'input', splitInputItems(observation.prompt))
     },
 
     observeAttempts(userId: string, requestId: string): AttemptObserver {
@@ -62,7 +117,7 @@ export function createRequestLogService(db: Database) {
       const table = schema.llmRequestLog
       const state = observation.state ?? (observation.status === 499 ? 'cancelled' : observation.status >= 200 && observation.status < 300 ? 'completed' : 'failed')
       const summary = { ...observation, state, endedAt: new Date() }
-      await db.insert(table).values(summary).onConflictDoUpdate({
+      const [row] = await db.insert(table).values(summary).onConflictDoUpdate({
         target: [table.userId, table.requestId],
         targetWhere: sql`request_id IS NOT NULL`,
         set: {
@@ -70,7 +125,9 @@ export function createRequestLogService(db: Database) {
           generationId: sql`coalesce(${table.generationId}, excluded.generation_id)`,
           providerUsage: sql`coalesce(excluded.provider_usage, ${table.providerUsage})`,
         },
-      })
+      }).returning(itemOwner)
+      if (observation.completion && observation.requestId)
+        await writeItems({ ...row, requestId: observation.requestId }, 'output', splitOutputItems(observation.completion))
       if (observation.attemptId && observation.requestId) {
         await db.update(llmRequestAttempt).set({
           state,

@@ -103,7 +103,8 @@ sequenceDiagram
 `splitRequestItems` is a pure function of the protocol, the prompt, and the completion.
 A request without a request ID gets no items.
 Content that is truncated, partial, or not JSON gives the items that can be read, and no error.
-A failed item write does not fail the request. The request log already has this rule.
+A failed item write is logged and does not fail the request, because the items are derived.
+Each write replaces the items of one direction of the request, so a second write adds no rows.
 
 ## Search index
 
