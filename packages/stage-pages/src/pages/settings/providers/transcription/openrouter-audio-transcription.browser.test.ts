@@ -53,12 +53,6 @@ const TranscriptionPlaygroundStub = defineComponent({
   },
 })
 
-const FieldComboboxStub = defineComponent({
-  setup() {
-    return () => h('div')
-  },
-})
-
 const PageHarness = defineComponent({
   setup() {
     const providersStore = useProviderStore()
@@ -118,7 +112,6 @@ async function renderPage(pinia: ReturnType<typeof createPinia>, translatedError
       stubs: {
         TranscriptionProviderSettings: ProviderSettingsStub,
         TranscriptionPlayground: TranscriptionPlaygroundStub,
-        FieldCombobox: FieldComboboxStub,
       },
     },
   })
