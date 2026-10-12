@@ -70,41 +70,43 @@ the service can reach its required dependencies.
 The Railway `dev` environment is one shared slot. It has fixed public URLs, so
 OAuth callbacks and payment webhooks stay registered when the code changes.
 
-Railway and the `Cloudflare Workers (server-dev)` workflow deploy from the
-`server-dev` branch. Use that branch as a pointer to the ref under test. Do not
-merge into it and do not open a pull request against it.
+Work on your own branch in this repository. Do not merge into a shared test
+branch. The `server-dev` branch is no longer a deploy source.
 
-To deploy a ref, run the `Deploy to server-dev` workflow:
+To test a branch, run the `Deploy to server-dev` workflow:
 
 ```sh
-gh workflow run deploy-server-dev.yml -f ref=<branch> -f reset_database=true
+gh workflow run deploy-server-dev.yml -f branch=<branch> -f reset_database=true
 ```
-
-`ref` accepts a branch, a tag, a commit SHA, or `refs/pull/<number>/head` for a
-pull request from a fork. A pull request from a fork then runs with the dev
-secrets, so read its diff first.
 
 The workflow does these steps in order:
 
 1. It resets the dev Neon branch to its parent branch.
-2. It force-pushes the ref to `server-dev`.
-3. Railway and Cloudflare deploy the new commit. The API applies its migrations
-   to the reset database on startup.
+2. It sets the source branch of the Railway `ts-api` and `auth-server` services
+   and deploys them. The API applies its migrations on startup.
+3. It starts the `Cloudflare Workers (server-dev)` workflow on the same branch.
 
-The reset removes all data that the previous ref wrote. Set
-`reset_database=false` only when the two refs have the same migrations. The
-Drizzle migrator applies only migrations that are newer than the last applied
-migration. If the database already has a newer migration from a different ref,
-the migrator skips the older migrations of the new ref and reports no error.
+Railway deploys each later push to the branch. The frontend does not follow
+pushes. Run the workflow again with `reset_database=false` to build it again.
 
-The reset does not clear Redis. Cached values from the previous ref can stay
+The branch must be in this repository. Railway cannot deploy a branch of a
+fork.
+
+The reset removes all data that the previous branch wrote. Set
+`reset_database=false` only when the database already has the migrations of
+the branch and no others. The Drizzle migrator applies only migrations that are
+newer than the last applied migration. If the database already has a newer
+migration from a different branch, the migrator skips the older migrations of
+the new branch and reports no error.
+
+The reset does not clear Redis. Cached values from the previous branch can stay
 until they expire.
 
 The workflow needs this repository configuration:
 
 | Name | Kind | Value |
 | --- | --- | --- |
-| `SERVER_DEV_PUSH_TOKEN` | Secret | Token with `contents: write` and `workflows: write` on this repository |
+| `RAILWAY_DEV_TOKEN` | Secret | Railway project token for the `dev` environment |
 | `NEON_API_KEY` | Secret | Neon API key for the project that holds the dev database |
 | `NEON_PROJECT_ID` | Variable | Neon project ID |
 | `NEON_SERVER_DEV_BRANCH` | Variable | Name of the Neon branch that the dev `DATABASE_URL` points to |

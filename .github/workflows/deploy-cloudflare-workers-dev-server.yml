@@ -1,14 +1,13 @@
 name: Cloudflare Workers (server-dev)
 
+# The "Deploy to server-dev" workflow starts this workflow on the branch under
+# test. Start it there, not here, so that the backend uses the same branch.
 on:
-  push:
-    branches:
-      - 'server-dev'
-
   workflow_dispatch:
 
+# All runs deploy to the same preview alias, whatever branch they build.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}
   cancel-in-progress: true
 
 jobs:

@@ -1,12 +1,12 @@
 name: Deploy to server-dev
 
-run-name: Deploy ${{ inputs.ref }} to server-dev (@${{ github.actor }})
+run-name: Deploy ${{ inputs.branch }} to server-dev (@${{ github.actor }})
 
 on:
   workflow_dispatch:
     inputs:
-      ref:
-        description: 'Branch, tag, commit SHA, or refs/pull/<number>/head to deploy'
+      branch:
+        description: 'Branch of this repository to deploy'
         required: true
         type: string
       reset_database:
@@ -16,39 +16,36 @@ on:
         default: true
 
 # The dev environment is one shared slot. Queue the runs so that a database
-# reset and a branch update from two runs cannot interleave.
+# reset and a source change from two runs cannot interleave.
 concurrency:
   group: server-dev
   cancel-in-progress: false
 
-# All writes use SERVER_DEV_PUSH_TOKEN, so the job needs nothing from GITHUB_TOKEN.
-permissions: {}
+permissions:
+  contents: read
+  # Starts the "Cloudflare Workers (server-dev)" workflow.
+  actions: write
 
 jobs:
   deploy:
     name: Deploy - server-dev
     runs-on: ubuntu-latest
 
+    env:
+      DEPLOY_BRANCH: ${{ inputs.branch }}
+      GH_TOKEN: ${{ github.token }}
+      # A project token for the Railway dev environment. It selects the
+      # project and the environment for each railway command.
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_DEV_TOKEN }}
+
     steps:
-      # NOTICE:
-      # The push below cannot use GITHUB_TOKEN.
-      # GitHub rejects a GITHUB_TOKEN push that changes files under
-      # .github/workflows, and such a push does not start the
-      # "Cloudflare Workers (server-dev)" workflow.
-      # https://docs.github.com/en/actions/concepts/security/github_token
-      # Remove the token when Railway and Cloudflare deploy from this workflow
-      # and server-dev is no longer a branch.
-      - uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.ref }}
-          # A shallow clone cannot push a commit whose history the remote
-          # branch does not already contain.
-          fetch-depth: 0
-          token: ${{ secrets.SERVER_DEV_PUSH_TOKEN }}
+      # Stop before the database reset if no deploy can follow it.
+      - name: Check the branch
+        run: gh api "repos/${GITHUB_REPOSITORY}/branches/${DEPLOY_BRANCH}" --silent
 
       # The API runs migrations on startup, and the Drizzle migrator only
       # applies migrations newer than the last applied one. A database that
-      # another branch migrated makes it skip older migrations of this ref
+      # another branch migrated makes it skip older migrations of this branch
       # without an error. Reset first so that the new deploy migrates a clean
       # baseline.
       - name: Reset the Neon branch
@@ -60,22 +57,30 @@ jobs:
           parent: true
           api_key: ${{ secrets.NEON_API_KEY }}
 
-      # Railway and the Cloudflare workflow both deploy from the server-dev
-      # branch. The branch is a pointer to the ref under test, not a branch to
-      # merge into.
-      - name: Point server-dev at the ref
-        run: git push --force origin HEAD:refs/heads/server-dev
+      - run: npm install --global @railway/cli@5
+
+      # `redeploy --from-source` also covers a run that keeps the same branch.
+      # The services must restart there to migrate the reset database.
+      - name: Point the Railway dev services at the branch
+        run: |
+          for service in ts-api auth-server; do
+            railway service source connect --service "$service" --repo "$GITHUB_REPOSITORY" --branch "$DEPLOY_BRANCH"
+            railway service redeploy --service "$service" --from-source --yes
+          done
+
+      # Railway follows later pushes to the branch. The frontend does not, so
+      # each run builds it from the same branch.
+      - name: Deploy the frontend
+        run: gh workflow run deploy-cloudflare-workers-dev-server.yml --repo "$GITHUB_REPOSITORY" --ref "$DEPLOY_BRANCH"
 
       - name: Summary
         env:
-          DEPLOY_REF: ${{ inputs.ref }}
           RESET_DATABASE: ${{ inputs.reset_database }}
         run: |
           {
             echo "| | |"
             echo "| --- | --- |"
-            echo "| Ref | \`${DEPLOY_REF}\` |"
-            echo "| Commit | \`$(git rev-parse HEAD)\` |"
+            echo "| Branch | \`${DEPLOY_BRANCH}\` |"
             echo "| Database reset | ${RESET_DATABASE} |"
             echo "| Actor | @${GITHUB_ACTOR} |"
           } >> "$GITHUB_STEP_SUMMARY"
