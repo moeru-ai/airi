@@ -120,8 +120,11 @@ const isSpotlightWindow = initialRoutePath === '/spotlight'
 const isFloatingChatWindow = initialRoutePath === '/chat-floating'
 // The fullscreen mode places the main window itself, so its edges offer no resize.
 const { active: mainWindowFullscreen } = storeToRefs(useFullscreenStore())
-const isSettingsWindow = initialRoutePath === '/settings' || initialRoutePath.startsWith('/settings/')
-const stopIOTraceRecordingBridge = initialRoutePath === '/'
+// A window that hosts the fullscreen mode can load on a settings route, after a reload for example. So the windows
+// are told apart by the host that the main process names, not by the first route alone.
+const isMainWindow = windowContext.fullscreenHost === 'main-window'
+const isSettingsWindow = !windowContext.fullscreenHost && (initialRoutePath === '/settings' || initialRoutePath.startsWith('/settings/'))
+const stopIOTraceRecordingBridge = isMainWindow
   ? initializeIOTraceRecordingBridge(context.value)
   : undefined
 
@@ -208,7 +211,7 @@ function createFullStageRuntime() {
   const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapability)
   const getGodotStageStatus = useElectronEventaInvoke(electronGodotStageGetStatus)
   const syncArtistryConfig = useElectronEventaInvoke(artistrySyncConfig)
-  const usesGodotStage = initialRoutePath === '/' || initialRoutePath.startsWith('/settings')
+  const usesGodotStage = !!windowContext.fullscreenHost || initialRoutePath.startsWith('/settings')
   const isWidgetsWindow = initialRoutePath === '/widgets'
 
   function syncGodotStageRenderer(state: { state: 'stopped' | 'starting' | 'running' | 'stopping' | 'error' }) {
