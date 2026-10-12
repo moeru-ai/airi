@@ -887,6 +887,7 @@ pages:
             error-title: Transcription error
             listening: Listening for speech…
             no-transcription: No speech was recognized in this audio.
+            select-model-before-testing: Select a model in OpenRouter settings before testing.
             segment: 'Speech segment {number}'
             start: Start monitoring
             stop: Stop monitoring

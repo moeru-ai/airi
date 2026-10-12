@@ -9,6 +9,7 @@ import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { createPinia, disposePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-vue'
+import { page } from 'vitest/browser'
 import { defineComponent, h, ref } from 'vue'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -82,7 +83,7 @@ function storeConfiguredProvider() {
   }))
 }
 
-async function renderPage(pinia: ReturnType<typeof createPinia>) {
+async function renderPage(pinia: ReturnType<typeof createPinia>, translatedError?: string) {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [{ path: '/', component: { template: '<div />' } }],
@@ -90,9 +91,30 @@ async function renderPage(pinia: ReturnType<typeof createPinia>) {
   await router.push('/')
   await router.isReady()
 
+  const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
+  if (translatedError) {
+    i18n.global.mergeLocaleMessage('en', {
+      settings: {
+        pages: {
+          modules: {
+            hearing: {
+              sections: {
+                section: {
+                  playground: {
+                    'select-model-before-testing': translatedError,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    })
+  }
+
   return await render(PageHarness, {
     global: {
-      plugins: [pinia, PiniaColada, router, createI18n({ legacy: false, locale: 'en', messages: { en } })],
+      plugins: [pinia, PiniaColada, router, i18n],
       stubs: {
         TranscriptionProviderSettings: ProviderSettingsStub,
         TranscriptionPlayground: TranscriptionPlaygroundStub,
@@ -126,5 +148,13 @@ describe('openRouter audio transcription settings', () => {
 
     await expect.poll(() => fetchCalls.length).toBe(2)
     expect(fetchCalls).toEqual([providerId, providerId])
+  })
+  it('shows the localized error when no model is selected', async () => {
+    const translatedError = '[translated:select-model-before-testing]'
+    await renderPage(pinia, translatedError)
+
+    await page.getByRole('button', { name: 'Run transcription' }).click()
+
+    await expect.element(page.getByText(translatedError)).toBeVisible()
   })
 })
