@@ -55,8 +55,6 @@ const supportsStreamInput = computed(() => providersStore.getTranscriptionFeatur
 const error = shallowRef('')
 const isMonitoring = shallowRef(false)
 let shouldRestartMonitoringAfterProviderChange = false
-// Tracks the owner of activeTranscriptionModel while provider model requests are pending.
-let activeModelProvider = activeTranscriptionProvider.value
 const activeProviderConfig = computed(() => {
   if (!activeTranscriptionProvider.value)
     return undefined
@@ -336,23 +334,17 @@ watch(selectedProvider, async (provider, _previousProvider, onCleanup) => {
   error.value = ''
   vadModelError.value = ''
 
-  if (activeModelProvider && activeModelProvider !== provider)
-    hearingStore.saveProviderModel(activeModelProvider, activeTranscriptionModel.value)
-
   if (!provider) {
-    activeModelProvider = ''
-    activeTranscriptionModel.value = ''
-    activeCustomModelName.value = ''
+    await hearingStore.restoreProviderModel(provider)
+    if (!isCurrentProviderChange)
+      return
     shouldRestartMonitoringAfterProviderChange = false
     return
   }
 
-  if (activeModelProvider !== provider) {
-    const savedModel = hearingStore.getSavedProviderModel(provider)
-    activeTranscriptionModel.value = savedModel ?? ''
-    activeCustomModelName.value = savedModel ?? ''
-    activeModelProvider = provider
-  }
+  const restored = await hearingStore.restoreProviderModel(provider)
+  if (!isCurrentProviderChange || !restored)
+    return
 
   await hearingStore.loadModelsForProvider(provider)
   if (!isCurrentProviderChange)
