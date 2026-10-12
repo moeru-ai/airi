@@ -42,6 +42,7 @@ import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { protectPrivilegedWindowNavigation, setWindowAlwaysOnTop, transparentWindowConfig } from '../shared'
+import { centerWindowOnDisplay, computeCenteredWindowBounds } from '../shared/display'
 import { setupMainWindowElectronInvokes } from './rpc/index.electron'
 
 const appConfigSchema = object({
@@ -151,6 +152,20 @@ export async function setupMainWindow(params: {
   /** The bounds before fullscreen mode. While it is set, the window covers its display and the config keeps the old bounds. */
   let boundsBeforeFullscreen: Rectangle | undefined
 
+  /**
+   * Centers the window on its display. In fullscreen mode the window covers the work area, so the bounds that it
+   * returns to move to the center instead.
+   */
+  function centerWindow(): Rectangle {
+    if (!boundsBeforeFullscreen)
+      return centerWindowOnDisplay(window)
+    boundsBeforeFullscreen = computeCenteredWindowBounds({
+      displayWorkArea: screen.getDisplayMatching(boundsBeforeFullscreen).workArea,
+      windowBounds: boundsBeforeFullscreen,
+    })
+    return boundsBeforeFullscreen
+  }
+
   function handleNewBounds(newBounds: Rectangle) {
     if (boundsBeforeFullscreen)
       return
@@ -246,6 +261,7 @@ export async function setupMainWindow(params: {
     globalShortcut: params.globalShortcut,
     spotlightWindow: params.spotlightWindow,
     setPinned,
+    center: centerWindow,
   })
 
   await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/', {

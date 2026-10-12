@@ -327,8 +327,6 @@ const stageLayout = shallowRef<StageLayout>()
 const fullscreenArea = shallowRef<{ width: number, height: number }>()
 /** The direction that the stage and the area move in now. `false` sets them at once. */
 const fullscreenMotion = shallowRef<'open' | 'close' | false>(false)
-/** The bounds of the main window before fullscreen mode, the work area, and the stage size in it. */
-let fullscreenPlan: { home: StageLayoutBounds, workArea: StageLayoutBounds, stage: { width: number, height: number } } | undefined
 type StageLayoutBounds = Awaited<ReturnType<typeof enterFullscreenWindow>>['bounds']
 
 /** A part of the fullscreen transition. The window glide and the CSS transitions use the same curve. */
@@ -353,6 +351,7 @@ watch(fullscreenLayout.stageOffset, (offsetX) => {
     stageLayout.value = { ...stageLayout.value, offsetX }
 })
 
+/** The bounds of the main window outside fullscreen mode, the work area, and the stage size in it. */
 function planFor(home: StageLayoutBounds, workArea: StageLayoutBounds) {
   return { home, workArea, stage: fullscreenLayout.stageSizeIn(workArea) }
 }
@@ -396,7 +395,7 @@ const fullscreenAreaStyle = computed(() => {
 })
 
 /** The stage at its fullscreen size, drawn as large as it was in the small window, with the character centered as before. */
-function homeStageLayout(plan: NonNullable<typeof fullscreenPlan>): StageLayout {
+function homeStageLayout(plan: ReturnType<typeof planFor>): StageLayout {
   const scale = plan.home.height / plan.stage.height
   return { ...plan.stage, scale, offsetX: (plan.home.width - plan.stage.width * scale) / 2 }
 }
@@ -432,7 +431,6 @@ async function expandToFullscreen() {
   try {
     const { bounds, workArea } = await enterFullscreenWindow()
     const plan = planFor(bounds, workArea)
-    fullscreenPlan = plan
     const { height } = FULLSCREEN_MOTION
 
     fullscreenMotion.value = false
@@ -469,8 +467,10 @@ async function expandToFullscreen() {
  */
 async function collapseFromFullscreen() {
   try {
-    const plan = fullscreenPlan
-    if (plan) {
+    // The main process keeps the bounds that the window returns to, and they can change while the mode is open.
+    const state = await getFullscreenWindowState()
+    if (state) {
+      const plan = planFor(state.home, state.workArea)
       const { close } = FULLSCREEN_MOTION
       commitFullscreenLayout()
       fullscreenMotion.value = 'close'
@@ -498,7 +498,6 @@ function clearFullscreenLayout() {
   fullscreenMotion.value = false
   stageLayout.value = undefined
   fullscreenArea.value = undefined
-  fullscreenPlan = undefined
 }
 
 /**
@@ -532,7 +531,6 @@ async function resumeFullscreen() {
       return
     }
     const plan = planFor(state.home, state.workArea)
-    fullscreenPlan = plan
     fullscreenMotion.value = false
     stageLayout.value = { ...plan.stage, scale: 1, offsetX: fullscreenLayout.stageOffsetIn(plan.workArea.width) }
     fullscreenArea.value = { width: plan.workArea.width, height: plan.workArea.height }
