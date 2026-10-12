@@ -36,6 +36,12 @@ minimumReleaseAgeExclude:
   - '@gd-kirie/ipc@0.10.0'
   - '@gd-kirie/platform@0.10.0'
   - kirie@0.10.0
+  # NOTICE:
+  # pinia-plugin-synced 0.1.5 skips a state apply that changes nothing, which stops the flaky synced browser tests.
+  # pnpm blocks a release during the 72-hour age window.
+  # Source: https://github.com/nekomeowww/pinia-plugin-synced/pull/4
+  # Remove this exception after 2026-10-14 14:04 UTC.
+  - pinia-plugin-synced@0.1.5
   - '@moeru/*'
   - '@proj-airi/*'
   # NOTICE:
@@ -62,7 +68,6 @@ packages:
   - integrations/**
   - services/**
   - examples/**
-  - docs/**
   - engines/**
   - apps/**
   - server/**
@@ -159,17 +164,13 @@ catalog:
   '@iconify-json/solar': ^1.2.9
   '@iconify-json/svg-spinners': ^1.2.4
   '@iconify-json/tabler': ^1.2.38
-  '@iconify-json/twemoji': ^1.2.5
   '@iconify-json/vscode-icons': ^1.2.74
   '@iconify/utils': ^3.1.4
-  '@iconify/vue': ^5.0.1
   '@intlify/core': ^11.4.9
   '@intlify/unplugin-vue-i18n': ^11.2.5
   '@laplace.live/event-bridge-sdk': ^1.1.0
   '@laplace.live/event-types': ^2.0.21
   '@lemonneko/crop-empty-pixels': 0.1.1
-  '@mdit/plugin-footnote': ^1.1.0
-  '@mdit/plugin-tasklist': ^1.1.0
   '@mediapipe/tasks-vision': ^1.0.1
   '@modelcontextprotocol/sdk': ^1.30.0
   '@moeru/eslint-config': 0.1.0-beta.19
@@ -227,15 +228,14 @@ catalog:
   '@proj-airi/unocss-preset-chromatic': ^1.1.4
   '@proj-airi/unplugin-fetch': ^0.2.3
   '@proj-airi/unplugin-live2d-sdk': ^0.1.7
-  '@radix-ui/colors': ^3.0.0
   '@revenuecat/purchases-js': ^1.15.0
   '@rive-app/canvas-lite': ^2.40.1
+  '@sherpaw/kws': 0.2.1
   '@sherpaw/xsai-transcription': 0.2.1
   '@shikijs/markdown-it': ^4.4.3
   '@shikijs/rehype': ^4.4.3
   '@shopify/draggable': ^1.2.1
   '@snazzah/davey': ^0.1.12
-  '@takumi-rs/image-response': 1.0.0-beta.20
   '@tresjs/cientos': ^5.8.1
   '@tresjs/core': ^5.8.3
   '@tresjs/post-processing': ^3.7.4
@@ -244,7 +244,6 @@ catalog:
   '@types/d3': ^7.4.3
   '@types/hast': ^3.0.5
   '@types/ioredis-mock': ^8.2.8
-  '@types/markdown-it': ^14.2.0
   '@types/mdast': ^4.0.4
   '@types/node': ^26.2.0
   '@types/nprogress': ^0.2.3
@@ -273,7 +272,6 @@ catalog:
   '@vitejs/plugin-vue': ^6.0.8
   '@vue-macros/volar': ^3.1.4
   '@vue/test-utils': ^2.4.11
-  '@vue/tsconfig': ^0.9.1
   '@vueuse/core': ^14.4.0
   '@vueuse/motion': ^3.0.3
   '@vueuse/shared': ^14.4.0
@@ -352,7 +350,6 @@ catalog:
   get-port-please: ^3.2.0
   gpuu: ^1.0.7
   grammy: ^1.45.1
-  gray-matter: ^4.0.3
   h3: 2.0.1-rc.29
   hfup: ^1.0.4
   histoire: 1.0.0-beta.1
@@ -374,9 +371,6 @@ catalog:
   less: ^4.9.0
   libsodium-wrappers: ^0.8.4
   localforage: ^1.10.0
-  mark.js: ^8.11.1
-  markdown-it: 14.1.1
-  markdown-it-anchor: ^9.2.1
   mediabunny: ^1.55.2
   meta-png: ^1.0.6
   minecraft-data: 3.102.3
@@ -387,10 +381,8 @@ catalog:
   mineflayer-pathfinder: ^2.4.5
   mineflayer-pvp: ^1.3.2
   mineflayer-tool: ^1.2.0
-  minisearch: ^7.2.0
   mkcert: ^3.2.0
   model-bank: 1.0.20260904203849
-  motion-v: ^2.4.0
   nano-staged: ^1.0.2
   nanoid: ^6.0.1
   node-pty: npm:@lydell/node-pty@^1.2.0-beta.15
@@ -402,15 +394,13 @@ catalog:
   oxc-minify: ^0.146.0
   oxlint: ^1.79.0
   p-limit: ^7.3.1
-  pathe: ^2.0.3
   pg: ^8.23.0
   pinia: ^4.0.3
-  pinia-plugin-synced: ^0.1.4
+  pinia-plugin-synced: ^0.1.5
   pixi-filters: ^4.2.0
   pixi-live2d-display: ^0.4.0
   playwright: ^1.62.1
   popmotion: ^11.0.5
-  postcss: ^8.5.26
   postgres: ^3.4.9
   postprocessing: ^6.39.4
   prismarine-block: ^1.23.0
@@ -446,7 +436,6 @@ catalog:
   three: ^0.185.1
   three-stdlib: ^2.36.1
   tinyexec: ^1.3.0
-  tinyglobby: ^0.2.17
   tsdown: ^0.22.14
   tsx: ^4.23.12
   turbo: ^2.10.11
@@ -480,7 +469,6 @@ catalog:
   vite-plugin-pwa: ^1.3.0
   vite-plugin-vue-devtools: ^8.2.1
   vite-plugin-vue-layouts: ^0.11.0
-  vitepress: 2.0.0-alpha.17
   vitest-browser-vue: ^2.1.0
   vscode-ext-gen: ^1.6.0
   vue: ^3.5.41

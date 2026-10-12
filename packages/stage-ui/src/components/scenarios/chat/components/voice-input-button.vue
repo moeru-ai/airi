@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { HearingInputMode } from '../../../../stores/modules/hearing'
 import type { ChatToolReference } from '../../../../types/chat'
 import type { VoiceComposerMode } from '../composables/use-voice-composer'
 
@@ -25,6 +26,7 @@ import { toast } from 'vue-sonner'
 import VoiceMessagePlayer from './voice-message-player.vue'
 import VoiceWaveform from './voice-waveform.vue'
 
+import { usePushToTalkTrigger } from '../../../../composables/push-to-talk-trigger'
 import { useHearingStore } from '../../../../stores/modules/hearing'
 import { useSettingsAudioDevice } from '../../../../stores/settings/audio-device'
 import { useVoiceControlsStore } from '../../../../stores/voice-controls'
@@ -50,8 +52,11 @@ const emit = defineEmits<{
   recordingChange: [active: boolean]
   /** Dictation finished with Auto send on. The host submits its composer, which now holds the transcript. */
   submit: []
-  /** The user asked for Hearing settings. The host opens them in its own window or route. */
-  configure: []
+  /**
+   * The user asked for Hearing settings. The host opens this settings route in its own window or router.
+   * Dictation without a transcription provider asks for the speech recognition page. The menu item asks for the Hearing overview.
+   */
+  configure: [route: '/settings/modules/hearing' | '/settings/modules/hearing/transcriber']
   /** A recorded voice message waits to be sent, or not any more. The host enables its send button while one waits. */
   pendingChange: [pending: boolean]
 }>()
@@ -62,7 +67,14 @@ const LEVEL_MONITOR_RENEW_MS = 1000
 
 const { t } = useI18n()
 const mode = useLocalStorage<VoiceComposerMode>('ui/chat/voice-mode', 'audio')
-const { autoSendEnabled } = storeToRefs(useHearingStore())
+const { autoSendEnabled, inputMode } = storeToRefs(useHearingStore())
+const { stranded: pushToTalkStranded } = usePushToTalkTrigger()
+/** The menu switch turns the selected Hearing input mode on, so its label names that mode. */
+const listenLabelKeys = {
+  'always-on': 'stage.chat.voice-composer.listen',
+  'push-to-talk': 'stage.chat.voice-composer.push-to-talk',
+  'wake-word': 'stage.chat.voice-composer.wake-word',
+} as const satisfies Record<HearingInputMode, string>
 const devices = useSettingsAudioDevice()
 const { audioInputOptions, selectedAudioInput, enabled: listening } = storeToRefs(devices)
 const controls = useVoiceControlsStore()
@@ -120,7 +132,7 @@ async function toggle() {
     if (mode.value === 'transcription' && !voice.transcriptionConfigured.value) {
       toast(t('stage.chat.voice-composer.configure-title'), {
         description: t('stage.chat.voice-composer.configure-description'),
-        action: { label: t('stage.chat.voice-composer.configure-action'), onClick: () => emit('configure') },
+        action: { label: t('stage.chat.voice-composer.configure-action'), onClick: () => emit('configure', '/settings/modules/hearing/transcriber') },
       })
       return
     }
@@ -364,13 +376,24 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
           </span>
         </DropdownMenuCheckboxItem>
         <DropdownMenuCheckboxItem :model-value="listening" data-testid="voice-menu-listen" :class="itemClasses" @update:model-value="setListening" @select.prevent>
-          <span :class="['flex-1']">{{ t('stage.chat.voice-composer.listen') }}</span>
+          <!-- The switch turns on the Hearing input mode. The mode itself is chosen in Hearing settings. -->
+          <span :class="['flex-1']">{{ t(listenLabelKeys[inputMode]) }}</span>
           <span aria-hidden="true" :class="switchTrackClasses(listening)">
             <span :class="switchThumbClasses(listening)" />
           </span>
         </DropdownMenuCheckboxItem>
+        <!-- Push to Talk keeps the microphone closed until a hold. Without a hold trigger the switch alone never listens. -->
+        <p
+          v-if="pushToTalkStranded"
+          data-testid="voice-menu-push-to-talk-stranded"
+          role="note"
+          :class="['flex items-start gap-2 px-3 py-1.5 text-xs text-amber-600 leading-relaxed dark:text-amber-400']"
+        >
+          <span aria-hidden="true" :class="['i-solar:danger-circle-linear mt-0.5 size-4 shrink-0']" />
+          <span>{{ t('stage.chat.voice-composer.push-to-talk-unavailable') }}</span>
+        </p>
         <DropdownMenuSeparator :class="separatorClasses" />
-        <DropdownMenuItem :class="itemClasses" @select="emit('configure')">
+        <DropdownMenuItem :class="itemClasses" @select="emit('configure', '/settings/modules/hearing')">
           <span :class="['flex-1']">{{ t('stage.chat.voice-composer.hearing-settings') }}</span>
           <span :class="['i-solar:alt-arrow-right-linear size-4 shrink-0 opacity-60']" />
         </DropdownMenuItem>

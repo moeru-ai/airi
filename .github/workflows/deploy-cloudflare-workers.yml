@@ -7,13 +7,47 @@ on:
 
   workflow_dispatch:
 
+  # Sent by moeru-ai/airi-docs after its main branch changes.
+  repository_dispatch:
+    types:
+      - airi-docs-updated
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  build-docs:
+    name: Build - docs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
+        with:
+          repository: moeru-ai/airi-docs
+          path: airi-docs
+          # The page changelogs are generated from the full Git history.
+          fetch-depth: 0
+      - uses: pnpm/setup@v2
+        with:
+          runtime: node@26.7.0
+          install: false
+      - run: ./scripts/build-airi-docs.sh ./airi-docs-dist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_OPTIONS: --max-old-space-size=4096
+      - uses: actions/upload-artifact@v5
+        with:
+          name: airi-docs-dist
+          path: ./airi-docs-dist
+          retention-days: 1
+
   deploy:
     name: Deploy - stage-web
+    needs: build-docs
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -58,10 +92,6 @@ jobs:
         run: |
           pnpm -F @proj-airi/stage-web run build
 
-          pnpm -F @proj-airi/docs run build:base
-          mv ./docs/.vitepress/dist ./apps/stage-web/dist/docs
-          cp ./apps/stage-web/dist/docs/sitemap.xml ./apps/stage-web/dist/sitemap.xml
-
           pnpm -F @proj-airi/stage-ui run story:build
           mv ./packages/stage-ui/.histoire/dist ./apps/stage-web/dist/ui
         env:
@@ -73,6 +103,11 @@ jobs:
           VITE_SERVER_URL: 'https://api.airi.build'
           VITE_REVENUECAT_WEB_KEY: ${{ vars.VITE_REVENUECAT_WEB_KEY }}
           WARP_DRIVE_PUBLIC_BASE: ${{ secrets.WARP_DRIVE_PUBLIC_BASE }}
+      - uses: actions/download-artifact@v5
+        with:
+          name: airi-docs-dist
+          path: ./apps/stage-web/dist/docs
+      - run: cp ./apps/stage-web/dist/docs/sitemap.xml ./apps/stage-web/dist/sitemap.xml
 
       - uses: cloudflare/wrangler-action@v4
         with:

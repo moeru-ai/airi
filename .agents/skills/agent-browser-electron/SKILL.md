@@ -155,7 +155,7 @@ Use this order when the Electron app has multiple windows:
 
 In `apps/stage-tamagotchi`, some windows are lazy-created. The main window loads `/#/`; settings loads `/#/settings`; chat loads `/#/chat`; BeatSync loads `/beat-sync.html`.
 
-The main window hosts the stage and its controls. Settings and chat have separate window owners. For a hearing test, open the settings window first, then navigate that window to `/settings/modules/hearing`. Do not set the main window's hash to this route. Stage mouse handling can leave the substituted page unable to accept clicks.
+The main window hosts the stage and its controls. Settings and chat have separate window owners. For a hearing test, open the settings window first, then navigate that window to `/settings/modules/hearing/transcriber`. Do not set the main window's hash to this route. Stage mouse handling can leave the substituted page unable to accept clicks.
 
 The `9250` examples below assume the app was started by the person running it with:
 

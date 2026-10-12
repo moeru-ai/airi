@@ -8,17 +8,21 @@ import { useBackgroundThemeColor } from '@proj-airi/stage-layouts/composables/th
 import { useBackgroundStore } from '@proj-airi/stage-layouts/stores/background'
 import { HoloCoupon } from '@proj-airi/stage-ui/components'
 import { ViewControlSlider, WidgetStage } from '@proj-airi/stage-ui/components/scenes'
-import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useVoiceHoldKey } from '@proj-airi/stage-ui/composables/voice-hold'
+import { useVoiceListening, useVoicePushToTalk } from '@proj-airi/stage-ui/composables/voice-input-mode'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useStartupResourcesStore } from '@proj-airi/stage-ui/stores/startup-resources'
-import { useVoiceStore } from '@proj-airi/stage-ui/stores/voice'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { toast } from 'vue-sonner'
 
 const paused = ref(false)
 const modelRenderState = ref<'pending' | 'loading' | 'mounted'>('pending')
 const modelRenderError = ref<Error>()
 const startup = useStartupResourcesStore()
+const { t } = useI18n()
 
 watch([modelRenderState, modelRenderError, () => startup.resources.find(resource => resource.id === 'model')?.status], ([state, error, status]) => {
   if (status !== 'loading')
@@ -63,17 +67,11 @@ const { stageModelRenderer } = storeToRefs(useSettings())
 const { syncBackgroundTheme } = useBackgroundThemeColor({ backgroundSurface, selectedOption, sampledColor })
 onMounted(() => syncBackgroundTheme())
 
-const voice = useVoiceStore()
-const { enabled } = storeToRefs(useSettingsAudioDevice())
-watch(enabled, (value) => {
-  if (value)
-    voice.startListening()
-  else
-    void voice.stopListening()
-}, { immediate: true })
-onUnmounted(() => {
-  void voice.stopListening()
-})
+useVoiceListening()
+// The page has no global shortcut, so Push to Talk uses Space while the stage page has focus.
+useVoiceHoldKey(useVoicePushToTalk({
+  onUnconfigured: () => toast(t('stage.chat.voice-composer.configure-title'), { description: t('stage.chat.voice-composer.configure-description') }),
+}))
 
 const { x: mouseX, y: mouseY } = useMouse()
 const cursorPosition = computed(() => ({

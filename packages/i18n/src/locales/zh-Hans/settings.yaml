@@ -260,7 +260,6 @@ pages:
     logout: 登出
     fluxBalance: 剩余通量
     viewFluxDetails: 查看详情
-    capacitorEntry: Capacitor
     viewCapacitor: 查看
     signedInAs: 登录 为
     profile:
@@ -349,6 +348,10 @@ pages:
           fallback: 无法开始删除操作，请稍后重试。
           subscriptionActive: 您的订阅仍在生效。请先在 Capacitor 页面取消订阅，再删除帐户。
   card:
+    wake-word-conflicts:
+      title: '{count} 个共享的唤醒词发音需要选择角色'
+      description: 两张角色卡使用了相同的发音。选择角色之前，没有角色会回应它。
+      action: 选择回应的角色
     sync:
       notice: 角色卡会同步到账号。删除的角色卡可在 30 天内恢复。
       off_notice: 你已登录，但角色卡同步还没有打开。
@@ -549,6 +552,7 @@ pages:
         title: 已下载的语音模型
         description: 管理保存在此设备上的 Sherpaw 模型文件。
         empty: 尚无已下载的语音模型。
+        wake-word-model: 唤醒词模型
         refresh: 刷新
       modules:
         title: 模块
@@ -800,10 +804,67 @@ pages:
     hearing:
       description: 语音识别
       title: 听觉
+      transcriber:
+        title: 语音识别
+        description: 选择转写服务和模型，并测试麦克风。
+      wake-words:
+        title: 唤醒词
+        description: 查看每个角色的唤醒词，并选择由谁回应共享的发音。
+        intro: 唤醒词保存在每个角色的角色卡上。如需修改，可以在聊天中请角色更改。
+        empty: 这个角色还没有唤醒词。
+        state:
+          active: 已启用
+          paused: 已暂停。请选择回应它的角色。
+          other: '由 {name} 回应'
+          unsupported: 当前唤醒词模型不支持
+        conflicts:
+          title: 共享的发音
+          description: 多个角色使用了相同的发音。请选择在此设备上回应它的角色。每张角色卡都会保留自己的唤醒词。
+          choose-label: 回应的角色
+          choose: '{name}（「{word}」）'
+          answered-by: '由 {name} 回应'
+          unresolved: 还没有角色回应这个发音。
       sections:
         section:
           provider-selection:
             description: 选择合适的语音转文本的服务来源
+          microphone:
+            title: 麦克风
+            label: 麦克风
+            description: 为听觉打开麦克风。输入模式决定 AIRI 何时聆听。
+            error: 麦克风不可用
+          input-device:
+            label: 输入设备
+            description: 选择 AIRI 使用的麦克风。
+            playground-description: 听觉和测试区都使用这个麦克风。
+            placeholder: 选择麦克风
+          auto-send:
+            title: 转写文本
+            description: 选择 AIRI 如何处理识别出的文字。
+            label: 自动发送
+            label-description: AIRI 会在延迟后把转写文本发送到聊天。关闭后可以先阅读和编辑文字。每条发送的消息都会消耗 token。
+            delay: 发送延迟
+            delay-description: AIRI 发送转写文本之前等待的时间。
+            immediate: 立即
+          input-mode:
+            title: 输入模式
+            description: 选择麦克风开启时 AIRI 如何开始聆听。
+            label: 开始聆听
+            always-on: 持续聆听
+            always-on-description: AIRI 一直聆听，你说话时就会回应。
+            push-to-talk: 按住说话
+            push-to-talk-description: 只有按住「按住说话」按键时 AIRI 才会聆听。麦克风只在按住期间开启。
+            push-to-talk-unavailable: 此处不可用。此应用在当前设备上没有「按住说话」按键。
+            stranded-title: 此处无法使用按住说话
+            stranded-description: 此应用在当前设备上没有「按住说话」按键，所以 AIRI 不会聆听。如需在此处与 AIRI 对话，请选择「持续聆听」或「唤醒词」。
+            wake-word: 唤醒词
+            wake-word-description: 麦克风保持开启，但只有说出角色的唤醒词后 AIRI 才会聆听。
+            wake-word-status:
+              no-words: 还没有角色设置唤醒词。可以在聊天中请角色设置它的唤醒词。
+              unconfigured: 麦克风开启后开始检测唤醒词。
+              preparing: 正在准备唤醒词模型…
+              ready: 唤醒词已就绪。
+              error: '唤醒词模型不可用：{error}'
           rephrase:
             title: 转写改写
             description: 在转写成为草稿之前，由对话模型修正识别错误并去掉口头禅。原始文本会被保留。
@@ -1028,11 +1089,166 @@ pages:
         test: 测试
       status:
         saved: 已保存。
+        saved-cleared: 已保存。地址已更改，设备名单已清空。
         testing: 正在测试连接……
         reachable: '已连接。Home Assistant 报告了 {count} 个实体。'
         failed: '无法连接。{message}'
         rejected-token: 请输入 Home Assistant 长期访问令牌。
         rejected-address: 地址已更改，请输入新地址对应的访问令牌。
+        failed-policy: 设备名单没能同步到运行工具的窗口，地址未更改，请重试。
+        failed-policy-edit: 改动没能同步到运行工具的窗口，模型仍在用改动前的名单，请重试。
+        failed-policy-move: 地址已更改，但设备名单没能同步到运行工具的窗口，请重试。
+        failed-policy-rollback: 保存被拒绝，设备名单也没能同步回运行工具的窗口，模型现在访问不到任何设备，请重试。
+      access:
+        label: 设备访问范围
+        description: 选择 AIRI 可以读取和控制的设备。
+        mode-all: 全部设备
+        mode-allow: 白名单
+        mode-deny: 黑名单
+        all-hint: AIRI 可以访问全部设备。选择一个名单即可限制范围。
+        rule-allow: 只有你勾选的设备可以访问。
+        rule-deny: 除了你勾选的设备，其他设备都可以访问。
+        selected-count: '已选 {count} 个'
+        empty-warning: 至少勾选一个设备，否则 AIRI 无法访问任何设备。
+        search: 搜索设备
+        reload: 重新加载设备
+        loading: 正在加载设备……
+        no-devices: Home Assistant 没有报告任何设备。
+        no-match: 没有匹配的设备。
+        tab-all: 全部
+        shown-count: '显示 {shown} / {total} 个设备'
+        load-more: '再显示 {count} 个'
+        select-matching: 选中全部匹配
+        clear-matching: 取消全部匹配
+      states:
+        generic:
+          'on': '开启'
+          'off': '关闭'
+          above_horizon: 白天
+          armed: 已布防
+          armed_away: 离家布防
+          armed_custom_bypass: 已布防自定义旁路
+          armed_home: 在家布防
+          armed_night: 夜间布防
+          armed_vacation: 度假布防
+          arming: 正在布防
+          auto: 自动
+          below_horizon: 夜晚
+          buffering: 正在缓冲
+          cleaning: 正在清扫
+          clear-night: 晴
+          closed: 已关闭
+          closing: 正在关闭
+          cloudy: 阴
+          cool: 制冷
+          disarmed: 已撤防
+          disarming: 正在撤防
+          docked: 已停靠
+          dry: 除湿
+          eco: 节能
+          electric: 电热
+          error: 错误
+          exceptional: 特殊
+          fan_only: 仅送风
+          fog: 雾
+          gas: 燃气
+          hail: 冰雹
+          heat: 制热
+          heat_cool: 制热/制冷
+          heat_pump: 热泵
+          high_demand: 急需
+          home: 在家
+          idle: 空闲
+          jammed: 卡住
+          lightning: 雷电
+          lightning-rainy: 雷阵雨
+          locked: 已锁定
+          locking: 正在锁定
+          mowing: 正在割草
+          not_home: 离家
+          ok: 正常
+          open: 已打开
+          opening: 正在打开
+          partlycloudy: 多云
+          paused: 已暂停
+          pending: 待定
+          performance: 高性能
+          playing: 正在播放
+          pouring: 暴雨
+          problem: 异常
+          rainy: 雨
+          recording: 录制中
+          snowy: 雪
+          snowy-rainy: 雨夹雪
+          standby: 待机
+          stopped: 已停止
+          streaming: 监控中
+          sunny: 晴
+          triggered: 已触发
+          unlocked: 已解锁
+          unlocking: 正在解锁
+          windy: 大风
+          windy-variant: 有风、多云
+          unknown: 未知
+          unavailable: 不可用
+        lawn_mower:
+          returning: 正在返回
+        update:
+          'off': 最新
+          'on': 可用更新
+        vacuum:
+          returning: 正在返回基座
+      domains:
+        air_quality: 空气质量
+        alarm_control_panel: 安防面板
+        automation: 自动化
+        binary_sensor: 二元传感器
+        button: 按钮
+        calendar: 日历
+        camera: 摄像头
+        climate: 温控
+        conversation: 对话
+        cover: 窗帘
+        date: 日期
+        datetime: 日期时间
+        device_tracker: 设备追踪
+        event: 事件
+        fan: 风扇
+        geo_location: 地理位置
+        group: 分组
+        humidifier: 加湿器
+        image: 图像
+        image_processing: 图像处理
+        input_boolean: 开关辅助
+        input_datetime: 日期时间辅助
+        input_number: 数值辅助
+        input_select: 下拉辅助
+        input_text: 文本辅助
+        light: 灯
+        lock: 锁
+        media_player: 媒体播放器
+        notify: 通知
+        number: 数值
+        person: 人员
+        remote: 遥控器
+        scene: 场景
+        script: 脚本
+        select: 选择器
+        sensor: 传感器
+        siren: 警报器
+        stt: 语音转文字
+        sun: 太阳
+        switch: 开关
+        text: 文本
+        time: 时间
+        todo: 待办
+        tts: 文字转语音
+        update: 更新
+        vacuum: 扫地机器人
+        valve: 阀门
+        water_heater: 热水器
+        weather: 天气
+        zone: 区域
     web-search:
       title: 网络搜索
       description: 让 AIRI 联网搜索最新信息
@@ -1171,14 +1387,13 @@ pages:
       buy: 充值
       description: 可以选择购入的 Flux 电池包
   capacitor:
-    title: Capacitor
     description: Capacitor 装着 Flux，会自动充满。
     statusError: 暂时无法获取 Capacitor 的状态，可以之后再试试吗？
     packagesError: 暂时无法获取可用的 Capacitor，可以之后再试试吗？
     preferenceError: 偏好保存失败，请稍后再试。
     noCapacitor: 尚未装配 Capacitor
     available: 可选的 Capacitor
-    remaining: 剩余 {percent}
+    remaining: '剩余 {percent}'
     rechargesAt: '{date} 充满'
     renewsAt: '{date} 续订'
     expiresAt: '{date} 到期'
