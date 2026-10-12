@@ -1,6 +1,9 @@
 chat:
   actions:
     retry: 再試行
+    reply: 返信
+    send: メッセージを送信
+    stop: 応答を停止
   message:
     character-name:
       core-system: コアシステム
@@ -13,6 +16,103 @@ chat:
     cloud-badge: クラウドに同期しました
     new-chat-fallback: 新しいチャット
     delete: 会話を削除
+    current: 現在
+    confirm-delete-short: 削除を確認
+    delete-short: 削除
+    cancel: キャンセル
+    confirm-delete: この会話とメッセージを削除しますか？
+  voice-preview:
+    device-placeholder: マイクを選択
+    speech: 音声
+    sensitivity: 感度
+    start: 録音を開始
+    processing: 文字起こしを完了しています
+    device: 音声入力デバイス
+    device-description: この録音に使うマイクを選択してください。
+    level: 入力レベル
+    activity: 発話状態
+    silence: 無音
+    threshold: 検出しきい値
+    sensitivity-description: 発話インジケーターのしきい値を調整してください。
+    stop: 録音を終了
+    failed: 音声の操作に失敗しました。
+  voice-composer:
+    push-to-talk: 押して話す
+    recording: 録音中
+    cancel: キャンセル
+    input-device: マイク
+    pause: 一時停止
+    audio: 音声メッセージ
+    transcription: 音声入力
+    hold-hint: 長押しで録音します。クリックで音声メッセージと音声入力を切り替えます。Enter を押すと、長押しせずに録音できます。
+    listening: 聞き取り中…
+    lock: 上にスライドして録音を固定
+    cancel-hint: 左にスライドしてキャンセル
+    processing: 処理を完了しています…
+    send: 音声メッセージを送信
+    insert: テキストを挿入
+    retry: 音声メッセージを再送信
+    discard: 音声メッセージを破棄
+    failed: 音声入力に失敗しました
+    configure-title: 聴覚を設定
+    configure-description: 音声入力を使うには、聴覚で文字起こしのプロバイダーとモデルを選択してください。
+    configure-action: 聴覚を開く
+    mode: 音声入力
+    auto-send: 録音停止時に送信
+    system-default: システムの既定値
+    listen: 常時聞き取る
+    push-to-talk-unavailable: このデバイスにはプッシュトゥトークキーがないため、AIRIは聞き取りを行いません。聴覚の設定で入力モードを変更してください。
+    wake-word: ウェイクワードを聞き取る
+    hearing-settings: 聴覚の詳細設定…
+    options-hint: カーソルを合わせるか右クリックでオプションを表示
+    stop: 録音を停止
+    stop-send: 停止して送信
+    play: 録音を再生
+  voice-message:
+    recording: 録音中
+    transcribing: 文字起こし中…
+    starting: マイクを起動中
+    preview: 録音した音声メッセージ
+    position: 再生位置
+    no-speech: 音声が認識されなかったため、音声メッセージは送信されませんでした。
+  swipe-demo:
+    delete: 削除
+    show-label: ラベルを表示
+    archive: アーカイブ
+    pin: ピン留め
+    actions: 操作を表示
+    row: 会話 {n}
+  provider-configuration:
+    title: チャットのプロバイダーが設定されていません
+    description: メッセージを送る前に、設定でプロバイダーを選び、接続を確認してください。
+    action: プロバイダー設定を開く
+  voice-draft:
+    finalizing: 処理を完了しています…
+    title: 音声の下書き
+    discard: 下書きを破棄
+    listening: 聞き取り中
+  voice-input: 音声入力
+  error-details:
+    show: 詳細を表示
+    hide: 詳細を非表示
+  images:
+    empty: 考えや画像を共有しましょう。
+    use-vision: チャットの画像に視覚モデルを使う
+    use-vision-description: 以下でプロバイダーとモデルを選択してください。チャットモデルが返信する前に添付画像を読み取ります。視覚モデルを選択しない場合、画像は直接チャットモデルに送られます。
+    attach: 画像を添付
+    remove: '{name} を削除'
+    unsupported: PNG、JPEG、WebP、GIF形式の画像を使用してください。
+    too-large: 各画像は3 MB以下にしてください。
+    too-many: 一度に添付できる画像は{count}枚までです。
+    total-too-large: 添付画像の合計サイズは3 MB以下にしてください。
+    read-failed: この画像を読み取れませんでした。もう一度お試しください。
+    no-description: 視覚モデルから画像の説明が返されませんでした。設定 → モジュール → 視覚を確認し、もう一度お試しください。
+    reading: 画像を読み取り中…
+    description: 添付画像
+  reply:
+    cancel: 返信をキャンセル
+    message: メッセージ
+    replying-to: '{name} に返信中'
 render-error:
   title: '{renderer} でこのモデルを描画できませんでした'
   description: モデルは選択されていますが、ステージに表示できませんでした。
@@ -99,3 +199,69 @@ websocket-status:
   connected: 接続済み
   disconnected: 未接続
   open-settings: 接続設定を開く
+mobile-tools:
+  view: 表示
+  title: 設定
+  appearance: 外観
+  settings: 設定
+  hearing: 聴覚
+  sign-in: AIRI にログイン
+  account-description: アカウントと設定
+  sound: サウンド
+  character-voice: キャラクターの声
+  application: アプリ
+  more: その他
+  background: 背景
+  about: このアプリについて
+  close-view: 表示設定を保存して閉じる
+theme:
+  light: ライト
+  title: テーマ
+  system: システム
+  dark: ダーク
+  switch-to-light: ライトテーマに切り替え
+  switch-to-dark: ダークテーマに切り替え
+  switch-to-system: システムのテーマに合わせる
+startup:
+  retry: 再試行
+  continue-without-model: 続行する
+  failed: 起動に失敗しました
+  failed-resource: '{resource}を読み込めませんでした'
+  recover: もう一度お試しください。再び失敗した場合は、以下の詳細を開いてください。
+  recover-model: もう一度試すか、キャラクターなしで続行してください。別のモデルは後から選択できます。
+  details: 何が起きましたか？
+  close-details: 詳細を閉じる
+  model-timeout: キャラクターモデルの読み込みがタイムアウトしました。接続を確認して再試行してください。
+  resources:
+    auth: アカウント設定
+    modelIndex: モデル一覧
+    card: キャラクター設定
+    chat: チャット履歴
+    services: アプリのサービス
+    modelData: 保存済みモデル
+    modelSelection: モデル設定
+    audio: 音声設定
+    route: ページ
+    model: キャラクターモデル
+status:
+  sign-in-error: ログインに失敗しました
+  dismiss: 閉じる
+  listening: 聞き取り中
+  preparing: マイクを準備中
+  paused: AIRIの発話中は聞き取りを一時停止
+  transcribing: 文字起こし中
+  hearing-error: 音声を文字起こしできませんでした
+  no-transcript: 認識された音声はここに表示されます。
+  signing-in: ブラウザーでログインを完了してください
+  confirming: ログインを確認中
+  signed-in: ログインしました
+  sign-in-unconfirmed: セッションを確認できませんでした。もう一度ログインしてください。
+  configure-hearing: 設定で聴覚のプロバイダーを選択し、設定してください。
+character-switcher:
+  title: キャラクターを切り替え
+  manage: キャラクターを管理
+  empty: キャラクターはまだいません
+  failed: キャラクターを切り替えられませんでした。もう一度お試しください。
+computer-use:
+  label: コンピューターを操作
+  description: このチャットウィンドウによる、このコンピューター上のネイティブアプリの確認と操作を許可します。

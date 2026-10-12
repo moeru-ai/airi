@@ -31,6 +31,9 @@ pages:
         conflict: 此快捷鍵已被佔用。
         failed: 快捷鍵更新失敗
         requiresModifier: 請至少使用 Cmd、Ctrl、Alt 或 Super 中的一個修飾鍵。
+        requiresHoldModifier: 請使用 Cmd、Ctrl、Alt、Super，或 F13 等功能鍵。僅使用 Shift 並不足夠。
+        denied: AIRI 無法讀取全域按鍵。請在輔助使用設定中允許 AIRI，再試一次。
+        unsupported: 此系統無法偵測何時放開全域快捷鍵。
       toggle-move:
         label: 切換移動狀態
       toggle-resize:
@@ -38,12 +41,22 @@ pages:
       toggle-ignore-mouse-event:
         label: 忽略滑鼠事件
       press-keys: 請按下按鍵...
+      push-to-talk:
+        title: 按住說話快捷鍵
+        description: 在任何應用程式中按住此快捷鍵，即可向 AIRI 說話。點選快捷鍵後按下新的組合鍵。按 Esc 取消。
+        inactive: 此快捷鍵僅在聽覺輸入模式設為按住說話且麥克風已開啟時有效。
     developer:
       sections:
         section:
           use-window-mouse:
             title: 使用視窗滑鼠工具
             description: 測試 Electron 視窗滑鼠游標位置
+    general:
+      hide-app-icon:
+        title: 隱藏工作列／Dock 圖示
+        description: 只在系統匣中顯示 AIRI。使用系統匣選單開啟視窗或結束程式。變更會立即生效。
+        load-error: 無法載入應用程式圖示設定。
+        save-error: 無法更新應用程式圖示設定。
 devtools:
   title: 開發者
   pages:
@@ -420,13 +433,102 @@ devtools:
           playing: 正在播放動作
           ready: '{count} 個取樣 · {duration}'
         import-error: 此檔案不是有效的 AIRI Live2D 動作錄製檔。
+      system-audio:
+        mouth-open: 嘴巴張開
+        title: 系統音訊嘴型同步
+        description: 擷取其他播放器的音訊。同一輸入會驅動節拍同步及 Live2D 嘴部動作。
+        signal: 輸入訊號
+        input-volume-threshold: 輸入音量閾值
+        random-close-delay: 隨機閉嘴延遲
+        random-close-probability: 隨機閉嘴機率
+        actions:
+          start: 開始輸入
+          stop: 停止輸入
+      wave:
+        toggle: 小船模式
     performance-visualizer:
       title: 效能顯示器
       description: 切換 FPS/長任務/記憶體覆蓋
+      overlay:
+        record: 錄製
+        stop: 停止
+        title: 效能
+        export: 匯出最近一次記錄
+        move: 移動效能覆蓋層
+        reset-position: 重設覆蓋層位置
+        average: 平均
+      resource-events:
+        columns:
+          textures: 材質貼圖
+          materials: 材質
+          time: 時間（毫秒）
+          phase: 階段
+          reason: 原因
+          geometries: 幾何體
+          meshes: 網格
+        title: 最近的資源事件
+        description: 最新收到的事件排在最前面。時間以來源渲染程序啟動後的毫秒數表示。
+        empty: 尚未記錄資源事件。請在啟用追蹤時載入或切換 VRM 模型。
+      controls:
+        start-recording: 開始記錄
+        enable-all:
+          label: 啟用所有可用指標
+          description: 啟用此瀏覽器支援的所有指標。
+        stop-recording: 停止記錄（{seconds} 秒）
+        export-last-recording: 匯出最近一次記錄
+      metrics:
+        fps:
+          description: 最近 10 秒的動畫影格率。每個樣本為 1000 除以影格間隔的毫秒數。
+        frame-duration:
+          label: 影格時間（毫秒）
+          description: 最近 10 秒的動畫影格間隔。
+        long-task:
+          label: 長時間工作
+          description: 耗時至少 50 毫秒的主執行緒工作。
+          unsupported: 此瀏覽器未提供長時間工作的計時資訊。
+        memory:
+          label: JS 堆積記憶體（MB）
+          description: 來自 Chromium performance.memory API 的 JavaScript 堆積記憶體使用量。
+          unsupported: 此瀏覽器未提供 JavaScript 堆積記憶體使用量。
+      recording:
+        title: 最近一次記錄
+        duration: 時長 {duration} 毫秒
+        limit: 記錄會在 60 秒後停止。
+      history:
+        title: FPS 歷史記錄
+        latest: 最新
+        minimum: 最小
+        maximum: 最大
+        seconds-ago: -{seconds} 秒
+        end: 0 秒
+        empty: 尚無 FPS 樣本。請啟用 FPS 以收集樣本。
     markdown-stress:
       description: 使用大量聊天負載來進行 Markdown 解析與渲染的壓力測試
+      title: Markdown 壓力測試
     widgets-calling:
       title: 小工具調用
+    presence-bubble:
+      main-window-note: 變更會顯示在 AIRI 主視窗中。
+      thinking:
+        title: 思考
+        description: 顯示圓點。優先於未讀訊息數量。
+      title: 狀態氣泡
+      description: 控制角色上方的氣泡，並在主視窗中觀察
+      override:
+        title: 從此處控制氣泡
+        description: 停用時，舞台只會在聊天輪次執行中顯示氣泡。
+      unread:
+        title: 未讀訊息
+        description: 以頭頂面板顯示，包含標記和數量。
+    editor:
+      title: AIRI 編輯器
+      description: 開啟獨立的 AIRI 編輯器視窗
+      button: 開啟編輯器
+    io-tracer:
+      title: 輸入／輸出追蹤器
+      recording:
+        title: 自動記錄輸入／輸出追蹤
+        description: 將已結束的輸入／輸出區段以 JSON Lines 格式儲存至應用程式資料夾，供程式設計代理分析。超過七天的檔案會被移除。
 screen-capture:
   permissions-prompt:
     title: 螢幕截圖
@@ -435,5 +537,20 @@ screen-capture:
     dismiss: 取消
     instructions:
       step-1: 打開「系統偏好設定」，從側邊欄中選擇「隱私與安全」。
-      step-2: 在「螢幕與系統聲音錄製」以及「系統聲音錄製」區域，開啟 AIRI 的開關。
+      step-2: 在「螢幕與系統錄音」以及「僅限系統錄音」區域，開啟 AIRI 的開關。
       step-2-note: 如果 AIRI 沒有被列出，則請手動按下「+」按鈕並從應用資料夾選擇 AIRI。
+microphone-permission:
+  states:
+    not-determined: 未設定
+    granted: 已允許
+    denied: 已拒絕
+  settings:
+    title: 麥克風
+    description: 控制 AIRI 是否能使用麥克風。重設此選擇會停止目前的麥克風串流，並在下次使用時重新詢問。
+    revoke: 撤銷存取權
+    reset: 重設選擇
+  prompt:
+    title: 允許存取麥克風嗎？
+    description: AIRI 會使用麥克風進行語音輸入及轉錄。此選擇會持續有效，直到你在設定中重設。
+    allow: 允許
+    deny: 拒絕

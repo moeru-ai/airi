@@ -4,6 +4,198 @@ electronCallback:
     openingAiri: 正在打開 AIRI
     signedIn: 您已登入
     signInFailed: 登入失敗
+    finishSignInInAiri: 在 AIRI 中完成登入
+    openAiriToContinue: 開啟 AIRI 以繼續
+  message:
+    checkingResponse: 正在檢查登入回應，準備將登入資訊傳送給 AIRI。
+    passingToAiri: 正在將登入資訊傳送給 AIRI，此頁面即將關閉。
+    syncedAndSafeToClose: 已通知你發起登入的 AIRI 用戶端。
+    invalidResponse: 無法使用此登入回應。
+    loopbackUnreachable: 瀏覽器無法透過本機回呼連接埠連線至 AIRI。
+    tryOpenDirectly: 我們將嘗試直接開啟本機交接連結。如果仍然失敗，請使用下方按鈕。
+    automaticHandoffFailed: 此瀏覽器工作階段未能完成自動交接。
+  label:
+    signIn: 登入
+    safeToClose: 現在可以安全地關閉此分頁。
+    whyStillHere: 為什麼此分頁還沒關閉？
+  action:
+    openAiriManually: 手動開啟 AIRI
+  hint:
+    closeTabManually: 部分瀏覽器不允許此頁面自動關閉，你可以手動關閉。
 webCallback:
   action:
     tryAgain: 再試一次
+  title:
+    signIn: 登入
+    errorLabel: 登入時發生錯誤
+    loading: 正在登入…
+  message:
+    missingCodeOrState: 缺少授權碼或狀態
+    missingFlowState: 缺少 OIDC 流程狀態，請重新登入
+    tokenExchangeFailed: 權杖交換失敗
+    finalizing: 正在完成 AIRI 驗證。
+signIn:
+  title: 登入
+  step:
+    identify:
+      heading: 登入
+      description: 輸入電子郵件地址，以登入或建立帳戶。
+    password:
+      heading: 歡迎回來
+      description: 以 {email} 繼續。
+    create:
+      heading: 建立帳戶
+      description: 我們將為 {email} 建立新帳戶。
+  email:
+    label: 電子郵件
+  password:
+    label: 密碼
+    placeholder: 你的密碼
+  newPassword:
+    label: 建立密碼
+    placeholder: 至少 8 個字元
+  confirmPassword:
+    label: 確認密碼
+    placeholder: 再次輸入密碼
+  name:
+    label: 顯示名稱
+    placeholder: 選填，預設使用電子郵件地址的使用者名稱
+  action:
+    continue: 繼續
+    signIn: 登入
+    createAccount: 建立帳戶
+    forgotPassword: 忘記密碼？
+    useDifferentEmail: 使用其他電子郵件地址
+  divider:
+    or: 或
+  message:
+    redirecting: 正在重新導向至 {provider}…
+  error:
+    fallback: 登入失敗
+    providerTimeout: 服務供應商登入逾時，請再試一次。
+    unknown: 發生未知錯誤
+    socialOnlyNoPassword: 此電子郵件地址是透過 Google 或 GitHub 註冊的。請使用下方按鈕登入，之後可在帳戶設定中新增密碼。
+    passwordMismatch: 密碼與確認密碼不相符。
+    invalidEmail: 請輸入有效的電子郵件地址。
+  footer:
+    prefix: 繼續即表示你同意我們的
+    terms: 條款
+    and: 與
+    privacy: 隱私權政策
+verifyEmail:
+  title:
+    pending: 查看收件匣
+    success: 電子郵件已驗證
+    failed: 驗證失敗
+  message:
+    pending: 我們已寄送驗證連結至你的電子郵件信箱。開啟連結即可完成帳戶建立，點擊後此頁面會自動繼續。
+    pendingWithAddress: 我們已寄送驗證連結至 {email}。開啟連結即可完成帳戶建立，點擊後此頁面會自動繼續。
+    success: 你的電子郵件已驗證，且已登入。現在可以關閉此分頁。
+    failed: 無法驗證你的電子郵件（{error}），請重新索取驗證連結。
+  action:
+    backToSignIn: 返回登入
+forgotPassword:
+  title: 重設密碼
+  description: 輸入帳戶使用的電子郵件地址，我們會寄送密碼重設連結。
+  email:
+    label: 電子郵件
+  action:
+    send: 寄送重設連結
+    backToSignIn: 返回登入
+  message:
+    sent: 如果 {email} 對應到現有帳戶，重設連結將寄送至該信箱。
+  error:
+    fallback: 無法寄送密碼重設郵件。
+deleteAccount:
+  title:
+    success: 帳戶已刪除
+    failed: 無法刪除帳戶
+  message:
+    success: 你的帳戶已刪除。
+  action:
+    closeTab: 你可以關閉此分頁。
+resetPassword:
+  title:
+    default: 設定新密碼
+    success: 密碼已更新
+  password:
+    label: 新密碼
+    placeholder: 至少 8 個字元
+  confirmPassword:
+    label: 確認新密碼
+    placeholder: 再次輸入新密碼
+  action:
+    reset: 更新密碼
+    goSignIn: 前往登入
+  message:
+    success: 你的密碼已更新，請使用新密碼登入。
+  error:
+    fallback: 無法更新密碼。
+    missingToken: 重設連結無效或已過期。
+    passwordMismatch: 密碼與確認密碼不相符。
+profile:
+  title: 帳戶個人資料
+  description: 管理頭像、顯示名稱與已連結的帳戶。
+  section:
+    profile: 個人資料
+    avatar: 頭像
+    password: 密碼
+    linkedAccounts: 已連結的帳戶
+  field:
+    email: 電子郵件
+    emailVerified: 電子郵件狀態
+    createdAt: 加入日期
+  label:
+    verified: 已驗證
+    unverified: 未驗證
+  name:
+    label: 顯示名稱
+    placeholder: 其他人看到的名稱
+  avatar:
+    altText: 個人資料頭像
+    gravatarNotice: 頭像由 Gravatar 提供。
+    gravatarLink: 前往 gravatar.com 管理
+  password:
+    currentLabel: 目前密碼
+    currentPlaceholder: 輸入目前的密碼
+    newLabel: 新密碼
+    newPlaceholder: 至少 8 個字元
+    confirmLabel: 確認新密碼
+    confirmPlaceholder: 再次輸入新密碼
+    setDescription: 你透過第三方服務登入，尚未設定密碼。我們會寄送安全連結，讓你設定密碼。
+    setLinkSent: 請查看 {email} 中的密碼設定連結。
+    setLinkFailed: 無法寄送密碼設定連結。
+  linkedAccounts:
+    description: 透過這些服務供應商登入 AIRI。解除連結可撤銷存取權，再次連結可改用其他帳戶。
+    status:
+      linked: 已連結
+      notLinked: 未連結
+      linkedSince: 連結日期：{date}
+    action:
+      link: 連結
+      unlink: 解除連結
+    message:
+      loading: 正在載入已連結的帳戶…
+      unlinked: 已中斷 {provider} 的連結。
+      linkStarted: 正在重新導向至 {provider}…
+    error:
+      listFailed: 無法載入已連結的帳戶。
+      unlinkFailed: 無法解除此帳戶的連結。
+      linkFailed: 無法開始連結流程。
+      lastAccount: 這是你唯一的登入方式。解除連結前，請先設定密碼。
+  action:
+    saveProfile: 儲存變更
+    changePassword: 變更密碼
+    sendSetPasswordLink: 寄送設定密碼的連結給我
+    signOut: 登出
+  message:
+    loading: 正在載入個人資料…
+    profileSaved: 個人資料已更新。
+    passwordChanged: 密碼已變更，其他工作階段已登出。
+  error:
+    loadFailed: 無法載入個人資料。
+    saveFailed: 無法儲存你的變更。
+    changePasswordFailed: 無法變更密碼。
+    signOutFailed: 無法登出。
+    passwordMismatch: 新密碼與確認密碼不相符。
+    passwordSameAsCurrent: 新密碼必須與目前密碼不同。
