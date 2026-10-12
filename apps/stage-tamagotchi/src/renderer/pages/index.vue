@@ -27,23 +27,23 @@ import { useFeatureFlagsStore } from '@proj-airi/stage-ui/stores/feature-flags'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useVoiceStore } from '@proj-airi/stage-ui/stores/voice'
-import { refDebounced, useElementBounding, useLocalStorage, useWindowSize } from '@vueuse/core'
+import { refDebounced } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, onMounted, onUnmounted, provide, ref, shallowRef, toRef, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
-import FullscreenIsland from '../components/fullscreen/fullscreen-island.vue'
+import FullscreenBackdrop from '../components/fullscreen/fullscreen-backdrop.vue'
+import FullscreenOverlay from '../components/fullscreen/fullscreen-overlay.vue'
 import AuthStatusIsland from '../components/stage-islands/auth-status-island.vue'
 import ControlsIslandRoot from '../components/stage-islands/controls-island/controls-island-root.vue'
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
 
 import { electronAppIsWayland, electronMainWindowCloseFullscreen, electronMainWindowEnterFullscreen, electronMainWindowExitFullscreen, electronMainWindowGetFullscreenState, electronMainWindowOpenFullscreen, electronMainWindowSetFullscreenBounds, electronMainWindowSetFullscreenEnabled, electronOpenInlay, electronOpenOnboarding, electronOpenSettings } from '../../shared/eventa'
-import { fullscreenPanelKey } from '../components/fullscreen/panel'
-import { fullscreenSurfaceOf, fullscreenSurfaces } from '../components/fullscreen/surfaces'
+import { fullscreenSurfaceOf } from '../components/fullscreen/surfaces'
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
+import { provideFullscreenLayout } from '../composables/use-fullscreen-layout'
 import { useScreenAmbientLight } from '../composables/use-screen-ambient-light'
 import { stageOpaqueAttribute } from '../composables/use-stage-painted-mask'
 import { useControlsIslandStore } from '../stores/controls-island'
@@ -284,10 +284,8 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
 })
 
 const fullscreen = useMainWindowFullscreenStore()
-const { phase: fullscreenPhase, active: fullscreenActive, surface: fullscreenSurface, mounted: mountedSurfaces } = storeToRefs(fullscreen)
+const { phase: fullscreenPhase, active: fullscreenActive } = storeToRefs(fullscreen)
 const router = useRouter()
-// The settings layout draws the panel content instead of the settings window frame when it shows here.
-provide(fullscreenPanelKey, true)
 const eventaContext = useElectronEventaContext()
 // Every settings entry point and the fullscreen chat mode ask the main process, which forwards the request here.
 const stopOpenFullscreenListener = eventaContext.value.on(electronMainWindowOpenFullscreen, (event) => {
@@ -364,80 +362,18 @@ const FULLSCREEN_MOTION = {
   width: { duration: 500, curve: [0.33, 1, 0.68, 1] },
   close: { duration: 400, curve: [0.34, 1.1, 0.64, 1] },
 } satisfies Record<string, FullscreenMotion>
-/** The share of the work area width that the stage takes on the left. The surface takes the rest on the right. */
-const FULLSCREEN_STAGE_SHARE = 0.42
-/** The share of the work area width that the surface takes until the user drags its edge. */
-const FULLSCREEN_SURFACE_SHARE = 0.54
-/** The narrowest surface: the width of the settings window, which settings pages are laid out for. */
-const FULLSCREEN_SURFACE_MIN_WIDTH = 600
-/** The space between the surface and the top and right edges of the screen. */
-const FULLSCREEN_SURFACE_MARGIN = 24
-
-const { t } = useI18n()
-const { width: windowWidth } = useWindowSize()
-/** The surface width that the user chose by dragging its edge. `0` keeps the default share. */
-const surfaceWidthChoice = useLocalStorage('main-window-fullscreen/surface-width', 0)
-/** The drag of the surface edge: the pointer, where it started, and the width it gives now. */
-const surfaceDrag = shallowRef<{ pointerId: number, startX: number, startWidth: number, width: number }>()
-const fullscreenIslandElement = ref<HTMLElement>()
-const surfaceHandleElement = ref<HTMLElement>()
-const islandBounds = useElementBounding(fullscreenIslandElement)
-
-/**
- * Keeps a surface width in an area of `areaWidth` from the settings window width to the island, with the island's
- * margin left between them. The page still has the small window's size when the open transition starts, so the
- * caller gives the area width.
- */
-function clampSurfaceWidth(width: number, areaWidth: number) {
-  const islandRight = islandBounds.right.value
-  const widest = islandRight ? areaWidth - FULLSCREEN_SURFACE_MARGIN - islandRight - islandBounds.left.value : Infinity
-  return Math.round(Math.min(Math.max(width, FULLSCREEN_SURFACE_MIN_WIDTH), widest))
-}
-
-/** The surface width in an area of `areaWidth`: the dragged or chosen width, or the default share. */
-function surfaceWidthIn(areaWidth: number) {
-  const chosen = surfaceDrag.value?.width ?? surfaceWidthChoice.value
-  return clampSurfaceWidth(chosen || areaWidth * FULLSCREEN_SURFACE_SHARE, areaWidth)
-}
-
-/** The character moves by half of the change of the surface width, so it stays centered in the space beside it. */
-function stageOffsetIn(areaWidth: number) {
-  return (clampSurfaceWidth(areaWidth * FULLSCREEN_SURFACE_SHARE, areaWidth) - surfaceWidthIn(areaWidth)) / 2
-}
-
-const surfaceWidth = computed(() => surfaceWidthIn(windowWidth.value))
+/** The surface width, its drag, and the place of the stage beside the surface. The overlay reads the same layout. */
+const fullscreenLayout = provideFullscreenLayout()
 
 // The canvas keeps its size while the surface width changes, and the open stage follows by moving at once. A change
 // during a transition waits, because it would cut the transition that the mode waits for.
-watch(() => stageOffsetIn(windowWidth.value), (offsetX) => {
+watch(fullscreenLayout.stageOffset, (offsetX) => {
   if (fullscreenPhase.value === 'open' && !fullscreenMotion.value && stageLayout.value)
     stageLayout.value = { ...stageLayout.value, offsetX }
 })
 
-function startSurfaceDrag(event: PointerEvent) {
-  surfaceHandleElement.value?.setPointerCapture(event.pointerId)
-  surfaceDrag.value = { pointerId: event.pointerId, startX: event.clientX, startWidth: surfaceWidth.value, width: surfaceWidth.value }
-}
-
-function moveSurfaceDrag(event: PointerEvent) {
-  const drag = surfaceDrag.value
-  if (drag?.pointerId !== event.pointerId)
-    return
-  // The surface sits on the right, so moving its left edge to the left widens it.
-  surfaceDrag.value = { ...drag, width: clampSurfaceWidth(drag.startWidth + drag.startX - event.clientX, windowWidth.value) }
-}
-
-/** Ends a drag and keeps the width it gave, so the next fullscreen mode opens with it. */
-function endSurfaceDrag(event: PointerEvent) {
-  const drag = surfaceDrag.value
-  if (drag?.pointerId !== event.pointerId)
-    return
-  surfaceWidthChoice.value = drag.width
-  surfaceDrag.value = undefined
-}
-
 function planFor(home: StageLayoutBounds, workArea: StageLayoutBounds) {
-  return { home, workArea, stage: { width: Math.round(workArea.width * FULLSCREEN_STAGE_SHARE), height: workArea.height } }
+  return { home, workArea, stage: fullscreenLayout.stageSizeIn(workArea) }
 }
 
 /** The CSS transitions of `parts` in the current direction, and none while nothing moves. */
@@ -525,9 +461,9 @@ async function expandToFullscreen() {
 
     commitFullscreenLayout()
     // The island mounted with the area. Its place limits the surface width, so the stage reads it before it moves.
-    islandBounds.update()
+    fullscreenLayout.measureIsland()
     fullscreenMotion.value = 'open'
-    stageLayout.value = { ...plan.stage, scale: 1, offsetX: stageOffsetIn(workArea.width) }
+    stageLayout.value = { ...plan.stage, scale: 1, offsetX: fullscreenLayout.stageOffsetIn(workArea.width) }
     fullscreenArea.value = { width: workArea.width, height: workArea.height }
     await Promise.all([
       setFullscreenWindowBounds({ bounds: workArea, duration: height.duration, curve: height.curve }),
@@ -536,7 +472,7 @@ async function expandToFullscreen() {
     // Nothing moves now, so the stage follows a drag of the surface edge at once. It also takes the width of a drag
     // that ended during the transition.
     fullscreenMotion.value = false
-    stageLayout.value = { ...plan.stage, scale: 1, offsetX: stageOffsetIn(workArea.width) }
+    stageLayout.value = { ...plan.stage, scale: 1, offsetX: fullscreenLayout.stageOffsetIn(workArea.width) }
     fullscreen.settle('open')
   }
   catch (error) {
@@ -617,7 +553,7 @@ async function resumeFullscreen() {
     const plan = planFor(state.home, state.workArea)
     fullscreenPlan = plan
     fullscreenMotion.value = false
-    stageLayout.value = { ...plan.stage, scale: 1, offsetX: stageOffsetIn(plan.workArea.width) }
+    stageLayout.value = { ...plan.stage, scale: 1, offsetX: fullscreenLayout.stageOffsetIn(plan.workArea.width) }
     fullscreenArea.value = { width: plan.workArea.width, height: plan.workArea.height }
     await setFullscreenWindowBounds({ bounds: plan.workArea })
     await fullscreen.resume(state.surface ?? 'settings')
@@ -913,62 +849,14 @@ const cursorPosition = computed(() => ({
     :style="fullscreenAreaStyle"
     :class="['fixed left-0 top-0 z-1 overflow-hidden']"
   >
-    <div :class="['absolute bottom-0 left-0 h-screen w-screen', 'bg-neutral-100 dark:bg-neutral-900']" />
+    <FullscreenBackdrop />
   </div>
   <div
     v-if="fullscreenAreaStyle"
     :style="fullscreenAreaStyle"
     :class="['pointer-events-none fixed left-0 top-0 z-3 overflow-hidden']"
   >
-    <div :class="['absolute bottom-0 left-0 h-screen w-screen']">
-      <div ref="fullscreenIslandElement" :class="['pointer-events-auto absolute left-6 top-1/2 -translate-y-1/2']">
-        <FullscreenIsland />
-      </div>
-      <div
-        :style="{ width: `${surfaceWidth}px`, top: `${FULLSCREEN_SURFACE_MARGIN}px`, right: `${FULLSCREEN_SURFACE_MARGIN}px` }"
-        :class="['pointer-events-auto absolute bottom-0']"
-      >
-        <!-- The surface is a sheet that meets the bottom edge of the screen. It keeps a margin at the top and the right. -->
-        <div
-          :class="[
-            'h-full w-full',
-            'rounded-t-3xl',
-            'bg-$bg-color',
-            'overflow-hidden',
-          ]"
-        >
-          <!-- Each surface that showed stays mounted until the mode closes, so switching back finds it as it was. -->
-          <div v-for="id in mountedSurfaces" v-show="id === fullscreenSurface" :key="id" :class="['h-full w-full']">
-            <component :is="fullscreenSurfaces[id].panel" />
-          </div>
-        </div>
-        <!-- The handle sits on the left edge of the surface, outside its clipped corners. -->
-        <div
-          ref="surfaceHandleElement"
-          role="separator"
-          aria-orientation="vertical"
-          :aria-label="t('tamagotchi.stage.fullscreen-surface.resize')"
-          :class="[
-            'group absolute inset-y-0 -left-3 w-3',
-            'flex items-center justify-center',
-            'cursor-col-resize touch-none',
-          ]"
-          @pointerdown="startSurfaceDrag"
-          @pointermove="moveSurfaceDrag"
-          @pointerup="endSurfaceDrag"
-          @pointercancel="endSurfaceDrag"
-        >
-          <div
-            :class="[
-              'h-12 w-1 rounded-full',
-              'bg-neutral-300 dark:bg-neutral-700',
-              'transition-opacity duration-200',
-              surfaceDrag ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
-            ]"
-          />
-        </div>
-      </div>
-    </div>
+    <FullscreenOverlay />
   </div>
 </template>
 
