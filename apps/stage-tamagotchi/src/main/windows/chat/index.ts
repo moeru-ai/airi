@@ -259,10 +259,13 @@ export function setupChatWindowManager(params: {
   const fullscreenHost = () => [...fullscreenHosts].find(host => host.isActive())
   /** Whether a host keeps the chat mounted, shown or hidden, so it has a composer to collect the draft from. */
   const hasChat = (host: FullscreenChatHost | undefined) => !!host?.mounted().includes('chat')
-  /** Ends the fullscreen mode of the active host, once the chat has moved to the window of another chat mode. */
+  /**
+   * Ends the fullscreen mode of the active host, once the chat has moved to the window of another chat mode. A host
+   * that shows no chat, such as one that only shows settings, is not a chat window, so it stays open.
+   */
   function closeFullscreenChat() {
     const host = fullscreenHost()
-    if (host && !host.window.isDestroyed())
+    if (host && hasChat(host) && !host.window.isDestroyed())
       host.context.emit(electronFullscreenClose, undefined)
   }
 
