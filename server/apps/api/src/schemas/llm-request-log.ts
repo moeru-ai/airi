@@ -35,6 +35,8 @@ export const llmRequestLog = pgTable('llm_request_log', {
   providerMetadata: jsonb('provider_metadata'),
   prompt: jsonb('prompt'),
   completion: jsonb('completion'),
+  /** Tool calls that the model requested in `completion`. Null means that the row has no readable completion. */
+  toolCallCount: integer('tool_call_count'),
   errorBody: jsonb('error_body'),
   attemptId: text('attempt_id'),
   interactionId: text('interaction_id'),

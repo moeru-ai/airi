@@ -9,6 +9,7 @@ import { llmRequestAttempt } from '../../schemas/llm-request-attempt'
 import { nanoid } from '../../utils/id'
 import { generationObservationSchema } from './generation-observation'
 import { attemptResultSchema, attemptStartSchema } from './llm-router/attempt'
+import { countToolCalls } from './tool-calls'
 
 import * as schema from '../../schemas/llm-request-log'
 
@@ -61,7 +62,9 @@ export function createRequestLogService(db: Database) {
       const observation = parse(generationObservationSchema, entry)
       const table = schema.llmRequestLog
       const state = observation.state ?? (observation.status === 499 ? 'cancelled' : observation.status >= 200 && observation.status < 300 ? 'completed' : 'failed')
-      const summary = { ...observation, state, endedAt: new Date() }
+      // The count is derived here, so no caller can store a count that differs from the stored completion.
+      const toolCallCount = observation.completion ? countToolCalls(observation.completion) : undefined
+      const summary = { ...observation, toolCallCount, state, endedAt: new Date() }
       await db.insert(table).values(summary).onConflictDoUpdate({
         target: [table.userId, table.requestId],
         targetWhere: sql`request_id IS NOT NULL`,

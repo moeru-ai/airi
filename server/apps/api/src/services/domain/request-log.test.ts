@@ -96,6 +96,20 @@ describe('request log and billing ownership', () => {
     expect(detail.attempts[0]).toMatchObject({ status: 200, state: status === 499 ? 'cancelled' : 'failed' })
   })
 
+  it('stores the tool call count of the completion, and none without a readable completion', async () => {
+    const logs = createRequestLogService(db)
+    const completion = captureRequestContent({ choices: [{ message: { tool_calls: [{ id: 'a' }, { id: 'b' }] } }] })
+    await logs.logRequest({ ...observation, completion })
+    await logs.logRequest({ ...observation, requestId: 'request-answer', completion: captureRequestContent({ choices: [{ message: { content: 'Answer' } }] }) })
+    await logs.logRequest({ ...observation, requestId: 'request-empty' })
+    const rows = await db.select({ requestId: llmRequestLog.requestId, toolCallCount: llmRequestLog.toolCallCount }).from(llmRequestLog)
+    expect(Object.fromEntries(rows.map(row => [row.requestId, row.toolCallCount]))).toEqual({
+      'request-1': 2,
+      'request-answer': 0,
+      'request-empty': null,
+    })
+  })
+
   it('marks stale calls unknown without inventing cost or end times', async () => {
     const logs = createRequestLogService(db)
     await logs.beginRequest(observation)

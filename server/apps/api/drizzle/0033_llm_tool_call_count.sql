@@ -1,0 +1,1 @@
+ALTER TABLE "llm_request_log" ADD COLUMN "tool_call_count" integer;
