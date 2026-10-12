@@ -25,6 +25,7 @@ const route = useRoute()
 const router = useRouter()
 const {
   trackAccountDeletionRequested,
+  trackAccountDeletionCompleted,
   trackOauthProviderLinkStarted,
   trackOauthProviderUnlinked,
   trackPasswordChanged,
@@ -400,6 +401,7 @@ async function handleConfirmDelete(event: Event) {
   deleteLoading.value = true
 
   try {
+    trackAccountDeletionRequested()
     const { data, error } = await authClient.$fetch<{ success: boolean }, { code?: string }>('/delete-account', {
       method: 'POST',
       body: { confirm: true },
@@ -420,7 +422,7 @@ async function handleConfirmDelete(event: Event) {
     if (error || data?.success !== true)
       throw new Error('Account deletion failed')
 
-    trackAccountDeletionRequested()
+    trackAccountDeletionCompleted()
     await authStore.clearAllAuthState()
     accountDeleted.value = authStore.sessionVersion === version + 1 && !authStore.isAuthenticated
   }
@@ -870,6 +872,7 @@ async function handleConfirmDelete(event: Event) {
           <DialogRoot v-model:open="deleteDialogOpen">
             <DialogPortal>
               <DialogOverlay
+                data-testid="account-deletion-overlay"
                 :class="[
                   'fixed inset-0 z-9999 bg-black/50 backdrop-blur-sm',
                   'data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn',
@@ -883,6 +886,8 @@ async function handleConfirmDelete(event: Event) {
                   'p-6 shadow-xl outline-none',
                   'data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow',
                 ]"
+                @escape-key-down="deleteLoading && $event.preventDefault()"
+                @pointer-down-outside="deleteLoading && $event.preventDefault()"
               >
                 <DialogTitle :class="['text-lg font-semibold text-red-600 dark:text-red-400 mb-2']">
                   {{ t('settings.pages.account.danger.deleteAccount.modal.title') }}

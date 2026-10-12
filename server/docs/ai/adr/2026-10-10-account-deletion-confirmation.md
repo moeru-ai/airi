@@ -108,6 +108,8 @@ The shared account page uses the same confirmation flow for every provider. The 
 Explicit sign-in requests use `prompt=login` to bypass silent reuse of the Auth browser session.
 The hosted login page requires credential or provider authentication before it resumes authorization.
 The endpoint checks the persisted session creation time, never JWT issue time.
+While deletion is pending, the dialog blocks Cancel, Escape, and outside clicks so the client can handle the server result.
+Requested and completed analytics events run before the request and after confirmed success, respectively, under the existing analytics consent.
 After reauthentication, users must reopen deletion and confirm again. No deletion intent survives account changes or navigation.
 This proves recent AIRI sign-in, not a guarantee that every external provider requests a password or MFA.
 Cooldown and account recovery remain out of scope.
