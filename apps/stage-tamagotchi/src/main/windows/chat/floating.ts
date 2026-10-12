@@ -282,7 +282,9 @@ export function setupFloatingChatWindow(params: {
    */
   function attachToMain(target: BrowserWindow) {
     const main = params.getMainWindow()
-    if (!main || main.isDestroyed())
+    // A covered chat stays apart from the main window. A child window shows again with its parent, and an attached
+    // chat follows the main window over the display.
+    if (!main || main.isDestroyed() || covered)
       return
 
     const follow = () => followMain(main, target)
@@ -510,6 +512,9 @@ export function setupFloatingChatWindow(params: {
     const target = await reusable.getWindow()
     setFolded(false)
     emitState()
+    // The chat shows once the main window stops covering the display.
+    if (covered)
+      return
 
     if (target.isMinimized())
       target.restore()
@@ -555,6 +560,8 @@ export function setupFloatingChatWindow(params: {
       const window = reusable.getOpenWindow()
       if (!window)
         return
+      // The placement leaves the main window while it covers the display, and comes back to it after.
+      applyPlacementTo(window)
       if (value)
         window.hide()
       else if (!folded)
