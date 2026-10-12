@@ -10,7 +10,7 @@ import { parse } from 'valibot'
 import { computed, onScopeDispose, shallowRef, watch } from 'vue'
 
 import { useCloudFetch } from '../composables/cloud'
-import { featureFlagPreferencesSchema, featureFlagResponseSchema, featureFlagVariantPreferencesSchema, offeredFeatureFlags, resolveFeatureFlag } from '../libs/feature-flags'
+import { featureFlagPreferencesSchema, featureFlagResponseSchema, featureFlagVariantPreferencesSchema, offeredFeatureFlags, resolveFeatureFlag, resolveFeatureVariant } from '../libs/feature-flags'
 import { useAuthStore } from './auth'
 
 /** Owns device preferences and a non-persisted policy snapshot for the current account. */
@@ -47,11 +47,7 @@ export const useFeatureFlagsStore = defineStore('feature-flags', () => {
 
   /** The variant of a feature: the saved one while the feature still offers it, otherwise the first one. */
   function variantOf(key: string): string | undefined {
-    const options = offered.find(feature => feature.key === key)?.variants?.options
-    if (!options?.length)
-      return undefined
-    const saved = variantPreferences.value[key]
-    return options.some(option => option.value === saved) ? saved : options[0].value
+    return resolveFeatureVariant(offered.find(feature => feature.key === key), variantPreferences.value[key])
   }
 
   /** Saves the variant of a feature. A value that the feature does not offer changes nothing. */

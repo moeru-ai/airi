@@ -77,6 +77,14 @@ export const FULLSCREEN_WORKSPACE_FLAG = {
 /** Only implemented experiments belong here. An empty catalog produces an empty settings page. */
 export const featureFlags: readonly FeatureFlag[] = [CHARACTER_CARD_SYNC_FLAG, FULLSCREEN_WORKSPACE_FLAG]
 
+/** The variant of a feature: the saved one while the feature still offers it, otherwise the first one. */
+export function resolveFeatureVariant(feature: FeatureFlag | undefined, saved: string | undefined): string | undefined {
+  const options = feature?.variants?.options
+  if (!options?.length)
+    return undefined
+  return options.some(option => option.value === saved) ? saved : options[0].value
+}
+
 /** The experiments that an app offers. An app other than the desktop app leaves out the desktop-only ones. */
 export function offeredFeatureFlags(desktop: boolean): readonly FeatureFlag[] {
   return featureFlags.filter(feature => desktop || !feature.desktopOnly)

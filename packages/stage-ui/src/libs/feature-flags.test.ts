@@ -3,7 +3,7 @@ import type { FeatureFlag } from './feature-flags'
 import { parse } from 'valibot'
 import { describe, expect, it } from 'vitest'
 
-import { CHARACTER_CARD_SYNC_FLAG, featureFlagResponseSchema, featureFlags, FULLSCREEN_WORKSPACE_FLAG, offeredFeatureFlags, resolveFeatureFlag } from './feature-flags'
+import { CHARACTER_CARD_SYNC_FLAG, featureFlagResponseSchema, featureFlags, FULLSCREEN_WORKSPACE_FLAG, offeredFeatureFlags, resolveFeatureFlag, resolveFeatureVariant } from './feature-flags'
 
 const feature: FeatureFlag = { key: 'test-feature', titleKey: 'test.title', descriptionKey: 'test.description', defaultEnabled: false, availability: 'local' }
 
@@ -73,5 +73,13 @@ describe('feature flag decisions', () => {
     expect(offeredFeatureFlags(true)).toContain(FULLSCREEN_WORKSPACE_FLAG)
     expect(offeredFeatureFlags(false)).not.toContain(FULLSCREEN_WORKSPACE_FLAG)
     expect(offeredFeatureFlags(false)).toContain(CHARACTER_CARD_SYNC_FLAG)
+  })
+
+  // A device can keep a choice that a later version no longer offers. The feature then runs its first variant.
+  it('resolves the saved variant, and falls back to the first one for a missing or unknown choice', () => {
+    expect(resolveFeatureVariant(FULLSCREEN_WORKSPACE_FLAG, 'multi-window')).toBe('multi-window')
+    expect(resolveFeatureVariant(FULLSCREEN_WORKSPACE_FLAG, undefined)).toBe('single-window')
+    expect(resolveFeatureVariant(FULLSCREEN_WORKSPACE_FLAG, 'removed-mode')).toBe('single-window')
+    expect(resolveFeatureVariant(CHARACTER_CARD_SYNC_FLAG, 'multi-window')).toBeUndefined()
   })
 })

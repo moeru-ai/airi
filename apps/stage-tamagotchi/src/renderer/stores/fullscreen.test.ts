@@ -1,12 +1,14 @@
 import type { RouteRecordRaw } from 'vue-router'
 
+import type { FullscreenHost } from '../window-context'
+
 import { createPinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, defineComponent } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 import { electronFullscreenSurfaceChanged } from '../../shared/eventa'
-import { nestFullscreenSurfaces } from '../components/fullscreen/surfaces'
+import { fullscreenHostPages, nestFullscreenSurfaces } from '../components/fullscreen/surfaces'
 import { useFullscreenStore } from './fullscreen'
 
 const mocks = vi.hoisted(() => ({
@@ -24,10 +26,14 @@ vi.mock('@proj-airi/electron-vueuse', () => ({
 
 const Page = defineComponent({ render: () => null })
 
-/** The app routes after `setupLayouts`: the main page in the stage layout, and settings pages in the settings layout. */
+/**
+ * The app routes after `setupLayouts`: the main page and the page of the `multi-window` mode in the stage layout, and
+ * settings pages in the settings layout.
+ */
 function appRoutes(): RouteRecordRaw[] {
   return [
     { path: '/', component: Page, children: [{ path: '/', component: Page }] },
+    { path: '/workspace', component: Page, children: [{ path: '', component: Page }] },
     {
       path: '/settings',
       children: [
@@ -39,14 +45,16 @@ function appRoutes(): RouteRecordRaw[] {
   ]
 }
 
-/** The main window page: the store inside an app whose router nests the settings under the main page. */
-async function setup(options: { startAt?: string } = {}) {
-  const router = createRouter({ history: createMemoryHistory(), routes: nestFullscreenSurfaces(appRoutes(), 'main-window') })
-  await router.push(options.startAt ?? '/')
+/** A host page: the store inside an app whose router nests the settings under the page of the host. */
+async function setup(options: { startAt?: string, host?: FullscreenHost } = {}) {
+  const host = options.host ?? 'main-window'
+  const router = createRouter({ history: createMemoryHistory(), routes: nestFullscreenSurfaces(appRoutes(), host) })
+  await router.push(options.startAt ?? fullscreenHostPages[host])
   const app = createApp(Page)
   app.use(router)
   app.use(createPinia())
   const fullscreen = app.runWithContext(() => useFullscreenStore())
+  fullscreen.home = fullscreenHostPages[host]
   return { router, fullscreen }
 }
 
@@ -145,5 +153,25 @@ describe('main window fullscreen store', () => {
 
     expect(fullscreen.phase).toBe('open')
     expect(router.currentRoute.value.path).toBe('/settings/airi-card')
+  })
+
+  // The window of the `multi-window` mode shows the same settings pages, with its own page kept under them.
+  it('nests the settings under the page of the window that hosts the mode', async () => {
+    const { router } = await setup({ host: 'workspace-window' })
+
+    expect(router.resolve('/settings/airi-card').matched.slice(0, 2).map(record => record.path)).toEqual(['/workspace', '/workspace'])
+    expect(router.resolve('/').matched.map(record => record.path)).toEqual(['/', '/'])
+  })
+
+  // Closing leaves the settings pages for the page of the host, so that window keeps its own page.
+  it('returns to the page of the host when the mode closes', async () => {
+    const { router, fullscreen } = await setup({ host: 'workspace-window' })
+    await fullscreen.open('settings', '/settings/airi-card')
+    fullscreen.settle('open')
+
+    await fullscreen.close()
+
+    expect(router.currentRoute.value.path).toBe('/workspace')
+    expect(fullscreen.phase).toBe('closing')
   })
 })
