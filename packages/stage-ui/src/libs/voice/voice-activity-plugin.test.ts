@@ -15,6 +15,7 @@ it('uses ordered VAD signals to capture, stream transcription, and submit to the
   const submit = vi.fn(async () => ({ status: 'committed' as const, messageId: 'accepted' }))
   let sessionId = 'alice'
   let attempt: SpeechInputAttempt | undefined
+  const activity = vi.fn()
   const controller = new VoiceController({ audio, submit, transcriber: () => ({
     transcribe: (request) => {
       const media = request.audio
@@ -31,6 +32,7 @@ it('uses ordered VAD signals to capture, stream transcription, and submit to the
     detect: async window => window.channels[0][0],
     target: () => ({ sessionId, interruptTurns: [] }),
     onInput: () => { attempt = controller.activeInput },
+    onActivity: activity,
     minSpeechMs: 32,
     silenceMs: 64,
   }), { grants: ['input-control', 'cancel-input'] })
@@ -42,6 +44,12 @@ it('uses ordered VAD signals to capture, stream transcription, and submit to the
   expect(await attempt!.done).toEqual({ status: 'committed', messageId: 'accepted' })
   expect(received).toHaveLength(96)
   expect(submit).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 'alice', text: 'Hello' }), expect.any(AbortSignal))
+  // Each noted window reaches the host trace in order.
+  expect(activity.mock.calls.map(([event]) => [event.inputId, event.speech, event.durationMs])).toEqual([
+    [attempt!.id, true, 32],
+    [attempt!.id, false, 32],
+    [attempt!.id, false, 32],
+  ])
   await controller.close()
 })
 

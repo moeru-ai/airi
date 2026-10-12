@@ -97,6 +97,9 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
             turnsByTraceId.delete(evicted.id)
         }
       }
+      // Spans arrive when they end, so a child, such as a VAD segment, can arrive before the span that starts the turn.
+      if (startMs < turn.startTs)
+        turn.startTs = startMs
       return turn
     }
 

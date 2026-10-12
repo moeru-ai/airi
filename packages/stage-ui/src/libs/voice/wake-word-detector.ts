@@ -28,8 +28,11 @@ export interface WakeWordDetectorOptions {
   readonly modelId: string
   /** Creates a spotter Worker. Initialization requires at least one keyword. The detector owns and disposes the result. */
   readonly createSpotter: (keywords: readonly KeywordEntry[]) => Promise<KeywordSpotter>
-  /** Selects the character session after a match. The signal aborts when the observed audio window is abandoned. */
-  readonly resolveTarget: (characterId: string, signal: AbortSignal) => Promise<WakeTarget>
+  /**
+   * Selects the character session after a match. The signal aborts when the observed audio window is abandoned.
+   * `pronunciation` is the matched catalog entry, so the caller can trace which word woke the character.
+   */
+  readonly resolveTarget: (characterId: string, signal: AbortSignal, pronunciation: WakePronunciation) => Promise<WakeTarget>
   readonly onPreparationChange?: (preparation: WakeWordPreparation, error?: string) => void
   /** Receives a failure to select the target session. Recognition continues with the next window. */
   readonly onError?: (error: unknown) => void
@@ -378,7 +381,7 @@ export class WakeWordDetector {
   private async resolveWake(pronunciation: WakePronunciation, generation: number) {
     const signal = this.lifetime.signal
     try {
-      const target = await this.options.resolveTarget(pronunciation.characterId, signal)
+      const target = await this.options.resolveTarget(pronunciation.characterId, signal, pronunciation)
       if (generation === this.generation && !signal.aborted)
         this.wake = target
     }

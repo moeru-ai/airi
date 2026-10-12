@@ -13,6 +13,7 @@ import { useVoiceController } from '../composables/audio/voice-controller'
 import { traceSpeechOutput } from '../composables/speech-output-trace'
 import { useVoiceDrafts } from '../composables/voice-drafts'
 import { useVoiceEndJudge } from '../composables/voice-end-judge'
+import { createVoiceInputTracer } from '../composables/voice-input-trace'
 import { useVoiceRephrase } from '../composables/voice-rephrase'
 import { observeInputLevel } from '../libs/voice/input-level'
 import { createVoiceActivityPlugin } from '../libs/voice/voice-activity-plugin'
@@ -111,8 +112,20 @@ export const useVoiceStore = defineStore('voice', () => {
     console.error('[voice]', cause)
   }
 
+  const inputTracer = createVoiceInputTracer()
+  /** Set by a control just before it begins an input, so the trace names the trigger. */
+  let beginningFromControl = false
+
   controller.onInput((attempt) => {
     presentedInput = { requestId: attempt.id, attempt }
+    // A control begins inputs itself. Any other input comes from the voice activity plugin: a wake that resolved on
+    // the same window starts the input after a wake word, and speech alone starts the rest.
+    if (beginningFromControl) {
+      inputTracer.start(attempt, 'control')
+      return
+    }
+    const wake = wakeWordDetection.claimWakeSpan()
+    inputTracer.start(attempt, wake ? 'wake-word' : 'speech', wake)
   })
 
   function publishSnapshot() {
@@ -149,7 +162,13 @@ export const useVoiceStore = defineStore('voice', () => {
   }
 
   function beginManual(sessionId: string) {
-    return beginInput({ sessionId, interruptTurns: activeTurns.value.filter(turn => turn.sessionId === sessionId), start: { kind: 'after-silence' } })
+    beginningFromControl = true
+    try {
+      return beginInput({ sessionId, interruptTurns: activeTurns.value.filter(turn => turn.sessionId === sessionId), start: { kind: 'after-silence' } })
+    }
+    finally {
+      beginningFromControl = false
+    }
   }
 
   function endInput() {
@@ -442,6 +461,7 @@ export const useVoiceStore = defineStore('voice', () => {
     const wakeWords = options.detectWakeWord ? undefined : wakeWordDetection.start({ resolveTarget: resolveWakeTarget, onError: report })
     const plugin = createVoiceActivityPlugin({
       detect: (window, signal) => model.score(window, signal),
+      onActivity: inputTracer.activity,
       detectWakeWord: options.detectWakeWord ?? wakeWords?.detect,
       enabled: () => !voiceMessages.isRecording,
       silenceMs: () => hearing.endJudgeEnabled ? VOICE_END_SILENCE.pauseMs + VOICE_END_SILENCE.graceMs : VOICE_END_SILENCE.pauseMs,

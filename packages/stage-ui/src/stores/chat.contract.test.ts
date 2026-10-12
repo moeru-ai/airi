@@ -47,6 +47,8 @@ const ioTracerMocks = vi.hoisted(() => {
     activeTurnSpan,
     spans,
     startSpanMock,
+    /** Voice input spans by turn ID. A typed turn has none. */
+    takeVoiceTurnParent: vi.fn((_turnId: string): unknown => undefined),
   }
 })
 
@@ -132,6 +134,7 @@ vi.mock('../libs/product-signals', () => ({
 vi.mock('../composables/use-io-tracer', () => ({
   activeTurnSpan: ioTracerMocks.activeTurnSpan,
   startSpan: ioTracerMocks.startSpanMock,
+  takeVoiceTurnParent: ioTracerMocks.takeVoiceTurnParent,
 }))
 
 vi.mock('./chat/context-providers', () => ({
@@ -365,6 +368,7 @@ describe('chat store contract', () => {
     ioTracerMocks.activeTurnSpan.value = undefined
     ioTracerMocks.spans.length = 0
     ioTracerMocks.startSpanMock.mockClear()
+    ioTracerMocks.takeVoiceTurnParent.mockReset()
     activeSessionIdRef.value = 'session-1'
     activeProviderRef.value = 'mock-provider'
     cardSelections.clear()
@@ -1570,6 +1574,19 @@ describe('chat store contract', () => {
     expect(store.activeSendSessionId).toBe('session-b')
     expect(store.activeTurns).toEqual([{ sessionId: 'session-b', turnId: 'turn-b' }])
     expect(store.$state).not.toHaveProperty('activeStreamingMessage')
+  })
+
+  it('continues the trace of the voice input that submitted the turn', async () => {
+    const voiceInput = { name: IOSpanNames.VoiceInput }
+    ioTracerMocks.takeVoiceTurnParent.mockReturnValueOnce(voiceInput)
+
+    const store = useChatStore()
+    await store.ingest('spoken text', { model: 'gpt-test', chatProvider: provider })
+
+    const [turnId] = ioTracerMocks.takeVoiceTurnParent.mock.calls[0]!
+    expect(turnId).toEqual(expect.any(String))
+    expect(turnId).not.toBe('')
+    expect(ioTracerMocks.startSpanMock).toHaveBeenCalledWith(IOSpanNames.InteractionTurn, voiceInput)
   })
 
   it('does not end the owned IO turn span when external sending mirror is cleared mid-send', async () => {

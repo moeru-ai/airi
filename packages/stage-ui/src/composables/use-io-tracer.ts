@@ -1,10 +1,12 @@
-import type { Span, SpanContext, SpanStatusCode } from '@opentelemetry/api'
+import type { Span, SpanContext } from '@opentelemetry/api'
 import type { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base'
 import type { SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
 
-import { context, trace } from '@opentelemetry/api'
+import { errorMessageFrom } from '@moeru/std'
+import { context, SpanStatusCode, trace } from '@opentelemetry/api'
 import { hrTimeToNanoseconds } from '@opentelemetry/core'
 import { BasicTracerProvider, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base'
+import { IOAttributes } from '@proj-airi/stage-shared'
 import { shallowRef } from 'vue'
 
 export type { ReadableSpan } from '@opentelemetry/sdk-trace-base'
@@ -153,3 +155,56 @@ export function startSpan(name: string, parent?: Span, attrs?: Record<string, bo
 }
 
 export const activeTurnSpan = shallowRef<Span | undefined>()
+
+/**
+ * Runs `work` and ends `span` when it settles.
+ *
+ * A rejection after `signal` aborted is a cancellation that the caller chose, so the span gets the `Cancelled`
+ * attribute and no error status. Any other rejection sets the error status. The rejection still reaches the caller.
+ */
+export async function runInSpan<T>(span: Span, signal: AbortSignal, work: () => Promise<T>): Promise<T> {
+  try {
+    return await work()
+  }
+  catch (error) {
+    if (signal.aborted)
+      span.setAttribute(IOAttributes.Cancelled, true)
+    else
+      span.setStatus({ code: SpanStatusCode.ERROR, message: errorMessageFrom(error) ?? 'Operation failed' })
+    throw error
+  }
+  finally {
+    span.end()
+  }
+}
+
+/**
+ * The span of the speech input that the voice host captures now.
+ * Speech recognition, end judgements, and the rephrase of that input are its children.
+ * The voice host sets it when an input starts and clears it when the input settles.
+ */
+export const activeVoiceInputSpan = shallowRef<Span | undefined>()
+
+/**
+ * Voice input spans by the chat turn ID that their submission uses.
+ * A submission uses the input ID as the message ID, and the chat runtime uses the message ID as the turn ID.
+ * The chat store takes the parent when it starts the `Interaction turn` span, so a spoken turn is one trace.
+ */
+const voiceTurnParents = new Map<string, Span>()
+
+/** Recent submissions only. A draft that is never sent leaves its entry until newer inputs replace it. */
+const MAX_VOICE_TURN_PARENTS = 32
+
+export function linkVoiceTurn(turnId: string, span: Span) {
+  voiceTurnParents.delete(turnId)
+  voiceTurnParents.set(turnId, span)
+  while (voiceTurnParents.size > MAX_VOICE_TURN_PARENTS)
+    voiceTurnParents.delete(voiceTurnParents.keys().next().value!)
+}
+
+/** Returns the voice input span of a turn once. A typed turn has none. */
+export function takeVoiceTurnParent(turnId: string): Span | undefined {
+  const span = voiceTurnParents.get(turnId)
+  voiceTurnParents.delete(turnId)
+  return span
+}

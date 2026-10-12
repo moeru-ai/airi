@@ -204,6 +204,18 @@ Tool and content-array compatibility failures belong to the model of the failing
 Session resets and autonomous artistry hooks also use the session character.
 Each concurrent turn owns its IO trace. `activeTurnSpan` points to the most recently started turn that is still running.
 
+A spoken turn is one IO trace, from the wake word to playback:
+
+- `Wake word` (KWS) is the root when a wake started the input. It covers the match and the session selection.
+- `Voice input` is the root otherwise. It records the trigger (`control`, `speech`, or `wake-word`) and the outcome.
+  `activeVoiceInputSpan` points to it while the input runs.
+- Its children are `Voice activity detection` (one span for each speech segment), `Speech recognition`,
+  `End of speech judgement`, and `Transcript rephrase`.
+- The `Interaction turn` of the submission is also its child. The input ID is the turn ID, and `takeVoiceTurnParent`
+  connects them. The turn holds the LLM, streaming control, TTS, and playback spans.
+
+A typed turn starts its trace at `Interaction turn`.
+
 ## Button analytics
 
 Register the shared plugin once in each Vue application:
