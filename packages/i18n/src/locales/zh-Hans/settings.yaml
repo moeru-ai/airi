@@ -61,6 +61,8 @@ dialogs:
       optionalHint: 即使没有授予这些权限，您也可以继续。
       stateGranted: 已授权
       stateNotGranted: 未授权
+    testGeneration: 测试 API 连通性
+    testGenerationRunning: 正在测试连通性…
   bug-report:
     title: Bug 汇报 (´;ω;`)ヾ(･∀･`)
     subtitle: 坏哦，看起来我们不小心搞砸了一些东西。可以分享一下遇到了什么问题吗？
@@ -594,6 +596,7 @@ pages:
       all_deleted: 已删除所有本地数据。
       desktop_window_centered: 桌面窗口已移至屏幕中央。
       desktop_reset: 桌面数据重置。
+    title: 数据
   models:
     description: 切换角色的 Live2D、VRM、Spine 模型
     title: 角色模型
@@ -754,6 +757,8 @@ pages:
             title: 模型选项
             thinking:
               label: 思考
+              required-description: 此模型必须启用思考。
+              provider-default-description: AIRI 未提供此模型的推理设置，将使用 OpenRouter 的默认设置。
       title: 意识
     description: 思维，视觉，言语综合，游戏等
     gaming-factorio:
@@ -1391,6 +1396,7 @@ pages:
       title: Flux 电池包
       buy: 充值
       description: 可以选择购入的 Flux 电池包
+    title: Flux 电量
   capacitor:
     description: Capacitor 装着 Flux，会自动充满。
     statusError: 暂时无法获取 Capacitor 的状态，可以之后再试试吗？
@@ -1868,10 +1874,16 @@ pages:
           field:
             appId:
               description: 可在控制台获取的 App ID
+              label: 应用 ID
         title: 火山引擎
       volcengine-coding-plan:
         description: 火山引擎 Coding Plan
         title: 火山引擎 Coding Plan
+        models:
+          ark-code-latest:
+            description: 使用 Coding Plan 控制台中选择的模型，包括 Auto。更改会在 3–5 分钟内生效。
+          legacy:
+            description: 此旧版 Coding Plan 模型即将停止服务，请切换到当前受支持的模型。
       xai:
         description: X.AI
       zai:
@@ -1898,6 +1910,24 @@ pages:
           title: 实验平台
       aihubmix:
         description: https://aihubmix.com (九折优惠)
+      voicevox:
+        fields:
+          field:
+            intonation:
+              description: 调整语调的变化幅度
+              label: 语调
+        callout_origin_title: 从浏览器连接引擎
+        callout_origin: 浏览器只能连接本机的引擎。连接其他机器的引擎时，请使用桌面应用。引擎还必须允许此网站访问，可使用 --cors_policy_mode all，或使用 --allow_origin 指定此网站地址。
+      aivis-speech:
+        fields:
+          field:
+            intonation:
+              description: 调整说话风格的表现强度
+              label: 情感表现强度
+        callout_origin_title: 从浏览器连接引擎
+        callout_origin: 浏览器只能连接本机的引擎。连接其他机器的引擎时，请使用桌面应用。引擎还必须允许此网站访问，可在 10101 端口的设置页面中配置。
+      openrouter-audio-speech:
+        description: OpenRouter.ai
     title: 服务来源
   connection:
     description: 配置 WebSocket 服务器连接
@@ -1987,6 +2017,7 @@ pages:
                 description: 显示 FPS、帧时间、长任务和浏览器支持的内存指标
               markdown-stress:
                 description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
+                title: Markdown 压力测试
               plugin-host:
                 actions:
                   enable-and-load: 启用并加载
@@ -2058,6 +2089,8 @@ pages:
             default:
               description: 默认的绿色主题，由 AIRI 为您带来！
               title: 默认颜色
+              colors:
+                color-1: AIRI 绿
             morandi:
               colors:
                 color-1: 灰褐色
@@ -2262,3 +2295,43 @@ wip:
 streamer-mode:
   title: 直播模式
   description: 隐藏角色窗口中的麦克风和登录提示。
+mmd:
+  title: MMD 设置
+  scale-and-position:
+    title: 缩放与位置
+    scale: 缩放
+    rotation: 旋转
+  theme-color-from-model:
+    title: 从模型提取颜色
+    button-extract:
+      title: 提取
+  physics:
+    title: 物理与骨骼
+    enabled: 启用物理模拟（头发、裙子、配饰）
+    ik: 启用 IK（逆向运动学）
+    grant: 启用附加骨骼变换传递
+    gravity: 重力强度
+  gaze:
+    title: 视线
+    tracking: 模型注视方向
+    options:
+      cursor: 鼠标
+      camera: 相机
+      none: 已禁用
+  animation:
+    title: 动画
+    idle-motion: 待机动作
+    import-motion: 导入动作（.vmd）
+    play-once: 预览动画
+    remove: 移除动作
+    description: 导入 VMD 动作文件，将其中一个设为循环待机动作，或单次播放任意动作。将情绪映射到动作后，动作可与面部表情一同播放。
+  morphs:
+    title: 变形
+    auto: （自动）
+    revert: 恢复自动
+    no-morphs: 此模型没有可用的变形。
+    description: 渲染器会自动识别标准日文变形名称（あいうえお、まばたき）。如果模型使用其他名称，请在此覆盖对应项。
+  materials:
+    title: 材质
+    no-materials: 此模型没有可用的材质。
+    description: 调整各模型部位（脸、头发、服装、配饰）的不透明度。设为 0 可隐藏该部位。
