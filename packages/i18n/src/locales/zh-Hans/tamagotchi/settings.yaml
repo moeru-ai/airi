@@ -552,5 +552,5 @@ screen-capture:
     dismiss: 取消
     instructions:
       step-1: 打开「系统首选项」，从侧边栏选择「隐私与安全」。
-      step-2: 在「屏幕和系统音频录制」和「系统音频录制」部分中，开启 AIRI 的开关。
+      step-2: 在「录屏与系统录音」和「仅系统录音」部分中，开启 AIRI 的开关。
       step-2-note: 如果没有列出 AIRI，请通过单击「+」按钮和从应用程序文件夹中选择 AIRI 来手动添加。

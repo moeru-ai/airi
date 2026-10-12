@@ -524,7 +524,7 @@ screen-capture:
     dismiss: Ignorer
     instructions:
       step-1: Ouvrir les "Préférences Système", sélectionnez "Confidentialité et Sécurité" dans la barre latérale.
-      step-2: Dans les sections "Enregistrement de l'écran et de l'audio du système" et "Enregistrement de l'audio du système uniquement", activez les interrupteurs pour AIRI.
+      step-2: Dans les sections "Enregistrement de l’écran et des sons du système" et "Enregistrement des sons du système uniquement", activez les interrupteurs pour AIRI.
       step-2-note: Si AIRI n'est pas listé, veuillez l'ajouter manuellement en cliquant sur le bouton "+" et en sélectionnant AIRI dans le dossier Applications.
 microphone-permission:
   states:

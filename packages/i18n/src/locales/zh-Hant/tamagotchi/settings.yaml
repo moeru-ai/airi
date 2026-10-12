@@ -537,7 +537,7 @@ screen-capture:
     dismiss: 取消
     instructions:
       step-1: 打開「系統偏好設定」，從側邊欄中選擇「隱私與安全」。
-      step-2: 在「螢幕與系統聲音錄製」以及「系統聲音錄製」區域，開啟 AIRI 的開關。
+      step-2: 在「螢幕與系統錄音」以及「僅限系統錄音」區域，開啟 AIRI 的開關。
       step-2-note: 如果 AIRI 沒有被列出，則請手動按下「+」按鈕並從應用資料夾選擇 AIRI。
 microphone-permission:
   states:

@@ -76,7 +76,7 @@ devtools:
           label: 利用可能なすべてのメトリックを有効にする
           description: このブラウザがサポートする各メトリックを有効にします。
         start-recording: 記録開始
-        stop-recording: 録音停止 ({seconds}s)
+        stop-recording: 記録停止 ({seconds}s)
         export-last-recording: 最後の録音をエクスポート
       metrics:
         frame-duration:
@@ -537,7 +537,7 @@ screen-capture:
     dismiss: 閉じる
     instructions:
       step-1: '「システム設定」を開き、サイドバーから「プライバシーとセキュリティ」を選択します。'
-      step-2: '「画面&システム音声録音」および「システム音声録音のみ」のセクションで、AIRI用のスイッチをオンにしてください。'
+      step-2: '「画面収録とシステムオーディオ録音」および「システムオーディオ録音のみ」のセクションで、AIRI用のスイッチをオンにしてください。'
       step-2-note: AIRIが表示されていない場合は、「+」ボタンをクリックして「アプリケーション」フォルダから「AIRI」を選択して手動で追加してください。
 microphone-permission:
   states:

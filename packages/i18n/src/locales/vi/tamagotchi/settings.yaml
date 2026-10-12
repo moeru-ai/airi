@@ -537,7 +537,7 @@ screen-capture:
     dismiss: Bỏ qua
     instructions:
       step-1: Mở "Tùy chọn hệ thống", chọn "Quyền riêng tư & Bảo mật" từ thanh bên.
-      step-2: Trong phần "Ghi màn hình & Âm thanh hệ thống" và "Chỉ ghi âm thanh hệ thống", hãy bật công tắc cho AIRI.
+      step-2: Trong phần "Bản ghi âm thanh hệ thống & màn hình" và "Chỉ bản ghi âm thanh hệ thống", hãy bật công tắc cho AIRI.
       step-2-note: Nếu không thấy AIRI trong danh sách, vui lòng thêm thủ công bằng cách nhấn nút "+" và chọn AIRI từ thư mục Ứng dụng (Applications).
 microphone-permission:
   settings:

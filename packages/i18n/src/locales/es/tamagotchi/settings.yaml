@@ -533,7 +533,7 @@ screen-capture:
     dismiss: Descartar
     instructions:
       step-1: Abre "Preferencias del sistema", selecciona "Privacidad y Seguridad" en la barra lateral.
-      step-2: En la sección "Grabación de audio de pantalla y sistema" y "Solo grabación de audio del sistema", encienda los interruptores para AIRI.
+      step-2: En las secciones "Grabación de pantalla y del audio del sistema" y "Solo grabación del audio del sistema", encienda los interruptores para AIRI.
       step-2-note: Si AIRI no aparece en la lista, añádelo manualmente haciendo clic en el botón "+" y seleccionando AIRI de la carpeta Aplicaciones.
 microphone-permission:
   states:
