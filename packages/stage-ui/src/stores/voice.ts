@@ -22,9 +22,10 @@ import { useLlmStreamingControlStore } from './ai/chat-llm/streaming-control'
 import { useAudioContext, useSpeakingStore } from './audio'
 import { useChatStore } from './chat'
 import { useChatSessionStore } from './chat/session-store'
-import { useHearingStore } from './modules/hearing'
+import { startsInputOnSpeech, useHearingStore } from './modules/hearing'
 import { useSettingsAudioDevice } from './settings/audio-device'
 import { useVoiceMessagesStore } from './voice-messages'
+import { useWakeWordDetectionStore } from './wake-word-detection'
 
 /** The longest time a chat model rewrite can delay a voice submission. */
 const VOICE_REPHRASE_TIMEOUT_MS = 10_000
@@ -38,6 +39,7 @@ export const useVoiceStore = defineStore('voice', () => {
   const voiceMessages = useVoiceMessagesStore()
   const speaking = useSpeakingStore()
   const streamingControl = useLlmStreamingControlStore()
+  const wakeWordDetection = useWakeWordDetectionStore()
   const { stream: microphoneStream, enabled: microphoneEnabled, error: microphoneError } = storeToRefs(devices)
   const { drafts, frontDraftId, acceptSpeech, sendDraft, discardDraft, editDraft, selectDraft } = useVoiceDrafts(report)
   const activeTurns = shallowRef<readonly TurnRef[]>([])
@@ -104,6 +106,7 @@ export const useVoiceStore = defineStore('voice', () => {
     const snapshot: VoiceHostSnapshot = {
       connected: true,
       microphone: { enabled: devices.enabled, ready: !!devices.stream, error: devices.error },
+      wakeWords: { preparation: wakeWordDetection.preparation, ...(wakeWordDetection.error ? { error: wakeWordDetection.error } : {}) },
       drafts: drafts.value.map(draft => ({ ...draft })),
       frontDraftId: frontDraftId.value,
       error: error.value,
@@ -121,7 +124,7 @@ export const useVoiceStore = defineStore('voice', () => {
     getSpeechBusContext().emit(voiceSnapshotChanged, snapshot)
   }
 
-  watch([state, transcript, frontDraftId, error, microphoneStream, microphoneEnabled, microphoneError], publishSnapshot)
+  watch([state, transcript, frontDraftId, error, microphoneStream, microphoneEnabled, microphoneError, () => wakeWordDetection.preparation, () => wakeWordDetection.error], publishSnapshot)
   watch(drafts, publishSnapshot, { deep: true })
 
   function beginInput(options: BeginSpeechInput) {
@@ -410,20 +413,27 @@ export const useVoiceStore = defineStore('voice', () => {
 
     detectorOptions = options
     const model = new SileroVad()
+    // The built-in KWS detection runs unless the host supplies its own adapter.
+    // It returns no wake until the device catalog has an active pronunciation and the model is ready.
+    const wakeWords = options.detectWakeWord ? undefined : wakeWordDetection.start({ resolveTarget: resolveWakeTarget, onError: report })
     const plugin = createVoiceActivityPlugin({
       detect: (window, signal) => model.score(window, signal),
-      detectWakeWord: options.detectWakeWord,
+      detectWakeWord: options.detectWakeWord ?? wakeWords?.detect,
       enabled: () => !voiceMessages.isRecording,
       // Automatic barge-in requires platform echo cancellation or an external echo classifier.
       acceptSpeech: options.acceptSpeech ?? (async () => !speaking.nowSpeaking || devices.source.echoCancellation),
-      target: () => sessions.activeSessionId && hearing.configured
+      // Wake word mode returns no target, so VAD alone cannot start an input. A wake supplies its own target.
+      target: () => sessions.activeSessionId && hearing.configured && startsInputOnSpeech(hearing.inputMode)
         ? { sessionId: sessions.activeSessionId, interruptTurns: activeTurns.value.filter(turn => turn.sessionId === sessions.activeSessionId) }
         : undefined,
     })
 
     listening = controller.use({ ...plugin, setup(scope) {
       plugin.setup(scope)
-      scope.onDispose(() => model.close())
+      scope.onDispose(() => {
+        wakeWords?.stop()
+        return model.close()
+      })
       return undefined
     } }, { grants: ['input-control', 'cancel-input'], onError: event => report(event.error) })
   }

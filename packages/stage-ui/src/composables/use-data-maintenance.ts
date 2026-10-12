@@ -20,6 +20,7 @@ import { useDiscordStore } from '../stores/modules/discord'
 import { useFactorioStore } from '../stores/modules/gaming-factorio'
 import { useMinecraftStore } from '../stores/modules/gaming-minecraft'
 import { useHearingStore } from '../stores/modules/hearing'
+import { useHomeAssistantStore } from '../stores/modules/home-assistant'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useTwitterStore } from '../stores/modules/twitter'
 import { useWebSearchStore } from '../stores/modules/web-search'
@@ -41,6 +42,7 @@ export function useDataMaintenance() {
   const screenAmbientLightSettingsStore = useSettingsScreenAmbientLight()
   const threeStore = useModelStore()
   const hearingStore = useHearingStore()
+  const homeAssistantStore = useHomeAssistantStore()
   const speechStore = useSpeechStore()
   const consciousnessStore = useConsciousnessStore()
   const consciousnessSettingsStore = useConsciousnessSettingsStore()
@@ -71,6 +73,7 @@ export function useDataMaintenance() {
     // leader RPCs leave the other modules free to finish their cleanup.
     const results = await Promise.allSettled([
       () => hearingStore.resetState(),
+      () => homeAssistantStore.resetState(),
       () => speechStore.resetState(),
       () => consciousnessStore.resetState(),
       () => consciousnessSettingsStore.resetState(),

@@ -587,9 +587,10 @@ describe('chat store contract', () => {
     expect(getChatProviderInstanceMock).toHaveBeenCalledTimes(2)
     expect(getChatProviderInstanceMock).toHaveBeenCalledWith('mock-provider', { reasoning: 'disabled' })
     expect(() => structuredClone(result)).not.toThrow()
+    // The session character's wake word tool joins every turn. It is not a selectable stored tool.
     expect(resolvedToolNames).toEqual([
-      ['stage_widgets', 'builtIn_readMemory', 'builtIn_writeMemory', 'builtIn_forgetMemory', 'builtIn_useRecipe', 'builtIn_proposeRecipe'],
-      ['stage_widgets', 'builtIn_readMemory', 'builtIn_writeMemory', 'builtIn_forgetMemory', 'builtIn_useRecipe', 'builtIn_proposeRecipe'],
+      ['stage_widgets', 'configure_wake_words', 'builtIn_readMemory', 'builtIn_writeMemory', 'builtIn_forgetMemory', 'builtIn_useRecipe', 'builtIn_proposeRecipe'],
+      ['stage_widgets', 'configure_wake_words', 'builtIn_readMemory', 'builtIn_writeMemory', 'builtIn_forgetMemory', 'builtIn_useRecipe', 'builtIn_proposeRecipe'],
     ])
   })
 

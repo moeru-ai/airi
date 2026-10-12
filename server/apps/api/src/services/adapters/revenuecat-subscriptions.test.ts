@@ -36,7 +36,13 @@ async function reconcile(entitlements: SubscriberEntitlement[], configKV = creat
   const synced: (CapacitorPeriod | null)[] = []
   const fetchEntitlements = vi.fn(async () => entitlements)
   const sync = createRevenuecatSubscriptionSync(
-    { syncCapacitor: async (_userId, resolve) => { synced.push(await resolve()) } },
+    {
+      syncCapacitor: async (_userId, resolve) => {
+        const period = await resolve()
+        synced.push(period)
+        return period
+      },
+    },
     configKV,
     { fetchEntitlements },
   )

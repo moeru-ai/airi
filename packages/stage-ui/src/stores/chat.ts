@@ -37,6 +37,7 @@ import { createJudgeRecipeTool, judgmentSkillText } from '../tools/judge-recipe'
 import { composeMemoryPrompt, createMemoryTools } from '../tools/memory'
 import { createProposeRecipeTool } from '../tools/propose-recipe'
 import { createUseRecipeTool } from '../tools/use-recipe'
+import { createWakeWordTool } from '../tools/wake-words'
 import { useLLM } from './ai/chat-llm/llm'
 import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
@@ -60,6 +61,7 @@ import { useVisionStore } from './modules/vision'
 import { useWebSearchStore } from './modules/web-search'
 import { useRecipesStore } from './recipes'
 import { executeToolCallRerun } from './tool-call-rerun'
+import { useWakeWordsStore } from './wake-words'
 
 interface ForkOptions {
   fromSessionId?: string
@@ -284,6 +286,7 @@ export const useChatStore = defineStore('chat', () => {
     const recipe = recipeId ? recipes.recipes.find(entry => entry.id === recipeId) : undefined
     return recipe ? identity + composeRecipeSpacePrompt(recipe) : identity
   }
+  const wakeWords = useWakeWordsStore()
   const stickersStore = useStickersStore()
   const contextObservability = useContextObservabilityStore()
   const { activeSessionId } = storeToRefs(chatSession)
@@ -1283,6 +1286,7 @@ export const useChatStore = defineStore('chat', () => {
         const references = collectToolReferences(payload.sessionId, payload.tools)
         return [
           ...llmToolsStore.getToolsByNames(...references.map(tool => tool.name)),
+          await createWakeWordTool({ characterId, setWords: wakeWords.setWords }),
           ...(armable.length
             ? await createArmRecipeTool({
                 recipes: armable,
