@@ -765,7 +765,6 @@ pages:
             no_providers_configured_description: Click here to set up your LLM providers
             expand: Expand
             loading: Loading available models...
-            model_id_label: Model ID
             manual_model_name: Model Name
             manual_model_placeholder: Enter the model name to use with this provider
             no_models: No models available
