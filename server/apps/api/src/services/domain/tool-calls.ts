@@ -24,6 +24,12 @@ const argumentsDeltaEventSchema = looseObject({
   type: literal('response.function_call_arguments.delta'),
   item_id: string(),
 })
+const terminalResponseEventSchema = looseObject({
+  type: picklist(['response.completed', 'response.incomplete']),
+  response: looseObject({
+    output: optional(array(looseObject({ type: optional(string()), id: optional(string()), call_id: optional(string()) }))),
+  }),
+})
 
 function parseJson(text: string): unknown {
   try {
@@ -75,8 +81,19 @@ function countStreamCalls(events: unknown[]) {
       continue
     }
     const delta = safeParse(argumentsDeltaEventSchema, event)
-    if (delta.success)
+    if (delta.success) {
       responseCalls.add(callByItem.get(delta.output.item_id) ?? delta.output.item_id)
+      continue
+    }
+    // The terminal event repeats the whole output. A stream can hold only this event,
+    // so its calls are counted here. The call ID keeps a call from being counted twice.
+    const terminal = safeParse(terminalResponseEventSchema, event)
+    if (terminal.success) {
+      for (const [position, item] of (terminal.output.response.output ?? []).entries()) {
+        if (item.type === 'function_call')
+          responseCalls.add(item.call_id ?? item.id ?? `output:${position}`)
+      }
+    }
   }
   return chatCalls.size + responseCalls.size
 }

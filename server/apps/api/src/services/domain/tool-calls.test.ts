@@ -40,6 +40,19 @@ describe('tool call count', () => {
     ))).toBe(1)
   })
 
+  it('counts the calls of a Responses stream that holds only the terminal event', () => {
+    const response = { output: [{ type: 'reasoning' }, { type: 'function_call', name: 'weather', arguments: '{}', call_id: 'call-1' }] }
+    expect(countToolCalls(stream({ type: 'response.completed', response }))).toBe(1)
+  })
+
+  it('counts a Responses call once when item events and the terminal event both name it', () => {
+    expect(countToolCalls(stream(
+      { type: 'response.output_item.added', item: { type: 'function_call', id: 'item-1', call_id: 'call-1', name: 'weather' } },
+      { type: 'response.output_item.done', item: { type: 'function_call', id: 'item-1', call_id: 'call-1', arguments: '{}' } },
+      { type: 'response.completed', response: { output: [{ type: 'function_call', id: 'item-1', call_id: 'call-1' }, { type: 'function_call', id: 'item-2', call_id: 'call-2' }] } },
+    ))).toBe(2)
+  })
+
   it('counts the complete events of a stream that stops inside an event', () => {
     const complete = JSON.stringify({ choices: [{ delta: { tool_calls: [{ index: 0, id: 'a' }] } }] })
     expect(countToolCalls({ format: 'sse', text: `${complete}\n\n{"choices":[{"delta":{"tool_ca`, state: 'partial', omittedMedia: false })).toBe(1)

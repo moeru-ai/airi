@@ -11,6 +11,7 @@ No caller supplies the count.
 The count follows the two wire protocols that the gateway forwards.
 A streamed Chat Completions call is one `tool_calls` index inside one choice.
 A streamed Responses call is one function call ID.
+The terminal `response.completed` or `response.incomplete` event also names its function calls, and a call ID counts once.
 A body is read from `choices[].message.tool_calls` or from `output[]`.
 
 The column is nullable.
