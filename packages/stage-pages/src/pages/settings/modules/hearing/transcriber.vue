@@ -522,9 +522,9 @@ onUnmounted(() => {
               />
             </div>
 
-            <!-- No models available (for other providers with model listing but no models) -->
+            <!-- No models are available after catalog loading completes. -->
             <Alert
-              v-else-if="!usesOpenRouterTranscription && providerModels.length === 0 && !isLoadingActiveProviderModels && supportsModelListing"
+              v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels && supportsModelListing && !activeProviderModelError"
               tone="warning"
               :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models')"
             >
@@ -551,13 +551,6 @@ onUnmounted(() => {
                 @update:custom-value="updateCustomModelName"
               />
             </template>
-            <FieldInput
-              v-if="usesOpenRouterTranscription"
-              :model-value="activeTranscriptionModel || activeCustomModelName || ''"
-              :label="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.model_id_label')"
-              :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
-              @update:model-value="updateCustomModelName"
-            />
           </div>
         </div>
 
