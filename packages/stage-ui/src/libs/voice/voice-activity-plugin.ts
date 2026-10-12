@@ -5,8 +5,12 @@ import type { AudioWindow } from '@proj-airi/pipelines-audio'
 export interface VoiceActivityOptions {
   readonly detect: (window: AudioWindow, signal: AbortSignal) => Promise<number>
   readonly target: () => { sessionId: string, interruptTurns: readonly TurnRef[] } | undefined
-  /** External KWS adapters resolve pronunciation ownership and the character session before returning a wake signal. */
-  readonly detectWakeWord?: (window: AudioWindow, signal: AbortSignal) => Promise<{ sessionId: string, interruptTurns: readonly TurnRef[] } | undefined>
+  /**
+   * External KWS adapters resolve pronunciation ownership and the character session before returning a wake signal.
+   * `activity` is the VAD result of the same window, before an active input lowers the threshold. An adapter that
+   * reads another input uses it to find pauses.
+   */
+  readonly detectWakeWord?: (window: AudioWindow, signal: AbortSignal, activity: { speech: boolean, durationMs: number }) => Promise<{ sessionId: string, interruptTurns: readonly TurnRef[] } | undefined>
   /** Echo rejection runs after detection. Detectors remain active while the assistant speaks. */
   readonly acceptSpeech?: (window: AudioWindow, signal: AbortSignal) => Promise<boolean>
   readonly enabled?: () => boolean
@@ -15,8 +19,12 @@ export interface VoiceActivityOptions {
   readonly threshold?: number
   /** @default 300. Shorter speech is discarded when silence ends an input. */
   readonly minSpeechMs?: number
-  /** @default 1200. This much silence ends an accepted input. */
-  readonly silenceMs?: number
+  /**
+   * This much silence ends an accepted input. A function is read on each window, so a setting change applies at once.
+   *
+   * @default 1200
+   */
+  readonly silenceMs?: number | (() => number)
   /** @default 360. Speech onset retains this much audio before the detected window. */
   readonly preRollMs?: number
 }
@@ -34,7 +42,8 @@ export function createVoiceActivityPlugin(options: VoiceActivityOptions): VoiceP
     // Remove this fixed size when detectors supply their own window requirements.
     scope.observeAudio({ windowMs: 32, hopMs: 32, scheduling: 'ordered', preRollMs: options.preRollMs ?? 360 }, async (ctx) => {
       const score = await options.detect(ctx.window, ctx.signal)
-      const wake = await options.detectWakeWord?.(ctx.window, ctx.signal)
+      const duration = (ctx.window.range.endFrame - ctx.window.range.startFrame) * 1000 / ctx.window.sampleRate
+      const wake = await options.detectWakeWord?.(ctx.window, ctx.signal, { speech: score >= (options.threshold ?? 0.6), durationMs: duration })
       ctx.signal.throwIfAborted()
 
       if (ctx.window.discontinuity) {
@@ -84,10 +93,10 @@ export function createVoiceActivityPlugin(options: VoiceActivityOptions): VoiceP
       if (!input.noteActivity({ range: ctx.window.range, speech }))
         return
 
-      const duration = (ctx.window.range.endFrame - ctx.window.range.startFrame) * 1000 / ctx.window.sampleRate
       speechMs += speech ? duration : 0
       silenceMs = speech ? 0 : silenceMs + duration
-      if (silenceMs >= (options.silenceMs ?? 1200)) {
+      const silenceLimit = typeof options.silenceMs === 'function' ? options.silenceMs() : options.silenceMs ?? 1200
+      if (silenceMs >= silenceLimit) {
         if (speechMs < (options.minSpeechMs ?? 300))
           input.cancel('Speech segment was too short')
         else

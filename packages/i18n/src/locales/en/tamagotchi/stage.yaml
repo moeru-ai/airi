@@ -74,7 +74,7 @@ widgets:
   waiting: Waiting for widget data for "{id}"…
 
 inlay:
-  hide: Hide
+  dismiss: Dismiss
 
 notice:
   'fade-on-hover':

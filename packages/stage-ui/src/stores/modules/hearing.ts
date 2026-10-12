@@ -333,8 +333,10 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', false, persistenceOptions)
   const autoSendDelay = useLocalStorageManualReset<number>('settings/hearing/auto-send-delay', 2000, persistenceOptions) // Default 2 seconds
   const confidenceThreshold = useLocalStorageManualReset<number>('settings/hearing/confidence-threshold', CONFIDENCE_THRESHOLD_DISABLED, persistenceOptions)
-  // Rephrasing sends transcripts to a chat model, so it is off by default.
-  const rephraseEnabled = useLocalStorageManualReset<boolean>('settings/hearing/rephrase-enabled', false, persistenceOptions)
+  // Rephrasing sends transcripts to a chat model. Voice input already sends them to that model, so it is on by default.
+  const rephraseEnabled = useLocalStorageManualReset<boolean>('settings/hearing/rephrase-enabled', true, persistenceOptions)
+  // A chat model reads paused transcripts and ends finished messages before the silence limit.
+  const endJudgeEnabled = useLocalStorageManualReset<boolean>('settings/hearing/end-judge-enabled', true, persistenceOptions)
   // An empty provider uses the chat model of the consciousness module.
   const rephraseProvider = useLocalStorageManualReset('settings/hearing/rephrase-provider', '', persistenceOptions)
   const rephraseModel = useLocalStorageManualReset('settings/hearing/rephrase-model', '', persistenceOptions)
@@ -411,6 +413,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     autoSendDelay.reset()
     confidenceThreshold.reset()
     rephraseEnabled.reset()
+    endJudgeEnabled.reset()
     rephraseProvider.reset()
     rephraseModel.reset()
   }
@@ -631,6 +634,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     autoSendDelay,
     confidenceThreshold,
     rephraseEnabled,
+    endJudgeEnabled,
     rephraseProvider,
     rephraseModel,
     verboseJsonNotSupported,

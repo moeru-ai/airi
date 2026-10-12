@@ -12,9 +12,11 @@ import { onScopeDispose, shallowRef, watch } from 'vue'
 import { useVoiceController } from '../composables/audio/voice-controller'
 import { traceSpeechOutput } from '../composables/speech-output-trace'
 import { useVoiceDrafts } from '../composables/voice-drafts'
+import { useVoiceEndJudge } from '../composables/voice-end-judge'
 import { useVoiceRephrase } from '../composables/voice-rephrase'
 import { observeInputLevel } from '../libs/voice/input-level'
 import { createVoiceActivityPlugin } from '../libs/voice/voice-activity-plugin'
+import { createVoiceEndJudgePlugin } from '../libs/voice/voice-end-judge-plugin'
 import { createVoiceRephrasePlugin } from '../libs/voice/voice-rephrase-plugin'
 import { getSpeechBusContext, voiceGenerationEnded, voiceGetTurns, voiceInputCommand, voiceInputLevel, voiceInterrupt, voiceLevelMonitor, voiceRequestSnapshot, voiceRequestTurns, voiceSnapshotChanged, voiceSpeechCommand, voiceTurnsChanged } from '../services/speech/bus'
 import { SileroVad } from '../workers/vad/silero-vad'
@@ -29,6 +31,15 @@ import { useWakeWordDetectionStore } from './wake-word-detection'
 
 /** The longest time a chat model rewrite can delay a voice submission. */
 const VOICE_REPHRASE_TIMEOUT_MS = 10_000
+
+/**
+ * Silence that ends a speech input.
+ *
+ * - `pauseMs`: a pause this long can end a finished message. Without the end judge, it is the silence limit.
+ * - `graceMs`: with the end judge, the silence limit grows by this much, so a speaker can stop to think.
+ *   The judge ends a finished message at the pause, so only an unfinished or unjudged message waits for the grace.
+ */
+const VOICE_END_SILENCE = { pauseMs: 1200, graceMs: 3000 } as const
 
 /** Application wiring owns presentation and durable chat adapters. The controller owns voice lifecycles. */
 export const useVoiceStore = defineStore('voice', () => {
@@ -87,6 +98,11 @@ export const useVoiceStore = defineStore('voice', () => {
   controller.use(
     createVoiceRephrasePlugin({ enabled: () => hearing.rephraseEnabled, rephrase, timeoutMs: VOICE_REPHRASE_TIMEOUT_MS }),
     { grants: ['transcript-patch'], onError: event => report(event.error) },
+  )
+  const { judge } = useVoiceEndJudge()
+  controller.use(
+    createVoiceEndJudgePlugin({ enabled: () => hearing.endJudgeEnabled, judge, pauseMs: VOICE_END_SILENCE.pauseMs }),
+    { grants: ['input-control'], onError: event => report(event.error) },
   )
 
   function report(cause: unknown) {
@@ -319,6 +335,14 @@ export const useVoiceStore = defineStore('voice', () => {
             attempt.cancel('Input control cancelled')
             break
           }
+          case 'cancel-presented': {
+            // The request ID binds the command to the input that the control showed, not to a later one.
+            if (presentedInput?.requestId !== command.requestId)
+              return { status: 'closed' }
+
+            presentedInput.attempt.cancel('Input dismissed')
+            break
+          }
           case 'edit-draft': {
             if (!editDraft(command.draftId, command.text))
               return { status: 'closed' }
@@ -420,6 +444,7 @@ export const useVoiceStore = defineStore('voice', () => {
       detect: (window, signal) => model.score(window, signal),
       detectWakeWord: options.detectWakeWord ?? wakeWords?.detect,
       enabled: () => !voiceMessages.isRecording,
+      silenceMs: () => hearing.endJudgeEnabled ? VOICE_END_SILENCE.pauseMs + VOICE_END_SILENCE.graceMs : VOICE_END_SILENCE.pauseMs,
       // Automatic barge-in requires platform echo cancellation or an external echo classifier.
       acceptSpeech: options.acceptSpeech ?? (async () => !speaking.nowSpeaking || devices.source.echoCancellation),
       // Wake word mode returns no target, so VAD alone cannot start an input. A wake supplies its own target.

@@ -870,6 +870,11 @@ pages:
               preparing: 正在准备唤醒词模型…
               ready: 唤醒词已就绪。
               error: '唤醒词模型不可用：{error}'
+          end-judge:
+            title: 说完判定
+            description: 你停顿时，对话模型会读取转写文本，判断你是否说完了。如果还没说完，AIRI 会再等 3 秒让你继续说。
+            enabled: 判断我是否说完了
+            enabled-description: 每次停顿时的转写文本会发送给改写所用的模型。关闭后，AIRI 会在短暂停顿后结束这次语音输入。
           rephrase:
             title: 转写改写
             description: 在转写成为草稿之前，由对话模型修正识别错误并去掉口头禅。原始文本会被保留。
