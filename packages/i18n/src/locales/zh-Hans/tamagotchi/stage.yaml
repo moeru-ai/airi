@@ -32,6 +32,8 @@ docs:
   'refresh': 刷新
   'center-main-window': 移至屏幕中央
   'open-hearing-controls': 打开听力控制
+  'enable-microphone': 打开麦克风
+  'disable-microphone': 关闭麦克风
   'drag-to-move-window': 拖动以移动窗口
   'mute': 静音
   'unmute': 取消静音

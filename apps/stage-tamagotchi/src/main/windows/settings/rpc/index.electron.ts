@@ -32,8 +32,8 @@ import { centerWindowOnDisplay } from '../../shared/display'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
 /**
- * Registers what the settings pages ask of the window that shows them: the global shortcuts, the Spotlight shortcut,
- * and the devtools.
+ * Registers what the settings pages ask of the window that shows them: the Spotlight shortcut and the devtools. Each
+ * window registers the global shortcuts itself, because the main window needs them for Push to Talk too.
  *
  * Use when:
  * - A window shows settings pages, such as the settings window or the main window in its fullscreen mode.
@@ -41,12 +41,10 @@ import { setupBaseWindowElectronInvokes } from '../../shared/window'
 export function setupSettingsPageInvokes(params: {
   context: ReturnType<typeof createContext>['context']
   window: BrowserWindow
-  globalShortcut: GlobalShortcutService
   spotlightWindow: SpotlightWindowManager
   devtoolsWindow: DevtoolsWindowManager
 }) {
   const { context, window } = params
-  params.globalShortcut.registerWindow({ context, window })
   defineInvokeHandler(context, electronSpotlightShortcutGet, () => params.spotlightWindow.getShortcutAccelerator())
   defineInvokeHandler(context, electronSpotlightShortcutSet, (payload) => {
     if (payload?.accelerator === undefined)
@@ -91,10 +89,11 @@ export async function setupSettingsWindowInvokes(params: {
   const stopIOTraceRecording = registerIOTraceRecording(context, params.ioTraceRecording)
   params.settingsWindow.once('closed', stopIOTraceRecording)
 
+  // Register the global shortcut service for the settings window.
+  params.globalShortcut.registerWindow({ context, window: params.settingsWindow })
   setupSettingsPageInvokes({
     context,
     window: params.settingsWindow,
-    globalShortcut: params.globalShortcut,
     spotlightWindow: params.spotlightWindow,
     devtoolsWindow: params.devtoolsWindow,
   })

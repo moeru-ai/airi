@@ -71,9 +71,9 @@ export async function setupMainWindow(params: {
   i18n: I18n
   onboardingWindowManager: OnboardingWindowManager
   ioTraceRecording: IOTraceRecordingService
+  globalShortcut: GlobalShortcutService
   inlayWindow: () => Promise<BrowserWindow>
   devtoolsWindow: DevtoolsWindowManager
-  globalShortcut: GlobalShortcutService
   spotlightWindow: SpotlightWindowManager
   /**
    * Receives the function that shows a surface in fullscreen mode, for the settings entry points of the app. It

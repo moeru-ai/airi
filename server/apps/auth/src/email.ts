@@ -311,7 +311,7 @@ function renderChangeEmailText(url: string, newEmail: string): string {
 function renderDeleteAccountHtml(url: string): string {
   return renderActionEmailHtml({
     heading: 'Confirm account deletion',
-    body: 'Click below to permanently delete your Project AIRI account. This cannot be undone. Active subscription will be canceled, Flux balance cleared. Link expires in 24 hours.',
+    body: 'Click below to permanently delete your Project AIRI account. This cannot be undone. Your Flux balance is cleared. Cancel an active subscription first, or the deletion stops. Link expires in 24 hours.',
     ctaLabel: 'Delete my account',
     url,
     footer: 'Did not request this? Ignore this email and rotate your password.',
@@ -321,7 +321,7 @@ function renderDeleteAccountHtml(url: string): string {
 function renderDeleteAccountText(url: string): string {
   return renderActionEmailText({
     heading: 'Confirm account deletion',
-    body: 'Open this link to permanently delete your Project AIRI account. This cannot be undone. Active subscription will be canceled, Flux balance cleared. Link expires in 24 hours.',
+    body: 'Open this link to permanently delete your Project AIRI account. This cannot be undone. Your Flux balance is cleared. Cancel an active subscription first, or the deletion stops. Link expires in 24 hours.',
     url,
     footer: 'Did not request this? Ignore this email and rotate your password.',
   })

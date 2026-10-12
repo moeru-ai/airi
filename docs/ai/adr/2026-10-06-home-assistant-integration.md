@@ -90,8 +90,13 @@ result in the same turn:
 `data` is a JSON object string. The same constraint appears beside
 `builtIn_mcpCallTool`: `z.record()` emits `propertyNames`, which OpenAI rejects.
 
+`entity_id` is required on `home_assistant_call_service`. A call with no target
+reaches a whole domain at once, which is a larger action than the user asked
+for. The model calls the service once per entity, so "turn off the lights"
+costs one call per light.
+
 The tools mount only while an address and a token are stored. An unconfigured
-integration stays invisible to the model, because every call would fail.
+integration stays invisible to the model, because every call fails.
 
 ## Configuration and credentials
 
@@ -99,8 +104,10 @@ The main process owns the address and the token, in
 `home-assistant-v1.json` under the Electron user data directory. The renderer
 reads back the address and whether a token exists, and never the token.
 
-An empty token field in the settings page keeps the stored token, so a user can
-correct the address without pasting the secret again.
+An empty token field keeps the stored token. A token belongs to one instance, so
+a save that changes the address needs the token for the new address, and the main
+process refuses the save without one. An empty token field therefore keeps the
+secret only while the address stays.
 
 The token is stored in plain text. Every other settings file in this repository
 stores its secrets the same way, and no code here uses Electron `safeStorage`.
@@ -110,16 +117,138 @@ The settings page states that the token stays on the device.
 
 The renderer sends a path, and the main process applies the address and the
 token. That makes the request handler the only place that decides where a
-request lands, so it checks the path twice:
+request lands, so it accepts three shapes and nothing else:
 
-- `/api/` prefix, no `..`, no `//`, no whitespace, and no `%`.
-- After the URL is built, the resolved `pathname` must still sit under the base
-  path.
+| Method | Path |
+| --- | --- |
+| `GET` | `/api/states` |
+| `GET` | `/api/states/{domain}.{object_id}` |
+| `POST` | `/api/services/{domain}/{service}` |
 
-The percent rule matters. The URL parser reads `%2e%2e` as a parent segment, so
-`/api/%2e%2e/secrets.yaml` passes a text check and resolves above `/api/`. The
-client builds every path from `[a-z0-9_.]`, so a `%` means a caller that is not
-the client.
+Two shapes outside that list matter. `POST /api/template` runs arbitrary Jinja on
+the Home Assistant host, and `POST /api/states/{id}` writes a state. Measurement
+determined that the stored token reached both. The client builds neither shape.
+
+Every segment the client builds matches `[a-z0-9_.]`, so the patterns also reject
+a percent escape, a `..` segment, a doubled slash, and whitespace. After the URL
+is built, the resolved `pathname` must still sit under the base path, because a
+reverse proxy can serve Home Assistant under a subpath.
+
+A second rule covers the address. A token belongs to one Home Assistant
+instance, so no update can move the address while the stored token stays behind.
+Without that rule, a renderer moves the address to a server it controls and the
+next request sends the token there.
+
+## Device access
+
+The user decides which devices the model reaches. The settings page offers three
+modes, and the tools apply the policy.
+
+| Mode | Reach |
+| --- | --- |
+| `all` (default) | Every device |
+| `allow` | The devices on the allow list, and nothing else |
+| `deny` | Every device except the ones on the block list |
+
+The unit is the device, not the domain. One domain holds both a harmless device
+and a door, so a domain rule cannot separate them. A domain is a way to browse
+the list instead: the settings page shows one tab per domain, named in the
+page language.
+
+An empty list keeps its literal meaning under each mode. An empty allow list
+reaches nothing, because "allow only these" with none chosen means "allow none".
+An empty block list reaches everything, which is why `all` and `deny` with an
+empty list behave alike. The default stays `all`, so a new user reaches every
+device.
+
+The two lists are separate in storage. One shared list turns every allowed
+device into a blocked device the moment the user switches modes.
+
+The policy lives in the renderer store, beside the module switch, because the
+user owns the choice and the tools that read it live in the renderer.
+
+The tools run in the leader window, and the settings window is a follower. The
+picker writes its own copy at once, so the control answers, and then applies the
+same policy through a synchronized action. A storage event reaches the leader
+on its own schedule, which leaves a call the model already holds on the rule the
+user just replaced. A push that fails reports it on the page, because the grid
+then shows a rule the leader does not hold. The two lists travel as plain arrays,
+because the transport clones the arguments of a routed call and a Vue reactive
+proxy does not clone.
+
+### What a call can run
+
+The policy names devices, and a device check is only as good as the service that
+acts on it. Two kinds of service break the link between the device a caller
+checked and what the call changes.
+
+- A service that is its own target. A script registers a service named after it,
+  so `POST /api/services/script/good_night` runs that script and ignores the
+  `entity_id` in the body. Measurement: the script ran while the body named an
+  unrelated switch.
+- A service that expands its target. A service call on a group entity reaches
+  every member. Measurement: a group with two members changed both.
+
+A model turn holds the tools it resolved when the turn started. The tools
+therefore read the policy at each call, so a change during that turn reaches the
+calls the turn still makes.
+
+The integration therefore runs only the services that act on the device the
+caller named. A service outside the list fails, and the message names what the
+domain accepts. A call whose target reports a member list fails too, and the
+model asks the user for one device by name.
+
+A call also reports the states it changed. A scene, a script, or an automation
+changes devices the user never named, so the report carries the devices the
+policy exposes and a count of the ones it hides. The list and the state read
+apply the same policy, so a blocked device cannot arrive through another
+device's effect.
+
+### One instance
+
+An entity id means one device on one instance. Changing the address clears both
+lists, because a list written for the old instance reaches a different device
+on the new one.
+
+The two lists clear on different sides of the move. An empty allow list reaches
+nothing, so clearing it before the address moves can only take reach away. An
+empty block list reaches everything, so clearing that one before the move opens
+the old instance for the length of the save. It clears after the main process
+holds the new address, when the old instance is out of reach.
+
+A save reads the address the main process holds at the moment it runs. The value
+the page read when it mounted is empty until that read lands, and an empty value
+reads as a first configuration. The lists of the instance the user leaves then
+survive into the new one.
+
+The tools apply the policy rather than the main process. The model reaches Home
+Assistant only through these tools, so this is where a blocked device stays out
+of reach. Two consequences follow.
+
+- A listing hides a blocked device and reports how many it hid. A silent empty
+  list tells the model that the user owns no such device.
+- A read or a call on a blocked device fails with a message that names the
+  device and the list that holds it. The model reads that message and asks the
+  user for the one change that helps.
+
+The policy also appears in each tool description. The model plans from the tool
+list, so a policy stated there costs no failed call to discover.
+
+The picker lists every device the instance reports, including the blocked ones.
+The settings page needs the whole list, because a device the model cannot reach
+is exactly the one the user must be able to add.
+
+The tile grid shows a device that Home Assistant stopped reporting while the
+list holds it. The row keeps a zero count, so the user can still unselect it.
+
+The policy constrains the model, not a hostile renderer. Code that runs in the
+renderer can widen the policy through the settings handler, and it can build its
+own request. The main process owns the boundary against that.
+
+A per-device policy makes one model behaviour worse. A request to "turn off every
+light" now fails device by device when any light is blocked, where a domain rule
+failed once. The listing note and the tool description are the mitigation, and
+neither is perfect.
 
 ## Platform scope
 
@@ -143,7 +272,8 @@ than a second client.
 
 ## Non-goals
 
-- No entity allowlist and no per-entity permission model in the first phase.
+- No per-domain policy. The unit is the device, so a user who wants to reach
+  every light selects each one, or selects none and leaves the deny list empty.
 - No Stage Web work.
 - No channel plugin. The scaffold under `plugins/` is gone, and a later Stage Web
   change adds a package back if it needs one.
@@ -155,6 +285,11 @@ than a second client.
 - Does the tool set need `requiresExplicitSelection` for `call_service`, the way
   `computer_use` has it? The shared composer sends no `tools` field, so the gate
   only works in the Tamagotchi renderer.
+- Does the settings page need a read and control split, so the model reads a
+  door sensor without unlocking it? One selection now grants both.
+- Does the main process own the policy, in addition to the request allowlist?
+  This phase constrains the model only. A renderer with code execution can widen
+  the policy through the settings handler.
 - Does an entity alias map belong in the settings page, so "the living room
   light" resolves without the model reading the entity list?
 - Does the token move to Electron `safeStorage`?

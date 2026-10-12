@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isCapacitorAvailable } from '@proj-airi/stage-shared'
 import { signOut } from '@proj-airi/stage-ui/libs/auth'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Avatar, DropdownMenu } from '@proj-airi/ui'
@@ -17,13 +18,14 @@ defineProps<{
 }>()
 
 const authStore = useAuthStore()
-const { isAuthenticated, user, credits } = storeToRefs(authStore)
+const { isAuthenticated, user, credits, capacitorPercent } = storeToRefs(authStore)
 const { t } = useI18n()
 
 const userName = computed(() => user.value?.name)
 const userAvatar = computed(() => user.value?.image)
 
 const formattedCredits = computed(() => credits.value.toLocaleString())
+const capacitorAvailable = isCapacitorAvailable()
 </script>
 
 <template>
@@ -46,6 +48,7 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
             'data-[state=open]:ring-2 data-[state=open]:ring-primary-500/20',
             'transition-colors duration-200 ease-in-out',
           ]"
+          @click="authStore.updateCredits()"
         >
           <Avatar
             v-if="isAuthenticated"
@@ -93,6 +96,13 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
           <p class="truncate text-sm text-neutral-900 font-medium dark:text-white">
             {{ userName }}
           </p>
+          <div
+            v-if="capacitorPercent != null"
+            class="mt-1 flex items-center gap-1.5 text-xs text-primary-600 font-medium dark:text-primary-400"
+          >
+            <div class="i-solar:star-bold-duotone text-sm" />
+            <span>{{ capacitorPercent }}%</span>
+          </div>
           <div class="mt-1 flex items-center gap-1.5 text-xs text-primary-600 font-medium dark:text-primary-400">
             <div class="i-solar:battery-charge-bold-duotone text-sm" />
             <span>{{ formattedCredits }} Flux</span>
@@ -128,6 +138,21 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
           >
             <div class="i-solar:battery-charge-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
             Flux
+          </RouterLink>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem v-if="capacitorAvailable" as-child>
+          <RouterLink
+            to="/settings/capacitor"
+            :class="[
+              'group w-full flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2',
+              'text-sm leading-none outline-none text-neutral-700 dark:text-neutral-200',
+              'data-[highlighted]:bg-primary-100/80 dark:data-[highlighted]:bg-primary-900/40',
+              'transition-colors duration-150 ease-in-out',
+            ]"
+          >
+            <div class="i-solar:star-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
+            {{ t('settings.pages.capacitor.title') }}
           </RouterLink>
         </DropdownMenuItem>
 

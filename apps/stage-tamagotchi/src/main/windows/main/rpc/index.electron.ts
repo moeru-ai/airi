@@ -71,6 +71,8 @@ export async function setupMainWindowElectronInvokes(params: {
   const { context } = createContext(ipcMain, params.window)
 
   await setupBaseWindowElectronInvokes({ context, window: params.window, serverChannel: params.serverChannel, i18n: params.i18n, setAlwaysOnTop: params.setPinned })
+  // The stage renderer owns the voice host, so it registers the Push to Talk hold shortcut and receives its key events.
+  params.globalShortcut.registerWindow({ context, window: params.window })
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.window })
   createAutoUpdaterService({ context, window: params.window, service: params.autoUpdater })
   createMcpServersService({ context, manager: params.mcpManager })
@@ -100,7 +102,6 @@ export async function setupMainWindowElectronInvokes(params: {
   setupSettingsPageInvokes({
     context,
     window: params.window,
-    globalShortcut: params.globalShortcut,
     spotlightWindow: params.spotlightWindow,
     devtoolsWindow: params.devtoolsWindow,
   })
