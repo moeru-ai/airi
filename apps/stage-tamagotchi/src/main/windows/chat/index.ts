@@ -79,8 +79,8 @@ export interface FullscreenChatHost {
   context: EventaContext
   /** Closes the fullscreen mode of this window when it shows the chat. */
   close: () => void
-  /** Whether this window shows the chat now, so it has a composer to collect the draft from. */
-  isShown: () => boolean
+  /** Whether this window keeps the chat mounted, shown or hidden, so it has a composer to collect the draft from. */
+  hasChat: () => boolean
   /** Whether the fullscreen mode shows in this window, as the user chose. Only one host answers `true` at a time. */
   isActive: () => boolean
 }
@@ -107,7 +107,7 @@ export interface ChatWindowManager {
   setMainWindowCovered: (covered: boolean) => void
   /**
    * Moves a chat in the fullscreen mode to the default mode, when the user turns the fullscreen mode experiment off.
-   * A shown fullscreen chat switches with its draft. Otherwise only the saved mode changes, and no window opens.
+   * A mounted fullscreen chat switches with its draft. Otherwise only the saved mode changes, and no window opens.
    */
   leaveFullscreenMode: () => Promise<void>
 }
@@ -268,10 +268,10 @@ export function setupChatWindowManager(params: {
       fullscreen: {
         open: async () => params.openFullscreenChat(),
         close: () => fullscreenHost()?.close(),
-        // A host that shows settings or nothing has no chat composer to answer.
+        // A host that never showed the chat has no chat composer to answer.
         collectDraft: async () => {
           const host = fullscreenHost()
-          return host?.isShown() ? collectDraft(host.window) : undefined
+          return host?.hasChat() ? collectDraft(host.window) : undefined
         },
       },
     },
@@ -343,7 +343,7 @@ export function setupChatWindowManager(params: {
       if (getConfig().mode !== 'fullscreen')
         return
       try {
-        if (fullscreenHost()?.isShown())
+        if (fullscreenHost()?.hasChat())
           await modeSwitch.switchTo(defaultChatWindowConfig.mode)
         else
           await modeSwitch.run(async () => updateConfig({ ...getConfig(), mode: defaultChatWindowConfig.mode }))

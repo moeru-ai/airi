@@ -48,9 +48,9 @@ export const useFullscreenStore = defineStore('fullscreen', () => {
   /** The page of the window that hosts the mode. The router returns to it when the mode leaves the surface pages. */
   const home = ref('/')
 
-  /** Tells the main process what shows, which it needs to hand the chat draft over and to restore after a reload. */
+  /** Tells the main process what shows and what stays mounted. It needs them to hand the chat draft over and to restore after a reload. */
   function report(shown: FullscreenSurfaceId | undefined) {
-    void reportSurface({ surface: shown }).catch(error => console.error('[Main window fullscreen] Failed to report the surface:', error))
+    void reportSurface({ surface: shown, mounted: shown ? [...mounted] : [] }).catch(error => console.error('[Main window fullscreen] Failed to report the surface:', error))
   }
 
   function show(next: FullscreenSurfaceId) {
@@ -111,10 +111,9 @@ export const useFullscreenStore = defineStore('fullscreen', () => {
       await close()
       return
     }
-    if (surface.value === gone) {
+    if (surface.value === gone)
       surface.value = remaining
-      report(remaining)
-    }
+    report(surface.value)
   }
 
   /** Ends a transition. A closed mode unmounts every surface, so the next opening starts fresh. */

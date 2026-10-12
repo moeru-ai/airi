@@ -94,7 +94,11 @@ describe('main window fullscreen store', () => {
 
     expect(router.currentRoute.value.path).toBe('/settings/airi-card')
     expect([...fullscreen.mounted]).toEqual(['settings', 'chat'])
-    expect(mocks.reportSurface.mock.calls).toEqual([[{ surface: 'settings' }], [{ surface: 'chat' }], [{ surface: 'settings' }]])
+    expect(mocks.reportSurface.mock.calls).toEqual([
+      [{ surface: 'settings', mounted: ['settings'] }],
+      [{ surface: 'chat', mounted: ['settings', 'chat'] }],
+      [{ surface: 'settings', mounted: ['settings', 'chat'] }],
+    ])
   })
 
   it('leaves the settings page through the router when it closes, and starts fresh after', async () => {

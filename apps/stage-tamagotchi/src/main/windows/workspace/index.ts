@@ -89,6 +89,8 @@ export function setupWorkspaceWindowManager(params: {
   let context: ReturnType<typeof createContext>['context'] | undefined
   /** What the page shows on the right, as it reports it. */
   let surface: FullscreenSurfaceId | undefined
+  /** Whether the page keeps the chat mounted, shown or hidden. A mounted chat has a composer that holds the draft. */
+  let chatMounted = false
 
   const reusable = createReusableWindow(async () => {
     const mainWindow = params.getMainWindow()
@@ -144,6 +146,7 @@ export function setupWorkspaceWindowManager(params: {
     })
     defineInvokeHandler(windowContext, electronFullscreenSurfaceChanged, (payload) => {
       surface = payload?.surface
+      chatMounted = !!payload?.mounted.includes('chat')
     })
     defineInvokeHandler(windowContext, electronFullscreenExit, () => reusable.close())
     // The chat shows here too, so the window answers what a chat renderer asks.
@@ -156,7 +159,7 @@ export function setupWorkspaceWindowManager(params: {
         if (!window.isDestroyed())
           windowContext.emit(electronFullscreenClose, { surface: 'chat' })
       },
-      isShown: () => surface === 'chat',
+      hasChat: () => chatMounted,
       isActive: params.isActive,
     })
 
@@ -164,6 +167,7 @@ export function setupWorkspaceWindowManager(params: {
       detachChat()
       context = undefined
       surface = undefined
+      chatMounted = false
       params.onOpenChange?.(false)
     })
 

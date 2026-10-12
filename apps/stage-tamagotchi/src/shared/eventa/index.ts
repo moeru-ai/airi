@@ -59,10 +59,10 @@ export type FullscreenGlideCurve = [x1: number, y1: number, x2: number, y2: numb
  */
 export const electronMainWindowSetFullscreenBounds = defineInvokeEventa<void, { bounds: Rectangle, duration?: number, delay?: number, curve?: FullscreenGlideCurve }>('eventa:invoke:electron:windows:main:fullscreen:bounds')
 /**
- * Reports what the page shows on the right, or nothing once fullscreen mode closes. The main process reads it to hand
- * the chat draft over and to show the same surface after a reload.
+ * Reports what the page shows on the right and which surfaces it keeps mounted, or nothing once fullscreen mode
+ * closes. The main process shows the same surface after a reload, and collects the chat draft from a mounted chat.
  */
-export const electronFullscreenSurfaceChanged = defineInvokeEventa<void, { surface?: FullscreenSurfaceId }>('eventa:invoke:electron:fullscreen:surface-changed')
+export const electronFullscreenSurfaceChanged = defineInvokeEventa<void, { surface?: FullscreenSurfaceId, mounted: FullscreenSurfaceId[] }>('eventa:invoke:electron:fullscreen:surface-changed')
 /**
  * Reads whether the window is in fullscreen mode. A page that loads while it is, after a reload for example, shows
  * the fullscreen mode at once. Returns the bounds before fullscreen, the work area, and the surface. The window of
