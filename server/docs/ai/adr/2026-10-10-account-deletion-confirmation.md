@@ -41,9 +41,11 @@ packages/
 ├── stage-pages/src/pages/settings/account/
 │   ├── account-settings-page.vue
 │   └── account-settings-page.browser.test.ts
-├── stage-ui/src/libs/
-│   ├── auth.ts
-│   └── auth.browser.test.ts
+├── stage-ui/src/
+│   ├── composables/use-analytics.ts
+│   └── libs/
+│       ├── auth.ts
+│       └── auth.browser.test.ts
 └── i18n/src/locales/{en,zh-Hans}/settings.yaml
 server/
 ├── apps/auth/
