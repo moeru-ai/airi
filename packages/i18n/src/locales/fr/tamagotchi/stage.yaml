@@ -127,4 +127,4 @@ chat-window:
     reading-speed-value: '{count} caractères/s'
     minimum-time: Durée minimale
 inlay:
-  hide: Masquer
+  dismiss: Fermer

@@ -131,4 +131,4 @@ widgets:
   loading: 위젯 불러오는 중…
   waiting: '"{id}" 위젯의 데이터를 기다리는 중…'
 inlay:
-  hide: 숨기기
+  dismiss: 닫기

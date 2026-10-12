@@ -237,8 +237,8 @@ startup:
     model: 角色模型
 theme:
   title: 主題
-  system: 外觀
-  light: 燈光
+  system: 系統
+  light: 淺色
   dark: 深色
   switch-to-light: 切換為淺色主題
   switch-to-dark: 切換為深色主題

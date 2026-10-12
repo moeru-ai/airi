@@ -2146,8 +2146,8 @@ theme:
   title: 主題
   description: |
     切換 AIRI 的基礎主題，亮色模式或暗色模式。
-  auto: 外觀
-  light: 燈光
+  auto: 系統
+  light: 淺色
   dark: 深色
 title: 設定
 voices: 聲線

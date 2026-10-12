@@ -239,7 +239,7 @@ startup:
 theme:
   title: 테마
   system: 시스템
-  light: 조명
+  light: 밝게
   dark: 어둡게
   switch-to-light: 밝은 테마로 전환
   switch-to-dark: 어두운 테마로 전환

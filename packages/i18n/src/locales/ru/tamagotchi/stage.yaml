@@ -129,4 +129,4 @@ chat-window:
     minimum-time: Минимальное время
     minimum-time-value: '{count} с'
 inlay:
-  hide: Скрыть
+  dismiss: Закрыть

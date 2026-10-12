@@ -235,8 +235,8 @@ startup:
     model: modèle du personnage
 theme:
   title: Thème
-  system: Apparence
-  light: Éclairage
+  system: Système
+  light: Clair
   dark: Sombre
   switch-to-light: Passer au thème clair
   switch-to-dark: Passer au thème sombre

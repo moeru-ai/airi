@@ -220,7 +220,7 @@ websocket-status:
   disconnected: Нет подключения
   open-settings: Открыть настройки подключения
 theme:
-  light: Освещение
+  light: Светлая
   title: Тема
   system: Системная
   dark: Тёмная

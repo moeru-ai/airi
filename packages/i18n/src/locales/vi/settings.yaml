@@ -2152,7 +2152,7 @@ theme:
   title: Chủ Đề
   description: |
     Chuyển đổi chủ đề cơ bản của AIRI, Chế độ Sáng hoặc Chế độ Tối.
-  light: Đèn
+  light: Sáng
   auto: Hệ thống
   dark: Tối
 title: Cài Đặt

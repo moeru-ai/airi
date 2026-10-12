@@ -2151,7 +2151,7 @@ theme:
   title: テーマ
   description: |
     AIRIの基本テーマをライトモードまたはダークモードに切り替えます。
-  light: 照明
+  light: ライト
   auto: システム
   dark: ダーク
 title: 設定

@@ -127,4 +127,4 @@ chat-window:
     minimum-time: Thời gian tối thiểu
     minimum-time-value: '{count} giây'
 inlay:
-  hide: Ẩn
+  dismiss: Đóng
