@@ -9,7 +9,7 @@ import { computed, onMounted, watch } from 'vue'
 import FullscreenBackdrop from '../components/fullscreen/fullscreen-backdrop.vue'
 import FullscreenOverlay from '../components/fullscreen/fullscreen-overlay.vue'
 
-import { electronFullscreenExit, electronFullscreenGetState } from '../../shared/eventa'
+import { defaultFullscreenSurface, electronFullscreenExit, electronFullscreenGetState } from '../../shared/eventa'
 import { fullscreenHostPages } from '../components/fullscreen/surfaces'
 import { useFullscreenHost } from '../composables/use-fullscreen-host'
 import { provideFullscreenLayout } from '../composables/use-fullscreen-layout'
@@ -58,7 +58,7 @@ onMounted(async () => {
     if (state?.pack)
       await fullscreen.unpack(state.pack)
     else
-      await fullscreen.open(state?.surface ?? 'settings', state?.route)
+      await fullscreen.open(state?.surface ?? defaultFullscreenSurface, state?.route)
   }
   catch (error) {
     console.error('[Fullscreen window] Failed to show the mode:', errorMessageFrom(error))

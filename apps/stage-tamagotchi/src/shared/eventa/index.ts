@@ -45,6 +45,8 @@ export const electronOpenSettings = defineInvokeEventa<void, { route?: string }>
  * - `chat`: the chat, in the `fullscreen` chat mode.
  */
 export type FullscreenSurfaceId = 'settings' | 'chat'
+/** The surface that the fullscreen mode shows when a request names none. */
+export const defaultFullscreenSurface: FullscreenSurfaceId = 'settings'
 
 /** The state that one mounted surface hands to the next host. The surface decides what it is. */
 export interface FullscreenCarriedSurface {

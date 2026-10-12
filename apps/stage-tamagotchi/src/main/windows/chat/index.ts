@@ -1,7 +1,7 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { InferOutput } from 'valibot'
 
-import type { ChatButtonState, ChatDraftHandover, ChatWindowMode, ChatWindowPreferences } from '../../../shared/eventa'
+import type { ChatButtonState, ChatDraftHandover, ChatWindowMode, ChatWindowPreferences, FullscreenSurfaceId } from '../../../shared/eventa'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { McpManager } from '../../services/airi/mcp-servers'
@@ -24,6 +24,7 @@ import {
   electronChatWindowGetPreferences,
   electronChatWindowSetPreferences,
   electronChatWindowTakeDraft,
+  electronFullscreenClose,
 } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
@@ -77,10 +78,8 @@ export interface FullscreenChatHost {
   window: BrowserWindow
   /** The context of the window. The chat preferences and the draft handover of the fullscreen chat go through it. */
   context: EventaContext
-  /** Closes the fullscreen mode of this window, once the chat has moved to the window of another chat mode. */
-  close: () => void
-  /** Whether this window keeps the chat mounted, shown or hidden, so it has a composer to collect the draft from. */
-  hasChat: () => boolean
+  /** The surfaces that the page keeps mounted, shown or hidden, as it reports them. */
+  mounted: () => readonly FullscreenSurfaceId[]
   /** Whether the fullscreen mode shows in this window, as the user chose. Only one host answers `true` at a time. */
   isActive: () => boolean
 }
@@ -258,6 +257,14 @@ export function setupChatWindowManager(params: {
   /** The windows that can carry the fullscreen chat. Without an active one, the fullscreen chat has nowhere to show. */
   const fullscreenHosts = new Set<FullscreenChatHost>()
   const fullscreenHost = () => [...fullscreenHosts].find(host => host.isActive())
+  /** Whether a host keeps the chat mounted, shown or hidden, so it has a composer to collect the draft from. */
+  const hasChat = (host: FullscreenChatHost | undefined) => !!host?.mounted().includes('chat')
+  /** Ends the fullscreen mode of the active host, once the chat has moved to the window of another chat mode. */
+  function closeFullscreenChat() {
+    const host = fullscreenHost()
+    if (host && !host.window.isDestroyed())
+      host.context.emit(electronFullscreenClose, { surface: 'chat' })
+  }
 
   const modeSwitch = createChatModeSwitch({
     getMode: () => getConfig().mode,
@@ -267,11 +274,11 @@ export function setupChatWindowManager(params: {
       floating: { open: floating.open, close: floating.close, collectDraft: async () => collectDraft(floating.getOpenWindow()) },
       fullscreen: {
         open: async () => params.openFullscreenChat(),
-        close: () => fullscreenHost()?.close(),
+        close: closeFullscreenChat,
         // A host that never showed the chat has no chat composer to answer.
         collectDraft: async () => {
           const host = fullscreenHost()
-          return host?.hasChat() ? collectDraft(host.window) : undefined
+          return host && hasChat(host) ? collectDraft(host.window) : undefined
         },
       },
     },
@@ -343,7 +350,7 @@ export function setupChatWindowManager(params: {
       if (getConfig().mode !== 'fullscreen')
         return
       try {
-        if (fullscreenHost()?.hasChat())
+        if (hasChat(fullscreenHost()))
           await modeSwitch.switchTo(defaultChatWindowConfig.mode)
         else
           await modeSwitch.run(async () => updateConfig({ ...getConfig(), mode: defaultChatWindowConfig.mode }))

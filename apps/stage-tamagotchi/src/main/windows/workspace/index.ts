@@ -23,7 +23,6 @@ import { BrowserWindow, ipcMain, screen } from 'electron'
 import icon from '../../../../resources/icon.png?asset'
 
 import {
-  electronFullscreenClose,
   electronFullscreenExit,
   electronFullscreenGetState,
   electronFullscreenOpen,
@@ -89,13 +88,13 @@ export function setupWorkspaceWindowManager(params: {
    * What the next window shows first. Its page reads it when it mounts and opens the surface through the registry,
    * like the main window does.
    */
-  let first: { surface: FullscreenSurfaceId, route?: string, pack?: FullscreenPack } = { surface: 'settings' }
+  let first: { surface: FullscreenSurfaceId, route?: string, pack?: FullscreenPack } | undefined
   /** The context of the open window. A request for another surface goes through it. */
   let context: ReturnType<typeof createContext>['context'] | undefined
   /** Asks the page of the open window to pack what it shows, and to close the mode. */
   let requests: { pack: () => Promise<FullscreenPack | undefined>, close: () => Promise<boolean> } | undefined
-  /** Whether the page keeps the chat mounted, shown or hidden. A mounted chat has a composer that holds the draft. */
-  let chatMounted = false
+  /** The surfaces that the page keeps mounted, shown or hidden, as it reports them. */
+  let mounted: readonly FullscreenSurfaceId[] = []
 
   const reusable = createReusableWindow(async () => {
     const mainWindow = params.getMainWindow()
@@ -150,7 +149,7 @@ export function setupWorkspaceWindowManager(params: {
       return { home: bounds, workArea: bounds, ...first }
     })
     defineInvokeHandler(windowContext, electronFullscreenSurfaceChanged, (payload) => {
-      chatMounted = !!payload?.mounted.includes('chat')
+      mounted = payload?.mounted ?? []
     })
     defineInvokeHandler(windowContext, electronFullscreenExit, () => reusable.close())
     const requestPack = defineInvoke(windowContext, electronFullscreenPack)
@@ -162,11 +161,7 @@ export function setupWorkspaceWindowManager(params: {
     const detachChat = params.chatWindow.attachFullscreen({
       window,
       context: windowContext,
-      close: () => {
-        if (!window.isDestroyed())
-          windowContext.emit(electronFullscreenClose, { surface: 'chat' })
-      },
-      hasChat: () => chatMounted,
+      mounted: () => mounted,
       isActive: params.isActive,
     })
 
@@ -174,7 +169,7 @@ export function setupWorkspaceWindowManager(params: {
       detachChat()
       context = undefined
       requests = undefined
-      chatMounted = false
+      mounted = []
       params.onOpenChange?.(false)
     })
 

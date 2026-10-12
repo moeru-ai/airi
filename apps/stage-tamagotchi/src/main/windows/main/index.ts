@@ -37,7 +37,7 @@ import { array, number, object, optional, string } from 'valibot'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { electronFullscreenClose, electronFullscreenExit, electronFullscreenGetState, electronFullscreenOpen, electronFullscreenPack, electronFullscreenRequestClose, electronFullscreenSetMode, electronFullscreenSurfaceChanged, electronMainWindowEnterFullscreen, electronMainWindowSetFullscreenBounds, electronStartDraggingWindow } from '../../../shared/eventa'
+import { electronFullscreenExit, electronFullscreenGetState, electronFullscreenOpen, electronFullscreenPack, electronFullscreenRequestClose, electronFullscreenSetMode, electronFullscreenSurfaceChanged, electronMainWindowEnterFullscreen, electronMainWindowSetFullscreenBounds, electronStartDraggingWindow } from '../../../shared/eventa'
 import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
@@ -291,8 +291,8 @@ export async function setupMainWindow(params: {
   // `leaveFullscreen` is the only way out.
   /** What the page shows on the right, as it reports it. */
   let fullscreenSurface: FullscreenSurfaceId | undefined
-  /** Whether the page keeps the chat mounted, shown or hidden. A mounted chat has a composer that holds the draft. */
-  let fullscreenChatMounted = false
+  /** The surfaces that the page keeps mounted, shown or hidden, as it reports them. */
+  let fullscreenMounted: readonly FullscreenSurfaceId[] = []
   /** The fullscreen mode that the user chose, as the page reports it. Off until the page reports. */
   let fullscreenMode: FullscreenMode = 'off'
   const fullscreenLog = useLogg('main-window-fullscreen').useGlobalConfig()
@@ -310,7 +310,7 @@ export async function setupMainWindow(params: {
   function leaveFullscreen(reason: string) {
     stopFullscreenGlide()
     fullscreenSurface = undefined
-    fullscreenChatMounted = false
+    fullscreenMounted = []
     if (!boundsBeforeFullscreen || window.isDestroyed())
       return
     fullscreenLog.log(`Leaving fullscreen mode: ${reason}`)
@@ -374,7 +374,7 @@ export async function setupMainWindow(params: {
   })
   const cleanUpSurfaceChanged = defineInvokeHandler(fullscreenContext, electronFullscreenSurfaceChanged, (payload) => {
     fullscreenSurface = boundsBeforeFullscreen ? payload?.surface : undefined
-    fullscreenChatMounted = !!boundsBeforeFullscreen && !!payload?.mounted.includes('chat')
+    fullscreenMounted = boundsBeforeFullscreen ? payload?.mounted ?? [] : []
   })
   const cleanUpExitFullscreen = defineInvokeHandler(fullscreenContext, electronFullscreenExit, payload => leaveFullscreen(payload?.reason ?? 'the page gave no reason'))
   const cleanUpGetFullscreenState = defineInvokeHandler(fullscreenContext, electronFullscreenGetState, () => boundsBeforeFullscreen
@@ -426,11 +426,7 @@ export async function setupMainWindow(params: {
   params.chatWindow.attachFullscreen({
     window,
     context: fullscreenContext,
-    close: () => {
-      if (!window.isDestroyed())
-        fullscreenContext.emit(electronFullscreenClose, { surface: 'chat' })
-    },
-    hasChat: () => fullscreenChatMounted,
+    mounted: () => fullscreenMounted,
     isActive: () => fullscreenMode === 'single-window',
   })
   // A reload stops the glide that the old page waited on. The new page sets the bounds again. A route change inside

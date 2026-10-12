@@ -3,12 +3,14 @@ import type { InjectionKey } from 'vue'
 import { useElementBounding, useLocalStorage, useWindowSize } from '@vueuse/core'
 import { computed, inject, provide, shallowRef } from 'vue'
 
+import { SETTINGS_WINDOW_WIDTH } from '../../shared/settings-window'
+
 /** The share of the area width that the stage takes on the left. The surface takes the rest on the right. */
 const STAGE_SHARE = 0.42
 /** The share of the area width that the surface takes until the user drags its edge. */
 const SURFACE_SHARE = 0.54
 /** The narrowest surface: the width of the settings window, which settings pages are laid out for. */
-const SURFACE_MIN_WIDTH = 600
+const SURFACE_MIN_WIDTH = SETTINGS_WINDOW_WIDTH
 /** The space between the surface and the top and right edges of the area. */
 const SURFACE_MARGIN = 24
 

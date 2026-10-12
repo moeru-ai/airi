@@ -5,8 +5,8 @@ import { defineStore } from 'pinia'
 import { computed, ref, shallowReactive } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { electronFullscreenSurfaceChanged } from '../../shared/eventa'
-import { fullscreenSurfaceOf, fullscreenSurfaces } from '../components/fullscreen/surfaces'
+import { defaultFullscreenSurface, electronFullscreenSurfaceChanged } from '../../shared/eventa'
+import { fullscreenHostPages, fullscreenSurfaceOf, fullscreenSurfaces } from '../components/fullscreen/surfaces'
 
 /**
  * Where the fullscreen mode is, in the window that hosts it.
@@ -49,12 +49,12 @@ export const useFullscreenStore = defineStore('fullscreen', () => {
 
   const phase = ref<FullscreenPhase>('closed')
   /** What shows on the right while the mode is active. */
-  const surface = ref<FullscreenSurfaceId>('settings')
+  const surface = ref<FullscreenSurfaceId>(defaultFullscreenSurface)
   /** The surfaces that showed since the mode opened. Their panels stay mounted until it closes. */
   const mounted = shallowReactive(new Set<FullscreenSurfaceId>())
   const active = computed(() => phase.value !== 'closed')
   /** The page of the window that hosts the mode. The router returns to it when the mode leaves the surface pages. */
-  const home = ref('/')
+  const home = ref(fullscreenHostPages['main-window'])
   /** The carriers of the mounted panels, by surface. */
   const carriers = new Map<FullscreenSurfaceId, FullscreenCarrier>()
   /** States that the previous host packed. Each one waits until the panel of its surface mounts. */

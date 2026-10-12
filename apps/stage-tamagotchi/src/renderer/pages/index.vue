@@ -39,8 +39,8 @@ import ControlsIslandRoot from '../components/stage-islands/controls-island/cont
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
 
-import { electronAppIsWayland, electronFullscreenExit, electronFullscreenGetState, electronFullscreenSetMode, electronMainWindowEnterFullscreen, electronMainWindowSetFullscreenBounds, electronOpenInlay, electronOpenOnboarding } from '../../shared/eventa'
-import { fullscreenSurfaceOf } from '../components/fullscreen/surfaces'
+import { defaultFullscreenSurface, electronAppIsWayland, electronFullscreenExit, electronFullscreenGetState, electronFullscreenSetMode, electronMainWindowEnterFullscreen, electronMainWindowSetFullscreenBounds, electronOpenInlay, electronOpenOnboarding } from '../../shared/eventa'
+import { fullscreenHostPages, fullscreenSurfaceOf } from '../components/fullscreen/surfaces'
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
 import { useFullscreenHost } from '../composables/use-fullscreen-host'
 import { provideFullscreenLayout } from '../composables/use-fullscreen-layout'
@@ -286,6 +286,7 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
 const fullscreen = useFullscreenStore()
 const { phase: fullscreenPhase, active: fullscreenActive } = storeToRefs(fullscreen)
 const router = useRouter()
+fullscreen.home = fullscreenHostPages['main-window']
 useFullscreenHost()
 const enterFullscreenWindow = useElectronEventaInvoke(electronMainWindowEnterFullscreen)
 const setFullscreenWindowBounds = useElectronEventaInvoke(electronMainWindowSetFullscreenBounds)
@@ -526,7 +527,7 @@ async function resumeFullscreen() {
     // The window decides. A route that names a surface while the window is not in the mode goes back to the main page.
     if (!state) {
       if (fullscreenSurfaceOf(router.currentRoute.value.path))
-        await router.replace('/')
+        await router.replace(fullscreen.home)
       return
     }
     const plan = planFor(state.home, state.workArea)
@@ -535,7 +536,7 @@ async function resumeFullscreen() {
     stageLayout.value = { ...plan.stage, scale: 1, offsetX: fullscreenLayout.stageOffsetIn(plan.workArea.width) }
     fullscreenArea.value = { width: plan.workArea.width, height: plan.workArea.height }
     await setFullscreenWindowBounds({ bounds: plan.workArea })
-    await fullscreen.resume(state.surface ?? 'settings')
+    await fullscreen.resume(state.surface ?? defaultFullscreenSurface)
   }
   catch (error) {
     console.error('[Main window fullscreen] Failed to show the mode again:', errorMessageFrom(error))
