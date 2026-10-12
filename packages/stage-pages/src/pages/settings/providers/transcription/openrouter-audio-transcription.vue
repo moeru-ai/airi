@@ -28,7 +28,10 @@ const selectedModel = computed(() => {
   return typeof model === 'string' ? model : ''
 })
 
-watch(() => providers.value[providerId]?.apiKey, async (apiKey) => {
+watch([
+  () => providers.value[providerId]?.apiKey,
+  () => providers.value[providerId]?.baseUrl,
+], async ([apiKey]) => {
   if (typeof apiKey !== 'string' || !apiKey.trim())
     return
 
@@ -48,7 +51,7 @@ async function handleModelChange(model: string | undefined) {
 async function handleGenerateTranscription(file: File) {
   const model = selectedModel.value
   if (!model)
-    throw new Error('Select a model in OpenRouter settings before testing.')
+    throw new Error(t('settings.pages.modules.hearing.sections.section.playground.select-model-before-testing'))
 
   const provider = await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, Record<string, unknown>>>(providerId)
   if (!provider)
