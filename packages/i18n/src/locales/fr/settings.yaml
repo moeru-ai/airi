@@ -55,6 +55,28 @@ dialogs:
       optionalHint: Vous pouvez continuer même si ces autorisations ne sont pas accordées.
       stateGranted: Accordée
       stateNotGranted: Non accordée
+    official:
+      title: Fournisseur officiel AIRI
+    pricingLink: Tarifs
+    termsLink: Conditions d’utilisation
+    buyFlux: Recharger Flux
+  bug-report:
+    title: Signaler un problème (´;ω;`)ヾ(･∀･`)
+    subtitle: Désolés, une erreur s’est produite. Pouvez-vous nous expliquer ce qui s’est passé ?
+    trigger-label: Signaler un problème
+    submit-label: Envoyer le signalement
+    triage-description: Ajoutez une capture d’écran et le contexte de la page pour nous aider à analyser le problème.
+    description-placeholder: Étapes de reproduction, comportement attendu et comportement observé
+    include-current-page-screenshot: Inclure une capture de la page actuelle
+    manual-media:
+      label: Choisir des captures d’écran / enregistrements
+      optional: Facultatif.
+    media-files:
+      label: Fichiers multimédias
+      description: 'Facultatif : sélection manuelle.'
+      placeholder: Choisir une capture d’écran ou une vidéo
+      selected-count: '{count} fichier(s) sélectionné(s)'
+    last-submitted-preview: Aperçu des dernières données envoyées
 language:
   title: Langage
   description: |
@@ -74,6 +96,7 @@ analytics:
     privacyLink: politique de confidentialité
     onboardingHint: Vous pouvez désactiver les statistiques plus tard dans Paramètres > Système > Général.
     settingsHint: Vous pouvez désactiver les statistiques à tout moment.
+    privacyPrefix: Lire la
   toggle:
     title: Activer les statistiques d'utilisation
     description: Désactivez cette option pour ne plus participer à la collecte de statistiques.
@@ -83,6 +106,44 @@ model-select:
   panel-callout:
     support-status: >
       Cliquez sur {select-button} pour sélectionner ou importer des modèles. Actuellement, les formats {zip} (pour les modèles Live2D et Spine), {vrm} (pour les modèles VRM) et {mmd} (pour les modèles MMD, compressés avec leurs textures) sont pris en charge.
+    support-status-header: Nous prenons en charge les modèles 2D et 3D
+    model-type-example: |
+      Neuro-sama utilise un modèle 2D animé par le framework de Live2D Inc. Grok Ani, dans Grok Companion, utilise un modèle 3D aux formats ouverts VRM / MMD.
+  select-model:
+    title: Sélecteur de modèle
+    button: Sélectionner un modèle
+    select: Choisir
+    import: Importer
+    remove: Supprimer
+    confirm: Confirmer
+  live2d-report:
+    title: Avant l’importation
+    description: Examinez les données du modèle et les problèmes détectés dans l’archive.
+    description-short: Examinez les données du modèle et les problèmes.
+    close: Fermer
+    model:
+      title: Modèle
+      files: '{count} fichiers'
+      types:
+        unknown: Inconnu
+    resources:
+      title: Ressources
+      motions: Mouvements
+      parameters: Paramètres
+      referenced-and-found: '{referenced} référencés · {found} trouvés'
+      referenced: '{count} référencés'
+      found: '{count} trouvés'
+    issues:
+      title: Problèmes
+      errors: '{count} erreurs'
+      warnings: '{count} avertissements'
+      none: Aucun problème détecté.
+      how-to-fix: Comment corriger
+      resolve-before-import: Corrigez les erreurs avant l’importation.
+    actions:
+      cancel: Annuler
+      confirm: Confirmer l’importation
+      import-anyway: Importer quand même
 live2d:
   change-model:
     from-file: Charger depuis un Fichier
@@ -107,6 +168,82 @@ live2d:
     title: Extraire les couleurs du modèle
     button-extract:
       title: Extraire
+    description: |
+      Extrayez les couleurs dominantes du rendu actuel. Cliquez sur une couleur pour l’appliquer à AIRI. Si le résultat ne convient pas, réessayez avec différentes poses du modèle.
+  animation:
+    motion-driver:
+      title: Pilote de mouvement
+      description: Choisissez comment AIRI anime le corps et les yeux au repos.
+      options:
+        universal:
+          title: Universel
+          description: Utilise les mouvements du modèle, les mouvements des yeux au repos et le suivi de la souris.
+        magic:
+          description: Génère des mouvements à partir du jeu de données MAGIC fourni.
+      magic:
+        profile:
+          title: Profil MAGIC
+          description: Sélectionnez le jeu de données de mouvement fourni pour le pilote MAGIC.
+          options:
+            idle-calm:
+              title: Repos / calme
+              description: Utilise l’enregistrement fourni de mouvements au repos et calmes.
+            speaking-excited:
+              title: Parole / enthousiasme
+              description: Utilise l’enregistrement fourni de mouvements de parole et d’enthousiasme.
+        skip-mouth-open:
+          title: Ignorer l’ouverture de bouche générée
+          description: Gardez la synchronisation labiale de la parole. Désactivez cette option pour utiliser l’ouverture de bouche du profil.
+        force-view-target:
+          title: Forcer la cible du regard vers l’avant
+          description: Garde les yeux dirigés vers l’avant pendant que MAGIC déplace la tête.
+    focus:
+      title: Activer le suivi de la souris
+      description: Regarde le curseur lorsqu’il bouge. Les mouvements des yeux au repos reprennent lorsque le curseur s’arrête.
+      offset: Décalage des yeux (%)
+    force-idle-eye-animation:
+      title: Mouvements des yeux au repos
+      description: Regarde aléatoirement autour en l’absence de suivi actif du curseur.
+    blink-enable:
+      title: Activer le clignement des yeux
+      description: Autorise le modèle à cligner des yeux.
+    auto-blink:
+      title: Automatique
+      description: Utiliser l’animation de clignement par défaut du modèle
+    force-auto-blink:
+      title: Forcer
+      description: Forcer le clignement des yeux avec une minuterie externe
+    blink-mode:
+      title: Mode de clignement
+      description: Choisissez le clignement intégré au modèle ou la minuterie de clignement forcé d’AIRI.
+    idle-motion:
+      title: Animation au repos
+      no-motion: Aucune animation disponible
+      placeholder: Sélectionner une animation
+      disable-motion: Désactivé
+      disable-motion-description: Désactiver l’animation au repos
+  parameters:
+    title: Paramètres du modèle
+    render-scale:
+      title: Échelle de rendu
+    fps:
+      description: Limiter la fréquence d’images du rendu
+    shadow: Ombre portée
+    reset-parameters: Rétablir les paramètres par défaut
+  clear-model-cache: Vider le cache du modèle
+  expressions:
+    override-toggle: Système d’expressions
+    sdk-preset-preserved-notice: |
+      Le gestionnaire d’expressions du SDK et le clignement des yeux restent actifs lorsque cette option est désactivée.
+    no-expression: Aucune expression disponible pour ce modèle.
+    llm-integration-wip: L’intégration des outils LLM n’est pas encore connectée.
+    save-default: Enregistrer les expressions par défaut
+    reset: Réinitialiser toutes les expressions
+    expose-to-llm-toggle: Rendre accessible au LLM
+    expose-to-llm-options:
+      none: Aucun
+      all: Tout
+      custom: Personnalisé
 models: Modèle
 pages:
   account:
@@ -120,6 +257,90 @@ pages:
       error:
         accountAlreadyLinkedToDifferentUser: Ce compte OAuth est déjà lié à un autre compte AIRI. Choisissez un autre compte fournisseur ou dissociez-le d'abord de l'autre compte AIRI.
         oauthCallbackFailed: Impossible de connecter ce compte OAuth. Réessayez ou choisissez un autre compte fournisseur.
+        listFailed: Impossible de charger les comptes connectés.
+        unlinkFailed: Impossible de dissocier ce compte.
+        linkFailed: Impossible de démarrer le flux de liaison.
+        lastAccount: C'est votre seule méthode de connexion. Définissez d'abord un mot de passe avant de le dissocier.
+      tab: Comptes connectés
+      title: Comptes connectés
+      description: Connectez-vous à AIRI par l'intermédiaire de ces fournisseurs. Dissociez un compte pour révoquer l'accès, puis associez-le à nouveau pour passer à un autre compte.
+      status:
+        linked: Relié
+        notLinked: Non relié
+        linkedSince: Lié le {date}
+      action:
+        link: Associer
+        unlink: Dissocier
+      message:
+        loading: Chargement des comptes connectés...
+        unlinked: '{provider} dissocié.'
+        linked: '{provider} connecté.'
+        linkStarted: Redirection vers {provider}…
+    login: Se connecter
+    logout: Se déconnecter
+    viewCapacitor: Afficher
+    profile:
+      tab: Profil
+      title: Profil
+      description: Gérez votre nom d’affichage public.
+      name:
+        label: Nom d'affichage
+        placeholder: Comment les autres vous voient
+      avatar:
+        gravatarNotice: Avatar de Gravatar.
+        gravatarLink: Gérer sur gravatar.com
+      action:
+        save: Enregistrer les modifications
+      message:
+        saved: Profil mis à jour.
+      error:
+        fallback: Nous n'avons pas pu enregistrer vos modifications.
+    security:
+      tab: Sécurité
+      title: Sécurité
+      description: Changez votre mot de passe. Vos autres appareils seront déconnectés.
+      setDescription: Vous vous êtes connecté via un réseau social, donc il n'y a pas encore de mot de passe. Nous vous enverrons un lien sécurisé pour en définir un.
+      currentPassword:
+        label: Mot de passe actuel
+        placeholder: Entrez votre mot de passe actuel
+      newPassword:
+        label: Nouveau mot de passe
+        placeholder: Au moins 8 caractères
+      confirmPassword:
+        label: Confirmer le nouveau mot de passe
+        placeholder: Répétez votre nouveau mot de passe
+      action:
+        changePassword: Changer le mot de passe
+        sendSetLink: Envoyez-moi un lien pour définir mon mot de passe
+      message:
+        changed: Mot de passe modifié. Les autres sessions ont été déconnectées.
+        setLinkSent: Vérifiez {email} pour le lien pour définir votre mot de passe.
+      error:
+        fallback: Nous n'avons pas pu changer votre mot de passe.
+        setLinkFailed: Nous n'avons pas pu envoyer le lien de configuration du mot de passe.
+        passwordMismatch: Les mots de passe ne correspondent pas.
+        passwordSameAsCurrent: Le nouveau mot de passe doit être différent du mot de passe actuel.
+    danger:
+      deleteAccount:
+        modal:
+          cancel: Annuler
+          title: Supprimer le compte ?
+          warning: Cette action est irréversible. Votre solde Flux sera effacé. Annulez d’abord tout abonnement actif.
+          confirmEmail:
+            label: Saisissez votre adresse e-mail pour confirmer
+            mismatch: L’adresse e-mail ne correspond pas.
+          confirm: Envoyer l’e-mail de confirmation
+        title: Supprimer le compte
+        action: Supprimer le compte
+        description: Supprime définitivement votre compte et vos données personnelles.
+        message:
+          emailSent: Consultez {email} pour le lien de suppression.
+        error:
+          fallback: Impossible de lancer la suppression. Réessayez plus tard.
+          subscriptionActive: Votre abonnement est encore actif. Annulez-le d’abord sur la page Capacitor, puis supprimez votre compte.
+      tab: Zone de danger
+      title: Zone de danger
+      description: Cette section contient les actions irréversibles sur le compte.
   card:
     activate: Activer
     active: Actif
@@ -191,6 +412,15 @@ pages:
         scenario: 'Erreur : un scénario est requis.'
         systemprompt: 'Erreur : veuillez fournir un prompt système.'
         posthistoryinstructions: 'Erreur : le prompt post-historique est requis.'
+        model_required: Sélectionnez un modèle pour chaque fournisseur défini. Un modèle ne peut pas être hérité d’un autre fournisseur.
+        invalid_artistry_json: 'Erreur : les options du fournisseur de création d’images contiennent un JSON invalide.'
+      sections:
+        speech: Parole
+        chat: Discussion
+        body: Corps
+      none: Aucun
+      inherit_global_settings: Utiliser les paramètres globaux
+      none_disabled: Aucun (désactivé)
     name_asc: Nom (A-Z)
     name_desc: Nom (Z-A)
     no_cards: Aucune carte pour le moment. Cliquez sur le bouton ci-dessus pour en téléverser une !
@@ -210,6 +440,83 @@ pages:
     title: Carte AIRI
     try_different_search: Essayez un autre terme de recherche
     upload: Téléverser
+    sync:
+      history:
+        fields:
+          name: Nom
+          nickname: Surnom
+          personality: Personnalité
+          scenario: Scénario
+          greetings: Salutations
+          creator: Créateur
+          systemPrompt: Instructions système
+          postHistoryInstructions: Instructions après l’historique
+          notes: Notes du créateur
+          tags: Étiquettes
+          metadata: Métadonnées
+          assets: Ressources
+          characterBook: Livre de contexte
+          wakeWords: Mots d’activation
+          consciousness: Modèle de conscience
+          vision: Modèle de vision
+          speech: Modèle de parole
+          vrm: Modèle VRM
+          live2d: Modèle Live2D
+          displayModelId: Modèle d’apparence
+          activeBackgroundId: Arrière-plan épinglé
+          artistry: Création d’images
+        restore_confirm_cancel: Annuler
+        tab: Historique
+        empty: Cette fiche n’a pas encore d’historique.
+        loading: Chargement de l’historique…
+        load_failed: Impossible de charger l’historique de cette fiche.
+        current: Actuelle
+        changed_label: Modifié
+        removed_label: Supprimé
+        restore: Restaurer cette version
+        restore_confirm_title: Restaurer cette version ?
+        restore_confirm_body: Le contenu actuel de {name} sera remplacé par celui du {date}.
+        restore_confirm_confirm: Restaurer
+        restore_success: '{name} a été restauré vers une version antérieure.'
+        restore_failed: Impossible de restaurer cette version. Le serveur ne la conserve peut-être plus.
+      notice: Les fiches de personnage se synchronisent avec votre compte. Une fiche supprimée reste récupérable pendant 30 jours.
+      off_notice: Vous êtes connecté, mais la synchronisation des fiches de personnage est désactivée.
+      off_notice_link: Activez-la dans les fonctionnalités expérimentales.
+      state:
+        synced: Synchronisé avec votre compte
+        pending: En attente d’envoi
+        refused: Non envoyée. Votre compte n’a plus de place pour d’autres fiches. Cette fiche reste sur cet appareil.
+      conflict_copy_name: '{name} (copie de conflit)'
+      conflict_notice: Un autre appareil a modifié le même personnage. AIRI a conservé la version de cet appareil sous forme de copie.
+      deleted:
+        restore: Restaurer
+        title: Suppressions récentes
+        empty: Aucune fiche supprimée récemment.
+        loading: Chargement des fiches supprimées récemment…
+        load_failed: Impossible de charger les fiches supprimées récemment.
+        deleted_when: Supprimée {when}
+        days_left: Encore {days} jours pour restaurer
+        restore_success: '{name} a été restauré.'
+        restore_failed: Impossible de restaurer cette fiche. Le serveur ne conserve peut-être plus son contenu.
+    back: Retour
+    saved: Fiche enregistrée
+    unsaved:
+      badge: Non enregistré
+      title: Abandonner les modifications ?
+      message: Vos modifications ne sont pas enregistrées. Si vous quittez cette page, elles seront perdues.
+      keep_editing: Continuer la modification
+      discard: Abandonner les modifications
+    wake-word-conflicts:
+      title: Une prononciation partagée nécessite un personnage | {count} prononciations partagées nécessitent un personnage
+      description: Deux fiches utilisent la même prononciation. Aucun personnage ne répond tant que vous n’en choisissez pas un.
+      action: Choisir qui répond
+    export: Exporter
+    exported: Paquet de fiche exporté
+    export_failed: Échec de l’exportation du paquet de fiche
+    imported: Paquet de fiche importé
+    import_missing_file: Des fichiers requis manquent dans le paquet de fiche
+    import_invalid_file: Le fichier du paquet de fiche est invalide
+    upload_desc: Cliquez ou déposez un paquet de fiche AIRI pour l’importer
   memory:
     description: Endroit où les souvenirs sont stockés et organisés
     title: Mémoire
@@ -249,6 +556,13 @@ pages:
         title: Réinitialiser les paramètres et états du bureau
         description: Effacer les paramètres du bureau AIRI et l'état d'exécution.
         reset: Réinitialiser les données du bureau
+        center: Centrer la fenêtre sur l’écran
+      model-downloads:
+        refresh: Actualiser
+        title: Modèles vocaux téléchargés
+        description: Fichiers de modèles Sherpaw stockés sur cet appareil.
+        empty: Aucun modèle vocal téléchargé.
+        wake-word-model: Modèle de mots d’activation
     confirmations:
       tooltip: Êtes-vous sûr(e) ?
       'yes': 'Oui'
@@ -262,6 +576,9 @@ pages:
       providers_reset: Paramètres du fournisseur réinitialisés.
       all_deleted: Toutes les données locales ont été supprimées.
       desktop_reset: Données du bureau réinitialisées.
+      model_download_cancelled: Téléchargement du modèle annulé.
+      model_download_removed: Modèle téléchargé supprimé.
+      desktop_window_centered: La fenêtre a été centrée sur l’écran.
   models:
     description: Live2D, VRM, Spine, etc.
     title: Modèles
@@ -349,6 +666,18 @@ pages:
             show_more: Afficher plus
             subtitle: Sélectionnez un modèle par défaut auprès du fournisseur
             title: Modèle
+            temperature_label: Température
+            temperature_enabled: Température personnalisée
+            top_p_enabled: Top P personnalisé
+            sampling_override_description: Désactivé par défaut. Activez-le uniquement si votre modèle accepte ce paramètre. Certains modèles n’acceptent qu’un paramètre d’échantillonnage à la fois.
+            temperature_description: Contrôle le caractère aléatoire des réponses du modèle. Une valeur basse, comme 0.2, donne des réponses plus prévisibles, précises et analytiques. Une valeur haute, comme 1.0, augmente la créativité et la diversité.
+            top_p_description: Contrôle la diversité des réponses par échantillonnage de noyau. Une valeur basse, comme 0.2, limite les réponses aux tokens très probables. Une valeur haute, comme 1.0, inclut davantage de possibilités.
+          model-options:
+            title: Options du modèle
+            thinking:
+              label: Raisonnement
+              required-description: Ce modèle nécessite le raisonnement.
+              provider-default-description: AIRI ne propose pas de paramètres de raisonnement pour ce modèle. OpenRouter utilise ses paramètres par défaut.
       title: Conscience
     description: Synthèse, vision, parole, jeux, etc.
     gaming-factorio:
@@ -370,6 +699,7 @@ pages:
       configured: Minecraft est correctement configuré !
       read-only:
         title: Shell en lecture seule
+        description: La scène affiche actuellement Minecraft dans une interface passive. Son état et ses échanges sont visibles ici. Sa configuration reste dans les fichiers du service Minecraft.
       setup:
         title: Configuration
         description: >-
@@ -379,6 +709,7 @@ pages:
         latest-context: Dernier contexte du bot
         waiting: En attente d'un nouvel envoi de contexte provenant du bot.
         unknown: Inconnu
+        title: État d’exécution observé
       debug:
         title: Trafic Minecraft
         empty: Aucun trafic Minecraft observé pour l'instant.
@@ -389,6 +720,7 @@ pages:
         no-runtime-context: Aucun contexte de bot observé pour l'instant
         last-context-seconds: 'Dernier contexte du bot : il y a {seconds}s'
         last-context-stale: 'Dernier contexte du bot : Obsolète'
+      enable-description: Inclut les informations du bot Minecraft dans les conversations de la scène et garde la visibilité passive de son exécution.
     hearing:
       description: Configurer la reconnaissance vocale
       title: Audition
@@ -400,6 +732,86 @@ pages:
             disabled: Désactivé
             verbose-json-note: >-
               Remarque : Si votre fournisseur ne prend pas en charge les réponses verbose_json, ce paramètre n'aura aucun effet.
+            title: Seuil de confiance
+            description: Filtre les transcriptions peu fiables pour réduire les hallucinations de Whisper. Les valeurs proches de 0 sont plus strictes. La position gauche désactive le filtre. Fonctionne uniquement avec les fournisseurs qui acceptent l’API Whisper, comme OpenAI et Groq.
+            verbose-json-unsupported: Votre fournisseur n’a pas renvoyé de segments verbose_json. Le filtre de confiance n’a pas agi sur la dernière transcription.
+          rephrase:
+            provider: Fournisseur
+            model: Modèle
+            model-placeholder: Sélectionner un modèle
+            title: Réécriture des transcriptions
+            description: Un modèle de conversation corrige les erreurs de reconnaissance et retire les mots de remplissage avant la création du brouillon. Le texte original est conservé.
+            enabled: Réécrire les transcriptions
+            enabled-description: Chaque transcription terminée est envoyée au modèle de conversation sélectionné. Si le modèle échoue ou dépasse 10 secondes, le texte original est utilisé.
+            provider-description: Par défaut, le modèle de conversation du module Conscience est utilisé.
+            same-as-chat: Identique à la conversation
+          input-mode:
+            wake-word: Mots d’activation
+            title: Mode d’entrée
+            description: Choisissez comment AIRI commence à écouter lorsque le microphone est activé.
+            label: Commencer à écouter
+            always-on: Toujours actif
+            always-on-description: AIRI écoute en permanence et répond lorsque vous parlez.
+            push-to-talk: Appuyer pour parler
+            push-to-talk-description: AIRI écoute uniquement lorsque vous maintenez la touche Appuyer pour parler. Le microphone est ouvert seulement pendant cet appui.
+            push-to-talk-unavailable: Indisponible ici. Cette application n’a pas de touche Appuyer pour parler sur cet appareil.
+            stranded-title: Appuyer pour parler est indisponible ici
+            stranded-description: Cette application n’a pas de touche Appuyer pour parler sur cet appareil. AIRI n’écoute donc pas. Choisissez Toujours actif ou Mots d’activation pour lui parler.
+            wake-word-description: Le microphone reste activé, mais AIRI écoute seulement après le mot d’activation d’un personnage.
+            wake-word-status:
+              no-words: Aucun personnage n’a de mots d’activation. Demandez à un personnage de les définir dans la conversation.
+              unconfigured: La détection des mots d’activation commence lorsque le microphone est activé.
+              preparing: Préparation du modèle de mots d’activation…
+              ready: Les mots d’activation sont prêts.
+              error: 'Le modèle de mots d’activation est indisponible : {error}'
+          microphone:
+            description: Activez le microphone pour l’audition. Le mode d’entrée détermine quand AIRI écoute.
+            error: Le microphone est indisponible
+          input-device:
+            label: Périphérique d’entrée
+            description: Sélectionnez le microphone qu’AIRI utilise.
+            playground-description: L’audition et l’espace d’essai utilisent ce microphone.
+            placeholder: Sélectionnez un microphone
+          auto-send:
+            title: Transcriptions
+            description: Choisissez ce qu’AIRI fait du texte de votre voix.
+            label: Envoyer automatiquement
+            label-description: AIRI envoie la transcription après un délai. Désactivez cette option pour lire et modifier le texte d’abord. Chaque message envoyé consomme des tokens.
+            delay: Délai d’envoi
+            delay-description: Durée d’attente d’AIRI avant l’envoi de la transcription.
+            immediate: Immédiatement
+          playground:
+            current: Transcription actuelle
+            description: Écoutez avec le traitement d’audition actif. Chaque segment de parole terminé reste affiché ci-dessous.
+            empty: Démarrez l’écoute et parlez dans le microphone sélectionné.
+            error-title: Erreur de transcription
+            listening: À l’écoute de la parole…
+            no-transcription: Aucune parole reconnue dans cet audio.
+            segment: Segment de parole {number}
+            start: Démarrer l’écoute
+            stop: Arrêter l’écoute
+            title: Espace d’essai de l’audition
+            transcribing: Transcription en cours…
+            transcription-failed: Échec de la transcription.
+      wake-words:
+        title: Mots d’activation
+        description: Consultez les mots d’activation de chaque personnage et choisissez qui répond à une prononciation partagée.
+        intro: Chaque personnage conserve ses mots d’activation sur sa fiche. Pour les modifier, demandez-le au personnage dans la conversation.
+        empty: Ce personnage n’a pas de mots d’activation.
+        state:
+          paused: En pause. Choisissez le personnage qui répond.
+          other: Réponse de {name}
+          unsupported: Indisponible avec le modèle actuel de mots d’activation
+          active: Actif
+        conflicts:
+          title: Prononciations partagées
+          description: Plusieurs personnages utilisent la même prononciation. Choisissez celui qui répond sur cet appareil. Chaque fiche conserve ses mots.
+          choose-label: Personnage qui répond
+          answered-by: '{name} répond'
+          unresolved: Aucun personnage ne répond à cette prononciation.
+      transcriber:
+        title: Reconnaissance vocale
+        description: Choisissez le fournisseur et le modèle de transcription, puis vérifiez votre microphone.
     memory-long-term:
       description: Paramètres et gestion de la mémoire à long terme
       title: Mémoire à long terme
@@ -451,6 +863,12 @@ pages:
             use-ssml:
               description: Activez pour saisir du SSML brut au lieu de texte simple
               label: Utiliser SSML personnalisé
+          voice-pack:
+            description: Sélectionnez une voix préparée pour le personnage actif
+            empty: Aucun pack de voix disponible
+            error: Erreur de chargement des packs de voix
+            loading: Chargement des packs de voix…
+            title: Pack de voix
       title: Parole
     x:
       description: Navigation et utilisation X / Twitter
@@ -471,12 +889,439 @@ pages:
       configured: X / Twitter est correctement configuré !
     mcp-server:
       runtime-title: État de l'exécution
+      actions:
+        remove: Supprimer
+        close-json: Fermer
+        reset-draft: Réinitialiser
+        cancel: Annuler
+        expand: Développer
+        collapse: Réduire
+        test: Tester
+        open-config: Afficher dans le gestionnaire de fichiers
+        apply-and-restart: Enregistrer et redémarrer
+        restart: Redémarrer MCP
+        add-server: Ajouter un serveur
+        add-env: Ajouter une variable
+        add-header: Ajouter un en-tête
+        edit-json: Modifier le JSON
+        format-json: Formater
+        apply-json: Appliquer
+      add:
+        pending-badge: Non enregistré
+        title: Nouveau
+        description: Renseignez un serveur, puis cliquez sur « Enregistrer et redémarrer ». Il apparaîtra dans « Configurés » ci-dessus.
+      title: Serveurs MCP
+      description: Configurez des serveurs MCP pour rendre leurs outils accessibles à AIRI.
+      config-path: Fichier de configuration
+      empty: Aucun serveur MCP. Cliquez sur « Ajouter un serveur » ci-dessous ou collez une configuration dans « Modifier le JSON ».
+      error-title: Oups
+      success-title: Terminé !
+      existing:
+        title: Configurés
+        description: Serveurs enregistrés dans mcp.json. Cliquez sur une ligne pour la développer et la modifier.
+        empty: Aucun serveur pour le moment. Ajoutez-en un ci-dessous !
+      status:
+        unknown: Non chargé
+      fields:
+        identifier:
+          label: Identifiant
+          description: Nom unique utilisé comme clé dans mcp.json.
+          placeholder: Par exemple, filesystem
+        transport:
+          description: Mode de connexion d’AIRI à ce serveur.
+          stdio: Processus local
+          http: URL distante
+        url:
+          description: Point d’accès Streamable HTTP du serveur.
+          placeholder: Par exemple, https://example.com/api/mcp
+        headers:
+          label: En-têtes
+          description: En-têtes envoyés avec chaque requête, comme un jeton d’autorisation.
+        command:
+          label: Commande
+          description: Exécutable lancé via stdio.
+          placeholder: Par exemple, npx
+        args:
+          description: Un par ligne, dans l’ordre.
+        cwd:
+          label: Répertoire de travail
+          description: Répertoire de travail facultatif du processus.
+          placeholder: Par exemple, /Users/you/project
+        env:
+          label: Environnement
+          description: Variables transmises au processus enfant.
+          value-placeholder: valeur
+        enabled:
+          label: Activé
+      json:
+        title: Modifier mcp.json
+        description: Modifiez directement le JSON. Cliquez sur « Appliquer » pour le charger dans le formulaire, puis sur « Enregistrer et redémarrer » pour l’écrire sur disque.
+        placeholder: Collez mcp.json ici…
+      test:
+        title: Vérifier la connexion
+        description: AIRI se connecte brièvement au serveur pour afficher les outils disponibles.
+        pick-server-label: Serveur
+        no-servers: Aucun serveur à vérifier
+        no-server-selected: Sélectionnez d’abord un serveur.
+        server-disabled: « {name} » est désactivé. Activez-le d’abord sur la fiche.
+        disabled-suffix: désactivé
+        untitled: sans titre
+        running: Vérification…
+        success: Connecté ! {count} outils trouvés en {ms} ms.
+        failure: Échec de la connexion après {ms} ms
+      errors:
+        empty-identifier: Serveur
+        duplicate-identifier: L’identifiant « {name} » est utilisé plusieurs fois. Chaque nom doit être unique.
+        empty-command: Il manque une commande pour « {name} ».
+        empty-url: Il manque une URL pour « {name} ».
+        invalid-url: « {name} » nécessite une URL absolue http ou https.
+        invalid-shape: Le fichier mcp.json semble invalide. La racine doit contenir un champ « mcpServers ».
+      messages:
+        opened: '{path} ouvert dans le gestionnaire de fichiers'
+        json-applied: JSON appliqué au formulaire. Cliquez sur « Enregistrer et redémarrer » pour l’enregistrer sur disque.
+        restarted: Redémarrage terminé ! {started} démarrés, {failed} en échec, {skipped} ignorés.
+    artistry:
+      providers:
+        none:
+          name: Aucun
+          description: Désactive le module de génération d’images pour toute l’application.
+        comfyui:
+          name: ComfyUI (local)
+          description: Utilise une instance locale de ComfyUI via WSL pour générer des images.
+        replicate:
+          name: Replicate.ai (cloud)
+          description: Utilise des modèles dans le cloud via l’API Replicate.
+        nanobanana:
+          name: Nano Banana (aperçu)
+          description: Utilise Google AI Studio pour les aperçus d’images et les réactions.
+      title: Création d’images
+      description: Génération d’images, arrière-plans de scène et dessin.
+      page:
+        title: Configuration du fournisseur de création d’images
+        description: Sélectionnez le fournisseur actif pour la génération d’images. Chaque personnage peut remplacer ce choix dans les paramètres de sa fiche.
+      card:
+        description: Configurez la génération d’images et de contenu visuel par AIRI.
+        comfyui_empty: Aucun workflow ComfyUI configuré. Ouvrez Paramètres → Fournisseurs → ComfyUI pour importer un modèle de workflow.
+        exposed_fields: '{count} champs accessibles'
+        open_on_replicate: Ouvrir sur Replicate
+        instruction_sync:
+          title: Synchronisation des instructions ComfyUI
+          description: Des instructions adaptées au workflow {workflowName} sont prêtes. Leur application remplace les instructions actuelles du widget pour expliquer ce modèle à l’IA.
+          apply: Appliquer les instructions recommandées
+          keep: Conserver les instructions actuelles
+      provider: Fournisseur de création d’images
+      spawn_mode:
+        label: Mode d’affichage (mode de création)
+        description: Choisissez comment les images apparaissent dans l’interface.
+        options:
+          bg: Arrière-plan de la scène
+          inline: Dans la conversation
+          widget: Widget superposé
+          bg_widget: Les deux (arrière-plan + widget)
+      autonomous:
+        title: Autonomie cinématique (artiste autonome)
+        description: Si cette option est activée, le « producteur » décide en parallèle du personnage si une image est nécessaire. Cela évite l’oubli des scènes.
+        threshold: Seuil de génération
+        threshold_description: Utilisez {min} pour créer davantage de scènes ou {max} pour exiger des indices plus forts avant la génération.
+        threshold_min: Toujours générer (0 %)
+        threshold_max: Strict (100 %)
+      model:
+        label: Modèle de création d’images (remplacement facultatif)
+        description: Identifiant du modèle, si le fournisseur le demande
+        placeholder: Par exemple, black-forest-labs/flux-schnell
+      prompt-prefix:
+        label: Préfixe par défaut des instructions de création d’images
+        description: Ajouté au début de chaque instruction envoyée au générateur d’images.
+        placeholder: Par exemple, Masterpiece, high quality, 1girl, anime,
+      options:
+        label: Options du fournisseur de création d’images (JSON)
+      widget-instructions:
+        label: Instructions système du widget
+        description: Instructions personnalisées pour expliquer à l’IA l’utilisation des fonctions de génération.
+    stickers:
+      name: Nom
+      cancel: Annuler
+      delete: Supprimer
+      artwork:
+        airi-agree: Oui
+        airi-happy: Heureux
+        airi-sad: Triste
+        airi-confused: Perplexe
+        airi-surprised: Surpris
+        airi-celebrate: Célébration
+        airi-angry: En colère
+        airi-tired: Fatigué
+        airi-awkward: Gêné
+        airi-thanks: Merci
+        airi-affectionate: Amour
+        airi-disagree: Non, merci
+      frequency: Fréquence des autocollants
+      frequency-description: Autorise les autocollants dans ce pourcentage de réponses. Le personnage décide toujours si un autocollant convient.
+      frequency-options:
+        '25': Occasionnellement (25 %)
+        '50': Parfois (50 %)
+        '75': Souvent (75 %)
+        '100': Chaque fois que cela convient (100 %)
+      title: Autocollants
+      description: Ajoute des réactions en images aux réponses de la conversation
+      enable: Activer les autocollants
+      enable-description: Le personnage choisit un autocollant par réponse admissible, selon son nom et ses étiquettes d’émotion.
+      local-only: Les images restent sur cet appareil. La synchronisation des conversations dans le cloud transfère uniquement le texte actuellement.
+      catalog: Autocollants disponibles
+      unavailable: Autocollant indisponible
+      import: Importer une image
+      editor: Éditeur d’autocollants
+      replace: Remplacer l’image (facultatif)
+      image-limits: PNG, JPG, WebP ou GIF. Maximum 2 Mo et 4096 × 4096 pixels.
+      choose-file: Sélectionnez une image
+      preview: Aperçu de l’autocollant
+      name-limit: Utilisez 1 à 80 caractères. Le modèle lit ce nom.
+      emotions: Étiquettes d’émotion
+      save: Enregistrer l’autocollant
+      edit: Modifier
+      confirm-delete: Confirmer la suppression
+      empty: Votre bibliothèque est vide. Importez une image pour ajouter un autocollant.
+      history-note: La suppression ou le remplacement d’un autocollant affecte les réponses futures. Les réponses enregistrées ou déjà préparées gardent leur image d’origine.
+      saved-image: Autocollant enregistré
+      errors:
+        name: Saisissez un nom de 1 à 80 caractères.
+        emotions: Sélectionnez au moins une étiquette d’émotion valide.
+        format: Sélectionnez une image PNG, JPG, WebP ou GIF.
+        size: Sélectionnez une image de moins de 2 Mo.
+        image: Cette image ne peut pas être ouverte. Sélectionnez un autre fichier.
+        dimensions: Sélectionnez une image de 4096 × 4096 pixels maximum.
+        missing: Cet autocollant a été supprimé dans une autre fenêtre.
+        storage: Impossible d’enregistrer ou de charger la bibliothèque d’autocollants. Réessayez.
+      emotion-labels:
+        happy: Heureux
+        sad: Triste
+        confused: Perplexe
+        surprised: Surpris
+        thanks: Remerciement
+        celebrate: Célébration
+        angry: En colère
+        tired: Fatigué
+        awkward: Gêné
+        agree: D’accord
+        disagree: Pas d’accord
+    home-assistant:
+      actions:
+        save: Sauvegarder
+        test: Tester
+      access:
+        tab-all: Tout
+        label: Accès aux appareils
+        description: Choisissez les appareils qu’AIRI peut lire et contrôler.
+        mode-all: Tous les appareils
+        mode-allow: Liste d’autorisation
+        mode-deny: Liste de blocage
+        all-hint: AIRI accède à tous les appareils. Choisissez une liste pour limiter cet accès.
+        rule-allow: Seuls les appareils sélectionnés sont accessibles.
+        rule-deny: Tous les appareils sont accessibles, sauf ceux que vous sélectionnez.
+        selected-count: '{count} sélectionnés'
+        empty-warning: Sélectionnez au moins un appareil. AIRI n’accède à rien tant que vous ne le faites pas.
+        search: Rechercher des appareils
+        reload: Recharger les appareils
+        loading: Chargement des appareils…
+        no-devices: Home Assistant n’a signalé aucun appareil.
+        no-match: Aucun appareil correspondant.
+        shown-count: '{shown} appareils sur {total}'
+        load-more: Afficher {count} de plus
+        select-matching: Sélectionner toutes les correspondances
+        clear-matching: Désélectionner toutes les correspondances
+      states:
+        generic:
+          auto: Automatique
+          error: Erreur
+          home: À la maison
+          open: Ouvert
+          unknown: Inconnu
+          on: Activé
+          off: Désactivé
+          above_horizon: Au-dessus de l’horizon
+          armed: Alarme armée
+          armed_away: Alarme armée en mode absence
+          armed_custom_bypass: Alarme armée avec exclusions personnalisées
+          armed_home: Alarme armée en mode présence
+          armed_night: Alarme armée en mode nuit
+          armed_vacation: Alarme armée en mode vacances
+          arming: Armement en cours
+          below_horizon: Sous l’horizon
+          buffering: Mise en mémoire tampon
+          cleaning: Nettoyage en cours
+          clear-night: Nuit dégagée
+          closed: Fermé
+          closing: Fermeture en cours
+          cloudy: Nuageux
+          cool: Refroidissement
+          disarmed: Alarme désarmée
+          disarming: Désarmement en cours
+          docked: Sur la base
+          dry: Déshumidification
+          eco: Éco
+          electric: Électrique
+          exceptional: Conditions exceptionnelles
+          fan_only: Ventilation seule
+          fog: Brouillard
+          gas: Gaz
+          hail: Grêle
+          heat: Chauffage
+          heat_cool: Chauffage/refroidissement
+          heat_pump: Pompe à chaleur
+          high_demand: Forte demande
+          idle: Au repos
+          jammed: Bloqué
+          lightning: Orage
+          lightning-rainy: Orage et pluie
+          locked: Verrouillé
+          locking: Verrouillage en cours
+          mowing: Tonte en cours
+          not_home: Absent
+          opening: Ouverture en cours
+          partlycloudy: Partiellement nuageux
+          paused: En pause
+          pending: En attente
+          performance: Performances
+          playing: Lecture en cours
+          pouring: Pluie forte
+          problem: Problème
+          rainy: Pluvieux
+          recording: Enregistrement en cours
+          snowy: Neigeux
+          snowy-rainy: Neige et pluie
+          standby: En veille
+          stopped: Arrêté
+          streaming: Diffusion en cours
+          sunny: Ensoleillé
+          triggered: Alarme déclenchée
+          unlocked: Déverrouillé
+          unlocking: Déverrouillage en cours
+          windy: Venteux
+          windy-variant: Vent et nuages
+          unavailable: Indisponible
+        lawn_mower:
+          returning: Retour en cours
+        update:
+          off: À jour
+          on: Mise à jour disponible
+        vacuum:
+          returning: Retour à la base
+      domains:
+        camera: Caméra
+        scene: Scène
+        select: Sélection
+        time: Heure
+        air_quality: Qualité de l’air
+        alarm_control_panel: Panneau d’alarme
+        automation: Automatisation
+        binary_sensor: Capteur binaire
+        button: Bouton
+        calendar: Calendrier
+        climate: Climatisation
+        cover: Volet
+        datetime: Date et heure
+        device_tracker: Suivi d’appareils
+        event: Événement
+        fan: Ventilateur
+        geo_location: Géolocalisation
+        group: Groupe
+        humidifier: Humidificateur
+        image_processing: Traitement d’images
+        input_boolean: Entrée de bascule
+        input_datetime: Entrée de date et heure
+        input_number: Entrée numérique
+        input_select: Entrée de liste déroulante
+        input_text: Entrée de texte
+        light: Éclairage
+        lock: Serrure
+        media_player: Lecteur multimédia
+        number: Nombre
+        person: Personne
+        remote: Télécommande
+        sensor: Capteur
+        siren: Sirène
+        stt: Parole vers texte
+        sun: Soleil
+        switch: Interrupteur
+        text: Texte
+        todo: Liste de tâches
+        tts: Texte vers parole
+        update: Mise à jour
+        vacuum: Aspirateur
+        valve: Vanne
+        water_heater: Chauffe-eau
+        weather: Météo
+      description: Permet à AIRI de lire et de contrôler vos appareils Home Assistant.
+      enable: Activer Home Assistant
+      enable-description: Autoriser AIRI à lire et contrôler vos appareils
+      base-url:
+        label: Adresse
+        description: Adresse de votre instance Home Assistant.
+      token:
+        label: Jeton d’accès longue durée
+        placeholder: Collez un jeton de votre profil Home Assistant
+        description: Créez-le dans votre profil Home Assistant, sous Sécurité.
+        saved: Un jeton est enregistré. Laissez ce champ vide pour le conserver. Saisissez-le à nouveau si l’adresse change.
+      note: Le jeton reste sur cet appareil. Il ne se synchronise pas avec votre compte.
+      status:
+        saved: Enregistré.
+        saved-cleared: Enregistré. L’adresse a changé, donc les listes d’appareils sont vides.
+        testing: Vérification de la connexion…
+        reachable: Connecté. Home Assistant a signalé {count} entités.
+        failed: Connexion impossible. {message}
+        rejected-token: Saisissez un jeton d’accès Home Assistant.
+        rejected-address: L’adresse a changé. Saisissez le jeton d’accès de la nouvelle adresse.
+        failed-policy: La liste d’appareils n’a pas atteint la fenêtre des outils. L’adresse reste inchangée. Réessayez.
+        failed-policy-edit: La modification n’a pas atteint la fenêtre des outils. Le modèle garde la liste précédente. Réessayez.
+        failed-policy-move: L’adresse a changé, mais les listes d’appareils n’ont pas atteint la fenêtre des outils. Réessayez.
+        failed-policy-rollback: L’enregistrement a été refusé. La liste d’appareils n’a pas atteint la fenêtre des outils. Le modèle n’accède donc à aucun appareil. Réessayez.
+    categories:
+      artistry: Création d’images
+      essential: Essentiels
+      messaging: Messagerie
+      gaming: Jeux
+    vision:
+      tool-images:
+        label: Utiliser le modèle de vision pour les images des outils
+        description: Le modèle de vision lit les images des outils, comme les captures d’Utiliser l’ordinateur, avant la réponse du modèle de conversation. Celui-ci reçoit directement les images si son fournisseur déclare les accepter. Une description ne contient pas les positions des pixels.
+      capture:
+        title: Fréquence de capture de la vision
+        description: Réglez la fréquence de capture des images par le processus de vision.
+        interval:
+          label: Intervalle de capture
+          description: Une valeur plus basse augmente la fréquence de capture et la consommation de ressources.
+      stats:
+        context-updates: Mises à jour du contexte
+        inferences: Appels de reconnaissance d’images
+        inferences-description: Tous les appels au modèle de vision, y compris les images de la conversation
+        failed-inferences: Appels en échec
+        last-inference: Dernier appel
+        error: 'Erreur :'
+        last-update: Dernière mise à jour {time}
+        since-start: Depuis le démarrage de l’application
+        never: Jamais
+      ollama:
+        title: Options de requête du fournisseur
+        description: Réglez les paramètres de requête propres au fournisseur pour l’inférence visuelle.
+        thinking:
+          label: Raisonnement (Ollama)
+          description: 'Si cette option est activée, les requêtes de vision à Ollama incluent `think: true`. Sinon, elles incluent `think: false`.'
+    web-search:
+      title: Recherche sur le Web
+      description: Permet à AIRI de rechercher des informations actuelles sur le Web
+      enable: Activer la recherche sur le Web
+      enable-description: Autoriser AIRI à rechercher sur le Web pendant la conversation
+      api-key: Clé API Tavily
+      api-key-description: La recherche sur le Web utilise Tavily. Obtenez une clé API gratuite sur tavily.com.
+      api-key-placeholder: Saisissez votre clé API Tavily
+      configured: La recherche sur le Web est prête !
   flux:
     description: Flux actuel
     packagesError: Échec du chargement des offres. Veuillez réessayer plus tard.
     checkout:
       canceled: Le paiement a été annulé.
       error: Une erreur est survenue. Veuillez réessayer plus tard.
+      success: Paiement réussi ! Votre Flux a été rechargé.
     audit:
       title: Historique des transactions
       time: Heure
@@ -489,9 +1334,16 @@ pages:
       empty: Aucune transaction pour l'instant.
       loadMore: Charger plus
       delayHint: Les enregistrements d'utilisation peuvent être retardés jusqu'à 1 minute
+      typePromo: Attribution promotionnelle
+      ttsRequests: requêtes
     packages:
       title: Offres de Flux
       description: Offres Flux disponibles.
+      buy: Recharger
+    terms: Conditions Générales d'Utilisation
+    privacy: Politique de Confidentialité
+    buy: Recharger
+    currency: Devise
   providers:
     catalog:
       edit:
@@ -539,6 +1391,16 @@ pages:
                     low: Bas
                     medium: Moyen
                     high: Haut
+                web-search:
+                  label: Recherche sur le Web
+                  description: Autorise les modèles OpenAI compatibles à rechercher si nécessaire. Utilise votre clé API et peut entraîner des frais de recherche. Nécessite Responses API.
+                api-protocol:
+                  label: Protocole API
+                  description: Choisissez l’API compatible avec ce fournisseur et ce modèle.
+          retry: Réessayer
+          loading: Chargement des paramètres du fournisseur…
+          load-error: Impossible de charger les paramètres du fournisseur.
+          save-error: Impossible d’enregistrer les paramètres du fournisseur.
         validators:
           actions:
             validate: Valider
@@ -558,6 +1420,9 @@ pages:
             valid: Réussi
             invalid: Erreur détectée
           title: Vérifications
+          apple-vision:
+            check-availability:
+              title: disponibilité
         providers:
           provider:
             ollama:
@@ -756,12 +1621,190 @@ pages:
         speech-description: Fournisseur texte-to-speech officiel par AIRI.
         transcription-title: Fournisseur de transcription officiel
         transcription-description: Fournisseur speech-to-text officiel par AIRI.
+        speech-streaming-title: Fournisseur officiel de parole en continu
+        speech-streaming-description: Fournisseur officiel AIRI de synthèse vocale à faible latence, via WebSocket bidirectionnel.
       transcriptions:
         playground:
           title: Terrain de test de transcription
       aihubmix:
         description: https://aihubmix.com (10 % de réduction)
+      sherpaw-transcription:
+        model:
+          label: Modèle
+          description: Sélectionnez un modèle disponible. La reconnaissance détecte une langue parmi celles qu’il accepte. Un changement redémarre la session actuelle.
+        asset:
+          cancel: Annuler
+          title: Fichiers du modèle
+          unknown: Vérification des fichiers…
+          bundled: Fourni avec AIRI
+          installed: Stocké sur cet appareil
+          missing: Télécharger lors de l’utilisation
+          downloading: Téléchargement…
+          error: Échec du téléchargement
+          download: Télécharger maintenant
+          remove: Supprimer le téléchargement
+        description: Reconnaissance vocale locale avec des modèles fournis ou téléchargés à la demande. Aucune clé API requise.
+        language:
+          label: Langue du modèle
+          description: Affiche les modèles compatibles avec cette langue. Le modèle sélectionné détecte toujours les langues qu’il prend en charge.
+          all: Toutes les langues
+      comfyui:
+        settings:
+          connection:
+            title: Connexion
+            connected: Connecté
+            error_prefix: Erreur
+            test: Tester
+            failed: Connexion échouée
+            testing: Vérification…
+            unknown_error: Erreur de connexion inconnue
+            unknown_gpu: GPU inconnu
+            server_url:
+              label: URL du serveur
+              description: Adresse à laquelle ComfyUI fonctionne
+          workflows:
+            cancel_upload: Annuler
+            remove: Supprimer
+            title: Modèles de workflow
+            upload: Importer un workflow
+            empty: Aucun workflow importé. Cliquez sur « Importer un workflow » pour charger un workflow_api.json de ComfyUI.
+            exposed_parameters: Paramètres accessibles
+            summary: '{nodes} nœuds · {fields} champs accessibles'
+            config_snippet: Extrait de configuration de création d’images
+            copy_json: Copier le JSON
+            paste_hint: Collez cet extrait dans la configuration de création d’images de votre fiche AIRI pour remplacer ces nœuds.
+          title: ComfyUI (local)
+          heading: API native ComfyUI
+          description: Connectez votre ComfyUI local et utilisez vos propres workflows.
+          info:
+            what_you_need:
+              label: Prérequis
+              value: ComfyUI en cours d’exécution sur votre appareil ou votre réseau.
+            how_to_export:
+              label: Comment exporter
+              value: Activez Dev Mode → « Save (API Format) ».
+            scope_boundary:
+              label: Limites de prise en charge
+              value: Vous devez télécharger les modèles et installer les nœuds vous-même.
+          cors:
+            title: Blocage CORS détecté
+            description: ComfyUI bloque par défaut les requêtes des autres applications. Pour autoriser AIRI, démarrez ComfyUI avec `--enable-cors-header "*"`.
+          upload:
+            prompt: Déposez ou sélectionnez un fichier workflow_api.json
+            invalid_json: JSON invalide
+            workflow_name:
+              label: Nom du workflow
+              description: Donnez un nom reconnaissable à ce workflow
+              placeholder: Par exemple, Anime Text2Img
+            select_fields: 'Sélectionnez les champs accessibles à l’agent IA :'
+            fields_exposed: '{count} champ(s) accessibles'
+            save: Enregistrer le workflow
+      replicate:
+        settings:
+          api_key:
+            label: Clé API
+            description: Votre jeton API Replicate, qui commence par r8_
+          heading: Configuration de Replicate.ai
+          description: Configurez la génération d’images dans le cloud.
+          default_model:
+            label: Modèle par défaut
+            description: Identifiant owner/model utilisé si la fiche de personnage n’en indique pas
+          aspect_ratio:
+            label: Rapport d’aspect
+            description: Rapport d’aspect par défaut, par exemple 16:9, 1:1 ou 9:16
+          inference_steps:
+            label: Étapes d’inférence
+            description: Nombre d’étapes de diffusion. Moins d’étapes augmentent la vitesse, plus d’étapes améliorent la qualité.
+      nanobanana:
+        settings:
+          api_key:
+            label: Clé API
+            description: Votre clé API Google AI Studio
+          description: Configurez la génération d’images native de Google Gemini.
+          preferred_model:
+            label: Modèle préféré
+            description: Modèle d’aperçu d’images Gemini à utiliser
+          default_resolution:
+            label: Résolution par défaut
+            description: Résolution cible des images générées
+      apple-vision:
+        description: Compréhension des images sur l’appareil avec Apple Foundation Models, sur macOS 27 ou ultérieur. Aucune clé API requise.
+      apple-speech-transcription:
+        description: Reconnaissance vocale sur l’appareil, sur macOS 26 ou ultérieur. Aucune clé API requise.
+        fields:
+          locale:
+            label: Paramètres régionaux
+            description: Utilisez un code régional exact d’Apple Speech, comme en-US ou zh-CN.
+      amazon-bedrock:
+        config:
+          api-key:
+            label: Clé API Bedrock
+            description: Clé API Amazon Bedrock à créer dans AWS Console → Bedrock → API Keys.
+          region:
+            label: Région AWS
+            description: Région AWS où Bedrock est activé, comme us-east-1 ou us-west-2.
+      voicevox:
+        fields:
+          field:
+            intonation:
+              description: Réglez l’amplitude des variations d’intonation de la lecture
+        callout_origin_title: Accéder au moteur depuis un navigateur
+        callout_origin: Le navigateur accède uniquement à un moteur sur cet appareil. Pour un moteur distant, utilisez l’application de bureau. Le moteur doit autoriser ce site via --cors_policy_mode all ou --allow_origin suivi de cette adresse.
+      aivis-speech:
+        callout_origin_title: Accéder au moteur depuis un navigateur
+        fields:
+          field:
+            intonation:
+              description: Réglez l’intensité du style de parole
+              label: Intensité d’expression émotionnelle
+        callout_origin: Le navigateur accède uniquement à un moteur sur cet appareil. Pour un moteur distant, utilisez l’application de bureau. Le moteur doit autoriser ce site dans sa page de paramètres, sur le port 10101.
+      deepseek:
+        fields:
+          field:
+            thinking-mode:
+              description: Détermine si les modèles de raisonnement DeepSeek utilisent la réflexion dans les requêtes de conversation.
+      volcengine-coding-plan:
+        models:
+          ark-code-latest:
+            description: Utilise le modèle sélectionné dans la console Coding Plan, y compris Auto. Les modifications s’appliquent en 3 à 5 minutes.
+          legacy:
+            description: Ce modèle ancien de Coding Plan sera retiré. Choisissez un modèle actuellement pris en charge.
     title: Fournisseurs
+    filters:
+      pricing: Tarifs
+      all: Tout
+      cloud: Nuage
+      deployment: Déploiement
+      free: Gratuit
+      paid: Payant
+      internal: Interne
+    categories:
+      chat:
+        description: Fournisseurs de modèles de génération de texte, par ex. OpenRouter, OpenAI, Ollama.
+        title: Discussion
+      speech:
+        title: Parole
+        description: Fournisseurs de modèles de synthèse vocale, par ex. ElevenLabs, Azure Speech.
+      transcription:
+        description: Fournisseurs de modèles de transcription (speech-to-text), par ex. Whisper.cpp, OpenAI, Azure Speech
+      artistry:
+        title: Création d’images
+        description: Fournisseurs de modèles de génération et de conception d’images, comme ComfyUI et Replicate.
+        items:
+          comfyui:
+            description: Moteur local de génération d’images.
+          replicate:
+            description: Service d’inférence de modèles dans le cloud.
+          nanobanana:
+            description: Aperçu d’images Google AI Studio.
+      vision:
+        description: Fournisseurs de modèles de vision pour comprendre les images.
+    sync:
+      pending: En attente d’envoi
+      synced: Synchronisé
+      not-uploaded: Non envoyé. Complétez la configuration de ce fournisseur sur cet appareil.
+    labels:
+      recommended: Recommandé
   connection:
     description: Configurer la connexion au serveur WebSocket
     title: Connexion
@@ -775,6 +1818,7 @@ pages:
       label: Auth Token
       description: >-
         Security token required by remote clients that connect to this gateway. When left empty, AIRI generates a new token automatically.
+      placeholder: Générer automatiquement
     qr:
       title: Connect from Stage Pocket
       description: >-
@@ -782,6 +1826,22 @@ pages:
       image-alt: AIRI server channel connection QR code
       token-hint: >-
         The QR code includes the auth token so Stage Pocket can authenticate after connecting. Do not share it publicly.
+      refresh: Actualiser
+      candidates: Adresses candidates
+      errors:
+        title: Code QR indisponible
+        unavailable: Impossible de préparer le code QR de connexion.
+    qr-scan:
+      title: Connexion rapide
+      description: Scannez le code QR de la version de bureau pour une connexion rapide
+      instructions: Dirigez la caméra vers le code QR de connexion AIRI.
+      action: Scanner
+      success:
+        title: Adresse de connexion enregistrée
+        description: 'URL utilisée : {url}'
+      errors:
+        title: Échec du scan du code QR
+        failed: Impossible de scanner le code QR ou de se connecter avec celui-ci.
   system:
     color-scheme:
       description: Modifier le schéma de couleurs de la scène.
@@ -849,6 +1909,34 @@ pages:
               performance-playground:
                 title: Zone d'essai de performance
                 description: Expressions VRM + synchro labiale TTS
+              plugin-host:
+                actions:
+                  cancel-import: Annuler
+                  enable-and-load: Activer et charger
+                  disable-and-unload: Désactiver et décharger
+                  import-folder: Importer un dossier
+                  confirm-import: Importer l’extension
+                errors:
+                  enable-and-load: Impossible d’activer et de charger le plugin {extensionId}.
+                  disable-and-unload: Impossible de désactiver et de décharger le plugin {extensionId}.
+                  prepare-import: Impossible d’examiner le dossier de l’extension.
+                  commit-import: Impossible d’importer l’extension {extensionId}.
+                  cancel-import: Impossible d’annuler l’importation de l’extension.
+                import:
+                  title: Examiner l’importation de l’extension
+                  description: L’extension reste désactivée et déchargée après l’importation.
+                  source: Dossier source
+                  runtimes: Environnements d’exécution
+                  entrypoints: Points d’entrée
+                  package-size: Paquet
+                  package-size-value: '{fileCount} fichiers · {totalBytes}'
+                  permissions: Autorisations
+                  no-permissions: Aucune autorisation déclarée.
+                  no-kits: Aucun kit déclaré.
+                  imported: Extension {extensionId} importée.
+              chat:
+                title: Discussion
+                description: Discussion
         theme-presets:
           presets:
             default:
@@ -913,7 +2001,25 @@ pages:
                 Couleurs traditionnelles chinoises, issues des textiles anciens, de la porcelaine et des peintures
               title: Couleurs traditionnelles chinoises
           title: Préréglages de couleurs
-    title: Apparence
+    title: Système
+    experimental:
+      retry: Réessayer
+      reset: Utiliser la configuration par défaut
+      refresh: Actualiser les règles
+      title: Fonctionnalités expérimentales
+      description: Essayez les fonctionnalités en développement et gérez vos choix.
+      notice: Les fonctionnalités expérimentales peuvent changer ou disparaître. Vos choix s’appliquent à cet appareil.
+      empty-title: Aucune expérience disponible
+      load-error: Les fonctionnalités cloud sont indisponibles. Les fonctionnalités locales restent disponibles.
+      sources:
+        default: Valeur par défaut de l’application
+        local: Votre choix sur cet appareil
+        global: Disponible pour les comptes connectés
+        account: Disponible pour votre compte
+      features:
+        character_card_sync:
+          title: Synchronisation cloud des fiches de personnage
+          description: Synchronise vos fiches de personnage avec votre compte après connexion, pour les retrouver sur vos autres appareils. Désactivé par défaut. Les fiches supprimées restent dans l’historique pendant 30 jours.
   page:
     developers:
       open-devtools:
@@ -921,6 +2027,51 @@ pages:
         button: Ouvrir
   credits:
     buy: Acheter
+  capacitor:
+    checkout:
+      error: Une erreur est survenue. Veuillez réessayer plus tard.
+      success: Votre Capacitor est installé et chargé.
+      pending: Paiement reçu. Votre Capacitor se chargera bientôt.
+      canceled: Achat annulé.
+    currentPackage: Actuel
+    description: Un Capacitor contient du Flux et se recharge automatiquement.
+    statusError: Impossible de charger votre Capacitor. Réessayez plus tard.
+    packagesError: Impossible de charger les Capacitor. Réessayez plus tard.
+    preferenceError: Impossible d’enregistrer la préférence. Réessayez plus tard.
+    noCapacitor: Aucun Capacitor
+    remaining: '{percent} restant'
+    rechargesAt: Recharge le {date}
+    renewsAt: Renouvellement le {date}
+    expiresAt: Expiration le {date}
+    perMonth: / mois
+    install: Installer
+    upgrade: Passer au niveau supérieur
+    downgrade: Passer au niveau inférieur
+    manageSubscription: Gérer l’abonnement
+    fallbackToFlux: Utiliser Flux lorsque le Capacitor est vide
+    fallbackToFluxHint: Si cette option est désactivée, l’utilisation s’arrête lorsque le Capacitor est vide.
+  scene:
+    title: Scènes
+    description: Personnalisez l’environnement virtuel de vos personnages.
+    beta_label: Système de scènes
+    beta_description: Chaque fiche choisit son arrière-plan dans cette galerie. Votre sélection ici définit l’arrière-plan par défaut du personnage actif.
+    background_image:
+      title: Arrière-plan du personnage actif
+      no_background: Aucun arrière-plan actif pour ce personnage. Importez une image carrée ou en paysage pour de meilleurs résultats.
+      upload: Importer dans la galerie
+      change: Changer l’arrière-plan
+      clear: Effacer le choix par défaut
+    gallery:
+      title: Galerie de scènes
+      empty: La galerie est vide. Importez une image ci-dessus !
+      set_as_global: Définir par défaut pour le personnage
+      delete: Supprimer de la galerie
+      global_badge: Choix par défaut du personnage
+      active_badge: Scène actuelle
+      delete_confirm: Voulez-vous supprimer cet arrière-plan ?
+    tip:
+      label: Conseil !
+      description: Une image carrée utilise le recadrage <b>cover</b> en mode portrait, avec le centre de la scène comme point focal.
 sections:
   section:
     general:
@@ -929,6 +2080,9 @@ theme:
   title: Thème
   description: |
     Changez le thème de base d’AIRI, mode clair ou mode sombre.
+  auto: Système
+  light: Clair
+  dark: Sombre
 title: Paramètres
 voices: Voix
 vrm:
@@ -971,9 +2125,38 @@ vrm:
   skybox:
     skybox-intensity: Intensité de la SkyBox
     skybox-specular-mix: Mélange spéculaire
+  fps:
+    title: Limite de fréquence d’images
+    description: Limite le rendu VRM sur la scène et dans l’aperçu du modèle. Une limite basse réduit l’utilisation du GPU sans changer la vitesse d’animation.
+    options:
+      unlimited: Sans limite
 spine:
   appearance:
     title: Apparence
+  scale-and-position:
+    title: Échelle et position
+    scale: Échelle
+  theme-color-from-model:
+    title: Extraire les couleurs du modèle
+    button-extract:
+      title: Extraire
+  fps:
+    options:
+      unlimited: Sans limite
+  title: Paramètres Spine
+  animation:
+    idle-animation: Animation au repos
+    mix-duration: Durée de transition (secondes)
+    speed: Vitesse d’animation
+  variant:
+    title: Variante
+    current-variant: Variante active
+  skin:
+    current-skin: Skin actuel
+  rendering:
+    title: Rendu
+    max-fps: FPS maximum
+    render-scale: Échelle de rendu
 websocket-secure-enabled:
   title: Activer WebSocket Sécurisé (WSS)
   description: >-
@@ -982,3 +2165,57 @@ wip:
   title: Travail en cours
   description: >-
     Cette fonctionnalité est actuellement en cours de développement et n'est pas disponible publiquement. Revenez ultérieurement pour les mises-à-jour futures.
+mmd:
+  scale-and-position:
+    title: Échelle et position
+    scale: Échelle
+  theme-color-from-model:
+    title: Extraire les couleurs du modèle
+    button-extract:
+      title: Extraire
+  gaze:
+    tracking: Regarder vers
+    options:
+      cursor: Souris
+      camera: Caméra
+      none: Désactivé
+    title: Regard
+  title: Paramètres MMD
+  physics:
+    title: Physique et squelette
+    enabled: Activer la physique pour les cheveux, la jupe et les accessoires
+    ik: Activer l’IK (cinématique inverse)
+    grant: Activer la propagation des transformations des os additionnels
+    gravity: Intensité de la gravité
+  animation:
+    idle-motion: Mouvement au repos
+    import-motion: Importer un mouvement (.vmd)
+    play-once: Aperçu de l’animation
+    remove: Supprimer le mouvement
+    description: Importez des mouvements VMD pour les répéter au repos ou les jouer une seule fois. Associez des émotions aux mouvements pour accompagner les expressions faciales.
+  morphs:
+    auto: (automatique)
+    revert: Revenir au mode automatique
+    no-morphs: Ce modèle ne fournit aucun morph.
+    description: Le moteur détecte les noms japonais standard des morphs (あいうえお, まばたき). Remplacez une correspondance ici si le modèle utilise d’autres noms.
+  materials:
+    no-materials: Ce modèle ne fournit aucun matériau.
+    description: 'Réglez l’opacité de chaque partie du modèle : visage, cheveux, vêtements et accessoires. Utilisez 0 pour masquer une partie.'
+    title: Matériaux
+tachie:
+  scale-and-position:
+    title: Échelle et position
+    scale: Échelle
+  theme-color-from-model:
+    title: Extraire les couleurs du modèle
+    button-extract:
+      title: Extraire
+  rendering:
+    title: Rendu
+    render-scale: Échelle de rendu
+    shadow: Ombre portée de la couleur du thème
+  title: Paramètres Tachie
+  archive-description: Les modèles Tachie utilisent des archives .tachie.zip avec des images nommées d’après les émotions.
+streamer-mode:
+  title: Mode diffusion
+  description: Masque les indicateurs du microphone et de connexion dans la fenêtre du personnage.

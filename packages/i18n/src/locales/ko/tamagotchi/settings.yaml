@@ -31,6 +31,9 @@ pages:
         conflict: 이 단축키는 이미 사용 중입니다.
         failed: 단축키 업데이트 실패
         requiresModifier: Cmd, Ctrl, Alt 또는 Super 중 하나 이상을 사용하세요.
+        requiresHoldModifier: Cmd, Ctrl, Alt, Super 또는 F13 같은 기능 키를 사용하세요. Shift만으로는 부족합니다.
+        denied: AIRI가 전역 키 입력을 읽을 수 없습니다. 손쉬운 사용 설정에서 AIRI를 허용한 다음 다시 시도하세요.
+        unsupported: 이 시스템은 전역 단축키를 놓는 시점을 감지할 수 없습니다.
       toggle-move:
         label: 이동 켜기/끄기
       toggle-resize:
@@ -38,12 +41,22 @@ pages:
       toggle-ignore-mouse-event:
         label: 마우스 이벤트 무시 켜기/끄기
       press-keys: 키를 누르세요...
+      push-to-talk:
+        title: 눌러서 말하기 단축키
+        description: 어느 앱에서든 이 단축키를 누른 채 AIRI에게 말하세요. 단축키를 클릭한 다음 새 단축키를 누르세요. Esc를 누르면 취소됩니다.
+        inactive: 청력 입력 모드가 눌러서 말하기이고 마이크가 켜져 있을 때만 이 단축키가 작동합니다.
     developer:
       sections:
         section:
           use-window-mouse:
             title: useWindowMouse 도구
             description: Electron 창 커서 위치 테스트
+    general:
+      hide-app-icon:
+        title: 작업 표시줄 / Dock 아이콘 숨기기
+        description: AIRI를 트레이에만 표시합니다. 트레이 메뉴에서 창을 열거나 종료하세요. 변경 사항은 즉시 적용됩니다.
+        load-error: 앱 아이콘 설정을 불러올 수 없습니다.
+        save-error: 앱 아이콘 설정을 업데이트할 수 없습니다.
 devtools:
   title: 개발자 옵션
   pages:
@@ -54,11 +67,468 @@ devtools:
     performance-visualizer:
       title: 성능 비주얼라이저
       description: FPS/긴 작업/메모리 오버레이 전환
+      resource-events:
+        columns:
+          textures: 텍스처
+          materials: 재질
+          time: 시간 (ms)
+          phase: 단계
+          reason: 이유
+          geometries: 지오메트리
+          meshes: 메시
+        title: 최근 리소스 이벤트
+        description: 가장 최근에 받은 이벤트부터 표시합니다. 시간은 원본 렌더러가 시작된 후 경과한 밀리초입니다.
+        empty: 기록된 리소스 이벤트가 없습니다. 추적이 활성화된 상태에서 VRM 모델을 불러오거나 전환하세요.
+      overlay:
+        stop: 중지
+        title: 성능
+        record: 기록
+        export: 최근 기록 내보내기
+        move: 성능 오버레이 이동
+        reset-position: 오버레이 위치 초기화
+        average: 평균
+      controls:
+        start-recording: 기록 시작
+        enable-all:
+          label: 사용 가능한 모든 지표 켜기
+          description: 이 브라우저가 지원하는 모든 지표를 켭니다.
+        stop-recording: 기록 중지 ({seconds}초)
+        export-last-recording: 최근 기록 내보내기
+      metrics:
+        fps:
+          description: 지난 10초 동안의 애니메이션 프레임 속도입니다. 각 샘플은 1000을 밀리초 단위의 프레임 간격으로 나눈 값입니다.
+        frame-duration:
+          label: 프레임 시간 (ms)
+          description: 지난 10초 동안의 애니메이션 프레임 간 시간입니다.
+        long-task:
+          label: 긴 작업
+          description: 최소 50 ms가 걸리는 메인 스레드 작업입니다.
+          unsupported: 이 브라우저는 긴 작업의 시간 정보를 제공하지 않습니다.
+        memory:
+          label: JS 힙 (MB)
+          description: Chromium의 performance.memory API에서 가져온 JavaScript 힙 사용량입니다.
+          unsupported: 이 브라우저는 JavaScript 힙 사용량을 제공하지 않습니다.
+      recording:
+        title: 최근 기록
+        duration: 기록 시간 {duration} ms
+        limit: 기록은 60초 후에 중지됩니다.
+      history:
+        title: FPS 기록
+        latest: 최신
+        minimum: 최소
+        maximum: 최대
+        seconds-ago: -{seconds}초
+        end: 0초
+        empty: FPS 샘플이 없습니다. FPS를 켜서 샘플을 수집하세요.
     markdown-stress:
       title: 마크다운 스트레스
       description: 스트레스 마크다운 구문 분석 및 대량 채팅 페이로드 렌더링
     widgets-calling:
       title: 위젯 호출
+    live2d-ambient-light:
+      diagnostics:
+        status:
+          disabled: 사용 안 함
+          error: 에러
+          forced-color: 지정 색상
+          starting: 시작 중
+          capturing: 캡처 중
+        title: 캡처 진단
+        waiting: AIRI 메인 창의 진단 정보를 기다리는 중입니다.
+        capture:
+          title: 캡처 상태
+          description: 선택한 디스플레이, 캡처 크기, 제외 좌표를 확인하세요.
+          display: 디스플레이와 경계
+          video-size: 원본 영상
+          sample-size: 샘플 프레임
+          window-bounds: AIRI 창 경계
+          excluded-region: 제외 영역
+          exposure: 화면 노출
+          behind-luminance: 캐릭터 뒤의 빛
+          updated: 마지막 업데이트
+        preview:
+          title: 축소된 캡처
+          description: 빨간 사각형은 AIRI 창을 나타냅니다. 점선 사각형은 라이트 맵이 덮는 영역을 나타냅니다.
+          unavailable: 사용 가능한 캡처 프레임이 없습니다.
+        pixels:
+          title: 픽셀 판정
+          total: 전체
+          accepted: 채택됨
+          excluded: 칠해짐
+          transparent: 투명
+          see-through: 비쳐 보임
+        maps:
+          title: 라이트 맵
+          window: 각 맵은 AIRI 창과 각 방향으로 창 크기의 절반만큼을 덮습니다. 윤곽선은 창을 나타냅니다.
+          unavailable: 사용 가능한 환경이 없습니다.
+          target: 측정값
+          applied: 평활화 후 적용값
+          surround:
+            title: 주변 맵
+            description: 창 주변과 뒤쪽 화면을 넓게 흐립니다. 빛의 색상과 들어오는 방향을 담습니다.
+          contact:
+            title: 접촉 맵
+            description: 같은 내용을 좁게 흐립니다. 이 맵은 빛의 감싸기와 역광 테두리를 제어합니다.
+      sampling:
+        capture-interval:
+          title: 캡처 간격
+          description: 화면 샘플 간격을 설정합니다. 캡처 스트림이 이 속도로 실행됩니다.
+        title: 화면 샘플링
+        response-time:
+          title: 응답 시간
+          description: 샘플링한 색상이 화면 변화에 적응하는 속도를 설정합니다.
+        sample-width:
+          title: 샘플 크기
+          description: 축소된 캡처 프레임의 너비를 설정합니다. 프레임이 넓을수록 라이트 맵의 세부 정보가 늘어납니다. 높이는 디스플레이 비율을 따릅니다.
+        neutral-color-weight:
+          title: 중성색 가중치
+          description: 채도가 낮은 색상의 최소 가중치를 설정합니다. 유색 콘텐츠는 회색보다 더 큰 비중을 차지합니다.
+      main-window-note: 변경 사항은 AIRI 메인 창에 표시됩니다.
+      title: Live2D 주변광
+      description: 화면 샘플링과 Live2D 색상 조명 셰이더 조정
+      controls:
+        title: 광원과 출력
+      enabled:
+        title: 주변광
+        description: 활성 Live2D 모델에 주변광 필터를 적용합니다.
+      source:
+        title: 광원
+        options:
+          screen-capture: 화면 캡처
+          forced-color: 지정 색상
+      mode:
+        title: 조명 모드
+        options:
+          window-gradient: 창 그라데이션
+          global: 전역 주변광
+      forced-color:
+        title: 테스트 색상
+        description: 화면 캡처 없이 이 색상을 적용합니다.
+      strength:
+        title: 빛의 강도
+        description: 전체 효과 강도를 설정합니다. 1은 설계된 모습이며, 최대 3까지 높이면 빛의 감싸기와 역광이 강해집니다.
+      squint:
+        title: 급격히 밝아질 때 눈 가늘게 뜨기
+        description: 캐릭터가 적응하는 속도보다 화면이 빨리 밝아지면 눈을 가늘게 뜹니다. 계속 밝은 화면에서는 눈을 뜬 상태로 유지합니다. 0은 이 기능을 끕니다.
+      shader:
+        title: 셰이더 반응
+        dark-base:
+          title: 밝기 하한
+          description: 검은 화면에서 모델의 밝기를 설정합니다. 흰 화면에서는 원래 그림대로 표시하고, 어두운 화면에서는 이 하한까지 어두워집니다.
+        base-curve:
+          title: 밝기 곡선
+          description: 하한에서 원본 그림까지 모델 밝기가 증가하는 방식을 설정합니다. 1보다 크면 절반 밝기의 화면에서 모델이 하한에 더 가깝게 유지됩니다.
+        local-share:
+          title: 국소광 비율
+          description: 전체 화면 대신 주변의 빛을 따르는 모델 밝기의 비율을 설정합니다. 0이면 창 위치에 관계없이 밝기가 일정합니다.
+        tint:
+          title: 색조
+          description: 모델이 화면의 색조를 받아들이는 정도를 설정합니다. 0이면 화면 밝기만 모델에 반영됩니다.
+        color-boost:
+          title: 어두운 빛의 색상 강화
+          description: 어둡지만 채도가 높은 빛에서 모델이 받아들이는 추가 색상을 설정합니다. 밝기는 그대로이며 어떤 채널도 조명이 없는 모델보다 낮아지지 않습니다.
+        wrap-intensity:
+          title: 빛 감싸기 강도
+          description: 배경색이 모델 가장자리로 번지는 강도를 설정합니다.
+        wrap-saturation:
+          title: 빛 감싸기 채도
+          description: 감싸는 빛이 화면 색조를 유지하는 정도를 설정합니다. 0은 같은 밝기의 흰빛을, 1은 화면의 전체 색상을 더합니다.
+        backlight:
+          title: 역광
+          description: 캐릭터 뒤에서 오는 빛이 전체 가장자리의 얇은 테두리를 비추는 강도를 설정합니다.
+        wrap-diffuse:
+          title: 빛 감싸기 너비
+          description: 감싸는 배경색이 모델 가장자리 안쪽으로 들어오는 범위를 설정합니다.
+        translucent-wrap:
+          title: 반투명 부분의 빛 감싸기 줄이기
+          description: 빛 감싸기와 테두리를 모델 알파 값의 제곱에 비례해 조정합니다. 부분 알파로 그려진 부분은 이미 데스크톱이 비쳐 보입니다.
+      preview-shader:
+        title: 셰이더 미리보기
+        description: 현재 환경과 위 설정으로 테스트 카드에 실제 셰이더를 실행합니다.
+        window-mapping: 필터는 이 캔버스를 전체 무대 창으로 취급하므로 미리보기가 무대를 픽셀 단위로 정확히 복사하지는 않습니다.
+        filtered: 셰이더 출력
+        unavailable: 미리보기에는 WebGL이 필요하지만 이 창에서 컨텍스트를 만들 수 없습니다.
+        environment:
+          live: 빛은 AIRI 메인 창이 게시한 최신 스냅샷에서 가져옵니다.
+          neutral: 아직 스냅샷을 받지 않아 미리보기에 중립 환경을 사용합니다.
+        regions:
+          title: 테스트 카드 영역
+          body: 넓은 몸체에 sRGB {low}부터 {high}까지의 계조가 있습니다. 이를 따라 밝기, 대비, 크로마, 여유 범위가 표시됩니다.
+          bars: 막대 너비는 {first}, {second}, {third}, {fourth}, {fifth} 픽셀입니다. 얇은 형태 안으로 빛 감싸기가 얼마나 들어오는지 보여 줍니다.
+          patches: 두 패치는 알파 {strong} 및 {weak}로 그려지며, 반투명 부분의 빛 감싸기 옵션이 이 값에 작용합니다.
+    live2d-motion:
+      preview:
+        values:
+          mouth-open: 입 벌림
+          squint: 눈 가늘게 뜨기
+          mouth-form: 모양
+        groups:
+          expression: 표정
+          offset: 위치 오프셋
+      editor:
+        input-actions:
+          stop: 중지
+          start: 시작으로 이동
+          step-backward: 한 단계 뒤로
+          step-forward: 한 단계 앞으로
+          end: 끝으로 이동
+          play: 재생
+          restart-recording: 다시 기록
+          clear-timeline: 타임라인 비우기
+          previous-track: 이전 트랙 선택
+          next-track: 다음 트랙 선택
+        controls:
+          remove: 제거
+          add: 추가
+          replace: 교체
+          create-keyframes: 키프레임 만들기
+          weight: 가중치
+        tracks:
+          mouthOpen: 입 벌림
+          viewTargetX: 시선 목표 X
+          viewTargetY: 시선 목표 Y
+          eyeX: 눈 X
+          eyeY: 눈 Y
+          eyeOpen: 눈 뜨기
+          headX: 머리 X
+          headY: 머리 Y
+          headZ: 머리 Z
+          bodyX: 몸 X
+          bodyY: 몸 Y
+          bodyZ: 몸 Z
+          mouthForm: 입 모양
+        title: 동작 편집기
+        instructions: 회색 곡선은 원본입니다. 동작 오버레이나 시선 목표 키프레임을 추가하세요. 트랙을 선택한 다음 점을 드래그하세요.
+        play: 타임라인 재생
+        pause: 타임라인 일시 중지
+        undo: 실행 취소
+        redo: 다시 실행
+        crop-to-view: 표시 영역으로 자르기
+        reset-view: 보기 초기화
+        export-project: 프로젝트 내보내기
+        import-project: 프로젝트 가져오기
+        import-error: 이 파일은 유효한 AIRI Live2D 동작 프로젝트가 아닙니다.
+        playback:
+          label: 타임라인 재생 제어
+          start: 시작으로 이동
+          step-backward: 한 단계 뒤로
+          step-forward: 한 단계 앞으로
+          end: 끝으로 이동
+          timecode: 현재 및 전체 타임코드
+        timeline-label: 동작 타임라인
+        timeline-help: 눈금자를 드래그해 재생 위치를 이동하세요. 휠로 확대하거나 축소하세요. Shift를 누르고 드래그하면 보기가 이동합니다. 선택한 곡선을 두 번 클릭하면 점이 추가됩니다. 각 시선 목표 키는 다음 키까지 유지됩니다.
+        overlay-count: 오버레이 {count}개
+      var:
+        diagnostics:
+          model: 모델
+          source: 출처
+          fit: 적합
+          run: 생성 시퀀스
+        title: VAR 대기 동작 생성기
+        description: 기록된 동작에 모델을 적합한 다음 새 대기 시퀀스를 생성합니다.
+        actions:
+          fit: 현재 동작에 적합
+          refit: 현재 동작에 다시 적합
+          generate: 동작 생성
+          stop: 생성 중지
+          new-seed: 새 시드
+        order:
+          label: VAR 차수
+          description: 각 예측에 사용하는 이전 프레임 수입니다.
+        residual:
+          label: 잔차 강도
+          description: 생성되는 변동입니다. 0이면 결정적으로 동작합니다.
+        status:
+          no-source: 먼저 동작을 가져오거나 기록하세요
+          source-ready: 샘플 {count}개 · {duration}초
+          fit-failed: VAR 적합에 실패했습니다.
+        values:
+          frames: 프레임 {count}개
+          model: 채널 {channels}개 · 항 {features}개
+          fit: 프레임 {frames}개 · RMSE {error} · {duration}ms
+          run: 시드 {seed} · {duration}
+      ar-hmm:
+        actions:
+          stop: 중지
+          new-seed: 새 시드
+          fit: 동작에 적합
+          refit: 다시 적합
+          generate: 생성
+        diagnostics:
+          model: 모델
+          source: 출처
+          fit: 적합
+          run: 생성 시퀀스
+          states: 상태 점유율
+        status:
+          no-source: 먼저 동작을 가져오거나 기록하세요
+          source-ready: 샘플 {count}개 · {duration}초
+          fit-failed: AR-HMM 적합에 실패했습니다.
+        values:
+          frames: 프레임 {count}개
+          count: 상태 {count}개
+          model: 상태 {states}개 · 채널 {channels}개 · 항 {features}개
+          fit: log p/프레임 {likelihood} · {duration}ms
+          states: '{occupancy} · 체류 {dwell}초'
+          run: 상태 {state} · 시드 {seed} · {duration}
+        title: AR-HMM 대기 동작 생성기
+        description: 다양한 대기 동작을 위해 동작 상태와 전이를 학습합니다.
+        states:
+          label: 은닉 상태
+          description: 모델이 학습할 수 있는 동작 패턴입니다.
+        order:
+          label: AR 차수
+          description: 각 상태 내에서 사용하는 이전 프레임 수입니다.
+        residual:
+          label: 혁신항 강도
+          description: 각 상태 내의 변동입니다.
+      recording:
+        actions:
+          import: 가져오기
+          export: 내보내기
+          stop-recording: 기록 중지
+          play: 재생
+          record: 기록
+          stop-playback: 재생 중지
+        status:
+          empty: 기록된 동작 없음
+          recording: 동작 기록 중
+          playing: 동작 재생 중
+          ready: 샘플 {count}개 · {duration}
+        import-error: 이 파일은 유효한 AIRI Live2D 동작 기록이 아닙니다.
+      actions:
+        back: 뒤로
+      groups:
+        body: 몸
+        eyes: 눈
+        head: 머리
+      title: Live2D 동작 제어
+      description: Live2D의 눈, 머리, 몸 움직임을 제어합니다.
+      system-audio:
+        title: 시스템 오디오 립싱크
+        description: 다른 플레이어의 오디오를 캡처합니다. 같은 입력이 비트 동기화와 Live2D 입 움직임을 제어합니다.
+        signal: 입력 신호
+        mouth-open: 입 벌림
+        input-volume-threshold: 입력 볼륨 임계값
+        random-close-delay: 무작위 닫기 지연
+        random-close-probability: 무작위 닫기 확률
+        actions:
+          start: 입력 시작
+          stop: 입력 중지
+      panels:
+        direct-control: 직접 제어
+        preview: 모델 미리보기
+        timeline: 타임라인
+        inference: 모델 추론
+      joystick-label: Live2D 동작 조이스틱
+      wave:
+        toggle: 보트 모드
+      instructions: 조이스틱을 드래그하거나 방향키로 X/Y를 조절하세요. R은 눈을 조금, F는 더 많이 가늘게 뜨고 C는 눈을 감습니다. W/S는 입 모양, Space는 입 벌림을 조절합니다. A/D는 몸을 X 방향으로 움직이고 Q/E는 머리를 기울입니다. 키를 놓으면 부드럽게 중앙으로 돌아옵니다.
+      parameter-note: 조이스틱은 X/Y를 제어합니다. R은 눈 감김 1/3, F는 2/3, C는 완전히 감기에 대응합니다. W/S는 입 모양 ±1, Space는 입 벌림 1, A/D는 몸 X ±10°, Q/E는 머리 Z ±30°에 대응합니다.
+      input:
+        keyboard: 키보드
+        controller: 컨트롤러
+      input-actions:
+        move-body-head: 몸과 머리 움직이기
+        tilt-head: 머리 기울이기
+        blink: 눈 깜빡이기
+        open-mouth: 입 벌리기
+        mouth-shape: 입 모양 변경
+      eye-view:
+        title: 시선 고정
+        description: 목표를 선택하세요. 눈이 머리 움직임을 상쇄하여 계속 목표를 바라봅니다.
+        pad-label: 고정 시선 목표
+        actions:
+          enable: 시선 고정 켜기
+          disable: 시선 고정 끄기
+          center: 목표 중앙으로 이동
+        counter:
+          label: 머리 움직임 상쇄 강도
+          description: 눈이 머리의 X/Y 움직임을 상쇄하는 정도입니다.
+        values:
+          target: 목표
+          output: 눈 출력
+      output-filter:
+        title: 생성기 출력 필터
+        description: 스프링이 각 포즈를 받기 전에 생성기 출력을 평활화하고 작은 변화를 보류합니다.
+        actions:
+          enable: 필터 켜기
+          disable: 필터 끄기
+          reset: 상태 초기화
+        smoothing:
+          label: EMA 평활화
+          description: 채택한 각 목표를 이전 출력과 혼합합니다. 값이 높을수록 떨림은 줄지만 지연이 늘어납니다.
+        cutoff:
+          label: 변화 임계값
+          description: 채널의 정규화된 누적 변화가 이 값에 도달할 때까지 유지합니다.
+        diagnostics:
+          status: 상태
+          input-change: 원시 변화 MAE
+          output-change: 필터링된 변화 MAE
+          cutoff-tracks: 보류된 채널
+        status:
+          waiting: 생성기 대기 중
+          filtering: 생성기 출력 필터링 중
+          bypassed: 생성기 원시 출력 전달 중
+      breath:
+        title: 수동 호흡
+        description: 들숨, 날숨, 유지 시간을 조절하여 ParamBreath를 제어하며, 기록에 호흡 데이터를 추가하지 않습니다.
+        actions:
+          enable: 호흡 켜기
+          disable: 호흡 끄기
+          reset: 주기 초기화
+        cycle:
+          label: 호흡 시간
+          description: 날숨 후 유지 시간 전까지 한 번의 들숨과 날숨에 걸리는 시간을 설정합니다.
+        inhale:
+          label: 들숨 비율
+          description: 호흡 시간 중 들숨에 사용하는 비율을 설정합니다. 나머지 시간은 날숨입니다.
+        dwell:
+          label: 날숨 후 유지 시간
+          description: 다음 들숨 전에 ParamBreath를 최솟값으로 유지합니다.
+        stage:
+          dwell: 날숨 후 유지 시간
+          inhale: 들숨
+          exhale: 날숨
+        minimum:
+          label: 최솟값
+          description: ParamBreath에 기록할 최솟값을 설정합니다.
+        maximum:
+          label: 최댓값
+          description: ParamBreath에 기록할 최댓값을 설정합니다.
+        diagnostics:
+          stage: 단계
+          phase: 주기 진행률
+          output: ParamBreath 출력
+      spring:
+        follow:
+          label: 추종
+          description: 동작이 조이스틱을 따라가는 속도입니다.
+        inertia:
+          label: 관성
+          description: 동작이 유지하는 운동량의 정도입니다.
+    presence-bubble:
+      thinking:
+        title: 추론
+        description: 점을 표시합니다. 읽지 않은 메시지 수보다 우선합니다.
+      title: 상태 말풍선
+      description: 캐릭터 위의 말풍선을 제어하고 메인 창에서 확인하세요
+      override:
+        title: 여기서 말풍선 제어
+        description: 이 기능이 꺼져 있으면 채팅 턴이 진행 중일 때만 무대에 말풍선이 표시됩니다.
+      unread:
+        title: 읽지 않은 메시지
+        description: 머리 위 패널에 표시와 개수가 나타납니다.
+      main-window-note: 변경 사항은 AIRI 메인 창에 표시됩니다.
+    editor:
+      title: AIRI 편집기
+      description: 독립 AIRI 편집기 창 열기
+      button: 편집기 열기
+    io-tracer:
+      title: 입출력 추적기
+      recording:
+        title: 입출력 추적 자동 기록
+        description: 완료된 입출력 스팬을 앱 데이터 폴더에 JSON Lines로 저장하여 코딩 에이전트가 분석할 수 있게 합니다. 7일이 지난 파일은 삭제됩니다.
 screen-capture:
   permissions-prompt:
     title: 화면 캡쳐
@@ -67,5 +537,20 @@ screen-capture:
     dismiss: 무시
     instructions:
       step-1: '"시스템 환경설정"을 열고 사이드 바에서 "프라이버시 및 보안"을 선택합니다.'
-      step-2: '"화면 및 시스템 오디오 녹음" 및 "시스템 오디오 녹음 전용" 섹션에서 AIRI에 대한 스위치를 켭니다.'
+      step-2: '"화면 및 시스템 오디오 녹음" 및 "시스템 오디오 녹음만" 섹션에서 AIRI에 대한 스위치를 켭니다.'
       step-2-note: AIRI가 목록에 없는 경우, "+" 버튼을 클릭하고 애플리케이션 폴더에서 AIRI를 선택하여 수동으로 추가해 주세요.
+microphone-permission:
+  states:
+    not-determined: 설정되지 않음
+    granted: 허용됨
+    denied: 거부됨
+  settings:
+    title: 마이크
+    description: AIRI의 마이크 사용을 제어합니다. 이 선택을 초기화하면 현재 마이크 스트림을 중지하고 다음에 다시 권한을 요청합니다.
+    revoke: 접근 권한 취소
+    reset: 선택 초기화
+  prompt:
+    title: 마이크 접근을 허용할까요?
+    description: AIRI는 음성 입력과 전사에 마이크를 사용합니다. 설정에서 초기화할 때까지 이 선택이 유지됩니다.
+    allow: 허용
+    deny: 거부

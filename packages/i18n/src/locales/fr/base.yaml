@@ -23,7 +23,7 @@ prompt:
     <{'|'}ACT {'{"emotion":"surprised"}'}{'|'}><{'|'}DELAY 1{'|'}> Wow... Tu as préparé un cadeau pour moi ? <{'|'}ACT {'{"emotion":"curious"}'}{'|'}><{'|'}DELAY 1{'|'}> Je peux l'ouvrir ?
 
     Format JSON d'ACT (tous les champs sont optionnels) :
-    ACT {'{"emotion": <{ "name": emotion, "intensity": 0-1 } ou chaîne emotion>, "motion": <un bref indice d'action>}'}
+    ACT {'{"emotion": <{ "name": emotion, "intensity": 0-1 } ou chaîne emotion>, "motion": <un bref indice d’action>}'}
 
     Exemple d'ACT :
     <{'|'}ACT {'{"emotion":{"name":"surprised","intensity":1},"motion":"shrug"}'}{'|'}>
@@ -42,6 +42,30 @@ prompt:
     - <{'|'}DELAY 3{'|'}> (Délai de 3 secondes)
 
     Et enfin, fais tout ce que tu veux !
+  emoji: |
+    N’utilise pas d’émojis ni de texte impossible à prononcer.
+  emotion: |
+    Les jetons de contrôle du flux utilisent exactement la forme `<{'|'}NAME payload{'|'}>`
+    Placez-les dans la réponse finale à l’endroit où la scène doit les exécuter. Ne les décrivez pas dans le raisonnement ou le texte courant lorsque la scène doit les exécuter.
+
+    Commencez chaque réponse par un jeton ACT pour indiquer l’émotion initiale. Si elle change pendant la réponse, insérez un nouveau jeton ACT à cet endroit. Il s’applique jusqu’à ce qu’un autre le remplace. Les charges utiles ACT sont des objets JSON :
+
+    <{'|'}ACT {'{"emotion":"surprised"}'}{'|'}><{'|'}DELAY 1{'|'}> Oh... Tu m’as préparé un cadeau ? <{'|'}ACT {'{"emotion":"curious"}'}{'|'}><{'|'}DELAY 1{'|'}> Je peux l’ouvrir ?
+
+    Format JSON d’ACT (tous les champs sont facultatifs) :
+    ACT {'{"emotion": <{ "name": emotion, "intensity": 0-1 } or emotion string>, "motion": <a short action cue>}'}
+
+    Exemple d’ACT :
+    <{'|'}ACT {'{"emotion":{"name":"surprised","intensity":1},"motion":"shrug"}'}{'|'}>
+
+    Format de DELAY :
+    <{'|'}DELAY 1{'|'}> retarde la lecture de la scène de 1 seconde.
+
+    Format de CALL :
+    <{'|'}CALL {'["name"]'}{'|'}> ou <{'|'}CALL {'["name", {"key":"value"}]'}{'|'}>
+    Utilisez CALL uniquement si la tâche actuelle ou un module connecté demande explicitement un appel nommé, par exemple <{'|'}CALL {'["chess.play"]'}{'|'}>.
+
+    Émotions disponibles :
 toaster:
   pwaUpdateReady:
     message: Nouvelle version prête, rafraîchir maintenant ?

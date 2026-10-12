@@ -1,6 +1,9 @@
 chat:
   actions:
     retry: Thử lại
+    reply: Trả lời
+    send: Gửi tin nhắn
+    stop: Dừng phản hồi
   message:
     character-name:
       core-system: Hệ thống lõi
@@ -13,6 +16,103 @@ chat:
     cloud-badge: Đã đồng bộ đám mây
     new-chat-fallback: Cuộc trò chuyện mới
     delete: Xóa đoạn hội thoại
+    current: Hiện tại
+    confirm-delete-short: Xác nhận xóa
+    delete-short: Xóa
+    cancel: Hủy
+    confirm-delete: Xóa cuộc trò chuyện này và các tin nhắn?
+  voice-composer:
+    input-device: Micrô
+    push-to-talk: Nhấn để nói
+    recording: Đang ghi
+    cancel: Hủy
+    pause: Tạm dừng
+    audio: Tin nhắn thoại
+    transcription: Đọc chính tả
+    hold-hint: Giữ để ghi âm. Nhấp để đổi giữa tin nhắn thoại và đọc chính tả. Nhấn Enter để ghi mà không cần giữ.
+    listening: Đang lắng nghe…
+    lock: Vuốt lên để khóa
+    cancel-hint: Vuốt sang trái để hủy
+    processing: Đang hoàn tất…
+    send: Gửi tin nhắn thoại
+    insert: Chèn văn bản
+    retry: Gửi lại tin nhắn thoại
+    discard: Bỏ tin nhắn thoại
+    failed: Nhập giọng nói thất bại
+    configure-title: Thiết lập Nghe
+    configure-description: Chọn nhà cung cấp và mô hình phiên âm trong Nghe để dùng tính năng đọc chính tả.
+    configure-action: Mở Nghe
+    mode: Nhập giọng nói
+    auto-send: Gửi khi dừng ghi âm
+    system-default: Mặc định hệ thống
+    listen: Lắng nghe liên tục
+    push-to-talk-unavailable: Thiết bị này không có phím nhấn để nói nên AIRI không lắng nghe. Hãy đổi chế độ nhập trong cài đặt Nghe.
+    wake-word: Lắng nghe từ đánh thức
+    hearing-settings: Cài đặt Nghe khác…
+    options-hint: Di chuột hoặc nhấp chuột phải để xem tùy chọn
+    stop: Dừng ghi âm
+    stop-send: Dừng và gửi
+    play: Phát bản ghi âm
+  voice-preview:
+    device-placeholder: Chọn micrô
+    speech: Giọng nói
+    sensitivity: Độ nhạy
+    start: Bắt đầu ghi
+    processing: Đang hoàn tất phiên âm
+    device: Thiết bị đầu vào âm thanh
+    device-description: Chọn micrô cho bản ghi âm này.
+    level: Mức đầu vào
+    activity: Hoạt động giọng nói
+    silence: Im lặng
+    threshold: Ngưỡng phát hiện
+    sensitivity-description: Điều chỉnh ngưỡng của chỉ báo giọng nói.
+    stop: Kết thúc ghi âm
+    failed: Thao tác âm thanh thất bại.
+  voice-message:
+    recording: Đang ghi
+    transcribing: Đang phiên âm…
+    starting: Đang khởi động micrô
+    preview: Tin nhắn thoại đã ghi
+    position: Vị trí phát
+    no-speech: Không nhận dạng được lời nói nên tin nhắn thoại chưa được gửi.
+  swipe-demo:
+    delete: Xóa
+    show-label: Hiện nhãn
+    archive: Lưu trữ
+    pin: Ghim
+    actions: Hiện thao tác
+    row: Cuộc trò chuyện {n}
+  provider-configuration:
+    title: Nhà cung cấp trò chuyện chưa được cấu hình
+    description: Chọn và kiểm tra nhà cung cấp trong Cài đặt trước khi gửi tin nhắn.
+    action: Mở cài đặt nhà cung cấp
+  voice-draft:
+    finalizing: Đang hoàn tất…
+    title: Bản nháp thoại
+    discard: Bỏ bản nháp
+    listening: Đang lắng nghe
+  voice-input: Nhập giọng nói
+  error-details:
+    show: Hiện chi tiết
+    hide: Ẩn chi tiết
+  images:
+    empty: Chia sẻ một suy nghĩ hoặc hình ảnh.
+    use-vision: Dùng mô hình thị giác cho hình ảnh trong cuộc trò chuyện
+    use-vision-description: Chọn nhà cung cấp và mô hình bên dưới. Mô hình đọc ảnh đính kèm trước khi mô hình trò chuyện trả lời. Nếu không có mô hình thị giác, ảnh được gửi trực tiếp đến mô hình trò chuyện.
+    attach: Đính kèm hình ảnh
+    remove: Xóa {name}
+    unsupported: Dùng ảnh PNG, JPEG, WebP hoặc GIF.
+    too-large: Mỗi ảnh phải có dung lượng tối đa 3 MB.
+    too-many: Đính kèm tối đa {count} ảnh mỗi lần.
+    total-too-large: Tổng dung lượng ảnh đính kèm phải tối đa 3 MB.
+    read-failed: Không thể đọc ảnh này. Hãy thử lại.
+    no-description: Mô hình thị giác không trả về mô tả ảnh. Kiểm tra Cài Đặt → Module → Thị giác rồi thử lại.
+    reading: Đang đọc ảnh…
+    description: Ảnh đính kèm
+  reply:
+    cancel: Hủy trả lời
+    message: Tin nhắn
+    replying-to: Đang trả lời {name}
 render-error:
   title: '{renderer} không thể hiển thị mô hình này'
   description: Mô hình đã được chọn nhưng sân khấu không thể hiển thị mô hình đó.
@@ -105,3 +205,69 @@ websocket-status:
   connected: Đã kết nối
   disconnected: Chưa kết nối
   open-settings: Mở cài đặt kết nối
+mobile-tools:
+  view: Xem
+  title: Cài đặt
+  settings: Cài đặt
+  hearing: Nghe
+  appearance: Diện mạo
+  sign-in: Đăng nhập AIRI
+  account-description: Tài khoản và tùy chọn
+  sound: Âm thanh
+  character-voice: Giọng nhân vật
+  application: Ứng dụng
+  more: Thêm
+  background: Nền
+  about: Giới thiệu
+  close-view: Lưu và đóng điều khiển hiển thị
+theme:
+  light: Sáng
+  title: Chủ Đề
+  system: Hệ thống
+  dark: Tối
+  switch-to-light: Chuyển sang giao diện sáng
+  switch-to-dark: Chuyển sang giao diện tối
+  switch-to-system: Theo giao diện hệ thống
+startup:
+  retry: Thử lại
+  continue-without-model: Vẫn tiếp tục
+  failed: Khởi động thất bại
+  failed-resource: Không thể tải {resource}
+  recover: Hãy thử lại. Nếu vẫn thất bại, hãy mở chi tiết bên dưới.
+  recover-model: Thử lại hoặc tiếp tục mà không có nhân vật. Bạn có thể chọn mô hình khác sau.
+  details: Đã xảy ra chuyện gì?
+  close-details: Đóng chi tiết
+  model-timeout: Mô hình nhân vật tải quá lâu. Kiểm tra kết nối rồi thử lại.
+  resources:
+    auth: cài đặt tài khoản
+    modelIndex: danh sách mô hình
+    card: cài đặt nhân vật
+    chat: lịch sử trò chuyện
+    services: dịch vụ ứng dụng
+    modelData: mô hình đã lưu
+    modelSelection: cài đặt mô hình
+    audio: cài đặt âm thanh
+    route: trang
+    model: mô hình nhân vật
+status:
+  sign-in-error: Đăng nhập thất bại
+  dismiss: Bỏ qua
+  listening: Đang lắng nghe
+  preparing: Đang chuẩn bị micrô
+  paused: Tạm dừng lắng nghe khi AIRI nói
+  transcribing: Đang phiên âm
+  hearing-error: Không thể phiên âm âm thanh
+  no-transcript: Lời nói được nhận dạng sẽ xuất hiện ở đây.
+  signing-in: Hoàn tất đăng nhập trong trình duyệt
+  confirming: Đang xác nhận đăng nhập
+  signed-in: Đã đăng nhập
+  sign-in-unconfirmed: Không thể xác nhận phiên của bạn. Vui lòng đăng nhập lại.
+  configure-hearing: Chọn và cấu hình nhà cung cấp Nghe trong Cài đặt.
+character-switcher:
+  title: Đổi nhân vật
+  manage: Quản lý nhân vật
+  empty: Chưa có nhân vật
+  failed: Không thể đổi nhân vật. Thử lại.
+computer-use:
+  label: Sử dụng máy tính
+  description: Cho phép cửa sổ trò chuyện này xem và điều khiển ứng dụng gốc trên máy tính này.

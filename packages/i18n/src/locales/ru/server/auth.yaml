@@ -68,6 +68,8 @@ signIn:
     terms: Условия использования
     and: и
     privacy: Политика конфиденциальности
+  email:
+    label: Электронная почта
 verifyEmail:
   title:
     pending: Проверьте свою почту
@@ -90,6 +92,8 @@ forgotPassword:
     sent: Если {email} совпадает с учетной записью, ссылка для сброса уже отправлена.
   error:
     fallback: Не удалось отправить письмо для сброса.
+  email:
+    label: Электронная почта
 deleteAccount:
   title:
     success: Учётная запись удалена
@@ -128,6 +132,7 @@ profile:
   field:
     emailVerified: Статус email
     createdAt: Присоединился
+    email: Электронная почта
   label:
     verified: Подтверждено
     unverified: Не подтверждено

@@ -396,6 +396,7 @@ pages:
           displayModelId: โมเดลที่แสดง
           activeBackgroundId: พื้นหลังที่ปักหมุด
           artistry: การสร้างภาพ
+          characterBook: สมุดข้อมูลโลก
         restore: กู้คืนเวอร์ชันนี้
         restore_confirm_title: กู้คืนเวอร์ชันนี้ไหม?
         restore_confirm_body: การดำเนินการนี้จะแทนที่เนื้อหาปัจจุบันของ {name} ด้วยเนื้อหาจาก {date}
@@ -640,6 +641,7 @@ pages:
               label: ความไว
             spectral_flux:
               description: จะเปิดการตรวจจับจุดเริ่มเสียงด้วย spectral flux หรือไม่
+              label: ฟลักซ์สเปกตรัม
             warmup:
               description: จะวอร์มอัปก่อนตรวจจับจังหวะเพื่อความแม่นยำที่ดีขึ้นหรือไม่
               label: วอร์มอัป
@@ -740,6 +742,7 @@ pages:
             top_p_description: ควบคุมความหลากหลายของผลลัพธ์จากโมเดลด้วย nucleus sampling ค่าที่ต่ำ (เช่น 0.2) จำกัดผลลัพธ์ให้มีเฉพาะโทเค็นที่มีความน่าจะเป็นสูง ส่วนค่าที่สูง (เช่น 1.0) รวมความเป็นไปได้ที่กว้างขึ้น
             subtitle: เลือกโมเดลเริ่มต้นจากผู้ให้บริการ
             title: โมเดล
+            temperature_label: อุณหภูมิ
           model-options:
             title: ตัวเลือกของโมเดล
             thinking:
@@ -1230,6 +1233,7 @@ pages:
         water_heater: เครื่องทำน้ำร้อน
         weather: สภาพอากาศ
         zone: โซน
+        cover: ม่านและประตูเลื่อน
     web-search:
       title: ค้นหาเว็บ
       description: ให้ AIRI ค้นหาข้อมูลล่าสุดบนเว็บ
@@ -1304,6 +1308,7 @@ pages:
         env:
           label: ตัวแปรสภาพแวดล้อม
           description: ตัวแปรที่ส่งให้โปรเซสลูก
+          value-placeholder: ค่า
         enabled:
           label: เปิดใช้งาน
       json:
@@ -1794,6 +1799,7 @@ pages:
             description: 4 บิตร่วมกับ FP16
         playground:
           title: พื้นที่ทดลองเสียง
+          default-text: สวัสดี! นี่คือการทดสอบระบบแปลงข้อความเป็นเสียงพูด Kokoro
         title: Kokoro TTS (ในเครื่อง)
       microsoft-speech:
         fields:
@@ -1813,6 +1819,8 @@ pages:
               description: เลือกโมเดล TTS ของ MiniMax ที่จะใช้สร้างเสียงพูด
               label: โมเดล
               placeholder: เลือกโมเดล MiniMax...
+        playground:
+          default-text: สวัสดี! นี่คือการทดสอบการสังเคราะห์เสียงพูด MiniMax
       openai-compatible:
         description: เข้ากันได้กับ OpenAI
         title: เข้ากันได้กับ OpenAI
@@ -1823,6 +1831,7 @@ pages:
           field:
             appId:
               description: App ID ของโปรเจกต์ ซึ่งดูได้ในคอนโซล
+              label: ID แอป
       volcengine-coding-plan:
         models:
           ark-code-latest:
@@ -1930,6 +1939,7 @@ pages:
             section:
               performance-visualizer:
                 description: แสดง FPS เวลาต่อเฟรม งานที่ใช้เวลานาน และตัวชี้วัดหน่วยความจำที่เบราว์เซอร์รองรับ
+                title: ตัวแสดงประสิทธิภาพ
               plugin-host:
                 actions:
                   enable-and-load: เปิดใช้และโหลด
@@ -1953,8 +1963,12 @@ pages:
                   permissions: สิทธิ์
                   no-permissions: ไม่ได้ประกาศสิทธิ์ใด
                   imported: 'นำเข้าส่วนขยาย {extensionId} แล้ว'
+                  entrypoints: จุดเริ่มต้น
+                  kits: ชุดเครื่องมือ
+                  no-kits: ยังไม่ได้ประกาศชุดเครื่องมือ
               use-magic-keys:
                 description: ทดสอบปุ่มลัด
+                title: เครื่องมือ useMagicKeys
               audio-record:
                 title: บันทึกเสียง
                 description: ทดสอบ composable ที่เกี่ยวกับเสียง
@@ -1990,6 +2004,9 @@ pages:
               performance-playground:
                 title: พื้นที่ทดลองประสิทธิภาพ
                 description: พื้นที่ทดลองสีหน้า VRM และการขยับปากตาม TTS
+              markdown-stress:
+                title: การทดสอบโหลด Markdown
+                description: ทดสอบการแยกวิเคราะห์และแสดงผล Markdown ด้วยข้อมูลแชทขนาดใหญ่
         theme-presets:
           presets:
             default:
@@ -2190,6 +2207,7 @@ mmd:
     enabled: เปิดฟิสิกส์ (ผม กระโปรง เครื่องประดับ)
     ik: เปิด IK (inverse kinematics)
     gravity: ความแรงของแรงโน้มถ่วง
+    grant: เปิดการส่งต่อการแปลงของกระดูกเสริม
   gaze:
     title: การมอง
     tracking: มองที่
