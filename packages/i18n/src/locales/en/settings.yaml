@@ -375,6 +375,10 @@ pages:
           fallback: Could not start deletion. Try again later.
           subscriptionActive: Your subscription is still active. Cancel it on the Capacitor page first, then delete your account.
   card:
+    wake-word-conflicts:
+      title: 'One shared wake word pronunciation needs a character | {count} shared wake word pronunciations need a character'
+      description: Two cards use the same pronunciation. No character answers it until you choose one.
+      action: Choose who answers
     sync:
       notice: Character cards sync to your account. A deleted card stays restorable for 30 days.
       off_notice: You are signed in, but character card sync is off.
@@ -846,10 +850,48 @@ pages:
     hearing:
       description: Configure how speech recognition works
       title: Hearing
+      transcriber:
+        title: Speech recognition
+        description: Choose the transcription provider and model, and test your microphone.
+      wake-words:
+        title: Wake words
+        description: See the wake words of each character, and choose who answers a shared pronunciation.
+        intro: Each character keeps its wake words on its card. To change the words, ask the character in chat.
+        empty: This character has no wake words.
+        state:
+          active: Active
+          paused: Paused. Choose a character to answer it.
+          other: 'Answered by {name}'
+          unsupported: Not available with the current wake word model
+        conflicts:
+          title: Shared pronunciations
+          description: Two or more characters use the same pronunciation. Choose the character that answers it on this device. Each card keeps its words.
+          choose-label: Character that answers
+          choose: '{name} ("{word}")'
+          answered-by: '{name} answers'
+          unresolved: No character answers this pronunciation.
       sections:
         section:
           provider-selection:
             description: Select the suitable speech recognition provider
+          microphone:
+            title: Microphone
+            label: Microphone
+            description: Turn on the microphone for Hearing. The input mode controls when AIRI listens.
+            error: The microphone is not available
+          input-device:
+            label: Input device
+            description: Select the microphone that AIRI uses.
+            playground-description: Hearing and the playground use this microphone.
+            placeholder: Select a microphone
+          auto-send:
+            title: Transcripts
+            description: Choose what AIRI does with the text of your speech.
+            label: Send automatically
+            label-description: AIRI sends the transcript to chat after a delay. Turn this off to read and edit the text first. Each sent message uses tokens.
+            delay: Send delay
+            delay-description: The time that AIRI waits before it sends the transcript.
+            immediate: Immediately
           input-mode:
             title: Input mode
             description: Choose how AIRI starts to listen while the microphone is on.
