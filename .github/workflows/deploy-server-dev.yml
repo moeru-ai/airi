@@ -15,8 +15,9 @@ on:
         type: boolean
         default: true
 
-# The dev environment is one shared slot. Queue the runs so that a database
-# reset and a source change from two runs cannot interleave.
+# The dev environment is one shared slot, so runs do not overlap. A run holds
+# the group until Railway finishes its deploys. GitHub keeps one pending run
+# and cancels an older pending run, so the latest request is the next deploy.
 concurrency:
   group: server-dev
   cancel-in-progress: false
@@ -61,11 +62,40 @@ jobs:
 
       # `redeploy --from-source` also covers a run that keeps the same branch.
       # The services must restart there to migrate the reset database.
-      - name: Point the Railway dev services at the branch
+      #
+      # The step waits for a new deployment to pass its healthcheck. A run that
+      # ends earlier lets the next run reset the database while this branch
+      # still builds, and this branch then migrates the reset database.
+      - name: Deploy the Railway dev services from the branch
+        timeout-minutes: 30
         run: |
-          for service in ts-api auth-server; do
+          services=(ts-api auth-server)
+          declare -A previous
+
+          for service in "${services[@]}"; do
+            previous[$service]=$(railway service status --service "$service" --json | jq --raw-output '.deploymentId')
             railway service source connect --service "$service" --repo "$GITHUB_REPOSITORY" --branch "$DEPLOY_BRANCH"
             railway service redeploy --service "$service" --from-source --yes
+          done
+
+          for service in "${services[@]}"; do
+            while true; do
+              latest=$(railway service status --service "$service" --json)
+              id=$(jq --raw-output '.deploymentId' <<< "$latest")
+              status=$(jq --raw-output '.status' <<< "$latest")
+
+              if [[ "$id" != "${previous[$service]}" ]]; then
+                case "$status" in
+                  SUCCESS) break ;;
+                  FAILED | CRASHED)
+                    echo "::error::The $service deployment $id ended with status $status"
+                    exit 1
+                    ;;
+                esac
+              fi
+
+              sleep 15
+            done
           done
 
       # Railway follows later pushes to the branch. The frontend does not, so
