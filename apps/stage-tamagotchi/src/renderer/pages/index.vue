@@ -288,7 +288,6 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
 const fullscreen = useFullscreenStore()
 const { phase: fullscreenPhase, active: fullscreenActive } = storeToRefs(fullscreen)
 const router = useRouter()
-fullscreen.home = fullscreenHostPages['main-window']
 useFullscreenHost()
 const enterFullscreenWindow = useElectronEventaInvoke(electronMainWindowEnterFullscreen)
 const setFullscreenWindowBounds = useElectronEventaInvoke(electronMainWindowSetFullscreenBounds)
@@ -529,7 +528,7 @@ async function resumeFullscreen() {
     // The window decides. A route that names a surface while the window is not in the mode goes back to the main page.
     if (!state) {
       if (fullscreenSurfaceOf(router.currentRoute.value.path))
-        await router.replace(fullscreen.home)
+        await router.replace(fullscreenHostPages['main-window'])
       return
     }
     const plan = planFor(state.home, state.workArea)

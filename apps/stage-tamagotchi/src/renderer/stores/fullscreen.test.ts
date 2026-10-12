@@ -48,19 +48,21 @@ function appRoutes(): RouteRecordRaw[] {
 /** A host page: the store inside an app whose router nests the settings under the page of the host. */
 async function setup(options: { startAt?: string, host?: FullscreenHost } = {}) {
   const host = options.host ?? 'main-window'
+  // The store reads which host its window is from the query that the main process gives the window.
+  vi.stubGlobal('location', { search: `?synced-leader=true&fullscreen-host=${host}` })
   const router = createRouter({ history: createMemoryHistory(), routes: nestFullscreenSurfaces(appRoutes(), host) })
   await router.push(options.startAt ?? fullscreenHostPages[host])
   const app = createApp(Page)
   app.use(router)
   app.use(createPinia())
   const fullscreen = app.runWithContext(() => useFullscreenStore())
-  fullscreen.home = fullscreenHostPages[host]
   return { router, fullscreen }
 }
 
 describe('main window fullscreen store', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.unstubAllGlobals()
   })
 
   // A settings page that another window opens can always go back, because the settings home sits under it.

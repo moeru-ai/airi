@@ -10,7 +10,6 @@ import FullscreenBackdrop from '../components/fullscreen/fullscreen-backdrop.vue
 import FullscreenOverlay from '../components/fullscreen/fullscreen-overlay.vue'
 
 import { defaultFullscreenSurface, electronFullscreenExit, electronWorkspaceWindowGetOpenRequest } from '../../shared/eventa'
-import { fullscreenHostPages } from '../components/fullscreen/surfaces'
 import { useFullscreenHost } from '../composables/use-fullscreen-host'
 import { provideFullscreenLayout } from '../composables/use-fullscreen-layout'
 import { useFullscreenStore } from '../stores/fullscreen'
@@ -19,7 +18,6 @@ import { useFullscreenStore } from '../stores/fullscreen'
 // window, around its own view of the character. The window covers the work area, so nothing moves when the mode
 // opens or closes.
 const fullscreen = useFullscreenStore()
-fullscreen.home = fullscreenHostPages['workspace-window']
 const { phase } = storeToRefs(fullscreen)
 const layout = provideFullscreenLayout()
 const { width: windowWidth, height: windowHeight } = useWindowSize()

@@ -7,6 +7,7 @@ import { useRouter } from 'vue-router'
 
 import { defaultFullscreenSurface, electronFullscreenSurfaceChanged } from '../../shared/eventa'
 import { fullscreenHostPages, fullscreenSurfaceOf, fullscreenSurfaces } from '../components/fullscreen/surfaces'
+import { resolveRendererWindowContext } from '../window-context'
 
 /**
  * Where the fullscreen mode is, in the window that hosts it.
@@ -38,7 +39,7 @@ export interface FullscreenCarrier<T = unknown> {
  * - An entry point opens a surface, the island switches it, or the host page runs the open and close transitions.
  *
  * Expects:
- * - The host page sets `home` to its own path, runs each transition, and reports its end through `settle`.
+ * - The host page runs each transition, and reports its end through `settle`.
  *
  * Returns:
  * - The phase, the surface, the mounted surfaces, and actions that open, resume, close, and settle the mode.
@@ -53,8 +54,8 @@ export const useFullscreenStore = defineStore('fullscreen', () => {
   /** The surfaces that showed since the mode opened. Their panels stay mounted until it closes. */
   const mounted = shallowReactive(new Set<FullscreenSurfaceId>())
   const active = computed(() => phase.value !== 'closed')
-  /** The page of the window that hosts the mode. The router returns to it when the mode leaves the surface pages. */
-  const home = ref(fullscreenHostPages['main-window'])
+  // Every window creates the store, but only a window that hosts the mode opens it.
+  const host = resolveRendererWindowContext().fullscreenHost
   /** The carriers of the mounted panels, by surface. */
   const carriers = new Map<FullscreenSurfaceId, FullscreenCarrier>()
   /** States that the previous host packed. Each one waits until the panel of its surface mounts. */
@@ -63,6 +64,13 @@ export const useFullscreenStore = defineStore('fullscreen', () => {
   const restoring = new Map<FullscreenSurfaceId, Promise<void>>()
   /** Resolves when the close in progress ends. An opening waits for it, so the old close never clears the new mode. */
   let closeEnded: PromiseWithResolvers<void> | undefined
+
+  /** The page of this window. The router returns to it when the mode leaves the surface pages. */
+  function home() {
+    if (!host)
+      throw new Error('This window does not host the fullscreen mode')
+    return fullscreenHostPages[host]
+  }
 
   /** Tells the main process what shows and what stays mounted. It needs them to hand the chat draft over and to restore after a reload. */
   function report(shown: FullscreenSurfaceId | undefined) {
@@ -181,7 +189,7 @@ export const useFullscreenStore = defineStore('fullscreen', () => {
     if (phase.value !== 'open')
       return
     if (fullscreenSurfaceOf(router.currentRoute.value.path)) {
-      const failure = await router.push(home.value)
+      const failure = await router.push(home())
       if (failure) {
         // The page that stopped the leave keeps its route, so its surface comes into view with its dialog.
         const blocked = fullscreenSurfaceOf(router.currentRoute.value.path)
@@ -211,10 +219,10 @@ export const useFullscreenStore = defineStore('fullscreen', () => {
     pending.clear()
     // A rollback can close the mode on a settings page, so the route returns to the page of the host too.
     if (fullscreenSurfaceOf(router.currentRoute.value.path))
-      void router.replace(home.value)
+      void router.replace(home())
     closeEnded?.resolve()
     closeEnded = undefined
   }
 
-  return { phase, surface, mounted, active, home, open, resume, close, settle, carry, pack, unpack }
+  return { phase, surface, mounted, active, open, resume, close, settle, carry, pack, unpack }
 })
