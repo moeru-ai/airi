@@ -16,7 +16,6 @@ docs:
 'fullscreen-island':
   settings: 设置
   chat: 聊天
-  switch-profile: 切换角色
   switch-to-dark-mode: 切换到暗色模式
   switch-to-system-mode: 跟随系统主题
   switch-to-light-mode: 切换到亮色模式

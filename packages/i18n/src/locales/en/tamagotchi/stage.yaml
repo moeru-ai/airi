@@ -16,7 +16,6 @@ docs:
 'fullscreen-island':
   settings: Settings
   chat: Chat
-  switch-profile: Switch profile
   switch-to-dark-mode: Switch to dark mode
   switch-to-system-mode: Follow the system theme
   switch-to-light-mode: Switch to light mode

@@ -366,11 +366,6 @@ const FULLSCREEN_MOTION = {
 } satisfies Record<string, FullscreenMotion>
 /** The share of the work area width that the stage takes on the left. The surface takes the rest on the right. */
 const FULLSCREEN_STAGE_SHARE = 0.42
-/** The places and sizes of the outlined shapes on the fullscreen backdrop, from the design draft. */
-const FULLSCREEN_BACKDROP_SHAPES = [
-  'left-[10%] top-[8%] size-[46vh] -rotate-12',
-  'left-[46%] top-[46%] size-[52vh] rotate-18',
-]
 /** The share of the work area width that the surface takes until the user drags its edge. */
 const FULLSCREEN_SURFACE_SHARE = 0.54
 /** The narrowest surface: the width of the settings window, which settings pages are laid out for. */
@@ -916,18 +911,7 @@ const cursorPosition = computed(() => ({
     :style="fullscreenAreaStyle"
     :class="['fixed left-0 top-0 z-1 overflow-hidden']"
   >
-    <div :class="['absolute bottom-0 left-0 h-screen w-screen', 'bg-neutral-100 dark:bg-neutral-900']">
-      <!-- Large outlined shapes in the theme color decorate the stage, as in the design draft. -->
-      <svg
-        v-for="shape in FULLSCREEN_BACKDROP_SHAPES"
-        :key="shape"
-        viewBox="0 0 100 100"
-        aria-hidden="true"
-        :class="['absolute', shape, 'text-primary-200/60 dark:text-primary-800/60']"
-      >
-        <polygon points="50,6 94,38 77,90 23,90 6,38" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" />
-      </svg>
-    </div>
+    <div :class="['absolute bottom-0 left-0 h-screen w-screen', 'bg-neutral-100 dark:bg-neutral-900']" />
   </div>
   <div
     v-if="fullscreenAreaStyle"
