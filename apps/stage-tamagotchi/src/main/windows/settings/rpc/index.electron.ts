@@ -31,6 +31,35 @@ import { createAutoUpdaterService } from '../../../services/electron'
 import { centerWindowOnDisplay } from '../../shared/display'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
+/**
+ * Registers what the settings pages ask of the window that shows them: the global shortcuts, the Spotlight shortcut,
+ * and the devtools.
+ *
+ * Use when:
+ * - A window shows settings pages, such as the settings window or the main window in its fullscreen mode.
+ */
+export function setupSettingsPageInvokes(params: {
+  context: ReturnType<typeof createContext>['context']
+  window: BrowserWindow
+  globalShortcut: GlobalShortcutService
+  spotlightWindow: SpotlightWindowManager
+  devtoolsWindow: DevtoolsWindowManager
+}) {
+  const { context, window } = params
+  params.globalShortcut.registerWindow({ context, window })
+  defineInvokeHandler(context, electronSpotlightShortcutGet, () => params.spotlightWindow.getShortcutAccelerator())
+  defineInvokeHandler(context, electronSpotlightShortcutSet, (payload) => {
+    if (payload?.accelerator === undefined)
+      throw new TypeError('electronSpotlightShortcutSet called with invalid payload')
+
+    return params.spotlightWindow.updateShortcutAccelerator(payload.accelerator)
+  })
+  defineInvokeHandler(context, electronOpenSettingsDevtools, async () => window.webContents.openDevTools({ mode: 'detach' }))
+  defineInvokeHandler(context, electronOpenDevtoolsWindow, async (payload) => {
+    await params.devtoolsWindow.openWindow(payload)
+  })
+}
+
 export async function setupSettingsWindowInvokes(params: {
   settingsWindow: BrowserWindow
   widgetsManager: WidgetsWindowManager
@@ -62,22 +91,14 @@ export async function setupSettingsWindowInvokes(params: {
   const stopIOTraceRecording = registerIOTraceRecording(context, params.ioTraceRecording)
   params.settingsWindow.once('closed', stopIOTraceRecording)
 
-  // Register the global shortcut service for the settings window.
-  params.globalShortcut.registerWindow({ context, window: params.settingsWindow })
-
+  setupSettingsPageInvokes({
+    context,
+    window: params.settingsWindow,
+    globalShortcut: params.globalShortcut,
+    spotlightWindow: params.spotlightWindow,
+    devtoolsWindow: params.devtoolsWindow,
+  })
   defineInvokeHandler(context, electronCenterMainWindow, () => centerWindowOnDisplay(params.getMainWindow?.()))
-  defineInvokeHandler(context, electronSpotlightShortcutGet, () => params.spotlightWindow.getShortcutAccelerator())
-  defineInvokeHandler(context, electronSpotlightShortcutSet, (payload) => {
-    if (payload?.accelerator === undefined)
-      throw new TypeError('electronSpotlightShortcutSet called with invalid payload')
-
-    return params.spotlightWindow.updateShortcutAccelerator(payload.accelerator)
-  })
-
-  defineInvokeHandler(context, electronOpenSettingsDevtools, async () => params.settingsWindow.webContents.openDevTools({ mode: 'detach' }))
-  defineInvokeHandler(context, electronOpenDevtoolsWindow, async (payload) => {
-    await params.devtoolsWindow.openWindow(payload)
-  })
 
   return context
 }

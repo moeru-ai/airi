@@ -25,14 +25,10 @@ import {
   electronChatButtonStateChanged,
   electronGetChatButtonState,
   electronOpenChat,
-  electronOpenDevtoolsWindow,
   electronOpenEditor,
   electronOpenInlay,
   electronOpenMainDevtools,
   electronOpenSettings,
-  electronOpenSettingsDevtools,
-  electronSpotlightShortcutGet,
-  electronSpotlightShortcutSet,
   noticeWindowEventa,
 } from '../../../../shared/eventa'
 import { createAuthService } from '../../../services/airi/auth'
@@ -42,6 +38,7 @@ import { createMcpServersService } from '../../../services/airi/mcp-servers'
 import { createOnboardingService } from '../../../services/airi/onboarding'
 import { createWidgetsService } from '../../../services/airi/widgets'
 import { createAutoUpdaterService } from '../../../services/electron'
+import { setupSettingsPageInvokes } from '../../settings/rpc/index.electron'
 import { centerWindowOnDisplay } from '../../shared/display'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
@@ -100,16 +97,11 @@ export async function setupMainWindowElectronInvokes(params: {
   defineInvokeHandler(context, noticeWindowEventa.openWindow, payload => params.noticeWindow.open(payload))
 
   // Settings open inside this window, so it answers what the settings pages ask of the settings window.
-  params.globalShortcut.registerWindow({ context, window: params.window })
-  defineInvokeHandler(context, electronSpotlightShortcutGet, () => params.spotlightWindow.getShortcutAccelerator())
-  defineInvokeHandler(context, electronSpotlightShortcutSet, (payload) => {
-    if (payload?.accelerator === undefined)
-      throw new TypeError('electronSpotlightShortcutSet called with invalid payload')
-
-    return params.spotlightWindow.updateShortcutAccelerator(payload.accelerator)
-  })
-  defineInvokeHandler(context, electronOpenSettingsDevtools, () => params.window.webContents.openDevTools({ mode: 'detach' }))
-  defineInvokeHandler(context, electronOpenDevtoolsWindow, async (payload) => {
-    await params.devtoolsWindow.openWindow(payload)
+  setupSettingsPageInvokes({
+    context,
+    window: params.window,
+    globalShortcut: params.globalShortcut,
+    spotlightWindow: params.spotlightWindow,
+    devtoolsWindow: params.devtoolsWindow,
   })
 }
