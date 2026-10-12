@@ -59,7 +59,7 @@ const themeLabel = computed(() => t({
     >
       <span :class="[entry.icon, 'size-5']" />
     </GhostButton>
-    <div :class="['my-1 h-px w-6', 'bg-neutral-200 dark:bg-neutral-700']" />
+    <div :class="['my-1 h-px w-6', 'bg-neutral-300 dark:bg-neutral-700']" />
     <GhostButton
       size="unset"
       :class="['size-11']"
@@ -69,7 +69,7 @@ const themeLabel = computed(() => t({
     >
       <span :class="[themeIcon, 'size-5']" />
     </GhostButton>
-    <div :class="['my-1 h-px w-6', 'bg-neutral-200 dark:bg-neutral-700']" />
+    <div :class="['my-1 h-px w-6', 'bg-neutral-300 dark:bg-neutral-700']" />
     <GhostButton
       size="unset"
       :class="['size-11']"
