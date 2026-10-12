@@ -196,7 +196,7 @@ export const useFullscreenStore = defineStore('fullscreen', () => {
     if (phase.value !== 'open')
       return
     phase.value = 'closing'
-    // The surfaces unmount as the transition starts, so the chat has no composer to collect from any more.
+    // The mode is leaving, so the main process stops counting its surfaces. They stay mounted until the transition ends.
     report(undefined)
   }
 

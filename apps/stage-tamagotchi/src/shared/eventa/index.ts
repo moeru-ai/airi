@@ -112,9 +112,9 @@ export const electronFullscreenSetMode = defineInvokeEventa<void, { mode: Fullsc
 export const electronFullscreenOpen = defineEventa<{ surface: FullscreenSurfaceId, route?: string, pack?: FullscreenPack }>('eventa:event:electron:fullscreen:open')
 /**
  * Asks the page of a window that hosts the fullscreen mode to close the mode, for a chat mode switch that leaves the
- * fullscreen chat. The new chat window holds the draft by then. `surface` names the surface that moved out.
+ * fullscreen chat. The new chat window holds the draft by then.
  */
-export const electronFullscreenClose = defineEventa<{ surface: FullscreenSurfaceId }>('eventa:event:electron:fullscreen:close')
+export const electronFullscreenClose = defineEventa('eventa:event:electron:fullscreen:close')
 /** Asks the page of a host what the mode shows, packed for the next host. Answers `undefined` while the mode is closed. */
 export const electronFullscreenPack = defineInvokeEventa<FullscreenPack | undefined>('eventa:invoke:electron:fullscreen:pack')
 /**

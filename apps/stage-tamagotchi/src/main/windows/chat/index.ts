@@ -263,7 +263,7 @@ export function setupChatWindowManager(params: {
   function closeFullscreenChat() {
     const host = fullscreenHost()
     if (host && !host.window.isDestroyed())
-      host.context.emit(electronFullscreenClose, { surface: 'chat' })
+      host.context.emit(electronFullscreenClose, undefined)
   }
 
   const modeSwitch = createChatModeSwitch({
