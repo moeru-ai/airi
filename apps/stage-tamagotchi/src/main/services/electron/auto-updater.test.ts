@@ -287,6 +287,15 @@ describe('setupAutoUpdater', () => {
     expect(service.state.diagnostics).not.toHaveProperty('uninstallExists')
   })
 
+  it('resolves updater log path after userData path is configured', async () => {
+    appMock.getPath.mockImplementation((name: string) => name === 'userData' ? '/custom/user-data-dir' : `/tmp/${name}`)
+
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater()
+
+    expect(service.state.diagnostics?.logFilePath).toMatch(/[\\/]custom[\\/]user-data-dir[\\/]cache[\\/]stage-tamagotchi-updater[\\/]updater-log\.txt$/)
+  })
+
   it('does not treat build metadata as prerelease', async () => {
     appMock.getVersion.mockReturnValue('1.2.3+build-1')
 
