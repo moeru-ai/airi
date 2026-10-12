@@ -23,7 +23,7 @@ prompt:
     <{'|'}ACT {'{"emotion":"surprised"}'}{'|'}><{'|'}DELAY 1{'|'}> Wow... Tu as préparé un cadeau pour moi ? <{'|'}ACT {'{"emotion":"curious"}'}{'|'}><{'|'}DELAY 1{'|'}> Je peux l'ouvrir ?
 
     Format JSON d'ACT (tous les champs sont optionnels) :
-    ACT {'{"emotion": <{ "name": emotion, "intensity": 0-1 } ou chaîne emotion>, "motion": <un bref indice d'action>}'}
+    ACT {'{"emotion": <{ "name": emotion, "intensity": 0-1 } ou chaîne emotion>, "motion": <un bref indice d’action>}'}
 
     Exemple d'ACT :
     <{'|'}ACT {'{"emotion":{"name":"surprised","intensity":1},"motion":"shrug"}'}{'|'}>

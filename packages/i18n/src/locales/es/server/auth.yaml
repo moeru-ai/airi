@@ -30,7 +30,7 @@ signIn:
       description: Introduce tu correo electrónico para iniciar sesión o crear una cuenta.
     password:
       heading: Bienvenido de vuelta
-      description: Continuar como {{email}}.
+      description: Continuar como {email}.
     create:
       heading: Crear tu cuenta
       description: Crearemos una nueva cuenta para {email}.
@@ -155,7 +155,7 @@ profile:
     setLinkSent: Revisa {email} para ver el enlace para establecer tu contraseña.
     setLinkFailed: No se pudo enviar el enlace de configuración de contraseña.
   linkedAccounts:
-    description: Inicia sesión en AIRI a través de estos proveedores. Desvinculate para revocar el acceso y vuelve a enlazar para cambiar a una cuenta diferente.
+    description: Inicia sesión en AIRI a través de estos proveedores. Desvincúlate para revocar el acceso y vuelve a enlazar para cambiar a una cuenta diferente.
     status:
       linked: Vinculado
       notLinked: No vinculado
