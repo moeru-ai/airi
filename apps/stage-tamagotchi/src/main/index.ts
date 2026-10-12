@@ -404,8 +404,13 @@ app.whenReady().then(async () => {
       },
       // The plugin host lets only the settings interface manage extensions. Settings show in the fullscreen mode of
       // the main window, so while it lasts, that interface is the main window.
+      // Settings can already show in another window when the main window leaves the mode. That window keeps the role.
       onFullscreenChange: (active) => {
-        extensionManagementWebContentsId = active ? userFacingMainWindow?.webContents.id : undefined
+        const mainWindowId = userFacingMainWindow?.webContents.id
+        if (active)
+          extensionManagementWebContentsId = mainWindowId
+        else if (extensionManagementWebContentsId === mainWindowId)
+          extensionManagementWebContentsId = undefined
       },
       onKeepAbove: (keepAbove) => {
         keepMainWindowAbove = keepAbove
