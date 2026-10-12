@@ -2,12 +2,12 @@ import en from '@proj-airi/i18n/locales/en'
 
 import { pushToTalkTriggerKey } from '@proj-airi/stage-ui/composables/push-to-talk-trigger'
 import { createPinia, disposePinia } from 'pinia'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from 'vitest-browser-vue'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-import HearingPage from './hearing.vue'
+import HearingPage from './index.vue'
 
 import 'virtual:uno.css'
 
@@ -16,18 +16,19 @@ const pinias: ReturnType<typeof createPinia>[] = []
 afterEach(() => {
   cleanup()
   pinias.splice(0).forEach(pinia => disposePinia(pinia))
+  vi.restoreAllMocks()
   localStorage.clear()
 })
 
-/** Renders the Hearing page in a host that declares whether it has a Push to Talk trigger. `undefined` provides nothing. */
+/** Renders the Hearing overview in a host that declares whether it has a Push to Talk trigger. `undefined` provides nothing. */
 async function renderHearing(trigger: boolean | undefined) {
   const pinia = createPinia()
   pinias.push(pinia)
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: '/', component: { template: '<div />' } }],
+    routes: [{ path: '/:path(.*)*', component: { template: '<div />' } }],
   })
-  await router.push('/')
+  await router.push('/settings/modules/hearing')
 
   return render(HearingPage, {
     global: {
@@ -41,6 +42,33 @@ async function openInputModeSelect(screen: Awaited<ReturnType<typeof renderHeari
   await screen.getByTestId('hearing-input-mode').getByRole('combobox').click()
   return screen.getByRole('option', { name: /Push to Talk/ })
 }
+
+describe('hearing overview', () => {
+  it('links to the speech recognition and wake words pages', async () => {
+    const screen = await renderHearing(true)
+
+    await expect.element(screen.getByTestId('hearing-page-transcriber').getByRole('link')).toHaveAttribute('href', '/settings/modules/hearing/transcriber')
+    await expect.element(screen.getByTestId('hearing-page-transcriber')).toHaveTextContent('Speech recognition')
+    await expect.element(screen.getByTestId('hearing-page-wake-words').getByRole('link')).toHaveAttribute('href', '/settings/modules/hearing/wake-words')
+    await expect.element(screen.getByTestId('hearing-page-wake-words')).toHaveTextContent('Wake words')
+  })
+
+  it('does not open the microphone when the page opens', async () => {
+    const capture = vi.spyOn(navigator.mediaDevices, 'getUserMedia')
+    const screen = await renderHearing(true)
+
+    await expect.element(screen.getByTestId('hearing-microphone-switch')).toBeVisible()
+    await expect.element(screen.getByTestId('hearing-auto-send')).toBeVisible()
+    expect(capture).not.toHaveBeenCalled()
+  })
+
+  it('shows the wake word status when the input mode is wake words', async () => {
+    localStorage.setItem('settings/hearing/input-mode', 'wake-word')
+    const screen = await renderHearing(true)
+
+    await expect.element(screen.getByTestId('hearing-wake-word-status')).toHaveTextContent('No character has wake words.')
+  })
+})
 
 describe('hearing input mode', () => {
   // Review: https://github.com/moeru-ai/airi/pull/2729#discussion_r4237157722

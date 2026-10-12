@@ -87,8 +87,9 @@ To add a mode, extend `HearingInputMode`, `listensContinuously`, `startsInputOnS
 The web stage uses Space. The desktop stage uses a configurable global shortcut.
 
 Each host app declares whether it has a Push to Talk trigger. It provides `pushToTalkTriggerKey` from `composables/push-to-talk-trigger` at the app level.
-Without a provider, the host has no trigger. The Hearing settings page then disables the Push to Talk option.
-If the saved mode is already `push-to-talk` on such a host, listening stays off. The Hearing page and the voice button menu show a warning.
+Without a provider, the host has no trigger. The input mode selector of `HearingConfig` then disables the Push to Talk option.
+If the saved mode is already `push-to-talk` on such a host, listening stays off. `HearingConfig` and the voice button menu show a warning.
+`HearingConfig` is used on the Hearing overview page and in the Hearing dialogs. It asks for microphone permission only when the user turns the microphone switch on.
 The mode does not fall back to `always-on`, because that opens the microphone all the time.
 
 | Host | Trigger |

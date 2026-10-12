@@ -223,7 +223,7 @@ watch(replyTarget, async (target) => {
             @pending-change="voicePending = $event"
             @sent="props.composer.clearReply()"
             @submit="handleSend"
-            @configure="router.push('/settings/modules/hearing')"
+            @configure="route => router.push(route)"
           />
           <button
             v-if="showStopAction"
