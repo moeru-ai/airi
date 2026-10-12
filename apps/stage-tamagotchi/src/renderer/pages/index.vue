@@ -383,27 +383,29 @@ const surfaceWidthChoice = useLocalStorage('main-window-fullscreen/surface-width
 /** The drag of the surface edge: the pointer, where it started, and the width it gives now. */
 const surfaceDrag = shallowRef<{ pointerId: number, startX: number, startWidth: number, width: number }>()
 const fullscreenIslandElement = ref<HTMLElement>()
-const fullscreenSurfaceElement = ref<HTMLElement>()
 const surfaceHandleElement = ref<HTMLElement>()
 const islandBounds = useElementBounding(fullscreenIslandElement)
-const surfaceBounds = useElementBounding(fullscreenSurfaceElement)
 
-/** Keeps a surface width from the settings window width to the island, with the island's margin left between them. */
-function clampSurfaceWidth(width: number) {
+/**
+ * Keeps a surface width in an area of `areaWidth` from the settings window width to the island, with the island's
+ * margin left between them. The page still has the small window's size when the open transition starts, so the
+ * caller gives the area width.
+ */
+function clampSurfaceWidth(width: number, areaWidth: number) {
   const islandRight = islandBounds.right.value
-  const widest = islandRight ? surfaceBounds.right.value - islandRight - islandBounds.left.value : Infinity
+  const widest = islandRight ? areaWidth - islandRight - islandBounds.left.value : Infinity
   return Math.round(Math.min(Math.max(width, FULLSCREEN_SURFACE_MIN_WIDTH), widest))
 }
 
 /** The surface width in an area of `areaWidth`: the dragged or chosen width, or the default share. */
 function surfaceWidthIn(areaWidth: number) {
   const chosen = surfaceDrag.value?.width ?? surfaceWidthChoice.value
-  return clampSurfaceWidth(chosen || areaWidth * FULLSCREEN_SURFACE_SHARE)
+  return clampSurfaceWidth(chosen || areaWidth * FULLSCREEN_SURFACE_SHARE, areaWidth)
 }
 
 /** The character moves by half of the change of the surface width, so it stays centered in the space beside it. */
 function stageOffsetIn(areaWidth: number) {
-  return (clampSurfaceWidth(areaWidth * FULLSCREEN_SURFACE_SHARE) - surfaceWidthIn(areaWidth)) / 2
+  return (clampSurfaceWidth(areaWidth * FULLSCREEN_SURFACE_SHARE, areaWidth) - surfaceWidthIn(areaWidth)) / 2
 }
 
 const surfaceWidth = computed(() => surfaceWidthIn(windowWidth.value))
@@ -425,7 +427,7 @@ function moveSurfaceDrag(event: PointerEvent) {
   if (drag?.pointerId !== event.pointerId)
     return
   // The surface sits on the right, so moving its left edge to the left widens it.
-  surfaceDrag.value = { ...drag, width: clampSurfaceWidth(drag.startWidth + drag.startX - event.clientX) }
+  surfaceDrag.value = { ...drag, width: clampSurfaceWidth(drag.startWidth + drag.startX - event.clientX, windowWidth.value) }
 }
 
 /** Ends a drag and keeps the width it gave, so the next fullscreen mode opens with it. */
@@ -525,6 +527,8 @@ async function expandToFullscreen() {
     await setFullscreenWindowBounds({ bounds: { x: bounds.x, y: bounds.y, width: workArea.width, height: workArea.height } })
 
     commitFullscreenLayout()
+    // The island mounted with the area. Its place limits the surface width, so the stage reads it before it moves.
+    islandBounds.update()
     fullscreenMotion.value = 'open'
     stageLayout.value = { ...plan.stage, scale: 1, offsetX: stageOffsetIn(workArea.width) }
     fullscreenArea.value = { width: workArea.width, height: workArea.height }
@@ -532,8 +536,8 @@ async function expandToFullscreen() {
       setFullscreenWindowBounds({ bounds: workArea, duration: height.duration, curve: height.curve }),
       fullscreenTransitionsEnded(),
     ])
-    // Nothing moves now, so the stage follows a drag of the surface edge at once. The island measured itself during
-    // the transition, so the stage takes its offset again.
+    // Nothing moves now, so the stage follows a drag of the surface edge at once. It also takes the width of a drag
+    // that ended during the transition.
     fullscreenMotion.value = false
     stageLayout.value = { ...plan.stage, scale: 1, offsetX: stageOffsetIn(workArea.width) }
     fullscreen.settle('open')
@@ -935,7 +939,6 @@ const cursorPosition = computed(() => ({
         <FullscreenIsland />
       </div>
       <div
-        ref="fullscreenSurfaceElement"
         :style="{ width: `${surfaceWidth}px` }"
         :class="['pointer-events-auto absolute', 'bottom-0 right-0 top-6']"
       >
