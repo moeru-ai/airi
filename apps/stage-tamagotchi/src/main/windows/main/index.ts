@@ -322,9 +322,10 @@ export async function setupMainWindow(params: {
     params.onFullscreenChange?.(false)
   }
 
-  // `onlySameWindow` hears only this window, so no other window can move it or end its fullscreen mode.
+  // `onlySameWindow` hears only this window, so no other window can move it or end its fullscreen mode. The context
+  // and its handlers go away when the window closes.
   const { context: fullscreenContext } = createContext(ipcMain, window, { onlySameWindow: true })
-  const cleanUpEnterFullscreen = defineInvokeHandler(fullscreenContext, electronMainWindowEnterFullscreen, () => {
+  defineInvokeHandler(fullscreenContext, electronMainWindowEnterFullscreen, () => {
     if (!boundsBeforeFullscreen) {
       boundsBeforeFullscreen = window.getBounds()
       fullscreenLog.log('Entering fullscreen mode')
@@ -335,7 +336,7 @@ export async function setupMainWindow(params: {
     }
     return { bounds: window.getBounds(), workArea: screen.getDisplayMatching(boundsBeforeFullscreen).workArea }
   })
-  const cleanUpSetFullscreenBounds = defineInvokeHandler(fullscreenContext, electronMainWindowSetFullscreenBounds, (payload) => {
+  defineInvokeHandler(fullscreenContext, electronMainWindowSetFullscreenBounds, (payload) => {
     stopFullscreenGlide()
     // Bounds outside fullscreen mode would leave the window changed with nothing to restore it.
     if (!payload || !boundsBeforeFullscreen || window.isDestroyed())
@@ -372,16 +373,16 @@ export async function setupMainWindow(params: {
       fullscreenGlide = glide
     })
   })
-  const cleanUpSurfaceChanged = defineInvokeHandler(fullscreenContext, electronFullscreenSurfaceChanged, (payload) => {
+  defineInvokeHandler(fullscreenContext, electronFullscreenSurfaceChanged, (payload) => {
     fullscreenSurface = boundsBeforeFullscreen ? payload?.surface : undefined
     fullscreenMounted = boundsBeforeFullscreen ? payload?.mounted ?? [] : []
   })
-  const cleanUpExitFullscreen = defineInvokeHandler(fullscreenContext, electronFullscreenExit, payload => leaveFullscreen(payload?.reason ?? 'the page gave no reason'))
-  const cleanUpGetFullscreenState = defineInvokeHandler(fullscreenContext, electronFullscreenGetState, () => boundsBeforeFullscreen
+  defineInvokeHandler(fullscreenContext, electronFullscreenExit, payload => leaveFullscreen(payload?.reason ?? 'the page gave no reason'))
+  defineInvokeHandler(fullscreenContext, electronFullscreenGetState, () => boundsBeforeFullscreen
     ? { home: boundsBeforeFullscreen, workArea: screen.getDisplayMatching(boundsBeforeFullscreen).workArea, surface: fullscreenSurface }
     : undefined)
 
-  const cleanUpSetFullscreenMode = defineInvokeHandler(fullscreenContext, electronFullscreenSetMode, async (payload) => {
+  defineInvokeHandler(fullscreenContext, electronFullscreenSetMode, async (payload) => {
     const mode = payload?.mode ?? 'off'
     // The fullscreen chat mode goes away with the experiment. A chat in it moves to the default mode first, while
     // the window that shows it still does, so its draft moves too. The mode changes after that.
@@ -436,15 +437,7 @@ export async function setupMainWindow(params: {
       stopFullscreenGlide()
   })
   window.webContents.on('render-process-gone', (_, details) => leaveFullscreen(`the renderer stopped (${details.reason})`))
-  window.on('closed', () => {
-    stopFullscreenGlide()
-    cleanUpEnterFullscreen()
-    cleanUpSetFullscreenBounds()
-    cleanUpSurfaceChanged()
-    cleanUpExitFullscreen()
-    cleanUpGetFullscreenState()
-    cleanUpSetFullscreenMode()
-  })
+  window.on('closed', () => stopFullscreenGlide())
 
   initScreenCaptureForWindow(window)
 
