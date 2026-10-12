@@ -82,6 +82,7 @@ chat:
     discard: Discard draft
     listening: Listening
     finalizing: Finishing…
+    sent: Sent
   voice-input: Voice input
   notice:
     label: Background report

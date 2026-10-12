@@ -82,6 +82,7 @@ chat:
     discard: 丢弃草稿
     listening: 正在聆听
     finalizing: 正在整理……
+    sent: 已发送
   voice-input: 语音输入
   notice:
     label: 后台汇报

@@ -7,6 +7,7 @@ import modelTokens from './kws-vocabulary.json'
 
 import { fetchSherpawModel } from '../providers/providers/sherpaw/model-assets'
 import { kwsModel } from './kws-model-info'
+import { createToneVariants } from './kws-tones'
 
 export { kwsModel } from './kws-model-info'
 
@@ -20,6 +21,25 @@ export const kwsVocabulary: ReadonlySet<string> = new Set(modelTokens.filter(tok
 
 /** The model identity and vocabulary that `useWakeWordsStore().setWords` validates against. */
 export const kwsVocabularyModel = { id: kwsModel.id, vocabulary: kwsVocabulary } as const
+
+/** Tone variants of a card pronunciation. The detector adds them as extra matches of the same keyword. */
+export const kwsToneVariants = createToneVariants(kwsVocabulary)
+
+/**
+ * Search settings of the pinned pack.
+ *
+ * - `maxActivePaths` keeps more hypotheses in the beam, so a keyword that starts in an unlikely path survives.
+ * - `score` boosts keyword paths over other paths. `threshold` is the lowest keyword probability that triggers.
+ *
+ * The values come from the KWS presets of the Sherpaw sandbox, which detect "Hey Iru" in live microphone speech.
+ * The sherpa-onnx defaults (4 paths, boost 1, threshold 0.25) missed most live calls of the same keyword in AIRI.
+ * Source: https://github.com/moeru-ai/sherpaw/blob/main/packages/sandbox/src/features/kws/presets.ts
+ */
+export const kwsSearch = {
+  maxActivePaths: 16,
+  score: 1.5,
+  threshold: 0.1,
+} as const
 
 const metadataSchema = object({
   files: array(object({ filename: string(), start: number(), end: number() })),
@@ -78,5 +98,5 @@ export async function createKwsSpotter(keywords: readonly KeywordEntry[]): Promi
     import('@sherpaw/kws/worker?worker'),
   ])
 
-  return createKeywordSpotter({ model, keywords }, { worker: new KwsWorker() })
+  return createKeywordSpotter({ model, keywords, maxActivePaths: kwsSearch.maxActivePaths }, { worker: new KwsWorker() })
 }

@@ -911,6 +911,11 @@ pages:
               preparing: Preparing the wake word model…
               ready: Wake words are ready.
               error: 'The wake word model is not available: {error}'
+          end-judge:
+            title: End of speech
+            description: After you pause, a chat model reads the transcript and decides if you finished. If you did not finish, AIRI waits 3 more seconds for you to continue.
+            enabled: Check if I finished speaking
+            enabled-description: The transcript of each pause is sent to the rewrite model. When this is off, AIRI ends your speech after a short pause.
           rephrase:
             title: Transcript rewrite
             description: A chat model fixes recognition errors and removes filler words before a transcript becomes a draft. The original text is kept.
@@ -1877,7 +1882,7 @@ pages:
             description: AWS region where Bedrock is enabled (e.g. us-east-1, us-west-2)
       anthropic:
         description: anthropic.com
-        title: Anthropic | Claude
+        title: Anthropic {'|'} Claude
         helpinfo:
           title: Before you start
           description:

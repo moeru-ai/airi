@@ -1,0 +1,137 @@
+allow-visible-on-all-workspaces:
+  title: แสดงในทุกพื้นที่ทำงาน
+  description: อนุญาตให้หน้าต่างแสดงในทุกพื้นที่ทำงาน ใช้ได้เฉพาะ macOS
+microphone-permission:
+  prompt:
+    title: อนุญาตให้เข้าถึงไมโครโฟนไหม?
+    description: AIRI ใช้ไมโครโฟนของคุณสำหรับการป้อนเสียงและการถอดเสียง ตัวเลือกนี้จะมีผลจนกว่าคุณจะรีเซ็ตในการตั้งค่า
+    allow: อนุญาต
+    deny: ไม่อนุญาต
+  states:
+    not-determined: ยังไม่ได้ตั้งค่า
+    granted: อนุญาตแล้ว
+    denied: ไม่อนุญาต
+  settings:
+    title: ไมโครโฟน
+    description: ควบคุมว่า AIRI ใช้ไมโครโฟนได้หรือไม่ การรีเซ็ตตัวเลือกนี้จะหยุดสตรีมไมโครโฟนปัจจุบัน และจะถามอีกครั้งในครั้งถัดไป
+    revoke: เพิกถอนการเข้าถึง
+    reset: รีเซ็ตการตัดสินใจ
+spotlight:
+  errors:
+    unknown: ข้อผิดพลาดที่ไม่รู้จัก
+    prefix: 'เกิดข้อผิดพลาด: {message}'
+    shortcutRegistrationFailed: 'เกิดข้อผิดพลาด: ลงทะเบียนปุ่มลัดของ Spotlight ไม่สำเร็จ'
+pages:
+  modules:
+    mcp-server:
+      description: เชื่อมต่อและจัดการเซิร์ฟเวอร์ MCP และเครื่องมือ
+      title: เซิร์ฟเวอร์ MCP
+  system:
+    general:
+      hide-app-icon:
+        title: ซ่อนไอคอนในแถบงาน / Dock
+        description: ให้ AIRI อยู่ในถาดระบบเท่านั้น ใช้เมนูในถาดระบบเพื่อเปิดหน้าต่างหรือออกจากแอป การเปลี่ยนแปลงมีผลทันที
+        load-error: โหลดการตั้งค่าไอคอนแอปไม่สำเร็จ
+        save-error: อัปเดตการตั้งค่าไอคอนแอปไม่สำเร็จ
+    sections:
+      section:
+        window-shortcuts:
+          title: ปุ่มลัดแป้นพิมพ์
+    window-shortcuts:
+      description: แก้ไขปุ่มลัดของหน้าต่าง
+      title: ปุ่มลัดของหน้าต่าง
+      empty: ยังไม่ได้ตั้งค่า
+      spotlight:
+        title: ปุ่มลัดของ Spotlight
+        description: คลิกที่ปุ่มลัด แล้วกดปุ่มลัดใหม่ กด Esc เพื่อยกเลิก
+      push-to-talk:
+        title: ปุ่มลัดกดเพื่อพูด
+        description: กดปุ่มลัดนี้ค้างไว้ในแอปใดก็ได้ขณะพูดกับ AIRI คลิกที่ปุ่มลัด แล้วกดปุ่มลัดใหม่ กด Esc เพื่อยกเลิก
+        inactive: ปุ่มลัดนี้ใช้ได้เฉพาะเมื่อโหมดการป้อนเสียงของการฟังเป็นกดเพื่อพูด และเปิดไมโครโฟนอยู่
+      actions:
+        recording: กดปุ่ม
+        reset: รีเซ็ต
+      errors:
+        load: โหลดปุ่มลัดไม่สำเร็จ
+        conflict: ปุ่มลัดนี้ถูกใช้งานอยู่แล้ว
+        failed: อัปเดตปุ่มลัดไม่สำเร็จ
+        requiresModifier: ใช้ Cmd, Ctrl, Alt หรือ Super อย่างน้อยหนึ่งปุ่ม
+        requiresHoldModifier: ใช้ Cmd, Ctrl, Alt หรือ Super หรือใช้ปุ่มฟังก์ชันอย่าง F13 ใช้ Shift อย่างเดียวไม่ได้
+        denied: AIRI อ่านปุ่มแบบทั้งระบบไม่ได้ อนุญาต AIRI ในการตั้งค่าการช่วยการเข้าถึง แล้วลองอีกครั้ง
+        unsupported: ระบบนี้ตรวจจับไม่ได้ว่าคุณปล่อยปุ่มลัดแบบทั้งระบบเมื่อใด
+      toggle-move:
+        label: สลับการย้าย
+      toggle-resize:
+        label: สลับการปรับขนาด
+      toggle-ignore-mouse-event:
+        label: สลับการไม่รับเหตุการณ์เมาส์
+      press-keys: กดปุ่ม...
+devtools:
+  title: นักพัฒนา
+  pages:
+    presence-bubble:
+      description: ควบคุมบับเบิลเหนือตัวละครและดูผลในหน้าต่างหลัก
+      override:
+        title: ควบคุมบับเบิลจากที่นี่
+        description: ขณะที่ปิดอยู่ เวทีจะไม่แสดงบับเบิล เว้นแต่กำลังมีรอบการแชทอยู่
+      thinking:
+        title: กำลังคิด
+        description: แสดงจุด และมีลำดับความสำคัญเหนือจำนวนข้อความที่ยังไม่ได้อ่าน
+      unread:
+        title: ข้อความที่ยังไม่ได้อ่าน
+        description: แสดงเป็นแผงบนศีรษะ พร้อมเครื่องหมายและจำนวน
+      main-window-note: การเปลี่ยนแปลงจะแสดงในหน้าต่างหลักของ AIRI
+    editor:
+      description: เปิดหน้าต่าง AIRI Editor แบบแยก
+      button: เปิด Editor
+    performance-visualizer:
+      description: ตรวจดูตัวชี้วัดประสิทธิภาพแบบสดและข้อมูลวินิจฉัยขณะทำงาน
+      controls:
+        enable-all:
+          label: เปิดตัวชี้วัดทั้งหมดที่ใช้ได้
+          description: เปิดตัวชี้วัดแต่ละตัวที่เบราว์เซอร์นี้รองรับ
+        start-recording: เริ่มบันทึก
+        stop-recording: หยุดบันทึก ({seconds} วินาที)
+        export-last-recording: ส่งออกการบันทึกล่าสุด
+      metrics:
+        frame-duration:
+          label: เวลาต่อเฟรม (ms)
+          description: เวลาระหว่างเฟรมแอนิเมชันในช่วง 10 วินาทีล่าสุด
+        long-task:
+          label: งานที่ใช้เวลานาน
+          description: งานบนเธรดหลักที่ใช้เวลาอย่างน้อย 50 ms
+          unsupported: เบราว์เซอร์นี้ไม่ได้เปิดเผยเวลาของงานที่ใช้เวลานาน
+        memory:
+          unsupported: เบราว์เซอร์นี้ไม่ได้เปิดเผยการใช้หน่วยความจำ heap ของ JavaScript
+      recording:
+        title: การบันทึกล่าสุด
+        duration: ระยะเวลา {duration} ms
+        limit: การบันทึกจะหยุดหลังจาก 60 วินาที
+      history:
+        title: ประวัติ FPS
+        latest: ล่าสุด
+        minimum: ต่ำสุด
+        maximum: สูงสุด
+        empty: ไม่มีตัวอย่าง FPS เปิด FPS เพื่อเก็บตัวอย่าง
+      overlay:
+        title: ประสิทธิภาพ
+        move: ย้ายแผงประสิทธิภาพ
+        reset-position: รีเซ็ตตำแหน่งแผง
+        record: บันทึก
+        stop: หยุด
+        export: ส่งออกการบันทึกล่าสุด
+        average: เฉลี่ย
+    io-tracer:
+      recording:
+        title: บันทึก IO trace โดยอัตโนมัติ
+        description: บันทึก IO span ที่จบแล้วเป็นไฟล์ JSON Lines ในโฟลเดอร์ข้อมูลของแอป เพื่อให้เอเจนต์เขียนโค้ดวิเคราะห์ได้ ไฟล์ที่เก่ากว่าเจ็ดวันจะถูกลบ
+
+screen-capture:
+  permissions-prompt:
+    title: การจับภาพหน้าจอ
+    description: การจับภาพหน้าจอหรือหน้าต่างต้องได้รับสิทธิ์บันทึกหน้าจอและเสียงของระบบ
+    open-preferences: เปิดการตั้งค่าระบบ
+    dismiss: ปิด
+    instructions:
+      step-1: เปิด "การตั้งค่าระบบ" แล้วเลือก "ความเป็นส่วนตัวและความปลอดภัย" จากแถบด้านข้าง
+      step-2-note: ถ้าไม่มี AIRI ในรายการ ให้เพิ่มเองโดยคลิกปุ่ม "+" แล้วเลือก AIRI จากโฟลเดอร์แอปพลิเคชัน

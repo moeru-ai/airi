@@ -100,7 +100,8 @@ export async function dismissOverlays() {
  *
  * The page can also change under a cursor that stays still. A dialog or menu
  * that opens or closes runs the hit test again, and so does the returned
- * `hitTest`, which the page calls once the chat has unfolded.
+ * `hitTest`, which the page calls once the chat has unfolded, or with
+ * `removed` after it removed what the cursor was over.
  */
 export function useChatFloatingClickThrough(options: {
   /** Whether the chat window stays above other windows. */
@@ -180,7 +181,16 @@ export function useChatFloatingClickThrough(options: {
   // `undefined` until the first hit test, so a reloaded renderer does not
   // inherit the previous page's state.
   let appliedTakesPointer: boolean | undefined
-  function hitTest() {
+  /**
+   * Runs the hit test for the current cursor.
+   *
+   * `removed` tells that the page removed the content under the cursor, for example a card that finished its leave
+   * transition. The still-hand rule then does not apply: nothing that the hand pointed at remains, so the window
+   * passes clicks through at once instead of after the next hand movement.
+   */
+  function hitTest(options: { removed?: boolean } = {}) {
+    if (options.removed)
+      paintedAt = undefined
     const next = takesPointer()
     if (next === appliedTakesPointer)
       return
@@ -201,8 +211,8 @@ export function useChatFloatingClickThrough(options: {
   }, { immediate: true })
 
   // Dialogs and menus mount straight into the body.
-  useMutationObserver(document.body, hitTest, { childList: true })
-  watch([() => toValue(options.pinned), () => toValue(options.passiveArea), pointerHeld, x, y], hitTest, { immediate: true })
+  useMutationObserver(document.body, () => hitTest(), { childList: true })
+  watch([() => toValue(options.pinned), () => toValue(options.passiveArea), pointerHeld, x, y], () => hitTest(), { immediate: true })
 
   return { hitTest }
 }

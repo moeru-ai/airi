@@ -50,6 +50,16 @@ describe('configure_wake_words tool', () => {
     expect(result).toEqual({ status: 'rejected', reason: 'Wake word pronunciation does not match the selected model vocabulary' })
   })
 
+  // A live wake word failed because the character wrote "Hey" as EY1 without HH, and a called name changed its tone.
+  // The description keeps the examples that prevent these mistakes.
+  it('teaches complete English phones, separate pinyin tokens, and automatic tone variants', async () => {
+    const { description } = (await createWakeWordTool({ characterId: 'turn-character', setWords: createSetWords() })).function
+
+    expect(description).toContain('HH EY1')
+    expect(description).toContain('h ēi y ī l ū')
+    expect(description).toContain('other tones of each final')
+  })
+
   it('does not offer model control tokens as pronunciations', async () => {
     const agentTool = await createWakeWordTool({ characterId: 'turn-character', setWords: createSetWords() })
 

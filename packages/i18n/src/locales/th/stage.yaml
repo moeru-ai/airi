@@ -1,0 +1,232 @@
+character-switcher:
+  title: สลับตัวละคร
+  manage: จัดการตัวละคร
+  empty: ยังไม่มีตัวละคร
+  failed: สลับตัวละครไม่สำเร็จ ลองอีกครั้ง
+mobile-tools:
+  sign-in: เข้าสู่ระบบ AIRI
+  account-description: บัญชีและการกำหนดค่า
+  sound: เสียง
+  character-voice: เสียงของตัวละคร
+  title: การตั้งค่า
+  appearance: รูปลักษณ์
+  application: แอปพลิเคชัน
+  more: เพิ่มเติม
+  background: พื้นหลัง
+  settings: การตั้งค่า
+  about: เกี่ยวกับ
+  view: มุมมอง
+  close-view: บันทึกและปิดการควบคุมมุมมอง
+  hearing: การฟัง
+chat:
+  provider-configuration:
+    title: ยังไม่ได้ตั้งค่าผู้ให้บริการแชท
+    description: เลือกและตรวจสอบผู้ให้บริการในการตั้งค่าก่อนส่งข้อความ
+    action: เปิดการตั้งค่าผู้ให้บริการ
+  voice-message:
+    recording: กำลังบันทึก
+    starting: กำลังเปิดไมโครโฟน
+    preview: ข้อความเสียงที่บันทึกไว้
+    transcribing: กำลังถอดเสียง…
+    position: ตำแหน่งที่กำลังเล่น
+    no-speech: ไม่พบเสียงพูด จึงไม่ได้ส่งข้อความเสียง
+  voice-composer:
+    audio: ข้อความเสียง
+    transcription: พิมพ์ด้วยเสียง
+    hold-hint: กดค้างไว้เพื่อบันทึก คลิกเพื่อสลับระหว่างข้อความเสียงกับการพิมพ์ด้วยเสียง กด Enter เพื่อบันทึกโดยไม่ต้องกดค้าง
+    listening: กำลังฟัง…
+    lock: เลื่อนขึ้นเพื่อล็อก
+    cancel-hint: เลื่อนไปทางซ้ายเพื่อยกเลิก
+    processing: กำลังจัดการให้เสร็จ…
+    cancel: ยกเลิก
+    send: ส่งข้อความเสียง
+    insert: แทรกข้อความ
+    retry: ส่งข้อความเสียงอีกครั้ง
+    discard: ทิ้งข้อความเสียง
+    failed: การป้อนเสียงล้มเหลว
+    configure-title: ตั้งค่าการฟัง
+    configure-description: เลือกผู้ให้บริการและโมเดลถอดเสียงในส่วนการฟัง เพื่อใช้การพิมพ์ด้วยเสียง
+    configure-action: เปิดการฟัง
+    mode: การป้อนเสียง
+    auto-send: ส่งเมื่อหยุดบันทึก
+    input-device: ไมโครโฟน
+    system-default: ค่าเริ่มต้นของระบบ
+    listen: ฟังต่อเนื่อง
+    push-to-talk: กดเพื่อพูด
+    push-to-talk-unavailable: อุปกรณ์นี้ไม่มีปุ่มกดเพื่อพูด AIRI จึงไม่ฟัง เปลี่ยนโหมดการป้อนเสียงได้ในการตั้งค่าการฟัง
+    wake-word: ฟังคำปลุก
+    hearing-settings: การตั้งค่าการฟังเพิ่มเติม…
+    options-hint: วางเคอร์เซอร์หรือคลิกขวาเพื่อดูตัวเลือก
+    recording: กำลังบันทึก
+    stop: หยุดบันทึก
+    stop-send: หยุดและส่ง
+    play: เล่นเสียงที่บันทึก
+    pause: หยุดชั่วคราว
+  voice-preview:
+    processing: กำลังถอดเสียงให้เสร็จ
+    device: อุปกรณ์รับเสียง
+    device-description: เลือกไมโครโฟนสำหรับการบันทึกนี้
+    device-placeholder: เลือกไมโครโฟน
+    level: ระดับเสียงเข้า
+    activity: การตรวจจับเสียงพูด
+    silence: เงียบ
+    speech: เสียงพูด
+    threshold: เกณฑ์การตรวจจับ
+    sensitivity: ความไว
+    sensitivity-description: ปรับเกณฑ์ของตัวแสดงเสียงพูด
+    start: เริ่มบันทึก
+    stop: บันทึกเสร็จ
+    failed: การทำงานด้านเสียงล้มเหลว
+  voice-draft:
+    title: ร่างข้อความเสียง
+    discard: ทิ้งฉบับร่าง
+    listening: กำลังฟัง
+    finalizing: กำลังจัดการให้เสร็จ…
+  voice-input: การป้อนเสียง
+  error-details:
+    show: แสดงรายละเอียด
+    hide: ซ่อนรายละเอียด
+  images:
+    empty: แบ่งปันความคิดหรือรูปภาพ
+    use-vision: ใช้โมเดลการมองเห็นกับรูปภาพในแชท
+    use-vision-description: เลือกผู้ให้บริการและโมเดลด้านล่าง โมเดลนี้จะอ่านรูปภาพที่แนบมาก่อนที่โมเดลแชทจะตอบ ถ้าไม่มีโมเดลการมองเห็น รูปภาพจะถูกส่งไปยังโมเดลแชทโดยตรง
+    attach: 'แนบรูปภาพ'
+    remove: 'ลบ {name}'
+    unsupported: 'ใช้รูปภาพ PNG, JPEG, WebP หรือ GIF'
+    too-large: 'รูปภาพแต่ละรูปต้องมีขนาดไม่เกิน 3 MB'
+    too-many: 'แนบรูปภาพได้ครั้งละไม่เกิน {count} รูป'
+    total-too-large: 'รูปภาพที่แนบทั้งหมดรวมกันต้องมีขนาดไม่เกิน 3 MB'
+    read-failed: 'อ่านรูปภาพนี้ไม่ได้ ลองอีกครั้ง'
+    no-description: 'โมเดลการมองเห็นไม่ได้ส่งคำอธิบายรูปภาพกลับมา ตรวจสอบที่ การตั้งค่า → โมดูล → การมองเห็น แล้วลองอีกครั้ง'
+    reading: 'กำลังอ่านรูปภาพ…'
+    description: 'รูปภาพที่แนบ'
+  actions:
+    reply: ตอบกลับ
+    retry: ลองอีกครั้ง
+    send: ส่งข้อความ
+    stop: หยุดการตอบ
+  message:
+    character-name:
+      core-system: ระบบหลัก
+      you: คุณ
+  reply:
+    cancel: ยกเลิกการตอบกลับ
+    message: ข้อความ
+    replying-to: กำลังตอบกลับ {name}
+  reasoning: การให้เหตุผล
+  swipe-demo:
+    show-label: แสดงป้ายกำกับ
+    delete: ลบ
+    archive: เก็บถาวร
+    pin: ปักหมุด
+    actions: แสดงการทำงาน
+    row: 'บทสนทนา {n}'
+  sessions:
+    delete-short: ลบ
+    confirm-delete-short: ยืนยันการลบ
+    title: บทสนทนา
+    new: บทสนทนาใหม่
+    current: ปัจจุบัน
+    confirm-delete: ลบบทสนทนานี้และข้อความทั้งหมดในบทสนทนาหรือไม่?
+    cancel: ยกเลิก
+    empty: ยังไม่มีบทสนทนา
+    cloud-badge: ซิงค์กับคลาวด์แล้ว
+    new-chat-fallback: แชทใหม่
+    delete: ลบบทสนทนา
+render-error:
+  title: '{renderer} แสดงโมเดลนี้ไม่ได้'
+  description: เลือกโมเดลแล้ว แต่เวทีแสดงโมเดลนี้ไม่ได้
+  report-description: |-
+    {renderer} แสดงโมเดลที่เลือกไม่สำเร็จ
+    ID ของโมเดล: {modelId}
+    ข้อผิดพลาด: {error}
+startup:
+  failed: การเริ่มต้นล้มเหลว
+  failed-resource: โหลด{resource}ไม่ได้
+  recover: ลองอีกครั้ง ถ้ายังล้มเหลวอีก ให้เปิดรายละเอียดด้านล่าง
+  recover-model: ลองอีกครั้ง หรือดำเนินการต่อโดยไม่มีตัวละคร คุณเลือกโมเดลอื่นภายหลังได้
+  details: เกิดอะไรขึ้น?
+  close-details: ปิดรายละเอียด
+  retry: ลองอีกครั้ง
+  continue-without-model: ดำเนินการต่อ
+  model-timeout: โมเดลตัวละครใช้เวลาโหลดนานเกินไป ตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง
+  resources:
+    auth: การตั้งค่าบัญชี
+    modelIndex: รายการโมเดล
+    card: การตั้งค่าตัวละคร
+    chat: ประวัติแชท
+    services: บริการของแอป
+    modelData: โมเดลที่บันทึกไว้
+    modelSelection: การตั้งค่าโมเดล
+    audio: การตั้งค่าเสียง
+    route: หน้า
+    model: โมเดลตัวละคร
+message: พูดอะไรสักหน่อย...
+theme:
+  title: ธีม
+  system: ตามระบบ
+  light: สว่าง
+  dark: มืด
+  switch-to-light: สลับเป็นธีมสว่าง
+  switch-to-dark: สลับเป็นธีมมืด
+  switch-to-system: ใช้ธีมตามระบบ
+send-mode:
+  title: ปุ่มส่ง
+  double-enter: กด Enter สองครั้ง
+speech-output:
+  mute: ปิดเสียงพูด
+  unmute: เปิดเสียงพูด
+operations:
+  load-models: โหลดโมเดล
+  load-models-status:
+    loading: กำลังโหลด
+    ready: พร้อม
+select-a-audio-input: เลือกอุปกรณ์รับเสียง
+select-a-model: เลือกโมเดล
+select-a-voice: เลือกเสียง
+viewers:
+  debug-menu:
+    emotions: อารมณ์
+    emotions-btn:
+      angry: 😠 โกรธ
+      awkward: 😳 เขิน
+      happy: 😄 มีความสุข
+      neutral: 🙂 ปกติ
+      question: 🤔 สงสัย
+      sad: 😫 เศร้า
+      surprised: 🤯 ประหลาดใจ
+      think: 🤨 ครุ่นคิด
+    vrm:
+      camera: กล้อง
+      model:
+        title: โมเดล
+profile-switcher:
+  no-profile: ไม่มีโปรไฟล์
+  no-profiles: ยังไม่มีโปรไฟล์
+  save-as-new: บันทึกเป็นโปรไฟล์ใหม่
+  new-profile-name: ชื่อโปรไฟล์
+  manage: จัดการโปรไฟล์
+waiting: กำลังรอ
+websocket-status:
+  connected: เชื่อมต่อแล้ว
+  disconnected: ไม่มีการเชื่อมต่อ
+  open-settings: เปิดการตั้งค่าการเชื่อมต่อ
+
+computer-use:
+  label: ใช้คอมพิวเตอร์
+  description: อนุญาตให้หน้าต่างแชทนี้ตรวจดูและควบคุมแอปบนคอมพิวเตอร์เครื่องนี้
+
+status:
+  preparing: กำลังเตรียมไมโครโฟน
+  listening: กำลังฟัง
+  paused: หยุดฟังชั่วคราวขณะที่ AIRI พูด
+  transcribing: กำลังถอดเสียง
+  hearing-error: ถอดเสียงไม่ได้
+  no-transcript: เสียงพูดที่จดจำได้จะแสดงที่นี่
+  signing-in: เข้าสู่ระบบให้เสร็จในเบราว์เซอร์ของคุณ
+  confirming: กำลังยืนยันการเข้าสู่ระบบ
+  signed-in: เข้าสู่ระบบแล้ว
+  sign-in-error: เข้าสู่ระบบไม่สำเร็จ
+  sign-in-unconfirmed: ยืนยันเซสชันของคุณไม่ได้ โปรดเข้าสู่ระบบอีกครั้ง
+  dismiss: ปิด
+  configure-hearing: เลือกและตั้งค่าผู้ให้บริการการฟังในการตั้งค่า
