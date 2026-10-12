@@ -3,6 +3,7 @@ import process from 'node:process'
 import { existsSync } from 'node:fs'
 import { readdir, readFile, writeFile } from 'node:fs/promises'
 import { join, relative } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 import { parseDocument } from 'yaml'
 
@@ -33,6 +34,44 @@ type LocaleStrings = Map<string, Map<string, string>>
  * `@:key` messages. A literal such as `{'@'}` is text, so it is not matched.
  */
 const PLACEHOLDER = /\{\s*([a-z_][\w-]*|\d+)\s*\}|@(?:\.\w+)?:[\w.-]+/gi
+
+/**
+ * The in-message selector vue-i18n reads to pick one form of a message that holds a choice
+ * separator. A call site can pass a number instead, which no locale file shows.
+ */
+const PLURAL_SELECTOR = /\{\s*(?:count|n)\s*\}/
+
+/**
+ * A literal span, which vue-i18n renders as text.
+ *
+ * The compiler reads the body up to the first quote it does not escape, and it
+ * accepts `\\`, `\'`, and the two unicode escapes. It reads spaces around the
+ * body as well, so `{ '{count}' }` is a literal too.
+ */
+const LITERAL = /\{\s*'(?:\\[\s\S]|''|[^'\\])*'\s*\}/g
+
+/**
+ * Warns about a choice separator that the message itself cannot select.
+ *
+ * vue-i18n splits a message on `|` and picks a form with a selector.
+ * A message without `{count}` or `{n}` leaves the choice to its call site.
+ * A call such as `t(key, 2)` selects a form with a number.
+ * This check reads locale files alone, so it reports a
+ * warning rather than a fault. `Anthropic | Claude` reached a provider card as `Anthropic`,
+ * because no call site passed a number.
+ *
+ * @returns A warning for a separator the message cannot select itself. `undefined` when
+ * the message holds no separator, or when `{count}` or `{n}` selects a form already.
+ */
+function choiceSeparatorWarning(value: string): string | undefined {
+  // A literal is text, and the text of one can hold a selector. Removing the spans
+  // leaves the separators and the selectors the message itself reads.
+  const text = value.replace(LITERAL, '')
+  if (!text.includes('|') || PLURAL_SELECTOR.test(text))
+    return undefined
+
+  return "A choice separator renders its first form unless a {count} or a number at the call site selects another. Write a literal pipe as {'|'}."
+}
 
 function flatten(value: unknown, prefix: string, into: Map<string, string>) {
   if (typeof value === 'string') {
@@ -154,6 +193,7 @@ function findMovedTranslations(
  * - Error: a file does not parse.
  * - Error: a key does not exist in the source locale.
  * - Error: a translation does not keep the placeholders of its source string.
+ * - Warning: a message holds a choice separator that its own placeholders cannot select.
  * - Error: a translation disappears although its English did not change.
  * - Warning: a changed translation repeats the translation of an unrelated key.
  *
@@ -180,6 +220,15 @@ export async function checkLocales(options: {
   const issues: LocaleIssue[] = []
   const source = await loadLocale(options.root, SOURCE_LOCALE, issues)
   const baseSource = options.baseRoot ? await loadLocale(options.baseRoot, SOURCE_LOCALE, []) : new Map()
+
+  // The source locale owns the strings, so a separator mistake can live here too.
+  for (const [file, values] of source) {
+    for (const [key, value] of values) {
+      const warning = choiceSeparatorWarning(value)
+      if (warning)
+        issues.push({ level: 'warning', locale: SOURCE_LOCALE, file, key, message: warning })
+    }
+  }
   const entries = await readdir(options.root, { withFileTypes: true })
   const locales = entries.filter(entry => entry.isDirectory() && entry.name !== SOURCE_LOCALE).map(entry => entry.name).sort()
 
@@ -205,6 +254,10 @@ export async function checkLocales(options: {
           issues.push({ level: level(file, key, value), locale, file, key, message: `The key does not exist in ${SOURCE_LOCALE}/${file}.` })
           continue
         }
+        const warning = choiceSeparatorWarning(value)
+        if (warning)
+          issues.push({ level: 'warning', locale, file, key, message: warning })
+
         const expected = placeholders(english)
         const actual = placeholders(value)
         if (expected.join() !== actual.join())
@@ -251,10 +304,24 @@ function findRemovedTranslations(
   return issues
 }
 
+/**
+ * Writes one value for a cell of the Markdown summary.
+ *
+ * A pipe ends a cell, and the messages and the keys can hold one. The warning that
+ * explains a choice separator holds one by design, because it shows `{'|'}`.
+ *
+ * @example
+ * markdownCell('Anthropic | Claude')
+ * // => 'Anthropic \| Claude'
+ */
+function markdownCell(value: string) {
+  return value.replace(/\|/g, '\\|')
+}
+
 function formatSummary(issues: LocaleIssue[]) {
   if (issues.length === 0)
     return 'The locale check found no issues.\n'
-  const rows = issues.map(issue => `| ${issue.level} | ${issue.locale} | \`${issue.file}\` | \`${issue.key}\` | ${issue.message} |`)
+  const rows = issues.map(issue => `| ${markdownCell(issue.level)} | ${markdownCell(issue.locale)} | \`${markdownCell(issue.file)}\` | \`${markdownCell(issue.key)}\` | ${markdownCell(issue.message)} |`)
   return [
     `The locale check found ${issues.filter(issue => issue.level === 'error').length} errors and ${issues.filter(issue => issue.level === 'warning').length} warnings.`,
     '',
@@ -304,7 +371,7 @@ async function main(): Promise<void> {
     process.exitCode = 1
 }
 
-if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((error: unknown) => {
     console.error(error)
     process.exitCode = 1
