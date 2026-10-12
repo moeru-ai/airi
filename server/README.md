@@ -81,7 +81,8 @@ gh workflow run deploy-server-dev.yml -f branch=<branch> -f reset_database=true
 
 The workflow does these steps in order:
 
-1. It resets the dev Neon branch to its parent branch.
+1. It resets the dev Neon branch to its parent branch, `production`. The dev
+   database then holds a copy of the production schema and data.
 2. It sets the source branch of the Railway `ts-api` and `auth-server` services
    and deploys them. The API applies its migrations on startup.
 3. It starts the `Cloudflare Workers (server-dev)` workflow on the same branch.
@@ -92,7 +93,8 @@ pushes. Run the workflow again with `reset_database=false` to build it again.
 The branch must be in this repository. Railway cannot deploy a branch of a
 fork.
 
-The reset removes all data that the previous branch wrote. Set
+The reset removes all data that the previous branch wrote. This includes dev
+accounts that are not in production. Set
 `reset_database=false` only when the database already has the migrations of
 the branch and no others. The Drizzle migrator applies only migrations that are
 newer than the last applied migration. If the database already has a newer
@@ -111,8 +113,9 @@ The workflow needs this repository configuration:
 | `NEON_PROJECT_ID` | Variable | Neon project ID |
 | `NEON_SERVER_DEV_BRANCH` | Variable | Name of the Neon branch that the dev `DATABASE_URL` points to |
 
-The dev Neon branch must be a child branch. Keep its parent at the `main`
-schema, and keep the shared test accounts in the parent.
+The dev Neon branch is `serverlize-dev`. Its parent is `production`, so the
+Neon API key can also read the production branch. Keep the key in the secret
+only.
 
 ## Package boundaries
 
