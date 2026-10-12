@@ -29,6 +29,13 @@ docs:
   'logging-in': 로그인 중...
   'account': 계정
   'logout': 로그아웃
+  switch-to-system-mode: 시스템 테마 따르기
+  hide-chat: 채팅 숨기기
+  center-main-window: 화면 중앙으로 이동
+  enable-microphone: 마이크 켜기
+  disable-microphone: 마이크 끄기
+  mute: 음소거
+  unmute: 음소거 해제
 notice:
   'fade-on-hover':
     title: 호버 시 페이드
@@ -84,6 +91,44 @@ about:
       restart-silent: 재 시작 후 조용히 업데이트하기
       restart-install: 재시작 후 업데이트하기
       confirm-restart: 정말 재 시작할까요
+      disabled-dev: 개발 환경에서는 업데이트가 비활성화됩니다
     dialog:
       title: 업데이트 사용 가능
       description: 새로운 버전 (v{version})이 이용 가능해요.
+      no-release-notes-markdown: _릴리스 노트가 제공되지 않았습니다._
+resource-island:
+  loading: 리소스 준비 중...
+  ready: 리소스 준비 완료
+  preparing: 모델 파일 준비 중
+  failed: 모델 다운로드 실패
+chat-window:
+  style:
+    title: 채팅 창 스타일
+    legacy: 클래식 창
+    floating-attached: 캐릭터 옆에 떠 있는 창
+    floating-free: 화면 어디에나 떠 있는 창
+    floating-danmaku: 떠 있는 메시지 피드
+    pinned: 항상 위에 표시
+  resize: 드래그하여 채팅 크기 조절
+  move: 드래그하여 채팅 이동
+  fold: 채팅 숨기기
+  composer:
+    show: 메시지 입력창 표시
+    hide: 메시지 입력창 숨기기
+  danmaku-feed:
+    title: 메시지 표시 시간
+    hide-read: 읽은 메시지 숨기기
+    hide-read-description: 메시지는 읽은 뒤 사라집니다. 음성 응답은 발화가 끝나면 사라집니다.
+    reading-speed: 읽기 속도
+    reading-speed-value: 초당 {count}자
+    minimum-time: 최소 시간
+    minimum-time-value: '{count}초'
+widgets:
+  close: 위젯 닫기
+  empty:
+    title: 활성 위젯 없음
+    description: 도구나 플러그인이 위젯을 생성하면 여기에 표시됩니다.
+  loading: 위젯 불러오는 중…
+  waiting: '"{id}" 위젯의 데이터를 기다리는 중…'
+inlay:
+  dismiss: 닫기

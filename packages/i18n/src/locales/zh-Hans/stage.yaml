@@ -161,6 +161,7 @@ startup:
     audio: 音频设置
     route: 页面
     model: 角色模型
+  model-timeout: 角色模型加载超时，请检查网络连接后重试。
 message: 说点什么...
 theme:
   title: 主题

@@ -68,6 +68,8 @@ signIn:
     terms: 規約
     and: と
     privacy: プライバシーポリシー
+  email:
+    label: Eメール
 verifyEmail:
   title:
     pending: 受信箱の確認を
@@ -90,6 +92,8 @@ forgotPassword:
     sent: '{email} がアカウントに一致した場合、リセットリンクが進行中です。'
   error:
     fallback: リセットメールを送信できませんでした
+  email:
+    label: Eメール
 deleteAccount:
   title:
     success: アカウントが削除されました

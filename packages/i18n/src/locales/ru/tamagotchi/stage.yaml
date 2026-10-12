@@ -30,6 +30,12 @@ docs:
   'logging-in': Выполняется вход...
   'account': Аккаунт
   'logout': Выйти
+  switch-to-system-mode: Использовать системную тему
+  hide-chat: Скрыть чат
+  enable-microphone: Включить микрофон
+  disable-microphone: Выключить микрофон
+  mute: Отключить звук
+  unmute: Включить звук
 widgets:
   close: Закрыть виджет
   empty:
@@ -70,6 +76,7 @@ about:
       stable: Стабильный
       alpha: Альфа
       beta: Бета
+      nightly: Ночная сборка
     status:
       downloading: Загрузка обновления...
       error-prefix: Ошибка
@@ -94,3 +101,32 @@ about:
       title: Доступно обновление
       description: Доступна новая версия (v{version})
       no-release-notes-markdown: _Заметки о релизе не предоставлены._
+resource-island:
+  loading: Подготовка ресурсов...
+  ready: Ресурсы готовы
+  preparing: Подготовка файлов модели
+  failed: Не удалось скачать модель
+chat-window:
+  style:
+    title: Стиль окна чата
+    legacy: Классическое окно
+    floating-attached: Плавающее, рядом с персонажем
+    floating-free: Плавающее, в любом месте экрана
+    floating-danmaku: Плавающее, лента сообщений
+    pinned: Поверх всех окон
+  resize: Перетащите для изменения размера чата
+  move: Перетащите для перемещения чата
+  fold: Скрыть чат
+  composer:
+    show: Показать поле сообщения
+    hide: Скрыть поле сообщения
+  danmaku-feed:
+    title: Время показа сообщений
+    hide-read: Скрывать прочитанные сообщения
+    hide-read-description: Сообщения исчезают после прочтения. Озвученные ответы исчезают после завершения речи.
+    reading-speed: Скорость чтения
+    reading-speed-value: '{count} символов/с'
+    minimum-time: Минимальное время
+    minimum-time-value: '{count} с'
+inlay:
+  dismiss: Закрыть
