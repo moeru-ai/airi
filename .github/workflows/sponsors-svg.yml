@@ -35,14 +35,14 @@ jobs:
         run: pnpm run sponsors:generate
 
       - name: Remove private SponsorKit cache
-        run: rm -f docs/content/public/assets/sponsors/.cache.json
+        run: rm -f docs/assets/sponsors/.cache.json
 
       - name: Create or update sponsors PR
         env:
           GH_TOKEN: ${{ secrets.PAT_SLASH_COMMAND_DISPATCH }}
           SPONSORS_BRANCH: automation/update-sponsors-svg
         run: |
-          if [ -z "$(git status --porcelain -- docs/content/public/assets/sponsors)" ]; then
+          if [ -z "$(git status --porcelain -- docs/assets/sponsors)" ]; then
             echo "No sponsors asset changes to publish."
             exit 0
           fi
@@ -58,7 +58,7 @@ jobs:
 
           git fetch origin "${SPONSORS_BRANCH}:refs/remotes/origin/${SPONSORS_BRANCH}" || true
           git checkout -B "$SPONSORS_BRANCH"
-          git add docs/content/public/assets/sponsors/sponsors.json docs/content/public/assets/sponsors/sponsors.svg
+          git add docs/assets/sponsors/sponsors.json docs/assets/sponsors/sponsors.svg
           git commit -m "chore: update sponsors svg"
           git push --force-with-lease origin "$SPONSORS_BRANCH"
 
