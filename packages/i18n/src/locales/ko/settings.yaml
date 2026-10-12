@@ -909,6 +909,8 @@ pages:
           error: '등록하지 못했습니다: {error}'
       sections:
         section:
+          playground:
+            select-model-before-testing: 테스트하기 전에 OpenRouter 설정에서 모델을 선택하세요.
           provider-selection:
             description: 적절한 음성 인식 제공자 선택
           microphone:
