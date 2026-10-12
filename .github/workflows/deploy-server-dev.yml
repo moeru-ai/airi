@@ -40,77 +40,21 @@ jobs:
       RAILWAY_TOKEN: ${{ secrets.RAILWAY_DEV_TOKEN }}
 
     steps:
-      # Stop before the database reset if no deploy can follow it.
-      - name: Check the branch
-        run: gh api "repos/${GITHUB_REPOSITORY}/branches/${DEPLOY_BRANCH}" --silent
-
-      # The API runs migrations on startup, and the Drizzle migrator only
-      # applies migrations newer than the last applied one. A database that
-      # another branch migrated makes it skip older migrations of this branch
-      # without an error. Reset first so that the new deploy migrates a clean
-      # baseline.
-      - name: Reset the Neon branch
-        if: inputs.reset_database
-        uses: neondatabase/reset-branch-action@v1
-        with:
-          project_id: ${{ vars.NEON_PROJECT_ID }}
-          branch: ${{ vars.NEON_SERVER_DEV_BRANCH }}
-          parent: true
-          api_key: ${{ secrets.NEON_API_KEY }}
-
       - run: npm install --global @railway/cli@5
 
-      # `redeploy --from-source` also covers a run that keeps the same branch.
-      # The services must restart there to migrate the reset database.
-      #
-      # The step waits for a new deployment to pass its healthcheck. A run that
-      # ends earlier lets the next run reset the database while this branch
-      # still builds, and this branch then migrates the reset database.
-      - name: Deploy the Railway dev services from the branch
-        timeout-minutes: 30
+      - name: Probe the token
         run: |
-          services=(ts-api auth-server)
-          declare -A previous
-
-          for service in "${services[@]}"; do
-            previous[$service]=$(railway service status --service "$service" --json | jq --raw-output '.deploymentId')
-            railway service source connect --service "$service" --repo "$GITHUB_REPOSITORY" --branch "$DEPLOY_BRANCH"
-            railway service redeploy --service "$service" --from-source --yes
-          done
-
-          for service in "${services[@]}"; do
-            while true; do
-              latest=$(railway service status --service "$service" --json)
-              id=$(jq --raw-output '.deploymentId' <<< "$latest")
-              status=$(jq --raw-output '.status' <<< "$latest")
-
-              if [[ "$id" != "${previous[$service]}" ]]; then
-                case "$status" in
-                  SUCCESS) break ;;
-                  FAILED | CRASHED)
-                    echo "::error::The $service deployment $id ended with status $status"
-                    exit 1
-                    ;;
-                esac
-              fi
-
-              sleep 15
-            done
-          done
-
-      # Railway follows later pushes to the branch. The frontend does not, so
-      # each run builds it from the same branch.
-      - name: Deploy the frontend
-        run: gh workflow run deploy-cloudflare-workers-dev-server.yml --repo "$GITHUB_REPOSITORY" --ref "$DEPLOY_BRANCH"
-
-      - name: Summary
-        env:
-          RESET_DATABASE: ${{ inputs.reset_database }}
-        run: |
-          {
-            echo "| | |"
-            echo "| --- | --- |"
-            echo "| Branch | \`${DEPLOY_BRANCH}\` |"
-            echo "| Database reset | ${RESET_DATABASE} |"
-            echo "| Actor | @${GITHUB_ACTOR} |"
-          } >> "$GITHUB_STEP_SUMMARY"
+          railway --version
+          echo "== api projectToken"
+          curl -sS https://backboard.railway.com/graphql/v2 \
+            -H "Project-Access-Token: $RAILWAY_TOKEN" -H 'content-type: application/json' \
+            -d '{"query":"{projectToken{projectId environmentId}}"}' | jq -c '{ok: (.data.projectToken != null), errors: [.errors[]?.message]}'
+          echo "token length: ${#RAILWAY_TOKEN}"
+          probe() {
+            if out=$(railway "$@" 2>&1); then echo "OK   railway $*"; else echo "FAIL railway $* :: $(echo "$out" | head -c 160 | tr '\n' ' ')"; fi
+          }
+          probe status --json
+          probe service list --json
+          probe service status --service ts-api --json
+          probe service status --service ts-api --environment dev --json
+          probe deployment list --service ts-api --limit 1 --json
