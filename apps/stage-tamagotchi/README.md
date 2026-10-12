@@ -43,12 +43,45 @@ Use this feature for local native applications. It does not expose a remote-devi
 The desktop package includes the platform CLI as an optional dependency and unpacks its executable from ASAR.
 Do not omit optional dependencies when building an installer. Windows ARM64 and Linux musl do not have a matching CLI in this version.
 
+## Fullscreen workspace
+
+The fullscreen workspace is an experiment, and it is off by default. It shows settings and the chat beside the character, in a workspace that covers the work area.
+Turn on **Fullscreen workspace** in the experimental features of the system settings. Then choose a window mode:
+
+- **Single window**: the main window grows over the work area and becomes the workspace.
+- **Separate window**: a window of its own shows the workspace with its own view of the character. The main window stays on the desktop, above that window.
+
+The two modes differ only in the window that hosts the workspace. Both use the same parts in `src/renderer`:
+
+- `components/fullscreen/surfaces.ts` is the registry of the surfaces, such as settings and the chat.
+- `stores/fullscreen.ts` holds the phase of the mode, the surface that shows, and the surfaces that stay mounted.
+- `composables/use-fullscreen-layout.ts` holds the surface width, its drag, and the place of the character.
+- `components/fullscreen/fullscreen-overlay.vue` shows the island and the surface. `fullscreen-backdrop.vue` shows the backdrop.
+
+Each host is thin:
+
+- `pages/index.vue` is the page of the main window. It runs the open and close transitions.
+- `pages/workspace.vue` is the page of the separate window. The window covers the work area from the start.
+- In `src/main`, `windows/main` and `windows/workspace` answer the same fullscreen events for their windows.
+- `src/main/index.ts` opens settings and the fullscreen chat where the mode says.
+
+To add a surface, add an entry to `fullscreenSurfaces`, and add its id to `FullscreenSurfaceId` in `src/shared/eventa`.
+The island then shows its button, and its panel stays mounted until the mode closes. The routes under its `prefixes` sit under the page of each host.
+
+The view of the character in the separate window is a second render. It does not follow speech or expressions.
+
 ## Verification
 
 Run the focused runtime tests:
 
 ```sh
 pnpm -F @proj-airi/stage-tamagotchi exec vitest run src/main/services/airi/computer-use/runtime.test.ts
+```
+
+Run the tests of the fullscreen workspace:
+
+```sh
+pnpm -F @proj-airi/stage-tamagotchi exec vitest run src/renderer/stores/fullscreen.test.ts src/renderer/window-context.test.ts src/main/windows/chat/mode-switch.test.ts
 ```
 
 Set `AIRI_COMPUTER_USE_LIVE=1` to include the bundled CLI/private-daemon test.
