@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { shallowRef, watch } from 'vue'
-import { RouterView, useRouter } from 'vue-router'
+import { provide, shallowReactive, watch } from 'vue'
+import { routeLocationKey, RouterView, useRouter } from 'vue-router'
 
 import { useFullscreenCarry } from '../../composables/use-fullscreen-carry'
 import { fullscreenSurfaceOf, fullscreenSurfaces } from './surfaces'
@@ -9,15 +9,18 @@ import { fullscreenSurfaceOf, fullscreenSurfaces } from './surfaces'
 // keeps the last settings route while another surface shows or the mode closes, so the page stays mounted and keeps
 // its state.
 const router = useRouter()
-const route = shallowRef(router.currentRoute.value)
+const route = shallowReactive({ ...router.currentRoute.value })
 watch(() => router.currentRoute.value, (current) => {
   if (fullscreenSurfaceOf(current.path) === 'settings')
-    route.value = current
+    Object.assign(route, current)
 })
+// The layout and the pages read the route with `useRoute()`. They get the route that the panel keeps, so their title,
+// scroll position, and params stay while the router is already on the page of the host.
+provide(routeLocationKey, route)
 
 // Settings carry the page that shows when the mode moves to another window.
 useFullscreenCarry<string>('settings', {
-  collect: () => fullscreenSurfaceOf(route.value.path) === 'settings' ? route.value.fullPath : undefined,
+  collect: () => fullscreenSurfaceOf(route.path) === 'settings' ? route.fullPath : undefined,
   restore: page => fullscreenSurfaces.settings.prepare?.({ router, page }),
 })
 </script>
