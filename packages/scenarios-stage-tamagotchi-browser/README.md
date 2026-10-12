@@ -32,16 +32,18 @@ From repo root, run:
 
 ```bash
 pnpm exec vishot capture --target electron ./packages/scenarios-stage-tamagotchi-electron/src/scenarios/demo-controls-settings-chat-websocket/index.ts --app-entrypoint ./apps/stage-tamagotchi/out/main/index.js --cwd . --output-dir ./packages/scenarios-stage-tamagotchi-browser/artifacts/raw --format avif
-pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --route '/docs/setup-and-use/intro-chat' --output-dir ../../docs/content/en/docs/manual/tamagotchi/setup-and-use/assets --settle-ms 800
-pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --route '/docs/setup-and-use/intro-websocket' --output-dir ../../docs/content/en/docs/manual/tamagotchi/setup-and-use/assets --settle-ms 800
-pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --route '/docs/setup-and-use/main-window' --output-dir ../../docs/content/en/docs/manual/tamagotchi/setup-and-use/assets --settle-ms 800
-pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --route '/docs/setup-and-use/settings' --output-dir ../../docs/content/en/docs/manual/tamagotchi/setup-and-use/assets --settle-ms 800
+pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --route '/docs/setup-and-use/intro-chat' --output-dir ../../airi-docs/content/en/docs/manual/tamagotchi/setup-and-use/assets --settle-ms 800
+pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --route '/docs/setup-and-use/intro-websocket' --output-dir ../../airi-docs/content/en/docs/manual/tamagotchi/setup-and-use/assets --settle-ms 800
+pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --route '/docs/setup-and-use/main-window' --output-dir ../../airi-docs/content/en/docs/manual/tamagotchi/setup-and-use/assets --settle-ms 800
+pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --route '/docs/setup-and-use/settings' --output-dir ../../airi-docs/content/en/docs/manual/tamagotchi/setup-and-use/assets --settle-ms 800
 ```
 
 Expected results:
 
 - Raw: `27` files under `packages/scenarios-stage-tamagotchi-browser/artifacts/raw`
-- Final docs assets: `manual-*.avif` and `intro-chat-window.avif` under `docs/content/en/docs/manual/tamagotchi/setup-and-use/assets`
+- Final docs assets: `manual-*.avif` and `intro-chat-window.avif` under `airi-docs/content/en/docs/manual/tamagotchi/setup-and-use/assets`
+
+The documentation lives in [moeru-ai/airi-docs](https://github.com/moeru-ai/airi-docs). Clone it to `airi-docs/` at the repository root (ignored by Git) before capturing.
 
 ## Capture Flags
 
@@ -58,7 +60,7 @@ Examples:
 pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --settle-ms 800
 pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --route /docs/setup-and-use --settle-ms 800
 pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --route /docs/setup-and-use/settings --settle-ms 800
-pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --route /docs/setup-and-use --output-dir ../../docs/content/en/docs/manual/tamagotchi/setup-and-use/assets --settle-ms 800
+pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --route /docs/setup-and-use --output-dir ../../airi-docs/content/en/docs/manual/tamagotchi/setup-and-use/assets --settle-ms 800
 ```
 
 The browser capture flow starts from Playwright PNG screenshots, then optionally transforms to AVIF via Vishot `imageTransformers`.

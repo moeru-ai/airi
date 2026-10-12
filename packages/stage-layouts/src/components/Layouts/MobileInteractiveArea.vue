@@ -541,7 +541,7 @@ onUnmounted(() => {
             :reply-to-message-id="replyTarget?.message.id"
             @recording-change="voiceActive = $event"
             @sent="composer.clearReply()"
-            @configure="router.push('/settings/modules/hearing')"
+            @configure="router.push('/settings/modules/hearing/transcriber')"
           />
         </div>
       </div>
