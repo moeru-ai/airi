@@ -113,6 +113,7 @@ function createMockRequestLogService(): RequestLogService {
     getRequest: vi.fn(async () => ({ request: undefined, attempts: [], settlement: undefined })),
     listRequests: vi.fn(async () => []),
     recoverStaleRequests: vi.fn(async () => []),
+    buildItems: vi.fn(async () => ({ rows: 0, failed: 0, next: undefined })),
     logRequest: vi.fn(async () => undefined),
   }
 }

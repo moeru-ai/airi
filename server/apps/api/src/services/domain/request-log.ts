@@ -4,14 +4,15 @@ import type { AttemptObserver } from './llm-router/attempt'
 import type { RequestItem } from './request-items'
 
 import { useLogger } from '@guiiai/logg'
-import { and, desc, eq, inArray, lt, sql } from 'drizzle-orm'
-import { parse } from 'valibot'
+import { and, desc, eq, gt, inArray, isNotNull, lt, or, sql } from 'drizzle-orm'
+import { parse, safeParse } from 'valibot'
 
 import { llmRequestAttempt } from '../../schemas/llm-request-attempt'
 import { llmRequestItem } from '../../schemas/llm-request-item'
 import { nanoid } from '../../utils/id'
 import { generationObservationSchema } from './generation-observation'
 import { attemptResultSchema, attemptStartSchema } from './llm-router/attempt'
+import { requestContentSchema } from './request-content'
 import { splitInputItems, splitOutputItems } from './request-items'
 
 import * as schema from '../../schemas/llm-request-log'
@@ -33,6 +34,7 @@ export function createRequestLogService(db: Database) {
    * Replaces the items of one direction of one request.
    *
    * The items are derived, so a failed write is logged and does not fail the request.
+   * Returns false when the write failed.
    */
   async function writeItems(owner: ItemOwner, direction: 'input' | 'output', items: RequestItem[]) {
     const table = llmRequestItem
@@ -52,9 +54,11 @@ export function createRequestLogService(db: Database) {
         if (rows.length > 0)
           await tx.insert(table).values(rows)
       })
+      return true
     }
     catch (error) {
       logger.withError(error).withFields({ requestId: owner.requestId, direction }).warn('Failed to write llm_request_item rows')
+      return false
     }
   }
 
@@ -110,6 +114,34 @@ export function createRequestLogService(db: Database) {
         await tx.update(llmRequestAttempt).set({ state: 'unknown' }).where(and(inArray(llmRequestAttempt.state, ['running', 'headers_received']), lt(llmRequestAttempt.startedAt, before)))
         return tx.update(schema.llmRequestLog).set({ state: 'unknown' }).where(and(eq(schema.llmRequestLog.state, 'running'), lt(schema.llmRequestLog.startedAt, before))).returning({ requestId: schema.llmRequestLog.requestId })
       })
+    },
+
+    /**
+     * Builds the items of stored request rows, oldest first, for rows written before the item table.
+     *
+     * Call it again with the returned cursor until `next` is undefined.
+     * A row is safe to build more than one time, because each write replaces its items.
+     */
+    async buildItems(input: { after?: { createdAt: Date, id: string }, limit: number }) {
+      const table = schema.llmRequestLog
+      const rows = await db.select({ ...itemOwner, id: table.id, prompt: table.prompt, completion: table.completion }).from(table).where(and(
+        isNotNull(table.requestId),
+        input.after ? or(gt(table.createdAt, input.after.createdAt), and(eq(table.createdAt, input.after.createdAt), gt(table.id, input.after.id))) : undefined,
+      )).orderBy(table.createdAt, table.id).limit(input.limit)
+      let failed = 0
+      for (const row of rows) {
+        if (!row.requestId)
+          continue
+        const owner = { ...row, requestId: row.requestId }
+        const prompt = safeParse(requestContentSchema, row.prompt)
+        const completion = safeParse(requestContentSchema, row.completion)
+        if (prompt.success && !await writeItems(owner, 'input', splitInputItems(prompt.output)))
+          failed += 1
+        if (completion.success && !await writeItems(owner, 'output', splitOutputItems(completion.output)))
+          failed += 1
+      }
+      const last = rows.at(-1)
+      return { rows: rows.length, failed, next: rows.length === input.limit && last ? { createdAt: last.createdAt, id: last.id } : undefined }
     },
 
     async logRequest(entry: GenerationObservation) {

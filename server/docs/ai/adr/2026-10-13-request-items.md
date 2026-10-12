@@ -126,7 +126,8 @@ A later ADR selects `pg_trgm`, `pg_bigm`, or PGroonga after that value is known.
 5. Change the admin API to read tool calls, trace sort, and content search from items.
 6. Remove the tool call parsers from the admin API and the admin dashboard.
 
-Steps 1 to 3 are one PR in this repository. Each later step is a separate PR.
+Steps 1 to 4 are one PR in this repository. Each later step is a separate PR.
+The script is `server/apps/api/src/scripts/build-request-items.ts`. It prints a cursor, and a later run can start from that cursor.
 
 ## Non-goals
 

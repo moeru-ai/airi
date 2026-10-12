@@ -71,6 +71,36 @@ describe('request log and billing ownership', () => {
     expect(items.every(item => item.createdAt.getTime() === startedAt.getTime())).toBe(true)
   })
 
+  it('builds the items of rows that were written before the item table, page by page', async () => {
+    const logs = createRequestLogService(db)
+    for (const [index, text] of ['First', 'Second', 'Third'].entries()) {
+      await db.insert(llmRequestLog).values({
+        ...observation,
+        requestId: `old-${index}`,
+        createdAt: new Date(Date.UTC(2026, 8, 1 + index)),
+        prompt: captureRequestContent({ messages: [{ role: 'user', content: text }] }),
+        completion: captureRequestContent({ choices: [{ message: { content: `${text} answer` } }] }),
+      })
+    }
+    await db.insert(llmRequestLog).values({ ...observation, requestId: undefined, prompt: captureRequestContent({ messages: [{ role: 'user', content: 'No request ID' }] }) })
+
+    const first = await logs.buildItems({ limit: 2 })
+    expect(first).toMatchObject({ rows: 2, failed: 0 })
+    const second = await logs.buildItems({ after: first.next, limit: 2 })
+    expect(second).toEqual({ rows: 1, failed: 0, next: undefined })
+    await logs.buildItems({ limit: 10 })
+
+    const items = await db.select().from(llmRequestItem).orderBy(llmRequestItem.createdAt, llmRequestItem.direction)
+    expect(items.map(item => [item.requestId, item.kind, item.text])).toEqual([
+      ['old-0', 'user_message', 'First'],
+      ['old-0', 'assistant_message', 'First answer'],
+      ['old-1', 'user_message', 'Second'],
+      ['old-1', 'assistant_message', 'Second answer'],
+      ['old-2', 'user_message', 'Third'],
+      ['old-2', 'assistant_message', 'Third answer'],
+    ])
+  })
+
   it('writes no items for a request without a request ID', async () => {
     const logs = createRequestLogService(db)
     await logs.logRequest({ ...observation, requestId: undefined, completion: captureRequestContent({ choices: [{ message: { content: 'Hi' } }] }) })
