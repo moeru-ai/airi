@@ -406,8 +406,12 @@ export async function setupMainWindow(params: {
     isShown: () => fullscreenSurface === 'chat',
     isActive: () => fullscreenMode === 'single-window',
   })
-  // A reload stops the glide that the old page waited on. The new page sets the bounds again.
-  window.webContents.on('did-start-loading', stopFullscreenGlide)
+  // A reload stops the glide that the old page waited on. The new page sets the bounds again. A route change inside
+  // the page keeps its document, so the glide runs on.
+  window.webContents.on('did-start-navigation', (details) => {
+    if (details.isMainFrame && !details.isSameDocument)
+      stopFullscreenGlide()
+  })
   window.webContents.on('render-process-gone', (_, details) => leaveFullscreen(`the renderer stopped (${details.reason})`))
   window.on('closed', () => {
     stopFullscreenGlide()
