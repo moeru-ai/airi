@@ -489,12 +489,20 @@ export async function setupArtistryBridge(params: {
     })
 
     defineInvokeHandler(params.context, artistryTestComfyUIConnection, async (payload) => {
-      log.log(`🔌 Testing ComfyUI connection at: ${payload.url}`)
+      const url = payload?.url?.trim()
+      if (!url) {
+        return {
+          ok: false,
+          info: 'Failed: Missing ComfyUI URL',
+        }
+      }
+
+      log.log(`🔌 Testing ComfyUI connection at: ${url}`)
       try {
-        const url = payload.url.replace(/\/+$/, '')
+        const normalizedUrl = url.replace(/\/+$/, '')
         const controller = new AbortController()
         const id = setTimeout(() => controller.abort(), 10000)
-        const resp = await fetch(`${url}/system_stats`, { signal: controller.signal })
+        const resp = await fetch(`${normalizedUrl}/system_stats`, { signal: controller.signal })
         clearTimeout(id)
 
         if (!resp.ok)
