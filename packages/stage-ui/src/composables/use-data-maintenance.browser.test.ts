@@ -495,3 +495,18 @@ it('uses the same fixed contract for export and import validation', async () => 
 
   await expect(exporter.encode(await exporter.read())).rejects.toThrow()
 })
+
+// https://github.com/moeru-ai/airi/pull/2920#discussion_r4243056317
+// ROOT CAUSE:
+//
+// Module reset cleared Hearing state but left per-provider model keys in localStorage.
+// The reset now removes those keys with the other Hearing settings.
+it('clears saved provider models when module settings reset', async () => {
+  localStorage.setItem('settings/hearing/provider-model/openrouter-audio-transcription', 'openai/whisper-1')
+  const { runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
+  await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
+
+  await maintenance.resetModulesSettings()
+
+  expect(localStorage.getItem('settings/hearing/provider-model/openrouter-audio-transcription')).toBeNull()
+})
