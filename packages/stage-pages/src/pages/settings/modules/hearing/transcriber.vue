@@ -515,7 +515,7 @@ onUnmounted(() => {
             </Alert>
 
             <!-- Using the new RadioCardManySelect component for providers with models -->
-            <template v-if="providerModels.length > 0 && supportsModelListing">
+            <template v-if="providerModels.length > 0 && supportsModelListing && !activeProviderModelError">
               <RadioCardManySelect
                 v-model="activeTranscriptionModel"
                 v-model:search-query="transcriptionModelSearchQuery"
