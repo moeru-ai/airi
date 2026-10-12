@@ -63,6 +63,13 @@ export interface FullscreenPack {
   surfaces: FullscreenCarriedSurface[]
 }
 
+/** What a host of the fullscreen mode shows on request: a surface and its page, or what the previous host packed. */
+export interface FullscreenOpenRequest {
+  surface: FullscreenSurfaceId
+  route?: string
+  pack?: FullscreenPack
+}
+
 /**
  * Starts the fullscreen mode of the main window. The window stops keeping its bounds in the config and leaves always on top.
  * Returns its bounds and the work area of its display, so the page can plan the move.
@@ -81,11 +88,15 @@ export const electronMainWindowSetFullscreenBounds = defineInvokeEventa<void, { 
  */
 export const electronFullscreenSurfaceChanged = defineInvokeEventa<void, { surface?: FullscreenSurfaceId, mounted: FullscreenSurfaceId[] }>('eventa:invoke:electron:fullscreen:surface-changed')
 /**
- * Reads whether the window is in fullscreen mode. A page that loads while it is, after a reload for example, shows
- * the fullscreen mode at once. Returns the bounds before fullscreen, the work area, and the surface. The window of
- * the `multi-window` mode is always in the mode, and its two bounds are the same.
+ * Reads whether the main window is in fullscreen mode. A page that loads while it is, after a reload for example,
+ * shows the fullscreen mode at once. Returns the bounds before fullscreen, the work area, and the surface.
  */
-export const electronFullscreenGetState = defineInvokeEventa<{ home: Rectangle, workArea: Rectangle, surface?: FullscreenSurfaceId, route?: string, pack?: FullscreenPack } | undefined>('eventa:invoke:electron:fullscreen:state')
+export const electronMainWindowGetFullscreenState = defineInvokeEventa<{ home: Rectangle, workArea: Rectangle, surface?: FullscreenSurfaceId } | undefined>('eventa:invoke:electron:windows:main:fullscreen:state')
+/**
+ * Reads what the window of the `multi-window` mode opened for. Its page asks once when it mounts, because the request
+ * came before the page could hear it.
+ */
+export const electronWorkspaceWindowGetOpenRequest = defineInvokeEventa<FullscreenOpenRequest | undefined>('eventa:invoke:electron:windows:workspace:open-request')
 /**
  * Ends the fullscreen mode of the window. The main window returns to the bounds and the always-on-top state that it had
  * before, and the window of the `multi-window` mode closes. The main process logs `reason`.
@@ -109,7 +120,7 @@ export const electronFullscreenSetMode = defineInvokeEventa<void, { mode: Fullsc
  * Asks the page of a window that hosts the fullscreen mode to show a surface. Settings entry points and the fullscreen
  * chat mode send it while the experiment is on. With `pack`, the page shows what the previous host packed instead.
  */
-export const electronFullscreenOpen = defineEventa<{ surface: FullscreenSurfaceId, route?: string, pack?: FullscreenPack }>('eventa:event:electron:fullscreen:open')
+export const electronFullscreenOpen = defineEventa<FullscreenOpenRequest>('eventa:event:electron:fullscreen:open')
 /**
  * Asks the page of a window that hosts the fullscreen mode to close the mode, for a chat mode switch that leaves the
  * fullscreen chat. The new chat window holds the draft by then.

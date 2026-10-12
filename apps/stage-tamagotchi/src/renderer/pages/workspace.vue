@@ -9,7 +9,7 @@ import { computed, onMounted, watch } from 'vue'
 import FullscreenBackdrop from '../components/fullscreen/fullscreen-backdrop.vue'
 import FullscreenOverlay from '../components/fullscreen/fullscreen-overlay.vue'
 
-import { defaultFullscreenSurface, electronFullscreenExit, electronFullscreenGetState } from '../../shared/eventa'
+import { defaultFullscreenSurface, electronFullscreenExit, electronWorkspaceWindowGetOpenRequest } from '../../shared/eventa'
 import { fullscreenHostPages } from '../components/fullscreen/surfaces'
 import { useFullscreenHost } from '../composables/use-fullscreen-host'
 import { provideFullscreenLayout } from '../composables/use-fullscreen-layout'
@@ -37,7 +37,7 @@ const stageFrameStyle = computed(() => {
 
 useFullscreenHost()
 
-const getWindowState = useElectronEventaInvoke(electronFullscreenGetState)
+const getOpenRequest = useElectronEventaInvoke(electronWorkspaceWindowGetOpenRequest)
 const closeWindow = useElectronEventaInvoke(electronFullscreenExit)
 
 watch(phase, (next) => {
@@ -54,11 +54,11 @@ watch(phase, (next) => {
 // the mode moved here.
 onMounted(async () => {
   try {
-    const state = await getWindowState()
-    if (state?.pack)
-      await fullscreen.unpack(state.pack)
+    const request = await getOpenRequest()
+    if (request?.pack)
+      await fullscreen.unpack(request.pack)
     else
-      await fullscreen.open(state?.surface ?? defaultFullscreenSurface, state?.route)
+      await fullscreen.open(request?.surface ?? defaultFullscreenSurface, request?.route)
   }
   catch (error) {
     console.error('[Fullscreen window] Failed to show the mode:', errorMessageFrom(error))

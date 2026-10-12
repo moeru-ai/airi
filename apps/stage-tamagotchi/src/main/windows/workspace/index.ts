@@ -1,4 +1,4 @@
-import type { FullscreenPack, FullscreenSurfaceId } from '../../../shared/eventa'
+import type { FullscreenOpenRequest, FullscreenPack, FullscreenSurfaceId } from '../../../shared/eventa'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { GodotStageManager } from '../../services/airi/godot-stage'
@@ -24,13 +24,13 @@ import icon from '../../../../resources/icon.png?asset'
 
 import {
   electronFullscreenExit,
-  electronFullscreenGetState,
   electronFullscreenOpen,
   electronFullscreenPack,
   electronFullscreenRequestClose,
   electronFullscreenSurfaceChanged,
   electronOpenMainDevtools,
   electronOpenSettings,
+  electronWorkspaceWindowGetOpenRequest,
 } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
@@ -88,7 +88,7 @@ export function setupWorkspaceWindowManager(params: {
    * What the next window shows first. Its page reads it when it mounts and opens the surface through the registry,
    * like the main window does.
    */
-  let first: { surface: FullscreenSurfaceId, route?: string, pack?: FullscreenPack } | undefined
+  let first: FullscreenOpenRequest | undefined
   /** The context of the open window. A request for another surface goes through it. */
   let context: ReturnType<typeof createContext>['context'] | undefined
   /** Asks the page of the open window to pack what it shows, and to close the mode. */
@@ -144,10 +144,7 @@ export function setupWorkspaceWindowManager(params: {
     // `onlySameWindow` hears only this window, so no other window can close it or change what it shows.
     const { context: windowContext } = createContext(ipcMain, window, { onlySameWindow: true })
     context = windowContext
-    defineInvokeHandler(windowContext, electronFullscreenGetState, () => {
-      const bounds = window.getBounds()
-      return { home: bounds, workArea: bounds, ...first }
-    })
+    defineInvokeHandler(windowContext, electronWorkspaceWindowGetOpenRequest, () => first)
     defineInvokeHandler(windowContext, electronFullscreenSurfaceChanged, (payload) => {
       mounted = payload?.mounted ?? []
     })
