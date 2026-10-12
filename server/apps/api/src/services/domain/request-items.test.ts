@@ -102,6 +102,32 @@ describe('splitOutputItems', () => {
     ])
   })
 
+  it('stores built-in, custom, and MCP calls of the Responses protocol, and a refusal', () => {
+    const completion = captureRequestContent({ output: [
+      { type: 'web_search_call', id: 'ws-1', status: 'completed', action: { type: 'search', query: 'weather Tokyo' } },
+      { type: 'mcp_call', id: 'mcp-1', server_label: 'calendar', name: 'list_events', arguments: '{}', output: 'none' },
+      { type: 'custom_tool_call', id: 'ct-1', call_id: 'call-9', name: 'shell', input: 'ls' },
+      { type: 'message', id: 'msg-1', role: 'assistant', content: [{ type: 'refusal', refusal: 'I cannot help with that.' }] },
+    ] })
+    expect(splitOutputItems(completion)).toEqual([
+      { kind: 'tool_call', text: '{"action":{"type":"search","query":"weather Tokyo"}}', toolName: 'web_search', toolCallId: 'ws-1', truncated: false },
+      { kind: 'tool_call', text: '{}', toolName: 'list_events', toolCallId: 'mcp-1', truncated: false },
+      { kind: 'tool_call', text: 'ls', toolName: 'shell', toolCallId: 'call-9', truncated: false },
+      { kind: 'assistant_message', text: 'I cannot help with that.', truncated: false },
+    ])
+    const prompt = captureRequestContent({ input: [
+      { role: 'user', content: 'Search it.' },
+      { type: 'web_search_call', id: 'ws-1', status: 'completed' },
+      { type: 'custom_tool_call_output', call_id: 'call-9', output: 'a.txt' },
+    ] })
+    expect(splitInputItems(prompt)).toEqual([{ kind: 'tool_result', text: 'a.txt', toolCallId: 'call-9', truncated: false }])
+  })
+
+  it('stores a Chat Completions refusal as the assistant message', () => {
+    expect(splitOutputItems(captureRequestContent({ choices: [{ message: { role: 'assistant', content: null, refusal: 'No.' } }] }))).toEqual([{ kind: 'assistant_message', text: 'No.', truncated: false }])
+    expect(splitOutputItems(sse([{ choices: [{ index: 0, delta: { content: null, refusal: 'No' } }] }, { choices: [{ index: 0, delta: { refusal: '.' } }] }]))).toEqual([{ kind: 'assistant_message', text: 'No.', truncated: false }])
+  })
+
   it('stores each call of a Responses stream one time when the terminal event repeats it', () => {
     const call = { type: 'function_call', id: 'fc-1', call_id: 'call-1', name: 'weather', arguments: '{"city":"Tokyo"}' }
     const completion = sse([

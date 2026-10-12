@@ -82,7 +82,13 @@ The output items come from `completion`.
 - Chat Completions: the text of each choice is one `assistant_message`. Each `tool_calls` index inside one choice is one `tool_call`.
 - Responses: each output message is one `assistant_message`. Each function call ID is one `tool_call`. The terminal `response.completed` or `response.incomplete` event names the same calls, and a call ID is stored one time.
 
+- Responses built-in, custom, and MCP calls are `tool_call` items. An item type that ends with `_call` is a call. A built-in call takes its tool name from the item type, such as `web_search`.
+- A refusal is the text of an `assistant_message`.
+
 Reasoning content is not stored as an item.
+
+The gateway forwards Chat Completions and Responses only.
+An Anthropic Messages route needs a new parser and no table change: `tool_use` is a `tool_call`, and a `tool_result` block is a `tool_result`.
 
 ## Write sequence
 

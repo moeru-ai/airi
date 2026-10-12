@@ -20,6 +20,7 @@ const decoder = new TextDecoder()
 /** Content is null when an assistant message holds only tool calls. */
 const contentSchema = nullish(union([string(), array(unknown())]))
 const textPartSchema = looseObject({ type: picklist(['text', 'input_text', 'output_text']), text: string() })
+const refusalPartSchema = looseObject({ type: literal('refusal'), refusal: string() })
 const chatCallSchema = looseObject({
   id: optional(string()),
   function: optional(looseObject({ name: optional(string()), arguments: optional(string()) })),
@@ -36,7 +37,7 @@ const inputItemSchema = looseObject({
   output: optional(unknown()),
 })
 const chatBodySchema = looseObject({
-  choices: array(looseObject({ message: optional(looseObject({ content: contentSchema, tool_calls: optional(array(unknown())) })) })),
+  choices: array(looseObject({ message: optional(looseObject({ content: contentSchema, refusal: nullish(string()), tool_calls: optional(array(unknown())) })) })),
 })
 const outputItemSchema = looseObject({
   type: optional(string()),
@@ -44,6 +45,7 @@ const outputItemSchema = looseObject({
   call_id: optional(string()),
   name: optional(string()),
   arguments: optional(string()),
+  input: optional(string()),
   content: contentSchema,
 })
 const responsesBodySchema = looseObject({ output: array(unknown()) })
@@ -51,7 +53,8 @@ const chatChunkSchema = looseObject({
   choices: array(looseObject({
     index: optional(number()),
     delta: optional(looseObject({
-      content: optional(string()),
+      content: nullish(string()),
+      refusal: nullish(string()),
       tool_calls: optional(array(looseObject({
         index: optional(number()),
         id: optional(string()),
@@ -65,7 +68,7 @@ const outputItemEventSchema = looseObject({
   item: outputItemSchema,
 })
 const deltaEventSchema = looseObject({
-  type: picklist(['response.function_call_arguments.delta', 'response.output_text.delta']),
+  type: picklist(['response.function_call_arguments.delta', 'response.output_text.delta', 'response.refusal.delta']),
   item_id: string(),
   delta: string(),
 })
@@ -73,8 +76,10 @@ const terminalEventSchema = looseObject({
   type: picklist(['response.completed', 'response.incomplete']),
   response: looseObject({ output: optional(array(unknown())) }),
 })
-const modelItemTypeSchema = picklist(['function_call', 'reasoning'])
-const functionCallTypeSchema = literal('function_call')
+/** Built-in tools of the Responses protocol use one item type each, such as `web_search_call` or `mcp_call`. */
+const callTypePattern = /^(.+)_call$/
+/** Fields of a built-in call that say what the model asked for. The other fields are status and results. */
+const callRequestKeys = ['action', 'queries', 'code', 'server_label']
 
 function parseJson(text: string): unknown {
   try {
@@ -92,7 +97,10 @@ function contentText(content: string | unknown[] | null | undefined) {
     return content
   const parts = content.flatMap((part) => {
     const parsed = safeParse(textPartSchema, part)
-    return parsed.success ? [parsed.output.text] : []
+    if (parsed.success)
+      return [parsed.output.text]
+    const refusal = safeParse(refusalPartSchema, part)
+    return refusal.success ? [refusal.output.refusal] : []
   })
   return parts.length > 0 ? parts.join('\n') : undefined
 }
@@ -124,9 +132,9 @@ function responsesInput(input: string | unknown[]): Item[] {
     const parsed = safeParse(inputItemSchema, value)
     return parsed.success ? [parsed.output] : []
   })
-  const start = items.findLastIndex(item => item.role === 'assistant' || safeParse(modelItemTypeSchema, item.type).success) + 1
+  const start = items.findLastIndex(item => item.role === 'assistant' || item.type === 'reasoning' || callTypePattern.test(item.type ?? '')) + 1
   return items.slice(start).flatMap((item): Item[] => {
-    if (item.type === 'function_call_output') {
+    if (item.type === 'function_call_output' || item.type === 'custom_tool_call_output') {
       const text = typeof item.output === 'string' ? item.output : item.output === undefined ? undefined : JSON.stringify(item.output)
       return [{ kind: 'tool_result', text, toolCallId: item.call_id }]
     }
@@ -141,8 +149,13 @@ function outputItem(value: unknown): Item[] {
   if (!parsed.success)
     return []
   const item = parsed.output
-  if (safeParse(functionCallTypeSchema, item.type).success)
-    return [{ kind: 'tool_call', text: item.arguments, toolName: item.name, toolCallId: item.call_id ?? item.id }]
+  const call = item.type?.match(callTypePattern)
+  if (call) {
+    // A function, custom, or MCP call names its tool. A built-in call is named by its item type.
+    const request = Object.fromEntries(callRequestKeys.filter(key => item[key] !== undefined).map(key => [key, item[key]]))
+    const text = item.arguments ?? item.input ?? (Object.keys(request).length > 0 ? JSON.stringify(request) : undefined)
+    return [{ kind: 'tool_call', text, toolName: item.name ?? call[1], toolCallId: item.call_id ?? item.id }]
+  }
   const text = item.type === 'message' ? contentText(item.content) : undefined
   return text ? [{ kind: 'assistant_message', text }] : []
 }
@@ -151,7 +164,7 @@ function bodyOutput(body: unknown): Item[] {
   const chat = safeParse(chatBodySchema, body)
   if (chat.success) {
     return chat.output.choices.flatMap((choice): Item[] => {
-      const text = contentText(choice.message?.content)
+      const text = contentText(choice.message?.content) ?? choice.message?.refusal
       const calls = (choice.message?.tool_calls ?? []).flatMap((value): Item[] => {
         const call = safeParse(chatCallSchema, value)
         return call.success ? [{ kind: 'tool_call', text: call.output.function?.arguments, toolName: call.output.function?.name, toolCallId: call.output.id }] : []
@@ -177,7 +190,7 @@ function streamOutput(events: unknown[]): Item[] {
         const index = piece.index ?? 0
         const choice = choices.get(index) ?? { text: '', calls: new Map<number, Item>() }
         choices.set(index, choice)
-        choice.text += piece.delta?.content ?? ''
+        choice.text += piece.delta?.content ?? piece.delta?.refusal ?? ''
         for (const delta of piece.delta?.tool_calls ?? []) {
           const position = delta.index ?? 0
           const call = choice.calls.get(position) ?? { kind: 'tool_call' }
@@ -205,7 +218,7 @@ function streamOutput(events: unknown[]): Item[] {
     const delta = safeParse(deltaEventSchema, event)
     if (delta.success) {
       const earlier = streamed.get(delta.output.item_id)
-      const kind = delta.output.type === 'response.output_text.delta' ? 'assistant_message' : 'tool_call'
+      const kind = delta.output.type === 'response.function_call_arguments.delta' ? 'tool_call' : 'assistant_message'
       streamed.set(delta.output.item_id, { ...earlier, kind, text: (earlier?.text ?? '') + delta.output.delta })
       continue
     }
