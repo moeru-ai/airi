@@ -822,7 +822,7 @@ pages:
               unconfigured: 麦克风开启后开始检测唤醒词。
               preparing: 正在准备唤醒词模型…
               ready: 唤醒词已就绪。
-              error: 唤醒词模型不可用：{error}
+              error: '唤醒词模型不可用：{error}'
           rephrase:
             title: 转写改写
             description: 在转写成为草稿之前，由对话模型修正识别错误并去掉口头禅。原始文本会被保留。
@@ -1075,13 +1075,13 @@ pages:
         no-match: 没有匹配的设备。
         tab-all: 全部
         shown-count: '显示 {shown} / {total} 个设备'
-        load-more: 再显示 {count} 个
+        load-more: '再显示 {count} 个'
         select-matching: 选中全部匹配
         clear-matching: 取消全部匹配
       states:
         generic:
-          'on': 开启
-          'off': 关闭
+          'on': '开启'
+          'off': '关闭'
           above_horizon: 白天
           armed: 已布防
           armed_away: 离家布防
