@@ -1,8 +1,9 @@
 import en from '@proj-airi/i18n/locales/en'
 
 import { pushToTalkTriggerKey } from '@proj-airi/stage-ui/composables/push-to-talk-trigger'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { createPinia, disposePinia } from 'pinia'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from 'vitest-browser-vue'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -20,8 +21,7 @@ afterEach(() => {
 })
 
 /** Renders the Hearing page in a host that declares whether it has a Push to Talk trigger. `undefined` provides nothing. */
-async function renderHearing(trigger: boolean | undefined) {
-  const pinia = createPinia()
+async function renderHearing(trigger: boolean | undefined, pinia = createPinia()) {
   pinias.push(pinia)
   const router = createRouter({
     history: createMemoryHistory(),
@@ -76,5 +76,33 @@ describe('hearing input mode', () => {
 
     await expect.element(screen.getByTestId('hearing-input-mode')).toBeVisible()
     expect(screen.getByTestId('hearing-input-mode-stranded').query()).toBeNull()
+  })
+})
+
+describe('hearing provider changes', () => {
+  it('keeps the latest provider model when earlier model requests finish later', async () => {
+    localStorage.setItem('settings/hearing/active-provider', 'browser-web-speech-api')
+    localStorage.setItem('settings/hearing/active-model', 'browser-model')
+    localStorage.setItem('settings/hearing/active-custom-model', 'browser-model')
+    localStorage.setItem('settings/hearing/provider-model/openrouter-audio-transcription', 'openrouter-model')
+    localStorage.setItem('settings/hearing/provider-model/comet-api-transcription', 'comet-model')
+    const pinia = createPinia()
+    await renderHearing(undefined, pinia)
+    const hearingStore = useHearingStore(pinia)
+    const requests: Array<{ provider: string, resolve: () => void }> = []
+    vi.spyOn(hearingStore, 'loadModelsForProvider').mockImplementation(provider => new Promise((resolve) => {
+      requests.push({ provider, resolve })
+    }))
+
+    hearingStore.activeTranscriptionProvider = 'openrouter-audio-transcription'
+    await vi.waitFor(() => expect(requests.some(request => request.provider === 'openrouter-audio-transcription')).toBe(true))
+    hearingStore.activeTranscriptionProvider = 'comet-api-transcription'
+    await vi.waitFor(() => expect(requests.some(request => request.provider === 'comet-api-transcription')).toBe(true))
+
+    requests.forEach(request => request.resolve())
+
+    await vi.waitFor(() => expect(hearingStore.activeTranscriptionModel).toBe('comet-model'))
+    expect(hearingStore.getSavedProviderModel('browser-web-speech-api')).toBe('browser-model')
+    expect(hearingStore.getSavedProviderModel('openrouter-audio-transcription')).toBe('openrouter-model')
   })
 })

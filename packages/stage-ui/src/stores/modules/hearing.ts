@@ -205,6 +205,8 @@ const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, StreamTranscription> = {
   // Web Speech API is handled specially in transcribeForMediaStream since it works directly with MediaStream
 }
 
+const PROVIDER_MODEL_STORAGE_PREFIX = 'settings/hearing/provider-model/'
+
 export function resolveStreamTranscriptionExecutor(providerId: string): StreamTranscription | undefined {
   return STREAM_TRANSCRIPTION_EXECUTORS[providerId]
 }
@@ -339,6 +341,24 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const rephraseProvider = useLocalStorageManualReset('settings/hearing/rephrase-provider', '', persistenceOptions)
   const rephraseModel = useLocalStorageManualReset('settings/hearing/rephrase-model', '', persistenceOptions)
   const verboseJsonNotSupported = ref(false)
+
+  function providerModelStorageKey(providerId: string) {
+    return `${PROVIDER_MODEL_STORAGE_PREFIX}${encodeURIComponent(providerId)}`
+  }
+
+  function getSavedProviderModel(providerId: string) {
+    if (typeof localStorage === 'undefined')
+      return null
+
+    return localStorage.getItem(providerModelStorageKey(providerId))
+  }
+
+  function saveProviderModel(providerId: string, model: string) {
+    if (typeof localStorage === 'undefined')
+      return
+
+    localStorage.setItem(providerModelStorageKey(providerId), model)
+  }
 
   watch(activeTranscriptionProvider, () => {
     verboseJsonNotSupported.value = false
@@ -640,6 +660,9 @@ export const useHearingStore = defineStore('hearing-store', () => {
     isLoadingActiveProviderModels,
     activeProviderModelError,
     configured,
+
+    getSavedProviderModel,
+    saveProviderModel,
 
     transcription,
     createTranscriber,

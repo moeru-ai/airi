@@ -106,6 +106,9 @@ const { audioInputOptions, selectedAudioInput } = storeToRefs(settingsAudioDevic
 const supportsStreamInput = computed(() => providersStore.getTranscriptionFeatures(activeTranscriptionProvider.value).supportsStreamInput)
 const error = shallowRef('')
 const isMonitoring = shallowRef(false)
+let shouldRestartMonitoringAfterProviderChange = false
+// Tracks the owner of activeTranscriptionModel while provider model requests are pending.
+let activeModelProvider = activeTranscriptionProvider.value
 const activeProviderConfig = computed(() => {
   if (!activeTranscriptionProvider.value)
     return undefined
@@ -132,7 +135,6 @@ const useVolumeThreshold = shallowRef(10) // 1 - 80
 const useVADMinSilenceDurationMs = shallowRef(800)
 const useVADModel = shallowRef(true) // Toggle between VAD and volume-based detection
 const usesOpenRouterTranscription = computed(() => activeTranscriptionProvider.value === 'openrouter-audio-transcription')
-const providerModelStorageKey = (providerId: string) => `settings/hearing/provider-model/${encodeURIComponent(providerId)}`
 
 function formatVADThreshold(value: number) {
   return value.toFixed(2)
@@ -246,6 +248,8 @@ async function stopAudioMonitoring() {
 
 // Monitoring toggle
 async function toggleMonitoring() {
+  shouldRestartMonitoringAfterProviderChange = false
+
   if (!isMonitoring.value) {
     await setupAudioMonitoring()
   }
@@ -363,27 +367,46 @@ watch([selectedAudioInput, useVADModel], async () => {
   await setupAudioMonitoring()
 })
 
-watch(activeTranscriptionProvider, async (provider, previousProvider) => {
-  const shouldRestartMonitoring = isMonitoring.value
+watch(activeTranscriptionProvider, async (provider, _previousProvider, onCleanup) => {
+  let isCurrentProviderChange = true
+  onCleanup(() => {
+    isCurrentProviderChange = false
+  })
 
-  if (shouldRestartMonitoring) {
+  if (isMonitoring.value)
+    shouldRestartMonitoringAfterProviderChange = true
+
+  if (isMonitoring.value) {
     isMonitoring.value = false
     await stopAudioMonitoring()
+    if (!isCurrentProviderChange)
+      return
   }
 
   clearPlaygroundSegments()
 
-  if (!provider)
-    return
+  if (activeModelProvider && activeModelProvider !== provider)
+    hearingStore.saveProviderModel(activeModelProvider, activeTranscriptionModel.value)
 
-  if (previousProvider !== undefined && typeof localStorage !== 'undefined') {
-    localStorage.setItem(providerModelStorageKey(previousProvider), activeTranscriptionModel.value)
-    const savedModel = localStorage.getItem(providerModelStorageKey(provider))
+  if (!provider) {
+    activeModelProvider = ''
+    activeTranscriptionModel.value = ''
+    activeCustomModelName.value = ''
+    shouldRestartMonitoringAfterProviderChange = false
+    return
+  }
+
+  if (activeModelProvider !== provider) {
+    const savedModel = hearingStore.getSavedProviderModel(provider)
     activeTranscriptionModel.value = savedModel ?? ''
     activeCustomModelName.value = savedModel ?? ''
+    activeModelProvider = provider
   }
 
   await hearingStore.loadModelsForProvider(provider)
+  if (!isCurrentProviderChange)
+    return
+
   syncOpenAICompatibleSettings()
 
   const models = providerModels.value
@@ -392,8 +415,10 @@ watch(activeTranscriptionProvider, async (provider, previousProvider) => {
     activeCustomModelName.value = models[0].id
   }
 
-  if (shouldRestartMonitoring)
+  if (isCurrentProviderChange && shouldRestartMonitoringAfterProviderChange) {
+    shouldRestartMonitoringAfterProviderChange = false
     await setupAudioMonitoring()
+  }
 }, { immediate: true })
 
 onMounted(async () => {
