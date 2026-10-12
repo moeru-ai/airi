@@ -133,23 +133,6 @@ describe('main window fullscreen store', () => {
     expect(router.currentRoute.value.path).toBe('/settings/airi-card')
   })
 
-  // After a chat mode switch moves the chat out, the settings that the user opened stay.
-  it('removes a surface whose content moved away, and closes only when nothing is left', async () => {
-    const { fullscreen } = await setup()
-    await fullscreen.open('settings')
-    fullscreen.settle('open')
-    await fullscreen.open('chat')
-
-    await fullscreen.dismiss('chat')
-
-    expect(fullscreen.surface).toBe('settings')
-    expect(fullscreen.phase).toBe('open')
-
-    await fullscreen.dismiss('settings')
-
-    expect(fullscreen.phase).toBe('closing')
-  })
-
   it('shows the kept surface at once after a reload', async () => {
     const { router, fullscreen } = await setup({ startAt: '/settings/airi-card' })
 
@@ -177,5 +160,51 @@ describe('main window fullscreen store', () => {
 
     expect(router.currentRoute.value.path).toBe('/workspace')
     expect(fullscreen.phase).toBe('closing')
+  })
+
+  // A move between windows hands every mounted surface its own state, and the same surface stays in front.
+  it('packs each mounted surface with its state, and the next host restores them', async () => {
+    const { fullscreen } = await setup()
+    await fullscreen.open('settings', '/settings/airi-card')
+    fullscreen.settle('open')
+    await fullscreen.open('chat')
+    fullscreen.carry('settings', { collect: () => '/settings/airi-card', restore: () => {} })
+    fullscreen.carry('chat', { collect: () => 'unsent draft', restore: () => {} })
+
+    const packed = await fullscreen.pack()
+    if (!packed)
+      throw new Error('The open mode packed nothing')
+
+    expect(packed).toEqual({ surface: 'chat', surfaces: [{ id: 'settings', state: '/settings/airi-card' }, { id: 'chat', state: 'unsent draft' }] })
+
+    const next = await setup({ host: 'workspace-window' })
+    await next.fullscreen.unpack(packed)
+    const restore = vi.fn()
+    next.fullscreen.carry('chat', { collect: () => undefined, restore })
+
+    expect([...next.fullscreen.mounted]).toEqual(['settings', 'chat'])
+    expect(next.fullscreen.surface).toBe('chat')
+    expect(next.fullscreen.phase).toBe('expanding')
+    await vi.waitFor(() => expect(restore).toHaveBeenCalledWith('unsent draft'))
+  })
+
+  // Only an open mode has surfaces to hand over.
+  it('packs nothing while the mode is not open', async () => {
+    const { fullscreen } = await setup()
+
+    expect(await fullscreen.pack()).toBeUndefined()
+  })
+
+  // Turning the experiment off ends the mode from the chat first, and settings still move to the settings window.
+  it('packs while the mode closes, because its panels stay mounted until the transition ends', async () => {
+    const { fullscreen } = await setup()
+    await fullscreen.open('settings', '/settings/airi-card')
+    fullscreen.settle('open')
+    fullscreen.carry('settings', { collect: () => '/settings/airi-card', restore: () => {} })
+
+    await fullscreen.close()
+
+    expect(fullscreen.phase).toBe('closing')
+    expect(await fullscreen.pack()).toEqual({ surface: 'settings', surfaces: [{ id: 'settings', state: '/settings/airi-card' }] })
   })
 })

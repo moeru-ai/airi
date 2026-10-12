@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ChatDraftHandover } from '../../../shared/eventa'
+
 import { useElectronEventaContext } from '@proj-airi/electron-vueuse'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
@@ -11,6 +13,7 @@ import InteractiveArea from '../InteractiveArea.vue'
 
 import { electronFullscreenOpen } from '../../../shared/eventa'
 import { useChatDraftHandover } from '../../composables/use-chat-draft-handover'
+import { useFullscreenCarry } from '../../composables/use-fullscreen-carry'
 
 // The page of the chat surface: the legacy chat window, inside the fullscreen panel. The header takes the place of its
 // title bar, because the panel is not a window to drag.
@@ -26,6 +29,14 @@ const stopOpenListener = useElectronEventaContext().value.on(electronFullscreenO
     void receiveDraft()
 })
 onUnmounted(stopOpenListener)
+
+// The chat carries its unsent draft when the mode moves to another window.
+useFullscreenCarry<ChatDraftHandover>('chat', {
+  collect: () => interactiveArea.value?.snapshotDraft(),
+  restore: async (draft) => {
+    await interactiveArea.value?.restoreDraft(draft)
+  },
+})
 </script>
 
 <template>

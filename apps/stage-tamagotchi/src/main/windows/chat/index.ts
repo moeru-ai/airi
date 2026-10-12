@@ -77,7 +77,7 @@ export interface FullscreenChatHost {
   window: BrowserWindow
   /** The context of the window. The chat preferences and the draft handover of the fullscreen chat go through it. */
   context: EventaContext
-  /** Closes the fullscreen mode of this window when it shows the chat. */
+  /** Closes the fullscreen mode of this window, once the chat has moved to the window of another chat mode. */
   close: () => void
   /** Whether this window keeps the chat mounted, shown or hidden, so it has a composer to collect the draft from. */
   hasChat: () => boolean

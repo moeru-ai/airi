@@ -68,7 +68,13 @@ Each host is thin:
 To add a surface, add an entry to `fullscreenSurfaces`, and add its id to `FullscreenSurfaceId` in `src/shared/eventa`.
 The island then shows its button, and its panel stays mounted until the mode closes. The routes under its `prefixes` sit under the page of each host.
 
-The view of the character in the separate window is a second render. It does not follow speech or expressions.
+When the user changes the window mode, `moveFullscreen` in `src/main/windows/shared/fullscreen.ts` moves the workspace.
+It packs the surfaces of the old window, closes that window through its pages, and opens the pack in the new window.
+A page with unsaved changes can stop the move. A panel that holds state calls `useFullscreenCarry(surface, { collect, restore })`.
+The chat carries its unsent draft this way, and settings carry the page that shows.
+
+The view of the character in the separate window is a second render. It only renders the model, so the main window stays the one host of voice.
+It does not follow speech or expressions.
 
 ## Verification
 
@@ -81,7 +87,7 @@ pnpm -F @proj-airi/stage-tamagotchi exec vitest run src/main/services/airi/compu
 Run the tests of the fullscreen workspace:
 
 ```sh
-pnpm -F @proj-airi/stage-tamagotchi exec vitest run src/renderer/stores/fullscreen.test.ts src/renderer/window-context.test.ts src/main/windows/chat/mode-switch.test.ts
+pnpm -F @proj-airi/stage-tamagotchi exec vitest run src/renderer/stores/fullscreen.test.ts src/renderer/window-context.test.ts src/main/windows/chat/mode-switch.test.ts src/main/windows/shared/fullscreen.test.ts
 ```
 
 Set `AIRI_COMPUTER_USE_LIVE=1` to include the bundled CLI/private-daemon test.

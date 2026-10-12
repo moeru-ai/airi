@@ -1,4 +1,4 @@
-import type { FullscreenSurfaceId } from '../../../shared/eventa'
+import type { FullscreenPack, FullscreenSurfaceId } from '../../../shared/eventa'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { GodotStageManager } from '../../services/airi/godot-stage'
@@ -8,14 +8,16 @@ import type { AutoUpdater } from '../../services/electron/auto-updater'
 import type { GlobalShortcutService } from '../../services/electron/global-shortcut'
 import type { ChatWindowManager } from '../chat'
 import type { DevtoolsWindowManager } from '../devtools'
+import type { FullscreenPlace } from '../shared/fullscreen'
 import type { SpotlightWindowManager } from '../spotlight'
 import type { WidgetsWindowManager } from '../widgets'
 
 import { join, resolve } from 'node:path'
 
-import { defineInvokeHandler } from '@moeru/eventa'
+import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
+import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow, ipcMain, screen } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
@@ -25,6 +27,8 @@ import {
   electronFullscreenExit,
   electronFullscreenGetState,
   electronFullscreenOpen,
+  electronFullscreenPack,
+  electronFullscreenRequestClose,
   electronFullscreenSurfaceChanged,
   electronOpenMainDevtools,
   electronOpenSettings,
@@ -36,15 +40,13 @@ import { protectPrivilegedWindowNavigation } from '../shared'
 
 /** The page of the window. A surface without a page of its own, such as the chat, shows on it. */
 const WORKSPACE_PAGE = '/workspace'
-/** The first settings page, for a request that names none. */
-const SETTINGS_HOME = '/settings'
 
 /** The window of the `multi-window` fullscreen mode. */
 export interface WorkspaceWindowManager {
   /** Shows a surface in the window, creating the window when there is none. `route` goes to the surface, such as a settings page. */
   open: (surface: FullscreenSurfaceId, route?: string) => Promise<void>
-  /** Closes the window when it is open. Returns the settings page it showed, so settings can open there elsewhere. */
-  close: () => string | undefined
+  /** The window as a place of the fullscreen mode, so the mode can move here and away. */
+  place: FullscreenPlace
 }
 
 /**
@@ -60,7 +62,7 @@ export interface WorkspaceWindowManager {
  * - `isActive` answers whether the user chose the `multi-window` mode now.
  *
  * Returns:
- * - The functions that show a surface in the window and close it.
+ * - `open`, which shows a surface in the window, and `place`, the window as a place of the fullscreen mode.
  */
 export function setupWorkspaceWindowManager(params: {
   chatWindow: ChatWindowManager
@@ -83,12 +85,15 @@ export function setupWorkspaceWindowManager(params: {
   onOpenChange?: (open: boolean) => void
 }): WorkspaceWindowManager {
   const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
-  /** What the next window shows first. Its page reads the surface when it mounts, and the route is its first URL. */
-  let first: { surface: FullscreenSurfaceId, route?: string } = { surface: 'settings' }
+  /**
+   * What the next window shows first. Its page reads it when it mounts and opens the surface through the registry,
+   * like the main window does.
+   */
+  let first: { surface: FullscreenSurfaceId, route?: string, pack?: FullscreenPack } = { surface: 'settings' }
   /** The context of the open window. A request for another surface goes through it. */
   let context: ReturnType<typeof createContext>['context'] | undefined
-  /** What the page shows on the right, as it reports it. */
-  let surface: FullscreenSurfaceId | undefined
+  /** Asks the page of the open window to pack what it shows, and to close the mode. */
+  let requests: { pack: () => Promise<FullscreenPack | undefined>, close: () => Promise<boolean> } | undefined
   /** Whether the page keeps the chat mounted, shown or hidden. A mounted chat has a composer that holds the draft. */
   let chatMounted = false
 
@@ -142,13 +147,15 @@ export function setupWorkspaceWindowManager(params: {
     context = windowContext
     defineInvokeHandler(windowContext, electronFullscreenGetState, () => {
       const bounds = window.getBounds()
-      return { home: bounds, workArea: bounds, surface: first.surface }
+      return { home: bounds, workArea: bounds, ...first }
     })
     defineInvokeHandler(windowContext, electronFullscreenSurfaceChanged, (payload) => {
-      surface = payload?.surface
       chatMounted = !!payload?.mounted.includes('chat')
     })
     defineInvokeHandler(windowContext, electronFullscreenExit, () => reusable.close())
+    const requestPack = defineInvoke(windowContext, electronFullscreenPack)
+    const requestClose = defineInvoke(windowContext, electronFullscreenRequestClose)
+    requests = { pack: () => requestPack(), close: () => requestClose() }
     // The chat shows here too, so the window answers what a chat renderer asks.
     defineInvokeHandler(windowContext, electronOpenSettings, payload => params.openSettings(payload?.route))
     defineInvokeHandler(windowContext, electronOpenMainDevtools, () => window.webContents.openDevTools({ mode: 'detach' }))
@@ -166,13 +173,12 @@ export function setupWorkspaceWindowManager(params: {
     window.on('closed', () => {
       detachChat()
       context = undefined
-      surface = undefined
+      requests = undefined
       chatMounted = false
       params.onOpenChange?.(false)
     })
 
-    const route = first.route ?? (first.surface === 'settings' ? SETTINGS_HOME : WORKSPACE_PAGE)
-    await load(window, withHashRoute(rendererBase, route, {
+    await load(window, withHashRoute(rendererBase, WORKSPACE_PAGE, {
       query: { 'synced-leader': 'false', 'fullscreen-host': 'workspace-window' },
     }))
 
@@ -182,10 +188,10 @@ export function setupWorkspaceWindowManager(params: {
     return window
   })
 
-  async function open(next: FullscreenSurfaceId, route?: string) {
+  async function open(next: FullscreenSurfaceId, route?: string, pack?: FullscreenPack) {
     const existing = reusable.getOpenWindow()
     if (existing && context) {
-      context.emit(electronFullscreenOpen, { surface: next, route })
+      context.emit(electronFullscreenOpen, { surface: next, route, pack })
       if (existing.isMinimized())
         existing.restore()
       existing.show()
@@ -193,22 +199,26 @@ export function setupWorkspaceWindowManager(params: {
       return
     }
 
-    first = { surface: next, route }
+    first = { surface: next, route, pack }
     const window = await reusable.getWindow()
     window.focus()
   }
 
-  function close() {
-    const window = reusable.getOpenWindow()
-    if (!window)
-      return undefined
-    // The page routes with the URL hash, so the hash names the settings page while settings show.
-    const route = surface === 'settings'
-      ? new URL(window.webContents.getURL()).hash.slice(1) || SETTINGS_HOME
-      : undefined
-    reusable.close()
-    return route
+  const place: FullscreenPlace = {
+    pack: async () => {
+      const window = reusable.getOpenWindow()
+      return window && !isRendererUnavailable(window) ? requests?.pack() : undefined
+    },
+    close: async () => {
+      const window = reusable.getOpenWindow()
+      if (!window || isRendererUnavailable(window) || !requests) {
+        reusable.close()
+        return true
+      }
+      return requests.close()
+    },
+    open: pack => open(pack.surface, undefined, pack),
   }
 
-  return { open, close }
+  return { open, place }
 }

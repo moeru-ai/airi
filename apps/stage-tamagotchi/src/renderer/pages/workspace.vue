@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { errorMessageFrom } from '@moeru/std'
-import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { ModelSettingsPreviewStage } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings'
 import { useWindowSize } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, watch } from 'vue'
 
 import FullscreenBackdrop from '../components/fullscreen/fullscreen-backdrop.vue'
 import FullscreenOverlay from '../components/fullscreen/fullscreen-overlay.vue'
 
-import { electronFullscreenClose, electronFullscreenExit, electronFullscreenGetState, electronFullscreenOpen } from '../../shared/eventa'
-import { fullscreenHostPages, fullscreenSurfaceOf } from '../components/fullscreen/surfaces'
+import { electronFullscreenExit, electronFullscreenGetState } from '../../shared/eventa'
+import { fullscreenHostPages } from '../components/fullscreen/surfaces'
+import { useFullscreenHost } from '../composables/use-fullscreen-host'
 import { provideFullscreenLayout } from '../composables/use-fullscreen-layout'
 import { useFullscreenStore } from '../stores/fullscreen'
 
@@ -21,7 +21,6 @@ import { useFullscreenStore } from '../stores/fullscreen'
 const fullscreen = useFullscreenStore()
 fullscreen.home = fullscreenHostPages['workspace-window']
 const { phase } = storeToRefs(fullscreen)
-const router = useRouter()
 const layout = provideFullscreenLayout()
 const { width: windowWidth, height: windowHeight } = useWindowSize()
 /** The scene of each renderer fills the stage frame. */
@@ -36,26 +35,7 @@ const stageFrameStyle = computed(() => {
   }
 })
 
-const eventaContext = useElectronEventaContext()
-// A settings entry point or the fullscreen chat mode asks for another surface while the window is open.
-const stopOpenListener = eventaContext.value.on(electronFullscreenOpen, (event) => {
-  if (event?.body)
-    void fullscreen.open(event.body.surface, event.body.route)
-})
-// A chat mode switch away from the fullscreen chat removes it once the new chat window holds the draft.
-const stopCloseListener = eventaContext.value.on(electronFullscreenClose, (event) => {
-  if (event?.body)
-    void fullscreen.dismiss(event.body.surface)
-})
-onUnmounted(() => {
-  stopOpenListener()
-  stopCloseListener()
-})
-// A settings page that returns to this page on its own, such as its back button on the first page, ends the mode.
-watch(() => fullscreenSurfaceOf(router.currentRoute.value.path), (current, previous) => {
-  if (previous && !current)
-    void fullscreen.close()
-})
+useFullscreenHost()
 
 const getWindowState = useElectronEventaInvoke(electronFullscreenGetState)
 const closeWindow = useElectronEventaInvoke(electronFullscreenExit)
@@ -70,11 +50,15 @@ watch(phase, (next) => {
   }
 })
 
-// The main process knows which surface the window opened for. The route of the window already names the page.
+// The main process knows what the window opened for: a surface and its page, or what the previous host packed when
+// the mode moved here.
 onMounted(async () => {
   try {
     const state = await getWindowState()
-    await fullscreen.resume(state?.surface ?? 'settings')
+    if (state?.pack)
+      await fullscreen.unpack(state.pack)
+    else
+      await fullscreen.open(state?.surface ?? 'settings', state?.route)
   }
   catch (error) {
     console.error('[Fullscreen window] Failed to show the mode:', errorMessageFrom(error))

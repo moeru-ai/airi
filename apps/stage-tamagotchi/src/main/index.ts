@@ -3,6 +3,7 @@ import type { BrowserWindow } from 'electron'
 import type { FullscreenMode, FullscreenSurfaceId } from '../shared/eventa'
 import type { FileLoggerHandle } from './app/file-logger'
 import type { SettingsWindowManager } from './windows/settings'
+import type { FullscreenPlace } from './windows/shared/fullscreen'
 import type { WorkspaceWindowManager } from './windows/workspace'
 
 import process, { env, platform } from 'node:process'
@@ -62,6 +63,7 @@ import { setupMainWindow } from './windows/main'
 import { setupNoticeWindowManager } from './windows/notice'
 import { setupOnboardingWindowManager } from './windows/onboarding'
 import { setupSettingsWindowReusableFunc } from './windows/settings'
+import { moveFullscreen } from './windows/shared/fullscreen'
 import { setupSpotlightWindowManager } from './windows/spotlight'
 import { setupWidgetsWindowManager } from './windows/widgets'
 import { setupWorkspaceWindowManager } from './windows/workspace'
@@ -163,6 +165,8 @@ let workspaceWindowManager: WorkspaceWindowManager | undefined
 let fullscreenMode: FullscreenMode = 'off'
 /** Shows a surface in the fullscreen mode of the main window, and returns `false` unless the mode is `single-window`. */
 let openFullscreenInMainWindow: ((surface: FullscreenSurfaceId, route?: string) => boolean) | undefined
+/** The main window as a place of the fullscreen mode, once it exists. */
+let mainWindowPlace: FullscreenPlace | undefined
 /** Keeps the main window above the others, for the window of the `multi-window` mode that covers the screen under it. */
 let keepMainWindowAbove: ((above: boolean) => void) | undefined
 let extensionManagementWebContentsId: number | undefined
@@ -176,6 +180,33 @@ async function openSettings(route?: string) {
     return
   }
   await settingsWindowManager?.openWindow(route)
+}
+
+/** The settings window as a place of the fullscreen mode. It shows settings while the mode is off. */
+const settingsWindowPlace: FullscreenPlace = {
+  pack: async () => {
+    const route = settingsWindowManager?.shownRoute()
+    return route ? { surface: 'settings', surfaces: [{ id: 'settings', state: route }] } : undefined
+  },
+  close: async () => {
+    settingsWindowManager?.closeWindow()
+    return true
+  },
+  // Settings carry the route that shows. The settings window shows only settings, so other surfaces stay behind.
+  open: async (pack) => {
+    const settings = pack.surfaces.find(entry => entry.id === 'settings')
+    if (settings)
+      await settingsWindowManager?.openWindow(typeof settings.state === 'string' ? settings.state : undefined)
+  },
+}
+
+/** The place where the fullscreen mode shows in a mode. */
+function placeOf(mode: FullscreenMode): FullscreenPlace | undefined {
+  if (mode === 'single-window')
+    return mainWindowPlace
+  if (mode === 'multi-window')
+    return workspaceWindowManager?.place
+  return settingsWindowPlace
 }
 
 /** Shows the chat in the fullscreen mode, in the window that the mode names. */
@@ -415,16 +446,14 @@ app.whenReady().then(async () => {
       onKeepAbove: (keepAbove) => {
         keepMainWindowAbove = keepAbove
       },
-      // Settings follow the mode. A settings window or a `multi-window` mode window that the new mode does not use
-      // closes, and settings open on its page where the new mode says. The main window page does the same for its
-      // own settings.
-      onFullscreenModeChange: (mode) => {
+      onFullscreenPlace: (place) => {
+        mainWindowPlace = place
+      },
+      // What the mode shows moves to the place of the new mode, with every surface and its state.
+      onFullscreenModeChange: (mode, previous) => {
         fullscreenMode = mode
-        const settingsRoute = mode !== 'off' ? settingsWindowManager?.closeWindow() : undefined
-        const workspaceRoute = mode !== 'multi-window' ? workspaceWindowManager?.close() : undefined
-        const route = settingsRoute ?? workspaceRoute
-        if (route)
-          void openSettings(route)
+        void moveFullscreen(placeOf(previous), placeOf(mode))
+          .catch(error => log.withError(error).error('Failed to move the fullscreen mode to the new window mode'))
       },
     }),
   })

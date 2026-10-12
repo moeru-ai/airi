@@ -15,6 +15,7 @@ import type { EditorWindowManager } from '../editor'
 import type { NoticeWindowManager } from '../notice'
 import type { OnboardingWindowManager } from '../onboarding'
 import type { SettingsWindowManager } from '../settings'
+import type { FullscreenPlace } from '../shared/fullscreen'
 import type { SpotlightWindowManager } from '../spotlight'
 import type { WidgetsWindowManager } from '../widgets'
 
@@ -24,9 +25,10 @@ import { fileURLToPath } from 'node:url'
 
 import { is } from '@electron-toolkit/utils'
 import { useLogg } from '@guiiai/logg'
-import { defineInvokeHandler } from '@moeru/eventa'
+import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
+import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
 import { animate, cubicBezier, utils } from 'animejs'
 import { defu } from 'defu'
 import { BrowserWindow, ipcMain, screen } from 'electron'
@@ -35,7 +37,7 @@ import { array, number, object, optional, string } from 'valibot'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { electronFullscreenClose, electronFullscreenExit, electronFullscreenGetState, electronFullscreenOpen, electronFullscreenSetMode, electronFullscreenSurfaceChanged, electronMainWindowEnterFullscreen, electronMainWindowSetFullscreenBounds, electronStartDraggingWindow } from '../../../shared/eventa'
+import { electronFullscreenClose, electronFullscreenExit, electronFullscreenGetState, electronFullscreenOpen, electronFullscreenPack, electronFullscreenRequestClose, electronFullscreenSetMode, electronFullscreenSurfaceChanged, electronMainWindowEnterFullscreen, electronMainWindowSetFullscreenBounds, electronStartDraggingWindow } from '../../../shared/eventa'
 import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
@@ -80,8 +82,13 @@ export async function setupMainWindow(params: {
   onFullscreenOpener?: (open: (surface: FullscreenSurfaceId, route?: string) => boolean) => void
   /** Reports when fullscreen mode starts and ends. */
   onFullscreenChange?: (active: boolean) => void
-  /** Reports each time the page tells the fullscreen mode that the user chose, once a fullscreen chat has left a mode that went off. */
-  onFullscreenModeChange?: (mode: FullscreenMode) => void
+  /**
+   * Reports each time the page tells the fullscreen mode that the user chose, and the mode before it. A fullscreen chat
+   * has left a mode that went off by then.
+   */
+  onFullscreenModeChange?: (mode: FullscreenMode, previous: FullscreenMode) => void
+  /** Receives the main window as a place of the fullscreen mode, so the mode can move here and away. */
+  onFullscreenPlace?: (place: FullscreenPlace) => void
   /**
    * Receives the function that keeps this window above the others. The window of the `multi-window` mode covers the
    * screen, so it asks for it while it is open, and the character stays in view on the desktop.
@@ -380,8 +387,9 @@ export async function setupMainWindow(params: {
     // the window that shows it still does, so its draft moves too. The mode changes after that.
     if (mode === 'off')
       await params.chatWindow.leaveFullscreenMode()
+    const previous = fullscreenMode
     fullscreenMode = mode
-    params.onFullscreenModeChange?.(mode)
+    params.onFullscreenModeChange?.(mode, previous)
   })
 
   /**
@@ -400,6 +408,21 @@ export async function setupMainWindow(params: {
   }
 
   params.onFullscreenOpener?.(openFullscreen)
+  const requestPack = defineInvoke(fullscreenContext, electronFullscreenPack)
+  const requestClose = defineInvoke(fullscreenContext, electronFullscreenRequestClose)
+  params.onFullscreenPlace?.({
+    pack: async () => boundsBeforeFullscreen && !isRendererUnavailable(window) ? requestPack() : undefined,
+    close: async () => isRendererUnavailable(window) || requestClose(),
+    open: async (pack) => {
+      if (fullscreenMode !== 'single-window' || window.isDestroyed())
+        return
+      if (window.isMinimized())
+        window.restore()
+      if (!window.isVisible())
+        window.show()
+      fullscreenContext.emit(electronFullscreenOpen, { surface: pack.surface, pack })
+    },
+  })
   params.chatWindow.attachFullscreen({
     window,
     context: fullscreenContext,

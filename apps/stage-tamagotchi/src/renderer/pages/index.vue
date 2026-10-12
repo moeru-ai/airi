@@ -6,7 +6,6 @@ import type { FullscreenGlideCurve, FullscreenMode } from '../../shared/eventa'
 import { errorMessageFrom } from '@moeru/std'
 import { electron } from '@proj-airi/electron-eventa'
 import {
-  useElectronEventaContext,
   useElectronEventaInvoke,
   useElectronMouseAroundWindowBorder,
   useElectronMouseInElement,
@@ -40,9 +39,10 @@ import ControlsIslandRoot from '../components/stage-islands/controls-island/cont
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
 
-import { electronAppIsWayland, electronFullscreenClose, electronFullscreenExit, electronFullscreenGetState, electronFullscreenOpen, electronFullscreenSetMode, electronMainWindowEnterFullscreen, electronMainWindowSetFullscreenBounds, electronOpenInlay, electronOpenOnboarding, electronOpenSettings } from '../../shared/eventa'
+import { electronAppIsWayland, electronFullscreenExit, electronFullscreenGetState, electronFullscreenSetMode, electronMainWindowEnterFullscreen, electronMainWindowSetFullscreenBounds, electronOpenInlay, electronOpenOnboarding } from '../../shared/eventa'
 import { fullscreenSurfaceOf } from '../components/fullscreen/surfaces'
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
+import { useFullscreenHost } from '../composables/use-fullscreen-host'
 import { provideFullscreenLayout } from '../composables/use-fullscreen-layout'
 import { useScreenAmbientLight } from '../composables/use-screen-ambient-light'
 import { stageOpaqueAttribute } from '../composables/use-stage-painted-mask'
@@ -286,32 +286,12 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
 const fullscreen = useFullscreenStore()
 const { phase: fullscreenPhase, active: fullscreenActive } = storeToRefs(fullscreen)
 const router = useRouter()
-const eventaContext = useElectronEventaContext()
-// Every settings entry point and the fullscreen chat mode ask the main process, which forwards the request here.
-const stopOpenFullscreenListener = eventaContext.value.on(electronFullscreenOpen, (event) => {
-  if (event?.body)
-    void fullscreen.open(event.body.surface, event.body.route)
-})
-// A chat mode switch away from the fullscreen chat removes it once the new chat window holds the draft.
-const stopCloseFullscreenListener = eventaContext.value.on(electronFullscreenClose, (event) => {
-  if (event?.body)
-    void fullscreen.dismiss(event.body.surface)
-})
-onUnmounted(() => {
-  stopOpenFullscreenListener()
-  stopCloseFullscreenListener()
-})
-// A settings page that returns to the main page on its own, such as its back button on the first page, ends the mode.
-watch(() => fullscreenSurfaceOf(router.currentRoute.value.path), (current, previous) => {
-  if (previous && !current)
-    void fullscreen.close()
-})
+useFullscreenHost()
 const enterFullscreenWindow = useElectronEventaInvoke(electronMainWindowEnterFullscreen)
 const setFullscreenWindowBounds = useElectronEventaInvoke(electronMainWindowSetFullscreenBounds)
 const exitFullscreenWindow = useElectronEventaInvoke(electronFullscreenExit)
 const getFullscreenWindowState = useElectronEventaInvoke(electronFullscreenGetState)
 const setFullscreenMode = useElectronEventaInvoke(electronFullscreenSetMode)
-const openSettingsWindow = useElectronEventaInvoke(electronOpenSettings)
 const featureFlags = useFeatureFlagsStore()
 
 /** The mode that the user chose: the experiment turns it on, and its variant names the window. */
@@ -321,23 +301,15 @@ const fullscreenMode = computed<FullscreenMode>(() => {
   return featureFlags.variantOf(FULLSCREEN_WORKSPACE_FLAG.key) === 'multi-window' ? 'multi-window' : 'single-window'
 })
 
-// The choice lives in page storage, so the page reports it. Any mode but `single-window` closes the mode in this
-// window, after the main process moved a fullscreen chat out. The settings page that showed opens where the new mode
-// says. A blocked leave keeps the mode.
+// The choice lives in page storage, so the page reports it. The main process moves what the mode shows to the window
+// that the new mode names.
 watch(fullscreenMode, async (mode) => {
-  const route = router.currentRoute.value
-  const settingsPage = mode !== 'single-window' && fullscreenSurfaceOf(route.path) === 'settings' ? route.fullPath : undefined
   try {
     await setFullscreenMode({ mode })
   }
   catch (error) {
     console.error('[Main window fullscreen] Failed to report the mode:', errorMessageFrom(error))
   }
-  if (mode === 'single-window')
-    return
-  await fullscreen.close()
-  if (settingsPage && fullscreenPhase.value !== 'open')
-    await openSettingsWindow({ route: settingsPage })
 }, { immediate: true })
 
 /**

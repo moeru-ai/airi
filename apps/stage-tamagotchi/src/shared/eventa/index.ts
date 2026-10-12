@@ -46,6 +46,21 @@ export const electronOpenSettings = defineInvokeEventa<void, { route?: string }>
  */
 export type FullscreenSurfaceId = 'settings' | 'chat'
 
+/** The state that one mounted surface hands to the next host. The surface decides what it is. */
+export interface FullscreenCarriedSurface {
+  id: FullscreenSurfaceId
+  state?: unknown
+}
+
+/**
+ * What the fullscreen mode shows, packed by one host for the next one when the window mode changes: the surfaces that
+ * stay mounted with their states, and the surface in front.
+ */
+export interface FullscreenPack {
+  surface: FullscreenSurfaceId
+  surfaces: FullscreenCarriedSurface[]
+}
+
 /**
  * Starts the fullscreen mode of the main window. The window stops keeping its bounds in the config and leaves always on top.
  * Returns its bounds and the work area of its display, so the page can plan the move.
@@ -68,7 +83,7 @@ export const electronFullscreenSurfaceChanged = defineInvokeEventa<void, { surfa
  * the fullscreen mode at once. Returns the bounds before fullscreen, the work area, and the surface. The window of
  * the `multi-window` mode is always in the mode, and its two bounds are the same.
  */
-export const electronFullscreenGetState = defineInvokeEventa<{ home: Rectangle, workArea: Rectangle, surface?: FullscreenSurfaceId } | undefined>('eventa:invoke:electron:fullscreen:state')
+export const electronFullscreenGetState = defineInvokeEventa<{ home: Rectangle, workArea: Rectangle, surface?: FullscreenSurfaceId, route?: string, pack?: FullscreenPack } | undefined>('eventa:invoke:electron:fullscreen:state')
 /**
  * Ends the fullscreen mode of the window. The main window returns to the bounds and the always-on-top state that it had
  * before, and the window of the `multi-window` mode closes. The main process logs `reason`.
@@ -88,10 +103,23 @@ export type FullscreenMode = 'off' | 'single-window' | 'multi-window'
  * a chat in the fullscreen mode has moved to the default mode.
  */
 export const electronFullscreenSetMode = defineInvokeEventa<void, { mode: FullscreenMode }>('eventa:invoke:electron:fullscreen:mode')
-/** Asks the page of a window that hosts the fullscreen mode to show a surface. Settings entry points and the fullscreen chat mode send it while the experiment is on. */
-export const electronFullscreenOpen = defineEventa<{ surface: FullscreenSurfaceId, route?: string }>('eventa:event:electron:fullscreen:open')
-/** Asks the page of a window that hosts the fullscreen mode to close it when it shows `surface`, for a chat mode switch that leaves the fullscreen chat. */
+/**
+ * Asks the page of a window that hosts the fullscreen mode to show a surface. Settings entry points and the fullscreen
+ * chat mode send it while the experiment is on. With `pack`, the page shows what the previous host packed instead.
+ */
+export const electronFullscreenOpen = defineEventa<{ surface: FullscreenSurfaceId, route?: string, pack?: FullscreenPack }>('eventa:event:electron:fullscreen:open')
+/**
+ * Asks the page of a window that hosts the fullscreen mode to close the mode, for a chat mode switch that leaves the
+ * fullscreen chat. The new chat window holds the draft by then. `surface` names the surface that moved out.
+ */
 export const electronFullscreenClose = defineEventa<{ surface: FullscreenSurfaceId }>('eventa:event:electron:fullscreen:close')
+/** Asks the page of a host what the mode shows, packed for the next host. Answers `undefined` while the mode is closed. */
+export const electronFullscreenPack = defineInvokeEventa<FullscreenPack | undefined>('eventa:invoke:electron:fullscreen:pack')
+/**
+ * Asks the page of a host to close the mode the way its island does, so a page with unsaved changes can stop it.
+ * Answers whether the mode closes.
+ */
+export const electronFullscreenRequestClose = defineInvokeEventa<boolean>('eventa:invoke:electron:fullscreen:request-close')
 /** Shows the inlay without focus. The tray menu opens it with focus. */
 export const electronOpenInlay = defineInvokeEventa<void>('eventa:invoke:electron:windows:inlay:open')
 export const electronInlayHide = defineInvokeEventa<void>('eventa:invoke:electron:windows:inlay:hide')

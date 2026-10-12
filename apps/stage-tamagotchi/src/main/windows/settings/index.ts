@@ -25,8 +25,10 @@ import { setupSettingsWindowInvokes } from './rpc/index.electron'
 export interface SettingsWindowManager {
   getWindow: () => Promise<BrowserWindow>
   openWindow: (route?: string) => Promise<void>
-  /** Closes the settings window when it is open, and returns the route it showed, so settings can open there elsewhere. */
-  closeWindow: () => string | undefined
+  /** The route that the open settings window shows, or `undefined` while it is closed. */
+  shownRoute: () => string | undefined
+  /** Closes the settings window when it is open. */
+  closeWindow: () => void
 }
 
 export function setupSettingsWindowReusableFunc(params: {
@@ -111,19 +113,16 @@ export function setupSettingsWindowReusableFunc(params: {
     toggleWindowShow(window)
   }
 
-  function closeWindow() {
+  function shownRoute() {
     const window = reusable.getOpenWindow()
-    if (!window)
-      return undefined
     // The page routes with the URL hash, so the hash names the page that shows.
-    const route = new URL(window.webContents.getURL()).hash.slice(1) || defaultRoute
-    reusable.close()
-    return route
+    return window ? new URL(window.webContents.getURL()).hash.slice(1) || defaultRoute : undefined
   }
 
   return {
     getWindow: reusable.getWindow,
     openWindow,
-    closeWindow,
+    shownRoute,
+    closeWindow: reusable.close,
   }
 }
