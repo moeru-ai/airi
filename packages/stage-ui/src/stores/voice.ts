@@ -70,6 +70,7 @@ export const useVoiceStore = defineStore('voice', () => {
   const composerInputs = new Map<string, string | undefined>()
   let presentedInput: { requestId: string, attempt: SpeechInputAttempt } | undefined
 
+  const inputTracer = createVoiceInputTracer()
   const { controller, state, snapshot: transcript, error } = useVoiceController({
     transcriber: () => hearing.createTranscriber(),
     speech: (turn) => {
@@ -86,6 +87,9 @@ export const useVoiceStore = defineStore('voice', () => {
 
       // The composer owns this text as its own draft. No voice draft or message is created.
       composerInputs.set(submission.submissionId, submission.text)
+      // The composer sends dictated text later. Empty text gives the composer nothing to send.
+      if (submission.text.trim())
+        inputTracer.markComposer(submission.submissionId, submission.sessionId)
       return { status: 'drafted', draftId: submission.submissionId }
     },
     recordInterruption: async (event) => {
@@ -112,20 +116,18 @@ export const useVoiceStore = defineStore('voice', () => {
     console.error('[voice]', cause)
   }
 
-  const inputTracer = createVoiceInputTracer()
-  /** Set by a control just before it begins an input, so the trace names the trigger. */
-  let beginningFromControl = false
+  /**
+   * The cause of the input that begins next. A control sets `control` around its begin call, and the voice activity
+   * plugin reports `speech` or `wake-word` right before its begin call. `onInput` runs inside that call and reads it.
+   */
+  let beginCause: 'control' | 'speech' | 'wake-word' | undefined
 
   controller.onInput((attempt) => {
     presentedInput = { requestId: attempt.id, attempt }
-    // A control begins inputs itself. Any other input comes from the voice activity plugin: a wake that resolved on
-    // the same window starts the input after a wake word, and speech alone starts the rest.
-    if (beginningFromControl) {
-      inputTracer.start(attempt, 'control')
-      return
-    }
-    const wake = wakeWordDetection.claimWakeSpan()
-    inputTracer.start(attempt, wake ? 'wake-word' : 'speech', wake)
+    const cause = beginCause ?? 'speech'
+    beginCause = undefined
+    // Only an input that a wake began takes the wake span, so a wake that started nothing cannot join a later input.
+    inputTracer.start(attempt, cause, cause === 'wake-word' ? wakeWordDetection.claimWakeSpan() : undefined)
   })
 
   function publishSnapshot() {
@@ -162,12 +164,12 @@ export const useVoiceStore = defineStore('voice', () => {
   }
 
   function beginManual(sessionId: string) {
-    beginningFromControl = true
+    beginCause = 'control'
     try {
       return beginInput({ sessionId, interruptTurns: activeTurns.value.filter(turn => turn.sessionId === sessionId), start: { kind: 'after-silence' } })
     }
     finally {
-      beginningFromControl = false
+      beginCause = undefined
     }
   }
 
@@ -462,6 +464,9 @@ export const useVoiceStore = defineStore('voice', () => {
     const plugin = createVoiceActivityPlugin({
       detect: (window, signal) => model.score(window, signal),
       onActivity: inputTracer.activity,
+      beforeBeginInput: (cause) => {
+        beginCause = cause
+      },
       detectWakeWord: options.detectWakeWord ?? wakeWords?.detect,
       enabled: () => !voiceMessages.isRecording,
       silenceMs: () => hearing.endJudgeEnabled ? VOICE_END_SILENCE.pauseMs + VOICE_END_SILENCE.graceMs : VOICE_END_SILENCE.pauseMs,

@@ -208,3 +208,29 @@ export function takeVoiceTurnParent(turnId: string): Span | undefined {
   voiceTurnParents.delete(turnId)
   return span
 }
+
+/**
+ * Time in which the next turn of a session can continue the trace of a composer dictation.
+ * A dictation returns text to the composer, and the composer sends it later as a new message with a new turn ID.
+ */
+const COMPOSER_VOICE_LINK_MS = 60_000
+
+/**
+ * The newest finished composer dictation of each session.
+ *
+ * The link is by session, not by message, so it is a heuristic: the next turn of the session within
+ * {@link COMPOSER_VOICE_LINK_MS} takes it once. If the user discards the dictated text and sends typed text in that
+ * time, the typed turn also joins the dictation trace. The composer does not carry the input ID to its send.
+ */
+const composerVoiceParents = new Map<string, { span: Span, finishedAt: number }>()
+
+export function linkComposerVoice(sessionId: string, span: Span) {
+  composerVoiceParents.set(sessionId, { span, finishedAt: Date.now() })
+}
+
+/** Returns the composer dictation span of a session once, if it finished recently. */
+export function takeComposerVoiceParent(sessionId: string): Span | undefined {
+  const link = composerVoiceParents.get(sessionId)
+  composerVoiceParents.delete(sessionId)
+  return link && Date.now() - link.finishedAt < COMPOSER_VOICE_LINK_MS ? link.span : undefined
+}

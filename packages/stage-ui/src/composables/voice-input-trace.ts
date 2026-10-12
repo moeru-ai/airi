@@ -4,7 +4,7 @@ import type { SpeechInputAttempt, SpeechInputAttemptOutcome } from '@proj-airi/c
 import { SpanStatusCode } from '@opentelemetry/api'
 import { IOAttributes, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 
-import { activeVoiceInputSpan, linkVoiceTurn, startSpan } from './use-io-tracer'
+import { activeVoiceInputSpan, linkComposerVoice, linkVoiceTurn, startSpan } from './use-io-tracer'
 
 /**
  * What started a speech input.
@@ -24,6 +24,8 @@ const SEGMENT_PAUSE_MS = 300
 interface TracedInput {
   readonly span: Span
   segment?: { span: Span, speechMs: number, silenceMs: number, lastSpeechAt: number }
+  /** The session of a composer dictation. Its text returns to the composer instead of a draft. */
+  composerSessionId?: string
 }
 
 /**
@@ -50,6 +52,16 @@ export function createVoiceInputTracer() {
     activeVoiceInputSpan.value = span
     linkVoiceTurn(attempt.id, span)
     void attempt.done.then(outcome => settle(attempt.id, outcome))
+  }
+
+  /**
+   * Marks an input as a composer dictation. Its trace then waits for the next turn of the session, because the
+   * composer sends the dictated text later under a new message ID.
+   */
+  function markComposer(inputId: string, sessionId: string) {
+    const input = inputs.get(inputId)
+    if (input)
+      input.composerSessionId = sessionId
   }
 
   /**
@@ -105,8 +117,11 @@ export function createVoiceInputTracer() {
       input.span.setAttribute(IOAttributes.VoiceInputReason, outcome.stage)
       input.span.setStatus({ code: SpanStatusCode.ERROR, message: outcome.error.message })
     }
+    // A dictation that produced text continues in the next composer turn of its session.
+    if (input.composerSessionId && outcome.status === 'drafted')
+      linkComposerVoice(input.composerSessionId, input.span)
     // A draft that merged into an earlier draft is sent later under that draft's ID.
-    if (outcome.status === 'drafted' && outcome.draftId !== inputId)
+    else if (outcome.status === 'drafted' && outcome.draftId !== inputId)
       linkVoiceTurn(outcome.draftId, input.span)
 
     input.span.end()
@@ -114,5 +129,5 @@ export function createVoiceInputTracer() {
       activeVoiceInputSpan.value = undefined
   }
 
-  return { start, activity }
+  return { start, markComposer, activity }
 }

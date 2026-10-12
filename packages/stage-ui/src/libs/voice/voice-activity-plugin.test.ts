@@ -16,6 +16,7 @@ it('uses ordered VAD signals to capture, stream transcription, and submit to the
   let sessionId = 'alice'
   let attempt: SpeechInputAttempt | undefined
   const activity = vi.fn()
+  const causes = vi.fn()
   const controller = new VoiceController({ audio, submit, transcriber: () => ({
     transcribe: (request) => {
       const media = request.audio
@@ -33,6 +34,7 @@ it('uses ordered VAD signals to capture, stream transcription, and submit to the
     target: () => ({ sessionId, interruptTurns: [] }),
     onInput: () => { attempt = controller.activeInput },
     onActivity: activity,
+    beforeBeginInput: causes,
     minSpeechMs: 32,
     silenceMs: 64,
   }), { grants: ['input-control', 'cancel-input'] })
@@ -50,6 +52,7 @@ it('uses ordered VAD signals to capture, stream transcription, and submit to the
     [attempt!.id, false, 32],
     [attempt!.id, false, 32],
   ])
+  expect(causes.mock.calls).toEqual([['speech']])
   await controller.close()
 })
 
@@ -85,10 +88,12 @@ it('rejects playback echo and opens the matched character input only after playb
   let accepted = false
   const detected = vi.fn(async () => ({ sessionId: 'alice', interruptTurns: [turn] }))
   const gate = vi.fn(async () => accepted)
+  const causes = vi.fn()
   controller.use(createVoiceActivityPlugin({
     detect: async window => window.channels[0][0],
     detectWakeWord: async window => window.range.startFrame < 96 ? detected() : undefined,
     acceptSpeech: gate,
+    beforeBeginInput: causes,
     target: () => ({ sessionId: 'other', interruptTurns: [] }),
     minSpeechMs: 32,
     silenceMs: 32,
@@ -101,9 +106,12 @@ it('rejects playback echo and opens the matched character input only after playb
   await expect.poll(() => gate).toHaveBeenCalledOnce()
   expect(controller.activeInput).toBeUndefined()
   expect(fade).not.toHaveBeenCalled()
+  // Codex review on PR #2939: a wake that echo rejection dropped must not report a wake-word input.
+  expect(causes).not.toHaveBeenCalled()
   accepted = true
   push(32, 1)
   await expect.poll(() => fade).toHaveBeenCalledOnce()
+  expect(causes.mock.calls).toEqual([['wake-word']])
   const attempt = controller.activeInput!
   expect(attempt.state).toEqual({ phase: 'pending', waitingFor: 'silence' })
   push(64, 1)

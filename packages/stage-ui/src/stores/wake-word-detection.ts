@@ -113,8 +113,9 @@ export const useWakeWordDetectionStore = defineStore('wake-word-detection', () =
   }
 
   /**
-   * Returns the span of a wake that resolved within the last second, once.
-   * The voice activity plugin starts the input of a wake on its next window, so an older wake started no input.
+   * Returns the span of the newest resolved wake, once. Call it only for an input that a wake began.
+   * A wake that started no input stays unclaimed until a newer wake replaces it.
+   * The second limit drops a wake that resolved long before, for example while the plugin was paused.
    */
   function claimWakeSpan(): Span | undefined {
     const wake = unclaimedWake

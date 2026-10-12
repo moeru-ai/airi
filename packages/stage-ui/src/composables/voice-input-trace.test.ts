@@ -6,7 +6,7 @@ import { SpanStatusCode } from '@opentelemetry/api'
 import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { activeVoiceInputSpan, onIOSpan, runInSpan, startSpan, takeVoiceTurnParent } from './use-io-tracer'
+import { activeVoiceInputSpan, onIOSpan, runInSpan, startSpan, takeComposerVoiceParent, takeVoiceTurnParent } from './use-io-tracer'
 import { createVoiceInputTracer } from './voice-input-trace'
 
 const spans: ReadableSpan[] = []
@@ -73,6 +73,36 @@ describe('createVoiceInputTracer', () => {
     expect(takeVoiceTurnParent('earlier-draft')).toBe(span)
     // A turn takes its parent once.
     expect(takeVoiceTurnParent('earlier-draft')).toBeUndefined()
+  })
+
+  // Codex review on PR #2939: the composer sends dictated text under a new message ID, so the input ID never matches.
+  it('links a composer dictation to the next turn of its session, once and only for a short time', async () => {
+    const tracer = createVoiceInputTracer()
+    const first = attempt('dictation-1')
+    tracer.start(first, 'control')
+    const span = activeVoiceInputSpan.value
+    tracer.markComposer('dictation-1', 'alice')
+    first.settle({ status: 'drafted', draftId: 'dictation-1' })
+    await vi.waitFor(() => expect(spansNamed(IOSpanNames.VoiceInput)).toHaveLength(1))
+
+    expect(takeComposerVoiceParent('bob')).toBeUndefined()
+    expect(takeComposerVoiceParent('alice')).toBe(span)
+    expect(takeComposerVoiceParent('alice')).toBeUndefined()
+
+    vi.useFakeTimers()
+    try {
+      const second = attempt('dictation-2')
+      tracer.start(second, 'control')
+      tracer.markComposer('dictation-2', 'alice')
+      second.settle({ status: 'drafted', draftId: 'dictation-2' })
+      await vi.waitFor(() => expect(spansNamed(IOSpanNames.VoiceInput)).toHaveLength(2))
+      vi.advanceTimersByTime(61_000)
+
+      expect(takeComposerVoiceParent('alice')).toBeUndefined()
+    }
+    finally {
+      vi.useRealTimers()
+    }
   })
 
   it('records one VAD span for each speech segment, and closes an open segment with the input', async () => {

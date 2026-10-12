@@ -16,6 +16,12 @@ export interface VoiceActivityOptions {
   readonly enabled?: () => boolean
   readonly onInput?: () => void
   /**
+   * Runs right before the plugin begins an input, with the reason. The controller announces the input
+   * synchronously inside that call, so the host knows the cause of the input that it is told about next.
+   * A wake that does not lead to a begin, for example after echo rejection, never reaches this callback.
+   */
+  readonly beforeBeginInput?: (cause: 'wake-word' | 'speech') => void
+  /**
    * Receives the VAD result of each window that the plugin noted on its input, in window order.
    * The voice host traces speech segments with it. It never changes how the input starts or ends.
    */
@@ -79,6 +85,7 @@ export function createVoiceActivityPlugin(options: VoiceActivityOptions): VoiceP
         if (!target)
           return
 
+        options.beforeBeginInput?.(wake ? 'wake-word' : 'speech')
         const result = ctx.controls.beginInput({ ...target, start: wake
           ? { kind: 'after-silence' }
           : { kind: 'speech-onset', at: { sourceId: ctx.window.range.sourceId, frame: ctx.window.range.startFrame }, preRollMs: options.preRollMs ?? 360 } })
