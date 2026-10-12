@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
-import { useMouse, useWindowSize } from '@vueuse/core'
+import { ModelSettingsPreviewStage } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings'
+import { useWindowSize } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -24,8 +24,8 @@ const { phase } = storeToRefs(fullscreen)
 const router = useRouter()
 const layout = provideFullscreenLayout()
 const { width: windowWidth, height: windowHeight } = useWindowSize()
-const { x: mouseX, y: mouseY } = useMouse({ type: 'client' })
-const cursorPosition = computed(() => ({ x: mouseX.value, y: mouseY.value }))
+/** The scene of each renderer fills the stage frame. */
+const SCENE_CLASS = ['h-full', 'w-full']
 
 const stageFrameStyle = computed(() => {
   const stage = layout.stageSizeIn({ width: windowWidth.value, height: windowHeight.value })
@@ -88,10 +88,13 @@ onMounted(async () => {
       <FullscreenBackdrop />
     </div>
     <div :style="stageFrameStyle" :class="['absolute left-0 top-0 z-2', 'overflow-hidden', 'rounded-2xl']">
-      <WidgetStage
-        h-full w-full
-        :cursor-position="cursorPosition"
-        :paused="false"
+      <!-- The stage of the main window is the one host of voice. This view only renders the model, so it never speaks or listens. -->
+      <ModelSettingsPreviewStage
+        :live2d-scene-class="SCENE_CLASS"
+        :vrm-scene-class="SCENE_CLASS"
+        :spine-scene-class="SCENE_CLASS"
+        :tachie-scene-class="SCENE_CLASS"
+        :mmd-scene-class="SCENE_CLASS"
       />
     </div>
     <div :class="['pointer-events-none absolute inset-0 z-3']">
