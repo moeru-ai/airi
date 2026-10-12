@@ -214,4 +214,22 @@ describe('widget window lifecycle', () => {
 
     expect(manager.getWidgetSnapshot(id)).toBeUndefined()
   })
+
+  it('preserves TTLs exceeding 32-bit timer limit and destroys widget across chunks', async () => {
+    const manager = createManager()
+    const ttlMs = 2_147_483_647 + 5000
+    const id = await manager.pushWidget({
+      componentName: 'weather',
+      ttlMs,
+    })
+    const window = mocks.windows[0]
+
+    await vi.advanceTimersByTimeAsync(2_147_483_647)
+    expect(manager.getWidgetSnapshot(id)).toBeDefined()
+    expect(window.close).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(manager.getWidgetSnapshot(id)).toBeUndefined()
+    expect(window.close).toHaveBeenCalledOnce()
+  })
 })

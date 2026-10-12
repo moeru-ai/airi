@@ -247,6 +247,7 @@ function createWidgetsWindow() {
 }
 
 interface WidgetRecord extends WidgetSnapshot {
+  expiresAt?: number
   timer?: ReturnType<typeof setTimeout>
 }
 
@@ -335,23 +336,50 @@ export function setupWidgetsWindowManager(params: {
   }
 
   function toSnapshot(record: WidgetRecord): WidgetSnapshot {
-    const { timer: _timer, ...snapshot } = record
+    const { expiresAt: _expiresAt, timer: _timer, ...snapshot } = record
     return snapshot
   }
+
+  // NOTICE:
+  // Node.js setTimeout clamps delays larger than 2,147,483,647 ms to 1 ms.
+  // The 32-bit signed integer limit causes immediate timer execution on overflow.
+  // Source: Node.js timers implementation in lib/internal/timers.js.
+  // Removal condition: Remove when Node.js supports 64-bit timer delays.
+  const MAX_TIMEOUT_MS = 2_147_483_647
 
   function scheduleDestruction(record: WidgetRecord) {
     if (record.timer)
       clearTimeout(record.timer)
 
-    record.timer = record.ttlMs > 0
-      ? setTimeout(destroyWidget, record.ttlMs, record.id)
-      : undefined
+    if (record.ttlMs <= 0) {
+      record.expiresAt = undefined
+      record.timer = undefined
+      return
+    }
+
+    record.expiresAt = Date.now() + record.ttlMs
+
+    const armTimer = () => {
+      const current = widgetRecords.get(record.id)
+      if (!current || !current.expiresAt)
+        return
+
+      const remainingMs = current.expiresAt - Date.now()
+      if (remainingMs <= 0) {
+        destroyWidget(record.id)
+        return
+      }
+
+      current.timer = setTimeout(armTimer, Math.min(remainingMs, MAX_TIMEOUT_MS))
+    }
+
+    armTimer()
   }
 
   function createRecord(snapshot: WidgetSnapshot) {
     const record: WidgetRecord = { ...snapshot }
-    scheduleDestruction(record)
     widgetRecords.set(snapshot.id, record)
+    scheduleDestruction(record)
   }
 
   // Each widget id owns one record, one timer, and one window context.
@@ -630,11 +658,12 @@ export function setupWidgetsWindowManager(params: {
 
     const nextRecord: WidgetRecord = {
       ...nextSnapshot,
+      expiresAt: existing.expiresAt,
       timer: existing.timer,
     }
+    widgetRecords.set(payload.id, nextRecord)
     if (payload.ttlMs !== undefined)
       scheduleDestruction(nextRecord)
-    widgetRecords.set(payload.id, nextRecord)
 
     const windowContext = windowContexts.get(payload.id)
     const window = windowContext?.window
