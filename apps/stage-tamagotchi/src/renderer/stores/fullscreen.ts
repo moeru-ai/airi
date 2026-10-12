@@ -80,7 +80,7 @@ export const useFullscreenStore = defineStore('fullscreen', () => {
 
   /**
    * Closes the mode. The router leaves the surface pages first. A page that stops it, such as the card editor with
-   * unsaved changes, keeps the mode open, and settings show so that its dialog is in view.
+   * unsaved changes, keeps the mode open, and its surface shows so that its dialog is in view.
    */
   async function close() {
     if (phase.value !== 'open')
@@ -88,8 +88,12 @@ export const useFullscreenStore = defineStore('fullscreen', () => {
     if (fullscreenSurfaceOf(router.currentRoute.value.path)) {
       const failure = await router.push(home.value)
       if (failure) {
-        show('settings')
-        report('settings')
+        // The page that stopped the leave keeps its route, so its surface comes into view with its dialog.
+        const blocked = fullscreenSurfaceOf(router.currentRoute.value.path)
+        if (blocked) {
+          show(blocked)
+          report(blocked)
+        }
         return
       }
     }
