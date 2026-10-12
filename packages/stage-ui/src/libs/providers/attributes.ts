@@ -43,6 +43,7 @@ const providerAttributesById = {
   'alibaba-cloud-model-studio': paidCloud,
   'aliyun-nls-transcription': paidCloud,
   'amazon-bedrock': paidCloud,
+  'anonrouter': paidCloud,
   'anthropic': paidCloud,
   'app-local-audio-speech': freeLocal,
   'app-local-audio-transcription': freeLocal,

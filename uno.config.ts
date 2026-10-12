@@ -2,6 +2,7 @@ import type { WebFontMeta } from '@unocss/preset-web-fonts'
 import type { Preset, PresetOrFactoryAwaitable } from 'unocss'
 
 import { setDefaultAutoSelectFamilyAttemptTimeout } from 'node:net'
+import { fileURLToPath } from 'node:url'
 
 import { createExternalPackageIconLoader } from '@iconify/utils/lib/loader/external-pkg'
 import { presetChromatic } from '@proj-airi/unocss-preset-chromatic'
@@ -182,6 +183,9 @@ export function sharedUnoConfig() {
     // If you want to extract them, use the following configuration.
     // It's necessary to add the following configuration if you use shadcn-vue or shadcn-svelte.
     content: {
+      filesystem: [
+        fileURLToPath(new URL('./packages/provider-inference/src/**/*.ts', import.meta.url)).replaceAll('\\', '/'),
+      ],
       pipeline: {
         include: [
           // the default
@@ -191,6 +195,7 @@ export function sharedUnoConfig() {
           '(components|src)/**/*.{js,ts,vue}', // THIS CAN INCLUDE node_modules
           '**/stage-ui/**/*.{vue,js,ts}', // THIS TOO
           '**/ui/**/*.{vue,js,ts}', // THIS TOO
+          '**/provider-inference/src/**/*.ts',
         ],
         exclude: [
 
