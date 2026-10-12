@@ -1,6 +1,9 @@
 chat:
   actions:
     retry: Réessayer
+    reply: Répondre
+    send: Envoyer le message
+    stop: Arrêter la réponse
   message:
     character-name:
       core-system: Système central
@@ -12,6 +15,98 @@ chat:
     cloud-badge: Synchronisé dans le cloud
     new-chat-fallback: Nouvelle conversation
     delete: Supprimer conversation
+    delete-short: Supprimer
+    cancel: Annuler
+    current: Actuelle
+    confirm-delete-short: Confirmer la suppression
+    confirm-delete: Supprimer cette conversation et ses messages ?
+  voice-composer:
+    cancel: Annuler
+    push-to-talk: Appuyer pour parler
+    recording: Enregistrement en cours
+    audio: Message vocal
+    transcription: Dictée
+    hold-hint: Maintenez le bouton pour enregistrer. Cliquez pour alterner entre message vocal et dictée. Appuyez sur Entrée pour enregistrer sans maintenir le bouton.
+    listening: À l’écoute…
+    lock: Glissez vers le haut pour verrouiller
+    cancel-hint: Glissez vers la gauche pour annuler
+    processing: Finalisation…
+    send: Envoyer le message vocal
+    insert: Insérer le texte
+    retry: Renvoyer le message vocal
+    discard: Supprimer le message vocal
+    failed: La saisie vocale a échoué
+    configure-title: Configurer l’Audition
+    configure-description: Sélectionnez un fournisseur et un modèle de transcription dans Audition pour utiliser la dictée.
+    configure-action: Ouvrir l’Audition
+    mode: Saisie vocale
+    auto-send: Envoyer à l’arrêt de l’enregistrement
+    system-default: Par défaut du système
+    listen: Écouter en continu
+    push-to-talk-unavailable: Cet appareil n’a pas de touche pour parler, donc AIRI n’écoute pas. Changez le mode de saisie dans les paramètres d’Audition.
+    wake-word: Écouter les mots d’activation
+    hearing-settings: Autres paramètres d’Audition…
+    options-hint: Survolez ou faites un clic droit pour voir les options
+    stop: Arrêter l’enregistrement
+    stop-send: Arrêter et envoyer
+    play: Lire l’enregistrement
+  voice-preview:
+    speech: Parole
+    sensitivity: Sensibilité
+    device-placeholder: Sélectionnez un microphone
+    processing: Finalisation de la transcription
+    device: Périphérique d’entrée audio
+    device-description: Sélectionnez le microphone pour cet enregistrement.
+    level: Niveau d’entrée
+    activity: Activité vocale
+    threshold: Seuil de détection
+    sensitivity-description: Réglez le seuil de l’indicateur vocal.
+    start: Démarrer l’enregistrement
+    stop: Terminer l’enregistrement
+    failed: L’opération audio a échoué.
+  swipe-demo:
+    delete: Supprimer
+    show-label: Afficher les libellés
+    archive: Archiver
+    pin: Épingler
+    actions: Afficher les actions
+  voice-message:
+    transcribing: Transcription en cours…
+    recording: Enregistrement en cours
+    starting: Démarrage du microphone
+    preview: Message vocal enregistré
+    position: Position de lecture
+    no-speech: Aucune parole reconnue. Le message vocal n’a donc pas été envoyé.
+  provider-configuration:
+    title: Le fournisseur de conversation n’est pas configuré
+    description: Sélectionnez et vérifiez un fournisseur dans les paramètres avant d’envoyer un message.
+    action: Ouvrir les paramètres du fournisseur
+  voice-draft:
+    finalizing: Finalisation…
+    title: Brouillon vocal
+    discard: Supprimer le brouillon
+    listening: Écoute en cours
+  voice-input: Saisie vocale
+  error-details:
+    show: Afficher les détails
+    hide: Masquer les détails
+  images:
+    empty: Partagez une pensée ou une image.
+    use-vision: Utiliser le modèle de vision pour les images du chat
+    use-vision-description: Choisissez un fournisseur et un modèle ci-dessous. Il lit les images jointes avant la réponse du modèle de chat. Sans modèle de vision, les images vont directement au modèle de chat.
+    attach: Joindre des images
+    remove: Retirer {name}
+    unsupported: Utilisez des images PNG, JPEG, WebP ou GIF.
+    too-large: Chaque image doit faire 3 Mo ou moins.
+    too-many: Joignez jusqu’à {count} images à la fois.
+    total-too-large: La taille totale des images jointes ne doit pas dépasser 3 Mo.
+    read-failed: Impossible de lire cette image. Réessayez.
+    no-description: Le modèle de vision n’a renvoyé aucune description d’image. Vérifiez Paramètres → Modules → Vision et réessayez.
+    reading: Lecture des images…
+    description: Image jointe
+  reply:
+    cancel: Annuler la réponse
+    replying-to: Réponse à {name}
 render-error:
   title: '{renderer} n’a pas pu afficher ce modèle'
   description: Le modèle est sélectionné, mais la scène n’a pas pu l’afficher.
@@ -104,3 +199,67 @@ websocket-status:
   connected: Connecté
   disconnected: Aucune connexion
   open-settings: Ouvrir les paramètres de connexion
+mobile-tools:
+  title: Paramètres
+  appearance: Apparence
+  settings: Paramètres
+  view: Vue
+  hearing: Audition
+  sign-in: Se connecter à AIRI
+  account-description: Compte et préférences
+  sound: Son
+  character-voice: Voix du personnage
+  more: Plus
+  background: Arrière-plan
+  about: À propos
+  close-view: Enregistrer et fermer les contrôles de vue
+startup:
+  retry: Réessayer
+  continue-without-model: Continuer quand même
+  failed: Échec du démarrage
+  failed-resource: 'Impossible de charger : {resource}'
+  recover: Réessayez. Si l’échec se reproduit, ouvrez les détails ci-dessous.
+  recover-model: Réessayez ou continuez sans personnage. Vous pouvez choisir un autre modèle plus tard.
+  details: Que s’est-il passé ?
+  close-details: Fermer les détails
+  model-timeout: Le modèle du personnage a mis trop de temps à charger. Vérifiez votre connexion et réessayez.
+  resources:
+    auth: paramètres du compte
+    modelIndex: liste des modèles
+    card: paramètres du personnage
+    chat: historique du chat
+    services: services de l’application
+    modelData: modèles enregistrés
+    modelSelection: paramètres du modèle
+    audio: paramètres audio
+    model: modèle du personnage
+theme:
+  title: Thème
+  system: Système
+  light: Clair
+  dark: Sombre
+  switch-to-light: Passer au thème clair
+  switch-to-dark: Passer au thème sombre
+  switch-to-system: Suivre le thème du système
+status:
+  sign-in-error: Échec de la connexion
+  dismiss: Ignorer
+  listening: Écoute en cours
+  preparing: Préparation du microphone
+  paused: Écoute en pause pendant qu’AIRI parle
+  transcribing: Transcription en cours
+  hearing-error: Impossible de transcrire l’audio
+  no-transcript: Le texte reconnu apparaîtra ici.
+  signing-in: Terminez la connexion dans votre navigateur
+  confirming: Confirmation de la connexion
+  signed-in: Connexion réussie
+  sign-in-unconfirmed: Impossible de confirmer votre session. Reconnectez-vous.
+  configure-hearing: Sélectionnez et configurez un fournisseur d’Audition dans les paramètres.
+character-switcher:
+  title: Changer de personnage
+  manage: Gérer les personnages
+  empty: Aucun personnage pour le moment
+  failed: Impossible de changer de personnage. Réessayez.
+computer-use:
+  label: Utiliser l’ordinateur
+  description: Autoriser cette fenêtre de chat à examiner et contrôler les applications natives de cet ordinateur.

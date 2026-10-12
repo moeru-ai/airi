@@ -1,21 +1,21 @@
 electronCallback:
   title:
-    loading: 가입 완료 중
+    loading: 로그인 완료 중
     openingAiri: AIRI 여는 중
     signedIn: 로그인 되었습니다
-    signInFailed: 가입 실패
-    finishSignInInAiri: AIRI 가입 끝내기
+    signInFailed: 로그인 실패
+    finishSignInInAiri: AIRI 로그인 끝내기
     openAiriToContinue: AIRI를 열어서 계속해 주세요
   message:
-    checkingResponse: 가입 응답을 확인하고 AIRI에 핸드오프를 준비합니다.
-    passingToAiri: 가입 정보를 AIRI로 전달합니다. 이 창은 잠시 후 닫힐 것입니다.
-    syncedAndSafeToClose: 가입을 시도했던 AIRI 클라이언트에 알림을 보냈습니다.
+    checkingResponse: 로그인 응답을 확인하고 AIRI에 핸드오프를 준비합니다.
+    passingToAiri: 로그인 정보를 AIRI로 전달합니다. 이 창은 잠시 후 닫힐 것입니다.
+    syncedAndSafeToClose: 로그인을 시도했던 AIRI 클라이언트에 알림을 보냈습니다.
     invalidResponse: 잘못된 응답 형식입니다. 이 정보를 사용할 수 없습니다.
     loopbackUnreachable: 브라우저가 로컬 반환 포트를 통해 AIRI에 도달하지 못했습니다.
     tryOpenDirectly: 로컬 핸드오프를 직접 실행합니다. 실패할 경우, 하단의 버튼을 사용해 주세요.
     automaticHandoffFailed: 자동 핸드오프가 이 브라우저 세션에서 끝나지 못했습니다.
   label:
-    signIn: 가입하기
+    signIn: 로그인하기
     safeToClose: 이 탭을 닫으셔도 됩니다.
     whyStillHere: 이 탭이 왜 아직 여기 있을까요?
   action:
@@ -23,20 +23,58 @@ electronCallback:
   hint:
     closeTabManually: 일부 브라우저들은 이 창을 자동으로 닫는 것을 허용하지 않습니다. 수동으로 닫을 수 있습니다.
 signIn:
-  title: 가입
+  title: 로그인
   error:
-    fallback: 가입 실패
+    fallback: 로그인 실패
     unknown: 알 수 없는 오류가 발생했습니다
+    providerTimeout: 제공업체 로그인 시간이 초과되었습니다. 다시 시도하세요.
+    socialOnlyNoPassword: 이 이메일은 Google 또는 GitHub로 등록되었습니다. 아래 버튼으로 로그인하세요. 로그인 후 계정 설정에서 비밀번호를 추가할 수 있습니다.
+    passwordMismatch: 비밀번호와 확인 값이 일치하지 않습니다.
+    invalidEmail: 유효한 이메일 주소를 입력하세요.
   footer:
     prefix: 계속하시려면, 저희의
     terms: 이용 약관
     and: 및
     privacy: 정책
+  step:
+    identify:
+      heading: 로그인
+      description: 이메일을 입력하여 로그인하거나 계정을 만드세요.
+    password:
+      heading: 다시 오신 것을 환영합니다
+      description: '{email}(으)로 계속합니다.'
+    create:
+      heading: 계정 만들기
+      description: '{email}의 새 계정을 만듭니다.'
+  email:
+    label: 이메일
+  password:
+    label: 비밀번호
+    placeholder: 비밀번호 입력
+  newPassword:
+    label: 비밀번호 만들기
+    placeholder: 8자 이상
+  confirmPassword:
+    label: 비밀번호 확인
+    placeholder: 비밀번호 다시 입력
+  name:
+    label: 표시 이름
+    placeholder: 선택 사항이며 기본값은 이메일의 사용자 이름입니다
+  action:
+    continue: 계속
+    signIn: 로그인
+    createAccount: 계정 만들기
+    forgotPassword: 비밀번호를 잊으셨나요?
+    useDifferentEmail: 다른 이메일 사용
+  divider:
+    or: 또는
+  message:
+    redirecting: '{provider}(으)로 이동 중…'
 webCallback:
   title:
-    signIn: 가입
-    errorLabel: 가입 도중에 오류가 발생했습니다
-    loading: 가입 중...
+    signIn: 로그인
+    errorLabel: 로그인 도중에 오류가 발생했습니다
+    loading: 로그인 중...
   message:
     missingCodeOrState: 인증 코드 또는 상태가 누락되었습니다
     missingFlowState: OIDC flow 상태가 누락되었습니다 - 재로그인해 주세요
@@ -44,3 +82,120 @@ webCallback:
     finalizing: AIRI 인증 완료 중.
   action:
     tryAgain: 다시 시도해주세요
+verifyEmail:
+  title:
+    pending: 받은편지함 확인
+    success: 이메일 인증 완료
+    failed: 인증 실패
+  message:
+    pending: 이메일로 인증 링크를 보냈습니다. 링크를 열어 계정 생성을 완료하세요. 링크를 클릭하면 이 페이지가 자동으로 계속 진행됩니다.
+    pendingWithAddress: '{email}(으)로 인증 링크를 보냈습니다. 링크를 열어 계정 생성을 완료하세요. 링크를 클릭하면 이 페이지가 자동으로 계속 진행됩니다.'
+    success: 이메일이 인증되었고 로그인되었습니다. 이 탭을 닫아도 됩니다.
+    failed: 이메일을 인증하지 못했습니다({error}). 새 링크를 요청하세요.
+  action:
+    backToSignIn: 로그인으로 돌아가기
+forgotPassword:
+  title: 비밀번호 재설정
+  description: 계정에 연결된 이메일 주소를 입력하면 재설정 링크를 보내드립니다.
+  email:
+    label: 이메일
+  action:
+    send: 재설정 링크 보내기
+    backToSignIn: 로그인으로 돌아가기
+  message:
+    sent: '{email}에 해당하는 계정이 있으면 재설정 링크가 전송됩니다.'
+  error:
+    fallback: 비밀번호 재설정 이메일을 보내지 못했습니다.
+deleteAccount:
+  title:
+    success: 계정 삭제 완료
+    failed: 계정을 삭제하지 못했습니다
+  message:
+    success: 계정이 삭제되었습니다.
+  action:
+    closeTab: 이 탭을 닫아도 됩니다.
+resetPassword:
+  title:
+    default: 새 비밀번호 설정
+    success: 비밀번호 업데이트 완료
+  password:
+    label: 새 비밀번호
+    placeholder: 8자 이상
+  confirmPassword:
+    label: 새 비밀번호 확인
+    placeholder: 새 비밀번호 다시 입력
+  action:
+    reset: 비밀번호 업데이트
+    goSignIn: 로그인 화면으로 이동
+  message:
+    success: 비밀번호가 업데이트되었습니다. 새 비밀번호로 로그인하세요.
+  error:
+    fallback: 비밀번호를 업데이트하지 못했습니다.
+    missingToken: 재설정 링크가 유효하지 않거나 만료되었습니다.
+    passwordMismatch: 비밀번호와 확인 값이 일치하지 않습니다.
+profile:
+  title: 계정 프로필
+  description: 아바타, 표시 이름 및 연결된 계정을 관리하세요.
+  section:
+    profile: 프로필
+    avatar: 아바타
+    password: 비밀번호
+    linkedAccounts: 연결된 계정
+  field:
+    email: 이메일
+    emailVerified: 이메일 상태
+    createdAt: 가입 날짜
+  label:
+    verified: 인증됨
+    unverified: 인증되지 않음
+  name:
+    label: 표시 이름
+    placeholder: 다른 사람에게 보이는 이름
+  avatar:
+    altText: 프로필 아바타
+    gravatarNotice: Gravatar에서 제공하는 아바타입니다.
+    gravatarLink: gravatar.com에서 관리
+  password:
+    currentLabel: 현재 비밀번호
+    currentPlaceholder: 현재 비밀번호 입력
+    newLabel: 새 비밀번호
+    newPlaceholder: 8자 이상
+    confirmLabel: 새 비밀번호 확인
+    confirmPlaceholder: 새 비밀번호 다시 입력
+    setDescription: 외부 계정으로 로그인하여 아직 비밀번호가 없습니다. 비밀번호를 설정할 수 있는 안전한 링크를 이메일로 보내드립니다.
+    setLinkSent: 비밀번호 설정 링크를 {email}에서 확인하세요.
+    setLinkFailed: 비밀번호 설정 링크를 보내지 못했습니다.
+  linkedAccounts:
+    description: 이 제공업체를 통해 AIRI에 로그인합니다. 연결을 해제하면 접근 권한이 취소됩니다. 다시 연결하여 다른 계정으로 전환할 수 있습니다.
+    status:
+      linked: 연결됨
+      notLinked: 연결되지 않음
+      linkedSince: '{date}에 연결됨'
+    action:
+      link: 연결
+      unlink: 연결 해제
+    message:
+      loading: 연결된 계정 불러오는 중…
+      unlinked: '{provider} 연결이 해제되었습니다.'
+      linkStarted: '{provider}(으)로 이동 중…'
+    error:
+      listFailed: 연결된 계정을 불러오지 못했습니다.
+      unlinkFailed: 이 계정의 연결을 해제하지 못했습니다.
+      linkFailed: 연결 절차를 시작하지 못했습니다.
+      lastAccount: 현재 유일한 로그인 방법입니다. 연결을 해제하기 전에 비밀번호를 설정하세요.
+  action:
+    saveProfile: 변경 사항 저장
+    changePassword: 비밀번호 변경
+    sendSetPasswordLink: 비밀번호 설정 링크를 이메일로 받기
+    signOut: 로그아웃
+  message:
+    loading: 프로필 불러오는 중…
+    profileSaved: 프로필이 업데이트되었습니다.
+    passwordChanged: 비밀번호가 변경되었습니다. 다른 세션은 로그아웃되었습니다.
+  error:
+    loadFailed: 프로필을 불러오지 못했습니다.
+    saveFailed: 변경 사항을 저장하지 못했습니다.
+    changePasswordFailed: 비밀번호를 변경하지 못했습니다.
+    signOutFailed: 로그아웃하지 못했습니다.
+    passwordMismatch: 새 비밀번호와 확인 값이 일치하지 않습니다.
+    passwordSameAsCurrent: 새 비밀번호는 현재 비밀번호와 달라야 합니다.
