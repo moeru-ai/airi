@@ -67,4 +67,19 @@ describe('speech output control', () => {
     store.setSpeechVolume(-1)
     expect(store.speechVolume).toBe(0)
   })
+
+  it('couples zero volume with mute and restores the last audible volume on unmute', () => {
+    const store = createStore()
+    store.setSpeechVolume(0.42)
+    expect(store.speechMuted).toBe(false)
+    store.setSpeechVolume(0)
+    expect(store.speechMuted).toBe(true)
+    // Unmuting a zeroed slider restores audible playback instead of silent synthesis.
+    store.setSpeechMuted(false)
+    expect(store.speechVolume).toBe(0.42)
+    // Raising the volume while muted restores the voice.
+    store.setSpeechMuted(true)
+    store.setSpeechVolume(0.8)
+    expect(store.speechMuted).toBe(false)
+  })
 })

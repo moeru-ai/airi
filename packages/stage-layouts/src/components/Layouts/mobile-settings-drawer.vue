@@ -74,15 +74,8 @@ function finishSettingsClose() {
 
 const characterVoiceVolume = computed({
   get: () => Math.round(speechVolume.value * 100),
-  set: (percent) => {
-    speechOutputControl.setSpeechVolume(percent / 100)
-    // Zero volume and mute are the same user intent: dragging to 0 stops
-    // synthesis, and dragging away from 0 while muted restores the voice.
-    if (percent === 0 && characterVoiceEnabled.value)
-      characterVoiceEnabled.value = false
-    else if (percent > 0 && !characterVoiceEnabled.value)
-      characterVoiceEnabled.value = true
-  },
+  // The store couples zero volume with mute and restores the voice above 0.
+  set: percent => speechOutputControl.setSpeechVolume(percent / 100),
 })
 
 const characterVoiceIcon = computed(() => {
@@ -196,18 +189,18 @@ const characterVoiceIcon = computed(() => {
         </h3>
         <div :class="['overflow-hidden rounded-2xl bg-white dark:bg-neutral-800/60']">
           <div :class="['min-h-13 flex items-center gap-3 px-4 py-3']">
-            <button
-              type="button"
+            <BasicButton
+              size="unset"
               :aria-label="characterVoiceEnabled ? t('stage.speech-output.mute') : t('stage.speech-output.unmute')"
               :class="[
-                'size-9 flex shrink-0 items-center justify-center rounded-full',
+                'size-9 shrink-0 rounded-full',
                 'text-neutral-500 dark:text-neutral-400',
                 characterVoiceEnabled ? '' : 'text-neutral-400 dark:text-neutral-500',
               ]"
               @click="characterVoiceEnabled = !characterVoiceEnabled"
             >
               <span aria-hidden="true" :class="[characterVoiceIcon, 'size-5']" />
-            </button>
+            </BasicButton>
             <Range
               v-model="characterVoiceVolume"
               :aria-label="t('stage.mobile-tools.character-voice')"
