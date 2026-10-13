@@ -169,7 +169,8 @@ Upload mechanics are generic. The model domain only decides format, quota, and p
 - Object storage is required. The API does not start without `S3_BUCKET` and `S3_REGION`.
 - The local stack uses RustFS. The integration test proves that it rejects wrong bytes (400) and a second write to one key (412).
 - Conditional writes and checksum signing are not verified on the production provider. Run the same integration test against it.
-- The client stores models and pending uploads through the shared `unstorage` instance. Older `localforage` records move once.
+- The client keeps models and pending uploads in `localforage` with the existing keys. No local data moves in this change.
+- The move to the shared `unstorage` instance is a separate change. In `unstorage` 1.17.5, `getKeys()` of the IndexedDB driver with a `base` returns no keys, so a key scan cannot list models.
 - Package-level Live2D validation, card reference checks on delete, and stage-pocket acceptance are follow-up work.
 
 ## Affected files

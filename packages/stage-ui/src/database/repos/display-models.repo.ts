@@ -1,79 +1,65 @@
-import type { Storage } from 'unstorage'
-
 import type { TransferTask } from '../../libs/file-transfer/transfer-queue'
 import type { DisplayModelFile } from '../../stores/display-models'
 
 import localforage from 'localforage'
 
-import { storage as sharedStorage } from '../storage'
-
-/** The part of localforage that the migration reads. */
-export interface LegacyModelStore {
-  iterate: (callback: (value: Omit<DisplayModelFile, 'id'>, key: string) => void) => Promise<unknown>
-  removeItem: (key: string) => Promise<unknown>
+/** The part of localforage that the repository uses. */
+export interface DisplayModelStore {
+  getItem: <T>(key: string) => Promise<T | null>
+  setItem: <T>(key: string, value: T) => Promise<T>
+  removeItem: (key: string) => Promise<void>
+  iterate: <T, U>(callback: (value: T, key: string) => U) => Promise<U>
 }
 
-const modelBase = 'local:display-models'
-const uploadBase = 'local:display-model-uploads'
+type StoredDisplayModel = Omit<DisplayModelFile, 'id' | 'type' | 'name'> & { name?: string }
 
-const modelKey = (id: string) => `${modelBase}/${id}`
-const uploadKey = (id: string) => `${uploadBase}/${id}`
+const modelPrefix = 'display-model-'
+const uploadPrefix = 'transfer-task-'
 
 /**
  * Device storage for imported display models and their pending uploads.
- * Records hold a `File`, so every call uses the raw API. The JSON API would drop the bytes.
+ * Models keep the localforage keys that earlier releases wrote, so existing imports stay in place.
  */
-export function createDisplayModelsRepo(storage: Storage, legacy: LegacyModelStore) {
-  async function readAll<T>(base: string) {
-    const keys = await storage.getKeys(base)
-    const items = await Promise.all(keys.map(key => storage.getItemRaw<T>(key)))
-    return items.filter(item => item !== null && item !== undefined)
-  }
-
+export function createDisplayModelsRepo(store: DisplayModelStore) {
   return {
-    list: () => readAll<DisplayModelFile>(modelBase),
+    async list() {
+      const models: DisplayModelFile[] = []
+      await store.iterate<StoredDisplayModel, void>((value, key) => {
+        if (key.startsWith(modelPrefix))
+          models.push({ ...value, id: key, type: 'file', name: value.name ?? value.file.name })
+      })
+      return models
+    },
 
     async get(id: string) {
-      return await storage.getItemRaw<DisplayModelFile>(modelKey(id)) ?? undefined
+      return await store.getItem<DisplayModelFile>(id) ?? undefined
     },
 
     async save(model: DisplayModelFile) {
-      await storage.setItemRaw(modelKey(model.id), model)
+      await store.setItem(model.id, model)
     },
 
     async remove(id: string) {
-      await storage.removeItem(modelKey(id))
+      await store.removeItem(id)
     },
 
-    listUploads: () => readAll<TransferTask>(uploadBase),
+    async listUploads() {
+      const tasks: TransferTask[] = []
+      await store.iterate<TransferTask, void>((task, key) => {
+        if (key.startsWith(uploadPrefix))
+          tasks.push(task)
+      })
+      return tasks
+    },
 
     async saveUpload(task: TransferTask) {
-      await storage.setItemRaw(uploadKey(task.id), task)
+      await store.setItem(`${uploadPrefix}${task.id}`, task)
     },
 
     async removeUpload(id: string) {
-      await storage.removeItem(uploadKey(id))
-    },
-
-    // NOTICE:
-    // Moves models that earlier versions stored with localforage into the shared storage.
-    // Without it, users lose their imported models after the storage change.
-    // Source/context: stores/display-models.ts used localforage keys `display-model-*` before this change.
-    // Removal condition: releases that wrote localforage records are no longer supported.
-    async migrateFromLocalforage() {
-      const legacyModels: DisplayModelFile[] = []
-      await legacy.iterate((value, key) => {
-        if (key.startsWith('display-model-'))
-          legacyModels.push({ ...value, id: key })
-      })
-
-      for (const model of legacyModels) {
-        if (!await storage.hasItem(modelKey(model.id)))
-          await storage.setItemRaw(modelKey(model.id), model)
-        await legacy.removeItem(model.id)
-      }
+      await store.removeItem(`${uploadPrefix}${id}`)
     },
   }
 }
 
-export const displayModelsRepo = createDisplayModelsRepo(sharedStorage, localforage)
+export const displayModelsRepo = createDisplayModelsRepo(localforage)

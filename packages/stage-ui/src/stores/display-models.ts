@@ -124,7 +124,6 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     const authStore = useAuthStore()
 
     try {
-      await displayModelsRepo.migrateFromLocalforage()
       for (const model of await displayModelsRepo.list()) {
         // Downloaded private models stay hidden from other signed-in accounts on this device.
         if (model.cloudOwnerId && authStore.isAuthenticated && authStore.userId !== model.cloudOwnerId)
