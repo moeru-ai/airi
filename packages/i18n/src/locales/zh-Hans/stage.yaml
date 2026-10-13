@@ -252,6 +252,43 @@ websocket-status:
 computer-use:
   label: 使用电脑
   description: 允许此聊天窗口查看和操作本机应用。
+agent-permission:
+  title: Agent 权限
+  button: Agent 权限
+  button-description: 选择哪些工具调用不需要确认就直接执行。
+  enabled:
+    label: 启用 Agent
+    description: 允许 AIRI 调用工具，例如操控电脑、联网搜索、控制智能家居。关掉就只做纯聊天，不会请求任何确认。
+  full-access:
+    label: 完整权限
+    description: 所有工具调用都不再询问，包括执行命令和改动文件。
+  auto-approve-medium:
+    label: 跳过写入确认
+    description: 改动文件或发送命令的工具调用直接执行，不再询问。
+  mode-summary:
+    guarded: 风险操作逐个确认
+    medium: 只确认改动电脑的操作
+    full: 完整权限
+  request:
+    title: 确认这次操作
+    heading: AIRI 想执行一个工具
+    risk: 风险
+    details: 查看完整调用
+    approve: 仅这次允许
+    approve-always: 本次会话一直允许
+    deny: 拒绝
+    deny-note: 拒绝会把「用户不同意」回给模型，它接着说明自己做不到什么。
+  full-access-confirm:
+    title: 打开完整权限
+    heading: 完整权限意味着 AIRI 不再询问就动手
+    body: AIRI 可以执行命令、改动文件、操作其他应用。出错可能损坏你的数据。只在你盯着对话时打开。
+    confirm: 打开完整权限
+    cancel: 取消
+  recent:
+    title: 最近的决定
+    empty: 还没有工具调用需要确认。
+    approved: 已允许
+    denied: 已拒绝
 status:
   preparing: 正在准备麦克风
   listening: 正在听

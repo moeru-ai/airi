@@ -5,7 +5,7 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
 import { artistrySyncConfig } from '@proj-airi/stage-shared'
-import { ToasterRoot } from '@proj-airi/stage-ui/components'
+import { AgentApprovalDialog, ToasterRoot } from '@proj-airi/stage-ui/components'
 import { updateModelAssetStatus, useInferencePreload } from '@proj-airi/stage-ui/composables'
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { initializeAnalytics } from '@proj-airi/stage-ui/libs/product-signals'
@@ -418,6 +418,12 @@ onUnmounted(() => {
   </ToasterRoot>
   <ResizeHandler v-if="!isSpotlightWindow && !isFloatingChatWindow" />
   <RouterView />
+  <!--
+    One confirmation dialog serves every window. The permission store queues
+    the calls that wait, so a tool call started in any renderer reaches the
+    user here.
+  -->
+  <AgentApprovalDialog />
 </template>
 
 <style>

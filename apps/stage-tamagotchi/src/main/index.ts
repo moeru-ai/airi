@@ -35,6 +35,7 @@ import { setupAppleSpeechTranscriptionService } from './services/airi/apple-spee
 import { setupAppleVisionService } from './services/airi/apple-vision'
 import { setupServerChannel } from './services/airi/channel-server'
 import { setupComputerUse } from './services/airi/computer-use'
+import { setupDesktopAgent } from './services/airi/desktop-agent'
 import { setupGodotStageManager } from './services/airi/godot-stage'
 import { setupHomeAssistant } from './services/airi/home-assistant'
 import { setupBuiltInServer } from './services/airi/http-server'
@@ -384,6 +385,10 @@ app.whenReady().then(async () => {
     callback: async (deps) => {
       const { context } = createContext(ipcMain)
       setupComputerUse(context)
+      // The desktop agent reaches the local files, processes, screen, and input
+      // devices, so its host service owns the workspace boundary and the
+      // command policy. The renderer holds the tool loop.
+      setupDesktopAgent(context)
       setupHomeAssistant(context)
       await setupArtistryBridge({
         widgetsManager: deps.widgetsWindow,

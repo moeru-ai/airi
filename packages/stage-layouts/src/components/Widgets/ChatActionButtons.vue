@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { AgentPermissionPanel } from '@proj-airi/stage-ui/components/scenarios/agent'
+import { useAgentPermissionStore } from '@proj-airi/stage-ui/stores/agent-permissions'
 import { useTheme } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
@@ -13,6 +15,7 @@ import { BackgroundDialogPicker } from '../Backgrounds'
 
 const { themeMode, switchToNextTheme } = useTheme()
 const { t } = useI18n()
+const agentPermissions = useAgentPermissionStore()
 
 // The button shows the current theme, and its label tells what a press selects.
 const themeIcons = {
@@ -31,6 +34,9 @@ type SendMode = (typeof SEND_MODES)[number]
 
 const aboutOpen = ref(false)
 const backgroundDialogOpen = ref(false)
+const agentPanelOpen = ref(false)
+/** `true` while fewer confirmations are asked, so the toolbar button shows the relaxed policy. */
+const agentPolicyElevated = computed(() => agentPermissions.fullAccess || agentPermissions.autoApproveMedium)
 const sendMode = useLocalStorage<SendMode>('ui/chat/settings/send-mode', 'enter')
 const sendModeLabels = computed<Record<SendMode, string>>(() => ({
   'enter': t('stage.send-mode.enter'),
@@ -42,8 +48,25 @@ const sendModeLabels = computed<Record<SendMode, string>>(() => ({
 <template>
   <ActionAbout v-model="aboutOpen" hide-trigger />
   <BackgroundDialogPicker v-model="backgroundDialogOpen" />
+  <!-- The agent policy decides which tool calls run without a confirmation. -->
+  <AgentPermissionPanel v-model="agentPanelOpen" />
   <div absolute bottom--8 right-0 flex gap-2>
     <ViewControls />
+    <ChatToolbarButton
+      data-testid="agent-permission-button"
+      :title="t('stage.agent-permission.button-description')"
+      :aria-label="t('stage.agent-permission.button')"
+      :active="agentPolicyElevated"
+      :aria-pressed="agentPolicyElevated"
+      @click="agentPanelOpen = true"
+    >
+      <div
+        :class="[
+          agentPolicyElevated ? 'i-solar:shield-warning-bold-duotone' : 'i-solar:shield-check-bold-duotone',
+          'size-5',
+        ]"
+      />
+    </ChatToolbarButton>
     <ChatToolbarButton
       :title="t('stage.mobile-tools.background')"
       :aria-label="t('stage.mobile-tools.background')"

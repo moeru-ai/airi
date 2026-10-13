@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { OnboardingDialog, OnboardingStepAnalyticsNotice, StartupOverlay, ToasterRoot } from '@proj-airi/stage-ui/components'
+import { AgentApprovalDialog, OnboardingDialog, OnboardingStepAnalyticsNotice, StartupOverlay, ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useInferencePreload } from '@proj-airi/stage-ui/composables'
 import { useStartupResourceTimeout } from '@proj-airi/stage-ui/composables/use-startup-resource-timeout'
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
@@ -253,6 +253,9 @@ function openOnboardingAfterStartup() {
     />
 
     <PerformanceOverlay />
+
+    <!-- Shows the tool call that waits for the user, in any route. -->
+    <AgentApprovalDialog />
   </StartupOverlay>
 </template>
 

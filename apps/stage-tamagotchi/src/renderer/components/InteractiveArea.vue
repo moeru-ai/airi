@@ -6,11 +6,15 @@ import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import type { ChatDraftHandover } from '../../shared/eventa'
 
+import { defineInvoke } from '@moeru/eventa'
+import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useChatInterruption } from '@proj-airi/stage-layouts/composables/use-chat-interruption'
 import { ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
+import { AgentPermissionPanel } from '@proj-airi/stage-ui/components/scenarios/agent'
 import { ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSendButton, useChatComposer, useChatImages, VoiceInputButton } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
+import { useAgentPermissionStore } from '@proj-airi/stage-ui/stores/agent-permissions'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
@@ -18,7 +22,7 @@ import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store
 import { useJournalPreviewStore } from '@proj-airi/stage-ui/stores/journal-preview'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { BasicTextarea, GhostButton } from '@proj-airi/ui'
+import { BasicTextarea, Button, GhostButton } from '@proj-airi/ui'
 import { until, useLocalStorage } from '@vueuse/core'
 import { nanoid } from 'nanoid/non-secure'
 import { storeToRefs } from 'pinia'
@@ -29,8 +33,13 @@ import JournalToolCallBlock from './chat-tool-renderers/journal-tool-call-block.
 import ChatViewportLayout from './chat-viewport-layout.vue'
 
 import { electronOpenSettings } from '../../shared/eventa'
+import {
+  desktopAgentGetWorkspace,
+  desktopAgentPickWorkspace,
+  desktopAgentRevealWorkspace,
+} from '../../shared/eventa/desktop-agent'
 import { useHearingInputChannel } from '../composables/use-hearing-input-channel'
-import { artistryToolReferences, computerUseToolReferences, widgetToolReferences } from '../stores/tools'
+import { artistryToolReferences, computerUseToolReferences, desktopAgentToolReferences } from '../stores/tools'
 
 const props = withDefaults(defineProps<{
   /**
@@ -81,6 +90,8 @@ const voiceActive = shallowRef(false)
 const lastEnterTime = ref(0)
 // Each request captures this composer selection, including retries and tool reruns.
 const computerUseEnabled = ref(true)
+/** Whether the agent permission panel is open. */
+const agentPanelOpen = ref(false)
 
 const chatStore = useChatStore()
 const chatSession = useChatSessionStore()
@@ -88,6 +99,70 @@ const chatStream = useChatStreamStore()
 const backgroundStore = useBackgroundStore()
 const journalPreviewStore = useJournalPreviewStore()
 const airiCardStore = useAiriCardStore()
+const agentPermissions = useAgentPermissionStore()
+
+/**
+ * The folder the desktop agent may read and write.
+ *
+ * The host owns the value and the picker, so this component only mirrors it for
+ * the panel to show.
+ */
+const agentWorkspace = ref('')
+const workspaceBusy = ref(false)
+
+const { context: desktopAgentContext } = createContext(window.electron.ipcRenderer)
+const getAgentWorkspace = defineInvoke(desktopAgentContext, desktopAgentGetWorkspace)
+const pickAgentWorkspace = defineInvoke(desktopAgentContext, desktopAgentPickWorkspace)
+const revealAgentWorkspace = defineInvoke(desktopAgentContext, desktopAgentRevealWorkspace)
+
+async function loadAgentWorkspace() {
+  try {
+    agentWorkspace.value = (await getAgentWorkspace()).workspace
+  }
+  catch (error) {
+    console.warn('[agent] Failed to read the workspace:', error)
+  }
+}
+
+async function chooseAgentWorkspace() {
+  if (workspaceBusy.value)
+    return
+  workspaceBusy.value = true
+  try {
+    // The tools read the value from the host on their next call, so the new
+    // folder is in force without reopening the window.
+    agentWorkspace.value = (await pickAgentWorkspace()).workspace
+  }
+  catch (error) {
+    console.warn('[agent] Failed to choose the workspace:', error)
+  }
+  finally {
+    workspaceBusy.value = false
+  }
+}
+
+watch(agentPanelOpen, (isOpen) => {
+  if (isOpen)
+    void loadAgentWorkspace()
+})
+
+/**
+ * The tool list for one request.
+ *
+ * The master switch owns the whole list: with the agent off the model receives
+ * no tools, so it answers as a plain chat partner. While the agent is on, the
+ * computer-use toggle adds the screen-control tools on top of the desktop
+ * agent's own file, command, and input tools.
+ */
+const requestTools = computed(() => {
+  if (!agentPermissions.agentEnabled)
+    return []
+  return [
+    ...artistryToolReferences,
+    ...desktopAgentToolReferences,
+    ...(computerUseEnabled.value ? computerUseToolReferences : []),
+  ]
+})
 
 const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
@@ -107,7 +182,7 @@ const composer = useChatComposer<ChatImageAttachment>({
       data: attachment.data,
       mimeType: attachment.mimeType,
     })),
-    tools: computerUseEnabled.value ? [...artistryToolReferences, ...computerUseToolReferences] : artistryToolReferences,
+    tools: requestTools.value,
   }),
 })
 const {
@@ -142,6 +217,11 @@ const latestImageEntries = computed(() => {
 })
 
 const hasSubmission = computed(() => !!messageInput.value.trim() || attachments.value.length > 0)
+/**
+ * `true` while fewer confirmations are asked, so the toolbar button shows the
+ * relaxed policy without a hover.
+ */
+const agentPolicyElevated = computed(() => agentPermissions.fullAccess || agentPermissions.autoApproveMedium)
 const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useChatInterruption({
   sessionId: activeSessionId,
   generating: computed(() => activeTurns.value.some(turn => turn.sessionId === activeSessionId.value)),
@@ -259,7 +339,7 @@ async function handleRetryMessage(index: number) {
   await chatStore.retry({
     sessionId: chatSession.activeSessionId,
     index,
-    tools: computerUseEnabled.value ? [...widgetToolReferences, ...computerUseToolReferences] : widgetToolReferences,
+    tools: requestTools.value,
   })
   trackChatMessageRetried({
     source: 'history',
@@ -279,7 +359,7 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
     invocationId: payload.invocationId,
     toolName: payload.toolName,
     args: payload.args,
-    tools: computerUseEnabled.value ? computerUseToolReferences : [],
+    tools: agentPermissions.agentEnabled && computerUseEnabled.value ? computerUseToolReferences : [],
   })
 }
 
@@ -548,6 +628,25 @@ defineExpose({
             <span :class="['i-solar:monitor-bold-duotone h-5 w-5 shrink-0']" />
           </GhostButton>
 
+          <!-- The agent policy decides which tool calls run without a confirmation. -->
+          <GhostButton
+            data-testid="agent-permission-button"
+            size="unset"
+            :class="['size-9']"
+            :aria-label="t('stage.agent-permission.button')"
+            :title="t('stage.agent-permission.button-description')"
+            :active="agentPolicyElevated"
+            :aria-pressed="agentPolicyElevated"
+            @click="agentPanelOpen = true"
+          >
+            <span
+              :class="[
+                agentPolicyElevated ? 'i-solar:shield-warning-bold-duotone' : 'i-solar:shield-check-bold-duotone',
+                'h-5 w-5 shrink-0',
+              ]"
+            />
+          </GhostButton>
+
           <!-- The voice control shows its recording status here, so the composer keeps its height. -->
           <div ref="voice-status" :class="['min-w-0 flex flex-1 items-center px-1']" />
           <div :class="['flex shrink-0 items-center gap-1']">
@@ -558,7 +657,7 @@ defineExpose({
               :attachment-element="voiceAttachment"
               :session-id="activeSessionId"
               :reply-to-message-id="replyTarget?.message.id"
-              :tools="computerUseEnabled ? [...artistryToolReferences, ...computerUseToolReferences] : artistryToolReferences"
+              :tools="agentPermissions.agentEnabled ? [...artistryToolReferences, ...computerUseToolReferences] : artistryToolReferences"
               @recording-change="voiceActive = $event"
               @pending-change="voicePending = $event"
               @sent="composer.clearReply()"
@@ -601,6 +700,31 @@ defineExpose({
       </div>
     </template>
   </ChatViewportLayout>
+
+  <!-- One button opens the whole policy panel. The risk confirmation lives in App.vue. -->
+  <AgentPermissionPanel v-model="agentPanelOpen">
+    <template #workspace>
+      <div :class="['flex flex-col gap-2']">
+        <div :class="['flex flex-col gap-1']">
+          <span :class="['text-sm font-medium']">{{ t('stage.agent-permission.workspace.label') }}</span>
+          <span :class="['text-xs text-neutral-500 dark:text-neutral-400']">
+            {{ t('stage.agent-permission.workspace.description') }}
+          </span>
+        </div>
+        <p :class="['rounded-md bg-neutral-100 px-2 py-1 text-xs text-neutral-600 break-all dark:bg-neutral-800/70 dark:text-neutral-300']">
+          {{ agentWorkspace || '…' }}
+        </p>
+        <div :class="['flex flex-wrap items-center gap-2']">
+          <Button size="sm" :disabled="workspaceBusy" @click="chooseAgentWorkspace">
+            {{ t('stage.agent-permission.workspace.choose') }}
+          </Button>
+          <Button size="sm" :disabled="!agentWorkspace" @click="revealAgentWorkspace()">
+            {{ t('stage.agent-permission.workspace.reveal') }}
+          </Button>
+        </div>
+      </div>
+    </template>
+  </AgentPermissionPanel>
 
   <!-- Shared Preview Modal -->
   <JournalPreviewModal />

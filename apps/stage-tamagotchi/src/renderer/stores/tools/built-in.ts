@@ -5,6 +5,7 @@ import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 import { defineStore } from 'pinia'
 
 import { computerUseTools } from './builtin/computer-use'
+import { desktopAgentToolReferences, desktopAgentTools } from './builtin/desktop-agent'
 import { imageJournalTools } from './builtin/image-journal'
 import { weatherTools } from './builtin/weather'
 import { widgetsTools } from './builtin/widgets'
@@ -13,6 +14,16 @@ export const computerUseToolReferences = [
   { name: 'computer_use' },
   { name: 'computer_use_read_image' },
 ] satisfies ChatToolReference[]
+
+/**
+ * The desktop agent tools.
+ *
+ * The request selects these by name, and the agent's master switch decides
+ * whether that request carries them at all. They stay out of the default tool
+ * list, so a conversation only reaches the local machine after the user turns
+ * the agent on.
+ */
+export { desktopAgentToolReferences }
 
 export const widgetToolReferences = [
   { name: 'stage_widgets' },
@@ -40,6 +51,7 @@ export const useTamagotchiBuiltinToolsStore = defineStore('tamagotchi-builtin-to
       widgetsTools(),
       weatherTools(),
       computerUseTools(),
+      desktopAgentTools(),
     ])).flat()
 
     llmToolsStore.removeToolsByIds(...registeredToolIds())

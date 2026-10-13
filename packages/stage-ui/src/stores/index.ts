@@ -1,3 +1,5 @@
+export * from './agent-permission'
+export * from './agent-permissions'
 export * from './background'
 export * from './display-models'
 // NOTICE: `@proj-airi/stage-ui/stores` remains a valid package export path.

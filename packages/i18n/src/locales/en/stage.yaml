@@ -262,6 +262,44 @@ computer-use:
   label: Use computer
   description: Allow this chat window to inspect and control native apps on this computer.
 
+agent-permission:
+  title: Agent permissions
+  button: Agent permissions
+  button-description: Choose which tool calls run without a confirmation.
+  enabled:
+    label: Enable Agent
+    description: Let AIRI call tools, such as the computer, a search, or a home device. Turn it off for plain conversation, which asks for no confirmation.
+  full-access:
+    label: Full access
+    description: Allow every tool call, including commands and file changes, without a confirmation.
+  auto-approve-medium:
+    label: Skip write confirmations
+    description: Run tool calls that change files or send commands without a confirmation.
+  mode-summary:
+    guarded: Confirm risky calls
+    medium: Confirm machine changes
+    full: Full access
+  request:
+    title: Confirm this action
+    heading: AIRI wants to run a tool
+    risk: Risk
+    details: Show the full call
+    approve: Allow once
+    approve-always: Always allow for this session
+    deny: Deny
+    deny-note: A denied call returns a refusal to the model, which then answers with what it cannot do.
+  full-access-confirm:
+    title: Turn on full access
+    heading: Full access lets AIRI act on this computer without asking
+    body: AIRI can run commands, change files, and control other apps. A mistake can damage your data. Turn this on only while you watch the conversation.
+    confirm: Turn on full access
+    cancel: Cancel
+  recent:
+    title: Recent decisions
+    empty: No tool call has needed a confirmation yet.
+    approved: Allowed
+    denied: Denied
+
 status:
   preparing: Preparing microphone
   listening: Listening
