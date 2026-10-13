@@ -359,14 +359,15 @@ export function setupWidgetsWindowManager(params: {
 
     record.expiresAt = Date.now() + record.ttlMs
 
+    const id = record.id
     const armTimer = () => {
-      const current = widgetRecords.get(record.id)
+      const current = widgetRecords.get(id)
       if (!current || !current.expiresAt)
         return
 
       const remainingMs = current.expiresAt - Date.now()
       if (remainingMs <= 0) {
-        destroyWidget(record.id)
+        destroyWidget(id)
         return
       }
 
