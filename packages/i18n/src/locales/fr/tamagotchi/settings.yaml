@@ -1,6 +1,20 @@
 allow-visible-on-all-workspaces:
   title: Visibilité sur tous les bureaux
   description: Permet à la fenêtre d’être visible sur tous les bureaux, macOS uniquement.
+microphone-permission:
+  prompt:
+    title: Autoriser l’accès au microphone ?
+    description: AIRI utilise votre microphone pour la saisie vocale et la transcription. Ce choix reste actif jusqu’à sa réinitialisation dans les paramètres.
+    allow: Autoriser
+    deny: Refuser
+  states:
+    not-determined: Non défini
+    granted: Autorisé
+    denied: Refusé
+  settings:
+    description: Définissez si AIRI peut utiliser le microphone. Réinitialiser ce choix arrête le flux actuel du microphone et redemande l’autorisation la prochaine fois.
+    revoke: Révoquer l’accès
+    reset: Réinitialiser le choix
 spotlight:
   errors:
     unknown: Erreur inconnue
@@ -12,6 +26,12 @@ pages:
       description: Connecter et gérer le serveur MCP et ses outils
       title: Serveur MCP
   system:
+    general:
+      hide-app-icon:
+        title: Masquer l’icône de la barre des tâches / du Dock
+        description: Gardez AIRI uniquement dans la zone de notification. Utilisez son menu pour ouvrir les fenêtres ou quitter. Les changements s’appliquent immédiatement.
+        load-error: Impossible de charger le paramètre de l’icône de l’application.
+        save-error: Impossible de mettre à jour le paramètre de l’icône de l’application.
     sections:
       section:
         window-shortcuts:
@@ -23,6 +43,10 @@ pages:
       spotlight:
         title: Raccourci Spotlight
         description: Cliquez sur le raccourci, puis appuyez sur un nouveau raccourci. Appuyez sur Échap pour annuler.
+      push-to-talk:
+        title: Raccourci pour parler en maintenant une touche
+        description: Maintenez ce raccourci dans toute application pour parler à AIRI. Cliquez sur le raccourci puis appuyez sur une nouvelle combinaison. Appuyez sur Esc pour annuler.
+        inactive: Ce raccourci fonctionne uniquement si le mode de saisie d’Audition est réglé sur parler en maintenant une touche et si le microphone est activé.
       actions:
         recording: Appuyez sur les touches
         reset: Réinitialiser
@@ -31,6 +55,9 @@ pages:
         conflict: Ce raccourci est déjà utilisé.
         failed: Échec de la mise à jour du raccourci
         requiresModifier: Utilisez au moins Cmd, Ctrl, Alt ou Super.
+        requiresHoldModifier: Utilisez Cmd, Ctrl, Alt ou Super, ou une touche de fonction comme F13. Shift seul ne suffit pas.
+        denied: AIRI ne peut pas lire les touches globales. Autorisez AIRI dans les paramètres d’accessibilité, puis réessayez.
+        unsupported: Ce système ne peut pas détecter le relâchement d’un raccourci global.
       toggle-move:
         label: (Dés)Activer - Déplacement
       toggle-resize:
@@ -49,14 +76,458 @@ devtools:
   pages:
     context-flow:
       title: Flux contextuel
+    presence-bubble:
+      title: Bulle de présence
+      description: Pilotez la bulle au-dessus du personnage et observez-la dans la fenêtre principale
+      override:
+        title: Piloter la bulle depuis cette page
+        description: Lorsque cette option est désactivée, la scène n’affiche la bulle que pendant un tour de chat.
+      thinking:
+        title: Raisonnement
+        description: Affiche les points. Prioritaire sur le nombre de messages non lus.
+      unread:
+        title: Messages non lus
+        description: Affiché au-dessus de la tête, avec un symbole et le nombre.
+      main-window-note: Les changements apparaissent dans la fenêtre principale d’AIRI.
+    live2d-ambient-light:
+      title: Lumière ambiante Live2D
+      description: Réglez l’échantillonnage de l’écran et le shader d’éclairage coloré Live2D
+      controls:
+        title: Source lumineuse et sortie
+      enabled:
+        title: Lumière ambiante
+        description: Appliquer le filtre de lumière ambiante au modèle Live2D actif.
+      source:
+        title: Source lumineuse
+        options:
+          screen-capture: Capture d’écran
+          forced-color: Couleur imposée
+      mode:
+        title: Mode d’éclairage
+        options:
+          window-gradient: Dégradé de la fenêtre
+          global: Lumière ambiante globale
+      forced-color:
+        title: Couleur de test
+        description: Appliquer cette couleur sans capture d’écran.
+      strength:
+        title: Intensité lumineuse
+        description: Réglez l’intensité globale de l’effet. 1 correspond au rendu prévu. Jusqu’à 3 renforce la lumière sur les bords et le contre-jour.
+      squint:
+        title: Plisser les yeux lors d’un éclaircissement soudain
+        description: Plisser les yeux si l’écran s’éclaircit plus vite que le personnage ne s’adapte. Une luminosité constante laisse les yeux ouverts. 0 désactive cet effet.
+      main-window-note: Les changements apparaissent dans la fenêtre principale d’AIRI.
+      diagnostics:
+        title: Diagnostic de capture
+        waiting: En attente du diagnostic de la fenêtre principale d’AIRI.
+        status:
+          disabled: Désactivé
+          starting: Démarrage
+          capturing: Capture en cours
+          forced-color: Couleur imposée
+          error: Erreur
+        capture:
+          title: État de la capture
+          description: Examinez l’écran sélectionné, les dimensions de capture et les coordonnées d’exclusion.
+          display: Écran et limites
+          video-size: Vidéo source
+          sample-size: Image échantillonnée
+          window-bounds: Limites de la fenêtre AIRI
+          excluded-region: Région exclue
+          exposure: Exposition de l’écran
+          behind-luminance: Lumière derrière le personnage
+          updated: Dernière mise à jour
+        preview:
+          title: Capture réduite
+          description: Le rectangle rouge indique la fenêtre AIRI. Le rectangle en pointillés indique la zone couverte par les cartes d’éclairage.
+          unavailable: Aucune image capturée n’est disponible.
+        pixels:
+          title: Classement des pixels
+          accepted: Acceptés
+          excluded: Peints
+          see-through: Translucides
+        maps:
+          title: Cartes d’éclairage
+          window: Chaque carte couvre la fenêtre AIRI et une demi-fenêtre de plus de chaque côté. Le contour indique la fenêtre.
+          unavailable: Aucun environnement disponible.
+          target: Mesuré
+          applied: Appliqué après lissage
+          surround:
+            title: Carte d’environnement
+            description: Flou large de l’écran autour et derrière la fenêtre. Il transmet la couleur de la lumière et sa direction.
+          contact:
+            title: Carte de contact
+            description: Flou étroit du même contenu. Cette carte pilote la lumière sur les bords et le liseré de contre-jour.
+      sampling:
+        title: Échantillonnage de l’écran
+        capture-interval:
+          title: Intervalle de capture
+          description: Réglez l’intervalle entre les échantillons d’écran. Le flux de capture suit cette fréquence.
+        response-time:
+          title: Temps de réponse
+          description: Réglez la vitesse d’adaptation des couleurs échantillonnées aux changements de l’écran.
+        sample-width:
+          title: Taille de l’échantillon
+          description: Réglez la largeur de l’image capturée réduite. Une image plus large ajoute du détail aux cartes d’éclairage. La hauteur suit votre écran.
+        neutral-color-weight:
+          title: Poids des couleurs neutres
+          description: Réglez le poids minimal des couleurs peu saturées. Le contenu coloré compte davantage que le gris.
+      shader:
+        title: Réponse du shader
+        dark-base:
+          title: Luminosité minimale
+          description: Réglez la luminosité du modèle sur écran noir. Un écran blanc montre le dessin original. Un écran sombre l’atténue vers ce minimum.
+        base-curve:
+          title: Courbe de luminosité
+          description: Réglez la montée de luminosité entre le minimum et le dessin original. Au-dessus de 1, un écran à moitié éclairé garde le modèle plus sombre.
+        local-share:
+          title: Part de lumière locale
+          description: Réglez la part de luminosité liée à la lumière voisine plutôt qu’à tout l’écran. À 0, la luminosité reste identique partout.
+        tint:
+          title: Teinte
+          description: Réglez la part de teinte de l’écran prise par le modèle. À 0, seule la luminosité de l’écran l’affecte.
+        color-boost:
+          title: Renforcement des couleurs en faible lumière
+          description: Réglez la couleur supplémentaire prise dans une lumière faible mais saturée. La luminosité ne change pas. Aucun canal ne descend sous le modèle non éclairé.
+        wrap-intensity:
+          title: Intensité de lumière sur les bords
+          description: Réglez la diffusion de la couleur du fond sur le bord du modèle.
+        wrap-saturation:
+          title: Saturation de lumière sur les bords
+          description: Réglez la teinte conservée par la lumière des bords. 0 ajoute une lumière blanche de même luminosité. 1 ajoute toute la couleur de l’écran.
+        backlight:
+          title: Contre-jour
+          description: Réglez la force de la lumière venant de derrière sur le fin liseré autour du personnage.
+        wrap-diffuse:
+          title: Largeur de lumière sur les bords
+          description: Réglez la portée de la couleur du fond vers l’intérieur du bord du modèle.
+        translucent-wrap:
+          title: Réduire la lumière des bords sur les parties translucides
+          description: Multipliez la lumière des bords et le liseré par le carré de l’alpha du modèle. Les parties semi-transparentes laissent déjà voir le bureau.
+      preview-shader:
+        title: Aperçu du shader
+        description: Exécutez le shader réel sur une mire avec l’environnement actuel et les paramètres ci-dessus.
+        window-mapping: Le filtre considère ce canevas comme toute la fenêtre de scène. L’aperçu ne reproduit donc pas la scène au pixel près.
+        filtered: Sortie du shader
+        unavailable: L’aperçu nécessite WebGL, mais cette fenêtre n’a pas pu créer de contexte.
+        environment:
+          live: La lumière vient du dernier instantané publié par la fenêtre principale d’AIRI.
+          neutral: Aucun instantané n’est encore arrivé. L’aperçu utilise donc l’environnement neutre.
+        regions:
+          title: Régions de la mire
+          body: Le corps large présente une rampe de tons sRGB de {low} à {high}. Luminosité, contraste, chroma et marge disponible y sont visibles.
+          bars: Les barres font {first}, {second}, {third}, {fourth} et {fifth} pixels de large. Elles montrent la pénétration de la lumière dans une forme fine.
+          patches: Les deux zones utilisent les valeurs alpha {strong} et {weak}, sur lesquelles agit l’option de lumière sur les parties translucides.
+    editor:
+      title: Éditeur AIRI
+      description: Ouvrir la fenêtre autonome de l’éditeur AIRI
+      button: Ouvrir l’éditeur
     lag-visualizer:
       title: Visualiseur de latence
+    live2d-motion:
+      title: Contrôle des mouvements Live2D
+      description: Contrôlez les mouvements des yeux, de la tête et du corps Live2D.
+      actions:
+        back: Retour
+      system-audio:
+        title: Synchronisation labiale avec l’audio système
+        description: Capturez l’audio d’autres lecteurs. La même entrée pilote la synchronisation rythmique et les mouvements de bouche Live2D.
+        signal: Signal d’entrée
+        mouth-open: Ouverture de la bouche
+        input-volume-threshold: Seuil de volume d’entrée
+        random-close-delay: Délai de fermeture aléatoire
+        random-close-probability: Probabilité de fermeture aléatoire
+        actions:
+          start: Démarrer l’entrée
+          stop: Arrêter l’entrée
+      panels:
+        direct-control: Contrôle direct
+        preview: Aperçu du modèle
+        timeline: Chronologie
+        inference: Inférence du modèle
+      preview:
+        groups:
+          offset: Décalage de position
+        values:
+          squint: Plissement des yeux
+          mouth-form: Forme
+          mouth-open: Ouverture
+      joystick-label: Joystick de mouvement Live2D
+      wave:
+        toggle: Mode bateau
+      instructions: Déplacez le joystick ou utilisez les flèches pour X/Y. R plisse légèrement les yeux. F les plisse davantage. C les ferme. W/S change la forme de bouche. Espace ouvre la bouche. A/D déplace le corps sur X. Q/E incline la tête. Relâcher les touches ramène doucement au centre.
+      parameter-note: Le joystick contrôle X/Y. R donne 1/3 de plissement, F 2/3 et C ferme les yeux. W/S règle la forme de bouche à ±1. Espace ouvre la bouche à 1. A/D règle le corps X à ±10°. Q/E règle la tête Z à ±30°.
+      input:
+        keyboard: Clavier
+        controller: Manette
+      input-actions:
+        move-body-head: Déplacer le corps et la tête
+        tilt-head: Incliner la tête
+        blink: Cligner des yeux
+        open-mouth: Ouvrir la bouche
+        mouth-shape: Changer la forme de la bouche
+      eye-view:
+        title: Regard fixé
+        description: Choisissez une cible. Les yeux compensent les mouvements de tête pour maintenir le regard dessus.
+        pad-label: Cible du regard fixé
+        actions:
+          enable: Activer la fixation
+          disable: Désactiver la fixation
+          center: Centrer la cible
+        counter:
+          label: Force de compensation de la tête
+          description: Force avec laquelle les yeux compensent les mouvements X/Y de la tête.
+        values:
+          target: Cible
+          output: Sortie des yeux
+      editor:
+        title: Éditeur de mouvements
+        instructions: La courbe grise est la source. Ajoutez des couches de mouvement ou des images clés de cible du regard. Sélectionnez une piste puis déplacez ses points.
+        play: Lire la chronologie
+        pause: Mettre la chronologie en pause
+        undo: Annuler
+        redo: Rétablir
+        crop-to-view: Recadrer sur la vue
+        reset-view: Réinitialiser la vue
+        export-project: Exporter le projet
+        import-project: Importer le projet
+        import-error: Ce fichier n’est pas un projet de mouvements Live2D AIRI valide.
+        playback:
+          label: Commandes de lecture de la chronologie
+          start: Aller au début
+          step-backward: Reculer d’un pas
+          step-forward: Avancer d’un pas
+          end: Aller à la fin
+          timecode: Code temporel actuel et total
+        input-actions:
+          play: Lire
+          stop: Arrêter
+          start: Aller au début
+          end: Aller à la fin
+          step-backward: Reculer d’un pas
+          step-forward: Avancer d’un pas
+          restart-recording: Enregistrer à nouveau
+          clear-timeline: Vider la chronologie
+          previous-track: Sélectionner la piste précédente
+          next-track: Sélectionner la piste suivante
+        timeline-label: Chronologie des mouvements
+        timeline-help: Déplacez la règle pour parcourir le temps. Utilisez la molette pour zoomer. Maintenez Shift et déplacez pour faire défiler. Double-cliquez sur une courbe sélectionnée pour ajouter un point. Chaque clé de cible du regard reste active jusqu’à la suivante.
+        overlay-count: '{count} couches'
+        controls:
+          add: Ajouter
+          replace: Remplacer
+          create-keyframes: Créer des images clés
+          weight: Poids
+          remove: Supprimer
+        tracks:
+          viewTargetX: Cible du regard X
+          viewTargetY: Cible du regard Y
+          eyeX: Yeux X
+          eyeY: Yeux Y
+          eyeOpen: Ouverture des yeux
+          headX: Tête X
+          headY: Tête Y
+          headZ: Tête Z
+          bodyX: Corps X
+          bodyY: Corps Y
+          bodyZ: Corps Z
+          mouthForm: Forme de la bouche
+          mouthOpen: Ouverture de la bouche
+      var:
+        title: Générateur VAR de mouvements au repos
+        description: Ajuste un modèle au mouvement enregistré, puis génère une nouvelle séquence au repos.
+        actions:
+          fit: Ajuster au mouvement actuel
+          refit: Réajuster au mouvement actuel
+          generate: Générer un mouvement
+          stop: Arrêter la génération
+          new-seed: Nouvelle graine
+        order:
+          label: Ordre VAR
+          description: Images précédentes utilisées pour chaque prédiction.
+        residual:
+          label: Intensité résiduelle
+          description: Variation générée. Zéro donne un résultat déterministe.
+        diagnostics:
+          model: Modèle
+          fit: Ajustement
+          run: Séquence générée
+        status:
+          no-source: Importez ou enregistrez d’abord un mouvement
+          source-ready: '{count} échantillons · {duration}s'
+          fit-failed: L’ajustement VAR a échoué.
+        values:
+          frames: '{count} images'
+          model: '{channels} canaux · {features} termes'
+          fit: '{frames} images · RMSE {error} · {duration}ms'
+          run: 'graine {seed} · {duration}'
+      ar-hmm:
+        title: Générateur AR-HMM de mouvements au repos
+        description: Apprend les états et transitions de mouvement pour varier les mouvements au repos.
+        actions:
+          fit: Ajuster au mouvement
+          refit: Réajuster
+          generate: Générer
+          stop: Arrêter
+          new-seed: Nouvelle graine
+        states:
+          label: États cachés
+          description: Motifs de mouvement que le modèle peut apprendre.
+        order:
+          label: Ordre AR
+          description: Images précédentes utilisées dans chaque état.
+        residual:
+          label: Intensité de l’innovation
+          description: Variation dans chaque état.
+        diagnostics:
+          model: Modèle
+          fit: Ajustement
+          states: Occupation des états
+          run: Séquence générée
+        status:
+          no-source: Importez ou enregistrez d’abord un mouvement
+          source-ready: '{count} échantillons · {duration}s'
+          fit-failed: L’ajustement AR-HMM a échoué.
+        values:
+          count: '{count} états'
+          frames: '{count} images'
+          model: '{states} états · {channels} canaux · {features} termes'
+          fit: 'log p/image {likelihood} · {duration}ms'
+          states: '{occupancy} · maintien {dwell}s'
+          run: 'état {state} · graine {seed} · {duration}'
+      output-filter:
+        title: Filtre de sortie du générateur
+        description: Lisse la sortie du générateur et retient les petits changements avant que le ressort ne reçoive chaque pose.
+        actions:
+          enable: Activer le filtre
+          disable: Désactiver le filtre
+          reset: Réinitialiser l’état
+        smoothing:
+          label: Lissage EMA
+          description: Mélange chaque cible acceptée avec la sortie précédente. Des valeurs élevées réduisent davantage les tremblements mais ajoutent du délai.
+        cutoff:
+          label: Seuil de changement
+          description: Retient un canal jusqu’à ce que son changement normalisé cumulé atteigne cette valeur.
+        diagnostics:
+          status: État
+          input-change: MAE du changement brut
+          output-change: MAE du changement filtré
+          cutoff-tracks: Canaux retenus
+        status:
+          waiting: En attente d’un générateur
+          filtering: Filtrage de la sortie du générateur
+          bypassed: Transmission de la sortie brute du générateur
+      breath:
+        title: Respiration manuelle
+        description: Contrôle ParamBreath avec des durées réglables d’inspiration, d’expiration et de pause, sans ajouter de données respiratoires aux enregistrements.
+        actions:
+          enable: Activer la respiration
+          disable: Désactiver la respiration
+          reset: Réinitialiser le cycle
+        cycle:
+          label: Durée de respiration
+          description: Règle la durée d’une inspiration et d’une expiration, avant la pause après expiration.
+        inhale:
+          label: Part de l’inspiration
+          description: Règle la part de la durée consacrée à l’inspiration. Le temps restant correspond à l’expiration.
+        dwell:
+          label: Pause après expiration
+          description: Maintient ParamBreath au minimum avant l’inspiration suivante.
+        minimum:
+          description: Règle la valeur minimale écrite dans ParamBreath.
+        maximum:
+          description: Règle la valeur maximale écrite dans ParamBreath.
+        diagnostics:
+          stage: Étape
+          phase: Progression du cycle
+          output: Sortie de ParamBreath
+        stage:
+          inhale: Inspiration
+          exhale: Expiration
+          dwell: Pause après expiration
+      spring:
+        follow:
+          label: Suivi
+          description: Vitesse à laquelle le mouvement suit le joystick.
+        inertia:
+          label: Inertie
+          description: Quantité d’élan conservée par le mouvement.
+      groups:
+        eyes: Yeux
+        head: Tête
+        body: Corps
+      recording:
+        actions:
+          record: Enregistrer
+          stop-recording: Arrêter l’enregistrement
+          play: Lire
+          stop-playback: Arrêter la lecture
+          export: Exporter
+          import: Importer
+        status:
+          empty: Aucun mouvement enregistré
+          recording: Enregistrement du mouvement
+          playing: Lecture du mouvement
+          ready: '{count} échantillons · {duration}'
+        import-error: Ce fichier n’est pas un enregistrement de mouvements Live2D AIRI valide.
     performance-visualizer:
       title: Visualiseur de performance
       description: Afficher l'overlay FPS / tâches longues / mémoire
+      resource-events:
+        title: Événements de ressources récents
+        description: Le dernier événement reçu apparaît en premier. Le temps indique les millisecondes depuis le démarrage du processus de rendu source.
+        empty: Aucun événement de ressource enregistré. Chargez ou changez un modèle VRM avec le traçage activé.
+        columns:
+          time: Temps (ms)
+          reason: Raison
+          geometries: Géométries
+          meshes: Maillages
+          materials: Matériaux
+      controls:
+        enable-all:
+          label: Activer toutes les mesures disponibles
+          description: Activez chaque mesure prise en charge par ce navigateur.
+        start-recording: Démarrer l’enregistrement
+        stop-recording: Arrêter l’enregistrement ({seconds}s)
+        export-last-recording: Exporter le dernier enregistrement
+      metrics:
+        fps:
+          description: Fréquence des images d’animation sur les 10 dernières secondes. Chaque échantillon vaut 1000 divisé par l’intervalle entre images en millisecondes.
+        frame-duration:
+          label: Durée d’image (ms)
+          description: Temps entre les images d’animation sur les 10 dernières secondes.
+        long-task:
+          label: Tâches longues
+          description: Tâches du fil principal qui durent au moins 50 ms.
+          unsupported: Ce navigateur ne fournit pas la durée des tâches longues.
+        memory:
+          label: Tas JS (Mo)
+          description: Utilisation du tas JavaScript fournie par l’API performance.memory de Chromium.
+          unsupported: Ce navigateur ne fournit pas l’utilisation du tas JavaScript.
+      recording:
+        title: Dernier enregistrement
+        duration: Durée {duration} ms
+        limit: L’enregistrement s’arrête après 60 secondes.
+      history:
+        title: Historique des FPS
+        latest: Dernier
+        empty: Aucun échantillon FPS. Activez les FPS pour collecter des échantillons.
+      overlay:
+        title: Performances
+        move: Déplacer l’indicateur de performances
+        reset-position: Réinitialiser la position de l’indicateur
+        record: Enregistrer
+        stop: Arrêter
+        export: Exporter le dernier enregistrement
+        average: moy.
     markdown-stress:
       title: Test de charge Markdown
       description: Tester l'analyse et le rendu Markdown avec des charges de chat lourdes
+    io-tracer:
+      title: Traceur d’E/S
+      recording:
+        title: Enregistrer automatiquement les traces d’E/S
+        description: Enregistrez les segments d’E/S terminés au format JSON Lines dans le dossier de données pour que les agents de programmation les analysent. Les fichiers de plus de sept jours sont supprimés.
     widgets-calling:
       title: Appel de widgets
 screen-capture:
@@ -67,5 +538,5 @@ screen-capture:
     dismiss: Ignorer
     instructions:
       step-1: Ouvrir les "Préférences Système", sélectionnez "Confidentialité et Sécurité" dans la barre latérale.
-      step-2: Dans les sections "Enregistrement de l'écran et de l'audio du système" et "Enregistrement de l'audio du système uniquement", activez les interrupteurs pour AIRI.
+      step-2: Dans les sections "Enregistrement de l’écran et des sons du système" et "Enregistrement des sons du système uniquement", activez les interrupteurs pour AIRI.
       step-2-note: Si AIRI n'est pas listé, veuillez l'ajouter manuellement en cliquant sur le bouton "+" et en sélectionnant AIRI dans le dossier Applications.

@@ -25,6 +25,8 @@ dialogs:
     validationPartial: 配置部分验证
     validationFailed: 配置验证失败
     validationError: '验证错误：{error}'
+    testGeneration: 测试 API 连通性
+    testGenerationRunning: 正在测试连通性…
     testGenerationFailed: Ping 测试失败
     retryPingCheck: 重试
     skipForNow: 暂时跳过
@@ -353,6 +355,10 @@ pages:
           fallback: 无法开始删除操作，请稍后重试。
           subscriptionActive: 您的订阅仍在生效。请先在 Capacitor 页面取消订阅，再删除帐户。
   card:
+    wake-word-conflicts:
+      title: '{count} 个共享的唤醒词发音需要选择角色'
+      description: 两张角色卡使用了相同的发音。选择角色之前，没有角色会回应它。
+      action: 选择回应的角色
     sync:
       notice: 角色卡会同步到账号。删除的角色卡可在 30 天内恢复。
       off_notice: 你已登录，但角色卡同步还没有打开。
@@ -537,6 +543,7 @@ pages:
     description: 存放记忆的地方，以及策略
     title: 记忆体
   data:
+    title: 数据
     description: 管理存储 AIRI 数据、导出和重置
     sections:
       chats:
@@ -755,6 +762,8 @@ pages:
             title: 模型选项
             thinking:
               label: 思考
+              required-description: 此模型必须启用思考。
+              provider-default-description: AIRI 未提供此模型的推理设置，将使用 OpenRouter 的默认设置。
       title: 意识
     description: 思维，视觉，言语综合，游戏等
     gaming-factorio:
@@ -805,10 +814,48 @@ pages:
     hearing:
       description: 语音识别
       title: 听觉
+      transcriber:
+        title: 语音识别
+        description: 选择转写服务和模型，并测试麦克风。
+      wake-words:
+        title: 唤醒词
+        description: 查看每个角色的唤醒词，并选择由谁回应共享的发音。
+        intro: 唤醒词保存在每个角色的角色卡上。如需修改，可以在聊天中请角色更改。
+        empty: 这个角色还没有唤醒词。
+        state:
+          active: 已启用
+          paused: 已暂停。请选择回应它的角色。
+          other: '由 {name} 回应'
+          unsupported: 当前唤醒词模型不支持
+        conflicts:
+          title: 共享的发音
+          description: 多个角色使用了相同的发音。请选择在此设备上回应它的角色。每张角色卡都会保留自己的唤醒词。
+          choose-label: 回应的角色
+          choose: '{name}（「{word}」）'
+          answered-by: '由 {name} 回应'
+          unresolved: 还没有角色回应这个发音。
       sections:
         section:
           provider-selection:
             description: 选择合适的语音转文本的服务来源
+          microphone:
+            title: 麦克风
+            label: 麦克风
+            description: 为听觉打开麦克风。输入模式决定 AIRI 何时聆听。
+            error: 麦克风不可用
+          input-device:
+            label: 输入设备
+            description: 选择 AIRI 使用的麦克风。
+            playground-description: 听觉和测试区都使用这个麦克风。
+            placeholder: 选择麦克风
+          auto-send:
+            title: 转写文本
+            description: 选择 AIRI 如何处理识别出的文字。
+            label: 自动发送
+            label-description: AIRI 会在延迟后把转写文本发送到聊天。关闭后可以先阅读和编辑文字。每条发送的消息都会消耗 token。
+            delay: 发送延迟
+            delay-description: AIRI 发送转写文本之前等待的时间。
+            immediate: 立即
           input-mode:
             title: 输入模式
             description: 选择麦克风开启时 AIRI 如何开始聆听。
@@ -828,6 +875,11 @@ pages:
               preparing: 正在准备唤醒词模型…
               ready: 唤醒词已就绪。
               error: '唤醒词模型不可用：{error}'
+          end-judge:
+            title: 说完判定
+            description: 你停顿时，对话模型会读取转写文本，判断你是否说完了。如果还没说完，AIRI 会再等 3 秒让你继续说。
+            enabled: 判断我是否说完了
+            enabled-description: 每次停顿时的转写文本会发送给改写所用的模型。关闭后，AIRI 会在短暂停顿后结束这次语音输入。
           rephrase:
             title: 转写改写
             description: 在转写成为草稿之前，由对话模型修正识别错误并去掉口头禅。原始文本会被保留。
@@ -1320,6 +1372,7 @@ pages:
         json-applied: JSON 已经解析完成了，点「保存并重启」就写到磁盘上啦。
         restarted: 重启好啦！启动了 {started} 个，失败 {failed} 个，跳过 {skipped} 个
   flux:
+    title: Flux 电量
     buy: 充值
     currency: 币种
     description: 充值 Flux
@@ -1626,6 +1679,22 @@ pages:
             volume:
               description: 调节语音的响度
               label: 响度
+      voicevox:
+        fields:
+          field:
+            intonation:
+              description: 调整语调的变化幅度
+              label: 语调
+        callout_origin_title: 从浏览器连接引擎
+        callout_origin: 浏览器只能连接本机的引擎。连接其他机器的引擎时，请使用桌面应用。引擎还必须允许此网站访问，可使用 --cors_policy_mode all，或使用 --allow_origin 指定此网站地址。
+      aivis-speech:
+        fields:
+          field:
+            intonation:
+              description: 调整说话风格的表现强度
+              label: 情感表现强度
+        callout_origin_title: 从浏览器连接引擎
+        callout_origin: 浏览器只能连接本机的引擎。连接其他机器的引擎时，请使用桌面应用。引擎还必须允许此网站访问，可在 10101 端口的设置页面中配置。
       speech-noop:
         title: 无
         description: 不使用语音合成
@@ -1821,14 +1890,22 @@ pages:
         description: n1n.ai - 高性能的 AI API 提供商
       openrouter:
         description: OpenRouter.ai
+      openrouter-audio-speech:
+        description: OpenRouter.ai
       volcengine:
         fields:
           field:
             appId:
               description: 可在控制台获取的 App ID
+              label: 应用 ID
         title: 火山引擎
       volcengine-coding-plan:
         description: 火山引擎 Coding Plan
+        models:
+          ark-code-latest:
+            description: 使用 Coding Plan 控制台中选择的模型，包括 Auto。更改会在 3–5 分钟内生效。
+          legacy:
+            description: 此旧版 Coding Plan 模型即将停止服务，请切换到当前受支持的模型。
         title: 火山引擎 Coding Plan
       xai:
         description: X.AI
@@ -1944,6 +2021,7 @@ pages:
                 title: 性能可视化工具
                 description: 显示 FPS、帧时间、长任务和浏览器支持的内存指标
               markdown-stress:
+                title: Markdown 压力测试
                 description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
               plugin-host:
                 actions:
@@ -2014,6 +2092,8 @@ pages:
         theme-presets:
           presets:
             default:
+              colors:
+                color-1: AIRI 绿
               description: 默认的绿色主题，由 AIRI 为您带来！
               title: 默认颜色
             morandi:
@@ -2195,6 +2275,49 @@ spine:
   fps:
     options:
       unlimited: 不限
+mmd:
+  title: MMD 设置
+  scale-and-position:
+    title: 缩放与位置
+    scale: 缩放
+    rotation: 旋转
+  theme-color-from-model:
+    title: 从模型提取颜色
+    button-extract:
+      title: 提取
+  physics:
+    title: 物理与骨骼
+    enabled: 启用物理模拟（头发、裙子、配饰）
+    ik: 启用 IK（逆向运动学）
+    grant: 启用附加骨骼变换传递
+    gravity: 重力强度
+  gaze:
+    title: 视线
+    tracking: 模型注视方向
+    options:
+      cursor: 鼠标
+      camera: 相机
+      none: 已禁用
+  animation:
+    title: 动画
+    idle-motion: 待机动作
+    import-motion: 导入动作（.vmd）
+    play-once: 预览动画
+    remove: 移除动作
+    description: >-
+      导入 VMD 动作文件，将其中一个设为循环待机动作，或单次播放任意动作。将情绪映射到动作后，动作可与面部表情一同播放。
+  morphs:
+    title: 变形
+    auto: '（自动）'
+    revert: 恢复自动
+    no-morphs: 此模型没有可用的变形。
+    description: >-
+      渲染器会自动识别标准日文变形名称（あいうえお、まばたき）。如果模型使用其他名称，请在此覆盖对应项。
+  materials:
+    title: 材质
+    no-materials: 此模型没有可用的材质。
+    description: >-
+      调整各模型部位（脸、头发、服装、配饰）的不透明度。设为 0 可隐藏该部位。
 tachie:
   title: Tachie 设置
   archive-description: Tachie 模型使用包含情绪命名图片的 .tachie.zip 压缩包。

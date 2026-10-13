@@ -23,6 +23,8 @@ docs:
   'refresh': 刷新
   'center-main-window': 移至屏幕中央
   'open-hearing-controls': 打开听力控制
+  'enable-microphone': 打开麦克风
+  'disable-microphone': 关闭麦克风
   'drag-to-move-window': 拖动以移动窗口
   'mute': 静音
   'unmute': 取消静音
@@ -69,7 +71,7 @@ widgets:
   loading: 正在加载小部件…
   waiting: 正在等待小部件 "{id}" 的数据…
 inlay:
-  hide: 隐藏
+  dismiss: 关闭
 notice:
   'fade-on-hover':
     title: 悬停淡出

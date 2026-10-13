@@ -23,6 +23,8 @@ docs:
   'refresh': Refresh
   'center-main-window': Move to screen center
   'open-hearing-controls': Open hearing Controls
+  'enable-microphone': Turn on microphone
+  'disable-microphone': Turn off microphone
   'drag-to-move-window': Drag to move window
   'mute': Mute
   'unmute': Unmute
@@ -72,7 +74,7 @@ widgets:
   waiting: Waiting for widget data for "{id}"…
 
 inlay:
-  hide: Hide
+  dismiss: Dismiss
 
 notice:
   'fade-on-hover':

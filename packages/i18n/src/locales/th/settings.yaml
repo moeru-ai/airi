@@ -1,0 +1,2285 @@
+common:
+  save: บันทึก
+animations:
+  stage-transitions:
+    title: ปิดการเปลี่ยนฉากของเวที
+  use-page-specific-transitions:
+    description: >-
+      บางหน้ามีการเปลี่ยนฉากของตัวเอง ซึ่งจะใช้แทนการเปลี่ยนฉากของเวที
+    title: ใช้การเปลี่ยนฉากเฉพาะของแต่ละหน้า
+dialogs:
+  onboarding:
+    official:
+      title: ผู้ให้บริการทางการของ AIRI
+    title: ยินดีต้อนรับสู่ AIRI!
+    description: มาตั้งค่าผู้ให้บริการ AI รายแรกของคุณเพื่อเริ่มต้นกัน
+    selectProvider: เลือกผู้ให้บริการ AI
+    configureProvider: ตั้งค่า {provider}
+    apiKey: คีย์ API
+    apiKeyHelp: รับคีย์ API จาก {provider} แล้ววางที่นี่
+    baseUrl: URL หลัก
+    baseUrlHelp: URL ของปลายทาง API (ใช้ค่าเริ่มต้นถ้าไม่แน่ใจ)
+    accountId: ID บัญชี
+    validationRunning: กำลังทดสอบ
+    validationSuccess: ตรวจสอบการตั้งค่าสำเร็จ
+    validationPartial: ตรวจสอบการตั้งค่าได้บางส่วน
+    validationFailed: ตรวจสอบการตั้งค่าไม่สำเร็จ
+    validationError: 'ข้อผิดพลาดในการตรวจสอบ: {error}'
+    testGeneration: ทดสอบการเชื่อมต่อ API
+    testGenerationRunning: กำลังทดสอบการเชื่อมต่อ...
+    testGenerationFailed: ทดสอบการเชื่อมต่อไม่สำเร็จ
+    retryPingCheck: ลองอีกครั้ง
+    skipForNow: ข้ามไปก่อน
+    saveAndContinue: บันทึกและดำเนินการต่อ
+    next: ถัดไป
+    retry: ลองอีกครั้ง
+    credentialsSafeLabel: เก็บคีย์ API และข้อมูลรับรองของคุณให้ปลอดภัย!
+    credentialsSafeLocal: >-
+      AIRI ทำงานบนคอมพิวเตอร์ของคุณเท่านั้น และเราจะไม่ขโมยข้อมูลรับรองสำหรับผู้ให้บริการ AI / LLM ของคุณ แต่โปรดจำไว้ว่าคีย์ API เป็นข้อมูลที่ละเอียดอ่อน เก็บรักษาให้ปลอดภัยและอย่าแบ่งปันกับใคร
+    credentialsSafeOpenSource: >-
+      AIRI เป็นโอเพนซอร์สที่ {github} ถ้าคุณอยากดูว่าเราจัดการข้อมูลรับรองของคุณอย่างไร ตรวจดูโค้ดของเราได้เลย
+    enableChatCheck: >-
+      อนุญาตให้ AIRI ส่งข้อความ "ping" ไปยังโมเดลแชทตัวแรกที่ใช้ได้ เพื่อตรวจสอบว่าพร้อมใช้งาน
+    start: เริ่มกันเลย!
+    loginPrompt: เข้าสู่ระบบเพื่อใช้ผู้ให้บริการทางการของ AIRI และรับประสบการณ์ที่ดีที่สุด
+    loginAction: เข้าสู่ระบบ
+    setupWithoutSigningIn: ตั้งค่าด้วยผู้ให้บริการของคุณเอง
+    pricingLink: ราคา
+    termsLink: ข้อกำหนดในการให้บริการ
+    buyFlux: เติม Flux
+    select-model: เลือกโมเดล
+    no-models: ไม่มีโมเดลที่ใช้ได้
+    no-models-help: >-
+      โปรดกลับไปขั้นตอนก่อนหน้าและตรวจสอบคีย์ API หรือตรวจสอบการเชื่อมต่อเครือข่าย
+    permissions:
+      title: การจัดการสิทธิ์
+      description: คุณให้สิทธิ์ที่จำเป็นตอนนี้ก็ได้ หรือดำเนินการต่อแล้วค่อยตั้งค่าภายหลัง
+      notificationsTitle: การแจ้งเตือน
+      notificationsDescription: อนุญาตการเตือนความจำและการอัปเดตสถานะที่สำคัญ
+      microphoneTitle: ไมโครโฟน
+      microphoneDescription: อนุญาตให้ AIRI ใช้ไมโครโฟนของคุณสำหรับการป้อนเสียงและการถอดเสียง
+      requestAction: ขอสิทธิ์เข้าถึง
+      optionalHint: คุณดำเนินการต่อได้แม้ไม่ได้ให้สิทธิ์เหล่านี้
+      stateGranted: ได้รับสิทธิ์แล้ว
+      stateNotGranted: ยังไม่ได้รับสิทธิ์
+  bug-report:
+    title: รายงานบั๊ก (´;ω;`)ヾ(･∀･`)
+    subtitle: ขออภัย เราทำอะไรผิดพลาดไป ช่วยเล่าให้เราฟังหน่อยได้ไหมว่าเกิดอะไรขึ้น?
+    trigger-label: รายงานบั๊ก
+    submit-label: ส่งรายงานบั๊ก
+    triage-description: แนบภาพหน้าจอและบริบทของหน้า เพื่อช่วยเราคัดแยกปัญหานี้
+    description-placeholder: ขั้นตอนการทำให้เกิดปัญหา ผลลัพธ์ที่คาดไว้ และผลลัพธ์ที่เกิดขึ้นจริง
+    include-current-page-screenshot: แนบภาพหน้าจอของหน้าปัจจุบัน
+    manual-media:
+      label: เลือกภาพหน้าจอ / วิดีโอที่บันทึกเอง
+      optional: ไม่บังคับ
+    media-files:
+      label: ไฟล์สื่อ
+      description: 'ไม่บังคับ: เลือกเอง'
+      placeholder: เลือกไฟล์ภาพหน้าจอหรือวิดีโอ
+      selected-count: 'เลือกแล้ว {count} ไฟล์'
+    last-submitted-preview: ตัวอย่างข้อมูลที่ส่งล่าสุด
+language:
+  title: ภาษา
+  description: |
+    ภาษาของหน้าจอ คุณตั้งค่าภาษาของตัวละครได้ภายหลัง
+controls-island:
+  icon-size:
+    title: ขนาดไอคอนของแผงควบคุมลอย
+    description: ปรับขนาดไอคอนของแผงควบคุมลอย
+    auto: อัตโนมัติ (ปรับตามหน้าจอ)
+    large: ใหญ่ (ค่าเริ่มต้น)
+    small: เล็ก
+analytics:
+  notice:
+    title: การวิเคราะห์การใช้งาน
+    description: >-
+      AIRI เก็บข้อมูลการวิเคราะห์การใช้งานแบบไม่ระบุตัวตน เพื่อช่วยให้เราเข้าใจวิธีใช้แอปและปรับปรุงความเสถียร ไม่มีการเก็บข้อมูลส่วนบุคคล
+    privacyPrefix: อ่าน
+    privacyLink: นโยบายความเป็นส่วนตัว
+    onboardingHint: คุณปิดการวิเคราะห์ได้ภายหลังที่ การตั้งค่า > ระบบ > ทั่วไป
+    settingsHint: คุณปิดการวิเคราะห์ได้ทุกเมื่อ
+  toggle:
+    title: เปิดการวิเคราะห์การใช้งาน
+    description: ปิดตัวเลือกนี้เพื่อไม่เข้าร่วมการเก็บข้อมูลการวิเคราะห์
+  disabled:
+    title: ปิดการวิเคราะห์สำหรับบิลด์สำหรับการพัฒนานี้
+model-select:
+  panel-callout:
+    support-status-header: เรารองรับทั้งโมเดล 2D และ 3D
+    support-status: >
+      คลิก {select-button} เพื่อเลือกหรือนำเข้าโมเดล ขณะนี้รองรับ {zip} (สำหรับโมเดล Live2D และ Spine), {vrm} (สำหรับโมเดล VRM) และ {mmd} (สำหรับโมเดล MMD ที่บีบอัดรวมกับเทกซ์เจอร์)
+    model-type-example: >
+      Neuro-sama ใช้โมเดล 2D ที่ขับเคลื่อนด้วยเฟรมเวิร์กของ Live2D Inc ส่วน Grok Ani (ใน Grok Companion) ใช้โมเดล 3D ที่ขับเคลื่อนด้วยรูปแบบเปิด VRM / MMD
+  select-model:
+    title: ตัวเลือกโมเดล
+    button: เลือกโมเดล
+    select: เลือก
+    import: นำเข้า
+    remove: ลบ
+    confirm: ยืนยัน
+  live2d-report:
+    title: ก่อนนำเข้า
+    description: ตรวจดูข้อมูลโมเดลและปัญหาที่พบในไฟล์บีบอัด
+    description-short: ตรวจดูข้อมูลโมเดลและปัญหา
+    close: ปิด
+    model:
+      title: โมเดล
+      files: '{count} ไฟล์'
+      types:
+        unknown: ไม่ทราบ
+    resources:
+      title: ทรัพยากร
+      motions: ท่าทาง
+      expressions: สีหน้า
+      parameters: พารามิเตอร์
+      textures: เทกซ์เจอร์
+      referenced-and-found: 'อ้างอิง {referenced} · พบ {found}'
+      referenced: 'อ้างอิง {count}'
+      found: 'พบ {count}'
+    issues:
+      title: ปัญหา
+      errors: 'ข้อผิดพลาด {count} รายการ'
+      warnings: 'คำเตือน {count} รายการ'
+      none: ไม่พบปัญหา
+      how-to-fix: วิธีแก้ไข
+      resolve-before-import: แก้ไขข้อผิดพลาดก่อนนำเข้า
+    actions:
+      cancel: ยกเลิก
+      confirm: ยืนยันการนำเข้า
+      import-anyway: นำเข้าต่อไป
+live2d:
+  change-model:
+    from-file: โหลดจากไฟล์
+    from-file-select: เลือก
+    from-url: โหลดจาก URL
+    from-url-confirm: โหลด
+    from-url-placeholder: กรอก URL ของโมเดล Live2D
+    title: เปลี่ยนโมเดล
+  edit-motion-map:
+    title: แก้ไขแผนผังท่าทาง
+  map-motions:
+    play: เล่นท่าทาง
+    title: จับคู่ท่าทาง
+  title: การตั้งค่า Live2D
+  scale-and-position:
+    title: ขนาดและตำแหน่ง
+    scale: ขนาด
+  switch-to-vrm:
+    title: เปลี่ยนเป็นอวาตาร์ 3D ไหม?
+    change-to-vrm: คลิกที่นี่เพื่อเปลี่ยนไปที่การตั้งค่าอวาตาร์ 3D (VRM)
+  theme-color-from-model:
+    title: ดึงสีจากโมเดล
+    description: >
+      ดึงสีเด่นจากแคนวาสที่กำลังแสดงผลอยู่ คลิกที่สีเพื่อนำไปใช้กับ AIRI ถ้าได้สีที่ไม่ถูกใจ ลองดึงหลายครั้งขณะที่โมเดลอยู่ในท่าต่าง ๆ
+    button-extract:
+      title: ดึงสี
+  animation:
+    title: แอนิเมชัน
+    motion-driver:
+      title: ตัวขับเคลื่อนท่าทาง
+      description: เลือกวิธีที่ AIRI สร้างท่าทางของร่างกายและดวงตาขณะอยู่นิ่ง
+      options:
+        universal:
+          title: ทั่วไป
+          description: ใช้ท่าทางของโมเดล การกลอกตาขณะอยู่นิ่ง และการติดตามเมาส์
+        magic:
+          description: สร้างท่าทางจากชุดข้อมูล MAGIC ที่มาพร้อมแอป
+      magic:
+        profile:
+          title: โปรไฟล์ MAGIC
+          description: เลือกชุดข้อมูลท่าทางที่มาพร้อมแอปซึ่งเหมาะกับตัวขับเคลื่อน MAGIC
+          options:
+            idle-calm:
+              title: อยู่นิ่ง / สงบ
+              description: ใช้การบันทึกท่าทางขณะอยู่นิ่งและสงบที่มาพร้อมแอป
+            speaking-excited:
+              title: กำลังพูด / ตื่นเต้น
+              description: ใช้การบันทึกท่าทางขณะพูดและตื่นเต้นที่มาพร้อมแอป
+        skip-mouth-open:
+          title: ข้ามการอ้าปากที่สร้างขึ้น
+          description: ให้การขยับปากตามเสียงพูดเป็นตัวควบคุม ปิดตัวเลือกนี้เพื่อใช้การอ้าปากจากโปรไฟล์
+        force-view-target:
+          title: บังคับให้มองตรงไปข้างหน้า
+          description: ให้ดวงตามองไปข้างหน้าขณะที่ MAGIC ขยับศีรษะ
+    focus:
+      title: เปิดการติดตามเมาส์
+      description: มองตามเคอร์เซอร์ขณะที่เคอร์เซอร์เคลื่อนที่ การกลอกตาขณะอยู่นิ่งจะกลับมาทำงานหลังเคอร์เซอร์หยุด
+      offset: ระยะเลื่อนของดวงตา (%)
+    force-idle-eye-animation:
+      title: การกลอกตาขณะอยู่นิ่ง
+      description: มองไปรอบ ๆ แบบสุ่มเมื่อไม่มีเคอร์เซอร์ให้มองตาม
+    blink-enable:
+      title: เปิดการกะพริบตา
+      description: ให้โมเดลกะพริบตา
+    auto-blink:
+      title: อัตโนมัติ
+      description: ใช้แอนิเมชันกะพริบตาเริ่มต้นของโมเดล
+    force-auto-blink:
+      title: บังคับ
+      description: บังคับแอนิเมชันกะพริบตาด้วยตัวจับเวลาภายนอก
+    blink-mode:
+      title: โหมดการกะพริบตา
+      description: เลือกการกะพริบตาที่มีในโมเดล หรือตัวจับเวลากะพริบตาแบบบังคับของ AIRI
+    idle-motion:
+      title: แอนิเมชันขณะอยู่นิ่ง
+      no-motion: ไม่มีแอนิเมชันที่ใช้ได้
+      placeholder: เลือกแอนิเมชัน
+      disable-motion: ปิดอยู่
+      disable-motion-description: ปิดแอนิเมชันขณะอยู่นิ่ง
+  parameters:
+    title: พารามิเตอร์ของโมเดล
+    render-scale:
+      title: สเกลการเรนเดอร์
+    fps:
+      description: จำกัดอัตราเฟรมการเรนเดอร์
+    shadow: เงาตกกระทบ
+    reset-parameters: รีเซ็ตเป็นพารามิเตอร์เริ่มต้น
+  clear-model-cache: ล้างแคชโมเดล
+  expressions:
+    title: สีหน้า
+    override-toggle: ระบบสีหน้า
+    sdk-preset-preserved-notice: >
+      ตัวจัดการสีหน้าและการกะพริบตาของ SDK จะยังคงทำงานเมื่อปิดตัวเลือกนี้
+    no-expression: โมเดลนี้ไม่มีสีหน้าที่ใช้ได้
+    llm-integration-wip: ยังไม่ได้เชื่อมต่อเครื่องมือของ LLM
+    save-default: บันทึกค่าเริ่มต้นของสีหน้า
+    reset: รีเซ็ตสีหน้าทั้งหมด
+    expose-to-llm-toggle: เปิดให้ LLM ใช้
+    expose-to-llm-options:
+      none: ไม่มี
+      all: ทั้งหมด
+      custom: กำหนดเอง
+microphone: ไมโครโฟน
+models: โมเดล
+pages:
+  account:
+    title: บัญชี
+    description: ดูโปรไฟล์และจัดการบัญชีของคุณ
+    notLoggedIn: เข้าสู่ระบบเพื่อดูบัญชีและใช้งานฟีเจอร์ทั้งหมด
+    login: เข้าสู่ระบบ
+    logout: ออกจากระบบ
+    fluxBalance: ยอด Flux คงเหลือ
+    viewFluxDetails: ดูรายละเอียด
+    viewCapacitor: ดู
+    signedInAs: เข้าสู่ระบบในชื่อ
+    profile:
+      tab: โปรไฟล์
+      title: โปรไฟล์
+      description: จัดการชื่อที่แสดงต่อสาธารณะของคุณ
+      name:
+        label: ชื่อที่แสดง
+        placeholder: ชื่อที่คนอื่นเห็น
+      avatar:
+        gravatarNotice: รูปโปรไฟล์จาก Gravatar
+        gravatarLink: จัดการที่ gravatar.com
+      action:
+        save: บันทึกการเปลี่ยนแปลง
+      message:
+        saved: อัปเดตโปรไฟล์แล้ว
+      error:
+        fallback: เราบันทึกการเปลี่ยนแปลงของคุณไม่ได้
+    connections:
+      tab: บัญชีที่เชื่อมต่อ
+      title: บัญชีที่เชื่อมต่อ
+      description: เข้าสู่ระบบ AIRI ผ่านผู้ให้บริการเหล่านี้ ยกเลิกการเชื่อมโยงเพื่อเพิกถอนการเข้าถึง แล้วเชื่อมโยงอีกครั้งเพื่อเปลี่ยนไปใช้บัญชีอื่น
+      status:
+        linked: เชื่อมโยงแล้ว
+        notLinked: ยังไม่ได้เชื่อมโยง
+        linkedSince: เชื่อมโยงเมื่อ {date}
+      action:
+        link: เชื่อมโยง
+        unlink: ยกเลิกการเชื่อมโยง
+      message:
+        loading: กำลังโหลดบัญชีที่เชื่อมต่อ...
+        unlinked: 'ยกเลิกการเชื่อมต่อ {provider} แล้ว'
+        linked: 'เชื่อมต่อ {provider} แล้ว'
+        linkStarted: กำลังเปลี่ยนเส้นทางไปยัง {provider}…
+      error:
+        listFailed: โหลดบัญชีที่เชื่อมต่อไม่ได้
+        unlinkFailed: ยกเลิกการเชื่อมโยงบัญชีนี้ไม่ได้
+        linkFailed: เริ่มขั้นตอนการเชื่อมโยงไม่ได้
+        accountAlreadyLinkedToDifferentUser: บัญชี OAuth นี้เชื่อมโยงกับบัญชี AIRI อื่นอยู่แล้ว เลือกบัญชีอื่นของผู้ให้บริการ หรือยกเลิกการเชื่อมโยงจากบัญชี AIRI นั้นก่อน
+        oauthCallbackFailed: เราเชื่อมต่อบัญชี OAuth นี้ไม่ได้ ลองอีกครั้งหรือเลือกบัญชีอื่นของผู้ให้บริการ
+        lastAccount: นี่เป็นวิธีเข้าสู่ระบบเพียงวิธีเดียวของคุณ ตั้งรหัสผ่านก่อน แล้วจึงยกเลิกการเชื่อมโยง
+    security:
+      tab: ความปลอดภัย
+      title: ความปลอดภัย
+      description: เปลี่ยนรหัสผ่านของคุณ อุปกรณ์อื่น ๆ ของคุณจะถูกออกจากระบบ
+      setDescription: คุณเข้าสู่ระบบผ่านผู้ให้บริการโซเชียล จึงยังไม่มีรหัสผ่านปัจจุบัน เราจะส่งลิงก์ที่ปลอดภัยไปทางอีเมลเพื่อให้คุณตั้งรหัสผ่าน
+      currentPassword:
+        label: รหัสผ่านปัจจุบัน
+        placeholder: กรอกรหัสผ่านปัจจุบันของคุณ
+      newPassword:
+        label: รหัสผ่านใหม่
+        placeholder: อย่างน้อย 8 ตัวอักษร
+      confirmPassword:
+        label: ยืนยันรหัสผ่านใหม่
+        placeholder: กรอกรหัสผ่านใหม่อีกครั้ง
+      action:
+        changePassword: เปลี่ยนรหัสผ่าน
+        sendSetLink: ส่งลิงก์สำหรับตั้งรหัสผ่านทางอีเมล
+      message:
+        changed: เปลี่ยนรหัสผ่านแล้ว เซสชันอื่น ๆ ถูกออกจากระบบแล้ว
+        setLinkSent: ตรวจสอบลิงก์สำหรับตั้งรหัสผ่านที่ {email}
+      error:
+        fallback: เราเปลี่ยนรหัสผ่านของคุณไม่ได้
+        setLinkFailed: เราส่งลิงก์สำหรับตั้งรหัสผ่านไม่ได้
+        passwordMismatch: รหัสผ่านใหม่กับการยืนยันรหัสผ่านไม่ตรงกัน
+        passwordSameAsCurrent: รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสผ่านปัจจุบัน
+    danger:
+      tab: โซนอันตราย
+      title: โซนอันตราย
+      description: การดำเนินการกับบัญชีที่ย้อนกลับไม่ได้อยู่ที่นี่
+      deleteAccount:
+        title: ลบบัญชี
+        description: ลบบัญชีและข้อมูลส่วนตัวของคุณอย่างถาวร
+        action: ลบบัญชี
+        modal:
+          title: ลบบัญชีไหม?
+          warning: การดำเนินการนี้ย้อนกลับไม่ได้ ยอด Flux ของคุณจะถูกล้าง โปรดยกเลิกการสมัครสมาชิกที่ยังใช้งานอยู่ก่อน
+          confirmEmail:
+            label: พิมพ์อีเมลของคุณเพื่อยืนยัน
+            mismatch: อีเมลไม่ตรงกัน
+          confirm: ส่งอีเมลยืนยัน
+          cancel: ยกเลิก
+        message:
+          emailSent: ตรวจสอบลิงก์สำหรับลบบัญชีที่ {email}
+        error:
+          fallback: เริ่มการลบไม่ได้ โปรดลองอีกครั้งภายหลัง
+          subscriptionActive: การสมัครสมาชิกของคุณยังใช้งานอยู่ ยกเลิกที่หน้า Capacitor ก่อน แล้วจึงลบบัญชี
+  card:
+    wake-word-conflicts:
+      title: 'ต้องเลือกตัวละครให้การออกเสียงคำปลุกที่ใช้ร่วมกัน 1 รายการ | ต้องเลือกตัวละครให้การออกเสียงคำปลุกที่ใช้ร่วมกัน {count} รายการ'
+      description: มีการ์ดสองใบใช้การออกเสียงเดียวกัน จะไม่มีตัวละครตอบจนกว่าคุณจะเลือก
+      action: เลือกตัวละครที่จะตอบ
+    sync:
+      notice: การ์ดตัวละครจะซิงค์กับบัญชีของคุณ การ์ดที่ลบแล้วกู้คืนได้ภายใน 30 วัน
+      off_notice: คุณเข้าสู่ระบบแล้ว แต่การซิงค์การ์ดตัวละครปิดอยู่
+      off_notice_link: เปิดได้ในฟีเจอร์ทดลอง
+      state:
+        synced: ซิงค์กับบัญชีของคุณแล้ว
+        pending: กำลังรออัปโหลด
+        refused: ไม่ได้อัปโหลด บัญชีของคุณไม่มีที่ว่างสำหรับการ์ดเพิ่ม การ์ดนี้จึงอยู่บนอุปกรณ์นี้
+      conflict_copy_name: '{name} (สำเนาที่ขัดแย้ง)'
+      conflict_notice: อุปกรณ์อื่นแก้ไขตัวละครเดียวกัน AIRI เก็บเวอร์ชันจากอุปกรณ์นี้ไว้เป็นสำเนา
+      history:
+        tab: ประวัติ
+        empty: การ์ดนี้ยังไม่มีประวัติ
+        loading: กำลังโหลดประวัติ…
+        load_failed: โหลดประวัติของการ์ดนี้ไม่ได้
+        current: ปัจจุบัน
+        changed_label: เปลี่ยนแปลง
+        removed_label: ลบออก
+        fields:
+          name: ชื่อ
+          nickname: ชื่อเล่น
+          version: เวอร์ชัน
+          creator: ผู้สร้าง
+          description: คำอธิบาย
+          personality: บุคลิกภาพ
+          scenario: สถานการณ์
+          systemPrompt: พรอมต์ระบบ
+          postHistoryInstructions: คำสั่งหลังประวัติข้อความ
+          notes: บันทึกของผู้สร้าง
+          greetings: คำทักทาย
+          tags: แท็ก
+          metadata: เมทาดาทา
+          assets: ไฟล์ประกอบ
+          characterBook: สมุดข้อมูลโลก
+          source: แหล่งที่มา
+          wakeWords: คำปลุก
+          agents: เอเจนต์
+          consciousness: โมเดลจิตสำนึก
+          vision: โมเดลการมองเห็น
+          speech: โมเดลการพูด
+          vrm: โมเดล VRM
+          live2d: โมเดล Live2D
+          displayModelId: โมเดลที่แสดง
+          activeBackgroundId: พื้นหลังที่ปักหมุด
+          artistry: การสร้างภาพ
+        restore: กู้คืนเวอร์ชันนี้
+        restore_confirm_title: กู้คืนเวอร์ชันนี้ไหม?
+        restore_confirm_body: การดำเนินการนี้จะแทนที่เนื้อหาปัจจุบันของ {name} ด้วยเนื้อหาจาก {date}
+        restore_confirm_confirm: กู้คืน
+        restore_confirm_cancel: ยกเลิก
+        restore_success: กู้คืน {name} เป็นเวอร์ชันก่อนหน้าแล้ว
+        restore_failed: กู้คืนเวอร์ชันนี้ไม่ได้ เซิร์ฟเวอร์อาจไม่มีเวอร์ชันนี้แล้ว
+      deleted:
+        title: ลบล่าสุด
+        empty: ไม่มีการ์ดที่ลบล่าสุด
+        loading: กำลังโหลดการ์ดที่ลบล่าสุด…
+        load_failed: โหลดการ์ดที่ลบล่าสุดไม่ได้
+        deleted_when: 'ลบเมื่อ {when}'
+        days_left: 'เหลือเวลากู้คืนอีก {days} วัน'
+        restore: กู้คืน
+        restore_success: กู้คืน {name} แล้ว
+        restore_failed: กู้คืนการ์ดนี้ไม่ได้ เซิร์ฟเวอร์อาจไม่มีเนื้อหาของการ์ดนี้แล้ว
+    activate: เปิดใช้งาน
+    active: ใช้งานอยู่
+    active_badge: กำลังใช้งาน
+    activation_notice: สลับเป็น {name} แล้ว บทสนทนาปัจจุบันใช้ตัวละครนี้แล้ว
+    cancel: ยกเลิก
+    save: บันทึกการเปลี่ยนแปลง
+    save_and_activate: บันทึกและเปิดใช้งาน
+    card_not_found: ไม่พบการ์ด
+    back: กลับ
+    character: ตัวละคร
+    close: ปิด
+    chat:
+      provider: แชท / ผู้ให้บริการ
+    consciousness:
+      model: จิตสำนึก / โมเดล
+    vision:
+      provider: การมองเห็น / ผู้ให้บริการ
+      model: การมองเห็น / โมเดล
+    created_by: สร้างโดย
+    creator_notes: บันทึกของผู้สร้าง
+    delete: ลบ
+    delete_card: ลบการ์ด
+    delete_confirmation: คุณแน่ใจไหมว่าต้องการลบการ์ดนี้?
+    description: ใช้พรีเซ็ตการ์ดตัวละครของ AIRI
+    description_label: คำอธิบาย
+    drop_here: วางเพื่ออัปโหลด
+    create_card: สร้างการ์ดใหม่
+    edit_card: แก้ไขการ์ด
+    saved: บันทึกการ์ดแล้ว
+    unsaved:
+      badge: ยังไม่ได้บันทึก
+      title: ทิ้งการเปลี่ยนแปลงไหม?
+      message: การเปลี่ยนแปลงของคุณยังไม่ได้บันทึก ถ้าออกจากหน้านี้ การเปลี่ยนแปลงจะหายไป
+      keep_editing: แก้ไขต่อ
+      discard: ทิ้งการเปลี่ยนแปลง
+    creation:
+      identity: ตัวตน
+      name: ชื่อ
+      nickname: ชื่อเล่น
+      description: คำอธิบาย
+      behavior: พฤติกรรม
+      greetings: คำทักทาย (บรรทัดละหนึ่งข้อความ)
+      settings: การตั้งค่า
+      version: เวอร์ชัน
+      create: สร้าง
+      defaults:
+        name: ชื่อ
+        personality: คุณเป็นมนุษย์ธรรมดาที่อยากรู้อยากเห็นไปทุกเรื่อง
+        scenario: คุณเพิ่งตื่นขึ้นมาและลืมทุกอย่างเกี่ยวกับชีวิตก่อนหน้านี้
+        systemprompt: คุณจะได้รับข้อความ ให้ตอบเหมือนมนุษย์จริง ๆ
+        posthistoryinstructions: อย่าลืมทำตัวเหมือนมนุษย์
+      modules_info: >-
+        ตั้งค่าโมดูลสำหรับการ์ดตัวละครนี้ ช่องที่เว้นว่างจะใช้การตั้งค่าส่วนกลาง
+      sections:
+        chat: แชท
+        vision: การมองเห็น
+        speech: การพูด
+        body: ร่างกาย
+      use_default: ใช้ค่าเริ่มต้น
+      use_default_not_configured: ใช้ค่าเริ่มต้น (ยังไม่ได้ตั้งค่า)
+      inherit_global_settings: ใช้การตั้งค่าส่วนกลาง
+      fields_info:
+        subtitle: >-
+          ใส่รายละเอียดเกี่ยวกับตัวละครที่คุณกำลังสร้างได้ที่นี่ อธิบายประวัติและบริบทของตัวละคร และวิธีที่ตัวละครควรตอบสนองต่อการโต้ตอบของคุณ
+        name: ชื่อทางการของตัวละครนี้
+        nickname: คุณตั้งชื่อเล่นได้ด้วย ชื่อเล่นจะถูกใช้ก่อน
+        description: คำอธิบายของตัวละครนี้
+        notes: ถ้าต้องการเพิ่มบันทึกส่วนตัว
+        personality: >-
+          อธิบายบุคลิกภาพของตัวละครที่นี่ ขี้อาย? อยากรู้อยากเห็น? หรืออย่างอื่น?
+        scenario: สภาพแวดล้อมรอบตัวเป็นอย่างไร? สถานการณ์ตอนนี้เป็นอย่างไร?
+        greetings_field: คำทักทาย
+        greetings: ตัวละครของคุณควรทักทายอย่างไร?
+        systemprompt: อธิบายให้ AI LLM รู้ว่าควรตอบอย่างไรเมื่อได้รับพรอมต์
+        posthistoryinstructions: ใส่สิ่งที่ AI LLM ควรอ่านหลังประวัติข้อความไว้ที่นี่
+        version: >-
+          เวอร์ชันของการ์ด ควรเพิ่มเลขเวอร์ชันถ้าคุณแก้ไขจากการ์ดก่อนหน้า
+        consciousness_model: เลือกโมเดลจิตสำนึก (โมเดล AI) สำหรับตัวละครนี้
+        speech_model: เลือกโมเดลสังเคราะห์เสียงพูดและเสียงสำหรับตัวละครนี้
+      errors:
+        model_required: เลือกโมเดลให้ผู้ให้บริการแต่ละรายที่ระบุ โมเดลใช้ต่อจากผู้ให้บริการรายอื่นไม่ได้
+        name: ชื่อต้องถูกต้องและไม่เว้นว่าง
+        version: 'ข้อผิดพลาด: หมายเลขเวอร์ชันไม่ถูกต้อง!'
+        description: 'ข้อผิดพลาด: ต้องใส่คำอธิบายของการ์ดนี้'
+        personality: 'ข้อผิดพลาด: ต้องใส่บุคลิกภาพของตัวละครนี้'
+        scenario: 'ข้อผิดพลาด: ต้องใส่สถานการณ์'
+        systemprompt: 'ข้อผิดพลาด: โปรดใส่พรอมต์ระบบ'
+        posthistoryinstructions: 'ข้อผิดพลาด: ต้องใส่คำสั่งหลังประวัติข้อความ'
+        invalid_artistry_json: 'ข้อผิดพลาด: ตัวเลือกผู้ให้บริการการสร้างภาพมี JSON ที่ไม่ถูกต้อง'
+      none: ไม่มี
+      none_disabled: ไม่มี (ปิดอยู่)
+    modules: โมดูล
+    name_asc: ชื่อ (A-Z)
+    name_desc: ชื่อ (Z-A)
+    no_cards: ยังไม่มีการ์ด คลิกปุ่มด้านบนเพื่ออัปโหลด!
+    no_results: ไม่พบการ์ดที่ตรงกัน
+    personality: บุคลิกภาพ
+    posthistoryinstructions: คำสั่งหลังประวัติข้อความ
+    recent: เพิ่มล่าสุด
+    scenario: สถานการณ์
+    search: ค้นหาการ์ด...
+    sort_by: เรียงตาม
+    body-model: ร่างกาย / โมเดลที่แสดง
+    speech:
+      provider: การพูด / ผู้ให้บริการ
+      model: การพูด / โมเดล
+      voice: การพูด / เสียง
+    systemprompt: พรอมต์ระบบ
+    title: การ์ด AIRI
+    try_different_search: ลองใช้คำค้นหาอื่น
+    export: ส่งออก
+    exported: ส่งออกแพ็กเกจการ์ดแล้ว
+    export_failed: ส่งออกแพ็กเกจการ์ดไม่สำเร็จ
+    imported: นำเข้าแพ็กเกจการ์ดแล้ว
+    import_missing_file: แพ็กเกจการ์ดขาดไฟล์ที่จำเป็น
+    import_invalid_file: ไฟล์แพ็กเกจการ์ดไม่ถูกต้อง
+    upload: อัปโหลด
+    upload_desc: คลิกหรือลากแพ็กเกจการ์ด AIRI มาวางเพื่อนำเข้า
+  memory:
+    description: ที่จัดเก็บและจัดระเบียบความทรงจำ
+    title: ความทรงจำ
+  data:
+    title: ข้อมูล
+    description: จัดการข้อมูล AIRI ที่จัดเก็บไว้ การส่งออก และการรีเซ็ต
+    sections:
+      chats:
+        title: เซสชันแชท
+        description: ส่งออกหรือนำเข้าเซสชันแชทที่บันทึกไว้
+        export: ส่งออกแชท
+        import: นำเข้าแชท
+        delete: ลบเซสชันแชททั้งหมด
+      models:
+        title: โมเดล
+        description: ลบโมเดล Live2D, VRM, Spine และ MMD ที่นำเข้าไว้
+        delete: ลบโมเดลทั้งหมด
+      model-downloads:
+        title: โมเดลเสียงพูดที่ดาวน์โหลดไว้
+        description: ไฟล์โมเดล Sherpaw ที่เก็บไว้ในอุปกรณ์นี้
+        empty: ยังไม่ได้ดาวน์โหลดโมเดลเสียงพูด
+        wake-word-model: โมเดลคำปลุก
+        refresh: รีเฟรช
+      modules:
+        title: โมดูล
+        description: รีเซ็ตการกำหนดค่าและข้อมูลรับรองของโมดูล
+        reset: รีเซ็ตการตั้งค่าโมดูล
+      providers:
+        title: ผู้ให้บริการ
+        description: รีเซ็ตการตั้งค่าและข้อมูลรับรองของผู้ให้บริการทั้งหมด
+        reset: รีเซ็ตการตั้งค่าผู้ให้บริการ
+      danger:
+        title: โซนอันตราย
+        description: การดำเนินการที่ย้อนกลับไม่ได้ ส่งออกสิ่งที่คุณต้องการก่อนดำเนินการต่อ
+      all:
+        title: ลบข้อมูลทั้งหมด
+        description: ล้างการตั้งค่าในเครื่อง การกำหนดค่าผู้ให้บริการ และโมเดลทั้งหมด
+        delete: ลบข้อมูลทั้งหมด
+      desktop-folder:
+        title: เปิดโฟลเดอร์ข้อมูลของแอป
+        description: เปิดโฟลเดอร์ข้อมูลของ AIRI ในตัวจัดการไฟล์
+        open: เปิดโฟลเดอร์
+      desktop:
+        title: รีเซ็ตการตั้งค่าและสถานะของเดสก์ท็อป
+        description: ล้างการตั้งค่าเดสก์ท็อปและสถานะขณะทำงานของ AIRI
+        center: ย้ายหน้าต่างเดสก์ท็อปไปกึ่งกลาง
+        reset: รีเซ็ตข้อมูลเดสก์ท็อป
+    confirmations:
+      tooltip: คุณแน่ใจไหม?
+      'yes': 'ใช่'
+    status:
+      exported: ส่งออกเซสชันแชทแล้ว
+      imported: นำเข้าเซสชันแชทแล้ว
+      import_error: นำเข้าเซสชันแชทไม่สำเร็จ โปรดตรวจสอบรูปแบบไฟล์
+      chats_deleted: ลบเซสชันแชทแล้ว
+      models_deleted: ลบโมเดลแล้ว
+      model_download_cancelled: ยกเลิกการดาวน์โหลดโมเดลแล้ว
+      model_download_removed: ลบโมเดลที่ดาวน์โหลดไว้แล้ว
+      modules_reset: รีเซ็ตการตั้งค่าโมดูลแล้ว
+      providers_reset: รีเซ็ตการตั้งค่าผู้ให้บริการแล้ว
+      all_deleted: ลบข้อมูลในเครื่องทั้งหมดแล้ว
+      desktop_window_centered: ย้ายหน้าต่างเดสก์ท็อปไปกึ่งกลางหน้าจอแล้ว
+      desktop_reset: รีเซ็ตข้อมูลเดสก์ท็อปแล้ว
+  models:
+    description: Live2D, VRM, Spine, MMD และอื่น ๆ
+    title: โมเดล
+    sections:
+      section:
+        live2d:
+          description: ตั้งค่าโมเดลและการตั้งค่าของ Live2D
+        vrm:
+          description: ตั้งค่าโมเดล VRM แบบ 3D และการตั้งค่า
+        scene: ฉาก
+  modules:
+    beat_sync:
+      description: ขยับตามจังหวะจากแหล่งเสียง
+      title: ซิงค์ตามจังหวะ
+      sections:
+        audio_source:
+          actions:
+            start_screen_capture: เริ่มจับภาพหน้าจอ
+            stop: หยุด
+          description: เลือกแหล่งเสียงที่จะใช้ตรวจจับจังหวะ
+          title: แหล่งเสียง
+        beat_visualizer:
+          title: ตัวแสดงจังหวะ
+        parameters:
+          advanced_parameters: พารามิเตอร์ขั้นสูง
+          description: ปรับพารามิเตอร์การตรวจจับจังหวะ
+          title: พารามิเตอร์
+          parameters:
+            adaptive_threshold:
+              description: >-
+                จะใช้เกณฑ์แบบปรับตัวตามความแปรปรวนของสัญญาณตามเวลาหรือไม่
+              label: เกณฑ์แบบปรับตัว
+            buffer_duration:
+              description: ระยะเวลาของบัฟเฟอร์สำหรับการวิเคราะห์ภายใน
+              label: ระยะเวลาบัฟเฟอร์
+            envelope_filter_frequency:
+              description: >-
+                ความถี่ของตัวกรอง envelope ที่ใช้ทำให้การเปลี่ยนแปลงของพลังงานราบรื่นขึ้น
+              label: ความถี่ของตัวกรอง envelope
+            highpass_filter_frequency:
+              description: >-
+                ความถี่ของตัวกรองความถี่สูงผ่าน ที่ใช้ลดความถี่ต่ำ เช่น เสียงรบกวนย่านซับเบส
+              label: ความถี่ของตัวกรองความถี่สูงผ่าน
+            lowpass_filter_frequency:
+              description: >-
+                ความถี่ของตัวกรองความถี่ต่ำผ่าน ที่ใช้ลดความถี่สูง เช่น เสียงร้อง
+              label: ความถี่ของตัวกรองความถี่ต่ำผ่าน
+            min_beat_interval:
+              description: BPM สูงสุด หรือช่วงห่างขั้นต่ำระหว่างจังหวะที่ตรวจพบ
+              label: BPM สูงสุด / ช่วงห่างจังหวะขั้นต่ำ
+            sensitivity:
+              label: ความไว
+            spectral_flux:
+              description: จะเปิดการตรวจจับจุดเริ่มเสียงด้วย spectral flux หรือไม่
+              label: ฟลักซ์สเปกตรัม
+            warmup:
+              description: จะวอร์มอัปก่อนตรวจจับจังหวะเพื่อความแม่นยำที่ดีขึ้นหรือไม่
+              label: วอร์มอัป
+    artistry:
+      title: การสร้างภาพ
+      description: การสร้างภาพ พื้นหลังของฉาก และการวาด
+      page:
+        title: การตั้งค่าผู้ให้บริการการสร้างภาพ
+        description: เลือกผู้ให้บริการแบ็กเอนด์ที่ใช้สร้างภาพ ตัวละครแต่ละตัวเปลี่ยนค่านี้ได้ในการตั้งค่าการ์ด
+      providers:
+        none:
+          name: ไม่มี
+          description: ข้ามและปิดโมดูลการสร้างภาพทั้งหมด
+        comfyui:
+          name: ComfyUI (ในเครื่อง)
+          description: ใช้ ComfyUI ในเครื่องผ่าน WSL เพื่อสร้างภาพ
+        replicate:
+          name: Replicate.ai (คลาวด์)
+          description: ใช้โมเดลบนคลาวด์ผ่าน Replicate API
+        nanobanana:
+          name: Nano Banana (พรีวิว)
+          description: ใช้ Google AI Studio สำหรับพรีวิวภาพและปฏิกิริยา
+      card:
+        description: ตั้งค่าวิธีที่ AIRI สร้างภาพและเนื้อหาภาพ
+        comfyui_empty: ยังไม่ได้ตั้งค่าเวิร์กโฟลว์ ComfyUI ไปที่ การตั้งค่า → ผู้ให้บริการ → ComfyUI เพื่ออัปโหลดเทมเพลตเวิร์กโฟลว์
+        exposed_fields: 'เปิดให้ใช้ {count} ช่อง'
+        open_on_replicate: เปิดบน Replicate
+        instruction_sync:
+          title: ซิงค์คำสั่งของ ComfyUI
+          description: มีพรอมต์เฉพาะสำหรับเวิร์กโฟลว์ {workflowName} ของคุณพร้อมแล้ว การนำไปใช้จะเขียนทับคำสั่งของวิดเจ็ตปัจจุบัน เพื่อให้ AI รู้วิธีใช้เทมเพลตนี้
+          apply: ใช้พรอมต์ที่แนะนำ
+          keep: ใช้แบบเดิม
+      provider: ผู้ให้บริการการสร้างภาพ
+      spawn_mode:
+        label: โหมดการแสดงผล (Spawn Mode)
+        description: เลือกวิธีส่งภาพไปแสดงบนหน้าจอ
+        options:
+          bg: สภาพแวดล้อมพื้นหลัง
+          inline: แทรกในแชท
+          widget: วิดเจ็ตซ้อนทับ
+          bg_widget: ทั้งสองแบบ (พื้นหลัง + วิดเจ็ต)
+      autonomous:
+        title: การสร้างภาพอัตโนมัติ (Autonomous Artist)
+        description: เมื่อเปิดใช้ "Producer" จะทำงานคู่ขนานกับตัวละครเพื่อตัดสินว่าต้องมีภาพหรือไม่ ช่วยให้ตัวละครไม่ลืมสร้างฉาก
+        threshold: เกณฑ์การสร้างภาพ
+        threshold_description: ใช้ {min} เพื่อสร้างฉากบ่อย ๆ หรือ {max} เพื่อให้ต้องมีหลักฐานชัดเจนกว่าก่อนสร้างภาพ
+        threshold_min: สร้างทุกครั้ง (0%)
+        threshold_max: เข้มงวด (100%)
+      model:
+        label: โมเดลการสร้างภาพ (ระบุแทนได้ ไม่บังคับ)
+        description: ตัวระบุโมเดล หากผู้ให้บริการต้องการ
+        placeholder: เช่น black-forest-labs/flux-schnell
+      prompt-prefix:
+        label: คำนำหน้าพรอมต์เริ่มต้นของการสร้างภาพ
+        description: ใส่ไว้หน้าพรอมต์ทุกอันที่ส่งไปยังตัวสร้างภาพ
+        placeholder: เช่น Masterpiece, high quality, 1girl, anime,
+      options:
+        label: ตัวเลือกผู้ให้บริการการสร้างภาพ (JSON)
+      widget-instructions:
+        label: พรอมต์ระบบของวิดเจ็ต
+        description: คำสั่งที่กำหนดเองให้ AI รู้วิธีใช้ความสามารถในการสร้างภาพ
+    categories:
+      essential: พื้นฐาน
+      messaging: การส่งข้อความ
+      gaming: เกม
+      artistry: การสร้างภาพ
+    consciousness:
+      description: บุคลิกภาพ โมเดลที่ต้องการ และอื่น ๆ
+      sections:
+        section:
+          provider-model-selection:
+            collapse: ย่อ
+            custom_model_placeholder: กรอกชื่อโมเดลที่กำหนดเอง...
+            current_model_label: 'โมเดลปัจจุบัน:'
+            description: เลือกผู้ให้บริการ LLM ที่เหมาะสำหรับจิตสำนึก
+            error: โหลดโมเดลไม่สำเร็จ
+            health_check_failed: การตรวจสอบสถานะล้มเหลว
+            no_providers_configured_title: ยังไม่ได้ตั้งค่าผู้ให้บริการ
+            no_providers_configured_description: คลิกที่นี่เพื่อตั้งค่าผู้ให้บริการ LLM ของคุณ
+            expand: ขยาย
+            loading: กำลังโหลดโมเดลที่ใช้ได้...
+            manual_model_name: ชื่อโมเดล
+            manual_model_placeholder: กรอกชื่อโมเดลที่จะใช้กับผู้ให้บริการนี้
+            no_models: ไม่มีโมเดลที่ใช้ได้
+            no_models_description: ไม่พบโมเดลสำหรับผู้ให้บริการนี้
+            no_search_results: ไม่มีโมเดลที่ตรงกัน
+            no_search_results_description: ไม่มีโมเดลที่ตรงกับ '{query}' ลองใช้คำค้นหาอื่น
+            not_supported: ไม่รองรับการแสดงรายการโมเดล
+            not_supported_description: ผู้ให้บริการนี้ไม่รองรับฟังก์ชันแสดงรายการโมเดล
+            search_placeholder: ค้นหาโมเดล...
+            search_results: พบ {count} จาก {total} โมเดล
+            show_less: แสดงน้อยลง
+            show_more: แสดงเพิ่มเติม
+            temperature_label: อุณหภูมิ
+            temperature_enabled: กำหนด Temperature เอง
+            top_p_enabled: กำหนด Top P เอง
+            sampling_override_description: ปิดไว้เป็นค่าเริ่มต้น เปิดเฉพาะเมื่อโมเดลของคุณรองรับพารามิเตอร์นี้ บางโมเดลรับพารามิเตอร์การสุ่มได้ทีละตัวเท่านั้น
+            temperature_description: ควบคุมความสุ่มของผลลัพธ์จากโมเดล ค่าที่ต่ำ (เช่น 0.2) ให้ผลลัพธ์ที่คาดเดาได้ แม่นยำ และเชิงวิเคราะห์มากขึ้น ส่วนค่าที่สูง (เช่น 1.0) เพิ่มความสร้างสรรค์และความหลากหลาย
+            top_p_description: ควบคุมความหลากหลายของผลลัพธ์จากโมเดลด้วย nucleus sampling ค่าที่ต่ำ (เช่น 0.2) จำกัดผลลัพธ์ให้มีเฉพาะโทเค็นที่มีความน่าจะเป็นสูง ส่วนค่าที่สูง (เช่น 1.0) รวมความเป็นไปได้ที่กว้างขึ้น
+            subtitle: เลือกโมเดลเริ่มต้นจากผู้ให้บริการ
+            title: โมเดล
+          model-options:
+            title: ตัวเลือกของโมเดล
+            thinking:
+              label: การคิด
+              required-description: โมเดลนี้ต้องใช้การคิด
+              provider-default-description: AIRI ไม่มีการตั้งค่าการให้เหตุผลสำหรับโมเดลนี้ OpenRouter จะใช้ค่าเริ่มต้นของตัวเอง
+      title: จิตสำนึก
+    description: การคิด การมองเห็น การสังเคราะห์เสียงพูด การเล่นเกม และอื่น ๆ
+    gaming-factorio:
+      description: เล่น Factorio!
+      enable: เปิดการเชื่อมต่อกับ Factorio
+      enable-description: อนุญาตให้ AIRI โต้ตอบกับเกม Factorio
+      server-address: ที่อยู่เซิร์ฟเวอร์
+      server-address-description: ที่อยู่ IP หรือชื่อโฮสต์ของเซิร์ฟเวอร์ Factorio
+      server-address-placeholder: กรอกที่อยู่เซิร์ฟเวอร์ (เช่น localhost หรือ 192.168.1.100)
+      server-port: พอร์ตเซิร์ฟเวอร์
+      server-port-description: หมายเลขพอร์ตของเซิร์ฟเวอร์ Factorio (ค่าเริ่มต้น 34197)
+      username: ชื่อผู้ใช้
+      username-description: ชื่อผู้ใช้ของคุณในเซิร์ฟเวอร์ Factorio
+      username-placeholder: กรอกชื่อผู้ใช้ Factorio ของคุณ
+      configured: ตั้งค่า Factorio เรียบร้อยแล้ว!
+    gaming-minecraft:
+      description: เล่น Minecraft!
+      enable: เปิดการเชื่อมต่อกับ Minecraft
+      enable-description: >-
+        ใส่ความรู้เกี่ยวกับตัวเองใน Minecraft ไว้ในรอบการแชทบนเวที และเปิดการมองเห็นสถานะขณะทำงานแบบพาสซีฟไว้
+      configured: ตั้งค่า Minecraft เรียบร้อยแล้ว!
+      read-only:
+        title: เชลล์แบบอ่านอย่างเดียว
+        description: >-
+          ขณะนี้เวทีแสดง Minecraft เป็นเชลล์แบบพาสซีฟ ดูสถานะขณะทำงานและทราฟฟิกได้ที่นี่ แต่การตั้งค่าบริการยังอยู่ในไฟล์บริการของ Minecraft
+      setup:
+        title: วิธีตั้งค่า
+        description: >-
+          คุณดูวิธีตั้งค่าบอตได้ในไฟล์ต่อไปนี้
+      runtime:
+        title: สถานะขณะทำงานที่ตรวจพบ
+        connection: การเชื่อมต่อ
+        latest-context: บริบทล่าสุดของบอต
+        waiting: กำลังรอการส่งบริบทใหม่จากบอต
+        unknown: ไม่ทราบ
+      debug:
+        title: ทราฟฟิกของ Minecraft
+        empty: ยังไม่พบทราฟฟิกของ Minecraft
+        source: 'แหล่งที่มา: {source}'
+      status:
+        service-online: บริการออนไลน์
+        service-offline: บริการออฟไลน์
+        no-runtime-context: ยังไม่พบบริบทของบอต
+        last-context-seconds: 'บริบทล่าสุดของบอต: {seconds} วินาทีที่แล้ว'
+        last-context-stale: 'บริบทล่าสุดของบอต: ล้าสมัย'
+    hearing:
+      description: ตั้งค่าวิธีทำงานของการรู้จำเสียงพูด
+      title: การฟัง
+      transcriber:
+        title: การรู้จำเสียงพูด
+        description: เลือกผู้ให้บริการและโมเดลถอดเสียง แล้วทดสอบไมโครโฟนของคุณ
+      wake-words:
+        title: คำปลุก
+        description: ดูคำปลุกของตัวละครแต่ละตัว และเลือกตัวละครที่จะตอบการออกเสียงที่ใช้ร่วมกัน
+        intro: ตัวละครแต่ละตัวเก็บคำปลุกไว้ในการ์ดของตัวเอง ถ้าต้องการเปลี่ยนคำ ให้ขอตัวละครในแชท
+        empty: ตัวละครนี้ไม่มีคำปลุก
+        state:
+          active: ใช้งานอยู่
+          paused: หยุดชั่วคราว เลือกตัวละครที่จะตอบ
+          other: 'ตอบโดย {name}'
+          unsupported: ใช้ไม่ได้กับโมเดลคำปลุกปัจจุบัน
+        conflicts:
+          title: การออกเสียงที่ใช้ร่วมกัน
+          description: มีตัวละครตั้งแต่สองตัวขึ้นไปใช้การออกเสียงเดียวกัน เลือกตัวละครที่จะตอบบนอุปกรณ์นี้ การ์ดแต่ละใบยังเก็บคำของตัวเองไว้
+          choose-label: ตัวละครที่จะตอบ
+          answered-by: '{name} เป็นผู้ตอบ'
+          unresolved: ไม่มีตัวละครตอบการออกเสียงนี้
+      sections:
+        section:
+          provider-selection:
+            description: เลือกผู้ให้บริการการรู้จำเสียงพูดที่เหมาะสม
+          microphone:
+            title: ไมโครโฟน
+            label: ไมโครโฟน
+            description: เปิดไมโครโฟนสำหรับการฟัง โหมดการป้อนเสียงจะกำหนดว่า AIRI ฟังเมื่อใด
+            error: ไมโครโฟนไม่พร้อมใช้งาน
+          input-device:
+            label: อุปกรณ์รับเสียง
+            description: เลือกไมโครโฟนที่ AIRI ใช้
+            playground-description: การฟังและพื้นที่ทดลองใช้ไมโครโฟนนี้
+            placeholder: เลือกไมโครโฟน
+          auto-send:
+            title: ข้อความถอดเสียง
+            description: เลือกว่า AIRI จะทำอะไรกับข้อความจากเสียงพูดของคุณ
+            label: ส่งอัตโนมัติ
+            label-description: AIRI จะส่งข้อความถอดเสียงไปที่แชทหลังผ่านไปช่วงหนึ่ง ปิดตัวเลือกนี้เพื่ออ่านและแก้ไขข้อความก่อน ข้อความที่ส่งแต่ละข้อความจะใช้โทเค็น
+            delay: ระยะหน่วงก่อนส่ง
+            delay-description: เวลาที่ AIRI รอก่อนส่งข้อความถอดเสียง
+            immediate: ทันที
+          input-mode:
+            title: โหมดการป้อนเสียง
+            description: เลือกวิธีที่ AIRI เริ่มฟังขณะเปิดไมโครโฟน
+            label: เริ่มฟัง
+            always-on: เปิดตลอด
+            always-on-description: AIRI ฟังตลอดเวลาและตอบเมื่อคุณพูด
+            push-to-talk: กดเพื่อพูด
+            push-to-talk-description: AIRI ฟังเฉพาะขณะที่คุณกดปุ่มกดเพื่อพูดค้างไว้ ไมโครโฟนเปิดเฉพาะขณะกดค้าง
+            push-to-talk-unavailable: ใช้ที่นี่ไม่ได้ แอปนี้ไม่มีปุ่มกดเพื่อพูดบนอุปกรณ์นี้
+            stranded-title: ใช้กดเพื่อพูดที่นี่ไม่ได้
+            stranded-description: แอปนี้ไม่มีปุ่มกดเพื่อพูดบนอุปกรณ์นี้ AIRI จึงไม่ฟัง ถ้าต้องการคุยกับ AIRI ที่นี่ ให้เลือกเปิดตลอดหรือคำปลุก
+            wake-word: คำปลุก
+            wake-word-description: ไมโครโฟนเปิดอยู่ตลอด แต่ AIRI จะฟังหลังจากคุณพูดคำปลุกของตัวละครเท่านั้น
+            wake-word-status:
+              no-words: ไม่มีตัวละครที่มีคำปลุก ขอให้ตัวละครในแชทตั้งคำปลุกของตัวเอง
+              unconfigured: การตรวจจับคำปลุกจะเริ่มเมื่อเปิดไมโครโฟน
+              preparing: กำลังเตรียมโมเดลคำปลุก…
+              ready: คำปลุกพร้อมแล้ว
+              error: 'โมเดลคำปลุกไม่พร้อมใช้งาน: {error}'
+          rephrase:
+            title: การเขียนข้อความถอดเสียงใหม่
+            description: โมเดลแชทจะแก้ข้อผิดพลาดจากการรู้จำและตัดคำเติมออก ก่อนที่ข้อความถอดเสียงจะกลายเป็นฉบับร่าง ข้อความต้นฉบับยังเก็บไว้
+            enabled: เขียนข้อความถอดเสียงใหม่
+            enabled-description: ข้อความถอดเสียงที่เสร็จแล้วแต่ละข้อความจะถูกส่งไปยังโมเดลแชทที่เลือก ถ้าโมเดลล้มเหลวหรือใช้เวลานานกว่า 10 วินาที จะใช้ข้อความต้นฉบับแทน
+            provider: ผู้ให้บริการ
+            provider-description: ค่าเริ่มต้นใช้โมเดลแชทของโมดูลจิตสำนึก
+            same-as-chat: เหมือนกับแชท
+            model: โมเดล
+            model-placeholder: เลือกโมเดล
+          playground:
+            current: ข้อความถอดเสียงปัจจุบัน
+            description: ฟังผ่านไปป์ไลน์การฟังที่ใช้งานอยู่ และเก็บเสียงพูดแต่ละช่วงที่เสร็จแล้วไว้ด้านล่าง
+            empty: เริ่มการตรวจฟัง แล้วพูดใส่ไมโครโฟนที่เลือก
+            error-title: ข้อผิดพลาดในการถอดเสียง
+            listening: กำลังฟังเสียงพูด…
+            no-transcription: ไม่พบเสียงพูดในไฟล์เสียงนี้
+            segment: 'เสียงพูดช่วงที่ {number}'
+            start: เริ่มการตรวจฟัง
+            stop: หยุดการตรวจฟัง
+            title: พื้นที่ทดลองการฟัง
+            transcribing: กำลังถอดเสียง…
+            transcription-failed: การถอดเสียงล้มเหลว
+          confidence-threshold:
+            title: เกณฑ์ความมั่นใจ
+            description: >-
+              กรองข้อความถอดเสียงที่มีความมั่นใจต่ำออก เพื่อลดอาการหลอนของ Whisper ค่าที่ใกล้ 0 จะเข้มงวดกว่า ลากไปทางซ้ายสุดเพื่อปิด ใช้ได้เฉพาะผู้ให้บริการที่รองรับ Whisper API (เช่น OpenAI, Groq)
+            disabled: ปิดอยู่
+            verbose-json-note: >-
+              หมายเหตุ: ถ้าผู้ให้บริการของคุณไม่รองรับการตอบกลับแบบ verbose_json การตั้งค่านี้จะไม่มีผล
+            verbose-json-unsupported: >-
+              ผู้ให้บริการของคุณไม่ได้ส่งส่วน verbose_json กลับมา การกรองตามความมั่นใจจึงไม่มีผลกับการถอดเสียงครั้งล่าสุด
+    memory-long-term:
+      description: การตั้งค่าและการจัดการเฉพาะของความทรงจำระยะยาว
+      title: ความทรงจำระยะยาว
+    memory-short-term:
+      description: การตั้งค่าและการจัดการเฉพาะของความทรงจำระยะสั้น
+      title: ความทรงจำระยะสั้น
+    messaging-discord:
+      description: แชทและแชทด้วยเสียงผ่าน Discord
+      enable: เปิดการเชื่อมต่อกับ Discord
+      enable-description: อนุญาตให้ AIRI โต้ตอบผ่าน Discord
+      token: โทเค็นบอต
+      token-description: โทเค็นบอต Discord ของคุณ
+      token-placeholder: กรอกโทเค็นบอต Discord ของคุณ
+      configured: ตั้งค่า Discord เรียบร้อยแล้ว!
+    speech:
+      description: การสังเคราะห์เสียงพูด
+      sections:
+        section:
+          playground:
+            buttons:
+              stop:
+                label: หยุด
+            select-voice:
+              loading: กำลังโหลดโมเดล...
+              required: โปรดเลือกเสียง
+          voice-pack:
+            description: เลือกเสียงที่คัดสรรไว้สำหรับตัวละครที่ใช้งานอยู่
+            empty: ไม่มีแพ็กเสียงที่ใช้ได้
+            error: โหลดแพ็กเสียงไม่สำเร็จ
+            loading: กำลังโหลดแพ็กเสียง...
+            title: แพ็กเสียง
+          provider-voice-selection:
+            custom_model_placeholder: กรอกชื่อโมเดลที่กำหนดเอง...
+            custom_voice_placeholder: กรอก ID เสียงที่กำหนดเอง...
+            description: เลือกผู้ให้บริการเสียงพูดที่เหมาะสม
+            no_models: ไม่มีโมเดลที่ใช้ได้
+            no_models_description: ไม่พบโมเดลสำหรับผู้ให้บริการนี้
+            no_voices: ไม่มีเสียงที่ใช้ได้
+            no_voices_description: ไม่พบเสียงสำหรับผู้ให้บริการนี้
+            no_voices_hint: คุณกรอกชื่อเสียงที่กำหนดเองได้ด้านล่าง
+            pause: หยุดชั่วคราว
+            play_sample: เล่นตัวอย่าง
+            search_models_placeholder: ค้นหาโมเดล...
+            search_models_results: พบ {count} จาก {total} โมเดล
+            search_voices_placeholder: ค้นหาเสียง...
+            search_voices_results: พบ {count} จาก {total} เสียง
+            unsupported_voice_warning_title: ไม่มีเสียงที่รองรับ
+            unsupported_voice_warning_content: >-
+              ลองใช้โมเดลหรือผู้ให้บริการอื่น เรากำลังพยายามรองรับเสียงทั้งหมดของโมเดลนี้ให้เร็วที่สุด ถ้าคุณต้องการด่วน โปรดแจ้งเราบน GitHub ที่ https://github.com/moeru-ai/airi/issues
+            show_less: แสดงน้อยลง
+            show_more: แสดงเพิ่มเติม
+            title: ผู้ให้บริการ
+          voice-settings:
+            input-ssml:
+              placeholder: กรอกข้อความ SSML...
+            use-ssml:
+              description: เปิดเพื่อป้อน SSML ดิบแทนข้อความธรรมดา
+              label: ใช้ SSML ที่กำหนดเอง
+      title: การพูด
+    title: โมดูล
+    vision:
+      description: การมองเห็น
+      title: การมองเห็น
+      tool-images:
+        label: ใช้โมเดลการมองเห็นกับรูปภาพจากเครื่องมือ
+        description: โมเดลการมองเห็นจะอ่านรูปภาพที่เครื่องมือส่งกลับมา เช่น ภาพหน้าจอจากการใช้คอมพิวเตอร์ ก่อนที่โมเดลแชทจะตอบ ถ้าผู้ให้บริการของโมเดลแชทแจ้งว่ารับรูปภาพได้ โมเดลแชทจะได้รับรูปภาพโดยตรง คำอธิบายไม่มีตำแหน่งพิกเซล
+      capture:
+        title: ความถี่ในการจับภาพของการมองเห็น
+        description: ปรับว่าตัวจับเวลาของการมองเห็นจะจับภาพบ่อยแค่ไหน
+        interval:
+          label: ช่วงเวลาการจับภาพ
+          description: ค่าที่ต่ำจะจับภาพบ่อยขึ้นและใช้ทรัพยากรมากขึ้น
+      stats:
+        captures: การจับภาพ
+        context-updates: การอัปเดตบริบท
+        inferences: การเรียกใช้การจดจำภาพ
+        inferences-description: การเรียกใช้โมเดลการมองเห็นทุกครั้ง รวมถึงรูปภาพในแชท
+        failed-inferences: การเรียกใช้ที่ล้มเหลว
+        last-inference: การเรียกใช้ล่าสุด
+        error: 'ข้อผิดพลาด:'
+        last-update: อัปเดตล่าสุด {time}
+        since-start: ตั้งแต่เริ่มแอป
+        never: ไม่เคย
+      ollama:
+        title: ตัวเลือกคำขอของผู้ให้บริการ
+        description: ควบคุมแฟล็กคำขอเฉพาะของผู้ให้บริการสำหรับการประมวลผลการมองเห็น
+        thinking:
+          label: การคิด (Ollama)
+          description: 'เมื่อเปิด คำขอการมองเห็นผ่าน Ollama จะมี `think: true` เมื่อปิด จะมี `think: false`'
+    x:
+      description: การเรียกดูและใช้งาน X / Twitter
+      enable: เปิดการเชื่อมต่อกับ X / Twitter
+      enable-description: อนุญาตให้ AIRI โต้ตอบกับ X / Twitter
+      api-key: คีย์ API
+      api-key-description: คีย์ API ของ X / Twitter ของคุณ
+      api-key-placeholder: กรอกคีย์ API ของ X / Twitter
+      api-secret: รหัสลับ API
+      api-secret-description: รหัสลับ API ของ X / Twitter ของคุณ
+      api-secret-placeholder: กรอกรหัสลับ API ของ X / Twitter
+      access-token: โทเค็นการเข้าถึง
+      access-token-description: โทเค็นการเข้าถึงของ X / Twitter ของคุณ
+      access-token-placeholder: กรอกโทเค็นการเข้าถึงของ X / Twitter
+      access-token-secret: รหัสลับของโทเค็นการเข้าถึง
+      access-token-secret-description: รหัสลับของโทเค็นการเข้าถึง X / Twitter ของคุณ
+      access-token-secret-placeholder: กรอกรหัสลับของโทเค็นการเข้าถึง X / Twitter
+      configured: ตั้งค่า X / Twitter เรียบร้อยแล้ว!
+    stickers:
+      frequency: ความถี่ของสติกเกอร์
+      frequency-description: อนุญาตให้ใช้สติกเกอร์ในคำตอบตามสัดส่วนนี้ ตัวละครยังเป็นผู้ตัดสินว่าสติกเกอร์เหมาะหรือไม่
+      frequency-options:
+        25: นาน ๆ ครั้ง (25%)
+        50: บางครั้ง (50%)
+        75: บ่อย (75%)
+        100: ทุกครั้งที่เหมาะสม (100%)
+      title: สติกเกอร์
+      description: เพิ่มรูปภาพแสดงปฏิกิริยาในคำตอบของแชท (ไม่บังคับ)
+      enable: เปิดสติกเกอร์
+      enable-description: ให้ตัวละครเลือกสติกเกอร์หนึ่งรูปต่อคำตอบที่เข้าเงื่อนไข ตามชื่อและแท็กอารมณ์ของสติกเกอร์
+      local-only: รูปภาพอยู่บนอุปกรณ์นี้ การซิงค์แชทบนคลาวด์ตอนนี้ส่งเฉพาะข้อความ
+      catalog: สติกเกอร์ที่ใช้ได้
+      unavailable: สติกเกอร์ไม่พร้อมใช้งาน
+      import: 'นำเข้ารูปภาพ'
+      editor: 'ตัวแก้ไขสติกเกอร์'
+      image: 'รูปภาพ'
+      replace: 'แทนที่รูปภาพ (ไม่บังคับ)'
+      image-limits: 'PNG, JPG, WebP หรือ GIF ขนาดไม่เกิน 2 MB และ 4096 × 4096 พิกเซล'
+      choose-file: 'เลือกรูปภาพ'
+      preview: 'ตัวอย่างสติกเกอร์'
+      name: 'ชื่อ'
+      name-limit: 'ใช้ 1–80 ตัวอักษร โมเดลจะอ่านชื่อนี้'
+      emotions: 'แท็กอารมณ์'
+      save: 'บันทึกสติกเกอร์'
+      cancel: 'ยกเลิก'
+      edit: 'แก้ไข'
+      delete: 'ลบ'
+      confirm-delete: 'ยืนยันการลบ'
+      empty: 'คลังของคุณว่างอยู่ นำเข้ารูปภาพเพื่อเพิ่มสติกเกอร์'
+      history-note: 'การลบหรือแทนที่สติกเกอร์จะมีผลกับคำตอบในอนาคต คำตอบที่บันทึกไว้และที่เตรียมไว้แล้วจะยังใช้รูปภาพเดิม'
+      saved-image: 'สติกเกอร์ที่บันทึกไว้'
+      errors:
+        name: 'กรอกชื่อที่มี 1–80 ตัวอักษร'
+        emotions: 'เลือกแท็กอารมณ์ที่ถูกต้องอย่างน้อยหนึ่งแท็ก'
+        format: 'เลือกรูปภาพ PNG, JPG, WebP หรือ GIF'
+        size: 'เลือกรูปภาพที่มีขนาดเล็กกว่า 2 MB'
+        image: 'เปิดรูปภาพนี้ไม่ได้ เลือกไฟล์อื่น'
+        dimensions: 'เลือกรูปภาพที่มีขนาดไม่เกิน 4096 × 4096 พิกเซล'
+        missing: 'สติกเกอร์นี้ถูกลบในหน้าต่างอื่นแล้ว'
+        storage: 'บันทึกหรือโหลดคลังสติกเกอร์ไม่ได้ ลองอีกครั้ง'
+      emotion-labels:
+        happy: 'มีความสุข'
+        sad: 'เศร้า'
+        confused: 'สับสน'
+        surprised: 'ประหลาดใจ'
+        thanks: 'ขอบคุณ'
+        celebrate: 'ฉลอง'
+        angry: 'โกรธ'
+        tired: 'เหนื่อย'
+        affectionate: 'ความรัก'
+        awkward: 'เขิน'
+        agree: 'เห็นด้วย'
+        disagree: 'ไม่เห็นด้วย'
+      artwork:
+        airi-happy: มีความสุข
+        airi-sad: เศร้า
+        airi-confused: สับสน
+        airi-surprised: ประหลาดใจ
+        airi-thanks: ขอบคุณนะ
+        airi-celebrate: ฉลอง
+        airi-angry: โกรธ
+        airi-tired: เหนื่อย
+        airi-affectionate: รักนะ
+        airi-awkward: เขิน
+        airi-agree: 'ใช่'
+        airi-disagree: ไม่เป็นไร ขอบคุณ
+    home-assistant:
+      description: ให้ AIRI อ่านสถานะและควบคุมอุปกรณ์ Home Assistant ของคุณ
+      enable: เปิด Home Assistant
+      enable-description: อนุญาตให้ AIRI อ่านสถานะและควบคุมอุปกรณ์ของคุณ
+      base-url:
+        label: ที่อยู่
+        description: ที่อยู่ของ Home Assistant ของคุณ
+      token:
+        label: โทเค็นการเข้าถึงแบบใช้งานได้นาน
+        placeholder: วางโทเค็นจากโปรไฟล์ Home Assistant ของคุณ
+        description: สร้างโทเค็นได้ในโปรไฟล์ Home Assistant ของคุณ ในส่วนความปลอดภัย
+        saved: มีโทเค็นบันทึกไว้แล้ว เว้นช่องนี้ว่างไว้เพื่อใช้โทเค็นเดิม กรอกโทเค็นอีกครั้งเมื่อที่อยู่เปลี่ยน
+      note: โทเค็นอยู่บนอุปกรณ์นี้ และไม่ซิงค์กับบัญชีของคุณ
+      actions:
+        save: บันทึก
+        test: ทดสอบ
+      status:
+        saved: บันทึกแล้ว
+        saved-cleared: บันทึกแล้ว ที่อยู่เปลี่ยนไป รายการอุปกรณ์จึงว่างอยู่
+        testing: กำลังทดสอบการเชื่อมต่อ...
+        reachable: 'เชื่อมต่อแล้ว Home Assistant รายงานว่ามี {count} เอนทิตี'
+        failed: 'เชื่อมต่อไม่ได้ {message}'
+        rejected-token: กรอกโทเค็นการเข้าถึงของ Home Assistant
+        rejected-address: ที่อยู่เปลี่ยนไป กรอกโทเค็นการเข้าถึงสำหรับที่อยู่ใหม่
+        failed-policy: รายการอุปกรณ์ไปไม่ถึงหน้าต่างที่เรียกใช้เครื่องมือ ที่อยู่จึงไม่เปลี่ยน ลองอีกครั้ง
+        failed-policy-edit: การเปลี่ยนแปลงไปไม่ถึงหน้าต่างที่เรียกใช้เครื่องมือ โมเดลยังใช้รายการก่อนการเปลี่ยนแปลงอยู่ ลองอีกครั้ง
+        failed-policy-move: ที่อยู่เปลี่ยนแล้ว แต่รายการอุปกรณ์ไปไม่ถึงหน้าต่างที่เรียกใช้เครื่องมือ ลองอีกครั้ง
+        failed-policy-rollback: การบันทึกถูกปฏิเสธ รายการอุปกรณ์ไปไม่ถึงหน้าต่างที่เรียกใช้เครื่องมือ โมเดลจึงเข้าถึงอุปกรณ์ใดไม่ได้ ลองอีกครั้ง
+      access:
+        label: การเข้าถึงอุปกรณ์
+        description: เลือกอุปกรณ์ที่ AIRI อ่านสถานะและควบคุมได้
+        mode-all: ทุกอุปกรณ์
+        mode-allow: รายการที่อนุญาต
+        mode-deny: รายการที่บล็อก
+        all-hint: AIRI เข้าถึงได้ทุกอุปกรณ์ เลือกรายการเพื่อจำกัด
+        rule-allow: เข้าถึงได้เฉพาะอุปกรณ์ที่คุณเลือก
+        rule-deny: เข้าถึงได้ทุกอุปกรณ์ ยกเว้นอุปกรณ์ที่คุณเลือก
+        selected-count: 'เลือกแล้ว {count}'
+        empty-warning: เลือกอุปกรณ์อย่างน้อยหนึ่งเครื่อง AIRI จะเข้าถึงอะไรไม่ได้จนกว่าคุณจะเลือก
+        search: ค้นหาอุปกรณ์
+        reload: โหลดอุปกรณ์ใหม่
+        loading: กำลังโหลดอุปกรณ์...
+        no-devices: Home Assistant ไม่ได้รายงานอุปกรณ์ใด
+        no-match: ไม่มีอุปกรณ์ที่ตรงกัน
+        tab-all: ทั้งหมด
+        shown-count: '{shown} จาก {total} อุปกรณ์'
+        load-more: 'แสดงเพิ่มอีก {count}'
+        select-matching: เลือกทั้งหมดที่ตรงกัน
+        clear-matching: ล้างทั้งหมดที่ตรงกัน
+      states:
+        generic:
+          'on': 'เปิด'
+          'off': 'ปิด'
+          above_horizon: อยู่เหนือขอบฟ้า
+          armed: เปิดการป้องกัน
+          armed_away: เปิดการป้องกัน (ไม่อยู่บ้าน)
+          armed_custom_bypass: เปิดการป้องกัน (ข้ามแบบกำหนดเอง)
+          armed_home: เปิดการป้องกัน (อยู่บ้าน)
+          armed_night: เปิดการป้องกัน (กลางคืน)
+          armed_vacation: เปิดการป้องกัน (ช่วงวันหยุด)
+          arming: กำลังเปิดการป้องกัน
+          auto: อัตโนมัติ
+          below_horizon: อยู่ใต้ขอบฟ้า
+          buffering: กำลังบัฟเฟอร์
+          cleaning: กำลังทำความสะอาด
+          clear-night: ท้องฟ้าแจ่มใส กลางคืน
+          closed: ปิดอยู่
+          closing: กำลังปิด
+          cloudy: มีเมฆมาก
+          cool: ทำความเย็น
+          disarmed: ปิดการป้องกัน
+          disarming: กำลังปิดการป้องกัน
+          docked: อยู่ที่แท่นชาร์จ
+          dry: ลดความชื้น
+          eco: ประหยัดพลังงาน
+          electric: ไฟฟ้า
+          error: ข้อผิดพลาด
+          exceptional: ผิดปกติ
+          fan_only: พัดลมอย่างเดียว
+          fog: หมอก
+          gas: แก๊ส
+          hail: ลูกเห็บ
+          heat: ทำความร้อน
+          heat_cool: ทำความร้อน/ทำความเย็น
+          heat_pump: ปั๊มความร้อน
+          high_demand: ความต้องการสูง
+          home: อยู่บ้าน
+          idle: ว่าง
+          jammed: ติดขัด
+          lightning: ฟ้าแลบ
+          lightning-rainy: ฟ้าแลบ มีฝน
+          locked: ล็อกอยู่
+          locking: กำลังล็อก
+          mowing: กำลังตัดหญ้า
+          not_home: ไม่อยู่บ้าน
+          ok: ปกติ
+          open: เปิดอยู่
+          opening: กำลังเปิด
+          partlycloudy: มีเมฆบางส่วน
+          paused: หยุดชั่วคราว
+          pending: รอดำเนินการ
+          performance: ประสิทธิภาพสูง
+          playing: กำลังเล่น
+          pouring: ฝนตกหนัก
+          problem: มีปัญหา
+          rainy: ฝนตก
+          recording: กำลังบันทึก
+          snowy: หิมะตก
+          snowy-rainy: หิมะปนฝน
+          standby: สแตนด์บาย
+          stopped: หยุดแล้ว
+          streaming: กำลังสตรีม
+          sunny: มีแดด
+          triggered: ถูกกระตุ้น
+          unlocked: ปลดล็อกอยู่
+          unlocking: กำลังปลดล็อก
+          windy: ลมแรง
+          windy-variant: ลมแรง มีเมฆ
+          unknown: ไม่ทราบ
+          unavailable: ไม่พร้อมใช้งาน
+        lawn_mower:
+          returning: กำลังกลับ
+        update:
+          'off': เป็นเวอร์ชันล่าสุดแล้ว
+          'on': มีอัปเดต
+        vacuum:
+          returning: กำลังกลับแท่นชาร์จ
+      domains:
+        air_quality: คุณภาพอากาศ
+        alarm_control_panel: แผงควบคุมสัญญาณกันขโมย
+        automation: ระบบอัตโนมัติ
+        binary_sensor: เซ็นเซอร์แบบสองสถานะ
+        button: ปุ่ม
+        calendar: ปฏิทิน
+        camera: กล้อง
+        climate: ระบบปรับอากาศ
+        conversation: บทสนทนา
+        cover: ม่านและประตูเลื่อน
+        date: วันที่
+        datetime: วันที่และเวลา
+        device_tracker: ตัวติดตามอุปกรณ์
+        event: เหตุการณ์
+        fan: พัดลม
+        geo_location: ตำแหน่งทางภูมิศาสตร์
+        group: กลุ่ม
+        humidifier: เครื่องเพิ่มความชื้น
+        image: รูปภาพ
+        image_processing: การประมวลผลภาพ
+        input_boolean: ตัวช่วยสวิตช์
+        input_datetime: ตัวช่วยวันที่และเวลา
+        input_number: ตัวช่วยตัวเลข
+        input_select: ตัวช่วยรายการตัวเลือก
+        input_text: ตัวช่วยข้อความ
+        light: ไฟ
+        lock: กุญแจล็อก
+        media_player: เครื่องเล่นสื่อ
+        notify: การแจ้งเตือน
+        number: ตัวเลข
+        person: บุคคล
+        remote: รีโมต
+        scene: ฉาก
+        script: สคริปต์
+        select: ตัวเลือก
+        sensor: เซ็นเซอร์
+        siren: ไซเรน
+        stt: แปลงเสียงพูดเป็นข้อความ
+        sun: ดวงอาทิตย์
+        switch: สวิตช์
+        text: ข้อความ
+        time: เวลา
+        todo: รายการสิ่งที่ต้องทำ
+        tts: แปลงข้อความเป็นเสียงพูด
+        update: อัปเดต
+        vacuum: เครื่องดูดฝุ่น
+        valve: วาล์ว
+        water_heater: เครื่องทำน้ำร้อน
+        weather: สภาพอากาศ
+        zone: โซน
+    web-search:
+      title: ค้นหาเว็บ
+      description: ให้ AIRI ค้นหาข้อมูลล่าสุดบนเว็บ
+      enable: เปิดการค้นหาเว็บ
+      enable-description: อนุญาตให้ AIRI ค้นหาเว็บระหว่างแชท
+      api-key: คีย์ API ของ Tavily
+      api-key-description: การค้นหาเว็บทำงานด้วย Tavily รับคีย์ API ฟรีได้ที่ tavily.com
+      api-key-placeholder: กรอกคีย์ API ของ Tavily
+      configured: การค้นหาเว็บพร้อมใช้งานแล้ว!
+    mcp-server:
+      title: เซิร์ฟเวอร์ MCP
+      description: ตั้งค่าเซิร์ฟเวอร์ MCP และนำเครื่องมือของเซิร์ฟเวอร์เข้ามาใน AIRI
+      config-path: ไฟล์การตั้งค่า
+      runtime-title: สถานะขณะทำงาน
+      empty: ยังไม่มีเซิร์ฟเวอร์ MCP คลิก "เพิ่มเซิร์ฟเวอร์" ด้านล่างเพื่อสร้าง หรือวางการตั้งค่าผ่าน "แก้ไข JSON"
+      error-title: อุ๊ย
+      success-title: เรียบร้อย!
+      existing:
+        title: ตั้งค่าแล้ว
+        description: เซิร์ฟเวอร์ที่บันทึกไว้ใน mcp.json คลิกแถวใดก็ได้เพื่อขยายและแก้ไข
+        empty: ยังไม่มีอะไรที่นี่ เพิ่มเซิร์ฟเวอร์ด้านล่างเลย!
+      add:
+        title: ใหม่
+        description: 'กรอกข้อมูลเซิร์ฟเวอร์ใหม่ แล้วคลิก "บันทึกและรีสตาร์ต" เซิร์ฟเวอร์จะย้ายไปอยู่ใน "ตั้งค่าแล้ว" ด้านบน'
+        pending-badge: ยังไม่ได้บันทึก
+      status:
+        unknown: ยังไม่ได้โหลด
+      actions:
+        open-config: แสดงในตัวจัดการไฟล์
+        apply-and-restart: บันทึกและรีสตาร์ต
+        restart: รีสตาร์ต MCP
+        add-server: เพิ่มเซิร์ฟเวอร์
+        add-env: เพิ่มตัวแปร
+        add-header: เพิ่ม header
+        remove: ลบ
+        test: ทดสอบ
+        edit-json: แก้ไข JSON
+        close-json: ปิด
+        format-json: จัดรูปแบบ
+        reset-draft: รีเซ็ต
+        apply-json: นำไปใช้
+        cancel: ยกเลิก
+        expand: ขยาย
+        collapse: ย่อ
+      fields:
+        identifier:
+          label: ตัวระบุ
+          description: ชื่อที่ไม่ซ้ำกัน และจะเป็นคีย์ใน mcp.json
+          placeholder: เช่น filesystem
+        transport:
+          label: ประเภท
+          description: วิธีที่ AIRI ติดต่อเซิร์ฟเวอร์นี้
+          stdio: โปรเซสในเครื่อง
+          http: URL ระยะไกล
+        url:
+          description: ปลายทาง Streamable HTTP ของเซิร์ฟเวอร์
+          placeholder: เช่น https://example.com/api/mcp
+        headers:
+          label: Header
+          description: Header ที่ส่งไปกับทุกคำขอ เช่น โทเค็นสำหรับการอนุญาต
+        command:
+          label: คำสั่ง
+          description: โปรแกรมที่จะเรียกใช้ผ่าน stdio
+          placeholder: เช่น npx
+        args:
+          label: อาร์กิวเมนต์
+          description: บรรทัดละหนึ่งค่า ตามลำดับ
+        cwd:
+          label: ไดเรกทอรีทำงาน
+          description: ไดเรกทอรีที่ใช้เป็นไดเรกทอรีทำงานของโปรเซส (ไม่บังคับ)
+          placeholder: เช่น /Users/you/project
+        env:
+          label: ตัวแปรสภาพแวดล้อม
+          description: ตัวแปรที่ส่งให้โปรเซสลูก
+          value-placeholder: ค่า
+        enabled:
+          label: เปิดใช้งาน
+      json:
+        title: แก้ไข mcp.json
+        description: 'แก้ไข JSON ดิบโดยตรง คลิก "นำไปใช้" เพื่อโหลดเข้าแบบฟอร์ม แล้วคลิก "บันทึกและรีสตาร์ต" เพื่อเขียนลงดิสก์'
+        placeholder: วาง mcp.json ที่นี่…
+      test:
+        title: ทดสอบการเชื่อมต่อ
+        description: AIRI จะเชื่อมต่อกับเซิร์ฟเวอร์สักครู่และแสดงรายการเครื่องมือที่เซิร์ฟเวอร์เปิดให้ใช้
+        pick-server-label: เซิร์ฟเวอร์
+        no-servers: ยังไม่มีอะไรให้ทดสอบ
+        no-server-selected: เลือกเซิร์ฟเวอร์ก่อน
+        server-disabled: '"{name}" ปิดอยู่ เปิดใช้งานที่การ์ดก่อน'
+        disabled-suffix: ปิดอยู่
+        untitled: ไม่มีชื่อ
+        running: กำลังทดสอบ…
+        success: เชื่อมต่อแล้ว! พบเครื่องมือ {count} รายการใน {ms} ms
+        failure: การเชื่อมต่อล้มเหลวหลังผ่านไป {ms} ms
+      errors:
+        empty-identifier: เซิร์ฟเวอร์ # {index} is missing an identifier.
+        duplicate-identifier: ตัวระบุ "{name}" ถูกใช้มากกว่าหนึ่งครั้ง ชื่อต้องไม่ซ้ำกัน
+        empty-command: '"{name}" ไม่มีคำสั่ง'
+        empty-url: '"{name}" ไม่มี URL'
+        invalid-url: '"{name}" ต้องใช้ URL แบบ http หรือ https ที่สมบูรณ์'
+        invalid-shape: ดูเหมือนจะไม่ใช่ mcp.json ที่ถูกต้อง ต้องมีฟิลด์ "mcpServers" ที่ระดับบนสุด
+      messages:
+        opened: เปิด {path} ในตัวจัดการไฟล์แล้ว
+        json-applied: นำ JSON ไปใช้กับแบบฟอร์มแล้ว คลิก "บันทึกและรีสตาร์ต" เพื่อบันทึกลงดิสก์
+        restarted: รีสตาร์ตทั้งหมดแล้ว! เริ่มทำงาน {started} ล้มเหลว {failed} ข้าม {skipped}
+  flux:
+    buy: เติมเงิน
+    currency: สกุลเงิน
+    description: Flux ปัจจุบัน
+    terms: ข้อกำหนด
+    privacy: นโยบายความเป็นส่วนตัว
+    packagesError: โหลดแพ็กเกจไม่สำเร็จ โปรดลองอีกครั้งภายหลัง
+    checkout:
+      success: ชำระเงินสำเร็จ! เติม Flux ของคุณแล้ว
+      canceled: ยกเลิกการชำระเงินแล้ว
+      error: เกิดข้อผิดพลาด โปรดลองอีกครั้งภายหลัง
+    audit:
+      title: ประวัติธุรกรรม
+      time: เวลา
+      type: ประเภท
+      detail: รายละเอียด
+      amount: จำนวน
+      typeAddition: เติมเงิน
+      typeConsumption: การใช้งาน
+      typeInitial: เครดิตเริ่มต้น
+      typePromo: เครดิตโปรโมชัน
+      loading: กำลังโหลดประวัติ...
+      empty: ยังไม่มีรายการธุรกรรม
+      loadMore: โหลดเพิ่มเติม
+      delayHint: รายการการใช้งานอาจล่าช้าได้ถึง 1 นาที
+      ttsRequests: คำขอ
+    packages:
+      title: แพ็กเกจ Flux
+      buy: เติมเงิน
+      description: แพ็กเกจ Flux ที่เลือกได้
+  capacitor:
+    description: Capacitor เก็บ Flux ไว้และเติมเองโดยอัตโนมัติ
+    statusError: โหลด Capacitor ของคุณไม่สำเร็จ โปรดลองอีกครั้งภายหลัง
+    packagesError: โหลด Capacitor ไม่สำเร็จ โปรดลองอีกครั้งภายหลัง
+    preferenceError: บันทึกการกำหนดค่าไม่สำเร็จ โปรดลองอีกครั้งภายหลัง
+    noCapacitor: ไม่มี Capacitor
+    available: Capacitor ที่มี
+    remaining: 'เหลือ {percent}'
+    rechargesAt: เติมใหม่ {date}
+    renewsAt: ต่ออายุ {date}
+    expiresAt: หมดอายุ {date}
+    perMonth: / เดือน
+    currentPackage: ปัจจุบัน
+    install: ติดตั้ง
+    upgrade: อัปเกรด
+    downgrade: ดาวน์เกรด
+    manageSubscription: จัดการการสมัครสมาชิก
+    fallbackToFlux: ใช้ Flux เมื่อ Capacitor ว่าง
+    fallbackToFluxHint: เมื่อปิด การใช้งานจะหยุดเมื่อ Capacitor ว่าง
+    checkout:
+      success: ติดตั้งและเติม Capacitor ของคุณแล้ว
+      pending: ได้รับการชำระเงินแล้ว Capacitor ของคุณจะได้รับการเติมในไม่ช้า
+      canceled: ยกเลิกการซื้อแล้ว
+      error: เกิดข้อผิดพลาด โปรดลองอีกครั้งภายหลัง
+  providers:
+    catalog:
+      edit:
+        config-id-not-found: ไม่พบการตั้งค่าผู้ให้บริการ
+        definition-id-not-found: ไม่พบข้อมูลกำหนดของผู้ให้บริการ
+        actions:
+          more-options: ตัวเลือกเพิ่มเติม
+          delete: ลบ
+        validation:
+          failed:
+            title: การตรวจสอบล้มเหลว โปรดตรวจสอบการตั้งค่าผู้ให้บริการของคุณ
+            description: >-
+              ถ้าต้องการดำเนินการต่อ คุณยังบันทึกการตั้งค่าปัจจุบันได้
+            action: บันทึกต่อไป
+        config:
+          loading: กำลังโหลดการตั้งค่าผู้ให้บริการ...
+          load-error: โหลดการตั้งค่าผู้ให้บริการไม่สำเร็จ
+          save-error: บันทึกการตั้งค่าผู้ให้บริการไม่สำเร็จ
+          retry: ลองอีกครั้ง
+          common:
+            fields:
+              field:
+                web-search:
+                  label: ค้นหาเว็บ
+                  description: อนุญาตให้โมเดล OpenAI ที่รองรับค้นหาเว็บเมื่อจำเป็น ใช้คีย์ API ของคุณและอาจมีค่าใช้จ่ายในการค้นหา ต้องใช้ Responses API
+                api-protocol:
+                  label: โปรโตคอล API
+                  description: เลือก API ที่ผู้ให้บริการและโมเดลนี้รองรับ
+                api-key:
+                  label: คีย์ API
+                  description: คีย์ API ที่ใช้ยืนยันสิทธิ์คำขอไปยังผู้ให้บริการนี้
+                base-url:
+                  label: URL หลัก
+                  description: >-
+                    URL หลักที่ใช้เชื่อมต่อบริการระยะไกล มักมีรูปแบบเช่น http://localhost:11434/v1 หรือ https://example.com/v1
+                  placeholder: URL หลัก...
+                download-model:
+                  label: ดาวน์โหลดโมเดล
+                  description: ดาวน์โหลดโมเดลของ Chromium Prompt API
+                headers:
+                  label: HTTP Header ที่กำหนดเอง
+                  description: เพิ่ม HTTP Header ที่กำหนดเอง
+                  key:
+                    placeholder: คีย์
+                  value:
+                    placeholder: ค่า
+                thinking-mode:
+                  label: โหมดการคิด
+                  description: >
+                    ควบคุมพฤติกรรมการคิดของ Ollama โดย GPT-OSS รองรับเฉพาะระดับ low/medium/high
+                  options:
+                    auto: อัตโนมัติ (ค่าเริ่มต้นของผู้ให้บริการ)
+                    disable: ปิด
+                    enable: เปิด
+                    low: ต่ำ
+                    medium: ปานกลาง
+                    high: สูง
+        validators:
+          actions:
+            validate: ตรวจสอบ
+          empty: ไม่มีขั้นตอนการตรวจสอบ
+          openai-compatible:
+            check-config:
+              title: การตั้งค่า
+            check-connectivity:
+              title: การเชื่อมต่อ
+            check-supports-model-listing:
+              title: แสดงรายการโมเดล
+            check-supports-chat-completion:
+              title: การสร้างคำตอบแชท
+          apple-vision:
+            check-availability:
+              title: ความพร้อมใช้งาน
+          prompt-api:
+            check-availability:
+              title: ความพร้อมใช้งาน
+          status:
+            validating: กำลังตรวจสอบ...
+            valid: ผ่าน
+            invalid: มีข้อผิดพลาด
+          title: การตรวจสอบ
+        providers:
+          provider:
+            ollama:
+              troubleshooting:
+                validators:
+                  openai-compatible-check-connectivity:
+                    label: Ollama ต้องตั้งค่าเพิ่มเติม
+                    content: >-
+                      ขออภัยที่การตรวจสอบการเชื่อมต่อของ Ollama ล้มเหลว ไม่ต้องกังวล สำหรับ Ollama ต้องตั้งค่าเพิ่มเติมจึงจะผ่านการตรวจสอบได้ คุณต้องตั้งค่า <code>OLLAMA_HOST</code> อย่างชัดเจนเมื่อเริ่มแอปพลิเคชัน Ollama หรือเซิร์ฟเวอร์ Ollama CLI ดูรายละเอียดได้ใน <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">คู่มือการเชื่อมต่อ Ollama</a>
+    common:
+      continueAnyway: ดำเนินการต่อ
+      goToModelSelection: เลือกโมเดล →
+      fields:
+        field:
+          api-key:
+            label: ช่องกรอกคีย์ API
+      section:
+        advanced:
+          fields:
+            field:
+              headers:
+                description: เพิ่ม HTTP Header ที่กำหนดเอง
+                key:
+                  placeholder: คีย์
+                label: HTTP Header
+                value:
+                  placeholder: ค่า
+          title: ขั้นสูง
+        basic:
+          description: การตั้งค่าที่จำเป็น
+          title: พื้นฐาน
+        voice:
+          title: การตั้งค่าเสียง
+    labels:
+      recommended: แนะนำ
+    sync:
+      synced: ซิงค์แล้ว
+      pending: กำลังรออัปโหลด
+      not-uploaded: ไม่ได้อัปโหลด ตั้งค่าผู้ให้บริการนี้ให้ครบบนอุปกรณ์นี้
+    filters:
+      pricing: ราคา
+      deployment: การติดตั้งใช้งาน
+      all: ทั้งหมด
+      free: ฟรี
+      paid: เสียเงิน
+      internal: ภายใน
+      local: ในเครื่อง
+      cloud: คลาวด์
+    categories:
+      chat:
+        title: แชท
+        description: ผู้ให้บริการโมเดลสร้างข้อความ เช่น OpenRouter, OpenAI, Ollama
+      vision:
+        title: การมองเห็น
+        description: ผู้ให้บริการโมเดลการมองเห็นสำหรับทำความเข้าใจรูปภาพ
+      speech:
+        title: การพูด
+        description: ผู้ให้บริการโมเดลเสียงพูด (แปลงข้อความเป็นเสียงพูด) เช่น ElevenLabs, Azure Speech
+      transcription:
+        title: การถอดเสียง
+        description: >-
+          ผู้ให้บริการโมเดลถอดเสียง (แปลงเสียงพูดเป็นข้อความ) เช่น Whisper.cpp, OpenAI, Azure Speech
+      artistry:
+        title: การสร้างภาพ
+        description: ผู้ให้บริการโมเดลสร้างภาพและออกแบบ เช่น ComfyUI, Replicate
+        items:
+          comfyui:
+            description: ตัวรันการสร้างภาพในเครื่อง
+          replicate:
+            description: บริการประมวลผลโมเดลบนคลาวด์
+          nanobanana:
+            description: พรีวิวรูปภาพของ Google AI Studio
+    helpinfo:
+      title: มาที่นี่ครั้งแรกใช่ไหม?
+      description: >
+        AIRI ต้องตั้งค่าผู้ให้บริการ {chat} อย่างน้อยหนึ่งรายจึงจะคิดและทำงานได้อย่างถูกต้อง ให้คิดว่าเป็นสมองของตัวละครที่อาศัยอยู่ในระบบ AIRI
+    explained:
+      chat: ผู้ให้บริการโมเดลสร้างข้อความ เช่น OpenRouter, OpenAI, Ollama
+      Speech: ผู้ให้บริการโมเดลเสียงพูด (แปลงข้อความเป็นเสียงพูด) เช่น ElevenLabs, Azure Speech
+      Transcription: >-
+        ผู้ให้บริการโมเดลถอดเสียง (แปลงเสียงพูดเป็นข้อความ) เช่น Whisper.cpp, OpenAI, Azure Speech
+    description: LLM ผู้ให้บริการเสียงพูด และอื่น ๆ
+    provider:
+      sherpaw-transcription:
+        description: การรู้จำเสียงพูดในเครื่องด้วยโมเดลที่มาพร้อมแอปหรือดาวน์โหลดเมื่อต้องการ ไม่ต้องใช้คีย์ API
+        language:
+          label: ภาษาของโมเดล
+          description: แสดงโมเดลที่รองรับภาษานี้ โมเดลที่เลือกยังตรวจจับภาษาที่รองรับได้เอง
+          all: ทุกภาษา
+        model:
+          label: โมเดล
+          description: เลือกโมเดลที่ใช้ได้ การรู้จำจะตรวจจับหนึ่งในภาษาที่โมเดลรองรับ การเปลี่ยนโมเดลจะเริ่มเซสชันปัจจุบันใหม่
+        asset:
+          title: ไฟล์โมเดล
+          unknown: กำลังตรวจสอบไฟล์...
+          bundled: มาพร้อมกับ AIRI
+          installed: เก็บไว้ในอุปกรณ์นี้
+          missing: ดาวน์โหลดเมื่อใช้งาน
+          downloading: กำลังดาวน์โหลด...
+          error: ดาวน์โหลดไม่สำเร็จ
+          download: ดาวน์โหลดตอนนี้
+          cancel: ยกเลิก
+          remove: ลบไฟล์ที่ดาวน์โหลด
+      apple-vision:
+        description: ทำความเข้าใจรูปภาพบนอุปกรณ์ด้วย Apple Foundation Models บน macOS 27 ขึ้นไป ไม่ต้องใช้คีย์ API
+      apple-speech-transcription:
+        description: การรู้จำเสียงพูดบนอุปกรณ์ใน macOS 26 ขึ้นไป ไม่ต้องใช้คีย์ API
+        fields:
+          locale:
+            label: ภาษาและภูมิภาค
+            description: ใช้ locale ของ Apple Speech ที่ตรงกันทุกตัว เช่น en-US หรือ zh-CN
+      app-local-audio-transcription:
+        title: แอป (ในเครื่อง)
+      app-local-audio-speech:
+        title: แอป (ในเครื่อง)
+      browser-local-audio-transcription:
+        title: เบราว์เซอร์ (ในเครื่อง)
+      browser-local-audio-speech:
+        title: เบราว์เซอร์ (ในเครื่อง)
+      amazon-bedrock:
+        config:
+          api-key:
+            label: คีย์ API ของ Bedrock
+            description: คีย์ API ของ Amazon Bedrock (สร้างได้ที่ AWS Console → Bedrock → API Keys)
+          region:
+            label: ภูมิภาค AWS
+            description: ภูมิภาค AWS ที่เปิดใช้ Bedrock (เช่น us-east-1, us-west-2)
+      anthropic:
+        helpinfo:
+          title: ก่อนเริ่มต้น
+          description:
+            part1: >-
+              แม้ Anthropic จะประกาศเมื่อไม่นานนี้ว่ารองรับความเข้ากันได้กับ OpenAI SDK แบบเบต้าแล้ว
+            part2: (อ่านเพิ่มเติมได้ที่นี่)
+            part3: แต่ด้วยรายละเอียดของการทำงาน จึงมี
+            part4: >-
+              ข้อจำกัดที่ไม่สอดคล้องกับ OpenAI SDK ตอนนี้จึงยังใช้ผู้ให้บริการนี้ในเบราว์เซอร์ไม่ได้
+            part5: >-
+              ถ้าคุณจำเป็นต้องใช้ผู้ให้บริการนี้ คุณต้องมีแบ็กเอนด์พร็อกซีโดยเฉพาะ เช่น Serverless Function ที่ทำงานบน
+            part6: หรือบริการสำหรับข้ามข้อจำกัดของ CORS
+      cloudflare-workers-ai:
+        fields:
+          field:
+            account-id:
+              description: ID บัญชี Cloudflare
+              label: ID บัญชี
+              placeholder: ID บัญชี Cloudflare ของคุณ
+            api-key:
+              placeholder: กรอกคีย์ API ของ Cloudflare
+      common:
+        status:
+          validating: กำลังตรวจสอบ
+          valid: การตั้งค่าดูเหมือนจะถูกต้อง
+        fields:
+          field:
+            pitch:
+              description: ปรับระดับเสียงสูงต่ำของเสียงพูดที่สังเคราะห์ (เช่น แหลมขึ้นหรือทุ้มลง)
+              label: ระดับเสียงสูงต่ำ
+            speed:
+              description: ปรับความเร็วของเสียงพูด
+              label: ความเร็ว
+            volume:
+              description: ปรับความดังของเสียงพูด
+              label: ความดัง
+      voicevox:
+        fields:
+          field:
+            intonation:
+              description: ปรับว่าทำนองเสียงในการอ่านจะขึ้นลงมากแค่ไหน
+              label: ทำนองเสียง
+        callout_origin_title: การเชื่อมต่อเอนจินจากเบราว์เซอร์
+        callout_origin: เบราว์เซอร์เชื่อมต่อได้เฉพาะเอนจินบนเครื่องนี้ ถ้าเอนจินอยู่บนเครื่องอื่น ให้ใช้แอปเดสก์ท็อป นอกจากนี้เอนจินต้องยอมรับเว็บไซต์นี้ด้วย ซึ่งตั้งค่าได้ด้วย --cors_policy_mode all หรือด้วย --allow_origin และที่อยู่นี้
+      aivis-speech:
+        fields:
+          field:
+            intonation:
+              description: ปรับว่าจะแสดงลีลาการพูดออกมาชัดเจนแค่ไหน
+              label: ความชัดของการแสดงอารมณ์
+        callout_origin_title: การเชื่อมต่อเอนจินจากเบราว์เซอร์
+        callout_origin: เบราว์เซอร์เชื่อมต่อได้เฉพาะเอนจินบนเครื่องนี้ ถ้าเอนจินอยู่บนเครื่องอื่น ให้ใช้แอปเดสก์ท็อป นอกจากนี้เอนจินต้องยอมรับเว็บไซต์นี้ด้วย ซึ่งตั้งค่าได้ในหน้าการตั้งค่าของเอนจินที่พอร์ต 10101
+      speech-noop:
+        title: ไม่มี
+        description: ไม่มีเสียงพูด
+      comfyui:
+        settings:
+          title: ComfyUI (ในเครื่อง)
+          heading: API ดั้งเดิมของ ComfyUI
+          description: เชื่อมต่อกับ ComfyUI ในเครื่องของคุณ และใช้เวิร์กโฟลว์ของคุณเอง
+          info:
+            what_you_need:
+              label: สิ่งที่ต้องมี
+              value: ComfyUI ที่ทำงานอยู่ในเครื่องหรือในเครือข่ายของคุณ
+            how_to_export:
+              label: วิธีส่งออก
+              value: เปิด Dev Mode → "Save (API Format)"
+            scope_boundary:
+              label: ขอบเขต
+              value: การดาวน์โหลดโมเดลและการติดตั้งโหนดเป็นหน้าที่ของคุณ
+          connection:
+            title: การเชื่อมต่อ
+            connected: เชื่อมต่อแล้ว
+            failed: การเชื่อมต่อล้มเหลว
+            error_prefix: ข้อผิดพลาด
+            test: ทดสอบ
+            testing: กำลังทดสอบ...
+            unknown_error: ข้อผิดพลาดในการเชื่อมต่อที่ไม่ทราบสาเหตุ
+            unknown_gpu: GPU ที่ไม่รู้จัก
+            server_url:
+              label: URL ของเซิร์ฟเวอร์
+              description: ที่อยู่ที่ ComfyUI ทำงานอยู่
+          cors:
+            title: ตรวจพบการบล็อก CORS
+            description: ComfyUI บล็อกคำขอจากแอปพลิเคชันอื่นเป็นค่าเริ่มต้น เพื่อให้ AIRI เชื่อมต่อได้ คุณต้องเริ่ม ComfyUI ด้วยแฟล็ก `--enable-cors-header "*"`
+          workflows:
+            title: เทมเพลตเวิร์กโฟลว์
+            upload: อัปโหลดเวิร์กโฟลว์
+            cancel_upload: ยกเลิก
+            empty: ยังไม่ได้อัปโหลดเวิร์กโฟลว์ คลิก "อัปโหลดเวิร์กโฟลว์" เพื่อนำเข้า workflow_api.json จาก ComfyUI
+            exposed_parameters: พารามิเตอร์ที่เปิดให้ใช้
+            summary: '{nodes} โหนด · เปิดให้ใช้ {fields} ช่อง'
+            remove: ลบ
+            config_snippet: ส่วนการตั้งค่าการสร้างภาพ
+            copy_json: คัดลอก JSON
+            paste_hint: วางส่วนนี้ในการตั้งค่าการสร้างภาพของการ์ด AIRI เพื่อใช้แทนค่าของโหนดเหล่านี้
+          upload:
+            prompt: วางหรือเลือกไฟล์ workflow_api.json
+            invalid_json: JSON ไม่ถูกต้อง
+            workflow_name:
+              label: ชื่อเวิร์กโฟลว์
+              description: ตั้งชื่อที่จำง่ายให้เวิร์กโฟลว์นี้
+              placeholder: เช่น Anime Text2Img
+            select_fields: 'เลือกช่องที่จะเปิดให้เอเจนต์ AI ใช้:'
+            fields_exposed: 'เปิดให้ใช้ {count} ช่อง'
+            save: บันทึกเวิร์กโฟลว์
+      replicate:
+        settings:
+          heading: การตั้งค่า Replicate.ai
+          description: ตั้งค่าการสร้างภาพบนคลาวด์ของคุณ
+          api_key:
+            label: คีย์ API
+            description: โทเค็น API ของ Replicate ของคุณ (ขึ้นต้นด้วย r8_)
+          default_model:
+            label: โมเดลเริ่มต้น
+            description: สตริง owner/model สำรองที่จะใช้ หากการ์ดตัวละครไม่ได้ระบุไว้
+          aspect_ratio:
+            label: อัตราส่วนภาพ
+            description: อัตราส่วนภาพเริ่มต้น (เช่น 16:9, 1:1, 9:16)
+          inference_steps:
+            label: จำนวนขั้นการประมวลผล
+            description: จำนวนขั้นของกระบวนการ diffusion (น้อยกว่าจะเร็วกว่า มากกว่าจะได้คุณภาพดีกว่า)
+      nanobanana:
+        settings:
+          description: ตั้งค่าความสามารถในการสร้างภาพของ Google Gemini
+          api_key:
+            label: คีย์ API
+            description: คีย์ API ของ Google AI Studio ของคุณ
+          preferred_model:
+            label: โมเดลที่ต้องการ
+            description: โมเดลพรีวิวรูปภาพของ Gemini ที่จะใช้
+          default_resolution:
+            label: ความละเอียดเริ่มต้น
+            description: ความละเอียดเป้าหมายของภาพที่สร้าง
+      deepseek:
+        fields:
+          field:
+            thinking-mode:
+              description: ควบคุมว่าโมเดลการให้เหตุผลของ DeepSeek จะใช้การคิดในคำขอแชทหรือไม่
+      elevenlabs:
+        fields:
+          field:
+            simularity-boost:
+              description: ความใกล้เคียงกับเสียงต้นฉบับ
+              label: เพิ่มความคล้ายของเสียง
+            speaker-boost:
+              description: เพิ่มความคล้ายของผู้พูด
+              label: เพิ่มความชัดของผู้พูด
+            speed:
+              description: ความเร็วในการสร้างเสียงพูด
+              label: ความเร็ว
+            stability:
+              description: ความเสถียรและความสุ่มของเสียง
+              label: ความเสถียร
+            style:
+              description: ระดับการเน้นสไตล์ของเสียง
+              label: สไตล์
+        playground:
+          buttons:
+            button:
+              test-voice:
+                generating: กำลังสร้าง...
+                label: ทดสอบเสียง
+          fields:
+            field:
+              input:
+                placeholder: กรอกข้อความเพื่อทดสอบเสียง...
+              language:
+                description: เลือกภาษาของเสียง
+                label: ภาษา
+              voice:
+                description: เลือกเสียงที่ต้องการ
+                label: เสียง
+          title: พื้นที่ทดลองเสียง
+          validation:
+            error-missing-api-key: โปรดกรอกคีย์ API เพื่อทดสอบเสียง
+      kokoro-local:
+        description: การแปลงข้อความเป็นเสียงพูดในเครื่องด้วย Kokoro-82M
+        fields:
+          field:
+            model:
+              label: การเลือกโมเดล
+              description: โมเดลขนาดเล็กโหลดเร็วกว่า แต่คุณภาพอาจต่ำกว่าเล็กน้อย
+        models:
+          fp32-webgpu:
+            description: >-
+              โมเดลความแม่นยำเต็มที่ใช้ WebGPU แนะนำสำหรับอุปกรณ์ที่รองรับ
+          fp32:
+            description: โมเดลความแม่นยำเต็ม
+          fp16:
+            description: ความแม่นยำครึ่งหนึ่ง
+          q8:
+            description: ควอนไทซ์ 8 บิต
+          q4:
+            description: ควอนไทซ์ 4 บิต
+          q4f16:
+            description: 4 บิตร่วมกับ FP16
+        playground:
+          default-text: สวัสดี! นี่คือการทดสอบระบบแปลงข้อความเป็นเสียงพูด Kokoro
+          title: พื้นที่ทดลองเสียง
+        title: Kokoro TTS (ในเครื่อง)
+      microsoft-speech:
+        fields:
+          field:
+            region:
+              description: ภูมิภาคของบริการ Speech
+              label: ภูมิภาค
+      index-tts-vllm:
+        callout_indextts2_unavailable_title: รองรับแบบจำกัด
+        callout_indextts2_unavailable: ขณะนี้ยังไม่รองรับ IndexTTS2 โปรดใช้ IndexTTS
+      minimax-speech:
+        errors:
+          provider-initialization-failed: เริ่มต้นผู้ให้บริการเสียงพูดของ MiniMax ไม่สำเร็จ
+        fields:
+          field:
+            model:
+              description: เลือกโมเดล TTS ของ MiniMax ที่จะใช้สร้างเสียงพูด
+              label: โมเดล
+              placeholder: เลือกโมเดล MiniMax...
+        playground:
+          default-text: สวัสดี! นี่คือการทดสอบการสังเคราะห์เสียงพูด MiniMax
+      openai-compatible:
+        description: เข้ากันได้กับ OpenAI
+        title: เข้ากันได้กับ OpenAI
+      n1n:
+        description: n1n.ai - ผู้ให้บริการ AI API ประสิทธิภาพสูง
+      volcengine:
+        fields:
+          field:
+            appId:
+              description: App ID ของโปรเจกต์ ซึ่งดูได้ในคอนโซล
+              label: ID แอป
+      volcengine-coding-plan:
+        models:
+          ark-code-latest:
+            description: ใช้โมเดลที่เลือกไว้ในคอนโซล Coding Plan รวมถึง Auto การเปลี่ยนแปลงจะมีผลภายใน 3–5 นาที
+          legacy:
+            description: โมเดล Coding Plan รุ่นเก่าที่มีกำหนดเลิกใช้ เปลี่ยนไปใช้โมเดลที่ยังรองรับอยู่
+      browser-web-speech-api:
+        description: STT ในตัวเบราว์เซอร์ (ต้องใช้ Chrome/Edge/Safari)
+      prompt-api:
+        description: Prompt API ช่วยให้คุณส่งคำขอเป็นภาษาธรรมชาติไปยังโมเดลพื้นฐานใน Chrome ได้
+      official:
+        title: ผู้ให้บริการทางการ
+        description: ผู้ให้บริการ AI ทางการของ AIRI
+        speech-title: ผู้ให้บริการเสียงพูดทางการ
+        speech-description: ผู้ให้บริการแปลงข้อความเป็นเสียงพูดทางการของ AIRI
+        speech-streaming-title: ผู้ให้บริการเสียงพูดแบบสตรีมทางการ
+        speech-streaming-description: ผู้ให้บริการแปลงข้อความเป็นเสียงพูดแบบหน่วงเวลาต่ำทางการของ AIRI (WebSocket สองทาง)
+        transcription-title: ผู้ให้บริการถอดเสียงทางการ
+        transcription-description: ผู้ให้บริการแปลงเสียงพูดเป็นข้อความทางการของ AIRI
+      transcriptions:
+        playground:
+          title: พื้นที่ทดลองการถอดเสียง
+      aihubmix:
+        description: https://aihubmix.com (ลด 10%)
+    title: ผู้ให้บริการ
+  connection:
+    description: ตั้งค่าการเชื่อมต่อเซิร์ฟเวอร์ WebSocket
+    title: การเชื่อมต่อ
+    websocket-url:
+      description: ที่อยู่ที่แอปนี้ใช้เชื่อมต่อกับเซิร์ฟเวอร์ในเครื่อง
+      label: ที่อยู่เซิร์ฟเวอร์
+    server-hostname:
+      label: เปิดให้ทุกอุปกรณ์เชื่อมต่อ
+      description: อนุญาตให้อุปกรณ์อื่นในเครือข่ายท้องถิ่นเชื่อมต่อกับเซิร์ฟเวอร์นี้
+    server-auth-token:
+      label: โทเค็นการจับคู่
+      description: >-
+        อุปกรณ์อื่นใช้โทเค็นนี้เพื่อจับคู่กับเซิร์ฟเวอร์นี้ AIRI จะสร้างโทเค็นให้เมื่อช่องนี้ว่าง
+      placeholder: สร้างอัตโนมัติ
+    qr:
+      title: การจับคู่
+      description: >-
+        สแกนคิวอาร์โค้ดนี้ด้วยแอปมือถือ แอปจะลองที่อยู่ในเครือข่ายท้องถิ่นทีละที่อยู่ และบันทึกที่อยู่แรกที่ใช้งานได้
+      refresh: รีเฟรช
+      image-alt: คิวอาร์โค้ดสำหรับจับคู่ AIRI
+      candidates: ที่อยู่ที่เป็นไปได้
+      token-hint: >-
+        คิวอาร์โค้ดมีโทเค็นการจับคู่อยู่ด้วย อย่าแชร์คิวอาร์โค้ดต่อสาธารณะ
+      errors:
+        title: คิวอาร์โค้ดไม่พร้อมใช้งาน
+        unavailable: เตรียมคิวอาร์โค้ดสำหรับการเชื่อมต่อไม่สำเร็จ
+    qr-scan:
+      title: เชื่อมต่อด่วน
+      description: สแกนคิวอาร์โค้ดจากเวอร์ชันเดสก์ท็อปเพื่อเชื่อมต่ออย่างรวดเร็ว
+      instructions: เล็งกล้องไปที่คิวอาร์โค้ดสำหรับเชื่อมต่อ AIRI
+      action: สแกน
+      success:
+        title: บันทึกที่อยู่ที่เชื่อมต่อแล้ว
+        description: 'URL ที่ใช้: {url}'
+      errors:
+        title: สแกนคิวอาร์โค้ดไม่สำเร็จ
+        failed: สแกนหรือเชื่อมต่อด้วยคิวอาร์โค้ดไม่สำเร็จ
+  system:
+    experimental:
+      refresh: รีเฟรชนโยบาย
+      title: ฟีเจอร์ทดลอง
+      description: ลองใช้ฟีเจอร์ที่กำลังพัฒนาและจัดการตัวเลือกของคุณ
+      notice: ฟีเจอร์ทดลองอาจเปลี่ยนแปลงหรือถูกนำออก ตัวเลือกของคุณมีผลกับอุปกรณ์นี้
+      empty-title: ไม่มีฟีเจอร์ทดลองที่ใช้ได้
+      load-error: ฟีเจอร์บนคลาวด์ไม่พร้อมใช้งาน ฟีเจอร์ในเครื่องยังใช้ได้ตามปกติ
+      retry: ลองอีกครั้ง
+      reset: ใช้ค่าเริ่มต้น
+      sources:
+        default: ค่าเริ่มต้นของแอป
+        local: ตัวเลือกบนอุปกรณ์ของคุณ
+        global: เปิดให้บัญชีที่เข้าสู่ระบบแล้ว
+        account: เปิดให้บัญชีของคุณ
+      features:
+        character_card_sync:
+          title: ซิงค์การ์ดตัวละครกับคลาวด์
+          description: ซิงค์การ์ดตัวละครกับบัญชีของคุณเมื่อเข้าสู่ระบบ เพื่อให้ใช้ได้บนอุปกรณ์อื่นของคุณ ปิดไว้เป็นค่าเริ่มต้น การ์ดที่คุณลบจะยังอยู่ในประวัติบัญชีของคุณเป็นเวลา 30 วัน
+    color-scheme:
+      description: เปลี่ยนชุดสีของเวที
+      title: ชุดสี
+    developer:
+      description: ตัวเลือกบางอย่างสำหรับนักพัฒนา
+      title: นักพัฒนา
+    general:
+      description: ธีมมืด ภาษา และอื่น ๆ
+      title: ทั่วไป
+    permissions:
+      description: ดูสถานะสิทธิ์ปัจจุบัน
+      title: การจัดการสิทธิ์
+    description: ปรับแต่งเวทีของคุณ!
+    sections:
+      section:
+        custom-color:
+          fields:
+            field:
+              primary-color:
+                label: สีหลัก
+                rgb-on:
+                  title: ขอแบบเปลี่ยนสีไปเรื่อย ๆ!
+          title: ชุดสี
+        developer:
+          title: นักพัฒนา
+          sections:
+            section:
+              performance-visualizer:
+                title: ตัวแสดงประสิทธิภาพ
+                description: แสดง FPS เวลาต่อเฟรม งานที่ใช้เวลานาน และตัวชี้วัดหน่วยความจำที่เบราว์เซอร์รองรับ
+              markdown-stress:
+                title: การทดสอบโหลด Markdown
+                description: ทดสอบการแยกวิเคราะห์และแสดงผล Markdown ด้วยข้อมูลแชทขนาดใหญ่
+              plugin-host:
+                actions:
+                  enable-and-load: เปิดใช้และโหลด
+                  disable-and-unload: ปิดใช้และเลิกโหลด
+                  import-folder: นำเข้าโฟลเดอร์
+                  confirm-import: นำเข้าส่วนขยาย
+                  cancel-import: ยกเลิก
+                errors:
+                  enable-and-load: 'เปิดใช้และโหลดปลั๊กอิน {extensionId} ไม่สำเร็จ'
+                  disable-and-unload: 'ปิดใช้และเลิกโหลดปลั๊กอิน {extensionId} ไม่สำเร็จ'
+                  prepare-import: ตรวจสอบโฟลเดอร์ส่วนขยายไม่สำเร็จ
+                  commit-import: 'นำเข้าส่วนขยาย {extensionId} ไม่สำเร็จ'
+                  cancel-import: ยกเลิกการนำเข้าส่วนขยายไม่สำเร็จ
+                import:
+                  title: ตรวจสอบการนำเข้าส่วนขยาย
+                  description: ส่วนขยายจะยังปิดอยู่และไม่ถูกโหลดหลังนำเข้า
+                  source: โฟลเดอร์ต้นทาง
+                  runtimes: รันไทม์
+                  entrypoints: จุดเริ่มต้น
+                  package-size: แพ็กเกจ
+                  package-size-value: '{fileCount} ไฟล์ · {totalBytes}'
+                  permissions: สิทธิ์
+                  kits: ชุดเครื่องมือ
+                  no-permissions: ไม่ได้ประกาศสิทธิ์ใด
+                  no-kits: ยังไม่ได้ประกาศชุดเครื่องมือ
+                  imported: 'นำเข้าส่วนขยาย {extensionId} แล้ว'
+              use-magic-keys:
+                title: เครื่องมือ useMagicKeys
+                description: ทดสอบปุ่มลัด
+              audio-record:
+                title: บันทึกเสียง
+                description: ทดสอบ composable ที่เกี่ยวกับเสียง
+              background-gradient-blending:
+                title: การผสมสีธีมของพื้นหลัง
+                description: ทดสอบการผสมสีและธีม
+              background-removal:
+                title: การลบพื้นหลัง (ต้องใช้ WebGPU)
+                description: เครื่องมือสำหรับลบพื้นหลัง
+              chat:
+                title: แชท
+                description: แชท
+              gesture-circle:
+                title: วงกลมท่าทางมือ (เฉพาะเดสก์ท็อป)
+                description: ทดสอบการจดจำท่าทางมือ
+              image:
+                title: รูปภาพ
+                description: รูปภาพ
+              polaroid:
+                title: โพลารอยด์
+                description: เครื่องมือสำหรับถ่ายภาพโมเดล
+              context-flow:
+                description: >-
+                  ตรวจดูการอัปเดตบริบทที่เข้ามาและเหตุการณ์สตรีมแชทที่ส่งออกไป
+              websocket-inspector:
+                title: ตัวตรวจสอบ WebSocket
+                description: ตรวจดูทราฟฟิก WebSocket ดิบ
+              vibrant:
+                title: การดึงสี
+                description: ทดสอบการดึงสี
+              providers-transcription-realtime-aliyun-nls:
+                title: ตัวถอดเสียงแบบเรียลไทม์ของ Aliyun
+                description: >-
+                  สตรีมเสียงจากไมโครโฟนไปยัง Aliyun NLS และตรวจดูข้อความถอดเสียงแบบสด
+              performance-playground:
+                title: พื้นที่ทดลองประสิทธิภาพ
+                description: พื้นที่ทดลองสีหน้า VRM และการขยับปากตาม TTS
+        theme-presets:
+          presets:
+            default:
+              colors:
+                color-1: สีเขียว AIRI
+              description: สีธีมเขียวเริ่มต้นที่ AIRI มอบให้คุณ!
+              title: สีเริ่มต้น
+            morandi:
+              colors:
+                color-1: สีน้ำตาลเทา
+                color-2: สีเบจ
+                color-3: สีเทาขี้เถ้า
+                color-4: สีน้ำตาลเทาอ่อน
+                color-5: สีงาช้าง
+                color-6: สีเทาอมเขียวมะกอก
+                color-7: สีทราย
+                color-8: สีเทาโทนอุ่น
+              description: โทนสีนุ่มนวลและหม่น ได้แรงบันดาลใจจากภาพวาดของ Giorgio Morandi
+              title: สีแบบ Morandi
+            monet:
+              colors:
+                color-1: สีฟ้า
+                color-2: สีหมอก
+                color-3: สีทราย
+                color-4: สีเขียวมอส
+                color-5: สีบัวสาย
+                color-6: สีข้าวสาลี
+                color-7: สีน้ำเงินหินชนวน
+                color-8: สีเขียวเสจ
+              description: ชุดสีอิมเพรสชันนิสม์ ได้แรงบันดาลใจจากผลงานของ Claude Monet
+              title: สีแบบ Monet
+            japanese:
+              colors:
+                color-1: สีแทน
+                color-2: สีน้ำตาลเทาโทนอุ่น
+                color-3: สีน้ำตาลอัมเบอร์
+                color-4: สีกาแฟ
+                color-5: สีบรอนซ์
+                color-6: สีทอง
+                color-7: สีมัสตาร์ด
+                color-8: สีอำพัน
+              description: ชุดสีญี่ปุ่นแบบดั้งเดิม
+              title: สีแบบญี่ปุ่น
+            nordic:
+              colors:
+                color-1: สีฟ้านอร์ดิก
+                color-2: สีน้ำแข็ง
+                color-3: สีฟยอร์ด
+                color-4: สีเหล็ก
+                color-5: สีธารน้ำแข็ง
+                color-6: สีหินชนวน
+                color-7: สีเมฆ
+                color-8: สีหิน
+              description: ชุดสีมินิมอลแบบสแกนดิเนเวีย
+              title: สีแบบนอร์ดิก
+            chinese:
+              colors:
+                color-1: สีชมพูรุ่งอรุณ
+                color-2: สีแดงจีน
+                color-3: สีน้ำตาลควัน
+                color-4: สีเขียวไผ่
+                color-5: สีม่วงเข้ม
+                color-6: สีเหลืองทอง
+                color-7: สีฟ้าคราม
+                color-8: สีดินเหลือง
+              description: >-
+                สีจีนแบบดั้งเดิม ที่มาจากผ้าทอ เครื่องเคลือบ และภาพวาดโบราณ
+              title: สีจีนแบบดั้งเดิม
+          title: ชุดสีสำเร็จรูป
+    title: ระบบ
+  page:
+    developers:
+      open-devtools:
+        title: เปิดเครื่องมือสำหรับนักพัฒนา
+        button: เปิด
+  credits:
+    buy: ซื้อ
+  scene:
+    title: ฉาก
+    description: ปรับแต่งสภาพแวดล้อมเสมือนสำหรับตัวละครของคุณ
+    beta_label: ระบบฉาก
+    beta_description: การ์ดตัวละครแต่ละใบระบุพื้นหลังที่ต้องการจากแกลเลอรีนี้ การตั้งค่าที่นี่จะตั้งเป็นค่าเริ่มต้นของตัวละครที่ใช้งานอยู่
+    background_image:
+      title: พื้นหลังของตัวละครที่ใช้งานอยู่
+      no_background: ตัวละครนี้ไม่มีพื้นหลังที่ใช้งานอยู่ อัปโหลดภาพสี่เหลี่ยมจัตุรัสหรือแนวนอนเพื่อผลลัพธ์ที่ดีที่สุด
+      upload: อัปโหลดไปที่แกลเลอรี
+      change: เปลี่ยนพื้นหลัง
+      clear: ล้างค่าเริ่มต้น
+    gallery:
+      title: แกลเลอรีฉาก
+      empty: ยังไม่มีภาพในแกลเลอรี อัปโหลดด้านบนเลย!
+      set_as_global: ตั้งเป็นค่าเริ่มต้นของตัวละคร
+      delete: ลบออกจากแกลเลอรี
+      global_badge: ค่าเริ่มต้นของตัวละคร
+      active_badge: ฉากปัจจุบัน
+      delete_confirm: คุณแน่ใจไหมว่าต้องการลบพื้นหลังนี้?
+    tip:
+      label: เคล็ดลับ!
+      description: การใช้ภาพสี่เหลี่ยมจัตุรัสจะใช้การครอบตัดแบบ <b>cover</b> ในโหมดแนวตั้ง โดยเน้นที่กึ่งกลางของฉาก
+sections:
+  section:
+    general:
+      title: ทั่วไป
+theme:
+  title: ธีม
+  description: |
+    ใช้ธีมสว่าง ธีมมืด หรือธีมตามระบบของคุณ
+  auto: ตามระบบ
+  light: สว่าง
+  dark: มืด
+title: การตั้งค่า
+voices: เสียง
+vrm:
+  fps:
+    title: จำกัดอัตราเฟรม
+    description: จำกัดการเรนเดอร์ VRM บนเวทีและในตัวอย่างโมเดล ค่าที่ต่ำลงช่วยลดการใช้ GPU โดยไม่เปลี่ยนความเร็วของแอนิเมชัน
+    options:
+      unlimited: ไม่จำกัด
+  change-model:
+    from-file: โหลดจากไฟล์
+    from-file-select: เลือก
+    from-url: โหลดจาก URL
+    from-url-confirm: โหลด
+    from-url-placeholder: กรอก URL ของโมเดล VRM
+    title: เปลี่ยนโมเดล
+  title: การตั้งค่า VRM
+  scale-and-position:
+    model-info-title: ข้อมูลขนาดของโมเดล
+    model-info-x: ความกว้าง (X)
+    model-info-y: ความสูง (Y)
+    model-info-z: ความลึก (Z)
+    tips: |
+      แก้ไขตำแหน่งเริ่มต้นของโมเดล VRM
+      แกนพิกัดจะแสดงให้เห็น
+    scale: ขนาด
+    x: ระยะเลื่อนแกน X
+    'y': ระยะเลื่อนแกน Y
+    z: ระยะเลื่อนแกน Z
+    fov: FOV (องศา)
+    rotation-y: การหมุน (แกน Y)
+    camera-distance: ระยะห่างของกล้อง
+    eye-tracking-mode:
+      title: มองที่
+      options:
+        option:
+          camera: กล้อง
+          mouse: เมาส์
+          disabled: ปิดอยู่
+  switch-to-vrm:
+    title: เปลี่ยนเป็นอวาตาร์ Live2D ไหม?
+    change-to-vrm: คลิกที่นี่เพื่อเปลี่ยนไปที่การตั้งค่าอวาตาร์ Live2D
+  theme-color-from-model:
+    button-extract:
+      title: ดึงสี
+  skybox:
+    skybox-intensity: ความเข้มของ SkyBox
+    skybox-specular-mix: การผสมแสงสะท้อน
+spine:
+  title: การตั้งค่า Spine
+  scale-and-position:
+    title: ขนาดและตำแหน่ง
+    scale: ขนาด
+  theme-color-from-model:
+    title: ดึงสีจากโมเดล
+    button-extract:
+      title: ดึงสี
+  animation:
+    title: แอนิเมชัน
+    idle-animation: แอนิเมชันขณะอยู่นิ่ง
+    mix-duration: ระยะเวลาผสมแอนิเมชัน (วินาที)
+    speed: ความเร็วแอนิเมชัน
+  appearance:
+    title: รูปลักษณ์
+  variant:
+    title: รูปแบบย่อย
+    current-variant: รูปแบบย่อยที่ใช้อยู่
+  skin:
+    title: สกิน
+    current-skin: สกินปัจจุบัน
+  rendering:
+    title: การเรนเดอร์
+    max-fps: FPS สูงสุด
+    render-scale: สเกลการเรนเดอร์
+  fps:
+    options:
+      unlimited: ไม่จำกัด
+mmd:
+  title: การตั้งค่า MMD
+  scale-and-position:
+    title: ขนาดและตำแหน่ง
+    scale: ขนาด
+    rotation: การหมุน
+  theme-color-from-model:
+    title: ดึงสีจากโมเดล
+    button-extract:
+      title: ดึงสี
+  physics:
+    title: ฟิสิกส์และริก
+    enabled: เปิดฟิสิกส์ (ผม กระโปรง เครื่องประดับ)
+    ik: เปิด IK (inverse kinematics)
+    grant: เปิดการส่งต่อการแปลงของกระดูกเสริม
+    gravity: ความแรงของแรงโน้มถ่วง
+  gaze:
+    title: การมอง
+    tracking: มองที่
+    options:
+      cursor: เมาส์
+      camera: กล้อง
+      none: ปิดอยู่
+  animation:
+    title: แอนิเมชัน
+    idle-motion: ท่าทางขณะอยู่นิ่ง
+    import-motion: นำเข้าท่าทาง (.vmd)
+    play-once: ดูตัวอย่างแอนิเมชัน
+    remove: ลบท่าทาง
+    description: >-
+      นำเข้าไฟล์ท่าทาง VMD ตั้งไฟล์หนึ่งเป็นท่าทางขณะอยู่นิ่งที่เล่นวนซ้ำ หรือเล่นไฟล์ใดก็ได้เป็นท่าทางแบบครั้งเดียว จับคู่อารมณ์กับท่าทางเพื่อเล่นท่าทางไปพร้อมกับสีหน้า
+  morphs:
+    title: มอร์ฟ
+    auto: (อัตโนมัติ)
+    revert: กลับไปใช้แบบอัตโนมัติ
+    no-morphs: โมเดลนี้ไม่มีมอร์ฟ
+    description: >-
+      ตัวเรนเดอร์ตรวจจับชื่อมอร์ฟภาษาญี่ปุ่นมาตรฐาน (あいうえお, まばたき) ได้เอง ถ้าโมเดลของคุณใช้ชื่อที่ไม่เป็นมาตรฐาน ให้กำหนดช่องแทนได้ที่นี่
+  materials:
+    title: วัสดุ
+    no-materials: โมเดลนี้ไม่มีวัสดุ
+    description: >-
+      ปรับความทึบของแต่ละส่วนของโมเดล (ใบหน้า ผม เสื้อผ้า เครื่องประดับ) ตั้งส่วนใดเป็น 0 เพื่อซ่อนส่วนนั้น
+tachie:
+  title: การตั้งค่า Tachie
+  archive-description: โมเดล Tachie ใช้ไฟล์บีบอัด .tachie.zip ที่มีรูปภาพตั้งชื่อตามอารมณ์
+  scale-and-position:
+    title: ขนาดและตำแหน่ง
+    scale: ขนาด
+  theme-color-from-model:
+    title: ดึงสีจากโมเดล
+    button-extract:
+      title: ดึงสี
+  rendering:
+    title: การเรนเดอร์
+    render-scale: สเกลการเรนเดอร์
+    shadow: เงาตกกระทบตามสีธีม
+websocket-secure-enabled:
+  title: ให้บริการเป็น Secure WebSocket (WSS)
+  description: >-
+    ใช้ WSS สำหรับการเชื่อมต่อจากมือถืออย่างปลอดภัย AIRI จะสร้างใบรับรองแบบลงนามเอง
+wip:
+  title: กำลังพัฒนา
+  description: >-
+    ฟีเจอร์นี้กำลังอยู่ระหว่างการพัฒนาและยังไม่เปิดให้ใช้งานทั่วไป ติดตามฟังก์ชันนี้ได้ในการอัปเดตครั้งต่อไป
+streamer-mode:
+  title: โหมดสตรีมเมอร์
+  description: ซ่อนตัวบอกสถานะไมโครโฟนและการเข้าสู่ระบบบนหน้าต่างตัวละคร

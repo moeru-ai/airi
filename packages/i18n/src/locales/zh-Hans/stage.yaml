@@ -82,6 +82,7 @@ chat:
     discard: 丢弃草稿
     listening: 正在聆听
     finalizing: 正在整理……
+    sent: 已发送
   voice-input: 语音输入
   error-details:
     show: 查看详情
@@ -149,6 +150,7 @@ startup:
   close-details: 关闭详情
   retry: 重新启动 AIRI
   continue-without-model: 暂不加载角色
+  model-timeout: 角色模型加载超时，请检查网络连接后重试。
   resources:
     auth: 账户设置
     modelIndex: 模型列表

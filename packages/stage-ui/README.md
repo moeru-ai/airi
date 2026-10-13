@@ -54,10 +54,15 @@ Consumers subscribe to the microphone input with their own abort signal. The las
 - Hearing selects providers and converts captured PCM to each provider's upload format. It does not open the microphone.
 - Speech preserves existing chunked synthesis and bidirectional provider output.
 - `createVoiceRephrasePlugin` rewrites final transcripts with a chat model through a checked transcript patch. The raw text stays in the transcript history. Each segment gets its own rewrite, so segment boundaries stay for later speaker labels. A reply with another segment count leaves the text unchanged.
+- `createVoiceEndJudgePlugin` ends a paused input early when a chat model reads its transcript as a finished message. The model is the rephrase model, or the chat model when no rephrase provider is set.
+
+A pause of 1.2 seconds can end an input. With the end judge on, which is the default, the voice activity silence limit grows by 3 seconds.
+The judge then ends a finished message at the pause, and an unfinished one waits for the speaker to continue.
+A failed or slow judgement never blocks new speech. Without the end judge, the 1.2-second pause ends every input.
 
 The host snapshot carries the corrected transcript segments of the active input. `VoiceDrafts` shows them as the continuation of the draft, in one paragraph. The paragraph is read-only while speech is transcribed, and becomes the editable draft when the speech settles. Final text uses the body color. Pending text uses the theme color at a lower opacity, and the newest pending segment uses full opacity.
-A draft that the host is sending stays hidden. Drafts of other conversations show as named chips. `VoiceDrafts` emits `presence`, so a host window such as the desktop inlay can hide itself after a send or a discard.
-Rephrasing is off by default. A failure or a 10-second timeout submits the provider text.
+A draft that the host is sending stays hidden. Drafts of other conversations show as named chips. `VoiceDrafts` emits `presence`, so a host can react when it shows nothing, for example after a send or a discard.
+Rephrasing is on by default. A failure or a 10-second timeout submits the provider text.
 
 A recording is sent only when its control asks for it with `finish` and `send: true`, or with an explicit `send`. A failed send keeps the recording and its message identity, so the control can send it again or discard it.
 While a control records or dictates, the host publishes the microphone level on `voiceInputLevel`.
@@ -87,8 +92,9 @@ To add a mode, extend `HearingInputMode`, `listensContinuously`, `startsInputOnS
 The web stage uses Space. The desktop stage uses a configurable global shortcut.
 
 Each host app declares whether it has a Push to Talk trigger. It provides `pushToTalkTriggerKey` from `composables/push-to-talk-trigger` at the app level.
-Without a provider, the host has no trigger. The Hearing settings page then disables the Push to Talk option.
-If the saved mode is already `push-to-talk` on such a host, listening stays off. The Hearing page and the voice button menu show a warning.
+Without a provider, the host has no trigger. The input mode selector of `HearingConfig` then disables the Push to Talk option.
+If the saved mode is already `push-to-talk` on such a host, listening stays off. `HearingConfig` and the voice button menu show a warning.
+`HearingConfig` is used on the Hearing overview page and in the Hearing dialogs. It asks for microphone permission only when the user turns the microphone switch on.
 The mode does not fall back to `always-on`, because that opens the microphone all the time.
 
 | Host | Trigger |
@@ -107,9 +113,12 @@ The `configure_wake_words` tool edits the wake words of the character that owns 
 It validates tokens against the pinned KWS vocabulary in `libs/voice/kws-model`. It returns `saved` with conflicts, or `rejected` with a reason.
 
 `voice.startListening` runs the built-in KWS detection when the host passes no `detectWakeWord`.
-`WakeWordDetector` reads the same ordered 32 ms windows as VAD. It does not open a microphone or an AudioContext.
-It queues 100 ms batches of finite mono samples for a Sherpaw keyword spotter Worker. Sherpa-ONNX resamples them to the model rate.
-The window callback does not wait for the Worker. A wake arrives on a later window. A backlog over 1 second is dropped.
+`WakeWordDetector` listens to `useSettingsAudioDevice().unprocessedInput`, a second capture of the selected microphone without browser echo cancellation, noise suppression, or gain.
+That processing changes the phones that the keyword model hears. The second capture opens only while the catalog has an active pronunciation.
+The detector queues 100 ms batches of finite mono samples for a Sherpaw keyword spotter Worker. Sherpa-ONNX resamples them to the model rate.
+Recognition does not wait for the Worker. The voice activity plugin collects a wake on its next window. A backlog over 1 second is dropped.
+The plugin also passes its VAD result to the detector. A pause of 0.5 seconds starts a new spotter stream, because a stream that runs for minutes misses most calls.
+Each keyword uses the search settings of `kwsSearch` and adds tone variants from `kwsToneVariants`. A variant changes the tone of one pinyin final, because a called name often changes its tone.
 A match maps through the active catalog to `voice.resolveWakeTarget(characterId, signal)`. This selects a session without navigating the chat window.
 Catalog changes rebuild the spotter keywords. A result after a stop or a keyword rebuild is discarded.
 

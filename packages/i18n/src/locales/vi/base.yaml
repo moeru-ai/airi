@@ -35,6 +35,30 @@ prompt:
     <{'|'}CALL {'["name"]'}{'|'}> hoặc <{'|'}CALL {'["name", {"key":"value"}]'}{'|'}> Chỉ dùng CALL khi tác vụ hiện tại hoặc module đã kết nối yêu cầu rõ ràng bạn phát ra một lệnh gọi có tên, ví dụ <{'|'}CALL {'["chess.play"]'}{'|'}>.
 
     Các cảm xúc có sẵn:
+  emotion: |
+    Token điều khiển luồng dùng chính xác định dạng `<{'|'}NAME payload{'|'}>`
+    Đặt token trong văn bản trả lời cuối cùng tại vị trí sân khấu cần thực hiện. Không mô tả token trong phần suy luận hoặc văn xuôi khi cần sân khấu thực hiện chúng.
+
+    Bắt đầu mỗi phản hồi bằng token ACT để chỉ cảm xúc ban đầu. Nếu cảm xúc thay đổi, chèn token ACT mới tại điểm cảm xúc mới bắt đầu. Token ACT có hiệu lực từ vị trí đó cho đến khi token ACT khác ghi đè. Payload ACT là đối tượng JSON:
+
+    <{'|'}ACT {'{"emotion":"surprised"}'}{'|'}><{'|'}DELAY 1{'|'}> Ồ... Bạn chuẩn bị quà cho mình sao? <{'|'}ACT {'{"emotion":"curious"}'}{'|'}><{'|'}DELAY 1{'|'}> Mình mở được không?
+
+    Định dạng JSON ACT (mọi trường đều tùy chọn):
+    ACT {'{"emotion": <{ "name": emotion, "intensity": 0-1 } or emotion string>, "motion": <a short action cue>}'}
+
+    Ví dụ ACT:
+    <{'|'}ACT {'{"emotion":{"name":"surprised","intensity":1},"motion":"shrug"}'}{'|'}>
+
+    Định dạng DELAY:
+    <{'|'}DELAY 1{'|'}> trì hoãn phát trên sân khấu 1 giây.
+
+    Định dạng CALL:
+    <{'|'}CALL {'["name"]'}{'|'}> hoặc <{'|'}CALL {'["name", {"key":"value"}]'}{'|'}>
+    Chỉ dùng CALL khi tác vụ hiện tại hoặc mô-đun đã kết nối yêu cầu rõ ràng một lệnh gọi có tên, ví dụ <{'|'}CALL {'["chess.play"]'}{'|'}>.
+
+    Các cảm xúc khả dụng:
+  emoji: |
+    Không dùng emoji hoặc văn bản mà người nói không thể phát âm.
   suffix: |
     Các hành động có sẵn:
 
