@@ -2,6 +2,7 @@ import type { BeginSpeechInput, SpeechInputAttempt, SpeechOutput, SpeechStream, 
 
 import type { VoiceActivityOptions } from '../libs/voice/voice-activity-plugin'
 import type { VoiceHostSnapshot } from '../services/speech/bus'
+import type { ChatToolReference } from '../types/chat'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
@@ -52,7 +53,9 @@ export const useVoiceStore = defineStore('voice', () => {
   const streamingControl = useLlmStreamingControlStore()
   const wakeWordDetection = useWakeWordDetectionStore()
   const { stream: microphoneStream, enabled: microphoneEnabled, error: microphoneError } = storeToRefs(devices)
-  const { drafts, frontDraftId, acceptSpeech, sendDraft, discardDraft, editDraft, selectDraft } = useVoiceDrafts(report)
+  /** The application tool selection for spoken turns. Without a connection, spoken turns send no tools. */
+  let requestTools: (() => readonly ChatToolReference[]) | undefined
+  const { drafts, frontDraftId, acceptSpeech, sendDraft, discardDraft, editDraft, selectDraft } = useVoiceDrafts(report, () => requestTools?.())
   const activeTurns = shallowRef<readonly TurnRef[]>([])
   const responses = new Map<string, { response: VoiceResponse, speech?: SpeechStream }>()
   const audioContext = useAudioContext()
@@ -267,6 +270,18 @@ export const useVoiceStore = defineStore('voice', () => {
 
   function interrupt(turns: readonly TurnRef[], cause: string) {
     return controller.interrupt({ turns, cause })
+  }
+
+  /**
+   * The application supplies the tools that its user granted to new turns, so a spoken turn reaches the same tools
+   * as a typed one. The returned function disconnects this source only.
+   */
+  function connectTools(source: () => readonly ChatToolReference[]) {
+    requestTools = source
+    return () => {
+      if (requestTools === source)
+        requestTools = undefined
+    }
   }
 
   /** The mounted scene supplies its browser output. Detachment stops only this host's responses. */
@@ -484,5 +499,5 @@ export const useVoiceStore = defineStore('voice', () => {
     void stopListening()
   })
 
-  return { controller, state, transcript, error, drafts, activeTurns, beginInput, beginManual, endInput, cancelInput, sendDraft, discardDraft, startResponse, getSpeech, finishResponse, interrupt, connectOutput, startListening, stopListening, resolveWakeTarget }
+  return { controller, state, transcript, error, drafts, activeTurns, beginInput, beginManual, endInput, cancelInput, sendDraft, discardDraft, startResponse, getSpeech, finishResponse, interrupt, connectOutput, connectTools, startListening, stopListening, resolveWakeTarget }
 })
