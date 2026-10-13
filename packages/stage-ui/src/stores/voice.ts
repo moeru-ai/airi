@@ -77,7 +77,7 @@ export const useVoiceStore = defineStore('voice', () => {
       if (!output)
         throw new Error('Voice output host is not connected')
 
-      const trace = traceSpeechOutput(turn, output(turn), async audio => audioContext.audioContext.decodeAudioData(await audio.arrayBuffer()))
+      const trace = traceSpeechOutput(turn, chat.openTurnSpan(turn), output(turn), async audio => audioContext.audioContext.decodeAudioData(await audio.arrayBuffer()))
       speechTraces.set(turnKey(turn), trace)
       return trace.output
     },
