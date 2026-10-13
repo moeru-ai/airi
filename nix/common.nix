@@ -28,6 +28,8 @@ stdenvNoCC.mkDerivation (final: {
   pname = "airi";
   inherit version;
 
+  # NOTICE: Clean some editor files that cause build to fail
+  # https://github.com/moeru-ai/airi/issues/1438
   src = lib.cleanSourceWith {
     src = ../.;
     filter =
@@ -62,7 +64,9 @@ stdenvNoCC.mkDerivation (final: {
     buildPhase = ''
       runHook preBuild
 
-      pnpm -F @proj-airi/stage-web... run build
+      # Build Tamagotchi since it has all assets of web + embedded models.
+      # If another stage gets unique assets, this must be updated.
+      pnpm -F @proj-airi/stage-tamagotchi... run build
 
       runHook postBuild
     '';
@@ -71,8 +75,8 @@ stdenvNoCC.mkDerivation (final: {
       runHook preInstall
 
       mkdir -p "$out"
-      cp -r .cache/* "$out"
-      cp -r apps/stage-web/.cache/assets/* "$out"
+      cp -vr .cache/* "$out"
+      cp -vr apps/stage-tamagotchi/src/renderer/.cache/assets/* "$out"
 
       runHook postInstall
     '';
