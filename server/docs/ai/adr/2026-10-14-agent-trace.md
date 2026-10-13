@@ -43,14 +43,19 @@ AIRI needs the client part of the first and the run table of the second.
 
 | Key | Meaning | Where it exists |
 |---|---|---|
-| `interaction_id` | One turn. The client round ID. | `x-airi-round-id` header, `llm_request_log`, `llm_request_item`, every uploaded span |
-| `session_id` | One conversation | `x-airi-session-id` header, the same tables, every uploaded span |
-| `request_id` | One gateway request | `llm_request_log`. New: the `x-airi-request-id` response header and the LLM step span |
-| `tool_call_id` | One client tool call | `llm_request_item`, the tool span |
+| `interaction_id` | One turn. The client round ID. | `x-airi-round-id` header, `llm_request_log`, `llm_request_item`, the `Interaction turn` span |
+| `trace_id` | One client trace. A spoken turn starts at `Wake word` or `Voice input`, and its `Interaction turn` is a child. A typed turn starts at `Interaction turn`. | Every uploaded span |
+| `session_id` | One conversation | `x-airi-session-id` header, the same tables, the `Interaction turn` span |
+| `request_id` | One gateway request | `llm_request_log`. New: the `x-airi-request-id` response header and the `LLM inference` span |
+| `tool_call_id` | One client tool call | `llm_request_item`, the `Tool execution` span |
+
+A span joins a turn through its trace.
+The `Interaction turn` span carries the interaction ID, and every span of its trace belongs to that turn.
+The voice input spans start before the round ID exists, so they cannot carry it.
 
 The server does not return its request ID today (`routes/openai/v1/http/response.ts`).
 The gateway adds the `x-airi-request-id` response header, and CORS exposes it.
-The client reads it in the official provider fetch and puts it on the LLM step span.
+The client reads it in the official provider fetch and puts it on the `LLM inference` span.
 
 The timeline does not compare client and server clocks to order the steps.
 A tool call is in the output items of one request, and its response is in the input items of the next request.
@@ -59,7 +64,8 @@ Client times give only the duration of each span and the order of spans from the
 
 ## Uploaded span
 
-The upload uses the shape that the IO tracer already serializes (`SerializedIOSpan`), with an allowlist of attributes.
+The client uploads the spans that the IO tracer records, with their current names (`IOSpanNames` in `packages/stage-shared/src/perf/io-trace.ts`).
+The upload uses the shape that the IO tracer already serializes (`SerializedIOSpan`), with milliseconds instead of nanosecond strings.
 
 ```text
 POST /api/v1/agent-traces
@@ -70,26 +76,33 @@ POST /api/v1/agent-traces
       "traceId", "spanId", "parentSpanId",
       "name",
       "startTimeUnixMs", "endTimeUnixMs",
-      "status": "ok" | "error" | "cancelled",
-      "attributes": { allowlisted keys only }
+      "status": "ok" | "error",
+      "attributes": { ... }
     }
   ]
 }
 ```
 
-Span names and their attributes:
+The API maps each span name to a `kind`, and keeps only the attributes that the allowlist of that kind names:
 
-| Span | Attributes |
-|---|---|
-| `invoke_agent` (one turn, the root) | `gen_ai.conversation.id`, `ai.moeru.airi.interaction_id`, `ai.moeru.airi.turn.status` |
-| `chat` (one LLM step) | `gen_ai.request.model`, `ai.moeru.airi.request_id`, `ai.moeru.airi.step.index`, `ai.moeru.airi.ttft_ms` |
-| `execute_tool` (one tool call) | `gen_ai.tool.name`, `gen_ai.tool.call.id`, `error.type` |
-| `asr`, `tts`, `playback`, `vad` | Durations, counts, and flags that the IO tracer records today, without text |
+| Span name | `kind` | Columns and allowlisted attributes |
+|---|---|---|
+| `Interaction turn` | `turn` | `interaction_id`, `session_id` |
+| `LLM inference` | `llm_step` | `request_id`, model, step index, time to first token, message and chunk counts |
+| `Tool execution` (new) | `tool` | `tool_name`, `tool_call_id`, `error.type` |
+| `Wake word`, `Voice input`, `Voice activity detection`, `Speech recognition`, `End of speech judgement`, `Transcript rephrase` | `voice_input` and one kind each | Trigger, outcome, durations, counts, and flags |
+| `Speech turn`, `TTS synthesis`, `Audio playback` | `speech_output` and one kind each | Segment ID, durations, and the interrupted, cancelled, and no audio flags |
+| `Streaming control dispatch` | `streaming_control` | Parser name, matched, handler count |
 
-The names follow the OpenTelemetry GenAI conventions where they exist.
-The API drops each attribute outside the allowlist before it stores the span, and counts the dropped keys in a metric.
-A client change cannot store text by mistake, and a newer client does not lose its spans on an older API.
-ASR text, TTS text, tool arguments, and tool results are not uploaded.
+The API drops a span with an unknown name, and each attribute outside the allowlist, before it stores the span.
+It returns the number of dropped spans and attributes, and logs them.
+A client change cannot store text by mistake, and a newer client does not lose its known spans on an older API.
+
+These attributes hold content and are never on the allowlist: `asr.text`, `tts.text`, `kws.text`, `streaming_control.parameter`, and `streaming_control.raw_token`.
+Tool arguments and tool results are not uploaded either.
+
+The IO tracer marks an aborted span with `ai.moeru.airi.io.cancelled` and no error status.
+The API stores that span with status `cancelled`.
 
 ## Tables
 
@@ -97,15 +110,16 @@ ASR text, TTS text, tool arguments, and tool results are not uploaded.
 agent_trace_span
   id               text primary key
   user_id          text not null        no foreign key, same as llm_request_log
-  session_id       text
-  interaction_id   text not null
   trace_id         text not null
   span_id          text not null
   parent_span_id   text
-  name             text not null        invoke_agent | chat | execute_tool | asr | tts | playback | vad
-  request_id       text                 chat spans
-  tool_name        text                 execute_tool spans
-  tool_call_id     text                 execute_tool spans
+  name             text not null        the IO tracer span name
+  kind             text not null        see above
+  interaction_id   text                 turn spans
+  session_id       text                 turn spans
+  request_id       text                 llm_step spans
+  tool_name        text                 tool spans
+  tool_call_id     text                 tool spans
   status           text not null        ok | error | cancelled
   error_type       text
   started_at       timestamp not null   client clock
@@ -119,6 +133,7 @@ agent_run
   user_id          text not null
   interaction_id   text not null
   session_id       text
+  trace_id         text                 the client trace of the turn
   status           text not null        running | finished | cancelled | failed
   started_at       timestamp not null
   ended_at         timestamp
@@ -136,30 +151,31 @@ agent_run
 
 Indexes:
 
-- `agent_trace_span`: unique `(user_id, trace_id, span_id)` as the idempotency key, and `(user_id, interaction_id)`.
+- `agent_trace_span`: unique `(user_id, trace_id, span_id)` as the idempotency key, `(user_id, interaction_id)`, and `(user_id, trace_id)`.
 - `agent_run`: `(started_at)`, `(user_id, started_at)`, and `(tool_calls, started_at)` for the sort across users.
 - `llm_request_log`: new `(user_id, interaction_id)`. The table has no index on `interaction_id` today.
 
 `agent_run` is derived. It can be built again from the other tables.
-Each write computes the totals of the turn again from `llm_request_log`, `llm_request_item`, and `agent_trace_span`. It does not add to the earlier totals, so a repeated or late write gives the same row.
-The request log service writes it after each request. The ingest service writes it after each upload.
+Each write computes the totals of the turn again from `llm_request_log`, `llm_request_item`, and `agent_trace_span`, inside a transaction that holds an advisory lock for the turn.
+It does not add to the earlier totals, so a repeated or late write gives the same row.
+The request log service writes it after each request of a turn. The ingest service writes it for each turn that an upload touches.
 A turn without client spans still gets a row, with `has_client_trace = false`.
 
 Status:
 
-- The client `invoke_agent` span sets `finished`, `cancelled`, or `failed`.
-- Without that span, the state of the last request sets the status. A turn with a request still in flight is `running`.
+- The `Interaction turn` span sets `finished`, `cancelled`, or `failed`.
+- Without that span, a request that is still `running` makes the turn `running`. Otherwise the state of the last request sets the status.
 
 ## Client changes
 
-- Put `interaction_id` and `session_id` on every span, the root included. Today the root span has no attributes, and no span has the session ID.
-- Set the parent of each span from the OpenTelemetry context of its turn, not from the global `activeTurnSpan`. Today two turns at the same time can get the wrong parent, and VAD spans have no parent.
-- Start one `chat` span for each LLM step. Today one span covers all the steps of a turn, because the xsAI `step.start` and `step.done` events are dropped (`packages/core-agent/src/runtime/xsai-events.ts`).
-- Start one `execute_tool` span in a wrapper around `Tool.execute`, where `resolveLlmTools` already wraps tools (`packages/stage-ui/src/stores/ai/chat-llm/tool-resolver.ts`).
+- Put `interaction_id` and `session_id` on the `Interaction turn` span. Today the round ID is on some child spans only, and no span has the session ID.
+- Set the parent of each span from the OpenTelemetry context of its turn, not from the global `activeTurnSpan`. Today two turns at the same time can get the wrong parent.
+- Start one `LLM inference` span for each LLM step, with the request ID of that step. Today one span covers all the steps of a turn, because the xsAI `step.start` and `step.done` events are dropped (`packages/core-agent/src/runtime/xsai-events.ts`).
+- Add a `Tool execution` span in a wrapper around `Tool.execute`, where `resolveLlmTools` already wraps tools (`packages/stage-ui/src/stores/ai/chat-llm/tool-resolver.ts`).
 - Add a batch exporter that sends ended spans every few seconds and when the page is hidden. A failed upload drops the batch. It does not retry and does not block the turn.
 - Fix `withCredentials` in the official provider, which writes the active session ID over the session ID of a background turn (`packages/stage-ui/src/libs/providers/providers/official/shared.ts`).
 
-The upload runs only when the turn uses the official provider and analytics is enabled.
+The upload runs only for traces whose turn uses the official provider, and only when analytics is enabled.
 A turn with another provider has no gateway rows to join, and its data goes to a provider that AIRI does not run.
 
 ## Modules
@@ -210,7 +226,7 @@ packages/stage-ui/src/
 ├── composables/use-io-tracer.ts               context parents, exporter
 ├── libs/agent-trace/exporter.ts               new, batch upload
 ├── stores/chat.ts                             IDs on every span, chat step spans
-├── stores/ai/chat-llm/tool-resolver.ts        execute_tool spans
+├── stores/ai/chat-llm/tool-resolver.ts        Tool execution spans
 └── libs/providers/providers/official/shared.ts  request ID, session ID fix
 packages/core-agent/src/runtime/xsai-events.ts   forward step events
 ```
@@ -225,17 +241,17 @@ sequenceDiagram
   participant Log as Request log service
   participant API as Agent trace route
   participant Run as Agent run service
-  UI->>Tracer: start invoke_agent
-  UI->>Tracer: start chat step
+  UI->>Tracer: start Interaction turn
+  UI->>Tracer: start LLM inference
   UI->>GW: LLM request with session ID and round ID
   GW->>Log: beginRequest, logRequest
   Log->>Run: compute totals of the turn
   GW-->>UI: response with x-airi-request-id
-  UI->>Tracer: end chat step with request ID
-  UI->>Tracer: execute_tool with tool call ID
-  UI->>Tracer: end invoke_agent
+  UI->>Tracer: end LLM inference with request ID
+  UI->>Tracer: Tool execution with tool call ID
+  UI->>Tracer: end Interaction turn
   Tracer->>API: batch of ended spans
-  API->>API: validate shape, drop attributes outside the allowlist
+  API->>API: validate shape, drop unknown spans and attributes
   API->>Run: store spans, compute totals of the turn
 ```
 
@@ -243,7 +259,7 @@ sequenceDiagram
 
 1. Gateway: return `x-airi-request-id` on every chat and Responses response, errors included, and expose it in CORS. The route creates the ID before the operation, and the operation logs the same ID.
 2. API: add the two tables, the `(user_id, interaction_id)` index on `llm_request_log`, the ingest route, the run service, and account deletion for both tables. This step builds on the request item PR, because `agent_run` counts tool calls from items, and both add migrations.
-3. Client: IDs and parents on spans, `chat` and `execute_tool` spans, the exporter, and the session ID fix.
+3. Client: IDs and parents on spans, one `LLM inference` span for each step, `Tool execution` spans, the exporter, and the session ID fix.
 4. Admin API (`proj-airi/backend`): read runs, spans, and items for one turn, and sort runs across users.
 5. Admin dashboard: one timeline for each turn.
 
@@ -277,8 +293,8 @@ Rollback of the client stops new spans. Rollback of the API drops nothing that a
 
 ## Verification
 
-- Route tests: a valid batch is stored, an attribute outside the allowlist is not stored and is counted, a repeated batch adds no rows, and a user cannot write spans of another user.
+- Route tests: a valid batch is stored, an unknown span and an attribute outside the allowlist are not stored and are counted, a content attribute such as `asr.text` is never stored, a repeated batch adds no rows, and a user cannot write spans of another user.
 - Run service tests: the totals of a turn are the same after requests and spans arrive in any order, and after a repeated write.
 - Gateway test: the response has `x-airi-request-id`, and it equals `llm_request_log.request_id`.
-- Client tests: two turns at the same time give spans with the correct parents and IDs, a tool error gives an `execute_tool` span with status `error`, and no span holds ASR or TTS text.
-- End to end on a local API and Postgres: one turn with two tool calls gives one run row, three `chat` spans with request IDs that exist, and two `execute_tool` spans that match the tool call items.
+- Client tests: two turns at the same time give spans with the correct parents and IDs, and a tool error gives a `Tool execution` span with status `error`.
+- End to end on a local API and Postgres: one turn with two tool calls gives one run row, three `LLM inference` spans with request IDs that exist, and two `Tool execution` spans that match the tool call items.
