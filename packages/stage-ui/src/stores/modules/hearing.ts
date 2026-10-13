@@ -4,6 +4,7 @@ import type { WithUnknown } from '@xsai/shared'
 import type { StreamTranscriptionOptions as XSAIStreamTranscriptionOptions } from '@xsai/stream-transcription'
 import type {} from 'pinia-plugin-synced'
 
+import type { HearingTranscriberTraceOptions } from '../../libs/audio/hearing-transcriber'
 import type { AIRIStreamTranscriptionResult } from '../../libs/providers/stream-transcription'
 import type { HearingTranscriptionResult } from '../../libs/providers/transcription-types'
 
@@ -556,7 +557,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
   }
 
   /** Freezes Hearing settings for one request. The controller supplies media and owns cancellation. */
-  function createTranscriber(providerId = activeTranscriptionProvider.value): StreamingTranscriber {
+  function createTranscriber(providerId = activeTranscriptionProvider.value, trace: HearingTranscriberTraceOptions = {}): StreamingTranscriber {
     const config = structuredClone(toRaw(providerStore.getProviderConfig(providerId) ?? {}))
     const model = resolveActiveTranscriptionModel(activeTranscriptionModel.value, config)
     const threshold = confidenceThreshold.value
@@ -620,7 +621,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
         await dispose()
         throw error
       }
-    })
+    }, trace)
   }
 
   return {
