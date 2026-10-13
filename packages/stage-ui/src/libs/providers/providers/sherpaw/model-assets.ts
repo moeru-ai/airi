@@ -1,7 +1,10 @@
 import type { ModelAsset, ModelAssetStatus } from '@proj-airi/stage-shared/model-assets'
+import type { InferOutput } from 'valibot'
 
 import { ModelAssetRepository } from '@proj-airi/stage-shared/model-assets'
+import { speakerModel } from '@proj-airi/stage-shared/speaker-model'
 import { assets } from '@proj-airi/vite-plugin-sherpaw/assets'
+import { array, number, object, parse, string } from 'valibot'
 
 import { updateModelAssetStatus } from '../../../../composables/use-model-asset-status'
 import { OpfsModelAssetStorage } from '../../../inference/model-assets-opfs'
@@ -10,11 +13,11 @@ import { sherpawModelResources } from './model-resources'
 
 /**
  * Every Sherpaw preload pack that the host exposes.
- * The wake word pack shares the repository, so its download status, cancellation, and deletion follow the transcription models.
+ * The wake word and speaker packs share the repository, so their download status, cancellation, and deletion follow the transcription models.
  */
 const packs = [
   ...sherpawModelResources,
-  ...(assets[kwsModel.id] ? [{ model: kwsModel, files: assets[kwsModel.id]! }] : []),
+  ...[kwsModel, speakerModel].flatMap(model => assets[model.id] ? [{ model, files: assets[model.id]! }] : []),
 ]
 
 const models: ModelAsset[] = packs.map(({ model, files }) => ({
@@ -112,4 +115,45 @@ export async function fetchSherpawModel(input: RequestInfo | URL, init?: Request
   if (host)
     return host.fetch(model, file.name, signal)
   return sherpawModelAssets.open(model.id, file.name, signal)
+}
+
+const metadataSchema = object({
+  files: array(object({ filename: string(), start: number(), end: number() })),
+  remote_package_size: number(),
+})
+
+/** A complete Sherpaw preload pack: the data file and the file table of its metadata. */
+export interface SherpawModelPack {
+  data: ArrayBuffer
+  metadata: InferOutput<typeof metadataSchema>
+}
+
+/**
+ * Reads a pinned preload pack from the location that the host's Sherpaw Vite plugin exposes.
+ *
+ * Remote packs install through the host model asset repository, which reports progress and supports cancel and delete.
+ * Bundled packs are application files, so the repository fetches them directly.
+ *
+ * @param id The pack ID that the host's Sherpaw Vite plugin exposes.
+ * @param name The model name in error messages, for example `wake word model`.
+ */
+export async function fetchSherpawModelPack(id: string, name: string): Promise<SherpawModelPack> {
+  const files = assets[id]
+  if (!files)
+    throw new Error(`This application does not include the ${name}`)
+
+  const [dataResponse, metadataResponse] = await Promise.all([
+    fetchSherpawModel(new URL(files.data, document.baseURI)),
+    fetchSherpawModel(new URL(files.metadata, document.baseURI)),
+  ])
+  if (!dataResponse.ok || !metadataResponse.ok)
+    throw new Error(`Could not download the ${name} (${dataResponse.status}, ${metadataResponse.status})`)
+
+  const [data, metadataValue] = await Promise.all([dataResponse.arrayBuffer(), metadataResponse.json()])
+  const metadata = parse(metadataSchema, metadataValue)
+  // A partial download must not reach a Sherpaw Worker.
+  if (metadata.remote_package_size !== data.byteLength)
+    throw new Error(`The ${name} download is incomplete`)
+
+  return { data, metadata }
 }
