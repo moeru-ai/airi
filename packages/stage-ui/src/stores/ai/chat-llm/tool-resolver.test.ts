@@ -57,6 +57,22 @@ describe('toolNameFrom', () => {
 })
 
 describe('resolveLlmTools', () => {
+  // https://github.com/moeru-ai/airi/issues/2779
+  // ROOT CAUSE:
+  //
+  // The default source added MCP proxies without a transport.
+  // We fixed this by keeping the default source empty and retaining runtime registrations.
+  it('exposes MCP proxies only from a registered runtime (Issue #2779)', async () => {
+    const options = { debugTools: [], sparkCommandTools: [], webSearchTools: [], activeTools: [] }
+
+    expect(await resolveLlmTools(options)).toEqual([])
+
+    const listTools = createTool('builtIn_mcpListTools')
+    const callTool = createTool('builtIn_mcpCallTool')
+
+    expect(await resolveLlmTools({ ...options, activeTools: [listTools, callTool] })).toEqual([listTools, callTool])
+  })
+
   it('reads the images of every tool when it receives an image reader', async () => {
     const screenshot = [{ type: 'image_url', image_url: { url: 'data:image/png;base64,aW1hZ2U=' } }]
     const builtInTool = { ...createTool('builtIn_mcpCallTool'), execute: async () => screenshot }
