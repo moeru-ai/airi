@@ -37,7 +37,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       # A workspace token can update autodeploy settings. Railway project
       # tokens cannot run that mutation.
-      RAILWAY_TOKEN: ${{ secrets.RAILWAY_DEV_WORKSPACE_TOKEN }}
+      RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_DEV_WORKSPACE_TOKEN }}
 
     steps:
       # Stop before the database reset if no deploy can follow it.
@@ -52,6 +52,9 @@ jobs:
 
       - uses: actions/checkout@v6
       - run: npm install --global @railway/cli@5
+
+      - name: Link the Railway dev environment
+        run: railway link --project Server --environment dev
 
       # Push-driven deploys bypass this workflow's database reset and commit
       # pin. Keep them disabled while this workflow owns the shared slot.
