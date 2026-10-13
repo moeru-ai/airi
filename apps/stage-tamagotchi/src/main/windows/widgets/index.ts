@@ -374,7 +374,14 @@ export function setupWidgetsWindowManager(params: {
       current.timer = setTimeout(armTimer, Math.min(remainingMs, MAX_TIMEOUT_MS))
     }
 
-    armTimer()
+    // NOTICE:
+    // The first armTimer call must defer to the next microtask.
+    // With a tiny TTL (1 ms), armTimer fires synchronously and calls
+    // destroyWidget before createRecord returns to pushWidget.
+    // Source: Codex review on PR #2935, thread PRRT_kwDONXX6d86r70Ul.
+    // Removal condition: Remove when scheduleDestruction no longer runs
+    // inside createRecord, or when pushWidget guards against missing context.
+    queueMicrotask(armTimer)
   }
 
   function createRecord(snapshot: WidgetSnapshot) {

@@ -215,6 +215,18 @@ describe('widget window lifecycle', () => {
     expect(manager.getWidgetSnapshot(id)).toBeUndefined()
   })
 
+  // Regression: PR #2935 – bitxwolf/fix/clamp-ttlms-settimeout-overflow
+  // https://github.com/moeru-ai/airi/pull/2935
+  //
+  // ROOT CAUSE:
+  // Node.js setTimeout clamps delays larger than 2,147,483,647 ms (the
+  // 32-bit signed integer limit) to 1 ms. A widget with a TTL above this
+  // limit fired its destruction timer almost immediately instead of after
+  // the intended duration.
+  //
+  // Before: Widget with a large TTL was destroyed in ~1 ms.
+  // After:  scheduleDestruction re-arms the timer in safe 32-bit chunks
+  //         until the full TTL elapses.
   it('preserves TTLs exceeding 32-bit timer limit and destroys widget across chunks', async () => {
     const manager = createManager()
     const ttlMs = 2_147_483_647 + 5000
