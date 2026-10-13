@@ -678,6 +678,49 @@ describe('context bridge contract', () => {
     await store.dispose()
   })
 
+  it('shows a remote stream in a minimal window without the server channel or chat hooks', async () => {
+    // ROOT CAUSE:
+    //
+    // The chat window and the floating chat window run with `stage-runtime=minimal`, so they do not call
+    // `initialize`. Since #2771, the stream store does not synchronize the live reply. The renderer that runs
+    // the turn publishes it on the context channel, and only `initialize` listened to that channel:
+    //
+    //   const fullStageRuntime = windowContext.stageRuntime === 'full' ? createFullStageRuntime() : null
+    //
+    // A chat window showed the reply only after the whole message was stored.
+    //
+    // We fixed this with `initializeStreamView`. It listens to the context channel and shows the stream.
+    // It does not connect the server channel and does not run the chat hooks of the window.
+    const localTokenHook = vi.fn()
+    chatOrchestratorMock.onTokenLiteral(localTokenHook)
+    const store = useContextBridgeStore()
+    await store.initializeStreamView()
+    const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
+    const context = {
+      sessionId: 'session-1',
+      turnId: 'turn-1',
+      message: { role: 'user', content: 'ping' },
+      contexts: {},
+      composedMessage: [],
+    } satisfies ChatStreamEventContext
+
+    streamSender.postMessage({ type: 'before-send', message: 'ping', sessionId: 'session-1', context })
+    await vi.waitFor(() => expect(beginStreamMock).toHaveBeenCalledWith('turn-1'))
+    streamSender.postMessage({ type: 'token-literal', literal: 'hel', sessionId: 'session-1', context })
+    streamSender.postMessage({ type: 'token-literal', literal: 'lo', sessionId: 'session-1', context })
+    await vi.waitFor(() => expect(appendStreamLiteralMock).toHaveBeenCalledTimes(2))
+    streamSender.postMessage({ type: 'assistant-end', message: 'hello', sessionId: 'session-1', context })
+    await vi.waitFor(() => expect(refreshSessionMock).toHaveBeenCalledWith('session-1'))
+
+    expect(appendStreamLiteralMock).toHaveBeenNthCalledWith(1, 'hel')
+    expect(appendStreamLiteralMock).toHaveBeenNthCalledWith(2, 'lo')
+    expect(localTokenHook).not.toHaveBeenCalled()
+    expect(ensureConnectedMock).not.toHaveBeenCalled()
+    expect(serverSendMock).not.toHaveBeenCalled()
+
+    await store.dispose()
+  })
+
   it('routes remote stream cancellation to the renderer that produced the turn', async () => {
     const store = useContextBridgeStore()
     await store.initialize()
