@@ -267,6 +267,7 @@ deploy_services() {
     wait_for_deployment "$service" "$deployment_id" || wait_status=$?
     trap - EXIT INT TERM
     if ((wait_status != 0)); then
+      cancel_railway_deployment "$service" "$deployment_id"
       return 1
     fi
 
@@ -289,11 +290,12 @@ deploy_frontend() {
 
   local frontend_run_id="${frontend_run_url##*/}"
   if [[ ! "$frontend_run_id" =~ ^[0-9]+$ ]]; then
-    for _ in {1..20}; do
+    while [[ ! "$frontend_run_id" =~ ^[0-9]+$ ]]; do
       local frontend_runs
       if ! frontend_runs=$(gh run list --repo "$GH_REPOSITORY" --workflow deploy-cloudflare-workers-dev-server.yml --branch "$workflow_ref" --event workflow_dispatch --limit 100 --json databaseId,displayTitle); then
-        echo "::error::Cannot list frontend workflow runs." >&2
-        return 1
+        echo "::warning::Cannot list frontend workflow runs. Retrying." >&2
+        poll_delay
+        continue
       fi
 
       if ! frontend_run_id=$(jq --arg title "$frontend_run_title" --raw-output '[.[] | select(.displayTitle == $title)][0].databaseId // empty' <<< "$frontend_runs"); then

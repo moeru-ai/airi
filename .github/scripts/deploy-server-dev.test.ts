@@ -444,6 +444,12 @@ if [[ "$1 $2" == "workflow run" ]]; then
   exit 0
 fi
 if [[ "$1 $2" == "run list" ]]; then
+  count_file="$TEST_STATE_DIRECTORY/run-list-count"
+  count=$(cat "$count_file" 2>/dev/null || printf '0')
+  printf '%s' "$((count + 1))" > "$count_file"
+  if [[ "$count" == '0' ]]; then
+    exit 1
+  fi
   printf '[{"databaseId":67890,"displayTitle":"Deploy server-dev frontend (server-dev-42-3)"}]\n'
   exit 0
 fi
@@ -473,6 +479,7 @@ exit 1
     const calls = readFileSync(join(directory, 'calls'), 'utf8')
 
     expect(result.status).toBe(0)
+    expect(calls.match(/run list/g)).toHaveLength(2)
     expect(calls).toContain('workflow run deploy-cloudflare-workers-dev-server.yml --repo moeru-ai/airi --ref main --raw-field branch=release-branch --raw-field commit_sha=commit-sha')
     expect(calls).toContain('--raw-field parent_run_id=42')
     expect(calls).toContain('run watch 67890 --repo moeru-ai/airi --exit-status --compact')
