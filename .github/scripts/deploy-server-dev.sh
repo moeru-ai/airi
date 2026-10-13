@@ -64,34 +64,30 @@ wait_for_idle_deployments() {
   done
 }
 
-wait_for_new_deployment() {
+wait_for_deployment() {
   local service="$1"
-  local previous_id="$2"
+  local deployment_id="$2"
 
   while true; do
-    local latest
-    if ! latest=$(railway service status --service "$service" --json); then
-      echo "::error::Cannot read the $service deployment status." >&2
+    local deployments
+    if ! deployments=$(railway deployment list --service "$service" --limit 100 --json); then
+      echo "::error::Cannot list the $service deployments." >&2
       return 1
     fi
 
-    local id
     local status
-    if ! id=$(jq --exit-status --raw-output '.deploymentId' <<< "$latest") \
-      || ! status=$(jq --exit-status --raw-output '.status' <<< "$latest"); then
-      echo "::error::The $service deployment status has an invalid shape." >&2
-      return 1
+    if ! status=$(jq --arg id "$deployment_id" --exit-status --raw-output '[.[] | select(.id == $id)][0].status' <<< "$deployments"); then
+      sleep "$POLL_INTERVAL_SECONDS"
+      continue
     fi
 
-    if [[ "$id" != "$previous_id" ]]; then
-      if [[ "$status" == "SUCCESS" ]]; then
-        return 0
-      fi
+    if [[ "$status" == "SUCCESS" ]]; then
+      return 0
+    fi
 
-      if is_terminal_status "$status"; then
-        echo "::error::The $service deployment $id ended with status $status." >&2
-        return 1
-      fi
+    if is_terminal_status "$status"; then
+      echo "::error::The $service deployment $deployment_id ended with status $status." >&2
+      return 1
     fi
 
     sleep "$POLL_INTERVAL_SECONDS"
@@ -128,20 +124,47 @@ select_branch() {
 }
 
 deploy_services() {
+  local environments
+  if ! environments=$(railway environment list --json); then
+    echo "::error::Cannot list Railway environments." >&2
+    return 1
+  fi
+
+  local environment_id
+  if ! environment_id=$(jq --exit-status --raw-output '[.environments[] | select(.isLinked)] | if length == 1 then .[0].id else error("expected one linked environment") end' <<< "$environments"); then
+    echo "::error::Cannot identify the linked Railway environment." >&2
+    return 1
+  fi
+
   for service in "${SERVICES[@]}"; do
-    local previous
-    if ! previous=$(railway service status --service "$service" --json | jq --exit-status --raw-output '.deploymentId'); then
-      echo "::error::Cannot read the current $service deployment." >&2
+    local service_status
+    if ! service_status=$(railway service status --service "$service" --json); then
+      echo "::error::Cannot read the $service status." >&2
       return 1
     fi
 
-    if ! railway service redeploy --service "$service" --from-source --yes; then
+    local service_id
+    if ! service_id=$(jq --exit-status --raw-output '.id' <<< "$service_status"); then
+      echo "::error::Cannot identify the $service service ID." >&2
+      return 1
+    fi
+
+    local deploy_mutation="mutation DeployLatest(\$environmentId: String!, \$serviceId: String!) { serviceInstanceDeploy(environmentId: \$environmentId, serviceId: \$serviceId, latestCommit: true) }"
+    local deployment
+    if ! deployment=$(railway api "$deploy_mutation" --raw-var "environmentId=$environment_id" --raw-var "serviceId=$service_id" --compact); then
       echo "::error::Cannot redeploy $service." >&2
       wait_for_idle_deployments "$service"
       return 1
     fi
 
-    if ! wait_for_new_deployment "$service" "$previous"; then
+    local deployment_id
+    if ! deployment_id=$(jq --exit-status --raw-output '.data.serviceInstanceDeploy | select(type == "string" and length > 0)' <<< "$deployment"); then
+      echo "::error::Railway did not return the $service deployment ID." >&2
+      wait_for_idle_deployments "$service"
+      return 1
+    fi
+
+    if ! wait_for_deployment "$service" "$deployment_id"; then
       return 1
     fi
   done

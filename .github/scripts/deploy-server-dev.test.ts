@@ -54,17 +54,19 @@ describe('deploy-server-dev', () => {
     const { run } = fixture({
       railway: `
 if [[ "$1 $2" == "service status" ]]; then
-  count_file="$TEST_STATE_DIRECTORY/status-count"
-  count=$(cat "$count_file" 2>/dev/null || printf '0')
-  printf '%s' "$((count + 1))" > "$count_file"
-  if [[ "$count" == '0' ]]; then
-    printf '{"deploymentId":"old","status":"SUCCESS"}\n'
-  else
-    printf '{"deploymentId":"new","status":"REMOVED"}\n'
-  fi
+  printf '{"id":"service-id","deploymentId":"old","status":"SUCCESS"}\n'
   exit 0
 fi
-if [[ "$1 $2" == "service redeploy" ]]; then
+if [[ "$1 $2" == "environment list" ]]; then
+  printf '{"environments":[{"id":"environment-id","isLinked":true}]}\n'
+  exit 0
+fi
+if [[ "$1" == "api" ]]; then
+  printf '{"data":{"serviceInstanceDeploy":"new"}}\n'
+  exit 0
+fi
+if [[ "$1 $2" == "deployment list" ]]; then
+  printf '[{"id":"new","status":"REMOVED"}]\n'
   exit 0
 fi
 exit 1
@@ -95,17 +97,23 @@ for ((index = 1; index <= $#; index++)); do
 done
 printf '%s %s %s\n' "$1" "$2" "$service" >> "$TEST_STATE_DIRECTORY/calls"
 if [[ "$1 $2" == "service status" ]]; then
-  count_file="$TEST_STATE_DIRECTORY/status-$service"
-  count=$(cat "$count_file" 2>/dev/null || printf '0')
-  printf '%s' "$((count + 1))" > "$count_file"
-  if [[ "$count" == '0' ]]; then
-    printf '{"deploymentId":"old-%s","status":"SUCCESS"}\n' "$service"
+  printf '{"id":"service-%s","deploymentId":"old-%s","status":"SUCCESS"}\n' "$service" "$service"
+  exit 0
+fi
+if [[ "$1 $2" == "environment list" ]]; then
+  printf '{"environments":[{"id":"environment-id","isLinked":true}]}\n'
+  exit 0
+fi
+if [[ "$1" == "api" ]]; then
+  if [[ "$*" == *'service-ts-api'* ]]; then
+    printf '{"data":{"serviceInstanceDeploy":"new-ts-api"}}\n'
   else
-    printf '{"deploymentId":"new-%s","status":"SUCCESS"}\n' "$service"
+    printf '{"data":{"serviceInstanceDeploy":"new-auth-server"}}\n'
   fi
   exit 0
 fi
-if [[ "$1 $2" == "service redeploy" ]]; then
+if [[ "$1 $2" == "deployment list" ]]; then
+  printf '[{"id":"new-%s","status":"SUCCESS"}]\n' "$service"
   exit 0
 fi
 exit 1
@@ -117,8 +125,57 @@ exit 1
     const calls = readFileSync(join(directory, 'calls'), 'utf8')
 
     expect(result.status).toBe(0)
-    const tsApiWait = calls.indexOf('service status ts-api', calls.indexOf('service redeploy ts-api'))
-    expect(tsApiWait).toBeLessThan(calls.indexOf('service redeploy auth-server'))
+    const tsApiWait = calls.indexOf('deployment list ts-api', calls.indexOf('api mutation'))
+    expect(tsApiWait).toBeLessThan(calls.lastIndexOf('service status auth-server'))
+  })
+
+  it('waits for the deployment ID returned by Railway', () => {
+    const { directory, run } = fixture({
+      railway: `
+service=''
+for ((index = 1; index <= $#; index++)); do
+  if [[ "\${!index}" == '--service' ]]; then
+    next=$((index + 1))
+    service="\${!next}"
+  fi
+done
+if [[ "$1 $2" == "service status" ]]; then
+  printf '{"id":"service-%s","deploymentId":"old","status":"SUCCESS"}\n' "$service"
+  exit 0
+fi
+if [[ "$1 $2" == "environment list" ]]; then
+  printf '{"environments":[{"id":"environment-id","isLinked":true}]}\n'
+  exit 0
+fi
+if [[ "$1" == "api" ]]; then
+  if [[ "$*" == *'service-ts-api'* ]]; then
+    printf '{"data":{"serviceInstanceDeploy":"target-ts-api"}}\n'
+  else
+    printf '{"data":{"serviceInstanceDeploy":"target-auth-server"}}\n'
+  fi
+  exit 0
+fi
+if [[ "$1 $2" == "deployment list" ]]; then
+  count_file="$TEST_STATE_DIRECTORY/list-$service"
+  count=$(cat "$count_file" 2>/dev/null || printf '0')
+  printf '%s' "$((count + 1))" > "$count_file"
+  if [[ "$count" == '0' ]]; then
+    printf '[{"id":"unrelated-%s","status":"SUCCESS"},{"id":"target-%s","status":"BUILDING"}]\n' "$service" "$service"
+  else
+    printf '[{"id":"unrelated-%s","status":"SUCCESS"},{"id":"target-%s","status":"SUCCESS"}]\n' "$service" "$service"
+  fi
+  exit 0
+fi
+exit 1
+`,
+      sleep: 'exit 0',
+    })
+
+    const result = run('deploy-services')
+
+    expect(result.status).toBe(0)
+    expect(readFileSync(join(directory, 'list-ts-api'), 'utf8')).toBe('2')
+    expect(readFileSync(join(directory, 'list-auth-server'), 'utf8')).toBe('2')
   })
 
   // https://github.com/moeru-ai/airi/pull/2918#discussion_r4246985823

@@ -81,11 +81,14 @@ gh workflow run deploy-server-dev.yml -f branch=<branch> -f reset_database=true
 
 The workflow does these steps in order:
 
-1. It resets the dev Neon branch to its parent branch, `production`. The dev
-   database then holds a copy of the production schema and data.
-2. It sets the source branch of the Railway `ts-api` and `auth-server` services
-   and deploys them. The API applies its migrations on startup.
-3. It starts the `Cloudflare Workers (server-dev)` workflow on the same branch.
+1. It sets the Railway source branch for `ts-api` and `auth-server`.
+2. It drains active deployments and removes sleeping deployments.
+3. It resets the dev Neon branch to its parent branch, `production`.
+4. It deploys each Railway service and waits for its exact deployment ID.
+5. It starts the `Cloudflare Workers (server-dev)` workflow for the same branch.
+
+The workflow stops before the reset if a Railway deployment needs approval.
+After the reset, the API applies its migrations during startup.
 
 Railway deploys each later push to the branch. The frontend does not follow
 pushes. Run the workflow again with `reset_database=false` to build it again.
