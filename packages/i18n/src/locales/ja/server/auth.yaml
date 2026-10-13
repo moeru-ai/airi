@@ -34,6 +34,8 @@ signIn:
     create:
       heading: アカウントを作成
       description: '{email} の新しいアカウントを作成します。'
+  email:
+    label: Eメール
   password:
     label: パスワード
     placeholder: パスワード
@@ -68,8 +70,6 @@ signIn:
     terms: 規約
     and: と
     privacy: プライバシーポリシー
-  email:
-    label: Eメール
 verifyEmail:
   title:
     pending: 受信箱の確認を
@@ -85,6 +85,8 @@ verifyEmail:
 forgotPassword:
   title: パスワードをリセットする
   description: あなたのアカウントに関連付けられているメールアドレスを入力すると、リセットリンクが送信されます。
+  email:
+    label: Eメール
   action:
     send: リセットリンクを送信
     backToSignIn: サインインに戻る
@@ -92,8 +94,6 @@ forgotPassword:
     sent: '{email} がアカウントに一致した場合、リセットリンクが進行中です。'
   error:
     fallback: リセットメールを送信できませんでした
-  email:
-    label: Eメール
 deleteAccount:
   title:
     success: アカウントが削除されました

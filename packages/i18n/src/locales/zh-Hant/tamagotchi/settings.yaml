@@ -1,6 +1,21 @@
 allow-visible-on-all-workspaces:
   title: 跨桌面可見性
   description: 允許視窗在所有虛擬桌面中可見，僅限 macOS。
+microphone-permission:
+  prompt:
+    title: 允許存取麥克風嗎？
+    description: AIRI 會使用麥克風進行語音輸入及轉錄。此選擇會持續有效，直到你在設定中重設。
+    allow: 允許
+    deny: 拒絕
+  states:
+    not-determined: 未設定
+    granted: 已允許
+    denied: 已拒絕
+  settings:
+    title: 麥克風
+    description: 控制 AIRI 是否能使用麥克風。重設此選擇會停止目前的麥克風串流，並在下次使用時重新詢問。
+    revoke: 撤銷存取權
+    reset: 重設選擇
 spotlight:
   errors:
     unknown: 未知錯誤
@@ -12,6 +27,12 @@ pages:
       description: 連線與管理 MCP 伺服器和工具
       title: MCP 伺服器
   system:
+    general:
+      hide-app-icon:
+        title: 隱藏工作列／Dock 圖示
+        description: 只在系統匣中顯示 AIRI。使用系統匣選單開啟視窗或結束程式。變更會立即生效。
+        load-error: 無法載入應用程式圖示設定。
+        save-error: 無法更新應用程式圖示設定。
     sections:
       section:
         window-shortcuts:
@@ -23,6 +44,10 @@ pages:
       spotlight:
         title: Spotlight 快捷鍵
         description: 點擊快捷鍵後按下新的快捷鍵，按 Esc 取消。
+      push-to-talk:
+        title: 按住說話快捷鍵
+        description: 在任何應用程式中按住此快捷鍵，即可向 AIRI 說話。點選快捷鍵後按下新的組合鍵。按 Esc 取消。
+        inactive: 此快捷鍵僅在聽覺輸入模式設為按住說話且麥克風已開啟時有效。
       actions:
         recording: 請按鍵
         reset: 重設
@@ -41,27 +66,30 @@ pages:
       toggle-ignore-mouse-event:
         label: 忽略滑鼠事件
       press-keys: 請按下按鍵...
-      push-to-talk:
-        title: 按住說話快捷鍵
-        description: 在任何應用程式中按住此快捷鍵，即可向 AIRI 說話。點選快捷鍵後按下新的組合鍵。按 Esc 取消。
-        inactive: 此快捷鍵僅在聽覺輸入模式設為按住說話且麥克風已開啟時有效。
     developer:
       sections:
         section:
           use-window-mouse:
             title: 使用視窗滑鼠工具
             description: 測試 Electron 視窗滑鼠游標位置
-    general:
-      hide-app-icon:
-        title: 隱藏工作列／Dock 圖示
-        description: 只在系統匣中顯示 AIRI。使用系統匣選單開啟視窗或結束程式。變更會立即生效。
-        load-error: 無法載入應用程式圖示設定。
-        save-error: 無法更新應用程式圖示設定。
 devtools:
   title: 開發者
   pages:
     context-flow:
       title: 上下文流程
+    presence-bubble:
+      title: 狀態氣泡
+      description: 控制角色上方的氣泡，並在主視窗中觀察
+      override:
+        title: 從此處控制氣泡
+        description: 停用時，舞台只會在聊天輪次執行中顯示氣泡。
+      thinking:
+        title: 思考
+        description: 顯示圓點。優先於未讀訊息數量。
+      unread:
+        title: 未讀訊息
+        description: 以頭頂面板顯示，包含標記和數量。
+      main-window-note: 變更會顯示在 AIRI 主視窗中。
     live2d-ambient-light:
       title: Live2D 環境光
       description: 調整螢幕取樣與 Live2D 彩色光照著色器
@@ -193,6 +221,10 @@ devtools:
           body: 寬大的主體帶有從 sRGB {low} 到 {high} 的明暗漸層。亮度、對比、彩度與高光餘裕都會沿著它顯示。
           bars: 長條寬度分別為 {first}、{second}、{third}、{fourth} 與 {fifth} 像素，用來顯示光線包覆延伸進細窄形狀的距離。
           patches: 兩個色塊以 {strong} 與 {weak} alpha 繪製，正是半透明包覆選項作用的對象。
+    editor:
+      title: AIRI 編輯器
+      description: 開啟獨立的 AIRI 編輯器視窗
+      button: 開啟編輯器
     lag-visualizer:
       title: 卡頓可視化
     live2d-motion:
@@ -200,6 +232,17 @@ devtools:
       description: 控制 Live2D 的眼睛、頭部與身體動作。
       actions:
         back: 返回
+      system-audio:
+        title: 系統音訊嘴型同步
+        description: 擷取其他播放器的音訊。同一輸入會驅動節拍同步及 Live2D 嘴部動作。
+        signal: 輸入訊號
+        mouth-open: 嘴巴張開
+        input-volume-threshold: 輸入音量閾值
+        random-close-delay: 隨機閉嘴延遲
+        random-close-probability: 隨機閉嘴機率
+        actions:
+          start: 開始輸入
+          stop: 停止輸入
       panels:
         direct-control: 直接控制
         preview: 模型預覽
@@ -214,6 +257,8 @@ devtools:
           mouth-form: 嘴型
           mouth-open: 張開
       joystick-label: Live2D 動作搖桿
+      wave:
+        toggle: 小船模式
       instructions: 拖曳搖桿，或使用方向鍵控制 X/Y 軸。R 讓眼睛微瞇。F 讓眼睛更瞇。C 閉上眼睛。W/S 改變嘴型。空白鍵張開嘴巴。A/D 控制身體 X 軸。Q/E 讓頭部左右傾斜。放開按鍵後會平滑回到中央。
       parameter-note: 搖桿控制 X/Y 軸。R 映射至 1/3 瞇眼。F 映射至 2/3 瞇眼。C 映射至完全閉眼。W/S 映射至嘴型 ±1。空白鍵映射至嘴巴張開 1。A/D 映射至身體 X 軸 ±10°。Q/E 映射至頭部 Z 軸 ±30°。
       input:
@@ -433,47 +478,26 @@ devtools:
           playing: 正在播放動作
           ready: '{count} 個取樣 · {duration}'
         import-error: 此檔案不是有效的 AIRI Live2D 動作錄製檔。
-      system-audio:
-        mouth-open: 嘴巴張開
-        title: 系統音訊嘴型同步
-        description: 擷取其他播放器的音訊。同一輸入會驅動節拍同步及 Live2D 嘴部動作。
-        signal: 輸入訊號
-        input-volume-threshold: 輸入音量閾值
-        random-close-delay: 隨機閉嘴延遲
-        random-close-probability: 隨機閉嘴機率
-        actions:
-          start: 開始輸入
-          stop: 停止輸入
-      wave:
-        toggle: 小船模式
     performance-visualizer:
       title: 效能顯示器
       description: 切換 FPS/長任務/記憶體覆蓋
-      overlay:
-        record: 錄製
-        stop: 停止
-        title: 效能
-        export: 匯出最近一次記錄
-        move: 移動效能覆蓋層
-        reset-position: 重設覆蓋層位置
-        average: 平均
       resource-events:
-        columns:
-          textures: 材質貼圖
-          materials: 材質
-          time: 時間（毫秒）
-          phase: 階段
-          reason: 原因
-          geometries: 幾何體
-          meshes: 網格
         title: 最近的資源事件
         description: 最新收到的事件排在最前面。時間以來源渲染程序啟動後的毫秒數表示。
         empty: 尚未記錄資源事件。請在啟用追蹤時載入或切換 VRM 模型。
+        columns:
+          time: 時間（毫秒）
+          phase: 階段
+          reason: 原因
+          textures: 材質貼圖
+          geometries: 幾何體
+          meshes: 網格
+          materials: 材質
       controls:
-        start-recording: 開始記錄
         enable-all:
           label: 啟用所有可用指標
           description: 啟用此瀏覽器支援的所有指標。
+        start-recording: 開始記錄
         stop-recording: 停止記錄（{seconds} 秒）
         export-last-recording: 匯出最近一次記錄
       metrics:
@@ -499,36 +523,27 @@ devtools:
         latest: 最新
         minimum: 最小
         maximum: 最大
-        seconds-ago: -{seconds} 秒
+        seconds-ago: '-{seconds} 秒'
         end: 0 秒
         empty: 尚無 FPS 樣本。請啟用 FPS 以收集樣本。
+      overlay:
+        title: 效能
+        move: 移動效能覆蓋層
+        reset-position: 重設覆蓋層位置
+        record: 錄製
+        stop: 停止
+        export: 匯出最近一次記錄
+        average: 平均
     markdown-stress:
-      description: 使用大量聊天負載來進行 Markdown 解析與渲染的壓力測試
       title: Markdown 壓力測試
-    widgets-calling:
-      title: 小工具調用
-    presence-bubble:
-      main-window-note: 變更會顯示在 AIRI 主視窗中。
-      thinking:
-        title: 思考
-        description: 顯示圓點。優先於未讀訊息數量。
-      title: 狀態氣泡
-      description: 控制角色上方的氣泡，並在主視窗中觀察
-      override:
-        title: 從此處控制氣泡
-        description: 停用時，舞台只會在聊天輪次執行中顯示氣泡。
-      unread:
-        title: 未讀訊息
-        description: 以頭頂面板顯示，包含標記和數量。
-    editor:
-      title: AIRI 編輯器
-      description: 開啟獨立的 AIRI 編輯器視窗
-      button: 開啟編輯器
+      description: 使用大量聊天負載來進行 Markdown 解析與渲染的壓力測試
     io-tracer:
       title: 輸入／輸出追蹤器
       recording:
         title: 自動記錄輸入／輸出追蹤
         description: 將已結束的輸入／輸出區段以 JSON Lines 格式儲存至應用程式資料夾，供程式設計代理分析。超過七天的檔案會被移除。
+    widgets-calling:
+      title: 小工具調用
 screen-capture:
   permissions-prompt:
     title: 螢幕截圖
@@ -539,18 +554,3 @@ screen-capture:
       step-1: 打開「系統偏好設定」，從側邊欄中選擇「隱私與安全」。
       step-2: 在「螢幕與系統錄音」以及「僅限系統錄音」區域，開啟 AIRI 的開關。
       step-2-note: 如果 AIRI 沒有被列出，則請手動按下「+」按鈕並從應用資料夾選擇 AIRI。
-microphone-permission:
-  states:
-    not-determined: 未設定
-    granted: 已允許
-    denied: 已拒絕
-  settings:
-    title: 麥克風
-    description: 控制 AIRI 是否能使用麥克風。重設此選擇會停止目前的麥克風串流，並在下次使用時重新詢問。
-    revoke: 撤銷存取權
-    reset: 重設選擇
-  prompt:
-    title: 允許存取麥克風嗎？
-    description: AIRI 會使用麥克風進行語音輸入及轉錄。此選擇會持續有效，直到你在設定中重設。
-    allow: 允許
-    deny: 拒絕
