@@ -275,4 +275,67 @@ describe('widget window lifecycle', () => {
     expect(manager.getWidgetSnapshot(id)).toBeUndefined()
     expect(window.close).toHaveBeenCalledOnce()
   })
+
+  it('strips timerGeneration, timer, and expiresAt from widget snapshots', async () => {
+    const manager = createManager()
+    const id = await manager.pushWidget({
+      componentName: 'weather',
+      ttlMs: 5000,
+    })
+
+    const snapshot = manager.getWidgetSnapshot(id)
+    expect(snapshot).toBeDefined()
+    expect(snapshot?.id).toBe(id)
+    expect('timerGeneration' in (snapshot ?? {})).toBe(false)
+    expect('timer' in (snapshot ?? {})).toBe(false)
+    expect('expiresAt' in (snapshot ?? {})).toBe(false)
+  })
+
+  it('preserves destruction timer when content-only update runs without ttlMs', async () => {
+    const manager = createManager()
+    const id = await manager.pushWidget({
+      componentName: 'weather',
+      ttlMs: 5000,
+    })
+    const window = mocks.windows[0]
+
+    await manager.updateWidget({ id, componentProps: { city: 'Tokyo' } })
+
+    await vi.advanceTimersByTimeAsync(4000)
+    expect(manager.getWidgetSnapshot(id)).toBeDefined()
+    expect(window.close).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(manager.getWidgetSnapshot(id)).toBeUndefined()
+    expect(window.close).toHaveBeenCalledOnce()
+  })
+
+  it('schedules destruction on updated record when update without ttlMs arrives during push', async () => {
+    const { load } = await import('../../libs/electron/location')
+    let resolveLoad: () => void
+    vi.mocked(load).mockImplementationOnce(() => new Promise((resolve) => {
+      resolveLoad = resolve as () => void
+    }))
+
+    const manager = createManager()
+    const pushPromise = manager.pushWidget({
+      id: 'pre-update',
+      componentName: 'weather',
+      ttlMs: 3000,
+    })
+
+    await manager.updateWidget({ id: 'pre-update', componentProps: { city: 'Paris' } })
+
+    resolveLoad!()
+    await pushPromise
+
+    const window = mocks.windows[0]
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(manager.getWidgetSnapshot('pre-update')).toBeDefined()
+    expect(window.close).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(manager.getWidgetSnapshot('pre-update')).toBeUndefined()
+    expect(window.close).toHaveBeenCalledOnce()
+  })
 })
