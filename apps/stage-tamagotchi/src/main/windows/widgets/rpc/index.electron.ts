@@ -37,15 +37,26 @@ export async function setupWidgetsWindowInvokes(params: {
 
   const { context, dispose } = createContext(ipcMain, params.widgetWindow, { onlySameWindow: true })
 
+  const abortController = new AbortController()
   let onClosed: (() => void) | undefined
   const closedPromise = new Promise<never>((_, reject) => {
-    onClosed = () => reject(new Error('Widget window was closed during setup'))
+    onClosed = () => {
+      const error = new Error('Widget window was closed during setup')
+      abortController.abort(error)
+      reject(error)
+    }
     params.widgetWindow.once?.('closed', onClosed)
   })
 
   try {
     await Promise.race([
-      setupBaseWindowElectronInvokes({ context, window: params.widgetWindow, i18n: params.i18n, serverChannel: params.serverChannel }),
+      setupBaseWindowElectronInvokes({
+        context,
+        window: params.widgetWindow,
+        i18n: params.i18n,
+        serverChannel: params.serverChannel,
+        signal: abortController.signal,
+      }),
       closedPromise,
     ])
     if (params.widgetWindow.isDestroyed?.()) {
