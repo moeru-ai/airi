@@ -41,10 +41,14 @@ describe('setupWidgetsWindowInvokes', () => {
   })
 
   it('awaits base window electron invokes and returns dispose', async () => {
-    setupBaseWindowElectronInvokesMock.mockResolvedValue(undefined)
+    let resolveBaseSetup!: () => void
+    const baseSetupPromise = new Promise<void>((resolve) => {
+      resolveBaseSetup = resolve
+    })
+    setupBaseWindowElectronInvokesMock.mockReturnValue(baseSetupPromise)
     createWidgetsServiceMock.mockReturnValue(undefined)
 
-    const dispose = await setupWidgetsWindowInvokes({
+    const invokesPromise = setupWidgetsWindowInvokes({
       widgetWindow,
       widgetsManager,
       serverChannel,
@@ -54,6 +58,11 @@ describe('setupWidgetsWindowInvokes', () => {
     expect(ipcMainMock.setMaxListeners).toHaveBeenCalledWith(0)
     expect(createContextMock).toHaveBeenCalledTimes(1)
     expect(setupBaseWindowElectronInvokesMock).toHaveBeenCalledTimes(1)
+    expect(createWidgetsServiceMock).not.toHaveBeenCalled()
+
+    resolveBaseSetup()
+    const dispose = await invokesPromise
+
     expect(createWidgetsServiceMock).toHaveBeenCalledTimes(1)
     expect(dispose).toBe(disposeMock)
     expect(disposeMock).not.toHaveBeenCalled()
