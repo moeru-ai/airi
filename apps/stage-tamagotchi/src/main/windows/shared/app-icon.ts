@@ -28,7 +28,7 @@ export function showWindowOnAllWorkspaces(
   window.setVisibleOnAllWorkspaces(true, {
     ...(options?.visibleOnFullScreen !== undefined ? { visibleOnFullScreen: options.visibleOnFullScreen } : {}),
     skipTransformProcessType: options?.skipTransformProcessType
-      ?? (options?.hideAppIcon ? true : app.dock?.isVisible() === false),
+      ?? (options?.hideAppIcon ? true : app?.dock?.isVisible() === false),
   })
 }
 
