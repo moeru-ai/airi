@@ -249,6 +249,7 @@ function createWidgetsWindow() {
 interface WidgetRecord extends WidgetSnapshot {
   expiresAt?: number
   timer?: ReturnType<typeof setTimeout>
+  timerGeneration?: number
 }
 
 interface WidgetWindowContext {
@@ -348,12 +349,16 @@ export function setupWidgetsWindowManager(params: {
   const MAX_TIMEOUT_MS = 2_147_483_647
 
   function scheduleDestruction(record: WidgetRecord) {
-    if (record.timer)
+    if (record.timer) {
       clearTimeout(record.timer)
+      record.timer = undefined
+    }
+
+    const generation = (record.timerGeneration ?? 0) + 1
+    record.timerGeneration = generation
 
     if (record.ttlMs <= 0) {
       record.expiresAt = undefined
-      record.timer = undefined
       return
     }
 
@@ -362,7 +367,7 @@ export function setupWidgetsWindowManager(params: {
     const id = record.id
     const armTimer = () => {
       const current = widgetRecords.get(id)
-      if (!current || !current.expiresAt)
+      if (!current || !current.expiresAt || current.timerGeneration !== generation)
         return
 
       const remainingMs = current.expiresAt - Date.now()
@@ -374,20 +379,13 @@ export function setupWidgetsWindowManager(params: {
       current.timer = setTimeout(armTimer, Math.min(remainingMs, MAX_TIMEOUT_MS))
     }
 
-    // NOTICE:
-    // The first armTimer call must defer to the next microtask.
-    // With a tiny TTL (1 ms), armTimer fires synchronously and calls
-    // destroyWidget before createRecord returns to pushWidget.
-    // Source: Codex review on PR #2935, thread PRRT_kwDONXX6d86r70Ul.
-    // Removal condition: Remove when scheduleDestruction no longer runs
-    // inside createRecord, or when pushWidget guards against missing context.
-    queueMicrotask(armTimer)
+    record.timer = setTimeout(armTimer, Math.min(record.ttlMs, MAX_TIMEOUT_MS))
   }
 
-  function createRecord(snapshot: WidgetSnapshot) {
+  function createRecord(snapshot: WidgetSnapshot): WidgetRecord {
     const record: WidgetRecord = { ...snapshot }
     widgetRecords.set(snapshot.id, record)
-    scheduleDestruction(record)
+    return record
   }
 
   // Each widget id owns one record, one timer, and one window context.
@@ -556,11 +554,15 @@ export function setupWidgetsWindowManager(params: {
 
   async function showWindowWithRoute(route: string, windowContext: WidgetWindowContext, snapshot?: Pick<WidgetSnapshot, 'alwaysOnTop' | 'windowSize'>) {
     const window = await getWindowFromContext(windowContext, route)
+    if (window.isDestroyed())
+      return window
+
     applyWindowLayout(windowContext, window, snapshot)
     setWindowAlwaysOnTop(window, snapshot?.alwaysOnTop ?? false)
     if (windowContext.currentRoute !== route)
       await loadWithRoute(windowContext, window, route)
-    window.show()
+    if (!window.isDestroyed())
+      window.show()
     return window
   }
 
@@ -627,10 +629,11 @@ export function setupWidgetsWindowManager(params: {
       windowSize: resolveWindowSizeFromPayload(payload),
       ttlMs: payload.ttlMs ?? 0,
     }
-    createRecord(snapshot)
+    const record = createRecord(snapshot)
     const windowContext = windowContexts.get(id)!
     await showWindowWithRoute(`${defaultRoute}?id=${id}`, windowContext, snapshot)
     windowContext.eventa?.context.emit(widgetsRenderEvent, snapshot)
+    scheduleDestruction(record)
 
     return id
   }

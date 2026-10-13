@@ -219,14 +219,9 @@ describe('widget window lifecycle', () => {
   // https://github.com/moeru-ai/airi/pull/2935
   //
   // ROOT CAUSE:
-  // Node.js setTimeout clamps delays larger than 2,147,483,647 ms (the
-  // 32-bit signed integer limit) to 1 ms. A widget with a TTL above this
-  // limit fired its destruction timer almost immediately instead of after
-  // the intended duration.
-  //
-  // Before: Widget with a large TTL was destroyed in ~1 ms.
-  // After:  scheduleDestruction re-arms the timer in safe 32-bit chunks
-  //         until the full TTL elapses.
+  // Node.js setTimeout clamps delays over 2,147,483,647 ms to 1 ms.
+  // Widgets with large TTLs were destroyed almost immediately.
+  // We re-arm the timer in safe 32-bit chunks until the full TTL elapses.
   it('preserves TTLs exceeding 32-bit timer limit and destroys widget across chunks', async () => {
     const manager = createManager()
     const ttlMs = 2_147_483_647 + 5000
@@ -241,6 +236,42 @@ describe('widget window lifecycle', () => {
     expect(window.close).not.toHaveBeenCalled()
 
     await vi.advanceTimersByTimeAsync(5000)
+    expect(manager.getWidgetSnapshot(id)).toBeUndefined()
+    expect(window.close).toHaveBeenCalledOnce()
+  })
+
+  it('destroys widget cleanly with a tiny TTL after window setup finishes', async () => {
+    const manager = createManager()
+    const id = await manager.pushWidget({
+      componentName: 'weather',
+      ttlMs: 1,
+    })
+    const window = mocks.windows[0]
+
+    expect(manager.getWidgetSnapshot(id)).toBeDefined()
+    expect(window.close).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(manager.getWidgetSnapshot(id)).toBeUndefined()
+    expect(window.close).toHaveBeenCalledOnce()
+  })
+
+  it('cancels stale destruction timer when multiple TTL updates run in succession', async () => {
+    const manager = createManager()
+    const id = await manager.pushWidget({
+      componentName: 'weather',
+      ttlMs: 5000,
+    })
+    const window = mocks.windows[0]
+
+    await manager.updateWidget({ id, ttlMs: 1000 })
+    await manager.updateWidget({ id, ttlMs: 3000 })
+
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(manager.getWidgetSnapshot(id)).toBeDefined()
+    expect(window.close).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(2000)
     expect(manager.getWidgetSnapshot(id)).toBeUndefined()
     expect(window.close).toHaveBeenCalledOnce()
   })
