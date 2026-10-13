@@ -53,9 +53,10 @@ jobs:
       - uses: actions/checkout@v6
       - run: npm install --global @railway/cli@5
 
-      - name: Freeze Railway autodeploys
-        id: freeze_autodeploys
-        run: bash .github/scripts/deploy-server-dev.sh freeze-autodeploys
+      # Push-driven deploys bypass this workflow's database reset and commit
+      # pin. Keep them disabled while this workflow owns the shared slot.
+      - name: Disable Railway autodeploys
+        run: bash .github/scripts/deploy-server-dev.sh disable-autodeploys
 
       # Select the new source before the reset. Then wait for deployments that
       # the old source started outside this workflow's concurrency group.
@@ -86,14 +87,8 @@ jobs:
         timeout-minutes: 30
         run: bash .github/scripts/deploy-server-dev.sh deploy-services
 
-      # Railway follows later pushes to the branch. The frontend does not, so
-      # each run builds it from the same branch.
       - name: Deploy the frontend
         run: bash .github/scripts/deploy-server-dev.sh deploy-frontend
-
-      - name: Restore Railway autodeploys
-        if: always() && steps.freeze_autodeploys.outcome != 'skipped'
-        run: bash .github/scripts/deploy-server-dev.sh restore-autodeploys
 
       - name: Summary
         env:

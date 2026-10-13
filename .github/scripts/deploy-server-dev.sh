@@ -4,7 +4,6 @@ set -euo pipefail
 
 readonly -a SERVICES=(ts-api auth-server)
 readonly POLL_INTERVAL_SECONDS="${POLL_INTERVAL_SECONDS:-15}"
-readonly AUTODEPLOY_STATE_FILE="${AUTODEPLOY_STATE_FILE:-${RUNNER_TEMP:-/tmp}/server-dev-autodeploy-state.json}"
 
 is_terminal_status() {
   case "$1" in
@@ -55,41 +54,13 @@ set_autodeploy() {
   [[ "$actual" == "$enabled" ]]
 }
 
-restore_autodeploys() {
-  if [[ ! -s "$AUTODEPLOY_STATE_FILE" ]]; then
-    return 0
-  fi
-
-  local project_id
-  local environment_id
-  project_id=$(jq --exit-status --raw-output '.projectId' "$AUTODEPLOY_STATE_FILE")
-  environment_id=$(jq --exit-status --raw-output '.environmentId' "$AUTODEPLOY_STATE_FILE")
-
-  local restore_failed=0
-  while IFS=$'\t' read -r service_id enabled; do
-    if ! set_autodeploy "$project_id" "$environment_id" "$service_id" "$enabled"; then
-      echo "::error::Cannot restore autodeploy for Railway service $service_id." >&2
-      restore_failed=1
-    fi
-  done < <(jq --raw-output '.services[] | [.id, .enabled] | @tsv' "$AUTODEPLOY_STATE_FILE")
-
-  if ((restore_failed != 0)); then
-    return 1
-  fi
-
-  mv "$AUTODEPLOY_STATE_FILE" "$AUTODEPLOY_STATE_FILE.restored"
-}
-
-freeze_autodeploys() {
+disable_autodeploys() {
   local project_id
   local environment_id
   if ! project_id=$(railway_project_id) || ! environment_id=$(linked_environment_id); then
     echo "::error::Cannot identify the linked Railway project and environment." >&2
     return 1
   fi
-
-  local state
-  state=$(jq --null-input --arg project_id "$project_id" --arg environment_id "$environment_id" '{ projectId: $project_id, environmentId: $environment_id, services: [] }')
 
   for service in "${SERVICES[@]}"; do
     local service_id
@@ -99,18 +70,11 @@ freeze_autodeploys() {
       echo "::error::Cannot read autodeploy for $service." >&2
       return 1
     fi
-    state=$(jq --arg id "$service_id" --arg name "$service" --argjson enabled "$enabled" '.services += [{ id: $id, name: $name, enabled: $enabled }]' <<< "$state")
-  done
-
-  printf '%s\n' "$state" > "$AUTODEPLOY_STATE_FILE"
-
-  while IFS=$'\t' read -r service_id enabled; do
     if [[ "$enabled" == "true" ]] && ! set_autodeploy "$project_id" "$environment_id" "$service_id" false; then
-      echo "::error::Cannot disable autodeploy for Railway service $service_id." >&2
-      restore_autodeploys
+      echo "::error::Cannot disable autodeploy for $service." >&2
       return 1
     fi
-  done < <(jq --raw-output '.services[] | [.id, .enabled] | @tsv' "$AUTODEPLOY_STATE_FILE")
+  done
 }
 
 wait_for_idle_deployments() {
@@ -304,13 +268,12 @@ deploy_frontend() {
 }
 
 case "${1:-}" in
-  freeze-autodeploys) freeze_autodeploys ;;
-  restore-autodeploys) restore_autodeploys ;;
+  disable-autodeploys) disable_autodeploys ;;
   select-branch) select_branch ;;
   deploy-services) deploy_services ;;
   deploy-frontend) deploy_frontend ;;
   *)
-    echo "Usage: $0 {freeze-autodeploys|restore-autodeploys|select-branch|deploy-services|deploy-frontend}" >&2
+    echo "Usage: $0 {disable-autodeploys|select-branch|deploy-services|deploy-frontend}" >&2
     exit 2
     ;;
 esac

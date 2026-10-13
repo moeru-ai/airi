@@ -28,7 +28,6 @@ function fixture(commands: Record<string, string>) {
         encoding: 'utf8',
         env: {
           ...process.env,
-          AUTODEPLOY_STATE_FILE: join(directory, 'autodeploy-state.json'),
           DEPLOY_BRANCH: 'main',
           DEPLOY_SHA: 'commit-sha',
           GH_REPOSITORY: 'moeru-ai/airi',
@@ -47,7 +46,7 @@ afterEach(() => {
 })
 
 describe('deploy-server-dev', () => {
-  it('freezes and restores the existing Railway autodeploy settings', () => {
+  it('disables Railway autodeploy for every enabled service', () => {
     const { directory, run } = fixture({
       railway: `
 printf '%s\n' "$*" >> "$TEST_STATE_DIRECTORY/calls"
@@ -68,11 +67,7 @@ if [[ "$1 $2" == "service status" ]]; then
   exit 0
 fi
 if [[ "$1" == "api" && "$*" == *'AutodeployStatus'* ]]; then
-  if [[ "$*" == *'service-ts-api'* ]]; then
-    printf '{"data":{"serviceInstanceAutoDeployStatus":{"enabled":true}}}\n'
-  else
-    printf '{"data":{"serviceInstanceAutoDeployStatus":{"enabled":false}}}\n'
-  fi
+  printf '{"data":{"serviceInstanceAutoDeployStatus":{"enabled":true}}}\n'
   exit 0
 fi
 if [[ "$1" == "api" && "$*" == *'SetAutodeploy'* ]]; then
@@ -87,18 +82,13 @@ exit 1
 `,
     })
 
-    const freeze = run('freeze-autodeploys')
-    expect(freeze.stderr).toBe('')
-    expect(freeze.status).toBe(0)
-    const freezeCalls = readFileSync(join(directory, 'calls'), 'utf8')
-    expect(freezeCalls).toContain('serviceId=service-ts-api --var enabled=false')
-    expect(freezeCalls).not.toContain('serviceId=service-auth-server --var enabled=false')
-
-    expect(run('restore-autodeploys').status).toBe(0)
-
+    const result = run('disable-autodeploys')
     const calls = readFileSync(join(directory, 'calls'), 'utf8')
-    expect(calls).toContain('serviceId=service-ts-api --var enabled=true')
+    expect(result.stderr).toBe('')
+    expect(result.status).toBe(0)
+    expect(calls).toContain('serviceId=service-ts-api --var enabled=false')
     expect(calls).toContain('serviceId=service-auth-server --var enabled=false')
+    expect(calls).not.toContain('enabled=true')
   })
 
   // https://github.com/moeru-ai/airi/pull/2918#discussion_r4245224726
