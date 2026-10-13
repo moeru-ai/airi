@@ -29,6 +29,17 @@ describe('isSigningIn', () => {
     expect(isSigningIn.value).toBe(false)
   })
 
+  it.each([undefined, 'google'] as const)('requests fresh login without repeating a provider handoff (%s)', async (provider) => {
+    let requestedUrl = ''
+    registerAuthorizationHandler(async ({ authorizationUrl }) => {
+      requestedUrl = authorizationUrl
+    })
+    await triggerSignIn({ provider })
+    const url = new URL(requestedUrl)
+    expect(url.searchParams.get('prompt')).toBe(provider ? null : 'login')
+    expect(url.searchParams.get('code_challenge')).toBeTruthy()
+  })
+
   it('resets when the authorization handler fails', async () => {
     registerAuthorizationHandler(async () => {
       throw new Error('authorization failed')
