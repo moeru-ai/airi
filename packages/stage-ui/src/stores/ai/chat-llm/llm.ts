@@ -1,3 +1,4 @@
+import type { Span } from '@opentelemetry/api'
 import type { Conversation, StreamOptions } from '@proj-airi/core-agent'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
 
@@ -17,6 +18,8 @@ export { isContentArrayRelatedError, isToolRelatedError } from '@proj-airi/core-
 export interface LlmStreamOptions extends StreamOptions {
   /** Reads the images in tool results as text. See {@link resolveLlmTools}. */
   describeToolImage?: DescribeToolImage
+  /** The span that tool calls record their spans under. See {@link resolveLlmTools}. */
+  toolSpanParent?: Span
 }
 
 export const useLLM = defineStore('llm', () => {
@@ -28,8 +31,8 @@ export const useLLM = defineStore('llm', () => {
     // `prepareConversation` runs for every resolved request, so the key follows a step that changes the model.
     let key = modelKey(model, chatProvider.generation(model))
     let toolExecutionStarted = false
-    const { tools: customTools, describeToolImage, ...streamOptions } = options ?? {}
-    const builtinToolsResolver = () => resolveLlmTools({ customTools, describeImage: describeToolImage })
+    const { tools: customTools, describeToolImage, toolSpanParent, ...streamOptions } = options ?? {}
+    const builtinToolsResolver = () => resolveLlmTools({ customTools, describeImage: describeToolImage, traceParent: toolSpanParent })
     const resolveStep = streamOptions.resolveStep
 
     const runStream = () => coreStreamFrom({
@@ -40,7 +43,7 @@ export const useLLM = defineStore('llm', () => {
         ...streamOptions,
         // Core uses only the tools of a resolved step, so each step carries the complete tool list.
         resolveStep: resolveStep
-          ? async () => ({ ...await resolveStep(), tools: await resolveLlmTools({ customTools, describeImage: describeToolImage }) })
+          ? async () => ({ ...await resolveStep(), tools: await builtinToolsResolver() })
           : undefined,
         prepareConversation: async (conversation, target) => {
           key = modelKey(target.model, target.request)

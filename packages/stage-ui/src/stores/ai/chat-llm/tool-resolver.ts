@@ -1,3 +1,4 @@
+import type { Span } from '@opentelemetry/api'
 import type { StreamOptions } from '@proj-airi/core-agent'
 import type { WebSocketEvents } from '@proj-airi/server-sdk'
 import type { Tool } from '@xsai/shared-chat'
@@ -11,6 +12,7 @@ import { createWebSearchTools, debug, mcp } from '../../../tools'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { useWebSearchStore } from '../../modules/web-search'
 import { withDescribedImages } from './tool-images'
+import { withToolSpan } from './tool-span'
 import { useLlmToolsStore } from './tools'
 
 type ToolSource = Tool[] | (() => Promise<Tool[]>)
@@ -69,6 +71,12 @@ export interface ResolveLlmToolsOptions {
    * @default images stay in tool results
    */
   describeImage?: DescribeToolImage
+  /**
+   * The span that each tool call records a `Tool execution` span under.
+   *
+   * @default tool calls record no span
+   */
+  traceParent?: Span
 }
 
 /**
@@ -176,6 +184,8 @@ export async function resolveLlmTools(options: ResolveLlmToolsOptions = {}): Pro
     tool => toolNameFrom(tool) ?? tool,
   ).toReversed()
 
-  const describeImage = options.describeImage
-  return describeImage ? tools.map(tool => withDescribedImages(tool, describeImage)) : tools
+  const { describeImage, traceParent } = options
+  const described = describeImage ? tools.map(tool => withDescribedImages(tool, describeImage)) : tools
+  // The span is outside the image reader, so its duration includes the time to read the images of the result.
+  return traceParent ? described.map(tool => withToolSpan(tool, traceParent)) : described
 }
