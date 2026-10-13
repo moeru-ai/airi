@@ -3,6 +3,11 @@ operations:
   load-models-status:
     loading: Đang tải
     ready: Sẵn sàng
+'resource-island':
+  loading: Đang chuẩn bị tài nguyên...
+  ready: Tài nguyên sẵn sàng
+  preparing: Đang chuẩn bị tệp mô hình
+  failed: Tải mô hình thất bại
 docs:
   theme:
     navbar:
@@ -14,12 +19,18 @@ docs:
     disable: Luôn hiển thị
   'open-settings': Mở cài đặt
   'open-chat': Mở trò chuyện
+  'hide-chat': Ẩn trò chuyện
   'refresh': Làm mới
   'center-main-window': Di chuyển vào giữa màn hình
   'open-hearing-controls': Kiểm soát thính giác mở
+  'enable-microphone': Bật micrô
+  'disable-microphone': Tắt micrô
   'drag-to-move-window': Kéo để di chuyển cửa sổ
+  'mute': Tắt tiếng
+  'unmute': Bật tiếng
   'switch-to-light-mode': Chuyển sang chế độ sáng
   'switch-to-dark-mode': Chuyển sang chế độ tối
+  'switch-to-system-mode': Theo giao diện hệ thống
   'pin-on-top': Ghim lên trên
   'unpin-from-top': Gỡ ghim khỏi đầu trang
   'switch-profile': Chuyển Hồ Sơ
@@ -30,12 +41,28 @@ docs:
   'logging-in': Đang đăng nhập...
   'account': Tài khoản
   'logout': Đăng xuất
-  switch-to-system-mode: Theo giao diện hệ thống
-  hide-chat: Ẩn trò chuyện
-  enable-microphone: Bật micrô
-  disable-microphone: Tắt micrô
-  mute: Tắt tiếng
-  unmute: Bật tiếng
+'chat-window':
+  style:
+    title: Kiểu cửa sổ trò chuyện
+    legacy: Cửa sổ cổ điển
+    floating-attached: Nổi, cạnh nhân vật
+    floating-free: Nổi, bất kỳ đâu trên màn hình
+    floating-danmaku: Nổi, luồng tin nhắn
+    pinned: Luôn ở trên cùng
+  resize: Kéo để đổi kích thước trò chuyện
+  move: Kéo để di chuyển trò chuyện
+  fold: Ẩn trò chuyện
+  composer:
+    show: Hiện ô nhập tin nhắn
+    hide: Ẩn ô nhập tin nhắn
+  danmaku-feed:
+    title: Thời gian hiển thị tin nhắn
+    hide-read: Ẩn tin nhắn đã đọc
+    hide-read-description: Tin nhắn biến mất sau khi đọc. Phản hồi có giọng nói biến mất khi nói xong.
+    reading-speed: Tốc độ đọc
+    reading-speed-value: '{count} ký tự/giây'
+    minimum-time: Thời gian tối thiểu
+    minimum-time-value: '{count} giây'
 widgets:
   close: Đóng tiện ích
   empty:
@@ -43,6 +70,8 @@ widgets:
     description: Các widget sẽ xuất hiện tại đây khi một công cụ hoặc plugin tạo ra chúng.
   loading: Đang tải tiện ích…
   waiting: Đang đợi dữ liệu tiện ích cho "{id}"…
+inlay:
+  dismiss: Đóng
 notice:
   'fade-on-hover':
     title: Mờ dần khi rê chuột
@@ -99,32 +128,3 @@ about:
       title: Có Bản Cập Nhật Mới
       description: Hiện đang có phiên bản mới (v{version}).
       no-release-notes-markdown: _Không có ghi chú phát hành nào được cung cấp._
-resource-island:
-  loading: Đang chuẩn bị tài nguyên...
-  ready: Tài nguyên sẵn sàng
-  preparing: Đang chuẩn bị tệp mô hình
-  failed: Tải mô hình thất bại
-chat-window:
-  style:
-    title: Kiểu cửa sổ trò chuyện
-    legacy: Cửa sổ cổ điển
-    floating-attached: Nổi, cạnh nhân vật
-    floating-free: Nổi, bất kỳ đâu trên màn hình
-    floating-danmaku: Nổi, luồng tin nhắn
-    pinned: Luôn ở trên cùng
-  resize: Kéo để đổi kích thước trò chuyện
-  move: Kéo để di chuyển trò chuyện
-  fold: Ẩn trò chuyện
-  composer:
-    show: Hiện ô nhập tin nhắn
-    hide: Ẩn ô nhập tin nhắn
-  danmaku-feed:
-    title: Thời gian hiển thị tin nhắn
-    hide-read: Ẩn tin nhắn đã đọc
-    hide-read-description: Tin nhắn biến mất sau khi đọc. Phản hồi có giọng nói biến mất khi nói xong.
-    reading-speed: Tốc độ đọc
-    reading-speed-value: '{count} ký tự/giây'
-    minimum-time: Thời gian tối thiểu
-    minimum-time-value: '{count} giây'
-inlay:
-  dismiss: Đóng
