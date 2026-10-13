@@ -1,0 +1,61 @@
+# PERSONAL: Builds the Windows installer of this personal fork. See personal/README.md.
+# Run it from the GitHub Actions tab with "Run workflow". It never publishes a release.
+name: Personal Build (Windows)
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Windows installer
+    runs-on: windows-latest
+    env:
+      # Put the speech recognition models in the installer, so hearing works without a download.
+      SHERPAW_BUNDLE_MODELS: 'true'
+      VITE_ENABLE_ANALYTICS: 'false'
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/setup@v2
+        with:
+          runtime: node@26.7.0
+          cache: true
+          install: false
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm run build:packages
+
+      # The installer includes the Godot stage, the same as the upstream release workflow.
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Godot
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: '4.7.1'
+          use-dotnet: true
+          include-templates: true
+
+      - name: Export Godot Stage
+        working-directory: ./engines/stage-tamagotchi-godot
+        shell: bash
+        run: |
+          mkdir -p out/win
+          godot --headless --export-release "Windows Desktop" out/win/godot-stage.exe
+
+      - name: Build installer
+        run: pnpm -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build --windows --x64 --publish=never
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: airi-personal-windows-x64
+          path: apps/stage-tamagotchi/dist/*-setup.exe
+          if-no-files-found: error
+          retention-days: 14
