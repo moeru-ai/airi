@@ -84,6 +84,8 @@ disable_autodeploys() {
 
 wait_for_idle_deployments() {
   local service="$1"
+  local remove_success="${2:-false}"
+  local cancel_approval="${3:-false}"
 
   while true; do
     local deployments
@@ -92,13 +94,20 @@ wait_for_idle_deployments() {
       return 1
     fi
 
-    local needs_approval
-    if ! needs_approval=$(jq 'any(.[]; .status == "NEEDS_APPROVAL")' <<< "$deployments"); then
+    local approval_ids
+    if ! approval_ids=$(jq --raw-output '.[] | select(.status == "NEEDS_APPROVAL") | .id' <<< "$deployments"); then
       echo "::error::Cannot inspect the $service deployment states." >&2
       return 1
     fi
 
-    if [[ "$needs_approval" == "true" ]]; then
+    if [[ -n "$approval_ids" && "$cancel_approval" == "true" ]]; then
+      while IFS= read -r deployment_id; do
+        cancel_railway_deployment "$service" "$deployment_id"
+      done <<< "$approval_ids"
+      continue
+    fi
+
+    if [[ -n "$approval_ids" ]]; then
       echo "::error::The $service deployment needs approval. Abort it in Railway before resetting Neon." >&2
       return 1
     fi
@@ -113,6 +122,22 @@ wait_for_idle_deployments() {
       echo "Removing the sleeping $service deployment before the database reset."
       if ! railway down --service "$service" --yes; then
         echo "::error::Cannot remove the sleeping $service deployment." >&2
+        return 1
+      fi
+      poll_delay
+      continue
+    fi
+
+    local successful
+    if ! successful=$(jq 'any(.[]; .status == "SUCCESS")' <<< "$deployments"); then
+      echo "::error::Cannot inspect the $service deployment states." >&2
+      return 1
+    fi
+
+    if [[ "$remove_success" == "true" && "$successful" == "true" ]]; then
+      echo "Removing the running $service deployment before the database reset."
+      if ! railway down --service "$service" --yes; then
+        echo "::error::Cannot remove the running $service deployment." >&2
         return 1
       fi
       poll_delay
@@ -217,7 +242,7 @@ select_branch() {
   # The source change blocks new deploys from the old branch. Drain every
   # deployment that started before the change before Neon resets the database.
   for service in "${SERVICES[@]}"; do
-    if ! wait_for_idle_deployments "$service"; then
+    if ! wait_for_idle_deployments "$service" true false; then
       return 1
     fi
   done
@@ -271,7 +296,7 @@ deploy_services() {
       return 1
     fi
 
-    if ! wait_for_idle_deployments "$service"; then
+    if ! wait_for_idle_deployments "$service" false true; then
       return 1
     fi
   done

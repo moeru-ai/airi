@@ -79,11 +79,14 @@ To test a branch, run the `Deploy to server-dev` workflow:
 gh workflow run deploy-server-dev.yml -f branch=<branch> -f reset_database=true
 ```
 
+Run the workflow from the default branch. The deploy job does not run from
+another workflow ref.
+
 The workflow does these steps in order:
 
 1. It disables Railway autodeploys for both services.
 2. It sets the Railway source branch for `ts-api` and `auth-server`.
-3. It drains active deployments and removes sleeping deployments.
+3. It drains active deployments and removes running or sleeping deployments.
 4. It resets the dev Neon branch to its parent branch, `production`.
 5. It deploys the selected commit to each Railway service.
 6. It drains any deployment that started before autodeploy was disabled.
@@ -114,7 +117,7 @@ The workflow needs this repository configuration:
 
 | Name | Kind | Value |
 | --- | --- | --- |
-| `RAILWAY_DEV_WORKSPACE_TOKEN` | Secret | Railway workspace token with access to the `Server` project |
+| `RAILWAY_DEV_WORKSPACE_TOKEN` | `ServerDev` environment secret | Railway workspace token with access to the `Server` project |
 | `NEON_API_KEY` | Secret | Neon API key for the project that holds the dev database |
 | `NEON_PROJECT_ID` | Variable | Neon project ID |
 | `NEON_SERVER_DEV_BRANCH` | Variable | Name of the Neon branch that the dev `DATABASE_URL` points to |

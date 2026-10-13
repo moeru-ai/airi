@@ -291,9 +291,14 @@ if [[ "$1 $2" == "deployment list" ]]; then
   printf '%s' "$((count + 1))" > "$count_file"
   if [[ "$count" == '0' ]]; then
     printf '[{"status":"BUILDING"}]\n'
-  else
+  elif [[ "$count" == '1' ]]; then
     printf '[{"status":"SUCCESS"}]\n'
+  else
+    printf '[{"status":"REMOVED"}]\n'
   fi
+  exit 0
+fi
+if [[ "$1" == "down" ]]; then
   exit 0
 fi
 exit 1
@@ -306,6 +311,8 @@ exit 1
 
     expect(result.status).toBe(0)
     expect(calls.indexOf('environment edit auth-server')).toBeLessThan(calls.indexOf('deployment list ts-api'))
+    expect(calls).toContain('down --service ts-api')
+    expect(calls).toContain('down --service auth-server')
   })
 
   it('removes sleeping Railway deployments before it finishes draining', () => {
@@ -365,6 +372,68 @@ exit 1
 
     expect(result.status).toBe(1)
     expect(result.stderr).toContain('needs approval')
+  })
+
+  it('cancels approval-gated deployments during the final drain', () => {
+    const { directory, run } = fixture({
+      railway: `
+service=''
+for ((index = 1; index <= $#; index++)); do
+  if [[ "\${!index}" == '--service' ]]; then
+    next=$((index + 1))
+    service="\${!next}"
+  fi
+done
+printf '%s\n' "$*" >> "$TEST_STATE_DIRECTORY/calls"
+if [[ "$1 $2" == "environment list" ]]; then
+  printf '{"environments":[{"id":"environment-id","isLinked":true}]}\n'
+  exit 0
+fi
+if [[ "$1 $2" == "service status" ]]; then
+  printf '{"id":"service-%s"}\n' "$service"
+  exit 0
+fi
+if [[ "$1" == "api" && "$*" == *'DeployCommit'* ]]; then
+  if [[ "$*" == *'service-ts-api'* ]]; then
+    printf '{"data":{"serviceInstanceDeployV2":"target-ts-api"}}\n'
+  else
+    printf '{"data":{"serviceInstanceDeployV2":"target-auth-server"}}\n'
+  fi
+  exit 0
+fi
+if [[ "$1" == "api" && "$*" == *'CancelDeployment'* ]]; then
+  touch "$TEST_STATE_DIRECTORY/approval-cancelled"
+  printf '{"data":{"deploymentCancel":true}}\n'
+  exit 0
+fi
+if [[ "$1 $2" == "deployment list" ]]; then
+  if [[ "$service" == 'ts-api' ]]; then
+    count_file="$TEST_STATE_DIRECTORY/ts-api-list-count"
+    count=$(cat "$count_file" 2>/dev/null || printf '0')
+    printf '%s' "$((count + 1))" > "$count_file"
+    if [[ "$count" == '0' ]]; then
+      printf '[{"id":"target-ts-api","status":"SUCCESS"}]\n'
+    elif [[ -f "$TEST_STATE_DIRECTORY/approval-cancelled" ]]; then
+      printf '[{"id":"target-ts-api","status":"SUCCESS"},{"id":"approval","status":"SKIPPED"}]\n'
+    else
+      printf '[{"id":"target-ts-api","status":"SUCCESS"},{"id":"approval","status":"NEEDS_APPROVAL"}]\n'
+    fi
+  else
+    printf '[{"id":"target-auth-server","status":"SUCCESS"}]\n'
+  fi
+  exit 0
+fi
+exit 1
+`,
+      sleep: 'exit 0',
+    })
+
+    const result = run('deploy-services')
+    const calls = readFileSync(join(directory, 'calls'), 'utf8')
+
+    expect(result.status).toBe(0)
+    expect(calls).toContain('CancelDeployment')
+    expect(calls).toContain('id=approval')
   })
 
   it('does not drain another service after one service fails to drain', () => {
