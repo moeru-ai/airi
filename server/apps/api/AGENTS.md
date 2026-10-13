@@ -44,7 +44,7 @@ Local observability is maintained in `proj-airi/airi-railway`; run its `otel/doc
 
 **Middleware chain** (`/api/*`): CORS → hono/logger → optional otel → sessionMiddleware → bodyLimit(1MB) → per-route guards. WebSocket `/ws/chat` registered before bodyLimit.
 
-**Error model**: `ApiError(statusCode, errorCode, message, details)` in `src/utils/error.ts`.
+**Error model**: `ApiError(statusCode, errorCode, message, details)` and `createErrorHandler` in `@proj-airi/http-error-shared`. Throw an `ApiError`. Do not write an error body in a route or middleware.
 
 ## Key Design Decisions
 
