@@ -361,21 +361,6 @@ deploy_services() {
       return 1
     fi
 
-    local deploy_mutation="mutation DeployCommit(\$environmentId: String!, \$serviceId: String!, \$commitSha: String!) { serviceInstanceDeployV2(environmentId: \$environmentId, serviceId: \$serviceId, commitSha: \$commitSha) }"
-    local deployment
-    if ! deployment=$(railway api "$deploy_mutation" --raw-var "environmentId=$environment_id" --raw-var "serviceId=$service_id" --raw-var "commitSha=$DEPLOY_SHA" --compact); then
-      echo "::error::Cannot redeploy $service." >&2
-      wait_for_idle_deployments "$service"
-      return 1
-    fi
-
-    local deployment_id
-    if ! deployment_id=$(jq --exit-status --raw-output '.data.serviceInstanceDeployV2 | select(type == "string" and length > 0)' <<< "$deployment"); then
-      echo "::error::Railway did not return the $service deployment ID." >&2
-      wait_for_idle_deployments "$service"
-      return 1
-    fi
-
     abort_railway_deployment() {
       local exit_status="$1"
       trap - EXIT INT TERM
@@ -386,6 +371,23 @@ deploy_services() {
     trap 'stop_service_deployments "$service"' EXIT
     trap 'abort_railway_deployment 130' INT
     trap 'abort_railway_deployment 143' TERM
+
+    local deploy_mutation="mutation DeployCommit(\$environmentId: String!, \$serviceId: String!, \$commitSha: String!) { serviceInstanceDeployV2(environmentId: \$environmentId, serviceId: \$serviceId, commitSha: \$commitSha) }"
+    local deployment
+    if ! deployment=$(railway api "$deploy_mutation" --raw-var "environmentId=$environment_id" --raw-var "serviceId=$service_id" --raw-var "commitSha=$DEPLOY_SHA" --compact); then
+      echo "::error::Cannot redeploy $service." >&2
+      stop_service_deployments "$service"
+      trap - EXIT INT TERM
+      return 1
+    fi
+
+    local deployment_id
+    if ! deployment_id=$(jq --exit-status --raw-output '.data.serviceInstanceDeployV2 | select(type == "string" and length > 0)' <<< "$deployment"); then
+      echo "::error::Railway did not return the $service deployment ID." >&2
+      stop_service_deployments "$service"
+      trap - EXIT INT TERM
+      return 1
+    fi
 
     local wait_status=0
     wait_for_deployment "$service" "$deployment_id" || wait_status=$?
@@ -452,9 +454,25 @@ deploy_frontend() {
       kill "$watcher_pid" 2>/dev/null || true
       wait "$watcher_pid" 2>/dev/null || true
     fi
-    echo "Cancelling frontend workflow run $frontend_run_id." >&2
-    gh run cancel "$frontend_run_id" --repo "$GITHUB_REPOSITORY" || true
-    gh run watch "$frontend_run_id" --repo "$GITHUB_REPOSITORY" --exit-status --compact || true
+
+    while true; do
+      local frontend_run
+      local status=""
+      if frontend_run=$(gh run view "$frontend_run_id" --repo "$GITHUB_REPOSITORY" --json status,conclusion) \
+        && status=$(jq --exit-status --raw-output '.status' <<< "$frontend_run"); then
+        if [[ "$status" == "completed" ]]; then
+          return 0
+        fi
+      else
+        echo "::warning::Cannot inspect frontend workflow run $frontend_run_id. Retrying." >&2
+      fi
+
+      echo "Cancelling frontend workflow run $frontend_run_id." >&2
+      if ! gh run cancel "$frontend_run_id" --repo "$GITHUB_REPOSITORY"; then
+        echo "::warning::Cannot cancel frontend workflow run $frontend_run_id. Retrying." >&2
+      fi
+      poll_delay
+    done
   }
 
   abort_frontend_run() {

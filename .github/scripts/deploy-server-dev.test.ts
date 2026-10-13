@@ -224,6 +224,48 @@ exit 1
     expect(readFileSync(join(directory, 'list-auth-server'), 'utf8')).toBe('3')
   })
 
+  it('stops an ambiguous Railway deployment after the create response fails', () => {
+    const { directory, run } = fixture({
+      railway: `
+printf '%s\n' "$*" >> "$TEST_STATE_DIRECTORY/calls"
+if [[ "$1 $2" == "environment list" ]]; then
+  printf '{"environments":[{"id":"environment-id","isLinked":true}]}\n'
+  exit 0
+fi
+if [[ "$1 $2" == "service status" ]]; then
+  printf '{"id":"service-ts-api"}\n'
+  exit 0
+fi
+if [[ "$1" == "api" && "$*" == *'DeployCommit'* ]]; then
+  touch "$TEST_STATE_DIRECTORY/created"
+  exit 1
+fi
+if [[ "$1" == "api" && "$*" == *'CancelDeployment'* ]]; then
+  touch "$TEST_STATE_DIRECTORY/stopped"
+  printf '{"data":{"deploymentCancel":true}}\n'
+  exit 0
+fi
+if [[ "$1 $2" == "deployment list" ]]; then
+  if [[ -f "$TEST_STATE_DIRECTORY/stopped" ]]; then
+    printf '[{"id":"ambiguous","status":"SKIPPED"}]\n'
+  else
+    printf '[{"id":"ambiguous","status":"BUILDING"}]\n'
+  fi
+  exit 0
+fi
+exit 1
+`,
+      sleep: 'exit 0',
+    })
+
+    const result = run('deploy-services')
+    const calls = readFileSync(join(directory, 'calls'), 'utf8')
+
+    expect(result.status).toBe(1)
+    expect(calls).toContain('CancelDeployment')
+    expect(calls).toContain('id=ambiguous')
+  })
+
   it('cancels the exact Railway deployment when the watcher is interrupted', () => {
     const { directory, run } = fixture({
       railway: `
@@ -673,6 +715,16 @@ fi
 if [[ "$1 $2" == "run watch" ]]; then
   exit 1
 fi
+if [[ "$1 $2" == "run view" ]]; then
+  count_file="$TEST_STATE_DIRECTORY/view-count"
+  count=$(cat "$count_file" 2>/dev/null || printf '0')
+  printf '%s' "$((count + 1))" > "$count_file"
+  if [[ "$count" == '0' ]]; then
+    exit 1
+  fi
+  printf '{"status":"completed","conclusion":"cancelled"}\n'
+  exit 0
+fi
 if [[ "$1 $2" == "run cancel" ]]; then
   exit 0
 fi
@@ -685,6 +737,7 @@ exit 1
 
     expect(result.status).toBe(1)
     expect(calls).toContain('run cancel 12345 --repo moeru-ai/airi')
-    expect(calls.match(/run watch 12345/g)).toHaveLength(2)
+    expect(calls.match(/run view 12345/g)).toHaveLength(2)
+    expect(result.stderr).toContain('Cannot inspect frontend workflow run 12345. Retrying')
   })
 })
