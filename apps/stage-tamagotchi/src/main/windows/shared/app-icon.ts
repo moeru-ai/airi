@@ -21,9 +21,15 @@ export function excludeWindowFromTaskbar(window: Pick<ElectronBrowserWindow, 'se
  * Use this function for each window that can open after the tray exists.
  * The Electron default changes the macOS process type, and that change shows the Dock icon again.
  */
-export function showWindowOnAllWorkspaces(window: Pick<ElectronBrowserWindow, 'setVisibleOnAllWorkspaces'>): void {
+export function showWindowOnAllWorkspaces(
+  window: Pick<ElectronBrowserWindow, 'setVisibleOnAllWorkspaces'>,
+  options?: { hideAppIcon?: boolean, skipTransformProcessType?: boolean },
+): void {
   // `app.dock` exists only on macOS.
-  window.setVisibleOnAllWorkspaces(true, { skipTransformProcessType: app.dock?.isVisible() === false })
+  window.setVisibleOnAllWorkspaces(true, {
+    skipTransformProcessType: options?.skipTransformProcessType
+      ?? (options?.hideAppIcon ? true : app.dock?.isVisible() === false),
+  })
 }
 
 /**

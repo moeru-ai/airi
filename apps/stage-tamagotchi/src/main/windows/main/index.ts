@@ -2,6 +2,8 @@ import type { Rectangle } from 'electron'
 import type { InferOutput } from 'valibot'
 
 import type { FullscreenMode, FullscreenOpenRequest, FullscreenSurfaceId } from '../../../shared/eventa'
+import type { globalAppConfigSchema } from '../../configs/global'
+import type { Config } from '../../libs/electron/persistence'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { GodotStageManager } from '../../services/airi/godot-stage'
@@ -98,6 +100,7 @@ export async function setupMainWindow(params: {
    * screen, so it asks for it while it is open, and the character stays in view on the desktop.
    */
   onKeepAbove?: (keepAbove: (above: boolean) => void) => void
+  appConfig?: Config<typeof globalAppConfigSchema>
 }) {
   const {
     setup: setupConfig,
@@ -207,7 +210,9 @@ export async function setupMainWindow(params: {
   //
   // https://github.com/electron/electron/issues/10078#issuecomment-3410164802
   // https://stackoverflow.com/questions/39835282/set-browserwindow-always-on-top-even-other-app-is-in-fullscreen-electron-mac
-  showWindowOnAllWorkspaces(window)
+  showWindowOnAllWorkspaces(window, {
+    hideAppIcon: params.appConfig?.get()?.hideAppIcon,
+  })
   if (isMacOS) {
     window.setFullScreenable(false)
     window.setWindowButtonVisibility(false)
