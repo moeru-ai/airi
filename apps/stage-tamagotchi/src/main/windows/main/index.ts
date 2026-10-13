@@ -69,7 +69,7 @@ export async function setupMainWindow(params: {
   ioTraceRecording: IOTraceRecordingService
   globalShortcut: GlobalShortcutService
   inlayWindow: () => Promise<BrowserWindow>
-  appConfig?: Config<typeof globalAppConfigSchema>
+  appConfig: Config<typeof globalAppConfigSchema>
 }) {
   const {
     setup: setupConfig,
@@ -172,7 +172,7 @@ export async function setupMainWindow(params: {
   // https://github.com/electron/electron/issues/10078#issuecomment-3410164802
   // https://stackoverflow.com/questions/39835282/set-browserwindow-always-on-top-even-other-app-is-in-fullscreen-electron-mac
   showWindowOnAllWorkspaces(window, {
-    hideAppIcon: params.appConfig?.get()?.hideAppIcon,
+    hideAppIcon: params.appConfig.get()?.hideAppIcon,
   })
   if (isMacOS) {
     window.setFullScreenable(false)
