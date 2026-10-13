@@ -102,7 +102,7 @@ wait_for_idle_deployments() {
     fi
 
     local approval_ids
-    if ! approval_ids=$(jq --raw-output '.[] | select(.status == "NEEDS_APPROVAL") | .id' <<< "$deployments"); then
+    if ! approval_ids=$(jq --raw-output '.[] | select(.status == "WAITING") | .id' <<< "$deployments"); then
       echo "::error::Cannot inspect the $service deployment states." >&2
       return 1
     fi
@@ -202,17 +202,31 @@ cancel_railway_deployment() {
   local mutation="mutation CancelDeployment(\$id: String!) { deploymentCancel(id: \$id) }"
 
   while true; do
+    local deployments
+    local status=""
+    if ! deployments=$(railway deployment list --service "$service" --limit 100 --json) \
+      || ! status=$(jq --arg id "$deployment_id" --exit-status --raw-output '[.[] | select(.id == $id)][0].status' <<< "$deployments"); then
+      echo "::warning::Cannot inspect Railway deployment $deployment_id. Retrying." >&2
+      poll_delay
+      continue
+    fi
+
+    if is_stopped_status "$status"; then
+      return 0
+    fi
+
+    if [[ "$status" == "SUCCESS" || "$status" == "SLEEPING" ]]; then
+      echo "Removing Railway deployment $deployment_id for $service." >&2
+      if ! railway down --service "$service" --yes; then
+        echo "::warning::Cannot remove Railway deployment $deployment_id. Retrying." >&2
+      fi
+      poll_delay
+      continue
+    fi
+
     echo "Cancelling Railway deployment $deployment_id for $service." >&2
     if ! railway api "$mutation" --raw-var "id=$deployment_id" --compact; then
       echo "::warning::Cannot cancel Railway deployment $deployment_id. Retrying." >&2
-    fi
-
-    local deployments
-    local status=""
-    if deployments=$(railway deployment list --service "$service" --limit 100 --json) \
-      && status=$(jq --arg id "$deployment_id" --exit-status --raw-output '[.[] | select(.id == $id)][0].status' <<< "$deployments") \
-      && is_stopped_status "$status"; then
-      return 0
     fi
 
     echo "::warning::Railway deployment $deployment_id is not confirmed terminal. Retrying." >&2
