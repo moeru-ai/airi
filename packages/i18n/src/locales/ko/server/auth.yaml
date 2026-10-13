@@ -24,18 +24,6 @@ electronCallback:
     closeTabManually: 일부 브라우저들은 이 창을 자동으로 닫는 것을 허용하지 않습니다. 수동으로 닫을 수 있습니다.
 signIn:
   title: 로그인
-  error:
-    fallback: 로그인 실패
-    unknown: 알 수 없는 오류가 발생했습니다
-    providerTimeout: 제공업체 로그인 시간이 초과되었습니다. 다시 시도하세요.
-    socialOnlyNoPassword: 이 이메일은 Google 또는 GitHub로 등록되었습니다. 아래 버튼으로 로그인하세요. 로그인 후 계정 설정에서 비밀번호를 추가할 수 있습니다.
-    passwordMismatch: 비밀번호와 확인 값이 일치하지 않습니다.
-    invalidEmail: 유효한 이메일 주소를 입력하세요.
-  footer:
-    prefix: 계속하시려면, 저희의
-    terms: 이용 약관
-    and: 및
-    privacy: 정책
   step:
     identify:
       heading: 로그인
@@ -70,18 +58,18 @@ signIn:
     or: 또는
   message:
     redirecting: '{provider}(으)로 이동 중…'
-webCallback:
-  title:
-    signIn: 로그인
-    errorLabel: 로그인 도중에 오류가 발생했습니다
-    loading: 로그인 중...
-  message:
-    missingCodeOrState: 인증 코드 또는 상태가 누락되었습니다
-    missingFlowState: OIDC flow 상태가 누락되었습니다 - 재로그인해 주세요
-    tokenExchangeFailed: 토큰 교환 실패
-    finalizing: AIRI 인증 완료 중.
-  action:
-    tryAgain: 다시 시도해주세요
+  error:
+    fallback: 로그인 실패
+    providerTimeout: 제공업체 로그인 시간이 초과되었습니다. 다시 시도하세요.
+    unknown: 알 수 없는 오류가 발생했습니다
+    socialOnlyNoPassword: 이 이메일은 Google 또는 GitHub로 등록되었습니다. 아래 버튼으로 로그인하세요. 로그인 후 계정 설정에서 비밀번호를 추가할 수 있습니다.
+    passwordMismatch: 비밀번호와 확인 값이 일치하지 않습니다.
+    invalidEmail: 유효한 이메일 주소를 입력하세요.
+  footer:
+    prefix: 계속하시려면, 저희의
+    terms: 이용 약관
+    and: 및
+    privacy: 정책
 verifyEmail:
   title:
     pending: 받은편지함 확인
@@ -199,3 +187,15 @@ profile:
     signOutFailed: 로그아웃하지 못했습니다.
     passwordMismatch: 새 비밀번호와 확인 값이 일치하지 않습니다.
     passwordSameAsCurrent: 새 비밀번호는 현재 비밀번호와 달라야 합니다.
+webCallback:
+  title:
+    signIn: 로그인
+    errorLabel: 로그인 도중에 오류가 발생했습니다
+    loading: 로그인 중...
+  message:
+    missingCodeOrState: 인증 코드 또는 상태가 누락되었습니다
+    missingFlowState: OIDC flow 상태가 누락되었습니다 - 재로그인해 주세요
+    tokenExchangeFailed: 토큰 교환 실패
+    finalizing: AIRI 인증 완료 중.
+  action:
+    tryAgain: 다시 시도해주세요
