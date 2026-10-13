@@ -47,7 +47,7 @@ AIRI needs the client part of the first and the run table of the second.
 | `interaction_id` | One turn. The client round ID. | `x-airi-round-id` header, `llm_request_log`, `llm_request_item`, the `Interaction turn` span |
 | `trace_id` | One client trace. A spoken turn starts at `Wake word` or `Voice input`, and its `Interaction turn` is a child. A typed turn starts at `Interaction turn`. | Every uploaded span |
 | `session_id` | One conversation | `x-airi-session-id` header, the same tables, the `Interaction turn` span |
-| `request_id` | One gateway request | `llm_request_log`. New: the `x-airi-request-id` response header and the `LLM inference` span |
+| `request_id` | One gateway request | `llm_request_log`. New: the `x-airi-request-id` response header and the `LLM request` span |
 | `tool_call_id` | One client tool call | `llm_request_item`, the `Tool execution` span |
 
 A span joins a turn through its trace.
@@ -56,7 +56,7 @@ The voice input spans start before the round ID exists, so they cannot carry it.
 
 The server does not return its request ID today (`routes/openai/v1/http/response.ts`).
 The gateway adds the `x-airi-request-id` response header, and CORS exposes it.
-The client reads it in the official provider fetch and puts it on the `LLM inference` span.
+The client reads it in the official provider fetch and puts it on the `LLM request` span of that request.
 
 The timeline does not compare client and server clocks to order the steps.
 A tool call is in the output items of one request, and its response is in the input items of the next request.
@@ -89,7 +89,8 @@ The API maps each span name to a `kind`, and keeps only the attributes that the 
 | Span name | `kind` | Columns and allowlisted attributes |
 |---|---|---|
 | `Interaction turn` | `turn` | `interaction_id`, `session_id` |
-| `LLM inference` | `llm_step` | `request_id`, model, step index, time to first token, message and chunk counts |
+| `LLM inference` | `llm_inference` | The whole stream of a turn: model, time to first token, message and chunk counts |
+| `LLM request` (new) | `llm_step` | One HTTP request of the stream: `request_id`, step index |
 | `Tool execution` (new) | `tool` | `tool_name`, `tool_call_id`, `error.type` |
 | `Wake word`, `Voice input`, `Voice activity detection`, `Speech recognition`, `End of speech judgement`, `Transcript rephrase` | `voice_input` and one kind each | Trigger, outcome, durations, counts, and flags |
 | `Speech turn`, `TTS synthesis`, `Audio playback` | `speech_output` and one kind each | Segment ID, durations, and the interrupted, cancelled, and no audio flags |
@@ -168,19 +169,31 @@ The admin API reads the cost of a turn from `flux_usage` by the request IDs of t
 Status:
 
 - The `Interaction turn` span sets `finished`, `cancelled`, or `failed`.
-- Without that span, a request that is still `running` makes the turn `running`. Otherwise the state of the last request sets the status.
+- Without that span, a request that is still `running` makes the turn `running`.
+  A turn whose last request completed with client tool calls is also `running`, because the client runs the tools and then sends the next request. A client that closes before that request leaves the run `running`.
+  Otherwise the state of the last request sets the status.
 
 ## Client changes
 
 - Put `interaction_id` and `session_id` on the `Interaction turn` span. Today the round ID is on some child spans only, and no span has the session ID.
-- Set the parent of each span from the OpenTelemetry context of its turn, not from the global `activeTurnSpan`. Today two turns at the same time can get the wrong parent.
-- Start one `LLM inference` span for each LLM step, with the request ID of that step. Today one span covers all the steps of a turn, because the xsAI `step.start` and `step.done` events are dropped (`packages/core-agent/src/runtime/xsai-events.ts`).
+- Take the parent of the `LLM request` and `Tool execution` spans from their own turn, not from the global `activeTurnSpan`, so two turns at the same time keep their own spans.
+  Speech output, streaming control, and speech recognition still take `activeTurnSpan`. With two turns at the same time, one of these spans can join the other turn. A later change passes the turn to them.
+- Keep one `LLM inference` span for the whole stream of a turn, and start one `LLM request` span under it for each HTTP request in the official provider fetch.
+  The fetch finds the `LLM inference` span of its turn by the round ID header, and reads the request ID from the response header.
+  The span ends when the response body ends. xsAI and `core-agent` do not change: the steps run inside xsAI, and only the fetch sees each request and its response.
+- Copy the time to first token from the `LLMFirstToken` event to an attribute of `LLM inference`, because the upload has no events.
+- Set the error status or the cancelled attribute on the `Interaction turn` span from the status of the `onSendSettled` event.
 - Add a `Tool execution` span in a wrapper around `Tool.execute`, where `resolveLlmTools` already wraps tools (`packages/stage-ui/src/stores/ai/chat-llm/tool-resolver.ts`).
 - Add a batch exporter that sends ended spans every few seconds and when the page is hidden. A failed upload drops the batch. It does not retry and does not block the turn.
+  The exporter keeps only the attributes on the client allowlist (`IOUploadAttributes`), so content does not leave the client even before the API allowlist.
 - Fix `withCredentials` in the official provider, which writes the active session ID over the session ID of a background turn (`packages/stage-ui/src/libs/providers/providers/official/shared.ts`).
 
 The upload runs only for traces whose turn uses the official provider, and only when analytics is enabled.
 A turn with another provider has no gateway rows to join, and its data goes to a provider that AIRI does not run.
+
+A resolved step can change the provider within a turn. The chat store marks the provider of each step on the trace.
+The exporter holds the spans of a trace until its `Interaction turn` span ends, and uploads them only if every step used the official provider.
+A trace with one step of another provider is dropped as a whole, official steps included.
 
 ## Modules
 
@@ -227,12 +240,14 @@ packages/stage-shared/src/
 ├── perf/io-trace.ts                           span and attribute names
 └── types/io-trace.ts                          upload shape
 packages/stage-ui/src/
-├── composables/use-io-tracer.ts               context parents, exporter
-├── libs/agent-trace/exporter.ts               new, batch upload
-├── stores/chat.ts                             IDs on every span, chat step spans
-├── stores/ai/chat-llm/tool-resolver.ts        Tool execution spans
-└── libs/providers/providers/official/shared.ts  request ID, session ID fix
-packages/core-agent/src/runtime/xsai-events.ts   forward step events
+├── composables/use-io-tracer.ts               the LLM inference span of each turn, by round ID
+├── libs/agent-trace/exporter.ts               new, batch upload and the provider rule
+├── libs/agent-trace/request-span.ts           new, LLM request spans in the fetch
+├── libs/product-signals/index.ts              start the upload with analytics
+├── stores/chat.ts                             turn IDs and status, step providers
+├── stores/ai/chat-llm/tool-span.ts            new, Tool execution spans
+├── stores/ai/chat-llm/tool-resolver.ts        wrap each tool
+└── libs/providers/providers/official/shared.ts  LLM request spans, session ID fix
 ```
 
 ## Sequence
@@ -247,11 +262,12 @@ sequenceDiagram
   participant Run as Agent run service
   UI->>Tracer: start Interaction turn
   UI->>Tracer: start LLM inference
+  UI->>Tracer: start LLM request
   UI->>GW: LLM request with session ID and round ID
   GW->>Log: beginRequest, logRequest
   Log->>Run: compute totals of the turn
   GW-->>UI: response with x-airi-request-id
-  UI->>Tracer: end LLM inference with request ID
+  UI->>Tracer: end LLM request with request ID
   UI->>Tracer: Tool execution with tool call ID
   UI->>Tracer: end Interaction turn
   Tracer->>API: batch of ended spans
@@ -263,7 +279,7 @@ sequenceDiagram
 
 1. Gateway: return `x-airi-request-id` on every chat and Responses response, errors included, and expose it in CORS. The route creates the ID before the operation, and the operation logs the same ID.
 2. API: add the two tables, the `(user_id, interaction_id)` index on `llm_request_log`, the ingest route, the run service, and account deletion for both tables. This step builds on the request item PR, because `agent_run` counts tool calls from items, and both add migrations.
-3. Client: IDs and parents on spans, one `LLM inference` span for each step, `Tool execution` spans, the exporter, and the session ID fix.
+3. Client: IDs and status on the turn span, one `LLM request` span for each request, `Tool execution` spans, the exporter, and the session ID fix.
 4. Admin API (`proj-airi/backend`): read runs, spans, and items for one turn, and sort runs across users.
 5. Admin dashboard: one timeline for each turn.
 
@@ -300,5 +316,5 @@ Rollback of the client stops new spans. Rollback of the API drops nothing that a
 - Route tests: a valid batch is stored, an unknown span and an attribute outside the allowlist are not stored and are counted, a content attribute such as `asr.text` is never stored, a repeated batch adds no rows, and a user cannot write spans of another user.
 - Run service tests: the totals of a turn are the same after requests and spans arrive in any order, and after a repeated write.
 - Gateway test: the response has `x-airi-request-id`, and it equals `llm_request_log.request_id`.
-- Client tests: two turns at the same time give spans with the correct parents and IDs, and a tool error gives a `Tool execution` span with status `error`.
-- End to end on a local API and Postgres: one turn with two tool calls gives one run row, three `LLM inference` spans with request IDs that exist, and two `Tool execution` spans that match the tool call items.
+- Client tests: two turns at the same time give `LLM request` spans with the correct parents and IDs, a tool error gives a `Tool execution` span with status `error`, and a turn with a step of another provider uploads nothing.
+- End to end on a local API and Postgres: one turn with two tool calls gives one run row, three `LLM request` spans with request IDs that exist, and two `Tool execution` spans that match the tool call items.
