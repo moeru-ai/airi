@@ -46,12 +46,13 @@ export async function refreshAgentRun(db: Database, userId: string, interactionI
       running: sql`coalesce(bool_or(${log.state} = 'running'), false)`.mapWith(Boolean),
       sessionId: sql`max(${log.sessionId})`.mapWith(log.sessionId),
     }).from(log).where(ofTurn)
-    const [last] = await tx.select({ state: log.state }).from(log).where(ofTurn).orderBy(desc(sql`coalesce(${log.startedAt}, ${log.createdAt})`), desc(log.id)).limit(1)
+    const [last] = await tx.select({ state: log.state, requestId: log.requestId }).from(log).where(ofTurn).orderBy(desc(sql`coalesce(${log.startedAt}, ${log.createdAt})`), desc(log.id)).limit(1)
 
     const item = llmRequestItem
     const [items] = await tx.select({
       toolCalls: sql`count(*) filter (where ${item.partType} = 'tool_call')`.mapWith(Number),
       serverToolCalls: sql`count(*) filter (where ${item.partType} = 'server_tool_call')`.mapWith(Number),
+      lastAwaitsTools: sql`coalesce(bool_or(${item.partType} = 'tool_call' and ${item.requestId} = ${last?.requestId ?? null}), false)`.mapWith(Boolean),
     }).from(item).where(and(eq(item.userId, userId), eq(item.interactionId, interactionId), eq(item.direction, 'output')))
 
     const span = agentTraceSpan
@@ -64,7 +65,10 @@ export async function refreshAgentRun(db: Database, userId: string, interactionI
     if (!startedAt)
       return
 
-    const status: RunStatus = turn ? spanStatus[turn.status] : requests.running ? 'running' : requestStatus(last?.state ?? null)
+    // Without the turn span, a turn whose last request asked for client tools is still running: the client runs them and sends the next request.
+    // A client that closes before the next request leaves the run `running`.
+    const awaitsTools = last?.state === 'completed' && items.lastAwaitsTools
+    const status: RunStatus = turn ? spanStatus[turn.status] : requests.running || awaitsTools ? 'running' : requestStatus(last?.state ?? null)
     const turnEnd = turn?.durationMs == null ? null : new Date(turn.startedAt.getTime() + turn.durationMs)
     const row = {
       userId,

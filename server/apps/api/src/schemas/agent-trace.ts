@@ -4,6 +4,7 @@ import { nanoid } from '../utils/id'
 
 export const agentTraceSpanKinds = [
   'turn',
+  'llm_inference',
   'llm_step',
   'tool',
   'wake_word',

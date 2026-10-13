@@ -29,14 +29,16 @@ describe('toSpanRows', () => {
     })])
   })
 
-  it('keeps the allowlisted attributes of an LLM step and the tool columns of a tool span', () => {
+  it('keeps the allowlisted attributes of an LLM stream and its requests, and the tool columns of a tool span', () => {
     const { rows, droppedAttributes } = toSpanRows(upload(
-      { name: 'LLM inference', attributes: { [`${io}.request_id`]: 'req-1', 'gen_ai.request.model': 'auto', [`${io}.llm.time_to_first_token`]: 120 } },
+      { name: 'LLM inference', attributes: { 'gen_ai.request.model': 'auto', [`${io}.llm.time_to_first_token`]: 120 } },
+      { name: 'LLM request', spanId: 'e'.repeat(16), attributes: { [`${io}.request_id`]: 'req-1', [`${io}.turn_id`]: 'round-1', [`${io}.llm.step_index`]: 1 } },
       { name: 'Tool execution', spanId: 'c'.repeat(16), status: 'error', attributes: { 'gen_ai.tool.name': 'weather', 'gen_ai.tool.call.id': 'call-1', 'error.type': 'TimeoutError' } },
     ))
     expect(droppedAttributes).toBe(0)
-    expect(rows[0]).toMatchObject({ kind: 'llm_step', requestId: 'req-1', attributes: { 'gen_ai.request.model': 'auto', [`${io}.llm.time_to_first_token`]: 120 } })
-    expect(rows[1]).toMatchObject({ kind: 'tool', toolName: 'weather', toolCallId: 'call-1', status: 'error', errorType: 'TimeoutError', attributes: null })
+    expect(rows[0]).toMatchObject({ kind: 'llm_inference', requestId: null, attributes: { 'gen_ai.request.model': 'auto', [`${io}.llm.time_to_first_token`]: 120 } })
+    expect(rows[1]).toMatchObject({ kind: 'llm_step', requestId: 'req-1', interactionId: 'round-1', attributes: { [`${io}.llm.step_index`]: 1 } })
+    expect(rows[2]).toMatchObject({ kind: 'tool', toolName: 'weather', toolCallId: 'call-1', status: 'error', errorType: 'TimeoutError', attributes: null })
   })
 
   it('never stores content attributes, long strings, or attributes of another kind', () => {

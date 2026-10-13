@@ -8,7 +8,8 @@ const io = 'ai.moeru.airi.io'
 /** The span names of `IOSpanNames` in `packages/stage-shared/src/perf/io-trace.ts`. */
 const kindByName: Record<string, Kind> = {
   'Interaction turn': 'turn',
-  'LLM inference': 'llm_step',
+  'LLM inference': 'llm_inference',
+  'LLM request': 'llm_step',
   'Tool execution': 'tool',
   'Wake word': 'wake_word',
   'Voice input': 'voice_input',
@@ -44,7 +45,8 @@ const speechOutput = [`${io}.tts.segment_id`, `${io}.tts.chunk_reason`, `${io}.t
  */
 const allowedByKind: Record<Kind, readonly string[]> = {
   turn: [],
-  llm_step: ['gen_ai.request.model', 'gen_ai.provider.name', `${io}.llm.step_index`, `${io}.llm.time_to_first_token`, `${io}.llm.input_message_count`, `${io}.llm.input_user_message_count`, `${io}.llm.output_chunk_count`, `${io}.llm.text_length`],
+  llm_inference: ['gen_ai.request.model', 'gen_ai.provider.name', `${io}.llm.time_to_first_token`, `${io}.llm.input_message_count`, `${io}.llm.input_user_message_count`, `${io}.llm.output_chunk_count`, `${io}.llm.text_length`],
+  llm_step: [`${io}.llm.step_index`],
   tool: [],
   wake_word: [`${io}.kws.character_id`],
   voice_input: [`${io}.voice_input.id`, `${io}.voice_input.trigger`, `${io}.voice_input.outcome`, `${io}.voice_input.reason`],

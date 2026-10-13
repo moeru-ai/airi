@@ -61,11 +61,13 @@ describe('agent trace service', () => {
     await traces.ingest(userId, upload(failedTool))
     await request('request-1', toolCall)
     const fromRequests = await db.select().from(agentRun)
-    expect(fromRequests).toEqual([expect.objectContaining({ status: 'finished', llmCalls: 1, toolCalls: 1, failedTools: 0, hasClientTrace: false, inputTokens: 10, outputTokens: 5 })])
+    // The model asked for a tool, so the turn runs until the client sends the next request or its turn span.
+    expect(fromRequests).toEqual([expect.objectContaining({ status: 'running', endedAt: null, llmCalls: 1, toolCalls: 1, failedTools: 0, hasClientTrace: false, inputTokens: 10, outputTokens: 5 })])
 
     // The turn span arrives last, and the tool span that came first now joins the turn through the trace.
-    await traces.ingest(userId, upload(turnSpan))
     await request('request-2', { choices: [{ message: { role: 'assistant', content: 'Sunny' } }] })
+    expect(await db.select({ status: agentRun.status }).from(agentRun)).toEqual([{ status: 'finished' }])
+    await traces.ingest(userId, upload(turnSpan))
     const [run] = await db.select().from(agentRun)
     expect(run).toMatchObject({ interactionId: 'round-1', sessionId: 'session-1', traceId: trace, status: 'finished', llmCalls: 2, toolCalls: 1, failedTools: 1, hasClientTrace: true, inputTokens: 20, outputTokens: 10 })
 
