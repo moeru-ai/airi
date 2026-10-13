@@ -1,3 +1,4 @@
+import type { Span } from '@opentelemetry/api'
 import type { Conversation, StreamOptions } from '@proj-airi/core-agent'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { Tool } from '@xsai/shared-chat'
@@ -23,6 +24,8 @@ export interface LlmStreamOptions extends StreamOptions {
    * place of the tools of the chat, and without the tools of the provider, so a task runs nothing else.
    */
   taskTools?: Tool[]
+  /** The span that tool calls record their spans under. See {@link resolveLlmTools}. */
+  toolSpanParent?: Span
 }
 
 export const useLLM = defineStore('llm', () => {
@@ -34,8 +37,8 @@ export const useLLM = defineStore('llm', () => {
     // `prepareConversation` runs for every resolved request, so the key follows a step that changes the model.
     let key = modelKey(model, chatProvider.generation(model))
     let toolExecutionStarted = false
-    const { tools: customTools, describeToolImage, taskTools, ...streamOptions } = options ?? {}
-    const resolveTools = async () => taskTools ?? await resolveLlmTools({ customTools, describeImage: describeToolImage })
+    const { tools: customTools, describeToolImage, taskTools, toolSpanParent, ...streamOptions } = options ?? {}
+    const resolveTools = async () => taskTools ?? await resolveLlmTools({ customTools, describeImage: describeToolImage, traceParent: toolSpanParent })
     const builtinToolsResolver = resolveTools
     const resolveStep = streamOptions.resolveStep
 
