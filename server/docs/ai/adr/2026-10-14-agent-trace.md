@@ -241,13 +241,13 @@ sequenceDiagram
 
 ## Scope
 
-1. Gateway: return `x-airi-request-id`, expose it in CORS, and add the `(user_id, interaction_id)` index on `llm_request_log`.
-2. API: add the two tables, the ingest route, the run service, and account deletion for both tables.
+1. Gateway: return `x-airi-request-id` on every chat and Responses response, errors included, and expose it in CORS. The route creates the ID before the operation, and the operation logs the same ID.
+2. API: add the two tables, the `(user_id, interaction_id)` index on `llm_request_log`, the ingest route, the run service, and account deletion for both tables. This step builds on the request item PR, because `agent_run` counts tool calls from items, and both add migrations.
 3. Client: IDs and parents on spans, `chat` and `execute_tool` spans, the exporter, and the session ID fix.
 4. Admin API (`proj-airi/backend`): read runs, spans, and items for one turn, and sort runs across users.
 5. Admin dashboard: one timeline for each turn.
 
-Each step is a separate PR. Step 2 can deploy before step 3, because a turn without spans still gets a run row.
+Each step is a separate PR. Step 1 needs no migration. Step 2 can deploy before step 3, because a turn without spans still gets a run row.
 Step 4 copies the new tables only after they are on `main` of this repository, as the admin API rules require.
 
 ## Non-goals
