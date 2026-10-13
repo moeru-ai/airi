@@ -50,12 +50,16 @@ jobs:
             .event == "workflow_dispatch"
             and .status == "in_progress"
             and .path == ".github/workflows/deploy-server-dev.yml"
+            and .head_branch == .repository.default_branch
+            and (.head_sha | test("^[0-9a-f]{40}$"))
           ' <<< "$parent_run" > /dev/null; then
             echo "Run ${PARENT_RUN_ID} is not an active server-dev deployment." >&2
             exit 1
           fi
           run_attempt=$(jq --exit-status --raw-output '.run_attempt' <<< "$parent_run")
+          workflow_sha=$(jq --exit-status --raw-output '.head_sha' <<< "$parent_run")
           echo "artifact_name=server-dev-source-${PARENT_RUN_ID}-${run_attempt}" >> "$GITHUB_OUTPUT"
+          echo "workflow_sha=$workflow_sha" >> "$GITHUB_OUTPUT"
 
       - uses: actions/download-artifact@v5
         with:
@@ -70,11 +74,13 @@ jobs:
         env:
           SOURCE_BRANCH: ${{ inputs.branch }}
           SOURCE_SHA: ${{ inputs.commit_sha }}
+          WORKFLOW_SHA: ${{ steps.parent.outputs.workflow_sha }}
         run: |
           if ! jq --exit-status \
             --arg branch "$SOURCE_BRANCH" \
             --arg commit_sha "$SOURCE_SHA" \
-            '.branch == $branch and .commitSha == $commit_sha' \
+            --arg workflow_sha "$WORKFLOW_SHA" \
+            '.branch == $branch and .commitSha == $commit_sha and .workflowSha == $workflow_sha' \
             "$RUNNER_TEMP/server-dev-source/server-dev-source.json" > /dev/null; then
             echo "Commit ${SOURCE_SHA} was not selected for ${SOURCE_BRANCH} by the parent run." >&2
             exit 1

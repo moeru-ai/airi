@@ -266,6 +266,59 @@ exit 1
     expect(calls).toContain('id=target-ts-api')
   })
 
+  it('retries Railway cancellation until the deployment is terminal', () => {
+    const { directory, run } = fixture({
+      railway: `
+printf '%s\n' "$*" >> "$TEST_STATE_DIRECTORY/calls"
+if [[ "$1 $2" == "environment list" ]]; then
+  printf '{"environments":[{"id":"environment-id","isLinked":true}]}\n'
+  exit 0
+fi
+if [[ "$1 $2" == "service status" ]]; then
+  printf '{"id":"service-ts-api"}\n'
+  exit 0
+fi
+if [[ "$1" == "api" && "$*" == *'DeployCommit'* ]]; then
+  printf '{"data":{"serviceInstanceDeployV2":"target-ts-api"}}\n'
+  exit 0
+fi
+if [[ "$1" == "api" && "$*" == *'CancelDeployment'* ]]; then
+  count_file="$TEST_STATE_DIRECTORY/cancel-count"
+  count=$(cat "$count_file" 2>/dev/null || printf '0')
+  printf '%s' "$((count + 1))" > "$count_file"
+  if [[ "$count" == '0' ]]; then
+    exit 1
+  fi
+  touch "$TEST_STATE_DIRECTORY/cancelled"
+  printf '{"data":{"deploymentCancel":true}}\n'
+  exit 0
+fi
+if [[ "$1 $2" == "deployment list" ]]; then
+  count_file="$TEST_STATE_DIRECTORY/list-count"
+  count=$(cat "$count_file" 2>/dev/null || printf '0')
+  printf '%s' "$((count + 1))" > "$count_file"
+  if [[ "$count" == '0' ]]; then
+    exit 1
+  elif [[ -f "$TEST_STATE_DIRECTORY/cancelled" ]]; then
+    printf '[{"id":"target-ts-api","status":"SKIPPED"}]\n'
+  else
+    printf '[{"id":"target-ts-api","status":"BUILDING"}]\n'
+  fi
+  exit 0
+fi
+exit 1
+`,
+      sleep: 'exit 0',
+    })
+
+    const result = run('deploy-services')
+    const calls = readFileSync(join(directory, 'calls'), 'utf8')
+
+    expect(result.status).toBe(1)
+    expect(calls.match(/CancelDeployment/g)).toHaveLength(2)
+    expect(result.stderr).toContain('not confirmed terminal. Retrying')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2918#discussion_r4246985823
   // ROOT CAUSE:
   //

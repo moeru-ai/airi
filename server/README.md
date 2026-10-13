@@ -80,7 +80,7 @@ gh workflow run deploy-server-dev.yml -f branch=<branch> -f reset_database=true
 ```
 
 Run the workflow from the default branch. The deploy job does not run from
-another workflow ref.
+another branch or a tag with the same name.
 
 The workflow does these steps in order:
 

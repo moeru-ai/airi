@@ -189,39 +189,28 @@ wait_for_deployment() {
   done
 }
 
-wait_for_terminal_deployment() {
-  local service="$1"
-  local deployment_id="$2"
-
-  while true; do
-    local deployments
-    if ! deployments=$(railway deployment list --service "$service" --limit 100 --json); then
-      echo "::error::Cannot list the $service deployments." >&2
-      return 1
-    fi
-
-    local status
-    if ! status=$(jq --arg id "$deployment_id" --exit-status --raw-output '[.[] | select(.id == $id)][0].status' <<< "$deployments"); then
-      poll_delay
-      continue
-    fi
-
-    if is_terminal_status "$status"; then
-      return 0
-    fi
-
-    poll_delay
-  done
-}
-
 cancel_railway_deployment() {
   local service="$1"
   local deployment_id="$2"
   local mutation="mutation CancelDeployment(\$id: String!) { deploymentCancel(id: \$id) }"
 
-  echo "Cancelling Railway deployment $deployment_id for $service." >&2
-  railway api "$mutation" --raw-var "id=$deployment_id" --compact || true
-  wait_for_terminal_deployment "$service" "$deployment_id" || true
+  while true; do
+    echo "Cancelling Railway deployment $deployment_id for $service." >&2
+    if ! railway api "$mutation" --raw-var "id=$deployment_id" --compact; then
+      echo "::warning::Cannot cancel Railway deployment $deployment_id. Retrying." >&2
+    fi
+
+    local deployments
+    local status=""
+    if deployments=$(railway deployment list --service "$service" --limit 100 --json) \
+      && status=$(jq --arg id "$deployment_id" --exit-status --raw-output '[.[] | select(.id == $id)][0].status' <<< "$deployments") \
+      && is_terminal_status "$status"; then
+      return 0
+    fi
+
+    echo "::warning::Railway deployment $deployment_id is not confirmed terminal. Retrying." >&2
+    poll_delay
+  done
 }
 
 select_branch() {
