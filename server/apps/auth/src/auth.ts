@@ -26,6 +26,7 @@ import * as authSchema from '@proj-airi/auth-shared'
 import { ApiError } from './error'
 import { googleClientIds } from './google-client-ids'
 import { getAuthTrustedOrigins, getTrustedOrigin } from './origin'
+import { accountDeletion } from './plugins/account-deletion'
 import { banGuard } from './plugins/ban-guard'
 import { oidcJwtBearer } from './plugins/oidc-jwt-bearer'
 import { steam } from './plugins/steam'
@@ -431,6 +432,7 @@ export interface AuthInstance {
   options: BetterAuthOptions
 }
 
+/** Composes authentication and the cleanup hooks shared by both account-deletion methods. */
 export function createAuth(
   db: AuthDatabase,
   env: AuthEnv,
@@ -464,6 +466,7 @@ export function createAuth(
       // Better Auth. Must run after bearer() so HMAC session tokens retain
       // their stock path. See oidc-jwt-bearer.ts for sensitive-operation rules.
       oidcJwtBearer(env),
+      accountDeletion(),
       // Steam's web login is OpenID 2.0, not OAuth2/OIDC, so it can't be a
       // `socialProviders` entry — see steam.ts for why this needs to be its
       // own plugin.
