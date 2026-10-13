@@ -10,11 +10,36 @@ import { ComfyUIProvider } from './providers/comfyui'
 describe('artistryBridge and comfyui provider', () => {
   describe('comfyui provider initialization', () => {
     it('normalizes server url by trimming whitespace and trailing slashes', async () => {
+      const fetchSpy = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ prompt_id: 'p1' }),
+        })
+        .mockResolvedValue({
+          ok: true,
+          json: async () => ({}),
+        })
+      vi.stubGlobal('fetch', fetchSpy)
+
       const provider = new ComfyUIProvider()
       await provider.initialize({
         comfyuiServerUrl: '  http://127.0.0.1:8188///  ',
+        comfyuiSavedWorkflows: [{ id: 'w1', workflow: {}, exposedFields: {} }],
+        comfyuiActiveWorkflow: 'w1',
       })
-      expect(provider.getServerUrl()).toBe('http://127.0.0.1:8188')
+
+      // Trigger a generate call so the provider uses its normalized serverUrl
+      await provider.generate({ prompt: 'test', model: 'w1', extra: {} })
+
+      // Wait for the async pollForResult to attempt fetch
+      await vi.waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalled()
+      })
+
+      const calledUrl = fetchSpy.mock.calls[0][0] as string
+      expect(calledUrl).toBe('http://127.0.0.1:8188/prompt')
+
+      vi.unstubAllGlobals()
     })
   })
 

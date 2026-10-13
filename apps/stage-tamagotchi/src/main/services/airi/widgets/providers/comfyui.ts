@@ -61,10 +61,6 @@ export class ComfyUIProvider implements ArtistryProvider {
       this.activeWorkflowId = config.comfyuiActiveWorkflow
   }
 
-  getServerUrl(): string {
-    return this.serverUrl
-  }
-
   async generate(request: ArtistryRequest): Promise<ArtistryJob> {
     const jobId = request.extra?.internalJobId || Math.random().toString(36).slice(2)
 
