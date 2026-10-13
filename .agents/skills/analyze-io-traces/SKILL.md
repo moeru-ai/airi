@@ -20,7 +20,21 @@ The first path is the packaged app on macOS. The second is `pnpm dev` on macOS. 
 
 ## Record shape
 
-Each line is one span with `traceId`, `spanId`, `parentSpanId`, `name`, `startTimeNano`, `endTimeNano`, `status.code` (2 means error), `attributes`, and `events`. Time values are decimal strings in nanoseconds. A trace is one interaction turn. Subsystems are in `attributes["ai.moeru.airi.io.subsystem"]`.
+Each line is one span with `traceId`, `spanId`, `parentSpanId`, `name`, `startTimeNano`, `endTimeNano`, `status.code` (2 means error), `attributes`, and `events`. Time values are decimal strings in nanoseconds. Subsystems are in `attributes["ai.moeru.airi.io.subsystem"]`.
+
+A trace is one turn. A typed turn starts at `Interaction turn`. A spoken turn starts earlier, and one trace covers the whole path:
+
+```text
+Wake word (kws)                      only when a wake word started the input
+└── Voice input (voice-input)        trigger: control, speech, or wake-word. outcome: committed, drafted, cancelled, or failed
+    ├── Voice activity detection     one span for each speech segment
+    ├── Speech recognition (asr)
+    ├── End of speech judgement      one span for each pause that the chat model judged
+    ├── Transcript rephrase
+    └── Interaction turn             LLM inference, streaming control, speech turn, TTS synthesis, audio playback
+```
+
+A span ends before its parent can end, so a file can hold children whose parent is missing. The parent is still open, or the app stopped first. A `Voice input` with the outcome `cancelled` or `drafted` has no `Interaction turn`. Attribute `ai.moeru.airi.io.cancelled` marks work that the caller aborted, such as a judgement after the speaker continued.
 
 ## Common queries
 
@@ -35,6 +49,15 @@ jq -c 'select(.status.code == 2) | {name, traceId, message: .status.message}' "$
 
 # All spans of one trace in start order
 jq -c 'select(.traceId == "TRACE_ID")' "$F" | jq -s 'sort_by(.startTimeNano|tonumber)'
+
+# Spoken turns: trigger, outcome, and how long the input took
+jq -c 'select(.name == "Voice input") | {traceId, trigger: .attributes["ai.moeru.airi.io.voice_input.trigger"], outcome: .attributes["ai.moeru.airi.io.voice_input.outcome"], reason: .attributes["ai.moeru.airi.io.voice_input.reason"], ms: (((.endTimeNano|tonumber)-(.startTimeNano|tonumber))/1e6)}' "$F"
+
+# Wake words that started an input, with the matched tokens
+jq -c 'select(.name == "Wake word") | {traceId, text: .attributes["ai.moeru.airi.io.kws.text"], tokens: .attributes["ai.moeru.airi.io.kws.tokens"]}' "$F"
+
+# End of speech judgements, and judgements that a newer utterance cancelled
+jq -c 'select(.name == "End of speech judgement") | {traceId, judgement: .attributes["ai.moeru.airi.io.end_judge.judgement"], cancelled: .attributes["ai.moeru.airi.io.cancelled"]}' "$F"
 
 # Time to first token for each LLM span
 jq -c 'select(.events | any(.name | endswith("llm.first_token"))) | {traceId, events}' "$F"

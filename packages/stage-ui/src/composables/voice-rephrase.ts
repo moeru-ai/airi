@@ -1,10 +1,13 @@
 import type { Conversation } from '@proj-airi/core-agent'
 
+import { IOAttributes, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
+
 import { parseRephrasedSegments } from '../libs/voice/voice-rephrase-plugin'
 import { useLLM } from '../stores/ai/chat-llm/llm'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useHearingStore } from '../stores/modules/hearing'
 import { useProviderStore } from '../stores/providers/provider'
+import { activeVoiceInputSpan, runInSpan, startSpan } from './use-io-tracer'
 
 const REPHRASE_INSTRUCTIONS = [
   'You clean up text that speech recognition produced from one spoken message.',
@@ -37,6 +40,20 @@ export function useVoiceRephrase() {
     if (!providerId || !model)
       throw new Error('No chat model is configured for voice rephrasing')
 
+    const span = startSpan(IOSpanNames.TranscriptRephrase, activeVoiceInputSpan.value, {
+      [IOAttributes.Subsystem]: IOSubsystems.Rephrase,
+      [IOAttributes.GenAIRequestModel]: model,
+      [IOAttributes.GenAIProviderName]: providerId,
+      [IOAttributes.RephraseSegmentCount]: segments.length,
+    })
+    return runInSpan(span, signal, async () => {
+      const rewritten = await requestRephrase(providerId, model, segments, signal)
+      span.setAttribute(IOAttributes.RephraseChangedCount, rewritten.filter((text, index) => text.trim() !== segments[index]?.trim()).length)
+      return rewritten
+    })
+  }
+
+  async function requestRephrase(providerId: string, model: string, segments: readonly string[], signal: AbortSignal) {
     const provider = await providers.getChatProviderInstance(providerId)
     const conversation: Conversation = { turns: [
       { id: 'voice-rephrase-instructions', type: 'system', authority: 'system', content: [{ type: 'text', text: REPHRASE_INSTRUCTIONS }] },
