@@ -13,7 +13,7 @@ import { nanoid } from '../../utils/id'
 import { generationObservationSchema } from './generation-observation'
 import { attemptResultSchema, attemptStartSchema } from './llm-router/attempt'
 import { requestContentSchema } from './request-content'
-import { splitInputItems, splitOutputItems } from './request-items'
+import { requestItemParserVersion, splitInputItems, splitOutputItems } from './request-items'
 
 import * as schema from '../../schemas/llm-request-log'
 
@@ -46,6 +46,7 @@ export function createRequestLogService(db: Database) {
       interactionId: owner.interactionId,
       direction,
       position,
+      parserVersion: requestItemParserVersion,
       createdAt: owner.startedAt ?? owner.createdAt,
     }))
     try {

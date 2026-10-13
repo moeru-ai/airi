@@ -11,6 +11,7 @@ import { llmRequestAttempt } from '../../schemas/llm-request-attempt'
 import { llmRequestItem } from '../../schemas/llm-request-item'
 import { llmRequestLog } from '../../schemas/llm-request-log'
 import { captureRequestContent } from './request-content'
+import { requestItemParserVersion } from './request-items'
 import { createRequestLogService } from './request-log'
 
 describe('request log and billing ownership', () => {
@@ -61,11 +62,12 @@ describe('request log and billing ownership', () => {
     await logs.logRequest({ ...observation, completion })
 
     const items = await db.select().from(llmRequestItem).orderBy(llmRequestItem.direction, llmRequestItem.position)
-    expect(items.map(item => [item.direction, item.position, item.kind, item.text, item.toolName, item.toolCallId])).toEqual([
-      ['input', 0, 'user_message', 'What is the weather?', null, null],
-      ['output', 0, 'assistant_message', 'Let me check.', null, null],
-      ['output', 1, 'tool_call', '{}', 'weather', 'call-1'],
+    expect(items.map(item => [item.direction, item.position, item.role, item.partType, item.text, item.toolName, item.toolCallId, item.arguments])).toEqual([
+      ['input', 0, 'user', 'text', 'What is the weather?', null, null, null],
+      ['output', 0, 'assistant', 'text', 'Let me check.', null, null, null],
+      ['output', 1, 'assistant', 'tool_call', null, 'weather', 'call-1', {}],
     ])
+    expect(items.every(item => item.parserVersion === requestItemParserVersion)).toBe(true)
     expect(items.every(item => item.userId === observation.userId && item.requestId === observation.requestId)).toBe(true)
     expect(items.every(item => item.sessionId === 'session-1' && item.interactionId === 'round-1')).toBe(true)
     expect(items.every(item => item.createdAt.getTime() === startedAt.getTime())).toBe(true)
@@ -91,13 +93,13 @@ describe('request log and billing ownership', () => {
     await logs.buildItems({ limit: 10 })
 
     const items = await db.select().from(llmRequestItem).orderBy(llmRequestItem.createdAt, llmRequestItem.direction)
-    expect(items.map(item => [item.requestId, item.kind, item.text])).toEqual([
-      ['old-0', 'user_message', 'First'],
-      ['old-0', 'assistant_message', 'First answer'],
-      ['old-1', 'user_message', 'Second'],
-      ['old-1', 'assistant_message', 'Second answer'],
-      ['old-2', 'user_message', 'Third'],
-      ['old-2', 'assistant_message', 'Third answer'],
+    expect(items.map(item => [item.requestId, item.role, item.text])).toEqual([
+      ['old-0', 'user', 'First'],
+      ['old-0', 'assistant', 'First answer'],
+      ['old-1', 'user', 'Second'],
+      ['old-1', 'assistant', 'Second answer'],
+      ['old-2', 'user', 'Third'],
+      ['old-2', 'assistant', 'Third answer'],
     ])
   })
 

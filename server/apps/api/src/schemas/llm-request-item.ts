@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { boolean, index, integer, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
+import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
 
@@ -12,15 +12,19 @@ export const llmRequestItem = pgTable('llm_request_item', {
   interactionId: text('interaction_id'),
   direction: text('direction', { enum: ['input', 'output'] }).notNull(),
   position: integer('position').notNull(),
-  kind: text('kind', { enum: ['user_message', 'assistant_message', 'tool_call', 'tool_result'] }).notNull(),
+  role: text('role', { enum: ['user', 'assistant', 'tool'] }).notNull(),
+  partType: text('part_type', { enum: ['text', 'refusal', 'tool_call', 'tool_call_response', 'server_tool_call'] }).notNull(),
   text: text('text'),
   toolName: text('tool_name'),
   toolCallId: text('tool_call_id'),
+  arguments: jsonb('arguments'),
+  attributes: jsonb('attributes'),
   truncated: boolean('truncated').notNull().default(false),
+  parserVersion: integer('parser_version').notNull(),
   createdAt: timestamp('created_at').notNull(),
 }, table => [
   uniqueIndex('llm_request_item_request_position_uidx').on(table.userId, table.requestId, table.direction, table.position),
   index('llm_request_item_user_created_idx').on(table.userId, table.createdAt),
   index('llm_request_item_interaction_idx').on(table.interactionId),
-  index('llm_request_item_tool_call_created_idx').on(table.createdAt).where(sql`kind = 'tool_call'`),
+  index('llm_request_item_tool_call_created_idx').on(table.createdAt).where(sql`part_type = 'tool_call'`),
 ])

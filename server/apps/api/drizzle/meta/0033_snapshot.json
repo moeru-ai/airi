@@ -1,5 +1,5 @@
 {
-  "id": "351130ab-e09e-413a-b237-818655b3f5d0",
+  "id": "3c2a2fe2-897d-4ccb-bd00-a34a97e3fd78",
   "prevId": "be9d42f8-6aea-4deb-8e0c-c4eb70b473ae",
   "version": "7",
   "dialect": "postgresql",
@@ -1716,8 +1716,14 @@
           "primaryKey": false,
           "notNull": true
         },
-        "kind": {
-          "name": "kind",
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "part_type": {
+          "name": "part_type",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -1740,12 +1746,30 @@
           "primaryKey": false,
           "notNull": false
         },
+        "arguments": {
+          "name": "arguments",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attributes": {
+          "name": "attributes",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "truncated": {
           "name": "truncated",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,
           "default": false
+        },
+        "parser_version": {
+          "name": "parser_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
         },
         "created_at": {
           "name": "created_at",
@@ -1835,7 +1859,7 @@
             }
           ],
           "isUnique": false,
-          "where": "kind = 'tool_call'",
+          "where": "part_type = 'tool_call'",
           "concurrently": false,
           "method": "btree",
           "with": {}
