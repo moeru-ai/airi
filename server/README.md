@@ -81,12 +81,14 @@ gh workflow run deploy-server-dev.yml -f branch=<branch> -f reset_database=true
 
 The workflow does these steps in order:
 
-1. It sets the Railway source branch for `ts-api` and `auth-server`.
-2. It drains active deployments and removes sleeping deployments.
-3. It resets the dev Neon branch to its parent branch, `production`.
-4. It deploys the selected commit to each Railway service.
-5. It drains any deployment that a concurrent push started.
-6. It deploys both frontend jobs from the same selected commit.
+1. It disables Railway autodeploys and saves their current settings.
+2. It sets the Railway source branch for `ts-api` and `auth-server`.
+3. It drains active deployments and removes sleeping deployments.
+4. It resets the dev Neon branch to its parent branch, `production`.
+5. It deploys the selected commit to each Railway service.
+6. It drains any deployment that started before the freeze completed.
+7. It deploys both frontend jobs from the same selected commit.
+8. It restores the saved Railway autodeploy settings.
 
 The workflow stops before the reset if a Railway deployment needs approval.
 After the reset, the API applies its migrations during startup.

@@ -53,6 +53,10 @@ jobs:
       - uses: actions/checkout@v6
       - run: npm install --global @railway/cli@5
 
+      - name: Freeze Railway autodeploys
+        id: freeze_autodeploys
+        run: bash .github/scripts/deploy-server-dev.sh freeze-autodeploys
+
       # Select the new source before the reset. Then wait for deployments that
       # the old source started outside this workflow's concurrency group.
       - name: Select the Railway source branch
@@ -86,6 +90,10 @@ jobs:
       # each run builds it from the same branch.
       - name: Deploy the frontend
         run: bash .github/scripts/deploy-server-dev.sh deploy-frontend
+
+      - name: Restore Railway autodeploys
+        if: always() && steps.freeze_autodeploys.outcome != 'skipped'
+        run: bash .github/scripts/deploy-server-dev.sh restore-autodeploys
 
       - name: Summary
         env:

@@ -28,6 +28,7 @@ function fixture(commands: Record<string, string>) {
         encoding: 'utf8',
         env: {
           ...process.env,
+          AUTODEPLOY_STATE_FILE: join(directory, 'autodeploy-state.json'),
           DEPLOY_BRANCH: 'main',
           DEPLOY_SHA: 'commit-sha',
           GH_REPOSITORY: 'moeru-ai/airi',
@@ -46,6 +47,60 @@ afterEach(() => {
 })
 
 describe('deploy-server-dev', () => {
+  it('freezes and restores the existing Railway autodeploy settings', () => {
+    const { directory, run } = fixture({
+      railway: `
+printf '%s\n' "$*" >> "$TEST_STATE_DIRECTORY/calls"
+if [[ "$1 $2" == "status --json" ]]; then
+  printf '{"id":"project-id"}\n'
+  exit 0
+fi
+if [[ "$1 $2" == "environment list" ]]; then
+  printf '{"environments":[{"id":"environment-id","isLinked":true}]}\n'
+  exit 0
+fi
+if [[ "$1 $2" == "service status" ]]; then
+  if [[ "$*" == *'ts-api'* ]]; then
+    printf '{"id":"service-ts-api"}\n'
+  else
+    printf '{"id":"service-auth-server"}\n'
+  fi
+  exit 0
+fi
+if [[ "$1" == "api" && "$*" == *'AutodeployStatus'* ]]; then
+  if [[ "$*" == *'service-ts-api'* ]]; then
+    printf '{"data":{"serviceInstanceAutoDeployStatus":{"enabled":true}}}\n'
+  else
+    printf '{"data":{"serviceInstanceAutoDeployStatus":{"enabled":false}}}\n'
+  fi
+  exit 0
+fi
+if [[ "$1" == "api" && "$*" == *'SetAutodeploy'* ]]; then
+  if [[ "$*" == *'enabled=false'* ]]; then
+    printf '{"data":{"serviceInstanceAutoDeployUpdate":{"enabled":false}}}\n'
+  else
+    printf '{"data":{"serviceInstanceAutoDeployUpdate":{"enabled":true}}}\n'
+  fi
+  exit 0
+fi
+exit 1
+`,
+    })
+
+    const freeze = run('freeze-autodeploys')
+    expect(freeze.stderr).toBe('')
+    expect(freeze.status).toBe(0)
+    const freezeCalls = readFileSync(join(directory, 'calls'), 'utf8')
+    expect(freezeCalls).toContain('serviceId=service-ts-api --var enabled=false')
+    expect(freezeCalls).not.toContain('serviceId=service-auth-server --var enabled=false')
+
+    expect(run('restore-autodeploys').status).toBe(0)
+
+    const calls = readFileSync(join(directory, 'calls'), 'utf8')
+    expect(calls).toContain('serviceId=service-ts-api --var enabled=true')
+    expect(calls).toContain('serviceId=service-auth-server --var enabled=false')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2918#discussion_r4245224726
   // ROOT CAUSE:
   //

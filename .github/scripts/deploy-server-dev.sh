@@ -4,12 +4,113 @@ set -euo pipefail
 
 readonly -a SERVICES=(ts-api auth-server)
 readonly POLL_INTERVAL_SECONDS="${POLL_INTERVAL_SECONDS:-15}"
+readonly AUTODEPLOY_STATE_FILE="${AUTODEPLOY_STATE_FILE:-${RUNNER_TEMP:-/tmp}/server-dev-autodeploy-state.json}"
 
 is_terminal_status() {
   case "$1" in
     SUCCESS | FAILED | CRASHED | REMOVED | SKIPPED) return 0 ;;
     *) return 1 ;;
   esac
+}
+
+linked_environment_id() {
+  local environments
+  if ! environments=$(railway environment list --json); then
+    echo "::error::Cannot list Railway environments." >&2
+    return 1
+  fi
+
+  jq --exit-status --raw-output '[.environments[] | select(.isLinked)] | if length == 1 then .[0].id else error("expected one linked environment") end' <<< "$environments"
+}
+
+railway_project_id() {
+  railway status --json | jq --exit-status --raw-output '.id'
+}
+
+railway_service_id() {
+  railway service status --service "$1" --json | jq --exit-status --raw-output '.id'
+}
+
+autodeploy_enabled() {
+  local project_id="$1"
+  local environment_id="$2"
+  local service_id="$3"
+  local query="query AutodeployStatus(\$projectId: String!, \$environmentId: String!, \$serviceId: String!) { serviceInstanceAutoDeployStatus(projectId: \$projectId, environmentId: \$environmentId, serviceId: \$serviceId) { enabled } }"
+  local response
+  response=$(railway api "$query" --raw-var "projectId=$project_id" --raw-var "environmentId=$environment_id" --raw-var "serviceId=$service_id" --compact)
+  jq --raw-output '.data.serviceInstanceAutoDeployStatus.enabled | if type == "boolean" then . else error("invalid autodeploy status") end' <<< "$response"
+}
+
+set_autodeploy() {
+  local project_id="$1"
+  local environment_id="$2"
+  local service_id="$3"
+  local enabled="$4"
+  local mutation="mutation SetAutodeploy(\$projectId: String!, \$environmentId: String!, \$serviceId: String!, \$enabled: Boolean!) { serviceInstanceAutoDeployUpdate(input: { projectId: \$projectId, environmentId: \$environmentId, serviceId: \$serviceId, enabled: \$enabled }) { enabled } }"
+  local response
+  response=$(railway api "$mutation" --raw-var "projectId=$project_id" --raw-var "environmentId=$environment_id" --raw-var "serviceId=$service_id" --var "enabled=$enabled" --compact)
+
+  local actual
+  actual=$(jq --raw-output '.data.serviceInstanceAutoDeployUpdate.enabled | if type == "boolean" then . else error("invalid autodeploy result") end' <<< "$response")
+  [[ "$actual" == "$enabled" ]]
+}
+
+restore_autodeploys() {
+  if [[ ! -s "$AUTODEPLOY_STATE_FILE" ]]; then
+    return 0
+  fi
+
+  local project_id
+  local environment_id
+  project_id=$(jq --exit-status --raw-output '.projectId' "$AUTODEPLOY_STATE_FILE")
+  environment_id=$(jq --exit-status --raw-output '.environmentId' "$AUTODEPLOY_STATE_FILE")
+
+  local restore_failed=0
+  while IFS=$'\t' read -r service_id enabled; do
+    if ! set_autodeploy "$project_id" "$environment_id" "$service_id" "$enabled"; then
+      echo "::error::Cannot restore autodeploy for Railway service $service_id." >&2
+      restore_failed=1
+    fi
+  done < <(jq --raw-output '.services[] | [.id, .enabled] | @tsv' "$AUTODEPLOY_STATE_FILE")
+
+  if ((restore_failed != 0)); then
+    return 1
+  fi
+
+  mv "$AUTODEPLOY_STATE_FILE" "$AUTODEPLOY_STATE_FILE.restored"
+}
+
+freeze_autodeploys() {
+  local project_id
+  local environment_id
+  if ! project_id=$(railway_project_id) || ! environment_id=$(linked_environment_id); then
+    echo "::error::Cannot identify the linked Railway project and environment." >&2
+    return 1
+  fi
+
+  local state
+  state=$(jq --null-input --arg project_id "$project_id" --arg environment_id "$environment_id" '{ projectId: $project_id, environmentId: $environment_id, services: [] }')
+
+  for service in "${SERVICES[@]}"; do
+    local service_id
+    local enabled
+    if ! service_id=$(railway_service_id "$service") \
+      || ! enabled=$(autodeploy_enabled "$project_id" "$environment_id" "$service_id"); then
+      echo "::error::Cannot read autodeploy for $service." >&2
+      return 1
+    fi
+    state=$(jq --arg id "$service_id" --arg name "$service" --argjson enabled "$enabled" '.services += [{ id: $id, name: $name, enabled: $enabled }]' <<< "$state")
+  done
+
+  printf '%s\n' "$state" > "$AUTODEPLOY_STATE_FILE"
+
+  while IFS=$'\t' read -r service_id enabled; do
+    if [[ "$enabled" == "true" ]] && ! set_autodeploy "$project_id" "$environment_id" "$service_id" false; then
+      echo "::error::Cannot disable autodeploy for Railway service $service_id." >&2
+      restore_autodeploys
+      return 1
+    fi
+  done < <(jq --raw-output '.services[] | [.id, .enabled] | @tsv' "$AUTODEPLOY_STATE_FILE")
 }
 
 wait_for_idle_deployments() {
@@ -124,27 +225,15 @@ select_branch() {
 }
 
 deploy_services() {
-  local environments
-  if ! environments=$(railway environment list --json); then
-    echo "::error::Cannot list Railway environments." >&2
-    return 1
-  fi
-
   local environment_id
-  if ! environment_id=$(jq --exit-status --raw-output '[.environments[] | select(.isLinked)] | if length == 1 then .[0].id else error("expected one linked environment") end' <<< "$environments"); then
+  if ! environment_id=$(linked_environment_id); then
     echo "::error::Cannot identify the linked Railway environment." >&2
     return 1
   fi
 
   for service in "${SERVICES[@]}"; do
-    local service_status
-    if ! service_status=$(railway service status --service "$service" --json); then
-      echo "::error::Cannot read the $service status." >&2
-      return 1
-    fi
-
     local service_id
-    if ! service_id=$(jq --exit-status --raw-output '.id' <<< "$service_status"); then
+    if ! service_id=$(railway_service_id "$service"); then
       echo "::error::Cannot identify the $service service ID." >&2
       return 1
     fi
@@ -215,11 +304,13 @@ deploy_frontend() {
 }
 
 case "${1:-}" in
+  freeze-autodeploys) freeze_autodeploys ;;
+  restore-autodeploys) restore_autodeploys ;;
   select-branch) select_branch ;;
   deploy-services) deploy_services ;;
   deploy-frontend) deploy_frontend ;;
   *)
-    echo "Usage: $0 {select-branch|deploy-services|deploy-frontend}" >&2
+    echo "Usage: $0 {freeze-autodeploys|restore-autodeploys|select-branch|deploy-services|deploy-frontend}" >&2
     exit 2
     ;;
 esac
