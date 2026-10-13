@@ -187,6 +187,11 @@ wait_for_deployment() {
       return 0
     fi
 
+    if [[ "$status" == "WAITING" ]]; then
+      echo "::error::The $service deployment $deployment_id is waiting for approval." >&2
+      return 1
+    fi
+
     if is_terminal_status "$status"; then
       echo "::error::The $service deployment $deployment_id ended with status $status." >&2
       return 1
@@ -200,6 +205,7 @@ cancel_railway_deployment() {
   local service="$1"
   local deployment_id="$2"
   local mutation="mutation CancelDeployment(\$id: String!) { deploymentCancel(id: \$id) }"
+  local remove_mutation="mutation RemoveDeployment(\$id: String!) { deploymentRemove(id: \$id) }"
 
   while true; do
     local deployments
@@ -217,9 +223,14 @@ cancel_railway_deployment() {
 
     if [[ "$status" == "SUCCESS" || "$status" == "SLEEPING" ]]; then
       echo "Removing Railway deployment $deployment_id for $service." >&2
-      if ! railway down --service "$service" --yes; then
+      if ! railway api "$remove_mutation" --raw-var "id=$deployment_id" --compact; then
         echo "::warning::Cannot remove Railway deployment $deployment_id. Retrying." >&2
       fi
+      poll_delay
+      continue
+    fi
+
+    if [[ "$status" == "REMOVING" ]]; then
       poll_delay
       continue
     fi
@@ -256,22 +267,9 @@ stop_service_deployments() {
       return 0
     fi
 
-    local removed_running=false
     while IFS=$'\t' read -r deployment_id status; do
-      if [[ "$status" == "SUCCESS" || "$status" == "SLEEPING" ]]; then
-        echo "Removing the running $service deployment during cleanup." >&2
-        if ! railway down --service "$service" --yes; then
-          echo "::warning::Cannot remove the running $service deployment. Retrying." >&2
-        fi
-        removed_running=true
-        break
-      fi
       cancel_railway_deployment "$service" "$deployment_id"
     done <<< "$active_deployments"
-
-    if [[ "$removed_running" == "true" ]]; then
-      poll_delay
-    fi
   done
 }
 
@@ -294,14 +292,6 @@ keep_only_deployment() {
 
     if [[ -n "$unwanted_deployments" ]]; then
       while IFS=$'\t' read -r unwanted_id status; do
-        if [[ "$status" == "SUCCESS" || "$status" == "SLEEPING" ]]; then
-          echo "Removing an untracked running $service deployment." >&2
-          if ! railway down --service "$service" --yes; then
-            echo "::error::Cannot remove the untracked running $service deployment." >&2
-            return 1
-          fi
-          break
-        fi
         cancel_railway_deployment "$service" "$unwanted_id"
       done <<< "$unwanted_deployments"
       poll_delay

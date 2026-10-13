@@ -126,6 +126,49 @@ exit 1
     expect(result.stderr).toContain('ended with status REMOVED')
   })
 
+  it('fails and cancels when the tracked Railway deployment waits for approval', () => {
+    const { directory, run } = fixture({
+      railway: `
+printf '%s\n' "$*" >> "$TEST_STATE_DIRECTORY/calls"
+if [[ "$1 $2" == "service status" ]]; then
+  printf '{"id":"service-ts-api"}\n'
+  exit 0
+fi
+if [[ "$1 $2" == "environment list" ]]; then
+  printf '{"environments":[{"id":"environment-id","isLinked":true}]}\n'
+  exit 0
+fi
+if [[ "$1" == "api" && "$*" == *'DeployCommit'* ]]; then
+  printf '{"data":{"serviceInstanceDeployV2":"target-ts-api"}}\n'
+  exit 0
+fi
+if [[ "$1" == "api" && "$*" == *'CancelDeployment'* ]]; then
+  touch "$TEST_STATE_DIRECTORY/cancelled"
+  printf '{"data":{"deploymentCancel":true}}\n'
+  exit 0
+fi
+if [[ "$1 $2" == "deployment list" ]]; then
+  if [[ -f "$TEST_STATE_DIRECTORY/cancelled" ]]; then
+    printf '[{"id":"target-ts-api","status":"SKIPPED"}]\n'
+  else
+    printf '[{"id":"target-ts-api","status":"WAITING"}]\n'
+  fi
+  exit 0
+fi
+exit 1
+`,
+      sleep: 'exit 0',
+    })
+
+    const result = run('deploy-services')
+    const calls = readFileSync(join(directory, 'calls'), 'utf8')
+
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('waiting for approval')
+    expect(calls).toContain('CancelDeployment')
+    expect(calls).toContain('id=target-ts-api')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2918#discussion_r4248346084
   // ROOT CAUSE:
   //
@@ -384,6 +427,11 @@ if [[ "$1" == "api" && "$*" == *'DeployCommit'* ]]; then
   printf '{"data":{"serviceInstanceDeployV2":"target-ts-api"}}\n'
   exit 0
 fi
+if [[ "$1" == "api" && "$*" == *'RemoveDeployment'* ]]; then
+  touch "$TEST_STATE_DIRECTORY/removed"
+  printf '{"data":{"deploymentRemove":true}}\n'
+  exit 0
+fi
 if [[ "$1 $2" == "deployment list" ]]; then
   count_file="$TEST_STATE_DIRECTORY/list-count"
   count=$(cat "$count_file" 2>/dev/null || printf '0')
@@ -399,10 +447,6 @@ if [[ "$1 $2" == "deployment list" ]]; then
   fi
   exit 0
 fi
-if [[ "$1" == "down" ]]; then
-  touch "$TEST_STATE_DIRECTORY/removed"
-  exit 0
-fi
 exit 1
 `,
       sleep: 'exit 0',
@@ -412,7 +456,8 @@ exit 1
     const calls = readFileSync(join(directory, 'calls'), 'utf8')
 
     expect(result.status).toBe(1)
-    expect(calls).toContain('down --service ts-api --yes')
+    expect(calls).toContain('RemoveDeployment')
+    expect(calls).toContain('id=target-ts-api')
     expect(calls).not.toContain('CancelDeployment')
   })
 
