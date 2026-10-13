@@ -10,6 +10,10 @@ const props = withDefaults(defineProps<{
   propsLoading?: boolean
 
   city?: string
+  /** Which moment or day the widget shows, for example `Now`, `Tomorrow`, or a date. */
+  label?: string
+  /** The forecast day, `YYYY-MM-DD`. The weather tool sends it with each daily entry. */
+  date?: string
   temperature?: string
   condition?: string
   icon?: string
@@ -56,6 +60,7 @@ const weatherIconMap = {
 const normalizedCondition = computed(() => (props.condition ?? '').toLowerCase().trim())
 const normalizedCode = computed(() => (props.conditionCode ?? '').toLowerCase().trim())
 const isLarge = computed(() => props.size === 'l')
+const place = computed(() => [props.city ?? 'Unknown', props.label].filter(Boolean).join(' · '))
 
 const conditionMappings: Array<{ keywords: string[], key: string }> = [
   { keywords: ['thunder', 'storm', 'lightning'], key: 'thunderstorm' },
@@ -186,7 +191,7 @@ const resolvedIconClass = computed(() => weatherIconMap[resolvedIconKey.value].i
             {{ props.condition ?? '—' }}
           </div>
           <div :class="['text-sm', 'text-white/55']">
-            {{ props.city ?? 'Unknown' }}
+            {{ place }}
           </div>
         </div>
         <div :class="['h-px', 'w-full', 'bg-white/10']" />
@@ -240,7 +245,7 @@ const resolvedIconClass = computed(() => weatherIconMap[resolvedIconKey.value].i
               {{ props.temperature ?? '--' }}
             </div>
             <div :class="['text-xs', 'text-white/60']">
-              {{ props.city ?? 'Unknown' }}
+              {{ place }}
             </div>
           </div>
         </div>
