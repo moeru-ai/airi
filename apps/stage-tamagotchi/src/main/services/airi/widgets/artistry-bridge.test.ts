@@ -10,15 +10,7 @@ import { ComfyUIProvider } from './providers/comfyui'
 describe('artistryBridge and comfyui provider', () => {
   describe('comfyui provider initialization', () => {
     it('normalizes server url by trimming whitespace and trailing slashes', async () => {
-      const fetchSpy = vi.fn()
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ prompt_id: 'p1' }),
-        })
-        .mockResolvedValue({
-          ok: true,
-          json: async () => ({}),
-        })
+      const fetchSpy = vi.fn().mockRejectedValue(new Error('connection refused'))
       vi.stubGlobal('fetch', fetchSpy)
 
       const provider = new ComfyUIProvider()
@@ -28,12 +20,11 @@ describe('artistryBridge and comfyui provider', () => {
         comfyuiActiveWorkflow: 'w1',
       })
 
-      // Trigger a generate call so the provider uses its normalized serverUrl
-      await provider.generate({ prompt: 'test', model: 'w1', extra: {} })
+      const job = await provider.generate({ prompt: 'test', model: 'w1', extra: {} })
 
-      // Wait for the async pollForResult to attempt fetch
-      await vi.waitFor(() => {
-        expect(fetchSpy).toHaveBeenCalled()
+      await vi.waitFor(async () => {
+        const status = await provider.getStatus(job.jobId)
+        expect(status.status).toBe('failed')
       })
 
       const calledUrl = fetchSpy.mock.calls[0][0] as string
