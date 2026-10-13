@@ -149,22 +149,26 @@ deploy_services() {
       return 1
     fi
 
-    local deploy_mutation="mutation DeployLatest(\$environmentId: String!, \$serviceId: String!) { serviceInstanceDeploy(environmentId: \$environmentId, serviceId: \$serviceId, latestCommit: true) }"
+    local deploy_mutation="mutation DeployCommit(\$environmentId: String!, \$serviceId: String!, \$commitSha: String!) { serviceInstanceDeployV2(environmentId: \$environmentId, serviceId: \$serviceId, commitSha: \$commitSha) }"
     local deployment
-    if ! deployment=$(railway api "$deploy_mutation" --raw-var "environmentId=$environment_id" --raw-var "serviceId=$service_id" --compact); then
+    if ! deployment=$(railway api "$deploy_mutation" --raw-var "environmentId=$environment_id" --raw-var "serviceId=$service_id" --raw-var "commitSha=$DEPLOY_SHA" --compact); then
       echo "::error::Cannot redeploy $service." >&2
       wait_for_idle_deployments "$service"
       return 1
     fi
 
     local deployment_id
-    if ! deployment_id=$(jq --exit-status --raw-output '.data.serviceInstanceDeploy | select(type == "string" and length > 0)' <<< "$deployment"); then
+    if ! deployment_id=$(jq --exit-status --raw-output '.data.serviceInstanceDeployV2 | select(type == "string" and length > 0)' <<< "$deployment"); then
       echo "::error::Railway did not return the $service deployment ID." >&2
       wait_for_idle_deployments "$service"
       return 1
     fi
 
     if ! wait_for_deployment "$service" "$deployment_id"; then
+      return 1
+    fi
+
+    if ! wait_for_idle_deployments "$service"; then
       return 1
     fi
   done
@@ -175,7 +179,7 @@ deploy_frontend() {
   local frontend_run_title="Deploy server-dev frontend ($dispatch_token)"
   local workflow_ref="${GITHUB_REF_NAME:-main}"
   local frontend_run_url
-  if ! frontend_run_url=$(gh workflow run deploy-cloudflare-workers-dev-server.yml --repo "$GH_REPOSITORY" --ref "$workflow_ref" --raw-field "branch=$DEPLOY_BRANCH" --raw-field "dispatch_token=$dispatch_token"); then
+  if ! frontend_run_url=$(gh workflow run deploy-cloudflare-workers-dev-server.yml --repo "$GH_REPOSITORY" --ref "$workflow_ref" --raw-field "branch=$DEPLOY_BRANCH" --raw-field "commit_sha=$DEPLOY_SHA" --raw-field "dispatch_token=$dispatch_token"); then
     echo "::error::Cannot start the frontend workflow." >&2
     return 1
   fi

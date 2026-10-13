@@ -29,6 +29,7 @@ function fixture(commands: Record<string, string>) {
         env: {
           ...process.env,
           DEPLOY_BRANCH: 'main',
+          DEPLOY_SHA: 'commit-sha',
           GH_REPOSITORY: 'moeru-ai/airi',
           PATH: `${binaryDirectory}:${process.env.PATH}`,
           POLL_INTERVAL_SECONDS: '0',
@@ -62,7 +63,7 @@ if [[ "$1 $2" == "environment list" ]]; then
   exit 0
 fi
 if [[ "$1" == "api" ]]; then
-  printf '{"data":{"serviceInstanceDeploy":"new"}}\n'
+  printf '{"data":{"serviceInstanceDeployV2":"new"}}\n'
   exit 0
 fi
 if [[ "$1 $2" == "deployment list" ]]; then
@@ -106,9 +107,9 @@ if [[ "$1 $2" == "environment list" ]]; then
 fi
 if [[ "$1" == "api" ]]; then
   if [[ "$*" == *'service-ts-api'* ]]; then
-    printf '{"data":{"serviceInstanceDeploy":"new-ts-api"}}\n'
+    printf '{"data":{"serviceInstanceDeployV2":"new-ts-api"}}\n'
   else
-    printf '{"data":{"serviceInstanceDeploy":"new-auth-server"}}\n'
+    printf '{"data":{"serviceInstanceDeployV2":"new-auth-server"}}\n'
   fi
   exit 0
 fi
@@ -149,9 +150,9 @@ if [[ "$1 $2" == "environment list" ]]; then
 fi
 if [[ "$1" == "api" ]]; then
   if [[ "$*" == *'service-ts-api'* ]]; then
-    printf '{"data":{"serviceInstanceDeploy":"target-ts-api"}}\n'
+    printf '{"data":{"serviceInstanceDeployV2":"target-ts-api"}}\n'
   else
-    printf '{"data":{"serviceInstanceDeploy":"target-auth-server"}}\n'
+    printf '{"data":{"serviceInstanceDeployV2":"target-auth-server"}}\n'
   fi
   exit 0
 fi
@@ -174,8 +175,8 @@ exit 1
     const result = run('deploy-services')
 
     expect(result.status).toBe(0)
-    expect(readFileSync(join(directory, 'list-ts-api'), 'utf8')).toBe('2')
-    expect(readFileSync(join(directory, 'list-auth-server'), 'utf8')).toBe('2')
+    expect(readFileSync(join(directory, 'list-ts-api'), 'utf8')).toBe('3')
+    expect(readFileSync(join(directory, 'list-auth-server'), 'utf8')).toBe('3')
   })
 
   // https://github.com/moeru-ai/airi/pull/2918#discussion_r4246985823
@@ -372,6 +373,7 @@ exit 1
       env: {
         ...process.env,
         DEPLOY_BRANCH: 'release-branch',
+        DEPLOY_SHA: 'commit-sha',
         GH_REPOSITORY: 'moeru-ai/airi',
         GITHUB_REF_NAME: 'main',
         GITHUB_RUN_ATTEMPT: '3',
@@ -384,7 +386,7 @@ exit 1
     const calls = readFileSync(join(directory, 'calls'), 'utf8')
 
     expect(result.status).toBe(0)
-    expect(calls).toContain('workflow run deploy-cloudflare-workers-dev-server.yml --repo moeru-ai/airi --ref main --raw-field branch=release-branch')
+    expect(calls).toContain('workflow run deploy-cloudflare-workers-dev-server.yml --repo moeru-ai/airi --ref main --raw-field branch=release-branch --raw-field commit_sha=commit-sha')
     expect(calls).toContain('run watch 67890 --repo moeru-ai/airi --exit-status --compact')
   })
 })

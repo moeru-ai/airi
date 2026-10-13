@@ -9,6 +9,10 @@ on:
         description: Branch of this repository to deploy
         required: true
         type: string
+      commit_sha:
+        description: Commit to deploy from the selected branch
+        required: true
+        type: string
       dispatch_token:
         description: Unique token from the parent deployment workflow
         required: false
@@ -36,13 +40,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.branch }}
+          ref: ${{ inputs.commit_sha }}
       # Turborepo
       - name: Cache turbo build setup
         uses: actions/cache@v5
         with:
           path: .turbo
-          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          key: ${{ runner.os }}-turbo-${{ inputs.commit_sha }}
           restore-keys: |
             ${{ runner.os }}-turbo-
       - uses: pnpm/setup@v2
@@ -107,13 +111,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.branch }}
+          ref: ${{ inputs.commit_sha }}
       # Turborepo
       - name: Cache turbo build setup
         uses: actions/cache@v5
         with:
           path: .turbo
-          key: ${{ runner.os }}-turbo-auth-${{ github.sha }}
+          key: ${{ runner.os }}-turbo-auth-${{ inputs.commit_sha }}
           restore-keys: |
             ${{ runner.os }}-turbo-auth-
             ${{ runner.os }}-turbo-

@@ -42,7 +42,13 @@ jobs:
     steps:
       # Stop before the database reset if no deploy can follow it.
       - name: Check the branch
-        run: gh api "repos/${GITHUB_REPOSITORY}/branches/${DEPLOY_BRANCH}" --silent
+        run: |
+          deploy_sha=$(gh api "repos/${GITHUB_REPOSITORY}/branches/${DEPLOY_BRANCH}" --jq '.commit.sha')
+          if [[ ! "$deploy_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Cannot resolve ${DEPLOY_BRANCH} to a commit." >&2
+            exit 1
+          fi
+          echo "DEPLOY_SHA=$deploy_sha" >> "$GITHUB_ENV"
 
       - uses: actions/checkout@v6
       - run: npm install --global @railway/cli@5
@@ -89,6 +95,7 @@ jobs:
             echo "| | |"
             echo "| --- | --- |"
             echo "| Branch | \`${DEPLOY_BRANCH}\` |"
+            echo "| Commit | \`${DEPLOY_SHA}\` |"
             echo "| Database reset | ${RESET_DATABASE} |"
             echo "| Actor | @${GITHUB_ACTOR} |"
           } >> "$GITHUB_STEP_SUMMARY"

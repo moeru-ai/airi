@@ -84,8 +84,9 @@ The workflow does these steps in order:
 1. It sets the Railway source branch for `ts-api` and `auth-server`.
 2. It drains active deployments and removes sleeping deployments.
 3. It resets the dev Neon branch to its parent branch, `production`.
-4. It deploys each Railway service and waits for its exact deployment ID.
-5. It starts the `Cloudflare Workers (server-dev)` workflow for the same branch.
+4. It deploys the selected commit to each Railway service.
+5. It drains any deployment that a concurrent push started.
+6. It deploys both frontend jobs from the same selected commit.
 
 The workflow stops before the reset if a Railway deployment needs approval.
 After the reset, the API applies its migrations during startup.
