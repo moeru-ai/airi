@@ -26,6 +26,10 @@ export async function setupWidgetsWindowInvokes(params: {
   i18n: I18n
   serverChannel: ServerChannel
 }) {
+  if (params.widgetWindow.isDestroyed?.()) {
+    throw new Error('Widget window was closed before setup started')
+  }
+
   // TODO: once we refactored eventa to support window-namespaced contexts,
   // we can remove the setMaxListeners call below since eventa will be able to dispatch and
   // manage events within eventa's context system.
@@ -33,13 +37,30 @@ export async function setupWidgetsWindowInvokes(params: {
 
   const { context, dispose } = createContext(ipcMain, params.widgetWindow, { onlySameWindow: true })
 
+  let onClosed: (() => void) | undefined
+  const closedPromise = new Promise<never>((_, reject) => {
+    onClosed = () => reject(new Error('Widget window was closed during setup'))
+    params.widgetWindow.once?.('closed', onClosed)
+  })
+
   try {
-    await setupBaseWindowElectronInvokes({ context, window: params.widgetWindow, i18n: params.i18n, serverChannel: params.serverChannel })
+    await Promise.race([
+      setupBaseWindowElectronInvokes({ context, window: params.widgetWindow, i18n: params.i18n, serverChannel: params.serverChannel }),
+      closedPromise,
+    ])
+    if (params.widgetWindow.isDestroyed?.()) {
+      throw new Error('Widget window was closed during setup')
+    }
     createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.widgetWindow })
     return dispose
   }
   catch (error) {
     dispose()
     throw error
+  }
+  finally {
+    if (onClosed) {
+      params.widgetWindow.removeListener?.('closed', onClosed)
+    }
   }
 }
