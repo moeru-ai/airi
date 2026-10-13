@@ -114,17 +114,17 @@ select_branch() {
     fi
   done
 
+  if ((edit_failed != 0)); then
+    return 1
+  fi
+
   # The source change blocks new deploys from the old branch. Drain every
   # deployment that started before the change before Neon resets the database.
   for service in "${SERVICES[@]}"; do
     if ! wait_for_idle_deployments "$service"; then
-      edit_failed=1
+      return 1
     fi
   done
-
-  if ((edit_failed != 0)); then
-    return 1
-  fi
 }
 
 deploy_services() {

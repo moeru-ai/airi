@@ -222,6 +222,48 @@ exit 1
     expect(result.stderr).toContain('needs approval')
   })
 
+  it('does not drain another service after one service fails to drain', () => {
+    const { directory, run } = fixture({
+      railway: `
+service=''
+for ((index = 1; index <= $#; index++)); do
+  if [[ "\${!index}" == '--service' || "\${!index}" == '--service-config' ]]; then
+    next=$((index + 1))
+    service="\${!next}"
+  fi
+done
+printf '%s %s %s\n' "$1" "\${2:-}" "$service" >> "$TEST_STATE_DIRECTORY/calls"
+if [[ "$1 $2" == "environment edit" ]]; then
+  exit 0
+fi
+if [[ "$1 $2" == "deployment list" && "$service" == "ts-api" ]]; then
+  printf '[{"status":"NEEDS_APPROVAL"}]\n'
+  exit 0
+fi
+if [[ "$1 $2" == "deployment list" && "$service" == "auth-server" ]]; then
+  if [[ -f "$TEST_STATE_DIRECTORY/auth-server-removed" ]]; then
+    printf '[{"status":"REMOVED"}]\n'
+  else
+    printf '[{"status":"SLEEPING"}]\n'
+  fi
+  exit 0
+fi
+if [[ "$1" == "down" ]]; then
+  touch "$TEST_STATE_DIRECTORY/auth-server-removed"
+  exit 0
+fi
+exit 1
+`,
+    })
+
+    const result = run('select-branch')
+    const calls = readFileSync(join(directory, 'calls'), 'utf8')
+
+    expect(result.status).toBe(1)
+    expect(calls).not.toContain('deployment list auth-server')
+    expect(calls).not.toContain('down --service auth-server')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2918#discussion_r4245224721
   // ROOT CAUSE:
   //
