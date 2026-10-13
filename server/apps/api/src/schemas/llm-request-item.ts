@@ -1,0 +1,30 @@
+import { sql } from 'drizzle-orm'
+import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
+
+import { nanoid } from '../utils/id'
+
+/** Derived from the stored request content. The request log remains the source, and these rows can be built again from it. */
+export const llmRequestItem = pgTable('llm_request_item', {
+  id: text('id').primaryKey().$defaultFn(() => nanoid()),
+  userId: text('user_id').notNull(), // NOTICE: no foreign key, for the same reason as llm_request_log
+  requestId: text('request_id').notNull(),
+  sessionId: text('session_id'),
+  interactionId: text('interaction_id'),
+  direction: text('direction', { enum: ['input', 'output'] }).notNull(),
+  position: integer('position').notNull(),
+  role: text('role', { enum: ['user', 'assistant', 'tool'] }).notNull(),
+  partType: text('part_type', { enum: ['text', 'refusal', 'tool_call', 'tool_call_response', 'server_tool_call'] }).notNull(),
+  text: text('text'),
+  toolName: text('tool_name'),
+  toolCallId: text('tool_call_id'),
+  arguments: jsonb('arguments'),
+  attributes: jsonb('attributes'),
+  truncated: boolean('truncated').notNull().default(false),
+  parserVersion: integer('parser_version').notNull(),
+  createdAt: timestamp('created_at').notNull(),
+}, table => [
+  uniqueIndex('llm_request_item_request_position_uidx').on(table.userId, table.requestId, table.direction, table.position),
+  index('llm_request_item_user_created_idx').on(table.userId, table.createdAt),
+  index('llm_request_item_interaction_idx').on(table.interactionId),
+  index('llm_request_item_tool_call_created_idx').on(table.createdAt).where(sql`part_type = 'tool_call'`),
+])

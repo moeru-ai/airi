@@ -232,6 +232,13 @@
       "when": 1791636328908,
       "tag": "0032_capacitor",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1791907689920,
+      "tag": "0033_llm_request_item",
+      "breakpoints": true
     }
   ]
 }
