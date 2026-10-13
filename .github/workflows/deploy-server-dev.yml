@@ -50,6 +50,21 @@ jobs:
           fi
           echo "DEPLOY_SHA=$deploy_sha" >> "$GITHUB_ENV"
 
+      - name: Record the selected source
+        run: |
+          jq --null-input \
+            --arg branch "$DEPLOY_BRANCH" \
+            --arg commit_sha "$DEPLOY_SHA" \
+            '{ branch: $branch, commitSha: $commit_sha }' \
+            > "$RUNNER_TEMP/server-dev-source.json"
+
+      - name: Upload the selected source
+        uses: actions/upload-artifact@v7
+        with:
+          name: server-dev-source-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/server-dev-source.json
+          retention-days: 1
+
       - uses: actions/checkout@v6
       - run: npm install --global @railway/cli@5
 

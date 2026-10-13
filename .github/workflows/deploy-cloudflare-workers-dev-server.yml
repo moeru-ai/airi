@@ -13,6 +13,10 @@ on:
         description: Commit to deploy from the selected branch
         required: true
         type: string
+      parent_run_id:
+        description: Parent deployment workflow run that selected the source
+        required: true
+        type: string
       dispatch_token:
         description: Unique token from the parent deployment workflow
         required: false
@@ -30,26 +34,49 @@ jobs:
     name: Validate selected source
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: read
     outputs:
       commit_sha: ${{ steps.source.outputs.commit_sha }}
     steps:
-      - uses: actions/checkout@v6
+      - name: Validate the parent workflow run
+        id: parent
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PARENT_RUN_ID: ${{ inputs.parent_run_id }}
+        run: |
+          parent_run=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${PARENT_RUN_ID}")
+          if ! jq --exit-status '
+            .event == "workflow_dispatch"
+            and .status == "in_progress"
+            and .path == ".github/workflows/deploy-server-dev.yml"
+          ' <<< "$parent_run" > /dev/null; then
+            echo "Run ${PARENT_RUN_ID} is not an active server-dev deployment." >&2
+            exit 1
+          fi
+          run_attempt=$(jq --exit-status --raw-output '.run_attempt' <<< "$parent_run")
+          echo "artifact_name=server-dev-source-${PARENT_RUN_ID}-${run_attempt}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@v5
         with:
-          ref: ${{ inputs.branch }}
-          fetch-depth: 0
+          name: ${{ steps.parent.outputs.artifact_name }}
+          path: ${{ runner.temp }}/server-dev-source
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.parent_run_id }}
+          github-token: ${{ github.token }}
+
       - name: Bind the commit to the selected branch
         id: source
         env:
           SOURCE_BRANCH: ${{ inputs.branch }}
           SOURCE_SHA: ${{ inputs.commit_sha }}
         run: |
-          if [[ ! "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "Commit ${SOURCE_SHA} is not a full commit SHA." >&2
-            exit 1
-          fi
-          if ! git merge-base --is-ancestor "$SOURCE_SHA" HEAD; then
-            echo "Commit ${SOURCE_SHA} does not belong to ${SOURCE_BRANCH}." >&2
+          if ! jq --exit-status \
+            --arg branch "$SOURCE_BRANCH" \
+            --arg commit_sha "$SOURCE_SHA" \
+            '.branch == $branch and .commitSha == $commit_sha' \
+            "$RUNNER_TEMP/server-dev-source/server-dev-source.json" > /dev/null; then
+            echo "Commit ${SOURCE_SHA} was not selected for ${SOURCE_BRANCH} by the parent run." >&2
             exit 1
           fi
           echo "commit_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"

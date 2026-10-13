@@ -474,6 +474,7 @@ exit 1
 
     expect(result.status).toBe(0)
     expect(calls).toContain('workflow run deploy-cloudflare-workers-dev-server.yml --repo moeru-ai/airi --ref main --raw-field branch=release-branch --raw-field commit_sha=commit-sha')
+    expect(calls).toContain('--raw-field parent_run_id=42')
     expect(calls).toContain('run watch 67890 --repo moeru-ai/airi --exit-status --compact')
   })
 

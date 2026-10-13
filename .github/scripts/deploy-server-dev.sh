@@ -5,6 +5,11 @@ set -euo pipefail
 readonly -a SERVICES=(ts-api auth-server)
 readonly POLL_INTERVAL_SECONDS="${POLL_INTERVAL_SECONDS:-15}"
 
+poll_delay() {
+  sleep "$POLL_INTERVAL_SECONDS" &
+  wait "$!"
+}
+
 is_terminal_status() {
   case "$1" in
     SUCCESS | FAILED | CRASHED | REMOVED | SKIPPED) return 0 ;;
@@ -110,7 +115,7 @@ wait_for_idle_deployments() {
         echo "::error::Cannot remove the sleeping $service deployment." >&2
         return 1
       fi
-      sleep "$POLL_INTERVAL_SECONDS"
+      poll_delay
       continue
     fi
 
@@ -125,7 +130,7 @@ wait_for_idle_deployments() {
     fi
 
     echo "Waiting for $service deployments with status: $active_statuses"
-    sleep "$POLL_INTERVAL_SECONDS"
+    poll_delay
   done
 }
 
@@ -142,7 +147,7 @@ wait_for_deployment() {
 
     local status
     if ! status=$(jq --arg id "$deployment_id" --exit-status --raw-output '[.[] | select(.id == $id)][0].status' <<< "$deployments"); then
-      sleep "$POLL_INTERVAL_SECONDS"
+      poll_delay
       continue
     fi
 
@@ -155,7 +160,7 @@ wait_for_deployment() {
       return 1
     fi
 
-    sleep "$POLL_INTERVAL_SECONDS"
+    poll_delay
   done
 }
 
@@ -172,7 +177,7 @@ wait_for_terminal_deployment() {
 
     local status
     if ! status=$(jq --arg id "$deployment_id" --exit-status --raw-output '[.[] | select(.id == $id)][0].status' <<< "$deployments"); then
-      sleep "$POLL_INTERVAL_SECONDS"
+      poll_delay
       continue
     fi
 
@@ -180,7 +185,7 @@ wait_for_terminal_deployment() {
       return 0
     fi
 
-    sleep "$POLL_INTERVAL_SECONDS"
+    poll_delay
   done
 }
 
@@ -272,11 +277,12 @@ deploy_services() {
 }
 
 deploy_frontend() {
-  local dispatch_token="server-dev-${GITHUB_RUN_ID:-manual}-${GITHUB_RUN_ATTEMPT:-1}"
+  local parent_run_id="${GITHUB_RUN_ID:-manual}"
+  local dispatch_token="server-dev-${parent_run_id}-${GITHUB_RUN_ATTEMPT:-1}"
   local frontend_run_title="Deploy server-dev frontend ($dispatch_token)"
   local workflow_ref="${GITHUB_REF_NAME:-main}"
   local frontend_run_url
-  if ! frontend_run_url=$(gh workflow run deploy-cloudflare-workers-dev-server.yml --repo "$GH_REPOSITORY" --ref "$workflow_ref" --raw-field "branch=$DEPLOY_BRANCH" --raw-field "commit_sha=$DEPLOY_SHA" --raw-field "dispatch_token=$dispatch_token"); then
+  if ! frontend_run_url=$(gh workflow run deploy-cloudflare-workers-dev-server.yml --repo "$GH_REPOSITORY" --ref "$workflow_ref" --raw-field "branch=$DEPLOY_BRANCH" --raw-field "commit_sha=$DEPLOY_SHA" --raw-field "parent_run_id=$parent_run_id" --raw-field "dispatch_token=$dispatch_token"); then
     echo "::error::Cannot start the frontend workflow." >&2
     return 1
   fi
@@ -299,7 +305,7 @@ deploy_frontend() {
         break
       fi
 
-      sleep "$POLL_INTERVAL_SECONDS"
+      poll_delay
     done
   fi
 
@@ -308,8 +314,14 @@ deploy_frontend() {
     return 1
   fi
 
+  local watcher_pid=""
+
   cancel_frontend_run() {
     trap - EXIT INT TERM
+    if [[ -n "$watcher_pid" ]] && kill -0 "$watcher_pid" 2>/dev/null; then
+      kill "$watcher_pid" 2>/dev/null || true
+      wait "$watcher_pid" 2>/dev/null || true
+    fi
     echo "Cancelling frontend workflow run $frontend_run_id." >&2
     gh run cancel "$frontend_run_id" --repo "$GH_REPOSITORY" || true
     gh run watch "$frontend_run_id" --repo "$GH_REPOSITORY" --exit-status --compact || true
@@ -328,7 +340,9 @@ deploy_frontend() {
   trap 'abort_frontend_run 143' TERM
 
   local watch_status=0
-  gh run watch "$frontend_run_id" --repo "$GH_REPOSITORY" --exit-status --compact || watch_status=$?
+  gh run watch "$frontend_run_id" --repo "$GH_REPOSITORY" --exit-status --compact &
+  watcher_pid=$!
+  wait "$watcher_pid" || watch_status=$?
   if ((watch_status != 0)); then
     cancel_frontend_run
     trap - EXIT INT TERM
