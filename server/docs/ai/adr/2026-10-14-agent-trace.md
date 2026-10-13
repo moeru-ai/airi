@@ -286,7 +286,7 @@ sequenceDiagram
 3. Client, in three PRs:
    1. Each span takes its own turn as its parent. The turn span carries its IDs and status. The session ID fix.
    2. One `LLM request` span for each request, and `Tool execution` spans.
-   3. The exporter. Only this part sends data off the device, and it needs step 2 of this list to be deployed.
+   3. The exporter. Only this part sends data off the device. It ships after the API of step 2 is deployed.
 4. Admin API (`proj-airi/backend`): read runs, spans, and items for one turn, and sort runs across users.
 5. Admin dashboard: one timeline for each turn.
 
