@@ -63,6 +63,32 @@ A group does not mix clips or schedule lanes against each other.
 Playback knows no chat session, turn, or agent notification contract.
 `Response` in core-agent supplies those conversation boundaries and producer ordering.
 
+## Speech text
+
+`chunkTtsInput` preserves Unicode grapheme clusters, including emoji, in its raw output.
+`chunkEmitter` and `createTtsSegmentStream` accept `stripEmoji: true` to remove emoji presentation from speech segments.
+The option defaults to `false`, so existing callers keep their current behavior.
+It does not change the original chat text or a custom speech segmenter.
+Playback captions that use speech segment text also receive the filtered text.
+
+```ts
+const pipeline = createSpeechPipeline({
+  tts,
+  playback,
+  segmenter: (tokens, meta) => createTtsSegmentStream(tokens, meta, { stripEmoji: true }),
+})
+```
+
+The speech path removes whole emoji clusters, including skin tones, ZWJ sequences, flags, and tag sequences.
+Keycaps keep their base number or symbol: `1️⃣` becomes `1`.
+Plain symbols such as `©`, `♥`, and `☀` remain unless they have an explicit emoji selector.
+An explicit text selector preserves a symbol. Non-emoji combining marks, joiners, and internal spaces remain.
+
+With filtering enabled, emoji-only text produces no speech request.
+Special control tokens still reach their handler in order.
+
+This policy does not translate emoji names, strip Markdown, or rewrite times for a specific language.
+
 ## Checks
 
 Run `pnpm -F @proj-airi/pipelines-audio typecheck` and `pnpm -F @proj-airi/pipelines-audio test:run`.
