@@ -428,7 +428,7 @@ app.whenReady().then(async () => {
     build: ({ dependsOn }) => setupAboutWindowReusable(dependsOn),
   })
   const inlayWindow = injeca.provide('windows:inlay', {
-    dependsOn: { i18n, serverChannel, globalShortcut },
+    dependsOn: { i18n, serverChannel, globalShortcut, appConfig },
     build: ({ dependsOn }) => setupInlayWindowReusable(dependsOn),
   })
 

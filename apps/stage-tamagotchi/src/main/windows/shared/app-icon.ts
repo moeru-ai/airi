@@ -15,18 +15,18 @@ export function excludeWindowFromTaskbar(window: Pick<ElectronBrowserWindow, 'se
   taskbarExcludedWindows.add(window)
 }
 
-/**
- * Shows a window on all workspaces. A hidden macOS Dock icon stays hidden.
- *
- * Use this function for each window that can open after the tray exists.
- * The Electron default changes the macOS process type, and that change shows the Dock icon again.
- */
+// NOTICE:
+// macOS setVisibleOnAllWorkspaces changes process type and unhides Dock.
+// skipTransformProcessType prevents Electron from transforming process type.
+// Source: Electron issue #10078 (https://github.com/electron/electron/issues/10078).
+// Removal condition: When Electron preserves macOS dock visibility across workspace changes, remove this workaround.
 export function showWindowOnAllWorkspaces(
   window: Pick<ElectronBrowserWindow, 'setVisibleOnAllWorkspaces'>,
-  options?: { hideAppIcon?: boolean, skipTransformProcessType?: boolean },
+  options?: { hideAppIcon?: boolean, skipTransformProcessType?: boolean, visibleOnFullScreen?: boolean },
 ): void {
   // `app.dock` exists only on macOS.
   window.setVisibleOnAllWorkspaces(true, {
+    ...(options?.visibleOnFullScreen !== undefined ? { visibleOnFullScreen: options.visibleOnFullScreen } : {}),
     skipTransformProcessType: options?.skipTransformProcessType
       ?? (options?.hideAppIcon ? true : app.dock?.isVisible() === false),
   })

@@ -107,4 +107,16 @@ describe('app icon visibility', () => {
 
     expect(window.setVisibleOnAllWorkspaces).toHaveBeenCalledWith(true, { skipTransformProcessType: true })
   })
+
+  it('passes visibleOnFullScreen option when specified', () => {
+    electron.dock.isVisible.mockReturnValue(true)
+    const window = { setVisibleOnAllWorkspaces: vi.fn() }
+
+    showWindowOnAllWorkspaces(window, { visibleOnFullScreen: true, hideAppIcon: true })
+
+    expect(window.setVisibleOnAllWorkspaces).toHaveBeenCalledWith(true, {
+      visibleOnFullScreen: true,
+      skipTransformProcessType: true,
+    })
+  })
 })
