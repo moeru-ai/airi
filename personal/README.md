@@ -6,14 +6,17 @@ Upstream AIRI does not have these changes.
 The fork adds these features to the desktop app (stage-tamagotchi):
 
 - **Your character.** The app ships with your character. It selects that character on the first start. You do not import anything.
+- **Local mode.** The app uses Ollama for chat, Kokoro for the voice, and Sherpaw for speech recognition. All three run on your computer.
 
 ## Where the files are
 
 | File | What it does | Do you edit it? |
 | --- | --- | --- |
 | `apps/stage-tamagotchi/src/renderer/personal/character.ts` | Your character: name, personality, speaking style, and greeting. | **Yes** |
+| `apps/stage-tamagotchi/src/renderer/personal/local-mode.json` | Local mode settings: the Ollama model and the voice. | **Yes** |
+| `personal/setup-local.cmd` and `personal/setup-local.ps1` | Installs Ollama and downloads the chat model. | No |
 | `.github/workflows/personal-build-windows.yml` | Builds the Windows installer on GitHub. | No |
-| `apps/stage-tamagotchi/src/renderer/personal/*.ts` (other files) | The code that installs the character. | Only if you want to change the behavior |
+| `apps/stage-tamagotchi/src/renderer/personal/*.ts` (other files) | The code that installs the character and applies local mode. | Only if you want to change the behavior |
 | `apps/stage-tamagotchi/src/renderer/App.vue` | Upstream file. A few lines start and stop the personal code. Search for `PERSONAL:` and `stopPersonalCompanion`. | No |
 
 ## Get the app
@@ -32,8 +35,37 @@ You do not need to install development tools for this. GitHub builds the install
 The installer has no code signature. Windows SmartScreen can show "Windows protected your PC". Click **More info**, then **Run anyway**.
 
 Do not use the update button inside the app.
-The updater downloads the upstream AIRI release, and that release does not have your character.
+The updater downloads the upstream AIRI release, and that release does not have your character or your settings.
 To update, run the workflow again and install the new installer.
+
+## Set up local mode
+
+Do these steps one time on each computer.
+
+1. Get the repository on your computer. See [Edit the character](#edit-the-character), steps 1 to 3.
+2. In File Explorer, open the `personal` folder and double-click `setup-local.cmd`.
+3. The script installs Ollama with `winget` if Ollama is not installed. Then it downloads the chat model.
+4. When the script shows "Done", start AIRI.
+
+Ollama must run when you use AIRI. The Ollama installer adds it to the Windows startup apps, so usually it is already running.
+
+The installer includes the speech recognition model. The app downloads the voice model (approximately 100 to 300 MB) the first time that the companion speaks. After that, chat, voice, and hearing work without the internet.
+
+To use cloud providers again, set `"enabled": false` in `local-mode.json` and build again. You can also select other providers in **Settings**.
+
+### Local mode settings
+
+`local-mode.json` has these fields:
+
+| Field | Meaning |
+| --- | --- |
+| `enabled` | `true` selects the local providers for your character. `false` keeps the providers that you select in Settings. |
+| `ollama.baseUrl` | The address of the Ollama server. Keep `http://localhost:11434/v1/` unless Ollama runs on another computer. |
+| `ollama.model` | The Ollama model name, for example `gemma3:4b`. Find names at <https://ollama.com/library>. A larger model gives better replies, but it needs more memory. |
+| `speech.voice` | The Kokoro voice, for example `af_heart`. **Settings > Providers > Kokoro TTS** shows the list of voices. |
+| `hearing.enabled` | `true` selects Sherpaw speech recognition if no recognition provider is selected. |
+
+If you change `ollama.model`, run `setup-local.cmd` again to download the new model.
 
 ## Edit the character
 

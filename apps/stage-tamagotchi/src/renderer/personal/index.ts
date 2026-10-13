@@ -3,14 +3,15 @@ import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useLocalStorage } from '@vueuse/core'
 
 import { personalCharacter } from './character'
+import { applyLocalMode, localModeConfig } from './local-mode'
 
 /**
  * Persisted install state of the personal character, shared by all windows
  * through local storage.
  *
  * - `cardId`: the id that the card store gave the personal card.
- * - `fingerprint`: the bundled character that was last applied. A new build
- *   with another character has another fingerprint.
+ * - `fingerprint`: the bundled character and local mode settings that were
+ *   last applied. A new build with other settings has another fingerprint.
  */
 function usePersonalInstallState() {
   return {
@@ -20,7 +21,8 @@ function usePersonalInstallState() {
 }
 
 /**
- * Applies the bundled character when it differs from the last applied build.
+ * Applies the bundled character and local mode settings when they differ from
+ * the last applied build.
  *
  * - First start: adds the card and selects it.
  * - Changed files: replaces the stored card. This removes edits made to that
@@ -30,14 +32,15 @@ function usePersonalInstallState() {
  */
 async function installCharacter() {
   const state = usePersonalInstallState()
-  const fingerprint = JSON.stringify({ character: personalCharacter })
+  const fingerprint = JSON.stringify({ character: personalCharacter, localMode: localModeConfig })
   if (state.fingerprint.value === fingerprint)
     return
 
   const cardStore = useAiriCardStore()
+  const modules = await applyLocalMode(localModeConfig)
   const card = {
     ...personalCharacter,
-    extensions: { airi: { modules: {}, agents: {} } },
+    extensions: { airi: { modules: modules ?? {}, agents: {} } },
   }
 
   const existingCardId = state.cardId.value
@@ -56,8 +59,8 @@ async function installCharacter() {
 /**
  * Starts the personal companion features in a full stage window.
  *
- * Only the synchronization leader installs the character, because card
- * changes must come from one window.
+ * Only the synchronization leader installs the character, because card and
+ * provider changes must come from one window.
  *
  * @returns A function that stops the features. Call it when the window runtime is disposed.
  */
