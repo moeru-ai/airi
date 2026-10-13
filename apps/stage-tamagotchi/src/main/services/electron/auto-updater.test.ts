@@ -287,7 +287,18 @@ describe('setupAutoUpdater', () => {
     expect(service.state.diagnostics).not.toHaveProperty('uninstallExists')
   })
 
-  it('resolves updater log path after userData path is configured', async () => {
+  // Issue #2937: https://github.com/moeru-ai/airi/pull/2937
+  //
+  // ROOT CAUSE:
+  //
+  // Electron throws an error when calling app.getPath('cache') because 'cache' is unsupported.
+  // This happens when resolving cache roots during auto-updater initialization.
+  //
+  // app.getPath('cache')
+  //
+  // We fixed this by deriving the cache directory from app.getPath('userData').
+  // join(app.getPath('userData'), 'cache')
+  it('issue #2937: resolves updater log path after userData path is configured', async () => {
     const { setupAutoUpdater } = await import('./auto-updater')
     appMock.getPath.mockImplementation((name: string) => name === 'userData' ? '/custom/user-data-dir' : `/tmp/${name}`)
 

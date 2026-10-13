@@ -46,17 +46,16 @@ function getCacheRoot() {
   // Electron app.getPath does not support a 'cache' name, throwing an error if requested.
   // Synthesize a cache directory under userData instead.
   // Source: Electron app.getPath documentation (https://www.electronjs.org/docs/latest/api/app#appgetpathname).
-  // Removal condition: Remove when Electron adds native cache directory support to app.getPath.
+  // Removal condition: When Electron adds native cache directory support to app.getPath, remove this workaround.
   return join(app.getPath('userData'), 'cache')
 }
 
 // NOTICE:
-// Returns the platform's standard cache root used before the getCacheRoot fix.
-// Older installations wrote updater files to this path. The cleanup in
+// Returns the platform standard cache root used before the getCacheRoot fix.
+// Older installations wrote updater files here. The cleanup in
 // getOfficialUpdaterCacheDirs includes it so stale installers do not linger.
 // Source: PR #2937 — bitxwolf/fix/electron-get-path-cache-crash.
-// Removal condition: Remove after two stable release cycles once all users
-// have run the cleanup at least once (estimated safe to drop in v2.x).
+// Removal condition: After two stable release cycles once users run cleanup, remove this fallback.
 function getLegacyCacheRoot() {
   switch (process.platform) {
     case 'win32':
