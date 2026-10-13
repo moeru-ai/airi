@@ -44,6 +44,8 @@ dialogs:
     loginPrompt: Войдите, чтобы использовать официального провайдера AIRI для наилучшего опыта.
     loginAction: Войти
     setupWithoutSigningIn: Настройка с вашим провайдером
+    pricingLink: Цены
+    termsLink: Условия использования
     buyFlux: Пополнить Flux
     select-model: Выберите модель
     no-models: Нет доступных моделей
@@ -128,9 +130,12 @@ model-select:
         unknown: Неизвестно
     resources:
       title: Ресурсы
+      motions: Движения
       expressions: Выражения
       parameters: Параметры
       textures: Текстуры
+      referenced-and-found: 'Ссылок: {referenced} · Найдено: {found}'
+      referenced: 'Ссылок: {count}'
       found: '{count} найдено'
     issues:
       title: Проблемы
@@ -173,9 +178,30 @@ live2d:
     title: Анимация
     motion-driver:
       title: Драйвер движения
+      description: Выберите способ создания движений тела и глаз AIRI в состоянии покоя.
       options:
         universal:
           title: Универсальный
+          description: Использует движения модели, движения глаз в покое и отслеживание мыши.
+        magic:
+          description: Создаёт движения из встроенного набора данных MAGIC.
+      magic:
+        profile:
+          title: Профиль MAGIC
+          description: Выберите встроенный набор движений для драйвера MAGIC.
+          options:
+            idle-calm:
+              title: Покой / спокойствие
+              description: Использует встроенную запись движений в покое и спокойном состоянии.
+            speaking-excited:
+              title: Речь / оживление
+              description: Использует встроенную запись движений при речи и оживлении.
+        skip-mouth-open:
+          title: Пропускать сгенерированное открытие рта
+          description: Сохраняет управление губами по речи. Отключите параметр, чтобы использовать открытие рта из профиля.
+        force-view-target:
+          title: Фиксировать взгляд вперёд
+          description: Глаза смотрят вперёд, пока MAGIC двигает голову.
     focus:
       title: Включить отслеживание мыши
       description: Посмотрите на курсор во время движения. Изысканное движение глаз возобновляется после остановки курсора.
@@ -235,6 +261,7 @@ pages:
     logout: Выйти
     fluxBalance: Баланс Flux
     viewFluxDetails: Подробнее
+    viewCapacitor: Посмотреть
     signedInAs: Вы вошли как
     profile:
       tab: Профиль
@@ -320,7 +347,74 @@ pages:
           emailSent: Проверьте {email} на наличие ссылки на удаление.
         error:
           fallback: Не удалось начать удаление. Повторите попытку позже.
+          subscriptionActive: Подписка ещё активна. Сначала отмените её на странице Capacitor, затем удалите аккаунт.
   card:
+    wake-word-conflicts:
+      title: 'Для общего произношения слова активации нужен персонаж | Для {count} общих произношений слов активации нужны персонажи'
+      description: Две карточки используют одно произношение. Пока вы не выберете персонажа, никто не ответит.
+      action: Выбрать, кто отвечает
+    sync:
+      notice: Карточки персонажей синхронизируются с аккаунтом. Удалённую карточку можно восстановить в течение 30 дней.
+      off_notice: Вы вошли в аккаунт, но синхронизация карточек персонажей отключена.
+      off_notice_link: Включите её в экспериментальных функциях.
+      state:
+        synced: Синхронизировано с аккаунтом
+        pending: Ожидание загрузки
+        refused: Не загружено. В аккаунте нет места для новых карточек, поэтому эта карточка остаётся на этом устройстве.
+      conflict_copy_name: '{name} (копия из-за конфликта)'
+      conflict_notice: Другое устройство изменило того же персонажа. AIRI сохранил версию с этого устройства как копию.
+      history:
+        tab: История
+        empty: У этой карточки пока нет истории.
+        loading: Загрузка истории…
+        load_failed: Не удалось загрузить историю этой карточки.
+        current: Текущая
+        changed_label: Изменено
+        removed_label: Удалено
+        fields:
+          name: Имя
+          nickname: Ник
+          version: Версия
+          creator: Автор
+          description: Описание
+          personality: Личность
+          scenario: Сценарий
+          systemPrompt: Системный промпт
+          postHistoryInstructions: Инструкции после истории
+          notes: Заметки автора
+          greetings: Приветствия
+          tags: Теги
+          metadata: Метаданные
+          assets: Ресурсы
+          characterBook: Книга мира
+          source: Источник
+          wakeWords: Слова активации
+          agents: Агенты
+          consciousness: Модель сознания
+          vision: Модель зрения
+          speech: Модель речи
+          vrm: Модель VRM
+          live2d: Модель Live2D
+          displayModelId: Модель внешности
+          activeBackgroundId: Закреплённый фон
+          artistry: Создание изображений
+        restore: Восстановить эту версию
+        restore_confirm_title: Восстановить эту версию?
+        restore_confirm_body: Текущее содержимое {name} будет заменено содержимым от {date}.
+        restore_confirm_confirm: Восстановить
+        restore_confirm_cancel: Отмена
+        restore_success: '{name} восстановлен до предыдущей версии.'
+        restore_failed: Не удалось восстановить эту версию. Возможно, она больше не хранится на сервере.
+      deleted:
+        title: Недавно удалённые
+        empty: Нет недавно удалённых карточек.
+        loading: Загрузка недавно удалённых карточек…
+        load_failed: Не удалось загрузить недавно удалённые карточки.
+        deleted_when: 'Удалено {when}'
+        days_left: 'Осталось {days} дней для восстановления'
+        restore: Восстановить
+        restore_success: '{name} восстановлен.'
+        restore_failed: Не удалось восстановить эту карточку. Возможно, её содержимое больше не хранится на сервере.
     activate: Активировать
     active: Активно
     active_badge: Текущая
@@ -329,6 +423,7 @@ pages:
     save: Сохранить изменения
     save_and_activate: Сохранить и активировать
     card_not_found: Карта не найдена
+    back: Назад
     character: Персонаж
     close: Закрыть
     chat:
@@ -348,6 +443,13 @@ pages:
     drop_here: Перетащите сюда для загрузки
     create_card: Создать новую карту
     edit_card: Редактировать карточку
+    saved: Карточка сохранена
+    unsaved:
+      badge: Не сохранено
+      title: Отменить изменения?
+      message: Изменения не сохранены. Если вы покинете страницу, они будут потеряны.
+      keep_editing: Продолжить редактирование
+      discard: Отменить изменения
     creation:
       identity: Личность
       name: Имя
@@ -366,6 +468,11 @@ pages:
         posthistoryinstructions: Не забывайте подражать человеку.
       modules_info: >-
         Настроить модули для этой карты символов. Если не установлено, будет использоваться конфигурация модулей по умолчанию.
+      sections:
+        chat: Чат
+        vision: Зрение
+        speech: Речь
+        body: Тело
       use_default: Использовать по умолчанию
       use_default_not_configured: Использовать по умолчанию (не настроено)
       inherit_global_settings: Наследовать глобальные настройки
@@ -388,6 +495,7 @@ pages:
         consciousness_model: Выберите сознательную модель (AI модель) для этого персонажа.
         speech_model: Выберите модель синтеза речи и голос для этого персонажа.
       errors:
+        model_required: Выберите модель для каждого явно заданного провайдера. Нельзя наследовать модель другого провайдера.
         name: Имя должно быть корректным и непустым.
         version: 'Ошибка: неверная версия!'
         description: 'Ошибка: необходимо указать описание карты.'
@@ -397,6 +505,7 @@ pages:
         posthistoryinstructions: 'Ошибка: требуется post-history промпт.'
         invalid_artistry_json: 'Ошибка: Параметры провайдера Artistry содержат недопустимые JSON.'
       none: Отсутствует
+      none_disabled: Нет (отключено)
     modules: Модули
     name_asc: Имя (А-Я)
     name_desc: Имя (Я-А)
@@ -433,6 +542,7 @@ pages:
     sections:
       chats:
         title: Чат сеансов
+        description: Экспорт или импорт сохранённых сеансов чата.
         export: Экспорт чатов
         import: Импорт чатов
         delete: Удалить все сеансы чата
@@ -440,6 +550,12 @@ pages:
         title: Модели
         description: Удалить импортированные модели Live2D/VRM.
         delete: Удалить все модели
+      model-downloads:
+        title: Загруженные голосовые модели
+        description: Файлы моделей Sherpaw, сохранённые на этом устройстве.
+        empty: Нет загруженных голосовых моделей.
+        wake-word-model: Модель слов активации
+        refresh: Обновить
       modules:
         title: Модули
         description: Сбросить настройки модулей и учетные данные.
@@ -473,6 +589,8 @@ pages:
       import_error: Не удалось импортировать чаты. Проверьте формат файла.
       chats_deleted: Чат сеансы удалены.
       models_deleted: Модели удалены.
+      model_download_cancelled: Загрузка модели отменена.
+      model_download_removed: Загруженная модель удалена.
       modules_reset: Настройки модуля сброшены.
       providers_reset: Настройки провайдера сброшены.
       all_deleted: Все локальные данные удалены.
@@ -490,6 +608,7 @@ pages:
         scene: Сцена
   modules:
     beat_sync:
+      description: Двигайтесь в ритме звука из выбранного источника
       title: Синхронизировать Beat Sync
       sections:
         audio_source:
@@ -536,6 +655,7 @@ pages:
               description: Прогреть ли перед обнаружением ударов для лучшей точности.
               label: Разминка
     artistry:
+      title: Создание изображений
       description: Генерация изображения, фон сцены и рисование.
       page:
         title: Конфигурация поставщика Artistry
@@ -582,9 +702,11 @@ pages:
       model:
         label: Модель Artistry (опционально)
         description: Идентификатор модели при необходимости поставщика
+        placeholder: Например, black-forest-labs/flux-schnell
       prompt-prefix:
         label: Стандартный префикс Artistry по умолчанию
         description: Приготовиться к каждому запросу, посланному генератору изображений.
+        placeholder: Например, Masterpiece, high quality, 1girl, anime,
       options:
         label: Опции поставщика Artistry (JSON)
       widget-instructions:
@@ -594,6 +716,7 @@ pages:
       essential: Основные
       messaging: Сообщения
       gaming: Игры
+      artistry: Создание изображений
     consciousness:
       description: Личность, модель сознания и др.
       sections:
@@ -622,12 +745,19 @@ pages:
             show_less: Показать меньше
             show_more: Показать больше
             temperature_label: Температура
+            temperature_enabled: Своя температура
+            top_p_enabled: Свой Top P
+            sampling_override_description: По умолчанию отключено. Включайте только для моделей с поддержкой этого параметра. Некоторые модели принимают лишь один параметр сэмплирования одновременно.
+            temperature_description: Управляет случайностью ответов модели. Низкое значение, например 0.2, даёт более предсказуемые, точные и аналитические ответы. Высокое значение, например 1.0, повышает творчество и разнообразие.
+            top_p_description: Управляет разнообразием ответов через ядерное сэмплирование. Низкое значение, например 0.2, ограничивает ответы высоковероятными токенами. Высокое значение, например 1.0, включает больше вариантов.
             subtitle: Выберите модель у провайдера
             title: Модель
           model-options:
             title: Настройки модели
             thinking:
               label: Размышление
+              required-description: Для этой модели требуется рассуждение.
+              provider-default-description: В AIRI нет настроек рассуждения для этой модели. OpenRouter применяет настройки по умолчанию.
       title: Сознание
     description: Мыслительный процесс, зрение, синтез речи, игры и т. д.
     gaming-factorio:
@@ -676,11 +806,79 @@ pages:
     hearing:
       description: Настройка распознавания речи
       title: Слух
+      transcriber:
+        title: Распознавание речи
+        description: Выберите провайдера и модель распознавания речи, затем проверьте микрофон.
+      wake-words:
+        title: Слова активации
+        description: Просмотрите слова активации персонажей и выберите, кто отвечает на общее произношение.
+        intro: Каждый персонаж хранит слова активации в своей карточке. Чтобы изменить их, попросите персонажа в чате.
+        empty: У этого персонажа нет слов активации.
+        state:
+          active: Активно
+          paused: Приостановлено. Выберите персонажа для ответа.
+          other: 'Отвечает {name}'
+          unsupported: Недоступно для текущей модели слов активации
+        conflicts:
+          title: Общие произношения
+          description: Несколько персонажей используют одно произношение. Выберите, кто отвечает на этом устройстве. Слова в карточках сохранятся.
+          choose-label: Персонаж для ответа
+          answered-by: 'Отвечает {name}'
+          unresolved: Ни один персонаж не отвечает на это произношение.
       sections:
         section:
           provider-selection:
             description: Выберите подходящего провайдера синтеза речи
+          microphone:
+            title: Микрофон
+            label: Микрофон
+            description: Включите микрофон для модуля слуха. Режим ввода определяет, когда AIRI слушает.
+            error: Микрофон недоступен
+          input-device:
+            label: Устройство ввода
+            description: Выберите микрофон для AIRI.
+            playground-description: Модуль слуха и тестовая площадка используют этот микрофон.
+            placeholder: Выберите микрофон
+          auto-send:
+            title: Результаты распознавания
+            description: Выберите, что AIRI делает с распознанным текстом вашей речи.
+            label: Отправлять автоматически
+            label-description: AIRI отправляет распознанный текст в чат после задержки. Отключите параметр, чтобы сначала проверить и отредактировать текст. Каждое отправленное сообщение расходует токены.
+            delay: Задержка отправки
+            delay-description: Время ожидания AIRI перед отправкой распознанного текста.
+            immediate: Сразу
+          input-mode:
+            title: Режим ввода
+            description: Выберите, как AIRI начинает слушать при включённом микрофоне.
+            label: Начать слушать
+            always-on: Всегда включено
+            always-on-description: AIRI слушает постоянно и отвечает, когда вы говорите.
+            push-to-talk: Нажать для разговора
+            push-to-talk-description: AIRI слушает только пока вы удерживаете клавишу разговора. Микрофон открыт только во время удержания.
+            push-to-talk-unavailable: Здесь недоступно. У этого приложения нет клавиши разговора на данном устройстве.
+            stranded-title: Режим нажатия для разговора здесь недоступен
+            stranded-description: На этом устройстве у приложения нет клавиши разговора, поэтому AIRI не слушает. Для разговора выберите постоянное прослушивание или слова активации.
+            wake-word: Слова активации
+            wake-word-description: Микрофон остаётся включённым, но AIRI слушает только после слова активации персонажа.
+            wake-word-status:
+              no-words: Ни у одного персонажа нет слов активации. Попросите персонажа настроить их в чате.
+              unconfigured: Обнаружение слов активации начинается при включении микрофона.
+              preparing: Подготовка модели слов активации…
+              ready: Слова активации готовы.
+              error: 'Модель слов активации недоступна: {error}'
+          rephrase:
+            title: Правка распознанного текста
+            description: Модель чата исправляет ошибки распознавания и удаляет слова-паразиты перед созданием черновика. Исходный текст сохраняется.
+            enabled: Исправлять распознанный текст
+            enabled-description: Готовый распознанный текст отправляется выбранной модели чата. При ошибке или ожидании дольше 10 секунд используется исходный текст.
+            provider: Провайдер
+            provider-description: По умолчанию используется модель чата модуля сознания.
+            same-as-chat: Как в чате
+            model: Модель
+            model-placeholder: Выберите модель
           playground:
+            current: Текущий распознанный текст
+            description: Слушайте через активный конвейер слуха. Каждый завершённый речевой сегмент сохраняется ниже.
             empty: Начать мониторинг и говорите в выбранный микрофон.
             error-title: Ошибка транскрипции
             listening: Слушает речь…
@@ -688,6 +886,7 @@ pages:
             segment: 'Голосовой сегмент {number}'
             start: Начать мониторинг
             stop: Остановить мониторинг
+            title: Тестовая площадка слуха
             transcribing: Транскрибирование...
             transcription-failed: Ошибка транскрипции.
           confidence-threshold:
@@ -762,6 +961,32 @@ pages:
     vision:
       description: Зрение
       title: Зрение
+      tool-images:
+        label: Использовать модель зрения для изображений инструментов
+        description: Модель зрения читает изображения инструментов, например снимки экрана из «Использовать компьютер», перед ответом модели чата. Если провайдер модели чата заявляет поддержку изображений, она получает их напрямую. Описание не содержит координат пикселей.
+      capture:
+        title: Частота захвата для зрения
+        description: Настройте частоту захвата кадров процессом зрения.
+        interval:
+          label: Интервал захвата
+          description: Меньшее значение повышает частоту захвата и расход ресурсов.
+      stats:
+        captures: Захваты
+        context-updates: Обновления контекста
+        inferences: Вызовы распознавания изображений
+        inferences-description: Все вызовы модели зрения, включая изображения чата
+        failed-inferences: Неудачные вызовы
+        last-inference: Последний вызов
+        error: 'Ошибка:'
+        last-update: Последнее обновление {time}
+        since-start: С запуска приложения
+        never: Никогда
+      ollama:
+        title: Параметры запросов провайдера
+        description: Настройте специфичные для провайдера флаги запросов распознавания изображений.
+        thinking:
+          label: Рассуждение (Ollama)
+          description: 'При включении запросы зрения к Ollama содержат `think: true`. При выключении — `think: false`.'
     x:
       description: Просмотр и использование X / Twitter
       enable: Включить интеграцию X / Twitter
@@ -779,6 +1004,251 @@ pages:
       access-token-secret-description: Ваш секрет токена доступа X / Twitter
       access-token-secret-placeholder: Введите ваш секрет токена доступа X / Twitter
       configured: X / Twitter настроен правильно!
+    stickers:
+      frequency: Частота стикеров
+      frequency-description: Разрешает стикеры в указанной доле ответов. Персонаж решает, подходит ли стикер.
+      frequency-options:
+        25: Изредка (25%)
+        50: Иногда (50%)
+        75: Часто (75%)
+        100: Всегда, когда уместно (100%)
+      title: Стикеры
+      description: Добавляет реакции изображениями к ответам чата
+      enable: Включить стикеры
+      enable-description: Персонаж выбирает один стикер для каждого подходящего ответа по имени стикера и тегам эмоций.
+      local-only: Изображения остаются на этом устройстве. Облачная синхронизация чата пока передаёт только текст.
+      catalog: Доступные стикеры
+      unavailable: Стикер недоступен
+      import: 'Импортировать изображение'
+      editor: 'Редактор стикеров'
+      image: 'Изображение'
+      replace: 'Заменить изображение (необязательно)'
+      image-limits: 'PNG, JPG, WebP или GIF. Не более 2 МБ и 4096 × 4096 пикселей.'
+      choose-file: 'Выберите изображение'
+      preview: 'Предпросмотр стикера'
+      name: 'Имя'
+      name-limit: 'Используйте от 1 до 80 символов. Модель читает это имя.'
+      emotions: 'Теги эмоций'
+      save: 'Сохранить стикер'
+      cancel: 'Отмена'
+      edit: 'Изменить'
+      delete: 'Удалить'
+      confirm-delete: 'Подтвердить удаление'
+      empty: 'Библиотека пуста. Импортируйте изображение, чтобы добавить стикер.'
+      history-note: 'Удаление или замена стикера влияет на будущие ответы. Сохранённые и уже подготовленные ответы сохраняют исходное изображение.'
+      saved-image: 'Сохранённый стикер'
+      errors:
+        name: 'Введите имя длиной от 1 до 80 символов.'
+        emotions: 'Выберите хотя бы один допустимый тег эмоции.'
+        format: 'Выберите изображение PNG, JPG, WebP или GIF.'
+        size: 'Выберите изображение меньше 2 МБ.'
+        image: 'Это изображение нельзя открыть. Выберите другой файл.'
+        dimensions: 'Выберите изображение не больше 4096 × 4096 пикселей.'
+        missing: 'Этот стикер удалён в другом окне.'
+        storage: 'Не удалось сохранить или загрузить библиотеку стикеров. Повторите попытку.'
+      emotion-labels:
+        happy: 'Радость'
+        sad: 'Грусть'
+        confused: 'Растерянность'
+        surprised: 'Удивление'
+        thanks: 'Благодарность'
+        celebrate: 'Празднование'
+        angry: 'Злость'
+        tired: 'Усталость'
+        affectionate: 'Нежность'
+        awkward: 'Неловкость'
+        agree: 'Согласие'
+        disagree: 'Несогласие'
+      artwork:
+        airi-happy: Радость
+        airi-sad: Грусть
+        airi-confused: Растерянность
+        airi-surprised: Удивление
+        airi-thanks: Спасибо
+        airi-celebrate: Празднование
+        airi-angry: Злость
+        airi-tired: Усталость
+        airi-affectionate: Любовь
+        airi-awkward: Неловкость
+        airi-agree: 'Да'
+        airi-disagree: Нет, спасибо
+    home-assistant:
+      description: Разрешает AIRI читать данные и управлять устройствами Home Assistant.
+      enable: Включить Home Assistant
+      enable-description: Разрешить AIRI читать данные и управлять устройствами
+      base-url:
+        label: Адрес
+        description: Адрес вашего экземпляра Home Assistant.
+      token:
+        label: Долгосрочный токен доступа
+        placeholder: Вставьте токен из профиля Home Assistant
+        description: Создайте его в разделе безопасности профиля Home Assistant.
+        saved: Токен сохранён. Оставьте поле пустым, чтобы сохранить его. При смене адреса введите токен заново.
+      note: Токен остаётся на этом устройстве и не синхронизируется с аккаунтом.
+      actions:
+        save: Сохранить
+        test: Проверка
+      status:
+        saved: Сохранено.
+        saved-cleared: Сохранено. Адрес изменён, поэтому списки устройств пусты.
+        testing: Проверка соединения…
+        reachable: 'Подключено. Число сущностей от Home Assistant: {count}.'
+        failed: 'Не удалось подключиться. {message}'
+        rejected-token: Введите токен доступа Home Assistant.
+        rejected-address: Адрес изменён. Введите токен доступа для нового адреса.
+        failed-policy: Список устройств не дошёл до окна с инструментами, поэтому адрес не изменился. Повторите попытку.
+        failed-policy-edit: Изменение не дошло до окна с инструментами. Модель использует прежний список. Повторите попытку.
+        failed-policy-move: Адрес изменён, но списки устройств не дошли до окна с инструментами. Повторите попытку.
+        failed-policy-rollback: Сохранение отклонено. Список устройств не дошёл до окна с инструментами, поэтому модель не имеет доступа к устройствам. Повторите попытку.
+      access:
+        label: Доступ к устройствам
+        description: Выберите устройства, доступные AIRI для чтения и управления.
+        mode-all: Все устройства
+        mode-allow: Список разрешений
+        mode-deny: Список блокировки
+        all-hint: AIRI имеет доступ ко всем устройствам. Выберите список для ограничения доступа.
+        rule-allow: Доступны только выбранные устройства.
+        rule-deny: Доступны все устройства, кроме выбранных.
+        selected-count: 'Выбрано: {count}'
+        empty-warning: Выберите хотя бы одно устройство. До этого AIRI не имеет доступа ни к одному.
+        search: Поиск устройств
+        reload: Обновить устройства
+        loading: Загрузка устройств…
+        no-devices: Home Assistant не сообщил об устройствах.
+        no-match: Нет подходящих устройств.
+        tab-all: Все
+        shown-count: 'Устройства: {shown} из {total}'
+        load-more: 'Показать ещё: {count}'
+        select-matching: Выбрать все совпадения
+        clear-matching: Снять выбор со всех совпадений
+      states:
+        generic:
+          'on': 'Включено'
+          'off': 'Выключено'
+          above_horizon: Над горизонтом
+          armed: Охрана включена
+          armed_away: Охрана в режиме отсутствия
+          armed_custom_bypass: Охрана с пользовательскими исключениями
+          armed_home: Охрана в режиме присутствия
+          armed_night: Охрана в ночном режиме
+          armed_vacation: Охрана в режиме отпуска
+          arming: Включение охраны
+          auto: Авто
+          below_horizon: Под горизонтом
+          buffering: Буферизация
+          cleaning: Уборка
+          clear-night: Ясная ночь
+          closed: Закрыто
+          closing: Закрытие
+          cloudy: Облачно
+          cool: Охлаждение
+          disarmed: Охрана отключена
+          disarming: Отключение охраны
+          docked: На базе
+          dry: Осушение
+          eco: Экономичный режим
+          electric: Электрический
+          error: Ошибка
+          exceptional: Исключительные условия
+          fan_only: Только вентилятор
+          fog: Туман
+          gas: Газ
+          hail: Град
+          heat: Обогрев
+          heat_cool: Обогрев/охлаждение
+          heat_pump: Тепловой насос
+          high_demand: Высокая потребность
+          home: Дома
+          idle: Простой
+          jammed: Заклинило
+          lightning: Гроза
+          lightning-rainy: Гроза с дождём
+          locked: Заперто
+          locking: Запирание
+          mowing: Стрижка газона
+          not_home: Не дома
+          open: Открыто
+          opening: Открытие
+          partlycloudy: Переменная облачность
+          paused: Приостановлено
+          pending: Ожидание
+          performance: Производительность
+          playing: Воспроизведение
+          pouring: Ливень
+          problem: Проблема
+          rainy: Дождь
+          recording: Запись
+          snowy: Снег
+          snowy-rainy: Снег с дождём
+          standby: Режим ожидания
+          stopped: Остановлено
+          streaming: Трансляция
+          sunny: Солнечно
+          triggered: Тревога сработала
+          unlocked: Отперто
+          unlocking: Отпирание
+          windy: Ветрено
+          windy-variant: Ветер и облачность
+          unknown: Неизвестно
+          unavailable: Недоступно
+        lawn_mower:
+          returning: Возвращение
+        update:
+          'off': Актуальная версия
+          'on': Доступно обновление
+        vacuum:
+          returning: Возвращение на базу
+      domains:
+        air_quality: Качество воздуха
+        alarm_control_panel: Панель сигнализации
+        automation: Автоматизация
+        binary_sensor: Двоичный датчик
+        button: Кнопка
+        calendar: Календарь
+        camera: Камера
+        climate: Климат-контроль
+        conversation: Разговор
+        cover: Шторы и ворота
+        date: Дата
+        datetime: Дата и время
+        device_tracker: Отслеживание устройств
+        event: Событие
+        fan: Вентилятор
+        geo_location: Геолокация
+        group: Группа
+        humidifier: Увлажнитель
+        image: Изображение
+        image_processing: Обработка изображений
+        input_boolean: Переключатель-помощник
+        input_datetime: Помощник даты и времени
+        input_number: Числовой помощник
+        input_select: Помощник выпадающего списка
+        input_text: Текстовый помощник
+        light: Освещение
+        lock: Замок
+        media_player: Медиаплеер
+        notify: Уведомление
+        number: Число
+        person: Человек
+        remote: Пульт
+        scene: Сцена
+        script: Скрипт
+        select: Выбор
+        sensor: Датчик
+        siren: Сирена
+        stt: Речь в текст
+        sun: Солнце
+        switch: Выключатель
+        text: Текст
+        time: Время
+        todo: Список задач
+        tts: Текст в речь
+        update: Обновление
+        vacuum: Пылесос
+        valve: Клапан
+        water_heater: Водонагреватель
+        weather: Погода
+        zone: Зона
     web-search:
       title: Веб Поиск
       description: Позволить AIRI искать в Интернете текущую информацию
@@ -812,6 +1282,7 @@ pages:
         restart: Перезапустить MCP
         add-server: Добавить сервер
         add-env: Добавить переменную
+        add-header: Добавить заголовок
         remove: Убрать
         test: Проверка
         edit-json: Редактировать JSON
@@ -827,6 +1298,17 @@ pages:
           label: Идентификатор
           description: Уникальное имя; становится ключом в mcp.json.
           placeholder: Напр. filesystem
+        transport:
+          label: Тип
+          description: Способ подключения AIRI к этому серверу.
+          stdio: Локальный процесс
+          http: Удалённый URL
+        url:
+          description: Конечная точка Streamable HTTP сервера.
+          placeholder: Например, https://example.com/api/mcp
+        headers:
+          label: Заголовки
+          description: Заголовки каждого запроса, например токен авторизации.
         command:
           label: Команда
           description: Исполняемый файл создан поверх stdio.
@@ -862,8 +1344,11 @@ pages:
         success: Подключено! Найдено {count} инструментов за {ms}мс.
         failure: Сбой соединения после {ms}мс
       errors:
+        empty-identifier: Сервер # {index} is missing an identifier.
         duplicate-identifier: Идентификатор "{name}" используется более одного раза — имена должны быть уникальными.
         empty-command: '"{name}" отсутствует команда.'
+        empty-url: 'Для «{name}» не указан URL.'
+        invalid-url: 'Для «{name}» нужен абсолютный URL http или https.'
         invalid-shape: Это не похоже на mcp.json — для root требуется поле "mcpServers".
       messages:
         opened: В файловом менеджере открыта {path}
@@ -873,6 +1358,8 @@ pages:
     buy: Пополнить
     currency: Валюта
     description: Текущий Flux
+    terms: Условия использования
+    privacy: Политика конфиденциальности
     packagesError: Не удалось загрузить пакеты. Пожалуйста, повторите попытку позже.
     checkout:
       success: Платеж выполнен! Ваш Flux пополнился.
@@ -887,6 +1374,7 @@ pages:
       typeAddition: Пополнение
       typeConsumption: Использование
       typeInitial: Начальный грант
+      typePromo: Промо-начисление
       loading: Загрузка истории...
       empty: Пока нет записей транзакций.
       loadMore: Загрузить ещё
@@ -896,6 +1384,29 @@ pages:
       title: Flux пакеты
       buy: Пополнить
       description: Пакеты Flux на выбор.
+  capacitor:
+    description: Capacitor хранит Flux и перезаряжается автоматически.
+    statusError: Не удалось загрузить ваш Capacitor. Повторите попытку позже.
+    packagesError: Не удалось загрузить список Capacitor. Повторите попытку позже.
+    preferenceError: Не удалось сохранить настройку. Повторите попытку позже.
+    noCapacitor: Нет Capacitor
+    remaining: 'Осталось {percent}'
+    rechargesAt: Перезарядка {date}
+    renewsAt: Продление {date}
+    expiresAt: Истекает {date}
+    perMonth: / месяц
+    currentPackage: Текущий
+    install: Установить
+    upgrade: Повысить уровень
+    downgrade: Понизить уровень
+    manageSubscription: Управление подпиской
+    fallbackToFlux: Использовать Flux, когда Capacitor пуст
+    fallbackToFluxHint: Если параметр отключён, использование прекращается, когда Capacitor пуст.
+    checkout:
+      success: Ваш Capacitor установлен и заряжен.
+      pending: Платёж получен. Ваш Capacitor скоро зарядится.
+      canceled: Покупка отменена.
+      error: Что-то пошло не так. Повторите попытку позже.
   providers:
     catalog:
       edit:
@@ -918,6 +1429,12 @@ pages:
           common:
             fields:
               field:
+                web-search:
+                  label: Поиск в интернете
+                  description: Разрешает поддерживаемым моделям OpenAI выполнять поиск при необходимости. Использует ваш API-ключ и может вызвать плату за поиск. Требуется Responses API.
+                api-protocol:
+                  label: Протокол API
+                  description: Выберите API, поддерживаемый этим провайдером и моделью.
                 api-key:
                   label: API-ключ
                   description: Ключ API, используемый для авторизации запросов для этого провайдера
@@ -961,6 +1478,9 @@ pages:
               title: Загрузить модели
             check-supports-chat-completion:
               title: Завершение чата
+          apple-vision:
+            check-availability:
+              title: доступность
           prompt-api:
             check-availability:
               title: доступность
@@ -1004,6 +1524,10 @@ pages:
           title: Настройки голоса
     labels:
       recommended: Рекомендуется
+    sync:
+      synced: Синхронизировано
+      pending: Ожидание загрузки
+      not-uploaded: Не загружено. Завершите настройку этого провайдера на данном устройстве.
     filters:
       pricing: Цены
       deployment: Развертывание
@@ -1028,12 +1552,15 @@ pages:
         description: >-
           Провайдеры транскрипции (speech-to-text): Whisper.cpp, OpenAI, Azure Speech
       artistry:
+        title: Создание изображений
         description: Поставщики моделей генерации и создания изображений, например ComfyUI, Replicate.
         items:
           comfyui:
             description: Генерирование локального изображения.
           replicate:
             description: Облачный сервис моделей
+          nanobanana:
+            description: Предпросмотр изображений Google AI Studio.
     helpinfo:
       title: Впервые здесь?
       description: >
@@ -1045,8 +1572,34 @@ pages:
         Провайдеры транскрипции (STT): Whisper.cpp, OpenAI, Azure Speech.
     description: LLM-модели, провайдеры речи и др.
     provider:
+      sherpaw-transcription:
+        description: Локальное распознавание речи со встроенными моделями или моделями по запросу. API-ключ не нужен.
+        language:
+          label: Язык модели
+          description: Показывает модели с поддержкой этого языка. Выбранная модель по-прежнему определяет поддерживаемые ею языки.
+          all: Все языки
+        model:
+          label: Модель
+          description: Выберите доступную модель. Распознавание определяет один из поддерживаемых языков. Смена модели перезапускает текущий сеанс.
+        asset:
+          title: Файлы модели
+          unknown: Проверка файлов…
+          bundled: Входит в AIRI
+          installed: Сохранено на этом устройстве
+          missing: Загрузить при использовании
+          downloading: Загрузка…
+          error: Ошибка загрузки
+          download: Загрузить сейчас
+          cancel: Отмена
+          remove: Удалить загруженное
+      apple-vision:
+        description: Понимание изображений на устройстве через Apple Foundation Models в macOS 27 или новее. API-ключ не нужен.
       apple-speech-transcription:
         description: "Распознавание речи на устройствах в macOS 26 или более поздних версиях.\nAPI ключ не требуется."
+        fields:
+          locale:
+            label: Локаль
+            description: Используйте точную локаль Apple Speech, например en-US или zh-CN.
       app-local-audio-transcription:
         title: Приложение (локально)
       app-local-audio-speech:
@@ -1110,6 +1663,16 @@ pages:
             intonation:
               description: Настройте разницу в интонации чтения
               label: Интонация
+        callout_origin_title: Подключение к движку из браузера
+        callout_origin: Браузер подключается только к движку на этом устройстве. Для движка на другом устройстве используйте настольное приложение. Движок должен разрешить этот сайт через --cors_policy_mode all или --allow_origin с этим адресом.
+      aivis-speech:
+        fields:
+          field:
+            intonation:
+              description: Настройте интенсивность выражения стиля речи
+              label: Интенсивность выражения эмоций
+        callout_origin_title: Подключение к движку из браузера
+        callout_origin: Браузер подключается только к движку на этом устройстве. Для движка на другом устройстве используйте настольное приложение. Движок должен разрешить этот сайт на странице настроек по порту 10101.
       deepgram-tts:
         description: Deepgram.com
         title: Глупо грамма
@@ -1197,6 +1760,10 @@ pages:
             description: Целевое разрешение для сгенерированных изображений
       deepseek:
         description: Deepseek.com
+        fields:
+          field:
+            thinking-mode:
+              description: Определяет, используют ли модели рассуждения DeepSeek режим размышления в запросах чата.
       elevenlabs:
         description: Elevenlabs.io
         fields:
@@ -1215,6 +1782,7 @@ pages:
               label: Стабильность
             style:
               description: Выразительность/стиль голоса
+              label: Стиль
         playground:
           buttons:
             button:
@@ -1258,6 +1826,7 @@ pages:
         playground:
           default-text: Привет! Это тест-системы синтеза речи.
           title: Голосовая платформа
+        title: Kokoro TTS (локально)
       fireworks:
         description: Fireworks.ai
       microsoft-speech:
@@ -1298,6 +1867,7 @@ pages:
         description: Novita.ai
       openai-compatible:
         description: Совместимый с OpenAI
+        title: Совместимый с OpenAI
       nvidia:
         description: Build.nvidia.com
       n1n:
@@ -1321,6 +1891,11 @@ pages:
               label: Идентификатор приложения (App ID)
       volcengine-coding-plan:
         description: План кодирования Volcengine
+        models:
+          ark-code-latest:
+            description: Использует модель из консоли Coding Plan, включая Auto. Изменения применяются через 3–5 минут.
+          legacy:
+            description: Эта старая модель Coding Plan скоро будет выведена из эксплуатации. Переключитесь на поддерживаемую модель.
         title: План кодирования Volcengine
       byteplus-coding-plan:
         description: План кодирования BytePlus
@@ -1388,6 +1963,24 @@ pages:
         title: Ошибка сканирования QR-кода
         failed: Не удалось отсканировать или подключиться с помощью QR-коду.
   system:
+    experimental:
+      refresh: Обновить политики
+      title: Экспериментальные функции
+      description: Попробуйте функции в разработке и настройте свои предпочтения.
+      notice: Экспериментальные функции могут измениться или исчезнуть. Ваш выбор действует на этом устройстве.
+      empty-title: Нет доступных экспериментов
+      load-error: Облачные функции недоступны. Локальные функции остаются доступны.
+      retry: Повторить
+      reset: Использовать по умолчанию
+      sources:
+        default: По умолчанию в приложении
+        local: Ваш выбор на устройстве
+        global: Доступно для вошедших в аккаунт
+        account: Доступно вашему аккаунту
+      features:
+        character_card_sync:
+          title: Облачная синхронизация карточек персонажей
+          description: Синхронизирует карточки персонажей с аккаунтом после входа, чтобы они были доступны на других устройствах. По умолчанию отключено. Удалённые карточки сохраняются в истории аккаунта 30 дней.
     color-scheme:
       description: Изменить цветовую схему сцены
       title: Цветовая схема
@@ -1421,7 +2014,34 @@ pages:
               markdown-stress:
                 title: Нагрузочное тестирование обработки Markdown
                 description: Напряжение парсинг и рендеринга с тяжелыми чатами
+              plugin-host:
+                actions:
+                  enable-and-load: Включить и загрузить
+                  disable-and-unload: Отключить и выгрузить
+                  import-folder: Импортировать папку
+                  confirm-import: Импортировать расширение
+                  cancel-import: Отмена
+                errors:
+                  enable-and-load: 'Не удалось включить и загрузить плагин {extensionId}.'
+                  disable-and-unload: 'Не удалось отключить и выгрузить плагин {extensionId}.'
+                  prepare-import: Не удалось проверить папку расширения.
+                  commit-import: 'Не удалось импортировать расширение {extensionId}.'
+                  cancel-import: Не удалось отменить импорт расширения.
+                import:
+                  title: Проверить импорт расширения
+                  description: После импорта расширение остаётся отключённым и не загружается.
+                  source: Исходная папка
+                  runtimes: Среды выполнения
+                  entrypoints: Точки входа
+                  package-size: Пакет
+                  package-size-value: 'Файлов: {fileCount} · {totalBytes}'
+                  permissions: Разрешения
+                  kits: Наборы
+                  no-permissions: Разрешения не объявлены.
+                  no-kits: Наборы не объявлены.
+                  imported: 'Расширение {extensionId} импортировано.'
               use-magic-keys:
+                title: Инструмент useMagicKeys
                 description: Тестировать ярлыки
               audio-record:
                 title: Запись аудио
@@ -1493,6 +2113,7 @@ pages:
             japanese:
               colors:
                 color-1: Бронзовый
+                color-2: Тёплый серо-коричневый
                 color-3: Умбра
                 color-4: Кофе
                 color-5: Бронза
@@ -1505,6 +2126,7 @@ pages:
               colors:
                 color-1: Скандинавский синий
                 color-2: Лёд
+                color-3: Фьорд
                 color-4: Сталь
                 color-5: Ледниковый
                 color-6: Сланец
@@ -1514,14 +2136,19 @@ pages:
               title: Скандинавские цвета
             chinese:
               colors:
+                color-1: Розовый рассвет
+                color-2: Китайский красный
+                color-3: Дымчатый коричневый
+                color-4: Бамбуковый зелёный
                 color-5: Темно-фиолетовый
                 color-6: Золотисто-Желтый
                 color-7: Лазурно-голубой
+                color-8: Охра
               description: >-
                 Традиционные китайские цвета, вдохновлённые текстилем, фарфором и живописью
               title: Китайские традиционные цвета
           title: Наборы цветовых схем
-    title: Внешний вид
+    title: Система
   page:
     developers:
       open-devtools:
@@ -1559,9 +2186,17 @@ theme:
   title: Тема
   description: |
     Переключение основной темы AIRI: светлая или тёмная.
+  auto: Системная
+  light: Светлая
+  dark: Тёмная
 title: Настройки
 voices: Голос
 vrm:
+  fps:
+    title: Ограничение частоты кадров
+    description: Ограничивает отрисовку VRM на сцене и в предпросмотре. Меньший лимит снижает нагрузку на GPU без изменения скорости анимации.
+    options:
+      unlimited: Без ограничений
   change-model:
     from-file: Загрузить из файла
     from-file-select: Выбрать
@@ -1641,33 +2276,52 @@ mmd:
     button-extract:
       title: Извлечь
   physics:
+    title: Физика и скелет
     enabled: Включить физику (волосы, юбки, аксессуары)
+    ik: Включить IK (обратную кинематику)
+    grant: Включить передачу преобразований дополнительных костей
     gravity: Сила гравитации
   gaze:
+    title: Взгляд
+    tracking: Смотреть на
     options:
       cursor: Мышь
       camera: Камера
       none: Отключено
   animation:
     title: Анимация
+    idle-motion: Движение в покое
+    import-motion: Импортировать движение (.vmd)
     play-once: ' Предпросмотр Анимации'
+    remove: Удалить движение
+    description: >-
+      Импортируйте движения VMD, задайте цикл в покое или воспроизведите любое движение один раз. Свяжите эмоции с движениями для совместного воспроизведения с выражениями лица.
   morphs:
+    title: Морфы
     auto: (авто)
+    revert: Вернуть автоматический режим
+    no-morphs: Эта модель не предоставляет морфов.
+    description: >-
+      Средство отрисовки автоматически определяет стандартные японские имена морфов (あいうえお, まばたき). Задайте соответствие здесь, если модель использует другие имена.
   materials:
     title: Материалы
     no-materials: Эта модель не содержит материалов.
     description: >-
       Регулировка непрозрачности отдельных частей модели (лицо, волосы, одежда, аксессуары). Установите значение 0, чтобы скрыть его.
 tachie:
+  title: Настройки Tachie
+  archive-description: Модели Tachie используют архивы .tachie.zip с изображениями, названными по эмоциям.
   scale-and-position:
     title: Масштаб и позиция
     scale: Масштаб
   theme-color-from-model:
+    title: Извлечь цвета из модели
     button-extract:
       title: Извлечь
   rendering:
     title: Рендеринг
     render-scale: Масштаб рендеринга
+    shadow: Тень в цвет темы
 websocket-secure-enabled:
   title: Включить безопасный WebSocket (WSS)
   description: >-
@@ -1676,3 +2330,6 @@ wip:
   title: В разработке
   description: >-
     Эта функция в настоящее время находится в разработке и еще не доступна публично. Проверьте её в будущих обновлениях.
+streamer-mode:
+  title: Режим стримера
+  description: Скрывает индикаторы микрофона и входа в окне персонажа.

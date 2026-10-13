@@ -227,6 +227,7 @@ export function createSocialAuthorizationRevoker(
   fetchRequest: typeof fetch = fetch,
 ): SocialAuthorizationRevoker {
   return {
+    /** Revokes external grants before local deletion, leaving unknown providers blocked. */
     async revokeForUser(userId) {
       const accounts = await db
         .select({
@@ -238,7 +239,8 @@ export function createSocialAuthorizationRevoker(
         .where(eq(authSchema.account.userId, userId))
 
       for (const account of accounts) {
-        if (account.providerId === 'credential')
+        // Steam OpenID 2.0 authenticates identity without issuing an OAuth grant.
+        if (account.providerId === 'credential' || account.providerId === 'steam')
           continue
         if (account.providerId === 'apple') {
           await revokeAppleAuthorization(account, credentials, fetchRequest)

@@ -5,7 +5,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { SpanStatusCode } from '@opentelemetry/api'
 import { IOAttributes, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 
-import { activeTurnSpan, startSpan } from './use-io-tracer'
+import { startSpan } from './use-io-tracer'
 
 /** A traced output for one response. The owner calls `end` once when that response closes. */
 export interface SpeechOutputTrace {
@@ -20,12 +20,14 @@ function failSpan(span: Span, cause: unknown) {
 /**
  * Records a speech turn, its synthesis requests, and its played clips.
  *
- * Synthesis and playback spans are children of the turn span. Playback spans reuse the synthesis
+ * The speech turn span is a child of `parent`, the `Interaction turn` span of the same turn. The caller passes it
+ * because the speech output can open before the LLM stream of the turn starts.
+ * Synthesis and playback spans are children of the speech turn span. Playback spans reuse the synthesis
  * segment ID, so the devtools timeline and audio tests can join both sides of one text segment.
  * Spans that are still open when the turn ends are marked as canceled.
  */
-export function traceSpeechOutput(turn: TurnRef, output: SpeechOutput, decode: (audio: Blob) => Promise<Pick<AudioBuffer, 'duration'>>): SpeechOutputTrace {
-  const turnSpan = startSpan(IOSpanNames.SpeechTurn, activeTurnSpan.value, { [IOAttributes.TurnId]: turn.turnId })
+export function traceSpeechOutput(turn: TurnRef, parent: Span, output: SpeechOutput, decode: (audio: Blob) => Promise<Pick<AudioBuffer, 'duration'>>): SpeechOutputTrace {
+  const turnSpan = startSpan(IOSpanNames.SpeechTurn, parent, { [IOAttributes.TurnId]: turn.turnId })
   const open = new Set<Span>()
   const playing = new Map<string, Span>()
   let ended = false
@@ -79,7 +81,9 @@ export function traceSpeechOutput(turn: TurnRef, output: SpeechOutput, decode: (
       const audio = await synthesizeAudio(request, signal)
       const synthesizedAt = Date.now()
       if (!audio) {
-        span.setAttribute(IOAttributes.TTSCanceled, true)
+        // An aborted request is a cancellation. Without an abort, the output has no audio for the text,
+        // for example because speech is muted or the character has no speech provider.
+        span.setAttribute(signal.aborted ? IOAttributes.TTSCanceled : IOAttributes.TTSNoAudio, true)
         finish(span, synthesizedAt)
         return audio
       }

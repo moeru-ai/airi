@@ -188,14 +188,14 @@ viewers:
   debug-menu:
     emotions: อารมณ์
     emotions-btn:
-      angry: 😠 โกรธ
-      awkward: 😳 เขิน
-      happy: 😄 มีความสุข
-      neutral: 🙂 ปกติ
-      question: 🤔 สงสัย
-      sad: 😫 เศร้า
-      surprised: 🤯 ประหลาดใจ
-      think: 🤨 ครุ่นคิด
+      angry: '😠 โกรธ'
+      awkward: '😳 เขิน'
+      happy: '😄 มีความสุข'
+      neutral: '🙂 ปกติ'
+      question: '🤔 สงสัย'
+      sad: '😫 เศร้า'
+      surprised: '🤯 ประหลาดใจ'
+      think: '🤨 ครุ่นคิด'
     vrm:
       camera: กล้อง
       model:
@@ -206,16 +206,51 @@ profile-switcher:
   save-as-new: บันทึกเป็นโปรไฟล์ใหม่
   new-profile-name: ชื่อโปรไฟล์
   manage: จัดการโปรไฟล์
+promo-banner:
+  items:
+    signin:
+      watermark: ดวงจันทร์
+      fallbackLabel: ของขวัญจากดวงจันทร์
+      title: เช็กอิน 7 วัน
+      eventName: เช็กอินเพื่อรับละอองดาว กรอบอวาตาร์ และของขวัญฉลองเปิดตัว
+      reward: ละอองดาวสูงสุด 120 หน่วย
+      cta: เช็กอิน
+    build:
+      watermark: ก่อสร้าง
+      fallbackLabel: โบนัสก่อสร้าง
+      title: โบนัสกล่องเสบียง
+      eventName: ทำภารกิจก่อสร้างให้สำเร็จเพื่อรับคูปองโบนัสและวัสดุสองเท่า
+      reward: คูปองเสบียง 5 ใบ + วัสดุอัปเกรด
+      cta: ดูภารกิจ
+    spring:
+      watermark: ฤดูใบไม้ผลิ
+      fallbackLabel: สุ่มรางวัลฤดูใบไม้ผลิ
+      title: เทศกาลแคปซูล
+      eventName: ร่วมสุ่มรางวัลฤดูใบไม้ผลิเพื่อปลดล็อกฟองคำพูด เครื่องราง และเฟอร์นิเจอร์ตามธีม
+      reward: สุ่มครั้งแรกครึ่งราคา + เครื่องรางหายาก
+      cta: สุ่มเลย
+    coupon:
+      watermark: พูดคุย
+      fallbackLabel: คูปอง
+      title: คูปองเติมเงิน
+      eventName: ทำกิจกรรมสนทนาให้สำเร็จเพื่อรับคูปองสำหรับส่วนขยายและแพ็กเสียง
+      reward: ลด 6 เมื่อซื้อ 30 / ลด 15 เมื่อซื้อ 68
+      cta: รับคูปอง
+    home:
+      watermark: อยู่บ้าน
+      fallbackLabel: ธีมห้อง
+      title: อัปเดตธีมฤดูใบไม้ผลิ
+      eventName: ปลดล็อกธีมหน้าต่าง โต๊ะ และโคมไฟกลางคืนเพื่อเปลี่ยนบรรยากาศห้อง
+      reward: ตั๋วสุ่มธีมฟรีเมื่อเช็กอิน
+      cta: ดูธีม
 waiting: กำลังรอ
 websocket-status:
   connected: เชื่อมต่อแล้ว
   disconnected: ไม่มีการเชื่อมต่อ
   open-settings: เปิดการตั้งค่าการเชื่อมต่อ
-
 computer-use:
   label: ใช้คอมพิวเตอร์
   description: อนุญาตให้หน้าต่างแชทนี้ตรวจดูและควบคุมแอปบนคอมพิวเตอร์เครื่องนี้
-
 status:
   preparing: กำลังเตรียมไมโครโฟน
   listening: กำลังฟัง

@@ -90,12 +90,394 @@ devtools:
         title: 未读消息
         description: 在头部旁以气泡显示，内含提示标记和数量。
       main-window-note: 改动会即时反映在 AIRI 主窗口。
+    live2d-ambient-light:
+      title: Live2D 环境光
+      description: 调整屏幕采样和 Live2D 彩色光照着色器
+      controls:
+        title: 光源与输出
+      enabled:
+        title: 环境光
+        description: 将环境光滤镜应用到当前 Live2D 模型。
+      source:
+        title: 光源
+        options:
+          screen-capture: 屏幕捕获
+          forced-color: 指定颜色
+      mode:
+        title: 光照模式
+        options:
+          window-gradient: 窗口渐变
+          global: 全局环境光
+      forced-color:
+        title: 测试颜色
+        description: 直接应用此颜色，无需捕获屏幕。
+      strength:
+        title: 光照强度
+        description: 设置整体效果强度。1 为预设效果，最高可设为 3，以增强光线包裹和轮廓逆光。
+      squint:
+        title: 亮度突变时眯眼
+        description: 当屏幕变亮的速度超过角色的适应速度时眯眼。屏幕持续明亮时，眼睛保持睁开。设为 0 可关闭此功能。
+      main-window-note: 改动会即时反映在 AIRI 主窗口。
+      diagnostics:
+        title: 捕获诊断
+        waiting: 正在等待 AIRI 主窗口的诊断信息。
+        status:
+          disabled: 已禁用
+          starting: 正在启动
+          capturing: 正在捕获
+          forced-color: 指定颜色
+          error: 错误
+        capture:
+          title: 捕获状态
+          description: 查看所选显示器、捕获尺寸和排除区域坐标。
+          display: 显示器与边界
+          video-size: 源视频
+          sample-size: 采样帧
+          window-bounds: AIRI 窗口边界
+          excluded-region: 排除区域
+          exposure: 屏幕曝光
+          behind-luminance: 角色背后的亮度
+          updated: 上次更新
+        preview:
+          title: 缩小后的捕获画面
+          description: 红色矩形标记 AIRI 窗口，虚线矩形标记光照图覆盖的区域。
+          unavailable: 暂无捕获帧。
+        pixels:
+          title: 像素筛选
+          total: 总计
+          accepted: 已采纳
+          excluded: 已绘制
+          transparent: 透明
+          see-through: 可透视
+        maps:
+          title: 光照图
+          window: 每张图覆盖 AIRI 窗口，并向四周各延伸半个窗口。轮廓线标记窗口位置。
+          unavailable: 暂无环境数据。
+          target: 实测
+          applied: 平滑后应用
+          surround:
+            title: 周边光照图
+            description: 对窗口周围及背后的屏幕内容进行大范围模糊，保留光线的颜色和入射方向。
+          contact:
+            title: 接触光照图
+            description: 对相同内容进行小范围模糊，用于驱动光线包裹和逆光轮廓。
+      sampling:
+        title: 屏幕采样
+        capture-interval:
+          title: 捕获间隔
+          description: 设置屏幕采样的时间间隔，捕获流会按此频率运行。
+        response-time:
+          title: 响应时间
+          description: 设置采样颜色适应屏幕变化的速度。
+        sample-width:
+          title: 采样尺寸
+          description: 设置缩小后捕获帧的宽度。更宽的画面能保留更多光照细节，高度会按显示器比例调整。
+        neutral-color-weight:
+          title: 中性色权重
+          description: 设置低饱和度颜色的最低权重。彩色内容的权重高于灰色内容。
+      shader:
+        title: 着色器响应
+        dark-base:
+          title: 亮度下限
+          description: 设置黑色屏幕下的模型亮度。白色屏幕显示模型原有亮度，屏幕变暗时模型会逐渐接近此下限。
+        base-curve:
+          title: 亮度曲线
+          description: 设置模型亮度从下限升至原始亮度的变化曲线。大于 1 时，半亮屏幕下的模型更接近亮度下限。
+        local-share:
+          title: 局部光照占比
+          description: 设置模型亮度受附近光线影响的程度，相对于整块屏幕的影响。设为 0 时，模型亮度不随窗口位置变化。
+        tint:
+          title: 色调
+          description: 设置模型受屏幕色相影响的程度。设为 0 时，仅屏幕亮度影响模型。
+        color-boost:
+          title: 暗光色彩增强
+          description: 设置模型对暗而高饱和度光线的额外色彩响应。亮度保持不变，各颜色通道不会低于未受光模型的值。
+        wrap-intensity:
+          title: 光线包裹强度
+          description: 设置背景颜色渗入模型边缘的强度。
+        wrap-saturation:
+          title: 光线包裹饱和度
+          description: 设置包裹光保留屏幕色相的程度。0 添加相同亮度的白光，1 添加完整的屏幕颜色。
+        backlight:
+          title: 逆光
+          description: 设置角色背后的光线照亮整体细窄轮廓的强度。
+        wrap-diffuse:
+          title: 光线包裹宽度
+          description: 设置背景颜色从模型边缘向内渗入的距离。
+        translucent-wrap:
+          title: 减少半透明部位的光线包裹
+          description: 按模型透明度的平方缩放包裹光和轮廓光。部分透明的部位本就能透出桌面。
+      preview-shader:
+        title: 着色器预览
+        description: 使用实时环境和上述设置，在测试卡上运行实际着色器。
+        window-mapping: 滤镜将此画布视作完整舞台窗口，因此预览并非舞台的逐像素复现。
+        filtered: 着色器输出
+        unavailable: 预览需要 WebGL，但此窗口无法创建上下文。
+        environment:
+          live: 光照来自 AIRI 主窗口发布的最新快照。
+          neutral: 尚未收到快照，预览使用中性环境。
+        regions:
+          title: 测试卡区域
+          body: 宽主体显示从 sRGB {low} 到 {high} 的色调渐变，用于观察亮度、对比度、色度和余量。
+          bars: 条带宽度分别为 {first}、{second}、{third}、{fourth} 和 {fifth} 像素，用于观察光线包裹在细窄形状中的渗入距离。
+          patches: 两个色块的透明度分别为 {strong} 和 {weak}，用于观察半透明包裹选项的作用。
     editor:
       title: AIRI 编辑器
       description: 打开独立的 AIRI 编辑器窗口
       button: 打开编辑器
     lag-visualizer:
       title: Lag 可视化
+    live2d-motion:
+      title: Live2D 动作控制
+      description: 控制 Live2D 的眼睛、头部和身体动作。
+      actions:
+        back: 返回
+      system-audio:
+        title: 系统音频口型同步
+        description: 捕获其他播放器的音频，同一输入会驱动节拍同步和 Live2D 嘴部动作。
+        signal: 输入信号
+        mouth-open: 张嘴程度
+        input-volume-threshold: 输入音量阈值
+        random-close-delay: 随机闭嘴延迟
+        random-close-probability: 随机闭嘴概率
+        actions:
+          start: 开始输入
+          stop: 停止输入
+      panels:
+        direct-control: 直接控制
+        preview: 模型预览
+        timeline: 时间轴
+        inference: 模型推断
+      preview:
+        groups:
+          expression: 表情
+          offset: 位置偏移
+        values:
+          squint: 眯眼
+          mouth-form: 形状
+          mouth-open: 张嘴
+      joystick-label: Live2D 动作摇杆
+      wave:
+        toggle: 小船模式
+      instructions: 拖动摇杆，或用方向键控制 X/Y。R 轻微眯眼，F 加深眯眼，C 闭眼。W/S 改变嘴形，空格张嘴。A/D 沿 X 轴移动身体，Q/E 倾斜头部。松开按键后平滑回到中心。
+      parameter-note: 摇杆控制 X/Y。R 对应 1/3 眯眼，F 对应 2/3 眯眼，C 完全闭眼。W/S 对应嘴形 ±1，空格对应张嘴 1。A/D 对应身体 X ±10°，Q/E 对应头部 Z ±30°。
+      input:
+        keyboard: 键盘
+        controller: 控制器
+      input-actions:
+        move-body-head: 移动身体和头部
+        tilt-head: 倾斜头部
+        blink: 眨眼
+        open-mouth: 张嘴
+        mouth-shape: 改变嘴形
+      eye-view:
+        title: 固定视线
+        description: 选择一个目标，眼睛会抵消头部动作，以保持注视该目标。
+        pad-label: 固定视线目标
+        actions:
+          enable: 启用注视
+          disable: 停用注视
+          center: 目标居中
+        counter:
+          label: 头部动作抵消强度
+          description: 设置眼睛抵消头部 X/Y 运动的程度。
+        values:
+          target: 目标
+          output: 眼睛输出
+      editor:
+        title: 动作编辑器
+        instructions: 灰色曲线为原始数据。添加动作叠加层或视线目标关键帧，选择轨道后拖动控制点。
+        play: 播放时间轴
+        pause: 暂停时间轴
+        undo: 撤销
+        redo: 重做
+        crop-to-view: 裁剪至可见范围
+        reset-view: 重置视图
+        export-project: 导出项目
+        import-project: 导入项目
+        import-error: 此文件不是有效的 AIRI Live2D 动作项目。
+        playback:
+          label: 时间轴播放控制
+          start: 跳至开头
+          step-backward: 向后逐帧
+          step-forward: 向前逐帧
+          end: 跳至结尾
+          timecode: 当前与总时间码
+        input-actions:
+          play: 播放
+          stop: 停止
+          start: 跳至开头
+          end: 跳至结尾
+          step-backward: 向后逐帧
+          step-forward: 向前逐帧
+          restart-recording: 重新录制
+          clear-timeline: 清空时间轴
+          previous-track: 选择上一轨道
+          next-track: 选择下一轨道
+        timeline-label: 动作时间轴
+        timeline-help: 拖动标尺可定位播放位置，滚轮缩放。按住 Shift 拖动可平移视图。双击所选曲线可添加控制点。每个视线目标关键帧会持续到下一个关键帧。
+        overlay-count: '{count} 个叠加层'
+        controls:
+          add: 添加
+          replace: 替换
+          create-keyframes: 创建关键帧
+          weight: 权重
+          remove: 移除
+        tracks:
+          viewTargetX: 视线目标 X
+          viewTargetY: 视线目标 Y
+          eyeX: 眼睛 X
+          eyeY: 眼睛 Y
+          eyeOpen: 睁眼程度
+          headX: 头部 X
+          headY: 头部 Y
+          headZ: 头部 Z
+          bodyX: 身体 X
+          bodyY: 身体 Y
+          bodyZ: 身体 Z
+          mouthForm: 嘴形
+          mouthOpen: 张嘴程度
+      var:
+        title: VAR 待机动作生成器
+        description: 拟合已录制的动作，再生成新的待机序列。
+        actions:
+          fit: 拟合当前动作
+          refit: 重新拟合当前动作
+          generate: 生成动作
+          stop: 停止生成
+          new-seed: 新随机种子
+        order:
+          label: VAR 阶数
+          description: 每次预测使用的历史帧数。
+        residual:
+          label: 残差强度
+          description: 生成变化的幅度，设为零时结果固定。
+        diagnostics:
+          source: 来源
+          model: 模型
+          fit: 拟合
+          run: 生成结果
+        status:
+          no-source: 请先导入或录制动作
+          source-ready: '{count} 个采样 · {duration} 秒'
+          fit-failed: VAR 拟合失败。
+        values:
+          frames: '{count} 帧'
+          model: '{channels} 个通道 · {features} 项'
+          fit: '{frames} 帧 · RMSE {error} · {duration} 毫秒'
+          run: '种子 {seed} · {duration}'
+      ar-hmm:
+        title: AR-HMM 待机动作生成器
+        description: 学习动作状态与转换，生成多样的待机动作。
+        actions:
+          fit: 拟合动作
+          refit: 重新拟合
+          generate: 生成
+          stop: 停止
+          new-seed: 新随机种子
+        states:
+          label: 隐藏状态
+          description: 模型可以学习的动作模式。
+        order:
+          label: AR 阶数
+          description: 每个状态使用的历史帧数。
+        residual:
+          label: 新息强度
+          description: 每个状态内的变化幅度。
+        diagnostics:
+          source: 来源
+          model: 模型
+          fit: 拟合
+          states: 状态占比
+          run: 生成结果
+        status:
+          no-source: 请先导入或录制动作
+          source-ready: '{count} 个采样 · {duration} 秒'
+          fit-failed: AR-HMM 拟合失败。
+        values:
+          count: '{count} 个状态'
+          frames: '{count} 帧'
+          model: '{states} 个状态 · {channels} 个通道 · {features} 项'
+          fit: '每帧对数概率 {likelihood} · {duration} 毫秒'
+          states: '{occupancy} · 停留 {dwell} 秒'
+          run: '状态 {state} · 种子 {seed} · {duration}'
+      output-filter:
+        title: 生成器输出滤波器
+        description: 在弹簧接收姿态前，平滑生成器输出并暂缓细小变化。
+        actions:
+          enable: 启用滤波器
+          disable: 停用滤波器
+          reset: 重置状态
+        smoothing:
+          label: EMA 平滑
+          description: 将每个采纳的目标与上次输出混合。数值越高，抖动越少，但延迟越大。
+        cutoff:
+          label: 变化阈值
+          description: 通道的累计归一化变化达到此值后才会更新。
+        diagnostics:
+          status: 状态
+          input-change: 原始变化 MAE
+          output-change: 滤波后变化 MAE
+          cutoff-tracks: 暂缓的通道
+        status:
+          waiting: 正在等待生成器
+          filtering: 正在过滤生成器输出
+          bypassed: 直接传递生成器原始输出
+      breath:
+        title: 手动呼吸
+        description: 控制 ParamBreath，可调整吸气、呼气和停留时间，不会将呼吸数据加入录制内容。
+        actions:
+          enable: 启用呼吸
+          disable: 停用呼吸
+          reset: 重置循环
+        cycle:
+          label: 呼吸时长
+          description: 设置一次吸气和呼气的时长，不包含呼气后的停留。
+        inhale:
+          label: 吸气占比
+          description: 设置呼吸时长中吸气所占的比例，其余时间用于呼气。
+        dwell:
+          label: 呼气后停留
+          description: 在下次吸气前，将 ParamBreath 保持在最低值。
+        minimum:
+          label: 最小值
+          description: 设置写入 ParamBreath 的最低值。
+        maximum:
+          label: 最大值
+          description: 设置写入 ParamBreath 的最高值。
+        diagnostics:
+          stage: 阶段
+          phase: 循环进度
+          output: ParamBreath 输出
+        stage:
+          inhale: 吸气
+          exhale: 呼气
+          dwell: 呼气后停留
+      spring:
+        follow:
+          label: 跟随
+          description: 动作跟随摇杆的速度。
+        inertia:
+          label: 惯性
+          description: 动作保留动量的程度。
+      groups:
+        eyes: 眼睛
+        head: 头部
+        body: 身体
+      recording:
+        actions:
+          record: 录制
+          stop-recording: 停止录制
+          play: 播放
+          stop-playback: 停止播放
+          export: 导出
+          import: 导入
+        status:
+          empty: 暂无动作录制
+          recording: 正在录制动作
+          playing: 正在播放动作
+          ready: '{count} 个采样 · {duration}'
+        import-error: 此文件不是有效的 AIRI Live2D 动作录制。
     performance-visualizer:
       title: 性能可视化
       description: 检查实时性能指标和运行时诊断数据
@@ -156,6 +538,7 @@ devtools:
       title: Markdown 压力测试
       description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
     io-tracer:
+      title: IO 追踪
       recording:
         title: 自动记录 IO Trace
         description: 把已结束的 IO span 以 JSON Lines 保存在应用数据目录，供 Agent 分析。七天前的文件会被自动删除。
@@ -169,5 +552,5 @@ screen-capture:
     dismiss: 取消
     instructions:
       step-1: 打开「系统首选项」，从侧边栏选择「隐私与安全」。
-      step-2: 在「屏幕和系统音频录制」和「系统音频录制」部分中，开启 AIRI 的开关。
+      step-2: 在「录屏与系统录音」和「仅系统录音」部分中，开启 AIRI 的开关。
       step-2-note: 如果没有列出 AIRI，请通过单击「+」按钮和从应用程序文件夹中选择 AIRI 来手动添加。
