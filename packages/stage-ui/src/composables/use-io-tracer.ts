@@ -254,3 +254,29 @@ export function takeComposerVoiceParent(sessionId: string): Span | undefined {
   composerVoiceParents.delete(sessionId)
   return link && Date.now() - link.finishedAt < COMPOSER_VOICE_LINK_MS ? link.span : undefined
 }
+
+/**
+ * The open `LLM inference` span of each turn, by round ID, and the number of requests it has started.
+ *
+ * The official provider fetch sees only the request, which carries the round ID header.
+ * It takes the parent of its `LLM request` span here, so two turns that stream at the same time keep their own parents.
+ */
+const llmInferenceSpans = new Map<string, { span: Span, requests: number }>()
+
+/** Makes `span` the parent of the `LLM request` spans of `turnId` until the returned function runs. */
+export function registerLlmInference(turnId: string, span: Span): () => void {
+  const entry = { span, requests: 0 }
+  llmInferenceSpans.set(turnId, entry)
+  return () => {
+    if (llmInferenceSpans.get(turnId) === entry)
+      llmInferenceSpans.delete(turnId)
+  }
+}
+
+/** Returns the `LLM inference` span of a turn and the index of the next request, or `undefined` outside a traced stream. */
+export function nextLlmRequestParent(turnId: string): { span: Span, stepIndex: number } | undefined {
+  const entry = llmInferenceSpans.get(turnId)
+  if (!entry)
+    return undefined
+  return { span: entry.span, stepIndex: entry.requests++ }
+}

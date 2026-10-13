@@ -18,6 +18,8 @@ export const SUBSYSTEM_CONFIGS: SubsystemConfig[] = [
   { subsystem: IOSubsystems.EndJudge, label: 'End Judge', color: '#f97316', bgColor: '#f9731618', icon: 'i-lucide:scale' },
   { subsystem: IOSubsystems.Rephrase, label: 'Rephrase', color: '#14b8a6', bgColor: '#14b8a618', icon: 'i-lucide:pen-line' },
   { subsystem: IOSubsystems.LLM, label: 'LLM', color: '#a855f7', bgColor: '#a855f718', icon: 'i-lucide:brain' },
+  { subsystem: IOSubsystems.LLMRequest, label: 'LLM Request', color: '#8b5cf6', bgColor: '#8b5cf618', icon: 'i-lucide:send' },
+  { subsystem: IOSubsystems.Tool, label: 'Tool', color: '#64748b', bgColor: '#64748b18', icon: 'i-lucide:wrench' },
   { subsystem: IOSubsystems.StreamingControl, label: 'Streaming Control', color: '#06b6d4', bgColor: '#06b6d418', icon: 'i-lucide:radio-tower' },
   { subsystem: IOSubsystems.TTS, label: 'TTS', color: '#22c55e', bgColor: '#22c55e18', icon: 'i-lucide:audio-lines' },
   { subsystem: IOSubsystems.Playback, label: 'Playback', color: '#f87171', bgColor: '#f8717118', icon: 'i-lucide:play' },

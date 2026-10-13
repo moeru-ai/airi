@@ -60,6 +60,8 @@ const ioTracerMocks = vi.hoisted(() => {
     takeVoiceTurnParent: vi.fn((_turnId: string): unknown => undefined),
     /** The composer dictation span of a session. */
     takeComposerVoiceParent: vi.fn((_sessionId: string): unknown => undefined),
+    unregisterLlmInference: vi.fn(),
+    registerLlmInference: vi.fn((_turnId: string, _span: unknown) => ioTracerMocks.unregisterLlmInference),
   }
 })
 
@@ -147,6 +149,7 @@ vi.mock('../composables/use-io-tracer', () => ({
   startSpan: ioTracerMocks.startSpanMock,
   takeVoiceTurnParent: ioTracerMocks.takeVoiceTurnParent,
   takeComposerVoiceParent: ioTracerMocks.takeComposerVoiceParent,
+  registerLlmInference: ioTracerMocks.registerLlmInference,
 }))
 
 vi.mock('./chat/context-providers', () => ({
@@ -380,6 +383,8 @@ describe('chat store contract', () => {
     ioTracerMocks.turnSpans.clear()
     ioTracerMocks.spans.length = 0
     ioTracerMocks.startSpanMock.mockClear()
+    ioTracerMocks.registerLlmInference.mockClear()
+    ioTracerMocks.unregisterLlmInference.mockClear()
     ioTracerMocks.takeVoiceTurnParent.mockReset()
     ioTracerMocks.takeComposerVoiceParent.mockReset()
     activeSessionIdRef.value = 'session-1'
@@ -1642,6 +1647,23 @@ describe('chat store contract', () => {
     expect(turnSpans[0].setStatus).not.toHaveBeenCalled()
     expect(turnSpans[1].setStatus).toHaveBeenCalledWith({ code: SpanStatusCode.ERROR })
     expect(ioTracerMocks.turnSpans.size).toBe(0)
+  })
+
+  it('records the requests and the tool calls of a turn under its LLM inference span', async () => {
+    const streamOptions: LlmStreamOptions[] = []
+    llmStreamMock.mockImplementationOnce(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: LlmStreamOptions) => {
+      streamOptions.push(options)
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    const store = useChatStore()
+    await store.send({ sessionId: 'session-1', text: 'Use a tool' })
+
+    const turnCall = ioTracerMocks.startSpanMock.mock.calls.find(([name]) => name === IOSpanNames.InteractionTurn)!
+    const llmSpan = ioTracerMocks.spans.find(span => span.name === IOSpanNames.LLMInference)
+    expect(ioTracerMocks.registerLlmInference).toHaveBeenCalledWith(turnCall[2]![IOAttributes.TurnId], llmSpan)
+    expect(streamOptions[0].toolSpanParent).toBe(llmSpan)
+    expect(ioTracerMocks.unregisterLlmInference).toHaveBeenCalledOnce()
   })
 
   it('continues a composer dictation trace when the turn has no voice input of its own', async () => {
