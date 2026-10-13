@@ -1,0 +1,9 @@
+{
+  "memory": {
+    "enabled": true,
+    "maxFacts": 100
+  },
+  "reminders": {
+    "enabled": true
+  }
+}

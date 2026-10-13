@@ -8,6 +8,8 @@ The fork adds these features to the desktop app (stage-tamagotchi):
 - **Your character.** The app ships with your character. It selects that character on the first start. You do not import anything.
 - **Local mode.** The app uses Ollama for chat, Kokoro for the voice, and Sherpaw for speech recognition. All three run on your computer.
 - **Lorebook.** The app gives the model extra facts only when a key word is in the chat.
+- **Memory.** The companion remembers facts about you across sessions. You can see and edit them in Settings.
+- **Reminders.** Ask the companion to remind you of something. It says the reminder when it is due, also after a restart.
 
 ## Where the files are
 
@@ -15,9 +17,11 @@ The fork adds these features to the desktop app (stage-tamagotchi):
 | --- | --- | --- |
 | `apps/stage-tamagotchi/src/renderer/personal/character.ts` | Your character: name, personality, speaking style, greeting, and lorebook. | **Yes** |
 | `apps/stage-tamagotchi/src/renderer/personal/local-mode.json` | Local mode settings: the Ollama model and the voice. | **Yes** |
+| `apps/stage-tamagotchi/src/renderer/personal/features.json` | Turns memory and reminders on or off. | **Yes** |
+| `apps/stage-tamagotchi/src/renderer/pages/settings/companion-memory.vue` | The **Companion memory** page in Settings. | No |
 | `personal/setup-local.cmd` and `personal/setup-local.ps1` | Installs Ollama and downloads the chat model. | No |
 | `.github/workflows/personal-build-windows.yml` | Builds the Windows installer on GitHub. | No |
-| `apps/stage-tamagotchi/src/renderer/personal/*.ts` (other files) | The code that installs the character and applies the lorebook. | Only if you want to change the behavior |
+| `apps/stage-tamagotchi/src/renderer/personal/*.ts` (other files) | The code that installs the character and runs the lorebook, memory, and reminders. | Only if you want to change the behavior |
 | `apps/stage-tamagotchi/src/renderer/App.vue` | Upstream file. A few lines start and stop the personal code. Search for `PERSONAL:` and `stopPersonalCompanion`. | No |
 | `apps/stage-tamagotchi/src/renderer/app.browser.test.ts` | Upstream test. One assertion has the `PERSONAL:` mark, because the personal character changes the first start. | No |
 
@@ -152,6 +156,44 @@ Optional fields:
 
 The lorebook works for the character in `character.ts`. A character card that you import in Settings loses its lorebook, because the upstream importer does not copy it.
 
+## Memory and reminders
+
+### How memory works
+
+After each reply, the app sends one more request to the chat model. It asks the model which facts about you to remember or forget, and if you asked for a reminder.
+The request runs in the background, so it does not delay the chat.
+Before each message, the app gives the companion the facts that it remembers and your pending reminders.
+
+The facts are stored only on your computer, in the app data. They are not part of the repository.
+
+To see, add, or delete facts, open **Settings > Companion memory**.
+To make the companion forget a fact, you can also tell it in the chat, for example "Forget that I live in Berlin."
+
+The extra request uses the chat model again. With a slow computer, the voice and the next reply can be a little slower while the request runs.
+A small model sometimes misses a fact or writes it in a strange way. Correct it on the **Companion memory** page.
+
+### How reminders work
+
+Ask in the chat, for example "Remind me at 6 pm to call Mom" or "Remind me in 20 minutes to stretch."
+When the reminder is due, the companion says it.
+If the app was closed at that time, the companion says the reminder when the app starts again.
+
+You can also add and delete reminders on the **Companion memory** page.
+
+If the chat model does not reply, for example because Ollama is not running, the app tries again for three minutes. Then it closes the reminder.
+
+### Memory and reminder settings
+
+`features.json` has these fields:
+
+| Field | Meaning |
+| --- | --- |
+| `memory.enabled` | `true` turns memory on. |
+| `memory.maxFacts` | The maximum number of facts. When there are more, the app deletes the oldest facts. |
+| `reminders.enabled` | `true` turns reminders on. |
+
+When both `memory.enabled` and `reminders.enabled` are `false`, the app does not send the extra request.
+
 ## Run the app from the source code (optional)
 
 Use this when you change the code and want to see the result without a GitHub build.
@@ -188,3 +230,6 @@ The personal files are new files. Upstream does not change them, so they do not 
 - A card imported in Settings loses its lorebook.
 - The lorebook ignores `token_budget`, `recursive_scanning`, and `position`.
 - The update button inside the app installs upstream AIRI, not your build.
+- Reminders work only in the main window of the app. Keep the app running. The main window can be hidden.
+- When the main window is hidden, Windows and Chromium slow down its timers. A reminder can then be up to approximately one minute late.
+- The **Companion memory** page is in English only.

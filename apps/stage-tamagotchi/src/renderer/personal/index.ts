@@ -1,18 +1,17 @@
-import type { ContextMessage } from '@proj-airi/stage-ui/types/chat'
-
 import { errorMessageFrom } from '@moeru/std'
-import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { extractMessageText } from '@proj-airi/stage-ui/libs/chat-sync/wire-message'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
-import { useChatContextStore } from '@proj-airi/stage-ui/stores/chat/context-store'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useLocalStorage } from '@vueuse/core'
-import { nanoid } from 'nanoid'
 
 import { personalCharacter } from './character'
+import { featuresConfig } from './features'
 import { applyLocalMode, localModeConfig } from './local-mode'
 import { selectLorebookEntries } from './lorebook'
+import { installMemory } from './memory'
+import { replacePromptContext } from './prompt-context'
+import { installReminderBridge } from './reminders'
 
 /** Context bucket that holds the lorebook facts for the current turn. Each turn replaces it. */
 const LOREBOOK_CONTEXT_ID = 'personal:lorebook'
@@ -69,8 +68,6 @@ async function installCharacter() {
 }
 
 function formatLorebookContext(contents: string[]): string {
-  // The context bucket keeps the last text until a new one replaces it. A
-  // turn without matches must replace it too, or old facts stay in the prompt.
   if (contents.length === 0)
     return 'No lorebook facts apply to this message.'
   return ['Facts from the character lorebook:', ...contents.map(content => `- ${content}`)].join('\n')
@@ -87,7 +84,6 @@ function formatLorebookContext(contents: string[]): string {
  */
 function installLorebook(): () => void {
   const chatStore = useChatStore()
-  const chatContextStore = useChatContextStore()
   const chatSessionStore = useChatSessionStore()
   const cardStore = useAiriCardStore()
 
@@ -98,29 +94,22 @@ function installLorebook(): () => void {
 
     const history = chatSessionStore.getSessionMessages(context.sessionId).map(extractMessageText)
     const entries = selectLorebookEntries(book, history, message)
-    const envelope: ContextMessage = {
-      id: nanoid(),
-      contextId: LOREBOOK_CONTEXT_ID,
-      strategy: ContextUpdateStrategy.ReplaceSelf,
-      metadata: { source: { id: LOREBOOK_CONTEXT_ID } },
-      text: formatLorebookContext(entries.map(entry => entry.content)),
-      createdAt: Date.now(),
-    }
-    chatContextStore.ingestContextMessage(envelope)
+    replacePromptContext(LOREBOOK_CONTEXT_ID, formatLorebookContext(entries.map(entry => entry.content)))
   })
 }
 
 /**
  * Starts the personal companion features in a full stage window.
  *
- * Only the synchronization leader installs the character, because card and
- * provider changes must come from one window. Every full stage window adds
- * the lorebook hook for the messages that it sends.
+ * Only the synchronization leader installs the character and the reminder
+ * bridge, because card, provider, and notebook changes must come from one
+ * window. Every full stage window adds the lorebook and memory hooks for the
+ * messages that it sends.
  *
- * @returns A function that removes the lorebook hook. Call it when the window runtime is disposed.
+ * @returns A function that stops the hooks, watchers, and timers. Call it when the window runtime is disposed.
  */
 export async function initializePersonalCompanion(options: { isLeader: boolean }): Promise<() => void> {
-  const stopLorebook = installLorebook()
+  const stops = [installLorebook(), installMemory()]
 
   if (options.isLeader) {
     try {
@@ -130,7 +119,13 @@ export async function initializePersonalCompanion(options: { isLeader: boolean }
       // A broken personal setup must not stop the app from starting.
       console.error('[personal] Failed to install the personal character:', errorMessageFrom(error) ?? 'unknown error')
     }
+
+    if (featuresConfig.reminders.enabled)
+      stops.push(installReminderBridge())
   }
 
-  return stopLorebook
+  return () => {
+    for (const stop of stops)
+      stop()
+  }
 }
