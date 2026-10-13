@@ -68,6 +68,8 @@ import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-ca
 import { initializeIOTraceRecordingBridge } from './bridges/io-trace-recording'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useLanguage } from './composables/use-language'
+// PERSONAL: Personal companion setup. See personal/README.md.
+import { initializePersonalCompanion } from './personal'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
 import {
@@ -171,6 +173,7 @@ function createFullStageRuntime() {
 
   let stopAuthenticatedSetup: (() => void) | undefined
   let stopLoggedOutSetup: (() => void) | undefined
+  let stopPersonalCompanion: (() => void) | undefined
 
   async function removeAuthenticationProviderConfiguration() {
     if (!syncedPinia.isLeader())
@@ -340,10 +343,15 @@ function createFullStageRuntime() {
         })
       }
 
+      // PERSONAL: Starts the personal companion features. See personal/README.md.
+      // It runs before the preload, so the preload loads the voice model of the personal character.
+      stopPersonalCompanion = await initializePersonalCompanion({ isLeader: syncedPinia.isLeader() })
+
       inferencePreload.triggerPreload()
     },
     dispose() {
       stopAuthenticatedSetup?.()
+      stopPersonalCompanion?.()
       stopLoggedOutSetup?.()
       contextBridgeStore.dispose()
     },
