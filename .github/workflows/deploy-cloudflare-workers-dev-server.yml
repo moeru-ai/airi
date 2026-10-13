@@ -34,19 +34,25 @@ jobs:
     outputs:
       commit_sha: ${{ steps.source.outputs.commit_sha }}
     steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.branch }}
+          fetch-depth: 0
       - name: Bind the commit to the selected branch
         id: source
         env:
-          GH_TOKEN: ${{ github.token }}
           SOURCE_BRANCH: ${{ inputs.branch }}
           SOURCE_SHA: ${{ inputs.commit_sha }}
         run: |
-          branch_sha=$(gh api "repos/${GITHUB_REPOSITORY}/branches/${SOURCE_BRANCH}" --jq '.commit.sha')
-          if [[ "$SOURCE_SHA" != "$branch_sha" ]]; then
-            echo "Commit ${SOURCE_SHA} is not the head of ${SOURCE_BRANCH}." >&2
+          if [[ ! "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Commit ${SOURCE_SHA} is not a full commit SHA." >&2
             exit 1
           fi
-          echo "commit_sha=$branch_sha" >> "$GITHUB_OUTPUT"
+          if ! git merge-base --is-ancestor "$SOURCE_SHA" HEAD; then
+            echo "Commit ${SOURCE_SHA} does not belong to ${SOURCE_BRANCH}." >&2
+            exit 1
+          fi
+          echo "commit_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
 
   deploy-stage-web:
     name: Deploy - stage-web (server-dev)
