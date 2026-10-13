@@ -26,8 +26,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  validate_source:
+    name: Validate selected source
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      commit_sha: ${{ steps.source.outputs.commit_sha }}
+    steps:
+      - name: Bind the commit to the selected branch
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_BRANCH: ${{ inputs.branch }}
+          SOURCE_SHA: ${{ inputs.commit_sha }}
+        run: |
+          branch_sha=$(gh api "repos/${GITHUB_REPOSITORY}/branches/${SOURCE_BRANCH}" --jq '.commit.sha')
+          if [[ "$SOURCE_SHA" != "$branch_sha" ]]; then
+            echo "Commit ${SOURCE_SHA} is not the head of ${SOURCE_BRANCH}." >&2
+            exit 1
+          fi
+          echo "commit_sha=$branch_sha" >> "$GITHUB_OUTPUT"
+
   deploy-stage-web:
     name: Deploy - stage-web (server-dev)
+    needs: validate_source
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -40,7 +63,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.commit_sha }}
+          ref: ${{ needs.validate_source.outputs.commit_sha }}
       # Turborepo
       - name: Cache turbo build setup
         uses: actions/cache@v5
@@ -99,6 +122,7 @@ jobs:
 
   deploy-auth-ui:
     name: Deploy - ui-server-auth (server-dev)
+    needs: validate_source
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -111,7 +135,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.commit_sha }}
+          ref: ${{ needs.validate_source.outputs.commit_sha }}
       # Turborepo
       - name: Cache turbo build setup
         uses: actions/cache@v5

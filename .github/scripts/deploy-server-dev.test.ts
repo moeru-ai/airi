@@ -434,4 +434,29 @@ exit 1
     expect(calls).toContain('workflow run deploy-cloudflare-workers-dev-server.yml --repo moeru-ai/airi --ref main --raw-field branch=release-branch --raw-field commit_sha=commit-sha')
     expect(calls).toContain('run watch 67890 --repo moeru-ai/airi --exit-status --compact')
   })
+
+  it('cancels the frontend run when its watcher fails', () => {
+    const { directory, run } = fixture({
+      gh: `
+printf '%s\n' "$*" >> "$TEST_STATE_DIRECTORY/calls"
+if [[ "$1 $2" == "workflow run" ]]; then
+  printf 'https://github.com/moeru-ai/airi/actions/runs/12345\n'
+  exit 0
+fi
+if [[ "$1 $2" == "run watch" ]]; then
+  exit 1
+fi
+if [[ "$1 $2" == "run cancel" ]]; then
+  exit 0
+fi
+exit 1
+`,
+    })
+
+    const result = run('deploy-frontend')
+    const calls = readFileSync(join(directory, 'calls'), 'utf8')
+
+    expect(result.status).toBe(1)
+    expect(calls).toContain('run cancel 12345 --repo moeru-ai/airi')
+  })
 })

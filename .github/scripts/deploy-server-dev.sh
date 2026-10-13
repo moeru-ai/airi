@@ -264,7 +264,24 @@ deploy_frontend() {
     return 1
   fi
 
-  gh run watch "$frontend_run_id" --repo "$GH_REPOSITORY" --exit-status --compact
+  cancel_frontend_run() {
+    echo "Cancelling frontend workflow run $frontend_run_id." >&2
+    gh run cancel "$frontend_run_id" --repo "$GH_REPOSITORY" || true
+  }
+
+  # The child workflow runs outside this job. Cancel it if GitHub stops the
+  # parent or if the watcher exits before the child succeeds.
+  trap cancel_frontend_run EXIT INT TERM
+
+  local watch_status=0
+  gh run watch "$frontend_run_id" --repo "$GH_REPOSITORY" --exit-status --compact || watch_status=$?
+  if ((watch_status != 0)); then
+    cancel_frontend_run
+    trap - EXIT INT TERM
+    return "$watch_status"
+  fi
+
+  trap - EXIT INT TERM
 }
 
 case "${1:-}" in
