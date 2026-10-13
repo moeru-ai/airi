@@ -1,10 +1,14 @@
 name: Cloudflare Workers (server-dev)
 
-# The "Deploy to server-dev" workflow starts this workflow on the branch under
-# test. Start it there, not here, so that the backend uses the same branch.
+# The parent starts this workflow from its own ref and passes the source branch.
+# This keeps the dispatch inputs available for branches created earlier.
 on:
   workflow_dispatch:
     inputs:
+      branch:
+        description: Branch of this repository to deploy
+        required: true
+        type: string
       dispatch_token:
         description: Unique token from the parent deployment workflow
         required: false
@@ -31,6 +35,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.branch }}
       # Turborepo
       - name: Cache turbo build setup
         uses: actions/cache@v5
@@ -100,6 +106,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.branch }}
       # Turborepo
       - name: Cache turbo build setup
         uses: actions/cache@v5

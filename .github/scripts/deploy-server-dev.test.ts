@@ -314,8 +314,9 @@ exit 1
       encoding: 'utf8',
       env: {
         ...process.env,
-        DEPLOY_BRANCH: 'main',
+        DEPLOY_BRANCH: 'release-branch',
         GH_REPOSITORY: 'moeru-ai/airi',
+        GITHUB_REF_NAME: 'main',
         GITHUB_RUN_ATTEMPT: '3',
         GITHUB_RUN_ID: '42',
         PATH: `${join(directory, 'bin')}:${process.env.PATH}`,
@@ -326,6 +327,7 @@ exit 1
     const calls = readFileSync(join(directory, 'calls'), 'utf8')
 
     expect(result.status).toBe(0)
+    expect(calls).toContain('workflow run deploy-cloudflare-workers-dev-server.yml --repo moeru-ai/airi --ref main --raw-field branch=release-branch')
     expect(calls).toContain('run watch 67890 --repo moeru-ai/airi --exit-status --compact')
   })
 })

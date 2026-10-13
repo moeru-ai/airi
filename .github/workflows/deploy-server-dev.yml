@@ -79,7 +79,6 @@ jobs:
       # Railway follows later pushes to the branch. The frontend does not, so
       # each run builds it from the same branch.
       - name: Deploy the frontend
-        timeout-minutes: 30
         run: bash .github/scripts/deploy-server-dev.sh deploy-frontend
 
       - name: Summary

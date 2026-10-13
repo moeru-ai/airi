@@ -150,8 +150,9 @@ deploy_services() {
 deploy_frontend() {
   local dispatch_token="server-dev-${GITHUB_RUN_ID:-manual}-${GITHUB_RUN_ATTEMPT:-1}"
   local frontend_run_title="Deploy server-dev frontend ($dispatch_token)"
+  local workflow_ref="${GITHUB_REF_NAME:-main}"
   local frontend_run_url
-  if ! frontend_run_url=$(gh workflow run deploy-cloudflare-workers-dev-server.yml --repo "$GH_REPOSITORY" --ref "$DEPLOY_BRANCH" --raw-field "dispatch_token=$dispatch_token"); then
+  if ! frontend_run_url=$(gh workflow run deploy-cloudflare-workers-dev-server.yml --repo "$GH_REPOSITORY" --ref "$workflow_ref" --raw-field "branch=$DEPLOY_BRANCH" --raw-field "dispatch_token=$dispatch_token"); then
     echo "::error::Cannot start the frontend workflow." >&2
     return 1
   fi
@@ -160,7 +161,7 @@ deploy_frontend() {
   if [[ ! "$frontend_run_id" =~ ^[0-9]+$ ]]; then
     for _ in {1..20}; do
       local frontend_runs
-      if ! frontend_runs=$(gh run list --repo "$GH_REPOSITORY" --workflow deploy-cloudflare-workers-dev-server.yml --branch "$DEPLOY_BRANCH" --event workflow_dispatch --limit 100 --json databaseId,displayTitle); then
+      if ! frontend_runs=$(gh run list --repo "$GH_REPOSITORY" --workflow deploy-cloudflare-workers-dev-server.yml --branch "$workflow_ref" --event workflow_dispatch --limit 100 --json databaseId,displayTitle); then
         echo "::error::Cannot list frontend workflow runs." >&2
         return 1
       fi
