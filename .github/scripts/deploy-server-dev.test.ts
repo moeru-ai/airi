@@ -1,0 +1,192 @@
+import { spawnSync } from 'node:child_process'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
+
+import { afterEach, describe, expect, it } from 'vitest'
+
+const script = resolve(import.meta.dirname, 'deploy-server-dev.sh')
+const temporaryDirectories: string[] = []
+
+function fixture(commands: Record<string, string>) {
+  const directory = mkdtempSync(join(tmpdir(), 'deploy-server-dev-'))
+  const binaryDirectory = join(directory, 'bin')
+  temporaryDirectories.push(directory)
+
+  mkdirSync(binaryDirectory)
+  for (const [name, source] of Object.entries(commands)) {
+    const path = join(binaryDirectory, name)
+    writeFileSync(path, `#!/usr/bin/env bash\nset -euo pipefail\n${source}`)
+    chmodSync(path, 0o755)
+  }
+
+  return {
+    directory,
+    run(command: string) {
+      return spawnSync('bash', [script, command], {
+        cwd: directory,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          DEPLOY_BRANCH: 'main',
+          GH_REPOSITORY: 'moeru-ai/airi',
+          PATH: `${binaryDirectory}:${process.env.PATH}`,
+          POLL_INTERVAL_SECONDS: '0',
+          TEST_STATE_DIRECTORY: directory,
+        },
+      })
+    },
+  }
+}
+
+afterEach(() => {
+  for (const directory of temporaryDirectories.splice(0))
+    rmSync(directory, { recursive: true, force: true })
+})
+
+describe('deploy-server-dev', () => {
+  // https://github.com/moeru-ai/airi/pull/2918#discussion_r4245224726
+  // ROOT CAUSE:
+  //
+  // The workflow did not treat REMOVED as a terminal failure.
+  // The deployment wait now fails for every unsuccessful terminal status.
+  it('Issue PR #2918 fails when a new Railway deployment is removed', () => {
+    const { run } = fixture({
+      railway: `
+if [[ "$1 $2" == "service status" ]]; then
+  count_file="$TEST_STATE_DIRECTORY/status-count"
+  count=$(cat "$count_file" 2>/dev/null || printf '0')
+  printf '%s' "$((count + 1))" > "$count_file"
+  if [[ "$count" == '0' ]]; then
+    printf '{"deploymentId":"old","status":"SUCCESS"}\n'
+  else
+    printf '{"deploymentId":"new","status":"REMOVED"}\n'
+  fi
+  exit 0
+fi
+if [[ "$1 $2" == "service redeploy" ]]; then
+  exit 0
+fi
+exit 1
+`,
+      sleep: 'exit 0',
+    })
+
+    const result = run('deploy-services')
+
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('ended with status REMOVED')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2918#discussion_r4248346084
+  // ROOT CAUSE:
+  //
+  // The workflow started both deployments before it waited for either deployment.
+  // The deployment command now waits for one service before it starts the next service.
+  it('Issue PR #2918 waits for each service before it starts the next service', () => {
+    const { directory, run } = fixture({
+      railway: `
+service=''
+for ((index = 1; index <= $#; index++)); do
+  if [[ "\${!index}" == '--service' ]]; then
+    next=$((index + 1))
+    service="\${!next}"
+  fi
+done
+printf '%s %s %s\n' "$1" "$2" "$service" >> "$TEST_STATE_DIRECTORY/calls"
+if [[ "$1 $2" == "service status" ]]; then
+  count_file="$TEST_STATE_DIRECTORY/status-$service"
+  count=$(cat "$count_file" 2>/dev/null || printf '0')
+  printf '%s' "$((count + 1))" > "$count_file"
+  if [[ "$count" == '0' ]]; then
+    printf '{"deploymentId":"old-%s","status":"SUCCESS"}\n' "$service"
+  else
+    printf '{"deploymentId":"new-%s","status":"SUCCESS"}\n' "$service"
+  fi
+  exit 0
+fi
+if [[ "$1 $2" == "service redeploy" ]]; then
+  exit 0
+fi
+exit 1
+`,
+      sleep: 'exit 0',
+    })
+
+    const result = run('deploy-services')
+    const calls = readFileSync(join(directory, 'calls'), 'utf8')
+
+    expect(result.status).toBe(0)
+    const tsApiWait = calls.indexOf('service status ts-api', calls.indexOf('service redeploy ts-api'))
+    expect(tsApiWait).toBeLessThan(calls.indexOf('service redeploy auth-server'))
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2918#discussion_r4246985823
+  // ROOT CAUSE:
+  //
+  // The database reset happened before the workflow disconnected the old source branch.
+  // The workflow now changes both sources and drains old deployments before the reset.
+  it('Issue PR #2918 changes both source branches before it drains deployments', () => {
+    const { directory, run } = fixture({
+      railway: `
+service=''
+for ((index = 1; index <= $#; index++)); do
+  if [[ "\${!index}" == '--service' || "\${!index}" == '--service-config' ]]; then
+    next=$((index + 1))
+    service="\${!next}"
+  fi
+done
+printf '%s %s %s\n' "$1" "$2" "$service" >> "$TEST_STATE_DIRECTORY/calls"
+if [[ "$1 $2" == "environment edit" ]]; then
+  exit 0
+fi
+if [[ "$1 $2" == "deployment list" ]]; then
+  count_file="$TEST_STATE_DIRECTORY/list-$service"
+  count=$(cat "$count_file" 2>/dev/null || printf '0')
+  printf '%s' "$((count + 1))" > "$count_file"
+  if [[ "$count" == '0' ]]; then
+    printf '[{"status":"BUILDING"}]\n'
+  else
+    printf '[{"status":"SUCCESS"}]\n'
+  fi
+  exit 0
+fi
+exit 1
+`,
+      sleep: 'exit 0',
+    })
+
+    const result = run('select-branch')
+    const calls = readFileSync(join(directory, 'calls'), 'utf8')
+
+    expect(result.status).toBe(0)
+    expect(calls.indexOf('environment edit auth-server')).toBeLessThan(calls.indexOf('deployment list ts-api'))
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2918#discussion_r4245224721
+  // ROOT CAUSE:
+  //
+  // The dispatch command returned before the frontend workflow completed.
+  // The workflow now reads the child run ID and propagates its final result.
+  it('Issue PR #2918 waits for the exact frontend run', () => {
+    const { directory, run } = fixture({
+      gh: `
+printf '%s\n' "$*" >> "$TEST_STATE_DIRECTORY/calls"
+if [[ "$1 $2" == "workflow run" ]]; then
+  printf 'https://github.com/moeru-ai/airi/actions/runs/12345\n'
+  exit 0
+fi
+if [[ "$1 $2" == "run watch" ]]; then
+  exit 0
+fi
+exit 1
+`,
+    })
+
+    const result = run('deploy-frontend')
+    const calls = readFileSync(join(directory, 'calls'), 'utf8')
+
+    expect(result.status).toBe(0)
+    expect(calls).toContain('run watch 12345 --repo moeru-ai/airi --exit-status --compact')
+  })
+})

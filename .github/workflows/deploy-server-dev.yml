@@ -44,6 +44,15 @@ jobs:
       - name: Check the branch
         run: gh api "repos/${GITHUB_REPOSITORY}/branches/${DEPLOY_BRANCH}" --silent
 
+      - uses: actions/checkout@v6
+      - run: npm install --global @railway/cli@5
+
+      # Select the new source before the reset. Then wait for deployments that
+      # the old source started outside this workflow's concurrency group.
+      - name: Select the Railway source branch
+        timeout-minutes: 30
+        run: bash .github/scripts/deploy-server-dev.sh select-branch
+
       # The API runs migrations on startup, and the Drizzle migrator only
       # applies migrations newer than the last applied one. A database that
       # another branch migrated makes it skip older migrations of this branch
@@ -58,59 +67,20 @@ jobs:
           parent: true
           api_key: ${{ secrets.NEON_API_KEY }}
 
-      - run: npm install --global @railway/cli@5
-
-      # NOTICE:
-      # `railway service source connect` is the direct command for a source
-      # change, but Railway rejects it for a project token with "Unauthorized".
-      # A project token can change the same field through an environment
-      # config edit, the path that `railway config apply` uses.
-      # Evidence: run 38268809740 failed, run 38270278514 passed the edit.
-      # Use `service source connect` again when Railway accepts project tokens
-      # for it.
-      #
       # `redeploy --from-source` also covers a run that keeps the same branch.
       # The services must restart there to migrate the reset database.
       #
-      # The step waits for a new deployment to pass its healthcheck. A run that
-      # ends earlier lets the next run reset the database while this branch
-      # still builds, and this branch then migrates the reset database.
+      # Each deployment finishes before the next deployment starts. This order
+      # keeps a failed command from leaving an untracked deployment running.
       - name: Deploy the Railway dev services from the branch
         timeout-minutes: 30
-        run: |
-          services=(ts-api auth-server)
-          declare -A previous
-
-          for service in "${services[@]}"; do
-            previous[$service]=$(railway service status --service "$service" --json | jq --raw-output '.deploymentId')
-            railway environment edit --service-config "$service" source.branch "$DEPLOY_BRANCH" --message "Deploy $DEPLOY_BRANCH to server-dev"
-            railway service redeploy --service "$service" --from-source --yes
-          done
-
-          for service in "${services[@]}"; do
-            while true; do
-              latest=$(railway service status --service "$service" --json)
-              id=$(jq --raw-output '.deploymentId' <<< "$latest")
-              status=$(jq --raw-output '.status' <<< "$latest")
-
-              if [[ "$id" != "${previous[$service]}" ]]; then
-                case "$status" in
-                  SUCCESS) break ;;
-                  FAILED | CRASHED)
-                    echo "::error::The $service deployment $id ended with status $status"
-                    exit 1
-                    ;;
-                esac
-              fi
-
-              sleep 15
-            done
-          done
+        run: bash .github/scripts/deploy-server-dev.sh deploy-services
 
       # Railway follows later pushes to the branch. The frontend does not, so
       # each run builds it from the same branch.
       - name: Deploy the frontend
-        run: gh workflow run deploy-cloudflare-workers-dev-server.yml --repo "$GITHUB_REPOSITORY" --ref "$DEPLOY_BRANCH"
+        timeout-minutes: 30
+        run: bash .github/scripts/deploy-server-dev.sh deploy-frontend
 
       - name: Summary
         env:
