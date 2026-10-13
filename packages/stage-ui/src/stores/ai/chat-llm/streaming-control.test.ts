@@ -1,7 +1,6 @@
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { shallowRef } from 'vue'
 
 const spanMock = vi.hoisted(() => ({
   addEvent: vi.fn(),
@@ -10,10 +9,11 @@ const spanMock = vi.hoisted(() => ({
 }))
 
 const startSpanMock = vi.hoisted(() => vi.fn(() => spanMock))
+const turnSpans = vi.hoisted(() => new Map<string, unknown>())
 
 vi.mock('../../../composables/use-io-tracer', () => ({
-  activeTurnSpan: shallowRef(undefined),
   startSpan: startSpanMock,
+  turnSpanOf: (turnId: string | undefined) => turnId ? turnSpans.get(turnId) : undefined,
 }))
 
 describe('useLlmStreamingControlStore', () => {
@@ -23,6 +23,23 @@ describe('useLlmStreamingControlStore', () => {
     spanMock.addEvent.mockClear()
     spanMock.end.mockClear()
     spanMock.setAttribute.mockClear()
+  })
+
+  it('records a dispatch under the turn that it names, not under another turn that runs at the same time', async () => {
+    const { useLlmStreamingControlStore } = await import('./streaming-control')
+    const store = useLlmStreamingControlStore()
+    const alice = { name: 'alice turn' }
+    turnSpans.set('alice-turn', alice)
+    turnSpans.set('bob-turn', { name: 'bob turn' })
+    try {
+      await store.dispatchWith('<|DELAY:1|>', { turnId: 'alice-turn' })
+      await store.dispatchWith('<|DELAY:1|>', { turnId: 'turn-in-another-window' })
+    }
+    finally {
+      turnSpans.clear()
+    }
+
+    expect(startSpanMock.mock.calls.map(call => (call as unknown[])[1])).toEqual([alice, undefined])
   })
 
   /**
