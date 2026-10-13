@@ -41,7 +41,6 @@ docs:
   'logging-in': กำลังเข้าสู่ระบบ...
   'account': บัญชี
   'logout': ออกจากระบบ
-
 'chat-window':
   style:
     title: รูปแบบหน้าต่างแชท
@@ -64,7 +63,6 @@ docs:
     reading-speed-value: '{count} ตัวอักษร/วินาที'
     minimum-time: เวลาขั้นต่ำ
     minimum-time-value: '{count} วินาที'
-
 widgets:
   close: ปิดวิดเจ็ต
   empty:
@@ -72,10 +70,6 @@ widgets:
     description: วิดเจ็ตจะปรากฏที่นี่เมื่อเครื่องมือหรือปลั๊กอินสร้างขึ้นมา
   loading: กำลังโหลดวิดเจ็ต…
   waiting: กำลังรอข้อมูลของวิดเจ็ต "{id}"…
-
-inlay:
-  hide: ซ่อน
-
 notice:
   'fade-on-hover':
     title: จางลงเมื่อเคอร์เซอร์อยู่ใกล้
@@ -90,7 +84,6 @@ notice:
     preparing: กำลังเตรียม…
     read-more: อ่านเพิ่มเติม
     preview-title: นี่คืออะไร?
-
 about:
   subtitle: เวอร์ชันเดสก์ท็อป
   current-version: เวอร์ชันปัจจุบัน
@@ -108,9 +101,9 @@ about:
     channels:
       auto: อัตโนมัติ
       stable: เสถียร
-      nightly: รายคืน
       alpha: อัลฟา
       beta: เบตา
+      nightly: รายคืน
     status:
       downloading: กำลังดาวน์โหลดอัปเดต...
       error-prefix: ข้อผิดพลาด
