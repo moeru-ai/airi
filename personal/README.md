@@ -19,6 +19,7 @@ The fork adds these features to the desktop app (stage-tamagotchi):
 | `.github/workflows/personal-build-windows.yml` | Builds the Windows installer on GitHub. | No |
 | `apps/stage-tamagotchi/src/renderer/personal/*.ts` (other files) | The code that installs the character and applies the lorebook. | Only if you want to change the behavior |
 | `apps/stage-tamagotchi/src/renderer/App.vue` | Upstream file. A few lines start and stop the personal code. Search for `PERSONAL:` and `stopPersonalCompanion`. | No |
+| `apps/stage-tamagotchi/src/renderer/app.browser.test.ts` | Upstream test. One assertion has the `PERSONAL:` mark, because the personal character changes the first start. | No |
 
 ## Get the app
 
@@ -176,7 +177,7 @@ Do this when you want the new features of upstream AIRI.
 1. One time, add the upstream repository: `git remote add upstream https://github.com/moeru-ai/airi.git`
 2. Run `git fetch upstream`.
 3. Run `git merge upstream/main`.
-4. If Git reports a conflict, it is almost always in the personal lines of `App.vue`. Keep the upstream lines, then add the personal lines again.
+4. If Git reports a conflict, it is almost always in the personal lines of `App.vue` or `app.browser.test.ts`. Keep the upstream lines, then add the personal lines again.
 5. Run the checks in the previous section, then push.
 
 The personal files are new files. Upstream does not change them, so they do not cause conflicts.

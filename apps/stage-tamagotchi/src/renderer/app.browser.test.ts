@@ -369,7 +369,10 @@ describe('renderer startup', () => {
     expect(stage.initializeCharacter).toHaveBeenCalledTimes(1)
     await expect(stage.listProviders()).resolves.toContainEqual({ name: 'Kokoro TTS' })
     await expect.poll(() => inference.loadModel.mock.calls, { timeout: 5000 }).toHaveLength(1)
-    expect(inference.loadModel).toHaveBeenCalledWith('q8', 'wasm', { signal: expect.any(AbortSignal) })
+    // PERSONAL: On a first start, the personal character selects Kokoro. The speech
+    // store then loads the model to list its voices, before the preload runs, so
+    // this one call has no abort signal. See personal/README.md.
+    expect(inference.loadModel.mock.calls[0]?.slice(0, 2)).toEqual(['q8', 'wasm'])
   }, 15000)
 
   // Chat and widgets follow the main Stage window. Each case keeps the query
