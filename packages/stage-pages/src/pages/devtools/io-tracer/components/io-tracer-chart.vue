@@ -7,6 +7,7 @@ import { computed, ref, watch } from 'vue'
 
 import {
   GAP_WARN_THRESHOLD_MS,
+  INPUT_SUBSYSTEMS,
   LABEL_COL_WIDTH,
   MINIMAP_HEIGHT,
   ROW_HEIGHT,
@@ -147,9 +148,10 @@ const layout = computed(() => {
     }
     isFirstTurn = false
 
+    const inputSpans = turnSpans.filter(s => INPUT_SUBSYSTEMS.has(s.subsystem)).sort((a, b) => a.startTs - b.startTs)
     const llmSpans = turnSpans.filter(s => s.subsystem === IOSubsystems.LLM).sort((a, b) => a.startTs - b.startTs)
     const auxiliarySpans = turnSpans
-      .filter(s => s.subsystem !== IOSubsystems.LLM && !ttsSubsystems.has(s.subsystem))
+      .filter(s => s.subsystem !== IOSubsystems.LLM && !ttsSubsystems.has(s.subsystem) && !INPUT_SUBSYSTEMS.has(s.subsystem))
       .sort((a, b) => a.startTs - b.startTs)
     const ttsSpanList = turnSpans.filter(s => ttsSubsystems.has(s.subsystem))
 
@@ -168,6 +170,11 @@ const layout = computed(() => {
 
     const sortedSegments = [...segmentGroups.values()]
       .sort((a, b) => a[0].startTs - b[0].startTs)
+
+    for (const span of inputSpans) {
+      rows.push({ type: 'span', span, turn, subsystem: span.subsystem, y })
+      y += ROW_HEIGHT
+    }
 
     for (const span of llmSpans) {
       rows.push({ type: 'span', span, turn, subsystem: IOSubsystems.LLM, y })

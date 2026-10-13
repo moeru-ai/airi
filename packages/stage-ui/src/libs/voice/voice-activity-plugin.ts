@@ -15,6 +15,17 @@ export interface VoiceActivityOptions {
   readonly acceptSpeech?: (window: AudioWindow, signal: AbortSignal) => Promise<boolean>
   readonly enabled?: () => boolean
   readonly onInput?: () => void
+  /**
+   * Runs right before the plugin begins an input, with the reason. The controller announces the input
+   * synchronously inside that call, so the host knows the cause of the input that it is told about next.
+   * A wake that does not lead to a begin, for example after echo rejection, never reaches this callback.
+   */
+  readonly beforeBeginInput?: (cause: 'wake-word' | 'speech') => void
+  /**
+   * Receives the VAD result of each window that the plugin noted on its input, in window order.
+   * The voice host traces speech segments with it. It never changes how the input starts or ends.
+   */
+  readonly onActivity?: (activity: { inputId: string, speech: boolean, durationMs: number }) => void
   /** @default 0.6. A live input uses 30 percent of this score to keep speech active. */
   readonly threshold?: number
   /** @default 300. Shorter speech is discarded when silence ends an input. */
@@ -74,6 +85,7 @@ export function createVoiceActivityPlugin(options: VoiceActivityOptions): VoiceP
         if (!target)
           return
 
+        options.beforeBeginInput?.(wake ? 'wake-word' : 'speech')
         const result = ctx.controls.beginInput({ ...target, start: wake
           ? { kind: 'after-silence' }
           : { kind: 'speech-onset', at: { sourceId: ctx.window.range.sourceId, frame: ctx.window.range.startFrame }, preRollMs: options.preRollMs ?? 360 } })
@@ -92,6 +104,7 @@ export function createVoiceActivityPlugin(options: VoiceActivityOptions): VoiceP
 
       if (!input.noteActivity({ range: ctx.window.range, speech }))
         return
+      options.onActivity?.({ inputId: input.id, speech, durationMs: duration })
 
       speechMs += speech ? duration : 0
       silenceMs = speech ? 0 : silenceMs + duration

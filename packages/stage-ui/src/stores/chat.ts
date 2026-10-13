@@ -20,7 +20,7 @@ import { useI18n } from 'vue-i18n'
 
 import { getConversationAnalyticsSurface } from '../composables'
 import { useAiriRuntimePrompt } from '../composables/use-airi-runtime-prompt'
-import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
+import { activeTurnSpan, startSpan, takeComposerVoiceParent, takeVoiceTurnParent } from '../composables/use-io-tracer'
 import { useChatVision } from '../composables/vision/use-chat-vision'
 import { useVisionInference } from '../composables/vision/use-vision-inference'
 import { chatAssetIdFrom, inlineConversationAssets, storeChatAttachments } from '../libs/chat-assets'
@@ -342,10 +342,16 @@ export const useChatStore = defineStore('chat', () => {
       : undefined
     let turnSpan = turnKey ? ownedTurnSpans.get(turnKey) : activeTurnSpan.value
     if (!turnSpan && turnKey) {
-      turnSpan = startSpan(IOSpanNames.InteractionTurn)
+      // A spoken turn continues the trace of its voice input. A turn after a composer dictation continues that
+      // dictation, because the composer sends the dictated text under a new ID. Any other turn starts a new trace.
+      const correlation = options?.requestCorrelation
+      const voiceParent = correlation
+        ? takeVoiceTurnParent(correlation.turnId) ?? takeComposerVoiceParent(correlation.conversationId)
+        : undefined
+      turnSpan = startSpan(IOSpanNames.InteractionTurn, voiceParent)
       ownedTurnSpans.set(turnKey, turnSpan)
     }
-    // Speech recognition, speech output, and streaming control attach to the most recently started turn.
+    // Speech output and streaming control attach to the most recently started turn.
     if (turnSpan)
       activeTurnSpan.value = turnSpan
 
