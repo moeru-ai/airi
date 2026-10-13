@@ -82,4 +82,35 @@ describe('setupWidgetsWindowInvokes', () => {
     expect(disposeMock).toHaveBeenCalledTimes(1)
     expect(createWidgetsServiceMock).not.toHaveBeenCalled()
   })
+
+  it('calls dispose and rejects when widget window closes during setup', async () => {
+    let closedCallback: (() => void) | undefined
+    const mockWindow = {
+      isDestroyed: vi.fn(() => false),
+      once: vi.fn((event: string, callback: () => void) => {
+        if (event === 'closed') {
+          closedCallback = callback
+        }
+      }),
+      removeListener: vi.fn(),
+    } as never
+
+    const baseSetupPromise = new Promise<void>(() => {})
+    setupBaseWindowElectronInvokesMock.mockReturnValue(baseSetupPromise)
+
+    const invokesPromise = setupWidgetsWindowInvokes({
+      widgetWindow: mockWindow,
+      widgetsManager,
+      serverChannel,
+      i18n,
+    })
+
+    expect(createWidgetsServiceMock).not.toHaveBeenCalled()
+
+    closedCallback?.()
+
+    await expect(invokesPromise).rejects.toThrow('Widget window was closed during setup')
+    expect(disposeMock).toHaveBeenCalledTimes(1)
+    expect(createWidgetsServiceMock).not.toHaveBeenCalled()
+  })
 })
