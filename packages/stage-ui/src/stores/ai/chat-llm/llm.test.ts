@@ -1,4 +1,4 @@
-import type { StreamOptions } from '@proj-airi/core-agent'
+import type { Conversation, StreamOptions } from '@proj-airi/core-agent'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { Event, Message, Tool } from '@xsai/shared-chat'
 import type { StreamTextChunkResult, StreamTextOptions, StreamTextResult } from '@xsai/stream-text'
@@ -1003,6 +1003,110 @@ describe('isToolRelatedError', () => {
     expect(streamTextMock.mock.calls[2]?.[0]?.tools).toBeUndefined()
     expect(streamTextMock.mock.calls[3]?.[0]?.tools).toBeUndefined()
     expect(onStreamEvent).not.toHaveBeenCalled()
+  })
+
+  it('records tool incompatibility for the model that a resolved step selects', async () => {
+    const store = useLLM()
+    const helloTurns = { turns: chatMessagesToTurns([{ role: 'user', content: 'Hello' }]) }
+    const customTool = createSparkTool()
+    customTool.function.name = 'custom-tool'
+    streamTextMock.mockImplementationOnce(() => {
+      throw new Error('model-b does not support tools')
+    })
+    await expect(store.stream('model-a', provider, helloTurns, {
+      tools: [customTool],
+      resolveStep: async () => ({ model: 'model-b', chatProvider: provider, providerId: 'test', systemPrompt: '' }),
+    })).rejects.toThrow('does not support tools')
+
+    streamTextMock.mockImplementation(() => createMockStreamResult())
+    await store.stream('model-a', provider, helloTurns, { tools: [customTool] })
+    await store.stream('model-b', provider, helloTurns, { tools: [customTool] })
+
+    expect(streamTextMock.mock.calls[1]?.[0]?.tools?.map(toolNameFrom)).toContain('custom-tool')
+    expect(streamTextMock.mock.calls[2]?.[0]?.tools).toBeUndefined()
+  })
+
+  it('sends the request tools with each resolved step', async () => {
+    const helloTurns = { turns: chatMessagesToTurns([{ role: 'user', content: 'Hello' }]) }
+    const customTool = createSparkTool()
+    customTool.function.name = 'custom-tool'
+    createSparkCommandToolMock.mockResolvedValueOnce([createSparkTool()])
+    streamTextMock.mockImplementation(() => createMockStreamResult())
+
+    await useLLM().stream('model-a', provider, helloTurns, {
+      tools: [customTool],
+      resolveStep: async () => ({ model: 'model-b', chatProvider: provider, providerId: 'test', systemPrompt: '' }),
+    })
+
+    expect(streamTextMock.mock.calls[0]?.[0]?.tools?.map(toolNameFrom)).toContain('custom-tool')
+    expect(streamTextMock.mock.calls[0]?.[0]?.tools?.map(toolNameFrom)).toContain('builtIn_emitSparkCommand')
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2161
+  // ROOT CAUSE:
+  // Resolved steps skipped the full tool list, so the guard lost names during media preparation and cached retries.
+  // Resolve the current tools for each step and keep the actual target's compatibility state through media preparation.
+  it.each(['text.delta', 'reasoning.delta'])('recovers a resolved media request and guards its cached retry in %s for Issue #2161', async (type) => {
+    const store = useLLM()
+    const rawToolCall = '{"name":"builtIn_emitSparkCommand","arguments":{}}'
+    const customTools = vi.fn(async () => [createSparkTool()])
+    const conversation: Conversation = { turns: [{ id: 'recording', type: 'user', content: [{ type: 'audio', format: 'wav', data: 'YXVkaW8=' }] }] }
+    const prepareConversation = vi.fn<NonNullable<StreamOptions['prepareConversation']>>(async () => ({
+      turns: chatMessagesToTurns([{ role: 'user', content: 'Spoken request' }]),
+    }))
+    const onStreamEvent = vi.fn()
+    const options = {
+      tools: customTools,
+      resolveStep: async () => ({ model: 'model-b', chatProvider: provider, providerId: 'test', systemPrompt: '' }),
+      prepareConversation,
+      onStreamEvent,
+    } satisfies StreamOptions
+    mockStreamEvents([{ type, delta: rawToolCall }])
+    mockStreamEvents([{ type: 'text.delta', delta: 'Natural response' }])
+
+    await store.stream('model-a', provider, conversation, options)
+
+    expect(streamTextMock).toHaveBeenCalledTimes(2)
+    expect(streamTextMock.mock.calls[0]?.[0]?.model).toBe('model-b')
+    expect(streamTextMock.mock.calls[0]?.[0]?.tools?.map(toolNameFrom)).toContain('builtIn_emitSparkCommand')
+    expect(streamTextMock.mock.calls[1]?.[0]?.tools).toBeUndefined()
+    expect(streamTextMock.mock.calls[0]?.[0]?.messages).toEqual([{ role: 'user', content: 'Spoken request' }])
+    expect(streamTextMock.mock.calls[1]?.[0]?.messages).toEqual([{ role: 'user', content: 'Spoken request' }])
+    expect(prepareConversation).toHaveBeenCalledTimes(2)
+    expect(prepareConversation.mock.calls[0]?.[1]).toMatchObject({ model: 'model-b', providerId: 'test' })
+    expect(conversation.turns[0]).toMatchObject({ content: [{ type: 'audio', data: 'YXVkaW8=' }] })
+    expect(onStreamEvent).toHaveBeenCalledWith({ type: 'text-delta', text: 'Natural response' })
+    expect(onStreamEvent.mock.calls.some(([event]) => 'text' in event && event.text.includes(rawToolCall))).toBe(false)
+
+    onStreamEvent.mockClear()
+    mockStreamEvents([{ type, delta: rawToolCall }])
+    await expect(store.stream('model-a', provider, conversation, options)).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
+
+    expect(streamTextMock).toHaveBeenCalledTimes(3)
+    expect(streamTextMock.mock.calls[2]?.[0]?.tools).toBeUndefined()
+    expect(customTools).toHaveBeenCalledTimes(3)
+    expect(onStreamEvent).not.toHaveBeenCalled()
+  })
+
+  it('skips builtin tool resolution for an explicitly tool-free resolved step', async () => {
+    const customTools = vi.fn(async () => [createSparkTool()])
+    const onStreamEvent = vi.fn()
+    const rawToolCall = '{"name":"builtIn_emitSparkCommand","arguments":{}}'
+    mockStreamEvents([{ type: 'text.delta', delta: rawToolCall }])
+
+    await useLLM().stream('model-a', provider, { turns: chatMessagesToTurns([]) }, {
+      supportsTools: false,
+      tools: customTools,
+      resolveStep: async () => ({ model: 'model-b', chatProvider: provider, providerId: 'test', systemPrompt: '' }),
+      onStreamEvent,
+    })
+
+    expect(streamTextMock).toHaveBeenCalledTimes(1)
+    expect(streamTextMock.mock.calls[0]?.[0]?.tools).toBeUndefined()
+    expect(customTools).not.toHaveBeenCalled()
+    expect(mcpMock).not.toHaveBeenCalled()
+    expect(createSparkCommandToolMock).not.toHaveBeenCalled()
+    expect(onStreamEvent).toHaveBeenCalledWith({ type: 'text-delta', text: rawToolCall })
   })
 
   it('merges runtime-registered tools from the llm-tools store into the builtin tool resolver', async () => {
