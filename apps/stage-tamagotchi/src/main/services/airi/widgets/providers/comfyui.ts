@@ -54,11 +54,15 @@ export class ComfyUIProvider implements ArtistryProvider {
 
   async initialize(config: any): Promise<void> {
     if (config?.comfyuiServerUrl)
-      this.serverUrl = config.comfyuiServerUrl.replace(/\/+$/, '') // strip trailing slashes
+      this.serverUrl = String(config.comfyuiServerUrl).trim().replace(/\/+$/, '') // strip trailing slashes
     if (config?.comfyuiSavedWorkflows)
       this.savedWorkflows = config.comfyuiSavedWorkflows
     if (config?.comfyuiActiveWorkflow)
       this.activeWorkflowId = config.comfyuiActiveWorkflow
+  }
+
+  getServerUrl(): string {
+    return this.serverUrl
   }
 
   async generate(request: ArtistryRequest): Promise<ArtistryJob> {
