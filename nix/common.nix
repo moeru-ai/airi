@@ -1,4 +1,5 @@
 {
+  pkgs,
   lib,
   stdenvNoCC,
   fetchPnpmDeps,
@@ -6,17 +7,26 @@
   cacert,
   gitMinimal,
   nodejs,
-  pnpm_11,
   pnpmConfigHook,
-}:
 
-let
-  pnpm = pnpm_11;
-in
+  # Use project version
+  version ? lib.pipe ../package.json [
+    builtins.readFile
+    (builtins.match ''.*"version": "([^[:space:]]+)".*'')
+    builtins.head
+  ],
+  # Pin pnpm version
+  pnpm' ? lib.pipe ../package.json [
+    builtins.readFile
+    (builtins.match ''.*"packageManager": "pnpm@([[:digit:]]+).*'')
+    builtins.head
+    (major: pkgs."pnpm_${major}")
+  ],
+}:
 
 stdenvNoCC.mkDerivation (final: {
   pname = "airi";
-  version = (builtins.fromJSON (builtins.readFile ../package.json)).version;
+  inherit version;
 
   src = lib.cleanSourceWith {
     src = ../.;
@@ -31,7 +41,7 @@ stdenvNoCC.mkDerivation (final: {
 
   pnpmDeps = fetchPnpmDeps {
     inherit (final) pname version src;
-    inherit pnpm;
+    pnpm = pnpm';
     fetcherVersion = 4;
     hash = builtins.readFile ./pnpm-deps-hash.txt;
   };
@@ -45,7 +55,7 @@ stdenvNoCC.mkDerivation (final: {
       cacert # For network request
       gitMinimal # For unplugin-info
       nodejs
-      pnpm
+      pnpm'
       pnpmConfigHook
     ];
 
@@ -71,6 +81,9 @@ stdenvNoCC.mkDerivation (final: {
     outputHashAlgo = "sha256";
     outputHash = builtins.readFile ./assets-hash.txt;
   };
+
+  # To be pinned by dev shells
+  passthru.pnpm = pnpm';
 
   meta = {
     description = "Self-hostable AI waifu / companion / VTuber";
