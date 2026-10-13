@@ -106,6 +106,57 @@ export const IOAttributes = {
   Cancelled: `${customPrefix}.cancelled`,
 } as const
 
+/**
+ * The attributes that the agent trace upload sends. The upload drops every other attribute before it leaves the client.
+ *
+ * Content is never on this list: ASR, TTS, and wake word text, streaming control parameters and raw tokens,
+ * tool arguments, and tool results. The API applies its own allowlist too.
+ */
+export const IOUploadAttributes: ReadonlySet<string> = new Set([
+  IOAttributes.GenAIRequestModel,
+  IOAttributes.GenAIProviderName,
+  IOAttributes.GenAIConversationId,
+  IOAttributes.GenAIToolName,
+  IOAttributes.GenAIToolCallId,
+  IOAttributes.ErrorType,
+  IOAttributes.TurnId,
+  IOAttributes.RequestId,
+  IOAttributes.Cancelled,
+  IOAttributes.LLM_TTFT,
+  IOAttributes.LLMStepIndex,
+  IOAttributes.LLMInputMessageCount,
+  IOAttributes.LLMInputUserMessageCount,
+  IOAttributes.LLMOutputChunkCount,
+  IOAttributes.LLMTextLength,
+  IOAttributes.WakeCharacterId,
+  IOAttributes.VoiceInputId,
+  IOAttributes.VoiceInputTrigger,
+  IOAttributes.VoiceInputOutcome,
+  IOAttributes.VoiceInputReason,
+  IOAttributes.VADAudioDurationMs,
+  IOAttributes.VADAborted,
+  IOAttributes.ASRAbort,
+  IOAttributes.EndJudgement,
+  IOAttributes.EndJudgeTranscriptLength,
+  IOAttributes.RephraseSegmentCount,
+  IOAttributes.RephraseChangedCount,
+  IOAttributes.TTSSegmentId,
+  IOAttributes.TTSChunkReason,
+  IOAttributes.TTSAudioDurationMs,
+  IOAttributes.TTSInterrupted,
+  IOAttributes.TTSInterruptReason,
+  IOAttributes.TTSCanceled,
+  IOAttributes.TTSNoAudio,
+  IOAttributes.StreamingControlParserName,
+  IOAttributes.StreamingControlParsed,
+  IOAttributes.StreamingControlMatched,
+  IOAttributes.StreamingControlHandlerCount,
+  IOAttributes.StreamingControlReason,
+  IOAttributes.StreamingControlCallName,
+  IOAttributes.StreamingControlTokenType,
+  IOAttributes.StreamingControlTokenLength,
+])
+
 export const IOEvents = {
   // Non-standard
   LLMFirstToken: `${customPrefix}.llm.first_token`,
