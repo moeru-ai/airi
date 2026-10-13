@@ -22,18 +22,6 @@ electronCallback:
     openAiriManually: 手動開啟 AIRI
   hint:
     closeTabManually: 部分瀏覽器不允許此頁面自動關閉，你可以手動關閉。
-webCallback:
-  action:
-    tryAgain: 再試一次
-  title:
-    signIn: 登入
-    errorLabel: 登入時發生錯誤
-    loading: 正在登入…
-  message:
-    missingCodeOrState: 缺少授權碼或狀態
-    missingFlowState: 缺少 OIDC 流程狀態，請重新登入
-    tokenExchangeFailed: 權杖交換失敗
-    finalizing: 正在完成 AIRI 驗證。
 signIn:
   title: 登入
   step:
@@ -176,7 +164,7 @@ profile:
       unlink: 解除連結
     message:
       loading: 正在載入已連結的帳戶…
-      unlinked: 已中斷 {provider} 的連結。
+      unlinked: '已中斷 {provider} 的連結。'
       linkStarted: 正在重新導向至 {provider}…
     error:
       listFailed: 無法載入已連結的帳戶。
@@ -199,3 +187,15 @@ profile:
     signOutFailed: 無法登出。
     passwordMismatch: 新密碼與確認密碼不相符。
     passwordSameAsCurrent: 新密碼必須與目前密碼不同。
+webCallback:
+  title:
+    signIn: 登入
+    errorLabel: 登入時發生錯誤
+    loading: 正在登入…
+  message:
+    missingCodeOrState: 缺少授權碼或狀態
+    missingFlowState: 缺少 OIDC 流程狀態，請重新登入
+    tokenExchangeFailed: 權杖交換失敗
+    finalizing: 正在完成 AIRI 驗證。
+  action:
+    tryAgain: 再試一次
