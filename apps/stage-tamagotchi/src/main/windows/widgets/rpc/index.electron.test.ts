@@ -112,5 +112,7 @@ describe('setupWidgetsWindowInvokes', () => {
     await expect(invokesPromise).rejects.toThrow('Widget window was closed during setup')
     expect(disposeMock).toHaveBeenCalledTimes(1)
     expect(createWidgetsServiceMock).not.toHaveBeenCalled()
+    const passedSignal = setupBaseWindowElectronInvokesMock.mock.calls[0]?.[0]?.signal as AbortSignal | undefined
+    expect(passedSignal?.aborted).toBe(true)
   })
 })
