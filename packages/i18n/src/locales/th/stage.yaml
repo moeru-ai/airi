@@ -188,14 +188,14 @@ viewers:
   debug-menu:
     emotions: อารมณ์
     emotions-btn:
-      angry: 😠 โกรธ
-      awkward: 😳 เขิน
-      happy: 😄 มีความสุข
-      neutral: 🙂 ปกติ
-      question: 🤔 สงสัย
-      sad: 😫 เศร้า
-      surprised: 🤯 ประหลาดใจ
-      think: 🤨 ครุ่นคิด
+      angry: '😠 โกรธ'
+      awkward: '😳 เขิน'
+      happy: '😄 มีความสุข'
+      neutral: '🙂 ปกติ'
+      question: '🤔 สงสัย'
+      sad: '😫 เศร้า'
+      surprised: '🤯 ประหลาดใจ'
+      think: '🤨 ครุ่นคิด'
     vrm:
       camera: กล้อง
       model:
@@ -206,39 +206,8 @@ profile-switcher:
   save-as-new: บันทึกเป็นโปรไฟล์ใหม่
   new-profile-name: ชื่อโปรไฟล์
   manage: จัดการโปรไฟล์
-waiting: กำลังรอ
-websocket-status:
-  connected: เชื่อมต่อแล้ว
-  disconnected: ไม่มีการเชื่อมต่อ
-  open-settings: เปิดการตั้งค่าการเชื่อมต่อ
-
-computer-use:
-  label: ใช้คอมพิวเตอร์
-  description: อนุญาตให้หน้าต่างแชทนี้ตรวจดูและควบคุมแอปบนคอมพิวเตอร์เครื่องนี้
-
-status:
-  preparing: กำลังเตรียมไมโครโฟน
-  listening: กำลังฟัง
-  paused: หยุดฟังชั่วคราวขณะที่ AIRI พูด
-  transcribing: กำลังถอดเสียง
-  hearing-error: ถอดเสียงไม่ได้
-  no-transcript: เสียงพูดที่จดจำได้จะแสดงที่นี่
-  signing-in: เข้าสู่ระบบให้เสร็จในเบราว์เซอร์ของคุณ
-  confirming: กำลังยืนยันการเข้าสู่ระบบ
-  signed-in: เข้าสู่ระบบแล้ว
-  sign-in-error: เข้าสู่ระบบไม่สำเร็จ
-  sign-in-unconfirmed: ยืนยันเซสชันของคุณไม่ได้ โปรดเข้าสู่ระบบอีกครั้ง
-  dismiss: ปิด
-  configure-hearing: เลือกและตั้งค่าผู้ให้บริการการฟังในการตั้งค่า
 promo-banner:
   items:
-    home:
-      watermark: อยู่บ้าน
-      fallbackLabel: ธีมห้อง
-      title: อัปเดตธีมฤดูใบไม้ผลิ
-      eventName: ปลดล็อกธีมหน้าต่าง โต๊ะ และโคมไฟกลางคืนเพื่อเปลี่ยนบรรยากาศห้อง
-      reward: ตั๋วสุ่มธีมฟรีเมื่อเช็กอิน
-      cta: ดูธีม
     signin:
       watermark: ดวงจันทร์
       fallbackLabel: ของขวัญจากดวงจันทร์
@@ -262,8 +231,37 @@ promo-banner:
       cta: สุ่มเลย
     coupon:
       watermark: พูดคุย
+      fallbackLabel: คูปอง
       title: คูปองเติมเงิน
       eventName: ทำกิจกรรมสนทนาให้สำเร็จเพื่อรับคูปองสำหรับส่วนขยายและแพ็กเสียง
       reward: ลด 6 เมื่อซื้อ 30 / ลด 15 เมื่อซื้อ 68
       cta: รับคูปอง
-      fallbackLabel: คูปอง
+    home:
+      watermark: อยู่บ้าน
+      fallbackLabel: ธีมห้อง
+      title: อัปเดตธีมฤดูใบไม้ผลิ
+      eventName: ปลดล็อกธีมหน้าต่าง โต๊ะ และโคมไฟกลางคืนเพื่อเปลี่ยนบรรยากาศห้อง
+      reward: ตั๋วสุ่มธีมฟรีเมื่อเช็กอิน
+      cta: ดูธีม
+waiting: กำลังรอ
+websocket-status:
+  connected: เชื่อมต่อแล้ว
+  disconnected: ไม่มีการเชื่อมต่อ
+  open-settings: เปิดการตั้งค่าการเชื่อมต่อ
+computer-use:
+  label: ใช้คอมพิวเตอร์
+  description: อนุญาตให้หน้าต่างแชทนี้ตรวจดูและควบคุมแอปบนคอมพิวเตอร์เครื่องนี้
+status:
+  preparing: กำลังเตรียมไมโครโฟน
+  listening: กำลังฟัง
+  paused: หยุดฟังชั่วคราวขณะที่ AIRI พูด
+  transcribing: กำลังถอดเสียง
+  hearing-error: ถอดเสียงไม่ได้
+  no-transcript: เสียงพูดที่จดจำได้จะแสดงที่นี่
+  signing-in: เข้าสู่ระบบให้เสร็จในเบราว์เซอร์ของคุณ
+  confirming: กำลังยืนยันการเข้าสู่ระบบ
+  signed-in: เข้าสู่ระบบแล้ว
+  sign-in-error: เข้าสู่ระบบไม่สำเร็จ
+  sign-in-unconfirmed: ยืนยันเซสชันของคุณไม่ได้ โปรดเข้าสู่ระบบอีกครั้ง
+  dismiss: ปิด
+  configure-hearing: เลือกและตั้งค่าผู้ให้บริการการฟังในการตั้งค่า

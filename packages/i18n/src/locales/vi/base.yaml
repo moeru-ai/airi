@@ -35,15 +35,6 @@ prompt:
     <{'|'}CALL {'["name"]'}{'|'}> hoặc <{'|'}CALL {'["name", {"key":"value"}]'}{'|'}> Chỉ dùng CALL khi tác vụ hiện tại hoặc module đã kết nối yêu cầu rõ ràng bạn phát ra một lệnh gọi có tên, ví dụ <{'|'}CALL {'["chess.play"]'}{'|'}>.
 
     Các cảm xúc có sẵn:
-  suffix: |
-    Các hành động có sẵn:
-
-    - <{'|'}DELAY 1{'|'}> (Trì hoãn 1 giây)
-    - <{'|'}DELAY 3{'|'}> (Trì hoãn 3 giây)
-
-    Và cuối cùng, hãy làm bất cứ điều gì bạn muốn!
-  emoji: |
-    Không dùng emoji hoặc văn bản mà người nói không thể phát âm.
   emotion: |
     Token điều khiển luồng dùng chính xác định dạng `<{'|'}NAME payload{'|'}>`
     Đặt token trong văn bản trả lời cuối cùng tại vị trí sân khấu cần thực hiện. Không mô tả token trong phần suy luận hoặc văn xuôi khi cần sân khấu thực hiện chúng.
@@ -66,6 +57,15 @@ prompt:
     Chỉ dùng CALL khi tác vụ hiện tại hoặc mô-đun đã kết nối yêu cầu rõ ràng một lệnh gọi có tên, ví dụ <{'|'}CALL {'["chess.play"]'}{'|'}>.
 
     Các cảm xúc khả dụng:
+  emoji: |
+    Không dùng emoji hoặc văn bản mà người nói không thể phát âm.
+  suffix: |
+    Các hành động có sẵn:
+
+    - <{'|'}DELAY 1{'|'}> (Trì hoãn 1 giây)
+    - <{'|'}DELAY 3{'|'}> (Trì hoãn 3 giây)
+
+    Và cuối cùng, hãy làm bất cứ điều gì bạn muốn!
 toaster:
   pwaUpdateReady:
     message: Có phiên bản mới, tải lại ngay?
