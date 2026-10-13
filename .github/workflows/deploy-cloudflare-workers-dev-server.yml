@@ -4,6 +4,13 @@ name: Cloudflare Workers (server-dev)
 # test. Start it there, not here, so that the backend uses the same branch.
 on:
   workflow_dispatch:
+    inputs:
+      dispatch_token:
+        description: Unique token from the parent deployment workflow
+        required: false
+        type: string
+
+run-name: ${{ inputs.dispatch_token && format('Deploy server-dev frontend ({0})', inputs.dispatch_token) || 'Deploy server-dev frontend' }}
 
 # All runs deploy to the same preview alias, whatever branch they build.
 concurrency:

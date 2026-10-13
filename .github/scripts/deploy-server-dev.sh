@@ -7,7 +7,7 @@ readonly POLL_INTERVAL_SECONDS="${POLL_INTERVAL_SECONDS:-15}"
 
 is_terminal_status() {
   case "$1" in
-    SUCCESS | FAILED | CRASHED | REMOVED | SKIPPED | NEEDS_APPROVAL | SLEEPING) return 0 ;;
+    SUCCESS | FAILED | CRASHED | REMOVED | SKIPPED) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -22,8 +22,35 @@ wait_for_idle_deployments() {
       return 1
     fi
 
+    local needs_approval
+    if ! needs_approval=$(jq 'any(.[]; .status == "NEEDS_APPROVAL")' <<< "$deployments"); then
+      echo "::error::Cannot inspect the $service deployment states." >&2
+      return 1
+    fi
+
+    if [[ "$needs_approval" == "true" ]]; then
+      echo "::error::The $service deployment needs approval. Abort it in Railway before resetting Neon." >&2
+      return 1
+    fi
+
+    local sleeping
+    if ! sleeping=$(jq 'any(.[]; .status == "SLEEPING")' <<< "$deployments"); then
+      echo "::error::Cannot inspect the $service deployment states." >&2
+      return 1
+    fi
+
+    if [[ "$sleeping" == "true" ]]; then
+      echo "Removing the sleeping $service deployment before the database reset."
+      if ! railway down --service "$service" --yes; then
+        echo "::error::Cannot remove the sleeping $service deployment." >&2
+        return 1
+      fi
+      sleep "$POLL_INTERVAL_SECONDS"
+      continue
+    fi
+
     local active_statuses
-    if ! active_statuses=$(jq --raw-output '[.[] | .status | select(IN("SUCCESS", "FAILED", "CRASHED", "REMOVED", "SKIPPED", "NEEDS_APPROVAL", "SLEEPING") | not)] | unique | join(", ")' <<< "$deployments"); then
+    if ! active_statuses=$(jq --raw-output '[.[] | .status | select(IN("SUCCESS", "FAILED", "CRASHED", "REMOVED", "SKIPPED") | not)] | unique | join(", ")' <<< "$deployments"); then
       echo "::error::Cannot read the $service deployment list." >&2
       return 1
     fi
@@ -121,15 +148,38 @@ deploy_services() {
 }
 
 deploy_frontend() {
+  local dispatch_token="server-dev-${GITHUB_RUN_ID:-manual}-${GITHUB_RUN_ATTEMPT:-1}"
+  local frontend_run_title="Deploy server-dev frontend ($dispatch_token)"
   local frontend_run_url
-  if ! frontend_run_url=$(gh workflow run deploy-cloudflare-workers-dev-server.yml --repo "$GH_REPOSITORY" --ref "$DEPLOY_BRANCH"); then
+  if ! frontend_run_url=$(gh workflow run deploy-cloudflare-workers-dev-server.yml --repo "$GH_REPOSITORY" --ref "$DEPLOY_BRANCH" --raw-field "dispatch_token=$dispatch_token"); then
     echo "::error::Cannot start the frontend workflow." >&2
     return 1
   fi
 
   local frontend_run_id="${frontend_run_url##*/}"
   if [[ ! "$frontend_run_id" =~ ^[0-9]+$ ]]; then
-    echo "::error::The frontend workflow did not return a run URL." >&2
+    for _ in {1..20}; do
+      local frontend_runs
+      if ! frontend_runs=$(gh run list --repo "$GH_REPOSITORY" --workflow deploy-cloudflare-workers-dev-server.yml --branch "$DEPLOY_BRANCH" --event workflow_dispatch --limit 100 --json databaseId,displayTitle); then
+        echo "::error::Cannot list frontend workflow runs." >&2
+        return 1
+      fi
+
+      if ! frontend_run_id=$(jq --arg title "$frontend_run_title" --raw-output '[.[] | select(.displayTitle == $title)][0].databaseId // empty' <<< "$frontend_runs"); then
+        echo "::error::Cannot read frontend workflow runs." >&2
+        return 1
+      fi
+
+      if [[ "$frontend_run_id" =~ ^[0-9]+$ ]]; then
+        break
+      fi
+
+      sleep "$POLL_INTERVAL_SECONDS"
+    done
+  fi
+
+  if [[ ! "$frontend_run_id" =~ ^[0-9]+$ ]]; then
+    echo "::error::Cannot find the frontend workflow run for $dispatch_token." >&2
     return 1
   fi
 

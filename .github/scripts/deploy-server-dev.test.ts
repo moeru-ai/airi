@@ -163,6 +163,65 @@ exit 1
     expect(calls.indexOf('environment edit auth-server')).toBeLessThan(calls.indexOf('deployment list ts-api'))
   })
 
+  it('removes sleeping Railway deployments before it finishes draining', () => {
+    const { directory, run } = fixture({
+      railway: `
+service=''
+for ((index = 1; index <= $#; index++)); do
+  if [[ "\${!index}" == '--service' || "\${!index}" == '--service-config' ]]; then
+    next=$((index + 1))
+    service="\${!next}"
+  fi
+done
+printf '%s %s %s\n' "$1" "\${2:-}" "$service" >> "$TEST_STATE_DIRECTORY/calls"
+if [[ "$1 $2" == "environment edit" ]]; then
+  exit 0
+fi
+if [[ "$1 $2" == "deployment list" ]]; then
+  if [[ -f "$TEST_STATE_DIRECTORY/removed-$service" ]]; then
+    printf '[{"status":"REMOVED"}]\n'
+  else
+    printf '[{"status":"SLEEPING"}]\n'
+  fi
+  exit 0
+fi
+if [[ "$1" == "down" ]]; then
+  touch "$TEST_STATE_DIRECTORY/removed-$service"
+  exit 0
+fi
+exit 1
+`,
+      sleep: 'exit 0',
+    })
+
+    const result = run('select-branch')
+    const calls = readFileSync(join(directory, 'calls'), 'utf8')
+
+    expect(result.status).toBe(0)
+    expect(calls).toContain('down --service ts-api')
+    expect(calls).toContain('down --service auth-server')
+  })
+
+  it('stops before reset when a Railway deployment needs approval', () => {
+    const { run } = fixture({
+      railway: `
+if [[ "$1 $2" == "environment edit" ]]; then
+  exit 0
+fi
+if [[ "$1 $2" == "deployment list" ]]; then
+  printf '[{"status":"NEEDS_APPROVAL"}]\n'
+  exit 0
+fi
+exit 1
+`,
+    })
+
+    const result = run('select-branch')
+
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('needs approval')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2918#discussion_r4245224721
   // ROOT CAUSE:
   //
@@ -188,5 +247,43 @@ exit 1
 
     expect(result.status).toBe(0)
     expect(calls).toContain('run watch 12345 --repo moeru-ai/airi --exit-status --compact')
+  })
+
+  it('finds the exact frontend run when dispatch returns no URL', () => {
+    const { directory } = fixture({
+      gh: `
+printf '%s\n' "$*" >> "$TEST_STATE_DIRECTORY/calls"
+if [[ "$1 $2" == "workflow run" ]]; then
+  exit 0
+fi
+if [[ "$1 $2" == "run list" ]]; then
+  printf '[{"databaseId":67890,"displayTitle":"Deploy server-dev frontend (server-dev-42-3)"}]\n'
+  exit 0
+fi
+if [[ "$1 $2" == "run watch" ]]; then
+  exit 0
+fi
+exit 1
+`,
+    })
+
+    const result = spawnSync('bash', [script, 'deploy-frontend'], {
+      cwd: directory,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        DEPLOY_BRANCH: 'main',
+        GH_REPOSITORY: 'moeru-ai/airi',
+        GITHUB_RUN_ATTEMPT: '3',
+        GITHUB_RUN_ID: '42',
+        PATH: `${join(directory, 'bin')}:${process.env.PATH}`,
+        POLL_INTERVAL_SECONDS: '0',
+        TEST_STATE_DIRECTORY: directory,
+      },
+    })
+    const calls = readFileSync(join(directory, 'calls'), 'utf8')
+
+    expect(result.status).toBe(0)
+    expect(calls).toContain('run watch 67890 --repo moeru-ai/airi --exit-status --compact')
   })
 })
