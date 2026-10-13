@@ -32,6 +32,7 @@ import {
   AIRI_CHAT_APP_SURFACE_HEADER,
   AIRI_CHAT_ROUND_ID_HEADER,
   AIRI_CHAT_SESSION_ID_HEADER,
+  AIRI_REQUEST_ID_HEADER,
 } from './analytics'
 import { createOpenAiRouteBilling } from './middlewares/billing'
 import { tracer } from './middlewares/telemetry'
@@ -3499,6 +3500,59 @@ it('preserves Responses interaction headers in request intake', async () => {
   }, { user: testUser })
   expect(response.status).toBe(200)
   expect(harness.logs.beginRequest).toHaveBeenCalledWith(expect.objectContaining({ interactionId: 'round-1', dimensions: { appSurface: 'web' } }))
+})
+
+describe('request ID header', () => {
+  function chatApp(route: () => Response) {
+    const logs = createMockRequestLogService()
+    const router = createMockLlmRouter({ route: vi.fn(async () => route()) })
+    const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, logs, undefined, router)
+    const send = (body: object) => app.request('/api/v1/openai/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [], ...body }),
+    }, { user: testUser })
+    return { logs, send }
+  }
+
+  function loggedRequestId(logs: ReturnType<typeof createMockRequestLogService>) {
+    return vi.mocked(logs.beginRequest).mock.calls[0]?.[0].requestId
+  }
+
+  it('returns the logged request ID for a Chat body and a Chat stream', async () => {
+    const body = chatApp(() => Response.json({ id: 'chat-test', choices: [], usage: { prompt_tokens: 1, completion_tokens: 1 } }))
+    const bodyResponse = await body.send({})
+    expect(bodyResponse.status).toBe(200)
+    expect(bodyResponse.headers.get(AIRI_REQUEST_ID_HEADER)).toBe(loggedRequestId(body.logs))
+
+    const stream = chatApp(() => new Response('data: [DONE]\n\n', { headers: { 'content-type': 'text/event-stream' } }))
+    const streamResponse = await stream.send({ stream: true })
+    await streamResponse.text()
+    expect(streamResponse.headers.get(AIRI_REQUEST_ID_HEADER)).toBe(loggedRequestId(stream.logs))
+  })
+
+  it('returns the logged request ID for an upstream error and for an error that the app renders', async () => {
+    const upstream = chatApp(() => new Response('{"error":"bad"}', { status: 400, headers: { 'content-type': 'application/json' } }))
+    const upstreamResponse = await upstream.send({})
+    expect(upstreamResponse.status).toBe(400)
+    expect(upstreamResponse.headers.get(AIRI_REQUEST_ID_HEADER)).toBe(loggedRequestId(upstream.logs))
+
+    const thrown = chatApp(() => {
+      throw new ApiError(503, 'SERVICE_UNAVAILABLE', 'No upstream')
+    })
+    const thrownResponse = await thrown.send({})
+    expect(thrownResponse.status).toBe(503)
+    expect(thrownResponse.headers.get(AIRI_REQUEST_ID_HEADER)).toBe(loggedRequestId(thrown.logs))
+  })
+
+  it('returns the logged request ID for Responses, with a new ID for each request', async () => {
+    const harness = responsesHarness(() => Response.json(responsesResult()))
+    const first = await harness.send({})
+    const second = await harness.send({})
+    const ids = vi.mocked(harness.logs.beginRequest).mock.calls.map(([entry]) => entry.requestId)
+    expect([first.headers.get(AIRI_REQUEST_ID_HEADER), second.headers.get(AIRI_REQUEST_ID_HEADER)]).toEqual(ids)
+    expect(ids[0]).not.toBe(ids[1])
+  })
 })
 
 it('records failed Chat settlement with the status returned to the client', async () => {

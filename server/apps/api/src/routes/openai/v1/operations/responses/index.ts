@@ -13,7 +13,6 @@ import { array, integer, looseObject, minValue, nullable, number, optional, pick
 import { extractUsageFromBody } from '../../../../../services/domain/generation-usage'
 import { captureErrorMessage, captureErrorResponse, captureRequestContent, captureResponseText, createResponseContentCapture } from '../../../../../services/domain/request-content'
 import { ApiError, createBadGatewayError } from '../../../../../utils/error'
-import { nanoid } from '../../../../../utils/id'
 import { buildSafeErrorResponseHeaders } from '../../http/response'
 import { createOpenAiRouteBilling } from '../../middlewares/billing'
 import { createRouteTelemetry, newRouteContext } from '../../middlewares/telemetry'
@@ -109,7 +108,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
   const logger = useLogger('v1-responses').useGlobalConfig()
 
   return async ({ input }) => {
-    const requestId = nanoid()
+    const requestId = input.requestId
     const policy = await billing.authorizeChat(input.userId)
     let model = input.policy.model
     const { requiresWebSearch } = input.policy

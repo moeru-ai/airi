@@ -1,6 +1,7 @@
 import type { Context } from 'hono'
 
 import type { HonoEnv } from '../../../types/hono'
+import type { V1GatewayContext } from './gateway'
 import type { V1RouteDeps } from './types'
 
 import { authGuard } from '../../../middlewares/auth'
@@ -8,10 +9,12 @@ import { configGuard } from '../../../middlewares/config-guard'
 import { rateLimiter } from '../../../middlewares/rate-limit'
 import { generationOperation, generationProtocols } from '../../../schemas/generation-protocol'
 import { createBadRequestError } from '../../../utils/error'
+import { nanoid } from '../../../utils/id'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
   AIRI_CHAT_ROUND_ID_HEADER,
   AIRI_CHAT_SESSION_ID_HEADER,
+  AIRI_REQUEST_ID_HEADER,
   resolveChatAnalyticsSurface,
 } from './analytics'
 import { createV1Gateway } from './gateway'
@@ -23,6 +26,19 @@ import { speechGeneration } from './operations/speech-generation'
 
 export type CreateV1RoutesDeps = V1RouteDeps
 
+/**
+ * Returns the request log ID of a generation request in a response header.
+ *
+ * The header set on the Hono context reaches responses that `app.onError` renders.
+ * A response that the operation returns is built by the operation, so the header is set on it too.
+ */
+async function exposeRequestId(context: V1GatewayContext<'chat-completions.create' | 'responses.create'>, next: () => Promise<Response>) {
+  context.hono.header(AIRI_REQUEST_ID_HEADER, context.input.requestId)
+  const response = await next()
+  response.headers.set(AIRI_REQUEST_ID_HEADER, context.input.requestId)
+  return response
+}
+
 export function createV1Routes(input: CreateV1RoutesDeps) {
   const deps: V1RouteDeps = input
   const gateway = createV1Gateway(deps)
@@ -30,6 +46,8 @@ export function createV1Routes(input: CreateV1RoutesDeps) {
     .useHono('openai', '/chat/*', configGuard(deps.configKV, ['LLM_MINIMUM_BALANCE'], 'Service is not available yet'))
     .useHono('openai', '/responses', configGuard(deps.configKV, ['LLM_MINIMUM_BALANCE'], 'Service is not available yet'))
     .useHono('audio', '/speech', configGuard(deps.configKV, ['FLUX_PER_1K_CHARS_TTS'], 'TTS service is not available yet'))
+    .use('chat-completions.create', exposeRequestId)
+    .use('responses.create', exposeRequestId)
 
   // OpenAI-compatible surface (mounted at /api/v1/openai). Only routes that
   // mirror an actual OpenAI public endpoint belong here. Audio used to live
@@ -59,6 +77,7 @@ export function createV1Routes(input: CreateV1RoutesDeps) {
         const request = parseResponsesRequest(body)
         return {
           userId: c.get('user')!.id,
+          requestId: nanoid(),
           ...request,
           sessionId: c.req.header(AIRI_CHAT_SESSION_ID_HEADER),
           roundId: c.req.header(AIRI_CHAT_ROUND_ID_HEADER),
@@ -76,6 +95,7 @@ export function createV1Routes(input: CreateV1RoutesDeps) {
 
         return {
           userId: user.id,
+          requestId: nanoid(),
           body,
           sessionId: c.req.header(AIRI_CHAT_SESSION_ID_HEADER),
           roundId: c.req.header(AIRI_CHAT_ROUND_ID_HEADER),
