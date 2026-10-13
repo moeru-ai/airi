@@ -283,7 +283,10 @@ sequenceDiagram
 
 1. Gateway: return `x-airi-request-id` on every chat and Responses response, errors included, and expose it in CORS. The route creates the ID before the operation, and the operation logs the same ID.
 2. API: add the two tables, the `(user_id, interaction_id)` index on `llm_request_log`, the ingest route, the run service, and account deletion for both tables. This step builds on the request item PR, because `agent_run` counts tool calls from items, and both add migrations.
-3. Client: IDs and status on the turn span, one `LLM request` span for each request, `Tool execution` spans, the exporter, and the session ID fix.
+3. Client, in three PRs:
+   1. Each span takes its own turn as its parent. The turn span carries its IDs and status. The session ID fix.
+   2. One `LLM request` span for each request, and `Tool execution` spans.
+   3. The exporter. Only this part sends data off the device, and it needs step 2 of this list to be deployed.
 4. Admin API (`proj-airi/backend`): read runs, spans, and items for one turn, and sort runs across users.
 5. Admin dashboard: one timeline for each turn.
 
