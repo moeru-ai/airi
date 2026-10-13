@@ -40,6 +40,7 @@ const customPrefix = 'ai.moeru.airi.io'
 export const IOAttributes = {
   GenAIRequestModel: 'gen_ai.request.model',
   GenAIProviderName: 'gen_ai.provider.name',
+  GenAIConversationId: 'gen_ai.conversation.id',
 
   // Non-standard
   Subsystem: `${customPrefix}.subsystem`,
