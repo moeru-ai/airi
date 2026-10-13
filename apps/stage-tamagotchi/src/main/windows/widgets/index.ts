@@ -336,7 +336,7 @@ export function setupWidgetsWindowManager(params: {
   }
 
   function toSnapshot(record: WidgetRecord): WidgetSnapshot {
-    const { expiresAt: _expiresAt, timer: _timer, ...snapshot } = record
+    const { expiresAt: _expiresAt, timer: _timer, timerGeneration: _timerGeneration, ...snapshot } = record
     return snapshot
   }
 
@@ -628,11 +628,14 @@ export function setupWidgetsWindowManager(params: {
       windowSize: resolveWindowSizeFromPayload(payload),
       ttlMs: payload.ttlMs ?? 0,
     }
-    const record = createRecord(snapshot)
+    createRecord(snapshot)
     const windowContext = windowContexts.get(id)!
     await showWindowWithRoute(`${defaultRoute}?id=${id}`, windowContext, snapshot)
     windowContext.eventa?.context.emit(widgetsRenderEvent, snapshot)
-    scheduleDestruction(record)
+
+    const current = widgetRecords.get(id)
+    if (current && !current.expiresAt && current.timerGeneration === undefined)
+      scheduleDestruction(current)
 
     return id
   }
@@ -670,6 +673,7 @@ export function setupWidgetsWindowManager(params: {
       ...nextSnapshot,
       expiresAt: existing.expiresAt,
       timer: existing.timer,
+      timerGeneration: existing.timerGeneration,
     }
     widgetRecords.set(payload.id, nextRecord)
     if (payload.ttlMs !== undefined)
