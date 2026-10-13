@@ -98,4 +98,13 @@ describe('app icon visibility', () => {
 
     expect(window.setVisibleOnAllWorkspaces).toHaveBeenCalledWith(true, { skipTransformProcessType: !visible })
   })
+
+  it('skips the macOS process change when hideAppIcon preference is enabled even if dock is visible', () => {
+    electron.dock.isVisible.mockReturnValue(true)
+    const window = { setVisibleOnAllWorkspaces: vi.fn() }
+
+    showWindowOnAllWorkspaces(window, { hideAppIcon: true })
+
+    expect(window.setVisibleOnAllWorkspaces).toHaveBeenCalledWith(true, { skipTransformProcessType: true })
+  })
 })
