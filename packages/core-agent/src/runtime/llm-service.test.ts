@@ -771,6 +771,54 @@ describe('streamFrom tool errors', () => {
     }
   })
 
+  // https://github.com/moeru-ai/airi/pull/2928
+  // ROOT CAUSE:
+  //
+  // The guard port replaced error sinks that distinguish caller cancellation from provider failure.
+  // Preserve the upstream cancellation policy without hiding real failures or accepting a cancelled turn.
+  it.each([false, true])('preserves cancellation logging with caller abort=%s for PR #2928', async (cancelled) => {
+    const controller = new AbortController()
+    const failure = new Error(cancelled ? 'caller cancelled' : 'provider failed')
+    const onGeneratedTurn = vi.fn()
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {})
+    streamTextMock.mockImplementationOnce(() => {
+      const steps = Promise.withResolvers<unknown[]>()
+      queueMicrotask(() => {
+        if (cancelled)
+          controller.abort(failure)
+        steps.reject(failure)
+      })
+      return {
+        ...createMockStreamResult(steps.promise, steps.promise.then(() => undefined), steps.promise.then(() => [])),
+        usage: steps.promise.then(() => undefined),
+      }
+    })
+
+    try {
+      await expect(streamFrom({
+        model: 'model-a',
+        chatProvider: provider,
+        conversation: { turns: chatMessagesToTurns([{ role: 'user', content: 'hello' }]) },
+        options: { abortSignal: controller.signal, onGeneratedTurn },
+      })).rejects.toBe(failure)
+      await new Promise(resolve => setImmediate(resolve))
+
+      expect(onGeneratedTurn).not.toHaveBeenCalled()
+      if (cancelled) {
+        expect(errorLog).not.toHaveBeenCalled()
+      }
+      else {
+        expect(errorLog).toHaveBeenCalledWith('Stream steps error:', failure)
+        expect(errorLog).toHaveBeenCalledWith('Stream generated turn error:', failure)
+        expect(errorLog).toHaveBeenCalledWith('Stream usage error:', failure)
+        expect(errorLog).toHaveBeenCalledWith('Stream totalUsage error:', failure)
+      }
+    }
+    finally {
+      errorLog.mockRestore()
+    }
+  })
+
   it('does not fail a completed generation when the usage observer throws', async () => {
     streamTextMock.mockReturnValueOnce(createMockStreamResult())
 
