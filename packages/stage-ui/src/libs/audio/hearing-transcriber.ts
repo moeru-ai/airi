@@ -7,7 +7,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { SpanStatusCode } from '@opentelemetry/api'
 import { IOAttributes, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 
-import { activeTurnSpan, startSpan } from '../../composables/use-io-tracer'
+import { activeTurnSpan, activeVoiceInputSpan, startSpan } from '../../composables/use-io-tracer'
 
 /**
  * Converts provider output into complete transcript revisions. Each adapter owns its segmenters and cancellation.
@@ -26,7 +26,9 @@ export function createHearingTranscriber(
     const signal = AbortSignal.any([request.signal, cancelled.signal])
     let reader: ReadableStreamDefaultReader<AIRIStreamTranscriptionDelta> | undefined
     let closed = false
-    const span = startSpan(IOSpanNames.SpeechRecognition, activeTurnSpan.value, { [IOAttributes.Subsystem]: IOSubsystems.ASR })
+    // Recognition belongs to the input that it transcribes. A transcription outside a voice input, such as a voice
+    // message, attaches to the most recent turn.
+    const span = startSpan(IOSpanNames.SpeechRecognition, activeVoiceInputSpan.value ?? activeTurnSpan.value, { [IOAttributes.Subsystem]: IOSubsystems.ASR })
 
     return new ReadableStream<TranscriptionEvent>({
       start: (output) => {
