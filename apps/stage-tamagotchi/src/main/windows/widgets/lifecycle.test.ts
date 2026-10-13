@@ -222,7 +222,7 @@ describe('widget window lifecycle', () => {
   // Node.js setTimeout clamps delays over 2,147,483,647 ms to 1 ms.
   // Widgets with large TTLs were destroyed almost immediately.
   // We re-arm the timer in safe 32-bit chunks until the full TTL elapses.
-  it('preserves TTLs exceeding 32-bit timer limit and destroys widget across chunks', async () => {
+  it('pr #2935: preserves TTLs exceeding 32-bit timer limit and destroys widget across chunks', async () => {
     const manager = createManager()
     const ttlMs = 2_147_483_647 + 5000
     const id = await manager.pushWidget({
@@ -337,5 +337,40 @@ describe('widget window lifecycle', () => {
     await vi.advanceTimersByTimeAsync(1000)
     expect(manager.getWidgetSnapshot('pre-update')).toBeUndefined()
     expect(window.close).toHaveBeenCalledOnce()
+  })
+
+  it('prevents superseded push from arming replacement widget timer early', async () => {
+    const { load } = await import('../../libs/electron/location')
+    let resolveFirstLoad: () => void
+    let resolveSecondLoad: () => void
+
+    vi.mocked(load)
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveFirstLoad = resolve as () => void
+      }))
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveSecondLoad = resolve as () => void
+      }))
+
+    const manager = createManager()
+    const firstPush = manager.pushWidget({ id: 'shared-id', componentName: 'weather', ttlMs: 100 })
+    await Promise.resolve()
+    const secondPush = manager.pushWidget({ id: 'shared-id', componentName: 'weather', ttlMs: 5000 })
+    await Promise.resolve()
+
+    resolveFirstLoad!()
+    await firstPush
+
+    await vi.advanceTimersByTimeAsync(200)
+    expect(manager.getWidgetSnapshot('shared-id')).toBeDefined()
+
+    resolveSecondLoad!()
+    await secondPush
+
+    await vi.advanceTimersByTimeAsync(4000)
+    expect(manager.getWidgetSnapshot('shared-id')).toBeDefined()
+
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(manager.getWidgetSnapshot('shared-id')).toBeUndefined()
   })
 })
