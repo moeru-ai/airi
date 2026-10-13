@@ -50,6 +50,13 @@ function getCacheRoot() {
   return join(app.getPath('userData'), 'cache')
 }
 
+// NOTICE:
+// Returns the platform's standard cache root used before the getCacheRoot fix.
+// Older installations wrote updater files to this path. The cleanup in
+// getOfficialUpdaterCacheDirs includes it so stale installers do not linger.
+// Source: PR #2937 — bitxwolf/fix/electron-get-path-cache-crash.
+// Removal condition: Remove after two stable release cycles once all users
+// have run the cleanup at least once (estimated safe to drop in v2.x).
 function getLegacyCacheRoot() {
   switch (process.platform) {
     case 'win32':
