@@ -188,6 +188,15 @@ const openEditor = useElectronEventaInvoke(electronOpenEditor)
   >
     {{ t('tamagotchi.settings.devtools.pages.io-tracer.title') }}
   </ButtonBar>
+  <ButtonBar
+    :class="['mb-2', 'transition-all duration-250 ease-in-out']"
+    icon="i-solar:soundwave-bold-duotone"
+    :text="t('tamagotchi.settings.devtools.pages.phonetic-match.title')"
+    :description="t('tamagotchi.settings.devtools.pages.phonetic-match.description')"
+    @click="() => openDevtoolsWindow({ key: 'phonetic-match', route: '/devtools/phonetic-match' })"
+  >
+    {{ t('tamagotchi.settings.devtools.pages.phonetic-match.title') }}
+  </ButtonBar>
   <CheckBar
     :model-value="ioTraceRecording?.enabled ?? false"
     :disabled="ioTraceRecording === undefined || ioTraceRecordingBusy"

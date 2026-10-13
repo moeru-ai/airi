@@ -75,6 +75,32 @@ pages:
 devtools:
   title: Developer
   pages:
+    phonetic-match:
+      title: Phonetic Match
+      description: Match a transcript against a vocabulary pack and see the term suggestions that the chat model receives
+      transcript:
+        title: Transcript
+        description: Text as the speech recognizer wrote it. Chinese and English text match. A phrase that mixes the two does not.
+      pack:
+        title: Vocabulary pack
+        description: 'JSON with a source and entries. An entry without pronunciations gets them from its Chinese or English written forms.'
+        invalid: The pack is not valid
+        entries: '{count} entries loaded'
+      threshold:
+        title: Threshold
+        description: The lowest similarity that becomes a suggestion.
+      guessed-threshold:
+        title: Threshold for unknown words
+        description: The lowest similarity for a phrase with a word that is not in the dictionary. A recognizer writes such a word when it cannot place the sound.
+      tokens:
+        title: Transcript tokens
+      suggestions:
+        title: Suggestions
+        description: The chat model receives these, with the transcript unchanged.
+        empty: No suggestions
+      nearest:
+        title: Nearest candidates
+        description: The ten closest candidates at any score above zero. Grey candidates are below the threshold.
     context-flow:
       title: Context Flow
     presence-bubble:
