@@ -33,6 +33,7 @@ function fixture(commands: Record<string, string>) {
           GITHUB_REPOSITORY: 'moeru-ai/airi',
           PATH: `${binaryDirectory}:${process.env.PATH}`,
           POLL_INTERVAL_SECONDS: '0',
+          RUNNER_TEMP: directory,
           TEST_STATE_DIRECTORY: directory,
         },
       })
@@ -631,6 +632,47 @@ exit 1
     expect(calls).toContain('id=approval')
   })
 
+  it('removes late deployments during the final service verification', () => {
+    const { directory, run } = fixture({
+      railway: `
+service=''
+for ((index = 1; index <= $#; index++)); do
+  if [[ "\${!index}" == '--service' ]]; then
+    next=$((index + 1))
+    service="\${!next}"
+  fi
+done
+printf '%s\n' "$*" >> "$TEST_STATE_DIRECTORY/calls"
+if [[ "$1" == "api" && "$*" == *'CancelDeployment'* ]]; then
+  touch "$TEST_STATE_DIRECTORY/late-cancelled"
+  printf '{"data":{"deploymentCancel":true}}\n'
+  exit 0
+fi
+if [[ "$1 $2" == "deployment list" ]]; then
+  if [[ "$service" == 'ts-api' && ! -f "$TEST_STATE_DIRECTORY/late-cancelled" ]]; then
+    printf '[{"id":"target-ts-api","status":"SUCCESS"},{"id":"late","status":"BUILDING"}]\n'
+  elif [[ "$service" == 'ts-api' ]]; then
+    printf '[{"id":"target-ts-api","status":"SUCCESS"},{"id":"late","status":"SKIPPED"}]\n'
+  else
+    printf '[{"id":"target-auth-server","status":"SUCCESS"}]\n'
+  fi
+  exit 0
+fi
+exit 1
+`,
+      sleep: 'exit 0',
+    })
+    writeFileSync(join(directory, 'server-dev-deployments.tsv'), 'ts-api\ttarget-ts-api\nauth-server\ttarget-auth-server\n')
+
+    const result = run('verify-services')
+    const calls = readFileSync(join(directory, 'calls'), 'utf8')
+
+    expect(result.status).toBe(0)
+    expect(calls).toContain('CancelDeployment')
+    expect(calls).toContain('id=late')
+    expect(calls).toContain('deployment list --service auth-server')
+  })
+
   it('does not drain another service after one service fails to drain', () => {
     const { directory, run } = fixture({
       railway: `
@@ -737,6 +779,7 @@ exit 1
         GITHUB_RUN_ID: '42',
         PATH: `${join(directory, 'bin')}:${process.env.PATH}`,
         POLL_INTERVAL_SECONDS: '0',
+        RUNNER_TEMP: directory,
         TEST_STATE_DIRECTORY: directory,
       },
     })

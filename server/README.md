@@ -91,6 +91,7 @@ The workflow does these steps in order:
 5. It deploys the selected commit to each Railway service.
 6. It drains any deployment that started before autodeploy was disabled.
 7. It deploys both frontend jobs from the same selected commit.
+8. It removes late Railway deployments and verifies both selected deployments.
 
 The workflow stops before the reset if a Railway deployment needs approval.
 After the reset, the API applies its migrations during startup.

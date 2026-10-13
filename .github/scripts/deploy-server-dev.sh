@@ -4,10 +4,39 @@ set -euo pipefail
 
 readonly -a SERVICES=(ts-api auth-server)
 readonly POLL_INTERVAL_SECONDS="${POLL_INTERVAL_SECONDS:-15}"
+readonly CLEANUP_COMMAND_TIMEOUT_SECONDS="${CLEANUP_COMMAND_TIMEOUT_SECONDS:-3}"
+readonly CLEANUP_POLL_INTERVAL_SECONDS="${CLEANUP_POLL_INTERVAL_SECONDS:-1}"
+readonly DEPLOYMENT_RECORD="${RUNNER_TEMP:-/tmp}/server-dev-deployments.tsv"
 
 poll_delay() {
   sleep "$POLL_INTERVAL_SECONDS" &
   wait "$!"
+}
+
+cleanup_poll_delay() {
+  sleep "$CLEANUP_POLL_INTERVAL_SECONDS" &
+  wait "$!"
+}
+
+run_with_timeout() {
+  local timeout_seconds="$1"
+  shift
+
+  "$@" &
+  local command_pid=$!
+  local deadline=$((SECONDS + timeout_seconds))
+
+  while kill -0 "$command_pid" 2>/dev/null; do
+    if ((SECONDS >= deadline)); then
+      kill -TERM "$command_pid" 2>/dev/null || true
+      break
+    fi
+    sleep 0.1
+  done
+
+  local command_status=0
+  wait "$command_pid" || command_status=$?
+  return "$command_status"
 }
 
 is_terminal_status() {
@@ -344,6 +373,8 @@ deploy_services() {
     return 1
   fi
 
+  : > "$DEPLOYMENT_RECORD"
+
   for service in "${SERVICES[@]}"; do
     local service_id
     if ! service_id=$(railway_service_id "$service"); then
@@ -393,7 +424,29 @@ deploy_services() {
       return 1
     fi
 
+    printf '%s\t%s\n' "$service" "$deployment_id" >> "$DEPLOYMENT_RECORD"
+
     trap - EXIT INT TERM
+  done
+}
+
+verify_services() {
+  if [[ ! -f "$DEPLOYMENT_RECORD" ]]; then
+    echo "::error::Cannot find the Railway deployment record." >&2
+    return 1
+  fi
+
+  for service in "${SERVICES[@]}"; do
+    local deployment_ids
+    deployment_ids=$(awk -F '\t' -v service="$service" '$1 == service { print $2 }' "$DEPLOYMENT_RECORD")
+    if [[ -z "$deployment_ids" || "$deployment_ids" == *$'\n'* ]]; then
+      echo "::error::Cannot find one recorded deployment for $service." >&2
+      return 1
+    fi
+
+    if ! keep_only_deployment "$service" "$deployment_ids"; then
+      return 1
+    fi
   done
 }
 
@@ -439,16 +492,22 @@ deploy_frontend() {
   local watcher_pid=""
 
   cancel_frontend_run() {
-    trap - EXIT INT TERM
+    trap - EXIT
+    trap '' INT TERM
     if [[ -n "$watcher_pid" ]] && kill -0 "$watcher_pid" 2>/dev/null; then
       kill "$watcher_pid" 2>/dev/null || true
       wait "$watcher_pid" 2>/dev/null || true
     fi
 
     while true; do
+      echo "Cancelling frontend workflow run $frontend_run_id." >&2
+      if ! run_with_timeout "$CLEANUP_COMMAND_TIMEOUT_SECONDS" gh run cancel "$frontend_run_id" --repo "$GITHUB_REPOSITORY"; then
+        echo "::warning::Cannot cancel frontend workflow run $frontend_run_id. Retrying." >&2
+      fi
+
       local frontend_run
       local status=""
-      if frontend_run=$(gh run view "$frontend_run_id" --repo "$GITHUB_REPOSITORY" --json status,conclusion) \
+      if frontend_run=$(run_with_timeout "$CLEANUP_COMMAND_TIMEOUT_SECONDS" gh run view "$frontend_run_id" --repo "$GITHUB_REPOSITORY" --json status,conclusion) \
         && status=$(jq --exit-status --raw-output '.status' <<< "$frontend_run"); then
         if [[ "$status" == "completed" ]]; then
           return 0
@@ -457,11 +516,7 @@ deploy_frontend() {
         echo "::warning::Cannot inspect frontend workflow run $frontend_run_id. Retrying." >&2
       fi
 
-      echo "Cancelling frontend workflow run $frontend_run_id." >&2
-      if ! gh run cancel "$frontend_run_id" --repo "$GITHUB_REPOSITORY"; then
-        echo "::warning::Cannot cancel frontend workflow run $frontend_run_id. Retrying." >&2
-      fi
-      poll_delay
+      cleanup_poll_delay
     done
   }
 
@@ -494,9 +549,10 @@ case "${1:-}" in
   disable-autodeploys) disable_autodeploys ;;
   select-branch) select_branch ;;
   deploy-services) deploy_services ;;
+  verify-services) verify_services ;;
   deploy-frontend) deploy_frontend ;;
   *)
-    echo "Usage: $0 {disable-autodeploys|select-branch|deploy-services|deploy-frontend}" >&2
+    echo "Usage: $0 {disable-autodeploys|select-branch|deploy-services|verify-services|deploy-frontend}" >&2
     exit 2
     ;;
 esac

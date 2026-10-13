@@ -120,6 +120,7 @@ jobs:
       # Each deployment finishes before the next deployment starts. This order
       # keeps a failed command from leaving an untracked deployment running.
       - name: Deploy the Railway dev services from the branch
+        id: deploy-services
         run: bash .github/scripts/deploy-server-dev.sh deploy-services
         env:
           RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_DEV_WORKSPACE_TOKEN }}
@@ -139,3 +140,9 @@ jobs:
             echo "| Database reset | ${RESET_DATABASE} |"
             echo "| Actor | @${GITHUB_ACTOR} |"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify the Railway dev services
+        if: ${{ !cancelled() && steps.deploy-services.outcome == 'success' }}
+        run: bash .github/scripts/deploy-server-dev.sh verify-services
+        env:
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_DEV_WORKSPACE_TOKEN }}
