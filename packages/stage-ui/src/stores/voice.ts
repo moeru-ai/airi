@@ -2,7 +2,7 @@ import type { BeginSpeechInput, SpeechInputAttempt, SpeechOutput, SpeechStream, 
 
 import type { VoiceActivityOptions } from '../libs/voice/voice-activity-plugin'
 import type { VoiceHostSnapshot } from '../services/speech/bus'
-import type { ChatToolReference } from '../types/chat'
+import type { ChatHistoryItem, ChatToolReference } from '../types/chat'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
@@ -17,6 +17,7 @@ import { useVoiceEndJudge } from '../composables/voice-end-judge'
 import { createVoiceInputTracer } from '../composables/voice-input-trace'
 import { useVoiceRephrase } from '../composables/voice-rephrase'
 import { observeInputLevel } from '../libs/voice/input-level'
+import { collectConversationHotwords, conversationMessagesOf, TranscriptionBiasList } from '../libs/voice/transcription-bias'
 import { createVoiceActivityPlugin } from '../libs/voice/voice-activity-plugin'
 import { createVoiceEndJudgePlugin } from '../libs/voice/voice-end-judge-plugin'
 import { createVoicePhoneticMatchPlugin } from '../libs/voice/voice-phonetic-match-plugin'
@@ -77,8 +78,41 @@ export const useVoiceStore = defineStore('voice', () => {
   let presentedInput: { requestId: string, attempt: SpeechInputAttempt } | undefined
 
   const inputTracer = createVoiceInputTracer()
+
+  /**
+   * Conversation terms that bias the next recognition request of each session.
+   * A list is rebuilt when a loaded session's messages change, for example after an assistant turn, a deletion,
+   * or a wake word that loads a chat that is not active. Speech start only reads the prepared list.
+   */
+  const transcriptionBias = new TranscriptionBiasList([{
+    name: 'conversation',
+    collect: async (sessionId) => {
+      const messages = sessions.getSessionMessagesIfLoaded(sessionId)
+      if (!messages)
+        return []
+      return collectConversationHotwords(conversationMessagesOf(messages))
+    },
+  }], { onError: (source, cause) => console.warn(`[voice] Hotword source ${source} failed`, cause) })
+  // The session store replaces a session's message array on every change, so a new array reference marks a change.
+  const biasedMessages = new Map<string, readonly ChatHistoryItem[]>()
+  const stopBiasRebuild = watch(() => sessions.sessionMessages, (loaded) => {
+    for (const [sessionId, messages] of Object.entries(loaded)) {
+      if (biasedMessages.get(sessionId) === messages)
+        continue
+      biasedMessages.set(sessionId, messages)
+      void transcriptionBias.rebuild(sessionId)
+    }
+    for (const sessionId of biasedMessages.keys()) {
+      if (!(sessionId in loaded)) {
+        biasedMessages.delete(sessionId)
+        transcriptionBias.forget(sessionId)
+      }
+    }
+  }, { immediate: true, deep: 1 })
+
   const { controller, state, snapshot: transcript, error } = useVoiceController({
     transcriber: () => hearing.createTranscriber(),
+    transcriptionBias: sessionId => transcriptionBias.read(sessionId),
     speech: (turn) => {
       if (!output)
         throw new Error('Voice output host is not connected')
@@ -528,6 +562,8 @@ export const useVoiceStore = defineStore('voice', () => {
   }
 
   onScopeDispose(() => {
+    stopBiasRebuild()
+    transcriptionBias.dispose()
     void stopListening()
   })
 

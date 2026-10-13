@@ -464,4 +464,52 @@ describe('voiceController input', () => {
     expect(submit).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 'alice', text: 'hello world', submissionId: attempt.id }), expect.any(AbortSignal))
     await controller.close()
   })
+
+  it.each([
+    { sessionId: 'alice', bias: { phrases: ['硫方怪', 'Zustand'] } },
+    { sessionId: 'bob', bias: undefined },
+  ])('sends the bias of $sessionId to the provider request only when it has phrases', async ({ sessionId, bias }) => {
+    const source = createPushStream<PcmBlock>()
+    const audio = new AudioInput(pcmSource(source.stream))
+    const transcribe = vi.fn(() => createPushStream<TranscriptionEvent>().stream)
+    const transcriptionBias = vi.fn((id: string) => ({ phrases: id === 'alice' ? ['硫方怪', 'Zustand'] : [] }))
+    const controller = new VoiceController({ audio, transcriber: () => ({ transcribe }), transcriptionBias, submit: vi.fn() })
+    controller.beginInput({ sessionId, interruptTurns: [], start: { kind: 'after-silence' } })
+    source.write({ range: { sourceId: 'mic', startFrame: 0, endFrame: 4 }, sampleRate: 1000, channels: [new Float32Array(4)] })
+    await expect.poll(() => transcribe.mock.calls.length).toBe(1)
+    expect(transcriptionBias).toHaveBeenCalledWith(sessionId)
+    if (bias)
+      expect(transcribe).toHaveBeenCalledWith(expect.objectContaining({ bias }))
+    else
+      expect(transcribe.mock.calls[0]).not.toHaveProperty([0, 'bias'])
+    await controller.close()
+  })
+
+  it('reports a failed bias read and transcribes without bias', async () => {
+    const source = createPushStream<PcmBlock>()
+    const audio = new AudioInput(pcmSource(source.stream))
+    const output = createPushStream<TranscriptionEvent>()
+    const transcribe = vi.fn(() => output.stream)
+    const onError = vi.fn()
+    const controller = new VoiceController({
+      audio,
+      onError,
+      transcriber: () => ({ transcribe }),
+      transcriptionBias: () => {
+        throw new Error('Bias list unavailable')
+      },
+      submit: async () => ({ status: 'drafted', draftId: 'draft' }),
+    })
+    const attempt = controller.beginInput({ sessionId: 'alice', interruptTurns: [], start: { kind: 'after-silence' } })
+    source.write({ range: { sourceId: 'mic', startFrame: 0, endFrame: 4 }, sampleRate: 1000, channels: [new Float32Array(4)] })
+    await expect.poll(() => transcribe.mock.calls.length).toBe(1)
+    expect(transcribe.mock.calls[0]).not.toHaveProperty([0, 'bias'])
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ stage: 'transcription-bias' }))
+    void attempt.end()
+    output.write({ type: 'update', revision: 1, segments: [{ id: 'first', revision: 1, text: 'hello', tokens: [], final: true }] })
+    output.write({ type: 'complete', revision: 1 })
+    output.close()
+    expect((await attempt.done).status).toBe('drafted')
+    await controller.close()
+  })
 })

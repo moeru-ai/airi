@@ -349,6 +349,14 @@ export interface ProviderDefinition<TConfig = Record<string, unknown>, TId exten
       generateOutput: boolean
       streamOutput: boolean
       streamInput: boolean
+      /**
+       * The provider reads `hotwords`, a list of written phrases, from its per-request transcription options.
+       * Hearing sends conversation terms only to such providers. Other providers never see the option.
+       * A provider can still ignore the list for a model that has no bias feature.
+       *
+       * @default false
+       */
+      hotwords?: boolean
     }
     /**
      * Declares the TTS transport this provider speaks. The host uses it to

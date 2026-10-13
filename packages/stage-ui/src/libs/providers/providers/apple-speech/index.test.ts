@@ -9,6 +9,7 @@ import { executeAppleSpeechStream, providerAppleSpeechTranscription } from '.'
 const mocks = vi.hoisted(() => ({
   dispose: vi.fn(),
   getLocales: vi.fn(),
+  transcription: vi.fn(() => ({})),
 }))
 
 vi.mock('@moeru/eventa/adapters/electron/renderer', () => ({
@@ -23,6 +24,7 @@ vi.mock('@proj-airi/stage-shared', () => ({
 vi.mock('@xsai-apple-speech/transcription-electron-plugin', () => ({
   createAppleSpeechProvider: () => ({
     getLocales: mocks.getLocales,
+    transcription: mocks.transcription,
   }),
 }))
 
@@ -59,6 +61,25 @@ describe('apple speech transcription provider', () => {
       expect.objectContaining({ label: expect.stringContaining('en-US') }),
     ]))
     expect(mocks.dispose).toHaveBeenCalledOnce()
+  })
+
+  it('sends request hotwords as at most 100 contextual strings', async () => {
+    vi.stubGlobal('window', { electron: { ipcRenderer: {} }, platform: 'darwin' })
+    const provider = await providerAppleSpeechTranscription.createProvider({ locale: 'zh-CN' })
+    if (!('transcription' in provider))
+      throw new Error('Apple Speech did not create a transcription provider.')
+    const hotwords = Array.from({ length: 120 }, (_, index) => `term-${index}`)
+
+    const request = provider.transcription('apple-speech', { hotwords })
+    expect(mocks.transcription).toHaveBeenCalledWith({
+      locale: 'zh-CN',
+      transcriber: 'automatic',
+      analysisContext: { contextualStrings: { general: hotwords.slice(0, 100) } },
+    })
+    expect(request).not.toHaveProperty('hotwords')
+
+    provider.transcription('apple-speech', { hotwords: [] })
+    expect(mocks.transcription).toHaveBeenLastCalledWith({ locale: 'zh-CN', transcriber: 'automatic' })
   })
 
   it('exposes its Hearing settings view through the provider definition', () => {

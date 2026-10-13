@@ -32,7 +32,15 @@ export interface AppleSpeechProviderOptions {
   inputSampleRate?: number
   /** Exact Apple Speech locale for this request. The Provider configuration is the default. */
   locale?: string
+  /**
+   * Phrases that this request prefers, most relevant first. They become Apple `contextualStrings`.
+   * Apple accepts at most 100 strings, so the list is cut to the first 100.
+   */
+  hotwords?: readonly string[]
 }
+
+/** Apple Speech rejects a session with more contextual strings than this. */
+const MAX_CONTEXTUAL_STRINGS = 100
 
 type AIRIAppleSpeechProvider = TranscriptionProviderWithExtraOptions<'apple-speech', AppleSpeechProviderOptions> & {
   dispose: () => void
@@ -66,11 +74,17 @@ function createRendererAppleSpeechProvider(config: AppleSpeechConfig): AIRIApple
 
   return {
     transcription(_model, requestOptions = {}) {
-      const locale = requestOptions.locale?.trim() || configuredLocale
+      const { hotwords, ...options } = requestOptions
+      const locale = options.locale?.trim() || configuredLocale
+      const general = hotwords?.slice(0, MAX_CONTEXTUAL_STRINGS)
       return {
-        ...provider.transcription({ locale, transcriber: 'automatic' }),
-        ...requestOptions,
-        inputSampleRate: requestOptions.inputSampleRate ?? 16000,
+        ...provider.transcription({
+          locale,
+          transcriber: 'automatic',
+          ...(general?.length ? { analysisContext: { contextualStrings: { general } } } : {}),
+        }),
+        ...options,
+        inputSampleRate: options.inputSampleRate ?? 16000,
       }
     },
     dispose() {
@@ -233,6 +247,7 @@ export const providerAppleSpeechTranscription = defineProvider<AppleSpeechConfig
       generateOutput: true,
       streamOutput: true,
       streamInput: true,
+      hotwords: true,
     },
   },
   createProviderConfig: createAppleSpeechConfigSchema,
