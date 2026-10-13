@@ -176,8 +176,12 @@ Status:
 ## Client changes
 
 - Put `interaction_id` and `session_id` on the `Interaction turn` span. Today the round ID is on some child spans only, and no span has the session ID.
-- Take the parent of the `LLM request` and `Tool execution` spans from their own turn, not from the global `activeTurnSpan`, so two turns at the same time keep their own spans.
-  Speech output, streaming control, and speech recognition still take `activeTurnSpan`. With two turns at the same time, one of these spans can join the other turn. A later change passes the turn to them.
+- Remove the global `activeTurnSpan`. Each span takes its parent from its own turn, so two turns at the same time keep their own spans:
+  - `LLM request` and `Tool execution` from the `LLM inference` span of the turn.
+  - Speech output from the turn span that the voice host opens. It already did this.
+  - Streaming control from a registry of open turn spans, by the turn ID that each dispatch carries. A dispatch for a turn that runs in another window starts its own trace.
+  - Speech recognition of a voice message from the turn that the chat store passes. Speech recognition of the microphone stays under the voice input, which has one input at a time.
+- Devtools stops ending the turn span when it stops recording. The chat store owns that span.
 - Keep one `LLM inference` span for the whole stream of a turn, and start one `LLM request` span under it for each HTTP request in the official provider fetch.
   The fetch finds the `LLM inference` span of its turn by the round ID header, and reads the request ID from the response header.
   The span ends when the response body ends. xsAI and `core-agent` do not change: the steps run inside xsAI, and only the fetch sees each request and its response.
