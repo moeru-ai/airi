@@ -38,9 +38,6 @@ jobs:
     env:
       DEPLOY_BRANCH: ${{ inputs.branch }}
       GH_TOKEN: ${{ github.token }}
-      # A workspace token can update autodeploy settings. Railway project
-      # tokens cannot run that mutation.
-      RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_DEV_WORKSPACE_TOKEN }}
 
     steps:
       # Stop before the database reset if no deploy can follow it.
@@ -70,20 +67,38 @@ jobs:
           retention-days: 1
 
       - uses: actions/checkout@v6
-      - run: npm install --global @railway/cli@5
+
+      - name: Install the pinned Railway CLI
+        run: |
+          archive="$RUNNER_TEMP/railway-v5.67.0.tar.gz"
+          bin_dir="$RUNNER_TEMP/railway-cli"
+          curl --fail --location --retry 3 \
+            --output "$archive" \
+            https://github.com/railwayapp/cli/releases/download/v5.67.0/railway-v5.67.0-x86_64-unknown-linux-musl.tar.gz
+          echo "ec637e85bd74e56959639ae6cb2343fbe529d846a4df184a297f688585095121  $archive" \
+            | sha256sum --check --strict
+          mkdir --parents "$bin_dir"
+          tar --extract --gzip --file "$archive" --directory "$bin_dir"
+          echo "$bin_dir" >> "$GITHUB_PATH"
 
       - name: Link the Railway dev environment
         run: railway link --project Server --environment dev
+        env:
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_DEV_WORKSPACE_TOKEN }}
 
       # Push-driven deploys bypass this workflow's database reset and commit
       # pin. Keep them disabled while this workflow owns the shared slot.
       - name: Disable Railway autodeploys
         run: bash .github/scripts/deploy-server-dev.sh disable-autodeploys
+        env:
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_DEV_WORKSPACE_TOKEN }}
 
       # Select the new source before the reset. Then wait for deployments that
       # the old source started outside this workflow's concurrency group.
       - name: Select the Railway source branch
         run: bash .github/scripts/deploy-server-dev.sh select-branch
+        env:
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_DEV_WORKSPACE_TOKEN }}
 
       # The API runs migrations on startup, and the Drizzle migrator only
       # applies migrations newer than the last applied one. A database that
@@ -106,6 +121,8 @@ jobs:
       # keeps a failed command from leaving an untracked deployment running.
       - name: Deploy the Railway dev services from the branch
         run: bash .github/scripts/deploy-server-dev.sh deploy-services
+        env:
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_DEV_WORKSPACE_TOKEN }}
 
       - name: Deploy the frontend
         run: bash .github/scripts/deploy-server-dev.sh deploy-frontend

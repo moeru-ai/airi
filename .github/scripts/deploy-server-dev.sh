@@ -411,7 +411,7 @@ deploy_frontend() {
   local frontend_run_title="Deploy server-dev frontend ($dispatch_token)"
   local workflow_ref="${GITHUB_REF_NAME:-main}"
   local frontend_run_url
-  if ! frontend_run_url=$(gh workflow run deploy-cloudflare-workers-dev-server.yml --repo "$GH_REPOSITORY" --ref "$workflow_ref" --raw-field "branch=$DEPLOY_BRANCH" --raw-field "commit_sha=$DEPLOY_SHA" --raw-field "parent_run_id=$parent_run_id" --raw-field "dispatch_token=$dispatch_token"); then
+  if ! frontend_run_url=$(gh workflow run deploy-cloudflare-workers-dev-server.yml --repo "$GITHUB_REPOSITORY" --ref "$workflow_ref" --raw-field "branch=$DEPLOY_BRANCH" --raw-field "commit_sha=$DEPLOY_SHA" --raw-field "parent_run_id=$parent_run_id" --raw-field "dispatch_token=$dispatch_token"); then
     echo "::error::Cannot start the frontend workflow." >&2
     return 1
   fi
@@ -420,7 +420,7 @@ deploy_frontend() {
   if [[ ! "$frontend_run_id" =~ ^[0-9]+$ ]]; then
     while [[ ! "$frontend_run_id" =~ ^[0-9]+$ ]]; do
       local frontend_runs
-      if ! frontend_runs=$(gh run list --repo "$GH_REPOSITORY" --workflow deploy-cloudflare-workers-dev-server.yml --branch "$workflow_ref" --event workflow_dispatch --limit 100 --json databaseId,displayTitle); then
+      if ! frontend_runs=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow deploy-cloudflare-workers-dev-server.yml --branch "$workflow_ref" --event workflow_dispatch --limit 100 --json databaseId,displayTitle); then
         echo "::warning::Cannot list frontend workflow runs. Retrying." >&2
         poll_delay
         continue
@@ -453,8 +453,8 @@ deploy_frontend() {
       wait "$watcher_pid" 2>/dev/null || true
     fi
     echo "Cancelling frontend workflow run $frontend_run_id." >&2
-    gh run cancel "$frontend_run_id" --repo "$GH_REPOSITORY" || true
-    gh run watch "$frontend_run_id" --repo "$GH_REPOSITORY" --exit-status --compact || true
+    gh run cancel "$frontend_run_id" --repo "$GITHUB_REPOSITORY" || true
+    gh run watch "$frontend_run_id" --repo "$GITHUB_REPOSITORY" --exit-status --compact || true
   }
 
   abort_frontend_run() {
@@ -470,7 +470,7 @@ deploy_frontend() {
   trap 'abort_frontend_run 143' TERM
 
   local watch_status=0
-  gh run watch "$frontend_run_id" --repo "$GH_REPOSITORY" --exit-status --compact &
+  gh run watch "$frontend_run_id" --repo "$GITHUB_REPOSITORY" --exit-status --compact &
   watcher_pid=$!
   wait "$watcher_pid" || watch_status=$?
   if ((watch_status != 0)); then
