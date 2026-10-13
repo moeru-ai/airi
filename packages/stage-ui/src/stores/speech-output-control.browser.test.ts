@@ -3,6 +3,7 @@ import type { TurnRef } from '@proj-airi/core-agent'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 
 import { getSpeechBusContext, voiceGetTurns, voiceInterrupt } from '../services/speech/bus'
 import { useSpeechOutputControlStore } from './speech-output-control'
@@ -51,5 +52,19 @@ describe('speech output control', () => {
     cleanups.push(defineInvokeHandler(context, voiceInterrupt, interrupt))
     expect(await createStore().requestStopSpeaking({ reason: 'manual-all' })).toEqual({ status: 'recorded' })
     expect(interrupt.mock.calls[0]?.[0]).toEqual({ turns, cause: 'manual-all' })
+  })
+
+  it('clamps the persisted speech volume to the 0..1 gain range', async () => {
+    const store = createStore()
+    expect(store.speechVolume).toBe(1)
+    store.setSpeechVolume(0.42)
+    expect(store.speechVolume).toBe(0.42)
+    // useLocalStorage persists on the next tick.
+    await nextTick()
+    expect(localStorage.getItem('settings/speech/output-volume')).toBe('0.42')
+    store.setSpeechVolume(7)
+    expect(store.speechVolume).toBe(1)
+    store.setSpeechVolume(-1)
+    expect(store.speechVolume).toBe(0)
   })
 })

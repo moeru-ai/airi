@@ -2,6 +2,7 @@ import type { TurnRef } from '@proj-airi/core-agent'
 
 import { defineInvoke } from '@moeru/eventa'
 import { useLocalStorage } from '@vueuse/core'
+import { clamp } from 'es-toolkit'
 import { defineStore } from 'pinia'
 import { onScopeDispose, shallowRef } from 'vue'
 
@@ -13,6 +14,11 @@ export type SpeechOutputStopRequest = { reason: 'manual-chat', sessionId: string
 /** Settings control future speech. External interruption targets identities supplied by the audio host. */
 export const useSpeechOutputControlStore = defineStore('speech-output-control', () => {
   const speechMuted = useLocalStorage('settings/speech/output-muted', false)
+  /**
+   * Playback loudness the Stage applies to its speech gain node, from 0 (silent) to 1 (full).
+   * Unlike `speechMuted`, a low volume still synthesizes speech.
+   */
+  const speechVolume = useLocalStorage('settings/speech/output-volume', 1)
   const activeTurns = shallowRef<readonly TurnRef[]>([])
   const lifetime = new AbortController()
   let connection = new AbortController()
@@ -51,5 +57,9 @@ export const useSpeechOutputControlStore = defineStore('speech-output-control', 
     setSpeechMuted(!speechMuted.value)
   }
 
-  return { speechMuted, activeTurns, requestStopSpeaking, setSpeechMuted, toggleSpeechMuted }
+  function setSpeechVolume(volume: number) {
+    speechVolume.value = clamp(volume, 0, 1)
+  }
+
+  return { speechMuted, speechVolume, activeTurns, requestStopSpeaking, setSpeechMuted, toggleSpeechMuted, setSpeechVolume }
 })

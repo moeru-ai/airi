@@ -150,7 +150,7 @@ watch([nowSpeaking, speechVoicing], ([speaking, voicing]) => {
 const { audioContext } = useAudioContext()
 const currentAudioSource = ref<AudioBufferSourceNode>()
 const speechOutputControlStore = useSpeechOutputControlStore()
-const { speechMuted } = storeToRefs(speechOutputControlStore)
+const { speechMuted, speechVolume } = storeToRefs(speechOutputControlStore)
 const lastVrmInteractionAt = new Map<VrmInteractionTarget, number>()
 const VRM_INTERACTION_COOLDOWN_MS = 450
 
@@ -363,6 +363,10 @@ const lipSyncNode = ref<AudioNode>()
 const voice = useVoiceStore()
 const speechDestination = audioContext.createGain()
 speechDestination.connect(audioContext.destination)
+// setTargetAtTime smooths slider drags into the gain, so volume changes do not click.
+watch(speechVolume, (volume) => {
+  speechDestination.gain.setTargetAtTime(volume, audioContext.currentTime, 0.05)
+}, { immediate: true })
 const playback = new Playback(new BrowserPlayback(audioContext, {
   destination: speechDestination,
   onSource: (source) => { currentAudioSource.value = source },
