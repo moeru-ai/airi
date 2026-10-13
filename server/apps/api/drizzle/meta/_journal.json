@@ -239,6 +239,13 @@
       "when": 1791907689920,
       "tag": "0033_llm_request_item",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1791908649988,
+      "tag": "0034_agent_trace",
+      "breakpoints": true
     }
   ]
 }

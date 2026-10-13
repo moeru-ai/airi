@@ -1,3 +1,4 @@
+export * from './agent-trace'
 export * from './character-cards'
 export * from './characters'
 export * from './chats'
