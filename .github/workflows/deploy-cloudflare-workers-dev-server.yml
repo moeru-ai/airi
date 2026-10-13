@@ -27,7 +27,7 @@ run-name: ${{ inputs.dispatch_token && format('Deploy server-dev frontend ({0})'
 # All runs deploy to the same preview alias, whatever branch they build.
 concurrency:
   group: ${{ github.workflow }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   validate_source:
@@ -58,6 +58,14 @@ jobs:
           fi
           run_attempt=$(jq --exit-status --raw-output '.run_attempt' <<< "$parent_run")
           workflow_sha=$(jq --exit-status --raw-output '.head_sha' <<< "$parent_run")
+          default_branch=$(jq --exit-status --raw-output '.repository.default_branch' <<< "$parent_run")
+          comparison=$(gh api \
+            "repos/${GITHUB_REPOSITORY}/compare/${workflow_sha}...${default_branch}" \
+            --jq '.status')
+          if [[ "$comparison" != "ahead" && "$comparison" != "identical" ]]; then
+            echo "Run ${PARENT_RUN_ID} does not use a workflow revision from the default branch." >&2
+            exit 1
+          fi
           echo "artifact_name=server-dev-source-${PARENT_RUN_ID}-${run_attempt}" >> "$GITHUB_OUTPUT"
           echo "workflow_sha=$workflow_sha" >> "$GITHUB_OUTPUT"
 
