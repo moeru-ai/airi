@@ -1593,6 +1593,27 @@ describe('chat store contract', () => {
     expect(ioTracerMocks.startSpanMock).toHaveBeenCalledWith(IOSpanNames.InteractionTurn, voiceInput)
   })
 
+  it('reuses the interaction turn span that the speech output opened before the stream', async () => {
+    const voiceInput = { name: IOSpanNames.VoiceInput }
+    ioTracerMocks.takeVoiceTurnParent.mockReturnValueOnce(voiceInput)
+    let llmParent: unknown
+    llmStreamMock.mockImplementationOnce(async () => {
+      // The LLM span starts synchronously before the stream call, so it is the latest span.
+      llmParent = ioTracerMocks.startSpanMock.mock.calls.at(-1)![1]
+    })
+
+    const store = useChatStore()
+    const speechParent = store.openTurnSpan({ sessionId: 'session-1', turnId: 'spoken-turn' })
+    await store.send({ sessionId: 'session-1', messageId: 'spoken-turn', text: 'Spoken' })
+
+    const turnSpans = ioTracerMocks.spans.filter(span => span.name === IOSpanNames.InteractionTurn)
+    expect(turnSpans).toHaveLength(1)
+    expect(turnSpans[0]).toBe(speechParent)
+    expect(llmParent).toBe(speechParent)
+    expect(ioTracerMocks.startSpanMock).toHaveBeenCalledWith(IOSpanNames.InteractionTurn, voiceInput)
+    expect(speechParent.end).toHaveBeenCalledOnce()
+  })
+
   it('continues a composer dictation trace when the turn has no voice input of its own', async () => {
     const dictation = { name: IOSpanNames.VoiceInput }
     ioTracerMocks.takeComposerVoiceParent.mockReturnValueOnce(dictation)
