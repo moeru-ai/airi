@@ -6,6 +6,7 @@ import type { StreamingTtsVoiceType } from './routes/audio-speech-ws/session'
 import type { ConfigKVService } from './services/adapters/config-kv'
 import type { RevenuecatSubscriberClient } from './services/adapters/revenuecat-subscriber'
 import type { RevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
+import type { AgentTraceService } from './services/domain/agent-trace'
 import type { BillingService } from './services/domain/billing/billing-service'
 import type { LlmBillingService } from './services/domain/billing/llm-billing'
 import type { CharacterCardService } from './services/domain/character-cards'
@@ -49,6 +50,7 @@ import { emitOtelLog, initOtel } from './otel'
 import { registerDbPoolGauge } from './otel/gauges/db-pool'
 import { registerTtsPoolGauge } from './otel/gauges/tts-pool'
 import { registerWsOnlineUsersGauge } from './otel/gauges/ws-online-users'
+import { createAgentTraceRoutes } from './routes/agent-traces'
 import { createAppleIapRoutes } from './routes/apple-iap'
 import { createVerifier as createAppleIapVerifier } from './routes/apple-iap/verifier'
 import { createAudioSpeechWsHandlers } from './routes/audio-speech-ws'
@@ -74,6 +76,7 @@ import { createS3ObjectStore } from './services/adapters/object-store'
 import { createOpenpanelSink } from './services/adapters/openpanel'
 import { createRevenuecatSubscriberClient } from './services/adapters/revenuecat-subscriber'
 import { createRevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
+import { createAgentTraceService } from './services/domain/agent-trace'
 import { createBillingService } from './services/domain/billing/billing-service'
 import { createLlmBillingService } from './services/domain/billing/llm-billing'
 import { SpeechBilling } from './services/domain/billing/speech-billing'
@@ -112,6 +115,7 @@ interface AppDeps {
   subscriptionSync: RevenuecatSubscriptionSync
   revenuecatSubscriber: RevenuecatSubscriberClient
   requestLogService: RequestLogService
+  agentTraceService: AgentTraceService
   voicePackService: VoicePackService
   productEventService: ProductEventService
   configKV: ConfigKVService
@@ -446,6 +450,7 @@ export async function buildApp(deps: AppDeps) {
      */
     .route('/api/v1/flux', createFluxRoutes(deps.fluxService, deps.fluxTransactionService, deps.billingService))
     .route('/api/v1/llm-requests', createLlmRequestRoutes(deps.requestLogService))
+    .route('/api/v1/agent-traces', createAgentTraceRoutes(deps.agentTraceService, deps.otel?.rateLimit ?? null))
 
     /**
      * Stripe routes.
@@ -713,6 +718,11 @@ export async function createApp() {
     build: ({ dependsOn }) => createRequestLogService(dependsOn.db),
   })
 
+  const agentTraceService = injeca.provide('services:agentTrace', {
+    dependsOn: { db },
+    build: ({ dependsOn }) => createAgentTraceService(dependsOn.db),
+  })
+
   const voicePackService = injeca.provide('services:voicePack', {
     dependsOn: { db },
     build: ({ dependsOn }) => createVoicePackService(dependsOn.db),
@@ -764,7 +774,7 @@ export async function createApp() {
   // Domain knowledge stays inside each service instead of being copied into
   // a parallel handler file. See `server/apps/api/docs/ai-context/account-deletion.md`.
   const userDeletionService = injeca.provide('services:userDeletion', {
-    dependsOn: { paymentService, fluxService, providerService, characterService, characterCardService, chatService },
+    dependsOn: { paymentService, fluxService, providerService, characterService, characterCardService, chatService, agentTraceService },
     build: ({ dependsOn }) => {
       const service = createUserDeletionService()
       // priority: 20 = financial / cache state (Flux balance + Redis),
@@ -775,6 +785,7 @@ export async function createApp() {
       service.register({ name: 'characters', priority: 30, softDelete: ({ userId }) => dependsOn.characterService.deleteAllForUser(userId) })
       service.register({ name: 'characterCards', priority: 30, softDelete: ({ userId }) => dependsOn.characterCardService.deleteAllForUser(userId) })
       service.register({ name: 'chats', priority: 30, softDelete: ({ userId }) => dependsOn.chatService.deleteAllForUser(userId) })
+      service.register({ name: 'agentTraces', priority: 30, softDelete: ({ userId }) => dependsOn.agentTraceService.deleteAllForUser(userId) })
       return service
     },
   })
@@ -812,6 +823,7 @@ export async function createApp() {
     fluxService,
     fluxTransactionService,
     requestLogService,
+    agentTraceService,
     voicePackService,
     productEventService,
     paymentService,
@@ -854,6 +866,7 @@ export async function createApp() {
     llmBilling: resolved.llmBilling,
     speechBilling: resolved.speechBilling,
     requestLogService: resolved.requestLogService,
+    agentTraceService: resolved.agentTraceService,
     productEventService: resolved.productEventService,
     configKV: resolved.configKV,
     envelopeCrypto: resolved.envelopeCrypto,

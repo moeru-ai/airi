@@ -6,6 +6,7 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { mockDB } from '../../libs/mock-db'
 import { createLlmRequestRoutes } from '../../routes/llm-requests'
+import { agentRun, agentTraceSpan } from '../../schemas/agent-trace'
 import { userFlux } from '../../schemas/flux'
 import { llmRequestAttempt } from '../../schemas/llm-request-attempt'
 import { llmRequestItem } from '../../schemas/llm-request-item'
@@ -33,7 +34,7 @@ describe('request log and billing ownership', () => {
     providerUsage: { cost: 0.002, vendor_meter: { units: 3 } },
   }
   beforeAll(async () => {
-    db = await mockDB({ userFlux, llmRequestLog, llmRequestAttempt, llmRequestItem })
+    db = await mockDB({ userFlux, llmRequestLog, llmRequestAttempt, llmRequestItem, agentTraceSpan, agentRun })
   })
   beforeEach(async () => {
     await db.delete(llmRequestAttempt)

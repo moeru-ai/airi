@@ -30,6 +30,7 @@ function createTestDeps(webAppUrl = 'https://airi.moeru.ai') {
     billingService: {} as never,
     speechBilling: {} as never,
     requestLogService: {} as never,
+    agentTraceService: {} as never,
     voicePackService: {} as never,
     providerCatalogService: {} as never,
     productEventService: {

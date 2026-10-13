@@ -10,6 +10,7 @@ import { parse, safeParse } from 'valibot'
 import { llmRequestAttempt } from '../../schemas/llm-request-attempt'
 import { llmRequestItem } from '../../schemas/llm-request-item'
 import { nanoid } from '../../utils/id'
+import { refreshAgentRunAfterRequest } from './agent-trace/run'
 import { generationObservationSchema } from './generation-observation'
 import { attemptResultSchema, attemptStartSchema } from './llm-router/attempt'
 import { requestContentSchema } from './request-content'
@@ -80,6 +81,7 @@ export function createRequestLogService(db: Database) {
       const [row] = await db.insert(schema.llmRequestLog).values({ ...observation, state: 'running', startedAt: observation.startedAt ?? new Date() }).returning(itemOwner)
       if (observation.prompt)
         await writeItems({ ...row, requestId: observation.requestId }, 'input', splitInputItems(observation.prompt))
+      await refreshAgentRunAfterRequest(db, row.userId, row.interactionId)
     },
 
     observeAttempts(userId: string, requestId: string): AttemptObserver {
@@ -111,10 +113,14 @@ export function createRequestLogService(db: Database) {
     },
 
     async recoverStaleRequests(before: Date) {
-      return db.transaction(async (tx) => {
+      const recovered = await db.transaction(async (tx) => {
         await tx.update(llmRequestAttempt).set({ state: 'unknown' }).where(and(inArray(llmRequestAttempt.state, ['running', 'headers_received']), lt(llmRequestAttempt.startedAt, before)))
-        return tx.update(schema.llmRequestLog).set({ state: 'unknown' }).where(and(eq(schema.llmRequestLog.state, 'running'), lt(schema.llmRequestLog.startedAt, before))).returning({ requestId: schema.llmRequestLog.requestId })
+        return tx.update(schema.llmRequestLog).set({ state: 'unknown' }).where(and(eq(schema.llmRequestLog.state, 'running'), lt(schema.llmRequestLog.startedAt, before))).returning({ requestId: schema.llmRequestLog.requestId, userId: schema.llmRequestLog.userId, interactionId: schema.llmRequestLog.interactionId })
       })
+      // A recovered request no longer keeps its turn running.
+      for (const turn of new Map(recovered.map(row => [`${row.userId}:${row.interactionId}`, row])).values())
+        await refreshAgentRunAfterRequest(db, turn.userId, turn.interactionId)
+      return recovered.map(({ requestId }) => ({ requestId }))
     },
 
     /**
@@ -161,6 +167,7 @@ export function createRequestLogService(db: Database) {
       }).returning(itemOwner)
       if (observation.completion && observation.requestId)
         await writeItems({ ...row, requestId: observation.requestId }, 'output', splitOutputItems(observation.completion))
+      await refreshAgentRunAfterRequest(db, row.userId, row.interactionId)
       if (observation.attemptId && observation.requestId) {
         await db.update(llmRequestAttempt).set({
           state,

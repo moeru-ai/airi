@@ -49,4 +49,5 @@ export const llmRequestLog = pgTable('llm_request_log', {
   index('llm_request_log_state_started_idx').on(table.state, table.startedAt),
   index('llm_request_log_gateway_generation_idx').on(table.gateway, table.generationId),
   index('llm_request_log_user_created_idx').on(table.userId, table.createdAt),
+  index('llm_request_log_user_interaction_idx').on(table.userId, table.interactionId),
 ])
