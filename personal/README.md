@@ -24,6 +24,9 @@ The fork adds these features to the desktop app (stage-tamagotchi):
 
 You do not need to install development tools for this. GitHub builds the installer for you.
 
+GitHub shows the workflow only when its file is on the default branch of your fork, usually `main`.
+So merge the personal changes into `main` one time before step 1.
+
 1. Open your fork on GitHub.
 2. Click the **Actions** tab.
 3. If GitHub asks you to enable workflows for the fork, click the button to enable them.
