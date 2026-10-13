@@ -17,6 +17,7 @@
   },
   "exports": {
     ".": "./src/components/index.ts",
+    "./components/scenarios/agent": "./src/components/scenarios/agent/index.ts",
     "./components/scenarios/chat": "./src/components/scenarios/chat/index.ts",
     "./components/scenarios/home-assistant": "./src/components/scenarios/home-assistant/index.ts",
     "./components/scenarios/settings/model-settings": "./src/components/scenarios/settings/model-settings/index.ts",

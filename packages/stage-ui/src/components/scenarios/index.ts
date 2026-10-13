@@ -1,4 +1,5 @@
 export * from './about'
+export * from './agent'
 export * from './chat'
 export * from './connection'
 export * from './dialogs'

@@ -4,8 +4,10 @@ import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { CharacterSwitcherDrawer, ChatHistory, HearingConfig, HearingStatus, VoiceDrafts } from '@proj-airi/stage-ui/components'
+import { AgentPermissionPanel } from '@proj-airi/stage-ui/components/scenarios/agent'
 import { ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSessionsDrawer, useChatComposer, useChatImages, VoiceComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
+import { useAgentPermissionStore } from '@proj-airi/stage-ui/stores/agent-permissions'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
@@ -43,6 +45,9 @@ const { streamingMessage } = storeToRefs(chatStream)
 const { activeTurns } = storeToRefs(chatOrchestrator)
 const { isReceivingRemoteStream } = storeToRefs(useContextBridgeStore())
 const { chatReady } = storeToRefs(useConsciousnessStore())
+const agentPermissions = useAgentPermissionStore()
+/** `true` while fewer confirmations are asked, so the composer shows the relaxed policy. */
+const agentPolicyElevated = computed(() => agentPermissions.fullAccess || agentPermissions.autoApproveMedium)
 const historyMessages = computed(() => messages.value)
 const isActiveSessionSending = computed(() => (
   (activeTurns.value.some(turn => turn.sessionId === activeSessionId.value))
@@ -107,6 +112,8 @@ async function handleRetryMessage(index: number) {
 
 const sessionsDrawerOpen = shallowRef(false)
 const hearingOpen = shallowRef(false)
+/** Whether the agent permission panel is open. */
+const agentPanelOpen = shallowRef(false)
 const mobileInteractiveArea = useTemplateRef<HTMLElement>('mobileInteractiveArea')
 const messageComposer = useTemplateRef<HTMLElement>('messageComposer')
 const inputBubble = useTemplateRef<HTMLElement>('inputBubble')
@@ -434,6 +441,31 @@ onUnmounted(() => {
         <BasicButton
           size="unset"
           type="button"
+          data-testid="agent-permission-button"
+          :title="t('stage.agent-permission.button-description')"
+          :aria-label="t('stage.agent-permission.button')"
+          aria-haspopup="dialog"
+          :aria-expanded="agentPanelOpen"
+          :class="[
+            'size-10 shrink-0 self-end rounded-full backdrop-blur-md',
+            'border-2 border-solid border-neutral-200/60 bg-neutral-100/80',
+            'dark:border-neutral-700/60 dark:bg-neutral-950/80',
+            'hover:bg-primary-100/80 dark:hover:bg-primary-900/60',
+            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
+            agentPolicyElevated ? 'text-amber-500 dark:text-amber-300' : 'text-primary-600 dark:text-primary-300',
+          ]"
+          @click="agentPanelOpen = true"
+        >
+          <span
+            :class="[
+              agentPolicyElevated ? 'i-solar:shield-warning-bold-duotone' : 'i-solar:shield-check-bold-duotone',
+              'size-5',
+            ]"
+          />
+        </BasicButton>
+        <BasicButton
+          size="unset"
+          type="button"
           data-testid="mobile-voice-button"
           :title="t('stage.mobile-tools.hearing')"
           :aria-label="t('stage.mobile-tools.hearing')"
@@ -552,6 +584,8 @@ onUnmounted(() => {
     >
       <HearingConfig />
     </BottomDrawer>
+    <!-- The same policy panel the desktop toolbar opens. -->
+    <AgentPermissionPanel v-model="agentPanelOpen" />
     <div
       v-show="viewControlsEnabled"
       data-testid="view-controls-toolbar"

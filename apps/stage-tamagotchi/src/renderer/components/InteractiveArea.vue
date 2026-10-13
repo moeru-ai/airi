@@ -9,8 +9,10 @@ import type { ChatDraftHandover } from '../../shared/eventa'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useChatInterruption } from '@proj-airi/stage-layouts/composables/use-chat-interruption'
 import { ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
+import { AgentPermissionPanel } from '@proj-airi/stage-ui/components/scenarios/agent'
 import { ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSendButton, useChatComposer, useChatImages, VoiceInputButton } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
+import { useAgentPermissionStore } from '@proj-airi/stage-ui/stores/agent-permissions'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
@@ -30,7 +32,7 @@ import ChatViewportLayout from './chat-viewport-layout.vue'
 
 import { electronOpenSettings } from '../../shared/eventa'
 import { useHearingInputChannel } from '../composables/use-hearing-input-channel'
-import { artistryToolReferences, computerUseToolReferences, widgetToolReferences } from '../stores/tools'
+import { artistryToolReferences, computerUseToolReferences } from '../stores/tools'
 
 const props = withDefaults(defineProps<{
   /**
@@ -81,6 +83,8 @@ const voiceActive = shallowRef(false)
 const lastEnterTime = ref(0)
 // Each request captures this composer selection, including retries and tool reruns.
 const computerUseEnabled = ref(true)
+/** Whether the agent permission panel is open. */
+const agentPanelOpen = ref(false)
 
 const chatStore = useChatStore()
 const chatSession = useChatSessionStore()
@@ -88,6 +92,22 @@ const chatStream = useChatStreamStore()
 const backgroundStore = useBackgroundStore()
 const journalPreviewStore = useJournalPreviewStore()
 const airiCardStore = useAiriCardStore()
+const agentPermissions = useAgentPermissionStore()
+
+/**
+ * The tool list for one request.
+ *
+ * The master switch owns the whole list: with the agent off the model receives
+ * no tools, so it answers as a plain chat partner. While the agent is on, the
+ * computer-use toggle decides whether the desktop tools join the chat tools.
+ */
+const requestTools = computed(() => {
+  if (!agentPermissions.agentEnabled)
+    return []
+  return computerUseEnabled.value
+    ? [...artistryToolReferences, ...computerUseToolReferences]
+    : artistryToolReferences
+})
 
 const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
@@ -107,7 +127,7 @@ const composer = useChatComposer<ChatImageAttachment>({
       data: attachment.data,
       mimeType: attachment.mimeType,
     })),
-    tools: computerUseEnabled.value ? [...artistryToolReferences, ...computerUseToolReferences] : artistryToolReferences,
+    tools: requestTools.value,
   }),
 })
 const {
@@ -142,6 +162,11 @@ const latestImageEntries = computed(() => {
 })
 
 const hasSubmission = computed(() => !!messageInput.value.trim() || attachments.value.length > 0)
+/**
+ * `true` while fewer confirmations are asked, so the toolbar button shows the
+ * relaxed policy without a hover.
+ */
+const agentPolicyElevated = computed(() => agentPermissions.fullAccess || agentPermissions.autoApproveMedium)
 const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useChatInterruption({
   sessionId: activeSessionId,
   generating: computed(() => activeTurns.value.some(turn => turn.sessionId === activeSessionId.value)),
@@ -259,7 +284,7 @@ async function handleRetryMessage(index: number) {
   await chatStore.retry({
     sessionId: chatSession.activeSessionId,
     index,
-    tools: computerUseEnabled.value ? [...widgetToolReferences, ...computerUseToolReferences] : widgetToolReferences,
+    tools: requestTools.value,
   })
   trackChatMessageRetried({
     source: 'history',
@@ -279,7 +304,7 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
     invocationId: payload.invocationId,
     toolName: payload.toolName,
     args: payload.args,
-    tools: computerUseEnabled.value ? computerUseToolReferences : [],
+    tools: agentPermissions.agentEnabled && computerUseEnabled.value ? computerUseToolReferences : [],
   })
 }
 
@@ -548,6 +573,25 @@ defineExpose({
             <span :class="['i-solar:monitor-bold-duotone h-5 w-5 shrink-0']" />
           </GhostButton>
 
+          <!-- The agent policy decides which tool calls run without a confirmation. -->
+          <GhostButton
+            data-testid="agent-permission-button"
+            size="unset"
+            :class="['size-9']"
+            :aria-label="t('stage.agent-permission.button')"
+            :title="t('stage.agent-permission.button-description')"
+            :active="agentPolicyElevated"
+            :aria-pressed="agentPolicyElevated"
+            @click="agentPanelOpen = true"
+          >
+            <span
+              :class="[
+                agentPolicyElevated ? 'i-solar:shield-warning-bold-duotone' : 'i-solar:shield-check-bold-duotone',
+                'h-5 w-5 shrink-0',
+              ]"
+            />
+          </GhostButton>
+
           <!-- The voice control shows its recording status here, so the composer keeps its height. -->
           <div ref="voice-status" :class="['min-w-0 flex flex-1 items-center px-1']" />
           <div :class="['flex shrink-0 items-center gap-1']">
@@ -558,7 +602,7 @@ defineExpose({
               :attachment-element="voiceAttachment"
               :session-id="activeSessionId"
               :reply-to-message-id="replyTarget?.message.id"
-              :tools="computerUseEnabled ? [...artistryToolReferences, ...computerUseToolReferences] : artistryToolReferences"
+              :tools="agentPermissions.agentEnabled ? [...artistryToolReferences, ...computerUseToolReferences] : artistryToolReferences"
               @recording-change="voiceActive = $event"
               @pending-change="voicePending = $event"
               @sent="composer.clearReply()"
@@ -601,6 +645,9 @@ defineExpose({
       </div>
     </template>
   </ChatViewportLayout>
+
+  <!-- One button opens the whole policy panel. The risk confirmation lives in App.vue. -->
+  <AgentPermissionPanel v-model="agentPanelOpen" />
 
   <!-- Shared Preview Modal -->
   <JournalPreviewModal />

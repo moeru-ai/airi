@@ -10,6 +10,7 @@ import { uniqBy } from 'es-toolkit'
 import { createWebSearchTools, debug, mcp } from '../../../tools'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { useWebSearchStore } from '../../modules/web-search'
+import { withPermissionGate } from './agent-gate'
 import { withDescribedImages } from './tool-images'
 import { useLlmToolsStore } from './tools'
 
@@ -177,5 +178,10 @@ export async function resolveLlmTools(options: ResolveLlmToolsOptions = {}): Pro
   ).toReversed()
 
   const describeImage = options.describeImage
-  return describeImage ? tools.map(tool => withDescribedImages(tool, describeImage)) : tools
+  // The permission gate sits outermost, so it reads the raw input and owns
+  // every `execute` call. `uniqBy` runs above this line, so wrapping cannot
+  // change the tool order or the de-duplication.
+  return tools.map(tool => withPermissionGate(
+    describeImage ? withDescribedImages(tool, describeImage) : tool,
+  ))
 }

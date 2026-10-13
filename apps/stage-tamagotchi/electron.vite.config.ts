@@ -164,6 +164,8 @@ export default defineConfig({
         // stores/ root (e.g. mcp-tool-bridge.ts) are not found.  Add explicit aliases
         // for each such file that the renderer imports from @proj-airi/stage-ui.
         '@proj-airi/stage-ui/stores/mcp-tool-bridge': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'stores', 'mcp-tool-bridge.ts')),
+        '@proj-airi/stage-ui/stores/agent-permissions': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'stores', 'agent-permissions.ts')),
+        '@proj-airi/stage-ui/stores/agent-permission': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'stores', 'agent-permission.ts')),
         '@proj-airi/stage-ui': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src')),
         '@proj-airi/stage-pages': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src')),
         '@proj-airi/stage-shared': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-shared', 'src')),
