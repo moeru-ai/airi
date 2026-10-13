@@ -1,14 +1,137 @@
+character-switcher:
+  title: 캐릭터 전환
+  manage: 캐릭터 관리
+  empty: 아직 캐릭터가 없습니다
+  failed: 캐릭터를 전환하지 못했습니다. 다시 시도하세요.
+mobile-tools:
+  sign-in: AIRI에 로그인
+  account-description: 계정 및 환경설정
+  sound: 소리
+  character-voice: 캐릭터 음성
+  title: 설정
+  appearance: 외형
+  application: 앱
+  more: 더 보기
+  background: 배경
+  settings: 설정
+  about: 정보
+  view: 보기
+  close-view: 보기 설정을 저장하고 닫기
+  hearing: 청력
 chat:
+  provider-configuration:
+    title: 채팅 제공업체가 설정되지 않았습니다
+    description: 메시지를 보내기 전에 설정에서 제공업체를 선택하고 확인하세요.
+    action: 제공업체 설정 열기
+  voice-message:
+    recording: 녹음 중
+    starting: 마이크 시작 중
+    preview: 녹음된 음성 메시지
+    transcribing: 음성 인식 중…
+    position: 재생 위치
+    no-speech: 음성을 인식하지 못해 음성 메시지를 보내지 않았습니다.
+  voice-composer:
+    audio: 음성 메시지
+    transcription: 받아쓰기
+    hold-hint: 길게 눌러 녹음하세요. 클릭하면 음성 메시지와 받아쓰기 사이를 전환합니다. Enter를 누르면 길게 누르지 않고 녹음할 수 있습니다.
+    listening: 듣는 중…
+    lock: 위로 밀어 녹음 고정
+    cancel-hint: 왼쪽으로 밀어 취소
+    processing: 마무리 중…
+    cancel: 취소
+    send: 음성 메시지 보내기
+    insert: 텍스트 삽입
+    retry: 음성 메시지 다시 보내기
+    discard: 음성 메시지 버리기
+    failed: 음성 입력 실패
+    configure-title: 청력 설정
+    configure-description: 받아쓰기를 사용하려면 청력에서 전사 제공자와 모델을 선택하세요.
+    configure-action: 청력 열기
+    mode: 음성 입력
+    auto-send: 녹음이 끝나면 보내기
+    input-device: 마이크
+    system-default: 시스템 기본값
+    listen: 계속 듣기
+    push-to-talk: 눌러서 말하기
+    push-to-talk-unavailable: 이 기기에는 눌러서 말하기 키가 없어 AIRI가 듣지 않습니다. 청력 설정에서 입력 모드를 변경하세요.
+    wake-word: 호출어 듣기
+    hearing-settings: 청력 설정 더 보기…
+    options-hint: 마우스를 올리거나 오른쪽 클릭하여 옵션 보기
+    recording: 녹음 중
+    stop: 녹음 중지
+    stop-send: 중지하고 보내기
+    play: 녹음 재생
+    pause: 일시 중지
+  voice-preview:
+    processing: 전사 마무리 중
+    device: 오디오 입력 장치
+    device-description: 이 녹음에 사용할 마이크를 선택하세요.
+    device-placeholder: 마이크 선택
+    level: 입력 레벨
+    activity: 음성 활동
+    silence: 무음
+    speech: 음성
+    threshold: 감지 임계값
+    sensitivity: 민감도
+    sensitivity-description: 음성 표시기의 임계값을 조정하세요.
+    start: 녹음 시작
+    stop: 녹음 마치기
+    failed: 오디오 작업에 실패했습니다.
+  voice-draft:
+    title: 음성 초안
+    discard: 초안 버리기
+    listening: 듣는 중
+    finalizing: 마무리 중…
+  voice-input: 음성 입력
+  error-details:
+    show: 상세 정보 보기
+    hide: 상세 정보 숨기기
+  images:
+    empty: 생각이나 사진을 공유해 보세요.
+    use-vision: 채팅 이미지에 시각 모델 사용
+    use-vision-description: 아래에서 제공자와 모델을 선택하세요. 채팅 모델이 답하기 전에 첨부 이미지를 읽습니다. 시각 모델이 없으면 이미지를 채팅 모델에 직접 보냅니다.
+    attach: '이미지 첨부'
+    remove: '{name} 제거'
+    unsupported: 'PNG, JPEG, WebP 또는 GIF 이미지를 사용하세요.'
+    too-large: '각 이미지는 3 MB 이하여야 합니다.'
+    too-many: '한 번에 최대 {count}개의 이미지를 첨부할 수 있습니다.'
+    total-too-large: '첨부 이미지의 총 크기는 3 MB 이하여야 합니다.'
+    read-failed: '이미지를 읽을 수 없습니다. 다시 시도하세요.'
+    no-description: '시각 모델이 이미지 설명을 반환하지 않았습니다. 설정 → 모듈 → 시각을 확인하고 다시 시도하세요.'
+    reading: '이미지 읽는 중…'
+    description: '첨부 이미지'
   actions:
+    reply: 답장
     retry: 다시 시도
+    send: 메시지 보내기
+    stop: 응답 중지
   message:
     character-name:
       core-system: 코어
       you: 당신
+  reply:
+    cancel: 답장 취소
+    message: 메시지
+    replying-to: '{name}에게 답장 중'
   reasoning: 추론
+  swipe-demo:
+    show-label: 라벨 표시
+    delete: 삭제
+    archive: 보관
+    pin: 고정
+    actions: 작업 표시
+    row: '대화 {n}'
   sessions:
+    delete-short: 삭제
+    confirm-delete-short: 삭제 확인
     title: 대화
     new: + New
+    current: 현재
+    confirm-delete: 이 대화와 메시지를 삭제할까요?
+    cancel: 취소
+    empty: 아직 대화가 없습니다
+    cloud-badge: 클라우드에 동기화됨
+    new-chat-fallback: 새 채팅
     delete: 대화 삭제
 render-error:
   title: '{renderer}에서 이 모델을 렌더링할 수 없습니다'
@@ -17,9 +140,40 @@ render-error:
     {renderer}에서 선택한 모델을 렌더링하지 못했습니다.
     모델 ID: {modelId}
     오류: {error}
+startup:
+  failed: 시작 실패
+  failed-resource: '{resource}을(를) 불러올 수 없습니다'
+  recover: 다시 시도하세요. 또 실패하면 아래의 상세 정보를 여세요.
+  recover-model: 다시 시도하거나 캐릭터 없이 계속하세요. 나중에 다른 모델을 선택할 수 있습니다.
+  details: 무슨 일이 있었나요?
+  close-details: 상세 정보 닫기
+  retry: 다시 시도
+  continue-without-model: 계속 진행
+  model-timeout: 캐릭터 모델을 불러오는 데 시간이 너무 오래 걸렸습니다. 연결을 확인하고 다시 시도하세요.
+  resources:
+    auth: 계정 설정
+    modelIndex: 모델 목록
+    card: 캐릭터 설정
+    chat: 채팅 기록
+    services: 앱 서비스
+    modelData: 저장된 모델
+    modelSelection: 모델 설정
+    audio: 오디오 설정
+    route: 페이지
+    model: 캐릭터 모델
 message: 듣고 있어요...
+theme:
+  title: 테마
+  system: 시스템
+  light: 밝게
+  dark: 어둡게
+  switch-to-light: 밝은 테마로 전환
+  switch-to-dark: 어두운 테마로 전환
+  switch-to-system: 시스템 테마 따르기
 send-mode:
+  title: 전송 키
   enter: 엔터
+  double-enter: Enter 두 번
 speech-output:
   mute: 음성 음소거
   unmute: 음소거 해제
@@ -57,23 +211,58 @@ promo-banner:
   items:
     signin:
       watermark: 달
+      fallbackLabel: 달의 선물
+      title: 7일 출석
+      eventName: 출석하고 별가루, 아바타 프레임, 출시 기념 선물을 받으세요.
+      reward: 최대 별가루 120개
       cta: 로그인
     build:
       watermark: 빌드
       fallbackLabel: 빌드 보너스
+      title: 보급 상자 보너스
+      eventName: 건설 과제를 완료하고 보너스 교환권과 두 배의 재료를 받으세요.
+      reward: 보급 교환권 5장 + 업그레이드 재료
       cta: 작업 보기
+    spring:
+      watermark: 봄
+      fallbackLabel: 봄 추첨
+      title: 캡슐 카니발
+      eventName: 봄 추첨에 참여해 말풍선, 장식, 테마 가구를 잠금 해제하세요.
+      reward: 첫 추첨 반값 + 희귀 장식
+      cta: 지금 추첨하기
     coupon:
       watermark: 대화
       fallbackLabel: 쿠폰
+      title: 충전 쿠폰
+      eventName: 채팅 상호작용을 완료하고 확장 및 음성 팩 쿠폰을 받으세요.
+      reward: 30에 6 할인 / 68에 15 할인
       cta: 쿠폰 받기
     home:
       watermark: 홈
       fallbackLabel: 방 테마
       title: 봄 테마 업데이트
       eventName: ........
+      reward: 출석 시 무료 테마 추첨권
       cta: 테마 보기
 waiting: 대기 중
 websocket-status:
   connected: 연결됨
   disconnected: 연결 없음
   open-settings: 연결 설정 열기
+computer-use:
+  label: 컴퓨터 사용
+  description: 이 채팅 창이 이 컴퓨터의 네이티브 앱을 살펴보고 제어하도록 허용합니다.
+status:
+  preparing: 마이크 준비 중
+  listening: 듣는 중
+  paused: AIRI가 말하는 동안 듣기 일시 중지
+  transcribing: 전사 중
+  hearing-error: 오디오를 전사할 수 없습니다
+  no-transcript: 인식된 음성이 여기에 표시됩니다.
+  signing-in: 브라우저에서 로그인을 완료하세요
+  confirming: 로그인 확인 중
+  signed-in: 로그인됨
+  sign-in-error: 로그인 실패
+  sign-in-unconfirmed: 세션을 확인할 수 없습니다. 다시 로그인하세요.
+  dismiss: 무시
+  configure-hearing: 설정에서 청력 제공자를 선택하고 구성하세요.
