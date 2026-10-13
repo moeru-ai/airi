@@ -17,6 +17,13 @@ is_terminal_status() {
   esac
 }
 
+is_stopped_status() {
+  case "$1" in
+    FAILED | CRASHED | REMOVED | SKIPPED) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 linked_environment_id() {
   local environments
   if ! environments=$(railway environment list --json); then
@@ -204,12 +211,101 @@ cancel_railway_deployment() {
     local status=""
     if deployments=$(railway deployment list --service "$service" --limit 100 --json) \
       && status=$(jq --arg id "$deployment_id" --exit-status --raw-output '[.[] | select(.id == $id)][0].status' <<< "$deployments") \
-      && is_terminal_status "$status"; then
+      && is_stopped_status "$status"; then
       return 0
     fi
 
     echo "::warning::Railway deployment $deployment_id is not confirmed terminal. Retrying." >&2
     poll_delay
+  done
+}
+
+stop_service_deployments() {
+  local service="$1"
+
+  while true; do
+    local deployments
+    if ! deployments=$(railway deployment list --service "$service" --limit 100 --json); then
+      echo "::warning::Cannot list the $service deployments during cleanup. Retrying." >&2
+      poll_delay
+      continue
+    fi
+
+    local active_deployments
+    if ! active_deployments=$(jq --raw-output '.[] | select(.status | IN("FAILED", "CRASHED", "REMOVED", "SKIPPED") | not) | [.id, .status] | @tsv' <<< "$deployments"); then
+      echo "::warning::Cannot inspect the $service deployments during cleanup. Retrying." >&2
+      poll_delay
+      continue
+    fi
+
+    if [[ -z "$active_deployments" ]]; then
+      return 0
+    fi
+
+    local removed_running=false
+    while IFS=$'\t' read -r deployment_id status; do
+      if [[ "$status" == "SUCCESS" || "$status" == "SLEEPING" ]]; then
+        echo "Removing the running $service deployment during cleanup." >&2
+        if ! railway down --service "$service" --yes; then
+          echo "::warning::Cannot remove the running $service deployment. Retrying." >&2
+        fi
+        removed_running=true
+        break
+      fi
+      cancel_railway_deployment "$service" "$deployment_id"
+    done <<< "$active_deployments"
+
+    if [[ "$removed_running" == "true" ]]; then
+      poll_delay
+    fi
+  done
+}
+
+keep_only_deployment() {
+  local service="$1"
+  local deployment_id="$2"
+
+  while true; do
+    local deployments
+    if ! deployments=$(railway deployment list --service "$service" --limit 100 --json); then
+      echo "::error::Cannot list the $service deployments." >&2
+      return 1
+    fi
+
+    local unwanted_deployments
+    if ! unwanted_deployments=$(jq --arg id "$deployment_id" --raw-output '.[] | select(.id != $id) | select(.status | IN("FAILED", "CRASHED", "REMOVED", "SKIPPED") | not) | [.id, .status] | @tsv' <<< "$deployments"); then
+      echo "::error::Cannot inspect the $service deployment states." >&2
+      return 1
+    fi
+
+    if [[ -n "$unwanted_deployments" ]]; then
+      while IFS=$'\t' read -r unwanted_id status; do
+        if [[ "$status" == "SUCCESS" || "$status" == "SLEEPING" ]]; then
+          echo "Removing an untracked running $service deployment." >&2
+          if ! railway down --service "$service" --yes; then
+            echo "::error::Cannot remove the untracked running $service deployment." >&2
+            return 1
+          fi
+          break
+        fi
+        cancel_railway_deployment "$service" "$unwanted_id"
+      done <<< "$unwanted_deployments"
+      poll_delay
+      continue
+    fi
+
+    local target_status
+    if ! target_status=$(jq --arg id "$deployment_id" --exit-status --raw-output '[.[] | select(.id == $id)][0].status' <<< "$deployments"); then
+      echo "::error::Cannot find the $service deployment $deployment_id." >&2
+      return 1
+    fi
+
+    if [[ "$target_status" == "SUCCESS" ]]; then
+      return 0
+    fi
+
+    echo "::error::The $service deployment $deployment_id no longer runs after the final drain." >&2
+    return 1
   done
 }
 
@@ -269,25 +365,29 @@ deploy_services() {
     abort_railway_deployment() {
       local exit_status="$1"
       trap - EXIT INT TERM
-      cancel_railway_deployment "$service" "$deployment_id"
+      stop_service_deployments "$service"
       exit "$exit_status"
     }
 
-    trap 'cancel_railway_deployment "$service" "$deployment_id"' EXIT
+    trap 'stop_service_deployments "$service"' EXIT
     trap 'abort_railway_deployment 130' INT
     trap 'abort_railway_deployment 143' TERM
 
     local wait_status=0
     wait_for_deployment "$service" "$deployment_id" || wait_status=$?
-    trap - EXIT INT TERM
     if ((wait_status != 0)); then
-      cancel_railway_deployment "$service" "$deployment_id"
+      stop_service_deployments "$service"
+      trap - EXIT INT TERM
       return 1
     fi
 
-    if ! wait_for_idle_deployments "$service" false true; then
+    if ! keep_only_deployment "$service" "$deployment_id"; then
+      stop_service_deployments "$service"
+      trap - EXIT INT TERM
       return 1
     fi
+
+    trap - EXIT INT TERM
   done
 }
 

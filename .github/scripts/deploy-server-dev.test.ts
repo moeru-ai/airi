@@ -206,9 +206,9 @@ if [[ "$1 $2" == "deployment list" ]]; then
   count=$(cat "$count_file" 2>/dev/null || printf '0')
   printf '%s' "$((count + 1))" > "$count_file"
   if [[ "$count" == '0' ]]; then
-    printf '[{"id":"unrelated-%s","status":"SUCCESS"},{"id":"target-%s","status":"BUILDING"}]\n' "$service" "$service"
+    printf '[{"id":"unrelated-%s","status":"REMOVED"},{"id":"target-%s","status":"BUILDING"}]\n' "$service" "$service"
   else
-    printf '[{"id":"unrelated-%s","status":"SUCCESS"},{"id":"target-%s","status":"SUCCESS"}]\n' "$service" "$service"
+    printf '[{"id":"unrelated-%s","status":"REMOVED"},{"id":"target-%s","status":"SUCCESS"}]\n' "$service" "$service"
   fi
   exit 0
 fi
