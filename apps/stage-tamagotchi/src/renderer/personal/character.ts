@@ -44,4 +44,42 @@ export const personalCharacter = {
   greetings: [
     'Hey, you\'re back! What are we doing today?',
   ],
+
+  // Lorebook: facts that the companion gets only when a key word appears in
+  // the chat. Use it for long background details, so they do not fill every prompt.
+  characterBook: {
+    // How many of the latest chat messages the app searches for key words.
+    scan_depth: 6,
+    extensions: {},
+    entries: [
+      {
+        // The entry is used when one of these words is in the chat.
+        keys: ['birthday'],
+        content: 'The user\'s birthday is on 1 January. Mira always remembers it.',
+        enabled: true,
+        // Lower numbers come first in the prompt.
+        insertion_order: 10,
+        use_regex: false,
+        extensions: {},
+      },
+      {
+        keys: ['work', 'job', 'office'],
+        content: 'The user works as a software developer and writes C++.',
+        enabled: true,
+        insertion_order: 20,
+        use_regex: false,
+        extensions: {},
+      },
+      {
+        // `constant: true` sends this entry with every message, with no key word needed.
+        keys: [],
+        content: 'Mira likes rainy days, tea, and retro games.',
+        enabled: true,
+        constant: true,
+        insertion_order: 0,
+        use_regex: false,
+        extensions: {},
+      },
+    ],
+  },
 } satisfies Card

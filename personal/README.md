@@ -7,16 +7,17 @@ The fork adds these features to the desktop app (stage-tamagotchi):
 
 - **Your character.** The app ships with your character. It selects that character on the first start. You do not import anything.
 - **Local mode.** The app uses Ollama for chat, Kokoro for the voice, and Sherpaw for speech recognition. All three run on your computer.
+- **Lorebook.** The app gives the model extra facts only when a key word is in the chat.
 
 ## Where the files are
 
 | File | What it does | Do you edit it? |
 | --- | --- | --- |
-| `apps/stage-tamagotchi/src/renderer/personal/character.ts` | Your character: name, personality, speaking style, and greeting. | **Yes** |
+| `apps/stage-tamagotchi/src/renderer/personal/character.ts` | Your character: name, personality, speaking style, greeting, and lorebook. | **Yes** |
 | `apps/stage-tamagotchi/src/renderer/personal/local-mode.json` | Local mode settings: the Ollama model and the voice. | **Yes** |
 | `personal/setup-local.cmd` and `personal/setup-local.ps1` | Installs Ollama and downloads the chat model. | No |
 | `.github/workflows/personal-build-windows.yml` | Builds the Windows installer on GitHub. | No |
-| `apps/stage-tamagotchi/src/renderer/personal/*.ts` (other files) | The code that installs the character and applies local mode. | Only if you want to change the behavior |
+| `apps/stage-tamagotchi/src/renderer/personal/*.ts` (other files) | The code that installs the character and applies the lorebook. | Only if you want to change the behavior |
 | `apps/stage-tamagotchi/src/renderer/App.vue` | Upstream file. A few lines start and stop the personal code. Search for `PERSONAL:` and `stopPersonalCompanion`. | No |
 
 ## Get the app
@@ -114,7 +115,38 @@ The fields of the character:
 | `scenario` | Where the character is and what is happening. |
 | `systemPrompt` | Rules for the replies, for example length and tone. |
 | `greetings` | The first item is the greeting. The app stores it, but it does not show greetings in the chat yet. |
+| `characterBook` | The lorebook. See the next section. |
 | `version` | A label that the app shows. Changing it is optional. |
+
+### Lorebook
+
+A lorebook entry is a fact that the model gets only when one of its key words is in the chat.
+Use it for long background details. A small model has a small context, so do not put every detail in `description`.
+
+```ts
+const entry = {
+  keys: ['birthday', 'born'], // the entry is used when one of these words is in the chat
+  content: 'The user\'s birthday is on 1 January.',
+  enabled: true,
+  insertion_order: 10, // lower numbers come first in the prompt
+  use_regex: false, // true: each key is a regular expression, like std::regex
+  extensions: {},
+}
+```
+
+In `character.ts`, write each entry without `const entry =`, inside the `entries: [ ... ]` array, with a comma after it.
+
+Optional fields:
+
+| Field | Meaning |
+| --- | --- |
+| `constant: true` | Sends the entry with every message, with no key word needed. |
+| `case_sensitive: true` | `Mira` does not match `mira`. By default, case is ignored. |
+| `selective: true` with `secondary_keys: [...]` | The entry is used only when a key **and** a secondary key are in the chat. |
+
+`scan_depth` in `characterBook` sets how many of the latest messages the app searches. The current message is always searched.
+
+The lorebook works for the character in `character.ts`. A character card that you import in Settings loses its lorebook, because the upstream importer does not copy it.
 
 ## Run the app from the source code (optional)
 
@@ -130,6 +162,7 @@ Before you push a code change, run these checks:
 
 ```shell
 pnpm -F @proj-airi/stage-tamagotchi typecheck
+pnpm exec vitest run apps/stage-tamagotchi/src/renderer/personal
 pnpm lint
 ```
 
@@ -148,4 +181,6 @@ The personal files are new files. Upstream does not change them, so they do not 
 ## Known limits
 
 - The app does not show the greeting in the chat yet.
+- A card imported in Settings loses its lorebook.
+- The lorebook ignores `token_budget`, `recursive_scanning`, and `position`.
 - The update button inside the app installs upstream AIRI, not your build.
