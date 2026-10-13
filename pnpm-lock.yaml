@@ -420,6 +420,9 @@ catalogs:
     '@sherpaw/kws':
       specifier: 0.3.0
       version: 0.3.0
+    '@sherpaw/preloader':
+      specifier: 0.3.0
+      version: 0.3.0
     '@sherpaw/speaker-diarization':
       specifier: 0.3.0
       version: 0.3.0
@@ -4903,9 +4906,15 @@ importers:
       '@revenuecat/purchases-js':
         specifier: 'catalog:'
         version: 1.68.0
+      '@sherpaw/asr':
+        specifier: 'catalog:'
+        version: 0.3.0(onnxruntime-web@1.27.0)
       '@sherpaw/kws':
         specifier: 'catalog:'
         version: 0.3.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+      '@sherpaw/preloader':
+        specifier: 'catalog:'
+        version: 0.3.0
       '@sherpaw/speaker-diarization':
         specifier: 'catalog:'
         version: 0.3.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(onnxruntime-web@1.27.0)(web-worker@1.5.0)

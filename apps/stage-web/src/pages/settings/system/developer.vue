@@ -105,6 +105,12 @@ const menu = computed(() => [
     to: '/devtools/providers-transcription-realtime-aliyun-nls',
   },
   {
+    title: 'ASR Uncertainty Probe',
+    description: 'Decode a clip many times with noise and find the spans that speech recognition is unsure of',
+    icon: 'i-solar:soundwave-bold-duotone',
+    to: '/devtools/asr-uncertainty',
+  },
+  {
     title: 'Performance Playground',
     description: 'VRM expressions + TTS lip sync playground',
     icon: 'i-solar:sledgehammer-bold-duotone',
