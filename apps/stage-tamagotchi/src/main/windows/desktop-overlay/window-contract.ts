@@ -1,5 +1,7 @@
 import type { BrowserWindow, BrowserWindowConstructorOptions, Rectangle } from 'electron'
 
+import { showWindowOnAllWorkspaces } from '../shared/app-icon'
+
 /**
  * Build BrowserWindow options for the desktop grounding overlay.
  *
@@ -55,11 +57,15 @@ export function createDesktopOverlayWindowOptions(params: {
  */
 export function applyDesktopOverlayInputIsolation(
   window: Pick<BrowserWindow, 'setAlwaysOnTop' | 'setContentProtection' | 'setIgnoreMouseEvents' | 'setVisibleOnAllWorkspaces'>,
+  options?: { hideAppIcon?: boolean },
 ): void {
   window.setIgnoreMouseEvents(true, { forward: true })
   window.setAlwaysOnTop(true, 'screen-saver')
   window.setContentProtection(true)
-  window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  showWindowOnAllWorkspaces(window, {
+    visibleOnFullScreen: true,
+    hideAppIcon: options?.hideAppIcon,
+  })
 }
 
 /**

@@ -46,7 +46,26 @@ describe('applyDesktopOverlayInputIsolation', () => {
     expect(window.setIgnoreMouseEvents).toHaveBeenCalledWith(true, { forward: true })
     expect(window.setAlwaysOnTop).toHaveBeenCalledWith(true, 'screen-saver')
     expect(window.setContentProtection).toHaveBeenCalledWith(true)
-    expect(window.setVisibleOnAllWorkspaces).toHaveBeenCalledWith(true, { visibleOnFullScreen: true })
+    expect(window.setVisibleOnAllWorkspaces).toHaveBeenCalledWith(true, {
+      visibleOnFullScreen: true,
+      skipTransformProcessType: false,
+    })
+  })
+
+  it('skips macOS process transform when hideAppIcon preference is enabled', () => {
+    const window = {
+      setAlwaysOnTop: vi.fn(),
+      setContentProtection: vi.fn(),
+      setIgnoreMouseEvents: vi.fn(),
+      setVisibleOnAllWorkspaces: vi.fn(),
+    }
+
+    applyDesktopOverlayInputIsolation(window, { hideAppIcon: true })
+
+    expect(window.setVisibleOnAllWorkspaces).toHaveBeenCalledWith(true, {
+      visibleOnFullScreen: true,
+      skipTransformProcessType: true,
+    })
   })
 })
 

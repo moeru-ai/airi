@@ -549,7 +549,7 @@ app.whenReady().then(async () => {
   // injeca.start() builds every registered service, so the overlay needs no consumer.
   if (isDesktopOverlayEnabled()) {
     injeca.provide('windows:desktop-overlay', {
-      dependsOn: { mcpManager, serverChannel, i18n },
+      dependsOn: { mcpManager, serverChannel, i18n, appConfig },
       build: async ({ dependsOn }) => setupDesktopOverlayWindow(dependsOn),
     })
   }
