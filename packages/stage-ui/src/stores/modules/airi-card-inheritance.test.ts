@@ -20,6 +20,33 @@ vi.mock('vue-i18n', () => ({
   useI18n: () => ({ locale: { value: 'en' }, t: (key: string) => key }),
 }))
 
+const storedCards = vi.hoisted(() => new Map<string, Record<string, unknown>>())
+const localValues = vi.hoisted(() => new Map<string, string>())
+
+vi.mock('../../database/repos/character-cards.repo', () => ({
+  characterCardsRepo: {
+    async migrate(cards: Iterable<[string, Record<string, unknown>]>) {
+      for (const [id, fields] of cards)
+        storedCards.set(id, fields)
+      return true
+    },
+    async list() { return [...storedCards] },
+    async write(id: string, fields: Record<string, unknown>) {
+      storedCards.set(id, fields)
+      return 1
+    },
+    async remove(id: string) {
+      storedCards.delete(id)
+      return true
+    },
+    async restore() { return false },
+    async snapshot() { return null },
+    async history() { return [] },
+    async deleted() { return [] },
+    async clear() { storedCards.clear() },
+  },
+}))
+
 vi.mock('localforage', () => ({
   default: {
     getItem: vi.fn(async () => undefined),
@@ -49,6 +76,13 @@ function card(provider = '', model = ''): AiriCard {
 
 describe('card inheritance with real module stores', () => {
   beforeEach(() => {
+    storedCards.clear()
+    localValues.clear()
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => localValues.get(key) ?? null,
+      setItem: (key: string, value: string) => localValues.set(key, value),
+      removeItem: (key: string) => localValues.delete(key),
+    })
     const pinia = createPinia()
     createApp({}).use(pinia).use(PiniaColada)
     setActivePinia(pinia)
@@ -94,10 +128,8 @@ describe('card inheritance with real module stores', () => {
   // https://github.com/moeru-ai/airi/pull/2332
   it('preserves explicit no-speech on the default card', async () => {
     const cards = useAiriCardStore()
-    const muted = card()
-    muted.extensions.airi.modules.speech.provider = 'speech-noop'
-    cards.cards.set('default', muted)
     await cards.initialize()
+    await cards.updateCard('default', { extensions: { airi: { modules: { speech: { provider: 'speech-noop' } } } } })
     expect(cards.activeCard?.extensions.airi.modules.speech.provider).toBe('speech-noop')
     expect(useSpeechStore().activeSpeechProvider).toBe('speech-noop')
   })
@@ -117,7 +149,7 @@ describe('card inheritance with real module stores', () => {
     await cards.initialize()
     const id = await cards.addCard(card('card-provider', 'card-model'), 'import')
     await cards.activateCard(id)
-    await cards.updateCard(id, card())
+    await cards.updateCard(id, { extensions: { airi: { modules: { consciousness: { provider: '', model: '' } } } } })
     expect(consciousness.activeProvider).toBe('global-provider')
     expect(consciousness.activeModel).toBe('global-model')
   })

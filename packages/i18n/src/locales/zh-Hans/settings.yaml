@@ -371,6 +371,7 @@ pages:
       conflict_notice: 另一台设备修改了同一个角色，已将本设备的版本另存为副本。
       history:
         tab: 历史版本
+        cloud_tab: 云端历史
         empty: 这张角色卡还没有历史版本。
         loading: 正在加载历史版本……
         load_failed: 无法加载这张角色卡的历史版本。
@@ -418,9 +419,15 @@ pages:
         load_failed: 无法加载最近删除的角色卡。
         deleted_when: '删除于 {when}'
         days_left: '还可恢复，剩余 {days} 天'
+        local_retained: 此副本保存在这台设备上。
         restore: 恢复
         restore_success: 已恢复 {name}。
-        restore_failed: 无法恢复这张角色卡，服务端可能已不再保留它的内容。
+        restore_failed: 无法恢复这张角色卡，本地或云端可能已不再保留它的内容。
+        cloud_load_failed: 无法加载账号中的已删除角色卡。本地保存的已删除角色卡仍会显示。
+      history_storage_error: '无法加载角色卡：{error}'
+      history_storage_retry: 重试加载角色卡
+      history_storage_export: 导出已保存的角色卡数据
+      history_storage_discard: 丢弃无法读取的数据
     activate: 激活
     active: 已激活
     active_badge: 当前使用中

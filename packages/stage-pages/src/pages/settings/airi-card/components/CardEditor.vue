@@ -481,6 +481,7 @@ function initializeCard(): Card {
 
 const card = ref<Card>(createCardDraft())
 const initialSnapshot = shallowRef<EditorSnapshot>()
+const initialCard = shallowRef<Card>()
 
 interface EditorSnapshot {
   card: Card
@@ -541,6 +542,29 @@ function createEditorSnapshot(): EditorSnapshot {
   })
 }
 
+const unchanged = Symbol('unchanged')
+
+function changedFields(base: unknown, edited: unknown): unknown {
+  if (isEqual(base, edited))
+    return unchanged
+  if (!base || !edited || typeof base !== 'object' || typeof edited !== 'object' || Array.isArray(base) || Array.isArray(edited))
+    return edited
+
+  const patch: Record<string, unknown> = {}
+  const original = base as Record<string, unknown>
+  const draft = edited as Record<string, unknown>
+  for (const key of new Set([...Object.keys(original), ...Object.keys(draft)])) {
+    if (!(key in draft)) {
+      patch[key] = undefined
+      continue
+    }
+    const change = changedFields(original[key], draft[key])
+    if (change !== unchanged)
+      patch[key] = change
+  }
+  return patch
+}
+
 const isDirty = computed(() => {
   if (!initialSnapshot.value)
     return false
@@ -573,6 +597,7 @@ watch([
   hasLoadedCard = !!existingCard
   await nextTick()
   isInitializingModuleSelections = false
+  initialCard.value = structuredClone(toRaw(card.value))
   initialSnapshot.value = createEditorSnapshot()
 
   if (activeSection.value === 'modules')
@@ -681,12 +706,15 @@ async function handleSave(activate: boolean) {
 
     let savedCardId: string
     if (isEditMode.value && props.cardId) {
-      if (!await cardStore.updateCard(props.cardId, cardWithModules)) {
+      const baseCard = initialCard.value
+      const changes = baseCard ? changedFields(baseCard, cardWithModules) : undefined
+      if (changes === undefined || !await cardStore.updateCard(props.cardId, (changes === unchanged ? {} : changes) as Parameters<typeof cardStore.updateCard>[1])) {
         showError.value = true
         errorMessage.value = t('settings.pages.card.card_not_found')
         return
       }
       savedCardId = props.cardId
+      initialCard.value = structuredClone(cardWithModules)
       trackCardEdited({ card_id: props.cardId })
     }
     else {

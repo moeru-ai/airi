@@ -61,6 +61,8 @@ export interface SynchronizeOptions {
    * as `readLocal`, so it must write the documents before it awaits anything.
    */
   applyLocal: (changes: LocalDocumentChanges) => Promise<AppliedLocalChanges>
+  /** Serializes a local snapshot, remote reconciliation, apply, and cursor save with local edits. */
+  withLocalChanges: <T>(operation: () => Promise<T>) => Promise<T>
   /** Stores the sync state. The run calls it after each step that a later run must not repeat. */
   saveState: (state: SyncState) => Promise<void>
   /**
@@ -93,24 +95,31 @@ export async function synchronize(options: SynchronizeOptions): Promise<Synchron
     if (!isCurrent())
       return outcome()
 
-    // No `await` between `readLocal` and the document write in `applyLocal`. A
-    // local edit in between would be overwritten by the planned content.
-    const plan = reconcile({ local: options.readLocal(), state, remote })
-    const applying = options.applyLocal({
-      upserts: plan.upserts,
-      removals: plan.removals,
-      conflictCopies: plan.conflictCopies,
+    const applied = await options.withLocalChanges(async () => {
+      if (!isCurrent())
+        return null
+      const plan = reconcile({ local: options.readLocal(), state, remote })
+      const result = await options.applyLocal({
+        upserts: plan.upserts,
+        removals: plan.removals,
+        conflictCopies: plan.conflictCopies,
+      })
+      const previous = state
+      state = plan.state
+      for (const documentId of result.rejected) {
+        if (previous.documents[documentId])
+          state.documents[documentId] = previous.documents[documentId]
+        else
+          delete state.documents[documentId]
+      }
+      if (!isCurrent())
+        return null
+      await options.saveState(state)
+      return { plan, rejected: result.rejected }
     })
-    const previous = state
-    state = plan.state
-    const { rejected } = await applying
-    for (const documentId of rejected) {
-      if (previous.documents[documentId])
-        state.documents[documentId] = previous.documents[documentId]
-      else
-        delete state.documents[documentId]
-    }
-    await options.saveState(state)
+    if (!applied)
+      return outcome()
+    const { plan, rejected } = applied
 
     // A conflict copy is a new local document. The next round sends it. The
     // caller makes no copy for a rejected document, and that document keeps
@@ -154,7 +163,10 @@ export async function synchronize(options: SynchronizeOptions): Promise<Synchron
       needsAnotherRound ||= !deleted
     }
 
-    await options.saveState(state)
+    await options.withLocalChanges(async () => {
+      if (isCurrent())
+        await options.saveState(state)
+    })
     if (!needsAnotherRound)
       return outcome()
   }

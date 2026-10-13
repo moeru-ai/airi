@@ -396,6 +396,7 @@ pages:
       conflict_notice: Another device changed the same character. AIRI kept the version from this device as a copy.
       history:
         tab: History
+        cloud_tab: Cloud history
         empty: No history yet for this card.
         loading: Loading history…
         load_failed: Could not load the history of this card.
@@ -435,7 +436,7 @@ pages:
         restore_confirm_confirm: Restore
         restore_confirm_cancel: Cancel
         restore_success: Restored {name} to an earlier version.
-        restore_failed: Could not restore this version. The server may no longer have it.
+        restore_failed: Could not restore this version. It may no longer be available.
       deleted:
         title: Recently deleted
         empty: No recently deleted cards.
@@ -443,9 +444,15 @@ pages:
         load_failed: Could not load recently deleted cards.
         deleted_when: 'Deleted {when}'
         days_left: '{days} days left to restore'
+        local_retained: This copy is stored on this device.
         restore: Restore
         restore_success: Restored {name}.
-        restore_failed: Could not restore this card. The server may no longer have its content.
+        restore_failed: Could not restore this card. Its saved content may no longer be available.
+        cloud_load_failed: Could not load deleted cards from your account. Deleted cards saved on this device are still shown.
+      history_storage_error: 'Character cards could not be loaded: {error}'
+      history_storage_retry: Retry loading cards
+      history_storage_export: Export saved card data
+      history_storage_discard: Discard unreadable saved data
     activate: Activate
     active: Active
     active_badge: Currently Active

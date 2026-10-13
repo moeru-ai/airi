@@ -102,10 +102,9 @@ function createSyncedContext(namespace: string, leadership: LeadershipMode) {
       speech: { provider: '', model: '', voice_id: '' },
     } } },
   }
-  localStorage.setItem('airi-cards', JSON.stringify([['default', card], ['background-character', card]]))
   const app = createApp(defineComponent({ setup() {
     useAuthStore()
-    useAiriCardStore()
+    useAiriCardStore().cards = new Map([['default', card], ['background-character', card]])
     return () => h('div')
   } }))
   app.use(pinia).use(createI18n({ legacy: false, locale: 'en', messages: { en: {} }, missingWarn: false, fallbackWarn: false }))
@@ -158,8 +157,7 @@ describe('chat session synchronization', () => {
     await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
     setActivePinia(leader.pinia)
     const cards = useAiriCardStore()
-    const background = cards.getCard('background-character')!
-    cards.cards.set('background-character', { ...background, systemPrompt: 'Background character prompt' })
+    await cards.updateCard('background-character', { systemPrompt: 'Background character prompt' })
     const store = useChatSessionStore()
     await store.initialize()
     const sessionId = await store.ensureCharacterSession('background-character')

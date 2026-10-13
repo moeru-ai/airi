@@ -7,6 +7,7 @@ import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from 'vue'
 
+import { characterCardsRepo } from '../../database/repos/character-cards.repo'
 import { CHARACTER_CARD_SYNC_FLAG } from '../../libs/feature-flags'
 import { useAuthStore } from '../auth'
 import { useFeatureFlagsStore } from '../feature-flags'
@@ -158,13 +159,14 @@ function signIn(auth: ReturnType<typeof useAuthStore>, id: string) {
 describe('card synchronization across windows', () => {
   let server: ReturnType<typeof createFakeCardServer>
 
-  beforeEach(() => {
+  beforeEach(async () => {
     localStorage.clear()
+    await characterCardsRepo.clear()
     server = createFakeCardServer()
     vi.stubGlobal('fetch', server.fetchCards)
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     for (const runtime of runtimes.splice(0))
       runtime.dispose()
     for (const pinia of piniaInstances.splice(0))
@@ -172,6 +174,7 @@ describe('card synchronization across windows', () => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
     localStorage.clear()
+    await characterCardsRepo.clear()
   })
 
   async function createWindows() {
@@ -198,6 +201,22 @@ describe('card synchronization across windows', () => {
 
     await expect.poll(() => server.documents.get(cardId)?.fields.get('/name')?.value, { timeout: 8000 }).toBe('Luna')
     expect(onError).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    '{invalid json',
+    JSON.stringify([['broken', { version: '1.0.0' }]]),
+  ])('keeps invalid legacy card data available for recovery', async (legacy) => {
+    localStorage.setItem('airi-cards', legacy)
+    const runtime = createSyncedPiniaPlugin({ namespace: `card-sync-${crypto.randomUUID()}`, leadership: 'leader-only' })
+    const leader = createContext(runtime)
+    await expect.poll(() => runtime.isLeader()).toBe(true)
+    await leader.cards.initialize()
+
+    expect(leader.cards.initializationError).toBeTruthy()
+    expect(leader.cards.legacyCardsRaw).toBe(legacy)
+    expect(localStorage.getItem('airi-cards')).toBe(legacy)
+    await expect(leader.cards.addCard({ name: 'Luna', version: '1.0.0' }, 'scratch')).rejects.toThrow()
   })
 
   // A follower that ran the action itself would write the remote card into its own
@@ -292,7 +311,7 @@ describe('card synchronization across windows', () => {
     // The built-in card has no edit, so it has nothing to send.
     expect(follower.cards.cardSyncStates.default).toBe('synced')
 
-    await follower.cards.updateCard(cardId, { ...follower.cards.cards.get(cardId)!, name: 'Nova' })
+    await follower.cards.updateCard(cardId, { name: 'Nova' })
     await expect.poll(() => follower.cards.cardSyncStates[cardId]).toBe('pending')
     await expect.poll(() => follower.cards.cardSyncStates[cardId], { timeout: 8000 }).toBe('synced')
   })
@@ -342,7 +361,7 @@ describe('card synchronization across windows', () => {
     await expect.poll(() => server.documents.get(cardId)?.fields.get('/name')?.value, { timeout: 8000 }).toBe('Luna')
     const firstRevision = server.documents.get(cardId)!.history.find(entry => entry.key === '/name')!.revision
 
-    await leader.cards.updateCard(cardId, { ...leader.cards.cards.get(cardId)!, name: 'Nova', scenario: 'A rainy city' })
+    await leader.cards.updateCard(cardId, { name: 'Nova', scenario: 'A rainy city' })
     await expect.poll(() => server.documents.get(cardId)?.fields.get('/name')?.value, { timeout: 8000 }).toBe('Nova')
 
     const restored = await leader.cards.restoreCardVersion(cardId, firstRevision)
@@ -351,6 +370,103 @@ describe('card synchronization across windows', () => {
     expect(leader.cards.cards.get(cardId)?.name).toBe('Luna')
     expect(leader.cards.cards.get(cardId)?.scenario).toBeUndefined()
     expect(onError).not.toHaveBeenCalled()
+  })
+
+  it('does not apply a cloud restore after the account changes during the request', async () => {
+    const { leader } = await createWindows()
+    signIn(leader.auth, accountId())
+    const cardId = await leader.cards.addCard({ name: 'Luna', version: '1.0.0' }, 'scratch')
+    await expect.poll(() => server.documents.get(cardId)?.fields.get('/name')?.value, { timeout: 8000 }).toBe('Luna')
+    const revision = server.documents.get(cardId)!.history.find(entry => entry.key === '/name')!.revision
+    await leader.cards.updateCard(cardId, { name: 'Nova' })
+
+    const originalFetch = server.fetchCards.getMockImplementation()!
+    let finishSnapshot!: (response: Response) => void
+    const blockedSnapshot = new Promise<Response>((resolve) => {
+      finishSnapshot = resolve
+    })
+    server.fetchCards.mockImplementation(async (input, init) => {
+      if (new URL(String(input)).pathname.endsWith(`/history/${revision}`))
+        return blockedSnapshot
+      return originalFetch(input, init)
+    })
+
+    const restore = leader.cards.restoreCardVersion(cardId, revision)
+    await expect.poll(() => server.fetchCards.mock.calls.some(([input]) => new URL(String(input)).pathname.endsWith(`/history/${revision}`))).toBe(true)
+    signIn(leader.auth, accountId())
+    finishSnapshot(Response.json({ revision, at: new Date(0).toISOString(), fields: [{ key: '/name', value: 'Luna' }] }))
+
+    await expect(restore).resolves.toBe(false)
+    expect(leader.cards.getCard(cardId)?.name).toBe('Nova')
+  })
+
+  it('rolls back a cloud restore when the account changes during its local write', async () => {
+    const { leader } = await createWindows()
+    signIn(leader.auth, accountId())
+    const cardId = await leader.cards.addCard({ name: 'Luna', version: '1.0.0' }, 'scratch')
+    await expect.poll(() => server.documents.get(cardId)?.fields.get('/name')?.value, { timeout: 8000 }).toBe('Luna')
+    const revision = server.documents.get(cardId)!.history.find(entry => entry.key === '/name')!.revision
+    await leader.cards.updateCard(cardId, { name: 'Nova' })
+    await expect.poll(() => server.documents.get(cardId)?.fields.get('/name')?.value, { timeout: 8000 }).toBe('Nova')
+
+    let releaseWrite!: () => void
+    let markWriteStarted!: () => void
+    const writeStarted = new Promise<void>((resolve) => {
+      markWriteStarted = resolve
+    })
+    const blockedWrite = new Promise<void>((resolve) => {
+      releaseWrite = resolve
+    })
+    const write = characterCardsRepo.write.bind(characterCardsRepo)
+    vi.spyOn(characterCardsRepo, 'write').mockImplementation(async (id, fields, source) => {
+      const result = await write(id, fields, source)
+      if (id === cardId && source === 'restore') {
+        markWriteStarted()
+        await blockedWrite
+      }
+      return result
+    })
+
+    const restore = leader.cards.restoreCardVersion(cardId, revision)
+    await writeStarted
+    signIn(leader.auth, accountId())
+    releaseWrite()
+
+    await expect(restore).resolves.toBe(false)
+    expect(leader.cards.getCard(cardId)?.name).toBe('Nova')
+    expect(await characterCardsRepo.snapshot(cardId)).toMatchObject({ fields: { '/name': 'Nova' } })
+  })
+
+  it('does not keep a remote card when the account changes during its local write', async () => {
+    const { leader } = await createWindows()
+    server.seed('remote', { '/name': 'Remote', '/version': '1.0.0' })
+
+    let releaseWrite!: () => void
+    let markWriteStarted!: () => void
+    const writeStarted = new Promise<void>((resolve) => {
+      markWriteStarted = resolve
+    })
+    const blockedWrite = new Promise<void>((resolve) => {
+      releaseWrite = resolve
+    })
+    const write = characterCardsRepo.write.bind(characterCardsRepo)
+    vi.spyOn(characterCardsRepo, 'write').mockImplementation(async (id, fields, source) => {
+      const revision = await write(id, fields, source)
+      if (id === 'remote' && source === 'remote') {
+        markWriteStarted()
+        await blockedWrite
+      }
+      return revision
+    })
+
+    signIn(leader.auth, accountId())
+    await writeStarted
+    useFeatureFlagsStore(leader.pinia).setPreference(CHARACTER_CARD_SYNC_FLAG.key, false)
+    signIn(leader.auth, accountId())
+    releaseWrite()
+
+    await expect.poll(() => leader.cards.getCard('remote')).toBeUndefined()
+    expect(await characterCardsRepo.snapshot('remote')).toBeNull()
   })
 
   it('returns false for a revision the server does not have', async () => {
@@ -373,6 +489,59 @@ describe('card synchronization across windows', () => {
     expect(restored).toBe(true)
     expect(leader.cards.cards.get('remote')?.name).toBe('Remote')
     expect(onError).not.toHaveBeenCalled()
+  })
+
+  it('restores a locally deleted card from local history', async () => {
+    const { leader } = await createWindows()
+    const cardId = await leader.cards.addCard({ name: 'Luna', version: '1.0.0' }, 'scratch')
+    await leader.cards.removeCard(cardId)
+
+    expect((await leader.cards.deletedCards()).cards).toMatchObject([{ id: cardId, name: 'Luna', source: 'local' }])
+    await expect(leader.cards.restoreDeletedCard(cardId, 'local')).resolves.toBe(true)
+    expect(leader.cards.getCard(cardId)?.name).toBe('Luna')
+    expect((await characterCardsRepo.history(cardId))[0]).toMatchObject({ deleted: false, source: 'restore' })
+  })
+
+  it('returns local deleted cards when cloud history cannot be loaded', async () => {
+    const { leader } = await createWindows()
+    const cardId = await leader.cards.addCard({ name: 'Luna', version: '1.0.0' }, 'scratch')
+    await leader.cards.removeCard(cardId)
+    server.fetchCards.mockImplementation(async (input) => {
+      if (String(input).includes('/character-cards'))
+        throw new Error('offline')
+      return Response.json({ flux: 0, capacitorPercent: 0, capacitorRechargesAt: null, fallbackToFlux: false })
+    })
+    signIn(leader.auth, accountId())
+
+    await expect(leader.cards.deletedCards()).resolves.toMatchObject({
+      cards: [{ id: cardId, name: 'Luna', source: 'local' }],
+      cloudLoadFailed: true,
+    })
+  })
+
+  it('prefers the cloud restore path for a remotely deleted card mirrored locally', async () => {
+    const { leader } = await createWindows()
+    server.seedDeleted('remote', { '/name': 'Remote', '/version': '1.0.0' })
+    signIn(leader.auth, accountId())
+    await expect.poll(() => leader.cards.cards.has('remote')).toBe(false)
+
+    await expect.poll(async () => {
+      const result = await leader.cards.deletedCards()
+      return result.cards.filter(card => card.id === 'remote').map(card => card.source)
+    }).toEqual(['cloud'])
+  })
+
+  it('paginates local card history using local revision numbers', async () => {
+    const { leader } = await createWindows()
+    const cardId = await leader.cards.addCard({ name: 'Luna', version: '1.0.0' }, 'scratch')
+    await leader.cards.updateCard(cardId, { name: 'Nova' })
+
+    const latest = await leader.cards.cardHistory(cardId, { limit: 1 })
+    const earlier = await leader.cards.cardHistory(cardId, { before: latest[0]!.revision, limit: 1 })
+
+    expect(latest).toHaveLength(1)
+    expect(earlier).toHaveLength(1)
+    expect(earlier[0]!.revision).toBeLessThan(latest[0]!.revision)
   })
 
   it('returns false when restoring a card the server does not report as deleted', async () => {

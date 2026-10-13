@@ -103,16 +103,8 @@ async function handleSetAsBackground() {
     const entry = currentImage.value
     // Update the active card's background ID
     const cardId = cardStore.activeCardId
-    const card = cardStore.activeCard
-    if (card) {
-      const extension = JSON.parse(JSON.stringify(card.extensions || {}))
-      if (!extension.airi)
-        extension.airi = {}
-      if (!extension.airi.modules)
-        extension.airi.modules = {}
-      extension.airi.modules.activeBackgroundId = entry.id
-
-      await cardStore.updateCard(cardId, { ...card, extensions: extension })
+    if (cardStore.activeCard) {
+      await cardStore.updateCard(cardId, { extensions: { airi: { modules: { activeBackgroundId: entry.id } } } })
       console.info(`[ComfyWidget] Set activeBackgroundId to ${entry.id} for ${cardId}`)
     }
   }

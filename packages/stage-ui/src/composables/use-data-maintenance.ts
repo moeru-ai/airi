@@ -117,7 +117,7 @@ export function useDataMaintenance() {
     threeStore.resetModelStore()
     mcpStore.resetState()
     onboardingStore.resetSetupState()
-    airiCardStore.resetState()
+    await airiCardStore.resetState()
   }
 
   async function deleteAllData() {

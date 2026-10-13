@@ -170,16 +170,7 @@ const activeBackgroundId = computed({
   set: async (val: string) => {
     if (!selectedCard.value)
       return
-    const extension = JSON.parse(JSON.stringify(selectedCard.value.extensions))
-    if (!extension.airi.modules)
-      extension.airi.modules = {}
-
-    extension.airi.modules.activeBackgroundId = val
-
-    await cardStore.updateCard(props.cardId, {
-      ...selectedCard.value,
-      extensions: extension,
-    })
+    await cardStore.updateCard(props.cardId, { extensions: { airi: { modules: { activeBackgroundId: val } } } })
     trackSceneBackgroundSet({ source: 'card_gallery', cleared: val === 'none' })
   },
 })
@@ -239,11 +230,17 @@ const tabs = computed<Tab[]>(() => {
     icon: 'i-solar:gallery-linear',
   })
 
-  // History tab - only for a signed-in user with cloud sync on, who has cloud history to show
+  // Local history does not depend on cloud sync.
+  availableTabs.push({
+    id: 'history',
+    label: t('settings.pages.card.sync.history.tab'),
+    icon: 'i-solar:history-linear',
+  })
+
   if (isAuthenticated.value && cloudSyncEnabled.value) {
     availableTabs.push({
-      id: 'history',
-      label: t('settings.pages.card.sync.history.tab'),
+      id: 'cloud-history',
+      label: t('settings.pages.card.sync.history.cloud_tab'),
       icon: 'i-solar:history-linear',
     })
   }
@@ -272,6 +269,7 @@ interface HistoryEntry {
   at: string
   changed: string[]
   removed: string[]
+  deleted?: boolean
 }
 
 const historyEntries = ref<HistoryEntry[]>([])
@@ -297,14 +295,16 @@ function historyFieldLabel(pointer: string) {
   return te(key) ? t(key) : segment
 }
 
-async function loadHistory() {
+async function loadHistory(source: 'local' | 'cloud' = 'local') {
   if (!props.cardId)
     return
 
   isLoadingHistory.value = true
   historyLoadFailed.value = false
   try {
-    const history = await cardStore.cardHistory(props.cardId, { limit: 50 })
+    const history = source === 'cloud'
+      ? await cardStore.cloudCardHistory(props.cardId, { limit: 50 })
+      : await cardStore.cardHistory(props.cardId, { limit: 50 })
     historyEntries.value = history ?? []
   }
   catch (error) {
@@ -329,10 +329,12 @@ async function confirmRestoreVersion() {
 
   restoringRevision.value = entry.revision
   try {
-    const restored = await cardStore.restoreCardVersion(props.cardId, entry.revision)
+    const restored = activeTabId.value === 'cloud-history'
+      ? await cardStore.restoreCardVersion(props.cardId, entry.revision)
+      : await cardStore.restoreLocalCardVersion(props.cardId, entry.revision)
     toast(t(restored ? 'settings.pages.card.sync.history.restore_success' : 'settings.pages.card.sync.history.restore_failed', { name: selectedCard.value.name }))
     if (restored)
-      await loadHistory()
+      await loadHistory(activeTabId.value === 'cloud-history' ? 'cloud' : 'local')
   }
   catch (error) {
     console.error('Error restoring card version:', error)
@@ -389,9 +391,9 @@ const activeTab = computed({
   },
 })
 
-watch(activeTab, (tab) => {
-  if (tab === 'history')
-    void loadHistory()
+watch([activeTab, () => props.cardId], ([tab]) => {
+  if (tab === 'history' || tab === 'cloud-history')
+    void loadHistory(tab === 'cloud-history' ? 'cloud' : 'local')
 })
 
 // Reset active tab when dialog opens
@@ -772,7 +774,7 @@ function getModuleDisplayValue(value: string | undefined): string {
             </div>
 
             <!-- History -->
-            <div v-if="activeTab === 'history'">
+            <div v-if="activeTab === 'history' || activeTab === 'cloud-history'">
               <div v-if="isLoadingHistory" class="py-8 text-center text-sm text-neutral-500 dark:text-neutral-400">
                 {{ t('settings.pages.card.sync.history.loading') }}
               </div>

@@ -22,16 +22,44 @@ function signIn(auth: ReturnType<typeof useAuthStore>) {
 describe('card detail dialog history tab', () => {
   let pinia: ReturnType<typeof createPinia>
 
-  beforeEach(() => {
+  function clearCardDatabase() {
+    return new Promise<void>((resolve, reject) => {
+      const opening = indexedDB.open('airi-character-cards', 1)
+      opening.onupgradeneeded = () => {
+        const db = opening.result
+        db.createObjectStore('character-card-documents', { keyPath: 'cardId' })
+        const revisions = db.createObjectStore('character-card-field-revisions', { keyPath: ['cardId', 'key', 'localRevision'] })
+        revisions.createIndex('cardId', 'cardId')
+        revisions.createIndex('cardRevision', ['cardId', 'localRevision'])
+        db.createObjectStore('metadata')
+      }
+      opening.onerror = () => reject(opening.error)
+      opening.onsuccess = () => {
+        const db = opening.result
+        const transaction = db.transaction(['character-card-documents', 'character-card-field-revisions', 'metadata'], 'readwrite')
+        for (const name of ['character-card-documents', 'character-card-field-revisions', 'metadata'])
+          transaction.objectStore(name).clear()
+        transaction.oncomplete = () => {
+          db.close()
+          resolve()
+        }
+        transaction.onerror = () => reject(transaction.error)
+      }
+    })
+  }
+
+  beforeEach(async () => {
     localStorage.clear()
+    await clearCardDatabase()
     pinia = createPinia()
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     cleanup()
     disposePinia(pinia)
     vi.unstubAllGlobals()
     localStorage.clear()
+    await clearCardDatabase()
   })
 
   // The store calls `useI18n()` at its own setup, so the first call to
@@ -50,10 +78,25 @@ describe('card detail dialog history tab', () => {
     return { screen, cardId }
   }
 
-  it('does not offer a history tab for a user who is not signed in', async () => {
-    const { screen } = await renderDialog()
+  // https://github.com/moeru-ai/airi/issues/2839
+  // ROOT CAUSE:
+  //
+  // The card store persists only the latest local snapshot, and the History tab reads cloud revisions.
+  // The cloud-only gate hides the only history view from a signed-out user.
+  it('shows local history to a user who is not signed in', async () => {
+    const { screen, cardId } = await renderDialog()
+    const cards = useAiriCardStore(pinia)
+    await cards.updateCard(cardId, { name: 'Nova' })
+    await screen.rerender({ cardId })
 
-    expect(screen.getByText('History').elements()).toHaveLength(0)
+    expect(screen.getByRole('button', { name: 'History' }).elements()).toHaveLength(1)
+    await screen.getByRole('button', { name: 'Modules' }).click()
+    await screen.getByRole('button', { name: 'History' }).click()
+    await expect.element(screen.getByText('Current')).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'Restore this version' })).toBeVisible()
+    await screen.getByRole('button', { name: 'Restore this version' }).click()
+    await screen.getByRole('button', { name: 'Restore', exact: true }).click()
+    await expect.poll(() => cards.cards.get(cardId)?.name).toBe('Luna')
   })
 
   it('shows the past revisions of a card and restores one', async () => {
@@ -80,7 +123,7 @@ describe('card detail dialog history tab', () => {
     })
     // Signing in changes the available tabs. Force the dialog to read them again.
     await screen.rerender({ cardId })
-    await screen.getByRole('button', { name: 'History' }).click()
+    await screen.getByRole('button', { name: 'Cloud history' }).click()
 
     // The newest entry is the current content, so it carries a badge and no restore button.
     await expect.element(screen.getByText('Current')).toBeVisible()
@@ -95,12 +138,13 @@ describe('card detail dialog history tab', () => {
     await expect.poll(() => useAiriCardStore(pinia).cards.get(cardId)?.name).toBe('Nova')
   })
 
-  it('does not offer a history tab for a signed-in user who has not turned cloud sync on', async () => {
+  it('keeps local history when a signed-in user has not turned cloud sync on', async () => {
     const { screen, cardId } = await renderDialog()
 
     signIn(useAuthStore(pinia))
     await screen.rerender({ cardId })
 
-    expect(screen.getByText('History').elements()).toHaveLength(0)
+    expect(screen.getByRole('button', { name: 'History' }).elements()).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Cloud history' }).elements()).toHaveLength(0)
   })
 })

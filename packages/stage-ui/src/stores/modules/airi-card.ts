@@ -13,11 +13,12 @@ import { isEqual } from 'es-toolkit'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { array, looseObject, object, parse, safeParse, string } from 'valibot'
-import { computed, ref, toRaw, watch } from 'vue'
+import { computed, ref, shallowRef, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
 import { DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT } from '../../constants/prompts/character-defaults'
+import { characterCardsRepo } from '../../database/repos/character-cards.repo'
 import { documentSyncRepo } from '../../database/repos/document-sync.repo'
 import { authedFetch } from '../../libs/auth-fetch'
 import { joinCard, splitCard } from '../../libs/character-card-sync'
@@ -67,6 +68,22 @@ const builtInDescriptions = Object.values(localeMessages).flatMap((messages) => 
 /** The members that every card needs before `newAiriCard` can normalize it. */
 const synchronizedCardSchema = looseObject({ name: string(), version: string() })
 
+type CardPatch<T> = T extends readonly unknown[] ? T : T extends object ? { [Key in keyof T]?: CardPatch<T[Key]> } : T
+
+function mergeCardPatch(current: unknown, patch: unknown): unknown {
+  if (!current || !patch || typeof current !== 'object' || typeof patch !== 'object' || Array.isArray(current) || Array.isArray(patch))
+    return patch
+
+  const merged = { ...current as Record<string, unknown> }
+  for (const [key, value] of Object.entries(patch)) {
+    const currentValue = merged[key]
+    merged[key] = currentValue && value && typeof currentValue === 'object' && typeof value === 'object' && !Array.isArray(currentValue) && !Array.isArray(value)
+      ? mergeCardPatch(currentValue, value)
+      : value
+  }
+  return merged
+}
+
 function resolveSystemPrompt(card: AiriCard | undefined): string {
   if (!card)
     return ''
@@ -94,9 +111,18 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   // Pinia synchronization owns cross-window updates. Local storage only loads
   // and saves this renderer's durable copy; listening to storage events here
   // would create a second cross-window state channel and echo cloned maps.
-  const cards = useLocalStorageManualReset<Map<string, AiriCard>>('airi-cards', new Map(), { listenToStorageChanges: false })
+  const cards = shallowRef(new Map<string, AiriCard>())
   const activeCardId = useLocalStorageManualReset<string>('airi-card-active-id', 'default', { listenToStorageChanges: false })
   let initialized = false
+  const initializationError = ref<string | null>(null)
+  const legacyCardsRaw = ref<string | null>(null)
+  let localChanges = Promise.resolve()
+
+  function withLocalChanges<T>(operation: () => Promise<T>) {
+    const result = localChanges.then(operation)
+    localChanges = result.then(() => undefined, () => undefined)
+    return result
+  }
 
   // Only leader-owned commands change defaults or apply card overrides. Runtime
   // module stores contain the effective selections, not another source of defaults.
@@ -243,7 +269,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
    */
   const addCard = async (card: AiriCard | Card | ccv3.CharacterCardV3, source: 'scratch' | 'import' | 'duplicate') => {
     const newCardId = nanoid()
-    cards.value.set(newCardId, newAiriCard(card))
+    await commitCard(newCardId, newAiriCard(card))
     captureAnalyticsEvent('card_created', { card_id: newCardId, source })
     return newCardId
   }
@@ -254,9 +280,9 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     if (id === 'default')
       return false
 
-    const removed = cards.value.delete(id)
-    if (!removed)
+    if (!cards.value.has(id))
       return false
+    await commitRemoval(id)
 
     // The active id is persisted independently from the card map. Reset it
     // before consumers observe a dangling runtime profile after deletion.
@@ -269,19 +295,19 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return true
   }
 
-  const updateCard = async (id: string, updates: AiriCard | Card | ccv3.CharacterCardV3) => {
+  const updateCard = async (id: string, updates: CardPatch<AiriCard>) => {
     await pendingAuthenticationSetup
-    const existingCard = cards.value.get(id)
-    if (!existingCard)
+    const card = await withLocalChanges(async () => {
+      const existingCard = cards.value.get(id)
+      if (!existingCard)
+        return undefined
+
+      const updatedCard = newAiriCard(mergeCardPatch(existingCard, updates) as AiriCard)
+      await writeCard(id, updatedCard)
+      return updatedCard
+    })
+    if (!card)
       return false
-
-    const updatedCard = {
-      ...existingCard,
-      ...updates,
-    }
-
-    const card = newAiriCard(updatedCard)
-    cards.value.set(id, card)
     if (id === activeCardId.value)
       await applyActiveCardSettings(card)
 
@@ -292,33 +318,34 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return cards.value.get(id)
   }
 
-  function updateActiveCardModules(patch: (extension: AiriExtension) => Partial<AiriExtension['modules']>) {
-    const cardId = activeCardId.value
-    const card = cards.value.get(cardId)
-    if (!card)
-      return false
+  async function updateActiveCardModules(patch: (extension: AiriExtension) => Partial<AiriExtension['modules']>) {
+    return await withLocalChanges(async () => {
+      const cardId = activeCardId.value
+      const card = cards.value.get(cardId)
+      if (!card)
+        return false
 
-    const extension = resolveAiriExtension(card)
-    cards.value.set(cardId, {
-      ...card,
-      extensions: {
-        ...card.extensions,
-        airi: {
-          ...extension,
-          modules: {
-            ...extension.modules,
-            ...patch(extension),
+      const extension = resolveAiriExtension(card)
+      await writeCard(cardId, {
+        ...card,
+        extensions: {
+          ...card.extensions,
+          airi: {
+            ...extension,
+            modules: {
+              ...extension.modules,
+              ...patch(extension),
+            },
           },
         },
-      },
+      })
+      return true
     })
-
-    return true
   }
 
   async function updateActiveCardDisplayModel(displayModelId: string | undefined) {
     await pendingAuthenticationSetup
-    const updated = updateActiveCardModules(() => ({ displayModelId }))
+    const updated = await updateActiveCardModules(() => ({ displayModelId }))
     if (updated)
       await applyActiveCardSettings()
     return updated
@@ -326,7 +353,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
   async function updateActiveCardConsciousness(consciousness: AiriExtension['modules']['consciousness']) {
     await pendingAuthenticationSetup
-    const updated = updateActiveCardModules(() => ({ consciousness }))
+    const updated = await updateActiveCardModules(() => ({ consciousness }))
     if (updated)
       await applyActiveCardSettings()
     return updated
@@ -334,7 +361,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
   async function updateActiveCardVision(vision: AiriExtension['modules']['vision']) {
     await pendingAuthenticationSetup
-    const updated = updateActiveCardModules(() => ({ vision }))
+    const updated = await updateActiveCardModules(() => ({ vision }))
     if (updated)
       await applyActiveCardSettings()
     return updated
@@ -359,7 +386,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
   async function updateActiveCardSpeech(speech: Pick<AiriExtension['modules']['speech'], 'provider' | 'model' | 'voice_id'>) {
     await pendingAuthenticationSetup
-    const updated = updateActiveCardModules(({ modules }) => ({
+    const updated = await updateActiveCardModules(({ modules }) => ({
       speech: {
         ...modules.speech,
         ...speech,
@@ -387,7 +414,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       }
     }
     moduleDefaults.value = next
-    updateActiveCardModules(({ modules }) => ({
+    await updateActiveCardModules(({ modules }) => ({
       consciousness: modules.consciousness.provider === providerId ? { provider: '', model: '' } : modules.consciousness,
       vision: modules.vision.provider === providerId ? { provider: '', model: '' } : modules.vision,
       speech: modules.speech.provider === providerId ? { ...modules.speech, provider: '', model: '', voice_id: '' } : modules.speech,
@@ -554,6 +581,49 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return [...new Set([current.description, ...builtInDescriptions])].map(description => ({ ...current, description }))
   })
 
+  async function writeCard(id: string, card: AiriCard, source: 'local' | 'remote' | 'restore' | 'migration' = 'local', isCurrent: () => boolean = () => true) {
+    if (initializationError.value)
+      throw new Error('Character card storage has not initialized')
+    const fields = splitCard(toRaw(card), id === 'default' ? builtInVariants.value : [])
+    await characterCardsRepo.write(id, fields, source)
+    if (!isCurrent())
+      return false
+    cards.value = new Map(cards.value).set(id, card)
+    return true
+  }
+
+  async function writeCardForCurrentOwner(id: string, card: AiriCard, isCurrent: () => boolean) {
+    const previous = cards.value.get(id)
+    if (await writeCard(id, card, 'restore', isCurrent))
+      return true
+
+    if (previous) {
+      const fields = splitCard(toRaw(previous), id === 'default' ? builtInVariants.value : [])
+      await characterCardsRepo.write(id, fields, 'local')
+    }
+    else {
+      await characterCardsRepo.forget(id)
+    }
+    return false
+  }
+
+  async function commitCard(id: string, card: AiriCard, source: 'local' | 'remote' | 'restore' | 'migration' = 'local') {
+    await withLocalChanges(() => writeCard(id, card, source))
+  }
+
+  async function removeCardDocument(id: string, source: 'local' | 'remote' = 'local') {
+    if (initializationError.value)
+      throw new Error('Character card storage has not initialized')
+    await characterCardsRepo.remove(id, source)
+    const next = new Map(cards.value)
+    next.delete(id)
+    cards.value = next
+  }
+
+  async function commitRemoval(id: string, source: 'local' | 'remote' = 'local') {
+    await withLocalChanges(() => removeCardDocument(id, source))
+  }
+
   // The leader writes these after each run. Every window reads them to show the cloud state of a card.
   /** The parts that the server accepted, by card id. */
   const syncedCardFields = ref<Record<string, DocumentFields>>({})
@@ -592,20 +662,60 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   /**
    * Applies the card changes of one synchronization run to this renderer.
    *
-   * The function changes the cards without an `await`. The caller computes the
-   * changes from the same cards in the same task, so a local edit cannot occur
-   * between the comparison and this write. Only the synchronization leader
-   * calls it.
+   * The caller holds the local-change queue while applying these writes, so a
+   * local edit cannot interleave with the synchronization plan.
    *
    * The built-in card is the only card that synchronization keeps as its edits
    * alone. The parts that the changes lack come from the built-in card.
    *
    * @returns `activeCardChanged` is `true` when the content of the selected card changed, or another device deleted it. The caller must then call `activateCard`. `rejected` lists the cards that this device cannot read, from the server or from the local side of a conflict. A rejected card keeps its local content and gets no conflict copy.
    */
-  function applySynchronizedCards(changes: LocalDocumentChanges) {
+  async function applySynchronizedCards(changes: LocalDocumentChanges, queueHeld = false, isCurrent: () => boolean = () => true) {
+    const saveCard = queueHeld ? writeCard : commitCard
+    const removeCard = queueHeld ? removeCardDocument : commitRemoval
     const previousActiveCardId = activeCardId.value
     const rejected = new Set<string>()
     let activeCardChanged = false
+
+    async function saveRemoteCard(id: string, card: AiriCard, source: 'local' | 'remote') {
+      if (!queueHeld) {
+        await saveCard(id, card, source)
+        return true
+      }
+
+      const previous = cards.value.get(id)
+      if (await writeCard(id, card, source, isCurrent))
+        return true
+      if (previous) {
+        const fields = splitCard(toRaw(previous), id === 'default' ? builtInVariants.value : [])
+        await characterCardsRepo.write(id, fields, 'local')
+      }
+      else {
+        await characterCardsRepo.forget(id)
+      }
+      return false
+    }
+
+    async function removeRemoteCard(id: string) {
+      if (!queueHeld) {
+        await removeCard(id, 'remote')
+        return true
+      }
+
+      const previous = cards.value.get(id)
+      await characterCardsRepo.remove(id, 'remote')
+      if (isCurrent()) {
+        const next = new Map(cards.value)
+        next.delete(id)
+        cards.value = next
+        return true
+      }
+      if (previous) {
+        const fields = splitCard(toRaw(previous), id === 'default' ? builtInVariants.value : [])
+        await characterCardsRepo.write(id, fields, 'local')
+      }
+      return false
+    }
 
     // A card that this device cannot read must not stop the other cards, and
     // the run must not treat it as deleted.
@@ -624,25 +734,40 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     // state. Each round then finds the same conflict, so a rejected card gets
     // no copy.
     const upserts = Object.entries(changes.upserts).map(([id, fields]) => ({ id, card: readCard(id, fields) }))
-    const copies = changes.conflictCopies.map(({ documentId, fields }) => ({ id: documentId, card: readCard(documentId, fields) }))
+    const copies = changes.conflictCopies.map(({ documentId, remoteRevision, fields }) => ({
+      originalId: documentId,
+      id: `conflict-${encodeURIComponent(userId.value)}-${encodeURIComponent(documentId)}-${remoteRevision}`,
+      card: readCard(documentId, fields),
+    }))
 
     for (const { id, card } of upserts) {
+      if (!isCurrent())
+        return { activeCardChanged, rejected: [...rejected] }
       if (!card || rejected.has(id))
         continue
-      cards.value.set(id, card)
+      if (!await saveRemoteCard(id, card, 'remote'))
+        return { activeCardChanged, rejected: [...rejected] }
       activeCardChanged ||= id === previousActiveCardId
     }
 
-    for (const { id, card } of copies) {
-      if (!card || rejected.has(id))
+    for (const { originalId, id, card } of copies) {
+      if (!isCurrent())
+        return { activeCardChanged, rejected: [...rejected] }
+      if (!card || rejected.has(originalId))
         continue
-      cards.value.set(nanoid(), newAiriCard({ ...card, name: t('settings.pages.card.sync.conflict_copy_name', { name: card.name }) }))
+      const copy = newAiriCard({ ...card, name: t('settings.pages.card.sync.conflict_copy_name', { name: card.name }) })
+      if (!await saveRemoteCard(id, copy, 'local'))
+        return { activeCardChanged, rejected: [...rejected] }
     }
 
     for (const id of changes.removals) {
+      if (!isCurrent())
+        return { activeCardChanged, rejected: [...rejected] }
       // The built-in card is the guaranteed fallback for every runtime profile.
-      if (id !== 'default')
-        cards.value.delete(id)
+      if (id !== 'default') {
+        if (!await removeRemoteCard(id))
+          return { activeCardChanged, rejected: [...rejected] }
+      }
     }
 
     if (!cards.value.has(activeCardId.value))
@@ -708,13 +833,14 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     const { state, refused } = await synchronize({
       client: syncClient,
       state: await documentSyncRepo.getState(SYNC_STATE_NAME, ownerId) ?? { documents: {} },
+      withLocalChanges,
       // The new account starts its own run from the `userId` watcher.
       isCurrent: () => userId.value === ownerId,
       saveState: state => documentSyncRepo.saveState(SYNC_STATE_NAME, ownerId, state),
       // Each device creates the built-in card in its own language. Only its edits are synchronized.
       readLocal: () => Object.fromEntries([...toRaw(cards.value)].map(([id, card]) => [id, splitCard(toRaw(card), id === 'default' ? builtInVariants.value : [])])),
       async applyLocal(changes) {
-        const { activeCardChanged, rejected } = applySynchronizedCards(changes)
+        const { activeCardChanged, rejected } = await applySynchronizedCards(changes, true, () => userId.value === ownerId)
         if (changes.conflictCopies.length > 0)
           toast.warning(t('settings.pages.card.sync.conflict_notice'))
         if (activeCardChanged)
@@ -748,26 +874,49 @@ export const useAiriCardStore = defineStore('airi-card', () => {
    * local copy to update, or the server no longer has that revision.
    */
   async function restoreCardVersion(id: string, revision: number) {
-    if (userId.value === 'local' || !cloudSyncEnabled.value)
+    const ownerId = userId.value
+    if (ownerId === 'local' || !cloudSyncEnabled.value)
       return false
+    const isCurrentOwner = () => userId.value === ownerId && cloudSyncEnabled.value
 
     syncClient ??= createDocumentSyncClient({ serverUrl: SERVER_URL, path: CARDS_PATH, fetch: authedFetch })
     const snapshot = await syncClient.snapshot(id, revision)
-    if (!snapshot)
+    if (!snapshot || !isCurrentOwner())
       return false
 
     await pendingAuthenticationSetup
-    if (!cards.value.has(id))
+    if (!isCurrentOwner() || !cards.value.has(id))
       return false
 
     // Every card field synchronizes, so the snapshot is the whole card at that
     // revision. Replace the card instead of merging it with `updateCard`. A
     // merge keeps the fields that were added after the revision.
     const card = newAiriCard(parse(synchronizedCardSchema, joinCard(fieldsOfSnapshot(snapshot), builtInFor(id))))
-    cards.value.set(id, card)
+    const restored = await withLocalChanges(async () => {
+      if (!isCurrentOwner())
+        return false
+      return await writeCardForCurrentOwner(id, card, isCurrentOwner)
+    })
+    if (!restored)
+      return false
     if (id === activeCardId.value)
       await applyActiveCardSettings(card)
     return true
+  }
+
+  async function restoreLocalCardVersion(id: string, revision: number) {
+    if (!cards.value.has(id))
+      return false
+    return await withLocalChanges(async () => {
+      const fields = await characterCardsRepo.restore(id, revision)
+      if (!fields)
+        return false
+      const card = newAiriCard(parse(synchronizedCardSchema, joinCard(fields, builtInFor(id))))
+      cards.value = new Map(cards.value).set(id, card)
+      if (id === activeCardId.value)
+        await applyActiveCardSettings(card)
+      return true
+    })
   }
 
   /**
@@ -781,22 +930,46 @@ export const useAiriCardStore = defineStore('airi-card', () => {
    * @returns `false` when the account has no cloud history, the card is not
    * deleted on the server, or the content before the deletion is gone.
    */
-  async function restoreDeletedCard(id: string) {
-    if (userId.value === 'local' || !cloudSyncEnabled.value)
+  async function restoreDeletedCard(id: string, source: 'local' | 'cloud' = 'cloud') {
+    if (source === 'local') {
+      const history = await characterCardsRepo.history(id)
+      const deletion = history.find(entry => entry.deleted)
+      if (!deletion)
+        return false
+      return await withLocalChanges(async () => {
+        const fields = await characterCardsRepo.restore(id, deletion.revision)
+        if (!fields)
+          return false
+        const card = newAiriCard(parse(synchronizedCardSchema, joinCard(fields, builtInFor(id))))
+        cards.value = new Map(cards.value).set(id, card)
+        return true
+      })
+    }
+    const ownerId = userId.value
+    if (ownerId === 'local' || !cloudSyncEnabled.value)
       return false
+    const isCurrentOwner = () => userId.value === ownerId && cloudSyncEnabled.value
 
     syncClient ??= createDocumentSyncClient({ serverUrl: SERVER_URL, path: CARDS_PATH, fetch: authedFetch })
     const { documents } = await syncClient.list()
+    if (!isCurrentOwner())
+      return false
     const deleted = documents.find(document => document.id === id && document.deletedAt !== null)
     if (!deleted)
       return false
 
     const snapshot = await syncClient.snapshot(id, deleted.revision - 1)
-    if (!snapshot)
+    if (!snapshot || !isCurrentOwner())
       return false
 
     const card = parse(synchronizedCardSchema, joinCard(fieldsOfSnapshot(snapshot), builtInFor(id)))
-    cards.value.set(id, newAiriCard(card))
+    const restored = await withLocalChanges(async () => {
+      if (!isCurrentOwner())
+        return false
+      return await writeCardForCurrentOwner(id, newAiriCard(card), isCurrentOwner)
+    })
+    if (!restored)
+      return false
     if (!cards.value.has(activeCardId.value))
       activeCardId.value = 'default'
     return true
@@ -808,12 +981,17 @@ export const useAiriCardStore = defineStore('airi-card', () => {
    * This reads only. It does not change a card or its sync state, so every
    * window can call it directly without going through the leader.
    *
-   * @returns `null` when the account has no cloud history for this card.
+   * Returns the history stored on this device, whether or not cloud sync is enabled.
    */
   async function cardHistory(id: string, options?: { before?: number, limit?: number }) {
+    const entries = await characterCardsRepo.history(id, 100)
+    const before = options?.before
+    return entries.filter(entry => before === undefined || entry.revision < before).slice(0, options?.limit ?? 50)
+  }
+
+  async function cloudCardHistory(id: string, options?: { before?: number, limit?: number }) {
     if (userId.value === 'local' || !cloudSyncEnabled.value)
       return null
-
     syncClient ??= createDocumentSyncClient({ serverUrl: SERVER_URL, path: CARDS_PATH, fetch: authedFetch })
     return syncClient.history(id, options)
   }
@@ -825,20 +1003,33 @@ export const useAiriCardStore = defineStore('airi-card', () => {
    * This reads only, the same as {@link cardHistory}.
    */
   async function deletedCards() {
-    if (userId.value === 'local' || !cloudSyncEnabled.value)
-      return []
+    const ownerId = userId.value
+    const isCurrentOwner = () => userId.value === ownerId && cloudSyncEnabled.value
+    const local = (await characterCardsRepo.deleted()).map(card => ({ ...card, source: 'local' as const }))
+    if (ownerId === 'local' || !isCurrentOwner())
+      return { cards: local, cloudLoadFailed: false }
 
-    syncClient ??= createDocumentSyncClient({ serverUrl: SERVER_URL, path: CARDS_PATH, fetch: authedFetch })
-    const client = syncClient
-    const { documents } = await client.list()
-    // The panel shows only the most recent deletions, so an account with a long history makes few requests.
-    const deleted = documents.filter(document => document.deletedAt !== null).slice(0, 20)
-
-    return Promise.all(deleted.map(async (document) => {
-      const snapshot = await client.snapshot(document.id, document.revision - 1)
-      const name = snapshot?.fields.find(field => field.key === '/name')?.value
-      return { id: document.id, name: typeof name === 'string' ? name : document.id, deletedAt: document.deletedAt! }
-    }))
+    try {
+      syncClient ??= createDocumentSyncClient({ serverUrl: SERVER_URL, path: CARDS_PATH, fetch: authedFetch })
+      const client = syncClient
+      const { documents } = await client.list()
+      if (!isCurrentOwner())
+        return { cards: local, cloudLoadFailed: false }
+      const deleted = documents.filter(document => document.deletedAt !== null).slice(0, 20)
+      const cloud = await Promise.all(deleted.map(async (document) => {
+        const snapshot = await client.snapshot(document.id, document.revision - 1)
+        const name = snapshot?.fields.find(field => field.key === '/name')?.value
+        return { id: document.id, name: typeof name === 'string' ? name : document.id, deletedAt: document.deletedAt!, source: 'cloud' as const }
+      }))
+      if (!isCurrentOwner())
+        return { cards: local, cloudLoadFailed: false }
+      const cloudIds = new Set(cloud.map(card => card.id))
+      return { cards: [...local.filter(card => !cloudIds.has(card.id)), ...cloud], cloudLoadFailed: false }
+    }
+    catch (error) {
+      console.error('[character-card-history] Could not load cloud deleted cards:', errorMessageFrom(error))
+      return { cards: local, cloudLoadFailed: true }
+    }
   }
 
   async function requestCardSynchronization() {
@@ -885,9 +1076,43 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     if (initialized)
       return
 
-    initialized = true
-    if (!cards.value.has('default'))
-      cards.value.set('default', structuredClone(toRaw(builtInCard.value)))
+    let legacyRaw: string | null = null
+    try {
+      legacyRaw = localStorage.getItem('airi-cards')
+      legacyCardsRaw.value = legacyRaw
+      let legacy: Array<[string, AiriCard]> = []
+      if (legacyRaw) {
+        const parsed: unknown = JSON.parse(legacyRaw)
+        if (!Array.isArray(parsed) || parsed.some(item => !Array.isArray(item) || typeof item[0] !== 'string' || !item[1] || typeof item[1] !== 'object'))
+          throw new Error('Legacy character card data is invalid')
+        legacy = parsed as Array<[string, AiriCard]>
+      }
+      const migrated: Array<[string, Record<string, unknown>]> = legacy.map(([id, card]) => {
+        const validCard = parse(synchronizedCardSchema, card)
+        return [id, splitCard(newAiriCard(validCard), id === 'default' ? builtInVariants.value : [])]
+      })
+      await characterCardsRepo.migrate(migrated)
+      const stored = await characterCardsRepo.list()
+      cards.value = new Map(stored.map(([id, fields]) => [id, newAiriCard(parse(synchronizedCardSchema, joinCard(fields, builtInFor(id))))]))
+      if (legacyRaw)
+        localStorage.removeItem('airi-cards')
+      legacyCardsRaw.value = null
+      initializationError.value = null
+    }
+    catch (error) {
+      legacyCardsRaw.value = legacyRaw
+      initializationError.value = errorMessageFrom(error) ?? 'Unknown initialization error'
+      console.error('[character-card-history] Initialization failed:', initializationError.value)
+      return
+    }
+
+    if (!cards.value.has('default')) {
+      const card = structuredClone(toRaw(builtInCard.value))
+      await withLocalChanges(async () => {
+        await characterCardsRepo.write('default', splitCard(card, builtInVariants.value), 'migration')
+        cards.value = new Map(cards.value).set('default', card)
+      })
+    }
 
     // Stored speech-noop can mean an intentional mute. Only the editor may
     // replace it with inheritance; the old placeholder has no provenance marker.
@@ -897,6 +1122,26 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       activeCardId.value = 'default'
 
     await applyActiveCardSettings()
+    initialized = true
+  }
+
+  function exportLegacyCards() {
+    if (!legacyCardsRaw.value)
+      return
+    const url = URL.createObjectURL(new Blob([legacyCardsRaw.value], { type: 'application/json' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'airi-cards-recovery.json'
+    link.click()
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+
+  function discardLegacyCards() {
+    localStorage.removeItem('airi-cards')
+    legacyCardsRaw.value = null
+    initializationError.value = null
+    initialized = false
+    void initialize()
   }
 
   /**
@@ -995,12 +1240,18 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
   }
 
-  function resetState() {
-    initialized = false
-    appliedModules = undefined
-    moduleDefaults.reset()
-    cards.reset()
-    activeCardId.reset()
+  async function resetState() {
+    await withLocalChanges(async () => {
+      localStorage.removeItem('airi-cards')
+      await characterCardsRepo.clear()
+      legacyCardsRaw.value = null
+      initializationError.value = null
+      initialized = false
+      appliedModules = undefined
+      moduleDefaults.reset()
+      cards.value = new Map()
+      activeCardId.reset()
+    })
   }
 
   return {
@@ -1014,6 +1265,10 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     refusedCardIds,
     cardSyncStates,
     cloudSyncEnabled,
+    initializationError,
+    legacyCardsRaw,
+    exportLegacyCards,
+    discardLegacyCards,
     applySynchronizedCards,
     synchronizeCards,
     addCard,
@@ -1022,6 +1277,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     restoreCardVersion,
     restoreDeletedCard,
     cardHistory,
+    cloudCardHistory,
+    restoreLocalCardVersion,
     deletedCards,
     updateActiveCardConsciousness,
     updateActiveCardDisplayModel,

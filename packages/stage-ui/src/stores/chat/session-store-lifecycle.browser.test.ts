@@ -21,15 +21,13 @@ const activeCardIdRef = computed({
   get: () => useAiriCardStore(pinia).activeCardId,
   set: (id: string) => { useAiriCardStore(pinia).activeCardId = id },
 })
-const systemPromptRef = computed({
-  get: () => useAiriCardStore(pinia).systemPrompt,
-  set: (prompt: string) => {
-    const card = useAiriCardStore(pinia).getCard('default')
-    if (!card)
-      throw new Error('Missing test character')
-    card.systemPrompt = prompt
-  },
-})
+function setSystemPrompt(prompt: string) {
+  const cards = useAiriCardStore(pinia)
+  const card = cards.getCard('default')
+  if (!card)
+    throw new Error('Missing test character')
+  cards.cards = new Map(cards.cards).set('default', { ...card, systemPrompt: prompt })
+}
 
 const getIndexMock = vi.fn<(uid: string) => Promise<ChatSessionsIndex | null>>()
 const saveIndexMock = vi.fn<(idx: ChatSessionsIndex) => Promise<void>>()
@@ -108,13 +106,13 @@ const { useChatSessionStore } = await import('./session-store')
 let app: ReturnType<typeof createApp>
 let container: HTMLDivElement
 
-beforeEach(() => {
+beforeEach(async () => {
   pinia = createPinia()
   setActivePinia(pinia)
   localStorage.clear()
   app = createApp(defineComponent({ setup() {
     useAuthStore()
-    useAiriCardStore().cards.set('default', {
+    useAiriCardStore().cards = new Map([['default', {
       name: 'Test character',
       version: '1.0',
       extensions: { airi: { agents: {}, modules: {
@@ -122,7 +120,7 @@ beforeEach(() => {
         vision: { provider: '', model: '' },
         speech: { provider: '', model: '', voice_id: '' },
       } } },
-    })
+    }]])
     return () => h('div')
   } }))
   app.use(pinia).use(createI18n({ legacy: false, locale: 'en', messages: { en: {} }, missingWarn: false, fallbackWarn: false }))
@@ -131,7 +129,7 @@ beforeEach(() => {
   app.mount(container)
   userIdRef.value = 'local'
   activeCardIdRef.value = 'default'
-  systemPromptRef.value = ''
+  setSystemPrompt('')
 
   getIndexMock.mockReset().mockResolvedValue(null)
   saveIndexMock.mockReset().mockResolvedValue(undefined)
@@ -613,7 +611,7 @@ describe('chat-session-store · active card prompt edits', () => {
   // ROOT CAUSE: Prompt edits left existing sessions with stale system messages. The session now replaces that message when the resolved prompt changes. Message identity and conversation history remain intact.
   // https://github.com/moeru-ai/airi/issues/1995
   it('updates the current session system message for Issue #1995 without clearing its history', async () => {
-    systemPromptRef.value = 'Original character prompt'
+    setSystemPrompt('Original character prompt')
     const store = useChatSessionStore()
     await store.initialize()
 
@@ -626,7 +624,7 @@ describe('chat-session-store · active card prompt edits', () => {
       createdAt: 2,
     })
 
-    systemPromptRef.value = 'Updated character prompt'
+    setSystemPrompt('Updated character prompt')
     await nextTick()
 
     expect(store.messages).toHaveLength(2)
@@ -662,7 +660,7 @@ describe('chat-session-store · active card prompt edits', () => {
       resolveStoredSession = resolve
     }))
 
-    systemPromptRef.value = 'Updated persisted prompt'
+    setSystemPrompt('Updated persisted prompt')
     const store = useChatSessionStore()
     const initializePromise = store.initialize()
     await flushMicrotasks()
