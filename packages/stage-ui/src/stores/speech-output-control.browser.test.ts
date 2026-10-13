@@ -82,4 +82,15 @@ describe('speech output control', () => {
     store.setSpeechVolume(0.8)
     expect(store.speechMuted).toBe(false)
   })
+
+  it('clamps out-of-range persisted values on hydration, before the setter runs', () => {
+    localStorage.setItem('settings/speech/output-volume', '7')
+    expect(createStore().speechVolume).toBe(1)
+
+    localStorage.setItem('settings/speech/output-volume', '0')
+    localStorage.setItem('settings/speech/output-volume-last-audible', '-2')
+    const store = createStore()
+    store.setSpeechMuted(false)
+    expect(store.speechVolume).toBe(1)
+  })
 })
