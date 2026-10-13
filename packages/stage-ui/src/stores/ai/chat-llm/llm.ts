@@ -85,16 +85,16 @@ export const useLLM = defineStore('llm', () => {
     // A cached downgrade still needs current tool names. An explicit tool-free request never resolves builtin tools.
     if (!supportsTools && streamOptions.supportsTools !== false && !streamOptions.resolveStep)
       await builtinToolsResolver()
-    const resolveStep = streamOptions.resolveStep
+    const resolveOwnerStep = streamOptions.resolveStep
+    const resolveStep = resolveOwnerStep
       ? async () => {
-        const next = await streamOptions.resolveStep!()
-        const tools = streamOptions.supportsTools === false ? undefined : await resolveTools()
+        const next = await resolveOwnerStep()
         const request = next.chatProvider.generation(next.model)
         key = modelKey(next.model, request)
         supportsTools = requestToolsSupported(next.model, request)
         supportsContentArray = requestArraysSupported(next.model, request)
-        if (streamOptions.supportsTools !== false)
-          rememberTools(tools)
+        // Core reads only the resolved step's tools. Cached downgrades still need current names for guard checks.
+        const tools = streamOptions.supportsTools === false ? [] : await builtinToolsResolver()
         return { ...next, chatProvider: { generation: () => request }, tools }
       }
       : undefined
@@ -108,7 +108,10 @@ export const useLLM = defineStore('llm', () => {
         ...(taskTools ? { providerTools: false } : {}),
         resolveStep,
         prepareConversation: async (conversation, target) => {
+          // Media preparation receives the actual request, including changes after async tool resolution.
           key = modelKey(target.model, target.request)
+          supportsTools = requestToolsSupported(target.model, target.request)
+          supportsContentArray = requestArraysSupported(target.model, target.request)
           return await streamOptions.prepareConversation?.(conversation, target) ?? conversation
         },
         supportsTools: toolsDisabled ? false : streamOptions.supportsTools,
