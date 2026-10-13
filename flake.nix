@@ -40,14 +40,19 @@
         in
         with pkgs;
         {
-          default = mkShell {
+          default = self.devShells.${system}.develop;
+
+          develop = mkShell {
             inputsFrom = [ airi ];
             packages = [
+              markdown-oxide
               nixd
               nixfmt
               nixfmt-tree
               airi.pnpm # Use pinned version
               python314
+              typescript-language-server
+              vscode-langservers-extracted # For vscode-eslint-language-server
             ];
           };
 
