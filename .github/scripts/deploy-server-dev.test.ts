@@ -224,6 +224,48 @@ exit 1
     expect(readFileSync(join(directory, 'list-auth-server'), 'utf8')).toBe('3')
   })
 
+  it('cancels the exact Railway deployment when the watcher is interrupted', () => {
+    const { directory, run } = fixture({
+      railway: `
+printf '%s\n' "$*" >> "$TEST_STATE_DIRECTORY/calls"
+if [[ "$1 $2" == "environment list" ]]; then
+  printf '{"environments":[{"id":"environment-id","isLinked":true}]}\n'
+  exit 0
+fi
+if [[ "$1 $2" == "service status" ]]; then
+  printf '{"id":"service-ts-api"}\n'
+  exit 0
+fi
+if [[ "$1" == "api" && "$*" == *'DeployCommit'* ]]; then
+  printf '{"data":{"serviceInstanceDeployV2":"target-ts-api"}}\n'
+  exit 0
+fi
+if [[ "$1" == "api" && "$*" == *'CancelDeployment'* ]]; then
+  touch "$TEST_STATE_DIRECTORY/cancelled"
+  printf '{"data":{"deploymentCancel":true}}\n'
+  exit 0
+fi
+if [[ "$1 $2" == "deployment list" ]]; then
+  if [[ -f "$TEST_STATE_DIRECTORY/cancelled" ]]; then
+    printf '[{"id":"target-ts-api","status":"SKIPPED"}]\n'
+  else
+    printf '[{"id":"target-ts-api","status":"BUILDING"}]\n'
+  fi
+  exit 0
+fi
+exit 1
+`,
+      sleep: 'kill -TERM "$PPID"',
+    })
+
+    const result = run('deploy-services')
+    const calls = readFileSync(join(directory, 'calls'), 'utf8')
+
+    expect(result.status).toBe(143)
+    expect(calls).toContain('CancelDeployment')
+    expect(calls).toContain('id=target-ts-api')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2918#discussion_r4246985823
   // ROOT CAUSE:
   //
@@ -458,5 +500,6 @@ exit 1
 
     expect(result.status).toBe(1)
     expect(calls).toContain('run cancel 12345 --repo moeru-ai/airi')
+    expect(calls.match(/run watch 12345/g)).toHaveLength(2)
   })
 })

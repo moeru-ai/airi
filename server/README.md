@@ -114,7 +114,7 @@ The workflow needs this repository configuration:
 
 | Name | Kind | Value |
 | --- | --- | --- |
-| `RAILWAY_DEV_TOKEN` | Secret | Railway project token for the `dev` environment |
+| `RAILWAY_DEV_WORKSPACE_TOKEN` | Secret | Railway workspace token with access to the `Server` project |
 | `NEON_API_KEY` | Secret | Neon API key for the project that holds the dev database |
 | `NEON_PROJECT_ID` | Variable | Neon project ID |
 | `NEON_SERVER_DEV_BRANCH` | Variable | Name of the Neon branch that the dev `DATABASE_URL` points to |

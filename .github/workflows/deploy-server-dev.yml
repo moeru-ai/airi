@@ -35,9 +35,9 @@ jobs:
     env:
       DEPLOY_BRANCH: ${{ inputs.branch }}
       GH_TOKEN: ${{ github.token }}
-      # A project token for the Railway dev environment. It selects the
-      # project and the environment for each railway command.
-      RAILWAY_TOKEN: ${{ secrets.RAILWAY_DEV_TOKEN }}
+      # A workspace token can update autodeploy settings. Railway project
+      # tokens cannot run that mutation.
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_DEV_WORKSPACE_TOKEN }}
 
     steps:
       # Stop before the database reset if no deploy can follow it.

@@ -159,15 +159,45 @@ wait_for_deployment() {
   done
 }
 
+wait_for_terminal_deployment() {
+  local service="$1"
+  local deployment_id="$2"
+
+  while true; do
+    local deployments
+    if ! deployments=$(railway deployment list --service "$service" --limit 100 --json); then
+      echo "::error::Cannot list the $service deployments." >&2
+      return 1
+    fi
+
+    local status
+    if ! status=$(jq --arg id "$deployment_id" --exit-status --raw-output '[.[] | select(.id == $id)][0].status' <<< "$deployments"); then
+      sleep "$POLL_INTERVAL_SECONDS"
+      continue
+    fi
+
+    if is_terminal_status "$status"; then
+      return 0
+    fi
+
+    sleep "$POLL_INTERVAL_SECONDS"
+  done
+}
+
+cancel_railway_deployment() {
+  local service="$1"
+  local deployment_id="$2"
+  local mutation="mutation CancelDeployment(\$id: String!) { deploymentCancel(id: \$id) }"
+
+  echo "Cancelling Railway deployment $deployment_id for $service." >&2
+  railway api "$mutation" --raw-var "id=$deployment_id" --compact || true
+  wait_for_terminal_deployment "$service" "$deployment_id" || true
+}
+
 select_branch() {
   local edit_failed=0
 
   for service in "${SERVICES[@]}"; do
-    # NOTICE:
-    # Project tokens cannot use `railway service source connect`.
-    # Railway returns `Unauthorized` before it changes the source branch.
-    # Run 38270278514 verified the environment configuration path.
-    # Remove this workaround when project tokens can use the source command.
     if ! railway environment edit --service-config "$service" source.branch "$DEPLOY_BRANCH" --message "Select $DEPLOY_BRANCH for server-dev"; then
       echo "::error::Cannot select $DEPLOY_BRANCH for $service." >&2
       edit_failed=1
@@ -217,7 +247,21 @@ deploy_services() {
       return 1
     fi
 
-    if ! wait_for_deployment "$service" "$deployment_id"; then
+    abort_railway_deployment() {
+      local exit_status="$1"
+      trap - EXIT INT TERM
+      cancel_railway_deployment "$service" "$deployment_id"
+      exit "$exit_status"
+    }
+
+    trap 'cancel_railway_deployment "$service" "$deployment_id"' EXIT
+    trap 'abort_railway_deployment 130' INT
+    trap 'abort_railway_deployment 143' TERM
+
+    local wait_status=0
+    wait_for_deployment "$service" "$deployment_id" || wait_status=$?
+    trap - EXIT INT TERM
+    if ((wait_status != 0)); then
       return 1
     fi
 
@@ -265,13 +309,23 @@ deploy_frontend() {
   fi
 
   cancel_frontend_run() {
+    trap - EXIT INT TERM
     echo "Cancelling frontend workflow run $frontend_run_id." >&2
     gh run cancel "$frontend_run_id" --repo "$GH_REPOSITORY" || true
+    gh run watch "$frontend_run_id" --repo "$GH_REPOSITORY" --exit-status --compact || true
+  }
+
+  abort_frontend_run() {
+    local exit_status="$1"
+    cancel_frontend_run
+    exit "$exit_status"
   }
 
   # The child workflow runs outside this job. Cancel it if GitHub stops the
   # parent or if the watcher exits before the child succeeds.
-  trap cancel_frontend_run EXIT INT TERM
+  trap cancel_frontend_run EXIT
+  trap 'abort_frontend_run 130' INT
+  trap 'abort_frontend_run 143' TERM
 
   local watch_status=0
   gh run watch "$frontend_run_id" --repo "$GH_REPOSITORY" --exit-status --compact || watch_status=$?
