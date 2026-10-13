@@ -223,7 +223,7 @@ The script prints a cursor, and a later run can start from that cursor.
 
 - Do not change the stored `prompt` or `completion`.
 - Do not store system prompts, reasoning, or media.
-- Do not record tool duration or tool success. The client runs the tools, and the gateway does not see them. [The agent trace ADR](./2026-10-13-agent-trace.md) adds client spans for this.
+- Do not record tool duration or tool success. The client runs the tools, and the gateway does not see them. [The agent trace ADR](./2026-10-14-agent-trace.md) adds client spans for this.
 - Do not change billing or routing.
 - Do not send content to an external service.
 
