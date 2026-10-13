@@ -10,7 +10,8 @@ The admin Trace page shows one timeline for each turn. It joins three sources:
 
 | Fact | Source |
 |---|---|
-| What the model received and wrote, tokens, cost | `llm_request_log` and `llm_request_item` (gateway) |
+| What the model received and wrote, tokens | `llm_request_log` and `llm_request_item` (gateway) |
+| Cost | `flux_usage`, with `source_type = 'llm'` and the request ID (billing) |
 | The steps of a turn, tool runtime and result status | `agent_trace_span` (client) |
 | ASR, TTS, playback, and VAD timing | `agent_trace_span` (client) |
 | Turn totals, status, and tool call count | `agent_run` (API, derived) |
@@ -95,7 +96,7 @@ The API maps each span name to a `kind`, and keeps only the attributes that the 
 | `Streaming control dispatch` | `streaming_control` | Parser name, matched, handler count |
 
 The API drops a span with an unknown name, and each attribute outside the allowlist, before it stores the span.
-It returns the number of dropped spans and attributes, and logs them.
+It returns the number of dropped spans and attributes in the response, and logs them.
 A client change cannot store text by mistake, and a newer client does not lose its known spans on an older API.
 
 These attributes hold content and are never on the allowlist: `asr.text`, `tts.text`, `kws.text`, `streaming_control.parameter`, and `streaming_control.raw_token`.
@@ -141,7 +142,6 @@ agent_run
   tool_calls       integer not null     client tool calls in output items
   server_tool_calls integer not null
   failed_tools     integer not null     from client spans
-  flux_consumed    integer not null
   input_tokens     integer
   output_tokens    integer
   has_client_trace boolean not null
@@ -151,15 +151,19 @@ agent_run
 
 Indexes:
 
-- `agent_trace_span`: unique `(user_id, trace_id, span_id)` as the idempotency key, `(user_id, interaction_id)`, and `(user_id, trace_id)`.
+- `agent_trace_span`: unique `(user_id, trace_id, span_id)` as the idempotency key, which also serves the lookup by trace, and `(user_id, interaction_id)`.
 - `agent_run`: `(started_at)`, `(user_id, started_at)`, and `(tool_calls, started_at)` for the sort across users.
 - `llm_request_log`: new `(user_id, interaction_id)`. The table has no index on `interaction_id` today.
+  Migrations run in a transaction at startup, so this index is not built `CONCURRENTLY`. It blocks writes to the table while it builds. The build time on the production table is not measured. It can be built by hand with `CREATE INDEX CONCURRENTLY IF NOT EXISTS` before the deploy, and the migration then does nothing.
 
 `agent_run` is derived. It can be built again from the other tables.
 Each write computes the totals of the turn again from `llm_request_log`, `llm_request_item`, and `agent_trace_span`, inside a transaction that holds an advisory lock for the turn.
 It does not add to the earlier totals, so a repeated or late write gives the same row.
 The request log service writes it after each request of a turn. The ingest service writes it for each turn that an upload touches.
 A turn without client spans still gets a row, with `has_client_trace = false`.
+
+`agent_run` holds no cost. Billing can settle a request after its request log row is written, so a cost total in this row could be old.
+The admin API reads the cost of a turn from `flux_usage` by the request IDs of the turn.
 
 Status:
 
