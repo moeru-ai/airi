@@ -20,7 +20,7 @@ import { useI18n } from 'vue-i18n'
 
 import { getConversationAnalyticsSurface } from '../composables'
 import { useAiriRuntimePrompt } from '../composables/use-airi-runtime-prompt'
-import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
+import { activeTurnSpan, startSpan, takeComposerVoiceParent, takeVoiceTurnParent } from '../composables/use-io-tracer'
 import { useChatVision } from '../composables/vision/use-chat-vision'
 import { useVisionInference } from '../composables/vision/use-vision-inference'
 import { chatAssetIdFrom, inlineConversationAssets, storeChatAttachments } from '../libs/chat-assets'
@@ -337,15 +337,11 @@ export const useChatStore = defineStore('chat', () => {
     }
 
     // The runtime always correlates its turns. A call without correlation has no settle event, so it starts no turn span.
-    const turnKey = options?.requestCorrelation
-      ? JSON.stringify([options.requestCorrelation.conversationId, options.requestCorrelation.turnId])
-      : undefined
-    let turnSpan = turnKey ? ownedTurnSpans.get(turnKey) : activeTurnSpan.value
-    if (!turnSpan && turnKey) {
-      turnSpan = startSpan(IOSpanNames.InteractionTurn)
-      ownedTurnSpans.set(turnKey, turnSpan)
-    }
-    // Speech recognition, speech output, and streaming control attach to the most recently started turn.
+    const correlation = options?.requestCorrelation
+    const turnSpan = correlation
+      ? openTurnSpan({ sessionId: correlation.conversationId, turnId: correlation.turnId })
+      : activeTurnSpan.value
+    // Speech output and streaming control attach to the most recently started turn.
     if (turnSpan)
       activeTurnSpan.value = turnSpan
 
@@ -563,6 +559,26 @@ export const useChatStore = defineStore('chat', () => {
     sending.value = state.sending
     activeSendSessionId.value = state.activeSendSessionId
     pendingQueuedSendCount.value = state.pendingQueuedSendCount
+  }
+
+  /**
+   * Returns the `Interaction turn` span of a turn, and starts it on the first call.
+   *
+   * The LLM stream and the speech output of a turn both need this span as their parent. The voice host opens the
+   * speech output before the stream starts, so the first of the two callers starts the span. `onSendSettled` ends it.
+   * A spoken turn continues the trace of its voice input. A turn after a composer dictation continues that
+   * dictation, because the composer sends the dictated text under a new ID. Any other turn starts a new trace.
+   */
+  function openTurnSpan(turn: { sessionId: string, turnId: string }) {
+    const key = JSON.stringify([turn.sessionId, turn.turnId])
+    const owned = ownedTurnSpans.get(key)
+    if (owned)
+      return owned
+
+    const voiceParent = takeVoiceTurnParent(turn.turnId) ?? takeComposerVoiceParent(turn.sessionId)
+    const span = startSpan(IOSpanNames.InteractionTurn, voiceParent)
+    ownedTurnSpans.set(key, span)
+    return span
   }
 
   function settleOwnedTurnSpan(turn: { sessionId: string, turnId: string }) {
@@ -1122,6 +1138,7 @@ export const useChatStore = defineStore('chat', () => {
     receiveInterruption,
     cancelPendingSends,
     getPendingQueuedSendSnapshot,
+    openTurnSpan,
 
     clearHooks: runtime.hooks.clearHooks,
 
