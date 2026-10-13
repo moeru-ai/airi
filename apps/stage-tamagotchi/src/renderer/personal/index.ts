@@ -2,7 +2,7 @@ import type { ContextMessage } from '@proj-airi/stage-ui/types/chat'
 
 import { errorMessageFrom } from '@moeru/std'
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
-import { extractMessageText } from '@proj-airi/stage-ui/libs/chat-sync'
+import { extractMessageText } from '@proj-airi/stage-ui/libs/chat-sync/wire-message'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatContextStore } from '@proj-airi/stage-ui/stores/chat/context-store'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
