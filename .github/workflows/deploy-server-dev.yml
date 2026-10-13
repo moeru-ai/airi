@@ -61,7 +61,6 @@ jobs:
       # Select the new source before the reset. Then wait for deployments that
       # the old source started outside this workflow's concurrency group.
       - name: Select the Railway source branch
-        timeout-minutes: 30
         run: bash .github/scripts/deploy-server-dev.sh select-branch
 
       # The API runs migrations on startup, and the Drizzle migrator only
@@ -84,7 +83,6 @@ jobs:
       # Each deployment finishes before the next deployment starts. This order
       # keeps a failed command from leaving an untracked deployment running.
       - name: Deploy the Railway dev services from the branch
-        timeout-minutes: 30
         run: bash .github/scripts/deploy-server-dev.sh deploy-services
 
       - name: Deploy the frontend
