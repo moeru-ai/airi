@@ -191,7 +191,6 @@ jobs:
           key: ${{ runner.os }}-server-dev-turbo-auth-${{ inputs.commit_sha }}
           restore-keys: |
             ${{ runner.os }}-server-dev-turbo-auth-
-            ${{ runner.os }}-server-dev-turbo-
       - uses: pnpm/setup@v2
         with:
           runtime: node@26.7.0
