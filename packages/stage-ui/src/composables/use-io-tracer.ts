@@ -154,7 +154,27 @@ export function startSpan(name: string, parent?: Span, attrs?: Record<string, bo
   return tracer.startSpan(name, { attributes: attrs }, ctx)
 }
 
-export const activeTurnSpan = shallowRef<Span | undefined>()
+/**
+ * The open `Interaction turn` span of each turn, by turn ID.
+ *
+ * A span that belongs to a turn but starts outside the chat store, such as a streaming control dispatch, finds its
+ * parent here by the turn ID that it already carries. Two turns at the same time each keep their own spans.
+ */
+const turnSpans = new Map<string, Span>()
+
+/** Makes `span` the `Interaction turn` span of `turnId` until the returned function runs. */
+export function registerTurnSpan(turnId: string, span: Span): () => void {
+  turnSpans.set(turnId, span)
+  return () => {
+    if (turnSpans.get(turnId) === span)
+      turnSpans.delete(turnId)
+  }
+}
+
+/** Returns the open `Interaction turn` span of a turn, or `undefined` when the turn is not open in this runtime. */
+export function turnSpanOf(turnId: string | undefined): Span | undefined {
+  return turnId ? turnSpans.get(turnId) : undefined
+}
 
 /**
  * Runs `work` and ends `span` when it settles.

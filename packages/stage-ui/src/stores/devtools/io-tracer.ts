@@ -7,7 +7,7 @@ import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/st
 import { defineStore } from 'pinia'
 import { computed, ref, triggerRef } from 'vue'
 
-import { activeTurnSpan, initIOTracer, onIOSpan, onRemoteIOSpan } from '../../composables/use-io-tracer'
+import { initIOTracer, onIOSpan, onRemoteIOSpan } from '../../composables/use-io-tracer'
 
 const MAX_TURNS = 50
 
@@ -190,9 +190,6 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
   function stopRecording() {
     if (!isRecording.value)
       return
-
-    activeTurnSpan.value?.end()
-    activeTurnSpan.value = undefined
 
     onIOSpan(undefined)
     unsubscribeRemote?.()
