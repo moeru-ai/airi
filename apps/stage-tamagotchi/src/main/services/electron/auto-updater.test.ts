@@ -288,9 +288,9 @@ describe('setupAutoUpdater', () => {
   })
 
   it('resolves updater log path after userData path is configured', async () => {
+    const { setupAutoUpdater } = await import('./auto-updater')
     appMock.getPath.mockImplementation((name: string) => name === 'userData' ? '/custom/user-data-dir' : `/tmp/${name}`)
 
-    const { setupAutoUpdater } = await import('./auto-updater')
     const service = setupAutoUpdater()
 
     expect(service.state.diagnostics?.logFilePath).toMatch(/[\\/]custom[\\/]user-data-dir[\\/]cache[\\/]stage-tamagotchi-updater[\\/]updater-log\.txt$/)

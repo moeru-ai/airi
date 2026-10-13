@@ -42,6 +42,11 @@ const GITHUB_RELEASE_DOWNLOAD_BASE_URL = 'https://github.com/moeru-ai/airi/relea
 const UPDATE_CHANNEL_ENV_KEY = 'AIRI_UPDATE_CHANNEL'
 
 function getCacheRoot() {
+  // NOTICE:
+  // Electron app.getPath does not support a 'cache' name, throwing an error if requested.
+  // Synthesize a cache directory under userData instead.
+  // Source: Electron app.getPath documentation (https://www.electronjs.org/docs/latest/api/app#appgetpathname).
+  // Removal condition: Remove when Electron adds native cache directory support to app.getPath.
   return join(app.getPath('userData'), 'cache')
 }
 
@@ -66,6 +71,10 @@ function getUpdaterLogFile() {
 
 function getOfficialUpdaterCacheDirs() {
   const officialUpdaterCacheDir = join(getCacheRoot(), 'ai.moeru.airi-updater')
+  if (process.env.APP_USER_DATA_PATH?.trim()) {
+    return [officialUpdaterCacheDir]
+  }
+
   const legacyOfficialUpdaterCacheDir = join(getLegacyCacheRoot(), 'ai.moeru.airi-updater')
   return Array.from(new Set([
     officialUpdaterCacheDir,
