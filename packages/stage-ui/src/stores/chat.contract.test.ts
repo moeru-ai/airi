@@ -6,6 +6,7 @@ import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 import type { LlmStreamOptions } from './ai/chat-llm/llm'
 
 import { errorMessageFrom } from '@moeru/std'
+import { SpanStatusCode } from '@opentelemetry/api'
 import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared'
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
@@ -30,23 +31,35 @@ vi.hoisted(() => {
 })
 
 const ioTracerMocks = vi.hoisted(() => {
-  const activeTurnSpan = { value: undefined as any }
+  /** The registered turn spans, by turn ID, like the tracer registry. */
+  const turnSpans = new Map<string, unknown>()
   const spans: any[] = []
-  const startSpanMock = vi.fn((name: string, _parent?: unknown) => {
+  const startSpanMock = vi.fn((name: string, _parent?: unknown, _attributes?: Record<string, unknown>) => {
+    const context = { traceId: `trace-${spans.length}`, spanId: `span-${spans.length}` }
     const span = {
       name,
       addEvent: vi.fn(),
       end: vi.fn(),
       setAttribute: vi.fn(),
+      setStatus: vi.fn(),
+      spanContext: () => context,
     }
     spans.push(span)
     return span
   })
 
   return {
-    activeTurnSpan,
+    turnSpans,
+    registerTurnSpan: vi.fn((turnId: string, span: unknown) => {
+      turnSpans.set(turnId, span)
+      return () => turnSpans.delete(turnId)
+    }),
     spans,
     startSpanMock,
+    /** Voice input spans by turn ID. A typed turn has none. */
+    takeVoiceTurnParent: vi.fn((_turnId: string): unknown => undefined),
+    /** The composer dictation span of a session. */
+    takeComposerVoiceParent: vi.fn((_sessionId: string): unknown => undefined),
   }
 })
 
@@ -130,8 +143,10 @@ vi.mock('../libs/product-signals', () => ({
 }))
 
 vi.mock('../composables/use-io-tracer', () => ({
-  activeTurnSpan: ioTracerMocks.activeTurnSpan,
+  registerTurnSpan: ioTracerMocks.registerTurnSpan,
   startSpan: ioTracerMocks.startSpanMock,
+  takeVoiceTurnParent: ioTracerMocks.takeVoiceTurnParent,
+  takeComposerVoiceParent: ioTracerMocks.takeComposerVoiceParent,
 }))
 
 vi.mock('./chat/context-providers', () => ({
@@ -362,9 +377,11 @@ describe('chat store contract', () => {
     visionMocks.useForToolImages = true
     visionMocks.runInference.mockReset()
     consciousnessModels.value = [{ id: 'gpt-test', metadata: { abilities: { vision: false } } }]
-    ioTracerMocks.activeTurnSpan.value = undefined
+    ioTracerMocks.turnSpans.clear()
     ioTracerMocks.spans.length = 0
     ioTracerMocks.startSpanMock.mockClear()
+    ioTracerMocks.takeVoiceTurnParent.mockReset()
+    ioTracerMocks.takeComposerVoiceParent.mockReset()
     activeSessionIdRef.value = 'session-1'
     activeProviderRef.value = 'mock-provider'
     cardSelections.clear()
@@ -1572,6 +1589,72 @@ describe('chat store contract', () => {
     expect(store.$state).not.toHaveProperty('activeStreamingMessage')
   })
 
+  it('continues the trace of the voice input that submitted the turn', async () => {
+    const voiceInput = { name: IOSpanNames.VoiceInput }
+    ioTracerMocks.takeVoiceTurnParent.mockReturnValueOnce(voiceInput)
+
+    const store = useChatStore()
+    await store.ingest('spoken text', { model: 'gpt-test', chatProvider: provider })
+
+    const [turnId] = ioTracerMocks.takeVoiceTurnParent.mock.calls[0]!
+    expect(turnId).toEqual(expect.any(String))
+    expect(turnId).not.toBe('')
+    expect(ioTracerMocks.startSpanMock).toHaveBeenCalledWith(IOSpanNames.InteractionTurn, voiceInput, expect.any(Object))
+  })
+
+  it('reuses the interaction turn span that the speech output opened before the stream', async () => {
+    const voiceInput = { name: IOSpanNames.VoiceInput }
+    ioTracerMocks.takeVoiceTurnParent.mockReturnValueOnce(voiceInput)
+    let llmParent: unknown
+    llmStreamMock.mockImplementationOnce(async () => {
+      // The LLM span starts synchronously before the stream call, so it is the latest span.
+      llmParent = ioTracerMocks.startSpanMock.mock.calls.at(-1)![1]
+    })
+
+    const store = useChatStore()
+    const speechParent = store.openTurnSpan({ sessionId: 'session-1', turnId: 'spoken-turn' })
+    await store.send({ sessionId: 'session-1', messageId: 'spoken-turn', text: 'Spoken' })
+
+    const turnSpans = ioTracerMocks.spans.filter(span => span.name === IOSpanNames.InteractionTurn)
+    expect(turnSpans).toHaveLength(1)
+    expect(turnSpans[0]).toBe(speechParent)
+    expect(llmParent).toBe(speechParent)
+    expect(ioTracerMocks.startSpanMock).toHaveBeenCalledWith(IOSpanNames.InteractionTurn, voiceInput, expect.any(Object))
+    expect(speechParent.end).toHaveBeenCalledOnce()
+  })
+
+  it('records the IDs and the final status of a turn on its span', async () => {
+    llmStreamMock.mockImplementationOnce(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    llmStreamMock.mockImplementationOnce(async () => {
+      throw new Error('upstream failed')
+    })
+
+    const store = useChatStore()
+    await store.send({ sessionId: 'session-1', text: 'Succeed' })
+    await store.send({ sessionId: 'session-1', text: 'Fail' }).catch(() => {})
+
+    const turnCalls = ioTracerMocks.startSpanMock.mock.calls.filter(([name]) => name === IOSpanNames.InteractionTurn)
+    const turnSpans = ioTracerMocks.spans.filter(span => span.name === IOSpanNames.InteractionTurn)
+    expect(turnCalls).toHaveLength(2)
+    expect(turnCalls[0]![2]).toEqual({ [IOAttributes.TurnId]: expect.any(String), [IOAttributes.GenAIConversationId]: 'session-1' })
+    expect(turnSpans[0].setStatus).not.toHaveBeenCalled()
+    expect(turnSpans[1].setStatus).toHaveBeenCalledWith({ code: SpanStatusCode.ERROR })
+    expect(ioTracerMocks.turnSpans.size).toBe(0)
+  })
+
+  it('continues a composer dictation trace when the turn has no voice input of its own', async () => {
+    const dictation = { name: IOSpanNames.VoiceInput }
+    ioTracerMocks.takeComposerVoiceParent.mockReturnValueOnce(dictation)
+
+    const store = useChatStore()
+    await store.ingest('dictated text', { model: 'gpt-test', chatProvider: provider })
+
+    expect(ioTracerMocks.takeComposerVoiceParent).toHaveBeenCalledOnce()
+    expect(ioTracerMocks.startSpanMock).toHaveBeenCalledWith(IOSpanNames.InteractionTurn, dictation, expect.any(Object))
+  })
+
   it('does not end the owned IO turn span when external sending mirror is cleared mid-send', async () => {
     let releaseStream: (() => void) | undefined
     llmStreamMock.mockImplementationOnce(async () => {
@@ -1606,7 +1689,7 @@ describe('chat store contract', () => {
     await send
 
     expect(turnSpan.end).toHaveBeenCalledTimes(1)
-    expect(ioTracerMocks.activeTurnSpan.value).toBeUndefined()
+    expect(ioTracerMocks.turnSpans.size).toBe(0)
   })
 
   it('keeps a separate interaction turn span for each concurrent session', async () => {
@@ -1635,13 +1718,13 @@ describe('chat store contract', () => {
 
     expect(bobTurn?.end).toHaveBeenCalledOnce()
     expect(aliceTurn?.end).not.toHaveBeenCalled()
-    expect(ioTracerMocks.activeTurnSpan.value).toBe(aliceTurn)
+    expect([...ioTracerMocks.turnSpans.values()]).toEqual([aliceTurn])
 
     releases.get('session-1')!()
     await alice
 
     expect(aliceTurn?.end).toHaveBeenCalledOnce()
-    expect(ioTracerMocks.activeTurnSpan.value).toBeUndefined()
+    expect(ioTracerMocks.turnSpans.size).toBe(0)
   })
 
   it('ingests the runtime prompt before composing prompt snapshots', async () => {

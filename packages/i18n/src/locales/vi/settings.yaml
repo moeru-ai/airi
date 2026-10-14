@@ -25,6 +25,8 @@ dialogs:
     validationPartial: Cấu hình đã được xác thực một phần
     validationFailed: Xác thực cấu hình thất bại
     validationError: 'Lỗi xác thực: {error}'
+    testGeneration: Kiểm tra kết nối API
+    testGenerationRunning: Đang kiểm tra kết nối…
     testGenerationFailed: Ping test thất bại
     retryPingCheck: Thử lại
     skipForNow: Bỏ qua
@@ -42,6 +44,8 @@ dialogs:
     loginPrompt: Đăng nhập để sử dụng nhà cung cấp AIRI chính thức để có trải nghiệm tốt nhất.
     loginAction: Đăng nhập
     setupWithoutSigningIn: Thiết lập nhà cung cấp của bạn
+    pricingLink: Bảng Giá
+    termsLink: Điều khoản dịch vụ
     buyFlux: Mua Flux
     select-model: Chọn mô hình
     no-models: Không có mô hình khả dụng
@@ -58,10 +62,6 @@ dialogs:
       optionalHint: Bạn vẫn có thể tiếp tục ngay cả khi chưa cấp các quyền này.
       stateGranted: Đã cấp quyền
       stateNotGranted: Không được cấp quyền
-    testGeneration: Kiểm tra kết nối API
-    testGenerationRunning: Đang kiểm tra kết nối…
-    termsLink: Điều khoản dịch vụ
-    pricingLink: Bảng Giá
   bug-report:
     title: Báo lỗi (´;ω;`)ヾ(･∀･`)
     subtitle: Úi, xin lỗi nếu chúng tôi đã làm gì sai. Nếu không phiền thì bạn có thể kể cho chúng tôi biết chuyện gì đã xảy ra không?
@@ -122,20 +122,21 @@ model-select:
     title: Trước khi nhập
     description: Xem lại dữ liệu mô hình và các vấn đề tìm thấy trong tệp nén.
     description-short: Xem lại dữ liệu mô hình và các vấn đề.
+    close: Đóng
     model:
+      title: Mô hình
       files: '{count} tệp'
       types:
         unknown: Không xác định
-      title: Mô hình
     resources:
       title: Tài nguyên
       motions: Chuyển động
+      expressions: Biểu cảm
+      parameters: Thông số
       textures: Kết cấu
       referenced-and-found: '{referenced} được tham chiếu · {found} được tìm thấy'
       referenced: '{count} được tham chiếu'
-      found: Tìm thấy {count}
-      expressions: Biểu cảm
-      parameters: Thông số
+      found: 'Tìm thấy {count}'
     issues:
       title: Vấn đề
       errors: '{count} lỗi'
@@ -144,10 +145,9 @@ model-select:
       how-to-fix: Cách khắc phục
       resolve-before-import: Khắc phục lỗi trước khi nhập.
     actions:
+      cancel: Hủy
       confirm: Xác nhận nhập
       import-anyway: Vẫn nhập
-      cancel: Hủy
-    close: Đóng
 live2d:
   change-model:
     from-file: Tải từ tệp
@@ -176,31 +176,6 @@ live2d:
       title: Trích xuất
   animation:
     title: Hoạt ảnh
-    focus:
-      title: Bật theo dõi chuột
-      description: Nhìn vào con trỏ chuột trong khi nó di chuyển. Chuyển động mắt khi rảnh (idle) sẽ tiếp tục khi con trỏ chuột dừng lại.
-      offset: Độ lệch mắt(%)
-    force-idle-eye-animation:
-      title: Chuyển động mắt nhàn rỗi (idle)
-      description: Nhìn xung quanh khi con trỏ chuột không di chuyển.
-    blink-enable:
-      title: Mở chớp mắt
-      description: Cho phép mô hình chớp mắt.
-    auto-blink:
-      title: Tự động
-      description: Sử dụng hoạt ảnh chớp mắt mặc định cho mô hình
-    force-auto-blink:
-      title: Ép buộc
-      description: Ép hoạt ảnh chớp mắt bằng bộ hẹn giờ ngoài
-    blink-mode:
-      title: Chế độ chớp mắt
-      description: Chọn mô hình chớp mắt có sẵn hoặc bộ hẹn giờ chớp mắt bắt buộc của AIRI.
-    idle-motion:
-      title: Hoạt ảnh nhàn rỗi
-      no-motion: Không có hoạt ảnh khả dụng
-      placeholder: Chọn hoạt ảnh
-      disable-motion: Tắt
-      disable-motion-description: Tắt hoạt ảnh nhàn rỗi
     motion-driver:
       title: Bộ điều khiển chuyển động
       description: Chọn cách AIRI tạo chuyển động cơ thể và mắt khi nghỉ.
@@ -227,6 +202,31 @@ live2d:
         force-view-target:
           title: Buộc hướng nhìn về phía trước
           description: Giữ mắt nhìn về phía trước khi MAGIC di chuyển đầu.
+    focus:
+      title: Bật theo dõi chuột
+      description: Nhìn vào con trỏ chuột trong khi nó di chuyển. Chuyển động mắt khi rảnh (idle) sẽ tiếp tục khi con trỏ chuột dừng lại.
+      offset: Độ lệch mắt(%)
+    force-idle-eye-animation:
+      title: Chuyển động mắt nhàn rỗi (idle)
+      description: Nhìn xung quanh khi con trỏ chuột không di chuyển.
+    blink-enable:
+      title: Mở chớp mắt
+      description: Cho phép mô hình chớp mắt.
+    auto-blink:
+      title: Tự động
+      description: Sử dụng hoạt ảnh chớp mắt mặc định cho mô hình
+    force-auto-blink:
+      title: Ép buộc
+      description: Ép hoạt ảnh chớp mắt bằng bộ hẹn giờ ngoài
+    blink-mode:
+      title: Chế độ chớp mắt
+      description: Chọn mô hình chớp mắt có sẵn hoặc bộ hẹn giờ chớp mắt bắt buộc của AIRI.
+    idle-motion:
+      title: Hoạt ảnh nhàn rỗi
+      no-motion: Không có hoạt ảnh khả dụng
+      placeholder: Chọn hoạt ảnh
+      disable-motion: Tắt
+      disable-motion-description: Tắt hoạt ảnh nhàn rỗi
   parameters:
     title: Tham số mô hình
     render-scale:
@@ -261,6 +261,7 @@ pages:
     logout: Đăng xuất
     fluxBalance: Số dư Flux
     viewFluxDetails: Xem chi tiết
+    viewCapacitor: Xem
     signedInAs: Đăng nhập với
     profile:
       tab: Hồ sơ
@@ -347,8 +348,73 @@ pages:
         error:
           fallback: Không thể xóa. Hãy thử lại sau.
           subscriptionActive: Gói đăng ký vẫn đang hoạt động. Hãy hủy gói trên trang Capacitor trước, rồi xóa tài khoản.
-    viewCapacitor: Xem
   card:
+    wake-word-conflicts:
+      title: 'Một cách phát âm từ đánh thức dùng chung cần có nhân vật | {count} cách phát âm từ đánh thức dùng chung cần có nhân vật'
+      description: Hai thẻ dùng cùng cách phát âm. Không nhân vật nào trả lời cho đến khi bạn chọn một nhân vật.
+      action: Chọn nhân vật trả lời
+    sync:
+      notice: Thẻ nhân vật được đồng bộ với tài khoản. Bạn có thể khôi phục thẻ đã xóa trong 30 ngày.
+      off_notice: Bạn đã đăng nhập nhưng đồng bộ thẻ nhân vật đang tắt.
+      off_notice_link: Bật tính năng trong mục Tính năng thử nghiệm.
+      state:
+        synced: Đã đồng bộ với tài khoản
+        pending: Đang chờ tải lên
+        refused: Chưa tải lên. Tài khoản không còn chỗ cho thẻ mới nên thẻ này vẫn nằm trên thiết bị này.
+      conflict_copy_name: '{name} (bản sao do xung đột)'
+      conflict_notice: Thiết bị khác đã sửa cùng nhân vật. AIRI giữ phiên bản trên thiết bị này dưới dạng bản sao.
+      history:
+        tab: Lịch sử
+        empty: Thẻ này chưa có lịch sử.
+        loading: Đang tải lịch sử…
+        load_failed: Không thể tải lịch sử của thẻ này.
+        current: Hiện tại
+        changed_label: Đã thay đổi
+        removed_label: Đã xóa
+        fields:
+          name: Tên
+          nickname: Biệt danh
+          version: Phiên bản
+          creator: Người tạo
+          description: Mô tả
+          personality: Tính cách
+          scenario: Kịch bản
+          systemPrompt: Lời nhắc hệ thống
+          postHistoryInstructions: Chỉ dẫn sau lịch sử
+          notes: Ghi chú của người tạo
+          greetings: Lời chào
+          tags: Thẻ gắn
+          metadata: Siêu dữ liệu
+          assets: Tài nguyên
+          characterBook: Sổ bối cảnh
+          source: Nguồn
+          wakeWords: Từ đánh thức
+          agents: Tác nhân
+          consciousness: Mô hình ý thức
+          vision: Mô hình thị giác
+          speech: Mô hình giọng nói
+          vrm: Mô hình VRM
+          live2d: Mô hình Live2D
+          displayModelId: Mô hình hiển thị
+          activeBackgroundId: Nền đã ghim
+          artistry: Nghệ thuật
+        restore: Khôi phục phiên bản này
+        restore_confirm_title: Khôi phục phiên bản này?
+        restore_confirm_body: Nội dung hiện tại của {name} sẽ được thay bằng nội dung từ {date}.
+        restore_confirm_confirm: Khôi phục
+        restore_confirm_cancel: Hủy
+        restore_success: Đã khôi phục {name} về phiên bản trước.
+        restore_failed: Không thể khôi phục phiên bản này. Có thể máy chủ không còn lưu phiên bản đó.
+      deleted:
+        title: Đã xóa gần đây
+        empty: Không có thẻ nào bị xóa gần đây.
+        loading: Đang tải các thẻ đã xóa gần đây…
+        load_failed: Không thể tải các thẻ đã xóa gần đây.
+        deleted_when: 'Đã xóa {when}'
+        days_left: 'Còn {days} ngày để khôi phục'
+        restore: Khôi phục
+        restore_success: Đã khôi phục {name}.
+        restore_failed: Không thể khôi phục thẻ này. Có thể máy chủ không còn lưu nội dung thẻ.
     activate: Kích hoạt
     active: Đang hoạt động
     active_badge: Hiện đang hoạt động
@@ -357,6 +423,7 @@ pages:
     save: Lưu thay đổi
     save_and_activate: Lưu và kích hoạt
     card_not_found: Không tìm thấy thẻ
+    back: Quay lại
     character: Nhân vật
     close: Đóng
     chat:
@@ -376,6 +443,13 @@ pages:
     drop_here: Kéo vào đây để tải lên
     create_card: Tạo thẻ mới
     edit_card: Chỉnh sửa thẻ
+    saved: Đã lưu thẻ
+    unsaved:
+      badge: Chưa được lưu
+      title: Bỏ các thay đổi?
+      message: Thay đổi chưa được lưu. Nếu rời trang này, bạn sẽ mất các thay đổi đó.
+      keep_editing: Tiếp tục chỉnh sửa
+      discard: Bỏ thay đổi
     creation:
       identity: Danh tính
       name: Tên
@@ -394,8 +468,14 @@ pages:
         posthistoryinstructions: Nhớ bắt chước như một con người.
       modules_info: >-
         Cấu hình các module cho thẻ nhân vật này. Nếu không thiết lập, cấu hình mặc định sẽ được sử dụng.
+      sections:
+        chat: Trò chuyện
+        vision: Thị giác
+        speech: Giọng nói
+        body: Cơ thể
       use_default: Sử dụng mặc định
       use_default_not_configured: Sử dụng mặc định (chưa cấu hình)
+      inherit_global_settings: Kế thừa cài đặt chung
       fields_info:
         subtitle: >-
           Bạn có thể thêm chi tiết về nhân vật, giải thích lịch sử, bối cảnh và cách nhân vật nên trả lời.
@@ -415,6 +495,7 @@ pages:
         consciousness_model: Chọn mô hình ý thức (mô hình AI) cho nhân vật này.
         speech_model: Chọn mô hình tổng hợp tiếng nói và giọng đọc cho nhân vật này.
       errors:
+        model_required: Chọn mô hình cho từng nhà cung cấp được chỉ định. Không thể kế thừa mô hình từ nhà cung cấp khác.
         name: Tên không hợp lệ hoặc rỗng.
         version: 'Lỗi: Số phiên bản không hợp lệ!'
         description: 'Lỗi: Phải có mô tả cho thẻ này.'
@@ -423,14 +504,7 @@ pages:
         systemprompt: 'Lỗi: Hãy cung cấp lời nhắc hệ thống'
         posthistoryinstructions: 'Lỗi: Cần có lịch sử đăng lời nhắc'
         invalid_artistry_json: 'Các tùy chọn cho nhà cung cấp nghệ thuật (Nghệ thuật provider) chứa JSON không hợp lệ.'
-        model_required: Chọn mô hình cho từng nhà cung cấp được chỉ định. Không thể kế thừa mô hình từ nhà cung cấp khác.
       none: Không
-      sections:
-        chat: Trò chuyện
-        body: Cơ thể
-        vision: Thị giác
-        speech: Giọng nói
-      inherit_global_settings: Kế thừa cài đặt chung
       none_disabled: Không có (đã tắt)
     modules: Mô-đun
     name_asc: Tên (A-Z)
@@ -459,80 +533,6 @@ pages:
     import_invalid_file: Tệp gói thẻ không hợp lệ
     upload: Tải lên
     upload_desc: Nhấp hoặc kéo thả gói thẻ AIRI vào đây để nhập
-    sync:
-      notice: Thẻ nhân vật được đồng bộ với tài khoản. Bạn có thể khôi phục thẻ đã xóa trong 30 ngày.
-      off_notice: Bạn đã đăng nhập nhưng đồng bộ thẻ nhân vật đang tắt.
-      off_notice_link: Bật tính năng trong mục Tính năng thử nghiệm.
-      state:
-        synced: Đã đồng bộ với tài khoản
-        pending: Đang chờ tải lên
-        refused: Chưa tải lên. Tài khoản không còn chỗ cho thẻ mới nên thẻ này vẫn nằm trên thiết bị này.
-      conflict_copy_name: '{name} (bản sao do xung đột)'
-      conflict_notice: Thiết bị khác đã sửa cùng nhân vật. AIRI giữ phiên bản trên thiết bị này dưới dạng bản sao.
-      history:
-        tab: Lịch sử
-        empty: Thẻ này chưa có lịch sử.
-        loading: Đang tải lịch sử…
-        load_failed: Không thể tải lịch sử của thẻ này.
-        current: Hiện tại
-        changed_label: Đã thay đổi
-        removed_label: Đã xóa
-        fields:
-          creator: Người tạo
-          systemPrompt: Lời nhắc hệ thống
-          postHistoryInstructions: Chỉ dẫn sau lịch sử
-          notes: Ghi chú của người tạo
-          tags: Thẻ gắn
-          metadata: Siêu dữ liệu
-          assets: Tài nguyên
-          characterBook: Sổ bối cảnh
-          source: Nguồn
-          wakeWords: Từ đánh thức
-          agents: Tác nhân
-          consciousness: Mô hình ý thức
-          vision: Mô hình thị giác
-          speech: Mô hình giọng nói
-          vrm: Mô hình VRM
-          live2d: Mô hình Live2D
-          displayModelId: Mô hình hiển thị
-          activeBackgroundId: Nền đã ghim
-          name: Tên
-          nickname: Biệt danh
-          version: Phiên bản
-          description: Mô tả
-          personality: Tính cách
-          scenario: Kịch bản
-          greetings: Lời chào
-          artistry: Nghệ thuật
-        restore: Khôi phục phiên bản này
-        restore_confirm_title: Khôi phục phiên bản này?
-        restore_confirm_body: Nội dung hiện tại của {name} sẽ được thay bằng nội dung từ {date}.
-        restore_confirm_confirm: Khôi phục
-        restore_success: Đã khôi phục {name} về phiên bản trước.
-        restore_failed: Không thể khôi phục phiên bản này. Có thể máy chủ không còn lưu phiên bản đó.
-        restore_confirm_cancel: Hủy
-      deleted:
-        restore: Khôi phục
-        title: Đã xóa gần đây
-        empty: Không có thẻ nào bị xóa gần đây.
-        loading: Đang tải các thẻ đã xóa gần đây…
-        load_failed: Không thể tải các thẻ đã xóa gần đây.
-        deleted_when: Đã xóa {when}
-        days_left: Còn {days} ngày để khôi phục
-        restore_success: Đã khôi phục {name}.
-        restore_failed: Không thể khôi phục thẻ này. Có thể máy chủ không còn lưu nội dung thẻ.
-    back: Quay lại
-    saved: Đã lưu thẻ
-    unsaved:
-      title: Bỏ các thay đổi?
-      message: Thay đổi chưa được lưu. Nếu rời trang này, bạn sẽ mất các thay đổi đó.
-      keep_editing: Tiếp tục chỉnh sửa
-      discard: Bỏ thay đổi
-      badge: Chưa được lưu
-    wake-word-conflicts:
-      title: Một cách phát âm từ đánh thức dùng chung cần có nhân vật | {count} cách phát âm từ đánh thức dùng chung cần có nhân vật
-      description: Hai thẻ dùng cùng cách phát âm. Không nhân vật nào trả lời cho đến khi bạn chọn một nhân vật.
-      action: Chọn nhân vật trả lời
   memory:
     description: Nơi lưu trữ và tổ chức ký ức
     title: Bộ nhớ
@@ -550,6 +550,12 @@ pages:
         title: Mô hình
         description: Xóa các mô hình Live2D/VRM đã nhập.
         delete: Xóa tất cả mô hình
+      model-downloads:
+        title: Mô hình giọng nói đã tải xuống
+        description: Tệp mô hình Sherpaw được lưu trên thiết bị này.
+        empty: Chưa tải xuống mô hình giọng nói nào.
+        wake-word-model: Mô hình từ đánh thức
+        refresh: Làm mới
       modules:
         title: Các Mô-Đun
         description: Đặt lại tùy chọn mô-đun và thông tin xác thực.
@@ -574,12 +580,6 @@ pages:
         description: Xóa các cài đặt và trạng thái thực thi của AIRI trên máy tính.
         center: Đưa cửa sổ desktop về giữa màn hình
         reset: Đặt lại dữ liệu desktop
-      model-downloads:
-        title: Mô hình giọng nói đã tải xuống
-        description: Tệp mô hình Sherpaw được lưu trên thiết bị này.
-        empty: Chưa tải xuống mô hình giọng nói nào.
-        wake-word-model: Mô hình từ đánh thức
-        refresh: Làm mới
     confirmations:
       tooltip: Bạn chắc chứ?
       'yes': 'Đồng ý'
@@ -589,13 +589,13 @@ pages:
       import_error: Lỗi nhập dữ liệu. Vui lòng kiểm tra định dạng tệp.
       chats_deleted: Đã xóa các phiên trò chuyện.
       models_deleted: Đã xóa các mô hình.
+      model_download_cancelled: Đã hủy tải mô hình.
+      model_download_removed: Đã xóa mô hình đã tải xuống.
       modules_reset: Đã đặt lại cài đặt mô-đun.
       providers_reset: Đã đặt lại cài đặt nhà cung cấp.
       all_deleted: Tất cả dữ liệu cục bộ đã bị xóa.
       desktop_window_centered: Đã đưa cửa sổ desktop về giữa màn hình.
       desktop_reset: Đã đặt lại dữ liệu ứng dụng máy tính.
-      model_download_cancelled: Đã hủy tải mô hình.
-      model_download_removed: Đã xóa mô hình đã tải xuống.
   models:
     description: Live2D, VRM, Spine, v.v.
     title: Mô hình
@@ -744,14 +744,14 @@ pages:
             search_results: Tìm thấy {count}/{total} mô hình
             show_less: Ẩn bớt
             show_more: Hiện thêm
-            subtitle: Chọn một mô hình mặc định từ nhà cung cấp
-            title: Mô hình
             temperature_label: Nhiệt độ
             temperature_enabled: Nhiệt độ tùy chỉnh
             top_p_enabled: Top P tùy chỉnh
             sampling_override_description: Mặc định tắt. Chỉ bật nếu mô hình hỗ trợ tham số này. Một số mô hình chỉ nhận một tham số lấy mẫu mỗi lần.
             temperature_description: Điều chỉnh tính ngẫu nhiên của đầu ra mô hình. Giá trị thấp như 0.2 tạo kết quả ổn định, chính xác và có tính phân tích hơn. Giá trị cao như 1.0 tăng tính sáng tạo và đa dạng.
             top_p_description: Điều chỉnh sự đa dạng của đầu ra qua lấy mẫu hạt nhân. Giá trị thấp như 0.2 chỉ chọn các token có xác suất cao. Giá trị cao như 1.0 bao gồm nhiều khả năng hơn.
+            subtitle: Chọn một mô hình mặc định từ nhà cung cấp
+            title: Mô hình
           model-options:
             title: Tùy chọn mô hình
             thinking:
@@ -806,10 +806,76 @@ pages:
     hearing:
       description: Cấu hình nhận diện giọng nói
       title: Nghe
+      transcriber:
+        title: Nhận dạng giọng nói
+        description: Chọn nhà cung cấp và mô hình chuyển giọng nói thành văn bản, rồi kiểm tra micrô.
+      wake-words:
+        title: Từ đánh thức
+        description: Xem từ đánh thức của từng nhân vật và chọn nhân vật trả lời cách phát âm dùng chung.
+        intro: Mỗi nhân vật lưu từ đánh thức trên thẻ của mình. Để thay đổi, hãy yêu cầu nhân vật trong cuộc trò chuyện.
+        empty: Nhân vật này chưa có từ đánh thức.
+        state:
+          active: Đang hoạt động
+          paused: Đã tạm dừng. Chọn nhân vật trả lời.
+          other: '{name} trả lời'
+          unsupported: Không khả dụng với mô hình từ đánh thức hiện tại
+        conflicts:
+          title: Cách phát âm dùng chung
+          description: Nhiều nhân vật dùng cùng cách phát âm. Chọn nhân vật trả lời trên thiết bị này. Từ đánh thức trên từng thẻ vẫn được giữ.
+          choose-label: Nhân vật trả lời
+          answered-by: '{name} trả lời'
+          unresolved: Không nhân vật nào trả lời cách phát âm này.
       sections:
         section:
           provider-selection:
             description: Chọn nhà cung cấp nhận diện giọng nói phù hợp
+          microphone:
+            title: Micrô
+            label: Micrô
+            description: Bật micrô cho mô-đun Nghe. Chế độ đầu vào quyết định khi nào AIRI lắng nghe.
+            error: Micrô không khả dụng
+          input-device:
+            label: Thiết bị đầu vào
+            description: Chọn micrô mà AIRI sử dụng.
+            playground-description: Mô-đun Nghe và khu thử nghiệm dùng micrô này.
+            placeholder: Chọn micrô
+          auto-send:
+            title: Bản chuyển giọng nói thành văn bản
+            description: Chọn cách AIRI xử lý văn bản được nhận dạng từ giọng nói của bạn.
+            label: Gửi tự động
+            label-description: AIRI gửi bản chuyển giọng nói thành văn bản vào cuộc trò chuyện sau một khoảng trễ. Tắt để đọc và sửa trước. Mỗi tin nhắn gửi đi đều dùng token.
+            delay: Độ trễ gửi
+            delay-description: Thời gian AIRI chờ trước khi gửi bản chuyển giọng nói thành văn bản.
+            immediate: Ngay lập tức
+          input-mode:
+            title: Chế độ đầu vào
+            description: Chọn cách AIRI bắt đầu lắng nghe khi micrô bật.
+            label: Bắt đầu lắng nghe
+            always-on: Luôn bật
+            always-on-description: AIRI luôn lắng nghe và trả lời khi bạn nói.
+            push-to-talk: Nhấn để nói
+            push-to-talk-description: AIRI chỉ lắng nghe khi bạn giữ phím Nhấn để nói. Micrô chỉ mở trong lúc giữ phím.
+            push-to-talk-unavailable: Không khả dụng ở đây. Ứng dụng không có phím Nhấn để nói trên thiết bị này.
+            stranded-title: Nhấn để nói không khả dụng ở đây
+            stranded-description: Ứng dụng không có phím Nhấn để nói trên thiết bị này nên AIRI không lắng nghe. Chọn Luôn bật hoặc Từ đánh thức để nói với AIRI.
+            wake-word: Từ đánh thức
+            wake-word-description: Micrô vẫn bật nhưng AIRI chỉ lắng nghe sau khi bạn nói từ đánh thức của một nhân vật.
+            wake-word-status:
+              no-words: Chưa nhân vật nào có từ đánh thức. Hãy yêu cầu nhân vật đặt từ đánh thức trong cuộc trò chuyện.
+              unconfigured: Nhận diện từ đánh thức bắt đầu khi micrô bật.
+              preparing: Đang chuẩn bị mô hình từ đánh thức…
+              ready: Từ đánh thức đã sẵn sàng.
+              error: 'Mô hình từ đánh thức không khả dụng: {error}'
+          rephrase:
+            title: Viết lại bản chuyển giọng nói thành văn bản
+            description: Mô hình trò chuyện sửa lỗi nhận dạng và bỏ từ đệm trước khi tạo bản nháp. Văn bản gốc vẫn được giữ.
+            enabled: Viết lại bản chuyển giọng nói thành văn bản
+            enabled-description: Mỗi bản chuyển giọng nói thành văn bản hoàn tất được gửi đến mô hình trò chuyện đã chọn. Nếu thất bại hoặc quá 10 giây, văn bản gốc được dùng.
+            provider: Nhà cung cấp
+            provider-description: Mặc định dùng mô hình trò chuyện của mô-đun Ý thức.
+            same-as-chat: Giống cuộc trò chuyện
+            model: Mô hình
+            model-placeholder: Chọn mô hình
           playground:
             current: Phiên âm hiện tại
             description: Lắng nghe qua pipeline Nghe đang hoạt động và hiển thị từng đoạn lời nói đã hoàn tất bên dưới.
@@ -832,72 +898,6 @@ pages:
               Lưu ý: Nếu nhà cung cấp của bạn không hỗ trợ phản hồi verbose_json, cài đặt này sẽ không có tác dụng.
             verbose-json-unsupported: >-
               Nhà cung cấp của bạn không trả về các đoạn (segment) verbose_json. Lọc kết quả dựa trên độ tin cậy không có tác dụng cho đoạn phiên âm mới nhất.
-          microphone:
-            title: Micrô
-            label: Micrô
-            description: Bật micrô cho mô-đun Nghe. Chế độ đầu vào quyết định khi nào AIRI lắng nghe.
-            error: Micrô không khả dụng
-          input-mode:
-            wake-word: Từ đánh thức
-            title: Chế độ đầu vào
-            description: Chọn cách AIRI bắt đầu lắng nghe khi micrô bật.
-            label: Bắt đầu lắng nghe
-            always-on: Luôn bật
-            always-on-description: AIRI luôn lắng nghe và trả lời khi bạn nói.
-            push-to-talk: Nhấn để nói
-            push-to-talk-description: AIRI chỉ lắng nghe khi bạn giữ phím Nhấn để nói. Micrô chỉ mở trong lúc giữ phím.
-            push-to-talk-unavailable: Không khả dụng ở đây. Ứng dụng không có phím Nhấn để nói trên thiết bị này.
-            stranded-title: Nhấn để nói không khả dụng ở đây
-            stranded-description: Ứng dụng không có phím Nhấn để nói trên thiết bị này nên AIRI không lắng nghe. Chọn Luôn bật hoặc Từ đánh thức để nói với AIRI.
-            wake-word-description: Micrô vẫn bật nhưng AIRI chỉ lắng nghe sau khi bạn nói từ đánh thức của một nhân vật.
-            wake-word-status:
-              no-words: Chưa nhân vật nào có từ đánh thức. Hãy yêu cầu nhân vật đặt từ đánh thức trong cuộc trò chuyện.
-              unconfigured: Nhận diện từ đánh thức bắt đầu khi micrô bật.
-              preparing: Đang chuẩn bị mô hình từ đánh thức…
-              ready: Từ đánh thức đã sẵn sàng.
-              error: 'Mô hình từ đánh thức không khả dụng: {error}'
-          input-device:
-            label: Thiết bị đầu vào
-            description: Chọn micrô mà AIRI sử dụng.
-            playground-description: Mô-đun Nghe và khu thử nghiệm dùng micrô này.
-            placeholder: Chọn micrô
-          auto-send:
-            title: Bản chuyển giọng nói thành văn bản
-            description: Chọn cách AIRI xử lý văn bản được nhận dạng từ giọng nói của bạn.
-            label: Gửi tự động
-            label-description: AIRI gửi bản chuyển giọng nói thành văn bản vào cuộc trò chuyện sau một khoảng trễ. Tắt để đọc và sửa trước. Mỗi tin nhắn gửi đi đều dùng token.
-            delay: Độ trễ gửi
-            delay-description: Thời gian AIRI chờ trước khi gửi bản chuyển giọng nói thành văn bản.
-            immediate: Ngay lập tức
-          rephrase:
-            title: Viết lại bản chuyển giọng nói thành văn bản
-            description: Mô hình trò chuyện sửa lỗi nhận dạng và bỏ từ đệm trước khi tạo bản nháp. Văn bản gốc vẫn được giữ.
-            enabled: Viết lại bản chuyển giọng nói thành văn bản
-            enabled-description: Mỗi bản chuyển giọng nói thành văn bản hoàn tất được gửi đến mô hình trò chuyện đã chọn. Nếu thất bại hoặc quá 10 giây, văn bản gốc được dùng.
-            provider-description: Mặc định dùng mô hình trò chuyện của mô-đun Ý thức.
-            same-as-chat: Giống cuộc trò chuyện
-            provider: Nhà cung cấp
-            model-placeholder: Chọn mô hình
-            model: Mô hình
-      wake-words:
-        title: Từ đánh thức
-        description: Xem từ đánh thức của từng nhân vật và chọn nhân vật trả lời cách phát âm dùng chung.
-        intro: Mỗi nhân vật lưu từ đánh thức trên thẻ của mình. Để thay đổi, hãy yêu cầu nhân vật trong cuộc trò chuyện.
-        empty: Nhân vật này chưa có từ đánh thức.
-        state:
-          paused: Đã tạm dừng. Chọn nhân vật trả lời.
-          other: '{name} trả lời'
-          unsupported: Không khả dụng với mô hình từ đánh thức hiện tại
-          active: Đang hoạt động
-        conflicts:
-          title: Cách phát âm dùng chung
-          description: Nhiều nhân vật dùng cùng cách phát âm. Chọn nhân vật trả lời trên thiết bị này. Từ đánh thức trên từng thẻ vẫn được giữ.
-          choose-label: Nhân vật trả lời
-          answered-by: '{name} trả lời'
-          unresolved: Không nhân vật nào trả lời cách phát âm này.
-      transcriber:
-        title: Nhận dạng giọng nói
-        description: Chọn nhà cung cấp và mô hình chuyển giọng nói thành văn bản, rồi kiểm tra micrô.
     memory-long-term:
       description: Cài đặt và quản lý trí nhớ dài hạn
       title: Trí nhớ dài hạn
@@ -1004,6 +1004,251 @@ pages:
       access-token-secret-description: Bí mật mã truy cập X / Twitter của bạn
       access-token-secret-placeholder: Nhập bí mật mã truy cập X / Twitter của bạn
       configured: Đã cấu hình X / Twitter thành công!
+    stickers:
+      frequency: Tần suất nhãn dán
+      frequency-description: Cho phép nhãn dán trong tỷ lệ phản hồi này. Nhân vật vẫn quyết định nhãn dán có phù hợp hay không.
+      frequency-options:
+        25: Thỉnh thoảng (25%)
+        50: Đôi khi (50%)
+        75: Thường xuyên (75%)
+        100: Bất cứ khi nào phù hợp (100%)
+      title: Nhãn dán
+      description: Thêm phản ứng bằng ảnh vào phản hồi trò chuyện
+      enable: Bật nhãn dán
+      enable-description: Cho phép nhân vật chọn một nhãn dán cho mỗi phản hồi đủ điều kiện dựa trên tên và thẻ cảm xúc.
+      local-only: Ảnh vẫn nằm trên thiết bị này. Đồng bộ trò chuyện trên đám mây hiện chỉ truyền văn bản.
+      catalog: Nhãn dán có sẵn
+      unavailable: Nhãn dán không khả dụng
+      import: 'Nhập ảnh'
+      editor: 'Trình chỉnh sửa nhãn dán'
+      image: 'Ảnh'
+      replace: 'Thay ảnh (tùy chọn)'
+      image-limits: 'PNG, JPG, WebP hoặc GIF. Tối đa 2 MB và 4096 × 4096 pixel.'
+      choose-file: 'Chọn ảnh'
+      preview: 'Xem trước nhãn dán'
+      name: 'Tên'
+      name-limit: 'Dùng 1–80 ký tự. Mô hình đọc tên này.'
+      emotions: 'Thẻ cảm xúc'
+      save: 'Lưu nhãn dán'
+      cancel: 'Hủy'
+      edit: 'Chỉnh sửa'
+      delete: 'Xóa'
+      confirm-delete: 'Xác nhận xóa'
+      empty: 'Thư viện đang trống. Nhập ảnh để thêm nhãn dán.'
+      history-note: 'Xóa hoặc thay nhãn dán ảnh hưởng đến phản hồi sau này. Phản hồi đã lưu và đã chuẩn bị giữ ảnh gốc.'
+      saved-image: 'Nhãn dán đã lưu'
+      errors:
+        name: 'Nhập tên dài 1–80 ký tự.'
+        emotions: 'Chọn ít nhất một thẻ cảm xúc hợp lệ.'
+        format: 'Chọn ảnh PNG, JPG, WebP hoặc GIF.'
+        size: 'Chọn ảnh nhỏ hơn 2 MB.'
+        image: 'Không thể mở ảnh này. Chọn tệp khác.'
+        dimensions: 'Chọn ảnh không lớn hơn 4096 × 4096 pixel.'
+        missing: 'Nhãn dán này đã bị xóa trong cửa sổ khác.'
+        storage: 'Không thể lưu hoặc tải thư viện nhãn dán. Thử lại.'
+      emotion-labels:
+        happy: 'Vui'
+        sad: 'Buồn'
+        confused: 'Bối rối'
+        surprised: 'Ngạc nhiên'
+        thanks: 'Cảm ơn'
+        celebrate: 'Ăn mừng'
+        angry: 'Tức giận'
+        tired: 'Mệt'
+        affectionate: 'Yêu mến'
+        awkward: 'Ngượng ngùng'
+        agree: 'Đồng ý'
+        disagree: 'Không đồng ý'
+      artwork:
+        airi-happy: Vui
+        airi-sad: Buồn
+        airi-confused: Bối rối
+        airi-surprised: Ngạc nhiên
+        airi-thanks: Cảm ơn
+        airi-celebrate: Ăn mừng
+        airi-angry: Tức giận
+        airi-tired: Mệt
+        airi-affectionate: Yêu
+        airi-awkward: Ngượng ngùng
+        airi-agree: 'Đồng ý'
+        airi-disagree: Không, cảm ơn
+    home-assistant:
+      description: Cho phép AIRI đọc và điều khiển thiết bị Home Assistant của bạn.
+      enable: Bật Home Assistant
+      enable-description: Cho phép AIRI đọc và điều khiển thiết bị
+      base-url:
+        label: Địa chỉ
+        description: Địa chỉ phiên bản Home Assistant của bạn.
+      token:
+        label: Token truy cập dài hạn
+        placeholder: Dán token từ hồ sơ Home Assistant
+        description: Tạo token trong mục Bảo mật của hồ sơ Home Assistant.
+        saved: Đã lưu token. Để trống trường này để giữ lại. Nhập lại token khi đổi địa chỉ.
+      note: Token nằm trên thiết bị này và không đồng bộ với tài khoản.
+      actions:
+        save: Lưu
+        test: Kiểm tra
+      status:
+        saved: Đã lưu.
+        saved-cleared: Đã lưu. Địa chỉ đã thay đổi nên danh sách thiết bị trống.
+        testing: Đang kiểm tra kết nối…
+        reachable: 'Đã kết nối. Home Assistant báo có {count} thực thể.'
+        failed: 'Không thể kết nối. {message}'
+        rejected-token: Nhập token truy cập Home Assistant.
+        rejected-address: Địa chỉ đã thay đổi. Nhập token truy cập cho địa chỉ mới.
+        failed-policy: Danh sách thiết bị chưa đến cửa sổ chạy công cụ nên địa chỉ chưa thay đổi. Thử lại.
+        failed-policy-edit: Thay đổi chưa đến cửa sổ chạy công cụ. Mô hình vẫn giữ danh sách cũ. Thử lại.
+        failed-policy-move: Địa chỉ đã thay đổi nhưng danh sách thiết bị chưa đến cửa sổ chạy công cụ. Thử lại.
+        failed-policy-rollback: Việc lưu bị từ chối. Danh sách thiết bị chưa đến cửa sổ chạy công cụ nên mô hình không truy cập được thiết bị nào. Thử lại.
+      access:
+        label: Quyền truy cập thiết bị
+        description: Chọn thiết bị mà AIRI được đọc và điều khiển.
+        mode-all: Mọi thiết bị
+        mode-allow: Danh sách cho phép
+        mode-deny: Danh sách chặn
+        all-hint: AIRI truy cập mọi thiết bị. Chọn danh sách để giới hạn.
+        rule-allow: Chỉ truy cập được thiết bị bạn chọn.
+        rule-deny: Truy cập được mọi thiết bị trừ những thiết bị bạn chọn.
+        selected-count: 'Đã chọn {count}'
+        empty-warning: Chọn ít nhất một thiết bị. AIRI không truy cập được thiết bị nào cho đến khi bạn chọn.
+        search: Tìm thiết bị
+        reload: Tải lại thiết bị
+        loading: Đang tải thiết bị…
+        no-devices: Home Assistant không báo có thiết bị nào.
+        no-match: Không có thiết bị phù hợp.
+        tab-all: Tất cả
+        shown-count: '{shown} trên {total} thiết bị'
+        load-more: 'Hiển thị thêm {count}'
+        select-matching: Chọn tất cả kết quả phù hợp
+        clear-matching: Bỏ chọn tất cả kết quả phù hợp
+      states:
+        generic:
+          'on': 'Bật'
+          'off': 'Tắt'
+          above_horizon: Trên đường chân trời
+          armed: Đã bật bảo vệ
+          armed_away: Bảo vệ khi vắng nhà
+          armed_custom_bypass: Bảo vệ với loại trừ tùy chỉnh
+          armed_home: Bảo vệ khi ở nhà
+          armed_night: Bảo vệ ban đêm
+          armed_vacation: Bảo vệ khi đi nghỉ
+          arming: Đang bật bảo vệ
+          auto: Tự động
+          below_horizon: Dưới đường chân trời
+          buffering: Đang tải bộ đệm
+          cleaning: Đang dọn dẹp
+          clear-night: Đêm quang mây
+          closed: Đã đóng
+          closing: Đang đóng
+          cloudy: Nhiều mây
+          cool: Làm mát
+          disarmed: Đã tắt bảo vệ
+          disarming: Đang tắt bảo vệ
+          docked: Đã về đế
+          dry: Hút ẩm
+          eco: Tiết kiệm
+          electric: Điện
+          error: Lỗi
+          exceptional: Thời tiết bất thường
+          fan_only: Chỉ quạt
+          fog: Sương mù
+          gas: Khí đốt
+          hail: Mưa đá
+          heat: Sưởi ấm
+          heat_cool: Sưởi ấm/làm mát
+          heat_pump: Bơm nhiệt
+          high_demand: Nhu cầu cao
+          home: Ở nhà
+          idle: Nhàn rỗi
+          jammed: Bị kẹt
+          lightning: Sấm chớp
+          lightning-rainy: Mưa giông
+          locked: Đã khóa
+          locking: Đang khóa
+          mowing: Đang cắt cỏ
+          not_home: Vắng nhà
+          open: Mở
+          opening: Đang mở
+          partlycloudy: Có mây rải rác
+          paused: Đã tạm dừng
+          pending: Đang chờ
+          performance: Hiệu năng
+          playing: Đang phát
+          pouring: Mưa lớn
+          problem: Có vấn đề
+          rainy: Có mưa
+          recording: Đang ghi
+          snowy: Có tuyết
+          snowy-rainy: Tuyết và mưa
+          standby: Chờ
+          stopped: Đã dừng
+          streaming: Đang truyền
+          sunny: Có nắng
+          triggered: Đã kích hoạt báo động
+          unlocked: Đã mở khóa
+          unlocking: Đang mở khóa
+          windy: Có gió
+          windy-variant: Gió và mây
+          unknown: Không xác định
+          unavailable: Không khả dụng
+        lawn_mower:
+          returning: Đang trở về
+        update:
+          'off': Đã cập nhật
+          'on': Có bản cập nhật
+        vacuum:
+          returning: Đang về đế
+      domains:
+        air_quality: Chất lượng không khí
+        alarm_control_panel: Bảng báo động
+        automation: Tự động hóa
+        binary_sensor: Cảm biến nhị phân
+        button: Nút
+        calendar: Lịch
+        camera: Máy quay
+        climate: Điều hòa
+        conversation: Hội thoại
+        cover: Rèm và cửa cuốn
+        date: Ngày
+        datetime: Ngày và giờ
+        device_tracker: Bộ theo dõi thiết bị
+        event: Sự kiện
+        fan: Quạt
+        geo_location: Vị trí địa lý
+        group: Nhóm
+        humidifier: Máy tạo ẩm
+        image: Ảnh
+        image_processing: Xử lý ảnh
+        input_boolean: Trợ giúp bật/tắt
+        input_datetime: Trợ giúp ngày và giờ
+        input_number: Trợ giúp số
+        input_select: Trợ giúp danh sách thả xuống
+        input_text: Trợ giúp văn bản
+        light: Đèn
+        lock: Khóa
+        media_player: Trình phát đa phương tiện
+        notify: Thông báo
+        number: Số
+        person: Người
+        remote: Điều khiển từ xa
+        scene: Bối cảnh
+        script: Kịch bản
+        select: Lựa chọn
+        sensor: Cảm biến
+        siren: Còi báo động
+        stt: Giọng nói thành văn bản
+        sun: Mặt trời
+        switch: Công tắc
+        text: Văn bản
+        time: Giờ
+        todo: Danh sách việc cần làm
+        tts: Văn bản thành giọng nói
+        update: Cập nhật
+        vacuum: Máy hút bụi
+        valve: Van
+        water_heater: Máy nước nóng
+        weather: Thời tiết
+        zone: Vùng
     web-search:
       title: Tìm kiếm trên web
       description: Cho phép AIRI tìm kiếm trên web để lấy thông tin mới nhất
@@ -1037,6 +1282,7 @@ pages:
         restart: Khởi động lại MCP
         add-server: Thêm máy chủ
         add-env: Thêm biến
+        add-header: Thêm tiêu đề
         remove: Xóa
         test: Kiểm tra
         edit-json: Chỉnh sửa JSON
@@ -1047,12 +1293,22 @@ pages:
         cancel: Hủy
         expand: Mở rộng
         collapse: Thu gọn
-        add-header: Thêm tiêu đề
       fields:
         identifier:
           label: Mã định danh
           description: Tên độc nhất; trở thành khóa trong mcp.json.
           placeholder: 'ví dụ: filesystem'
+        transport:
+          label: Loại
+          description: Cách AIRI kết nối với máy chủ này.
+          stdio: Tiến trình cục bộ
+          http: URL từ xa
+        url:
+          description: Điểm truy cập Streamable HTTP của máy chủ.
+          placeholder: 'Ví dụ: https://example.com/api/mcp'
+        headers:
+          label: Tiêu đề
+          description: Tiêu đề gửi kèm mỗi yêu cầu, như token xác thực.
         command:
           label: Lệnh
           description: Tệp thực thi được khởi chạy qua stdio.
@@ -1071,17 +1327,6 @@ pages:
           value-placeholder: giá trị
         enabled:
           label: Bật
-        transport:
-          description: Cách AIRI kết nối với máy chủ này.
-          stdio: Tiến trình cục bộ
-          http: URL từ xa
-          label: Loại
-        url:
-          description: Điểm truy cập Streamable HTTP của máy chủ.
-          placeholder: 'Ví dụ: https://example.com/api/mcp'
-        headers:
-          label: Tiêu đề
-          description: Tiêu đề gửi kèm mỗi yêu cầu, như token xác thực.
       json:
         title: Chỉnh sửa mcp.json
         description: 'Chỉnh sửa trực tiếp JSON thô. Nhấp "Áp dụng" để nạp vào biểu mẫu, sau đó "Lưu và khởi động lại" để ghi vào đĩa.'
@@ -1102,262 +1347,19 @@ pages:
         empty-identifier: Máy chủ # {index} is missing an identifier.
         duplicate-identifier: Mã định danh "{name}" đã được sử dụng nhiều hơn một lần — tên phải là duy nhất.
         empty-command: '"{name}" đang thiếu một lệnh.'
-        invalid-shape: Nhìn không giống mcp.json hợp lệ — gốc (root) cần một trường "mcpServers".
-        empty-url: Thiếu URL cho "{name}".
+        empty-url: 'Thiếu URL cho "{name}".'
         invalid-url: '"{name}" cần URL tuyệt đối http hoặc https.'
+        invalid-shape: Nhìn không giống mcp.json hợp lệ — gốc (root) cần một trường "mcpServers".
       messages:
         opened: Đã mở {path} trong trình quản lý tệp của bạn
         json-applied: Đã áp dụng JSON vào biểu mẫu. Nhấp "Lưu và khởi động lại" để lưu vào đĩa.
         restarted: Tất cả đã được khởi động lại! {started} đã khởi động, {failed} thất bại, {skipped} đã bỏ qua.
-    stickers:
-      frequency: Tần suất nhãn dán
-      frequency-description: Cho phép nhãn dán trong tỷ lệ phản hồi này. Nhân vật vẫn quyết định nhãn dán có phù hợp hay không.
-      frequency-options:
-        '25': Thỉnh thoảng (25%)
-        '50': Đôi khi (50%)
-        '75': Thường xuyên (75%)
-        '100': Bất cứ khi nào phù hợp (100%)
-      title: Nhãn dán
-      description: Thêm phản ứng bằng ảnh vào phản hồi trò chuyện
-      enable: Bật nhãn dán
-      enable-description: Cho phép nhân vật chọn một nhãn dán cho mỗi phản hồi đủ điều kiện dựa trên tên và thẻ cảm xúc.
-      local-only: Ảnh vẫn nằm trên thiết bị này. Đồng bộ trò chuyện trên đám mây hiện chỉ truyền văn bản.
-      catalog: Nhãn dán có sẵn
-      unavailable: Nhãn dán không khả dụng
-      import: Nhập ảnh
-      editor: Trình chỉnh sửa nhãn dán
-      image: Ảnh
-      replace: Thay ảnh (tùy chọn)
-      image-limits: PNG, JPG, WebP hoặc GIF. Tối đa 2 MB và 4096 × 4096 pixel.
-      choose-file: Chọn ảnh
-      preview: Xem trước nhãn dán
-      name-limit: Dùng 1–80 ký tự. Mô hình đọc tên này.
-      emotions: Thẻ cảm xúc
-      save: Lưu nhãn dán
-      edit: Chỉnh sửa
-      confirm-delete: Xác nhận xóa
-      empty: Thư viện đang trống. Nhập ảnh để thêm nhãn dán.
-      history-note: Xóa hoặc thay nhãn dán ảnh hưởng đến phản hồi sau này. Phản hồi đã lưu và đã chuẩn bị giữ ảnh gốc.
-      saved-image: Nhãn dán đã lưu
-      errors:
-        name: Nhập tên dài 1–80 ký tự.
-        emotions: Chọn ít nhất một thẻ cảm xúc hợp lệ.
-        format: Chọn ảnh PNG, JPG, WebP hoặc GIF.
-        size: Chọn ảnh nhỏ hơn 2 MB.
-        image: Không thể mở ảnh này. Chọn tệp khác.
-        dimensions: Chọn ảnh không lớn hơn 4096 × 4096 pixel.
-        missing: Nhãn dán này đã bị xóa trong cửa sổ khác.
-        storage: Không thể lưu hoặc tải thư viện nhãn dán. Thử lại.
-      emotion-labels:
-        happy: Vui
-        sad: Buồn
-        confused: Bối rối
-        surprised: Ngạc nhiên
-        thanks: Cảm ơn
-        celebrate: Ăn mừng
-        angry: Tức giận
-        tired: Mệt
-        affectionate: Yêu mến
-        awkward: Ngượng ngùng
-        agree: Đồng ý
-        disagree: Không đồng ý
-      artwork:
-        airi-happy: Vui
-        airi-sad: Buồn
-        airi-confused: Bối rối
-        airi-surprised: Ngạc nhiên
-        airi-celebrate: Ăn mừng
-        airi-angry: Tức giận
-        airi-tired: Mệt
-        airi-awkward: Ngượng ngùng
-        airi-thanks: Cảm ơn
-        airi-affectionate: Yêu
-        airi-disagree: Không, cảm ơn
-        airi-agree: Đồng ý
-      name: Tên
-      cancel: Hủy
-      delete: Xóa
-    home-assistant:
-      domains:
-        image: Ảnh
-        air_quality: Chất lượng không khí
-        alarm_control_panel: Bảng báo động
-        automation: Tự động hóa
-        binary_sensor: Cảm biến nhị phân
-        button: Nút
-        calendar: Lịch
-        climate: Điều hòa
-        conversation: Hội thoại
-        cover: Rèm và cửa cuốn
-        date: Ngày
-        datetime: Ngày và giờ
-        device_tracker: Bộ theo dõi thiết bị
-        event: Sự kiện
-        fan: Quạt
-        geo_location: Vị trí địa lý
-        group: Nhóm
-        humidifier: Máy tạo ẩm
-        image_processing: Xử lý ảnh
-        input_boolean: Trợ giúp bật/tắt
-        input_datetime: Trợ giúp ngày và giờ
-        input_number: Trợ giúp số
-        input_select: Trợ giúp danh sách thả xuống
-        input_text: Trợ giúp văn bản
-        light: Đèn
-        lock: Khóa
-        media_player: Trình phát đa phương tiện
-        notify: Thông báo
-        number: Số
-        person: Người
-        remote: Điều khiển từ xa
-        script: Kịch bản
-        sensor: Cảm biến
-        siren: Còi báo động
-        stt: Giọng nói thành văn bản
-        sun: Mặt trời
-        switch: Công tắc
-        text: Văn bản
-        todo: Danh sách việc cần làm
-        tts: Văn bản thành giọng nói
-        update: Cập nhật
-        vacuum: Máy hút bụi
-        valve: Van
-        water_heater: Máy nước nóng
-        weather: Thời tiết
-        zone: Vùng
-        camera: Máy quay
-        scene: Bối cảnh
-        select: Lựa chọn
-        time: Giờ
-      description: Cho phép AIRI đọc và điều khiển thiết bị Home Assistant của bạn.
-      enable: Bật Home Assistant
-      enable-description: Cho phép AIRI đọc và điều khiển thiết bị
-      base-url:
-        label: Địa chỉ
-        description: Địa chỉ phiên bản Home Assistant của bạn.
-      token:
-        label: Token truy cập dài hạn
-        placeholder: Dán token từ hồ sơ Home Assistant
-        description: Tạo token trong mục Bảo mật của hồ sơ Home Assistant.
-        saved: Đã lưu token. Để trống trường này để giữ lại. Nhập lại token khi đổi địa chỉ.
-      note: Token nằm trên thiết bị này và không đồng bộ với tài khoản.
-      status:
-        saved: Đã lưu.
-        saved-cleared: Đã lưu. Địa chỉ đã thay đổi nên danh sách thiết bị trống.
-        testing: Đang kiểm tra kết nối…
-        reachable: Đã kết nối. Home Assistant báo có {count} thực thể.
-        failed: Không thể kết nối. {message}
-        rejected-token: Nhập token truy cập Home Assistant.
-        rejected-address: Địa chỉ đã thay đổi. Nhập token truy cập cho địa chỉ mới.
-        failed-policy: Danh sách thiết bị chưa đến cửa sổ chạy công cụ nên địa chỉ chưa thay đổi. Thử lại.
-        failed-policy-edit: Thay đổi chưa đến cửa sổ chạy công cụ. Mô hình vẫn giữ danh sách cũ. Thử lại.
-        failed-policy-move: Địa chỉ đã thay đổi nhưng danh sách thiết bị chưa đến cửa sổ chạy công cụ. Thử lại.
-        failed-policy-rollback: Việc lưu bị từ chối. Danh sách thiết bị chưa đến cửa sổ chạy công cụ nên mô hình không truy cập được thiết bị nào. Thử lại.
-      access:
-        label: Quyền truy cập thiết bị
-        description: Chọn thiết bị mà AIRI được đọc và điều khiển.
-        mode-all: Mọi thiết bị
-        mode-allow: Danh sách cho phép
-        mode-deny: Danh sách chặn
-        all-hint: AIRI truy cập mọi thiết bị. Chọn danh sách để giới hạn.
-        rule-allow: Chỉ truy cập được thiết bị bạn chọn.
-        rule-deny: Truy cập được mọi thiết bị trừ những thiết bị bạn chọn.
-        selected-count: Đã chọn {count}
-        empty-warning: Chọn ít nhất một thiết bị. AIRI không truy cập được thiết bị nào cho đến khi bạn chọn.
-        search: Tìm thiết bị
-        reload: Tải lại thiết bị
-        loading: Đang tải thiết bị…
-        no-devices: Home Assistant không báo có thiết bị nào.
-        no-match: Không có thiết bị phù hợp.
-        shown-count: '{shown} trên {total} thiết bị'
-        load-more: Hiển thị thêm {count}
-        select-matching: Chọn tất cả kết quả phù hợp
-        clear-matching: Bỏ chọn tất cả kết quả phù hợp
-        tab-all: Tất cả
-      states:
-        generic:
-          on: Bật
-          off: Tắt
-          above_horizon: Trên đường chân trời
-          armed: Đã bật bảo vệ
-          armed_away: Bảo vệ khi vắng nhà
-          armed_custom_bypass: Bảo vệ với loại trừ tùy chỉnh
-          armed_home: Bảo vệ khi ở nhà
-          armed_night: Bảo vệ ban đêm
-          armed_vacation: Bảo vệ khi đi nghỉ
-          arming: Đang bật bảo vệ
-          below_horizon: Dưới đường chân trời
-          buffering: Đang tải bộ đệm
-          cleaning: Đang dọn dẹp
-          clear-night: Đêm quang mây
-          closed: Đã đóng
-          closing: Đang đóng
-          cloudy: Nhiều mây
-          cool: Làm mát
-          disarmed: Đã tắt bảo vệ
-          disarming: Đang tắt bảo vệ
-          docked: Đã về đế
-          dry: Hút ẩm
-          eco: Tiết kiệm
-          electric: Điện
-          exceptional: Thời tiết bất thường
-          fan_only: Chỉ quạt
-          fog: Sương mù
-          gas: Khí đốt
-          hail: Mưa đá
-          heat: Sưởi ấm
-          heat_cool: Sưởi ấm/làm mát
-          heat_pump: Bơm nhiệt
-          high_demand: Nhu cầu cao
-          idle: Nhàn rỗi
-          jammed: Bị kẹt
-          lightning: Sấm chớp
-          lightning-rainy: Mưa giông
-          locked: Đã khóa
-          locking: Đang khóa
-          mowing: Đang cắt cỏ
-          not_home: Vắng nhà
-          opening: Đang mở
-          partlycloudy: Có mây rải rác
-          paused: Đã tạm dừng
-          pending: Đang chờ
-          playing: Đang phát
-          pouring: Mưa lớn
-          problem: Có vấn đề
-          rainy: Có mưa
-          recording: Đang ghi
-          snowy: Có tuyết
-          snowy-rainy: Tuyết và mưa
-          standby: Chờ
-          stopped: Đã dừng
-          streaming: Đang truyền
-          sunny: Có nắng
-          triggered: Đã kích hoạt báo động
-          unlocked: Đã mở khóa
-          unlocking: Đang mở khóa
-          windy: Có gió
-          windy-variant: Gió và mây
-          unavailable: Không khả dụng
-          auto: Tự động
-          error: Lỗi
-          performance: Hiệu năng
-          unknown: Không xác định
-          open: Mở
-          home: Ở nhà
-        lawn_mower:
-          returning: Đang trở về
-        update:
-          off: Đã cập nhật
-          on: Có bản cập nhật
-        vacuum:
-          returning: Đang về đế
-      actions:
-        save: Lưu
-        test: Kiểm tra
   flux:
     buy: Mua
     currency: Tiền tệ
     description: Số Flux hiện tại
+    terms: Điều khoản
+    privacy: Chính sách quyền riêng tư
     packagesError: Không thể tải các gói. Vui lòng thử lại sau.
     checkout:
       success: Thanh toán hoàn tất! Flux của bạn đã được nạp.
@@ -1382,8 +1384,29 @@ pages:
       title: Gói Flux
       buy: Mua
       description: Các gói Flux để lựa chọn.
-    terms: Điều khoản
-    privacy: Chính sách quyền riêng tư
+  capacitor:
+    description: Capacitor chứa Flux và tự nạp lại.
+    statusError: Không thể tải Capacitor của bạn. Thử lại sau.
+    packagesError: Không thể tải danh sách Capacitor. Thử lại sau.
+    preferenceError: Không thể lưu tùy chọn. Thử lại sau.
+    noCapacitor: Không có Capacitor
+    remaining: 'Còn {percent}'
+    rechargesAt: Nạp lại vào {date}
+    renewsAt: Gia hạn vào {date}
+    expiresAt: Hết hạn vào {date}
+    perMonth: / tháng
+    currentPackage: Hiện tại
+    install: Cài đặt
+    upgrade: Nâng cấp
+    downgrade: Hạ cấp
+    manageSubscription: Quản lý đăng ký
+    fallbackToFlux: Dùng Flux khi Capacitor cạn
+    fallbackToFluxHint: Khi tắt, việc sử dụng dừng khi Capacitor cạn.
+    checkout:
+      success: Capacitor của bạn đã được cài và nạp đầy.
+      pending: Đã nhận thanh toán. Capacitor của bạn sẽ sớm được nạp.
+      canceled: Đã hủy mua.
+      error: Đã xảy ra sự cố. Xin vui lòng thử lại sau.
   providers:
     catalog:
       edit:
@@ -1406,6 +1429,12 @@ pages:
           common:
             fields:
               field:
+                web-search:
+                  label: Tìm kiếm trên web
+                  description: Cho phép mô hình OpenAI hỗ trợ tìm kiếm khi cần. Dùng khóa API của bạn và có thể phát sinh phí tìm kiếm. Yêu cầu Responses API.
+                api-protocol:
+                  label: Giao thức API
+                  description: Chọn API được nhà cung cấp và mô hình này hỗ trợ.
                 api-key:
                   label: Khóa API
                   description: Khóa dùng để ủy quyền yêu cầu cho nhà cung cấp này
@@ -1435,12 +1464,6 @@ pages:
                     low: Thấp
                     medium: Trung bình
                     high: Cao
-                web-search:
-                  label: Tìm kiếm trên web
-                  description: Cho phép mô hình OpenAI hỗ trợ tìm kiếm khi cần. Dùng khóa API của bạn và có thể phát sinh phí tìm kiếm. Yêu cầu Responses API.
-                api-protocol:
-                  label: Giao thức API
-                  description: Chọn API được nhà cung cấp và mô hình này hỗ trợ.
         validators:
           actions:
             validate: Xác thực
@@ -1454,6 +1477,9 @@ pages:
               title: Liệt kê mô hình
             check-supports-chat-completion:
               title: Hoàn tất hội thoại
+          apple-vision:
+            check-availability:
+              title: tính khả dụng
           prompt-api:
             check-availability:
               title: tính khả dụng
@@ -1462,9 +1488,6 @@ pages:
             valid: Thành công
             invalid: Lỗi
           title: Kiểm tra
-          apple-vision:
-            check-availability:
-              title: tính khả dụng
         providers:
           provider:
             ollama:
@@ -1500,6 +1523,10 @@ pages:
           title: Cài đặt giọng nói
     labels:
       recommended: Được gợi ý
+    sync:
+      synced: Đã đồng bộ
+      pending: Đang chờ tải lên
+      not-uploaded: Chưa tải lên. Hoàn tất cấu hình nhà cung cấp trên thiết bị này.
     filters:
       pricing: Bảng Giá
       deployment: Triển khai
@@ -1544,6 +1571,28 @@ pages:
         Nhà cung cấp mô hình chuyển giọng nói thành văn bản. Ví dụ: Whisper.cpp, OpenAI, Azure Speech
     description: LLMs, nhà cung cấp giọng nói, v.v.
     provider:
+      sherpaw-transcription:
+        description: Nhận dạng giọng nói cục bộ bằng mô hình đi kèm hoặc tải theo nhu cầu. Không cần khóa API.
+        language:
+          label: Ngôn ngữ mô hình
+          description: Hiển thị mô hình hỗ trợ ngôn ngữ này. Mô hình đã chọn vẫn tự phát hiện các ngôn ngữ được hỗ trợ.
+          all: Mọi ngôn ngữ
+        model:
+          label: Mô hình
+          description: Chọn mô hình có sẵn. Khi nhận dạng, mô hình phát hiện một trong các ngôn ngữ được hỗ trợ. Thay đổi sẽ khởi động lại phiên hiện tại.
+        asset:
+          title: Tệp mô hình
+          unknown: Đang kiểm tra tệp…
+          bundled: Đi kèm AIRI
+          installed: Đã lưu trên thiết bị này
+          missing: Tải khi sử dụng
+          downloading: Đang tải xuống…
+          error: Tải xuống thất bại
+          download: Tải xuống ngay
+          cancel: Hủy
+          remove: Xóa bản tải xuống
+      apple-vision:
+        description: Hiểu ảnh trên thiết bị với Apple Foundation Models trên macOS 27 trở lên. Không cần khóa API.
       apple-speech-transcription:
         title: Apple Giọng nói
         description: Nhận diện giọng nói trên thiết bị với macOS 26 trở lên. Không yêu cầu khóa API.
@@ -1606,6 +1655,22 @@ pages:
             volume:
               description: Điều chỉnh âm lượng
               label: Âm lượng
+      voicevox:
+        fields:
+          field:
+            intonation:
+              description: Điều chỉnh mức thay đổi ngữ điệu khi đọc
+              label: Ngữ điệu
+        callout_origin_title: Kết nối với bộ máy từ trình duyệt
+        callout_origin: Trình duyệt chỉ kết nối được với bộ máy trên thiết bị này. Với bộ máy trên thiết bị khác, dùng ứng dụng máy tính. Bộ máy phải cho phép trang này qua --cors_policy_mode all hoặc --allow_origin cùng địa chỉ này.
+      aivis-speech:
+        fields:
+          field:
+            intonation:
+              description: Điều chỉnh mức thể hiện phong cách nói
+              label: Cường độ biểu đạt cảm xúc
+        callout_origin_title: Kết nối với bộ máy từ trình duyệt
+        callout_origin: Trình duyệt chỉ kết nối được với bộ máy trên thiết bị này. Với bộ máy trên thiết bị khác, dùng ứng dụng máy tính. Bộ máy phải cho phép trang này trong trang cài đặt ở cổng 10101.
       speech-noop:
         title: Không có
         description: Không phát âm thanh.
@@ -1824,49 +1889,7 @@ pages:
           title: Thử nghiệm chuyển văn bản
       aihubmix:
         description: https://aihubmix.com (Giảm giá 10%)
-      sherpaw-transcription:
-        asset:
-          cancel: Hủy
-          title: Tệp mô hình
-          unknown: Đang kiểm tra tệp…
-          bundled: Đi kèm AIRI
-          installed: Đã lưu trên thiết bị này
-          missing: Tải khi sử dụng
-          downloading: Đang tải xuống…
-          error: Tải xuống thất bại
-          download: Tải xuống ngay
-          remove: Xóa bản tải xuống
-        description: Nhận dạng giọng nói cục bộ bằng mô hình đi kèm hoặc tải theo nhu cầu. Không cần khóa API.
-        language:
-          label: Ngôn ngữ mô hình
-          description: Hiển thị mô hình hỗ trợ ngôn ngữ này. Mô hình đã chọn vẫn tự phát hiện các ngôn ngữ được hỗ trợ.
-          all: Mọi ngôn ngữ
-        model:
-          description: Chọn mô hình có sẵn. Khi nhận dạng, mô hình phát hiện một trong các ngôn ngữ được hỗ trợ. Thay đổi sẽ khởi động lại phiên hiện tại.
-          label: Mô hình
-      apple-vision:
-        description: Hiểu ảnh trên thiết bị với Apple Foundation Models trên macOS 27 trở lên. Không cần khóa API.
-      voicevox:
-        fields:
-          field:
-            intonation:
-              description: Điều chỉnh mức thay đổi ngữ điệu khi đọc
-              label: Ngữ điệu
-        callout_origin_title: Kết nối với bộ máy từ trình duyệt
-        callout_origin: Trình duyệt chỉ kết nối được với bộ máy trên thiết bị này. Với bộ máy trên thiết bị khác, dùng ứng dụng máy tính. Bộ máy phải cho phép trang này qua --cors_policy_mode all hoặc --allow_origin cùng địa chỉ này.
-      aivis-speech:
-        callout_origin_title: Kết nối với bộ máy từ trình duyệt
-        fields:
-          field:
-            intonation:
-              description: Điều chỉnh mức thể hiện phong cách nói
-              label: Cường độ biểu đạt cảm xúc
-        callout_origin: Trình duyệt chỉ kết nối được với bộ máy trên thiết bị này. Với bộ máy trên thiết bị khác, dùng ứng dụng máy tính. Bộ máy phải cho phép trang này trong trang cài đặt ở cổng 10101.
     title: Nhà cung cấp
-    sync:
-      pending: Đang chờ tải lên
-      synced: Đã đồng bộ
-      not-uploaded: Chưa tải lên. Hoàn tất cấu hình nhà cung cấp trên thiết bị này.
   connection:
     description: Cấu hình kết nối máy chủ WebSocket
     title: Kết nối
@@ -1905,6 +1928,24 @@ pages:
         title: Quét mã QR thất bại
         failed: Không thể quét hoặc kết nối bằng mã QR.
   system:
+    experimental:
+      refresh: Làm mới chính sách
+      title: Tính năng thử nghiệm
+      description: Thử tính năng đang phát triển và quản lý lựa chọn của bạn.
+      notice: Tính năng thử nghiệm có thể thay đổi hoặc bị xóa. Lựa chọn của bạn áp dụng cho thiết bị này.
+      empty-title: Không có tính năng thử nghiệm
+      load-error: Tính năng đám mây không khả dụng. Tính năng cục bộ vẫn khả dụng.
+      retry: Thử lại
+      reset: Sử dụng mặc định
+      sources:
+        default: Mặc định của ứng dụng
+        local: Lựa chọn trên thiết bị
+        global: Khả dụng cho tài khoản đã đăng nhập
+        account: Khả dụng cho tài khoản của bạn
+      features:
+        character_card_sync:
+          title: Đồng bộ thẻ nhân vật trên đám mây
+          description: Đồng bộ thẻ nhân vật với tài khoản khi đăng nhập để dùng trên thiết bị khác. Mặc định tắt. Thẻ đã xóa vẫn nằm trong lịch sử tài khoản trong 30 ngày.
     color-scheme:
       description: Đổi bảng màu sân khấu.
       title: Bảng màu
@@ -1938,6 +1979,32 @@ pages:
               markdown-stress:
                 title: Kiểm thử Markdown
                 description: Thử nghiệm phân tích Markdown với hội thoại lớn
+              plugin-host:
+                actions:
+                  enable-and-load: Bật và tải
+                  disable-and-unload: Tắt và dỡ khỏi bộ nhớ
+                  import-folder: Nhập thư mục
+                  confirm-import: Nhập tiện ích mở rộng
+                  cancel-import: Hủy
+                errors:
+                  enable-and-load: 'Không thể bật và tải plugin {extensionId}.'
+                  disable-and-unload: 'Không thể tắt và dỡ plugin {extensionId} khỏi bộ nhớ.'
+                  prepare-import: Không thể kiểm tra thư mục tiện ích mở rộng.
+                  commit-import: 'Không thể nhập tiện ích mở rộng {extensionId}.'
+                  cancel-import: Không thể hủy nhập tiện ích mở rộng.
+                import:
+                  title: Xem lại việc nhập tiện ích mở rộng
+                  description: Tiện ích mở rộng vẫn bị tắt và chưa được tải sau khi nhập.
+                  source: Thư mục nguồn
+                  runtimes: Môi trường chạy
+                  entrypoints: Điểm vào
+                  package-size: Gói
+                  package-size-value: '{fileCount} tệp · {totalBytes}'
+                  permissions: Quyền
+                  kits: Bộ công cụ
+                  no-permissions: Chưa khai báo quyền nào.
+                  no-kits: Chưa khai báo bộ công cụ nào.
+                  imported: 'Đã nhập tiện ích mở rộng {extensionId}.'
               use-magic-keys:
                 title: Công cụ useMagicKeys
                 description: Kiểm tra các phím tắt
@@ -1978,32 +2045,6 @@ pages:
               performance-playground:
                 title: Khu thử nghiệm hiệu năng
                 description: Khu vực thử nghiệm biểu cảm VRM + đồng bộ môi TTS
-              plugin-host:
-                actions:
-                  cancel-import: Hủy
-                  enable-and-load: Bật và tải
-                  disable-and-unload: Tắt và dỡ khỏi bộ nhớ
-                  import-folder: Nhập thư mục
-                  confirm-import: Nhập tiện ích mở rộng
-                errors:
-                  enable-and-load: Không thể bật và tải plugin {extensionId}.
-                  disable-and-unload: Không thể tắt và dỡ plugin {extensionId} khỏi bộ nhớ.
-                  prepare-import: Không thể kiểm tra thư mục tiện ích mở rộng.
-                  commit-import: Không thể nhập tiện ích mở rộng {extensionId}.
-                  cancel-import: Không thể hủy nhập tiện ích mở rộng.
-                import:
-                  title: Xem lại việc nhập tiện ích mở rộng
-                  description: Tiện ích mở rộng vẫn bị tắt và chưa được tải sau khi nhập.
-                  source: Thư mục nguồn
-                  runtimes: Môi trường chạy
-                  entrypoints: Điểm vào
-                  package-size: Gói
-                  package-size-value: '{fileCount} tệp · {totalBytes}'
-                  permissions: Quyền
-                  kits: Bộ công cụ
-                  no-permissions: Chưa khai báo quyền nào.
-                  no-kits: Chưa khai báo bộ công cụ nào.
-                  imported: Đã nhập tiện ích mở rộng {extensionId}.
         theme-presets:
           presets:
             default:
@@ -2074,24 +2115,6 @@ pages:
               title: Màu truyền thống Trung Hoa
           title: Bộ Màu Có Sẵn
     title: Hệ thống
-    experimental:
-      retry: Thử lại
-      reset: Sử dụng mặc định
-      refresh: Làm mới chính sách
-      title: Tính năng thử nghiệm
-      description: Thử tính năng đang phát triển và quản lý lựa chọn của bạn.
-      notice: Tính năng thử nghiệm có thể thay đổi hoặc bị xóa. Lựa chọn của bạn áp dụng cho thiết bị này.
-      empty-title: Không có tính năng thử nghiệm
-      load-error: Tính năng đám mây không khả dụng. Tính năng cục bộ vẫn khả dụng.
-      sources:
-        default: Mặc định của ứng dụng
-        local: Lựa chọn trên thiết bị
-        global: Khả dụng cho tài khoản đã đăng nhập
-        account: Khả dụng cho tài khoản của bạn
-      features:
-        character_card_sync:
-          title: Đồng bộ thẻ nhân vật trên đám mây
-          description: Đồng bộ thẻ nhân vật với tài khoản khi đăng nhập để dùng trên thiết bị khác. Mặc định tắt. Thẻ đã xóa vẫn nằm trong lịch sử tài khoản trong 30 ngày.
   page:
     developers:
       open-devtools:
@@ -2121,29 +2144,6 @@ pages:
     tip:
       label: Mẹo!
       description: Sử dụng ảnh vuông sẽ tận dụng chế độ cắt <b>cover</b> khi hiển thị dọc, tập trung vào trung tâm bối cảnh.
-  capacitor:
-    currentPackage: Hiện tại
-    description: Capacitor chứa Flux và tự nạp lại.
-    statusError: Không thể tải Capacitor của bạn. Thử lại sau.
-    packagesError: Không thể tải danh sách Capacitor. Thử lại sau.
-    preferenceError: Không thể lưu tùy chọn. Thử lại sau.
-    noCapacitor: Không có Capacitor
-    remaining: Còn {percent}
-    rechargesAt: Nạp lại vào {date}
-    renewsAt: Gia hạn vào {date}
-    expiresAt: Hết hạn vào {date}
-    perMonth: / tháng
-    install: Cài đặt
-    upgrade: Nâng cấp
-    downgrade: Hạ cấp
-    manageSubscription: Quản lý đăng ký
-    fallbackToFlux: Dùng Flux khi Capacitor cạn
-    fallbackToFluxHint: Khi tắt, việc sử dụng dừng khi Capacitor cạn.
-    checkout:
-      success: Capacitor của bạn đã được cài và nạp đầy.
-      pending: Đã nhận thanh toán. Capacitor của bạn sẽ sớm được nạp.
-      canceled: Đã hủy mua.
-      error: Đã xảy ra sự cố. Xin vui lòng thử lại sau.
 sections:
   section:
     general:
@@ -2152,12 +2152,17 @@ theme:
   title: Chủ Đề
   description: |
     Chuyển đổi chủ đề cơ bản của AIRI, Chế độ Sáng hoặc Chế độ Tối.
-  light: Sáng
   auto: Hệ thống
+  light: Sáng
   dark: Tối
 title: Cài Đặt
 voices: Giọng Nói
 vrm:
+  fps:
+    title: Giới hạn tốc độ khung hình
+    description: Giới hạn kết xuất VRM trên sân khấu và bản xem trước. Giới hạn thấp hơn giảm tải GPU mà không đổi tốc độ hoạt ảnh.
+    options:
+      unlimited: Không giới hạn
   change-model:
     from-file: Tải từ Tệp
     from-file-select: Chọn
@@ -2185,9 +2190,9 @@ vrm:
       title: Nhìn Vào
       options:
         option:
+          camera: Máy quay
           mouse: Chuột
           disabled: Tắt
-          camera: Máy quay
   switch-to-vrm:
     title: Chuyển sang mô hình Live2D?
     change-to-vrm: Nhấn vào đây để chuyển sang cài đặt Live2D avatar
@@ -2197,11 +2202,6 @@ vrm:
   skybox:
     skybox-intensity: Cường Độ SkyBox
     skybox-specular-mix: Độ Trộn Phản Chiếu
-  fps:
-    options:
-      unlimited: Không giới hạn
-    title: Giới hạn tốc độ khung hình
-    description: Giới hạn kết xuất VRM trên sân khấu và bản xem trước. Giới hạn thấp hơn giảm tải GPU mà không đổi tốc độ hoạt ảnh.
 spine:
   title: Cài đặt Spine
   scale-and-position:
@@ -2252,8 +2252,8 @@ mmd:
     tracking: Nhìn vào
     options:
       cursor: Chuột
-      none: Vô hiệu hóa
       camera: Máy quay
+      none: Vô hiệu hóa
   animation:
     title: Hoạt ảnh
     idle-motion: Chuyển động chờ

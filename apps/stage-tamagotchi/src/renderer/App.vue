@@ -361,6 +361,11 @@ function createFullStageRuntime() {
 const fullStageRuntime = windowContext.stageRuntime === 'full'
   ? createFullStageRuntime()
   : null
+// A minimal chat window shows the live reply of the turn that the main window runs.
+// The full runtime starts the whole context bridge, which includes this view.
+const chatStreamView = !fullStageRuntime && (initialRoutePath === '/chat' || isFloatingChatWindow)
+  ? useContextBridgeStore()
+  : null
 
 const { restore: restoreLocale } = useLanguage(language, getMainLocale, setLocale)
 
@@ -401,6 +406,7 @@ onMounted(async () => {
   await chatStore.initialize(syncedPinia)
 
   await fullStageRuntime?.initialize()
+  await chatStreamView?.initializeStreamView()
 })
 
 watch(themeColorsHue, () => {
@@ -417,6 +423,7 @@ onUnmounted(() => {
   stopLeadershipListener?.()
   chatStore.dispose()
   fullStageRuntime?.dispose()
+  void chatStreamView?.dispose()
 })
 </script>
 

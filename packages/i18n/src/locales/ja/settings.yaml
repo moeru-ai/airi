@@ -44,6 +44,8 @@ dialogs:
     loginPrompt: 最高の体験を得るためにログインして AIRI 公式プロバイダーを使用してください。
     loginAction: ログイン
     setupWithoutSigningIn: 独自のプロバイダーを設定
+    pricingLink: 料金体系
+    termsLink: 利用規約
     buyFlux: Flux を購入
     select-model: モデルを選択
     no-models: 利用可能なモデルがありません
@@ -60,8 +62,6 @@ dialogs:
       optionalHint: これらの権限を許可しない場合でも続行できます。
       stateGranted: 許可済み
       stateNotGranted: 未許可
-    termsLink: 利用規約
-    pricingLink: 料金体系
   bug-report:
     title: バグ報告 (´;ω;`)ヾ(･∀･`)
     subtitle: 不具合が発生してしまい申し訳ありません。よろしければ、何が起きたか教えていただけますか？
@@ -122,20 +122,21 @@ model-select:
     title: インポート前の確認
     description: モデルのデータと、アーカイブ内で見つかった問題を確認してください。
     description-short: モデルのデータと問題を確認してください。
+    close: 閉じる
     model:
+      title: モデル
       files: '{count} 個のファイル'
       types:
         unknown: 不明
-      title: モデル
     resources:
       title: リソース
       motions: モーション
-      textures: テクスチャ
-      referenced-and-found: 参照 {referenced} 個 · 検出 {found} 個
-      referenced: 参照 {count} 個
-      found: 検出 {count} 個
       expressions: 表情
       parameters: パラメーター
+      textures: テクスチャ
+      referenced-and-found: '参照 {referenced} 個 · 検出 {found} 個'
+      referenced: '参照 {count} 個'
+      found: '検出 {count} 個'
     issues:
       title: 問題
       errors: '{count} 件のエラー'
@@ -144,10 +145,9 @@ model-select:
       how-to-fix: 修正方法
       resolve-before-import: インポート前にエラーを修正してください。
     actions:
+      cancel: キャンセル
       confirm: インポートを確認
       import-anyway: そのままインポート
-      cancel: キャンセル
-    close: 閉じる
 live2d:
   change-model:
     from-file: ファイルから読み込む
@@ -176,31 +176,6 @@ live2d:
       title: 抽出
   animation:
     title: アニメーション
-    focus:
-      title: マウス追従を有効化
-      description: マウスカーソルの動きを目で追いかけます。カーソルが止まるとアイドリング時の目の動きに戻ります。
-      offset: 目のオフセット (%)
-    force-idle-eye-animation:
-      title: アイドル時の目の動き
-      description: カーソルが動いていないときに周囲を見回します。
-    blink-enable:
-      title: まばたきを有効化
-      description: モデルのまばたきを許可します。
-    auto-blink:
-      title: 自動
-      description: モデルデフォルトのまばたきアニメーションを使用します
-    force-auto-blink:
-      title: 強制
-      description: 外部タイマーを使用してまばたきアニメーションを強制します
-    blink-mode:
-      title: まばたきモード
-      description: 既存のモデルまばたき、または AIRI の強制まばたきタイマーを選択します。
-    idle-motion:
-      title: アイドルモーション
-      no-motion: 利用可能なモーションがありません
-      placeholder: モーションを選択
-      disable-motion: 無効化
-      disable-motion-description: アイドルモーションをオフにします
     motion-driver:
       title: モーションドライバー
       description: 待機中の体や目の動きを AIRI が生成する方法を選択してください。
@@ -227,6 +202,31 @@ live2d:
         force-view-target:
           title: 視線の対象を正面に固定
           description: MAGIC が頭を動かす間も、視線を正面に維持します。
+    focus:
+      title: マウス追従を有効化
+      description: マウスカーソルの動きを目で追いかけます。カーソルが止まるとアイドリング時の目の動きに戻ります。
+      offset: 目のオフセット (%)
+    force-idle-eye-animation:
+      title: アイドル時の目の動き
+      description: カーソルが動いていないときに周囲を見回します。
+    blink-enable:
+      title: まばたきを有効化
+      description: モデルのまばたきを許可します。
+    auto-blink:
+      title: 自動
+      description: モデルデフォルトのまばたきアニメーションを使用します
+    force-auto-blink:
+      title: 強制
+      description: 外部タイマーを使用してまばたきアニメーションを強制します
+    blink-mode:
+      title: まばたきモード
+      description: 既存のモデルまばたき、または AIRI の強制まばたきタイマーを選択します。
+    idle-motion:
+      title: アイドルモーション
+      no-motion: 利用可能なモーションがありません
+      placeholder: モーションを選択
+      disable-motion: 無効化
+      disable-motion-description: アイドルモーションをオフにします
   parameters:
     title: モデルパラメータ
     render-scale:
@@ -261,6 +261,7 @@ pages:
     logout: ログアウト
     fluxBalance: Flux 残高
     viewFluxDetails: 詳細を見る
+    viewCapacitor: 表示
     signedInAs: 'ログイン中:'
     profile:
       tab: プロフィール
@@ -347,8 +348,73 @@ pages:
         error:
           fallback: 削除できませんでした。後ほど再試行してください。
           subscriptionActive: サブスクリプションがまだ有効です。先に Capacitor ページで解約してから、アカウントを削除してください。
-    viewCapacitor: 表示
   card:
+    wake-word-conflicts:
+      title: '共有するウェイクワードの発音に応答するキャラクターを選択してください | {count} 個の共有ウェイクワードの発音に応答するキャラクターを選択してください'
+      description: 2 枚のカードが同じ発音を使っています。応答するキャラクターを選択するまで、誰も応答しません。
+      action: 応答するキャラクターを選択
+    sync:
+      notice: キャラクターカードはアカウントと同期します。削除したカードは 30 日間復元できます。
+      off_notice: ログインしていますが、キャラクターカードの同期は無効です。
+      off_notice_link: 実験的機能で有効にしてください。
+      state:
+        synced: アカウントと同期済み
+        pending: アップロード待機中
+        refused: アップロードされていません。アカウントのカード保存容量が不足しているため、このカードはこのデバイスに残ります。
+      conflict_copy_name: '{name}（競合コピー）'
+      conflict_notice: 別のデバイスが同じキャラクターを変更しました。AIRI はこのデバイスのバージョンをコピーとして保存しました。
+      history:
+        tab: 履歴
+        empty: このカードにはまだ履歴がありません。
+        loading: 履歴を読み込み中…
+        load_failed: このカードの履歴を読み込めませんでした。
+        current: 現在
+        changed_label: 変更済み
+        removed_label: 削除済み
+        fields:
+          name: 名前
+          nickname: ニックネーム
+          version: バージョン
+          creator: 作成者
+          description: 説明
+          personality: 性格
+          scenario: 背景
+          systemPrompt: システムプロンプト
+          postHistoryInstructions: 履歴後の指示
+          notes: 作成者のメモ
+          greetings: 挨拶
+          tags: タグ
+          metadata: メタデータ
+          assets: アセット
+          characterBook: ロアブック
+          source: 出典
+          wakeWords: ウェイクワード
+          agents: エージェント
+          consciousness: 意識モデル
+          vision: 視覚モデル
+          speech: 音声モデル
+          vrm: VRM モデル
+          live2d: Live2D モデル
+          displayModelId: 表示モデル
+          activeBackgroundId: 固定した背景
+          artistry: 画像生成
+        restore: このバージョンを復元
+        restore_confirm_title: このバージョンを復元しますか？
+        restore_confirm_body: '{name} の現在の内容を {date} の内容に置き換えます。'
+        restore_confirm_confirm: 復元
+        restore_confirm_cancel: キャンセル
+        restore_success: '{name} を以前のバージョンに復元しました。'
+        restore_failed: このバージョンを復元できませんでした。サーバーに残っていない可能性があります。
+      deleted:
+        title: 最近削除したカード
+        empty: 最近削除したカードはありません。
+        loading: 最近削除したカードを読み込み中…
+        load_failed: 最近削除したカードを読み込めませんでした。
+        deleted_when: '{when} に削除'
+        days_left: '復元期限まで {days} 日'
+        restore: 復元
+        restore_success: '{name} を復元しました。'
+        restore_failed: このカードを復元できませんでした。サーバーに内容が残っていない可能性があります。
     activate: 有効化
     active: 有効
     active_badge: 現在有効
@@ -357,6 +423,7 @@ pages:
     save: 変更を保存
     save_and_activate: 保存して有効化
     card_not_found: カードが見つかりません
+    back: 戻る
     character: キャラクター
     close: 閉じる
     chat:
@@ -376,6 +443,13 @@ pages:
     drop_here: アップロードするにはここにドラッグ
     create_card: 新しいカードを作成
     edit_card: カードを編集
+    saved: カードを保存しました
+    unsaved:
+      badge: 未保存
+      title: 変更を破棄しますか？
+      message: 変更は保存されていません。このページを離れると失われます。
+      keep_editing: 編集を続ける
+      discard: 変更を破棄
     creation:
       identity: 識別子
       name: 名前
@@ -394,8 +468,14 @@ pages:
         posthistoryinstructions: 人間の真似をすることを忘れないでください。
       modules_info: >-
         このキャラクターカード用のモジュールを設定してください。設定されていない場合は、デフォルトのモジュール設定が使用されます。
+      sections:
+        chat: チャット
+        vision: 視覚
+        speech: 音声
+        body: 体
       use_default: デフォルトを使用
       use_default_not_configured: デフォルトを使用 (未設定)
+      inherit_global_settings: 全体設定を引き継ぐ
       fields_info:
         subtitle: >-
           ここに作成するキャラクターの詳細、履歴とコンテキスト、 およびあなたにどう返答してほしいか記述できます。
@@ -415,6 +495,7 @@ pages:
         consciousness_model: このキャラクターの意識モデル（AIモデル）を選択します。
         speech_model: このキャラクターの音声合成・読み上げモデルを選択します。
       errors:
+        model_required: 明示的に指定した各プロバイダーのモデルを選択してください。別のプロバイダーのモデルは引き継げません。
         name: 名前は有効であるか、空でない必要があります。
         version: 'エラー: 無効なバージョン番号です！'
         description: 'エラー: このカードの説明を入力してください。'
@@ -423,14 +504,7 @@ pages:
         systemprompt: 'エラー: システムプロンプトを入力してください。'
         posthistoryinstructions: 'エラー: 履歴の後のプロンプトは必須です。'
         invalid_artistry_json: 'アートプロバイダー（Artistry provider）のオプションに無効な JSON が含まれています。'
-        model_required: 明示的に指定した各プロバイダーのモデルを選択してください。別のプロバイダーのモデルは引き継げません。
       none: なし
-      sections:
-        chat: チャット
-        body: 体
-        vision: 視覚
-        speech: 音声
-      inherit_global_settings: 全体設定を引き継ぐ
       none_disabled: なし（無効）
     modules: モジュール
     name_asc: 名前(A-Z)
@@ -459,80 +533,6 @@ pages:
     import_invalid_file: 無効なカードパックファイルです
     upload: アップロード
     upload_desc: ここをクリックするか AIRI カードパックをドラッグ＆ドロップしてインポートします
-    sync:
-      notice: キャラクターカードはアカウントと同期します。削除したカードは 30 日間復元できます。
-      off_notice: ログインしていますが、キャラクターカードの同期は無効です。
-      off_notice_link: 実験的機能で有効にしてください。
-      state:
-        synced: アカウントと同期済み
-        pending: アップロード待機中
-        refused: アップロードされていません。アカウントのカード保存容量が不足しているため、このカードはこのデバイスに残ります。
-      conflict_copy_name: '{name}（競合コピー）'
-      conflict_notice: 別のデバイスが同じキャラクターを変更しました。AIRI はこのデバイスのバージョンをコピーとして保存しました。
-      history:
-        tab: 履歴
-        empty: このカードにはまだ履歴がありません。
-        loading: 履歴を読み込み中…
-        load_failed: このカードの履歴を読み込めませんでした。
-        current: 現在
-        changed_label: 変更済み
-        removed_label: 削除済み
-        fields:
-          creator: 作成者
-          systemPrompt: システムプロンプト
-          postHistoryInstructions: 履歴後の指示
-          notes: 作成者のメモ
-          tags: タグ
-          metadata: メタデータ
-          assets: アセット
-          characterBook: ロアブック
-          source: 出典
-          wakeWords: ウェイクワード
-          agents: エージェント
-          consciousness: 意識モデル
-          vision: 視覚モデル
-          speech: 音声モデル
-          vrm: VRM モデル
-          live2d: Live2D モデル
-          displayModelId: 表示モデル
-          activeBackgroundId: 固定した背景
-          artistry: 画像生成
-          name: 名前
-          nickname: ニックネーム
-          version: バージョン
-          description: 説明
-          personality: 性格
-          scenario: 背景
-          greetings: 挨拶
-        restore: このバージョンを復元
-        restore_confirm_title: このバージョンを復元しますか？
-        restore_confirm_body: '{name} の現在の内容を {date} の内容に置き換えます。'
-        restore_confirm_confirm: 復元
-        restore_success: '{name} を以前のバージョンに復元しました。'
-        restore_failed: このバージョンを復元できませんでした。サーバーに残っていない可能性があります。
-        restore_confirm_cancel: キャンセル
-      deleted:
-        restore: 復元
-        title: 最近削除したカード
-        empty: 最近削除したカードはありません。
-        loading: 最近削除したカードを読み込み中…
-        load_failed: 最近削除したカードを読み込めませんでした。
-        deleted_when: '{when} に削除'
-        days_left: 復元期限まで {days} 日
-        restore_success: '{name} を復元しました。'
-        restore_failed: このカードを復元できませんでした。サーバーに内容が残っていない可能性があります。
-    back: 戻る
-    saved: カードを保存しました
-    unsaved:
-      title: 変更を破棄しますか？
-      message: 変更は保存されていません。このページを離れると失われます。
-      keep_editing: 編集を続ける
-      discard: 変更を破棄
-      badge: 未保存
-    wake-word-conflicts:
-      title: 共有するウェイクワードの発音に応答するキャラクターを選択してください | {count} 個の共有ウェイクワードの発音に応答するキャラクターを選択してください
-      description: 2 枚のカードが同じ発音を使っています。応答するキャラクターを選択するまで、誰も応答しません。
-      action: 応答するキャラクターを選択
   memory:
     description: 記憶が保存され、整理される場所
     title: 記憶
@@ -550,6 +550,12 @@ pages:
         title: モデル
         description: インポートした Live2D/VRM モデルを削除します。
         delete: すべてのモデルを削除
+      model-downloads:
+        title: ダウンロード済みの音声モデル
+        description: このデバイスに保存されている Sherpaw のモデルファイル。
+        empty: ダウンロード済みの音声モデルはありません。
+        wake-word-model: ウェイクワードモデル
+        refresh: 更新
       modules:
         title: モジュール
         description: モジュールの設定と認証情報をリセットします。
@@ -574,12 +580,6 @@ pages:
         description: AIRIデスクトップの設定と実行時の状態を消去します。
         center: デスクトップウィンドウを画面中央に配置
         reset: デスクトップのデータをリセット
-      model-downloads:
-        title: ダウンロード済みの音声モデル
-        description: このデバイスに保存されている Sherpaw のモデルファイル。
-        empty: ダウンロード済みの音声モデルはありません。
-        wake-word-model: ウェイクワードモデル
-        refresh: 更新
     confirmations:
       tooltip: 本当によろしいですか？
       'yes': 'はい'
@@ -589,13 +589,13 @@ pages:
       import_error: チャットセッションのインポートに失敗しました。ファイルの形式を確認してください。
       chats_deleted: チャットセッションを削除しました。
       models_deleted: モデルを削除しました。
+      model_download_cancelled: モデルのダウンロードをキャンセルしました。
+      model_download_removed: ダウンロード済みのモデルを削除しました。
       modules_reset: モジュールの設定をリセットしました。
       providers_reset: プロバイダーの設定をリセットしました。
       all_deleted: すべてのローカルデータを削除しました。
       desktop_window_centered: デスクトップウィンドウを画面中央に配置しました。
       desktop_reset: デスクトップのデータをリセットしました。
-      model_download_cancelled: モデルのダウンロードをキャンセルしました。
-      model_download_removed: ダウンロード済みのモデルを削除しました。
   models:
     description: Live2D, VRM, Spine など
     title: モデル
@@ -744,14 +744,14 @@ pages:
             search_results: 結果{total}個中{count}個のモデルが見つかりました
             show_less: 表示を減らす
             show_more: もっと表示
-            subtitle: プロバイダーからデフォルトモデルを選択
-            title: モデル
             temperature_label: 温度
             temperature_enabled: 温度をカスタマイズ
             top_p_enabled: Top P をカスタマイズ
             sampling_override_description: 初期設定では無効です。モデルがこのパラメーターに対応している場合のみ有効にしてください。同時に指定できるサンプリングパラメーターが 1 つだけのモデルもあります。
             temperature_description: モデルの出力のランダムさを調整します。0.2 などの低い値では予測しやすく、正確で分析的な出力になります。1.0 などの高い値では創造性や多様性が増します。
             top_p_description: 核サンプリングでモデルの出力の多様性を調整します。0.2 などの低い値では確率の高いトークンだけを選びます。1.0 などの高い値では、より幅広い候補を含めます。
+            subtitle: プロバイダーからデフォルトモデルを選択
+            title: モデル
           model-options:
             title: モデルオプション
             thinking:
@@ -806,10 +806,76 @@ pages:
     hearing:
       description: 音声認識の動作を設定する
       title: 聴覚
+      transcriber:
+        title: 音声認識
+        description: 文字起こしのプロバイダーとモデルを選び、マイクをテストしてください。
+      wake-words:
+        title: ウェイクワード
+        description: 各キャラクターのウェイクワードを確認し、共有する発音に応答するキャラクターを選択してください。
+        intro: ウェイクワードは各キャラクターのカードに保存されます。変更するには、チャットでキャラクターに依頼してください。
+        empty: このキャラクターにはウェイクワードがありません。
+        state:
+          active: 有効
+          paused: 停止中です。応答するキャラクターを選択してください。
+          other: '{name} が応答'
+          unsupported: 現在のウェイクワードモデルでは利用できません
+        conflicts:
+          title: 共有する発音
+          description: 複数のキャラクターが同じ発音を使っています。このデバイスで応答するキャラクターを選択してください。各カードのウェイクワードは保持されます。
+          choose-label: 応答するキャラクター
+          answered-by: '{name} が応答します'
+          unresolved: この発音に応答するキャラクターはいません。
       sections:
         section:
           provider-selection:
             description: 適切な音声認識プロバイダーを選択
+          microphone:
+            title: マイク
+            label: マイク
+            description: 聴覚用のマイクを有効にしてください。入力モードによって AIRI が聞き取るタイミングを決めます。
+            error: マイクを利用できません
+          input-device:
+            label: 入力デバイス
+            description: AIRI が使用するマイクを選択してください。
+            playground-description: 聴覚とテスト画面はこのマイクを使用します。
+            placeholder: マイクを選択
+          auto-send:
+            title: 文字起こし
+            description: 音声を文字に変換した後の動作を選択してください。
+            label: 自動送信
+            label-description: AIRI は待ち時間の後に文字起こしをチャットへ送信します。先に内容を確認・編集するには無効にしてください。送信ごとにトークンを消費します。
+            delay: 送信までの待ち時間
+            delay-description: AIRI が文字起こしを送信するまでの待ち時間です。
+            immediate: すぐに
+          input-mode:
+            title: 入力モード
+            description: マイクが有効な間、AIRI が聞き取りを始める方法を選択してください。
+            label: 聞き取りを開始
+            always-on: 常時有効
+            always-on-description: AIRI は常に聞き取り、話しかけると応答します。
+            push-to-talk: 押して話す
+            push-to-talk-description: '「押して話す」キーを押している間だけ AIRI が聞き取ります。マイクも押している間だけ有効になります。'
+            push-to-talk-unavailable: ここでは利用できません。このデバイスのアプリには「押して話す」キーがありません。
+            stranded-title: ここでは「押して話す」を利用できません
+            stranded-description: このデバイスには「押して話す」キーがないため、AIRI は聞き取りません。話しかけるには「常時有効」か「ウェイクワード」を選択してください。
+            wake-word: ウェイクワード
+            wake-word-description: マイクは有効なままですが、キャラクターのウェイクワードを話した後だけ AIRI が聞き取ります。
+            wake-word-status:
+              no-words: ウェイクワードを設定したキャラクターがいません。チャットでキャラクターに設定を依頼してください。
+              unconfigured: マイクを有効にすると、ウェイクワードの検出が始まります。
+              preparing: ウェイクワードモデルを準備中…
+              ready: ウェイクワードの準備ができました。
+              error: 'ウェイクワードモデルを利用できません：{error}'
+          rephrase:
+            title: 文字起こしの修正
+            description: チャットモデルが認識ミスや不要なつなぎ言葉を修正してから、文字起こしを下書きにします。元のテキストも保持されます。
+            enabled: 文字起こしを修正
+            enabled-description: 完成した文字起こしを選択したチャットモデルに送信します。処理が失敗した場合や 10 秒を超えた場合は元のテキストを使います。
+            provider: プロバイダー
+            provider-description: 初期設定では意識モジュールのチャットモデルを使用します。
+            same-as-chat: チャットと同じ
+            model: モデル
+            model-placeholder: モデルを選択
           playground:
             current: 現在の文字起こし
             description: アクティブな聴覚パイプライン経由で受信し、完了した音声セグメントを以下に順次表示します。
@@ -832,72 +898,6 @@ pages:
               注意: プロバイダーが verbose_json レスポンスに対応していない場合、この設定は効果がありません。
             verbose-json-unsupported: >-
               お使いのプロバイダーは verbose_json セグメントを返しません。最新の文字起こしセグメントに対する信頼度フィルターは適用されません。
-          input-mode:
-            wake-word: ウェイクワード
-            title: 入力モード
-            description: マイクが有効な間、AIRI が聞き取りを始める方法を選択してください。
-            label: 聞き取りを開始
-            always-on: 常時有効
-            always-on-description: AIRI は常に聞き取り、話しかけると応答します。
-            push-to-talk: 押して話す
-            push-to-talk-description: 「押して話す」キーを押している間だけ AIRI が聞き取ります。マイクも押している間だけ有効になります。
-            push-to-talk-unavailable: ここでは利用できません。このデバイスのアプリには「押して話す」キーがありません。
-            stranded-title: ここでは「押して話す」を利用できません
-            stranded-description: このデバイスには「押して話す」キーがないため、AIRI は聞き取りません。話しかけるには「常時有効」か「ウェイクワード」を選択してください。
-            wake-word-description: マイクは有効なままですが、キャラクターのウェイクワードを話した後だけ AIRI が聞き取ります。
-            wake-word-status:
-              no-words: ウェイクワードを設定したキャラクターがいません。チャットでキャラクターに設定を依頼してください。
-              unconfigured: マイクを有効にすると、ウェイクワードの検出が始まります。
-              preparing: ウェイクワードモデルを準備中…
-              ready: ウェイクワードの準備ができました。
-              error: ウェイクワードモデルを利用できません：{error}
-          microphone:
-            description: 聴覚用のマイクを有効にしてください。入力モードによって AIRI が聞き取るタイミングを決めます。
-            error: マイクを利用できません
-            title: マイク
-            label: マイク
-          input-device:
-            label: 入力デバイス
-            description: AIRI が使用するマイクを選択してください。
-            playground-description: 聴覚とテスト画面はこのマイクを使用します。
-            placeholder: マイクを選択
-          auto-send:
-            title: 文字起こし
-            description: 音声を文字に変換した後の動作を選択してください。
-            label: 自動送信
-            label-description: AIRI は待ち時間の後に文字起こしをチャットへ送信します。先に内容を確認・編集するには無効にしてください。送信ごとにトークンを消費します。
-            delay: 送信までの待ち時間
-            delay-description: AIRI が文字起こしを送信するまでの待ち時間です。
-            immediate: すぐに
-          rephrase:
-            title: 文字起こしの修正
-            description: チャットモデルが認識ミスや不要なつなぎ言葉を修正してから、文字起こしを下書きにします。元のテキストも保持されます。
-            enabled: 文字起こしを修正
-            enabled-description: 完成した文字起こしを選択したチャットモデルに送信します。処理が失敗した場合や 10 秒を超えた場合は元のテキストを使います。
-            provider-description: 初期設定では意識モジュールのチャットモデルを使用します。
-            same-as-chat: チャットと同じ
-            provider: プロバイダー
-            model-placeholder: モデルを選択
-            model: モデル
-      wake-words:
-        title: ウェイクワード
-        description: 各キャラクターのウェイクワードを確認し、共有する発音に応答するキャラクターを選択してください。
-        intro: ウェイクワードは各キャラクターのカードに保存されます。変更するには、チャットでキャラクターに依頼してください。
-        empty: このキャラクターにはウェイクワードがありません。
-        state:
-          paused: 停止中です。応答するキャラクターを選択してください。
-          other: '{name} が応答'
-          unsupported: 現在のウェイクワードモデルでは利用できません
-          active: 有効
-        conflicts:
-          title: 共有する発音
-          description: 複数のキャラクターが同じ発音を使っています。このデバイスで応答するキャラクターを選択してください。各カードのウェイクワードは保持されます。
-          choose-label: 応答するキャラクター
-          answered-by: '{name} が応答します'
-          unresolved: この発音に応答するキャラクターはいません。
-      transcriber:
-        title: 音声認識
-        description: 文字起こしのプロバイダーとモデルを選び、マイクをテストしてください。
     memory-long-term:
       description: 長期記憶固有の設定と管理
       title: 長期記憶
@@ -977,7 +977,7 @@ pages:
         inferences-description: チャットの画像を含む、視覚モデルへのすべての呼び出し
         failed-inferences: 失敗した呼び出し
         last-inference: 最後の呼び出し
-        error: エラー：
+        error: 'エラー：'
         last-update: 最終更新 {time}
         since-start: アプリの起動後
         never: なし
@@ -1004,6 +1004,251 @@ pages:
       access-token-secret-description: あなたのX / Twitterアクセストークンシークレット
       access-token-secret-placeholder: あなたのX / Twitterアクセストークンシークレットを入力
       configured: X / Twitterは適切に設定されています！
+    stickers:
+      frequency: スタンプの頻度
+      frequency-description: 指定した割合の応答でスタンプを許可します。場面に合うかどうかはキャラクターが判断します。
+      frequency-options:
+        25: たまに（25%）
+        50: ときどき（50%）
+        75: よく（75%）
+        100: 適した場面では毎回（100%）
+      title: スタンプ
+      description: チャットの応答に画像でのリアクションを追加
+      enable: スタンプを有効にする
+      enable-description: 名前と感情タグをもとに、使用可能な応答ごとにキャラクターがスタンプを 1 つ選びます。
+      local-only: 画像はこのデバイスに保存されます。現在、クラウドのチャット同期ではテキストだけを転送します。
+      catalog: 利用可能なスタンプ
+      unavailable: スタンプを利用できません
+      import: '画像をインポート'
+      editor: 'スタンプエディター'
+      image: '画像'
+      replace: '画像を差し替え（任意）'
+      image-limits: 'PNG、JPG、WebP、GIF に対応。上限は 2 MB、4096 × 4096 ピクセルです。'
+      choose-file: '画像を選択'
+      preview: 'スタンプのプレビュー'
+      name: '名前'
+      name-limit: '1～80 文字で入力してください。モデルがこの名前を読み取ります。'
+      emotions: '感情タグ'
+      save: 'スタンプを保存'
+      cancel: 'キャンセル'
+      edit: '編集'
+      delete: '削除'
+      confirm-delete: '削除を確認'
+      empty: 'ライブラリは空です。画像をインポートしてスタンプを追加してください。'
+      history-note: 'スタンプの削除や差し替えは今後の応答に適用されます。保存済みや準備済みの応答は元の画像を保持します。'
+      saved-image: '保存済みのスタンプ'
+      errors:
+        name: '1～80 文字の名前を入力してください。'
+        emotions: '有効な感情タグを 1 つ以上選択してください。'
+        format: 'PNG、JPG、WebP、GIF の画像を選択してください。'
+        size: '2 MB 未満の画像を選択してください。'
+        image: 'この画像を開けません。別のファイルを選択してください。'
+        dimensions: '4096 × 4096 ピクセル以下の画像を選択してください。'
+        missing: 'このスタンプは別のウィンドウで削除されました。'
+        storage: 'スタンプのライブラリを保存または読み込みできませんでした。もう一度お試しください。'
+      emotion-labels:
+        happy: 'うれしい'
+        sad: '悲しい'
+        confused: '戸惑い'
+        surprised: '驚き'
+        thanks: '感謝'
+        celebrate: 'お祝い'
+        angry: '怒り'
+        tired: '疲れ'
+        affectionate: '愛情'
+        awkward: '気まずい'
+        agree: '賛成'
+        disagree: '反対'
+      artwork:
+        airi-happy: うれしい
+        airi-sad: 悲しい
+        airi-confused: 戸惑い
+        airi-surprised: 驚き
+        airi-thanks: ありがとう
+        airi-celebrate: お祝い
+        airi-angry: 怒り
+        airi-tired: 疲れ
+        airi-affectionate: 大好き
+        airi-awkward: 気まずい
+        airi-agree: 'はい'
+        airi-disagree: 遠慮します
+    home-assistant:
+      description: AIRI が Home Assistant のデバイスを読み取り、操作できるようにします。
+      enable: Home Assistant を有効にする
+      enable-description: AIRI にデバイスの読み取りと操作を許可
+      base-url:
+        label: アドレス
+        description: Home Assistant インスタンスのアドレスです。
+      token:
+        label: 長期アクセストークン
+        placeholder: Home Assistant のプロフィールからトークンを貼り付け
+        description: Home Assistant のプロフィールの「セキュリティ」で作成してください。
+        saved: トークンは保存済みです。保持するには空欄のままにしてください。アドレスを変更したら、再度入力してください。
+      note: トークンはこのデバイスに保存され、アカウントとは同期しません。
+      actions:
+        save: 保存
+        test: テスト
+      status:
+        saved: 保存しました。
+        saved-cleared: 保存しました。アドレスが変更されたため、デバイスの一覧は空になりました。
+        testing: 接続を確認中…
+        reachable: '接続しました。Home Assistant から {count} 個のエンティティが報告されました。'
+        failed: '接続できませんでした。{message}'
+        rejected-token: Home Assistant のアクセストークンを入力してください。
+        rejected-address: アドレスが変更されました。新しいアドレスのアクセストークンを入力してください。
+        failed-policy: ツールを実行するウィンドウにデバイスの一覧が届かなかったため、アドレスは変更されていません。もう一度お試しください。
+        failed-policy-edit: 変更がツールを実行するウィンドウに届きませんでした。モデルは変更前の一覧を保持しています。もう一度お試しください。
+        failed-policy-move: アドレスは変更されましたが、デバイスの一覧がツールを実行するウィンドウに届きませんでした。もう一度お試しください。
+        failed-policy-rollback: 保存が拒否されました。デバイスの一覧がツールを実行するウィンドウに届かなかったため、モデルはどのデバイスにもアクセスできません。もう一度お試しください。
+      access:
+        label: デバイスへのアクセス
+        description: AIRI が読み取り、操作できるデバイスを選択してください。
+        mode-all: すべてのデバイス
+        mode-allow: 許可リスト
+        mode-deny: ブロックリスト
+        all-hint: AIRI はすべてのデバイスにアクセスできます。制限するにはリストを選択してください。
+        rule-allow: 選択したデバイスだけにアクセスできます。
+        rule-deny: 選択したデバイスを除き、すべてにアクセスできます。
+        selected-count: '{count} 個を選択済み'
+        empty-warning: デバイスを 1 つ以上選択してください。選択するまで AIRI はどのデバイスにもアクセスできません。
+        search: デバイスを検索
+        reload: デバイスを再読み込み
+        loading: デバイスを読み込み中…
+        no-devices: Home Assistant からデバイスが報告されませんでした。
+        no-match: 一致するデバイスがありません。
+        tab-all: すべて
+        shown-count: '{total} 個中 {shown} 個のデバイス'
+        load-more: 'さらに {count} 個表示'
+        select-matching: 一致する項目をすべて選択
+        clear-matching: 一致する項目の選択をすべて解除
+      states:
+        generic:
+          'on': 'オン'
+          'off': 'オフ'
+          above_horizon: 地平線より上
+          armed: 警戒中
+          armed_away: 外出警戒中
+          armed_custom_bypass: カスタム除外で警戒中
+          armed_home: 在宅警戒中
+          armed_night: 夜間警戒中
+          armed_vacation: 休暇警戒中
+          arming: 警戒を設定中
+          auto: 自動
+          below_horizon: 地平線より下
+          buffering: バッファリング中
+          cleaning: 清掃中
+          clear-night: 晴れ（夜）
+          closed: 閉じています
+          closing: 閉じています（動作中）
+          cloudy: 曇り
+          cool: 冷房
+          disarmed: 警戒解除済み
+          disarming: 警戒を解除中
+          docked: ドックに接続済み
+          dry: 除湿
+          eco: エコ
+          electric: 電気
+          error: エラー
+          exceptional: 異常な天候
+          fan_only: 送風のみ
+          fog: 霧
+          gas: ガス
+          hail: ひょう
+          heat: 暖房
+          heat_cool: 暖房・冷房
+          heat_pump: ヒートポンプ
+          high_demand: 高需要
+          home: 在宅
+          idle: 待機中
+          jammed: 詰まっています
+          lightning: 雷
+          lightning-rainy: 雷雨
+          locked: 施錠済み
+          locking: 施錠中
+          mowing: 芝刈り中
+          not_home: 外出中
+          open: 開いています
+          opening: 開いています（動作中）
+          partlycloudy: 晴れ時々曇り
+          paused: 一時停止中
+          pending: 保留中
+          performance: 高性能
+          playing: 再生中
+          pouring: 大雨
+          problem: 問題あり
+          rainy: 雨
+          recording: 録画中
+          snowy: 雪
+          snowy-rainy: みぞれ
+          standby: スタンバイ
+          stopped: 停止中
+          streaming: ストリーミング中
+          sunny: 晴れ
+          triggered: 警報作動中
+          unlocked: 解錠済み
+          unlocking: 解錠中
+          windy: 強風
+          windy-variant: 強風と曇り
+          unknown: 不明
+          unavailable: 利用不可
+        lawn_mower:
+          returning: 帰還中
+        update:
+          'off': 最新です
+          'on': 更新があります
+        vacuum:
+          returning: ドックへ帰還中
+      domains:
+        air_quality: 空気の質
+        alarm_control_panel: 警報パネル
+        automation: 自動化
+        binary_sensor: バイナリーセンサー
+        button: ボタン
+        calendar: カレンダー
+        camera: カメラ
+        climate: 空調
+        conversation: 会話
+        cover: カバー
+        date: 日付
+        datetime: 日時
+        device_tracker: デバイストラッカー
+        event: イベント
+        fan: ファン
+        geo_location: 位置情報
+        group: グループ
+        humidifier: 加湿器
+        image: 画像
+        image_processing: 画像処理
+        input_boolean: トグルヘルパー
+        input_datetime: 日時ヘルパー
+        input_number: 数値ヘルパー
+        input_select: 選択ヘルパー
+        input_text: テキストヘルパー
+        light: 照明
+        lock: 鍵
+        media_player: メディアプレーヤー
+        notify: 通知
+        number: 数値
+        person: 人物
+        remote: リモコン
+        scene: シーン
+        script: スクリプト
+        select: 選択
+        sensor: センサー
+        siren: サイレン
+        stt: 音声からテキスト
+        sun: 太陽
+        switch: スイッチ
+        text: テキスト
+        time: 時刻
+        todo: タスク一覧
+        tts: テキストから音声
+        update: 更新
+        vacuum: 掃除機
+        valve: バルブ
+        water_heater: 給湯器
+        weather: 天気
+        zone: ゾーン
     web-search:
       title: Web 検索
       description: AIRI が Web を検索して最新の情報を取得できるようにします
@@ -1037,6 +1282,7 @@ pages:
         restart: MCP を再起動
         add-server: サーバーを追加
         add-env: 環境変数を追加
+        add-header: ヘッダーを追加
         remove: 削除
         test: テスト
         edit-json: JSON を編集
@@ -1047,12 +1293,22 @@ pages:
         cancel: キャンセル
         expand: 展開
         collapse: 折りたたむ
-        add-header: ヘッダーを追加
       fields:
         identifier:
           label: 識別子
           description: 一意の名前。mcp.json 内のキーになります。
           placeholder: '例: filesystem'
+        transport:
+          label: 種別
+          description: AIRI がこのサーバーに接続する方法です。
+          stdio: ローカルプロセス
+          http: リモート URL
+        url:
+          description: サーバーの Streamable HTTP エンドポイントです。
+          placeholder: 例：https://example.com/api/mcp
+        headers:
+          label: ヘッダー
+          description: 認証トークンなど、各リクエストとともに送るヘッダーです。
         command:
           label: コマンド
           description: stdio 経由で実行される実行ファイル。
@@ -1071,17 +1327,6 @@ pages:
           value-placeholder: 値
         enabled:
           label: 有効
-        transport:
-          description: AIRI がこのサーバーに接続する方法です。
-          stdio: ローカルプロセス
-          http: リモート URL
-          label: 種別
-        url:
-          description: サーバーの Streamable HTTP エンドポイントです。
-          placeholder: 例：https://example.com/api/mcp
-        headers:
-          label: ヘッダー
-          description: 認証トークンなど、各リクエストとともに送るヘッダーです。
       json:
         title: mcp.json を編集
         description: '生の JSON を直接編集します。「適用」をクリックしてフォームに反映し、「保存して再起動」でディスクに書き込みます。'
@@ -1102,262 +1347,19 @@ pages:
         empty-identifier: サーバー # {index} is missing an identifier.
         duplicate-identifier: 識別子 "{name}" が重複して使用されています — 一意の名前を指定してください。
         empty-command: '"{name}" のコマンドが不足しています。'
+        empty-url: '「{name}」に URL がありません。'
+        invalid-url: '「{name}」には http または https の絶対 URL が必要です。'
         invalid-shape: 有効な mcp.json の形式ではないようです — ルートに "mcpServers" フィールドが必要です。
-        empty-url: 「{name}」に URL がありません。
-        invalid-url: 「{name}」には http または https の絶対 URL が必要です。
       messages:
         opened: ファイルマネージャーで {path} を開きました
         json-applied: JSON をフォームに適用しました。「保存して再起動」をクリックしてディスクに保存してください。
         restarted: すべて再起動しました! {started} が開始しました。 {failed} が失敗しました。 {skipped} がスキップされました。
-    stickers:
-      frequency: スタンプの頻度
-      frequency-description: 指定した割合の応答でスタンプを許可します。場面に合うかどうかはキャラクターが判断します。
-      frequency-options:
-        '25': たまに（25%）
-        '50': ときどき（50%）
-        '75': よく（75%）
-        '100': 適した場面では毎回（100%）
-      title: スタンプ
-      description: チャットの応答に画像でのリアクションを追加
-      enable: スタンプを有効にする
-      enable-description: 名前と感情タグをもとに、使用可能な応答ごとにキャラクターがスタンプを 1 つ選びます。
-      local-only: 画像はこのデバイスに保存されます。現在、クラウドのチャット同期ではテキストだけを転送します。
-      catalog: 利用可能なスタンプ
-      unavailable: スタンプを利用できません
-      import: 画像をインポート
-      editor: スタンプエディター
-      image: 画像
-      replace: 画像を差し替え（任意）
-      image-limits: PNG、JPG、WebP、GIF に対応。上限は 2 MB、4096 × 4096 ピクセルです。
-      choose-file: 画像を選択
-      preview: スタンプのプレビュー
-      name-limit: 1～80 文字で入力してください。モデルがこの名前を読み取ります。
-      emotions: 感情タグ
-      save: スタンプを保存
-      edit: 編集
-      confirm-delete: 削除を確認
-      empty: ライブラリは空です。画像をインポートしてスタンプを追加してください。
-      history-note: スタンプの削除や差し替えは今後の応答に適用されます。保存済みや準備済みの応答は元の画像を保持します。
-      saved-image: 保存済みのスタンプ
-      errors:
-        name: 1～80 文字の名前を入力してください。
-        emotions: 有効な感情タグを 1 つ以上選択してください。
-        format: PNG、JPG、WebP、GIF の画像を選択してください。
-        size: 2 MB 未満の画像を選択してください。
-        image: この画像を開けません。別のファイルを選択してください。
-        dimensions: 4096 × 4096 ピクセル以下の画像を選択してください。
-        missing: このスタンプは別のウィンドウで削除されました。
-        storage: スタンプのライブラリを保存または読み込みできませんでした。もう一度お試しください。
-      emotion-labels:
-        happy: うれしい
-        sad: 悲しい
-        confused: 戸惑い
-        surprised: 驚き
-        thanks: 感謝
-        celebrate: お祝い
-        angry: 怒り
-        tired: 疲れ
-        affectionate: 愛情
-        awkward: 気まずい
-        agree: 賛成
-        disagree: 反対
-      artwork:
-        airi-happy: うれしい
-        airi-sad: 悲しい
-        airi-confused: 戸惑い
-        airi-surprised: 驚き
-        airi-celebrate: お祝い
-        airi-angry: 怒り
-        airi-tired: 疲れ
-        airi-awkward: 気まずい
-        airi-thanks: ありがとう
-        airi-affectionate: 大好き
-        airi-disagree: 遠慮します
-        airi-agree: はい
-      name: 名前
-      cancel: キャンセル
-      delete: 削除
-    home-assistant:
-      domains:
-        image: 画像
-        air_quality: 空気の質
-        alarm_control_panel: 警報パネル
-        automation: 自動化
-        binary_sensor: バイナリーセンサー
-        button: ボタン
-        calendar: カレンダー
-        climate: 空調
-        conversation: 会話
-        cover: カバー
-        date: 日付
-        datetime: 日時
-        device_tracker: デバイストラッカー
-        event: イベント
-        fan: ファン
-        geo_location: 位置情報
-        group: グループ
-        humidifier: 加湿器
-        image_processing: 画像処理
-        input_boolean: トグルヘルパー
-        input_datetime: 日時ヘルパー
-        input_number: 数値ヘルパー
-        input_select: 選択ヘルパー
-        input_text: テキストヘルパー
-        light: 照明
-        lock: 鍵
-        media_player: メディアプレーヤー
-        notify: 通知
-        number: 数値
-        person: 人物
-        remote: リモコン
-        script: スクリプト
-        sensor: センサー
-        siren: サイレン
-        stt: 音声からテキスト
-        sun: 太陽
-        switch: スイッチ
-        text: テキスト
-        todo: タスク一覧
-        tts: テキストから音声
-        update: 更新
-        vacuum: 掃除機
-        valve: バルブ
-        water_heater: 給湯器
-        weather: 天気
-        zone: ゾーン
-        camera: カメラ
-        scene: シーン
-        select: 選択
-        time: 時刻
-      description: AIRI が Home Assistant のデバイスを読み取り、操作できるようにします。
-      enable: Home Assistant を有効にする
-      enable-description: AIRI にデバイスの読み取りと操作を許可
-      base-url:
-        label: アドレス
-        description: Home Assistant インスタンスのアドレスです。
-      token:
-        label: 長期アクセストークン
-        placeholder: Home Assistant のプロフィールからトークンを貼り付け
-        description: Home Assistant のプロフィールの「セキュリティ」で作成してください。
-        saved: トークンは保存済みです。保持するには空欄のままにしてください。アドレスを変更したら、再度入力してください。
-      note: トークンはこのデバイスに保存され、アカウントとは同期しません。
-      status:
-        saved: 保存しました。
-        saved-cleared: 保存しました。アドレスが変更されたため、デバイスの一覧は空になりました。
-        testing: 接続を確認中…
-        reachable: 接続しました。Home Assistant から {count} 個のエンティティが報告されました。
-        failed: 接続できませんでした。{message}
-        rejected-token: Home Assistant のアクセストークンを入力してください。
-        rejected-address: アドレスが変更されました。新しいアドレスのアクセストークンを入力してください。
-        failed-policy: ツールを実行するウィンドウにデバイスの一覧が届かなかったため、アドレスは変更されていません。もう一度お試しください。
-        failed-policy-edit: 変更がツールを実行するウィンドウに届きませんでした。モデルは変更前の一覧を保持しています。もう一度お試しください。
-        failed-policy-move: アドレスは変更されましたが、デバイスの一覧がツールを実行するウィンドウに届きませんでした。もう一度お試しください。
-        failed-policy-rollback: 保存が拒否されました。デバイスの一覧がツールを実行するウィンドウに届かなかったため、モデルはどのデバイスにもアクセスできません。もう一度お試しください。
-      access:
-        label: デバイスへのアクセス
-        description: AIRI が読み取り、操作できるデバイスを選択してください。
-        mode-all: すべてのデバイス
-        mode-allow: 許可リスト
-        mode-deny: ブロックリスト
-        all-hint: AIRI はすべてのデバイスにアクセスできます。制限するにはリストを選択してください。
-        rule-allow: 選択したデバイスだけにアクセスできます。
-        rule-deny: 選択したデバイスを除き、すべてにアクセスできます。
-        selected-count: '{count} 個を選択済み'
-        empty-warning: デバイスを 1 つ以上選択してください。選択するまで AIRI はどのデバイスにもアクセスできません。
-        search: デバイスを検索
-        reload: デバイスを再読み込み
-        loading: デバイスを読み込み中…
-        no-devices: Home Assistant からデバイスが報告されませんでした。
-        no-match: 一致するデバイスがありません。
-        shown-count: '{total} 個中 {shown} 個のデバイス'
-        load-more: さらに {count} 個表示
-        select-matching: 一致する項目をすべて選択
-        clear-matching: 一致する項目の選択をすべて解除
-        tab-all: すべて
-      states:
-        generic:
-          on: オン
-          off: オフ
-          above_horizon: 地平線より上
-          armed: 警戒中
-          armed_away: 外出警戒中
-          armed_custom_bypass: カスタム除外で警戒中
-          armed_home: 在宅警戒中
-          armed_night: 夜間警戒中
-          armed_vacation: 休暇警戒中
-          arming: 警戒を設定中
-          below_horizon: 地平線より下
-          buffering: バッファリング中
-          cleaning: 清掃中
-          clear-night: 晴れ（夜）
-          closed: 閉じています
-          closing: 閉じています（動作中）
-          cloudy: 曇り
-          cool: 冷房
-          disarmed: 警戒解除済み
-          disarming: 警戒を解除中
-          docked: ドックに接続済み
-          dry: 除湿
-          eco: エコ
-          electric: 電気
-          exceptional: 異常な天候
-          fan_only: 送風のみ
-          fog: 霧
-          gas: ガス
-          hail: ひょう
-          heat: 暖房
-          heat_cool: 暖房・冷房
-          heat_pump: ヒートポンプ
-          high_demand: 高需要
-          idle: 待機中
-          jammed: 詰まっています
-          lightning: 雷
-          lightning-rainy: 雷雨
-          locked: 施錠済み
-          locking: 施錠中
-          mowing: 芝刈り中
-          not_home: 外出中
-          opening: 開いています（動作中）
-          partlycloudy: 晴れ時々曇り
-          paused: 一時停止中
-          pending: 保留中
-          playing: 再生中
-          pouring: 大雨
-          problem: 問題あり
-          rainy: 雨
-          recording: 録画中
-          snowy: 雪
-          snowy-rainy: みぞれ
-          standby: スタンバイ
-          stopped: 停止中
-          streaming: ストリーミング中
-          sunny: 晴れ
-          triggered: 警報作動中
-          unlocked: 解錠済み
-          unlocking: 解錠中
-          windy: 強風
-          windy-variant: 強風と曇り
-          unavailable: 利用不可
-          auto: 自動
-          error: エラー
-          performance: 高性能
-          unknown: 不明
-          open: 開いています
-          home: 在宅
-        lawn_mower:
-          returning: 帰還中
-        update:
-          off: 最新です
-          on: 更新があります
-        vacuum:
-          returning: ドックへ帰還中
-      actions:
-        save: 保存
-        test: テスト
   flux:
     buy: 購入
     currency: 通貨
     description: 現在の Flux 残高
+    terms: 規約
+    privacy: プライバシーポリシー
     packagesError: パッケージを読み込めませんでした。後ほど再試行してください。
     checkout:
       success: 決済が完了しました！ Flux がチャージされました。
@@ -1382,8 +1384,29 @@ pages:
       title: Flux パッケージ
       buy: 購入
       description: 選択可能な Flux パッケージ。
-    terms: 規約
-    privacy: プライバシーポリシー
+  capacitor:
+    description: Capacitor は Flux を蓄え、自動で充電されます。
+    statusError: Capacitor を読み込めませんでした。後でもう一度お試しください。
+    packagesError: Capacitor の一覧を読み込めませんでした。後でもう一度お試しください。
+    preferenceError: 設定を保存できませんでした。後でもう一度お試しください。
+    noCapacitor: Capacitor なし
+    remaining: '残り {percent}'
+    rechargesAt: '{date} に充電'
+    renewsAt: '{date} に更新'
+    expiresAt: '{date} に期限切れ'
+    perMonth: / 月
+    currentPackage: 現在
+    install: インストール
+    upgrade: アップグレード
+    downgrade: ダウングレード
+    manageSubscription: サブスクリプションを管理
+    fallbackToFlux: Capacitor が空になったら Flux を使う
+    fallbackToFluxHint: 無効にすると、Capacitor が空になった時点で使用を停止します。
+    checkout:
+      success: Capacitor のインストールと充電が完了しました。
+      pending: 支払いを受け付けました。まもなく Capacitor が充電されます。
+      canceled: 購入をキャンセルしました。
+      error: エラーが発生しました。後ほど再試行してください。
   providers:
     catalog:
       edit:
@@ -1406,6 +1429,12 @@ pages:
           common:
             fields:
               field:
+                web-search:
+                  label: ウェブ検索
+                  description: 対応する OpenAI モデルが必要に応じて検索できます。API キーを使用し、検索料金が発生する場合があります。Responses API が必要です。
+                api-protocol:
+                  label: API プロトコル
+                  description: このプロバイダーとモデルが対応する API を選択してください。
                 api-key:
                   label: API キー
                   description: このプロバイダーのリクエスト認証に使用するキー
@@ -1436,12 +1465,6 @@ pages:
                     low: 低
                     medium: 中
                     high: 高
-                web-search:
-                  label: ウェブ検索
-                  description: 対応する OpenAI モデルが必要に応じて検索できます。API キーを使用し、検索料金が発生する場合があります。Responses API が必要です。
-                api-protocol:
-                  label: API プロトコル
-                  description: このプロバイダーとモデルが対応する API を選択してください。
         validators:
           actions:
             validate: 検証
@@ -1455,6 +1478,9 @@ pages:
               title: モデル一覧取得
             check-supports-chat-completion:
               title: 対話応答 (Chat Completion)
+          apple-vision:
+            check-availability:
+              title: 可用性
           prompt-api:
             check-availability:
               title: 可用性
@@ -1463,9 +1489,6 @@ pages:
             valid: 成功
             invalid: エラー
           title: チェック
-          apple-vision:
-            check-availability:
-              title: 可用性
         providers:
           provider:
             ollama:
@@ -1501,6 +1524,10 @@ pages:
           title: 音声設定
     labels:
       recommended: おすすめ
+    sync:
+      synced: 同期済み
+      pending: アップロード待機中
+      not-uploaded: アップロードされていません。このデバイスでプロバイダーの設定を完了してください。
     filters:
       pricing: 料金体系
       deployment: 展開形態
@@ -1545,6 +1572,28 @@ pages:
         音声認識 (speech-to-text) モデルプロバイダー。例： Whisper.cpp, OpenAI, Azure Speech
     description: LLM、音声プロバイダーなど。
     provider:
+      sherpaw-transcription:
+        description: 付属モデルや必要時にダウンロードするモデルによるローカル音声認識です。API キーは不要です。
+        language:
+          label: モデルの言語
+          description: この言語に対応するモデルを表示します。選択したモデルは、対応する言語を引き続き自動検出します。
+          all: すべての言語
+        model:
+          label: モデル
+          description: 利用可能なモデルを選択してください。対応する言語のいずれかを認識時に検出します。変更すると現在のセッションが再起動します。
+        asset:
+          title: モデルファイル
+          unknown: ファイルを確認中…
+          bundled: AIRI に付属
+          installed: このデバイスに保存済み
+          missing: 使用時にダウンロード
+          downloading: ダウンロード中…
+          error: ダウンロードに失敗しました
+          download: 今すぐダウンロード
+          cancel: キャンセル
+          remove: ダウンロードを削除
+      apple-vision:
+        description: macOS 27 以降で Apple Foundation Models を使い、デバイス上で画像を理解します。API キーは不要です。
       apple-speech-transcription:
         title: Apple 音声認識
         description: macOS 26 以降のデバイス上での音声認識。API キーは不要です。
@@ -1606,6 +1655,22 @@ pages:
             volume:
               description: 音声の音量を調整
               label: 音量
+      voicevox:
+        fields:
+          field:
+            intonation:
+              description: 読み上げの抑揚の変化幅を調整します
+              label: 抑揚
+        callout_origin_title: ブラウザーからエンジンに接続
+        callout_origin: ブラウザーはこの端末のエンジンにのみ接続できます。別の端末のエンジンにはデスクトップアプリを使ってください。エンジン側でもこのサイトを許可する必要があります。--cors_policy_mode all、または --allow_origin とこのアドレスで設定してください。
+      aivis-speech:
+        fields:
+          field:
+            intonation:
+              description: 話し方のスタイルの強さを調整します
+              label: 感情表現の強さ
+        callout_origin_title: ブラウザーからエンジンに接続
+        callout_origin: ブラウザーはこの端末のエンジンにのみ接続できます。別の端末のエンジンにはデスクトップアプリを使ってください。エンジン側でもこのサイトを許可する必要があります。ポート 10101 の設定ページで設定してください。
       speech-noop:
         title: なし
         description: 音声を再生しません。
@@ -1823,49 +1888,7 @@ pages:
           title: 文字起こし実験場
       aihubmix:
         description: https://aihubmix.com (10% オフ)
-      sherpaw-transcription:
-        asset:
-          cancel: キャンセル
-          title: モデルファイル
-          unknown: ファイルを確認中…
-          bundled: AIRI に付属
-          installed: このデバイスに保存済み
-          missing: 使用時にダウンロード
-          downloading: ダウンロード中…
-          error: ダウンロードに失敗しました
-          download: 今すぐダウンロード
-          remove: ダウンロードを削除
-        description: 付属モデルや必要時にダウンロードするモデルによるローカル音声認識です。API キーは不要です。
-        language:
-          label: モデルの言語
-          description: この言語に対応するモデルを表示します。選択したモデルは、対応する言語を引き続き自動検出します。
-          all: すべての言語
-        model:
-          description: 利用可能なモデルを選択してください。対応する言語のいずれかを認識時に検出します。変更すると現在のセッションが再起動します。
-          label: モデル
-      apple-vision:
-        description: macOS 27 以降で Apple Foundation Models を使い、デバイス上で画像を理解します。API キーは不要です。
-      voicevox:
-        fields:
-          field:
-            intonation:
-              description: 読み上げの抑揚の変化幅を調整します
-              label: 抑揚
-        callout_origin_title: ブラウザーからエンジンに接続
-        callout_origin: ブラウザーはこの端末のエンジンにのみ接続できます。別の端末のエンジンにはデスクトップアプリを使ってください。エンジン側でもこのサイトを許可する必要があります。--cors_policy_mode all、または --allow_origin とこのアドレスで設定してください。
-      aivis-speech:
-        callout_origin_title: ブラウザーからエンジンに接続
-        fields:
-          field:
-            intonation:
-              description: 話し方のスタイルの強さを調整します
-              label: 感情表現の強さ
-        callout_origin: ブラウザーはこの端末のエンジンにのみ接続できます。別の端末のエンジンにはデスクトップアプリを使ってください。エンジン側でもこのサイトを許可する必要があります。ポート 10101 の設定ページで設定してください。
     title: プロバイダー
-    sync:
-      pending: アップロード待機中
-      synced: 同期済み
-      not-uploaded: アップロードされていません。このデバイスでプロバイダーの設定を完了してください。
   connection:
     description: WebSocket サーバーの接続設定
     title: 接続
@@ -1904,6 +1927,24 @@ pages:
         title: QR コードのスキャンに失敗しました
         failed: QR コードによるスキャンまたは接続ができませんでした。
   system:
+    experimental:
+      refresh: ポリシーを更新
+      title: 実験的機能
+      description: 開発中の機能を試し、設定を管理できます。
+      notice: 実験的機能は変更や削除される場合があります。設定はこのデバイスに適用されます。
+      empty-title: 利用可能な実験的機能はありません
+      load-error: クラウド機能は利用できません。ローカル機能は引き続き利用できます。
+      retry: 再試行
+      reset: デフォルトを使用
+      sources:
+        default: アプリの初期設定
+        local: このデバイスでの設定
+        global: ログイン済みアカウントで利用可能
+        account: このアカウントで利用可能
+      features:
+        character_card_sync:
+          title: キャラクターカードのクラウド同期
+          description: ログイン中にキャラクターカードをアカウントと同期し、他のデバイスでも使えるようにします。初期設定では無効です。削除したカードはアカウントの履歴に 30 日間残ります。
     color-scheme:
       description: ステージの配色を変更します。
       title: 配色
@@ -1937,6 +1978,32 @@ pages:
               markdown-stress:
                 title: Markdown テスト
                 description: 大規模な会話データで Markdown パースをテストします
+              plugin-host:
+                actions:
+                  enable-and-load: 有効にして読み込む
+                  disable-and-unload: 無効にしてアンロード
+                  import-folder: フォルダーをインポート
+                  confirm-import: 拡張機能をインポート
+                  cancel-import: キャンセル
+                errors:
+                  enable-and-load: 'プラグイン {extensionId} を有効にして読み込めませんでした。'
+                  disable-and-unload: 'プラグイン {extensionId} を無効にしてアンロードできませんでした。'
+                  prepare-import: 拡張機能のフォルダーを確認できませんでした。
+                  commit-import: '拡張機能 {extensionId} をインポートできませんでした。'
+                  cancel-import: 拡張機能のインポートをキャンセルできませんでした。
+                import:
+                  title: 拡張機能のインポートを確認
+                  description: インポート後も拡張機能は無効のままで、読み込まれていません。
+                  source: 元のフォルダー
+                  runtimes: ランタイム
+                  entrypoints: エントリーポイント
+                  package-size: パッケージ
+                  package-size-value: '{fileCount} 個のファイル · {totalBytes}'
+                  permissions: 権限
+                  kits: キット
+                  no-permissions: 宣言された権限はありません。
+                  no-kits: 宣言されたキットはありません。
+                  imported: '拡張機能 {extensionId} をインポートしました。'
               use-magic-keys:
                 title: useMagicKeys ツール
                 description: ショートカットをテスト
@@ -1977,32 +2044,6 @@ pages:
               performance-playground:
                 title: パフォーマンスプレイグラウンド
                 description: VRM の表情と TTS リップシンクのテストエリア
-              plugin-host:
-                actions:
-                  cancel-import: キャンセル
-                  enable-and-load: 有効にして読み込む
-                  disable-and-unload: 無効にしてアンロード
-                  import-folder: フォルダーをインポート
-                  confirm-import: 拡張機能をインポート
-                errors:
-                  enable-and-load: プラグイン {extensionId} を有効にして読み込めませんでした。
-                  disable-and-unload: プラグイン {extensionId} を無効にしてアンロードできませんでした。
-                  prepare-import: 拡張機能のフォルダーを確認できませんでした。
-                  commit-import: 拡張機能 {extensionId} をインポートできませんでした。
-                  cancel-import: 拡張機能のインポートをキャンセルできませんでした。
-                import:
-                  title: 拡張機能のインポートを確認
-                  description: インポート後も拡張機能は無効のままで、読み込まれていません。
-                  source: 元のフォルダー
-                  runtimes: ランタイム
-                  entrypoints: エントリーポイント
-                  package-size: パッケージ
-                  package-size-value: '{fileCount} 個のファイル · {totalBytes}'
-                  permissions: 権限
-                  kits: キット
-                  no-permissions: 宣言された権限はありません。
-                  no-kits: 宣言されたキットはありません。
-                  imported: 拡張機能 {extensionId} をインポートしました。
         theme-presets:
           presets:
             default:
@@ -2073,24 +2114,6 @@ pages:
               title: 中国の伝統色
           title: 配色プリセット
     title: システム
-    experimental:
-      retry: 再試行
-      reset: デフォルトを使用
-      refresh: ポリシーを更新
-      title: 実験的機能
-      description: 開発中の機能を試し、設定を管理できます。
-      notice: 実験的機能は変更や削除される場合があります。設定はこのデバイスに適用されます。
-      empty-title: 利用可能な実験的機能はありません
-      load-error: クラウド機能は利用できません。ローカル機能は引き続き利用できます。
-      sources:
-        default: アプリの初期設定
-        local: このデバイスでの設定
-        global: ログイン済みアカウントで利用可能
-        account: このアカウントで利用可能
-      features:
-        character_card_sync:
-          title: キャラクターカードのクラウド同期
-          description: ログイン中にキャラクターカードをアカウントと同期し、他のデバイスでも使えるようにします。初期設定では無効です。削除したカードはアカウントの履歴に 30 日間残ります。
   page:
     developers:
       open-devtools:
@@ -2120,29 +2143,6 @@ pages:
     tip:
       label: ヒント！
       description: 正方形の画像を使用すると、縦表示の際に <b>cover</b> クロップモードが利用され、シーンの中心に焦点を合わせることができます。
-  capacitor:
-    currentPackage: 現在
-    description: Capacitor は Flux を蓄え、自動で充電されます。
-    statusError: Capacitor を読み込めませんでした。後でもう一度お試しください。
-    packagesError: Capacitor の一覧を読み込めませんでした。後でもう一度お試しください。
-    preferenceError: 設定を保存できませんでした。後でもう一度お試しください。
-    noCapacitor: Capacitor なし
-    remaining: 残り {percent}
-    rechargesAt: '{date} に充電'
-    renewsAt: '{date} に更新'
-    expiresAt: '{date} に期限切れ'
-    perMonth: / 月
-    install: インストール
-    upgrade: アップグレード
-    downgrade: ダウングレード
-    manageSubscription: サブスクリプションを管理
-    fallbackToFlux: Capacitor が空になったら Flux を使う
-    fallbackToFluxHint: 無効にすると、Capacitor が空になった時点で使用を停止します。
-    checkout:
-      success: Capacitor のインストールと充電が完了しました。
-      pending: 支払いを受け付けました。まもなく Capacitor が充電されます。
-      canceled: 購入をキャンセルしました。
-      error: エラーが発生しました。後ほど再試行してください。
 sections:
   section:
     general:
@@ -2151,12 +2151,17 @@ theme:
   title: テーマ
   description: |
     AIRIの基本テーマをライトモードまたはダークモードに切り替えます。
-  light: ライト
   auto: システム
+  light: ライト
   dark: ダーク
 title: 設定
 voices: 音声
 vrm:
+  fps:
+    title: フレームレート上限
+    description: ステージとモデルのプレビューで VRM の描画を制限します。上限を下げるとアニメーション速度を変えずに GPU の使用量を減らせます。
+    options:
+      unlimited: 無制限
   change-model:
     from-file: ファイルから読み込む
     from-file-select: 選択
@@ -2196,11 +2201,6 @@ vrm:
   skybox:
     skybox-intensity: スカイボックスの強度
     skybox-specular-mix: 鏡面反射の混合
-  fps:
-    options:
-      unlimited: 無制限
-    title: フレームレート上限
-    description: ステージとモデルのプレビューで VRM の描画を制限します。上限を下げるとアニメーション速度を変えずに GPU の使用量を減らせます。
 spine:
   title: Spine 設定
   scale-and-position:
