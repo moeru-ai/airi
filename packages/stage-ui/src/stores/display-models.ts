@@ -91,7 +91,8 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   const cloudDirectoryLoaded = ref(false)
   const queuedUploads = ref<Record<string, TransferTask['status']>>({})
   const downloadingIds = ref<string[]>([])
-  const pendingDownloads = new Map<string, Promise<DisplayModelFile>>()
+  // Keyed by owner and model id. Model ids are unique per owner on the server.
+  const pendingDownloads = new Map<string, { promise: Promise<DisplayModelFile>, controller: AbortController }>()
   const syncErrors = ref<Record<string, string>>({})
 
   const transferQueue = new TransferQueue(
@@ -376,23 +377,37 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     if (!cloud)
       return undefined
 
+    const ownerId = cloudOwnerId.value
+    if (!ownerId)
+      return undefined
+
     // The selector and the stage settings both resolve a picked model. They share one download.
-    let download = pendingDownloads.get(id)
+    const key = `${ownerId}/${id}`
+    let download = pendingDownloads.get(key)
     if (!download) {
-      download = downloadCloudModel(cloud).finally(() => pendingDownloads.delete(id))
-      pendingDownloads.set(id, download)
+      const controller = new AbortController()
+      const entry = {
+        controller,
+        promise: downloadCloudModel(cloud, ownerId, controller.signal).finally(() => {
+          if (pendingDownloads.get(key) === entry)
+            pendingDownloads.delete(key)
+        }),
+      }
+      pendingDownloads.set(key, entry)
+      download = entry
     }
-    return await download
+    return await download.promise
   }
 
-  async function downloadCloudModel(cloud: CloudDisplayModel) {
+  /** Downloads a model for the owner that was signed in when the download started. */
+  async function downloadCloudModel(cloud: CloudDisplayModel, ownerId: string, signal: AbortSignal) {
     const id = cloud.id
     const { [id]: _previousError, ...otherErrors } = syncErrors.value
     syncErrors.value = otherErrors
     downloadingIds.value = [...downloadingIds.value, id]
     try {
-      const source = await requestDisplayModelDownload(id)
-      const blob = await downloadVerified(source)
+      const source = await requestDisplayModelDownload(id, signal)
+      const blob = await downloadVerified(source, signal)
       const file = new File([blob], cloud.originalFilename)
       const model: DisplayModelFile = {
         id,
@@ -401,18 +416,21 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
         file,
         name: cloud.name,
         importedAt: Date.parse(cloud.createdAt),
-        cloudOwnerId: cloudOwnerId.value,
+        cloudOwnerId: ownerId,
       }
       model.previewImage = await generatePreview(model.format, file).catch((err) => {
         console.error('[display-models] preview generation failed for a downloaded model:', err)
         return undefined
       })
+      // The account changed during the download. The bytes belong to the previous account.
+      signal.throwIfAborted()
       await displayModelsRepo.save(model)
       displayModels.value = [model, ...displayModels.value].sort((a, b) => b.importedAt - a.importedAt)
       return model
     }
     catch (err) {
-      syncErrors.value = { ...syncErrors.value, [id]: errorMessageFrom(err) ?? 'Download failed' }
+      if (!signal.aborted)
+        syncErrors.value = { ...syncErrors.value, [id]: errorMessageFrom(err) ?? 'Download failed' }
       throw err
     }
     finally {
@@ -439,6 +457,9 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
 
   function deactivateCloudSync() {
     transferQueue.deactivate()
+    for (const download of pendingDownloads.values())
+      download.controller.abort()
+    pendingDownloads.clear()
     cloudOwnerId.value = undefined
     cloudModels.value = []
     cloudDirectoryLoaded.value = false
@@ -446,14 +467,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   }
 
   async function initialize() {
-    await import('@proj-airi/stage-ui-live2d/utils/live2d-zip-loader')
-    await import('@proj-airi/stage-ui-live2d/utils/live2d-opfs-registration')
-
-    const { loadLive2DModelPreview } = await import('@proj-airi/stage-ui-live2d/utils/live2d-preview')
-    const { loadVrmModelPreview } = await import('@proj-airi/stage-ui-three/utils/vrm-preview')
-    const { loadSpineModelPreview } = await import('@proj-airi/stage-ui-spine/utils/spine-preview')
-    const { loadTachieModelPreview } = await import('@proj-airi/stage-ui-tachie/utils/tachie-preview')
-
+    // Start sync before the preview renderers load. A renderer that fails to load must not stop sync.
     const authStore = useAuthStore()
     const featureFlagsStore = useFeatureFlagsStore()
     watch(
@@ -465,6 +479,14 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
       },
       { immediate: true },
     )
+
+    await import('@proj-airi/stage-ui-live2d/utils/live2d-zip-loader')
+    await import('@proj-airi/stage-ui-live2d/utils/live2d-opfs-registration')
+
+    const { loadLive2DModelPreview } = await import('@proj-airi/stage-ui-live2d/utils/live2d-preview')
+    const { loadVrmModelPreview } = await import('@proj-airi/stage-ui-three/utils/vrm-preview')
+    const { loadSpineModelPreview } = await import('@proj-airi/stage-ui-spine/utils/spine-preview')
+    const { loadTachieModelPreview } = await import('@proj-airi/stage-ui-tachie/utils/tachie-preview')
 
     generateLive2DPreview = loadLive2DModelPreview
     generateVrmPreview = loadVrmModelPreview
