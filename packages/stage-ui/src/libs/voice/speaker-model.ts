@@ -15,7 +15,7 @@ export { speakerModel } from '@proj-airi/stage-shared/speaker-model'
  */
 export async function loadSpeakerTracker(signal: AbortSignal): Promise<SpeakerTracker> {
   const [model, { createSpeakerTracker }, { default: SpeakerWorker }] = await Promise.all([
-    fetchSherpawModelPack(speakerModel.id, 'voiceprint model'),
+    fetchSherpawModelPack(speakerModel.id, 'voiceprint model', signal),
     import('@sherpaw/speaker-diarization'),
     import('@sherpaw/speaker-diarization/worker?worker'),
   ])

@@ -136,15 +136,16 @@ export interface SherpawModelPack {
  *
  * @param id The pack ID that the host's Sherpaw Vite plugin exposes.
  * @param name The model name in error messages, for example `wake word model`.
+ * @param signal Aborting it stops the read. A download that no other caller waits for stops too.
  */
-export async function fetchSherpawModelPack(id: string, name: string): Promise<SherpawModelPack> {
+export async function fetchSherpawModelPack(id: string, name: string, signal?: AbortSignal): Promise<SherpawModelPack> {
   const files = assets[id]
   if (!files)
     throw new Error(`This application does not include the ${name}`)
 
   const [dataResponse, metadataResponse] = await Promise.all([
-    fetchSherpawModel(new URL(files.data, document.baseURI)),
-    fetchSherpawModel(new URL(files.metadata, document.baseURI)),
+    fetchSherpawModel(new URL(files.data, document.baseURI), { signal }),
+    fetchSherpawModel(new URL(files.metadata, document.baseURI), { signal }),
   ])
   if (!dataResponse.ok || !metadataResponse.ok)
     throw new Error(`Could not download the ${name} (${dataResponse.status}, ${metadataResponse.status})`)
