@@ -96,7 +96,7 @@ describe('wakeWordDetector', () => {
     ])
     expect(harness.spotter.processAudio.mock.calls[0]![0]).toHaveLength(BATCH)
     expect(harness.spotter.processAudio.mock.calls[0]![1]).toBe(16_000)
-    expect(harness.resolveTarget).toHaveBeenCalledWith('bob', expect.any(AbortSignal))
+    expect(harness.resolveTarget).toHaveBeenCalledWith('bob', expect.any(AbortSignal), bob)
     expect(target).toEqual({ sessionId: 'session-bob', interruptTurns: [] })
     expect(harness.detector.take(new AbortController().signal)).toBeUndefined()
     expect(harness.onPreparationChange).toHaveBeenLastCalledWith('ready')

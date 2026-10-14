@@ -343,10 +343,15 @@ pages:
             label: 请再次输入电子邮箱以确认删除
             mismatch: 邮箱不匹配。
           confirm: 发送确认邮件
+          deleteNow: 永久删除
+          confirmPhrase: 请输入 DELETE 以确认删除
+          signInAgain: 重新登录
           cancel: 取消
         message:
+          deleted: 你的账号已删除。
           emailSent: 请查看 {email} 中的删除链接。
         error:
+          reauthenticate: 请重新登录，再回到此处确认删除。无需接收邮件。
           fallback: 无法开始删除操作，请稍后重试。
           subscriptionActive: 您的订阅仍在生效。请先在 Capacitor 页面取消订阅，再删除帐户。
   card:

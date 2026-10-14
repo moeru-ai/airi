@@ -2,6 +2,7 @@ import type { BeginSpeechInput, SpeechInputAttempt, SpeechOutput, SpeechStream, 
 
 import type { VoiceActivityOptions } from '../libs/voice/voice-activity-plugin'
 import type { VoiceHostSnapshot } from '../services/speech/bus'
+import type { ChatToolReference } from '../types/chat'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
@@ -13,6 +14,7 @@ import { useVoiceController } from '../composables/audio/voice-controller'
 import { traceSpeechOutput } from '../composables/speech-output-trace'
 import { useVoiceDrafts } from '../composables/voice-drafts'
 import { useVoiceEndJudge } from '../composables/voice-end-judge'
+import { createVoiceInputTracer } from '../composables/voice-input-trace'
 import { useVoiceRephrase } from '../composables/voice-rephrase'
 import { observeInputLevel } from '../libs/voice/input-level'
 import { createVoiceActivityPlugin } from '../libs/voice/voice-activity-plugin'
@@ -52,7 +54,9 @@ export const useVoiceStore = defineStore('voice', () => {
   const streamingControl = useLlmStreamingControlStore()
   const wakeWordDetection = useWakeWordDetectionStore()
   const { stream: microphoneStream, enabled: microphoneEnabled, error: microphoneError } = storeToRefs(devices)
-  const { drafts, frontDraftId, acceptSpeech, sendDraft, discardDraft, editDraft, selectDraft } = useVoiceDrafts(report)
+  /** The application tool selection for spoken turns. Without a connection, spoken turns send no tools. */
+  let requestTools: (() => readonly ChatToolReference[]) | undefined
+  const { drafts, frontDraftId, acceptSpeech, sendDraft, discardDraft, editDraft, selectDraft } = useVoiceDrafts(report, () => requestTools?.())
   const activeTurns = shallowRef<readonly TurnRef[]>([])
   const responses = new Map<string, { response: VoiceResponse, speech?: SpeechStream }>()
   const audioContext = useAudioContext()
@@ -69,13 +73,14 @@ export const useVoiceStore = defineStore('voice', () => {
   const composerInputs = new Map<string, string | undefined>()
   let presentedInput: { requestId: string, attempt: SpeechInputAttempt } | undefined
 
+  const inputTracer = createVoiceInputTracer()
   const { controller, state, snapshot: transcript, error } = useVoiceController({
     transcriber: () => hearing.createTranscriber(),
     speech: (turn) => {
       if (!output)
         throw new Error('Voice output host is not connected')
 
-      const trace = traceSpeechOutput(turn, output(turn), async audio => audioContext.audioContext.decodeAudioData(await audio.arrayBuffer()))
+      const trace = traceSpeechOutput(turn, chat.openTurnSpan(turn), output(turn), async audio => audioContext.audioContext.decodeAudioData(await audio.arrayBuffer()))
       speechTraces.set(turnKey(turn), trace)
       return trace.output
     },
@@ -85,6 +90,9 @@ export const useVoiceStore = defineStore('voice', () => {
 
       // The composer owns this text as its own draft. No voice draft or message is created.
       composerInputs.set(submission.submissionId, submission.text)
+      // The composer sends dictated text later. Empty text gives the composer nothing to send.
+      if (submission.text.trim())
+        inputTracer.markComposer(submission.submissionId, submission.sessionId)
       return { status: 'drafted', draftId: submission.submissionId }
     },
     recordInterruption: async (event) => {
@@ -111,8 +119,18 @@ export const useVoiceStore = defineStore('voice', () => {
     console.error('[voice]', cause)
   }
 
+  /**
+   * The cause of the input that begins next. A control sets `control` around its begin call, and the voice activity
+   * plugin reports `speech` or `wake-word` right before its begin call. `onInput` runs inside that call and reads it.
+   */
+  let beginCause: 'control' | 'speech' | 'wake-word' | undefined
+
   controller.onInput((attempt) => {
     presentedInput = { requestId: attempt.id, attempt }
+    const cause = beginCause ?? 'speech'
+    beginCause = undefined
+    // Only an input that a wake began takes the wake span, so a wake that started nothing cannot join a later input.
+    inputTracer.start(attempt, cause, cause === 'wake-word' ? wakeWordDetection.claimWakeSpan() : undefined)
   })
 
   function publishSnapshot() {
@@ -149,7 +167,13 @@ export const useVoiceStore = defineStore('voice', () => {
   }
 
   function beginManual(sessionId: string) {
-    return beginInput({ sessionId, interruptTurns: activeTurns.value.filter(turn => turn.sessionId === sessionId), start: { kind: 'after-silence' } })
+    beginCause = 'control'
+    try {
+      return beginInput({ sessionId, interruptTurns: activeTurns.value.filter(turn => turn.sessionId === sessionId), start: { kind: 'after-silence' } })
+    }
+    finally {
+      beginCause = undefined
+    }
   }
 
   function endInput() {
@@ -267,6 +291,18 @@ export const useVoiceStore = defineStore('voice', () => {
 
   function interrupt(turns: readonly TurnRef[], cause: string) {
     return controller.interrupt({ turns, cause })
+  }
+
+  /**
+   * The application supplies the tools that its user granted to new turns, so a spoken turn reaches the same tools
+   * as a typed one. The returned function disconnects this source only.
+   */
+  function connectTools(source: () => readonly ChatToolReference[]) {
+    requestTools = source
+    return () => {
+      if (requestTools === source)
+        requestTools = undefined
+    }
   }
 
   /** The mounted scene supplies its browser output. Detachment stops only this host's responses. */
@@ -442,6 +478,10 @@ export const useVoiceStore = defineStore('voice', () => {
     const wakeWords = options.detectWakeWord ? undefined : wakeWordDetection.start({ resolveTarget: resolveWakeTarget, onError: report })
     const plugin = createVoiceActivityPlugin({
       detect: (window, signal) => model.score(window, signal),
+      onActivity: inputTracer.activity,
+      beforeBeginInput: (cause) => {
+        beginCause = cause
+      },
       detectWakeWord: options.detectWakeWord ?? wakeWords?.detect,
       enabled: () => !voiceMessages.isRecording,
       silenceMs: () => hearing.endJudgeEnabled ? VOICE_END_SILENCE.pauseMs + VOICE_END_SILENCE.graceMs : VOICE_END_SILENCE.pauseMs,
@@ -484,5 +524,5 @@ export const useVoiceStore = defineStore('voice', () => {
     void stopListening()
   })
 
-  return { controller, state, transcript, error, drafts, activeTurns, beginInput, beginManual, endInput, cancelInput, sendDraft, discardDraft, startResponse, getSpeech, finishResponse, interrupt, connectOutput, startListening, stopListening, resolveWakeTarget }
+  return { controller, state, transcript, error, drafts, activeTurns, beginInput, beginManual, endInput, cancelInput, sendDraft, discardDraft, startResponse, getSpeech, finishResponse, interrupt, connectOutput, connectTools, startListening, stopListening, resolveWakeTarget }
 })
