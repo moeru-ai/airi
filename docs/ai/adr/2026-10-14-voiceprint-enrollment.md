@@ -8,7 +8,7 @@ Speaker tracking needs the voice of the device owner. The Sherpaw speaker tracke
 
 A voiceprint contains no audio, but it identifies a person. Privacy rules treat such data as biometric data. This decision is not legal advice.
 
-The voice host is the window that mounts the Stage. It owns the microphone, voice activity detection, and wake words. Other windows read its state and send commands through the speech bus.
+The voice host is the window that mounts the Stage. It owns the microphone for chat input, voice activity detection, and wake words. Other windows read its state and send commands through the speech bus.
 
 ## Decision
 
@@ -16,21 +16,31 @@ Only one person can enroll: the device owner. A new enrollment replaces the save
 
 ### Recording
 
-`useVoiceEnrollmentStore` in the voice host records one enrollment. It uses the speech input of the host, the input that voice activity detection and transcription read. That input has echo cancellation, noise suppression, and automatic gain on.
+The Voiceprint settings page records the enrollment in its own window with `useVoiceEnrollment`. The enrollment belongs to the page. It ends when the page unmounts or the window closes, and it then saves nothing.
+
+The page records from the selected microphone through the speech input, the input that voice activity detection and transcription read. That input has echo cancellation, noise suppression, and automatic gain on. The transcription playground in the provider settings records in the settings window in the same way.
 
 The enrollment keeps only the 32 ms windows that Silero VAD scores as speech. A window starts speech at a score of 0.6, and speech continues while the score stays at 0.18. These are the thresholds of the voice activity plugin. Silence weakens a voiceprint, so it is not kept.
 
-Recording stops with the Finish command or after 30 seconds of audio. With less than 5 seconds of speech, the enrollment fails as `too-short`, and the user records again.
+Recording stops with Finish or after 30 seconds of audio. With less than 5 seconds of speech, the enrollment fails as `too-short`, and the user records again.
 
 The voiceprint model runs in a tracker Worker of its own. The Worker ends when the voiceprint is computed. The recorded speech exists only in memory until the enrollment settles.
 
-While an enrollment records, the voice activity plugin does not begin inputs. The enrollment prompt can contain a wake word, and the wake word must not start a chat turn.
+### Microphone ownership
 
-Other windows send `voiceEnrollmentCommand` (`begin`, `finish`, `cancel`) and read `voiceEnrollmentChanged`. A window without a connected voice host runs the enrollment itself. This is the case for the stage-web settings page, because the Stage unmounts there and nothing listens to the microphone.
+While the enrollment records, it holds a capture lease on the speech bus (`voiceCaptureLease`). The voice host follows leases with `useVoiceCaptureLeaseStore`. While any lease holds, the host does these things:
 
-A window learns about the host only when the host answers its snapshot request. If the host answers after a local enrollment began, the window cancels the local enrollment. The page then shows the host state, and the user starts again.
+- The voice activity plugin begins no input, so speech and wake words cannot start a chat turn.
+- Manual inputs, for example Push to Talk, do not begin, and a running one is cancelled.
+- Voice messages do not record. A voice message that records when the lease starts is finished and kept as a draft.
 
-The Voiceprint page cancels the enrollment that it started when the page unmounts or the window closes. The stores outlive the page, so without this cancel, an enrollment without visible controls can save a voiceprint.
+The holder renews the lease every second, and a lease ends 3 seconds after its last renewal. A window that closes without a release therefore cannot keep the host paused. The level monitor of the voice controls uses the same renewal pattern.
+
+On stage-web, the Stage unmounts on settings pages, so no host runs while the page records. The lease then has no effect.
+
+### Rejected: enrollment in the voice host
+
+The first version ran the enrollment in the voice host, and other windows controlled it with commands through the speech bus. The stage-web settings page has no host, so that version also needed a local fallback. The design then needed these parts: a mirrored enrollment state, a host discovery race, a cancel when the controlling page left, and two flags that tracked which window started the enrollment. Each part caused a review finding. An enrollment is an operation that the user attends on one page, so the page owns it now. The host only needs to know that another window uses the microphone alone.
 
 ### Storage
 
@@ -46,6 +56,8 @@ The voiceprint stays on the device:
 
 The voiceprint does not expire. The user deletes it on the Voiceprint settings page, or with Delete all data.
 
+A deletion also saves its time under `settings/voice/voiceprint-deleted-at`. An enrollment that started before the last deletion does not save, so an enrollment in another tab cannot restore a deleted voiceprint. Delete all data removes the voiceprint before its other steps, so a failed step cannot keep it.
+
 Desktop does not encrypt the voiceprint with Electron `safeStorage`. Web and Pocket have no matching mechanism, and the same store serves all hosts.
 
 ### Consent
@@ -57,9 +69,13 @@ The Voiceprint settings page tells the user what a voiceprint is, that it stays 
 - No feature reads the voiceprint yet. Speaker evidence and the speaker gates read it later through `useSpeakerTrackerStore`.
 - The recording uses the processed speech input. The Sherpaw tuning used unprocessed audio. The voiceprint measurement in the Sherpaw sandbox decides whether this choice stays. A change of input makes saved voiceprints outdated, because the record names its input.
 - An enrollment with two voices fails with the tracker's error, and the user records again alone.
+- The lease does not stop speech output. If the character speaks during the recording, echo cancellation must remove the voice, or the tracker rejects the recording. How much echo cancellation removes in a second window is not measured.
+- On desktop, the settings window opens a second stream of the microphone while the host holds its own. Chromium supports this. The effect on echo cancellation and automatic gain of the host stream is not measured.
+- Wake word detection continues during the recording. A detected wake word cannot start an input, but it can create an empty chat session for its character. Voice messages have the same behavior.
 
 ## Verification
 
-Unit tests cover the speech selection, the 5-second minimum, the 30-second limit, cancellation, and model failures with a fake VAD and a fake voiceprint model.
-Browser tests cover the settings page with a fake voice host, outdated records, deletion, and Delete all data. They also cover the cancel on unmount and on `pagehide`, and a host that answers after Start.
+Unit tests cover the speech selection, the 5-second minimum, the 30-second limit, cancellation, and model failures with a fake VAD and a fake voiceprint model. They also cover lease renewal, release, and the end of a lease that nobody renews.
+Browser tests record from the Chromium fake microphone with a fake VAD and a fake voiceprint model. They cover a complete enrollment, the lease during recording, cancel, unmount, outdated records, deletion, a save after a deletion, and Delete all data. Voice message tests cover the host behavior during a lease.
+The manual input gate in the voice host has no test, because no test mounts `useVoiceStore`.
 A real enrollment with a microphone and the CAM++ model is not covered by tests.

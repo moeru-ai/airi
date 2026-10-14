@@ -1,25 +1,18 @@
 <script setup lang="ts">
-import type { VoiceEnrollmentCommand } from '@proj-airi/stage-ui/services/speech/bus'
-
-import { errorMessageFrom } from '@moeru/std'
+import { useVoiceEnrollment } from '@proj-airi/stage-ui/composables/use-voice-enrollment'
 import { MIN_ENROLLMENT_SPEECH_SECONDS } from '@proj-airi/stage-ui/libs/voice/voice-enrollment'
-import { useVoiceControlsStore } from '@proj-airi/stage-ui/stores/voice-controls'
 import { useVoiceprintStore } from '@proj-airi/stage-ui/stores/voiceprint'
-import { Button, Callout, DoubleCheckButton, Progress, SettingsCard } from '@proj-airi/ui'
-import { useEventListener } from '@vueuse/core'
-import { computed, onBeforeUnmount, shallowRef, watch } from 'vue'
+import { Button, DoubleCheckButton, Progress, SettingsCard } from '@proj-airi/ui'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t, locale } = useI18n()
-const controls = useVoiceControlsStore()
 const voiceprints = useVoiceprintStore()
+// The enrollment belongs to this page. It ends when the user leaves the page or closes the window.
+const { state: enrollment, busy, begin, finish, cancel } = useVoiceEnrollment()
 
 const sentences = computed(() => [1, 2, 3].map(index => t(`settings.pages.modules.hearing.voiceprint.sentence-${index}`)))
-const enrollment = computed(() => controls.enrollment)
-const busy = computed(() => enrollment.value.phase === 'recording' || enrollment.value.phase === 'enrolling')
 const speechSeconds = computed(() => enrollment.value.phase === 'idle' ? 0 : enrollment.value.speechSeconds)
-/** A command that the host rejected or could not receive. The enrollment state cannot show it. */
-const commandError = shallowRef<string>()
 
 /** `none`: nothing saved. `enrolled`: a usable voiceprint. `outdated`: another model revision computed it. */
 const status = computed(() => {
@@ -37,7 +30,7 @@ const status = computed(() => {
   }
 })
 
-/** The outcome of the last enrollment. An earlier enrollment in another window can also show here. */
+/** The outcome of the last enrollment on this page. */
 const result = computed(() => {
   const value = enrollment.value
   switch (value.phase) {
@@ -53,54 +46,6 @@ const result = computed(() => {
       return undefined
   }
 })
-
-/** Returns true when the host or this window accepted the command. */
-async function send(type: VoiceEnrollmentCommand['type']): Promise<boolean> {
-  commandError.value = undefined
-  try {
-    return (await controls.enrollmentCommand({ type })).status === 'accepted'
-  }
-  catch (error) {
-    commandError.value = errorMessageFrom(error) ?? 'Voice enrollment command failed'
-    return false
-  }
-}
-
-/**
- * True from a Start click on this page until that enrollment ends. The stores outlive this page, so an
- * enrollment continues after the user leaves. Without controls, it can record for 30 s and save a voiceprint.
- */
-let ownsEnrollment = false
-watch(busy, (value) => {
-  if (!value)
-    ownsEnrollment = false
-})
-
-/** True while a begin command waits for its result. A second Start click then sends nothing. */
-const starting = shallowRef(false)
-
-async function start() {
-  // Set before the command, so a page that closes while the host has not answered still cancels.
-  ownsEnrollment = true
-  starting.value = true
-  const accepted = await send('begin')
-  starting.value = false
-  // Do not set it to true here. The enrollment can already have ended, and `watch(busy)` has cleared it.
-  if (!accepted)
-    ownsEnrollment = false
-}
-
-/** Cancels the enrollment that this page started. A host that records nothing answers `closed`. */
-function cancelOwnEnrollment() {
-  if (!ownsEnrollment)
-    return
-  ownsEnrollment = false
-  controls.enrollmentCommand({ type: 'cancel' }).catch(() => {})
-}
-
-// A route change unmounts the page. A closed window does not, so `pagehide` covers that case.
-onBeforeUnmount(cancelOwnEnrollment)
-useEventListener('pagehide', cancelOwnEnrollment)
 
 const resultClasses = {
   green: ['text-emerald-600 dark:text-emerald-400'],
@@ -157,10 +102,6 @@ const resultClasses = {
         {{ result.text }}
       </p>
 
-      <Callout v-if="commandError" theme="orange">
-        {{ commandError }}
-      </Callout>
-
       <div :class="['flex flex-wrap items-center gap-2']">
         <template v-if="busy">
           <Button
@@ -168,12 +109,12 @@ const resultClasses = {
             variant="primary"
             :label="t('settings.pages.modules.hearing.voiceprint.finish')"
             :disabled="enrollment.phase !== 'recording' || speechSeconds < MIN_ENROLLMENT_SPEECH_SECONDS"
-            @click="send('finish')"
+            @click="finish()"
           />
           <Button
             data-testid="voiceprint-cancel"
             :label="t('settings.pages.modules.hearing.voiceprint.cancel')"
-            @click="send('cancel')"
+            @click="cancel()"
           />
         </template>
         <template v-else>
@@ -182,8 +123,7 @@ const resultClasses = {
             variant="primary"
             icon="i-solar:microphone-3-bold-duotone"
             :label="voiceprints.record ? t('settings.pages.modules.hearing.voiceprint.again') : t('settings.pages.modules.hearing.voiceprint.start')"
-            :disabled="starting"
-            @click="start"
+            @click="begin()"
           />
           <DoubleCheckButton v-if="voiceprints.record" data-testid="voiceprint-delete" @confirm="voiceprints.remove()">
             {{ t('settings.pages.modules.hearing.voiceprint.delete') }}

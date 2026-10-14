@@ -1,6 +1,5 @@
 import type { TurnRef } from '@proj-airi/core-agent'
 
-import type { VoiceEnrollmentSnapshot } from '../../libs/voice/voice-enrollment'
 import type { VoiceMessageSnapshot } from '../../libs/voice/voice-message'
 import type { WakeWordPreparation } from '../../libs/voice/wake-word-detector'
 import type { ChatToolReference } from '../../types/chat'
@@ -188,23 +187,9 @@ export const voiceRequestMessages = defineEventa('eventa:voice:request-messages'
 export const voiceMessageDropped = defineEventa<{ id: string, sessionId: string, error: string }>('eventa:voice:message-dropped')
 
 /**
- * The voiceprint enrollment of the voice host. `idle` means that no enrollment ran since the host started.
- * A settled enrollment keeps its last state until the next `begin`.
+ * A window that needs the microphone alone, for example for a voiceprint enrollment, holds a capture lease.
+ * While any lease holds, the voice host begins no input and records no voice message, and it ends the ones that run.
+ * The holder renews the lease before `until`, a Unix time in milliseconds, and sends `until: 0` to release it.
+ * A lease that nobody renews ends at `until`, so a closed window cannot keep the voice host paused.
  */
-export type VoiceEnrollmentState = { readonly phase: 'idle' } | VoiceEnrollmentSnapshot
-
-/**
- * Controls the one voiceprint enrollment of the voice host. The host records with its own speech input.
- * While it records, neither speech nor a wake word starts an input.
- *
- * - `begin`: starts recording. The result is `closed` while another enrollment records or enrolls.
- * - `finish`: ends the recording. The recorded speech then enrolls.
- * - `cancel`: stops the recording or the enrollment without a change to the saved voiceprint.
- */
-export interface VoiceEnrollmentCommand {
-  type: 'begin' | 'finish' | 'cancel'
-}
-
-export const voiceEnrollmentCommand = defineInvokeEventa<{ status: 'accepted' | 'closed' }, VoiceEnrollmentCommand>('eventa:voice:enrollment-command')
-export const voiceEnrollmentChanged = defineEventa<VoiceEnrollmentState>('eventa:voice:enrollment-changed')
-export const voiceRequestEnrollment = defineEventa('eventa:voice:request-enrollment')
+export const voiceCaptureLease = defineEventa<{ id: string, until: number }>('eventa:voice:capture-lease')

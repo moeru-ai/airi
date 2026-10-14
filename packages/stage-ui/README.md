@@ -131,9 +131,11 @@ The tracker enrolls the saved voiceprint as speaker 0, and follows each change o
 `preparation` reports `idle`, `preparing`, `ready`, or `error` for UI. No feature acquires the tracker yet.
 
 `useVoiceprintStore` keeps the voiceprint of the device owner in local storage. Only one person can enroll.
-`useVoiceEnrollmentStore` records one enrollment from the speech input, keeps only the speech that Silero VAD finds, and saves the voiceprint.
-The voice host serves it through `voiceEnrollmentCommand`. While it records, neither speech nor a wake word starts an input.
-Other windows use `useVoiceControlsStore().enrollmentCommand`. Without a connected voice host, that window runs the enrollment itself.
+`useVoiceEnrollment` records one enrollment from the speech input of the calling window, keeps only the speech that Silero VAD finds, and saves the voiceprint.
+The enrollment belongs to the calling component, so it ends when the component unmounts.
+While it records, it holds a capture lease (`holdCaptureLease`). The voice host follows leases with `useVoiceCaptureLeaseStore`.
+While a lease holds, the host begins no input and records no voice message. A new lease cancels the active input and keeps a voice message that records as a draft.
+A lease that nobody renews ends after 3 seconds.
 
 A host can pass its own `detectWakeWord` to `voice.startListening`. Then the built-in detection does not start.
 The detector remains active during playback. A supplied `acceptSpeech` classifier can reject playback echo before admission.
