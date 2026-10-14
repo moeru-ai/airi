@@ -4,6 +4,7 @@ import localforage from 'localforage'
 
 import { afterEach, expect, it } from 'vitest'
 
+import { sha256Hex } from '../../libs/file-transfer/transfer'
 import { DisplayModelFormat } from '../../stores/display-models'
 import { createDisplayModelsRepo } from './display-models.repo'
 
@@ -24,7 +25,7 @@ afterEach(async () => {
 })
 
 it('reads a model that the previous release wrote, with the same bytes', async () => {
-  const content = bytes(4 * 1024 * 1024)
+  const content = bytes(1024 * 1024)
   await store.setItem(id, {
     format: DisplayModelFormat.VRM,
     file: new File([content], 'avatar.vrm', { type: 'model/gltf-binary' }),
@@ -34,7 +35,9 @@ it('reads a model that the previous release wrote, with the same bytes', async (
   const [listed] = await createDisplayModelsRepo(store).list()
 
   expect(listed).toMatchObject({ id, type: 'file', name: 'avatar.vrm', format: DisplayModelFormat.VRM })
-  expect(new Uint8Array(await listed.file.arrayBuffer())).toEqual(content)
+  // Compare digests. `toEqual` checks a byte array one element at a time, and 4 MiB took 5 seconds in Node.
+  expect(listed.file.size).toBe(content.byteLength)
+  expect(await sha256Hex(listed.file)).toBe(await sha256Hex(new Blob([content])))
 })
 
 it('keeps a saved model and a pending upload across repository instances', async () => {
