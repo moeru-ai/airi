@@ -9,7 +9,7 @@ import type { ModelSettingsRuntimeSnapshot } from './runtime'
 import { defaultModelParameters, isLive2DControlEnabled, updateLive2DControlPolicy, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { OPFSCache } from '@proj-airi/stage-ui-live2d/utils/opfs-loader'
 import { Button, Checkbox, FieldCheckbox, FieldCombobox, FieldRange, SelectTab } from '@proj-airi/ui'
-import { useEventListener, useIntervalFn } from '@vueuse/core'
+import { useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -180,10 +180,6 @@ useIntervalFn(() => {
   if (avatarModelId && expressionPreview.value?.ownerId === previewOwnerId)
     void sharedLive2D.renewExpressionPreview({ characterId: activeCardId.value, avatarModelId }, previewOwnerId)
 }, 2_000)
-
-useEventListener('pagehide', () => {
-  void stopOwnedExpressionPreviews()
-}, { capture: true })
 
 onBeforeUnmount(() => {
   void stopOwnedExpressionPreviews()

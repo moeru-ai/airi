@@ -98,7 +98,7 @@ describe('live2D model settings', () => {
       names: ['happy'],
     })
 
-    window.dispatchEvent(new Event('pagehide'))
+    screen.unmount()
     await expect.poll(() => useSharedLive2D(pinia).expressionPreview).toBeNull()
   })
 })
