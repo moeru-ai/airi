@@ -16,3 +16,4 @@ obj/
 *.aab
 *.aar
 *.xcframework
+addons/kirie_notifications/

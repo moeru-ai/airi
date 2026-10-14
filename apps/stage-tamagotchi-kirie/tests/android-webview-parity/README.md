@@ -39,3 +39,6 @@ The multiple-window tests compare the loaded default and execute a real `window.
 The startup regression creates the WebView through Kirie's Android plugin.
 It then attaches the AIRI Android plugin to the same WebView.
 The test loads the packaged universal-page fixture and checks native replies, route clicks, and input focus.
+
+Kirie owns notification delivery and activation. AIRI no longer implements the Pocket notification action contract.
+The permission fixture checks the global notification switch across the Android 13 runtime-permission boundary.

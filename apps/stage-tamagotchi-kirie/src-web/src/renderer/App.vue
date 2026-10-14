@@ -267,7 +267,7 @@ onMounted(async () => {
     stopSpotlightShortcut = startHostOwnedSpotlightShortcut({
       onRegistrationFailed(error) {
         console.warn('[App] Failed to register the Spotlight shortcut:', error)
-        hostContext.platform.notifications.show({
+        hostContext.notifications.show({
           body: t('tamagotchi.settings.spotlight.errors.shortcutRegistrationFailed'),
           id: 'spotlight-shortcut-failed',
           title: 'AIRI',

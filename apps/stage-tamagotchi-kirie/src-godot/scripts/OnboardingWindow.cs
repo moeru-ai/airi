@@ -1,5 +1,6 @@
 using Eventa;
 using GdKirie.EventaAdapter;
+using GdKirie.Notifications;
 using GdKirie.Platform;
 using Godot;
 
@@ -8,6 +9,7 @@ public partial class OnboardingWindow : Window
     private KirieClient? _kirie;
     private KirieEventaContextHandle? _eventa;
     private GdKiriePlatformHost? _platform;
+    private GdKirieNotificationsHost? _notifications;
     private WebViewPermissionHandler? _permissions;
     private IDisposable? _authRegistration;
     private IDisposable? _microphonePermissionRegistration;
@@ -45,6 +47,7 @@ public partial class OnboardingWindow : Window
 
         _eventa = _kirie.CreateEventaContext(registry);
         _platform = GdKiriePlatform.Attach(_eventa.Context, this);
+        _notifications = GdKirieNotifications.Attach(_eventa.Context, this);
         _authRegistration = auth.Attach(_eventa.Context);
         _microphonePermissionRegistration = microphonePermissions.Attach(_eventa.Context);
         _permissions = new WebViewPermissionHandler(_kirie, rendererUrl);
@@ -92,6 +95,7 @@ public partial class OnboardingWindow : Window
         _authRegistration?.Dispose();
         WindowInput -= OnWindowInput;
         _permissions?.Dispose();
+        _notifications?.Dispose();
         _platform?.Dispose();
         _eventa?.Dispose();
         _kirie?.Dispose();

@@ -1,7 +1,7 @@
 import type { GlobalShortcut } from '@gd-kirie/platform'
 import type { ShortcutAccelerator, ShortcutRegistrationResult } from '@proj-airi/stage-shared/global-shortcut'
 
-import { notificationActivated } from '@gd-kirie/platform'
+import { notificationActivated } from '@gd-kirie/notifications'
 import { defineInvoke, defineInvokeEventa } from '@moeru/eventa'
 
 import {
@@ -48,7 +48,7 @@ export function useHostSpotlightWindow() {
       const id = `spotlight-result-${crypto.randomUUID()}`
       pendingNotificationIds.add(id)
       try {
-        await host.platform.notifications.show({
+        await host.notifications.show({
           body,
           id,
           title: 'AIRI',

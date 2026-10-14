@@ -1,18 +1,21 @@
 import type { KirieEventaContext, KirieEventaContextHandle } from '@gd-kirie/ipc-eventa'
+import type { NotificationsClient } from '@gd-kirie/notifications'
 import type { PlatformClient } from '@gd-kirie/platform'
 import type { InvokeEventa } from '@moeru/eventa'
 import type { ShallowRef } from 'vue'
 
 import { createContext as createKirieContext } from '@gd-kirie/ipc-eventa'
+import { createNotificationsClient } from '@gd-kirie/notifications'
 import { createPlatformClient } from '@gd-kirie/platform'
 import { defineInvoke } from '@moeru/eventa'
 import { shallowRef } from 'vue'
 
 import '@gd-kirie/ipc'
 
-/** Owns the renderer's Eventa transport and its Platform client. */
+/** Owns the renderer's Eventa transport, Platform client, and notification client. */
 export interface HostContextOwner {
   context: KirieEventaContext
+  notifications: NotificationsClient
   platform: PlatformClient
 }
 
@@ -24,6 +27,7 @@ function createHostContextOwner(): HostContextOwner & KirieEventaContextHandle {
   const eventa = createKirieContext()
   return {
     ...eventa,
+    notifications: createNotificationsClient(eventa.context),
     platform: createPlatformClient(eventa.context),
   }
 }

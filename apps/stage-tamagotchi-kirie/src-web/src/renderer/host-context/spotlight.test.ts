@@ -39,9 +39,9 @@ vi.mock('./owner', () => ({
         return () => listeners.delete(event.id)
       },
     },
+    notifications,
     platform: {
       globalShortcuts: platformShortcuts,
-      notifications,
     },
   }),
 }))
@@ -91,7 +91,7 @@ describe('spotlight host context', () => {
     )
   })
 
-  it('shows a Platform notification and opens Chat on activation', async () => {
+  it('shows a Kirie notification and opens Chat on activation', async () => {
     await useHostSpotlightWindow().showResultNotification('Hello from Spotlight')
 
     expect(notifications.show).toHaveBeenCalledWith({
@@ -101,7 +101,13 @@ describe('spotlight host context', () => {
     })
 
     const notificationId = notifications.show.mock.calls[0]![0].id as string
-    listeners.get('kirie:platform:notification:activated')?.({ body: { id: notificationId } })
+    const activate = listeners.get('kirie:notifications:activated')
+    expect(activate).toBeDefined()
+    activate?.({ body: { id: 'another-renderer-notification' } })
+    expect(openChat).not.toHaveBeenCalled()
+    activate?.({ body: { id: notificationId } })
+    expect(openChat).toHaveBeenCalledOnce()
+    activate?.({ body: { id: notificationId } })
     expect(openChat).toHaveBeenCalledOnce()
   })
 

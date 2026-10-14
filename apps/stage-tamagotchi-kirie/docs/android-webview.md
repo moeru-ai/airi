@@ -113,6 +113,17 @@ After recreation, neither the old page nor the new page receives the pending cho
 A `RESULT_OK` callback with a null intent throws `NullPointerException`, as Capacitor 8.5.0 does.
 Cancellation and other result codes pass the nullable intent to `FileChooserParams.parseResult`.
 
+## Notifications
+
+The renderer uses `@gd-kirie/notifications` over its existing Kirie Eventa context.
+`GdKirie.Notifications` owns permission requests, native delivery, and live activation events.
+The mobile export addon installs the pinned upstream notification scheduler.
+
+The developer page calls `show()` immediately. Kirie uses a one-second native delay on Android.
+AIRI no longer schedules alarms, persists notification payloads, restores alarms after reboot, or queues activation events.
+The public Kirie API does not support delayed scheduling or cold-start activation replay.
+The Android permissions panel still reads system permission state and opens system settings.
+
 ## Android backup persistence
 
 Kirie enables Android application backup in every build variant, matching stage-pocket's manifest.

@@ -173,13 +173,15 @@ Update acceptance requires download, integrity checks, installation, relaunch, a
 
 ## Dependency baseline
 
-Kirie npm, NuGet, and the Godot addon use 0.8.0.
+The notification migration uses Kirie npm, NuGet, and the Godot addon at 0.13.0.
+The [README](README.md#notifications) records the notification plugin setup.
+This integration has no new device acceptance evidence yet.
 Godot and Godot.NET.Sdk use 4.7.2. Godot CEF uses 2.0.0.
 The [0.8.0 release](https://github.com/moeru-ai/godot-kirie/releases/tag/v0.8.0) supplies official artifacts.
 
-The addon SHA-256 is `e5063840514ea85b199e98755accc0b08661ed3b19f39c786cf740bcb51e7a2a`.
+The previous 0.8.0 addon SHA-256 is `e5063840514ea85b199e98755accc0b08661ed3b19f39c786cf740bcb51e7a2a`.
 The installed `.godot/kirie/godot-cef.sha256` records the CEF archive digest.
-The macOS artifact passed strict signatures. Windows used D3D12 Forward+ with accelerated OSR.
+The previous macOS artifact passed strict signatures. Windows used D3D12 Forward+ with accelerated OSR.
 
 On 2026-09-29, the NuGet v3 feed omitted both 0.6.5 packages and restore failed with `NU1102`.
 That session used the official v2 feed successfully:
@@ -189,7 +191,7 @@ mise x -- dotnet restore tests/StageTamagotchiKirie.Tests/StageTamagotchiKirie.T
 ```
 
 The repository retained its default NuGet source.
-The [0.8.0 addon](https://github.com/moeru-ai/godot-kirie/blob/v0.8.0/packages/kirie/addon/addons/kirie/csharp/KirieClient.cs) supplies the C# client wrapper.
+The installed core addon supplies the C# client wrapper.
 Exact Kirie entries bypass `minimumReleaseAge`. Later releases obey the normal [pnpm policy](https://pnpm.io/settings/dependency-resolution).
 
 Acceptance requires coordinated published packages.

@@ -8,6 +8,19 @@ out = Path(sys.argv[1])
 capacitor = app.parent / 'stage-pocket/node_modules/@capacitor/android'
 assert json.loads((capacitor / 'package.json').read_text())['version'] == '8.5.0'
 source = capacitor / 'capacitor/src/main/java/com/getcapacitor'
+local_notifications = app.parent / 'stage-pocket/node_modules/@capacitor/local-notifications'
+assert json.loads((local_notifications / 'package.json').read_text())['version'] == '8.3.1'
+notification_manager = (
+    local_notifications
+    / 'android/src/main/kotlin/com/capacitorjs/plugins/localnotifications/LocalNotificationManager.kt'
+).read_text()
+notification_plugin = (
+    local_notifications
+    / 'android/src/main/kotlin/com/capacitorjs/plugins/localnotifications/LocalNotificationsPlugin.kt'
+).read_text()
+assert 'NotificationManagerCompat.from(context).areNotificationsEnabled()' in notification_manager
+assert 'permissionsResultJSON.put("display", getNotificationPermissionText())' in notification_plugin
+assert 'if (manager.areNotificationsEnabled()) "granted" else "denied"' in notification_plugin
 
 def write(relative, text):
     destination = out / relative

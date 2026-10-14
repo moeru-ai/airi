@@ -1,5 +1,6 @@
 using Eventa;
 using GdKirie.EventaAdapter;
+using GdKirie.Notifications;
 using GdKirie.Platform;
 using Godot;
 
@@ -8,6 +9,7 @@ public partial class ChatWindow : Window
     private KirieClient? _kirie;
     private KirieEventaContextHandle? _eventa;
     private GdKiriePlatformHost? _platform;
+    private GdKirieNotificationsHost? _notifications;
     private WebViewPermissionHandler? _permissions;
     private IDisposable? _microphonePermissionRegistration;
     private IDisposable? _readyRegistration;
@@ -38,6 +40,7 @@ public partial class ChatWindow : Window
 
         _eventa = _kirie.CreateEventaContext(registry);
         _platform = GdKiriePlatform.Attach(_eventa.Context, this);
+        _notifications = GdKirieNotifications.Attach(_eventa.Context, this);
         _microphonePermissionRegistration = microphonePermissions.Attach(_eventa.Context);
         _permissions = new WebViewPermissionHandler(_kirie, rendererUrl);
         _readyRegistration = _eventa.Context.Subscribe(
@@ -76,6 +79,7 @@ public partial class ChatWindow : Window
         _readyRegistration?.Dispose();
         _permissions?.Dispose();
         _microphonePermissionRegistration?.Dispose();
+        _notifications?.Dispose();
         _platform?.Dispose();
         _eventa?.Dispose();
         _kirie?.Dispose();
