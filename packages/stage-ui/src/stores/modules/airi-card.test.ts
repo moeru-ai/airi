@@ -2,6 +2,7 @@ import type { AiriCard } from './airi-card'
 
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { toRaw } from 'vue'
 
 import { splitCard } from '../../libs/character-card-sync'
 import { useProviderStore } from '../providers/provider'
@@ -427,6 +428,84 @@ describe('airi-card store', () => {
 
     expect(restartedCardStore.selectedAvatarModelId).toBe(expectedAvatarModelId)
     expect(restartedStageModelStore.stageModelSelected).toBe('preset-vrm-1')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2458
+  // ROOT CAUSE:
+  //
+  // Cards saved before Avatar Models existed store their model in
+  // `modules.displayModelId`. Card normalization deleted that field and created
+  // no Avatar Model, so an upgraded Character showed an empty Stage.
+  //
+  // We fixed this by reading the old field before normalization and moving it
+  // into an Avatar Model reference during initialization.
+  describe('pr #2458 migrates models of cards saved before Avatar Models', () => {
+    async function restartWithLegacyCards(legacy: Array<[id: string, displayModelId: string]>) {
+      const firstRun = useAiriCardStore()
+      await firstRun.initialize()
+      const template = structuredClone(toRaw(firstRun.cards.get('default')!))
+
+      const cards = new Map<string, AiriCard>()
+      for (const [id, displayModelId] of legacy) {
+        const card = structuredClone(template)
+        card.name = id
+        Reflect.deleteProperty(card.extensions.airi, 'avatarModels')
+        Reflect.deleteProperty(card.extensions.airi, 'defaultAvatarModelId')
+        Reflect.set(card.extensions.airi.modules, 'displayModelId', displayModelId)
+        cards.set(id, card)
+      }
+
+      setActivePinia(createPinia())
+      const stageModelStore = useSettingsStageModel()
+      const cardStore = useAiriCardStore()
+      cardStore.$patch({ cards })
+      await cardStore.initialize()
+      return { cardStore, stageModelStore }
+    }
+
+    function defaultDisplayModelId(card: AiriCard | undefined) {
+      const extension = card?.extensions.airi
+      return extension?.avatarModels.find(model => model.id === extension.defaultAvatarModelId)?.displayModelId
+    }
+
+    it('moves the model of a custom card into its default Avatar Model', async () => {
+      const { cardStore, stageModelStore } = await restartWithLegacyCards([
+        ['default', 'preset-live2d-1'],
+        ['legacy', 'preset-live2d-2'],
+      ])
+
+      expect(defaultDisplayModelId(cardStore.cards.get('legacy'))).toBe('preset-live2d-2')
+      expect(Reflect.has(cardStore.cards.get('legacy')!.extensions.airi.modules, 'displayModelId')).toBe(false)
+
+      await cardStore.activateCard('legacy')
+      expect(stageModelStore.stageModelSelected).toBe('preset-live2d-2')
+    })
+
+    it('keeps the model that the built-in card selected', async () => {
+      const { cardStore, stageModelStore } = await restartWithLegacyCards([['default', 'preset-vrm-1']])
+
+      expect(defaultDisplayModelId(cardStore.cards.get('default'))).toBe('preset-vrm-1')
+      expect(stageModelStore.stageModelSelected).toBe('preset-vrm-1')
+    })
+
+    it('keeps the built-in reference when the built-in card used the bundled preset', async () => {
+      const { cardStore } = await restartWithLegacyCards([['default', 'preset-live2d-1']])
+
+      expect(cardStore.cards.get('default')!.extensions.airi.defaultAvatarModelId).toBe('default-live2d-avatar-model')
+    })
+
+    it('leaves a card without a model when this device does not store its model', async () => {
+      const { cardStore, stageModelStore } = await restartWithLegacyCards([
+        ['default', 'preset-live2d-1'],
+        ['legacy', 'display-model-not-on-this-device'],
+      ])
+
+      expect(cardStore.cards.get('legacy')!.extensions.airi.avatarModels).toEqual([])
+
+      await cardStore.activateCard('legacy')
+      expect(cardStore.selectedAvatarModel).toBeUndefined()
+      expect(stageModelStore.stageModelSelected).toBe('')
+    })
   })
 
   // https://github.com/moeru-ai/airi/pull/2458#discussion_r3924569270

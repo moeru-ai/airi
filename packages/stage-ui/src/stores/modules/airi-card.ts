@@ -86,6 +86,21 @@ const emptyLive2DExpressions: readonly Live2DExpressionControl[] = Object.freeze
 const emptyLive2DMotions: readonly Live2DMotionControl[] = Object.freeze([])
 const emptyLive2DModelControls: Live2DModelControls = { expressions: [], motions: [] }
 
+/**
+ * Returns the Display Model ID that a card stored before Avatar Models existed.
+ *
+ * Use it before `newAiriCard` normalizes the card, because normalization deletes
+ * the old `modules.displayModelId` field.
+ */
+function legacyDisplayModelIdOf(card: AiriCard): string | undefined {
+  const extension = card.extensions?.airi
+  if (!extension?.modules || extension.avatarModels?.length)
+    return undefined
+
+  const value: unknown = Reflect.get(extension.modules, 'displayModelId')
+  return typeof value === 'string' && value.length > 0 ? value : undefined
+}
+
 function resolveSystemPrompt(
   card: AiriCard | undefined,
   expressions: readonly Live2DExpressionControl[],
@@ -127,6 +142,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   let avatarModelApplyGeneration = 0
   let live2DControlLoadGeneration = 0
   let initialized = false
+  /** True after `initialize` applied the active card. Before that, no card owns the Stage. */
+  const ready = shallowRef(false)
 
   // Only leader-owned commands change defaults or apply card overrides. Runtime
   // module stores contain the effective selections, not another source of defaults.
@@ -1133,10 +1150,29 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       return
 
     initialized = true
+    // NOTICE:
+    // Cards saved before Avatar Models existed store their model in
+    // `modules.displayModelId`. Normalization deletes that field, so read it first
+    // and move it into an Avatar Model reference. Without this step, an upgraded
+    // card shows an empty Stage and its model choice cannot be recovered.
+    // Source: PR #2458 replaced `modules.displayModelId` with `avatarModels`.
+    // Removal condition: delete after the first stable release that contains
+    // PR #2458 has been out for one more stable release.
+    const legacyDisplayModelIds = new Map<string, string>()
     for (const [id, card] of cards.value) {
+      const legacyDisplayModelId = legacyDisplayModelIdOf(toRaw(card))
+      // The built-in card keeps its built-in reference for the bundled preset.
+      // The backfill below adds it, so an unedited built-in card syncs no fields.
+      if (legacyDisplayModelId && (id !== 'default' || legacyDisplayModelId !== BUILT_IN_DISPLAY_MODEL_ID))
+        legacyDisplayModelIds.set(id, legacyDisplayModelId)
+
       const normalizedCard = newAiriCard(toRaw(card))
       cards.value.set(id, normalizedCard)
     }
+    // A model that this device does not store gives no reference. The Stage then
+    // asks the user to select a model.
+    for (const [id, displayModelId] of legacyDisplayModelIds)
+      await setCharacterDefaultAvatarModelFromDisplayModel(id, displayModelId)
 
     if (!cards.value.has('default'))
       cards.value.set('default', structuredClone(toRaw(builtInCard.value)))
@@ -1148,6 +1184,10 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     if (!cards.value.has(activeCardId.value))
       activeCardId.value = 'default'
 
+    // NOTICE:
+    // The built-in card stored before PR #2458 has no Avatar Model. Give it the
+    // bundled preset when the migration above found no model for it.
+    // Removal condition: the same as the migration above.
     const defaultCard = toRaw(cards.value.get('default'))
     if (defaultCard && defaultCard.extensions.airi.avatarModels.length === 0) {
       cards.value.set('default', {
@@ -1167,6 +1207,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       selectedAvatarModelId.value = resolveDefaultAvatarModelId()
 
     await applyActiveCardSettings()
+    ready.value = true
   }
 
   /**
@@ -1336,6 +1377,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
   function resetState() {
     initialized = false
+    ready.value = false
     appliedModules = undefined
     moduleDefaults.reset()
     cards.reset()
@@ -1356,6 +1398,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     cloudSyncEnabled,
     applySynchronizedCards,
     synchronizeCards,
+    ready,
     activeAvatarModels,
     selectedAvatarModel,
     selectedAvatarModelId,
