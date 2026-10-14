@@ -150,7 +150,7 @@ watch([nowSpeaking, speechVoicing], ([speaking, voicing]) => {
 const { audioContext } = useAudioContext()
 const currentAudioSource = ref<AudioBufferSourceNode>()
 const speechOutputControlStore = useSpeechOutputControlStore()
-const { speechMuted } = storeToRefs(speechOutputControlStore)
+const { speechMuted, speechVolume } = storeToRefs(speechOutputControlStore)
 const lastVrmInteractionAt = new Map<VrmInteractionTarget, number>()
 const VRM_INTERACTION_COOLDOWN_MS = 450
 
@@ -361,10 +361,19 @@ async function playSpecialToken(
 const lipSyncNode = ref<AudioNode>()
 
 const voice = useVoiceStore()
+// Analysis taps (Live2D lip sync, spectrum analyser) read from speechAnalysis,
+// before the user volume. A low playback volume must not change mouth or
+// analyser behavior; VRM and MMD already read the source node directly.
+const speechAnalysis = audioContext.createGain()
 const speechDestination = audioContext.createGain()
+speechAnalysis.connect(speechDestination)
 speechDestination.connect(audioContext.destination)
+// setTargetAtTime smooths slider drags into the gain, so volume changes do not click.
+watch(speechVolume, (volume) => {
+  speechDestination.gain.setTargetAtTime(volume, audioContext.currentTime, 0.05)
+}, { immediate: true })
 const playback = new Playback(new BrowserPlayback(audioContext, {
-  destination: speechDestination,
+  destination: speechAnalysis,
   onSource: (source) => { currentAudioSource.value = source },
 }))
 let playingCount = 0
@@ -483,7 +492,7 @@ async function setupLipSync() {
     const lipSync = await createLive2DLipSync(audioContext, wlipsyncProfile as Profile, live2dLipSyncOptions)
     live2dLipSync.value = lipSync
     lipSyncNode.value = lipSync.node
-    speechDestination.connect(lipSync.node)
+    speechAnalysis.connect(lipSync.node)
     await audioContext.resume()
     lipSyncStarted.value = true
     syncLipSyncLoop()
@@ -497,7 +506,7 @@ async function setupLipSync() {
 function setupAnalyser() {
   if (!audioAnalyser.value) {
     audioAnalyser.value = audioContext.createAnalyser()
-    speechDestination.connect(audioAnalyser.value)
+    speechAnalysis.connect(audioAnalyser.value)
   }
 }
 
@@ -620,6 +629,7 @@ onUnmounted(() => {
   chatHookCleanups.forEach(dispose => dispose?.())
   viewUpdateCleanups.forEach(dispose => dispose?.())
   disconnectVoiceOutput()
+  speechAnalysis.disconnect()
   speechDestination.disconnect()
 })
 
