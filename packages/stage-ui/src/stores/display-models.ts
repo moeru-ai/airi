@@ -91,6 +91,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   const cloudDirectoryLoaded = ref(false)
   const queuedUploads = ref<Record<string, TransferTask['status']>>({})
   const downloadingIds = ref<string[]>([])
+  const pendingDownloads = new Map<string, Promise<DisplayModelFile>>()
   const syncErrors = ref<Record<string, string>>({})
 
   const transferQueue = new TransferQueue(
@@ -375,6 +376,19 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     if (!cloud)
       return undefined
 
+    // The selector and the stage settings both resolve a picked model. They share one download.
+    let download = pendingDownloads.get(id)
+    if (!download) {
+      download = downloadCloudModel(cloud).finally(() => pendingDownloads.delete(id))
+      pendingDownloads.set(id, download)
+    }
+    return await download
+  }
+
+  async function downloadCloudModel(cloud: CloudDisplayModel) {
+    const id = cloud.id
+    const { [id]: _previousError, ...otherErrors } = syncErrors.value
+    syncErrors.value = otherErrors
     downloadingIds.value = [...downloadingIds.value, id]
     try {
       const source = await requestDisplayModelDownload(id)

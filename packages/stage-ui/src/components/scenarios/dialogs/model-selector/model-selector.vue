@@ -432,6 +432,18 @@ mmdDialog.onChange(handleAddMMDModel)
                 highlightDisplayModelCard && highlightDisplayModelCard === model.id ? 'ring-3 ring-primary-400' : 'ring-0 ring-transparent',
               ]"
             >
+            <div
+              v-else-if="model.cloudOnly"
+              :class="[
+                'h-full w-full flex flex-col items-center justify-center gap-2 rounded-xl',
+                'bg-neutral-100 dark:bg-neutral-900 text-neutral-400 dark:text-neutral-600',
+                'transition-all duration-200 ease-in-out',
+                syncStatuses[model.id] === 'downloading' ? 'animate-pulse motion-reduce:animate-none' : '',
+                highlightDisplayModelCard && highlightDisplayModelCard === model.id ? 'ring-3 ring-primary-400' : 'ring-0 ring-transparent',
+              ]"
+            >
+              <div :class="[syncStatuses[model.id] === 'downloading' ? 'i-solar:cloud-download-bold-duotone' : 'i-solar:cloud-bold-duotone', 'text-4xl opacity-75']" />
+            </div>
             <div v-else bg="neutral-100 dark:neutral-900" relative h-full w-full flex flex-col items-center justify-center gap-2 overflow-hidden rounded-xl :class="[highlightDisplayModelCard && highlightDisplayModelCard === model.id ? 'ring-3 ring-primary-400' : 'ring-0 ring-transparent']" transition="all duration-200 ease-in-out">
               <div i-solar:question-square-bold-duotone text-4xl opacity-75 />
               <div translate-y="100%" absolute top-0 flex flex-col translate-x--7 rotate-45 scale-250 gap-0 opacity-5>
