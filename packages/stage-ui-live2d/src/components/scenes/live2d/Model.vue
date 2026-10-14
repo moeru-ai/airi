@@ -409,23 +409,6 @@ async function performModelLoad() {
       play: motion => setMotion(motion.group, motion.index),
     })
 
-    const expressionRefs = (internalModel.settings as Cubism4ModelSettings).expressions ?? []
-    expressionReferences.value = expressionRefs.map(expression => ({
-      name: expression.Name,
-      fileName: expression.File,
-    }))
-    const sdkExpressionManager = motionManager.expressionManager
-    live2d.expressions.setExecutor({
-      activate: name => sdkExpressionManager?.setExpression(name) ?? false,
-      reset: () => {
-        if (!sdkExpressionManager)
-          return false
-
-        sdkExpressionManager.resetExpression()
-        return true
-      },
-    })
-
     // Check if user has selected a runtime motion to play as idle
     const selectedMotionGroup = localStorage.getItem('selected-runtime-motion-group')
     const selectedMotionIndex = localStorage.getItem('selected-runtime-motion-index')
@@ -617,18 +600,30 @@ function configureExpressions(internalModel?: PixiLive2DInternalModel) {
     return response.text()
   }
 
-  if (enabledExpression.value) {
-    live2d.expressions.setExecutor({
-      activate: (name) => {
-        live2d.expressions.reset()
-        return live2d.expressions.activate(name)
-      },
-      reset: () => {
-        live2d.expressions.reset()
-        return true
-      },
-    })
-  }
+  selectExpressionExecutor()
+}
+
+/** The Root blends expressions when the expression system is on. Otherwise the SDK manager applies them. */
+function selectExpressionExecutor() {
+  const sdkManager = savedExpressionManager.value
+  live2d.expressions.setExecutor(enabledExpression.value
+    ? {
+        activate: (name) => {
+          live2d.expressions.reset()
+          return live2d.expressions.activate(name)
+        },
+        reset: () => {
+          live2d.expressions.reset()
+          return true
+        },
+      }
+    : {
+        activate: name => sdkManager?.setExpression(name) ?? false,
+        reset: () => {
+          sdkManager?.resetExpression()
+          return !!sdkManager
+        },
+      })
 }
 
 async function setMotion(motionName: string, index?: number) {
@@ -926,16 +921,7 @@ watch(enabledExpression, (enabled) => {
     im.eyeBlink = savedEyeBlink.value
     live2d.expressions.reset()
     internalModelRef.value = undefined
-    live2d.expressions.setExecutor({
-      activate: name => savedExpressionManager.value?.setExpression(name) ?? false,
-      reset: () => {
-        if (!savedExpressionManager.value)
-          return false
-
-        savedExpressionManager.value.resetExpression()
-        return true
-      },
-    })
+    selectExpressionExecutor()
   }
 })
 
