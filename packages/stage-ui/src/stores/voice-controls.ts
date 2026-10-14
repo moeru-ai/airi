@@ -1,14 +1,18 @@
 import type { VoiceMessageSnapshot } from '../libs/voice/voice-message'
-import type { VoiceHostSnapshot, VoiceInputCommand, VoiceMessageCommand } from '../services/speech/bus'
+import type { VoiceEnrollmentCommand, VoiceEnrollmentState, VoiceHostSnapshot, VoiceInputCommand, VoiceMessageCommand } from '../services/speech/bus'
 
 import { defineInvoke } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
 import { defineStore } from 'pinia'
-import { onScopeDispose, shallowRef } from 'vue'
+import { computed, onScopeDispose, shallowRef } from 'vue'
 
-import { getSpeechBusContext, voiceInputCommand, voiceInputLevel, voiceLevelMonitor, voiceMessageCommand, voiceMessagesChanged, voiceRequestMessages, voiceRequestSnapshot, voiceSnapshotChanged } from '../services/speech/bus'
+import { getSpeechBusContext, voiceEnrollmentChanged, voiceEnrollmentCommand, voiceInputCommand, voiceInputLevel, voiceLevelMonitor, voiceMessageCommand, voiceMessagesChanged, voiceRequestEnrollment, voiceRequestMessages, voiceRequestSnapshot, voiceSnapshotChanged } from '../services/speech/bus'
+import { useVoiceEnrollmentStore } from './voice-enrollment'
 
-/** Windows render host snapshots and send named commands. They do not acquire audio resources. */
+/**
+ * Windows render host snapshots and send named commands. They do not acquire audio resources.
+ * The one exception is a voiceprint enrollment while no voice host is connected. See `enrollment`.
+ */
 export const useVoiceControlsStore = defineStore('voice-controls', () => {
   const snapshot = shallowRef<VoiceHostSnapshot>({ connected: false, drafts: [] })
   const error = shallowRef<string>()
@@ -36,6 +40,18 @@ export const useVoiceControlsStore = defineStore('voice-controls', () => {
     if (body)
       level.value = body.level
   })
+  const hostEnrollment = shallowRef<VoiceEnrollmentState>({ phase: 'idle' })
+  const stopEnrollment = context.on(voiceEnrollmentChanged, ({ body }) => {
+    if (body)
+      hostEnrollment.value = body
+  })
+  context.emit(voiceRequestEnrollment, undefined)
+  const localEnrollment = useVoiceEnrollmentStore()
+  /**
+   * The voiceprint enrollment that `enrollmentCommand` controls: the host's while a voice host is connected,
+   * else this window's own. Without a host, no other code in the window listens to the microphone.
+   */
+  const enrollment = computed(() => snapshot.value.connected ? hostEnrollment.value : localEnrollment.state)
 
   async function messageCommand(command: VoiceMessageCommand) {
     if (!snapshot.value.connected)
@@ -63,6 +79,21 @@ export const useVoiceControlsStore = defineStore('voice-controls', () => {
     }
   }
 
+  async function enrollmentCommand(command: VoiceEnrollmentCommand) {
+    if (!snapshot.value.connected) {
+      const accepted = command.type === 'begin' ? localEnrollment.begin() : command.type === 'finish' ? localEnrollment.finish() : localEnrollment.cancel()
+      return { status: accepted ? 'accepted' as const : 'closed' as const }
+    }
+    error.value = undefined
+    try {
+      return await defineInvoke(context, voiceEnrollmentCommand)(command, { signal: connection.signal })
+    }
+    catch (cause) {
+      error.value = errorMessageFrom(cause) ?? 'Voice enrollment command failed'
+      throw cause
+    }
+  }
+
   /** Asks the host to publish the level for `durationMs`. Call it again before that ends to keep the meter live. */
   function monitorLevel(durationMs: number) {
     context.emit(voiceLevelMonitor, { until: Date.now() + durationMs })
@@ -72,7 +103,8 @@ export const useVoiceControlsStore = defineStore('voice-controls', () => {
     stop()
     stopMessages()
     stopLevel()
+    stopEnrollment()
     connection.abort('Voice controls disposed')
   })
-  return { snapshot, messages, level, error, command, messageCommand, monitorLevel }
+  return { snapshot, messages, level, enrollment, error, command, messageCommand, enrollmentCommand, monitorLevel }
 })

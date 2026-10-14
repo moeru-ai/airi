@@ -1,5 +1,6 @@
 import type { TurnRef } from '@proj-airi/core-agent'
 
+import type { VoiceEnrollmentSnapshot } from '../../libs/voice/voice-enrollment'
 import type { VoiceMessageSnapshot } from '../../libs/voice/voice-message'
 import type { WakeWordPreparation } from '../../libs/voice/wake-word-detector'
 import type { ChatToolReference } from '../../types/chat'
@@ -185,3 +186,25 @@ export const voiceRequestMessages = defineEventa('eventa:voice:request-messages'
  * The control that recorded it reports `error`.
  */
 export const voiceMessageDropped = defineEventa<{ id: string, sessionId: string, error: string }>('eventa:voice:message-dropped')
+
+/**
+ * The voiceprint enrollment of the voice host. `idle` means that no enrollment ran since the host started.
+ * A settled enrollment keeps its last state until the next `begin`.
+ */
+export type VoiceEnrollmentState = { readonly phase: 'idle' } | VoiceEnrollmentSnapshot
+
+/**
+ * Controls the one voiceprint enrollment of the voice host. The host records with its own speech input, and it
+ * pauses automatic speech input and wake words while it records.
+ *
+ * - `begin`: starts recording. The result is `closed` while another enrollment records or enrolls.
+ * - `finish`: ends the recording. The recorded speech then enrolls.
+ * - `cancel`: stops the recording or the enrollment without a change to the saved voiceprint.
+ */
+export interface VoiceEnrollmentCommand {
+  type: 'begin' | 'finish' | 'cancel'
+}
+
+export const voiceEnrollmentCommand = defineInvokeEventa<{ status: 'accepted' | 'closed' }, VoiceEnrollmentCommand>('eventa:voice:enrollment-command')
+export const voiceEnrollmentChanged = defineEventa<VoiceEnrollmentState>('eventa:voice:enrollment-changed')
+export const voiceRequestEnrollment = defineEventa('eventa:voice:request-enrollment')

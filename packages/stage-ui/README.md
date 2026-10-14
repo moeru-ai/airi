@@ -127,8 +127,13 @@ The model loads only when the catalog has a pronunciation for the pinned model. 
 While no listener runs, the preparation is `unconfigured`.
 
 `useSpeakerTrackerStore` owns the voice host's Sherpaw speaker tracker Worker. `acquire` downloads the pinned CAM++ pack and starts the Worker on first use.
-`setVoiceprints` replaces the enrolled speakers. They get the speaker numbers 0, 1, ... in that order. `release` terminates the Worker.
+The tracker enrolls the saved voiceprint as speaker 0, and follows each change of it. `release` terminates the Worker.
 `preparation` reports `idle`, `preparing`, `ready`, or `error` for UI. No feature acquires the tracker yet.
+
+`useVoiceprintStore` keeps the voiceprint of the device owner in local storage. Only one person can enroll.
+`useVoiceEnrollmentStore` records one enrollment from the speech input, keeps only the speech that Silero VAD finds, and saves the voiceprint.
+The voice host serves it through `voiceEnrollmentCommand` and pauses automatic speech input and wake words while it records.
+Other windows use `useVoiceControlsStore().enrollmentCommand`. Without a connected voice host, that window runs the enrollment itself.
 
 A host can pass its own `detectWakeWord` to `voice.startListening`. Then the built-in detection does not start.
 The detector remains active during playback. A supplied `acceptSpeech` classifier can reject playback echo before admission.
