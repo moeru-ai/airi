@@ -175,7 +175,6 @@ export function createLive2D(options: CreateLive2DOptions = {}): Live2DContext {
   function beginModelLoad(nextModelId: string) {
     clearLoadedModel()
     modelId.value = nextModelId
-    expressions.beginModel(nextModelId)
     error.value = undefined
     phase.value = 'loading'
   }

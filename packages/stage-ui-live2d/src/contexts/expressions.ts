@@ -1,8 +1,8 @@
-import type { ComputedRef, Ref, ShallowRef } from 'vue'
+import type { ComputedRef, Ref } from 'vue'
 
 import type { Live2DExpressionControl, Live2DExpressionParameterControl } from '../controls/manifest'
 
-import { computed, ref, shallowRef } from 'vue'
+import { computed, ref } from 'vue'
 
 export type Live2DExpressionBlendMode = Live2DExpressionParameterControl['blend']
 
@@ -16,31 +16,12 @@ export interface Live2DExpressionDefinition extends Live2DExpressionControl {
 
 /** Runtime state for one parameter controlled by expressions. */
 export interface Live2DExpressionParameterState {
-  name: string
   parameterId: string
   blend: Live2DExpressionBlendMode
   activeBlend: Live2DExpressionBlendMode
   currentValue: number
   defaultValue: number
   modelDefault: number
-  targetValue: number
-}
-
-/** Serializable result from one expression operation. */
-export interface Live2DExpressionState {
-  name: string
-  value: number
-  default: number
-  active: boolean
-  autoResetAt?: number
-}
-
-/** Result from an expression control operation. */
-export interface Live2DExpressionResult {
-  success: boolean
-  error?: string
-  state?: Live2DExpressionState | Live2DExpressionState[]
-  available?: string[]
 }
 
 /** Requests one expression and an optional automatic reset. */
@@ -64,25 +45,19 @@ export interface Live2DExpressionCoreModel {
 
 /** Reactive expression state and commands for one Live2D Root. */
 export interface Live2DExpressionsContext {
-  modelId: Readonly<ShallowRef<string>>
   definitions: Readonly<Ref<Map<string, Live2DExpressionDefinition>>>
   parameters: Readonly<Ref<Map<string, Live2DExpressionParameterState>>>
   available: ComputedRef<Live2DExpressionControl[]>
   enabled: ComputedRef<Live2DExpressionControl[]>
-  beginModel: (modelId: string) => void
   register: (definition: Live2DExpressionDefinition) => () => void
   setExecutor: (executor: Live2DExpressionExecutor | undefined) => void
   execute: (request: Live2DExpressionRequest) => Promise<boolean>
   resetExecution: () => Promise<boolean>
-  set: (name: string, value: boolean | number, duration?: number) => Live2DExpressionResult
-  get: (name?: string) => Live2DExpressionResult
-  /** Applies or removes one expression without toggling its current state. */
-  setActive: (name: string, active: boolean, duration?: number) => Live2DExpressionResult
   /** Renders temporary previews over expression state without changing it. */
   setPreviewExpressions: (names: readonly string[]) => void
-  toggle: (name: string, duration?: number) => Live2DExpressionResult
-  activate: (name: string, intensity?: number, duration?: number) => Live2DExpressionResult
-  reset: () => Live2DExpressionResult
+  /** Applies one registered expression. Returns false for an unknown name. */
+  activate: (name: string) => boolean
+  reset: () => void
   apply: (coreModel: Live2DExpressionCoreModel) => void
   clear: () => void
 }
@@ -90,19 +65,6 @@ export interface Live2DExpressionsContext {
 interface CreateLive2DExpressionsOptions {
   getParameterDefault: (parameterId: string) => number
   isEnabled: (expression: Live2DExpressionControl) => boolean
-}
-
-function stateFromParameter(
-  parameter: Live2DExpressionParameterState,
-  resetAt?: number,
-): Live2DExpressionState {
-  return {
-    name: parameter.name,
-    value: parameter.currentValue,
-    default: parameter.defaultValue,
-    active: parameter.currentValue !== parameter.defaultValue,
-    autoResetAt: resetAt,
-  }
 }
 
 /**
@@ -113,11 +75,8 @@ function stateFromParameter(
 export function createLive2DExpressionsContext(
   options: CreateLive2DExpressionsOptions,
 ): Live2DExpressionsContext {
-  const modelId = shallowRef('')
   const definitions = ref(new Map<string, Live2DExpressionDefinition>())
   const parameters = ref(new Map<string, Live2DExpressionParameterState>())
-  const parameterResetTimers = new Map<string, ReturnType<typeof setTimeout>>()
-  const parameterResetTimes = new Map<string, number>()
   const activeLastFrame = new Set<string>()
   let previewExpressionNames: readonly string[] = []
   let previewParameters = new Map<string, Live2DExpressionParameterDefinition>()
@@ -141,64 +100,33 @@ export function createLive2DExpressionsContext(
     executionResetTimer = undefined
   }
 
-  function clearParameterReset(parameterId: string) {
-    const timer = parameterResetTimers.get(parameterId)
-    if (timer !== undefined)
-      clearTimeout(timer)
-    parameterResetTimers.delete(parameterId)
-    parameterResetTimes.delete(parameterId)
-  }
-
-  function clearParameterResets() {
-    for (const timer of parameterResetTimers.values())
-      clearTimeout(timer)
-    parameterResetTimers.clear()
-    parameterResetTimes.clear()
-  }
-
   function rebuildParameters() {
     const previousParameters = parameters.value
     const nextParameters = new Map<string, Live2DExpressionParameterState>()
 
     for (const definition of definitions.value.values()) {
       for (const parameter of definition.parameters) {
+        if (nextParameters.has(parameter.parameterId))
+          continue
+
         const previous = previousParameters.get(parameter.parameterId)
         const modelDefault = previous?.modelDefault ?? options.getParameterDefault(parameter.parameterId)
         const defaultValue = parameter.blend === 'Add'
           ? 0
           : parameter.blend === 'Multiply' ? 1 : modelDefault
-        const existing = nextParameters.get(parameter.parameterId)
-
-        if (existing) {
-          if (existing.targetValue === 0 && parameter.value !== 0)
-            existing.targetValue = parameter.value
-          continue
-        }
 
         nextParameters.set(parameter.parameterId, {
-          name: parameter.parameterId,
           parameterId: parameter.parameterId,
           blend: parameter.blend,
           activeBlend: previous?.activeBlend ?? parameter.blend,
           currentValue: previous?.blend === parameter.blend ? previous.currentValue : defaultValue,
           defaultValue,
           modelDefault,
-          targetValue: parameter.value,
         })
       }
     }
 
-    for (const parameterId of previousParameters.keys()) {
-      if (!nextParameters.has(parameterId))
-        clearParameterReset(parameterId)
-    }
-
     parameters.value = nextParameters
-  }
-
-  function beginModel(id: string) {
-    clear()
-    modelId.value = id
   }
 
   function register(definition: Live2DExpressionDefinition) {
@@ -225,145 +153,6 @@ export function createLive2DExpressionsContext(
     }
   }
 
-  function resolve(name: string) {
-    const definition = definitions.value.get(name)
-    if (definition)
-      return { kind: 'definition' as const, definition }
-
-    const parameter = parameters.value.get(name)
-    if (parameter)
-      return { kind: 'parameter' as const, parameter }
-
-    return undefined
-  }
-
-  function applyParameterValue(
-    parameter: Live2DExpressionParameterState,
-    value: number,
-    duration?: number,
-  ) {
-    clearParameterReset(parameter.parameterId)
-    parameter.currentValue = value
-
-    if (duration === undefined || !Number.isFinite(duration) || duration <= 0)
-      return
-
-    const resetAt = Date.now() + duration * 1000
-    parameterResetTimes.set(parameter.parameterId, resetAt)
-    parameterResetTimers.set(parameter.parameterId, setTimeout(() => {
-      parameter.currentValue = parameter.defaultValue
-      parameterResetTimers.delete(parameter.parameterId)
-      parameterResetTimes.delete(parameter.parameterId)
-    }, duration * 1000))
-  }
-
-  function resultForDefinition(
-    definition: Live2DExpressionDefinition,
-    value: (definition: Live2DExpressionParameterDefinition, parameter: Live2DExpressionParameterState) => number,
-    duration?: number,
-  ): Live2DExpressionResult {
-    const states: Live2DExpressionState[] = []
-
-    for (const definitionParameter of definition.parameters) {
-      const parameter = parameters.value.get(definitionParameter.parameterId)
-      if (!parameter)
-        continue
-
-      parameter.activeBlend = definitionParameter.blend
-      applyParameterValue(parameter, value(definitionParameter, parameter), duration)
-      states.push(stateFromParameter(parameter, parameterResetTimes.get(parameter.parameterId)))
-    }
-
-    return { success: true, state: states }
-  }
-
-  function set(name: string, value: boolean | number, duration?: number): Live2DExpressionResult {
-    const resolved = resolve(name)
-    if (!resolved) {
-      return {
-        success: false,
-        error: `Expression or parameter "${name}" was not found.`,
-        available: [...definitions.value.keys(), ...parameters.value.keys()],
-      }
-    }
-
-    const numericValue = typeof value === 'boolean' ? (value ? 1 : 0) : value
-    if (resolved.kind === 'definition')
-      return resultForDefinition(resolved.definition, () => numericValue, duration)
-
-    applyParameterValue(resolved.parameter, numericValue, duration)
-    return {
-      success: true,
-      state: stateFromParameter(resolved.parameter, parameterResetTimes.get(resolved.parameter.parameterId)),
-    }
-  }
-
-  function get(name?: string): Live2DExpressionResult {
-    if (!name) {
-      return {
-        success: true,
-        state: [...parameters.value.values()].map(parameter => stateFromParameter(
-          parameter,
-          parameterResetTimes.get(parameter.parameterId),
-        )),
-      }
-    }
-
-    const resolved = resolve(name)
-    if (!resolved) {
-      return {
-        success: false,
-        error: `Expression or parameter "${name}" was not found.`,
-        available: [...definitions.value.keys(), ...parameters.value.keys()],
-      }
-    }
-
-    if (resolved.kind === 'parameter') {
-      return {
-        success: true,
-        state: stateFromParameter(resolved.parameter, parameterResetTimes.get(resolved.parameter.parameterId)),
-      }
-    }
-
-    return {
-      success: true,
-      state: resolved.definition.parameters.flatMap((definitionParameter) => {
-        const parameter = parameters.value.get(definitionParameter.parameterId)
-        return parameter
-          ? [stateFromParameter(parameter, parameterResetTimes.get(parameter.parameterId))]
-          : []
-      }),
-    }
-  }
-
-  function setActive(name: string, active: boolean, duration?: number): Live2DExpressionResult {
-    const resolved = resolve(name)
-    if (!resolved) {
-      return {
-        success: false,
-        error: `Expression or parameter "${name}" was not found.`,
-        available: [...definitions.value.keys(), ...parameters.value.keys()],
-      }
-    }
-
-    if (resolved.kind === 'parameter') {
-      const value = active
-        ? resolved.parameter.targetValue
-        : resolved.parameter.defaultValue
-      applyParameterValue(resolved.parameter, value, duration)
-      return {
-        success: true,
-        state: stateFromParameter(resolved.parameter, parameterResetTimes.get(resolved.parameter.parameterId)),
-      }
-    }
-
-    return resultForDefinition(
-      resolved.definition,
-      (definitionParameter, parameter) => active ? definitionParameter.value : parameter.defaultValue,
-      duration,
-    )
-  }
-
   function setPreviewExpressions(names: readonly string[]) {
     previewExpressionNames = [...names]
     previewParameters = new Map()
@@ -373,59 +162,28 @@ export function createLive2DExpressionsContext(
     }
   }
 
-  function toggle(name: string, duration?: number): Live2DExpressionResult {
-    const resolved = resolve(name)
-    if (!resolved) {
-      return {
-        success: false,
-        error: `Expression or parameter "${name}" was not found.`,
-        available: [...definitions.value.keys(), ...parameters.value.keys()],
-      }
-    }
-
-    const active = resolved.kind === 'parameter'
-      ? resolved.parameter.currentValue !== resolved.parameter.defaultValue
-      : resolved.definition.parameters.some((definitionParameter) => {
-          if (definitionParameter.value === 0)
-            return false
-          return parameters.value.get(definitionParameter.parameterId)?.currentValue === definitionParameter.value
-        })
-
-    return setActive(name, !active, duration)
-  }
-
-  function activate(name: string, intensity = 1, duration?: number): Live2DExpressionResult {
+  function activate(name: string) {
     const definition = definitions.value.get(name)
-    if (!definition) {
-      return {
-        success: false,
-        error: `Expression "${name}" was not found.`,
-        available: [...definitions.value.keys()],
-      }
+    if (!definition)
+      return false
+
+    for (const definitionParameter of definition.parameters) {
+      const parameter = parameters.value.get(definitionParameter.parameterId)
+      if (!parameter)
+        continue
+
+      parameter.activeBlend = definitionParameter.blend
+      parameter.currentValue = definitionParameter.value
     }
 
-    const normalizedIntensity = Math.min(1, Math.max(0, intensity))
-    return resultForDefinition(definition, (definitionParameter, parameter) => {
-      switch (definitionParameter.blend) {
-        case 'Add':
-          return definitionParameter.value * normalizedIntensity
-        case 'Multiply':
-          return 1 + ((definitionParameter.value - 1) * normalizedIntensity)
-        default:
-          return parameter.modelDefault + ((definitionParameter.value - parameter.modelDefault) * normalizedIntensity)
-      }
-    }, duration)
+    return true
   }
 
-  function reset(): Live2DExpressionResult {
-    clearParameterResets()
-    const states: Live2DExpressionState[] = []
+  function reset() {
     for (const parameter of parameters.value.values()) {
       parameter.activeBlend = parameter.blend
       parameter.currentValue = parameter.defaultValue
-      states.push(stateFromParameter(parameter))
     }
-    return { success: true, state: states }
   }
 
   function setExecutor(nextExecutor: Live2DExpressionExecutor | undefined) {
@@ -499,32 +257,24 @@ export function createLive2DExpressionsContext(
 
   function clear() {
     cancelExecutionReset()
-    clearParameterResets()
     activeLastFrame.clear()
     previewExpressionNames = []
     previewParameters = new Map()
     executor = undefined
-    modelId.value = ''
     definitions.value = new Map()
     parameters.value = new Map()
   }
 
   return {
-    modelId,
     definitions,
     parameters,
     available,
     enabled,
-    beginModel,
     register,
     setExecutor,
     execute,
     resetExecution,
-    set,
-    get,
-    setActive,
     setPreviewExpressions,
-    toggle,
     activate,
     reset,
     apply,

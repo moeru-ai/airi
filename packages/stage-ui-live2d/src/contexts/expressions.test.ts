@@ -16,7 +16,6 @@ describe('live2D expressions context', () => {
 
   it('registers and removes one inline expression definition', () => {
     const expressions = createExpressions()
-    expressions.beginModel('iru')
     const definition = parseLive2DExpression('happy', 'happy.exp3.json', JSON.stringify({
       Parameters: [{ Id: 'ParamEyeSmile', Value: 1, Blend: 'Add' }],
     }))
@@ -34,7 +33,7 @@ describe('live2D expressions context', () => {
     ])
     expect(expressions.parameters.value.get('ParamEyeSmile')).toMatchObject({
       blend: 'Add',
-      targetValue: 1,
+      currentValue: 0,
     })
 
     unregister()
@@ -49,39 +48,11 @@ describe('live2D expressions context', () => {
       Parameters: [{ Id: 'ParamEyeSmile', Value: 1, Blend: 'Add' }],
     }))
 
-    first.beginModel('first')
-    second.beginModel('second')
     first.register(definition)
     first.activate('happy')
 
     expect(first.parameters.value.get('ParamEyeSmile')?.currentValue).toBe(1)
     expect(second.parameters.value.size).toBe(0)
-  })
-
-  it('sets one expression active or inactive without toggling repeated commands', () => {
-    const expressions = createLive2DExpressionsContext({
-      getParameterDefault: parameterId => parameterId === 'ParamEyeSmile' ? 0.25 : 0.5,
-      isEnabled: () => true,
-    })
-    expressions.beginModel('iru')
-    expressions.register(parseLive2DExpression('happy', 'happy.exp3.json', JSON.stringify({
-      Parameters: [
-        { Id: 'ParamEyeSmile', Value: 1, Blend: 'Add' },
-        { Id: 'ParamMouthForm', Value: 0, Blend: 'Overwrite' },
-      ],
-    })))
-
-    expressions.setActive('happy', true)
-    expressions.setActive('happy', true)
-
-    expect(expressions.parameters.value.get('ParamEyeSmile')?.currentValue).toBe(1)
-    expect(expressions.parameters.value.get('ParamMouthForm')?.currentValue).toBe(0)
-
-    expressions.setActive('happy', false)
-    expressions.setActive('happy', false)
-
-    expect(expressions.parameters.value.get('ParamEyeSmile')?.currentValue).toBe(0)
-    expect(expressions.parameters.value.get('ParamMouthForm')?.currentValue).toBe(0.5)
   })
 
   // https://github.com/moeru-ai/airi/pull/2458#discussion_r4132272685
@@ -93,7 +64,6 @@ describe('live2D expressions context', () => {
       getParameterDefault: parameterId => parameterId === 'ParamAdd' ? 0.25 : 0.5,
       isEnabled: () => true,
     })
-    expressions.beginModel('iru')
     expressions.register(parseLive2DExpression('happy', 'happy.exp3.json', JSON.stringify({
       Parameters: [
         { Id: 'ParamAdd', Value: 0.8, Blend: 'Add' },
@@ -111,12 +81,7 @@ describe('live2D expressions context', () => {
     })
     expect(setParameterValueById).not.toHaveBeenCalled()
 
-    expressions.setActive('happy', true)
-    expressions.setActive('happy', false)
-    expect(expressions.parameters.value.get('ParamAdd')?.currentValue).toBe(0)
-    expect(expressions.parameters.value.get('ParamMultiply')?.currentValue).toBe(1)
-
-    expressions.setActive('happy', true)
+    expressions.activate('happy')
     expressions.reset()
     expect(expressions.parameters.value.get('ParamAdd')?.currentValue).toBe(0)
     expect(expressions.parameters.value.get('ParamMultiply')?.currentValue).toBe(1)
@@ -127,7 +92,6 @@ describe('live2D expressions context', () => {
       getParameterDefault: () => 0.5,
       isEnabled: () => true,
     })
-    expressions.beginModel('iru')
     expressions.register(parseLive2DExpression('add', 'add.exp3.json', JSON.stringify({
       Parameters: [{ Id: 'ParamEyeSmile', Value: 0.25, Blend: 'Add' }],
     })))
@@ -155,7 +119,6 @@ describe('live2D expressions context', () => {
       getParameterDefault: () => 0.5,
       isEnabled: () => true,
     })
-    expressions.beginModel('iru')
     expressions.register(parseLive2DExpression('add', 'add.exp3.json', JSON.stringify({
       Parameters: [{ Id: 'ParamEyeSmile', Value: 0.25, Blend: 'Add' }],
     })))
@@ -183,7 +146,6 @@ describe('live2D expressions context', () => {
     vi.useFakeTimers()
     const expressions = createExpressions()
     const reset = vi.fn(() => true)
-    expressions.beginModel('iru')
     expressions.register(parseLive2DExpression('happy', 'happy.exp3.json', JSON.stringify({
       Parameters: [{ Id: 'ParamEyeSmile', Value: 1, Blend: 'Add' }],
     })))

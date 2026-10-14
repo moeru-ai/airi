@@ -627,9 +627,12 @@ function configureExpressions(internalModel?: PixiLive2DInternalModel) {
     live2d.expressions.setExecutor({
       activate: (name) => {
         live2d.expressions.reset()
-        return live2d.expressions.activate(name).success
+        return live2d.expressions.activate(name)
       },
-      reset: () => live2d.expressions.reset().success,
+      reset: () => {
+        live2d.expressions.reset()
+        return true
+      },
     })
   }
 }

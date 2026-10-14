@@ -132,10 +132,9 @@ export function useSharedLive2DExpressionPreview(
       expressionPreview,
       () => toValue(characterId),
       () => toValue(avatarModelId),
-      live2d.expressions.modelId,
       live2d.expressions.definitions,
     ],
-    ([preview, currentCharacterId, currentAvatarModelId, , definitions], _, onCleanup) => {
+    ([preview, currentCharacterId, currentAvatarModelId, definitions], _, onCleanup) => {
       if (preview && preview.expiresAt > Date.now()) {
         const timer = setTimeout(() => live2d.expressions.setPreviewExpressions([]), preview.expiresAt - Date.now())
         onCleanup(() => clearTimeout(timer))
