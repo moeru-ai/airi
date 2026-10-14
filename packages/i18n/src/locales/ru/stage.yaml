@@ -82,6 +82,7 @@ chat:
     discard: Удалить черновик
     listening: Прослушивание
     finalizing: Завершение…
+    sent: Отправлено
   voice-input: Голосовой ввод
   error-details:
     show: Показать подробности

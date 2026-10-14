@@ -384,6 +384,19 @@
       status: preferred
       context: Select a model
 
+- id: cloud
+  subject: providers
+  translatable: true
+  definition: Remote servers that run a service over the internet, not on this device.
+  note: >
+    Use the computing term, not the word for a cloud in the sky. The color named Cloud in the
+    Nordic theme is a sky cloud, so translate that color as a color name.
+  terms:
+    - text: Cloud
+      part-of-speech: noun
+      status: preferred
+      context: Use cloud-based models via the Replicate API.
+
 # ---------------------------------------------------------------------------------------
 # The modules
 #

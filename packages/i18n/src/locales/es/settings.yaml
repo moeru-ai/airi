@@ -342,10 +342,15 @@ pages:
             label: Escriba su correo electrónico para confirmar
             mismatch: El correo electrónico no coincide.
           confirm: Enviar correo de confirmación
+          deleteNow: Eliminar permanentemente
+          confirmPhrase: Escribe DELETE para confirmar
+          signInAgain: Volver a iniciar sesión
           cancel: Cancelar
         message:
+          deleted: Tu cuenta se ha eliminado.
           emailSent: Compruebe {email} para el enlace de eliminación.
         error:
+          reauthenticate: Vuelve a iniciar sesión y regresa aquí para confirmar la eliminación. No se envía ningún correo.
           fallback: No se pudo iniciar la eliminación. Inténtalo de nuevo más tarde.
           subscriptionActive: Tu suscripción sigue activa. Cancélala primero en la página Capacitor y después elimina tu cuenta.
   card:
@@ -866,6 +871,11 @@ pages:
               preparing: Preparando el modelo de palabras de activación…
               ready: Las palabras de activación están listas.
               error: 'El modelo de palabras de activación no está disponible: {error}'
+          end-judge:
+            title: Fin del habla
+            description: Cuando haces una pausa, un modelo de chat lee la transcripción y decide si terminaste. Si no terminaste, AIRI espera 3 segundos más para que continúes.
+            enabled: Comprobar si terminé de hablar
+            enabled-description: La transcripción de cada pausa se envía al modelo de reescritura. Si desactivas esta opción, AIRI termina tu intervención tras una pausa breve.
           rephrase:
             title: Reescritura de transcripciones
             description: Un modelo de chat corrige errores de reconocimiento y elimina muletillas antes de crear un borrador. Se conserva el texto original.
@@ -1302,6 +1312,7 @@ pages:
         headers:
           label: Cabeceras
           description: Cabeceras enviadas con cada solicitud, como un token de autorización.
+          value-placeholder: Token Bearer
         command:
           label: Comando
           description: Ejecutable iniciado mediante stdio.
