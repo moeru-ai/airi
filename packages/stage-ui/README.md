@@ -126,6 +126,10 @@ Catalog changes rebuild the spotter keywords. A result after a stop or a keyword
 The model loads only when the catalog has a pronunciation for the pinned model. Until the model is ready, detection returns no wake.
 While no listener runs, the preparation is `unconfigured`.
 
+`useSpeakerTrackerStore` owns the voice host's Sherpaw speaker tracker Worker. `acquire` downloads the pinned CAM++ pack and starts the Worker on first use.
+`setVoiceprints` replaces the enrolled speakers. They get the speaker numbers 0, 1, ... in that order. `release` terminates the Worker.
+`preparation` reports `idle`, `preparing`, `ready`, or `error` for UI. No feature acquires the tracker yet.
+
 A host can pass its own `detectWakeWord` to `voice.startListening`. Then the built-in detection does not start.
 The detector remains active during playback. A supplied `acceptSpeech` classifier can reject playback echo before admission.
 The default policy allows barge-in when the browser reports echo cancellation. Without that support, automatic admission waits for playback to end.
