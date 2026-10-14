@@ -10,7 +10,6 @@ import {
   useElectronMouseInWindow,
   useElectronRelativeMouse,
 } from '@proj-airi/electron-vueuse'
-import { useExpressionStore } from '@proj-airi/stage-ui-live2d/stores/expression-store'
 import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
 import { HearingStatus, HoloCoupon } from '@proj-airi/stage-ui/components'
 import {
@@ -100,7 +99,6 @@ const isTransparentByThreeExact = useThreeSceneIsTransparentAtPoint(
 const settingsStore = useSettings()
 const { alwaysOnTop, stageModelRenderer, stageModelSelectedUrl } = storeToRefs(settingsStore)
 const modelStore = useModelStore()
-const expressionStore = useExpressionStore()
 const { sceneMutationLocked, scenePhase } = storeToRefs(modelStore)
 const { stagePaused } = storeToRefs(useStageWindowLifecycleStore())
 const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
@@ -190,13 +188,11 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
 
     return createEmptyModelSettingsRuntimeSnapshot({
       ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
-      modelId: expressionStore.modelId,
       renderer: 'live2d',
       phase,
       controlsLocked: hasModel ? phase !== 'mounted' : false,
       previewAvailable: hasModel,
       canCapturePreview: false,
-      live2dExpressions: expressionStore.settingsSnapshot,
       updatedAt: Date.now(),
     })
   }
@@ -353,9 +349,6 @@ useModelSettingsRuntimeOwner({
   ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
   renderer: () => stageModelRenderer.value,
   runtimeSnapshot: modelSettingsRuntimeSnapshot,
-  applyLive2DExpressionCommand: (command) => {
-    expressionStore.applySettingsCommand(command)
-  },
 })
 
 const voice = useVoiceStore()

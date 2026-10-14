@@ -32,7 +32,6 @@
     "./controls/manifest": "./src/controls/manifest.ts",
     "./controls/policy": "./src/controls/policy.ts",
     "./stores": "./src/stores/index.ts",
-    "./stores/expression-store": "./src/stores/expression-store.ts",
     "./stores/model-parameters": "./src/stores/model-parameters.ts",
     "./types/avatar-model": "./src/types/avatar-model.ts",
     "./tools/expression-tools": "./src/tools/expression-tools.ts",
