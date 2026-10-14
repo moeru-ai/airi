@@ -31,6 +31,7 @@ import { computed, nextTick, onUnmounted, ref, shallowRef, watch } from 'vue'
 import StageRenderError from './stage-render-error.vue'
 
 // import { useDuckDb } from '../../composables/use-duck-db'
+import { useVoiceResponseOutput } from '../../composables/voice-response-output'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { live2dMotionMagicProfiles, useLive2DMotionMagic, useLive2DMotionMagicSettings } from '../../features/motions/live2d'
 import { getSpeechBusContext, speechOutputGetPlaybackState, speechOutputPlaybackStateChangedEvent } from '../../services/speech/bus'
@@ -39,8 +40,6 @@ import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
 import { useChatStore } from '../../stores/chat'
 import { useChatSessionStore } from '../../stores/chat/session-store'
-import { useAiriCardStore } from '../../stores/modules/airi-card'
-import { useSpeechStore } from '../../stores/modules/speech'
 import { useSettingsPresenceBubble } from '../../stores/presence-bubble'
 import { useSettings } from '../../stores/settings'
 import { useSpeechOutputControlStore } from '../../stores/speech-output-control'
@@ -149,8 +148,7 @@ watch([nowSpeaking, speechVoicing], ([speaking, voicing]) => {
 }, { immediate: true })
 const { audioContext } = useAudioContext()
 const currentAudioSource = ref<AudioBufferSourceNode>()
-const speechOutputControlStore = useSpeechOutputControlStore()
-const { speechMuted, speechVolume } = storeToRefs(speechOutputControlStore)
+const { speechVolume } = storeToRefs(useSpeechOutputControlStore())
 const lastVrmInteractionAt = new Map<VrmInteractionTarget, number>()
 const VRM_INTERACTION_COOLDOWN_MS = 450
 
@@ -171,7 +169,7 @@ function onVRMInteract(target: VrmInteractionTarget) {
   vrmViewerRef.value?.setExpression(getVrmInteractionExpression(target), 1)
 }
 
-const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
+const { onBeforeSend } = useChatStore()
 const chatHookCleanups: Array<() => void> = []
 // WORKAROUND: clear previous handlers on unmount to avoid duplicate calls when this component remounts.
 //             We keep per-hook disposers instead of wiping the global chat hooks to play nicely with
@@ -256,7 +254,6 @@ const { presenceOverride } = storeToRefs(useSettingsPresenceBubble())
 // there is no read cursor to count against.
 const chatPresence = computed<PresenceBubbleState>(() => chatSending.value ? presenceBubbleThinking : presenceBubbleIdle)
 const presenceBubble = computed<PresenceBubbleState>(() => presenceOverride.value ?? chatPresence.value)
-const speechStore = useSpeechStore()
 const chatSession = useChatSessionStore()
 const backgroundStore = useBackgroundStore()
 const { activeBackgroundUrl } = storeToRefs(backgroundStore)
@@ -390,43 +387,34 @@ watch(() => voice.activeTurns, (turns) => {
     speechVoicing.value = false
 })
 
-const cards = useAiriCardStore()
-const disconnectVoiceOutput = voice.connectOutput((turn) => {
-  const output = {
-    playback,
-    onSpecial: (special: string) => void playSpecialToken(special, { turnId: turn.turnId }),
-    onPlaybackStart: ({ text }: { text: string }) => {
-      playingCount += 1
-      nowSpeaking.value = true
-      speechVoicing.value = true
-      assistantCaption.value += ` ${text}`
-      try {
-        postCaption({ type: 'caption-assistant', text })
-        postPresent({ type: 'assistant-append', text })
-      }
-      catch (error) {
-        console.error('Speech presentation channel failed', error)
-      }
-    },
-    onPlaybackEnd: () => {
-      playingCount -= 1
-      if (playingCount === 0)
-        resetSpeakingState()
-    },
-  }
-  if (speechMuted.value)
-    return { ...output, synthesize: async () => null }
-  try {
-    const characterId = chatSession.sessionMetas[turn.sessionId]?.characterId
-    if (!characterId)
-      throw new Error('The response session has no character')
-    return speechStore.createOutput(turn, cards.getModules(characterId).speech, output, audioContext)
-  }
-  catch (error) {
-    // Text replies remain available when optional speech output is not configured.
-    console.error('Speech output is unavailable', error)
-    return { ...output, synthesize: async () => null }
-  }
+const disconnectVoiceOutput = useVoiceResponseOutput({
+  audioContext,
+  playback,
+  onSpecial: (special, turn) => playSpecialToken(special, { turnId: turn.turnId }),
+  onPlaybackStart: ({ text }) => {
+    playingCount += 1
+    nowSpeaking.value = true
+    speechVoicing.value = true
+    assistantCaption.value += ` ${text}`
+    try {
+      postCaption({ type: 'caption-assistant', text })
+      postPresent({ type: 'assistant-append', text })
+    }
+    catch (error) {
+      console.error('Speech presentation channel failed', error)
+    }
+  },
+  onPlaybackEnd: () => {
+    playingCount -= 1
+    if (playingCount === 0)
+      resetSpeakingState()
+  },
+  onResponseStart: async (context) => {
+    if (context.sessionId === chatSession.activeSessionId)
+      resetAssistantSpeechSurface('new-message')
+    setupAnalyser()
+    await setupLipSync()
+  },
 })
 
 function startLipSyncLoop() {
@@ -510,43 +498,8 @@ function setupAnalyser() {
   }
 }
 
-watch(speechMuted, (muted) => {
-  if (muted) {
-    for (const turn of voice.activeTurns)
-      voice.getSpeech(turn)?.cancel('Speech muted')
-  }
-})
-
-chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
-  voice.startResponse(context)
-  if (context.sessionId === chatSession.activeSessionId)
-    resetAssistantSpeechSurface('new-message')
-  setupAnalyser()
-  await setupLipSync()
-}))
-
 chatHookCleanups.push(onBeforeSend(async () => {
   currentMotion.value = { group: EmotionThinkMotionName }
-}))
-
-chatHookCleanups.push(onTokenLiteral(async (literal, context) => {
-  if (!speechMuted.value)
-    await voice.getSpeech(context)?.write(literal)
-}))
-
-chatHookCleanups.push(onTokenSpecial(async (special, context) => {
-  if (speechMuted.value)
-    await playSpecialToken(special, { turnId: context.turnId })
-  else
-    voice.getSpeech(context)?.special(special)
-}))
-
-chatHookCleanups.push(onStreamEnd(async (context) => {
-  void voice.finishResponse(context).catch(error => console.error('Speech response completion failed', error))
-}))
-
-chatHookCleanups.push(onAssistantResponseEnd(async (_message, context) => {
-  void voice.finishResponse(context).catch(error => console.error('Speech response completion failed', error))
 }))
 
 // Resume audio context on first user interaction (browser requirement)
