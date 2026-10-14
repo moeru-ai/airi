@@ -101,11 +101,17 @@ function createFakeCardServer() {
       requests.push += 1
       if (refusing.has(id))
         return new Response(null, { status: 413, statusText: 'Payload Too Large' })
-      const { fields } = JSON.parse(String(init.body)) as { fields: Array<{ key: string, value: unknown }> }
+      const { fields } = JSON.parse(String(init.body)) as { fields: Array<{ key: string, value?: unknown, removed?: true }> }
       const document: ServerDocument = documents.get(id) ?? { revision: 0, deletedAt: null, fields: new Map(), history: [] }
       document.revision += 1
       document.deletedAt = null
       for (const field of fields) {
+        // A removed part has no value. The history records it as `null`.
+        if (field.removed) {
+          document.fields.delete(field.key)
+          document.history.push({ revision: document.revision, key: field.key, value: null })
+          continue
+        }
         document.fields.set(field.key, { revision: document.revision, value: field.value })
         document.history.push({ revision: document.revision, key: field.key, value: field.value })
       }
@@ -174,6 +180,8 @@ function signIn(auth: ReturnType<typeof useAuthStore>, id: string) {
 
 describe('card synchronization across windows', () => {
   let server: ReturnType<typeof createFakeCardServer>
+  /** The card stores of the leader windows that the current test opened. */
+  const leaders: Array<ReturnType<typeof useAiriCardStore>> = []
 
   beforeEach(() => {
     localStorage.clear()
@@ -181,7 +189,14 @@ describe('card synchronization across windows', () => {
     stubServerFetch(server.fetchCards)
   })
 
-  afterEach(() => {
+  // ROOT CAUSE:
+  //
+  // A leader run that outlived its test used the fetch stub of the next test.
+  //
+  // We fixed this by waiting for the active run of each leader before teardown.
+  afterEach(async () => {
+    // A call during a run returns that run, so this waits for its last request.
+    await Promise.allSettled(leaders.splice(0).map(cards => cards.synchronizeCards()))
     for (const runtime of runtimes.splice(0))
       runtime.dispose()
     for (const pinia of piniaInstances.splice(0))
@@ -196,6 +211,7 @@ describe('card synchronization across windows', () => {
     const onError = vi.fn()
     const leaderRuntime = createSyncedPiniaPlugin({ namespace, leadership: 'leader-only', onError })
     const leader = createContext(leaderRuntime)
+    leaders.push(leader.cards)
     await expect.poll(() => leaderRuntime.isLeader()).toBe(true)
     await leader.cards.initialize()
 
