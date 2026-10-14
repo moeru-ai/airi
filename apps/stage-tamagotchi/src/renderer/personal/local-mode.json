@@ -2,7 +2,7 @@
   "enabled": true,
   "ollama": {
     "baseUrl": "http://localhost:11434/v1/",
-    "model": "gemma3:4b"
+    "model": "qwen3:4b"
   },
   "speech": {
     "voice": "af_heart"

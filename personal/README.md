@@ -46,7 +46,7 @@ The fork changes the desktop app, which is named stage-tamagotchi in the source 
 | **JSON** (`.json`) | A text format for settings. It has no comments. | Like an `.ini` file with nesting. |
 | **Local storage** | The private data store of the app on your computer. | Like a small key-value file in `%APPDATA%`. |
 | **Ollama** | A program that runs language models on your computer. The app talks to it at `http://localhost:11434`. | Like a local server daemon that your program calls over HTTP. |
-| **Model** | The AI that writes the replies, for example `gemma3:4b`. | A large data file that Ollama loads, like a big asset. |
+| **Model** | The AI that writes the replies, for example `qwen3:4b`. | A large data file that Ollama loads, like a big asset. |
 | **Kokoro** | The voice. It runs inside the app. | A text-to-speech library. |
 | **Sherpaw** | The speech recognition. It runs inside the app. | A speech-to-text library. |
 | **Git commit, push** | Save a change in Git, then send it to GitHub. | The same as in any C++ project. |
@@ -94,7 +94,7 @@ The app needs Ollama for the chat replies. A script installs it.
 
 1. Get the repository on your computer. See [Get the repository](#get-the-repository).
 2. In File Explorer, open the `personal` folder of the repository, then double-click `setup-local.cmd`.
-3. The script installs Ollama with `winget` if Ollama is not installed. Then it downloads the chat model. The download is approximately 3 GB for `gemma3:4b`.
+3. The script installs Ollama with `winget` if Ollama is not installed. Then it downloads the chat model. The download is approximately 2.5 GB for `qwen3:4b`.
 4. Wait until the script shows "Done". Then press a key to close the window.
 
 The Ollama installer adds Ollama to the Windows startup apps. So, usually Ollama is already running when you start AIRI.
@@ -239,7 +239,7 @@ Optional fields:
 | --- | --- |
 | `enabled` | `true` selects Ollama and Kokoro for your character. `false` keeps the providers that you select in Settings. |
 | `ollama.baseUrl` | The address of the Ollama server. Keep `http://localhost:11434/v1/` unless Ollama runs on another computer. |
-| `ollama.model` | The Ollama model name, for example `gemma3:4b`. Find names at <https://ollama.com/library>. A larger model gives better replies, but it needs more memory and is slower. |
+| `ollama.model` | The Ollama model name, for example `qwen3:4b`. Find names at <https://ollama.com/library>. A larger model gives better replies, but it needs more memory and is slower. |
 | `speech.voice` | The Kokoro voice, for example `af_heart`. **Settings > Providers > Kokoro TTS** shows the list of voices. |
 | `hearing.enabled` | `true` selects Sherpaw speech recognition if no recognition provider is selected. |
 
@@ -249,9 +249,13 @@ How to select a model size:
 
 | Computer | Model to try |
 | --- | --- |
-| 8 GB of memory (RAM) | `gemma3:1b` or `qwen3:1.7b` |
-| 16 GB of memory (RAM) | `gemma3:4b` (the default) |
-| 32 GB of memory, or a graphics card with 12 GB or more | `gemma3:12b` |
+| 8 GB of memory (RAM) | `qwen3:1.7b` |
+| 16 GB of memory (RAM) | `qwen3:4b` (the default) |
+| 32 GB of memory, or a graphics card with 12 GB or more | `qwen3:14b` |
+
+Keep **Thinking** off in **Settings > Modules > Consciousness**. With Thinking on, `qwen3` thinks for a long time before each reply.
+
+The `gemma3` models also work, but they have no Thinking mode and no tool calls. With `gemma3`, you must turn off Thinking. The first message after each start also fails one time with "does not support tools". Send the message again.
 
 ### Memory and reminder settings
 
@@ -398,6 +402,11 @@ The personal files are new files. Upstream does not change them, so they do not 
 | Problem | Cause | What to do |
 | --- | --- | --- |
 | The companion does not reply. | Ollama is not running, or the model is not downloaded. | Run `personal/setup-local.cmd` again. It starts Ollama and downloads the model. |
+| "Remote sent 404 response: 404 page not found" | The Base URL of Ollama is wrong. | In **Settings > Providers > Ollama**, set Base URL to `http://127.0.0.1:11434/v1/`. Include the `/` at the end. |
+| "model '...' not found" | Ollama does not have that model. | In PowerShell, run `ollama pull <model name>`. Run `ollama list` to see the models that you have. |
+| "Chat completions check failed" names a model that you removed. | The Ollama provider check uses the model in `local-mode.json`, not the model that you select. | Set `ollama.model` in `local-mode.json` to a model that you have, then build a new version. Or download the old model again. |
+| "does not support thinking" | The model has no Thinking mode, for example `gemma3`. | Turn off **Thinking** in **Settings > Modules > Consciousness**. |
+| "does not support tools" | The model cannot use tools, for example `gemma3`. | Send the message again. The app then stops sending tools to this model until it restarts. |
 | The first reply takes a long time. | Ollama loads the model into memory. | Wait. The next replies are faster. |
 | All replies are very slow. | The model is too large for your computer. | Select a smaller model in `local-mode.json`. See [Local mode settings](#local-mode-settings). |
 | The companion does not speak the first time. | The app downloads the voice model. | Wait one or two minutes. The computer must be connected to the internet for this one download. |
