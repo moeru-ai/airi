@@ -160,6 +160,15 @@ describe('importVocabularyPack', () => {
     expect(entries).toEqual([sulfurCube])
   })
 
+  it('derives pronunciations for an empty pronunciation list, as for a missing one', () => {
+    const entries = importVocabularyPack({
+      source: 'minecraft-wiki',
+      entries: [{ term: 'Sulfur Cube', writtenForms: ['硫方怪'], pronunciations: [], description: sulfurCube.description }],
+    }, { vocabulary: kwsVocabulary, pronounce: pronounceChinese })
+
+    expect(entries).toEqual([sulfurCube])
+  })
+
   it('derives pronunciations from English written forms in the dictionary', () => {
     const entries = importVocabularyPack({
       source: 'minecraft-wiki',

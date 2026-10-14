@@ -35,23 +35,32 @@ const vocabularyPackSchema = object({
   })),
 })
 
+export type VocabularyPack = InferOutput<typeof vocabularyPackSchema>
+
+/** Validates a vocabulary pack and keeps it as written, without derived pronunciations. Throws when it is not valid. */
+export function parseVocabularyPack(value: unknown): VocabularyPack {
+  return parse(vocabularyPackSchema, value)
+}
+
 /**
  * Validates a vocabulary pack and returns its entries with the pack source.
  *
  * Given pronunciations must use only tokens of `vocabulary`, so packs share the wake word model token space.
- * `pronounce` derives the missing pronunciations from the written forms. An entry without any pronunciation is dropped,
+ * `pronounce` derives missing or empty pronunciations from the written forms. An entry without any pronunciation is dropped,
  * because matching cannot reach it.
  */
 export function importVocabularyPack(value: unknown, options: { vocabulary: ReadonlySet<string>, pronounce: (text: string) => readonly string[] | undefined }): PhoneticVocabularyEntry[] {
-  const pack = parse(vocabularyPackSchema, value)
+  const pack = parseVocabularyPack(value)
   return pack.entries.flatMap((entry) => {
     if (entry.pronunciations?.some(tokens => tokens.some(token => !options.vocabulary.has(token))))
       throw new Error(`Pronunciation of "${entry.term}" does not match the model vocabulary`)
 
-    const pronunciations = entry.pronunciations ?? entry.writtenForms.flatMap((form) => {
-      const tokens = options.pronounce(form)
-      return tokens ? [[...tokens]] : []
-    })
+    const pronunciations = entry.pronunciations?.length
+      ? entry.pronunciations
+      : entry.writtenForms.flatMap((form) => {
+          const tokens = options.pronounce(form)
+          return tokens ? [[...tokens]] : []
+        })
     if (!pronunciations.length)
       return []
     return [parse(phoneticVocabularyEntrySchema, { ...entry, pronunciations, source: pack.source })]

@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import type { AnalysisOptions, Hotword, LocatedTranscript, NucleusOptions, ProbeNoise, ProbeResult, UncertainSpan, UntranscribedOptions } from '@proj-airi/stage-ui/libs/voice/asr-uncertainty'
-import type { PhoneticVocabularyEntry } from '@proj-airi/stage-ui/libs/voice/phonetic-vocabulary'
+import type { VocabularyPack } from '@proj-airi/stage-ui/libs/voice/phonetic-vocabulary'
 import type { GuidedScope } from '@proj-airi/stage-ui/libs/voice/span-guided-terms'
 
 import type { ProbeRunSettings } from './composables/use-uncertainty-probe'
 
-import { errorMessageFrom } from '@moeru/std'
 import { toWav } from '@proj-airi/audio/encoding'
 import { acceptsHotwords, SHERPAW_TRANSCRIPTION_PROVIDER_ID, sherpawModels, xAsrBilingualZhEnInt8 } from '@proj-airi/provider-inference'
 import { availableSherpawModels } from '@proj-airi/stage-ui/libs/providers/providers/sherpaw/model-resources'
@@ -24,13 +23,12 @@ import { kwsVocabulary } from '@proj-airi/stage-ui/libs/voice/kws-model'
 import { english, pronounceEnglish } from '@proj-airi/stage-ui/libs/voice/phonetic-english'
 import { mandarin, pronounceChinese } from '@proj-airi/stage-ui/libs/voice/phonetic-mandarin'
 import { createPhoneticMatcher } from '@proj-airi/stage-ui/libs/voice/phonetic-match'
-import { importVocabularyPack } from '@proj-airi/stage-ui/libs/voice/phonetic-vocabulary'
 import { boostHotwords, guideCandidates, matchUncertainSpans, phraseEntries, selectGuidedSuggestions } from '@proj-airi/stage-ui/libs/voice/span-guided-terms'
 import { describeBiasDelivery } from '@proj-airi/stage-ui/libs/voice/transcription-bias-delivery'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
-import { Button, Callout, FieldCheckbox, FieldInputFile, FieldRange, FieldSelect, FieldTextArea, Progress } from '@proj-airi/ui'
+import { Button, Callout, FieldCheckbox, FieldInputFile, FieldRange, FieldSelect, FieldTextArea, Input, Progress } from '@proj-airi/ui'
 import { useObjectUrl } from '@vueuse/core'
 import { computed, reactive, ref, shallowRef, useTemplateRef, watch } from 'vue'
 
@@ -46,6 +44,7 @@ import { useConversationTerms } from './composables/use-conversation-terms'
 import { useLiveProbe } from './composables/use-live-probe'
 import { useProbeDecoders } from './composables/use-probe-decoders'
 import { useUncertaintyProbe } from './composables/use-uncertainty-probe'
+import { useVocabularyEditor } from './composables/use-vocabulary-editor'
 
 /** Every Sherpaw model in AIRI runs at 16 kHz. Clips are converted to this rate once, when they load. */
 const sampleRate = 16000
@@ -57,7 +56,7 @@ const longClipSeconds = 12
 const lagWarningSeconds = 0.5
 
 /** The first test case of post-ASR matching: ASR often writes the Minecraft mob 硫方怪 as 流氓怪. */
-const samplePack = {
+const samplePack: VocabularyPack = {
   source: 'minecraft-wiki',
   entries: [
     { term: 'Sulfur Cube', writtenForms: ['硫方怪'], description: 'A cube-shaped Minecraft mob that lives near sulfur springs.' },
@@ -78,16 +77,9 @@ const sourceOptions = [
   { value: 'text', label: 'Pasted conversation' },
 ]
 
-const packText = ref(JSON.stringify(samplePack, null, 2))
-const pack = computed((): { entries: PhoneticVocabularyEntry[] } | { error: string } => {
-  try {
-    return { entries: importVocabularyPack(JSON.parse(packText.value), { vocabulary: kwsVocabulary, pronounce }) }
-  }
-  catch (error) {
-    return { error: errorMessageFrom(error) ?? 'The pack is not valid' }
-  }
-})
-const vocabulary = computed(() => 'entries' in pack.value ? pack.value.entries : [])
+const vocabularyEditor = useVocabularyEditor(samplePack, { vocabulary: kwsVocabulary, pronounce })
+const editingJson = ref(false)
+const vocabulary = vocabularyEditor.entries
 /** The conversation terms as vocabulary, so they can match uncertain spans and the transcript. */
 const phraseVocabulary = computed(() => phraseEntries(conversation.phrases.value, pronounce, { source: 'conversation', description: 'A term from the conversation.' }))
 
@@ -469,19 +461,84 @@ function compare() {
       <h2 :class="['text-lg font-semibold']">
         2. Domain vocabulary
       </h2>
-      <FieldTextArea
-        v-model="packText"
-        label="Vocabulary pack"
-        description="JSON with a source and entries. An entry without pronunciations gets them from its Chinese or English written forms. Domain terms go only to post-ASR matching, never to recognition as hotwords, unless step 5 allows it."
-        :required="false"
-        :rows="8"
-        textarea-class="font-mono"
-      />
-      <div v-if="'error' in pack" :class="['text-sm text-red-600 dark:text-red-400']">
-        {{ pack.error }}
+      <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
+        Domain terms go only to post-ASR matching, never to recognition as hotwords, unless step 5 allows it.
+        Separate written forms with commas. Leave the pronunciation empty to derive it from a Chinese or English written form,
+        or write tokens separated by spaces, with <code>;</code> between alternatives.
+      </p>
+      <div :class="['flex flex-wrap items-center gap-2']">
+        <Input v-model="vocabularyEditor.stored.value.source" size="sm" placeholder="Source (manual)" :class="['max-w-48']" />
+        <Button v-if="!editingJson" label="Add term" icon="i-solar:add-circle-bold-duotone" variant="primary" size="sm" @click="vocabularyEditor.add()" />
+        <Button v-if="!editingJson" label="Edit as JSON" size="sm" @click="vocabularyEditor.openJson(); editingJson = true" />
+        <Button v-else label="Apply JSON" variant="primary" size="sm" @click="editingJson = !vocabularyEditor.applyJson()" />
+        <Button v-if="editingJson" label="Cancel" size="sm" @click="editingJson = false" />
+        <Button label="Reset to sample" size="sm" @click="vocabularyEditor.reset(); editingJson = false" />
       </div>
-      <div v-else :class="['text-xs text-neutral-500 dark:text-neutral-400']">
-        {{ vocabulary.length }} entries loaded
+      <template v-if="editingJson">
+        <FieldTextArea
+          v-model="vocabularyEditor.json.value"
+          label="Vocabulary pack"
+          description="JSON with a source and entries. Apply replaces the table."
+          :required="false"
+          :rows="12"
+          textarea-class="font-mono"
+        />
+        <div v-if="vocabularyEditor.jsonError.value" :class="['text-sm text-red-600 dark:text-red-400']">
+          {{ vocabularyEditor.jsonError.value }}
+        </div>
+      </template>
+      <table v-else :class="['w-full text-sm']">
+        <thead>
+          <tr :class="['text-left text-xs text-neutral-500']">
+            <th :class="['font-normal']">
+              Term
+            </th>
+            <th :class="['font-normal']">
+              Written forms
+            </th>
+            <th :class="['font-normal']">
+              Pronunciation
+            </th>
+            <th :class="['font-normal']">
+              Description
+            </th>
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          <template v-for="(row, index) in vocabularyEditor.stored.value.rows" :key="index">
+            <tr>
+              <td :class="['pr-2 pt-2']">
+                <Input v-model="row.term" size="sm" placeholder="Sulfur Cube" />
+              </td>
+              <td :class="['pr-2 pt-2']">
+                <Input v-model="row.writtenForms" size="sm" placeholder="硫方怪, sulfur cube" />
+              </td>
+              <td :class="['pr-2 pt-2']">
+                <Input v-model="row.pronunciations" size="sm" placeholder="auto" :class="['font-mono']" />
+              </td>
+              <td :class="['pr-2 pt-2']">
+                <Input v-model="row.description" size="sm" placeholder="What the chat model reads when the term matches" />
+              </td>
+              <td :class="['pt-2']">
+                <Button icon="i-solar:trash-bin-minimalistic-bold-duotone" shape="circle" size="sm" :aria-label="`Remove ${row.term || 'row'}`" @click="vocabularyEditor.remove(index)" />
+              </td>
+            </tr>
+            <tr>
+              <td colspan="5" :class="['pb-1 text-xs']">
+                <span v-if="'error' in vocabularyEditor.statuses.value[index]" :class="['text-red-600 dark:text-red-400']">
+                  {{ vocabularyEditor.statuses.value[index].error }}
+                </span>
+                <span v-else-if="vocabularyEditor.statuses.value[index].derived" :class="['font-mono text-neutral-500']">
+                  auto: {{ vocabularyEditor.statuses.value[index].entry.pronunciations.map(tokens => tokens.join(' ')).join('; ') }}
+                </span>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+      <div :class="['text-xs text-neutral-500 dark:text-neutral-400']">
+        {{ vocabulary.length }} of {{ vocabularyEditor.stored.value.rows.length }} terms usable. Edits stay in this browser.
       </div>
     </section>
 
