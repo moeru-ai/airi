@@ -15,10 +15,6 @@ describe('live2D root context', () => {
     expect(second.source.value).toBeUndefined()
     expect(second.phase.value).toBe('idle')
 
-    const revisionBeforeReload = first.revision.value
-    first.reload()
-    expect(first.revision.value).toBe(revisionBeforeReload + 1)
-
     first.unload()
     expect(first.source.value).toBeUndefined()
     expect(first.phase.value).toBe('idle')

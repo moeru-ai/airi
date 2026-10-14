@@ -107,7 +107,6 @@ const props = withDefaults(defineProps<{
 
 const emits = defineEmits<{
   (e: 'modelLoaded'): void
-  (e: 'error', error: Error): void
 }>()
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
@@ -583,7 +582,7 @@ async function performModelLoad() {
       internalModelRef.value = internalModel
     }
 
-    live2d.setModel(live2DModel, internalModel)
+    live2d.setModel(internalModel)
     emits('modelLoaded')
   }
   catch (error) {
@@ -592,9 +591,6 @@ async function performModelLoad() {
 
     console.error('[Live2D] Failed to load model:', error)
     live2d.reportError('model', error)
-    const reportedError = live2d.error.value?.cause
-    if (reportedError)
-      emits('error', reportedError)
   }
   finally {
     modelLoading.value = false

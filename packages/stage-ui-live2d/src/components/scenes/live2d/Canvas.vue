@@ -25,19 +25,8 @@ const props = withDefaults(defineProps<{
   maxFps: 0,
 })
 
-const emit = defineEmits<{
-  error: [error: Error]
-}>()
-
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 const live2d = useLive2D()
-
-function reportError(phase: 'renderer' | 'render', error: unknown) {
-  live2d.reportError(phase, error)
-  const reportedError = live2d.error.value?.cause
-  if (reportedError)
-    emit('error', reportedError)
-}
 
 const containerRef = ref<HTMLDivElement>()
 const isPixiCanvasReady = ref(false)
@@ -62,7 +51,7 @@ function installRenderGuard(app: Application) {
     catch (error) {
       console.error('[Live2D] Pixi render error.', error)
       app.ticker.stop()
-      reportError('render', error)
+      live2d.reportError('render', error)
     }
   }
 
@@ -107,7 +96,6 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
   pixiAppCanvas.value.style.display = 'block'
 
   parent.appendChild(pixiApp.value.view)
-  live2d.setRenderer(pixiApp.value, pixiAppCanvas.value)
 
   isPixiCanvasReady.value = true
   componentState.value = 'mounted'
@@ -223,20 +211,15 @@ onMounted(async () => {
   }
   catch (error) {
     console.error('[Live2D] Failed to initialize Pixi stage.', error)
-    reportError('renderer', error)
+    live2d.reportError('renderer', error)
   }
 })
 onUnmounted(() => {
-  const app = pixiApp.value
-  if (!app)
-    return
-
-  live2d.clearRenderer(app)
   // Destroying the application detaches its children without freeing them, so the
   // scene texture is released before the stage it hangs from disappears.
   backgroundSprite.value?.destroy({ baseTexture: true, texture: true })
   backgroundSprite.value = undefined
-  app.destroy()
+  pixiApp.value?.destroy()
   // Destroy leaves the ref truthy while nulling the stage, so anything still in flight
   // would reach for a stage that is gone.
   pixiApp.value = undefined
@@ -253,7 +236,7 @@ async function captureFrame() {
     }
     catch (error) {
       console.error('[Live2D] Pixi render error during capture.', error)
-      reportError('render', error)
+      live2d.reportError('render', error)
       return resolve(null)
     }
 
