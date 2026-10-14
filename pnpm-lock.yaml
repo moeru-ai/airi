@@ -592,14 +592,14 @@ catalogs:
       specifier: 0.5.1
       version: 0.5.1
     '@xsai-transformers/embed':
-      specifier: ^0.1.0
-      version: 0.1.0
+      specifier: ^0.2.0
+      version: 0.2.0
     '@xsai-transformers/shared':
-      specifier: ^0.1.0
-      version: 0.1.0
+      specifier: ^0.2.0
+      version: 0.2.0
     '@xsai-transformers/transcription':
-      specifier: ^0.1.0
-      version: 0.1.0
+      specifier: ^0.2.0
+      version: 0.2.0
     '@xsai/embed':
       specifier: 0.5.1
       version: 0.5.1
@@ -1573,7 +1573,7 @@ importers:
         version: 0.5.1
       '@xsai-transformers/embed':
         specifier: 'catalog:'
-        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+        version: 0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.5.1
@@ -2021,10 +2021,10 @@ importers:
         version: 0.5.1
       '@xsai-transformers/embed':
         specifier: 'catalog:'
-        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+        version: 0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai-transformers/transcription':
         specifier: 'catalog:'
-        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+        version: 0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.5.1
@@ -2452,10 +2452,10 @@ importers:
         version: 0.10.0
       '@gd-kirie/ipc-eventa':
         specifier: 0.10.0
-        version: 0.10.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+        version: 0.10.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@gd-kirie/platform':
         specifier: 0.10.0
-        version: 0.10.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+        version: 0.10.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@guiiai/logg':
         specifier: 'catalog:'
         version: 1.2.12
@@ -2569,10 +2569,10 @@ importers:
         version: 0.5.1
       '@xsai-transformers/embed':
         specifier: 'catalog:'
-        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+        version: 0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai-transformers/transcription':
         specifier: 'catalog:'
-        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+        version: 0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.5.1
@@ -2999,7 +2999,7 @@ importers:
         version: 0.5.1
       '@xsai-transformers/embed':
         specifier: 'catalog:'
-        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+        version: 0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.5.1
@@ -4318,7 +4318,7 @@ importers:
         version: 0.5.1(patch_hash=869608a1a960b80aef6290aef41763c909252e2401364f1bfa75a67134866eed)(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       '@xsai-transformers/shared':
         specifier: 'catalog:'
-        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+        version: 0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai/generate-text':
         specifier: 'catalog:'
         version: 0.5.1
@@ -4968,10 +4968,10 @@ importers:
         version: 0.5.1
       '@xsai-transformers/embed':
         specifier: 'catalog:'
-        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+        version: 0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai-transformers/shared':
         specifier: 'catalog:'
-        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+        version: 0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai/embed':
         specifier: 'catalog:'
         version: 0.5.1
@@ -9025,20 +9025,6 @@ packages:
       eslint-plugin-oxlint:
         optional: true
 
-  '@moeru/eventa@0.3.0':
-    resolution: {integrity: sha512-/U9BNwd+a3OAlbolkW4yWbKtbtL2poiu0V44yekV31SKOAGy9NZJe6hmAAr5nwwDO5Iu6uK/Kz/l+3maEwsUnQ==}
-    peerDependencies:
-      electron: '>=30'
-      h3: 2.0.0-beta.1
-      web-worker: ^1.5.0
-    peerDependenciesMeta:
-      electron:
-        optional: true
-      h3:
-        optional: true
-      web-worker:
-        optional: true
-
   '@moeru/eventa@1.0.0-beta.1':
     resolution: {integrity: sha512-4VPs+FlTdIMtlNdBvERvF+e9pnSbz+PN7dgztADtaETCQsSDk9ptHJuzajRBhOlr364k4TotroZa9rrIoVelRQ==}
     peerDependencies:
@@ -12965,23 +12951,19 @@ packages:
   '@xsai-ext/responses@0.5.1':
     resolution: {integrity: sha512-HD+ZrbTydbEHVDOMN8xuiM2LIW6FNGNT8lIlt6J38jb3KdWUw2bPul8hXwwB4Q422l2J84QeQYqphjh9eSaO4g==}
 
-  '@xsai-ext/shared-providers@0.4.0-beta.12':
-    resolution: {integrity: sha512-ME9L8BtapghM0W2SiTdulq0IvU3WR0h7dZ3k1bg/eXag2XUdbh1jy0zYY3oGmpMBmKXO8JXcArS1mq87gpsK0A==}
-    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
-
-  '@xsai-transformers/embed@0.1.0':
-    resolution: {integrity: sha512-psLt56+tEUiIvpaLQCjZlKegSqZJ8ZWhhNxnSJYxjZyIXAEImDCnFOmUsapySElB3zdN2dVev5a+BKga74/hvw==}
+  '@xsai-transformers/embed@0.2.0':
+    resolution: {integrity: sha512-ZZY5PnETU2HAgvdZmGuD52O4K4pBGNv7/FmBm6IH99MmGJnNCyWOROUgAGOa9o47kcMIhg9169Due/+XqaSbOg==}
     peerDependencies:
       web-worker: ^1.5.0
     peerDependenciesMeta:
       web-worker:
         optional: true
 
-  '@xsai-transformers/shared@0.1.0':
-    resolution: {integrity: sha512-RC0KtlbuwKoT4vmHFG7iRFyFgiB2jfhEtU6WSE5hjqZ6sQg/WjwQC23c3Ws6IlT70MpOqNhp+L3ZnimcWrhTQw==}
+  '@xsai-transformers/shared@0.2.0':
+    resolution: {integrity: sha512-FxpVPPqOeyDIBgxpYEvrSY36pLH7IXcFjP2fN+yuh4u/ebW7pbdTJQocJmJHaugndCeOkHFa/bNzrcJT/u8VSA==}
 
-  '@xsai-transformers/transcription@0.1.0':
-    resolution: {integrity: sha512-ah19JC1UKm5gKsaYXyulR/uale1XbhNxx+ISLsUNkGPGlnkN3uD2H0pR8AX3GlZ91PDVCqwkZ8Y038bz0bymqQ==}
+  '@xsai-transformers/transcription@0.2.0':
+    resolution: {integrity: sha512-+79Q5bm4qOauxsP/fhZ30NsN89WDPU3MnXpcJtO9YbgfDpRi9zbQPJIfkaRhqOnqQZrcHpCH20v+LlS8ufYueQ==}
     peerDependencies:
       web-worker: ^1.5.0
     peerDependenciesMeta:
@@ -23074,7 +23056,7 @@ snapshots:
       - tsx
       - yaml
 
-  '@gd-kirie/ipc-eventa@0.10.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
+  '@gd-kirie/ipc-eventa@0.10.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
       '@gd-kirie/ipc': 0.10.0
       '@moeru/eventa': 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
@@ -23089,9 +23071,9 @@ snapshots:
     dependencies:
       cborg: 4.5.8
 
-  '@gd-kirie/platform@0.10.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
+  '@gd-kirie/platform@0.10.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
-      '@gd-kirie/ipc-eventa': 0.10.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+      '@gd-kirie/ipc-eventa': 0.10.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/eventa': 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
     transitivePeerDependencies:
       - '@tauri-apps/api'
@@ -23786,15 +23768,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
       - typescript
-
-  '@moeru/eventa@0.3.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)':
-    dependencies:
-      nanoid: 5.1.16
-      picomatch: 4.0.5
-    optionalDependencies:
-      electron: 43.4.1(supports-color@10.2.2)
-      h3: 2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7))
-      web-worker: 1.5.0
 
   '@moeru/eventa@1.0.0-beta.1(electron@43.4.1(supports-color@10.2.2))(web-worker@1.5.0)':
     dependencies:
@@ -27734,46 +27707,46 @@ snapshots:
       - zod
       - zod-to-json-schema
 
-  '@xsai-ext/shared-providers@0.4.0-beta.12':
-    dependencies:
-      '@xsai/shared': 0.4.4
-
-  '@xsai-transformers/embed@0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)':
+  '@xsai-transformers/embed@0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
       '@huggingface/transformers': 3.8.1
-      '@moeru/eventa': 0.3.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+      '@moeru/eventa': 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std': 0.1.0-beta.20
-      '@xsai-ext/shared-providers': 0.4.0-beta.12
-      '@xsai-transformers/shared': 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+      '@xsai-ext/providers': 0.4.4
+      '@xsai-transformers/shared': 0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai/embed': 0.4.4
       '@xsai/shared': 0.4.4
       gpuu: 1.0.7
     optionalDependencies:
       web-worker: 1.5.0
     transitivePeerDependencies:
+      - '@tauri-apps/api'
       - electron
       - h3
+      - hono
 
-  '@xsai-transformers/shared@0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)':
+  '@xsai-transformers/shared@0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
       '@huggingface/transformers': 3.8.1
-      '@moeru/eventa': 0.3.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+      '@moeru/eventa': 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std': 0.1.0-beta.20
-      '@xsai-ext/shared-providers': 0.4.0-beta.12
+      '@xsai-ext/providers': 0.4.4
       '@xsai/shared': 0.4.4
       onnxruntime-common: 1.27.0
     transitivePeerDependencies:
+      - '@tauri-apps/api'
       - electron
       - h3
+      - hono
       - web-worker
 
-  '@xsai-transformers/transcription@0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)':
+  '@xsai-transformers/transcription@0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
       '@huggingface/transformers': 3.8.1
-      '@moeru/eventa': 0.3.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+      '@moeru/eventa': 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std': 0.1.0-beta.20
-      '@xsai-ext/shared-providers': 0.4.0-beta.12
-      '@xsai-transformers/shared': 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+      '@xsai-ext/providers': 0.4.4
+      '@xsai-transformers/shared': 0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai/embed': 0.4.4
       '@xsai/generate-transcription': 0.4.4
       '@xsai/shared': 0.4.4
@@ -27781,8 +27754,10 @@ snapshots:
     optionalDependencies:
       web-worker: 1.5.0
     transitivePeerDependencies:
+      - '@tauri-apps/api'
       - electron
       - h3
+      - hono
 
   '@xsai/embed@0.4.4':
     dependencies:

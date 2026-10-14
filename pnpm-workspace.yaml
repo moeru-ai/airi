@@ -300,9 +300,9 @@ catalog:
   '@xsai-apple-vision/vision-native-darwin-arm64': 0.1.0
   '@xsai-ext/providers': 0.5.1
   '@xsai-ext/responses': 0.5.1
-  '@xsai-transformers/embed': ^0.1.0
-  '@xsai-transformers/shared': ^0.1.0
-  '@xsai-transformers/transcription': ^0.1.0
+  '@xsai-transformers/embed': ^0.2.0
+  '@xsai-transformers/shared': ^0.2.0
+  '@xsai-transformers/transcription': ^0.2.0
   '@xsai/embed': 0.5.1
   '@xsai/generate-speech': 0.5.1
   '@xsai/generate-text': 0.5.1

@@ -35,6 +35,13 @@ export default defineKirieConfig({
       },
 
       optimizeDeps: {
+        include: [
+          // NOTICE:
+          // In dev, Vite serves this deep import raw, and its CommonJS picomatch import fails.
+          // The embed Worker of @xsai-transformers needs it. Source: @moeru/eventa 1.0.2 adapters/webworkers/worker.
+          // Removal condition: eventa ships picomatch as ESM.
+          '@moeru/eventa/adapters/webworkers/worker',
+        ],
         exclude: [
           // Internal Packages
           '@proj-airi/stage-ui/*',

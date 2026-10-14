@@ -32,6 +32,14 @@ async function loadMatcher(entries: readonly PhoneticVocabularyEntry[]) {
   return { match: createPhoneticMatcher(entries, english ? [mandarin, english] : [mandarin]), selectSuggestions }
 }
 
+/** The candidates of one final transcript, and the conversation that the speech input belongs to. */
+export interface PhoneticRerankRequest {
+  readonly text: string
+  readonly candidates: readonly PhoneticCandidate[]
+  /** The session of the speech input. A wake word can target a session that the window does not show. */
+  readonly sessionId: string
+}
+
 export interface VoicePhoneticMatchOptions {
   /**
    * Reads the domain vocabulary when an input starts. An empty list installs no work for the input.
@@ -49,7 +57,7 @@ export interface VoicePhoneticMatchOptions {
    * The result can drop candidates. The first three that do not overlap become suggestions.
    * Omission keeps the order by phonetic score.
    */
-  rerank?: (request: { readonly text: string, readonly candidates: readonly PhoneticCandidate[] }, signal: AbortSignal) => Promise<readonly PhoneticCandidate[]>
+  rerank?: (request: PhoneticRerankRequest, signal: AbortSignal) => Promise<readonly PhoneticCandidate[]>
 }
 
 /**
@@ -95,7 +103,7 @@ export function createVoicePhoneticMatchPlugin(options: VoicePhoneticMatchOption
           const { match, selectSuggestions } = await matcherFor(entries)
           ctx.signal.throwIfAborted()
           const candidates = match(text)
-          const ranked = options.rerank && candidates.length ? await options.rerank({ text, candidates }, ctx.signal) : candidates
+          const ranked = options.rerank && candidates.length ? await options.rerank({ text, candidates, sessionId: input.sessionId }, ctx.signal) : candidates
           ctx.signal.throwIfAborted()
           const items = selectSuggestions(ranked)
           if (items.length)

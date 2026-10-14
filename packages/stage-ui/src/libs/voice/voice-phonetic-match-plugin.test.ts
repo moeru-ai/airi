@@ -71,6 +71,7 @@ describe('createVoicePhoneticMatchPlugin', () => {
     await speak('我遇到了一只流氓怪')
 
     expect(rerank.mock.calls[0][0].candidates[0].candidate).toBe('六芒怪')
+    expect(rerank.mock.calls[0][0].sessionId).toBe('alice')
     expect(submit.mock.calls[0][0].context[0].value).toEqual(expect.objectContaining({ items: [expect.objectContaining({ span: '流氓怪', candidate: '硫方怪' })] }))
     await controller.close()
   })

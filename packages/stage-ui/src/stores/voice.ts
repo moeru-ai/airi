@@ -15,6 +15,7 @@ import { traceSpeechOutput } from '../composables/speech-output-trace'
 import { useVoiceDrafts } from '../composables/voice-drafts'
 import { useVoiceEndJudge } from '../composables/voice-end-judge'
 import { createVoiceInputTracer } from '../composables/voice-input-trace'
+import { useVoicePhoneticRerank } from '../composables/voice-phonetic-rerank'
 import { useVoiceRephrase } from '../composables/voice-rephrase'
 import { observeInputLevel } from '../libs/voice/input-level'
 import { collectConversationHotwords, conversationMessagesOf, TranscriptionBiasList } from '../libs/voice/transcription-bias'
@@ -144,8 +145,9 @@ export const useVoiceStore = defineStore('voice', () => {
     createVoiceRephrasePlugin({ enabled: () => hearing.rephraseEnabled, rephrase, timeoutMs: VOICE_REPHRASE_TIMEOUT_MS }),
     { grants: ['transcript-patch'], onError: event => report(event.error) },
   )
+  const { rerank: rerankPhonetic } = useVoicePhoneticRerank()
   controller.use(
-    createVoicePhoneticMatchPlugin({ vocabulary: () => phoneticVocabulary.entries }),
+    createVoicePhoneticMatchPlugin({ vocabulary: () => phoneticVocabulary.entries, rerank: rerankPhonetic }),
     { onError: event => report(event.error) },
   )
   const { judge } = useVoiceEndJudge()

@@ -4,6 +4,7 @@ import type { ModelAssetStatus } from '@proj-airi/stage-shared/model-assets'
 import { formatSherpawModelName, sherpawModels } from '@proj-airi/provider-inference'
 import { speakerModel } from '@proj-airi/stage-shared/speaker-model'
 import { formatBytes } from '@proj-airi/stage-ui/libs/inference'
+import { multilingualE5Model } from '@proj-airi/stage-ui/libs/voice/multilingual-e5-embedder'
 import { Progress } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -20,7 +21,9 @@ const rows = computed(() => props.statuses.map((status) => {
     ...status,
     name: model
       ? formatSherpawModelName(model, locale.value)
-      : status.id === speakerModel.id ? t('settings.pages.data.sections.model-downloads.voiceprint-model') : status.id,
+      : status.id === speakerModel.id
+        ? t('settings.pages.data.sections.model-downloads.voiceprint-model')
+        : status.id === multilingualE5Model.id ? t('settings.pages.data.sections.model-downloads.term-suggestion-model') : status.id,
     percent,
   }
 }))
