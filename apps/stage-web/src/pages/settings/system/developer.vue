@@ -99,28 +99,16 @@ const menu = computed(() => [
     to: '/devtools/vibrant',
   },
   {
-    title: t('tamagotchi.settings.devtools.pages.phonetic-match.title'),
-    description: t('tamagotchi.settings.devtools.pages.phonetic-match.description'),
+    title: t('tamagotchi.settings.devtools.pages.voice-pipeline.title'),
+    description: t('tamagotchi.settings.devtools.pages.voice-pipeline.description'),
     icon: 'i-solar:soundwave-bold-duotone',
-    to: '/devtools/phonetic-match',
+    to: '/devtools/voice-pipeline',
   },
   {
     title: 'Aliyun Real-time Transcriber',
     description: 'Stream microphone audio to Aliyun NLS and inspect live transcripts',
     icon: 'i-solar:sledgehammer-bold-duotone',
     to: '/devtools/providers-transcription-realtime-aliyun-nls',
-  },
-  {
-    title: 'Transcription Bias',
-    description: 'Inspect the conversation terms that bias speech recognition, and compare a clip with and without them',
-    icon: 'i-solar:text-field-focus-bold-duotone',
-    to: '/devtools/transcription-bias',
-  },
-  {
-    title: 'ASR Uncertainty Probe',
-    description: 'Decode a clip many times with noise and find the spans that speech recognition is unsure of',
-    icon: 'i-solar:soundwave-bold-duotone',
-    to: '/devtools/asr-uncertainty',
   },
   {
     title: 'Performance Playground',

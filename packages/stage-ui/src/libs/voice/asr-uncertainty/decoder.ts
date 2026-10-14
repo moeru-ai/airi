@@ -1,6 +1,6 @@
 import type { SherpawModel } from '@proj-airi/provider-inference'
 
-import type { DecodedClip, DecodeRequest, DecoderModel, LiveEndpoint, LiveListen, LiveUpdate, RolloutSettings } from './events'
+import type { DecodedClip, DecodeRequest, DecoderModel, Hotword, LiveEndpoint, LiveListen, LiveUpdate, RolloutSettings } from './events'
 
 import { defineInvoke } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/webworkers'
@@ -21,6 +21,7 @@ export interface DecodeOptions {
   readonly sampleRate: number
   readonly blankPenalty: number
   readonly rollouts?: RolloutSettings
+  readonly hotwords?: readonly Hotword[]
 }
 
 /** Starts a decoder Worker and loads a copy of the model into it, so the caller keeps `model`. */

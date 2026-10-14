@@ -2,7 +2,7 @@ import type { Hypothesis } from './analysis'
 
 import { describe, expect, it } from 'vitest'
 
-import { analyzeHypotheses, defaultAnalysisOptions, formatForLlm, joinTokens, toHypothesis } from './analysis'
+import { analyzeHypotheses, defaultAnalysisOptions, formatForLlm, joinTokens, locateTokens, toHypothesis } from './analysis'
 import { cleanPerturbation } from './perturbation'
 
 function timed(...tokens: [string, number][]): Hypothesis {
@@ -32,6 +32,26 @@ describe('joinTokens', () => {
   it('turns BPE word markers into spaces and keeps CJK tokens together', () => {
     expect(joinTokens(['▁HE', 'LLO', '▁WORLD'])).toBe('HELLO WORLD')
     expect(joinTokens(['你', '好'])).toBe('你好')
+  })
+
+  it('drops the word marker between CJK characters, as X-ASR puts one before each character', () => {
+    expect(joinTokens(['▁你', '▁好', '，', '▁欢', '▁迎', '▁AI', 'RI'])).toBe('你好，欢迎 AIRI')
+  })
+})
+
+describe('locateTokens', () => {
+  it('maps each token to its place in the joined text', () => {
+    const { text, ranges } = locateTokens(['▁HE', 'LLO', ' ,', '▁你', '好'])
+
+    expect(text).toBe('HELLO, 你好')
+    expect(ranges.map(([start, end]) => text.slice(start, end))).toEqual(['HE', 'LLO', ',', '你', '好'])
+  })
+
+  it('maps a repeated token to its own place, and an empty token to an empty range', () => {
+    const { text, ranges } = locateTokens(['▁GO', '▁', '▁GO'])
+
+    expect(text).toBe('GO GO')
+    expect(ranges).toEqual([[0, 2], [2, 2], [3, 5]])
   })
 })
 

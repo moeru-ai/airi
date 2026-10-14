@@ -81,18 +81,6 @@ const menu = computed(() => [
     to: '/devtools/providers-transcription-realtime-aliyun-nls',
   },
   {
-    title: 'Transcription Bias',
-    description: 'Inspect the conversation terms that bias speech recognition, and compare a clip with and without them',
-    icon: 'i-solar:text-field-focus-bold-duotone',
-    to: '/devtools/transcription-bias',
-  },
-  {
-    title: 'ASR Uncertainty Probe',
-    description: 'Decode a clip many times with noise and find the spans that speech recognition is unsure of',
-    icon: 'i-solar:soundwave-bold-duotone',
-    to: '/devtools/asr-uncertainty',
-  },
-  {
     title: 'Beat Sync Visualizer',
     description: 'Plot V-motion targets, trajectory, and scalar Y/Z over time',
     icon: 'i-solar:chart-bold-duotone',
@@ -197,11 +185,11 @@ const openEditor = useElectronEventaInvoke(electronOpenEditor)
   <ButtonBar
     :class="['mb-2', 'transition-all duration-250 ease-in-out']"
     icon="i-solar:soundwave-bold-duotone"
-    :text="t('tamagotchi.settings.devtools.pages.phonetic-match.title')"
-    :description="t('tamagotchi.settings.devtools.pages.phonetic-match.description')"
-    @click="() => openDevtoolsWindow({ key: 'phonetic-match', route: '/devtools/phonetic-match' })"
+    :text="t('tamagotchi.settings.devtools.pages.voice-pipeline.title')"
+    :description="t('tamagotchi.settings.devtools.pages.voice-pipeline.description')"
+    @click="() => openDevtoolsWindow({ key: 'voice-pipeline', route: '/devtools/voice-pipeline' })"
   >
-    {{ t('tamagotchi.settings.devtools.pages.phonetic-match.title') }}
+    {{ t('tamagotchi.settings.devtools.pages.voice-pipeline.title') }}
   </ButtonBar>
   <CheckBar
     :model-value="ioTraceRecording?.enabled ?? false"

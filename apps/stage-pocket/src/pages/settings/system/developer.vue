@@ -63,10 +63,10 @@ const menu = computed(() => [
     to: '/devtools/vibrant',
   },
   {
-    title: t('tamagotchi.settings.devtools.pages.phonetic-match.title'),
-    description: t('tamagotchi.settings.devtools.pages.phonetic-match.description'),
+    title: t('tamagotchi.settings.devtools.pages.voice-pipeline.title'),
+    description: t('tamagotchi.settings.devtools.pages.voice-pipeline.description'),
     icon: 'i-solar:soundwave-bold-duotone',
-    to: '/devtools/phonetic-match',
+    to: '/devtools/voice-pipeline',
   },
   {
     title: 'Aliyun Real-time Transcriber',

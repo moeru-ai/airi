@@ -1,6 +1,6 @@
 import type { ASRModule, OnlineRecognizer } from '@sherpaw/asr'
 
-import type { DecodedClip, DecoderModel, LiveEndpoint, LiveUpdate, RawSegment, RolloutSettings } from './events'
+import type { DecodedClip, DecoderModel, Hotword, LiveEndpoint, LiveUpdate, RawSegment, RolloutSettings } from './events'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/webworkers/worker'
@@ -55,11 +55,15 @@ const { context } = createContext()
 /**
  * Worker state. `load` replaces all of it. Recognizers read model files from the module file system,
  * so each recognizer stays valid until the next `load`.
+ *
+ * `recognizers` is keyed by {@link recognizerKey}. Each recognizer holds its own copy of the model sessions, so
+ * the worker keeps one hotword list at a time: a new list frees the recognizers of older lists that no live
+ * stream uses.
  */
 let state: {
   module: ASRModule
   model: DecoderModel
-  recognizers: Map<number, OnlineRecognizer>
+  recognizers: Map<string, OnlineRecognizer>
   live?: LiveState
 } | undefined
 
@@ -69,18 +73,58 @@ function loaded() {
   return state
 }
 
-function recognizerFor(blankPenalty: number): OnlineRecognizer {
+/**
+ * The sherpa-onnx hotword buffer: one phrase per line, with an optional ` :score` after the phrase.
+ * A word that starts with `:` would read as a score, and a line break would split a phrase, so both are removed.
+ * Returns an empty string when the model cannot encode plain-text hotwords, so the decode keeps greedy search.
+ *
+ * @example
+ * hotwordBuffer([{ phrase: '硫方怪', score: 4 }, { phrase: 'Zustand' }])
+ * // => '硫方怪 :4\nZustand'
+ */
+function hotwordBuffer(hotwords: readonly Hotword[] | undefined) {
+  const model = loaded().model
+  if (model.recognizer !== 'transducer' || model.modelingUnit === '')
+    return ''
+  return (hotwords ?? []).flatMap(({ phrase, score }) => {
+    const text = phrase.split(/\s+/).filter(word => word !== '' && !word.startsWith(':')).join(' ')
+    if (!text)
+      return []
+    return [score === undefined ? text : `${text} :${score}`]
+  }).join('\n')
+}
+
+/** The blank penalty and the hotword buffer are recognizer settings, so each pair needs its own recognizer. */
+function recognizerKey(blankPenalty: number, buffer: string) {
+  return `${blankPenalty}\n${buffer}`
+}
+
+function recognizerFor(blankPenalty: number, hotwords?: readonly Hotword[]): OnlineRecognizer {
   const current = loaded()
-  // The blank penalty is a recognizer setting, so each value needs its own recognizer.
-  let recognizer = current.recognizers.get(blankPenalty)
-  if (!recognizer) {
-    recognizer = createOnlineRecognizer(current.module, {
-      type: current.model.recognizer === 'paraformer' ? OnlineRecognizerTypes.Paraformer : OnlineRecognizerTypes.Transducer,
-      modelConfig: { modelingUnit: current.model.modelingUnit },
-      blankPenalty,
-    })
-    current.recognizers.set(blankPenalty, recognizer)
+  const buffer = hotwordBuffer(hotwords)
+  const key = recognizerKey(blankPenalty, buffer)
+  let recognizer = current.recognizers.get(key)
+  if (recognizer)
+    return recognizer
+
+  if (buffer) {
+    // Another list's recognizers are freed, unless a live stream still decodes with them.
+    const inUse = new Set(current.live?.streams.map(live => live.recognizer))
+    for (const [otherKey, other] of current.recognizers) {
+      if (!otherKey.endsWith('\n') && !inUse.has(other)) {
+        other.free()
+        current.recognizers.delete(otherKey)
+      }
+    }
   }
+  recognizer = createOnlineRecognizer(current.module, {
+    type: current.model.recognizer === 'paraformer' ? OnlineRecognizerTypes.Paraformer : OnlineRecognizerTypes.Transducer,
+    modelConfig: { modelingUnit: current.model.modelingUnit },
+    blankPenalty,
+    // sherpa-onnx applies hotwords only in modified beam search. The buffer size counts UTF-8 bytes.
+    ...(buffer ? { decodingMethod: 'modified_beam_search', hotwordsBuf: buffer, hotwordsBufSize: new TextEncoder().encode(buffer).byteLength } : {}),
+  })
+  current.recognizers.set(key, recognizer)
   return recognizer
 }
 
@@ -200,8 +244,8 @@ defineInvokeHandler(context, decoderLoad, async (model) => {
   recognizerFor(0)
 })
 
-defineInvokeHandler(context, decoderDecode, ({ samples, sampleRate, blankPenalty, rollouts }): DecodedClip => {
-  const recognizer = recognizerFor(blankPenalty)
+defineInvokeHandler(context, decoderDecode, ({ samples, sampleRate, blankPenalty, rollouts, hotwords }): DecodedClip => {
+  const recognizer = recognizerFor(blankPenalty, hotwords)
   // Freeing the stream also frees its rollouts.
   const stream = createStream(recognizer, rollouts)
   const closed: OpenSegments[] = []
@@ -230,7 +274,7 @@ defineInvokeHandler(context, decoderListen, ({ session, sampleRate, streams, lea
   current.live = live
   try {
     for (const spec of streams) {
-      const recognizer = recognizerFor(spec.blankPenalty)
+      const recognizer = recognizerFor(spec.blankPenalty, spec.hotwords)
       live.streams.push({ recognizer, stream: createStream(recognizer, spec.rollouts), noise: spec.noise && new NoiseStream(spec.noise.snrDb, spec.noise.seed) })
     }
   }

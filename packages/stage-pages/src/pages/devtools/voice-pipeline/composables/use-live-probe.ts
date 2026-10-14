@@ -1,4 +1,4 @@
-import type { LiveDecoder, LiveEndpoint, LiveUpdate, ProbeResult, SpeechSelectionOptions } from '@proj-airi/stage-ui/libs/voice/asr-uncertainty'
+import type { LiveDecoder, LiveEndpoint, LiveStreamSpec, LiveUpdate, ProbeResult, SpeechSelectionOptions } from '@proj-airi/stage-ui/libs/voice/asr-uncertainty'
 
 import type { ProbeDecoders } from './use-probe-decoders'
 import type { ProbeRunSettings } from './use-uncertainty-probe'
@@ -82,7 +82,9 @@ export function useLiveProbe(decoders: ProbeDecoders) {
       if (session !== current)
         return
       // Every listen must settle, so a failed start leaves no session open.
-      const starts = await Promise.allSettled(plan.workers.map((streams, index) => pool.decoders[index].listen({ sampleRate: settings.sampleRate, streams, leads: index === 0 })))
+      // The clean streams take the hotwords. The blank penalty stream leaves them out, as in a clip probe.
+      const withHotwords = (streams: readonly LiveStreamSpec[]) => streams.map(spec => spec.blankPenalty === 0 ? { ...spec, hotwords: settings.hotwords } : spec)
+      const starts = await Promise.allSettled(plan.workers.map((streams, index) => pool.decoders[index].listen({ sampleRate: settings.sampleRate, streams: withHotwords(streams), leads: index === 0 })))
       for (const started of starts) {
         if (started.status === 'fulfilled')
           created.push(started.value)

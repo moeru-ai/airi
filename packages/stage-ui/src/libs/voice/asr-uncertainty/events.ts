@@ -44,6 +44,13 @@ export interface RolloutSettings {
   readonly seed: number
 }
 
+/** One phrase that a decode prefers. */
+export interface Hotword {
+  readonly phrase: string
+  /** sherpa-onnx boost score of the phrase. Undefined uses the default `hotwordsScore` of the recognizer, 1.5. */
+  readonly score?: number
+}
+
 export interface DecodeRequest {
   /** Mono PCM in [-1, 1]. The worker takes ownership, so the caller transfers its buffer. */
   readonly samples: Float32Array<ArrayBuffer>
@@ -55,6 +62,11 @@ export interface DecodeRequest {
   readonly blankPenalty: number
   /** Rollouts of the decode. Only transducers support them. */
   readonly rollouts?: RolloutSettings
+  /**
+   * Phrases that the decode prefers. They switch the decode to modified beam search, and the rollouts use them too.
+   * A model that cannot encode plain-text hotwords ignores them. See `acceptsHotwords` in `@proj-airi/provider-inference`.
+   */
+  readonly hotwords?: readonly Hotword[]
 }
 
 /** The segments of one clip decode. */
@@ -75,6 +87,8 @@ export interface LiveStreamSpec {
   readonly blankPenalty: number
   /** Rollouts of the stream. They get the stream's endpoints. Only transducers support them. */
   readonly rollouts?: RolloutSettings
+  /** Phrases that the stream prefers. See {@link DecodeRequest.hotwords}. */
+  readonly hotwords?: readonly Hotword[]
 }
 
 /**

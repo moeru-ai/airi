@@ -1,6 +1,6 @@
 import type { Hypothesis } from './analysis'
 import type { DecoderPool } from './decoder-pool'
-import type { RolloutSettings } from './events'
+import type { Hotword, RolloutSettings } from './events'
 import type { Perturbation, PerturbationRanges } from './perturbation'
 
 import { analyzeHypotheses, defaultAnalysisOptions, normalizeToken, toHypothesis } from './analysis'
@@ -34,6 +34,11 @@ export interface ProbeSettings {
    * `encoder` rollouts all run in the reference decode, so they have no early stop.
    */
   readonly firstCount: number
+  /**
+   * Phrases that the reference and the rollouts prefer. The blank penalty decode leaves them out, because each
+   * hotword list needs another copy of the model in the Worker.
+   */
+  readonly hotwords?: readonly Hotword[]
 }
 
 export interface ProbeSample {
@@ -97,12 +102,12 @@ export async function probeClip(pool: Pick<DecoderPool, 'decode'>, clip: Float32
 }
 
 async function probeEncoderNoise(pool: Pick<DecoderPool, 'decode'>, clip: Float32Array, settings: ProbeSettings, options: ProbeOptions): Promise<ProbeResult> {
-  const { sampleRate, blankPenalty } = settings
+  const { sampleRate, blankPenalty, hotwords } = settings
   let done = 0
   const total = blankPenalty > 0 ? 2 : 1
   options.onProgress?.(done, total)
   const decode = async (penalty: number, rollouts?: RolloutSettings) => {
-    const decoded = await pool.decode(clip, { sampleRate, blankPenalty: penalty, rollouts }, options.signal)
+    const decoded = await pool.decode(clip, { sampleRate, blankPenalty: penalty, rollouts, hotwords: penalty === 0 ? hotwords : undefined }, options.signal)
     options.onProgress?.(++done, total)
     return decoded
   }
@@ -121,7 +126,7 @@ async function probeEncoderNoise(pool: Pick<DecoderPool, 'decode'>, clip: Float3
 }
 
 async function probeInputNoise(pool: Pick<DecoderPool, 'decode'>, clip: Float32Array, settings: ProbeSettings, options: ProbeOptions): Promise<ProbeResult> {
-  const { sampleRate, blankPenalty } = settings
+  const { sampleRate, blankPenalty, hotwords } = settings
   const perturbations = samplePerturbations(settings.count, settings.ranges, settings.seed)
   const earlyStop = settings.firstCount > 0 && settings.firstCount < perturbations.length
   const first = earlyStop ? perturbations.slice(0, settings.firstCount) : perturbations
@@ -130,7 +135,7 @@ async function probeInputNoise(pool: Pick<DecoderPool, 'decode'>, clip: Float32A
   let total = 1 + first.length + (blankPenalty > 0 ? 1 : 0)
   options.onProgress?.(done, total)
   const decode = async (perturbation: Perturbation, penalty: number) => {
-    const decoded = await pool.decode(perturbAudio(clip, sampleRate, perturbation), { sampleRate, blankPenalty: penalty }, options.signal)
+    const decoded = await pool.decode(perturbAudio(clip, sampleRate, perturbation), { sampleRate, blankPenalty: penalty, hotwords: penalty === 0 ? hotwords : undefined }, options.signal)
     options.onProgress?.(++done, total)
     return toHypothesis(decoded.segments, perturbation)
   }

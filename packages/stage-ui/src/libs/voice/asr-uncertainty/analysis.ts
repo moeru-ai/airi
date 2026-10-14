@@ -135,14 +135,55 @@ export function normalizeToken(text: string): string {
 }
 
 /**
- * Joins tokens to readable text. The BPE word marker becomes a space. Punctuation attaches to the word before it.
+ * A space between two of these characters is a token boundary, not a word boundary. X-ASR marks every Chinese
+ * character as a word start, and phonetic matching reads a space as the end of a phrase.
+ */
+const spaceBetweenCjk = /(?<=[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\u3000-\u303F\uFF00-\uFFEF])\s+(?=[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\u3000-\u303F\uFF00-\uFFEF])/gu
+
+/**
+ * Joins tokens to readable text. The BPE word marker becomes a space, except between CJK characters.
+ * Punctuation attaches to the word before it.
  *
  * @example
- * joinTokens(['▁HE', 'LLO', ' ,', '▁你', '好'])
+ * joinTokens(['▁HE', 'LLO', ' ,', '▁你', '▁好'])
  * // => 'HELLO, 你好'
  */
 export function joinTokens(tokens: readonly string[]): string {
-  return tokens.join('').replaceAll('▁', ' ').replace(/\s+/g, ' ').replace(trailingPunctuation, '$1').trim()
+  return tokens.join('').replaceAll('▁', ' ').replace(/\s+/g, ' ').replace(trailingPunctuation, '$1').replace(spaceBetweenCjk, '').trim()
+}
+
+/** The {@link joinTokens} text of a decode, with the place of each token in it. */
+export interface LocatedTranscript {
+  readonly text: string
+  /**
+   * UTF-16 range `[start, end)` of each token in `text`, in token order.
+   * A token without visible characters, such as a lone word marker, gets an empty range where it stands.
+   */
+  readonly ranges: readonly (readonly [number, number])[]
+}
+
+/**
+ * Joins tokens as {@link joinTokens} does and finds each token in the result, so a token span maps to transcript text.
+ *
+ * The join only changes white space and moves punctuation onto the word before it, so the visible characters of
+ * each token appear in order. The search starts after the previous token, so a repeated word maps to its own place.
+ *
+ * @example
+ * locateTokens(['▁HE', 'LLO', ' ,', '▁你', '好'])
+ * // => { text: 'HELLO, 你好', ranges: [[0, 2], [2, 5], [5, 6], [7, 8], [8, 9]] }
+ */
+export function locateTokens(tokens: readonly string[]): LocatedTranscript {
+  const text = joinTokens(tokens)
+  let cursor = 0
+  const ranges = tokens.map((token): readonly [number, number] => {
+    const visible = token.replaceAll('▁', ' ').replace(/\s+/g, ' ').trim()
+    const found = visible === '' ? -1 : text.indexOf(visible, cursor)
+    if (found < 0)
+      return [cursor, cursor]
+    cursor = found + visible.length
+    return [found, cursor]
+  })
+  return { text, ranges }
 }
 
 interface AlignedPair {
