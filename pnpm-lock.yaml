@@ -420,6 +420,9 @@ catalogs:
     '@sherpaw/kws':
       specifier: 0.3.0
       version: 0.3.0
+    '@sherpaw/speaker-diarization':
+      specifier: 0.3.0
+      version: 0.3.0
     '@sherpaw/xsai-transcription':
       specifier: 0.3.0
       version: 0.3.0
@@ -4903,6 +4906,9 @@ importers:
       '@sherpaw/kws':
         specifier: 'catalog:'
         version: 0.3.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+      '@sherpaw/speaker-diarization':
+        specifier: 'catalog:'
+        version: 0.3.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(onnxruntime-web@1.27.0)(web-worker@1.5.0)
       '@sherpaw/xsai-transcription':
         specifier: 'catalog:'
         version: 0.3.0(electron@43.4.1(supports-color@10.2.2))(onnxruntime-web@1.27.0)(web-worker@1.5.0)
@@ -11558,6 +11564,17 @@ packages:
 
   '@sherpaw/shared@0.3.0':
     resolution: {integrity: sha512-J9XTyc/nwmVcW62Jr6NnXgLhQQndox+4931yayZUgC9lVsM8ACTT47c+kgGHeuUGkkSu8IVqcaX/PdMsuFeFng==}
+
+  '@sherpaw/speaker-diarization@0.3.0':
+    resolution: {integrity: sha512-pw0dWhwQwd3kxNLGi1QFJdNEJhJV/NpuU7tW0Rs5xEvyYTT0KyzAyrxM8cB3gGlQag9P4FslMRJBN4C+z7TOsg==}
+    peerDependencies:
+      onnxruntime-web: 1.27.0
+    peerDependenciesMeta:
+      onnxruntime-web:
+        optional: true
+
+  '@sherpaw/speaker-identification@0.3.0':
+    resolution: {integrity: sha512-W0V9SmwQH7EWLs24ZGDPttyhxfOs4AFs8PeMeYXQ8XAeDDfc5Tx6E6vhJ7OLfK71tuocQllmNeEmOQFkYj8UZQ==}
 
   '@sherpaw/xsai-transcription@0.3.0':
     resolution: {integrity: sha512-W39S/eKyENI03ns9d0sv1a3ab2C5Lx8JdcPwsNvABybzlJaC0syxlyLOlZsiISX4KwkCeMMw8I8E8Dv5Vly5HQ==}
@@ -25818,6 +25835,25 @@ snapshots:
   '@sherpaw/shared@0.3.0':
     dependencies:
       '@types/emscripten': 1.41.6
+
+  '@sherpaw/speaker-diarization@0.3.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(onnxruntime-web@1.27.0)(web-worker@1.5.0)':
+    dependencies:
+      '@moeru/eventa': 1.0.1(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+      '@sherpaw/preloader': 0.3.0
+      '@sherpaw/shared': 0.3.0
+      '@sherpaw/speaker-identification': 0.3.0
+    optionalDependencies:
+      onnxruntime-web: 1.27.0
+    transitivePeerDependencies:
+      - '@tauri-apps/api'
+      - electron
+      - h3
+      - hono
+      - web-worker
+
+  '@sherpaw/speaker-identification@0.3.0':
+    dependencies:
+      '@sherpaw/shared': 0.3.0
 
   '@sherpaw/xsai-transcription@0.3.0(electron@43.4.1(supports-color@10.2.2))(onnxruntime-web@1.27.0)(web-worker@1.5.0)':
     dependencies:

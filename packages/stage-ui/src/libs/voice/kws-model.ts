@@ -1,11 +1,8 @@
 import type { KeywordEntry, KeywordSpotter, KWSModelPack } from '@sherpaw/kws'
 
-import { assets } from '@proj-airi/vite-plugin-sherpaw/assets'
-import { array, number, object, parse, string } from 'valibot'
-
 import modelTokens from './kws-vocabulary.json'
 
-import { fetchSherpawModel } from '../providers/providers/sherpaw/model-assets'
+import { fetchSherpawModelPack } from '../providers/providers/sherpaw/model-assets'
 import { kwsModel } from './kws-model-info'
 import { createToneVariants } from './kws-tones'
 
@@ -41,40 +38,12 @@ export const kwsSearch = {
   threshold: 0.1,
 } as const
 
-const metadataSchema = object({
-  files: array(object({ filename: string(), start: number(), end: number() })),
-  remote_package_size: number(),
-})
-
 /** One renderer shares one model load. A failed load is removed, so a later preparation can retry. */
 let loading: Promise<KWSModelPack> | undefined
 
-async function fetchModel(): Promise<KWSModelPack> {
-  const files = assets[kwsModel.id]
-  if (!files)
-    throw new Error('This application does not include the wake word model')
-
-  // Remote packs install through the host model asset repository, which reports progress and supports cancel and delete.
-  // Bundled packs are application files, so the repository fetches them directly.
-  const [dataResponse, metadataResponse] = await Promise.all([
-    fetchSherpawModel(new URL(files.data, document.baseURI)),
-    fetchSherpawModel(new URL(files.metadata, document.baseURI)),
-  ])
-  if (!dataResponse.ok || !metadataResponse.ok)
-    throw new Error(`Could not download the wake word model (${dataResponse.status}, ${metadataResponse.status})`)
-
-  const [data, metadataValue] = await Promise.all([dataResponse.arrayBuffer(), metadataResponse.json()])
-  const metadata = parse(metadataSchema, metadataValue)
-  // A partial download must not reach the detector Worker.
-  if (metadata.remote_package_size !== data.byteLength)
-    throw new Error('The wake word model download is incomplete')
-
-  return { data, metadata }
-}
-
 /** Loads the pinned keyword spotting pack from the location that the host's Sherpaw Vite plugin exposes. */
 export async function loadKwsModel(): Promise<KWSModelPack> {
-  loading ??= fetchModel()
+  loading ??= fetchSherpawModelPack(kwsModel.id, 'wake word model')
   const current = loading
   try {
     return await current
