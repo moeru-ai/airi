@@ -28,6 +28,7 @@ import { useBroadcastChannel, useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onUnmounted, ref, shallowRef, watch } from 'vue'
 
+import StageAvatarModelMissing from './stage-avatar-model-missing.vue'
 import StageRenderError from './stage-render-error.vue'
 
 // import { useDuckDb } from '../../composables/use-duck-db'
@@ -56,7 +57,11 @@ const props = withDefaults(defineProps<{
   paused: false,
 })
 
-const emit = defineEmits<{ error: [error: Error] }>()
+const emit = defineEmits<{
+  error: [error: Error]
+  /** The active card has no model. The app opens the model settings. */
+  selectAvatarModel: []
+}>()
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 
 // NOTICE: disabled together with the DuckDB start on mount below.
@@ -255,7 +260,12 @@ function resetAssistantSpeechSurface(source: string) {
   }
 }
 
-const { activeCardId: selectedCharacterId, selectedAvatarModel } = storeToRefs(useAiriCardStore())
+const { activeCardId: selectedCharacterId, activeCard, selectedAvatarModel, ready: cardsReady } = storeToRefs(useAiriCardStore())
+// Before the card store is ready, no card owns the Stage yet, so an empty Stage is not a missing model.
+const avatarModelMissing = computed(() => cardsReady.value
+  && !selectedAvatarModel.value
+  && stageModelRenderer.value === 'disabled'
+  && !stageRenderError.value)
 const { sending: chatSending } = storeToRefs(useChatStore())
 const { presenceOverride } = storeToRefs(useSettingsPresenceBubble())
 
@@ -799,6 +809,11 @@ defineExpose({
         </div>
       </div>
 
+      <StageAvatarModelMissing
+        v-if="avatarModelMissing"
+        :name="activeCard?.name ?? ''"
+        @select="emit('selectAvatarModel')"
+      />
       <StageRenderError
         v-if="stageRenderError"
         :error="stageRenderError"

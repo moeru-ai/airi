@@ -2,6 +2,7 @@
 import type { ModelSettingsRuntimeSnapshot } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 
 import {
+  useHostEventaInvoke,
   useHostMouseAroundWindowBorder,
   useHostMouseInElement,
   useHostMouseInWindow,
@@ -30,6 +31,7 @@ import ControlsIslandRoot from '../components/stage-islands/controls-island/cont
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
 
+import { electronOpenSettings } from '../../shared/eventa'
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
@@ -50,6 +52,7 @@ const shouldFadeOnCursorWithin = ref(false)
 
 const onboardingStore = useOnboardingStore()
 const { open: openOnboarding } = useHostOnboarding()
+const openSettings = useHostEventaInvoke(electronOpenSettings)
 
 const { isOutside: isOutsideWindow } = useHostMouseInWindow()
 const { isOutside } = useHostMouseInElement(controlsIslandElement)
@@ -340,6 +343,7 @@ const cursorPosition = computed(() => ({
           flex-1
           :cursor-position="cursorPosition"
           :paused="stagePaused"
+          @select-avatar-model="openSettings({ route: '/settings/models' })"
         />
         <HoloCoupon />
         <div :class="['absolute bottom-3 left-1/2 z-30 w-fit -translate-x-1/2']">
