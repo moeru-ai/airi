@@ -175,6 +175,8 @@ and `REVENUECAT_PROJECT_ID`, and calls
 A known period keeps its spent Flux and takes the reported end time.
 No active Capacitor expires the bucket now.
 Product-to-Capacitor mapping lives in ConfigKV `REVENUECAT_CAPACITORS`.
+The server grants only the subscriptions of `REVENUECAT_ENVIRONMENT`, which is `production` by default.
+`REVENUECAT_SANDBOX_USER_IDS` lists the test accounts whose sandbox subscriptions production also grants.
 A missed webhook delays the grant until the next webhook for that
 customer, or until the client calls `POST /sync`. The Capacitor name and expiry come from the client SDK, so they do not wait for that webhook.
 
