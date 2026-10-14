@@ -1,6 +1,6 @@
 import type { ASRModule, OnlineRecognizer } from '@sherpaw/asr'
 
-import type { DecoderModel, LiveEndpoint, LiveUpdate, RawSegment } from './events'
+import type { DecodedClip, DecoderModel, LiveEndpoint, LiveUpdate, RawSegment, RolloutSettings } from './events'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/webworkers/worker'
@@ -84,8 +84,8 @@ function recognizerFor(blankPenalty: number): OnlineRecognizer {
   return recognizer
 }
 
-function readResult(recognizer: OnlineRecognizer, stream: Stream): RawSegment {
-  const result = parse(resultSchema, recognizer.getResult(stream))
+function toSegment(raw: unknown): RawSegment {
+  const result = parse(resultSchema, raw)
   return {
     text: result.text,
     tokens: result.tokens,
@@ -95,30 +95,60 @@ function readResult(recognizer: OnlineRecognizer, stream: Stream): RawSegment {
   }
 }
 
+function readResult(recognizer: OnlineRecognizer, stream: Stream): RawSegment {
+  return toSegment(recognizer.getResult(stream))
+}
+
 function hasContent(segment: RawSegment) {
   return segment.text !== '' || segment.tokens.length > 0
 }
 
-/** Decodes one block. Returns the closed segment when the block reaches an endpoint, and starts the next one. */
-function feed(recognizer: OnlineRecognizer, stream: Stream, sampleRate: number, block: Float32Array): RawSegment | undefined {
+/** The open segment of a stream and of each of its rollouts. */
+interface OpenSegments {
+  readonly segment: RawSegment
+  readonly rollouts: RawSegment[]
+}
+
+function readSegments(recognizer: OnlineRecognizer, stream: Stream): OpenSegments {
+  return { segment: readResult(recognizer, stream), rollouts: recognizer.getRolloutResults(stream).map(toSegment) }
+}
+
+/** Closes the open segments and starts the next ones. The rollouts reset with their stream. */
+function closeSegments(recognizer: OnlineRecognizer, stream: Stream): OpenSegments {
+  // Reset starts the next segment, so the results must be read first.
+  const closed = readSegments(recognizer, stream)
+  recognizer.reset(stream)
+  return closed
+}
+
+function createStream(recognizer: OnlineRecognizer, rollouts: RolloutSettings | undefined): Stream {
+  const stream = recognizer.createStream()
+  try {
+    if (rollouts)
+      recognizer.attachRollouts(stream, rollouts)
+    return stream
+  }
+  catch (error) {
+    stream.free()
+    throw error
+  }
+}
+
+/** Decodes one block. Returns the closed segments when the block reaches an endpoint, and starts the next ones. */
+function feed(recognizer: OnlineRecognizer, stream: Stream, sampleRate: number, block: Float32Array): OpenSegments | undefined {
   stream.acceptWaveform(sampleRate, block)
   while (recognizer.isReady(stream))
     recognizer.decode(stream)
-  if (!recognizer.isEndpoint(stream))
-    return undefined
-  // Reset starts the next segment, so the result must be read first.
-  const segment = readResult(recognizer, stream)
-  recognizer.reset(stream)
-  return segment
+  return recognizer.isEndpoint(stream) ? closeSegments(recognizer, stream) : undefined
 }
 
-/** Flushes the held-back frames and returns the segments that the flush closes, the last one included. */
-function flush(recognizer: OnlineRecognizer, stream: Stream, sampleRate: number): RawSegment[] {
+/** Flushes the held-back frames and returns the segments that the flush closes, the last ones included. */
+function flush(recognizer: OnlineRecognizer, stream: Stream, sampleRate: number): OpenSegments[] {
   const closed = feed(recognizer, stream, sampleRate, new Float32Array(Math.round(sampleRate * tailPaddingSeconds)))
   stream.inputFinished()
   while (recognizer.isReady(stream))
     recognizer.decode(stream)
-  return [closed, readResult(recognizer, stream)].filter(segment => segment !== undefined)
+  return [closed, readSegments(recognizer, stream)].filter(segments => segments !== undefined)
 }
 
 function closeLive() {
@@ -150,13 +180,12 @@ function feedLive(live: LiveState, block: Float32Array) {
  * Only the first stream's endpoints count, so all segments cover the same input.
  */
 function cutLive(live: LiveState): LiveEndpoint {
-  const segments = live.streams.map(({ recognizer, stream }) => {
-    // Reset starts the next segment, so the result must be read first.
-    const segment = readResult(recognizer, stream)
-    recognizer.reset(stream)
-    return segment
-  })
-  return { segments, endTime: live.received / live.sampleRate }
+  const closed = live.streams.map(({ recognizer, stream }) => closeSegments(recognizer, stream))
+  return {
+    segments: closed.map(({ segment }) => segment),
+    rollouts: closed.map(({ rollouts }) => rollouts),
+    endTime: live.received / live.sampleRate,
+  }
 }
 
 defineInvokeHandler(context, decoderLoad, async (model) => {
@@ -171,19 +200,23 @@ defineInvokeHandler(context, decoderLoad, async (model) => {
   recognizerFor(0)
 })
 
-defineInvokeHandler(context, decoderDecode, ({ samples, sampleRate, blankPenalty }) => {
+defineInvokeHandler(context, decoderDecode, ({ samples, sampleRate, blankPenalty, rollouts }): DecodedClip => {
   const recognizer = recognizerFor(blankPenalty)
-  const stream = recognizer.createStream()
-  const segments: RawSegment[] = []
+  // Freeing the stream also frees its rollouts.
+  const stream = createStream(recognizer, rollouts)
+  const closed: OpenSegments[] = []
   try {
     const chunk = Math.round(sampleRate * chunkSeconds)
     for (let start = 0; start < samples.length; start += chunk) {
-      const closed = feed(recognizer, stream, sampleRate, samples.subarray(start, start + chunk))
-      if (closed)
-        segments.push(closed)
+      const segments = feed(recognizer, stream, sampleRate, samples.subarray(start, start + chunk))
+      if (segments)
+        closed.push(segments)
     }
-    segments.push(...flush(recognizer, stream, sampleRate))
-    return segments.filter(hasContent)
+    closed.push(...flush(recognizer, stream, sampleRate))
+    return {
+      segments: closed.map(({ segment }) => segment).filter(hasContent),
+      rollouts: Array.from({ length: rollouts?.count ?? 0 }, (_, index) => closed.map(segments => segments.rollouts[index]).filter(hasContent)),
+    }
   }
   finally {
     stream.free()
@@ -195,9 +228,16 @@ defineInvokeHandler(context, decoderListen, ({ session, sampleRate, streams, lea
   closeLive()
   const live: LiveState = { session, streams: [], sampleRate, received: 0, level: new InputLevel(sampleRate), leads }
   current.live = live
-  for (const spec of streams) {
-    const recognizer = recognizerFor(spec.blankPenalty)
-    live.streams.push({ recognizer, stream: recognizer.createStream(), noise: spec.noise && new NoiseStream(spec.noise.snrDb, spec.noise.seed) })
+  try {
+    for (const spec of streams) {
+      const recognizer = recognizerFor(spec.blankPenalty)
+      live.streams.push({ recognizer, stream: createStream(recognizer, spec.rollouts), noise: spec.noise && new NoiseStream(spec.noise.snrDb, spec.noise.seed) })
+    }
+  }
+  catch (error) {
+    // A failed listen returns no session to close, so the streams created so far are freed here.
+    closeLive()
+    throw error
   }
 })
 

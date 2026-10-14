@@ -1,6 +1,6 @@
 import type { SherpawModel } from '@proj-airi/provider-inference'
 
-import type { DecoderModel, LiveEndpoint, LiveListen, LiveUpdate, RawSegment } from './events'
+import type { DecodedClip, DecodeRequest, DecoderModel, LiveEndpoint, LiveListen, LiveUpdate, RolloutSettings } from './events'
 
 import { defineInvoke } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/webworkers'
@@ -14,6 +14,13 @@ type WorkerContext = ReturnType<typeof createContext>['context']
 export async function fetchDecoderModel(model: SherpawModel): Promise<DecoderModel> {
   const pack = await fetchSherpawModelPack(model.id, `Sherpaw model "${model.id}"`)
   return { data: pack.data, metadata: pack.metadata, recognizer: model.recognizer, modelingUnit: model.modelingUnit }
+}
+
+/** Settings of one clip decode. See {@link DecodeRequest}. */
+export interface DecodeOptions {
+  readonly sampleRate: number
+  readonly blankPenalty: number
+  readonly rollouts?: RolloutSettings
 }
 
 /** Starts a decoder Worker and loads a copy of the model into it, so the caller keeps `model`. */
@@ -73,9 +80,9 @@ export class DecoderWorker {
   }
 
   /** Decodes mono PCM in [-1, 1]. The samples are copied, so the caller keeps its array. */
-  decode(samples: Float32Array, options: { sampleRate: number, blankPenalty: number }): Promise<RawSegment[]> {
+  decode(samples: Float32Array, options: DecodeOptions): Promise<DecodedClip> {
     const copy = new Float32Array(samples)
-    return this.decodeInWorker({ samples: copy, sampleRate: options.sampleRate, blankPenalty: options.blankPenalty }, { transfer: [copy.buffer] })
+    return this.decodeInWorker({ samples: copy, ...options }, { transfer: [copy.buffer] })
   }
 
   /** Opens a live session. It replaces the open session of this Worker. */

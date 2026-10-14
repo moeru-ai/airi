@@ -1,4 +1,4 @@
-import type { RawSegment } from './events'
+import type { DecodedClip } from './events'
 
 import { describe, expect, it } from 'vitest'
 
@@ -6,10 +6,10 @@ import { DecoderPool } from './decoder-pool'
 
 /** A decoder whose decodes finish only when the test resolves them. */
 function heldDecoder() {
-  const pending: { length: number, resolve: (segments: RawSegment[]) => void }[] = []
+  const pending: { length: number, resolve: (decoded: DecodedClip) => void }[] = []
   return {
     pending,
-    decode: (samples: Float32Array) => new Promise<RawSegment[]>((resolve) => {
+    decode: (samples: Float32Array) => new Promise<DecodedClip>((resolve) => {
       pending.push({ length: samples.length, resolve })
     }),
     dispose: () => {},
@@ -17,6 +17,7 @@ function heldDecoder() {
 }
 
 const options = { sampleRate: 16000, blankPenalty: 0 }
+const emptyClip: DecodedClip = { segments: [], rollouts: [] }
 
 describe('decoderPool', () => {
   it('runs one decode per decoder and starts waiting decodes in call order', async () => {
@@ -29,7 +30,7 @@ describe('decoderPool', () => {
 
     expect([...first.pending, ...second.pending].map(job => job.length).toSorted()).toEqual([1, 2])
     const busy = first.pending[0]?.length === 1 ? first : second
-    busy.pending.shift()!.resolve([])
+    busy.pending.shift()!.resolve(emptyClip)
     await results[0]
     await Promise.resolve()
     // The freed decoder takes the oldest waiting decode.
@@ -47,11 +48,11 @@ describe('decoderPool', () => {
     controller.abort(new Error('stopped'))
 
     await expect(waiting).rejects.toThrow('stopped')
-    only.pending.shift()!.resolve([])
+    only.pending.shift()!.resolve(emptyClip)
     await running
     await Promise.resolve()
     expect(only.pending.map(job => job.length)).toEqual([3])
-    only.pending.shift()!.resolve([])
+    only.pending.shift()!.resolve(emptyClip)
     await after
   })
 })

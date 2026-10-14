@@ -37,8 +37,9 @@ export interface LiveUtterance {
 /**
  * Decodes live input clean and with noise at the same time, and probes each segment at its endpoint.
  *
- * Every rollout is a stream that gets the input as it arrives, with its own noise. The clean stream
- * leads in the first Worker. Its endpoints cut every stream at the same input, so a segment's probe is
+ * With `encoder` noise, the rollouts follow the clean stream in its Worker and reuse its encoder output.
+ * With `input` noise, every rollout is a stream that gets the input as it arrives, with its own noise.
+ * The clean stream leads in the first Worker. Its endpoints cut every stream at the same input, so a segment's probe is
  * ready when the slowest Worker has decoded the segment. Live mode adds noise only. Time shift and
  * speed need the whole clip, and the early stop needs the reference first.
  *
@@ -69,8 +70,11 @@ export function useLiveProbe(decoders: ProbeDecoders) {
     utterances.value = []
     lag.value = 0
 
-    const perturbations = samplePerturbations(settings.count, { snrDb: settings.ranges.snrDb, shiftMs: [0, 0], speed: [1, 1] }, settings.seed)
-    const plan = planLiveStreams(perturbations, settings.blankPenalty, settings.workers)
+    const encoder = settings.noise === 'encoder'
+    // Encoder rollouts follow the clean stream, so they need no noisy input streams.
+    const perturbations = encoder ? [] : samplePerturbations(settings.count, { snrDb: settings.ranges.snrDb, shiftMs: [0, 0], speed: [1, 1] }, settings.seed)
+    const encoderRollouts = encoder ? { count: settings.count, sigma: settings.sigma, seed: settings.seed } : undefined
+    const plan = planLiveStreams(perturbations, settings.blankPenalty, settings.workers, encoderRollouts)
     const created: LiveDecoder[] = []
     try {
       // The pool keeps its Workers and their model between runs, so only the first run loads the model.
@@ -133,8 +137,7 @@ export function useLiveProbe(decoders: ProbeDecoders) {
           .then((others) => {
             if (session !== current)
               return
-            const segments = [endpoint.segments, ...others.map(other => other.segments)]
-            const result = streamedProbeResult(clip, settings.sampleRate, clipStart, segments, plan, perturbations)
+            const result = streamedProbeResult(clip, settings.sampleRate, clipStart, [endpoint, ...others], plan, perturbations)
             update(id, { status: 'done', result, latency: (performance.now() - endpointAt) / 1000 })
           })
           .catch((cause) => {

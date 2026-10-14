@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AnalysisOptions, NucleusOptions, ProbeResult, UncertainSpan, UntranscribedOptions } from '@proj-airi/stage-ui/libs/voice/asr-uncertainty'
+import type { AnalysisOptions, NucleusOptions, ProbeNoise, ProbeResult, UncertainSpan, UntranscribedOptions } from '@proj-airi/stage-ui/libs/voice/asr-uncertainty'
 
 import type { ProbeRunSettings } from './composables/use-uncertainty-probe'
 
@@ -47,6 +47,9 @@ const modelOptions = models.map(model => ({
 const modelId = ref(models.find(model => model.id === xAsrBilingualZhEnInt8.id)?.id ?? models.find(model => model.recognizer === 'transducer')?.id ?? '')
 
 const run = reactive({
+  noise: 'encoder' as ProbeNoise,
+  // 1 encoder-output standard deviation matched 12 input-noise decodes on a 50-clip benchmark.
+  sigma: 1,
   count: 12,
   firstCount: 3,
   snrMinDb: 8,
@@ -140,8 +143,21 @@ const listening = computed(() => live.status.value === 'loading' || live.status.
 /** A new model or pool size replaces the Workers, which drops their pending decodes. */
 const decodersInUse = computed(() => busy.value || listening.value)
 
+const selectedModel = computed(() => models.find(candidate => candidate.id === modelId.value))
+/** Encoder noise needs a transducer. Other models fall back to input noise, and the select shows the fallback. */
+const noise = computed<ProbeNoise>({
+  get: () => selectedModel.value?.recognizer === 'transducer' ? run.noise : 'input',
+  set: (value) => {
+    run.noise = value
+  },
+})
+const noiseOptions = [
+  { value: 'encoder', label: 'Encoder output', description: 'Encodes once and adds noise to the encoder output. Each rollout costs about a tenth of a decode. Transducers only.' },
+  { value: 'input', label: 'Input audio', description: 'Adds noise to the audio and decodes each copy again.' },
+]
+
 function runSettings(): ProbeRunSettings | undefined {
-  const model = models.find(candidate => candidate.id === modelId.value)
+  const model = selectedModel.value
   if (!model)
     return undefined
   const speedSpread = run.speedSpreadPercent / 100
@@ -149,6 +165,8 @@ function runSettings(): ProbeRunSettings | undefined {
     model,
     workers: run.workers,
     sampleRate,
+    noise: noise.value,
+    sigma: run.sigma,
     count: run.count,
     firstCount: run.firstCount,
     ranges: {
@@ -246,7 +264,8 @@ onBeforeUnmount(() => recording.value?.abort())
   <div :class="['flex flex-col gap-6 pb-12']">
     <Callout label="What this measures">
       <p>
-        The probe decodes the clip once as the reference, then many times with noise. A small time shift and a small speed change can be added, but they rarely change the transcript.
+        The probe decodes the clip once as the reference, then many rollouts with noise. Encoder noise reuses the reference's encoder output, so it is about ten times cheaper than input noise.
+        Input noise can also add a small time shift and a small speed change, but they rarely change the transcript.
         Tokens that the copies do not reproduce at the same audio time are unstable. Speech that the copies hear but the reference drops is a deletion.
         Syllable nuclei with no token near them are untranscribed speech. An elongated sound adds no nucleus, so it does not count.
       </p>
@@ -297,17 +316,28 @@ onBeforeUnmount(() => recording.value?.abort())
         />
       </fieldset>
       <div :class="['grid gap-4 md:grid-cols-2']">
-        <FieldRange v-model="run.count" label="Perturbed decodes" :min="2" :max="32" :step="1" />
+        <FieldSelect v-model="noise" label="Noise" :options="noiseOptions" :disabled="selectedModel?.recognizer !== 'transducer'" />
+        <FieldRange v-model="run.count" label="Rollouts" :min="2" :max="64" :step="1" />
         <FieldRange
+          v-if="noise === 'encoder'"
+          v-model="run.sigma"
+          label="Noise scale"
+          description="Standard deviation of the noise, in standard deviations of the encoder output."
+          :min="0.25" :max="2" :step="0.05" :format-value="value => `${value.toFixed(2)} σ`"
+        />
+        <FieldRange
+          v-if="noise === 'input'"
           v-model="run.firstCount"
           label="Early stop after"
           description="These decodes run first. The others run only when one of them hears other words than the reference, or a word at another time. 0 runs all of them. Clip only."
           :min="0" :max="8" :step="1"
         />
-        <FieldRange v-model="run.snrMinDb" label="Lowest SNR" :min="0" :max="40" :step="1" :format-value="value => `${value} dB`" />
-        <FieldRange v-model="run.snrMaxDb" label="Highest SNR" :min="0" :max="40" :step="1" :format-value="value => `${value} dB`" />
-        <FieldRange v-model="run.maxShiftMs" label="Largest time shift" description="Moves the chunk boundaries of streaming models. Clip only." :min="0" :max="200" :step="5" :format-value="value => `${value} ms`" />
-        <FieldRange v-model="run.speedSpreadPercent" label="Speed spread" description="Also changes the pitch. Clip only." :min="0" :max="10" :step="0.5" :format-value="value => `±${value}%`" />
+        <template v-if="noise === 'input'">
+          <FieldRange v-model="run.snrMinDb" label="Lowest SNR" :min="0" :max="40" :step="1" :format-value="value => `${value} dB`" />
+          <FieldRange v-model="run.snrMaxDb" label="Highest SNR" :min="0" :max="40" :step="1" :format-value="value => `${value} dB`" />
+          <FieldRange v-model="run.maxShiftMs" label="Largest time shift" description="Moves the chunk boundaries of streaming models. Clip only." :min="0" :max="200" :step="5" :format-value="value => `${value} ms`" />
+          <FieldRange v-model="run.speedSpreadPercent" label="Speed spread" description="Also changes the pitch. Clip only." :min="0" :max="10" :step="0.5" :format-value="value => `±${value}%`" />
+        </template>
         <FieldRange v-model="run.seed" label="Seed" description="The same seed repeats the same perturbations." :min="1" :max="100" :step="1" />
         <FieldRange
           v-model="run.blankPenalty"
@@ -336,7 +366,7 @@ onBeforeUnmount(() => recording.value?.abort())
         Live
       </h2>
       <div :class="['text-xs text-neutral-500 dark:text-neutral-400']">
-        The Workers decode the input as it arrives: one clean stream, one stream with its own noise per perturbed decode, and the blank penalty stream.
+        The Workers decode the input as it arrives: one clean stream, the rollouts, and the blank penalty stream. Encoder rollouts follow the clean stream in its Worker. Each input rollout is a stream with its own noise.
         Each endpoint of the clean stream cuts every stream at the same input, so the probe is ready when the slowest Worker reaches the endpoint.
         Live mode adds noise only. A segment without words is probed only when it holds syllables as loud as earlier speech, because the model can delete a whole utterance.
       </div>
@@ -486,9 +516,14 @@ onBeforeUnmount(() => recording.value?.abort())
               <td>{{ joinTokens(shown.reference.tokens.map(token => token.text)) }}</td>
             </tr>
             <tr v-for="(sample, index) in shown.samples" :key="index">
-              <td>{{ sample.perturbation.snrDb.toFixed(1) }} dB</td>
-              <td>{{ sample.perturbation.shiftMs.toFixed(0) }} ms</td>
-              <td>{{ sample.perturbation.speed.toFixed(3) }}</td>
+              <template v-if="sample.perturbation">
+                <td>{{ sample.perturbation.snrDb.toFixed(1) }} dB</td>
+                <td>{{ sample.perturbation.shiftMs.toFixed(0) }} ms</td>
+                <td>{{ sample.perturbation.speed.toFixed(3) }}</td>
+              </template>
+              <td v-else colspan="3">
+                encoder noise
+              </td>
               <td>{{ joinTokens(sample.hypothesis.tokens.map(token => token.text)) }}</td>
             </tr>
             <tr v-if="shown.probe">

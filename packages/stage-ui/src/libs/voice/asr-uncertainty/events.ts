@@ -29,6 +29,21 @@ export interface RawSegment {
   readonly startTime: number
 }
 
+/**
+ * Encoder-output noise rollouts of one transducer stream.
+ *
+ * Each rollout decodes the stream's encoder output with Gaussian noise added. The encoder runs once for
+ * the stream and all its rollouts, so a rollout costs only a decoder and joiner pass. Sherpaw runs them,
+ * see `OnlineRecognizer.attachRollouts` in `@sherpaw/asr`.
+ */
+export interface RolloutSettings {
+  readonly count: number
+  /** Noise level as a multiple of the standard deviation of the encoder output. */
+  readonly sigma: number
+  /** The same seed and input repeat the same rollouts. */
+  readonly seed: number
+}
+
 export interface DecodeRequest {
   /** Mono PCM in [-1, 1]. The worker takes ownership, so the caller transfers its buffer. */
   readonly samples: Float32Array<ArrayBuffer>
@@ -38,6 +53,15 @@ export interface DecodeRequest {
    * that it would otherwise drop, which exposes deleted speech. `0` is the normal decoder.
    */
   readonly blankPenalty: number
+  /** Rollouts of the decode. Only transducers support them. */
+  readonly rollouts?: RolloutSettings
+}
+
+/** The segments of one clip decode. */
+export interface DecodedClip {
+  readonly segments: readonly RawSegment[]
+  /** The segments of each rollout, in rollout order. Empty without rollouts. */
+  readonly rollouts: readonly (readonly RawSegment[])[]
 }
 
 /** One stream of a live decoder Worker. Every stream of a Worker gets the same input. */
@@ -49,6 +73,8 @@ export interface LiveStreamSpec {
   readonly noise?: { readonly snrDb: number, readonly seed: number }
   /** The blank penalty of the stream's recognizer. See {@link DecodeRequest.blankPenalty}. */
   readonly blankPenalty: number
+  /** Rollouts of the stream. They get the stream's endpoints. Only transducers support them. */
+  readonly rollouts?: RolloutSettings
 }
 
 /**
@@ -76,6 +102,8 @@ export interface LiveEndpoint {
    * stream heard nothing. The audio can still hold speech that the model deleted.
    */
   readonly segments: readonly RawSegment[]
+  /** For each stream, in listen order, one segment per rollout over the same input. Empty for a stream without rollouts. */
+  readonly rollouts: readonly (readonly RawSegment[])[]
   /** Seconds from the first accepted sample to the end of the segments. */
   readonly endTime: number
 }
@@ -92,7 +120,7 @@ export interface LiveChunk extends LiveSessionRef {
 }
 
 export const decoderLoad = defineInvokeEventa<void, DecoderModel>('voice:asr-uncertainty:decoder:load')
-export const decoderDecode = defineInvokeEventa<RawSegment[], DecodeRequest>('voice:asr-uncertainty:decoder:decode')
+export const decoderDecode = defineInvokeEventa<DecodedClip, DecodeRequest>('voice:asr-uncertainty:decoder:decode')
 /** Opens a live session. It replaces the open session, and drops that session's streams. */
 export const decoderListen = defineInvokeEventa<void, LiveListen>('voice:asr-uncertainty:decoder:listen')
 export const decoderAccept = defineInvokeEventa<LiveUpdate, LiveChunk>('voice:asr-uncertainty:decoder:accept')

@@ -1,4 +1,5 @@
-import type { DecoderModel, RawSegment } from './events'
+import type { DecodeOptions } from './decoder'
+import type { DecodedClip, DecoderModel } from './events'
 
 import { DecoderWorker } from './decoder'
 
@@ -44,7 +45,7 @@ export class DecoderPool<Decoder extends PooledDecoder = DecoderWorker> {
    * Decodes on the next free decoder. An abort removes a decode that still waits. A decode that already
    * runs finishes in its Worker, and its result is dropped.
    */
-  async decode(samples: Float32Array, options: { sampleRate: number, blankPenalty: number }, signal?: AbortSignal): Promise<RawSegment[]> {
+  async decode(samples: Float32Array, options: DecodeOptions, signal?: AbortSignal): Promise<DecodedClip> {
     signal?.throwIfAborted()
     const decoder = await this.acquire(signal)
     try {

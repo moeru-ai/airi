@@ -1,5 +1,5 @@
 import type { NucleusOptions } from './articulation'
-import type { LiveStreamSpec, RawSegment } from './events'
+import type { LiveEndpoint, LiveStreamSpec, RawSegment, RolloutSettings } from './events'
 import type { Perturbation } from './perturbation'
 import type { ProbeResult } from './probe'
 
@@ -98,9 +98,12 @@ export interface StreamPlace {
 }
 
 export interface LiveStreamPlan {
-  /** The streams of each Worker. Worker 0 leads, and its first stream is the clean reference. */
+  /**
+   * The streams of each Worker. Worker 0 leads, and its first stream is the clean reference.
+   * `encoder` rollouts are attached to the reference.
+   */
   readonly workers: readonly (readonly LiveStreamSpec[])[]
-  /** The place of each perturbation's rollout, in perturbation order. */
+  /** The place of each perturbation's `input` rollout, in perturbation order. */
   readonly rollouts: readonly StreamPlace[]
   /** The place of the blank penalty stream. Undefined when the penalty is 0. */
   readonly probe?: StreamPlace
@@ -109,15 +112,16 @@ export interface LiveStreamPlan {
 /**
  * Spreads the live streams over at most `workerCount` Workers, and never over more Workers than streams.
  *
- * The clean reference leads in Worker 0. Its endpoints decide where every stream is cut. Each rollout
- * and the blank penalty stream go to the Worker with the fewest streams. A follower wins a tie, so the
- * leading Worker keeps up with the input first, and the partial text and the endpoints come on time.
+ * The clean reference leads in Worker 0. Its endpoints decide where every stream is cut. `encoderRollouts`
+ * are attached to the reference, so they decode with it. Each `input` rollout, one per perturbation, and
+ * the blank penalty stream go to the Worker with the fewest streams. A follower wins a tie, so the leading
+ * Worker keeps up with the input first, and the partial text and the endpoints come on time.
  */
-export function planLiveStreams(perturbations: readonly Perturbation[], blankPenalty: number, workerCount: number): LiveStreamPlan {
+export function planLiveStreams(perturbations: readonly Perturbation[], blankPenalty: number, workerCount: number, encoderRollouts?: RolloutSettings): LiveStreamPlan {
   // A Worker without streams would load the model for nothing.
   const streamCount = 1 + perturbations.length + (blankPenalty > 0 ? 1 : 0)
   const workers: LiveStreamSpec[][] = Array.from({ length: Math.max(1, Math.min(workerCount, streamCount)) }, () => [])
-  workers[0].push({ blankPenalty: 0 })
+  workers[0].push({ blankPenalty: 0, rollouts: encoderRollouts })
   // Followers come first in this order, so they win ties.
   const order = [...workers.keys()].slice(1).concat(0)
   const place = (spec: LiveStreamSpec): StreamPlace => {
@@ -151,29 +155,33 @@ function inClip(segment: RawSegment, clipStart: number): RawSegment {
 /**
  * Builds a probe result from the streamed decodes of one live segment.
  *
- * `segments` holds the segments of one cut, per Worker, in the order of `plan`. The live reference is
- * the reference. All streams share the same history of earlier input, so the reference needs no
- * separate clean decode.
+ * `endpoints` holds the cut of each Worker, in the order of `plan`. The live reference is the reference.
+ * All streams share the same history of earlier input, so the reference needs no separate clean decode.
+ * The samples are the `input` rollouts, then the `encoder` rollouts of the reference.
  */
 export function streamedProbeResult(
   clip: Float32Array,
   sampleRate: number,
   clipStart: number,
-  segments: readonly (readonly RawSegment[])[],
+  endpoints: readonly Pick<LiveEndpoint, 'segments' | 'rollouts'>[],
   plan: LiveStreamPlan,
   perturbations: readonly Perturbation[],
 ): ProbeResult {
   const hypothesisAt = ({ worker, stream }: StreamPlace, perturbation: Perturbation) => {
-    const segment = segments[worker]?.[stream]
+    const segment = endpoints[worker]?.segments[stream]
     if (!segment)
       throw new Error(`Worker ${worker} returned no segment for stream ${stream}.`)
     return toHypothesis([inClip(segment, clipStart)], perturbation)
   }
+  const encoderSamples = (endpoints[0]?.rollouts[0] ?? []).map(segment => ({ hypothesis: toHypothesis([inClip(segment, clipStart)], cleanPerturbation) }))
   return {
     clip,
     durationSeconds: clip.length / sampleRate,
     reference: hypothesisAt({ worker: 0, stream: 0 }, cleanPerturbation),
-    samples: plan.rollouts.map((place, index) => ({ perturbation: perturbations[index], hypothesis: hypothesisAt(place, perturbations[index]) })),
+    samples: [
+      ...plan.rollouts.map((place, index) => ({ perturbation: perturbations[index], hypothesis: hypothesisAt(place, perturbations[index]) })),
+      ...encoderSamples,
+    ],
     probe: plan.probe && hypothesisAt(plan.probe, cleanPerturbation),
     stoppedEarly: false,
   }

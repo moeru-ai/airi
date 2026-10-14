@@ -44,6 +44,8 @@
     "@moeru/std": "catalog:",
     "@proj-airi/audio": "workspace:^",
     "@sherpaw/asr": "catalog:",
+    "@sherpaw/preloader": "catalog:",
+    "@sherpaw/shared": "catalog:",
     "@sherpaw/xsai-transcription": "catalog:",
     "@xsai-ext/providers": "catalog:",
     "@xsai-ext/responses": "catalog:",

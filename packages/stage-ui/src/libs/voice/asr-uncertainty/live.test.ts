@@ -82,6 +82,14 @@ describe('planLiveStreams', () => {
     expect(plan.workers.map(streams => streams.length)).toEqual([3, 4, 3])
   })
 
+  it('attaches encoder rollouts to the reference, so they need no Worker of their own', () => {
+    const rollouts = { count: 12, sigma: 1, seed: 1 }
+    const plan = planLiveStreams([], 2, 3, rollouts)
+
+    expect(plan.workers).toEqual([[{ blankPenalty: 0, rollouts }], [{ blankPenalty: 2 }]])
+    expect(plan.rollouts).toEqual([])
+  })
+
   it('puts every stream in one Worker and skips the probe without a blank penalty', () => {
     const plan = planLiveStreams(perturbations, 0, 1)
 
@@ -101,13 +109,18 @@ describe('streamedProbeResult', () => {
     return { text: tokens.join(''), tokens, timestamps, ysProbs: tokens.map(() => -0.1), startTime: 3 }
   }
 
+  /** The cuts of each Worker, with no `encoder` rollouts. */
+  function cuts(segments: RawSegment[][]) {
+    return segments.map(worker => ({ segments: worker, rollouts: worker.map(() => []) }))
+  }
+
   it('moves the tokens onto the clip clock and drops the tokens before the clip', () => {
     // The plan puts the reference in Worker 0 and both rollouts in Worker 1.
     const segments = [
       [segment(['a', 'b', 'c'], [0.5, 1.2, 1.6])],
       [segment(['a', 'b'], [0.5, 1.3]), segment(['b', 'd'], [1.2, 1.7])],
     ]
-    const result = streamedProbeResult(clip, 16000, 4, segments, plan, perturbations)
+    const result = streamedProbeResult(clip, 16000, 4, cuts(segments), plan, perturbations)
 
     expect(result.durationSeconds).toBe(1)
     expect(result.reference.tokens.map(token => token.text)).toEqual(['b', 'c'])
@@ -124,7 +137,7 @@ describe('streamedProbeResult', () => {
       [segment(['a', 'b'], [])],
       [segment(['b'], []), segment(['a'], [])],
     ]
-    const result = streamedProbeResult(clip, 16000, 4, segments, plan, perturbations)
+    const result = streamedProbeResult(clip, 16000, 4, cuts(segments), plan, perturbations)
 
     expect(result.reference.tokens).toEqual([{ text: 'a', time: undefined, logProbability: -0.1 }, { text: 'b', time: undefined, logProbability: -0.1 }])
   })
@@ -132,6 +145,21 @@ describe('streamedProbeResult', () => {
   it('reports a Worker that returned too few segments', () => {
     const segments = [[segment(['a'], [1.2])], []]
 
-    expect(() => streamedProbeResult(clip, 16000, 4, segments, plan, perturbations)).toThrow('Worker 1 returned no segment for stream 0.')
+    expect(() => streamedProbeResult(clip, 16000, 4, cuts(segments), plan, perturbations)).toThrow('Worker 1 returned no segment for stream 0.')
+  })
+
+  it('adds the encoder rollouts of the reference on the clip clock', () => {
+    const encoderPlan = planLiveStreams([], 0, 2, { count: 2, sigma: 1, seed: 1 })
+    const endpoints = [{
+      segments: [segment(['a', 'b'], [0.5, 1.2])],
+      rollouts: [[segment(['a', 'b'], [0.5, 1.2]), segment(['a', 'd'], [0.5, 1.3])]],
+    }]
+
+    const result = streamedProbeResult(clip, 16000, 4, endpoints, encoderPlan, [])
+
+    expect(result.reference.tokens.map(token => token.text)).toEqual(['b'])
+    expect(result.samples.map(sample => sample.hypothesis.tokens.map(token => token.text))).toEqual([['b'], ['d']])
+    expect(result.samples[1].hypothesis.tokens[0].time).toBeCloseTo(0.3)
+    expect(result.samples[1].perturbation).toBeUndefined()
   })
 })

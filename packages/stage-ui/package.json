@@ -116,6 +116,7 @@
     "@sherpaw/asr": "catalog:",
     "@sherpaw/kws": "catalog:",
     "@sherpaw/preloader": "catalog:",
+    "@sherpaw/shared": "catalog:",
     "@sherpaw/speaker-diarization": "catalog:",
     "@sherpaw/xsai-transcription": "catalog:",
     "@shikijs/rehype": "catalog:",
