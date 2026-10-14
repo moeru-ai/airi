@@ -7,11 +7,13 @@ const periodStart = Date.parse('2026-10-01T00:00:00Z')
 const periodEnd = Date.parse('2026-11-01T00:00:00Z')
 
 const goSubscription = {
+  environment: 'production',
   product_id: 'prod_go',
   status: 'active',
   auto_renewal_status: 'will_renew',
   gives_access: true,
   current_period_starts_at: periodStart,
+  current_period_ends_at: periodEnd,
   entitlements: { items: [{ id: 'entl_go', lookup_key: 'airi_go' }] },
 }
 
@@ -23,8 +25,11 @@ interface Customer {
 
 const products: Record<string, string> = { prod_go: 'rc_go_monthly', prod_plus: 'rc_plus_monthly' }
 
+/** A production deployment that grants no sandbox subscription. */
+const production = { environment: 'production', sandboxUserIds: [] } as const
+
 /** A RevenueCat API v2 that serves one customer. It records each request path. */
-function revenuecat(customer: Customer | null) {
+function revenuecat(customer: Customer | null, deployment: { environment: 'production' | 'sandbox', sandboxUserIds: readonly string[] } = production) {
   const paths: string[] = []
   const fetch = vi.fn<typeof globalThis.fetch>(async (input) => {
     const url = new URL(String(input))
@@ -44,7 +49,7 @@ function revenuecat(customer: Customer | null) {
     const next = index + 1 < customer.subscriptions.length ? (index === 0 ? nextPath : `${url.origin}${nextPath}`) : null
     return json({ items: customer.subscriptions.slice(index, index + 1), next_page: next })
   })
-  const client = createRevenuecatSubscriberClient({ apiKey: 'sk_v2', projectId: 'proj1', sellsSubscriptions: true, fetch })
+  const client = createRevenuecatSubscriberClient({ ...deployment, apiKey: 'sk_v2', projectId: 'proj1', sellsSubscriptions: true, fetch })
   return { client, fetch, paths }
 }
 
@@ -122,6 +127,45 @@ describe('revenuecat subscriber client', () => {
       expect(entitlements[0]!.purchasedAt).toEqual(new Date(periodStart + 1000))
     })
 
+    // ROOT CAUSE:
+    //
+    // The server granted subscriptions of both environments.
+    //
+    // It now grants only its own environment, and sandbox for listed test accounts.
+    it('grants no sandbox subscription to a production user', async () => {
+      const sandbox = { ...goSubscription, environment: 'sandbox' }
+      const { client, paths } = revenuecat({
+        subscriptions: [sandbox],
+        activeEntitlements: [{ entitlement_id: 'entl_go', expires_at: periodEnd }],
+      })
+
+      expect(await client.fetchEntitlements('user-1')).toEqual([])
+      expect(paths.filter(path => path.startsWith('/products'))).toEqual([])
+    })
+
+    it('grants a sandbox subscription to a listed test account and in a sandbox deployment', async () => {
+      const sandbox = { ...goSubscription, environment: 'sandbox' }
+      const customer = { subscriptions: [sandbox], activeEntitlements: [{ entitlement_id: 'entl_go', expires_at: periodEnd }] }
+
+      expect(await revenuecat(customer, { environment: 'production', sandboxUserIds: ['tester'] }).client.fetchEntitlements('tester')).toHaveLength(1)
+      expect(await revenuecat(customer, { environment: 'sandbox', sandboxUserIds: [] }).client.fetchEntitlements('user-1')).toHaveLength(1)
+      expect(await revenuecat({ ...customer, subscriptions: [goSubscription] }, { environment: 'sandbox', sandboxUserIds: [] }).client.fetchEntitlements('user-1')).toEqual([])
+    })
+
+    it('ends the access with the paid period when a sandbox subscription shares the entitlement', async () => {
+      const sandbox = { ...goSubscription, environment: 'sandbox', current_period_ends_at: periodEnd * 2 }
+      const { client } = revenuecat({
+        subscriptions: [goSubscription, sandbox],
+        // The list of active entitlements takes the later end, which the sandbox subscription gives.
+        activeEntitlements: [{ entitlement_id: 'entl_go', expires_at: periodEnd * 2 }],
+      })
+
+      const entitlements = await client.fetchEntitlements('user-1')
+
+      expect(entitlements).toHaveLength(1)
+      expect(entitlements[0]!.accessUntil).toEqual(new Date(periodEnd))
+    })
+
     it('returns nothing for a customer that RevenueCat does not know, and for no subscription', async () => {
       expect(await revenuecat(null).client.fetchEntitlements('user-1')).toEqual([])
       expect(await revenuecat({ subscriptions: [] }).client.fetchEntitlements('user-1')).toEqual([])
@@ -129,8 +173,8 @@ describe('revenuecat subscriber client', () => {
 
     it('fails with 503 without a key or a project id', async () => {
       const fetch = vi.fn<typeof globalThis.fetch>()
-      const noKey = createRevenuecatSubscriberClient({ apiKey: null, projectId: 'proj1', sellsSubscriptions: true, fetch })
-      const noProject = createRevenuecatSubscriberClient({ apiKey: 'sk_v2', projectId: null, sellsSubscriptions: true, fetch })
+      const noKey = createRevenuecatSubscriberClient({ ...production, apiKey: null, projectId: 'proj1', sellsSubscriptions: true, fetch })
+      const noProject = createRevenuecatSubscriberClient({ ...production, apiKey: 'sk_v2', projectId: null, sellsSubscriptions: true, fetch })
 
       expect(await statusOf(noKey.fetchEntitlements('user-1'))).toBe(503)
       expect(await statusOf(noProject.fetchEntitlements('user-1'))).toBe(503)
@@ -139,7 +183,7 @@ describe('revenuecat subscriber client', () => {
 
     it('fails with 502 on an upstream error, an invalid body, and a network error', async () => {
       const client = (fetch: typeof globalThis.fetch) =>
-        createRevenuecatSubscriberClient({ apiKey: 'sk_v2', projectId: 'proj1', sellsSubscriptions: true, fetch })
+        createRevenuecatSubscriberClient({ ...production, apiKey: 'sk_v2', projectId: 'proj1', sellsSubscriptions: true, fetch })
 
       expect(await statusOf(client(async () => new Response('{}', { status: 500 })).fetchEntitlements('user-1'))).toBe(502)
       expect(await statusOf(client(async () => new Response('{"items":[{}],"next_page":null}')).fetchEntitlements('user-1'))).toBe(502)
@@ -171,6 +215,10 @@ describe('revenuecat subscriber client', () => {
       expect(await renewing({ status: 'in_billing_retry', gives_access: false })).toBe(true)
     })
 
+    it('is false for a renewing sandbox subscription of a production user', async () => {
+      expect(await renewing({ environment: 'sandbox' })).toBe(false)
+    })
+
     it('is false for a cancelled subscription that still gives access, and for an ended one', async () => {
       expect(await renewing({ auto_renewal_status: 'will_not_renew' })).toBe(false)
       expect(await renewing({ status: 'expired', gives_access: false })).toBe(false)
@@ -194,7 +242,7 @@ describe('revenuecat subscriber client', () => {
 
     it('is false without a read in a deployment that sells no subscriptions', async () => {
       const fetch = vi.fn<typeof globalThis.fetch>()
-      const client = createRevenuecatSubscriberClient({ apiKey: null, projectId: null, sellsSubscriptions: false, fetch })
+      const client = createRevenuecatSubscriberClient({ ...production, apiKey: null, projectId: null, sellsSubscriptions: false, fetch })
 
       expect(await client.hasRenewingSubscription('user-1')).toBe(false)
       expect(fetch).not.toHaveBeenCalled()
@@ -202,13 +250,14 @@ describe('revenuecat subscriber client', () => {
 
     // https://github.com/moeru-ai/airi/pull/2910#discussion_r4239058365
     it('fails without a configuration in a deployment that sells subscriptions', async () => {
-      const client = createRevenuecatSubscriberClient({ apiKey: null, projectId: null, sellsSubscriptions: true, fetch: vi.fn<typeof globalThis.fetch>() })
+      const client = createRevenuecatSubscriberClient({ ...production, apiKey: null, projectId: null, sellsSubscriptions: true, fetch: vi.fn<typeof globalThis.fetch>() })
 
       expect(await statusOf(client.hasRenewingSubscription('user-1'))).toBe(503)
     })
 
     it('fails when RevenueCat cannot be read, so the deletion stops', async () => {
       const client = createRevenuecatSubscriberClient({
+        ...production,
         apiKey: 'sk_v2',
         projectId: 'proj1',
         sellsSubscriptions: true,
