@@ -84,7 +84,7 @@ describe('reconcile', () => {
     })
 
     expect(result.upserts).toEqual({ luna: { '/name': 'Aria', '/description': 'Calm' } })
-    expect(result.conflictCopies).toEqual([{ documentId: 'luna', fields: local }])
+    expect(result.conflictCopies).toEqual([{ documentId: 'luna', remoteRevision: 2, fields: local }])
     expect(result.pushes).toEqual([])
   })
 
@@ -209,7 +209,7 @@ describe('reconcile', () => {
       })
 
       expect(result.upserts).toEqual({ default: { '/name': 'Theirs' } })
-      expect(result.conflictCopies).toEqual([{ documentId: 'default', fields: local }])
+      expect(result.conflictCopies).toEqual([{ documentId: 'default', remoteRevision: 2, fields: local }])
     })
 
     it('sends nothing for a document without edits that the server does not have', () => {

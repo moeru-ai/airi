@@ -23,8 +23,8 @@ import { formatRelativeTime } from './composables/relative-time'
 const { t, locale } = useI18n()
 const cardStore = useAiriCardStore()
 const displayModelsStore = useDisplayModelsStore()
-const { addCard, removeCard } = cardStore
-const { cards, activeCardId, cardSyncStates, cloudSyncEnabled } = storeToRefs(cardStore)
+const { addCard, removeCard, exportLegacyCards, discardLegacyCards } = cardStore
+const { cards, activeCardId, cardSyncStates, cloudSyncEnabled, initializationError, legacyCardsRaw } = storeToRefs(cardStore)
 const { isAuthenticated } = storeToRefs(useAuthStore())
 
 const route = useRoute()
@@ -212,12 +212,14 @@ interface DeletedCard {
   id: string
   name: string
   deletedAt: string
+  source: 'local' | 'cloud'
 }
 
 const showDeletedPanel = ref(false)
 const deletedCardsList = ref<DeletedCard[]>([])
 const isLoadingDeleted = ref(false)
 const deletedLoadFailed = ref(false)
+const deletedCloudLoadFailed = ref(false)
 const restoringDeletedId = ref<string | null>(null)
 
 // The server keeps the content of a deleted card for 30 days.
@@ -235,8 +237,11 @@ function restorableDays(deletedAt: string) {
 async function loadDeletedCards() {
   isLoadingDeleted.value = true
   deletedLoadFailed.value = false
+  deletedCloudLoadFailed.value = false
   try {
-    deletedCardsList.value = await cardStore.deletedCards()
+    const result = await cardStore.deletedCards()
+    deletedCardsList.value = result.cards
+    deletedCloudLoadFailed.value = result.cloudLoadFailed
   }
   catch (error) {
     console.error('Error loading recently deleted cards:', error)
@@ -256,7 +261,7 @@ async function toggleDeletedPanel() {
 async function handleRestoreDeletedCard(card: DeletedCard) {
   restoringDeletedId.value = card.id
   try {
-    const restored = await cardStore.restoreDeletedCard(card.id)
+    const restored = await cardStore.restoreDeletedCard(card.id, card.source)
     toast(t(restored ? 'settings.pages.card.sync.deleted.restore_success' : 'settings.pages.card.sync.deleted.restore_failed', { name: card.name }))
     if (restored)
       await loadDeletedCards()
@@ -292,9 +297,16 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
 <template>
   <div :class="['rounded-xl p-4 flex flex-col gap-4']">
     <WakeWordConflictAlert />
+    <Alert v-if="initializationError" type="error">
+      <div class="flex flex-wrap items-center gap-2">
+        <span>{{ t('settings.pages.card.history_storage_error', { error: initializationError }) }}</span>
+        <Button size="sm" :label="t('settings.pages.card.history_storage_retry')" @click="cardStore.initialize()" />
+        <Button v-if="legacyCardsRaw" size="sm" :label="t('settings.pages.card.history_storage_export')" @click="exportLegacyCards" />
+        <Button v-if="legacyCardsRaw" size="sm" :label="t('settings.pages.card.history_storage_discard')" @click="discardLegacyCards" />
+      </div>
+    </Alert>
     <!-- Disclosure: signed-in users upload their cards -->
     <div
-      v-if="isAuthenticated && cloudSyncEnabled"
       :class="[
         'flex flex-col gap-3 rounded-xl px-4 py-3',
         'border border-primary-200/60 dark:border-primary-800/40',
@@ -302,7 +314,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
       ]"
     >
       <div :class="['flex flex-row flex-wrap items-center justify-between gap-2']">
-        <p :class="['flex items-center gap-2 text-sm', 'text-neutral-600 dark:text-neutral-300']">
+        <p v-if="isAuthenticated && cloudSyncEnabled" :class="['flex items-center gap-2 text-sm', 'text-neutral-600 dark:text-neutral-300']">
           <span :class="['i-solar:cloud-check-outline shrink-0', 'text-primary-500 dark:text-primary-400']" />
           {{ t('settings.pages.card.sync.notice') }}
         </p>
@@ -335,7 +347,10 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
         <div v-else-if="deletedLoadFailed" :class="['py-4 text-center text-sm', 'text-red-500 dark:text-red-400']">
           {{ t('settings.pages.card.sync.deleted.load_failed') }}
         </div>
-        <div v-else-if="deletedCardsList.length === 0" :class="['py-4 text-center text-sm', 'text-neutral-500 dark:text-neutral-400']">
+        <div v-if="deletedCloudLoadFailed && !isLoadingDeleted && !deletedLoadFailed" :class="['py-2 text-sm', 'text-amber-600 dark:text-amber-400']">
+          {{ t('settings.pages.card.sync.deleted.cloud_load_failed') }}
+        </div>
+        <div v-if="!isLoadingDeleted && !deletedLoadFailed && deletedCardsList.length === 0" :class="['py-4 text-center text-sm', 'text-neutral-500 dark:text-neutral-400']">
           {{ t('settings.pages.card.sync.deleted.empty') }}
         </div>
         <div
@@ -351,8 +366,12 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
             <span :class="['truncate text-sm font-medium']">{{ card.name }}</span>
             <span :class="['text-xs', 'text-neutral-500 dark:text-neutral-400']" :title="new Date(card.deletedAt).toLocaleString(locale)">
               {{ t('settings.pages.card.sync.deleted.deleted_when', { when: formatDeletedRelative(card.deletedAt) }) }}
-              ·
-              {{ t('settings.pages.card.sync.deleted.days_left', { days: restorableDays(card.deletedAt) }) }}
+              <template v-if="card.source === 'cloud'">
+                · {{ t('settings.pages.card.sync.deleted.days_left', { days: restorableDays(card.deletedAt) }) }}
+              </template>
+              <template v-else>
+                · {{ t('settings.pages.card.sync.deleted.local_retained') }}
+              </template>
             </span>
           </div>
           <Button
@@ -368,7 +387,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
     </div>
 
     <!-- Disclosure: a signed-in user who has not turned cloud sync on -->
-    <p v-else-if="isAuthenticated" :class="['flex items-center gap-2 text-sm', 'text-neutral-500 dark:text-neutral-400']">
+    <p v-if="isAuthenticated && !cloudSyncEnabled" :class="['flex items-center gap-2 text-sm', 'text-neutral-500 dark:text-neutral-400']">
       <span :class="['i-solar:cloud-cross-outline shrink-0']" />
       {{ t('settings.pages.card.sync.off_notice') }}
       <RouterLink to="/settings/system/experimental" :class="['text-primary-600 dark:text-primary-400 hover:underline']">

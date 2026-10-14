@@ -279,19 +279,7 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
           switch (spawnMode) {
             case 'bg':
               // Update character's active background
-              await cardStore.updateCard(cardId, {
-                ...currentCard,
-                extensions: {
-                  ...currentCard.extensions,
-                  airi: {
-                    ...currentCard.extensions.airi,
-                    modules: {
-                      ...currentCard.extensions.airi.modules,
-                      activeBackgroundId: entryId,
-                    },
-                  },
-                },
-              })
+              await cardStore.updateCard(cardId, { extensions: { airi: { modules: { activeBackgroundId: entryId } } } })
               break
 
             case 'inline': {
@@ -331,19 +319,7 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
             case 'bg_widget':
             default:
               // Both: Update background AND spawn widget
-              await cardStore.updateCard(cardId, {
-                ...currentCard,
-                extensions: {
-                  ...currentCard.extensions,
-                  airi: {
-                    ...currentCard.extensions.airi,
-                    modules: {
-                      ...currentCard.extensions.airi.modules,
-                      activeBackgroundId: entryId,
-                    },
-                  },
-                },
-              })
+              await cardStore.updateCard(cardId, { extensions: { airi: { modules: { activeBackgroundId: entryId } } } })
 
               try {
                 await invokers.addWidget({

@@ -29,7 +29,7 @@ export const useWakeWordsStore = defineStore('wake-words', () => {
     if (!card)
       throw new Error('Character is unavailable')
     const wakeWords = validateWakeWords(value, model)
-    await cards.updateCard(characterId, { ...card, extensions: { ...card.extensions, airi: { ...card.extensions.airi, wakeWords } } })
+    await cards.updateCard(characterId, { extensions: { airi: { wakeWords } } })
     return { status: 'saved' as const, conflicts: catalog.value.conflicts.filter(conflict => conflict.candidates.some(candidate => candidate.characterId === characterId)) }
   }
 

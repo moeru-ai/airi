@@ -105,10 +105,7 @@ describe('persisted and replicated card defaults', () => {
     await expect.poll(() => follower.cards.moduleDefaults?.consciousness.model).toBe('global-model')
     await expect.poll(() => follower.consciousness.activeModel).toBe('global-model')
     const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
-    await leader.cards.updateCard('default', {
-      ...leader.cards.activeCard!,
-      description: 'Changed in another window',
-    })
+    await leader.cards.updateCard('default', { description: 'Changed in another window' })
     await expect.poll(() => follower.cards.activeCard?.description).toBe('Changed in another window')
     await nextTick()
     expect(follower.consciousness.activeModel).toBe('global-model')

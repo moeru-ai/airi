@@ -42,6 +42,7 @@ describe('synchronize', () => {
 
     await synchronize({
       client,
+      withLocalChanges: operation => operation(),
       state: emptyState,
       isCurrent: () => true,
       saveState: async (state) => { saved.push(state) },
@@ -60,6 +61,7 @@ describe('synchronize', () => {
 
     await synchronize({
       client,
+      withLocalChanges: operation => operation(),
       state: emptyState,
       isCurrent: () => true,
       saveState: async () => {},
@@ -88,6 +90,7 @@ describe('synchronize', () => {
     let state = emptyState
     const run = () => synchronize({
       client,
+      withLocalChanges: operation => operation(),
       state,
       isCurrent: () => true,
       saveState: async (saved) => { state = saved },
@@ -109,6 +112,7 @@ describe('synchronize', () => {
 
     await synchronize({
       client,
+      withLocalChanges: operation => operation(),
       state,
       isCurrent: () => true,
       saveState: async (saved) => { state = saved },
@@ -129,6 +133,7 @@ describe('synchronize', () => {
 
     await synchronize({
       client,
+      withLocalChanges: operation => operation(),
       state: { documents: { luna: { revision: 1, fields: { '/name': { revision: 1, value: 'Luna' } } } } },
       isCurrent: () => true,
       saveState: async () => {},
@@ -150,6 +155,7 @@ describe('synchronize', () => {
 
     await synchronize({
       client,
+      withLocalChanges: operation => operation(),
       state: emptyState,
       isCurrent: () => true,
       saveState: async () => {},
@@ -174,6 +180,7 @@ describe('synchronize', () => {
 
     const result = await synchronize({
       client,
+      withLocalChanges: operation => operation(),
       state,
       isCurrent: () => true,
       saveState: async (saved) => { state = saved },
@@ -198,6 +205,7 @@ describe('synchronize', () => {
 
     await expect(synchronize({
       client,
+      withLocalChanges: operation => operation(),
       state: emptyState,
       isCurrent: () => true,
       saveState: async () => {},
@@ -215,6 +223,7 @@ describe('synchronize', () => {
 
     await synchronize({
       client,
+      withLocalChanges: operation => operation(),
       state: emptyState,
       isCurrent: () => current,
       saveState: async () => { current = false },
@@ -230,6 +239,7 @@ describe('synchronize', () => {
 
     await synchronize({
       client,
+      withLocalChanges: operation => operation(),
       state: emptyState,
       isCurrent: () => false,
       saveState: async () => {},

@@ -15,6 +15,44 @@ const { resetArtistryToGlobal } = vi.hoisted(() => ({
   resetArtistryToGlobal: vi.fn(),
 }))
 
+const cardDocuments = vi.hoisted(() => new Map<string, Record<string, unknown>>())
+
+vi.mock('../../database/repos/character-cards.repo', () => ({
+  characterCardsRepo: {
+    async migrate(cards: Iterable<[string, Record<string, unknown>]>) {
+      for (const [id, fields] of cards)
+        cardDocuments.set(id, fields)
+      return true
+    },
+    async list() {
+      return [...cardDocuments].map(([id, fields]) => [id, fields] as const)
+    },
+    async write(id: string, fields: Record<string, unknown>) {
+      cardDocuments.set(id, fields)
+      return 1
+    },
+    async remove(id: string) {
+      cardDocuments.delete(id)
+      return true
+    },
+    async restore() {
+      return false
+    },
+    async snapshot() {
+      return null
+    },
+    async history() {
+      return []
+    },
+    async deleted() {
+      return []
+    },
+    async clear() {
+      cardDocuments.clear()
+    },
+  },
+}))
+
 // NOTICE:
 // Vitest runs these store tests in Node, where localforage cannot select a
 // browser storage driver. The stage-model watcher legitimately asks the
@@ -98,6 +136,8 @@ vi.mock('vue-i18n', () => ({
  */
 describe('airi-card store', () => {
   beforeEach(() => {
+    cardDocuments.clear()
+    vi.stubGlobal('localStorage', { getItem: () => null, removeItem: vi.fn(), setItem: vi.fn() })
     setActivePinia(createPinia())
     resetArtistryToGlobal.mockClear()
     useSpeechStore().$patch({
@@ -187,20 +227,12 @@ describe('airi-card store', () => {
 
   it('preserves ambiguous old default speech settings', async () => {
     const cardStore = useAiriCardStore()
-    cardStore.cards.set('default', {
+    await cardStore.initialize()
+    await cardStore.updateCard('default', {
       name: 'ReLU',
       version: '1.0.0',
       description: 'Built-in card from before provider defaults loaded.',
-      extensions: {
-        airi: {
-          modules: {
-            consciousness: { provider: '', model: '' },
-            speech: { provider: 'speech-noop', model: '', voice_id: '' },
-            vision: { provider: '', model: '' },
-          },
-          agents: {},
-        },
-      },
+      extensions: { airi: { modules: { consciousness: { provider: '', model: '' }, speech: { provider: 'speech-noop', model: '', voice_id: '' }, vision: { provider: '', model: '' } } } },
     })
 
     await cardStore.initialize()
@@ -428,21 +460,42 @@ describe('airi-card store', () => {
 
     const card = cardStore.getCard(cardId)
     expect(card).toBeDefined()
-    await cardStore.updateCard(cardId, {
-      ...card!,
-      extensions: {
-        ...card!.extensions,
-        airi: {
-          ...card!.extensions.airi,
-          modules: {
-            ...card!.extensions.airi.modules,
-            displayModelId: 'preset-vrm-1',
-          },
-        },
-      },
-    })
+    await cardStore.updateCard(cardId, { extensions: { airi: { modules: { displayModelId: 'preset-vrm-1' } } } })
 
     expect(stageModelStore.stageModelSelected).toBe('preset-vrm-1')
+  })
+
+  it('applies concurrent card edits to the latest queued snapshot', async () => {
+    const cards = useAiriCardStore()
+    await cards.initialize()
+    const cardId = await cards.addCard({ name: 'Luna', version: '1.0.0' }, 'scratch')
+
+    await Promise.all([
+      cards.updateCard(cardId, { name: 'Nova' }),
+      cards.updateCard(cardId, { scenario: 'A rainy city' }),
+      cards.updateCard(cardId, { extensions: { airi: { modules: { activeBackgroundId: 'background-1' } } } }),
+      cards.updateCard(cardId, { extensions: { airi: { wakeWords: [{ text: 'hello', modelId: 'test-model', pronunciations: [['hello']] }] } } }),
+    ])
+
+    expect(cards.getCard(cardId)).toMatchObject({
+      name: 'Nova',
+      scenario: 'A rainy city',
+      extensions: { airi: { modules: { activeBackgroundId: 'background-1' }, wakeWords: [{ text: 'hello', modelId: 'test-model', pronunciations: [['hello']] }] } },
+    })
+  })
+
+  it('serializes concurrent active-card module updates', async () => {
+    const cardStore = useAiriCardStore()
+    await cardStore.initialize()
+
+    await Promise.all([
+      cardStore.updateActiveCardDisplayModel('preset-vrm-1'),
+      cardStore.updateActiveCardVision({ provider: 'mock-vision-provider', model: 'mock-vision-model' }),
+    ])
+
+    const modules = cardStore.getCard('default')!.extensions.airi.modules
+    expect(modules.displayModelId).toBe('preset-vrm-1')
+    expect(modules.vision).toEqual({ provider: 'mock-vision-provider', model: 'mock-vision-model' })
   })
 
   // ROOT CAUSE:
@@ -499,7 +552,7 @@ describe('airi-card store', () => {
     await cardStore.updateActiveCardDisplayModel('preset-vrm-1')
     stageModelStore.stageModelSelected = 'preset-live2d-1'
 
-    cardStore.resetState()
+    await cardStore.resetState()
 
     expect(stageModelStore.stageModelSelected).toBe('preset-live2d-1')
   })
@@ -623,7 +676,7 @@ describe('airi-card store', () => {
       await cardStore.initialize()
       const remoteParts = splitCard({ ...cardStore.builtInCard, name: 'Luna' })
 
-      const { activeCardChanged, rejected } = cardStore.applySynchronizedCards({ ...noChanges, upserts: { luna: remoteParts } })
+      const { activeCardChanged, rejected } = await cardStore.applySynchronizedCards({ ...noChanges, upserts: { luna: remoteParts } })
 
       expect(activeCardChanged).toBe(false)
       expect(rejected).toEqual([])
@@ -635,7 +688,7 @@ describe('airi-card store', () => {
       await cardStore.initialize()
       const parts = splitCard({ ...cardStore.builtInCard, name: 'Luna' })
 
-      const { activeCardChanged } = cardStore.applySynchronizedCards({ ...noChanges, upserts: { default: parts } })
+      const { activeCardChanged } = await cardStore.applySynchronizedCards({ ...noChanges, upserts: { default: parts } })
 
       expect(activeCardChanged).toBe(true)
       expect(cardStore.activeCardId).toBe('default')
@@ -647,7 +700,7 @@ describe('airi-card store', () => {
       const cardId = await cardStore.addCard({ name: 'Luna', version: '1.0.0' }, 'scratch')
       await cardStore.activateCard(cardId)
 
-      const { activeCardChanged } = cardStore.applySynchronizedCards({ ...noChanges, removals: [cardId, 'default'] })
+      const { activeCardChanged } = await cardStore.applySynchronizedCards({ ...noChanges, removals: [cardId, 'default'] })
 
       expect(activeCardChanged).toBe(true)
       expect(cardStore.cards.has(cardId)).toBe(false)
@@ -660,7 +713,7 @@ describe('airi-card store', () => {
       await cardStore.initialize()
       const fields = splitCard({ ...cardStore.builtInCard, name: 'Luna', description: 'Local version' })
 
-      cardStore.applySynchronizedCards({ ...noChanges, conflictCopies: [{ documentId: 'luna', fields }] })
+      await cardStore.applySynchronizedCards({ ...noChanges, conflictCopies: [{ documentId: 'luna', remoteRevision: 1, fields }] })
 
       const copies = [...cardStore.cards].filter(([id]) => id !== 'default')
       expect(copies).toHaveLength(1)
@@ -678,7 +731,7 @@ describe('airi-card store', () => {
       await cardStore.initialize()
       const goodFields = splitCard({ ...cardStore.builtInCard, name: 'Luna' })
 
-      const { rejected } = cardStore.applySynchronizedCards({ ...noChanges, upserts: { broken: brokenFields, luna: goodFields } })
+      const { rejected } = await cardStore.applySynchronizedCards({ ...noChanges, upserts: { broken: brokenFields, luna: goodFields } })
 
       expect(rejected).toEqual(['broken'])
       expect(cardStore.cards.has('broken')).toBe(false)
@@ -698,10 +751,10 @@ describe('airi-card store', () => {
       const cardId = await cardStore.addCard({ name: 'Luna', version: '1.0.0', description: 'Local version' }, 'scratch')
       const localFields = splitCard(cardStore.cards.get(cardId)!)
 
-      const { rejected } = cardStore.applySynchronizedCards({
+      const { rejected } = await cardStore.applySynchronizedCards({
         upserts: { [cardId]: { '/description': 'No name' } },
         removals: [],
-        conflictCopies: [{ documentId: cardId, fields: localFields }],
+        conflictCopies: [{ documentId: cardId, remoteRevision: 1, fields: localFields }],
       })
 
       expect(rejected).toEqual([cardId])
@@ -722,10 +775,10 @@ describe('airi-card store', () => {
       const cardId = await cardStore.addCard({ name: 'Luna', version: '1.0.0', description: 'Local version' }, 'scratch')
       const remoteFields = splitCard({ ...cardStore.cards.get(cardId)!, description: 'Remote version' })
 
-      const { rejected } = cardStore.applySynchronizedCards({
+      const { rejected } = await cardStore.applySynchronizedCards({
         upserts: { [cardId]: remoteFields },
         removals: [],
-        conflictCopies: [{ documentId: cardId, fields: { '/description': 'No name' } }],
+        conflictCopies: [{ documentId: cardId, remoteRevision: 1, fields: { '/description': 'No name' } }],
       })
 
       expect(rejected).toEqual([cardId])
@@ -740,7 +793,7 @@ describe('airi-card store', () => {
         await cardStore.initialize()
         const builtInDescription = cardStore.cards.get('default')?.description
 
-        const { rejected } = cardStore.applySynchronizedCards({ ...noChanges, upserts: { default: { '/systemPrompt': 'Be kind' } } })
+        const { rejected } = await cardStore.applySynchronizedCards({ ...noChanges, upserts: { default: { '/systemPrompt': 'Be kind' } } })
 
         expect(rejected).toEqual([])
         expect(cardStore.cards.get('default')).toMatchObject({ name: 'ReLU', description: builtInDescription, systemPrompt: 'Be kind' })
@@ -749,9 +802,9 @@ describe('airi-card store', () => {
       it('goes back to the built-in part when the remote edit is gone', async () => {
         const cardStore = useAiriCardStore()
         await cardStore.initialize()
-        cardStore.applySynchronizedCards({ ...noChanges, upserts: { default: { '/systemPrompt': 'Be kind' } } })
+        await cardStore.applySynchronizedCards({ ...noChanges, upserts: { default: { '/systemPrompt': 'Be kind' } } })
 
-        cardStore.applySynchronizedCards({ ...noChanges, upserts: { default: {} } })
+        await cardStore.applySynchronizedCards({ ...noChanges, upserts: { default: {} } })
 
         expect(cardStore.cards.get('default')?.systemPrompt).toBeUndefined()
       })
@@ -760,7 +813,7 @@ describe('airi-card store', () => {
         const cardStore = useAiriCardStore()
         await cardStore.initialize()
 
-        cardStore.applySynchronizedCards({ ...noChanges, conflictCopies: [{ documentId: 'default', fields: { '/systemPrompt': 'Mine' } }] })
+        await cardStore.applySynchronizedCards({ ...noChanges, conflictCopies: [{ documentId: 'default', remoteRevision: 1, fields: { '/systemPrompt': 'Mine' } }] })
 
         const [copy] = [...cardStore.cards].filter(([id]) => id !== 'default')
         expect(copy[1]).toMatchObject({ description: cardStore.cards.get('default')?.description, systemPrompt: 'Mine' })

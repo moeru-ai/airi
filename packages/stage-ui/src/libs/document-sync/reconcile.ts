@@ -40,6 +40,7 @@ export interface ReconcileInput {
 /** The local content that lost a conflict, and the document that it came from. */
 export interface ConflictCopy {
   documentId: string
+  remoteRevision: number
   fields: DocumentFields
 }
 
@@ -206,7 +207,7 @@ export function reconcile(input: ReconcileInput): ReconcilePlan {
     if (pushed.length > 0)
       plan.pushes.push({ documentId, fields: pushed })
     if (conflicted)
-      plan.conflictCopies.push({ documentId, fields: localDocument })
+      plan.conflictCopies.push({ documentId, remoteRevision: remoteDocument.revision, fields: localDocument })
   }
 
   return plan
