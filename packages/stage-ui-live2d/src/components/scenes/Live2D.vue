@@ -182,7 +182,6 @@ defineExpose({
           v-model:state="componentStateModel"
           :model-src="rootContext.source.value"
           :model-id="rootContext.modelId.value"
-          :revision="rootContext.revision.value"
           :app="app"
           :mouth-open-size="mouthOpenSize"
           :now-speaking="nowSpeaking"

@@ -73,7 +73,6 @@ function handleShot() {
               ref="live2dModelRef"
               :model-id="context.modelId.value"
               :model-src="context.source.value"
-              :revision="context.revision.value"
               :app="app"
               :width="width"
               :height="height"

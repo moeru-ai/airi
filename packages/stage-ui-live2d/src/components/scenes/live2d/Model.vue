@@ -52,7 +52,6 @@ import { getLive2DMotionControlModelOffset, useL2dViewControl, useLive2DMotionCo
 const props = withDefaults(defineProps<{
   modelSrc?: string
   modelId?: string
-  revision?: number
 
   app?: Application
   mouthOpenSize?: number
@@ -80,7 +79,6 @@ const props = withDefaults(defineProps<{
   screenAmbientLightSquint?: number
 }>(), {
   mouthOpenSize: 0,
-  revision: 0,
   nowSpeaking: false,
   paused: false,
   focusAt: () => ({ x: 0, y: 0 }),
@@ -712,7 +710,7 @@ function updateModelFilters() {
   updateFilterStack()
 }
 
-watch([modelSrcRef, () => props.revision], async () => await loadModel(), { immediate: true })
+watch(modelSrcRef, async () => await loadModel(), { immediate: true })
 watch(dark, updateModelFilters, { immediate: true })
 watch([model, themeColorsHue], updateModelFilters)
 watch([enabledShadow, screenAmbientLightActive], updateFilterStack)

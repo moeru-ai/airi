@@ -28,8 +28,6 @@ export interface Live2DError {
 export interface Live2DContext {
   source: Readonly<ShallowRef<string | undefined>>
   modelId: Readonly<ShallowRef<string>>
-  /** Changes whenever the source must create a fresh model instance. */
-  revision: Readonly<ShallowRef<number>>
   phase: Readonly<ShallowRef<Live2DPhase>>
   error: Readonly<ShallowRef<Live2DError | undefined>>
   expressions: Live2DExpressionsContext
@@ -59,7 +57,6 @@ function errorFrom(value: unknown): Error {
 export function createLive2D(options: CreateLive2DOptions = {}): Live2DContext {
   const source = shallowRef<string>()
   const modelId = shallowRef('')
-  const revision = shallowRef(0)
   const phase = shallowRef<Live2DPhase>('idle')
   const error = shallowRef<Live2DError>()
   let internalModel: PixiLive2DInternalModel | undefined
@@ -101,7 +98,6 @@ export function createLive2D(options: CreateLive2DOptions = {}): Live2DContext {
 
     source.value = nextSource
     modelId.value = nextModelId ?? nextSource
-    revision.value += 1
     error.value = undefined
     phase.value = 'loading'
   }
@@ -114,11 +110,8 @@ export function createLive2D(options: CreateLive2DOptions = {}): Live2DContext {
   }
 
   function unload() {
-    const hadSource = source.value !== undefined
     clearLoadedModel()
     source.value = undefined
-    if (hadSource)
-      revision.value += 1
     error.value = undefined
     if (phase.value !== 'disposed')
       phase.value = 'idle'
@@ -153,7 +146,6 @@ export function createLive2D(options: CreateLive2DOptions = {}): Live2DContext {
   return {
     source,
     modelId,
-    revision,
     phase,
     error,
     expressions,
