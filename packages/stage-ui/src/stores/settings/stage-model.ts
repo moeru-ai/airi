@@ -3,8 +3,8 @@ import type {} from 'pinia-plugin-synced'
 import type { DisplayModel } from '../display-models'
 
 import { refManualReset, useEventListener } from '@vueuse/core'
-import { defineStore, storeToRefs } from 'pinia'
-import { computed, shallowRef, watch } from 'vue'
+import { defineStore, getActivePinia, storeToRefs } from 'pinia'
+import { computed, onScopeDispose, shallowRef, watch } from 'vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../display-models'
 
@@ -36,6 +36,13 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   const { selected: stageModelSelectedState } = storeToRefs(stageModelSelectionStore)
   let stageModelUpdateSequence = 0
   let legacyModelIdentityResetPromise: Promise<void> | undefined
+  // The Three.js store loads after an await. By then another Pinia can be
+  // active, or this one can be disposed, so keep the Pinia that owns this store.
+  const pinia = getActivePinia()
+  let disposed = false
+  onScopeDispose(() => {
+    disposed = true
+  })
   const stageModelSelected = computed<string>({
     get: () => stageModelSelectedState.value,
     set: (value) => {
@@ -92,7 +99,10 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     // The Three.js store is browser-only. Load it only during browser startup so
     // Node consumers of the shared settings store do not evaluate rendering APIs.
     legacyModelIdentityResetPromise ??= import('@proj-airi/stage-ui-three').then(({ useModelStore }) => {
-      useModelStore().resetLegacyModelIdentity()
+      // A disposed Pinia cannot create the Three.js store, and nothing renders it anymore.
+      if (disposed)
+        return
+      useModelStore(pinia).resetLegacyModelIdentity()
     })
 
     return legacyModelIdentityResetPromise
