@@ -132,7 +132,7 @@ The tracker enrolls the saved voiceprint as speaker 0, and follows each change o
 
 `useVoiceprintStore` keeps the voiceprint of the device owner in local storage. Only one person can enroll.
 `useVoiceEnrollmentStore` records one enrollment from the speech input, keeps only the speech that Silero VAD finds, and saves the voiceprint.
-The voice host serves it through `voiceEnrollmentCommand` and pauses automatic speech input and wake words while it records.
+The voice host serves it through `voiceEnrollmentCommand`. While it records, neither speech nor a wake word starts an input.
 Other windows use `useVoiceControlsStore().enrollmentCommand`. Without a connected voice host, that window runs the enrollment itself.
 
 A host can pass its own `detectWakeWord` to `voice.startListening`. Then the built-in detection does not start.

@@ -11,6 +11,7 @@ import { createI18n } from 'vue-i18n'
 
 import { injectKeyPiniaSynced } from '../libs/pinia/synced-context'
 import { toStoredVoiceprint } from '../libs/voice/voiceprint'
+import { useDisplayModelsStore } from '../stores/display-models'
 import { useModsServerChannelStore } from '../stores/mods/api/channel-server'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useConsciousnessSettingsStore } from '../stores/modules/consciousness-settings'
@@ -148,5 +149,17 @@ it('removes the voiceprint when all data is deleted', async () => {
   await maintenance.deleteAllData()
 
   expect(useVoiceprintStore(pinia).record).toBeUndefined()
+  expect(localStorage.getItem('settings/voice/voiceprint')).toBeNull()
+})
+
+it('removes the voiceprint when an earlier cleanup fails', async () => {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
+  localStorage.setItem('settings/voice/voiceprint', JSON.stringify(toStoredVoiceprint({ embedding: new Float32Array([1, 0]), seconds: 8 }, Date.now())))
+  const { pinia, runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
+  await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
+  vi.spyOn(useDisplayModelsStore(pinia), 'resetDisplayModels').mockRejectedValue(new Error('Model storage unavailable'))
+
+  await expect(maintenance.deleteAllData()).rejects.toThrow('Model storage unavailable')
+
   expect(localStorage.getItem('settings/voice/voiceprint')).toBeNull()
 })

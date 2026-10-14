@@ -15,7 +15,7 @@ const SPEECH = 0.5
 function createHarness(enroll = vi.fn(async (_speech: Float32Array, _sampleRate: number, _signal: AbortSignal) => {})) {
   const source = createPushStream<PcmBlock>()
   let frame = 0
-  const detect = vi.fn(async (window: AudioWindow) => Math.abs(window.channels[0]![0]!) > 0.1 ? 0.9 : 0.01)
+  const detect = vi.fn(async (window: AudioWindow): Promise<number> => Math.abs(window.channels[0]![0]!) > 0.1 ? 0.9 : 0.01)
   const enrollment = new VoiceEnrollment(new AudioInput({ live: true, open: () => source.stream }), { detect, enroll })
 
   /** Writes `windows` windows of speech or silence. */
@@ -87,6 +87,37 @@ describe('voiceEnrollment', () => {
 
     expect(enrollment.snapshot.phase).toBe('cancelled')
     expect(enroll.mock.calls[0]![2].aborted).toBe(true)
+  })
+
+  it('stays cancelled and does not enroll when a cancel follows finish', async () => {
+    const { enrollment, enroll, write } = createHarness()
+
+    write(200, SPEECH)
+    await expect.poll(() => enrollment.snapshot.speechSeconds).toBe(6.4)
+    // The finished capture no longer follows the abort, so the reader still sees the end of the recording.
+    enrollment.finish()
+    enrollment.cancel()
+    await enrollment.done
+
+    expect(enrollment.snapshot.phase).toBe('cancelled')
+    expect(enroll).not.toHaveBeenCalled()
+  })
+
+  it('stays cancelled when a VAD score resolves after cancel', async () => {
+    const { enrollment, detect, write } = createHarness()
+    const scoring = Promise.withResolvers<number>()
+
+    // Three windows hold 0.096 s of speech. The fourth window reaches 0.1 s, so its score changes the snapshot.
+    write(3, SPEECH)
+    await expect.poll(() => detect.mock.calls.length).toBe(3)
+    detect.mockImplementationOnce(async () => scoring.promise)
+    write(1, SPEECH)
+    await expect.poll(() => detect.mock.calls.length).toBe(4)
+    enrollment.cancel()
+    scoring.resolve(0.9)
+    await enrollment.done
+
+    expect(enrollment.snapshot.phase).toBe('cancelled')
   })
 
   it('reports the error of a failed voiceprint computation', async () => {

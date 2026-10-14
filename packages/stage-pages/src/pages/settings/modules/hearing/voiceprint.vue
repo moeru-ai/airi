@@ -76,10 +76,18 @@ watch(busy, (value) => {
     ownsEnrollment = false
 })
 
+/** True while a begin command waits for its result. A second Start click then sends nothing. */
+const starting = shallowRef(false)
+
 async function start() {
   // Set before the command, so a page that closes while the host has not answered still cancels.
   ownsEnrollment = true
-  ownsEnrollment = await send('begin')
+  starting.value = true
+  const accepted = await send('begin')
+  starting.value = false
+  // Do not set it to true here. The enrollment can already have ended, and `watch(busy)` has cleared it.
+  if (!accepted)
+    ownsEnrollment = false
 }
 
 /** Cancels the enrollment that this page started. A host that records nothing answers `closed`. */
@@ -174,6 +182,7 @@ const resultClasses = {
             variant="primary"
             icon="i-solar:microphone-3-bold-duotone"
             :label="voiceprints.record ? t('settings.pages.modules.hearing.voiceprint.again') : t('settings.pages.modules.hearing.voiceprint.start')"
+            :disabled="starting"
             @click="start"
           />
           <DoubleCheckButton v-if="voiceprints.record" data-testid="voiceprint-delete" @confirm="voiceprints.remove()">

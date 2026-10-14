@@ -123,13 +123,14 @@ export function useDataMaintenance() {
   }
 
   async function deleteAllData() {
+    // The voiceprint identifies the user. Remove it first, so a failed cleanup step below cannot keep it.
+    voiceprintStore.remove()
     await deleteAllModels()
     await resetProvidersSettings()
     await resetModulesSettings()
     await deleteAllChatSessions()
     await resetSettingsState()
     await clearSherpawModelAssets()
-    voiceprintStore.remove()
   }
 
   async function resetDesktopApplicationState() {

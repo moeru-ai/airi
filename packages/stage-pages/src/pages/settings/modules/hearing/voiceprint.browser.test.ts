@@ -38,8 +38,9 @@ function renderPage() {
 /**
  * A voice host in another window. It answers through its own BroadcastChannel, because a channel does not
  * receive its own messages. It records the enrollment commands and publishes the enrollment state that a test sets.
+ * It answers each command after `answered` settles.
  */
-function createHost() {
+function createHost(answered: Promise<void> = Promise.resolve()) {
   const channel = new BroadcastChannel('proj-airi:pipelines:outputs:speech')
   const { context } = createBroadcastChannelContext(channel)
   const commands = vi.fn<(command: VoiceEnrollmentCommand) => void>()
@@ -51,6 +52,7 @@ function createHost() {
     context.on(voiceRequestEnrollment, enrollment),
     defineInvokeHandler(context, voiceEnrollmentCommand, async (command) => {
       commands(command)
+      await answered
       return { status: 'accepted' }
     }),
   ]
@@ -176,5 +178,46 @@ describe('voiceprint settings', () => {
 
     await expect.poll(() => local.state.phase).toBe('cancelled')
     await expect.element(screen.getByTestId('voiceprint-start')).toBeVisible()
+  })
+
+  it('disables Start until the host answers the begin command', async () => {
+    const answer = Promise.withResolvers<void>()
+    const host = createHost(answer.promise)
+    const screen = renderPage()
+    host.publish({ phase: 'idle' })
+
+    await screen.getByTestId('voiceprint-start').click()
+    await vi.waitFor(() => expect(host.commands).toHaveBeenCalledTimes(1))
+    await expect.element(screen.getByTestId('voiceprint-start')).toBeDisabled()
+
+    answer.resolve()
+
+    await expect.element(screen.getByTestId('voiceprint-start')).toBeEnabled()
+  })
+
+  it('does not own an enrollment that ended before the host answered', async () => {
+    const answer = Promise.withResolvers<void>()
+    const host = createHost(answer.promise)
+    const screen = renderPage()
+    host.publish({ phase: 'idle' })
+
+    await screen.getByTestId('voiceprint-start').click()
+    await vi.waitFor(() => expect(host.commands).toHaveBeenLastCalledWith({ type: 'begin' }))
+    host.publish({ phase: 'recording', speechSeconds: 0 })
+    await expect.element(screen.getByTestId('voiceprint-finish')).toBeVisible()
+    host.publish({ phase: 'failed', speechSeconds: 0, failure: 'error', error: 'Microphone unavailable' })
+    await expect.element(screen.getByTestId('voiceprint-result')).toBeVisible()
+    answer.resolve()
+    await expect.element(screen.getByTestId('voiceprint-start')).toBeEnabled()
+
+    // Another window starts an enrollment. This page must not cancel it when it unmounts.
+    host.publish({ phase: 'recording', speechSeconds: 6 })
+    await expect.element(screen.getByTestId('voiceprint-finish')).toBeVisible()
+    screen.unmount()
+    // The channel keeps the order of messages, so a cancel from the unmount arrives before this finish.
+    await renderPage().getByTestId('voiceprint-finish').click()
+
+    await vi.waitFor(() => expect(host.commands).toHaveBeenCalledTimes(2))
+    expect(host.commands.mock.calls).toEqual([[{ type: 'begin' }], [{ type: 'finish' }]])
   })
 })

@@ -52,6 +52,8 @@ export interface VoiceEnrollmentOptions {
   readonly enroll: (speech: Float32Array, sampleRate: number, signal: AbortSignal) => Promise<void>
 }
 
+const SETTLED_PHASES = new Set<VoiceEnrollmentSnapshot['phase']>(['enrolled', 'failed', 'cancelled'])
+
 /**
  * Records the user's speech once and turns it into a voiceprint.
  *
@@ -134,6 +136,8 @@ export class VoiceEnrollment {
         }
       }
 
+      // A cancel after `finish` does not end the finished capture, so the loop above can still end normally.
+      signal.throwIfAborted()
       if (speechSamples < MIN_ENROLLMENT_SPEECH_SECONDS * sampleRate || sampleRate === 0) {
         this.change({ phase: 'failed', speechSeconds: this.current.speechSeconds, failure: 'too-short' })
         return
@@ -160,6 +164,9 @@ export class VoiceEnrollment {
   }
 
   private change(snapshot: VoiceEnrollmentSnapshot) {
+    // `cancel` settles the enrollment while `run` can still wait on a VAD score. A later change must not replace it.
+    if (SETTLED_PHASES.has(this.current.phase))
+      return
     this.current = snapshot
     for (const listener of this.listeners) {
       try {

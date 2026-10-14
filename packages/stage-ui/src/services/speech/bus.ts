@@ -194,8 +194,8 @@ export const voiceMessageDropped = defineEventa<{ id: string, sessionId: string,
 export type VoiceEnrollmentState = { readonly phase: 'idle' } | VoiceEnrollmentSnapshot
 
 /**
- * Controls the one voiceprint enrollment of the voice host. The host records with its own speech input, and it
- * pauses automatic speech input and wake words while it records.
+ * Controls the one voiceprint enrollment of the voice host. The host records with its own speech input.
+ * While it records, neither speech nor a wake word starts an input.
  *
  * - `begin`: starts recording. The result is `closed` while another enrollment records or enrolls.
  * - `finish`: ends the recording. The recorded speech then enrolls.
