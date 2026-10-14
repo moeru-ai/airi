@@ -28,6 +28,10 @@ While an enrollment records, the voice activity plugin does not begin inputs. Th
 
 Other windows send `voiceEnrollmentCommand` (`begin`, `finish`, `cancel`) and read `voiceEnrollmentChanged`. A window without a connected voice host runs the enrollment itself. This is the case for the stage-web settings page, because the Stage unmounts there and nothing listens to the microphone.
 
+A window learns about the host only when the host answers its snapshot request. If the host answers after a local enrollment began, the window cancels the local enrollment. The page then shows the host state, and the user starts again.
+
+The Voiceprint page cancels the enrollment that it started when the page unmounts or the window closes. The stores outlive the page, so without this cancel, an enrollment without visible controls can save a voiceprint.
+
 ### Storage
 
 `useVoiceprintStore` keeps the voiceprint in local storage under `settings/voice/voiceprint`. The record holds the embedding, the seconds of speech, the creation time, the model ID and revision, and the input that recorded it.
@@ -57,5 +61,5 @@ The Voiceprint settings page tells the user what a voiceprint is, that it stays 
 ## Verification
 
 Unit tests cover the speech selection, the 5-second minimum, the 30-second limit, cancellation, and model failures with a fake VAD and a fake voiceprint model.
-Browser tests cover the settings page with a fake voice host, outdated records, deletion, and Delete all data.
+Browser tests cover the settings page with a fake voice host, outdated records, deletion, and Delete all data. They also cover the cancel on unmount and on `pagehide`, and a host that answers after Start.
 A real enrollment with a microphone and the CAM++ model is not covered by tests.

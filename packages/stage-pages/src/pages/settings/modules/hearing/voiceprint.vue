@@ -6,7 +6,8 @@ import { MIN_ENROLLMENT_SPEECH_SECONDS } from '@proj-airi/stage-ui/libs/voice/vo
 import { useVoiceControlsStore } from '@proj-airi/stage-ui/stores/voice-controls'
 import { useVoiceprintStore } from '@proj-airi/stage-ui/stores/voiceprint'
 import { Button, Callout, DoubleCheckButton, Progress, SettingsCard } from '@proj-airi/ui'
-import { computed, shallowRef } from 'vue'
+import { useEventListener } from '@vueuse/core'
+import { computed, onBeforeUnmount, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t, locale } = useI18n()
@@ -53,15 +54,45 @@ const result = computed(() => {
   }
 })
 
-async function send(type: VoiceEnrollmentCommand['type']) {
+/** Returns true when the host or this window accepted the command. */
+async function send(type: VoiceEnrollmentCommand['type']): Promise<boolean> {
   commandError.value = undefined
   try {
-    await controls.enrollmentCommand({ type })
+    return (await controls.enrollmentCommand({ type })).status === 'accepted'
   }
   catch (error) {
     commandError.value = errorMessageFrom(error) ?? 'Voice enrollment command failed'
+    return false
   }
 }
+
+/**
+ * True from a Start click on this page until that enrollment ends. The stores outlive this page, so an
+ * enrollment continues after the user leaves. Without controls, it can record for 30 s and save a voiceprint.
+ */
+let ownsEnrollment = false
+watch(busy, (value) => {
+  if (!value)
+    ownsEnrollment = false
+})
+
+async function start() {
+  // Set before the command, so a page that closes while the host has not answered still cancels.
+  ownsEnrollment = true
+  ownsEnrollment = await send('begin')
+}
+
+/** Cancels the enrollment that this page started. A host that records nothing answers `closed`. */
+function cancelOwnEnrollment() {
+  if (!ownsEnrollment)
+    return
+  ownsEnrollment = false
+  controls.enrollmentCommand({ type: 'cancel' }).catch(() => {})
+}
+
+// A route change unmounts the page. A closed window does not, so `pagehide` covers that case.
+onBeforeUnmount(cancelOwnEnrollment)
+useEventListener('pagehide', cancelOwnEnrollment)
 
 const resultClasses = {
   green: ['text-emerald-600 dark:text-emerald-400'],
@@ -143,7 +174,7 @@ const resultClasses = {
             variant="primary"
             icon="i-solar:microphone-3-bold-duotone"
             :label="voiceprints.record ? t('settings.pages.modules.hearing.voiceprint.again') : t('settings.pages.modules.hearing.voiceprint.start')"
-            @click="send('begin')"
+            @click="start"
           />
           <DoubleCheckButton v-if="voiceprints.record" data-testid="voiceprint-delete" @confirm="voiceprints.remove()">
             {{ t('settings.pages.modules.hearing.voiceprint.delete') }}

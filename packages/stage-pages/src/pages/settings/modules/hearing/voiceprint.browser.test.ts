@@ -6,7 +6,8 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext as createBroadcastChannelContext } from '@moeru/eventa/adapters/broadcast-channel'
 import { toStoredVoiceprint } from '@proj-airi/stage-ui/libs/voice/voiceprint'
 import { voiceEnrollmentChanged, voiceEnrollmentCommand, voiceRequestEnrollment, voiceRequestSnapshot, voiceSnapshotChanged } from '@proj-airi/stage-ui/services/speech/bus'
-import { createPinia, disposePinia } from 'pinia'
+import { useVoiceEnrollmentStore } from '@proj-airi/stage-ui/stores/voice-enrollment'
+import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from 'vitest-browser-vue'
 import { createI18n } from 'vue-i18n'
@@ -25,6 +26,7 @@ afterEach(() => {
 
 function renderPage() {
   const pinia = createPinia()
+  setActivePinia(pinia)
   cleanups.push(() => disposePinia(pinia))
   return render(VoiceprintPage, {
     global: {
@@ -116,5 +118,63 @@ describe('voiceprint settings', () => {
     host.publish({ phase: 'failed', speechSeconds: 6.1, failure: 'error', error: 'Audio has more than one voice' })
 
     await expect.element(screen.getByTestId('voiceprint-result')).toHaveTextContent('Enrollment failed: Audio has more than one voice')
+  })
+
+  it('cancels the enrollment that it started when the page unmounts', async () => {
+    const host = createHost()
+    const screen = renderPage()
+    host.publish({ phase: 'idle' })
+
+    await screen.getByTestId('voiceprint-start').click()
+    await vi.waitFor(() => expect(host.commands).toHaveBeenLastCalledWith({ type: 'begin' }))
+    host.publish({ phase: 'recording', speechSeconds: 1 })
+    await expect.element(screen.getByTestId('voiceprint-finish')).toBeVisible()
+
+    screen.unmount()
+
+    await vi.waitFor(() => expect(host.commands).toHaveBeenLastCalledWith({ type: 'cancel' }))
+  })
+
+  it('cancels the enrollment that it started when the window closes', async () => {
+    const host = createHost()
+    const screen = renderPage()
+    host.publish({ phase: 'idle' })
+
+    await screen.getByTestId('voiceprint-start').click()
+    await vi.waitFor(() => expect(host.commands).toHaveBeenLastCalledWith({ type: 'begin' }))
+    host.publish({ phase: 'recording', speechSeconds: 1 })
+    await expect.element(screen.getByTestId('voiceprint-finish')).toBeVisible()
+
+    window.dispatchEvent(new PageTransitionEvent('pagehide'))
+
+    await vi.waitFor(() => expect(host.commands).toHaveBeenLastCalledWith({ type: 'cancel' }))
+  })
+
+  it('does not cancel an enrollment that another window started', async () => {
+    const host = createHost()
+    const screen = renderPage()
+    host.publish({ phase: 'recording', speechSeconds: 1 })
+    await expect.element(screen.getByTestId('voiceprint-finish')).toBeVisible()
+
+    screen.unmount()
+    // The channel keeps the order of messages, so a cancel from the unmount arrives before this begin.
+    host.publish({ phase: 'idle' })
+    await renderPage().getByTestId('voiceprint-start').click()
+
+    await vi.waitFor(() => expect(host.commands).toHaveBeenCalled())
+    expect(host.commands.mock.calls).toEqual([[{ type: 'begin' }]])
+  })
+
+  it('cancels its own enrollment when a voice host answers after Start', async () => {
+    const screen = renderPage()
+
+    await screen.getByTestId('voiceprint-start').click()
+    const local = useVoiceEnrollmentStore()
+    await expect.poll(() => local.state.phase).toBe('recording')
+
+    createHost().publish({ phase: 'idle' })
+
+    await expect.poll(() => local.state.phase).toBe('cancelled')
+    await expect.element(screen.getByTestId('voiceprint-start')).toBeVisible()
   })
 })

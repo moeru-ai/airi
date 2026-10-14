@@ -21,9 +21,19 @@ export const useVoiceControlsStore = defineStore('voice-controls', () => {
   const level = shallowRef(0)
   const context = getSpeechBusContext()
   let connection = new AbortController()
+  const localEnrollment = useVoiceEnrollmentStore()
+  /** True after `enrollmentCommand` began an enrollment in this window because no host was connected. */
+  let startedLocalEnrollment = false
   const stop = context.on(voiceSnapshotChanged, ({ body }) => {
     if (!body)
       return
+    // A begin command before the first host snapshot arrives starts a local enrollment.
+    // When the host appears, `enrollment` shows the host state and hides that recording, so cancel it.
+    // The host window also receives its own snapshots, so cancel only an enrollment that this store started.
+    if (body.connected && startedLocalEnrollment) {
+      startedLocalEnrollment = false
+      localEnrollment.cancel()
+    }
     snapshot.value = body
     error.value = body.error
     if (!body.connected)
@@ -46,7 +56,6 @@ export const useVoiceControlsStore = defineStore('voice-controls', () => {
       hostEnrollment.value = body
   })
   context.emit(voiceRequestEnrollment, undefined)
-  const localEnrollment = useVoiceEnrollmentStore()
   /**
    * The voiceprint enrollment that `enrollmentCommand` controls: the host's while a voice host is connected,
    * else this window's own. Without a host, no other code in the window listens to the microphone.
@@ -82,6 +91,8 @@ export const useVoiceControlsStore = defineStore('voice-controls', () => {
   async function enrollmentCommand(command: VoiceEnrollmentCommand) {
     if (!snapshot.value.connected) {
       const accepted = command.type === 'begin' ? localEnrollment.begin() : command.type === 'finish' ? localEnrollment.finish() : localEnrollment.cancel()
+      if (command.type === 'begin' && accepted)
+        startedLocalEnrollment = true
       return { status: accepted ? 'accepted' as const : 'closed' as const }
     }
     error.value = undefined
