@@ -368,10 +368,15 @@ pages:
             placeholder: ''
             mismatch: Email does not match.
           confirm: Send confirmation email
+          deleteNow: Delete permanently
+          confirmPhrase: Type DELETE to confirm
+          signInAgain: Sign in again
           cancel: Cancel
         message:
+          deleted: Your account has been deleted.
           emailSent: Check {email} for the deletion link.
         error:
+          reauthenticate: Sign in again, then return here to confirm deletion. No email is sent.
           fallback: Could not start deletion. Try again later.
           subscriptionActive: Your subscription is still active. Cancel it on the Capacitor page first, then delete your account.
   card:

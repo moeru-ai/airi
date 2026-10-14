@@ -10,6 +10,7 @@ import type { ToolCallRerunPayload } from './tool-call-rerun'
 
 import { errorMessageFrom } from '@moeru/std'
 import { decodeBase64 } from '@moeru/std/base64'
+import { SpanStatusCode } from '@opentelemetry/api'
 import { fileSource } from '@proj-airi/audio/encoding'
 import { createChatOrchestratorRuntime, isBackgroundRecipe, matchKeywordRecipes, renderConversationPreview } from '@proj-airi/core-agent'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
@@ -20,7 +21,7 @@ import { useI18n } from 'vue-i18n'
 
 import { getConversationAnalyticsSurface } from '../composables'
 import { useAiriRuntimePrompt } from '../composables/use-airi-runtime-prompt'
-import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
+import { registerTurnSpan, startSpan, takeComposerVoiceParent, takeVoiceTurnParent } from '../composables/use-io-tracer'
 import { useChatVision } from '../composables/vision/use-chat-vision'
 import { useVisionInference } from '../composables/vision/use-vision-inference'
 import { chatAssetIdFrom, inlineConversationAssets, storeChatAttachments } from '../libs/chat-assets'
@@ -317,7 +318,7 @@ export const useChatStore = defineStore('chat', () => {
    * Interaction turn spans that this store started, keyed by `JSON.stringify([sessionId, turnId])`.
    * Concurrent sessions each own one trace. `onSendSettled` ends the span of its own turn only.
    */
-  const ownedTurnSpans = new Map<string, NonNullable<typeof activeTurnSpan.value>>()
+  const ownedTurnSpans = new Map<string, { span: ReturnType<typeof startSpan>, unregister: () => void }>()
   let stopLeadershipListener: (() => void) | undefined
   const analyticsHooks = createChatAnalyticsHooks({
     getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId),
@@ -672,6 +673,13 @@ export const useChatStore = defineStore('chat', () => {
     let llmTextLength = 0
     let llmOutputChunkCount = 0
     const llmOutputChunkLengths: number[] = []
+    // The runtime always correlates its turns. A call without correlation has no settle event, so it starts no turn span,
+    // and its LLM span starts a trace of its own.
+    const correlation = options?.requestCorrelation
+    const turnSpan = correlation
+      ? openTurnSpan({ sessionId: correlation.conversationId, turnId: correlation.turnId })
+      : undefined
+
     // Analytics correlation goes only to the official provider. A resolved step can change the provider, so each request rebuilds it.
     function requestHeaders(providerId: string | undefined) {
       const headers = { ...options?.headers }
@@ -682,19 +690,6 @@ export const useChatStore = defineStore('chat', () => {
       }
       return headers
     }
-
-    // The runtime always correlates its turns. A call without correlation has no settle event, so it starts no turn span.
-    const turnKey = options?.requestCorrelation
-      ? JSON.stringify([options.requestCorrelation.conversationId, options.requestCorrelation.turnId])
-      : undefined
-    let turnSpan = turnKey ? ownedTurnSpans.get(turnKey) : activeTurnSpan.value
-    if (!turnSpan && turnKey) {
-      turnSpan = startSpan(IOSpanNames.InteractionTurn)
-      ownedTurnSpans.set(turnKey, turnSpan)
-    }
-    // Speech recognition, speech output, and streaming control attach to the most recently started turn.
-    if (turnSpan)
-      activeTurnSpan.value = turnSpan
 
     // Stored messages reference their images and recordings. The provider request carries the bytes.
     context = await inlineConversationAssets(context)
@@ -801,7 +796,8 @@ export const useChatStore = defineStore('chat', () => {
           }
 
           if (!text) {
-            transcriber ??= hearing.createTranscriber()
+            // The recording belongs to this turn. A voice input of another turn can run at the same time.
+            transcriber ??= hearing.createTranscriber(undefined, { traceParent: turnSpan })
             if (!hearing.configured)
               throw new Error('Configure a transcription provider to send audio to this model')
 
@@ -913,17 +909,43 @@ export const useChatStore = defineStore('chat', () => {
     pendingQueuedSendCount.value = state.pendingQueuedSendCount
   }
 
-  function settleOwnedTurnSpan(turn: { sessionId: string, turnId: string }) {
+  /**
+   * Returns the `Interaction turn` span of a turn, and starts it on the first call.
+   *
+   * The LLM stream and the speech output of a turn both need this span as their parent. The voice host opens the
+   * speech output before the stream starts, so the first of the two callers starts the span. `onSendSettled` ends it.
+   * A spoken turn continues the trace of its voice input. A turn after a composer dictation continues that
+   * dictation, because the composer sends the dictated text under a new ID. Any other turn starts a new trace.
+   */
+  function openTurnSpan(turn: { sessionId: string, turnId: string }) {
     const key = JSON.stringify([turn.sessionId, turn.turnId])
-    const span = ownedTurnSpans.get(key)
-    if (!span)
+    const owned = ownedTurnSpans.get(key)
+    if (owned)
+      return owned.span
+
+    const voiceParent = takeVoiceTurnParent(turn.turnId) ?? takeComposerVoiceParent(turn.sessionId)
+    const span = startSpan(IOSpanNames.InteractionTurn, voiceParent, {
+      [IOAttributes.TurnId]: turn.turnId,
+      [IOAttributes.GenAIConversationId]: turn.sessionId,
+    })
+    ownedTurnSpans.set(key, { span, unregister: registerTurnSpan(turn.turnId, span) })
+    return span
+  }
+
+  function settleOwnedTurnSpan(turn: { sessionId: string, turnId: string, status: 'finished' | 'cancelled' | 'failed' }) {
+    const key = JSON.stringify([turn.sessionId, turn.turnId])
+    const owned = ownedTurnSpans.get(key)
+    if (!owned)
       return
 
+    const { span, unregister } = owned
+    if (turn.status === 'cancelled')
+      span.setAttribute(IOAttributes.Cancelled, true)
+    else if (turn.status === 'failed')
+      span.setStatus({ code: SpanStatusCode.ERROR })
     span.end()
+    unregister()
     ownedTurnSpans.delete(key)
-    // Another session can still generate. Its turn becomes the active one again.
-    if (activeTurnSpan.value === span)
-      activeTurnSpan.value = [...ownedTurnSpans.values()].at(-1)
   }
 
   /** The character that owns a session. A queued turn keeps it when another window selects a different card. */
@@ -1539,6 +1561,7 @@ export const useChatStore = defineStore('chat', () => {
     receiveInterruption,
     cancelPendingSends,
     getPendingQueuedSendSnapshot,
+    openTurnSpan,
 
     clearHooks: runtime.hooks.clearHooks,
 

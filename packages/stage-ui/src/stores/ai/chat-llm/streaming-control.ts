@@ -8,7 +8,7 @@ import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
 import { watch } from 'vue'
 
-import { activeTurnSpan, startSpan } from '../../../composables/use-io-tracer'
+import { startSpan, turnSpanOf } from '../../../composables/use-io-tracer'
 
 interface RemoteCallMessage {
   type: 'turn-call'
@@ -50,7 +50,8 @@ export const useLlmStreamingControlStore = defineStore('llm-streaming-control', 
   })
 
   async function dispatchWith(special: string, context?: Partial<LlmStreamingControlDispatchContext>) {
-    const span = startSpan(IOSpanNames.StreamingControlDispatch, activeTurnSpan.value, {
+    // A dispatch without a turn, or for a turn that runs in another window, starts a trace of its own.
+    const span = startSpan(IOSpanNames.StreamingControlDispatch, turnSpanOf(context?.turnId), {
       [IOAttributes.StreamingControlMatched]: false,
       [IOAttributes.StreamingControlParsed]: false,
       [IOAttributes.StreamingControlTokenLength]: special.length,

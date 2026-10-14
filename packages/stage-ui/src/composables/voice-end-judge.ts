@@ -2,12 +2,14 @@ import type { Conversation, TurnEvidence } from '@proj-airi/core-agent'
 
 import type { EndJudgement } from '../libs/voice/voice-end-judge-plugin'
 
+import { IOAttributes, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { boolean, object, parse } from 'valibot'
 
 import { useLLM } from '../stores/ai/chat-llm/llm'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useHearingStore } from '../stores/modules/hearing'
 import { useProviderStore } from '../stores/providers/provider'
+import { activeVoiceInputSpan, runInSpan, startSpan } from './use-io-tracer'
 
 const END_JUDGE_INSTRUCTIONS = [
   'You decide if a speaker finished a spoken message, from the speech recognition text of it so far.',
@@ -54,6 +56,20 @@ export function useVoiceEndJudge() {
     if (!providerId || !model)
       throw new Error('No chat model is configured for voice end judgement')
 
+    const span = startSpan(IOSpanNames.EndOfSpeechJudgement, activeVoiceInputSpan.value, {
+      [IOAttributes.Subsystem]: IOSubsystems.EndJudge,
+      [IOAttributes.GenAIRequestModel]: model,
+      [IOAttributes.GenAIProviderName]: providerId,
+      [IOAttributes.EndJudgeTranscriptLength]: transcript.length,
+    })
+    return runInSpan(span, signal, async () => {
+      const judgement = await requestJudgement(providerId, model, transcript, context, signal)
+      span.setAttribute(IOAttributes.EndJudgement, judgement)
+      return judgement
+    })
+  }
+
+  async function requestJudgement(providerId: string, model: string, transcript: string, context: TurnEvidence['context'], signal: AbortSignal) {
     const provider = await providers.getChatProviderInstance(providerId)
     const conversation: Conversation = { turns: [
       { id: 'voice-end-judge-instructions', type: 'system', authority: 'system', content: [{ type: 'text', text: END_JUDGE_INSTRUCTIONS }] },
