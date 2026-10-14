@@ -20,7 +20,7 @@ import { isLive2DControlEnabled } from '@proj-airi/stage-ui-live2d/controls/poli
 import { StorageSerializers, useDocumentVisibility, watchDebounced } from '@vueuse/core'
 import { isEqual } from 'es-toolkit'
 import { nanoid } from 'nanoid'
-import { defineStore, storeToRefs } from 'pinia'
+import { defineStore, getActivePinia, storeToRefs } from 'pinia'
 import { array, looseObject, object, parse, safeParse, string } from 'valibot'
 import { computed, ref, shallowRef, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -124,6 +124,9 @@ function resolveSystemPrompt(
 }
 
 export const useAiriCardStore = defineStore('airi-card', () => {
+  // A watcher or an await runs outside the setup of this store. The active
+  // Pinia can then be another one, so keep the Pinia that owns this store.
+  const pinia = getActivePinia()
   const { t } = useI18n()
   const { userId } = storeToRefs(useAuthStore())
   const featureFlagsStore = useFeatureFlagsStore()
@@ -1111,7 +1114,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
     try {
       // The store action routes the run to the leader. A call to the local function would run in this window.
-      await useAiriCardStore().synchronizeCards()
+      await useAiriCardStore(pinia).synchronizeCards()
     }
     catch (error) {
       console.error('[character-card-sync] Failed to request synchronization:', errorMessageFrom(error))
@@ -1236,7 +1239,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
   async function applyActiveAvatarModel() {
     const generation = ++avatarModelApplyGeneration
-    const stageModel = useSettingsStageModel()
+    const stageModel = useSettingsStageModel(pinia)
     const avatarModel = selectedAvatarModel.value
     let displayModelId = ''
     if (avatarModel) {
