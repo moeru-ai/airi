@@ -139,7 +139,7 @@ describe('airi-card store', () => {
   //
   // We fix this by keeping the default card module fields empty. Empty fields
   // inherit the global module settings and never replace them during activation.
-  it('keeps default card modules inherited after authenticated defaults load', async () => {
+  it('keeps inherited speech configuration independent of runtime projection', async () => {
     const consciousnessStore = useConsciousnessStore()
     const speechStore = useSpeechStore()
     const visionStore = useVisionStore()
@@ -179,8 +179,8 @@ describe('airi-card store', () => {
     })
     expect(consciousnessStore.activeProvider).toBe('official-provider')
     expect(consciousnessStore.activeModel).toBe('auto')
-    expect(speechStore.activeSpeechProvider).toBe('official-provider-speech')
-    expect(speechStore.activeSpeechModel).toBe('auto')
+    expect(speechStore.activeSpeechProvider).toBe('speech-noop')
+    expect(speechStore.activeSpeechModel).toBe('')
     expect(visionStore.activeProvider).toBe('vision-official-provider')
     expect(visionStore.activeModel).toBe('auto')
   })
