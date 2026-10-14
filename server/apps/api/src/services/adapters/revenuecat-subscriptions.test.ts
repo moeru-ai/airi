@@ -29,6 +29,7 @@ const goEntitlement: SubscriberEntitlement = {
   productId: 'rc_go_monthly',
   purchasedAt: new Date('2026-10-01T00:00:00.000Z'),
   accessUntil: future,
+  pendingChange: null,
 }
 
 /** Runs the resolver as the wallet does and returns the period that it selects. */
@@ -46,11 +47,20 @@ async function reconcile(entitlements: SubscriberEntitlement[], configKV = creat
     configKV,
     { fetchEntitlements },
   )
-  await sync.reconcile('user-1')
-  return { synced, fetchEntitlements }
+  const pendingChange = await sync.reconcile('user-1')
+  return { synced, fetchEntitlements, pendingChange }
 }
 
 describe('revenuecat subscription sync', () => {
+  it('returns the next Capacitor only when the next product grants one', async () => {
+    const startsAt = new Date('2026-11-01T00:00:00.000Z')
+    const toPlus = await reconcile([{ ...goEntitlement, pendingChange: { productId: 'rc_plus_monthly', startsAt } }])
+    const toUnmapped = await reconcile([{ ...goEntitlement, pendingChange: { productId: 'rc_unmapped', startsAt } }])
+
+    expect(toPlus.pendingChange).toEqual({ productId: 'rc_plus_monthly', startsAt })
+    expect(toUnmapped.pendingChange).toBeNull()
+  })
+
   it('syncs the active capacitor as a capacitor period', async () => {
     const { synced, fetchEntitlements } = await reconcile([goEntitlement])
 
@@ -80,6 +90,7 @@ describe('revenuecat subscription sync', () => {
         productId: 'rc_plus_monthly',
         purchasedAt: new Date('2026-10-15T00:00:00.000Z'),
         accessUntil: future,
+        pendingChange: null,
       },
     ])
     expect(synced).toMatchObject([{ quota: 5000 }])

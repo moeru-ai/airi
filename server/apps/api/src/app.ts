@@ -466,6 +466,7 @@ export async function buildApp(deps: AppDeps) {
      */
     .route('/api/v1/revenuecat', createRevenuecatRoutes(
       deps.subscriptionSync,
+      deps.revenuecatSubscriber,
       deps.env,
       deps.otel?.rateLimit ?? null,
     ))
@@ -743,6 +744,7 @@ export async function createApp() {
     build: ({ dependsOn }) => createRevenuecatSubscriberClient({
       apiKey: dependsOn.env.REVENUECAT_V2_API_KEY ?? null,
       projectId: dependsOn.env.REVENUECAT_PROJECT_ID ?? null,
+      webAppId: dependsOn.env.REVENUECAT_WEB_APP_ID ?? null,
       sellsSubscriptions: Boolean(dependsOn.env.REVENUECAT_WEBHOOK_AUTH || dependsOn.env.REVENUECAT_WEBHOOK_SECRET),
     }),
   })

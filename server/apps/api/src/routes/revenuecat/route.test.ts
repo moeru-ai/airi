@@ -1,6 +1,6 @@
 import type { Database } from '../../libs/db'
 import type { ConfigDefinitions, ConfigKVService } from '../../services/adapters/config-kv'
-import type { SubscriberEntitlement } from '../../services/adapters/revenuecat-subscriber'
+import type { RevenuecatSubscriberClient, SubscriberEntitlement } from '../../services/adapters/revenuecat-subscriber'
 import type { RevenuecatSubscriptionSync } from '../../services/adapters/revenuecat-subscriptions'
 import type { HonoEnv } from '../../types/hono'
 
@@ -29,7 +29,11 @@ const starterCapacitors: ConfigDefinitions['REVENUECAT_CAPACITORS'] = {
 
 function createCapacitorsConfigKV(): ConfigKVService {
   return {
-    getOptional: vi.fn(async (key: string) => key === 'REVENUECAT_CAPACITORS' ? starterCapacitors : null),
+    getOptional: vi.fn(async (key: string) => {
+      if (key === 'REVENUECAT_CAPACITORS')
+        return starterCapacitors
+      return key === 'CAPACITOR_RESET_INTERVAL' ? 'day' : null
+    }),
     getOrThrow: vi.fn(),
     get: vi.fn(),
     refresh: vi.fn(),
@@ -44,11 +48,12 @@ function signBody(rawBody: string, timestamp = Math.floor(Date.now() / 1000)): s
 
 function createTestApp(
   subscriptionSync: RevenuecatSubscriptionSync,
+  grantProductChange: RevenuecatSubscriberClient['grantProductChange'],
   env = { REVENUECAT_WEBHOOK_AUTH: authorization, REVENUECAT_WEBHOOK_SECRET: signingSecret },
   /** The signed-in user of each request. Null leaves the request anonymous, as RevenueCat sends it. */
   signedInUserId: string | null = null,
 ) {
-  const routes = createRevenuecatRoutes(subscriptionSync, env, null)
+  const routes = createRevenuecatRoutes(subscriptionSync, { grantProductChange }, env, null)
   const app = new Hono<HonoEnv>()
 
   app.use('*', async (c, next) => {
@@ -113,7 +118,8 @@ describe('revenuecat routes', () => {
     const billing = createBillingService(db, createTestRedis(), { getOptional: async () => null })
     const fetchEntitlements = vi.fn(async (userId: string) => entitlements[userId] ?? [])
     const sync = createRevenuecatSubscriptionSync(billing, configKV, { fetchEntitlements })
-    return { billing, fetchEntitlements, app: createTestApp(sync, undefined, signedInUserId) }
+    const grantProductChange = vi.fn<RevenuecatSubscriberClient['grantProductChange']>(async () => null)
+    return { billing, fetchEntitlements, grantProductChange, app: createTestApp(sync, grantProductChange, undefined, signedInUserId) }
   }
 
   async function readWallet(userId: string) {
@@ -126,6 +132,7 @@ describe('revenuecat routes', () => {
     productId: 'rc_go_monthly',
     purchasedAt: new Date('2026-10-01T00:00:00.000Z'),
     accessUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    pendingChange: null,
   }
 
   it('returns 401 on authorization mismatch', async () => {
@@ -192,6 +199,7 @@ describe('revenuecat routes', () => {
       productId: 'rc_plus_monthly',
       purchasedAt: new Date('2026-10-15T00:00:00.000Z'),
       accessUntil: goEntitlement.accessUntil,
+      pendingChange: null,
     }]
     await postWebhook(app, webhookBody({ id: 'sub-event-2', type: 'PRODUCT_CHANGE', product_id: 'rc_go_monthly' }))
 
@@ -245,6 +253,7 @@ describe('revenuecat routes', () => {
   it('returns 503 when no secret is configured', async () => {
     const app = createTestApp(
       {} as RevenuecatSubscriptionSync,
+      vi.fn(),
       { REVENUECAT_WEBHOOK_AUTH: undefined, REVENUECAT_WEBHOOK_SECRET: undefined } as never,
     )
     const res = await app.request('/api/v1/revenuecat/webhook', {
@@ -261,9 +270,18 @@ describe('revenuecat routes', () => {
 
     const res = await app.request('/api/v1/revenuecat/sync', { method: 'POST' })
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ synced: true })
+    expect(await res.json()).toEqual({ synced: true, pendingChange: null })
     expect(fetchEntitlements).toHaveBeenCalledWith('user-1')
     expect(await readWallet('user-1')).toMatchObject({ capacitorFlux: 2000, capacitorQuota: 2000 })
+  })
+
+  it('returns a scheduled downgrade on sync, so the page shows it after a reload', async () => {
+    const { app } = await setup('user-1')
+    const startsAt = new Date('2026-11-01T00:00:00.000Z')
+    entitlements['user-1'] = [{ ...goEntitlement, productId: 'rc_plus_monthly', entitlementId: 'airi_plus', pendingChange: { productId: 'rc_go_monthly', startsAt } }]
+
+    const res = await app.request('/api/v1/revenuecat/sync', { method: 'POST' })
+    expect(await res.json()).toEqual({ synced: true, pendingChange: { productId: 'rc_go_monthly', startsAt: startsAt.toISOString() } })
   })
 
   it('rejects an anonymous sync', async () => {
@@ -274,11 +292,42 @@ describe('revenuecat routes', () => {
     expect(fetchEntitlements).not.toHaveBeenCalled()
   })
 
-  it('lists the products that grant a Capacitor', async () => {
+  it('lists each Capacitor with its quota and the refill interval', async () => {
     const { app } = await setup('user-1')
 
     const res = await app.request('/api/v1/revenuecat/capacitors')
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ productIds: ['rc_go_monthly', 'rc_plus_monthly'] })
+    expect(await res.json()).toEqual({
+      capacitors: [
+        { productId: 'rc_go_monthly', quota: 2000 },
+        { productId: 'rc_plus_monthly', quota: 5000 },
+      ],
+      resetInterval: 'day',
+    })
+  })
+
+  it('returns the product change grant of the signed-in user', async () => {
+    const { app, grantProductChange } = await setup('user-1')
+    grantProductChange.mockResolvedValueOnce({ subscriptionId: 'sub_1', subscriberToken: 'token' })
+
+    const res = await app.request('/api/v1/revenuecat/product-change', { method: 'POST' })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ subscriptionId: 'sub_1', subscriberToken: 'token' })
+    expect(grantProductChange).toHaveBeenCalledWith('user-1')
+  })
+
+  it('returns 409 when no web subscription can change, so the client opens the store', async () => {
+    const { app } = await setup('user-1')
+
+    const res = await app.request('/api/v1/revenuecat/product-change', { method: 'POST' })
+    expect(res.status).toBe(409)
+  })
+
+  it('rejects an anonymous product change', async () => {
+    const { app, grantProductChange } = await setup()
+
+    const res = await app.request('/api/v1/revenuecat/product-change', { method: 'POST' })
+    expect(res.status).toBe(401)
+    expect(grantProductChange).not.toHaveBeenCalled()
   })
 })

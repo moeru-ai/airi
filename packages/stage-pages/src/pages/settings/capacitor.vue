@@ -4,7 +4,7 @@ import type { CapacitorPackage } from '@proj-airi/stage-ui/composables/use-subsc
 import { isFluxPurchaseDisabled } from '@proj-airi/stage-shared'
 import { useSubscription } from '@proj-airi/stage-ui/composables/use-subscription'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { Button, FieldCheckbox, Skeleton } from '@proj-airi/ui'
+import { Button, Callout, FieldCheckbox, SettingsCard, Skeleton } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onScopeDispose, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -29,14 +29,23 @@ type CapacitorAction = 'buy' | 'current' | 'upgrade' | 'downgrade'
 
 const currentCapacitor = computed(() => subscription.currentCapacitor.value)
 
+/** The package of the current Capacitor. Null until the packages load, or for a product that is no longer sold. */
+const currentPackage = computed(() => {
+  const productId = currentCapacitor.value?.productId
+  return subscription.packages.value.find(item => item.productId === productId) ?? null
+})
+
+/** The SDK reports a new subscriber before the wallet sync, and the wallet reports one that the SDK has not read yet. */
+const hasCapacitor = computed(() => currentCapacitor.value !== null || capacitorPercent.value != null)
+
+/** RevenueCat decides upgrade or downgrade by price. The label uses the same rule. */
 function capacitorAction(pkg: CapacitorPackage): CapacitorAction {
   const current = currentCapacitor.value
   if (!current)
     return 'buy'
   if (pkg.productId === current.productId)
     return 'current'
-  const currentPackage = subscription.packages.value.find(item => item.productId === current.productId)
-  return currentPackage && pkg.amountMicros < currentPackage.amountMicros ? 'downgrade' : 'upgrade'
+  return currentPackage.value && pkg.amountMicros < currentPackage.value.amountMicros ? 'downgrade' : 'upgrade'
 }
 
 const ACTION_LABEL: Record<Exclude<CapacitorAction, 'current'>, string> = {
@@ -47,24 +56,30 @@ const ACTION_LABEL: Record<Exclude<CapacitorAction, 'current'>, string> = {
 
 const packageCards = computed(() => subscription.packages.value.map(pkg => ({ pkg, action: capacitorAction(pkg) })))
 
+/** The name of the Capacitor that replaces the current one at the next renewal. */
+const pendingChangeName = computed(() => {
+  const productId = subscription.pendingChange.value?.productId
+  if (!productId)
+    return null
+  return subscription.packages.value.find(item => item.productId === productId)?.name ?? t('settings.pages.capacitor.title')
+})
+
+/** A Capacitor without a reset interval refills only at each renewal, which is monthly. */
+const quotaKey = computed(() => `settings.pages.capacitor.quota.${subscription.resetInterval.value ?? 'month'}`)
+
+/** An App Store or Google Play subscription changes in that store, through the management link. */
+const changesInStore = computed(() => currentCapacitor.value !== null && !currentCapacitor.value.changeableOnWeb)
+
 const fallbackChoice = computed({
   get: () => fallbackToFlux.value,
   set: value => void savePreference(value),
 })
 
-const hasCapacitor = computed(() => currentCapacitor.value !== null || capacitorPercent.value != null)
-
-const statusTitle = computed(() => {
-  if (!hasCapacitor.value)
-    return t('settings.pages.capacitor.noCapacitor')
-  const productId = currentCapacitor.value?.productId
-  return subscription.packages.value.find(item => item.productId === productId)?.name
-    ?? t('settings.pages.capacitor.title')
-})
-
 function formatPercent(percent: number): string {
   return new Intl.NumberFormat(locale.value, { style: 'percent' }).format(percent / 100)
 }
+
+const numberFormat = computed(() => new Intl.NumberFormat(locale.value))
 
 function formatDate(iso: string, options: Intl.DateTimeFormatOptions): string {
   return new Intl.DateTimeFormat(locale.value, options).format(new Date(iso))
@@ -73,7 +88,9 @@ function formatDate(iso: string, options: Intl.DateTimeFormatOptions): string {
 let identityVersion = 0
 onScopeDispose(() => identityVersion += 1)
 
-watch(() => authStore.user?.id, async (userId, _previous, onCleanup) => {
+// The three reads are independent. The status shows as soon as the SDK answers,
+// the percent follows the wallet sync, and the packages do not wait for either.
+watch(() => authStore.user?.id, (userId, _previous, onCleanup) => {
   identityVersion += 1
   message.value = null
   preferenceSaving.value = false
@@ -83,24 +100,28 @@ watch(() => authStore.user?.id, async (userId, _previous, onCleanup) => {
   onCleanup(() => active = false)
   if (!userId)
     return
-  try {
-    await subscription.fetchStatus()
-  }
-  catch {
+
+  const reportError = (key: string) => {
     if (active)
-      message.value = { type: 'error', text: t('settings.pages.capacitor.statusError') }
+      message.value = { type: 'error', text: t(key) }
   }
-  if (!active)
-    return
-  statusLoading.value = false
+
+  void subscription.refreshCustomer()
+    .catch(() => reportError('settings.pages.capacitor.statusError'))
+    .finally(() => {
+      if (active)
+        statusLoading.value = false
+    })
+  void subscription.refreshWallet()
+    .catch(() => reportError('settings.pages.capacitor.statusError'))
   if (fluxPurchaseDisabled)
     return
-  await subscription.fetchPackages().catch(() => {
-    if (active)
-      message.value = { type: 'error', text: t('settings.pages.capacitor.packagesError') }
-  })
-  if (active)
-    packagesLoading.value = false
+  void subscription.fetchPackages()
+    .catch(() => reportError('settings.pages.capacitor.packagesError'))
+    .finally(() => {
+      if (active)
+        packagesLoading.value = false
+    })
 }, { immediate: true, flush: 'sync' })
 
 async function savePreference(value: boolean) {
@@ -123,31 +144,43 @@ function actionDisabled(pkg: CapacitorPackage): boolean {
   if (subscription.purchasingPackageId.value !== null)
     return true
   const action = capacitorAction(pkg)
-  return action === 'current' || (action !== 'buy' && !subscription.managementUrl.value)
+  return action === 'current' || (action !== 'buy' && changesInStore.value && !subscription.managementUrl.value)
 }
 
 function handleCapacitor(pkg: CapacitorPackage) {
   const action = capacitorAction(pkg)
   if (action === 'current')
     return
-  if (action === 'buy') {
-    void handleSubscribe(pkg.packageId)
+  const url = subscription.managementUrl.value
+  if (action !== 'buy' && changesInStore.value) {
+    if (url)
+      window.open(url, '_blank', 'noopener')
     return
   }
-  const url = subscription.managementUrl.value
-  if (url)
-    window.open(url, '_blank', 'noopener')
+  void handleCheckout(pkg)
 }
 
-async function handleSubscribe(packageId: string) {
+async function handleCheckout(pkg: CapacitorPackage) {
   const version = identityVersion
+  // A downgrade starts at the renewal of the current Capacitor. Read the date before the checkout replaces it.
+  const renewal = currentCapacitor.value?.expiresAt ?? null
   message.value = null
   try {
-    const outcome = await subscription.purchaseCapacitor(packageId)
+    const outcome = await subscription.purchaseCapacitor(pkg.packageId)
     if (version !== identityVersion)
       return
     if (outcome === 'cancelled') {
       message.value = { type: 'error', text: t('settings.pages.capacitor.checkout.canceled') }
+      return
+    }
+    if (outcome === 'scheduled') {
+      message.value = {
+        type: 'success',
+        text: t('settings.pages.capacitor.checkout.scheduled', {
+          name: pkg.name ?? t('settings.pages.capacitor.title'),
+          date: renewal ? formatDate(renewal, { dateStyle: 'medium' }) : '',
+        }),
+      }
       return
     }
     // RevenueCat reports the entitlement before the webhook charges the wallet.
@@ -168,105 +201,91 @@ async function handleSubscribe(packageId: string) {
 
 <template>
   <div :class="['flex flex-col gap-6', 'p-4']">
-    <div
-      v-if="message"
-      :class="[
-        'rounded-lg p-3 text-sm',
-        message.type === 'success'
-          ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-          : 'bg-red-500/10 text-red-600 dark:text-red-400',
-      ]"
-    >
-      {{ message.text }}
-    </div>
+    <Callout v-if="message" :theme="message.type === 'success' ? 'lime' : 'orange'">
+      <span role="status">{{ message.text }}</span>
+    </Callout>
 
-    <!-- Status: how much is left, when it recharges, what happens when it is empty -->
-    <Skeleton v-if="statusLoading" :class="['h-44 rounded-2xl']" />
-    <section v-else :class="['flex flex-col', 'rounded-2xl', 'bg-neutral-100 dark:bg-neutral-800']">
-      <div :class="['flex flex-col gap-4', 'p-5 sm:p-6']">
-        <div :class="['flex items-center justify-between gap-3']">
-          <div :class="['min-w-0 flex items-center gap-2']">
-            <div
-              :class="[
-                'i-solar:star-bold-duotone size-6 shrink-0',
-                hasCapacitor ? 'text-primary-500' : 'text-neutral-400 dark:text-neutral-500',
-              ]"
-            />
-            <h2 :class="['truncate text-lg font-semibold']">
-              {{ statusTitle }}
-            </h2>
-          </div>
-          <a
-            v-if="subscription.managementUrl.value"
-            :href="subscription.managementUrl.value"
-            target="_blank"
-            rel="noopener"
-            :class="[
-              'shrink-0 inline-flex items-center gap-1 py-1',
-              'text-sm text-primary-600 font-medium dark:text-primary-400',
-              'rounded-md hover:underline hover:underline-offset-2',
-              'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2',
-            ]"
-          >
-            {{ t('settings.pages.capacitor.manageSubscription') }}
-            <div :class="['i-solar:arrow-right-up-linear size-4']" />
-          </a>
-        </div>
+    <!-- Status: how much is left today, when it refills, and when the subscription renews -->
+    <Skeleton v-if="statusLoading" :class="['h-40 rounded-xl']" />
+    <SettingsCard v-else-if="hasCapacitor">
+      <div :class="['flex items-center justify-between gap-3']">
+        <h2 :class="['min-w-0 flex items-center gap-2', 'text-base font-semibold']">
+          <div :class="['i-solar:star-bold-duotone size-5 shrink-0', 'text-primary-500']" />
+          <span :class="['truncate']">{{ currentPackage?.name ?? t('settings.pages.capacitor.title') }}</span>
+        </h2>
+        <a
+          v-if="subscription.managementUrl.value"
+          :href="subscription.managementUrl.value"
+          target="_blank"
+          rel="noopener"
+          :class="[
+            'shrink-0 inline-flex items-center gap-1 rounded-md',
+            'text-sm text-primary-600 font-medium dark:text-primary-400',
+            'hover:underline hover:underline-offset-2',
+            'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2',
+          ]"
+        >
+          {{ t('settings.pages.capacitor.manageSubscription') }}
+          <div :class="['i-solar:arrow-right-up-linear size-4']" />
+        </a>
+      </div>
 
-        <div v-if="capacitorPercent != null" :class="['flex flex-col gap-2']">
+      <div v-if="capacitorPercent != null" :class="['flex flex-col gap-2']">
+        <div :class="['flex flex-wrap items-baseline gap-x-2']">
           <i18n-t
             keypath="settings.pages.capacitor.remaining"
-            tag="p"
+            tag="span"
             scope="global"
             :class="['text-sm text-neutral-500 dark:text-neutral-400']"
           >
             <template #percent>
-              <span :class="['text-4xl text-neutral-900 font-bold tracking-tight tabular-nums', 'dark:text-neutral-50']">
+              <span :class="['text-3xl text-neutral-900 font-bold tracking-tight tabular-nums', 'dark:text-neutral-50']">
                 {{ formatPercent(capacitorPercent) }}
               </span>
             </template>
           </i18n-t>
-          <div
-            role="meter"
-            aria-valuemin="0"
-            aria-valuemax="100"
-            :aria-valuenow="capacitorPercent"
-            :aria-label="t('settings.pages.capacitor.title')"
-            :class="['h-2 overflow-hidden rounded-full', 'bg-neutral-200 dark:bg-neutral-700']"
-          >
-            <div
-              :class="[
-                'h-full rounded-full',
-                'bg-primary-500 dark:bg-primary-400',
-                'transition-width duration-500 ease-in-out motion-reduce:transition-none',
-              ]"
-              :style="{ width: `${capacitorPercent}%` }"
-            />
-          </div>
+          <span v-if="currentPackage" :class="['text-sm text-neutral-500 dark:text-neutral-400']">
+            {{ t('settings.pages.capacitor.ofQuota', { quota: numberFormat.format(currentPackage.quota) }) }}
+          </span>
         </div>
-        <p v-else :class="['text-sm text-neutral-500 dark:text-neutral-400']">
-          {{ t('settings.pages.capacitor.description') }}
-        </p>
-
         <div
-          v-if="capacitorRechargesAt || currentCapacitor?.expiresAt"
-          :class="['flex flex-wrap gap-x-5 gap-y-1', 'text-xs text-neutral-500 dark:text-neutral-400']"
+          role="meter"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          :aria-valuenow="capacitorPercent"
+          :aria-label="t('settings.pages.capacitor.title')"
+          :class="['h-2 overflow-hidden rounded-full', 'bg-neutral-200 dark:bg-neutral-700']"
         >
-          <span v-if="capacitorRechargesAt" :class="['inline-flex items-center gap-1']">
-            <div :class="['i-solar:restart-linear size-3.5']" />
-            {{ t('settings.pages.capacitor.rechargesAt', { date: formatDate(capacitorRechargesAt, { dateStyle: 'medium', timeStyle: 'short' }) }) }}
-          </span>
-          <span v-if="currentCapacitor?.expiresAt" :class="['inline-flex items-center gap-1']">
-            <div :class="['i-solar:calendar-linear size-3.5']" />
-            {{ t(currentCapacitor.willRenew ? 'settings.pages.capacitor.renewsAt' : 'settings.pages.capacitor.expiresAt', { date: formatDate(currentCapacitor.expiresAt, { dateStyle: 'medium' }) }) }}
-          </span>
+          <div
+            :class="[
+              'h-full rounded-full',
+              'bg-primary-500 dark:bg-primary-400',
+              'transition-width duration-500 ease-in-out motion-reduce:transition-none',
+            ]"
+            :style="{ width: `${capacitorPercent}%` }"
+          />
         </div>
       </div>
 
       <div
-        v-if="hasCapacitor"
-        :class="['px-5 py-4 sm:px-6', 'border-t border-neutral-200 dark:border-neutral-700']"
+        v-if="capacitorRechargesAt || currentCapacitor?.expiresAt || subscription.pendingChange.value"
+        :class="['flex flex-wrap gap-x-5 gap-y-1', 'text-xs text-neutral-500 dark:text-neutral-400']"
       >
+        <span v-if="capacitorRechargesAt" :class="['inline-flex items-center gap-1']">
+          <div :class="['i-solar:restart-linear size-3.5']" />
+          {{ t('settings.pages.capacitor.rechargesAt', { date: formatDate(capacitorRechargesAt, { dateStyle: 'medium', timeStyle: 'short' }) }) }}
+        </span>
+        <span v-if="currentCapacitor?.expiresAt" :class="['inline-flex items-center gap-1']">
+          <div :class="['i-solar:calendar-linear size-3.5']" />
+          {{ t(currentCapacitor.willRenew ? 'settings.pages.capacitor.renewsAt' : 'settings.pages.capacitor.expiresAt', { date: formatDate(currentCapacitor.expiresAt, { dateStyle: 'medium' }) }) }}
+        </span>
+        <span v-if="subscription.pendingChange.value" :class="['inline-flex items-center gap-1']">
+          <div :class="['i-solar:transfer-vertical-linear size-3.5']" />
+          {{ t('settings.pages.capacitor.changesAt', { name: pendingChangeName, date: formatDate(subscription.pendingChange.value.startsAt, { dateStyle: 'medium' }) }) }}
+        </span>
+      </div>
+
+      <div :class="['pt-4', 'border-t border-neutral-200 dark:border-neutral-700']">
         <FieldCheckbox
           v-model="fallbackChoice"
           :disabled="preferenceSaving"
@@ -274,81 +293,80 @@ async function handleSubscribe(packageId: string) {
           :description="t('settings.pages.capacitor.fallbackToFluxHint')"
         />
       </div>
-    </section>
+    </SettingsCard>
 
-    <!-- Packages: one explicit action for each Capacitor -->
+    <!-- Packages: what each Capacitor holds, how often it refills, and what it costs -->
     <section
       v-if="packagesLoading || subscription.packages.value.length > 0"
       :class="['flex flex-col gap-3']"
       :aria-busy="packagesLoading"
     >
-      <h3 :class="['text-lg font-semibold']">
-        {{ t('settings.pages.capacitor.available') }}
+      <h3 v-if="hasCapacitor" :class="['text-base font-semibold']">
+        {{ t('settings.pages.capacitor.change') }}
       </h3>
       <div :class="['grid grid-cols-1 gap-4', 'sm:grid-cols-2']">
         <template v-if="packagesLoading">
-          <Skeleton v-for="i in 2" :key="i" :class="['h-32 rounded-2xl']" />
+          <Skeleton v-for="i in 2" :key="i" :class="['h-44 rounded-xl']" />
         </template>
         <template v-else>
-          <div
+          <SettingsCard
             v-for="{ pkg, action } in packageCards" :key="pkg.packageId"
             :class="[
-              'flex flex-col justify-between gap-4',
-              'rounded-2xl border-2 p-5',
-              'bg-white dark:bg-neutral-900',
-              action === 'current'
-                ? 'border-primary-400 dark:border-primary-500'
-                : 'border-neutral-200 dark:border-neutral-800',
+              'justify-between',
+              'outline-2 -outline-offset-2',
+              action === 'current' ? 'outline outline-primary-400 dark:outline-primary-500' : 'outline-none',
             ]"
           >
             <div :class="['flex flex-col gap-1']">
-              <div v-if="pkg.name" :class="['text-base font-semibold']">
-                {{ pkg.name }}
+              <div :class="['flex items-center justify-between gap-2']">
+                <span :class="['text-sm text-neutral-600 font-semibold dark:text-neutral-300']">
+                  {{ pkg.name ?? pkg.productId }}
+                </span>
+                <span
+                  v-if="action === 'current'"
+                  :class="[
+                    'inline-flex items-center gap-1 rounded-full px-2 py-0.5',
+                    'text-xs font-medium',
+                    'bg-primary-500/10 text-primary-600 dark:text-primary-300',
+                  ]"
+                >
+                  <div :class="['i-solar:check-circle-bold size-3.5']" />
+                  {{ t('settings.pages.capacitor.currentPackage') }}
+                </span>
               </div>
-              <div v-if="pkg.benefit" :class="['text-sm text-neutral-500 dark:text-neutral-400']">
+              <i18n-t :keypath="quotaKey" tag="p" scope="global" :class="['text-sm text-neutral-500 dark:text-neutral-400']">
+                <template #quota>
+                  <span :class="['text-2xl text-neutral-900 font-bold tabular-nums', 'dark:text-neutral-50']">
+                    {{ numberFormat.format(pkg.quota) }}
+                  </span>
+                </template>
+              </i18n-t>
+              <p v-if="pkg.benefit" :class="['text-xs text-neutral-500 dark:text-neutral-400']">
                 {{ pkg.benefit }}
-              </div>
+              </p>
             </div>
 
             <div :class="['flex flex-wrap items-center justify-between gap-3']">
               <div :class="['flex items-baseline gap-1']">
-                <span :class="['text-2xl text-neutral-800 font-bold tabular-nums', 'dark:text-neutral-100']">
+                <span :class="['text-lg text-neutral-800 font-semibold tabular-nums', 'dark:text-neutral-100']">
                   {{ pkg.formattedPrice }}
                 </span>
                 <span :class="['text-sm text-neutral-400']">
                   {{ t('settings.pages.capacitor.perMonth') }}
                 </span>
               </div>
-
-              <span
-                v-if="action === 'current'"
-                :class="[
-                  'inline-flex items-center gap-1 rounded-full px-3 py-1.5',
-                  'text-xs font-medium',
-                  'bg-primary-500/10 text-primary-600 dark:text-primary-300',
-                ]"
-              >
-                <div :class="['i-solar:check-circle-bold size-4']" />
-                {{ t('settings.pages.capacitor.currentPackage') }}
-              </span>
               <Button
-                v-else-if="action === 'buy'"
-                variant="primary"
-                color="primary"
-                :label="t(ACTION_LABEL.buy)"
+                v-if="action !== 'current'"
+                :variant="action === 'downgrade' ? 'secondary' : 'primary'"
+                :color="action === 'downgrade' ? 'neutral' : 'primary'"
+                :icon="changesInStore ? 'i-solar:arrow-right-up-linear' : undefined"
+                :label="t(ACTION_LABEL[action])"
                 :loading="subscription.purchasingPackageId.value === pkg.packageId"
                 :disabled="actionDisabled(pkg)"
                 @click="handleCapacitor(pkg)"
               />
-              <Button
-                v-else
-                icon="i-solar:arrow-right-up-linear"
-                :label="t(ACTION_LABEL[action])"
-                :disabled="actionDisabled(pkg)"
-                @click="handleCapacitor(pkg)"
-              />
             </div>
-          </div>
+          </SettingsCard>
         </template>
       </div>
     </section>

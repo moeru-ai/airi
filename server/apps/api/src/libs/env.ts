@@ -152,6 +152,9 @@ const EnvSchema = intersect([S3EnvironmentSchema, object({
   // one of them is unset, so RevenueCat sends the event again.
   REVENUECAT_V2_API_KEY: optional(string()),
   REVENUECAT_PROJECT_ID: optional(string()),
+  // The RevenueCat Web Billing app id. Upgrades and downgrades of a web subscription return 503 while it is unset.
+  // The API v2 key needs the `iam:authorization:issue_token` permission for them.
+  REVENUECAT_WEB_APP_ID: optional(string()),
   // Testing-only bearer token bypass. Keep unset in production. When set,
   // Authorization: Bearer $TEST_AUTH_TOKEN resolves to the virtual user below
   // through resolveRequestAuth without creating an Auth session row.

@@ -409,8 +409,8 @@ catalogs:
       specifier: ^0.1.7
       version: 0.1.7
     '@revenuecat/purchases-js':
-      specifier: ^1.15.0
-      version: 1.68.0
+      specifier: ^1.70.0
+      version: 1.70.0
     '@rive-app/canvas-lite':
       specifier: ^2.40.1
       version: 2.40.1
@@ -4896,7 +4896,7 @@ importers:
         version: link:../vite-plugin-sherpaw
       '@revenuecat/purchases-js':
         specifier: 'catalog:'
-        version: 1.68.0
+        version: 1.70.0
       '@sherpaw/kws':
         specifier: 'catalog:'
         version: 0.2.1(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
@@ -11226,8 +11226,8 @@ packages:
   '@quansync/fs@1.0.0':
     resolution: {integrity: sha512-4TJ3DFtlf1L5LDMaM6CanJ/0lckGNtJcMjQ1NAV6zDmA0tEHKZtxNKin8EgPaVX1YzljbxckyT2tJrpQKAtngQ==}
 
-  '@revenuecat/purchases-js@1.68.0':
-    resolution: {integrity: sha512-1z8S2PWp2EJNljxZbrxY7hU+JrAgEl1kYKZ/xF82t6LVuLQFJrlTSihjC44Zp16i5A6LR4SB8FLANN2UIh9Fvg==}
+  '@revenuecat/purchases-js@1.70.0':
+    resolution: {integrity: sha512-07e1rzlk9bMbMTthJduhcOwbQQhvFZJiFKskmoqOVnEYmQaRq/PayxtYgHhpK5UnmqOhzqRUzXfNqpvUggEP4w==}
 
   '@rive-app/canvas-lite@2.40.1':
     resolution: {integrity: sha512-gnlvjeI344tC9vBqYW8lV9o9g8FJPtaTq6UjmFmn4q9wLXloN/u3XqdXHsdU/5uBgCd8G6fFFQh7TqtnwzRSfA==}
@@ -25610,7 +25610,7 @@ snapshots:
     dependencies:
       quansync: 1.0.0
 
-  '@revenuecat/purchases-js@1.68.0': {}
+  '@revenuecat/purchases-js@1.70.0': {}
 
   '@rive-app/canvas-lite@2.40.1': {}
 
