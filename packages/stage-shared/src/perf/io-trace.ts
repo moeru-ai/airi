@@ -40,6 +40,7 @@ const customPrefix = 'ai.moeru.airi.io'
 export const IOAttributes = {
   GenAIRequestModel: 'gen_ai.request.model',
   GenAIProviderName: 'gen_ai.provider.name',
+  GenAIConversationId: 'gen_ai.conversation.id',
 
   // Non-standard
   Subsystem: `${customPrefix}.subsystem`,
@@ -86,6 +87,8 @@ export const IOAttributes = {
   TTSInterrupted: `${customPrefix}.tts.interrupted`,
   TTSInterruptReason: `${customPrefix}.tts.interrupt_reason`,
   TTSCanceled: `${customPrefix}.tts.canceled`,
+  /** The speech output returned no audio without an abort. For example, speech is muted or has no provider. */
+  TTSNoAudio: `${customPrefix}.tts.no_audio`,
   TurnId: `${customPrefix}.turn_id`,
   /** The caller aborted the work. The span has no error status then. */
   Cancelled: `${customPrefix}.cancelled`,

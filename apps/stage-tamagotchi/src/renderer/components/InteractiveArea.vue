@@ -30,7 +30,7 @@ import ChatViewportLayout from './chat-viewport-layout.vue'
 
 import { electronOpenSettings } from '../../shared/eventa'
 import { useHearingInputChannel } from '../composables/use-hearing-input-channel'
-import { artistryToolReferences, computerUseToolReferences, widgetToolReferences } from '../stores/tools'
+import { computerUseToolReferences, useToolSelectionStore, widgetToolReferences } from '../stores/tools'
 
 const props = withDefaults(defineProps<{
   /**
@@ -79,8 +79,9 @@ const voicePending = shallowRef(false)
 /** A recording is open. Dictation writes into the text, so the text stays read-only and send waits until it closes. */
 const voiceActive = shallowRef(false)
 const lastEnterTime = ref(0)
-// Each request captures this composer selection, including retries and tool reruns.
-const computerUseEnabled = ref(true)
+// Each request captures this selection, including retries and tool reruns. Spoken turns read the same store.
+const toolSelection = useToolSelectionStore()
+const { computerUseEnabled, requestTools } = storeToRefs(toolSelection)
 
 const chatStore = useChatStore()
 const chatSession = useChatSessionStore()
@@ -107,7 +108,7 @@ const composer = useChatComposer<ChatImageAttachment>({
       data: attachment.data,
       mimeType: attachment.mimeType,
     })),
-    tools: computerUseEnabled.value ? [...artistryToolReferences, ...computerUseToolReferences] : artistryToolReferences,
+    tools: requestTools.value,
   }),
 })
 const {
@@ -558,7 +559,7 @@ defineExpose({
               :attachment-element="voiceAttachment"
               :session-id="activeSessionId"
               :reply-to-message-id="replyTarget?.message.id"
-              :tools="computerUseEnabled ? [...artistryToolReferences, ...computerUseToolReferences] : artistryToolReferences"
+              :tools="requestTools"
               @recording-change="voiceActive = $event"
               @pending-change="voicePending = $event"
               @sent="composer.clearReply()"

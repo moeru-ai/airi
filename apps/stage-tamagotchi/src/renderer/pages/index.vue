@@ -25,7 +25,7 @@ import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useVoiceStore } from '@proj-airi/stage-ui/stores/voice'
 import { refDebounced } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, shallowRef, toRef, watch } from 'vue'
+import { computed, onMounted, onScopeDispose, ref, shallowRef, toRef, watch } from 'vue'
 import { toast } from 'vue-sonner'
 
 import AuthStatusIsland from '../components/stage-islands/auth-status-island.vue'
@@ -40,6 +40,7 @@ import { useScreenAmbientLight } from '../composables/use-screen-ambient-light'
 import { stageOpaqueAttribute } from '../composables/use-stage-painted-mask'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
+import { useToolSelectionStore } from '../stores/tools'
 import { resolveFadeOnHoverInteraction } from '../utils/fade-on-hover'
 import { shouldSampleStageTransparency } from '../utils/stage-three-transparency'
 
@@ -358,6 +359,9 @@ useModelSettingsRuntimeOwner({
 })
 
 const voice = useVoiceStore()
+const toolSelection = useToolSelectionStore()
+// Spoken turns start in this window. They use the tools that the chat window composer grants.
+onScopeDispose(voice.connectTools(() => toolSelection.requestTools))
 const openInlay = useElectronEventaInvoke(electronOpenInlay)
 useVoiceListening()
 usePushToTalkShortcut()
