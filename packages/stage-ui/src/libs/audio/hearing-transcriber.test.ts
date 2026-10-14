@@ -1,11 +1,14 @@
 import type { PcmBlock } from '@proj-airi/pipelines-audio'
 
+import type { ReadableSpan } from '../../composables/use-io-tracer'
 import type { AIRIStreamTranscriptionDelta } from '../providers/stream-transcription'
 
 import { VoiceController } from '@proj-airi/core-agent'
 import { AudioInput, createPushStream } from '@proj-airi/pipelines-audio'
+import { IOSpanNames } from '@proj-airi/stage-shared'
 import { expect, it, vi } from 'vitest'
 
+import { activeVoiceInputSpan, startSpan, subscribeIOSpan } from '../../composables/use-io-tracer'
 import { createHearingTranscriber } from './hearing-transcriber'
 
 it('streams provider updates before capture ends and preserves the final response after normal finish', async () => {
@@ -116,4 +119,26 @@ it('aborts all provider outputs when standalone transcription fails', async () =
   expect(providerSignal?.aborted).toBe(true)
   await expect.poll(() => releasedText).toHaveBeenCalledOnce()
   expect(releasedEvents).toHaveBeenCalledOnce()
+})
+
+it('records speech recognition under the parent that the caller names, before the voice input that runs now', async () => {
+  const recorded: ReadableSpan[] = []
+  const unsubscribe = subscribeIOSpan(span => recorded.push(span))
+  const turn = startSpan(IOSpanNames.InteractionTurn)
+  const otherVoiceInput = startSpan(IOSpanNames.VoiceInput)
+  activeVoiceInputSpan.value = otherVoiceInput
+  try {
+    const transcriber = createHearingTranscriber(async () => {
+      throw new Error('provider failed')
+    }, { traceParent: turn })
+    const reader = transcriber.transcribe({ audio: new ReadableStream<PcmBlock>(), signal: new AbortController().signal }).getReader()
+    await expect(reader.read()).rejects.toThrow('provider failed')
+  }
+  finally {
+    activeVoiceInputSpan.value = undefined
+    unsubscribe()
+  }
+
+  const recognition = recorded.find(span => span.name === IOSpanNames.SpeechRecognition)!
+  expect(recognition.parentSpanContext?.spanId).toBe(turn.spanContext().spanId)
 })

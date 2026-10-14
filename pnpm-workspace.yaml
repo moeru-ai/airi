@@ -185,8 +185,10 @@ catalog:
   '@proj-airi/unplugin-live2d-sdk': ^0.1.7
   '@revenuecat/purchases-js': ^1.15.0
   '@rive-app/canvas-lite': ^2.40.1
-  '@sherpaw/kws': 0.2.1
-  '@sherpaw/xsai-transcription': 0.2.1
+  '@sherpaw/asr': 0.3.0
+  '@sherpaw/kws': 0.3.0
+  '@sherpaw/speaker-diarization': 0.3.0
+  '@sherpaw/xsai-transcription': 0.3.0
   '@shikijs/markdown-it': ^4.4.3
   '@shikijs/rehype': ^4.4.3
   '@shopify/draggable': ^1.2.1

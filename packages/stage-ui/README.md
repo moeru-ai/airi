@@ -126,6 +126,10 @@ Catalog changes rebuild the spotter keywords. A result after a stop or a keyword
 The model loads only when the catalog has a pronunciation for the pinned model. Until the model is ready, detection returns no wake.
 While no listener runs, the preparation is `unconfigured`.
 
+`useSpeakerTrackerStore` owns the voice host's Sherpaw speaker tracker Worker. `acquire` downloads the pinned CAM++ pack and starts the Worker on first use.
+`setVoiceprints` replaces the enrolled speakers. They get the speaker numbers 0, 1, ... in that order. `release` terminates the Worker.
+`preparation` reports `idle`, `preparing`, `ready`, or `error` for UI. No feature acquires the tracker yet.
+
 A host can pass its own `detectWakeWord` to `voice.startListening`. Then the built-in detection does not start.
 The detector remains active during playback. A supplied `acceptSpeech` classifier can reject playback echo before admission.
 The default policy allows barge-in when the browser reports echo cancellation. Without that support, automatic admission waits for playback to end.
@@ -203,6 +207,21 @@ Each request rebuilds the analytics correlation headers for its provider.
 Tool and content-array compatibility failures belong to the model of the failing request, not the first model of the turn.
 Session resets and autonomous artistry hooks also use the session character.
 Each concurrent turn owns its IO trace. `activeTurnSpan` points to the most recently started turn that is still running.
+
+A spoken turn is one IO trace, from the wake word to playback:
+
+- `Wake word` (KWS) is the root when a wake started the input. It covers the match and the session selection.
+- `Voice input` is the root otherwise. It records the trigger (`control`, `speech`, or `wake-word`) and the outcome.
+  `activeVoiceInputSpan` points to it while the input runs.
+- Its children are `Voice activity detection` (one span for each speech segment), `Speech recognition`,
+  `End of speech judgement`, and `Transcript rephrase`.
+- The `Interaction turn` of the submission is also its child. The input ID is the turn ID, and `takeVoiceTurnParent`
+  connects them. The turn holds the LLM, streaming control, TTS, and playback spans.
+- A composer dictation returns its text to the composer, which sends it later under a new ID. The next turn of the
+  same session within 60 seconds continues the dictation trace through `takeComposerVoiceParent`. This link is by
+  session, so a typed turn that replaces discarded dictated text in that time also joins the dictation trace.
+
+A typed turn starts its trace at `Interaction turn`.
 
 ## Button analytics
 
