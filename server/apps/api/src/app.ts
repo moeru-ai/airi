@@ -757,6 +757,8 @@ export async function createApp() {
     build: ({ dependsOn }) => createRevenuecatSubscriberClient({
       apiKey: dependsOn.env.REVENUECAT_V2_API_KEY ?? null,
       projectId: dependsOn.env.REVENUECAT_PROJECT_ID ?? null,
+      environment: dependsOn.env.REVENUECAT_ENVIRONMENT,
+      sandboxUserIds: dependsOn.env.REVENUECAT_SANDBOX_USER_IDS,
       sellsSubscriptions: Boolean(dependsOn.env.REVENUECAT_WEBHOOK_AUTH || dependsOn.env.REVENUECAT_WEBHOOK_SECRET),
     }),
   })
