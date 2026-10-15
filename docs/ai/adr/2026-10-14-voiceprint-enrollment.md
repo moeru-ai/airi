@@ -22,6 +22,8 @@ The page records from the selected microphone through the speech input, the inpu
 
 The enrollment keeps only the 32 ms windows that Silero VAD scores as speech. A window starts speech at a score of 0.6, and speech continues while the score stays at 0.18. These are the thresholds of the voice activity plugin. Silence weakens a voiceprint, so it is not kept.
 
+The enrollment keeps each window as mono PCM clamped to [-1, 1]. The tracker rejects the whole recording for one sample outside that range, and loud sound near the microphone can give such samples.
+
 Recording stops with Finish or after 30 seconds of audio. With less than 5 seconds of speech, the enrollment fails as `too-short`, and the user records again.
 
 The voiceprint model runs in a tracker Worker of its own. The Worker ends when the voiceprint is computed. The recorded speech exists only in memory until the enrollment settles.
@@ -66,7 +68,7 @@ The Voiceprint settings page tells the user what a voiceprint is, that it stays 
 
 ## Consequences
 
-- No feature reads the voiceprint yet. Speaker evidence and the speaker gates read it later through `useSpeakerTrackerStore`.
+- Speaker recognition reads the voiceprint through `useSpeakerTrackerStore`, as `2026-10-15-speaker-evidence.md` describes. The speaker gates read it later.
 - The recording uses the processed speech input. The Sherpaw tuning used unprocessed audio. The voiceprint measurement in the Sherpaw sandbox decides whether this choice stays. A change of input makes saved voiceprints outdated, because the record names its input.
 - An enrollment with two voices fails with the tracker's error, and the user records again alone.
 - The lease does not stop speech output. If the character speaks during the recording, echo cancellation must remove the voice, or the tracker rejects the recording. How much echo cancellation removes in a second window is not measured.
@@ -76,7 +78,7 @@ The Voiceprint settings page tells the user what a voiceprint is, that it stays 
 
 ## Verification
 
-Unit tests cover the speech selection, the 5-second minimum, the 30-second limit, cancellation, and model failures with a fake VAD and a fake voiceprint model. They also cover lease renewal, release, and the end of a lease that nobody renews.
+Unit tests cover the speech selection, the clamping of loud samples, the 5-second minimum, the 30-second limit, cancellation, and model failures with a fake VAD and a fake voiceprint model. They also cover lease renewal, release, and the end of a lease that nobody renews.
 Browser tests record from the Chromium fake microphone with a fake VAD and a fake voiceprint model. They cover a complete enrollment, the lease during recording, cancel, unmount, outdated records, deletion, a save after a deletion, and Delete all data. Voice message tests cover the host behavior during a lease.
 The manual input gate in the voice host has no test, because no test mounts `useVoiceStore`.
 A real enrollment with a microphone and the CAM++ model is not covered by tests.
