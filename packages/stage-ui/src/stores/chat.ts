@@ -509,7 +509,7 @@ export const useChatStore = defineStore('chat', () => {
     await chatSession.deleteHiddenSession(sessionId)
   }
 
-  /** Deletes the sessions of finished tasks beyond the newest few, so periodic recipes never grow storage. */
+  /** Deletes the sessions of finished tasks beyond the newest few, so finished tasks never grow storage. */
   async function pruneFinishedTasks() {
     const finished = Object.values(chatSession.sessionMetas)
       .filter(meta => meta.recipeId && meta.task && !isOpenTask(meta.task.status))
@@ -557,7 +557,7 @@ export const useChatStore = defineStore('chat', () => {
   /**
    * Recipes that a send can act on: those that the owner invoked by keyword in this conversation, now or in an earlier message,
    * and those that their decisions lead to. The owner can answer a question in a later message without the keyword.
-   * A notice or a task never answers the owner, so it never judges or arms anything.
+   * A notice or a task never answers the owner, so it never judges anything.
    */
   function reachableRecipesFor(payload: ChatSendPayload, extra: HostSendOptions, invoked: readonly Recipe[]) {
     if (!isOwnerSend(payload, extra))

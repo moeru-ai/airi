@@ -66,7 +66,7 @@ export interface Recipe {
 
 /**
  * Instructions that let the model decide what each run does, from the recipe's purpose.
- * The editor writes them when the owner picks "the model decides", and Settings recognize them to show that choice. The runtime treats them as plain instructions.
+ * A model proposal writes them when the owner wants the model to decide each run, and Settings recognize them to show that choice. The runtime treats them as plain instructions.
  */
 export const MODEL_DECIDES_STEPS = 'Decide what this run does from the recipe\'s purpose and what you know now, and use your tools to do it.'
 
