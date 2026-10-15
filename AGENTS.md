@@ -111,7 +111,8 @@ Use pnpm workspace filters to limit a command to one workspace. Replace `<packag
 
 - Put project-wide and client ADRs in `docs/ai/adr/`. Put hosted backend ADRs in `server/docs/ai/adr/`, and obey the ADR rules in `server/AGENTS.md`.
 - Put a documentation change in the same commit or PR as the code that it describes. This rule applies to ADRs, `README.md` files, and component references.
-- Put agent configuration changes in a separate commit or PR. Agent configuration includes `AGENTS.md`, `CLAUDE.md`, skills, and `.github/copilot-instructions.md`.
+- Put agent configuration changes in their own commit. Agent configuration includes `AGENTS.md`, `CLAUDE.md`, skills, and `.github/copilot-instructions.md`.
+- If the agent configuration describes the code of a PR, put its commit in that PR. Do not open a second PR for it.
 - Keep a structured `README.md` in each `packages/` and `apps/` entry. It tells what the entry does, how to use it, when to use it, and when not to use it.
 - Put all translations in `packages/i18n`. By default, edit only the English source locale and your own locale.
 - Do not edit other locales unless the user asks. Crowdin manages them, and the next Crowdin sync can replace local edits.

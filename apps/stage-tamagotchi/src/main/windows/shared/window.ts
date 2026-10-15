@@ -173,9 +173,11 @@ export async function setupBaseWindowElectronInvokes(params: {
   window: BrowserWindow
   serverChannel: ServerChannel
   i18n: I18n
+  /** Owns the window's pin instead of the renderer request applying it directly. */
+  setAlwaysOnTop?: (flag: boolean) => void
 }) {
   createScreenService({ context: params.context, window: params.window })
-  createWindowService({ context: params.context, window: params.window })
+  createWindowService({ context: params.context, window: params.window, setAlwaysOnTop: params.setAlwaysOnTop })
   createAppService({ context: params.context, window: params.window })
   createPowerMonitorService({ context: params.context, window: params.window })
   createSystemPreferencesService({ context: params.context, window: params.window })

@@ -14,6 +14,7 @@ import { useStartupResourcesStore } from '@proj-airi/stage-ui/stores/startup-res
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 import WebSocketStatusButton from '../components/websocket-status-button.vue'
 
@@ -62,6 +63,8 @@ const { syncBackgroundTheme } = useBackgroundThemeColor({ backgroundSurface, sel
 onMounted(() => syncBackgroundTheme())
 
 useVoiceListening()
+
+const router = useRouter()
 </script>
 
 <template>
@@ -103,6 +106,7 @@ useVoiceListening()
               y: positionCursor.y.value,
             }"
             @error="markModelFailed"
+            @select-avatar-model="router.push('/settings/models')"
           />
         </div>
         <InteractiveArea v-if="!isMobile" h="85dvh" absolute right-4 flex flex-1 flex-col max-w="500px" min-w="30%" />

@@ -846,6 +846,33 @@ pages:
           choose: '{name}（「{word}」）'
           answered-by: '由 {name} 回应'
           unresolved: 还没有角色回应这个发音。
+      voiceprint:
+        title: 声纹
+        description: 登记你的声音，让 AIRI 能认出你。
+        intro: 声纹是声纹模型从你的语音中算出的一组数字。它不包含音频，但能识别出你。
+        privacy: AIRI 只把你的声纹保存在这台设备上。导出角色卡不会带上它，AIRI 也不会上传它。要删除它，可以使用本页的「删除声纹」，或数据设置中的「删除所有数据」。
+        unused: 目前还没有功能使用声纹。
+        download: 第一次登记时会下载声纹模型，约 28 MB。
+        status:
+          none: 你还没有声纹。
+          enrolled: '{date} 登记，使用了 {seconds} 秒语音。'
+          outdated: 声纹模型已更新。请重新登记，才能使用你的声纹。
+        instructions: 请一个人待在麦克风旁边。点击「开始录音」，然后用平时的声音读出下面的句子。
+        sentence-1: 今天我想看看天气，读一下消息，再安排好接下来要做的事情。
+        sentence-2: 我一般在晚上和 AIRI 聊天，那时候房间很安静，我也有空。
+        sentence-3: 请记住我的声音，这样你就能知道是我在说话。
+        progress: '已录到 {seconds} 秒语音。登记至少需要 {min} 秒。'
+        start: 开始录音
+        again: 重新登记
+        finish: 完成
+        cancel: 取消
+        delete: 删除声纹
+        enrolling: 正在计算你的声纹……
+        result:
+          enrolled: 你的声纹已保存。
+          cancelled: 已取消登记。
+          too-short: '这次录音只有 {seconds} 秒语音，登记至少需要 {min} 秒。请重新录音。'
+          error: '登记失败：{error}'
       sections:
         section:
           provider-selection:
@@ -2171,6 +2198,14 @@ pages:
         display_model_sync:
           title: 模型云同步
           description: 登录后把导入的 Live2D 和 VRM 模型上传到账号，方便在其他设备上使用。默认关闭。
+        fullscreen_workspace:
+          title: 全屏工作区
+          description: 在铺满屏幕的工作区里打开设置和聊天，角色在左边。默认关闭。
+          window_mode:
+            title: 窗口模式
+            description: 选择工作区开在哪里。
+            single_window: 单窗口：角色自己展开成工作区
+            multi_window: 多窗口：角色留在桌面上
     color-scheme:
       description: 更改舞台的配色方案
       title: 配色方案

@@ -54,7 +54,8 @@ onUnmounted(() => teardown())
 <template>
   <div :class="['flex items-center justify-center', props.colorClass]">
     <!-- Inline SVG mic with level fill using gradient stops -->
-    <svg width="24" height="24" viewBox="0 0 256 256" aria-hidden="true">
+    <!-- The SVG fills the icon size class of the root. A fixed size moves the button baseline, and the button shifts. -->
+    <svg class="size-full" viewBox="0 0 256 256" aria-hidden="true">
       <defs>
         <linearGradient id="micLevel" x1="0%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" stop-color="currentColor" stop-opacity="0" />

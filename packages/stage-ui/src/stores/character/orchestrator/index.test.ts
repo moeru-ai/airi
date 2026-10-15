@@ -141,6 +141,7 @@ describe('store character-orchestrator', () => {
       version: '1.0',
       extensions: {
         airi: {
+          avatarModels: [],
           agents: {},
           modules: {
             consciousness: {

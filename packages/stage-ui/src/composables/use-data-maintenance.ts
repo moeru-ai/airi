@@ -28,6 +28,7 @@ import { useOnboardingStore } from '../stores/onboarding'
 import { useProviderStore } from '../stores/providers/provider'
 import { useRecipesStore } from '../stores/recipes'
 import { useSettings, useSettingsAudioDevice } from '../stores/settings'
+import { useVoiceprintStore } from '../stores/voiceprint'
 
 export function useDataMaintenance() {
   const chatStore = useChatSessionStore()
@@ -56,10 +57,10 @@ export function useDataMaintenance() {
   const airiCardStore = useAiriCardStore()
   const memoryStore = useMemoryStore()
   const recipesStore = useRecipesStore()
+  const voiceprintStore = useVoiceprintStore()
 
   async function deleteAllModels() {
     await displayModelsStore.resetDisplayModels()
-    settingsStore.stageModelSelected = 'preset-live2d-1'
     await settingsStore.updateStageModel()
   }
 
@@ -128,6 +129,8 @@ export function useDataMaintenance() {
   }
 
   async function deleteAllData() {
+    // The voiceprint identifies the user. Remove it first, so a failed cleanup step below cannot keep it.
+    voiceprintStore.remove()
     await deleteAllModels()
     await resetProvidersSettings()
     await resetModulesSettings()

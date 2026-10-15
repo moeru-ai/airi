@@ -10,6 +10,8 @@ import { createApp } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import { injectKeyPiniaSynced } from '../libs/pinia/synced-context'
+import { toStoredVoiceprint } from '../libs/voice/voiceprint'
+import { useDisplayModelsStore } from '../stores/display-models'
 import { useMemoryStore } from '../stores/memory'
 import { useModsServerChannelStore } from '../stores/mods/api/channel-server'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
@@ -23,6 +25,7 @@ import { useSpeechStore } from '../stores/modules/speech'
 import { useTwitterStore } from '../stores/modules/twitter'
 import { useWebSearchStore } from '../stores/modules/web-search'
 import { useRecipesStore } from '../stores/recipes'
+import { useVoiceprintStore } from '../stores/voiceprint'
 import { useDataMaintenance } from './use-data-maintenance'
 
 const cleanups: Array<() => void> = []
@@ -153,4 +156,29 @@ it('removes downloaded speech models when all data is deleted', async () => {
   await maintenance.deleteAllData()
 
   await expect(origin.getDirectoryHandle('airi-model-assets')).rejects.toThrow()
+})
+
+it('removes the voiceprint when all data is deleted', async () => {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
+  localStorage.setItem('settings/voice/voiceprint', JSON.stringify(toStoredVoiceprint({ embedding: new Float32Array([1, 0]), seconds: 8 }, Date.now())))
+  const { pinia, runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
+  await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
+  expect(useVoiceprintStore(pinia).record).toBeDefined()
+
+  await maintenance.deleteAllData()
+
+  expect(useVoiceprintStore(pinia).record).toBeUndefined()
+  expect(localStorage.getItem('settings/voice/voiceprint')).toBeNull()
+})
+
+it('removes the voiceprint when an earlier cleanup fails', async () => {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
+  localStorage.setItem('settings/voice/voiceprint', JSON.stringify(toStoredVoiceprint({ embedding: new Float32Array([1, 0]), seconds: 8 }, Date.now())))
+  const { pinia, runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
+  await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
+  vi.spyOn(useDisplayModelsStore(pinia), 'resetDisplayModels').mockRejectedValue(new Error('Model storage unavailable'))
+
+  await expect(maintenance.deleteAllData()).rejects.toThrow('Model storage unavailable')
+
+  expect(localStorage.getItem('settings/voice/voiceprint')).toBeNull()
 })
