@@ -259,11 +259,9 @@ describe('social authorization revocation', () => {
       vi.fn<typeof fetch>(),
     )
 
-    await expect(revoker.revokeForUser('user-1')).rejects.toMatchObject({
-      statusCode: 503,
-      errorCode: 'oauth/revocation_token_missing',
-      details: { providerId },
-    })
+    await expect(revoker.revokeForUser('user-1')).rejects.toMatchObject(providerId === 'apple'
+      ? { statusCode: 409, body: { code: 'APPLE_REAUTHENTICATION_REQUIRED' } }
+      : { statusCode: 503, errorCode: 'oauth/revocation_token_missing', details: { providerId } })
   })
 
   it.each([200, 503])('applies linked Google revocation policy before resource cleanup (status %s)', async (status) => {
