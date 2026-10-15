@@ -22,16 +22,16 @@ function mount(results: Record<number, ChatSlicesToolCallResult>) {
 }
 
 describe('tool call group', () => {
-  // While calls stream in, the folded line names the newest running call. Settled, it reports the total.
-  it('names the running call, then the total', async () => {
+  // While calls stream in, the pill counts the combo. Settled, it reports the hits and the misses.
+  it('counts the combo while calls run, then reports hits and misses', async () => {
     const running = mount({ 1: { type: 'tool-call-result', id: 'call-light', result: 'ok' } })
-    await expect.element(running.getByText('Using tool 2 · Web search')).toBeVisible()
+    await expect.element(running.getByText('Combo ×2')).toBeVisible()
 
     const settled = mount({
       1: { type: 'tool-call-result', id: 'call-light', result: 'ok' },
       3: { type: 'tool-call-result', id: 'call-search', isError: true, result: 'timeout' },
     })
-    await expect.element(settled.getByText('Used 2 tools, 1 didn\'t finish')).toBeVisible()
+    await expect.element(settled.getByText('2-hit combo, 1 missed')).toBeVisible()
   })
 
   // The rerun action moved from the old per-call card onto each call row. It must still send the original call.
@@ -41,7 +41,7 @@ describe('tool call group', () => {
       3: { type: 'tool-call-result', id: 'call-search', result: 'found' },
     })
 
-    await screen.getByText('Used 2 tools', { exact: true }).click()
+    await screen.getByText('2-hit combo', { exact: true }).click()
     await screen.getByRole('button', { name: 'Run again' }).nth(1).click()
 
     expect(screen.emitted('toolCallRerun')).toEqual([[3, { toolCallId: 'call-search', toolName: 'web_search', args: '{"query":"village"}' }]])

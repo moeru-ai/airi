@@ -16,7 +16,7 @@ const node = computed(() => formatToolPayload(props.payload))
 
 <template>
   <div v-if="node" :class="['flex flex-col gap-1']">
-    <span :class="['text-xs', 'text-neutral-500 dark:text-neutral-400']">{{ props.label }}</span>
+    <span :class="['text-[10px]', 'text-neutral-500 dark:text-neutral-400']">{{ props.label }}</span>
     <!-- The neutral panel of the group frames the details, so a payload has no box of its own. A long one scrolls inside a fixed height. -->
     <div :class="['flex flex-col max-h-72 overflow-auto']">
       <ToolCallPayloadNode :node="node" />

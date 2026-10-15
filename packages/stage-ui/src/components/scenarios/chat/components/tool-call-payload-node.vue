@@ -8,8 +8,8 @@ const props = defineProps<{
   node: PayloadNode
 }>()
 
-const INDEX_CLASSES = ['text-xs font-semibold tabular-nums', 'text-primary-500 dark:text-primary-300']
-const VALUE_CLASSES = ['min-w-0 whitespace-pre-wrap break-words text-sm', 'text-neutral-800 dark:text-neutral-100']
+const INDEX_CLASSES = ['text-[10px] font-semibold tabular-nums', 'text-primary-500 dark:text-primary-300']
+const VALUE_CLASSES = ['min-w-0 whitespace-pre-wrap break-words text-xs', 'text-neutral-800 dark:text-neutral-100']
 // The rounded bar follows the Callout component: a pseudo element inset from the top and bottom edges.
 const NESTED_CLASSES = [
   'relative min-w-0 pl-3.5',
@@ -25,11 +25,11 @@ const NESTED_CLASSES = [
   <div v-else-if="props.node.kind === 'object'" :class="['grid grid-cols-[minmax(0,max-content)_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1']">
     <template v-for="entry in props.node.entries" :key="entry.key">
       <template v-if="entry.value.kind === 'text'">
-        <span :class="['break-all text-xs', 'text-neutral-500 dark:text-neutral-400']">{{ entry.key }}</span>
+        <span :class="['break-all text-[10px]', 'text-neutral-500 dark:text-neutral-400']">{{ entry.key }}</span>
         <span :class="VALUE_CLASSES">{{ entry.value.text }}</span>
       </template>
       <template v-else>
-        <span :class="['col-span-2 break-all text-xs', 'text-neutral-500 dark:text-neutral-400']">{{ entry.key }}</span>
+        <span :class="['col-span-2 break-all text-[10px]', 'text-neutral-500 dark:text-neutral-400']">{{ entry.key }}</span>
         <div :class="['col-span-2', NESTED_CLASSES]">
           <ToolCallPayloadNode :node="entry.value" />
         </div>

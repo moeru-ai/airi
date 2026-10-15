@@ -108,10 +108,10 @@ chat:
     failed: Recipe did not start
   tool-calls:
     running-one: 'Using {name}'
-    running-many: 'Using tool {index} · {name}'
     failed-one: "{name} didn't finish"
-    settled-many: 'Used {count} tools'
-    settled-many-failed: "Used {count} tools, {failed} didn't finish"
+    combo-running: 'Combo ×{count}'
+    combo: '{count}-hit combo'
+    combo-failed: '{count}-hit combo, {failed} missed'
     arguments: Arguments
     result: Result
     rerun: Run again

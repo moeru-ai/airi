@@ -108,10 +108,10 @@ chat:
     failed: 配方没能开始
   tool-calls:
     running-one: '正在 {name}'
-    running-many: '正在用第 {index} 个工具 · {name}'
     failed-one: '{name} 没成功'
-    settled-many: '用了 {count} 个工具'
-    settled-many-failed: '用了 {count} 个工具，{failed} 个没成功'
+    combo-running: '连击 ×{count}'
+    combo: '{count} 连击'
+    combo-failed: '{count} 连击，{failed} 次落空'
     arguments: 参数
     result: 结果
     rerun: 重新运行
