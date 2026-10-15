@@ -11,7 +11,6 @@ The exchanged ID token may omit nonce; when present, it must match the native to
 Better Auth receives the verified native token and raw nonce for its own provider checks.
 It stores the returned refresh token and ID token on the existing Better Auth account.
 Revocation uses the stored ID token audience as the client ID, restricted to configured Apple identifiers.
-Legacy ID-token-only sign-ins do not replace the saved grant ID token, keeping its audience bound to the retained refresh token.
 Existing web grants without an ID token continue to use the configured web client ID.
 
 An authenticated repair endpoint accepts new Apple authorization for an already linked Apple subject only.

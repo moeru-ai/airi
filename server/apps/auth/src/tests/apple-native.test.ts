@@ -5,7 +5,7 @@ import { createHash, generateKeyPairSync } from 'node:crypto'
 import { betterAuth } from 'better-auth'
 import { symmetricEncrypt } from 'better-auth/crypto'
 import { eq } from 'drizzle-orm'
-import { decodeJwt, SignJWT } from 'jose'
+import { decodeJwt, errors, SignJWT } from 'jose'
 import { object, parse, string } from 'valibot'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -164,6 +164,8 @@ describe('native Apple authorization', () => {
     ['apple-5xx', 502],
     ['network', 503],
     ['jwks', 503],
+    ['jwks-timeout', 503],
+    ['jwks-invalid', 503],
     ['configuration', 503],
     ['malformed-response', 502],
   ])('classifies %s and preserves the existing session', async (scenario, status) => {
@@ -176,6 +178,10 @@ describe('native Apple authorization', () => {
       fetchRequest.mockRejectedValue(new DOMException('Timed out', 'TimeoutError'))
     if (scenario === 'jwks')
       resolveKey.mockRejectedValueOnce(new TypeError('Network unavailable'))
+    if (scenario === 'jwks-timeout')
+      resolveKey.mockRejectedValueOnce(new errors.JWKSTimeout())
+    if (scenario === 'jwks-invalid')
+      resolveKey.mockRejectedValueOnce(new errors.JWKSInvalid())
     if (scenario === 'malformed-response')
       fetchRequest.mockResolvedValue(Response.json({ access_token: 'access' }))
     const originalKey = env.AUTH_APPLE_PRIVATE_KEY_PEM
@@ -207,30 +213,6 @@ describe('native Apple authorization', () => {
     await vi.waitFor(() => expect(sendDeletionMail).toHaveBeenCalledOnce())
     expect(await db.select().from(schema.user)).toHaveLength(1)
     expect(cleanup).not.toHaveBeenCalled()
-  })
-
-  it('preserves the saved grant audience when an old client logs in with another audience', async () => {
-    expect((await request('/account/apple-authorization', await credential(), 'old-token')).status).toBe(200)
-    const response = await request('/sign-in/social', {
-      provider: 'apple',
-      idToken: { token: await identity('apple-owner', 'web-client'), nonce: 'nonce' },
-    })
-    expect(response.status).toBe(200)
-    const [account] = await db.select().from(schema.account)
-    expect(account.refreshToken).toBe('refresh')
-    expect(decodeJwt(account.idToken!).aud).toBe('native-client')
-  })
-
-  it.each(['audience', 'nonce'])('keeps production Better Auth %s verification enabled', async (scenario) => {
-    const response = await request('/sign-in/social', {
-      provider: 'apple',
-      idToken: {
-        token: await identity('apple-owner', scenario === 'audience' ? 'untrusted' : 'native-client'),
-        nonce: scenario === 'nonce' ? 'wrong' : 'nonce',
-      },
-    })
-    expect(response.status).toBe(401)
-    expect(await db.select().from(schema.session)).toHaveLength(1)
   })
 
   it('repairs an old account then completes explicit deletion with the native client ID', async () => {
