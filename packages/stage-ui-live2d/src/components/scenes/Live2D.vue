@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { PresenceBubbleState } from '@proj-airi/stage-shared'
 
-import type { Live2DEyeFocusSource, Live2DMotionDriver } from '../../composables/live2d'
+import type { Live2DEyeFocusSource } from '../../composables/live2d'
 import type { Live2DContext } from '../../contexts/live2d'
 
 import { presenceBubbleIdle } from '@proj-airi/stage-shared'
@@ -10,18 +10,19 @@ import { Screen } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onUnmounted, ref, watch } from 'vue'
 
-import Live2DRoot from '../live2d/root.vue'
 import Live2DCanvas from './live2d/Canvas.vue'
 import Live2DModel from './live2d/Model.vue'
 import Live2DPresenceBubble from './live2d/presence-bubble.vue'
 
-import { useLive2DEyeFocusFor } from '../../composables/live2d'
+import { useLive2DEyeFocusFor, useSettingsLive2d } from '../../composables/live2d'
+import { createLive2D, provideLive2D } from '../../contexts/live2d'
 
 import '../../utils/live2d-zip-loader'
 import '../../utils/live2d-opfs-registration'
 
 const props = withDefaults(defineProps<{
   cursorPosition?: Live2DEyeFocusSource
+  /** Controls of this renderer. The scene owns a new context when this is not set. */
   context?: Live2DContext
   modelSrc?: string
   modelId?: string
@@ -35,18 +36,6 @@ const props = withDefaults(defineProps<{
   themeColorsHueDynamic?: boolean
   /** Drives the bubble above the character. */
   presence?: PresenceBubbleState
-  motionDriver?: Live2DMotionDriver
-  eyeTracking?: boolean
-  modelEyeOffset?: { x: number, y: number }
-  modelScale?: number
-  idleAnimationEnabled?: boolean
-  forceIdleEyeAnimation?: boolean
-  autoBlinkEnabled?: boolean
-  forceAutoBlinkEnabled?: boolean
-  expressionEnabled?: boolean
-  shadowEnabled?: boolean
-  maxFps?: number
-  renderScale?: number
 }>(), {
   presence: () => presenceBubbleIdle,
   paused: false,
@@ -54,18 +43,6 @@ const props = withDefaults(defineProps<{
   nowSpeaking: false,
   themeColorsHue: 220.44,
   themeColorsHueDynamic: false,
-  motionDriver: 'universal',
-  eyeTracking: true,
-  modelEyeOffset: () => ({ x: 0, y: 0 }),
-  modelScale: 1,
-  idleAnimationEnabled: true,
-  forceIdleEyeAnimation: true,
-  autoBlinkEnabled: true,
-  forceAutoBlinkEnabled: true,
-  expressionEnabled: false,
-  shadowEnabled: true,
-  maxFps: 0,
-  renderScale: 2,
 })
 
 const emit = defineEmits<{
@@ -76,11 +53,27 @@ const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', {
 const componentStateCanvas = defineModel<'pending' | 'loading' | 'mounted'>('canvasState', { default: 'pending' })
 const componentStateModel = defineModel<'pending' | 'loading' | 'mounted'>('modelState', { default: 'pending' })
 
+const live2d = props.context ?? createLive2D()
+provideLive2D(live2d)
+
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
 const live2dModelRef = ref<InstanceType<typeof Live2DModel>>()
 const activeCursorPosition = ref<Live2DEyeFocusSource | null>(null)
 let clearCursorFocusTimeout: ReturnType<typeof setTimeout> | undefined
 
+const {
+  live2dMotionDriver,
+  live2dEyeTracking,
+  live2dIdleAnimationEnabled,
+  live2dForceIdleEyeAnimation,
+  live2dAutoBlinkEnabled,
+  live2dForceAutoBlinkEnabled,
+  live2dExpressionEnabled,
+  live2dMaxFps,
+  live2dRenderScale,
+  live2dShadowEnabled,
+} = storeToRefs(useSettingsLive2d())
+const universalMotionEnabled = computed(() => live2dMotionDriver.value === 'universal')
 const {
   screenAmbientLightBacklight,
   screenAmbientLightBaseCurve,
@@ -114,8 +107,6 @@ const screenAmbientLightFilterOptions = computed(() => ({
   backlight: screenAmbientLightBacklight.value,
   translucentWrap: screenAmbientLightTranslucentWrap.value,
 }))
-
-const universalMotionEnabled = computed(() => props.motionDriver === 'universal')
 const mouseFocus = useLive2DEyeFocusFor({
   canvas: () => live2dCanvasRef.value?.canvasElement(),
   model: () => ({
@@ -124,9 +115,6 @@ const mouseFocus = useLive2DEyeFocusFor({
     modelHeight: live2dModelRef.value?.initialModelHeight ?? 1000,
   }),
   source: activeCursorPosition,
-  renderScale: () => props.renderScale,
-  modelScale: () => props.modelScale,
-  eyeOffset: () => props.modelEyeOffset,
 })
 watch(() => props.cursorPosition, (cursorPosition) => {
   activeCursorPosition.value = cursorPosition ? { ...cursorPosition } : null
@@ -140,6 +128,8 @@ watch(() => props.cursorPosition, (cursorPosition) => {
 onUnmounted(() => {
   if (clearCursorFocusTimeout)
     clearTimeout(clearCursorFocusTimeout)
+  if (!props.context)
+    live2d.dispose()
 })
 
 watch([componentStateModel, componentStateCanvas], () => {
@@ -159,64 +149,58 @@ defineExpose({
 </script>
 
 <template>
-  <Live2DRoot
-    v-slot="{ context: rootContext }"
-    :context="context"
-    :source="modelSrc"
-    :model-id="modelId"
-    @error="emit('error', $event)"
-  >
-    <Screen v-slot="{ width, height }" relative>
-      <Live2DCanvas
-        ref="live2dCanvasRef"
-        v-slot="{ app }"
-        v-model:state="componentStateCanvas"
-        :background-url="props.backgroundUrl"
+  <Screen v-slot="{ width, height }" relative>
+    <Live2DCanvas
+      ref="live2dCanvasRef"
+      v-slot="{ app }"
+      v-model:state="componentStateCanvas"
+      :background-url="props.backgroundUrl"
+      :width="width"
+      :height="height"
+      :resolution="live2dRenderScale"
+      :max-fps="live2dMaxFps"
+      @error="emit('error', $event)"
+    >
+      <Live2DModel
+        ref="live2dModelRef"
+        v-model:state="componentStateModel"
+        :model-src="modelSrc"
+        :model-id="modelId"
+        :app="app"
+        :mouth-open-size="mouthOpenSize"
+        :now-speaking="nowSpeaking"
         :width="width"
         :height="height"
-        :resolution="renderScale"
-        :max-fps="maxFps"
-      >
-        <Live2DModel
-          ref="live2dModelRef"
-          v-model:state="componentStateModel"
-          :model-src="rootContext.source.value"
-          :model-id="rootContext.modelId.value"
-          :app="app"
-          :mouth-open-size="mouthOpenSize"
-          :now-speaking="nowSpeaking"
-          :width="width"
-          :height="height"
-          :paused="paused"
-          :focus-at="mouseFocus"
-          :eye-tracking="universalMotionEnabled && eyeTracking"
-          :eye-focus-source-active="universalMotionEnabled && !!activeCursorPosition"
-          :theme-colors-hue="themeColorsHue"
-          :theme-colors-hue-dynamic="themeColorsHueDynamic"
-          :enabled-idle-animation="universalMotionEnabled && idleAnimationEnabled"
-          :enabled-force-idle-eye-animation="universalMotionEnabled && forceIdleEyeAnimation"
-          :enabled-auto-blink="autoBlinkEnabled"
-          :enabled-force-auto-blink="forceAutoBlinkEnabled"
-          :enabled-expression="expressionEnabled"
-          :enabled-shadow="shadowEnabled"
-          :screen-ambient-light-active="screenAmbientLightEnabled && screenAmbientLightActive"
-          :screen-ambient-light-filter-options="screenAmbientLightFilterOptions"
-          :screen-ambient-light-environment="screenAmbientLightEnvironment"
-          :screen-ambient-light-subject="screenAmbientLightSubject"
-          :screen-ambient-light-mode="screenAmbientLightMode"
-          :screen-ambient-light-strength="screenAmbientLightStrength"
-          :screen-ambient-light-squint="screenAmbientLightSquint"
-        />
-        <Live2DPresenceBubble
-          v-if="app"
-          :app="app"
-          :head-anchor="() => live2dModelRef?.headAnchor()"
-          :state="props.presence"
-          :width="width"
-          :height="height"
-          :resolution="renderScale"
-        />
-      </Live2DCanvas>
-    </Screen>
-  </Live2DRoot>
+        :paused="paused"
+        :focus-at="mouseFocus"
+        :eye-tracking="universalMotionEnabled && live2dEyeTracking"
+        :eye-focus-source-active="universalMotionEnabled && !!activeCursorPosition"
+        :theme-colors-hue="themeColorsHue"
+        :theme-colors-hue-dynamic="themeColorsHueDynamic"
+        :live2d-idle-animation-enabled="universalMotionEnabled && live2dIdleAnimationEnabled"
+        :live2d-force-idle-eye-animation="universalMotionEnabled && live2dForceIdleEyeAnimation"
+        :live2d-auto-blink-enabled="live2dAutoBlinkEnabled"
+        :live2d-force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
+        :live2d-expression-enabled="live2dExpressionEnabled"
+        :live2d-shadow-enabled="live2dShadowEnabled"
+        :screen-ambient-light-active="screenAmbientLightEnabled && screenAmbientLightActive"
+        :screen-ambient-light-filter-options="screenAmbientLightFilterOptions"
+        :screen-ambient-light-environment="screenAmbientLightEnvironment"
+        :screen-ambient-light-subject="screenAmbientLightSubject"
+        :screen-ambient-light-mode="screenAmbientLightMode"
+        :screen-ambient-light-strength="screenAmbientLightStrength"
+        :screen-ambient-light-squint="screenAmbientLightSquint"
+        @error="emit('error', $event)"
+      />
+      <Live2DPresenceBubble
+        v-if="app"
+        :app="app"
+        :head-anchor="() => live2dModelRef?.headAnchor()"
+        :state="props.presence"
+        :width="width"
+        :height="height"
+        :resolution="live2dRenderScale"
+      />
+    </Live2DCanvas>
+  </Screen>
 </template>

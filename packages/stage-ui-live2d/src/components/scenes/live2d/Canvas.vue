@@ -8,8 +8,6 @@ import { coverRect } from '@proj-airi/stage-shared'
 import { Live2DModel } from 'pixi-live2d-display/cubism4'
 import { onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 
-import { useLive2D } from '../../../contexts/live2d'
-
 const props = withDefaults(defineProps<{
   width: number
   height: number
@@ -25,8 +23,11 @@ const props = withDefaults(defineProps<{
   maxFps: 0,
 })
 
+const emit = defineEmits<{
+  error: [error: Error]
+}>()
+
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
-const live2d = useLive2D()
 
 const containerRef = ref<HTMLDivElement>()
 const isPixiCanvasReady = ref(false)
@@ -51,7 +52,7 @@ function installRenderGuard(app: Application) {
     catch (error) {
       console.error('[Live2D] Pixi render error.', error)
       app.ticker.stop()
-      live2d.reportError('render', error)
+      emit('error', error instanceof Error ? error : new Error(String(error)))
     }
   }
 
@@ -211,7 +212,7 @@ onMounted(async () => {
   }
   catch (error) {
     console.error('[Live2D] Failed to initialize Pixi stage.', error)
-    live2d.reportError('renderer', error)
+    emit('error', error instanceof Error ? error : new Error(String(error)))
   }
 })
 onUnmounted(() => {
@@ -236,7 +237,7 @@ async function captureFrame() {
     }
     catch (error) {
       console.error('[Live2D] Pixi render error during capture.', error)
-      live2d.reportError('render', error)
+      emit('error', error instanceof Error ? error : new Error(String(error)))
       return resolve(null)
     }
 

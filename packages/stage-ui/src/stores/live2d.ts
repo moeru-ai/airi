@@ -134,12 +134,7 @@ export function useSharedLive2DExpressionPreview(
       () => toValue(avatarModelId),
       live2d.expressions.definitions,
     ],
-    ([preview, currentCharacterId, currentAvatarModelId, definitions], _, onCleanup) => {
-      if (preview && preview.expiresAt > Date.now()) {
-        const timer = setTimeout(() => live2d.expressions.setPreviewExpressions([]), preview.expiresAt - Date.now())
-        onCleanup(() => clearTimeout(timer))
-      }
-
+    ([preview, currentCharacterId, currentAvatarModelId, definitions]) => {
       const names = preview && preview.expiresAt > Date.now() && preview.characterId === currentCharacterId && preview.avatarModelId === currentAvatarModelId
         ? preview.names.filter(name => definitions.has(name))
         : []
