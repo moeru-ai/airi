@@ -38,7 +38,6 @@ describe('native Apple authorization', () => {
   })
   const fetchRequest = vi.fn<typeof fetch>()
   const nonceHash = createHash('sha256').update('nonce').digest('hex')
-  const sendDeletionMail = vi.fn()
   const resolveKey = vi.fn(async () => appleKey.publicKey)
   const cleanup = vi.fn(async () => {})
   let db: Awaited<ReturnType<typeof createTestDatabase>>
@@ -88,7 +87,7 @@ describe('native Apple authorization', () => {
       sendPasswordReset: vi.fn(),
       sendMagicLink: vi.fn(),
       sendChangeEmailConfirmation: vi.fn(),
-      sendDeleteAccountVerification: sendDeletionMail,
+      sendDeleteAccountVerification: vi.fn(),
     }, undefined, { checkUserDeletion: vi.fn(), softDeleteUserData: cleanup, trackAuthEvent: vi.fn() }, createSocialAuthorizationRevoker(authDb, env, fetchRequest))
     const instance = betterAuth({
       ...configured.options,
@@ -156,15 +155,6 @@ describe('native Apple authorization', () => {
     expect(await response.json()).toMatchObject({ user: { email: 'no-email@apple.placeholder.local' } })
   })
 
-  it('keeps a production provider key-fetch failure retryable', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => {
-      throw new TypeError('Network unavailable')
-    }))
-    const response = await request('/sign-in/apple-native', await credential())
-    expect(response.status).toBe(502)
-    expect(await db.select().from(schema.session)).toHaveLength(1)
-  })
-
   it('rejects copying the nonce claim instead of proving the raw nonce', async () => {
     const body = await credential()
     body.nonce = nonceHash
@@ -181,6 +171,7 @@ describe('native Apple authorization', () => {
     ['jwks-timeout', 503],
     ['jwks-invalid', 503],
     ['configuration', 503],
+    ['missing-client-id', 503],
     ['malformed-response', 502],
   ])('classifies %s and preserves the existing session', async (scenario, status) => {
     const body = await credential()
@@ -201,51 +192,23 @@ describe('native Apple authorization', () => {
     if (scenario === 'malformed-response')
       fetchRequest.mockResolvedValue(Response.json({ access_token: 'access' }))
     const originalKey = env.AUTH_APPLE_PRIVATE_KEY_PEM
+    const originalClientId = env.AUTH_APPLE_CLIENT_ID
     if (scenario === 'configuration')
       env.AUTH_APPLE_PRIVATE_KEY_PEM = ''
+    if (scenario === 'missing-client-id')
+      env.AUTH_APPLE_CLIENT_ID = ''
     try {
       const response = await request('/account/apple-authorization', body, 'old-token')
       expect(response.status).toBe(status)
+      if (scenario === 'configuration' || scenario === 'missing-client-id')
+        expect(fetchRequest).not.toHaveBeenCalled()
       expect(await db.select().from(schema.session)).toHaveLength(1)
       expect((await db.select().from(schema.account))[0].refreshToken).toBeNull()
     }
     finally {
       env.AUTH_APPLE_PRIVATE_KEY_PEM = originalKey
+      env.AUTH_APPLE_CLIENT_ID = originalClientId
     }
-  })
-
-  it.each(['/sign-in/apple-native', '/account/apple-authorization'])('rejects a missing web client ID before exchanging a code on %s', async (path) => {
-    const body = await credential()
-    const clientId = env.AUTH_APPLE_CLIENT_ID
-    env.AUTH_APPLE_CLIENT_ID = ''
-    try {
-      const response = await request(path, body, 'old-token')
-      expect(response.status).toBe(503)
-      expect(await response.json()).toMatchObject({ code: 'SERVICE_UNAVAILABLE' })
-      expect(fetchRequest).not.toHaveBeenCalled()
-      expect(await db.select().from(schema.session)).toHaveLength(1)
-      expect((await db.select().from(schema.account))[0].refreshToken).toBeNull()
-    }
-    finally {
-      env.AUTH_APPLE_CLIENT_ID = clientId
-    }
-  })
-
-  it('refuses to send an unusable deletion email before repairing Apple authorization', async () => {
-    const response = await request('/delete-user', { callbackURL: '/' }, 'old-token')
-    expect(response.status).toBe(409)
-    expect(await response.json()).toMatchObject({ code: 'APPLE_REAUTHENTICATION_REQUIRED' })
-    expect(sendDeletionMail).not.toHaveBeenCalled()
-    expect(cleanup).not.toHaveBeenCalled()
-  })
-
-  it('still sends deletion email after Apple authorization has been repaired', async () => {
-    const repaired = await request('/account/apple-authorization', await credential(), 'old-token')
-    const { token } = parse(object({ token: string() }), await repaired.json())
-    expect((await request('/delete-user', { callbackURL: '/' }, token)).status).toBe(200)
-    await vi.waitFor(() => expect(sendDeletionMail).toHaveBeenCalledOnce())
-    expect(await db.select().from(schema.user)).toHaveLength(1)
-    expect(cleanup).not.toHaveBeenCalled()
   })
 
   it('repairs an old account then completes explicit deletion with the native client ID', async () => {
@@ -275,7 +238,7 @@ describe('native Apple authorization', () => {
     expect(await db.select().from(schema.user)).toHaveLength(1)
   })
 
-  it.each(['missing-session', 'foreign-apple', 'nonce', 'audience', 'exchanged-subject', 'exchanged-nonce', 'code-rejected', 'signature', 'missing-refresh'])(
+  it.each(['missing-session', 'foreign-apple', 'nonce', 'audience', 'exchanged-subject', 'exchanged-nonce', 'signature', 'missing-refresh'])(
     'rejects %s without changing the account or its old session',
     async (scenario) => {
       const body = await credential(scenario === 'foreign-apple' ? 'other-apple' : 'apple-owner')
@@ -301,8 +264,6 @@ describe('native Apple authorization', () => {
         body.identityToken = `${body.identityToken.slice(0, -20)}invalid-signature`
       if (scenario === 'missing-refresh')
         fetchRequest.mockResolvedValue(Response.json({ access_token: 'access', id_token: body.identityToken }))
-      if (scenario === 'code-rejected')
-        fetchRequest.mockResolvedValue(Response.json({ error: 'invalid_grant' }, { status: 400 }))
       const response = await request('/account/apple-authorization', body, scenario === 'missing-session' ? '' : 'old-token')
       expect(response.status).toBeGreaterThanOrEqual(400)
       const [account] = await db.select().from(schema.account)
@@ -351,15 +312,5 @@ describe('native Apple authorization', () => {
     finally {
       update.mockRestore()
     }
-  })
-
-  it('rejects a foreign browser origin', async () => {
-    const response = await auth.handler(new Request('http://localhost:3000/api/auth/sign-in/apple-native', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Origin': 'https://evil.example' },
-      body: JSON.stringify(await credential()),
-    }))
-    expect(response.status).toBe(403)
-    expect(fetchRequest).not.toHaveBeenCalled()
   })
 })

@@ -36,7 +36,7 @@ export interface SocialAuthorizationRevoker {
   revokeForUser: (userId: string) => Promise<void>
 }
 
-/** Rejects missing Apple grants before sending deletion mail or revoking any provider. */
+/** Rejects missing Apple grants before revoking any provider during account deletion. */
 export function assertAppleAuthorizationForDeletion(accounts: { providerId: string, accessToken?: string | null, refreshToken?: string | null }[]) {
   if (accounts.some(account => account.providerId === 'apple' && !account.accessToken && !account.refreshToken)) {
     throw new APIError('CONFLICT', {
@@ -96,14 +96,7 @@ async function revokeAppleAuthorization(
   // Stored ID tokens come from verified provider responses. Expiration does not change their token audience.
   let clientId = credentials.AUTH_APPLE_CLIENT_ID
   if (account.idToken) {
-    let payload: unknown
-    try {
-      payload = decodeJwt(account.idToken)
-    }
-    catch {
-      throw createServiceUnavailableError('Stored Apple token is invalid.', 'oauth/provider_not_configured', { providerId: 'apple' })
-    }
-    const claims = safeParse(object({ aud: string() }), payload)
+    const claims = safeParse(object({ aud: string() }), decodeJwt(account.idToken))
     if (!claims.success || ![clientId, ...(credentials.AUTH_APPLE_APP_BUNDLE_IDENTIFIERS ?? [])].includes(claims.output.aud))
       throw createServiceUnavailableError('Apple token audience is not configured.', 'oauth/provider_not_configured', { providerId: 'apple' })
     clientId = claims.output.aud

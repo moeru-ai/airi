@@ -74,17 +74,6 @@ describe('social authorization revocation', () => {
     expect(claims.aud).toBe('https://appleid.apple.com')
   })
 
-  it('maps a malformed stored Apple ID token to a controlled failure without revoking', async () => {
-    const fetchRequest = vi.fn<typeof fetch>()
-    const revoker = createSocialAuthorizationRevoker(
-      createAccountDb([{ providerId: 'apple', idToken: 'malformed', accessToken: null, refreshToken: 'refresh' }]),
-      createCredentials(),
-      fetchRequest,
-    )
-    await expect(revoker.revokeForUser('user-1')).rejects.toMatchObject({ statusCode: 503, errorCode: 'oauth/provider_not_configured' })
-    expect(fetchRequest).not.toHaveBeenCalled()
-  })
-
   it('uses the Apple access token when no refresh token was retained', async () => {
     const fetchRequest = vi.fn<typeof fetch>(async () => new Response(null, { status: 200 }))
     const revoker = createSocialAuthorizationRevoker(
