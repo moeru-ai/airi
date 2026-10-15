@@ -1,8 +1,9 @@
 import type { AuthDatabase } from '../db'
 
-import { generateKeyPairSync } from 'node:crypto'
+import { createHash, generateKeyPairSync } from 'node:crypto'
 
 import { betterAuth } from 'better-auth'
+import { symmetricEncrypt } from 'better-auth/crypto'
 import { eq } from 'drizzle-orm'
 import { decodeJwt, SignJWT } from 'jose'
 import { object, parse, string } from 'valibot'
@@ -18,7 +19,7 @@ import { createTestDatabase } from './mock-db'
 
 describe('native Apple authorization', () => {
   const appleKey = generateKeyPairSync('rsa', { modulusLength: 2048 })
-  const sessionKey = generateKeyPairSync('rsa', { modulusLength: 2048 })
+  const sessionKey = generateKeyPairSync('ed25519')
   const secretKey = generateKeyPairSync('ec', { namedCurve: 'P-256' })
   const env = parseAuthEnv({
     DATABASE_URL: 'postgres://localhost/test',
@@ -36,20 +37,23 @@ describe('native Apple authorization', () => {
     AUTH_APPLE_PRIVATE_KEY_PEM: secretKey.privateKey.export({ type: 'pkcs8', format: 'pem' }).toString(),
   })
   const fetchRequest = vi.fn<typeof fetch>()
+  const nonceHash = createHash('sha256').update('nonce').digest('hex')
+  const sendDeletionMail = vi.fn()
+  const resolveKey = vi.fn(async () => appleKey.publicKey)
   const cleanup = vi.fn(async () => {})
   let db: Awaited<ReturnType<typeof createTestDatabase>>
   let auth: Pick<ReturnType<typeof betterAuth>, 'handler'>
   let accountAdapter: Pick<Awaited<ReturnType<typeof betterAuth>['$context']>['internalAdapter'], 'updateAccount'>
 
   /** Signs Apple fixture tokens without bypassing signature, audience, or nonce verification. */
-  async function identity(subject = 'apple-owner', audience = 'native-client', nonce = 'nonce') {
-    return new SignJWT({ nonce, email: `${subject}@example.com`, email_verified: true })
+  async function identity(subject = 'apple-owner', audience = 'native-client', nonce: string | null = nonceHash, email = true) {
+    return new SignJWT({ ...(nonce === null ? {} : { nonce }), ...(email ? { email: `${subject}@example.com`, email_verified: true } : {}) })
       .setSubject(subject)
       .setAudience(audience)
       .setIssuer('https://appleid.apple.com')
       .setIssuedAt()
       .setExpirationTime('5m')
-      .setProtectedHeader({ alg: 'RS256' })
+      .setProtectedHeader({ alg: 'RS256', kid: 'apple-test' })
       .sign(appleKey.privateKey)
   }
 
@@ -74,7 +78,7 @@ describe('native Apple authorization', () => {
     await db.insert(schema.jwks).values({
       id: 'native-test-key',
       publicKey: JSON.stringify(sessionKey.publicKey.export({ format: 'jwk' })),
-      privateKey: 'unused',
+      privateKey: JSON.stringify(await symmetricEncrypt({ key: env.BETTER_AUTH_SECRET, data: JSON.stringify(sessionKey.privateKey.export({ format: 'jwk' })) })),
       createdAt: new Date(),
     })
     const authDb = db as unknown as AuthDatabase
@@ -84,31 +88,32 @@ describe('native Apple authorization', () => {
       sendPasswordReset: vi.fn(),
       sendMagicLink: vi.fn(),
       sendChangeEmailConfirmation: vi.fn(),
-      sendDeleteAccountVerification: vi.fn(),
+      sendDeleteAccountVerification: sendDeletionMail,
     }, undefined, { checkUserDeletion: vi.fn(), softDeleteUserData: cleanup, trackAuthEvent: vi.fn() }, createSocialAuthorizationRevoker(authDb, env, fetchRequest))
     const instance = betterAuth({
       ...configured.options,
       advanced: { ...configured.options.advanced, disableOriginCheck: false },
-      socialProviders: { apple: {
-        clientId: 'web-client',
-        clientSecret: 'test-secret',
-        // The plugin verifies the fixture signature. Avoid Better Auth fetching production Apple keys again.
-        verifyIdToken: async () => true,
-      } },
       plugins: configured.options.plugins!.filter(plugin => plugin.id !== 'apple-native')
-        .concat(appleNative(env, fetchRequest, async () => appleKey.publicKey)),
+        .concat(appleNative(env, fetchRequest, resolveKey)),
     })
     auth = instance
     accountAdapter = (await instance.$context).internalAdapter
   })
   beforeEach(async () => {
     vi.resetAllMocks()
+    resolveKey.mockResolvedValue(appleKey.publicKey)
+    vi.stubGlobal('fetch', vi.fn(async (input) => {
+      if (String(input) !== 'https://appleid.apple.com/auth/keys')
+        throw new Error('Unexpected external request')
+      return Response.json({ keys: [{ ...appleKey.publicKey.export({ format: 'jwk' }), kid: 'apple-test', alg: 'RS256' }] })
+    }))
     await db.delete(schema.user)
     await db.insert(schema.user).values({ id: 'owner', name: 'owner', email: 'apple-owner@example.com', emailVerified: true })
     await db.insert(schema.account).values({ id: 'apple-account', userId: 'owner', providerId: 'apple', accountId: 'apple-owner' })
     await db.insert(schema.session).values({ id: 'old-session', token: 'old-token', userId: 'owner', createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000), expiresAt: new Date(Date.now() + 60 * 60 * 1000) })
   })
   afterAll(async () => {
+    vi.unstubAllGlobals()
     await db.$client.close()
   })
 
@@ -124,6 +129,108 @@ describe('native Apple authorization', () => {
     expect(body.get('client_id')).toBe('native-client')
     expect(decodeJwt(body.get('client_secret')!).sub).toBe('native-client')
     expect(JSON.stringify(result)).not.toContain('refresh')
+  })
+
+  it('accepts exchanged tokens without nonce using the production provider and its missing-email mapping', async () => {
+    const identityToken = await identity('no-email', 'native-client', nonceHash, false)
+    fetchRequest.mockResolvedValue(Response.json({
+      access_token: 'access',
+      refresh_token: 'refresh',
+      id_token: await identity('no-email', 'native-client', null, false),
+    }))
+    const response = await request('/sign-in/apple-native', { identityToken, authorizationCode: 'code', nonce: 'nonce' })
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ user: { email: 'no-email@apple.placeholder.local' } })
+  })
+
+  it('keeps a production provider key-fetch failure retryable', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      throw new TypeError('Network unavailable')
+    }))
+    const response = await request('/sign-in/apple-native', await credential())
+    expect(response.status).toBe(502)
+    expect(await db.select().from(schema.session)).toHaveLength(1)
+  })
+
+  it('rejects copying the nonce claim instead of proving the raw nonce', async () => {
+    const body = await credential()
+    body.nonce = nonceHash
+    expect((await request('/account/apple-authorization', body, 'old-token')).status).toBe(401)
+    expect(fetchRequest).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['invalid-grant', 400],
+    ['apple-5xx', 502],
+    ['network', 503],
+    ['jwks', 503],
+    ['configuration', 503],
+    ['malformed-response', 502],
+  ])('classifies %s and preserves the existing session', async (scenario, status) => {
+    const body = await credential()
+    if (scenario === 'invalid-grant')
+      fetchRequest.mockResolvedValue(Response.json({ error: 'invalid_grant' }, { status: 400 }))
+    if (scenario === 'apple-5xx')
+      fetchRequest.mockResolvedValue(new Response(null, { status: 503 }))
+    if (scenario === 'network')
+      fetchRequest.mockRejectedValue(new DOMException('Timed out', 'TimeoutError'))
+    if (scenario === 'jwks')
+      resolveKey.mockRejectedValueOnce(new TypeError('Network unavailable'))
+    if (scenario === 'malformed-response')
+      fetchRequest.mockResolvedValue(Response.json({ access_token: 'access' }))
+    const originalKey = env.AUTH_APPLE_PRIVATE_KEY_PEM
+    if (scenario === 'configuration')
+      env.AUTH_APPLE_PRIVATE_KEY_PEM = ''
+    try {
+      const response = await request('/account/apple-authorization', body, 'old-token')
+      expect(response.status).toBe(status)
+      expect(await db.select().from(schema.session)).toHaveLength(1)
+      expect((await db.select().from(schema.account))[0].refreshToken).toBeNull()
+    }
+    finally {
+      env.AUTH_APPLE_PRIVATE_KEY_PEM = originalKey
+    }
+  })
+
+  it('refuses to send an unusable deletion email before repairing Apple authorization', async () => {
+    const response = await request('/delete-user', { callbackURL: '/' }, 'old-token')
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({ code: 'APPLE_REAUTHENTICATION_REQUIRED' })
+    expect(sendDeletionMail).not.toHaveBeenCalled()
+    expect(cleanup).not.toHaveBeenCalled()
+  })
+
+  it('still sends deletion email after Apple authorization has been repaired', async () => {
+    const repaired = await request('/account/apple-authorization', await credential(), 'old-token')
+    const { token } = parse(object({ token: string() }), await repaired.json())
+    expect((await request('/delete-user', { callbackURL: '/' }, token)).status).toBe(200)
+    await vi.waitFor(() => expect(sendDeletionMail).toHaveBeenCalledOnce())
+    expect(await db.select().from(schema.user)).toHaveLength(1)
+    expect(cleanup).not.toHaveBeenCalled()
+  })
+
+  it('preserves the saved grant audience when an old client logs in with another audience', async () => {
+    expect((await request('/account/apple-authorization', await credential(), 'old-token')).status).toBe(200)
+    const response = await request('/sign-in/social', {
+      provider: 'apple',
+      idToken: { token: await identity('apple-owner', 'web-client'), nonce: 'nonce' },
+    })
+    expect(response.status).toBe(200)
+    const [account] = await db.select().from(schema.account)
+    expect(account.refreshToken).toBe('refresh')
+    expect(decodeJwt(account.idToken!).aud).toBe('native-client')
+  })
+
+  it.each(['audience', 'nonce'])('keeps production Better Auth %s verification enabled', async (scenario) => {
+    const response = await request('/sign-in/social', {
+      provider: 'apple',
+      idToken: {
+        token: await identity('apple-owner', scenario === 'audience' ? 'untrusted' : 'native-client'),
+        nonce: scenario === 'nonce' ? 'wrong' : 'nonce',
+      },
+    })
+    expect(response.status).toBe(401)
+    expect(await db.select().from(schema.session)).toHaveLength(1)
   })
 
   it('repairs an old account then completes explicit deletion with the native client ID', async () => {
@@ -198,7 +305,7 @@ describe('native Apple authorization', () => {
       .setIssuer('http://localhost:3000/api/auth')
       .setIssuedAt()
       .setExpirationTime('5m')
-      .setProtectedHeader({ alg: 'RS256', kid: 'native-test-key' })
+      .setProtectedHeader({ alg: 'EdDSA', kid: 'native-test-key' })
       .sign(sessionKey.privateKey)
     const response = await request('/account/apple-authorization', await credential(), token)
     expect(response.status).toBe(hasSession ? 200 : 401)
