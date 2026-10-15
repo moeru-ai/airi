@@ -10,18 +10,19 @@ import { Screen } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onUnmounted, ref, watch } from 'vue'
 
-import Live2DRoot from '../live2d/root.vue'
 import Live2DCanvas from './live2d/Canvas.vue'
 import Live2DModel from './live2d/Model.vue'
 import Live2DPresenceBubble from './live2d/presence-bubble.vue'
 
 import { useLive2DEyeFocusFor, useSettingsLive2d } from '../../composables/live2d'
+import { createLive2D, provideLive2D } from '../../contexts/live2d'
 
 import '../../utils/live2d-zip-loader'
 import '../../utils/live2d-opfs-registration'
 
 const props = withDefaults(defineProps<{
   cursorPosition?: Live2DEyeFocusSource
+  /** Controls of this renderer. The scene owns a new context when this is not set. */
   context?: Live2DContext
   modelSrc?: string
   modelId?: string
@@ -51,6 +52,9 @@ const emit = defineEmits<{
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 const componentStateCanvas = defineModel<'pending' | 'loading' | 'mounted'>('canvasState', { default: 'pending' })
 const componentStateModel = defineModel<'pending' | 'loading' | 'mounted'>('modelState', { default: 'pending' })
+
+const live2d = props.context ?? createLive2D()
+provideLive2D(live2d)
 
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
 const live2dModelRef = ref<InstanceType<typeof Live2DModel>>()
@@ -124,6 +128,8 @@ watch(() => props.cursorPosition, (cursorPosition) => {
 onUnmounted(() => {
   if (clearCursorFocusTimeout)
     clearTimeout(clearCursorFocusTimeout)
+  if (!props.context)
+    live2d.dispose()
 })
 
 watch([componentStateModel, componentStateCanvas], () => {
@@ -143,60 +149,58 @@ defineExpose({
 </script>
 
 <template>
-  <Live2DRoot :context="context">
-    <Screen v-slot="{ width, height }" relative>
-      <Live2DCanvas
-        ref="live2dCanvasRef"
-        v-slot="{ app }"
-        v-model:state="componentStateCanvas"
-        :background-url="props.backgroundUrl"
+  <Screen v-slot="{ width, height }" relative>
+    <Live2DCanvas
+      ref="live2dCanvasRef"
+      v-slot="{ app }"
+      v-model:state="componentStateCanvas"
+      :background-url="props.backgroundUrl"
+      :width="width"
+      :height="height"
+      :resolution="live2dRenderScale"
+      :max-fps="live2dMaxFps"
+      @error="emit('error', $event)"
+    >
+      <Live2DModel
+        ref="live2dModelRef"
+        v-model:state="componentStateModel"
+        :model-src="modelSrc"
+        :model-id="modelId"
+        :app="app"
+        :mouth-open-size="mouthOpenSize"
+        :now-speaking="nowSpeaking"
+        :width="width"
+        :height="height"
+        :paused="paused"
+        :focus-at="mouseFocus"
+        :eye-tracking="universalMotionEnabled && live2dEyeTracking"
+        :eye-focus-source-active="universalMotionEnabled && !!activeCursorPosition"
+        :theme-colors-hue="themeColorsHue"
+        :theme-colors-hue-dynamic="themeColorsHueDynamic"
+        :live2d-idle-animation-enabled="universalMotionEnabled && live2dIdleAnimationEnabled"
+        :live2d-force-idle-eye-animation="universalMotionEnabled && live2dForceIdleEyeAnimation"
+        :live2d-auto-blink-enabled="live2dAutoBlinkEnabled"
+        :live2d-force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
+        :live2d-expression-enabled="live2dExpressionEnabled"
+        :live2d-shadow-enabled="live2dShadowEnabled"
+        :screen-ambient-light-active="screenAmbientLightEnabled && screenAmbientLightActive"
+        :screen-ambient-light-filter-options="screenAmbientLightFilterOptions"
+        :screen-ambient-light-environment="screenAmbientLightEnvironment"
+        :screen-ambient-light-subject="screenAmbientLightSubject"
+        :screen-ambient-light-mode="screenAmbientLightMode"
+        :screen-ambient-light-strength="screenAmbientLightStrength"
+        :screen-ambient-light-squint="screenAmbientLightSquint"
+        @error="emit('error', $event)"
+      />
+      <Live2DPresenceBubble
+        v-if="app"
+        :app="app"
+        :head-anchor="() => live2dModelRef?.headAnchor()"
+        :state="props.presence"
         :width="width"
         :height="height"
         :resolution="live2dRenderScale"
-        :max-fps="live2dMaxFps"
-        @error="emit('error', $event)"
-      >
-        <Live2DModel
-          ref="live2dModelRef"
-          v-model:state="componentStateModel"
-          :model-src="modelSrc"
-          :model-id="modelId"
-          :app="app"
-          :mouth-open-size="mouthOpenSize"
-          :now-speaking="nowSpeaking"
-          :width="width"
-          :height="height"
-          :paused="paused"
-          :focus-at="mouseFocus"
-          :eye-tracking="universalMotionEnabled && live2dEyeTracking"
-          :eye-focus-source-active="universalMotionEnabled && !!activeCursorPosition"
-          :theme-colors-hue="themeColorsHue"
-          :theme-colors-hue-dynamic="themeColorsHueDynamic"
-          :live2d-idle-animation-enabled="universalMotionEnabled && live2dIdleAnimationEnabled"
-          :live2d-force-idle-eye-animation="universalMotionEnabled && live2dForceIdleEyeAnimation"
-          :live2d-auto-blink-enabled="live2dAutoBlinkEnabled"
-          :live2d-force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
-          :live2d-expression-enabled="live2dExpressionEnabled"
-          :live2d-shadow-enabled="live2dShadowEnabled"
-          :screen-ambient-light-active="screenAmbientLightEnabled && screenAmbientLightActive"
-          :screen-ambient-light-filter-options="screenAmbientLightFilterOptions"
-          :screen-ambient-light-environment="screenAmbientLightEnvironment"
-          :screen-ambient-light-subject="screenAmbientLightSubject"
-          :screen-ambient-light-mode="screenAmbientLightMode"
-          :screen-ambient-light-strength="screenAmbientLightStrength"
-          :screen-ambient-light-squint="screenAmbientLightSquint"
-          @error="emit('error', $event)"
-        />
-        <Live2DPresenceBubble
-          v-if="app"
-          :app="app"
-          :head-anchor="() => live2dModelRef?.headAnchor()"
-          :state="props.presence"
-          :width="width"
-          :height="height"
-          :resolution="live2dRenderScale"
-        />
-      </Live2DCanvas>
-    </Screen>
-  </Live2DRoot>
+      />
+    </Live2DCanvas>
+  </Screen>
 </template>

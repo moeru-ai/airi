@@ -695,7 +695,7 @@ defineExpose({
         v-model:state="componentState"
         :context="live2d"
         :presence="presenceBubble"
-        min-w="50% <lg:full" min-h="100 sm:100"
+        min-w="50% <lg:full"
         h-full w-full flex-1
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
