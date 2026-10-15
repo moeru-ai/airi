@@ -17,15 +17,18 @@ export async function expandControlsIsland(page: Page): Promise<void> {
 export async function openSettingsFromControlsIsland(page: Page): Promise<void> {
   await waitForControlsIslandReady(page)
 
-  try {
-    await clickControlButtonByIcon(page, 'i-solar:settings-minimalistic-outline')
+  const settingsButton = controlButtonsByIcon(page, 'i-solar:settings-minimalistic-outline').first()
+  const controlsToggle = controlButtonsByIcon(page, 'i-solar:alt-arrow-up-line-duotone').first()
+  if (!await settingsButton.isVisible().catch(() => false)) {
+    await controlsToggle.click({ force: true })
+    const opened = await settingsButton.waitFor({ state: 'visible', timeout: 1_000 }).then(() => true, () => false)
+    if (!opened)
+      await controlsToggle.click({ force: true })
   }
-  catch {
-    // NOTICE: The island can report ready while still collapsed on slower frames.
-    // Expand once and retry settings click to reduce flakiness during capture.
-    await expandControlsIsland(page).catch(() => {})
-    await clickControlButtonByIcon(page, 'i-solar:settings-minimalistic-outline')
-  }
+
+  await settingsButton.waitFor({ state: 'visible', timeout: controlsIslandReadyTimeoutMs })
+  await settingsButton.click({ force: true })
+  await sleep(100)
 }
 
 export async function openChatFromControlsIsland(page: Page): Promise<void> {
