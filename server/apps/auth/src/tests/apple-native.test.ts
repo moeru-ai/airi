@@ -131,6 +131,7 @@ describe('native Apple authorization', () => {
     expect(JSON.stringify(result)).not.toContain('refresh')
   })
 
+  // Review: https://github.com/moeru-ai/airi/pull/2984#discussion_r4280730615
   // Verify Apple's one-time name payload survives the production provider and is persisted.
   it('preserves the first native Apple display name', async () => {
     const response = await request('/sign-in/apple-native', {
