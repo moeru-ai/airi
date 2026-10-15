@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Live2DRoot } from '@proj-airi/stage-ui-live2d/components/live2d'
 import { Live2DCanvas, Live2DModel } from '@proj-airi/stage-ui-live2d/components/scenes/live2d'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { Screen } from '@proj-airi/ui'
@@ -54,27 +55,33 @@ function handleShot() {
 <template>
   <div flex flex-col items-center gap-4>
     <div h-full w-full>
-      <Screen v-slot="{ width, height }" relative min-h-70dvh>
-        <Live2DCanvas
-          ref="live2dCanvasRef"
-          v-slot="{ app }"
-          :width="width"
-          :height="height"
-          :resolution="3"
-          rounded-full
-        >
-          <Live2DModel
-            ref="live2dModelRef"
-            :model-id="stageModelSelected"
-            :model-src="stageModelSelectedUrl"
-            :app="app"
+      <Live2DRoot
+        v-slot="{ context }"
+        :source="stageModelSelectedUrl"
+        :model-id="stageModelSelected"
+      >
+        <Screen v-slot="{ width, height }" relative min-h-70dvh>
+          <Live2DCanvas
+            ref="live2dCanvasRef"
+            v-slot="{ app }"
             :width="width"
             :height="height"
-            :focus-at="{ x: width / 2, y: height / 2 }"
-            @model-loaded="handleModelLoaded"
-          />
-        </Live2DCanvas>
-      </Screen>
+            :resolution="3"
+            rounded-full
+          >
+            <Live2DModel
+              ref="live2dModelRef"
+              :model-id="context.modelId.value"
+              :model-src="context.source.value"
+              :app="app"
+              :width="width"
+              :height="height"
+              :focus-at="{ x: width / 2, y: height / 2 }"
+              @model-loaded="handleModelLoaded"
+            />
+          </Live2DCanvas>
+        </Screen>
+      </Live2DRoot>
     </div>
     <div>
       <select v-model="motion" rounded-lg px-3 py-2 @change="handleSetMotion(motion)">
