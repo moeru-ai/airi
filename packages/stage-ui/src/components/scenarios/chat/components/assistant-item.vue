@@ -13,13 +13,14 @@ import ChatReplyQuote from './reply-quote.vue'
 import ResponseCitations from './response-citations.vue'
 import ChatResponsePart from './response-part.vue'
 import ChatSticker from './sticker.vue'
-import ChatToolCallBlock from './tool-call-block.vue'
+import ChatToolCallGroup from './tool-call-group.vue'
 
 import { JUDGE_RECIPE_TOOL_NAME } from '../../../../tools/judge-recipe'
 import { USE_RECIPE_TOOL_NAME } from '../../../../tools/use-recipe'
 import { MarkdownRenderer } from '../../../markdown'
 import { getChatHistoryItemCopyText } from '../utils'
 import { ChatActionMenu } from './action-menu'
+import { groupToolCallSlices } from './tool-call-group'
 import { createToolCallResultLookup, resolveToolCallBlockState } from './tool-call-results'
 
 const props = withDefaults(defineProps<{
@@ -99,7 +100,7 @@ const invocationBySlice = computed(() => {
 })
 
 /**
- * Triggering workflow: ChatToolCallBlock `toolCallRerun` -> emitToolCallRerun
+ * Triggering workflow: ChatToolCallGroup `toolCallRerun` -> emitToolCallRerun
  * -> ChatHistory `toolCallRerun` -> executeToolCallRerun in the owning runtime.
  */
 function emitToolCallRerun(sliceIndex: number, payload: ToolCallRerunRequest) {
@@ -107,13 +108,12 @@ function emitToolCallRerun(sliceIndex: number, payload: ToolCallRerunRequest) {
   emit('toolCallRerun', invocationId === undefined ? payload : { ...payload, invocationId })
 }
 
-function getToolCallRenderer(slice: ChatSlices) {
-  if (slice.type !== 'tool-call') {
-    return ChatToolCallBlock
-  }
-
-  return props.toolCallRenderers[slice.toolCall.toolName] ?? builtinToolCallRenderers[slice.toolCall.toolName] ?? ChatToolCallBlock
+/** A call with its own renderer shows by itself. Every other call joins a group with the calls next to it. */
+function getToolCallRenderer(toolName: string) {
+  return props.toolCallRenderers[toolName] ?? builtinToolCallRenderers[toolName]
 }
+
+const sliceEntries = computed(() => groupToolCallSlices(resolvedSlices.value, toolName => Boolean(getToolCallRenderer(toolName))))
 
 const showLoader = computed(() => props.showPlaceholder && resolvedSlices.value.length === 0)
 const containerClass = computed(() => props.variant === 'mobile' ? 'mr-0' : 'mr-12')
@@ -133,7 +133,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
 </script>
 
 <template>
-  <div flex :class="['font-cute', containerClass]" class="ph-no-capture">
+  <div :class="['flex font-cute ph-no-capture', containerClass]">
     <ChatActionMenu
       :copy-text="copyText"
       :can-reply="canReply"
@@ -147,10 +147,10 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
       <template #default="{ setMeasuredElement }">
         <div
           :ref="setMeasuredElement"
-          flex="~ col" shadow="sm primary-200/50 dark:none"
-          min-w-20 gap-2 rounded-xl h="unset <sm:fit"
           :class="[
             'chat-message-item-container',
+            'flex flex-col gap-2 min-w-20 rounded-xl <sm:h-fit',
+            'shadow-sm shadow-primary-200/50 dark:shadow-none',
             boxClasses,
             (isStageWeb() || isStageCapacitor()) && props.variant === 'mobile' ? 'select-none sm:select-auto' : '',
           ]"
@@ -161,30 +161,33 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
             :message="message"
             :variant="variant"
           />
-          <div class="<sm:hidden">
-            <span text-sm text="black/60 dark:white/65" font-normal>{{ label }}</span>
+          <div :class="['<sm:hidden']">
+            <span :class="['text-sm font-normal', 'text-black/60 dark:text-white/65']">{{ label }}</span>
           </div>
-          <div v-if="resolvedSlices.length > 0" class="flex flex-col gap-2 break-words" text="primary-700 dark:primary-100">
-            <template v-for="(slice, sliceIndex) in resolvedSlices" :key="sliceIndex">
-              <component
-                :is="getToolCallRenderer(slice)"
-                v-if="slice.type === 'tool-call'"
-                :tool-call-id="slice.toolCall.toolCallId"
-                :tool-name="slice.toolCall.toolName"
-                :args="slice.toolCall.args"
-                :state="resolveToolCallBlockState(getToolCallResult(sliceIndex))"
-                :result="getToolCallResult(sliceIndex)?.result"
-                @tool-call-rerun="emitToolCallRerun(sliceIndex, $event)"
+          <div v-if="resolvedSlices.length > 0" :class="['flex flex-col gap-2 break-words', 'text-primary-700 dark:text-primary-100']">
+            <template v-for="entry in sliceEntries" :key="entry.kind === 'slice' ? entry.sliceIndex : `group-${entry.key}`">
+              <ChatToolCallGroup
+                v-if="entry.kind === 'tool-group'"
+                :items="entry.items"
+                :result-of="getToolCallResult"
+                @tool-call-rerun="emitToolCallRerun"
               />
-              <template v-else-if="slice.type === 'tool-call-result'" />
-              <ChatSticker v-else-if="slice.type === 'sticker'" :sticker-id="slice.stickerId" />
-              <template v-else-if="slice.type === 'text'">
-                <MarkdownRenderer :content="slice.text" />
-              </template>
+              <component
+                :is="getToolCallRenderer(entry.slice.toolCall.toolName)"
+                v-else-if="entry.slice.type === 'tool-call'"
+                :tool-call-id="entry.slice.toolCall.toolCallId"
+                :tool-name="entry.slice.toolCall.toolName"
+                :args="entry.slice.toolCall.args"
+                :state="resolveToolCallBlockState(getToolCallResult(entry.sliceIndex))"
+                :result="getToolCallResult(entry.sliceIndex)?.result"
+                @tool-call-rerun="emitToolCallRerun(entry.sliceIndex, $event)"
+              />
+              <ChatSticker v-else-if="entry.slice.type === 'sticker'" :sticker-id="entry.slice.stickerId" />
+              <MarkdownRenderer v-else-if="entry.slice.type === 'text'" :content="entry.slice.text" />
             </template>
           </div>
           <ResponseCitations v-if="message.citations?.length" :citations="message.citations" />
-          <div v-if="!resolvedSlices.length && showLoader" i-eos-icons:three-dots-loading />
+          <div v-if="!resolvedSlices.length && showLoader" :class="['i-eos-icons:three-dots-loading']" />
         </div>
       </template>
     </ChatActionMenu>

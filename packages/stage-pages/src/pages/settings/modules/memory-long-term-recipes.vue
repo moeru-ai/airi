@@ -4,6 +4,7 @@ import type { Recipe, RecipeFields } from '@proj-airi/stage-ui/stores/recipes'
 import { MODEL_DECIDES_STEPS } from '@proj-airi/core-agent'
 import { WIP } from '@proj-airi/stage-ui/components'
 import { useRecipesStore } from '@proj-airi/stage-ui/stores/recipes'
+import { SKILL_ICONS } from '@proj-airi/stage-ui/tools/icons'
 import { Button, Checkbox, FieldCheckbox, GhostButton, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
@@ -24,10 +25,7 @@ const KEY = 'settings.pages.modules.memory-long-term.recipes'
 const addableTypes: RecipeType[] = ['instructions', 'decision']
 const KEYWORDS_SHOWN = 3
 
-const TYPE_ICONS: Record<RecipeType, string> = {
-  instructions: 'i-solar:document-text-bold-duotone',
-  decision: 'i-solar:branching-paths-up-bold-duotone',
-}
+const TYPE_ICONS: Record<RecipeType, string> = SKILL_ICONS
 
 const tab = ref<RecipeTab>('conversation')
 const isAutoRunTab = computed(() => tab.value === 'auto-run')
