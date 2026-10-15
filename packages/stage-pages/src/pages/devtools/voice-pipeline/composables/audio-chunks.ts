@@ -1,9 +1,24 @@
 import { microphoneSource } from '@proj-airi/audio/browser'
 import { Pcm16Encoder, toFloat32FromPCM16 } from '@proj-airi/audio/encoding'
+import { claimListeningLease } from '@proj-airi/stage-ui/composables/voice-listening-lease'
+
+/** Stop controllers of the microphone recordings that run now. */
+const recordings = new Set<AbortController>()
+
+/**
+ * Stops every microphone recording of the page with an error that gives `reason`.
+ * The voice host calls it when it begins to listen all the time, because its lease does not pause its own window.
+ */
+export function stopMicrophoneRecordings(reason: string) {
+  for (const recording of recordings)
+    recording.abort(reason)
+}
 
 /**
  * Microphone blocks at `sampleRate`, without echo cancellation, noise suppression, or gain control,
  * so the probe sees the raw input. An abort of `signal` ends the input and closes the microphone.
+ * While the microphone is open, it holds the listening lease, so the voice hosts of other windows do not take the speech as a turn.
+ * `stopMicrophoneRecordings` ends it with an error.
  */
 export async function* microphoneChunks(sampleRate: number, signal: AbortSignal): AsyncGenerator<Float32Array<ArrayBuffer>> {
   if (signal.aborted)
@@ -16,17 +31,25 @@ export async function* microphoneChunks(sampleRate: number, signal: AbortSignal)
   ).stream.getReader()
   const cancel = () => void reader.cancel()
   signal.addEventListener('abort', cancel, { once: true })
+  const stop = new AbortController()
+  stop.signal.addEventListener('abort', cancel, { once: true })
+  recordings.add(stop)
+  const releaseLease = claimListeningLease()
   try {
     for (;;) {
       const { done, value } = await reader.read()
+      if (stop.signal.aborted)
+        throw new Error(String(stop.signal.reason))
       if (done)
         return
       yield toFloat32FromPCM16(value)
     }
   }
   finally {
+    recordings.delete(stop)
     signal.removeEventListener('abort', cancel)
     cancel()
+    releaseLease()
   }
 }
 

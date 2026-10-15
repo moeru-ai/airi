@@ -17,8 +17,8 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  /** Seconds of the clip under the pointer, for playback from that point. */
-  seek: [seconds: number]
+  /** A click on a span plays the span alone. A click elsewhere plays from the seconds under the pointer. */
+  play: [start: number, end?: number]
 }>()
 
 /** Vertical bands of the chart, in pixels from the top. */
@@ -122,8 +122,14 @@ const ticks = computed(() => {
 function handleClick(event: MouseEvent) {
   // `offsetX` counts from the clicked child, such as a token label, so measure from the chart instead.
   const bounds = (event.currentTarget as SVGSVGElement).getBoundingClientRect()
-  if (bounds.width > 0)
-    emit('seek', Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width)) * props.durationSeconds)
+  if (bounds.width <= 0)
+    return
+  const seconds = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width)) * props.durationSeconds
+  const span = props.spans.find(candidate => candidate.start !== undefined && candidate.end !== undefined && candidate.start <= seconds && seconds <= candidate.end)
+  if (span)
+    emit('play', span.start!, span.end)
+  else
+    emit('play', seconds)
 }
 </script>
 

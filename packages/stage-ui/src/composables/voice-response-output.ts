@@ -23,6 +23,11 @@ export interface VoiceResponseOutputOptions {
   readonly onPlaybackEnd?: () => void
   /** Runs after the voice store opens the response speech of a new assistant message. */
   readonly onResponseStart?: (context: Omit<ChatStreamEventContext, 'composedMessage'>) => void | Promise<void>
+  /**
+   * Speaks only the replies of chats in this window. Commands of other windows, such as read-aloud, go to their own host.
+   * Use it for a second host while the main window keeps its own, for example in a devtool window.
+   */
+  readonly windowOnly?: boolean
 }
 
 /**
@@ -66,7 +71,7 @@ export function useVoiceResponseOutput(options: VoiceResponseOutputOptions) {
       console.error('Speech output is unavailable', error)
       return { ...output, synthesize: async () => null }
     }
-  })
+  }, { windowOnly: options.windowOnly })
 
   const stopMuteWatch = watch(speechMuted, (muted) => {
     if (muted) {

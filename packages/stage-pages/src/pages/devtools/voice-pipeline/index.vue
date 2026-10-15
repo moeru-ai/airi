@@ -4,6 +4,7 @@ import type { VocabularyPack } from '@proj-airi/stage-ui/libs/voice/phonetic-voc
 import type { GuidedScope } from '@proj-airi/stage-ui/libs/voice/span-guided-terms'
 
 import type { ProbeRunSettings } from './composables/use-uncertainty-probe'
+import type { UtteranceAudio } from './composables/use-utterance-audio'
 
 import { toWav } from '@proj-airi/audio/encoding'
 import { acceptsHotwords, SHERPAW_TRANSCRIPTION_PROVIDER_ID, sherpawModels, xAsrBilingualZhEnInt8 } from '@proj-airi/provider-inference'
@@ -13,11 +14,13 @@ import {
   defaultAnalysisOptions,
   defaultNucleusOptions,
   defaultUntranscribedOptions,
+  estimateEmissionDelay,
   findUntranscribedSpeech,
   formatForLlm,
   joinTokens,
   locateTokens,
   measureIntensity,
+  shiftTokenTimes,
 } from '@proj-airi/stage-ui/libs/voice/asr-uncertainty'
 import { kwsVocabulary } from '@proj-airi/stage-ui/libs/voice/kws-model'
 import { english, pronounceEnglish } from '@proj-airi/stage-ui/libs/voice/phonetic-english'
@@ -30,18 +33,21 @@ import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/con
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { Button, Callout, FieldCheckbox, FieldInputFile, FieldRange, FieldSelect, FieldTextArea, Input, Progress } from '@proj-airi/ui'
 import { useObjectUrl } from '@vueuse/core'
-import { computed, reactive, ref, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, onScopeDispose, reactive, ref, shallowRef, useTemplateRef, watch } from 'vue'
 
 import DecodeDetails from './components/decode-details.vue'
+import LiveTurns from './components/live-turns.vue'
 import SpanList from './components/span-list.vue'
 import SuggestionList from './components/suggestion-list.vue'
 import UncertaintyTimeline from './components/uncertainty-timeline.vue'
 
 import { microphoneChunks, replayChunks } from './composables/audio-chunks'
+import { useElementSpeakingHold } from './composables/speaking-holds'
 import { useBiasComparison } from './composables/use-bias-comparison'
 import { useClipInput } from './composables/use-clip-input'
 import { useConversationTerms } from './composables/use-conversation-terms'
 import { useLiveProbe } from './composables/use-live-probe'
+import { useLiveVoiceHost } from './composables/use-live-voice-host'
 import { useProbeDecoders } from './composables/use-probe-decoders'
 import { useUncertaintyProbe } from './composables/use-uncertainty-probe'
 import { useVocabularyEditor } from './composables/use-vocabulary-editor'
@@ -89,6 +95,8 @@ const input = useClipInput(sampleRate)
 const clipSeconds = computed(() => (input.clip.value?.length ?? 0) / sampleRate)
 const clipBlob = computed(() => input.clip.value ? new Blob([toWav(input.clip.value.buffer, sampleRate)], { type: 'audio/wav' }) : undefined)
 const clipUrl = useObjectUrl(clipBlob)
+/** A running live host can hear the clip through the speakers. It must not take it as a turn. */
+const clipPlayback = useElementSpeakingHold()
 
 // Recognition
 
@@ -190,6 +198,19 @@ function startProbe() {
   void probe.run(input.clip.value, settings)
 }
 
+// The Live turns section shows the host. The offline microphone paths read it too.
+const host = useLiveVoiceHost()
+
+/** The clip that came from a selected live turn, so the clip display can name its turn. */
+const turnClip = shallowRef<{ samples: Float32Array<ArrayBuffer>, label: string }>()
+function takeTurnClip(utterance: UtteranceAudio, label: string) {
+  // The voice pipeline captures at the offline lab rate. Another rate cannot happen, so such a clip is not resampled.
+  if (utterance.sampleRate !== sampleRate)
+    return
+  input.clip.value = utterance.samples
+  turnClip.value = { samples: utterance.samples, label }
+}
+
 const liveSource = ref<'microphone' | 'clip'>('microphone')
 const liveSourceOptions = [
   { value: 'microphone', label: 'Microphone', description: 'Without echo cancellation, noise suppression, or gain control.' },
@@ -219,16 +240,23 @@ function utteranceStatus(utterance: (typeof live.utterances.value)[number]) {
   return `${utterance.result?.samples.length ?? 0} rollouts, ready ${utterance.latency?.toFixed(1) ?? '-'} s after the endpoint`
 }
 
-/** Analysis reruns on every threshold change. The decodes stay as they are. */
+/**
+ * Analysis reruns on every threshold change. The decodes stay as they are.
+ * Token times move earlier by the emission delay of the decoder, so spans and nuclei line up with the audio.
+ */
 function annotate(result: ProbeResult) {
-  const analysis = analyzeHypotheses(result.reference, result.samples.map(sample => sample.hypothesis), result.durationSeconds, { ...analysisOptions })
   const contour = measureIntensity(result.clip, sampleRate, { ...nucleusOptions })
+  const emissionDelay = estimateEmissionDelay(contour, result.reference)
+  const reference = shiftTokenTimes(result.reference, emissionDelay)
+  const probeHypothesis = result.probe && shiftTokenTimes(result.probe, emissionDelay)
+  const samples = result.samples.map(sample => shiftTokenTimes(sample.hypothesis, emissionDelay))
+  const analysis = analyzeHypotheses(reference, samples, result.durationSeconds, { ...analysisOptions })
   const spans: UncertainSpan[] = [
     ...analysis.spans,
-    ...findUntranscribedSpeech(contour, result.reference, { ...untranscribedOptions }, result.probe),
+    ...findUntranscribedSpeech(contour, reference, { ...untranscribedOptions }, probeHypothesis),
   ].toSorted((a, b) => (a.start ?? a.tokenStart) - (b.start ?? b.tokenStart))
-  const transcript = locateTokens(result.reference.tokens.map(token => token.text))
-  return { analysis, contour, spans, transcript, llmText: formatForLlm(result.reference, spans) }
+  const transcript = locateTokens(reference.tokens.map(token => token.text))
+  return { analysis, contour, emissionDelay, probe: probeHypothesis, spans, transcript, llmText: formatForLlm(reference, spans) }
 }
 
 const liveTexts = computed(() => new Map(live.utterances.value.flatMap(utterance => utterance.result ? [[utterance.id, annotate(utterance.result).llmText] as const] : [])))
@@ -240,14 +268,42 @@ const shown = computed(() => {
 const annotation = computed(() => shown.value ? annotate(shown.value) : undefined)
 const shownBlob = computed(() => shown.value ? new Blob([toWav(new Float32Array(shown.value.clip).buffer, sampleRate)], { type: 'audio/wav' }) : undefined)
 const shownUrl = useObjectUrl(shownBlob)
+const shownPlayback = useElementSpeakingHold()
 const player = useTemplateRef<HTMLAudioElement>('player')
 
-function play(seconds: number) {
-  if (!player.value)
+/** A span covers the token times. This much audio on each side covers the whole syllables. */
+const SPAN_PLAYBACK_MARGIN_SECONDS = 0.1
+let playRequest = 0
+
+/** Plays from `start`. With `end`, playback stops there, so a span plays alone. */
+function play(start: number, end?: number) {
+  const element = player.value
+  if (!element)
     return
-  player.value.currentTime = Math.max(0, seconds)
-  void player.value.play()
+  const request = ++playRequest
+  element.currentTime = Math.max(0, start - (end === undefined ? 0 : SPAN_PLAYBACK_MARGIN_SECONDS))
+  const started = element.play()
+  if (end === undefined) {
+    void started.catch(() => {})
+    return
+  }
+
+  // The check reads the audio position, not the wall clock, so a slow start or a slow audio clock stops on time.
+  // It ends when playback pauses or ends, when a later request plays, or when the page closes.
+  const stopAt = end + SPAN_PLAYBACK_MARGIN_SECONDS
+  const check = () => {
+    if (request !== playRequest || element.paused || element.ended)
+      return
+    if (element.currentTime >= stopAt)
+      element.pause()
+    else
+      requestAnimationFrame(check)
+  }
+  void started.then(check, () => {})
 }
+
+// Closing the page ends a running span check.
+onScopeDispose(() => playRequest++)
 
 // Hotword boost
 
@@ -392,6 +448,17 @@ function compare() {
 
 <template>
   <div :class="['flex flex-col gap-8 pb-12']">
+    <LiveTurns :host="host" :microphone-busy="input.recording.value !== undefined || (listening && liveSource === 'microphone')" @select-utterance="takeTurnClip" />
+
+    <div :class="['flex flex-col gap-2 border-t border-neutral-200 pt-6 dark:border-neutral-700']">
+      <h2 :class="['text-xl font-semibold']">
+        Offline lab
+      </h2>
+      <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
+        Tests the input steps on one clip, outside the live pipeline. Nothing here goes to a chat.
+      </p>
+    </div>
+
     <Callout label="The voice input pipeline">
       <p>
         Conversation terms become hotwords. The probe decodes the speech many times with noise and finds the spans that recognition is unsure of.
@@ -401,9 +468,9 @@ function compare() {
     </Callout>
 
     <section :class="['flex flex-col gap-4']">
-      <h2 :class="['text-lg font-semibold']">
+      <h3 :class="['text-lg font-semibold']">
         1. Conversation terms
-      </h2>
+      </h3>
       <FieldSelect v-model="conversation.source.value" label="Source" :options="sourceOptions" />
       <template v-if="conversation.source.value === 'session'">
         <FieldSelect v-model="conversation.selectedSessionId.value" label="Chat" :options="conversation.sessionOptions.value" placeholder="Select a chat" />
@@ -458,9 +525,9 @@ function compare() {
     </section>
 
     <section :class="['flex flex-col gap-2']">
-      <h2 :class="['text-lg font-semibold']">
+      <h3 :class="['text-lg font-semibold']">
         2. Domain vocabulary
-      </h2>
+      </h3>
       <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
         Domain terms go only to post-ASR matching, never to recognition as hotwords, unless step 5 allows it.
         Separate written forms with commas. Leave the pronunciation empty to derive it from a Chinese or English written form,
@@ -543,9 +610,9 @@ function compare() {
     </section>
 
     <section :class="['flex flex-col gap-4']">
-      <h2 :class="['text-lg font-semibold']">
+      <h3 :class="['text-lg font-semibold']">
         3. Recognition
-      </h2>
+      </h3>
       <div :class="['grid gap-4 md:grid-cols-2']">
         <FieldInputFile v-model="input.files.value" label="Audio file" description="Any format the browser can decode. It is converted to 16 kHz mono." accept="audio/*" />
         <div :class="['flex flex-col gap-2']">
@@ -554,9 +621,12 @@ function compare() {
           </div>
           <div :class="['text-xs text-neutral-500 dark:text-neutral-400']">
             Records without echo cancellation, noise suppression, or gain control, so the probe sees the raw input.
+            <template v-if="host.recordingBlocked.value">
+              {{ host.recordingBlocked.value }}
+            </template>
           </div>
           <div>
-            <Button v-if="!input.recording.value" icon="i-solar:microphone-3-bold-duotone" label="Record" :disabled="listening" @click="input.record" />
+            <Button v-if="!input.recording.value" icon="i-solar:microphone-3-bold-duotone" label="Record" :disabled="listening || !!host.recordingBlocked.value" @click="input.record" />
             <Button v-else icon="i-solar:stop-bold" color="red" label="Stop" @click="input.stop" />
           </div>
         </div>
@@ -565,8 +635,9 @@ function compare() {
         {{ input.error.value }}
       </p>
       <div v-if="input.clip.value" :class="['flex flex-wrap items-center gap-4 text-sm']">
-        <audio :src="clipUrl" controls />
+        <audio :src="clipUrl" controls @play="clipPlayback.start" @pause="clipPlayback.end" @ended="clipPlayback.end" @emptied="clipPlayback.end" />
         <span>{{ clipSeconds.toFixed(1) }} s</span>
+        <span v-if="turnClip && turnClip.samples === input.clip.value" :class="['text-neutral-500 dark:text-neutral-400']">From {{ turnClip.label }}</span>
         <span v-if="clipSeconds > longClipSeconds" :class="['text-amber-600 dark:text-amber-400']">
           Long clip. Each decode takes about as long as the clip, so trim it for faster runs.
         </span>
@@ -645,11 +716,14 @@ function compare() {
             Live mode adds noise only. Select an utterance to send it through the later steps.
           </div>
           <FieldSelect v-model="liveSource" label="Input" :options="liveSourceOptions" :disabled="listening" />
+          <p v-if="liveSource === 'microphone' && host.recordingBlocked.value" :class="['text-xs text-amber-600 dark:text-amber-400']">
+            {{ host.recordingBlocked.value }}
+          </p>
           <div :class="['flex flex-wrap items-center gap-4']">
             <Button
               v-if="!listening"
               variant="primary" color="primary" icon="i-solar:soundwave-bold-duotone" label="Start"
-              :disabled="!modelId || busy || boosting || input.recording.value !== undefined || (liveSource === 'clip' && !input.clip.value)"
+              :disabled="!modelId || busy || boosting || input.recording.value !== undefined || (liveSource === 'clip' && !input.clip.value) || (liveSource === 'microphone' && !!host.recordingBlocked.value)"
               @click="startLive"
             />
             <Button v-else icon="i-solar:stop-bold" color="red" label="Stop" @click="live.stop()" />
@@ -720,28 +794,31 @@ function compare() {
     </section>
 
     <section :class="['flex flex-col gap-4']">
-      <h2 :class="['text-lg font-semibold']">
+      <h3 :class="['text-lg font-semibold']">
         4. Uncertainty
-      </h2>
+      </h3>
       <p v-if="!shown || !annotation" :class="['text-sm text-neutral-500']">
         Probe a clip or select a live utterance.
       </p>
       <template v-else>
         <div :class="['text-xs text-neutral-500 dark:text-neutral-400']">
-          Click the chart to play from that point. Span colors: amber is unstable, red is dropped, violet is untranscribed.
+          Click a span to play only that span, or elsewhere on the chart to play from that point. Span colors: amber is unstable, red is dropped, violet is untranscribed.
+          <template v-if="annotation.emissionDelay > 0">
+            The decoder emitted tokens about {{ annotation.emissionDelay.toFixed(2) }} s after their syllables, so token times are moved that much earlier.
+          </template>
         </div>
-        <audio ref="player" :src="shownUrl" controls />
+        <audio ref="player" :src="shownUrl" controls @play="shownPlayback.start" @pause="shownPlayback.end" @ended="shownPlayback.end" @emptied="shownPlayback.end" />
         <UncertaintyTimeline
           :duration-seconds="shown.durationSeconds"
           :contour="annotation.contour"
           :tokens="annotation.analysis.tokens"
           :timeline="annotation.analysis.timeline"
           :spans="annotation.spans"
-          :probe-tokens="shown.probe?.tokens"
+          :probe-tokens="annotation.probe?.tokens"
           :agreement-threshold="analysisOptions.agreementThreshold"
-          @seek="play"
+          @play="play"
         />
-        <SpanList :spans="annotation.spans" :reference="shown.reference" @seek="play" />
+        <SpanList :spans="annotation.spans" :reference="shown.reference" @play="play" />
         <details :class="['text-sm']">
           <summary :class="['cursor-pointer font-medium']">
             Thresholds
@@ -761,9 +838,9 @@ function compare() {
     </section>
 
     <section :class="['flex flex-col gap-4']">
-      <h2 :class="['text-lg font-semibold']">
+      <h3 :class="['text-lg font-semibold']">
         5. Hotword boost
-      </h2>
+      </h3>
       <div :class="['text-xs text-neutral-500 dark:text-neutral-400']">
         Each conversation term is matched by sound against what the decodes heard in each uncertain span, the transcript text and the variants.
         A matched term gets the boost score, and the clip is decoded again with the new list.
@@ -846,15 +923,15 @@ function compare() {
           Uncertain spans of the boosted decode
         </summary>
         <div :class="['pt-2']">
-          <SpanList :spans="boostedAnnotation.spans" :reference="boosted.reference" @seek="play" />
+          <SpanList :spans="boostedAnnotation.spans" :reference="boosted.reference" @play="play" />
         </div>
       </details>
     </section>
 
     <section :class="['flex flex-col gap-4']">
-      <h2 :class="['text-lg font-semibold']">
+      <h3 :class="['text-lg font-semibold']">
         6. Post-ASR suggestions
-      </h2>
+      </h3>
       <div :class="['grid gap-4 md:grid-cols-2']">
         <FieldSelect v-model="post.source" label="Transcript" :options="postSourceOptions" />
         <FieldSelect v-model="post.scope" label="Uncertainty" :options="scopeOptions" />
@@ -913,9 +990,9 @@ function compare() {
     </section>
 
     <section :class="['flex flex-col gap-2']">
-      <h2 :class="['text-lg font-semibold']">
+      <h3 :class="['text-lg font-semibold']">
         7. What the chat model reads
-      </h2>
+      </h3>
       <div :class="['text-xs text-neutral-500 dark:text-neutral-400']">
         The transcript with the uncertain spans marked, and the suggestions as submission context.
       </div>

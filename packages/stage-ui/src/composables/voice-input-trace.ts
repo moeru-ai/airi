@@ -2,7 +2,7 @@ import type { Span } from '@opentelemetry/api'
 import type { SpeechInputAttempt, SpeechInputAttemptOutcome } from '@proj-airi/core-agent'
 
 import { SpanStatusCode } from '@opentelemetry/api'
-import { IOAttributes, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
+import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 
 import { activeVoiceInputSpan, linkComposerVoice, linkVoiceTurn, startSpan } from './use-io-tracer'
 
@@ -24,6 +24,8 @@ const SEGMENT_PAUSE_MS = 300
 interface TracedInput {
   readonly span: Span
   segment?: { span: Span, speechMs: number, silenceMs: number, lastSpeechAt: number }
+  /** Stops the observation of the input state. */
+  stopState: () => void
   /** The session of a composer dictation. Its text returns to the composer instead of a draft. */
   composerSessionId?: string
 }
@@ -42,13 +44,17 @@ export function createVoiceInputTracer() {
   const inputs = new Map<string, TracedInput>()
 
   /** Starts the trace of an input that the controller has just begun. */
-  function start(attempt: Pick<SpeechInputAttempt, 'id' | 'done'>, trigger: VoiceInputTrigger, parent?: Span) {
+  function start(attempt: Pick<SpeechInputAttempt, 'id' | 'done' | 'subscribe'>, trigger: VoiceInputTrigger, parent?: Span) {
     const span = startSpan(IOSpanNames.VoiceInput, parent, {
       [IOAttributes.Subsystem]: IOSubsystems.VoiceInput,
       [IOAttributes.VoiceInputId]: attempt.id,
       [IOAttributes.VoiceInputTrigger]: trigger,
     })
-    inputs.set(attempt.id, { span })
+    const stopState = attempt.subscribe((state) => {
+      if (state.phase === 'finalizing')
+        span.addEvent(IOEvents.VoiceCaptureEnd)
+    })
+    inputs.set(attempt.id, { span, stopState })
     activeVoiceInputSpan.value = span
     linkVoiceTurn(attempt.id, span)
     void attempt.done.then(outcome => settle(attempt.id, outcome))
@@ -108,6 +114,7 @@ export function createVoiceInputTracer() {
     if (!input)
       return
     inputs.delete(inputId)
+    input.stopState()
     closeSegment(input)
 
     input.span.setAttribute(IOAttributes.VoiceInputOutcome, outcome.status)

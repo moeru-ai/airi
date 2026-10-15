@@ -35,6 +35,74 @@ export const defaultNucleusOptions: Readonly<NucleusOptions> = Object.freeze({
   minDipDb: 3,
 })
 
+/** A streaming transducer emits a token after its audio, never before, and less than this late. */
+const MAX_EMISSION_DELAY_SECONDS = 1
+const EMISSION_DELAY_STEP_SECONDS = 0.02
+/** With fewer timed tokens or nuclei, a delay fits by chance. */
+const MIN_DELAY_EVIDENCE = 3
+/**
+ * The cost of a token that matches no nucleus, in seconds of distance. It is about half a syllable, so a token
+ * farther than this from every free nucleus stays unmatched.
+ */
+const UNMATCHED_TOKEN_COST_SECONDS = 0.1
+
+/**
+ * Aligns the token times to the nuclei in order, with each nucleus used at most once, and returns the total cost.
+ * A matched token costs its distance to its nucleus. An unmatched token costs `UNMATCHED_TOKEN_COST_SECONDS`.
+ * An unmatched nucleus costs nothing, because speech without a transcript has nuclei but no tokens.
+ */
+function alignmentCost(times: readonly number[], nuclei: readonly number[]) {
+  // `previous[j]` is the cost of the tokens before this one with the first `j` nuclei.
+  let previous: number[] = Array.from<number>({ length: nuclei.length + 1 }).fill(0)
+  for (const [index, time] of times.entries()) {
+    const current = [(index + 1) * UNMATCHED_TOKEN_COST_SECONDS]
+    for (let j = 1; j <= nuclei.length; j++) {
+      current[j] = Math.min(
+        current[j - 1]!,
+        previous[j]! + UNMATCHED_TOKEN_COST_SECONDS,
+        previous[j - 1]! + Math.abs(time - nuclei[j - 1]!),
+      )
+    }
+    previous = current
+  }
+  return previous[nuclei.length]!
+}
+
+/**
+ * Estimates how long after its syllable the decoder emitted the tokens of `reference`.
+ *
+ * Token times are emission times. A streaming transducer emits a token only after it has heard the
+ * syllable, so its token times lag the speech. X-ASR emitted about 0.4 s late in a measured Mandarin clip.
+ * The estimate is the delay with the best one-to-one alignment of text tokens to nuclei in order.
+ * Nearest-nucleus matching is not enough: with evenly spaced syllables, each late token is near the nucleus of a later syllable.
+ * The estimate is 0 when the clip has too few timed tokens or nuclei.
+ */
+export function estimateEmissionDelay(contour: Pick<IntensityContour, 'nuclei'>, reference: Hypothesis): number {
+  const times = reference.tokens
+    .filter(token => token.time !== undefined && normalizeToken(token.text) !== '')
+    .map(token => token.time!)
+  if (times.length < MIN_DELAY_EVIDENCE || contour.nuclei.length < MIN_DELAY_EVIDENCE)
+    return 0
+
+  const nuclei = contour.nuclei.toSorted((a, b) => a - b)
+  let best = { delay: 0, cost: Number.POSITIVE_INFINITY }
+  for (let step = 0; step * EMISSION_DELAY_STEP_SECONDS <= MAX_EMISSION_DELAY_SECONDS; step++) {
+    const delay = step * EMISSION_DELAY_STEP_SECONDS
+    const cost = alignmentCost(times.map(time => time - delay), nuclei)
+    // A later delay must fit clearly better, so a flat fit keeps the smaller delay.
+    if (cost < best.cost - 1e-6)
+      best = { delay, cost }
+  }
+  return best.delay
+}
+
+/** Moves every token time of `hypothesis` earlier by `seconds`, and not before the clip start. */
+export function shiftTokenTimes(hypothesis: Hypothesis, seconds: number): Hypothesis {
+  if (seconds === 0)
+    return hypothesis
+  return { tokens: hypothesis.tokens.map(token => token.time === undefined ? token : { ...token, time: Math.max(0, token.time - seconds) }) }
+}
+
 /**
  * Finds syllable nuclei from loudness alone, after de Jong and Wempe (2009).
  *

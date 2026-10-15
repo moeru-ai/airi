@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { defaultNucleusOptions, defaultUntranscribedOptions, findUntranscribedSpeech, measureIntensity } from './articulation'
+import { defaultNucleusOptions, defaultUntranscribedOptions, estimateEmissionDelay, findUntranscribedSpeech, measureIntensity, shiftTokenTimes } from './articulation'
 
 const sampleRate = 16000
 
@@ -79,5 +79,57 @@ describe('findUntranscribedSpeech', () => {
     const contour = measureIntensity(syllables, sampleRate, defaultNucleusOptions)
 
     expect(findUntranscribedSpeech(contour, { tokens: [] }, defaultUntranscribedOptions)).toHaveLength(1)
+  })
+})
+
+describe('estimateEmissionDelay', () => {
+  // X-ASR on a Mandarin clip: the nuclei of the clip and the emission times of the tokens, in seconds.
+  const nuclei = [1.11, 1.28, 2, 2.36, 2.8, 3.28, 3.6]
+  const reference = { tokens: [
+    ['你', 1.48],
+    ['好', 1.68],
+    ['，', 1.96],
+    ['欢', 2.2],
+    ['迎', 2.36],
+    ['使', 2.6],
+    ['用', 2.76],
+    ['语', 3],
+    ['音', 3.2],
+    ['识', 3.44],
+    ['别', 3.68],
+    ['测', 4],
+    ['试', 4.44],
+  ].map(([text, time]) => ({ text: text as string, time: time as number })) }
+
+  it('finds the emission delay of a streaming transducer', () => {
+    const delay = estimateEmissionDelay({ nuclei }, reference)
+
+    expect(delay).toBeGreaterThanOrEqual(0.34)
+    expect(delay).toBeLessThanOrEqual(0.42)
+  })
+
+  it('finds no delay in tokens that sit on their nuclei', () => {
+    expect(estimateEmissionDelay({ nuclei }, { tokens: nuclei.map((time, index) => ({ text: `t${index}`, time })) })).toBe(0)
+  })
+
+  // Codex review on PR #30: with nearest-nucleus matching, each late token matched the nucleus of a later syllable.
+  it('finds the delay of evenly spaced syllables, where late tokens sit on later nuclei', () => {
+    const even = [0.2, 0.4, 0.6, 0.8, 1]
+    const tokens = even.map((time, index) => ({ text: `t${index}`, time: time + 0.4 }))
+
+    expect(estimateEmissionDelay({ nuclei: even }, { tokens })).toBeCloseTo(0.4)
+  })
+
+  it('finds no delay without enough evidence', () => {
+    expect(estimateEmissionDelay({ nuclei: [1, 2] }, reference)).toBe(0)
+    expect(estimateEmissionDelay({ nuclei }, { tokens: reference.tokens.slice(0, 2) })).toBe(0)
+  })
+})
+
+describe('shiftTokenTimes', () => {
+  it('moves token times earlier, not before the clip start', () => {
+    const shifted = shiftTokenTimes({ tokens: [{ text: 'a', time: 0.2 }, { text: 'b', time: 1 }, { text: 'c' }] }, 0.4)
+
+    expect(shifted.tokens).toEqual([{ text: 'a', time: 0 }, { text: 'b', time: 0.6 }, { text: 'c' }])
   })
 })

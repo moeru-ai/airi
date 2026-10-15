@@ -9,8 +9,8 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  /** Seconds of the clip where the span starts, for playback from that point. */
-  seek: [seconds: number]
+  /** Seconds of the clip that the span covers, for playback of the span alone. Without times, playback starts at 0. */
+  play: [start: number, end?: number]
 }>()
 
 function referenceText(span: UncertainSpan) {
@@ -28,7 +28,7 @@ function referenceText(span: UncertainSpan) {
       :key="index"
       type="button"
       :class="['flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-lg p-2 text-left text-sm', 'bg-neutral-100 dark:bg-neutral-800', 'hover:bg-neutral-200 dark:hover:bg-neutral-700']"
-      @click="emit('seek', span.start ?? 0)"
+      @click="emit('play', span.start ?? 0, span.end)"
     >
       <span :class="['font-mono text-xs', { 'text-amber-600': span.kind === 'unstable', 'text-red-600': span.kind === 'dropped', 'text-violet-600': span.kind === 'untranscribed' }]">{{ span.kind }}</span>
       <span v-if="span.start !== undefined && span.end !== undefined" :class="['font-mono text-xs text-neutral-500']">{{ span.start.toFixed(2) }}-{{ span.end.toFixed(2) }} s</span>

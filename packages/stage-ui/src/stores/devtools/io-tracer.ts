@@ -10,6 +10,8 @@ import { computed, ref, triggerRef } from 'vue'
 import { initIOTracer, onIOSpan, onRemoteIOSpan } from '../../composables/use-io-tracer'
 
 const MAX_TURNS = 50
+/** Span IDs kept for the duplicate check. Far more than 50 turns hold, so a copy that arrives after its turn left is still known. */
+const MAX_RECORDED_SPAN_IDS = 10_000
 
 function attrsToMeta(attrs: Attributes): Record<string, any> {
   const meta: Record<string, any> = {}
@@ -32,6 +34,13 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
   const rawSpanCount = ref(0)
 
   const turnsByTraceId = new Map<string, IOTurn>()
+  /**
+   * Spans already recorded, by span ID.
+   * The tracer posts each span to the BroadcastChannel for other windows, and the remote listener of this window
+   * receives that post too, because it is a different channel object. The ID check keeps one copy.
+   * IDs outlive the eviction of their turn and a clear, because a copy can still wait in the channel queue.
+   */
+  const recordedSpanIds = new Set<string>()
 
   const rawSpans: ReadableSpan[] = []
   let unsubscribeRemote: (() => void) | undefined
@@ -71,6 +80,11 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
   }
 
   function handleSpan(readable: ReadableSpan) {
+    if (recordedSpanIds.has(readable.spanContext().spanId))
+      return
+    recordedSpanIds.add(readable.spanContext().spanId)
+    if (recordedSpanIds.size > MAX_RECORDED_SPAN_IDS)
+      recordedSpanIds.delete(recordedSpanIds.values().next().value!)
     rawSpans.push(readable)
     rawSpanCount.value++
 

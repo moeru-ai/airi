@@ -25,7 +25,8 @@ export const speechOutputGetPlaybackState = defineInvokeEventa<SpeechOutputPlayb
 /** The output host sends its new playback state after `speaking` or `voicing` changes. */
 export const speechOutputPlaybackStateChangedEvent = defineEventa<SpeechOutputPlaybackState>('eventa:audio:speech:output:playback-state-changed')
 
-const BUS_CHANNEL_NAME = 'proj-airi:pipelines:outputs:speech'
+/** The BroadcastChannel of the speech bus. Every window of the app opens it. */
+export const BUS_CHANNEL_NAME = 'proj-airi:pipelines:outputs:speech'
 
 let context: ReturnType<typeof createBroadcastChannelContext>['context'] | undefined
 let channel: BroadcastChannel | undefined
@@ -147,6 +148,16 @@ export const voiceInputLevel = defineEventa<{ level: number }>('eventa:voice:inp
  * so a closed window cannot keep the microphone open.
  */
 export const voiceLevelMonitor = defineEventa<{ until: number }>('eventa:voice:level-monitor')
+
+/**
+ * A window that runs its own voice host, for example a devtool, asks the hosts of other windows to stop listening.
+ * The lease lasts until `until`, a Unix time in milliseconds, and the holder renews it while its host runs.
+ * `until: 0` releases it. `holder` is the window ID, so the hosts of the holder's own window ignore the lease.
+ */
+export const voiceListeningLease = defineEventa<{ holder: string, until: number }>('eventa:voice:listening-lease')
+
+/** Asks the holders of a listening lease to renew it now, so a window that opens learns the lease at once. */
+export const voiceListeningLeaseQuery = defineEventa('eventa:voice:listening-lease-query')
 
 /** Recording commands address one session-owned voice message draft. */
 export type VoiceMessageCommand

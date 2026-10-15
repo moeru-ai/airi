@@ -30,4 +30,43 @@ describe('useIOTracerStore', () => {
     // The child ended first, but the turn starts where its parent started.
     expect(store.turns[0]!.startTs).toBe(store.turns[0]!.spans[1]!.startTs)
   })
+
+  it('records a span once when the remote channel of the same window also delivers it', async () => {
+    setActivePinia(createPinia())
+    const store = useIOTracerStore()
+    store.startRecording()
+
+    startSpan(IOSpanNames.SpeechRecognition, undefined, { [IOAttributes.Subsystem]: IOSubsystems.ASR }).end()
+    // The BroadcastChannel copy arrives in a later task.
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    expect(store.turns.flatMap(turn => turn.spans)).toHaveLength(1)
+    expect(store.rawSpanCount).toBe(1)
+  })
+
+  it('records a span once when more turns than the limit end before the remote copies arrive', async () => {
+    setActivePinia(createPinia())
+    const store = useIOTracerStore()
+    store.startRecording()
+
+    for (let index = 0; index < 60; index++)
+      startSpan(IOSpanNames.SpeechRecognition, undefined, { [IOAttributes.Subsystem]: IOSubsystems.ASR }).end()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    expect(store.rawSpanCount).toBe(60)
+    expect(store.turns).toHaveLength(50)
+  })
+
+  it('keeps a cleared span out when its remote copy arrives after the clear', async () => {
+    setActivePinia(createPinia())
+    const store = useIOTracerStore()
+    store.startRecording()
+
+    startSpan(IOSpanNames.SpeechRecognition, undefined, { [IOAttributes.Subsystem]: IOSubsystems.ASR }).end()
+    store.clear()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    expect(store.turns).toHaveLength(0)
+    expect(store.rawSpanCount).toBe(0)
+  })
 })

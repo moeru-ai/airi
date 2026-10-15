@@ -5,9 +5,11 @@ import { listensContinuously, useHearingStore } from '../stores/modules/hearing'
 import { useSettingsAudioDevice } from '../stores/settings/audio-device'
 import { useVoiceStore } from '../stores/voice'
 import { useVoiceHold } from './voice-hold'
+import { useListeningLeasedElsewhere } from './voice-listening-lease'
 
 /**
  * Runs continuous listening on the voice host while microphone input is on and the Hearing input mode listens continuously.
+ * Listening pauses while another window holds a listening lease, for example a devtool that runs its own voice host.
  *
  * Each stage page that owns the voice host calls this once. It is the one place that decides whether voice activity
  * detection runs, so a new input mode changes this function and `listensContinuously`, not each app.
@@ -17,8 +19,9 @@ export function useVoiceListening() {
   const voice = useVoiceStore()
   const devices = useSettingsAudioDevice()
   const hearing = useHearingStore()
+  const leasedElsewhere = useListeningLeasedElsewhere()
 
-  watch(() => devices.enabled && listensContinuously(hearing.inputMode), (listen) => {
+  watch(() => devices.enabled && listensContinuously(hearing.inputMode) && !leasedElsewhere.value, (listen) => {
     if (listen)
       voice.startListening()
     else
@@ -39,6 +42,7 @@ export interface VoicePushToTalkOptions {
  *
  * Use it only in the window that owns the voice host, because it calls the voice store directly.
  * The hold is enabled while microphone input is on and the Hearing input mode is `push-to-talk`.
+ * Another window's listening lease disables it and cancels a running hold, as for continuous listening.
  * A press captures the active chat session, so the speech goes to that session even if the user switches sessions before release.
  */
 export function useVoicePushToTalk(options: VoicePushToTalkOptions = {}) {
@@ -46,9 +50,10 @@ export function useVoicePushToTalk(options: VoicePushToTalkOptions = {}) {
   const devices = useSettingsAudioDevice()
   const hearing = useHearingStore()
   const sessions = useChatSessionStore()
+  const leasedElsewhere = useListeningLeasedElsewhere()
 
   return useVoiceHold({
-    enabled: () => devices.enabled && hearing.inputMode === 'push-to-talk',
+    enabled: () => devices.enabled && hearing.inputMode === 'push-to-talk' && !leasedElsewhere.value,
     sessionId: () => sessions.activeSessionId,
     begin: (sessionId) => {
       if (!hearing.configured) {
