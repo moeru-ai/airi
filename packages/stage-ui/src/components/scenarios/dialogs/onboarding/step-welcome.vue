@@ -5,13 +5,14 @@ import { all } from '@proj-airi/i18n'
 import { Button, DropdownMenu } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuItem } from 'reka-ui'
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import onboardingLogo from '../../../../assets/onboarding.avif'
 
 import { AIRI_FLUX_URL, AIRI_TERMS_URL } from '../../../../constants/public-links'
 import { useAuthStore } from '../../../../stores/auth'
+import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useOnboardingStore } from '../../../../stores/onboarding'
 import { useSettingsGeneral } from '../../../../stores/settings'
 
@@ -26,9 +27,18 @@ const authStore = useAuthStore()
 const onboardingStore = useOnboardingStore()
 const settingsStore = useSettingsGeneral()
 const { language } = storeToRefs(settingsStore)
+const cardStore = useAiriCardStore()
 
 const languages = computed(() => {
   return Object.entries(all).map(([value, label]) => ({ value, label }))
+})
+
+// The built-in card gets its description before the user chooses a language here. While it still holds the built-in
+// text, it takes the text of the chosen language. A description that the user edited stays.
+watch(() => cardStore.builtInCard.description, (description, previous) => {
+  const card = cardStore.getCard('default')
+  if (card && card.description === previous)
+    void cardStore.updateCard('default', { ...card, description })
 })
 
 async function handleLogin() {
