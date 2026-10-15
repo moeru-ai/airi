@@ -720,6 +720,13 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       })
       disposeHookFns.value.push(stopSparkNotifyBridgeWatch)
 
+      // A module that leaves takes its observations with it.
+      disposeHookFns.value.push(serverChannelStore.onEvent('extension:module:de-announced', (event) => {
+        const sourceKey = getMetadataSourceLabel(event.data.identity)
+        if (sourceKey)
+          chatContext.removeContextWriter(sourceKey)
+      }))
+
       disposeHookFns.value.push(serverChannelStore.onContextUpdate((event) => {
         contextObservability.recordLifecycle({
           phase: 'server-received',
@@ -886,7 +893,6 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
         if (activeProvider.value && activeModel.value) {
           let messageText = text
-          const targetSessionId = overrides?.sessionId
 
           if (overrides?.messagePrefix) {
             messageText = `${overrides.messagePrefix}${text}`
@@ -916,8 +922,11 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           // - https://developer.mozilla.org/en-US/docs/Web/API/Web_Locks_API
           await withContextBridgeLock('context-bridge:event:input:text', async () => {
             try {
+              const targetSessionId = overrides?.binding
+                ? await chatSession.ensureBoundSession(overrides.binding)
+                : overrides?.sessionId ?? chatSession.activeSessionId
               await chatOrchestrator.send({
-                sessionId: targetSessionId ?? chatSession.activeSessionId,
+                sessionId: targetSessionId,
                 text: messageText,
                 temperature: activeTemperature.value,
                 topP: activeTopP.value,

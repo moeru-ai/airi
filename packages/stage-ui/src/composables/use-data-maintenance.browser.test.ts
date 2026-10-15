@@ -12,6 +12,7 @@ import { createI18n } from 'vue-i18n'
 import { injectKeyPiniaSynced } from '../libs/pinia/synced-context'
 import { toStoredVoiceprint } from '../libs/voice/voiceprint'
 import { useDisplayModelsStore } from '../stores/display-models'
+import { useMemoryStore } from '../stores/memory'
 import { useModsServerChannelStore } from '../stores/mods/api/channel-server'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useConsciousnessSettingsStore } from '../stores/modules/consciousness-settings'
@@ -23,6 +24,7 @@ import { useHomeAssistantStore } from '../stores/modules/home-assistant'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useTwitterStore } from '../stores/modules/twitter'
 import { useWebSearchStore } from '../stores/modules/web-search'
+import { useRecipesStore } from '../stores/recipes'
 import { useVoiceprintStore } from '../stores/voiceprint'
 import { useDataMaintenance } from './use-data-maintenance'
 
@@ -120,6 +122,23 @@ it.each(['resetSettings', 'resetState'])('continues independent module resets wh
   expect(homeAssistant.exposureMode).toBe('all')
   expect(homeAssistant.deniedEntities).toEqual([])
   expect(useConsciousnessSettingsStore(leader.pinia).reasoning).toBe(action === 'resetState')
+})
+
+// ROOT CAUSE:
+// Deleting all data kept long-term memories and recipes, so the character still knew facts about the owner.
+it('forgets what the character learned when modules reset', async () => {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
+  const { pinia, runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
+  await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
+  const memory = useMemoryStore(pinia)
+  const recipes = useRecipesStore(pinia)
+  memory.write({ name: 'nickname', description: 'What the owner likes to be called.', body: 'Yumeka.' }, 'default')
+  recipes.add({ name: 'Check in', description: '', instructions: 'Greet softly.', keywords: [], enabled: true })
+
+  await maintenance.resetModulesSettings()
+
+  expect(memory.entries).toEqual([])
+  expect(recipes.recipes.filter(recipe => recipe.source === 'user')).toEqual([])
 })
 
 it('removes downloaded speech models when all data is deleted', async () => {

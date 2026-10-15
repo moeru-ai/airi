@@ -1000,6 +1000,90 @@ pages:
               filtering had no effect on the last transcription.
     memory-long-term:
       description: Long-term memory specific settings and management
+      enable: Use long-term memory
+      enable-description: The character remembers what you talk about. When this is off, it remembers nothing.
+      memories:
+        title: Memories
+        description: Each character keeps its own secrets, and the others cannot see them. After you share a secret, every character knows it, and you cannot take it back. You can delete any secret, but you cannot rewrite one.
+        empty: No memories yet.
+        forget: 'Forget {name}'
+        make_general: 'Share {name} with every character'
+        general: Shared secrets
+        entry:
+          title: Memories
+          description: Each character's secrets, and the secrets that they share.
+      recipes:
+        title: Recipes
+        empty: No recipes yet.
+        sources:
+          user: Yours
+          model: Proposed by the character
+        pending: Waits for your approval. After one approval, it never asks again.
+        approve: Approve
+        remove: Remove
+        add:
+          name: Name
+          description: When to use it
+          instructions: What to do
+          keywords:
+            label: Code words
+            description: Say a code word, and the character uses this recipe.
+          submit: Add
+        decision:
+          question: Question
+          type:
+            label: How to answer
+            noul: Yes or no
+            choice: Pick one option
+          yes_means: '"Yes" means'
+          no_means: '"No" means'
+          option: What this option means
+          add_option: Add an option
+          remove_option: Remove
+          action:
+            label: Then
+            reply: Reply as usual
+            stay_quiet: Read without replying
+            hint: Reply with a note in mind
+            recipe: Use another recipe next
+          hint_text: Note to keep in mind
+          target_recipe: Recipe
+          keywords: The character judges only after you say a code word.
+          note: After a code word, the character reads the conversation, picks one answer, and acts on it.
+        entry:
+          title: Recipes
+          description: The character's skills, the cues that start them, and the proposals that wait for you.
+        add_button: Add recipe
+        types:
+          title: Choose a recipe type
+          instructions:
+            title: Instructions
+            description: Steps that the character uses when they fit, or when you say a code word.
+          decision:
+            title: Decision
+            description: After a code word, the character answers a question before it replies. Each answer leads to its own action.
+        styles:
+          instructions: Instructions
+          decision: Decision
+        cancel: Cancel
+        edit: Edit
+        save: Save
+        enabled: 'Use {name}'
+        keywords_summary: 'Code words: {words}'
+        tabs:
+          conversation: In conversation
+          auto_run: Auto-run
+          conversation_description: Recipes for chatting. They act only when you send a message.
+          auto_run_description: Recipes that start on their own when a cue comes. Each run costs a model call.
+        background:
+          label: Run in the background
+          description: For tasks that take time, such as research. It works in the background and brings the result back.
+          tag: Background
+        grants: 'Approving lets it: {what}'
+        proposals:
+          label: Let the character propose recipes
+          description: A recipe that you ask for is saved as a proposal. It works only after you approve it.
+        model_flow: The character decides what each run does
       title: Long-Term Memory
     memory-short-term:
       description: Short-term memory specific settings and management
