@@ -87,13 +87,6 @@ const {
 } = storeToRefs(settingsStore)
 const {
   live2dMotionDriver,
-  live2dEyeTracking,
-  live2dModelEyeOffset,
-  live2dIdleAnimationEnabled,
-  live2dForceIdleEyeAnimation,
-  live2dAutoBlinkEnabled,
-  live2dForceAutoBlinkEnabled,
-  live2dExpressionEnabled,
   live2dShadowEnabled,
   live2dMaxFps,
   live2dRenderScale,
@@ -192,7 +185,6 @@ const chatHookCleanups: Array<() => void> = []
 //             cross-window broadcast wiring.
 
 const live2dStore = useLive2dParams()
-const { scale: live2dModelScale } = storeToRefs(live2dStore)
 const showStage = ref(true)
 const stageRenderError = shallowRef<Error>()
 const viewUpdateCleanups: Array<() => void> = []
@@ -714,18 +706,9 @@ defineExpose({
         :paused="paused"
         :theme-colors-hue="themeColorsHue"
         :theme-colors-hue-dynamic="themeColorsHueDynamic"
-        :motion-driver="live2dMotionDriver"
-        :eye-tracking="live2dEyeTracking"
-        :model-eye-offset="live2dModelEyeOffset"
-        :model-scale="live2dModelScale"
-        :idle-animation-enabled="live2dIdleAnimationEnabled"
-        :force-idle-eye-animation="live2dForceIdleEyeAnimation"
-        :auto-blink-enabled="live2dAutoBlinkEnabled"
-        :force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
-        :expression-enabled="live2dExpressionEnabled"
-        :shadow-enabled="live2dShadowEnabled"
-        :max-fps="live2dMaxFps"
-        :render-scale="live2dRenderScale"
+        :live2d-shadow-enabled="live2dShadowEnabled"
+        :live2d-max-fps="live2dMaxFps"
+        :live2d-render-scale="live2dRenderScale"
         @error="handleStageRenderError"
       />
       <ThreeScene
