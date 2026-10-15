@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { createLive2D } from '@proj-airi/stage-ui-live2d'
 import { ModelSettingsPreviewStage } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings'
 import { useWindowSize } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
 
 import FullscreenBackdrop from '../components/fullscreen/fullscreen-backdrop.vue'
 import FullscreenOverlay from '../components/fullscreen/fullscreen-overlay.vue'
@@ -23,6 +24,9 @@ const layout = provideFullscreenLayout()
 const { width: windowWidth, height: windowHeight } = useWindowSize()
 /** The scene of each renderer fills the stage frame. */
 const SCENE_CLASS = ['h-full', 'w-full']
+const live2d = createLive2D()
+
+onUnmounted(() => live2d.dispose())
 
 const stageFrameStyle = computed(() => {
   const stage = layout.stageSizeIn({ width: windowWidth.value, height: windowHeight.value })
@@ -72,6 +76,7 @@ onMounted(async () => {
     <div :style="stageFrameStyle" :class="['absolute left-0 top-0 z-2', 'overflow-hidden', 'rounded-2xl']">
       <!-- The stage of the main window is the one host of voice. This view only renders the model, so it never speaks or listens. -->
       <ModelSettingsPreviewStage
+        :live2d-context="live2d"
         :live2d-scene-class="SCENE_CLASS"
         :vrm-scene-class="SCENE_CLASS"
         :spine-scene-class="SCENE_CLASS"
