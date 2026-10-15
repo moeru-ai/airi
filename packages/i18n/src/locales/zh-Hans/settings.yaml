@@ -854,7 +854,7 @@ pages:
         download: 第一次登记时会下载声纹模型，约 28 MB。
         speaker-recognition:
           label: 说话人识别
-          description: 把每次语音输入和你的声纹比对，并把分数记录在这次输入的 IO trace 中。任何人的声音仍然可以开始输入，聊天模型也收不到这个分数。AIRI 监听期间，声纹模型会一直留在内存中。
+          description: 把由说话或唤醒词开始的每次语音输入和你的声纹比对，并把分数记录在这次输入的 IO trace 中。「按住说话」的输入没有分数。任何人的声音仍然可以开始输入，聊天模型也收不到这个分数。AIRI 聆听期间，声纹模型会一直留在内存中。
           needs-voiceprint: 登记声纹后才能开启说话人识别。
         status:
           none: 你还没有声纹。

@@ -15,7 +15,7 @@ import { createVoiceActivityPlugin } from './voice-activity-plugin'
  *
  * The source runs at 1000 Hz, so one frame is 1 ms. Frames before `speechEnd` are speech, and later frames are silence.
  * The test writes 250 ms blocks and waits until the speaker plugin reads each new window, because `latest`
- * scheduling would skip a window that arrives while another one waits.
+ * scheduling skips a window that arrives while another one waits.
  */
 async function runInput(options: { speechEnd: number, totalFrames: number, compare: (window: AudioWindow) => Promise<number>, enabled?: () => boolean }) {
   const source = createPushStream<PcmBlock>()

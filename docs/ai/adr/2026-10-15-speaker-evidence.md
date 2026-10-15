@@ -53,6 +53,8 @@ The `Voice input` span records the newest evidence that the plugin computed, eve
 
 A failed comparison reports the error and releases the Worker. A broken Worker therefore does not fail every window. The next change of the switch or the voiceprint loads the Worker again.
 
+A release ends the comparisons that still run, for example when listening stops or the switch turns off. They have no score and report no error. After a voiceprint change, a comparison waits until the tracker has enrolled the new voiceprint, because the tracker has no speakers between `reset` and `enrollVoiceprint`.
+
 ## Consequences
 
 - Speaker evidence only measures. It does not begin, end, or cancel an input, and the model receives nothing new.

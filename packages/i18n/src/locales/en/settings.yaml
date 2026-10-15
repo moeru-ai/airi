@@ -896,7 +896,7 @@ pages:
         download: The first enrollment downloads the voiceprint model, about 28 MB.
         speaker-recognition:
           label: Speaker recognition
-          description: Compares each voice input with your voiceprint and records the score in the IO trace of the input. Every voice can still start an input, and the chat model does not receive the score. While AIRI listens, the voiceprint model stays in memory.
+          description: Compares each voice input that speech or a wake word starts with your voiceprint, and records the score in the IO trace of the input. Push to Talk inputs get no score. Every voice can still start an input, and the chat model does not receive the score. While AIRI listens, the voiceprint model stays in memory.
           needs-voiceprint: Enroll your voice to turn on speaker recognition.
         status:
           none: You have no voiceprint.

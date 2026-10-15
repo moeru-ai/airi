@@ -166,7 +166,7 @@ export function createSpeakerEvidencePlugin(options: SpeakerEvidenceOptions): Sp
       scope.observeAudio(COMPARISON, async (ctx) => {
         if (!options.enabled())
           return
-        // A window before the start or after the end of the input is not its audio, and the input would reject it.
+        // A window before the start or after the end of the input is not its audio, and the input rejects it.
         const input = options.input()
         if (!input?.acceptsEvidence(ctx.window.range))
           return

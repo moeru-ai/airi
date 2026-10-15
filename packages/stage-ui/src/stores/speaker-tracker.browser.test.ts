@@ -69,6 +69,33 @@ describe('speaker tracker store', () => {
     dispose()
   })
 
+  it('returns NaN for a comparison that a release ends', async () => {
+    const { trackers, voiceprints, dispose } = createStores()
+    voiceprints.save({ embedding: new Float32Array([1, 0]), seconds: 8 }, Date.now() + 1)
+    await trackers.acquire()
+    const comparing = Promise.withResolvers<Float32Array<ArrayBuffer>>()
+    tracker.similarity.mockImplementationOnce(async () => comparing.promise)
+
+    const result = trackers.compareOwner(audioWindow(new Float32Array(16000)))
+    await vi.waitFor(() => expect(tracker.similarity).toHaveBeenCalledOnce())
+    trackers.release()
+    // Sherpaw rejects the calls that still run when the tracker is disposed.
+    comparing.reject(new Error('Speaker tracker has been disposed'))
+
+    expect(await result).toBeNaN()
+    dispose()
+  })
+
+  it('rejects a comparison that fails without a release', async () => {
+    const { trackers, voiceprints, dispose } = createStores()
+    voiceprints.save({ embedding: new Float32Array([1, 0]), seconds: 8 }, Date.now() + 1)
+    await trackers.acquire()
+    tracker.similarity.mockRejectedValueOnce(new Error('Speaker 0 has no voice to compare with yet'))
+
+    await expect(trackers.compareOwner(audioWindow(new Float32Array(16000)))).rejects.toThrow('Speaker 0 has no voice to compare with yet')
+    dispose()
+  })
+
   it('returns NaN without loading a tracker that is not ready', async () => {
     const { trackers, dispose } = createStores()
 

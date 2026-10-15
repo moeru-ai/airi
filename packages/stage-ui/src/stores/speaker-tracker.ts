@@ -41,7 +41,11 @@ export const useSpeakerTrackerStore = defineStore('speaker-tracker', () => {
     return runtime.acquire()
   }
 
+  /** Counts releases, so a comparison can tell that a release ended it. */
+  let releases = 0
+
   function release(): void {
+    releases++
     runtime.dispose()
   }
 
@@ -50,17 +54,27 @@ export const useSpeakerTrackerStore = defineStore('speaker-tracker', () => {
    * NaN when the window has no embedding, for example digital silence.
    * The comparison uses the window as mono PCM clamped to [-1, 1], because the tracker rejects other samples.
    * Uses only a ready tracker, so a comparison never loads a released tracker again. Before `ready`, the result is NaN.
+   * While the tracker enrolls a replaced voiceprint, the comparison waits. A comparison that `release` ends is NaN.
    * Rejects when no voiceprint is enrolled.
    */
   async function compareOwner(window: Pick<AudioWindow, 'channels' | 'sampleRate'>): Promise<number> {
     if (preparation.value !== 'ready')
       return Number.NaN
-    const tracker = await runtime.acquire()
-    const samples = toMonoSamples(window)
-    const seconds = samples.length / window.sampleRate
-    const [cosine] = await tracker.similarity(samples, window.sampleRate, OWNER_SPEAKER, { windowSeconds: seconds, stepSeconds: seconds })
-    // One window gives one value. An empty result compared nothing, so it has no score.
-    return cosine ?? Number.NaN
+    const released = releases
+    try {
+      const tracker = await runtime.acquire()
+      const samples = toMonoSamples(window)
+      const seconds = samples.length / window.sampleRate
+      const [cosine] = await tracker.similarity(samples, window.sampleRate, OWNER_SPEAKER, { windowSeconds: seconds, stepSeconds: seconds })
+      // One window gives one value. An empty result compared nothing, so it has no score.
+      return cosine ?? Number.NaN
+    }
+    catch (error) {
+      // `dispose` of the tracker rejects the calls that still run. A release, for example when listening stops, is not a failure.
+      if (releases !== released)
+        return Number.NaN
+      throw error
+    }
   }
 
   return { preparation, error, acquire, release, compareOwner }

@@ -25,7 +25,7 @@ export function useVoiceDrafts(report: (cause: unknown) => void, tools: () => re
     if (!submissions)
       return undefined
 
-    // Speaker evidence stays out of the prompt. Its cosine has no calibrated threshold yet, and the model could read a low
+    // Speaker evidence stays out of the prompt. Its cosine has no calibrated threshold yet, and the model can read a low
     // score as another person. The speaker gate decides what the model receives. Until then, only the IO trace has it.
     const evidence = submissions.map(source => ({ context: source.context }))
     if (!evidence.some(item => item.context.length))
