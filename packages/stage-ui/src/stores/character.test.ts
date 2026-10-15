@@ -66,6 +66,7 @@ describe('store character', () => {
       version: '1.0',
       extensions: {
         airi: {
+          avatarModels: [],
           agents: {},
           modules: {
             consciousness: {

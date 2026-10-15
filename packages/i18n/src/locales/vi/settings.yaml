@@ -342,10 +342,15 @@ pages:
             label: Nhập email để xác nhận
             mismatch: Email không khớp.
           confirm: Gửi email xác nhận
+          deleteNow: Xóa vĩnh viễn
+          confirmPhrase: Nhập DELETE để xác nhận
+          signInAgain: Đăng nhập lại
           cancel: Hủy
         message:
+          deleted: Tài khoản của bạn đã được xóa.
           emailSent: Kiểm tra {email} để thấy link xóa.
         error:
+          reauthenticate: Hãy đăng nhập lại, rồi quay lại đây để xác nhận xóa. Sẽ không có email nào được gửi.
           fallback: Không thể xóa. Hãy thử lại sau.
           subscriptionActive: Gói đăng ký vẫn đang hoạt động. Hãy hủy gói trên trang Capacitor trước, rồi xóa tài khoản.
   card:
@@ -866,6 +871,11 @@ pages:
               preparing: Đang chuẩn bị mô hình từ đánh thức…
               ready: Từ đánh thức đã sẵn sàng.
               error: 'Mô hình từ đánh thức không khả dụng: {error}'
+          end-judge:
+            title: Kết thúc lời nói
+            description: Khi bạn ngừng nói, mô hình trò chuyện sẽ đọc bản chuyển giọng nói thành văn bản và xác định bạn đã nói xong chưa. Nếu chưa, AIRI sẽ đợi thêm 3 giây để bạn nói tiếp.
+            enabled: Kiểm tra xem tôi đã nói xong chưa
+            enabled-description: Bản chuyển giọng nói thành văn bản của mỗi lần ngừng sẽ được gửi đến mô hình viết lại. Khi tắt, AIRI sẽ kết thúc lượt nói của bạn sau một khoảng ngừng ngắn.
           rephrase:
             title: Viết lại bản chuyển giọng nói thành văn bản
             description: Mô hình trò chuyện sửa lỗi nhận dạng và bỏ từ đệm trước khi tạo bản nháp. Văn bản gốc vẫn được giữ.
@@ -1309,6 +1319,7 @@ pages:
         headers:
           label: Tiêu đề
           description: Tiêu đề gửi kèm mỗi yêu cầu, như token xác thực.
+          value-placeholder: Token Bearer
         command:
           label: Lệnh
           description: Tệp thực thi được khởi chạy qua stdio.

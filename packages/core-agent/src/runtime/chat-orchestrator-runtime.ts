@@ -777,6 +777,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       const categorizer = createStreamingCategorizer(activeProvider)
       let streamPosition = 0
+      let pendingSpeechWhitespace = ''
+      let speechStarted = false
       const stickers = options.stickers
       let stickerEmitted = false
 
@@ -787,10 +789,19 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
           categorizer.consume(literal)
 
-          const speechOnly = categorizer.filterToSpeech(literal, streamPosition)
+          let speechOnly = categorizer.filterToSpeech(literal, streamPosition)
           streamPosition += literal.length
 
-          if (speechOnly.trim()) {
+          if (speechOnly) {
+            if (!speechStarted) {
+              // Leading whitespace belongs to speech only after visible text arrives.
+              pendingSpeechWhitespace += speechOnly
+              if (!pendingSpeechWhitespace.trim())
+                return
+              speechOnly = pendingSpeechWhitespace
+              pendingSpeechWhitespace = ''
+              speechStarted = true
+            }
             buildingMessage.content += speechOnly
 
             await hooks.emitTokenLiteralHooks(speechOnly, streamingMessageContext)
