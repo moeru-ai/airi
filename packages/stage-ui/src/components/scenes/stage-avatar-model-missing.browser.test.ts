@@ -11,18 +11,30 @@ afterEach(() => {
 })
 
 describe('stage avatar model missing', () => {
-  it('names the card and asks the app to open the model settings', async () => {
+  const i18n = () => createI18n({ legacy: false, locale: 'en', messages: { en }, missingWarn: false, fallbackWarn: false })
+
+  // The title named the card and the description named it again. A card named
+  // "No Model" then read "No Model has no model". Only the description names it now.
+  it('asks for a model when the card has none and opens the model settings', async () => {
     const onSelect = vi.fn()
     const screen = render(StageAvatarModelMissing, {
-      props: { name: 'Legacy Free', onSelect },
-      global: {
-        plugins: [createI18n({ legacy: false, locale: 'en', messages: { en }, missingWarn: false, fallbackWarn: false })],
-      },
+      props: { reason: 'missing', name: 'Legacy Free', onSelect },
+      global: { plugins: [i18n()] },
     })
 
-    await expect.element(screen.getByText('Legacy Free has no model')).toBeVisible()
+    await expect.element(screen.getByText('No model selected')).toBeVisible()
+    await expect.element(screen.getByText('Select a model to show Legacy Free on the Stage.')).toBeVisible()
     await screen.getByRole('button', { name: 'Select model' }).click()
 
     expect(onSelect).toHaveBeenCalledOnce()
+  })
+
+  it('says that this device cannot load the model of the card', async () => {
+    const screen = render(StageAvatarModelMissing, {
+      props: { reason: 'unavailable', name: 'Legacy Free' },
+      global: { plugins: [i18n()] },
+    })
+
+    await expect.element(screen.getByText('This model is not on this device')).toBeVisible()
   })
 })

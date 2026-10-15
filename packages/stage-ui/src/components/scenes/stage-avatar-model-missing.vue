@@ -3,6 +3,13 @@ import { OverlayButton } from '@proj-airi/ui'
 import { useI18n } from 'vue-i18n'
 
 defineProps<{
+  /**
+   * Why the Stage is empty.
+   *
+   * - `missing`: the active card has no model.
+   * - `unavailable`: this device cannot load the model of the active card.
+   */
+  reason: 'missing' | 'unavailable'
   /** Name of the active card, shown in the message. */
   name: string
 }>()
@@ -31,7 +38,7 @@ const { t } = useI18n()
       ]"
     >
       <div :class="['text-sm font-medium']">
-        {{ t('stage.avatar-model-missing.title', { name }) }}
+        {{ reason === 'missing' ? t('stage.avatar-model-missing.title') : t('stage.avatar-model-missing.unavailable-title') }}
       </div>
       <div :class="['text-xs opacity-70']">
         {{ t('stage.avatar-model-missing.description', { name }) }}

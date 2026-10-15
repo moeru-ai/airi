@@ -53,6 +53,7 @@ describe('settings stage model store', () => {
     expect(store.stageModelSelectedDisplayModel).toBeUndefined()
     expect(store.stageModelSelectedUrl).toBeUndefined()
     expect(store.stageModelRenderer).toBe('disabled')
+    expect(store.stageModelUnavailable).toBe(true)
     expect(ensureDisplayModelSpy).toHaveBeenCalledWith('display-model-missing')
     expect(resetLegacyModelIdentity).not.toHaveBeenCalled()
   })
@@ -68,6 +69,8 @@ describe('settings stage model store', () => {
     await store.initializeStageModel()
 
     expect(store.stageModelSelected).toBe('display-model-cloud')
+    // The model still exists in the account, so the Stage does not ask for another model.
+    expect(store.stageModelUnavailable).toBe(false)
   })
 
   it('routes Tachie archives to the Tachie renderer', async () => {

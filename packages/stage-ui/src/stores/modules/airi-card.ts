@@ -142,7 +142,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   // windows, but the Character configuration remains its only durable owner.
   const selectedAvatarModelId = shallowRef<string>()
   const activeLive2DModelControls = shallowRef<Live2DModelControls>(emptyLive2DModelControls)
-  let avatarModelApplyGeneration = 0
   let live2DControlLoadGeneration = 0
   let initialized = false
   /** True after `initialize` applied the active card. Before that, no card owns the Stage. */
@@ -563,6 +562,12 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       await applyActiveAvatarModel()
     }
   }
+
+  // The display model store of each window reports the deletions that the window makes.
+  // Call through the store, so the synchronized action runs in the leader.
+  displayModels.onDisplayModelsDeleted(async (ids) => {
+    await useAiriCardStore(pinia).removeDeletedAvatarModels(ids, displayModels.displayModels.map(model => model.id))
+  })
 
   async function updateActiveCardConsciousness(consciousness: AiriExtension['modules']['consciousness']) {
     await pendingAuthenticationSetup
@@ -1238,22 +1243,10 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   }
 
   async function applyActiveAvatarModel() {
-    const generation = ++avatarModelApplyGeneration
-    const stageModel = useSettingsStageModel(pinia)
-    const avatarModel = selectedAvatarModel.value
-    let displayModelId = ''
-    if (avatarModel) {
-      // A synchronized card can select a Display Model that only another
-      // device stores. The stage shows the built-in model instead, and the
-      // card keeps its reference, so the other device still shows its model.
-      const stored = await displayModels.getDisplayModel(avatarModel.displayModelId)
-      displayModelId = stored ? avatarModel.displayModelId : BUILT_IN_DISPLAY_MODEL_ID
-    }
-    // A later selection started while this one waited for the lookup.
-    if (generation !== avatarModelApplyGeneration)
-      return
-
-    stageModel.stageModelSelected = displayModelId
+    // The stage model store loads the model, downloads it from the account when needed, and
+    // reports a model that this device cannot load. The card keeps its reference in every case,
+    // so a synchronized card still shows its model on the device that stores it.
+    useSettingsStageModel(pinia).stageModelSelected = selectedAvatarModel.value?.displayModelId ?? ''
     await loadActiveLive2DModelControls()
   }
 

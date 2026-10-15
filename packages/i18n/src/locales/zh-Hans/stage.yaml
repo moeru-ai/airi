@@ -135,7 +135,8 @@ chat:
     new-chat-fallback: 新建对话
     delete: 删除对话
 avatar-model-missing:
-  title: '{name} 还没有模型'
+  title: 还没有选择模型
+  unavailable-title: 这台设备上没有这个模型
   description: 选择一个模型，让 {name} 出现在舞台上。
   select: 选择模型
 render-error:

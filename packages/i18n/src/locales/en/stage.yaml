@@ -136,7 +136,8 @@ chat:
     new-chat-fallback: New chat
     delete: Delete conversation
 avatar-model-missing:
-  title: '{name} has no model'
+  title: No model selected
+  unavailable-title: This model is not on this device
   description: Select a model to show {name} on the Stage.
   select: Select model
 render-error:

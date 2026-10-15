@@ -53,6 +53,10 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   const stageModelSelectedUrl = refManualReset<string | undefined>(undefined)
   const stageModelRenderer = refManualReset<StageModelRenderer>(undefined)
   const stageModelBuiltInRenderer = refManualReset<BuiltInStageModelRenderer>(undefined)
+  // True when the selected model is not on this device and the account cannot download it.
+  // The Stage then asks the user to select another model. A download in progress or a failed
+  // download keeps it false, because the model still exists.
+  const stageModelUnavailable = refManualReset<boolean>(false)
 
   const stageViewControlsEnabled = refManualReset<boolean>(false)
 
@@ -111,6 +115,7 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   async function updateStageModel() {
     const requestId = ++stageModelUpdateSequence
     const selectedModelId = stageModelSelectedState.value
+    stageModelUnavailable.value = false
 
     const legacyModelIdentityReset = resetLegacyModelIdentity()
     if (legacyModelIdentityReset) {
@@ -143,6 +148,7 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     if (!model) {
       replaceStageModelUrl(undefined)
       stageModelSelectedDisplayModel.value = undefined
+      stageModelUnavailable.value = true
       stageModelBuiltInRenderer.value = 'disabled'
       if (stageModelRenderer.value !== 'godot')
         stageModelRenderer.value = 'disabled'
@@ -200,6 +206,7 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     stageModelSelectedUrl.reset()
     stageModelRenderer.reset()
     stageModelBuiltInRenderer.reset()
+    stageModelUnavailable.reset()
     stageViewControlsEnabled.reset()
 
     await updateStageModel()
@@ -210,6 +217,7 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     stageModelSelected,
     stageModelSelectedUrl,
     stageModelSelectedDisplayModel,
+    stageModelUnavailable,
     stageViewControlsEnabled,
 
     initializeStageModel,

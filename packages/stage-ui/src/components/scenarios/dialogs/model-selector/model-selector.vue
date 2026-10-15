@@ -17,7 +17,6 @@ import Live2DReportModal from './reports/live2d/modal.vue'
 import TachieReportModal from './tachieReportModal.vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../../../../stores/display-models'
-import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 
 const props = defineProps<{
   selectedModel?: DisplayModel
@@ -28,7 +27,6 @@ const emits = defineEmits<{
 }>()
 
 const displayModelStore = useDisplayModelsStore()
-const airiCardStore = useAiriCardStore()
 const { displayModelsFromIndexedDBLoading, displayModels, cloudOnlyModels, syncStatuses, syncErrors } = storeToRefs(displayModelStore)
 const { t } = useI18n()
 
@@ -37,9 +35,10 @@ const listedModels = computed(() => [
   ...cloudOnlyModels.value.map(model => ({ id: model.id, name: model.name, format: model.format as DisplayModelFormat, previewImage: undefined, cloudOnly: true })),
 ])
 
+// The card store removes the references to a deleted model. A model that the account
+// keeps stays referenced, because it can download again.
 async function handleRemoveModel(model: { id: string }) {
   await displayModelStore.removeDisplayModel(model.id)
-  await airiCardStore.removeDeletedAvatarModels([model.id], displayModels.value.map(available => available.id))
 }
 
 const highlightDisplayModelCard = ref<string | undefined>(props.selectedModel?.id)

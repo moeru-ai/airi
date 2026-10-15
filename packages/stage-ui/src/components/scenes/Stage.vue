@@ -45,6 +45,7 @@ import { useAiriCardStore } from '../../stores/modules/airi-card'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useSettingsPresenceBubble } from '../../stores/presence-bubble'
 import { useSettings } from '../../stores/settings'
+import { useSettingsStageModel } from '../../stores/settings/stage-model'
 import { useSpeechOutputControlStore } from '../../stores/speech-output-control'
 import { useVoiceStore } from '../../stores/voice'
 
@@ -261,11 +262,16 @@ function resetAssistantSpeechSurface(source: string) {
 }
 
 const { activeCardId: selectedCharacterId, activeCard, selectedAvatarModel, ready: cardsReady } = storeToRefs(useAiriCardStore())
+const { stageModelUnavailable } = storeToRefs(useSettingsStageModel())
 // Before the card store is ready, no card owns the Stage yet, so an empty Stage is not a missing model.
-const avatarModelMissing = computed(() => cardsReady.value
-  && !selectedAvatarModel.value
-  && stageModelRenderer.value === 'disabled'
-  && !stageRenderError.value)
+// `missing`: the card has no model. `unavailable`: this device cannot load the model of the card.
+const avatarModelPrompt = computed<'missing' | 'unavailable' | undefined>(() => {
+  if (!cardsReady.value || stageModelRenderer.value !== 'disabled' || stageRenderError.value)
+    return undefined
+  if (!selectedAvatarModel.value)
+    return 'missing'
+  return stageModelUnavailable.value ? 'unavailable' : undefined
+})
 const { sending: chatSending } = storeToRefs(useChatStore())
 const { presenceOverride } = storeToRefs(useSettingsPresenceBubble())
 
@@ -810,7 +816,8 @@ defineExpose({
       </div>
 
       <StageAvatarModelMissing
-        v-if="avatarModelMissing"
+        v-if="avatarModelPrompt"
+        :reason="avatarModelPrompt"
         :name="activeCard?.name ?? ''"
         @select="emit('selectAvatarModel')"
       />

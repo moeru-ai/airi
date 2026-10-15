@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { DISPLAY_MODEL_SYNC_FLAG } from '../libs/feature-flags'
 import { downloadVerified } from '../libs/file-transfer/transfer'
-import { requestDisplayModelDownload } from '../services/display-model-sync'
+import { listCloudDisplayModels, requestDisplayModelDownload } from '../services/display-model-sync'
 import { useAuthStore } from './auth'
 import { DisplayModelFormat, useDisplayModelsStore } from './display-models'
 import { useFeatureFlagsStore } from './feature-flags'
@@ -38,6 +38,7 @@ const cloudModel: CloudDisplayModel = {
 
 vi.mock('../services/display-model-sync', () => ({
   listCloudDisplayModels: vi.fn(async () => [cloudModel]),
+  deleteCloudDisplayModel: vi.fn(async () => {}),
   requestDisplayModelDownload: vi.fn(async () => ({ url: 'https://storage.test/model.zip', byteSize: 5, sha256: 'checksum' })),
 }))
 
@@ -123,5 +124,51 @@ describe('display models store', () => {
     expect(store.displayModels.some(model => model.id === cloudModel.id)).toBe(false)
     expect(localforage.setItem).not.toHaveBeenCalledWith(cloudModel.id, expect.anything())
     expect(store.syncErrors).toEqual({})
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2458#discussion_r4276337637
+  // ROOT CAUSE:
+  //
+  // The list hid models of other accounts, but a direct lookup did not. After
+  // an account switch, a card could show another account's private model.
+  //
+  // We fixed this by applying the same account check to the direct lookup.
+  it('hides a model that another account downloaded from a direct lookup', async () => {
+    signIn('owner-b')
+    const store = useDisplayModelsStore()
+    vi.mocked(localforage.getItem).mockResolvedValueOnce({
+      id: 'display-model-private',
+      format: DisplayModelFormat.Live2dZip,
+      type: 'file',
+      file: new File(['model'], 'model.zip'),
+      name: 'model.zip',
+      importedAt: 1,
+      cloudOwnerId: 'owner-a',
+    })
+
+    await expect(store.getDisplayModel('display-model-private')).resolves.toBeUndefined()
+  })
+
+  it('reports a model as deleted only when the account does not keep it', async () => {
+    const store = await startCloudSync()
+    const deleted = vi.fn()
+    store.onDisplayModelsDeleted(deleted)
+
+    await store.removeDisplayModel(cloudModel.id)
+    await store.removeDisplayModel('display-model-local')
+
+    expect(deleted.mock.calls).toEqual([[['display-model-local']]])
+  })
+
+  it('reports a model that is deleted from the account', async () => {
+    const store = await startCloudSync()
+    const deleted = vi.fn()
+    store.onDisplayModelsDeleted(deleted)
+    vi.mocked(listCloudDisplayModels).mockResolvedValueOnce([{ ...cloudModel, deletedAt: '2026-10-15T00:00:00.000Z' }])
+
+    await store.deleteCloudDisplayModel(cloudModel.id)
+
+    expect(deleted).toHaveBeenCalledWith([cloudModel.id])
+    expect(store.cloudModels).toEqual([])
   })
 })

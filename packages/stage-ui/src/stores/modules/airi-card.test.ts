@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { toRaw } from 'vue'
 
 import { splitCard } from '../../libs/character-card-sync'
+import { useDisplayModelsStore } from '../display-models'
 import { useProviderStore } from '../providers/provider'
 import { useSettingsStageModel } from '../settings/stage-model'
 import { useAiriCardStore } from './airi-card'
@@ -565,9 +566,9 @@ describe('airi-card store', () => {
 
   // ROOT CAUSE:
   //
-  // Card sync copies Avatar Model references to every device, but a Display
-  // Model file stays on one device. The cleanup removed every reference that
-  // this device could not load, and sync removed them on the other devices.
+  // Card sync copies Avatar Model references to every device, but a model file
+  // stays on one device. The cleanup removed each reference that this device
+  // could not load, and sync removed them on the other devices.
   //
   // We fixed this by removing only the deleted IDs.
   it('keeps references to Display Models that only another device stores', async () => {
@@ -597,14 +598,61 @@ describe('airi-card store', () => {
     await cardStore.activateCard(cardId)
 
     expect(cardStore.selectedAvatarModel?.displayModelId).toBe('display-model-on-other-device')
-    expect(useSettingsStageModel().stageModelSelected).toBe('preset-live2d-1')
+    expect(useSettingsStageModel().stageModelSelected).toBe('display-model-on-other-device')
 
     await cardStore.removeDeletedAvatarModels(['display-model-local'], ['preset-live2d-1', 'preset-vrm-1'])
 
     expect(cardStore.getCard(cardId)?.extensions.airi.avatarModels.map(model => model.id)).toEqual(['remote-avatar'])
     expect(cardStore.getCard(cardId)?.extensions.airi.defaultAvatarModelId).toBe('remote-avatar')
     expect(cardStore.selectedAvatarModelId).toBe('remote-avatar')
-    expect(useSettingsStageModel().stageModelSelected).toBe('preset-live2d-1')
+    expect(useSettingsStageModel().stageModelSelected).toBe('display-model-on-other-device')
+  })
+
+  it('removes the references to a model only when the model is gone from the account', async () => {
+    const cardStore = useAiriCardStore()
+    await cardStore.initialize()
+    const displayModelsStore = useDisplayModelsStore()
+
+    const cardId = await cardStore.addCard({
+      name: 'Cloud Character',
+      version: '1.0.0',
+      description: '',
+      extensions: {
+        airi: {
+          avatarModels: [
+            { id: 'cloud-avatar', displayModelId: 'display-model-cloud', type: 'vrm', config: {} },
+            { id: 'local-avatar', displayModelId: 'display-model-local', type: 'vrm', config: {} },
+          ],
+          defaultAvatarModelId: 'cloud-avatar',
+          modules: {
+            consciousness: { provider: '', model: '' },
+            vision: { provider: '', model: '' },
+            speech: { provider: '', model: '', voice_id: '' },
+          },
+          agents: {},
+        },
+      },
+    }, 'import')
+    const referencedModels = () => cardStore.getCard(cardId)?.extensions.airi.avatarModels.map(model => model.displayModelId)
+    displayModelsStore.cloudModels = [{
+      id: 'display-model-cloud',
+      format: 'vrm',
+      name: 'Cloud model',
+      originalFilename: 'cloud.vrm',
+      byteSize: 5,
+      sha256: 'checksum',
+      revision: 1,
+      createdAt: '2026-10-14T00:00:00.000Z',
+      updatedAt: '2026-10-14T00:00:00.000Z',
+      deletedAt: null,
+    }]
+
+    // Removing the local copy frees space. The account keeps the model, so it can download again.
+    await displayModelsStore.removeDisplayModel('display-model-cloud')
+    expect(referencedModels()).toEqual(['display-model-cloud', 'display-model-local'])
+
+    await displayModelsStore.removeDisplayModel('display-model-local')
+    expect(referencedModels()).toEqual(['display-model-cloud'])
   })
 
   it('does not infer a default Avatar Model from other available references', async () => {
