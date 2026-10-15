@@ -105,6 +105,7 @@ const props = withDefaults(defineProps<{
 
 const emits = defineEmits<{
   (e: 'modelLoaded'): void
+  (e: 'error', error: Error): void
 }>()
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
@@ -310,8 +311,7 @@ async function performModelLoad() {
   componentState.value = 'loading'
   const modelSource = modelSrcRef.value
   const modelId = props.modelId
-  const runtimeModelId = modelId ?? modelSource ?? 'unknown'
-  live2d.beginModelLoad(runtimeModelId)
+  live2d.beginModelLoad()
 
   if (!pixiApp.value || !pixiApp.value.stage) {
     try {
@@ -350,8 +350,8 @@ async function performModelLoad() {
     const live2DModel = new Live2DModel<PixiLive2DInternalModel>()
     await Live2DFactory.setupLive2DModel(live2DModel, { url: modelSource, id: modelId }, { autoInteract: false })
     // The unmount hook ran while the model was loading, so it had no model to destroy.
-    // A newer source or model ID also replaces this load.
-    if (isUnmounted || modelSource !== modelSrcRef.value || modelId !== props.modelId) {
+    // A newer source also replaces this load.
+    if (isUnmounted || modelSource !== modelSrcRef.value) {
       destroyModel(live2DModel)
       return
     }
@@ -563,11 +563,11 @@ async function performModelLoad() {
     emits('modelLoaded')
   }
   catch (error) {
-    if (isUnmounted || modelSource !== modelSrcRef.value || modelId !== props.modelId)
+    if (isUnmounted || modelSource !== modelSrcRef.value)
       return
 
     console.error('[Live2D] Failed to load model:', error)
-    live2d.reportError('model', error)
+    emits('error', error instanceof Error ? error : new Error(String(error)))
   }
   finally {
     modelLoading.value = false

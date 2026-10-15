@@ -143,13 +143,7 @@ defineExpose({
 </script>
 
 <template>
-  <Live2DRoot
-    v-slot="{ context: rootContext }"
-    :context="context"
-    :source="modelSrc"
-    :model-id="modelId"
-    @error="emit('error', $event)"
-  >
+  <Live2DRoot :context="context">
     <Screen v-slot="{ width, height }" relative>
       <Live2DCanvas
         ref="live2dCanvasRef"
@@ -160,12 +154,13 @@ defineExpose({
         :height="height"
         :resolution="live2dRenderScale"
         :max-fps="live2dMaxFps"
+        @error="emit('error', $event)"
       >
         <Live2DModel
           ref="live2dModelRef"
           v-model:state="componentStateModel"
-          :model-src="rootContext.source.value"
-          :model-id="rootContext.modelId.value"
+          :model-src="modelSrc"
+          :model-id="modelId"
           :app="app"
           :mouth-open-size="mouthOpenSize"
           :now-speaking="nowSpeaking"
@@ -190,6 +185,7 @@ defineExpose({
           :screen-ambient-light-mode="screenAmbientLightMode"
           :screen-ambient-light-strength="screenAmbientLightStrength"
           :screen-ambient-light-squint="screenAmbientLightSquint"
+          @error="emit('error', $event)"
         />
         <Live2DPresenceBubble
           v-if="app"

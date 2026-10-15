@@ -97,8 +97,9 @@ const canActivateExpressions = computed(() => {
   if (!live2dExpressionEnabled.value)
     return false
 
+  // A Root context lists only the expressions that the loaded model registered.
   if (props.live2dContext)
-    return props.live2dContext.phase.value === 'ready'
+    return true
 
   return props.runtimeSnapshot.ownerInstanceId.length > 0
     && props.runtimeSnapshot.renderer === 'live2d'

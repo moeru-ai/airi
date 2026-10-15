@@ -110,7 +110,7 @@ describe('shared Live2D expression previews', () => {
     const avatarModelId = shallowRef('avatar-iru')
     const scope = effectScope()
 
-    live2d.beginModelLoad('display-model-iru')
+    live2d.beginModelLoad()
     live2d.expressions.register(parseLive2DExpression('happy', 'happy.exp3.json', JSON.stringify({
       Parameters: [{ Id: 'ParamEyeSmile', Value: 1, Blend: 'Add' }],
     })))
@@ -165,7 +165,7 @@ describe('shared Live2D expression previews', () => {
     const scope = effectScope()
 
     try {
-      live2d.beginModelLoad('display-model-iru')
+      live2d.beginModelLoad()
       live2d.expressions.register(parseLive2DExpression('happy', 'happy.exp3.json', JSON.stringify({
         Parameters: [{ Id: 'ParamEyeSmile', Value: 1, Blend: 'Add' }],
       })))
@@ -211,7 +211,7 @@ describe('shared Live2D expression previews', () => {
     const live2d = createLive2D()
     const scope = effectScope()
 
-    live2d.beginModelLoad('display-model-iru')
+    live2d.beginModelLoad()
     live2d.expressions.register(parseLive2DExpression('happy', 'happy.exp3.json', JSON.stringify({
       Parameters: [{ Id: 'ParamEyeSmile', Value: 1, Blend: 'Add' }],
     })))
@@ -256,7 +256,7 @@ describe('shared Live2D expression previews', () => {
     const live2d = createLive2D()
     const scope = effectScope()
 
-    live2d.beginModelLoad('display-model-iru')
+    live2d.beginModelLoad()
     live2d.expressions.register(parseLive2DExpression('happy', 'happy.exp3.json', JSON.stringify({
       Parameters: [{ Id: 'ParamEyeSmile', Value: 1, Blend: 'Add' }],
     })))
