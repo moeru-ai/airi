@@ -3,7 +3,8 @@ import type { ToolCallGroupItem } from './tool-call-group'
 
 import en from '@proj-airi/i18n/locales/en'
 
-import { describe, expect, it } from 'vitest'
+import { createPinia, disposePinia, setActivePinia } from 'pinia'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { createI18n } from 'vue-i18n'
 
@@ -13,6 +14,14 @@ const items: ToolCallGroupItem[] = [
   { sliceIndex: 1, toolCall: { toolCallId: 'call-light', toolCallType: 'function', toolName: 'home_assistant_call_service', args: '{"entity_id":"light.bedroom"}' } },
   { sliceIndex: 3, toolCall: { toolCallId: 'call-search', toolCallType: 'function', toolName: 'web_search', args: '{"query":"village"}' } },
 ]
+
+// The group reads registered tool icons from the tools store.
+let pinia: ReturnType<typeof createPinia>
+beforeEach(() => {
+  pinia = createPinia()
+  setActivePinia(pinia)
+})
+afterEach(() => disposePinia(pinia))
 
 function mount(results: Record<number, ChatSlicesToolCallResult>) {
   return render(ChatToolCallGroup, {

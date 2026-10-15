@@ -26,6 +26,13 @@ describe('tool call groups', () => {
     expect(entries.map(entry => entry.kind === 'slice' ? entry.sliceIndex : entry.items.map(item => item.sliceIndex))).toEqual([0, [1, 3], 4, 5, [6]])
   })
 
+  // A provider can repeat a call id across rounds. Two sibling groups still need different keys.
+  it('keys groups by call id and its occurrence in the whole reply', () => {
+    const entries = groupToolCallSlices([call('same'), { type: 'text', text: 'Next' }, call('same')], () => false)
+
+    expect(entries.flatMap(entry => entry.kind === 'tool-group' ? [entry.key] : [])).toEqual(['same#0', 'same#1'])
+  })
+
   it('reads every tool name the same way', () => {
     expect(toolDisplayName('builtIn_emitSparkCommand')).toBe('Emit spark command')
     expect(toolDisplayName('home_assistant_call_service')).toBe('Home assistant call service')

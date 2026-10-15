@@ -14,7 +14,7 @@ export interface ToolCallGroupItem {
  */
 export type ChatSliceEntry
   = | { kind: 'slice', sliceIndex: number, slice: Exclude<ChatSlices, ChatSlicesToolCallResult> }
-    | { kind: 'tool-group', items: ToolCallGroupItem[] }
+    | { kind: 'tool-group', key: string, items: ToolCallGroupItem[] }
 
 /**
  * Groups consecutive generic tool calls, so one reply shows each run of calls as one line.
@@ -31,19 +31,26 @@ export type ChatSliceEntry
  */
 export function groupToolCallSlices(slices: readonly ChatSlices[], hasOwnRenderer: (toolName: string) => boolean): ChatSliceEntry[] {
   const entries: ChatSliceEntry[] = []
+  const occurrences = new Map<string, number>()
   let group: Extract<ChatSliceEntry, { kind: 'tool-group' }> | undefined
 
   for (const [sliceIndex, slice] of slices.entries()) {
     if (slice.type === 'tool-call-result')
       continue
 
-    if (slice.type === 'tool-call' && !hasOwnRenderer(slice.toolCall.toolName)) {
-      if (!group) {
-        group = { kind: 'tool-group', items: [] }
-        entries.push(group)
+    if (slice.type === 'tool-call') {
+      const occurrence = occurrences.get(slice.toolCall.toolCallId) ?? 0
+      occurrences.set(slice.toolCall.toolCallId, occurrence + 1)
+
+      if (!hasOwnRenderer(slice.toolCall.toolName)) {
+        if (!group) {
+          // A provider can repeat a call id across rounds. The occurrence in the whole reply keeps sibling groups apart.
+          group = { kind: 'tool-group', key: `${slice.toolCall.toolCallId}#${occurrence}`, items: [] }
+          entries.push(group)
+        }
+        group.items.push({ sliceIndex, toolCall: slice.toolCall })
+        continue
       }
-      group.items.push({ sliceIndex, toolCall: slice.toolCall })
-      continue
     }
 
     group = undefined

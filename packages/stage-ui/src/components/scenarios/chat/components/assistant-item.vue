@@ -165,7 +165,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
             <span :class="['text-sm font-normal', 'text-black/60 dark:text-white/65']">{{ label }}</span>
           </div>
           <div v-if="resolvedSlices.length > 0" :class="['flex flex-col gap-2 break-words', 'text-primary-700 dark:text-primary-100']">
-            <template v-for="entry in sliceEntries" :key="entry.kind === 'slice' ? entry.sliceIndex : `group-${entry.items[0]!.toolCall.toolCallId}`">
+            <template v-for="entry in sliceEntries" :key="entry.kind === 'slice' ? entry.sliceIndex : `group-${entry.key}`">
               <ChatToolCallGroup
                 v-if="entry.kind === 'tool-group'"
                 :items="entry.items"
