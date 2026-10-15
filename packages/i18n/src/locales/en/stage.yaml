@@ -91,7 +91,6 @@ chat:
     stop: 'Stop {name}'
     dismiss: 'Dismiss {name}'
     status:
-      armed: Waiting for a cue
       running: Working on
       done: Done
       failed: Not finished

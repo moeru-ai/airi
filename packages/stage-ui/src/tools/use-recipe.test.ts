@@ -58,15 +58,13 @@ describe('recipe tool', () => {
     expect(start).not.toHaveBeenCalled()
   })
 
-  it('lists usable recipes by purpose only, with auto-run recipes, and waiting proposals as the current state', () => {
-    const greet = recipe({ id: 'user:greet', name: 'Check in', instructions: 'Greet softly.', automation: { triggers: [{ source: 'chat', event: 'idle', minutes: 30 }], conditions: [] } })
-    const prompt = describeRecipesForRun([recipe({}), recipe({ id: 'user:watch', name: 'Watch', description: 'Watches a page.', background: true }), empty, greet, recipe({ id: 'model:new', name: 'Summaries', approved: false, enabled: false })])
+  it('lists usable recipes by purpose only, and waiting proposals as the current state', () => {
+    const prompt = describeRecipesForRun([recipe({}), recipe({ id: 'user:watch', name: 'Watch', description: 'Watches a page.', background: true }), empty, recipe({ id: 'model:new', name: 'Summaries', approved: false, enabled: false })])
 
     expect(prompt).toContain('- Research: Researches a purchase.')
     expect(prompt).toContain('- Watch (background): Watches a page.')
     expect(prompt).not.toContain('Compare three options')
     expect(prompt).not.toContain('Draft')
-    expect(prompt).toContain('start on their own when their trigger fires, for example after a silence: Check in.')
     expect(prompt).toContain('wait for the owner\'s approval, so you cannot start them yet: Summaries.')
     expect(prompt).toContain('overrides earlier messages about approval')
     expect(describeRecipesForRun([])).toContain('You have no recipes to use now.')

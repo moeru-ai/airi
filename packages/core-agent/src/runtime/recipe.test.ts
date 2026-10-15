@@ -30,24 +30,17 @@ describe('recipes', () => {
     const recipes = [
       recipe({}),
       recipe({ id: 'user:music', keywords: ['Play Music'] }),
-      // A keyword once started an idle reminder at once, before its silence.
-      recipe({ id: 'user:remind', keywords: ['提醒'], automation: { triggers: [{ source: 'chat', event: 'idle', minutes: 10 }], conditions: [] } }),
-      // A keyword invokes a model-timed recipe, so the model can set when it runs.
-      recipe({ id: 'user:later', keywords: ['待会'], modelTimed: true }),
     ]
 
     expect(matchKeywordRecipes(recipes, '今天想玩粥了').map(entry => entry.id)).toEqual(['user:play'])
     expect(matchKeywordRecipes(recipes, 'please play music').map(entry => entry.id)).toEqual(['user:music'])
     expect(matchKeywordRecipes(recipes, 'hello')).toEqual([])
-    expect(matchKeywordRecipes(recipes, '十分钟后提醒我')).toEqual([])
-    expect(matchKeywordRecipes(recipes, '待会叫我喝水').map(entry => entry.id)).toEqual(['user:later'])
   })
 
-  // A recipe joins the conversation unless it runs a task with a result. An auto-run recipe has no message to join.
-  it('runs a recipe in the background when it says so or starts on its own', () => {
+  // A recipe joins the conversation unless it runs a task with a result.
+  it('runs a recipe in the background when it says so', () => {
     expect(isBackgroundRecipe(recipe({}))).toBe(false)
     expect(isBackgroundRecipe(recipe({ background: true }))).toBe(true)
-    expect(isBackgroundRecipe(recipe({ automation: { triggers: [{ source: 'chat', event: 'idle', minutes: 30 }], conditions: [] } }))).toBe(true)
   })
 
   // The character only says which answer fits. Code picks what follows.

@@ -149,8 +149,8 @@ it('runs a keyword-triggered background recipe and keeps its result as a notice'
 })
 
 // ROOT CAUSE:
-// A triggered recipe and an armed task ran with no tools, so "do it with computer use in ten minutes" lost computer use when it ran.
-// The owner approved the recipe, or asked for that run, so every recipe run uses every registered tool.
+// A background recipe ran with no tools, so a task that needed computer use lost it when it ran.
+// The owner approved the recipe, so every recipe run uses every registered tool.
 it('runs a recipe with every registered tool', async () => {
   const { pinia, chat, sessions, recipes } = await setupChat(async () => 'done')
   useLlmToolsStore(pinia).addTools({
@@ -160,10 +160,10 @@ it('runs a recipe with every registered tool', async () => {
     requiresExplicitSelection: true,
     execute: async () => 'ok',
   })
-  recipes.add({ name: 'Tidy up', description: '', instructions: 'Tidy the desktop.', automation: { triggers: [{ source: 'clock', event: 'every', minutes: 10 }], conditions: [] }, keywords: [], enabled: true })
+  recipes.add({ name: 'Tidy up', description: '', instructions: 'Tidy the desktop.', background: true, keywords: [], enabled: true })
   const tidy = recipes.recipes.find(recipe => recipe.name === 'Tidy up')!
 
-  await chat.startRecipe(tidy, { parentSessionId: sessions.activeSessionId, task: 'Local time: 10:10.' })
+  await chat.startRecipe(tidy, { parentSessionId: sessions.activeSessionId, task: 'Tidy the desktop now.' })
 
   const task = () => Object.values(sessions.sessionMetas).find(meta => meta.recipeId === tidy.id)
   await expect.poll(() => task() && sessions.getSessionMessages(task()!.sessionId).find(message => message.role === 'user')?.tools).toContainEqual({ name: 'computer_use' })

@@ -7,7 +7,7 @@ import { useI18n } from 'vue-i18n'
 
 import { isOpenTask } from '../../../../stores/chat'
 
-/** Background tasks beside the conversation. An armed or running task can be stopped. A finished one shows its result until it is dismissed. */
+/** Background tasks beside the conversation. A running task can be stopped. A finished one shows its result until it is dismissed. */
 defineProps<{
   tasks: readonly BackgroundTask[]
 }>()
@@ -20,7 +20,6 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const STATUS_ICONS: Record<ChatSessionTaskStatus, string> = {
-  armed: 'i-solar:alarm-linear',
   running: 'i-eos-icons:loading',
   done: 'i-solar:check-circle-linear',
   failed: 'i-solar:danger-circle-linear',

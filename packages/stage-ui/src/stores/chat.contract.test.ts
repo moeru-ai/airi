@@ -652,26 +652,6 @@ describe('chat store contract', () => {
     expect(prompts[1]).toContain('Start with the next step.')
   })
 
-  // ROOT CAUSE:
-  // The model asked "remind you of what?", and the answer had no keyword, so that turn had no tool to set the time.
-  it('offers the arming tool to owner turns after a keyword invoked a model-timed recipe, and never to a notice', async () => {
-    const toolNames: string[][] = []
-    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, _messages: Conversation, options: any) => {
-      const tools = typeof options.tools === 'function' ? await options.tools() : options.tools
-      toolNames.push(tools.map((tool: Tool) => tool.function.name))
-      await options.onStreamEvent({ type: 'finish' })
-    })
-    useRecipesStore().add({ name: 'Remind me', description: '', instructions: 'Remind the owner.', keywords: ['提醒我'], modelTimed: true, enabled: true })
-    const store = useChatStore()
-
-    await store.send({ sessionId: 'session-1', text: 'hello' })
-    await store.send({ sessionId: 'session-1', text: '一分钟后提醒我' })
-    await store.send({ sessionId: 'session-1', text: '随便 ping 我一下' })
-    await store.notifyConversation('session-1', { source: 'recipe:Remind me', text: 'The background task finished.' })
-
-    expect(toolNames.map(names => names.includes('builtIn_armRecipe'))).toEqual([false, true, true, false])
-  })
-
   // A scene belongs to a persona. Its run reads general memories and its persona's own, and cannot save recipes.
   it('gives a scene run its card memories, the general ones, and no recipe proposals', async () => {
     sessionMetas['scene-session'] = { sessionId: 'scene-session', userId: 'local', characterId: 'discord-host', bindings: ['discord:channel:a'], createdAt: 1, updatedAt: 1 }

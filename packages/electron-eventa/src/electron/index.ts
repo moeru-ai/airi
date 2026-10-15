@@ -1,5 +1,5 @@
 import { app } from './app'
-import { powerMonitor, powerMonitorEvents } from './powerMonitor'
+import { powerMonitorEvents } from './powerMonitor'
 import { screen } from './screen'
 import { systemPreferences } from './system-preferences'
 import { window } from './window'
@@ -9,7 +9,6 @@ export { bounds, startLoopGetBounds } from './window'
 export type { BackgroundMaterialType, ResizeDirection, VibrancyType } from './window'
 
 export const electron = {
-  powerMonitor,
   screen,
   window,
   systemPreferences,

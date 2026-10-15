@@ -14,8 +14,6 @@ export { formatTimePrefix } from './messages/datetime-prefix'
 export { renderConversationPreview } from './messages/preview'
 export type { AssistantTurn, Citation, ContentSegment, Conversation, GenerationRound, ProviderContinuation, SystemTurn, ToolExecution, ToolInvocation, Turn, UserTurn } from './messages/types'
 export { createChatHooks } from './runtime/agent-hooks'
-export { checkAutomations, minutesOfDay } from './runtime/automation'
-export type { Automation, AutomationCondition, AutomationTrigger, DueRecipe, InputActivity, InputSource, Weekday } from './runtime/automation'
 export type {
   ChatAttachment,
   ChatOrchestratorLifecycleRecord,
@@ -38,7 +36,7 @@ export {
   modelKey,
   streamFrom,
 } from './runtime/llm-service'
-export { decisionOptions, isAutoRunRecipe, isBackgroundRecipe, judgeDecision, matchKeywordRecipes, MODEL_DECIDES_STEPS, usableRecipes } from './runtime/recipe'
+export { decisionOptions, isBackgroundRecipe, judgeDecision, matchKeywordRecipes, MODEL_DECIDES_STEPS, usableRecipes } from './runtime/recipe'
 export type { DecisionAction, DecisionOption, DecisionQuestion, Recipe, RecipeDecision } from './runtime/recipe'
 export {
   categorizeResponse,

@@ -6,8 +6,6 @@ import { rawTool } from '@xsai/tool'
 import { description, literal, maxLength, minLength, object, pipe, safeParse, strictObject, string, summarize, union } from 'valibot'
 import { toJsonSchema } from 'xsschema'
 
-import { ARM_RECIPE_TOOL_NAME } from './arm-recipe'
-
 export const JUDGE_RECIPE_TOOL_NAME = 'builtIn_judge'
 
 /** How the host starts a background recipe that a judged answer leads to. */
@@ -99,8 +97,6 @@ export async function createJudgeRecipeTool(options: CreateJudgeRecipeToolOption
           return 'Reply as usual.'
         if (target.decision)
           return `Next, ${judgmentSkillText(target)}`
-        if (target.modelTimed)
-          return `Set when "${target.name}" runs with ${ARM_RECIPE_TOOL_NAME}, only from the owner's words. It follows these steps then:\n${target.instructions.trim()}`
         if (target.background) {
           const started = await options.start(target)
           return started.status === 'started'

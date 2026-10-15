@@ -91,7 +91,6 @@ chat:
     stop: '停止{name}'
     dismiss: '移除{name}'
     status:
-      armed: 等待契机
       running: 进行中
       done: 已完成
       failed: 没做完

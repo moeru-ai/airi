@@ -43,7 +43,6 @@
     "./libs": "./src/libs/index.ts",
     "./models/*": "./src/models/*.ts",
     "./services/*": "./src/services/*.ts",
-    "./tools/automation-input": "./src/tools/automation-input.ts",
     "./tools/mcp": "./src/tools/mcp.ts",
     "./tools/home-assistant": "./src/tools/home-assistant.ts",
     "./stores/character": "./src/stores/character/index.ts",

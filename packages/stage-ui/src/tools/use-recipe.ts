@@ -1,7 +1,7 @@
 import type { Recipe } from '@proj-airi/core-agent'
 import type { Tool } from '@xsai/shared-chat'
 
-import { isAutoRunRecipe, usableRecipes } from '@proj-airi/core-agent'
+import { usableRecipes } from '@proj-airi/core-agent'
 import { rawTool } from '@xsai/tool'
 import { array, description, literal, maxLength, minLength, object, optional, picklist, pipe, safeParse, strictObject, string, union } from 'valibot'
 import { toJsonSchema } from 'xsschema'
@@ -49,9 +49,9 @@ export function readRecipeUse(args: string, result: unknown): { name: string, ta
   }
 }
 
-/** Instruction recipes with steps that a conversation can start. Auto-run recipes start on their triggers instead. */
+/** Instruction recipes with steps that a conversation can start. */
 function isStartable(recipe: Recipe) {
-  return recipe.instructions.trim().length > 0 && !isAutoRunRecipe(recipe)
+  return recipe.instructions.trim().length > 0
 }
 
 /** A recipe name with the keywords that invoke it. */
@@ -60,15 +60,13 @@ function withKeywords(recipe: Recipe) {
 }
 
 /**
- * Lists the recipes for the run: the usable ones by name and purpose, auto-run, model-timed, and decision recipes, and proposals that wait.
+ * Lists the recipes for the run: the usable ones by name and purpose, decision recipes, and proposals that wait.
  * Steps never appear here. A call loads them, so the list stays short and stable.
  * The list is the current state, so it overrides older tool results in history about approval.
  */
 export function describeRecipesForRun(recipes: readonly Recipe[]) {
   const usable = usableRecipes(recipes)
   const startable = usable.filter(isStartable)
-  const autoRun = usable.filter(recipe => isAutoRunRecipe(recipe) && !recipe.modelTimed)
-  const timed = usable.filter(recipe => recipe.modelTimed)
   const decisions = usable.filter(recipe => recipe.decision)
   const pending = recipes.filter(recipe => !recipe.approved)
   const lines = [
@@ -79,10 +77,6 @@ export function describeRecipesForRun(recipes: readonly Recipe[]) {
   lines.push(startable.length
     ? `Recipes you can use, enabled and approved by the owner:\n${startable.map(recipe => `- ${recipe.name}${recipe.background ? ' (background)' : ''}: ${recipe.description}`).join('\n')}`
     : 'You have no recipes to use now.')
-  if (autoRun.length)
-    lines.push(`These recipes start on their own when their trigger fires, for example after a silence: ${autoRun.map(recipe => recipe.name).join(', ')}.`)
-  if (timed.length)
-    lines.push(`These recipes run later at a time you set, after a keyword in the owner's message invokes them: ${timed.map(withKeywords).join(', ')}.`)
   if (decisions.length)
     lines.push(`These recipes are judgments. A keyword in the owner's message invokes them, and you answer them with ${JUDGE_RECIPE_TOOL_NAME}: ${decisions.map(withKeywords).join(', ')}.`)
   if (pending.length)

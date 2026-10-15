@@ -1,5 +1,3 @@
-import type { Automation } from './automation'
-
 /** A yes-or-no question. */
 interface NoulQuestion {
   type: 'noul'
@@ -23,7 +21,7 @@ export type DecisionQuestion = NoulQuestion | ChoiceQuestion
  * What one answer of a decision does. An answer without an action replies as usual.
  * - `stay-quiet`: the character reads the message and does not reply.
  * - `hint`: the character replies and keeps a sentence in mind.
- * - `recipe`: the character uses another recipe. It sets when a model-timed one runs.
+ * - `recipe`: the character uses another recipe.
  */
 export type DecisionAction
   = | { kind: 'stay-quiet' }
@@ -50,13 +48,6 @@ export interface Recipe {
   instructions: string
   /** A decision recipe asks this after its keyword appears in the owner's message, instead of giving steps. */
   decision?: RecipeDecision
-  /** When the recipe runs on its own, without a message. Such a recipe always runs in its own session. */
-  automation?: Automation
-  /**
-   * The model sets when the recipe runs, each time the owner's message invokes it by keyword.
-   * Each automation that the model sets runs the recipe once in its own session. The owner approves what the recipe does, not each time.
-   */
-  modelTimed?: boolean
   /** Words in the owner's message that invoke the recipe. Without one, only the conversation run chooses it. */
   keywords: string[]
   source: 'user' | 'model'
@@ -84,25 +75,15 @@ export function usableRecipes(recipes: readonly Recipe[]) {
   return recipes.filter(recipe => recipe.enabled && recipe.approved)
 }
 
-/** Whether a recipe runs on its own, without a message: on the owner's automation, or on one that the model sets. */
-export function isAutoRunRecipe(recipe: Recipe) {
-  return Boolean(recipe.automation?.triggers.length) || recipe.modelTimed === true
-}
-
-/** Whether a recipe runs in its own session. An auto-run recipe has no message to join, so it always does. */
+/** Whether a recipe runs in its own session. */
 export function isBackgroundRecipe(recipe: Recipe) {
-  return recipe.background === true || isAutoRunRecipe(recipe)
+  return recipe.background === true
 }
 
-/**
- * Usable recipes whose keyword trigger appears in the text. Matching ignores letter case.
- * A recipe with the owner's automation starts only on it, so a keyword never invokes it.
- * A keyword invokes a model-timed recipe, so the model can set when it runs.
- */
+/** Usable recipes whose keyword appears in the text. Matching ignores letter case. */
 export function matchKeywordRecipes(recipes: readonly Recipe[], text: string) {
   const lower = text.toLowerCase()
-  return usableRecipes(recipes).filter(recipe => !recipe.automation?.triggers.length
-    && recipe.keywords.some(keyword => keyword.trim() && lower.includes(keyword.trim().toLowerCase())))
+  return usableRecipes(recipes).filter(recipe => recipe.keywords.some(keyword => keyword.trim() && lower.includes(keyword.trim().toLowerCase())))
 }
 
 /** One answer that the character can give: the id that it answers with, the action key, and what the answer means. */

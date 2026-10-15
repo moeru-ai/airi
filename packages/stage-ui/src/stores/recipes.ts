@@ -1,6 +1,6 @@
 import type { Recipe } from '@proj-airi/core-agent'
 
-import { isAutoRunRecipe, usableRecipes } from '@proj-airi/core-agent'
+import { usableRecipes } from '@proj-airi/core-agent'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
@@ -9,7 +9,7 @@ import { computed } from 'vue'
 export type { DecisionAction, Recipe } from '@proj-airi/core-agent'
 
 /** The fields that the owner writes in the recipe editor. */
-export type RecipeFields = Pick<Recipe, 'name' | 'description' | 'instructions' | 'decision' | 'keywords' | 'automation' | 'modelTimed' | 'background'>
+export type RecipeFields = Pick<Recipe, 'name' | 'description' | 'instructions' | 'decision' | 'keywords' | 'background'>
 
 /**
  * Recipes the owner keeps: the owner's own and model proposals.
@@ -29,10 +29,6 @@ export const useRecipesStore = defineStore('recipes', () => {
   const proposalsEnabled = useLocalStorageManualReset<boolean>('recipes/proposals-enabled', true)
 
   const usable = computed(() => usableRecipes(recipes.value))
-  /** Recipes that a conversation uses: no automation, with or without keywords. */
-  const conversation = computed(() => recipes.value.filter(recipe => !isAutoRunRecipe(recipe)))
-  /** Recipes that start on their own: on the owner's automation, or on one that the model sets. Each start costs a model call. */
-  const autoRun = computed(() => recipes.value.filter(isAutoRunRecipe))
 
   function setEnabled(id: string, enabled: boolean) {
     recipes.value = recipes.value.map(recipe => recipe.id === id ? { ...recipe, enabled } : recipe)
@@ -75,8 +71,6 @@ export const useRecipesStore = defineStore('recipes', () => {
     recipes,
     usable,
     proposalsEnabled,
-    conversation,
-    autoRun,
     setEnabled,
     approve,
     add,

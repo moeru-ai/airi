@@ -1,4 +1,4 @@
-import type { Automation, ChatAttachment, ChatInvokedSkill, ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, Conversation, Recipe, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
+import type { ChatAttachment, ChatInvokedSkill, ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, Conversation, Recipe, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
 import type { GenerationProvider, GenerationRequest } from '@proj-airi/provider-inference'
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
 import type { Message } from '@xsai/shared-chat'
@@ -33,7 +33,6 @@ import {
   AIRI_CHAT_SESSION_ID_HEADER,
 } from '../libs/product-signals/headers'
 import { getSpeechBusContext, voiceGenerationEnded } from '../services/speech/bus'
-import { ARM_RECIPE_TOOL_NAME, createArmRecipeTool } from '../tools/arm-recipe'
 import { createJudgeRecipeTool, judgmentSkillText } from '../tools/judge-recipe'
 import { composeMemoryPrompt, createMemoryTools } from '../tools/memory'
 import { createProposeRecipeTool } from '../tools/propose-recipe'
@@ -109,9 +108,9 @@ export interface BackgroundTask {
   turnId?: string
 }
 
-/** Whether a background task still waits for its automation, or runs. */
+/** Whether a background task still runs. */
 export function isOpenTask(status: ChatSessionTaskStatus) {
-  return status === 'armed' || status === 'running'
+  return status === 'running'
 }
 
 /**
@@ -486,46 +485,9 @@ export const useChatStore = defineStore('chat', () => {
     })
   }
 
-  /**
-   * Arms a model-timed recipe: a task in its own session that waits for the automation that the model set.
-   * The automation check starts it once when a trigger fires. Until then, the task list shows it, and the owner can stop it.
-   */
-  async function armRecipe(recipe: Recipe, request: { parentSessionId: string, automation: Automation, note: string }): Promise<{ status: 'armed' } | { status: 'refused', reason: string }> {
-    try {
-      await chatSession.createSession(personaOf(request.parentSessionId), {
-        setActive: false,
-        hidden: true,
-        title: recipe.name,
-        parentSessionId: request.parentSessionId,
-        recipeId: recipe.id,
-        task: { status: 'armed', startedAt: Date.now(), armed: { automation: request.automation, note: request.note } },
-      })
-      return { status: 'armed' }
-    }
-    catch (error) {
-      return { status: 'refused', reason: errorMessageFrom(error) ?? 'The recipe space could not open' }
-    }
-  }
-
-  /**
-   * Starts an armed task whose automation fired. It runs once and ends, so it is the owner's request, later.
-   * It gets the tools that the owner granted to that request, and needs no second approval.
-   */
-  async function startArmedTask(recipe: Recipe, sessionId: string, task: string) {
-    const parentSessionId = chatSession.sessionMetas[sessionId]?.parentSessionId
-    if (parentSessionId && await chatSession.setSessionTask(sessionId, { status: 'running', startedAt: Date.now() }, ['armed']))
-      runInBackground(recipe, sessionId, { parentSessionId, task, tools: recipeRunTools() })
-  }
-
-  /** Deletes an armed task whose one event fired without a run, because a condition said no. */
-  async function discardArmedTask(sessionId: string) {
-    if (chatSession.sessionMetas[sessionId]?.task?.status === 'armed')
-      await deleteTaskSession(sessionId)
-  }
-
-  /** Stops a background task. An armed task never starts, and a running one is cancelled without a result. */
+  /** Stops a background task. A running one is cancelled without a result. */
   async function stopBackgroundTask(sessionId: string) {
-    if (!await chatSession.setSessionTask(sessionId, { status: 'interrupted', endedAt: Date.now() }, ['armed', 'running']))
+    if (!await chatSession.setSessionTask(sessionId, { status: 'interrupted', endedAt: Date.now() }, ['running']))
       return
     // The task can still be preparing, before its turn is active, so every request of its session stops.
     abortSessionRequests(sessionId, new DOMException('Background task stopped', 'AbortError'))
@@ -616,7 +578,6 @@ export const useChatStore = defineStore('chat', () => {
   /**
    * What each invoked recipe gives the owner's message. It is stored with the message, so later replies keep it.
    * A background recipe keeps its steps in its own space, so the message only says that it runs.
-   * A model-timed recipe runs later, so the message asks the model to set when.
    * A decision gives only its question and answers. The judgment tool feeds what follows the answer.
    */
   function invokedSkillsOf(invoked: readonly Recipe[]): ChatInvokedSkill[] | undefined {
@@ -626,14 +587,9 @@ export const useChatStore = defineStore('chat', () => {
       name: recipe.name,
       instructions: recipe.decision
         ? judgmentSkillText(recipe)
-        : recipe.modelTimed
-          ? [
-              `It runs later. Set when with ${ARM_RECIPE_TOOL_NAME}, only from the owner's words, and add nothing that the owner did not ask for. If the owner gave no time or event, ask. Do not do its task now. Reply briefly when it is set.`,
-              `When it runs, it follows these steps:\n${recipe.instructions.trim()}`,
-            ].join('\n')
-          : isBackgroundRecipe(recipe)
-            ? 'It runs in the background for this message, and its result reaches you later. Reply briefly, and do not do its task yourself.'
-            : recipe.instructions.trim(),
+        : isBackgroundRecipe(recipe)
+          ? 'It runs in the background for this message, and its result reaches you later. Reply briefly, and do not do its task yourself.'
+          : recipe.instructions.trim(),
     }))
   }
 
@@ -1220,7 +1176,6 @@ export const useChatStore = defineStore('chat', () => {
     if (!await chatSession.loadSession(payload.sessionId))
       throw new Error('Failed to load the target chat session')
     const reachable = reachableRecipesFor(payload, extra, invoked)
-    const armable = reachable.filter(recipe => recipe.modelTimed)
     const decisions = reachable.filter(recipe => recipe.decision)
 
     signal.throwIfAborted()
@@ -1309,14 +1264,6 @@ export const useChatStore = defineStore('chat', () => {
         return [
           ...llmToolsStore.getToolsByNames(...references.map(tool => tool.name)),
           await createWakeWordTool({ characterId, setWords: wakeWords.setWords }),
-          ...(armable.length
-            ? await createArmRecipeTool({
-                recipes: armable,
-                arm: (recipe, armed) => armRecipe(recipe, { parentSessionId: payload.sessionId, ...armed }),
-                // A repeating run needs the owner's approval, so it is a proposal, and the owner can turn proposals off.
-                ...(recipes.proposalsEnabled ? { propose: (recipe: Parameters<typeof recipes.propose>[0]) => void recipes.propose(recipe) } : {}),
-              })
-            : []),
           ...(decisions.length
             ? await createJudgeRecipeTool({
                 decisions,
@@ -1346,9 +1293,8 @@ export const useChatStore = defineStore('chat', () => {
       done: prepared.then(value => value.done),
     }
     // A background recipe starts once the owner's message is stored, so its task never runs for a refused send.
-    // A model-timed recipe starts later, on the automation that this turn sets.
     void request.accepted.then(() => {
-      for (const recipe of invoked.filter(recipe => isBackgroundRecipe(recipe) && !recipe.modelTimed))
+      for (const recipe of invoked.filter(isBackgroundRecipe))
         void startRecipe(recipe, { parentSessionId: payload.sessionId, task: `The owner said: ${payload.text}` })
     }).catch(() => {})
 
@@ -1550,8 +1496,6 @@ export const useChatStore = defineStore('chat', () => {
     retry,
     send,
     startRecipe,
-    startArmedTask,
-    discardArmedTask,
     stopBackgroundTask,
     dismissBackgroundTask,
     notifyConversation,

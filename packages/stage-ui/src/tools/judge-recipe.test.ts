@@ -8,7 +8,7 @@ function recipe(overrides: Partial<Recipe>): Recipe {
   return { id: 'user:recipe', name: 'Recipe', description: '', instructions: '', keywords: ['烦'], source: 'user', enabled: true, approved: true, ...overrides }
 }
 
-const remind = recipe({ id: 'user:remind', name: 'Remind me', instructions: 'Remind the owner.', modelTimed: true })
+const remind = recipe({ id: 'user:remind', name: 'Remind me', instructions: 'Remind the owner.' })
 const research = recipe({ id: 'user:research', name: 'Research', instructions: 'Compare options.', background: true })
 const mood = recipe({
   id: 'user:mood',
@@ -57,7 +57,7 @@ describe('judgment tool', () => {
   // A judgment always commits to one answer, so the next step always follows the answer that the character picked.
   it('feeds the next step of the answer that the character picked', async () => {
     expect((await judge({ name: 'Annoyed', answer: 'yes' })).result).toEqual({ status: 'judged', name: 'Annoyed', answer: 'Annoyed', next: 'Reply, and keep this in mind: Keep it short.' })
-    expect((await judge({ name: 'Later', answer: 'yes' })).result.next).toContain('Set when "Remind me" runs with builtIn_armRecipe')
+    expect((await judge({ name: 'Later', answer: 'yes' })).result.next).toBe('Follow the steps of "Remind me":\nRemind the owner.')
     expect((await judge({ name: 'Later', answer: 'no' })).result.next).toBe('Reply as usual.')
   })
 

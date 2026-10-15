@@ -27,7 +27,6 @@ import { useContextObservabilityStore } from '../../devtools/context-observabili
 import { useConsciousnessStore } from '../../modules/consciousness'
 import { useModsServerChannelStore } from './channel-server'
 import { createContextChannel } from './context-channel'
-import { useModuleDirectoryStore } from './module-directory'
 
 export function normalizeContextSnapshot<C extends Pick<ChatStreamEventContext, 'contexts'>>(contexts: C): C {
   return {
@@ -57,7 +56,6 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
   const chatContext = useChatContextStore()
   const serverChannelStore = useModsServerChannelStore()
   const contextObservability = useContextObservabilityStore()
-  const moduleDirectory = useModuleDirectoryStore()
   const characterOrchestratorStore = useCharacterOrchestratorStore()
   const consciousnessStore = useConsciousnessStore()
   const { activeProvider, activeModel, activeTemperature, activeTopP } = storeToRefs(consciousnessStore)
@@ -721,8 +719,6 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }
       })
       disposeHookFns.value.push(stopSparkNotifyBridgeWatch)
-
-      disposeHookFns.value.push(moduleDirectory.listen())
 
       // A module that leaves takes its observations with it.
       disposeHookFns.value.push(serverChannelStore.onEvent('extension:module:de-announced', (event) => {
