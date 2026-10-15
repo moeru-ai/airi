@@ -82,6 +82,7 @@ chat:
     discard: Descartar borrador
     listening: Escuchando
     finalizing: Finalizando…
+    sent: Enviado
   voice-input: Entrada de voz
   error-details:
     show: Mostrar detalles

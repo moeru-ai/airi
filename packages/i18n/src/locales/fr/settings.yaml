@@ -335,10 +335,15 @@ pages:
             label: Saisissez votre adresse e-mail pour confirmer
             mismatch: L’adresse e-mail ne correspond pas.
           confirm: Envoyer l’e-mail de confirmation
+          deleteNow: Supprimer définitivement
+          confirmPhrase: Saisissez DELETE pour confirmer
+          signInAgain: Se reconnecter
           cancel: Annuler
         message:
+          deleted: Votre compte a été supprimé.
           emailSent: Consultez {email} pour le lien de suppression.
         error:
+          reauthenticate: Reconnectez-vous, puis revenez ici pour confirmer la suppression. Aucun e-mail n’est envoyé.
           fallback: Impossible de lancer la suppression. Réessayez plus tard.
           subscriptionActive: Votre abonnement est encore actif. Annulez-le d’abord sur la page Capacitor, puis supprimez votre compte.
   card:
@@ -847,6 +852,11 @@ pages:
               preparing: Préparation du modèle de mots d’activation…
               ready: Les mots d’activation sont prêts.
               error: 'Le modèle de mots d’activation est indisponible : {error}'
+          end-judge:
+            title: Fin de la prise de parole
+            description: Lorsque vous faites une pause, un modèle de conversation lit la transcription et détermine si vous avez terminé. Sinon, AIRI attend 3 secondes de plus pour que vous puissiez continuer.
+            enabled: Vérifier si j’ai fini de parler
+            enabled-description: La transcription de chaque pause est envoyée au modèle de réécriture. Si cette option est désactivée, AIRI met fin à votre prise de parole après une courte pause.
           rephrase:
             title: Réécriture des transcriptions
             description: Un modèle de conversation corrige les erreurs de reconnaissance et retire les mots de remplissage avant la création du brouillon. Le texte original est conservé.
@@ -1276,6 +1286,7 @@ pages:
         headers:
           label: En-têtes
           description: En-têtes envoyés avec chaque requête, comme un jeton d’autorisation.
+          value-placeholder: Jeton Bearer
         command:
           label: Commande
           description: Exécutable lancé via stdio.
@@ -1496,7 +1507,7 @@ pages:
       free: Gratuit
       paid: Payant
       internal: Interne
-      cloud: Nuage
+      cloud: Cloud
     categories:
       chat:
         title: Discussion
