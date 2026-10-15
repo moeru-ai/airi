@@ -56,7 +56,7 @@ The voiceprint stays on the device:
 
 The voiceprint does not expire. The user deletes it on the Voiceprint settings page, or with Delete all data.
 
-A deletion also saves its time under `settings/voice/voiceprint-deleted-at`. An enrollment that started before the last deletion does not save, so an enrollment in another tab cannot restore a deleted voiceprint. Delete all data removes the voiceprint before its other steps, so a failed step cannot keep it.
+A deletion also saves its time under `settings/voice/voiceprint-deleted-at`. An enrollment that started before the last deletion does not save. A deletion in another tab stops a save only after the deletion reaches the tab of the enrollment. Delete all data removes the voiceprint before its other steps, so a failed step cannot keep it.
 
 Desktop does not encrypt the voiceprint with Electron `safeStorage`. Web and Pocket have no matching mechanism, and the same store serves all hosts.
 
@@ -72,6 +72,7 @@ The Voiceprint settings page tells the user what a voiceprint is, that it stays 
 - The lease does not stop speech output. If the character speaks during the recording, echo cancellation must remove the voice, or the tracker rejects the recording. How much echo cancellation removes in a second window is not measured.
 - On desktop, the settings window opens a second stream of the microphone while the host holds its own. Chromium supports this. The effect on echo cancellation and automatic gain of the host stream is not measured.
 - Wake word detection continues during the recording. A detected wake word cannot start an input, but it can create an empty chat session for its character. Voice messages have the same behavior.
+- Local storage has no lock across tabs. A save in one tab and a deletion in another tab can happen at the same time. The save then restores the deleted voiceprint. Desktop has one settings window, and the Voiceprint page and Delete all data both run in it. So only stage-web with two open tabs has this race.
 
 ## Verification
 
