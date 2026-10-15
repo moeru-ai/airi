@@ -10,7 +10,7 @@ import { APIError } from 'better-auth'
 import { createAuthEndpoint, createAuthMiddleware, dispatchAuthEndpoint, formCsrfMiddleware, sensitiveSessionMiddleware, signInSocial } from 'better-auth/api'
 import { setSessionCookie } from 'better-auth/cookies'
 import { createRemoteJWKSet, errors, jwtVerify } from 'jose'
-import { minLength, object, optional, parse, pipe, strictObject, string, ValiError } from 'valibot'
+import { literal, minLength, object, optional, parse, pipe, safeParse, strictObject, string, ValiError } from 'valibot'
 
 import { assertAppleAuthorizationForDeletion, createAppleClientSecret } from '../social-authorization'
 
@@ -23,6 +23,7 @@ const credentialSchema = strictObject({
 })
 const claimsSchema = object({ sub: nonempty, aud: nonempty, nonce: optional(nonempty) })
 const tokensSchema = object({ access_token: nonempty, refresh_token: nonempty, id_token: nonempty })
+const invalidGrantSchema = object({ error: literal('invalid_grant') })
 const signInSchema = object({ token: nonempty, user: object({ id: nonempty }) })
 
 /** Exchanges native Apple authorization and repairs only the authenticated user's existing Apple link. */
@@ -61,7 +62,7 @@ export function appleNative(env: AuthEnv, fetchRequest: typeof fetch = fetch, ke
       })
       if (!response.ok) {
         const body: unknown = await response.json().catch(() => null)
-        if (response.status === 400 && body && typeof body === 'object' && 'error' in body && body.error === 'invalid_grant')
+        if (response.status === 400 && safeParse(invalidGrantSchema, body).success)
           throw new APIError('BAD_REQUEST', { code: 'APPLE_CODE_REJECTED', message: 'Authorize with Apple again.' })
         throw new APIError('BAD_GATEWAY', { code: 'BAD_GATEWAY', message: 'Apple code exchange failed.' })
       }

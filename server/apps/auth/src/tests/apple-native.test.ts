@@ -161,6 +161,7 @@ describe('native Apple authorization', () => {
 
   it.each([
     ['invalid-grant', 400],
+    ['malformed-error', 502],
     ['apple-5xx', 502],
     ['network', 503],
     ['jwks', 503],
@@ -172,6 +173,8 @@ describe('native Apple authorization', () => {
     const body = await credential()
     if (scenario === 'invalid-grant')
       fetchRequest.mockResolvedValue(Response.json({ error: 'invalid_grant' }, { status: 400 }))
+    if (scenario === 'malformed-error')
+      fetchRequest.mockResolvedValue(Response.json({ error: { code: 'invalid_grant' } }, { status: 400 }))
     if (scenario === 'apple-5xx')
       fetchRequest.mockResolvedValue(new Response(null, { status: 503 }))
     if (scenario === 'network')
