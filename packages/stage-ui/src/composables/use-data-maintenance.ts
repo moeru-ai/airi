@@ -26,6 +26,7 @@ import { useWebSearchStore } from '../stores/modules/web-search'
 import { useOnboardingStore } from '../stores/onboarding'
 import { useProviderStore } from '../stores/providers/provider'
 import { useSettings, useSettingsAudioDevice } from '../stores/settings'
+import { useVoiceprintStore } from '../stores/voiceprint'
 
 export function useDataMaintenance() {
   const chatStore = useChatSessionStore()
@@ -52,6 +53,7 @@ export function useDataMaintenance() {
   const mcpStore = useMcpStore()
   const onboardingStore = useOnboardingStore()
   const airiCardStore = useAiriCardStore()
+  const voiceprintStore = useVoiceprintStore()
 
   async function deleteAllModels() {
     await displayModelsStore.resetDisplayModels()
@@ -120,6 +122,8 @@ export function useDataMaintenance() {
   }
 
   async function deleteAllData() {
+    // The voiceprint identifies the user. Remove it first, so a failed cleanup step below cannot keep it.
+    voiceprintStore.remove()
     await deleteAllModels()
     await resetProvidersSettings()
     await resetModulesSettings()

@@ -1,4 +1,4 @@
-import type { SpeakerTracker } from '@sherpaw/speaker-diarization'
+import type { SpeakerTracker, SpeakerVoiceprint } from '@sherpaw/speaker-diarization'
 
 import { speakerModel } from '@proj-airi/stage-shared/speaker-model'
 
@@ -22,4 +22,21 @@ export async function loadSpeakerTracker(signal: AbortSignal): Promise<SpeakerTr
   signal.throwIfAborted()
 
   return createSpeakerTracker({ model, signal }, { worker: new SpeakerWorker() })
+}
+
+/**
+ * Computes the voiceprint of one person from their speech, in a tracker Worker of its own.
+ *
+ * Pass speech only, at least 5 s of it. The tracker rejects audio with more than one voice.
+ * The Worker ends when this function settles, so enrollment does not keep the model in memory.
+ */
+export async function computeVoiceprint(speech: Float32Array, sampleRate: number, signal: AbortSignal): Promise<SpeakerVoiceprint> {
+  const tracker = await loadSpeakerTracker(signal)
+  try {
+    const speaker = await tracker.enroll(speech, sampleRate)
+    return await tracker.voiceprint(speaker)
+  }
+  finally {
+    tracker.dispose()
+  }
 }

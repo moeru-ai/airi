@@ -551,3 +551,14 @@
       part-of-speech: noun
       status: preferred
       context: No Voice Packs available
+
+- id: voiceprint
+  subject: sound
+  translatable: true
+  definition: Numbers that a model computes from the speech of one person, so that the application can recognize that person's voice.
+  note: It contains no audio. It is not a recording, a voice sample, or a Voice Pack.
+  terms:
+    - text: Voiceprint
+      part-of-speech: noun
+      status: preferred
+      context: A voiceprint is a list of numbers that the voiceprint model computes from your speech.

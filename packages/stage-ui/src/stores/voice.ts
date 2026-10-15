@@ -28,6 +28,7 @@ import { useChatStore } from './chat'
 import { useChatSessionStore } from './chat/session-store'
 import { startsInputOnSpeech, useHearingStore } from './modules/hearing'
 import { useSettingsAudioDevice } from './settings/audio-device'
+import { useVoiceCaptureLeaseStore } from './voice-capture-lease'
 import { useVoiceMessagesStore } from './voice-messages'
 import { useWakeWordDetectionStore } from './wake-word-detection'
 
@@ -50,6 +51,7 @@ export const useVoiceStore = defineStore('voice', () => {
   const chat = useChatStore()
   const sessions = useChatSessionStore()
   const voiceMessages = useVoiceMessagesStore()
+  const captureLease = useVoiceCaptureLeaseStore()
   const speaking = useSpeakingStore()
   const streamingControl = useLlmStreamingControlStore()
   const wakeWordDetection = useWakeWordDetectionStore()
@@ -166,7 +168,10 @@ export const useVoiceStore = defineStore('voice', () => {
     return controller.beginInput(options)
   }
 
+  /** Begins an input that a control ends. Returns nothing while another window holds a capture lease. */
   function beginManual(sessionId: string) {
+    if (captureLease.held)
+      return undefined
     beginCause = 'control'
     try {
       return beginInput({ sessionId, interruptTurns: activeTurns.value.filter(turn => turn.sessionId === sessionId), start: { kind: 'after-silence' } })
@@ -316,6 +321,12 @@ export const useVoiceStore = defineStore('voice', () => {
     const opened = new Set<string>()
     const stops = [
       voiceMessages.connect(),
+      captureLease.connect(),
+      // Automatic inputs stop at the `enabled` check of the voice activity plugin. Manual inputs do not, so end them here.
+      watch(() => captureLease.held, (held) => {
+        if (held)
+          controller.activeInput?.cancel('Another window holds the microphone')
+      }),
       publishInputLevel(),
       context.on(voiceGenerationEnded, ({ body }) => {
         if (!body)
@@ -334,6 +345,8 @@ export const useVoiceStore = defineStore('voice', () => {
               return { status: 'closed' }
 
             const attempt = beginManual(command.sessionId)
+            if (!attempt)
+              return { status: 'closed' }
             inputRequests.set(command.requestId, attempt)
             if (command.target === 'composer')
               composerInputs.set(attempt.id, undefined)
@@ -483,7 +496,8 @@ export const useVoiceStore = defineStore('voice', () => {
         beginCause = cause
       },
       detectWakeWord: options.detectWakeWord ?? wakeWords?.detect,
-      enabled: () => !voiceMessages.isRecording,
+      // A capture lease, for example a voiceprint enrollment, records speech that can contain a wake word. It must not start an input.
+      enabled: () => !voiceMessages.isRecording && !captureLease.held,
       silenceMs: () => hearing.endJudgeEnabled ? VOICE_END_SILENCE.pauseMs + VOICE_END_SILENCE.graceMs : VOICE_END_SILENCE.pauseMs,
       // Automatic barge-in requires platform echo cancellation or an external echo classifier.
       acceptSpeech: options.acceptSpeech ?? (async () => !speaking.nowSpeaking || devices.source.echoCancellation),
