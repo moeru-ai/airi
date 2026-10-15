@@ -41,7 +41,8 @@ vi.mock('@proj-airi/stage-ui/stores/auth', async () => {
   return { useAuthStore: () => auth }
 })
 
-function mountControlsIsland() {
+/** `transitions` renders Vue transitions instead of stubs, so a test sees the elements that a user sees. */
+function mountControlsIsland(options: { transitions?: boolean } = {}) {
   const pinia = createPinia()
   const dock = ref('bottom-right' as const)
   const screen = render(ControlsIsland, {
@@ -56,6 +57,7 @@ function mountControlsIsland() {
       },
       plugins: [pinia, createI18n({ legacy: false, locale: 'en', messages: { en } })],
       directives: { 'track-button': {} },
+      stubs: { transition: !options.transitions },
     },
   })
   const device = useSettingsAudioDevice(pinia)
@@ -74,6 +76,7 @@ afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
   localStorage.clear()
+  document.documentElement.style.lineHeight = ''
 })
 
 describe('controls Island microphone', () => {
@@ -137,5 +140,21 @@ describe('controls Island microphone', () => {
 
     await expect.element(screen.getByTestId('hearing-config-dialog')).toBeVisible()
     expect(askPermission).not.toHaveBeenCalled()
+  })
+
+  it('keeps the microphone button in place when the microphone turns on', async () => {
+    // The tooltip trigger lays out the button on a line, so the button's baseline decides its position.
+    // A taller line makes a moved baseline visible as a moved button.
+    document.documentElement.style.lineHeight = '2'
+    const { screen, askPermission } = mountControlsIsland({ transitions: true })
+    askPermission.mockResolvedValue(true)
+    const microphone = screen.getByTestId('controls-island-microphone')
+    await expect.element(microphone).toBeVisible()
+    const before = microphone.element().getBoundingClientRect().top
+
+    await microphone.click()
+
+    await vi.waitFor(() => expect(microphone.element().querySelector('svg')).not.toBeNull())
+    expect(microphone.element().getBoundingClientRect().top).toBe(before)
   })
 })

@@ -273,18 +273,18 @@ live2d:
   clear-model-cache: Clear model cache
   expressions:
     title: Expressions
+    description: Activate an Expression temporarily or choose whether AIRI can use it.
     override-toggle: Expression system
     sdk-preset-preserved-notice: >
       SDK expression manager and eye blink are preserved when disabled.
     no-expression: No expressions available for this model.
-    llm-integration-wip: LLM tool integration is not yet wired up.
-    save-default: Save expression defaults
     reset: Reset all expressions
-    expose-to-llm-toggle: Expose to LLM
-    expose-to-llm-options:
-      none: None
-      all: All
-      custom: Custom
+    parameter-count: '{count} parameters'
+    actions:
+      activate: 'Activate {name}'
+      deactivate: 'Deactivate {name}'
+      show-to-airi: 'Make {name} available to AIRI'
+      hide-from-airi: 'Hide {name} from AIRI'
 microphone: Microphone
 models: Model
 pages:
@@ -509,7 +509,7 @@ pages:
         systemprompt: You will receive messages, answer to them like a real human.
         posthistoryinstructions: Remember to imitate an human.
       modules_info: >-
-        Configure modules for this character card. Empty fields inherit global settings.
+        Configure modules for this character card. Empty chat, vision, and speech fields inherit global settings. No Body Model disables the renderer.
       sections:
         chat: Chat
         vision: Vision
@@ -518,6 +518,7 @@ pages:
       use_default: Use default
       use_default_not_configured: Use default (not configured)
       inherit_global_settings: Inherit global settings
+      no_model: No model
       fields_info:
         subtitle: >-
           You can put here some details about the character you are creating,
@@ -887,6 +888,33 @@ pages:
           choose: '{name} ("{word}")'
           answered-by: '{name} answers'
           unresolved: No character answers this pronunciation.
+      voiceprint:
+        title: Voiceprint
+        description: Enroll your voice, so that AIRI can recognize it.
+        intro: A voiceprint is a list of numbers that the voiceprint model computes from your speech. It contains no audio, but it can identify you.
+        privacy: AIRI keeps your voiceprint only on this device. Card export does not include it, and AIRI does not upload it. To delete it, use Delete voiceprint on this page, or Delete all data in Data settings.
+        unused: No feature uses the voiceprint yet.
+        download: The first enrollment downloads the voiceprint model, about 28 MB.
+        status:
+          none: You have no voiceprint.
+          enrolled: 'Enrolled on {date}, from {seconds} s of speech.'
+          outdated: The voiceprint model changed. Enroll again to use your voiceprint.
+        instructions: Stay alone near the microphone. Click Start recording, then read these sentences aloud in your usual voice.
+        sentence-1: Today I want to check the weather, read my messages, and plan the rest of my day.
+        sentence-2: I usually talk to AIRI in the evening, when the room is quiet and I have some free time.
+        sentence-3: Please remember my voice, so that you can tell when I am the one who speaks.
+        progress: '{seconds} s of speech. Enrollment needs at least {min} s.'
+        start: Start recording
+        again: Enroll again
+        finish: Finish
+        cancel: Cancel
+        delete: Delete voiceprint
+        enrolling: Computing your voiceprint...
+        result:
+          enrolled: Your voiceprint is saved.
+          cancelled: Enrollment cancelled.
+          too-short: 'The recording had {seconds} s of speech. Enrollment needs at least {min} s. Record again.'
+          error: 'Enrollment failed: {error}'
       sections:
         section:
           provider-selection:
