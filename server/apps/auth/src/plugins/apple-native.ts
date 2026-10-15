@@ -7,12 +7,12 @@ import type { AuthEnv } from '../env'
 import { createHash } from 'node:crypto'
 
 import { APIError } from 'better-auth'
-import { createAuthEndpoint, createAuthMiddleware, dispatchAuthEndpoint, formCsrfMiddleware, sensitiveSessionMiddleware, signInSocial } from 'better-auth/api'
+import { createAuthEndpoint, dispatchAuthEndpoint, formCsrfMiddleware, sensitiveSessionMiddleware, signInSocial } from 'better-auth/api'
 import { setSessionCookie } from 'better-auth/cookies'
 import { createRemoteJWKSet, errors, jwtVerify } from 'jose'
 import { literal, minLength, object, optional, parse, pipe, safeParse, strictObject, string, ValiError } from 'valibot'
 
-import { assertAppleAuthorizationForDeletion, createAppleClientSecret } from '../social-authorization'
+import { createAppleClientSecret } from '../social-authorization'
 
 const nonempty = pipe(string(), minLength(1))
 const credentialSchema = strictObject({
@@ -24,7 +24,6 @@ const credentialSchema = strictObject({
 const claimsSchema = object({ sub: nonempty, aud: nonempty, nonce: optional(nonempty) })
 const tokensSchema = object({ access_token: nonempty, refresh_token: nonempty, id_token: nonempty })
 const invalidGrantSchema = object({ error: literal('invalid_grant') })
-const invalidTokenSchema = object({ code: literal('INVALID_TOKEN') })
 const signInSchema = object({ token: nonempty, user: object({ id: nonempty }) })
 
 /** Exchanges native Apple authorization and repairs only the authenticated user's existing Apple link. */
@@ -79,45 +78,16 @@ export function appleNative(env: AuthEnv, fetchRequest: typeof fetch = fetch, ke
       // Preserve retryable provider failures without exposing credentials or upstream bodies.
       if (error instanceof APIError)
         throw error
-      if (error instanceof ValiError || error instanceof errors.JWTClaimValidationFailed || error instanceof errors.JWTExpired
-        || error instanceof errors.JWSSignatureVerificationFailed || error instanceof errors.JWSInvalid
-        || error instanceof errors.JWTInvalid || error instanceof errors.JOSEAlgNotAllowed
-        || error instanceof errors.JWKSNoMatchingKey) {
+      if (error instanceof ValiError || (error instanceof errors.JOSEError
+        && !(error instanceof errors.JWKSTimeout) && !(error instanceof errors.JWKSInvalid))) {
         throw new APIError('UNAUTHORIZED', { code: 'APPLE_AUTHORIZATION_FAILED', message: 'Apple authorization failed. Try again.' })
       }
       throw new APIError('SERVICE_UNAVAILABLE', { code: 'SERVICE_UNAVAILABLE', message: 'Apple authorization is temporarily unavailable.' })
     }
   }
 
-  // NOTICE:
-  // Deletion preflight must apply bearer/OIDC hooks without issuing a session JWT.
-  // Direct session reads miss those header transformations. The get-session hook also issues a JWT.
-  // Source: Better Auth 1.6.25 dispatchAuthEndpoint and plugins/jwt/index.mjs get-session hook.
-  // When Better Auth supports a hook-aware session read without JWT issuance, remove this endpoint.
-  const deletionPreflight = createAuthEndpoint('/apple-deletion-preflight', {
-    method: 'GET',
-    use: [sensitiveSessionMiddleware],
-  }, async (ctx) => {
-    assertAppleAuthorizationForDeletion(await ctx.context.internalAdapter.findAccounts(ctx.context.session.user.id))
-    return ctx.json({ success: true })
-  })
-
   return {
     id: 'apple-native',
-    hooks: {
-      before: [{
-        matcher: ctx => ctx.path === '/delete-user',
-        // Dispatch a session read so bearer/OIDC header changes are applied before the preflight.
-        handler: createAuthMiddleware(async (ctx) => {
-          await dispatchAuthEndpoint(deletionPreflight, {
-            ...ctx,
-            method: 'GET',
-            body: undefined,
-            asResponse: false,
-          })
-        }),
-      }],
-    },
     endpoints: {
       signInAppleNative: createAuthEndpoint('/sign-in/apple-native', {
         method: 'POST',
@@ -130,12 +100,6 @@ export function appleNative(env: AuthEnv, fetchRequest: typeof fetch = fetch, ke
           asResponse: true,
           body: { provider: 'apple', idToken: { token: ctx.body.identityToken, nonce: ctx.body.nonce, user: ctx.body.user } },
         })
-        if (response instanceof Response && response.status === 401) {
-          const failure: unknown = await response.clone().json()
-          // The proof already passed verification. A second provider key lookup can still fail.
-          if (safeParse(invalidTokenSchema, failure).success)
-            throw new APIError('BAD_GATEWAY', { code: 'BAD_GATEWAY', message: 'Apple provider verification is temporarily unavailable.' })
-        }
         if (!(response instanceof Response) || !response.ok)
           return response
         const signedIn = parse(signInSchema, await response.clone().json())
