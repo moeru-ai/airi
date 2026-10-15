@@ -1125,8 +1125,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         console.error('Assistant response observer failed:', error)
       }
 
-      // A reply with no text and no tool call is silence. It leaves no assistant message and no reply hooks.
-      const silent = !fullText.trim() && !buildingMessage.slices.some(slice => slice.type === 'tool-call')
+      // A notice lets the conversation stay quiet. A reply to it with no text and no tool call leaves no assistant message and no reply hooks.
+      const silent = Boolean(options.notice) && !fullText.trim() && !buildingMessage.slices.some(slice => slice.type === 'tool-call')
       if (!silent && !shouldAbort() && (buildingMessage.slices.length > 0 || generatedTurn?.rounds.length)) {
         const finalAssistant = buildingMessage
         finalAssistant.completedAt = now()
