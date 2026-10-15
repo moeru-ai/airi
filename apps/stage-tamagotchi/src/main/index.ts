@@ -295,7 +295,7 @@ app.whenReady().then(async () => {
     build: ({ dependsOn }) => setupAboutWindowReusable(dependsOn),
   })
   const inlayWindow = injeca.provide('windows:inlay', {
-    dependsOn: { i18n, serverChannel, globalShortcut },
+    dependsOn: { i18n, serverChannel, globalShortcut, appConfig },
     build: ({ dependsOn }) => setupInlayWindowReusable(dependsOn),
   })
 
@@ -344,7 +344,7 @@ app.whenReady().then(async () => {
   })
 
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { editorWindow, settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpManager, i18n, onboardingWindowManager, inlayWindow, appleSpeechTranscription, appleVision, ioTraceRecording, globalShortcut },
+    dependsOn: { editorWindow, settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpManager, i18n, onboardingWindowManager, inlayWindow, appleSpeechTranscription, appleVision, ioTraceRecording, globalShortcut, appConfig },
     build: async ({ dependsOn }) => setupMainWindow({
       ...dependsOn,
       onWindowCreated: (window) => {
@@ -366,7 +366,7 @@ app.whenReady().then(async () => {
   // Desktop grounding overlay — gated by AIRI_DESKTOP_OVERLAY=1
   if (isDesktopOverlayEnabled()) {
     const desktopOverlay = injeca.provide('windows:desktop-overlay', {
-      dependsOn: { mcpManager, serverChannel, i18n },
+      dependsOn: { mcpManager, serverChannel, i18n, appConfig },
       build: async ({ dependsOn }) => setupDesktopOverlayWindow(dependsOn),
     })
 
