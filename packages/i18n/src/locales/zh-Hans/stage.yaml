@@ -106,6 +106,19 @@ chat:
     unknown: 找不到配方
     refused: 配方没能开始
     failed: 配方没能开始
+  tool-calls:
+    running-one: '正在 {name}'
+    running-many: '正在用第 {index} 个工具 · {name}'
+    failed-one: '{name} 没成功'
+    settled-many: '用了 {count} 个工具'
+    settled-many-failed: '用了 {count} 个工具，{failed} 个没成功'
+    arguments: 参数
+    result: 结果
+    rerun: 重新运行
+    state:
+      executing: 进行中
+      done: 完成
+      error: 失败
   error-details:
     show: 查看详情
     hide: 收起详情

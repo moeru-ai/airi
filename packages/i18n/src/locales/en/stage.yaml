@@ -106,6 +106,19 @@ chat:
     unknown: Recipe not found
     refused: Recipe did not start
     failed: Recipe did not start
+  tool-calls:
+    running-one: 'Using {name}'
+    running-many: 'Using tool {index} · {name}'
+    failed-one: "{name} didn't finish"
+    settled-many: 'Used {count} tools'
+    settled-many-failed: "Used {count} tools, {failed} didn't finish"
+    arguments: Arguments
+    result: Result
+    rerun: Run again
+    state:
+      executing: Running
+      done: Done
+      error: Failed
   error-details:
     show: Show details
     hide: Hide details
