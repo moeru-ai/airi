@@ -4,6 +4,8 @@ import type { ChatSlicesToolCallResult } from '../../../../types/chat'
 import type { ToolCallGroupItem, ToolCallState } from './tool-call-group'
 
 import { Collapsible, TransitionVertical } from '@proj-airi/ui'
+import { usePreferredReducedMotion } from '@vueuse/core'
+import { animate, createSpring } from 'animejs'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -75,11 +77,29 @@ const label = computed(() => {
 
 const CHIP_SURFACE = ['bg-white/80 text-primary-600 dark:bg-primary-950/60 dark:text-primary-300']
 
-// The overshoot curve carries the element past its full size before it settles, which reads as a hit landing.
-const POP_FROM = 'scale-0 -rotate-30 opacity-0'
-const POP_ACTIVE = 'transition duration-250 ease-[cubic-bezier(0.34,1.56,0.64,1)] motion-reduce:transition-none'
+const reducedMotion = usePreferredReducedMotion()
+// The spring carries a hit past its full size and lets it wobble back, so it lands with a soft bounce.
+const POP_SPRING = createSpring({ bounce: 0.55, duration: 380 })
+
+function popIn(el: Element, done: () => void) {
+  if (reducedMotion.value === 'reduce')
+    return done()
+  animate(el as HTMLElement, { scale: { from: 0 }, rotate: { from: -30 }, opacity: { from: 0 }, ease: POP_SPRING, onComplete: () => done() })
+}
+
+/** A finished spinner shrinks away with a small tilt before the tool icon pops in. */
+function popOut(el: Element, done: () => void) {
+  if (reducedMotion.value === 'reduce')
+    return done()
+  animate(el as HTMLElement, { scale: 0, rotate: 30, opacity: 0, duration: 160, ease: 'inBack', onComplete: () => done() })
+}
+
 /** Text pops without the tilt, so a changing count stays readable. */
-const LABEL_POP_FROM = 'scale-50 opacity-0'
+function popLabelIn(el: Element, done: () => void) {
+  if (reducedMotion.value === 'reduce')
+    return done()
+  animate(el as HTMLElement, { scale: { from: 0.5 }, opacity: { from: 0 }, ease: POP_SPRING, onComplete: () => done() })
+}
 
 function hitIcon(call: { state: ToolCallState, icon: string }) {
   if (call.state === 'executing')
@@ -141,23 +161,24 @@ function rerun(item: ToolCallGroupItem) {
           tag="span"
           :class="['shrink-0 inline-flex items-center gap-0.5']"
           aria-hidden="true"
-          :enter-from-class="POP_FROM"
-          :enter-active-class="POP_ACTIVE"
+          :css="false"
+          @enter="popIn"
+          @leave="popOut"
         >
           <span
             v-for="call in visibleHits"
             :key="call.key"
             :class="['size-4.5 flex items-center justify-center rounded-full', CHIP_SURFACE]"
           >
-            <!-- A call casts with a spinner, then lands as its own icon with a small bounce. -->
-            <Transition :enter-from-class="POP_FROM" :enter-active-class="POP_ACTIVE" leave-active-class="hidden">
+            <!-- A call casts with a spinner. The spinner shrinks away, then the call lands as its own icon with a bounce. -->
+            <Transition mode="out-in" :css="false" @enter="popIn" @leave="popOut">
               <span :key="hitIcon(call)" :class="[hitIcon(call), 'text-[11px]']" />
             </Transition>
           </span>
         </TransitionGroup>
         <span v-if="hiddenHits" :class="['shrink-0 text-[10px] tabular-nums', 'text-primary-600 dark:text-primary-300']">+{{ hiddenHits }}</span>
         <span :class="['min-w-0 truncate font-medium']" aria-live="polite">
-          <Transition :enter-from-class="LABEL_POP_FROM" :enter-active-class="POP_ACTIVE" leave-active-class="hidden">
+          <Transition :css="false" @enter="popLabelIn">
             <span :key="label" :class="['inline-block origin-left']">{{ label }}</span>
           </Transition>
         </span>
