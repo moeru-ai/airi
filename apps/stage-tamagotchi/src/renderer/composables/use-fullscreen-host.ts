@@ -14,7 +14,8 @@ import { useFullscreenStore } from '../stores/fullscreen'
  * - A page hosts the fullscreen mode. It calls this once.
  *
  * Expects:
- * - The page sets `home` of the store to its own path, and runs the transitions of the phases.
+ * - The page runs the transitions of the phases. The store finds the path of the page from the `fullscreen-host` query
+ *   of the window.
  *
  * Returns:
  * - Nothing. The page answers requests to show, remove, and close a surface, and packs what the mode shows for the

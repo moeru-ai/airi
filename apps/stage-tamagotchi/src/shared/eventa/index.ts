@@ -93,8 +93,8 @@ export const electronFullscreenSurfaceChanged = defineInvokeEventa<void, { surfa
  */
 export const electronMainWindowGetFullscreenState = defineInvokeEventa<{ home: Rectangle, workArea: Rectangle, surface?: FullscreenSurfaceId } | undefined>('eventa:invoke:electron:windows:main:fullscreen:state')
 /**
- * Reads what the window of the `multi-window` mode opened for. Its page asks once when it mounts, because the request
- * came before the page could hear it.
+ * Reads what the window of the `multi-window` mode opened for. Its page asks when it mounts, because the request came
+ * before the page could hear it. After a reload of the page, it returns the surface that the page showed.
  */
 export const electronWorkspaceWindowGetOpenRequest = defineInvokeEventa<FullscreenOpenRequest | undefined>('eventa:invoke:electron:windows:workspace:open-request')
 /**

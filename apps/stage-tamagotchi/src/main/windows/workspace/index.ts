@@ -85,7 +85,7 @@ export function setupWorkspaceWindowManager(params: {
 }): WorkspaceWindowManager {
   const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
   /**
-   * What the next window shows first. Its page reads it when it mounts and opens the surface through the registry,
+   * What the next window shows first. Its page reads it once when it mounts and opens the surface through the registry,
    * like the main window does.
    */
   let first: FullscreenOpenRequest | undefined
@@ -93,6 +93,8 @@ export function setupWorkspaceWindowManager(params: {
   let context: ReturnType<typeof createContext>['context'] | undefined
   /** Asks the page of the open window to pack what it shows, and to close the mode. */
   let requests: { pack: () => Promise<FullscreenPack | undefined>, close: () => Promise<boolean> } | undefined
+  /** The surface that the page shows, as it reports it. A reload of the page shows it again. */
+  let shown: FullscreenSurfaceId | undefined
   /** The surfaces that the page keeps mounted, shown or hidden, as it reports them. */
   let mounted: readonly FullscreenSurfaceId[] = []
 
@@ -144,8 +146,15 @@ export function setupWorkspaceWindowManager(params: {
     // `onlySameWindow` hears only this window, so no other window can close it or change what it shows.
     const { context: windowContext } = createContext(ipcMain, window, { onlySameWindow: true })
     context = windowContext
-    defineInvokeHandler(windowContext, electronWorkspaceWindowGetOpenRequest, () => first)
+    // The request that opened the window counts once. After a reload, the page shows the surface that it showed before,
+    // as the page of the main window does.
+    defineInvokeHandler(windowContext, electronWorkspaceWindowGetOpenRequest, () => {
+      const request = first ?? (shown ? { surface: shown } : undefined)
+      first = undefined
+      return request
+    })
     defineInvokeHandler(windowContext, electronFullscreenSurfaceChanged, (payload) => {
+      shown = payload?.surface
       mounted = payload?.mounted ?? []
     })
     defineInvokeHandler(windowContext, electronFullscreenExit, () => reusable.close())
@@ -166,8 +175,15 @@ export function setupWorkspaceWindowManager(params: {
       detachChat()
       context = undefined
       requests = undefined
+      shown = undefined
       mounted = []
       params.onOpenChange?.(false)
+    })
+    // A page that stopped cannot show the mode, so the mode ends with the window, as it ends in the main window. The
+    // next request creates a new window.
+    window.webContents.on('render-process-gone', () => {
+      if (!window.isDestroyed())
+        window.close()
     })
 
     await load(window, withHashRoute(rendererBase, WORKSPACE_PAGE, {

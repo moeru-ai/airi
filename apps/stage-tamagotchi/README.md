@@ -58,9 +58,9 @@ The two modes differ only in the window that hosts the workspace. Both use the s
 - `composables/use-fullscreen-layout.ts` holds the surface width, its drag, and the place of the character.
 - `components/fullscreen/fullscreen-overlay.vue` shows the island and the surface. `fullscreen-backdrop.vue` shows the backdrop.
 
-Each host is thin:
+Each host adds only what its window needs:
 
-- `pages/index.vue` is the page of the main window. It runs the open and close transitions.
+- `pages/index.vue` is the page of the main window. It runs the open and close transitions, because the main window moves and grows.
 - `pages/workspace.vue` is the page of the separate window. The window covers the work area from the start.
 - In `src/main`, `windows/main` and `windows/workspace` answer the same fullscreen events for their windows.
 - `src/main/index.ts` opens settings and the fullscreen chat where the mode says.

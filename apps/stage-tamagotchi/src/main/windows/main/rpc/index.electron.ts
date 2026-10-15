@@ -8,12 +8,10 @@ import type { McpManager } from '../../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../../services/electron/auto-updater'
 import type { GlobalShortcutService } from '../../../services/electron/global-shortcut'
 import type { ChatWindowManager } from '../../chat'
-import type { DevtoolsWindowManager } from '../../devtools'
 import type { EditorWindowManager } from '../../editor'
 import type { NoticeWindowManager } from '../../notice'
 import type { OnboardingWindowManager } from '../../onboarding'
 import type { SettingsWindowManager } from '../../settings'
-import type { SpotlightWindowManager } from '../../spotlight'
 import type { WidgetsWindowManager } from '../../widgets'
 
 import { defineInvokeHandler } from '@moeru/eventa'
@@ -38,7 +36,6 @@ import { createMcpServersService } from '../../../services/airi/mcp-servers'
 import { createOnboardingService } from '../../../services/airi/onboarding'
 import { createWidgetsService } from '../../../services/airi/widgets'
 import { createAutoUpdaterService } from '../../../services/electron'
-import { setupSettingsPageInvokes } from '../../settings/rpc/index.electron'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
 export async function setupMainWindowElectronInvokes(params: {
@@ -56,9 +53,7 @@ export async function setupMainWindowElectronInvokes(params: {
   onboardingWindowManager: OnboardingWindowManager
   ioTraceRecording: IOTraceRecordingService
   inlayWindow: () => Promise<BrowserWindow>
-  devtoolsWindow: DevtoolsWindowManager
   globalShortcut: GlobalShortcutService
-  spotlightWindow: SpotlightWindowManager
   /** Owns the main window's pin, which fullscreen mode overrides. */
   setPinned: (pinned: boolean) => void
   /** Centers the main window on its display, and returns its new bounds. Fullscreen mode centers the bounds it returns to. */
@@ -98,12 +93,4 @@ export async function setupMainWindowElectronInvokes(params: {
   const stopChatButtonState = params.chatWindow.onButtonStateChange(state => context.emit(electronChatButtonStateChanged, state))
   params.window.once('closed', stopChatButtonState)
   defineInvokeHandler(context, noticeWindowEventa.openWindow, payload => params.noticeWindow.open(payload))
-
-  // Settings open inside this window, so it answers what the settings pages ask of the settings window.
-  setupSettingsPageInvokes({
-    context,
-    window: params.window,
-    spotlightWindow: params.spotlightWindow,
-    devtoolsWindow: params.devtoolsWindow,
-  })
 }

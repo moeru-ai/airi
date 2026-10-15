@@ -1,7 +1,7 @@
 import type { Rectangle } from 'electron'
 import type { InferOutput } from 'valibot'
 
-import type { FullscreenMode, FullscreenSurfaceId } from '../../../shared/eventa'
+import type { FullscreenMode, FullscreenOpenRequest, FullscreenSurfaceId } from '../../../shared/eventa'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { GodotStageManager } from '../../services/airi/godot-stage'
@@ -42,6 +42,7 @@ import { electronFullscreenExit, electronFullscreenOpen, electronFullscreenPack,
 import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
+import { setupSettingsPageInvokes } from '../settings/rpc/index.electron'
 import { protectPrivilegedWindowNavigation, setWindowAlwaysOnTop, transparentWindowConfig } from '../shared'
 import { centerWindowOnDisplay, computeCenteredWindowBounds } from '../shared/display'
 import { setupMainWindowElectronInvokes } from './rpc/index.electron'
@@ -258,9 +259,7 @@ export async function setupMainWindow(params: {
     onboardingWindowManager: params.onboardingWindowManager,
     ioTraceRecording: params.ioTraceRecording,
     inlayWindow: params.inlayWindow,
-    devtoolsWindow: params.devtoolsWindow,
     globalShortcut: params.globalShortcut,
-    spotlightWindow: params.spotlightWindow,
     setPinned,
     center: centerWindow,
   })
@@ -349,6 +348,14 @@ export async function setupMainWindow(params: {
   // `onlySameWindow` hears only this window, so no other window can move it or end its fullscreen mode. The context
   // and its handlers go away when the window closes.
   const { context: fullscreenContext } = createContext(ipcMain, window, { onlySameWindow: true })
+  // In the `single-window` mode the settings pages show in this window, so it answers what they ask of the settings
+  // window. This context hears only this window, so a request from the settings window stays with that window.
+  setupSettingsPageInvokes({
+    context: fullscreenContext,
+    window,
+    spotlightWindow: params.spotlightWindow,
+    devtoolsWindow: params.devtoolsWindow,
+  })
   defineInvokeHandler(fullscreenContext, electronMainWindowEnterFullscreen, () => {
     if (!boundsBeforeFullscreen) {
       boundsBeforeFullscreen = window.getBounds()
@@ -431,34 +438,28 @@ export async function setupMainWindow(params: {
   })
 
   /**
-   * Shows a surface in fullscreen mode, and returns `false` without doing anything unless the mode is
-   * `single-window`. A hidden or minimized window comes back first, because the surface lives here.
+   * Shows a surface, or what another host packed, in fullscreen mode. It returns `false` without doing anything unless
+   * the mode is `single-window`. A hidden or minimized window comes back first, because the surface lives here.
    */
-  function openFullscreen(surface: FullscreenSurfaceId, route?: string) {
+  function openFullscreen(request: FullscreenOpenRequest) {
     if (fullscreenMode !== 'single-window' || window.isDestroyed())
       return false
     if (window.isMinimized())
       window.restore()
     if (!window.isVisible())
       window.show()
-    fullscreenContext.emit(electronFullscreenOpen, { surface, route })
+    fullscreenContext.emit(electronFullscreenOpen, request)
     return true
   }
 
-  params.onFullscreenOpener?.(openFullscreen)
+  params.onFullscreenOpener?.((surface, route) => openFullscreen({ surface, route }))
   const requestPack = defineInvoke(fullscreenContext, electronFullscreenPack)
   const requestClose = defineInvoke(fullscreenContext, electronFullscreenRequestClose)
   params.onFullscreenPlace?.({
     pack: async () => boundsBeforeFullscreen && !isRendererUnavailable(window) ? requestPack() : undefined,
     close: async () => isRendererUnavailable(window) || requestClose(),
     open: async (pack) => {
-      if (fullscreenMode !== 'single-window' || window.isDestroyed())
-        return
-      if (window.isMinimized())
-        window.restore()
-      if (!window.isVisible())
-        window.show()
-      fullscreenContext.emit(electronFullscreenOpen, { surface: pack.surface, pack })
+      openFullscreen({ surface: pack.surface, pack })
     },
   })
   params.chatWindow.attachFullscreen({

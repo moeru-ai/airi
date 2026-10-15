@@ -53,7 +53,7 @@ watch(phase, (next) => {
 })
 
 // The main process knows what the window opened for: a surface and its page, or what the previous host packed when
-// the mode moved here.
+// the mode moved here. After a reload, it names the surface that the page showed.
 onMounted(async () => {
   try {
     const request = await getOpenRequest()
