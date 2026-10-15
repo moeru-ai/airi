@@ -33,12 +33,12 @@ export type MotionManagerPluginContext = MotionManagerUpdateContext & {
   internalModel: PixiLive2DInternalModel
   motionManager: PixiLive2DInternalModel['motionManager']
   modelParameters: Ref<any>
-  enabledEyeTracking: Ref<boolean>
-  activeEyeFocusSource: Ref<boolean>
-  enabledIdleAnimation: Ref<boolean>
-  enabledForceIdleEyeAnimation: Ref<boolean>
-  enabledAutoBlink: Ref<boolean>
-  enabledForceAutoBlink: Ref<boolean>
+  live2dEyeTrackingEnabled: Ref<boolean>
+  live2dEyeFocusSourceActive: Ref<boolean>
+  live2dIdleAnimationEnabled: Ref<boolean>
+  live2dForceIdleEyeAnimation: Ref<boolean>
+  live2dAutoBlinkEnabled: Ref<boolean>
+  live2dForceAutoBlinkEnabled: Ref<boolean>
   isIdleMotion: boolean
   handled: boolean
   markHandled: () => void
@@ -52,12 +52,12 @@ export interface UseLive2DMotionManagerUpdateOptions {
   internalModel: PixiLive2DInternalModel
   motionManager: PixiLive2DInternalModel['motionManager']
   modelParameters: Ref<any>
-  enabledEyeTracking: Ref<boolean>
-  activeEyeFocusSource: Ref<boolean>
-  enabledIdleAnimation: Ref<boolean>
-  enabledForceIdleEyeAnimation: Ref<boolean>
-  enabledAutoBlink: Ref<boolean>
-  enabledForceAutoBlink: Ref<boolean>
+  live2dEyeTrackingEnabled: Ref<boolean>
+  live2dEyeFocusSourceActive: Ref<boolean>
+  live2dIdleAnimationEnabled: Ref<boolean>
+  live2dForceIdleEyeAnimation: Ref<boolean>
+  live2dAutoBlinkEnabled: Ref<boolean>
+  live2dForceAutoBlinkEnabled: Ref<boolean>
   lastUpdateTime: Ref<number>
 }
 
@@ -101,12 +101,12 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
     internalModel,
     motionManager,
     modelParameters,
-    enabledEyeTracking,
-    activeEyeFocusSource,
-    enabledIdleAnimation,
-    enabledForceIdleEyeAnimation,
-    enabledAutoBlink,
-    enabledForceAutoBlink,
+    live2dEyeTrackingEnabled,
+    live2dEyeFocusSourceActive,
+    live2dIdleAnimationEnabled,
+    live2dForceIdleEyeAnimation,
+    live2dAutoBlinkEnabled,
+    live2dForceAutoBlinkEnabled,
     lastUpdateTime,
   } = options
 
@@ -146,12 +146,12 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
       internalModel,
       motionManager,
       modelParameters,
-      enabledEyeTracking,
-      activeEyeFocusSource,
-      enabledIdleAnimation,
-      enabledForceIdleEyeAnimation,
-      enabledAutoBlink,
-      enabledForceAutoBlink,
+      live2dEyeTrackingEnabled,
+      live2dEyeFocusSourceActive,
+      live2dIdleAnimationEnabled,
+      live2dForceIdleEyeAnimation,
+      live2dAutoBlinkEnabled,
+      live2dForceAutoBlinkEnabled,
       isIdleMotion,
       handled: false,
       markHandled: () => {
@@ -258,10 +258,10 @@ export function useMotionUpdatePluginIdleDisable(idleEyeFocus = useLive2DIdleEye
       return
 
     // Stop idle motions if they're disabled
-    if (!ctx.enabledIdleAnimation.value && ctx.isIdleMotion) {
+    if (!ctx.live2dIdleAnimationEnabled.value && ctx.isIdleMotion) {
       ctx.motionManager.stopAllMotions()
 
-      if (ctx.enabledForceIdleEyeAnimation.value && (!ctx.enabledEyeTracking.value || !ctx.activeEyeFocusSource.value))
+      if (ctx.live2dForceIdleEyeAnimation.value && (!ctx.live2dEyeTrackingEnabled.value || !ctx.live2dEyeFocusSourceActive.value))
         idleEyeFocus.update(ctx.internalModel, ctx.now)
       if (ctx.internalModel.eyeBlink != null) {
         ctx.internalModel.eyeBlink.updateParameters(ctx.model, ctx.timeDelta / 1000)
@@ -280,9 +280,9 @@ export function useMotionUpdatePluginIdleFocus(idleEyeFocus = useLive2DIdleEyeFo
   return (ctx) => {
     if (!ctx.isIdleMotion || ctx.handled)
       return
-    if (!ctx.enabledForceIdleEyeAnimation.value)
+    if (!ctx.live2dForceIdleEyeAnimation.value)
       return
-    if (ctx.enabledEyeTracking.value && ctx.activeEyeFocusSource.value)
+    if (ctx.live2dEyeTrackingEnabled.value && ctx.live2dEyeFocusSourceActive.value)
       return
 
     idleEyeFocus.update(ctx.internalModel, ctx.now)
@@ -290,7 +290,7 @@ export function useMotionUpdatePluginIdleFocus(idleEyeFocus = useLive2DIdleEyeFo
 }
 
 export function useMotionUpdatePluginAutoEyeBlink(
-  enabledExpression?: Ref<boolean>,
+  live2dExpressionEnabled?: Ref<boolean>,
 ): MotionManagerPlugin {
   const blinkState = {
     phase: 'idle' as 'idle' | 'closing' | 'opening',
@@ -376,15 +376,15 @@ export function useMotionUpdatePluginAutoEyeBlink(
     // When the expression system is disabled, replicate the exact auto-blink
     // logic from main so that hookUpdate returns the same handled state and
     // the SDK eyeBlink/motion pipeline is not disrupted.
-    if (!enabledExpression?.value) {
-      if (!ctx.isIdleMotion || (ctx.handled && !ctx.enabledForceAutoBlink.value))
+    if (!live2dExpressionEnabled?.value) {
+      if (!ctx.isIdleMotion || (ctx.handled && !ctx.live2dForceAutoBlinkEnabled.value))
         return
 
       const baseLeft = clamp01(ctx.modelParameters.value.leftEyeOpen)
       const baseRight = clamp01(ctx.modelParameters.value.rightEyeOpen)
 
       // Auto-blink OFF: absolute write + markHandled (same as main).
-      if (!ctx.enabledAutoBlink.value) {
+      if (!ctx.live2dAutoBlinkEnabled.value) {
         resetBlinkState()
         ctx.model.setParameterValueById('ParamEyeLOpen', baseLeft)
         ctx.model.setParameterValueById('ParamEyeROpen', baseRight)
@@ -393,7 +393,7 @@ export function useMotionUpdatePluginAutoEyeBlink(
       }
 
       // Force ON or eyeBlink null: timer blink + markHandled.
-      if (ctx.enabledForceAutoBlink.value || !ctx.internalModel.eyeBlink) {
+      if (ctx.live2dForceAutoBlinkEnabled.value || !ctx.internalModel.eyeBlink) {
         const safeDt = ctx.timeDelta * 1000 || 16
         const { eyeLOpen, eyeROpen } = updateForcedBlink(safeDt, baseLeft, baseRight)
         ctx.model.setParameterValueById('ParamEyeLOpen', eyeLOpen)
@@ -421,7 +421,7 @@ export function useMotionUpdatePluginAutoEyeBlink(
     const baseRight = clamp01(ctx.modelParameters.value.rightEyeOpen)
 
     // Auto-blink OFF: apply manual base values only (multiply with current).
-    if (!ctx.enabledAutoBlink.value) {
+    if (!ctx.live2dAutoBlinkEnabled.value) {
       resetBlinkState()
       const currentLeft = ctx.model.getParameterValueById('ParamEyeLOpen') as number
       const currentRight = ctx.model.getParameterValueById('ParamEyeROpen') as number
@@ -432,7 +432,7 @@ export function useMotionUpdatePluginAutoEyeBlink(
 
     // Force OFF and SDK eyeBlink alive: should not happen when expression ON
     // (eyeBlink is nullified), but guard defensively — just apply multiplier.
-    if (!ctx.enabledForceAutoBlink.value && ctx.internalModel.eyeBlink != null) {
+    if (!ctx.live2dForceAutoBlinkEnabled.value && ctx.internalModel.eyeBlink != null) {
       resetBlinkState()
       const currentLeft = ctx.model.getParameterValueById('ParamEyeLOpen') as number
       const currentRight = ctx.model.getParameterValueById('ParamEyeROpen') as number
