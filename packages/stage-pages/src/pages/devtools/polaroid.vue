@@ -55,11 +55,7 @@ function handleShot() {
 <template>
   <div flex flex-col items-center gap-4>
     <div h-full w-full>
-      <Live2DRoot
-        v-slot="{ context }"
-        :source="stageModelSelectedUrl"
-        :model-id="stageModelSelected"
-      >
+      <Live2DRoot>
         <Screen v-slot="{ width, height }" relative min-h-70dvh>
           <Live2DCanvas
             ref="live2dCanvasRef"
@@ -71,8 +67,8 @@ function handleShot() {
           >
             <Live2DModel
               ref="live2dModelRef"
-              :model-id="context.modelId.value"
-              :model-src="context.source.value"
+              :model-id="stageModelSelected"
+              :model-src="stageModelSelectedUrl"
               :app="app"
               :width="width"
               :height="height"

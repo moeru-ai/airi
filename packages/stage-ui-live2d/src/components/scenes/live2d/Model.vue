@@ -64,12 +64,12 @@ const props = withDefaults(defineProps<{
   eyeFocusSourceActive?: boolean
   themeColorsHue?: number
   themeColorsHueDynamic?: boolean
-  enabledIdleAnimation?: boolean
-  enabledForceIdleEyeAnimation?: boolean
-  enabledAutoBlink?: boolean
-  enabledForceAutoBlink?: boolean
-  enabledExpression?: boolean
-  enabledShadow?: boolean
+  live2dIdleAnimationEnabled?: boolean
+  live2dForceIdleEyeAnimation?: boolean
+  live2dAutoBlinkEnabled?: boolean
+  live2dForceAutoBlinkEnabled?: boolean
+  live2dExpressionEnabled?: boolean
+  live2dShadowEnabled?: boolean
   screenAmbientLightActive?: boolean
   screenAmbientLightFilterOptions?: AmbientLightFilterOptions
   screenAmbientLightEnvironment?: AmbientLightEnvironment
@@ -88,12 +88,12 @@ const props = withDefaults(defineProps<{
   scale: 1,
   themeColorsHue: 220.44,
   themeColorsHueDynamic: false,
-  enabledIdleAnimation: true,
-  enabledForceIdleEyeAnimation: true,
-  enabledAutoBlink: true,
-  enabledForceAutoBlink: false,
-  enabledExpression: true,
-  enabledShadow: true,
+  live2dIdleAnimationEnabled: true,
+  live2dForceIdleEyeAnimation: true,
+  live2dAutoBlinkEnabled: true,
+  live2dForceAutoBlinkEnabled: false,
+  live2dExpressionEnabled: true,
+  live2dShadowEnabled: true,
   screenAmbientLightActive: false,
   screenAmbientLightFilterOptions: () => ({ ...ambientLightDefaults.filter }),
   screenAmbientLightEnvironment: () => ambientLightNeutralEnvironment,
@@ -105,6 +105,7 @@ const props = withDefaults(defineProps<{
 
 const emits = defineEmits<{
   (e: 'modelLoaded'): void
+  (e: 'error', error: Error): void
 }>()
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
@@ -248,14 +249,14 @@ const {
 
 const themeColorsHue = toRef(() => props.themeColorsHue)
 const themeColorsHueDynamic = toRef(() => props.themeColorsHueDynamic)
-const enabledIdleAnimation = toRef(() => props.enabledIdleAnimation)
-const enabledEyeTracking = toRef(() => props.eyeTracking)
-const activeEyeFocusSource = toRef(() => props.eyeFocusSourceActive)
-const enabledForceIdleEyeAnimation = toRef(() => props.enabledForceIdleEyeAnimation)
-const enabledAutoBlink = toRef(() => props.enabledAutoBlink)
-const enabledForceAutoBlink = toRef(() => props.enabledForceAutoBlink)
-const enabledExpression = toRef(() => props.enabledExpression)
-const enabledShadow = toRef(() => props.enabledShadow)
+const live2dIdleAnimationEnabled = toRef(() => props.live2dIdleAnimationEnabled)
+const live2dEyeTrackingEnabled = toRef(() => props.eyeTracking)
+const live2dEyeFocusSourceActive = toRef(() => props.eyeFocusSourceActive)
+const live2dForceIdleEyeAnimation = toRef(() => props.live2dForceIdleEyeAnimation)
+const live2dAutoBlinkEnabled = toRef(() => props.live2dAutoBlinkEnabled)
+const live2dForceAutoBlinkEnabled = toRef(() => props.live2dForceAutoBlinkEnabled)
+const live2dExpressionEnabled = toRef(() => props.live2dExpressionEnabled)
+const live2dShadowEnabled = toRef(() => props.live2dShadowEnabled)
 const screenAmbientLightActive = toRef(() => props.screenAmbientLightActive)
 const screenAmbientLightFilterOptions = toRef(() => props.screenAmbientLightFilterOptions)
 const screenAmbientLightEnvironment = toRef(() => props.screenAmbientLightEnvironment)
@@ -265,7 +266,6 @@ const screenAmbientLightStrength = toRef(() => props.screenAmbientLightStrength)
 const screenAmbientLightSquint = toRef(() => props.screenAmbientLightSquint)
 
 const headTracker = createLive2DHeadTracker()
-const internalModelRef = shallowRef<PixiLive2DInternalModel>()
 const expressionReferences = shallowRef<Live2DExpressionControl[]>([])
 const expressionLoader = shallowRef<(fileName: string) => Promise<string>>()
 // Saved SDK manager references for runtime expression toggle (restore on disable)
@@ -311,8 +311,7 @@ async function performModelLoad() {
   componentState.value = 'loading'
   const modelSource = modelSrcRef.value
   const modelId = props.modelId
-  const runtimeModelId = modelId ?? modelSource ?? 'unknown'
-  live2d.beginModelLoad(runtimeModelId)
+  live2d.beginModelLoad()
 
   if (!pixiApp.value || !pixiApp.value.stage) {
     try {
@@ -331,7 +330,6 @@ async function performModelLoad() {
   if (model.value) {
     expressionReferences.value = []
     expressionLoader.value = undefined
-    internalModelRef.value = undefined
     destroyRenderedModel()
     headTracker.reset()
   }
@@ -352,8 +350,8 @@ async function performModelLoad() {
     const live2DModel = new Live2DModel<PixiLive2DInternalModel>()
     await Live2DFactory.setupLive2DModel(live2DModel, { url: modelSource, id: modelId }, { autoInteract: false })
     // The unmount hook ran while the model was loading, so it had no model to destroy.
-    // A newer source or model ID also replaces this load.
-    if (isUnmounted || modelSource !== modelSrcRef.value || modelId !== props.modelId) {
+    // A newer source also replaces this load.
+    if (isUnmounted || modelSource !== modelSrcRef.value) {
       destroyModel(live2DModel)
       return
     }
@@ -427,7 +425,7 @@ async function performModelLoad() {
       }
     }
 
-    if (selectedMotionGroup !== null && selectedMotionIndex && enabledIdleAnimation.value) {
+    if (selectedMotionGroup !== null && selectedMotionIndex && live2dIdleAnimationEnabled.value) {
       setTimeout(() => {
         console.info('Playing selected runtime motion:', selectedMotionGroup, selectedMotionIndex)
         currentMotion.value = {
@@ -456,12 +454,12 @@ async function performModelLoad() {
       internalModel,
       motionManager,
       modelParameters,
-      enabledEyeTracking,
-      activeEyeFocusSource,
-      enabledIdleAnimation,
-      enabledForceIdleEyeAnimation,
-      enabledAutoBlink,
-      enabledForceAutoBlink,
+      live2dEyeTrackingEnabled,
+      live2dEyeFocusSourceActive,
+      live2dIdleAnimationEnabled,
+      live2dForceIdleEyeAnimation,
+      live2dAutoBlinkEnabled,
+      live2dForceAutoBlinkEnabled,
       lastUpdateTime,
     })
 
@@ -473,7 +471,7 @@ async function performModelLoad() {
     // Blink second: reads post-expression eye values, Multiply-modulates on top.
     // This ensures blink respects expression state (0 × blinkFactor = 0).
     motionManagerUpdate.register(useMotionUpdatePluginExpression(live2d.expressions), 'final')
-    motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(enabledExpression), 'final')
+    motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled), 'final')
     // After the blink plugin, so that it only narrows the value a blink returns
     // to. The signal is the light behind the character, not the screen level:
     // that is a mean over the whole capture, and a bright window opening in a
@@ -503,7 +501,7 @@ async function performModelLoad() {
       const selectedMotionGroup = localStorage.getItem('selected-runtime-motion-group')
       const selectedMotionIndex = localStorage.getItem('selected-runtime-motion-index')
 
-      if (selectedMotionGroup !== null && selectedMotionIndex && enabledIdleAnimation.value) {
+      if (selectedMotionGroup !== null && selectedMotionIndex && live2dIdleAnimationEnabled.value) {
         // Restart the selected runtime motion at once, so the loop has no gap
         console.info('Motion finished, restarting runtime motion:', selectedMotionGroup, selectedMotionIndex)
         // Use requestAnimationFrame to restart on the next frame for smooth transition
@@ -545,7 +543,7 @@ async function performModelLoad() {
     savedExpressionManager.value = motionManager.expressionManager
 
     // --- Expression context initialisation (conditional)
-    if (enabledExpression.value) {
+    if (live2dExpressionEnabled.value) {
       // Disable built-in Cubism expression manager — the Root expression context
       // replaces it. The SDK's manager runs after motionManager.update() and
       // would overwrite our final-plugin values every frame.
@@ -559,19 +557,17 @@ async function performModelLoad() {
       if (internalModel.eyeBlink) {
         ;(internalModel as any).eyeBlink = null
       }
-
-      internalModelRef.value = internalModel
     }
 
     live2d.setModel(internalModel)
     emits('modelLoaded')
   }
   catch (error) {
-    if (isUnmounted || modelSource !== modelSrcRef.value || modelId !== props.modelId)
+    if (isUnmounted || modelSource !== modelSrcRef.value)
       return
 
     console.error('[Live2D] Failed to load model:', error)
-    live2d.reportError('model', error)
+    emits('error', error instanceof Error ? error : new Error(String(error)))
   }
   finally {
     modelLoading.value = false
@@ -606,7 +602,7 @@ function configureExpressions(internalModel?: PixiLive2DInternalModel) {
 /** The Root blends expressions when the expression system is on. Otherwise the SDK manager applies them. */
 function selectExpressionExecutor() {
   const sdkManager = savedExpressionManager.value
-  live2d.expressions.setExecutor(enabledExpression.value
+  live2d.expressions.setExecutor(live2dExpressionEnabled.value
     ? {
         activate: (name) => {
           live2d.expressions.reset()
@@ -689,7 +685,7 @@ function updateFilterStack() {
   const filters: Filter[] = []
   if (screenAmbientLightActive.value)
     filters.push(screenAmbientLightFilter.value)
-  if (enabledShadow.value)
+  if (live2dShadowEnabled.value)
     filters.push(dropShadowFilter.value)
 
   const current = model.value.filters ?? []
@@ -708,7 +704,7 @@ function updateModelFilters() {
 watch(modelSrcRef, async () => await loadModel(), { immediate: true })
 watch(dark, updateModelFilters, { immediate: true })
 watch([model, themeColorsHue], updateModelFilters)
-watch([enabledShadow, screenAmbientLightActive], updateFilterStack)
+watch([live2dShadowEnabled, screenAmbientLightActive], updateFilterStack)
 watch(
   [
     screenAmbientLightActive,
@@ -726,7 +722,7 @@ watch(
 // and the light maps would otherwise upload on every frame.
 function updateDropShadowFilterLoop() {
   updateDropShadow()
-  if (!enabledShadow.value) {
+  if (!live2dShadowEnabled.value) {
     dropShadowAnimationId.value = 0
     return
   }
@@ -734,7 +730,7 @@ function updateDropShadowFilterLoop() {
   dropShadowAnimationId.value = requestAnimationFrame(updateDropShadowFilterLoop)
 }
 
-watch([themeColorsHueDynamic, enabledShadow], ([dynamic, shadowEnabled]) => {
+watch([themeColorsHueDynamic, live2dShadowEnabled], ([dynamic, shadowEnabled]) => {
   if (dynamic && shadowEnabled) {
     dropShadowAnimationId.value = requestAnimationFrame(updateDropShadowFilterLoop)
   }
@@ -890,7 +886,7 @@ watch(() => modelParameters.value.rightEyebrowForm, (value) => {
 })
 
 // Watch for idle animation setting changes and stop motions if disabled
-watch(enabledIdleAnimation, (enabled) => {
+watch(live2dIdleAnimationEnabled, (enabled) => {
   if (!enabled && model.value) {
     const internalModel = model.value.internalModel
     if (internalModel?.motionManager) {
@@ -900,7 +896,7 @@ watch(enabledIdleAnimation, (enabled) => {
 })
 
 // Watch for expression system toggle — nullify/restore SDK managers at runtime
-watch(enabledExpression, (enabled) => {
+watch(live2dExpressionEnabled, (enabled) => {
   if (!model.value)
     return
   const im = model.value.internalModel
@@ -913,14 +909,12 @@ watch(enabledExpression, (enabled) => {
       (im as any).eyeBlink = null
     }
 
-    internalModelRef.value = im
     configureExpressions(im)
   }
   else {
     mm.expressionManager = savedExpressionManager.value
     im.eyeBlink = savedEyeBlink.value
     live2d.expressions.reset()
-    internalModelRef.value = undefined
     selectExpressionExecutor()
   }
 })
@@ -971,22 +965,31 @@ function listMotionGroups() {
 }
 
 /**
- * The head's box in the stage canvas, or `undefined` while no model is loaded.
+ * The head's box in the space the stage draws in, or `undefined` while no model
+ * is loaded.
+ *
+ * The model owns where its head is; a consumer that draws beside the character
+ * reads this rather than reaching into the internal model itself.
  */
 function headAnchor() {
   const current = model.value
   if (!current)
     return undefined
 
+  const internalModel = current.internalModel
+
+  // Pixi refreshes a local transform while it renders. A caller running ahead of
+  // the render would otherwise place against the previous scale and position,
+  // which is visible on the frame a resize or a fit lands on.
   current.transform.updateLocalTransform()
 
-  const headRect = headTracker.bounds(current.internalModel)
+  const headRect = headTracker.bounds(internalModel)
   if (!headRect)
     return undefined
 
   return live2DCanvasRectToParent(
     headRect,
-    current.internalModel.localTransform,
+    internalModel.localTransform,
     current.transform.localTransform,
   )
 }

@@ -1,9 +1,8 @@
-import type { ElectronApplication, Locator, Page } from 'playwright'
+import type { ElectronApplication, Page } from 'playwright'
 
 import { env } from 'node:process'
 
 import { defineStageTamagotchiScenario } from '../context'
-import { openSettingsFromControlsIsland } from '../runtime/selectors'
 import { waitForStageWindow } from '../runtime/windows'
 
 export type DisplayModelInputFormat = 'live2d' | 'vrm' | 'mmd'
@@ -172,7 +171,18 @@ async function closeOnboardingWindows(electronApp: ElectronApplication): Promise
 }
 
 async function openModelSettings(electronApp: ElectronApplication, mainPage: Page): Promise<Page> {
-  await openSettingsFromControlsIsland(mainPage)
+  const settingsButton = mainPage.locator('button').filter({
+    has: mainPage.locator('[i-solar\\:settings-minimalistic-outline]'),
+  }).first()
+
+  if (!await settingsButton.isVisible().catch(() => false)) {
+    await mainPage.locator('button').filter({
+      has: mainPage.locator('[i-solar\\:alt-arrow-up-line-duotone]'),
+    }).first().click({ force: true })
+    await settingsButton.waitFor({ state: 'visible', timeout: 15_000 })
+  }
+
+  await settingsButton.click({ force: true })
   const settingsWindow = await waitForStageWindow(electronApp, 'settings')
   const settingsPage = settingsWindow.page
 
@@ -229,14 +239,7 @@ async function uploadModel(
   ])
   await fileChooser.setFiles(input.filePath)
 
-  let reportAction: Locator | undefined
-  if (input.format === 'live2d') {
-    reportAction = settingsPage.getByRole('button', {
-      name: /^(Confirm Import|Import Anyway|确认导入|仍然导入)$/,
-    })
-  }
-
-  return waitForNewImportedModelId(settingsPage, existingModelIds, reportAction)
+  return waitForNewImportedModelId(settingsPage, existingModelIds)
 }
 
 async function selectImportedModel(settingsPage: Page, modelFileName: string): Promise<void> {
@@ -275,21 +278,10 @@ async function waitForSelectedModel(page: Page, importedModelId: string): Promis
   }, importedModelId, { timeout: 30_000 })
 }
 
-async function waitForNewImportedModelId(
-  page: Page,
-  existingModelIds: Set<string>,
-  reportAction?: Locator,
-  timeout = 60_000,
-): Promise<string> {
+async function waitForNewImportedModelId(page: Page, existingModelIds: Set<string>, timeout = 60_000): Promise<string> {
   const deadline = Date.now() + timeout
-  let reportConfirmed = false
 
   while (Date.now() < deadline) {
-    if (reportAction && !reportConfirmed && await reportAction.isVisible()) {
-      await reportAction.click()
-      reportConfirmed = true
-    }
-
     const modelIds = await readImportedModelIds(page)
     const importedModelId = [...modelIds].find(modelId => !existingModelIds.has(modelId))
     if (importedModelId)

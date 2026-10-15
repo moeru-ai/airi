@@ -196,7 +196,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       artistry: useArtistryStore(),
       consciousness: useConsciousnessStore(),
       speech: useSpeechStore(),
-      stageModel: useSettingsStageModel(),
       vision: useVisionStore(),
     }
   }
@@ -1395,12 +1394,10 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     applySynchronizedCards,
     synchronizeCards,
     ready,
-    activeAvatarModels,
     selectedAvatarModel,
     selectedAvatarModelId,
     activeLive2DModelControls,
     addCard,
-    ensureAvatarModel,
     removeCard,
     updateCard,
     restoreCardVersion,
@@ -1428,7 +1425,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       const {
         consciousness,
         speech,
-        stageModel,
         vision,
       } = useRuntimeModuleStores()
 
@@ -1446,9 +1442,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
           model: speech.activeSpeechModel,
           voice_id: speech.activeSpeechVoiceId,
         },
-        displayModelId: stageModel.stageModelSelected,
         activeBackgroundId: activeCard.value?.extensions?.airi?.modules?.activeBackgroundId,
-      }
+      } satisfies AiriExtension['modules']
     }),
     systemPrompt: computed(() => resolveSystemPrompt(
       activeCard.value,
@@ -1461,7 +1456,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     actions: [
       'activateCard',
       'addCard',
-      'ensureAvatarModel',
       'initialize',
       'configureForAuthentication',
       'clearProviderSelections',
