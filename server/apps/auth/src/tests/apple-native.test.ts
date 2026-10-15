@@ -131,6 +131,18 @@ describe('native Apple authorization', () => {
     expect(JSON.stringify(result)).not.toContain('refresh')
   })
 
+  // Verify Apple's one-time name payload survives the production provider and is persisted.
+  it('preserves the first native Apple display name', async () => {
+    const response = await request('/sign-in/apple-native', {
+      ...await credential('new-apple-user'),
+      user: { name: { firstName: 'Airi', lastName: 'Test' } },
+    })
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ user: { name: 'Airi Test' } })
+    const [user] = await db.select().from(schema.user).where(eq(schema.user.email, 'new-apple-user@example.com'))
+    expect(user.name).toBe('Airi Test')
+  })
+
   it('accepts exchanged tokens without nonce using the production provider and its missing-email mapping', async () => {
     const identityToken = await identity('no-email', 'native-client', nonceHash, false)
     fetchRequest.mockResolvedValue(Response.json({

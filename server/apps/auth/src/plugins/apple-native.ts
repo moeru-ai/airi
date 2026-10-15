@@ -88,7 +88,11 @@ export function appleNative(env: AuthEnv, fetchRequest: typeof fetch = fetch, ke
     }
   }
 
-  // Internal dispatch applies bearer/OIDC hooks without the public get-session JWT-header side effect.
+  // NOTICE:
+  // Deletion preflight must apply bearer/OIDC hooks without issuing a session JWT.
+  // Direct session reads miss those header transformations; dispatching get-session also issues a JWT.
+  // Source: Better Auth 1.6.25 dispatchAuthEndpoint and plugins/jwt/index.mjs get-session hook.
+  // Remove this endpoint when Better Auth supports a hook-aware session read without JWT issuance.
   const deletionPreflight = createAuthEndpoint('/apple-deletion-preflight', {
     method: 'GET',
     use: [sensitiveSessionMiddleware],
