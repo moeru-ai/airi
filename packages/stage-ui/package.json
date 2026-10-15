@@ -114,6 +114,7 @@
     "@proj-airi/vite-plugin-sherpaw": "workspace:^",
     "@revenuecat/purchases-js": "catalog:",
     "@sherpaw/kws": "catalog:",
+    "@sherpaw/speaker-diarization": "catalog:",
     "@sherpaw/xsai-transcription": "catalog:",
     "@shikijs/rehype": "catalog:",
     "@shopify/draggable": "catalog:",

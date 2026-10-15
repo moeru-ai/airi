@@ -38,8 +38,17 @@ export const CHARACTER_CARD_SYNC_FLAG: FeatureFlag = {
   availability: 'local',
 }
 
+/** Cloud sync for imported Live2D and VRM models. A device choice, off by default, so no model file leaves the device without opt-in. */
+export const DISPLAY_MODEL_SYNC_FLAG: FeatureFlag = {
+  key: 'display-model-sync',
+  titleKey: 'settings.pages.system.experimental.features.display_model_sync.title',
+  descriptionKey: 'settings.pages.system.experimental.features.display_model_sync.description',
+  defaultEnabled: false,
+  availability: 'local',
+}
+
 /** Only implemented experiments belong here. An empty catalog produces an empty settings page. */
-export const featureFlags: readonly FeatureFlag[] = [CHARACTER_CARD_SYNC_FLAG]
+export const featureFlags: readonly FeatureFlag[] = [CHARACTER_CARD_SYNC_FLAG, DISPLAY_MODEL_SYNC_FLAG]
 
 /** Missing cloud grants disable features. Only local and account-granted opt-in features expose settings. */
 export function resolveFeatureFlag(feature: FeatureFlag, preference: boolean | undefined, policy: InferOutput<typeof featureFlagPolicySchema> | undefined, authenticated: boolean): FeatureFlagDecision {
