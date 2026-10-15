@@ -14,6 +14,8 @@ export function createDefaultWindowLifecycleState(): ElectronWindowLifecycleStat
     reason: 'initial',
     updatedAt: 0,
     visible: true,
+    suspended: false,
+    screenLocked: false,
   }
 }
 
@@ -21,7 +23,7 @@ export function shouldPauseStageFromLifecycle(state: ElectronWindowLifecycleStat
   // When the app window is moved to another virtual desktop on Windows, it may be treated as not visible
   // by the platform even though we still need the stage to keep animating (for window capture usage).
   // Only pause when minimized, and keep running for desktop-switch visibility changes.
-  return state.minimized
+  return state.suspended || state.screenLocked || state.minimized
 }
 
 export const useStageWindowLifecycleStore = defineStore('stageWindowLifecycle', () => {
