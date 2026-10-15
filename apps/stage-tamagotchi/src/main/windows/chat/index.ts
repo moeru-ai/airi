@@ -1,7 +1,7 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { InferOutput } from 'valibot'
 
-import type { ChatButtonState, ChatDraftHandover, ChatWindowMode, ChatWindowPreferences } from '../../../shared/eventa'
+import type { ChatButtonState, ChatDraftHandover, ChatWindowMode, ChatWindowPreferences, FullscreenSurfaceId } from '../../../shared/eventa'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { McpManager } from '../../services/airi/mcp-servers'
@@ -20,10 +20,12 @@ import icon from '../../../../resources/icon.png?asset'
 
 import {
   electronChatWindowCollectDraft,
+  electronChatWindowDraftOffered,
   electronChatWindowDraftSettled,
   electronChatWindowGetPreferences,
   electronChatWindowSetPreferences,
   electronChatWindowTakeDraft,
+  electronFullscreenClose,
 } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
@@ -36,7 +38,7 @@ import { setupChatWindowElectronInvokes } from './rpc/index.electron'
 type EventaContext = ReturnType<typeof createContext>['context']
 
 const chatWindowConfigSchema = object({
-  mode: picklist(['legacy', 'floating']),
+  mode: picklist(['legacy', 'floating', 'fullscreen']),
   placement: picklist(['attached', 'free', 'danmaku']),
   pinned: boolean(),
   floating: object({
@@ -69,31 +71,61 @@ const defaultChatWindowConfig: ChatWindowConfig = {
  */
 const draftCollectTimeout = 10_000
 
+/**
+ * A window that carries the `fullscreen` chat mode. It shows the chat in the fullscreen mode, and the mode has no chat
+ * window of its own. The main window is one, and the window of the `multi-window` mode is another.
+ */
+export interface FullscreenChatHost {
+  window: BrowserWindow
+  /** The context of the window. The chat preferences and the draft handover of the fullscreen chat go through it. */
+  context: EventaContext
+  /** The surfaces that the page keeps mounted, shown or hidden, as it reports them. */
+  mounted: () => readonly FullscreenSurfaceId[]
+  /** Whether the fullscreen mode shows in this window, as the user chose. Only one host answers `true` at a time. */
+  isActive: () => boolean
+}
+
 /** Opens the chat in the mode the user chose. */
 export interface ChatWindowManager {
   /** Shows the chat and brings it to the front. Spotlight notifications call this. */
   open: () => Promise<void>
   /**
    * Runs the Controls Island chat button. The legacy window comes to the
-   * front; the floating chat folds when it is shown and unfolds otherwise.
+   * front; the floating chat folds when it is shown and unfolds otherwise;
+   * the fullscreen chat opens in the main window.
    */
   toggle: () => Promise<void>
   getButtonState: () => ChatButtonState
   /** Calls `listener` whenever the button state changes. Returns the function that stops it. */
   onButtonStateChange: (listener: (state: ChatButtonState) => void) => () => void
+  /**
+   * Lets a window carry the `fullscreen` chat mode. A host calls it once its window exists, and calls the function it
+   * returns when the window closes.
+   */
+  attachFullscreen: (host: FullscreenChatHost) => () => void
+  /** Hides the floating chat while the main window covers its display, and shows it again after. */
+  setMainWindowCovered: (covered: boolean) => void
+  /**
+   * Moves a chat in the fullscreen mode to the default mode, when the user turns the fullscreen mode experiment off.
+   * A mounted fullscreen chat switches with its draft. Otherwise only the saved mode changes, and no window opens.
+   */
+  leaveFullscreenMode: () => Promise<void>
 }
 
 /**
- * Owns both chat windows and the persisted choice between them.
+ * Owns the chat windows and the persisted choice between the chat modes.
  *
- * Both modes load the same chat components and register the same services,
+ * Every mode loads the same chat components and registers the same services,
  * so a mode changes only the window around the chat. Transparency is fixed
- * when Electron creates a window, so each mode has its own window, and a mode
+ * when Electron creates a window, so the legacy and floating modes have their
+ * own windows, and the fullscreen mode lives in the main window. A mode
  * switch closes one and opens the other.
  */
 export function setupChatWindowManager(params: {
   getMainWindow: () => BrowserWindow | undefined
   openSettingsWindow: SettingsWindowManager['openWindow']
+  /** Shows the chat in the fullscreen mode, in the window that the mode names. It creates that window when needed. */
+  openFullscreenChat: () => void | Promise<void>
   widgetsManager: WidgetsWindowManager
   serverChannel: ServerChannel
   mcpManager: McpManager
@@ -116,16 +148,37 @@ export function setupChatWindowManager(params: {
   }
 
   /**
-   * Asks a chat renderer for its unsent draft. Each chat window adds its own
-   * entry in setupDraftHandover, and the entry goes away with the window.
+   * The two requests of a draft handover to a chat renderer: `collect` asks for its unsent draft, and `offer` tells
+   * it that a switch carries a draft to it. Each chat window adds its own entry in setupDraftHandover, and the entry
+   * goes away with the window.
    */
-  const draftCollectors = new WeakMap<BrowserWindow, () => Promise<ChatDraftHandover | undefined>>()
+  const draftHandovers = new WeakMap<BrowserWindow, { collect: () => Promise<ChatDraftHandover | undefined>, offer: () => void }>()
 
   async function collectDraft(window: BrowserWindow | undefined) {
     // A closed window or a crashed renderer has no draft left to carry.
     if (!window || isRendererUnavailable(window))
       return undefined
-    return draftCollectors.get(window)?.()
+    return draftHandovers.get(window)?.collect()
+  }
+
+  function offerDraft(window: BrowserWindow | undefined) {
+    if (window && !isRendererUnavailable(window))
+      draftHandovers.get(window)?.offer()
+  }
+
+  /**
+   * Answers the style menu of a chat. `mode` is the mode of that chat, so the menu shows the style that the user
+   * looks at, and a choice moves the chat from there.
+   */
+  function setupPreferences(context: EventaContext, mode: ChatWindowMode) {
+    defineInvokeHandler(context, electronChatWindowGetPreferences, () => ({ ...getPreferences(), mode }))
+    // A switch that succeeds closes the window that asked for it, and its
+    // reply goes nowhere. A switch that fails answers with the error, and the
+    // menu reads the preferences again.
+    defineInvokeHandler(context, electronChatWindowSetPreferences, async (preferences) => {
+      if (preferences)
+        await setPreferences(preferences, mode)
+    })
   }
 
   async function setupChatInvokes(window: BrowserWindow, context: EventaContext, mode: ChatWindowMode) {
@@ -139,14 +192,7 @@ export function setupChatWindowManager(params: {
       openSettingsWindow: params.openSettingsWindow,
     })
 
-    defineInvokeHandler(context, electronChatWindowGetPreferences, () => getPreferences())
-    // A switch that succeeds closes the window that asked for it, and its
-    // reply goes nowhere. A switch that fails answers with the error, and the
-    // menu reads the saved preferences again.
-    defineInvokeHandler(context, electronChatWindowSetPreferences, async (preferences) => {
-      if (preferences)
-        await setPreferences(preferences)
-    })
+    setupPreferences(context, mode)
     setupDraftHandover(window, context, mode)
   }
 
@@ -223,11 +269,55 @@ export function setupChatWindowManager(params: {
     window.moveTop()
   }
 
+  /** The windows that can carry the fullscreen chat. Without an active one, the fullscreen chat has nowhere to show. */
+  const fullscreenHosts = new Set<FullscreenChatHost>()
+  const fullscreenHost = () => [...fullscreenHosts].find(host => host.isActive())
+  /** Whether a host keeps the chat mounted, shown or hidden, so it has a composer to collect the draft from. */
+  const hasChat = (host: FullscreenChatHost | undefined) => !!host?.mounted().includes('chat')
+  /**
+   * Ends the fullscreen mode of the active host, once the chat has moved to the window of another chat mode. A host
+   * that shows no chat, such as one that only shows settings, is not a chat window, so it stays open.
+   */
+  function closeFullscreenChat() {
+    const host = fullscreenHost()
+    if (host && hasChat(host) && !host.window.isDestroyed())
+      host.context.emit(electronFullscreenClose, undefined)
+  }
+
   const modeSwitch = createChatModeSwitch({
     getMode: () => getConfig().mode,
     setMode: mode => updateConfig({ ...getConfig(), mode }),
-    legacy: { open: openLegacy, close: legacy.close, collectDraft: async () => collectDraft(legacy.getOpenWindow()) },
-    floating: { open: floating.open, close: floating.close, collectDraft: async () => collectDraft(floating.getOpenWindow()) },
+    windows: {
+      legacy: {
+        ownsWindow: true,
+        isOpen: () => !!legacy.getOpenWindow(),
+        open: openLegacy,
+        offerDraft: () => offerDraft(legacy.getOpenWindow()),
+        close: legacy.close,
+        collectDraft: async () => collectDraft(legacy.getOpenWindow()),
+      },
+      floating: {
+        ownsWindow: true,
+        isOpen: () => !!floating.getOpenWindow(),
+        open: floating.open,
+        offerDraft: () => offerDraft(floating.getOpenWindow()),
+        close: floating.close,
+        collectDraft: async () => collectDraft(floating.getOpenWindow()),
+      },
+      fullscreen: {
+        // The host shows other surfaces too, and its island shows the chat in any saved mode.
+        ownsWindow: false,
+        isOpen: () => hasChat(fullscreenHost()),
+        open: async () => params.openFullscreenChat(),
+        offerDraft: () => offerDraft(fullscreenHost()?.window),
+        close: closeFullscreenChat,
+        // A host that never showed the chat has no chat composer to answer.
+        collectDraft: async () => {
+          const host = fullscreenHost()
+          return host && hasChat(host) ? collectDraft(host.window) : undefined
+        },
+      },
+    },
   })
 
   /**
@@ -242,10 +332,14 @@ export function setupChatWindowManager(params: {
     })
 
     const requestDraft = defineInvoke(context, electronChatWindowCollectDraft)
-    draftCollectors.set(window, () => requestDraft(undefined, { signal: AbortSignal.timeout(draftCollectTimeout) }))
+    draftHandovers.set(window, {
+      collect: () => requestDraft(undefined, { signal: AbortSignal.timeout(draftCollectTimeout) }),
+      offer: () => context.emit(electronChatWindowDraftOffered, undefined),
+    })
   }
 
-  async function setPreferences(next: ChatWindowPreferences) {
+  /** Saves the preferences. `from` is the mode of the chat where the user chose them. */
+  async function setPreferences(next: ChatWindowPreferences, from: ChatWindowMode) {
     // The placement is saved first, so a floating window that the mode switch
     // below creates starts in it.
     await modeSwitch.run(async () => {
@@ -256,7 +350,7 @@ export function setupChatWindowManager(params: {
     })
 
     try {
-      await modeSwitch.switchTo(next.mode)
+      await modeSwitch.switchTo(next.mode, from)
     }
     finally {
       emitButtonState()
@@ -266,8 +360,11 @@ export function setupChatWindowManager(params: {
   return {
     open: modeSwitch.show,
     toggle: () => modeSwitch.run(async () => {
-      if (getConfig().mode === 'floating')
+      const mode = getConfig().mode
+      if (mode === 'floating')
         await floating.toggle()
+      else if (mode === 'fullscreen')
+        await params.openFullscreenChat()
       else
         await openLegacy()
     }),
@@ -275,6 +372,28 @@ export function setupChatWindowManager(params: {
     onButtonStateChange(listener) {
       buttonStateListeners.add(listener)
       return () => buttonStateListeners.delete(listener)
+    },
+    attachFullscreen(host) {
+      fullscreenHosts.add(host)
+      // A host already registers the services that every chat renderer uses, so it only needs the chat preferences
+      // and the draft handover.
+      setupPreferences(host.context, 'fullscreen')
+      setupDraftHandover(host.window, host.context, 'fullscreen')
+      return () => fullscreenHosts.delete(host)
+    },
+    setMainWindowCovered: covered => floating.setCovered(covered),
+    async leaveFullscreenMode() {
+      if (getConfig().mode !== 'fullscreen')
+        return
+      try {
+        if (hasChat(fullscreenHost()))
+          await modeSwitch.switchTo(defaultChatWindowConfig.mode, 'fullscreen')
+        else
+          await modeSwitch.run(async () => updateConfig({ ...getConfig(), mode: defaultChatWindowConfig.mode }))
+      }
+      finally {
+        emitButtonState()
+      }
     },
   }
 }

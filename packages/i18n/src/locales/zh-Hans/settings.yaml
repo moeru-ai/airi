@@ -2032,6 +2032,14 @@ pages:
         display_model_sync:
           title: 模型云同步
           description: 登录后把导入的 Live2D 和 VRM 模型上传到账号，方便在其他设备上使用。默认关闭。
+        fullscreen_workspace:
+          title: 全屏工作区
+          description: 在铺满屏幕的工作区里打开设置和聊天，角色在左边。默认关闭。
+          window_mode:
+            title: 窗口模式
+            description: 选择工作区开在哪里。
+            single_window: 单窗口：角色自己展开成工作区
+            multi_window: 多窗口：角色留在桌面上
     color-scheme:
       description: 更改舞台的配色方案
       title: 配色方案

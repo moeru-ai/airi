@@ -13,6 +13,15 @@ docs:
     navbar:
       appearance:
         title: 外观
+'fullscreen-island':
+  settings: 设置
+  chat: 聊天
+  switch-to-dark-mode: 切换到暗色模式
+  switch-to-system-mode: 跟随系统主题
+  switch-to-light-mode: 切换到亮色模式
+  exit: 退出全屏
+'fullscreen-surface':
+  resize: 拖动调整面板宽度
 'controls-island':
   'fade-on-hover':
     enable: 悬停时隐藏
@@ -48,6 +57,7 @@ docs:
     floating-attached: 悬浮，吸附在角色旁
     floating-free: 悬浮，自由摆放
     floating-danmaku: 悬浮，弹幕机
+    fullscreen: 全屏，在角色旁
     pinned: 保持置顶
   resize: 拖动以调整聊天大小
   move: 拖动以移动聊天
