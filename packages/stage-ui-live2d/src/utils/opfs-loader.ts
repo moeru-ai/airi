@@ -22,8 +22,9 @@ interface OPFSCacheMeta {
  *
  * v3: entry paths are now decoded via `decodeZipFileName`; bumping invalidates
  * caches written with the previous mojibake filenames so they are re-saved.
+ * v4: UTF-8 CJK paths without the ZIP UTF-8 flag no longer decode as GBK.
  */
-const live2DOpfsCacheVersion = 3
+const live2DOpfsCacheVersion = 4
 
 interface IgnoredArchivePathSegmentRule {
   matches: (segment: string) => boolean
