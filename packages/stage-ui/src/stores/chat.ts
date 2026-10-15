@@ -542,6 +542,13 @@ export const useChatStore = defineStore('chat', () => {
         },
       })
     }
+    catch (error) {
+      if (options?.abortSignal?.aborted)
+        llmSpan.setAttribute(IOAttributes.Cancelled, true)
+      else
+        llmSpan.setStatus({ code: SpanStatusCode.ERROR, message: errorMessageFrom(error) ?? 'Chat request failed' })
+      throw error
+    }
     finally {
       llmSpan.setAttribute(IOAttributes.LLMOutputChunkCount, llmOutputChunkCount)
       llmSpan.setAttribute(IOAttributes.LLMOutputChunkLengths, llmOutputChunkLengths)

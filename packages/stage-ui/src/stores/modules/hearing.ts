@@ -1,4 +1,4 @@
-import type { StreamingTranscriber } from '@proj-airi/core-agent'
+import type { StreamingTranscriber, TranscriptionBias } from '@proj-airi/core-agent'
 import type { TranscriptionProvider, TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { WithUnknown } from '@xsai/shared'
 import type { StreamTranscriptionOptions as XSAIStreamTranscriptionOptions } from '@xsai/stream-transcription'
@@ -12,6 +12,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { toMediaStream } from '@proj-airi/audio/browser'
 import { encodeWav, Pcm16Encoder } from '@proj-airi/audio/encoding'
 import { streamWebSpeechAPITranscription } from '@proj-airi/provider-inference'
+import { IOAttributes } from '@proj-airi/stage-shared'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
 import { generateTranscription } from '@xsai/generate-transcription'
@@ -568,6 +569,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     const features = providersStore.getTranscriptionFeatures(providerId)
     const definition = providersStore.getProviderDefinition(providerId)
     // The provider decides its upload format. Every format starts from the same captured PCM stream.
+    const sendsHotwords = (bias: TranscriptionBias | undefined): bias is TranscriptionBias => !!bias && !!features.supportsHotwords
     let upload: 'media-stream' | 'pcm' | 'file' = 'file'
     if (providerId === 'browser-web-speech-api')
       upload = 'media-stream'
@@ -612,7 +614,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
         : new File([await encodeWav(audio, { sampleRate: 16000, channels: 1 }, signal)], 'recording.wav', { type: 'audio/wav' })
       try {
         // Only a provider that declares hotwords receives the option, so other request bodies stay unchanged.
-        const requestOptions = bias && features.supportsHotwords ? { ...providerOptions, hotwords: bias.phrases } : providerOptions
+        const requestOptions = sendsHotwords(bias) ? { ...providerOptions, hotwords: bias.phrases } : providerOptions
         const result = await transcription(providerId, provider, model, input, undefined, { signal, confidenceThreshold: threshold, providerOptions: requestOptions })
         if (result.mode === 'stream') {
           void result.text.then(dispose, dispose).catch(error => console.error('Failed to dispose transcription provider', error))
@@ -626,7 +628,15 @@ export const useHearingStore = defineStore('hearing-store', () => {
         await dispose()
         throw error
       }
-    }, trace)
+    }, {
+      ...trace,
+      attributes: bias => ({
+        ...trace.attributes?.(bias),
+        [IOAttributes.GenAIProviderName]: providerId,
+        ...(model ? { [IOAttributes.GenAIRequestModel]: model } : {}),
+        ...(sendsHotwords(bias) ? { [IOAttributes.ASRHotwords]: [...bias.phrases] } : {}),
+      }),
+    })
   }
 
   return {

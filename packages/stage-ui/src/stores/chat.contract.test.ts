@@ -1642,6 +1642,10 @@ describe('chat store contract', () => {
     expect(turnSpans[0].setStatus).not.toHaveBeenCalled()
     expect(turnSpans[1].setStatus).toHaveBeenCalledWith({ code: SpanStatusCode.ERROR })
     expect(ioTracerMocks.turnSpans.size).toBe(0)
+
+    const llmSpans = ioTracerMocks.spans.filter(span => span.name === IOSpanNames.LLMInference)
+    expect(llmSpans[0].setStatus).not.toHaveBeenCalled()
+    expect(llmSpans[1].setStatus).toHaveBeenCalledWith({ code: SpanStatusCode.ERROR, message: 'upstream failed' })
   })
 
   it('continues a composer dictation trace when the turn has no voice input of its own', async () => {

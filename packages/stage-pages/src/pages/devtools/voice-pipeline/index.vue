@@ -7,7 +7,7 @@ import type { ProbeRunSettings } from './composables/use-uncertainty-probe'
 import type { UtteranceAudio } from './composables/use-utterance-audio'
 
 import { toWav } from '@proj-airi/audio/encoding'
-import { acceptsHotwords, SHERPAW_TRANSCRIPTION_PROVIDER_ID, sherpawModels, xAsrBilingualZhEnInt8 } from '@proj-airi/provider-inference'
+import { acceptsHotwords, SHERPAW_TRANSCRIPTION_PROVIDER_ID, xAsrBilingualZhEnInt8 } from '@proj-airi/provider-inference'
 import { availableSherpawModels } from '@proj-airi/stage-ui/libs/providers/providers/sherpaw/model-resources'
 import {
   analyzeHypotheses,
@@ -28,12 +28,9 @@ import { mandarin, pronounceChinese } from '@proj-airi/stage-ui/libs/voice/phone
 import { createPhoneticMatcher } from '@proj-airi/stage-ui/libs/voice/phonetic-match'
 import { boostHotwords, guideCandidates, matchUncertainSpans, phraseEntries, selectGuidedSuggestions } from '@proj-airi/stage-ui/libs/voice/span-guided-terms'
 import { describeBiasDelivery } from '@proj-airi/stage-ui/libs/voice/transcription-bias-delivery'
-import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
-import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
-import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { Button, Callout, FieldCheckbox, FieldInputFile, FieldRange, FieldSelect, FieldTextArea, Input, Progress } from '@proj-airi/ui'
 import { useObjectUrl } from '@vueuse/core'
-import { computed, onScopeDispose, reactive, ref, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, onScopeDispose, reactive, ref, shallowRef, toRef, useTemplateRef, watch } from 'vue'
 
 import DecodeDetails from './components/decode-details.vue'
 import LiveTurns from './components/live-turns.vue'
@@ -46,6 +43,8 @@ import { useElementSpeakingHold } from './composables/speaking-holds'
 import { useBiasComparison } from './composables/use-bias-comparison'
 import { useClipInput } from './composables/use-clip-input'
 import { useConversationTerms } from './composables/use-conversation-terms'
+import { useHearingDelivery } from './composables/use-hearing-delivery'
+import { useLabRerank } from './composables/use-lab-rerank'
 import { useLiveProbe } from './composables/use-live-probe'
 import { useLiveVoiceHost } from './composables/use-live-voice-host'
 import { useProbeDecoders } from './composables/use-probe-decoders'
@@ -266,6 +265,32 @@ const shown = computed(() => {
   return selectedUtteranceId.value === undefined ? probe.result.value : utterance?.result
 })
 const annotation = computed(() => shown.value ? annotate(shown.value) : undefined)
+
+/** Probes a live turn in the lab, with the lab settings. The result shows in the lab sections, never in the chat. */
+function runTurnRollouts(utterance: UtteranceAudio, label: string) {
+  takeTurnClip(utterance, label)
+  if (input.clip.value === utterance.samples)
+    startProbe()
+}
+const rolloutsBusy = computed(() => {
+  if (decodersInUse.value)
+    return 'The offline lab decoders are busy.'
+  if (!modelId.value)
+    return 'The offline lab has no Sherpaw model.'
+  return undefined
+})
+const rolloutsStatus = computed(() => {
+  if (probe.status.value === 'loading')
+    return 'Loading the model...'
+  if (probe.status.value === 'decoding')
+    return `Decode ${probe.progress.value.done} of ${probe.progress.value.total}`
+  if (probe.error.value)
+    return probe.error.value
+  const turn = turnClip.value
+  if (probe.status.value === 'done' && annotation.value && selectedUtteranceId.value === undefined && turn && turn.samples === probe.result.value?.clip)
+    return `${annotation.value.spans.length} uncertain spans in ${turn.label}. See section 4.`
+  return undefined
+})
 const shownBlob = computed(() => shown.value ? new Blob([toWav(new Float32Array(shown.value.clip).buffer, sampleRate)], { type: 'audio/wav' }) : undefined)
 const shownUrl = useObjectUrl(shownBlob)
 const shownPlayback = useElementSpeakingHold()
@@ -371,6 +396,7 @@ const post = reactive({
   spanThreshold: 0.7,
   scope: 'first' as GuidedScope,
   conversationTerms: true,
+  rerank: false,
 })
 const postSourceOptions = [
   { value: 'recognized', label: 'Recognized', description: 'The boosted decode when it ran for the selected result, otherwise the first decode.' },
@@ -405,7 +431,21 @@ const guided = computed(() => {
   const inSpans = post.scope === 'off' ? [] : matchUncertainSpans(transcript, spans, postVocabulary.value, languages, { threshold: post.spanThreshold, guessedThreshold: Math.min(post.spanThreshold, post.guessedThreshold) })
   return guideCandidates(whole, inSpans, transcript, spans, post.scope)
 })
-const suggestions = computed(() => selectGuidedSuggestions(guided.value))
+/** As the live reranker reads the chat: the last six user and assistant messages. */
+const rerankHistory = computed(() => conversation.messages.value.filter(message => message.role === 'user' || message.role === 'assistant').slice(-6).map(message => message.text))
+const labRerank = useLabRerank({
+  enabled: toRef(post, 'rerank'),
+  text: computed(() => postInput.value.transcript.text),
+  candidates: guided,
+  scope: toRef(post, 'scope'),
+  history: rerankHistory,
+})
+const phoneticSuggestions = computed(() => selectGuidedSuggestions(guided.value))
+const suggestions = computed(() => post.rerank && labRerank.ranked.value ? selectGuidedSuggestions(labRerank.ranked.value) : phoneticSuggestions.value)
+/** The phonetic order, shown when the rerank changed the suggestions. */
+const reorderedFrom = computed(() => post.rerank && labRerank.ranked.value && suggestions.value.some((item, index) => phoneticSuggestions.value[index] !== item)
+  ? phoneticSuggestions.value.map(item => item.candidate).join(', ')
+  : undefined)
 // A near-zero threshold keeps every reading, so a near miss shows how far it is from the threshold.
 const nearest = computed(() => createPhoneticMatcher(postVocabulary.value, languages, { threshold: 0.01, guessedThreshold: 0.01, limit: 10 })(postInput.value.transcript.text))
 const tokens = computed(() => languages.flatMap(language => language.units(postInput.value.transcript.text)).map(units => units.map(unit => unit.tokens.join(' ')).join(' · ')))
@@ -423,21 +463,7 @@ watch(shown, (result) => {
 
 // Compare with the active Hearing provider
 
-const hearing = useHearingStore()
-const providers = useProviderStore()
-const providerConfigs = useProviderConfigStore()
-const providerId = computed(() => hearing.activeTranscriptionProvider)
-const hearingSherpawModel = computed(() => {
-  if (providerId.value !== SHERPAW_TRANSCRIPTION_PROVIDER_ID)
-    return undefined
-  const configured = providerConfigs.getProviderConfig(SHERPAW_TRANSCRIPTION_PROVIDER_ID)?.model
-  return Object.values(sherpawModels).find(model => model.id === configured)
-})
-const hearingDelivery = computed(() => describeBiasDelivery({
-  providerId: providerId.value,
-  supportsHotwords: providers.getTranscriptionFeatures(providerId.value).supportsHotwords,
-  sherpawModel: hearingSherpawModel.value,
-}, conversation.phrases.value))
+const { providerId, sherpawModel: hearingSherpawModel, delivery: hearingDelivery } = useHearingDelivery(() => conversation.phrases.value)
 
 const comparison = useBiasComparison()
 function compare() {
@@ -448,7 +474,14 @@ function compare() {
 
 <template>
   <div :class="['flex flex-col gap-8 pb-12']">
-    <LiveTurns :host="host" :microphone-busy="input.recording.value !== undefined || (listening && liveSource === 'microphone')" @select-utterance="takeTurnClip" />
+    <LiveTurns
+      :host="host"
+      :microphone-busy="input.recording.value !== undefined || (listening && liveSource === 'microphone')"
+      :rollouts-busy="rolloutsBusy"
+      :rollouts-status="rolloutsStatus"
+      @select-utterance="takeTurnClip"
+      @run-rollouts="runTurnRollouts"
+    />
 
     <div :class="['flex flex-col gap-2 border-t border-neutral-200 pt-6 dark:border-neutral-700']">
       <h2 :class="['text-xl font-semibold']">
@@ -954,6 +987,17 @@ function compare() {
         <FieldRange v-model="post.guessedThreshold" label="Threshold for unknown words" description="For a phrase with a word that is not in the dictionary." :min="0.5" :max="1" :step="0.01" :format-value="value => value.toFixed(2)" />
         <FieldRange v-model="post.spanThreshold" label="Span threshold" description="The lowest similarity inside an uncertain span." :min="0.5" :max="1" :step="0.01" :format-value="value => value.toFixed(2)" />
       </div>
+      <FieldCheckbox
+        v-model="post.rerank"
+        label="Rerank by the conversation"
+        description="As live turns do with the Hearing switch: multilingual E5 orders near ties on sound by meaning, from the transcript and the last six messages of step 1. It downloads about 120 MB once."
+      />
+      <p v-if="post.rerank && labRerank.running.value" :class="['text-sm text-neutral-500']">
+        Reranking. The first run loads the model.
+      </p>
+      <p v-if="reorderedFrom" :class="['text-xs text-neutral-500 dark:text-neutral-400']">
+        The rerank changed the order. By sound alone: {{ reorderedFrom }}.
+      </p>
       <SuggestionList :suggestions="suggestions" />
       <details :class="['text-sm']">
         <summary :class="['cursor-pointer font-medium']">

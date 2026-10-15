@@ -1,3 +1,4 @@
+import { SpanStatusCode } from '@opentelemetry/api'
 import { IOAttributes, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -29,6 +30,19 @@ describe('useIOTracerStore', () => {
     expect(spanNames.value).toEqual([[IOSpanNames.SpeechRecognition, IOSpanNames.VoiceInput]])
     // The child ended first, but the turn starts where its parent started.
     expect(store.turns[0]!.startTs).toBe(store.turns[0]!.spans[1]!.startTs)
+  })
+
+  it('keeps the message of a span that ended with the error status', () => {
+    setActivePinia(createPinia())
+    const store = useIOTracerStore()
+    store.startRecording()
+
+    const failed = startSpan(IOSpanNames.TTSSynthesis, undefined, { [IOAttributes.Subsystem]: IOSubsystems.TTS })
+    failed.setStatus({ code: SpanStatusCode.ERROR, message: 'Provider rejected the voice' })
+    failed.end()
+    startSpan(IOSpanNames.TTSSynthesis, undefined, { [IOAttributes.Subsystem]: IOSubsystems.TTS }).end()
+
+    expect(store.turns.flatMap(turn => turn.spans).map(span => span.error)).toEqual(['Provider rejected the voice', undefined])
   })
 
   it('records a span once when the remote channel of the same window also delivers it', async () => {

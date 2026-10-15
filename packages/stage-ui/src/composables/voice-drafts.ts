@@ -10,6 +10,28 @@ import { useChatStore } from '../stores/chat'
 import { useHearingStore } from '../stores/modules/hearing'
 
 /**
+ * Formats the evidence of the speech submissions of one draft as the `speechContext` text of the chat request.
+ * Returns `undefined` when no submission has context or speakers.
+ */
+export function formatSpeechContext(submissions: readonly SpeechSubmission[] | undefined) {
+  if (!submissions)
+    return undefined
+
+  const evidence = submissions.map(source => ({ context: source.context, speakers: source.speakers }))
+  if (!evidence.some(item => item.context.length || item.speakers))
+    return undefined
+
+  // Prompt formatting is an application transport boundary. Plugin context keeps its typed values.
+  return JSON.stringify(evidence, (_key, value: unknown) => {
+    if (value instanceof Map)
+      return [...value.entries()]
+    if (value instanceof Set)
+      return [...value]
+    return typeof value === 'bigint' ? value.toString() : value
+  })
+}
+
+/**
  * Owns voice draft selection, source evidence, and submission to the chat runtime.
  * `tools` returns the tool references of a sent draft, read once at each send. Without tools, a draft sends none.
  */
@@ -20,24 +42,6 @@ export function useVoiceDrafts(report: (cause: unknown) => void, tools: () => re
   const frontDraftId = ref<string>()
   const sending = new Map<string, ReturnType<typeof chat.submit>>()
   const sources = new Map<string, readonly SpeechSubmission[]>()
-
-  function formatSpeechContext(submissions: readonly SpeechSubmission[] | undefined) {
-    if (!submissions)
-      return undefined
-
-    const evidence = submissions.map(source => ({ context: source.context, speakers: source.speakers }))
-    if (!evidence.some(item => item.context.length || item.speakers))
-      return undefined
-
-    // Prompt formatting is an application transport boundary. Plugin context keeps its typed values.
-    return JSON.stringify(evidence, (_key, value: unknown) => {
-      if (value instanceof Map)
-        return [...value.entries()]
-      if (value instanceof Set)
-        return [...value]
-      return typeof value === 'bigint' ? value.toString() : value
-    })
-  }
 
   async function acceptSpeech(submission: SpeechSubmission, signal: AbortSignal) {
     signal.throwIfAborted()

@@ -142,3 +142,21 @@ it('records speech recognition under the parent that the caller names, before th
   const recognition = recorded.find(span => span.name === IOSpanNames.SpeechRecognition)!
   expect(recognition.parentSpanContext?.spanId).toBe(turn.spanContext().spanId)
 })
+
+it('records the attributes of each request on its speech recognition span', async () => {
+  const recorded: ReadableSpan[] = []
+  const unsubscribe = subscribeIOSpan(span => recorded.push(span))
+  try {
+    const transcriber = createHearingTranscriber(async () => ({ mode: 'stream', fullStream: new ReadableStream({ start: output => output.close() }), text: Promise.resolve('hello'), textStream: new ReadableStream<string>() }), {
+      attributes: bias => ({ 'test.hotwords': [...bias?.phrases ?? []] }),
+    })
+    const reader = transcriber.transcribe({ audio: new ReadableStream<PcmBlock>(), signal: new AbortController().signal, bias: { phrases: ['Zustand'] } }).getReader()
+    while (!(await reader.read()).done) { /* drain */ }
+  }
+  finally {
+    unsubscribe()
+  }
+
+  const recognition = recorded.find(span => span.name === IOSpanNames.SpeechRecognition)!
+  expect(recognition.attributes['test.hotwords']).toEqual(['Zustand'])
+})

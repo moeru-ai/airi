@@ -26,10 +26,24 @@ export interface VoiceActivityOptions {
    * The voice host traces speech segments with it. It never changes how the input starts or ends.
    */
   readonly onActivity?: (activity: { inputId: string, speech: boolean, durationMs: number }) => void
-  /** @default 0.6. A live input uses 30 percent of this score to keep speech active. */
-  readonly threshold?: number
-  /** @default 300. Shorter speech is discarded when silence ends an input. */
-  readonly minSpeechMs?: number
+  /**
+   * Receives the score of every window, also outside an input, with the threshold that applied to it.
+   * Devtools draw the scores with it. It never changes how the input starts or ends.
+   */
+  readonly onScore?: (event: { score: number, threshold: number, durationMs: number }) => void
+  /**
+   * A live input uses 30 percent of this score to keep speech active.
+   * A function is read on each window, so a setting change applies at once.
+   *
+   * @default 0.6
+   */
+  readonly threshold?: number | (() => number)
+  /**
+   * Shorter speech is discarded when silence ends an input. A function is read when silence ends an input.
+   *
+   * @default 300
+   */
+  readonly minSpeechMs?: number | (() => number)
   /**
    * This much silence ends an accepted input. A function is read on each window, so a setting change applies at once.
    *
@@ -38,6 +52,11 @@ export interface VoiceActivityOptions {
   readonly silenceMs?: number | (() => number)
   /** @default 360. Speech onset retains this much audio before the detected window. */
   readonly preRollMs?: number
+}
+
+/** Reads an option that is a value or a function that returns the current value. */
+function read(option: number | (() => number) | undefined, fallback: number) {
+  return typeof option === 'function' ? option() : option ?? fallback
 }
 
 /** Converts VAD scores to ordinary input commands. It owns no recorder, source, transcription request, or playback nodes. */
@@ -54,7 +73,8 @@ export function createVoiceActivityPlugin(options: VoiceActivityOptions): VoiceP
     scope.observeAudio({ windowMs: 32, hopMs: 32, scheduling: 'ordered', preRollMs: options.preRollMs ?? 360 }, async (ctx) => {
       const score = await options.detect(ctx.window, ctx.signal)
       const duration = (ctx.window.range.endFrame - ctx.window.range.startFrame) * 1000 / ctx.window.sampleRate
-      const wake = await options.detectWakeWord?.(ctx.window, ctx.signal, { speech: score >= (options.threshold ?? 0.6), durationMs: duration })
+      const threshold = read(options.threshold, 0.6)
+      const wake = await options.detectWakeWord?.(ctx.window, ctx.signal, { speech: score >= threshold, durationMs: duration })
       ctx.signal.throwIfAborted()
 
       if (ctx.window.discontinuity) {
@@ -64,6 +84,8 @@ export function createVoiceActivityPlugin(options: VoiceActivityOptions): VoiceP
       }
 
       let input = ctx.controls.activeInput()
+      const applied = input && input.id === inputId ? threshold * 0.3 : threshold
+      options.onScore?.({ score, threshold: applied, durationMs: duration })
 
       // A manual control owns its interval until release. VAD continues inference without ending that input.
       if (input && input.id !== inputId)
@@ -75,7 +97,7 @@ export function createVoiceActivityPlugin(options: VoiceActivityOptions): VoiceP
         return
       }
 
-      const speech = score >= (input ? (options.threshold ?? 0.6) * 0.3 : options.threshold ?? 0.6)
+      const speech = score >= (input ? threshold * 0.3 : threshold)
       if ((wake && wake.sessionId !== input?.sessionId) || (!input && speech)) {
         if (options.acceptSpeech && !await options.acceptSpeech(ctx.window, ctx.signal))
           return
@@ -108,9 +130,8 @@ export function createVoiceActivityPlugin(options: VoiceActivityOptions): VoiceP
 
       speechMs += speech ? duration : 0
       silenceMs = speech ? 0 : silenceMs + duration
-      const silenceLimit = typeof options.silenceMs === 'function' ? options.silenceMs() : options.silenceMs ?? 1200
-      if (silenceMs >= silenceLimit) {
-        if (speechMs < (options.minSpeechMs ?? 300))
+      if (silenceMs >= read(options.silenceMs, 1200)) {
+        if (speechMs < read(options.minSpeechMs, 300))
           input.cancel('Speech segment was too short')
         else
           input.end()

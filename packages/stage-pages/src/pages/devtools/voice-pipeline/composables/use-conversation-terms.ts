@@ -116,5 +116,5 @@ export function useConversationTerms() {
     })
   })
 
-  return { source, pasted, extra, sessionOptions, selectedSessionId, sessionMessages, sessionError, loadSelectedSession, phrases, rows }
+  return { source, pasted, extra, sessionOptions, selectedSessionId, sessionMessages, sessionError, loadSelectedSession, messages, phrases, rows }
 }

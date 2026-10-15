@@ -13,10 +13,11 @@ export interface VoiceEndJudgeOptions {
   judge: (transcript: string, context: TurnEvidence['context'], signal: AbortSignal) => Promise<EndJudgement>
   /**
    * Silence after the last speech that starts a judgement. Shorter pauses are breaths between words.
+   * A function is read on each detector window, so a setting change applies at once.
    *
    * @default 1200
    */
-  pauseMs?: number
+  pauseMs?: number | (() => number)
 }
 
 /** The evidence state that one judgement answers. A change of any part makes the judgement stale. */
@@ -44,7 +45,7 @@ function evidenceKey(evidence: TurnEvidence) {
  * - A voice plugin named `voice-end-judge`.
  */
 export function createVoiceEndJudgePlugin(options: VoiceEndJudgeOptions): VoicePlugin {
-  const pauseMs = options.pauseMs ?? 1200
+  const pauseMs = () => typeof options.pauseMs === 'function' ? options.pauseMs() : options.pauseMs ?? 1200
 
   return {
     name: 'voice-end-judge',
@@ -73,7 +74,7 @@ export function createVoiceEndJudgePlugin(options: VoiceEndJudgeOptions): VoiceP
             // Before the first speech, silence is the wait after a wake word, not the end of a message.
             const pausedMs = (range.endFrame - pauseStart) * 1000 / sampleRate
             const text = evidence.transcript.text.trim()
-            if (speechRevision === 0 || pausedMs < pauseMs || !text)
+            if (speechRevision === 0 || pausedMs < pauseMs() || !text)
               return 'continue'
 
             const key = evidenceKey(evidence)

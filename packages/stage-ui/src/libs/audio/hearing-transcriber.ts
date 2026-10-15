@@ -1,4 +1,4 @@
-import type { Span } from '@opentelemetry/api'
+import type { Attributes, Span } from '@opentelemetry/api'
 import type { StreamingTranscriber, TranscriptionBias, TranscriptionEvent, TranscriptSegment } from '@proj-airi/core-agent'
 
 import type { AIRIStreamTranscriptionDelta } from '../providers/stream-transcription'
@@ -17,6 +17,8 @@ export interface HearingTranscriberTraceOptions {
    * @default the voice input that runs now
    */
   traceParent?: Span
+  /** Attributes of each speech recognition span, for example the provider, the model, and the hotwords of the request. */
+  attributes?: (bias: TranscriptionBias | undefined) => Attributes
 }
 
 /**
@@ -40,6 +42,8 @@ export function createHearingTranscriber(
     // Recognition belongs to what it transcribes: the turn that the caller names, such as the turn of a voice
     // message, or else the voice input that runs now. The microphone has one voice input at a time.
     const span = startSpan(IOSpanNames.SpeechRecognition, options.traceParent ?? activeVoiceInputSpan.value, { [IOAttributes.Subsystem]: IOSubsystems.ASR })
+    if (options.attributes)
+      span.setAttributes(options.attributes(request.bias))
 
     return new ReadableStream<TranscriptionEvent>({
       start: (output) => {

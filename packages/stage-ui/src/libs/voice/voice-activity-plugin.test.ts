@@ -56,6 +56,46 @@ it('uses ordered VAD signals to capture, stream transcription, and submit to the
   await controller.close()
 })
 
+it('reads the threshold and the minimum speech on each window, and reports each score', async () => {
+  const source = createPushStream<PcmBlock>()
+  const audio = new AudioInput({ live: true, open: () => source.stream }, { historyMs: 360 })
+  const submit = vi.fn(async () => ({ status: 'committed' as const, messageId: 'accepted' }))
+  const controller = new VoiceController({ audio, submit, transcriber: () => ({ transcribe: request => new ReadableStream<TranscriptionEvent>({ async start(output) {
+    for await (const _block of request.audio) { /* drain until the input ends */ }
+    output.enqueue({ type: 'complete', revision: 0 })
+    output.close()
+  } }) }) })
+  let threshold = 0.9
+  let minSpeechMs = 32
+  const scores: { score: number, threshold: number }[] = []
+  controller.use(createVoiceActivityPlugin({
+    detect: async window => window.channels[0][0],
+    target: () => ({ sessionId: 'alice', interruptTurns: [] }),
+    onScore: ({ score, threshold }) => scores.push({ score, threshold }),
+    threshold: () => threshold,
+    minSpeechMs: () => minSpeechMs,
+    silenceMs: 32,
+  }), { grants: ['input-control', 'cancel-input'] })
+  await Promise.resolve()
+  const write = (index: number, level: number) => source.write({ range: { sourceId: 'mic', startFrame: index * 32, endFrame: (index + 1) * 32 }, sampleRate: 1000, channels: [new Float32Array(32).fill(level)] })
+
+  // 0.5 stays below 0.9, so no input starts. A lower threshold starts one with the next window.
+  write(0, 0.5)
+  await expect.poll(() => scores.length).toBe(1)
+  expect(controller.activeInput).toBeUndefined()
+  threshold = 0.4
+  write(1, 0.5)
+  await expect.poll(() => controller.activeInput?.state.phase).toBe('capturing')
+  const attempt = controller.activeInput!
+
+  // The input keeps speech from 30 percent of the threshold. A longer minimum discards the 32 ms of speech.
+  minSpeechMs = 100
+  write(2, 0)
+  expect(await attempt.done).toEqual({ status: 'cancelled', reason: 'Speech segment was too short' })
+  expect(scores).toEqual([{ score: 0.5, threshold: 0.9 }, { score: 0.5, threshold: 0.4 }, { score: 0, threshold: 0.4 * 0.3 }])
+  await controller.close()
+})
+
 it('rejects playback echo and opens the matched character input only after playback fades', async () => {
   const frames = createPushStream<PcmBlock>()
   const audio = new AudioInput({ live: true, open: () => frames.stream })

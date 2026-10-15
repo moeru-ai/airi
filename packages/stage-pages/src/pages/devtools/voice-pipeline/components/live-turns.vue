@@ -18,22 +18,36 @@ import { storeToRefs } from 'pinia'
 import { computed, onScopeDispose, ref, shallowRef } from 'vue'
 
 import IOTracerChart from '../../io-tracer/components/io-tracer-chart.vue'
+import AsrPanel from './stages/asr-panel.vue'
+import EndOfTurnPanel from './stages/end-of-turn-panel.vue'
+import LlmPanel from './stages/llm-panel.vue'
+import PostAsrPanel from './stages/post-asr-panel.vue'
+import TtsPanel from './stages/tts-panel.vue'
+import VadPanel from './stages/vad-panel.vue'
 
+import { formatMs, turnStages } from '../composables/turn-stages'
 import { isSpokenTurn, voiceInputIdOf, voiceTurnLatency, voiceTurnTiming } from '../composables/turn-timing'
 import { useClipInput } from '../composables/use-clip-input'
 import { useClipReplay } from '../composables/use-clip-replay'
+import { useTurnRecorder } from '../composables/use-turn-recorder'
 import { useUtteranceAudio } from '../composables/use-utterance-audio'
 
-const { host, microphoneBusy } = defineProps<{
+const { host, microphoneBusy, rolloutsBusy, rolloutsStatus } = defineProps<{
   /** The page owns the host, because the offline lab must not record while the host takes speech. */
   host: LiveVoiceHost
   /** The offline lab records from the microphone now. A host that starts then also takes that speech. */
   microphoneBusy: boolean
+  /** Why the offline lab cannot probe now, for example because its decoders are busy. */
+  rolloutsBusy?: string
+  /** What the offline lab probe does now. */
+  rolloutsStatus?: string
 }>()
 
 const emit = defineEmits<{
   /** A selected turn has audio. The page offers it to the offline lab as the clip. */
   selectUtterance: [utterance: UtteranceAudio, label: string]
+  /** Probes the audio of a turn in the offline lab. */
+  runRollouts: [utterance: UtteranceAudio, label: string]
 }>()
 
 /** The voice pipeline runs at 16 kHz, so a replayed clip is converted to it once, when it loads. */
@@ -121,12 +135,6 @@ const spokenTurns = computed(() => turns.value
   })
   .reverse())
 
-function formatMs(ms: number | undefined) {
-  if (ms === undefined)
-    return '—'
-  return ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(2)} s`
-}
-
 function formatTime(ts: number) {
   return new Date(ts).toLocaleTimeString()
 }
@@ -157,6 +165,36 @@ function selectTurn(turnId: string) {
   const turn = turns.value.find(candidate => candidate.id === turnId)
   selectSpan(turn?.spans[0]?.id ?? null)
 }
+
+// Stage panels
+
+const recorder = useTurnRecorder()
+/** The turn of the selected span, or else the newest spoken turn, so the panels follow live turns. */
+const selected = computed(() => {
+  const id = selectedSpanId.value
+  const turn = id ? turns.value.find(candidate => candidate.spans.some(span => span.id === id)) : undefined
+  return spokenTurns.value.find(item => item.turn === turn) ?? spokenTurns.value[0]
+})
+const selectedStages = computed(() => selected.value && turnStages(selected.value.turn))
+const selectedInputId = computed(() => selected.value && voiceInputIdOf(selected.value.turn))
+const selectedRecord = computed(() => selectedInputId.value ? recorder.records.get(selectedInputId.value) : undefined)
+const selectedContext = computed(() => selectedInputId.value ? recorder.speechContextOf(selectedInputId.value) : undefined)
+const selectedLabel = computed(() => selected.value && `the turn at ${formatTime(selected.value.turn.startTs)}`)
+const selectedAudio = computed(() => selectedInputId.value ? utterances.utterances.get(selectedInputId.value) : undefined)
+const rolloutsBlocked = computed(() => selectedAudio.value ? rolloutsBusy : 'This turn has no audio on this page.')
+function runRollouts() {
+  if (selectedAudio.value && selectedLabel.value)
+    emit('runRollouts', selectedAudio.value, selectedLabel.value)
+}
+
+const panels = [
+  { id: 'vad', title: 'Speech detection' },
+  { id: 'asr', title: 'Speech recognition' },
+  { id: 'end', title: 'End of turn and interruption' },
+  { id: 'post', title: 'Post-ASR' },
+  { id: 'llm', title: 'Reply' },
+  { id: 'tts', title: 'Speech output' },
+] as const
 </script>
 
 <template>
@@ -369,6 +407,45 @@ function selectTurn(turnId: string) {
           :hidden-subsystems="hiddenSubsystems"
           @select-span="selectSpan($event)"
         />
+      </div>
+    </div>
+
+    <div :class="['flex flex-col gap-2']">
+      <div :class="['text-sm font-medium']">
+        Stages
+      </div>
+      <p :class="['text-xs text-neutral-500 dark:text-neutral-400']">
+        <template v-if="selectedLabel">
+          The panels show {{ selectedLabel }}. Select another turn above.
+        </template>
+        <template v-else>
+          The panels show the selected turn. Start the voice host and speak to make one.
+        </template>
+      </p>
+      <div :class="['grid gap-4 xl:grid-cols-2']">
+        <section
+          v-for="panel in panels"
+          :key="panel.id"
+          :class="['flex flex-col gap-3 rounded-lg border border-neutral-200 p-4 dark:border-neutral-700']"
+        >
+          <h3 :class="['font-semibold']">
+            {{ panel.title }}
+          </h3>
+          <VadPanel v-if="panel.id === 'vad'" :stages="selectedStages" />
+          <AsrPanel
+            v-else-if="panel.id === 'asr'"
+            :stages="selectedStages"
+            :record="selectedRecord"
+            :speech-end-ts="selected?.timing.speechEndTs"
+            :rollouts-blocked="rolloutsBlocked"
+            :rollouts-status="rolloutsStatus"
+            @run-rollouts="runRollouts"
+          />
+          <EndOfTurnPanel v-else-if="panel.id === 'end'" :turn="selected?.turn" :stages="selectedStages" :turns="turns" />
+          <PostAsrPanel v-else-if="panel.id === 'post'" :stages="selectedStages" :record="selectedRecord" :speech-context="selectedContext" />
+          <LlmPanel v-else-if="panel.id === 'llm'" :stages="selectedStages" :record="selectedRecord" :speech-end-ts="selected?.timing.speechEndTs" />
+          <TtsPanel v-else :stages="selectedStages" :session-id="selectedRecord?.submission?.sessionId" />
+        </section>
       </div>
     </div>
   </section>

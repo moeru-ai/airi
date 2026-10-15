@@ -1,4 +1,4 @@
-import type { BeginSpeechInput, SpeechInputAttempt, SpeechOutput, SpeechStream, TurnRef, VoicePluginHandle, VoiceResponse } from '@proj-airi/core-agent'
+import type { BeginSpeechInput, SpeechInputAttempt, SpeechOutput, SpeechStream, SpeechSubmission, TurnRef, VoicePluginHandle, VoiceResponse } from '@proj-airi/core-agent'
 
 import type { VoiceActivityOptions } from '../libs/voice/voice-activity-plugin'
 import type { VoiceHostSnapshot } from '../services/speech/bus'
@@ -8,7 +8,7 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
 import { turnKey } from '@proj-airi/core-agent'
 import { defineStore, storeToRefs } from 'pinia'
-import { onScopeDispose, shallowRef, watch } from 'vue'
+import { onScopeDispose, reactive, shallowRef, watch } from 'vue'
 
 import { useVoiceController } from '../composables/audio/voice-controller'
 import { traceSpeechOutput } from '../composables/speech-output-trace'
@@ -40,13 +40,47 @@ import { useWakeWordDetectionStore } from './wake-word-detection'
 const VOICE_REPHRASE_TIMEOUT_MS = 10_000
 
 /**
- * Silence that ends a speech input.
+ * Speech detection and end-of-turn values of one window.
  *
- * - `pauseMs`: a pause this long can end a finished message. Without the end judge, it is the silence limit.
- * - `graceMs`: with the end judge, the silence limit grows by this much, so a speaker can stop to think.
- *   The judge ends a finished message at the pause, so only an unfinished or unjudged message waits for the grace.
+ * The voice pipeline devtool edits them for the window that it runs in. They are not saved, so a reload restores
+ * {@link VOICE_TUNING_DEFAULTS}.
  */
-const VOICE_END_SILENCE = { pauseMs: 1200, graceMs: 3000 } as const
+export interface VoiceTuning {
+  /** The VAD score that starts speech. A live input keeps speech active from 30 percent of it. */
+  vadThreshold: number
+  /** Shorter speech is discarded when silence ends an input. */
+  minSpeechMs: number
+  /** Audio kept before the detected speech onset. Listening reads it when it starts. */
+  preRollMs: number
+  /** A pause this long can end a finished message. Without the end judge, it is the silence limit. */
+  pauseMs: number
+  /**
+   * With the end judge, the silence limit grows by this much, so a speaker can stop to think.
+   * The judge ends a finished message at the pause, so only an unfinished or unjudged message waits for the grace.
+   */
+  graceMs: number
+  /** Sends the conversation terms as hotwords to a provider that takes them. */
+  sendHotwords: boolean
+}
+
+export const VOICE_TUNING_DEFAULTS: Readonly<VoiceTuning> = Object.freeze({
+  vadThreshold: 0.6,
+  minSpeechMs: 300,
+  preRollMs: 360,
+  pauseMs: 1200,
+  graceMs: 3000,
+  sendHotwords: true,
+})
+
+/** The VAD score of one window, at the time it arrived. */
+export interface VoiceActivityScore {
+  /** Milliseconds since the epoch. */
+  readonly ts: number
+  readonly score: number
+  /** The threshold that applied to the window. It is lower while an input of the voice activity plugin runs. */
+  readonly threshold: number
+  readonly durationMs: number
+}
 
 /** Application wiring owns presentation and durable chat adapters. The controller owns voice lifecycles. */
 export const useVoiceStore = defineStore('voice', () => {
@@ -82,6 +116,10 @@ export const useVoiceStore = defineStore('voice', () => {
   let presentedInput: { requestId: string, attempt: SpeechInputAttempt } | undefined
 
   const inputTracer = createVoiceInputTracer()
+  const tuning = reactive<VoiceTuning>({ ...VOICE_TUNING_DEFAULTS })
+  /** Observers of the VAD scores and the speech submissions. Devtools read the pipeline through them. */
+  const scoreObservers = new Set<(score: VoiceActivityScore) => void>()
+  const submissionObservers = new Set<(submission: SpeechSubmission) => void>()
   /** While another window holds the listening lease, it owns the microphone, so controls of other windows start no input here. */
   const listeningLeasedElsewhere = useListeningLeasedElsewhere()
   // The lease also stops the inputs that such controls run now. The holder already hears the same speech.
@@ -125,7 +163,7 @@ export const useVoiceStore = defineStore('voice', () => {
 
   const { controller, state, snapshot: transcript, error } = useVoiceController({
     transcriber: () => hearing.createTranscriber(),
-    transcriptionBias: sessionId => transcriptionBias.read(sessionId),
+    transcriptionBias: sessionId => tuning.sendHotwords ? transcriptionBias.read(sessionId) : undefined,
     speech: (turn) => {
       if (!output)
         throw new Error('Voice output host is not connected')
@@ -135,6 +173,7 @@ export const useVoiceStore = defineStore('voice', () => {
       return trace.output
     },
     submit: async (submission, signal) => {
+      submissionObservers.forEach(observe => observe(submission))
       if (!composerInputs.has(submission.submissionId))
         return acceptSpeech(submission, signal)
 
@@ -164,7 +203,7 @@ export const useVoiceStore = defineStore('voice', () => {
   )
   const { judge } = useVoiceEndJudge()
   controller.use(
-    createVoiceEndJudgePlugin({ enabled: () => hearing.endJudgeEnabled, judge, pauseMs: VOICE_END_SILENCE.pauseMs }),
+    createVoiceEndJudgePlugin({ enabled: () => hearing.endJudgeEnabled, judge, pauseMs: () => tuning.pauseMs }),
     { grants: ['input-control'], onError: event => report(event.error) },
   )
 
@@ -550,12 +589,16 @@ export const useVoiceStore = defineStore('voice', () => {
     const plugin = createVoiceActivityPlugin({
       detect: (window, signal) => model.score(window, signal),
       onActivity: inputTracer.activity,
+      onScore: event => scoreObservers.forEach(observe => observe({ ts: Date.now(), ...event })),
       beforeBeginInput: (cause) => {
         beginCause = cause
       },
       detectWakeWord: options.detectWakeWord ?? wakeWords?.detect,
       enabled: () => !voiceMessages.isRecording,
-      silenceMs: () => hearing.endJudgeEnabled ? VOICE_END_SILENCE.pauseMs + VOICE_END_SILENCE.graceMs : VOICE_END_SILENCE.pauseMs,
+      silenceMs: () => hearing.endJudgeEnabled ? tuning.pauseMs + tuning.graceMs : tuning.pauseMs,
+      threshold: () => tuning.vadThreshold,
+      minSpeechMs: () => tuning.minSpeechMs,
+      preRollMs: tuning.preRollMs,
       // Automatic barge-in requires platform echo cancellation or an external echo classifier.
       acceptSpeech: options.acceptSpeech ?? (async () => !speaking.nowSpeaking || devices.source.echoCancellation),
       // Wake word mode returns no target, so VAD alone cannot start an input. A wake supplies its own target.
@@ -591,11 +634,23 @@ export const useVoiceStore = defineStore('voice', () => {
     await previous?.dispose()
   }
 
+  /** Calls `observe` with the score of each VAD window while listening runs. Returns the function that stops it. */
+  function observeVadScores(observe: (score: VoiceActivityScore) => void) {
+    scoreObservers.add(observe)
+    return () => void scoreObservers.delete(observe)
+  }
+
+  /** Calls `observe` with each speech submission, before it becomes a draft or a chat turn. Returns the function that stops it. */
+  function observeSubmissions(observe: (submission: SpeechSubmission) => void) {
+    submissionObservers.add(observe)
+    return () => void submissionObservers.delete(observe)
+  }
+
   onScopeDispose(() => {
     stopBiasRebuild()
     transcriptionBias.dispose()
     void stopListening()
   })
 
-  return { controller, state, transcript, error, drafts, activeTurns, beginInput, beginManual, endInput, cancelInput, sendDraft, discardDraft, startResponse, getSpeech, finishResponse, interrupt, connectOutput, connectTools, startListening, stopListening, resolveWakeTarget }
+  return { controller, state, transcript, error, tuning, observeVadScores, observeSubmissions, drafts, activeTurns, beginInput, beginManual, endInput, cancelInput, sendDraft, discardDraft, startResponse, getSpeech, finishResponse, interrupt, connectOutput, connectTools, startListening, stopListening, resolveWakeTarget }
 })
