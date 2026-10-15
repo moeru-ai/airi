@@ -31,7 +31,7 @@ It requires an authoritative session created within the last five minutes and re
 On `SESSION_NOT_FRESH`, the client must request sign-in again.
 The existing `/api/auth/delete-user` email flow is unchanged. See [deletion policy and rollout](../../docs/ai/adr/2026-10-10-account-deletion-confirmation.md).
 
-`POST /api/auth/sign-in/apple-native` accepts `identityToken`, `authorizationCode`, `nonce` (SHA-256), and an optional `user.name`.
+`POST /api/auth/sign-in/apple-native` accepts `identityToken`, `authorizationCode`, raw `nonce` (the server checks its SHA-256 hash), and an optional `user.name`.
 It stores revocable Apple tokens before returning a session token.
 `POST /api/auth/account/apple-authorization` accepts the same body with an authenticated session and repairs an existing Apple link only.
 Deletion returns `409 APPLE_REAUTHENTICATION_REQUIRED` when Apple tokens are missing. Repair returns a fresh session, not a deletion result.

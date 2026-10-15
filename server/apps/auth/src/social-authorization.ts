@@ -36,6 +36,16 @@ export interface SocialAuthorizationRevoker {
   revokeForUser: (userId: string) => Promise<void>
 }
 
+/** Rejects missing Apple grants before sending deletion mail or revoking any provider. */
+export function assertAppleAuthorizationForDeletion(accounts: { providerId: string, accessToken?: string | null, refreshToken?: string | null }[]) {
+  if (accounts.some(account => account.providerId === 'apple' && !account.accessToken && !account.refreshToken)) {
+    throw new APIError('CONFLICT', {
+      code: 'APPLE_REAUTHENTICATION_REQUIRED',
+      message: 'Authorize the linked Apple account again before deletion.',
+    })
+  }
+}
+
 /** Creates the signed client assertion required by Apple's token endpoints. */
 export async function createAppleClientSecret(credentials: AppleCredentials): Promise<string> {
   const key = await importPKCS8(credentials.AUTH_APPLE_PRIVATE_KEY_PEM, 'ES256')
@@ -86,7 +96,14 @@ async function revokeAppleAuthorization(
   // Stored ID tokens come from verified provider responses. Expiration does not change their token audience.
   let clientId = credentials.AUTH_APPLE_CLIENT_ID
   if (account.idToken) {
-    const claims = safeParse(object({ aud: string() }), decodeJwt(account.idToken))
+    let payload: unknown
+    try {
+      payload = decodeJwt(account.idToken)
+    }
+    catch {
+      throw createServiceUnavailableError('Stored Apple token is invalid.', 'oauth/provider_not_configured', { providerId: 'apple' })
+    }
+    const claims = safeParse(object({ aud: string() }), payload)
     if (!claims.success || ![clientId, ...(credentials.AUTH_APPLE_APP_BUNDLE_IDENTIFIERS ?? [])].includes(claims.output.aud))
       throw createServiceUnavailableError('Apple token audience is not configured.', 'oauth/provider_not_configured', { providerId: 'apple' })
     clientId = claims.output.aud
@@ -250,12 +267,7 @@ export function createSocialAuthorizationRevoker(
         .from(authSchema.account)
         .where(eq(authSchema.account.userId, userId))
 
-      if (accounts.some(account => account.providerId === 'apple' && !account.accessToken && !account.refreshToken)) {
-        throw new APIError('CONFLICT', {
-          code: 'APPLE_REAUTHENTICATION_REQUIRED',
-          message: 'Authorize the linked Apple account again before deletion.',
-        })
-      }
+      assertAppleAuthorizationForDeletion(accounts)
 
       for (const account of accounts) {
         // Steam OpenID 2.0 authenticates identity without issuing an OAuth grant.
