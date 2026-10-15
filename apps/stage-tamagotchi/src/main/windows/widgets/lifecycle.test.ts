@@ -222,7 +222,7 @@ describe('widget window lifecycle', () => {
   // Node.js setTimeout clamps delays over 2,147,483,647 ms to 1 ms.
   // Widgets with large TTLs were destroyed almost immediately.
   // We re-arm the timer in safe 32-bit chunks until the full TTL elapses.
-  it('PR #2935: preserves TTLs exceeding 32-bit timer limit and destroys widget across chunks', async () => {
+  it('pR #2935: preserves TTLs exceeding 32-bit timer limit and destroys widget across chunks', async () => {
     const manager = createManager()
     const ttlMs = 2_147_483_647 + 5000
     const id = await manager.pushWidget({
@@ -247,7 +247,7 @@ describe('widget window lifecycle', () => {
   // A tiny TTL (1 ms) fired before showWindowWithRoute resolved, destroying
   // the BrowserWindow while setup was still pending. The fix defers destruction
   // until after window setup completes so callers receive a live window.
-  it('PR #2935: destroys widget cleanly with a tiny TTL after window setup finishes', async () => {
+  it('pR #2935: destroys widget cleanly with a tiny TTL after window setup finishes', async () => {
     const manager = createManager()
     const id = await manager.pushWidget({
       componentName: 'weather',
@@ -271,7 +271,7 @@ describe('widget window lifecycle', () => {
   // handle to cancel, so both armed a timer. Only the second handle was stored,
   // leaving the first timer alive. A generation token (timerGeneration) ensures
   // stale callbacks skip arming.
-  it('PR #2935: cancels stale destruction timer when multiple TTL updates run in succession', async () => {
+  it('pR #2935: cancels stale destruction timer when multiple TTL updates run in succession', async () => {
     const manager = createManager()
     const id = await manager.pushWidget({
       componentName: 'weather',
@@ -298,7 +298,7 @@ describe('widget window lifecycle', () => {
   // timerGeneration was added as an internal scheduling field but leaked into
   // getWidgetSnapshot output via the object spread. The fix strips it alongside
   // timer and expiresAt so the Eventa widgetsFetch response matches WidgetSnapshot.
-  it('PR #2935: strips timerGeneration, timer, and expiresAt from widget snapshots', async () => {
+  it('pR #2935: strips timerGeneration, timer, and expiresAt from widget snapshots', async () => {
     const manager = createManager()
     const id = await manager.pushWidget({
       componentName: 'weather',
@@ -321,7 +321,7 @@ describe('widget window lifecycle', () => {
   // its microtask closure. When it fired, it scheduled the stale record's timer
   // and left the real positive-TTL widget alive indefinitely. The fix schedules
   // on the current map record, preserving the established deadline.
-  it('PR #2935: preserves destruction timer when content-only update runs without ttlMs', async () => {
+  it('pR #2935: preserves destruction timer when content-only update runs without ttlMs', async () => {
     const manager = createManager()
     const id = await manager.pushWidget({
       componentName: 'weather',
@@ -348,7 +348,7 @@ describe('widget window lifecycle', () => {
   // record missing a deadline or timerGeneration, so the captured pre-setup
   // record's deferred callback scheduled on the stale entry instead of the
   // current record, leaving a positive-TTL widget alive indefinitely.
-  it('PR #2935: schedules destruction on updated record when update without ttlMs arrives during push', async () => {
+  it('pR #2935: schedules destruction on updated record when update without ttlMs arrives during push', async () => {
     const { load } = await import('../../libs/electron/location')
     let resolveLoad: () => void
     vi.mocked(load).mockImplementationOnce(() => new Promise((resolve) => {
@@ -386,7 +386,7 @@ describe('widget window lifecycle', () => {
   // window finished loading. If setup exceeded the TTL, the stale call destroyed
   // the new widget. The push generation token prevents stale continuations from
   // scheduling.
-  it('PR #2935: prevents superseded push from arming replacement widget timer early', async () => {
+  it('pR #2935: prevents superseded push from arming replacement widget timer early', async () => {
     const { load } = await import('../../libs/electron/location')
     let resolveFirstLoad: () => void
     let resolveSecondLoad: () => void
