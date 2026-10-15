@@ -182,6 +182,15 @@ const openEditor = useElectronEventaInvoke(electronOpenEditor)
   >
     {{ t('tamagotchi.settings.devtools.pages.io-tracer.title') }}
   </ButtonBar>
+  <ButtonBar
+    :class="['mb-2', 'transition-all duration-250 ease-in-out']"
+    icon="i-solar:soundwave-bold-duotone"
+    :text="t('tamagotchi.settings.devtools.pages.voice-pipeline.title')"
+    :description="t('tamagotchi.settings.devtools.pages.voice-pipeline.description')"
+    @click="() => openDevtoolsWindow({ key: 'voice-pipeline', route: '/devtools/voice-pipeline' })"
+  >
+    {{ t('tamagotchi.settings.devtools.pages.voice-pipeline.title') }}
+  </ButtonBar>
   <CheckBar
     :model-value="ioTraceRecording?.enabled ?? false"
     :disabled="ioTraceRecording === undefined || ioTraceRecordingBusy"

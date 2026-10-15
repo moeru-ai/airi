@@ -338,6 +338,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const rephraseEnabled = useLocalStorageManualReset<boolean>('settings/hearing/rephrase-enabled', true, persistenceOptions)
   // A chat model reads paused transcripts and ends finished messages before the silence limit.
   const endJudgeEnabled = useLocalStorageManualReset<boolean>('settings/hearing/end-judge-enabled', true, persistenceOptions)
+  // A local embedding model orders phonetic suggestions by the conversation. It downloads about 120 MB, so it is off by default.
+  const phoneticRerankEnabled = useLocalStorageManualReset<boolean>('settings/hearing/phonetic-rerank-enabled', false, persistenceOptions)
   // An empty provider uses the chat model of the consciousness module.
   const rephraseProvider = useLocalStorageManualReset('settings/hearing/rephrase-provider', '', persistenceOptions)
   const rephraseModel = useLocalStorageManualReset('settings/hearing/rephrase-model', '', persistenceOptions)
@@ -415,6 +417,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     confidenceThreshold.reset()
     rephraseEnabled.reset()
     endJudgeEnabled.reset()
+    phoneticRerankEnabled.reset()
     rephraseProvider.reset()
     rephraseModel.reset()
   }
@@ -570,7 +573,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
       upload = 'media-stream'
     else if (providerId === SHERPAW_TRANSCRIPTION_PROVIDER_ID || features.supportsStreamInput)
       upload = 'pcm'
-    return createHearingTranscriber(async (audio, signal) => {
+    return createHearingTranscriber(async (audio, signal, bias) => {
       const setupError = resolveActiveTranscriptionProviderError(providerId)
       if (setupError)
         throw new Error(setupError)
@@ -608,7 +611,9 @@ export const useHearingStore = defineStore('hearing-store', () => {
         ? { inputAudioStream: new Pcm16Encoder(audio, { sampleRate: 16000, signal }).stream }
         : new File([await encodeWav(audio, { sampleRate: 16000, channels: 1 }, signal)], 'recording.wav', { type: 'audio/wav' })
       try {
-        const result = await transcription(providerId, provider, model, input, undefined, { signal, confidenceThreshold: threshold, providerOptions })
+        // Only a provider that declares hotwords receives the option, so other request bodies stay unchanged.
+        const requestOptions = bias && features.supportsHotwords ? { ...providerOptions, hotwords: bias.phrases } : providerOptions
+        const result = await transcription(providerId, provider, model, input, undefined, { signal, confidenceThreshold: threshold, providerOptions: requestOptions })
         if (result.mode === 'stream') {
           void result.text.then(dispose, dispose).catch(error => console.error('Failed to dispose transcription provider', error))
         }
@@ -636,6 +641,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     confidenceThreshold,
     rephraseEnabled,
     endJudgeEnabled,
+    phoneticRerankEnabled,
     rephraseProvider,
     rephraseModel,
     verboseJsonNotSupported,

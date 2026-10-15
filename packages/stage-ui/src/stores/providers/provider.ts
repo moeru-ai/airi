@@ -905,6 +905,7 @@ export const useProviderStore = defineStore('provider', () => {
       supportsGenerate: features?.generateOutput ?? true,
       supportsStreamOutput: features?.streamOutput ?? false,
       supportsStreamInput: features?.streamInput ?? false,
+      supportsHotwords: features?.hotwords ?? false,
     }
   }
 

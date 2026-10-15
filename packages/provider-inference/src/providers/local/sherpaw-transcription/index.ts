@@ -61,6 +61,7 @@ export function createSherpawTranscriptionDefinition(host: SherpawTranscriptionH
         generateOutput: false,
         streamInput: true,
         streamOutput: true,
+        hotwords: true,
       },
     },
     createProviderConfig: ({ t }) => {

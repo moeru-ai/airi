@@ -366,28 +366,33 @@ function onChartMouseUp() {
 }
 
 function onChartWheel(e: WheelEvent) {
-  e.preventDefault()
-  hasUserInteracted = true
-
   const absDx = Math.abs(e.deltaX)
   const absDy = Math.abs(e.deltaY)
 
-  if (absDx > absDy && absDx > 1) {
-    const viewDur = viewEnd.value - viewStart.value
-    const timeDelta = (e.deltaX / chartWidth.value) * viewDur
-    setViewport(viewStart.value + timeDelta, viewEnd.value + timeDelta)
-    return
-  }
-
-  if (absDy > 1) {
-    const factor = e.deltaY > 0 ? 1.15 : 1 / 1.15
+  // A trackpad pinch arrives as a wheel event with ctrlKey, as Ctrl with a mouse wheel does.
+  if (e.ctrlKey && absDy > 0) {
+    e.preventDefault()
+    hasUserInteracted = true
+    // A pinch sends many small deltas and a mouse wheel sends few large ones. The clamp keeps both steps moderate.
+    const factor = Math.exp(Math.max(-30, Math.min(30, e.deltaY)) * 0.01)
     const mouseX = e.clientX - containerLeft.value - LABEL_COL_WIDTH
     const pivot = xToTime(mouseX)
     setViewport(
       pivot - (pivot - viewStart.value) * factor,
       pivot + (viewEnd.value - pivot) * factor,
     )
+    return
   }
+
+  if (absDx > absDy && absDx > 1) {
+    e.preventDefault()
+    hasUserInteracted = true
+    const viewDur = viewEnd.value - viewStart.value
+    const timeDelta = (e.deltaX / chartWidth.value) * viewDur
+    setViewport(viewStart.value + timeDelta, viewEnd.value + timeDelta)
+  }
+
+  // A vertical swipe or wheel scrolls the rows natively.
 }
 
 type MinimapDragMode = 'left-handle' | 'right-handle' | 'area-select' | null

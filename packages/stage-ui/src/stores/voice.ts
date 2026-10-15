@@ -2,7 +2,7 @@ import type { BeginSpeechInput, SpeechInputAttempt, SpeechOutput, SpeechStream, 
 
 import type { VoiceActivityOptions } from '../libs/voice/voice-activity-plugin'
 import type { VoiceHostSnapshot } from '../services/speech/bus'
-import type { ChatToolReference } from '../types/chat'
+import type { ChatHistoryItem, ChatToolReference } from '../types/chat'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
@@ -15,10 +15,14 @@ import { traceSpeechOutput } from '../composables/speech-output-trace'
 import { useVoiceDrafts } from '../composables/voice-drafts'
 import { useVoiceEndJudge } from '../composables/voice-end-judge'
 import { createVoiceInputTracer } from '../composables/voice-input-trace'
+import { useListeningLeasedElsewhere } from '../composables/voice-listening-lease'
+import { useVoicePhoneticRerank } from '../composables/voice-phonetic-rerank'
 import { useVoiceRephrase } from '../composables/voice-rephrase'
 import { observeInputLevel } from '../libs/voice/input-level'
+import { collectConversationHotwords, conversationMessagesOf, TranscriptionBiasList } from '../libs/voice/transcription-bias'
 import { createVoiceActivityPlugin } from '../libs/voice/voice-activity-plugin'
 import { createVoiceEndJudgePlugin } from '../libs/voice/voice-end-judge-plugin'
+import { createVoicePhoneticMatchPlugin } from '../libs/voice/voice-phonetic-match-plugin'
 import { createVoiceRephrasePlugin } from '../libs/voice/voice-rephrase-plugin'
 import { getSpeechBusContext, voiceGenerationEnded, voiceGetTurns, voiceInputCommand, voiceInputLevel, voiceInterrupt, voiceLevelMonitor, voiceRequestSnapshot, voiceRequestTurns, voiceSnapshotChanged, voiceSpeechCommand, voiceTurnsChanged } from '../services/speech/bus'
 import { SileroVad } from '../workers/vad/silero-vad'
@@ -27,6 +31,7 @@ import { useAudioContext, useSpeakingStore } from './audio'
 import { useChatStore } from './chat'
 import { useChatSessionStore } from './chat/session-store'
 import { startsInputOnSpeech, useHearingStore } from './modules/hearing'
+import { usePhoneticVocabularyStore } from './phonetic-vocabulary'
 import { useSettingsAudioDevice } from './settings/audio-device'
 import { useVoiceMessagesStore } from './voice-messages'
 import { useWakeWordDetectionStore } from './wake-word-detection'
@@ -53,6 +58,7 @@ export const useVoiceStore = defineStore('voice', () => {
   const speaking = useSpeakingStore()
   const streamingControl = useLlmStreamingControlStore()
   const wakeWordDetection = useWakeWordDetectionStore()
+  const phoneticVocabulary = usePhoneticVocabularyStore()
   const { stream: microphoneStream, enabled: microphoneEnabled, error: microphoneError } = storeToRefs(devices)
   /** The application tool selection for spoken turns. Without a connection, spoken turns send no tools. */
   let requestTools: (() => readonly ChatToolReference[]) | undefined
@@ -63,6 +69,8 @@ export const useVoiceStore = defineStore('voice', () => {
   /** One trace per open response turn. It ends after the response drains, is cancelled, or fails to open. */
   const speechTraces = new Map<string, ReturnType<typeof traceSpeechOutput>>()
   let output: ((turn: TurnRef) => SpeechOutput) | undefined
+  /** The output host also takes speech and input commands of other windows, and publishes its state to them. */
+  let servesOtherWindows = false
   let listening: VoicePluginHandle | undefined
   let detectorOptions: Pick<VoiceActivityOptions, 'detectWakeWord' | 'acceptSpeech'> = {}
   const inputRequests = new Map<string, SpeechInputAttempt>()
@@ -74,8 +82,50 @@ export const useVoiceStore = defineStore('voice', () => {
   let presentedInput: { requestId: string, attempt: SpeechInputAttempt } | undefined
 
   const inputTracer = createVoiceInputTracer()
+  /** While another window holds the listening lease, it owns the microphone, so controls of other windows start no input here. */
+  const listeningLeasedElsewhere = useListeningLeasedElsewhere()
+  // The lease also stops the inputs that such controls run now. The holder already hears the same speech.
+  watch(listeningLeasedElsewhere, (leased) => {
+    if (!leased)
+      return
+    for (const attempt of inputRequests.values())
+      attempt.cancel('Another window took the microphone')
+  })
+
+  /**
+   * Conversation terms that bias the next recognition request of each session.
+   * A list is rebuilt when a loaded session's messages change, for example after an assistant turn, a deletion,
+   * or a wake word that loads a chat that is not active. Speech start only reads the prepared list.
+   */
+  const transcriptionBias = new TranscriptionBiasList([{
+    name: 'conversation',
+    collect: async (sessionId) => {
+      const messages = sessions.getSessionMessagesIfLoaded(sessionId)
+      if (!messages)
+        return []
+      return collectConversationHotwords(conversationMessagesOf(messages))
+    },
+  }], { onError: (source, cause) => console.warn(`[voice] Hotword source ${source} failed`, cause) })
+  // The session store replaces a session's message array on every change, so a new array reference marks a change.
+  const biasedMessages = new Map<string, readonly ChatHistoryItem[]>()
+  const stopBiasRebuild = watch(() => sessions.sessionMessages, (loaded) => {
+    for (const [sessionId, messages] of Object.entries(loaded)) {
+      if (biasedMessages.get(sessionId) === messages)
+        continue
+      biasedMessages.set(sessionId, messages)
+      void transcriptionBias.rebuild(sessionId)
+    }
+    for (const sessionId of biasedMessages.keys()) {
+      if (!(sessionId in loaded)) {
+        biasedMessages.delete(sessionId)
+        transcriptionBias.forget(sessionId)
+      }
+    }
+  }, { immediate: true, deep: 1 })
+
   const { controller, state, snapshot: transcript, error } = useVoiceController({
     transcriber: () => hearing.createTranscriber(),
+    transcriptionBias: sessionId => transcriptionBias.read(sessionId),
     speech: (turn) => {
       if (!output)
         throw new Error('Voice output host is not connected')
@@ -107,6 +157,11 @@ export const useVoiceStore = defineStore('voice', () => {
     createVoiceRephrasePlugin({ enabled: () => hearing.rephraseEnabled, rephrase, timeoutMs: VOICE_REPHRASE_TIMEOUT_MS }),
     { grants: ['transcript-patch'], onError: event => report(event.error) },
   )
+  const { rerank: rerankPhonetic } = useVoicePhoneticRerank()
+  controller.use(
+    createVoicePhoneticMatchPlugin({ vocabulary: () => phoneticVocabulary.entries, rerank: rerankPhonetic }),
+    { onError: event => report(event.error) },
+  )
   const { judge } = useVoiceEndJudge()
   controller.use(
     createVoiceEndJudgePlugin({ enabled: () => hearing.endJudgeEnabled, judge, pauseMs: VOICE_END_SILENCE.pauseMs }),
@@ -134,7 +189,7 @@ export const useVoiceStore = defineStore('voice', () => {
   })
 
   function publishSnapshot() {
-    if (!output)
+    if (!output || !servesOtherWindows)
       return
 
     const snapshot: VoiceHostSnapshot = {
@@ -186,7 +241,7 @@ export const useVoiceStore = defineStore('voice', () => {
 
   function updateActiveTurns() {
     activeTurns.value = [...responses.values()].filter(entry => !entry.response.closed).map(entry => entry.response.turn)
-    if (output)
+    if (output && servesOtherWindows)
       getSpeechBusContext().emit(voiceTurnsChanged, activeTurns.value.map(turn => ({ ...turn })))
   }
 
@@ -305,17 +360,20 @@ export const useVoiceStore = defineStore('voice', () => {
     }
   }
 
-  /** The mounted scene supplies its browser output. Detachment stops only this host's responses. */
-  function connectOutput(factory: (turn: TurnRef) => SpeechOutput) {
+  /**
+   * The mounted scene supplies its browser output. Detachment stops only this host's responses.
+   *
+   * With `windowOnly`, the host speaks only the replies of chats in this window. Speech and input commands of
+   * other windows, such as read-aloud, go to their own host, so one command does not play in two windows.
+   */
+  function connectOutput(factory: (turn: TurnRef) => SpeechOutput, options: { windowOnly?: boolean } = {}) {
     if (output)
       throw new Error('Voice output host is already connected')
 
     output = factory
+    servesOtherWindows = !options.windowOnly
     const context = getSpeechBusContext()
-    const producers = new Map<string, SpeechStream>()
-    const opened = new Set<string>()
     const stops = [
-      voiceMessages.connect(),
       publishInputLevel(),
       context.on(voiceGenerationEnded, ({ body }) => {
         if (!body)
@@ -326,11 +384,42 @@ export const useVoiceStore = defineStore('voice', () => {
 
         void finishResponse(body).catch(report)
       }),
+      ...servesOtherWindows ? serveOtherWindows(context) : [],
+    ]
+
+    updateActiveTurns()
+    publishSnapshot()
+
+    return () => {
+      stops.forEach(stop => stop())
+      output = undefined
+      for (const entry of responses.values())
+        entry.response.cancel('Voice output host detached')
+      responses.clear()
+      for (const attempt of inputRequests.values())
+        attempt?.cancel('Voice host detached')
+
+      inputRequests.clear()
+      updateActiveTurns()
+      if (servesOtherWindows) {
+        context.emit(voiceTurnsChanged, [])
+        context.emit(voiceSnapshotChanged, { connected: false, drafts: drafts.value.map(draft => ({ ...draft })) })
+      }
+      servesOtherWindows = false
+    }
+  }
+
+  /** Takes the speech and input commands of other windows. Returns the functions that stop each handler. */
+  function serveOtherWindows(context: ReturnType<typeof getSpeechBusContext>) {
+    const producers = new Map<string, SpeechStream>()
+    const opened = new Set<string>()
+    return [
+      voiceMessages.connect(),
       context.on(voiceRequestSnapshot, publishSnapshot),
       defineInvokeHandler(context, voiceInputCommand, async (command) => {
         switch (command.type) {
           case 'begin': {
-            if (inputRequests.has(command.requestId))
+            if (inputRequests.has(command.requestId) || listeningLeasedElsewhere.value)
               return { status: 'closed' }
 
             const attempt = beginManual(command.sessionId)
@@ -447,24 +536,6 @@ export const useVoiceStore = defineStore('voice', () => {
         return { status: 'accepted' }
       }),
     ]
-
-    updateActiveTurns()
-    publishSnapshot()
-
-    return () => {
-      stops.forEach(stop => stop())
-      output = undefined
-      for (const entry of responses.values())
-        entry.response.cancel('Voice output host detached')
-      responses.clear()
-      for (const attempt of inputRequests.values())
-        attempt?.cancel('Voice host detached')
-
-      inputRequests.clear()
-      updateActiveTurns()
-      context.emit(voiceTurnsChanged, [])
-      context.emit(voiceSnapshotChanged, { connected: false, drafts: drafts.value.map(draft => ({ ...draft })) })
-    }
   }
 
   function startListening(options: Pick<VoiceActivityOptions, 'detectWakeWord' | 'acceptSpeech'> = detectorOptions) {
@@ -521,6 +592,8 @@ export const useVoiceStore = defineStore('voice', () => {
   }
 
   onScopeDispose(() => {
+    stopBiasRebuild()
+    transcriptionBias.dispose()
     void stopListening()
   })
 

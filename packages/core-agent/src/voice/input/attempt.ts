@@ -5,7 +5,7 @@ import type { SpeechSubscription } from '../plugins/types'
 import type { TurnRef } from '../turn'
 import type { BeginSpeechInput, SpeechInputAttemptOutcome, SpeechInputAttemptState } from './attempt-types'
 import type { EndDetectionOptions, EndDetector, SpeechActivityEvidence } from './end-detection'
-import type { SpeechInputPorts, StreamingTranscriber } from './submission'
+import type { SpeechInputPorts, StreamingTranscriber, TranscriptionBias } from './submission'
 import type { TranscriptionEvent } from './transcript'
 
 import { capture, observe } from '@proj-airi/pipelines-audio'
@@ -272,7 +272,8 @@ export class SpeechInputAttempt {
 
   private async readTranscription(provider: StreamingTranscriber, capture: Capture): Promise<boolean> {
     this.stage = 'transcription'
-    this.reader = provider.transcribe({ audio: capture.stream, signal: this.abort.signal }).getReader()
+    const bias = this.readBias()
+    this.reader = provider.transcribe({ audio: capture.stream, signal: this.abort.signal, ...(bias ? { bias } : {}) }).getReader()
     while (!this.abort.signal.aborted) {
       const result = await this.reader.read()
       if (this.abort.signal.aborted)
@@ -289,6 +290,18 @@ export class SpeechInputAttempt {
     this.accepted!.finishTranscription()
     const captured = await capture.done
     return captured.status === 'finished' && !this.abort.signal.aborted
+  }
+
+  /** Bias only improves recognition. A failed read is reported, and the request continues without bias. */
+  private readBias(): TranscriptionBias | undefined {
+    try {
+      const bias = this.owner.options.transcriptionBias?.(this.sessionId)
+      return bias?.phrases.length ? bias : undefined
+    }
+    catch (error) {
+      this.owner.reportError('transcription-bias', error)
+      return undefined
+    }
   }
 
   private async submitInput(): Promise<void> {

@@ -415,17 +415,23 @@ catalogs:
       specifier: ^2.40.1
       version: 2.40.1
     '@sherpaw/asr':
-      specifier: 0.3.0
-      version: 0.3.0
+      specifier: git+https://github.com/shinohara-rin/sherpaw.git#e1e0e3e63aed08e533bec858f6733452eb05e9b9&path:/asr
+      version: 0.3.1-fork.2ff318d
     '@sherpaw/kws':
-      specifier: 0.3.0
-      version: 0.3.0
+      specifier: git+https://github.com/shinohara-rin/sherpaw.git#e1e0e3e63aed08e533bec858f6733452eb05e9b9&path:/kws
+      version: 0.3.1-fork.2ff318d
+    '@sherpaw/preloader':
+      specifier: git+https://github.com/shinohara-rin/sherpaw.git#e1e0e3e63aed08e533bec858f6733452eb05e9b9&path:/preloader
+      version: 0.3.1-fork.2ff318d
+    '@sherpaw/shared':
+      specifier: git+https://github.com/shinohara-rin/sherpaw.git#e1e0e3e63aed08e533bec858f6733452eb05e9b9&path:/shared
+      version: 0.3.1-fork.2ff318d
     '@sherpaw/speaker-diarization':
       specifier: 0.3.0
       version: 0.3.0
     '@sherpaw/xsai-transcription':
-      specifier: 0.3.0
-      version: 0.3.0
+      specifier: git+https://github.com/shinohara-rin/sherpaw.git#e1e0e3e63aed08e533bec858f6733452eb05e9b9&path:/xsai-transcription
+      version: 0.3.1-fork.2ff318d
     '@shikijs/markdown-it':
       specifier: ^4.4.3
       version: 4.4.3
@@ -586,14 +592,14 @@ catalogs:
       specifier: 0.5.1
       version: 0.5.1
     '@xsai-transformers/embed':
-      specifier: ^0.1.0
-      version: 0.1.0
+      specifier: ^0.2.0
+      version: 0.2.0
     '@xsai-transformers/shared':
-      specifier: ^0.1.0
-      version: 0.1.0
+      specifier: ^0.2.0
+      version: 0.2.0
     '@xsai-transformers/transcription':
-      specifier: ^0.1.0
-      version: 0.1.0
+      specifier: ^0.2.0
+      version: 0.2.0
     '@xsai/embed':
       specifier: 0.5.1
       version: 0.5.1
@@ -669,6 +675,9 @@ catalogs:
     clustr:
       specifier: ^1.0.2
       version: 1.0.2
+    cmu-pronouncing-dictionary:
+      specifier: ^3.0.0
+      version: 3.0.0
     colorjs.io:
       specifier: ^0.7.1
       version: 0.7.1
@@ -912,6 +921,9 @@ catalogs:
     pinia-plugin-synced:
       specifier: ^0.1.5
       version: 0.1.5
+    pinyin-pro:
+      specifier: ^3.29.4
+      version: 3.29.4
     pixi-filters:
       specifier: ^4.2.0
       version: 4.2.0
@@ -1561,7 +1573,7 @@ importers:
         version: 0.5.1
       '@xsai-transformers/embed':
         specifier: 'catalog:'
-        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+        version: 0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.5.1
@@ -2009,10 +2021,10 @@ importers:
         version: 0.5.1
       '@xsai-transformers/embed':
         specifier: 'catalog:'
-        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+        version: 0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai-transformers/transcription':
         specifier: 'catalog:'
-        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+        version: 0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.5.1
@@ -2440,10 +2452,10 @@ importers:
         version: 0.10.0
       '@gd-kirie/ipc-eventa':
         specifier: 0.10.0
-        version: 0.10.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+        version: 0.10.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@gd-kirie/platform':
         specifier: 0.10.0
-        version: 0.10.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+        version: 0.10.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@guiiai/logg':
         specifier: 'catalog:'
         version: 1.2.12
@@ -2557,10 +2569,10 @@ importers:
         version: 0.5.1
       '@xsai-transformers/embed':
         specifier: 'catalog:'
-        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+        version: 0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai-transformers/transcription':
         specifier: 'catalog:'
-        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+        version: 0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.5.1
@@ -2987,7 +2999,7 @@ importers:
         version: 0.5.1
       '@xsai-transformers/embed':
         specifier: 'catalog:'
-        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+        version: 0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.5.1
@@ -4288,10 +4300,16 @@ importers:
         version: link:../audio
       '@sherpaw/asr':
         specifier: 'catalog:'
-        version: 0.3.0(onnxruntime-web@1.27.0)
+        version: https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/asr(onnxruntime-web@1.27.0)
+      '@sherpaw/preloader':
+        specifier: 'catalog:'
+        version: https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/preloader
+      '@sherpaw/shared':
+        specifier: 'catalog:'
+        version: https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/shared
       '@sherpaw/xsai-transcription':
         specifier: 'catalog:'
-        version: 0.3.0(electron@43.4.1(supports-color@10.2.2))(onnxruntime-web@1.27.0)(web-worker@1.5.0)
+        version: https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/xsai-transcription(@sherpaw/asr@https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/asr(onnxruntime-web@1.27.0))(@sherpaw/preloader@https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/preloader)(@sherpaw/shared@https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/shared)(electron@43.4.1(supports-color@10.2.2))(web-worker@1.5.0)
       '@xsai-ext/providers':
         specifier: 'catalog:'
         version: 0.5.1
@@ -4300,7 +4318,7 @@ importers:
         version: 0.5.1(patch_hash=869608a1a960b80aef6290aef41763c909252e2401364f1bfa75a67134866eed)(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       '@xsai-transformers/shared':
         specifier: 'catalog:'
-        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+        version: 0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai/generate-text':
         specifier: 'catalog:'
         version: 0.5.1
@@ -4613,6 +4631,9 @@ importers:
       '@proj-airi/i18n':
         specifier: workspace:*
         version: link:../i18n
+      '@proj-airi/pipelines-audio':
+        specifier: workspace:^
+        version: link:../pipelines-audio
       '@proj-airi/provider-inference':
         specifier: workspace:^
         version: link:../provider-inference
@@ -4903,15 +4924,24 @@ importers:
       '@revenuecat/purchases-js':
         specifier: 'catalog:'
         version: 1.68.0
+      '@sherpaw/asr':
+        specifier: 'catalog:'
+        version: https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/asr(onnxruntime-web@1.27.0)
       '@sherpaw/kws':
         specifier: 'catalog:'
-        version: 0.3.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+        version: https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/kws(@sherpaw/preloader@https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/preloader)(@sherpaw/shared@https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/shared)(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+      '@sherpaw/preloader':
+        specifier: 'catalog:'
+        version: https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/preloader
+      '@sherpaw/shared':
+        specifier: 'catalog:'
+        version: https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/shared
       '@sherpaw/speaker-diarization':
         specifier: 'catalog:'
         version: 0.3.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(onnxruntime-web@1.27.0)(web-worker@1.5.0)
       '@sherpaw/xsai-transcription':
         specifier: 'catalog:'
-        version: 0.3.0(electron@43.4.1(supports-color@10.2.2))(onnxruntime-web@1.27.0)(web-worker@1.5.0)
+        version: https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/xsai-transcription(@sherpaw/asr@https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/asr(onnxruntime-web@1.27.0))(@sherpaw/preloader@https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/preloader)(@sherpaw/shared@https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/shared)(electron@43.4.1(supports-color@10.2.2))(web-worker@1.5.0)
       '@shikijs/rehype':
         specifier: 'catalog:'
         version: 4.4.3
@@ -4941,10 +4971,10 @@ importers:
         version: 0.5.1
       '@xsai-transformers/embed':
         specifier: 'catalog:'
-        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+        version: 0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai-transformers/shared':
         specifier: 'catalog:'
-        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+        version: 0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai/embed':
         specifier: 'catalog:'
         version: 0.5.1
@@ -4987,6 +5017,9 @@ importers:
       better-auth:
         specifier: 'catalog:'
         version: 1.6.25(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.11.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))(pg@8.23.0)(vitest@4.1.11)(vue@3.5.41(typescript@6.0.3))
+      cmu-pronouncing-dictionary:
+        specifier: 'catalog:'
+        version: 3.0.0
       culori:
         specifier: 'catalog:'
         version: 4.0.2
@@ -5050,6 +5083,9 @@ importers:
       pinia-plugin-synced:
         specifier: 'catalog:'
         version: 0.1.5(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
+      pinyin-pro:
+        specifier: 'catalog:'
+        version: 3.29.4
       rehype-katex:
         specifier: 'catalog:'
         version: 7.0.1
@@ -8992,20 +9028,6 @@ packages:
       eslint-plugin-oxlint:
         optional: true
 
-  '@moeru/eventa@0.3.0':
-    resolution: {integrity: sha512-/U9BNwd+a3OAlbolkW4yWbKtbtL2poiu0V44yekV31SKOAGy9NZJe6hmAAr5nwwDO5Iu6uK/Kz/l+3maEwsUnQ==}
-    peerDependencies:
-      electron: '>=30'
-      h3: 2.0.0-beta.1
-      web-worker: ^1.5.0
-    peerDependenciesMeta:
-      electron:
-        optional: true
-      h3:
-        optional: true
-      web-worker:
-        optional: true
-
   '@moeru/eventa@1.0.0-beta.1':
     resolution: {integrity: sha512-4VPs+FlTdIMtlNdBvERvF+e9pnSbz+PN7dgztADtaETCQsSDk9ptHJuzajRBhOlr364k4TotroZa9rrIoVelRQ==}
     peerDependencies:
@@ -11548,22 +11570,35 @@ packages:
   '@sec-ant/readable-stream@0.4.1':
     resolution: {integrity: sha512-831qok9r2t8AlxLko40y2ebgSDhenenCatLVeW/uBtnHPyhHOvG0C7TvfgecV+wHzIm5KUICgzmVpWS+IMEAeg==}
 
-  '@sherpaw/asr@0.3.0':
-    resolution: {integrity: sha512-zLCJk7ZUVdc/GKeUx2dCfqDkbfiuA/iWlWYsHbPz/9ltwXVwAZckUr+bDQ3Jlcbpfvoe+y+GK7WqP0oMUIkCeQ==}
+  '@sherpaw/asr@https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/asr':
+    resolution: {gitHosted: true, integrity: sha512-Xh8DsJGWqOSE0Vzve4oZJudv6oTC8+Y1Z/qcEj63zys1WBoRAIIwtg5RNXyN7hwiPSiDo45DXpRT+Vqs1PxAIg==, path: /asr, tarball: https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9}
+    version: 0.3.1-fork.2ff318d
     peerDependencies:
       onnxruntime-web: 1.27.0
     peerDependenciesMeta:
       onnxruntime-web:
         optional: true
 
-  '@sherpaw/kws@0.3.0':
-    resolution: {integrity: sha512-gT9UJs/zf2/TuvDTStka4rGymENqTVkF4a5IKaaHaURax1dmTtBlZDj5CTurnXBCYTSGamlUG9Nc8rr56UX3PQ==}
+  '@sherpaw/kws@https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/kws':
+    resolution: {gitHosted: true, integrity: sha512-Xh8DsJGWqOSE0Vzve4oZJudv6oTC8+Y1Z/qcEj63zys1WBoRAIIwtg5RNXyN7hwiPSiDo45DXpRT+Vqs1PxAIg==, path: /kws, tarball: https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9}
+    version: 0.3.1-fork.2ff318d
+    peerDependencies:
+      '@sherpaw/preloader': 0.3.1-fork.2ff318d
+      '@sherpaw/shared': 0.3.1-fork.2ff318d
 
   '@sherpaw/preloader@0.3.0':
     resolution: {integrity: sha512-3l4VgX9bITM4FX0S7LKKVMU+uZJCRKKAQJmdf5/2IpqnfzcyIoLKYWrqojf2aWZmtFcWH435/56irStNQLROig==}
 
+  '@sherpaw/preloader@https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/preloader':
+    resolution: {gitHosted: true, integrity: sha512-Xh8DsJGWqOSE0Vzve4oZJudv6oTC8+Y1Z/qcEj63zys1WBoRAIIwtg5RNXyN7hwiPSiDo45DXpRT+Vqs1PxAIg==, path: /preloader, tarball: https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9}
+    version: 0.3.1-fork.2ff318d
+
   '@sherpaw/shared@0.3.0':
     resolution: {integrity: sha512-J9XTyc/nwmVcW62Jr6NnXgLhQQndox+4931yayZUgC9lVsM8ACTT47c+kgGHeuUGkkSu8IVqcaX/PdMsuFeFng==}
+
+  '@sherpaw/shared@https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/shared':
+    resolution: {gitHosted: true, integrity: sha512-Xh8DsJGWqOSE0Vzve4oZJudv6oTC8+Y1Z/qcEj63zys1WBoRAIIwtg5RNXyN7hwiPSiDo45DXpRT+Vqs1PxAIg==, path: /shared, tarball: https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9}
+    version: 0.3.1-fork.2ff318d
 
   '@sherpaw/speaker-diarization@0.3.0':
     resolution: {integrity: sha512-pw0dWhwQwd3kxNLGi1QFJdNEJhJV/NpuU7tW0Rs5xEvyYTT0KyzAyrxM8cB3gGlQag9P4FslMRJBN4C+z7TOsg==}
@@ -11576,8 +11611,13 @@ packages:
   '@sherpaw/speaker-identification@0.3.0':
     resolution: {integrity: sha512-W0V9SmwQH7EWLs24ZGDPttyhxfOs4AFs8PeMeYXQ8XAeDDfc5Tx6E6vhJ7OLfK71tuocQllmNeEmOQFkYj8UZQ==}
 
-  '@sherpaw/xsai-transcription@0.3.0':
-    resolution: {integrity: sha512-W39S/eKyENI03ns9d0sv1a3ab2C5Lx8JdcPwsNvABybzlJaC0syxlyLOlZsiISX4KwkCeMMw8I8E8Dv5Vly5HQ==}
+  '@sherpaw/xsai-transcription@https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/xsai-transcription':
+    resolution: {gitHosted: true, integrity: sha512-Xh8DsJGWqOSE0Vzve4oZJudv6oTC8+Y1Z/qcEj63zys1WBoRAIIwtg5RNXyN7hwiPSiDo45DXpRT+Vqs1PxAIg==, path: /xsai-transcription, tarball: https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9}
+    version: 0.3.1-fork.2ff318d
+    peerDependencies:
+      '@sherpaw/asr': 0.3.1-fork.2ff318d
+      '@sherpaw/preloader': 0.3.1-fork.2ff318d
+      '@sherpaw/shared': 0.3.1-fork.2ff318d
 
   '@shikijs/core@3.23.0':
     resolution: {integrity: sha512-NSWQz0riNb67xthdm5br6lAkvpDJRTgB36fxlo37ZzM2yq0PQFFzbd8psqC2XMPgCzo1fW6cVi18+ArJ44wqgA==}
@@ -12914,23 +12954,19 @@ packages:
   '@xsai-ext/responses@0.5.1':
     resolution: {integrity: sha512-HD+ZrbTydbEHVDOMN8xuiM2LIW6FNGNT8lIlt6J38jb3KdWUw2bPul8hXwwB4Q422l2J84QeQYqphjh9eSaO4g==}
 
-  '@xsai-ext/shared-providers@0.4.0-beta.12':
-    resolution: {integrity: sha512-ME9L8BtapghM0W2SiTdulq0IvU3WR0h7dZ3k1bg/eXag2XUdbh1jy0zYY3oGmpMBmKXO8JXcArS1mq87gpsK0A==}
-    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
-
-  '@xsai-transformers/embed@0.1.0':
-    resolution: {integrity: sha512-psLt56+tEUiIvpaLQCjZlKegSqZJ8ZWhhNxnSJYxjZyIXAEImDCnFOmUsapySElB3zdN2dVev5a+BKga74/hvw==}
+  '@xsai-transformers/embed@0.2.0':
+    resolution: {integrity: sha512-ZZY5PnETU2HAgvdZmGuD52O4K4pBGNv7/FmBm6IH99MmGJnNCyWOROUgAGOa9o47kcMIhg9169Due/+XqaSbOg==}
     peerDependencies:
       web-worker: ^1.5.0
     peerDependenciesMeta:
       web-worker:
         optional: true
 
-  '@xsai-transformers/shared@0.1.0':
-    resolution: {integrity: sha512-RC0KtlbuwKoT4vmHFG7iRFyFgiB2jfhEtU6WSE5hjqZ6sQg/WjwQC23c3Ws6IlT70MpOqNhp+L3ZnimcWrhTQw==}
+  '@xsai-transformers/shared@0.2.0':
+    resolution: {integrity: sha512-FxpVPPqOeyDIBgxpYEvrSY36pLH7IXcFjP2fN+yuh4u/ebW7pbdTJQocJmJHaugndCeOkHFa/bNzrcJT/u8VSA==}
 
-  '@xsai-transformers/transcription@0.1.0':
-    resolution: {integrity: sha512-ah19JC1UKm5gKsaYXyulR/uale1XbhNxx+ISLsUNkGPGlnkN3uD2H0pR8AX3GlZ91PDVCqwkZ8Y038bz0bymqQ==}
+  '@xsai-transformers/transcription@0.2.0':
+    resolution: {integrity: sha512-+79Q5bm4qOauxsP/fhZ30NsN89WDPU3MnXpcJtO9YbgfDpRi9zbQPJIfkaRhqOnqQZrcHpCH20v+LlS8ufYueQ==}
     peerDependencies:
       web-worker: ^1.5.0
     peerDependenciesMeta:
@@ -13958,6 +13994,9 @@ packages:
   clustr@1.0.2:
     resolution: {integrity: sha512-Zvxo5inxwvoGMI0R+cXV+5nVbl/Gw7zYV1Msn9mn7loC6CK941CjvsBplgClJV83T4UXID+SXhtfVulfaBat5w==}
     engines: {node: '>=22.10.0'}
+
+  cmu-pronouncing-dictionary@3.0.0:
+    resolution: {integrity: sha512-6y5X4OxsYFnHERo6WSVPnLrk53G07MOQ8aUb2z555JgwynpbZsHR0a//WdN6DUcmE1j2auTF2TtL4PpoKze8QQ==}
 
   color-convert@2.0.1:
     resolution: {integrity: sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ==}
@@ -17776,6 +17815,9 @@ packages:
   pinkie@2.0.4:
     resolution: {integrity: sha512-MnUuEycAemtSaeFSjXKW/aroV7akBbY+Sv+RkyqFjgAe73F+MR0TBWKBRDkmfWq/HiFmdavfZ1G7h4SPZXaCSg==}
     engines: {node: '>=0.10.0'}
+
+  pinyin-pro@3.29.4:
+    resolution: {integrity: sha512-SPXpDT2cHEy+d26V1RXYMlVzXN42hotFAak1fzyWPi4o2dKXb61UqD4pzxDJHwk6gbv8vQ6EfErd+hYX0Qhzug==}
 
   pipe-functions@1.3.0:
     resolution: {integrity: sha512-6Rtbp7criZRwedlvWbUYxqlqJoAlMvYHo2UcRWq79xZ54vZcaNHpVBOcWkX3ErT2aUA69tv+uiv4zKJbhD/Wgg==}
@@ -23017,7 +23059,7 @@ snapshots:
       - tsx
       - yaml
 
-  '@gd-kirie/ipc-eventa@0.10.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
+  '@gd-kirie/ipc-eventa@0.10.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
       '@gd-kirie/ipc': 0.10.0
       '@moeru/eventa': 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
@@ -23032,9 +23074,9 @@ snapshots:
     dependencies:
       cborg: 4.5.8
 
-  '@gd-kirie/platform@0.10.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
+  '@gd-kirie/platform@0.10.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
-      '@gd-kirie/ipc-eventa': 0.10.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+      '@gd-kirie/ipc-eventa': 0.10.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/eventa': 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
     transitivePeerDependencies:
       - '@tauri-apps/api'
@@ -23729,15 +23771,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
       - typescript
-
-  '@moeru/eventa@0.3.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)':
-    dependencies:
-      nanoid: 5.1.16
-      picomatch: 4.0.5
-    optionalDependencies:
-      electron: 43.4.1(supports-color@10.2.2)
-      h3: 2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7))
-      web-worker: 1.5.0
 
   '@moeru/eventa@1.0.0-beta.1(electron@43.4.1(supports-color@10.2.2))(web-worker@1.5.0)':
     dependencies:
@@ -25814,15 +25847,15 @@ snapshots:
 
   '@sec-ant/readable-stream@0.4.1': {}
 
-  '@sherpaw/asr@0.3.0(onnxruntime-web@1.27.0)':
+  '@sherpaw/asr@https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/asr(onnxruntime-web@1.27.0)':
     optionalDependencies:
       onnxruntime-web: 1.27.0
 
-  '@sherpaw/kws@0.3.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
+  '@sherpaw/kws@https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/kws(@sherpaw/preloader@https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/preloader)(@sherpaw/shared@https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/shared)(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
       '@moeru/eventa': 1.0.1(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
-      '@sherpaw/preloader': 0.3.0
-      '@sherpaw/shared': 0.3.0
+      '@sherpaw/preloader': https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/preloader
+      '@sherpaw/shared': https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/shared
     transitivePeerDependencies:
       - '@tauri-apps/api'
       - electron
@@ -25832,7 +25865,13 @@ snapshots:
 
   '@sherpaw/preloader@0.3.0': {}
 
+  '@sherpaw/preloader@https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/preloader': {}
+
   '@sherpaw/shared@0.3.0':
+    dependencies:
+      '@types/emscripten': 1.41.6
+
+  '@sherpaw/shared@https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/shared':
     dependencies:
       '@types/emscripten': 1.41.6
 
@@ -25855,17 +25894,16 @@ snapshots:
     dependencies:
       '@sherpaw/shared': 0.3.0
 
-  '@sherpaw/xsai-transcription@0.3.0(electron@43.4.1(supports-color@10.2.2))(onnxruntime-web@1.27.0)(web-worker@1.5.0)':
+  '@sherpaw/xsai-transcription@https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/xsai-transcription(@sherpaw/asr@https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/asr(onnxruntime-web@1.27.0))(@sherpaw/preloader@https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/preloader)(@sherpaw/shared@https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/shared)(electron@43.4.1(supports-color@10.2.2))(web-worker@1.5.0)':
     dependencies:
       '@moeru/eventa': 1.0.0-beta.1(electron@43.4.1(supports-color@10.2.2))(web-worker@1.5.0)
       '@moeru/std': 0.1.0-beta.17
-      '@sherpaw/asr': 0.3.0(onnxruntime-web@1.27.0)
-      '@sherpaw/preloader': 0.3.0
-      '@sherpaw/shared': 0.3.0
+      '@sherpaw/asr': https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/asr(onnxruntime-web@1.27.0)
+      '@sherpaw/preloader': https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/preloader
+      '@sherpaw/shared': https://codeload.github.com/shinohara-rin/sherpaw/tar.gz/e1e0e3e63aed08e533bec858f6733452eb05e9b9#path:/shared
     transitivePeerDependencies:
       - electron
       - h3
-      - onnxruntime-web
       - web-worker
 
   '@shikijs/core@3.23.0':
@@ -27672,46 +27710,46 @@ snapshots:
       - zod
       - zod-to-json-schema
 
-  '@xsai-ext/shared-providers@0.4.0-beta.12':
-    dependencies:
-      '@xsai/shared': 0.4.4
-
-  '@xsai-transformers/embed@0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)':
+  '@xsai-transformers/embed@0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
       '@huggingface/transformers': 3.8.1
-      '@moeru/eventa': 0.3.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+      '@moeru/eventa': 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std': 0.1.0-beta.20
-      '@xsai-ext/shared-providers': 0.4.0-beta.12
-      '@xsai-transformers/shared': 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+      '@xsai-ext/providers': 0.4.4
+      '@xsai-transformers/shared': 0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai/embed': 0.4.4
       '@xsai/shared': 0.4.4
       gpuu: 1.0.7
     optionalDependencies:
       web-worker: 1.5.0
     transitivePeerDependencies:
+      - '@tauri-apps/api'
       - electron
       - h3
+      - hono
 
-  '@xsai-transformers/shared@0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)':
+  '@xsai-transformers/shared@0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
       '@huggingface/transformers': 3.8.1
-      '@moeru/eventa': 0.3.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+      '@moeru/eventa': 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std': 0.1.0-beta.20
-      '@xsai-ext/shared-providers': 0.4.0-beta.12
+      '@xsai-ext/providers': 0.4.4
       '@xsai/shared': 0.4.4
       onnxruntime-common: 1.27.0
     transitivePeerDependencies:
+      - '@tauri-apps/api'
       - electron
       - h3
+      - hono
       - web-worker
 
-  '@xsai-transformers/transcription@0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)':
+  '@xsai-transformers/transcription@0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
       '@huggingface/transformers': 3.8.1
-      '@moeru/eventa': 0.3.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+      '@moeru/eventa': 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std': 0.1.0-beta.20
-      '@xsai-ext/shared-providers': 0.4.0-beta.12
-      '@xsai-transformers/shared': 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+      '@xsai-ext/providers': 0.4.4
+      '@xsai-transformers/shared': 0.2.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai/embed': 0.4.4
       '@xsai/generate-transcription': 0.4.4
       '@xsai/shared': 0.4.4
@@ -27719,8 +27757,10 @@ snapshots:
     optionalDependencies:
       web-worker: 1.5.0
     transitivePeerDependencies:
+      - '@tauri-apps/api'
       - electron
       - h3
+      - hono
 
   '@xsai/embed@0.4.4':
     dependencies:
@@ -28647,6 +28687,8 @@ snapshots:
   cluster-key-slot@1.1.1: {}
 
   clustr@1.0.2: {}
+
+  cmu-pronouncing-dictionary@3.0.0: {}
 
   color-convert@2.0.1:
     dependencies:
@@ -33209,6 +33251,8 @@ snapshots:
       pinkie: 2.0.4
 
   pinkie@2.0.4: {}
+
+  pinyin-pro@3.29.4: {}
 
   pipe-functions@1.3.0: {}
 

@@ -1,5 +1,5 @@
 import type { Span } from '@opentelemetry/api'
-import type { StreamingTranscriber, TranscriptionEvent, TranscriptSegment } from '@proj-airi/core-agent'
+import type { StreamingTranscriber, TranscriptionBias, TranscriptionEvent, TranscriptSegment } from '@proj-airi/core-agent'
 
 import type { AIRIStreamTranscriptionDelta } from '../providers/stream-transcription'
 import type { HearingTranscriptionResult } from '../providers/transcription-types'
@@ -26,7 +26,7 @@ export interface HearingTranscriberTraceOptions {
  * the span as aborted, and a provider failure marks it as an error. Devtools and audio tests read this span.
  */
 export function createHearingTranscriber(
-  invoke: (audio: Parameters<StreamingTranscriber['transcribe']>[0]['audio'], signal: AbortSignal) => Promise<HearingTranscriptionResult>,
+  invoke: (audio: Parameters<StreamingTranscriber['transcribe']>[0]['audio'], signal: AbortSignal, bias: TranscriptionBias | undefined) => Promise<HearingTranscriptionResult>,
   options: HearingTranscriberTraceOptions = {},
 ): StreamingTranscriber {
   const words = new Intl.Segmenter(undefined, { granularity: 'word' })
@@ -83,7 +83,7 @@ export function createHearingTranscriber(
 
           try {
             signal.throwIfAborted()
-            const result = await invoke(request.audio, signal)
+            const result = await invoke(request.audio, signal, request.bias)
 
             if (result.mode === 'generate') {
               publish(result.text, true)

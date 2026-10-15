@@ -75,6 +75,9 @@ pages:
 devtools:
   title: Developer
   pages:
+    voice-pipeline:
+      title: Voice Pipeline
+      description: Follow speech from hotwords through the uncertainty probe to the term suggestions that the chat model reads
     context-flow:
       title: Context Flow
     presence-bubble:

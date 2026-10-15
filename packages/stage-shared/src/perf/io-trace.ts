@@ -98,6 +98,8 @@ export const IOEvents = {
   // Non-standard
   LLMFirstToken: `${customPrefix}.llm.first_token`,
   ASRSentenceEnd: `${customPrefix}.asr.sentence_end`,
+  /** A speech input stopped capturing audio, for example when Push to Talk is released or VAD ended it. */
+  VoiceCaptureEnd: `${customPrefix}.voice_input.capture_end`,
   StreamingControlHandlerEnd: `${customPrefix}.streaming_control.handler_end`,
   StreamingControlHandlerError: `${customPrefix}.streaming_control.handler_error`,
   StreamingControlHandlerStart: `${customPrefix}.streaming_control.handler_start`,

@@ -602,6 +602,7 @@ pages:
         empty: No speech models are downloaded.
         wake-word-model: Wake word model
         voiceprint-model: Voiceprint model
+        term-suggestion-model: Term suggestion model
         refresh: Refresh
       modules:
         title: Modules
@@ -943,6 +944,11 @@ pages:
             same-as-chat: Same as chat
             model: Model
             model-placeholder: Select a model
+          phonetic-rerank:
+            title: Term suggestions
+            description: When a transcript sounds like a known term, the chat model gets the term as a suggestion. The transcript does not change.
+            enabled: Sort suggestions by the conversation
+            enabled-description: A local model reads the recent messages and puts the terms that fit the topic first. It downloads about 120 MB on first use and runs on this device.
           playground:
             current: Current transcript
             description: Listen through the active Hearing pipeline and keep each completed speech segment below.

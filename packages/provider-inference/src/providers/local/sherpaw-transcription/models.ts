@@ -58,6 +58,17 @@ export const zipformerMultilingual = {
   directory: 'install/bin/wasm',
 } as const satisfies SherpawModel
 
+/**
+ * Reports whether sherpa-onnx can bias this model with plain-text hotwords.
+ *
+ * - A streaming Paraformer has no hotword support in sherpa-onnx.
+ * - sherpa-onnx encodes plain-text hotwords only with a named modeling unit. X-ASR uses BPE tokens with an
+ *   empty unit and ships no BPE vocabulary, so its hotwords cannot be encoded.
+ */
+export function acceptsHotwords(model: SherpawModel): boolean {
+  return model.recognizer === 'transducer' && model.modelingUnit !== ''
+}
+
 export const sherpawModels = {
   [paraformerBilingualZhEn.id]: paraformerBilingualZhEn,
   [zipformerMultilingual.id]: zipformerMultilingual,

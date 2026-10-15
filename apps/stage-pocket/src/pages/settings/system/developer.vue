@@ -63,6 +63,12 @@ const menu = computed(() => [
     to: '/devtools/vibrant',
   },
   {
+    title: t('tamagotchi.settings.devtools.pages.voice-pipeline.title'),
+    description: t('tamagotchi.settings.devtools.pages.voice-pipeline.description'),
+    icon: 'i-solar:soundwave-bold-duotone',
+    to: '/devtools/voice-pipeline',
+  },
+  {
     title: 'Aliyun Real-time Transcriber',
     description: 'Stream microphone audio to Aliyun NLS and inspect live transcripts',
     icon: 'i-solar:sledgehammer-bold-duotone',

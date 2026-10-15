@@ -233,10 +233,19 @@ catalog:
   '@proj-airi/unplugin-live2d-sdk': ^0.1.7
   '@revenuecat/purchases-js': ^1.15.0
   '@rive-app/canvas-lite': ^2.40.1
-  '@sherpaw/asr': 0.3.0
-  '@sherpaw/kws': 0.3.0
+  # NOTICE:
+  # AIRI needs Sherpaw rollouts, and no published Sherpaw release has them yet.
+  # These packages are built from shinohara-rin/sherpaw PR #3 and pinned by commit on its build branch.
+  # Their @sherpaw dependencies are peers, because pnpm blocks git sources for nested dependencies.
+  # Source: https://github.com/shinohara-rin/sherpaw/pull/3
+  # Speaker diarization is not in that build, so it stays on the 0.3.0 release.
+  # Remove these git specs and the direct @sherpaw/shared and @sherpaw/preloader entries after a release has rollouts.
+  '@sherpaw/asr': git+https://github.com/shinohara-rin/sherpaw.git#e1e0e3e63aed08e533bec858f6733452eb05e9b9&path:/asr
+  '@sherpaw/kws': git+https://github.com/shinohara-rin/sherpaw.git#e1e0e3e63aed08e533bec858f6733452eb05e9b9&path:/kws
+  '@sherpaw/preloader': git+https://github.com/shinohara-rin/sherpaw.git#e1e0e3e63aed08e533bec858f6733452eb05e9b9&path:/preloader
+  '@sherpaw/shared': git+https://github.com/shinohara-rin/sherpaw.git#e1e0e3e63aed08e533bec858f6733452eb05e9b9&path:/shared
   '@sherpaw/speaker-diarization': 0.3.0
-  '@sherpaw/xsai-transcription': 0.3.0
+  '@sherpaw/xsai-transcription': git+https://github.com/shinohara-rin/sherpaw.git#e1e0e3e63aed08e533bec858f6733452eb05e9b9&path:/xsai-transcription
   '@shikijs/markdown-it': ^4.4.3
   '@shikijs/rehype': ^4.4.3
   '@shopify/draggable': ^1.2.1
@@ -291,9 +300,9 @@ catalog:
   '@xsai-apple-vision/vision-native-darwin-arm64': 0.1.0
   '@xsai-ext/providers': 0.5.1
   '@xsai-ext/responses': 0.5.1
-  '@xsai-transformers/embed': ^0.1.0
-  '@xsai-transformers/shared': ^0.1.0
-  '@xsai-transformers/transcription': ^0.1.0
+  '@xsai-transformers/embed': ^0.2.0
+  '@xsai-transformers/shared': ^0.2.0
+  '@xsai-transformers/transcription': ^0.2.0
   '@xsai/embed': 0.5.1
   '@xsai/generate-speech': 0.5.1
   '@xsai/generate-text': 0.5.1
@@ -319,6 +328,7 @@ catalog:
   capacitor-native-settings: ^8.2.0
   chess.js: ^1.4.0
   clustr: ^1.0.2
+  cmu-pronouncing-dictionary: ^3.0.0
   colorjs.io: ^0.7.1
   crossws: ^0.4.12
   csstype: ^3.2.3
@@ -402,6 +412,7 @@ catalog:
   pg: ^8.23.0
   pinia: ^4.0.3
   pinia-plugin-synced: ^0.1.5
+  pinyin-pro: ^3.29.4
   pixi-filters: ^4.2.0
   pixi-live2d-display: ^0.4.0
   playwright: ^1.62.1

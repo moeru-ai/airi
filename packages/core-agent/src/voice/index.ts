@@ -7,7 +7,7 @@ export type { BeginSpeechInput, SpeechInputAttemptOutcome, SpeechInputAttemptSta
 export type { EndDetectionOptions, EndDetector, SpeechActivityEvidence, TurnEvidence } from './input/end-detection'
 export type { SpeakerEvidence, SpeechSelection, SpeechSnapshot } from './input/snapshot'
 export { SpeechInput } from './input/speech-input'
-export type { SpeechInputPorts, SpeechSubmission, StreamingTranscriber } from './input/submission'
+export type { SpeechInputPorts, SpeechSubmission, StreamingTranscriber, TranscriptionBias } from './input/submission'
 export type {
   TranscriptEdit,
   TranscriptionEvent,

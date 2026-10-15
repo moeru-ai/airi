@@ -1,9 +1,9 @@
-import type { SpeechInputAttemptOutcome } from '@proj-airi/core-agent'
+import type { SpeechInputAttemptOutcome, SpeechInputAttemptState } from '@proj-airi/core-agent'
 
 import type { ReadableSpan } from './use-io-tracer'
 
 import { SpanStatusCode } from '@opentelemetry/api'
-import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared'
+import { IOAttributes, IOEvents, IOSpanNames } from '@proj-airi/stage-shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { activeVoiceInputSpan, onIOSpan, runInSpan, startSpan, takeComposerVoiceParent, takeVoiceTurnParent } from './use-io-tracer'
@@ -20,10 +20,20 @@ function spansNamed(name: string) {
   return spans.filter(span => span.name === name)
 }
 
-/** An input whose outcome the test settles. Only the ID and the outcome reach the tracer. */
+/** An input whose state and outcome the test sets. Only the ID, the state, and the outcome reach the tracer. */
 function attempt(id: string) {
   const done = Promise.withResolvers<SpeechInputAttemptOutcome>()
-  return { id, done: done.promise, settle: done.resolve }
+  const listeners = new Set<(state: SpeechInputAttemptState) => void>()
+  return {
+    id,
+    done: done.promise,
+    settle: done.resolve,
+    subscribe: (listener: (state: SpeechInputAttemptState) => void) => {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    },
+    change: (state: SpeechInputAttemptState) => listeners.forEach(listener => listener(state)),
+  }
 }
 
 describe('createVoiceInputTracer', () => {
@@ -126,6 +136,21 @@ describe('createVoiceInputTracer', () => {
     const segments = spansNamed(IOSpanNames.VoiceActivityDetection)
     expect(segments.map(segment => segment.attributes[IOAttributes.VADAudioDurationMs])).toEqual([300, 100])
     expect(segments.every(segment => segment.parentSpanContext?.spanId === spansNamed(IOSpanNames.VoiceInput)[0]!.spanContext().spanId)).toBe(true)
+  })
+
+  // Codex review on PR #30: Push to Talk has no VAD span, so the trace had no end of speech for it.
+  it('records the end of the capture as an event of the input span', async () => {
+    const tracer = createVoiceInputTracer()
+    const input = attempt('input-6')
+    tracer.start(input, 'control')
+
+    input.change({ phase: 'finalizing' })
+    input.settle({ status: 'committed', messageId: 'input-6' })
+    await vi.waitFor(() => expect(spansNamed(IOSpanNames.VoiceInput)).toHaveLength(1))
+    // The outcome stops the observation, so a later state adds no event.
+    input.change({ phase: 'finalizing' })
+
+    expect(spansNamed(IOSpanNames.VoiceInput)[0]!.events.map(event => event.name)).toEqual([IOEvents.VoiceCaptureEnd])
   })
 
   it('marks a failed input as an error', async () => {
