@@ -7,7 +7,7 @@ Status: proposed
 Native Apple sign-in exchanges the authorization code on the server before it creates a session.
 The server verifies both Apple ID tokens and requires the same subject and audience.
 The native ID token must contain SHA-256 of the raw nonce sent by the app.
-The exchanged ID token may omit nonce; when present, it must match the native token.
+The exchanged ID token can omit nonce. If present, its nonce must match the native token.
 Better Auth receives the verified native token and raw nonce for its own provider checks.
 It stores the returned refresh token and ID token on the existing Better Auth account.
 Revocation uses the stored ID token audience as the client ID, restricted to configured Apple identifiers.
@@ -23,11 +23,11 @@ Non-goals: database migrations, changes to other providers, automatic deletion a
 
 ## Failure boundaries and limits
 
-Invalid identity proofs return 401; rejected authorization codes return 400.
-Provider network failures and missing server credentials return 503; unsuccessful or malformed exchange responses return 502.
+Invalid identity proofs return 401. Rejected authorization codes return 400.
+Provider network failures and missing server credentials return 503. Unsuccessful or malformed exchange responses return 502.
 No provider response bodies or credentials are exposed. Existing sessions survive repair failures.
 If token storage fails after first sign-in, the new session is removed, but the user/account and creation-hook effects remain. The user can retry.
-Each linked Apple account stores one grant. A later web/native or different-bundle authorization can overwrite its tokens; earlier grants cannot all be revoked with this schema.
+Each linked Apple account stores one grant. A later web/native or different-bundle authorization can overwrite its tokens. This schema cannot retain every grant for revocation.
 
 ## Dependencies and affected files
 
@@ -50,6 +50,23 @@ server/apps/auth/src/
   tests/social-authorization.test.ts
 ```
 
+## Deletion flow
+
+### Before
+
+```mermaid
+sequenceDiagram
+  participant App
+  participant Auth
+  participant Apple
+  App->>Auth: Delete with explicit confirmation
+  Auth->>Auth: Look up Apple grant
+  Auth-->>App: Missing token error
+  Note over App,Apple: No repair endpoint for existing native accounts
+```
+
+### After
+
 ```mermaid
 sequenceDiagram
   participant App
@@ -61,12 +78,18 @@ sequenceDiagram
   Apple-->>App: ID token and authorization code
   App->>Auth: Repair linked Apple authorization
   Auth->>Apple: Exchange code and verify identity
-  Auth->>Auth: Match linked subject, store tokens, create session
-  Auth-->>App: Fresh session
-  App->>App: Show deletion confirmation again
-  App->>Auth: Confirm deletion
-  Auth->>Apple: Revoke saved token with matching client ID
-  Auth->>Auth: Clean resources, delete user and sessions
+  alt Proof or linked subject mismatch
+    Auth-->>App: Reject without changing the account
+  else Provider failure
+    Auth-->>App: Retryable error, keep current session
+  else Valid linked authorization
+    Auth->>Auth: Store tokens and create session
+    Auth-->>App: Fresh session
+    App->>App: Show deletion confirmation again
+    App->>Auth: Confirm deletion
+    Auth->>Apple: Revoke saved token with matching client ID
+    Auth->>Auth: Clean resources, delete user and sessions
+  end
 ```
 
 ## Test plan

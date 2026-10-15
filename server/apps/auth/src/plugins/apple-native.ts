@@ -24,6 +24,7 @@ const credentialSchema = strictObject({
 const claimsSchema = object({ sub: nonempty, aud: nonempty, nonce: optional(nonempty) })
 const tokensSchema = object({ access_token: nonempty, refresh_token: nonempty, id_token: nonempty })
 const invalidGrantSchema = object({ error: literal('invalid_grant') })
+const invalidTokenSchema = object({ code: literal('INVALID_TOKEN') })
 const signInSchema = object({ token: nonempty, user: object({ id: nonempty }) })
 
 /** Exchanges native Apple authorization and repairs only the authenticated user's existing Apple link. */
@@ -90,9 +91,9 @@ export function appleNative(env: AuthEnv, fetchRequest: typeof fetch = fetch, ke
 
   // NOTICE:
   // Deletion preflight must apply bearer/OIDC hooks without issuing a session JWT.
-  // Direct session reads miss those header transformations; dispatching get-session also issues a JWT.
+  // Direct session reads miss those header transformations. The get-session hook also issues a JWT.
   // Source: Better Auth 1.6.25 dispatchAuthEndpoint and plugins/jwt/index.mjs get-session hook.
-  // Remove this endpoint when Better Auth supports a hook-aware session read without JWT issuance.
+  // When Better Auth supports a hook-aware session read without JWT issuance, remove this endpoint.
   const deletionPreflight = createAuthEndpoint('/apple-deletion-preflight', {
     method: 'GET',
     use: [sensitiveSessionMiddleware],
@@ -131,8 +132,8 @@ export function appleNative(env: AuthEnv, fetchRequest: typeof fetch = fetch, ke
         })
         if (response instanceof Response && response.status === 401) {
           const failure: unknown = await response.clone().json()
-          // The proof was already verified; Better Auth's second key lookup may have failed.
-          if (failure && typeof failure === 'object' && 'code' in failure && failure.code === 'INVALID_TOKEN')
+          // The proof already passed verification. A second provider key lookup can still fail.
+          if (safeParse(invalidTokenSchema, failure).success)
             throw new APIError('BAD_GATEWAY', { code: 'BAD_GATEWAY', message: 'Apple provider verification is temporarily unavailable.' })
         }
         if (!(response instanceof Response) || !response.ok)
