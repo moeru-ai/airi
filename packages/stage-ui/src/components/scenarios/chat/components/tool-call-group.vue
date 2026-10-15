@@ -83,12 +83,12 @@ const LABEL_POP_FROM = 'scale-50 opacity-0'
 
 function hitIcon(call: { state: ToolCallState, icon: string }) {
   if (call.state === 'executing')
-    return 'i-mingcute:loading-fill animate-spin'
+    return 'i-svg-spinners:ring-resize'
   return call.state === 'error' ? 'i-mingcute:close-circle-line' : call.icon
 }
 
 const STATE_ICONS: Record<ToolCallState, string> = {
-  executing: 'i-mingcute:loading-fill animate-spin',
+  executing: 'i-svg-spinners:ring-resize',
   done: 'i-mingcute:check-circle-line',
   error: 'i-mingcute:warning-line',
 }
