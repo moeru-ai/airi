@@ -50,6 +50,15 @@ export const CHARACTER_CARD_SYNC_FLAG: FeatureFlag = {
   availability: 'local',
 }
 
+/** Cloud sync for imported Live2D and VRM models. A device choice, off by default, so no model file leaves the device without opt-in. */
+export const DISPLAY_MODEL_SYNC_FLAG: FeatureFlag = {
+  key: 'display-model-sync',
+  titleKey: 'settings.pages.system.experimental.features.display_model_sync.title',
+  descriptionKey: 'settings.pages.system.experimental.features.display_model_sync.description',
+  defaultEnabled: false,
+  availability: 'local',
+}
+
 /**
  * The fullscreen mode of the desktop app, where settings and the chat open beside the character. It is a device
  * choice, off by default, and the standalone settings window stays the default.
@@ -75,7 +84,7 @@ export const FULLSCREEN_WORKSPACE_FLAG = {
 } as const satisfies FeatureFlag
 
 /** Only implemented experiments belong here. An empty catalog produces an empty settings page. */
-export const featureFlags: readonly FeatureFlag[] = [CHARACTER_CARD_SYNC_FLAG, FULLSCREEN_WORKSPACE_FLAG]
+export const featureFlags: readonly FeatureFlag[] = [CHARACTER_CARD_SYNC_FLAG, DISPLAY_MODEL_SYNC_FLAG, FULLSCREEN_WORKSPACE_FLAG]
 
 /** The variant of a feature: the saved one while the feature still offers it, otherwise the first one. */
 export function resolveFeatureVariant(feature: FeatureFlag | undefined, saved: string | undefined): string | undefined {

@@ -45,14 +45,17 @@ minimumReleaseAgeExclude:
   - '@moeru/*'
   - '@proj-airi/*'
   # NOTICE:
-  # Sherpaw 0.2.1 contains the browser worker fix required by AIRI.
+  # Sherpaw 0.3.0 adds the speaker tracking runtime that AIRI integrates next.
   # pnpm blocks packages published within the last 72 hours.
-  # Source: https://github.com/moeru-ai/sherpaw/pull/18
-  # Remove these exceptions after 2026-09-30 19:54 UTC.
-  - '@sherpaw/asr@0.2.1'
-  - '@sherpaw/preloader@0.2.1'
-  - '@sherpaw/shared@0.2.1'
-  - '@sherpaw/xsai-transcription@0.2.1'
+  # Source: https://github.com/moeru-ai/sherpaw/tree/v0.3.0
+  # Remove these exceptions after 2026-10-15 17:36 UTC.
+  - '@sherpaw/asr@0.3.0'
+  - '@sherpaw/kws@0.3.0'
+  - '@sherpaw/preloader@0.3.0'
+  - '@sherpaw/shared@0.3.0'
+  - '@sherpaw/speaker-diarization@0.3.0'
+  - '@sherpaw/speaker-identification@0.3.0'
+  - '@sherpaw/xsai-transcription@0.3.0'
   - '@vishot/*'
   - '@xsai/*'
   - '@xsai-apple-speech/*'
@@ -230,8 +233,10 @@ catalog:
   '@proj-airi/unplugin-live2d-sdk': ^0.1.7
   '@revenuecat/purchases-js': ^1.15.0
   '@rive-app/canvas-lite': ^2.40.1
-  '@sherpaw/kws': 0.2.1
-  '@sherpaw/xsai-transcription': 0.2.1
+  '@sherpaw/asr': 0.3.0
+  '@sherpaw/kws': 0.3.0
+  '@sherpaw/speaker-diarization': 0.3.0
+  '@sherpaw/xsai-transcription': 0.3.0
   '@shikijs/markdown-it': ^4.4.3
   '@shikijs/rehype': ^4.4.3
   '@shopify/draggable': ^1.2.1

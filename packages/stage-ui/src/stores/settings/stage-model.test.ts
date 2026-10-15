@@ -57,7 +57,7 @@ describe('settings stage model store', () => {
     }
 
     const displayModelsStore = useDisplayModelsStore()
-    const getDisplayModelSpy = vi.spyOn(displayModelsStore, 'getDisplayModel').mockImplementation(async (id) => {
+    const ensureDisplayModelSpy = vi.spyOn(displayModelsStore, 'ensureDisplayModelAvailable').mockImplementation(async (id) => {
       if (id === 'display-model-missing')
         return undefined
       if (id === fallbackModel.id)
@@ -74,9 +74,22 @@ describe('settings stage model store', () => {
     expect(store.stageModelSelectedDisplayModel).toEqual(fallbackModel)
     expect(store.stageModelSelectedUrl).toBe(fallbackModel.url)
     expect(store.stageModelRenderer).toBe('live2d')
-    expect(getDisplayModelSpy).toHaveBeenCalledWith('display-model-missing')
-    expect(getDisplayModelSpy).toHaveBeenCalledWith(fallbackModel.id)
+    expect(ensureDisplayModelSpy).toHaveBeenCalledWith('display-model-missing')
+    expect(ensureDisplayModelSpy).toHaveBeenCalledWith(fallbackModel.id)
     expect(resetLegacyModelIdentity).not.toHaveBeenCalled()
+  })
+
+  it('keeps a cloud model selected when its download fails', async () => {
+    const displayModelsStore = useDisplayModelsStore()
+    vi.spyOn(displayModelsStore, 'ensureDisplayModelAvailable').mockRejectedValue(new Error('offline'))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const store = useSettingsStageModel()
+    store.stageModelSelected = 'display-model-cloud'
+
+    await store.initializeStageModel()
+
+    expect(store.stageModelSelected).toBe('display-model-cloud')
   })
 
   it('routes Tachie archives to the Tachie renderer', async () => {
@@ -89,7 +102,7 @@ describe('settings stage model store', () => {
       importedAt: 1,
     }
     const displayModelsStore = useDisplayModelsStore()
-    vi.spyOn(displayModelsStore, 'getDisplayModel').mockResolvedValue(tachieModel)
+    vi.spyOn(displayModelsStore, 'ensureDisplayModelAvailable').mockResolvedValue(tachieModel)
 
     vi.stubGlobal('window', {})
     initialStageModelId.value = tachieModel.id
@@ -114,7 +127,7 @@ describe('settings stage model store', () => {
       importedAt: 1,
     }
     const displayModelsStore = useDisplayModelsStore()
-    vi.spyOn(displayModelsStore, 'getDisplayModel').mockResolvedValue(vrmModel)
+    vi.spyOn(displayModelsStore, 'ensureDisplayModelAvailable').mockResolvedValue(vrmModel)
 
     vi.stubGlobal('window', {})
     initialStageModelId.value = vrmModel.id
