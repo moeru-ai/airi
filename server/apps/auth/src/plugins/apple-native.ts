@@ -12,7 +12,6 @@ import { setSessionCookie } from 'better-auth/cookies'
 import { createRemoteJWKSet, errors, jwtVerify } from 'jose'
 import { minLength, object, optional, parse, pipe, strictObject, string, ValiError } from 'valibot'
 
-import { ApiError, createBadGatewayError, createServiceUnavailableError } from '../error'
 import { assertAppleAuthorizationForDeletion, createAppleClientSecret } from '../social-authorization'
 
 const nonempty = pipe(string(), minLength(1))
@@ -46,9 +45,9 @@ export function appleNative(env: AuthEnv, fetchRequest: typeof fetch = fetch, ke
       if (identity.nonce !== createHash('sha256').update(credential.nonce).digest('hex'))
         throw new APIError('UNAUTHORIZED', { code: 'APPLE_AUTHORIZATION_FAILED', message: 'Apple nonce mismatch.' })
       if (!env.AUTH_APPLE_TEAM_ID || !env.AUTH_APPLE_KEY_ID || !env.AUTH_APPLE_PRIVATE_KEY_PEM)
-        throw createServiceUnavailableError('Apple authorization is not configured.')
+        throw new APIError('SERVICE_UNAVAILABLE', { code: 'SERVICE_UNAVAILABLE', message: 'Apple authorization is not configured.' })
       const clientSecret = await createAppleClientSecret({ ...env, AUTH_APPLE_CLIENT_ID: identity.aud })
-        .catch(() => { throw createServiceUnavailableError('Apple authorization is not configured.') })
+        .catch(() => { throw new APIError('SERVICE_UNAVAILABLE', { code: 'SERVICE_UNAVAILABLE', message: 'Apple authorization is not configured.' }) })
       const response = await fetchRequest('https://appleid.apple.com/auth/token', {
         method: 'POST',
         signal: AbortSignal.timeout(10_000),
@@ -64,10 +63,10 @@ export function appleNative(env: AuthEnv, fetchRequest: typeof fetch = fetch, ke
         const body: unknown = await response.json().catch(() => null)
         if (response.status === 400 && body && typeof body === 'object' && 'error' in body && body.error === 'invalid_grant')
           throw new APIError('BAD_REQUEST', { code: 'APPLE_CODE_REJECTED', message: 'Authorize with Apple again.' })
-        throw createBadGatewayError('Apple code exchange failed.')
+        throw new APIError('BAD_GATEWAY', { code: 'BAD_GATEWAY', message: 'Apple code exchange failed.' })
       }
       const tokens = await response.json().then(body => parse(tokensSchema, body)).catch(() => {
-        throw createBadGatewayError('Apple returned an invalid token response.')
+        throw new APIError('BAD_GATEWAY', { code: 'BAD_GATEWAY', message: 'Apple returned an invalid token response.' })
       })
       const exchanged = await verify(tokens.id_token)
       if (exchanged.sub !== identity.sub || exchanged.aud !== identity.aud || (exchanged.nonce !== undefined && exchanged.nonce !== identity.nonce))
@@ -78,16 +77,13 @@ export function appleNative(env: AuthEnv, fetchRequest: typeof fetch = fetch, ke
       // Preserve retryable provider failures without exposing credentials or upstream bodies.
       if (error instanceof APIError)
         throw error
-      if (error instanceof ApiError)
-        throw new APIError(error.statusCode === 502 ? 'BAD_GATEWAY' : 'SERVICE_UNAVAILABLE', { code: error.errorCode, message: error.message })
       if (error instanceof ValiError || error instanceof errors.JWTClaimValidationFailed || error instanceof errors.JWTExpired
         || error instanceof errors.JWSSignatureVerificationFailed || error instanceof errors.JWSInvalid
         || error instanceof errors.JWTInvalid || error instanceof errors.JOSEAlgNotAllowed
         || error instanceof errors.JWKSNoMatchingKey) {
         throw new APIError('UNAUTHORIZED', { code: 'APPLE_AUTHORIZATION_FAILED', message: 'Apple authorization failed. Try again.' })
       }
-      const unavailable = createServiceUnavailableError('Apple authorization is temporarily unavailable.')
-      throw new APIError('SERVICE_UNAVAILABLE', { code: unavailable.errorCode, message: unavailable.message })
+      throw new APIError('SERVICE_UNAVAILABLE', { code: 'SERVICE_UNAVAILABLE', message: 'Apple authorization is temporarily unavailable.' })
     }
   }
 
@@ -102,27 +98,6 @@ export function appleNative(env: AuthEnv, fetchRequest: typeof fetch = fetch, ke
 
   return {
     id: 'apple-native',
-    /** Keeps token-only legacy sign-ins from changing the audience attached to a saved grant. */
-    init() {
-      return {
-        options: {
-          databaseHooks: {
-            account: {
-              update: {
-                /** Saves an ID token's audience only together with a replacement authorization grant. */
-                async before(data, ctx) {
-                  if (ctx?.path === '/sign-in/social' && ctx.body?.provider === 'apple'
-                    && !data.accessToken && !data.refreshToken) {
-                    const { idToken: _idToken, ...unchangedGrant } = data
-                    return { data: unchangedGrant }
-                  }
-                },
-              },
-            },
-          },
-        },
-      }
-    },
     hooks: {
       before: [{
         matcher: ctx => ctx.path === '/delete-user',
