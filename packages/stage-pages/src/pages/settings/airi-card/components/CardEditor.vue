@@ -91,33 +91,33 @@ const previewVoices = ref<VoiceInfo[]>([])
 const selectedDisplayModelId = ref<string>('')
 
 // NOTICE:
-// The editor needs a non-empty option value for an empty selection.
+// The editor needs a non-empty option value for inherited settings.
 // Reka ComboboxItem rejects an empty-string item value.
 // Source/context: packages/ui/src/components/form/combobox/combobox.vue.
 // Removal condition: delete this mapping when Reka accepts empty item values.
-const emptySelectionOptionValue = '__airi-empty-selection__'
+const inheritGlobalSettingOptionValue = '__airi-inherit-global-setting__'
 
-function createEmptySelection(selection: Ref<string>) {
+function createInheritableSelection(selection: Ref<string>) {
   return computed({
-    get: () => selection.value || emptySelectionOptionValue,
+    get: () => selection.value || inheritGlobalSettingOptionValue,
     set: (value: string) => {
-      selection.value = value === emptySelectionOptionValue ? '' : value
+      selection.value = value === inheritGlobalSettingOptionValue ? '' : value
     },
   })
 }
 
-const consciousnessProviderSelection = createEmptySelection(selectedConsciousnessProvider)
-const consciousnessModelSelection = createEmptySelection(selectedConsciousnessModel)
-const visionProviderSelection = createEmptySelection(selectedVisionProvider)
-const visionModelSelection = createEmptySelection(selectedVisionModel)
-const speechProviderSelection = createEmptySelection(selectedSpeechProvider)
-const speechModelSelection = createEmptySelection(selectedSpeechModel)
-const speechVoiceSelection = createEmptySelection(selectedSpeechVoiceId)
-const displayModelSelection = createEmptySelection(selectedDisplayModelId)
+const consciousnessProviderSelection = createInheritableSelection(selectedConsciousnessProvider)
+const consciousnessModelSelection = createInheritableSelection(selectedConsciousnessModel)
+const visionProviderSelection = createInheritableSelection(selectedVisionProvider)
+const visionModelSelection = createInheritableSelection(selectedVisionModel)
+const speechProviderSelection = createInheritableSelection(selectedSpeechProvider)
+const speechModelSelection = createInheritableSelection(selectedSpeechModel)
+const speechVoiceSelection = createInheritableSelection(selectedSpeechVoiceId)
+const displayModelSelection = createInheritableSelection(selectedDisplayModelId)
 
 // Artistry configuration
 const selectedArtistryProvider = ref<string>('')
-const artistryProviderSelection = createEmptySelection(selectedArtistryProvider)
+const artistryProviderSelection = createInheritableSelection(selectedArtistryProvider)
 const selectedArtistryModel = ref<string>('')
 const selectedArtistryPromptPrefix = ref<string>('')
 const selectedArtistryWidgetInstruction = ref<string>('')
@@ -133,13 +133,13 @@ interface ModuleSelectOption {
   label: string
 }
 
-function withEmptySelection(options: ModuleSelectOption[], selected = '', emptyLabel = t('settings.pages.card.creation.inherit_global_settings')): ModuleSelectOption[] {
+function withInheritGlobalSetting(options: ModuleSelectOption[], selected = '', emptyLabel = t('settings.pages.card.creation.inherit_global_settings')): ModuleSelectOption[] {
   // Imported ids remain visible even when their provider is not configured here.
   const missingSelection = selected && !options.some(option => option.value === selected)
     ? [{ value: selected, label: selected }]
     : []
   return [
-    { value: emptySelectionOptionValue, label: emptyLabel },
+    { value: inheritGlobalSettingOptionValue, label: emptyLabel },
     ...options,
     ...missingSelection,
   ]
@@ -147,7 +147,7 @@ function withEmptySelection(options: ModuleSelectOption[], selected = '', emptyL
 
 // Computed: available display model options
 const displayModelOptions = computed(() =>
-  withEmptySelection(displayModels.value.map(model => ({
+  withInheritGlobalSetting(displayModels.value.map(model => ({
     value: model.id,
     label: model.name,
   })), selectedDisplayModelId.value, t('settings.pages.card.creation.no_model')),
@@ -155,7 +155,7 @@ const displayModelOptions = computed(() =>
 
 // Computed: available consciousness provider options
 const consciousnessProviderOptions = computed(() => {
-  return withEmptySelection(providersStore.configuredChatProvidersMetadata.map(provider => ({
+  return withInheritGlobalSetting(providersStore.configuredChatProvidersMetadata.map(provider => ({
     value: provider.id,
     label: provider.localizedName || provider.name,
   })), selectedConsciousnessProvider.value)
@@ -165,9 +165,9 @@ const consciousnessProviderOptions = computed(() => {
 const consciousnessModelOptions = computed(() => {
   const provider = selectedConsciousnessProvider.value || consciousnessProvider.value
   if (!provider)
-    return withEmptySelection([], selectedConsciousnessModel.value)
+    return withInheritGlobalSetting([], selectedConsciousnessModel.value)
   const models = providersStore.getModelsForProvider(provider)
-  return withEmptySelection(models.map(model => ({
+  return withInheritGlobalSetting(models.map(model => ({
     value: model.id,
     label: model.name || model.id,
   })), selectedConsciousnessModel.value)
@@ -175,7 +175,7 @@ const consciousnessModelOptions = computed(() => {
 
 // Computed: available vision provider options
 const visionProviderOptions = computed(() => {
-  return withEmptySelection(providersStore.configuredVisionProvidersMetadata.map(provider => ({
+  return withInheritGlobalSetting(providersStore.configuredVisionProvidersMetadata.map(provider => ({
     value: provider.id,
     label: provider.localizedName || provider.name,
   })), selectedVisionProvider.value)
@@ -185,9 +185,9 @@ const visionProviderOptions = computed(() => {
 const visionModelOptions = computed(() => {
   const provider = selectedVisionProvider.value || visionProvider.value
   if (!provider)
-    return withEmptySelection([], selectedVisionModel.value)
+    return withInheritGlobalSetting([], selectedVisionModel.value)
   const models = providersStore.getModelsForProvider(provider)
-  return withEmptySelection(models.map(model => ({
+  return withInheritGlobalSetting(models.map(model => ({
     value: model.id,
     label: model.name || model.id,
   })), selectedVisionModel.value)
@@ -195,7 +195,7 @@ const visionModelOptions = computed(() => {
 
 // Computed: available speech provider options
 const speechProviderOptions = computed(() => {
-  return withEmptySelection(providersStore.configuredSpeechProvidersMetadata.map(provider => ({
+  return withInheritGlobalSetting(providersStore.configuredSpeechProvidersMetadata.map(provider => ({
     value: provider.id,
     label: provider.localizedName || provider.name,
   })), selectedSpeechProvider.value)
@@ -205,9 +205,9 @@ const speechProviderOptions = computed(() => {
 const speechModelOptions = computed(() => {
   const provider = selectedSpeechProvider.value || speechProvider.value
   if (!provider)
-    return withEmptySelection([], selectedSpeechModel.value)
+    return withInheritGlobalSetting([], selectedSpeechModel.value)
   const models = providersStore.getModelsForProvider(provider)
-  return withEmptySelection(models.map(model => ({
+  return withInheritGlobalSetting(models.map(model => ({
     value: model.id,
     label: model.name || model.id,
   })), selectedSpeechModel.value)
@@ -217,8 +217,8 @@ const speechModelOptions = computed(() => {
 const speechVoiceOptions = computed(() => {
   const provider = selectedSpeechProvider.value || speechProvider.value
   if (!provider)
-    return withEmptySelection([], selectedSpeechVoiceId.value)
-  return withEmptySelection(previewVoices.value.map(voice => ({
+    return withInheritGlobalSetting([], selectedSpeechVoiceId.value)
+  return withInheritGlobalSetting(previewVoices.value.map(voice => ({
     value: voice.id,
     label: voice.name || voice.id,
   })), selectedSpeechVoiceId.value)
@@ -226,7 +226,7 @@ const speechVoiceOptions = computed(() => {
 
 // Computed: available artistry provider options
 const artistryProviderOptions = computed(() => {
-  return withEmptySelection([
+  return withInheritGlobalSetting([
     { value: 'none', label: t('settings.pages.card.creation.none_disabled') },
     { value: 'comfyui', label: 'ComfyUI' },
     ...(isCustomProvidersDisabled()
