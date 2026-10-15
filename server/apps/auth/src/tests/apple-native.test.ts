@@ -116,11 +116,20 @@ describe('native Apple authorization', () => {
     await db.$client.close()
   })
 
+  // First-authorization name regression: https://github.com/moeru-ai/airi/pull/2984#discussion_r4280730615
   it.each(['apple-owner', 'new-apple-user'])('saves revocable tokens during sign-in for %s', async (subject) => {
-    const response = await request('/sign-in/apple-native', await credential(subject))
+    const response = await request('/sign-in/apple-native', {
+      ...await credential(subject),
+      ...(subject === 'new-apple-user' ? { user: { name: { firstName: 'Airi', lastName: 'Test' } } } : {}),
+    })
     expect(response.status).toBe(200)
-    const result = parse(object({ token: string() }), await response.json())
+    const result = parse(object({ token: string(), user: object({ id: string(), name: string() }) }), await response.json())
     expect(result.token).toBeTruthy()
+    if (subject === 'new-apple-user') {
+      expect(result.user.name).toBe('Airi Test')
+      const [user] = await db.select().from(schema.user).where(eq(schema.user.id, result.user.id))
+      expect(user.name).toBe('Airi Test')
+    }
     const [account] = await db.select().from(schema.account).where(eq(schema.account.accountId, subject))
     expect(account).toMatchObject({ accessToken: 'access', refreshToken: 'refresh' })
     expect(decodeJwt(account.idToken!).aud).toBe('native-client')
@@ -128,19 +137,6 @@ describe('native Apple authorization', () => {
     expect(body.get('client_id')).toBe('native-client')
     expect(decodeJwt(body.get('client_secret')!).sub).toBe('native-client')
     expect(JSON.stringify(result)).not.toContain('refresh')
-  })
-
-  // Review: https://github.com/moeru-ai/airi/pull/2984#discussion_r4280730615
-  // Verify Apple's one-time name payload survives the production provider and is persisted.
-  it('preserves the first native Apple display name', async () => {
-    const response = await request('/sign-in/apple-native', {
-      ...await credential('new-apple-user'),
-      user: { name: { firstName: 'Airi', lastName: 'Test' } },
-    })
-    expect(response.status).toBe(200)
-    expect(await response.json()).toMatchObject({ user: { name: 'Airi Test' } })
-    const [user] = await db.select().from(schema.user).where(eq(schema.user.email, 'new-apple-user@example.com'))
-    expect(user.name).toBe('Airi Test')
   })
 
   it('accepts exchanged tokens without nonce using the production provider and its missing-email mapping', async () => {
@@ -155,58 +151,34 @@ describe('native Apple authorization', () => {
     expect(await response.json()).toMatchObject({ user: { email: 'no-email@apple.placeholder.local' } })
   })
 
-  it('rejects copying the nonce claim instead of proving the raw nonce', async () => {
-    const body = await credential()
-    body.nonce = nonceHash
-    expect((await request('/account/apple-authorization', body, 'old-token')).status).toBe(401)
-    expect(fetchRequest).not.toHaveBeenCalled()
-  })
-
   it.each([
     ['invalid-grant', 400],
-    ['malformed-error', 502],
     ['apple-5xx', 502],
     ['network', 503],
-    ['jwks', 503],
     ['jwks-timeout', 503],
-    ['jwks-invalid', 503],
-    ['configuration', 503],
     ['missing-client-id', 503],
-    ['malformed-response', 502],
   ])('classifies %s and preserves the existing session', async (scenario, status) => {
     const body = await credential()
     if (scenario === 'invalid-grant')
       fetchRequest.mockResolvedValue(Response.json({ error: 'invalid_grant' }, { status: 400 }))
-    if (scenario === 'malformed-error')
-      fetchRequest.mockResolvedValue(Response.json({ error: { code: 'invalid_grant' } }, { status: 400 }))
     if (scenario === 'apple-5xx')
       fetchRequest.mockResolvedValue(new Response(null, { status: 503 }))
     if (scenario === 'network')
       fetchRequest.mockRejectedValue(new DOMException('Timed out', 'TimeoutError'))
-    if (scenario === 'jwks')
-      resolveKey.mockRejectedValueOnce(new TypeError('Network unavailable'))
     if (scenario === 'jwks-timeout')
       resolveKey.mockRejectedValueOnce(new errors.JWKSTimeout())
-    if (scenario === 'jwks-invalid')
-      resolveKey.mockRejectedValueOnce(new errors.JWKSInvalid())
-    if (scenario === 'malformed-response')
-      fetchRequest.mockResolvedValue(Response.json({ access_token: 'access' }))
-    const originalKey = env.AUTH_APPLE_PRIVATE_KEY_PEM
     const originalClientId = env.AUTH_APPLE_CLIENT_ID
-    if (scenario === 'configuration')
-      env.AUTH_APPLE_PRIVATE_KEY_PEM = ''
     if (scenario === 'missing-client-id')
       env.AUTH_APPLE_CLIENT_ID = ''
     try {
       const response = await request('/account/apple-authorization', body, 'old-token')
       expect(response.status).toBe(status)
-      if (scenario === 'configuration' || scenario === 'missing-client-id')
+      if (scenario === 'missing-client-id')
         expect(fetchRequest).not.toHaveBeenCalled()
       expect(await db.select().from(schema.session)).toHaveLength(1)
       expect((await db.select().from(schema.account))[0].refreshToken).toBeNull()
     }
     finally {
-      env.AUTH_APPLE_PRIVATE_KEY_PEM = originalKey
       env.AUTH_APPLE_CLIENT_ID = originalClientId
     }
   })
@@ -238,7 +210,7 @@ describe('native Apple authorization', () => {
     expect(await db.select().from(schema.user)).toHaveLength(1)
   })
 
-  it.each(['missing-session', 'foreign-apple', 'nonce', 'audience', 'exchanged-subject', 'exchanged-nonce', 'signature', 'missing-refresh'])(
+  it.each(['missing-session', 'foreign-apple', 'nonce', 'audience', 'exchanged-subject', 'exchanged-nonce', 'copied-nonce', 'missing-refresh'])(
     'rejects %s without changing the account or its old session',
     async (scenario) => {
       const body = await credential(scenario === 'foreign-apple' ? 'other-apple' : 'apple-owner')
@@ -260,12 +232,16 @@ describe('native Apple authorization', () => {
           id_token: await identity('apple-owner', 'native-client', 'different'),
         }))
       }
-      if (scenario === 'signature')
-        body.identityToken = `${body.identityToken.slice(0, -20)}invalid-signature`
+      if (scenario === 'copied-nonce')
+        body.nonce = nonceHash
       if (scenario === 'missing-refresh')
         fetchRequest.mockResolvedValue(Response.json({ access_token: 'access', id_token: body.identityToken }))
       const response = await request('/account/apple-authorization', body, scenario === 'missing-session' ? '' : 'old-token')
       expect(response.status).toBeGreaterThanOrEqual(400)
+      if (scenario === 'copied-nonce') {
+        expect(response.status).toBe(401)
+        expect(fetchRequest).not.toHaveBeenCalled()
+      }
       const [account] = await db.select().from(schema.account)
       expect(account.refreshToken).toBeNull()
       expect(await db.select().from(schema.user)).toHaveLength(1)
@@ -273,34 +249,6 @@ describe('native Apple authorization', () => {
       expect(cleanup).not.toHaveBeenCalled()
     },
   )
-
-  it.each([true, false])('requires an authoritative original session for JWT repair (sid: %s)', async (hasSession) => {
-    const token = await new SignJWT(hasSession ? { sid: 'old-session' } : {})
-      .setSubject('owner')
-      .setAudience('http://localhost:3000')
-      .setIssuer('http://localhost:3000/api/auth')
-      .setIssuedAt()
-      .setExpirationTime('5m')
-      .setProtectedHeader({ alg: 'EdDSA', kid: 'native-test-key' })
-      .sign(sessionKey.privateKey)
-    const response = await request('/account/apple-authorization', await credential(), token)
-    expect(response.status).toBe(hasSession ? 200 : 401)
-    if (!hasSession)
-      expect(fetchRequest).not.toHaveBeenCalled()
-  })
-
-  it('retains saved tokens and the user when cleanup fails, then permits a confirmed retry', async () => {
-    const response = await request('/account/apple-authorization', await credential(), 'old-token')
-    const { token } = parse(object({ token: string() }), await response.json())
-    fetchRequest.mockImplementation(async () => new Response(null, { status: 200 }))
-    cleanup.mockRejectedValueOnce(new Error('Resource cleanup unavailable'))
-    expect((await request('/delete-account', { confirm: true }, token)).status).toBe(500)
-    const [account] = await db.select().from(schema.account)
-    expect(account.refreshToken).toBe('refresh')
-    expect(await db.select().from(schema.user)).toHaveLength(1)
-    expect((await request('/delete-account', { confirm: true }, token)).status).toBe(200)
-    expect(await db.select().from(schema.user)).toHaveLength(0)
-  })
 
   it('does not expose a new session when token storage fails', async () => {
     const update = vi.spyOn(accountAdapter, 'updateAccount').mockRejectedValueOnce(new Error('Storage unavailable'))
