@@ -45,7 +45,7 @@ export function appleNative(env: AuthEnv, fetchRequest: typeof fetch = fetch, ke
       const identity = await verify(credential.identityToken, true)
       if (identity.nonce !== createHash('sha256').update(credential.nonce).digest('hex'))
         throw new APIError('UNAUTHORIZED', { code: 'APPLE_AUTHORIZATION_FAILED', message: 'Apple nonce mismatch.' })
-      if (!env.AUTH_APPLE_TEAM_ID || !env.AUTH_APPLE_KEY_ID || !env.AUTH_APPLE_PRIVATE_KEY_PEM)
+      if (!env.AUTH_APPLE_CLIENT_ID || !env.AUTH_APPLE_TEAM_ID || !env.AUTH_APPLE_KEY_ID || !env.AUTH_APPLE_PRIVATE_KEY_PEM)
         throw new APIError('SERVICE_UNAVAILABLE', { code: 'SERVICE_UNAVAILABLE', message: 'Apple authorization is not configured.' })
       const clientSecret = await createAppleClientSecret({ ...env, AUTH_APPLE_CLIENT_ID: identity.aud })
         .catch(() => { throw new APIError('SERVICE_UNAVAILABLE', { code: 'SERVICE_UNAVAILABLE', message: 'Apple authorization is not configured.' }) })

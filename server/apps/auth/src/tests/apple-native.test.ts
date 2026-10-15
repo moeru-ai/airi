@@ -201,6 +201,23 @@ describe('native Apple authorization', () => {
     }
   })
 
+  it.each(['/sign-in/apple-native', '/account/apple-authorization'])('rejects a missing web client ID before exchanging a code on %s', async (path) => {
+    const body = await credential()
+    const clientId = env.AUTH_APPLE_CLIENT_ID
+    env.AUTH_APPLE_CLIENT_ID = ''
+    try {
+      const response = await request(path, body, 'old-token')
+      expect(response.status).toBe(503)
+      expect(await response.json()).toMatchObject({ code: 'SERVICE_UNAVAILABLE' })
+      expect(fetchRequest).not.toHaveBeenCalled()
+      expect(await db.select().from(schema.session)).toHaveLength(1)
+      expect((await db.select().from(schema.account))[0].refreshToken).toBeNull()
+    }
+    finally {
+      env.AUTH_APPLE_CLIENT_ID = clientId
+    }
+  })
+
   it('refuses to send an unusable deletion email before repairing Apple authorization', async () => {
     const response = await request('/delete-user', { callbackURL: '/' }, 'old-token')
     expect(response.status).toBe(409)
