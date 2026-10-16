@@ -1,16 +1,11 @@
-import type { PropType } from 'vue'
-
 import en from '@proj-airi/i18n/locales/en'
 
-import { errorMessageFrom } from '@moeru/std'
 import { PiniaColada } from '@pinia/colada'
-import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { createPinia, disposePinia } from 'pinia'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { page } from 'vitest/browser'
-import { defineComponent, h, ref } from 'vue'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
@@ -19,65 +14,20 @@ import OpenRouterAudioTranscriptionPage from './openrouter-audio-transcription.v
 import 'virtual:uno.css'
 
 const providerId = 'openrouter-audio-transcription'
-const fetchCalls: string[] = []
 
-const ProviderSettingsStub = defineComponent({
-  props: { providerId: { type: String, required: true } },
-  setup(_props, { slots }) {
-    return () => h('div', [slots['basic-settings']?.(), slots.playground?.()])
-  },
-})
-
-const TranscriptionPlaygroundStub = defineComponent({
-  props: {
-    generateTranscription: {
-      type: Function as PropType<(input: File) => Promise<unknown>>,
-      required: true,
-    },
-  },
-  setup(props) {
-    const errorMessage = ref('')
-    async function runTranscription() {
-      try {
-        await props.generateTranscription(new File([], 'recording.wav'))
-      }
-      catch (cause) {
-        errorMessage.value = errorMessageFrom(cause) ?? 'Unknown error'
-      }
-    }
-
-    return () => h('div', [
-      h('button', { onClick: () => void runTranscription() }, 'Run transcription'),
-      h('p', errorMessage.value),
-    ])
-  },
-})
-
-const PageHarness = defineComponent({
-  setup() {
-    const providersStore = useProviderStore()
-    providersStore.fetchModelsForProvider = async (requestedProviderId) => {
-      fetchCalls.push(requestedProviderId)
-      return { models: [] }
-    }
-
-    return () => h(OpenRouterAudioTranscriptionPage)
-  },
-})
-
-function storeConfiguredProvider() {
+function storeConfiguredProvider(model?: string) {
   localStorage.setItem('settings/providers/configured', JSON.stringify({
     [providerId]: {
       id: providerId,
       definitionId: providerId,
-      config: { apiKey: 'test-key', baseUrl: 'https://openrouter.ai/api/v1' },
+      config: { apiKey: 'test-key', baseUrl: 'https://openrouter.ai/api/v1', ...(model ? { model } : {}) },
       status: 'configured',
       configuredBy: 'user',
     },
   }))
 }
 
-async function renderPage(pinia: ReturnType<typeof createPinia>, translatedError?: string) {
+async function renderPage(pinia: ReturnType<typeof createPinia>) {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [{ path: '/', component: { template: '<div />' } }],
@@ -85,34 +35,10 @@ async function renderPage(pinia: ReturnType<typeof createPinia>, translatedError
   await router.push('/')
   await router.isReady()
 
-  const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
-  if (translatedError) {
-    i18n.global.mergeLocaleMessage('en', {
-      settings: {
-        pages: {
-          modules: {
-            hearing: {
-              sections: {
-                section: {
-                  playground: {
-                    'select-model-before-testing': translatedError,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    })
-  }
-
-  return await render(PageHarness, {
+  return await render(OpenRouterAudioTranscriptionPage, {
     global: {
-      plugins: [pinia, PiniaColada, router, i18n],
-      stubs: {
-        TranscriptionProviderSettings: ProviderSettingsStub,
-        TranscriptionPlayground: TranscriptionPlaygroundStub,
-      },
+      plugins: [pinia, PiniaColada, router, createI18n({ legacy: false, locale: 'en', messages: { en }, missingWarn: false, fallbackWarn: false })],
+      directives: { motion: {} },
     },
   })
 }
@@ -122,12 +48,15 @@ describe('openRouter audio transcription settings', () => {
 
   beforeEach(() => {
     localStorage.clear()
-    fetchCalls.length = 0
     pinia = createPinia()
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({
+      data: [{ id: 'openai/whisper-large-v3', name: 'Whisper Large V3' }],
+    })))
   })
 
   afterEach(() => {
     disposePinia(pinia)
+    vi.unstubAllGlobals()
     localStorage.clear()
   })
 
@@ -135,20 +64,29 @@ describe('openRouter audio transcription settings', () => {
     storeConfiguredProvider()
     await renderPage(pinia)
 
-    await expect.poll(() => fetchCalls.length).toBe(1)
-    const configStore = useProviderConfigStore(pinia)
-    configStore.providers[providerId].config.baseUrl = 'https://openrouter.example/v1'
+    await expect.poll(() => vi.mocked(globalThis.fetch).mock.calls.length).toBe(1)
+    await page.getByRole('textbox', { name: 'Base URL' }).fill('https://openrouter.example/v1')
 
-    await expect.poll(() => fetchCalls.length).toBe(2)
-    expect(fetchCalls).toEqual([providerId, providerId])
+    await expect.poll(() => vi.mocked(globalThis.fetch).mock.calls.length).toBe(2)
+    const requestedUrls = vi.mocked(globalThis.fetch).mock.calls.map(([input]) => String(input))
+    expect(requestedUrls).toEqual([
+      'https://openrouter.ai/api/v1/models?output_modalities=transcription',
+      'https://openrouter.example/v1/models?output_modalities=transcription',
+    ])
   })
-  it('shows the localized error when no model is selected', async () => {
-    const translatedError = '[translated:select-model-before-testing]'
-    await renderPage(pinia, translatedError)
 
-    await page.getByRole('button', { name: 'Run transcription' }).click()
+  it('shows the localized missing-model error in the real transcription playground', async () => {
+    storeConfiguredProvider()
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ data: [] })))
+    await renderPage(pinia)
 
-    await expect.element(page.getByText(translatedError)).toBeVisible()
+    await expect.element(page.getByPlaceholder('API Key')).toBeVisible()
+    await expect.element(page.getByRole('combobox', { name: /Model ID/ })).toBeVisible()
+    await expect.element(page.getByText('Transcription Playground')).toBeVisible()
+    await page.getByRole('button', { name: /Start/ }).click()
+    await page.getByRole('button', { name: /Finish/ }).click()
+
+    await expect.element(page.getByText('Select a model in OpenRouter settings before testing.')).toBeVisible()
   })
 
   it('shows the model catalog error beside the disabled selector', async () => {
