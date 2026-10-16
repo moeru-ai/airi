@@ -9,6 +9,7 @@ import { summarizeEntities } from '@proj-airi/stage-ui/libs/home-assistant/prese
 import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 import { useHomeAssistantStore } from '@proj-airi/stage-ui/stores/modules/home-assistant'
 import { createHomeAssistantTools } from '@proj-airi/stage-ui/tools/home-assistant'
+import { TOOL_ICONS } from '@proj-airi/stage-ui/tools/icons'
 import { defineStore } from 'pinia'
 import { watch } from 'vue'
 
@@ -103,6 +104,7 @@ export const useTamagotchiHomeAssistantStore = defineStore('tamagotchi-home-assi
     if (replacements.length) {
       llmToolsStore.addTools(...replacements.map(tool => ({
         ...tool,
+        icon: TOOL_ICONS.homeAssistant,
         id: `${toolIdPrefix}${tool.function.name}`,
       } satisfies ExecutableTool)))
     }

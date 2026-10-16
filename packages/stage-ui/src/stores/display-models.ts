@@ -2,7 +2,7 @@ import type { TransferTask } from '../libs/file-transfer/transfer-queue'
 import type { CloudDisplayModel } from '../services/display-model-sync'
 
 import { errorMessageFrom } from '@moeru/std'
-import { until } from '@vueuse/core'
+import { createEventHook, until } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
@@ -94,6 +94,10 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   // Keyed by owner and model id. Model ids are unique per owner on the server.
   const pendingDownloads = new Map<string, { promise: Promise<DisplayModelFile>, controller: AbortController }>()
   const syncErrors = ref<Record<string, string>>({})
+  // Reports IDs that no longer exist on this device or in the account. Removing only the
+  // local copy of a model that the account keeps does not report it, because the model can
+  // download again. The card store removes the references to reported IDs.
+  const displayModelsDeleted = createEventHook<[deletedIds: string[]]>()
 
   const transferQueue = new TransferQueue(
     { [uploadTaskKind]: runUploadTask },
@@ -118,19 +122,22 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
 
   const displayModelsFromIndexedDBLoading = ref(false)
 
+  /** Downloaded private models stay hidden from other signed-in accounts on this device. */
+  function isVisibleToAccount(model: DisplayModelFile) {
+    const authStore = useAuthStore()
+    return !model.cloudOwnerId || !authStore.isAuthenticated || authStore.userId === model.cloudOwnerId
+  }
+
   async function loadDisplayModelsFromIndexedDB() {
     await until(displayModelsFromIndexedDBLoading).toBe(false)
 
     displayModelsFromIndexedDBLoading.value = true
     const models = [...displayModelsPresets]
-    const authStore = useAuthStore()
 
     try {
       for (const model of await displayModelsRepo.list()) {
-        // Downloaded private models stay hidden from other signed-in accounts on this device.
-        if (model.cloudOwnerId && authStore.isAuthenticated && authStore.userId !== model.cloudOwnerId)
-          continue
-        models.push(model)
+        if (isVisibleToAccount(model))
+          models.push(model)
       }
     }
     catch (err) {
@@ -153,9 +160,10 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     if (modelFromMemory)
       return modelFromMemory
 
+    // A card can reference a model that another account downloaded on this device.
     const modelFromFile = await displayModelsRepo.get(id)
     if (modelFromFile) {
-      return modelFromFile
+      return isVisibleToAccount(modelFromFile) ? modelFromFile : undefined
     }
 
     // Fallback to in-memory presets if not found in storage
@@ -256,7 +264,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     }
   }
 
-  async function removeDisplayModel(id: string) {
+  async function removeLocalCopy(id: string) {
     await until(displayModelsFromIndexedDBLoading).toBe(false)
     if (queuedUploads.value[id])
       await transferQueue.cancel(id)
@@ -264,14 +272,30 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     displayModels.value = displayModels.value.filter(model => model.id !== id)
   }
 
+  /** IDs of the given models that the account does not keep, so they are gone after a local removal. */
+  function withoutCloudModels(ids: string[]) {
+    return ids.filter(id => !cloudModels.value.some(model => model.id === id))
+  }
+
+  /** Removes the model from this device. A model that the account keeps stays available for download. */
+  async function removeDisplayModel(id: string) {
+    await removeLocalCopy(id)
+    const deleted = withoutCloudModels([id])
+    if (deleted.length > 0)
+      await displayModelsDeleted.trigger(deleted)
+  }
+
   async function resetDisplayModels() {
     await loadDisplayModelsFromIndexedDB()
     const userModelIds = displayModels.value.filter(model => model.type === 'file').map(model => model.id)
     for (const id of userModelIds) {
-      await removeDisplayModel(id)
+      await removeLocalCopy(id)
     }
 
     displayModels.value = [...displayModelsPresets].sort((a, b) => b.importedAt - a.importedAt)
+    const deleted = withoutCloudModels(userModelIds)
+    if (deleted.length > 0)
+      await displayModelsDeleted.trigger(deleted)
   }
 
   /** Models that exist only in the account directory and have no local file on this device. */
@@ -311,9 +335,13 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     // Deletion markers remove the cached copy that this account downloaded or uploaded.
     for (const model of displayModels.value) {
       if (model.type === 'file' && model.cloudOwnerId === ownerId && deletedIds.has(model.id))
-        await removeDisplayModel(model.id)
+        await removeLocalCopy(model.id)
     }
     cloudDirectoryLoaded.value = true
+    // The server keeps deletion markers, so each refresh reports them again. Removing a
+    // reference that is already gone changes nothing.
+    if (deletedIds.size > 0)
+      await displayModelsDeleted.trigger([...deletedIds])
   }
 
   async function runUploadTask(task: TransferTask, signal: AbortSignal) {
@@ -444,7 +472,8 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     if (!cloud)
       return
     await deleteCloudDisplayModel(id, cloud.revision)
-    await removeDisplayModel(id)
+    await removeLocalCopy(id)
+    await displayModelsDeleted.trigger([id])
     await refreshCloudModels()
   }
 
@@ -526,5 +555,6 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     renameDisplayModel,
     removeDisplayModel,
     resetDisplayModels,
+    onDisplayModelsDeleted: displayModelsDeleted.on,
   }
 })

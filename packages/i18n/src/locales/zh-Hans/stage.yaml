@@ -84,6 +84,43 @@ chat:
     finalizing: 正在整理……
     sent: 已发送
   voice-input: 语音输入
+  notice:
+    label: 后台汇报
+  background-tasks:
+    label: 后台任务
+    stop: '停止{name}'
+    dismiss: '移除{name}'
+    status:
+      running: 进行中
+      done: 已完成
+      failed: 没做完
+      interrupted: 已停止
+  judgment:
+    label: 判断
+  recipe:
+    using: 正在用配方
+    loaded: 用了配方
+    started: 已交给配方
+    pending: 配方还没批准
+    disabled: 配方已关闭
+    unknown: 找不到配方
+    refused: 配方没能开始
+    failed: 配方没能开始
+  tool-calls:
+    running-one: '正在 {name}'
+    failed-one: '{name} 没成功'
+    combo-running: '连击 ×{count}'
+    combo: '{count} 连击'
+    combo-failed: '{count} 连击，{failed} 次落空'
+    arguments: 参数
+    result: 结果
+    copy: 复制原始数据
+    copied: 已复制
+    rerun: 重新运行
+    state:
+      executing: 进行中
+      done: 完成
+      error: 失败
   error-details:
     show: 查看详情
     hide: 收起详情
@@ -134,6 +171,11 @@ chat:
     cloud-badge: 已同步到云
     new-chat-fallback: 新建对话
     delete: 删除对话
+avatar-model-missing:
+  title: 还没有选择模型
+  unavailable-title: 这台设备上没有这个模型
+  description: 选择一个模型，让 {name} 出现在舞台上。
+  select: 选择模型
 render-error:
   title: '{renderer} 无法渲染这个模型'
   description: 模型已经选中，但舞台无法显示它。

@@ -130,7 +130,7 @@ async function loadStartup() {
     await startup.run('services', () => {
       void serverChannelStore.initialize({ possibleEvents: ['ui:configure'], connector: getHostWebSocketConnector }).catch(error => console.error('Mods server initialization failed:', error))
       contextBridgeStore.initialize()
-      characterOrchestratorStore.initialize()
+      characterOrchestratorStore.initialize(syncedPinia)
     })
     await startup.run('modelData', () => displayModelsStore.loadDisplayModelsFromIndexedDB())
     await startup.run('modelSelection', () => settingsStore.initializeStageModel())
@@ -156,6 +156,7 @@ watch(() => [startup.resources.find(resource => resource.id === 'modelSelection'
 })
 
 onUnmounted(() => {
+  characterOrchestratorStore.dispose()
   stopAuthenticatedSetup?.()
   stopLoggedOutSetup?.()
   contextBridgeStore.dispose()

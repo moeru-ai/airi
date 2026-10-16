@@ -342,10 +342,15 @@ pages:
             label: 確認のためメールアドレスを入力してください
             mismatch: メールアドレスが一致しません。
           confirm: 確認メールを送信
+          deleteNow: 永久に削除
+          confirmPhrase: 確認のため DELETE と入力してください
+          signInAgain: もう一度ログイン
           cancel: キャンセル
         message:
+          deleted: アカウントを削除しました。
           emailSent: '{email} を確認して削除リンクを開いてください。'
         error:
+          reauthenticate: もう一度ログインしてから、ここに戻って削除を確定してください。メールは送信されません。
           fallback: 削除できませんでした。後ほど再試行してください。
           subscriptionActive: サブスクリプションがまだ有効です。先に Capacitor ページで解約してから、アカウントを削除してください。
   card:
@@ -823,6 +828,7 @@ pages:
           title: 共有する発音
           description: 複数のキャラクターが同じ発音を使っています。このデバイスで応答するキャラクターを選択してください。各カードのウェイクワードは保持されます。
           choose-label: 応答するキャラクター
+          choose: '{name}（「{word}」）'
           answered-by: '{name} が応答します'
           unresolved: この発音に応答するキャラクターはいません。
       sections:
@@ -866,6 +872,11 @@ pages:
               preparing: ウェイクワードモデルを準備中…
               ready: ウェイクワードの準備ができました。
               error: 'ウェイクワードモデルを利用できません：{error}'
+          end-judge:
+            title: 発話の終わり
+            description: 話が途切れると、チャットモデルが文字起こしを読み、話し終えたかを判断します。まだ途中なら、AIRI は続きを話せるよう 3 秒長く待ちます。
+            enabled: 話し終えたかを判定
+            enabled-description: 話が途切れるたびに、その文字起こしが修正用のモデルに送信されます。オフにすると、AIRI は少し間があいた時点で発話を終了します。
           rephrase:
             title: 文字起こしの修正
             description: チャットモデルが認識ミスや不要なつなぎ言葉を修正してから、文字起こしを下書きにします。元のテキストも保持されます。
@@ -1309,6 +1320,7 @@ pages:
         headers:
           label: ヘッダー
           description: 認証トークンなど、各リクエストとともに送るヘッダーです。
+          value-placeholder: Bearer トークン
         command:
           label: コマンド
           description: stdio 経由で実行される実行ファイル。

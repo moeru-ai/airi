@@ -82,6 +82,7 @@ chat:
     discard: Bỏ bản nháp
     listening: Đang lắng nghe
     finalizing: Đang hoàn tất…
+    sent: Đã gửi
   voice-input: Nhập giọng nói
   error-details:
     show: Hiện chi tiết

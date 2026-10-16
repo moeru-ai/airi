@@ -1,7 +1,10 @@
 import type { BrowserWindow } from 'electron'
 
+import type { FullscreenMode, FullscreenSurfaceId } from '../shared/eventa'
 import type { FileLoggerHandle } from './app/file-logger'
 import type { SettingsWindowManager } from './windows/settings'
+import type { FullscreenPlace } from './windows/shared/fullscreen'
+import type { WorkspaceWindowManager } from './windows/workspace'
 
 import process, { env, platform } from 'node:process'
 
@@ -60,8 +63,10 @@ import { setupMainWindow } from './windows/main'
 import { setupNoticeWindowManager } from './windows/notice'
 import { setupOnboardingWindowManager } from './windows/onboarding'
 import { setupSettingsWindowReusableFunc } from './windows/settings'
+import { moveFullscreen } from './windows/shared/fullscreen'
 import { setupSpotlightWindowManager } from './windows/spotlight'
 import { setupWidgetsWindowManager } from './windows/widgets'
+import { setupWorkspaceWindowManager } from './windows/workspace'
 
 // TODO: once we refactored eventa to support window-namespaced contexts,
 // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -155,7 +160,75 @@ electronApp.setAppUserModelId('ai.moeru.airi')
 // The second-instance handler should restore the main UI instead of accidentally surfacing internals.
 let userFacingMainWindow: BrowserWindow | undefined
 let settingsWindowManager: SettingsWindowManager | undefined
+let workspaceWindowManager: WorkspaceWindowManager | undefined
+/** The fullscreen mode that the user chose, as the main window page reports it. */
+let fullscreenMode: FullscreenMode = 'off'
+/** Shows a surface in the fullscreen mode of the main window, and returns `false` unless the mode is `single-window`. */
+let openFullscreenInMainWindow: ((surface: FullscreenSurfaceId, route?: string) => boolean) | undefined
+/** The main window as a place of the fullscreen mode, once it exists. */
+let mainWindowPlace: FullscreenPlace | undefined
+/** Keeps the main window above the others, for the window of the `multi-window` mode that covers the screen under it. */
+let keepMainWindowAbove: ((above: boolean) => void) | undefined
 let extensionManagementWebContentsId: number | undefined
+
+/** Opens settings where the fullscreen mode says: in the main window, in the window of the `multi-window` mode, or in the settings window. */
+async function openSettings(route?: string) {
+  if (openFullscreenInMainWindow?.('settings', route))
+    return
+  if (fullscreenMode === 'multi-window' && workspaceWindowManager) {
+    await workspaceWindowManager.open('settings', route)
+    return
+  }
+  await settingsWindowManager?.openWindow(route)
+}
+
+/** The settings window as a place of the fullscreen mode. It shows settings while the mode is off. */
+const settingsWindowPlace: FullscreenPlace = {
+  pack: async () => {
+    const route = settingsWindowManager?.shownRoute()
+    return route ? { surface: 'settings', surfaces: [{ id: 'settings', state: route }] } : undefined
+  },
+  close: async () => {
+    settingsWindowManager?.closeWindow()
+    return true
+  },
+  // Settings carry the route that shows. The settings window shows only settings, so other surfaces stay behind.
+  open: async (pack) => {
+    const settings = pack.surfaces.find(entry => entry.id === 'settings')
+    if (settings)
+      await settingsWindowManager?.openWindow(typeof settings.state === 'string' ? settings.state : undefined)
+  },
+}
+
+/** The move in progress. Each change of the window mode waits for the move before it, so two moves never interleave. */
+let fullscreenMove: Promise<void> = Promise.resolve()
+
+/** The place where the fullscreen mode shows in a mode. */
+function placeOf(mode: FullscreenMode): FullscreenPlace | undefined {
+  if (mode === 'single-window')
+    return mainWindowPlace
+  if (mode === 'multi-window')
+    return workspaceWindowManager?.place
+  return settingsWindowPlace
+}
+
+/** Shows the chat in the fullscreen mode, in the window that the mode names. */
+async function openFullscreenChat() {
+  if (fullscreenMode === 'multi-window')
+    await workspaceWindowManager?.open('chat')
+  else
+    openFullscreenInMainWindow?.('chat')
+}
+
+/** Lets only the window that shows the settings interface manage extensions, until that window closes. */
+function trackExtensionManagementWindow(window: BrowserWindow) {
+  const webContentsId = window.webContents.id
+  extensionManagementWebContentsId = webContentsId
+  window.once('closed', () => {
+    if (extensionManagementWebContentsId === webContentsId)
+      extensionManagementWebContentsId = undefined
+  })
+}
 const shouldStartMainProcess = installSingleInstanceGuard({ app, getWindow: () => userFacingMainWindow })
 
 if (shouldStartMainProcess) {
@@ -305,11 +378,12 @@ app.whenReady().then(async () => {
       ...dependsOn,
       getMainWindow: () => userFacingMainWindow,
       // NOTICE:
-      // Chat cannot depend on Settings in injeca, because Settings depends on
-      // Spotlight and Spotlight depends on Chat. Settings is built before any
-      // window accepts input, so Chat resolves it lazily.
-      // Removal condition: Settings no longer depends on Spotlight.
-      openSettingsWindow: async (route) => { await settingsWindowManager?.openWindow(route) },
+      // Settings, the main window, and the fullscreen window depend on Chat
+      // through injeca, so Chat cannot depend on them. They exist before any
+      // window takes input, so Chat resolves them lazily.
+      // Removal condition: none of them depends on Chat.
+      openSettingsWindow: openSettings,
+      openFullscreenChat,
     }),
   })
 
@@ -329,26 +403,61 @@ app.whenReady().then(async () => {
       settingsWindowManager = setupSettingsWindowReusableFunc({
         ...dependsOn,
         getMainWindow: () => userFacingMainWindow,
-        onWindowCreated: (window) => {
-          const webContentsId = window.webContents.id
-          extensionManagementWebContentsId = webContentsId
-          window.once('closed', () => {
-            if (extensionManagementWebContentsId === webContentsId) {
-              extensionManagementWebContentsId = undefined
-            }
-          })
-        },
+        onWindowCreated: trackExtensionManagementWindow,
       })
-      return settingsWindowManager
+      // Every settings entry point asks this manager, so the fullscreen mode decides here where settings open.
+      return { ...settingsWindowManager, openWindow: openSettings }
+    },
+  })
+
+  const workspaceWindow = injeca.provide('windows:workspace', {
+    dependsOn: { chatWindow, widgetsManager, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpManager, i18n, globalShortcut, spotlightWindow, ioTraceRecording },
+    build: ({ dependsOn }) => {
+      workspaceWindowManager = setupWorkspaceWindowManager({
+        ...dependsOn,
+        getMainWindow: () => userFacingMainWindow,
+        isActive: () => fullscreenMode === 'multi-window',
+        openSettings,
+        onWindowCreated: trackExtensionManagementWindow,
+        // The window covers the screen, so the main window stays above it and the character stays in view.
+        onOpenChange: open => keepMainWindowAbove?.(open),
+      })
+      return workspaceWindowManager
     },
   })
 
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { editorWindow, settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpManager, i18n, onboardingWindowManager, inlayWindow, appleSpeechTranscription, appleVision, ioTraceRecording, globalShortcut },
+    dependsOn: { editorWindow, settingsWindow, workspaceWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpManager, i18n, onboardingWindowManager, inlayWindow, appleSpeechTranscription, appleVision, ioTraceRecording, globalShortcut, spotlightWindow, devtoolsWindow: devtoolsMarkdownStressWindow },
     build: async ({ dependsOn }) => setupMainWindow({
       ...dependsOn,
       onWindowCreated: (window) => {
         userFacingMainWindow = window
+      },
+      onFullscreenOpener: (open) => {
+        openFullscreenInMainWindow = open
+      },
+      // The plugin host lets only the settings interface manage extensions. Settings show in the fullscreen mode of
+      // the main window, so while it lasts, that interface is the main window.
+      // Settings can already show in another window when the main window leaves the mode. That window keeps the role.
+      onFullscreenChange: (active) => {
+        const mainWindowId = userFacingMainWindow?.webContents.id
+        if (active)
+          extensionManagementWebContentsId = mainWindowId
+        else if (extensionManagementWebContentsId === mainWindowId)
+          extensionManagementWebContentsId = undefined
+      },
+      onKeepAbove: (keepAbove) => {
+        keepMainWindowAbove = keepAbove
+      },
+      onFullscreenPlace: (place) => {
+        mainWindowPlace = place
+      },
+      // What the mode shows moves to the place of the new mode, with every surface and its state.
+      onFullscreenModeChange: (mode, previous) => {
+        fullscreenMode = mode
+        fullscreenMove = fullscreenMove
+          .then(() => moveFullscreen(placeOf(previous), placeOf(mode)))
+          .catch(error => log.withError(error).error('Failed to move the fullscreen mode to the new window mode'))
       },
     }),
   })

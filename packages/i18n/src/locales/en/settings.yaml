@@ -273,18 +273,18 @@ live2d:
   clear-model-cache: Clear model cache
   expressions:
     title: Expressions
+    description: Activate an Expression temporarily or choose whether AIRI can use it.
     override-toggle: Expression system
     sdk-preset-preserved-notice: >
       SDK expression manager and eye blink are preserved when disabled.
     no-expression: No expressions available for this model.
-    llm-integration-wip: LLM tool integration is not yet wired up.
-    save-default: Save expression defaults
     reset: Reset all expressions
-    expose-to-llm-toggle: Expose to LLM
-    expose-to-llm-options:
-      none: None
-      all: All
-      custom: Custom
+    parameter-count: '{count} parameters'
+    actions:
+      activate: 'Activate {name}'
+      deactivate: 'Deactivate {name}'
+      show-to-airi: 'Make {name} available to AIRI'
+      hide-from-airi: 'Hide {name} from AIRI'
 microphone: Microphone
 models: Model
 pages:
@@ -509,7 +509,7 @@ pages:
         systemprompt: You will receive messages, answer to them like a real human.
         posthistoryinstructions: Remember to imitate an human.
       modules_info: >-
-        Configure modules for this character card. Empty fields inherit global settings.
+        Configure modules for this character card. Empty chat, vision, and speech fields inherit global settings. No Body Model disables the renderer.
       sections:
         chat: Chat
         vision: Vision
@@ -518,6 +518,7 @@ pages:
       use_default: Use default
       use_default_not_configured: Use default (not configured)
       inherit_global_settings: Inherit global settings
+      no_model: No model
       fields_info:
         subtitle: >-
           You can put here some details about the character you are creating,
@@ -887,6 +888,33 @@ pages:
           choose: '{name} ("{word}")'
           answered-by: '{name} answers'
           unresolved: No character answers this pronunciation.
+      voiceprint:
+        title: Voiceprint
+        description: Enroll your voice, so that AIRI can recognize it.
+        intro: A voiceprint is a list of numbers that the voiceprint model computes from your speech. It contains no audio, but it can identify you.
+        privacy: AIRI keeps your voiceprint only on this device. Card export does not include it, and AIRI does not upload it. To delete it, use Delete voiceprint on this page, or Delete all data in Data settings.
+        unused: No feature uses the voiceprint yet.
+        download: The first enrollment downloads the voiceprint model, about 28 MB.
+        status:
+          none: You have no voiceprint.
+          enrolled: 'Enrolled on {date}, from {seconds} s of speech.'
+          outdated: The voiceprint model changed. Enroll again to use your voiceprint.
+        instructions: Stay alone near the microphone. Click Start recording, then read these sentences aloud in your usual voice.
+        sentence-1: Today I want to check the weather, read my messages, and plan the rest of my day.
+        sentence-2: I usually talk to AIRI in the evening, when the room is quiet and I have some free time.
+        sentence-3: Please remember my voice, so that you can tell when I am the one who speaks.
+        progress: '{seconds} s of speech. Enrollment needs at least {min} s.'
+        start: Start recording
+        again: Enroll again
+        finish: Finish
+        cancel: Cancel
+        delete: Delete voiceprint
+        enrolling: Computing your voiceprint...
+        result:
+          enrolled: Your voiceprint is saved.
+          cancelled: Enrollment cancelled.
+          too-short: 'The recording had {seconds} s of speech. Enrollment needs at least {min} s. Record again.'
+          error: 'Enrollment failed: {error}'
       sections:
         section:
           provider-selection:
@@ -972,6 +1000,90 @@ pages:
               filtering had no effect on the last transcription.
     memory-long-term:
       description: Long-term memory specific settings and management
+      enable: Use long-term memory
+      enable-description: The character remembers what you talk about. When this is off, it remembers nothing.
+      memories:
+        title: Memories
+        description: Each character keeps its own secrets, and the others cannot see them. After you share a secret, every character knows it, and you cannot take it back. You can delete any secret, but you cannot rewrite one.
+        empty: No memories yet.
+        forget: 'Forget {name}'
+        make_general: 'Share {name} with every character'
+        general: Shared secrets
+        entry:
+          title: Memories
+          description: Each character's secrets, and the secrets that they share.
+      recipes:
+        title: Recipes
+        empty: No recipes yet.
+        sources:
+          user: Yours
+          model: Proposed by the character
+        pending: Waits for your approval. After one approval, it never asks again.
+        approve: Approve
+        remove: Remove
+        add:
+          name: Name
+          description: When to use it
+          instructions: What to do
+          keywords:
+            label: Code words
+            description: Say a code word, and the character uses this recipe.
+          submit: Add
+        decision:
+          question: Question
+          type:
+            label: How to answer
+            noul: Yes or no
+            choice: Pick one option
+          yes_means: '"Yes" means'
+          no_means: '"No" means'
+          option: What this option means
+          add_option: Add an option
+          remove_option: Remove
+          action:
+            label: Then
+            reply: Reply as usual
+            stay_quiet: Read without replying
+            hint: Reply with a note in mind
+            recipe: Use another recipe next
+          hint_text: Note to keep in mind
+          target_recipe: Recipe
+          keywords: The character judges only after you say a code word.
+          note: After a code word, the character reads the conversation, picks one answer, and acts on it.
+        entry:
+          title: Recipes
+          description: The character's skills, the cues that start them, and the proposals that wait for you.
+        add_button: Add recipe
+        types:
+          title: Choose a recipe type
+          instructions:
+            title: Instructions
+            description: Steps that the character uses when they fit, or when you say a code word.
+          decision:
+            title: Decision
+            description: After a code word, the character answers a question before it replies. Each answer leads to its own action.
+        styles:
+          instructions: Instructions
+          decision: Decision
+        cancel: Cancel
+        edit: Edit
+        save: Save
+        enabled: 'Use {name}'
+        keywords_summary: 'Code words: {words}'
+        tabs:
+          conversation: In conversation
+          auto_run: Auto-run
+          conversation_description: Recipes for chatting. They act only when you send a message.
+          auto_run_description: Recipes that start on their own when a cue comes. Each run costs a model call.
+        background:
+          label: Run in the background
+          description: For tasks that take time, such as research. It works in the background and brings the result back.
+          tag: Background
+        grants: 'Approving lets it: {what}'
+        proposals:
+          label: Let the character propose recipes
+          description: A recipe that you ask for is saved as a proposal. It works only after you approve it.
+        model_flow: The character decides what each run does
       title: Long-Term Memory
     memory-short-term:
       description: Short-term memory specific settings and management
@@ -2197,6 +2309,14 @@ pages:
         display_model_sync:
           title: Model cloud sync
           description: Upload imported Live2D and VRM models to your account when you are signed in, so you can use them on other devices. Off by default.
+        fullscreen_workspace:
+          title: Fullscreen workspace
+          description: Open settings and the chat in a workspace that covers the screen, with the character on the left. Off by default.
+          window_mode:
+            title: Window mode
+            description: Choose where the workspace opens.
+            single_window: 'Single window: the character grows into the workspace'
+            multi_window: 'Separate window: the character stays on the desktop'
     color-scheme:
       description: Change the color scheme of the stage.
       title: Color Scheme

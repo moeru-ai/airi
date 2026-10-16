@@ -35,16 +35,10 @@ const listedModels = computed(() => [
   ...cloudOnlyModels.value.map(model => ({ id: model.id, name: model.name, format: model.format as DisplayModelFormat, previewImage: undefined, cloudOnly: true })),
 ])
 
-function handleRemoveModel(model: { id: string }) {
-  const wasActive = props.selectedModel?.id === model.id
-  displayModelStore.removeDisplayModel(model.id)
-  // Removing the model that is currently on stage must also take it off the
-  // stage; otherwise the scene keeps rendering the already-loaded mesh (its
-  // blob URL stays valid). Switch to the first remaining model, or none.
-  if (wasActive) {
-    const fallback = displayModels.value.find(m => m.id !== model.id)
-    emits('pick', fallback)
-  }
+// The card store removes the references to a deleted model. A model that the account
+// keeps stays referenced, because it can download again.
+async function handleRemoveModel(model: { id: string }) {
+  await displayModelStore.removeDisplayModel(model.id)
 }
 
 const highlightDisplayModelCard = ref<string | undefined>(props.selectedModel?.id)

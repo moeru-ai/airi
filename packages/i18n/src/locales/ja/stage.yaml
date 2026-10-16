@@ -82,6 +82,7 @@ chat:
     discard: 下書きを破棄
     listening: 聞き取り中
     finalizing: 処理を完了しています…
+    sent: 送信済み
   voice-input: 音声入力
   error-details:
     show: 詳細を表示

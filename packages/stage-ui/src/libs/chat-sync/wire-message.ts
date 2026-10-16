@@ -62,10 +62,16 @@ export function extractMessageText(message: ChatHistoryItem): string {
  * Returns:
  * - `true` when the message is a user or completed assistant turn. `tool`,
  *   `system`, `error`, and interrupted assistant messages stay local because
- *   the wire schema cannot preserve their runtime state.
+ *   the wire schema cannot preserve their runtime state. A notice and the reply
+ *   to it stay local too: the wire schema cannot mark a notice, so another
+ *   device would read it as owner speech.
  */
 export function isCloudSyncableMessage(message: ChatHistoryItem): boolean {
   if (message.role === 'tool')
+    return false
+  if (message.role === 'user' && message.notice)
+    return false
+  if (message.role === 'assistant' && message.proactive)
     return false
   if (message.role === 'system')
     return false
