@@ -106,6 +106,10 @@ chat:
     unknown: 找不到配方
     refused: 配方没能开始
     failed: 配方没能开始
+  home-assistant-tool-call:
+    shown: '显示 {count} / {total} 个设备'
+  web-search-tool-call:
+    results: '“{query}” 的搜索结果 · {count} 条'
   tool-calls:
     running-one: '正在 {name}'
     failed-one: '{name} 没成功'
@@ -116,6 +120,9 @@ chat:
     result: 结果
     copy: 复制原始数据
     copied: 已复制
+    raw: 原始数据
+    other: 其他数据
+    widget: 小组件
     rerun: 重新运行
     state:
       executing: 进行中

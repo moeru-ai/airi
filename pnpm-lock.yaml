@@ -1143,6 +1143,9 @@ catalogs:
     vue-i18n:
       specifier: ^11.4.9
       version: 11.4.9
+    vue-json-pretty:
+      specifier: ^2.6.0
+      version: 2.6.0
     vue-macros:
       specifier: ^3.1.4
       version: 3.1.4
@@ -5157,6 +5160,9 @@ importers:
       vue-i18n:
         specifier: 'catalog:'
         version: 11.4.9(vue@3.5.41(typescript@6.0.3))
+      vue-json-pretty:
+        specifier: 'catalog:'
+        version: 2.6.0(vue@3.5.41(typescript@6.0.3))
       vue-router:
         specifier: 'catalog:'
         version: 5.2.0(@pinia/colada@1.4.2(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3)))(@vue/compiler-sfc@3.5.41)(esbuild@0.28.2)(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(rolldown@1.2.5)(rollup@4.62.5)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))(vue@3.5.41(typescript@6.0.3))
@@ -20175,6 +20181,12 @@ packages:
     engines: {node: '>= 22'}
     peerDependencies:
       vue: ^3.0.0
+
+  vue-json-pretty@2.6.0:
+    resolution: {integrity: sha512-glz1aBVS35EO8+S9agIl3WOQaW2cJZW192UVKTuGmryx01ZvOVWc4pR3t+5UcyY4jdOfBUgVHjcpRpcnjRhCAg==}
+    engines: {node: '>= 10.0.0', npm: '>= 5.0.0'}
+    peerDependencies:
+      vue: '>=3.0.0'
 
   vue-macros@3.1.4:
     resolution: {integrity: sha512-/VJSCppfDEdq3h6EM+eOtA7/EW5ADgKuFshEtu+3wjhvm00RgkX+xv89o9n6Cs3pRm1vSCXPiKyIHiXptz95nA==}
@@ -35961,6 +35973,10 @@ snapshots:
       '@intlify/devtools-types': 11.4.9
       '@intlify/shared': 11.4.9
       '@vue/devtools-api': 6.6.4
+      vue: 3.5.41(typescript@6.0.3)
+
+  vue-json-pretty@2.6.0(vue@3.5.41(typescript@6.0.3)):
+    dependencies:
       vue: 3.5.41(typescript@6.0.3)
 
   vue-macros@3.1.4(@vueuse/core@14.4.0(vue@3.5.41(typescript@6.0.3)))(esbuild@0.28.2)(rolldown@1.2.5)(rollup@4.62.5)(typescript@6.0.3)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))(vue-tsc@3.3.11(typescript@6.0.3))(vue@3.5.41(typescript@6.0.3)):

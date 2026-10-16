@@ -432,6 +432,7 @@ catalog:
   vue: ^3.5.41
   vue-demi: ^0.14.10
   vue-i18n: ^11.4.9
+  vue-json-pretty: ^2.6.0
   vue-macros: ^3.1.4
   vue-router: ^5.2.0
   vue-sonner: ^2.0.9

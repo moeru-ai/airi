@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ChatToolCallRendererRegistry } from '@proj-airi/stage-ui/components'
+import type { ChatToolCallRendererRegistry, ChatToolCallWidgetRegistry } from '@proj-airi/stage-ui/components'
 import type { ChatHistoryReplyPayload, ChatImageAttachment } from '@proj-airi/stage-ui/components/scenarios/chat'
 import type { ChatToolCallRerunEvent } from '@proj-airi/stage-ui/stores/tool-call-rerun'
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
@@ -31,6 +31,11 @@ import ChatViewportLayout from './chat-viewport-layout.vue'
 import { electronOpenSettings } from '../../shared/eventa'
 import { useHearingInputChannel } from '../composables/use-hearing-input-channel'
 import { computerUseToolReferences, useToolSelectionStore, widgetToolReferences } from '../stores/tools'
+import { COMPUTER_USE_READ_IMAGE_TOOL_NAME, COMPUTER_USE_TOOL_NAME } from '../stores/tools/builtin/computer-use'
+import { WEATHER_TOOL_NAME } from '../stores/tools/builtin/weather'
+import { computerUseReadImageToolCallWidget } from './chat-tool-renderers/computer-use-read-image-tool-call-widget'
+import { computerUseToolCallWidget } from './chat-tool-renderers/computer-use/widget'
+import { weatherToolCallWidget } from './chat-tool-renderers/weather-tool-call-widget'
 
 const props = withDefaults(defineProps<{
   /**
@@ -132,6 +137,11 @@ const toolCallRenderers = {
   image_journal: JournalToolCallBlock,
   text_journal: JournalToolCallBlock,
 } satisfies ChatToolCallRendererRegistry
+const toolCallWidgets = {
+  [WEATHER_TOOL_NAME]: weatherToolCallWidget,
+  [COMPUTER_USE_TOOL_NAME]: computerUseToolCallWidget,
+  [COMPUTER_USE_READ_IMAGE_TOOL_NAME]: computerUseReadImageToolCallWidget,
+} satisfies ChatToolCallWidgetRegistry
 const {
   trackChatMessageDeleted,
   trackChatMessageRetried,
@@ -396,6 +406,7 @@ defineExpose({
         :streaming-message="visibleStreamingMessage"
         :tail-inset="tailInset"
         :tool-call-renderers="toolCallRenderers"
+        :tool-call-widgets="toolCallWidgets"
         :surface="props.floating ? 'opaque' : 'translucent'"
         :scrollbar="props.floating ? 'hover' : 'scroll'"
         :passive="props.passive"
