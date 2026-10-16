@@ -67,6 +67,7 @@ async function handleGenerateTranscription(file: File) {
   <TranscriptionProviderSettings :provider-id="providerId">
     <template #basic-settings>
       <FieldCombobox
+        v-if="!modelLoadError"
         :model-value="selectedModel"
         :label="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.model_id_label')"
         :options="providerModels.map(model => ({ value: model.id, label: model.name || model.id }))"

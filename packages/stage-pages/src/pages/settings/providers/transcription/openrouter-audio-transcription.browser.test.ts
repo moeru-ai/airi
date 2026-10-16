@@ -89,20 +89,20 @@ describe('openRouter audio transcription settings', () => {
     await expect.element(page.getByText('Select a model in OpenRouter settings before testing.')).toBeVisible()
   })
 
-  it('shows the model catalog error beside the disabled selector', async () => {
+  it('clears stale models and hides the selector when a catalog refresh fails', async () => {
+    storeConfiguredProvider('openai/whisper-large-v3')
     await renderPage(pinia)
     const providersStore = useProviderStore(pinia)
-    providersStore.providerRuntimeState = {
-      ...providersStore.providerRuntimeState,
-      [providerId]: {
-        models: [],
-        defaultModel: null,
-        modelStatus: 'error',
-        modelError: 'OpenRouter transcription model list request failed: 401 Invalid API key',
-      },
-    }
+    const errorMessage = 'OpenRouter transcription model list request failed: 401 Invalid API key'
+    await expect.poll(() => providersStore.getModelsForProvider(providerId).length).toBe(1)
+    vi.mocked(globalThis.fetch).mockRejectedValueOnce(new Error(errorMessage))
 
-    await expect.element(page.getByRole('combobox')).toBeDisabled()
-    await expect.element(page.getByText('OpenRouter transcription model list request failed: 401 Invalid API key')).toBeVisible()
+    await providersStore.fetchModelsForProvider(providerId)
+
+    expect(providersStore.getModelsForProvider(providerId)).toEqual([])
+    expect(providersStore.getDefaultModelForProvider(providerId)).toBeNull()
+    expect(localStorage.getItem('settings/providers/configured')).toContain('"model":"openai/whisper-large-v3"')
+    expect(page.getByRole('combobox', { name: /Model ID/ }).query()).toBeNull()
+    await expect.element(page.getByText(errorMessage)).toBeVisible()
   })
 })
