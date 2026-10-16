@@ -148,6 +148,33 @@ describe('createSpeechActivityRule', () => {
     expect(harness.seen.map(event => (event.body as { range: { startFrame: number } }).range.startFrame)).toEqual([32, 64])
   })
 
+  // Codex review on PR #2995: the Hearing playground changes its sensitivity and silence sliders while it monitors.
+  it('reads a live threshold and silence limit on each window', async () => {
+    const settings = { threshold: 0.95, silenceMs: 1000 }
+    const harness = createHarness([createSpeechActivityRule({
+      target: () => ({ sessionId: 'alice', interruptTurns: [] }),
+      minSpeechMs: 32,
+      preRollMs: 0,
+      get threshold() { return settings.threshold },
+      get silenceMs() { return settings.silenceMs },
+    })] as VoiceRule<unknown>[])
+    harness.window(0, 32, 0.9, { accepted: true })
+    await flush()
+    expect(harness.commands).toEqual([])
+
+    settings.threshold = 0.6
+    harness.window(32, 32, 0.9, { accepted: true })
+    await flush()
+    expect(harness.commands.map(command => command.type)).toEqual(['begin'])
+
+    harness.emit(inputCapturingEvent, { inputId: 'input-1', from: { sourceId: 'mic', frame: 32 } })
+    settings.silenceMs = 64
+    harness.window(64, 32, 0)
+    harness.window(96, 32, 0)
+    await flush()
+    expect(harness.commands.at(-1)).toEqual({ type: 'seal', inputId: 'input-1', at: { sourceId: 'mic', frame: 128 } })
+  })
+
   it('does not begin speech that the echo gate did not accept', async () => {
     const harness = createHarness([create()] as VoiceRule<unknown>[])
     harness.window(0, 32, 0.9, { accepted: false })

@@ -45,11 +45,12 @@ export interface VoiceActivityOptions {
  * It owns no recorder, source, transcription request, or playback nodes.
  */
 export function createVoiceActivityPlugin(options: VoiceActivityOptions): VoicePlugin {
-  const threshold = options.threshold ?? 0.6
+  // The observer keeps the pre-roll of setup time. The threshold and the silence limit are read on each window.
   const preRollMs = options.preRollMs ?? 360
 
   return { name: 'voice-activity', setup(scope) {
-    scope.rule(createSpeechActivityRule({ ...options, threshold, preRollMs }))
+    // The rule receives the options object itself. A spread would read the getters of a live setting only once.
+    scope.rule(createSpeechActivityRule(options))
     scope.on(inputActivitySignal, activity => options.onActivity?.(activity))
 
     // NOTICE:
@@ -60,6 +61,7 @@ export function createVoiceActivityPlugin(options: VoiceActivityOptions): VoiceP
       const { window } = ctx
       const score = await options.detect(window, ctx.signal)
       const durationMs = (window.range.endFrame - window.range.startFrame) * 1000 / window.sampleRate
+      const threshold = options.threshold ?? 0.6
       const wake = await options.detectWakeWord?.(window, ctx.signal, { speech: score >= threshold, durationMs })
       ctx.signal.throwIfAborted()
 

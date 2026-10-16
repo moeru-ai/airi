@@ -24,6 +24,10 @@ interface TrackedInput {
   readonly from?: Position
 }
 
+/**
+ * Options are read on each window, not once, so a host setting with a getter applies at once.
+ * Do not spread these options into a new object, because spreading reads each getter once.
+ */
 export interface SpeechActivityRuleOptions {
   /** @default 0.6. A live input uses 30 percent of this score to keep speech active. */
   readonly threshold?: number
@@ -86,9 +90,6 @@ interface CountResult {
  * - A manual input owns its interval. The rule ignores windows while another input is active.
  */
 export function createSpeechActivityRule(options: SpeechActivityRuleOptions): VoiceRule<SpeechActivityState> {
-  const threshold = options.threshold ?? 0.6
-  const preRollMs = options.preRollMs ?? 360
-
   return {
     name: 'speech-activity',
     initial: () => ({}),
@@ -139,6 +140,7 @@ export function createSpeechActivityRule(options: SpeechActivityRuleOptions): Vo
         return { state: { ...state, owned: undefined }, commands }
       }
 
+      const threshold = options.threshold ?? 0.6
       const speech = score >= (owned ? threshold * 0.3 : threshold)
       if ((wake && wake.sessionId !== owned?.sessionId) || (!owned && speech)) {
         if (!accepted)
@@ -154,7 +156,7 @@ export function createSpeechActivityRule(options: SpeechActivityRuleOptions): Vo
           cause,
           start: wake
             ? { kind: 'after-silence' }
-            : { kind: 'speech-onset', at: { sourceId: range.sourceId, frame: range.startFrame }, preRollMs },
+            : { kind: 'speech-onset', at: { sourceId: range.sourceId, frame: range.startFrame }, preRollMs: options.preRollMs ?? 360 },
         }
         return { state: { ...state, owned: undefined, beginning: { cause, firstWindow: { speech, durationMs, range } } }, commands: [{ type: 'begin', input }] }
       }
