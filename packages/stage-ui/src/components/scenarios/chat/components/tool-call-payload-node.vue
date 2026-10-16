@@ -29,7 +29,7 @@ const QUOTE_CLASSES = 'text-neutral-400 dark:text-neutral-500'
 const NESTED_CLASSES = [
   'relative min-w-0 pl-3',
   `before:absolute before:left-0.5 before:top-0.5 before:bottom-0.5 before:w-px before:content-['']`,
-  'before:bg-neutral-300 dark:before:bg-neutral-700',
+  'before:bg-neutral-200 dark:before:bg-neutral-800',
 ]
 </script>
 
