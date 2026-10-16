@@ -1,6 +1,6 @@
 import type { PcmBlock } from '@proj-airi/pipelines-audio'
 
-import { createScope } from '@proj-airi/pipelines-audio'
+import { createScope } from '@proj-airi/stream-kit'
 
 import { AudioOutput } from './audio-output'
 

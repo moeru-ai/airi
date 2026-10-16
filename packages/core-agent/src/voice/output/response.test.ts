@@ -2,7 +2,8 @@ import type { TtsRequest } from '@proj-airi/pipelines-audio'
 
 import type { SpeechAudio, StreamingTranscriber, TranscriptionEvent } from '../../index'
 
-import { AudioInput, createPushStream, Playback } from '@proj-airi/pipelines-audio'
+import { AudioInput, Playback } from '@proj-airi/pipelines-audio'
+import { createPushStream } from '@proj-airi/stream-kit'
 import { describe, expect, it, vi } from 'vitest'
 
 import { VoiceController } from '../../index'

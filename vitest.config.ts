@@ -9,6 +9,7 @@ export default defineConfig({
       'server/apps/api',
       'apps/ui-server-auth',
       'apps/stage-tamagotchi/vitest.node.config.ts',
+      'packages/agents',
       'packages/cap-vite',
       'packages/ccc',
       'packages/core-agent',
@@ -29,6 +30,7 @@ export default defineConfig({
       'packages/stage-shared',
       'packages/stage-ui-live2d/vitest.node.config.ts',
       'packages/stage-ui-three',
+      'packages/stream-kit',
       'packages/vitest-plugin-fakemic',
       'packages/vite-plugin-sherpaw',
       // Scripts that GitHub Actions run. They belong to no package.
