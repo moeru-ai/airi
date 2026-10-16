@@ -7,6 +7,7 @@ import { array, looseObject, number, optional, parseJson, pipe, safeParse, strin
 
 import ComputerUseToolCallWidget from './widget.vue'
 
+import { isComputerUseHelpCall } from '../../../../shared/eventa/computer-use'
 import { appReaders } from './app'
 import { captureReaders } from './capture'
 import { parseAuvHelp } from './help'
@@ -23,7 +24,10 @@ import { screenTextReaders } from './screen-text'
 // Remove when the tool returns failed commands as results.
 const ERROR_PREFIXES = ['Tool "computer_use" execution failed: ', 'Tool call error for "computer_use": ']
 
-/** The AUV result of a finished or failed call. The text is parsed once, and each command reader validates only its `result`. */
+/**
+ * The result of a computer use call. The text is parsed once.
+ * `output` is help text for a help call, and the AUV run for any other call.
+ */
 const CallSchema = pipe(
   string(),
   transform((text) => {
@@ -31,26 +35,18 @@ const CallSchema = pipe(
     return prefix ? text.slice(prefix.length) : text
   }),
   parseJson(),
-  looseObject({
-    argv: array(string()),
-    exitCode: number(),
-    output: looseObject({
-      status: string(),
-      command_id: string(),
-      result: optional(unknown()),
-      artifacts: optional(array(ArtifactSchema)),
-      failure: optional(string()),
-      failure_details: optional(looseObject({ code: string(), message: string() })),
-    }),
-  }),
+  looseObject({ argv: array(string()), exitCode: number(), output: unknown() }),
 )
 
-/** A help call, such as `invoke --help` or `invoke input.clickPoint --help`. AUV prints its help as text, not as a run. */
-const HelpCallSchema = pipe(
-  string(),
-  parseJson(),
-  looseObject({ argv: array(string()), exitCode: number(), output: string() }),
-)
+/** The AUV run of a call. Each command reader validates only its `result`. */
+const RunSchema = looseObject({
+  status: string(),
+  command_id: string(),
+  result: optional(unknown()),
+  artifacts: optional(array(ArtifactSchema)),
+  failure: optional(string()),
+  failure_details: optional(looseObject({ code: string(), message: string() })),
+})
 
 /** The card of each AUV command, by command family. A command without a card shows its header, and its result as other data. */
 const COMMAND_READERS: Record<string, ComputerUseCommandReader> = {
@@ -68,21 +64,25 @@ const CALL_OMITTED = { argv: true, exitCode: true } satisfies ToolResultCoverage
 
 /** Shows an AUV command with its status, and a card for what the command did. */
 export const computerUseToolCallWidget = defineToolCallWidget(ComputerUseToolCallWidget, (result) => {
-  const help = safeParse(HelpCallSchema, result)
-  if (help.success && (help.output.argv.includes('--help') || help.output.argv[1] === 'help')) {
-    const view: ComputerUseViewOf<'help'> = { kind: 'help', help: parseAuvHelp(help.output.output), text: help.output.output }
-    return {
-      props: { command: help.output.argv.join(' '), view },
-      // The header shows the call, and the help view shows the whole text. `exitCode` says only that the help printed.
-      rest: restOf(help.output, { argv: true, output: true }, { exitCode: true }),
-    }
-  }
-
   const parsed = safeParse(CallSchema, result)
   if (!parsed.success)
     return undefined
   const call = parsed.output
-  const { output } = call
+
+  // The host runs a help call without `--json`, by the same rule, so its output is help text.
+  if (isComputerUseHelpCall(call.argv) && typeof call.output === 'string') {
+    const view: ComputerUseViewOf<'help'> = { kind: 'help', help: parseAuvHelp(call.output), text: call.output }
+    return {
+      props: { command: call.argv.join(' '), view },
+      // The header shows the call, and the help view shows the whole text. `exitCode` says only that the help printed.
+      rest: restOf(call, { argv: true, output: true }, { exitCode: true }),
+    }
+  }
+
+  const run = safeParse(RunSchema, call.output)
+  if (!run.success)
+    return undefined
+  const output = run.output
   const header = { command: output.command_id, status: output.status }
 
   if (output.failure !== undefined) {
