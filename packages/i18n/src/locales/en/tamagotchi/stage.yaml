@@ -151,13 +151,110 @@ about:
 computer-use-tool-call:
   status:
     completed: Completed
+    failed: Failed
   display: Display
   built-in: Built-in
   primary: Primary
   logical-size: Logical size
   pixel-size: Pixel size
   backend: Capture backend
+  fallback: Fallback reason
   file: File
+  window: Window
+  region: Region
+  main: Main
+  hidden: Hidden
+  displays: '{count} display | {count} displays'
+  windows: '{count} window | {count} windows'
+  found: 'Found "{query}" in {count} place | Found "{query}" in {count} places'
+  not-found: 'No "{query}" found'
+  clicked-text: 'Clicked "{query}"'
+  options: Options
+  typed: Typed
+  pasted: Pasted
+  pressed: Pressed
+  repeat: '× {count}'
+  interval: 'every {ms} ms'
+  hold: 'held for {ms} ms'
+  steps: '{count} step in order | {count} steps in order'
+  focused: 'Focused "{query}"'
+  app: App
+  process: Process
+  control: Control
+  title: Title
+  value: Content
+  ax-path: Accessibility path
+  moved: Moved the pointer to
+  clicked: Clicked
+  dragged: Dragged
+  requested: Requested
+  on-screen: On screen
+  start: Start
+  end: End
+  final: Final point
+  duration: '{ms} ms'
+  normalized: Normalized coordinates
+  click-count: '× {count}'
+  relative:
+    screen: Relative to the screen
+    window: Relative to the window
+    display: Relative to the display
+  buttons:
+    left: Left button
+    right: Right button
+    middle: Middle button
+  clicks:
+    single: Single click
+    double: Double click
+  delivery:
+    path: Delivery
+    verified: Effect verified
+    not-verified: Effect not verified
+    disturbance: Disturbance
+    mouse: Mouse
+    focus: Focus
+    clipboard: Clipboard
+    attempt: 'Attempt {index}'
+    attempt-succeeded: Succeeded
+    attempt-failed: Failed
+  paths:
+    foreground_system_events: Foreground system events
+    window_targeted_keyboard: Keyboard events sent to the window
+    ax_focus: Accessibility focus
+  disturbances:
+    none: None
+    temporary: Temporary
+    foreground: Brought to the front
+    unknown: Unknown
+  activated: 'Switched to {app}'
+  in-front: Now in front
+  front-is: '{app} is in front'
+  permissions:
+    title: System permissions
+    names:
+      screen_recording: Screen recording
+      screen_capture_kit: ScreenCaptureKit
+      accessibility: Accessibility
+      automation_to_system_events: Automation (System Events)
+    states:
+      granted: Granted
+      missing: Not granted
+      denied: Denied
+      unknown: Unknown
+  media:
+    commands:
+      play: Play
+      pause: Pause
+      toggle: Play or pause
+      next: Next track
+      previous: Previous track
+    verified: Verified
+    not-verified: Not verified
+    playing: Playing
+    paused: Paused
+    nothing: Nothing is playing
+    liked: Liked
+    rate: '{rate}× speed'
 computer-use-read-image-tool-call:
   description: Description from the vision model
   failed: The vision model could not read this image
