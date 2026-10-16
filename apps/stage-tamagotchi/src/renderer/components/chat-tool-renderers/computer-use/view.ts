@@ -1,5 +1,6 @@
 import type { ToolResultCoverage } from '@proj-airi/stage-ui/components'
 
+import type { AuvHelp } from './help'
 import type { ComputerUseInvocation, ComputerUseKeyboardSpec } from './invocation'
 import type {
   ComputerUseArtifact,
@@ -61,6 +62,8 @@ export type ComputerUseView
     | { kind: 'permissions', permissions: Array<{ name: string, status: string }> }
     | { kind: 'now-playing', state: ComputerUseMediaState }
     | { kind: 'media', command: string, verified: boolean, before: ComputerUseMediaState, after: ComputerUseMediaState }
+  /** The help text of AUV, in sections when it has them. */
+    | { kind: 'help', help?: AuvHelp, text: string }
 
 /** The view of one kind. */
 export type ComputerUseViewOf<TKind extends ComputerUseView['kind']> = Extract<ComputerUseView, { kind: TKind }>

@@ -142,6 +142,7 @@ about:
       description: 有新的 v{version} 版本可用
       no-release-notes-markdown: _无发布日志_
 computer-use-tool-call:
+  help: 帮助
   status:
     completed: 已完成
     failed: 失败

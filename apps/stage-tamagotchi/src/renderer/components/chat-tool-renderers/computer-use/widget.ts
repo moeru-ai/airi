@@ -1,6 +1,6 @@
 import type { ToolResultCoverage } from '@proj-airi/stage-ui/components'
 
-import type { ComputerUseCommandReader } from './view'
+import type { ComputerUseCommandReader, ComputerUseViewOf } from './view'
 
 import { defineToolCallWidget, restOf } from '@proj-airi/stage-ui/components'
 import { array, looseObject, number, optional, parseJson, pipe, safeParse, string, transform, unknown } from 'valibot'
@@ -9,6 +9,7 @@ import ComputerUseToolCallWidget from './widget.vue'
 
 import { appReaders } from './app'
 import { captureReaders } from './capture'
+import { parseAuvHelp } from './help'
 import { inputReaders } from './input'
 import { parseInvocation } from './invocation'
 import { mediaReaders } from './media'
@@ -16,11 +17,10 @@ import { ArtifactSchema } from './schemas'
 import { screenTextReaders } from './screen-text'
 
 // NOTICE:
-// The computer use tool throws when AUV exits with an error, so a failed command reaches the chat as an error text.
-// The message is the AUV result as JSON, and two paths wrap it with their own prefix:
-// a call in a reply goes through `createErrorToolResult` in node_modules/@xsai/shared-chat/dist/index.js (0.5.1),
-// and a rerun goes through `executeToolCallRerun` in packages/stage-ui/src/stores/tool-call-rerun.ts.
-// Remove the prefix handling when the tool keeps failed commands as structured results.
+// A failed AUV command reaches the chat as error text, because the tool throws.
+// xsAI and the rerun path each prefix the thrown AUV JSON.
+// Source: `createErrorToolResult` in @xsai/shared-chat 0.5.1, and `executeToolCallRerun` in stores/tool-call-rerun.ts.
+// Remove when the tool returns failed commands as results.
 const ERROR_PREFIXES = ['Tool "computer_use" execution failed: ', 'Tool call error for "computer_use": ']
 
 /** The AUV result of a finished or failed call. The text is parsed once, and each command reader validates only its `result`. */
@@ -45,6 +45,13 @@ const CallSchema = pipe(
   }),
 )
 
+/** A help call, such as `invoke --help` or `invoke input.clickPoint --help`. AUV prints its help as text, not as a run. */
+const HelpCallSchema = pipe(
+  string(),
+  parseJson(),
+  looseObject({ argv: array(string()), exitCode: number(), output: string() }),
+)
+
 /** The card of each AUV command, by command family. A command without a card shows its header, and its result as other data. */
 const COMMAND_READERS: Record<string, ComputerUseCommandReader> = {
   ...captureReaders,
@@ -61,6 +68,16 @@ const CALL_OMITTED = { argv: true, exitCode: true } satisfies ToolResultCoverage
 
 /** Shows an AUV command with its status, and a card for what the command did. */
 export const computerUseToolCallWidget = defineToolCallWidget(ComputerUseToolCallWidget, (result) => {
+  const help = safeParse(HelpCallSchema, result)
+  if (help.success && (help.output.argv.includes('--help') || help.output.argv[1] === 'help')) {
+    const view: ComputerUseViewOf<'help'> = { kind: 'help', help: parseAuvHelp(help.output.output), text: help.output.output }
+    return {
+      props: { command: help.output.argv.join(' '), view },
+      // The header shows the call, and the help view shows the whole text. `exitCode` says only that the help printed.
+      rest: restOf(help.output, { argv: true, output: true }, { exitCode: true }),
+    }
+  }
+
   const parsed = safeParse(CallSchema, result)
   if (!parsed.success)
     return undefined

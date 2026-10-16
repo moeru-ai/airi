@@ -149,6 +149,7 @@ about:
       description: A new version (v{version}) is available.
       no-release-notes-markdown: _No release notes provided._
 computer-use-tool-call:
+  help: Help
   status:
     completed: Completed
     failed: Failed

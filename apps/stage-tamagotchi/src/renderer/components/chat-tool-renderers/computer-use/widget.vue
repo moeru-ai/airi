@@ -5,6 +5,7 @@ import type { ComputerUseView } from './view'
 
 import AppView from './app-view.vue'
 import CaptureView from './capture-view.vue'
+import HelpView from './help-view.vue'
 import InputView from './input-view.vue'
 import MediaView from './media-view.vue'
 import ScreenTextView from './screen-text-view.vue'
@@ -17,12 +18,13 @@ import { useComputerUseLabels } from './use-labels'
  */
 const props = defineProps<{
   command: string
-  status: string
+  /** A help call has no run, so it has no status. */
+  status?: string
   failure?: { message: string, code?: string, detail?: string }
   view?: ComputerUseView
 }>()
 
-const { label } = useComputerUseLabels()
+const { t, KEY, label } = useComputerUseLabels()
 
 /** The view component of each kind. Each command family has one component for all its kinds. */
 const FAMILY_VIEWS: Record<ComputerUseView['kind'], Component> = {
@@ -42,6 +44,7 @@ const FAMILY_VIEWS: Record<ComputerUseView['kind'], Component> = {
   'permissions': AppView,
   'now-playing': MediaView,
   'media': MediaView,
+  'help': HelpView,
 }
 </script>
 
@@ -52,7 +55,11 @@ const FAMILY_VIEWS: Record<ComputerUseView['kind'], Component> = {
         <span :class="['i-mingcute:terminal-box-line', 'shrink-0']" aria-hidden="true" />
         <code :class="['truncate']">{{ props.command }}</code>
       </span>
-      <span :class="['shrink-0 inline-flex items-center gap-1 text-[11px]', 'text-neutral-500 dark:text-neutral-400']">
+      <span v-if="props.view?.kind === 'help'" :class="['shrink-0 inline-flex items-center gap-1 text-[11px]', 'text-neutral-500 dark:text-neutral-400']">
+        <span :class="['i-mingcute:question-line']" aria-hidden="true" />
+        {{ t(`${KEY}.help`) }}
+      </span>
+      <span v-else-if="props.status" :class="['shrink-0 inline-flex items-center gap-1 text-[11px]', 'text-neutral-500 dark:text-neutral-400']">
         <span
           :class="[
             'size-1.5 rounded-full',
