@@ -107,10 +107,13 @@ function hitIcon(call: { state: ToolCallState, icon: string }) {
   return call.state === 'error' ? 'i-mingcute:close-circle-line' : call.icon
 }
 
-const STATE_ICONS: Record<ToolCallState, string> = {
-  executing: 'i-svg-spinners:ring-resize',
-  done: 'i-mingcute:check-circle-line',
-  error: 'i-mingcute:warning-line',
+/**
+ * A finished call marks its tool icon with a small dot. A running call shows a spinner in place of the icon, so it has no dot.
+ * The dot color only repeats the state: the row carries the state as text for screen readers and as its hover title.
+ */
+const STATE_DOTS: Partial<Record<ToolCallState, string>> = {
+  done: 'bg-emerald-500',
+  error: 'bg-red-500',
 }
 
 const open = ref(false)
@@ -201,6 +204,7 @@ function rerun(item: ToolCallGroupItem) {
             <button
               type="button"
               :aria-expanded="openCalls.has(call.key)"
+              :title="t(`${KEY}.state.${call.state}`)"
               :class="[
                 'min-w-0 flex flex-1 items-center gap-1.5 rounded-lg px-1.5 py-1 text-start text-xs',
                 'outline-none transition-colors duration-200',
@@ -209,12 +213,20 @@ function rerun(item: ToolCallGroupItem) {
               ]"
               @click="toggleCall(call.key)"
             >
-              <span :class="[call.icon, 'shrink-0 text-sm', 'text-primary-500 dark:text-primary-300']" aria-hidden="true" />
-              <span :class="['min-w-0 flex-1 truncate', 'text-primary-600 dark:text-primary-300']">{{ call.name }}</span>
-              <span :class="['shrink-0 inline-flex items-center gap-1 text-[10px]', 'text-neutral-500 dark:text-neutral-400']">
-                <span :class="[STATE_ICONS[call.state], 'text-xs']" aria-hidden="true" />
-                {{ t(`${KEY}.state.${call.state}`) }}
+              <span :class="['relative shrink-0 inline-flex']" aria-hidden="true">
+                <span :class="[call.state === 'executing' ? 'i-svg-spinners:ring-resize' : call.icon, 'text-sm', 'text-primary-500 dark:text-primary-300']" />
+                <!-- The ring takes the panel color, so the dot reads apart from the icon under it. -->
+                <span
+                  v-if="STATE_DOTS[call.state]"
+                  :class="[
+                    'absolute -bottom-0.5 -right-0.5 size-1.5 rounded-full',
+                    'ring-1.5 ring-neutral-100 dark:ring-neutral-900',
+                    STATE_DOTS[call.state],
+                  ]"
+                />
               </span>
+              <span :class="['min-w-0 flex-1 truncate', 'text-primary-600 dark:text-primary-300']">{{ call.name }}</span>
+              <span :class="['sr-only']">{{ t(`${KEY}.state.${call.state}`) }}</span>
             </button>
             <!-- The rerun action shows on every call in every state, as it did on the per-call card before. -->
             <button
