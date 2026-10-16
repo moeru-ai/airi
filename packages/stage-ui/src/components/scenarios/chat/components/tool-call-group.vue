@@ -45,7 +45,7 @@ const calls = computed(() => {
     const occurrence = occurrences.get(item.toolCall.toolCallId) ?? 0
     occurrences.set(item.toolCall.toolCallId, occurrence + 1)
     const widget = props.widgets[item.toolCall.toolName]
-    const widgetProps = widget?.propsOf(result?.result)
+    const reading = widget?.read(result?.result, item.toolCall.args)
     return {
       ...item,
       // Result slices land between calls while a reply streams, so slice indexes shift. The call id stays.
@@ -55,7 +55,7 @@ const calls = computed(() => {
       icon: toolIconOf(item.toolCall.toolName, llmTools.tools.findLast(tool => tool.function.name === item.toolCall.toolName)?.icon),
       state: resolveToolCallBlockState(result),
       result: result?.result,
-      widget: widget && widgetProps ? { component: widget.component, props: widgetProps } : undefined,
+      widget: widget && reading ? { component: widget.component, ...reading } : undefined,
     }
   })
 })
@@ -281,7 +281,11 @@ function rerun(item: ToolCallGroupItem) {
                   <span>{{ rawCalls.has(call.key) ? t(`${KEY}.widget`) : t(`${KEY}.raw`) }}</span>
                 </button>
               </div>
-              <component :is="call.widget.component" v-if="call.widget && !rawCalls.has(call.key)" v-bind="call.widget.props" />
+              <template v-if="call.widget && !rawCalls.has(call.key)">
+                <component :is="call.widget.component" v-bind="call.widget.props" />
+                <!-- Fields that the widget does not show still appear, so the widget never hides part of the result. -->
+                <ToolCallPayload v-if="call.widget.rest !== undefined" :label="t(`${KEY}.other`)" :payload="call.widget.rest" />
+              </template>
               <template v-else>
                 <ToolCallPayload :label="t(`${KEY}.arguments`)" :payload="call.toolCall.args" />
                 <ToolCallPayload :label="t(`${KEY}.result`)" :payload="call.result" />

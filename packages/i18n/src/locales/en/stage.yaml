@@ -106,6 +106,10 @@ chat:
     unknown: Recipe not found
     refused: Recipe did not start
     failed: Recipe did not start
+  home-assistant-tool-call:
+    shown: 'Showing {count} of {total} devices'
+  web-search-tool-call:
+    results: 'Results for "{query}" · {count}'
   tool-calls:
     running-one: 'Using {name}'
     failed-one: "{name} didn't finish"
@@ -117,6 +121,7 @@ chat:
     copy: Copy raw data
     copied: Copied
     raw: Raw data
+    other: Other data
     widget: Widget
     rerun: Run again
     state:

@@ -198,25 +198,32 @@ function formatResults(query: string, results: SearchResult[]): string {
 export interface WebSearchResultLink {
   url: string
   title: string
+  snippet: string
   favicon?: string
 }
 
 /**
- * Reads the hits back from a result that {@link formatResults} wrote.
+ * Reads the query and the hits back from a result that {@link formatResults} wrote.
  *
+ * Returns `undefined` for a result without hits, which is a sentence such as "No web results found".
  * Each hit starts with its `[N] url` line, and the next line opens its envelope, with the site icon when the provider sent one.
- * The first line inside the envelope is the title.
- * A snippet cannot fake a hit, because {@link defuseDelimiter} rewrites every envelope tag inside it.
+ * Inside the envelope, the first line is the title and the rest is the snippet.
+ * A snippet cannot fake a hit or close its envelope, because {@link defuseDelimiter} rewrites every envelope tag inside it.
  *
  * @example
- * parseWebSearchResults('[1] https://example.com\n<untrusted_content source="https://example.com">\nExample\nSnippet\n</untrusted_content>')
- * // => [{ url: 'https://example.com', title: 'Example' }]
+ * parseWebSearchResults('Found 1 web result for "example":\n\n[1] https://example.com\n<untrusted_content source="https://example.com">\nExample\nSnippet\n</untrusted_content>')
+ * // => { query: 'example', links: [{ url: 'https://example.com', title: 'Example', snippet: 'Snippet', favicon: undefined }] }
  */
-export function parseWebSearchResults(text: string): WebSearchResultLink[] {
-  return Array.from(
-    text.matchAll(/^\[\d+\] (.+)\n<untrusted_content source="[^"\n]*"(?: favicon="([^"\n]*)")?>\n(.*)$/gm),
-    ([, url, favicon, title]) => ({ url: url!, title: title!, favicon }),
+export function parseWebSearchResults(text: string): { query: string, links: WebSearchResultLink[] } | undefined {
+  const query = /^Found \d+ web results? for "(.*)":$/m.exec(text)?.[1]
+  if (query === undefined)
+    return undefined
+
+  const links = Array.from(
+    text.matchAll(/^\[\d+\] (.+)\n<untrusted_content source="[^"\n]*"(?: favicon="([^"\n]*)")?>\n(.*)\n([\s\S]*?)\n<\/untrusted_content>$/gm),
+    ([, url, favicon, title, snippet]) => ({ url: url!, title: title!, snippet: snippet!, favicon }),
   )
+  return { query, links }
 }
 
 /**

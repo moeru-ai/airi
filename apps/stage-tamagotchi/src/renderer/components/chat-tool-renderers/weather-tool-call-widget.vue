@@ -29,6 +29,7 @@ const drawers = computed(() => {
       key: 'now',
       label: relative.format(0, 'second'),
       conditionCode: current.conditionCode,
+      condition: current.condition,
       temperature: current.temperature,
       facts: [
         { icon: 'i-iconify-meteocons:thermometer-fill', value: current.feelsLike, label: t(`${KEY}.feels-like`) },
@@ -41,6 +42,7 @@ const drawers = computed(() => {
       key: day.date,
       label: index < 2 ? relative.format(index, 'day') : calendar.format(new Date(`${day.date}T00:00:00Z`)),
       conditionCode: day.conditionCode,
+      condition: day.condition,
       temperature: day.temperature,
       facts: [
         { icon: 'i-iconify-meteocons:thermometer-warmer-fill', value: day.high, label: t(`${KEY}.high`) },
@@ -61,7 +63,7 @@ function toggle(key: string) {
 
 <template>
   <div :class="['flex flex-col gap-2 rounded-xl p-3', 'bg-white/75 dark:bg-neutral-800/60']">
-    <span :class="['text-xs', 'text-neutral-500 dark:text-neutral-400']">{{ props.report.location.city }} · {{ props.report.location.country }}</span>
+    <span :class="['text-xs', 'text-neutral-500 dark:text-neutral-400']">{{ props.report.location.city }} · {{ props.report.location.country }} · {{ props.report.location.timezone }}</span>
     <div :class="['flex flex-col']">
       <div
         v-for="(drawer, index) in drawers"
@@ -101,6 +103,8 @@ function toggle(key: string) {
               <div :class="['flex flex-col gap-0.5']">
                 <span :class="['text-[28px] font-semibold leading-tight tabular-nums', 'text-neutral-800 dark:text-neutral-100']">{{ drawer.temperature }}</span>
                 <span :class="['text-[13px]', 'text-neutral-600 dark:text-neutral-300']">{{ t(`${KEY}.conditions.${drawer.conditionCode}`) }}</span>
+                <!-- The condition code covers several conditions. The text of the tool names the exact one. -->
+                <span :class="['text-[11px]', 'text-neutral-400 dark:text-neutral-500']">{{ drawer.condition }}</span>
               </div>
             </div>
             <div :class="['grid grid-cols-4 gap-1.5']">
