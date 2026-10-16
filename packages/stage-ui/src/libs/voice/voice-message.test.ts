@@ -105,3 +105,51 @@ it('does not send a recording in which the transcriber recognized no speech', as
   expect(message.snapshot).toMatchObject({ phase: 'cancelled', error: 'No speech was recognized in the recording' })
   expect(message.snapshot.audio).toBeUndefined()
 })
+
+// ROOT CAUSE:
+//
+// With a slow Hearing provider, a sent voice message had no bubble for up to 8 seconds, and cancel did nothing.
+// `send` waited for the transcript before the submit.
+//
+// We fixed this by submitting at once and delivering the transcript later.
+it('submits at once while the transcript is still coming, then delivers it', async () => {
+  const source = createPushStream<PcmBlock>()
+  const submit = vi.fn(async (draft: { messageId: string }) => ({ messageId: draft.messageId }))
+  const transcript = Promise.withResolvers<string | undefined>()
+  const deliver = vi.fn(async () => {})
+  const message = new VoiceMessage('slow', 'alice', new AudioInput({ live: true, open: () => source.stream }), submit, async () => transcript.promise, deliver)
+  source.write({ range: { sourceId: 'mic', startFrame: 0, endFrame: 1600 }, sampleRate: 16000, channels: [new Float32Array(1600).fill(0.25)] })
+  await expect.poll(() => message.snapshot.phase).toBe('capturing')
+  await message.finish()
+  await expect.poll(() => message.snapshot.phase).toBe('ready')
+
+  await message.send()
+
+  expect(submit.mock.calls[0][0]).toMatchObject({ messageId: 'slow', transcriptPending: true })
+  expect(submit.mock.calls[0][0]).not.toHaveProperty('transcript')
+  expect(message.snapshot.phase).toBe('transcribing')
+
+  transcript.resolve('hello there')
+
+  await expect.poll(() => message.snapshot.phase).toBe('sent')
+  expect(deliver).toHaveBeenCalledWith({ messageId: 'slow', sessionId: 'alice', transcript: 'hello there' })
+})
+
+it('removes a submitted message when its late transcript has no speech', async () => {
+  const source = createPushStream<PcmBlock>()
+  const submit = vi.fn(async (draft: { messageId: string }) => ({ messageId: draft.messageId }))
+  const transcript = Promise.withResolvers<string | undefined>()
+  const deliver = vi.fn(async () => {})
+  const message = new VoiceMessage('late-silent', 'alice', new AudioInput({ live: true, open: () => source.stream }), submit, async () => transcript.promise, deliver)
+  source.write({ range: { sourceId: 'mic', startFrame: 0, endFrame: 1600 }, sampleRate: 16000, channels: [new Float32Array(1600)] })
+  await expect.poll(() => message.snapshot.phase).toBe('capturing')
+  await message.finish()
+  await expect.poll(() => message.snapshot.phase).toBe('ready')
+  await message.send()
+
+  transcript.resolve('')
+
+  await expect.poll(() => message.snapshot.phase).toBe('cancelled')
+  expect(message.snapshot.error).toBe('No speech was recognized in the recording')
+  expect(deliver).toHaveBeenCalledWith({ messageId: 'late-silent', sessionId: 'alice', transcript: '' })
+})

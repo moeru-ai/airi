@@ -5,6 +5,8 @@ import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
+import { chatAssetsRepo } from '../../../database/repos/chat-assets.repo'
+import { storeChatAsset } from '../../../libs/chat-assets'
 import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME } from '../../chat/constants'
 import { useConsciousnessStore } from '../../modules/consciousness'
 import { useConsciousnessSettingsStore } from '../../modules/consciousness-settings'
@@ -46,6 +48,7 @@ const assistantMessageHooks: HookCallback[] = []
 const turnCompleteHooks: HookCallback[] = []
 
 const activeSessionIdRef = ref('session-1')
+const storedSessionMessages: Record<string, unknown[]> = {}
 let currentGeneration = 7
 const testChannels: Array<ReturnType<typeof createContextChannel>> = []
 
@@ -226,6 +229,8 @@ vi.mock('../../chat/session-store', () => ({
       return activeSessionIdRef.value
     },
     getSessionGenerationValue: () => currentGeneration,
+    ensureBoundSession: async (binding: string) => `bound:${binding}`,
+    getSessionMessagesIfLoaded: (sessionId: string) => storedSessionMessages[sessionId],
     refreshSession: (sessionId: string) => refreshSessionMock(sessionId),
   }),
 }))
@@ -320,6 +325,107 @@ describe('context bridge contract', () => {
     disposePinia(pinia)
     vi.restoreAllMocks()
     localStorage.clear()
+  })
+
+  it('lists the images and recordings of the turn in the chat message event', async () => {
+    storedSessionMessages['session-1'] = [{
+      id: 'turn-1',
+      role: 'user',
+      content: [
+        { type: 'text', text: 'look' },
+        { type: 'image_url', image_url: { url: 'airi-asset:image' } },
+        { type: 'input_audio', input_audio: { data: 'airi-asset:voice', format: 'wav' } },
+      ],
+      audioTranscripts: ['hello there'],
+    }]
+    const store = useContextBridgeStore()
+    await store.initialize()
+
+    await emitHooks(assistantMessageHooks, { role: 'assistant', content: 'hi' }, 'hi', {
+      sessionId: 'session-1',
+      turnId: 'turn-1',
+      message: { role: 'user', content: 'look' },
+      contexts: {},
+      composedMessage: [],
+    })
+
+    const event = serverSendMock.mock.calls.find(([sent]) => sent.type === 'output:gen-ai:chat:message')?.[0]
+    expect(event?.data['gen-ai:chat'].attachments).toEqual([
+      { type: 'image', ref: 'airi-asset:image' },
+      { type: 'audio', ref: 'airi-asset:voice', mimeType: 'audio/wav', transcript: 'hello there' },
+    ])
+    delete storedSessionMessages['session-1']
+  })
+
+  it('ignores an asset read that the server did not attribute to a module', async () => {
+    const ref = await storeChatAsset(new Uint8Array([82, 73, 70, 70]), 'audio/wav', 'session-1')
+    const store = useContextBridgeStore()
+    await store.initialize()
+
+    // The source claims a module, but the server-stamped sender names no announced module.
+    await emitServerEvent('asset:get:request', {
+      type: 'asset:get:request',
+      data: { ref },
+      metadata: { ...createMetadata('discord', 'discord-1'), event: { id: 'request-3' }, sender: { peerId: 'peer-8', modules: [] } },
+    })
+    await emitServerEvent('asset:get:request', {
+      type: 'asset:get:request',
+      data: { ref },
+      metadata: { ...createMetadata('discord', 'discord-1'), event: { id: 'request-4' } },
+    })
+
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect(serverSendMock.mock.calls.filter(([event]) => event.type === 'asset:get:response')).toEqual([])
+    await chatAssetsRepo.clear()
+  })
+
+  it('answers an asset read to the asking module only', async () => {
+    const ref = await storeChatAsset(new Uint8Array([82, 73, 70, 70]), 'audio/wav', 'session-1')
+    const store = useContextBridgeStore()
+    await store.initialize()
+
+    await emitServerEvent('asset:get:request', {
+      type: 'asset:get:request',
+      data: { ref },
+      metadata: { ...createMetadata('discord', 'discord-1'), event: { id: 'request-1' }, sender: { peerId: 'peer-7', modules: ['discord'] } },
+    })
+    await emitServerEvent('asset:get:request', {
+      type: 'asset:get:request',
+      data: { ref: 'airi-asset:missing' },
+      metadata: { ...createMetadata('discord', 'discord-1'), event: { id: 'request-2' }, sender: { peerId: 'peer-7', modules: ['discord'] } },
+    })
+
+    const answers = () => serverSendMock.mock.calls.filter(([event]) => event.type === 'asset:get:response')
+    await vi.waitFor(() => expect(answers()).toHaveLength(2))
+    expect(serverSendMock).toHaveBeenCalledWith({
+      type: 'asset:get:response',
+      data: { ref, mimeType: 'audio/wav', data: 'UklGRg==' },
+      metadata: { event: { parentId: 'request-1' } },
+      route: { destinations: ['peer:peer-7'] },
+    })
+    expect(serverSendMock).toHaveBeenCalledWith(expect.objectContaining({
+      data: { ref: 'airi-asset:missing', error: expect.stringContaining('missing') },
+      metadata: { event: { parentId: 'request-2' } },
+    }))
+    await chatAssetsRepo.clear()
+  })
+
+  it('sends input with a scene binding to the bound session', async () => {
+    consciousness.activeProvider = 'mock-provider'
+    consciousness.activeModel = 'mock-model'
+    const store = useContextBridgeStore()
+    await store.initialize()
+
+    await emitServerEvent('input:text', {
+      type: 'input:text',
+      source: 'discord',
+      metadata: createMetadata('discord', 'bot'),
+      data: { text: 'hello', overrides: { binding: 'discord:channel:a' } },
+    })
+
+    expect(chatOrchestratorMock.send).toHaveBeenCalledTimes(1)
+    expect(chatOrchestratorMock.send.mock.calls[0]?.[0]).toMatchObject({ sessionId: 'bound:discord:channel:a' })
+    await store.dispose()
   })
 
   it('records core ingest result for broadcast context updates', async () => {
@@ -595,6 +701,49 @@ describe('context bridge contract', () => {
     await store.dispose()
   })
 
+  it('shows a remote stream in a minimal window without the server channel or chat hooks', async () => {
+    // ROOT CAUSE:
+    //
+    // The chat window and the floating chat window run with `stage-runtime=minimal`, so they do not call
+    // `initialize`. Since #2771, the stream store does not synchronize the live reply. The renderer that runs
+    // the turn publishes it on the context channel, and only `initialize` listened to that channel:
+    //
+    //   const fullStageRuntime = windowContext.stageRuntime === 'full' ? createFullStageRuntime() : null
+    //
+    // A chat window showed the reply only after the whole message was stored.
+    //
+    // We fixed this with `initializeStreamView`. It listens to the context channel and shows the stream.
+    // It does not connect the server channel and does not run the chat hooks of the window.
+    const localTokenHook = vi.fn()
+    chatOrchestratorMock.onTokenLiteral(localTokenHook)
+    const store = useContextBridgeStore()
+    await store.initializeStreamView()
+    const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
+    const context = {
+      sessionId: 'session-1',
+      turnId: 'turn-1',
+      message: { role: 'user', content: 'ping' },
+      contexts: {},
+      composedMessage: [],
+    } satisfies ChatStreamEventContext
+
+    streamSender.postMessage({ type: 'before-send', message: 'ping', sessionId: 'session-1', context })
+    await vi.waitFor(() => expect(beginStreamMock).toHaveBeenCalledWith('turn-1'))
+    streamSender.postMessage({ type: 'token-literal', literal: 'hel', sessionId: 'session-1', context })
+    streamSender.postMessage({ type: 'token-literal', literal: 'lo', sessionId: 'session-1', context })
+    await vi.waitFor(() => expect(appendStreamLiteralMock).toHaveBeenCalledTimes(2))
+    streamSender.postMessage({ type: 'assistant-end', message: 'hello', sessionId: 'session-1', context })
+    await vi.waitFor(() => expect(refreshSessionMock).toHaveBeenCalledWith('session-1'))
+
+    expect(appendStreamLiteralMock).toHaveBeenNthCalledWith(1, 'hel')
+    expect(appendStreamLiteralMock).toHaveBeenNthCalledWith(2, 'lo')
+    expect(localTokenHook).not.toHaveBeenCalled()
+    expect(ensureConnectedMock).not.toHaveBeenCalled()
+    expect(serverSendMock).not.toHaveBeenCalled()
+
+    await store.dispose()
+  })
+
   it('routes remote stream cancellation to the renderer that produced the turn', async () => {
     const store = useContextBridgeStore()
     await store.initialize()
@@ -775,6 +924,7 @@ describe('context bridge contract', () => {
     const outgoingStreamMessages = collectChannelMessages<{ sessionId: string }>(CHAT_STREAM_CHANNEL_NAME)
     const store = useContextBridgeStore()
     await store.initialize()
+    // The context names its own session. Concurrent sends cannot borrow another send's owner.
     const context = {
       sessionId: 'session-a',
       turnId: 'turn-1',
@@ -783,7 +933,7 @@ describe('context bridge contract', () => {
       composedMessage: [],
     } satisfies ChatStreamEventContext
 
-    chatOrchestratorMock.activeSendSessionId = 'session-a'
+    chatOrchestratorMock.activeSendSessionId = 'session-c'
     activeSessionIdRef.value = 'session-b'
     await chatOrchestratorMock.emitTokenLiteralHooks('session A token', context)
     await vi.waitFor(() => expect(outgoingStreamMessages).toHaveLength(1))

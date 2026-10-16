@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Callout, FieldCheckbox, FieldInput } from '@proj-airi/ui'
+import { Callout, FieldCheckbox, FieldInput, SettingsCard } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 
@@ -13,13 +13,7 @@ const { enabled, apiKey, configured } = storeToRefs(webSearchStore)
 </script>
 
 <template>
-  <div
-    :class="[
-      'h-fit w-full',
-      'flex flex-col gap-4',
-      'rounded-xl bg-neutral-100 p-4 dark:bg-[rgba(0,0,0,0.3)]',
-    ]"
-  >
+  <SettingsCard>
     <FieldCheckbox
       v-model="enabled"
       :label="t('settings.pages.modules.web-search.enable')"
@@ -39,5 +33,5 @@ const { enabled, apiKey, configured } = storeToRefs(webSearchStore)
       theme="lime"
       :label="t('settings.pages.modules.web-search.configured')"
     />
-  </div>
+  </SettingsCard>
 </template>

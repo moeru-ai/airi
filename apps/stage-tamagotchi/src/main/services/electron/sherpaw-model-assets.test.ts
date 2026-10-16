@@ -3,7 +3,7 @@ import { pathToFileURL } from 'node:url'
 
 import { beforeEach, expect, it, vi } from 'vitest'
 
-import { setupSherpawModelAssetsProtocol } from './sherpaw-model-assets'
+import { setupSherpawModelAssetsProtocol } from './bundled-sherpaw-assets'
 
 const { fetchFile, handleProtocol } = vi.hoisted(() => ({
   fetchFile: vi.fn(),

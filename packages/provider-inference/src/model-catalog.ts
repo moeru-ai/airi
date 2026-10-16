@@ -9,6 +9,7 @@ const discoveredModelSchema = object({
   id: string(),
   inputModalities: optional(array(string())),
   architecture: optional(object({ input_modalities: optional(array(string())) })),
+  reasoning: optional(object({ mandatory: optional(boolean()) })),
   name: optional(string()),
   display_name: optional(string()),
   description: optional(string()),
@@ -37,6 +38,7 @@ export async function listModelCatalog(
       description: model.description,
       contextLength: model.contextLength ?? model.context_length,
       deprecated: model.deprecated,
+      reasoning: model.reasoning,
     }
   })
   const endpoint = new URL(config.baseURL)

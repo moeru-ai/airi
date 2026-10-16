@@ -146,6 +146,16 @@
       part-of-speech: proper noun
       status: preferred
       context: Payment successful! Your Flux has been topped up.
+- id: capacitor
+  subject: payment
+  translatable: false
+  definition: The store of Flux that a subscription gives and recharges each billing period.
+  note: Do not call it a plan or credits. The Flux inside it is the same Flux that a user buys.
+  terms:
+    - text: Capacitor
+      part-of-speech: proper noun
+      status: preferred
+      context: Use Flux when the Capacitor is empty.
 
 # ---------------------------------------------------------------------------------------
 # Rendering
@@ -374,6 +384,20 @@
       status: preferred
       context: Select a model
 
+- id: cloud
+  subject: providers
+  translatable: true
+  definition: Remote servers that run a service over the internet, not on this device.
+  note: >
+    Use the computing term, not the word for a cloud in the sky. Two uses are exceptions. The
+    color named Cloud in the Nordic theme is a sky cloud, so translate it as a color name. A
+    brand name such as Alibaba Cloud keeps its official form.
+  terms:
+    - text: Cloud
+      part-of-speech: noun
+      status: preferred
+      context: Use cloud-based models via the Replicate API.
+
 # ---------------------------------------------------------------------------------------
 # The modules
 #
@@ -541,3 +565,14 @@
       part-of-speech: noun
       status: preferred
       context: No Voice Packs available
+
+- id: voiceprint
+  subject: sound
+  translatable: true
+  definition: Numbers that a model computes from the speech of one person, so that the application can recognize that person's voice.
+  note: It contains no audio. It is not a recording, a voice sample, or a Voice Pack.
+  terms:
+    - text: Voiceprint
+      part-of-speech: noun
+      status: preferred
+      context: A voiceprint is a list of numbers that the voiceprint model computes from your speech.

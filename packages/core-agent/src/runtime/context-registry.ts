@@ -40,6 +40,8 @@ export interface ContextRegistry {
   remove: (sourceKey: string) => void
   /** Clears active context buckets and ingest history. */
   reset: () => void
+  /** Removes one writer's active entries, for example after the module leaves. */
+  removeWriter: (sourceKey: string) => boolean
   /** Returns a cloned active context bucket snapshot. */
   snapshot: () => Record<string, ContextMessage[]>
   /** Returns cloned active context buckets for callers that prefer explicit naming. */
@@ -165,6 +167,7 @@ export function createContextRegistry(options: CreateContextRegistryOptions = {}
     ingest,
     remove,
     reset,
+    removeWriter: sourceKey => currentActiveContexts.delete(sourceKey),
     snapshot,
     activeContexts: snapshot,
     contextHistory: () => structuredClone(currentContextHistory),

@@ -21,6 +21,7 @@ import {
   FieldCheckbox,
   FieldInput,
   FieldRange,
+  SettingsCard,
   Skeleton,
   Textarea,
 } from '@proj-airi/ui'
@@ -600,7 +601,7 @@ async function handleDeleteProvider(providerId: string) {
 <template>
   <ErrorContainer v-if="errorMessage" :error="errorMessage" />
   <div flex="~ col md:row gap-6">
-    <div bg="neutral-100 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-4" class="h-fit w-full md:w-[40%]">
+    <SettingsCard class="md:w-[40%]">
       <div flex="~ col gap-4">
         <div>
           <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
@@ -909,7 +910,7 @@ async function handleDeleteProvider(providerId: string) {
           </div>
         </div>
       </div>
-    </div>
+    </SettingsCard>
 
     <div flex="~ col gap-6" class="w-full md:w-[60%]">
       <div w-full rounded-xl>

@@ -5,8 +5,7 @@ import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import { createPlaybackManager, createSpeechPipeline } from '@proj-airi/pipelines-audio'
 import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
-import { useDelayMessageQueue, useEmotionsMessageQueue } from '@proj-airi/stage-ui/composables/queues'
-import { llmInferenceEndToken } from '@proj-airi/stage-ui/constants'
+import { useEmotionsMessageQueue } from '@proj-airi/stage-ui/composables/queues'
 import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '@proj-airi/stage-ui/constants/emotions'
 import { useAudioContext, useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -52,7 +51,6 @@ const { activeSpeechProvider, activeSpeechVoice, activeSpeechModel, ssmlEnabled,
 const consciousnessStore = useConsciousnessStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
 
-const delaysQueue = useDelayMessageQueue()
 const currentMotion = ref<{ group: string }>({ group: EmotionThinkMotionName })
 const emotionsQueue = createQueue<EmotionPayload>({
   handlers: [
@@ -253,7 +251,6 @@ chatHookCleanups.push(onTokenSpecial(async (special) => {
 }))
 
 chatHookCleanups.push(onStreamEnd(async () => {
-  delaysQueue.enqueue(llmInferenceEndToken)
   currentIntent?.writeFlush()
 }))
 

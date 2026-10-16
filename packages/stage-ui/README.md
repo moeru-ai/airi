@@ -54,23 +54,90 @@ Consumers subscribe to the microphone input with their own abort signal. The las
 - Hearing selects providers and converts captured PCM to each provider's upload format. It does not open the microphone.
 - Speech preserves existing chunked synthesis and bidirectional provider output.
 - `createVoiceRephrasePlugin` rewrites final transcripts with a chat model through a checked transcript patch. The raw text stays in the transcript history. Each segment gets its own rewrite, so segment boundaries stay for later speaker labels. A reply with another segment count leaves the text unchanged.
+- `createVoiceEndJudgePlugin` ends a paused input early when a chat model reads its transcript as a finished message. The model is the rephrase model, or the chat model when no rephrase provider is set.
 
-The host snapshot carries the corrected transcript segments of the active input. `VoiceDrafts` shows them read-only below the draft while speech is transcribed. Final text uses the body color. Earlier interim text uses a pale theme color, and the newest interim segment uses a stronger one. The draft stays editable while live speech appears below it.
-Rephrasing is off by default. A failure or a 10-second timeout submits the provider text.
+A pause of 1.2 seconds can end an input. With the end judge on, which is the default, the voice activity silence limit grows by 3 seconds.
+The judge then ends a finished message at the pause, and an unfinished one waits for the speaker to continue.
+A failed or slow judgement never blocks new speech. Without the end judge, the 1.2-second pause ends every input.
+
+The host snapshot carries the corrected transcript segments of the active input. `VoiceDrafts` shows them as the continuation of the draft, in one paragraph. The paragraph is read-only while speech is transcribed, and becomes the editable draft when the speech settles. Final text uses the body color. Pending text uses the theme color at a lower opacity, and the newest pending segment uses full opacity.
+A draft that the host is sending stays hidden. Drafts of other conversations show as named chips. `VoiceDrafts` emits `presence`, so a host can react when it shows nothing, for example after a send or a discard.
+Rephrasing is on by default. A failure or a 10-second timeout submits the provider text.
 
 A recording is sent only when its control asks for it with `finish` and `send: true`, or with an explicit `send`. A failed send keeps the recording and its message identity, so the control can send it again or discard it.
 While a control records or dictates, the host publishes the microphone level on `voiceInputLevel`.
 Native audio requires declared model support and Chat Completions. Other models transcribe the recording with the configured Hearing provider.
+Each model request makes this decision again. A tool step that changes the model also changes the audio projection.
 Local history keeps the audio and cached transcription. Audio turns remain local because cloud text records cannot preserve their media.
 
-### External wake-word adapters
+### Hearing input mode
+
+The Hearing store keeps `inputMode`. The microphone switch (`useSettingsAudioDevice().enabled`) turns the selected mode on or off.
+
+- `always-on` keeps the microphone open and runs voice activity detection. This is the default.
+- `push-to-talk` starts a speech input only while the user holds a key. The microphone opens only during the hold.
+- `wake-word` keeps the microphone open and runs voice activity detection and wake word detection. Only a wake starts an input.
+
+`startsInputOnSpeech(mode)` decides if VAD alone starts an input. In `wake-word` mode, the voice store's speech target is undefined.
+Wake word detection runs in every mode that listens continuously. In `always-on` mode, a wake also moves the input to the matched character's session.
+The voice host publishes the detector preparation in its snapshot as `wakeWords`, so a settings window can show it.
+
+Each stage page calls `useVoiceListening` once. It is the one place that starts or stops continuous listening.
+`listensContinuously(mode)` in `stores/modules/hearing.ts` decides which modes run detection and keep the microphone open.
+To add a mode, extend `HearingInputMode`, `listensContinuously`, `startsInputOnSpeech`, and `useVoiceListening`.
+
+`useVoicePushToTalk` connects a hold to `voice.beginManual`. The press captures the active session, so a session switch during the hold does not move the speech.
+`useVoiceHold` owns the hold lifecycle: it ignores key repeats, cancels a tap shorter than 300 ms, and cancels on disable or disposal.
+`useVoiceHoldKey` drives a hold with an in-page key, Space by default. It ignores text fields, controls, and modified keys, and cancels when the page loses focus.
+The web stage uses Space. The desktop stage uses a configurable global shortcut.
+
+Each host app declares whether it has a Push to Talk trigger. It provides `pushToTalkTriggerKey` from `composables/push-to-talk-trigger` at the app level.
+Without a provider, the host has no trigger. The input mode selector of `HearingConfig` then disables the Push to Talk option.
+If the saved mode is already `push-to-talk` on such a host, listening stays off. `HearingConfig` and the voice button menu show a warning.
+`HearingConfig` is used on the Hearing overview page and in the Hearing dialogs. It asks for microphone permission only when the user turns the microphone switch on.
+The mode does not fall back to `always-on`, because that opens the microphone all the time.
+
+| Host | Trigger |
+| --- | --- |
+| stage-tamagotchi | Yes. All windows share one app, so the settings window offers the mode too. |
+| stage-web | Only with a fine pointer, `(any-pointer: fine)`. Space is the only trigger, and no Web API reports a hardware keyboard. |
+| stage-pocket, stage-tamagotchi-kirie | No. They provide nothing. |
+
+### Wake words
 
 `useWakeWordsStore` validates pronunciations against a supplied model vocabulary and preserves them in exported character cards.
 Its device-local catalog pauses unresolved pronunciation conflicts. `chooseOwner` activates the selected character's copy.
 `setWords` returns conflicts for tools or settings to present. It does not invent a model or a keyword-management UI.
 
-An external KWS adapter supplies `detectWakeWord` to `voice.startListening`.
-After catalog matching, it calls `voice.resolveWakeTarget(characterId, signal)` to select a session without navigating the chat window.
+The `configure_wake_words` tool edits the wake words of the character that owns the turn's session.
+It validates tokens against the pinned KWS vocabulary in `libs/voice/kws-model`. It returns `saved` with conflicts, or `rejected` with a reason.
+
+`voice.startListening` runs the built-in KWS detection when the host passes no `detectWakeWord`.
+`WakeWordDetector` listens to `useSettingsAudioDevice().unprocessedInput`, a second capture of the selected microphone without browser echo cancellation, noise suppression, or gain.
+That processing changes the phones that the keyword model hears. The second capture opens only while the catalog has an active pronunciation.
+The detector queues 100 ms batches of finite mono samples for a Sherpaw keyword spotter Worker. Sherpa-ONNX resamples them to the model rate.
+Recognition does not wait for the Worker. The voice activity plugin collects a wake on its next window. A backlog over 1 second is dropped.
+The plugin also passes its VAD result to the detector. A pause of 0.5 seconds starts a new spotter stream, because a stream that runs for minutes misses most calls.
+Each keyword uses the search settings of `kwsSearch` and adds tone variants from `kwsToneVariants`. A variant changes the tone of one pinyin final, because a called name often changes its tone.
+A match maps through the active catalog to `voice.resolveWakeTarget(characterId, signal)`. This selects a session without navigating the chat window.
+Catalog changes rebuild the spotter keywords. A result after a stop or a keyword rebuild is discarded.
+
+`useWakeWordDetectionStore().preparation` reports `unconfigured`, `preparing`, `ready`, or `error` for UI.
+The model loads only when the catalog has a pronunciation for the pinned model. Until the model is ready, detection returns no wake.
+While no listener runs, the preparation is `unconfigured`.
+
+`useSpeakerTrackerStore` owns the voice host's Sherpaw speaker tracker Worker. `acquire` downloads the pinned CAM++ pack and starts the Worker on first use.
+The tracker enrolls the saved voiceprint as speaker 0, and follows each change of it. `release` terminates the Worker.
+`preparation` reports `idle`, `preparing`, `ready`, or `error` for UI. No feature acquires the tracker yet.
+
+`useVoiceprintStore` keeps the voiceprint of the device owner in local storage. Only one person can enroll.
+`useVoiceEnrollment` records one enrollment from the speech input of the calling window, keeps only the speech that Silero VAD finds, and saves the voiceprint.
+The enrollment belongs to the calling component, so it ends when the component unmounts.
+While it records, it holds a capture lease (`holdCaptureLease`). The voice host follows leases with `useVoiceCaptureLeaseStore`.
+While a lease holds, the host begins no input and records no voice message. A new lease cancels the active input and keeps a voice message that records as a draft.
+A lease that nobody renews ends after 3 seconds.
+
+A host can pass its own `detectWakeWord` to `voice.startListening`. Then the built-in detection does not start.
 The detector remains active during playback. A supplied `acceptSpeech` classifier can reject playback echo before admission.
 The default policy allows barge-in when the browser reports echo cancellation. Without that support, automatic admission waits for playback to end.
 Model selection, acoustic echo classification, and enrollment remain external integrations.
@@ -138,6 +205,31 @@ Existing `speech-noop` selections are preserved because they may represent
 intentional silence. Users can explicitly choose **Inherit global settings**
 in the editor; importing or saving an unrelated card field does not change it.
 
+## Character sessions
+
+Each chat session belongs to one character. A send reads the provider, model, and system prompt of that character, not the selected card.
+Selecting another card while a turn waits in the queue does not change the turn.
+Before each model request, the turn reads its character's settings again. A tool that edits the character changes the next request.
+Each request rebuilds the analytics correlation headers for its provider.
+Tool and content-array compatibility failures belong to the model of the failing request, not the first model of the turn.
+Session resets and autonomous artistry hooks also use the session character.
+Each concurrent turn owns its IO trace. `activeTurnSpan` points to the most recently started turn that is still running.
+
+A spoken turn is one IO trace, from the wake word to playback:
+
+- `Wake word` (KWS) is the root when a wake started the input. It covers the match and the session selection.
+- `Voice input` is the root otherwise. It records the trigger (`control`, `speech`, or `wake-word`) and the outcome.
+  `activeVoiceInputSpan` points to it while the input runs.
+- Its children are `Voice activity detection` (one span for each speech segment), `Speech recognition`,
+  `End of speech judgement`, and `Transcript rephrase`.
+- The `Interaction turn` of the submission is also its child. The input ID is the turn ID, and `takeVoiceTurnParent`
+  connects them. The turn holds the LLM, streaming control, TTS, and playback spans.
+- A composer dictation returns its text to the composer, which sends it later under a new ID. The next turn of the
+  same session within 60 seconds continues the dictation trace through `takeComposerVoiceParent`. This link is by
+  session, so a typed turn that replaces discarded dictated text in that time also joins the dictation trace.
+
+A typed turn starts its trace at `Interaction turn`.
+
 ## Button analytics
 
 Register the shared plugin once in each Vue application:
@@ -191,13 +283,18 @@ the Provider configuration and replaces its runtime.
 Each speech session currently owns a Worker, released when the session ends or is cancelled.
 
 Hosts must enable `@proj-airi/vite-plugin-sherpaw` to expose model assets.
-`provider-inference` owns recognition and Worker cleanup. `stage-ui` supplies model URLs, cached fetching, the Worker URL, and the Hearing view.
+`provider-inference` owns recognition and Worker cleanup. `stage-ui` supplies model URLs, local asset fetching, the Worker URL, and the Hearing view.
 The Provider is unavailable when the host does not include models.
 Use this Provider for local streaming recognition without API credentials.
-It requires Workers and WebAssembly. Web and Pocket load the selected model from its pinned remote URL.
-Desktop development uses cached local files. Desktop releases bundle all three models.
+It requires Workers and WebAssembly. Web and Pocket store selected remote models in OPFS.
+Desktop development stores selected models in the app user data directory.
+Desktop releases bundle X-ASR and store other models in the user data directory.
+Sherpaw settings show download state and let users install or remove remote models.
 Use a remote Provider when model download size or local memory makes that unsuitable.
 The existing VAD pipeline has separate model and runtime downloads.
+
+`libs/inference/transformers-cache` manages the browser cache used by Transformers
+and Kokoro. Sherpaw file pairs use the shared model asset repository.
 
 ### Compact Stage status
 

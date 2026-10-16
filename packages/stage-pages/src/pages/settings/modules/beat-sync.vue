@@ -12,7 +12,7 @@ import {
 } from '@proj-airi/stage-shared/beat-sync'
 import { Alert, AudioSpectrumVisualizer } from '@proj-airi/stage-ui/components'
 import { useSettingsBeatSync } from '@proj-airi/stage-ui/stores/settings'
-import { Button, FieldCheckbox, FieldRange, SelectTab } from '@proj-airi/ui'
+import { Button, FieldCheckbox, FieldRange, SelectTab, SettingsCard } from '@proj-airi/ui'
 import { createTimeline } from 'animejs'
 import { nanoid } from 'nanoid'
 import { storeToRefs } from 'pinia'
@@ -145,7 +145,7 @@ onUnmounted(() => {
 
 <template>
   <div flex="~ col md:row gap-6">
-    <div bg="neutral-100 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-4" class="h-fit w-full md:w-[60%]">
+    <SettingsCard class="md:w-[60%]">
       <div flex="~ col gap-6">
         <div flex="~ col gap-4">
           <div>
@@ -293,7 +293,7 @@ onUnmounted(() => {
           </div>
         </div>
       </div>
-    </div>
+    </SettingsCard>
 
     <div flex="~ col gap-6 items-center" class="w-full md:w-[40%]">
       <h2 class="mb-4 text-lg text-neutral-500 md:text-2xl dark:text-neutral-400" w-full>

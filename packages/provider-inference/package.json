@@ -43,7 +43,7 @@
   "dependencies": {
     "@moeru/std": "catalog:",
     "@proj-airi/audio": "workspace:^",
-    "@sherpaw/asr": "0.2.1",
+    "@sherpaw/asr": "catalog:",
     "@sherpaw/xsai-transcription": "catalog:",
     "@xsai-ext/providers": "catalog:",
     "@xsai-ext/responses": "catalog:",

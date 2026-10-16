@@ -36,6 +36,8 @@ export {
   modelKey,
   streamFrom,
 } from './runtime/llm-service'
+export { decisionOptions, isBackgroundRecipe, judgeDecision, matchKeywordRecipes, MODEL_DECIDES_STEPS, usableRecipes } from './runtime/recipe'
+export type { DecisionAction, DecisionOption, DecisionQuestion, Recipe, RecipeDecision } from './runtime/recipe'
 export {
   categorizeResponse,
   createStreamingCategorizer,
@@ -49,6 +51,7 @@ export { mergeLoadedSessionMessages } from './session/merge-loaded-session-messa
 export type {
   ChatAssistantMessage,
   ChatHistoryItem,
+  ChatInvokedSkill,
   ChatMessage,
   ChatSlices,
   ChatSlicesSticker,

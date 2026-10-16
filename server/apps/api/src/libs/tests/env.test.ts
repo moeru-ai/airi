@@ -8,6 +8,8 @@ function baseEnv(): Record<string, string> {
   return {
     DATABASE_URL: 'postgres://example',
     REDIS_URL: 'redis://example',
+    S3_BUCKET: 'private-bucket',
+    S3_REGION: 'auto',
     // Required: a deterministic 32-byte base64 value so env parse succeeds.
     LLM_ROUTER_MASTER_KEY: Buffer.alloc(32, 0xAA).toString('base64'),
   }
@@ -17,8 +19,6 @@ describe('parseEnv', () => {
   it('includes validated S3 settings in the API environment', () => {
     const env = parseEnv({
       ...baseEnv(),
-      S3_BUCKET: 'private-bucket',
-      S3_REGION: 'auto',
       S3_FORCE_PATH_STYLE: 'false',
     })
     expect(env.S3_BUCKET).toBe('private-bucket')

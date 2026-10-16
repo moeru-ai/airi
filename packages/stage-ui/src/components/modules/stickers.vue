@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { StickerEmotion, StickerEntry } from '../../types/sticker'
 
-import { Button, FieldCheckbox, FieldInput, FieldInputFile, FieldSelect, GhostButton } from '@proj-airi/ui'
+import { Button, FieldCheckbox, FieldInput, FieldInputFile, FieldSelect, GhostButton, SettingsCard } from '@proj-airi/ui'
 import { useObjectUrl } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
@@ -116,13 +116,13 @@ async function remove(entry: StickerEntry) {
 
 <template>
   <div :class="['flex flex-col gap-4']">
-    <div :class="['flex flex-col gap-4', 'rounded-xl bg-neutral-100 p-4 dark:bg-neutral-900']">
+    <SettingsCard>
       <FieldCheckbox v-model="enabled" :label="t('settings.pages.modules.stickers.enable')" :description="t('settings.pages.modules.stickers.enable-description')" />
       <FieldSelect v-model="frequency" :disabled="!enabled" :label="t('settings.pages.modules.stickers.frequency')" :description="t('settings.pages.modules.stickers.frequency-description')" :options="frequencyOptions" />
       <p :class="['text-sm text-neutral-600 dark:text-neutral-400']">
         {{ t('settings.pages.modules.stickers.local-only') }}
       </p>
-    </div>
+    </SettingsCard>
     <p v-if="error" role="alert" :class="['text-sm text-red-600 dark:text-red-400']">
       {{ t('settings.pages.modules.stickers.errors.storage') }}
     </p>

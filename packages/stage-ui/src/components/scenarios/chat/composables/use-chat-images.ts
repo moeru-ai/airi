@@ -53,8 +53,8 @@ async function compressImage(file: File): Promise<File> {
   }
 }
 
-/** A local image draft. Only the serialized image fields cross the chat boundary. */
-export type ChatImageAttachment = Extract<NonNullable<ChatSendPayload['attachments']>[number], { type: 'image' }> & {
+/** A local image draft with its bytes. Only the serialized image fields cross the chat boundary. */
+export type ChatImageAttachment = Extract<NonNullable<ChatSendPayload['attachments']>[number], { type: 'image', data: string }> & {
   file: File
   previewId: string
 }

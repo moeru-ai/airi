@@ -4,7 +4,8 @@ import en from '@proj-airi/i18n/locales/en'
 
 import { ChatHistory } from '@proj-airi/stage-ui/components'
 import { ScrollableArea } from '@proj-airi/ui'
-import { describe, expect, it, vi } from 'vitest'
+import { createPinia, disposePinia, setActivePinia } from 'pinia'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { defineComponent, shallowRef } from 'vue'
 import { createI18n } from 'vue-i18n'
@@ -13,6 +14,14 @@ import ChatViewportLayout from './chat-viewport-layout.vue'
 
 import '@unocss/reset/tailwind.css'
 import 'virtual:uno.css'
+
+// A user message reads voice message snapshots from a store.
+let pinia: ReturnType<typeof createPinia>
+beforeEach(() => {
+  pinia = createPinia()
+  setActivePinia(pinia)
+})
+afterEach(() => disposePinia(pinia))
 
 function createEnglishI18n() {
   return createI18n({

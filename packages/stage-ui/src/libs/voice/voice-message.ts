@@ -4,19 +4,25 @@ import { errorMessageFrom } from '@moeru/std'
 import { encodeWav } from '@proj-airi/audio/encoding'
 import { capture } from '@proj-airi/pipelines-audio'
 
-/** The application owns a preview until explicit submission receives its durable message receipt. */
+/**
+ * The application owns a preview until explicit submission receives its durable message receipt.
+ * `transcribing` follows a submit while the transcript of the stored message is still coming.
+ */
 export interface VoiceMessageSnapshot {
   readonly id: string
   readonly sessionId: string
-  readonly phase: 'pending' | 'capturing' | 'finalizing' | 'ready' | 'sending' | 'sent' | 'cancelled' | 'failed'
+  readonly phase: 'pending' | 'capturing' | 'finalizing' | 'ready' | 'sending' | 'transcribing' | 'sent' | 'cancelled' | 'failed'
   readonly audio?: Blob
   readonly error?: string
 }
 
-/** The longest time a send waits for the transcript after the recording ends. A later transcript is not used. */
-const TRANSCRIPT_WAIT_MS = 8000
+/** The longest time a submitted message waits for its transcript. Then transcription stops, and the chat transcribes the file. */
+const TRANSCRIPT_LIMIT_MS = 60_000
 
-/** A send found no speech in the recording. Sending it again cannot succeed. */
+/** The settled transcript of a recording. `undefined` means transcription failed, stopped, or is not used. */
+type Transcript = string | undefined
+
+/** The transcriber found no speech in the recording. Sending it again cannot succeed. */
 class NoSpeechError extends Error {
   constructor() {
     super('No speech was recognized in the recording')
@@ -28,12 +34,14 @@ class NoSpeechError extends Error {
  *
  * Phases: pending until audio arrives, capturing, finalizing after finish, then ready with the file.
  *
- * With `transcribe`, the same captured audio is also transcribed while it records. The send carries the transcript, so a
- * model without audio input reads it instead of transcribing the stored file later. A failed or late transcript is
- * omitted, and the chat then transcribes the file.
+ * With `transcribe`, the same captured audio is also transcribed while it records. A model without audio input reads the
+ * transcript, so the chat does not transcribe the stored file again.
  *
- * `transcribe` resolves with an empty string when it completed and recognized no speech. Then the send fails and the
- * recording is cancelled, so a silent recording never enters the chat and is not offered again.
+ * A send never waits for the transcript, so the chat shows the message at once. A transcript that is ready goes with
+ * the submit. A later one goes to `deliverTranscript`, and the message stays `transcribing` until then.
+ *
+ * `transcribe` resolves with an empty string when it completed and recognized no speech. Before the submit, the send
+ * fails. After it, `deliverTranscript` removes the message from the chat. Either way the message ends `cancelled`.
  */
 export class VoiceMessage {
   private readonly listeners = new Set<() => void>()
@@ -42,20 +50,26 @@ export class VoiceMessage {
   private receipt: { messageId: string } | undefined
   private readonly recording: ReturnType<typeof capture>
   private readonly transcription = new AbortController()
-  private transcript: Promise<string | undefined> | undefined
+  private transcript: Promise<Transcript> | undefined
+  private settledTranscript: { value: Transcript } | undefined
 
   constructor(
     readonly id: string,
     readonly sessionId: string,
     input: AudioInput,
-    private readonly submit: (draft: { messageId: string, sessionId: string, audio: Blob, text: string, transcript?: string }) => Promise<{ messageId: string }>,
-    transcribe?: (audio: ReadableStream<PcmBlock>, signal: AbortSignal) => Promise<string | undefined>,
+    /** `transcriptPending` means the transcript goes to `deliverTranscript` after this submit. */
+    private readonly submit: (draft: { messageId: string, sessionId: string, audio: Blob, text: string, transcript?: string, transcriptPending?: boolean }) => Promise<{ messageId: string }>,
+    transcribe?: (audio: ReadableStream<PcmBlock>, signal: AbortSignal) => Promise<Transcript>,
+    private readonly deliverTranscript?: (draft: { messageId: string, sessionId: string, transcript?: string }) => Promise<void>,
   ) {
     this.current = { id, sessionId, phase: 'pending' }
     this.recording = capture(input)
     const [encoded, recognized] = transcribe ? this.recording.stream.tee() : [this.recording.stream]
     if (transcribe && recognized) {
-      this.transcript = transcribe(recognized, this.transcription.signal).catch(() => undefined)
+      this.transcript = transcribe(recognized, this.transcription.signal).catch(() => undefined).then((value) => {
+        this.settledTranscript = { value }
+        return value
+      })
       void this.recording.done.then((outcome) => {
         if (outcome.status !== 'finished')
           this.transcription.abort('Voice message ended without audio')
@@ -116,15 +130,21 @@ export class VoiceMessage {
       return Promise.reject(new Error('Voice message is not ready'))
     this.change({ ...this.current, phase: 'sending', error: undefined })
     // Defer transport invocation until the in-flight promise is installed. Synchronous adapters cannot bypass deduplication.
-    this.sending = Promise.resolve().then(() => this.waitForTranscript().then((transcript) => {
-      if (transcript === '')
+    this.sending = Promise.resolve().then(() => {
+      const settled = this.settledTranscript
+      if (settled?.value === '')
         throw new NoSpeechError()
-      return this.submit({ messageId: this.id, sessionId: this.sessionId, audio, text, ...(transcript ? { transcript } : {}) })
-    })).then((receipt) => {
+      const late = !settled && this.transcript && this.deliverTranscript ? { transcript: this.transcript, deliver: this.deliverTranscript } : undefined
+      return this.submit({ messageId: this.id, sessionId: this.sessionId, audio, text, ...(settled?.value ? { transcript: settled.value } : {}), ...(late ? { transcriptPending: true } : {}) })
+        .then(receipt => ({ receipt, late }))
+    }).then(({ receipt, late }) => {
       if (receipt.messageId !== this.id)
         throw new Error('Voice message receipt has a different identity')
       this.receipt = receipt
-      this.change({ id: this.id, sessionId: this.sessionId, phase: 'sent' })
+      if (late)
+        void this.deliverLateTranscript(late.transcript, late.deliver)
+      else
+        this.change({ id: this.id, sessionId: this.sessionId, phase: 'sent' })
       return receipt
     }).catch((error: unknown) => {
       if (error instanceof NoSpeechError)
@@ -136,20 +156,18 @@ export class VoiceMessage {
     return this.sending
   }
 
-  /** Resolves with the transcript, or with nothing after a failure or once {@link TRANSCRIPT_WAIT_MS} passes. */
-  private async waitForTranscript() {
-    if (!this.transcript)
-      return undefined
-    let timer: Parameters<typeof clearTimeout>[0]
-    const timeout = new Promise<undefined>((resolve) => {
-      timer = setTimeout(resolve, TRANSCRIPT_WAIT_MS)
-    })
-    try {
-      return await Promise.race([this.transcript, timeout])
-    }
-    finally {
-      clearTimeout(timer)
-    }
+  /** Hands a transcript that settles after the submit to the chat. Transcription stops after {@link TRANSCRIPT_LIMIT_MS}. */
+  private async deliverLateTranscript(transcript: Promise<Transcript>, deliver: NonNullable<typeof this.deliverTranscript>) {
+    this.change({ id: this.id, sessionId: this.sessionId, phase: 'transcribing' })
+    const timer = setTimeout(() => this.transcription.abort('Voice message transcription took too long'), TRANSCRIPT_LIMIT_MS)
+    const value = await transcript
+    clearTimeout(timer)
+    // A failed delivery leaves the chat without the transcript. The chat then transcribes the stored file.
+    await deliver({ messageId: this.id, sessionId: this.sessionId, ...(value === undefined ? {} : { transcript: value }) }).catch(() => {})
+    if (value === '')
+      this.change({ id: this.id, sessionId: this.sessionId, phase: 'cancelled', error: new NoSpeechError().message })
+    else
+      this.change({ id: this.id, sessionId: this.sessionId, phase: 'sent' })
   }
 
   /** Moves forward only from the expected phase, so late recording events cannot undo a newer state. */

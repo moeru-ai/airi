@@ -227,6 +227,8 @@ export type ModelMetadata = Pick<AIChatModelCard, 'abilities' | 'maxOutput' | 'p
 
 export interface ModelInfo {
   metadata?: ModelMetadata
+  /** Provider-reported reasoning constraints for this model, when available. */
+  reasoning?: { mandatory?: boolean }
   id: string
   name: string
   provider: string

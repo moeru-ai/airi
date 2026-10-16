@@ -7,6 +7,7 @@ import { useI18n } from 'vue-i18n'
 
 import factorioIcon from '../assets/factorio-simple.png'
 
+import { useMemoryStore } from '../stores/memory'
 import { useArtistryStore } from '../stores/modules/artistry'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useDiscordStore } from '../stores/modules/discord'
@@ -50,6 +51,7 @@ export function useModulesList() {
   const factorioStore = useFactorioStore()
   const homeAssistantStore = useHomeAssistantStore()
   const artistryStore = useArtistryStore()
+  const memoryStore = useMemoryStore()
   const beatSyncState = ref<BeatSyncDetectorState>()
   const beatSyncSupported = isBeatSyncSupported()
   // Captions render in the Electron caption window and as an in-page overlay
@@ -149,7 +151,7 @@ export function useModulesList() {
       description: t('settings.pages.modules.memory-long-term.description'),
       icon: 'i-solar:book-bookmark-bold-duotone',
       to: '/settings/modules/memory-long-term',
-      configured: false,
+      configured: memoryStore.enabled,
       category: 'essential',
     },
     {

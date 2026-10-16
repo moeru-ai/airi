@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { Avatar, BasicButton, BottomDrawer, Checkbox, GhostButton, useTheme } from '@proj-airi/ui'
+import { useSpeechOutputControlStore } from '@proj-airi/stage-ui/stores/speech-output-control'
+import { Avatar, BasicButton, BottomDrawer, GhostButton, Range, SelectTab, useTheme } from '@proj-airi/ui'
 import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { shallowRef } from 'vue'
+import { computed, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 
@@ -19,10 +20,12 @@ const emit = defineEmits<{
 }>()
 const characterVoiceEnabled = defineModel<boolean>('characterVoiceEnabled', { required: true })
 const { t } = useI18n()
-const { isDark } = useTheme()
+const { themeMode } = useTheme()
 const authStore = useAuthStore()
 const { isAuthenticated, user } = storeToRefs(authStore)
 const router = useRouter()
+const speechOutputControl = useSpeechOutputControlStore()
+const { speechVolume } = storeToRefs(speechOutputControl)
 const backgroundDialogOpen = shallowRef(false)
 const settingsOpen = shallowRef(false)
 const aboutOpen = shallowRef(false)
@@ -68,6 +71,20 @@ function finishSettingsClose() {
   }
   nextPanel.value = undefined
 }
+
+const characterVoiceVolume = computed({
+  get: () => Math.round(speechVolume.value * 100),
+  // The store couples zero volume with mute and restores the voice above 0.
+  set: percent => speechOutputControl.setSpeechVolume(percent / 100),
+})
+
+const characterVoiceIcon = computed(() => {
+  if (!characterVoiceEnabled.value || speechVolume.value === 0)
+    return 'i-solar:volume-cross-outline'
+  if (speechVolume.value < 0.5)
+    return 'i-solar:volume-small-outline'
+  return 'i-solar:volume-loud-outline'
+})
 </script>
 
 <template>
@@ -123,11 +140,26 @@ function finishSettingsClose() {
           {{ t('stage.mobile-tools.appearance') }}
         </h3>
         <div :class="['overflow-hidden rounded-2xl bg-white dark:bg-neutral-800/60']">
-          <label :class="['min-h-13 flex cursor-pointer items-center gap-3 px-4 py-3']">
-            <span aria-hidden="true" :class="['i-solar:moon-outline size-5 shrink-0 text-neutral-400']" />
-            <span :class="['flex-1 text-sm']">{{ t('stage.mobile-tools.dark-mode') }}</span>
-            <Checkbox v-model="isDark" :aria-label="t('stage.mobile-tools.dark-mode')" />
-          </label>
+          <div :class="['min-h-13 flex flex-wrap items-center gap-3 px-4 py-3']">
+            <span aria-hidden="true" :class="['i-lucide:contrast size-5 shrink-0 text-neutral-400']" />
+            <span :class="['shrink-0 text-sm']">{{ t('stage.theme.title') }}</span>
+            <!--
+              The indicator takes an equal share of the tabs, so the tabs must be equal.
+              On a narrow screen they move below the title instead of shrinking.
+            -->
+            <SelectTab
+              v-model="themeMode"
+              size="xs"
+              tab-space="compact"
+              :class="['flex-1 basis-48', '[&_[role=radio]]:min-w-0']"
+              :aria-label="t('stage.theme.title')"
+              :options="[
+                { value: 'auto', label: t('stage.theme.system') },
+                { value: 'light', label: t('stage.theme.light') },
+                { value: 'dark', label: t('stage.theme.dark') },
+              ]"
+            />
+          </div>
           <div :class="['mx-4 border-t border-neutral-100 dark:border-neutral-700/50']" />
           <GhostButton
             block size="unset"
@@ -156,11 +188,25 @@ function finishSettingsClose() {
           {{ t('stage.mobile-tools.sound') }}
         </h3>
         <div :class="['overflow-hidden rounded-2xl bg-white dark:bg-neutral-800/60']">
-          <label :class="['min-h-13 flex cursor-pointer items-center gap-3 px-4 py-3']">
-            <span aria-hidden="true" :class="['i-solar:volume-loud-outline size-5 shrink-0 text-neutral-400']" />
-            <span :class="['flex-1 text-sm']">{{ t('stage.mobile-tools.character-voice') }}</span>
-            <Checkbox v-model="characterVoiceEnabled" :aria-label="t('stage.mobile-tools.character-voice')" />
-          </label>
+          <div :class="['min-h-13 flex items-center gap-3 px-4 py-3']">
+            <BasicButton
+              size="unset"
+              :aria-label="characterVoiceEnabled ? t('stage.speech-output.mute') : t('stage.speech-output.unmute')"
+              :class="[
+                'size-9 shrink-0 rounded-full',
+                'text-neutral-500 dark:text-neutral-400',
+                characterVoiceEnabled ? '' : 'text-neutral-400 dark:text-neutral-500',
+              ]"
+              @click="characterVoiceEnabled = !characterVoiceEnabled"
+            >
+              <span aria-hidden="true" :class="[characterVoiceIcon, 'size-5']" />
+            </BasicButton>
+            <Range
+              v-model="characterVoiceVolume"
+              :aria-label="t('stage.mobile-tools.character-voice')"
+              :class="['mobile-volume-slider w-full flex-1', !characterVoiceEnabled && 'opacity-50']"
+            />
+          </div>
         </div>
       </section>
       <section :class="['mb-4']">
@@ -211,7 +257,8 @@ function finishSettingsClose() {
 }
 
 .mobile-settings-actions.keyboard-navigation :deep(button:focus-visible),
-.mobile-settings-actions.keyboard-navigation :deep(a:focus-visible) {
+.mobile-settings-actions.keyboard-navigation :deep(a:focus-visible),
+.mobile-settings-actions.keyboard-navigation :deep(input[type='range']:focus-visible) {
   @apply rounded-lg outline outline-2 outline-neutral-500;
   outline-offset: -4px;
 }
@@ -239,5 +286,29 @@ function finishSettingsClose() {
 
 .mobile-tool-row :deep([aria-hidden]) {
   flex-shrink: 0;
+}
+
+/* iOS-style volume bar: flush rounded track, theme-hue fill, no visible thumb. */
+.mobile-settings-actions :deep(.mobile-volume-slider) {
+  --height: 1.75rem;
+  --thumb-width: 0px;
+  --track-border: none;
+  --track-border-radius: 999px;
+  --track-value-padding: 0px;
+  --track-background: rgb(0 0 0 / 0.06);
+  --track-background-hover: rgb(0 0 0 / 0.06);
+  --track-background-active: rgb(0 0 0 / 0.06);
+  --track-value-background: oklch(72% var(--chromatic-chroma-400) var(--chromatic-hue));
+  --track-value-background-hover: oklch(76% var(--chromatic-chroma-400) var(--chromatic-hue));
+  --track-value-background-active: oklch(68% var(--chromatic-chroma-400) var(--chromatic-hue));
+}
+
+.dark .mobile-settings-actions :deep(.mobile-volume-slider) {
+  --track-background: rgb(255 255 255 / 0.12);
+  --track-background-hover: rgb(255 255 255 / 0.12);
+  --track-background-active: rgb(255 255 255 / 0.12);
+  --track-value-background: oklch(76% var(--chromatic-chroma-300) var(--chromatic-hue));
+  --track-value-background-hover: oklch(80% var(--chromatic-chroma-300) var(--chromatic-hue));
+  --track-value-background-active: oklch(72% var(--chromatic-chroma-300) var(--chromatic-hue));
 }
 </style>

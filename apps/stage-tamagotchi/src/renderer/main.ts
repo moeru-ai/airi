@@ -5,6 +5,7 @@ import Tres from '@tresjs/core'
 
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import { PiniaColada } from '@pinia/colada'
+import { pushToTalkTriggerKey } from '@proj-airi/stage-ui/composables/push-to-talk-trigger'
 import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/track-button'
 import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
 import { piniaPluginTracing, setupSynced } from '@proj-airi/stage-ui/libs/pinia'
@@ -18,6 +19,7 @@ import { handleHotUpdate, routes } from 'vue-router/auto-routes'
 
 import App from './App.vue'
 
+import { nestFullscreenSurfaces } from './components/fullscreen/surfaces'
 import { i18n } from './modules/i18n'
 import { resolveRendererWindowContext } from './window-context'
 
@@ -47,24 +49,31 @@ configureAnalyticsAdapter(async (options) => {
 })
 registerAuthorizationHandler(browserAuthorizationHandler)
 
+const windowContext = resolveRendererWindowContext()
 const pinia = createPinia()
 const synced = setupSynced({
-  leadership: resolveRendererWindowContext().leadership,
+  leadership: windowContext.leadership,
 })
 pinia.use(synced.pinia)
 if (import.meta.env.DEV)
   pinia.use(piniaPluginTracing)
 
+/** The app routes with layouts. A window that hosts the fullscreen mode also routes the surfaces under its own page. */
+function windowRoutes(appRoutes: RouteRecordRaw[]) {
+  const withLayouts = setupLayouts(appRoutes)
+  return windowContext.fullscreenHost ? nestFullscreenSurfaces(withLayouts, windowContext.fullscreenHost) : withLayouts
+}
+
 const router = createRouter({
   history: createWebHashHistory(),
   // TODO: vite-plugin-vue-layouts is long deprecated, replace with another layout solution
-  routes: setupLayouts(routes as RouteRecordRaw[]),
+  routes: windowRoutes(routes as RouteRecordRaw[]),
 })
 
 if (import.meta.hot) {
   handleHotUpdate(router, (updatedRoutes) => {
     router.clearRoutes()
-    for (const route of setupLayouts(updatedRoutes))
+    for (const route of windowRoutes(updatedRoutes))
       router.addRoute(route)
   })
 }
@@ -80,4 +89,6 @@ createApp(App)
   .use(i18n)
   .use(Tres)
   .use(trackButtonPlugin)
+  // The stage window registers a global hold shortcut. Every window shares this app, so the settings window offers the mode too.
+  .provide(pushToTalkTriggerKey, true)
   .mount('#app')

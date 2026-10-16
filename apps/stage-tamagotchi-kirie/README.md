@@ -36,13 +36,13 @@ mise install
 Run all remaining application commands from this directory.
 Dependency installation creates `node_modules/.gdignore` so Godot skips the dependency directory. Git ignores the entire directory.
 
-Install the Kirie addon that matches the npm and NuGet packages:
+Install the dependencies from the Kirie core plugin:
 
 ```sh
-mise x -- pnpm kirie doctor --fix kirie-addon
+mise x -- pnpm kirie doctor --fix plugin:core
 ```
 
-The command downloads the official `0.8.0` addon and checks its declared version.
+The command installs the `0.10.0` addon, Godot CEF backend, and NuGet packages.
 The addon supplies `addons/kirie/`, including `KirieClient.cs`. Git ignores this installed dependency.
 After a Kirie version change, run the command again.
 
@@ -52,17 +52,18 @@ Inspect the installed environment:
 mise x -- pnpm kirie doctor
 ```
 
-The doctor does not inspect .NET. Missing Android SDK or export templates alone do not block desktop development.
+The doctor checks the configured core plugin and its .NET packages.
+Missing Android SDK or export templates alone do not block desktop development.
 Exports require matching Godot export templates. Android work also requires the Android SDK.
 
 If CEF is absent or stale, install the configured backend:
 
 ```sh
-mise x -- pnpm kirie doctor --fix godot-cef
+mise x -- pnpm kirie doctor --fix plugin:core
 ```
 
-The [installer](https://github.com/moeru-ai/godot-kirie/blob/v0.8.0/packages/cli/src/doctor/addons.ts) verifies the Godot CEF archive and records its checksum under `.godot/kirie/`.
-The [doctor](https://github.com/moeru-ai/godot-kirie/blob/v0.8.0/packages/cli/src/doctor/index.ts) checks required addon files, the Kirie version, and the CEF checksum marker.
+The [installer](https://github.com/moeru-ai/godot-kirie/blob/v0.10.0/packages/cli/src/commands/doctor/addons.ts) verifies the Godot CEF archive and records its checksum under `.godot/kirie/`.
+The [doctor](https://github.com/moeru-ai/godot-kirie/blob/v0.10.0/packages/cli/src/commands/doctor/index.ts) checks the configured plugin dependencies and their versions.
 It does not hash installed native files or inspect macOS signatures.
 
 After a CEF version change, repeat installation.
@@ -78,7 +79,7 @@ mise x -- pnpm kirie dev
 ```
 
 `kirie dev` starts Vite, Godot, and CEF renderers.
-The [dev command](https://github.com/moeru-ai/godot-kirie/blob/v0.8.0/packages/cli/src/dev.ts) reuses the last C# build.
+The [dev command](https://github.com/moeru-ai/godot-kirie/blob/v0.10.0/packages/cli/src/commands/dev.ts) reuses the last C# build.
 After a C# change, repeat both commands.
 Spotlight opens through its global shortcut and has no in-app entry point.
 

@@ -2,6 +2,7 @@
 import type { ModelSettingsRuntimeSnapshot } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 
 import {
+  useHostEventaInvoke,
   useHostMouseAroundWindowBorder,
   useHostMouseInElement,
   useHostMouseInWindow,
@@ -9,7 +10,6 @@ import {
   useHostPointerPassthrough,
   useHostRelativeMouse,
 } from '@proj-airi/stage-host-context'
-import { useExpressionStore } from '@proj-airi/stage-ui-live2d/stores/expression-store'
 import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
 import { HoloCoupon, VoiceDrafts } from '@proj-airi/stage-ui/components'
 import {
@@ -18,18 +18,20 @@ import {
 } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composables/canvas-alpha'
+import { useVoiceListening } from '@proj-airi/stage-ui/composables/voice-input-mode'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
-import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useVoiceStore } from '@proj-airi/stage-ui/stores/voice'
 import { refDebounced } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
+import { computed, onMounted, ref, shallowRef, toRef, watch } from 'vue'
 import { toast } from 'vue-sonner'
 
 import ControlsIslandRoot from '../components/stage-islands/controls-island/controls-island-root.vue'
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
 
+import { electronOpenSettings } from '../../shared/eventa'
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
@@ -50,6 +52,7 @@ const shouldFadeOnCursorWithin = ref(false)
 
 const onboardingStore = useOnboardingStore()
 const { open: openOnboarding } = useHostOnboarding()
+const openSettings = useHostEventaInvoke(electronOpenSettings)
 
 const { isOutside: isOutsideWindow } = useHostMouseInWindow()
 const { isOutside } = useHostMouseInElement(controlsIslandElement)
@@ -84,7 +87,6 @@ const isTransparentByThreeExact = useThreeSceneIsTransparentAtPoint(
 const settingsStore = useSettings()
 const { stageModelRenderer, stageModelSelectedUrl } = storeToRefs(settingsStore)
 const modelStore = useModelStore()
-const expressionStore = useExpressionStore()
 const { sceneMutationLocked, scenePhase } = storeToRefs(modelStore)
 const { stagePaused } = storeToRefs(useStageWindowLifecycleStore())
 const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
@@ -135,13 +137,11 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
 
     return createEmptyModelSettingsRuntimeSnapshot({
       ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
-      modelId: expressionStore.modelId,
       renderer: 'live2d',
       phase,
       controlsLocked: hasModel ? phase !== 'mounted' : false,
       previewAvailable: hasModel,
       canCapturePreview: false,
-      live2dExpressions: expressionStore.settingsSnapshot,
       updatedAt: Date.now(),
     })
   }
@@ -291,19 +291,10 @@ useModelSettingsRuntimeOwner({
   ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
   renderer: () => stageModelRenderer.value,
   runtimeSnapshot: modelSettingsRuntimeSnapshot,
-  applyLive2DExpressionCommand: (command) => {
-    expressionStore.applySettingsCommand(command)
-  },
 })
 
 const voice = useVoiceStore()
-const { enabled } = storeToRefs(useSettingsAudioDevice())
-watch(enabled, (value) => {
-  if (value)
-    voice.startListening()
-  else
-    void voice.stopListening()
-}, { immediate: true })
+useVoiceListening()
 watch(() => voice.error, (error) => {
   if (error)
     toast.error(error)
@@ -311,9 +302,6 @@ watch(() => voice.error, (error) => {
 onMounted(() => {
   if (onboardingStore.needsOnboarding)
     openOnboarding()
-})
-onUnmounted(() => {
-  void voice.stopListening()
 })
 
 const cursorPosition = computed(() => ({
@@ -355,6 +343,7 @@ const cursorPosition = computed(() => ({
           flex-1
           :cursor-position="cursorPosition"
           :paused="stagePaused"
+          @select-avatar-model="openSettings({ route: '/settings/models' })"
         />
         <HoloCoupon />
         <div :class="['absolute bottom-3 left-1/2 z-30 w-fit -translate-x-1/2']">

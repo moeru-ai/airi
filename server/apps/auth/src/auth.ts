@@ -16,7 +16,7 @@ import { oauthProvider } from '@better-auth/oauth-provider'
 import { useLogger } from '@guiiai/logg'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { createAuthMiddleware } from 'better-auth/api'
+import { createAuthMiddleware, getSessionFromCtx } from 'better-auth/api'
 import { deleteSessionCookie } from 'better-auth/cookies'
 import { bearer, jwt, magicLink } from 'better-auth/plugins'
 import { eq } from 'drizzle-orm'
@@ -26,6 +26,7 @@ import * as authSchema from '@proj-airi/auth-shared'
 import { ApiError } from './error'
 import { googleClientIds } from './google-client-ids'
 import { getAuthTrustedOrigins, getTrustedOrigin } from './origin'
+import { accountDeletion } from './plugins/account-deletion'
 import { banGuard } from './plugins/ban-guard'
 import { oidcJwtBearer } from './plugins/oidc-jwt-bearer'
 import { steam } from './plugins/steam'
@@ -431,6 +432,7 @@ export interface AuthInstance {
   options: BetterAuthOptions
 }
 
+/** Composes authentication and the cleanup hooks shared by both account-deletion methods. */
 export function createAuth(
   db: AuthDatabase,
   env: AuthEnv,
@@ -464,6 +466,7 @@ export function createAuth(
       // Better Auth. Must run after bearer() so HMAC session tokens retain
       // their stock path. See oidc-jwt-bearer.ts for sensitive-operation rules.
       oidcJwtBearer(env),
+      accountDeletion(),
       // Steam's web login is OpenID 2.0, not OAuth2/OIDC, so it can't be a
       // `socialProviders` entry — see steam.ts for why this needs to be its
       // own plugin.
@@ -536,8 +539,15 @@ export function createAuth(
       // detects the new session via polling and resumes the OIDC handoff.
       // Source: node_modules/better-auth/dist/api/routes/email-verification.mjs L268+
       autoSignInAfterVerification: true,
+      /** Keeps default email verification callbacks on the service result page. */
       async sendVerificationEmail({ user, url }) {
-        await requireEmailService(email).sendVerification({ to: user.email, url })
+        const confirmation = new URL(url)
+        const callback = confirmation.searchParams.get('callbackURL')
+        // Explicit destinations retain their login continuation context.
+        if (callback === null || callback === '' || callback === '/') {
+          confirmation.searchParams.set('callbackURL', new URL('/auth/verify-email?verified=true', env.PUBLIC_URL).toString())
+        }
+        await requireEmailService(email).sendVerification({ to: user.email, url: confirmation.toString() })
       },
     },
 
@@ -584,13 +594,23 @@ export function createAuth(
       // Source: node_modules/better-auth/dist/api/routes/update-user.mjs L286-380
       deleteUser: {
         enabled: true,
+        /** Sends confirmation links to the result page when the client supplies no destination. */
         async sendDeleteAccountVerification({ user, url }) {
+          const confirmation = new URL(url)
+          const callback = confirmation.searchParams.get('callbackURL')
+          // The auth service owns the default result page. Explicit client destinations keep their original value.
+          if (callback === null || callback === '' || callback === '/') {
+            confirmation.searchParams.set('callbackURL', new URL('/auth/delete-account', env.PUBLIC_URL).toString())
+          }
           await requireEmailService(email).sendDeleteAccountVerification({
             to: user.email,
-            url,
+            url: confirmation.toString(),
           })
         },
         async beforeDelete(user) {
+          // The check runs first. A refusal must leave the external authorizations in place.
+          // It repeats the check of the deletion request, because the user can subscribe after the email.
+          await requireResourceApi(resourceApi).checkUserDeletion({ userId: user.id })
           await socialAuthorization.revokeForUser(user.id)
           await requireResourceApi(resourceApi).softDeleteUserData({
             userId: user.id,
@@ -715,6 +735,15 @@ export function createAuth(
         const isAuthAttempt = ctx.path.includes('/sign-in') || ctx.path.includes('/sign-up')
         if (isAuthAttempt) {
           metrics?.attempts.add(1, { 'auth.method': ctx.path.split('/').pop() ?? 'unknown' })
+        }
+
+        // A deletion request that the resource API refuses sends no confirmation email.
+        // `sendDeleteAccountVerification` can run in the background, so the check cannot live there.
+        // The endpoint rejects a request without a session.
+        if (ctx.path === '/delete-user') {
+          const session = await getSessionFromCtx(ctx)
+          if (session)
+            await requireResourceApi(resourceApi).checkUserDeletion({ userId: session.user.id })
         }
       }),
       after: createAuthMiddleware(async (ctx) => {

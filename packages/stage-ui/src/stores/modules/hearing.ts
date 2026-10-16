@@ -4,6 +4,7 @@ import type { WithUnknown } from '@xsai/shared'
 import type { StreamTranscriptionOptions as XSAIStreamTranscriptionOptions } from '@xsai/stream-transcription'
 import type {} from 'pinia-plugin-synced'
 
+import type { HearingTranscriberTraceOptions } from '../../libs/audio/hearing-transcriber'
 import type { AIRIStreamTranscriptionResult } from '../../libs/providers/stream-transcription'
 import type { HearingTranscriptionResult } from '../../libs/providers/transcription-types'
 
@@ -277,6 +278,38 @@ export function resolveTranscriptionProviderOptions(providerConfig?: Record<stri
   }
 }
 
+/**
+ * How Hearing starts a speech input while microphone input is on.
+ *
+ * - `always-on`: voice activity detection starts an input when the user speaks. The microphone stays open.
+ * - `push-to-talk`: an input starts only while the user holds the Push to Talk key. The microphone opens only during the hold.
+ * - `wake-word`: the microphone stays open, but only a character's wake word starts an input. Speech alone does not.
+ */
+export type HearingInputMode = 'always-on' | 'push-to-talk' | 'wake-word'
+
+/**
+ * Tells if a mode keeps the microphone open and runs voice activity detection.
+ * The microphone settings store and `useVoiceListening` both read this, so they open and close the microphone together.
+ */
+export function listensContinuously(mode: HearingInputMode): boolean {
+  switch (mode) {
+    case 'always-on':
+    case 'wake-word':
+      return true
+    case 'push-to-talk':
+      return false
+  }
+}
+
+/**
+ * Tells if speech that voice activity detection finds starts an input without a wake word.
+ * The voice store reads this on every window, so a mode change applies without restarting the listener.
+ * Wake word detection runs in every mode that {@link listensContinuously}. A wake always starts an input for its character.
+ */
+export function startsInputOnSpeech(mode: HearingInputMode): boolean {
+  return mode === 'always-on'
+}
+
 export const useHearingStore = defineStore('hearing-store', () => {
   const providersStore = useProviderStore()
   const providerStore = useProviderConfigStore()
@@ -297,11 +330,14 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const activeTranscriptionModel = useLocalStorageManualReset('settings/hearing/active-model', '', persistenceOptions)
   const activeCustomModelName = useLocalStorageManualReset('settings/hearing/active-custom-model', '', persistenceOptions)
   const transcriptionModelSearchQuery = refManualReset<string>('')
+  const inputMode = useLocalStorageManualReset<HearingInputMode>('settings/hearing/input-mode', 'always-on', persistenceOptions)
   const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', false, persistenceOptions)
   const autoSendDelay = useLocalStorageManualReset<number>('settings/hearing/auto-send-delay', 2000, persistenceOptions) // Default 2 seconds
   const confidenceThreshold = useLocalStorageManualReset<number>('settings/hearing/confidence-threshold', CONFIDENCE_THRESHOLD_DISABLED, persistenceOptions)
-  // Rephrasing sends transcripts to a chat model, so it is off by default.
-  const rephraseEnabled = useLocalStorageManualReset<boolean>('settings/hearing/rephrase-enabled', false, persistenceOptions)
+  // Rephrasing sends transcripts to a chat model. Voice input already sends them to that model, so it is on by default.
+  const rephraseEnabled = useLocalStorageManualReset<boolean>('settings/hearing/rephrase-enabled', true, persistenceOptions)
+  // A chat model reads paused transcripts and ends finished messages before the silence limit.
+  const endJudgeEnabled = useLocalStorageManualReset<boolean>('settings/hearing/end-judge-enabled', true, persistenceOptions)
   // An empty provider uses the chat model of the consciousness module.
   const rephraseProvider = useLocalStorageManualReset('settings/hearing/rephrase-provider', '', persistenceOptions)
   const rephraseModel = useLocalStorageManualReset('settings/hearing/rephrase-model', '', persistenceOptions)
@@ -373,10 +409,12 @@ export const useHearingStore = defineStore('hearing-store', () => {
     activeTranscriptionModel.reset()
     activeCustomModelName.reset()
     transcriptionModelSearchQuery.reset()
+    inputMode.reset()
     autoSendEnabled.reset()
     autoSendDelay.reset()
     confidenceThreshold.reset()
     rephraseEnabled.reset()
+    endJudgeEnabled.reset()
     rephraseProvider.reset()
     rephraseModel.reset()
   }
@@ -519,7 +557,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
   }
 
   /** Freezes Hearing settings for one request. The controller supplies media and owns cancellation. */
-  function createTranscriber(providerId = activeTranscriptionProvider.value): StreamingTranscriber {
+  function createTranscriber(providerId = activeTranscriptionProvider.value, trace: HearingTranscriberTraceOptions = {}): StreamingTranscriber {
     const config = structuredClone(toRaw(providerStore.getProviderConfig(providerId) ?? {}))
     const model = resolveActiveTranscriptionModel(activeTranscriptionModel.value, config)
     const threshold = confidenceThreshold.value
@@ -583,7 +621,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
         await dispose()
         throw error
       }
-    })
+    }, trace)
   }
 
   return {
@@ -592,10 +630,12 @@ export const useHearingStore = defineStore('hearing-store', () => {
     availableProvidersMetadata,
     activeCustomModelName,
     transcriptionModelSearchQuery,
+    inputMode,
     autoSendEnabled,
     autoSendDelay,
     confidenceThreshold,
     rephraseEnabled,
+    endJudgeEnabled,
     rephraseProvider,
     rephraseModel,
     verboseJsonNotSupported,

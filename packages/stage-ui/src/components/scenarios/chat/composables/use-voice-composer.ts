@@ -3,7 +3,9 @@ import type { ChatToolReference } from '../../../../types/chat'
 import { errorMessageFrom } from '@moeru/std'
 import { nanoid } from 'nanoid/non-secure'
 import { computed, onScopeDispose, shallowRef, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
+import { getSpeechBusContext, voiceMessageDropped } from '../../../../services/speech/bus'
 import { useHearingStore } from '../../../../stores/modules/hearing'
 import { useVoiceControlsStore } from '../../../../stores/voice-controls'
 
@@ -52,6 +54,7 @@ type ActiveRecording
  * - The current application context connects a voice host through `useVoiceStore().connectOutput`
  */
 export function useVoiceComposer(options: UseVoiceComposerOptions) {
+  const { t } = useI18n()
   const controls = useVoiceControlsStore()
   const hearing = useHearingStore()
   const active = shallowRef<ActiveRecording>()
@@ -135,6 +138,14 @@ export function useVoiceComposer(options: UseVoiceComposerOptions) {
     }
   })
 
+  // A sent message can leave the chat again when its transcript has no speech. Only the recording control reports it.
+  const recorded = new Set<string>()
+  const stopDropped = getSpeechBusContext().on(voiceMessageDropped, ({ body }) => {
+    if (body && recorded.delete(body.id))
+      options.onError(t('stage.chat.voice-message.no-speech'))
+  })
+  onScopeDispose(stopDropped)
+
   function fail(cause: unknown, fallback: string) {
     active.value = undefined
     options.onError(errorMessageFrom(cause) ?? fallback)
@@ -148,6 +159,7 @@ export function useVoiceComposer(options: UseVoiceComposerOptions) {
     const id = nanoid()
     const sessionId = options.sessionId()
     if (mode === 'audio') {
+      recorded.add(id)
       active.value = { mode, id, finishing: false, seen: false, send: true }
       const replyToMessageId = options.replyToMessageId?.()
       const tools = options.tools?.()

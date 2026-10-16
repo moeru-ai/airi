@@ -4,7 +4,7 @@ import { enableChatMicrophone } from '../shared/interactions'
 import { aliyunNlsAsr, openaiAsr } from '../shared/providers'
 
 describe('audio input pipeline', () => {
-  // The fixture uses the repository recording at docs/content/en/blog/DevLog-2025.03.20/assets/ashley-pitch-test.mp3.
+  // The fixture uses the recording at content/en/blog/DevLog-2025.03.20/assets/ashley-pitch-test.mp3 of moeru-ai/airi-docs.
   // It has 20 seconds of leading silence and 4 seconds of trailing silence in mono 16 kHz PCM WAV format.
   it('preserves the complete phrase after long leading silence', {
     input: new URL('./input.test.wav', import.meta.url),

@@ -1,14 +1,19 @@
 import type { SpeechSubmission } from '@proj-airi/core-agent'
 
 import type { VoiceDraft } from '../services/speech/bus'
+import type { ChatToolReference } from '../types/chat'
 
+import { joinTranscriptSegments } from '@proj-airi/provider-inference'
 import { ref } from 'vue'
 
 import { useChatStore } from '../stores/chat'
 import { useHearingStore } from '../stores/modules/hearing'
 
-/** Owns voice draft selection, source evidence, and submission to the chat runtime. */
-export function useVoiceDrafts(report: (cause: unknown) => void) {
+/**
+ * Owns voice draft selection, source evidence, and submission to the chat runtime.
+ * `tools` returns the tool references of a sent draft, read once at each send. Without tools, a draft sends none.
+ */
+export function useVoiceDrafts(report: (cause: unknown) => void, tools: () => readonly ChatToolReference[] | undefined) {
   const chat = useChatStore()
   const hearing = useHearingStore()
   const drafts = ref<VoiceDraft[]>([])
@@ -47,7 +52,8 @@ export function useVoiceDrafts(report: (cause: unknown) => void) {
       id,
       sessionId: submission.sessionId,
       rawText: evidence.map(source => source.transcript.raw.text).join('\n'),
-      text: [existing?.text, text].filter(Boolean).join('\n'),
+      // Later speech continues the same paragraph. Presentation shows live speech with the same joining rule.
+      text: joinTranscriptSegments([existing?.text ?? '', text]),
     }
 
     sources.set(id, evidence)
@@ -74,16 +80,28 @@ export function useVoiceDrafts(report: (cause: unknown) => void) {
     }
 
     const speechContext = formatSpeechContext(sources.get(id))
+    // The send crosses windows as a synced action, so it takes a plain copy of the references.
+    const requestTools = tools()?.map(tool => ({ ...tool }))
     signal?.addEventListener('abort', cancel, { once: true })
-    const committed = chat.submit({ sessionId: draft.sessionId, messageId: draft.id, text: draft.text, speechContext }).then((receipt) => {
+    markSending(id, true)
+    const committed = chat.submit({ sessionId: draft.sessionId, messageId: draft.id, text: draft.text, speechContext, ...(requestTools ? { tools: requestTools } : {}) }).then((receipt) => {
       removeDraft(id)
       return receipt
+    }).catch((error: unknown) => {
+      // A failed send keeps the draft, so the user can edit it and send it again.
+      markSending(id, false)
+      throw error
     }).finally(() => {
       sending.delete(id)
       signal?.removeEventListener('abort', cancel)
     })
     sending.set(id, committed)
     return committed
+  }
+
+  /** Publishes the send state. Controls hide a draft while it is sent and show it again after a failure. */
+  function markSending(id: string, value: boolean) {
+    drafts.value = drafts.value.map(item => item.id === id ? { ...item, sending: value } : item)
   }
 
   function removeDraft(id: string) {

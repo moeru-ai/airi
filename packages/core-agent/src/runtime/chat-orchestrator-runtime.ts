@@ -6,7 +6,7 @@ import type { AgentContextPort } from '../contracts/context-port'
 import type { AgentLLMPort } from '../contracts/llm-port'
 import type { AgentForegroundStreamPort } from '../contracts/stream-port'
 import type { AssistantTurn, Conversation, Turn } from '../messages/types'
-import type { ChatHistoryItem, ChatSlices, ChatStreamEventContext, ChatToolReference, ContextMessage, StreamingAssistantMessage } from '../types/chat'
+import type { ChatHistoryItem, ChatInvokedSkill, ChatSlices, ChatStreamEventContext, ChatToolReference, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 import type { LlmUsage, StreamEvent, StreamOptions } from '../types/llm'
 
 import { createBilingualTurnSplitter, projectSpokenText, TTS_FLUSH_INSTRUCTION } from '@proj-airi/pipelines-audio'
@@ -110,16 +110,20 @@ function hasAssistantOutput(message: StreamingAssistantMessage) {
     || !!message.categorization?.reasoning.trim()
 }
 
-/** Encoded attachments belong to one user message. Media capture and storage stay outside chat orchestration. */
+/**
+ * Attachments belong to one user message. Media capture and storage stay outside chat orchestration.
+ *
+ * `data` holds base64 bytes. `url` holds a reference that the application stores in the message as it is,
+ * such as an asset URL, and resolves before provider rendering.
+ */
 export type ChatAttachment
-  = { type: 'image', data: string, mimeType: string }
-    | {
+  = ({ type: 'image' } & ({ data: string, mimeType: string, url?: never } | { url: string, mimeType?: string, data?: never }))
+    | ({
       type: 'audio'
-      data: string
       mimeType: 'audio/wav' | 'audio/mpeg'
       /** Speech recognized while the recording was captured. Text-only models receive it instead of the audio. */
       transcript?: string
-    }
+    } & ({ data: string, url?: never } | { url: string, data?: never }))
 
 /** Options accepted by the chat orchestrator runtime for one user send. */
 export interface ChatOrchestratorSendOptions {
@@ -146,6 +150,12 @@ export interface ChatOrchestratorSendOptions {
   attachments?: ChatAttachment[]
   /** Tool definitions passed through to the LLM stream port. */
   tools?: StreamOptions['tools']
+  /**
+   * Reads the current settings of the request owner before each model request.
+   * The runtime appends this request's system prompt supplement to the returned prompt.
+   * Omission keeps `model`, `chatProvider`, and the composed system prompt for every step.
+   */
+  resolveStep?: StreamOptions['resolveStep']
   /** Serializable tool names stored with the user message for later requests. */
   toolReferences?: ChatToolReference[]
   /** Original transport input metadata used by bridge/devtools observers. */
@@ -156,6 +166,21 @@ export interface ChatOrchestratorSendOptions {
   temperature?: number
   /** Top_p for the LLM request. */
   topP?: number
+  /** Work beside the conversation, for example a task recipe in its own session. It never speaks. */
+  background?: boolean
+  /** The send answers an external scene, for example a Discord channel. Its reply returns as text and never speaks on the host. */
+  scene?: boolean
+  /** Skills that the owner invoked with this message. They are stored with it. */
+  skills?: readonly ChatInvokedSkill[]
+  /**
+   * The text is a notice for the conversation, not owner speech, for example a finished background task.
+   * It is stored as a user message marked as a notice, so no request reads it as owner speech.
+   * The reply is stored as a proactive message, and the run can stay quiet.
+   */
+  notice?: {
+    /** What sent the notice, for the reply's trace. */
+    source: string
+  }
 }
 
 interface QueuedSend {
@@ -308,6 +333,11 @@ export interface ChatOrchestratorRuntimeDeps {
    * setting change and keep making the model emit bracketed translations.
    */
   bilingualContextKey?: string
+  /**
+   * Returns the identity and format rules for the session's persona, read when the send starts.
+   * With it, history carries no identity. Stored system messages are skipped, so a persona edit or switch reaches the next send of its own sessions only.
+   */
+  getSystemPrompt?: (sessionId: string) => string | undefined
   /** Runtime context providers ingested immediately before prompt composition. */
   runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
   /** Clock used for persisted message timestamps. @default Date.now */
@@ -631,10 +661,18 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const turns = history.flatMap((message, historyIndex): Turn[] => {
       if (message.role === 'assistant' && message.generationTranscript)
         return [structuredClone(unwrapMessage(message.generationTranscript))]
+      const noticePrefix = message.role === 'user' && message.notice ? `[Notice from ${message.notice.source}, not a message from the owner.]\n` : ''
       const source = message.role === 'user'
-        ? prependTextToContent(unwrapMessage(message), `${formatTimePrefix(getStablePromptTimestamp(message, nowTs))}${formatReplyPromptPrefix(message.replyToMessageId, messagesById)}`)
+        ? prependTextToContent(unwrapMessage(message), `${formatTimePrefix(getStablePromptTimestamp(message, nowTs))}${noticePrefix}${formatReplyPromptPrefix(message.replyToMessageId, messagesById)}`)
         : unwrapMessage(message)
-      return chatMessagesToTurns(source.role === 'assistant' && source.providerTranscript?.length ? source.providerTranscript : [source], message.id ?? `history-${historyIndex}`)
+      const turns = chatMessagesToTurns(source.role === 'assistant' && source.providerTranscript?.length ? source.providerTranscript : [source], message.id ?? `history-${historyIndex}`)
+      // An invoked skill joins its message as the owner's own instruction, like a slash command.
+      if (message.role === 'user' && message.skills?.length) {
+        const userTurn = turns.find(turn => turn.type === 'user')
+        if (userTurn?.type === 'user')
+          userTurn.content.push(...message.skills.map(skill => ({ type: 'text' as const, text: `\n\n[The owner used the skill "${skill.name}". Follow its steps in this reply and in later replies while they fit.]\n${skill.instructions}` })))
+      }
+      return turns
     })
     return { turns }
   }
@@ -662,12 +700,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     // must not inflate the one-time activation milestones.
     const isActivationAttempt = !existingSessionMessages.some(message => message.role === 'assistant' && !message.interrupted)
 
-    // Capture the bilingual snapshot before any async hook and before the
-    // runtime contexts (which carry the bilingual prompt) are ingested. The
-    // prompt mode and the output splitter must share this one value: reading
-    // the settings again after `emitBeforeMessageComposedHooks` could pair a
-    // bilingual prompt with no splitter (brackets spoken aloud) or a splitter
-    // with no bilingual prompt (flush-only chunking on plain text).
+    // Read once before async hooks and runtime-context ingest. The bilingual
+    // prompt and the output splitter must share this value, or a mid-send
+    // settings change pairs prompt and splitter in mismatched modes.
     const bilingualSnapshot = deps.getBilingualSnapshot?.()
 
     // Datetime is no longer injected through the side-channel context store.
@@ -697,6 +732,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       contexts: deps.context.snapshot(),
       composedMessage: [],
       input: options.input,
+      // The owner hears the reply unless it answers a scene or runs in the background.
+      speaks: !options.background && !options.scene,
     }
     deps.onLifecycle?.({
       phase: 'before-compose',
@@ -720,6 +757,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       tool_results: [],
       createdAt: now(),
       id: assistantMessageId,
+      ...(options.notice ? { proactive: { turnId: roundId, source: options.notice.source } } : {}),
     }
     activeSends.get(sessionId)!.turnId = roundId
     beginStream(sessionId, buildingMessage)
@@ -760,13 +798,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (options.attachments) {
         for (const attachment of options.attachments) {
           if (attachment.type === 'audio') {
-            contentParts.push({ type: 'input_audio', input_audio: { data: attachment.data, format: attachment.mimeType === 'audio/wav' ? 'wav' : 'mp3' } })
+            contentParts.push({ type: 'input_audio', input_audio: { data: attachment.url ?? attachment.data, format: attachment.mimeType === 'audio/wav' ? 'wav' : 'mp3' } })
           }
           if (attachment.type === 'image') {
             contentParts.push({
               type: 'image_url',
               image_url: {
-                url: `data:${attachment.mimeType};base64,${attachment.data}`,
+                url: attachment.url ?? `data:${attachment.mimeType};base64,${attachment.data}`,
               },
             })
           }
@@ -797,6 +835,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       else
         delete streamingMessageContext.message.replyToMessageId
 
+      // A notice is stored with its source, so later requests still know it, and none read it as owner speech.
       const userMessage = {
         role: 'user' as const,
         content: finalContent,
@@ -804,7 +843,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         id: roundId,
         ...(replyToMessageId ? { replyToMessageId } : {}),
         ...(options.toolReferences?.length ? { tools: options.toolReferences } : {}),
+        ...(options.skills?.length ? { skills: options.skills.map(skill => ({ ...skill })) } : {}),
         ...(audioTranscripts?.some(Boolean) ? { audioTranscripts } : {}),
+        ...(options.notice ? { notice: { source: options.notice.source } } : {}),
       }
       const receipt = await deps.session.commitUserMessage(sessionId, userMessage)
       accepted.resolve({ sessionId, messageId: receipt.messageId })
@@ -814,17 +855,19 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       }
 
       // Cloud sync v1: only the raw text part round-trips; image attachments
-      // and other non-text parts stay local.
-      deps.onUserMessageAppended?.({
-        sessionId,
-        message: userMessage,
-        messageText: sendingMessage,
-        source: sendSource,
-        model: options.model,
-        provider: activeProvider,
-        roundId,
-        turnIndex,
-      })
+      // and other non-text parts stay local. A notice is not owner text, so it stays local too.
+      if (!options.notice) {
+        deps.onUserMessageAppended?.({
+          sessionId,
+          message: userMessage,
+          messageText: sendingMessage,
+          source: sendSource,
+          model: options.model,
+          provider: activeProvider,
+          roundId,
+          turnIndex,
+        })
+      }
 
       const sessionMessagesForSend = deps.session.getSessionMessages(sessionId)
       deps.onUserTurnReady?.({
@@ -835,6 +878,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       const categorizer = createStreamingCategorizer(activeProvider)
       let streamPosition = 0
+      let pendingSpeechWhitespace = ''
+      let speechStarted = false
       const stickers = options.stickers
       let stickerEmitted = false
 
@@ -883,27 +928,27 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         return true
       }
 
-      async function routeSpeechEvents(text: string) {
+      async function routeSpeechEvents(rawText: string) {
+        if (!rawText)
+          return
+
+        let text = rawText
+        // Leading whitespace belongs to speech only after visible text arrives.
+        if (!speechStarted) {
+          pendingSpeechWhitespace += text
+          if (!pendingSpeechWhitespace.trim())
+            return
+          text = pendingSpeechWhitespace
+          pendingSpeechWhitespace = ''
+          speechStarted = true
+        }
+
         if (!bilingual) {
-          if (text.trim()) {
-            buildingMessage.content += text
-
-            await hooks.emitTokenLiteralHooks(text, streamingMessageContext)
-            if (shouldAbort())
-              return
-
-            const lastSlice = buildingMessage.slices.at(-1)
-            if (lastSlice?.type === 'text') {
-              lastSlice.text += text
-            }
-            else {
-              buildingMessage.slices.push({
-                type: 'text',
-                text,
-              })
-            }
-            updateStream(sessionId, buildingMessage)
-          }
+          appendTextToBuildingMessage(text)
+          await hooks.emitTokenLiteralHooks(text, streamingMessageContext)
+          if (shouldAbort())
+            return
+          updateStream(sessionId, buildingMessage)
           return
         }
 
@@ -986,7 +1031,17 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         ],
       })
 
-      const context = buildContext(sessionMessagesForSend)
+      // Identity comes from the session's persona at request time. Without a host identity, the stored history keeps its own system message.
+      const systemPrompt = deps.getSystemPrompt?.(sessionId)
+      const context = buildContext(deps.getSystemPrompt ? sessionMessagesForSend.filter(message => message.role !== 'system') : sessionMessagesForSend)
+      // The stored notice ends the history. Only this request tells the model that it can stay quiet about it.
+      if (options.notice) {
+        const lastTurn = context.turns.at(-1)
+        if (lastTurn?.type === 'user')
+          lastTurn.content.push({ type: 'text', text: '\n[Speak about this notice only if it fits now, or stay quiet.]' })
+      }
+      if (systemPrompt?.trim())
+        context.turns.unshift({ id: 'system-identity', type: 'system', authority: 'system', content: [{ type: 'text', text: systemPrompt }] })
       const stickerPrompt = stickers?.length
         ? [
             'You can send one optional sticker per reply with a marker from this catalog.',
@@ -1051,9 +1106,17 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         hasVoice,
       })
 
+      const resolveOwnerStep = options.resolveStep
       await waitForProvider(deps.llm.stream(options.model, options.chatProvider, context, {
         headers,
         providerId: activeProvider,
+        // A resolved prompt replaces the composed system message, so it must carry the same supplement.
+        resolveStep: resolveOwnerStep
+          ? async () => {
+            const step = await resolveOwnerStep()
+            return { ...step, systemPrompt: [step.systemPrompt, systemPromptSupplement].filter(Boolean).join('\n\n') }
+          }
+          : undefined,
         supportsAudioInput: options.supportsAudioInput,
         supportsVisionInput: options.supportsVisionInput,
         abortSignal,
@@ -1084,7 +1147,6 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         onStreamEvent: async (event: StreamEvent) => {
           if (shouldAbort())
             return
-
           switch (event.type) {
             case 'search':
               buildingMessage.search = { id: event.id, status: event.status }
@@ -1207,8 +1269,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         console.error('Assistant response observer failed:', error)
       }
 
-      if (!shouldAbort() && (buildingMessage.slices.length > 0 || generatedTurn?.rounds.length)) {
+      // A notice lets the conversation stay quiet. A reply to it with no text and no tool call leaves no assistant message and no reply hooks.
+      const silent = Boolean(options.notice) && !fullText.trim() && !buildingMessage.slices.some(slice => slice.type === 'tool-call')
+      if (!silent && !shouldAbort() && (buildingMessage.slices.length > 0 || generatedTurn?.rounds.length)) {
         const finalAssistant = buildingMessage
+        finalAssistant.completedAt = now()
         deps.session.appendSessionMessage(sessionId, finalAssistant)
         assistantStored = true
         deps.onAssistantMessageAppended?.({
@@ -1231,7 +1296,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       await hooks.emitAfterSendHooks(sendingMessage, streamingMessageContext)
       if (shouldAbort())
         return
-      await hooks.emitAssistantMessageHooks({ ...buildingMessage }, fullText, streamingMessageContext)
+      if (!silent)
+        await hooks.emitAssistantMessageHooks({ ...buildingMessage }, fullText, streamingMessageContext)
       if (shouldAbort())
         return
       await hooks.emitChatTurnCompleteHooks({
@@ -1278,7 +1344,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (!assistantStored && !generationCompleted && hasAssistantOutput(buildingMessage)) {
         // Keep received output local, but do not run completion hooks or cloud
         // sync for an assistant turn that never reached a terminal event.
-        deps.session.appendSessionMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), interrupted: true })
+        deps.session.appendSessionMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), interrupted: true, completedAt: now() })
       }
       resetForegroundStream(sessionId)
 
@@ -1309,7 +1375,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         && abortSignal.aborted
         && !isStaleGeneration()
         && hasAssistantOutput(buildingMessage)) {
-        deps.session.appendSessionMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), interrupted: true })
+        deps.session.appendSessionMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), interrupted: true, completedAt: now() })
         resetForegroundStream(sessionId)
       }
       activeSends.delete(sessionId)

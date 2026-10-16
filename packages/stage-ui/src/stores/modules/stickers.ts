@@ -118,8 +118,8 @@ export const useStickersStore = defineStore('stickers', () => {
   }
 
   function resetState() {
-    enabled.value = false
-    frequency.value = 50
+    enabled.reset()
+    frequency.reset()
   }
 
   watch(data, () => {

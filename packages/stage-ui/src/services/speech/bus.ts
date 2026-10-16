@@ -1,6 +1,7 @@
 import type { TurnRef } from '@proj-airi/core-agent'
 
 import type { VoiceMessageSnapshot } from '../../libs/voice/voice-message'
+import type { WakeWordPreparation } from '../../libs/voice/wake-word-detector'
 import type { ChatToolReference } from '../../types/chat'
 
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
@@ -8,12 +9,21 @@ import { createContext as createBroadcastChannelContext } from '@moeru/eventa/ad
 
 /** Snapshot served by the renderer that owns active speech playback. */
 export interface SpeechOutputPlaybackState {
-  /** Whether the output host is currently playing assistant speech. */
+  /** Whether the output host is currently playing assistant speech. It turns false in the pause between two sentences. */
   speaking: boolean
+  /**
+   * Whether an open voice response already played audio. It stays true in the
+   * pauses between sentences, and turns false when no response is open. Muted
+   * speech, or a speech provider that returns no audio, keeps it false. The danmaku chat window keeps a spoken reply on screen until it
+   * turns false.
+   */
+  voicing: boolean
 }
 
 /** Cross-renderer request for the active speech output host's playback state. */
 export const speechOutputGetPlaybackState = defineInvokeEventa<SpeechOutputPlaybackState>('eventa:audio:speech:output:get-playback-state')
+/** The output host sends its new playback state after `speaking` or `voicing` changes. */
+export const speechOutputPlaybackStateChangedEvent = defineEventa<SpeechOutputPlaybackState>('eventa:audio:speech:output:playback-state-changed')
 
 const BUS_CHANNEL_NAME = 'proj-airi:pipelines:outputs:speech'
 
@@ -70,12 +80,16 @@ export interface VoiceDraft {
   readonly sessionId: string
   readonly rawText: string
   text: string
+  /** The host is sending the draft. A failed send clears this flag and keeps the draft. */
+  readonly sending?: boolean
 }
 
 /** A snapshot replaces earlier presentation state. Commands still target the original request or draft identity. */
 export interface VoiceHostSnapshot {
   readonly connected: boolean
   readonly microphone?: { readonly enabled: boolean, readonly ready: boolean, readonly error?: string }
+  /** Preparation of the host's wake word detector. Settings in other windows read it from here. */
+  readonly wakeWords?: { readonly preparation: WakeWordPreparation, readonly error?: string }
   readonly input?: {
     readonly requestId: string
     readonly sessionId: string
@@ -104,6 +118,12 @@ export type VoiceInputCommand
     target?: 'draft' | 'composer'
   }
   | { type: 'end' | 'cancel', requestId: string }
+  /**
+   * Cancels the input that the snapshot presents, also one that VAD or a wake word began.
+   * A dismiss control, such as Escape in the desktop inlay, sends the `requestId` that it shows.
+   * The host ignores the command when another input is presented now, so a stale control cannot cancel newer speech.
+   */
+  | { type: 'cancel-presented', requestId: string }
   | { type: 'edit-draft', draftId: string, text: string }
   | { type: 'send-draft' | 'discard-draft' | 'select-draft', draftId: string }
 
@@ -160,3 +180,16 @@ export type VoiceMessageCommand
 export const voiceMessageCommand = defineInvokeEventa<{ status: 'accepted' | 'closed' }, VoiceMessageCommand>('eventa:voice:message-command')
 export const voiceMessagesChanged = defineEventa<readonly VoiceMessageSnapshot[]>('eventa:voice:messages-changed')
 export const voiceRequestMessages = defineEventa('eventa:voice:request-messages')
+/**
+ * A voice message left the chat after its submit, because the transcriber recognized no speech in it.
+ * The control that recorded it reports `error`.
+ */
+export const voiceMessageDropped = defineEventa<{ id: string, sessionId: string, error: string }>('eventa:voice:message-dropped')
+
+/**
+ * A window that needs the microphone alone, for example for a voiceprint enrollment, holds a capture lease.
+ * While any lease holds, the voice host begins no input and records no voice message, and it ends the ones that run.
+ * The holder renews the lease before `until`, a Unix time in milliseconds, and sends `until: 0` to release it.
+ * A lease that nobody renews ends at `until`, so a closed window cannot keep the voice host paused.
+ */
+export const voiceCaptureLease = defineEventa<{ id: string, until: number }>('eventa:voice:capture-lease')

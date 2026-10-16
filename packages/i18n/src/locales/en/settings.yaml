@@ -130,6 +130,17 @@ model-select:
     select: Pick
     import: Import
     remove: Remove
+    sync:
+      upload: Upload to cloud
+      delete-cloud: Delete from cloud
+      status:
+        local-only: This device only
+        queued: Waiting to upload
+        uploading: Uploading
+        synced: Synced to cloud
+        cloud-only: In cloud, not downloaded
+        downloading: Downloading
+        failed: Sync failed
     confirm: Confirm
   live2d-report:
     title: Before import
@@ -262,18 +273,18 @@ live2d:
   clear-model-cache: Clear model cache
   expressions:
     title: Expressions
+    description: Activate an Expression temporarily or choose whether AIRI can use it.
     override-toggle: Expression system
     sdk-preset-preserved-notice: >
       SDK expression manager and eye blink are preserved when disabled.
     no-expression: No expressions available for this model.
-    llm-integration-wip: LLM tool integration is not yet wired up.
-    save-default: Save expression defaults
     reset: Reset all expressions
-    expose-to-llm-toggle: Expose to LLM
-    expose-to-llm-options:
-      none: None
-      all: All
-      custom: Custom
+    parameter-count: '{count} parameters'
+    actions:
+      activate: 'Activate {name}'
+      deactivate: 'Deactivate {name}'
+      show-to-airi: 'Make {name} available to AIRI'
+      hide-from-airi: 'Hide {name} from AIRI'
 microphone: Microphone
 models: Model
 pages:
@@ -285,6 +296,8 @@ pages:
     logout: Sign out
     fluxBalance: Flux Balance
     viewFluxDetails: View details
+    capacitorEntry: Capacitor
+    viewCapacitor: View
     signedInAs: Signed in as
     profile:
       tab: Profile
@@ -360,18 +373,28 @@ pages:
         action: Delete account
         modal:
           title: Delete account?
-          warning: This cannot be undone. Active subscription will be canceled, Flux balance cleared.
+          warning: This cannot be undone. Your Flux balance is cleared. Cancel an active subscription first.
           confirmEmail:
             label: Type your email to confirm
             placeholder: ''
             mismatch: Email does not match.
           confirm: Send confirmation email
+          deleteNow: Delete permanently
+          confirmPhrase: Type DELETE to confirm
+          signInAgain: Sign in again
           cancel: Cancel
         message:
+          deleted: Your account has been deleted.
           emailSent: Check {email} for the deletion link.
         error:
+          reauthenticate: Sign in again, then return here to confirm deletion. No email is sent.
           fallback: Could not start deletion. Try again later.
+          subscriptionActive: Your subscription is still active. Cancel it on the Capacitor page first, then delete your account.
   card:
+    wake-word-conflicts:
+      title: 'One shared wake word pronunciation needs a character | {count} shared wake word pronunciations need a character'
+      description: Two cards use the same pronunciation. No character answers it until you choose one.
+      action: Choose who answers
     sync:
       notice: Character cards sync to your account. A deleted card stays restorable for 30 days.
       off_notice: You are signed in, but character card sync is off.
@@ -486,7 +509,7 @@ pages:
         systemprompt: You will receive messages, answer to them like a real human.
         posthistoryinstructions: Remember to imitate an human.
       modules_info: >-
-        Configure modules for this character card. Empty fields inherit global settings.
+        Configure modules for this character card. Empty chat, vision, and speech fields inherit global settings. No Body Model disables the renderer.
       sections:
         chat: Chat
         vision: Vision
@@ -495,6 +518,7 @@ pages:
       use_default: Use default
       use_default_not_configured: Use default (not configured)
       inherit_global_settings: Inherit global settings
+      no_model: No model
       fields_info:
         subtitle: >-
           You can put here some details about the character you are creating,
@@ -573,6 +597,13 @@ pages:
         title: Models
         description: Remove imported Live2D, VRM, Spine, and MMD models.
         delete: Delete all models
+      model-downloads:
+        title: Downloaded speech models
+        description: Sherpaw model files stored on this device.
+        empty: No speech models are downloaded.
+        wake-word-model: Wake word model
+        voiceprint-model: Voiceprint model
+        refresh: Refresh
       modules:
         title: Modules
         description: Reset module preferences and credentials.
@@ -606,6 +637,8 @@ pages:
       import_error: Failed to import chat sessions. Please check the file format.
       chats_deleted: Chat sessions deleted.
       models_deleted: Models deleted.
+      model_download_cancelled: Model download canceled.
+      model_download_removed: Downloaded model removed.
       modules_reset: Module settings reset.
       providers_reset: Provider settings reset.
       all_deleted: All local data deleted.
@@ -793,6 +826,8 @@ pages:
             title: Model options
             thinking:
               label: Thinking
+              required-description: This model requires Thinking.
+              provider-default-description: AIRI has no reasoning settings for this model. OpenRouter applies its default.
       title: Consciousness
     description: Thinking, vision, speech synthesis, gaming, etc.
     gaming-factorio:
@@ -847,10 +882,99 @@ pages:
     hearing:
       description: Configure how speech recognition works
       title: Hearing
+      transcriber:
+        title: Speech recognition
+        description: Choose the transcription provider and model, and test your microphone.
+      wake-words:
+        title: Wake words
+        description: See the wake words of each character, and choose who answers a shared pronunciation.
+        intro: Each character keeps its wake words on its card. To change the words, ask the character in chat.
+        empty: This character has no wake words.
+        state:
+          active: Active
+          paused: Paused. Choose a character to answer it.
+          other: 'Answered by {name}'
+          unsupported: Not available with the current wake word model
+        conflicts:
+          title: Shared pronunciations
+          description: Two or more characters use the same pronunciation. Choose the character that answers it on this device. Each card keeps its words.
+          choose-label: Character that answers
+          choose: '{name} ("{word}")'
+          answered-by: '{name} answers'
+          unresolved: No character answers this pronunciation.
+      voiceprint:
+        title: Voiceprint
+        description: Enroll your voice, so that AIRI can recognize it.
+        intro: A voiceprint is a list of numbers that the voiceprint model computes from your speech. It contains no audio, but it can identify you.
+        privacy: AIRI keeps your voiceprint only on this device. Card export does not include it, and AIRI does not upload it. To delete it, use Delete voiceprint on this page, or Delete all data in Data settings.
+        unused: No feature uses the voiceprint yet.
+        download: The first enrollment downloads the voiceprint model, about 28 MB.
+        status:
+          none: You have no voiceprint.
+          enrolled: 'Enrolled on {date}, from {seconds} s of speech.'
+          outdated: The voiceprint model changed. Enroll again to use your voiceprint.
+        instructions: Stay alone near the microphone. Click Start recording, then read these sentences aloud in your usual voice.
+        sentence-1: Today I want to check the weather, read my messages, and plan the rest of my day.
+        sentence-2: I usually talk to AIRI in the evening, when the room is quiet and I have some free time.
+        sentence-3: Please remember my voice, so that you can tell when I am the one who speaks.
+        progress: '{seconds} s of speech. Enrollment needs at least {min} s.'
+        start: Start recording
+        again: Enroll again
+        finish: Finish
+        cancel: Cancel
+        delete: Delete voiceprint
+        enrolling: Computing your voiceprint...
+        result:
+          enrolled: Your voiceprint is saved.
+          cancelled: Enrollment cancelled.
+          too-short: 'The recording had {seconds} s of speech. Enrollment needs at least {min} s. Record again.'
+          error: 'Enrollment failed: {error}'
       sections:
         section:
           provider-selection:
             description: Select the suitable speech recognition provider
+          microphone:
+            title: Microphone
+            label: Microphone
+            description: Turn on the microphone for Hearing. The input mode controls when AIRI listens.
+            error: The microphone is not available
+          input-device:
+            label: Input device
+            description: Select the microphone that AIRI uses.
+            playground-description: Hearing and the playground use this microphone.
+            placeholder: Select a microphone
+          auto-send:
+            title: Transcripts
+            description: Choose what AIRI does with the text of your speech.
+            label: Send automatically
+            label-description: AIRI sends the transcript to chat after a delay. Turn this off to read and edit the text first. Each sent message uses tokens.
+            delay: Send delay
+            delay-description: The time that AIRI waits before it sends the transcript.
+            immediate: Immediately
+          input-mode:
+            title: Input mode
+            description: Choose how AIRI starts to listen while the microphone is on.
+            label: Start listening
+            always-on: Always on
+            always-on-description: AIRI listens all the time and replies when you speak.
+            push-to-talk: Push to Talk
+            push-to-talk-description: AIRI listens only while you hold the Push to Talk key. The microphone is open only during the hold.
+            push-to-talk-unavailable: Not available here. This app has no Push to Talk key on this device.
+            stranded-title: Push to Talk is not available here
+            stranded-description: This app has no Push to Talk key on this device, so AIRI does not listen. To talk to AIRI here, choose Always on or Wake words.
+            wake-word: Wake words
+            wake-word-description: The microphone stays on, but AIRI listens only after you say a character's wake word.
+            wake-word-status:
+              no-words: No character has wake words. Ask a character in chat to set its wake words.
+              unconfigured: Wake word detection starts when the microphone is on.
+              preparing: Preparing the wake word model…
+              ready: Wake words are ready.
+              error: 'The wake word model is not available: {error}'
+          end-judge:
+            title: End of speech
+            description: After you pause, a chat model reads the transcript and decides if you finished. If you did not finish, AIRI waits 3 more seconds for you to continue.
+            enabled: Check if I finished speaking
+            enabled-description: The transcript of each pause is sent to the rewrite model. When this is off, AIRI ends your speech after a short pause.
           rephrase:
             title: Transcript rewrite
             description: A chat model fixes recognition errors and removes filler words before a transcript becomes a draft. The original text is kept.
@@ -890,6 +1014,90 @@ pages:
               filtering had no effect on the last transcription.
     memory-long-term:
       description: Long-term memory specific settings and management
+      enable: Use long-term memory
+      enable-description: The character remembers what you talk about. When this is off, it remembers nothing.
+      memories:
+        title: Memories
+        description: Each character keeps its own secrets, and the others cannot see them. After you share a secret, every character knows it, and you cannot take it back. You can delete any secret, but you cannot rewrite one.
+        empty: No memories yet.
+        forget: 'Forget {name}'
+        make_general: 'Share {name} with every character'
+        general: Shared secrets
+        entry:
+          title: Memories
+          description: Each character's secrets, and the secrets that they share.
+      recipes:
+        title: Recipes
+        empty: No recipes yet.
+        sources:
+          user: Yours
+          model: Proposed by the character
+        pending: Waits for your approval. After one approval, it never asks again.
+        approve: Approve
+        remove: Remove
+        add:
+          name: Name
+          description: When to use it
+          instructions: What to do
+          keywords:
+            label: Code words
+            description: Say a code word, and the character uses this recipe.
+          submit: Add
+        decision:
+          question: Question
+          type:
+            label: How to answer
+            noul: Yes or no
+            choice: Pick one option
+          yes_means: '"Yes" means'
+          no_means: '"No" means'
+          option: What this option means
+          add_option: Add an option
+          remove_option: Remove
+          action:
+            label: Then
+            reply: Reply as usual
+            stay_quiet: Read without replying
+            hint: Reply with a note in mind
+            recipe: Use another recipe next
+          hint_text: Note to keep in mind
+          target_recipe: Recipe
+          keywords: The character judges only after you say a code word.
+          note: After a code word, the character reads the conversation, picks one answer, and acts on it.
+        entry:
+          title: Recipes
+          description: The character's skills, the cues that start them, and the proposals that wait for you.
+        add_button: Add recipe
+        types:
+          title: Choose a recipe type
+          instructions:
+            title: Instructions
+            description: Steps that the character uses when they fit, or when you say a code word.
+          decision:
+            title: Decision
+            description: After a code word, the character answers a question before it replies. Each answer leads to its own action.
+        styles:
+          instructions: Instructions
+          decision: Decision
+        cancel: Cancel
+        edit: Edit
+        save: Save
+        enabled: 'Use {name}'
+        keywords_summary: 'Code words: {words}'
+        tabs:
+          conversation: In conversation
+          auto_run: Auto-run
+          conversation_description: Recipes for chatting. They act only when you send a message.
+          auto_run_description: Recipes that start on their own when a cue comes. Each run costs a model call.
+        background:
+          label: Run in the background
+          description: For tasks that take time, such as research. It works in the background and brings the result back.
+          tag: Background
+        grants: 'Approving lets it: {what}'
+        proposals:
+          label: Let the character propose recipes
+          description: A recipe that you ask for is saved as a proposal. It works only after you approve it.
+        model_flow: The character decides what each run does
       title: Long-Term Memory
     memory-short-term:
       description: Short-term memory specific settings and management
@@ -1080,16 +1288,173 @@ pages:
         label: Long-lived access token
         placeholder: Paste a token from your Home Assistant profile
         description: Create one in your Home Assistant profile, under Security.
-        saved: A token is stored. Leave the field empty to keep it.
+        saved: A token is stored. Leave the field empty to keep it. Enter the token again when the address changes.
       note: The token stays on this device. It does not sync to your account.
       actions:
         save: Save
         test: Test
       status:
         saved: Saved.
+        saved-cleared: Saved. The address changed, so the device lists are empty.
         testing: Testing the connection...
         reachable: 'Connected. Home Assistant reported {count} entities.'
         failed: 'Could not connect. {message}'
+        rejected-token: Enter a Home Assistant access token.
+        rejected-address: The address changed. Enter the access token for the new address.
+        failed-policy: The device list did not reach the window that runs the tools, so the address did not change. Try again.
+        failed-policy-edit: The change did not reach the window that runs the tools. The model still holds the list from before the change. Try again.
+        failed-policy-move: The address changed, but the device lists did not reach the window that runs the tools. Try again.
+        failed-policy-rollback: The save was refused. The device list did not reach the window that runs the tools, so the model reaches no device. Try again.
+      access:
+        label: Device access
+        description: Choose which devices AIRI reads and controls.
+        mode-all: Every device
+        mode-allow: Allow list
+        mode-deny: Block list
+        all-hint: AIRI reaches every device. Pick a list to limit it.
+        rule-allow: Only the devices you select are reachable.
+        rule-deny: Every device except the ones you select is reachable.
+        selected-count: '{count} selected'
+        empty-warning: Pick at least one device. AIRI reaches nothing until you do.
+        search: Search devices
+        reload: Reload devices
+        loading: Loading devices...
+        no-devices: Home Assistant reported no devices.
+        no-match: No device matches.
+        tab-all: All
+        shown-count: '{shown} of {total} devices'
+        load-more: 'Show {count} more'
+        select-matching: Select all matches
+        clear-matching: Clear all matches
+      states:
+        generic:
+          'on': 'On'
+          'off': 'Off'
+          above_horizon: Above horizon
+          armed: Armed
+          armed_away: Armed away
+          armed_custom_bypass: Armed custom bypass
+          armed_home: Armed home
+          armed_night: Armed night
+          armed_vacation: Armed vacation
+          arming: Arming
+          auto: Auto
+          below_horizon: Below horizon
+          buffering: Buffering
+          cleaning: Cleaning
+          clear-night: Clear, night
+          closed: Closed
+          closing: Closing
+          cloudy: Cloudy
+          cool: Cool
+          disarmed: Disarmed
+          disarming: Disarming
+          docked: Docked
+          dry: Dry
+          eco: Eco
+          electric: Electric
+          error: Error
+          exceptional: Exceptional
+          fan_only: Fan only
+          fog: Fog
+          gas: Gas
+          hail: Hail
+          heat: Heat
+          heat_cool: Heat/Cool
+          heat_pump: Heat pump
+          high_demand: High demand
+          home: Home
+          idle: Idle
+          jammed: Jammed
+          lightning: Lightning
+          lightning-rainy: Lightning, rainy
+          locked: Locked
+          locking: Locking
+          mowing: Mowing
+          not_home: Away
+          ok: OK
+          open: Open
+          opening: Opening
+          partlycloudy: Partly cloudy
+          paused: Paused
+          pending: Pending
+          performance: Performance
+          playing: Playing
+          pouring: Pouring
+          problem: Problem
+          rainy: Rainy
+          recording: Recording
+          snowy: Snowy
+          snowy-rainy: Snowy, rainy
+          standby: Standby
+          stopped: Stopped
+          streaming: Streaming
+          sunny: Sunny
+          triggered: Triggered
+          unlocked: Unlocked
+          unlocking: Unlocking
+          windy: Windy
+          windy-variant: Windy, cloudy
+          unknown: Unknown
+          unavailable: Unavailable
+        lawn_mower:
+          returning: Returning
+        update:
+          'off': Up-to-date
+          'on': Update available
+        vacuum:
+          returning: Returning to dock
+      domains:
+        air_quality: Air quality
+        alarm_control_panel: Alarm panel
+        automation: Automation
+        binary_sensor: Binary sensor
+        button: Button
+        calendar: Calendar
+        camera: Camera
+        climate: Climate
+        conversation: Conversation
+        cover: Cover
+        date: Date
+        datetime: Date and time
+        device_tracker: Device tracker
+        event: Event
+        fan: Fan
+        geo_location: Geolocation
+        group: Group
+        humidifier: Humidifier
+        image: Image
+        image_processing: Image processing
+        input_boolean: Toggle helper
+        input_datetime: Date and time helper
+        input_number: Number helper
+        input_select: Dropdown helper
+        input_text: Text helper
+        light: Light
+        lock: Lock
+        media_player: Media player
+        notify: Notification
+        number: Number
+        person: Person
+        remote: Remote
+        scene: Scene
+        script: Script
+        select: Select
+        sensor: Sensor
+        siren: Siren
+        stt: Speech to text
+        sun: Sun
+        switch: Switch
+        text: Text
+        time: Time
+        todo: To-do list
+        tts: Text to speech
+        update: Update
+        vacuum: Vacuum
+        valve: Valve
+        water_heater: Water heater
+        weather: Weather
+        zone: Zone
     web-search:
       title: Web Search
       description: Let AIRI search the web for current information
@@ -1123,6 +1488,7 @@ pages:
         restart: Restart MCP
         add-server: Add server
         add-env: Add var
+        add-header: Add header
         remove: Remove
         test: Test
         edit-json: Edit JSON
@@ -1138,6 +1504,20 @@ pages:
           label: Identifier
           description: Unique name; becomes the key in mcp.json.
           placeholder: e.g. filesystem
+        transport:
+          label: Type
+          description: How AIRI reaches this server.
+          stdio: Local process
+          http: Remote URL
+        url:
+          label: URL
+          description: Streamable HTTP endpoint of the server.
+          placeholder: e.g. https://example.com/api/mcp
+        headers:
+          label: Headers
+          description: Headers sent with every request, such as an authorization token.
+          key-placeholder: Authorization
+          value-placeholder: Bearer token
         command:
           label: Command
           description: Executable spawned over stdio.
@@ -1163,7 +1543,7 @@ pages:
         placeholder: Paste mcp.json here…
       test:
         title: Test connection
-        description: We'll spawn the server briefly to check the command works and see what tools it exposes.
+        description: AIRI connects briefly to the server and lists the tools it exposes.
         pick-server-label: Server
         no-servers: Nothing to test yet
         no-server-selected: Pick a server first.
@@ -1177,6 +1557,8 @@ pages:
         empty-identifier: Server # {index} is missing an identifier.
         duplicate-identifier: Identifier "{name}" is used more than once — names need to be unique.
         empty-command: '"{name}" is missing a command.'
+        empty-url: '"{name}" is missing a URL.'
+        invalid-url: '"{name}" needs an absolute http or https URL.'
         invalid-shape: That doesn't look like a valid mcp.json — the root needs an "mcpServers" field.
       messages:
         opened: Opened {path} in your file manager
@@ -1213,6 +1595,31 @@ pages:
       title: Flux Packages
       buy: Charge
       description: Flux packages to choose from.
+  capacitor:
+    title: Capacitor
+    description: A Capacitor holds Flux and recharges by itself.
+    statusError: Failed to load your Capacitor. Please try again later.
+    packagesError: Failed to load Capacitors. Please try again later.
+    preferenceError: Failed to save preference. Please try again later.
+    noCapacitor: No Capacitor
+    available: Capacitors
+    remaining: '{percent} left'
+    rechargesAt: Recharges {date}
+    renewsAt: Renews {date}
+    expiresAt: Expires {date}
+    perMonth: / month
+    currentPackage: Current
+    install: Install
+    upgrade: Upgrade
+    downgrade: Downgrade
+    manageSubscription: Manage subscription
+    fallbackToFlux: Use Flux when the Capacitor is empty
+    fallbackToFluxHint: When off, usage stops when the Capacitor is empty.
+    checkout:
+      success: Your Capacitor is installed and charged.
+      pending: Payment received. Your Capacitor charges shortly.
+      canceled: Purchase was canceled.
+      error: Something went wrong. Please try again later.
   providers:
     catalog:
       edit:
@@ -1402,6 +1809,17 @@ pages:
         model:
           label: Model
           description: Select an available model. Recognition detects one of its supported languages. A change restarts the current session.
+        asset:
+          title: Model files
+          unknown: Checking files...
+          bundled: Included with AIRI
+          installed: Stored on this device
+          missing: Download when used
+          downloading: Downloading...
+          error: Download failed
+          download: Download now
+          cancel: Cancel
+          remove: Remove download
       apple-vision:
         title: Apple Vision
         description: On-device image understanding with Apple Foundation Models on macOS 27 or later. No API key is required.
@@ -1441,7 +1859,7 @@ pages:
             description: AWS region where Bedrock is enabled (e.g. us-east-1, us-west-2)
       anthropic:
         description: anthropic.com
-        title: Anthropic | Claude
+        title: Anthropic {'|'} Claude
         helpinfo:
           title: Before you start
           description:
@@ -1902,6 +2320,17 @@ pages:
         character_card_sync:
           title: Character card cloud sync
           description: Sync your character cards to your account when you are signed in, so they reach your other devices. Off by default. A card you delete stays in your account history for 30 days.
+        display_model_sync:
+          title: Model cloud sync
+          description: Upload imported Live2D and VRM models to your account when you are signed in, so you can use them on other devices. Off by default.
+        fullscreen_workspace:
+          title: Fullscreen workspace
+          description: Open settings and the chat in a workspace that covers the screen, with the character on the left. Off by default.
+          window_mode:
+            title: Window mode
+            description: Choose where the workspace opens.
+            single_window: 'Single window: the character grows into the workspace'
+            multi_window: 'Separate window: the character stays on the desktop'
     color-scheme:
       description: Change the color scheme of the stage.
       title: Color Scheme
@@ -2114,7 +2543,10 @@ sections:
 theme:
   title: Theme
   description: |
-    Switch the base theme of AIRI, Light mode or Dark mode.
+    Use the light theme, the dark theme, or the theme of your system.
+  auto: System
+  light: Light
+  dark: Dark
 title: Settings
 voices: Voice
 vrm:

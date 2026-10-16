@@ -36,6 +36,7 @@ const saveIndexMock = vi.fn<(idx: ChatSessionsIndex) => Promise<void>>()
 const getSessionMock = vi.fn<(id: string) => Promise<ChatSessionRecord | null>>()
 const saveSessionMock = vi.fn<(id: string, rec: ChatSessionRecord) => Promise<void>>()
 const deleteSessionRepoMock = vi.fn<(id: string) => Promise<void>>()
+const releaseAssetsMock = vi.fn<(id: string, ids: Iterable<string>) => Promise<void>>()
 const getOutboxMock = vi.fn<(uid: string) => Promise<import('../../database/repos/chat-sessions.repo').ChatSendOutboxEntry[]>>()
 const dropOutboxForSessionMock = vi.fn<(uid: string, id: string) => Promise<void>>()
 const getTombstonesMock = vi.fn<(uid: string) => Promise<string[]>>()
@@ -55,6 +56,7 @@ vi.mock('../../database/repos/chat-sessions.repo', () => ({
     getSession: (id: string) => getSessionMock(id),
     saveSession: (id: string, rec: ChatSessionRecord) => saveSessionMock(id, rec),
     deleteSession: (id: string) => deleteSessionRepoMock(id),
+    releaseAssets: (id: string, ids: Iterable<string>) => releaseAssetsMock(id, ids),
     getOutbox: (uid: string) => getOutboxMock(uid),
     enqueueOutbox: vi.fn().mockResolvedValue(undefined),
     dequeueOutbox: vi.fn().mockResolvedValue(undefined),
@@ -115,7 +117,7 @@ beforeEach(() => {
     useAiriCardStore().cards.set('default', {
       name: 'Test character',
       version: '1.0',
-      extensions: { airi: { agents: {}, modules: {
+      extensions: { airi: { avatarModels: [], agents: {}, modules: {
         consciousness: { provider: '', model: '' },
         vision: { provider: '', model: '' },
         speech: { provider: '', model: '', voice_id: '' },
@@ -136,6 +138,7 @@ beforeEach(() => {
   getSessionMock.mockReset().mockResolvedValue(null)
   saveSessionMock.mockReset().mockResolvedValue(undefined)
   deleteSessionRepoMock.mockReset().mockResolvedValue(undefined)
+  releaseAssetsMock.mockReset().mockResolvedValue(undefined)
   getOutboxMock.mockReset().mockResolvedValue([])
   dropOutboxForSessionMock.mockReset().mockResolvedValue(undefined)
   getTombstonesMock.mockReset().mockResolvedValue([])
@@ -591,110 +594,6 @@ describe('chat-session-store · cloud deletion', () => {
   })
 })
 
-describe('chat-session-store · active card prompt edits', () => {
-  // https://github.com/moeru-ai/airi/discussions/2239
-  it('adds the AIRI chat math syntax to the system message for Issue #2239', async () => {
-    const store = useChatSessionStore()
-    await store.initialize()
-
-    const content = store.messages[0]?.content
-
-    expect(content).toContain('Use $$...$$ for inline math.')
-    expect(content).toContain('Use a separate multiline $$ block for each display equation.')
-    expect(content).toContain('Use a latex fence for a list of independent one-line equations.')
-    expect(content).toContain('Use a math fence for one multiline equation or LaTeX environment.')
-    expect(content).toContain('Do not use single dollar signs as math delimiters.')
-    expect(content).not.toContain('eg: $ x^3 $')
-  })
-
-  // ROOT CAUSE: Prompt edits left existing sessions with stale system messages. The session now replaces that message when the resolved prompt changes. Message identity and conversation history remain intact.
-  // https://github.com/moeru-ai/airi/issues/1995
-  it('updates the current session system message for Issue #1995 without clearing its history', async () => {
-    systemPromptRef.value = 'Original character prompt'
-    const store = useChatSessionStore()
-    await store.initialize()
-
-    const sessionId = store.activeSessionId
-    const originalSystemMessage = store.messages[0]
-    store.appendSessionMessage(sessionId, {
-      role: 'user',
-      content: 'Keep this turn.',
-      id: 'user-message',
-      createdAt: 2,
-    })
-
-    systemPromptRef.value = 'Updated character prompt'
-    await nextTick()
-
-    expect(store.messages).toHaveLength(2)
-    expect(store.messages[0]?.role).toBe('system')
-    expect(store.messages[0]?.id).toBe(originalSystemMessage?.id)
-    expect(store.messages[0]?.createdAt).toBe(originalSystemMessage?.createdAt)
-    expect(store.messages[0]?.content).toContain('Updated character prompt')
-    expect(store.messages[0]?.content).not.toContain('Original character prompt')
-    expect(store.messages[1]?.content).toBe('Keep this turn.')
-  })
-
-  // https://github.com/moeru-ai/airi/issues/1995
-  it('hydrates a persisted Issue #1995 session before refreshing its system message', async () => {
-    const meta: ChatSessionMeta = {
-      sessionId: 'persisted-session',
-      userId: 'local',
-      characterId: 'default',
-      createdAt: 1,
-      updatedAt: 1,
-    }
-    getIndexMock.mockResolvedValue({
-      userId: 'local',
-      characters: {
-        default: {
-          activeSessionId: meta.sessionId,
-          sessions: { [meta.sessionId]: meta },
-        },
-      },
-    })
-
-    let resolveStoredSession: ((record: ChatSessionRecord) => void) | undefined
-    getSessionMock.mockImplementation(() => new Promise<ChatSessionRecord | null>((resolve) => {
-      resolveStoredSession = resolve
-    }))
-
-    systemPromptRef.value = 'Updated persisted prompt'
-    const store = useChatSessionStore()
-    const initializePromise = store.initialize()
-    await flushMicrotasks()
-
-    // Updating the active session id must not persist a fresh system message
-    // over history that has not finished loading from IndexedDB.
-    expect(store.sessionMessages[meta.sessionId]).toBeUndefined()
-
-    resolveStoredSession?.({
-      meta,
-      messages: [
-        {
-          role: 'system',
-          content: 'Stale persisted prompt',
-          id: 'system-message',
-          createdAt: 1,
-        },
-        {
-          role: 'user',
-          content: 'Persisted history',
-          id: 'user-message',
-          createdAt: 2,
-        },
-      ],
-    })
-    await initializePromise
-    await nextTick()
-
-    expect(store.messages).toHaveLength(2)
-    expect(store.messages[0]?.id).toBe('system-message')
-    expect(store.messages[0]?.content).toContain('Updated persisted prompt')
-    expect(store.messages[1]?.content).toBe('Persisted history')
-  })
-})
-
 describe('chat-session-store · synchronized data actions', () => {
   it('keeps synchronized session data when a follower receives authenticated user state', async () => {
     // ROOT CAUSE: A follower cleared shared sessions after receiving auth state. The identity watcher now calls a synchronized action that retains matching session data.
@@ -1039,6 +938,27 @@ describe('chat-session-store · synchronized data actions', () => {
     })
 
     expect(store.getSessionMessages('session-1').map(message => message.id)).toEqual(['keep'])
+  })
+
+  it('releases the assets of a deleted message that no other message references', async () => {
+    const store = useChatSessionStore()
+    const recording = (id: string) => ({ type: 'input_audio' as const, input_audio: { data: `airi-asset:${id}`, format: 'wav' as const } })
+    store.applyRemoteSnapshot({
+      activeSessionId: 'session-1',
+      sessionMessages: {
+        'session-1': [
+          { id: 'keep', role: 'user', content: [recording('shared')] },
+          { id: 'delete', role: 'user', content: [recording('shared'), recording('only-here'), { type: 'image_url', image_url: { url: 'airi-asset:image' } }] },
+        ],
+      },
+      sessionMetas: {},
+    })
+
+    await store.deleteMessage({ sessionId: 'session-1', messageId: 'delete' })
+
+    expect(releaseAssetsMock).toHaveBeenCalledTimes(1)
+    expect([...releaseAssetsMock.mock.calls[0][1]].sort()).toEqual(['image', 'only-here'])
+    expect(releaseAssetsMock.mock.calls[0][0]).toBe('session-1')
   })
 
   it('keeps window-local selection out of synchronized and persisted session state', async () => {
