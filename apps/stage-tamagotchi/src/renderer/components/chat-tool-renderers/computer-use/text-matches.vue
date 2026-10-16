@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ComputerUseRect, ComputerUseTextMatch } from './computer-use-tool-call-view'
+import type { ComputerUseRect, ComputerUseTextMatch } from './schemas'
 
 /** The text that OCR found, one row per match with its place on the screen and its confidence. */
 const props = defineProps<{

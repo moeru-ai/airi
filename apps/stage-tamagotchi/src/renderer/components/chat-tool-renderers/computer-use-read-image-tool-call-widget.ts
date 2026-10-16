@@ -1,6 +1,4 @@
-import type { ChatToolCallWidget } from '@proj-airi/stage-ui/components'
-
-import { readToolResult } from '@proj-airi/stage-ui/components'
+import { defineToolCallWidget, restOf } from '@proj-airi/stage-ui/components'
 import { parseToolImageDescription } from '@proj-airi/stage-ui/stores/ai/chat-llm/tool-images'
 import { array, looseObject, minLength, optional, parseJson, pipe, safeParse, string } from 'valibot'
 
@@ -25,14 +23,18 @@ function readText(text: string) {
 }
 
 /** Shows the screenshot that a read image call read, and the description that replaced it for a chat model without vision. */
-export const computerUseReadImageToolCallWidget: ChatToolCallWidget = {
-  component: ComputerUseReadImageToolCallWidget,
-  read: (result, args) => {
-    const input = safeParse(ArgumentsSchema, args)
-    return readToolResult(ResultPartsSchema, result, parts => ({
+export const computerUseReadImageToolCallWidget = defineToolCallWidget(ComputerUseReadImageToolCallWidget, (result, args) => {
+  const parts = safeParse(ResultPartsSchema, result)
+  if (!parts.success)
+    return undefined
+  const input = safeParse(ArgumentsSchema, args)
+  return {
+    props: {
       path: input.success ? input.output.path : undefined,
-      urls: parts.flatMap(part => part.image_url ? [part.image_url.url] : []),
-      texts: parts.flatMap(part => part.text === undefined ? [] : [readText(part.text)]),
-    }))
-  },
-}
+      urls: parts.output.flatMap(part => part.image_url ? [part.image_url.url] : []),
+      texts: parts.output.flatMap(part => part.text === undefined ? [] : [readText(part.text)]),
+    },
+    // `type` names which of the other two fields a part fills.
+    rest: restOf(parts.output, [{ image_url: { url: true }, text: true }], [{ type: true }]),
+  }
+})

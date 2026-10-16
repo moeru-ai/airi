@@ -28,7 +28,8 @@ export type ChatToolCallRendererRegistry = Partial<Record<string, Component>>
 
 /** What a widget reads from one tool result. */
 export interface ChatToolCallWidgetReading {
-  props: Record<string, unknown>
+  /** The props of the widget component. `defineToolCallWidget` checks them against the component. */
+  props: object
   /** The fields of the result that the props do not cover. The row shows them under the widget, so no field is lost. */
   rest?: unknown
 }
@@ -49,6 +50,25 @@ export interface ChatToolCallWidgetReading {
 export interface ChatToolCallWidget {
   component: Component
   read: (result: unknown, args: string) => ChatToolCallWidgetReading | undefined
+}
+
+/** The props that a component takes, read from its instance type. */
+type PropsOf<TComponent> = TComponent extends abstract new (...args: never[]) => { $props: infer TProps extends object } ? TProps : never
+
+/**
+ * Registers a widget, and checks that its reader returns the props of its component.
+ *
+ * The registry holds widgets of many components, so it keeps only `ChatToolCallWidget`. This helper checks each widget
+ * before it enters the registry.
+ *
+ * @example
+ * const weatherWidget = defineToolCallWidget(WeatherCard, result => ({ props: { report: readReport(result) } }))
+ */
+export function defineToolCallWidget<TComponent extends Component>(
+  component: TComponent,
+  read: (result: unknown, args: string) => { props: PropsOf<TComponent>, rest?: unknown } | undefined,
+): ChatToolCallWidget {
+  return { component, read }
 }
 
 /**

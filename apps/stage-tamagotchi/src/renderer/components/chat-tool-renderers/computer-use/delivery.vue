@@ -1,21 +1,16 @@
 <script setup lang="ts">
-import type { ComputerUseInputAction } from './computer-use-tool-call-view'
+import type { ComputerUseInputAction } from './schemas'
 
 import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
+
+import { useComputerUseLabels } from './use-labels'
 
 /** How AUV delivered one input action: the path, whether it verified the effect, what it disturbed, and each attempt. */
 const props = defineProps<{
   action: ComputerUseInputAction
 }>()
 
-const { t, te } = useI18n()
-const KEY = 'tamagotchi.stage.computer-use-tool-call'
-
-// AUV can add delivery paths and disturbance levels. A value without words here shows as AUV names it.
-function label(group: string, value: string) {
-  return te(`${KEY}.${group}.${value}`) ? t(`${KEY}.${group}.${value}`) : value
-}
+const { t, KEY, label } = useComputerUseLabels()
 
 const disturbances = computed(() => [
   { name: t(`${KEY}.delivery.mouse`), value: props.action.mouse_disturbance },

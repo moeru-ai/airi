@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ComputerUseMediaState } from './computer-use-tool-call-view'
+import type { ComputerUseMediaState } from './schemas'
 
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
