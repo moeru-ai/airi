@@ -159,14 +159,35 @@ export function formatToolPayload(payload: unknown): PayloadNode | undefined {
   if (payload == null || payload === '')
     return undefined
 
+  const data = parseToolPayload(payload)
+  // A string that is not JSON comes back unchanged. It is already what the tool sent, so it shows as plain text.
+  if (typeof payload === 'string' && data === payload)
+    return { kind: 'text', text: payload }
+
+  return toNode(data)
+}
+
+/**
+ * Reads a tool payload as the data that it holds.
+ *
+ * A string that holds JSON becomes that data. Any other value stays as the tool sent it.
+ *
+ * @example
+ * parseToolPayload('{"city":"Bangkok"}')
+ * // => { city: 'Bangkok' }
+ *
+ * @example
+ * parseToolPayload('Tool call error: timeout')
+ * // => 'Tool call error: timeout'
+ */
+export function parseToolPayload(payload: unknown): unknown {
   if (typeof payload !== 'string')
-    return toNode(payload)
+    return payload
 
   try {
-    return toNode(JSON.parse(payload))
+    return JSON.parse(payload)
   }
   catch {
-    // A string that is not JSON is already what the tool sent, so it shows as plain text.
-    return { kind: 'text', text: payload }
+    return payload
   }
 }

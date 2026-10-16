@@ -2350,6 +2350,9 @@ pages:
               markdown-stress:
                 title: Markdown Stress
                 description: Stress markdown parsing and rendering with heavy chat payloads
+              tool-payloads-as-json:
+                title: Show tool data as JSON
+                description: Show the arguments and results of chat tool calls as a JSON tree, not as formatted fields
               plugin-host:
                 actions:
                   enable-and-load: Enable and Load

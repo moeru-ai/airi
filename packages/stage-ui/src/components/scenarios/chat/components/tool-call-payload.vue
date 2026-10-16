@@ -1,12 +1,16 @@
 <script setup lang="ts">
-import { IconButton } from '@proj-airi/ui'
+import VueJsonPretty from 'vue-json-pretty'
+
+import { IconButton, useTheme } from '@proj-airi/ui'
 import { useClipboard, useEventListener, useMutationObserver, useResizeObserver } from '@vueuse/core'
+import { storeToRefs } from 'pinia'
 import { computed, reactive, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ToolCallPayloadNode from './tool-call-payload-node.vue'
 
-import { formatToolPayload } from './tool-call-group'
+import { useSettingsDeveloper } from '../../../../stores/settings/developer'
+import { formatToolPayload, parseToolPayload } from './tool-call-group'
 
 /** Tool arguments or a tool result, shown as fields and values the same way for every tool. */
 const props = defineProps<{
@@ -15,6 +19,11 @@ const props = defineProps<{
 }>()
 
 const node = computed(() => formatToolPayload(props.payload))
+
+const { showToolPayloadsAsJson } = storeToRefs(useSettingsDeveloper())
+const { isDark } = useTheme()
+// Tool arguments and results arrive as JSON, so the parsed payload is data that the tree can show.
+const jsonData = computed(() => parseToolPayload(props.payload) as InstanceType<typeof VueJsonPretty>['$props']['data'])
 
 const { t } = useI18n()
 const { copy, copied } = useClipboard({ legacy: true })
@@ -80,7 +89,13 @@ useMutationObserver(scroller, measureFade, { childList: true, subtree: true, cha
       ]"
       :style="{ '--fade-top': `${fade.top}px`, '--fade-bottom': `${fade.bottom}px` }"
     >
-      <ToolCallPayloadNode :node="node" />
+      <!-- The developer setting shows the payload as a JSON tree, in the look of the tree library. -->
+      <VueJsonPretty v-if="showToolPayloadsAsJson" :data="jsonData" :theme="isDark ? 'dark' : 'light'" />
+      <ToolCallPayloadNode v-else :node="node" />
     </div>
   </div>
 </template>
+
+<style>
+@import 'vue-json-pretty/lib/styles.css';
+</style>
