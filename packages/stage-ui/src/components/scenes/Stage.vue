@@ -467,7 +467,7 @@ const disconnectVoiceOutput = voice.connectOutput((turn) => {
   const output = {
     playback,
     onSpecial: (special: string) => void playSpecialToken(special, { turnId: turn.turnId }),
-    onPlaybackStart: (clip: { text: string, boundary?: boolean }) => {
+    onPlaybackStart: (clip: { text: string }) => {
       playingCount += 1
       nowSpeaking.value = true
       speechVoicing.value = true
@@ -479,10 +479,10 @@ const disconnectVoiceOutput = voice.connectOutput((turn) => {
       catch (error) {
         console.error('Speech presentation channel failed', error)
       }
-      // One boundary clip maps to one bilingual pair. Mid-sentence pieces
-      // and buffered streaming sessions do not advance captions.
-      if (clip.boundary)
-        bilingualCaptionBus.advancePlayback(turn.turnId)
+      // Translation captions follow the spoken text offset: every started
+      // clip counts, so a pair split across several clips reveals at its
+      // first clip and the count per pair no longer matters.
+      bilingualCaptionBus.notePlayedText(turn.turnId, clip.text)
     },
     onPlaybackEnd: () => {
       playingCount -= 1
@@ -601,16 +601,15 @@ function holdsVoice(context: { speaks?: boolean }) {
 chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   if (!holdsVoice(context))
     return
-  voice.startResponse(context)
 
   if (context.sessionId === chatSession.activeSessionId)
     resetAssistantSpeechSurface('new-message')
 
-  // Capture bilingual mode before the speech response opens. The output
-  // factory creates the REST chunker for this turn and reads the
-  // flush-boundary flag there, so it must be set first. The orchestrator
-  // captured its own snapshot before this hook; this read pairs its mode
-  // with the chunker mode.
+  // Capture bilingual mode before the speech response opens. startResponse
+  // runs the output factory synchronously and createOutput reads the
+  // flush-boundary flag there, so the flag must be set first. The
+  // orchestrator captured its own snapshot before this hook; this read
+  // pairs its mode with the chunker mode.
   const bilingualEnabled = Boolean(bilingualSettingsStore.snapshot())
   if (bilingualEnabled) {
     enableFlushBoundaryTurn(context.turnId)
@@ -621,6 +620,7 @@ chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   }
   activeChatTurnId = context.turnId
 
+  voice.startResponse(context)
   setupAnalyser()
   await setupLipSync()
 }))

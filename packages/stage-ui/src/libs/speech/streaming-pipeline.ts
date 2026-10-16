@@ -387,8 +387,7 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
       case 'subtitle': {
         // TTS 2.0 emits subtitle text asynchronously (may arrive after the
         // next sentence's audio started). Buffered mode keeps it for the
-        // single item label only; it must NOT also report a boundary, or
-        // captions would advance twice per sentence (subtitle + sentence.end).
+        // single item label only.
         const text = readSentenceText(evt.payload)
         if (text != null)
           pendingSentenceTexts.push(text)

@@ -585,11 +585,6 @@ export function createTtsSegmentStream(
           segmentId: `${meta.streamId}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
           text: chunk.chunk,
           special: chunk.special,
-          // Only hard punctuation and explicit flush markers end a
-          // sentence. Word-limit pieces cut to protect long pairs are
-          // mid-sentence and must not advance captions. In flush mode a
-          // pair's flush piece is its single boundary.
-          sentenceBoundary: chunk.reason === 'hard' || chunk.reason === 'flush',
           reason: chunk.reason,
           createdAt: Date.now(),
         })

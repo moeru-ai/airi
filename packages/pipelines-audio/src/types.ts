@@ -22,14 +22,6 @@ export interface TextSegment {
   text: string
   special: string | null
   reason: 'boost' | 'limit' | 'hard' | 'flush' | 'special'
-  /**
-   * This segment ends a spoken sentence (hard punctuation or an explicit
-   * flush marker). `limit`/`boost` segments produced by the word-limit
-   * splitter are mid-sentence pieces and are not boundaries. Bilingual
-   * captions reveal only on a boundary, so a long sentence split into
-   * several pieces reveals once, on the piece that finishes it.
-   */
-  sentenceBoundary?: boolean
   createdAt: number
 }
 
@@ -41,8 +33,6 @@ export interface TtsRequest {
   sequence: number
   text: string
   special: string | null
-  /** See {@link TextSegment.sentenceBoundary}. */
-  sentenceBoundary?: boolean
   /** Chunker boundary that produced this text. Tracing uses it to explain synthesis latency. */
   reason: TextSegment['reason']
   priority: number
@@ -57,8 +47,6 @@ export interface TtsResult<TAudio> {
   sequence: number
   text: string
   special: string | null
-  /** See {@link TextSegment.sentenceBoundary}. */
-  sentenceBoundary?: boolean
   audio: TAudio
   createdAt: number
 }
@@ -74,11 +62,6 @@ export interface PlaybackItem<TAudio> {
   priority: number
   text: string
   special: string | null
-  /**
-   * True when this item's audio ends a spoken sentence. Mid-sentence chunks
-   * produced by the word-limit splitter are false.
-   */
-  sentenceBoundary?: boolean
   audio: TAudio
   createdAt: number
 }

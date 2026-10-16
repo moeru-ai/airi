@@ -107,6 +107,7 @@ export const useCharacterStore = defineStore('character', () => {
         bilingualCaptionBus.ingestTranslation(state.turnId, {
           language: state.translationLanguage ?? '',
           pairId: event.pairId,
+          spokenStart: event.spokenStart,
           text: event.text,
         })
       }
@@ -148,7 +149,6 @@ export const useCharacterStore = defineStore('character', () => {
       // changes cannot leak brackets into TTS or pair the wrong translation.
       const snapshot = bilingualSettings.snapshot()
       const turnId = `spark:${sparkEventId}`
-      const speech = new Speech({ sessionId: sessions.activeSessionId, turnId }, 'notification')
 
       let splitter: BilingualTurnSplitter | undefined
       let captionsUnsupported = false
@@ -159,10 +159,13 @@ export const useCharacterStore = defineStore('character', () => {
         activeBilingualTurnId = turnId
         captionsUnsupported = isActiveSpeechBuffered()
         // The output factory reads this flag when it opens the REST chunker.
+        // Set it before the SpeechClient opens its producer on the host.
         enableFlushBoundaryTurn(turnId)
         if (captionsUnsupported)
           markBufferedSpeechTurn(turnId)
       }
+
+      const speech = new Speech({ sessionId: sessions.activeSessionId, turnId }, 'notification')
 
       const parser = parserFactory({
         onLiteral: async (literal) => {

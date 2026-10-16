@@ -19,12 +19,6 @@ export interface SpeechAudio {
 export interface SpeechClip {
   readonly id: string
   readonly text: string
-  /**
-   * True when this clip ends a spoken sentence: a hard/flush segment on the
-   * REST pipeline, or one sentence from a streaming session. Mid-sentence
-   * word-limit pieces are false. Bilingual captions reveal on a boundary.
-   */
-  readonly boundary?: boolean
 }
 
 /** A stopped or failed clip carries the producer or response abort reason when one exists. */
@@ -115,7 +109,7 @@ export class SpeechStream {
       playback: {
         schedule: (item) => {
           pending.add(item)
-          const clip = { id: item.segmentId, text: item.text, boundary: item.sentenceBoundary }
+          const clip = { id: item.segmentId, text: item.text }
           let started = false
           void Promise.race([previous, this.done]).then(async () => {
             if (this.signal.aborted || response.signal.aborted)
@@ -183,10 +177,7 @@ export class SpeechStream {
           break
 
         const part = result.value
-        // The streaming adapter emits one part per model sentence. A
-        // whole-session buffered part is singular; its turn skips captions
-        // at the producer, so marking it a boundary changes nothing there.
-        const clip = { id: nanoid(), text: part.text ?? '', boundary: true }
+        const clip = { id: nanoid(), text: part.text ?? '' }
         let started = false
         playing.push(this.response.playback.enqueue({
           id: clip.id,

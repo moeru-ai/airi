@@ -77,6 +77,12 @@ export type BilingualTurnEvent
     kind: 'translation'
     /** Sentence-pair id. The spoken run and its bracket share one id. */
     pairId: number
+    /**
+     * Offset of this pair's spoken sentence in the whole spoken text,
+     * measured in non-whitespace characters. Playback reveals the pair when
+     * cumulative clip text reaches this offset.
+     */
+    spokenStart: number
     text: string
   }
 
@@ -153,16 +159,25 @@ export function createBilingualTurnSplitter(): BilingualTurnSplitter {
   let bracketText = ''
   let bracketDepth = 0
   let pairId = 0
+  /** Cumulative non-whitespace characters emitted on the spoken track. */
+  let spokenChars = 0
+  /** Spoken offset where the current pair's spoken sentence began. */
+  let runStart = 0
   /**
    * Spoken text since the last translation pair. The next `[` becomes a
    * translation candidate only when this run ends in sentence punctuation.
    */
   let spokenRun = ''
 
+  function countSpoken(text: string): number {
+    return text.replace(/\s/g, '').length
+  }
+
   function emitSpoken(events: BilingualTurnEvent[], text: string) {
     if (!text)
       return
     spokenRun += text
+    spokenChars += countSpoken(text)
     const last = events.at(-1)
     if (last?.kind === 'spoken')
       last.text += text
@@ -172,9 +187,10 @@ export function createBilingualTurnSplitter(): BilingualTurnSplitter {
 
   /** Publishes one translation and starts the next spoken run. */
   function emitTranslation(events: BilingualTurnEvent[], text: string) {
-    events.push({ kind: 'translation', pairId, text })
+    events.push({ kind: 'translation', pairId, spokenStart: runStart, text })
     pairId += 1
     spokenRun = ''
+    runStart = spokenChars
   }
 
   /**

@@ -917,6 +917,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           await hooks.emitTokenTranslationHooks({
             language: bilingualSnapshot!.translationLanguage,
             pairId: event.pairId,
+            spokenStart: event.spokenStart,
             text: event.text,
           }, streamingMessageContext)
           return false
@@ -1241,6 +1242,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
             await hooks.emitTokenTranslationHooks({
               language: bilingualSnapshot!.translationLanguage,
               pairId: event.pairId,
+              spokenStart: event.spokenStart,
               text: event.text,
             }, streamingMessageContext)
           }

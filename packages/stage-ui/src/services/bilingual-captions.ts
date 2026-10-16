@@ -3,20 +3,20 @@ import type { CaptionChannelEvent } from '@proj-airi/stage-shared'
 
 import { BILINGUAL_LANGUAGES } from '@proj-airi/pipelines-audio'
 
-// Positional binder between UST pairs and TTS playback. The model writes
-// `<spoken sentence> [<translation>]`; the flush channel makes TTS emit one
-// clip per pair, so the Nth started clip reveals that translation. Ingest
-// and reveal both run in the Stage renderer and post over BroadcastChannel.
+// Offset binder between UST pairs and TTS playback. Each translation
+// records where its spoken sentence began in the spoken text. Playback
+// reports each started clip's text, so the pair whose offset is reached
+// reveals itself. Clips per pair can vary without breaking alignment.
 
 interface TurnState {
   /** Translation text by pair id, present once the bracket closes. */
   translations: Map<number, PairTranslation>
-  /** Number of playback clips that started. */
-  boundaries: number
-  /** Number of consecutive pairs already revealed, FIFO order. */
-  revealed: number
-  /** Terminal flush already published; keeps flushTurn idempotent. */
-  flushed: boolean
+  /** Spoken offsets by pair id, ascending. Reveal when playback reaches one. */
+  starts: Map<number, number>
+  /** Cumulative non-whitespace clip characters that started playing. */
+  played: number
+  /** Pair ids already revealed, in insertion order. */
+  revealed: Set<number>
 }
 
 interface PairTranslation {
@@ -32,7 +32,7 @@ const RESET_EVENT: CaptionChannelEvent = { operation: 'replace', text: '', type:
 
 export interface BilingualCaptionBus {
   ingestTranslation: (turnId: string, payload: TokenTranslationPayload) => void
-  advancePlayback: (turnId: string) => void
+  notePlayedText: (turnId: string, clipText: string) => void
   flushTurn: (turnId: string) => void
   resetTurn: (turnId: string) => void
   resetAll: () => void
@@ -72,55 +72,66 @@ function createBus(): BilingualCaptionBus {
       events.forEach(send)
   }
 
-  // Reveal consecutive pairs whose playback clip started and whose
-  // translation has arrived. A missing head pair blocks later pairs; it
-  // reveals itself when its translation arrives, so no polling is needed.
+  // Reveal every pair whose offset the playback reached. A missing
+  // translation reveals itself when it arrives, so one gap never blocks
+  // the rest. `played` excludes the pair at that offset: its text has
+  // not started playing yet.
   function revealReady(turn: TurnState): CaptionChannelEvent[] {
     const events: CaptionChannelEvent[] = []
-    while (turn.revealed < turn.boundaries) {
-      const pair = turn.translations.get(turn.revealed)
+    const due = [...turn.translations.keys()]
+      .filter(id => !turn.revealed.has(id) && (turn.starts.get(id) ?? Infinity) < turn.played)
+      .sort((a, b) => (turn.starts.get(a) ?? 0) - (turn.starts.get(b) ?? 0))
+    for (const id of due) {
+      const pair = turn.translations.get(id)
       if (!pair)
-        break
+        continue
       events.push(eventFor(pair))
-      turn.revealed += 1
+      turn.revealed.add(id)
     }
     return events
+  }
+
+  function ensureTurn(turnId: string): TurnState {
+    let turn = turns.get(turnId)
+    if (!turn) {
+      turn = { translations: new Map(), starts: new Map(), played: 0, revealed: new Set() }
+      turns.set(turnId, turn)
+    }
+    return turn
   }
 
   return {
     ingestTranslation(turnId, payload) {
       if (!payload.text)
         return
-      let turn = turns.get(turnId)
-      if (!turn) {
-        turn = { translations: new Map(), boundaries: 0, revealed: 0, flushed: false }
-        turns.set(turnId, turn)
-      }
+      const turn = ensureTurn(turnId)
       const label = BILINGUAL_LANGUAGES.find(language => language.code === payload.language)?.label ?? payload.language
       turn.translations.set(payload.pairId, { label, text: payload.text.trim() })
+      turn.starts.set(payload.pairId, payload.spokenStart)
       emit(revealReady(turn))
     },
-    advancePlayback(turnId) {
-      let turn = turns.get(turnId)
-      if (!turn) {
-        // Clip start can precede every translation event of the turn.
-        turn = { translations: new Map(), boundaries: 0, revealed: 0, flushed: false }
-        turns.set(turnId, turn)
-      }
-      turn.boundaries += 1
+    notePlayedText(turnId, clipText) {
+      // Clip text equals the spoken substring the splitter counted: the
+      // chunker never rewrites characters in flush mode. Whitespace is
+      // stripped on both sides, so the offsets cannot drift.
+      const spoken = clipText.replace(/\s/g, '').length
+      if (spoken === 0)
+        return
+      const turn = ensureTurn(turnId)
+      turn.played += spoken
       emit(revealReady(turn))
     },
     flushTurn(turnId) {
+      // Deleting the turn keeps this terminal and idempotent.
       const turn = turns.get(turnId)
-      if (!turn || turn.flushed)
+      if (!turn)
         return
-      turn.flushed = true
       turns.delete(turnId)
       // Publish pairs playback never reached (muted turn, no audio,
       // trailing translation) as ONE multi-line replace, in pair order.
       const pending = [...turn.translations.entries()]
-        .filter(([id]) => id >= turn.revealed)
-        .sort(([a], [b]) => a - b)
+        .filter(([id]) => !turn.revealed.has(id))
+        .sort(([a], [b]) => (turn.starts.get(a) ?? 0) - (turn.starts.get(b) ?? 0))
         .map(([, pair]) => pair)
       if (pending.length === 0)
         return

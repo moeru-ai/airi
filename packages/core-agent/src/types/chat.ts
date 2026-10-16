@@ -141,6 +141,12 @@ export interface TokenTranslationPayload {
   language: string
   /** Spoken-sentence pair this fragment translates. Ids increase in turn order. */
   pairId: number
+  /**
+   * Offset of this pair's spoken sentence in the whole spoken text, counted
+   * in non-whitespace characters. Captions reveal the pair once cumulative
+   * played clip text reaches this offset.
+   */
+  spokenStart: number
   /** Raw fragment text, including surrounding whitespace from the model. */
   text: string
 }
