@@ -105,6 +105,9 @@ export function summarizeToolCallGroup(states: readonly ToolCallState[]): ToolCa
   return { phase: 'settled', count: states.length, failed: states.filter(state => state === 'error').length }
 }
 
+/** The JSON type of a plain value. The view marks it, so the number `0` and the string `"0"` read differently. */
+export type PayloadValueType = 'string' | 'number' | 'boolean' | 'null'
+
 /**
  * A tool payload as the chat shows it. Keys and values stay exactly as the tool sent them.
  *
@@ -113,17 +116,32 @@ export function summarizeToolCallGroup(states: readonly ToolCallState[]): ToolCa
  * - `array`: items in their sent order.
  */
 export type PayloadNode
-  = | { kind: 'text', text: string }
-    | { kind: 'object', entries: { key: string, value: PayloadNode }[] }
-    | { kind: 'array', items: PayloadNode[] }
+  = | {
+    kind: 'text'
+    text: string
+    /** Missing for a payload that is not JSON. That text shows as the tool sent it, without quotes. */
+    type?: PayloadValueType
+  }
+  | { kind: 'object', entries: { key: string, value: PayloadNode }[] }
+  | { kind: 'array', items: PayloadNode[] }
+
+function valueTypeOf(value: unknown): PayloadValueType {
+  if (typeof value === 'string')
+    return 'string'
+  if (typeof value === 'number' || typeof value === 'bigint')
+    return 'number'
+  if (typeof value === 'boolean')
+    return 'boolean'
+  // `null`, and a value that JSON cannot write such as `undefined`, shows as a bare word.
+  return 'null'
+}
 
 function toNode(value: unknown): PayloadNode {
   if (Array.isArray(value))
     return { kind: 'array', items: value.map(toNode) }
   if (value !== null && typeof value === 'object')
     return { kind: 'object', entries: Object.entries(value).map(([key, entry]) => ({ key, value: toNode(entry) })) }
-  // A string shows without quotes. `null`, numbers, and booleans show as JSON writes them.
-  return { kind: 'text', text: typeof value === 'string' ? value : String(value) }
+  return { kind: 'text', text: typeof value === 'string' ? value : String(value), type: valueTypeOf(value) }
 }
 
 /**
@@ -131,7 +149,7 @@ function toNode(value: unknown): PayloadNode {
  *
  * @example
  * formatToolPayload('{"city":"Bangkok","days":1}')
- * // => { kind: 'object', entries: [{ key: 'city', value: { kind: 'text', text: 'Bangkok' } }, { key: 'days', value: { kind: 'text', text: '1' } }] }
+ * // => { kind: 'object', entries: [{ key: 'city', value: { kind: 'text', text: 'Bangkok', type: 'string' } }, { key: 'days', value: { kind: 'text', text: '1', type: 'number' } }] }
  *
  * @example
  * formatToolPayload('Tool call error: timeout')
