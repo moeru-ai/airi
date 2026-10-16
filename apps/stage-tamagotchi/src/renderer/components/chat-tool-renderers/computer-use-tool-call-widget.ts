@@ -146,13 +146,17 @@ function keyboardSpecs(actions: string | undefined): ComputerUseKeyboardStep['sp
 
 // NOTICE:
 // The computer use tool throws when AUV exits with an error, so a failed command reaches the chat as an error text.
-// xsAI wraps the thrown message as `Tool "<name>" execution failed: <message>`, and the message is the AUV result as JSON.
-// Source: `createErrorToolResult` in node_modules/@xsai/shared-chat/dist/index.js (0.5.1).
+// The message is the AUV result as JSON, and two paths wrap it with their own prefix:
+// a call in a reply goes through `createErrorToolResult` in node_modules/@xsai/shared-chat/dist/index.js (0.5.1),
+// and a rerun goes through `executeToolCallRerun` in packages/stage-ui/src/stores/tool-call-rerun.ts.
 // Remove the prefix handling when the tool returns failed commands as results instead of throwing.
-const ERROR_PREFIX = 'Tool "computer_use" execution failed: '
+const ERROR_PREFIXES = ['Tool "computer_use" execution failed: ', 'Tool call error for "computer_use": ']
 
 /** The AUV result as JSON text, from a finished call or from a failed one. */
-const ResultTextSchema = pipe(string(), transform(text => text.startsWith(ERROR_PREFIX) ? text.slice(ERROR_PREFIX.length) : text))
+const ResultTextSchema = pipe(string(), transform((text) => {
+  const prefix = ERROR_PREFIXES.find(candidate => text.startsWith(candidate))
+  return prefix ? text.slice(prefix.length) : text
+}))
 
 // `argv` is the call itself, and `exitCode` repeats the status, so the header covers both.
 function envelope<TEntries extends ObjectEntries>(output: TEntries) {

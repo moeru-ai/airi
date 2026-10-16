@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ChatToolCallScrollArea, MarkdownRenderer } from '@proj-airi/stage-ui/components'
-import { computed, reactive } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ToolCallScreenshot from './tool-call-screenshot.vue'
@@ -26,6 +26,14 @@ const fileName = computed(() => props.path?.split(/[\\/]/).at(-1) ?? '')
 
 /** The pixel size of each screenshot, read when it loads. */
 const sizes = reactive(new Map<string, string>())
+
+// A rerun replaces the screenshots. Sizes of earlier screenshots leave the map, because their data URLs are large keys.
+watch(screenshots, (next) => {
+  for (const url of sizes.keys()) {
+    if (!next.includes(url))
+      sizes.delete(url)
+  }
+})
 
 function recordSize(url: string, event: Event) {
   const image = event.target as HTMLImageElement

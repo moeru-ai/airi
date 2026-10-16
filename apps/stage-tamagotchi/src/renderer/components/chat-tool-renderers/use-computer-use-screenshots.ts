@@ -16,9 +16,20 @@ export function useComputerUseScreenshots(paths: MaybeRefOrGetter<string[] | und
   const images = reactive(new Map<string, string>())
 
   watch(() => toValue(paths), async (next) => {
-    for (const path of next ?? []) {
+    const wanted = next ?? []
+    // A rerun replaces the paths. The screenshots of earlier paths leave the map, so they do not stay in memory.
+    for (const path of images.keys()) {
+      if (!wanted.includes(path))
+        images.delete(path)
+    }
+    for (const path of wanted) {
+      if (images.has(path))
+        continue
       try {
-        images.set(path, await readImage({ path }))
+        const image = await readImage({ path })
+        // A read that ends after the paths changed belongs to an earlier result.
+        if (toValue(paths)?.includes(path))
+          images.set(path, image)
       }
       catch {
         images.delete(path)

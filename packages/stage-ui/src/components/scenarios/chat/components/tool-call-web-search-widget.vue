@@ -12,9 +12,20 @@ const props = defineProps<{
 
 const { t } = useI18n()
 
+function parseUrl(value: string) {
+  try {
+    return new URL(value)
+  }
+  catch {
+    return undefined
+  }
+}
+
 const cards = computed(() => props.links.map((link, index) => {
-  const site = URL.parse(link.url)?.hostname ?? link.url
-  return { key: `${index}:${link.url}`, url: link.url, title: link.title, snippet: link.snippet, favicon: link.favicon, site, initial: site.charAt(0).toUpperCase() }
+  const site = parseUrl(link.url)?.hostname ?? link.url
+  // As in the citations of a reply, only a web page becomes a link. A hit with another scheme stays a card without a link.
+  const href = /^https?:\/\//i.test(link.url) ? link.url : undefined
+  return { key: `${index}:${link.url}`, href, title: link.title, snippet: link.snippet, favicon: link.favicon, site, initial: site.charAt(0).toUpperCase() }
 }))
 
 // A site without an icon, or with an icon that does not load, shows the first letter of its name.
@@ -33,8 +44,8 @@ function markBroken(key: string) {
     <ul :class="['flex flex-col gap-1.5']">
       <li v-for="card in cards" :key="card.key">
         <a
-          :href="card.url"
-          target="_blank"
+          :href="card.href"
+          :target="card.href ? '_blank' : undefined"
           rel="noopener noreferrer"
           :class="[
             'flex items-start gap-2 rounded-lg px-2 py-1.5 outline-none',
