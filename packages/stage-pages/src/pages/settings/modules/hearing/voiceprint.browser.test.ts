@@ -80,6 +80,26 @@ describe('voiceprint settings', () => {
     await expect.element(screen.getByTestId('voiceprint-status')).toHaveTextContent('Enroll again to use your voiceprint')
   })
 
+  it('turns on speaker recognition when a usable voiceprint exists', async () => {
+    localStorage.setItem('settings/voice/voiceprint', JSON.stringify(toStoredVoiceprint({ embedding: new Float32Array([1, 0]), seconds: 8 }, Date.now())))
+    const screen = renderPage()
+    const toggle = screen.getByRole('switch')
+
+    await expect.element(toggle).toBeEnabled()
+    await expect.element(toggle).toHaveAttribute('aria-checked', 'false')
+    await toggle.click()
+
+    await expect.element(toggle).toHaveAttribute('aria-checked', 'true')
+    await expect.poll(() => localStorage.getItem('settings/hearing/speaker-recognition-enabled')).toBe('true')
+  })
+
+  it('keeps speaker recognition unavailable until the user enrolls', async () => {
+    const screen = renderPage()
+
+    await expect.element(screen.getByRole('switch')).toBeDisabled()
+    await expect.element(screen.getByText('Enroll your voice to turn on speaker recognition.')).toBeVisible()
+  })
+
   it('records with a capture lease, enables Finish after 5 s of speech, and saves the voiceprint', async () => {
     const leases = watchLeases()
     const screen = renderPage()
