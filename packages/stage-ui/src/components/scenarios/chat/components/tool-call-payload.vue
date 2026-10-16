@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { IconButton } from '@proj-airi/ui'
 import { useClipboard, useEventListener, useMutationObserver, useResizeObserver } from '@vueuse/core'
 import { computed, reactive, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -53,21 +54,22 @@ useMutationObserver(scroller, measureFade, { childList: true, subtree: true, cha
   <div v-if="node" :class="['flex flex-col gap-1']">
     <div :class="['flex items-center gap-1']">
       <span :class="['text-xs', 'text-neutral-500 dark:text-neutral-400']">{{ props.label }}</span>
-      <button
+      <!-- The icon sits in the slot, so it keeps the label size. The hit area reaches past it, so a finger still lands on it. -->
+      <IconButton
         type="button"
         :aria-label="copied ? t('stage.chat.tool-calls.copied') : t('stage.chat.tool-calls.copy')"
         :title="copied ? t('stage.chat.tool-calls.copied') : t('stage.chat.tool-calls.copy')"
         :class="[
-          'size-5 inline-flex items-center justify-center rounded-md',
-          'outline-none transition-colors duration-200',
+          'relative size-5 rounded-md outline-none',
+          `after:absolute after:-inset-1.5 after:content-['']`,
           'text-neutral-400 hover:bg-neutral-200/70 hover:text-primary-600',
           'dark:text-neutral-500 dark:hover:bg-neutral-800/80 dark:hover:text-primary-300',
           'focus-visible:ring-2 focus-visible:ring-primary-400/60',
         ]"
         @click="copyRaw"
       >
-        <span :class="[copied ? 'i-mingcute:check-line' : 'i-mingcute:copy-2-line', 'text-xs']" aria-hidden="true" />
-      </button>
+        <span :class="[copied ? 'i-mingcute:check-line' : 'i-mingcute:copy-2-line', 'block text-xs']" aria-hidden="true" />
+      </IconButton>
     </div>
     <!-- The neutral panel of the group frames the details, so a payload has no box of its own. A long one scrolls inside a fixed height, and its content fades out where it goes on. -->
     <div
