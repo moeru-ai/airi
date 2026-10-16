@@ -25,3 +25,25 @@ export interface ChatToolCallRendererProps {
  * Maps tool names to custom renderer components.
  */
 export type ChatToolCallRendererRegistry = Partial<Record<string, Component>>
+
+/**
+ * A widget that shows the result of one tool inside the unfolded row of a tool call group.
+ *
+ * Use when:
+ * - A tool returns data that reads better as a small view than as fields, for example a forecast or a list of links
+ *
+ * Expects:
+ * - `propsOf` reads the raw tool result. It returns `undefined` when the widget cannot show the result, for example an error text.
+ *
+ * Returns:
+ * - The component and a reader for its props. The row shows the generic arguments and result when `propsOf` returns `undefined`.
+ */
+export interface ChatToolCallWidget {
+  component: Component
+  propsOf: (result: unknown) => Record<string, unknown> | undefined
+}
+
+/**
+ * Maps tool names to the widgets of their results.
+ */
+export type ChatToolCallWidgetRegistry = Partial<Record<string, ChatToolCallWidget>>

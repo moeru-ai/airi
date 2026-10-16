@@ -2,7 +2,7 @@
 import type { ToolCallRerunRequest } from '../../../../stores/tool-call-rerun'
 import type { ChatAssistantMessage, ChatHistoryItem, ChatSlices, ChatSlicesText, ChatSlicesToolCallResult } from '../../../../types/chat'
 import type { ChatHistoryReplyPayload } from '../reply'
-import type { ChatToolCallRendererRegistry } from './tool-call-renderer'
+import type { ChatToolCallRendererRegistry, ChatToolCallWidgetRegistry } from './tool-call-renderer'
 
 import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
 import { computed } from 'vue'
@@ -22,6 +22,7 @@ import { getChatHistoryItemCopyText } from '../utils'
 import { ChatActionMenu } from './action-menu'
 import { groupToolCallSlices } from './tool-call-group'
 import { createToolCallResultLookup, resolveToolCallBlockState } from './tool-call-results'
+import { builtinToolCallWidgets } from './tool-call-widgets'
 
 const props = withDefaults(defineProps<{
   message: ChatAssistantMessage
@@ -34,6 +35,8 @@ const props = withDefaults(defineProps<{
   /** How the bubble paints its background; see `ChatHistory`'s `surface`. */
   surface?: 'translucent' | 'opaque'
   toolCallRenderers?: ChatToolCallRendererRegistry
+  /** Widgets that show tool results inside the unfolded rows of a tool call group. They add to the built-in widgets. */
+  toolCallWidgets?: ChatToolCallWidgetRegistry
 }>(), {
   canReply: false,
   showPlaceholder: false,
@@ -41,6 +44,7 @@ const props = withDefaults(defineProps<{
   variant: 'desktop',
   surface: 'translucent',
   toolCallRenderers: () => ({}),
+  toolCallWidgets: () => ({}),
 })
 
 const emit = defineEmits<{
@@ -113,6 +117,8 @@ function getToolCallRenderer(toolName: string) {
   return props.toolCallRenderers[toolName] ?? builtinToolCallRenderers[toolName]
 }
 
+const toolCallWidgets = computed<ChatToolCallWidgetRegistry>(() => ({ ...builtinToolCallWidgets, ...props.toolCallWidgets }))
+
 const sliceEntries = computed(() => groupToolCallSlices(resolvedSlices.value, toolName => Boolean(getToolCallRenderer(toolName))))
 
 const showLoader = computed(() => props.showPlaceholder && resolvedSlices.value.length === 0)
@@ -170,6 +176,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
                 v-if="entry.kind === 'tool-group'"
                 :items="entry.items"
                 :result-of="getToolCallResult"
+                :widgets="toolCallWidgets"
                 @tool-call-rerun="emitToolCallRerun"
               />
               <component

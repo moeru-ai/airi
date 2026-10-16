@@ -116,6 +116,8 @@ chat:
     result: 结果
     copy: 复制原始数据
     copied: 已复制
+    raw: 原始数据
+    widget: 小组件
     rerun: 重新运行
     state:
       executing: 进行中

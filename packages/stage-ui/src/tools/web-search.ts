@@ -10,6 +10,9 @@ import { z } from 'zod/v4'
  */
 const TAVILY_SEARCH_URL = 'https://api.tavily.com/search'
 
+/** The name of the search tool. The chat shows the results of calls with this name as links. */
+export const WEB_SEARCH_TOOL_NAME = 'web_search'
+
 /** Per-result snippet cap. Keeps a multi-result payload from flooding context. */
 const DEFAULT_RESULT_CHARS = 800
 /** Default result count when the model does not ask for a specific number. */
@@ -186,6 +189,26 @@ function formatResults(query: string, results: SearchResult[]): string {
   return `${UNTRUSTED_RESULTS_NOTICE}\n\nFound ${results.length} web result${results.length === 1 ? '' : 's'} for "${query}":\n\n${blocks.join('\n\n')}`
 }
 
+/** A search hit as the chat shows it. The title ends with the published date in parentheses when the provider sends one. */
+export interface WebSearchResultLink {
+  url: string
+  title: string
+}
+
+/**
+ * Reads the hits back from a result that {@link formatResults} wrote.
+ *
+ * Each hit starts with its `[N] url` line, and the next line opens its envelope. The first line inside the envelope is the title.
+ * A snippet cannot fake a hit, because {@link defuseDelimiter} rewrites every envelope tag inside it.
+ *
+ * @example
+ * parseWebSearchResults('[1] https://example.com\n<untrusted_content source="https://example.com">\nExample\nSnippet\n</untrusted_content>')
+ * // => [{ url: 'https://example.com', title: 'Example' }]
+ */
+export function parseWebSearchResults(text: string): WebSearchResultLink[] {
+  return Array.from(text.matchAll(/^\[\d+\] (\S+)\n<untrusted_content source="[^"\n]*">\n(.*)$/gm), ([, url, title]) => ({ url: url!, title: title! }))
+}
+
 /**
  * Builds the `web_search` LLM tool, backed by Tavily.
  *
@@ -211,7 +234,7 @@ export async function createWebSearchTools(options: { apiKey: string, timeoutMs?
       // NOTICE: intentionally snake_case with no `builtIn_` prefix — `web_search`
       // is the model-recognized name for this user-facing capability, unlike the
       // always-on `builtIn_` infra tools (mcp/debug/spark).
-      name: 'web_search',
+      name: WEB_SEARCH_TOOL_NAME,
       description: 'Search the web for current or unfamiliar information and return a list of results with source URLs. Prefer what you already know; use this when the user asks or when the answer needs up-to-date facts.',
       parameters,
       execute: async (rawInput, { abortSignal }: ToolExecuteOptions) => {

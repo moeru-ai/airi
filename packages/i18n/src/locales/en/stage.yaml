@@ -116,6 +116,8 @@ chat:
     result: Result
     copy: Copy raw data
     copied: Copied
+    raw: Raw data
+    widget: Widget
     rerun: Run again
     state:
       executing: Running
