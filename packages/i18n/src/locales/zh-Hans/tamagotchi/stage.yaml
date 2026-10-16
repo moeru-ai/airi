@@ -159,7 +159,8 @@ computer-use-tool-call:
   hidden: 不可见
   displays: '{count} 个显示器'
   windows: '{count} 个窗口'
-  found: '找到 “{query}” {count} 处'
+  found: '找到 “{query}”'
+  matches: '{count} 处'
   not-found: '没有找到 “{query}”'
   clicked-text: '点了 “{query}”'
   options: 选项

@@ -164,9 +164,10 @@ computer-use-tool-call:
   region: Region
   main: Main
   hidden: Hidden
-  displays: '{count} display | {count} displays'
-  windows: '{count} window | {count} windows'
-  found: 'Found "{query}" in {count} place | Found "{query}" in {count} places'
+  displays: 'One display | {count} displays'
+  windows: 'One window | {count} windows'
+  found: 'Found "{query}"'
+  matches: 'One match | {count} matches'
   not-found: 'No "{query}" found'
   clicked-text: 'Clicked "{query}"'
   options: Options
@@ -176,7 +177,7 @@ computer-use-tool-call:
   repeat: '× {count}'
   interval: 'every {ms} ms'
   hold: 'held for {ms} ms'
-  steps: '{count} step in order | {count} steps in order'
+  steps: 'One step in order | {count} steps in order'
   focused: 'Focused "{query}"'
   app: App
   process: Process

@@ -145,7 +145,7 @@ const QUOTE = ['whitespace-pre-wrap break-words rounded-[10px] border-l-3 px-2.5
       <span :class="LINE">
         <span :class="['i-mingcute:search-3-fill', LINE_ICON]" aria-hidden="true" />
         {{ props.view.matches.length > 0
-          ? t(`${KEY}.found`, { query: props.view.query, count: props.view.matches.length }, props.view.matches.length)
+          ? `${t(`${KEY}.found`, { query: props.view.query })} · ${t(`${KEY}.matches`, { count: props.view.matches.length }, props.view.matches.length)}`
           : t(`${KEY}.not-found`, { query: props.view.query }) }}
       </span>
       <span v-if="props.view.window" :class="['text-[11px] text-neutral-500 dark:text-neutral-400']">
