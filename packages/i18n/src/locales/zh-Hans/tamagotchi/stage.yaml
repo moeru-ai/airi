@@ -141,6 +141,18 @@ about:
       title: 有可用的更新
       description: 有新的 v{version} 版本可用
       no-release-notes-markdown: _无发布日志_
+computer-use-tool-call:
+  status:
+    completed: 已完成
+  display: 显示器
+  built-in: 内建
+  primary: 主显示器
+  logical-size: 逻辑尺寸
+  pixel-size: 像素尺寸
+  backend: 截图后端
+  file: 文件
+tool-call-screenshot:
+  view-full: 查看大图
 weather-tool-call:
   feels-like: 体感
   humidity: 湿度
