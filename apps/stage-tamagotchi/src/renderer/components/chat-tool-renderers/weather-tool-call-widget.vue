@@ -5,7 +5,7 @@ import { TransitionVertical } from '@proj-airi/ui'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { weatherIconMap } from '../../widgets/weather/condition-icons'
+import { weatherIconMap } from '../weather/condition-icons'
 
 /**
  * The report of one weather call, as drawers: the current weather first, then one drawer for each forecast day.

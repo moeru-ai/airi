@@ -1,3 +1,6 @@
+// UnoCSS generates an icon only when its class appears literally in a file that it scans. In this app it scans the .ts files
+// under `components/`, so this table lives here and not next to the weather widget.
+
 export type WeatherEffect = 'rain' | 'snow' | 'thunder' | 'fog' | 'cloudy' | 'none'
 
 /** The meteocons icon of each weather condition code. The weather widget and the weather card in the chat show the same icons. */

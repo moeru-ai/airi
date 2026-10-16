@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { WeatherEffect } from '../condition-icons'
+import type { WeatherEffect } from '../../../components/weather/condition-icons'
 
 import { computed } from 'vue'
 
 import Skeleton from './Skeleton.vue'
 
-import { weatherIconMap } from '../condition-icons'
+import { weatherIconMap } from '../../../components/weather/condition-icons'
 
 type SizePreset = 's' | 'm' | 'l' | { cols?: number, rows?: number }
 
