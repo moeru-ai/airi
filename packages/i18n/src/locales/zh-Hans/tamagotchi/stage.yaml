@@ -3,11 +3,25 @@ operations:
   load-models-status:
     loading: 加载中
     ready: 已就绪
+'resource-island':
+  loading: 正在准备资源…
+  ready: 资源已就绪
+  preparing: 正在准备模型文件
+  failed: 模型下载失败
 docs:
   theme:
     navbar:
       appearance:
         title: 外观
+'fullscreen-island':
+  settings: 设置
+  chat: 聊天
+  switch-to-dark-mode: 切换到暗色模式
+  switch-to-system-mode: 跟随系统主题
+  switch-to-light-mode: 切换到亮色模式
+  exit: 退出全屏
+'fullscreen-surface':
+  resize: 拖动调整面板宽度
 'controls-island':
   'fade-on-hover':
     enable: 悬停时隐藏
@@ -18,11 +32,14 @@ docs:
   'refresh': 刷新
   'center-main-window': 移至屏幕中央
   'open-hearing-controls': 打开听力控制
+  'enable-microphone': 打开麦克风
+  'disable-microphone': 关闭麦克风
   'drag-to-move-window': 拖动以移动窗口
   'mute': 静音
   'unmute': 取消静音
   'switch-to-light-mode': 切换到亮色模式
   'switch-to-dark-mode': 切换到暗色模式
+  'switch-to-system-mode': 跟随系统主题
   'pin-on-top': 置顶窗口
   'unpin-from-top': 取消置顶
   'switch-profile': 切换角色
@@ -40,6 +57,7 @@ docs:
     floating-attached: 悬浮，吸附在角色旁
     floating-free: 悬浮，自由摆放
     floating-danmaku: 悬浮，弹幕机
+    fullscreen: 全屏，在角色旁
     pinned: 保持置顶
   resize: 拖动以调整聊天大小
   move: 拖动以移动聊天
@@ -47,6 +65,14 @@ docs:
   composer:
     show: 展开输入框
     hide: 收起输入框
+  danmaku-feed:
+    title: 消息停留时间
+    hide-read: 自动隐藏已读消息
+    hide-read-description: 读完后自动消失，有语音时随语音结束消失。
+    reading-speed: 阅读速度
+    reading-speed-value: '{count} 字/秒'
+    minimum-time: 最短停留时间
+    minimum-time-value: '{count} 秒'
 widgets:
   close: 关闭小部件
   empty:
@@ -55,7 +81,7 @@ widgets:
   loading: 正在加载小部件…
   waiting: 正在等待小部件 "{id}" 的数据…
 inlay:
-  close: 关闭
+  dismiss: 关闭
 notice:
   'fade-on-hover':
     title: 悬停淡出

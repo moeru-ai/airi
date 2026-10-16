@@ -37,7 +37,8 @@
   "dependencies": {
     "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
-    "clustr": "catalog:"
+    "clustr": "catalog:",
+    "nanoid": "catalog:"
   },
   "devDependencies": {}
 }

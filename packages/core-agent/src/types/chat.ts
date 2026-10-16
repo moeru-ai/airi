@@ -20,11 +20,22 @@ export interface ChatSlicesToolCallResult {
   result?: string | CommonContentPart[]
 }
 
-export type ChatSlices = ChatSlicesText | ChatSlicesToolCall | ChatSlicesToolCallResult
+/** A local catalog ID. Renderers never treat this value as an image URL. */
+export interface ChatSlicesSticker {
+  type: 'sticker'
+  stickerId: string
+}
+
+export type ChatSlices = ChatSlicesText | ChatSlicesToolCall | ChatSlicesToolCallResult | ChatSlicesSticker
 
 export interface ChatAssistantMessage extends AssistantMessage {
   /** True when transport failure ended this locally preserved response before completion. */
   interrupted?: true
+  /**
+   * Set on a reply to a stored notice. Like the notice, it never syncs to the cloud.
+   * `turnId` identifies the send. `source` names what sent the notice.
+   */
+  proactive?: { turnId: string, source: string }
   /** Sources returned by the provider, separate from text consumed by speech. */
   citations?: import('../messages/types').Citation[]
   search?: { id: string, status: 'in_progress' | 'searching' | 'completed' | 'failed' }
@@ -72,6 +83,13 @@ export interface ContextMessage extends ContextUpdate<Record<string, unknown>, u
 export type ChatHistoryItem = (ChatMessage | ErrorMessage) & {
   context?: ContextMessage
   createdAt?: number
+  /**
+   * When an assistant message stopped receiving output: at its end, or when it
+   * was interrupted. `createdAt` of an assistant message is when it started.
+   * Windows that do not run the generation read it, for example to time how
+   * long a reply shows.
+   */
+  completedAt?: number
   id?: string
   /** Vision output stored by image order so later turns can reuse it without copying the image URL. */
   imageDescriptions?: Array<{
@@ -84,6 +102,19 @@ export type ChatHistoryItem = (ChatMessage | ErrorMessage) & {
   replyToMessageId?: string
   /** Tools selected for this message. The runtime rebuilds executors from these names. */
   tools?: ChatToolReference[]
+  /** Skills that the owner invoked with this message. Their steps stay with it, so later requests keep following them. */
+  skills?: ChatInvokedSkill[]
+  /**
+   * Set on a stored notice: text for the conversation that the owner did not write, for example a finished background task.
+   * Requests mark it as a notice, so the model never reads it as owner speech.
+   */
+  notice?: { source: string }
+}
+
+/** One skill that the owner invoked with a message, and the steps it gave the conversation. */
+export interface ChatInvokedSkill {
+  name: string
+  instructions: string
 }
 
 export interface ChatStreamEventContext {
@@ -95,6 +126,8 @@ export interface ChatStreamEventContext {
   contexts: Record<string, ContextMessage[]>
   composedMessage: Array<Message>
   input?: WebSocketEventInputs
+  /** Whether the reply speaks on the host. Scene replies and background tasks stay silent. */
+  speaks?: boolean
 }
 
 export type ChatStreamEvent
@@ -108,4 +141,4 @@ export type ChatStreamEvent
     | { type: 'assistant-end', message: string, sessionId: string, context: ChatStreamEventContext }
     | { type: 'assistant-message', message: ChatAssistantMessage, sessionId: string, messageText: string, context: ChatStreamEventContext }
 
-export type StreamingAssistantMessage = ChatAssistantMessage & { context?: ContextMessage } & { createdAt?: number, id?: string }
+export type StreamingAssistantMessage = ChatAssistantMessage & { context?: ContextMessage } & { createdAt?: number, completedAt?: number, id?: string }

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Alert } from '@proj-airi/stage-ui/components'
 import { AiriCardPackageError, importAiriCardPackage } from '@proj-airi/stage-ui/services/airi-card-import-export'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { InputFileCard } from '@proj-airi/ui'
+import { Button, InputFileCard } from '@proj-airi/ui'
 import { ComboboxSelect } from '@proj-airi/ui/components/form'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
@@ -15,12 +16,16 @@ import CardCreate from './components/CardCreate.vue'
 import CardDetailDialog from './components/CardDetailDialog.vue'
 import CardListItem from './components/CardListItem.vue'
 import DeleteCardDialog from './components/DeleteCardDialog.vue'
+import WakeWordConflictAlert from './components/wake-word-conflict-alert.vue'
 
-const { t } = useI18n()
+import { formatRelativeTime } from './composables/relative-time'
+
+const { t, locale } = useI18n()
 const cardStore = useAiriCardStore()
 const displayModelsStore = useDisplayModelsStore()
 const { addCard, removeCard } = cardStore
-const { cards, activeCardId } = storeToRefs(cardStore)
+const { cards, activeCardId, cardSyncStates, cloudSyncEnabled } = storeToRefs(cardStore)
+const { isAuthenticated } = storeToRefs(useAuthStore())
 
 const route = useRoute()
 const router = useRouter()
@@ -202,6 +207,69 @@ function getVersionNumber(id: string) {
   return card?.version || '1.0.0'
 }
 
+// Recently deleted cards
+interface DeletedCard {
+  id: string
+  name: string
+  deletedAt: string
+}
+
+const showDeletedPanel = ref(false)
+const deletedCardsList = ref<DeletedCard[]>([])
+const isLoadingDeleted = ref(false)
+const deletedLoadFailed = ref(false)
+const restoringDeletedId = ref<string | null>(null)
+
+// The server keeps the content of a deleted card for 30 days.
+const DELETED_CARD_RETENTION_DAYS = 30
+
+function formatDeletedRelative(deletedAt: string) {
+  return formatRelativeTime(deletedAt, locale.value)
+}
+
+function restorableDays(deletedAt: string) {
+  const elapsed = Math.floor((Date.now() - new Date(deletedAt).getTime()) / (24 * 60 * 60 * 1000))
+  return Math.max(0, DELETED_CARD_RETENTION_DAYS - elapsed)
+}
+
+async function loadDeletedCards() {
+  isLoadingDeleted.value = true
+  deletedLoadFailed.value = false
+  try {
+    deletedCardsList.value = await cardStore.deletedCards()
+  }
+  catch (error) {
+    console.error('Error loading recently deleted cards:', error)
+    deletedLoadFailed.value = true
+  }
+  finally {
+    isLoadingDeleted.value = false
+  }
+}
+
+async function toggleDeletedPanel() {
+  showDeletedPanel.value = !showDeletedPanel.value
+  if (showDeletedPanel.value)
+    await loadDeletedCards()
+}
+
+async function handleRestoreDeletedCard(card: DeletedCard) {
+  restoringDeletedId.value = card.id
+  try {
+    const restored = await cardStore.restoreDeletedCard(card.id)
+    toast(t(restored ? 'settings.pages.card.sync.deleted.restore_success' : 'settings.pages.card.sync.deleted.restore_failed', { name: card.name }))
+    if (restored)
+      await loadDeletedCards()
+  }
+  catch (error) {
+    console.error('Error restoring a deleted card:', error)
+    toast(t('settings.pages.card.sync.deleted.restore_failed', { name: card.name }))
+  }
+  finally {
+    restoringDeletedId.value = null
+  }
+}
+
 // Card module short name
 function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
   const card = cards.value.get(id)
@@ -222,28 +290,116 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
 </script>
 
 <template>
-  <div rounded-xl p-4 flex="~ col gap-4">
+  <div :class="['rounded-xl p-4 flex flex-col gap-4']">
+    <WakeWordConflictAlert />
+    <!-- Disclosure: signed-in users upload their cards -->
+    <div
+      v-if="isAuthenticated && cloudSyncEnabled"
+      :class="[
+        'flex flex-col gap-3 rounded-xl px-4 py-3',
+        'border border-primary-200/60 dark:border-primary-800/40',
+        'bg-primary-50/50 dark:bg-primary-950/30',
+      ]"
+    >
+      <div :class="['flex flex-row flex-wrap items-center justify-between gap-2']">
+        <p :class="['flex items-center gap-2 text-sm', 'text-neutral-600 dark:text-neutral-300']">
+          <span :class="['i-solar:cloud-check-outline shrink-0', 'text-primary-500 dark:text-primary-400']" />
+          {{ t('settings.pages.card.sync.notice') }}
+        </p>
+        <button
+          type="button"
+          :class="[
+            'flex flex-row shrink-0 items-center gap-1 text-sm',
+            'text-primary-600 dark:text-primary-400',
+            'hover:underline',
+          ]"
+          @click="toggleDeletedPanel"
+        >
+          <div :class="['i-solar:trash-bin-minimalistic-linear']" />
+          {{ t('settings.pages.card.sync.deleted.title') }}
+          <div :class="showDeletedPanel ? 'i-solar:alt-arrow-up-linear' : 'i-solar:alt-arrow-down-linear'" />
+        </button>
+      </div>
+
+      <div
+        v-if="showDeletedPanel"
+        :class="[
+          'flex flex-col gap-2 rounded-lg p-3',
+          'bg-white/60 dark:bg-black/30',
+          'border border-neutral-200/50 dark:border-neutral-700/30',
+        ]"
+      >
+        <div v-if="isLoadingDeleted" :class="['py-4 text-center text-sm', 'text-neutral-500 dark:text-neutral-400']">
+          {{ t('settings.pages.card.sync.deleted.loading') }}
+        </div>
+        <div v-else-if="deletedLoadFailed" :class="['py-4 text-center text-sm', 'text-red-500 dark:text-red-400']">
+          {{ t('settings.pages.card.sync.deleted.load_failed') }}
+        </div>
+        <div v-else-if="deletedCardsList.length === 0" :class="['py-4 text-center text-sm', 'text-neutral-500 dark:text-neutral-400']">
+          {{ t('settings.pages.card.sync.deleted.empty') }}
+        </div>
+        <div
+          v-for="card in deletedCardsList"
+          :key="card.id"
+          :class="[
+            'flex flex-row items-center justify-between gap-3 rounded-lg p-3',
+            'bg-white dark:bg-neutral-900',
+            'border border-neutral-200/50 dark:border-neutral-700/30',
+          ]"
+        >
+          <div :class="['flex min-w-0 flex-col gap-0.5']">
+            <span :class="['truncate text-sm font-medium']">{{ card.name }}</span>
+            <span :class="['text-xs', 'text-neutral-500 dark:text-neutral-400']" :title="new Date(card.deletedAt).toLocaleString(locale)">
+              {{ t('settings.pages.card.sync.deleted.deleted_when', { when: formatDeletedRelative(card.deletedAt) }) }}
+              ·
+              {{ t('settings.pages.card.sync.deleted.days_left', { days: restorableDays(card.deletedAt) }) }}
+            </span>
+          </div>
+          <Button
+            size="sm"
+            :class="['shrink-0']"
+            icon="i-solar:restart-line-duotone"
+            :label="t('settings.pages.card.sync.deleted.restore')"
+            :disabled="restoringDeletedId === card.id"
+            @click="handleRestoreDeletedCard(card)"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Disclosure: a signed-in user who has not turned cloud sync on -->
+    <p v-else-if="isAuthenticated" :class="['flex items-center gap-2 text-sm', 'text-neutral-500 dark:text-neutral-400']">
+      <span :class="['i-solar:cloud-cross-outline shrink-0']" />
+      {{ t('settings.pages.card.sync.off_notice') }}
+      <RouterLink to="/settings/system/experimental" :class="['text-primary-600 dark:text-primary-400 hover:underline']">
+        {{ t('settings.pages.card.sync.off_notice_link') }}
+      </RouterLink>
+    </p>
+
     <!-- Toolbar with search and filters -->
-    <div flex="~ row" flex-wrap items-center justify-between gap-4>
+    <div :class="['flex flex-row flex-wrap items-center justify-between gap-4']">
       <!-- Search bar -->
-      <div class="relative min-w-[200px] flex-1" inline-flex="~" w-full items-center>
-        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-          <div i-solar:magnifer-line-duotone class="text-neutral-500 dark:text-neutral-400" />
+      <div :class="['relative min-w-[200px] w-full flex-1 inline-flex items-center']">
+        <div :class="['pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3']">
+          <div :class="['i-solar:magnifer-line-duotone', 'text-neutral-500 dark:text-neutral-400']" />
         </div>
         <input
           v-model="searchQuery"
           type="search"
-          class="w-full rounded-xl p-2.5 pl-10 text-sm outline-none"
-          border="focus:primary-100 dark:focus:primary-400/50 2 solid neutral-200 dark:neutral-800"
-          transition="all duration-200 ease-in-out"
-          bg="white dark:neutral-900"
+          :class="[
+            'w-full rounded-xl p-2.5 pl-10 text-sm outline-none',
+            'border-2 border-solid border-neutral-200 dark:border-neutral-800',
+            'focus:border-primary-100 dark:focus:border-primary-400/50',
+            'transition-all duration-200 ease-in-out',
+            'bg-white dark:bg-neutral-900',
+          ]"
           :placeholder="t('settings.pages.card.search')"
         >
       </div>
 
       <!-- Sort options -->
-      <div class="relative flex flex-row justify-start gap-2 lg:flex-col">
-        <div class="top-[-32px] whitespace-nowrap text-sm text-neutral-500 leading-10 lg:absolute dark:text-neutral-400">
+      <div :class="['relative flex flex-row justify-start gap-2 lg:flex-col']">
+        <div :class="['top-[-32px] whitespace-nowrap text-sm leading-10 lg:absolute', 'text-neutral-500 dark:text-neutral-400']">
           {{ t('settings.pages.card.sort_by') }}:
         </div>
         <ComboboxSelect
@@ -254,34 +410,33 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
             { value: 'recent', label: t('settings.pages.card.recent') },
           ]"
           placeholder="Select sort option"
-          class="min-w-[150px]"
+          :class="['min-w-[150px]']"
         />
       </div>
     </div>
 
     <!-- Masonry card layout -->
     <div
-      class="mt-4"
-      :class="{ 'grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 grid-auto-rows-[minmax(min-content,max-content)] grid-auto-flow-dense sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] sm:gap-5 md:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(250px,1fr))]': cards.size > 0 }"
+      :class="['mt-4', { 'grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 grid-auto-rows-[minmax(min-content,max-content)] grid-auto-flow-dense sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] sm:gap-5 md:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(250px,1fr))]': cards.size > 0 }]"
     >
       <!-- Upload card -->
       <InputFileCard v-model="inputFiles" accept=".zip">
         <template #default="{ isDragging }">
           <template v-if="!isDragging">
-            <div flex flex-col items-center>
-              <div i-solar:upload-square-line-duotone mb-4 text-5xl text="neutral-400 dark:neutral-500" />
-              <p font-medium text="neutral-600 dark:neutral-300">
+            <div :class="['flex flex-col items-center']">
+              <div :class="['i-solar:upload-square-line-duotone mb-4 text-5xl', 'text-neutral-400 dark:text-neutral-500']" />
+              <p :class="['font-medium', 'text-neutral-600 dark:text-neutral-300']">
                 {{ t('settings.pages.card.upload') }}
               </p>
-              <p text="neutral-500 dark:neutral-400" mt-2 text-sm>
+              <p :class="['mt-2 text-sm', 'text-neutral-500 dark:text-neutral-400']">
                 {{ t('settings.pages.card.upload_desc') }}
               </p>
             </div>
           </template>
           <template v-else>
-            <div flex flex-col items-center>
-              <div i-solar:upload-minimalistic-bold class="mb-2 text-5xl text-primary-500 dark:text-primary-400" />
-              <p font-medium text="primary-600 dark:primary-300">
+            <div :class="['flex flex-col items-center']">
+              <div :class="['i-solar:upload-minimalistic-bold mb-2 text-5xl', 'text-primary-500 dark:text-primary-400']" />
+              <p :class="['font-medium', 'text-primary-600 dark:text-primary-300']">
                 {{ t('settings.pages.card.drop_here') }}
               </p>
             </div>
@@ -305,6 +460,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
           :version="getVersionNumber(item.id)"
           :consciousness-model="getModuleShortName(item.id, 'consciousness')"
           :voice-model="getModuleShortName(item.id, 'voice')"
+          :sync-state="cardSyncStates[item.id]"
           @select="handleSelectCard(item.id)"
           @activate="activateCard(item.id)"
           @delete="confirmDelete(item.id)"
@@ -315,11 +471,13 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
       <!-- No cards message -->
       <div
         v-if="cards.size === 0"
-        class="col-span-full rounded-xl p-8 text-center"
-        border="~ neutral-200/50 dark:neutral-700/30"
-        bg="neutral-50/50 dark:neutral-900/50"
+        :class="[
+          'col-span-full rounded-xl p-8 text-center',
+          'border border-neutral-200/50 dark:border-neutral-700/30',
+          'bg-neutral-50/50 dark:bg-neutral-900/50',
+        ]"
       >
-        <div i-solar:card-search-broken mx-auto mb-3 text-6xl text-neutral-400 />
+        <div :class="['i-solar:card-search-broken mx-auto mb-3 text-6xl text-neutral-400']" />
         <p>{{ t('settings.pages.card.no_cards') }}</p>
       </div>
 
@@ -353,15 +511,16 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
   <!-- Background decoration -->
   <div
     v-motion
-    text="neutral-200/50 dark:neutral-600/20" pointer-events-none
-    fixed top="[calc(100dvh-15rem)]" bottom-0 right--5 z--1
+    :class="[
+      'pointer-events-none fixed bottom-0 right--5 top-[calc(100dvh-15rem)] z--1',
+      'size-60 flex items-center justify-center',
+      'text-neutral-200/50 dark:text-neutral-600/20',
+    ]"
     :initial="{ scale: 0.9, opacity: 0, x: 20 }"
     :enter="{ scale: 1, opacity: 1, x: 0 }"
     :duration="500"
-    size-60
-    flex items-center justify-center
   >
-    <div text="60" i-solar:emoji-funny-square-bold-duotone />
+    <div :class="['i-solar:emoji-funny-square-bold-duotone text-60']" />
   </div>
 </template>
 

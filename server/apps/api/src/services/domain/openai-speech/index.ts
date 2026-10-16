@@ -2,7 +2,6 @@ import type { GenAiMetrics } from '../../../otel'
 import type { ConfigKVService } from '../../adapters/config-kv'
 import type { SpeechBilling } from '../billing/speech-billing'
 import type { LlmRouterService } from '../llm-router'
-import type { startTtsGeneration, TtsGenerationTrace } from '../llm-tracing'
 import type { ProviderCatalogService } from '../provider-catalog'
 import type { VoicePackService } from '../voice-packs'
 
@@ -51,9 +50,6 @@ export interface OpenAiSpeechServiceDeps {
   voicePackService: VoicePackService
   providerCatalogService: ProviderCatalogService
   genAi?: GenAiMetrics | null
-  llmTracing: {
-    startTtsGeneration: (input: Parameters<typeof startTtsGeneration>[0]) => TtsGenerationTrace
-  }
 }
 
 export interface OpenAiSpeechRequest {
@@ -147,14 +143,6 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       extraOptions: voicePackRequest.extraOptions,
     }
 
-    const generationTrace = deps.llmTracing.startTtsGeneration({
-      input: ttsInput,
-      model: requestModel,
-      requestId,
-      userId: input.userId,
-      sessionId: input.sessionId,
-    })
-
     const span = tracer.startSpan('llm.gateway.tts', {
       attributes: {
         [GEN_AI_ATTR_REQUEST_MODEL]: requestModel,
@@ -177,7 +165,6 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       const failure = routerFailure(err)
       span.setStatus({ code: SpanStatusCode.ERROR, message: failure.message })
       span.end()
-      generationTrace.fail(failure.message)
       recordMetrics({
         durationMs: Date.now() - startedAt,
         fluxConsumed: 0,
@@ -194,7 +181,6 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
     if (!response.ok) {
       span.setStatus({ code: SpanStatusCode.ERROR, message: `Gateway ${response.status}` })
       span.end()
-      generationTrace.fail(`Gateway ${response.status}`)
       recordMetrics({ model: requestModel, status: response.status, provider: routeCtx.provider, durationMs, fluxConsumed: 0 })
       logger.withFields({ requestId, userId: input.userId, model: requestModel, status: response.status, durationMs })
         .warn('tts speech delivered with upstream error status')
@@ -216,14 +202,8 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       })
       fluxConsumed = result.feeFlux
       span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)
-      generationTrace.succeed({
-        inputChars: inputText.length,
-        fluxConsumed,
-        output: { contentType: response.headers.get('content-type') },
-      })
     }
     catch (err) {
-      generationTrace.fail('TTS billing failed')
       throw err
     }
     finally {

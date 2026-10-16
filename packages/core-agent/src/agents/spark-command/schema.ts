@@ -82,8 +82,8 @@ export const sparkCommandContextSchema = z.object({
  *
  * This schema does not equal the wire-event shape. Persona and metadata use arrays here so
  * generated JSON Schema does not contain dynamic `propertyNames`. The tool converts them back
- * to records before delivery. The input requires at least one destination; a transport adapter
- * can clear that list when its protocol uses an empty list for broadcast delivery.
+ * to records before delivery. The input requires at least one destination. A transport adapter
+ * can drop that list from the event when its protocol broadcasts an event that omits the field.
  */
 export const sparkCommandToolSchema = z.object({
   destinations: z.array(z.string()).min(1).describe('One or more target module or agent IDs for this command.'),

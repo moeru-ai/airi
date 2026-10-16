@@ -57,6 +57,19 @@ function createMarkdownHarness(markdown: string, label: string) {
 }
 
 describe('markdown renderer initial content', () => {
+  // https://github.com/moeru-ai/airi/issues/2796
+  // ROOT CAUSE:
+  // The component requested rich processing only for backtick fences.
+  // We fixed this by also requesting it for tilde fences.
+  it('highlights a tilde-only message for Issue #2796', async () => {
+    const screen = await render(MarkdownRenderer, {
+      props: { content: '~~~typescript\nconst answer = 42\n~~~' },
+    })
+
+    await expect.poll(() => screen.container.querySelector('pre')?.className).toContain('shiki')
+    await expect.element(screen.getByText('const answer = 42')).toBeVisible()
+  })
+
   it('renders basic Markdown before mounted layout code reads the element', async () => {
     // ROOT CAUSE:
     //

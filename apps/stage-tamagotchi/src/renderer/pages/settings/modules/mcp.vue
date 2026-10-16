@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import type {
-  ElectronMcpStdioConfigFile,
-  ElectronMcpStdioRuntimeStatus,
-  ElectronMcpStdioTestResult,
+  ElectronMcpConfigFile,
+  ElectronMcpRuntimeStatus,
+  ElectronMcpTestResult,
 } from '../../../../shared/eventa'
 import type { ServerForm } from './mcp-config'
 
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
-import { Button, Callout, Checkbox, GhostButton, TransitionVertical } from '@proj-airi/ui'
+import { Button, Callout, Checkbox, GhostButton, SettingsCard, TransitionVertical } from '@proj-airi/ui'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -32,8 +32,9 @@ import {
   createServerForm,
   findServerIdentifierByRowId,
   loadServerForms,
-  previewServerCommand,
+  previewServerTarget,
   syncJsonDraftFromServers,
+  validateServerForm,
 } from './mcp-config'
 
 const { t } = useI18n()
@@ -48,7 +49,7 @@ const invokeWriteConfigText = useElectronEventaInvoke(electronMcpWriteConfigText
 const invokeTestServer = useElectronEventaInvoke(electronMcpTestServer)
 
 const servers = ref<ServerForm[]>([])
-const runtime = ref<ElectronMcpStdioRuntimeStatus>()
+const runtime = ref<ElectronMcpRuntimeStatus>()
 const infoMessage = ref('')
 const errorMessage = ref('')
 const isBusy = ref(false)
@@ -64,13 +65,13 @@ const expandedIds = ref<Set<string>>(new Set())
 
 const testRowId = ref('')
 const testRunning = ref(false)
-const testResult = ref<ElectronMcpStdioTestResult>()
+const testResult = ref<ElectronMcpTestResult>()
 
 function buildConfig() {
   return buildConfigFile(servers.value, tn)
 }
 
-function applyLoadedConfig(config: ElectronMcpStdioConfigFile) {
+function applyLoadedConfig(config: ElectronMcpConfigFile) {
   const selectedIdentifier = findServerIdentifierByRowId(servers.value, testRowId.value)
   const loaded = loadServerForms(config, { selectedIdentifier })
   servers.value = loaded.servers
@@ -126,13 +127,13 @@ function badgeClass(state: 'running' | 'stopped' | 'error' | undefined) {
   return RUNTIME_BADGE[state ?? 'stopped']
 }
 
-function commandPreview(s: ServerForm) {
-  return previewServerCommand(s)
+function targetPreview(s: ServerForm) {
+  return previewServerTarget(s)
 }
 
-const PANEL = 'flex flex-col gap-3 rounded-xl border-2 border-solid border-neutral-100 bg-white p-4 md:p-5 dark:border-neutral-900 dark:bg-neutral-900/30'
 const CARD_PRIMARY = 'flex flex-col gap-3 rounded-xl border-2 border-solid border-primary-100 bg-primary-50/50 p-3 transition-all duration-200 ease-in-out hover:border-primary-500/30 md:p-4 dark:border-primary-900/60 dark:bg-primary-900/10 dark:hover:border-primary-400/30'
-const CARD_MUTED = 'flex flex-col gap-3 rounded-xl border-2 border-solid border-neutral-100 bg-neutral-50/60 p-3 transition-all duration-200 ease-in-out hover:border-primary-500/30 md:p-4 dark:border-neutral-900 dark:bg-neutral-900/30 dark:hover:border-primary-400/30'
+// The section card is neutral-100, so a disabled card needs a lighter fill and a visible border to read as a card.
+const CARD_MUTED = 'flex flex-col gap-3 rounded-xl border-2 border-solid border-neutral-200 bg-white p-3 transition-all duration-200 ease-in-out hover:border-primary-500/30 md:p-4 dark:border-neutral-700/50 dark:bg-neutral-800/40 dark:hover:border-primary-400/30'
 
 async function refreshRuntime() {
   runtime.value = await invokeGetRuntimeStatus()
@@ -303,8 +304,9 @@ async function runConnectionTest() {
     testResult.value = { ok: false, error: tn('test.server-disabled', { name: target.identifier || '?' }), durationMs: 0 }
     return
   }
-  if (!target.command.trim()) {
-    testResult.value = { ok: false, error: tn('errors.empty-command', { name: target.identifier || '?' }), durationMs: 0 }
+  const invalid = validateServerForm(target, tn)
+  if (invalid) {
+    testResult.value = { ok: false, error: invalid, durationMs: 0 }
     return
   }
   testRunning.value = true
@@ -345,7 +347,7 @@ onMounted(async () => {
       {{ infoMessage }}
     </Callout>
 
-    <section :class="PANEL">
+    <SettingsCard>
       <p class="text-sm text-neutral-500 dark:text-neutral-400">
         {{ tn('description') }}
       </p>
@@ -360,7 +362,7 @@ onMounted(async () => {
           @click="toggleJsonPanel"
         />
       </div>
-    </section>
+    </SettingsCard>
 
     <TransitionVertical>
       <McpJsonEditor
@@ -375,7 +377,7 @@ onMounted(async () => {
       />
     </TransitionVertical>
 
-    <section :class="PANEL">
+    <SettingsCard>
       <div flex="~ col gap-1">
         <div class="flex items-center justify-between gap-2">
           <h3 class="text-sm font-semibold">
@@ -423,7 +425,7 @@ onMounted(async () => {
               </span>
             </div>
             <div class="truncate text-xs text-neutral-500 font-mono dark:text-neutral-400">
-              {{ commandPreview(server) || '-' }}
+              {{ targetPreview(server) || '-' }}
             </div>
           </div>
 
@@ -439,9 +441,9 @@ onMounted(async () => {
           </div>
         </TransitionVertical>
       </article>
-    </section>
+    </SettingsCard>
 
-    <section :class="PANEL">
+    <SettingsCard>
       <div flex="~ col gap-1">
         <h3 class="text-sm font-semibold">
           {{ tn('add.title') }}
@@ -475,7 +477,7 @@ onMounted(async () => {
         icon="i-solar:add-circle-bold-duotone" :label="tn('actions.add-server')"
         @click="addServer"
       />
-    </section>
+    </SettingsCard>
 
     <Button
       size="md" block :disabled="isBusy" :loading="isBusy"
@@ -491,7 +493,7 @@ onMounted(async () => {
       @test="runConnectionTest"
     />
 
-    <section v-if="runtime?.servers?.length" :class="PANEL">
+    <SettingsCard v-if="runtime?.servers?.length">
       <div class="text-sm font-semibold">
         {{ tn('runtime-title') }}
       </div>
@@ -506,14 +508,14 @@ onMounted(async () => {
             <span class="text-xs tracking-wide uppercase opacity-80">{{ s.state }}</span>
           </div>
           <div class="break-all text-xs font-mono opacity-80">
-            {{ s.command }} {{ s.args.join(' ') }}
+            {{ s.transport === 'stdio' ? `${s.command} ${s.args.join(' ')}`.trim() : s.url }}
           </div>
           <div v-if="s.lastError" class="break-all text-xs">
             {{ s.lastError }}
           </div>
         </li>
       </ul>
-    </section>
+    </SettingsCard>
   </div>
 </template>
 

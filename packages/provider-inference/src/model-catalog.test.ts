@@ -11,6 +11,15 @@ const config = { apiKey: 'test-key', baseURL: route.baseURL }
 afterEach(() => vi.unstubAllGlobals())
 
 describe('model-bank catalogs', () => {
+  it('retains declared audio input without guessing capabilities for other models', async () => {
+    vi.stubGlobal('fetch', vi.fn<typeof globalThis.fetch>(async () => Response.json({ data: [
+      { id: 'audio', architecture: { input_modalities: ['text', 'audio'] } },
+      { id: 'unknown' },
+    ] })))
+    const catalog = await listModelCatalog(config, route)
+    expect(catalog.models[0].inputModalities).toEqual(['text', 'audio'])
+    expect(catalog.models[1].inputModalities).toBeUndefined()
+  })
   it('enriches exact discovered IDs without an additional catalog request', async () => {
     const model = openaiChatModels.find(model => model.id === 'gpt-4.1')
     if (!model)

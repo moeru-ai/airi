@@ -1,9 +1,9 @@
 import type { Cubism4InternalModel, InternalModel } from 'pixi-live2d-display/cubism4'
 import type { Ref } from 'vue'
 
+import type { Live2DExpressionsContext } from '../../contexts/expressions'
 import type { Live2DBreathControlState, Live2DMotionControlState } from '../../stores/motion-control'
 import type { BeatSyncController } from './beat-sync'
-import type { useExpressionController } from './expression-controller'
 import type { Live2DMotionSpringController } from './motion-control-spring'
 
 import { sampleLive2DBreath } from '../../stores/motion-control'
@@ -694,11 +694,11 @@ export function useMotionUpdatePluginLightSquint(
  * It also does NOT call `ctx.markHandled()` so it never blocks other plugins.
  */
 export function useMotionUpdatePluginExpression(
-  controller: ReturnType<typeof useExpressionController>,
+  expressions: Pick<Live2DExpressionsContext, 'apply'>,
 ): MotionManagerPlugin {
   return (ctx) => {
     // Always apply regardless of handled state – expressions layer on top.
-    controller.applyExpressions(ctx.model)
+    expressions.apply(ctx.model)
   }
 }
 

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { Live2DContext } from '@proj-airi/stage-ui-live2d'
+
 import type { ModelSettingsRuntimeSnapshot } from './runtime'
 
 import { Live2DScene } from '@proj-airi/stage-ui-live2d'
@@ -10,6 +12,8 @@ import { useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
+import { useSharedLive2DExpressionPreview } from '../../../../stores/live2d'
+import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useSettings } from '../../../../stores/settings'
 import {
   createEmptyModelSettingsRuntimeSnapshot,
@@ -18,6 +22,7 @@ import {
 
 const props = defineProps<{
   live2dSceneClass?: string | string[]
+  live2dContext: Live2DContext
   vrmSceneClass?: string | string[]
   spineSceneClass?: string | string[]
   tachieSceneClass?: string | string[]
@@ -30,6 +35,8 @@ const emit = defineEmits<{
 
 const settingsStore = useSettings()
 const modelStore = useModelStore()
+const { activeCardId, selectedAvatarModelId } = storeToRefs(useAiriCardStore())
+useSharedLive2DExpressionPreview(props.live2dContext, activeCardId, selectedAvatarModelId)
 const live2dSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
 const vrmSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
 const spineSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
@@ -207,6 +214,7 @@ const cursorPosition = computed(() => ({
       <Live2DScene
         ref="live2dSceneRef"
         v-model:state="live2dComponentState"
+        :context="live2dContext"
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
         :cursor-position="cursorPosition"

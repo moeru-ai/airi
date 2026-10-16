@@ -1,16 +1,16 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 
 import type {
+  ElectronMcpApplyResult,
   ElectronMcpCallToolPayload,
   ElectronMcpCallToolResult,
-  ElectronMcpStdioApplyResult,
-  ElectronMcpStdioConfigFile,
-  ElectronMcpStdioConfigText,
-  ElectronMcpStdioRuntimeStatus,
-  ElectronMcpStdioServerConfig,
-  ElectronMcpStdioServerRuntimeStatus,
-  ElectronMcpStdioTestPayload,
-  ElectronMcpStdioTestResult,
+  ElectronMcpConfigFile,
+  ElectronMcpConfigText,
+  ElectronMcpRuntimeStatus,
+  ElectronMcpServerConfig,
+  ElectronMcpServerRuntimeStatus,
+  ElectronMcpTestPayload,
+  ElectronMcpTestResult,
   ElectronMcpToolDescriptor,
 } from '../../../../shared/eventa'
 
@@ -20,6 +20,7 @@ import { join } from 'node:path'
 import { useLogg } from '@guiiai/logg'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { app, shell } from 'electron'
 
@@ -33,29 +34,32 @@ import {
   electronMcpTestServer,
   electronMcpWriteConfigText,
 } from '../../../../shared/eventa'
-import { parseElectronMcpConfigText } from '../../../../shared/mcp-config'
+import { isHttpServerConfig, parseElectronMcpConfigText } from '../../../../shared/mcp-config'
 import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
+
+/** A transport that the MCP client can drive. Both kinds expose `close`. */
+type McpTransport = StdioClientTransport | StreamableHTTPClientTransport
 
 interface McpServerSession {
   client: Client
-  transport: StdioClientTransport
-  config: ElectronMcpStdioServerConfig
+  transport: McpTransport
+  config: ElectronMcpServerConfig
 }
 
-export interface McpStdioManager {
+export interface McpManager {
   ensureConfigFile: () => Promise<{ path: string }>
   openConfigFile: () => Promise<{ path: string }>
-  applyAndRestart: () => Promise<ElectronMcpStdioApplyResult>
+  applyAndRestart: () => Promise<ElectronMcpApplyResult>
   listTools: () => Promise<ElectronMcpToolDescriptor[]>
   callTool: (payload: ElectronMcpCallToolPayload) => Promise<ElectronMcpCallToolResult>
   stopAll: () => Promise<void>
-  getRuntimeStatus: () => ElectronMcpStdioRuntimeStatus
-  readConfigText: () => Promise<ElectronMcpStdioConfigText>
-  writeConfigText: (text: string) => Promise<ElectronMcpStdioConfigText>
-  testServer: (payload: ElectronMcpStdioTestPayload) => Promise<ElectronMcpStdioTestResult>
+  getRuntimeStatus: () => ElectronMcpRuntimeStatus
+  readConfigText: () => Promise<ElectronMcpConfigText>
+  writeConfigText: (text: string) => Promise<ElectronMcpConfigText>
+  testServer: (payload: ElectronMcpTestPayload) => Promise<ElectronMcpTestResult>
 }
 
-const defaultMcpConfig: ElectronMcpStdioConfigFile = {
+const defaultMcpConfig: ElectronMcpConfigFile = {
   mcpServers: {},
 }
 const toolNameSeparator = '::'
@@ -112,13 +116,78 @@ async function closeSession(session: McpServerSession) {
   }
 }
 
-export function createMcpStdioManager(): McpStdioManager {
-  const log = useLogg('main/mcp-stdio').useGlobalConfig()
+/**
+ * Creates the transport for one server configuration.
+ *
+ * Use when:
+ * - Starting a server from `mcp.json` or from a connection test
+ *
+ * Expects:
+ * - `config` already passed the MCP config schema
+ *
+ * Returns:
+ * - A stdio transport that spawns `config.command`, or a streamable HTTP
+ *   transport that reaches `config.url` and sends `config.headers` on every request
+ */
+function createTransport(config: ElectronMcpServerConfig): McpTransport {
+  if (isHttpServerConfig(config)) {
+    return new StreamableHTTPClientTransport(new URL(config.url), {
+      requestInit: { headers: config.headers },
+    })
+  }
+
+  return new StdioClientTransport({
+    command: config.command,
+    args: config.args ?? [],
+    env: config.env,
+    cwd: config.cwd,
+    stderr: 'pipe',
+  })
+}
+
+/**
+ * Builds the runtime status row for one server.
+ *
+ * Use when:
+ * - Recording that a server started, stopped, or failed
+ *
+ * Expects:
+ * - `config` already passed the MCP config schema
+ * - `options.pid` is known for stdio servers only
+ *
+ * Returns:
+ * - A status that reports a process for stdio servers and an endpoint for HTTP servers
+ */
+function describeRuntime(
+  name: string,
+  config: ElectronMcpServerConfig,
+  state: ElectronMcpServerRuntimeStatus['state'],
+  options: { pid?: number | null, lastError?: string } = {},
+): ElectronMcpServerRuntimeStatus {
+  const lastError = options.lastError === undefined ? {} : { lastError: options.lastError }
+
+  if (isHttpServerConfig(config)) {
+    return { name, state, transport: 'http', url: config.url, ...lastError }
+  }
+
+  return {
+    name,
+    state,
+    transport: 'stdio',
+    command: config.command,
+    args: config.args ?? [],
+    pid: options.pid ?? null,
+    ...lastError,
+  }
+}
+
+export function createMcpManager(): McpManager {
+  const log = useLogg('main/mcp').useGlobalConfig()
   const sessions = new Map<string, McpServerSession>()
-  const runtimeStatuses = new Map<string, ElectronMcpStdioServerRuntimeStatus>()
+  const runtimeStatuses = new Map<string, ElectronMcpServerRuntimeStatus>()
   let updatedAt = Date.now()
 
-  const setRuntimeStatus = (status: ElectronMcpStdioServerRuntimeStatus) => {
+  const setRuntimeStatus = (status: ElectronMcpServerRuntimeStatus) => {
     runtimeStatuses.set(status.name, status)
     updatedAt = Date.now()
   }
@@ -143,7 +212,7 @@ export function createMcpStdioManager(): McpStdioManager {
     return { path }
   }
 
-  const readConfigFile = async (path: string): Promise<ElectronMcpStdioConfigFile> => {
+  const readConfigFile = async (path: string): Promise<ElectronMcpConfigFile> => {
     const raw = await readFile(path, 'utf-8')
     return parseElectronMcpConfigText(raw)
   }
@@ -152,25 +221,13 @@ export function createMcpStdioManager(): McpStdioManager {
     const entries = [...sessions.entries()]
     for (const [name, session] of entries) {
       await closeSession(session)
-      setRuntimeStatus({
-        name,
-        state: 'stopped',
-        command: session.config.command,
-        args: session.config.args ?? [],
-        pid: null,
-      })
+      setRuntimeStatus(describeRuntime(name, session.config, 'stopped'))
       sessions.delete(name)
     }
   }
 
-  const startServer = async (name: string, config: ElectronMcpStdioServerConfig) => {
-    const transport = new StdioClientTransport({
-      command: config.command,
-      args: config.args ?? [],
-      env: config.env,
-      cwd: config.cwd,
-      stderr: 'pipe',
-    })
+  const startServer = async (name: string, config: ElectronMcpServerConfig) => {
+    const transport = createTransport(config)
     const client = new Client({
       name: `proj-airi:stage-tamagotchi:mcp:${name}`,
       version: app.getVersion(),
@@ -178,20 +235,18 @@ export function createMcpStdioManager(): McpStdioManager {
 
     try {
       await client.connect(transport)
-      transport.stderr?.on('data', (data) => {
-        const text = data.toString('utf-8').trim()
-        if (text) {
-          log.withFields({ serverName: name }).warn(text)
-        }
-      })
+      if (transport instanceof StdioClientTransport) {
+        transport.stderr?.on('data', (data) => {
+          const text = data.toString('utf-8').trim()
+          if (text) {
+            log.withFields({ serverName: name }).warn(text)
+          }
+        })
+      }
       sessions.set(name, { client, transport, config })
-      setRuntimeStatus({
-        name,
-        state: 'running',
-        command: config.command,
-        args: config.args ?? [],
-        pid: transport.pid,
-      })
+      setRuntimeStatus(describeRuntime(name, config, 'running', {
+        pid: transport instanceof StdioClientTransport ? transport.pid : null,
+      }))
     }
     catch (error) {
       await transport.close().catch(() => {})
@@ -199,14 +254,14 @@ export function createMcpStdioManager(): McpStdioManager {
     }
   }
 
-  const applyAndRestart = async (): Promise<ElectronMcpStdioApplyResult> => {
+  const applyAndRestart = async (): Promise<ElectronMcpApplyResult> => {
     const { path } = await ensureConfigFile()
     const config = await readConfigFile(path)
 
     await stopAll()
     runtimeStatuses.clear()
 
-    const result: ElectronMcpStdioApplyResult = {
+    const result: ElectronMcpApplyResult = {
       path,
       started: [],
       failed: [],
@@ -216,13 +271,7 @@ export function createMcpStdioManager(): McpStdioManager {
     for (const [name, server] of Object.entries(config.mcpServers)) {
       if (server.enabled === false) {
         result.skipped.push({ name, reason: 'disabled' })
-        setRuntimeStatus({
-          name,
-          state: 'stopped',
-          command: server.command,
-          args: server.args ?? [],
-          pid: null,
-        })
+        setRuntimeStatus(describeRuntime(name, server, 'stopped'))
         continue
       }
 
@@ -233,14 +282,7 @@ export function createMcpStdioManager(): McpStdioManager {
       catch (error) {
         const message = stringifyError(error)
         result.failed.push({ name, error: message })
-        setRuntimeStatus({
-          name,
-          state: 'error',
-          command: server.command,
-          args: server.args ?? [],
-          pid: null,
-          lastError: message,
-        })
+        setRuntimeStatus(describeRuntime(name, server, 'error', { lastError: message }))
       }
     }
 
@@ -329,7 +371,7 @@ export function createMcpStdioManager(): McpStdioManager {
     return normalized
   }
 
-  const getRuntimeStatus = (): ElectronMcpStdioRuntimeStatus => {
+  const getRuntimeStatus = (): ElectronMcpRuntimeStatus => {
     return {
       path: getConfigPath(),
       servers: [...runtimeStatuses.values()].sort((left, right) => left.name.localeCompare(right.name)),
@@ -337,13 +379,13 @@ export function createMcpStdioManager(): McpStdioManager {
     }
   }
 
-  const readConfigText = async (): Promise<ElectronMcpStdioConfigText> => {
+  const readConfigText = async (): Promise<ElectronMcpConfigText> => {
     const { path } = await ensureConfigFile()
     const text = await readFile(path, 'utf-8')
     return { path, text }
   }
 
-  const writeConfigText = async (text: string): Promise<ElectronMcpStdioConfigText> => {
+  const writeConfigText = async (text: string): Promise<ElectronMcpConfigText> => {
     const { path } = await ensureConfigFile()
     const validated = parseElectronMcpConfigText(text)
     const normalized = `${JSON.stringify(validated, null, 2)}\n`
@@ -351,9 +393,9 @@ export function createMcpStdioManager(): McpStdioManager {
     return { path, text: normalized }
   }
 
-  const testServer = async (payload: ElectronMcpStdioTestPayload): Promise<ElectronMcpStdioTestResult> => {
+  const testServer = async (payload: ElectronMcpTestPayload): Promise<ElectronMcpTestResult> => {
     const startedAt = Date.now()
-    let transport: StdioClientTransport | null = null
+    let transport: McpTransport | null = null
     let client: Client | null = null
     const stderrChunks: string[] = []
 
@@ -369,23 +411,19 @@ export function createMcpStdioManager(): McpStdioManager {
     }
 
     try {
-      transport = new StdioClientTransport({
-        command: payload.config.command,
-        args: payload.config.args ?? [],
-        env: payload.config.env,
-        cwd: payload.config.cwd,
-        stderr: 'pipe',
-      })
+      transport = createTransport(payload.config)
       client = new Client({
         name: `proj-airi:stage-tamagotchi:mcp:test:${payload.name}`,
         version: app.getVersion(),
       })
 
-      transport.stderr?.on('data', (data) => {
-        const text = data.toString('utf-8')
-        if (text)
-          stderrChunks.push(text)
-      })
+      if (transport instanceof StdioClientTransport) {
+        transport.stderr?.on('data', (data) => {
+          const text = data.toString('utf-8')
+          if (text)
+            stderrChunks.push(text)
+        })
+      }
 
       await withDeadline(client.connect(transport), mcpRequestMaxTotalTimeoutMsec, 'connect')
 
@@ -438,9 +476,9 @@ export function createMcpStdioManager(): McpStdioManager {
   }
 }
 
-export async function setupMcpStdioManager() {
-  const log = useLogg('main/mcp-stdio').useGlobalConfig()
-  const manager = createMcpStdioManager()
+export async function setupMcpManager() {
+  const log = useLogg('main/mcp').useGlobalConfig()
+  const manager = createMcpManager()
 
   onAppBeforeQuit(async () => {
     await manager.stopAll()
@@ -458,7 +496,7 @@ export async function setupMcpStdioManager() {
   return manager
 }
 
-export function createMcpServersService(params: { context: ReturnType<typeof createContext>['context'], manager: McpStdioManager }) {
+export function createMcpServersService(params: { context: ReturnType<typeof createContext>['context'], manager: McpManager }) {
   defineInvokeHandler(params.context, electronMcpOpenConfigFile, async () => {
     return params.manager.openConfigFile()
   })

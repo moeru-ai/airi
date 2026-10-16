@@ -7,11 +7,11 @@ import { getServerAuthBootstrapContext, resolveStandaloneServerAuthContext } fro
 describe('ui-server-auth bootstrap context', () => {
   it('uses the trusted API server origin carried by standalone server redirects', () => {
     expect(resolveStandaloneServerAuthContext(
-      'https://accounts.airi.build/ui/sign-in?api_server_url=https%3A%2F%2Fairi-server-dev.up.railway.app%2Fapi%2Fauth&client_id=airi-stage-web',
+      'https://accounts.airi.build/ui/sign-in?api_server_url=https%3A%2F%2Fapi-dev.airi.build%2Fapi%2Fauth&client_id=airi-stage-web',
       'https://api.airi.build',
     )).toEqual({
-      apiServerUrl: 'https://airi-server-dev.up.railway.app',
-      currentUrl: 'https://accounts.airi.build/ui/sign-in?api_server_url=https%3A%2F%2Fairi-server-dev.up.railway.app%2Fapi%2Fauth&client_id=airi-stage-web',
+      apiServerUrl: 'https://api-dev.airi.build',
+      currentUrl: 'https://accounts.airi.build/ui/sign-in?api_server_url=https%3A%2F%2Fapi-dev.airi.build%2Fapi%2Fauth&client_id=airi-stage-web',
     })
   })
 
@@ -53,9 +53,9 @@ describe('ui-server-auth bootstrap context', () => {
     window.history.replaceState(
       null,
       '',
-      '/ui/sign-in?api_server_url=https%3A%2F%2Fairi-server-dev.up.railway.app',
+      '/ui/sign-in?api_server_url=https%3A%2F%2Fapi-dev.airi.build',
     )
 
-    expect(getServerAuthBootstrapContext()?.apiServerUrl).toBe('https://airi-server-dev.up.railway.app')
+    expect(getServerAuthBootstrapContext()?.apiServerUrl).toBe('https://api-dev.airi.build')
   })
 })

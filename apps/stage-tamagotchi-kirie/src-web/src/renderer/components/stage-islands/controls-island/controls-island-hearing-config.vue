@@ -2,16 +2,13 @@
 import { useHostMicrophonePermission } from '@proj-airi/stage-host-context'
 import { HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { useAudioAnalyzer, useAudioContextFromStream } from '@proj-airi/stage-ui/composables'
-import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, watch } from 'vue'
 
 const show = defineModel('show', { type: Boolean, default: false })
 
-const hearingStore = useHearingStore()
 const settingsAudioDeviceStore = useSettingsAudioDevice()
-const { autoSendEnabled } = storeToRefs(hearingStore)
 const { enabled, stream } = storeToRefs(settingsAudioDeviceStore)
 
 const microphonePermission = useHostMicrophonePermission()
@@ -55,7 +52,6 @@ onUnmounted(async () => {
 <template>
   <HearingConfigDialog
     v-model:show="show"
-    v-model:auto-send="autoSendEnabled"
     :before-enable="prepareMicrophoneInput"
     :volume-level="volumeLevel"
   >

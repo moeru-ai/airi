@@ -33,6 +33,8 @@ export interface TtsRequest {
   sequence: number
   text: string
   special: string | null
+  /** Chunker boundary that produced this text. Tracing uses it to explain synthesis latency. */
+  reason: TextSegment['reason']
   priority: number
   createdAt: number
 }

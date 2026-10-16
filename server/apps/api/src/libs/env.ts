@@ -142,6 +142,24 @@ const EnvSchema = intersect([S3EnvironmentSchema, object({
   STRIPE_SECRET_KEY: optional(string()),
 
   STRIPE_WEBHOOK_SECRET: optional(string()),
+  // RevenueCat webhooks. Either the dashboard authorization header value or
+  // the HMAC signing secret verifies the sender. Routes stay mounted and
+  // return 503 when both are unset.
+  REVENUECAT_WEBHOOK_AUTH: optional(string()),
+  REVENUECAT_WEBHOOK_SECRET: optional(string()),
+  // RevenueCat REST API v2 secret key and project id, for the reads of a customer's
+  // subscriptions. A v1 key does not work. A subscription webhook returns 503 when
+  // one of them is unset, so RevenueCat sends the event again.
+  REVENUECAT_V2_API_KEY: optional(string()),
+  REVENUECAT_PROJECT_ID: optional(string()),
+  // The store environment whose RevenueCat subscriptions this deployment grants. A dev deployment
+  // that sells with the sandbox Web Billing key sets `sandbox`.
+  REVENUECAT_ENVIRONMENT: optional(picklist(['production', 'sandbox']), 'production'),
+  // Exact internal IDs of dedicated accounts whose sandbox subscriptions a production deployment grants.
+  REVENUECAT_SANDBOX_USER_IDS: optional(pipe(
+    string(),
+    transform(raw => [...new Set(raw.split(',').map(id => id.trim()).filter(Boolean))]),
+  ), ''),
   // Testing-only bearer token bypass. Keep unset in production. When set,
   // Authorization: Bearer $TEST_AUTH_TOKEN resolves to the virtual user below
   // through resolveRequestAuth without creating an Auth session row.

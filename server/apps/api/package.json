@@ -26,8 +26,6 @@
     "@hono/node-server": "catalog:",
     "@hono/node-ws": "catalog:",
     "@hono/otel": "catalog:",
-    "@langfuse/otel": "catalog:",
-    "@langfuse/tracing": "catalog:",
     "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
     "@openpanel/sdk": "catalog:",

@@ -3,6 +3,11 @@ operations:
   load-models-status:
     loading: Загрузка
     ready: Готово
+'resource-island':
+  loading: Подготовка ресурсов...
+  ready: Ресурсы готовы
+  preparing: Подготовка файлов модели
+  failed: Не удалось скачать модель
 docs:
   theme:
     navbar:
@@ -14,12 +19,18 @@ docs:
     disable: Всегда показывать
   'open-settings': Открыть настройки
   'open-chat': Открыть чат
+  'hide-chat': Скрыть чат
   'refresh': Обновить результаты
   'center-main-window': Переместить в центр экрана
   'open-hearing-controls': Управление слухом
+  'enable-microphone': Включить микрофон
+  'disable-microphone': Выключить микрофон
   'drag-to-move-window': Перетащите окно
+  'mute': Отключить звук
+  'unmute': Включить звук
   'switch-to-light-mode': Переключить на светлую тему
   'switch-to-dark-mode': Переключить на темную тему
+  'switch-to-system-mode': Использовать системную тему
   'pin-on-top': Прикрепить на верх
   'unpin-from-top': Открепить сверху
   'switch-profile': Переключить профиль
@@ -30,6 +41,28 @@ docs:
   'logging-in': Выполняется вход...
   'account': Аккаунт
   'logout': Выйти
+'chat-window':
+  style:
+    title: Стиль окна чата
+    legacy: Классическое окно
+    floating-attached: Плавающее, рядом с персонажем
+    floating-free: Плавающее, в любом месте экрана
+    floating-danmaku: Плавающее, лента сообщений
+    pinned: Поверх всех окон
+  resize: Перетащите для изменения размера чата
+  move: Перетащите для перемещения чата
+  fold: Скрыть чат
+  composer:
+    show: Показать поле сообщения
+    hide: Скрыть поле сообщения
+  danmaku-feed:
+    title: Время показа сообщений
+    hide-read: Скрывать прочитанные сообщения
+    hide-read-description: Сообщения исчезают после прочтения. Озвученные ответы исчезают после завершения речи.
+    reading-speed: Скорость чтения
+    reading-speed-value: '{count} символов/с'
+    minimum-time: Минимальное время
+    minimum-time-value: '{count} с'
 widgets:
   close: Закрыть виджет
   empty:
@@ -37,6 +70,8 @@ widgets:
     description: Виджеты появятся здесь, когда появится инструмент или плагин.
   loading: Загрузка виджета…
   waiting: Ожидание данных виджета "{id}"…
+inlay:
+  dismiss: Закрыть
 notice:
   'fade-on-hover':
     title: Исчезать при наведении
@@ -70,6 +105,7 @@ about:
       stable: Стабильный
       alpha: Альфа
       beta: Бета
+      nightly: Ночная сборка
     status:
       downloading: Загрузка обновления...
       error-prefix: Ошибка

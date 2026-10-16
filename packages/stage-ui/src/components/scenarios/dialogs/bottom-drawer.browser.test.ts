@@ -4,6 +4,8 @@ import { render } from 'vitest-browser-vue'
 import { userEvent } from 'vitest/browser'
 import { defineComponent, ref } from 'vue'
 
+import 'virtual:uno.css'
+
 const Harness = defineComponent({
   components: { BottomDrawer, GhostButton },
   setup() {
@@ -20,6 +22,35 @@ const Harness = defineComponent({
 })
 
 describe('mobile tools drawer', () => {
+  it('hides the heading without removing the accessible dialog name', async () => {
+    const screen = await render(BottomDrawer, {
+      props: { modelValue: true, title: 'Settings', hideTitle: true },
+    })
+
+    await expect.element(screen.getByRole('dialog', { name: 'Settings' })).toBeVisible()
+    const title = screen.getByRole('heading', { name: 'Settings' }).element()
+    expect(title.getBoundingClientRect().height).toBeLessThanOrEqual(1)
+  })
+
+  it('allows opening focus on the drawer without highlighting an action', async () => {
+    const screen = await render(BottomDrawer, {
+      props: {
+        modelValue: true,
+        title: 'Settings',
+        onOpenAutoFocus: (event: Event) => {
+          event.preventDefault()
+          if (event.target instanceof HTMLElement)
+            event.target.focus()
+        },
+      },
+      slots: { default: '<button>Background</button>' },
+    })
+
+    await expect.element(screen.getByRole('dialog', { name: 'Settings' })).toHaveFocus()
+    await userEvent.keyboard('{Tab}')
+    await expect.element(screen.getByRole('button', { name: 'Background' })).toHaveFocus()
+  })
+
   // https://github.com/moeru-ai/airi/issues/2085
   it('keeps action clicks independent of drag dismissal for Issue #2085', async () => {
     // ROOT CAUSE:

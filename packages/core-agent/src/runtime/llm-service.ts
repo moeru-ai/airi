@@ -84,6 +84,13 @@ async function streamOnce({
   const currentProvider = initialStep?.chatProvider ?? chatProvider
   // Resolve before async tool loading so all decisions use this request's configuration.
   const request = currentProvider.generation(currentModel)
+  if (options?.prepareConversation) {
+    conversation = await options.prepareConversation(conversation, {
+      model: currentModel,
+      providerId: initialStep?.providerId ?? options.providerId,
+      request,
+    })
+  }
   const supportedTools = supportsTools(currentModel, request, options)
   const contentArraySupported = supportsContentArray(currentModel, request, options)
   if (request.protocol === 'chat-completions' && !contentArraySupported && options?.prepareStringContent)
@@ -115,6 +122,10 @@ async function streamOnce({
       settled = true
       reject(error)
     }
+    // A request switch retries the request, and a caller abort is a cancellation that the caller already knows about.
+    // Logging either one as a failure fills the console during normal speech, for example when a voice plugin
+    // cancels a judgement because the speaker continued.
+    const reportsFailure = (error: unknown) => !(error instanceof RequestSwitch) && !options?.abortSignal?.aborted
 
     const onEvent = async (streamEvent: StreamEvent) => {
       try {
@@ -191,24 +202,24 @@ async function streamOnce({
           return
         }
         rejectOnce(error)
-        if (!(error instanceof RequestSwitch))
+        if (reportsFailure(error))
           console.error('Stream steps error:', error)
       })
       // `steps` can reject before the success path awaits `messages`.
       // Keep this rejection sink so xsAI cannot create an unhandled rejection.
       void streamResult.generatedTurn.catch((error) => {
-        if (!(error instanceof RequestSwitch))
+        if (reportsFailure(error))
           console.error('Stream generated turn error:', error)
       })
       void streamResult.usage.catch((error) => {
-        if (!(error instanceof RequestSwitch))
+        if (reportsFailure(error))
           console.error('Stream usage error:', error)
       })
       // `steps` and `totalUsage` reject independently when xsAI fails a
       // stream. The success path awaits `totalUsage`, but if `steps` rejects
       // first that await never runs, so keep this unconditional rejection sink.
       void streamResult.totalUsage.catch((error) => {
-        if (!(error instanceof RequestSwitch))
+        if (reportsFailure(error))
           console.error('Stream totalUsage error:', error)
       })
     }

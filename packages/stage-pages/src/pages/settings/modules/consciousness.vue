@@ -6,7 +6,7 @@ import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consci
 import { useConsciousnessSettingsStore } from '@proj-airi/stage-ui/stores/modules/consciousness-settings'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
-import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
+import { FieldCheckbox, FieldRange, SettingsCard } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -27,6 +27,8 @@ const {
   modelSearchQuery,
   supportsModelListing,
   providerModels,
+  activeModelRequiresReasoning,
+  activeModelUsesProviderReasoningDefault,
   isLoadingActiveProviderModels,
   activeProviderModelError,
   temperature,
@@ -78,7 +80,7 @@ async function updateTopPEnabled(value: boolean) {
 </script>
 
 <template>
-  <div bg="neutral-50 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-4">
+  <SettingsCard>
     <div>
       <div flex="~ col gap-4">
         <div>
@@ -307,15 +309,29 @@ async function updateTopPEnabled(value: boolean) {
         {{ t('settings.pages.modules.consciousness.sections.section.model-options.title') }}
       </h2>
 
+      <div
+        v-if="activeModelUsesProviderReasoningDefault"
+        :class="['flex', 'flex-col', 'gap-1']"
+      >
+        <span class="text-sm font-medium">
+          {{ t('settings.pages.modules.consciousness.sections.section.model-options.thinking.label') }}
+        </span>
+        <span :class="['text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
+          {{ t('settings.pages.modules.consciousness.sections.section.model-options.thinking.provider-default-description') }}
+        </span>
+      </div>
       <FieldCheckbox
-        :model-value="reasoning"
+        v-else
+        :model-value="reasoning || activeModelRequiresReasoning"
         :label="t('settings.pages.modules.consciousness.sections.section.model-options.thinking.label')"
+        :description="activeModelRequiresReasoning ? t('settings.pages.modules.consciousness.sections.section.model-options.thinking.required-description') : undefined"
+        :disabled="activeModelRequiresReasoning"
         @update:model-value="updateReasoning"
       />
     </section>
-  </div>
+  </SettingsCard>
 
-  <div v-if="activeProvider" :class="['bg-neutral-50 dark:bg-[rgba(0,0,0,0.3)]', 'rounded-xl', 'p-4', 'flex flex-col gap-4', 'mt-4']">
+  <SettingsCard v-if="activeProvider" class="mt-4">
     <div :class="['flex flex-col gap-4']">
       <FieldCheckbox
         :model-value="temperatureEnabled"
@@ -350,7 +366,7 @@ async function updateTopPEnabled(value: boolean) {
         :format-value="value => value.toFixed(1)"
       />
     </div>
-  </div>
+  </SettingsCard>
 
   <div
     v-motion

@@ -1,8 +1,4 @@
 <script setup lang="ts">
-import type { RemovableRef } from '@vueuse/core'
-
-import { streamWebSpeechAPITranscription } from '@proj-airi/provider-inference'
-import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import {
   Alert,
   ErrorContainer,
@@ -10,14 +6,16 @@ import {
   ProviderSettingsContainer,
   ProviderSettingsLayout,
 } from '@proj-airi/stage-ui/components'
+import { useVoiceController } from '@proj-airi/stage-ui/composables/audio/voice-controller'
 import { selectProviderMetadata } from '@proj-airi/stage-ui/libs'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { Button, FieldCombobox } from '@proj-airi/ui'
-import { computedAsync, until } from '@vueuse/core'
+import { computedAsync } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -28,7 +26,7 @@ const router = useRouter()
 const providersStore = useProviderStore()
 
 const providerStore = useProviderConfigStore()
-const { configs: providers } = storeToRefs(providerStore) as { configs: RemovableRef<Record<string, any>> }
+const { configs: providers } = storeToRefs(providerStore)
 
 onMounted(async () => {
   await providersStore.initializeProvider(providerId)
@@ -49,7 +47,7 @@ const settings = computed({
 })
 
 const language = computed({
-  get: () => settings.value?.language || 'en-US',
+  get: () => typeof settings.value.language === 'string' ? settings.value.language : 'en-US',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
@@ -58,7 +56,7 @@ const language = computed({
 })
 
 const continuous = computed({
-  get: () => settings.value?.continuous ?? true,
+  get: () => typeof settings.value.continuous === 'boolean' ? settings.value.continuous : true,
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
@@ -67,7 +65,7 @@ const continuous = computed({
 })
 
 const interimResults = computed({
-  get: () => settings.value?.interimResults ?? true,
+  get: () => typeof settings.value.interimResults === 'boolean' ? settings.value.interimResults : true,
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
@@ -116,186 +114,44 @@ const isWebSpeechAPIAvailable = computed(() => {
 })
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
-const { askPermission, stopStream, startStream } = settingsAudioDeviceStore
-const { audioInputOptions, selectedAudioInput, stream } = storeToRefs(settingsAudioDeviceStore)
+const { askPermission } = settingsAudioDeviceStore
+const { audioInputOptions, selectedAudioInput } = storeToRefs(settingsAudioDeviceStore)
 
 onMounted(async () => {
   ensureProviderSettings()
   await askPermission()
 })
 
-const isTestingSTT = ref(false)
-const testTranscriptionText = ref<string>('')
-const testTranscriptionError = ref<string>('')
-const testTranscriptionResult = ref<any>(null)
-const isTranscribing = ref(false)
-const testStreamingText = ref<string>('')
-const testStatusMessage = ref<string>('')
-const testStreamWasStarted = ref(false)
-const testRecognitionInstance = ref<any>(null)
-const testAbortController = ref<AbortController | null>(null)
-
-function handleStreamStartError() {
-  testTranscriptionError.value = 'Failed to start audio stream. Please check microphone permissions.'
-  testStatusMessage.value = 'Error: Failed to start audio stream'
-  isTranscribing.value = false
-  isTestingSTT.value = false
-  testStreamWasStarted.value = false
-}
-
-// Speech-to-Text test functions (hardcoded to use Web Speech API)
-async function startSTTTest() {
-  if (!selectedAudioInput.value) {
-    testTranscriptionError.value = 'Please select an audio input device first'
-    return
-  }
-
-  if (!isWebSpeechAPIAvailable.value) {
-    testTranscriptionError.value = 'Web Speech API is not available in this browser. Please use Chrome, Edge, or Safari.'
-    return
-  }
-
-  testTranscriptionError.value = ''
-  testTranscriptionText.value = ''
-  testStreamingText.value = ''
-  testStatusMessage.value = ''
-  isTestingSTT.value = true
-  isTranscribing.value = true
-
-  try {
-    // Ensure audio stream is available
-    if (!stream.value) {
-      testStatusMessage.value = 'Starting audio stream...'
-      testStreamWasStarted.value = true
-      await startStream()
-
-      // Wait for the stream to become available with a 3-second timeout.
-      try {
-        await until(stream).toBeTruthy({ timeout: 3000, throwOnTimeout: true })
-      }
-      catch {
-        handleStreamStartError()
-        return
-      }
-
-      // Type guard: until guarantees stream.value is truthy, but TypeScript doesn't know this
-      if (!stream.value) {
-        handleStreamStartError()
-        return
-      }
-    }
-    else {
-      testStreamWasStarted.value = false
-    }
-
-    // Always use Web Speech API for this provider page - call it directly
-    testStatusMessage.value = 'Starting Web Speech API transcription...'
-    console.info('Starting STT test with Web Speech API (direct call)')
-
-    // Call Web Speech API directly instead of going through the hearing pipeline
-    // This ensures we always use Web Speech API on this page
-    const abortController = new AbortController()
-    testAbortController.value = abortController
-
-    if (!stream.value) {
-      testTranscriptionError.value = 'Audio stream is not available'
-      testStatusMessage.value = 'Error: Audio stream is not available'
-      isTranscribing.value = false
-      isTestingSTT.value = false
-      return
-    }
-
-    const result = streamWebSpeechAPITranscription(stream.value, {
-      language: language.value,
-      continuous: continuous.value,
-      interimResults: interimResults.value,
-      abortSignal: abortController.signal,
-      onSentenceEnd: (delta) => {
-        if (delta && delta.trim()) {
-          testStreamingText.value += `${delta} `
-          testStatusMessage.value = 'Transcribing... (streaming)'
-          isTranscribing.value = true
-          console.info('Web Speech API test received sentence:', delta)
-        }
-      },
-      onSpeechEnd: (text) => {
-        if (text) {
-          testTranscriptionText.value = text
-          testStreamingText.value = ''
-          testStatusMessage.value = 'Transcription complete!'
-          isTranscribing.value = false
-          console.info('Web Speech API test completed with text:', text)
-        }
-        else {
-          testStatusMessage.value = 'Waiting for speech...'
-          isTranscribing.value = false
-        }
-      },
-    })
-
-    // Store recognition instance and result for cleanup
-    testRecognitionInstance.value = (result as any).recognition
-    testTranscriptionResult.value = result
-
-    testStatusMessage.value = 'Listening for speech... (Web Speech API streaming mode)'
-    isTranscribing.value = false // Not actively transcribing yet, just listening
-  }
-  catch (err) {
-    testTranscriptionError.value = errorMessageFromValue(err)
-    testStatusMessage.value = `Error: ${testTranscriptionError.value}`
-    isTranscribing.value = false
-    isTestingSTT.value = false
-    console.error('Web Speech API test error:', err)
-  }
-}
-
-async function stopSTTTest() {
-  isTestingSTT.value = false
-  isTranscribing.value = false
-  testStatusMessage.value = 'Stopped'
-
-  try {
-    // Stop recognition instance if we have one
-    if (testRecognitionInstance.value) {
-      try {
-        testRecognitionInstance.value.stop()
-      }
-      catch (err) { console.warn('Error stopping recognition instance:', err) }
-      testRecognitionInstance.value = null
-    }
-
-    // Abort the abort controller
-    if (testAbortController.value && !testAbortController.value.signal.aborted) {
-      testAbortController.value.abort()
-      testAbortController.value = null
-    }
-  }
-  catch (err) {
-    console.error('Error stopping STT test:', err)
-  }
-
-  // Finalize transcription if we have streaming text
-  if (testStreamingText.value.trim() && !testTranscriptionText.value) {
-    testTranscriptionText.value = testStreamingText.value.trim()
-  }
-
-  // Stop the stream if we started it for testing
-  if (testStreamWasStarted.value) {
-    try {
-      stopStream()
-      testStreamWasStarted.value = false
-    }
-    catch (err) {
-      console.error('Error stopping test stream:', err)
-    }
-  }
-
-  testTranscriptionResult.value = null
-}
-
-onUnmounted(() => {
-  stopSTTTest()
+const hearing = useHearingStore()
+const testTranscriptionText = ref('')
+const { controller, state, snapshot, error: testTranscriptionError } = useVoiceController({
+  transcriber: () => hearing.createTranscriber(providerId),
+  submit: async (submission) => {
+    testTranscriptionText.value = submission.text
+    return { status: 'drafted', draftId: submission.submissionId }
+  },
 })
+const isTestingSTT = computed(() => state.value?.phase === 'pending' || state.value?.phase === 'capturing')
+const isTranscribing = computed(() => state.value?.phase === 'finalizing')
+const testStreamingText = computed(() => isTestingSTT.value || isTranscribing.value ? snapshot.value?.transcript.text ?? '' : '')
+const testStatusMessage = computed(() => {
+  if (state.value?.phase === 'pending')
+    return t('stage.chat.voice-message.starting')
+  if (state.value?.phase === 'capturing')
+    return t('stage.chat.voice-message.recording')
+  if (state.value?.phase === 'finalizing')
+    return t('stage.chat.voice-preview.processing')
+  return ''
+})
+
+function startSTTTest() {
+  testTranscriptionText.value = ''
+  controller.beginInput({ sessionId: 'web-speech-preview', interruptTurns: [], start: { kind: 'after-silence' } })
+}
+
+function stopSTTTest() {
+  void controller.activeInput?.end()
+}
 </script>
 
 <template>

@@ -10,11 +10,10 @@ mobile-tools:
   character-voice: 角色声音
   title: 设置
   appearance: 外观
-  dark-mode: 深色模式
   application: 应用
   more: 更多
   background: 背景
-  settings: 全部设置
+  settings: 设置
   about: 关于
   view: 视图
   close-view: 保存并关闭视图调节
@@ -24,7 +23,102 @@ chat:
     title: 尚未正确配置聊天 Provider
     description: 请先前往设置页面选择并验证一个 Provider，再发送消息。
     action: 打开 Provider 设置
+  voice-message:
+    recording: 正在录制
+    starting: 正在启动麦克风
+    preview: 已录制的语音消息
+    transcribing: 正在转写…
+    position: 播放位置
+    no-speech: 没有识别到说话，语音消息没有发送。
+  voice-composer:
+    audio: 语音消息
+    transcription: 语音转文字
+    hold-hint: 按住录音。单击在语音消息和语音转文字之间切换。按 Enter 可以免按住录音。
+    listening: 正在聆听…
+    lock: 上滑锁定
+    cancel-hint: 左滑取消
+    processing: 正在完成…
+    cancel: 取消
+    send: 发送语音消息
+    insert: 插入文字
+    retry: 重新发送语音消息
+    discard: 丢弃语音消息
+    failed: 语音输入失败
+    configure-title: 设置听觉
+    configure-description: 请在听觉设置中选择转录服务和模型，才能使用语音转文字。
+    configure-action: 打开听觉设置
+    mode: 语音输入
+    auto-send: 录音结束后自动发送
+    input-device: 麦克风
+    system-default: 系统默认
+    listen: 持续聆听
+    push-to-talk: 按住说话
+    push-to-talk-unavailable: 当前设备没有「按住说话」按键，所以 AIRI 不会聆听。请在听觉设置中更改输入模式。
+    wake-word: 监听唤醒词
+    hearing-settings: 更多听觉设置…
+    options-hint: 悬停或右键查看选项
+    recording: 正在录音
+    stop: 停止录音
+    stop-send: 停止并发送
+    play: 播放录音
+    pause: 暂停
+  voice-preview:
+    processing: 正在完成转录
+    device: 音频输入设备
+    device-description: 选择本次录音使用的麦克风。
+    device-placeholder: 选择麦克风
+    level: 输入音量
+    activity: 语音活动
+    silence: 静音
+    speech: 人声
+    threshold: 检测阈值
+    sensitivity: 灵敏度
+    sensitivity-description: 调整人声指示器的检测阈值。
+    start: 开始录音
+    stop: 结束录音
+    failed: 音频操作失败。
+  voice-draft:
+    title: 语音草稿
+    discard: 丢弃草稿
+    listening: 正在聆听
+    finalizing: 正在整理……
+    sent: 已发送
   voice-input: 语音输入
+  notice:
+    label: 后台汇报
+  background-tasks:
+    label: 后台任务
+    stop: '停止{name}'
+    dismiss: '移除{name}'
+    status:
+      running: 进行中
+      done: 已完成
+      failed: 没做完
+      interrupted: 已停止
+  judgment:
+    label: 判断
+  recipe:
+    using: 正在用配方
+    loaded: 用了配方
+    started: 已交给配方
+    pending: 配方还没批准
+    disabled: 配方已关闭
+    unknown: 找不到配方
+    refused: 配方没能开始
+    failed: 配方没能开始
+  tool-calls:
+    running-one: '正在 {name}'
+    failed-one: '{name} 没成功'
+    combo-running: '连击 ×{count}'
+    combo: '{count} 连击'
+    combo-failed: '{count} 连击，{failed} 次落空'
+    arguments: 参数
+    result: 结果
+    rerun: 重新运行
+    state:
+      executing: 进行中
+      done: 完成
+      error: 失败
   error-details:
     show: 查看详情
     hide: 收起详情
@@ -75,6 +169,11 @@ chat:
     cloud-badge: 已同步到云
     new-chat-fallback: 新建对话
     delete: 删除对话
+avatar-model-missing:
+  title: 还没有选择模型
+  unavailable-title: 这台设备上没有这个模型
+  description: 选择一个模型，让 {name} 出现在舞台上。
+  select: 选择模型
 render-error:
   title: '{renderer} 无法渲染这个模型'
   description: 模型已经选中，但舞台无法显示它。
@@ -91,6 +190,7 @@ startup:
   close-details: 关闭详情
   retry: 重新启动 AIRI
   continue-without-model: 暂不加载角色
+  model-timeout: 角色模型加载超时，请检查网络连接后重试。
   resources:
     auth: 账户设置
     modelIndex: 模型列表
@@ -103,6 +203,14 @@ startup:
     route: 页面
     model: 角色模型
 message: 说点什么...
+theme:
+  title: 主题
+  system: 系统
+  light: 亮色
+  dark: 暗色
+  switch-to-light: 切换到亮色主题
+  switch-to-dark: 切换到暗色主题
+  switch-to-system: 跟随系统主题
 send-mode:
   title: 发送键值
   double-enter: 双击Enter

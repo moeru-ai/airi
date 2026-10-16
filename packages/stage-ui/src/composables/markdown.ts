@@ -96,7 +96,7 @@ export function useMarkdown() {
 
   return {
     process: async (markdown: string): Promise<string> => {
-      const hasCodeFence = /`{3,}/.test(markdown)
+      const hasCodeFence = /`{3,}|~{3,}/.test(markdown)
       const meta = { length: markdown.length, hasCodeFence }
 
       return defaultPerfTracer.withMeasure('markdown', 'process', async () => {

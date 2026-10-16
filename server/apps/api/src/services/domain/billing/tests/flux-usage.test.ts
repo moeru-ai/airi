@@ -41,7 +41,7 @@ describe('shared Flux usage', () => {
     await db.insert(schema.configKV).values({ key: 'FLUX_PER_1K_CHARS_TTS', value: '1' }).onConflictDoUpdate({ target: schema.configKV.key, set: { value: '1' } })
     const redis = createTestRedis()
     const config = createConfigKVService(createConfigKVStore(db, redis))
-    billing = createBillingService(db, redis)
+    billing = createBillingService(db, redis, { getOptional: async () => null })
     llmBilling = createLlmBillingService(billing)
     speech = new SpeechBilling(billing, config)
   })

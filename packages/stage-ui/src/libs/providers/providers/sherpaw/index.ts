@@ -5,8 +5,8 @@ import { resolveSupportedLocale } from '@proj-airi/i18n'
 import { createSherpawTranscriptionDefinition } from '@proj-airi/provider-inference'
 import { isStageCapacitor } from '@proj-airi/stage-shared'
 
-import { fetchCachedModel } from '../../../inference/cache-utils'
 import { defineProvider } from '../registry'
+import { fetchSherpawModel } from './model-assets'
 import { sherpawModelResources } from './model-resources'
 
 export { executeSherpawStream, SHERPAW_TRANSCRIPTION_PROVIDER_ID } from '@proj-airi/provider-inference'
@@ -24,7 +24,7 @@ export const providerSherpawTranscription = defineProvider({
   ...createSherpawTranscriptionDefinition({
     models: sherpawModelResources,
     workerURL,
-    fetchModel: fetchCachedModel,
+    fetchModel: fetchSherpawModel,
     getInterfaceLanguage,
     isMobile,
   }),

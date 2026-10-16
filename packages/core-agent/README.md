@@ -16,6 +16,10 @@
 
 When a caller supplies `resolveStep`, `streamFrom` reads current settings before each model request. It resolves the first request before projecting the conversation. A continuation scope change starts a new SDK stream. Completed rounds and usage remain in one assistant turn. The callback returns the current tools and header overrides for each request.
 
+`prepareConversation` adapts media to the resolved request before the protocol adapter projects the conversation. It runs for each SDK stream, so it also runs after a scope change selects another model. It returns a request copy and keeps stored recordings intact. Stage uses it to send audio only to models that accept audio, and transcripts to other models.
+
+The chat orchestrator forwards a send's `resolveStep`. It appends that send's system prompt supplement, including sticker instructions, to each resolved prompt.
+
 ```ts
 await streamFrom({
   model: 'selected-model',
@@ -32,11 +36,16 @@ await streamFrom({
 
 The existing session store uses Chat-shaped UI records. The orchestrator decodes those records at the storage boundary, then composes runtime context as structured segments. Chat sends, vision inputs, and Spark notifications use the same generation contract. Hooks and the plugin bridge receive a separate display projection. That projection is text-only and excludes native continuation data and media payloads. Images, audio, and files become labels, including tool results.
 
+Runtime context keeps one bucket per writer. `replace-self` replaces the writer's entries, and `append-self` adds an event.
+`removeWriter()` removes one writer's entries, for example after its module leaves.
+
 ## Turn history
 
 After all SDK steps settle, `onGeneratedTurn` receives the new `AssistantTurn`. Each round records model usage, its finish reason, tool invocations, and native continuation data. SDK input snapshots define round boundaries; message roles do not define runtime rounds.
 
 The generated turn contains settled rounds and is stored under the existing `generationTranscript` history key. Live deltas still use the existing stream event contract. An interrupted execution does not store a generated turn. If it produced visible output, local Chat history preserves that output with `interrupted: true` so the user can read and retry it.
+
+A stored assistant message has `createdAt` from when it started and `completedAt` from when it stopped receiving output, at its end or at its interruption. Windows that do not run the generation use `completedAt`, for example to time how long a reply shows.
 
 The adapter preserves SDK continuation data without parsing nested provider fields through local schemas. It checks the outer array before replay. Its scope contains provider identity, endpoint, model, and conversation. Credentials and request headers do not change this scope. A protocol or scope change projects round content. Unknown native content records a projection issue without removing the original payload or other readable items. Cross-protocol projection reports that issue instead of silently omitting content. A local tool-result edit invalidates native data for that round and later rounds that used the old result. Cancelled or failed generations do not commit a generated turn. `AssistantTurn.status` is therefore `completed`. Tool executions within that turn can still report failure.
 
@@ -49,6 +58,34 @@ A provider resolves a discriminated `GenerationRequest` before context projectio
 The current Responses adapter supports text, images, file data or URLs, refusals, and function calls. It rejects audio input and provider file IDs. It supports provider-executed web search alongside local function tools. Search records remain in native continuation. Citation events and portable text retain source URLs and offsets. Incomplete responses and EOF before a terminal event fail the generation. Session cancellation aborts the active provider request.
 
 Realtime transport is not implemented. A future session adapter can project the same context, but must define continuous input, interruption, and session ownership separately.
+
+## Host send options
+
+`ChatOrchestratorSendOptions` carries what the host decides for one send:
+
+- `scene` marks a reply to an external scene, for example a Discord channel. It never speaks.
+- `background` marks work beside the conversation, for example a recipe task. It never speaks.
+- `notice` sends text that is not owner speech, for example a finished task. History stores it with `notice`, and requests mark it with its source. The reply carries `proactive`.
+- `skills` stores invoked skill steps with the owner's message. Later requests project them after that message.
+
+The stream context carries `speaks`. Only a send that is neither `background` nor `scene` speaks.
+
+## Identity
+
+With `getSystemPrompt`, each run reads the identity of its own session when it starts. Stored system messages are skipped.
+
+## Recipes
+
+A recipe is a skill with `instructions` steps. `usableRecipes` keeps enabled and approved recipes.
+`matchKeywordRecipes` finds recipes whose keyword appears in a message. `isBackgroundRecipe` tells whether a recipe runs in its own session.
+A decision recipe has a `decision` instead of steps. `decisionOptions` numbers its answers, and `judgeDecision` returns the action of the answer that the model picked.
+`isAutoRunRecipe` marks a recipe with an `automation` or `modelTimed`. `MODEL_DECIDES_STEPS` are instructions that let the model decide what each run does from the recipe's purpose.
+
+## Automations
+
+An `Automation` has triggers, conditions, and an optional cooldown. `checkAutomations` returns the recipes whose trigger fired and whose conditions hold.
+Each trigger event counts once. A recipe in its cooldown, or with a run that still runs, spends the event without a run.
+Each trigger keeps its own time, so one trigger that fires never spends the event of another.
 
 ## Verify
 
@@ -64,3 +101,111 @@ Files have exactly one source. SDK output and restored continuation enter throug
 The public stream event union has no `any` branch. Protocol adapters translate SDK events into this contract.
 The scheduler commits a generated turn only after transport, local tools, and event consumers complete.
 Source links remain separate from speech text and survive local history persistence.
+
+## Chat stickers
+
+A host can supply `stickers` in the send options. Each entry has an `id` and a model-facing `description`. Hosts include image names and emotion tags in that description.
+The queue copies the catalog when the request is submitted, alongside its provider identity and system prompt supplement.
+Concurrent sessions and queued sends retain their own catalog. The runtime adds its marker instructions to that request's system prompt.
+An absent or empty catalog disables sticker output and adds no prompt instructions.
+
+The existing marker parser accepts `<|STICKER id|>` across stream chunks.
+The runtime stores at most one known ID as a `ChatSlicesSticker` per reply.
+Unknown IDs are ignored. Sticker markers never reach literal speech or special-token hooks.
+Other special markers retain their existing behavior. A reply can contain text, a sticker, or both.
+The host renderer resolves the ID to local artwork. The core has no image assets, URLs, storage, or model dependencies.
+
+## VoiceController
+
+The implemented coordinator is `VoiceController`. It composes audio primitives with transcription, trusted plugins, submission, and named response interruption.
+Use it for conversation lifecycles. Use pipelines-audio directly for an independent recording attachment.
+Browser resources stay in audio adapters. Character selection and persistence stay in application adapters.
+
+```text
+src/voice/
+├── index.ts         # The public voice API. Import from the package root, not from these files.
+├── controller.ts    # VoiceController and its options
+├── interruption.ts  # Interruption receipts and the durable interruption event
+├── turn.ts          # TurnRef and turnKey
+├── input/           # One speech input: admission, capture, transcript, end detection, submission
+├── output/          # VoiceResponse and ordered SpeechStream producers
+└── plugins/         # Trusted plugin types, installation, input scopes, and task lifetimes
+```
+
+`input/` and `output/` do not import `controller.ts`. `plugins/` reads input types but never the controller.
+
+```ts
+const voice = new VoiceController({
+  audio,
+  transcriber: sessionId => hearingFor(sessionId),
+  submit: (input, signal) => saveDraftOrSubmit(input, signal),
+  speech: turn => speechOutputFor(turn),
+  recordInterruption: event => agent.receiveInterruption(event),
+})
+
+const input = voice.beginInput({
+  sessionId,
+  interruptTurns: [currentTurn],
+  start: { kind: 'after-silence' },
+})
+
+// The release control calls end. Provider final output and selected plugin work can then finish.
+const result = await input.end()
+```
+
+- `SpeechInputAttempt` exists during playback fade and until the source delivers audio, which includes microphone permission.
+- `SpeechInput` exists after capture admission. It retains raw transcripts, corrected text, speaker evidence, and plugin context.
+- `end()` completes recording. `cancel(reason)` rejects later publication from the attempt.
+- `interrupt({ turns, cause })` targets named responses and reports silence separately from agent delivery.
+- The notification receiver deduplicates by event ID. Its acknowledgment means durable receipt, without another user message or response.
+- `audio` is a shared `AudioInput`. Attempts and plugins subscribe to it. The controller never closes it.
+- `replaceAudio(input)` cancels active attempts and moves plugin observations to the new input.
+- A transcriber receives continuous PCM. An adapter that needs a file or a MediaStream converts the PCM itself.
+
+### Trusted plugins
+
+```ts
+voice.use({
+  name: 'memory',
+  setup(plugin) {
+    plugin.onSpeechInput((input) => {
+      input.subscribe({ transcript: 'corrected', speakers: true, scheduling: 'latest' }, async (ctx) => {
+        const matches = await memory.search({
+          text: ctx.snapshot.transcript.text,
+          speakers: ctx.snapshot.speakers,
+          signal: ctx.signal,
+        })
+        ctx.context.set('matches', matches)
+      })
+    })
+  },
+})
+```
+
+The task context checks freshness at publication. A stale result cannot replace current context.
+`ordered` processes every accepted snapshot in order. `latest` cancels stale work and replaces pending snapshots.
+Lifecycle tasks can await `untilTranscriptionEnded()` or `untilDependenciesSettled()`.
+Timeouts and submission grace periods are caller options. The runtime imposes no resource quotas.
+
+VAD, PTT, wake words, speaker models, turn detection, memory search, and rewrite models remain external policy or adapters.
+Plugins receive source-tagged windows and scoped controls. They do not receive unrestricted controller access.
+Automatic patches use raw word or sentence coordinates and preserve raw history.
+
+### Output without voice input
+
+```ts
+const voice = new VoiceController({ speech: turn => speechOutputFor(turn) })
+const response = voice.openResponse({ sessionId, turnId })
+const acknowledgment = response.openSpeech({ purpose: 'acknowledgment' })
+const answer = response.openSpeech({ purpose: 'answer' })
+
+await acknowledgment.write('Let me check.')
+acknowledgment.end()
+await answer.write(answerText)
+answer.end()
+await response.finish()
+```
+
+Producers can synthesize concurrently. Playback follows their reservation order.
+Cancelling an acknowledgment releases its place without reporting a user interruption.
+Whole-turn interruption aborts generation, synthesis, queued audio, and playback for that response.

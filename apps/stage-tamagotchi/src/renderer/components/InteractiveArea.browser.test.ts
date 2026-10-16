@@ -76,7 +76,10 @@ async function renderArea(component: Component = InteractiveArea, options: { pro
   onTestFinished(() => localStorage.clear())
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: '/', component: { template: '<div />' } }],
+    routes: [
+      { path: '/', component: { template: '<div />' } },
+      { path: '/settings/providers', component: { template: '<div />' } },
+    ],
   })
   await router.push('/')
   await router.isReady()
@@ -101,6 +104,7 @@ async function renderArea(component: Component = InteractiveArea, options: { pro
     chatSession: useChatSessionStore(pinia),
     chatStream: useChatStreamStore(pinia),
     stageModel: useSettingsStageModel(pinia),
+    router,
     screen,
   }
 }
@@ -243,27 +247,24 @@ describe('interactive area synchronized state', () => {
     await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).toBeVisible()
     await expect.element(screen.getByText('stage.mobile-tools.sign-in', { exact: true })).toBeVisible()
     const account = screen.getByRole('button', { name: 'stage.mobile-tools.sign-in stage.mobile-tools.account-description' }).element()
-    const drawerTitle = screen.getByRole('heading', { name: 'stage.mobile-tools.title' }).element()
+    const actions = account.parentElement!
     const accountContent = account.querySelector<HTMLElement>('.basic-button-content')
+    // https://github.com/moeru-ai/airi/pull/2864
     // ROOT CAUSE:
-    //
-    // The account row relied on scoped descendant CSS to stretch
-    // BasicButton's content wrapper. The combined browser bundle could leave
-    // that wrapper at its content width, centering the label inward. Comparing
-    // text coordinates was also unstable while the drawer portal animated, so
-    // assert the owned row and content geometry directly.
+    // The account card added padding and an avatar, but assertions kept the old geometry.
+    // Compare the content with the available width and retain touch-target and alignment checks.
     expect(accountContent).not.toBeNull()
-    await expect.poll(() => getComputedStyle(account).paddingLeft).toBe('0px')
-    expect(account.getBoundingClientRect().left).toBe(drawerTitle.getBoundingClientRect().left)
-    expect(accountContent!.getBoundingClientRect().width).toBe(account.clientWidth)
-    expect(account.getBoundingClientRect().height).toBe(56)
-    expect(account.querySelector('[data-avatar-fallback], [data-avatar-image]')).toBeNull()
+    const accountStyle = getComputedStyle(account)
+    const contentWidth = account.clientWidth - Number.parseFloat(accountStyle.paddingLeft) - Number.parseFloat(accountStyle.paddingRight)
+    expect(account.getBoundingClientRect().left).toBe(actions.getBoundingClientRect().left)
+    expect(accountContent!.getBoundingClientRect().width).toBe(contentWidth)
+    expect(account.getBoundingClientRect().height).toBeGreaterThanOrEqual(44)
+    expect(account.querySelector('[data-avatar-fallback]')).not.toBeNull()
     await expect.element(screen.getByText('stage.mobile-tools.cleanup', { exact: true })).not.toBeInTheDocument()
-    await expect.element(screen.getByRole('switch', { name: 'stage.mobile-tools.character-voice' })).toBeVisible()
-    const voice = screen.getByRole('switch', { name: 'stage.mobile-tools.character-voice' })
-    const before = voice.element().getAttribute('aria-checked')
-    await voice.click()
-    await expect.element(voice).toHaveAttribute('aria-checked', before === 'true' ? 'false' : 'true')
+    await expect.element(screen.getByRole('slider', { name: 'stage.mobile-tools.character-voice' })).toBeVisible()
+    const mute = screen.getByRole('button', { name: 'stage.speech-output.mute', exact: true })
+    await mute.click()
+    await expect.element(screen.getByRole('button', { name: 'stage.speech-output.unmute', exact: true })).toBeVisible()
     await expect.element(screen.getByRole('button', { name: 'Close', exact: true })).not.toBeInTheDocument()
     await userEvent.keyboard('{Escape}')
     await expect.element(trigger).toHaveFocus()
@@ -454,15 +455,21 @@ describe('interactive area synchronized state', () => {
     }
   })
 
-  it('returns from hearing to mobile settings without stacked dialogs', async () => {
+  // https://github.com/moeru-ai/airi/pull/2832
+  // ROOT CAUSE:
+  //
+  // The mobile composer now owns the Hearing drawer. The old test still looked
+  // for the removed settings-menu entry and timed out before testing the drawer.
+  //
+  // Test the composer trigger and its focus restoration after the drawer closes.
+  it('closes hearing and restores focus to the mobile voice button', async () => {
     const { screen } = await renderArea(MobileInteractiveArea)
-    await screen.getByTestId('mobile-settings-button').click()
-    await screen.getByRole('button', { name: 'stage.mobile-tools.hearing' }).click()
+    const voiceButton = screen.getByTestId('mobile-voice-button')
+    await voiceButton.click()
     await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.hearing' })).toBeVisible()
-    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).not.toBeInTheDocument()
     await userEvent.keyboard('{Escape}')
-    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).toBeVisible()
     await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.hearing' })).not.toBeInTheDocument()
+    await expect.element(voiceButton).toHaveFocus()
   })
 
   it('expands the Electron input bubble around a reply preview', async () => {
@@ -553,6 +560,29 @@ describe('interactive area synchronized state', () => {
 
     await screen.getByText('stage.chat.provider-configuration.action').click()
     expect(openSettings).toHaveBeenCalledWith({ route: '/settings/providers' })
+  })
+
+  // ROOT CAUSE:
+  //
+  // If no chat provider was selected, the web and mobile composers sent the draft.
+  // The chat store then threw, and the history showed the raw error text.
+  //
+  // We fixed this by sharing the Electron setup callout and readiness check in all composers.
+  it.each([
+    ['mobile', MobileInteractiveArea],
+    ['web', SharedInteractiveArea],
+  ] as const)('keeps the draft and offers provider settings in %s when no chat provider is configured', async (_name, component) => {
+    const { chat, router, screen } = await renderArea(component, { providerConfigured: false })
+    const send = vi.spyOn(chat, 'send')
+
+    const input = await submitDraft(screen, 'Hello')
+
+    await expect.element(screen.getByText('stage.chat.provider-configuration.action')).toBeVisible()
+    await expect.element(input).toHaveValue('Hello')
+    expect(send).not.toHaveBeenCalled()
+
+    await screen.getByText('stage.chat.provider-configuration.action').click()
+    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/settings/providers'))
   })
 
   // https://github.com/moeru-ai/airi/pull/2399
@@ -649,6 +679,35 @@ describe('interactive area synchronized state', () => {
     const captured = await area.snapshotDraft()
 
     expect(captured).toEqual(draft)
+  })
+
+  it('carries the shown conversation through a mode switch with an empty composer', async () => {
+    // ROOT CAUSE:
+    //
+    // A new window starts on the conversation saved for the character. A
+    // switch carried the shown one only in a typed draft, and the restore
+    // waited for the user to pick it, so the previous window stayed.
+    //
+    // The switch always carries the conversation, and the restore opens it.
+    let area: InstanceType<typeof InteractiveArea> | undefined
+    const { chatSession } = await renderArea(defineComponent({
+      setup: () => () => h(InteractiveArea, {
+        ref: (instance) => {
+          area = (instance ?? undefined) as InstanceType<typeof InteractiveArea> | undefined
+        },
+      }),
+    }))
+    if (!area)
+      throw new Error('Expected the composer.')
+
+    expect(await area.snapshotDraft()).toMatchObject({ sessionId: 'session-b', text: '', attachments: [] })
+
+    await expect(area.restoreDraft({ sessionId: 'session-a', text: '', attachments: [] })).resolves.toBe(true)
+    expect(chatSession.activeSessionId).toBe('session-a')
+
+    await expect(area.restoreDraft({ sessionId: 'session-b', text: 'unsent', attachments: [] })).resolves.toBe(true)
+    expect(chatSession.activeSessionId).toBe('session-b')
+    expect((await area.snapshotDraft())?.text).toBe('unsent')
   })
 
   it('captures a reply picked from the history as a mode switch draft that can cross IPC', async () => {

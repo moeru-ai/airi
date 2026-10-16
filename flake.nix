@@ -11,7 +11,7 @@
         "aarch64-darwin"
       ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
-      pkgsForSystem =
+      getPkgs =
         system:
         import nixpkgs {
           inherit system;
@@ -19,11 +19,10 @@
         };
     in
     {
-      formatter = forAllSystems (system: (pkgsForSystem system).nixfmt-tree);
+      formatter = forAllSystems (system: (getPkgs system).nixfmt-tree);
 
       packages = forAllSystems (
-        system:
-        { default = self.packages.${system}.airi; } // self.overlays.airi (pkgsForSystem system) null
+        system: { default = self.packages.${system}.airi; } // self.overlays.airi (getPkgs system) null
       );
 
       overlays = {
@@ -36,30 +35,36 @@
       devShells = forAllSystems (
         system:
         let
-          pkgs = pkgsForSystem system;
+          pkgs = getPkgs system;
+          airi = self.packages.${system}.airi;
         in
         with pkgs;
         {
-          default = mkShell {
-            inputsFrom = [ self.packages.${system}.airi ];
+          default = self.devShells.${system}.develop;
+
+          develop = mkShell {
+            inputsFrom = [ airi ];
             packages = [
+              markdown-oxide
               nixd
               nixfmt
               nixfmt-tree
-              pnpm
+              airi.pnpm # Use pinned version
               python314
+              typescript-language-server
+              vscode-langservers-extracted # For vscode-eslint-language-server
             ];
           };
 
           # FHS environment for running Electron on NixOS
           # Usage: nix develop .#fhs
-          fhs = (
-            buildFHSEnv {
+          fhs =
+            (buildFHSEnv {
               name = "airi-electron-fhs";
               targetPkgs =
                 p: with p; [
                   nodejs_24
-                  pnpm
+                  airi.pnpm
                   # Electron system library dependencies
                   # Note: some packages need explicit output refs because the
                   # default attribute doesn't point to the output with .so files
@@ -94,8 +99,7 @@
                   systemd
                 ];
               runScript = "bash";
-            }
-          ).env;
+            }).env;
         }
       );
     };

@@ -222,8 +222,29 @@
     {
       "idx": 31,
       "version": "7",
-      "when": 1791206194577,
-      "tag": "0031_add_provider_display_name",
+      "when": 1791290026756,
+      "tag": "0031_character_cards",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1791636328908,
+      "tag": "0032_capacitor",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1791896559829,
+      "tag": "0033_display_models",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1792135934437,
+      "tag": "0034_add_provider_display_name",
       "breakpoints": true
     }
   ]

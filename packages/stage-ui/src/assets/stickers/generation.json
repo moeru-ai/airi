@@ -1,0 +1,418 @@
+{
+  "generatedOn": "2026-10-05",
+  "tool": "OpenAI built-in GPT image generation (image_gen)",
+  "modelVersion": "Not exposed by the tool",
+  "transparentBackground": true,
+  "references": [
+    {
+      "id": "official-frame",
+      "role": "Character identity",
+      "source": "https://github.com/moeru-ai/airi/blob/87230a0d4f33eefd2b976c41c4a989b0bf1046ce/docs/content/en/blog/DevLog-2025.10.20/assets/airi.mp4",
+      "frameSeconds": 3
+    },
+    {
+      "id": "style-anchor",
+      "role": "Chibi identity and style",
+      "file": "airi-happy.png"
+    }
+  ],
+  "assets": [
+    {
+      "id": "airi-happy",
+      "name": "Happy",
+      "emotions": [
+        "happy"
+      ],
+      "file": "airi-happy.png",
+      "sha256": "e7083b82d0a63564011a2cd2158b56282d9042a3264e4ece19fcc9bf0ab17ca1",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 1590124,
+      "alpha": true,
+      "visibleBounds": [
+        71,
+        25,
+        1243,
+        1238
+      ],
+      "prompt": "Use case: illustration-story.\nAsset type: one transparent chat sticker for the open-source Project AIRI, square canvas.\nInput image 1: official AIRI Live2D character reference; use it for character identity, not for copying the screenshot background.\nPrimary request: draw a single cute chibi bust of this exact AIRI character feeling HAPPY, delighted closed smiling eyes, a broad friendly open smile, rosy cheeks, both small fists raised near her shoulders in a joyful pose, two small yellow sparkle accents.\nCharacter invariants: pale cyan-blue long hair, asymmetrical side ponytail on the viewer's right, loose long hair on the other side, one large curved loop-shaped ahoge, distinctive angular yellow outlined hair clip on the viewer's right, cyan-aquamarine eyes when open. White jacket with thin yellow trim, navy sailor collar with white stripes, yellow necktie, pale cyan high-neck undershirt. A tiny simple badge rectangle can remain, with no letters.\nStyle: polished 2D anime chibi sticker, large round head and small upper body, clean bold blue-gray outlines, flat pastel fills with restrained cel shading, simple expressive face; readable at 96px. Establish a consistent production style for a twelve-sticker set.\nComposition: character centered, complete head including ahoge and hair clip, hair and both hands entirely inside canvas with at least 8% clear margin, bust ends in a clean curved sticker silhouette. Hands have natural simple chibi anatomy, no extra limbs or fingers. No border frame, no cast shadow, no scenery, no watermark, no text, no other characters.\nBackground: genuine transparent alpha, no white rectangle, no checkerboard pattern painted into the image. One sticker only, no grid or sheet.",
+      "referenceIds": [
+        "official-frame"
+      ],
+      "inspection": {
+        "character": "Cyan hair, viewer-right ponytail and yellow clip, loop ahoge, white jacket, navy collar, yellow tie match the official reference.",
+        "anatomy": "Hands and arms inspected; no extra limbs or visibly malformed digits.",
+        "framing": "Complete head and bust; visible-alpha bounds stay inside the square canvas.",
+        "emotion": "Facial expression and gesture match the catalog emotion."
+      }
+    },
+    {
+      "id": "airi-sad",
+      "name": "Sad",
+      "emotions": [
+        "sad"
+      ],
+      "file": "airi-sad.png",
+      "sha256": "1ff8494653f8dd69116796d89449c6158422fe373fb3b878a653d840f32f95da",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 1594273,
+      "alpha": true,
+      "visibleBounds": [
+        85,
+        31,
+        1246,
+        1239
+      ],
+      "prompt": "Use case: illustration-story. Asset: a single transparent chat sticker for Project AIRI, square canvas.\nInput image 1 is the official Live2D identity reference. Input image 2 is the approved HAPPY sticker and establishes the exact chibi drawing style, proportions, line weight, shading, palette, and outfit for this set.\nDraw the SAME AIRI character in that same polished 2D anime chibi bust style, NOT a different character. Keep pale cyan-blue long hair, asymmetrical side ponytail on the viewer's right, one large loop-shaped ahoge, angular yellow outlined hair clip on the viewer's right, large aquamarine eyes, white jacket with thin yellow trim, navy sailor collar with white stripes, yellow necktie and pale cyan high-neck undershirt. Simple blank badge rectangle, no letters.\nKeep clean blue-gray outlines, pastel fills, restrained cel shading, a round large head and small upper body. Readable at 96px. Centered complete bust with ALL hair, ahoge, hands and emotion accents inside the canvas, with visible transparent margins on every side. Small hands with natural simple chibi anatomy and no extra fingers or limbs. Clean curved bottom silhouette, no sharp crop through the body.\nGenuine transparent alpha, NO painted checkerboard, no scenery, no frame, no cast shadow, no watermark, no text, no other characters. Exactly one sticker, not a grid. Emotion: SAD. Slightly drooping eyebrows, watery aquamarine eyes, a small downturned mouth, one clear tear on the cheek. Hands gently clasped at the chest. Quiet sadness, kind and sympathetic, not dramatic distress. No floating text or symbol.",
+      "referenceIds": [
+        "official-frame",
+        "style-anchor"
+      ],
+      "inspection": {
+        "character": "Cyan hair, viewer-right ponytail and yellow clip, loop ahoge, white jacket, navy collar, yellow tie match the official reference.",
+        "anatomy": "Hands and arms inspected; no extra limbs or visibly malformed digits.",
+        "framing": "Complete head and bust; visible-alpha bounds stay inside the square canvas.",
+        "emotion": "Facial expression and gesture match the catalog emotion."
+      }
+    },
+    {
+      "id": "airi-confused",
+      "name": "Confused",
+      "emotions": [
+        "confused"
+      ],
+      "file": "airi-confused.png",
+      "sha256": "a20cca1aff820817e91e4d76ea7b02aec4c604ea158d5663d5acfc3eed28362d",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 1621254,
+      "alpha": true,
+      "visibleBounds": [
+        45,
+        28,
+        1219,
+        1235
+      ],
+      "prompt": "Use case: illustration-story. Asset: a single transparent chat sticker for Project AIRI, square canvas.\nInput image 1 is the official Live2D identity reference. Input image 2 is the approved HAPPY sticker and establishes the exact chibi drawing style, proportions, line weight, shading, palette, and outfit for this set.\nDraw the SAME AIRI character in that same polished 2D anime chibi bust style, NOT a different character. Keep pale cyan-blue long hair, asymmetrical side ponytail on the viewer's right, one large loop-shaped ahoge, angular yellow outlined hair clip on the viewer's right, large aquamarine eyes, white jacket with thin yellow trim, navy sailor collar with white stripes, yellow necktie and pale cyan high-neck undershirt. Simple blank badge rectangle, no letters.\nKeep clean blue-gray outlines, pastel fills, restrained cel shading, a round large head and small upper body. Readable at 96px. Centered complete bust with ALL hair, ahoge, hands and emotion accents inside the canvas, with visible transparent margins on every side. Small hands with natural simple chibi anatomy and no extra fingers or limbs. Clean curved bottom silhouette, no sharp crop through the body.\nGenuine transparent alpha, NO painted checkerboard, no scenery, no frame, no cast shadow, no watermark, no text, no other characters. Exactly one sticker, not a grid. Emotion: CONFUSED. One eyebrow raised, head tilted a little, uncertain small mouth, open aquamarine eyes. One small hand touches her cheek thoughtfully. One large simple blue question-mark accent above the opposite shoulder; the punctuation is the only symbol, no words.",
+      "referenceIds": [
+        "official-frame",
+        "style-anchor"
+      ],
+      "inspection": {
+        "character": "Cyan hair, viewer-right ponytail and yellow clip, loop ahoge, white jacket, navy collar, yellow tie match the official reference.",
+        "anatomy": "Hands and arms inspected; no extra limbs or visibly malformed digits.",
+        "framing": "Complete head and bust; visible-alpha bounds stay inside the square canvas.",
+        "emotion": "Facial expression and gesture match the catalog emotion."
+      }
+    },
+    {
+      "id": "airi-surprised",
+      "name": "Surprised",
+      "emotions": [
+        "surprised"
+      ],
+      "file": "airi-surprised.png",
+      "sha256": "a6424b79e9388bebf577b72f21b5c3c9396c3c155976f544fba2b3ad76f218ca",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 1632857,
+      "alpha": true,
+      "visibleBounds": [
+        63,
+        24,
+        1247,
+        1234
+      ],
+      "prompt": "Use case: illustration-story. Asset: a single transparent chat sticker for Project AIRI, square canvas.\nInput image 1 is the official Live2D identity reference. Input image 2 is the approved HAPPY sticker and establishes the exact chibi drawing style, proportions, line weight, shading, palette, and outfit for this set.\nDraw the SAME AIRI character in that same polished 2D anime chibi bust style, NOT a different character. Keep pale cyan-blue long hair, asymmetrical side ponytail on the viewer's right, one large loop-shaped ahoge, angular yellow outlined hair clip on the viewer's right, large aquamarine eyes, white jacket with thin yellow trim, navy sailor collar with white stripes, yellow necktie and pale cyan high-neck undershirt. Simple blank badge rectangle, no letters.\nKeep clean blue-gray outlines, pastel fills, restrained cel shading, a round large head and small upper body. Readable at 96px. Centered complete bust with ALL hair, ahoge, hands and emotion accents inside the canvas, with visible transparent margins on every side. Small hands with natural simple chibi anatomy and no extra fingers or limbs. Clean curved bottom silhouette, no sharp crop through the body.\nGenuine transparent alpha, NO painted checkerboard, no scenery, no frame, no cast shadow, no watermark, no text, no other characters. Exactly one sticker, not a grid. Emotion: SURPRISED. Wide open aquamarine eyes, lifted eyebrows, small round open mouth, both small hands held beside her cheeks. Two tiny yellow shock-ray accents above the shoulders. Friendly startled reaction, not horror.",
+      "referenceIds": [
+        "official-frame",
+        "style-anchor"
+      ],
+      "inspection": {
+        "character": "Cyan hair, viewer-right ponytail and yellow clip, loop ahoge, white jacket, navy collar, yellow tie match the official reference.",
+        "anatomy": "Hands and arms inspected; no extra limbs or visibly malformed digits.",
+        "framing": "Complete head and bust; visible-alpha bounds stay inside the square canvas.",
+        "emotion": "Facial expression and gesture match the catalog emotion."
+      }
+    },
+    {
+      "id": "airi-thanks",
+      "name": "Thank you",
+      "emotions": [
+        "thanks",
+        "affectionate"
+      ],
+      "file": "airi-thanks.png",
+      "sha256": "d24a9c03d23eb9d10b9de774295f1c6df311eaafbc42d16f25ae307b413d13c5",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 1610872,
+      "alpha": true,
+      "visibleBounds": [
+        83,
+        39,
+        1244,
+        1234
+      ],
+      "prompt": "Use case: illustration-story.\nCreate ONE square 1:1 chat sticker, not a landscape illustration. The entire final canvas must be square.\nInput image 1 is the exact character and chibi STYLE REFERENCE. Make a NEW emotion variant of this SAME character. Keep the same large-head proportions, clean blue-gray outlines, pastel cyan-blue hair, restrained cel shading, white jacket, navy sailor collar, yellow tie and trim. Keep the same asymmetric viewer-right ponytail, yellow angular outlined hair clip and loop-shaped ahoge. When eyes are open they are aquamarine.\nIMPORTANT FRAMING: scale the COMPLETE character down enough to leave at least 10% transparent clear margin on ALL FOUR sides. The loop ahoge, full hair silhouette, sleeves, hands, and the clean rounded lower edge of the bust must all be visible. No hair or body may touch any edge. Do not crop the torso at the canvas boundary. Keep the character centered on the square canvas, not off to one side.\nUse genuine clean transparent alpha. No painted white background, NO white matte or white halo outside the hair silhouette, no checkerboard, no shadow. White coat fills remain white. No words, logos, watermark, scenery, extra characters or extra limbs. Exactly one character sticker, readable at 96px.\nTHANKS: warm grateful aquamarine eyes, gentle soft smile, slight blush, both small hands gently clasped together at the chest, a tiny respectful head bow, one little yellow sparkle. Natural hand anatomy.",
+      "referenceIds": [
+        "style-anchor"
+      ],
+      "inspection": {
+        "character": "Cyan hair, viewer-right ponytail and yellow clip, loop ahoge, white jacket, navy collar, yellow tie match the official reference.",
+        "anatomy": "Hands and arms inspected; no extra limbs or visibly malformed digits.",
+        "framing": "Complete head and bust; visible-alpha bounds stay inside the square canvas.",
+        "emotion": "Facial expression and gesture match the catalog emotion."
+      },
+      "discardedDraft": {
+        "reason": "Canvas shape or edge cropping",
+        "prompt": "undefinedEmotion: THANKS. Warm grateful aquamarine eyes, a gentle soft smile, small blush. Both hands gently clasped together at her upper chest in gratitude, head bowed very slightly. One small yellow sparkle near the shoulder. Kind and appreciative, no praying accessories or words.",
+        "referenceIds": [
+          "official-frame",
+          "style-anchor"
+        ]
+      }
+    },
+    {
+      "id": "airi-celebrate",
+      "name": "Celebration",
+      "emotions": [
+        "celebrate",
+        "happy"
+      ],
+      "file": "airi-celebrate.png",
+      "sha256": "ec565ce38dfb06cf0e3b04ce2edcb007768efbd0dea1d14515fcb73017ab91d1",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 1552616,
+      "alpha": true,
+      "visibleBounds": [
+        91,
+        73,
+        1227,
+        1204
+      ],
+      "prompt": "Use case: illustration-story.\nCreate ONE square 1:1 chat sticker, not a landscape illustration. The entire final canvas must be square.\nInput image 1 is the exact character and chibi STYLE REFERENCE. Make a NEW emotion variant of this SAME character. Keep the same large-head proportions, clean blue-gray outlines, pastel cyan-blue hair, restrained cel shading, white jacket, navy sailor collar, yellow tie and trim. Keep the same asymmetric viewer-right ponytail, yellow angular outlined hair clip and loop-shaped ahoge. When eyes are open they are aquamarine.\nIMPORTANT FRAMING: scale the COMPLETE character down enough to leave at least 10% transparent clear margin on ALL FOUR sides. The loop ahoge, full hair silhouette, sleeves, hands, and the clean rounded lower edge of the bust must all be visible. No hair or body may touch any edge. Do not crop the torso at the canvas boundary. Keep the character centered on the square canvas, not off to one side.\nUse genuine clean transparent alpha. No painted white background, NO white matte or white halo outside the hair silhouette, no checkerboard, no shadow. White coat fills remain white. No words, logos, watermark, scenery, extra characters or extra limbs. Exactly one character sticker, readable at 96px.\nCELEBRATION: sparkling open aquamarine eyes, bright happy open smile, both little fists raised in victory beside her shoulders, just four sparse small yellow and pink confetti pieces. Natural hands, no hat, keep the loop ahoge visible.",
+      "referenceIds": [
+        "style-anchor"
+      ],
+      "inspection": {
+        "character": "Cyan hair, viewer-right ponytail and yellow clip, loop ahoge, white jacket, navy collar, yellow tie match the official reference.",
+        "anatomy": "Hands and arms inspected; no extra limbs or visibly malformed digits.",
+        "framing": "Complete head and bust; visible-alpha bounds stay inside the square canvas.",
+        "emotion": "Facial expression and gesture match the catalog emotion."
+      },
+      "discardedDraft": {
+        "reason": "Canvas shape or edge cropping",
+        "prompt": "undefinedEmotion: CELEBRATION. Open sparkling aquamarine eyes, excited wide cheerful smile, both little hands raised in a joyful victory pose. Three or four sparse bright yellow and pink confetti pieces around her shoulders. Keep ahoge and hair clip fully visible; no party hat. Distinct from the closed-eye happy pose.",
+        "referenceIds": [
+          "official-frame",
+          "style-anchor"
+        ]
+      }
+    },
+    {
+      "id": "airi-angry",
+      "name": "Angry",
+      "emotions": [
+        "angry"
+      ],
+      "file": "airi-angry.png",
+      "sha256": "e03772d3d56c2d5829b791e1221ca65885b6e434ce4c06134f5898f6abd894ef",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 1577510,
+      "alpha": true,
+      "visibleBounds": [
+        71,
+        40,
+        1237,
+        1215
+      ],
+      "prompt": "Use case: illustration-story.\nCreate ONE square 1:1 chat sticker, not a landscape illustration. The entire final canvas must be square.\nInput image 1 is the exact character and chibi STYLE REFERENCE. Make a NEW emotion variant of this SAME character. Keep the same large-head proportions, clean blue-gray outlines, pastel cyan-blue hair, restrained cel shading, white jacket, navy sailor collar, yellow tie and trim. Keep the same asymmetric viewer-right ponytail, yellow angular outlined hair clip and loop-shaped ahoge. When eyes are open they are aquamarine.\nIMPORTANT FRAMING: scale the COMPLETE character down enough to leave at least 10% transparent clear margin on ALL FOUR sides. The loop ahoge, full hair silhouette, sleeves, hands, and the clean rounded lower edge of the bust must all be visible. No hair or body may touch any edge. Do not crop the torso at the canvas boundary. Keep the character centered on the square canvas, not off to one side.\nUse genuine clean transparent alpha. No painted white background, NO white matte or white halo outside the hair silhouette, no checkerboard, no shadow. White coat fills remain white. No words, logos, watermark, scenery, extra characters or extra limbs. Exactly one character sticker, readable at 96px.\nANGRY: cute annoyed aquamarine eyes, furrowed eyebrows, puffed cheek pout, both arms naturally crossed at the chest, one little red cartoon anger-vein accent beside her head. No aggression.",
+      "referenceIds": [
+        "style-anchor"
+      ],
+      "inspection": {
+        "character": "Cyan hair, viewer-right ponytail and yellow clip, loop ahoge, white jacket, navy collar, yellow tie match the official reference.",
+        "anatomy": "Hands and arms inspected; no extra limbs or visibly malformed digits.",
+        "framing": "Complete head and bust; visible-alpha bounds stay inside the square canvas.",
+        "emotion": "Facial expression and gesture match the catalog emotion."
+      },
+      "discardedDraft": {
+        "reason": "Canvas shape or edge cropping",
+        "prompt": "undefinedEmotion: ANGRY. Cute mildly annoyed expression, knitted brows, narrowed aquamarine eyes, puffed cheeks, small pout. Both arms crossed in front of her chest with natural anatomy. One simple small red cartoon anger-vein accent beside her head. Harmless conversational frustration, no violence.",
+        "referenceIds": [
+          "official-frame",
+          "style-anchor"
+        ]
+      }
+    },
+    {
+      "id": "airi-tired",
+      "name": "Tired",
+      "emotions": [
+        "tired"
+      ],
+      "file": "airi-tired.png",
+      "sha256": "16e9725c0fe9887b21fb1f2848dd0a166e660f2b131039271418ad782d8e2753",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 1605672,
+      "alpha": true,
+      "visibleBounds": [
+        68,
+        11,
+        1231,
+        1237
+      ],
+      "prompt": "undefinedEmotion: TIRED. Heavy half-lidded aquamarine eyes, drooping shoulders, small yawning mouth, one little hand lightly covering her yawn. A very small pale blue crescent moon accent near one shoulder. Sleepy but gentle, not ill. Keep face and hand separate and anatomically readable.",
+      "referenceIds": [
+        "official-frame",
+        "style-anchor"
+      ],
+      "inspection": {
+        "character": "Cyan hair, viewer-right ponytail and yellow clip, loop ahoge, white jacket, navy collar, yellow tie match the official reference.",
+        "anatomy": "Hands and arms inspected; no extra limbs or visibly malformed digits.",
+        "framing": "Complete head and bust; visible-alpha bounds stay inside the square canvas.",
+        "emotion": "Facial expression and gesture match the catalog emotion."
+      }
+    },
+    {
+      "id": "airi-affectionate",
+      "name": "Love",
+      "emotions": [
+        "affectionate",
+        "happy"
+      ],
+      "file": "airi-affectionate.png",
+      "sha256": "368f7922b333cce707993216895ae4be84992f2ee28d8db9e2e560c2acab9644",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 1629692,
+      "alpha": true,
+      "visibleBounds": [
+        68,
+        24,
+        1245,
+        1237
+      ],
+      "prompt": "undefinedAFFECTION / LOVE: warm open aquamarine eyes, a gentle fond smile and rosy cheeks. Both little hands naturally hold the sides of one pink heart at chest level. One tiny pink heart accent by her shoulder. Keep the same chibi face and round small bust; the loop ahoge and all hair must have clear transparent space above and around them.",
+      "referenceIds": [
+        "style-anchor"
+      ],
+      "inspection": {
+        "character": "Cyan hair, viewer-right ponytail and yellow clip, loop ahoge, white jacket, navy collar, yellow tie match the official reference.",
+        "anatomy": "Hands and arms inspected; no extra limbs or visibly malformed digits.",
+        "framing": "Complete head and bust; visible-alpha bounds stay inside the square canvas.",
+        "emotion": "Facial expression and gesture match the catalog emotion."
+      },
+      "discardedDraft": {
+        "reason": "Canvas shape or edge cropping",
+        "prompt": "undefinedEmotion: AFFECTION / LOVE. Warm open aquamarine eyes, soft fond smile and rosy cheeks. She gently hugs one large simple pink heart to her upper chest with both little hands at its sides. The heart does not hide her sailor collar or hair clip. One tiny pink heart accent beside her head. No words.",
+        "referenceIds": [
+          "official-frame",
+          "style-anchor"
+        ]
+      }
+    },
+    {
+      "id": "airi-awkward",
+      "name": "Awkward",
+      "emotions": [
+        "awkward"
+      ],
+      "file": "airi-awkward.png",
+      "sha256": "e8c5cd068ac4ef47610aa87304242025d9c74c61c606e6babfcb533ba308836e",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 1690020,
+      "alpha": true,
+      "visibleBounds": [
+        40,
+        25,
+        1243,
+        1236
+      ],
+      "prompt": "undefinedAWKWARD / EMBARRASSED: shy uneasy sideways aquamarine eyes, raised inner brow, small sheepish crooked smile, strong blush. One little hand naturally rubs the back of her head and one blue sweat drop sits beside her temple. The bent elbow, whole sleeve, complete head including ahoge, and rounded lower bust must remain fully inside the square canvas. No crop, no extra arm.",
+      "referenceIds": [
+        "style-anchor"
+      ],
+      "inspection": {
+        "character": "Cyan hair, viewer-right ponytail and yellow clip, loop ahoge, white jacket, navy collar, yellow tie match the official reference.",
+        "anatomy": "Hands and arms inspected; no extra limbs or visibly malformed digits.",
+        "framing": "Complete head and bust; visible-alpha bounds stay inside the square canvas.",
+        "emotion": "Facial expression and gesture match the catalog emotion."
+      },
+      "discardedDraft": {
+        "reason": "Canvas shape or edge cropping",
+        "prompt": "undefinedEmotion: AWKWARD / EMBARRASSED. A shy uneasy sideways glance with aquamarine eyes, raised inner brow, a small sheepish crooked smile, strong rosy blush. One little hand rubs the back of her head; the other hand is not visible below the bust. One clear blue sweat-drop accent beside her temple, not a tear. Natural elbow and wrist, no extra arm.",
+        "referenceIds": [
+          "official-frame",
+          "style-anchor"
+        ]
+      }
+    },
+    {
+      "id": "airi-agree",
+      "name": "Yes",
+      "emotions": [
+        "agree"
+      ],
+      "file": "airi-agree.png",
+      "sha256": "dde3b956f9a0b106fd52f202c56cdc81e0c22c305941ace39ec8934a51e9f463",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 1631170,
+      "alpha": true,
+      "visibleBounds": [
+        60,
+        27,
+        1248,
+        1237
+      ],
+      "prompt": "Use case: illustration-story. Asset: a single transparent chat sticker for Project AIRI, square canvas.\nInput image 1 is the official Live2D identity reference. Input image 2 is the approved HAPPY sticker and establishes the exact chibi drawing style, proportions, line weight, shading, palette, and outfit for this set.\nDraw the SAME AIRI character in that same polished 2D anime chibi bust style, NOT a different character. Keep pale cyan-blue long hair, asymmetrical side ponytail on the viewer's right, one large loop-shaped ahoge, angular yellow outlined hair clip on the viewer's right, large aquamarine eyes, white jacket with thin yellow trim, navy sailor collar with white stripes, yellow necktie and pale cyan high-neck undershirt. Simple blank badge rectangle, no letters.\nKeep clean blue-gray outlines, pastel fills, restrained cel shading, a round large head and small upper body. Readable at 96px. Centered complete bust with ALL hair, ahoge, hands and emotion accents inside the canvas, with visible transparent margins on every side. Small hands with natural simple chibi anatomy and no extra fingers or limbs. Clean curved bottom silhouette, no sharp crop through the body.\nGenuine transparent alpha, NO painted checkerboard, no scenery, no frame, no cast shadow, no watermark, no text, no other characters. Exactly one sticker, not a grid. Emotion: AGREEMENT / YES. Confident friendly aquamarine eyes, a small approving smile, a slight nod. One little hand gives a clear thumbs-up beside her shoulder: one thumb raised, four other fingers naturally curled, no extra digits. One simple small green check-mark accent beside the opposite shoulder, no words.",
+      "referenceIds": [
+        "official-frame",
+        "style-anchor"
+      ],
+      "inspection": {
+        "character": "Cyan hair, viewer-right ponytail and yellow clip, loop ahoge, white jacket, navy collar, yellow tie match the official reference.",
+        "anatomy": "Hands and arms inspected; no extra limbs or visibly malformed digits.",
+        "framing": "Complete head and bust; visible-alpha bounds stay inside the square canvas.",
+        "emotion": "Facial expression and gesture match the catalog emotion."
+      }
+    },
+    {
+      "id": "airi-disagree",
+      "name": "No thanks",
+      "emotions": [
+        "disagree"
+      ],
+      "file": "airi-disagree.png",
+      "sha256": "b0e406ec76ff0651b5ff1ab578052c5e3bb5a42d6eef2615f817e7ca64ec84ba",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 1634786,
+      "alpha": true,
+      "visibleBounds": [
+        57,
+        22,
+        1252,
+        1238
+      ],
+      "prompt": "Use case: illustration-story. Asset: a single transparent chat sticker for Project AIRI, square canvas.\nInput image 1 is the official Live2D identity reference. Input image 2 is the approved HAPPY sticker and establishes the exact chibi drawing style, proportions, line weight, shading, palette, and outfit for this set.\nDraw the SAME AIRI character in that same polished 2D anime chibi bust style, NOT a different character. Keep pale cyan-blue long hair, asymmetrical side ponytail on the viewer's right, one large loop-shaped ahoge, angular yellow outlined hair clip on the viewer's right, large aquamarine eyes, white jacket with thin yellow trim, navy sailor collar with white stripes, yellow necktie and pale cyan high-neck undershirt. Simple blank badge rectangle, no letters.\nKeep clean blue-gray outlines, pastel fills, restrained cel shading, a round large head and small upper body. Readable at 96px. Centered complete bust with ALL hair, ahoge, hands and emotion accents inside the canvas, with visible transparent margins on every side. Small hands with natural simple chibi anatomy and no extra fingers or limbs. Clean curved bottom silhouette, no sharp crop through the body.\nGenuine transparent alpha, NO painted checkerboard, no scenery, no frame, no cast shadow, no watermark, no text, no other characters. Exactly one sticker, not a grid. Emotion: REFUSAL / NO THANKS. Calm firm aquamarine eyes, gently knitted brows, a small closed mouth. One little open palm faces outward beside her shoulder in a polite stop gesture, exactly five natural simple chibi fingers. One simple red X accent beside the opposite shoulder. Clear refusal, not rage or aggression.",
+      "referenceIds": [
+        "official-frame",
+        "style-anchor"
+      ],
+      "inspection": {
+        "character": "Cyan hair, viewer-right ponytail and yellow clip, loop ahoge, white jacket, navy collar, yellow tie match the official reference.",
+        "anatomy": "Hands and arms inspected; no extra limbs or visibly malformed digits.",
+        "framing": "Complete head and bust; visible-alpha bounds stay inside the square canvas.",
+        "emotion": "Facial expression and gesture match the catalog emotion."
+      }
+    }
+  ]
+}

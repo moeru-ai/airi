@@ -433,3 +433,50 @@ export function formatElectronAccelerator(acc: ShortcutAccelerator): string {
   tokens.push(toElectronKey(acc.key))
   return tokens.join('+')
 }
+
+/**
+ * Tells if two accelerators match the same physical key combination.
+ *
+ * Use when:
+ * - Two shortcuts must not fire on one key press, for example a
+ *   uiohook hold binding and an Electron `globalShortcut` binding.
+ *   The uiohook driver does not consume key events, so one press
+ *   reaches both.
+ *
+ * Expects:
+ * - `options.isMacOS` tells how `cmd-or-ctrl` resolves: Cmd on macOS,
+ *   Ctrl elsewhere. `cmd` and `super` both mean the Meta key, as in
+ *   the uiohook driver.
+ *
+ * @example
+ *   isSameKeyCombination(
+ *     { modifiers: ['cmd-or-ctrl', 'shift'], key: 'KeyK' },
+ *     { modifiers: ['shift', 'ctrl'], key: 'KeyK' },
+ *     { isMacOS: false },
+ *   )
+ *   // => true
+ */
+export function isSameKeyCombination(a: ShortcutAccelerator, b: ShortcutAccelerator, options: { isMacOS: boolean }): boolean {
+  if (a.key !== b.key)
+    return false
+
+  const physicalModifiers = (accelerator: ShortcutAccelerator) => {
+    const keys = new Set<string>()
+    for (const modifier of accelerator.modifiers) {
+      switch (modifier) {
+        case 'cmd-or-ctrl':
+          keys.add(options.isMacOS ? 'meta' : 'ctrl')
+          break
+        case 'cmd':
+        case 'super':
+          keys.add('meta')
+          break
+        default:
+          keys.add(modifier)
+      }
+    }
+    return [...keys].sort().join('+')
+  }
+
+  return physicalModifiers(a) === physicalModifiers(b)
+}

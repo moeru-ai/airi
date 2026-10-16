@@ -43,7 +43,7 @@
   "dependencies": {
     "@moeru/std": "catalog:",
     "@proj-airi/audio": "workspace:^",
-    "@sherpaw/asr": "0.2.1",
+    "@sherpaw/asr": "catalog:",
     "@sherpaw/xsai-transcription": "catalog:",
     "@xsai-ext/providers": "catalog:",
     "@xsai-ext/responses": "catalog:",
@@ -57,6 +57,7 @@
     "is-network-error": "catalog:",
     "model-bank": "catalog:",
     "unspeech": "catalog:xsai",
+    "valibot": "catalog:",
     "xsschema": "catalog:",
     "zod": "catalog:"
   },
