@@ -20,7 +20,7 @@ const props = defineProps<{
 const { t } = useI18n()
 const KEY = 'tamagotchi.stage.computer-use-read-image-tool-call'
 
-const files = useComputerUseScreenshots(() => props.urls.length === 0 && props.path ? [props.path] : [])
+const files = useComputerUseScreenshots(() => props.urls.length === 0 && props.path ? [props.path] : undefined)
 const screenshots = computed(() => props.urls.length > 0 ? props.urls : [...files.values()])
 const fileName = computed(() => props.path?.split(/[\\/]/).at(-1) ?? '')
 

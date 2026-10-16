@@ -38,7 +38,7 @@ const rectText = (rect: ComputerUseRect) => `${pointText(rect.origin)} · ${size
 const fileSize = computed(() => new Intl.NumberFormat(locale.value, { style: 'unit', unit: 'megabyte', maximumFractionDigits: 1 }))
 
 /** The screenshot of each capture artifact. A file that cannot be read shows no image. */
-const images = useComputerUseScreenshots(() => props.view?.kind === 'capture' ? props.view.files.map(file => file.path) : [])
+const images = useComputerUseScreenshots(() => props.view?.kind === 'capture' ? props.view.files.map(file => file.path) : undefined)
 
 const captureFacts = computed(() => {
   const view = props.view
