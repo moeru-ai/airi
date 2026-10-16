@@ -25,7 +25,8 @@ afterEach(() => disposePinia(pinia))
 
 function mount(results: Record<number, ChatSlicesToolCallResult>) {
   return render(ChatToolCallGroup, {
-    props: { items, resultOf: (sliceIndex: number) => results[sliceIndex] },
+    // These tests cover the grouping, so no tool has a widget.
+    props: { items, resultOf: (sliceIndex: number) => results[sliceIndex], widgets: {} },
     global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })] },
   })
 }

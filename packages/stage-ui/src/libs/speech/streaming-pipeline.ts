@@ -1,7 +1,7 @@
 import type { SpeechAudio } from '@proj-airi/core-agent'
 import type { PcmBlock } from '@proj-airi/pipelines-audio'
 
-import { createPushStream } from '@proj-airi/pipelines-audio'
+import { createPushStream } from '@proj-airi/stream-kit'
 import { nanoid } from 'nanoid/non-secure'
 
 import { getAuthToken } from '../auth'

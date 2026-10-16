@@ -2,6 +2,7 @@
 import type { ToolCallRerunRequest } from '../../../../stores/tool-call-rerun'
 import type { ChatSlicesToolCallResult } from '../../../../types/chat'
 import type { ToolCallGroupItem, ToolCallState } from './tool-call-group'
+import type { ChatToolCallWidgetRegistry } from './tool-call-renderer'
 
 import { Collapsible, TransitionVertical } from '@proj-airi/ui'
 import { usePreferredReducedMotion } from '@vueuse/core'
@@ -24,6 +25,8 @@ const props = defineProps<{
   items: ToolCallGroupItem[]
   /** Reads the result of the call at a slice index. A call without a result still runs. */
   resultOf: (sliceIndex: number) => ChatSlicesToolCallResult | undefined
+  /** Widgets by tool name. An unfolded row shows the widget when the widget can read the result of the call. */
+  widgets: ChatToolCallWidgetRegistry
 }>()
 
 const emit = defineEmits<{
@@ -41,6 +44,8 @@ const calls = computed(() => {
     const result = props.resultOf(item.sliceIndex)
     const occurrence = occurrences.get(item.toolCall.toolCallId) ?? 0
     occurrences.set(item.toolCall.toolCallId, occurrence + 1)
+    const widget = props.widgets[item.toolCall.toolName]
+    const reading = widget?.read(result?.result, item.toolCall.args)
     return {
       ...item,
       // Result slices land between calls while a reply streams, so slice indexes shift. The call id stays.
@@ -50,6 +55,7 @@ const calls = computed(() => {
       icon: toolIconOf(item.toolCall.toolName, llmTools.tools.findLast(tool => tool.function.name === item.toolCall.toolName)?.icon),
       state: resolveToolCallBlockState(result),
       result: result?.result,
+      widget: widget && reading ? { component: widget.component, ...reading } : undefined,
     }
   })
 })
@@ -130,6 +136,16 @@ function toggleCall(key: string) {
   if (!next.delete(key))
     next.add(key)
   openCalls.value = next
+}
+
+// A row with a widget can switch to the arguments and the result as the tool sent them.
+const rawCalls = ref(new Set<string>())
+
+function toggleRaw(key: string) {
+  const next = new Set(rawCalls.value)
+  if (!next.delete(key))
+    next.add(key)
+  rawCalls.value = next
 }
 
 function rerun(item: ToolCallGroupItem) {
@@ -247,9 +263,32 @@ function rerun(item: ToolCallGroupItem) {
           </div>
           <TransitionVertical>
             <div v-if="openCalls.has(call.key)" :class="['flex flex-col gap-2 px-1.5 pb-2 pt-1']">
-              <code :class="['truncate text-[10px]', 'text-neutral-500 dark:text-neutral-400']">{{ call.toolCall.toolName }}</code>
-              <ToolCallPayload :label="t(`${KEY}.arguments`)" :payload="call.toolCall.args" />
-              <ToolCallPayload :label="t(`${KEY}.result`)" :payload="call.result" />
+              <!-- The row above already names the tool, so the details start with the result. -->
+              <div v-if="call.widget" :class="['flex justify-end']">
+                <button
+                  type="button"
+                  :class="[
+                    'shrink-0 inline-flex items-center gap-1 rounded-md px-1.5 py-px text-[11px]',
+                    'outline-none transition-colors duration-200',
+                    'text-neutral-500 hover:bg-neutral-200/70 hover:text-primary-600',
+                    'dark:text-neutral-400 dark:hover:bg-neutral-800/80 dark:hover:text-primary-300',
+                    'focus-visible:ring-2 focus-visible:ring-primary-400/60',
+                  ]"
+                  @click="toggleRaw(call.key)"
+                >
+                  <span :class="['i-mingcute:code-line', 'text-xs']" aria-hidden="true" />
+                  <span>{{ rawCalls.has(call.key) ? t(`${KEY}.widget`) : t(`${KEY}.raw`) }}</span>
+                </button>
+              </div>
+              <template v-if="call.widget && !rawCalls.has(call.key)">
+                <component :is="call.widget.component" v-bind="call.widget.props" />
+                <!-- Fields that the widget does not show still appear, so the widget never hides part of the result. -->
+                <ToolCallPayload v-if="call.widget.rest !== undefined" :label="t(`${KEY}.other`)" :payload="call.widget.rest" />
+              </template>
+              <template v-else>
+                <ToolCallPayload :label="t(`${KEY}.arguments`)" :payload="call.toolCall.args" />
+                <ToolCallPayload :label="t(`${KEY}.result`)" :payload="call.result" />
+              </template>
             </div>
           </TransitionVertical>
         </div>

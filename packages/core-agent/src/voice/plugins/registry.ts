@@ -1,12 +1,15 @@
-import type { AudioInput, Observer, Scope } from '@proj-airi/pipelines-audio'
+import type { AudioInput, Observer } from '@proj-airi/pipelines-audio'
+import type { Scope } from '@proj-airi/stream-kit'
 
 import type { SpeechInputAttempt } from '../input/attempt'
-import type { BeginSpeechInput } from '../input/attempt-types'
+import type { ConversationContext } from '../input/ports'
 import type { SpeechInput } from '../input/speech-input'
+import type { BeginSpeechInput } from '../input/types'
 import type { Interruption } from '../interruption'
+import type { VoicePolicy } from '../policy/engine'
+import type { VoiceCommand, VoiceRule } from '../policy/types'
 import type { TurnRef } from '../turn'
 import type { InputPluginInstallation, PluginInput } from './input-plugins'
-import type { Cleanup } from './task-lifetime'
 import type {
   SpeechInputControl,
   VoicePlugin,
@@ -17,11 +20,11 @@ import type {
   VoicePluginSettings,
 } from './types'
 
-import { createScope, observe } from '@proj-airi/pipelines-audio'
+import { observe } from '@proj-airi/pipelines-audio'
+import { createScope, runTask } from '@proj-airi/stream-kit'
 
 import { errorFromCause } from '../../utils/error'
 import { InputPlugins } from './input-plugins'
-import { TaskLifetime } from './task-lifetime'
 
 interface VoicePluginHost {
   activeInput: () => SpeechInputAttempt | undefined
@@ -30,14 +33,15 @@ interface VoicePluginHost {
   cancelInput: (inputId: string, reason: string) => 'cancelled' | 'closed'
   interrupt: (options: { turns: readonly TurnRef[], cause: string }) => Interruption
   reportError: (stage: string, cause: unknown) => void
+  policy: VoicePolicy
+  conversationContext: (sessionId: string) => ConversationContext
 }
 
-class PluginInstallation implements VoicePluginHandle, InputPluginInstallation {
+class PluginInstallation implements VoicePluginHandle {
   readonly abort = new AbortController()
   readonly inputs = new Set<PluginInput>()
   readonly installers: Parameters<VoicePluginScope['onSpeechInput']>[0][] = []
-  private readonly cleanups: Cleanup[] = []
-  private readonly detectors = new Set<Observer>()
+  private readonly cleanups: (() => void | Promise<void>)[] = []
   private disposing: ReturnType<VoicePluginHandle['dispose']> | undefined
 
   constructor(readonly host: VoicePlugins, private readonly actions: VoicePluginHost, readonly plugin: VoicePlugin, readonly settings: VoicePluginSettings) {}
@@ -54,41 +58,95 @@ class PluginInstallation implements VoicePluginHandle, InputPluginInstallation {
     }
   }
 
-  controls(live: () => boolean): VoicePluginControls {
-    const allows = (grant: NonNullable<VoicePluginSettings['grants']>[number]) => live() && !this.abort.signal.aborted && !!this.settings.grants?.includes(grant)
-    const control = (attempt: SpeechInputAttempt): SpeechInputControl => ({
+  private allows(grant: NonNullable<VoicePluginSettings['grants']>[number], live: () => boolean) {
+    return live() && !this.abort.signal.aborted && !!this.settings.grants?.includes(grant)
+  }
+
+  /** Drops rule commands that this installation has no grant for. A rule has the grants of the plugin that added it. */
+  private granted<S>(rule: VoiceRule<S>): VoiceRule<S> {
+    const grantOf: Record<VoiceCommand['type'], NonNullable<VoicePluginSettings['grants']>[number]> = {
+      begin: 'input-control',
+      seal: 'input-control',
+      cancel: 'cancel-input',
+      interrupt: 'interrupt-turns',
+    }
+    return {
+      ...rule,
+      reduce: (state, event, context) => {
+        const step = rule.reduce(state, event, context)
+        if (!step.commands?.length)
+          return step
+        return { ...step, commands: step.commands.filter(command => this.allows(grantOf[command.type], () => true)) }
+      },
+    }
+  }
+
+  /** The commands on one attempt. Each command checks the grant and `live` when it runs, not when it is created. */
+  control(attempt: SpeechInputAttempt, live: () => boolean): SpeechInputControl {
+    const allows = (grant: NonNullable<VoicePluginSettings['grants']>[number]) => this.allows(grant, live)
+    return {
       id: attempt.id,
       sessionId: attempt.sessionId,
-      noteActivity: evidence => allows('input-control') && attempt.noteActivity(evidence),
       end: () => allows('input-control') ? { status: 'accepted', done: attempt.end() } : { status: 'denied' },
       cancel: reason => allows('cancel-input') ? this.actions.cancelInput(attempt.id, reason) : 'denied',
-      detectEnd: (options, detector) => {
-        if (!allows('input-control'))
-          return { status: 'denied' }
+    }
+  }
 
-        const observer = attempt.detectEnd(options, detector)
-        this.detectors.add(observer)
-        void observer.done.then(() => this.detectors.delete(observer))
+  /** The input scope receives commands only with the `input-control` grant. */
+  inputInstallation(attempt: SpeechInputAttempt): InputPluginInstallation {
+    return {
+      plugin: this.plugin,
+      signal: this.abort.signal,
+      installers: this.installers,
+      inputs: this.inputs,
+      control: live => this.settings.grants?.includes('input-control') ? this.control(attempt, live) : undefined,
+      report: (stage, error, inputId) => this.report(stage, error, inputId),
+    }
+  }
 
-        return { status: 'installed', observer }
-      },
-    })
+  controls(live: () => boolean): VoicePluginControls {
+    const allows = (grant: NonNullable<VoicePluginSettings['grants']>[number]) => this.allows(grant, live)
     return {
       activeInput: () => {
         const attempt = this.actions.activeInput()
-        return attempt && allows('input-control') ? control(attempt) : undefined
+        return attempt && allows('input-control') ? this.control(attempt, live) : undefined
       },
-      beginInput: settings => allows('input-control') ? { status: 'started', input: control(this.actions.beginInput(settings)) } : { status: 'denied' },
+      beginInput: settings => allows('input-control') ? { status: 'started', input: this.control(this.actions.beginInput(settings), live) } : { status: 'denied' },
       cancelInput: (id, reason) => allows('cancel-input') ? this.actions.cancelInput(id, reason) : 'denied',
       interrupt: (turns, cause) => allows('interrupt-turns') ? { status: 'started', interruption: this.actions.interrupt({ turns, cause }) } : { status: 'denied' },
     }
   }
 
   setup() {
+    const { policy } = this.actions
     const scope: VoicePluginScope = {
       signal: this.abort.signal,
-      state: new Map(),
       onSpeechInput: install => this.installers.push(install),
+      emit: (eventa, body) => {
+        if (!this.abort.signal.aborted)
+          void policy.events.emit(eventa, body)
+      },
+      on: (eventa, listener) => {
+        if (this.abort.signal.aborted)
+          return
+        const stop = policy.events.on(eventa, (event) => {
+          try {
+            listener(event.body!)
+          }
+          catch (cause) {
+            this.report('setup', errorFromCause(cause, 'Voice event listener failed'))
+          }
+        })
+        this.abort.signal.addEventListener('abort', stop, { once: true })
+      },
+      rule: (rule) => {
+        if (this.abort.signal.aborted)
+          return
+        const remove = policy.addRule(this.granted(rule))
+        this.abort.signal.addEventListener('abort', remove, { once: true })
+      },
+      revisions: inputId => policy.revisions(inputId),
+      conversationContext: sessionId => this.actions.conversationContext(sessionId),
       onDispose: cleanup => this.cleanups.push(cleanup),
       cancel: () => void this.dispose(),
       fail: (error) => {
@@ -101,22 +159,22 @@ class PluginInstallation implements VoicePluginHandle, InputPluginInstallation {
         // One child scope per shared input. Replacing the input closes the old child and observes the new one.
         let generation: Scope | undefined
 
+        // Each window runs as one task. The observer signal cancels it, and controls expire when it settles.
         const detect = async (window: Parameters<typeof run>[0]['window'], signal: AbortSignal) => {
-          const task = new TaskLifetime()
-          signal.addEventListener('abort', () => task.stop({ status: 'cancelled', reason: 'Audio observer closed' }), { once: true, signal: task.signal })
-          const outcome = await task.run(() => run({
+          const task = runTask(self => run({
             window,
-            signal: task.signal,
-            controls: this.controls(() => !task.closed),
+            signal: self.signal,
+            controls: this.controls(() => !self.settled),
             publish: (value) => {
-              if (task.closed || signal.aborted || this.abort.signal.aborted)
+              if (self.settled || this.abort.signal.aborted)
                 return { status: 'rejected', reason: 'closed' }
               this.settings.onAudioEvidence?.({ plugin: this.plugin.name, range: window.range, value })
               return { status: 'applied' }
             },
-            cancel: reason => task.stop({ status: 'cancelled', reason }),
-            fail: error => task.stop({ status: 'failed', error }),
-          }))
+            cancel: reason => self.cancel(reason),
+            fail: error => self.fail(error),
+          }), { signal })
+          const outcome = await task.done
           if (outcome.status === 'failed')
             throw outcome.error
         }
@@ -137,7 +195,7 @@ class PluginInstallation implements VoicePluginHandle, InputPluginInstallation {
             if (current.signal.aborted)
               return
             if (outcome.status === 'failed')
-              this.report('subscription', outcome.error)
+              this.report('audio', outcome.error)
             if (outcome.status !== 'cancelled')
               completion.resolve(outcome)
             void scope.close()
@@ -176,12 +234,9 @@ class PluginInstallation implements VoicePluginHandle, InputPluginInstallation {
 
     this.abort.abort()
     this.host.remove(this)
-    for (const detector of this.detectors)
-      detector.cancel('Plugin disposed')
-    this.detectors.clear()
 
     this.disposing = (async () => {
-      await Promise.all([...this.inputs].map(scope => scope.dispose({ status: 'cancelled', reason: 'Plugin disposed' })))
+      await Promise.all([...this.inputs].map(input => input.dispose('Plugin disposed')))
       const errors: Error[] = []
 
       for (const cleanup of this.cleanups.reverse()) {
@@ -225,11 +280,6 @@ export class VoicePlugins {
     if (this.installations.has(plugin.name))
       throw new Error(`Plugin already installed: ${plugin.name}`)
 
-    for (const dependency of settings.dependsOn ?? []) {
-      if (!this.installations.has(dependency))
-        throw new Error(`Missing plugin dependency: ${dependency}`)
-    }
-
     const installation = new PluginInstallation(this, this.actions, plugin, settings)
     this.installations.set(plugin.name, installation)
     installation.setup()
@@ -237,24 +287,13 @@ export class VoicePlugins {
     return installation
   }
 
-  input(input: SpeechInput): InputPlugins {
-    return new InputPlugins(input, [...this.installations.values()])
+  /** Installations take part in the inputs that start after them. Their install order is the finalization order. */
+  input(attempt: SpeechInputAttempt, input: SpeechInput): InputPlugins {
+    return new InputPlugins(input, [...this.installations.values()].map(installation => installation.inputInstallation(attempt)))
   }
 
   remove(installation: PluginInstallation) {
     this.installations.delete(installation.plugin.name)
-
-    for (const input of installation.inputs) {
-      for (const scope of input.group.scopes.values()) {
-        if (scope.dependencies.has(installation.plugin.name))
-          scope.failDependency(new Error(`Plugin dependency disposed: ${installation.plugin.name}`))
-      }
-    }
-
-    for (const dependent of this.installations.values()) {
-      if (dependent.settings.dependsOn?.includes(installation.plugin.name))
-        void dependent.dispose()
-    }
   }
 
   async close() {

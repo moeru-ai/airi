@@ -140,6 +140,36 @@ describe('createVoiceInputTracer', () => {
     expect(span.status).toEqual({ code: SpanStatusCode.ERROR, message: 'provider down' })
     expect(span.attributes[IOAttributes.VoiceInputReason]).toBe('transcription')
   })
+
+  it('records the newest speaker score of an input and counts the rejected updates', async () => {
+    const tracer = createVoiceInputTracer()
+    const input = attempt('input-6')
+    const range = { sourceId: 'mic', startFrame: 0, endFrame: 16000 }
+
+    tracer.start(input, 'speech')
+    tracer.speakerEvidence({ inputId: 'input-6', range, value: { candidates: [{ speakerId: 'owner', score: 0.61234 }], voicedMs: 900.4 }, scores: [0.61234] }, { status: 'applied' })
+    // The transcription has ended, so the input rejects the update. The trace still shows the complete score.
+    tracer.speakerEvidence({ inputId: 'input-6', range, value: { candidates: [{ speakerId: 'owner', score: 0.55 }], voicedMs: 1500 }, scores: [0.61234, 0.48766] }, { status: 'rejected', reason: 'closed' })
+    input.settle({ status: 'committed', messageId: 'input-6' })
+
+    await vi.waitFor(() => expect(spansNamed(IOSpanNames.VoiceInput)).toHaveLength(1))
+    const span = spansNamed(IOSpanNames.VoiceInput)[0]!
+    expect(span.attributes[IOAttributes.SpeakerScore]).toBe(0.55)
+    expect(span.attributes[IOAttributes.SpeakerScores]).toEqual([0.612, 0.488])
+    expect(span.attributes[IOAttributes.SpeakerVoicedMs]).toBe(1500)
+    expect(span.attributes[IOAttributes.SpeakerRejectedCount]).toBe(1)
+  })
+
+  it('adds no speaker attributes to an input without speaker evidence', async () => {
+    const tracer = createVoiceInputTracer()
+    const input = attempt('input-7')
+
+    tracer.start(input, 'control')
+    input.settle({ status: 'committed', messageId: 'input-7' })
+
+    await vi.waitFor(() => expect(spansNamed(IOSpanNames.VoiceInput)).toHaveLength(1))
+    expect(spansNamed(IOSpanNames.VoiceInput)[0]!.attributes[IOAttributes.SpeakerScore]).toBeUndefined()
+  })
 })
 
 describe('runInSpan', () => {
