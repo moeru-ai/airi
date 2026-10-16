@@ -4,10 +4,10 @@ import type { ComputerUseCommandReader } from './view'
 
 import { array, looseObject, safeParse } from 'valibot'
 
-import { CaptureSchema, COORDINATE_SPACE_OMITTED, DisplaySchema, WindowSchema } from './schemas'
+import { CaptureSchema, COORDINATE_SPACE_OMITTED, DisplaySchema, RECT_SHOWN, SIZE_SHOWN, WindowSchema } from './schemas'
 
 /** The card shows the region, the sizes, the scale, the backend, and the fallback reason of a capture. */
-const CAPTURE_SHOWN = { backend: true, bounds: true, pixel_dimensions: true, scale_factor: true, fallback_reason: true } satisfies ToolResultCoverage
+const CAPTURE_SHOWN = { backend: true, bounds: RECT_SHOWN, pixel_dimensions: SIZE_SHOWN, scale_factor: true, fallback_reason: true } satisfies ToolResultCoverage
 /** The card shows each artifact as its screenshot, its file type, and its size. */
 const ARTIFACTS_SHOWN = [{ file_path: true, file_extension: true, byte_length: true }] satisfies ToolResultCoverage
 
@@ -43,7 +43,7 @@ export const captureReaders: Record<string, ComputerUseCommandReader> = {
       return undefined
     return {
       view: { kind: 'displays', displays: parsed.output.displays },
-      shown: { result: { displays: [{ id: true, name: true, is_builtin: true, is_primary: true, scale_factor: true, frame: true }] } },
+      shown: { result: { displays: [{ id: true, name: true, is_builtin: true, is_primary: true, scale_factor: true, frame: RECT_SHOWN }] } },
       omitted: { result: { displays: [COORDINATE_SPACE_OMITTED] } },
     }
   },
@@ -53,7 +53,7 @@ export const captureReaders: Record<string, ComputerUseCommandReader> = {
       return undefined
     return {
       view: { kind: 'windows', windows: parsed.output },
-      shown: { result: [{ app_name: true, app_bundle_id: true, title: true, process_id: true, is_main: true, is_visible: true, reference: { id: true }, frame: true }] },
+      shown: { result: [{ app_name: true, app_bundle_id: true, title: true, process_id: true, is_main: true, is_visible: true, reference: { id: true }, frame: RECT_SHOWN }] },
       omitted: { result: [COORDINATE_SPACE_OMITTED] },
     }
   },

@@ -80,6 +80,14 @@ export type ComputerUseCapture = InferOutput<typeof CaptureSchema>
 export type ComputerUseMediaState = InferOutput<typeof MediaStateSchema>
 export type ComputerUseArtifact = InferOutput<typeof ArtifactSchema>
 
+/** A point, a size, and a rectangle as the cards print them. An extra field inside one shows as other data. */
+export const POINT_SHOWN = { x: true, y: true } satisfies ToolResultCoverage
+export const SIZE_SHOWN = { width: true, height: true } satisfies ToolResultCoverage
+export const RECT_SHOWN = { origin: POINT_SHOWN, size: SIZE_SHOWN } satisfies ToolResultCoverage
+
+/** A row of the match list shows the text, the place, and the confidence of a match. */
+export const TEXT_MATCH_SHOWN = { text: true, confidence: true, bounds: RECT_SHOWN } satisfies ToolResultCoverage
+
 /** The fields of an input action that the delivery block shows. */
 export const INPUT_ACTION_SHOWN = {
   attempts: [{ path: true, succeeded: true, message: true }],

@@ -5,7 +5,7 @@ import type { ComputerUseCommandReader } from './view'
 import { array, boolean, looseObject, number, safeParse, string } from 'valibot'
 
 import { keyboardSpecs, lastFlag, listFlag } from './invocation'
-import { INPUT_ACTION_SHOWN, InputActionSchema, PointSchema } from './schemas'
+import { INPUT_ACTION_SHOWN, InputActionSchema, POINT_SHOWN, PointSchema } from './schemas'
 
 function readTextInput(mode: 'type' | 'paste'): ComputerUseCommandReader {
   return (result, invocation) => {
@@ -74,7 +74,7 @@ export const inputReaders: Record<string, ComputerUseCommandReader> = {
     const parsed = safeParse(looseObject({ point: PointSchema, action: InputActionSchema }), result)
     if (!parsed.success)
       return undefined
-    return { view: { kind: 'move', point: parsed.output.point, action: parsed.output.action }, shown: { result: { point: true, action: INPUT_ACTION_SHOWN } } }
+    return { view: { kind: 'move', point: parsed.output.point, action: parsed.output.action }, shown: { result: { point: POINT_SHOWN, action: INPUT_ACTION_SHOWN } } }
   },
   'input.clickPoint': (result, invocation) => {
     const parsed = safeParse(looseObject({ action: InputActionSchema, normalized: boolean(), relative_to: string(), requested_point: PointSchema, screen_point: PointSchema }), result)
@@ -94,7 +94,7 @@ export const inputReaders: Record<string, ComputerUseCommandReader> = {
         modifiers: listFlag(invocation, '--modifiers'),
         action: click.action,
       },
-      shown: { result: { ...POINTER_SHOWN, requested_point: true, screen_point: true } },
+      shown: { result: { ...POINTER_SHOWN, requested_point: POINT_SHOWN, screen_point: POINT_SHOWN } },
     }
   },
   'input.drag': (result) => {
@@ -128,7 +128,16 @@ export const inputReaders: Record<string, ComputerUseCommandReader> = {
         action: drag.action,
       },
       shown: {
-        result: { ...POINTER_SHOWN, button: true, duration_ms: true, final_point: true, requested_start: true, requested_end: true, screen_start: true, screen_end: true },
+        result: {
+          ...POINTER_SHOWN,
+          button: true,
+          duration_ms: true,
+          final_point: POINT_SHOWN,
+          requested_start: POINT_SHOWN,
+          requested_end: POINT_SHOWN,
+          screen_start: POINT_SHOWN,
+          screen_end: POINT_SHOWN,
+        },
       },
     }
   },
