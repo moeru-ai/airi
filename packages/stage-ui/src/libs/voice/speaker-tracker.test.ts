@@ -69,6 +69,27 @@ describe('speakerTrackerRuntime', () => {
     expect(tracker.reset.mock.invocationCallOrder[0]).toBeLessThan(tracker.enrollVoiceprint.mock.invocationCallOrder[0]!)
   })
 
+  it('returns a loaded tracker only after it enrolls a replaced voiceprint', async () => {
+    const { tracker, runtime } = createHarness()
+    await runtime.setVoiceprints([voiceprint(1)])
+    await runtime.acquire()
+    const enrolling = Promise.withResolvers<number>()
+    tracker.enrollVoiceprint.mockImplementationOnce(async () => enrolling.promise)
+    let acquired = false
+
+    const replaced = runtime.setVoiceprints([voiceprint(3)])
+    const acquire = runtime.acquire().then(() => acquired = true)
+    await vi.waitFor(() => expect(tracker.enrollVoiceprint).toHaveBeenCalledTimes(2))
+
+    // The tracker forgot speaker 0 and has not enrolled the new voiceprint yet, so a comparison now fails.
+    expect(acquired).toBe(false)
+
+    enrolling.resolve(0)
+    await Promise.all([replaced, acquire])
+
+    expect(acquired).toBe(true)
+  })
+
   it('reports a failed load and loads again on the next acquire', async () => {
     const { tracker, create, onPreparationChange, runtime } = createHarness()
     create.mockRejectedValueOnce(new Error('Could not download the voiceprint model (404, 404)'))

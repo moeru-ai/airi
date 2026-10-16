@@ -49,6 +49,19 @@ describe('voiceEnrollment', () => {
     expect(speech.every(sample => sample === SPEECH)).toBe(true)
   })
 
+  it('enrolls speech above full scale as clamped samples', async () => {
+    const { enrollment, enroll, write } = createHarness()
+
+    // Loud sound can give samples slightly above 1. The speaker tracker rejects them.
+    write(200, 1.5)
+    await expect.poll(() => enrollment.snapshot.speechSeconds).toBe(6.4)
+    enrollment.finish()
+    await enrollment.done
+
+    expect(enrollment.snapshot.phase).toBe('enrolled')
+    expect(enroll.mock.calls[0]![0].every(sample => sample === 1)).toBe(true)
+  })
+
   it('fails without enrolling when the recording has less than 5 s of speech', async () => {
     const { enrollment, enroll, write } = createHarness()
 
