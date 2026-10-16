@@ -812,6 +812,8 @@ export const useProviderStore = defineStore('provider', () => {
           ...providerRuntimeState.value,
           [providerId]: {
             ...currentRuntimeState,
+            models: [],
+            defaultModel: null,
             modelStatus: 'error',
             modelError: errorMessageFrom(error) ?? 'Unknown error',
           },
