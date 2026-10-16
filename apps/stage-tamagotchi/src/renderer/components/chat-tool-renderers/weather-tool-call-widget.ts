@@ -1,11 +1,14 @@
 import type { ChatToolCallWidget } from '@proj-airi/stage-ui/components'
 
 import { readToolResult } from '@proj-airi/stage-ui/components'
-import { array, boolean, looseObject, parseJson, pipe, string } from 'valibot'
+import { array, boolean, isoDate, looseObject, parseJson, picklist, pipe, string } from 'valibot'
 
 import WeatherToolCallWidget from './weather-tool-call-widget.vue'
 
-const conditionFields = { condition: string(), conditionCode: string(), isNight: boolean(), label: string() }
+import { weatherIconMap } from '../weather/condition-icons'
+
+// A code without an icon, or a date that is not a calendar date, can come from an imported chat. Such a report shows as raw data.
+const conditionFields = { condition: string(), conditionCode: picklist(Object.keys(weatherIconMap)), isNight: boolean(), label: string() }
 
 // The weather tool returns its report as a JSON string. A failed call returns an error text, which the schema rejects.
 // The schema names the fields the card shows. `isNight` shows in the icon of `conditionCode`, and `label` as the drawer name.
@@ -25,7 +28,7 @@ const WeatherReportSchema = pipe(string(), parseJson(), looseObject({
   }),
   daily: array(looseObject({
     ...conditionFields,
-    date: string(),
+    date: pipe(string(), isoDate()),
     temperature: string(),
     high: string(),
     low: string(),

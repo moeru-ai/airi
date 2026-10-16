@@ -15,7 +15,7 @@ const props = defineProps<{
   report: WeatherReport
 }>()
 
-const { t, locale } = useI18n()
+const { t, te, locale } = useI18n()
 const KEY = 'tamagotchi.stage.weather-tool-call'
 
 const drawers = computed(() => {
@@ -54,6 +54,12 @@ const drawers = computed(() => {
   ]
 })
 
+// The icon table knows more codes than the weather tool sends today. A code without words here shows the condition text of the tool.
+function conditionLabel(drawer: { conditionCode: string, condition: string }) {
+  const key = `${KEY}.conditions.${drawer.conditionCode}`
+  return te(key) ? t(key) : drawer.condition
+}
+
 const openKey = ref<string>('now')
 
 function toggle(key: string) {
@@ -84,7 +90,7 @@ function toggle(key: string) {
           <span :class="['truncate', 'text-neutral-500 dark:text-neutral-400']">{{ drawer.label }}</span>
           <span :class="['min-w-0 inline-flex items-center gap-1.5', 'text-neutral-800 dark:text-neutral-100']">
             <span :class="[weatherIconMap[drawer.conditionCode].icon, 'shrink-0 text-xl']" aria-hidden="true" />
-            <span :class="['truncate']">{{ t(`${KEY}.conditions.${drawer.conditionCode}`) }}</span>
+            <span :class="['truncate']">{{ conditionLabel(drawer) }}</span>
           </span>
           <span :class="['font-semibold tabular-nums', 'text-neutral-800 dark:text-neutral-100']">{{ drawer.temperature }}</span>
           <span
@@ -102,7 +108,7 @@ function toggle(key: string) {
               <span :class="[weatherIconMap[drawer.conditionCode].icon, 'shrink-0 text-[52px] leading-none']" aria-hidden="true" />
               <div :class="['flex flex-col gap-0.5']">
                 <span :class="['text-[28px] font-semibold leading-tight tabular-nums', 'text-neutral-800 dark:text-neutral-100']">{{ drawer.temperature }}</span>
-                <span :class="['text-[13px]', 'text-neutral-600 dark:text-neutral-300']">{{ t(`${KEY}.conditions.${drawer.conditionCode}`) }}</span>
+                <span :class="['text-[13px]', 'text-neutral-600 dark:text-neutral-300']">{{ conditionLabel(drawer) }}</span>
                 <!-- The condition code covers several conditions. The text of the tool names the exact one. -->
                 <span :class="['text-[11px]', 'text-neutral-400 dark:text-neutral-500']">{{ drawer.condition }}</span>
               </div>

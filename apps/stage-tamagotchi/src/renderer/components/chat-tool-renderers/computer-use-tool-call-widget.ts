@@ -414,7 +414,7 @@ export const computerUseToolCallWidget: ChatToolCallWidget = {
     const failed = readToolResult(FailedSchema, result, ({ output }) => ({
       command: output.command_id,
       status: output.status,
-      failure: { message: output.failure, code: output.failure_details?.code },
+      failure: { message: output.failure, code: output.failure_details?.code, detail: output.failure_details?.message },
     }))
     if (failed)
       return failed

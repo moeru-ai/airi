@@ -19,7 +19,7 @@ import { useComputerUseScreenshots } from './use-computer-use-screenshots'
 const props = defineProps<{
   command: string
   status: string
-  failure?: { message: string, code?: string }
+  failure?: { message: string, code?: string, detail?: string }
   view?: ComputerUseView
 }>()
 
@@ -95,6 +95,8 @@ const QUOTE = ['whitespace-pre-wrap break-words rounded-[10px] border-l-3 px-2.5
       :class="['flex flex-col gap-1 rounded-[10px] px-2.5 py-2 text-xs', 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300']"
     >
       <span :class="['break-words']">{{ props.failure.message }}</span>
+      <!-- The detail often repeats the failure. It shows only when it says more. -->
+      <span v-if="props.failure.detail && props.failure.detail !== props.failure.message" :class="['break-words opacity-80']">{{ props.failure.detail }}</span>
       <code v-if="props.failure.code" :class="['text-[10px] opacity-70']">{{ props.failure.code }}</code>
     </div>
 
