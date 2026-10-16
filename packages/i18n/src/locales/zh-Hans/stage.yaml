@@ -114,6 +114,8 @@ chat:
     combo-failed: '{count} 连击，{failed} 次落空'
     arguments: 参数
     result: 结果
+    copy: 复制原始数据
+    copied: 已复制
     rerun: 重新运行
     state:
       executing: 进行中

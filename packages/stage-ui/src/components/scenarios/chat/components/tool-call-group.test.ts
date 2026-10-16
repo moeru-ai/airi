@@ -48,30 +48,30 @@ describe('tool call groups', () => {
 
 describe('tool payload formatting', () => {
   // Every tool shares one formatter, so keys and values stay exactly as the tool sent them.
-  it('lists fields with their values as sent, and nests objects under their key', () => {
+  it('lists fields with their values and JSON types as sent, and nests objects under their key', () => {
     expect(formatToolPayload('{"city":"Bangkok","days":1,"current":{"isNight":true,"wind":null}}')).toEqual({
       kind: 'object',
       entries: [
-        { key: 'city', value: { kind: 'text', text: 'Bangkok' } },
-        { key: 'days', value: { kind: 'text', text: '1' } },
+        { key: 'city', value: { kind: 'text', text: 'Bangkok', type: 'string' } },
+        { key: 'days', value: { kind: 'text', text: '1', type: 'number' } },
         { key: 'current', value: { kind: 'object', entries: [
-          { key: 'isNight', value: { kind: 'text', text: 'true' } },
-          { key: 'wind', value: { kind: 'text', text: 'null' } },
+          { key: 'isNight', value: { kind: 'text', text: 'true', type: 'boolean' } },
+          { key: 'wind', value: { kind: 'text', text: 'null', type: 'null' } },
         ] } },
       ],
     })
   })
 
   it('shows a value that is not JSON as its plain string', () => {
-    expect(formatToolPayload('Tool call error: timeout')).toEqual({ kind: 'text', text: 'Tool call error: timeout' })
-    expect(formatToolPayload('"quoted"')).toEqual({ kind: 'text', text: 'quoted' })
+    expect(formatToolPayload('Tool call error: timeout')).toStrictEqual({ kind: 'text', text: 'Tool call error: timeout' })
+    expect(formatToolPayload('"quoted"')).toEqual({ kind: 'text', text: 'quoted', type: 'string' })
     expect(formatToolPayload(undefined)).toBeUndefined()
   })
 
   it('formats structured results', () => {
     expect(formatToolPayload([{ type: 'text', text: 'sunny' }])).toEqual({
       kind: 'array',
-      items: [{ kind: 'object', entries: [{ key: 'type', value: { kind: 'text', text: 'text' } }, { key: 'text', value: { kind: 'text', text: 'sunny' } }] }],
+      items: [{ kind: 'object', entries: [{ key: 'type', value: { kind: 'text', text: 'text', type: 'string' } }, { key: 'text', value: { kind: 'text', text: 'sunny', type: 'string' } }] }],
     })
   })
 })
