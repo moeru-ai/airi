@@ -10,11 +10,12 @@ const props = defineProps<{
 
 const INDEX_CLASSES = ['text-[10px] font-semibold tabular-nums', 'text-primary-500 dark:text-primary-300']
 const VALUE_CLASSES = ['min-w-0 whitespace-pre-wrap break-words text-xs', 'text-neutral-800 dark:text-neutral-100']
-// The rounded bar follows the Callout component: a pseudo element inset from the top and bottom edges.
+// A hairline guide, like the indent guides of a code editor, shows the level of a nested value.
+// It stays neutral, so deep nesting does not stack bold lines next to the content.
 const NESTED_CLASSES = [
-  'relative min-w-0 pl-3.5',
-  `before:absolute before:left-0 before:top-0.5 before:bottom-0.5 before:w-1 before:rounded-full before:content-['']`,
-  'before:bg-primary-200/80 dark:before:bg-primary-800/70',
+  'relative min-w-0 pl-3',
+  `before:absolute before:left-0.5 before:top-0.5 before:bottom-0.5 before:w-px before:content-['']`,
+  'before:bg-neutral-300 dark:before:bg-neutral-700',
 ]
 </script>
 
