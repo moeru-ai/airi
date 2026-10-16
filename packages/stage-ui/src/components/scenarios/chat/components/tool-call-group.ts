@@ -159,12 +159,16 @@ export function formatToolPayload(payload: unknown): PayloadNode | undefined {
   if (payload == null || payload === '')
     return undefined
 
-  const data = parseToolPayload(payload)
-  // A string that is not JSON comes back unchanged. It is already what the tool sent, so it shows as plain text.
-  if (typeof payload === 'string' && data === payload)
-    return { kind: 'text', text: payload }
+  if (typeof payload !== 'string')
+    return toNode(payload)
 
-  return toNode(data)
+  try {
+    return toNode(JSON.parse(payload))
+  }
+  catch {
+    // A string that is not JSON is already what the tool sent, so it shows as plain text.
+    return { kind: 'text', text: payload }
+  }
 }
 
 /**
