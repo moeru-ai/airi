@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { computed, reactive, watch } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ToolCallScreenshot from './tool-call-screenshot.vue'
 
-import { computerUseReadImage } from '../../../shared/eventa/computer-use'
+import { useComputerUseScreenshots } from './use-computer-use-screenshots'
 
 interface Size { width: number, height: number }
 
@@ -27,24 +26,12 @@ const props = defineProps<{
 
 const { t, te, locale } = useI18n()
 const KEY = 'tamagotchi.stage.computer-use-tool-call'
-const readImage = useElectronEventaInvoke(computerUseReadImage)
 
 // AUV reports more states than the ones this card has words for. Those show as AUV names them.
 const statusLabel = computed(() => te(`${KEY}.status.${props.status}`) ? t(`${KEY}.status.${props.status}`) : props.status)
 
-/** The screenshot of each artifact, read from AIRI computer use storage. A file that cannot be read shows no image. */
-const images = reactive(new Map<string, string>())
-
-watch(() => props.files, async (files) => {
-  for (const file of files ?? []) {
-    try {
-      images.set(file.path, await readImage({ path: file.path }))
-    }
-    catch {
-      images.delete(file.path)
-    }
-  }
-}, { immediate: true })
+/** The screenshot of each artifact. A file that cannot be read shows no image. */
+const images = useComputerUseScreenshots(() => props.files?.map(file => file.path) ?? [])
 
 const sizeText = (size: Size) => `${size.width} × ${size.height}`
 const fileSize = computed(() => new Intl.NumberFormat(locale.value, { style: 'unit', unit: 'megabyte', maximumFractionDigits: 1 }))

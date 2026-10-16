@@ -151,6 +151,9 @@ computer-use-tool-call:
   pixel-size: 像素尺寸
   backend: 截图后端
   file: 文件
+computer-use-read-image-tool-call:
+  description: 视觉模型的描述
+  failed: 视觉模型没能读出这张图
 tool-call-screenshot:
   view-full: 查看大图
 weather-tool-call:

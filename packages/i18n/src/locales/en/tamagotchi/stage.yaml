@@ -158,6 +158,9 @@ computer-use-tool-call:
   pixel-size: Pixel size
   backend: Capture backend
   file: File
+computer-use-read-image-tool-call:
+  description: Description from the vision model
+  failed: The vision model could not read this image
 tool-call-screenshot:
   view-full: View full size
 weather-tool-call:
