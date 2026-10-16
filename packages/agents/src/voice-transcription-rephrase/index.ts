@@ -4,6 +4,8 @@ import type { GenerateText } from '../generate-text'
 
 import { array, parse, string } from 'valibot'
 
+import { readJsonReply } from '../json-reply'
+
 export const VOICE_TRANSCRIPTION_REPHRASE_INSTRUCTIONS = [
   'You clean up text that speech recognition produced from one spoken message.',
   'The input is a JSON array of consecutive segments of that message.',
@@ -16,13 +18,9 @@ export const VOICE_TRANSCRIPTION_REPHRASE_INSTRUCTIONS = [
 
 const rephrasedSegmentsSchema = array(string())
 
-/**
- * Reads the JSON array of rewritten segments from a model reply.
- * Some models wrap JSON in a Markdown code fence. Any other shape throws.
- */
+/** Reads the JSON array of rewritten segments from a model reply. Any other shape throws. */
 export function parseRephrasedSegments(reply: string): string[] {
-  const json = reply.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
-  return parse(rephrasedSegmentsSchema, JSON.parse(json))
+  return parse(rephrasedSegmentsSchema, readJsonReply(reply))
 }
 
 /** Builds the model request that rewrites the given transcript segments. */

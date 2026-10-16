@@ -2,19 +2,20 @@ import type { SpeechInputAttempt, TranscriptionEvent } from '@proj-airi/core-age
 import type { PcmBlock } from '@proj-airi/pipelines-audio'
 
 import { VoiceController } from '@proj-airi/core-agent'
-import { AudioInput, createPushStream } from '@proj-airi/pipelines-audio'
+import { AudioInput } from '@proj-airi/pipelines-audio'
+import { createPushStream } from '@proj-airi/stream-kit'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createVoiceRephrasePlugin } from './voice-rephrase-plugin'
 
-function createHarness(rephrase: (segments: readonly string[], signal: AbortSignal) => Promise<readonly string[]>, enabled = true) {
+function createHarness(rephrase: (segments: readonly string[], signal: AbortSignal) => Promise<readonly string[]>, enabled = true, speculateAfterMs = 600) {
   const source = createPushStream<PcmBlock>()
   const audio = new AudioInput({ live: true, open: () => source.stream })
   const output = createPushStream<TranscriptionEvent>()
   const submit = vi.fn(async () => ({ status: 'drafted' as const, draftId: 'draft' }))
   const controller = new VoiceController({ audio, submit, transcriber: () => ({ transcribe: () => output.stream }) })
   const onError = vi.fn()
-  controller.use(createVoiceRephrasePlugin({ enabled: () => enabled, rephrase, timeoutMs: 1000 }), { grants: ['transcript-patch'], onError })
+  controller.use(createVoiceRephrasePlugin({ enabled: () => enabled, rephrase, timeoutMs: 1000, speculateAfterMs }), { onError })
 
   async function speak(updates: readonly { text: string, final: boolean }[][]): Promise<SpeechInputAttempt> {
     const attempt = controller.beginInput({ sessionId: 'alice', interruptTurns: [], start: { kind: 'after-silence' } })
@@ -30,7 +31,28 @@ function createHarness(rephrase: (segments: readonly string[], signal: AbortSign
     return attempt
   }
 
-  return { controller, submit, speak, onError }
+  /** Starts an input and returns commands that drive its provider output step by step. */
+  async function open() {
+    const attempt = controller.beginInput({ sessionId: 'alice', interruptTurns: [], start: { kind: 'after-silence' } })
+    source.write({ range: { sourceId: 'mic', startFrame: 0, endFrame: 4 }, sampleRate: 1000, channels: [new Float32Array(4)] })
+    await expect.poll(() => attempt.state.phase).toBe('capturing')
+    let revision = 0
+    return {
+      attempt,
+      update(text: string, final = false) {
+        revision += 1
+        output.write({ type: 'update', revision, segments: [{ id: 'speech-0', revision, text, tokens: [], final }] })
+      },
+      async end() {
+        void attempt.end()
+        output.write({ type: 'complete', revision })
+        output.close()
+        return attempt.done
+      },
+    }
+  }
+
+  return { controller, submit, speak, open, onError }
 }
 
 describe('createVoiceRephrasePlugin', () => {
@@ -95,6 +117,59 @@ describe('createVoiceRephrasePlugin', () => {
     await speak([[{ text: 'hello there', final: true }]])
 
     expect(submit).toHaveBeenCalledWith(expect.objectContaining({ text: 'hello there' }), expect.any(AbortSignal))
+    await controller.close()
+  })
+
+  it('reuses a speculative rewrite when the final text did not change', async () => {
+    const reply = Promise.withResolvers<readonly string[]>()
+    const rephrase = vi.fn(() => reply.promise)
+    const { controller, submit, open } = createHarness(rephrase, true, 10)
+    const input = await open()
+    input.update('um check the weather')
+    // The speaker pauses, so the rewrite starts before the input ends.
+    await expect.poll(() => rephrase.mock.calls.length).toBe(1)
+    input.update('um check the weather', true)
+    const done = input.end()
+    reply.resolve(['Check the weather.'])
+
+    expect((await done).status).toBe('drafted')
+    expect(rephrase).toHaveBeenCalledOnce()
+    expect(submit).toHaveBeenCalledWith(expect.objectContaining({ text: 'Check the weather.' }), expect.any(AbortSignal))
+    await controller.close()
+  })
+
+  it('aborts a speculative rewrite when the speaker continues, and rewrites the final text', async () => {
+    const signals: AbortSignal[] = []
+    const rephrase = vi.fn(async (segments: readonly string[], signal: AbortSignal) => {
+      signals.push(signal)
+      return segments[0] === 'turn on the light' ? ['Turn on the light.'] : new Promise<readonly string[]>(() => {})
+    })
+    const { controller, submit, open } = createHarness(rephrase, true, 10)
+    const input = await open()
+    input.update('turn on the')
+    await expect.poll(() => rephrase.mock.calls.length).toBe(1)
+    input.update('turn on the light', true)
+
+    await expect.poll(() => signals[0]?.aborted).toBe(true)
+    expect((await input.end()).status).toBe('drafted')
+    expect(rephrase).toHaveBeenLastCalledWith(['turn on the light'], expect.any(AbortSignal))
+    expect(submit).toHaveBeenCalledWith(expect.objectContaining({ text: 'Turn on the light.' }), expect.any(AbortSignal))
+    await controller.close()
+  })
+
+  it('starts a new rewrite when the speculative request failed', async () => {
+    const rephrase = vi.fn()
+      .mockRejectedValueOnce(new Error('model busy'))
+      .mockResolvedValueOnce(['Hello there.'])
+    const { controller, submit, open, onError } = createHarness(rephrase, true, 10)
+    const input = await open()
+    input.update('hello there', true)
+    await expect.poll(() => rephrase.mock.calls.length).toBe(1)
+
+    expect((await input.end()).status).toBe('drafted')
+    expect(rephrase).toHaveBeenCalledTimes(2)
+    expect(submit).toHaveBeenCalledWith(expect.objectContaining({ text: 'Hello there.' }), expect.any(AbortSignal))
+    expect(onError).not.toHaveBeenCalled()
     await controller.close()
   })
 })

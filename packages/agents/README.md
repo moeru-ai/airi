@@ -8,6 +8,7 @@ Each agent owns one prompt, one request shape, and one reply parser. An agent do
 
 | Agent | Entry | Use |
 | --- | --- | --- |
+| Voice end judge | `@proj-airi/agents/voice-end-judge` | Decides whether a paused spoken message is finished. |
 | Voice transcription rephrase | `@proj-airi/agents/voice-transcription-rephrase` | Cleans up the speech recognition text of one spoken message. |
 
 ## How to use it

@@ -129,7 +129,8 @@ src/voice/
 ├── turn.ts          # TurnRef and turnKey
 ├── input/           # One speech input: admission, capture, transcript, end detection, submission
 ├── output/          # VoiceResponse and ordered SpeechStream producers
-└── plugins/         # Trusted plugin types, installation, input scopes, and task lifetimes
+├── plugins/         # Trusted plugin types, installation, and per-input watchers and finalization stages
+└── policy/          # Voice events, input revisions, the rule engine, and first-party rules
 ```
 
 `input/` and `output/` do not import `controller.ts`. `plugins/` reads input types but never the controller.
@@ -149,12 +150,12 @@ const input = voice.beginInput({
   start: { kind: 'after-silence' },
 })
 
-// The release control calls end. Provider final output and selected plugin work can then finish.
+// The release control calls end. Provider final output and finalization stages can then finish.
 const result = await input.end()
 ```
 
 - `SpeechInputAttempt` exists during playback fade and until the source delivers audio, which includes microphone permission.
-- `SpeechInput` exists after capture admission. It retains raw transcripts, corrected text, speaker evidence, and plugin context.
+- `SpeechInput` exists after capture admission. It holds the transcript document: raw text, corrected text, and speaker evidence.
 - `end()` completes recording. `cancel(reason)` rejects later publication from the attempt.
 - `interrupt({ turns, cause })` targets named responses and reports silence separately from agent delivery.
 - The notification receiver deduplicates by event ID. Its acknowledgment means durable receipt, without another user message or response.
@@ -164,32 +165,79 @@ const result = await input.end()
 
 ### Trusted plugins
 
+A speech input has two phases, and a plugin can take part in both.
+
+- While the provider transcribes, the document changes. `watch` runs work for the newest document only, like a language server analysis. A newer key aborts the active run.
+- After the provider ends, the text is complete. `finalize` stages run one after another, in plugin installation order. Each stage sees the corrections of earlier stages. Then the host receives the submission.
+
+Use `watch` for speculative work that a stage reuses, so the stage does not wait for a model after the speaker stops.
+
 ```ts
 voice.use({
   name: 'memory',
   setup(plugin) {
     plugin.onSpeechInput((input) => {
-      input.subscribe({ transcript: 'corrected', speakers: true, scheduling: 'latest' }, async (ctx) => {
-        const matches = await memory.search({
-          text: ctx.snapshot.transcript.text,
-          speakers: ctx.snapshot.speakers,
-          signal: ctx.signal,
-        })
-        ctx.context.set('matches', matches)
-      })
+      let speculation: { text: string, matches: Promise<Match[]> } | undefined
+
+      input.watch((document, signal) => {
+        const text = document.raw.text
+        speculation = { text, matches: memory.search({ text, signal }) }
+      }, { key: document => document.raw.text, debounceMs: 600 })
+
+      input.finalize(async (ctx) => {
+        const text = ctx.document.corrected.text
+        const matches = speculation?.text === text ? speculation.matches : memory.search({ text, signal: ctx.signal })
+        ctx.attach('matches', await matches)
+      }, { timeoutMs: 3000 })
     })
   },
 })
 ```
 
-The task context checks freshness at publication. A stale result cannot replace current context.
-`ordered` processes every accepted snapshot in order. `latest` cancels stale work and replaces pending snapshots.
-Lifecycle tasks can await `untilTranscriptionEnded()` or `untilDependenciesSettled()`.
-Timeouts and submission grace periods are caller options. The runtime imposes no resource quotas.
+- `watch` takes a `key`. A document with an equal key keeps the active run. For example, a provider that marks a segment final without new text does not restart the work.
+- A stage writes with `ctx.patch(edits)` and `ctx.attach(key, value)`. Writes after the stage ends or times out are rejected.
+- A failed stage is reported through `onError` with the stage `finalize`. The next stage still runs. A timeout skips the stage without an error.
+- Plugin corrections apply only during finalization. During capture, only a user correction through `correctInput` changes the corrected text.
+- `onSpeechInput` can be asynchronous. Finalization waits for pending installs.
+- `input.control` gives input commands, such as `end`, to a plugin with the `input-control` grant.
 
 VAD, PTT, wake words, speaker models, turn detection, memory search, and rewrite models remain external policy or adapters.
 Plugins receive source-tagged windows and scoped controls. They do not receive unrestricted controller access.
+Plugins are trusted in-process code. Grants authorize control commands. They are not a sandbox.
 Automatic patches use raw word or sentence coordinates and preserve raw history.
+
+### Events and rules
+
+`VoiceController.events` is an eventa context. It carries input lifecycle events (`inputBegunEvent` to
+`inputSettledEvent`) and signals, which any plugin can define with `defineEventa`. Projections, such as UI state and
+traces, subscribe to it.
+
+Rules decide when an input begins, ends, or is cancelled. A rule is a reducer over voice events. It has no timers and
+no side effects, so a test feeds events and checks the commands. A plugin adds rules with `scope.rule(rule)`, emits
+signals with `scope.emit(eventa, body)`, and reads them with `scope.on(eventa, listener)`.
+
+```ts
+voice.use({
+  name: 'voice-activity',
+  setup(scope) {
+    scope.rule(createSpeechActivityRule({ target: () => ({ sessionId, interruptTurns: [] }) }))
+    scope.observeAudio({ windowMs: 32, hopMs: 32, scheduling: 'ordered' }, async ({ window, signal }) => {
+      const score = await vad.score(window, signal)
+      scope.emit(speechActivitySignal, { range: window.range, durationMs: 32, score, discontinuity: window.discontinuity, accepted: true })
+    })
+    return undefined
+  },
+}, { grants: ['input-control', 'cancel-input'] })
+```
+
+- The engine imposes one event order. An event that a rule emits joins the end of the queue.
+- A slow signal returns the input revisions that it read as `readAt`. `context.isCurrent(inputId, readAt)` tells a
+  rule whether the result is still current. A revision counts content changes, so the same text in a new provider
+  revision keeps a judgement current.
+- A rule command runs only with the grant of the plugin that added the rule. For one input, the first `seal` or
+  `cancel` wins.
+- First-party rules: `createSpeechActivityRule` (VAD begin, silence limit, minimum speech), `createPauseRule`
+  (emits `paused`), and `createEndJudgementRule` (seals on a current `complete` judgement).
 
 ### Output without voice input
 

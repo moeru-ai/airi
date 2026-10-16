@@ -1,6 +1,8 @@
 import type { TurnRef, VoicePlugin } from '@proj-airi/core-agent'
 import type { AudioRange, AudioWindow } from '@proj-airi/pipelines-audio'
 
+import { createSpeechActivityRule, inputActivitySignal, speechActivitySignal } from '@proj-airi/core-agent'
+
 /** Application policy chooses the destination. The model only supplies scores for ordered windows. */
 export interface VoiceActivityOptions {
   readonly detect: (window: AudioWindow, signal: AbortSignal) => Promise<number>
@@ -14,13 +16,6 @@ export interface VoiceActivityOptions {
   /** Echo rejection runs after detection. Detectors remain active while the assistant speaks. */
   readonly acceptSpeech?: (window: AudioWindow, signal: AbortSignal) => Promise<boolean>
   readonly enabled?: () => boolean
-  readonly onInput?: () => void
-  /**
-   * Runs right before the plugin begins an input, with the reason. The controller announces the input
-   * synchronously inside that call, so the host knows the cause of the input that it is told about next.
-   * A wake that does not lead to a begin, for example after echo rejection, never reaches this callback.
-   */
-  readonly beforeBeginInput?: (cause: 'wake-word' | 'speech') => void
   /**
    * Receives the VAD result of each window that the plugin noted on its input, in window order.
    * The voice host traces speech segments with it, and speaker recognition counts only speech with it.
@@ -41,83 +36,47 @@ export interface VoiceActivityOptions {
   readonly preRollMs?: number
 }
 
-/** Converts VAD scores to ordinary input commands. It owns no recorder, source, transcription request, or playback nodes. */
+/**
+ * Measures voice activity and lets the speech activity rule decide.
+ *
+ * The plugin runs the VAD model, the wake word adapter, and the echo gate on each window, then emits one
+ * `speech-activity` signal. The rule from `createSpeechActivityRule` begins, seals, and cancels inputs from these
+ * signals. The begun input carries its cause, `speech` or `wake-word`, in `SpeechInputAttempt.cause`.
+ * It owns no recorder, source, transcription request, or playback nodes.
+ */
 export function createVoiceActivityPlugin(options: VoiceActivityOptions): VoicePlugin {
+  const threshold = options.threshold ?? 0.6
+  const preRollMs = options.preRollMs ?? 360
+
   return { name: 'voice-activity', setup(scope) {
-    let inputId: string | undefined
-    let speechMs = 0
-    let silenceMs = 0
+    scope.rule(createSpeechActivityRule({ ...options, threshold, preRollMs }))
+    scope.on(inputActivitySignal, activity => options.onActivity?.(activity))
 
     // NOTICE:
     // SileroVad requires 512 samples at 16 kHz, so each window lasts 32 ms.
     // The constraint is in workers/vad/silero-vad.ts.
     // Remove this fixed size when detectors supply their own window requirements.
-    scope.observeAudio({ windowMs: 32, hopMs: 32, scheduling: 'ordered', preRollMs: options.preRollMs ?? 360 }, async (ctx) => {
-      const score = await options.detect(ctx.window, ctx.signal)
-      const duration = (ctx.window.range.endFrame - ctx.window.range.startFrame) * 1000 / ctx.window.sampleRate
-      const wake = await options.detectWakeWord?.(ctx.window, ctx.signal, { speech: score >= (options.threshold ?? 0.6), durationMs: duration })
+    scope.observeAudio({ windowMs: 32, hopMs: 32, scheduling: 'ordered', preRollMs }, async (ctx) => {
+      const { window } = ctx
+      const score = await options.detect(window, ctx.signal)
+      const durationMs = (window.range.endFrame - window.range.startFrame) * 1000 / window.sampleRate
+      const wake = await options.detectWakeWord?.(window, ctx.signal, { speech: score >= threshold, durationMs })
       ctx.signal.throwIfAborted()
 
-      if (ctx.window.discontinuity) {
-        inputId = undefined
-        speechMs = 0
-        silenceMs = 0
-      }
+      // The echo gate can cost a model call, so it runs only for a window that can begin an input.
+      const active = ctx.controls.activeInput()
+      const canBegin = (wake && wake.sessionId !== active?.sessionId) || (!active && score >= threshold)
+      const accepted = canBegin ? (options.acceptSpeech ? await options.acceptSpeech(window, ctx.signal) : true) : undefined
+      ctx.signal.throwIfAborted()
 
-      let input = ctx.controls.activeInput()
-
-      // A manual control owns its interval until release. VAD continues inference without ending that input.
-      if (input && input.id !== inputId)
-        return
-
-      if (options.enabled && !options.enabled()) {
-        input?.cancel('Automatic speech input is paused')
-        inputId = undefined
-        return
-      }
-
-      const speech = score >= (input ? (options.threshold ?? 0.6) * 0.3 : options.threshold ?? 0.6)
-      if ((wake && wake.sessionId !== input?.sessionId) || (!input && speech)) {
-        if (options.acceptSpeech && !await options.acceptSpeech(ctx.window, ctx.signal))
-          return
-
-        ctx.signal.throwIfAborted()
-        const target = wake ?? options.target()
-        if (!target)
-          return
-
-        options.beforeBeginInput?.(wake ? 'wake-word' : 'speech')
-        const result = ctx.controls.beginInput({ ...target, start: wake
-          ? { kind: 'after-silence' }
-          : { kind: 'speech-onset', at: { sourceId: ctx.window.range.sourceId, frame: ctx.window.range.startFrame }, preRollMs: options.preRollMs ?? 360 } })
-        if (result.status !== 'started')
-          return
-
-        input = result.input
-        inputId = input.id
-        speechMs = 0
-        silenceMs = 0
-        options.onInput?.()
-      }
-
-      if (!input)
-        return
-
-      if (!input.noteActivity({ range: ctx.window.range, speech }))
-        return
-      options.onActivity?.({ inputId: input.id, range: ctx.window.range, speech, durationMs: duration })
-
-      speechMs += speech ? duration : 0
-      silenceMs = speech ? 0 : silenceMs + duration
-      const silenceLimit = typeof options.silenceMs === 'function' ? options.silenceMs() : options.silenceMs ?? 1200
-      if (silenceMs >= silenceLimit) {
-        if (speechMs < (options.minSpeechMs ?? 300))
-          input.cancel('Speech segment was too short')
-        else
-          input.end()
-
-        inputId = undefined
-      }
+      scope.emit(speechActivitySignal, {
+        range: window.range,
+        durationMs,
+        score,
+        discontinuity: window.discontinuity,
+        ...(accepted === undefined ? {} : { accepted }),
+        ...(wake ? { wake } : {}),
+      })
     })
 
     return undefined

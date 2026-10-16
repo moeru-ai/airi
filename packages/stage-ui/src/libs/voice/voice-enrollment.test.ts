@@ -1,6 +1,7 @@
 import type { AudioWindow, PcmBlock } from '@proj-airi/pipelines-audio'
 
-import { AudioInput, createPushStream } from '@proj-airi/pipelines-audio'
+import { AudioInput } from '@proj-airi/pipelines-audio'
+import { createPushStream } from '@proj-airi/stream-kit'
 import { describe, expect, it, vi } from 'vitest'
 
 import { VoiceEnrollment } from './voice-enrollment'

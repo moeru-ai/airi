@@ -1,8 +1,9 @@
 /// <reference types="vite/client" />
 
-import type { LiveAudioSource, PcmBlock, Scope, StreamController } from '@proj-airi/pipelines-audio'
+import type { LiveAudioSource, PcmBlock } from '@proj-airi/pipelines-audio'
+import type { Scope, StreamController } from '@proj-airi/stream-kit'
 
-import { createPushStream, createScope } from '@proj-airi/pipelines-audio'
+import { createPushStream, createScope } from '@proj-airi/stream-kit'
 import { nanoid } from 'nanoid/non-secure'
 
 import CaptureWorkletURL from './capture.worklet?worker&url'

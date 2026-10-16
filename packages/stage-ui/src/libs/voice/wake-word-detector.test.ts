@@ -4,7 +4,8 @@ import type { Detection, KeywordEntry, KeywordSpotter } from '@sherpaw/kws'
 import type { WakeWordDetectorOptions } from './wake-word-detector'
 import type { WakePronunciation } from './wake-words'
 
-import { AudioInput, createPushStream } from '@proj-airi/pipelines-audio'
+import { AudioInput } from '@proj-airi/pipelines-audio'
+import { createPushStream } from '@proj-airi/stream-kit'
 import { describe, expect, it, vi } from 'vitest'
 
 import { WakeWordDetector } from './wake-word-detector'

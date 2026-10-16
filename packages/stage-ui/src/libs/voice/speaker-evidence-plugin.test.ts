@@ -4,7 +4,8 @@ import type { AudioWindow, PcmBlock } from '@proj-airi/pipelines-audio'
 import type { SpeakerEvidenceUpdate } from './speaker-evidence-plugin'
 
 import { VoiceController } from '@proj-airi/core-agent'
-import { AudioInput, createPushStream } from '@proj-airi/pipelines-audio'
+import { AudioInput } from '@proj-airi/pipelines-audio'
+import { createPushStream } from '@proj-airi/stream-kit'
 import { expect, it, vi } from 'vitest'
 
 import { createSpeakerEvidencePlugin, OWNER_SPEAKER_ID } from './speaker-evidence-plugin'
