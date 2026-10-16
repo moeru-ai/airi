@@ -1,21 +1,25 @@
 import type { AudioInput, AudioRange, PlaybackReceipt } from '@proj-airi/pipelines-audio'
 
 import type { SpeechInputAttemptOwner } from './input/attempt'
-import type { BeginSpeechInput } from './input/attempt-types'
-import type { SpeakerEvidence } from './input/snapshot'
-import type { SpeechInputPorts } from './input/submission'
+import type { SpeechInputPorts } from './input/ports'
 import type { TranscriptEdit, WriteResult } from './input/transcript'
+import type { BeginSpeechInput, SpeakerEvidence } from './input/types'
 import type { Interruption, VoiceInterruptionEvent } from './interruption'
 import type { SpeechOutput } from './output/response'
 import type { VoicePlugin, VoicePluginHandle, VoicePluginSettings } from './plugins/types'
+import type { VoiceEventContext } from './policy/engine'
+import type { VoiceCommand } from './policy/types'
 import type { TurnRef } from './turn'
 
+import { createContext } from '@moeru/eventa'
 import { nanoid } from 'nanoid/non-secure'
 
 import { errorFromCause } from '../utils/error'
 import { SpeechInputAttempt } from './input/attempt'
 import { VoiceResponse } from './output/response'
 import { VoicePlugins } from './plugins/registry'
+import { VoicePolicy } from './policy/engine'
+import { inputBegunEvent, inputCapturingEvent, inputFinalizingEvent, inputSettledEvent, inputTranscriptEvent } from './policy/events'
 import { turnKey } from './turn'
 
 /** Only external source, provider, and persistence boundaries are injected. */
@@ -40,6 +44,17 @@ interface TurnInterruption {
 
 /** Coordinates input admission and downstream completion without owning browser or provider APIs. */
 export class VoiceController {
+  /**
+   * Voice events: input lifecycle and plugin signals. Projections, such as UI state and traces, subscribe here.
+   * Rules decide from the same events. A host can link this context to another process or a server.
+   */
+  readonly events: VoiceEventContext = createContext()
+  private readonly policy = new VoicePolicy(this.events, {
+    execute: command => this.execute(command),
+    contextRevision: sessionId => this.options.conversationContext?.(sessionId).revision ?? 0,
+    onError: error => this.reportError('policy', error),
+  })
+
   private readonly plugins = new VoicePlugins({
     activeInput: () => this.current,
     audio: () => this.audioInput,
@@ -47,6 +62,8 @@ export class VoiceController {
     cancelInput: (id, reason) => this.cancelInput(id, reason),
     interrupt: options => this.interrupt(options),
     reportError: (stage, cause) => this.reportError(stage, cause),
+    policy: this.policy,
+    conversationContext: sessionId => this.options.conversationContext?.(sessionId) ?? { revision: 0, messages: [] },
   })
 
   private readonly inputListeners = new Set<(attempt: SpeechInputAttempt) => void>()
@@ -71,7 +88,7 @@ export class VoiceController {
       options,
       audio: () => this.audioInput,
       interrupt: request => this.interrupt(request),
-      createPlugins: input => this.plugins.input(input),
+      createPlugins: (attempt, input) => this.plugins.input(attempt, input),
       seal: attempt => this.sealInput(attempt),
       reportError: (stage, error) => this.reportError(stage, error),
     }
@@ -131,8 +148,54 @@ export class VoiceController {
     }
 
     void attempt.done.then(() => this.attempts.delete(attempt.id))
+    this.publishLifecycle(attempt, options)
     void attempt.start()
     return attempt
+  }
+
+  /** Triggering workflow: attempt state and transcript → lifecycle events → rules and projections. */
+  private publishLifecycle(attempt: SpeechInputAttempt, options: BeginSpeechInput) {
+    const inputId = attempt.id
+    void this.events.emit(inputBegunEvent, { inputId, sessionId: attempt.sessionId, start: options.start, ...(options.cause ? { cause: options.cause } : {}) })
+    let stopTranscript: (() => void) | undefined
+    let text = ''
+    // `subscribe` calls the listener at once with the pending state, so `stopState` exists before a settled state.
+    const stopState = attempt.subscribe((state) => {
+      if (state.phase === 'capturing' && !stopTranscript) {
+        void this.events.emit(inputCapturingEvent, { inputId, from: state.from })
+        stopTranscript = attempt.input?.subscribe((document) => {
+          // Rules read provider text. A document version without a text change, for example speaker evidence, is skipped.
+          if (document.raw.text === text)
+            return
+          text = document.raw.text
+          void this.events.emit(inputTranscriptEvent, { inputId, text })
+        })
+      }
+      if (state.phase === 'finalizing')
+        void this.events.emit(inputFinalizingEvent, { inputId })
+      if (state.phase === 'settled') {
+        stopTranscript?.()
+        stopState()
+        void this.events.emit(inputSettledEvent, { inputId, outcome: state.outcome })
+      }
+    })
+  }
+
+  /** Runs a rule command. A command for an input that already settled does nothing. */
+  private execute(command: VoiceCommand) {
+    switch (command.type) {
+      case 'begin':
+        this.beginInput(command.input)
+        return
+      case 'seal':
+        void this.attempts.get(command.inputId)?.end()
+        return
+      case 'cancel':
+        this.attempts.get(command.inputId)?.cancel(command.reason)
+        return
+      case 'interrupt':
+        this.interrupt({ turns: command.turns, cause: command.cause })
+    }
   }
 
   cancelInput(inputId: string, reason: string): 'cancelled' | 'closed' {
@@ -156,7 +219,7 @@ export class VoiceController {
     const input = this.attempts.get(inputId)?.input
     if (!input || input.closed)
       return { status: 'rejected', reason: 'closed' }
-    return input.patch('user', { edits, evidenceIds: [] }, () => true, true)
+    return input.patch('user', { edits, evidenceIds: [] }, true)
   }
 
   openResponse(turn: TurnRef): VoiceResponse {
@@ -276,6 +339,7 @@ export class VoiceController {
     // Attempts and plugins end their own input subscriptions. The shared input stays with its owner.
     const responsesClosed = [...this.responses.values()].map(response => response.finish())
     this.closing = Promise.all([this.plugins.close(), ...responsesClosed]).then(() => {}).finally(() => {
+      this.policy.close()
       this.responses.clear()
       this.interruptions.clear()
       this.usedTurns.clear()

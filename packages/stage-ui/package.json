@@ -85,6 +85,7 @@
     "@opentelemetry/core": "catalog:",
     "@opentelemetry/sdk-trace-base": "catalog:",
     "@pinia/colada": "catalog:",
+    "@proj-airi/agents": "workspace:^",
     "@proj-airi/audio": "workspace:^",
     "@proj-airi/ccc": "workspace:^",
     "@proj-airi/chromatic": "catalog:",
