@@ -1,6 +1,6 @@
 import type { BeatSyncDetectorState } from '@proj-airi/stage-shared/beat-sync'
 
-import { isStageTamagotchi } from '@proj-airi/stage-shared'
+import { isStageCapacitor } from '@proj-airi/stage-shared'
 import { getBeatSyncState, isBeatSyncSupported, listenBeatSyncStateChange } from '@proj-airi/stage-shared/beat-sync'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -52,9 +52,10 @@ export function useModulesList() {
   const artistryStore = useArtistryStore()
   const beatSyncState = ref<BeatSyncDetectorState>()
   const beatSyncSupported = isBeatSyncSupported()
-  // Bilingual captions render in the Electron caption window. Stage Web and
-  // the mobile app have no caption receiver yet, so hide the entry there.
-  const bilingualSubtitlesSupported = isStageTamagotchi()
+  // Captions render in the Electron caption window and as an in-page overlay
+  // in stage-web. The Capacitor mobile app has no caption surface, so the
+  // settings entry stays hidden there.
+  const bilingualSubtitlesSupported = !isStageCapacitor()
 
   minecraftStore.initialize()
 

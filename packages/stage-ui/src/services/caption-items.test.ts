@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { useCaptionItems } from './useCaptionItems'
+import { useCaptionItems } from './caption-items'
 
 describe('useCaptionItems', () => {
   it('expires each caption event without cancelling earlier events of the same type', () => {

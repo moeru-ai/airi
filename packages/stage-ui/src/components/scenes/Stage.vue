@@ -594,16 +594,21 @@ chatHookCleanups.push(onTokenSpecial(async (special, context) => {
 }))
 
 async function finishSpeechTurn(context: Parameters<typeof voice.finishResponse>[0]) {
+  // finish resolves after playback drained. An interrupted or cancelled
+  // reply was abandoned on purpose: discard its unplayed translations and
+  // clear the line instead of dumping one large block. A normal finish
+  // flushes pairs playback never reached, such as a muted turn.
+  let outcome: Awaited<ReturnType<typeof voice.finishResponse>>
   try {
-    // finish resolves only after owned playback drained, so this is the
-    // point to publish translations playback never reached (muted turns,
-    // turns without audio).
-    await voice.finishResponse(context)
+    outcome = await voice.finishResponse(context)
   }
   catch (error) {
     console.error('Speech response completion failed', error)
   }
-  bilingualCaptionBus.flushTurn(context.turnId)
+  if (outcome === 'interrupted' || outcome === 'cancelled')
+    bilingualCaptionBus.resetTurn(context.turnId)
+  else
+    bilingualCaptionBus.flushTurn(context.turnId)
   clearSpeechTurnFlags(context.turnId)
 }
 

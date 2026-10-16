@@ -223,16 +223,20 @@ export const useCharacterStore = defineStore('character', () => {
 
     // Close the parser first so every queued fragment, including the last
     // flush marker, reaches speech before EOF. finish resolves after owned
-    // playback drained; only then publish translations playback never
-    // reached and release the turn flags.
+    // playback drained; its outcome decides whether translations playback
+    // never reached are published or discarded.
+    let finishStatus: Awaited<ReturnType<SpeechClient['finish']>>['status'] | undefined
     void state.parser.end().then(async () => {
       await state.speech.end()
       streamingReactions.value.delete(sparkEventId)
-      await state.speech.finish()
+      finishStatus = (await state.speech.finish()).status
     }).catch(error => console.error('Notification speech failed', error)).finally(() => {
-      // Publish pairs playback never reached, including after a speech
-      // failure, and never leak the per-turn flags.
-      bilingualCaptionBus.flushTurn(state.turnId)
+      // An interrupted notification was skipped on purpose: discard pending
+      // pairs and clear the caption. Otherwise publish the unplayed rest.
+      if (finishStatus === 'interrupted' || finishStatus === 'cancelled')
+        bilingualCaptionBus.resetTurn(state.turnId)
+      else
+        bilingualCaptionBus.flushTurn(state.turnId)
       clearSpeechTurnFlags(state.turnId)
       if (activeBilingualTurnId === state.turnId)
         activeBilingualTurnId = undefined

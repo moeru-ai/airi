@@ -1,6 +1,7 @@
 import type { BilingualTurnSnapshot } from '@proj-airi/pipelines-audio'
 
 import { BILINGUAL_LANGUAGES } from '@proj-airi/pipelines-audio'
+import { isStageCapacitor } from '@proj-airi/stage-shared'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 
@@ -77,11 +78,13 @@ export const useSettingsBilingualSubtitles = defineStore('settings-bilingual-sub
   )
 
   /**
-   * Returns the immutable snapshot for one send, or undefined when disabled.
-   * The settings UI prevents selecting the same language twice.
+   * Returns the immutable snapshot for one send, or undefined when disabled
+   * or on the mobile app. The desktop app and stage-web render the caption
+   * overlay; the Capacitor app has no overlay and must not run the pipeline
+   * even when a stale enabled value remains in storage.
    */
   function snapshot(): BilingualTurnSnapshot | undefined {
-    if (!enabled.value || !spokenLanguage.value || !translationLanguage.value)
+    if (isStageCapacitor() || !enabled.value || !spokenLanguage.value || !translationLanguage.value)
       return undefined
 
     return {
