@@ -2,6 +2,7 @@ import en from '@proj-airi/i18n/locales/en'
 
 import { pushToTalkTriggerKey } from '@proj-airi/stage-ui/composables/push-to-talk-trigger'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { createPinia, disposePinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from 'vitest-browser-vue'
@@ -19,6 +20,7 @@ afterEach(() => {
   cleanup()
   pinias.splice(0).forEach(pinia => disposePinia(pinia))
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
   localStorage.clear()
 })
 
@@ -130,22 +132,45 @@ describe('hearing provider changes', () => {
     localStorage.setItem('settings/hearing/active-custom-model', 'browser-model')
     localStorage.setItem('settings/hearing/provider-model/openrouter-audio-transcription', 'openrouter-model')
     localStorage.setItem('settings/hearing/provider-model/comet-api-transcription', 'comet-model')
+    localStorage.setItem('settings/providers/configured', JSON.stringify({
+      'openrouter-audio-transcription': {
+        id: 'openrouter-audio-transcription',
+        definitionId: 'openrouter-audio-transcription',
+        config: { apiKey: 'test-key', baseUrl: 'https://openrouter.test/api/v1' },
+        status: 'configured',
+        configuredBy: 'user',
+      },
+      'comet-api-transcription': {
+        id: 'comet-api-transcription',
+        definitionId: 'comet-api-transcription',
+        config: { apiKey: 'test-key', baseUrl: 'https://comet.test/v1' },
+        status: 'configured',
+        configuredBy: 'user',
+      },
+    }))
     const pinia = createPinia()
     await renderTranscriber(pinia)
     const hearingStore = useHearingStore(pinia)
-    const requests: Array<{ provider: string, resolve: () => void }> = []
-    vi.spyOn(hearingStore, 'loadModelsForProvider').mockImplementation(provider => new Promise((resolve) => {
-      requests.push({ provider, resolve })
-    }))
+    const providersStore = useProviderStore(pinia)
+    const requests: Array<{ url: string, resolve: (response: Response) => void }> = []
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(input => new Promise((resolve) => {
+      requests.push({
+        url: String(input),
+        resolve,
+      })
+    })))
 
     hearingStore.activeTranscriptionProvider = 'openrouter-audio-transcription'
-    await vi.waitFor(() => expect(requests.some(request => request.provider === 'openrouter-audio-transcription')).toBe(true))
+    await vi.waitFor(() => expect(requests.some(request => request.url.includes('openrouter.test'))).toBe(true))
     hearingStore.activeTranscriptionProvider = 'comet-api-transcription'
-    await vi.waitFor(() => expect(requests.some(request => request.provider === 'comet-api-transcription')).toBe(true))
+    await vi.waitFor(() => expect(requests.some(request => request.url.includes('comet.test'))).toBe(true))
 
-    requests.forEach(request => request.resolve())
+    requests.find(request => request.url.includes('comet.test'))?.resolve(Response.json({ data: [{ id: 'comet-model' }] }))
+    await vi.waitFor(() => expect(providersStore.getModelsForProvider('comet-api-transcription').map(model => model.id)).toContain('comet-model'))
+    requests.find(request => request.url.includes('openrouter.test'))?.resolve(Response.json({ data: [{ id: 'openrouter-model' }] }))
+    await vi.waitFor(() => expect(providersStore.getModelsForProvider('openrouter-audio-transcription').map(model => model.id)).toContain('openrouter-model'))
 
-    await vi.waitFor(() => expect(hearingStore.activeTranscriptionModel).toBe('comet-model'))
+    expect(hearingStore.activeTranscriptionModel).toBe('comet-model')
     expect(hearingStore.getSavedProviderModel('browser-web-speech-api')).toBe('browser-model')
     expect(hearingStore.getSavedProviderModel('openrouter-audio-transcription')).toBe('openrouter-model')
   })
