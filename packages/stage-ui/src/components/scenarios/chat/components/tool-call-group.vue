@@ -263,10 +263,9 @@ function rerun(item: ToolCallGroupItem) {
           </div>
           <TransitionVertical>
             <div v-if="openCalls.has(call.key)" :class="['flex flex-col gap-2 px-1.5 pb-2 pt-1']">
-              <div :class="['flex items-center justify-between gap-2']">
-                <code :class="['min-w-0 truncate text-[10px]', 'text-neutral-500 dark:text-neutral-400']">{{ call.toolCall.toolName }}</code>
+              <!-- The row above already names the tool, so the details start with the result. -->
+              <div v-if="call.widget" :class="['flex justify-end']">
                 <button
-                  v-if="call.widget"
                   type="button"
                   :class="[
                     'shrink-0 inline-flex items-center gap-1 rounded-md px-1.5 py-px text-[11px]',
