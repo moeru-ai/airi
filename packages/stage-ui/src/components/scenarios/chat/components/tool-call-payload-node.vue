@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PayloadNode } from './tool-call-group'
+import type { PayloadNode, PayloadValueType } from './tool-call-group'
 
 import ToolCallPayloadNode from './tool-call-payload-node.vue'
 
@@ -9,7 +9,21 @@ const props = defineProps<{
 }>()
 
 const INDEX_CLASSES = ['text-[10px] font-semibold tabular-nums', 'text-primary-500 dark:text-primary-300']
-const VALUE_CLASSES = ['min-w-0 whitespace-pre-wrap break-words text-xs', 'text-neutral-800 dark:text-neutral-100']
+const VALUE_LAYOUT = 'min-w-0 whitespace-pre-wrap break-words text-xs'
+const BODY_COLOR = 'text-neutral-800 dark:text-neutral-100'
+const VALUE_CLASSES = [VALUE_LAYOUT, BODY_COLOR]
+
+/**
+ * Value colors by JSON type, as a developer console shows them. A string and text that is not JSON keep the body color.
+ * The color only repeats the type: a string also has quotes, so `0` and `"0"` differ without color.
+ */
+const TYPE_COLORS: Partial<Record<PayloadValueType, string>> = {
+  number: 'text-primary-600 dark:text-primary-300',
+  boolean: 'text-neutral-500 dark:text-neutral-400',
+  null: 'text-neutral-500 dark:text-neutral-400',
+}
+// The template keeps the quotes on one line with the text. A value keeps its whitespace, so a line break there shows as a space.
+const QUOTE_CLASSES = 'text-neutral-400 dark:text-neutral-500'
 // A hairline guide, like the indent guides of a code editor, shows the level of a nested value.
 // It stays neutral, so deep nesting does not stack bold lines next to the content.
 const NESTED_CLASSES = [
@@ -20,14 +34,17 @@ const NESTED_CLASSES = [
 </script>
 
 <template>
-  <span v-if="props.node.kind === 'text'" :class="VALUE_CLASSES">{{ props.node.text }}</span>
+  <span v-if="props.node.kind === 'text'" :class="[VALUE_LAYOUT, (props.node.type && TYPE_COLORS[props.node.type]) || BODY_COLOR]">
+    <template v-if="props.node.type === 'string'"><span :class="QUOTE_CLASSES">"</span>{{ props.node.text }}<span :class="QUOTE_CLASSES">"</span></template>
+    <template v-else>{{ props.node.text }}</template>
+  </span>
 
   <span v-else-if="props.node.kind === 'object' && !props.node.entries.length" :class="VALUE_CLASSES">{}</span>
   <div v-else-if="props.node.kind === 'object'" :class="['grid grid-cols-[minmax(0,max-content)_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1']">
     <template v-for="entry in props.node.entries" :key="entry.key">
       <template v-if="entry.value.kind === 'text'">
         <span :class="['break-all text-[10px]', 'text-neutral-500 dark:text-neutral-400']">{{ entry.key }}</span>
-        <span :class="VALUE_CLASSES">{{ entry.value.text }}</span>
+        <ToolCallPayloadNode :node="entry.value" />
       </template>
       <template v-else>
         <span :class="['col-span-2 break-all text-[10px]', 'text-neutral-500 dark:text-neutral-400']">{{ entry.key }}</span>
