@@ -1,18 +1,5 @@
 import type { TranscriptEdit, VoicePlugin } from '@proj-airi/core-agent'
 
-import { array, parse, string } from 'valibot'
-
-const rephrasedSegmentsSchema = array(string())
-
-/**
- * Reads the JSON array of rewritten segments from a model reply.
- * Some models wrap JSON in a Markdown code fence. Any other shape throws.
- */
-export function parseRephrasedSegments(reply: string): string[] {
-  const json = reply.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
-  return parse(rephrasedSegmentsSchema, JSON.parse(json))
-}
-
 export interface VoiceRephraseOptions {
   /** Reads the setting when an input starts. A disabled input submits the provider text unchanged. */
   enabled: () => boolean

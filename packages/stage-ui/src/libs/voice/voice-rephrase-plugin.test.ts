@@ -5,7 +5,7 @@ import { VoiceController } from '@proj-airi/core-agent'
 import { AudioInput, createPushStream } from '@proj-airi/pipelines-audio'
 import { describe, expect, it, vi } from 'vitest'
 
-import { createVoiceRephrasePlugin, parseRephrasedSegments } from './voice-rephrase-plugin'
+import { createVoiceRephrasePlugin } from './voice-rephrase-plugin'
 
 function createHarness(rephrase: (segments: readonly string[], signal: AbortSignal) => Promise<readonly string[]>, enabled = true) {
   const source = createPushStream<PcmBlock>()
@@ -96,18 +96,5 @@ describe('createVoiceRephrasePlugin', () => {
 
     expect(submit).toHaveBeenCalledWith(expect.objectContaining({ text: 'hello there' }), expect.any(AbortSignal))
     await controller.close()
-  })
-})
-
-describe('parseRephrasedSegments', () => {
-  it('reads a JSON array, also inside a Markdown code fence', () => {
-    expect(parseRephrasedSegments('["Hello.", ""]')).toEqual(['Hello.', ''])
-    expect(parseRephrasedSegments('```json\n["Hello."]\n```')).toEqual(['Hello.'])
-  })
-
-  it('rejects a reply that is not an array of strings', () => {
-    expect(() => parseRephrasedSegments('Hello.')).toThrow()
-    expect(() => parseRephrasedSegments('{"text":"Hello."}')).toThrow()
-    expect(() => parseRephrasedSegments('[1, 2]')).toThrow()
   })
 })

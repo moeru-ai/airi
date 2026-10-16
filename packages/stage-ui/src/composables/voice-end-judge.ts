@@ -70,7 +70,7 @@ export function useVoiceEndJudge() {
   }
 
   async function requestJudgement(providerId: string, model: string, transcript: string, context: TurnEvidence['context'], signal: AbortSignal) {
-    const provider = await providers.getChatProviderInstance(providerId)
+    const provider = await providers.getChatProviderInstance(providerId, { reasoning: 'disabled' })
     const conversation: Conversation = { turns: [
       { id: 'voice-end-judge-instructions', type: 'system', authority: 'system', content: [{ type: 'text', text: END_JUDGE_INSTRUCTIONS }] },
       { id: 'voice-end-judge-transcript', type: 'user', content: [{ type: 'text', text: JSON.stringify({ previousMessages: context.messages.slice(-4), transcript }) }] },
