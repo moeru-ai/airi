@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { WebSearchResultLink } from '../../../../tools/web-search'
 
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 /** The hits of one web search, as one card per source. A card opens its page in the browser. */
 const props = defineProps<{
@@ -10,8 +10,15 @@ const props = defineProps<{
 
 const cards = computed(() => props.links.map((link, index) => {
   const site = URL.parse(link.url)?.hostname ?? link.url
-  return { key: `${index}:${link.url}`, url: link.url, title: link.title, site, initial: site.charAt(0).toUpperCase() }
+  return { key: `${index}:${link.url}`, url: link.url, title: link.title, favicon: link.favicon, site, initial: site.charAt(0).toUpperCase() }
 }))
+
+// A site without an icon, or with an icon that does not load, shows the first letter of its name.
+const brokenIcons = ref(new Set<string>())
+
+function markBroken(key: string) {
+  brokenIcons.value = new Set(brokenIcons.value).add(key)
+}
 </script>
 
 <template>
@@ -28,7 +35,15 @@ const cards = computed(() => props.links.map((link, index) => {
           'focus-visible:ring-2 focus-visible:ring-primary-400/60',
         ]"
       >
+        <img
+          v-if="card.favicon && !brokenIcons.has(card.key)"
+          :src="card.favicon"
+          alt=""
+          :class="['size-5 shrink-0 rounded-[5px] object-contain']"
+          @error="markBroken(card.key)"
+        >
         <span
+          v-else
           :class="['size-5 shrink-0 inline-flex items-center justify-center rounded-[5px]', 'text-[11px] font-semibold text-white', 'bg-primary-500']"
           aria-hidden="true"
         >{{ card.initial }}</span>

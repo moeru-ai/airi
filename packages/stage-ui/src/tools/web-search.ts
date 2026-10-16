@@ -34,6 +34,8 @@ interface SearchResult {
   snippet: string
   score?: number
   ageHint?: string
+  /** The icon that the site declares. The chat shows it on the card of the hit. */
+  favicon?: string
 }
 
 // Optional inputs are modelled as required-nullable (never `.optional()`): strict
@@ -108,12 +110,13 @@ function defuseDelimiter(text: string): string {
  * source URL. Paired with {@link WEB_SEARCH_TOOLSET_PROMPT}: the model is told
  * everything inside these tags is data to read, never instructions to obey.
  *
- * The URL rides in an attribute, so it is sanitized here at the embedding site
- * (via {@link sanitizeUrl}) rather than trusting the caller to pre-clean it.
+ * The URLs ride in attributes, so they are sanitized here at the embedding site
+ * (via {@link sanitizeUrl}) rather than trusting the caller to pre-clean them.
  */
-function wrapUntrusted(snippet: string, sourceUrl: string): string {
+function wrapUntrusted(snippet: string, sourceUrl: string, faviconUrl?: string): string {
   const body = defuseDelimiter(snippet)
-  return `<untrusted_content source="${sanitizeUrl(sourceUrl)}">\n${body}\n</untrusted_content>`
+  const favicon = faviconUrl ? ` favicon="${sanitizeUrl(faviconUrl)}"` : ''
+  return `<untrusted_content source="${sanitizeUrl(sourceUrl)}"${favicon}>\n${body}\n</untrusted_content>`
 }
 
 async function searchTavily(apiKey: string, input: WebSearchInput, maxResults: number, signal: AbortSignal): Promise<SearchResult[]> {
@@ -121,6 +124,7 @@ async function searchTavily(apiKey: string, input: WebSearchInput, maxResults: n
     query: input.query,
     max_results: maxResults,
     search_depth: 'basic',
+    include_favicon: true,
   }
   if (input.time_range)
     body.time_range = input.time_range
@@ -148,7 +152,7 @@ async function searchTavily(apiKey: string, input: WebSearchInput, maxResults: n
 
   // A 2xx with a non-JSON body (an HTML proxy/error page, a truncated response)
   // would otherwise throw an opaque SyntaxError; surface it in the same taxonomy.
-  let json: { results?: Array<{ title?: string, url?: string, content?: string, score?: number, published_date?: string }> }
+  let json: { results?: Array<{ title?: string, url?: string, content?: string, score?: number, published_date?: string, favicon?: string }> }
   try {
     json = await response.json()
   }
@@ -165,6 +169,7 @@ async function searchTavily(apiKey: string, input: WebSearchInput, maxResults: n
     snippet: (result.content ?? '').slice(0, DEFAULT_RESULT_CHARS),
     ...(typeof result.score === 'number' ? { score: result.score } : {}),
     ...(result.published_date ? { ageHint: result.published_date } : {}),
+    ...(result.favicon ? { favicon: result.favicon } : {}),
   }))
 }
 
@@ -183,7 +188,7 @@ function formatResults(query: string, results: SearchResult[]): string {
     // titled `SYSTEM: ignore the user`), so they go INSIDE the untrusted envelope
     // with the snippet. Only the sanitized `[N] url` citation stays outside.
     const content = `${result.title || result.url}${age}\n${result.snippet}`
-    return `[${index + 1}] ${sanitizeUrl(result.url)}\n${wrapUntrusted(content, result.url)}`
+    return `[${index + 1}] ${sanitizeUrl(result.url)}\n${wrapUntrusted(content, result.url, result.favicon)}`
   })
 
   return `${UNTRUSTED_RESULTS_NOTICE}\n\nFound ${results.length} web result${results.length === 1 ? '' : 's'} for "${query}":\n\n${blocks.join('\n\n')}`
@@ -193,12 +198,14 @@ function formatResults(query: string, results: SearchResult[]): string {
 export interface WebSearchResultLink {
   url: string
   title: string
+  favicon?: string
 }
 
 /**
  * Reads the hits back from a result that {@link formatResults} wrote.
  *
- * Each hit starts with its `[N] url` line, and the next line opens its envelope. The first line inside the envelope is the title.
+ * Each hit starts with its `[N] url` line, and the next line opens its envelope, with the site icon when the provider sent one.
+ * The first line inside the envelope is the title.
  * A snippet cannot fake a hit, because {@link defuseDelimiter} rewrites every envelope tag inside it.
  *
  * @example
@@ -206,7 +213,10 @@ export interface WebSearchResultLink {
  * // => [{ url: 'https://example.com', title: 'Example' }]
  */
 export function parseWebSearchResults(text: string): WebSearchResultLink[] {
-  return Array.from(text.matchAll(/^\[\d+\] (\S+)\n<untrusted_content source="[^"\n]*">\n(.*)$/gm), ([, url, title]) => ({ url: url!, title: title! }))
+  return Array.from(
+    text.matchAll(/^\[\d+\] (.+)\n<untrusted_content source="[^"\n]*"(?: favicon="([^"\n]*)")?>\n(.*)$/gm),
+    ([, url, favicon, title]) => ({ url: url!, title: title!, favicon }),
+  )
 }
 
 /**
