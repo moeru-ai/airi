@@ -8,7 +8,7 @@ const props = defineProps<{
   node: PayloadNode
 }>()
 
-const INDEX_CLASSES = ['text-[10px] font-semibold tabular-nums', 'text-primary-500 dark:text-primary-300']
+const INDEX_CLASSES = ['text-xs font-semibold tabular-nums', 'text-primary-500 dark:text-primary-300']
 const VALUE_LAYOUT = 'min-w-0 whitespace-pre-wrap break-words text-xs'
 const BODY_COLOR = 'text-neutral-800 dark:text-neutral-100'
 const VALUE_CLASSES = [VALUE_LAYOUT, BODY_COLOR]

@@ -114,6 +114,8 @@ chat:
     combo-failed: '{count}-hit combo, {failed} missed'
     arguments: Arguments
     result: Result
+    copy: Copy raw data
+    copied: Copied
     rerun: Run again
     state:
       executing: Running
