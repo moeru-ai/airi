@@ -1,9 +1,9 @@
-import type { ChatToolCallWidget } from '@proj-airi/stage-ui/components'
-import type { GenericSchema, InferOutput } from 'valibot'
+import type { ChatToolCallWidget, ChatToolCallWidgetReading } from '@proj-airi/stage-ui/components'
+import type { GenericSchema, InferOutput, ObjectEntries } from 'valibot'
 
 import type { ComputerUseKeyboardStep, ComputerUseView, ComputerUseWindow } from './computer-use-tool-call-view'
 
-import { readToolResult } from '@proj-airi/stage-ui/components'
+import { readToolResult, uncoveredFields } from '@proj-airi/stage-ui/components'
 import { array, boolean, literal, looseObject, null_, nullable, number, optional, parseJson, pipe, record, safeParse, string, transform, union, unknown } from 'valibot'
 
 import ComputerUseToolCallWidget from './computer-use-tool-call-widget.vue'
@@ -80,26 +80,43 @@ const ArtifactSchema = looseObject({ file_path: string(), file_extension: string
 /** AUV CLI flags that take no value. Every other flag takes the token after it. */
 const VALUELESS_FLAGS = new Set(['--normalized', '--dry-run', '--no-overlay', '--json', '--detail', '--wide'])
 
-/** Splits the argv of an AUV call into positional arguments and flags. `argv[0]` is `invoke`, and `argv[1]` is the command. */
+/**
+ * Splits the argv of an AUV call into positional arguments and flags. `argv[0]` is `invoke`, and `argv[1]` is the command.
+ * A flag can repeat, so each flag keeps all its values in order. Every token after `--` is positional, even one that starts with `--`.
+ */
 function splitArgv(argv: string[]) {
   const positional: string[] = []
-  const flags: Record<string, string> = {}
+  const flags: Record<string, string[]> = {}
   for (let index = 2; index < argv.length; index++) {
     const token = argv[index]!
+    if (token === '--') {
+      positional.push(...argv.slice(index + 1))
+      break
+    }
     if (!token.startsWith('--')) {
       positional.push(token)
       continue
     }
-    const [flag, inline] = token.split(/=(.*)/s)
+    const separator = token.indexOf('=')
+    const flag = separator === -1 ? token : token.slice(0, separator)
     const next = argv[index + 1]
-    if (inline !== undefined)
-      flags[flag!] = inline
-    else if (VALUELESS_FLAGS.has(flag!) || next === undefined || next.startsWith('--'))
-      flags[flag!] = 'true'
+    let value: string
+    if (separator !== -1)
+      value = token.slice(separator + 1)
+    else if (VALUELESS_FLAGS.has(flag) || next === undefined || next.startsWith('--'))
+      value = 'true'
     else
-      flags[flag!] = argv[++index]!
+      value = argv[++index]!
+    const values = flags[flag] ?? []
+    values.push(value)
+    flags[flag] = values
   }
   return { positional, flags }
+}
+
+/** The value that a flag ends with. A flag given more than once takes its last value, as in AUV. */
+function lastValue(flags: Record<string, string[]>, flag: string) {
+  return flags[flag]?.at(-1)
 }
 
 function toWindow(window: InferOutput<typeof WindowSchema>): ComputerUseWindow {
@@ -127,15 +144,72 @@ function keyboardSpecs(actions: string | undefined): ComputerUseKeyboardStep['sp
   })
 }
 
-/** The card of one command: the schema of its `result`, and the view it reads from the result and the argv. */
-interface CommandView<TSchema extends GenericSchema> {
-  result: TSchema
-  // A method, so a view of one command fits the table of all views.
-  toView: (result: InferOutput<TSchema>, argv: string[], artifacts: InferOutput<typeof ArtifactSchema>[]) => ComputerUseView
+// NOTICE:
+// The computer use tool throws when AUV exits with an error, so a failed command reaches the chat as an error text.
+// xsAI wraps the thrown message as `Tool "<name>" execution failed: <message>`, and the message is the AUV result as JSON.
+// Source: `createErrorToolResult` in node_modules/@xsai/shared-chat/dist/index.js (0.5.1).
+// Remove the prefix handling when the tool returns failed commands as results instead of throwing.
+const ERROR_PREFIX = 'Tool "computer_use" execution failed: '
+
+/** The AUV result as JSON text, from a finished call or from a failed one. */
+const ResultTextSchema = pipe(string(), transform(text => text.startsWith(ERROR_PREFIX) ? text.slice(ERROR_PREFIX.length) : text))
+
+// `argv` is the call itself, and `exitCode` repeats the status, so the header covers both.
+function envelope<TEntries extends ObjectEntries>(output: TEntries) {
+  return pipe(ResultTextSchema, parseJson(), looseObject({
+    argv: array(string()),
+    exitCode: number(),
+    output: looseObject({ status: string(), command_id: string(), ...output }),
+  }))
 }
 
-function defineView<TSchema extends GenericSchema>(view: CommandView<TSchema>) {
-  return view
+/** Any AUV command. Its result shows as other data. */
+const HeaderSchema = envelope({})
+/** A command that finished, with its result and artifacts. A reader validates the result with the schema of the command. */
+const CommandSchema = envelope({ result: unknown(), artifacts: optional(array(ArtifactSchema)) })
+/** A command that failed. It has no result, and it names why it failed. */
+const FailedSchema = envelope({
+  result: null_(),
+  failure: string(),
+  failure_details: optional(looseObject({ code: string(), message: string() })),
+})
+
+/** Reads one tool result into the card of one command. It returns `undefined` when the result is not of that command. */
+type CommandReader = (result: unknown) => ChatToolCallWidgetReading | undefined
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/** The other data of a command: the uncovered fields of the envelope, with the uncovered fields of the result in its place. */
+function commandRest(envelopeRest: unknown, resultRest: unknown) {
+  if (resultRest === undefined)
+    return envelopeRest
+  const rest = isRecord(envelopeRest) ? envelopeRest : {}
+  return { ...rest, output: { ...(isRecord(rest.output) ? rest.output : {}), result: resultRest } }
+}
+
+/**
+ * Creates the reader of one command from the schema of its `result` and the view that the card shows.
+ * The reader keeps the type of the schema for the view, so the table of all readers needs no shared result type.
+ */
+function defineView<TSchema extends GenericSchema>(view: {
+  result: TSchema
+  toView: (result: InferOutput<TSchema>, argv: string[], artifacts: InferOutput<typeof ArtifactSchema>[]) => ComputerUseView
+}): CommandReader {
+  return (result) => {
+    const command = safeParse(CommandSchema, result)
+    if (!command.success)
+      return undefined
+    const commandResult = safeParse(view.result, command.output.output.result)
+    if (!commandResult.success)
+      return undefined
+    const { argv, output } = command.output
+    return {
+      props: { command: output.command_id, status: output.status, view: view.toView(commandResult.output, argv, output.artifacts ?? []) },
+      rest: commandRest(uncoveredFields(CommandSchema, command.output), uncoveredFields(view.result, commandResult.output)),
+    }
+  }
 }
 
 function toCapture(capture: InferOutput<typeof CaptureSchema>) {
@@ -195,21 +269,23 @@ function textInputView(mode: 'type' | 'paste') {
   })
 }
 
-const keysView = defineView({
-  result: InputActionSchema,
-  toView: (action, argv) => {
-    const { positional, flags } = splitArgv(argv)
-    return {
-      kind: 'keys',
-      // `input.key` takes one shortcut such as `cmd+f`. The other key commands take one key per argument.
-      keys: positional.flatMap(key => key.split('+')),
-      count: flags['--count'],
-      intervalMs: flags['--interval-ms'],
-      durationMs: flags['--duration-ms'],
-      action,
-    }
-  },
-})
+/** `input.key` takes one shortcut such as `cmd+f`. The other key commands take one key per argument, which can be `+` itself. */
+function keysView(shortcut: boolean) {
+  return defineView({
+    result: InputActionSchema,
+    toView: (action, argv) => {
+      const { positional, flags } = splitArgv(argv)
+      return {
+        kind: 'keys',
+        keys: shortcut ? positional.flatMap(key => key.split('+')) : positional,
+        count: lastValue(flags, '--count'),
+        intervalMs: lastValue(flags, '--interval-ms'),
+        durationMs: lastValue(flags, '--duration-ms'),
+        action,
+      }
+    },
+  })
+}
 
 const focusView = defineView({
   result: looseObject({ app: string(), pid: number(), path: string(), role: string(), title: string(), value: string(), query: string(), input_action_result: InputActionSchema }),
@@ -222,7 +298,7 @@ const mediaControlView = defineView({
 })
 
 /** The card of each AUV command. A command without one shows its header, and its result as other data. */
-const COMMAND_VIEWS: Record<string, CommandView<GenericSchema>> = {
+const COMMAND_READERS: Record<string, CommandReader> = {
   'display.capture': displayCaptureView,
   'screen.captureRegion': displayCaptureView,
   'window.capture': defineView({
@@ -245,14 +321,14 @@ const COMMAND_VIEWS: Record<string, CommandView<GenericSchema>> = {
   'window.clickText': clickTextView,
   'input.typeText': textInputView('type'),
   'input.pasteText': textInputView('paste'),
-  'input.key': keysView,
-  'input.keys': keysView,
-  'input.pressKeys': keysView,
-  'input.holdKeys': keysView,
+  'input.key': keysView(true),
+  'input.keys': keysView(false),
+  'input.pressKeys': keysView(false),
+  'input.holdKeys': keysView(false),
   'input.keyboard': defineView({
     result: looseObject({ actions: array(InputActionSchema) }),
     toView: ({ actions }, argv) => {
-      const specs = keyboardSpecs(splitArgv(argv).flags['--actions'])
+      const specs = keyboardSpecs(lastValue(splitArgv(argv).flags, '--actions'))
       return { kind: 'keyboard', steps: actions.map((action, index) => ({ spec: specs[index], action })) }
     },
   }),
@@ -273,9 +349,10 @@ const COMMAND_VIEWS: Record<string, CommandView<GenericSchema>> = {
         relativeTo: result.relative_to,
         normalized: result.normalized,
         // AUV clicks with the left button unless the call names another one.
-        button: flags['--button'] ?? 'left',
-        count: flags['--click-count'],
-        modifiers: flags['--modifiers']?.split(',') ?? [],
+        button: lastValue(flags, '--button') ?? 'left',
+        count: lastValue(flags, '--click-count'),
+        // `--modifiers` can repeat, and each value can list several keys with commas.
+        modifiers: flags['--modifiers']?.flatMap(value => value.split(',')) ?? [],
         action: result.action,
       }
     },
@@ -326,33 +403,6 @@ const COMMAND_VIEWS: Record<string, CommandView<GenericSchema>> = {
   'mediaControl.previous': mediaControlView,
 }
 
-// NOTICE:
-// The computer use tool throws when AUV exits with an error, so a failed command reaches the chat as an error text.
-// xsAI wraps the thrown message as `Tool "<name>" execution failed: <message>`, and the message is the AUV result as JSON.
-// Source: `createErrorToolResult` in node_modules/@xsai/shared-chat/dist/index.js (0.5.1).
-// Remove the prefix handling when the tool returns failed commands as results instead of throwing.
-const ERROR_PREFIX = 'Tool "computer_use" execution failed: '
-
-/** The AUV result as JSON text, from a finished call or from a failed one. */
-const ResultTextSchema = pipe(string(), transform(text => text.startsWith(ERROR_PREFIX) ? text.slice(ERROR_PREFIX.length) : text))
-
-// `argv` is the call itself, and `exitCode` repeats the status, so the header covers both.
-function envelope(output: Record<string, GenericSchema>) {
-  return pipe(ResultTextSchema, parseJson(), looseObject({
-    argv: array(string()),
-    exitCode: number(),
-    output: looseObject({ status: string(), command_id: string(), ...output }),
-  }))
-}
-
-const CommandSchema = envelope({})
-const FailedSchema = envelope({
-  status: literal('failed'),
-  result: null_(),
-  failure: string(),
-  failure_details: optional(looseObject({ code: string(), message: string() })),
-})
-
 /** Shows an AUV command with its status, and a card for what the command did. */
 export const computerUseToolCallWidget: ChatToolCallWidget = {
   component: ComputerUseToolCallWidget,
@@ -365,13 +415,8 @@ export const computerUseToolCallWidget: ChatToolCallWidget = {
     if (failed)
       return failed
 
-    const command = safeParse(CommandSchema, result)
-    const view = command.success ? COMMAND_VIEWS[command.output.output.command_id] : undefined
-    const read = view && readToolResult(
-      envelope({ result: view.result, artifacts: optional(array(ArtifactSchema)) }),
-      result,
-      ({ argv, output }) => ({ command: output.command_id, status: output.status, view: view.toView(output.result, argv, output.artifacts ?? []) }),
-    )
-    return read ?? readToolResult(CommandSchema, result, ({ output }) => ({ command: output.command_id, status: output.status }))
+    const header = safeParse(HeaderSchema, result)
+    const reader = header.success ? COMMAND_READERS[header.output.output.command_id] : undefined
+    return reader?.(result) ?? readToolResult(HeaderSchema, result, ({ output }) => ({ command: output.command_id, status: output.status }))
   },
 }
