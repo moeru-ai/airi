@@ -148,3 +148,24 @@ about:
       title: Update Available
       description: A new version (v{version}) is available.
       no-release-notes-markdown: _No release notes provided._
+weather-tool-call:
+  feels-like: Feels like
+  humidity: Humidity
+  wind: Wind
+  precipitation: Chance of rain
+  high: High
+  low: Low
+  conditions:
+    clear-day: Clear
+    clear-night: Clear
+    partly-cloudy-day: Partly cloudy
+    partly-cloudy-night: Partly cloudy
+    overcast: Overcast
+    fog: Fog
+    drizzle: Drizzle
+    sleet: Sleet
+    rain: Rain
+    extreme-rain: Heavy rain
+    snow: Snow
+    extreme-snow: Heavy snow
+    thunderstorm: Thunderstorm
