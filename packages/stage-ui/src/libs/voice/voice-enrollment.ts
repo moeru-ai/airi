@@ -3,6 +3,8 @@ import type { AudioInput, AudioWindow, Capture } from '@proj-airi/pipelines-audi
 import { errorMessageFrom } from '@moeru/std'
 import { audioWindows, capture } from '@proj-airi/pipelines-audio'
 
+import { toMonoSamples } from './mono-samples'
+
 /** Sherpaw enrolls a speaker only from this much speech or more. */
 export const MIN_ENROLLMENT_SPEECH_SECONDS = 5
 
@@ -111,11 +113,8 @@ export class VoiceEnrollment {
 
         const score = await options.detect(window, signal)
         sampleRate = window.sampleRate
-        const samples = new Float32Array(window.channels[0]?.length ?? 0)
-        for (const channel of window.channels) {
-          for (let index = 0; index < samples.length; index++)
-            samples[index] += (channel[index] ?? 0) / window.channels.length
-        }
+        // The speaker tracker rejects the whole recording for one sample outside [-1, 1].
+        const samples = toMonoSamples(window)
 
         speaking = score >= (speaking ? SPEECH_CONTINUE_SCORE : SPEECH_START_SCORE)
         if (speaking) {

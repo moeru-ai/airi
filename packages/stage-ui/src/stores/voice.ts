@@ -1,4 +1,5 @@
 import type { BeginSpeechInput, SpeechInputAttempt, SpeechOutput, SpeechStream, TurnRef, VoicePluginHandle, VoiceResponse } from '@proj-airi/core-agent'
+import type { AudioWindow } from '@proj-airi/pipelines-audio'
 
 import type { VoiceActivityOptions } from '../libs/voice/voice-activity-plugin'
 import type { VoiceHostSnapshot } from '../services/speech/bus'
@@ -17,6 +18,7 @@ import { useVoiceEndJudge } from '../composables/voice-end-judge'
 import { createVoiceInputTracer } from '../composables/voice-input-trace'
 import { useVoiceRephrase } from '../composables/voice-rephrase'
 import { observeInputLevel } from '../libs/voice/input-level'
+import { createSpeakerEvidencePlugin } from '../libs/voice/speaker-evidence-plugin'
 import { createVoiceActivityPlugin } from '../libs/voice/voice-activity-plugin'
 import { createVoiceEndJudgePlugin } from '../libs/voice/voice-end-judge-plugin'
 import { createVoiceRephrasePlugin } from '../libs/voice/voice-rephrase-plugin'
@@ -28,8 +30,10 @@ import { useChatStore } from './chat'
 import { useChatSessionStore } from './chat/session-store'
 import { startsInputOnSpeech, useHearingStore } from './modules/hearing'
 import { useSettingsAudioDevice } from './settings/audio-device'
+import { useSpeakerTrackerStore } from './speaker-tracker'
 import { useVoiceCaptureLeaseStore } from './voice-capture-lease'
 import { useVoiceMessagesStore } from './voice-messages'
+import { useVoiceprintStore } from './voiceprint'
 import { useWakeWordDetectionStore } from './wake-word-detection'
 
 /** The longest time a chat model rewrite can delay a voice submission. */
@@ -55,6 +59,8 @@ export const useVoiceStore = defineStore('voice', () => {
   const speaking = useSpeakingStore()
   const streamingControl = useLlmStreamingControlStore()
   const wakeWordDetection = useWakeWordDetectionStore()
+  const voiceprints = useVoiceprintStore()
+  const speakerTracker = useSpeakerTrackerStore()
   const { stream: microphoneStream, enabled: microphoneEnabled, error: microphoneError } = storeToRefs(devices)
   /** The application tool selection for spoken turns. Without a connection, spoken turns send no tools. */
   let requestTools: (() => readonly ChatToolReference[]) | undefined
@@ -65,7 +71,8 @@ export const useVoiceStore = defineStore('voice', () => {
   /** One trace per open response turn. It ends after the response drains, is cancelled, or fails to open. */
   const speechTraces = new Map<string, ReturnType<typeof traceSpeechOutput>>()
   let output: ((turn: TurnRef) => SpeechOutput) | undefined
-  let listening: VoicePluginHandle | undefined
+  /** The plugins of continuous listening: voice activity detection, and speaker recognition. */
+  let listening: VoicePluginHandle[] | undefined
   let detectorOptions: Pick<VoiceActivityOptions, 'detectWakeWord' | 'acceptSpeech'> = {}
   const inputRequests = new Map<string, SpeechInputAttempt>()
   /**
@@ -489,9 +496,22 @@ export const useVoiceStore = defineStore('voice', () => {
     // The built-in KWS detection runs unless the host supplies its own adapter.
     // It returns no wake until the device catalog has an active pronunciation and the model is ready.
     const wakeWords = options.detectWakeWord ? undefined : wakeWordDetection.start({ resolveTarget: resolveWakeTarget, onError: report })
+    // Speaker recognition only measures. It reads the VAD results, so it counts only the speech of each input.
+    const speakerEvidence = createSpeakerEvidencePlugin({
+      enabled: () => hearing.speakerRecognitionEnabled && speakerTracker.preparation === 'ready',
+      compare: compareOwnerVoice,
+      input: () => controller.activeInput,
+      update: (update) => {
+        const result = controller.updateSpeakerEvidence(update.inputId, { range: update.range, value: update.value })
+        inputTracer.speakerEvidence(update, result)
+      },
+    })
     const plugin = createVoiceActivityPlugin({
       detect: (window, signal) => model.score(window, signal),
-      onActivity: inputTracer.activity,
+      onActivity: (activity) => {
+        inputTracer.activity(activity)
+        speakerEvidence.noteActivity(activity)
+      },
       beforeBeginInput: (cause) => {
         beginCause = cause
       },
@@ -507,14 +527,47 @@ export const useVoiceStore = defineStore('voice', () => {
         : undefined,
     })
 
-    listening = controller.use({ ...plugin, setup(scope) {
-      plugin.setup(scope)
-      scope.onDispose(() => {
-        wakeWords?.stop()
-        return model.close()
-      })
-      return undefined
-    } }, { grants: ['input-control', 'cancel-input'], onError: event => report(event.error) })
+    listening = [
+      controller.use({ ...plugin, setup(scope) {
+        plugin.setup(scope)
+        scope.onDispose(() => {
+          wakeWords?.stop()
+          return model.close()
+        })
+        return undefined
+      } }, { grants: ['input-control', 'cancel-input'], onError: event => report(event.error) }),
+      controller.use({ ...speakerEvidence, setup(scope) {
+        speakerEvidence.setup(scope)
+        // The tracker Worker holds the voiceprint model, so it runs only while the host listens with speaker recognition on.
+        const stopTracker = watch(() => hearing.speakerRecognitionEnabled && !!voiceprints.voiceprint, (active) => {
+          if (active)
+            void speakerTracker.acquire().catch(report)
+          else
+            speakerTracker.release()
+        }, { immediate: true })
+        scope.onDispose(() => {
+          stopTracker()
+          speakerTracker.release()
+        })
+        return undefined
+      } }, { onError: event => report(event.error) }),
+    ]
+  }
+
+  /**
+   * Compares one window with the owner's voiceprint for speaker recognition.
+   * A failed comparison reports the error and releases the tracker, so a broken Worker does not fail every window.
+   * The window then has no score. Turning speaker recognition on again, or a new voiceprint, loads the tracker again.
+   */
+  async function compareOwnerVoice(window: AudioWindow) {
+    try {
+      return await speakerTracker.compareOwner(window)
+    }
+    catch (cause) {
+      report(cause)
+      speakerTracker.release()
+      return Number.NaN
+    }
   }
 
   /** A KWS adapter calls this only after the device's pronunciation catalog selects a character. */
@@ -526,12 +579,13 @@ export const useVoiceStore = defineStore('voice', () => {
     return { sessionId, interruptTurns: activeTurns.value.filter(turn => turn.sessionId === sessionId) }
   }
 
-  /** Disposing the plugin ends its observation, which releases the microphone if nothing else uses it. */
+  /** Disposing the plugins ends their observations, which releases the microphone if nothing else uses it. */
   async function stopListening() {
     const previous = listening
     listening = undefined
     cancelInput()
-    await previous?.dispose()
+    if (previous)
+      await Promise.all(previous.map(handle => handle.dispose()))
   }
 
   onScopeDispose(() => {

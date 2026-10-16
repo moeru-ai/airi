@@ -1,5 +1,5 @@
 import type { TurnRef, VoicePlugin } from '@proj-airi/core-agent'
-import type { AudioWindow } from '@proj-airi/pipelines-audio'
+import type { AudioRange, AudioWindow } from '@proj-airi/pipelines-audio'
 
 /** Application policy chooses the destination. The model only supplies scores for ordered windows. */
 export interface VoiceActivityOptions {
@@ -23,9 +23,10 @@ export interface VoiceActivityOptions {
   readonly beforeBeginInput?: (cause: 'wake-word' | 'speech') => void
   /**
    * Receives the VAD result of each window that the plugin noted on its input, in window order.
-   * The voice host traces speech segments with it. It never changes how the input starts or ends.
+   * The voice host traces speech segments with it, and speaker recognition counts only speech with it.
+   * It never changes how the input starts or ends.
    */
-  readonly onActivity?: (activity: { inputId: string, speech: boolean, durationMs: number }) => void
+  readonly onActivity?: (activity: { inputId: string, range: AudioRange, speech: boolean, durationMs: number }) => void
   /** @default 0.6. A live input uses 30 percent of this score to keep speech active. */
   readonly threshold?: number
   /** @default 300. Shorter speech is discarded when silence ends an input. */
@@ -104,7 +105,7 @@ export function createVoiceActivityPlugin(options: VoiceActivityOptions): VoiceP
 
       if (!input.noteActivity({ range: ctx.window.range, speech }))
         return
-      options.onActivity?.({ inputId: input.id, speech, durationMs: duration })
+      options.onActivity?.({ inputId: input.id, range: ctx.window.range, speech, durationMs: duration })
 
       speechMs += speech ? duration : 0
       silenceMs = speech ? 0 : silenceMs + duration
