@@ -8,7 +8,7 @@ import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared'
 import { afterEach, expect, it, vi } from 'vitest'
 
 import { traceSpeechOutput } from './speech-output-trace'
-import { onIOSpan } from './use-io-tracer'
+import { onIOSpan, startSpan } from './use-io-tracer'
 
 const spans: ReadableSpan[] = []
 onIOSpan(span => spans.push(span))
@@ -19,6 +19,10 @@ afterEach(() => {
 
 function request(text: string): TtsRequest {
   return { turnId: 'reply', streamId: 'stream', intentId: 'intent', segmentId: 'segment-1', sequence: 0, text, special: null, reason: 'hard', priority: 0, createdAt: 0 }
+}
+
+function turnSpan() {
+  return startSpan(IOSpanNames.InteractionTurn)
 }
 
 function spanNamed(name: string) {
@@ -34,7 +38,7 @@ it('records synthesis, playback, and turn spans with the fields that timelines j
     onPlaybackStart: started,
     onPlaybackEnd: ended,
   }
-  const trace = traceSpeechOutput({ sessionId: 'alice', turnId: 'reply' }, output, async () => ({ duration: 0.5 }))
+  const trace = traceSpeechOutput({ sessionId: 'alice', turnId: 'reply' }, turnSpan(), output, async () => ({ duration: 0.5 }))
   if (!('synthesize' in trace.output))
     throw new Error('Expected pipeline synthesis')
 
@@ -62,7 +66,7 @@ it('records synthesis, playback, and turn spans with the fields that timelines j
 
 it('marks synthesis that is still running when the turn ends as canceled', async () => {
   const pending = Promise.withResolvers<Blob | null>()
-  const trace = traceSpeechOutput({ sessionId: 'alice', turnId: 'reply' }, {
+  const trace = traceSpeechOutput({ sessionId: 'alice', turnId: 'reply' }, turnSpan(), {
     playback: new Playback({ nowMs: () => 0, play: vi.fn() }),
     synthesize: () => pending.promise,
   }, async () => ({ duration: 0 }))
@@ -76,4 +80,51 @@ it('marks synthesis that is still running when the turn ends as canceled', async
 
   expect(spans.filter(span => span.name === IOSpanNames.TTSSynthesis)).toHaveLength(1)
   expect(spanNamed(IOSpanNames.TTSSynthesis)?.attributes[IOAttributes.TTSCanceled]).toBe(true)
+})
+
+it('records the speech turn under the interaction turn that opened before it', () => {
+  const interaction = turnSpan()
+  const trace = traceSpeechOutput({ sessionId: 'alice', turnId: 'reply' }, interaction, {
+    playback: new Playback({ nowMs: () => 0, play: vi.fn() }),
+    synthesize: async () => null,
+  }, async () => ({ duration: 0 }))
+  trace.end()
+
+  const speechTurn = spanNamed(IOSpanNames.SpeechTurn)!
+  expect(speechTurn.parentSpanContext?.spanId).toBe(interaction.spanContext().spanId)
+  expect(speechTurn.spanContext().traceId).toBe(interaction.spanContext().traceId)
+})
+
+it('marks synthesis without audio and without an abort as no audio, not canceled', async () => {
+  const trace = traceSpeechOutput({ sessionId: 'alice', turnId: 'reply' }, turnSpan(), {
+    playback: new Playback({ nowMs: () => 0, play: vi.fn() }),
+    synthesize: async () => null,
+  }, async () => ({ duration: 0 }))
+  if (!('synthesize' in trace.output))
+    throw new Error('Expected pipeline synthesis')
+
+  await trace.output.synthesize(request('Muted.'), new AbortController().signal)
+  trace.end()
+
+  const synthesis = spanNamed(IOSpanNames.TTSSynthesis)!
+  expect(synthesis.attributes[IOAttributes.TTSNoAudio]).toBe(true)
+  expect(synthesis.attributes[IOAttributes.TTSCanceled]).toBeUndefined()
+})
+
+it('marks synthesis that returns no audio after an abort as canceled', async () => {
+  const trace = traceSpeechOutput({ sessionId: 'alice', turnId: 'reply' }, turnSpan(), {
+    playback: new Playback({ nowMs: () => 0, play: vi.fn() }),
+    synthesize: async () => null,
+  }, async () => ({ duration: 0 }))
+  if (!('synthesize' in trace.output))
+    throw new Error('Expected pipeline synthesis')
+
+  const abort = new AbortController()
+  abort.abort()
+  await trace.output.synthesize(request('Stopped.'), abort.signal)
+  trace.end()
+
+  const synthesis = spanNamed(IOSpanNames.TTSSynthesis)!
+  expect(synthesis.attributes[IOAttributes.TTSCanceled]).toBe(true)
+  expect(synthesis.attributes[IOAttributes.TTSNoAudio]).toBeUndefined()
 })

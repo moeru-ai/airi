@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useFeatureFlagsStore } from '@proj-airi/stage-ui/stores/feature-flags'
-import { Button, FieldCheckbox } from '@proj-airi/ui'
+import { Button, FieldCheckbox, FieldSelect } from '@proj-airi/ui'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -37,6 +37,15 @@ const prefix = 'settings.pages.system.experimental'
         :label="t(feature.titleKey)"
         :description="t(feature.descriptionKey)"
         @update:model-value="experiments.setPreference(feature.key, $event)"
+      />
+      <!-- The variants of a feature exclude each other, so the user picks one of them while the feature is on. -->
+      <FieldSelect
+        v-if="feature.variants && feature.enabled"
+        :model-value="feature.variant"
+        :label="t(feature.variants.titleKey)"
+        :description="t(feature.variants.descriptionKey)"
+        :options="feature.variants.options.map(option => ({ label: t(option.titleKey), value: option.value }))"
+        @update:model-value="experiments.setVariant(feature.key, $event)"
       />
       <div :class="['flex items-center justify-between gap-3']">
         <p :class="['text-xs text-neutral-500 dark:text-neutral-400']">

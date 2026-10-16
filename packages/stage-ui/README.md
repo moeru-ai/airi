@@ -54,10 +54,15 @@ Consumers subscribe to the microphone input with their own abort signal. The las
 - Hearing selects providers and converts captured PCM to each provider's upload format. It does not open the microphone.
 - Speech preserves existing chunked synthesis and bidirectional provider output.
 - `createVoiceRephrasePlugin` rewrites final transcripts with a chat model through a checked transcript patch. The raw text stays in the transcript history. Each segment gets its own rewrite, so segment boundaries stay for later speaker labels. A reply with another segment count leaves the text unchanged.
+- `createVoiceEndJudgePlugin` ends a paused input early when a chat model reads its transcript as a finished message. The model is the rephrase model, or the chat model when no rephrase provider is set.
+
+A pause of 1.2 seconds can end an input. With the end judge on, which is the default, the voice activity silence limit grows by 3 seconds.
+The judge then ends a finished message at the pause, and an unfinished one waits for the speaker to continue.
+A failed or slow judgement never blocks new speech. Without the end judge, the 1.2-second pause ends every input.
 
 The host snapshot carries the corrected transcript segments of the active input. `VoiceDrafts` shows them as the continuation of the draft, in one paragraph. The paragraph is read-only while speech is transcribed, and becomes the editable draft when the speech settles. Final text uses the body color. Pending text uses the theme color at a lower opacity, and the newest pending segment uses full opacity.
-A draft that the host is sending stays hidden. Drafts of other conversations show as named chips. `VoiceDrafts` emits `presence`, so a host window such as the desktop inlay can hide itself after a send or a discard.
-Rephrasing is off by default. A failure or a 10-second timeout submits the provider text.
+A draft that the host is sending stays hidden. Drafts of other conversations show as named chips. `VoiceDrafts` emits `presence`, so a host can react when it shows nothing, for example after a send or a discard.
+Rephrasing is on by default. A failure or a 10-second timeout submits the provider text.
 
 A recording is sent only when its control asks for it with `finish` and `send: true`, or with an explicit `send`. A failed send keeps the recording and its message identity, so the control can send it again or discard it.
 While a control records or dictates, the host publishes the microphone level on `voiceInputLevel`.
@@ -108,15 +113,29 @@ The `configure_wake_words` tool edits the wake words of the character that owns 
 It validates tokens against the pinned KWS vocabulary in `libs/voice/kws-model`. It returns `saved` with conflicts, or `rejected` with a reason.
 
 `voice.startListening` runs the built-in KWS detection when the host passes no `detectWakeWord`.
-`WakeWordDetector` reads the same ordered 32 ms windows as VAD. It does not open a microphone or an AudioContext.
-It queues 100 ms batches of finite mono samples for a Sherpaw keyword spotter Worker. Sherpa-ONNX resamples them to the model rate.
-The window callback does not wait for the Worker. A wake arrives on a later window. A backlog over 1 second is dropped.
+`WakeWordDetector` listens to `useSettingsAudioDevice().unprocessedInput`, a second capture of the selected microphone without browser echo cancellation, noise suppression, or gain.
+That processing changes the phones that the keyword model hears. The second capture opens only while the catalog has an active pronunciation.
+The detector queues 100 ms batches of finite mono samples for a Sherpaw keyword spotter Worker. Sherpa-ONNX resamples them to the model rate.
+Recognition does not wait for the Worker. The voice activity plugin collects a wake on its next window. A backlog over 1 second is dropped.
+The plugin also passes its VAD result to the detector. A pause of 0.5 seconds starts a new spotter stream, because a stream that runs for minutes misses most calls.
+Each keyword uses the search settings of `kwsSearch` and adds tone variants from `kwsToneVariants`. A variant changes the tone of one pinyin final, because a called name often changes its tone.
 A match maps through the active catalog to `voice.resolveWakeTarget(characterId, signal)`. This selects a session without navigating the chat window.
 Catalog changes rebuild the spotter keywords. A result after a stop or a keyword rebuild is discarded.
 
 `useWakeWordDetectionStore().preparation` reports `unconfigured`, `preparing`, `ready`, or `error` for UI.
 The model loads only when the catalog has a pronunciation for the pinned model. Until the model is ready, detection returns no wake.
 While no listener runs, the preparation is `unconfigured`.
+
+`useSpeakerTrackerStore` owns the voice host's Sherpaw speaker tracker Worker. `acquire` downloads the pinned CAM++ pack and starts the Worker on first use.
+The tracker enrolls the saved voiceprint as speaker 0, and follows each change of it. `release` terminates the Worker.
+`preparation` reports `idle`, `preparing`, `ready`, or `error` for UI. No feature acquires the tracker yet.
+
+`useVoiceprintStore` keeps the voiceprint of the device owner in local storage. Only one person can enroll.
+`useVoiceEnrollment` records one enrollment from the speech input of the calling window, keeps only the speech that Silero VAD finds, and saves the voiceprint.
+The enrollment belongs to the calling component, so it ends when the component unmounts.
+While it records, it holds a capture lease (`holdCaptureLease`). The voice host follows leases with `useVoiceCaptureLeaseStore`.
+While a lease holds, the host begins no input and records no voice message. A new lease cancels the active input and keeps a voice message that records as a draft.
+A lease that nobody renews ends after 3 seconds.
 
 A host can pass its own `detectWakeWord` to `voice.startListening`. Then the built-in detection does not start.
 The detector remains active during playback. A supplied `acceptSpeech` classifier can reject playback echo before admission.
@@ -195,6 +214,21 @@ Each request rebuilds the analytics correlation headers for its provider.
 Tool and content-array compatibility failures belong to the model of the failing request, not the first model of the turn.
 Session resets and autonomous artistry hooks also use the session character.
 Each concurrent turn owns its IO trace. `activeTurnSpan` points to the most recently started turn that is still running.
+
+A spoken turn is one IO trace, from the wake word to playback:
+
+- `Wake word` (KWS) is the root when a wake started the input. It covers the match and the session selection.
+- `Voice input` is the root otherwise. It records the trigger (`control`, `speech`, or `wake-word`) and the outcome.
+  `activeVoiceInputSpan` points to it while the input runs.
+- Its children are `Voice activity detection` (one span for each speech segment), `Speech recognition`,
+  `End of speech judgement`, and `Transcript rephrase`.
+- The `Interaction turn` of the submission is also its child. The input ID is the turn ID, and `takeVoiceTurnParent`
+  connects them. The turn holds the LLM, streaming control, TTS, and playback spans.
+- A composer dictation returns its text to the composer, which sends it later under a new ID. The next turn of the
+  same session within 60 seconds continues the dictation trace through `takeComposerVoiceParent`. This link is by
+  session, so a typed turn that replaces discarded dictated text in that time also joins the dictation trace.
+
+A typed turn starts its trace at `Interaction turn`.
 
 ## Button analytics
 

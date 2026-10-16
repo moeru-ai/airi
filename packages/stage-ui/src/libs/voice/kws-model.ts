@@ -1,12 +1,10 @@
 import type { KeywordEntry, KeywordSpotter, KWSModelPack } from '@sherpaw/kws'
 
-import { assets } from '@proj-airi/vite-plugin-sherpaw/assets'
-import { array, number, object, parse, string } from 'valibot'
-
 import modelTokens from './kws-vocabulary.json'
 
-import { fetchSherpawModel } from '../providers/providers/sherpaw/model-assets'
+import { fetchSherpawModelPack } from '../providers/providers/sherpaw/model-assets'
 import { kwsModel } from './kws-model-info'
+import { createToneVariants } from './kws-tones'
 
 export { kwsModel } from './kws-model-info'
 
@@ -21,40 +19,31 @@ export const kwsVocabulary: ReadonlySet<string> = new Set(modelTokens.filter(tok
 /** The model identity and vocabulary that `useWakeWordsStore().setWords` validates against. */
 export const kwsVocabularyModel = { id: kwsModel.id, vocabulary: kwsVocabulary } as const
 
-const metadataSchema = object({
-  files: array(object({ filename: string(), start: number(), end: number() })),
-  remote_package_size: number(),
-})
+/** Tone variants of a card pronunciation. The detector adds them as extra matches of the same keyword. */
+export const kwsToneVariants = createToneVariants(kwsVocabulary)
+
+/**
+ * Search settings of the pinned pack.
+ *
+ * - `maxActivePaths` keeps more hypotheses in the beam, so a keyword that starts in an unlikely path survives.
+ * - `score` boosts keyword paths over other paths. `threshold` is the lowest keyword probability that triggers.
+ *
+ * The values come from the KWS presets of the Sherpaw sandbox, which detect "Hey Iru" in live microphone speech.
+ * The sherpa-onnx defaults (4 paths, boost 1, threshold 0.25) missed most live calls of the same keyword in AIRI.
+ * Source: https://github.com/moeru-ai/sherpaw/blob/main/packages/sandbox/src/features/kws/presets.ts
+ */
+export const kwsSearch = {
+  maxActivePaths: 16,
+  score: 1.5,
+  threshold: 0.1,
+} as const
 
 /** One renderer shares one model load. A failed load is removed, so a later preparation can retry. */
 let loading: Promise<KWSModelPack> | undefined
 
-async function fetchModel(): Promise<KWSModelPack> {
-  const files = assets[kwsModel.id]
-  if (!files)
-    throw new Error('This application does not include the wake word model')
-
-  // Remote packs install through the host model asset repository, which reports progress and supports cancel and delete.
-  // Bundled packs are application files, so the repository fetches them directly.
-  const [dataResponse, metadataResponse] = await Promise.all([
-    fetchSherpawModel(new URL(files.data, document.baseURI)),
-    fetchSherpawModel(new URL(files.metadata, document.baseURI)),
-  ])
-  if (!dataResponse.ok || !metadataResponse.ok)
-    throw new Error(`Could not download the wake word model (${dataResponse.status}, ${metadataResponse.status})`)
-
-  const [data, metadataValue] = await Promise.all([dataResponse.arrayBuffer(), metadataResponse.json()])
-  const metadata = parse(metadataSchema, metadataValue)
-  // A partial download must not reach the detector Worker.
-  if (metadata.remote_package_size !== data.byteLength)
-    throw new Error('The wake word model download is incomplete')
-
-  return { data, metadata }
-}
-
 /** Loads the pinned keyword spotting pack from the location that the host's Sherpaw Vite plugin exposes. */
 export async function loadKwsModel(): Promise<KWSModelPack> {
-  loading ??= fetchModel()
+  loading ??= fetchSherpawModelPack(kwsModel.id, 'wake word model')
   const current = loading
   try {
     return await current
@@ -78,5 +67,5 @@ export async function createKwsSpotter(keywords: readonly KeywordEntry[]): Promi
     import('@sherpaw/kws/worker?worker'),
   ])
 
-  return createKeywordSpotter({ model, keywords }, { worker: new KwsWorker() })
+  return createKeywordSpotter({ model, keywords, maxActivePaths: kwsSearch.maxActivePaths }, { worker: new KwsWorker() })
 }

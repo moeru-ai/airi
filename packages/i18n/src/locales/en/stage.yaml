@@ -82,7 +82,43 @@ chat:
     discard: Discard draft
     listening: Listening
     finalizing: Finishing…
+    sent: Sent
   voice-input: Voice input
+  notice:
+    label: Background report
+  background-tasks:
+    label: Background tasks
+    stop: 'Stop {name}'
+    dismiss: 'Dismiss {name}'
+    status:
+      running: Working on
+      done: Done
+      failed: Not finished
+      interrupted: Stopped
+  judgment:
+    label: Judged
+  recipe:
+    using: Using recipe
+    loaded: Used recipe
+    started: Handed to recipe
+    pending: Recipe waits for approval
+    disabled: Recipe is off
+    unknown: Recipe not found
+    refused: Recipe did not start
+    failed: Recipe did not start
+  tool-calls:
+    running-one: 'Using {name}'
+    failed-one: "{name} didn't finish"
+    combo-running: 'Combo ×{count}'
+    combo: '{count}-hit combo'
+    combo-failed: '{count}-hit combo, {failed} missed'
+    arguments: Arguments
+    result: Result
+    rerun: Run again
+    state:
+      executing: Running
+      done: Done
+      error: Failed
   error-details:
     show: Show details
     hide: Hide details
@@ -134,6 +170,11 @@ chat:
     cloud-badge: Synced to cloud
     new-chat-fallback: New chat
     delete: Delete conversation
+avatar-model-missing:
+  title: No model selected
+  unavailable-title: This model is not on this device
+  description: Select a model to show {name} on the Stage.
+  select: Select model
 render-error:
   title: '{renderer} could not render this model'
   description: The model is selected, but the Stage could not display it.

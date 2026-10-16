@@ -68,6 +68,7 @@ import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-ca
 import { initializeIOTraceRecordingBridge } from './bridges/io-trace-recording'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useLanguage } from './composables/use-language'
+import { useFullscreenStore } from './stores/fullscreen'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
 import {
@@ -117,8 +118,13 @@ const syncedPinia = usePiniaSynced()
 const isSpotlightWindow = initialRoutePath === '/spotlight'
 // The floating chat resizes from its own grip, which keeps the corner beside the character in place.
 const isFloatingChatWindow = initialRoutePath === '/chat-floating'
-const isSettingsWindow = initialRoutePath === '/settings' || initialRoutePath.startsWith('/settings/')
-const stopIOTraceRecordingBridge = initialRoutePath === '/'
+// The fullscreen mode places the main window itself, so its edges offer no resize.
+const { active: mainWindowFullscreen } = storeToRefs(useFullscreenStore())
+// A window that hosts the fullscreen mode can load on a settings route, after a reload for example. So the windows
+// are told apart by the host that the main process names, not by the first route alone.
+const isMainWindow = windowContext.fullscreenHost === 'main-window'
+const isSettingsWindow = !windowContext.fullscreenHost && (initialRoutePath === '/settings' || initialRoutePath.startsWith('/settings/'))
+const stopIOTraceRecordingBridge = isMainWindow
   ? initializeIOTraceRecordingBridge(context.value)
   : undefined
 
@@ -205,7 +211,7 @@ function createFullStageRuntime() {
   const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapability)
   const getGodotStageStatus = useElectronEventaInvoke(electronGodotStageGetStatus)
   const syncArtistryConfig = useElectronEventaInvoke(artistrySyncConfig)
-  const usesGodotStage = initialRoutePath === '/' || initialRoutePath.startsWith('/settings')
+  const usesGodotStage = !!windowContext.fullscreenHost || initialRoutePath.startsWith('/settings')
   const isWidgetsWindow = initialRoutePath === '/widgets'
 
   function syncGodotStageRenderer(state: { state: 'stopped' | 'starting' | 'running' | 'stopping' | 'error' }) {
@@ -325,7 +331,7 @@ function createFullStageRuntime() {
       }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
       contextBridgeStore.initialize()
       if (!isWidgetsWindow) {
-        characterOrchestratorStore.initialize()
+        characterOrchestratorStore.initialize(syncedPinia)
       }
 
       defineInvokeHandler(context.value, pluginProtocolListProviders, async () => listProvidersForPluginHost())
@@ -345,6 +351,7 @@ function createFullStageRuntime() {
     dispose() {
       stopAuthenticatedSetup?.()
       stopLoggedOutSetup?.()
+      characterOrchestratorStore.dispose()
       contextBridgeStore.dispose()
     },
   }
@@ -352,6 +359,11 @@ function createFullStageRuntime() {
 
 const fullStageRuntime = windowContext.stageRuntime === 'full'
   ? createFullStageRuntime()
+  : null
+// A minimal chat window shows the live reply of the turn that the main window runs.
+// The full runtime starts the whole context bridge, which includes this view.
+const chatStreamView = !fullStageRuntime && (initialRoutePath === '/chat' || isFloatingChatWindow)
+  ? useContextBridgeStore()
   : null
 
 const { restore: restoreLocale } = useLanguage(language, getMainLocale, setLocale)
@@ -393,6 +405,7 @@ onMounted(async () => {
   await chatStore.initialize(syncedPinia)
 
   await fullStageRuntime?.initialize()
+  await chatStreamView?.initializeStreamView()
 })
 
 watch(themeColorsHue, () => {
@@ -409,6 +422,7 @@ onUnmounted(() => {
   stopLeadershipListener?.()
   chatStore.dispose()
   fullStageRuntime?.dispose()
+  void chatStreamView?.dispose()
 })
 </script>
 
@@ -416,7 +430,7 @@ onUnmounted(() => {
   <ToasterRoot @close="id => toast.dismiss(id)">
     <Toaster />
   </ToasterRoot>
-  <ResizeHandler v-if="!isSpotlightWindow && !isFloatingChatWindow" />
+  <ResizeHandler v-if="!isSpotlightWindow && !isFloatingChatWindow && !mainWindowFullscreen" />
   <RouterView />
 </template>
 

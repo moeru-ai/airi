@@ -40,11 +40,15 @@ function resolvePreferredAudioInput(audioInputs: readonly MediaDeviceInfo[]) {
 }
 
 /**
- * Provides microphone selection and one shared input for the selected device.
+ * Provides microphone selection and two shared inputs for the selected device.
  *
- * Consumers subscribe to `input` with their own abort signal. The first subscriber opens the microphone,
- * and the last one to leave releases it. Selecting another device creates a new input. Existing
- * subscriptions keep the old device until their owners move to the new input.
+ * - `input` has browser echo cancellation, noise suppression, and automatic gain. Speech inputs, VAD, and level meters use it.
+ * - `unprocessedInput` has no browser processing. Keyword spotting uses it, because the processing changes the
+ *   phones that the keyword model hears. It opens a second capture of the same device only while it has a subscriber.
+ *
+ * Consumers subscribe to an input with their own abort signal. The first subscriber opens the microphone,
+ * and the last one to leave releases it. Selecting another device creates new inputs. Existing
+ * subscriptions keep the old device until their owners move to the new inputs.
  *
  * `selectedAudioInput` can be a persisted preference. An empty or unavailable selection falls back to the
  * preferred device once the browser lists device IDs, so controls show the device that capture uses.
@@ -70,10 +74,18 @@ export function useAudioDevice(selectedAudioInput: Ref<string> = ref('')) {
     echoCancellation: true,
     noiseSuppression: true,
   } }))
-  /** Tracks of the selected device while any subscriber keeps it open. */
+  const unprocessedConstraints = computed<MediaStreamConstraints>(() => ({ audio: {
+    ...(capturedDeviceId.value ? { deviceId: { exact: capturedDeviceId.value } } : {}),
+    channelCount: 1,
+    autoGainControl: false,
+    echoCancellation: false,
+    noiseSuppression: false,
+  } }))
+  /** Tracks of the selected device while any subscriber keeps the processed input open. */
   const stream = shallowRef<MediaStream>()
   const source = shallowRef<MicrophoneSource>(createSource(deviceConstraints.value))
   const input = shallowRef(markRaw(new AudioInput(source.value, { historyMs: MICROPHONE_HISTORY_MS })))
+  const unprocessedInput = shallowRef(createUnprocessedInput())
 
   function createSource(constraints: MediaStreamConstraints): MicrophoneSource {
     const created = markRaw(microphoneSource(constraints, {
@@ -85,6 +97,11 @@ export function useAudioDevice(selectedAudioInput: Ref<string> = ref('')) {
       },
     }))
     return created
+  }
+
+  /** Keyword spotting needs no history, because a wake starts its input after the keyword. */
+  function createUnprocessedInput() {
+    return markRaw(new AudioInput(markRaw(microphoneSource(unprocessedConstraints.value, { contextOptions: MICROPHONE_CONTEXT }))))
   }
 
   // Browsers hide device IDs until permission, so the fallback waits for a list with IDs.
@@ -100,6 +117,7 @@ export function useAudioDevice(selectedAudioInput: Ref<string> = ref('')) {
     stream.value = undefined
     source.value = createSource(deviceConstraints.value)
     input.value = markRaw(new AudioInput(source.value, { historyMs: MICROPHONE_HISTORY_MS }))
+    unprocessedInput.value = createUnprocessedInput()
   })
 
   /**
@@ -128,7 +146,8 @@ export function useAudioDevice(selectedAudioInput: Ref<string> = ref('')) {
 
   onScopeDispose(() => {
     void input.value.close()
+    void unprocessedInput.value.close()
   })
 
-  return { audioInputs, audioInputOptions, selectedAudioInput, deviceConstraints, permissionGranted, source, input, stream, askPermission }
+  return { audioInputs, audioInputOptions, selectedAudioInput, deviceConstraints, permissionGranted, source, input, unprocessedInput, stream, askPermission }
 }

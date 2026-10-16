@@ -414,12 +414,18 @@ catalogs:
     '@rive-app/canvas-lite':
       specifier: ^2.40.1
       version: 2.40.1
+    '@sherpaw/asr':
+      specifier: 0.3.0
+      version: 0.3.0
     '@sherpaw/kws':
-      specifier: 0.2.1
-      version: 0.2.1
+      specifier: 0.3.0
+      version: 0.3.0
+    '@sherpaw/speaker-diarization':
+      specifier: 0.3.0
+      version: 0.3.0
     '@sherpaw/xsai-transcription':
-      specifier: 0.2.1
-      version: 0.2.1
+      specifier: 0.3.0
+      version: 0.3.0
     '@shikijs/markdown-it':
       specifier: ^4.4.3
       version: 4.4.3
@@ -4281,11 +4287,11 @@ importers:
         specifier: workspace:^
         version: link:../audio
       '@sherpaw/asr':
-        specifier: 0.2.1
-        version: 0.2.1(onnxruntime-web@1.27.0)
+        specifier: 'catalog:'
+        version: 0.3.0(onnxruntime-web@1.27.0)
       '@sherpaw/xsai-transcription':
         specifier: 'catalog:'
-        version: 0.2.1(electron@43.4.1(supports-color@10.2.2))(onnxruntime-web@1.27.0)(web-worker@1.5.0)
+        version: 0.3.0(electron@43.4.1(supports-color@10.2.2))(onnxruntime-web@1.27.0)(web-worker@1.5.0)
       '@xsai-ext/providers':
         specifier: 'catalog:'
         version: 0.5.1
@@ -4899,10 +4905,13 @@ importers:
         version: 1.68.0
       '@sherpaw/kws':
         specifier: 'catalog:'
-        version: 0.2.1(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+        version: 0.3.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+      '@sherpaw/speaker-diarization':
+        specifier: 'catalog:'
+        version: 0.3.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(onnxruntime-web@1.27.0)(web-worker@1.5.0)
       '@sherpaw/xsai-transcription':
         specifier: 'catalog:'
-        version: 0.2.1(electron@43.4.1(supports-color@10.2.2))(onnxruntime-web@1.27.0)(web-worker@1.5.0)
+        version: 0.3.0(electron@43.4.1(supports-color@10.2.2))(onnxruntime-web@1.27.0)(web-worker@1.5.0)
       '@shikijs/rehype':
         specifier: 'catalog:'
         version: 4.4.3
@@ -5318,6 +5327,9 @@ importers:
       '@pixi/utils':
         specifier: 'catalog:'
         version: 6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))
+      '@proj-airi/core-character':
+        specifier: workspace:^
+        version: link:../core-character
       '@proj-airi/model-driver-magic-live2d':
         specifier: workspace:^
         version: link:../model-driver-magic-live2d
@@ -11539,25 +11551,36 @@ packages:
   '@sec-ant/readable-stream@0.4.1':
     resolution: {integrity: sha512-831qok9r2t8AlxLko40y2ebgSDhenenCatLVeW/uBtnHPyhHOvG0C7TvfgecV+wHzIm5KUICgzmVpWS+IMEAeg==}
 
-  '@sherpaw/asr@0.2.1':
-    resolution: {integrity: sha512-cJN9B9MGcVA83nzJcY1dpBa89ZD2vvNhZPzsYgH7Pp1h7MbmDxOGM2eeE4AMAmGawQtVdWytSZ903SiZ8WMeOA==}
+  '@sherpaw/asr@0.3.0':
+    resolution: {integrity: sha512-zLCJk7ZUVdc/GKeUx2dCfqDkbfiuA/iWlWYsHbPz/9ltwXVwAZckUr+bDQ3Jlcbpfvoe+y+GK7WqP0oMUIkCeQ==}
     peerDependencies:
       onnxruntime-web: 1.27.0
     peerDependenciesMeta:
       onnxruntime-web:
         optional: true
 
-  '@sherpaw/kws@0.2.1':
-    resolution: {integrity: sha512-+oOKwhIBrcP6KqlQwvnGaRKcj1X3rCD3QvqIKoLdqSYbLHdfxAC/ee9osLIrF77FjkXfifnOFCqXzfs1FaCoPg==}
+  '@sherpaw/kws@0.3.0':
+    resolution: {integrity: sha512-gT9UJs/zf2/TuvDTStka4rGymENqTVkF4a5IKaaHaURax1dmTtBlZDj5CTurnXBCYTSGamlUG9Nc8rr56UX3PQ==}
 
-  '@sherpaw/preloader@0.2.1':
-    resolution: {integrity: sha512-iKSfK2AyHKZTrbTtDRZo06sWrI56BH5C4o7eCS+UJzK9I8bLgXyUvy4TafXCeJVG/owAr28xXU7J1BAn02wq6Q==}
+  '@sherpaw/preloader@0.3.0':
+    resolution: {integrity: sha512-3l4VgX9bITM4FX0S7LKKVMU+uZJCRKKAQJmdf5/2IpqnfzcyIoLKYWrqojf2aWZmtFcWH435/56irStNQLROig==}
 
-  '@sherpaw/shared@0.2.1':
-    resolution: {integrity: sha512-diadhrP2nXyy7wxSvEW/2H6CjgDIqek7OmDN/+zxplZYab8KvJS/gu0JWaFk5tuY+9wpNQqvt+OnASGCwwhh4A==}
+  '@sherpaw/shared@0.3.0':
+    resolution: {integrity: sha512-J9XTyc/nwmVcW62Jr6NnXgLhQQndox+4931yayZUgC9lVsM8ACTT47c+kgGHeuUGkkSu8IVqcaX/PdMsuFeFng==}
 
-  '@sherpaw/xsai-transcription@0.2.1':
-    resolution: {integrity: sha512-Ee5StEYLvgFvRJlMbumLKqS1cXFcS0ADJrAUPW3njGh4WjFHhX6gJA/X3LC9lbITvXrNw3yJ/F0QmpkSXFKu4w==}
+  '@sherpaw/speaker-diarization@0.3.0':
+    resolution: {integrity: sha512-pw0dWhwQwd3kxNLGi1QFJdNEJhJV/NpuU7tW0Rs5xEvyYTT0KyzAyrxM8cB3gGlQag9P4FslMRJBN4C+z7TOsg==}
+    peerDependencies:
+      onnxruntime-web: 1.27.0
+    peerDependenciesMeta:
+      onnxruntime-web:
+        optional: true
+
+  '@sherpaw/speaker-identification@0.3.0':
+    resolution: {integrity: sha512-W0V9SmwQH7EWLs24ZGDPttyhxfOs4AFs8PeMeYXQ8XAeDDfc5Tx6E6vhJ7OLfK71tuocQllmNeEmOQFkYj8UZQ==}
+
+  '@sherpaw/xsai-transcription@0.3.0':
+    resolution: {integrity: sha512-W39S/eKyENI03ns9d0sv1a3ab2C5Lx8JdcPwsNvABybzlJaC0syxlyLOlZsiISX4KwkCeMMw8I8E8Dv5Vly5HQ==}
 
   '@shikijs/core@3.23.0':
     resolution: {integrity: sha512-NSWQz0riNb67xthdm5br6lAkvpDJRTgB36fxlo37ZzM2yq0PQFFzbd8psqC2XMPgCzo1fW6cVi18+ArJ44wqgA==}
@@ -25794,15 +25817,15 @@ snapshots:
 
   '@sec-ant/readable-stream@0.4.1': {}
 
-  '@sherpaw/asr@0.2.1(onnxruntime-web@1.27.0)':
+  '@sherpaw/asr@0.3.0(onnxruntime-web@1.27.0)':
     optionalDependencies:
       onnxruntime-web: 1.27.0
 
-  '@sherpaw/kws@0.2.1(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
+  '@sherpaw/kws@0.3.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
       '@moeru/eventa': 1.0.1(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
-      '@sherpaw/preloader': 0.2.1
-      '@sherpaw/shared': 0.2.1
+      '@sherpaw/preloader': 0.3.0
+      '@sherpaw/shared': 0.3.0
     transitivePeerDependencies:
       - '@tauri-apps/api'
       - electron
@@ -25810,19 +25833,38 @@ snapshots:
       - hono
       - web-worker
 
-  '@sherpaw/preloader@0.2.1': {}
+  '@sherpaw/preloader@0.3.0': {}
 
-  '@sherpaw/shared@0.2.1':
+  '@sherpaw/shared@0.3.0':
     dependencies:
       '@types/emscripten': 1.41.6
 
-  '@sherpaw/xsai-transcription@0.2.1(electron@43.4.1(supports-color@10.2.2))(onnxruntime-web@1.27.0)(web-worker@1.5.0)':
+  '@sherpaw/speaker-diarization@0.3.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(onnxruntime-web@1.27.0)(web-worker@1.5.0)':
+    dependencies:
+      '@moeru/eventa': 1.0.1(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+      '@sherpaw/preloader': 0.3.0
+      '@sherpaw/shared': 0.3.0
+      '@sherpaw/speaker-identification': 0.3.0
+    optionalDependencies:
+      onnxruntime-web: 1.27.0
+    transitivePeerDependencies:
+      - '@tauri-apps/api'
+      - electron
+      - h3
+      - hono
+      - web-worker
+
+  '@sherpaw/speaker-identification@0.3.0':
+    dependencies:
+      '@sherpaw/shared': 0.3.0
+
+  '@sherpaw/xsai-transcription@0.3.0(electron@43.4.1(supports-color@10.2.2))(onnxruntime-web@1.27.0)(web-worker@1.5.0)':
     dependencies:
       '@moeru/eventa': 1.0.0-beta.1(electron@43.4.1(supports-color@10.2.2))(web-worker@1.5.0)
       '@moeru/std': 0.1.0-beta.17
-      '@sherpaw/asr': 0.2.1(onnxruntime-web@1.27.0)
-      '@sherpaw/preloader': 0.2.1
-      '@sherpaw/shared': 0.2.1
+      '@sherpaw/asr': 0.3.0(onnxruntime-web@1.27.0)
+      '@sherpaw/preloader': 0.3.0
+      '@sherpaw/shared': 0.3.0
     transitivePeerDependencies:
       - electron
       - h3

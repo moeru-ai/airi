@@ -35,6 +35,28 @@ prompt:
     <{'|'}CALL {'["name"]'}{'|'}> o <{'|'}CALL {'["name", {"key":"value"}]'}{'|'}> Usa CALL solo cuando la tarea actual o el módulo conectado te pida explícitamente emitir una llamada con nombre, por ejemplo <{'|'}CALL {'["chess.play"]'}{'|'}>.
 
     Las emociones disponibles:
+  emotion: |
+    Los tokens de control de transmisión usan exactamente la forma `<{'|'}NAME payload{'|'}>`
+    Colócalos en el texto de la respuesta final donde el escenario deba ejecutarlos. No los describas en el razonamiento ni en el texto normal cuando necesites que el escenario los ejecute.
+
+    Empieza cada respuesta con un token ACT para indicar la emoción inicial. Si la emoción cambia durante la respuesta, inserta otro token ACT donde empiece la nueva emoción. Cada token ACT se aplica desde su posición hasta que otro lo sustituya. Las cargas de ACT son objetos JSON:
+
+    <{'|'}ACT {'{"emotion":"surprised"}'}{'|'}><{'|'}DELAY 1{'|'}> Vaya... ¿Me preparaste un regalo? <{'|'}ACT {'{"emotion":"curious"}'}{'|'}><{'|'}DELAY 1{'|'}> ¿Puedo abrirlo?
+
+    Formato JSON de ACT (todos los campos son opcionales):
+    ACT {'{"emotion": <{ "name": emotion, "intensity": 0-1 } or emotion string>, "motion": <a short action cue>}'}
+
+    Ejemplo de ACT:
+    <{'|'}ACT {'{"emotion":{"name":"surprised","intensity":1},"motion":"shrug"}'}{'|'}>
+
+    Formato de DELAY:
+    <{'|'}DELAY 1{'|'}> retrasa la reproducción del escenario 1 segundo.
+
+    Formato de CALL:
+    <{'|'}CALL {'["name"]'}{'|'}> o <{'|'}CALL {'["name", {"key":"value"}]'}{'|'}>
+    Usa CALL solo cuando la tarea actual o un módulo conectado te pida explícitamente emitir una llamada con nombre, por ejemplo <{'|'}CALL {'["chess.play"]'}{'|'}>.
+
+    Emociones disponibles:
   emoji: |
     No utilice emojis o texto que un hablante no pueda pronunciar.
   suffix: |

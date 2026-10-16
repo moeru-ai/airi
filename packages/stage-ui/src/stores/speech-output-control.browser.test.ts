@@ -3,6 +3,7 @@ import type { TurnRef } from '@proj-airi/core-agent'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 
 import { getSpeechBusContext, voiceGetTurns, voiceInterrupt } from '../services/speech/bus'
 import { useSpeechOutputControlStore } from './speech-output-control'
@@ -51,5 +52,45 @@ describe('speech output control', () => {
     cleanups.push(defineInvokeHandler(context, voiceInterrupt, interrupt))
     expect(await createStore().requestStopSpeaking({ reason: 'manual-all' })).toEqual({ status: 'recorded' })
     expect(interrupt.mock.calls[0]?.[0]).toEqual({ turns, cause: 'manual-all' })
+  })
+
+  it('clamps the persisted speech volume to the 0..1 gain range', async () => {
+    const store = createStore()
+    expect(store.speechVolume).toBe(1)
+    store.setSpeechVolume(0.42)
+    expect(store.speechVolume).toBe(0.42)
+    // useLocalStorage persists on the next tick.
+    await nextTick()
+    expect(localStorage.getItem('settings/speech/output-volume')).toBe('0.42')
+    store.setSpeechVolume(7)
+    expect(store.speechVolume).toBe(1)
+    store.setSpeechVolume(-1)
+    expect(store.speechVolume).toBe(0)
+  })
+
+  it('couples zero volume with mute and restores the last audible volume on unmute', () => {
+    const store = createStore()
+    store.setSpeechVolume(0.42)
+    expect(store.speechMuted).toBe(false)
+    store.setSpeechVolume(0)
+    expect(store.speechMuted).toBe(true)
+    // Unmuting a zeroed slider restores audible playback instead of silent synthesis.
+    store.setSpeechMuted(false)
+    expect(store.speechVolume).toBe(0.42)
+    // Raising the volume while muted restores the voice.
+    store.setSpeechMuted(true)
+    store.setSpeechVolume(0.8)
+    expect(store.speechMuted).toBe(false)
+  })
+
+  it('clamps out-of-range persisted values on hydration, before the setter runs', () => {
+    localStorage.setItem('settings/speech/output-volume', '7')
+    expect(createStore().speechVolume).toBe(1)
+
+    localStorage.setItem('settings/speech/output-volume', '0')
+    localStorage.setItem('settings/speech/output-volume-last-audible', '-2')
+    const store = createStore()
+    store.setSpeechMuted(false)
+    expect(store.speechVolume).toBe(1)
   })
 })

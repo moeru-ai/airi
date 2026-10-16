@@ -14,7 +14,7 @@ const props = withDefaults(defineProps<{
   /**
    * Layout and surface treatment.
    * `card` draws its own panel with labeled actions.
-   * `composer` fills its host, such as a vibrancy window, and leaves the surface to the host.
+   * `composer` fills its host, such as the desktop inlay card, and leaves the surface to the host.
    * @default 'card'
    */
   variant?: 'card' | 'composer'
@@ -164,8 +164,7 @@ function handleKeydown(event: KeyboardEvent) {
     :aria-label="t('stage.chat.voice-draft.title')"
     :class="['drag-region h-full min-h-0 w-full flex flex-col']"
   >
-    <header :class="['flex shrink-0 flex-col items-center gap-1.5 px-4 pt-1.5']">
-      <span aria-hidden="true" :class="['h-1 w-8 rounded-full bg-neutral-900/15 dark:bg-white/20']" />
+    <header :class="['flex shrink-0 flex-col items-center gap-1.5 px-4 pt-3']">
       <div :class="['min-w-0 w-full flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400']">
         <span
           aria-hidden="true"

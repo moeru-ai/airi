@@ -13,6 +13,15 @@ docs:
     navbar:
       appearance:
         title: Appearance
+'fullscreen-island':
+  settings: Settings
+  chat: Chat
+  switch-to-dark-mode: Switch to dark mode
+  switch-to-system-mode: Follow the system theme
+  switch-to-light-mode: Switch to light mode
+  exit: Exit fullscreen
+'fullscreen-surface':
+  resize: Drag to resize the panel
 'controls-island':
   'fade-on-hover':
     enable: Auto hide
@@ -49,6 +58,7 @@ docs:
     floating-attached: Floating, beside the character
     floating-free: Floating, anywhere on screen
     floating-danmaku: Floating, message feed
+    fullscreen: Fullscreen, beside the character
     pinned: Keep on top
   resize: Drag to resize the chat
   move: Drag to move the chat
@@ -74,7 +84,7 @@ widgets:
   waiting: Waiting for widget data for "{id}"…
 
 inlay:
-  hide: Hide
+  dismiss: Dismiss
 
 notice:
   'fade-on-hover':

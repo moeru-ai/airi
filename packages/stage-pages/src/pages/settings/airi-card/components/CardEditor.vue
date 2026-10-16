@@ -133,13 +133,13 @@ interface ModuleSelectOption {
   label: string
 }
 
-function withInheritGlobalSetting(options: ModuleSelectOption[], selected = ''): ModuleSelectOption[] {
+function withInheritGlobalSetting(options: ModuleSelectOption[], selected = '', emptyLabel = t('settings.pages.card.creation.inherit_global_settings')): ModuleSelectOption[] {
   // Imported ids remain visible even when their provider is not configured here.
   const missingSelection = selected && !options.some(option => option.value === selected)
     ? [{ value: selected, label: selected }]
     : []
   return [
-    { value: inheritGlobalSettingOptionValue, label: t('settings.pages.card.creation.inherit_global_settings') },
+    { value: inheritGlobalSettingOptionValue, label: emptyLabel },
     ...options,
     ...missingSelection,
   ]
@@ -150,7 +150,7 @@ const displayModelOptions = computed(() =>
   withInheritGlobalSetting(displayModels.value.map(model => ({
     value: model.id,
     label: model.name,
-  })), selectedDisplayModelId.value),
+  })), selectedDisplayModelId.value, t('settings.pages.card.creation.no_model')),
 )
 
 // Computed: available consciousness provider options
@@ -666,7 +666,6 @@ async function handleSave(activate: boolean) {
         model: selectedSpeechModel.value,
         voice_id: selectedSpeechVoiceId.value,
       },
-      displayModelId: selectedDisplayModelId.value,
       artistry: {
         provider: selectedArtistryProvider.value,
         model: selectedArtistryModel.value,
@@ -681,7 +680,7 @@ async function handleSave(activate: boolean) {
 
     let savedCardId: string
     if (isEditMode.value && props.cardId) {
-      if (!await cardStore.updateCard(props.cardId, cardWithModules)) {
+      if (!await cardStore.updateCard(props.cardId, cardWithModules, selectedDisplayModelId.value)) {
         showError.value = true
         errorMessage.value = t('settings.pages.card.card_not_found')
         return
@@ -690,7 +689,7 @@ async function handleSave(activate: boolean) {
       trackCardEdited({ card_id: props.cardId })
     }
     else {
-      savedCardId = await cardStore.addCard(cardWithModules, 'scratch')
+      savedCardId = await cardStore.addCard(cardWithModules, 'scratch', selectedDisplayModelId.value)
     }
 
     if (activate)
@@ -1030,7 +1029,7 @@ function handleBack() {
                   <ComboboxSelect
                     v-model="displayModelSelection"
                     :options="displayModelOptions"
-                    :placeholder="getDefaultPlaceholder()"
+                    :placeholder="t('settings.pages.card.creation.no_model')"
                     class="w-full"
                   />
                 </div>

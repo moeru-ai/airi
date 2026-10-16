@@ -19,6 +19,70 @@ mobile-tools:
   close-view: Guardar y cerrar controles de vista
   hearing: Audición
 chat:
+  provider-configuration:
+    title: El proveedor de chat no está configurado
+    description: Elige y valida un proveedor en Ajustes antes de enviar un mensaje.
+    action: Abrir ajustes del proveedor
+  voice-message:
+    recording: Grabando
+    starting: Iniciando micrófono
+    preview: Mensaje de voz grabado
+    transcribing: Transcribiendo…
+    position: Posición de reproducción
+    no-speech: No se reconoció voz, por lo que no se envió el mensaje de voz.
+  voice-composer:
+    audio: Mensaje de voz
+    transcription: Dictado
+    hold-hint: Mantén pulsado para grabar. Haz clic para cambiar entre mensaje de voz y dictado. Pulsa Enter para grabar sin mantener pulsado.
+    listening: Escuchando…
+    lock: Desliza hacia arriba para bloquear
+    cancel-hint: Desliza hacia la izquierda para cancelar
+    processing: Finalizando…
+    cancel: Cancelar
+    send: Enviar mensaje de voz
+    insert: Insertar texto
+    retry: Volver a enviar el mensaje de voz
+    discard: Descartar mensaje de voz
+    failed: La entrada de voz falló
+    configure-title: Configurar Audición
+    configure-description: Selecciona un proveedor y un modelo de transcripción en Audición para usar el dictado.
+    configure-action: Abrir Audición
+    mode: Entrada de voz
+    auto-send: Enviar al detener la grabación
+    input-device: Micrófono
+    system-default: Predeterminado del sistema
+    listen: Escuchar continuamente
+    push-to-talk: Pulsar para hablar
+    push-to-talk-unavailable: Este dispositivo no tiene tecla de pulsar para hablar, así que AIRI no escucha. Cambia el modo de entrada en los ajustes de Audición.
+    wake-word: Escuchar palabras de activación
+    hearing-settings: Más ajustes de Audición…
+    options-hint: Pasa el cursor o haz clic derecho para ver las opciones
+    recording: Grabando
+    stop: Detener grabación
+    stop-send: Detener y enviar
+    play: Reproducir grabación
+    pause: Pausar
+  voice-preview:
+    processing: Finalizando transcripción
+    device: Dispositivo de entrada de audio
+    device-description: Selecciona el micrófono para esta grabación.
+    device-placeholder: Elige un micrófono
+    level: Nivel de entrada
+    activity: Actividad de voz
+    silence: Silencio
+    speech: Habla
+    threshold: Umbral de detección
+    sensitivity: Sensibilidad
+    sensitivity-description: Ajusta el umbral del indicador de voz.
+    start: Iniciar grabación
+    stop: Finalizar grabación
+    failed: La operación de audio falló.
+  voice-draft:
+    title: Borrador de voz
+    discard: Descartar borrador
+    listening: Escuchando
+    finalizing: Finalizando…
+    sent: Enviado
   voice-input: Entrada de voz
   error-details:
     show: Mostrar detalles
@@ -63,6 +127,9 @@ chat:
     confirm-delete-short: Confirmar eliminación
     title: Conversaciones
     new: + Nuevo
+    current: Actual
+    confirm-delete: '¿Eliminar esta conversación y sus mensajes?'
+    cancel: Cancelar
     empty: No hay conversaciones todavía
     cloud-badge: Sincronizado en la nube
     new-chat-fallback: Nuevo Chat
@@ -74,7 +141,36 @@ render-error:
     {renderer} no pudo renderizar el modelo seleccionado.
     ID del modelo: {modelId}
     Error: {error}
+startup:
+  failed: Error al iniciar
+  failed-resource: 'No se pudo cargar: {resource}'
+  recover: Vuelve a intentarlo. Si falla de nuevo, abre los detalles de abajo.
+  recover-model: Vuelve a intentarlo o continúa sin personaje. Puedes seleccionar otro modelo más tarde.
+  details: '¿Qué ocurrió?'
+  close-details: Cerrar detalles
+  retry: Reintentar
+  continue-without-model: Continuar de todas formas
+  model-timeout: El modelo del personaje tardó demasiado en cargar. Comprueba la conexión y vuelve a intentarlo.
+  resources:
+    auth: ajustes de la cuenta
+    modelIndex: lista de modelos
+    card: ajustes del personaje
+    chat: historial de chat
+    services: servicios de la aplicación
+    modelData: modelos guardados
+    modelSelection: ajustes del modelo
+    audio: ajustes de audio
+    route: página
+    model: modelo del personaje
 message: Dile algo...
+theme:
+  title: Tema
+  system: Sistema
+  light: Claro
+  dark: Oscuro
+  switch-to-light: Cambiar al tema claro
+  switch-to-dark: Cambiar al tema oscuro
+  switch-to-system: Seguir el tema del sistema
 send-mode:
   title: Enviar tecla
   enter: Intro
@@ -124,6 +220,7 @@ promo-banner:
       cta: Iniciar sesión
     build:
       watermark: Construir
+      fallbackLabel: Bonificación de construcción
       title: Bono de caja de suministro
       eventName: Termina las tareas de construcción para ganar cupones de bonificación y materiales dobles.
       reward: 5 Cupones de Suministros + Materiales de Mejora
@@ -132,7 +229,9 @@ promo-banner:
       watermark: Primavera
       fallbackLabel: Dibujo Primaveral
       title: Cápsula de Carnaval
+      eventName: Participa en el sorteo de primavera para desbloquear burbujas, amuletos y muebles temáticos.
       reward: Primera tirada a mitad de precio + Talismán raro
+      cta: Participar ahora
     coupon:
       watermark: Hablar
       fallbackLabel: Cupón
@@ -152,3 +251,20 @@ websocket-status:
   connected: Conectado
   disconnected: No hay conexión
   open-settings: Abrir ajustes de conexión
+computer-use:
+  label: Usar el ordenador
+  description: Permite que esta ventana de chat examine y controle las aplicaciones nativas de este ordenador.
+status:
+  preparing: Preparando el micrófono
+  listening: Escuchando
+  paused: Escucha en pausa mientras AIRI habla
+  transcribing: Transcribiendo
+  hearing-error: No se pudo transcribir el audio
+  no-transcript: El texto reconocido aparecerá aquí.
+  signing-in: Completa el inicio de sesión en el navegador
+  confirming: Confirmando el inicio de sesión
+  signed-in: Sesión iniciada
+  sign-in-error: Error al iniciar sesión
+  sign-in-unconfirmed: No se pudo confirmar la sesión. Inicia sesión de nuevo.
+  dismiss: Descartar
+  configure-hearing: Selecciona y configura un proveedor de Audición en los ajustes.

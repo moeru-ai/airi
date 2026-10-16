@@ -36,6 +36,9 @@ await streamFrom({
 
 The existing session store uses Chat-shaped UI records. The orchestrator decodes those records at the storage boundary, then composes runtime context as structured segments. Chat sends, vision inputs, and Spark notifications use the same generation contract. Hooks and the plugin bridge receive a separate display projection. That projection is text-only and excludes native continuation data and media payloads. Images, audio, and files become labels, including tool results.
 
+Runtime context keeps one bucket per writer. `replace-self` replaces the writer's entries, and `append-self` adds an event.
+`removeWriter()` removes one writer's entries, for example after its module leaves.
+
 ## Turn history
 
 After all SDK steps settle, `onGeneratedTurn` receives the new `AssistantTurn`. Each round records model usage, its finish reason, tool invocations, and native continuation data. SDK input snapshots define round boundaries; message roles do not define runtime rounds.
@@ -55,6 +58,34 @@ A provider resolves a discriminated `GenerationRequest` before context projectio
 The current Responses adapter supports text, images, file data or URLs, refusals, and function calls. It rejects audio input and provider file IDs. It supports provider-executed web search alongside local function tools. Search records remain in native continuation. Citation events and portable text retain source URLs and offsets. Incomplete responses and EOF before a terminal event fail the generation. Session cancellation aborts the active provider request.
 
 Realtime transport is not implemented. A future session adapter can project the same context, but must define continuous input, interruption, and session ownership separately.
+
+## Host send options
+
+`ChatOrchestratorSendOptions` carries what the host decides for one send:
+
+- `scene` marks a reply to an external scene, for example a Discord channel. It never speaks.
+- `background` marks work beside the conversation, for example a recipe task. It never speaks.
+- `notice` sends text that is not owner speech, for example a finished task. History stores it with `notice`, and requests mark it with its source. The reply carries `proactive`.
+- `skills` stores invoked skill steps with the owner's message. Later requests project them after that message.
+
+The stream context carries `speaks`. Only a send that is neither `background` nor `scene` speaks.
+
+## Identity
+
+With `getSystemPrompt`, each run reads the identity of its own session when it starts. Stored system messages are skipped.
+
+## Recipes
+
+A recipe is a skill with `instructions` steps. `usableRecipes` keeps enabled and approved recipes.
+`matchKeywordRecipes` finds recipes whose keyword appears in a message. `isBackgroundRecipe` tells whether a recipe runs in its own session.
+A decision recipe has a `decision` instead of steps. `decisionOptions` numbers its answers, and `judgeDecision` returns the action of the answer that the model picked.
+`isAutoRunRecipe` marks a recipe with an `automation` or `modelTimed`. `MODEL_DECIDES_STEPS` are instructions that let the model decide what each run does from the recipe's purpose.
+
+## Automations
+
+An `Automation` has triggers, conditions, and an optional cooldown. `checkAutomations` returns the recipes whose trigger fired and whose conditions hold.
+Each trigger event counts once. A recipe in its cooldown, or with a run that still runs, spends the event without a run.
+Each trigger keeps its own time, so one trigger that fires never spends the event of another.
 
 ## Verify
 

@@ -31,6 +31,11 @@ export type ChatSlices = ChatSlicesText | ChatSlicesToolCall | ChatSlicesToolCal
 export interface ChatAssistantMessage extends AssistantMessage {
   /** True when transport failure ended this locally preserved response before completion. */
   interrupted?: true
+  /**
+   * Set on a reply to a stored notice. Like the notice, it never syncs to the cloud.
+   * `turnId` identifies the send. `source` names what sent the notice.
+   */
+  proactive?: { turnId: string, source: string }
   /** Sources returned by the provider, separate from text consumed by speech. */
   citations?: import('../messages/types').Citation[]
   search?: { id: string, status: 'in_progress' | 'searching' | 'completed' | 'failed' }
@@ -97,6 +102,19 @@ export type ChatHistoryItem = (ChatMessage | ErrorMessage) & {
   replyToMessageId?: string
   /** Tools selected for this message. The runtime rebuilds executors from these names. */
   tools?: ChatToolReference[]
+  /** Skills that the owner invoked with this message. Their steps stay with it, so later requests keep following them. */
+  skills?: ChatInvokedSkill[]
+  /**
+   * Set on a stored notice: text for the conversation that the owner did not write, for example a finished background task.
+   * Requests mark it as a notice, so the model never reads it as owner speech.
+   */
+  notice?: { source: string }
+}
+
+/** One skill that the owner invoked with a message, and the steps it gave the conversation. */
+export interface ChatInvokedSkill {
+  name: string
+  instructions: string
 }
 
 export interface ChatStreamEventContext {
@@ -108,6 +126,8 @@ export interface ChatStreamEventContext {
   contexts: Record<string, ContextMessage[]>
   composedMessage: Array<Message>
   input?: WebSocketEventInputs
+  /** Whether the reply speaks on the host. Scene replies and background tasks stay silent. */
+  speaks?: boolean
 }
 
 export type ChatStreamEvent

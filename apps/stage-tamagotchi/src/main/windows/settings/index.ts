@@ -17,6 +17,7 @@ import { BrowserWindow } from 'electron'
 import icon from '../../../../resources/icon.png?asset'
 
 import { electronSettingsNavigate } from '../../../shared/eventa'
+import { SETTINGS_WINDOW_WIDTH } from '../../../shared/settings-window'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { protectPrivilegedWindowNavigation, toggleWindowShow } from '../shared'
@@ -25,6 +26,10 @@ import { setupSettingsWindowInvokes } from './rpc/index.electron'
 export interface SettingsWindowManager {
   getWindow: () => Promise<BrowserWindow>
   openWindow: (route?: string) => Promise<void>
+  /** The route that the open settings window shows, or `undefined` while it is closed. */
+  shownRoute: () => string | undefined
+  /** Closes the settings window when it is open. */
+  closeWindow: () => void
 }
 
 export function setupSettingsWindowReusableFunc(params: {
@@ -49,7 +54,7 @@ export function setupSettingsWindowReusableFunc(params: {
   const reusable = createReusableWindow(async () => {
     const window = new BrowserWindow({
       title: 'Settings',
-      width: 600.0,
+      width: SETTINGS_WINDOW_WIDTH,
       height: 800.0,
       show: false,
       icon,
@@ -109,8 +114,16 @@ export function setupSettingsWindowReusableFunc(params: {
     toggleWindowShow(window)
   }
 
+  function shownRoute() {
+    const window = reusable.getOpenWindow()
+    // The page routes with the URL hash, so the hash names the page that shows.
+    return window ? new URL(window.webContents.getURL()).hash.slice(1) || defaultRoute : undefined
+  }
+
   return {
     getWindow: reusable.getWindow,
     openWindow,
+    shownRoute,
+    closeWindow: reusable.close,
   }
 }

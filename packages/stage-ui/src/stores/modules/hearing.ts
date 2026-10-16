@@ -4,6 +4,7 @@ import type { WithUnknown } from '@xsai/shared'
 import type { StreamTranscriptionOptions as XSAIStreamTranscriptionOptions } from '@xsai/stream-transcription'
 import type {} from 'pinia-plugin-synced'
 
+import type { HearingTranscriberTraceOptions } from '../../libs/audio/hearing-transcriber'
 import type { AIRIStreamTranscriptionResult } from '../../libs/providers/stream-transcription'
 import type { HearingTranscriptionResult } from '../../libs/providers/transcription-types'
 
@@ -337,8 +338,10 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', false, persistenceOptions)
   const autoSendDelay = useLocalStorageManualReset<number>('settings/hearing/auto-send-delay', 2000, persistenceOptions) // Default 2 seconds
   const confidenceThreshold = useLocalStorageManualReset<number>('settings/hearing/confidence-threshold', CONFIDENCE_THRESHOLD_DISABLED, persistenceOptions)
-  // Rephrasing sends transcripts to a chat model, so it is off by default.
-  const rephraseEnabled = useLocalStorageManualReset<boolean>('settings/hearing/rephrase-enabled', false, persistenceOptions)
+  // Rephrasing sends transcripts to a chat model. Voice input already sends them to that model, so it is on by default.
+  const rephraseEnabled = useLocalStorageManualReset<boolean>('settings/hearing/rephrase-enabled', true, persistenceOptions)
+  // A chat model reads paused transcripts and ends finished messages before the silence limit.
+  const endJudgeEnabled = useLocalStorageManualReset<boolean>('settings/hearing/end-judge-enabled', true, persistenceOptions)
   // An empty provider uses the chat model of the consciousness module.
   const rephraseProvider = useLocalStorageManualReset('settings/hearing/rephrase-provider', '', persistenceOptions)
   const rephraseModel = useLocalStorageManualReset('settings/hearing/rephrase-model', '', persistenceOptions)
@@ -458,6 +461,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     autoSendDelay.reset()
     confidenceThreshold.reset()
     rephraseEnabled.reset()
+    endJudgeEnabled.reset()
     rephraseProvider.reset()
     rephraseModel.reset()
 
@@ -603,7 +607,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
   }
 
   /** Freezes Hearing settings for one request. The controller supplies media and owns cancellation. */
-  function createTranscriber(providerId = activeTranscriptionProvider.value): StreamingTranscriber {
+  function createTranscriber(providerId = activeTranscriptionProvider.value, trace: HearingTranscriberTraceOptions = {}): StreamingTranscriber {
     const config = structuredClone(toRaw(providerStore.getProviderConfig(providerId) ?? {}))
     const model = resolveActiveTranscriptionModel(activeTranscriptionModel.value, config)
     const threshold = confidenceThreshold.value
@@ -667,7 +671,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
         await dispose()
         throw error
       }
-    })
+    }, trace)
   }
 
   return {
@@ -681,6 +685,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     autoSendDelay,
     confidenceThreshold,
     rephraseEnabled,
+    endJudgeEnabled,
     rephraseProvider,
     rephraseModel,
     verboseJsonNotSupported,

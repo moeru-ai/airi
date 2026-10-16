@@ -1,6 +1,6 @@
 # Detect wake words in shared audio
 
-Status: accepted
+Status: accepted. The audio source and search settings are superseded by [Detect wake words in unprocessed audio](./2026-10-12-detect-wake-words-in-unprocessed-audio.md).
 
 ## Context
 
