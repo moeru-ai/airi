@@ -567,7 +567,6 @@ pages:
     body-model: Body / Display Model
     view-card: View card
     model_not_bound: No model selected
-    create_drop_hint: Or drop a character card package here
     gallery: Gallery
     pinned_background: Pinned background
     pinned_background_description: Select the image to show when this character is active.

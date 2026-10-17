@@ -537,7 +537,6 @@ pages:
     body-model: 身体 / 显示模型
     view-card: 查看角色卡
     model_not_bound: 未选择形象
-    create_drop_hint: 或把角色卡文件拖到这里
     gallery: 图库
     pinned_background: 固定背景
     pinned_background_description: 选择角色启用时显示的图片。

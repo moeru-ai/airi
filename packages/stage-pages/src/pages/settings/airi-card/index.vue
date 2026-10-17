@@ -371,30 +371,6 @@ async function handleRestoreDeletedCard(card: DeletedCard) {
           :sync-state="cardSyncStates[item.id]"
         />
 
-        <button
-          type="button"
-          :class="[
-            'group grid content-start gap-2.5 text-left',
-            'rounded-2xl outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary-400',
-          ]"
-          @click="handleCardCreation"
-        >
-          <div
-            :class="[
-              'flex aspect-[3/4] flex-col items-center justify-center gap-2 rounded-2xl p-4 text-center',
-              'border-2 border-dashed border-neutral-200 dark:border-neutral-700',
-              'text-neutral-500 dark:text-neutral-400',
-              'transition-colors duration-200 group-hover:border-primary-400 group-hover:text-primary-600 dark:group-hover:text-primary-300',
-            ]"
-          >
-            <span :class="['i-solar:add-square-linear text-4xl text-primary-500 dark:text-primary-400']" />
-            <span :class="['font-cute text-lg font-extrabold text-neutral-800 dark:text-neutral-100']">
-              {{ t('settings.pages.card.create_card') }}
-            </span>
-            <span :class="['text-xs']">{{ t('settings.pages.card.create_drop_hint') }}</span>
-          </div>
-        </button>
-
         <div
           v-if="cards.size === 0"
           :class="[
