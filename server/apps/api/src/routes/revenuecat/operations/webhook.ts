@@ -1,25 +1,17 @@
+import type { ConfigKVService } from '../../../services/adapters/config-kv'
 import type { RevenuecatSubscriptionSync } from '../../../services/adapters/revenuecat-subscriptions'
+import type { PaymentService } from '../../../services/domain/payment'
 
 import { Buffer } from 'node:buffer'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
 import { useLogger } from '@guiiai/logg'
 import { createBadRequestError, createServiceUnavailableError, createUnauthorizedError } from '@proj-airi/http-error-shared'
-import { array, object, optional, safeParse, string } from 'valibot'
+import { safeParse } from 'valibot'
+
+import { evidenceReceiptFromEvent, FLUX_GRANT_EVENT, resolveRevenuecatPack, revenuecatWebhookSchema } from '../event'
 
 const logger = useLogger('revenuecat')
-
-const webhookSchema = object({
-  api_version: string(),
-  event: object({
-    type: string(),
-    id: string(),
-    app_user_id: optional(string()),
-    // TRANSFER names its users here and omits `app_user_id`.
-    transferred_from: optional(array(string())),
-    transferred_to: optional(array(string())),
-  }),
-})
 
 export interface RevenuecatWebhookSecrets {
   authorization: string | null
@@ -80,17 +72,21 @@ function verifySignature(
 }
 
 /**
- * Verifies a RevenueCat webhook, then reconciles the capacitor Flux of the users that it names.
- * The event type does not select a capacitor rule, so a repeated or late delivery is safe.
+ * Verifies a RevenueCat webhook, then acts on it.
+ * `NON_RENEWING_PURCHASE` settles a Flux pack. Each other event reconciles
+ * the capacitor Flux of the users that it names. The event type does not
+ * select a capacitor rule, so a repeated or late delivery is safe.
  */
 export function createWebhookOperation(
+  payment: PaymentService,
+  configKV: ConfigKVService,
   subscriptionSync: RevenuecatSubscriptionSync,
   secrets: RevenuecatWebhookSecrets,
 ) {
   return async (
     rawBody: string,
     headers: { authorization: string | null, signature: string | null },
-  ): Promise<{ received: true }> => {
+  ): Promise<{ received: true, granted?: boolean }> => {
     if (!secrets.authorization && !secrets.signingSecret)
       throw createServiceUnavailableError('RevenueCat is not configured', 'REVENUECAT_NOT_CONFIGURED')
 
@@ -108,7 +104,7 @@ export function createWebhookOperation(
       throw createBadRequestError('Invalid webhook body', 'INVALID_REQUEST')
     }
 
-    const parsed = safeParse(webhookSchema, body)
+    const parsed = safeParse(revenuecatWebhookSchema, body)
     if (!parsed.success)
       throw createBadRequestError('Invalid webhook event', 'INVALID_REQUEST', parsed.issues)
 
@@ -118,13 +114,40 @@ export function createWebhookOperation(
     if (event.type === 'TEST')
       return { received: true }
 
-    const userIds = new Set([
-      ...(event.app_user_id ? [event.app_user_id] : []),
-      ...(event.transferred_from ?? []),
-      ...(event.transferred_to ?? []),
-    ])
-    for (const userId of userIds)
-      await subscriptionSync.reconcile(userId)
-    return { received: true }
+    if (event.type !== FLUX_GRANT_EVENT) {
+      const userIds = new Set([
+        ...(event.app_user_id ? [event.app_user_id] : []),
+        ...(event.transferred_from ?? []),
+        ...(event.transferred_to ?? []),
+      ])
+      for (const userId of userIds)
+        await subscriptionSync.reconcile(userId)
+      return { received: true }
+    }
+
+    if (!event.app_user_id || !event.product_id || !event.transaction_id) {
+      logger.withFields({ id: event.id }).warn('Non-renewing purchase is missing identifiers')
+      return { received: true }
+    }
+
+    const pack = await resolveRevenuecatPack(configKV, event.product_id)
+    if (!pack) {
+      logger.withFields({ id: event.id, productId: event.product_id }).warn('RevenueCat product is unknown')
+      return { received: true }
+    }
+
+    const result = await payment.settle(evidenceReceiptFromEvent(event, event.app_user_id, pack, {
+      productId: event.product_id,
+      transactionId: event.transaction_id,
+    }))
+    logger.withFields({
+      userId: event.app_user_id,
+      transactionId: event.transaction_id,
+      productId: event.product_id,
+      applied: result.applied,
+      balanceAfter: result.applied ? result.balanceAfter : undefined,
+    }).log('Processed RevenueCat pack purchase')
+
+    return { received: true, granted: result.applied }
   }
 }

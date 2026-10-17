@@ -257,6 +257,14 @@ export const configEntrySchemas = {
       fluxAmount: pipe(number(), minValue(1, 'APPLE_FLUX_PACKS fluxAmount must be >= 1')),
     }),
   ), {}),
+  // RevenueCat product id → Flux amount to grant. Covers Test Store, web
+  // billing, and store products routed through RevenueCat webhooks.
+  REVENUECAT_FLUX_PACKS: optional(record(
+    pipe(string(), nonEmpty('REVENUECAT_FLUX_PACKS product ids must not be empty')),
+    object({
+      fluxAmount: pipe(number(), minValue(1, 'REVENUECAT_FLUX_PACKS fluxAmount must be >= 1')),
+    }),
+  ), {}),
   // RevenueCat subscription product id → entitlement and per-period capacitor Flux.
   // Unused capacitor Flux dies with the billing period.
   REVENUECAT_CAPACITORS: optional(record(

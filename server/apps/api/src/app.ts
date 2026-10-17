@@ -446,9 +446,11 @@ export async function buildApp(deps: AppDeps) {
     ))
 
     /**
-     * RevenueCat webhook ingress and Capacitor reconciliation for the caller.
+     * RevenueCat webhook ingress (Flux packs and capacitor Flux).
      */
     .route('/api/v1/revenuecat', createRevenuecatRoutes(
+      deps.paymentService,
+      deps.configKV,
       deps.subscriptionSync,
       deps.env,
       deps.otel?.rateLimit ?? null,
