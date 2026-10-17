@@ -154,6 +154,7 @@ dashboard authorization header and HMAC signature over the raw body.
 Each event then reconciles the Capacitor from RevenueCat.
 `POST /sync` reconciles the Capacitor of the signed-in user. The client calls it after a purchase and when the Capacitor page opens.
 `GET /capacitors` returns the product ids that grant a Capacitor.
+`GET /catalog` returns each configured Capacitor's product id, Flux quota, and refill interval.
 RevenueCat does not sell Flux packs.
 The webhook stores no events.
 Flux balance stays self-managed. In-App Currency is not used.
