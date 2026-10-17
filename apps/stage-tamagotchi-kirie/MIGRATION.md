@@ -20,7 +20,8 @@ The single-host adapter and deferred-bootstrap changes require their own checks 
 
 ## Latest Electron alignment
 
-The current reference is Electron at `dd6e3ce1f`.
+The current reference is Electron at `266e8d946`.
+The final upstream check added its shared 20 Hz audio-meter update.
 The chat composer, weather forecast tool, result cards, local streams, and native widget lifecycle follow that reference.
 Native Chat now supplies classic, attached, free, and message-feed styles with persistent unsent drafts.
 The shared voice inlay runs in a native follower window. macOS supplies passive background Escape observation.

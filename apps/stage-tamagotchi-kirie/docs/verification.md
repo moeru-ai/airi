@@ -219,7 +219,6 @@ Checks:
 The recordings use agent-browser's fixed-quality H.264 encoder at requested 60 fps and native page dimensions.
 Frame receipts distinguish captured frames from encoded frames. They do not prove 60 distinct paints each second.
 
-
 ## Native floating chat (2026-10-18)
 
 The Godot chat manager persists classic, attached, free, and message-feed styles.
@@ -248,7 +247,6 @@ The development toolbar initially covered the folded composer tab. Its normal dr
 The subsequent recording expanded the composer through real pointer input and displayed the retained draft.
 The earlier blocked take remains a failed demonstration, not an acceptance result.
 
-
 ## Native voice inlay (2026-10-18)
 
 Electron and Kirie now use the shared speech presentation component.
@@ -276,3 +274,25 @@ Checks:
 
 Physical microphone capture, Push to Talk holds, configured speech playback, Windows, and multiple displays remain unverified in this session.
 Plugin hosting, Artistry, MCP, server channels, and production packaging retain their recorded deferred decisions.
+
+## Final upstream synchronization (2026-10-18)
+
+The final fetch advanced the comparison baseline from `dd6e3ce1f` to `266e8d946`.
+That commit changes the shared audio meter to 20 Hz and uses transform animation for its bars.
+The branch ports those changes for both desktop apps. This session added no audio capture for that check.
+
+Final checks:
+
+- Shared audio, status, feed, and context bridge browser tests: 49 passed in five files.
+- Kirie unit and browser tests: 89 passed and one optional provider test skipped.
+- Electron inlay and feed-menu browser tests: 13 passed in two files.
+- Root typecheck: all 56 workspaces passed.
+- Kirie production renderer and C# build: passed with zero C# warnings and errors.
+- Native C# tests and format verification: passed.
+- Repository lint: zero errors and 657 warnings.
+- Seven retained recordings passed full decode and receipt checks.
+
+The test draft, style preferences, shortcut accelerator, and simulated voice state were restored.
+The real voice host reported its microphone disabled, with no input or drafts, before the task-owned apps stopped.
+Development HMR still required a full reload after shared component edits.
+Kirie shutdown still reported two ObjectDB leaks. That observation does not close the recorded lifecycle work.
