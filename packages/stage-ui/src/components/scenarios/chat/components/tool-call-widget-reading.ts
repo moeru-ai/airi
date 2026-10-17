@@ -4,8 +4,10 @@
  * - `true` covers a field with everything under it.
  * - An object covers only the fields that it names.
  * - A one-item array covers every item of a list with its item.
+ * - A longer array covers each item with the entry at its index, so a widget can leave out an item that it cannot show.
+ *   A list of one item reads the same either way.
  */
-export type ToolResultCoverage = true | { [field: string]: ToolResultCoverage } | [ToolResultCoverage]
+export type ToolResultCoverage = true | { [field: string]: ToolResultCoverage } | ToolResultCoverage[]
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -25,8 +27,13 @@ function collectRest(value: unknown, coverages: ToolResultCoverage[]): unknown {
     return undefined
 
   if (Array.isArray(value)) {
-    const itemCoverages = coverages.flatMap(coverage => Array.isArray(coverage) ? coverage : [])
-    const items = value.map(item => collectRest(item, itemCoverages))
+    const itemCoverages = (index: number) => coverages.flatMap((coverage) => {
+      if (!Array.isArray(coverage))
+        return []
+      const entry = coverage.length === 1 ? coverage[0] : coverage[index]
+      return entry === undefined ? [] : [entry]
+    })
+    const items = value.map((item, index) => collectRest(item, itemCoverages(index)))
     // An item without rest stays as an empty object, so every other item keeps its number.
     return items.some(item => item !== undefined) ? items.map(item => item ?? {}) : undefined
   }

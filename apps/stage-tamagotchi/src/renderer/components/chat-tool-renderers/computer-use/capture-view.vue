@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ComputerUseWindow } from './schemas'
 import type { ComputerUseViewOf } from './view'
 
 import { computed } from 'vue'
@@ -7,7 +8,7 @@ import ToolCallScreenshot from '../tool-call-screenshot.vue'
 
 import { useComputerUseScreenshots } from '../use-computer-use-screenshots'
 import { CHIP, FACT_LABEL, FACT_VALUE, FACTS, LINE, LINE_ICON, ROW } from './classes'
-import { rectText, sizeText } from './format'
+import { rectText, sizeText, windowText } from './format'
 import { useComputerUseLabels } from './use-labels'
 
 /** A screen capture with its screenshot and its facts, or a list of displays or windows. */
@@ -20,6 +21,13 @@ const { t, locale, KEY } = useComputerUseLabels()
 /** The screenshot of each artifact. A file that cannot be read shows no image. */
 const images = useComputerUseScreenshots(() => props.view.kind === 'capture' ? props.view.files.map(file => file.file_path) : undefined)
 
+/** The second line of a window row: its app, bundle, process, reference, and frame. A field without a value leaves no gap. */
+function windowDetails(window: ComputerUseWindow) {
+  return [window.app_name, window.app_bundle_id, window.process_id === null ? null : `pid ${window.process_id}`, `#${window.reference.id}`, rectText(window.frame)]
+    .filter(Boolean)
+    .join(' · ')
+}
+
 const fileSize = computed(() => new Intl.NumberFormat(locale.value, { style: 'unit', unit: 'megabyte', maximumFractionDigits: 1 }))
 
 const captureFacts = computed(() => {
@@ -29,9 +37,9 @@ const captureFacts = computed(() => {
   const { capture, display, window } = view
   return [
     ...(display
-      ? [{ label: t(`${KEY}.display`), value: [display.name, display.is_builtin && t(`${KEY}.built-in`), display.is_primary && t(`${KEY}.primary`)].filter(Boolean).join(' · ') }]
+      ? [{ label: t(`${KEY}.display`), value: [display.name ?? `#${display.id}`, display.is_builtin && t(`${KEY}.built-in`), display.is_primary && t(`${KEY}.primary`)].filter(Boolean).join(' · ') }]
       : []),
-    ...(window ? [{ label: t(`${KEY}.window`), value: `${window.title} · ${window.app_name}` }] : []),
+    ...(window ? [{ label: t(`${KEY}.window`), value: windowText(window) }] : []),
     { label: t(`${KEY}.region`), value: rectText(capture.bounds) },
     { label: t(`${KEY}.logical-size`), value: `${sizeText(capture.bounds.size)} · ${capture.scale_factor}x` },
     { label: t(`${KEY}.pixel-size`), value: sizeText(capture.pixel_dimensions) },
@@ -65,7 +73,7 @@ const captureFacts = computed(() => {
       <div v-for="display in props.view.displays" :key="display.id" :class="ROW">
         <span :class="[display.is_builtin ? 'i-mingcute:laptop-line' : 'i-mingcute:monitor-line', 'shrink-0 text-neutral-500']" aria-hidden="true" />
         <span :class="['min-w-0 flex flex-1 flex-col']">
-          <span :class="['truncate']">{{ display.name }}</span>
+          <span :class="['truncate']">{{ display.name ?? `#${display.id}` }}</span>
           <span :class="['text-[10px] tabular-nums text-neutral-400']">#{{ display.id }} · {{ rectText(display.frame) }} · {{ display.scale_factor }}x</span>
         </span>
         <span v-if="display.is_builtin" :class="CHIP">{{ t(`${KEY}.built-in`) }}</span>
@@ -79,10 +87,8 @@ const captureFacts = computed(() => {
     <div :class="['flex flex-col gap-1']">
       <div v-for="window in props.view.windows" :key="window.reference.id" :class="ROW">
         <span :class="['min-w-0 flex flex-1 flex-col']">
-          <span :class="['truncate']">{{ window.title || window.app_name }}</span>
-          <span :class="['truncate text-[10px] tabular-nums text-neutral-400']">
-            {{ window.app_name }}<template v-if="window.app_bundle_id"> · {{ window.app_bundle_id }}</template> · pid {{ window.process_id }} · #{{ window.reference.id }} · {{ rectText(window.frame) }}
-          </span>
+          <span :class="['truncate']">{{ window.title || window.app_name || `#${window.reference.id}` }}</span>
+          <span :class="['truncate text-[10px] tabular-nums text-neutral-400']">{{ windowDetails(window) }}</span>
         </span>
         <span v-if="window.is_main" :class="CHIP">{{ t(`${KEY}.main`) }}</span>
         <span v-if="!window.is_visible" :class="CHIP">{{ t(`${KEY}.hidden`) }}</span>
