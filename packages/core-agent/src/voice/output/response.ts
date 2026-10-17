@@ -1,4 +1,4 @@
-import type { AudioPlayback, IntentHandle, PcmBlock, PlaybackGroup, PlaybackItem, PlaybackReceipt, SpeechPipelineEvents, SpeechPipelineOptions } from '@proj-airi/pipelines-audio'
+import type { AudioPlayback, IntentHandle, PcmBlock, PlaybackGroup, PlaybackItem, PlaybackReceipt, SentenceBoundaryMode, SpeechPipelineEvents, SpeechPipelineOptions } from '@proj-airi/pipelines-audio'
 
 import type { Outcome } from '@proj-airi/stream-kit'
 
@@ -19,8 +19,7 @@ export interface SpeechAudio {
   readonly text?: string
 }
 
-/**
- * One scheduled audio part. Pipeline synthesis reuses the TTS request segment ID.
+/** One scheduled audio part. Pipeline synthesis reuses the TTS request segment ID.
  * Tracing can therefore join synthesis and playback of the same text.
  */
 export interface SpeechClip {
@@ -44,6 +43,11 @@ export type SpeechOutput = {
   readonly onPlaybackEnd?: (clip: SpeechClip, end: SpeechClipEnd) => void
 } & ({
   readonly synthesize: SpeechPipelineOptions<Blob>['tts']
+  /**
+   * Flush-only sentence boundaries. Bilingual turns set this so the chunker
+   * synthesizes exactly one clip per translation pair.
+   */
+  readonly boundaryMode?: SentenceBoundaryMode
 } | {
   /** The provider consumes text and emits audio parts concurrently. Its adapter owns decoding and source coordinates. */
   readonly stream: (text: ReadableStream<string>, signal: AbortSignal) => Promise<ReadableStream<SpeechAudio>>
@@ -175,7 +179,11 @@ export class SpeechStream {
     pipeline.on('onSpecial', segment => segment.special && output.onSpecial?.(segment.special))
     pipeline.on('onIntentEnd', () => this.settle({ status: 'finished', value: undefined }))
 
-    this.intent = pipeline.openIntent({ turnId: response.turn.turnId, ownerId: response.turn.sessionId })
+    this.intent = pipeline.openIntent({
+      turnId: response.turn.turnId,
+      ownerId: response.turn.sessionId,
+      ...(output.boundaryMode ? { boundaryMode: output.boundaryMode } : {}),
+    })
   }
 
   /** Triggering workflow: VoiceController response → provider text stream → reserved playback slot → producer completion. */

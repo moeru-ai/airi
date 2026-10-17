@@ -85,6 +85,7 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
     },
     context: {
       ingest: vi.fn(),
+      remove: vi.fn(),
       snapshot: () => structuredClone(contextSnapshot),
     },
     foregroundStream: {

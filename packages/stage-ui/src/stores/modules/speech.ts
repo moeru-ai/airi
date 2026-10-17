@@ -19,7 +19,9 @@ import { x } from 'xastscript'
 import { injectKeyPiniaSynced } from '../../libs/pinia/synced-context'
 import { getDefinedProvider } from '../../libs/providers/providers'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, pickOfficialSpeechVoice } from '../../libs/providers/providers/official'
+import { isBufferedStreamingResourceId } from '../../libs/speech/streaming-buffer'
 import { streamSpeech } from '../../libs/speech/streaming-pipeline'
+import { isFlushBoundaryTurn } from '../../services/bilingual-captions'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 
@@ -568,24 +570,30 @@ export const useSpeechStore = defineStore('speech', () => {
         voice: voiceId,
         turnId: turn.turnId,
         ttsVoiceType: voiceType,
-        bufferEntireSession: resource.startsWith('seed-tts-2.0') || resource.startsWith('seed-icl-2.0'),
+        bufferEntireSession: isBufferedStreamingResourceId(resource),
         extraBody: { api_resource_id: resource, audio: { sample_rate: 24000, bit_rate: 64000 } },
       }, text, signal) }
     }
     if (!model || !voiceId)
       throw new Error('Speech requires a model and voice')
     const provider = providersStore.getProviderInstance<SpeechProviderWithExtraOptions<string, Record<string, unknown>>>(providerId)
-    return { ...output, synthesize: async (request, signal) => {
-      signal.throwIfAborted()
-      const client = await provider
-      signal.throwIfAborted()
-      const input = voice && useSSML && canUseSSML ? generateSSML(request.text, voice, { ...config, pitch: pitchValue }) : request.text
-      const settings = providerId === OFFICIAL_SPEECH_PROVIDER_ID
-        ? { ...config, extraBody: { ...(config.extraBody as Record<string, unknown> | undefined), airi_analytics: { trigger: 'auto', source: 'chat_auto_tts', voice_type: voiceType, turn_id: turn.turnId } } }
-        : config
-      const audio = await generateSpeech({ ...client.speech(model, settings), input, voice: voiceId, abortSignal: signal })
-      return new Blob([audio])
-    } }
+    return {
+      ...output,
+      // Bilingual turns cut the REST chunker only on explicit flush markers,
+      // so one clip synthesizes per translation pair.
+      ...(isFlushBoundaryTurn(turn.turnId) ? { boundaryMode: 'flush' as const } : {}),
+      synthesize: async (request, signal) => {
+        signal.throwIfAborted()
+        const client = await provider
+        signal.throwIfAborted()
+        const input = voice && useSSML && canUseSSML ? generateSSML(request.text, voice, { ...config, pitch: pitchValue }) : request.text
+        const settings = providerId === OFFICIAL_SPEECH_PROVIDER_ID
+          ? { ...config, extraBody: { ...(config.extraBody as Record<string, unknown> | undefined), airi_analytics: { trigger: 'auto', source: 'chat_auto_tts', voice_type: voiceType, turn_id: turn.turnId } } }
+          : config
+        const audio = await generateSpeech({ ...client.speech(model, settings), input, voice: voiceId, abortSignal: signal })
+        return new Blob([audio])
+      },
+    }
   }
 
   function withAiriTtsAnalytics(
