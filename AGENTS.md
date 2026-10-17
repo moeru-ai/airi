@@ -58,6 +58,10 @@ Use pnpm workspace filters to limit a command to one workspace. Replace `<packag
 - Do not add one-off patterns. Before you write a new utility or function, search for an existing internal implementation.
 - If new logic can become a shared utility, propose the shared approach to the user.
 - If a refactor is small, do it step by step.
+- When UI structure, layout, or interaction changes, review related browser integration and end-to-end tests.
+- When intended behavior changes, update the affected assertions. Preserve valid regression checks instead of deleting assertions to pass tests.
+- After the final UI change, run the related tests against the final commit.
+- Before reporting CI success, verify that its tested commit matches the current PR head.
 - After a task, run the typecheck and the related tests for each workspace that you changed.
 - If you change a shared package or an exported type, also run the root `pnpm typecheck`.
 - Run `pnpm lint` before you finish.
