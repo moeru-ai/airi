@@ -14,7 +14,10 @@ export function rectText(rect: ComputerUseRect) {
   return `${pointText(rect.origin)} · ${sizeText(rect.size)}`
 }
 
-/** A window as its title and its app, for example `Chat · Electron`. A window without a title shows only its app. */
+/**
+ * A window as its title and its app, for example `Chat · Electron`.
+ * A window without a title shows only its app, and a window without either shows its reference.
+ */
 export function windowText(window: ComputerUseWindow) {
-  return [window.title, window.app_name].filter(Boolean).join(' · ')
+  return [window.title, window.app_name].filter(Boolean).join(' · ') || `#${window.reference.id}`
 }
