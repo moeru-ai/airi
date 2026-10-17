@@ -351,7 +351,7 @@ export function useSubscription(options: {
         throw new Error(t('settings.pages.capacitor.checkout.error'))
 
       // NOTICE:
-      // `productChangeInfo` makes the checkout replace the subscription instead of adding a second one.
+      // `productChangeInfo` requests a change. Without a configured path, the SDK creates a new subscription.
       // The SDK marks the field internal while product changes are in beta, so its type omits it.
       // https://www.revenuecat.com/docs/web/product-changes
       // Remove this local type when `PurchaseParams` declares `productChangeInfo`.

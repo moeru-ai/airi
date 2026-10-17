@@ -33,10 +33,10 @@ const subscriptionSchema = object({
   current_period_ends_at: nullable(number()),
   /**
    * The state at the next renewal. `product` differs from `product_id` when a downgrade is scheduled.
-   * It also appears with the same product after an early renewal, or before a failed renewal.
+   * Early renewals and failed upcoming renewals can omit `product` when it stays the same.
    */
   pending_changes: optional(nullable(object({
-    product: nullable(object({ id: string() })),
+    product: optional(nullable(object({ id: string() }))),
   }))),
   entitlements: object({
     items: array(object({ id: string(), lookup_key: string() })),

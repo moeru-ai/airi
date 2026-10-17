@@ -409,7 +409,7 @@ catalogs:
       specifier: ^0.1.7
       version: 0.1.7
     '@revenuecat/purchases-js':
-      specifier: ^1.70.0
+      specifier: 1.70.0
       version: 1.70.0
     '@rive-app/canvas-lite':
       specifier: ^2.40.1

@@ -141,9 +141,10 @@ Purchased Flux capacity and `GET /flux/history` read only the wallet pool.
 
 ### Product change
 
-The Web SDK replaces a web subscription with another Capacitor through `purchase({ rcPackage, productChangeInfo })`.
+The Web SDK requests a subscription change through `purchase({ rcPackage, productChangeInfo })`.
 See the [RevenueCat Web SDK product changes](https://www.revenuecat.com/docs/web/product-changes).
 The SDK marks `productChangeInfo` internal during the beta, so the client declares the field locally with a `NOTICE`.
+The workspace pins the SDK to `1.70.0` because internal fields have no semver guarantee.
 
 `POST /api/v1/revenuecat/product-change` gives the signed-in user a `subscriptionId` and a `subscriberToken`.
 The server picks the latest subscription with access that `rc_billing` or `stripe` bills.
@@ -155,6 +156,8 @@ The route allows 10 calls for each user in one minute.
 
 RevenueCat starts an upgrade at once and charges the prorated difference. It starts a downgrade at the next renewal.
 The dashboard defines the allowed changes under **Product Catalog > Products > Subscription changes**.
+Without a configured path, the SDK opens a regular purchase and can create a second subscription.
+The client does not check these paths before checkout. PR #3003 remains a draft until this duplicate-charge risk is resolved.
 An upgrade sends `PRODUCT_CHANGE` and `RENEWAL`. The webhook then reconciles the new period and quota.
 The client reports a downgrade as scheduled with the renewal date.
 `POST /api/v1/revenuecat/sync` returns `pendingChange` from `pending_changes.product` of the subscription.

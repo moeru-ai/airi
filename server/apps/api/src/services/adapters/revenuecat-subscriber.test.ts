@@ -162,6 +162,39 @@ describe('revenuecat subscriber client', () => {
       expect((await customer(renewed))[0]!.pendingChange).toBeNull()
     })
 
+    // https://github.com/moeru-ai/airi/pull/3003#discussion_r4302328417
+    // ROOT CAUSE:
+    // RevenueCat omits unchanged products from pending_changes.
+    // Requiring product rejected early and failed renewals with 502.
+    // The nested product is now optional and still accepts null.
+    it.each([
+      {
+        scenario: 'early renewal',
+        autoRenewalStatus: 'has_already_renewed',
+        pendingChanges: { current_period_starts_at: periodEnd, current_period_ends_at: Date.parse('2026-12-01T00:00:00Z') },
+      },
+      {
+        scenario: 'failed upcoming renewal',
+        autoRenewalStatus: 'will_renew',
+        pendingChanges: { status: 'in_billing_retry', pending_payment: true, gives_access: false },
+      },
+    ])('accepts $scenario without a pending product (Issue #3003)', async ({ autoRenewalStatus, pendingChanges }) => {
+      const { client } = revenuecat({
+        subscriptions: [{ ...goSubscription, auto_renewal_status: autoRenewalStatus, pending_changes: pendingChanges }],
+        activeEntitlements: [{ entitlement_id: 'entl_go', expires_at: periodEnd }],
+      })
+
+      expect(await client.fetchEntitlements('user-1')).toEqual([{
+        entitlementId: 'airi_go',
+        productId: 'rc_go_monthly',
+        purchasedAt: new Date(periodStart),
+        accessUntil: new Date(periodEnd),
+        pendingChange: null,
+      }])
+      expect(await client.hasRenewingSubscription('user-1')).toBe(true)
+      expect(await client.grantProductChange('user-1')).toEqual({ subscriptionId: 'sub_go', subscriberToken: 'subscriber-token' })
+    })
+
     // ROOT CAUSE:
     //
     // The server granted subscriptions of both environments.
