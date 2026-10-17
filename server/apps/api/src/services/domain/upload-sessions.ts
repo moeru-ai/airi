@@ -4,10 +4,10 @@ import type { ObjectStore } from '../adapters/object-store'
 
 import { Buffer } from 'node:buffer'
 
+import { ApiError, createConflictError } from '@proj-airi/http-error-shared'
 import { and, eq, gt, ne, sql } from 'drizzle-orm'
 
 import { uploadSessions } from '../../schemas/upload-sessions'
-import { ApiError, createConflictError } from '../../utils/error'
 import { nanoid } from '../../utils/id'
 
 /** Database handle or open transaction. */
