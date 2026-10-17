@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { CaptionChannelEvent } from '@proj-airi/stage-shared'
 
-import { useBroadcastChannel } from '@vueuse/core'
-import { computed, onUnmounted, watch } from 'vue'
+import { listenCaptions } from '@proj-airi/stage-shared'
+import { computed, onUnmounted } from 'vue'
 
 import PoppinText from '../widgets/poppin-text/PoppinText.web.vue'
 
@@ -12,10 +12,8 @@ import { createFadeAnimator } from '../widgets/poppin-text/animators/fade'
 /** Keep stale captions from lingering after the last broadcast update. */
 const CAPTION_TEXT_EXPIRY_MS = 10_000
 
-// A second BroadcastChannel instance in the same document still receives
-// messages posted by the stage bus, so one component serves the desktop
-// caption window and the in-page web overlay.
-const { data } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
+// The eventa caption bus dispatches to every listener of the document, so one
+// component serves the desktop caption window and the in-page web overlay.
 const { items: captionItems, add: addCaptionItem, dispose: disposeCaptionItems } = useCaptionItems({ ttlMs: CAPTION_TEXT_EXPIRY_MS })
 
 const captionAnimatorByType = {
@@ -50,12 +48,10 @@ function captionLabelFor(type: CaptionChannelEvent['type']) {
   return captionItems.value.find(item => item.type === type)?.label
 }
 
-watch(data, (event) => {
-  if (event)
-    addCaptionItem(event)
-}, { immediate: true })
+const stopListenCaptions = listenCaptions(addCaptionItem)
 
 onUnmounted(() => {
+  stopListenCaptions()
   disposeCaptionItems()
 })
 </script>

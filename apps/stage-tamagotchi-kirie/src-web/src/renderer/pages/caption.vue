@@ -3,9 +3,10 @@ import type { CaptionChannelEvent } from '@proj-airi/stage-shared'
 
 import { defineInvoke } from '@moeru/eventa'
 import { useHostEventaContext, useHostMouseAroundWindowBorder, useHostMouseInWindow } from '@proj-airi/stage-host-context'
+import { listenCaptions } from '@proj-airi/stage-shared'
 import { createFadeAnimator, PoppinText } from '@proj-airi/stage-ui/components'
-import { refDebounced, useBroadcastChannel } from '@vueuse/core'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { refDebounced } from '@vueuse/core'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import { captionGetIsFollowingWindow, captionIsFollowingWindowChanged } from '../../shared/eventa'
 import { useCaptionItems } from '../composables/useCaptionItems'
@@ -14,6 +15,7 @@ import { useCaptionItems } from '../composables/useCaptionItems'
 const CAPTION_TEXT_EXPIRY_MS = 10_000
 
 const attached = ref(true)
+let stopListenCaptions: (() => void) | undefined
 
 const { isOutside: isOutsideWindow } = useHostMouseInWindow()
 const isOutsideWindowFor250Ms = refDebounced(isOutsideWindow, 250)
@@ -22,8 +24,6 @@ const shouldFadeOnCursorWithin = computed(() => !isOutsideWindowFor250Ms.value)
 const { isNearAnyBorder: isAroundWindowBorder } = useHostMouseAroundWindowBorder({ threshold: 30 })
 const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 
-// Broadcast channel for captions
-const { data } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
 const { items: captionItems, add: addCaptionItem, dispose: disposeCaptionItems } = useCaptionItems({ ttlMs: CAPTION_TEXT_EXPIRY_MS })
 
 const context = useHostEventaContext()
@@ -67,23 +67,11 @@ onMounted(async () => {
   }
   catch {}
 
-  try {
-    // Update texts from broadcast channel
-    watch(data, (event) => {
-      if (!event)
-        return
-      if (event.type === 'caption-speaker') {
-        addCaptionItem(event)
-      }
-      else if (event.type === 'caption-assistant') {
-        addCaptionItem(event)
-      }
-    }, { immediate: true })
-  }
-  catch {}
+  stopListenCaptions = listenCaptions(addCaptionItem)
 })
 
 onUnmounted(() => {
+  stopListenCaptions()
   disposeCaptionItems()
 })
 </script>

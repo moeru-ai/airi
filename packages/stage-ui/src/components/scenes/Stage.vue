@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Live2DLipSync, Live2DLipSyncOptions } from '@proj-airi/model-driver-lipsync'
 import type { Profile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
-import type { CaptionChannelEvent, PresenceBubbleState } from '@proj-airi/stage-shared'
+import type { PresenceBubbleState } from '@proj-airi/stage-shared'
 import type { VrmInteractionTarget } from '@proj-airi/stage-ui-three'
 
 import type { EmotionPayload } from '../../constants/emotions'
@@ -12,7 +12,7 @@ import { BrowserPlayback } from '@proj-airi/audio/browser'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { normalizeActPayload, Playback, TTS_FLUSH_INSTRUCTION } from '@proj-airi/pipelines-audio'
-import { presenceBubbleIdle, presenceBubbleThinking } from '@proj-airi/stage-shared'
+import { presenceBubbleIdle, presenceBubbleThinking, publishCaption } from '@proj-airi/stage-shared'
 import { createLive2D, defaultLive2DMotionControlDynamics, Live2DScene, useLive2DMotionControl, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { MMDScene } from '@proj-airi/stage-ui-mmd'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
@@ -217,7 +217,6 @@ watch([stageModelRenderer, stageModelSelected, stageModelSelectedUrl], () => {
 })
 
 // Caption + Presentation broadcast channels
-const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
 const assistantCaption = ref('')
 
 // Shared bilingual caption bus. Chat turns and spark reactions route
@@ -256,7 +255,7 @@ function resetAssistantSpeechSurface(source: string) {
   resetSpeechTurnFlags()
 
   try {
-    postCaption({ type: 'caption-assistant', text: '' })
+    publishCaption({ type: 'caption-assistant', text: '' })
   }
   catch (error) {
     console.warn(`[Stage] Failed to post caption reset for ${source} (channel may be closed)`, { error })
@@ -473,7 +472,7 @@ const disconnectVoiceOutput = voice.connectOutput((turn) => {
       speechVoicing.value = true
       assistantCaption.value += ` ${clip.text}`
       try {
-        postCaption({ type: 'caption-assistant', text: clip.text })
+        publishCaption({ type: 'caption-assistant', text: clip.text })
         postPresent({ type: 'assistant-append', text: clip.text })
       }
       catch (error) {

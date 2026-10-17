@@ -2,7 +2,7 @@ import type { BilingualTurnEvent, BilingualTurnSplitter } from '@proj-airi/pipel
 
 import type { SpeechClient } from '../../services/speech/speech-client'
 
-import { createBilingualTurnSplitter, projectSpokenText, TTS_FLUSH_INSTRUCTION } from '@proj-airi/pipelines-audio'
+import { createBilingualTurnSplitter, projectSpokenText } from '@proj-airi/pipelines-audio'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, reactive, ref, shallowRef } from 'vue'
@@ -87,23 +87,25 @@ export const useCharacterStore = defineStore('character', () => {
   }
 
   /**
-   * Routes one batch of splitter events to the marker parser and caption
-   * bus. A pair's flush marker is fed to the parser in its wire position,
-   * right after the spoken sentence: the parser is the single serialized
-   * channel into speech, and a direct flush could overtake the sentence
-   * the parser still buffers, dropping the pair boundary.
+   * Routes one batch of splitter events to speech and the caption bus. The
+   * marker parser strips `<|...|>` markers before the splitter sees the text,
+   * so spokenStart counts only characters that reach TTS. Each pair's spoken
+   * text reaches speech before the flush that ends it.
    */
-  function routeBilingualEvents(state: StreamingReactionState, events: Iterable<BilingualTurnEvent>) {
+  function routeBilingualEvents(
+    state: Pick<StreamingReactionState, 'speech' | 'splitter' | 'turnId' | 'captionsUnsupported' | 'translationLanguage'>,
+    events: Iterable<BilingualTurnEvent>,
+  ) {
     for (const event of events) {
       if (event.kind === 'spoken') {
         if (event.text)
-          void state.parser.consume(event.text)
+          void state.speech.write(event.text)
       }
       else if (!state.captionsUnsupported) {
-        // The flush marker cuts REST segmentation one clip per pair. A
-        // buffered WebSocket session cannot align captions anyway, so it
-        // gets neither the marker nor the translation event.
-        void state.parser.consume(TTS_FLUSH_INSTRUCTION)
+        // The flush cuts REST segmentation one clip per pair. A buffered
+        // WebSocket session cannot align captions anyway, so it gets
+        // neither the flush nor the translation event.
+        void state.speech.flush()
         bilingualCaptionBus.ingestTranslation(state.turnId, {
           language: state.translationLanguage ?? '',
           pairId: event.pairId,
@@ -167,22 +169,21 @@ export const useCharacterStore = defineStore('character', () => {
 
       const speech = new Speech({ sessionId: sessions.activeSessionId, turnId }, 'notification')
 
+      // Shared by the literal hook and the stream end hook. The splitter sits
+      // after the parser so its offsets count only text that reaches speech.
+      const routed = { speech, splitter, turnId, captionsUnsupported, translationLanguage: snapshot?.translationLanguage }
+
       const parser = parserFactory({
+        // The parser strips `<|...|>` markers here, so the splitter counts
+        // only characters that reach speech. Non-bilingual text goes straight
+        // to speech.
         onLiteral: async (literal) => {
           if (!literal)
             return
-          // Bilingual flush markers reach the parser merged with adjacent
-          // spoken bytes. Split them out into ordered commands: the byte
-          // must cut the REST segment but never travel to a WebSocket as
-          // text. Non-bilingual text contains no marker, so the common path
-          // is one write of the whole literal.
-          const segments = literal.split(TTS_FLUSH_INSTRUCTION)
-          for (const [index, segment] of segments.entries()) {
-            if (segment)
-              await speech.write(segment)
-            if (index < segments.length - 1)
-              await speech.flush()
-          }
+          if (routed.splitter)
+            routeBilingualEvents(routed, routed.splitter.consume(literal))
+          else
+            await speech.write(literal)
         },
         onSpecial: async (special) => {
           if (special)
@@ -203,19 +204,14 @@ export const useCharacterStore = defineStore('character', () => {
 
     const state = streamingReactions.value.get(sparkEventId)!
     state.reaction.message += chunk
-    if (state.splitter)
-      routeBilingualEvents(state, state.splitter.consume(chunk))
-    else
-      void state.parser.consume(chunk)
+    // The literal hook routes into the splitter after stripping markers.
+    void state.parser.consume(chunk)
   }
 
   function onSparkNotifyReactionStreamEnd(sparkEventId: string, fullText: string, options?: { metadata?: Record<string, unknown> }) {
     const state = streamingReactions.value.get(sparkEventId)
     if (!state)
       return
-
-    if (state.splitter)
-      routeBilingualEvents(state, state.splitter.end())
 
     // Only bilingual text carries UST brackets to strip. In an ordinary
     // response brackets are ordinary content (for example `arr[index]`) and
@@ -224,12 +220,14 @@ export const useCharacterStore = defineStore('character', () => {
     state.reaction.message = message
     recordSparkNotifyReaction(sparkEventId, message, { metadata: options?.metadata })
 
-    // Close the parser first so every queued fragment, including the last
-    // flush marker, reaches speech before EOF. finish resolves after owned
-    // playback drained; its outcome decides whether translations playback
-    // never reached are published or discarded.
+    // Close the parser first so every queued fragment reaches the splitter,
+    // then drain its tail into speech. finish resolves after owned playback
+    // drained; its outcome decides whether translations playback never
+    // reached are published or discarded.
     let finishStatus: Awaited<ReturnType<SpeechClient['finish']>>['status'] | undefined
     void state.parser.end().then(async () => {
+      if (state.splitter)
+        routeBilingualEvents(state, state.splitter.end())
       await state.speech.end()
       streamingReactions.value.delete(sparkEventId)
       finishStatus = (await state.speech.finish()).status

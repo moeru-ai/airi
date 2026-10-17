@@ -2,6 +2,7 @@ import type { TokenTranslationPayload } from '@proj-airi/core-agent'
 import type { CaptionChannelEvent } from '@proj-airi/stage-shared'
 
 import { BILINGUAL_LANGUAGES } from '@proj-airi/pipelines-audio'
+import { publishCaption } from '@proj-airi/stage-shared'
 
 // Offset binder between UST pairs and TTS playback. Each translation
 // records where its spoken sentence began in the spoken text. Playback
@@ -41,35 +42,13 @@ export interface BilingualCaptionBus {
 function createBus(): BilingualCaptionBus {
   const turns = new Map<string, TurnState>()
 
-  let post: ((event: CaptionChannelEvent) => void) | undefined
-
-  // Native channel instead of VueUse's useBroadcastChannel: VueUse creates
-  // its channel inside tryOnMounted, which never runs for an emit from an
-  // async hook without a component scope; its post would then silently
-  // no-op and drop every translation event.
-  function resolvePost() {
-    if (post)
-      return post
-    if (typeof BroadcastChannel === 'undefined')
-      return undefined
-    const channel = new BroadcastChannel('airi-caption-overlay')
-    post = (event) => {
-      try {
-        channel.postMessage(event)
-      }
-      catch {
-        // BroadcastChannel may be closed - don't break the producer.
-      }
-    }
-    return post
-  }
-
+  // The eventa caption bus owns transport. Its context is module-local, so
+  // an emit from an async hook without a component scope still reaches the
+  // caption windows.
   function emit(events: CaptionChannelEvent[]) {
     if (events.length === 0)
       return
-    const send = resolvePost()
-    if (send)
-      events.forEach(send)
+    events.forEach(publishCaption)
   }
 
   // Reveal every pair whose offset the playback reached. A missing
@@ -148,8 +127,9 @@ function createBus(): BilingualCaptionBus {
       emit([RESET_EVENT])
     },
     resetAll() {
-      if (turns.size === 0)
-        return
+      // Always clear the rendered line. A finished turn already dropped its
+      // map entry at flushTurn, so an empty map must still clear the caption
+      // it left on screen.
       turns.clear()
       emit([RESET_EVENT])
     },

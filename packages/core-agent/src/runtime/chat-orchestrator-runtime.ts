@@ -1,5 +1,6 @@
 import type { BilingualTurnEvent, BilingualTurnSnapshot } from '@proj-airi/pipelines-audio'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
+import type { ItemParam } from '@xsai-ext/responses'
 import type { CommonContentPart, Message, ToolMessage } from '@xsai/shared-chat'
 
 import type { AgentContextPort } from '../contracts/context-port'
@@ -505,32 +506,103 @@ async function waitForProvider(work: Promise<unknown>, signal: AbortSignal) {
   }
 }
 
+/** Projects one text-bearing value to spoken text. Returns it unchanged when no bracket was stripped. */
+function projectTextPart<T>(part: T, read: (part: T) => string | undefined, rebuild: (part: T, text: string) => T): T {
+  const text = read(part)
+  if (text === undefined)
+    return part
+  const spoken = projectSpokenText(text)
+  return spoken === text ? part : rebuild(part, spoken)
+}
+
+/** Projects one Chat Completions assistant message to spoken text. Refusals and tool calls stay intact. */
+function projectChatMessageToSpoken(message: Message): Message {
+  if (message.role !== 'assistant')
+    return message
+  const content = message.content
+  if (typeof content === 'string') {
+    const spoken = projectSpokenText(content)
+    return spoken === content ? message : { ...message, content: spoken }
+  }
+  if (!Array.isArray(content))
+    return message
+  let changed = false
+  const parts = content.map((part) => {
+    const projected = projectTextPart(
+      part,
+      entry => entry.type === 'text' ? entry.text : undefined,
+      // Projection shifts every character offset, so the old citation spans
+      // no longer point at the cited range. Rebuild without them instead of
+      // replaying misaligned citations.
+      (entry, text) => ({ ...entry, text }),
+    )
+    if (projected !== part)
+      changed = true
+    return projected
+  })
+  return changed ? { ...message, content: parts } : message
+}
+
+/** Projects one Responses assistant message item to spoken text. Refusals and call items stay intact. */
+function projectResponsesItemToSpoken(item: ItemParam): ItemParam {
+  if (item.type !== 'message' || item.role !== 'assistant')
+    return item
+  const content = item.content
+  if (typeof content === 'string') {
+    const spoken = projectSpokenText(content)
+    return spoken === content ? item : { ...item, content: spoken }
+  }
+  if (!Array.isArray(content))
+    return item
+  let changed = false
+  const parts = content.map((part) => {
+    const projected = projectTextPart(
+      part,
+      entry => entry.type === 'output_text' ? entry.text : undefined,
+      // Same offset shift as the portable projection: drop annotations with
+      // the unprojected text instead of replaying misaligned spans.
+      (entry, text) => ({ ...entry, text, annotations: [] }),
+    )
+    if (projected !== part)
+      changed = true
+    return projected
+  })
+  return changed ? { ...item, content: parts } : item
+}
+
 /**
  * Projects a completed generated turn to spoken-only text for persisted
  * history. buildContext replays generationTranscript verbatim on the next
  * request, so an unprojected bilingual turn leaks every bracket translation
  * back to the provider and keeps feeding the model UST examples after the
- * feature is turned off. Only text segments are projected. Refusals, tool
- * segments, tool invocations, model calls, and provider continuation stay
- * intact for protocol replay.
+ * feature is turned off. Text is projected in both the portable segments and
+ * the provider continuation: the same provider scope replays continuation
+ * data instead of the portable content, so projection must cover both.
+ * Refusals, tool segments, tool invocations, and model calls stay intact.
  */
 function projectTurnToSpoken(turn: AssistantTurn): AssistantTurn {
   return {
     ...turn,
-    rounds: turn.rounds.map(round => ({
-      ...round,
-      content: round.content.map((segment) => {
-        if (segment.type !== 'text')
-          return segment
-        const spoken = projectSpokenText(segment.text)
-        if (spoken === segment.text)
-          return segment
-        // Projection shifts every character offset, so the old citation spans
-        // no longer point at the cited range. Rebuild without them instead of
-        // replaying misaligned citations.
-        return { type: 'text', text: spoken }
-      }),
-    })),
+    rounds: turn.rounds.map((round) => {
+      const continuation = round.continuation
+      return {
+        ...round,
+        content: round.content.map((segment) => {
+          if (segment.type !== 'text')
+            return segment
+          const spoken = projectSpokenText(segment.text)
+          if (spoken === segment.text)
+            return segment
+          // Projection shifts every character offset, so the old citation spans
+          // no longer point at the cited range. Rebuild without them instead of
+          // replaying misaligned citations.
+          return { type: 'text', text: spoken }
+        }),
+        continuation: continuation && (continuation.protocol === 'chat-completions'
+          ? { ...continuation, data: continuation.data.map(projectChatMessageToSpoken) }
+          : { ...continuation, data: continuation.data.map(projectResponsesItemToSpoken) }),
+      }
+    }),
   }
 }
 
@@ -674,7 +746,12 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       }
       return turns
     })
-    return { turns }
+    // History written while bilingual mode was on carries bracketed
+    // translations inside its provider continuation and text segments.
+    // Project every assistant turn on replay, not only at store time, so a
+    // disabled setting never feeds UST examples back to the model. The
+    // projection is idempotent: already-spoken history stays unchanged.
+    return { turns: turns.map(turn => (turn.type === 'assistant' ? projectTurnToSpoken(turn) : turn)) }
   }
 
   async function performSend(
