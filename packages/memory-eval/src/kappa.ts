@@ -36,6 +36,9 @@ export function cohensKappa(
   if (humanLabels.length === 0) {
     throw new Error('Label arrays must not be empty')
   }
+  if (!Number.isFinite(validityThreshold)) {
+    throw new Error('validityThreshold must be a finite number')
+  }
 
   // The confusion matrix is 2x2, so only binary labels are meaningful. Reject
   // anything else explicitly instead of throwing an incidental TypeError.

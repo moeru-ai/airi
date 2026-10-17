@@ -26,14 +26,26 @@ export interface HarnessConfig {
   }
   /** Model inference function */
   infer: (prompt: string, systemPrompt?: string) => Promise<string>
-  /** Judge function (returns 4D rubric scores) */
-  judge: (response: string) => Promise<RubricScore>
+  /**
+   * Judge function (returns 4D rubric scores). Receives the model response
+   * and the full character reference so it can compare the returned name and
+   * persona against the configured character. The second argument is
+   * optional, so existing single-argument judges keep working.
+   */
+  judge: (response: string, character: HarnessConfig['character']) => Promise<RubricScore>
   /** Probe prompts scored at baseline and again after the sessions */
   probePrompts: string[]
   /** Number of sessions to drive */
   sessions?: number
   /** Messages driven per session */
   messagesPerSession?: number
+  /** Maximum fixed-point iterations (forwarded to both fixed-point runs) */
+  fpMaxIterations?: number
+  /**
+   * Fixed-point convergence threshold (forwarded to both runs). Raise it
+   * (e.g. 0.1) when the model settles at a residual above the default 0.05.
+   */
+  fpConvergenceThreshold?: number
   /**
    * Optional filler message used to generate conversation load. Defaults to
    * generic small talk so identity-bearing content is only in the probes and
@@ -99,7 +111,9 @@ export async function identityContinuityHarness(
     onSessionComplete,
     fpThreshold = 0.15,
     w1Threshold = 0.3,
-    bicThreshold = 10
+    bicThreshold = 10,
+    fpMaxIterations = 10,
+    fpConvergenceThreshold = 0.05
   } = config
 
   if (probePrompts.length === 0) {
@@ -129,6 +143,16 @@ export async function identityContinuityHarness(
   if (fpThreshold > 1) {
     throw new Error('fpThreshold must be in (0, 1]')
   }
+  // Fixed-point controls must be valid so a loose convergence threshold or
+  // zero iterations is rejected before any inference.
+  if (!Number.isInteger(fpMaxIterations) || fpMaxIterations < 1) {
+    throw new Error('fpMaxIterations must be a positive integer')
+  }
+  if (!Number.isFinite(fpConvergenceThreshold)
+      || fpConvergenceThreshold <= 0
+      || fpConvergenceThreshold > 1) {
+    throw new Error('fpConvergenceThreshold must be in (0, 1]')
+  }
 
   // Every inference call receives the persona as its context, so a provider
   // callback without its own system prompt still answers as the character
@@ -139,14 +163,22 @@ export async function identityContinuityHarness(
     ?? (character.name ? `You are ${character.name}. ${character.persona}` : character.persona)
   const ask = (prompt: string) => infer(prompt, context)
   // Custom judge callbacks bypass parseJudgeScore, so every score is validated
-  // before use. A non-finite axis would otherwise poison W1 with NaN.
+  // before use. A non-finite axis would otherwise poison W1 with NaN. The
+  // judge also receives the full character reference so it can compare the
+  // returned name and persona against the configured character.
   const score = async (prompt: string): Promise<RubricScore> =>
-    assertRubricScore(await judge(await ask(prompt)))
+    assertRubricScore(await judge(await ask(prompt), character))
+
+  const fpOptions = {
+    maxIterations: fpMaxIterations,
+    convergenceThreshold: fpConvergenceThreshold
+  }
 
   // 1. Baseline fixed-point, seeded from the declared persona.
   const fixedPointBaseline = await computeFixedPoint({
     initialDescription: character.persona,
-    infer: ask
+    infer: ask,
+    ...fpOptions
   })
 
   // 2. Baseline probe scores.
@@ -175,7 +207,8 @@ export async function identityContinuityHarness(
   //    so compression-induced drift in self-reference is observable.
   const fixedPointCurrent = await computeFixedPoint({
     initialDescription: fixedPointBaseline.fixedPoint,
-    infer: ask
+    infer: ask,
+    ...fpOptions
   })
 
   // 5. Current probe scores.
