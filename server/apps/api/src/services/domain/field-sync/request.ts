@@ -1,8 +1,8 @@
 import type { BaseIssue, BaseSchema } from 'valibot'
 
-import * as v from 'valibot'
+import { createBadRequestError } from '@proj-airi/http-error-shared'
 
-import { createBadRequestError } from '../../../utils/error'
+import * as v from 'valibot'
 
 const FieldKeySchema = v.pipe(v.string(), v.minLength(1), v.maxLength(256))
 const RevisionSchema = v.pipe(v.number(), v.integer(), v.minValue(0))

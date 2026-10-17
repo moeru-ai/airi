@@ -55,6 +55,13 @@ export function createPayloadTooLargeError(message: string, errorCode = 'PAYLOAD
 }
 
 /**
+ * Creates a too many requests error (429)
+ */
+export function createTooManyRequestsError(message = 'Too many requests', details?: unknown) {
+  return new ApiError(429, 'TOO_MANY_REQUESTS', message, details)
+}
+
+/**
  * Creates a payment required error (402)
  */
 export function createPaymentRequiredError(message: string, details?: unknown) {

@@ -6,6 +6,7 @@ import type { HonoEnv } from '../../types/hono'
 
 import { createHmac } from 'node:crypto'
 
+import { ApiError } from '@proj-airi/http-error-shared'
 import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
@@ -14,7 +15,6 @@ import { mockDB } from '../../libs/mock-db'
 import { createTestRedis } from '../../libs/tests/redis'
 import { createRevenuecatSubscriptionSync } from '../../services/adapters/revenuecat-subscriptions'
 import { createBillingService } from '../../services/domain/billing/billing-service'
-import { ApiError } from '../../utils/error'
 import { createRevenuecatRoutes } from './index'
 
 import * as schema from '../../schemas'

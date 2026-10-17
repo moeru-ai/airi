@@ -7,8 +7,8 @@ import type { VoicePackService } from '../voice-packs'
 
 import { useLogger } from '@guiiai/logg'
 import { context, SpanStatusCode, trace } from '@opentelemetry/api'
+import { ApiError, createBadRequestError, createPaymentRequiredError } from '@proj-airi/http-error-shared'
 
-import { ApiError, createBadRequestError, createPaymentRequiredError } from '../../../utils/error'
 import { nanoid } from '../../../utils/id'
 import {
   AIRI_ATTR_BILLING_FLUX_CONSUMED,
