@@ -326,6 +326,108 @@ describe('createChatOrchestratorRuntime', () => {
     }
   })
 
+  // ROOT CAUSE:
+  //
+  // The marker parser holds back the end of the text and handles text later than it receives it.
+  // A tool call joined the reply at once, so it landed inside the sentence before it.
+  //
+  // We now flush the parser at each tool call first.
+  it.each([
+    ['the text settled before the call', true],
+    ['the text and the call arrive together', false],
+  ])('keeps the text before a tool call in front of it when %s', async (_name, settled) => {
+    const harness = createHarness()
+    const call = { type: 'tool-call', toolCallId: 'call-weather', toolCallType: 'function', toolName: 'weather', args: '{}' } as const
+    harness.stream.mockImplementationOnce(async (_model, _provider, _context, options) => {
+      // xsAI does not wait for the handler of an event before it sends the next one.
+      for (const text of ['查曼谷', '和上海', '未来三天的天气。'])
+        void options?.onStreamEvent?.({ type: 'text-delta', text })
+      if (settled)
+        await new Promise(resolve => setTimeout(resolve, 20))
+      void options?.onStreamEvent?.(call)
+      void options?.onStreamEvent?.({ type: 'tool-result', toolCallId: 'call-weather', result: 'sunny' })
+      void options?.onStreamEvent?.({ type: 'text-delta', text: '第 1/3 步完成。' })
+      await options?.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await harness.runtime.ingest('weather', { model: 'test', chatProvider: provider })
+
+    const saved = harness.sessionMessages['session-1'].findLast(message => message.role === 'assistant')
+    expect(saved?.role === 'assistant' && saved.slices).toEqual([
+      { type: 'text', text: '查曼谷和上海未来三天的天气。' },
+      { type: 'tool-call', toolCall: call },
+      { type: 'text', text: '第 1/3 步完成。' },
+    ])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/3008#discussion_r4302605324
+  // ROOT CAUSE:
+  // Calls wait for preceding text hooks before they join the reply.
+  // An error or cancellation can save the reply before those hooks finish.
+  // The interrupted reply must retain received calls without waiting for the hooks.
+  it.each([
+    ['provider error', true],
+    ['provider error', false],
+    ['cancellation', true],
+    ['cancellation', false],
+  ] as const)('preserves calls after %s with prior visible text: %s (PR #3008)', async (failure, priorText) => {
+    const harness = createHarness()
+    const firstLiteral = Promise.withResolvers<void>()
+    const blockedLiteral = Promise.withResolvers<void>()
+    const releaseHook = Promise.withResolvers<void>()
+    const receivedCalls = Promise.withResolvers<void>()
+    const releaseProvider = Promise.withResolvers<void>()
+    let literalCount = 0
+    harness.runtime.hooks.onTokenLiteral(async () => {
+      if (priorText && ++literalCount === 1) {
+        firstLiteral.resolve()
+        return
+      }
+      blockedLiteral.resolve()
+      await releaseHook.promise
+    })
+    harness.stream.mockImplementationOnce(async (_model, _provider, _context, options) => {
+      if (priorText) {
+        await options?.onStreamEvent?.({ type: 'text-delta', text: 'Text that already reached the reply.' })
+        await firstLiteral.promise
+      }
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'Text that waits for a token hook.' })
+      await blockedLiteral.promise
+      for (const toolCallId of ['call-first', 'call-second'])
+        await options?.onStreamEvent?.({ type: 'tool-call', toolCallId, toolCallType: 'function', toolName: 'weather', args: '{}' })
+      receivedCalls.resolve()
+      if (failure === 'provider error')
+        throw new Error('Provider disconnected after delivering calls')
+      await releaseProvider.promise
+    })
+    const request = harness.runtime.submit('weather', { model: 'test', chatProvider: provider, messageId: 'interrupted-turn' }, 'session-1')
+    const done = request.done.catch(error => error)
+    try {
+      await receivedCalls.promise
+      if (failure === 'cancellation')
+        harness.runtime.cancelTurn({ sessionId: 'session-1', turnId: 'interrupted-turn' })
+      const outcome = await done
+      if (failure === 'provider error')
+        expect(outcome).toBeInstanceOf(Error)
+
+      const saved = harness.sessionMessages['session-1'].findLast(message => message.role === 'assistant')
+      expect(saved).toMatchObject({ role: 'assistant', interrupted: true })
+      expect(saved?.role === 'assistant' && saved.slices.filter(slice => slice.type === 'tool-call').map(slice => slice.toolCall.toolCallId)).toEqual(['call-first', 'call-second'])
+
+      const snapshot = structuredClone(saved)
+      const patchCount = harness.foregroundPatches.length
+      releaseHook.resolve()
+      await new Promise<void>(resolve => setImmediate(resolve))
+      expect(saved).toEqual(snapshot)
+      expect(harness.foregroundPatches).toHaveLength(patchCount)
+    }
+    finally {
+      releaseHook.resolve()
+      releaseProvider.resolve()
+      await done
+    }
+  })
+
   it('admits a replacement turn when the cancelled provider ignores abort', async () => {
     const harness = createHarness()
     const held = Promise.withResolvers<void>()
