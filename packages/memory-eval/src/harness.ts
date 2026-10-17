@@ -102,7 +102,11 @@ export async function identityContinuityHarness(
     throw new Error('probePrompts must contain at least one prompt')
   }
 
-  const ask = (prompt: string) => infer(prompt, character.systemPrompt)
+  // Every inference call receives the persona as its context, so a provider
+  // callback without its own system prompt still answers as the character
+  // rather than as a generic assistant. An explicit systemPrompt overrides.
+  const context = character.systemPrompt ?? character.persona
+  const ask = (prompt: string) => infer(prompt, context)
 
   // 1. Baseline fixed-point, seeded from the declared persona.
   const fixedPointBaseline = await computeFixedPoint({

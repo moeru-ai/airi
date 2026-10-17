@@ -33,14 +33,24 @@ export function detectBimodality(
     return { bimodal: false, bic1: 0, bic2: 0, bicImprovement: 0 }
   }
 
+  // A two-component diagonal GMM has 17 free parameters in 4D. With very few
+  // observations each point can get its own near-zero-variance Gaussian, which
+  // yields a huge BIC "improvement" that is a degenerate fit, not evidence of
+  // two personas. Disable the modality signal below a minimum sample count
+  // (at least 4 observations per component).
+  const MIN_SAMPLES_FOR_TWO_COMPONENTS = 8
+  if (data.length < MIN_SAMPLES_FOR_TWO_COMPONENTS) {
+    return { bimodal: false, bic1: 0, bic2: 0, bicImprovement: 0 }
+  }
+
   // Never request more components than data points.
-  const k2 = Math.min(2, data.length)
+  const k2 = 2
 
   // Fit 1-component GMM
   const gmm1 = fitGMM(data, 1, seed)
   const bic1 = computeBIC(data, gmm1)
 
-  // Fit 2-component GMM (falls back to 1 when only one point exists)
+  // Fit 2-component GMM
   const gmm2 = fitGMM(data, k2, seed + 1)
   const bic2 = computeBIC(data, gmm2)
 
