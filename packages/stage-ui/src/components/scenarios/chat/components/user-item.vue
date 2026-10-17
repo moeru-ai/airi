@@ -6,6 +6,7 @@ import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import InvokedSkills from './invoked-skills.vue'
 import ChatReplyQuote from './reply-quote.vue'
 import VoiceMessagePlayer from './voice-message-player.vue'
 
@@ -97,51 +98,59 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message))
 
 <template>
   <div v-if="message.role === 'user'" :class="['font-cute ph-no-capture', containerClasses]">
-    <ChatActionMenu
-      :can-reply="canReply"
-      :copy-text="copyText"
-      placement="left"
-      :press-feedback-enabled="variant === 'mobile'"
-      :scroll-container="scrollContainer"
-      @copy="emit('copy')"
-      @delete="emit('delete')"
-      @reply="emit('reply')"
-    >
-      <template #default="{ setMeasuredElement }">
-        <div
-          :ref="setMeasuredElement"
-          :class="[
-            'chat-message-item-container flex flex-col',
-            voiceOnly ? 'rounded-2xl' : 'min-w-20 rounded-xl',
-            'h-unset <sm:h-fit',
-            'shadow-sm shadow-neutral-200/50 dark:shadow-none',
-            boxClasses,
-            (isStageWeb() || isStageCapacitor()) && props.variant === 'mobile' ? 'select-none sm:select-auto' : '',
-          ]"
-        >
-          <ChatReplyQuote v-if="replyTarget" :target="replyTarget" />
-          <div v-if="variant === 'mobile'">
-            <span :class="['inline <sm:hidden text-sm font-normal', 'text-black/60 dark:text-white/65']">{{ label }}</span>
+    <div :class="['min-w-0 max-w-full flex flex-col gap-1.5', props.variant === 'mobile' ? 'items-start' : 'items-end']">
+      <ChatActionMenu
+        :can-reply="canReply"
+        :copy-text="copyText"
+        placement="left"
+        :press-feedback-enabled="variant === 'mobile'"
+        :scroll-container="scrollContainer"
+        @copy="emit('copy')"
+        @delete="emit('delete')"
+        @reply="emit('reply')"
+      >
+        <template #default="{ setMeasuredElement }">
+          <div
+            :ref="setMeasuredElement"
+            :class="[
+              'chat-message-item-container flex flex-col',
+              voiceOnly ? 'rounded-2xl' : 'min-w-20 rounded-xl',
+              'h-unset <sm:h-fit',
+              'shadow-sm shadow-neutral-200/50 dark:shadow-none',
+              boxClasses,
+              (isStageWeb() || isStageCapacitor()) && props.variant === 'mobile' ? 'select-none sm:select-auto' : '',
+            ]"
+          >
+            <ChatReplyQuote v-if="replyTarget" :target="replyTarget" />
+            <div v-if="variant === 'mobile'">
+              <span :class="['inline <sm:hidden text-sm font-normal', 'text-black/60 dark:text-white/65']">{{ label }}</span>
+            </div>
+            <div v-if="images.length" :class="['flex flex-wrap gap-2 py-2']">
+              <img v-for="(image, index) in images" :key="index" :src="image" :alt="t('stage.chat.images.description')" :class="['max-h-64 max-w-full rounded-xl object-contain']">
+            </div>
+            <div v-for="(recording, index) in audio" :key="index" :class="['flex flex-col gap-0.5', !voiceOnly && 'py-1']">
+              <VoiceMessagePlayer :audio="recording.source" surface="none" :aria-label="t('stage.chat.voice-message.preview')" />
+              <p v-if="recording.transcript" :class="['m-0 max-w-64 px-1 pb-0.5 text-xs leading-snug opacity-75']">
+                {{ recording.transcript }}
+              </p>
+              <p v-else-if="transcribing" :class="['m-0 px-1 pb-0.5 text-xs opacity-60 animate-pulse motion-reduce:animate-none']">
+                {{ t('stage.chat.voice-message.transcribing') }}
+              </p>
+            </div>
+            <MarkdownRenderer
+              v-if="content"
+              :content="content as string"
+              class="break-words"
+            />
           </div>
-          <div v-if="images.length" :class="['flex flex-wrap gap-2 py-2']">
-            <img v-for="(image, index) in images" :key="index" :src="image" :alt="t('stage.chat.images.description')" :class="['max-h-64 max-w-full rounded-xl object-contain']">
-          </div>
-          <div v-for="(recording, index) in audio" :key="index" :class="['flex flex-col gap-0.5', !voiceOnly && 'py-1']">
-            <VoiceMessagePlayer :audio="recording.source" surface="none" :aria-label="t('stage.chat.voice-message.preview')" />
-            <p v-if="recording.transcript" :class="['m-0 max-w-64 px-1 pb-0.5 text-xs leading-snug opacity-75']">
-              {{ recording.transcript }}
-            </p>
-            <p v-else-if="transcribing" :class="['m-0 px-1 pb-0.5 text-xs opacity-60 animate-pulse motion-reduce:animate-none']">
-              {{ t('stage.chat.voice-message.transcribing') }}
-            </p>
-          </div>
-          <MarkdownRenderer
-            v-if="content"
-            :content="content as string"
-            class="break-words"
-          />
-        </div>
-      </template>
-    </ChatActionMenu>
+        </template>
+      </ChatActionMenu>
+      <InvokedSkills
+        v-if="message.skills?.length"
+        :skills="message.skills"
+        :align="props.variant === 'mobile' ? 'start' : 'end'"
+        :surface="props.surface"
+      />
+    </div>
   </div>
 </template>
