@@ -26,6 +26,7 @@ import type {
   VrmLoadStartTracePayload,
   VrmUpdateFrameTracePayload,
 } from '@proj-airi/stage-ui-three/trace'
+import type { ChatHistoryReplyPayload } from '@proj-airi/stage-ui/components/scenarios/chat'
 import type { Rectangle } from 'electron'
 
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
@@ -85,6 +86,14 @@ export const electronCenterMainWindow = defineInvokeEventa<Rectangle>('eventa:in
 export const electronOpenSettings = defineInvokeEventa<void, { route?: string }>('eventa:invoke:electron:windows:settings:open')
 export const electronSettingsNavigate = defineEventa<{ route: string }>('eventa:event:electron:windows:settings:navigate')
 export const electronSettingsReady = defineEventa<Record<string, never>>('eventa:event:electron:windows:settings:ready')
+/** Composer content carried when the native host changes chat window mode. */
+export interface ChatDraftHandover {
+  sessionId: string
+  text: string
+  replyTarget?: ChatHistoryReplyPayload
+  attachments: { data: string, mimeType: string, name: string }[]
+}
+
 export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windows:chat:open')
 export const electronChatReady = defineEventa<Record<string, never>>('eventa:event:electron:windows:chat:ready')
 export const electronSpotlightOpen = defineInvokeEventa<void>('eventa:invoke:electron:windows:spotlight:open')

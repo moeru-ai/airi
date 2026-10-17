@@ -20,6 +20,7 @@ export default defineConfig({
     '**/assets/js/**',
     '**/assets/live2d/models/**',
     'apps/stage-tamagotchi/out/**',
+    'apps/stage-tamagotchi-kirie/addons/**',
     'apps/stage-tamagotchi/src/bindings/**',
     'apps/stage-tamagotchi-electron/out/**',
     'apps/stage-tamagotchi-electron/src/renderer/bindings/**',

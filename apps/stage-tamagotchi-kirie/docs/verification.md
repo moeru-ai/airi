@@ -144,3 +144,24 @@ Two probes used the wrong renderer for a window-specific handler and were stoppe
 The quit request closed CDP before its response arrived. The process exit establishes teardown completion, not successful quit-response delivery.
 The existing leaks, Vue attribute warning, and native dependency warnings remain unresolved.
 These checks do not establish Windows acceptance, authentication, Chat send, model rendering, or safe CEF shutdown on every platform.
+
+## Electron alignment: chat and weather (2026-10-17)
+
+Reference: Electron at `dd6e3ce1f`.
+
+The Kirie composer now uses the shared image, voice input, send, interruption, and provider setup controls.
+Chat history also shows background tasks and weather result widgets.
+The weather tool returns current conditions and up to seven forecast days.
+The chat shell supplies an opaque light or dark background.
+
+Checks:
+
+- `mise x -- pnpm -F @proj-airi/stage-tamagotchi-kirie typecheck`: passed.
+- `mise x -- pnpm -F @proj-airi/stage-tamagotchi-kirie test:unit`: 59 tests passed in 14 files.
+- `mise x -- pnpm -F @proj-airi/stage-tamagotchi-kirie build`: passed, including the C# build.
+- CEF 2.0.0 passed `codesign --verify --deep --strict` on this Mac.
+
+The native Kirie Chat opened through the stage controls.
+Electron opened its floating Chat through the same control.
+Their input controls supplied the behavior comparison.
+These checks do not establish floating window, voice capture, plugin, MCP, or production update acceptance.

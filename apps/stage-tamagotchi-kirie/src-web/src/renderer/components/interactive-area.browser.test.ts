@@ -21,7 +21,7 @@ import { nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-import InteractiveArea from './InteractiveArea.vue'
+import InteractiveArea from './interactive-area.vue'
 
 import '@unocss/reset/tailwind.css'
 import 'virtual:uno.css'
