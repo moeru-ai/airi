@@ -104,7 +104,7 @@ export function streamChatCompletions(input: {
     streamOptions: { includeUsage: true },
     stopWhen: stepCountAtLeast(10),
     tools: input.tools,
-    toolChoice: input.options?.resolveStep ? undefined : input.options?.toolChoice,
+    toolChoice: input.options?.toolsEnabled === false || input.options?.resolveStep ? undefined : input.options?.toolChoice,
     onEvent: async (event) => {
       const mapped = toAiriStreamEvent(event)
       if (mapped)

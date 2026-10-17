@@ -16,6 +16,11 @@
 
 When a caller supplies `resolveStep`, `streamFrom` reads current settings before each model request. It resolves the first request before projecting the conversation. A continuation scope change starts a new SDK stream. Completed rounds and usage remain in one assistant turn. The callback returns the current tools and header overrides for each request.
 
+Set `StreamOptions.toolsEnabled` to `false` for a generation that must not use tools, such as a background greeting.
+The runtime skips caller and built-in tool resolvers. Both protocols omit tools and tool choice. Responses also omits provider web search.
+This policy takes priority over capability overrides and live tools from `resolveStep`. It does not change compatibility caches or stored tool results.
+An absent or `true` value keeps the existing tool policy. This option controls requests, not provider-side access or a security sandbox.
+
 `prepareConversation` adapts media to the resolved request before the protocol adapter projects the conversation. It runs for each SDK stream, so it also runs after a scope change selects another model. It returns a request copy and keeps stored recordings intact. Stage uses it to send audio only to models that accept audio, and transcripts to other models.
 
 The chat orchestrator forwards a send's `resolveStep`. It appends that send's system prompt supplement, including sticker instructions, to each resolved prompt.

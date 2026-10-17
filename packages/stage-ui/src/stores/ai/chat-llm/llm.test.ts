@@ -313,6 +313,78 @@ describe('isToolRelatedError', () => {
     expect(streamTextMock.mock.calls[0]?.[0]?.tools?.map(toolNameFrom)).toContain('builtIn_emitSparkCommand')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2902#discussion_r4237815781
+  // ROOT CAUSE:
+  //
+  // The Stage resolveStep wrapper loaded tools before Core applied toolsEnabled.
+  // A rejected lazy resolver stopped a tool-free request before the SDK call.
+  // Gate Stage tool loading without skipping the live model settings.
+  it('skips a rejected lazy tool resolver while retaining live settings (PR #2902)', async () => {
+    streamTextMock.mockImplementation(() => createMockStreamResult())
+    const tools = vi.fn(async (): Promise<Tool[]> => {
+      throw new Error('Disabled tool resolver must not run.')
+    })
+    const resolveStep = vi.fn(async () => ({
+      model: 'model-b',
+      chatProvider: provider,
+      providerId: 'test',
+      systemPrompt: 'Live system prompt.',
+      temperature: 0.4,
+      topP: 0.8,
+      tools: [customTool],
+    }))
+
+    await expect(useLLM().stream('model-a', provider, helloTurns, {
+      toolsEnabled: false,
+      supportsTools: true,
+      toolChoice: 'required',
+      tools,
+      resolveStep,
+    })).resolves.toBeUndefined()
+
+    expect(resolveStep).toHaveBeenCalledOnce()
+    expect(tools).not.toHaveBeenCalled()
+    expect(mcpMock).not.toHaveBeenCalled()
+    expect(debugMock).not.toHaveBeenCalled()
+    expect(streamTextMock).toHaveBeenCalledOnce()
+    expect(streamTextMock.mock.calls[0]?.[0]?.model).toBe('model-b')
+    expect(streamTextMock.mock.calls[0]?.[0]?.tools).toBeUndefined()
+    expect(streamTextMock.mock.calls[0]?.[0]?.toolChoice).toBeUndefined()
+  })
+
+  it('skips a rejected lazy tool resolver without live settings', async () => {
+    streamTextMock.mockImplementation(() => createMockStreamResult())
+    const tools = vi.fn(async (): Promise<Tool[]> => {
+      throw new Error('Disabled tool resolver must not run.')
+    })
+
+    await expect(useLLM().stream('model-a', provider, helloTurns, { toolsEnabled: false, tools })).resolves.toBeUndefined()
+
+    expect(tools).not.toHaveBeenCalled()
+    expect(mcpMock).not.toHaveBeenCalled()
+    expect(streamTextMock).toHaveBeenCalledOnce()
+    expect(streamTextMock.mock.calls[0]?.[0]?.tools).toBeUndefined()
+  })
+
+  for (const toolsEnabled of [undefined, true]) {
+    it(`keeps lazy tool loading with live settings when toolsEnabled is ${toolsEnabled}`, async () => {
+      streamTextMock.mockImplementation(() => createMockStreamResult())
+      const tools = vi.fn(async () => [customTool])
+
+      await useLLM().stream('model-a', provider, helloTurns, {
+        toolsEnabled,
+        tools,
+        resolveStep: async () => ({ model: 'model-b', chatProvider: provider, providerId: 'test', systemPrompt: '' }),
+      })
+
+      expect(tools).toHaveBeenCalledOnce()
+      expect(mcpMock).toHaveBeenCalledOnce()
+      expect(debugMock).toHaveBeenCalledOnce()
+      expect(streamTextMock.mock.calls[0]?.[0]?.tools?.map(toolNameFrom)).toContain('custom-tool')
+      expect(streamTextMock.mock.calls[0]?.[0]?.tools?.map(toolNameFrom)).toContain('builtIn_emitSparkCommand')
+    })
+  }
+
   it('merges runtime-registered tools from the llm-tools store into the builtin tool resolver', async () => {
     const store = useLLM()
     const llmToolsStore = useLlmToolsStore()

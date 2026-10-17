@@ -91,6 +91,15 @@ export interface StreamOptions {
   waitForTools?: boolean
   /** Provider tool-selection directive for one request. */
   toolChoice?: ToolChoice
+  /**
+   * Controls tool access for this generation, including live settings and protocol changes.
+   * `false` skips caller and built-in tool resolvers and omits tools, web search, and tool choice.
+   * Model capability overrides and compatibility caches cannot enable tools for this generation.
+   * This policy does not remove tool results from conversation history.
+   *
+   * @default true
+   */
+  toolsEnabled?: boolean
   tools?: Tool[] | (() => Promise<Tool[] | undefined>)
   /**
    * Per-model runtime cache of whether the provider accepts content-part arrays
