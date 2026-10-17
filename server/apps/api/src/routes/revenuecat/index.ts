@@ -1,5 +1,8 @@
 import type { Env } from '../../libs/env'
 import type { RateLimitMetrics } from '../../otel'
+import type { ConfigKVService } from '../../services/adapters/config-kv'
+import type { PaymentService } from '../../services/domain/payment'
+
 import type { AccountEventPublisher } from '../../services/adapters/account-events'
 import type { RevenuecatSubscriberClient } from '../../services/adapters/revenuecat-subscriber'
 import type { RevenuecatSubscriptionSync } from '../../services/adapters/revenuecat-subscriptions'
@@ -23,18 +26,27 @@ import { createWebhookOperation } from './operations/webhook'
  * The operation rejects an unsigned request before it reads the database.
  */
 export function createRevenuecatRoutes(
+  payment: PaymentService,
+  configKV: ConfigKVService,
   subscriptionSync: RevenuecatSubscriptionSync,
   accountEvents: Pick<AccountEventPublisher, 'publish'>,
   subscriber: Pick<RevenuecatSubscriberClient, 'countsFor'>,
   env: Pick<Env, 'REVENUECAT_WEBHOOK_AUTH' | 'REVENUECAT_WEBHOOK_SECRET'>,
   rateLimitMetrics: RateLimitMetrics | null,
 ) {
-  const webhook = createWebhookOperation(subscriptionSync, accountEvents, subscriber, {
+  const webhook = createWebhookOperation(payment, configKV, subscriptionSync, accountEvents, subscriber, {
     authorization: env.REVENUECAT_WEBHOOK_AUTH ?? null,
     signingSecret: env.REVENUECAT_WEBHOOK_SECRET ?? null,
   })
 
   return new Hono<HonoEnv>()
+    .get('/packages', async (c) => {
+      const packs = await configKV.getOptional('REVENUECAT_FLUX_PACKS') ?? {}
+      return c.json({ records: Object.entries(packs).map(([productId, pack]) => ({
+        productId,
+        fluxAmount: pack.fluxAmount,
+      })) })
+    })
     .post('/webhook', async (c) => {
       const rawBody = await c.req.text()
       return c.json(await webhook(rawBody, {

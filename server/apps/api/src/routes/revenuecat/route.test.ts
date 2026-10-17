@@ -4,6 +4,7 @@ import type { Database } from '../../libs/db'
 import type { ConfigDefinitions, ConfigKVService } from '../../services/adapters/config-kv'
 import type { SubscriberEntitlement } from '../../services/adapters/revenuecat-subscriber'
 import type { RevenuecatSubscriptionSync } from '../../services/adapters/revenuecat-subscriptions'
+import type { PaymentService } from '../../services/domain/payment'
 import type { HonoEnv } from '../../types/hono'
 
 import { createHmac } from 'node:crypto'
@@ -21,6 +22,7 @@ import { createConfigKVService } from '../../services/adapters/config-kv'
 import { createRevenuecatSubscriberClient } from '../../services/adapters/revenuecat-subscriber'
 import { createRevenuecatSubscriptionSync } from '../../services/adapters/revenuecat-subscriptions'
 import { createBillingService } from '../../services/domain/billing/billing-service'
+import { createPaymentService } from '../../services/domain/payment'
 import { createRevenuecatRoutes } from './index'
 
 import * as schema from '../../schemas'
@@ -28,13 +30,20 @@ import * as schema from '../../schemas'
 const signingSecret = 'test-signing-secret'
 const authorization = 'test-authorization-value'
 
+const starterPacks: ConfigDefinitions['REVENUECAT_FLUX_PACKS'] = {
+  flux_500: { fluxAmount: 500 },
+}
+
 const starterCapacitors: ConfigDefinitions['REVENUECAT_CAPACITORS'] = {
   rc_go_monthly: { entitlementId: 'airi_go', quota: 2000 },
   rc_plus_monthly: { entitlementId: 'airi_plus', quota: 5000 },
 }
 
-function createCapacitorsConfigKV(resetInterval: ConfigDefinitions['CAPACITOR_RESET_INTERVAL'] | null = null): ConfigKVService {
-  const values = new Map([['REVENUECAT_CAPACITORS', JSON.stringify(starterCapacitors)]])
+function createTestConfigKV(resetInterval: ConfigDefinitions['CAPACITOR_RESET_INTERVAL'] | null = null): ConfigKVService {
+  const values = new Map([
+    ['REVENUECAT_FLUX_PACKS', JSON.stringify(starterPacks)],
+    ['REVENUECAT_CAPACITORS', JSON.stringify(starterCapacitors)],
+  ])
   if (resetInterval)
     values.set('CAPACITOR_RESET_INTERVAL', JSON.stringify(resetInterval))
   return createConfigKVService({
@@ -59,13 +68,15 @@ const subscriber = createRevenuecatSubscriberClient({
 })
 
 function createTestApp(
+  payment: PaymentService,
+  configKV: ConfigKVService,
   subscriptionSync: RevenuecatSubscriptionSync,
   env = { REVENUECAT_WEBHOOK_AUTH: authorization, REVENUECAT_WEBHOOK_SECRET: signingSecret },
   /** The signed-in user of each request. Null leaves the request anonymous, as RevenueCat sends it. */
   signedInUserId: string | null = null,
   redis: Redis = createTestRedis(),
 ) {
-  const routes = createRevenuecatRoutes(subscriptionSync, createStreamPublisher(redis, accountEventsStream), subscriber, env, null)
+  const routes = createRevenuecatRoutes(payment, configKV, subscriptionSync, createStreamPublisher(redis, accountEventsStream), subscriber, env, null)
   const app = new Hono<HonoEnv>()
 
   app.use('*', async (c, next) => {
@@ -125,16 +136,17 @@ describe('revenuecat routes', () => {
     signedInUserId: string | null = null,
     resetInterval: ConfigDefinitions['CAPACITOR_RESET_INTERVAL'] | null = null,
   ) {
-    const configKV = createCapacitorsConfigKV(resetInterval)
+    const configKV = createTestConfigKV(resetInterval)
     await db.delete(schema.fluxUsage)
     await db.delete(schema.fluxTransaction)
     await db.delete(schema.userFlux)
     entitlements = {}
     const billing = createBillingService(db, createTestRedis(), { getOptional: async () => null })
+    const payment = createPaymentService(db, billing)
     const fetchEntitlements = vi.fn(async (userId: string) => entitlements[userId] ?? [])
     const sync = createRevenuecatSubscriptionSync(billing, configKV, { fetchEntitlements })
     const redis = createTestRedis()
-    return { billing, fetchEntitlements, redis, app: createTestApp(sync, undefined, signedInUserId, redis) }
+    return { billing, payment, fetchEntitlements, redis, app: createTestApp(payment, configKV, sync, undefined, signedInUserId, redis) }
   }
 
   async function readWallet(userId: string) {
@@ -189,6 +201,60 @@ describe('revenuecat routes', () => {
     expect(res.status).toBe(200)
 
     expect(await readWallet('user-1')).toMatchObject({ flux: 0, capacitorFlux: 2000, capacitorQuota: 2000 })
+  })
+
+  function packBody(overrides = {}) {
+    return {
+      api_version: '1.0',
+      event: {
+        type: 'NON_RENEWING_PURCHASE',
+        id: 'pack-event-1',
+        app_user_id: 'user-1',
+        product_id: 'flux_500',
+        transaction_id: 'txn-1',
+        environment: 'SANDBOX',
+        store: 'TEST_STORE',
+        ...overrides,
+      },
+    }
+  }
+
+  it('settles a non-renewing purchase as revenuecat evidence, once', async () => {
+    const { app } = await setup()
+
+    const res = await postWebhook(app, packBody())
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ received: true, granted: true })
+    expect(await readWallet('user-1')).toMatchObject({ flux: 500 })
+
+    const replay = await postWebhook(app, packBody())
+    expect(await replay.json()).toEqual({ received: true, granted: false })
+    expect(await readWallet('user-1')).toMatchObject({ flux: 500 })
+  })
+
+  it('ignores a non-renewing purchase of an unknown product', async () => {
+    const { app } = await setup()
+
+    const res = await postWebhook(app, packBody({ product_id: 'flux_999' }))
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ received: true })
+    expect(await readWallet('user-1')).toBeUndefined()
+  })
+
+  it('ignores a non-renewing purchase without identifiers', async () => {
+    const { app } = await setup()
+
+    const res = await postWebhook(app, packBody({ product_id: null, transaction_id: null }))
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ received: true })
+  })
+
+  it('lists Flux packs from configuration', async () => {
+    const { app } = await setup('user-1')
+
+    const res = await app.request('/api/v1/revenuecat/packages')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ records: [{ productId: 'flux_500', fluxAmount: 500 }] })
   })
 
   it('does not grant again on a repeated or later event of the same period', async () => {
@@ -391,6 +457,8 @@ describe('revenuecat routes', () => {
 
   it('returns 503 when no secret is configured', async () => {
     const app = createTestApp(
+      {} as PaymentService,
+      createTestConfigKV(),
       {} as RevenuecatSubscriptionSync,
       { REVENUECAT_WEBHOOK_AUTH: undefined, REVENUECAT_WEBHOOK_SECRET: undefined } as never,
     )
