@@ -232,6 +232,12 @@ export function marginalW1ByAxis(
   if (scores1.length === 0 || scores2.length === 0) {
     throw new Error('marginalW1ByAxis requires non-empty score arrays')
   }
+  validateScores(scores1)
+  validateScores(scores2)
+  if (scores1.every(s => weightOf(s) === 0)
+      || scores2.every(s => weightOf(s) === 0)) {
+    throw new Error('marginalW1ByAxis requires positive total weight on both sides')
+  }
   const result = {} as Record<RubricAxis, number>
   for (const axis of RUBRIC_AXES) {
     result[axis] = weightedWasserstein1D(

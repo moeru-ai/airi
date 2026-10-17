@@ -118,37 +118,70 @@ export function normalizedTextDistance(a: string, b: string): number {
   return damerauLevenshtein(ta, tb) / Math.max(ta.length, tb.length)
 }
 
+/**
+ * Segment text into word tokens using the platform's Unicode word
+ * segmenter when available. This handles every script that omits word
+ * spaces (CJK, Thai, Lao, Khmer, Myanmar, Tibetan, ...), so a one-word edit
+ * in `ผมชอบแมว...` vs `ผมชอบหมา...` is a small distance instead of 1.
+ * Falls back to a grapheme-based segmenter if Intl.Segmenter is missing.
+ */
 function tokenize(text: string): string[] {
   const lower = text.toLowerCase()
+  const SegmenterCtor = (
+    globalThis as { Intl?: { Segmenter?: typeof Intl.Segmenter } }
+  ).Intl?.Segmenter
+  if (SegmenterCtor) {
+    const segmenter = new SegmenterCtor('en', { granularity: 'word' })
+    const tokens: string[] = []
+    for (const part of segmenter.segment(lower)) {
+      if (part.isWordLike) tokens.push(part.segment)
+    }
+    return tokens
+  }
+  return tokenizeGraphemeFallback(lower)
+}
+
+/**
+ * Fallback without Intl.Segmenter: CJK/Thai/Lao/Khmer/Myanmar graphemes each
+ * become a token; other letters/digits accumulate into space-delimited words.
+ */
+function tokenizeGraphemeFallback(lower: string): string[] {
   const tokens: string[] = []
-  // Walk grapheme clusters. A CJK grapheme becomes its own token (these
-  // scripts have no word spaces); consecutive non-CJK graphemes accumulate
-  // into a space-separated word. This also handles mixed runs such as
-  // `AIRIは猫です`, where splitting the whole word as one token would make a
-  // one-character edit look like maximal distance.
-  let latinRun = ''
-  const flushLatin = () => {
-    if (latinRun) {
-      tokens.push(latinRun)
-      latinRun = ''
+  let wordRun = ''
+  const flush = () => {
+    if (wordRun) {
+      tokens.push(wordRun)
+      wordRun = ''
     }
   }
   for (const ch of lower) {
-    if (isCjkChar(ch)) {
-      flushLatin()
+    if (isNoSpaceScript(ch)) {
+      flush()
       tokens.push(ch)
     } else if (/[\p{L}\p{N}]/u.test(ch)) {
-      latinRun += ch
+      wordRun += ch
     } else {
-      flushLatin()
+      flush()
     }
   }
-  flushLatin()
+  flush()
   return tokens
 }
 
-function isCjkChar(ch: string): boolean {
-  return /[㐀-䶿一-鿿぀-ゟ゠-ヿ가-힯豈-﫿]/u.test(ch)
+/**
+ * Scripts conventionally written without inter-word spaces. Covers CJK and
+ * the major Southeast Asian abugidas. Written with unicode escapes to keep
+ * the character-class ranges unambiguous.
+ */
+const NO_SPACE_SCRIPT_RE = new RegExp(
+  '[\u3400-\u4DBF\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF'
+  + '\uAC00-\uD7AF\uF900-\uFAFF'
+  + '\u0E00-\u0E7F\u0E80-\u0EFF\u0F00-\u0FFF'
+  + '\u1000-\u109F\u1780-\u17FF]',
+  'u'
+)
+function isNoSpaceScript(ch: string): boolean {
+  return NO_SPACE_SCRIPT_RE.test(ch)
 }
 
 function damerauLevenshtein(a: string[], b: string[]): number {

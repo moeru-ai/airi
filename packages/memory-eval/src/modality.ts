@@ -34,6 +34,30 @@ export function detectBimodality(
     return { bimodal: false, bic1: 0, bic2: 0, bicImprovement: 0 }
   }
 
+  // Reject poisoned input: a NaN/Infinite coordinate produces NaN EM
+  // responsibilities and silently meaningless BIC values from direct callers.
+  const dims = data[0].length
+  for (let i = 0; i < data.length; i++) {
+    if (data[i].length !== dims) {
+      throw new Error('detectBimodality requires every row to have the same length')
+    }
+    for (let dim = 0; dim < dims; dim++) {
+      if (!Number.isFinite(data[i][dim])) {
+        throw new Error(`detectBimodality row ${i} contains a non-finite coordinate`)
+      }
+    }
+  }
+  if (sampleWeights) {
+    if (sampleWeights.length !== data.length) {
+      throw new Error('sampleWeights length must match the number of rows')
+    }
+    for (const w of sampleWeights) {
+      if (!Number.isFinite(w) || w < 0) {
+        throw new Error('sampleWeights must be finite non-negative numbers')
+      }
+    }
+  }
+
   // A zero-weight observation must not influence the fit, matching the W1
   // metric which already excludes it. Keep only positive-mass rows.
   let rows = data

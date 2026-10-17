@@ -553,7 +553,84 @@ describe('Round 2 review findings', () => {
     const b = 'AIRIは僕の名前です、僕は量子物理学者でファインマンの言葉が好きです'
     const d = normalizedTextDistance(a, b)
     expect(d).toBeGreaterThan(0)
-    expect(d).toBeLessThan(0.1)
+    // Intl word segmentation keeps native words (名前) intact, so a two-char
+    // edit is a small fraction of tokens rather than maximal distance 1.
+    expect(d).toBeLessThan(0.2)
+  })
+
+  it('P1 round7: Thai no-space descriptions are word-segmented', () => {
+    // Thai writes without spaces: one word change (cat -> dog) must not be
+    // maximal distance, or stable Thai personas never converge.
+    const d = normalizedTextDistance('ผมชอบแมวและเขาชอบปลา', 'ผมชอบหมาและเขาชอบปลา')
+    expect(d).toBeGreaterThan(0)
+    expect(d).toBeLessThan(0.2)
+  })
+
+  it('P1 round7: marginalW1ByAxis rejects NaN scores', () => {
+    const good = [{ identity: 0.8, value: 0.8, expression: 0.8, memory: 0.8 }]
+    const nan = [{ identity: Number.NaN, value: 0.8, expression: 0.8, memory: 0.8 }]
+    expect(() => marginalW1ByAxis(good, nan)).toThrow()
+  })
+
+  it('P1 round7: detectBimodality rejects non-finite vectors', () => {
+    const rows = [
+      [0.1, 0.1, 0.1, 0.1], [0.2, 0.2, 0.2, 0.2],
+      [0.8, 0.8, 0.8, 0.8], [0.9, 0.9, 0.9, 0.9],
+      [0.15, 0.2, 0.1, 0.2], [0.85, 0.8, 0.9, 0.8],
+      [0.2, 0.1, 0.2, 0.1], [0.8, 0.9, 0.8, 0.9],
+    ]
+    const poisoned = rows.map(r => [...r])
+    poisoned[0][0] = Number.NaN
+    expect(() => detectBimodality(poisoned)).toThrow()
+  })
+
+  it('P2 round7: harness accepts custom fixed-point controls and rejects bad ones', async () => {
+    const judge = async () => ({ identity: 0.9, value: 0.9, expression: 0.9, memory: 0.9 })
+    // Custom convergence threshold and iteration cap are accepted.
+    let call = 0
+    const inferSettle = async () => {
+      call++
+      return call === 1 ? 'first slightly different wording here' : 'settled wording used afterwards now'
+    }
+    await expect(identityContinuityHarness({
+      character: { name: 'X', persona: 'p' },
+      infer: inferSettle,
+      judge,
+      probePrompts: ['p1', 'p2'],
+      sessions: 0,
+      messagesPerSession: 0,
+      fpConvergenceThreshold: 0.9,
+      fpMaxIterations: 3,
+    })).resolves.toBeDefined()
+    // Bad values are rejected before any inference.
+    call = 0
+    const infer = async () => { call++; return 'same text' }
+    await expect(identityContinuityHarness({
+      character: { name: 'X', persona: 'p' }, infer, judge,
+      probePrompts: ['p'], sessions: 0, messagesPerSession: 0,
+      fpMaxIterations: 0,
+    })).rejects.toThrow()
+    expect(call).toBe(0)
+  })
+
+  it('P2 round7: judge receives the character reference', async () => {
+    let receivedName = ''
+    const infer = async () => 'I am Dr. Lin, a physicist'
+    const judge = async (_response: string, character?: { name: string }) => {
+      if (character) receivedName = character.name
+      return { identity: 0.9, value: 0.9, expression: 0.9, memory: 0.9 }
+    }
+    await identityContinuityHarness({
+      character: { name: 'Dr. Lin', persona: 'A physicist' },
+      infer, judge, probePrompts: ['p'],
+      sessions: 0, messagesPerSession: 0,
+    })
+    expect(receivedName).toBe('Dr. Lin')
+  })
+
+  it('P2 round7: kappa rejects non-finite validity threshold', () => {
+    expect(() => cohensKappa([0, 1], [0, 1], Number.NaN)).toThrow()
+    expect(() => cohensKappa([0, 1], [0, 1], Number.NEGATIVE_INFINITY)).toThrow()
   })
 
   it('P2 round6: harness validates thresholds before any inference', async () => {
