@@ -72,35 +72,70 @@ function axisValues(scores: RubricScore[], axis: RubricAxis): number[] {
 }
 
 /**
- * 1D Wasserstein-1 between two empirical samples, by the sorted-pair / quantile
- * definition. Handles m != n by pairing across the common [0,1] quantile grid.
- * Empty arrays are invalid for this caller (guarded upstream).
+ * Exact empirical 1D Wasserstein-1 between two weighted samples, integrating
+ * |F_a - F_b| over the merged step boundaries. This is exact for unequal
+ * sample counts; no zero padding and no quantile interpolation.
+ *
+ *   [0,1] vs [0,0.2,1] -> 1/6 (verified), not 0.1.
  */
 function wasserstein1D(a: number[], b: number[]): number {
-  const m = a.length
-  const n = b.length
-  if (m === n) {
-    let sum = 0
-    for (let i = 0; i < m; i++) sum += Math.abs(a[i] - b[i])
-    return sum / m
+  const sortedA = [...a].sort((x, y) => x - y)
+  const sortedB = [...b].sort((x, y) => x - y)
+  const m = sortedA.length
+  const n = sortedB.length
+
+  let i = 0
+  let j = 0
+  let distance = 0
+  let cumA = 0
+  let cumB = 0
+  let prev = 0
+
+  while (i < m || j < n) {
+    const value =
+      i < m && (j >= n || sortedA[i] <= sortedB[j])
+        ? sortedA[i]
+        : sortedB[j]
+
+    distance += Math.abs(cumA - cumB) * (value - prev)
+    prev = value
+
+    // Advance every boundary at this value and accumulate its mass.
+    while (i < m && sortedA[i] === value) {
+      cumA += 1 / m
+      i += 1
+    }
+    while (j < n && sortedB[j] === value) {
+      cumB += 1 / n
+      j += 1
+    }
   }
 
-  // Different sizes: integrate |F_a - F_b| on the step grid using quantile
-  // interpolation at shared fractions k/max(m,n).
-  const grid = Math.max(m, n)
-  const quantile = (sorted: number[], len: number, q: number) => {
-    const pos = q * (len - 1)
-    const lo = Math.floor(pos)
-    const hi = Math.min(len - 1, lo + 1)
-    const frac = pos - lo
-    return sorted[lo] * (1 - frac) + sorted[hi] * frac
-  }
-  let sum = 0
-  for (let k = 0; k < grid; k++) {
-    const q = grid === 1 ? 0 : k / (grid - 1)
-    sum += Math.abs(quantile(a, m, q) - quantile(b, n, q))
-  }
-  return sum / grid
+  return distance
+}
+
+/**
+ * Wasserstein-style identity distance in 4D rubric space.
+ *
+ * Probes are answered at baseline and again after compression, so the two
+ * score sets are paired observations. Pairing probe k to probe k preserves the
+ * joint geometry: a response whose profile moves between axes
+ * (`[1,0,0,0]` -> `[0,1,0,0]`) is real drift, even though every marginal is
+ * unchanged. We use the average L1 distance between paired rubric vectors.
+ *
+ * Paired vectors are aligned by sorting both sides on their overall magnitude,
+ * which is stable to probe ordering while keeping each rubric vector intact.
+ */
+function toVector(s: RubricScore): [number, number, number, number] {
+  return [s.identity, s.value, s.expression, s.memory]
+}
+
+function magnitude(v: readonly number[]): number {
+  return v.reduce((acc, x) => acc + x, 0)
+}
+
+function sortByMagnitude(scores: RubricScore[]): RubricScore[] {
+  return [...scores].sort((a, b) => magnitude(toVector(a)) - magnitude(toVector(b)))
 }
 
 export function wassersteinDistance(
@@ -111,11 +146,43 @@ export function wassersteinDistance(
     throw new Error('wassersteinDistance requires non-empty score arrays')
   }
 
+  const a = sortByMagnitude(scores1)
+  const b = sortByMagnitude(scores2)
+
+  // Pair over the common grid so unequal sample counts compare empirical
+  // profiles without zero padding.
+  const grid = Math.max(a.length, b.length)
+  const sample = (list: RubricScore[], index: number): RubricScore =>
+    list[Math.min(list.length - 1, Math.floor((index * list.length) / grid))]
+
   let total = 0
-  for (const axis of RUBRIC_AXES) {
-    total += wasserstein1D(axisValues(scores1, axis), axisValues(scores2, axis))
+  for (let k = 0; k < grid; k++) {
+    const va = toVector(sample(a, k))
+    const vb = toVector(sample(b, k))
+    for (let axis = 0; axis < 4; axis++) {
+      total += Math.abs(va[axis] - vb[axis])
+    }
   }
-  return total / RUBRIC_AXES.length
+  // Average over grid points and the four axes -> [0,1].
+  return total / (grid * 4)
+}
+
+/**
+ * Marginal per-axis empirical W1. Useful for diagnosing which axis moved;
+ * unlike {@link wassersteinDistance} it does not preserve cross-axis pairing.
+ */
+export function marginalW1ByAxis(
+  scores1: RubricScore[],
+  scores2: RubricScore[]
+): Record<RubricAxis, number> {
+  if (scores1.length === 0 || scores2.length === 0) {
+    throw new Error('marginalW1ByAxis requires non-empty score arrays')
+  }
+  const result = {} as Record<RubricAxis, number>
+  for (const axis of RUBRIC_AXES) {
+    result[axis] = wasserstein1D(axisValues(scores1, axis), axisValues(scores2, axis))
+  }
+  return result
 }
 
 /**

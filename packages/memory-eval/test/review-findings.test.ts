@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { wassersteinDistance } from '../src/barycenter'
+import { wassersteinDistance, marginalW1ByAxis } from '../src/barycenter'
 import { detectBimodality } from '../src/modality'
 import { parseJudgeScore, JudgeOutputError } from '../src/judge-helpers'
 import { normalizedTextDistance, fixedPointDistance } from '../src/fixed-point'
@@ -193,5 +193,102 @@ describe('P1: harness drives the requested sessions', () => {
         probePrompts: [],
       })
     ).rejects.toThrow()
+  })
+})
+
+describe('Round 2 review findings', () => {
+  it('P1: preserves joint 4D geometry (marginal-preserving pairing)', () => {
+    // Same marginal, different pairings: [(0,0),(1,1)] vs [(0,1),(1,0)].
+    const a = [
+      { identity: 0, value: 0, expression: 0, memory: 0 },
+      { identity: 1, value: 1, expression: 1, memory: 1 },
+    ]
+    const b = [
+      { identity: 0, value: 1, expression: 0, memory: 1 },
+      { identity: 1, value: 0, expression: 1, memory: 0 },
+    ]
+    expect(wassersteinDistance(a, b)).toBeGreaterThan(0)
+  })
+
+  it('P2: integrates exact empirical W1 for unequal sample counts', () => {
+    // [0,1] vs [0,0.2,1] on one axis is exactly 1/6.
+    const a = [{ identity: 0, value: 0, expression: 0, memory: 0 }, { identity: 1, value: 1, expression: 1, memory: 1 }]
+    const b = [
+      { identity: 0, value: 0, expression: 0, memory: 0 },
+      { identity: 0.2, value: 0.2, expression: 0.2, memory: 0.2 },
+      { identity: 1, value: 1, expression: 1, memory: 1 },
+    ]
+    expect(marginalW1ByAxis(a, b).identity).toBeCloseTo(1 / 6, 6)
+  })
+
+  it('P1: non-converging baseline counts as fixed-point instability', () => {
+    const baseline: FixedPointResult = {
+      iterations: ['a'], residuals: [0.9], converged: false, finalResidual: 0.9, fixedPoint: 'unstable',
+    }
+    const current = fixedPoint('unstable')
+    const s = stableScores(4)
+    const result = computeDriftScore({
+      fixedPointBaseline: baseline,
+      fixedPointCurrent: current,
+      scoresBaseline: s,
+      scoresCurrent: s,
+    })
+    expect(result.drifted).toBe(true)
+  })
+
+  it('P2: rejects non-positive drift thresholds', () => {
+    const fp = fixedPoint('stable self description that does not change')
+    const s = stableScores(4)
+    expect(() =>
+      computeDriftScore({
+        fixedPointBaseline: fp,
+        fixedPointCurrent: fp,
+        scoresBaseline: s,
+        scoresCurrent: s,
+        w1Threshold: 0,
+      })
+    ).toThrow()
+    expect(() =>
+      computeDriftScore({
+        fixedPointBaseline: fp,
+        fixedPointCurrent: fp,
+        scoresBaseline: s,
+        scoresCurrent: s,
+        fpThreshold: -1,
+      })
+    ).toThrow()
+  })
+
+  it('P2: does not report bimodality from a degenerate two-point fit', () => {
+    // Two separated points must not produce a "two personas" result.
+    const result = detectBimodality([
+      [0, 0, 0, 0],
+      [0.5, 0.5, 0.5, 0.5],
+    ])
+    expect(result.bimodal).toBe(false)
+    expect(result.bicImprovement).toBe(0)
+  })
+
+  it('P1: harness passes persona as fallback context when systemPrompt is absent', async () => {
+    const contexts: (string | undefined)[] = []
+    const infer = async (_prompt: string, systemPrompt?: string) => {
+      contexts.push(systemPrompt)
+      return 'stable self description that does not change'
+    }
+    const judge = async () => ({ identity: 0.9, value: 0.9, expression: 0.9, memory: 0.9 })
+
+    await identityContinuityHarness({
+      character: { name: 'X', persona: 'A physicist' },
+      infer,
+      judge,
+      probePrompts: ['p'],
+      sessions: 1,
+      messagesPerSession: 1,
+      fillerPrompt: 'filler',
+    })
+
+    // Every inference call carried the persona as its context.
+    expect(contexts.length).toBeGreaterThan(0)
+    for (const c of contexts) expect(c).toBe('A physicist')
   })
 })

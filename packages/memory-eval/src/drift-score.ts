@@ -54,17 +54,30 @@ export function computeDriftScore(config: DriftScoreConfig): DriftScoreResult {
     bicThreshold = 10
   } = config
 
-  // 1. FP instability: did fixed point move or fail to converge?
+  if (
+    fpThreshold <= 0
+    || w1Threshold <= 0
+    || !(bicThreshold > 0)
+  ) {
+    throw new Error('fpThreshold, w1Threshold and bicThreshold must be positive')
+  }
+
+  // 1. FP instability. Both a non-converging baseline and a non-converging
+  //    current fixed point make the comparison unusable, so both count as
+  //    instability. A converging pair is scored by the distance between fixed
+  //    points.
+  let fpDrift: boolean
   let fpInstability = 0
-  if (!fixedPointCurrent.converged) {
-    fpInstability = 1.0  // Complete instability
+  if (!fixedPointBaseline.converged || !fixedPointCurrent.converged) {
+    fpInstability = 1.0
+    fpDrift = true
   } else {
-    // Distance between baseline and current fixed points
     const fpDist = normalizedTextDistance(
       fixedPointBaseline.fixedPoint,
       fixedPointCurrent.fixedPoint
     )
     fpInstability = Math.min(fpDist / fpThreshold, 1.0)
+    fpDrift = fpInstability >= 1
   }
 
   // 2. W1 migration
@@ -84,9 +97,6 @@ export function computeDriftScore(config: DriftScoreConfig): DriftScoreResult {
   // A component signals drift only when the raw metric reaches its configured
   // threshold, i.e. the normalized component reaches 1. Comparing with 0.5 here
   // would flag drift at half the configured limit (W1 0.15 under a 0.3 limit).
-  const fpDrift = fixedPointCurrent.converged
-    ? fpInstability >= 1
-    : true
   const w1Drift = w1Migration >= 1
   const bimodalDrift = bimodality >= 1
   const drifted = fpDrift || w1Drift || bimodalDrift
