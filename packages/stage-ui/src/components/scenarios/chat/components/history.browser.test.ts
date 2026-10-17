@@ -238,6 +238,8 @@ describe('chat history', () => {
     await vi.waitFor(() => {
       expect(screen.container.textContent).toContain('Compare PC builds for 3000 yuan.')
     })
+    // A send builds the recipe tool for itself, so a rerun could not find it.
+    expect(screen.container.querySelector('button[aria-label="Run again"]')).toBeNull()
   })
 
   // ROOT CAUSE:

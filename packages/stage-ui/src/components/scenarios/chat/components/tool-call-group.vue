@@ -14,6 +14,7 @@ import HitPill from './hit-pill.vue'
 import ToolCallPayload from './tool-call-payload.vue'
 
 import { useLlmToolsStore } from '../../../../stores/ai/chat-llm/tools'
+import { canRerunToolCall } from '../../../../stores/tool-call-rerun'
 import { toolIconOf } from '../../../../tools/icons'
 import { summarizeToolCallGroup, toolDisplayName } from './tool-call-group'
 import { resolveToolCallBlockState } from './tool-call-results'
@@ -219,8 +220,9 @@ function rerun(item: ToolCallGroupItem) {
             <span :class="['min-w-0 flex-1 truncate', 'text-primary-600 dark:text-primary-300']">{{ call.name }}</span>
             <span :class="['sr-only']">{{ t(`${KEY}.state.${call.state}`) }}</span>
           </button>
-          <!-- The rerun action shows on every call in every state, as it did on the per-call card before. -->
+          <!-- The rerun action shows on every call that a rerun can rebuild, in every state. -->
           <button
+            v-if="canRerunToolCall(call.toolCall.toolName)"
             type="button"
             :aria-label="t(`${KEY}.rerun`)"
             :title="t(`${KEY}.rerun`)"

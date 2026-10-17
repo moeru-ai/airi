@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ChatInvokedSkill } from '@proj-airi/core-agent'
 
+import { decisionOptions } from '@proj-airi/core-agent'
 import { useI18n } from 'vue-i18n'
 
 import HitPill from './hit-pill.vue'
@@ -25,11 +26,15 @@ const props = withDefaults(defineProps<{
 const { t } = useI18n()
 const KEY = 'stage.chat.invoked-skill'
 
-/** The answers of a decision with what each one means, in the words of the owner. */
+/**
+ * The answers of a decision with what each one means, in the words of the owner.
+ * They carry the ids that the judgment shows the model: yes and no, or option numbers from 1.
+ */
 function answersOf(question: Extract<ChatInvokedSkill, { kind: 'decision' }>['question']) {
-  if (question.type === 'noul')
-    return [{ label: t(`${KEY}.yes`), meaning: question.criteria.true }, { label: t(`${KEY}.no`), meaning: question.criteria.false }]
-  return Object.entries(question.criteria).map(([label, meaning]) => ({ label, meaning }))
+  return decisionOptions(question).map(option => ({
+    label: question.type === 'noul' ? t(`${KEY}.${option.id}`) : option.id,
+    meaning: option.meaning,
+  }))
 }
 </script>
 
