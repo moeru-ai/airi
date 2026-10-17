@@ -23,6 +23,8 @@ The single-host adapter and deferred-bootstrap changes require their own checks 
 The current reference is Electron at `dd6e3ce1f`.
 The chat composer, weather forecast tool, result cards, local streams, and native widget lifecycle follow that reference.
 Native Chat now supplies classic, attached, free, and message-feed styles with persistent unsent drafts.
+The shared voice inlay runs in a native follower window. macOS supplies passive background Escape observation.
+Experimental fullscreen Chat remains outside this alignment.
 [Verification](docs/verification.md#native-widget-alignment-2026-10-18) records the macOS checks and limits.
 These changes do not extend the historical Windows acceptance matrix.
 

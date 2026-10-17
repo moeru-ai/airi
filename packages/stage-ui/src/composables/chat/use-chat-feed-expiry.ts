@@ -27,6 +27,10 @@ interface ChatFeedExpiryOptions {
   minimumSeconds: MaybeRefOrGetter<number>
 }
 
+/**
+ * Hides completed messages after their reading time. Speech keeps the newest reply visible until playback ends.
+ * The calling Vue scope owns the timer. Disabling expiry restores the complete history without losing expired identities.
+ */
 export function useChatFeedExpiry(options: ChatFeedExpiryOptions) {
   const now = shallowRef(Date.now())
   const speechEndedAt = shallowReactive(new Map<string, number>())

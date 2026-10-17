@@ -14,6 +14,7 @@ public partial class Main : Node
     private OnboardingWindowManager? _onboarding;
     private SettingsWindowManager? _settings;
     private ChatWindowManager? _chat;
+    private InlayWindowHost? _inlay;
     private WidgetWindowManager? _widgets;
     private SpotlightHost? _spotlight;
     private NoticeWindowManager? _notice;
@@ -40,8 +41,8 @@ public partial class Main : Node
             return;
         }
 
-        var registry = ChatWindowContracts.Register(WidgetContracts.Register(AiriDesktopContracts.Register(
-            GdKiriePlatform.Register(new KirieEventaJsonRegistry()))));
+        var registry = InlayContracts.Register(ChatWindowContracts.Register(WidgetContracts.Register(AiriDesktopContracts.Register(
+            GdKiriePlatform.Register(new KirieEventaJsonRegistry())))));
         _eventa = _kirie.CreateEventaContext(registry);
         _platform = GdKiriePlatform.Attach(_eventa.Context, window);
         _displaySnapshotRegistration = CurrentDisplaySnapshotService.Attach(
@@ -92,6 +93,8 @@ public partial class Main : Node
                 rendererUrl,
                 _auth,
                 _microphonePermissions);
+            _inlay = new InlayWindowHost(_eventa.Context, this, registry,
+                rendererUrl, _microphonePermissions);
             _chat = new ChatWindowManager(
                 _eventa.Context,
                 this,
@@ -151,6 +154,7 @@ public partial class Main : Node
         _notice?.Dispose();
         _spotlight?.Dispose();
         _widgets?.Dispose();
+        _inlay?.Dispose();
         _chat?.Dispose();
         _settings?.Dispose();
         _onboarding?.Dispose();
@@ -168,6 +172,7 @@ public partial class Main : Node
     {
         _widgets?.Process();
         _chat?.Process();
+        _inlay?.Process();
         _auth?.ProcessPending();
         _microphonePermissions?.Process();
     }

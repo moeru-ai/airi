@@ -365,3 +365,10 @@ Call `dispose()` before changing startup modes or closing the renderer.
 Its shared settings select reading speed, minimum display time, and whether read messages hide.
 `use-speech-output-voicing` keeps the newest spoken reply visible until speech ends.
 Window geometry and native pointer handling stay in each desktop app.
+
+
+### Desktop voice inlay
+
+`VoiceInlay` from `components/scenarios/chat` displays speech capsules, live text, editable drafts, rewrites, and send transitions.
+The desktop wrapper supplies native pointer hit testing, return-home movement, and background Escape observation.
+The component exposes `active` and `dismiss` to that wrapper. It acquires no microphone resources.

@@ -133,3 +133,21 @@ The renderer fetches initial state before showing content and subscribes to late
 Fold completes its renderer transition before the native host hides the window.
 A hidden Chat keeps its CEF context and composer. Style changes also reuse this context.
 The main window's chat button reads the same host state.
+
+
+### Native voice inlay
+
+`InlayWindowHost` owns one transparent, pinned minimal follower window and its typed Eventa bindings.
+The shared `VoiceInlay` component consumes the real speech bus. Each desktop wrapper supplies native window behavior.
+The stage opens this window at startup, on capture, and when an editable draft appears.
+Idle content returns home after five seconds. A changed primary work area also returns the window home.
+
+On macOS, the AIRI-specific Escape observer uses CoreGraphics with `listenOnly` and its own Core Foundation loop.
+It observes only while speech or editable drafts are visible. It retains an Escape flag, not keyboard text.
+Godot's main thread consumes that flag and emits the typed Eventa notification.
+Disposal stops and joins the observer loop before releasing its native resources.
+Windows uses Kirie's published non-consuming keyboard driver. Local Escape works on both platforms without a global observer.
+
+The [Apple API](https://developer.apple.com/documentation/coregraphics/cgeventtapoptions/listenonly) defines passive listening.
+The pinned [Kirie macOS backend](https://github.com/moeru-ai/godot-kirie/blob/v0.10.0/packages/GdKirie.Platform/src/GlobalShortcuts/MacOsGlobalShortcutBackend.cs) registers Carbon hotkeys.
+The inlay uses passive observation so the foreground application also receives Escape.

@@ -82,6 +82,8 @@ mise x -- pnpm kirie dev
 The [dev command](https://github.com/moeru-ai/godot-kirie/blob/v0.10.0/packages/cli/src/commands/dev.ts) reuses the last C# build.
 After a C# change, repeat both commands.
 Spotlight opens through its global shortcut and has no in-app entry point.
+The voice inlay opens at startup and paints only while it presents speech or a draft.
+On macOS, background Escape needs Input Monitoring permission for Godot. Focused Escape works without that permission.
 
 ## Checks and build
 

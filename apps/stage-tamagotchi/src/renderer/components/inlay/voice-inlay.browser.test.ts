@@ -13,7 +13,7 @@ import VoiceInlay from './voice-inlay.vue'
 import 'virtual:uno.css'
 
 const { returnHome, setIgnoreMouseEvents, registerShortcut, unregisterShortcut, shortcutListeners, cursor } = vi.hoisted(() => ({
-  returnHome: vi.fn(),
+  returnHome: vi.fn(async () => {}),
   setIgnoreMouseEvents: vi.fn(),
   registerShortcut: vi.fn(async () => ({ ok: true })),
   unregisterShortcut: vi.fn(async () => {}),

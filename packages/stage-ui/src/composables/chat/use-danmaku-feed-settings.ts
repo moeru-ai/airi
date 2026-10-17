@@ -23,6 +23,7 @@ function useTimingSetting(key: string, setting: TimingSetting) {
   })
 }
 
+/** Shares desktop feed settings within this renderer. Both desktop hosts persist the same reading-speed and minimum-duration preferences. */
 export const useDanmakuFeedSettings = createGlobalState(() => ({
   hideReadMessages: useLocalStorage('chat-window/danmaku/hide-read-messages', true),
   charactersPerSecond: useTimingSetting('chat-window/danmaku/characters-per-second', danmakuFeedTiming.charactersPerSecond),

@@ -11,6 +11,7 @@ internal static class Program
         {
             TestsWidgetWirePayloads();
             TestsChatWindowWirePayloads();
+            TestsInlayHomeGeometry();
             TestsDesktopWindowGeometry();
             TestsSpotlightShortcutPolicy();
             TestsNativeResizeEdges();
@@ -33,6 +34,17 @@ internal static class Program
             Console.Error.WriteLine(error);
             return 1;
         }
+    }
+
+    private static void TestsInlayHomeGeometry()
+    {
+        var bounds = InlayWindowHost.ResolveHome(new Rect2I(-3600, 80, 3600, 2080), 2);
+        AssertEqual(new Vector2I(1040, 400), bounds.Size, "inlay uses logical size at 200% scale");
+        AssertEqual(new Vector2I(-2320, 1552), bounds.Position,
+            "inlay centers in a negative-origin work area above the taskbar");
+        var small = InlayWindowHost.ResolveHome(new Rect2I(20, 30, 640, 180), 1);
+        AssertEqual(30, small.Position.Y, "short work area clamps the inlay to its top");
+        AssertEqual(180, small.Size.Y, "short work area limits the inlay height");
     }
 
     private static void TestsChatWindowWirePayloads()

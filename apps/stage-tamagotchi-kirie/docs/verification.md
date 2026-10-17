@@ -247,3 +247,32 @@ These checks do not establish native drag, resize, multiple-display, Windows, or
 The development toolbar initially covered the folded composer tab. Its normal drag control moved it to the side.
 The subsequent recording expanded the composer through real pointer input and displayed the retained draft.
 The earlier blocked take remains a failed demonstration, not an acceptance result.
+
+
+## Native voice inlay (2026-10-18)
+
+Electron and Kirie now use the shared speech presentation component.
+The Godot host supplies a pinned, transparent minimal follower window, bounded home geometry, reuse, and display-area tracking.
+Its native bounds matched the running Electron inlay: 520 by 200 logical pixels at the same desktop position.
+The real voice host reported connected, with no input or drafts. The microphone stayed disabled.
+
+A recording explicitly marked simulated speech showed the listening capsule and live transcript card through the real speech bus.
+The fixture was removed by requesting the real host snapshot. No transcription or microphone acquisition occurred.
+
+AUV's targeted keyboard and System Events input paths did not establish background Escape delivery.
+A direct CoreGraphics HID Escape produced one native Eventa notification and dismissed the simulated capsule.
+For the final check, Electron's chat menu had focus while the Kirie inlay stayed unfocused.
+The same HID Escape closed the Electron menu and the Kirie capsule. Electron retained focus.
+The observer already had system permission. The session changed no system privacy permissions.
+This verifies software-generated native HID input. It does not establish physical keyboard acceptance.
+
+Checks:
+
+- Kirie tests: 89 passed and one optional provider test skipped, including 12 inlay adapter tests with real voice state.
+- Electron inlay tests: 11 passed with the shared presentation component.
+- C# build and native geometry tests: passed.
+- Stage UI, Kirie, and Electron typechecks: passed.
+- Root typecheck: all 56 workspaces passed.
+
+Physical microphone capture, Push to Talk holds, configured speech playback, Windows, and multiple displays remain unverified in this session.
+Plugin hosting, Artistry, MCP, server channels, and production packaging retain their recorded deferred decisions.

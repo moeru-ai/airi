@@ -11,7 +11,7 @@ import {
   useHostRelativeMouse,
 } from '@proj-airi/stage-host-context'
 import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
-import { HoloCoupon, VoiceDrafts } from '@proj-airi/stage-ui/components'
+import { HoloCoupon } from '@proj-airi/stage-ui/components'
 import {
   createEmptyModelSettingsRuntimeSnapshot,
   resolveComponentStateToRuntimePhase,
@@ -32,6 +32,7 @@ import ControlsIsland from '../components/stage-islands/controls-island/index.vu
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
 
 import { electronOpenSettings } from '../../shared/eventa'
+import { openInlay } from '../../shared/inlay'
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
 import { usePushToTalkShortcut } from '../composables/use-push-to-talk-shortcut'
 import { useControlsIslandStore } from '../stores/controls-island'
@@ -299,11 +300,21 @@ const voice = useVoiceStore()
 onScopeDispose(voice.connectTools(() => artistryToolReferences))
 useVoiceListening()
 usePushToTalkShortcut()
+const showInlay = useHostEventaInvoke(openInlay)
+watch(() => voice.state?.phase === 'capturing', (capturing) => {
+  if (capturing)
+    void showInlay({})
+})
+watch(() => voice.drafts.filter(draft => !draft.sending).map(draft => `${draft.id}:${draft.rawText}`).join('\0'), (drafts) => {
+  if (drafts)
+    void showInlay({})
+})
 watch(() => voice.error, (error) => {
   if (error)
     toast.error(error)
 })
 onMounted(() => {
+  void showInlay({})
   if (onboardingStore.needsOnboarding)
     openOnboarding()
 })
@@ -345,9 +356,6 @@ const cursorPosition = computed(() => ({
           @select-avatar-model="openSettings({ route: '/settings/models' })"
         />
         <HoloCoupon />
-        <div :class="['absolute bottom-3 left-1/2 z-30 w-fit -translate-x-1/2']">
-          <VoiceDrafts />
-        </div>
         <ControlsIslandRoot :frozen="controlsIslandInteractionActive">
           <ControlsIsland
             ref="controlsIslandRef"

@@ -8,6 +8,10 @@ import { useChatFeedExpiry } from './use-chat-feed-expiry'
 import { useDanmakuFeedSettings } from './use-danmaku-feed-settings'
 import { useSpeechOutputVoicing } from './use-speech-output-voicing'
 
+/**
+ * Supplies the message-feed history cutoff to both desktop apps.
+ * Its child scope owns speech subscriptions and reading timers only while the message-feed style hides read messages.
+ */
 export function useDanmakuFeedExpiry(danmaku: MaybeRefOrGetter<boolean>, expire: MaybeRefOrGetter<boolean>) {
   const { hideReadMessages, charactersPerSecond, minimumSeconds } = useDanmakuFeedSettings()
   const feed = shallowRef<ReturnType<typeof useChatFeedExpiry>>()

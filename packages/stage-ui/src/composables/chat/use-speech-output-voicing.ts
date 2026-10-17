@@ -3,6 +3,10 @@ import { onScopeDispose, shallowRef } from 'vue'
 
 import { getSpeechBusContext, speechOutputGetPlaybackState, speechOutputPlaybackStateChangedEvent } from '../../services/speech/bus'
 
+/**
+ * Follows the main window's playback state from another renderer. The calling scope owns its speech-bus subscription.
+ * After a one-second lookup failure, reading timers proceed without speech state until a later event arrives.
+ */
 export function useSpeechOutputVoicing() {
   const voicing = shallowRef(false)
   const initialLookupSettled = shallowRef(false)
