@@ -32,8 +32,38 @@ const rubricScoreSchema = object({
 
 export class JudgeOutputError extends Error {
   constructor(public readonly raw: string) {
-    super(`Judge returned output that is not a valid 4-axis rubric score: ${raw.slice(0, 200)}`)
+    super(`Judge returned output that is not a valid 4-axis rubric score: ${String(raw).slice(0, 200)}`)
     this.name = 'JudgeOutputError'
+  }
+}
+
+/**
+ * Validate a judge score object produced by any callback (including custom
+ * judges that bypass parseJudgeScore). Throws JudgeOutputError when an axis is
+ * missing, non-finite, or the weight is not a finite non-negative number.
+ * Without this, a single NaN axis turns W1 into NaN and a stable identity can
+ * report `drifted: false` with NaN fidelity.
+ */
+export function assertRubricScore(score: unknown): RubricScore {
+  const result = safeParse(rubricScoreSchema, score)
+  if (!result.success) throw new JudgeOutputError(JSON.stringify(score))
+
+  const { identity, value, expression, memory } = result.output
+  for (const v of [identity, value, expression, memory]) {
+    if (!Number.isFinite(v)) throw new JudgeOutputError(JSON.stringify(score))
+  }
+
+  const weight = (score as { weight?: unknown }).weight
+  if (weight !== undefined && (typeof weight !== 'number' || !Number.isFinite(weight) || weight < 0)) {
+    throw new JudgeOutputError(JSON.stringify(score))
+  }
+
+  return {
+    identity: clamp01(identity),
+    value: clamp01(value),
+    expression: clamp01(expression),
+    memory: clamp01(memory),
+    weight: weight as number | undefined,
   }
 }
 

@@ -89,7 +89,15 @@ export function computeDriftScore(config: DriftScoreConfig): DriftScoreResult {
   const flattenScores = (scores: RubricScore[]): number[][] =>
     scores.map(s => [s.identity, s.value, s.expression, s.memory])
 
-  const bimodalityResult = detectBimodality(flattenScores(scoresCurrent), bicThreshold)
+  // Pass per-score weight so zero-mass observations do not create a split
+  // that W1 already excludes.
+  const weightsCurrent = scoresCurrent.map(s => s.weight ?? 1)
+  const bimodalityResult = detectBimodality(
+    flattenScores(scoresCurrent),
+    bicThreshold,
+    42,
+    weightsCurrent
+  )
   const bimodality = bimodalityResult.bimodal ? 1.0 : 0.0
 
   // Unified score (max of the normalized components). Kept for reporting.

@@ -15,6 +15,7 @@ import type { DriftScoreResult } from './drift-score'
 import { computeFixedPoint, fixedPointDistance } from './fixed-point'
 import { wassersteinDistance } from './barycenter'
 import { computeDriftScore } from './drift-score'
+import { assertRubricScore } from './judge-helpers'
 
 export interface HarnessConfig {
   /** Character configuration */
@@ -105,11 +106,26 @@ export async function identityContinuityHarness(
     throw new Error('probePrompts must contain at least one prompt')
   }
 
+  // Bound the session loops: Infinity never terminates, and a fractional
+  // count silently rounds up because the integer counter only stops after
+  // crossing the configured value.
+  const isCount = (x: number) => Number.isInteger(x) && x >= 0
+  if (!isCount(sessions)) {
+    throw new Error('sessions must be a finite non-negative integer')
+  }
+  if (!isCount(messagesPerSession)) {
+    throw new Error('messagesPerSession must be a finite non-negative integer')
+  }
+
   // Every inference call receives the persona as its context, so a provider
   // callback without its own system prompt still answers as the character
   // rather than as a generic assistant. An explicit systemPrompt overrides.
   const context = character.systemPrompt ?? character.persona
   const ask = (prompt: string) => infer(prompt, context)
+  // Custom judge callbacks bypass parseJudgeScore, so every score is validated
+  // before use. A non-finite axis would otherwise poison W1 with NaN.
+  const score = async (prompt: string): Promise<RubricScore> =>
+    assertRubricScore(await judge(await ask(prompt)))
 
   // 1. Baseline fixed-point, seeded from the declared persona.
   const fixedPointBaseline = await computeFixedPoint({
@@ -120,7 +136,7 @@ export async function identityContinuityHarness(
   // 2. Baseline probe scores.
   const scoresBaseline: RubricScore[] = []
   for (const prompt of probePrompts) {
-    scoresBaseline.push(await judge(await ask(prompt)))
+    scoresBaseline.push(await score(prompt))
   }
 
   // 3. Drive the long-horizon sessions. Every message is a real inference
@@ -149,7 +165,7 @@ export async function identityContinuityHarness(
   // 5. Current probe scores.
   const scoresCurrent: RubricScore[] = []
   for (const prompt of probePrompts) {
-    scoresCurrent.push(await judge(await ask(prompt)))
+    scoresCurrent.push(await score(prompt))
   }
 
   // 6. Metrics.

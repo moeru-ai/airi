@@ -44,6 +44,16 @@ export async function computeFixedPoint(
     convergenceThreshold = 0.05
   } = config
 
+  // Guard the loop bounds: 0 would skip inference and leave finalResidual
+  // undefined, Infinity would never terminate, and a fractional count would
+  // silently round up.
+  if (!Number.isInteger(maxIterations) || maxIterations < 1) {
+    throw new Error('maxIterations must be a positive integer')
+  }
+  if (!Number.isFinite(convergenceThreshold) || convergenceThreshold <= 0) {
+    throw new Error('convergenceThreshold must be a finite positive number')
+  }
+
   const iterations: string[] = [initialDescription]
   const residuals: number[] = []
 
