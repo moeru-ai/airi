@@ -326,6 +326,40 @@ describe('createChatOrchestratorRuntime', () => {
     }
   })
 
+  // ROOT CAUSE:
+  //
+  // The marker parser holds back the end of the text and handles text later than it receives it.
+  // A tool call joined the reply at once, so it landed inside the sentence before it.
+  //
+  // We now flush the parser at each tool call first.
+  it.each([
+    ['the text settled before the call', true],
+    ['the text and the call arrive together', false],
+  ])('keeps the text before a tool call in front of it when %s', async (_name, settled) => {
+    const harness = createHarness()
+    const call = { type: 'tool-call', toolCallId: 'call-weather', toolCallType: 'function', toolName: 'weather', args: '{}' } as const
+    harness.stream.mockImplementationOnce(async (_model, _provider, _context, options) => {
+      // xsAI does not wait for the handler of an event before it sends the next one.
+      for (const text of ['查曼谷', '和上海', '未来三天的天气。'])
+        void options?.onStreamEvent?.({ type: 'text-delta', text })
+      if (settled)
+        await new Promise(resolve => setTimeout(resolve, 20))
+      void options?.onStreamEvent?.(call)
+      void options?.onStreamEvent?.({ type: 'tool-result', toolCallId: 'call-weather', result: 'sunny' })
+      void options?.onStreamEvent?.({ type: 'text-delta', text: '第 1/3 步完成。' })
+      await options?.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await harness.runtime.ingest('weather', { model: 'test', chatProvider: provider })
+
+    const saved = harness.sessionMessages['session-1'].findLast(message => message.role === 'assistant')
+    expect(saved?.role === 'assistant' && saved.slices).toEqual([
+      { type: 'text', text: '查曼谷和上海未来三天的天气。' },
+      { type: 'tool-call', toolCall: call },
+      { type: 'text', text: '第 1/3 步完成。' },
+    ])
+  })
+
   it('admits a replacement turn when the cancelled provider ignores abort', async () => {
     const harness = createHarness()
     const held = Promise.withResolvers<void>()

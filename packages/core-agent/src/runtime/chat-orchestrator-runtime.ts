@@ -1041,13 +1041,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
               buildingMessage.citations = [...(buildingMessage.citations ?? []), ...event.citations]
               updateStream(sessionId, buildingMessage)
               break
-            case 'tool-call':
-              toolCallQueue.enqueue({
-                type: 'tool-call',
-                toolCall: event,
-              })
-
+            case 'tool-call': {
+              // The parser still holds the end of the text before this call. The flush starts now, so it covers only that text,
+              // and the call lands after it. A failed parser fails the turn, and the call still joins the reply.
+              const enqueue = () => toolCallQueue.enqueue({ type: 'tool-call', toolCall: event })
+              void parser.flush().then(enqueue, enqueue)
               break
+            }
             case 'tool-result':
               toolCallQueue.enqueue({
                 type: 'tool-call-result',
