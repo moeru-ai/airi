@@ -33,6 +33,21 @@ export function cohensKappa(
   if (humanLabels.length !== judgeLabels.length) {
     throw new Error('Label arrays must have equal length')
   }
+  if (humanLabels.length === 0) {
+    throw new Error('Label arrays must not be empty')
+  }
+
+  // The confusion matrix is 2x2, so only binary labels are meaningful. Reject
+  // anything else explicitly instead of throwing an incidental TypeError.
+  const assertBinary = (labels: number[], name: string) => {
+    for (let i = 0; i < labels.length; i++) {
+      if (labels[i] !== 0 && labels[i] !== 1) {
+        throw new Error(`${name}[${i}] must be 0 or 1, received ${labels[i]}`)
+      }
+    }
+  }
+  assertBinary(humanLabels, 'humanLabels')
+  assertBinary(judgeLabels, 'judgeLabels')
 
   const n = humanLabels.length
 

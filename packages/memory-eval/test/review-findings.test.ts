@@ -7,7 +7,8 @@ import { describe, it, expect } from 'vitest'
 import { wassersteinDistance, marginalW1ByAxis, centroidProfileDistance } from '../src/barycenter'
 import { detectBimodality } from '../src/modality'
 import { parseJudgeScore, JudgeOutputError } from '../src/judge-helpers'
-import { normalizedTextDistance, fixedPointDistance } from '../src/fixed-point'
+import { normalizedTextDistance, fixedPointDistance, computeFixedPoint } from '../src/fixed-point'
+import { cohensKappa } from '../src/kappa'
 import { computeDriftScore } from '../src/drift-score'
 import { identityContinuityHarness } from '../src/harness'
 import type { FixedPointResult } from '../src/fixed-point'
@@ -279,6 +280,68 @@ describe('Round 2 review findings', () => {
         })
       ).toThrow()
     }
+  })
+
+  it('P1 round4: custom judge returning non-finite scores is rejected', async () => {
+    const infer = async () => 'a stable self description with fixed wording'
+    const badJudge = async () => ({
+      identity: Number.NaN, value: 0.9, expression: 0.9, memory: 0.9,
+    })
+    await expect(
+      identityContinuityHarness({
+        character: { name: 'X', persona: 'p' },
+        infer,
+        judge: badJudge,
+        probePrompts: ['p'],
+        sessions: 0,
+        messagesPerSession: 0,
+      })
+    ).rejects.toThrow()
+  })
+
+  it('P2 round4: zero-weight cluster does not create a bimodal split', () => {
+    // High-only baseline vs the same highs plus four zero-weight lows.
+    const highs = Array.from({ length: 12 }, (_, i) => ({
+      identity: 0.86 + (i % 3) * 0.01, value: 0.85, expression: 0.85, memory: 0.84,
+    }))
+    const lows = Array.from({ length: 4 }, () => ({
+      identity: 0.1, value: 0.1, expression: 0.1, memory: 0.1, weight: 0,
+    }))
+    const current = [...highs, ...lows]
+    const result = computeDriftScore({
+      fixedPointBaseline: fixedPoint('a stable self description that stays fixed'),
+      fixedPointCurrent: fixedPoint('a stable self description that stays fixed'),
+      scoresBaseline: highs,
+      scoresCurrent: current,
+    })
+    expect(result.bimodality).toBe(0)
+  })
+
+  it('P2 round4: fixed-point rejects invalid iteration limits', async () => {
+    const infer = async () => 'same text'
+    for (const bad of [0, -1, 1.5, Number.POSITIVE_INFINITY, Number.NaN]) {
+      await expect(computeFixedPoint({
+        initialDescription: 'x', infer, maxIterations: bad,
+      })).rejects.toThrow()
+    }
+  })
+
+  it('P2 round4: harness rejects invalid session counts', async () => {
+    const infer = async () => 'same text'
+    const judge = async () => ({ identity: 1, value: 1, expression: 1, memory: 1 })
+    for (const bad of [Number.POSITIVE_INFINITY, 1.5, -1, Number.NaN]) {
+      await expect(identityContinuityHarness({
+        character: { name: 'X', persona: 'p' },
+        infer, judge, probePrompts: ['p'],
+        sessions: bad, messagesPerSession: 1,
+      })).rejects.toThrow()
+    }
+  })
+
+  it('P2 round4: kappa rejects non-binary labels', () => {
+    expect(() => cohensKappa([0, 1, 2], [0, 1, 1])).toThrow()
+    expect(() => cohensKappa([0, 1], [0, -1])).toThrow()
+    expect(() => cohensKappa([], [])).toThrow()
   })
 
   it('P2 round3: harness forwards bicThreshold to drift scoring', async () => {

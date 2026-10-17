@@ -25,13 +25,36 @@ export interface BimodalityResult {
 export function detectBimodality(
   data: number[][],  // Each row is 4D rubric score
   bicThreshold = 10,  // BIC improvement threshold
-  seed = 42  // Deterministic EM initialization
+  seed = 42,  // Deterministic EM initialization
+  sampleWeights?: number[]  // Per-row mass; zero-weight rows carry no mass
 ): BimodalityResult {
   // Bimodality needs at least two points: one component cannot be
   // distinguished from another with fewer samples than components.
   if (!data || data.length < 2) {
     return { bimodal: false, bic1: 0, bic2: 0, bicImprovement: 0 }
   }
+
+  // A zero-weight observation must not influence the fit, matching the W1
+  // metric which already excludes it. Keep only positive-mass rows.
+  let rows = data
+  let weights = sampleWeights
+  if (weights) {
+    const keptRows: number[][] = []
+    const keptWeights: number[] = []
+    for (let i = 0; i < data.length; i++) {
+      const w = weights[i] ?? 1
+      if (Number.isFinite(w) && w > 0) {
+        keptRows.push(data[i])
+        keptWeights.push(w)
+      }
+    }
+    rows = keptRows
+    weights = keptWeights
+    if (rows.length < 2) {
+      return { bimodal: false, bic1: 0, bic2: 0, bicImprovement: 0 }
+    }
+  }
+  data = rows
 
   // A two-component diagonal GMM has 17 free parameters in 4D. With very few
   // observations each point can get its own near-zero-variance Gaussian, which
@@ -47,11 +70,11 @@ export function detectBimodality(
   const k2 = 2
 
   // Fit 1-component GMM
-  const gmm1 = fitGMM(data, 1, seed)
+  const gmm1 = fitGMM(data, 1, seed, 50, weights)
   const bic1 = computeBIC(data, gmm1)
 
   // Fit 2-component GMM
-  const gmm2 = fitGMM(data, k2, seed + 1)
+  const gmm2 = fitGMM(data, k2, seed + 1, 50, weights)
   const bic2 = computeBIC(data, gmm2)
 
   const bicImprovement = bic1 - bic2
@@ -91,13 +114,23 @@ function mulberry32(seed: number): () => number {
  * makes the input independent of observation order, so grouping vs
  * interleaving the same points cannot change which centroid starts first.
  */
-function canonicalRows(data: number[][]): number[][] {
-  return [...data].sort((a, b) => {
+function canonicalOrder(
+  data: number[][],
+  weights: number[]
+): { rows: number[][]; weights: number[] } {
+  const indices = data.map((_, i) => i)
+  indices.sort((ia, ib) => {
+    const a = data[ia]
+    const b = data[ib]
     for (let dim = 0; dim < a.length; dim++) {
       if (a[dim] !== b[dim]) return a[dim] - b[dim]
     }
-    return 0
+    return ia - ib
   })
+  return {
+    rows: indices.map(i => data[i]),
+    weights: indices.map(i => weights[i]),
+  }
 }
 
 /**
@@ -108,13 +141,20 @@ function canonicalRows(data: number[][]): number[][] {
  * which (together with canonical row ordering) makes the BIC comparison
  * invariant to both the order of observations and the single random draw.
  */
-function fitGMM(data: number[][], k: number, seed = 42, maxIter = 50): GMM {
-  const ordered = canonicalRows(data)
+function fitGMM(
+  data: number[][],
+  k: number,
+  seed = 42,
+  maxIter = 50,
+  sampleWeights?: number[]
+): GMM {
+  const baseWeights = sampleWeights ?? data.map(() => 1)
+  const { rows, weights } = canonicalOrder(data, baseWeights)
   const restarts = k === 1 ? 1 : 5
 
   let best: GMM | null = null
   for (let run = 0; run < restarts; run++) {
-    const candidate = fitGMMOnce(ordered, k, mulberry32(seed + run * 1009), maxIter)
+    const candidate = fitGMMOnce(rows, k, mulberry32(seed + run * 1009), maxIter, weights)
     if (!best || candidate.logLikelihood > best.logLikelihood) {
       best = candidate
     }
@@ -126,10 +166,12 @@ function fitGMMOnce(
   data: number[][],
   k: number,
   rand: () => number,
-  maxIter: number
+  maxIter: number,
+  sampleWeights: number[]
 ): GMM {
   const n = data.length
   const d = data[0].length
+  const totalMass = sampleWeights.reduce((acc, w) => acc + w, 0)
 
   // Initialize means (k-means++ style, seeded)
   const means = initializeMeans(data, k, rand)
@@ -155,15 +197,16 @@ function fitGMMOnce(
 
     for (let i = 0; i < n; i++) {
       let sumResp = 0
+      const mass = sampleWeights[i]
       for (let j = 0; j < k; j++) {
         const prob = gaussianPDF(data[i], means[j], covariances[j])
-        responsibilities[i][j] = weights[j] * prob
+        responsibilities[i][j] = weights[j] * prob * mass
         sumResp += responsibilities[i][j]
       }
       for (let j = 0; j < k; j++) {
         responsibilities[i][j] /= sumResp
       }
-      logLikelihoods[i] = Math.log(sumResp)
+      logLikelihoods[i] = Math.log(sumResp > 0 ? sumResp : 1e-300)
     }
 
     const newLogLikelihood = logLikelihoods.reduce((a, b) => a + b, 0)
@@ -173,7 +216,7 @@ function fitGMMOnce(
     // M-step: update parameters
     for (let j = 0; j < k; j++) {
       const nj = responsibilities.map(r => r[j]).reduce((a, b) => a + b, 0)
-      weights[j] = nj / n
+      weights[j] = totalMass > 0 ? nj / totalMass : 0
 
       // Empty component: keep its prior centroid, reset covariance.
       if (nj < 1e-12) {
