@@ -14,7 +14,7 @@ import 'virtual:uno.css'
 
 const sdk = vi.hoisted(() => ({
   getCustomerInfo: vi.fn<() => Promise<CustomerInfo>>(),
-  changeUser: vi.fn(),
+  changeUser: vi.fn(async () => {}),
   getOfferings: vi.fn(),
   purchase: vi.fn(),
 }))
@@ -30,12 +30,12 @@ vi.mock('@revenuecat/purchases-js', async (importOriginal) => {
   }
 })
 
-function customer(productId: string | null): CustomerInfo {
+function customer(productId: string | null, store: EntitlementInfo['store'] = 'rc_billing'): CustomerInfo {
   const entitlement: EntitlementInfo = {
     identifier: 'capacitor',
     isActive: true,
     willRenew: true,
-    store: 'rc_billing',
+    store,
     latestPurchaseDate: new Date(),
     originalPurchaseDate: new Date(),
     expirationDate: new Date('2030-01-01'),
@@ -97,7 +97,9 @@ describe('capacitor quota display and purchase actions', () => {
       if (pathname.endsWith('/catalog'))
         return Response.json({ capacitors: [{ productId: 'monthly', quota: 100 }, { productId: 'plus', quota: 300 }], resetInterval: 'day' })
       if (pathname.endsWith('/sync'))
-        return Response.json({ synced: true })
+        return Response.json({ synced: true, pendingChange: null })
+      if (pathname.endsWith('/product-change'))
+        return Response.json({ subscriptionId: 'subscription-owner', subscriberToken: 'subscriber-token' })
       return Response.json({ flux: 150, capacitorPercent: 50, capacitorRechargesAt: null, fallbackToFlux: false })
     })
   })
@@ -127,8 +129,8 @@ describe('capacitor quota display and purchase actions', () => {
   it.each([
     { productId: 'monthly', action: 'Upgrade' },
     { productId: 'plus', action: 'Downgrade' },
-  ])('keeps $action in the subscription management page', async ({ productId, action }) => {
-    sdk.getCustomerInfo.mockResolvedValue(customer(productId))
+  ])('keeps $action in the store subscription management page', async ({ productId, action }) => {
+    sdk.getCustomerInfo.mockResolvedValue(customer(productId, 'app_store'))
     const open = vi.spyOn(window, 'open').mockReturnValue(null)
     const screen = openPage()
 
@@ -156,17 +158,42 @@ describe('capacitor quota display and purchase actions', () => {
     expect(screen.getByText('Callout', { exact: true }).elements()).toHaveLength(0)
   })
 
-  it('waits for the customer before it exposes package actions', async () => {
+  // https://github.com/moeru-ai/airi/pull/3003
+  // ROOT CAUSE:
+  // Parallel package reads exposed checkout before the customer read completed.
+  // Unknown customer state selected an ordinary purchase without productChangeInfo.
+  // The page now requires a successful customer read before it enables checkout.
+  it('disables checkout while the customer read is pending (Issue #3003)', async () => {
     let resolveCustomer: (info: CustomerInfo) => void = () => {
       throw new Error('Expected a pending customer read')
     }
     sdk.getCustomerInfo.mockReturnValueOnce(new Promise(resolve => resolveCustomer = resolve))
+    sdk.getOfferings.mockResolvedValue({
+      current: { metadata: null, availablePackages: [monthlyPackage('plus', 10_000_000)] },
+    })
     const screen = openPage()
 
-    await vi.waitFor(() => expect(sdk.getCustomerInfo).toHaveBeenCalledOnce())
-    expect(sdk.getOfferings).not.toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: 'Install', exact: true }).elements()).toHaveLength(0)
+    await expect.element(screen.getByRole('button', { name: 'Install', exact: true })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'Install', exact: true })).toBeDisabled()
+    expect(sdk.purchase).not.toHaveBeenCalled()
     resolveCustomer(customer('monthly'))
-    await expect.element(screen.getByRole('button', { name: 'Upgrade', exact: true })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'Upgrade', exact: true })).toBeEnabled()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/3003
+  // ROOT CAUSE:
+  // A failed customer read left the subscription unknown while package actions stayed active.
+  // The page now keeps checkout disabled and shows the customer error.
+  it('keeps checkout disabled when the customer read fails (Issue #3003)', async () => {
+    sdk.getCustomerInfo.mockRejectedValueOnce(new Error('SDK unavailable'))
+    sdk.getOfferings.mockResolvedValue({
+      current: { metadata: null, availablePackages: [monthlyPackage('plus', 10_000_000)] },
+    })
+    const screen = openPage()
+
+    await expect.element(screen.getByRole('status')).toHaveTextContent('Failed to load your Capacitor.')
+    await expect.element(screen.getByRole('button', { name: 'Install', exact: true })).toBeDisabled()
+    expect(sdk.purchase).not.toHaveBeenCalled()
+    expect(requests).not.toContain('/api/v1/revenuecat/product-change')
   })
 })

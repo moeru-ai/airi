@@ -1,7 +1,7 @@
 import type { InferOutput } from 'valibot'
 
 import { createBadGatewayError, createServiceUnavailableError } from '@proj-airi/http-error-shared'
-import { array, boolean, nullable, number, object, safeParse, string } from 'valibot'
+import { array, boolean, nullable, number, object, optional, safeParse, string } from 'valibot'
 
 const REQUEST_TIMEOUT_MS = 5_000
 
@@ -9,6 +9,10 @@ const REQUEST_TIMEOUT_MS = 5_000
 const PAGE_LIMIT = 100
 
 const subscriptionSchema = object({
+  /** RevenueCat's subscription id. A product change names the subscription that it replaces. */
+  id: string(),
+  /** The store that bills the subscription. Only a web store can change the product from the web app. */
+  store: string(),
   /**
    * `production` or `sandbox`. A deployment grants only the subscriptions of its own environment.
    * See `countsFor`.
@@ -27,6 +31,13 @@ const subscriptionSchema = object({
   current_period_starts_at: number(),
   /** End of the current billing period, in milliseconds. Null for a subscription without an end. */
   current_period_ends_at: nullable(number()),
+  /**
+   * The state at the next renewal. `product` differs from `product_id` when a downgrade is scheduled.
+   * Early renewals and failed upcoming renewals can omit `product` when it stays the same.
+   */
+  pending_changes: optional(nullable(object({
+    product: optional(nullable(object({ id: string() }))),
+  }))),
   entitlements: object({
     items: array(object({ id: string(), lookup_key: string() })),
   }),
@@ -47,7 +58,22 @@ const activeEntitlementListSchema = object({
 
 const productSchema = object({ store_identifier: string() })
 
+const subscriberTokenSchema = object({ access_token: string() })
+
+/**
+ * The stores that the Web SDK can change a product for.
+ * App Store and Google Play subscriptions change only in the store that bills them.
+ */
+const WEB_STORES = new Set(['rc_billing', 'stripe'])
+
 type Subscription = InferOutput<typeof subscriptionSchema>
+
+/** What the Web SDK needs to replace the customer's subscription with another product. */
+export interface ProductChangeGrant {
+  subscriptionId: string
+  /** A short-lived token that lets the browser change this customer's subscription. */
+  subscriberToken: string
+}
 
 /** One entitlement that the customer has now. */
 export interface SubscriberEntitlement {
@@ -59,6 +85,8 @@ export interface SubscriberEntitlement {
   purchasedAt: Date
   /** The end of access, grace period included. Null means no expiry. */
   accessUntil: Date | null
+  /** Another product that replaces this one at the next renewal, for example after a downgrade. */
+  pendingChange: { productId: string, startsAt: Date } | null
 }
 
 /**
@@ -83,6 +111,8 @@ export function createRevenuecatSubscriberClient(input: {
   /** API v2 secret key with read access to customer information and project configuration. */
   apiKey: string | null
   projectId: string | null
+  /** The id of the RevenueCat Web Billing app, for example `app0a4944c9ea`. Product changes need it. */
+  webAppId: string | null
   /** The store environment whose subscriptions this deployment grants. */
   environment: 'production' | 'sandbox'
   /** Dedicated test accounts whose sandbox subscriptions a production deployment also grants. */
@@ -106,15 +136,18 @@ export function createRevenuecatSubscriberClient(input: {
     return environment === input.environment || (environment === 'sandbox' && sandboxUserIds.has(userId))
   }
 
-  /** Reads one resource. Returns null for 404, which is a customer that RevenueCat does not know. */
-  async function read(url: string): Promise<unknown> {
+  /** Sends one request. Returns null for 404, which is a customer that RevenueCat does not know. */
+  async function request(url: string, init: { method: 'GET' } | { method: 'POST', body: unknown } = { method: 'GET' }): Promise<unknown> {
     let response: Response
     try {
       response = await fetchImpl(url, {
+        method: init.method,
         headers: {
           Authorization: `Bearer ${input.apiKey}`,
           Accept: 'application/json',
+          ...(init.method === 'POST' && { 'Content-Type': 'application/json' }),
         },
+        ...(init.method === 'POST' && { body: JSON.stringify(init.body) }),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       })
     }
@@ -135,6 +168,24 @@ export function createRevenuecatSubscriberClient(input: {
     }
   }
 
+  /**
+   * RevenueCat product id to store identifier. Both ids of a product never change, so the map never expires.
+   * The product endpoint shares a quota of 60 requests a minute for the whole project, and each sync needs it.
+   * The map lives as long as the process and holds one entry for each product in the project.
+   */
+  const storeIdentifiers = new Map<string, string>()
+
+  async function storeIdentifierOf(productId: string): Promise<string> {
+    const known = storeIdentifiers.get(productId)
+    if (known)
+      return known
+    const product = safeParse(productSchema, await request(projectUrl(`/products/${encodeURIComponent(productId)}`)))
+    if (!product.success)
+      throw createBadGatewayError('RevenueCat subscriber response is invalid')
+    storeIdentifiers.set(productId, product.output.store_identifier)
+    return product.output.store_identifier
+  }
+
   function projectUrl(path: string): string {
     return `https://api.revenuecat.com/v2/projects/${encodeURIComponent(input.projectId!)}${path}`
   }
@@ -144,7 +195,7 @@ export function createRevenuecatSubscriberClient(input: {
     const subscriptions: Subscription[] = []
     let url: string | null = projectUrl(`/customers/${encodeURIComponent(userId)}/subscriptions?limit=${PAGE_LIMIT}`)
     while (url !== null) {
-      const body = await read(url)
+      const body = await request(url)
       if (body === null)
         return subscriptions
       const parsed = safeParse(subscriptionListSchema, body)
@@ -167,7 +218,13 @@ export function createRevenuecatSubscriberClient(input: {
     if (!configured)
       throw createServiceUnavailableError('RevenueCat is not configured', 'REVENUECAT_NOT_CONFIGURED')
 
-    const withAccess = (await fetchSubscriptions(userId)).filter(subscription => subscription.gives_access)
+    // The two lists are independent. Reading them together keeps one RevenueCat round trip off the
+    // Capacitor page, which waits for this read. A customer without subscriptions costs one extra read.
+    const [subscriptions, activeBody] = await Promise.all([
+      fetchSubscriptions(userId),
+      request(projectUrl(`/customers/${encodeURIComponent(userId)}/active_entitlements?limit=${PAGE_LIMIT}`)),
+    ])
+    const withAccess = subscriptions.filter(subscription => subscription.gives_access)
     const granting = withAccess
       .filter(subscription => countsFor(userId, subscription.environment))
       .sort((left, right) => right.current_period_starts_at - left.current_period_starts_at)
@@ -179,33 +236,40 @@ export function createRevenuecatSubscriberClient(input: {
     if (granting.length === 0)
       return []
 
-    const active = safeParse(activeEntitlementListSchema, await read(projectUrl(`/customers/${encodeURIComponent(userId)}/active_entitlements?limit=${PAGE_LIMIT}`)))
+    const active = safeParse(activeEntitlementListSchema, activeBody)
     if (!active.success)
       throw createBadGatewayError('RevenueCat subscriber response is invalid')
     const accessUntil = new Map(active.output.items.map(item => [item.entitlement_id, item.expires_at]))
 
-    const entitlements: SubscriberEntitlement[] = []
+    // Assign each entitlement to the latest subscription that grants it, before any product read.
     const seen = new Set<string>()
-    for (const subscription of granting) {
+    const grants = granting.flatMap((subscription) => {
       const granted = subscription.entitlements.items.filter(item => accessUntil.has(item.id) && !seen.has(item.id))
       // A promotional subscription has no product. No Capacitor is mapped to it, so it grants none.
       if (granted.length === 0 || subscription.product_id === null)
-        continue
-      const product = safeParse(productSchema, await read(projectUrl(`/products/${encodeURIComponent(subscription.product_id)}`)))
-      if (!product.success)
-        throw createBadGatewayError('RevenueCat subscriber response is invalid')
-      for (const item of granted) {
-        seen.add(item.id)
-        const expiresAt = sharedWithExcluded.has(item.id) ? subscription.current_period_ends_at : accessUntil.get(item.id)!
-        entitlements.push({
-          entitlementId: item.lookup_key,
-          productId: product.output.store_identifier,
-          purchasedAt: new Date(subscription.current_period_starts_at),
-          accessUntil: expiresAt === null ? null : new Date(expiresAt),
-        })
+        return []
+      granted.forEach(item => seen.add(item.id))
+      return [{ subscription, productId: subscription.product_id, granted }]
+    })
+
+    const resolved = await Promise.all(grants.map(async ({ subscription, productId }) => {
+      const pendingProductId = subscription.pending_changes?.product?.id
+      const pending = pendingProductId && pendingProductId !== productId && subscription.current_period_ends_at !== null
+        ? { productId: await storeIdentifierOf(pendingProductId), startsAt: new Date(subscription.current_period_ends_at) }
+        : null
+      return { storeIdentifier: await storeIdentifierOf(productId), pending }
+    }))
+
+    return grants.flatMap(({ subscription, granted }, index) => granted.map((item) => {
+      const expiresAt = sharedWithExcluded.has(item.id) ? subscription.current_period_ends_at : accessUntil.get(item.id)!
+      return {
+        entitlementId: item.lookup_key,
+        productId: resolved[index]!.storeIdentifier,
+        purchasedAt: new Date(subscription.current_period_starts_at),
+        accessUntil: expiresAt === null ? null : new Date(expiresAt),
+        pendingChange: resolved[index]!.pending,
       }
-    }
-    return entitlements
+    }))
   }
 
   /**
@@ -227,7 +291,31 @@ export function createRevenuecatSubscriberClient(input: {
     return (await fetchSubscriptions(userId)).some(subscription => countsFor(userId, subscription.environment) && canCharge(subscription))
   }
 
-  return { fetchEntitlements, hasRenewingSubscription }
+  /**
+   * Prepares a product change for the customer's web subscription.
+   * Returns null when the customer has no web subscription with access, for example when the App Store bills it.
+   * The token is a credential for this customer only. The caller returns it to the signed-in customer and keeps no copy.
+   */
+  async function grantProductChange(userId: string): Promise<ProductChangeGrant | null> {
+    if (!configured || !input.webAppId)
+      throw createServiceUnavailableError('RevenueCat product changes are not configured', 'REVENUECAT_NOT_CONFIGURED')
+
+    const [subscription] = (await fetchSubscriptions(userId))
+      .filter(item => item.gives_access && countsFor(userId, item.environment) && WEB_STORES.has(item.store))
+      .sort((left, right) => right.current_period_starts_at - left.current_period_starts_at)
+    if (!subscription)
+      return null
+
+    const token = safeParse(subscriberTokenSchema, await request(
+      projectUrl(`/apps/${encodeURIComponent(input.webAppId)}/authenticate`),
+      { method: 'POST', body: { app_user_id: userId } },
+    ))
+    if (!token.success)
+      throw createBadGatewayError('RevenueCat subscriber response is invalid')
+    return { subscriptionId: subscription.id, subscriberToken: token.output.access_token }
+  }
+
+  return { fetchEntitlements, hasRenewingSubscription, grantProductChange }
 }
 
 export type RevenuecatSubscriberClient = ReturnType<typeof createRevenuecatSubscriberClient>

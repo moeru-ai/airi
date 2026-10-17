@@ -1537,6 +1537,7 @@ pages:
     rechargesAt: '{date} 充满'
     renewsAt: '{date} 续订'
     expiresAt: '{date} 到期'
+    changesAt: '{date} 起更换为 {name}'
     change: 更换 Capacitor
     quota:
       day: '每天 {quota} Flux'
@@ -1553,6 +1554,7 @@ pages:
     checkout:
       success: Capacitor 已装配并充满。
       pending: 已收到付款，Capacitor 稍后充满。
+      scheduled: '{date} 起，Capacitor 将更换为 {name}。'
       canceled: 购买被取消
       error: 哎呀，出错了，请稍后再试
   providers:

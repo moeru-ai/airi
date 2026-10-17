@@ -9,7 +9,7 @@ import { useSubscription } from './use-subscription'
 
 const sdk = vi.hoisted(() => ({
   getCustomerInfo: vi.fn<() => Promise<CustomerInfo>>(),
-  changeUser: vi.fn(),
+  changeUser: vi.fn(async () => {}),
   getOfferings: vi.fn<() => Promise<{ current: unknown }>>(async () => ({ current: null })),
   purchase: vi.fn(),
 }))
@@ -111,9 +111,11 @@ describe('subscription account ownership', () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const { pathname } = new URL(input instanceof Request ? input.url : input)
       requests.push(pathname)
-      return Response.json(pathname.endsWith('/catalog')
-        ? { capacitors: [{ productId: 'monthly', quota: 100 }], resetInterval: 'day' }
-        : { synced: true })
+      if (pathname.endsWith('/catalog'))
+        return Response.json({ capacitors: [{ productId: 'monthly', quota: 100 }], resetInterval: 'day' })
+      if (pathname.endsWith('/product-change'))
+        return Response.json({ subscriptionId: 'sub_1', subscriberToken: 'token' })
+      return Response.json({ synced: true, pendingChange: null })
     })
   })
 
@@ -129,11 +131,11 @@ describe('subscription account ownership', () => {
     const order: string[] = []
     vi.mocked(globalThis.fetch).mockImplementation(async () => {
       order.push('sync')
-      return Response.json({ synced: true })
+      return Response.json({ synced: true, pendingChange: null })
     })
     const { subscription } = mountSubscription(async () => void order.push('balance'))
 
-    await subscription.fetchStatus()
+    await subscription.refreshWallet()
 
     expect(order).toEqual(['sync', 'balance'])
   })
@@ -144,7 +146,7 @@ describe('subscription account ownership', () => {
     let balanceReads = 0
     const { subscription } = mountSubscription(async () => void (balanceReads += 1))
 
-    await subscription.fetchStatus()
+    await Promise.all([subscription.refreshCustomer(), subscription.refreshWallet()])
 
     expect(balanceReads).toBe(1)
     expect(subscription.currentCapacitor.value?.productId).toBe('monthly')
@@ -173,6 +175,67 @@ describe('subscription account ownership', () => {
     expect(subscription.packages.value.map(pkg => pkg.productId)).toEqual(['monthly'])
     expect(subscription.packages.value[0]?.quota).toBe(100)
     expect(subscription.resetInterval.value).toBe('day')
+  })
+
+  it('keeps the scheduled downgrade that the sync reports', async () => {
+    const pendingChange = { productId: 'monthly', startsAt: '2030-01-01T00:00:00.000Z' }
+    vi.mocked(globalThis.fetch).mockImplementation(async () => Response.json({ synced: true, pendingChange }))
+    const { subscription } = mountSubscription()
+
+    await subscription.refreshWallet()
+
+    expect(subscription.pendingChange.value).toEqual(pendingChange)
+  })
+
+  it('switches the SDK user one time when the page reads the customer and the packages together', async () => {
+    const { subscription, userId } = mountSubscription()
+    // The SDK identity outlives one test. A user that no other test uses makes this test switch.
+    userId.value = 'account-concurrent'
+
+    await Promise.all([subscription.refreshCustomer(), subscription.fetchPackages()])
+
+    expect(sdk.changeUser).toHaveBeenCalledTimes(1)
+    expect(sdk.changeUser).toHaveBeenCalledWith('account-concurrent')
+  })
+
+  it('buys a Capacitor without a product change when the user has none', async () => {
+    sdk.getCustomerInfo.mockResolvedValueOnce({ ...customer('account-a'), entitlements: { active: {}, all: {} } })
+    sdk.getOfferings.mockResolvedValue({ current: { metadata: null, availablePackages: [monthlyPackage('monthly')] } })
+    sdk.purchase.mockResolvedValueOnce({ customerInfo: customer('account-a') })
+    const { subscription } = mountSubscription()
+    await subscription.refreshCustomer()
+
+    expect(await subscription.purchaseCapacitor('$rc_monthly')).toBe('activated')
+    expect(sdk.purchase).toHaveBeenCalledWith({ rcPackage: expect.objectContaining({ identifier: '$rc_monthly' }) })
+    expect(requests).not.toContain('/api/v1/revenuecat/product-change')
+  })
+
+  it('changes the web subscription in place and reports a downgrade as scheduled', async () => {
+    sdk.getOfferings.mockResolvedValue({ current: { metadata: null, availablePackages: [monthlyPackage('monthly')] } })
+    sdk.purchase.mockResolvedValueOnce({ customerInfo: customer('account-a'), productChange: { changeType: 'deferred' } })
+    const { subscription } = mountSubscription()
+    await subscription.refreshCustomer()
+
+    expect(await subscription.purchaseCapacitor('$rc_monthly')).toBe('scheduled')
+    expect(sdk.purchase).toHaveBeenCalledWith({
+      rcPackage: expect.objectContaining({ identifier: '$rc_monthly' }),
+      productChangeInfo: { subscriptionId: 'sub_1', subscriberToken: 'token' },
+    })
+  })
+
+  it('does not buy a second Capacitor when the server finds no web subscription to change', async () => {
+    sdk.getOfferings.mockResolvedValue({ current: { metadata: null, availablePackages: [monthlyPackage('monthly')] } })
+    vi.mocked(globalThis.fetch).mockImplementation(async (input) => {
+      const { pathname } = new URL(input instanceof Request ? input.url : input)
+      if (pathname.endsWith('/product-change'))
+        return Response.json({ error: 'CONFLICT' }, { status: 409 })
+      return Response.json({ capacitors: [{ productId: 'monthly', quota: 100 }], resetInterval: 'day' })
+    })
+    const { subscription } = mountSubscription()
+    await subscription.refreshCustomer()
+
+    await expect(subscription.purchaseCapacitor('$rc_monthly')).rejects.toThrow()
+    expect(sdk.purchase).not.toHaveBeenCalled()
   })
 
   it('orders mapped packages by price and keeps each product quota', async () => {
@@ -219,7 +282,7 @@ describe('subscription account ownership', () => {
   // Synchronous identity changes now clear state and invalidate pending responses.
   it('removes the management link when the user logs out without leaving the page', async () => {
     const { subscription, userId, target } = mountSubscription()
-    await subscription.fetchStatus()
+    await subscription.refreshCustomer()
     await nextTick()
     expect(target.querySelector('a')?.href).toBe('https://example.com/manage/account-a')
     expect(subscription.currentCapacitor.value?.productId).toBe('monthly')
@@ -237,7 +300,7 @@ describe('subscription account ownership', () => {
     }
     sdk.getCustomerInfo.mockReturnValueOnce(new Promise(resolve => complete = resolve))
     const { subscription, userId } = mountSubscription()
-    const pending = subscription.fetchStatus()
+    const pending = subscription.refreshCustomer()
     await vi.waitFor(() => expect(sdk.getCustomerInfo).toHaveBeenCalled())
     userId.value = 'account-b'
     userId.value = 'account-a'
@@ -253,7 +316,7 @@ describe('subscription account ownership', () => {
     }
     sdk.getCustomerInfo.mockReturnValueOnce(new Promise(resolve => complete = resolve))
     const { subscription, unmount } = mountSubscription()
-    const pending = subscription.fetchStatus()
+    const pending = subscription.refreshCustomer()
     await vi.waitFor(() => expect(sdk.getCustomerInfo).toHaveBeenCalled())
     unmount()
     unmounts.pop()
@@ -267,6 +330,6 @@ describe('subscription account ownership', () => {
   it('reports a customer-status failure to the page', async () => {
     sdk.getCustomerInfo.mockRejectedValueOnce(new Error('SDK unavailable'))
     const { subscription } = mountSubscription()
-    await expect(subscription.fetchStatus()).rejects.toThrow('SDK unavailable')
+    await expect(subscription.refreshCustomer()).rejects.toThrow('SDK unavailable')
   })
 })

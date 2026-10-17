@@ -30,6 +30,7 @@ describe('currentCapacitorFromCustomerInfo', () => {
             latestPurchaseDate: new Date('2026-10-01T00:00:00.000Z'),
             expirationDate: new Date('2026-11-01T00:00:00.000Z'),
             willRenew: false,
+            store: 'rc_billing',
           },
           airi_plus: {
             identifier: 'airi_plus',
@@ -37,6 +38,7 @@ describe('currentCapacitorFromCustomerInfo', () => {
             latestPurchaseDate: new Date('2026-10-15T00:00:00.000Z'),
             expirationDate: new Date('2026-11-01T00:00:00.000Z'),
             willRenew: true,
+            store: 'app_store',
           },
         },
       },
@@ -46,6 +48,7 @@ describe('currentCapacitorFromCustomerInfo', () => {
       productId: 'rc_plus_monthly',
       expiresAt: '2026-11-01T00:00:00.000Z',
       willRenew: true,
+      changeableOnWeb: false,
     })
   })
 })

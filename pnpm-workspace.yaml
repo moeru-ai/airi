@@ -184,7 +184,7 @@ catalog:
   '@proj-airi/unocss-preset-chromatic': ^1.1.4
   '@proj-airi/unplugin-fetch': ^0.2.3
   '@proj-airi/unplugin-live2d-sdk': ^0.1.7
-  '@revenuecat/purchases-js': ^1.15.0
+  '@revenuecat/purchases-js': 1.70.0
   '@rive-app/canvas-lite': ^2.40.1
   '@sherpaw/asr': 0.3.0
   '@sherpaw/kws': 0.3.0

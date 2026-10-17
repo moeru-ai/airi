@@ -23,6 +23,8 @@ const subscription = useSubscription({
 const message = ref<{ type: 'success' | 'error', text: string } | null>(null)
 const preferenceSaving = ref(false)
 const statusLoading = ref(false)
+/** Checkout needs a successful customer read to distinguish a first purchase from a subscription change. */
+const customerReady = ref(false)
 const packagesLoading = ref(false)
 
 type CapacitorAction = 'buy' | 'current' | 'upgrade' | 'downgrade'
@@ -35,9 +37,10 @@ const currentPackage = computed(() => {
   return subscription.packages.value.find(item => item.productId === productId) ?? null
 })
 
-/** Without a reset interval, a Capacitor refills at its monthly renewal. */
-const quotaKey = computed(() => `settings.pages.capacitor.quota.${subscription.resetInterval.value ?? 'month'}`)
+/** The SDK reports a new subscriber before the wallet sync, and the wallet reports one that the SDK has not read yet. */
+const hasCapacitor = computed(() => currentCapacitor.value !== null || capacitorPercent.value != null)
 
+/** RevenueCat decides upgrade or downgrade by price. The label uses the same rule. */
 function capacitorAction(pkg: CapacitorPackage): CapacitorAction {
   const current = currentCapacitor.value
   if (!current)
@@ -55,12 +58,24 @@ const ACTION_LABEL: Record<Exclude<CapacitorAction, 'current'>, string> = {
 
 const packageCards = computed(() => subscription.packages.value.map(pkg => ({ pkg, action: capacitorAction(pkg) })))
 
+/** The name of the Capacitor that replaces the current one at the next renewal. */
+const pendingChangeName = computed(() => {
+  const productId = subscription.pendingChange.value?.productId
+  if (!productId)
+    return null
+  return subscription.packages.value.find(item => item.productId === productId)?.name ?? t('settings.pages.capacitor.title')
+})
+
+/** Without a reset interval, a Capacitor refills at its monthly renewal. */
+const quotaKey = computed(() => `settings.pages.capacitor.quota.${subscription.resetInterval.value ?? 'month'}`)
+
+/** An App Store or Google Play subscription changes in that store, through the management link. */
+const changesInStore = computed(() => currentCapacitor.value !== null && !currentCapacitor.value.changeableOnWeb)
+
 const fallbackChoice = computed({
   get: () => fallbackToFlux.value,
   set: value => void savePreference(value),
 })
-
-const hasCapacitor = computed(() => currentCapacitor.value !== null || capacitorPercent.value != null)
 
 function formatPercent(percent: number): string {
   return new Intl.NumberFormat(locale.value, { style: 'percent' }).format(percent / 100)
@@ -75,34 +90,45 @@ function formatDate(iso: string, options: Intl.DateTimeFormatOptions): string {
 let identityVersion = 0
 onScopeDispose(() => identityVersion += 1)
 
-watch(() => authStore.user?.id, async (userId, _previous, onCleanup) => {
+// The three reads are independent. The status shows as soon as the SDK answers,
+// the percent follows the wallet sync, and the packages do not wait for either.
+watch(() => authStore.user?.id, (userId, _previous, onCleanup) => {
   identityVersion += 1
   message.value = null
   preferenceSaving.value = false
   statusLoading.value = Boolean(userId)
+  customerReady.value = false
   packagesLoading.value = Boolean(userId) && !fluxPurchaseDisabled
   let active = true
   onCleanup(() => active = false)
   if (!userId)
     return
-  try {
-    await subscription.fetchStatus()
-  }
-  catch {
+
+  const reportError = (key: string) => {
     if (active)
-      message.value = { type: 'error', text: t('settings.pages.capacitor.statusError') }
+      message.value = { type: 'error', text: t(key) }
   }
-  if (!active)
-    return
-  statusLoading.value = false
+
+  void subscription.refreshCustomer()
+    .then(() => {
+      if (active)
+        customerReady.value = true
+    })
+    .catch(() => reportError('settings.pages.capacitor.statusError'))
+    .finally(() => {
+      if (active)
+        statusLoading.value = false
+    })
+  void subscription.refreshWallet()
+    .catch(() => reportError('settings.pages.capacitor.statusError'))
   if (fluxPurchaseDisabled)
     return
-  await subscription.fetchPackages().catch(() => {
-    if (active)
-      message.value = { type: 'error', text: t('settings.pages.capacitor.packagesError') }
-  })
-  if (active)
-    packagesLoading.value = false
+  void subscription.fetchPackages()
+    .catch(() => reportError('settings.pages.capacitor.packagesError'))
+    .finally(() => {
+      if (active)
+        packagesLoading.value = false
+    })
 }, { immediate: true, flush: 'sync' })
 
 async function savePreference(value: boolean) {
@@ -122,34 +148,48 @@ async function savePreference(value: boolean) {
 }
 
 function actionDisabled(pkg: CapacitorPackage): boolean {
-  if (subscription.purchasingPackageId.value !== null)
+  if (!customerReady.value || subscription.purchasingPackageId.value !== null)
     return true
   const action = capacitorAction(pkg)
-  return action === 'current' || (action !== 'buy' && !subscription.managementUrl.value)
+  return action === 'current' || (action !== 'buy' && changesInStore.value && !subscription.managementUrl.value)
 }
 
 function handleCapacitor(pkg: CapacitorPackage) {
+  if (!customerReady.value)
+    return
   const action = capacitorAction(pkg)
   if (action === 'current')
     return
-  if (action === 'buy') {
-    void handleSubscribe(pkg.packageId)
+  const url = subscription.managementUrl.value
+  if (action !== 'buy' && changesInStore.value) {
+    if (url)
+      window.open(url, '_blank', 'noopener')
     return
   }
-  const url = subscription.managementUrl.value
-  if (url)
-    window.open(url, '_blank', 'noopener')
+  void handleCheckout(pkg)
 }
 
-async function handleSubscribe(packageId: string) {
+async function handleCheckout(pkg: CapacitorPackage) {
   const version = identityVersion
+  // A downgrade starts at the renewal of the current Capacitor. Read the date before the checkout replaces it.
+  const renewal = currentCapacitor.value?.expiresAt ?? null
   message.value = null
   try {
-    const outcome = await subscription.purchaseCapacitor(packageId)
+    const outcome = await subscription.purchaseCapacitor(pkg.packageId)
     if (version !== identityVersion)
       return
     if (outcome === 'cancelled') {
       message.value = { type: 'error', text: t('settings.pages.capacitor.checkout.canceled') }
+      return
+    }
+    if (outcome === 'scheduled') {
+      message.value = {
+        type: 'success',
+        text: t('settings.pages.capacitor.checkout.scheduled', {
+          name: pkg.name ?? t('settings.pages.capacitor.title'),
+          date: renewal ? formatDate(renewal, { dateStyle: 'medium' }) : '',
+        }),
+      }
       return
     }
     // RevenueCat reports the entitlement before the webhook charges the wallet.
@@ -240,7 +280,7 @@ async function handleSubscribe(packageId: string) {
       </div>
 
       <div
-        v-if="capacitorRechargesAt || currentCapacitor?.expiresAt"
+        v-if="capacitorRechargesAt || currentCapacitor?.expiresAt || subscription.pendingChange.value"
         :class="['flex flex-wrap gap-x-5 gap-y-1', 'text-xs text-neutral-500 dark:text-neutral-400']"
       >
         <span v-if="capacitorRechargesAt" :class="['inline-flex items-center gap-1']">
@@ -250,6 +290,10 @@ async function handleSubscribe(packageId: string) {
         <span v-if="currentCapacitor?.expiresAt" :class="['inline-flex items-center gap-1']">
           <div :class="['i-solar:calendar-linear size-3.5']" />
           {{ t(currentCapacitor.willRenew ? 'settings.pages.capacitor.renewsAt' : 'settings.pages.capacitor.expiresAt', { date: formatDate(currentCapacitor.expiresAt, { dateStyle: 'medium' }) }) }}
+        </span>
+        <span v-if="subscription.pendingChange.value" :class="['inline-flex items-center gap-1']">
+          <div :class="['i-solar:transfer-vertical-linear size-3.5']" />
+          {{ t('settings.pages.capacitor.changesAt', { name: pendingChangeName, date: formatDate(subscription.pendingChange.value.startsAt, { dateStyle: 'medium' }) }) }}
         </span>
       </div>
 
@@ -327,7 +371,7 @@ async function handleSubscribe(packageId: string) {
                 v-if="action !== 'current'"
                 :variant="action === 'downgrade' ? 'secondary' : 'primary'"
                 :color="action === 'downgrade' ? 'neutral' : 'primary'"
-                :icon="action === 'buy' ? undefined : 'i-solar:arrow-right-up-linear'"
+                :icon="changesInStore ? 'i-solar:arrow-right-up-linear' : undefined"
                 :label="t(ACTION_LABEL[action])"
                 :loading="subscription.purchasingPackageId.value === pkg.packageId"
                 :disabled="actionDisabled(pkg)"

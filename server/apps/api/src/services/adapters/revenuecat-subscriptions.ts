@@ -6,6 +6,12 @@ import { useLogger } from '@guiiai/logg'
 
 const logger = useLogger('revenuecat-subscriptions')
 
+/** A Capacitor that replaces the current one at the next renewal. */
+export interface CapacitorPendingChange {
+  productId: string
+  startsAt: Date
+}
+
 /** Configured Capacitor quotas and refill intervals for the client's package cards. */
 export interface CapacitorCatalog {
   capacitors: { productId: string, quota: number }[]
@@ -23,13 +29,19 @@ export function createRevenuecatSubscriptionSync(
   configKV: ConfigKVService,
   subscriber: Pick<RevenuecatSubscriberClient, 'fetchEntitlements'>,
 ) {
-  async function reconcile(userId: string): Promise<void> {
+  /**
+   * Returns the Capacitor that replaces the current one at the next renewal, for the Capacitor page.
+   * Null when nothing changes, or when the next product grants no Capacitor.
+   */
+  async function reconcile(userId: string): Promise<CapacitorPendingChange | null> {
     const capacitors = await configKV.getOptional('REVENUECAT_CAPACITORS')
     // Capacitors are not sold when the map is unset or empty. The wallet stays as it is.
     // An unset ConfigKV row resolves to the empty default, so the empty map is the usual case.
     // A sync with no products would expire every active Capacitor.
     if (!capacitors || Object.keys(capacitors).length === 0)
-      return
+      return null
+
+    let pendingChange: CapacitorPendingChange | null = null
 
     const period = await billing.syncCapacitor(userId, async (): Promise<CapacitorPeriod | null> => {
       const now = new Date()
@@ -42,6 +54,8 @@ export function createRevenuecatSubscriptionSync(
       if (!current)
         return null
 
+      if (current.pendingChange && capacitors[current.pendingChange.productId])
+        pendingChange = current.pendingChange
       return {
         quota: capacitors[current.productId]!.quota,
         periodStart: current.purchasedAt,
@@ -50,6 +64,7 @@ export function createRevenuecatSubscriptionSync(
     })
     // The result tells an operator whether a paid customer got a Capacitor.
     logger.withFields({ userId, quota: period?.quota ?? null, expiresAt: period?.expiresAt.toISOString() ?? null }).log('Capacitor Flux reconciled')
+    return pendingChange
   }
 
   /** The configured product ids that grant Capacitor Flux. */

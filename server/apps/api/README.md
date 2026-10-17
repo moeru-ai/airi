@@ -181,6 +181,10 @@ The server grants only the subscriptions of `REVENUECAT_ENVIRONMENT`, which is `
 A missed webhook delays the grant until the next webhook for that
 customer, or until the client calls `POST /sync`. The Capacitor name and expiry come from the client SDK, so they do not wait for that webhook.
 
+A web subscriber changes the Capacitor in the app. `POST /product-change` returns a subscriber token for the Web SDK.
+It needs `REVENUECAT_WEB_APP_ID` and an API v2 key with the `iam:authorization:issue_token` permission.
+An App Store or Google Play subscriber changes the Capacitor in that store.
+
 The Auth service asks `POST /internal/auth/user-deletion/check` before it sends the deletion email, and again
 before it deletes. The check returns 409 `SUBSCRIPTION_ACTIVE` while a subscription can still charge. The user
 cancels the subscription first.

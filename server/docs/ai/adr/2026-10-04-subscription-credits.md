@@ -67,6 +67,10 @@ Two webhooks for one user cannot write an older answer after a newer answer.
 The wallet row stays unlocked during the read, so debits continue.
 The read has a 5-second timeout.
 
+The product endpoint has a project-wide quota of 60 requests a minute. The customer endpoints have 480.
+A RevenueCat product id and its store identifier never change, so the client keeps the pair for the life of the process.
+Each sync then reads the product endpoint only for a product that the process has not seen.
+
 The server does not reconcile when `REVENUECAT_CAPACITORS` is unset or empty. The wallet stays as it is.
 A sync with no products would expire every active Capacitor.
 The webhook returns an error when the read fails, or when `REVENUECAT_V2_API_KEY` or `REVENUECAT_PROJECT_ID` is unset.
@@ -135,9 +139,32 @@ A refill is a `credit` row in the Capacitor pool. Its `balanceBefore` is the for
 A settlement that uses both buckets writes one `debit` row for each pool.
 Purchased Flux capacity and `GET /flux/history` read only the wallet pool.
 
-The web purchase SDK cannot replace a subscription in the app.
-A subscriber opens the management URL to change Capacitors.
-The webhook applies the new Capacitor Flux after the store changes the product.
+### Product change
+
+The Web SDK requests a subscription change through `purchase({ rcPackage, productChangeInfo })`.
+See the [RevenueCat Web SDK product changes](https://www.revenuecat.com/docs/web/product-changes).
+The SDK marks `productChangeInfo` internal during the beta, so the client declares the field locally with a `NOTICE`.
+The workspace pins the SDK to `1.70.0` because internal fields have no semver guarantee.
+
+`POST /api/v1/revenuecat/product-change` gives the signed-in user a `subscriptionId` and a `subscriberToken`.
+The server picks the latest subscription with access that `rc_billing` or `stripe` bills.
+The subscription must pass the same environment policy as the Capacitor grant.
+It issues the token through `POST /v2/projects/{project}/apps/{REVENUECAT_WEB_APP_ID}/authenticate`.
+The API v2 key needs the `iam:authorization:issue_token` permission.
+The route returns 409 when no web subscription can change, and 503 without `REVENUECAT_WEB_APP_ID`.
+The route allows 10 calls for each user in one minute.
+
+RevenueCat starts an upgrade at once and charges the prorated difference. It starts a downgrade at the next renewal.
+The dashboard defines the allowed changes under **Product Catalog > Products > Subscription changes**.
+Without a configured path, the SDK opens a regular purchase and can create a second subscription.
+The client does not check these paths before checkout. PR #3003 remains a draft until this duplicate-charge risk is resolved.
+An upgrade sends `PRODUCT_CHANGE` and `RENEWAL`. The webhook then reconciles the new period and quota.
+The client reports a downgrade as scheduled with the renewal date.
+`POST /api/v1/revenuecat/sync` returns `pendingChange` from `pending_changes.product` of the subscription.
+The page then shows the scheduled Capacitor after a reload. The SDK does not report it.
+`pendingChange` is null when the next product is the same, or grants no Capacitor.
+
+An App Store or Google Play subscription changes only in its store. The page opens the management URL for it.
 
 ### Account deletion
 
@@ -177,7 +204,7 @@ A reconciliation job without a webhook.
 Yearly Capacitors.
 Flux packs through RevenueCat.
 An admin route in this API for resets.
-In-app product replacement checkout.
+Product changes for App Store and Google Play subscriptions in the web app.
 Expiry batches for purchased Flux.
 
 ## Module graph
@@ -189,6 +216,7 @@ flowchart LR
   Billing --> Posting[flux-posting.ts]
   Webhook[RevenueCat webhook] --> Sync["revenuecat-subscriptions.ts"]
   SyncRoute["POST /revenuecat/sync"] --> Sync
+  ChangeRoute["POST /revenuecat/product-change"] --> Reader
   CatalogRoute["GET /revenuecat/catalog"] --> Sync
   Sync --> ConfigKV["ConfigKV"]
   Auth[Auth service] --> Check["POST /internal/auth/user-deletion/check"]
@@ -209,16 +237,22 @@ sequenceDiagram
   participant API
   participant RC as RevenueCat
   participant DB
-  Client->>RC: Read customerInfo
-  Client->>API: POST /revenuecat/sync when the page opens
-  API->>RC: Read current entitlements
-  API->>DB: Reconcile the current Capacitor period
-  Client->>API: GET /flux
-  API->>DB: Read user_flux
-  API-->>Client: Balance and capacitor percent
-  Client->>API: GET /revenuecat/catalog
-  API->>DB: Read ConfigKV catalog and reset interval
-  API-->>Client: Products with quotas and reset interval
+  par Customer status
+    Client->>RC: Read customerInfo
+  and Wallet balance
+    Client->>API: POST /revenuecat/sync when the page opens
+    API->>RC: Read current entitlements
+    API->>DB: Reconcile the current Capacitor period
+    API-->>Client: pendingChange
+    Client->>API: GET /flux
+    API->>DB: Read user_flux
+    API-->>Client: Balance and capacitor percent
+  and Package catalog
+    Client->>API: GET /revenuecat/catalog
+    API->>DB: Read ConfigKV catalog and reset interval
+    API-->>Client: Products with quotas and reset interval
+    Client->>RC: Read current offerings
+  end
   RC->>API: Webhook for a customer
   API->>DB: Lock the user
   API->>RC: GET /v2 subscriptions, active entitlements, product
@@ -228,6 +262,13 @@ sequenceDiagram
   Client->>API: POST /revenuecat/sync after a purchase
   API->>RC: GET /v2 subscriptions, active entitlements, product
   API->>DB: Store the period, refill when due
+  Client->>API: POST /revenuecat/product-change
+  API->>RC: GET /v2 subscriptions, POST /v2 apps authenticate
+  API-->>Client: subscriptionId and subscriberToken
+  Client->>RC: purchase with productChangeInfo
+  RC->>API: PRODUCT_CHANGE webhook
+  API->>RC: GET /v2 subscriptions, active entitlements, product
+  API->>DB: Store the new period and quota
   Client->>API: Chat or speech
   API->>DB: Admission writes a due refill
   API->>DB: Lock user_flux, refill when due, settle
@@ -248,9 +289,14 @@ server/apps/api/
   src/routes/revenuecat/index.ts
   src/routes/revenuecat/route.test.ts
   src/routes/revenuecat/operations/webhook.ts
+  src/libs/env.ts
+  src/app.ts
 packages/stage-ui/src/stores/auth.ts
 packages/stage-ui/src/composables/use-subscription.ts
 packages/stage-pages/src/pages/settings/capacitor.vue
+packages/stage-pages/src/pages/settings/account/account-settings-page.vue
+packages/i18n/src/locales/{en,zh-Hans}/settings.yaml
+pnpm-workspace.yaml
 ```
 
 ## Test plan
@@ -270,3 +316,10 @@ Run the subscriber client tests for each renewal status, for `in_billing_retry`,
 Run the internal route tests for the deletion check.
 Run the Auth tests for a refused request without an email, and for a refused email link without a revocation.
 Run the client tests for the sync before the balance read and for the product filter.
+Run the subscriber client tests for the token of the latest web subscription, an App Store subscription, and a missing web app id.
+Run the route tests for a product change grant, a 409 without a web subscription, and an anonymous request.
+Run the client tests for a purchase without a product change, a scheduled downgrade, and a 409 that buys nothing.
+Run the subscriber client tests for one product read for the life of the client, and for a pending downgrade.
+Run the sync tests for a pending change to a Capacitor and to an unmapped product.
+Run the route test for a sync that returns a scheduled downgrade.
+Test an upgrade and a downgrade with a RevenueCat sandbox subscription before release.
