@@ -130,15 +130,33 @@ export function parseJudgeScore(raw: string, weight = 1): RubricScore {
  *   chat: (prompt) => anthropic.messages.create({...}).then(m => m.content[0].text)
  * })
  */
+/**
+ * Runtime character reference passed by the harness, optionally carrying the
+ * configured name so the judge can verify that a response names the right
+ * character.
+ */
+export interface JudgeCharacter {
+  name?: string
+  persona: string
+}
+
 export function createJudge(config: JudgeConfig & { chat: ChatFn }) {
   const { persona, weight = 1, chat } = config
   if (!Number.isFinite(weight) || weight < 0) {
     throw new Error(`createJudge weight must be a finite non-negative number, got ${weight}`)
   }
 
-  return async (response: string): Promise<RubricScore> => {
+  return async (response: string, character?: JudgeCharacter): Promise<RubricScore> => {
+    // Prefer the runtime character from the harness; fall back to the persona
+    // configured on the judge. The name is included when present so a wrong
+    // name and the right name cannot receive the same identity score.
+    const reference = character?.persona ?? persona
+    const nameLine = character?.name
+      ? `Character name: ${character.name}\n`
+      : ''
     const prompt = `${RUBRIC_INSTRUCTIONS}\n\n`
-      + `Character persona: ${persona}\n`
+      + nameLine
+      + `Character persona: ${reference}\n`
       + `Response to rate: ${response}\n\n`
       + 'Return the JSON object.'
 
