@@ -1,10 +1,17 @@
 import type { BillingService, CapacitorPeriod } from '../domain/billing/billing-service'
-import type { ConfigKVService } from './config-kv'
+import type { ConfigDefinitions, ConfigKVService } from './config-kv'
 import type { RevenuecatSubscriberClient } from './revenuecat-subscriber'
 
 import { useLogger } from '@guiiai/logg'
 
 const logger = useLogger('revenuecat-subscriptions')
+
+/** Configured Capacitor quotas and refill intervals for the client's package cards. */
+export interface CapacitorCatalog {
+  capacitors: { productId: string, quota: number }[]
+  /** Null means that the Capacitor refills at each renewal. */
+  resetInterval: NonNullable<ConfigDefinitions['CAPACITOR_RESET_INTERVAL']> | null
+}
 
 /**
  * Copies the capacitor period that RevenueCat reports into the capacitor bucket of the Flux wallet.
@@ -45,12 +52,24 @@ export function createRevenuecatSubscriptionSync(
     logger.withFields({ userId, quota: period?.quota ?? null, expiresAt: period?.expiresAt.toISOString() ?? null }).log('Capacitor Flux reconciled')
   }
 
-  /** The product ids that grant a Capacitor. A purchase of another product gets no Capacitor Flux. */
-  async function listProductIds(): Promise<string[]> {
-    return Object.keys(await configKV.getOptional('REVENUECAT_CAPACITORS') ?? {})
+  /**
+   * Returns the configured Capacitors for the client to sell and describe.
+   * A purchase outside this catalog grants no Capacitor Flux.
+   */
+  async function listCapacitors(): Promise<CapacitorCatalog> {
+    const [capacitors, resetInterval] = await Promise.all([
+      configKV.getOptional('REVENUECAT_CAPACITORS'),
+      configKV.getOptional('CAPACITOR_RESET_INTERVAL'),
+    ])
+    return {
+      capacitors: capacitors
+        ? Object.entries(capacitors).map(([productId, capacitor]) => ({ productId, quota: capacitor.quota }))
+        : [],
+      resetInterval: resetInterval ?? null,
+    }
   }
 
-  return { reconcile, listProductIds }
+  return { reconcile, listCapacitors }
 }
 
 export type RevenuecatSubscriptionSync = ReturnType<typeof createRevenuecatSubscriptionSync>

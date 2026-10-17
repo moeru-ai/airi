@@ -85,13 +85,13 @@ function mountSubscription(onChanged: () => Promise<unknown> = async () => {}) {
   return { subscription: holder.subscription, userId, target, unmount }
 }
 
-function monthlyPackage(productId: string) {
+function monthlyPackage(productId: string, amountMicros = 5_000_000) {
   return {
     identifier: `$rc_${productId}`,
     webBillingProduct: {
       identifier: productId,
       period: { number: 1, unit: 'month' },
-      price: { formattedPrice: '$5.00', amountMicros: 5_000_000 },
+      price: { formattedPrice: '$5.00', amountMicros },
     },
   }
 }
@@ -111,7 +111,9 @@ describe('subscription account ownership', () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const { pathname } = new URL(input instanceof Request ? input.url : input)
       requests.push(pathname)
-      return Response.json(pathname.endsWith('/capacitors') ? { productIds: ['monthly'] } : { synced: true })
+      return Response.json(pathname.endsWith('/capacitors')
+        ? { capacitors: [{ productId: 'monthly', quota: 100 }], resetInterval: 'day' }
+        : { synced: true })
     })
   })
 
@@ -169,6 +171,46 @@ describe('subscription account ownership', () => {
 
     expect(requests).toEqual(['/api/v1/revenuecat/capacitors'])
     expect(subscription.packages.value.map(pkg => pkg.productId)).toEqual(['monthly'])
+    expect(subscription.packages.value[0]?.quota).toBe(100)
+    expect(subscription.resetInterval.value).toBe('day')
+  })
+
+  it('orders mapped packages by price and keeps each product quota', async () => {
+    sdk.getOfferings.mockResolvedValueOnce({
+      current: { metadata: null, availablePackages: [monthlyPackage('plus', 10_000_000), monthlyPackage('monthly')] },
+    })
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(Response.json({
+      capacitors: [{ productId: 'monthly', quota: 100 }, { productId: 'plus', quota: 300 }],
+      resetInterval: 'week',
+    }))
+    const { subscription } = mountSubscription()
+
+    await subscription.fetchPackages()
+
+    expect(subscription.packages.value.map(pkg => ({ productId: pkg.productId, quota: pkg.quota }))).toEqual([
+      { productId: 'monthly', quota: 100 },
+      { productId: 'plus', quota: 300 },
+    ])
+    expect(subscription.resetInterval.value).toBe('week')
+  })
+
+  it('keeps a renewal-only refill interval and clears catalog state on logout', async () => {
+    sdk.getOfferings.mockResolvedValueOnce({
+      current: { metadata: null, availablePackages: [monthlyPackage('monthly')] },
+    })
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(Response.json({
+      capacitors: [{ productId: 'monthly', quota: 100 }],
+      resetInterval: null,
+    }))
+    const { subscription, userId } = mountSubscription()
+
+    await subscription.fetchPackages()
+
+    expect(subscription.resetInterval.value).toBeNull()
+    expect(subscription.packages.value.map(pkg => pkg.productId)).toEqual(['monthly'])
+    userId.value = ''
+    expect(subscription.packages.value).toEqual([])
+    expect(subscription.resetInterval.value).toBeNull()
   })
 
   // https://github.com/moeru-ai/airi/pull/2813#discussion_r4237700028

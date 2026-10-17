@@ -50,7 +50,12 @@ export interface CapacitorPackage {
   benefit: string | null
   formattedPrice: string
   amountMicros: number
+  /** The Flux that the Capacitor holds after each refill. */
+  quota: number
 }
+
+/** How often a full Capacitor refills. Null means once at each renewal. */
+export type CapacitorResetInterval = 'day' | 'week' | null
 
 export interface CapacitorCatalogCopy {
   name: string | null
@@ -118,9 +123,12 @@ export function isOneMonthPeriod(period: { number: number, unit: string } | null
   return period?.unit === 'month' && period.number === 1
 }
 
-/** Capacitors are sold by the month only. Packages with another billing period are not listed. */
-function toCapacitorPackage(pkg: Package, metadata: unknown, locale: string): CapacitorPackage | null {
-  if (!isOneMonthPeriod(pkg.webBillingProduct.period))
+/**
+ * Capacitors are sold by the month only. Packages with another billing period are not listed.
+ * An unmapped product takes the payment and grants no Flux, so it is not listed.
+ */
+function toCapacitorPackage(pkg: Package, metadata: unknown, locale: string, quota: number | undefined): CapacitorPackage | null {
+  if (!isOneMonthPeriod(pkg.webBillingProduct.period) || quota === undefined)
     return null
   const price = pkg.webBillingProduct.price
   const copy = capacitorCatalogCopy(metadata, pkg.webBillingProduct.identifier, locale)
@@ -131,6 +139,7 @@ function toCapacitorPackage(pkg: Package, metadata: unknown, locale: string): Ca
     benefit: copy.benefit,
     formattedPrice: price.formattedPrice,
     amountMicros: price.amountMicros,
+    quota,
   }
 }
 
@@ -147,6 +156,7 @@ export function useSubscription(options: {
 
   const currentCapacitor = ref<CurrentCapacitor | null>(null)
   const packages = ref<CapacitorPackage[]>([])
+  const resetInterval = ref<CapacitorResetInterval>(null)
   const purchasingPackageId = ref<string | null>(null)
   const managementUrl = ref<string | null>(null)
 
@@ -157,6 +167,7 @@ export function useSubscription(options: {
     currentCapacitor.value = null
     managementUrl.value = null
     packages.value = []
+    resetInterval.value = null
     purchasingPackageId.value = null
   }
 
@@ -209,12 +220,16 @@ export function useSubscription(options: {
       await options.onChanged()
   }
 
-  /** The products that the server maps to a Capacitor. Another product takes the payment and grants nothing. */
-  async function fetchSoldProductIds(): Promise<string[]> {
-    const sold = await client.api.v1.revenuecat.capacitors.$get()
-    if (!sold.ok)
+  /** The Capacitors that the server grants, with the quota and refill interval that each card shows. */
+  async function fetchCatalog() {
+    const res = await client.api.v1.revenuecat.capacitors.$get()
+    if (!res.ok)
       throw new Error(t('settings.pages.capacitor.packagesError'))
-    return (await sold.json()).productIds
+    const catalog = await res.json()
+    return {
+      quotas: new Map(catalog.capacitors.map(capacitor => [capacitor.productId, capacitor.quota])),
+      resetInterval: catalog.resetInterval,
+    }
   }
 
   async function fetchPackages(): Promise<void> {
@@ -225,16 +240,17 @@ export function useSubscription(options: {
     const purchases = await ensurePurchases(identity.userId)
     if (!identity.isCurrent())
       return
-    const [offerings, productIds] = await Promise.all([purchases.getOfferings(), fetchSoldProductIds()])
+    const [offerings, catalog] = await Promise.all([purchases.getOfferings(), fetchCatalog()])
     const current = offerings.current
     if (!identity.isCurrent() || !current)
       return
-    packages.value = current.availablePackages.flatMap((pkg) => {
-      const capacitorPackage = toCapacitorPackage(pkg, current.metadata, locale.value)
-      // The server grants capacitor Flux only for the products that it maps.
-      // A package without a mapping takes the payment and grants nothing, so it is not listed.
-      return capacitorPackage && productIds.includes(capacitorPackage.productId) ? [capacitorPackage] : []
-    })
+    resetInterval.value = catalog.resetInterval
+    packages.value = current.availablePackages
+      .flatMap((pkg) => {
+        const capacitorPackage = toCapacitorPackage(pkg, current.metadata, locale.value, catalog.quotas.get(pkg.webBillingProduct.identifier))
+        return capacitorPackage ? [capacitorPackage] : []
+      })
+      .sort((left, right) => left.amountMicros - right.amountMicros)
   }
 
   async function purchaseCapacitor(packageId: string): Promise<'activated' | 'pending' | 'cancelled'> {
@@ -247,11 +263,11 @@ export function useSubscription(options: {
       if (!identity.isCurrent())
         return 'cancelled'
       // The mapping can change after the page listed the packages, so the checkout reads it again.
-      const [offerings, productIds] = await Promise.all([purchases.getOfferings(), fetchSoldProductIds()])
+      const [offerings, catalog] = await Promise.all([purchases.getOfferings(), fetchCatalog()])
       if (!identity.isCurrent())
         return 'cancelled'
       const rcPackage = offerings.current?.availablePackages.find(pkg => pkg.identifier === packageId)
-      if (!rcPackage || !productIds.includes(rcPackage.webBillingProduct.identifier))
+      if (!rcPackage || !catalog.quotas.has(rcPackage.webBillingProduct.identifier))
         throw new Error(t('settings.pages.capacitor.checkout.error'))
 
       let customerInfo: CustomerInfo
@@ -292,6 +308,7 @@ export function useSubscription(options: {
     managementUrl,
     currentCapacitor,
     packages,
+    resetInterval,
     purchasingPackageId,
     fetchStatus,
     fetchPackages,
