@@ -104,3 +104,14 @@ The shared CEF context preserves cookies, storage, BroadcastChannel, and Web Loc
 
 Tool reruns forward the shared `invocationId` to select one invocation among repeated `toolCallId` values.
 The [shared rerun implementation](../../../packages/stage-ui/src/stores/tool-call-rerun.ts) owns target rejection, result replacement, and dependent continuation invalidation.
+
+## Native widgets
+
+`WidgetWindowManager` owns widget snapshots, reserved IDs, expiry times, and native window instances.
+`WidgetWindow` owns one window's Kirie transport, Platform binding, permissions, and teardown.
+`WidgetContracts` defines the matching JSON payloads and Eventa names.
+
+The renderer fetch supplies initial state. Mutation events start after that renderer fetches its own widget.
+Closing uses a one-way event, so the renderer does not wait for a response from the transport it closes.
+Expiry uses Godot's monotonic clock and runs on the main thread.
+A partial update preserves its expiry unless `ttlMs` is present.

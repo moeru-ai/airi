@@ -165,3 +165,29 @@ The native Kirie Chat opened through the stage controls.
 Electron opened its floating Chat through the same control.
 Their input controls supplied the behavior comparison.
 These checks do not establish floating window, voice capture, plugin, MCP, or production update acceptance.
+
+## Native widget alignment (2026-10-18)
+
+The Godot host now owns widget snapshots, reserved IDs, native windows, pin state, logical size constraints, and expiry timers.
+Main, Settings, Developer, and Widget contexts use the same typed Eventa contracts.
+A widget fetch supplies its initial snapshot before mutation events start.
+The close button sends an event, because its transport closes with the window.
+
+The Widget Calling developer window opened through its existing native diagnostic handler.
+Its real Spawn control displayed the Tokyo weather preset in a separate native window.
+The widget pin control changed to Unpin. Its close control removed the native window and CEF target.
+The final run produced neither the early-send warning nor the close RPC error found during development.
+
+Validation:
+
+- `dotnet build`: passed with zero warnings and errors.
+- `dotnet run --project tests/StageTamagotchiKirie.Tests`: passed, including widget wire payload checks.
+- `dotnet format --verify-no-changes`: passed.
+- `mise x -- pnpm -F @proj-airi/stage-tamagotchi-kirie test:unit`: 76 passed and one optional provider test skipped.
+- `mise x -- pnpm -F @proj-airi/stage-tamagotchi-kirie typecheck`: passed.
+- `mise x -- pnpm lint`: passed with existing warnings.
+
+This adds native widget lifecycle support. Plugin iframe requests and Artistry generation still require their deferred hosts.
+
+The one-second expiry also removed the native window, CEF target, and host snapshot.
+The root `mise x -- pnpm typecheck` passed all 56 workspaces.

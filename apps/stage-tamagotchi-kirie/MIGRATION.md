@@ -1,6 +1,6 @@
 # Stage Tamagotchi Kirie migration
 
-Status: In progress. Updated: 2026-09-30.
+Status: In progress. Updated: 2026-10-18.
 
 This document owns capability decisions, blockers, deferred work, and dependencies.
 [README](README.md) owns commands. [Architecture](docs/host-architecture.md) owns runtime requirements.
@@ -17,6 +17,13 @@ Windows used Kirie 0.6.5 on 2026-09-29.
 Different baselines do not establish that every Windows failure is platform-specific.
 Later simplifications do not extend either platform decision.
 The single-host adapter and deferred-bootstrap changes require their own checks after implementation.
+
+## Latest Electron alignment
+
+The current reference is Electron at `dd6e3ce1f`.
+The chat composer, weather forecast tool, result cards, and native widget lifecycle now follow that reference.
+[Verification](docs/verification.md#native-widget-alignment-2026-10-18) records the macOS checks and limits.
+These changes do not extend the historical Windows acceptance matrix.
 
 ## Capability matrix
 
