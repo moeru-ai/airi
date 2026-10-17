@@ -236,14 +236,7 @@ live2d:
     sdk-preset-preserved-notice: >
       Le gestionnaire d’expressions du SDK et le clignement des yeux restent actifs lorsque cette option est désactivée.
     no-expression: Aucune expression disponible pour ce modèle.
-    llm-integration-wip: L’intégration des outils LLM n’est pas encore connectée.
-    save-default: Enregistrer les expressions par défaut
     reset: Réinitialiser toutes les expressions
-    expose-to-llm-toggle: Rendre accessible au LLM
-    expose-to-llm-options:
-      none: Aucun
-      all: Tout
-      custom: Personnalisé
 models: Modèle
 pages:
   account:
@@ -1507,7 +1500,7 @@ pages:
       free: Gratuit
       paid: Payant
       internal: Interne
-      cloud: Cloud
+      cloud: Nuage
     categories:
       chat:
         title: Discussion

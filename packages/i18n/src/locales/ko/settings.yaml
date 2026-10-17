@@ -245,14 +245,7 @@ live2d:
     sdk-preset-preserved-notice: >
       비활성화해도 SDK 표정 관리자와 눈 깜박임은 유지됩니다.
     no-expression: 이 모델에는 사용 가능한 표정이 없습니다.
-    llm-integration-wip: LLM 도구 연동은 아직 연결되지 않았습니다.
-    save-default: 표정 기본값 저장
     reset: 모든 표정 초기화
-    expose-to-llm-toggle: LLM에 공개
-    expose-to-llm-options:
-      none: 없음
-      all: 모두
-      custom: 사용자 지정
 microphone: 마이크
 models: 모델
 pages:

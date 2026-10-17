@@ -242,14 +242,7 @@ live2d:
     sdk-preset-preserved-notice: >
       Диспетчер выражений SDK и моргание глаз сохраняются, если выключены.
     no-expression: Нет выражений для этой модели.
-    llm-integration-wip: Интеграция инструментов LLM еще не завершена.
-    save-default: Сохранить выражение по умолчанию
     reset: Сбросить все выражения
-    expose-to-llm-toggle: Распространять в LLM
-    expose-to-llm-options:
-      none: Отсутствует
-      all: Все
-      custom: Пользовательский
 microphone: Микрофон
 models: Модель
 pages:
