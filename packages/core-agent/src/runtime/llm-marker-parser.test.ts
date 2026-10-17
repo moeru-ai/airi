@@ -71,10 +71,7 @@ describe('useLlmmarkerParser', () => {
     expect(collectedSpecials).toEqual([])
   })
 
-  /**
-   * @example
-   * A flush lets go of the text held back to find a marker, and settles after it is handled.
-   */
+  // A flush emits the held text and waits for its handler. Parsing continues after it.
   it('emits the held-back end of the text on flush, and keeps parsing after it', async () => {
     const collectedLiterals: string[] = []
     const parser = useLlmmarkerParser({
