@@ -231,6 +231,7 @@ computer-use-tool-call:
   activated: 'Switched to {app}'
   in-front: Now in front
   front-is: '{app} is in front'
+  front-unknown: Could not check the app in front
   permissions:
     title: System permissions
     names:

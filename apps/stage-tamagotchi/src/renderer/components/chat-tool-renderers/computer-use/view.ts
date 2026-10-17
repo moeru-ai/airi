@@ -58,7 +58,7 @@ export type ComputerUseView
       durationMs: number
       action: ComputerUseInputAction
     }
-    | { kind: 'activate', requested: string, observed: string, verification: string }
+    | { kind: 'activate', requested: string, observed?: string, reason?: string, verification: string }
     | { kind: 'permissions', permissions: Array<{ name: string, status: string }> }
     | { kind: 'now-playing', state: ComputerUseMediaState }
     | { kind: 'media', command: string, verified: boolean, before: ComputerUseMediaState, after: ComputerUseMediaState }
