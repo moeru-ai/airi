@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest'
 import { wassersteinDistance, marginalW1ByAxis, centroidProfileDistance, computeBarycenter } from '../src/barycenter'
 import { detectBimodality } from '../src/modality'
-import { parseJudgeScore, JudgeOutputError } from '../src/judge-helpers'
+import { parseJudgeScore, JudgeOutputError, createJudge } from '../src/judge-helpers'
 import { normalizedTextDistance, fixedPointDistance, computeFixedPoint } from '../src/fixed-point'
 import { cohensKappa } from '../src/kappa'
 import { computeDriftScore } from '../src/drift-score'
@@ -650,5 +650,56 @@ describe('Round 2 review findings', () => {
     const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
     const mod = await import('../src/index')
     expect(mod.version).toBe(pkg.version)
+  })
+  it('P1 round8: zero-likelihood posterior does not produce NaN', () => {
+    // Six zero vectors + six one vectors + a far tiny-mass midpoint. Before
+    // the fix every PDF underflowed, the posterior was 0/0 NaN, and BIC was
+    // ~-17908 (silently hiding the split). Result must be finite now.
+    const rows: number[][] = []
+    for (let i = 0; i < 6; i++) rows.push([0, 0, 0, 0])
+    for (let i = 0; i < 6; i++) rows.push([1, 1, 1, 1])
+    rows.push([0.5, 0.5, 0.5, 0.5])
+    const weights = [...Array(12)].fill(1).concat([0.001])
+    const r = detectBimodality(rows, 10, 42, weights)
+    expect(Number.isFinite(r.bic1)).toBe(true)
+    expect(Number.isFinite(r.bic2)).toBe(true)
+    expect(Number.isFinite(r.bicImprovement)).toBe(true)
+    expect(r.bimodal).toBe(true)
+  })
+
+  it('P2 round8: createJudge accepts the runtime character name', async () => {
+    let captured = ''
+    const chat = async (prompt: string) => { captured = prompt; return '{"identity":0.9,"value":0.8,"expression":0.85,"memory":0.8}' }
+    const judge = createJudge({ persona: 'fallback', chat })
+    await judge('I am Dr. Lin', { name: 'Dr. Lin', persona: 'A physicist' })
+    expect(captured).toContain('Character name: Dr. Lin')
+    expect(captured).toContain('A physicist')
+  })
+
+  it('P2 round8: direct detectBimodality validates the BIC threshold', () => {
+    const rows = Array.from({ length: 10 }, (_, i) =>
+      [i % 2 ? 0.9 : 0.1, i % 2 ? 0.9 : 0.1, i % 2 ? 0.9 : 0.1, i % 2 ? 0.9 : 0.1])
+    expect(() => detectBimodality(rows, Number.NaN)).toThrow()
+    expect(() => detectBimodality(rows, Number.NEGATIVE_INFINITY)).toThrow()
+  })
+
+  it('P2 round8: insufficient samples surface a status instead of a tested false', () => {
+    const three = [[0.2, 0.2, 0.2, 0.2], [0.5, 0.5, 0.5, 0.5], [0.8, 0.8, 0.8, 0.8]]
+    const r = detectBimodality(three)
+    expect(r.bimodal).toBe(false)
+    expect(r.sufficientSamples).toBe(false)
+  })
+
+  it('P2 round8: harness rejects a zero-mass baseline before running sessions', async () => {
+    let calls = 0
+    const infer = async () => { calls++; return 'stable text' }
+    const judge = async () => ({ identity: 0.9, value: 0.9, expression: 0.9, memory: 0.9, weight: 0 })
+    await expect(identityContinuityHarness({
+      character: { name: 'X', persona: 'p' },
+      infer, judge, probePrompts: ['p'],
+      sessions: 5, messagesPerSession: 20,
+    })).rejects.toThrow()
+    // Only the fixed-point (2) + baseline probes (1) ran, no 100 filler calls.
+    expect(calls).toBeLessThan(10)
   })
 })

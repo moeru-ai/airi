@@ -187,6 +187,13 @@ export async function identityContinuityHarness(
     scoresBaseline.push(await score(prompt))
   }
 
+  // Fail fast on a massless baseline: a judge returning weight 0 for every
+  // probe makes W1 undefined. Check before driving 100+ filler calls and
+  // compression hooks.
+  if (scoresBaseline.every(s => (s.weight ?? 1) === 0)) {
+    throw new Error('Baseline scores carry no total weight; check the judge weight configuration')
+  }
+
   // 3. Drive the long-horizon sessions. Every message is a real inference
   //    call; after each session the caller can apply memory compression.
   let messagesDriven = 0

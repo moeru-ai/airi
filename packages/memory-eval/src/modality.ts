@@ -14,6 +14,12 @@ export interface BimodalityResult {
   bic2: number
   /** BIC improvement (bic1 - bic2; positive = 2-component is better) */
   bicImprovement: number
+  /**
+   * Whether the modality metric was actually tested. False when there are
+   * too few samples for a reliable 2-component fit, in which case `bimodal`
+   * is reported as false but should not be read as evidence of a single peak.
+   */
+  sufficientSamples: boolean
 }
 
 /**
@@ -29,9 +35,15 @@ export function detectBimodality(
   sampleWeights?: number[]  // Per-row mass; zero-weight rows carry no mass
 ): BimodalityResult {
   // Bimodality needs at least two points: one component cannot be
+  // The BIC threshold itself must be a finite positive number; NaN would
+  // silently report unimodal and -Infinity would report every split.
+  if (!Number.isFinite(bicThreshold) || bicThreshold <= 0) {
+    throw new Error('bicThreshold must be a finite positive number')
+  }
+
   // distinguished from another with fewer samples than components.
   if (!data || data.length < 2) {
-    return { bimodal: false, bic1: 0, bic2: 0, bicImprovement: 0 }
+    return { bimodal: false, bic1: 0, bic2: 0, bicImprovement: 0, sufficientSamples: false }
   }
 
   // Reject poisoned input: a NaN/Infinite coordinate produces NaN EM
@@ -75,7 +87,7 @@ export function detectBimodality(
     rows = keptRows
     weights = keptWeights
     if (rows.length < 2) {
-      return { bimodal: false, bic1: 0, bic2: 0, bicImprovement: 0 }
+      return { bimodal: false, bic1: 0, bic2: 0, bicImprovement: 0, sufficientSamples: false }
     }
   }
   data = rows
@@ -97,7 +109,15 @@ export function detectBimodality(
   // (at least 4 observations per component).
   const MIN_SAMPLES_FOR_TWO_COMPONENTS = 8
   if (data.length < MIN_SAMPLES_FOR_TWO_COMPONENTS) {
-    return { bimodal: false, bic1: 0, bic2: 0, bicImprovement: 0 }
+    // Surface the insufficiency so callers do not read `bimodal: false` as a
+    // tested unimodal result; the split-persona metric was not evaluated.
+    return {
+      bimodal: false,
+      bic1: 0,
+      bic2: 0,
+      bicImprovement: 0,
+      sufficientSamples: false,
+    }
   }
 
   // Never request more components than data points.
@@ -117,7 +137,8 @@ export function detectBimodality(
     bimodal: bicImprovement > bicThreshold,
     bic1,
     bic2,
-    bicImprovement
+    bicImprovement,
+    sufficientSamples: true,
   }
 }
 
@@ -232,20 +253,25 @@ function fitGMMOnce(
     const logLikelihoods = new Array(n).fill(0)
 
     for (let i = 0; i < n; i++) {
-      let sumResp = 0
+      // Work in log space so a point far from every (possibly shrunken)
+      // component underflows every PDF to zero without producing a 0/0 NaN
+      // posterior. log-sum-exp keeps the normalization finite.
+      const logWeights: number[] = []
       for (let j = 0; j < k; j++) {
         const prob = gaussianPDF(data[i], means[j], covariances[j])
-        responsibilities[i][j] = weights[j] * prob
-        sumResp += responsibilities[i][j]
+        logWeights[j] = Math.log(weights[j] > 0 ? weights[j] : 1e-300)
+          + Math.log(prob > 0 ? prob : 1e-300)
       }
-      // Normalize to a posterior first, then apply the sample mass. Applying
-      // mass before normalization cancels out, which made weight 100 behave
-      // exactly like weight 1.
+      const maxLog = Math.max(...logWeights)
+      const unnormalized = logWeights.map(lw => Math.exp(lw - maxLog))
+      const sumResp = unnormalized.reduce((acc, x) => acc + x, 0)
+
       const mass = sampleWeights[i]
       for (let j = 0; j < k; j++) {
-        responsibilities[i][j] = (responsibilities[i][j] / sumResp) * mass
+        responsibilities[i][j] = (unnormalized[j] / sumResp) * mass
       }
-      logLikelihoods[i] = Math.log(sumResp > 0 ? sumResp : 1e-300) * mass
+      // log of the mixture likelihood at this point (log-sum-exp).
+      logLikelihoods[i] = (maxLog + Math.log(sumResp)) * mass
     }
 
     const newLogLikelihood = logLikelihoods.reduce((a, b) => a + b, 0)
