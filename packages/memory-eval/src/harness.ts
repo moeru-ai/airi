@@ -119,8 +119,11 @@ export async function identityContinuityHarness(
 
   // Every inference call receives the persona as its context, so a provider
   // callback without its own system prompt still answers as the character
-  // rather than as a generic assistant. An explicit systemPrompt overrides.
-  const context = character.systemPrompt ?? character.persona
+  // rather than as a generic assistant. The configured name is always present
+  // so identity probes can evaluate the declared character. An explicit
+  // systemPrompt overrides.
+  const context = character.systemPrompt
+    ?? (character.name ? `You are ${character.name}. ${character.persona}` : character.persona)
   const ask = (prompt: string) => infer(prompt, context)
   // Custom judge callbacks bypass parseJudgeScore, so every score is validated
   // before use. A non-finite axis would otherwise poison W1 with NaN.

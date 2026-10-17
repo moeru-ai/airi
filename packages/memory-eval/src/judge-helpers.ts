@@ -108,6 +108,9 @@ export function parseJudgeScore(raw: string, weight = 1): RubricScore {
   for (const v of [identity, value, expression, memory]) {
     if (!Number.isFinite(v)) throw new JudgeOutputError(raw)
   }
+  if (!Number.isFinite(weight) || weight < 0) {
+    throw new JudgeOutputError(`invalid weight: ${weight}`)
+  }
 
   return {
     identity: clamp01(identity),
@@ -129,6 +132,9 @@ export function parseJudgeScore(raw: string, weight = 1): RubricScore {
  */
 export function createJudge(config: JudgeConfig & { chat: ChatFn }) {
   const { persona, weight = 1, chat } = config
+  if (!Number.isFinite(weight) || weight < 0) {
+    throw new Error(`createJudge weight must be a finite non-negative number, got ${weight}`)
+  }
 
   return async (response: string): Promise<RubricScore> => {
     const prompt = `${RUBRIC_INSTRUCTIONS}\n\n`

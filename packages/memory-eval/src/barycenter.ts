@@ -40,6 +40,12 @@ export function computeBarycenter(scores: RubricScore[]): BarycenterResult {
     totalWeight += w
   }
 
+  // A distribution with no positive mass has no defined center; dividing by
+  // zero here would return four NaNs that propagate to centroidProfileDistance.
+  if (!(totalWeight > 0)) {
+    throw new Error('computeBarycenter requires at least one positive-weight score')
+  }
+
   return {
     centroid: [
       sumIdentity / totalWeight,
