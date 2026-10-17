@@ -1,8 +1,7 @@
 import type { InferOutput } from 'valibot'
 
+import { createBadGatewayError, createServiceUnavailableError } from '@proj-airi/http-error-shared'
 import { array, boolean, nullable, number, object, optional, safeParse, string } from 'valibot'
-
-import { createBadGatewayError, createServiceUnavailableError } from '../../utils/error'
 
 const REQUEST_TIMEOUT_MS = 5_000
 
@@ -14,6 +13,11 @@ const subscriptionSchema = object({
   id: string(),
   /** The store that bills the subscription. Only a web store can change the product from the web app. */
   store: string(),
+  /**
+   * `production` or `sandbox`. A deployment grants only the subscriptions of its own environment.
+   * See `countsFor`.
+   */
+  environment: string(),
   /**
    * RevenueCat's own product id. `GET /products/{id}` gives the store identifier.
    * Null for a promotional subscription, which a person grants and no store sells.
@@ -109,6 +113,10 @@ export function createRevenuecatSubscriberClient(input: {
   projectId: string | null
   /** The id of the RevenueCat Web Billing app, for example `app0a4944c9ea`. Product changes need it. */
   webAppId: string | null
+  /** The store environment whose subscriptions this deployment grants. */
+  environment: 'production' | 'sandbox'
+  /** Dedicated test accounts whose sandbox subscriptions a production deployment also grants. */
+  sandboxUserIds: readonly string[]
   /**
    * True when this deployment receives RevenueCat webhooks, so it sells subscriptions.
    * A missing configuration is then an error, not a deployment without subscriptions.
@@ -118,6 +126,15 @@ export function createRevenuecatSubscriberClient(input: {
 }) {
   const fetchImpl = input.fetch ?? globalThis.fetch
   const configured = Boolean(input.apiKey && input.projectId)
+  const sandboxUserIds = new Set(input.sandboxUserIds)
+
+  /**
+   * Whether a subscription of this environment can grant the user anything here.
+   * Sandbox subscriptions are test purchases. A production deployment grants them only to listed test accounts.
+   */
+  function countsFor(userId: string, environment: string): boolean {
+    return environment === input.environment || (environment === 'sandbox' && sandboxUserIds.has(userId))
+  }
 
   /** Sends one request. Returns null for 404, which is a customer that RevenueCat does not know. */
   async function request(url: string, init: { method: 'GET' } | { method: 'POST', body: unknown } = { method: 'GET' }): Promise<unknown> {
@@ -195,6 +212,7 @@ export function createRevenuecatSubscriberClient(input: {
    * The entitlements that the customer has now, each with the subscription that grants it.
    * The subscription gives the product and the billing period start. The active entitlement gives the end of access.
    * When two subscriptions grant one entitlement, the later period start is used.
+   * A subscription of another environment grants nothing. See {@link countsFor}.
    */
   async function fetchEntitlements(userId: string): Promise<SubscriberEntitlement[]> {
     if (!configured)
@@ -206,9 +224,15 @@ export function createRevenuecatSubscriberClient(input: {
       fetchSubscriptions(userId),
       request(projectUrl(`/customers/${encodeURIComponent(userId)}/active_entitlements?limit=${PAGE_LIMIT}`)),
     ])
-    const granting = subscriptions
-      .filter(subscription => subscription.gives_access)
+    const withAccess = subscriptions.filter(subscription => subscription.gives_access)
+    const granting = withAccess
+      .filter(subscription => countsFor(userId, subscription.environment))
       .sort((left, right) => right.current_period_starts_at - left.current_period_starts_at)
+    // The active entitlement list ignores the environment filter. Its end of access can come from an
+    // excluded sandbox subscription, so such an entitlement ends with the period of its own subscription.
+    const sharedWithExcluded = new Set(withAccess
+      .filter(subscription => !countsFor(userId, subscription.environment))
+      .flatMap(subscription => subscription.entitlements.items.map(item => item.id)))
     if (granting.length === 0)
       return []
 
@@ -237,7 +261,7 @@ export function createRevenuecatSubscriberClient(input: {
     }))
 
     return grants.flatMap(({ subscription, granted }, index) => granted.map((item) => {
-      const expiresAt = accessUntil.get(item.id)!
+      const expiresAt = sharedWithExcluded.has(item.id) ? subscription.current_period_ends_at : accessUntil.get(item.id)!
       return {
         entitlementId: item.lookup_key,
         productId: resolved[index]!.storeIdentifier,
@@ -252,6 +276,7 @@ export function createRevenuecatSubscriberClient(input: {
    * Tells whether the store can charge the customer again.
    * RevenueCat reports the status and the renewal status of each subscription, so nothing is inferred from dates.
    * A cancelled subscription keeps its access until the period ends, and it does not count.
+   * A subscription of another environment does not count, so a sandbox purchase cannot block a deletion.
    *
    * Without a configuration the answer is no for a deployment that sells no subscriptions.
    * A deployment that sells them fails, because its subscriptions cannot be read.
@@ -263,7 +288,7 @@ export function createRevenuecatSubscriberClient(input: {
       return false
     }
 
-    return (await fetchSubscriptions(userId)).some(canCharge)
+    return (await fetchSubscriptions(userId)).some(subscription => countsFor(userId, subscription.environment) && canCharge(subscription))
   }
 
   /**
@@ -276,7 +301,7 @@ export function createRevenuecatSubscriberClient(input: {
       throw createServiceUnavailableError('RevenueCat product changes are not configured', 'REVENUECAT_NOT_CONFIGURED')
 
     const [subscription] = (await fetchSubscriptions(userId))
-      .filter(item => item.gives_access && WEB_STORES.has(item.store))
+      .filter(item => item.gives_access && countsFor(userId, item.environment) && WEB_STORES.has(item.store))
       .sort((left, right) => right.current_period_starts_at - left.current_period_starts_at)
     if (!subscription)
       return null

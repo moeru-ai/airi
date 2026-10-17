@@ -9,7 +9,7 @@ import { useSubscription } from './use-subscription'
 
 const sdk = vi.hoisted(() => ({
   getCustomerInfo: vi.fn<() => Promise<CustomerInfo>>(),
-  changeUser: vi.fn(),
+  changeUser: vi.fn(async () => {}),
   getOfferings: vi.fn<() => Promise<{ current: unknown }>>(async () => ({ current: null })),
   purchase: vi.fn(),
 }))
@@ -85,13 +85,13 @@ function mountSubscription(onChanged: () => Promise<unknown> = async () => {}) {
   return { subscription: holder.subscription, userId, target, unmount }
 }
 
-function monthlyPackage(productId: string) {
+function monthlyPackage(productId: string, amountMicros = 5_000_000) {
   return {
     identifier: `$rc_${productId}`,
     webBillingProduct: {
       identifier: productId,
       period: { number: 1, unit: 'month' },
-      price: { formattedPrice: '$5.00', amountMicros: 5_000_000 },
+      price: { formattedPrice: '$5.00', amountMicros },
     },
   }
 }
@@ -236,6 +236,44 @@ describe('subscription account ownership', () => {
 
     await expect(subscription.purchaseCapacitor('$rc_monthly')).rejects.toThrow()
     expect(sdk.purchase).not.toHaveBeenCalled()
+  })
+
+  it('orders mapped packages by price and keeps each product quota', async () => {
+    sdk.getOfferings.mockResolvedValueOnce({
+      current: { metadata: null, availablePackages: [monthlyPackage('plus', 10_000_000), monthlyPackage('monthly')] },
+    })
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(Response.json({
+      capacitors: [{ productId: 'monthly', quota: 100 }, { productId: 'plus', quota: 300 }],
+      resetInterval: 'week',
+    }))
+    const { subscription } = mountSubscription()
+
+    await subscription.fetchPackages()
+
+    expect(subscription.packages.value.map(pkg => ({ productId: pkg.productId, quota: pkg.quota }))).toEqual([
+      { productId: 'monthly', quota: 100 },
+      { productId: 'plus', quota: 300 },
+    ])
+    expect(subscription.resetInterval.value).toBe('week')
+  })
+
+  it('keeps a renewal-only refill interval and clears catalog state on logout', async () => {
+    sdk.getOfferings.mockResolvedValueOnce({
+      current: { metadata: null, availablePackages: [monthlyPackage('monthly')] },
+    })
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(Response.json({
+      capacitors: [{ productId: 'monthly', quota: 100 }],
+      resetInterval: null,
+    }))
+    const { subscription, userId } = mountSubscription()
+
+    await subscription.fetchPackages()
+
+    expect(subscription.resetInterval.value).toBeNull()
+    expect(subscription.packages.value.map(pkg => pkg.productId)).toEqual(['monthly'])
+    userId.value = ''
+    expect(subscription.packages.value).toEqual([])
+    expect(subscription.resetInterval.value).toBeNull()
   })
 
   // https://github.com/moeru-ai/airi/pull/2813#discussion_r4237700028

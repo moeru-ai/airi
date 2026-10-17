@@ -6,15 +6,16 @@ import type { HonoEnv } from '../../types/hono'
 
 import { createHmac } from 'node:crypto'
 
+import { ApiError } from '@proj-airi/http-error-shared'
 import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../../libs/mock-db'
 import { createTestRedis } from '../../libs/tests/redis'
+import { createConfigKVService } from '../../services/adapters/config-kv'
 import { createRevenuecatSubscriptionSync } from '../../services/adapters/revenuecat-subscriptions'
 import { createBillingService } from '../../services/domain/billing/billing-service'
-import { ApiError } from '../../utils/error'
 import { createRevenuecatRoutes } from './index'
 
 import * as schema from '../../schemas'
@@ -27,18 +28,15 @@ const starterCapacitors: ConfigDefinitions['REVENUECAT_CAPACITORS'] = {
   rc_plus_monthly: { entitlementId: 'airi_plus', quota: 5000 },
 }
 
-function createCapacitorsConfigKV(): ConfigKVService {
-  return {
-    getOptional: vi.fn(async (key: string) => {
-      if (key === 'REVENUECAT_CAPACITORS')
-        return starterCapacitors
-      return key === 'CAPACITOR_RESET_INTERVAL' ? 'day' : null
-    }),
-    getOrThrow: vi.fn(),
-    get: vi.fn(),
-    refresh: vi.fn(),
-    invalidateCache: vi.fn(),
-  } as ConfigKVService
+function createCapacitorsConfigKV(resetInterval: ConfigDefinitions['CAPACITOR_RESET_INTERVAL'] | null = null): ConfigKVService {
+  const values = new Map([['REVENUECAT_CAPACITORS', JSON.stringify(starterCapacitors)]])
+  if (resetInterval)
+    values.set('CAPACITOR_RESET_INTERVAL', JSON.stringify(resetInterval))
+  return createConfigKVService({
+    getRaw: vi.fn(async key => values.get(key) ?? null),
+    getFreshRaw: vi.fn(async key => values.get(key) ?? null),
+    invalidateCache: vi.fn(async () => {}),
+  })
 }
 
 function signBody(rawBody: string, timestamp = Math.floor(Date.now() / 1000)): string {
@@ -109,8 +107,11 @@ describe('revenuecat routes', () => {
   /** What RevenueCat reports for each user. A test changes it between webhooks. */
   let entitlements: Record<string, SubscriberEntitlement[]>
 
-  async function setup(signedInUserId: string | null = null) {
-    const configKV = createCapacitorsConfigKV()
+  async function setup(
+    signedInUserId: string | null = null,
+    resetInterval: ConfigDefinitions['CAPACITOR_RESET_INTERVAL'] | null = null,
+  ) {
+    const configKV = createCapacitorsConfigKV(resetInterval)
     await db.delete(schema.fluxUsage)
     await db.delete(schema.fluxTransaction)
     await db.delete(schema.userFlux)
@@ -189,21 +190,31 @@ describe('revenuecat routes', () => {
     expect(await readWallet('user-1')).toMatchObject({ capacitorFlux: 1500, capacitorQuota: 2000 })
   })
 
+  // https://github.com/moeru-ai/airi/issues/2981
+  // A refill needs a last refill earlier than the new period start, so the clock moves from the first event to the upgrade.
   it('grants the new capacitor on PRODUCT_CHANGE and not the old product in the event', async () => {
-    const { app } = await setup()
-    entitlements['user-1'] = [goEntitlement]
-    await postWebhook(app, webhookBody())
+    const upgradedAt = new Date('2026-10-15T00:00:00.000Z')
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-10-02T00:00:00.000Z') })
+    try {
+      const { app } = await setup()
+      entitlements['user-1'] = [goEntitlement]
+      await postWebhook(app, webhookBody())
 
-    entitlements['user-1'] = [{
-      entitlementId: 'airi_plus',
-      productId: 'rc_plus_monthly',
-      purchasedAt: new Date('2026-10-15T00:00:00.000Z'),
-      accessUntil: goEntitlement.accessUntil,
-      pendingChange: null,
-    }]
-    await postWebhook(app, webhookBody({ id: 'sub-event-2', type: 'PRODUCT_CHANGE', product_id: 'rc_go_monthly' }))
+      vi.setSystemTime(upgradedAt)
+      entitlements['user-1'] = [{
+        entitlementId: 'airi_plus',
+        productId: 'rc_plus_monthly',
+        purchasedAt: upgradedAt,
+        accessUntil: goEntitlement.accessUntil,
+        pendingChange: null,
+      }]
+      await postWebhook(app, webhookBody({ id: 'sub-event-2', type: 'PRODUCT_CHANGE', product_id: 'rc_go_monthly' }))
 
-    expect(await readWallet('user-1')).toMatchObject({ capacitorFlux: 5000, capacitorQuota: 5000 })
+      expect(await readWallet('user-1')).toMatchObject({ capacitorFlux: 5000, capacitorQuota: 5000 })
+    }
+    finally {
+      vi.useRealTimers()
+    }
   })
 
   it('expires the capacitor when RevenueCat reports no active capacitor', async () => {
@@ -292,8 +303,22 @@ describe('revenuecat routes', () => {
     expect(fetchEntitlements).not.toHaveBeenCalled()
   })
 
-  it('lists each Capacitor with its quota and the refill interval', async () => {
+  it('lists product quotas with a renewal refill when no reset interval is configured', async () => {
     const { app } = await setup('user-1')
+
+    const res = await app.request('/api/v1/revenuecat/capacitors')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({
+      capacitors: [
+        { productId: 'rc_go_monthly', quota: 2000 },
+        { productId: 'rc_plus_monthly', quota: 5000 },
+      ],
+      resetInterval: null,
+    })
+  })
+
+  it('lists product quotas with the configured reset interval without reading RevenueCat', async () => {
+    const { app, fetchEntitlements } = await setup('user-1', 'day')
 
     const res = await app.request('/api/v1/revenuecat/capacitors')
     expect(res.status).toBe(200)
@@ -304,6 +329,15 @@ describe('revenuecat routes', () => {
       ],
       resetInterval: 'day',
     })
+    expect(fetchEntitlements).not.toHaveBeenCalled()
+  })
+
+  it('rejects an anonymous catalog request', async () => {
+    const { app, fetchEntitlements } = await setup()
+
+    const res = await app.request('/api/v1/revenuecat/capacitors')
+    expect(res.status).toBe(401)
+    expect(fetchEntitlements).not.toHaveBeenCalled()
   })
 
   it('returns the product change grant of the signed-in user', async () => {

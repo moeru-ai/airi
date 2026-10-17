@@ -8,6 +8,7 @@ export interface CreateAnimatorOptions {
 
 export type Animator = (elements: HTMLElement[]) => (() => void)
 
+export * from './blur-fade'
 export * from './fade'
 export * from './float'
 export * from './popup'

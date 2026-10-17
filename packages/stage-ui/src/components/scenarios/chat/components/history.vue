@@ -4,7 +4,7 @@ import type { VirtualizerHandle } from 'virtua/vue'
 import type { ChatToolCallRerunEvent, ToolCallRerunRequest } from '../../../../stores/tool-call-rerun'
 import type { ChatHistoryItem, StreamingAssistantMessage } from '../../../../types/chat'
 import type { ChatHistoryReplyPayload } from '../reply'
-import type { ChatToolCallRendererRegistry } from './tool-call-renderer'
+import type { ChatToolCallRendererRegistry, ChatToolCallWidgetRegistry } from './tool-call-renderer'
 
 import { useNow } from '@vueuse/core'
 import { Virtualizer } from 'virtua/vue'
@@ -16,6 +16,7 @@ import ChatHistoryScrollContainer from './chat-history-scroll-container.vue'
 import ChatErrorItem from './error-item.vue'
 import ChatHistoryMessageFrame from './history-message-frame.vue'
 import ChatHistoryTimeSeparator from './history-time-separator.vue'
+import ChatNoticeItem from './notice-item.vue'
 import ChatUserItem from './user-item.vue'
 
 import { useChatHistoryScroll } from '../composables/use-chat-history-scroll'
@@ -66,6 +67,8 @@ const props = withDefaults(defineProps<{
    */
   expiredBefore?: number
   toolCallRenderers?: ChatToolCallRendererRegistry
+  /** Widgets for tool results. Each assistant message passes them to its tool call groups. */
+  toolCallWidgets?: ChatToolCallWidgetRegistry
 }>(), {
   sending: false,
   tailInset: 0,
@@ -75,6 +78,7 @@ const props = withDefaults(defineProps<{
   passive: false,
   expiredBefore: 0,
   toolCallRenderers: () => ({}),
+  toolCallWidgets: () => ({}),
 })
 
 const emit = defineEmits<{
@@ -116,6 +120,10 @@ function canReplyToMessage(message: ChatHistoryItem) {
     return false
 
   if (message.role !== 'assistant' && message.role !== 'user')
+    return false
+
+  // A notice is not a message from either side, so nobody replies to it.
+  if (message.role === 'user' && message.notice)
     return false
 
   if (message.role === 'assistant' && shouldShowPlaceholder(message) && showStreamingPlaceholder.value)
@@ -310,10 +318,16 @@ function emitToolCallRerun(
               :variant="variant"
               :surface="surface"
               :tool-call-renderers="toolCallRenderers"
+              :tool-call-widgets="toolCallWidgets"
               @copy="emitCopyMessage(message, index)"
               @delete="emitDeleteMessage(message, index)"
               @reply="emitReplyMessage(message)"
               @tool-call-rerun="emitToolCallRerun(message, index, $event)"
+            />
+            <ChatNoticeItem
+              v-else-if="message.role === 'user' && message.notice"
+              :message="message"
+              :surface="surface"
             />
             <ChatUserItem
               v-else-if="message.role === 'user'"

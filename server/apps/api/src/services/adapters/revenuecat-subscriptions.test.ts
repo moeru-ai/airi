@@ -4,6 +4,7 @@ import type { SubscriberEntitlement } from './revenuecat-subscriber'
 
 import { describe, expect, it, vi } from 'vitest'
 
+import { createConfigKVService } from './config-kv'
 import { createRevenuecatSubscriptionSync } from './revenuecat-subscriptions'
 
 const starterCapacitors: ConfigDefinitions['REVENUECAT_CAPACITORS'] = {
@@ -11,14 +12,20 @@ const starterCapacitors: ConfigDefinitions['REVENUECAT_CAPACITORS'] = {
   rc_plus_monthly: { entitlementId: 'airi_plus', quota: 5000 },
 }
 
-function createConfigKV(capacitors: ConfigDefinitions['REVENUECAT_CAPACITORS'] | null = starterCapacitors): ConfigKVService {
-  return {
-    getOptional: vi.fn(async () => capacitors),
-    getOrThrow: vi.fn(),
-    get: vi.fn(),
-    refresh: vi.fn(),
-    invalidateCache: vi.fn(),
-  } as ConfigKVService
+function createConfigKV(
+  capacitors: ConfigDefinitions['REVENUECAT_CAPACITORS'] | null = starterCapacitors,
+  resetInterval: ConfigDefinitions['CAPACITOR_RESET_INTERVAL'] | null = null,
+): ConfigKVService {
+  const values = new Map<string, string>()
+  if (capacitors)
+    values.set('REVENUECAT_CAPACITORS', JSON.stringify(capacitors))
+  if (resetInterval)
+    values.set('CAPACITOR_RESET_INTERVAL', JSON.stringify(resetInterval))
+  return createConfigKVService({
+    getRaw: vi.fn(async key => values.get(key) ?? null),
+    getFreshRaw: vi.fn(async key => values.get(key) ?? null),
+    invalidateCache: vi.fn(async () => {}),
+  })
 }
 
 const future = new Date(Date.now() + 86_400_000)
@@ -116,5 +123,46 @@ describe('revenuecat subscription sync', () => {
     const { synced, fetchEntitlements } = await reconcile([goEntitlement], createConfigKV(null))
     expect(synced).toEqual([])
     expect(fetchEntitlements).not.toHaveBeenCalled()
+  })
+})
+
+describe('revenuecat capacitor catalog', () => {
+  function createCatalog(configKV = createConfigKV()) {
+    const fetchEntitlements = vi.fn(async () => [])
+    const syncCapacitor = vi.fn(async () => null)
+    const sync = createRevenuecatSubscriptionSync({ syncCapacitor }, configKV, { fetchEntitlements })
+    return { ...sync, fetchEntitlements, syncCapacitor }
+  }
+
+  it.each(['day', 'week'] as const)('lists product quotas with the %s reset interval', async (resetInterval) => {
+    const catalog = createCatalog(createConfigKV(starterCapacitors, resetInterval))
+
+    expect(await catalog.listCapacitors()).toEqual({
+      capacitors: [
+        { productId: 'rc_go_monthly', quota: 2000 },
+        { productId: 'rc_plus_monthly', quota: 5000 },
+      ],
+      resetInterval,
+    })
+    expect(catalog.fetchEntitlements).not.toHaveBeenCalled()
+    expect(catalog.syncCapacitor).not.toHaveBeenCalled()
+  })
+
+  it('reports a renewal refill when no reset interval is configured', async () => {
+    const catalog = createCatalog()
+
+    expect((await catalog.listCapacitors()).resetInterval).toBeNull()
+  })
+
+  it('lists no Capacitors when the mapping is empty', async () => {
+    const catalog = createCatalog(createConfigKV({}))
+
+    expect(await catalog.listCapacitors()).toEqual({ capacitors: [], resetInterval: null })
+  })
+
+  it('lists no Capacitors when the mapping is unset', async () => {
+    const catalog = createCatalog(createConfigKV(null))
+
+    expect(await catalog.listCapacitors()).toEqual({ capacitors: [], resetInterval: null })
   })
 })

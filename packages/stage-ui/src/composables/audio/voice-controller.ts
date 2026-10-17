@@ -1,4 +1,4 @@
-import type { SpeechInputAttemptState, SpeechSnapshot, VoiceControllerOptions } from '@proj-airi/core-agent'
+import type { SpeechInputAttemptState, TranscriptDocument, VoiceControllerOptions } from '@proj-airi/core-agent'
 
 import { errorMessageFrom } from '@moeru/std'
 import { VoiceController } from '@proj-airi/core-agent'
@@ -15,7 +15,7 @@ import { useSettingsAudioDevice } from '../../stores/settings/audio-device'
 export function useVoiceController(options: Omit<VoiceControllerOptions, 'audio'>) {
   const devices = useSettingsAudioDevice()
   const state = shallowRef<SpeechInputAttemptState>()
-  const snapshot = shallowRef<SpeechSnapshot>()
+  const snapshot = shallowRef<TranscriptDocument>()
   const error = shallowRef<string>()
   let inputId: string | undefined
   let stopState: (() => void) | undefined
@@ -35,13 +35,13 @@ export function useVoiceController(options: Omit<VoiceControllerOptions, 'audio'
     })
   })
 
+  // Each document version reaches the view. A document of a replaced input is ignored.
   controller.use({ name: 'vue-snapshot', setup(scope) {
     scope.onSpeechInput((input) => {
-      input.subscribe({ transcript: 'corrected', speakers: true, scheduling: 'latest' }, async (ctx) => {
-        if (ctx.snapshot.inputId === inputId)
-          snapshot.value = ctx.snapshot
+      input.watch((document) => {
+        if (document.inputId === inputId)
+          snapshot.value = document
       })
-      return undefined
     })
     return undefined
   } })

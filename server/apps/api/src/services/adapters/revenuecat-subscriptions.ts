@@ -1,5 +1,5 @@
 import type { BillingService, CapacitorPeriod } from '../domain/billing/billing-service'
-import type { ConfigKVService } from './config-kv'
+import type { ConfigDefinitions, ConfigKVService } from './config-kv'
 import type { RevenuecatSubscriberClient } from './revenuecat-subscriber'
 
 import { useLogger } from '@guiiai/logg'
@@ -12,9 +12,11 @@ export interface CapacitorPendingChange {
   startsAt: Date
 }
 
+/** Configured Capacitor quotas and refill intervals for the client's package cards. */
 export interface CapacitorCatalog {
   capacitors: { productId: string, quota: number }[]
-  resetInterval: 'day' | 'week' | null
+  /** Null means that the Capacitor refills at each renewal. */
+  resetInterval: NonNullable<ConfigDefinitions['CAPACITOR_RESET_INTERVAL']> | null
 }
 
 /**
@@ -66,9 +68,8 @@ export function createRevenuecatSubscriptionSync(
   }
 
   /**
-   * The Capacitors that the client can sell, with the Flux that each one holds and how often it refills.
-   * A purchase of a product outside this list gets no Capacitor Flux, so the client lists no other product.
-   * `resetInterval` is null when the Capacitor refills only at each renewal.
+   * Returns the configured Capacitors for the client to sell and describe.
+   * A purchase outside this catalog grants no Capacitor Flux.
    */
   async function listCapacitors(): Promise<CapacitorCatalog> {
     const [capacitors, resetInterval] = await Promise.all([
@@ -76,7 +77,9 @@ export function createRevenuecatSubscriptionSync(
       configKV.getOptional('CAPACITOR_RESET_INTERVAL'),
     ])
     return {
-      capacitors: Object.entries(capacitors ?? {}).map(([productId, capacitor]) => ({ productId, quota: capacitor.quota })),
+      capacitors: capacitors
+        ? Object.entries(capacitors).map(([productId, capacitor]) => ({ productId, quota: capacitor.quota }))
+        : [],
       resetInterval: resetInterval ?? null,
     }
   }

@@ -155,6 +155,14 @@ const EnvSchema = intersect([S3EnvironmentSchema, object({
   // The RevenueCat Web Billing app id. Upgrades and downgrades of a web subscription return 503 while it is unset.
   // The API v2 key needs the `iam:authorization:issue_token` permission for them.
   REVENUECAT_WEB_APP_ID: optional(string()),
+  // The store environment whose RevenueCat subscriptions this deployment grants. A dev deployment
+  // that sells with the sandbox Web Billing key sets `sandbox`.
+  REVENUECAT_ENVIRONMENT: optional(picklist(['production', 'sandbox']), 'production'),
+  // Exact internal IDs of dedicated accounts whose sandbox subscriptions a production deployment grants.
+  REVENUECAT_SANDBOX_USER_IDS: optional(pipe(
+    string(),
+    transform(raw => [...new Set(raw.split(',').map(id => id.trim()).filter(Boolean))]),
+  ), ''),
   // Testing-only bearer token bypass. Keep unset in production. When set,
   // Authorization: Bearer $TEST_AUTH_TOKEN resolves to the virtual user below
   // through resolveRequestAuth without creating an Auth session row.

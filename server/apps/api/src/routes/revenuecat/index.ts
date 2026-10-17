@@ -4,11 +4,11 @@ import type { RevenuecatSubscriberClient } from '../../services/adapters/revenue
 import type { RevenuecatSubscriptionSync } from '../../services/adapters/revenuecat-subscriptions'
 import type { HonoEnv } from '../../types/hono'
 
+import { createConflictError } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 
 import { authGuard } from '../../middlewares/auth'
 import { rateLimiter } from '../../middlewares/rate-limit'
-import { createConflictError } from '../../utils/error'
 import { createWebhookOperation } from './operations/webhook'
 
 /**

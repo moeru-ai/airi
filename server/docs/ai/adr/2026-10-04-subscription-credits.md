@@ -127,7 +127,7 @@ The response omits Capacitor Flux counts.
 `PUT /api/v1/flux/fallback` saves `fallbackToFlux`.
 `GET /api/v1/revenuecat/capacitors` returns each product in `REVENUECAT_CAPACITORS` with its quota, and `CAPACITOR_RESET_INTERVAL`.
 The client lists only these products. A purchase of another product takes the payment and grants no Capacitor Flux.
-Each package card shows the quota and the refill interval. No interval shows a monthly refill.
+Each package card shows the quota and the refill interval. A null interval means a refill at each renewal.
 Chat and speech do not call RevenueCat.
 
 ### Ledger
@@ -146,6 +146,7 @@ The SDK marks `productChangeInfo` internal during the beta, so the client declar
 
 `POST /api/v1/revenuecat/product-change` gives the signed-in user a `subscriptionId` and a `subscriberToken`.
 The server picks the latest subscription with access that `rc_billing` or `stripe` bills.
+The subscription must pass the same environment policy as the Capacitor grant.
 It issues the token through `POST /v2/projects/{project}/apps/{REVENUECAT_WEB_APP_ID}/authenticate`.
 The API v2 key needs the `iam:authorization:issue_token` permission.
 The route returns 409 when no web subscription can change, and 503 without `REVENUECAT_WEB_APP_ID`.
@@ -190,6 +191,7 @@ With a webhook secret, the missing configuration is an error, and the check retu
 Remove the local subscription status mirror and the webhook event log.
 Read entitlement status from RevenueCat on the client and on the server.
 Keep Capacitor Flux in the Flux wallet.
+Show each configured Capacitor quota and refill interval on its package card.
 
 ## Non-goals
 
@@ -211,6 +213,8 @@ flowchart LR
   Webhook[RevenueCat webhook] --> Sync["revenuecat-subscriptions.ts"]
   SyncRoute["POST /revenuecat/sync"] --> Sync
   ChangeRoute["POST /revenuecat/product-change"] --> Reader
+  CatalogRoute["GET /revenuecat/capacitors"] --> Sync
+  Sync --> ConfigKV["ConfigKV"]
   Auth[Auth service] --> Check["POST /internal/auth/user-deletion/check"]
   Check --> Reader
   Sync --> Reader["revenuecat-subscriber.ts"]
@@ -230,9 +234,15 @@ sequenceDiagram
   participant RC as RevenueCat
   participant DB
   Client->>RC: Read customerInfo
+  Client->>API: POST /revenuecat/sync when the page opens
+  API->>RC: Read current entitlements
+  API->>DB: Reconcile the current Capacitor period
   Client->>API: GET /flux
   API->>DB: Read user_flux
   API-->>Client: Balance and capacitor percent
+  Client->>API: GET /revenuecat/capacitors
+  API->>DB: Read ConfigKV catalog and reset interval
+  API-->>Client: Products with quotas and reset interval
   RC->>API: Webhook for a customer
   API->>DB: Lock the user
   API->>RC: GET /v2 subscriptions, active entitlements, product
@@ -264,8 +274,10 @@ server/apps/api/
   src/services/domain/{flux,flux-cache,flux-transaction}.ts
   src/services/adapters/revenuecat-subscriber.ts
   src/services/adapters/revenuecat-subscriptions.ts
+  src/services/adapters/revenuecat-subscriptions.test.ts
   src/routes/flux/index.ts
   src/routes/revenuecat/index.ts
+  src/routes/revenuecat/route.test.ts
   src/routes/revenuecat/operations/webhook.ts
   src/libs/env.ts
   src/app.ts
@@ -289,6 +301,7 @@ Run the flux route tests for the Capacitor percent and the fallback choice.
 Run the client test that maps `customerInfo` to the current Capacitor.
 Run the admission test for a due refill with an outstanding fee.
 Run the route tests for the sync of a signed-in user, an anonymous sync, and the product list.
+Run the catalog tests for product quotas, daily and weekly refills, renewal refills, and an empty configuration.
 Run the subscriber client tests for each renewal status, for `in_billing_retry`, and for a missing configuration.
 Run the internal route tests for the deletion check.
 Run the Auth tests for a refused request without an email, and for a refused email link without a revocation.

@@ -384,6 +384,20 @@
       status: preferred
       context: Select a model
 
+- id: cloud
+  subject: providers
+  translatable: true
+  definition: Remote servers that run a service over the internet, not on this device.
+  note: >
+    Use the computing term, not the word for a cloud in the sky. Two uses are exceptions. The
+    color named Cloud in the Nordic theme is a sky cloud, so translate it as a color name. A
+    brand name such as Alibaba Cloud keeps its official form.
+  terms:
+    - text: Cloud
+      part-of-speech: noun
+      status: preferred
+      context: Use cloud-based models via the Replicate API.
+
 # ---------------------------------------------------------------------------------------
 # The modules
 #
@@ -542,6 +556,17 @@
 # Sound
 # ---------------------------------------------------------------------------------------
 
+- id: speaker-recognition
+  subject: sound
+  translatable: true
+  definition: A setting that compares each voice input with the saved voiceprint and records how similar they are.
+  note: Speaker means the person who speaks, not a loudspeaker. The setting does not block other voices.
+  terms:
+    - text: Speaker recognition
+      part-of-speech: noun
+      status: preferred
+      context: Enroll your voice to turn on speaker recognition.
+
 - id: voice-pack
   subject: sound
   translatable: true
@@ -551,3 +576,14 @@
       part-of-speech: noun
       status: preferred
       context: No Voice Packs available
+
+- id: voiceprint
+  subject: sound
+  translatable: true
+  definition: Numbers that a model computes from the speech of one person, so that the application can recognize that person's voice.
+  note: It contains no audio. It is not a recording, a voice sample, or a Voice Pack.
+  terms:
+    - text: Voiceprint
+      part-of-speech: noun
+      status: preferred
+      context: A voiceprint is a list of numbers that the voiceprint model computes from your speech.

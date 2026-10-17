@@ -13,6 +13,15 @@ docs:
     navbar:
       appearance:
         title: Appearance
+'fullscreen-island':
+  settings: Settings
+  chat: Chat
+  switch-to-dark-mode: Switch to dark mode
+  switch-to-system-mode: Follow the system theme
+  switch-to-light-mode: Switch to light mode
+  exit: Exit fullscreen
+'fullscreen-surface':
+  resize: Drag to resize the panel
 'controls-island':
   'fade-on-hover':
     enable: Auto hide
@@ -49,6 +58,7 @@ docs:
     floating-attached: Floating, beside the character
     floating-free: Floating, anywhere on screen
     floating-danmaku: Floating, message feed
+    fullscreen: Fullscreen, beside the character
     pinned: Keep on top
   resize: Drag to resize the chat
   move: Drag to move the chat
@@ -138,3 +148,138 @@ about:
       title: Update Available
       description: A new version (v{version}) is available.
       no-release-notes-markdown: _No release notes provided._
+computer-use-tool-call:
+  help: Help
+  status:
+    completed: Completed
+    failed: Failed
+  display: Display
+  built-in: Built-in
+  primary: Primary
+  logical-size: Logical size
+  pixel-size: Pixel size
+  backend: Capture backend
+  fallback: Fallback reason
+  file: File
+  window: Window
+  region: Region
+  main: Main
+  hidden: Hidden
+  displays: 'One display | {count} displays'
+  windows: 'One window | {count} windows'
+  found: 'Found "{query}"'
+  matches: 'One match | {count} matches'
+  not-found: 'No "{query}" found'
+  clicked-text: 'Clicked "{query}"'
+  options: Options
+  typed: Typed
+  pasted: Pasted
+  pressed: Pressed
+  repeat: '× {count}'
+  interval: 'every {ms} ms'
+  hold: 'held for {ms} ms'
+  steps: 'One step in order | {count} steps in order'
+  focused: 'Focused "{query}"'
+  app: App
+  process: Process
+  control: Control
+  title: Title
+  value: Content
+  ax-path: Accessibility path
+  moved: Moved the pointer to
+  clicked: Clicked
+  dragged: Dragged
+  requested: Requested
+  on-screen: On screen
+  start: Start
+  end: End
+  final: Final point
+  duration: '{ms} ms'
+  normalized: Normalized coordinates
+  click-count: '× {count}'
+  relative:
+    screen: Relative to the screen
+    window: Relative to the window
+    display: Relative to the display
+  buttons:
+    left: Left button
+    right: Right button
+    middle: Middle button
+  clicks:
+    single: Single click
+    double: Double click
+  delivery:
+    path: Delivery
+    verified: Effect verified
+    not-verified: Effect not verified
+    disturbance: Disturbance
+    mouse: Mouse
+    focus: Focus
+    clipboard: Clipboard
+    attempt: 'Attempt {index}'
+    attempt-succeeded: Succeeded
+    attempt-failed: Failed
+  paths:
+    foreground_system_events: Foreground system events
+    window_targeted_keyboard: Keyboard events sent to the window
+    ax_focus: Accessibility focus
+  disturbances:
+    none: None
+    temporary: Temporary
+    foreground: Brought to the front
+    unknown: Unknown
+  activated: 'Switched to {app}'
+  in-front: Now in front
+  front-is: '{app} is in front'
+  permissions:
+    title: System permissions
+    names:
+      screen_recording: Screen recording
+      screen_capture_kit: ScreenCaptureKit
+      accessibility: Accessibility
+      automation_to_system_events: Automation (System Events)
+    states:
+      granted: Granted
+      missing: Not granted
+      denied: Denied
+      unknown: Unknown
+  media:
+    commands:
+      play: Play
+      pause: Pause
+      toggle: Play or pause
+      next: Next track
+      previous: Previous track
+    verified: Verified
+    not-verified: Not verified
+    playing: Playing
+    paused: Paused
+    nothing: Nothing is playing
+    liked: Liked
+    rate: '{rate}× speed'
+computer-use-read-image-tool-call:
+  description: Description from the vision model
+  failed: The vision model could not read this image
+tool-call-screenshot:
+  view-full: View full size
+weather-tool-call:
+  feels-like: Feels like
+  humidity: Humidity
+  wind: Wind
+  precipitation: Chance of rain
+  high: High
+  low: Low
+  conditions:
+    clear-day: Clear
+    clear-night: Clear
+    partly-cloudy-day: Partly cloudy
+    partly-cloudy-night: Partly cloudy
+    overcast: Overcast
+    fog: Fog
+    drizzle: Drizzle
+    sleet: Sleet
+    rain: Rain
+    extreme-rain: Heavy rain
+    snow: Snow
+    extreme-snow: Heavy snow
+    thunderstorm: Thunderstorm

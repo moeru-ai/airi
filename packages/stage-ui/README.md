@@ -55,6 +55,7 @@ Consumers subscribe to the microphone input with their own abort signal. The las
 - Speech preserves existing chunked synthesis and bidirectional provider output.
 - `createVoiceRephrasePlugin` rewrites final transcripts with a chat model through a checked transcript patch. The raw text stays in the transcript history. Each segment gets its own rewrite, so segment boundaries stay for later speaker labels. A reply with another segment count leaves the text unchanged.
 - `createVoiceEndJudgePlugin` ends a paused input early when a chat model reads its transcript as a finished message. The model is the rephrase model, or the chat model when no rephrase provider is set.
+- `createSpeakerEvidencePlugin` compares each automatic input with the owner's voiceprint while Speaker recognition is on. It writes the mean cosine of the speech as speaker evidence, and the IO trace of the input records it. It never changes an input, and the chat prompt does not include it.
 
 A pause of 1.2 seconds can end an input. With the end judge on, which is the default, the voice activity silence limit grows by 3 seconds.
 The judge then ends a finished message at the pause, and an unfinished one waits for the speaker to continue.
@@ -79,6 +80,7 @@ The Hearing store keeps `inputMode`. The microphone switch (`useSettingsAudioDev
 - `wake-word` keeps the microphone open and runs voice activity detection and wake word detection. Only a wake starts an input.
 
 `startsInputOnSpeech(mode)` decides if VAD alone starts an input. In `wake-word` mode, the voice store's speech target is undefined.
+`SileroVad` (`workers/vad/silero-vad`) runs the VAD model in a Worker of its own, so the inference of each 32 ms window does not block the Stage render on the main thread.
 Wake word detection runs in every mode that listens continuously. In `always-on` mode, a wake also moves the input to the matched character's session.
 The voice host publishes the detector preparation in its snapshot as `wakeWords`, so a settings window can show it.
 
@@ -125,6 +127,17 @@ Catalog changes rebuild the spotter keywords. A result after a stop or a keyword
 `useWakeWordDetectionStore().preparation` reports `unconfigured`, `preparing`, `ready`, or `error` for UI.
 The model loads only when the catalog has a pronunciation for the pinned model. Until the model is ready, detection returns no wake.
 While no listener runs, the preparation is `unconfigured`.
+
+`useSpeakerTrackerStore` owns the voice host's Sherpaw speaker tracker Worker. `acquire` downloads the pinned CAM++ pack and starts the Worker on first use.
+The tracker enrolls the saved voiceprint as speaker 0, and follows each change of it. `release` terminates the Worker.
+`preparation` reports `idle`, `preparing`, `ready`, or `error` for UI. No feature acquires the tracker yet.
+
+`useVoiceprintStore` keeps the voiceprint of the device owner in local storage. Only one person can enroll.
+`useVoiceEnrollment` records one enrollment from the speech input of the calling window, keeps only the speech that Silero VAD finds, and saves the voiceprint.
+The enrollment belongs to the calling component, so it ends when the component unmounts.
+While it records, it holds a capture lease (`holdCaptureLease`). The voice host follows leases with `useVoiceCaptureLeaseStore`.
+While a lease holds, the host begins no input and records no voice message. A new lease cancels the active input and keeps a voice message that records as a draft.
+A lease that nobody renews ends after 3 seconds.
 
 A host can pass its own `detectWakeWord` to `voice.startListening`. Then the built-in detection does not start.
 The detector remains active during playback. A supplied `acceptSpeech` classifier can reject playback echo before admission.

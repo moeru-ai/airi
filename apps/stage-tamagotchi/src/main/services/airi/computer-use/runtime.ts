@@ -16,6 +16,8 @@ import { startAuv } from '@auv-js/sdk/node'
 
 import * as v from 'valibot'
 
+import { isComputerUseHelpCall } from '../../../../shared/eventa/computer-use'
+
 const execFileAsync = promisify(execFile)
 const inputSchema = v.object({ argv: v.pipe(v.array(v.pipe(v.string(), v.maxLength(16384), v.check(value => !value.includes('\0')))), v.minLength(2), v.maxLength(128)) })
 
@@ -95,7 +97,7 @@ export function createComputerUseRuntime(options: { binaryPath: string, storeRoo
     return enqueue(async () => {
       const active = await connect()
       const command = [...argv]
-      if (!command.includes('--json') && !command.includes('--help') && !command.includes('-h') && command[1] !== 'help')
+      if (!command.includes('--json') && !isComputerUseHelpCall(command))
         command.push('--json')
       command.push('--store-root', options.storeRoot)
       let stdout: string

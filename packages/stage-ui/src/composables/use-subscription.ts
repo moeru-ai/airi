@@ -166,7 +166,7 @@ export function isOneMonthPeriod(period: { number: number, unit: string } | null
 
 /**
  * Capacitors are sold by the month only. Packages with another billing period are not listed.
- * `quota` is undefined for a product that the server does not map. That product takes the payment and grants nothing.
+ * An unmapped product takes the payment and grants no Flux, so it is not listed.
  */
 function toCapacitorPackage(pkg: Package, metadata: unknown, locale: string, quota: number | undefined): CapacitorPackage | null {
   if (!isOneMonthPeriod(pkg.webBillingProduct.period) || quota === undefined)

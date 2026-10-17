@@ -414,12 +414,18 @@ catalogs:
     '@rive-app/canvas-lite':
       specifier: ^2.40.1
       version: 2.40.1
+    '@sherpaw/asr':
+      specifier: 0.3.0
+      version: 0.3.0
     '@sherpaw/kws':
-      specifier: 0.2.1
-      version: 0.2.1
+      specifier: 0.3.0
+      version: 0.3.0
+    '@sherpaw/speaker-diarization':
+      specifier: 0.3.0
+      version: 0.3.0
     '@sherpaw/xsai-transcription':
-      specifier: 0.2.1
-      version: 0.2.1
+      specifier: 0.3.0
+      version: 0.3.0
     '@shikijs/markdown-it':
       specifier: ^4.4.3
       version: 4.4.3
@@ -1096,8 +1102,8 @@ catalogs:
       specifier: ^0.2.0
       version: 0.2.0
     vieval:
-      specifier: ^0.0.12
-      version: 0.0.12
+      specifier: ^0.2.0
+      version: 0.2.0
     virtua:
       specifier: ^0.50.4
       version: 0.50.4
@@ -1137,6 +1143,9 @@ catalogs:
     vue-i18n:
       specifier: ^11.4.9
       version: 11.4.9
+    vue-json-pretty:
+      specifier: ^2.6.0
+      version: 2.6.0
     vue-macros:
       specifier: ^3.1.4
       version: 3.1.4
@@ -3452,6 +3461,25 @@ importers:
 
   engines/stage-tamagotchi-godot: {}
 
+  evals/asr-rewrite:
+    dependencies:
+      '@proj-airi/agents':
+        specifier: workspace:^
+        version: link:../../packages/agents
+      '@proj-airi/provider-inference':
+        specifier: workspace:^
+        version: link:../../packages/provider-inference
+      valibot:
+        specifier: 'catalog:'
+        version: 1.4.2(typescript@6.0.3)
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.2.0
+      vieval:
+        specifier: 'catalog:'
+        version: 0.2.0(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(chokidar@5.0.0)(dotenv@17.4.2)(electron@43.4.1(supports-color@10.2.2))(esbuild@0.28.2)(giget@3.3.1)(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(less@4.9.0(supports-color@10.2.2))(magicast@0.5.4)(terser@5.50.0)(tsx@4.23.12)(typescript@6.0.3)(web-worker@1.5.0)(yaml@2.9.0)
+
   integrations/discord-bot:
     dependencies:
       '@discordjs/voice':
@@ -3839,6 +3867,25 @@ importers:
         specifier: 'catalog:'
         version: 1.6.0
 
+  packages/agents:
+    dependencies:
+      '@proj-airi/core-agent':
+        specifier: workspace:^
+        version: link:../core-agent
+      '@proj-airi/provider-inference':
+        specifier: workspace:^
+        version: link:../provider-inference
+      valibot:
+        specifier: 'catalog:'
+        version: 1.4.2(typescript@6.0.3)
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.2.0
+      vitest:
+        specifier: catalog:vitest
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
+
   packages/audio:
     dependencies:
       '@alexanderolsen/libsamplerate-js':
@@ -3850,6 +3897,9 @@ importers:
       '@proj-airi/pipelines-audio':
         specifier: workspace:*
         version: link:../pipelines-audio
+      '@proj-airi/stream-kit':
+        specifier: workspace:*
+        version: link:../stream-kit
       mediabunny:
         specifier: 'catalog:'
         version: 1.55.2
@@ -3908,6 +3958,9 @@ importers:
 
   packages/core-agent:
     dependencies:
+      '@moeru/eventa':
+        specifier: 'catalog:'
+        version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3934,7 +3987,7 @@ importers:
         version: 0.5.1
       '@xsai-ext/responses':
         specifier: 'catalog:'
-        version: 0.5.1(patch_hash=869608a1a960b80aef6290aef41763c909252e2401364f1bfa75a67134866eed)(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.1(patch_hash=869608a1a960b80aef6290aef41763c909252e2401364f1bfa75a67134866eed)(@valibot/to-json-schema@1.7.1(valibot@1.5.0(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.5.1
@@ -3955,7 +4008,7 @@ importers:
         version: 0.5.1
       '@xsai/tool':
         specifier: 'catalog:'
-        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.5.0(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       nanoid:
         specifier: 'catalog:'
         version: 6.0.1
@@ -3973,10 +4026,10 @@ importers:
         version: 5.1.0
       vieval:
         specifier: 'catalog:'
-        version: 0.0.12(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(chokidar@5.0.0)(dotenv@17.4.2)(esbuild@0.28.2)(giget@3.3.1)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(less@4.9.0(supports-color@10.2.2))(magicast@0.5.4)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+        version: 0.2.0(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(chokidar@5.0.0)(dotenv@17.4.2)(electron@43.4.1(supports-color@10.2.2))(esbuild@0.28.2)(giget@3.3.1)(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(less@4.9.0(supports-color@10.2.2))(magicast@0.5.4)(terser@5.50.0)(tsx@4.23.12)(typescript@6.0.3)(web-worker@1.5.0)(yaml@2.9.0)
       xsschema:
         specifier: 'catalog:'
-        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.5.0(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       zod:
         specifier: 'catalog:'
         version: 4.4.3
@@ -4210,6 +4263,9 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@proj-airi/stream-kit':
+        specifier: workspace:^
+        version: link:../stream-kit
       clustr:
         specifier: 'catalog:'
         version: 1.0.2
@@ -4281,11 +4337,11 @@ importers:
         specifier: workspace:^
         version: link:../audio
       '@sherpaw/asr':
-        specifier: 0.2.1
-        version: 0.2.1(onnxruntime-web@1.27.0)
+        specifier: 'catalog:'
+        version: 0.3.0(onnxruntime-web@1.27.0)
       '@sherpaw/xsai-transcription':
         specifier: 'catalog:'
-        version: 0.2.1(electron@43.4.1(supports-color@10.2.2))(onnxruntime-web@1.27.0)(web-worker@1.5.0)
+        version: 0.3.0(electron@43.4.1(supports-color@10.2.2))(onnxruntime-web@1.27.0)(web-worker@1.5.0)
       '@xsai-ext/providers':
         specifier: 'catalog:'
         version: 0.5.1
@@ -4696,7 +4752,7 @@ importers:
         version: 0.2.2
       xsschema:
         specifier: 'catalog:'
-        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.5.0(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       zod:
         specifier: 'catalog:'
         version: 4.4.3
@@ -4813,6 +4869,9 @@ importers:
       '@pinia/colada':
         specifier: 'catalog:'
         version: 1.4.2(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
+      '@proj-airi/agents':
+        specifier: workspace:^
+        version: link:../agents
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../audio
@@ -4899,10 +4958,13 @@ importers:
         version: 1.70.0
       '@sherpaw/kws':
         specifier: 'catalog:'
-        version: 0.2.1(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+        version: 0.3.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+      '@sherpaw/speaker-diarization':
+        specifier: 'catalog:'
+        version: 0.3.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(onnxruntime-web@1.27.0)(web-worker@1.5.0)
       '@sherpaw/xsai-transcription':
         specifier: 'catalog:'
-        version: 0.2.1(electron@43.4.1(supports-color@10.2.2))(onnxruntime-web@1.27.0)(web-worker@1.5.0)
+        version: 0.3.0(electron@43.4.1(supports-color@10.2.2))(onnxruntime-web@1.27.0)(web-worker@1.5.0)
       '@shikijs/rehype':
         specifier: 'catalog:'
         version: 4.4.3
@@ -5098,6 +5160,9 @@ importers:
       vue-i18n:
         specifier: 'catalog:'
         version: 11.4.9(vue@3.5.41(typescript@6.0.3))
+      vue-json-pretty:
+        specifier: 'catalog:'
+        version: 2.6.0(vue@3.5.41(typescript@6.0.3))
       vue-router:
         specifier: 'catalog:'
         version: 5.2.0(@pinia/colada@1.4.2(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3)))(@vue/compiler-sfc@3.5.41)(esbuild@0.28.2)(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(rolldown@1.2.5)(rollup@4.62.5)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))(vue@3.5.41(typescript@6.0.3))
@@ -5318,6 +5383,9 @@ importers:
       '@pixi/utils':
         specifier: 'catalog:'
         version: 6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))
+      '@proj-airi/core-character':
+        specifier: workspace:^
+        version: link:../core-character
       '@proj-airi/model-driver-magic-live2d':
         specifier: workspace:^
         version: link:../model-driver-magic-live2d
@@ -5332,7 +5400,7 @@ importers:
         version: 14.4.0(vue@3.5.41(typescript@6.0.3))
       '@xsai/tool':
         specifier: 'catalog:'
-        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.5.0(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       animejs:
         specifier: 'catalog:'
         version: 4.5.0(@types/three@0.185.4)(three@0.185.1)
@@ -5405,7 +5473,7 @@ importers:
         version: 14.4.0(vue@3.5.41(typescript@6.0.3))
       '@xsai/tool':
         specifier: 'catalog:'
-        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.5.0(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       culori:
         specifier: 'catalog:'
         version: 4.0.2
@@ -5475,7 +5543,7 @@ importers:
         version: 14.4.0(vue@3.5.41(typescript@6.0.3))
       '@xsai/tool':
         specifier: 'catalog:'
-        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.5.0(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       es-toolkit:
         specifier: 'catalog:'
         version: 1.51.0
@@ -5947,7 +6015,7 @@ importers:
         version: 66.7.5(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
       vieval:
         specifier: 'catalog:'
-        version: 0.0.12(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(chokidar@5.0.0)(dotenv@17.4.2)(esbuild@0.28.2)(giget@3.3.1)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(less@4.9.0(supports-color@10.2.2))(magicast@0.5.4)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+        version: 0.2.0(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(chokidar@5.0.0)(dotenv@17.4.2)(electron@43.4.1(supports-color@10.2.2))(esbuild@0.28.2)(giget@3.3.1)(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(less@4.9.0(supports-color@10.2.2))(magicast@0.5.4)(terser@5.50.0)(tsx@4.23.12)(typescript@6.0.3)(web-worker@1.5.0)(yaml@2.9.0)
       xsschema:
         specifier: 'catalog:'
         version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
@@ -6089,6 +6157,9 @@ importers:
       '@proj-airi/auth-shared':
         specifier: workspace:*
         version: link:../../packages/auth-shared
+      '@proj-airi/http-error-shared':
+        specifier: workspace:*
+        version: link:../../packages/http-error-shared
       '@proj-airi/server-sdk-shared':
         specifier: workspace:*
         version: link:../../packages/server-sdk-shared
@@ -6234,6 +6305,9 @@ importers:
       '@proj-airi/auth-shared':
         specifier: workspace:*
         version: link:../../packages/auth-shared
+      '@proj-airi/http-error-shared':
+        specifier: workspace:*
+        version: link:../../packages/http-error-shared
       better-auth:
         specifier: 'catalog:'
         version: 1.6.25(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.11.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))(pg@8.23.0)(vitest@4.1.11)(vue@3.5.41(typescript@6.0.3))
@@ -6298,6 +6372,19 @@ importers:
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9)
+
+  server/packages/http-error-shared:
+    dependencies:
+      '@guiiai/logg':
+        specifier: 'catalog:'
+        version: 1.2.12
+      hono:
+        specifier: 4.13.3
+        version: 4.13.3
+    devDependencies:
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
 
   server/packages/server-sdk-shared:
     dependencies:
@@ -11539,25 +11626,36 @@ packages:
   '@sec-ant/readable-stream@0.4.1':
     resolution: {integrity: sha512-831qok9r2t8AlxLko40y2ebgSDhenenCatLVeW/uBtnHPyhHOvG0C7TvfgecV+wHzIm5KUICgzmVpWS+IMEAeg==}
 
-  '@sherpaw/asr@0.2.1':
-    resolution: {integrity: sha512-cJN9B9MGcVA83nzJcY1dpBa89ZD2vvNhZPzsYgH7Pp1h7MbmDxOGM2eeE4AMAmGawQtVdWytSZ903SiZ8WMeOA==}
+  '@sherpaw/asr@0.3.0':
+    resolution: {integrity: sha512-zLCJk7ZUVdc/GKeUx2dCfqDkbfiuA/iWlWYsHbPz/9ltwXVwAZckUr+bDQ3Jlcbpfvoe+y+GK7WqP0oMUIkCeQ==}
     peerDependencies:
       onnxruntime-web: 1.27.0
     peerDependenciesMeta:
       onnxruntime-web:
         optional: true
 
-  '@sherpaw/kws@0.2.1':
-    resolution: {integrity: sha512-+oOKwhIBrcP6KqlQwvnGaRKcj1X3rCD3QvqIKoLdqSYbLHdfxAC/ee9osLIrF77FjkXfifnOFCqXzfs1FaCoPg==}
+  '@sherpaw/kws@0.3.0':
+    resolution: {integrity: sha512-gT9UJs/zf2/TuvDTStka4rGymENqTVkF4a5IKaaHaURax1dmTtBlZDj5CTurnXBCYTSGamlUG9Nc8rr56UX3PQ==}
 
-  '@sherpaw/preloader@0.2.1':
-    resolution: {integrity: sha512-iKSfK2AyHKZTrbTtDRZo06sWrI56BH5C4o7eCS+UJzK9I8bLgXyUvy4TafXCeJVG/owAr28xXU7J1BAn02wq6Q==}
+  '@sherpaw/preloader@0.3.0':
+    resolution: {integrity: sha512-3l4VgX9bITM4FX0S7LKKVMU+uZJCRKKAQJmdf5/2IpqnfzcyIoLKYWrqojf2aWZmtFcWH435/56irStNQLROig==}
 
-  '@sherpaw/shared@0.2.1':
-    resolution: {integrity: sha512-diadhrP2nXyy7wxSvEW/2H6CjgDIqek7OmDN/+zxplZYab8KvJS/gu0JWaFk5tuY+9wpNQqvt+OnASGCwwhh4A==}
+  '@sherpaw/shared@0.3.0':
+    resolution: {integrity: sha512-J9XTyc/nwmVcW62Jr6NnXgLhQQndox+4931yayZUgC9lVsM8ACTT47c+kgGHeuUGkkSu8IVqcaX/PdMsuFeFng==}
 
-  '@sherpaw/xsai-transcription@0.2.1':
-    resolution: {integrity: sha512-Ee5StEYLvgFvRJlMbumLKqS1cXFcS0ADJrAUPW3njGh4WjFHhX6gJA/X3LC9lbITvXrNw3yJ/F0QmpkSXFKu4w==}
+  '@sherpaw/speaker-diarization@0.3.0':
+    resolution: {integrity: sha512-pw0dWhwQwd3kxNLGi1QFJdNEJhJV/NpuU7tW0Rs5xEvyYTT0KyzAyrxM8cB3gGlQag9P4FslMRJBN4C+z7TOsg==}
+    peerDependencies:
+      onnxruntime-web: 1.27.0
+    peerDependenciesMeta:
+      onnxruntime-web:
+        optional: true
+
+  '@sherpaw/speaker-identification@0.3.0':
+    resolution: {integrity: sha512-W0V9SmwQH7EWLs24ZGDPttyhxfOs4AFs8PeMeYXQ8XAeDDfc5Tx6E6vhJ7OLfK71tuocQllmNeEmOQFkYj8UZQ==}
+
+  '@sherpaw/xsai-transcription@0.3.0':
+    resolution: {integrity: sha512-W39S/eKyENI03ns9d0sv1a3ab2C5Lx8JdcPwsNvABybzlJaC0syxlyLOlZsiISX4KwkCeMMw8I8E8Dv5Vly5HQ==}
 
   '@shikijs/core@3.23.0':
     resolution: {integrity: sha512-NSWQz0riNb67xthdm5br6lAkvpDJRTgB36fxlo37ZzM2yq0PQFFzbd8psqC2XMPgCzo1fW6cVi18+ArJ44wqgA==}
@@ -19773,6 +19871,14 @@ packages:
       typescript:
         optional: true
 
+  valibot@1.5.0:
+    resolution: {integrity: sha512-nil6AkP2TChWL43Z5uJ6GTxX01CUA+g8LWUM+N/rB9NBbkUMaUsi9PUNzlUPgoKASgmx9f7eGOYpJ04/fSa6FQ==}
+    peerDependencies:
+      typescript: '>=5'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   validate-npm-package-name@5.0.1:
     resolution: {integrity: sha512-OljLrQ9SQdOUqTaQxqL5dEfZWrXExyyWsozYlAWFawPVNuD83igl7uJD2RTkNMbniIYgt8l81eCJGIdQF7avLQ==}
     engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
@@ -19810,8 +19916,9 @@ packages:
   vfile@6.0.3:
     resolution: {integrity: sha512-KzIbH/9tXat2u30jf+smMwFCsno4wHVdNmzFyL+T/L3UGqqk6JKfVqOFOZEpZSHADH1k40ab6NUIXZq422ov3Q==}
 
-  vieval@0.0.12:
-    resolution: {integrity: sha512-qyygtEw2Jk6vc+5s5zvUU68z2Le9BqvDc4mKUyJk4C2TACy/ZmGJsP3CJ0nMnAxWLos9nJ0Mq5ShD+gnmZME5w==}
+  vieval@0.2.0:
+    resolution: {integrity: sha512-PIh9b7l9gWygPc+5OAqIYZ1BcixpY3q8Azhf1rM+78eHsVB3QwEckTFW8+jCQ5tlBSLOBMbB1UTUcWm3UpYpgg==}
+    engines: {node: '>=22'}
     hasBin: true
 
   virtua@0.50.4:
@@ -20093,6 +20200,12 @@ packages:
     engines: {node: '>= 22'}
     peerDependencies:
       vue: ^3.0.0
+
+  vue-json-pretty@2.6.0:
+    resolution: {integrity: sha512-glz1aBVS35EO8+S9agIl3WOQaW2cJZW192UVKTuGmryx01ZvOVWc4pR3t+5UcyY4jdOfBUgVHjcpRpcnjRhCAg==}
+    engines: {node: '>= 10.0.0', npm: '>= 5.0.0'}
+    peerDependencies:
+      vue: '>=3.0.0'
 
   vue-macros@3.1.4:
     resolution: {integrity: sha512-/VJSCppfDEdq3h6EM+eOtA7/EW5ADgKuFshEtu+3wjhvm00RgkX+xv89o9n6Cs3pRm1vSCXPiKyIHiXptz95nA==}
@@ -20638,7 +20751,7 @@ snapshots:
       resolve.exports: 2.0.3
       smol-toml: 1.8.0
       tar-stream: 3.2.0
-      valibot: 1.4.2(typescript@6.0.3)
+      valibot: 1.5.0(typescript@6.0.3)
       xdg-basedir: 5.1.0
     transitivePeerDependencies:
       - '@valibot/to-json-schema'
@@ -20659,17 +20772,17 @@ snapshots:
     dependencies:
       '@alint-js/utils': 0.6.0
       '@moeru/std': 0.1.0-beta.20
-      '@valibot/to-json-schema': 1.7.1(valibot@1.4.2(typescript@6.0.3))
+      '@valibot/to-json-schema': 1.7.1(valibot@1.5.0(typescript@6.0.3))
       '@xsai/generate-text': 0.5.1
       '@xsai/shared-chat': 0.5.1
       '@xsai/stream-text': 0.5.1
-      '@xsai/tool': 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+      '@xsai/tool': 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.5.0(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       es-toolkit: 1.51.0
       minimatch: 10.2.6
       oxc-parser: 0.142.0
       pathe: 2.0.3
       proper-lockfile: 4.1.2
-      valibot: 1.4.2(typescript@6.0.3)
+      valibot: 1.5.0(typescript@6.0.3)
     transitivePeerDependencies:
       - arktype
       - effect
@@ -20684,7 +20797,7 @@ snapshots:
       '@modelcontextprotocol/sdk': 1.30.0(supports-color@10.2.2)(zod@4.4.3)
       h3: 2.0.1-rc.25(crossws@0.4.12(srvx@0.12.7))
       tinyexec: 1.3.0
-      valibot: 1.4.2(typescript@6.0.3)
+      valibot: 1.5.0(typescript@6.0.3)
       zod: 4.4.3
     transitivePeerDependencies:
       - '@cfworker/json-schema'
@@ -20803,11 +20916,11 @@ snapshots:
 
   '@apeira/core@0.0.7(zod@4.4.3)':
     dependencies:
-      '@xsai-ext/responses': 0.5.1(patch_hash=869608a1a960b80aef6290aef41763c909252e2401364f1bfa75a67134866eed)(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+      '@xsai-ext/responses': 0.5.1(patch_hash=869608a1a960b80aef6290aef41763c909252e2401364f1bfa75a67134866eed)(@valibot/to-json-schema@1.7.1(valibot@1.5.0(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       '@xsai/shared': 0.5.1
       '@xsai/shared-chat': 0.5.1
       '@xsai/stream-text': 0.5.1
-      '@xsai/tool': 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+      '@xsai/tool': 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.5.0(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       yocto-queue: 1.2.2
     transitivePeerDependencies:
       - '@valibot/to-json-schema'
@@ -25794,15 +25907,15 @@ snapshots:
 
   '@sec-ant/readable-stream@0.4.1': {}
 
-  '@sherpaw/asr@0.2.1(onnxruntime-web@1.27.0)':
+  '@sherpaw/asr@0.3.0(onnxruntime-web@1.27.0)':
     optionalDependencies:
       onnxruntime-web: 1.27.0
 
-  '@sherpaw/kws@0.2.1(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
+  '@sherpaw/kws@0.3.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
       '@moeru/eventa': 1.0.1(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
-      '@sherpaw/preloader': 0.2.1
-      '@sherpaw/shared': 0.2.1
+      '@sherpaw/preloader': 0.3.0
+      '@sherpaw/shared': 0.3.0
     transitivePeerDependencies:
       - '@tauri-apps/api'
       - electron
@@ -25810,19 +25923,38 @@ snapshots:
       - hono
       - web-worker
 
-  '@sherpaw/preloader@0.2.1': {}
+  '@sherpaw/preloader@0.3.0': {}
 
-  '@sherpaw/shared@0.2.1':
+  '@sherpaw/shared@0.3.0':
     dependencies:
       '@types/emscripten': 1.41.6
 
-  '@sherpaw/xsai-transcription@0.2.1(electron@43.4.1(supports-color@10.2.2))(onnxruntime-web@1.27.0)(web-worker@1.5.0)':
+  '@sherpaw/speaker-diarization@0.3.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(onnxruntime-web@1.27.0)(web-worker@1.5.0)':
+    dependencies:
+      '@moeru/eventa': 1.0.1(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+      '@sherpaw/preloader': 0.3.0
+      '@sherpaw/shared': 0.3.0
+      '@sherpaw/speaker-identification': 0.3.0
+    optionalDependencies:
+      onnxruntime-web: 1.27.0
+    transitivePeerDependencies:
+      - '@tauri-apps/api'
+      - electron
+      - h3
+      - hono
+      - web-worker
+
+  '@sherpaw/speaker-identification@0.3.0':
+    dependencies:
+      '@sherpaw/shared': 0.3.0
+
+  '@sherpaw/xsai-transcription@0.3.0(electron@43.4.1(supports-color@10.2.2))(onnxruntime-web@1.27.0)(web-worker@1.5.0)':
     dependencies:
       '@moeru/eventa': 1.0.0-beta.1(electron@43.4.1(supports-color@10.2.2))(web-worker@1.5.0)
       '@moeru/std': 0.1.0-beta.17
-      '@sherpaw/asr': 0.2.1(onnxruntime-web@1.27.0)
-      '@sherpaw/preloader': 0.2.1
-      '@sherpaw/shared': 0.2.1
+      '@sherpaw/asr': 0.3.0(onnxruntime-web@1.27.0)
+      '@sherpaw/preloader': 0.3.0
+      '@sherpaw/shared': 0.3.0
     transitivePeerDependencies:
       - electron
       - h3
@@ -26770,6 +26902,11 @@ snapshots:
   '@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3))':
     dependencies:
       valibot: 1.4.2(typescript@6.0.3)
+    optional: true
+
+  '@valibot/to-json-schema@1.7.1(valibot@1.5.0(typescript@6.0.3))':
+    dependencies:
+      valibot: 1.5.0(typescript@6.0.3)
 
   '@velin-dev/core@0.4.1(typescript@6.0.3)':
     dependencies:
@@ -27633,6 +27770,20 @@ snapshots:
       - zod
       - zod-to-json-schema
 
+  '@xsai-ext/responses@0.5.1(patch_hash=869608a1a960b80aef6290aef41763c909252e2401364f1bfa75a67134866eed)(@valibot/to-json-schema@1.7.1(valibot@1.5.0(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)':
+    dependencies:
+      '@xsai/shared': 0.5.1
+      '@xsai/shared-chat': 0.5.1
+      '@xsai/shared-stream': 0.5.1
+      '@xsai/tool': 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.5.0(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+    transitivePeerDependencies:
+      - '@valibot/to-json-schema'
+      - arktype
+      - effect
+      - sury
+      - zod
+      - zod-to-json-schema
+
   '@xsai-ext/shared-providers@0.4.0-beta.12':
     dependencies:
       '@xsai/shared': 0.4.4
@@ -27757,6 +27908,19 @@ snapshots:
       '@xsai/shared': 0.5.1
       '@xsai/shared-chat': 0.5.1
       xsschema: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+    transitivePeerDependencies:
+      - '@valibot/to-json-schema'
+      - arktype
+      - effect
+      - sury
+      - zod
+      - zod-to-json-schema
+
+  '@xsai/tool@0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.5.0(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)':
+    dependencies:
+      '@xsai/shared': 0.5.1
+      '@xsai/shared-chat': 0.5.1
+      xsschema: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.5.0(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
     transitivePeerDependencies:
       - '@valibot/to-json-schema'
       - arktype
@@ -29088,14 +29252,14 @@ snapshots:
 
   devframe@0.2.2(@modelcontextprotocol/sdk@1.30.0(supports-color@10.2.2)(zod@4.4.3))(bufferutil@4.1.0)(crossws@0.4.12(srvx@0.12.7))(esbuild@0.28.2)(rolldown@1.2.5)(rollup@4.62.5)(typescript@6.0.3)(utf-8-validate@5.0.10)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)):
     dependencies:
-      '@valibot/to-json-schema': 1.7.1(valibot@1.4.2(typescript@6.0.3))
+      '@valibot/to-json-schema': 1.7.1(valibot@1.5.0(typescript@6.0.3))
       birpc: 4.2.0
       cac: 7.0.0
       h3: 2.0.1-rc.22(crossws@0.4.12(srvx@0.12.7))
       logs-sdk: 0.0.6(esbuild@0.28.2)(rolldown@1.2.5)(rollup@4.62.5)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
       mrmime: 2.0.1
       pathe: 2.0.3
-      valibot: 1.4.2(typescript@6.0.3)
+      valibot: 1.5.0(typescript@6.0.3)
       ws: 8.21.3(bufferutil@4.1.0)(utf-8-validate@5.0.10)
     optionalDependencies:
       '@modelcontextprotocol/sdk': 1.30.0(supports-color@10.2.2)(zod@4.4.3)
@@ -35464,6 +35628,10 @@ snapshots:
     optionalDependencies:
       typescript: 6.0.3
 
+  valibot@1.5.0(typescript@6.0.3):
+    optionalDependencies:
+      typescript: 6.0.3
+
   validate-npm-package-name@5.0.1: {}
 
   vary@1.1.2: {}
@@ -35503,9 +35671,10 @@ snapshots:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
 
-  vieval@0.0.12(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(chokidar@5.0.0)(dotenv@17.4.2)(esbuild@0.28.2)(giget@3.3.1)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(less@4.9.0(supports-color@10.2.2))(magicast@0.5.4)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0):
+  vieval@0.2.0(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(chokidar@5.0.0)(dotenv@17.4.2)(electron@43.4.1(supports-color@10.2.2))(esbuild@0.28.2)(giget@3.3.1)(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(less@4.9.0(supports-color@10.2.2))(magicast@0.5.4)(terser@5.50.0)(tsx@4.23.12)(typescript@6.0.3)(web-worker@1.5.0)(yaml@2.9.0):
     dependencies:
       '@henrygd/queue': 1.2.0
+      '@moeru/eventa': 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std': 0.1.0-beta.17
       '@opentelemetry/api': 1.9.1
       '@pnpm/find-workspace-dir': 1000.1.5
@@ -35520,10 +35689,12 @@ snapshots:
       meow: 14.1.0
       tinyglobby: 0.2.17
       tinyrainbow: 3.1.1
+      valibot: 1.5.0(typescript@6.0.3)
       vite: 8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
       vitest: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
     transitivePeerDependencies:
       - '@edge-runtime/vm'
+      - '@tauri-apps/api'
       - '@types/node'
       - '@vitejs/devtools'
       - '@vitest/browser-playwright'
@@ -35534,9 +35705,12 @@ snapshots:
       - '@vitest/ui'
       - chokidar
       - dotenv
+      - electron
       - esbuild
       - giget
+      - h3
       - happy-dom
+      - hono
       - jiti
       - jsdom
       - less
@@ -35548,6 +35722,8 @@ snapshots:
       - sugarss
       - terser
       - tsx
+      - typescript
+      - web-worker
       - yaml
 
   virtua@0.50.4(vue@3.5.41(typescript@6.0.3)):
@@ -35816,6 +35992,10 @@ snapshots:
       '@intlify/devtools-types': 11.4.9
       '@intlify/shared': 11.4.9
       '@vue/devtools-api': 6.6.4
+      vue: 3.5.41(typescript@6.0.3)
+
+  vue-json-pretty@2.6.0(vue@3.5.41(typescript@6.0.3)):
+    dependencies:
       vue: 3.5.41(typescript@6.0.3)
 
   vue-macros@3.1.4(@vueuse/core@14.4.0(vue@3.5.41(typescript@6.0.3)))(esbuild@0.28.2)(rolldown@1.2.5)(rollup@4.62.5)(typescript@6.0.3)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))(vue-tsc@3.3.11(typescript@6.0.3))(vue@3.5.41(typescript@6.0.3)):
@@ -36286,6 +36466,12 @@ snapshots:
   xsschema@0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3):
     optionalDependencies:
       '@valibot/to-json-schema': 1.7.1(valibot@1.4.2(typescript@6.0.3))
+      zod: 4.4.3
+      zod-to-json-schema: 3.25.2(zod@4.4.3)
+
+  xsschema@0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.5.0(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3):
+    optionalDependencies:
+      '@valibot/to-json-schema': 1.7.1(valibot@1.5.0(typescript@6.0.3))
       zod: 4.4.3
       zod-to-json-schema: 3.25.2(zod@4.4.3)
 

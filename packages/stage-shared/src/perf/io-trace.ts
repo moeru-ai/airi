@@ -40,6 +40,7 @@ const customPrefix = 'ai.moeru.airi.io'
 export const IOAttributes = {
   GenAIRequestModel: 'gen_ai.request.model',
   GenAIProviderName: 'gen_ai.provider.name',
+  GenAIConversationId: 'gen_ai.conversation.id',
 
   // Non-standard
   Subsystem: `${customPrefix}.subsystem`,
@@ -60,6 +61,14 @@ export const IOAttributes = {
   RephraseChangedCount: `${customPrefix}.rephrase.changed_count`,
   VADAudioDurationMs: `${customPrefix}.vad.audio_duration_ms`,
   VADAborted: `${customPrefix}.vad.aborted`,
+  /** Speaker recognition: the mean cosine between the saved voiceprint and the speech of the input. */
+  SpeakerScore: `${customPrefix}.speaker.score`,
+  /** The cosine of each 1 s comparison that the score counts, in time order. */
+  SpeakerScores: `${customPrefix}.speaker.scores`,
+  /** The speech, in milliseconds, between the first and the last counted comparison. */
+  SpeakerVoicedMs: `${customPrefix}.speaker.voiced_ms`,
+  /** Evidence updates that the input rejected, because its transcription had ended or the audio was not its own. */
+  SpeakerRejectedCount: `${customPrefix}.speaker.rejected_count`,
   ASRText: `${customPrefix}.asr.text`,
   ASRAbort: `${customPrefix}.asr.abort`,
   LLMInputMessageCount: `${customPrefix}.llm.input_message_count`,

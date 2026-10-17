@@ -23,13 +23,15 @@ const subscription = useSubscription({
 const message = ref<{ type: 'success' | 'error', text: string } | null>(null)
 const preferenceSaving = ref(false)
 const statusLoading = ref(false)
+/** Checkout needs a successful customer read to distinguish a first purchase from a subscription change. */
+const customerReady = ref(false)
 const packagesLoading = ref(false)
 
 type CapacitorAction = 'buy' | 'current' | 'upgrade' | 'downgrade'
 
 const currentCapacitor = computed(() => subscription.currentCapacitor.value)
 
-/** The package of the current Capacitor. Null until the packages load, or for a product that is no longer sold. */
+/** The package of the current Capacitor. Null until packages load, or for a product that is no longer sold. */
 const currentPackage = computed(() => {
   const productId = currentCapacitor.value?.productId
   return subscription.packages.value.find(item => item.productId === productId) ?? null
@@ -64,7 +66,7 @@ const pendingChangeName = computed(() => {
   return subscription.packages.value.find(item => item.productId === productId)?.name ?? t('settings.pages.capacitor.title')
 })
 
-/** A Capacitor without a reset interval refills only at each renewal, which is monthly. */
+/** Without a reset interval, a Capacitor refills at its monthly renewal. */
 const quotaKey = computed(() => `settings.pages.capacitor.quota.${subscription.resetInterval.value ?? 'month'}`)
 
 /** An App Store or Google Play subscription changes in that store, through the management link. */
@@ -95,6 +97,7 @@ watch(() => authStore.user?.id, (userId, _previous, onCleanup) => {
   message.value = null
   preferenceSaving.value = false
   statusLoading.value = Boolean(userId)
+  customerReady.value = false
   packagesLoading.value = Boolean(userId) && !fluxPurchaseDisabled
   let active = true
   onCleanup(() => active = false)
@@ -107,6 +110,10 @@ watch(() => authStore.user?.id, (userId, _previous, onCleanup) => {
   }
 
   void subscription.refreshCustomer()
+    .then(() => {
+      if (active)
+        customerReady.value = true
+    })
     .catch(() => reportError('settings.pages.capacitor.statusError'))
     .finally(() => {
       if (active)
@@ -141,13 +148,15 @@ async function savePreference(value: boolean) {
 }
 
 function actionDisabled(pkg: CapacitorPackage): boolean {
-  if (subscription.purchasingPackageId.value !== null)
+  if (!customerReady.value || subscription.purchasingPackageId.value !== null)
     return true
   const action = capacitorAction(pkg)
   return action === 'current' || (action !== 'buy' && changesInStore.value && !subscription.managementUrl.value)
 }
 
 function handleCapacitor(pkg: CapacitorPackage) {
+  if (!customerReady.value)
+    return
   const action = capacitorAction(pkg)
   if (action === 'current')
     return
@@ -201,9 +210,12 @@ async function handleCheckout(pkg: CapacitorPackage) {
 
 <template>
   <div :class="['flex flex-col gap-6', 'p-4']">
-    <Callout v-if="message" :theme="message.type === 'success' ? 'lime' : 'orange'">
-      <span role="status">{{ message.text }}</span>
-    </Callout>
+    <Callout
+      v-if="message"
+      :theme="message.type === 'success' ? 'lime' : 'orange'"
+      :label="message.text"
+      role="status"
+    />
 
     <!-- Status: how much is left today, when it refills, and when the subscription renews -->
     <Skeleton v-if="statusLoading" :class="['h-40 rounded-xl']" />
