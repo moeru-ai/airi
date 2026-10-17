@@ -67,22 +67,35 @@ export function computeBarycenter(scores: RubricScore[]): BarycenterResult {
 const RUBRIC_AXES = ['identity', 'value', 'expression', 'memory'] as const
 export type RubricAxis = (typeof RUBRIC_AXES)[number]
 
-function axisValues(scores: RubricScore[], axis: RubricAxis): number[] {
-  return scores.map(s => s[axis]).sort((x, y) => x - y)
-}
-
 /**
- * Exact empirical 1D Wasserstein-1 between two weighted samples, integrating
- * |F_a - F_b| over the merged step boundaries. This is exact for unequal
- * sample counts; no zero padding and no quantile interpolation.
+ * Exact weighted empirical 1D Wasserstein-1 between two weighted samples,
+ * integrating |F_a - F_b| over the merged step boundaries. Exact for unequal
+ * sample counts and unequal weights; no zero padding, no quantile
+ * interpolation, and invariant to the order of observations.
  *
- *   [0,1] vs [0,0.2,1] -> 1/6 (verified), not 0.1.
+ *   values [0,1] (equal weight) vs [0,0.2,1] -> 1/6 (verified).
  */
-function wasserstein1D(a: number[], b: number[]): number {
-  const sortedA = [...a].sort((x, y) => x - y)
-  const sortedB = [...b].sort((x, y) => x - y)
-  const m = sortedA.length
-  const n = sortedB.length
+function weightedWasserstein1D(
+  a: number[],
+  weightA: number[],
+  b: number[],
+  weightB: number[]
+): number {
+  const totalA = weightA.reduce((acc, w) => acc + w, 0)
+  const totalB = weightB.reduce((acc, w) => acc + w, 0)
+  if (totalA <= 0 || totalB <= 0) {
+    throw new Error('weightedWasserstein1D requires positive total weight')
+  }
+
+  const order = (vals: number[], weights: number[]) =>
+    vals
+      .map((value, index) => ({ value, weight: weights[index] }))
+      .sort((x, y) => x.value - y.value)
+
+  const sa = order(a, weightA)
+  const sb = order(b, weightB)
+  const m = sa.length
+  const n = sb.length
 
   let i = 0
   let j = 0
@@ -93,20 +106,19 @@ function wasserstein1D(a: number[], b: number[]): number {
 
   while (i < m || j < n) {
     const value =
-      i < m && (j >= n || sortedA[i] <= sortedB[j])
-        ? sortedA[i]
-        : sortedB[j]
+      i < m && (j >= n || sa[i].value <= sb[j].value)
+        ? sa[i].value
+        : sb[j].value
 
-    distance += Math.abs(cumA - cumB) * (value - prev)
+    distance += Math.abs(cumA / totalA - cumB / totalB) * (value - prev)
     prev = value
 
-    // Advance every boundary at this value and accumulate its mass.
-    while (i < m && sortedA[i] === value) {
-      cumA += 1 / m
+    while (i < m && sa[i].value === value) {
+      cumA += sa[i].weight
       i += 1
     }
-    while (j < n && sortedB[j] === value) {
-      cumB += 1 / n
+    while (j < n && sb[j].value === value) {
+      cumB += sb[j].weight
       j += 1
     }
   }
@@ -115,27 +127,20 @@ function wasserstein1D(a: number[], b: number[]): number {
 }
 
 /**
- * Wasserstein-style identity distance in 4D rubric space.
+ * Weighted Wasserstein-1 identity distance in 4D rubric space.
  *
- * Probes are answered at baseline and again after compression, so the two
- * score sets are paired observations. Pairing probe k to probe k preserves the
- * joint geometry: a response whose profile moves between axes
- * (`[1,0,0,0]` -> `[0,1,0,0]`) is real drift, even though every marginal is
- * unchanged. We use the average L1 distance between paired rubric vectors.
+ * The four rubric axes are not interchangeable. We compute the exact weighted
+ * empirical 1D W1 per axis over the marginal score distributions and average
+ * across axes. Order statistics make the result invariant to observation
+ * order: reordering either side (including magnitude ties) never changes it,
+ * because W1 compares empirical distributions, not row pairs.
  *
- * Paired vectors are aligned by sorting both sides on their overall magnitude,
- * which is stable to probe ordering while keeping each rubric vector intact.
+ * Per-score `weight` is honoured as transport mass. Zero-weight observations
+ * contribute no mass. Use {@link centroidProfileDistance} if you instead need
+ * a metric sensitive to cross-axis pairing of individual responses.
  */
-function toVector(s: RubricScore): [number, number, number, number] {
-  return [s.identity, s.value, s.expression, s.memory]
-}
-
-function magnitude(v: readonly number[]): number {
-  return v.reduce((acc, x) => acc + x, 0)
-}
-
-function sortByMagnitude(scores: RubricScore[]): RubricScore[] {
-  return [...scores].sort((a, b) => magnitude(toVector(a)) - magnitude(toVector(b)))
+function weightOf(s: RubricScore): number {
+  return s.weight ?? 1
 }
 
 export function wassersteinDistance(
@@ -146,30 +151,43 @@ export function wassersteinDistance(
     throw new Error('wassersteinDistance requires non-empty score arrays')
   }
 
-  const a = sortByMagnitude(scores1)
-  const b = sortByMagnitude(scores2)
-
-  // Pair over the common grid so unequal sample counts compare empirical
-  // profiles without zero padding.
-  const grid = Math.max(a.length, b.length)
-  const sample = (list: RubricScore[], index: number): RubricScore =>
-    list[Math.min(list.length - 1, Math.floor((index * list.length) / grid))]
+  const weights1 = scores1.map(weightOf)
+  const weights2 = scores2.map(weightOf)
 
   let total = 0
-  for (let k = 0; k < grid; k++) {
-    const va = toVector(sample(a, k))
-    const vb = toVector(sample(b, k))
-    for (let axis = 0; axis < 4; axis++) {
-      total += Math.abs(va[axis] - vb[axis])
-    }
+  for (const axis of RUBRIC_AXES) {
+    total += weightedWasserstein1D(
+      scores1.map(s => s[axis]),
+      weights1,
+      scores2.map(s => s[axis]),
+      weights2
+    )
   }
-  // Average over grid points and the four axes -> [0,1].
-  return total / (grid * 4)
+  return total / RUBRIC_AXES.length
 }
 
 /**
- * Marginal per-axis empirical W1. Useful for diagnosing which axis moved;
- * unlike {@link wassersteinDistance} it does not preserve cross-axis pairing.
+ * Weighted L1 distance between the two rubric barycenters. Unlike
+ * {@link wassersteinDistance} this preserves joint geometry: a response whose
+ * profile moves between axes (`[1,0,0,0]` -> `[0,1,0,0]`) changes the centroid
+ * profile. It does not detect within-axis spread changes.
+ */
+export function centroidProfileDistance(
+  scores1: RubricScore[],
+  scores2: RubricScore[]
+): number {
+  const bary1 = computeBarycenter(scores1).centroid
+  const bary2 = computeBarycenter(scores2).centroid
+  let total = 0
+  for (let axis = 0; axis < 4; axis++) {
+    total += Math.abs(bary1[axis] - bary2[axis])
+  }
+  return total / 4
+}
+
+/**
+ * Marginal per-axis empirical W1 (unweighted convenience diagnostic).
+ * Retained for callers that want the per-axis breakdown.
  */
 export function marginalW1ByAxis(
   scores1: RubricScore[],
@@ -180,7 +198,12 @@ export function marginalW1ByAxis(
   }
   const result = {} as Record<RubricAxis, number>
   for (const axis of RUBRIC_AXES) {
-    result[axis] = wasserstein1D(axisValues(scores1, axis), axisValues(scores2, axis))
+    result[axis] = weightedWasserstein1D(
+      scores1.map(s => s[axis]),
+      scores1.map(weightOf),
+      scores2.map(s => s[axis]),
+      scores2.map(weightOf)
+    )
   }
   return result
 }
