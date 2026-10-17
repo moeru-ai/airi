@@ -1,4 +1,5 @@
 import type { Database } from '../../libs/db'
+import type { Env } from '../../libs/env'
 import type { ConfigDefinitions, ConfigKVService } from '../../services/adapters/config-kv'
 import type { SubscriberEntitlement } from '../../services/adapters/revenuecat-subscriber'
 import type { RevenuecatSubscriptionSync } from '../../services/adapters/revenuecat-subscriptions'
@@ -55,13 +56,19 @@ function signBody(rawBody: string, timestamp = Math.floor(Date.now() / 1000)): s
 
 function createTestApp(
   payment: PaymentService,
+  db: Database,
   configKV: ConfigKVService,
   subscriptionSync: RevenuecatSubscriptionSync,
-  env = { REVENUECAT_WEBHOOK_AUTH: authorization, REVENUECAT_WEBHOOK_SECRET: signingSecret },
+  env: Pick<Env, 'REVENUECAT_WEBHOOK_AUTH' | 'REVENUECAT_WEBHOOK_SECRET' | 'REVENUECAT_ENVIRONMENT' | 'REVENUECAT_SANDBOX_USER_IDS'> = {
+    REVENUECAT_WEBHOOK_AUTH: authorization,
+    REVENUECAT_WEBHOOK_SECRET: signingSecret,
+    REVENUECAT_ENVIRONMENT: 'production',
+    REVENUECAT_SANDBOX_USER_IDS: [],
+  },
   /** The signed-in user of each request. Null leaves the request anonymous, as RevenueCat sends it. */
   signedInUserId: string | null = null,
 ) {
-  const routes = createRevenuecatRoutes(payment, configKV, subscriptionSync, env, null)
+  const routes = createRevenuecatRoutes(payment, db, configKV, subscriptionSync, env, null)
   const app = new Hono<HonoEnv>()
 
   app.use('*', async (c, next) => {
@@ -120,17 +127,27 @@ describe('revenuecat routes', () => {
   async function setup(
     signedInUserId: string | null = null,
     resetInterval: ConfigDefinitions['CAPACITOR_RESET_INTERVAL'] | null = null,
+    sandboxUserIds: readonly string[] = [],
   ) {
     const configKV = createTestConfigKV(resetInterval)
     await db.delete(schema.fluxUsage)
     await db.delete(schema.fluxTransaction)
     await db.delete(schema.userFlux)
+    await db.delete(schema.paymentOrder)
+    await db.delete(schema.paymentCustomer)
+    await db.delete(schema.user)
+    await db.insert(schema.user).values({ id: 'user-1', name: 'Test User', email: 'user-1@example.com' })
     entitlements = {}
     const billing = createBillingService(db, createTestRedis(), { getOptional: async () => null })
     const payment = createPaymentService(db, billing)
     const fetchEntitlements = vi.fn(async (userId: string) => entitlements[userId] ?? [])
     const sync = createRevenuecatSubscriptionSync(billing, configKV, { fetchEntitlements })
-    return { billing, payment, fetchEntitlements, app: createTestApp(payment, configKV, sync, undefined, signedInUserId) }
+    return { billing, payment, fetchEntitlements, app: createTestApp(payment, db, configKV, sync, {
+      REVENUECAT_WEBHOOK_AUTH: authorization,
+      REVENUECAT_WEBHOOK_SECRET: signingSecret,
+      REVENUECAT_ENVIRONMENT: 'production',
+      REVENUECAT_SANDBOX_USER_IDS: [...sandboxUserIds],
+    }, signedInUserId) }
   }
 
   async function readWallet(userId: string) {
@@ -196,8 +213,8 @@ describe('revenuecat routes', () => {
         app_user_id: 'user-1',
         product_id: 'flux_500',
         transaction_id: 'txn-1',
-        environment: 'SANDBOX',
-        store: 'TEST_STORE',
+        environment: 'PRODUCTION',
+        store: 'APP_STORE',
         ...overrides,
       },
     }
@@ -214,6 +231,33 @@ describe('revenuecat routes', () => {
     const replay = await postWebhook(app, packBody())
     expect(await replay.json()).toEqual({ received: true, granted: false })
     expect(await readWallet('user-1')).toMatchObject({ flux: 500 })
+  })
+
+  it('ignores a sandbox purchase for a user outside the allowlist', async () => {
+    const { app } = await setup()
+
+    const res = await postWebhook(app, packBody({ environment: 'SANDBOX' }))
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ received: true })
+    expect(await readWallet('user-1')).toBeUndefined()
+  })
+
+  it('grants a sandbox purchase to an allowlisted user', async () => {
+    const { app } = await setup(null, null, ['user-1'])
+
+    const res = await postWebhook(app, packBody({ environment: 'SANDBOX' }))
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ received: true, granted: true })
+    expect(await readWallet('user-1')).toMatchObject({ flux: 500 })
+  })
+
+  it('ignores a pack purchase for an unknown user', async () => {
+    const { app } = await setup()
+
+    const res = await postWebhook(app, packBody({ app_user_id: 'ghost' }))
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ received: true })
+    expect(await readWallet('ghost')).toBeUndefined()
   })
 
   it('ignores a non-renewing purchase of an unknown product', async () => {
@@ -326,6 +370,7 @@ describe('revenuecat routes', () => {
   it('returns 503 when no secret is configured', async () => {
     const app = createTestApp(
       {} as PaymentService,
+      {} as Database,
       createTestConfigKV(),
       {} as RevenuecatSubscriptionSync,
       { REVENUECAT_WEBHOOK_AUTH: undefined, REVENUECAT_WEBHOOK_SECRET: undefined } as never,

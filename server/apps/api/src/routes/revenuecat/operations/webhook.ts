@@ -1,15 +1,19 @@
+import type { Database } from '../../../libs/db'
 import type { ConfigKVService } from '../../../services/adapters/config-kv'
 import type { RevenuecatSubscriptionSync } from '../../../services/adapters/revenuecat-subscriptions'
 import type { PaymentService } from '../../../services/domain/payment'
+import type { RevenuecatEnvironmentPolicy } from '../event'
 
 import { Buffer } from 'node:buffer'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
 import { useLogger } from '@guiiai/logg'
 import { createBadRequestError, createServiceUnavailableError, createUnauthorizedError } from '@proj-airi/http-error-shared'
+import { eq } from 'drizzle-orm'
 import { safeParse } from 'valibot'
 
-import { evidenceReceiptFromEvent, FLUX_GRANT_EVENT, resolveRevenuecatPack, revenuecatWebhookSchema } from '../event'
+import { user } from '../../../schemas'
+import { evidenceReceiptFromEvent, FLUX_GRANT_EVENT, isGrantableEnvironment, resolveRevenuecatPack, revenuecatWebhookSchema } from '../event'
 
 const logger = useLogger('revenuecat')
 
@@ -79,9 +83,11 @@ function verifySignature(
  */
 export function createWebhookOperation(
   payment: PaymentService,
+  db: Database,
   configKV: ConfigKVService,
   subscriptionSync: RevenuecatSubscriptionSync,
   secrets: RevenuecatWebhookSecrets,
+  policy: RevenuecatEnvironmentPolicy,
 ) {
   return async (
     rawBody: string,
@@ -127,6 +133,23 @@ export function createWebhookOperation(
 
     if (!event.app_user_id || !event.product_id || !event.transaction_id) {
       logger.withFields({ id: event.id }).warn('Non-renewing purchase is missing identifiers')
+      return { received: true }
+    }
+
+    // Unknown user: acknowledge and stop. A 5xx would retry a deleted account forever.
+    const [account] = await db
+      .select({ id: user.id })
+      .from(user)
+      .where(eq(user.id, event.app_user_id))
+      .limit(1)
+    if (!account) {
+      logger.withFields({ id: event.id, userId: event.app_user_id }).warn('Pack purchase names an unknown user')
+      return { received: true }
+    }
+
+    // Sandbox purchases grant only in a sandbox deployment or to an allowlisted account.
+    if (!isGrantableEnvironment(policy, event.app_user_id, event.environment)) {
+      logger.withFields({ id: event.id, environment: event.environment }).warn('Pack purchase environment is not granted here')
       return { received: true }
     }
 

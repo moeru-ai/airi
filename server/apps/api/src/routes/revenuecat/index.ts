@@ -1,3 +1,4 @@
+import type { Database } from '../../libs/db'
 import type { Env } from '../../libs/env'
 import type { RateLimitMetrics } from '../../otel'
 import type { ConfigKVService } from '../../services/adapters/config-kv'
@@ -24,14 +25,18 @@ import { createWebhookOperation } from './operations/webhook'
  */
 export function createRevenuecatRoutes(
   payment: PaymentService,
+  db: Database,
   configKV: ConfigKVService,
   subscriptionSync: RevenuecatSubscriptionSync,
-  env: Pick<Env, 'REVENUECAT_WEBHOOK_AUTH' | 'REVENUECAT_WEBHOOK_SECRET'>,
+  env: Pick<Env, 'REVENUECAT_WEBHOOK_AUTH' | 'REVENUECAT_WEBHOOK_SECRET' | 'REVENUECAT_ENVIRONMENT' | 'REVENUECAT_SANDBOX_USER_IDS'>,
   rateLimitMetrics: RateLimitMetrics | null,
 ) {
-  const webhook = createWebhookOperation(payment, configKV, subscriptionSync, {
+  const webhook = createWebhookOperation(payment, db, configKV, subscriptionSync, {
     authorization: env.REVENUECAT_WEBHOOK_AUTH ?? null,
     signingSecret: env.REVENUECAT_WEBHOOK_SECRET ?? null,
+  }, {
+    environment: env.REVENUECAT_ENVIRONMENT,
+    sandboxUserIds: env.REVENUECAT_SANDBOX_USER_IDS,
   })
 
   return new Hono<HonoEnv>()

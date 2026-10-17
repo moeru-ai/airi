@@ -254,7 +254,7 @@ export const configEntrySchemas = {
   APPLE_FLUX_PACKS: optional(record(
     pipe(string(), nonEmpty('APPLE_FLUX_PACKS product ids must not be empty')),
     object({
-      fluxAmount: pipe(number(), minValue(1, 'APPLE_FLUX_PACKS fluxAmount must be >= 1')),
+      fluxAmount: pipe(number(), safeInteger('APPLE_FLUX_PACKS fluxAmount must be a safe whole number'), minValue(1, 'APPLE_FLUX_PACKS fluxAmount must be >= 1')),
     }),
   ), {}),
   // RevenueCat product id → Flux amount to grant. Covers Test Store, web
@@ -262,7 +262,7 @@ export const configEntrySchemas = {
   REVENUECAT_FLUX_PACKS: optional(record(
     pipe(string(), nonEmpty('REVENUECAT_FLUX_PACKS product ids must not be empty')),
     object({
-      fluxAmount: pipe(number(), minValue(1, 'REVENUECAT_FLUX_PACKS fluxAmount must be >= 1')),
+      fluxAmount: pipe(number(), safeInteger('REVENUECAT_FLUX_PACKS fluxAmount must be a safe whole number'), minValue(1, 'REVENUECAT_FLUX_PACKS fluxAmount must be >= 1')),
     }),
   ), {}),
   // RevenueCat subscription product id → entitlement and per-period capacitor Flux.

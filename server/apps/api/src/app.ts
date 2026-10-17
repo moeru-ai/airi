@@ -450,6 +450,7 @@ export async function buildApp(deps: AppDeps) {
      */
     .route('/api/v1/revenuecat', createRevenuecatRoutes(
       deps.paymentService,
+      deps.db,
       deps.configKV,
       deps.subscriptionSync,
       deps.env,

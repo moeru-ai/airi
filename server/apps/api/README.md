@@ -151,11 +151,12 @@ JWS proof from every app in `APPLE_IAP_APPS`, resolves the pack from
 `EvidenceReceipt`.
 RevenueCat lives on `/api/v1/revenuecat/*`. `POST /webhook` verifies the
 dashboard authorization header and HMAC signature over the raw body.
-Each event then reconciles the Capacitor from RevenueCat.
+Each subscription event then reconciles the Capacitor from RevenueCat.
+A verified `NON_RENEWING_PURCHASE` event settles a `revenuecat` evidence receipt
+through Payment CORE `settle`. `GET /packages` lists the packs from `REVENUECAT_FLUX_PACKS`.
 `POST /sync` reconciles the Capacitor of the signed-in user. The client calls it after a purchase and when the Capacitor page opens.
 `GET /capacitors` returns the product ids that grant a Capacitor.
 `GET /catalog` returns each configured Capacitor's product id, Flux quota, and refill interval.
-RevenueCat does not sell Flux packs.
 The webhook stores no events.
 Flux balance stays self-managed. In-App Currency is not used.
 

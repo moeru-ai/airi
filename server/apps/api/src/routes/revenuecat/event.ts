@@ -31,6 +31,27 @@ export type RevenuecatEvent = InferOutput<typeof revenuecatEventSchema>
 /** Webhook event type that grants Flux. Consumables arrive as non-renewing purchases. */
 export const FLUX_GRANT_EVENT = 'NON_RENEWING_PURCHASE'
 
+export interface RevenuecatEnvironmentPolicy {
+  /** The store environment whose purchases this deployment grants. */
+  environment: 'production' | 'sandbox'
+  /** Accounts whose sandbox purchases a production deployment also grants. */
+  sandboxUserIds: readonly string[]
+}
+
+/**
+ * Mirrors the subscriber `countsFor` rule for webhook settlement.
+ * The webhook `environment` is uppercase (`SANDBOX`, `PRODUCTION`).
+ */
+export function isGrantableEnvironment(
+  policy: RevenuecatEnvironmentPolicy,
+  userId: string,
+  environment: string | null | undefined,
+): boolean {
+  const normalized = environment?.toLowerCase()
+  return normalized === policy.environment
+    || (normalized === 'sandbox' && policy.sandboxUserIds.includes(userId))
+}
+
 export async function resolveRevenuecatPack(configKV: ConfigKVService, productId: string) {
   const packs = await configKV.getOptional('REVENUECAT_FLUX_PACKS')
   return packs?.[productId]
