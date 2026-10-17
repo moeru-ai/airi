@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computedAsync } from '@vueuse/core'
+import { errorMessageFrom } from '@moeru/std'
+import { computedAsync, useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -30,41 +31,87 @@ const { t } = useI18n()
 const router = useRouter()
 const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
-const { configs: providers } = storeToRefs(providerStore)
+const { providers } = storeToRefs(providerStore)
 
 const providerMetadata = computedAsync(async () => {
   const definition = providersStore.getProviderDefinition(props.providerId)
   return await selectProviderMetadata(definition, t, { id: props.providerId })
 }, undefined)
 
-// Common provider settings
-const apiKey = computed({
-  get: () => providers.value[props.providerId]?.apiKey as string | undefined || '',
-  set: (value) => {
-    if (!providers.value[props.providerId])
-      providers.value[props.providerId] = {}
+const apiKey = shallowRef('')
+const baseUrl = shallowRef('')
+let settingsInitialized = false
+let applyingSnapshot = false
+let hasLocalEdits = false
 
-    providers.value[props.providerId].apiKey = value
-  },
-})
+function reconcileSettings() {
+  if (hasLocalEdits)
+    return
 
-const baseUrl = computed({
-  get: () => providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultConfig.baseUrl as string | undefined || '',
-  set: (value) => {
-    if (!providers.value[props.providerId])
-      providers.value[props.providerId] = {}
+  const stored = providers.value[props.providerId]?.config
+  applyingSnapshot = true
+  try {
+    apiKey.value = typeof stored?.apiKey === 'string' ? stored.apiKey : ''
+    if (typeof stored?.baseUrl === 'string')
+      baseUrl.value = stored.baseUrl
+    else if (typeof providerMetadata.value?.defaultConfig.baseUrl === 'string')
+      baseUrl.value = providerMetadata.value.defaultConfig.baseUrl
+    else
+      baseUrl.value = ''
+  }
+  finally {
+    applyingSnapshot = false
+  }
+}
 
-    providers.value[props.providerId].baseUrl = value
-  },
-})
+watch(() => providers.value[props.providerId], reconcileSettings, { deep: true })
 
 onMounted(async () => {
   await providersStore.initializeProvider(props.providerId)
-
-  // Initialize refs with current values
-  apiKey.value = providers.value[props.providerId]?.apiKey as string | undefined || ''
-  baseUrl.value = providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultConfig.baseUrl as string | undefined || ''
+  reconcileSettings()
+  await nextTick()
+  settingsInitialized = true
+  if (apiKey.value.trim()) {
+    try {
+      await providersStore.validateProvider(props.providerId)
+    }
+    catch (error) {
+      console.error('Failed to validate transcription provider:', errorMessageFrom(error))
+    }
+  }
 })
+
+async function persistProviderConfig() {
+  const config = { apiKey: apiKey.value, baseUrl: baseUrl.value }
+  try {
+    const saved = await providerStore.patchProviderConfig(props.providerId, config)
+    if (!saved)
+      throw new Error('The transcription provider no longer exists')
+    await providersStore.validateProvider(props.providerId)
+    if (apiKey.value === config.apiKey && baseUrl.value === config.baseUrl) {
+      hasLocalEdits = false
+      reconcileSettings()
+    }
+  }
+  catch (error) {
+    console.error('Failed to save transcription provider settings:', errorMessageFrom(error))
+  }
+}
+
+const debouncedUpdate = useDebounceFn(persistProviderConfig, 1000)
+
+onBeforeUnmount(() => {
+  if (hasLocalEdits)
+    void persistProviderConfig()
+})
+
+watch([apiKey, baseUrl], () => {
+  if (!settingsInitialized || applyingSnapshot)
+    return
+
+  hasLocalEdits = true
+  void debouncedUpdate()
+}, { flush: 'sync' })
 
 function handleResetTranscriptionSettings() {
   apiKey.value = ''

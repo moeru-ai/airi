@@ -1,5 +1,6 @@
 import type { ComposerTranslation } from 'vue-i18n'
 
+import { withTranscriptionOptions } from '@proj-airi/provider-inference'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { isWebGPUSupported } from '@proj-airi/stage-shared/webgpu'
 import { createOpenAI } from '@xsai-ext/providers/create'
@@ -40,13 +41,7 @@ function createLocalAudioProvider(config: LocalAudioConfig) {
 }
 
 function createLocalTranscriptionProvider(config: LocalAudioConfig) {
-  const provider = createLocalAudioProvider(config)
-  const transcription = provider.transcription.bind(provider)
-  provider.transcription = (model: string, extraOptions?: Record<string, unknown>) => ({
-    ...transcription(model),
-    ...extraOptions,
-  })
-  return provider
+  return withTranscriptionOptions(createLocalAudioProvider(config))
 }
 
 function createLocalAudioValidators() {

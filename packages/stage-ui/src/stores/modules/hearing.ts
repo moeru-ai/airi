@@ -206,6 +206,8 @@ const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, StreamTranscription> = {
   // Web Speech API is handled specially in transcribeForMediaStream since it works directly with MediaStream
 }
 
+const PROVIDER_MODEL_STORAGE_PREFIX = 'settings/hearing/provider-model/'
+
 export function resolveStreamTranscriptionExecutor(providerId: string): StreamTranscription | undefined {
   return STREAM_TRANSCRIPTION_EXECUTORS[providerId]
 }
@@ -329,6 +331,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const activeTranscriptionProvider = useLocalStorageManualReset('settings/hearing/active-provider', '', persistenceOptions)
   const activeTranscriptionModel = useLocalStorageManualReset('settings/hearing/active-model', '', persistenceOptions)
   const activeCustomModelName = useLocalStorageManualReset('settings/hearing/active-custom-model', '', persistenceOptions)
+  const activeModelProvider = refManualReset<string>('')
+  activeModelProvider.value = activeTranscriptionProvider.value
   const transcriptionModelSearchQuery = refManualReset<string>('')
   const inputMode = useLocalStorageManualReset<HearingInputMode>('settings/hearing/input-mode', 'always-on', persistenceOptions)
   const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', false, persistenceOptions)
@@ -344,6 +348,31 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const rephraseProvider = useLocalStorageManualReset('settings/hearing/rephrase-provider', '', persistenceOptions)
   const rephraseModel = useLocalStorageManualReset('settings/hearing/rephrase-model', '', persistenceOptions)
   const verboseJsonNotSupported = ref(false)
+
+  const providerModelStorage = {
+    get(providerId: string) {
+      if (typeof localStorage === 'undefined')
+        return null
+
+      return localStorage.getItem(`${PROVIDER_MODEL_STORAGE_PREFIX}${encodeURIComponent(providerId)}`)
+    },
+    save(providerId: string, model: string) {
+      if (typeof localStorage === 'undefined')
+        return
+
+      localStorage.setItem(`${PROVIDER_MODEL_STORAGE_PREFIX}${encodeURIComponent(providerId)}`, model)
+    },
+    clear() {
+      if (typeof localStorage === 'undefined')
+        return
+
+      for (let index = localStorage.length - 1; index >= 0; index--) {
+        const key = localStorage.key(index)
+        if (key?.startsWith(PROVIDER_MODEL_STORAGE_PREFIX))
+          localStorage.removeItem(key)
+      }
+    },
+  }
 
   watch(activeTranscriptionProvider, () => {
     verboseJsonNotSupported.value = false
@@ -376,6 +405,24 @@ export const useHearingStore = defineStore('hearing-store', () => {
     if (providersStore.supportsModelListing(provider)) {
       await providersStore.fetchModelsForProvider(provider)
     }
+  }
+
+  /** Saves the previous provider's model and restores this provider's saved model on the leader. */
+  async function restoreProviderModel(provider: string) {
+    if (activeTranscriptionProvider.value !== provider)
+      return false
+
+    if (activeModelProvider.value === provider)
+      return true
+
+    if (activeModelProvider.value)
+      providerModelStorage.save(activeModelProvider.value, activeTranscriptionModel.value)
+
+    const model = provider ? providerModelStorage.get(provider) ?? '' : ''
+    activeTranscriptionModel.value = model
+    activeCustomModelName.value = model
+    activeModelProvider.value = provider
+    return true
   }
 
   async function getModelsForProvider(provider: string) {
@@ -420,6 +467,9 @@ export const useHearingStore = defineStore('hearing-store', () => {
     speakerRecognitionEnabled.reset()
     rephraseProvider.reset()
     rephraseModel.reset()
+
+    providerModelStorage.clear()
+    activeModelProvider.reset()
   }
 
   async function transcription(
@@ -650,6 +700,10 @@ export const useHearingStore = defineStore('hearing-store', () => {
     activeProviderModelError,
     configured,
 
+    getSavedProviderModel: providerModelStorage.get,
+    saveProviderModel: providerModelStorage.save,
+    restoreProviderModel,
+
     transcription,
     createTranscriber,
     loadModelsForProvider,
@@ -658,6 +712,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
   }
 }, {
   synced: {
+    actions: ['restoreProviderModel'],
     state: true,
   },
 })
