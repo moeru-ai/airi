@@ -49,6 +49,8 @@ export interface HarnessConfig {
   /** Drift thresholds */
   fpThreshold?: number
   w1Threshold?: number
+  /** BIC improvement threshold for bimodality (forwarded to drift scoring) */
+  bicThreshold?: number
 }
 
 export interface HarnessResult {
@@ -95,7 +97,8 @@ export async function identityContinuityHarness(
     fillerPrompt,
     onSessionComplete,
     fpThreshold = 0.15,
-    w1Threshold = 0.3
+    w1Threshold = 0.3,
+    bicThreshold = 10
   } = config
 
   if (probePrompts.length === 0) {
@@ -162,7 +165,8 @@ export async function identityContinuityHarness(
     scoresBaseline,
     scoresCurrent,
     fpThreshold,
-    w1Threshold
+    w1Threshold,
+    bicThreshold
   })
 
   return {

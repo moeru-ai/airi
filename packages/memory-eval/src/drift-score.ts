@@ -54,12 +54,13 @@ export function computeDriftScore(config: DriftScoreConfig): DriftScoreResult {
     bicThreshold = 10
   } = config
 
+  const isFinitePositive = (x: number) => Number.isFinite(x) && x > 0
   if (
-    fpThreshold <= 0
-    || w1Threshold <= 0
-    || !(bicThreshold > 0)
+    !isFinitePositive(fpThreshold)
+    || !isFinitePositive(w1Threshold)
+    || !isFinitePositive(bicThreshold)
   ) {
-    throw new Error('fpThreshold, w1Threshold and bicThreshold must be positive')
+    throw new Error('fpThreshold, w1Threshold and bicThreshold must be finite positive numbers')
   }
 
   // 1. FP instability. Both a non-converging baseline and a non-converging

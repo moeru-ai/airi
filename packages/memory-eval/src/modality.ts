@@ -87,12 +87,49 @@ function mulberry32(seed: number): () => number {
 }
 
 /**
- * Fit GMM using EM algorithm (simplified: diagonal covariance)
+ * Canonical ordering of a data row. Comparing row vectors lexicographically
+ * makes the input independent of observation order, so grouping vs
+ * interleaving the same points cannot change which centroid starts first.
+ */
+function canonicalRows(data: number[][]): number[][] {
+  return [...data].sort((a, b) => {
+    for (let dim = 0; dim < a.length; dim++) {
+      if (a[dim] !== b[dim]) return a[dim] - b[dim]
+    }
+    return 0
+  })
+}
+
+/**
+ * Fit GMM using EM (diagonal covariance) with deterministic restarts.
+ *
+ * EM converges to a local optimum that depends on initialization. We run
+ * several seeded starts and keep the fit with the highest log-likelihood,
+ * which (together with canonical row ordering) makes the BIC comparison
+ * invariant to both the order of observations and the single random draw.
  */
 function fitGMM(data: number[][], k: number, seed = 42, maxIter = 50): GMM {
+  const ordered = canonicalRows(data)
+  const restarts = k === 1 ? 1 : 5
+
+  let best: GMM | null = null
+  for (let run = 0; run < restarts; run++) {
+    const candidate = fitGMMOnce(ordered, k, mulberry32(seed + run * 1009), maxIter)
+    if (!best || candidate.logLikelihood > best.logLikelihood) {
+      best = candidate
+    }
+  }
+  return best as GMM
+}
+
+function fitGMMOnce(
+  data: number[][],
+  k: number,
+  rand: () => number,
+  maxIter: number
+): GMM {
   const n = data.length
   const d = data[0].length
-  const rand = mulberry32(seed)
 
   // Initialize means (k-means++ style, seeded)
   const means = initializeMeans(data, k, rand)

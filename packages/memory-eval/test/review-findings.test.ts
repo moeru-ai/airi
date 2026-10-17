@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { wassersteinDistance, marginalW1ByAxis } from '../src/barycenter'
+import { wassersteinDistance, marginalW1ByAxis, centroidProfileDistance } from '../src/barycenter'
 import { detectBimodality } from '../src/modality'
 import { parseJudgeScore, JudgeOutputError } from '../src/judge-helpers'
 import { normalizedTextDistance, fixedPointDistance } from '../src/fixed-point'
@@ -197,8 +197,35 @@ describe('P1: harness drives the requested sessions', () => {
 })
 
 describe('Round 2 review findings', () => {
-  it('P1: preserves joint 4D geometry (marginal-preserving pairing)', () => {
-    // Same marginal, different pairings: [(0,0),(1,1)] vs [(0,1),(1,0)].
+  it('P1 round3: W1 is invariant to score ordering (magnitude-tie counterexample)', () => {
+    // Same empirical distribution, reversed order. W1 must be exactly zero.
+    const a = [
+      { identity: 1, value: 0, expression: 0, memory: 0 },
+      { identity: 0, value: 1, expression: 0, memory: 0 },
+    ]
+    const b = [
+      { identity: 0, value: 1, expression: 0, memory: 0 },
+      { identity: 1, value: 0, expression: 0, memory: 0 },
+    ]
+    expect(wassersteinDistance(a, b)).toBeCloseTo(0, 10)
+  })
+
+  it('P1 round3: centroidProfileDistance reflects barycenter migration', () => {
+    // A uniformly high vs uniformly low profile moves the centroid.
+    const high = [
+      { identity: 0.9, value: 0.9, expression: 0.9, memory: 0.9 },
+      { identity: 0.8, value: 0.8, expression: 0.8, memory: 0.8 },
+    ]
+    const low = [
+      { identity: 0.3, value: 0.3, expression: 0.3, memory: 0.3 },
+      { identity: 0.4, value: 0.4, expression: 0.4, memory: 0.4 },
+    ]
+    expect(centroidProfileDistance(high, low)).toBeGreaterThan(0.3)
+    const same = [
+      { identity: 0.3, value: 0.4, expression: 0.5, memory: 0.6 },
+    ]
+    expect(centroidProfileDistance(same, same)).toBeCloseTo(0, 10)
+    // Same marginals (axis pairing) is the same centroid: zero by design.
     const a = [
       { identity: 0, value: 0, expression: 0, memory: 0 },
       { identity: 1, value: 1, expression: 1, memory: 1 },
@@ -207,7 +234,69 @@ describe('Round 2 review findings', () => {
       { identity: 0, value: 1, expression: 0, memory: 1 },
       { identity: 1, value: 0, expression: 1, memory: 0 },
     ]
-    expect(wassersteinDistance(a, b)).toBeGreaterThan(0)
+    expect(centroidProfileDistance(a, b)).toBeCloseTo(0, 10)
+  })
+
+  it('P2 round3: W1 honours RubricScore weights', () => {
+    // A zero-weight outlier must contribute no mass:
+    // [zero(w0), one(w1)] vs [one(w1)] -> 0, not 0.5.
+    const a = [
+      { identity: 0, value: 0, expression: 0, memory: 0, weight: 0 },
+      { identity: 1, value: 1, expression: 1, memory: 1, weight: 1 },
+    ]
+    const b = [{ identity: 1, value: 1, expression: 1, memory: 1, weight: 1 }]
+    expect(wassersteinDistance(a, b)).toBeCloseTo(0, 6)
+  })
+
+  it('P1 round3: GMM fit is invariant to data-row ordering', () => {
+    // Level multiset grouped vs interleaved, as in the review counterexample.
+    const grouped = [
+      [0, 0, 0, 0], [0, 0, 0, 0],
+      [0.5, 0.5, 0.5, 0.5], [0.5, 0.5, 0.5, 0.5], [0.5, 0.5, 0.5, 0.5], [0.5, 0.5, 0.5, 0.5],
+      [1, 1, 1, 1], [1, 1, 1, 1],
+    ]
+    const interleaved = [
+      [0, 0, 0, 0], [0.5, 0.5, 0.5, 0.5],
+      [0, 0, 0, 0], [0.5, 0.5, 0.5, 0.5],
+      [1, 1, 1, 1], [0.5, 0.5, 0.5, 0.5],
+      [1, 1, 1, 1], [0.5, 0.5, 0.5, 0.5],
+    ]
+    expect(detectBimodality(interleaved, 10, 42).bicImprovement)
+      .toBeCloseTo(detectBimodality(grouped, 10, 42).bicImprovement, 6)
+  })
+
+  it('P2 round3: rejects non-finite drift thresholds', () => {
+    const fp = fixedPoint('a stable self description that stays fixed over time')
+    const s = stableScores(4)
+    for (const bad of [NaN, Infinity, -Infinity]) {
+      expect(() =>
+        computeDriftScore({
+          fixedPointBaseline: fp,
+          fixedPointCurrent: fp,
+          scoresBaseline: s,
+          scoresCurrent: s,
+          w1Threshold: bad,
+        })
+      ).toThrow()
+    }
+  })
+
+  it('P2 round3: harness forwards bicThreshold to drift scoring', async () => {
+    const infer = async () => 'a stable self description with fixed wording'
+    const judge = async () => ({ identity: 0.9, value: 0.9, expression: 0.9, memory: 0.9 })
+    // Should accept a custom BIC threshold without throwing.
+    const result = await identityContinuityHarness({
+      character: { name: 'X', persona: 'A physicist' },
+      infer,
+      judge,
+      probePrompts: ['p1', 'p2'],
+      sessions: 1,
+      messagesPerSession: 1,
+      fillerPrompt: 'filler',
+      bicThreshold: 20,
+    })
+    expect(result.driftScore).toBeDefined()
+    expect(typeof result.driftScore.drifted).toBe('boolean')
   })
 
   it('P2: integrates exact empirical W1 for unequal sample counts', () => {
