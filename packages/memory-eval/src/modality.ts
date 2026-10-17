@@ -24,7 +24,8 @@ export interface BimodalityResult {
  */
 export function detectBimodality(
   data: number[][],  // Each row is 4D rubric score
-  bicThreshold = 10  // BIC improvement threshold
+  bicThreshold = 10,  // BIC improvement threshold
+  seed = 42  // Deterministic EM initialization
 ): BimodalityResult {
   // Bimodality needs at least two points: one component cannot be
   // distinguished from another with fewer samples than components.
@@ -36,11 +37,11 @@ export function detectBimodality(
   const k2 = Math.min(2, data.length)
 
   // Fit 1-component GMM
-  const gmm1 = fitGMM(data, 1)
+  const gmm1 = fitGMM(data, 1, seed)
   const bic1 = computeBIC(data, gmm1)
 
   // Fit 2-component GMM (falls back to 1 when only one point exists)
-  const gmm2 = fitGMM(data, k2)
+  const gmm2 = fitGMM(data, k2, seed + 1)
   const bic2 = computeBIC(data, gmm2)
 
   const bicImprovement = bic1 - bic2
@@ -62,14 +63,29 @@ interface GMM {
 }
 
 /**
+ * Deterministic PRNG (mulberry32). Seeding the GMM initialization makes
+ * repeated runs reproducible, so BIC cannot cross the threshold by chance.
+ */
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0
+  return () => {
+    a = (a + 0x6D2B79F5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+/**
  * Fit GMM using EM algorithm (simplified: diagonal covariance)
  */
-function fitGMM(data: number[][], k: number, maxIter = 50): GMM {
+function fitGMM(data: number[][], k: number, seed = 42, maxIter = 50): GMM {
   const n = data.length
   const d = data[0].length
+  const rand = mulberry32(seed)
 
-  // Initialize means (k-means++ style)
-  const means = initializeMeans(data, k)
+  // Initialize means (k-means++ style, seeded)
+  const means = initializeMeans(data, k, rand)
   const covariances = Array(k).fill(null).map(() =>
     Array(d).fill(null).map(() => Array(d).fill(0))
   )
@@ -180,13 +196,12 @@ function computeBIC(data: number[][], gmm: GMM): number {
 /**
  * Initialize means using k-means++ style
  */
-function initializeMeans(data: number[][], k: number): number[][] {
+function initializeMeans(data: number[][], k: number, rand: () => number): number[][] {
   const means: number[][] = []
   const n = data.length
-  const d = data[0].length
 
   // First centroid: random point
-  means.push([...data[Math.floor(Math.random() * n)]])
+  means.push([...data[Math.floor(rand() * n)]])
 
   // Remaining centroids: weighted by distance to nearest existing centroid
   for (let j = 1; j < k; j++) {
@@ -202,7 +217,7 @@ function initializeMeans(data: number[][], k: number): number[][] {
 
       if (sumDist > 0) {
         const probs = distances.map(dv => dv / sumDist)
-        let r = Math.random()
+        const r = rand()
         let cumulative = 0
         for (let i = 0; i < n; i++) {
           cumulative += probs[i]
@@ -218,9 +233,8 @@ function initializeMeans(data: number[][], k: number): number[][] {
     // with a small jitter so every component has a defined centroid.
     if (!picked) {
       const source = means[j % means.length]
-      picked = source.map((v, dim) => {
-        const jitter = (Math.random() - 0.5) * 1e-3
-        void dim
+      picked = source.map(v => {
+        const jitter = (rand() - 0.5) * 1e-3
         return Math.min(1, Math.max(0, v + jitter))
       })
     }

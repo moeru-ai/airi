@@ -4184,6 +4184,10 @@ importers:
         version: 1.0.7
 
   packages/memory-eval:
+    dependencies:
+      valibot:
+        specifier: 'catalog:'
+        version: 1.4.2(typescript@6.0.3)
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

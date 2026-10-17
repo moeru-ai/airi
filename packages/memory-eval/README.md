@@ -110,7 +110,20 @@ const k = cohensKappa(humanLabels, judgeLabels) // k.kappa, k.valid
 | Bimodality | BIC(k=2) beats BIC(k=1) | BIC gain 10 |
 | Human kappa | judge disagrees with humans | kappa at least 0.4 |
 
-Thresholds are inputs, not constants. Calibrate them for your persona.
+A component reports drift only when its raw metric reaches the configured
+threshold. The fixed-point distance is an order-sensitive, token-level
+normalized Damerau-Levenshtein distance (anagrams and reordered wording are not
+treated as identical). The W1 distance is computed per rubric axis from order
+statistics, so axes cannot be swapped to hide drift and unequal sample counts
+need no zero padding. Bimodality fitting is seeded and therefore deterministic.
+A malformed judge reply throws `JudgeOutputError` instead of being silently
+scored as a neutral 0.5.
+
+The harness drives `sessions x messagesPerSession` inference calls before the
+current probes and calls an optional `onSessionComplete` hook after each
+session, which is where the memory strategy under test (summarise, retain,
+prune) runs. Thresholds are inputs, not constants. Calibrate them for your
+persona.
 
 ## Evidence
 
