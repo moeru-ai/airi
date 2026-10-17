@@ -1,0 +1,42 @@
+{
+  "name": "@proj-airi/memory-eval",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Identity-continuity evaluation for long-horizon memory (fixed-point, Wasserstein barycenter, bimodality, human kappa)",
+  "author": {
+    "name": "AnimaEVA"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/memory-eval"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "valibot": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:vitest"
+  }
+}
