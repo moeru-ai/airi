@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { wassersteinDistance, marginalW1ByAxis, centroidProfileDistance } from '../src/barycenter'
+import { wassersteinDistance, marginalW1ByAxis, centroidProfileDistance, computeBarycenter } from '../src/barycenter'
 import { detectBimodality } from '../src/modality'
 import { parseJudgeScore, JudgeOutputError } from '../src/judge-helpers'
 import { normalizedTextDistance, fixedPointDistance, computeFixedPoint } from '../src/fixed-point'
@@ -421,7 +421,7 @@ describe('Round 2 review findings', () => {
     expect(result.bicImprovement).toBe(0)
   })
 
-  it('P1: harness passes persona as fallback context when systemPrompt is absent', async () => {
+  it('P1: harness passes persona (with name) as fallback context when systemPrompt is absent', async () => {
     const contexts: (string | undefined)[] = []
     const infer = async (_prompt: string, systemPrompt?: string) => {
       contexts.push(systemPrompt)
@@ -439,8 +439,89 @@ describe('Round 2 review findings', () => {
       fillerPrompt: 'filler',
     })
 
-    // Every inference call carried the persona as its context.
+    // Context always carries the persona; since round 5 it also carries the name.
     expect(contexts.length).toBeGreaterThan(0)
-    for (const c of contexts) expect(c).toBe('A physicist')
+    for (const c of contexts) {
+      expect(c).toContain('A physicist')
+      expect(c).toContain('X')
+    }
+  })
+
+  it('P2 round5: harness context includes the character name', async () => {
+    const contexts: (string | undefined)[] = []
+    const infer = async (_prompt: string, systemPrompt?: string) => {
+      contexts.push(systemPrompt)
+      return 'stable self description that does not change'
+    }
+    const judge = async () => ({ identity: 0.9, value: 0.9, expression: 0.9, memory: 0.9 })
+
+    await identityContinuityHarness({
+      character: { name: 'Dr. Lin', persona: 'A physicist' },
+      infer,
+      judge,
+      probePrompts: ['p'],
+      sessions: 0,
+      messagesPerSession: 0,
+    })
+
+    // The configured name must reach the inference context even without a
+    // systemPrompt, otherwise identity probes cannot test the character name.
+    expect(contexts.length).toBeGreaterThan(0)
+    for (const c of contexts) {
+      expect(c).toContain('Dr. Lin')
+      expect(c).toContain('A physicist')
+    }
+  })
+
+  it('P2 round5: weighted GMM honours differing positive masses', () => {
+    // Four lows with tiny mass should not be equivalent to four lows with mass 1.
+    const lows = (mass: number) =>
+      Array.from({ length: 4 }, (_, i) => [
+        0.15 + (i % 2) * 0.02, 0.12, 0.14, 0.1,
+      ]).map(v => ({
+        identity: v[0], value: v[1], expression: v[2], memory: v[3], weight: mass,
+      }))
+    const highs = Array.from({ length: 12 }, (_, i) => ({
+      identity: 0.86 + (i % 3) * 0.01, value: 0.85, expression: 0.86, memory: 0.84, weight: 1,
+    }))
+
+    const heavy = detectBimodality(
+      [...highs, ...lows(1)].map(s => [s.identity, s.value, s.expression, s.memory]),
+      10, 42, [...highs.map(() => 1), ...lows(1).map(() => 1)],
+    )
+    const light = detectBimodality(
+      [...highs, ...lows(0.001)].map(s => [s.identity, s.value, s.expression, s.memory]),
+      10, 42, [...highs.map(() => 1), ...lows(0.001).map(s => s.weight)],
+    )
+    // Tiny-mass lows must produce a much smaller BIC gain than unit-mass lows.
+    expect(light.bicImprovement).toBeLessThan(heavy.bicImprovement - 5)
+  })
+
+  it('P1 round5: CJK sentences split into character tokens', () => {
+    // A single-character edit in an unsegmented Japanese sentence must not
+    // return maximal distance.
+    const d = normalizedTextDistance('私は猫です', '私は犬です')
+    expect(d).toBeGreaterThan(0)
+    expect(d).toBeLessThan(0.5)
+  })
+
+  it('P2 round5: fixed-point bounds convergenceThreshold to (0,1]', async () => {
+    const infer = async () => 'different output each time'
+    await expect(computeFixedPoint({
+      initialDescription: 'x', infer, convergenceThreshold: 1.5,
+    })).rejects.toThrow()
+  })
+
+  it('P2 round5: barycenter rejects zero total weight', () => {
+    expect(() => computeBarycenter([
+      { identity: 0.9, value: 0.9, expression: 0.9, memory: 0.9, weight: 0 },
+    ])).toThrow()
+  })
+
+  it('P2 round5: parseJudgeScore rejects bad weight', () => {
+    const raw = '{"identity":0.9,"value":0.8,"expression":0.7,"memory":0.6}'
+    expect(() => parseJudgeScore(raw, -1)).toThrow()
+    expect(() => parseJudgeScore(raw, Number.NaN)).toThrow()
+    expect(() => parseJudgeScore(raw, Number.POSITIVE_INFINITY)).toThrow()
   })
 })

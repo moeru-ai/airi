@@ -93,6 +93,7 @@ interface GMM {
   covariances: number[][][]  // k × d × d (simplified: diagonal)
   weights: number[]  // k (mixture weights)
   logLikelihood: number
+  totalMass: number  // sum of sample weights (effective sample count)
 }
 
 /**
@@ -149,12 +150,13 @@ function fitGMM(
   sampleWeights?: number[]
 ): GMM {
   const baseWeights = sampleWeights ?? data.map(() => 1)
+  const totalMass = baseWeights.reduce((acc, w) => acc + w, 0)
   const { rows, weights } = canonicalOrder(data, baseWeights)
   const restarts = k === 1 ? 1 : 5
 
   let best: GMM | null = null
   for (let run = 0; run < restarts; run++) {
-    const candidate = fitGMMOnce(rows, k, mulberry32(seed + run * 1009), maxIter, weights)
+    const candidate = fitGMMOnce(rows, k, mulberry32(seed + run * 1009), maxIter, weights, totalMass)
     if (!best || candidate.logLikelihood > best.logLikelihood) {
       best = candidate
     }
@@ -167,11 +169,11 @@ function fitGMMOnce(
   k: number,
   rand: () => number,
   maxIter: number,
-  sampleWeights: number[]
+  sampleWeights: number[],
+  totalMass: number
 ): GMM {
   const n = data.length
   const d = data[0].length
-  const totalMass = sampleWeights.reduce((acc, w) => acc + w, 0)
 
   // Initialize means (k-means++ style, seeded)
   const means = initializeMeans(data, k, rand)
@@ -197,16 +199,19 @@ function fitGMMOnce(
 
     for (let i = 0; i < n; i++) {
       let sumResp = 0
-      const mass = sampleWeights[i]
       for (let j = 0; j < k; j++) {
         const prob = gaussianPDF(data[i], means[j], covariances[j])
-        responsibilities[i][j] = weights[j] * prob * mass
+        responsibilities[i][j] = weights[j] * prob
         sumResp += responsibilities[i][j]
       }
+      // Normalize to a posterior first, then apply the sample mass. Applying
+      // mass before normalization cancels out, which made weight 100 behave
+      // exactly like weight 1.
+      const mass = sampleWeights[i]
       for (let j = 0; j < k; j++) {
-        responsibilities[i][j] /= sumResp
+        responsibilities[i][j] = (responsibilities[i][j] / sumResp) * mass
       }
-      logLikelihoods[i] = Math.log(sumResp > 0 ? sumResp : 1e-300)
+      logLikelihoods[i] = Math.log(sumResp > 0 ? sumResp : 1e-300) * mass
     }
 
     const newLogLikelihood = logLikelihoods.reduce((a, b) => a + b, 0)
@@ -247,7 +252,7 @@ function fitGMMOnce(
     }
   }
 
-  return { k, means, covariances, weights, logLikelihood }
+  return { k, means, covariances, weights, logLikelihood, totalMass }
 }
 
 /**
@@ -273,14 +278,16 @@ function gaussianPDF(x: number[], mean: number[], cov: number[][]): number {
  * where p = number of free parameters
  */
 function computeBIC(data: number[][], gmm: GMM): number {
-  const n = data.length
   const d = data[0].length
   const k = gmm.k
+  // Effective sample size is the total mass, not the row count, so weighted
+  // observations use the same penalty scale as unweighted ones.
+  const nEff = gmm.totalMass
 
   // Parameters: k*d (means) + k*d (diagonal variances) + (k-1) (weights)
   const p = k * d + k * d + (k - 1)
 
-  return -2 * gmm.logLikelihood + p * Math.log(n)
+  return -2 * gmm.logLikelihood + p * Math.log(nEff)
 }
 
 /**

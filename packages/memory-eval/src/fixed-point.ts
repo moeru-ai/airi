@@ -50,8 +50,12 @@ export async function computeFixedPoint(
   if (!Number.isInteger(maxIterations) || maxIterations < 1) {
     throw new Error('maxIterations must be a positive integer')
   }
-  if (!Number.isFinite(convergenceThreshold) || convergenceThreshold <= 0) {
-    throw new Error('convergenceThreshold must be a finite positive number')
+  // Normalized distance is in [0,1]. A threshold above 1 makes everything
+  // converge after one inference, even for completely different descriptions.
+  if (!Number.isFinite(convergenceThreshold)
+      || convergenceThreshold <= 0
+      || convergenceThreshold > 1) {
+    throw new Error('convergenceThreshold must be a finite number in (0, 1]')
   }
 
   const iterations: string[] = [initialDescription]
@@ -115,9 +119,25 @@ export function normalizedTextDistance(a: string, b: string): number {
 }
 
 function tokenize(text: string): string[] {
-  return text
-    .toLowerCase()
-    .match(/[\p{L}\p{N}]+/gu) ?? []
+  const lower = text.toLowerCase()
+  const wordTokens = lower.match(/[\p{L}\p{N}]+/gu) ?? []
+  // Space-delimited scripts make `私は猫です` a single word token, so a
+  // one-character edit returns distance 1 and stable personas fail to
+  // converge. When a word token is a single unsegmented CJK run, split it
+  // into individual grapheme clusters. Latin and other space-separated word
+  // tokens stay intact.
+  const tokens: string[] = []
+  const isCjk = (ch: string) =>
+    /[㐀-䶿一-鿿぀-ゟ゠-ヿ가-힯豈-﫿＀-￯]/u.test(ch)
+  for (const word of wordTokens) {
+    const graphemes = [...word]
+    if (graphemes.length > 1 && graphemes.every(isCjk)) {
+      for (const g of graphemes) tokens.push(g)
+    } else {
+      tokens.push(word)
+    }
+  }
+  return tokens
 }
 
 function damerauLevenshtein(a: string[], b: string[]): number {

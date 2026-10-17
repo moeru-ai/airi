@@ -38,9 +38,11 @@ and `judge`, which scores an answer on the four axes. `createJudge` adapts any
 chat callback, and `createMockJudge` gives deterministic offline scores. This
 keeps the package provider-agnostic.
 
-The package includes a Vitest suite. A package-local `vitest.config.ts` keeps
-the suite independent of the root Vitest project list, so adding the package
-needs no change to the root configuration.
+The package includes a Vitest suite with a package-local `vitest.config.ts`
+(named `@proj-airi/memory-eval`). To make CI execute it, the package is also
+registered in the root `vitest.config.ts` project list, because the CI job
+`pnpm run test:run` only runs the projects listed there. A future test package
+must be added to the same root list or its tests will silently not run in CI.
 
 ## Consequences
 
