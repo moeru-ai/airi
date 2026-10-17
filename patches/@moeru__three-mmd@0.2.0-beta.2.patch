@@ -1,0 +1,14 @@
+diff --git a/dist/mmd-toon-material-CQmnUdOk.js b/dist/mmd-toon-material-CQmnUdOk.js
+index 91c4bade4c0aae440c59d357529da44ae72091f0..47f6d13dcbc4d3887406ea9674459690a9abaf3f 100644
+--- a/dist/mmd-toon-material-CQmnUdOk.js
++++ b/dist/mmd-toon-material-CQmnUdOk.js
+@@ -89,8 +89,8 @@ vec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffu
+ vec2 mmdSphereUv = normal.xy * 0.5 + 0.5;
+ vec3 mmdSphere = texture2D( mmdSphereMap, mmdSphereUv ).rgb;
+ mmdSphere = mmdApplyTextureColor( mmdSphere, mmdSphereTextureMultiplicativeColor, mmdSphereTextureAdditiveColor );
+-mmdSphere *= reflectedLight.directDiffuse + reflectedLight.indirectDiffuse;
+ #if MMD_SPHERE_BLEND_MODE > 1
++mmdSphere *= reflectedLight.directDiffuse + reflectedLight.indirectDiffuse;
+ outgoingLight += mmdSphere;
+ #else
+ outgoingLight *= mmdSphere;
