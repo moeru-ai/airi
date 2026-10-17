@@ -6,6 +6,7 @@
  */
 
 import type { RubricScore } from './barycenter'
+import { object, safeParse, number } from 'valibot'
 
 export interface JudgeConfig {
   /** Character persona for scoring context */
@@ -15,6 +16,26 @@ export interface JudgeConfig {
 }
 
 export type ChatFn = (prompt: string) => Promise<string>
+
+/**
+ * Strict schema for judge output. All four axes are required and must be
+ * finite numbers. We do not clamp here: a malformed score must be rejected,
+ * not silently turned into a neutral 0.5 that could mask total judge failure
+ * as "no drift".
+ */
+const rubricScoreSchema = object({
+  identity: number(),
+  value: number(),
+  expression: number(),
+  memory: number(),
+})
+
+export class JudgeOutputError extends Error {
+  constructor(public readonly raw: string) {
+    super(`Judge returned output that is not a valid 4-axis rubric score: ${raw.slice(0, 200)}`)
+    this.name = 'JudgeOutputError'
+  }
+}
 
 const RUBRIC_INSTRUCTIONS = `Rate the character response on 4 dimensions.
 Return JSON only, with numbers from 0 to 1:
@@ -29,19 +50,41 @@ value: core principles and ethics alignment.
 expression: speech pattern and style match.
 memory: references to shared history.`
 
-function clamp01(value: unknown, fallback: number): number {
-  const n = typeof value === 'number' ? value : Number(value)
-  if (!Number.isFinite(n)) return fallback
-  return Math.min(1, Math.max(0, n))
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value))
 }
 
-function extractJson(text: string): Partial<Record<keyof RubricScore, unknown>> {
+function extractJsonObject(text: string): unknown {
   const match = text.match(/\{[\s\S]*\}/)
-  if (!match) return {}
+  if (!match) throw new JudgeOutputError(text)
   try {
-    return JSON.parse(match[0]) as Partial<Record<keyof RubricScore, unknown>>
+    return JSON.parse(match[0])
   } catch {
-    return {}
+    throw new JudgeOutputError(text)
+  }
+}
+
+/**
+ * Parse a raw judge reply into a RubricScore. Throws JudgeOutputError when the
+ * reply is missing any axis or carries a non-finite value, so callers can retry
+ * or fail the evaluation instead of recording a fake neutral score.
+ */
+export function parseJudgeScore(raw: string, weight = 1): RubricScore {
+  const candidate = extractJsonObject(raw)
+  const result = safeParse(rubricScoreSchema, candidate)
+  if (!result.success) throw new JudgeOutputError(raw)
+
+  const { identity, value, expression, memory } = result.output
+  for (const v of [identity, value, expression, memory]) {
+    if (!Number.isFinite(v)) throw new JudgeOutputError(raw)
+  }
+
+  return {
+    identity: clamp01(identity),
+    value: clamp01(value),
+    expression: clamp01(expression),
+    memory: clamp01(memory),
+    weight,
   }
 }
 
@@ -64,15 +107,7 @@ export function createJudge(config: JudgeConfig & { chat: ChatFn }) {
       + 'Return the JSON object.'
 
     const raw = await chat(prompt)
-    const parsed = extractJson(raw)
-
-    return {
-      identity: clamp01(parsed.identity, 0.5),
-      value: clamp01(parsed.value, 0.5),
-      expression: clamp01(parsed.expression, 0.5),
-      memory: clamp01(parsed.memory, 0.5),
-      weight,
-    }
+    return parseJudgeScore(raw, weight)
   }
 }
 

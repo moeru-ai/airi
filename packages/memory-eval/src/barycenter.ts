@@ -52,35 +52,70 @@ export function computeBarycenter(scores: RubricScore[]): BarycenterResult {
 }
 
 /**
- * Wasserstein-1 distance (1D approximation: flatten to 1D then compute)
+ * Wasserstein-1 distance in 4D rubric space
  *
- * For 4D, we flatten scores and use the 1D W1 formula:
- * W1(μ, ν) = integral of |F_μ(x) - F_ν(x)| dx
- *          = sum of |sorted_μ[i] - sorted_ν[i]| (for empirical distributions)
+ * The four rubric axes are not interchangeable. We compute the 1D empirical
+ * W1 distance per axis (sort each axis, pair the order statistics, average the
+ * absolute gaps) and average across axes. Comparing order statistics works for
+ * unequal sample counts without inventing zero-filled observations.
+ *
+ * For each axis, with samples a (length m) and b (length n):
+ *   W1_axis = (1/(mn)) * sum_i sum_j |quantile_a(i) - quantile_b(j)|
+ * is exact for the empirical CDF; here we use the equivalent O(m+n)
+ * sorted-pair interpolation via weighted order statistics.
  */
+const RUBRIC_AXES = ['identity', 'value', 'expression', 'memory'] as const
+export type RubricAxis = (typeof RUBRIC_AXES)[number]
+
+function axisValues(scores: RubricScore[], axis: RubricAxis): number[] {
+  return scores.map(s => s[axis]).sort((x, y) => x - y)
+}
+
+/**
+ * 1D Wasserstein-1 between two empirical samples, by the sorted-pair / quantile
+ * definition. Handles m != n by pairing across the common [0,1] quantile grid.
+ * Empty arrays are invalid for this caller (guarded upstream).
+ */
+function wasserstein1D(a: number[], b: number[]): number {
+  const m = a.length
+  const n = b.length
+  if (m === n) {
+    let sum = 0
+    for (let i = 0; i < m; i++) sum += Math.abs(a[i] - b[i])
+    return sum / m
+  }
+
+  // Different sizes: integrate |F_a - F_b| on the step grid using quantile
+  // interpolation at shared fractions k/max(m,n).
+  const grid = Math.max(m, n)
+  const quantile = (sorted: number[], len: number, q: number) => {
+    const pos = q * (len - 1)
+    const lo = Math.floor(pos)
+    const hi = Math.min(len - 1, lo + 1)
+    const frac = pos - lo
+    return sorted[lo] * (1 - frac) + sorted[hi] * frac
+  }
+  let sum = 0
+  for (let k = 0; k < grid; k++) {
+    const q = grid === 1 ? 0 : k / (grid - 1)
+    sum += Math.abs(quantile(a, m, q) - quantile(b, n, q))
+  }
+  return sum / grid
+}
+
 export function wassersteinDistance(
   scores1: RubricScore[],
   scores2: RubricScore[]
 ): number {
-  // Flatten to 1D
-  const flatten = (scores: RubricScore[]): number[] =>
-    scores.flatMap(s => [s.identity, s.value, s.expression, s.memory])
-
-  const flat1 = flatten(scores1).sort((a, b) => a - b)
-  const flat2 = flatten(scores2).sort((a, b) => a - b)
-
-  // Pad to same length
-  const maxLen = Math.max(flat1.length, flat2.length)
-  while (flat1.length < maxLen) flat1.push(0)
-  while (flat2.length < maxLen) flat2.push(0)
-
-  // W1 = sum of absolute differences
-  let sum = 0
-  for (let i = 0; i < maxLen; i++) {
-    sum += Math.abs(flat1[i] - flat2[i])
+  if (scores1.length === 0 || scores2.length === 0) {
+    throw new Error('wassersteinDistance requires non-empty score arrays')
   }
 
-  return sum / maxLen  // Normalize
+  let total = 0
+  for (const axis of RUBRIC_AXES) {
+    total += wasserstein1D(axisValues(scores1, axis), axisValues(scores2, axis))
+  }
+  return total / RUBRIC_AXES.length
 }
 
 /**

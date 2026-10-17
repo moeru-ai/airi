@@ -6,6 +6,7 @@
  */
 
 import type { FixedPointResult } from './fixed-point'
+import { normalizedTextDistance } from './fixed-point'
 import type { RubricScore } from './barycenter'
 import type { BimodalityResult } from './modality'
 import { wassersteinDistance } from './barycenter'
@@ -59,7 +60,7 @@ export function computeDriftScore(config: DriftScoreConfig): DriftScoreResult {
     fpInstability = 1.0  // Complete instability
   } else {
     // Distance between baseline and current fixed points
-    const fpDist = normalizedDistance(
+    const fpDist = normalizedTextDistance(
       fixedPointBaseline.fixedPoint,
       fixedPointCurrent.fixedPoint
     )
@@ -77,8 +78,18 @@ export function computeDriftScore(config: DriftScoreConfig): DriftScoreResult {
   const bimodalityResult = detectBimodality(flattenScores(scoresCurrent), bicThreshold)
   const bimodality = bimodalityResult.bimodal ? 1.0 : 0.0
 
-  // Unified drift score (max of three components)
+  // Unified score (max of the normalized components). Kept for reporting.
   const driftScore = Math.max(fpInstability, w1Migration, bimodality)
+
+  // A component signals drift only when the raw metric reaches its configured
+  // threshold, i.e. the normalized component reaches 1. Comparing with 0.5 here
+  // would flag drift at half the configured limit (W1 0.15 under a 0.3 limit).
+  const fpDrift = fixedPointCurrent.converged
+    ? fpInstability >= 1
+    : true
+  const w1Drift = w1Migration >= 1
+  const bimodalDrift = bimodality >= 1
+  const drifted = fpDrift || w1Drift || bimodalDrift
 
   return {
     driftScore,
@@ -86,19 +97,6 @@ export function computeDriftScore(config: DriftScoreConfig): DriftScoreResult {
     fpInstability,
     w1Migration,
     bimodality,
-    drifted: driftScore > 0.5  // At least one component significantly elevated
+    drifted
   }
-}
-
-/**
- * Normalized string distance (reuse from fixed-point)
- */
-function normalizedDistance(a: string, b: string): number {
-  const setA = new Set(a)
-  const setB = new Set(b)
-  const symmetric = new Set([...setA].filter(x => !setB.has(x)))
-  for (const x of setB) {
-    if (!setA.has(x)) symmetric.add(x)
-  }
-  return symmetric.size / Math.max(a.length, b.length)
 }

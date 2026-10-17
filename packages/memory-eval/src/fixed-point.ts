@@ -64,8 +64,8 @@ Output only the description, nothing else.`
     const nextDesc = await infer(prompt)
     iterations.push(nextDesc)
 
-    // Residual = normalized set-symmetric-difference (simple proxy for edit distance)
-    const residual = normalizedEditDistance(currentDesc, nextDesc)
+    // Residual = order-sensitive normalized token edit distance
+    const residual = normalizedTextDistance(currentDesc, nextDesc)
     residuals.push(residual)
 
     if (residual < convergenceThreshold) {
@@ -89,23 +89,58 @@ Output only the description, nothing else.`
 }
 
 /**
- * Normalized edit distance (simplified: character set difference)
+ * Order-sensitive normalized text distance.
+ *
+ * Character-set comparison returns zero for anagrams ("abc" vs "cba") and near
+ * zero for any same-vocabulary paragraphs, which hides real drift. We tokenize
+ * on words and use Damerau-Levenshtein distance (insert, delete, substitute,
+ * transpose), normalized by the longer token count. This is order-sensitive
+ * while tolerating small wording changes, with no external dependency.
  */
-function normalizedEditDistance(a: string, b: string): number {
-  const setA = new Set(a)
-  const setB = new Set(b)
+export function normalizedTextDistance(a: string, b: string): number {
+  const ta = tokenize(a)
+  const tb = tokenize(b)
+  if (ta.length === 0 && tb.length === 0) return 0
+  return damerauLevenshtein(ta, tb) / Math.max(ta.length, tb.length)
+}
 
-  const symmetric = new Set([...setA].filter(x => !setB.has(x)))
-  for (const x of setB) {
-    if (!setA.has(x)) symmetric.add(x)
+function tokenize(text: string): string[] {
+  return text
+    .toLowerCase()
+    .match(/[\p{L}\p{N}]+/gu) ?? []
+}
+
+function damerauLevenshtein(a: string[], b: string[]): number {
+  const m = a.length
+  const n = b.length
+  if (m === 0) return n
+  if (n === 0) return m
+
+  // d[i][j] = distance between a[0..i) and b[0..j)
+  const d: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0))
+  for (let i = 0; i <= m; i++) d[i][0] = i
+  for (let j = 0; j <= n; j++) d[0][j] = j
+
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      d[i][j] = Math.min(
+        d[i - 1][j] + 1,      // deletion
+        d[i][j - 1] + 1,      // insertion
+        d[i - 1][j - 1] + cost // substitution
+      )
+      // transposition of adjacent tokens
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1)
+      }
+    }
   }
-
-  return symmetric.size / Math.max(a.length, b.length)
+  return d[m][n]
 }
 
 /**
  * Distance between two fixed points (for cross-session comparison)
  */
 export function fixedPointDistance(fp1: string, fp2: string): number {
-  return normalizedEditDistance(fp1, fp2)
+  return normalizedTextDistance(fp1, fp2)
 }
