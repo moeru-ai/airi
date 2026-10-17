@@ -65,8 +65,8 @@ const label = computed(() => {
         <span
           v-for="(weight, index) in [0.4, 0.75, 1, 0.7, 0.45]"
           :key="index"
-          :class="['hearing-bar block w-1 rounded-full bg-current', state === 'busy' && 'hearing-bar-busy']"
-          :style="{ height: `${4 + amplitude * weight * 16}px`, animationDelay: `${index * -120}ms` }"
+          :class="['hearing-bar block h-1 w-1 rounded-full bg-current', state === 'busy' && 'hearing-bar-busy']"
+          :style="{ transform: `scaleY(${1 + amplitude * weight * 4})`, animationDelay: `${index * -120}ms` }"
         />
       </span>
       <span v-if="issue" aria-hidden="true" :class="['i-solar:danger-circle-linear ml-1.5 size-4']" />
@@ -91,8 +91,9 @@ const label = computed(() => {
 </template>
 
 <style scoped>
+/* A transform transition runs on the compositor. A height transition lays out the page on each frame. */
 .hearing-bar {
-  transition: height 100ms ease-out;
+  transition: transform 100ms ease-out;
 }
 .hearing-bar-busy {
   animation: hearing-wave 900ms ease-in-out infinite;
