@@ -2,9 +2,8 @@ import type { ReaderLike } from 'clustr'
 
 import type { TextSegment, TextToken } from '../types'
 
+import { createPushStream } from '@proj-airi/stream-kit'
 import { readGraphemeClusters } from 'clustr'
-
-import { createPushStream } from '../stream'
 
 export const TTS_FLUSH_INSTRUCTION = '\u200B'
 export const TTS_SPECIAL_TOKEN = '\u2063'

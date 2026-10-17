@@ -42,6 +42,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
     "@proj-airi/pipelines-audio": "workspace:^",
     "@proj-airi/plugin-protocol": "workspace:^",

@@ -24,6 +24,7 @@ packages:
   - services/**
   - examples/**
   - engines/**
+  - evals/**
   - apps/**
   - server/**
   - '!**/dist/**'
@@ -417,7 +418,7 @@ catalog:
   valibot: ^1.4.2
   vaul-vue: ^0.4.1
   vec3: ^0.2.0
-  vieval: ^0.0.12
+  vieval: ^0.2.0
   virtua: ^0.50.4
   vite: ^8.2.2
   vite-bundle-visualizer: ^1.2.1
@@ -431,6 +432,7 @@ catalog:
   vue: ^3.5.41
   vue-demi: ^0.14.10
   vue-i18n: ^11.4.9
+  vue-json-pretty: ^2.6.0
   vue-macros: ^3.1.4
   vue-router: ^5.2.0
   vue-sonner: ^2.0.9

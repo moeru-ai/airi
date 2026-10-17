@@ -6,6 +6,8 @@ import { createPinia } from 'pinia'
 
 import ChatToolCallGroup from './tool-call-group.vue'
 
+import { builtinToolCallWidgets } from './tool-call-widgets'
+
 const items: ToolCallGroupItem[] = [
   { sliceIndex: 0, toolCall: { toolCallId: 'light', toolCallType: 'function', toolName: 'home_assistant_call_service', args: '{"domain":"light","service":"turn_off","entity_id":"light.bedroom"}' } },
   { sliceIndex: 1, toolCall: { toolCallId: 'spark', toolCallType: 'function', toolName: 'builtIn_emitSparkCommand', args: '{"destinations":["minecraft"],"intent":"action"}' } },
@@ -25,10 +27,10 @@ const running: Record<number, ChatSlicesToolCallResult> = { 0: done[0]! }
   <Story title="Tool Call Group" group="chat">
     <Variant id="states" title="One call, running, settled, and failed" :setup-app="({ app }) => { app.use(createPinia()) }">
       <div :class="['flex max-w-lg flex-col gap-4 p-4']">
-        <ChatToolCallGroup :items="items.slice(0, 1)" :result-of="index => done[index]" />
-        <ChatToolCallGroup :items="items.slice(0, 2)" :result-of="index => running[index]" />
-        <ChatToolCallGroup :items="items" :result-of="index => done[index]" />
-        <ChatToolCallGroup :items="items" :result-of="index => failed[index]" />
+        <ChatToolCallGroup :items="items.slice(0, 1)" :result-of="index => done[index]" :widgets="builtinToolCallWidgets" />
+        <ChatToolCallGroup :items="items.slice(0, 2)" :result-of="index => running[index]" :widgets="builtinToolCallWidgets" />
+        <ChatToolCallGroup :items="items" :result-of="index => done[index]" :widgets="builtinToolCallWidgets" />
+        <ChatToolCallGroup :items="items" :result-of="index => failed[index]" :widgets="builtinToolCallWidgets" />
       </div>
     </Variant>
   </Story>

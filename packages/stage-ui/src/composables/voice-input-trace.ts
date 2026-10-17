@@ -1,5 +1,7 @@
 import type { Span } from '@opentelemetry/api'
-import type { SpeechInputAttempt, SpeechInputAttemptOutcome } from '@proj-airi/core-agent'
+import type { SpeechInputAttempt, SpeechInputAttemptOutcome, WriteResult } from '@proj-airi/core-agent'
+
+import type { SpeakerEvidenceUpdate } from '../libs/voice/speaker-evidence-plugin'
 
 import { SpanStatusCode } from '@opentelemetry/api'
 import { IOAttributes, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
@@ -26,6 +28,13 @@ interface TracedInput {
   segment?: { span: Span, speechMs: number, silenceMs: number, lastSpeechAt: number }
   /** The session of a composer dictation. Its text returns to the composer instead of a draft. */
   composerSessionId?: string
+  /** The newest speaker evidence, and the updates that the input rejected. */
+  speaker?: { update: SpeakerEvidenceUpdate, rejected: number }
+}
+
+/** Cosines keep three decimals in a trace. More digits only show float32 noise. */
+function roundScore(value: number) {
+  return Math.round(value * 1000) / 1000
 }
 
 /**
@@ -35,6 +44,8 @@ interface TracedInput {
  * While the input runs, `activeVoiceInputSpan` points to it, so speech recognition, end judgements, and the rephrase
  * become its children. VAD results become `Voice activity detection` child spans, one for each speech segment.
  * The input ID is also the turn ID of the chat turn that its submission starts, so that turn continues the trace.
+ *
+ * With speaker recognition on, the input span also gets the speaker score of its speech.
  *
  * State: `inputs` holds the open inputs by ID. The input outcome ends the input span and its open segment.
  */
@@ -94,6 +105,19 @@ export function createVoiceInputTracer() {
       closeSegment(input)
   }
 
+  /**
+   * Records an update of the speaker evidence of an input, and the result of its write.
+   * The span keeps the newest update, so it shows the score of all counted speech even when the input rejected the update.
+   * A rejected update arrived after the transcription had ended, so the submission carried an older score.
+   */
+  function speakerEvidence(update: SpeakerEvidenceUpdate, result: WriteResult) {
+    const input = inputs.get(update.inputId)
+    if (!input)
+      return
+    const rejected = (input.speaker?.rejected ?? 0) + (result.status === 'rejected' ? 1 : 0)
+    input.speaker = { update, rejected }
+  }
+
   function closeSegment(input: TracedInput) {
     const segment = input.segment
     if (!segment)
@@ -109,6 +133,16 @@ export function createVoiceInputTracer() {
       return
     inputs.delete(inputId)
     closeSegment(input)
+
+    if (input.speaker) {
+      const { update, rejected } = input.speaker
+      input.span.setAttributes({
+        [IOAttributes.SpeakerScore]: roundScore(update.value.candidates[0].score),
+        [IOAttributes.SpeakerScores]: update.scores.map(roundScore),
+        [IOAttributes.SpeakerVoicedMs]: Math.round(update.value.voicedMs),
+        [IOAttributes.SpeakerRejectedCount]: rejected,
+      })
+    }
 
     input.span.setAttribute(IOAttributes.VoiceInputOutcome, outcome.status)
     if (outcome.status === 'cancelled')
@@ -129,5 +163,5 @@ export function createVoiceInputTracer() {
       activeVoiceInputSpan.value = undefined
   }
 
-  return { start, markComposer, activity }
+  return { start, markComposer, activity, speakerEvidence }
 }

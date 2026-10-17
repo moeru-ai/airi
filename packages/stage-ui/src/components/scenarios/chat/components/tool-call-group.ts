@@ -170,3 +170,28 @@ export function formatToolPayload(payload: unknown): PayloadNode | undefined {
     return { kind: 'text', text: payload }
   }
 }
+
+/**
+ * Reads a tool payload as the data that it holds.
+ *
+ * A string that holds JSON becomes that data. Any other value stays as the tool sent it.
+ *
+ * @example
+ * parseToolPayload('{"city":"Bangkok"}')
+ * // => { city: 'Bangkok' }
+ *
+ * @example
+ * parseToolPayload('Tool call error: timeout')
+ * // => 'Tool call error: timeout'
+ */
+export function parseToolPayload(payload: unknown): unknown {
+  if (typeof payload !== 'string')
+    return payload
+
+  try {
+    return JSON.parse(payload)
+  }
+  catch {
+    return payload
+  }
+}

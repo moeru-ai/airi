@@ -865,8 +865,11 @@ pages:
         description: 登记你的声音，让 AIRI 能认出你。
         intro: 声纹是声纹模型从你的语音中算出的一组数字。它不包含音频，但能识别出你。
         privacy: AIRI 只把你的声纹保存在这台设备上。导出角色卡不会带上它，AIRI 也不会上传它。要删除它，可以使用本页的「删除声纹」，或数据设置中的「删除所有数据」。
-        unused: 目前还没有功能使用声纹。
         download: 第一次登记时会下载声纹模型，约 28 MB。
+        speaker-recognition:
+          label: 说话人识别
+          description: 把由说话或唤醒词开始的每次语音输入和你的声纹比对，并把分数记录在这次输入的 IO trace 中。「按住说话」的输入没有分数。任何人的声音仍然可以开始输入，聊天模型也收不到这个分数。AIRI 聆听期间，声纹模型会一直留在内存中。
+          needs-voiceprint: 登记声纹后才能开启说话人识别。
         status:
           none: 你还没有声纹。
           enrolled: '{date} 登记，使用了 {seconds} 秒语音。'
@@ -2171,6 +2174,9 @@ pages:
               markdown-stress:
                 title: Markdown 压力测试
                 description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
+              tool-payloads-as-json:
+                title: 以 JSON 显示工具数据
+                description: 聊天里工具调用的参数和结果显示为 JSON 树，不再格式化
               plugin-host:
                 actions:
                   enable-and-load: 启用并加载

@@ -6,6 +6,12 @@ import { rawTool } from '@xsai/tool'
 
 import { computerUseReadImage, computerUseRun } from '../../../../shared/eventa/computer-use'
 
+/** The name of the tool that runs AUV commands. The chat shows its result as a command card. */
+export const COMPUTER_USE_TOOL_NAME = 'computer_use'
+
+/** The name of the tool that reads a screenshot. The chat shows its result as the image. */
+export const COMPUTER_USE_READ_IMAGE_TOOL_NAME = 'computer_use_read_image'
+
 /** Creates desktop-only tools. IPC clients are local to the elected renderer executor. */
 export async function computerUseTools(): Promise<Tool[]> {
   let invokers: ReturnType<typeof createInvokers> | undefined
@@ -22,7 +28,7 @@ export async function computerUseTools(): Promise<Tool[]> {
   }
   return [
     rawTool({
-      name: 'computer_use',
+      name: COMPUTER_USE_TOOL_NAME,
       description: 'Control native desktop apps, inspect windows, capture screenshots, and use keyboard or mouse input. On macOS, call app.probePermissions before visual tasks. If screen_recording is missing, ask the user to grant permission; captures can contain only a blank background. Start with argv ["invoke", "--help"], then inspect command help. Pass each CLI argument separately. Use explicit window targets when available. Preserve failure_details and verified metadata: exitCode 0 does not prove the intended UI effect. Use computer_use_read_image to view screenshot artifact paths. This tool acts on the local computer.',
       parameters: {
         type: 'object',
@@ -40,7 +46,7 @@ export async function computerUseTools(): Promise<Tool[]> {
       },
     }),
     rawTool({
-      name: 'computer_use_read_image',
+      name: COMPUTER_USE_READ_IMAGE_TOOL_NAME,
       description: 'View a PNG or JPEG screenshot artifact produced by computer_use. Only files inside AIRI computer-use storage can be read. Select this tool together with computer_use for visual tasks.',
       parameters: {
         type: 'object',
