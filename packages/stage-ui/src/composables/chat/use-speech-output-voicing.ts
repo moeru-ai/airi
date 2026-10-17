@@ -1,22 +1,8 @@
 import { defineInvoke } from '@moeru/eventa'
-import { getSpeechBusContext, speechOutputGetPlaybackState, speechOutputPlaybackStateChangedEvent } from '@proj-airi/stage-ui/services/speech/bus'
 import { onScopeDispose, shallowRef } from 'vue'
 
-/**
- * Follows `voicing` of the speech output, which plays in the main window, from
- * another window of the app.
- *
- * The first value comes from a request to the output host, and later values
- * from its change events. The subscription ends with the calling scope.
- *
- * @returns
- * - `voicing`: the last state that the output host reported. It is `false`
- *   before the first report.
- * - `initialLookupSettled`: `true` once the first report arrived, or the
- *   request failed. When no output host answers within one second, the
- *   request fails, and `voicing` stays `false` until a change event arrives.
- *   A consumer that waits for this value accepts that failure policy.
- */
+import { getSpeechBusContext, speechOutputGetPlaybackState, speechOutputPlaybackStateChangedEvent } from '../../services/speech/bus'
+
 export function useSpeechOutputVoicing() {
   const voicing = shallowRef(false)
   const initialLookupSettled = shallowRef(false)

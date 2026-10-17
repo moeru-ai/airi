@@ -21,7 +21,8 @@ The single-host adapter and deferred-bootstrap changes require their own checks 
 ## Latest Electron alignment
 
 The current reference is Electron at `dd6e3ce1f`.
-The chat composer, weather forecast tool, result cards, and native widget lifecycle now follow that reference.
+The chat composer, weather forecast tool, result cards, local streams, and native widget lifecycle follow that reference.
+Native Chat now supplies classic, attached, free, and message-feed styles with persistent unsent drafts.
 [Verification](docs/verification.md#native-widget-alignment-2026-10-18) records the macOS checks and limits.
 These changes do not extend the historical Windows acceptance matrix.
 

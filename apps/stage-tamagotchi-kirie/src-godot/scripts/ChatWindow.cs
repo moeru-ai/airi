@@ -11,6 +11,10 @@ public partial class ChatWindow : Window
     private WebViewPermissionHandler? _permissions;
     private IDisposable? _microphonePermissionRegistration;
     private IDisposable? _readyRegistration;
+    private IDisposable? _chatRegistration;
+    private IDisposable? _foldRegistration;
+    private IDisposable? _hiddenRegistration;
+    private ChatWindowManager? _manager;
     private bool _ready;
     private bool _showRequested;
     private bool _initialGeometryApplied;
@@ -18,7 +22,8 @@ public partial class ChatWindow : Window
     internal void Initialize(
         KirieEventaJsonRegistry registry,
         string rendererUrl,
-        MicrophonePermissionService microphonePermissions)
+        MicrophonePermissionService microphonePermissions,
+        ChatWindowManager manager)
     {
         if (!IsInsideTree())
         {
@@ -36,7 +41,11 @@ public partial class ChatWindow : Window
             throw new InvalidOperationException("Kirie is unavailable for the chat window.");
         }
 
+        _manager = manager;
         _eventa = _kirie.CreateEventaContext(registry);
+        _chatRegistration = manager.Attach(_eventa.Context);
+        _foldRegistration = _eventa.Context.Subscribe(ChatWindowContracts.Fold, _ => manager.Fold());
+        _hiddenRegistration = _eventa.Context.Subscribe(ChatWindowContracts.ContentHidden, _ => manager.ContentHidden());
         _platform = GdKiriePlatform.Attach(_eventa.Context, this);
         _microphonePermissionRegistration = microphonePermissions.Attach(_eventa.Context);
         _permissions = new WebViewPermissionHandler(_kirie, rendererUrl);
@@ -74,6 +83,9 @@ public partial class ChatWindow : Window
         }
 
         _readyRegistration?.Dispose();
+        _chatRegistration?.Dispose();
+        _foldRegistration?.Dispose();
+        _hiddenRegistration?.Dispose();
         _permissions?.Dispose();
         _microphonePermissionRegistration?.Dispose();
         _platform?.Dispose();
@@ -101,8 +113,11 @@ public partial class ChatWindow : Window
 
         if (!_initialGeometryApplied)
         {
-            DesktopWindowSizing.FitDecoratedSizeToInitialSize(this);
-            DesktopWindowSizing.MoveToUsableCenter(this);
+            if (!Borderless)
+            {
+                DesktopWindowSizing.FitDecoratedSizeToInitialSize(this);
+                DesktopWindowSizing.MoveToUsableCenter(this);
+            }
             _initialGeometryApplied = true;
         }
 
@@ -113,7 +128,7 @@ public partial class ChatWindow : Window
     {
         _showRequested = false;
         Hide();
-        QueueFree();
+        _manager?.Fold();
     }
 
     private static void OnIpcError(string error)

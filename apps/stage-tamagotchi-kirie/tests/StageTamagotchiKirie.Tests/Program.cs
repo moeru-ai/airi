@@ -10,6 +10,7 @@ internal static class Program
         try
         {
             TestsWidgetWirePayloads();
+            TestsChatWindowWirePayloads();
             TestsDesktopWindowGeometry();
             TestsSpotlightShortcutPolicy();
             TestsNativeResizeEdges();
@@ -32,6 +33,26 @@ internal static class Program
             Console.Error.WriteLine(error);
             return 1;
         }
+    }
+
+    private static void TestsChatWindowWirePayloads()
+    {
+        const string json = """{"mode":"floating","placement":"danmaku","pinned":true}""";
+        ChatWindowPreferences preferences = JsonSerializer.Deserialize(
+            json, ChatWindowJsonContext.Default.ChatWindowPreferences)!;
+        AssertEqual(true, preferences.IsValid, "renderer floating preferences are supported");
+        AssertEqual(false, (preferences with { Mode = "fullscreen" }).IsValid,
+            "unimplemented fullscreen mode is rejected");
+        AssertEqual(false, (preferences with { Placement = "unknown" }).IsValid,
+            "unknown placement is rejected");
+        string output = JsonSerializer.Serialize(
+            new ChatWindowState(preferences, "right", false, true),
+            ChatWindowJsonContext.Default.ChatWindowState);
+        using var document = JsonDocument.Parse(output);
+        AssertEqual("danmaku", document.RootElement.GetProperty("preferences")
+            .GetProperty("placement").GetString(), "native state uses renderer field names");
+        AssertEqual(false, document.RootElement.GetProperty("preferences")
+            .TryGetProperty("isValid", out _), "native validation stays out of the wire payload");
     }
 
     private static void TestsWidgetWirePayloads()

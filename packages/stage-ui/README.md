@@ -357,3 +357,11 @@ It also forwards cancellation and runs the host's speech hooks for remote turns.
 A minimal chat renderer uses `initializeStreamView()` to display those streams without running speech hooks.
 A stage with an AIRI server uses `initialize()` instead.
 Call `dispose()` before changing startup modes or closing the renderer.
+
+
+### Desktop message feed
+
+`composables/chat/use-danmaku-feed-expiry` supplies Electron and Kirie's message-feed reading timer.
+Its shared settings select reading speed, minimum display time, and whether read messages hide.
+`use-speech-output-voicing` keeps the newest spoken reply visible until speech ends.
+Window geometry and native pointer handling stay in each desktop app.

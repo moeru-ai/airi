@@ -218,3 +218,32 @@ Checks:
 
 The recordings use agent-browser's fixed-quality H.264 encoder at requested 60 fps and native page dimensions.
 Frame receipts distinguish captured frames from encoded frames. They do not prove 60 distinct paints each second.
+
+
+## Native floating chat (2026-10-18)
+
+The Godot chat manager persists classic, attached, free, and message-feed styles.
+One renderer and composer survive style changes and native close or fold.
+Attached placement follows the main window and clamps to its display's work area.
+Free placement has its own pin. Attached and message-feed placement follow the main window's pin.
+The transparent feed uses the current Electron reading timers, folded composer, and pointer hit testing.
+Experimental fullscreen chat remains unimplemented.
+
+The real style menu changed classic chat to free floating, then message feed and attached placement.
+An unsent test draft survived every change, fold, and reopen. The test draft was then removed.
+The native attached window appeared 12 logical pixels beside the stage, with matching bottom edges.
+Native capture reported zero alpha in its empty area. Fold removed Chat from the visible native window inventory.
+The main button changed from Hide Chat to Open Chat, then reopened the same CEF target.
+
+Checks:
+
+- Shared reading timer tests: 15 passed. Electron feed menu tests: two passed.
+- Kirie tests before helper relocation: 92 passed and one optional provider test skipped.
+- Native contract tests: passed, including style validation and JSON field names.
+- Kirie typecheck: passed.
+
+These checks do not establish native drag, resize, multiple-display, Windows, or fullscreen acceptance.
+
+The development toolbar initially covered the folded composer tab. Its normal drag control moved it to the side.
+The subsequent recording expanded the composer through real pointer input and displayed the retained draft.
+The earlier blocked take remains a failed demonstration, not an acceptance result.

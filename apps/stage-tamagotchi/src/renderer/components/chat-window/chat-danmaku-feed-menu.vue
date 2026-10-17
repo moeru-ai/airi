@@ -1,10 +1,9 @@
 <script setup lang="ts">
+import { danmakuFeedTiming, useDanmakuFeedSettings } from '@proj-airi/stage-ui/composables/chat/use-danmaku-feed-settings'
 import { Checkbox, Range } from '@proj-airi/ui'
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-
-import { danmakuFeedTiming, useDanmakuFeedSettings } from '../../composables/use-danmaku-feed-settings'
 
 // The root is the popover, which renders no element, so a class from the
 // parent goes to the trigger button.

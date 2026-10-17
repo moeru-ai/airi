@@ -123,3 +123,13 @@ The minimal Chat renderer uses its passive stream view. Both dispose their bridg
 No server consumer registrations occur in local mode.
 The stage supplies built-in tool references to the voice host.
 Push to Talk binds the native global keyboard service only while its input mode and microphone preference are active.
+
+
+### Native floating Chat
+
+`ChatWindowManager` owns saved style preferences, folded state, pin policy, and attached geometry.
+`ChatWindowContracts` supplies typed preferences and state over Eventa.
+The renderer fetches initial state before showing content and subscribes to later changes.
+Fold completes its renderer transition before the native host hides the window.
+A hidden Chat keeps its CEF context and composer. Style changes also reuse this context.
+The main window's chat button reads the same host state.

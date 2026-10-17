@@ -3,6 +3,7 @@ import type { ChatFloatingState } from '../../shared/eventa'
 
 import { getElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
+import { useDanmakuFeedExpiry } from '@proj-airi/stage-ui/composables/chat/use-danmaku-feed-expiry'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useEventListener, useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -24,7 +25,6 @@ import {
 } from '../../shared/eventa'
 import { useChatDraftHandover } from '../composables/use-chat-draft-handover'
 import { dismissOverlays, useChatFloatingClickThrough } from '../composables/use-chat-floating-click-through'
-import { useDanmakuFeedExpiry } from '../composables/use-danmaku-feed-expiry'
 import { useControlsIslandStore } from '../stores/controls-island'
 
 const { activeCard } = storeToRefs(useAiriCardStore())

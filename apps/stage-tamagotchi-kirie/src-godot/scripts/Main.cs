@@ -40,8 +40,8 @@ public partial class Main : Node
             return;
         }
 
-        var registry = WidgetContracts.Register(AiriDesktopContracts.Register(
-            GdKiriePlatform.Register(new KirieEventaJsonRegistry())));
+        var registry = ChatWindowContracts.Register(WidgetContracts.Register(AiriDesktopContracts.Register(
+            GdKiriePlatform.Register(new KirieEventaJsonRegistry()))));
         _eventa = _kirie.CreateEventaContext(registry);
         _platform = GdKiriePlatform.Attach(_eventa.Context, window);
         _displaySnapshotRegistration = CurrentDisplaySnapshotService.Attach(
@@ -167,6 +167,7 @@ public partial class Main : Node
     public override void _Process(double delta)
     {
         _widgets?.Process();
+        _chat?.Process();
         _auth?.ProcessPending();
         _microphonePermissions?.Process();
     }

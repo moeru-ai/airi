@@ -1,16 +1,13 @@
-import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import type { MaybeRefOrGetter } from 'vue'
 
-import { getChatHistoryItemCopyText } from '@proj-airi/stage-ui/components/scenarios/chat/utils'
+import type { ChatHistoryItem } from '../../types/chat'
+
 import { computed, onScopeDispose, shallowReactive, shallowRef, toValue, watch } from 'vue'
+
+import { getChatHistoryItemCopyText } from '../../components/scenarios/chat/utils'
 
 const graphemeSegmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
 
-/**
- * Time to read a text at the reader's speed. Every language counts the same
- * way, by visible characters, and the reader sets the speed. So no language
- * needs its own rule.
- */
 function readingTimeOf(text: string, charactersPerSecond: number, minimumSeconds: number) {
   let characters = 0
   for (const { segment } of graphemeSegmenter.segment(text)) {
@@ -22,63 +19,19 @@ function readingTimeOf(text: string, charactersPerSecond: number, minimumSeconds
 }
 
 interface ChatFeedExpiryOptions {
-  /** Stored messages of the shown session, in history order. A reply joins them when it is complete. */
   messages: MaybeRefOrGetter<ChatHistoryItem[]>
-  /** `voicing` of the speech output. See `SpeechOutputPlaybackState` in the speech bus. */
   voicing: MaybeRefOrGetter<boolean>
-  /**
-   * Whether the first lookup of `voicing` settled, with a report or a failure.
-   * A window that opens while a reply is spoken learns it only after that
-   * lookup, so no message leaves for good before then. After a failed lookup,
-   * messages leave by reading time.
-   */
   voicingLookupSettled: MaybeRefOrGetter<boolean>
-  /** Whether messages expire. Without it, every message shows. */
   enabled: MaybeRefOrGetter<boolean>
-  /** Reading speed that the reader set, in visible characters per second. */
   charactersPerSecond: MaybeRefOrGetter<number>
-  /** Shortest time that a message shows, in seconds, which the reader set. */
   minimumSeconds: MaybeRefOrGetter<number>
 }
 
-/**
- * Decides which messages a feed has shown long enough, so a reader who glances
- * at it never faces a growing wall of text.
- *
- * A message expires after the time to read it at the reader's speed, counted
- * from when it was complete: `completedAt` of a reply, or `createdAt`. While
- * speech output voices, the newest reply stays. When the speech ends, that
- * reply expires instead, but not before it showed for the shortest time. A
- * message without `createdAt` was stored long ago, so it is already read. A
- * new speed applies to every message that still shows.
- * Messages expire in history order, so the feed only loses its top message,
- * and a short message never leaves a gap above a long one.
- *
- * State lives as long as the calling scope. Once the first speech lookup has
- * settled, a message that expired never returns, even when speech starts
- * again, so a message cannot flicker. Before that, a reply that is still
- * spoken can return, because a new window cannot yet know that it is spoken.
- *
- * @returns `expiredBefore`, the index of the first message that still shows,
- * for the `expiredBefore` prop of `ChatHistory`. It is 0 while disabled.
- */
 export function useChatFeedExpiry(options: ChatFeedExpiryOptions) {
-  /** Clock of the last evaluation. A timer moves it to the next deadline. */
   const now = shallowRef(Date.now())
-  /** When the speech of a reply ended, by message id: the reply that was newest when the speech stopped. */
   const speechEndedAt = shallowReactive(new Map<string, number>())
-  /**
-   * Ids of the messages that already left the feed. A message without an id
-   * has a fixed deadline, so it cannot return and needs no entry.
-   */
   const expiredIds = shallowReactive(new Set<string>())
 
-  /**
-   * The reply that speech output voices: the newest reply. A reply that
-   * generates joins the history only when complete, so until then its speech
-   * holds the reply before it. The history can also arrive after the speech
-   * state, so this follows both.
-   */
   const newestReplyId = computed(() => toValue(options.messages).findLast(message => message.role === 'assistant')?.id)
   watch(() => toValue(options.voicing), (voicing, wasVoicing) => {
     if (wasVoicing && !voicing && newestReplyId.value)
@@ -108,7 +61,6 @@ export function useChatFeedExpiry(options: ChatFeedExpiryOptions) {
     return start + readingTimeOf(getChatHistoryItemCopyText(message), toValue(options.charactersPerSecond), toValue(options.minimumSeconds))
   }
 
-  /** Deadlines in history order. Each is at least the one before it, so messages leave from the top. */
   const deadlines = computed(() => {
     let latest = Number.NEGATIVE_INFINITY
     return toValue(options.messages).map((message) => {
