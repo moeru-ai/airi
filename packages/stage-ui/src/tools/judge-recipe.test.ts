@@ -56,21 +56,26 @@ describe('judgment tool', () => {
 
   // A judgment always commits to one answer, so the next step always follows the answer that the character picked.
   it('feeds the next step of the answer that the character picked', async () => {
-    expect((await judge({ name: 'Annoyed', answer: 'yes' })).result).toEqual({ status: 'judged', name: 'Annoyed', answer: 'Annoyed', next: 'Reply, and keep this in mind: Keep it short.' })
-    expect((await judge({ name: 'Later', answer: 'yes' })).result.next).toBe('Follow the steps of "Remind me":\nRemind the owner.')
-    expect((await judge({ name: 'Later', answer: 'no' })).result.next).toBe('Reply as usual.')
+    expect((await judge({ name: 'Annoyed', answer: 'yes' })).result).toEqual({ status: 'judged', name: 'Annoyed', answer: 'Annoyed', next: 'Reply, and keep this in mind: Keep it short.', follow: { kind: 'hint', text: 'Keep it short.' } })
+    const later = (await judge({ name: 'Later', answer: 'yes' })).result
+    expect(later.next).toBe('Follow the steps of "Remind me":\nRemind the owner.')
+    expect(later.follow).toEqual({ kind: 'recipe', name: 'Remind me', mode: 'steps' })
+    expect((await judge({ name: 'Later', answer: 'no' })).result).toMatchObject({ next: 'Reply as usual.', follow: { kind: 'reply' } })
   })
 
   // An answer can lead to another judgment, so decisions chain. A background recipe starts from code.
   it('chains into the next judgment, and starts a background recipe', async () => {
-    const chained = (await judge({ name: 'Annoyed', answer: 'no' })).result.next as string
+    const chainedResult = (await judge({ name: 'Annoyed', answer: 'no' })).result
+    const chained = chainedResult.next as string
+    expect(chainedResult.follow).toEqual({ kind: 'recipe', name: 'Mood', mode: 'decision' })
     expect(chained).toContain('What is the owner doing?')
     expect(chained).toContain('- 2: Coding')
 
     const { result, start } = await judge({ name: 'Mood', answer: '2' })
     expect(start).toHaveBeenCalledWith(research)
     expect(result.next).toContain('"Research" runs in the background')
-    expect((await judge({ name: 'Mood', answer: '1' })).result.next).toBe('Do not reply to this message. End this turn with no text.')
+    expect(result.follow).toEqual({ kind: 'recipe', name: 'Research', mode: 'background' })
+    expect((await judge({ name: 'Mood', answer: '1' })).result).toMatchObject({ next: 'Do not reply to this message. End this turn with no text.', follow: { kind: 'stay-quiet' } })
   })
 
   it('names what a call got wrong, so the character can fix it', async () => {

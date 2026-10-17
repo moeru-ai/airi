@@ -16,7 +16,7 @@ export const USE_RECIPE_TOOL_NAME = 'builtIn_useRecipe'
  * - `started`: a background recipe accepted the task and runs it in its own session.
  * - Other states: the recipe did not start, with the usable names so the model can correct itself.
  */
-type UseRecipeResult
+export type UseRecipeResult
   = | { status: 'loaded', name: string, instructions: string }
     | { status: 'started', name: string, task: string }
     | { status: 'pending' | 'disabled' | 'unknown' | 'refused', name: string, usable: string[], reason?: string }

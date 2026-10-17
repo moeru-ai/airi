@@ -20,9 +20,13 @@ const { t, KEY, label } = useComputerUseLabels()
         <span :class="['i-mingcute:check-line', 'text-emerald-500']" aria-hidden="true" />
         {{ t(`${KEY}.in-front`) }}
       </template>
-      <template v-else>
+      <template v-else-if="props.view.observed">
         <span :class="['i-mingcute:close-line', 'text-red-500']" aria-hidden="true" />
         {{ t(`${KEY}.front-is`, { app: props.view.observed }) }} · {{ props.view.verification }}
+      </template>
+      <template v-else>
+        <span :class="['i-mingcute:question-line', 'text-neutral-400']" aria-hidden="true" />
+        {{ t(`${KEY}.front-unknown`) }} · {{ props.view.reason ?? props.view.verification }}
       </template>
     </span>
   </template>

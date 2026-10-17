@@ -7,16 +7,12 @@ import type { ChatToolCallRendererRegistry, ChatToolCallWidgetRegistry } from '.
 import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
 import { computed } from 'vue'
 
-import JudgeCallBlock from './judge-call-block.vue'
-import RecipeCallBlock from './recipe-call-block.vue'
 import ChatReplyQuote from './reply-quote.vue'
 import ResponseCitations from './response-citations.vue'
 import ChatResponsePart from './response-part.vue'
 import ChatSticker from './sticker.vue'
 import ChatToolCallGroup from './tool-call-group.vue'
 
-import { JUDGE_RECIPE_TOOL_NAME } from '../../../../tools/judge-recipe'
-import { USE_RECIPE_TOOL_NAME } from '../../../../tools/use-recipe'
 import { MarkdownRenderer } from '../../../markdown'
 import { getChatHistoryItemCopyText } from '../utils'
 import { ChatActionMenu } from './action-menu'
@@ -53,12 +49,6 @@ const emit = defineEmits<{
   (e: 'reply'): void
   (e: 'toolCallRerun', payload: ToolCallRerunRequest): void
 }>()
-
-/** Renderers that every chat surface shares. A runtime registry can still replace them. */
-const builtinToolCallRenderers: ChatToolCallRendererRegistry = {
-  [USE_RECIPE_TOOL_NAME]: RecipeCallBlock,
-  [JUDGE_RECIPE_TOOL_NAME]: JudgeCallBlock,
-}
 
 const resolvedSlices = computed<ChatSlices[]>(() => {
   if (props.message.slices?.length) {
@@ -112,14 +102,10 @@ function emitToolCallRerun(sliceIndex: number, payload: ToolCallRerunRequest) {
   emit('toolCallRerun', invocationId === undefined ? payload : { ...payload, invocationId })
 }
 
-/** A call with its own renderer shows by itself. Every other call joins a group with the calls next to it. */
-function getToolCallRenderer(toolName: string) {
-  return props.toolCallRenderers[toolName] ?? builtinToolCallRenderers[toolName]
-}
-
 const toolCallWidgets = computed<ChatToolCallWidgetRegistry>(() => ({ ...builtinToolCallWidgets, ...props.toolCallWidgets }))
 
-const sliceEntries = computed(() => groupToolCallSlices(resolvedSlices.value, toolName => Boolean(getToolCallRenderer(toolName))))
+// A call with its own renderer shows by itself. Every other call joins a group with the calls next to it.
+const sliceEntries = computed(() => groupToolCallSlices(resolvedSlices.value, toolName => Boolean(props.toolCallRenderers[toolName])))
 
 const showLoader = computed(() => props.showPlaceholder && resolvedSlices.value.length === 0)
 const containerClass = computed(() => props.variant === 'mobile' ? 'mr-0' : 'mr-12')
@@ -180,7 +166,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
                 @tool-call-rerun="emitToolCallRerun"
               />
               <component
-                :is="getToolCallRenderer(entry.slice.toolCall.toolName)"
+                :is="props.toolCallRenderers[entry.slice.toolCall.toolName]"
                 v-else-if="entry.slice.type === 'tool-call'"
                 :tool-call-id="entry.slice.toolCall.toolCallId"
                 :tool-name="entry.slice.toolCall.toolName"
