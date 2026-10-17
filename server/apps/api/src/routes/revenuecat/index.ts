@@ -1,3 +1,4 @@
+import type { Database } from '../../libs/db'
 import type { Env } from '../../libs/env'
 import type { RateLimitMetrics } from '../../otel'
 import type { ConfigKVService } from '../../services/adapters/config-kv'
@@ -27,6 +28,7 @@ import { createWebhookOperation } from './operations/webhook'
  */
 export function createRevenuecatRoutes(
   payment: PaymentService,
+  db: Database,
   configKV: ConfigKVService,
   subscriptionSync: RevenuecatSubscriptionSync,
   accountEvents: Pick<AccountEventPublisher, 'publish'>,
@@ -34,7 +36,7 @@ export function createRevenuecatRoutes(
   env: Pick<Env, 'REVENUECAT_WEBHOOK_AUTH' | 'REVENUECAT_WEBHOOK_SECRET'>,
   rateLimitMetrics: RateLimitMetrics | null,
 ) {
-  const webhook = createWebhookOperation(payment, configKV, subscriptionSync, accountEvents, subscriber, {
+  const webhook = createWebhookOperation(payment, db, configKV, subscriptionSync, accountEvents, subscriber, {
     authorization: env.REVENUECAT_WEBHOOK_AUTH ?? null,
     signingSecret: env.REVENUECAT_WEBHOOK_SECRET ?? null,
   })

@@ -1,7 +1,7 @@
 import type { InferOutput } from 'valibot'
 
-import type { createRevenuecatRoutes } from '../index'
-
+import type { Database } from '../../../libs/db'
+import type { EvidenceReceipt } from '../../../services/domain/payment/types'
 import type { ConfigKVService } from '../../../services/adapters/config-kv'
 import type { PaymentService } from '../../../services/domain/payment'
 
@@ -14,8 +14,10 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 
 import { useLogger } from '@guiiai/logg'
 import { createBadRequestError, createServiceUnavailableError, createUnauthorizedError } from '@proj-airi/http-error-shared'
+import { eq } from 'drizzle-orm'
 import { nonEmpty, number, object, picklist, pipe, safeParse, string } from 'valibot'
 
+import { user } from '../../../schemas'
 import { evidenceReceiptFromEvent, FLUX_GRANT_EVENT, resolveRevenuecatPack, revenuecatWebhookSchema } from '../event'
 
 const logger = useLogger('revenuecat')
@@ -172,11 +174,12 @@ function countsForDeployment(
  * Valid pack purchases reconcile before idempotent settlement.
  *
  * Triggering workflow:
- * {@link createRevenuecatRoutes} -> `POST /webhook` -> {@link createWebhookOperation}
+ * `createRevenuecatRoutes` (../index) -> `POST /webhook` -> {@link createWebhookOperation}
  *   -> {@link RevenuecatSubscriptionSync.reconcile}, {@link PaymentService.settle}, {@link AccountEventPublisher.publish}
  */
 export function createWebhookOperation(
   payment: PaymentService,
+  db: Database,
   configKV: ConfigKVService,
   subscriptionSync: RevenuecatSubscriptionSync,
   accountEvents: Pick<AccountEventPublisher, 'publish'>,
@@ -217,33 +220,36 @@ export function createWebhookOperation(
     // Map before the reconciliation, so an invalid event changes nothing.
     const publishAccountEvent = accountEventPublishFrom(body, event.type, subscriber, accountEvents)
 
+    let packReceipt: EvidenceReceipt | undefined
     if (event.type === FLUX_GRANT_EVENT) {
       if (!event.app_user_id || !event.product_id || !event.transaction_id) {
         logger.withFields({ id: event.id }).warn('Non-renewing purchase is missing identifiers')
         return { received: true }
       }
-  
+
+      // Deleted accounts must not create orphan payment rows or repeat failed grants.
+      const [account] = await db.select({ id: user.id }).from(user).where(eq(user.id, event.app_user_id)).limit(1)
+      if (!account) {
+        logger.withFields({ id: event.id, userId: event.app_user_id }).warn('Pack purchase names an unknown user')
+        return { received: true }
+      }
+
+      const environment = event.environment?.toLowerCase()
+      if (!environment || !subscriber.countsFor(event.app_user_id, environment)) {
+        logger.withFields({ id: event.id, environment: event.environment }).warn('Pack purchase environment is not granted here')
+        return { received: true }
+      }
+
       const pack = await resolveRevenuecatPack(configKV, event.product_id)
       if (!pack) {
         logger.withFields({ id: event.id, productId: event.product_id }).warn('RevenueCat product is unknown')
         return { received: true }
       }
-  
-      await subscriptionSync.reconcile(event.app_user_id)
-  
-      const result = await payment.settle(evidenceReceiptFromEvent(event, event.app_user_id, pack, {
+
+      packReceipt = evidenceReceiptFromEvent(event, event.app_user_id, pack, {
         productId: event.product_id,
         transactionId: event.transaction_id,
-      }))
-      logger.withFields({
-        userId: event.app_user_id,
-        transactionId: event.transaction_id,
-        productId: event.product_id,
-        applied: result.applied,
-        balanceAfter: result.applied ? result.balanceAfter : undefined,
-      }).log('Processed RevenueCat pack purchase')
-  
-      return { received: true, granted: result.applied }
+      })
     }
 
     const userIds = new Set([
@@ -256,6 +262,10 @@ export function createWebhookOperation(
 
     if (publishAccountEvent)
       await publishAccountEvent()
+    if (packReceipt) {
+      const result = await payment.settle(packReceipt)
+      return { received: true, granted: result.applied }
+    }
     return { received: true }
   }
 }
