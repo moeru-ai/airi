@@ -67,6 +67,11 @@ export function createRevenuecatSubscriptionSync(
     return pendingChange
   }
 
+  /** The configured product ids that grant Capacitor Flux. */
+  async function listProductIds(): Promise<string[]> {
+    return Object.keys(await configKV.getOptional('REVENUECAT_CAPACITORS') ?? {})
+  }
+
   /**
    * Returns the configured Capacitors for the client to sell and describe.
    * A purchase outside this catalog grants no Capacitor Flux.
@@ -84,7 +89,7 @@ export function createRevenuecatSubscriptionSync(
     }
   }
 
-  return { reconcile, listCapacitors }
+  return { reconcile, listProductIds, listCapacitors }
 }
 
 export type RevenuecatSubscriptionSync = ReturnType<typeof createRevenuecatSubscriptionSync>

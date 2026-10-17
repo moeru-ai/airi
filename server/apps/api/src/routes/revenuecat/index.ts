@@ -49,7 +49,8 @@ export function createRevenuecatRoutes(
         pendingChange: pendingChange && { productId: pendingChange.productId, startsAt: pendingChange.startsAt.toISOString() },
       })
     })
-    .get('/capacitors', authGuard, async c => c.json(await subscriptionSync.listCapacitors()))
+    .get('/capacitors', authGuard, async c => c.json({ productIds: await subscriptionSync.listProductIds() }))
+    .get('/catalog', authGuard, async c => c.json(await subscriptionSync.listCapacitors()))
     // Each call reads RevenueCat and issues a token. The limit protects the RevenueCat API quota.
     .post('/product-change', authGuard, rateLimiter({ max: 10, windowSec: 60, metrics: rateLimitMetrics, routeLabel: 'revenuecat.product_change' }), async (c) => {
       const grant = await subscriber.grantProductChange(c.get('user')!.id)

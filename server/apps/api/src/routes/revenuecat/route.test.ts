@@ -303,10 +303,24 @@ describe('revenuecat routes', () => {
     expect(fetchEntitlements).not.toHaveBeenCalled()
   })
 
+  // https://github.com/moeru-ai/airi/pull/3004#discussion_r4302304373
+  // ROOT CAUSE:
+  // The quota response replaced productIds, which existing clients read.
+  // A separate catalog route keeps both read contracts available during release.
+  it('preserves the product-ID response (Issue #3004)', async () => {
+    const { app, fetchEntitlements } = await setup('user-1')
+
+    const res = await app.request('/api/v1/revenuecat/capacitors')
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ productIds: ['rc_go_monthly', 'rc_plus_monthly'] })
+    expect(fetchEntitlements).not.toHaveBeenCalled()
+  })
+
   it('lists product quotas with a renewal refill when no reset interval is configured', async () => {
     const { app } = await setup('user-1')
 
-    const res = await app.request('/api/v1/revenuecat/capacitors')
+    const res = await app.request('/api/v1/revenuecat/catalog')
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({
       capacitors: [
@@ -320,7 +334,7 @@ describe('revenuecat routes', () => {
   it('lists product quotas with the configured reset interval without reading RevenueCat', async () => {
     const { app, fetchEntitlements } = await setup('user-1', 'day')
 
-    const res = await app.request('/api/v1/revenuecat/capacitors')
+    const res = await app.request('/api/v1/revenuecat/catalog')
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({
       capacitors: [
@@ -335,7 +349,7 @@ describe('revenuecat routes', () => {
   it('rejects an anonymous catalog request', async () => {
     const { app, fetchEntitlements } = await setup()
 
-    const res = await app.request('/api/v1/revenuecat/capacitors')
+    const res = await app.request('/api/v1/revenuecat/catalog')
     expect(res.status).toBe(401)
     expect(fetchEntitlements).not.toHaveBeenCalled()
   })

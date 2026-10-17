@@ -125,7 +125,8 @@ The percent is `capacitor_flux / capacitor_quota`. It is null without an active 
 The cached balance can show the amount before a reset for 60 seconds.
 The response omits Capacitor Flux counts.
 `PUT /api/v1/flux/fallback` saves `fallbackToFlux`.
-`GET /api/v1/revenuecat/capacitors` returns each product in `REVENUECAT_CAPACITORS` with its quota, and `CAPACITOR_RESET_INTERVAL`.
+`GET /api/v1/revenuecat/capacitors` returns the configured product ids. This remains a supported read contract.
+`GET /api/v1/revenuecat/catalog` returns each product with its quota, and `CAPACITOR_RESET_INTERVAL`.
 The client lists only these products. A purchase of another product takes the payment and grants no Capacitor Flux.
 Each package card shows the quota and the refill interval. A null interval means a refill at each renewal.
 Chat and speech do not call RevenueCat.
@@ -213,7 +214,7 @@ flowchart LR
   Webhook[RevenueCat webhook] --> Sync["revenuecat-subscriptions.ts"]
   SyncRoute["POST /revenuecat/sync"] --> Sync
   ChangeRoute["POST /revenuecat/product-change"] --> Reader
-  CatalogRoute["GET /revenuecat/capacitors"] --> Sync
+  CatalogRoute["GET /revenuecat/catalog"] --> Sync
   Sync --> ConfigKV["ConfigKV"]
   Auth[Auth service] --> Check["POST /internal/auth/user-deletion/check"]
   Check --> Reader
@@ -233,16 +234,22 @@ sequenceDiagram
   participant API
   participant RC as RevenueCat
   participant DB
-  Client->>RC: Read customerInfo
-  Client->>API: POST /revenuecat/sync when the page opens
-  API->>RC: Read current entitlements
-  API->>DB: Reconcile the current Capacitor period
-  Client->>API: GET /flux
-  API->>DB: Read user_flux
-  API-->>Client: Balance and capacitor percent
-  Client->>API: GET /revenuecat/capacitors
-  API->>DB: Read ConfigKV catalog and reset interval
-  API-->>Client: Products with quotas and reset interval
+  par Customer status
+    Client->>RC: Read customerInfo
+  and Wallet balance
+    Client->>API: POST /revenuecat/sync when the page opens
+    API->>RC: Read current entitlements
+    API->>DB: Reconcile the current Capacitor period
+    API-->>Client: pendingChange
+    Client->>API: GET /flux
+    API->>DB: Read user_flux
+    API-->>Client: Balance and capacitor percent
+  and Package catalog
+    Client->>API: GET /revenuecat/catalog
+    API->>DB: Read ConfigKV catalog and reset interval
+    API-->>Client: Products with quotas and reset interval
+    Client->>RC: Read current offerings
+  end
   RC->>API: Webhook for a customer
   API->>DB: Lock the user
   API->>RC: GET /v2 subscriptions, active entitlements, product
