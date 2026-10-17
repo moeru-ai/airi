@@ -141,6 +141,23 @@ describe('voice inlay', () => {
     await expect.poll(inlayView, { timeout: 3000 }).toBe('hidden')
   })
 
+  it('plays the rewrite of auto-sent speech on the sent card before the card moves out', async () => {
+    const view = renderInlay()
+    publish({ drafts: [], input: { ...capturing, text: 'hello their', segments: [{ id: 'speech-0', text: 'hello their', final: true }] } })
+    await expect.element(view.getByTestId('voice-draft-live')).toHaveTextContent('hello their')
+
+    // Auto send: the speech settles into a draft that the host sends at once.
+    publish({ drafts: [{ ...draft, sending: true }], frontDraftId: 'draft' })
+    await expect.poll(inlayView).toBe('sent')
+    const card = document.querySelector('[data-testid="voice-inlay"]')!
+    expect(card.classList.contains('inlay-send')).toBe(false)
+
+    await expect.element(view.getByRole('status')).toHaveTextContent('Hello there.')
+    publish({ drafts: [] })
+    await expect.poll(() => card.classList.contains('inlay-send'), { timeout: 3000 }).toBe(true)
+    await expect.poll(inlayView, { timeout: 3000 }).toBe('hidden')
+  })
+
   it('keeps new speech that starts during the send animation', async () => {
     renderInlay()
     publish({ drafts: [{ ...draft, sending: true }] })
