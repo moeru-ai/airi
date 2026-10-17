@@ -242,14 +242,7 @@ live2d:
     sdk-preset-preserved-notice: >
       Quản lý biểu cảm SDK và nháy mắt được giữ nguyên khi tắt.
     no-expression: Không có biểu cảm khả dụng cho mô hình này.
-    llm-integration-wip: Tích hợp công cụ LLM chưa được hoàn thiện.
-    save-default: Lưu biểu cảm mặc định
     reset: Đặt lại tất cả biểu cảm
-    expose-to-llm-toggle: Cho phép LLM truy cập
-    expose-to-llm-options:
-      none: Không
-      all: Tất cả
-      custom: Tùy chỉnh
 microphone: Micro
 models: Mô hình
 pages:

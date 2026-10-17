@@ -254,14 +254,7 @@ live2d:
     sdk-preset-preserved-notice: >
       禁用时仍保留 SDK 表情管理器和眨眼功能。
     no-expression: 此模型没有可用表情。
-    llm-integration-wip: LLM 工具集成尚未接入。
-    save-default: 保存表情默认值
     reset: 重置所有表情
-    expose-to-llm-toggle: 公开给 LLM
-    expose-to-llm-options:
-      none: 无
-      all: 全部
-      custom: 自定义
 microphone: 麦克风
 models: 模型
 pages:
@@ -991,8 +984,8 @@ pages:
             label: 回答方式
             noul: 是或否
             choice: 多选一
-          yes_means: 选「是」的意思
-          no_means: 选「否」的意思
+          yes_means: '选「是」的意思'
+          no_means: '选「否」的意思'
           option: 这个选项的意思
           add_option: 添加选项
           remove_option: 删除
@@ -2128,8 +2121,8 @@ pages:
           window_mode:
             title: 窗口模式
             description: 选择工作区开在哪里。
-            single_window: 单窗口：角色自己展开成工作区
-            multi_window: 多窗口：角色留在桌面上
+            single_window: '单窗口：角色自己展开成工作区'
+            multi_window: '多窗口：角色留在桌面上'
     color-scheme:
       description: 更改舞台的配色方案
       title: 配色方案

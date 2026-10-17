@@ -242,14 +242,7 @@ live2d:
     sdk-preset-preserved-notice: >
       ตัวจัดการสีหน้าและการกะพริบตาของ SDK จะยังคงทำงานเมื่อปิดตัวเลือกนี้
     no-expression: โมเดลนี้ไม่มีสีหน้าที่ใช้ได้
-    llm-integration-wip: ยังไม่ได้เชื่อมต่อเครื่องมือของ LLM
-    save-default: บันทึกค่าเริ่มต้นของสีหน้า
     reset: รีเซ็ตสีหน้าทั้งหมด
-    expose-to-llm-toggle: เปิดให้ LLM ใช้
-    expose-to-llm-options:
-      none: ไม่มี
-      all: ทั้งหมด
-      custom: กำหนดเอง
 microphone: ไมโครโฟน
 models: โมเดล
 pages:

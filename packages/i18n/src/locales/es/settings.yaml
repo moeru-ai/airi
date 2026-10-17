@@ -242,14 +242,7 @@ live2d:
     sdk-preset-preserved-notice: >
       El gestor de expresiones del SDK y el parpadeo se mantienen cuando están desactivados.
     no-expression: No hay expresiones disponibles para este modelo.
-    llm-integration-wip: La integración de la herramienta LLM aún no está configurada
-    save-default: Guardar expresiones por defecto
     reset: Restablecer todas las expresiones
-    expose-to-llm-toggle: Exponer a LLM
-    expose-to-llm-options:
-      none: Nada
-      all: Todo
-      custom: Personalizado
 microphone: Micrófono
 models: Modelo
 pages:
