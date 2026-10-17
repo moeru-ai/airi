@@ -40,7 +40,7 @@ Admission uses the same rule. It counts the buckets that can pay now.
 
 ### Grant
 
-The server does not select a rule from the webhook event type.
+Except for pack purchases below, the server does not select a rule from the webhook event type.
 A webhook only tells the server that a customer changed.
 The server reads the customer's entitlements and calls `BillingService.syncCapacitor`.
 `POST /api/v1/revenuecat/sync` runs the same reconciliation for the signed-in user.
@@ -58,6 +58,16 @@ A smaller quota caps the bucket. The cap writes a `capacitor_quota_cap` ledger r
 With no active Capacitor, `capacitor_expires_at` becomes now.
 
 These rules cover purchase, renewal, product change, extension, expiration, refund, and transfer.
+
+### Pack grant
+
+A `NON_RENEWING_PURCHASE` event settles a Flux pack instead of reconciling.
+The webhook verifies the signature, resolves the product in `REVENUECAT_FLUX_PACKS`,
+and settles a `revenuecat` evidence receipt through Payment CORE `settle`.
+The `(processor, processorOrderId)` guard makes a replay idempotent.
+A sandbox purchase grants only in a `sandbox` deployment or to an allowlisted account.
+A purchase that names an unknown user is acknowledged and ignored.
+`GET /packages` lists the configured packs.
 A repeated delivery or a late delivery gives the same result, so the server keeps no event log.
 `TRANSFER` names its users in `transferred_from` and `transferred_to`. The server reconciles each of them.
 A Capacitor without an expiry is not sold and does not grant Flux.
@@ -175,7 +185,6 @@ Show each configured Capacitor quota and refill interval on its package card.
 Capacitor Flux recall inside a period that stays active.
 A reconciliation job without a webhook.
 Yearly Capacitors.
-Flux packs through RevenueCat.
 An admin route in this API for resets.
 In-app product replacement checkout.
 Expiry batches for purchased Flux.
