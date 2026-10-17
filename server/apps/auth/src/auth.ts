@@ -27,6 +27,7 @@ import { ApiError } from './error'
 import { googleClientIds } from './google-client-ids'
 import { getAuthTrustedOrigins, getTrustedOrigin } from './origin'
 import { accountDeletion } from './plugins/account-deletion'
+import { appleNative } from './plugins/apple-native'
 import { banGuard } from './plugins/ban-guard'
 import { oidcJwtBearer } from './plugins/oidc-jwt-bearer'
 import { steam } from './plugins/steam'
@@ -467,6 +468,7 @@ export function createAuth(
       // their stock path. See oidc-jwt-bearer.ts for sensitive-operation rules.
       oidcJwtBearer(env),
       accountDeletion(),
+      appleNative(env),
       // Steam's web login is OpenID 2.0, not OAuth2/OIDC, so it can't be a
       // `socialProviders` entry — see steam.ts for why this needs to be its
       // own plugin.

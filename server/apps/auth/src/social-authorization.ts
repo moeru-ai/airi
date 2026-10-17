@@ -3,9 +3,10 @@ import type { AuthEnv } from './env'
 
 import { Buffer } from 'node:buffer'
 
+import { APIError } from 'better-auth'
 import { eq } from 'drizzle-orm'
-import { importPKCS8, SignJWT } from 'jose'
-import { literal, object, safeParse } from 'valibot'
+import { decodeJwt, importPKCS8, SignJWT } from 'jose'
+import { literal, object, safeParse, string } from 'valibot'
 
 import * as authSchema from '@proj-airi/auth-shared'
 
@@ -13,10 +14,11 @@ import { createBadGatewayError, createServiceUnavailableError } from './error'
 
 type AppleCredentials = Pick<AuthEnv, 'AUTH_APPLE_CLIENT_ID' | 'AUTH_APPLE_TEAM_ID' | 'AUTH_APPLE_KEY_ID' | 'AUTH_APPLE_PRIVATE_KEY_PEM'>
 
-type SocialAuthorizationCredentials = AppleCredentials & Pick<AuthEnv, 'AUTH_GITHUB_CLIENT_ID' | 'AUTH_GITHUB_CLIENT_SECRET'>
+type SocialAuthorizationCredentials = AppleCredentials & Partial<Pick<AuthEnv, 'AUTH_APPLE_APP_BUNDLE_IDENTIFIERS'>> & Pick<AuthEnv, 'AUTH_GITHUB_CLIENT_ID' | 'AUTH_GITHUB_CLIENT_SECRET'>
 
 interface SocialAccount {
   providerId: string
+  idToken?: string | null
   accessToken: string | null
   refreshToken: string | null
 }
@@ -32,6 +34,16 @@ export interface SocialAuthorizationRevoker {
    * deleted. Credential accounts are local-only and are intentionally ignored.
    */
   revokeForUser: (userId: string) => Promise<void>
+}
+
+/** Rejects missing Apple grants before revoking any provider during account deletion. */
+export function assertAppleAuthorizationForDeletion(accounts: { providerId: string, accessToken?: string | null, refreshToken?: string | null }[]) {
+  if (accounts.some(account => account.providerId === 'apple' && !account.accessToken && !account.refreshToken)) {
+    throw new APIError('CONFLICT', {
+      code: 'APPLE_REAUTHENTICATION_REQUIRED',
+      message: 'Authorize the linked Apple account again before deletion.',
+    })
+  }
 }
 
 /** Creates the signed client assertion required by Apple's token endpoints. */
@@ -63,6 +75,7 @@ function revocationToken(account: SocialAccount): { token: string, tokenType: 'r
   )
 }
 
+/** Revokes the saved Apple grant with the client identifier that issued its tokens. */
 async function revokeAppleAuthorization(
   account: SocialAccount,
   credentials: SocialAuthorizationCredentials,
@@ -80,12 +93,20 @@ async function revokeAppleAuthorization(
   }
 
   const { token, tokenType } = revocationToken(account)
-  const clientSecret = await createAppleClientSecret(credentials)
+  // Stored ID tokens come from verified provider responses. Expiration does not change their token audience.
+  let clientId = credentials.AUTH_APPLE_CLIENT_ID
+  if (account.idToken) {
+    const claims = safeParse(object({ aud: string() }), decodeJwt(account.idToken))
+    if (!claims.success || ![clientId, ...(credentials.AUTH_APPLE_APP_BUNDLE_IDENTIFIERS ?? [])].includes(claims.output.aud))
+      throw createServiceUnavailableError('Apple token audience is not configured.', 'oauth/provider_not_configured', { providerId: 'apple' })
+    clientId = claims.output.aud
+  }
+  const clientSecret = await createAppleClientSecret({ ...credentials, AUTH_APPLE_CLIENT_ID: clientId })
   const response = await fetchRequest('https://appleid.apple.com/auth/revoke', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      client_id: credentials.AUTH_APPLE_CLIENT_ID,
+      client_id: clientId,
       client_secret: clientSecret,
       token,
       token_type_hint: tokenType,
@@ -232,11 +253,14 @@ export function createSocialAuthorizationRevoker(
       const accounts = await db
         .select({
           providerId: authSchema.account.providerId,
+          idToken: authSchema.account.idToken,
           accessToken: authSchema.account.accessToken,
           refreshToken: authSchema.account.refreshToken,
         })
         .from(authSchema.account)
         .where(eq(authSchema.account.userId, userId))
+
+      assertAppleAuthorizationForDeletion(accounts)
 
       for (const account of accounts) {
         // Steam OpenID 2.0 authenticates identity without issuing an OAuth grant.

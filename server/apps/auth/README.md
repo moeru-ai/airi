@@ -31,6 +31,9 @@ It requires an authoritative session created within the last five minutes and re
 On `SESSION_NOT_FRESH`, the client must request sign-in again.
 The existing `/api/auth/delete-user` email flow is unchanged. See [deletion policy and rollout](../../docs/ai/adr/2026-10-10-account-deletion-confirmation.md).
 
+Native Apple sign-in stores revocation tokens. Authenticated users can repair their existing Apple authorization before confirming account deletion.
+See [native Apple endpoints and failure handling](../../docs/ai/adr/2026-10-15-native-apple-revocation.md).
+
 ## Run locally
 
 ```bash
