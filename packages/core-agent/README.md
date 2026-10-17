@@ -255,5 +255,8 @@ await response.finish()
 ```
 
 Producers can synthesize concurrently. Playback follows their reservation order.
+A producer holds its text until `end()`. Then `toSpeechText` removes markdown that has no sound, for example emphasis delimiters, link URLs, and code blocks.
+Symbols that markdown keeps as text, for example `2 * 3` and `x ~= 3`, stay in the speech text.
+Special tokens and flushes keep their position relative to the text.
 Cancelling an acknowledgment releases its place without reporting a user interruption.
 Whole-turn interruption aborts generation, synthesis, queued audio, and playback for that response.
