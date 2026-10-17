@@ -120,24 +120,35 @@ export function normalizedTextDistance(a: string, b: string): number {
 
 function tokenize(text: string): string[] {
   const lower = text.toLowerCase()
-  const wordTokens = lower.match(/[\p{L}\p{N}]+/gu) ?? []
-  // Space-delimited scripts make `私は猫です` a single word token, so a
-  // one-character edit returns distance 1 and stable personas fail to
-  // converge. When a word token is a single unsegmented CJK run, split it
-  // into individual grapheme clusters. Latin and other space-separated word
-  // tokens stay intact.
   const tokens: string[] = []
-  const isCjk = (ch: string) =>
-    /[㐀-䶿一-鿿぀-ゟ゠-ヿ가-힯豈-﫿＀-￯]/u.test(ch)
-  for (const word of wordTokens) {
-    const graphemes = [...word]
-    if (graphemes.length > 1 && graphemes.every(isCjk)) {
-      for (const g of graphemes) tokens.push(g)
-    } else {
-      tokens.push(word)
+  // Walk grapheme clusters. A CJK grapheme becomes its own token (these
+  // scripts have no word spaces); consecutive non-CJK graphemes accumulate
+  // into a space-separated word. This also handles mixed runs such as
+  // `AIRIは猫です`, where splitting the whole word as one token would make a
+  // one-character edit look like maximal distance.
+  let latinRun = ''
+  const flushLatin = () => {
+    if (latinRun) {
+      tokens.push(latinRun)
+      latinRun = ''
     }
   }
+  for (const ch of lower) {
+    if (isCjkChar(ch)) {
+      flushLatin()
+      tokens.push(ch)
+    } else if (/[\p{L}\p{N}]/u.test(ch)) {
+      latinRun += ch
+    } else {
+      flushLatin()
+    }
+  }
+  flushLatin()
   return tokens
+}
+
+function isCjkChar(ch: string): boolean {
+  return /[㐀-䶿一-鿿぀-ゟ゠-ヿ가-힯豈-﫿]/u.test(ch)
 }
 
 function damerauLevenshtein(a: string[], b: string[]): number {

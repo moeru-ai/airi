@@ -524,4 +524,54 @@ describe('Round 2 review findings', () => {
     expect(() => parseJudgeScore(raw, Number.NaN)).toThrow()
     expect(() => parseJudgeScore(raw, Number.POSITIVE_INFINITY)).toThrow()
   })
+  it('P1 round6: direct W1 rejects NaN scores instead of looping', () => {
+    const good = [{ identity: 0.8, value: 0.8, expression: 0.8, memory: 0.8 }]
+    const nan = [{ identity: Number.NaN, value: 0.8, expression: 0.8, memory: 0.8 }]
+    expect(() => wassersteinDistance(good, nan)).toThrow()
+    expect(() => computeBarycenter(nan)).toThrow()
+  })
+
+  it('P1 round6: tiny equal weights do not reward the larger model', () => {
+    const tiny = (v: number) =>
+      Array.from({ length: 12 }, () => ({
+        identity: v, value: v, expression: v, memory: v, weight: 0.01,
+      }))
+    const result = computeDriftScore({
+      fixedPointBaseline: fixedPoint('a stable self description that stays fixed'),
+      fixedPointCurrent: fixedPoint('a stable self description that stays fixed'),
+      scoresBaseline: tiny(0.7),
+      scoresCurrent: tiny(0.7),
+    })
+    expect(result.drifted).toBe(false)
+    expect(result.bimodality).toBe(0)
+  })
+
+  it('P1 round6: mixed CJK and Latin descriptions are segmented', () => {
+    // Long Japanese description containing AIRI: changing 私 to 僕 is one
+    // character out of many, not maximal distance.
+    const a = 'AIRIは私の名前です、私は量子物理学者でファインマンの言葉が好きです'
+    const b = 'AIRIは僕の名前です、僕は量子物理学者でファインマンの言葉が好きです'
+    const d = normalizedTextDistance(a, b)
+    expect(d).toBeGreaterThan(0)
+    expect(d).toBeLessThan(0.1)
+  })
+
+  it('P2 round6: harness validates thresholds before any inference', async () => {
+    let calls = 0
+    const infer = async () => { calls++; return 'same text always' }
+    const judge = async () => ({ identity: 1, value: 1, expression: 1, memory: 1 })
+    await expect(identityContinuityHarness({
+      character: { name: 'X', persona: 'p' },
+      infer, judge, probePrompts: ['p'],
+      sessions: 5, messagesPerSession: 20, w1Threshold: 0,
+    })).rejects.toThrow()
+    expect(calls).toBe(0)
+  })
+
+  it('P2 round6: exported version matches package.json', async () => {
+    const { readFileSync } = await import('node:fs')
+    const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+    const mod = await import('../src/index')
+    expect(mod.version).toBe(pkg.version)
+  })
 })

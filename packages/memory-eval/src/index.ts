@@ -10,4 +10,5 @@ export * from './drift-score'
 export * from './harness'
 export * from './judge-helpers'
 
-export const version = '0.1.0'
+// Keep in sync with package.json (single source of truth is package.json).
+export const version = '0.0.1'
