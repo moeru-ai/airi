@@ -111,7 +111,7 @@ describe('subscription account ownership', () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const { pathname } = new URL(input instanceof Request ? input.url : input)
       requests.push(pathname)
-      return Response.json(pathname.endsWith('/capacitors')
+      return Response.json(pathname.endsWith('/catalog')
         ? { capacitors: [{ productId: 'monthly', quota: 100 }], resetInterval: 'day' }
         : { synced: true })
     })
@@ -169,7 +169,7 @@ describe('subscription account ownership', () => {
 
     await subscription.fetchPackages()
 
-    expect(requests).toEqual(['/api/v1/revenuecat/capacitors'])
+    expect(requests).toEqual(['/api/v1/revenuecat/catalog'])
     expect(subscription.packages.value.map(pkg => pkg.productId)).toEqual(['monthly'])
     expect(subscription.packages.value[0]?.quota).toBe(100)
     expect(subscription.resetInterval.value).toBe('day')

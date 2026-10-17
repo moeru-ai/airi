@@ -94,7 +94,7 @@ describe('capacitor quota display and purchase actions', () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const { pathname } = new URL(input instanceof Request ? input.url : input)
       requests.push(pathname)
-      if (pathname.endsWith('/capacitors'))
+      if (pathname.endsWith('/catalog'))
         return Response.json({ capacitors: [{ productId: 'monthly', quota: 100 }, { productId: 'plus', quota: 300 }], resetInterval: 'day' })
       if (pathname.endsWith('/sync'))
         return Response.json({ synced: true })

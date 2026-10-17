@@ -121,7 +121,8 @@ The percent is `capacitor_flux / capacitor_quota`. It is null without an active 
 The cached balance can show the amount before a reset for 60 seconds.
 The response omits Capacitor Flux counts.
 `PUT /api/v1/flux/fallback` saves `fallbackToFlux`.
-`GET /api/v1/revenuecat/capacitors` returns each product in `REVENUECAT_CAPACITORS` with its quota, and `CAPACITOR_RESET_INTERVAL`.
+`GET /api/v1/revenuecat/capacitors` returns the configured product ids. This remains a supported read contract.
+`GET /api/v1/revenuecat/catalog` returns each product with its quota, and `CAPACITOR_RESET_INTERVAL`.
 The client lists only these products. A purchase of another product takes the payment and grants no Capacitor Flux.
 Each package card shows the quota and the refill interval. A null interval means a refill at each renewal.
 Chat and speech do not call RevenueCat.
@@ -188,7 +189,7 @@ flowchart LR
   Billing --> Posting[flux-posting.ts]
   Webhook[RevenueCat webhook] --> Sync["revenuecat-subscriptions.ts"]
   SyncRoute["POST /revenuecat/sync"] --> Sync
-  CatalogRoute["GET /revenuecat/capacitors"] --> Sync
+  CatalogRoute["GET /revenuecat/catalog"] --> Sync
   Sync --> ConfigKV["ConfigKV"]
   Auth[Auth service] --> Check["POST /internal/auth/user-deletion/check"]
   Check --> Reader
@@ -215,7 +216,7 @@ sequenceDiagram
   Client->>API: GET /flux
   API->>DB: Read user_flux
   API-->>Client: Balance and capacitor percent
-  Client->>API: GET /revenuecat/capacitors
+  Client->>API: GET /revenuecat/catalog
   API->>DB: Read ConfigKV catalog and reset interval
   API-->>Client: Products with quotas and reset interval
   RC->>API: Webhook for a customer

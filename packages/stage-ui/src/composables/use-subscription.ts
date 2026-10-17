@@ -222,7 +222,7 @@ export function useSubscription(options: {
 
   /** The Capacitors that the server grants, with the quota and refill interval that each card shows. */
   async function fetchCatalog() {
-    const res = await client.api.v1.revenuecat.capacitors.$get()
+    const res = await client.api.v1.revenuecat.catalog.$get()
     if (!res.ok)
       throw new Error(t('settings.pages.capacitor.packagesError'))
     const catalog = await res.json()
