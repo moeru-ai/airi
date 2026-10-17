@@ -565,6 +565,21 @@ pages:
     search: Search cards...
     sort_by: Sort by
     body-model: Body / Display Model
+    view-card: View card
+    model_not_bound: No model selected
+    create_drop_hint: Or drop a character card package here
+    gallery: Gallery
+    pinned_background: Pinned background
+    pinned_background_description: Select the image to show when this character is active.
+    select_background: Select background
+    refresh_gallery: Refresh gallery
+    gallery_empty: No images yet. Images the character creates in chat appear here.
+    gallery_delete_confirm: Are you sure you want to delete this image from the journal?
+    active_background: Active background
+    set_as_background: Set as background
+    download: Download
+    show_less: Show less
+    view_all_history: View all {count} versions
     speech:
       provider: Speech / Provider
       model: Speech / Model
