@@ -27,7 +27,8 @@ export const TextMatchesSchema = union([array(TextMatchSchema), looseObject({ ma
 export const WindowSchema = looseObject({
   app_name: string(),
   app_bundle_id: nullable(string()),
-  title: string(),
+  // A window can have no title, for example the System Settings window.
+  title: nullable(string()),
   process_id: number(),
   is_main: boolean(),
   is_visible: boolean(),

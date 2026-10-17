@@ -1,4 +1,4 @@
-import type { ComputerUsePoint, ComputerUseRect, ComputerUseSize } from './schemas'
+import type { ComputerUsePoint, ComputerUseRect, ComputerUseSize, ComputerUseWindow } from './schemas'
 
 /** A point in logical screen coordinates, for example `(864, 558)`. */
 export function pointText(point: ComputerUsePoint) {
@@ -12,4 +12,9 @@ export function sizeText(size: ComputerUseSize) {
 /** A rectangle as its origin and its size, for example `(0, 0) · 1728 × 1117`. */
 export function rectText(rect: ComputerUseRect) {
   return `${pointText(rect.origin)} · ${sizeText(rect.size)}`
+}
+
+/** A window as its title and its app, for example `Chat · Electron`. A window without a title shows only its app. */
+export function windowText(window: ComputerUseWindow) {
+  return [window.title, window.app_name].filter(Boolean).join(' · ')
 }

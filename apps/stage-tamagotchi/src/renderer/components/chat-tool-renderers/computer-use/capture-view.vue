@@ -7,7 +7,7 @@ import ToolCallScreenshot from '../tool-call-screenshot.vue'
 
 import { useComputerUseScreenshots } from '../use-computer-use-screenshots'
 import { CHIP, FACT_LABEL, FACT_VALUE, FACTS, LINE, LINE_ICON, ROW } from './classes'
-import { rectText, sizeText } from './format'
+import { rectText, sizeText, windowText } from './format'
 import { useComputerUseLabels } from './use-labels'
 
 /** A screen capture with its screenshot and its facts, or a list of displays or windows. */
@@ -31,7 +31,7 @@ const captureFacts = computed(() => {
     ...(display
       ? [{ label: t(`${KEY}.display`), value: [display.name, display.is_builtin && t(`${KEY}.built-in`), display.is_primary && t(`${KEY}.primary`)].filter(Boolean).join(' · ') }]
       : []),
-    ...(window ? [{ label: t(`${KEY}.window`), value: `${window.title} · ${window.app_name}` }] : []),
+    ...(window ? [{ label: t(`${KEY}.window`), value: windowText(window) }] : []),
     { label: t(`${KEY}.region`), value: rectText(capture.bounds) },
     { label: t(`${KEY}.logical-size`), value: `${sizeText(capture.bounds.size)} · ${capture.scale_factor}x` },
     { label: t(`${KEY}.pixel-size`), value: sizeText(capture.pixel_dimensions) },
