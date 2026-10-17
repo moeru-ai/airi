@@ -56,6 +56,16 @@ export function detectBimodality(
   }
   data = rows
 
+  // Normalize weights so they sum to the row count. Relative mass (weight 100
+  // vs weight 1) is preserved for the fit, but the BIC penalty stays on the
+  // standard sample-size scale: tiny weights on all rows would otherwise make
+  // log(totalMass) negative and reward the 17-parameter model on identical data.
+  if (weights) {
+    const sum = weights.reduce((acc, w) => acc + w, 0)
+    const scale = sum > 0 ? data.length / sum : 1
+    weights = weights.map(w => w * scale)
+  }
+
   // A two-component diagonal GMM has 17 free parameters in 4D. With very few
   // observations each point can get its own near-zero-variance Gaussian, which
   // yields a huge BIC "improvement" that is a degenerate fit, not evidence of

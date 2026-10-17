@@ -25,6 +25,11 @@ export interface BarycenterResult {
  * Compute weighted barycenter (centroid) of 4D scores
  */
 export function computeBarycenter(scores: RubricScore[]): BarycenterResult {
+  if (scores.length === 0) {
+    throw new Error('computeBarycenter requires at least one score')
+  }
+  validateScores(scores)
+
   let sumIdentity = 0
   let sumValue = 0
   let sumExpression = 0
@@ -149,12 +154,37 @@ function weightOf(s: RubricScore): number {
   return s.weight ?? 1
 }
 
+/**
+ * Validate public score inputs up front. A NaN axis never satisfies the merge
+ * comparisons in weighted W1 (NaN !== NaN), which would loop forever; a bad
+ * weight poisons the transport mass. Throw instead.
+ */
+function validateScores(scores: RubricScore[]): void {
+  for (const score of scores) {
+    for (const axis of RUBRIC_AXES) {
+      if (!Number.isFinite(score[axis])) {
+        throw new Error(`RubricScore.${axis} must be a finite number`)
+      }
+    }
+    const weight = weightOf(score)
+    if (!Number.isFinite(weight) || weight < 0) {
+      throw new Error('RubricScore.weight must be a finite non-negative number')
+    }
+  }
+}
+
 export function wassersteinDistance(
   scores1: RubricScore[],
   scores2: RubricScore[]
 ): number {
   if (scores1.length === 0 || scores2.length === 0) {
     throw new Error('wassersteinDistance requires non-empty score arrays')
+  }
+  validateScores(scores1)
+  validateScores(scores2)
+  if (scores1.every(s => weightOf(s) === 0)
+      || scores2.every(s => weightOf(s) === 0)) {
+    throw new Error('wassersteinDistance requires positive total weight on both sides')
   }
 
   const weights1 = scores1.map(weightOf)

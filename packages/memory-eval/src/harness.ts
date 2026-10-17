@@ -117,6 +117,19 @@ export async function identityContinuityHarness(
     throw new Error('messagesPerSession must be a finite non-negative integer')
   }
 
+  // Validate drift thresholds before any inference, otherwise an invalid
+  // threshold can issue 100+ provider calls before computeDriftScore throws.
+  const finitePositive = (x: number) => Number.isFinite(x) && x > 0
+  if (!finitePositive(fpThreshold) || !finitePositive(w1Threshold)) {
+    throw new Error('fpThreshold and w1Threshold must be finite positive numbers')
+  }
+  if (!finitePositive(bicThreshold)) {
+    throw new Error('bicThreshold must be a finite positive number')
+  }
+  if (fpThreshold > 1) {
+    throw new Error('fpThreshold must be in (0, 1]')
+  }
+
   // Every inference call receives the persona as its context, so a provider
   // callback without its own system prompt still answers as the character
   // rather than as a generic assistant. The configured name is always present
