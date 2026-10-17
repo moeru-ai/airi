@@ -24,7 +24,7 @@ import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useVoiceStore } from '@proj-airi/stage-ui/stores/voice'
 import { refDebounced } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, shallowRef, toRef, watch } from 'vue'
+import { computed, onMounted, onScopeDispose, ref, shallowRef, toRef, watch } from 'vue'
 import { toast } from 'vue-sonner'
 
 import ControlsIslandRoot from '../components/stage-islands/controls-island/controls-island-root.vue'
@@ -33,8 +33,10 @@ import ResourceStatusIsland from '../components/stage-islands/resource-status-is
 
 import { electronOpenSettings } from '../../shared/eventa'
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
+import { usePushToTalkShortcut } from '../composables/use-push-to-talk-shortcut'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
+import { artistryToolReferences } from '../stores/tools'
 import { resolveFadeOnHoverInteraction } from '../utils/fade-on-hover'
 import { shouldSampleStageTransparency } from '../utils/stage-three-transparency'
 
@@ -294,7 +296,9 @@ useModelSettingsRuntimeOwner({
 })
 
 const voice = useVoiceStore()
+onScopeDispose(voice.connectTools(() => artistryToolReferences))
 useVoiceListening()
+usePushToTalkShortcut()
 watch(() => voice.error, (error) => {
   if (error)
     toast.error(error)
@@ -312,11 +316,7 @@ const cursorPosition = computed(() => ({
 
 <template>
   <div
-    max-h="[100vh]"
-    max-w="[100vw]"
-    flex="~ col"
-    relative z-2 h-full overflow-hidden rounded-xl
-    transition="opacity duration-500 ease-in-out"
+    :class="['relative z-2 h-full max-h-[100vh] max-w-[100vw] flex flex-col overflow-hidden rounded-xl', 'transition-opacity duration-500 ease-in-out']"
   >
     <!-- Stage is always in DOM so TresCanvas can measure dimensions -->
     <div
@@ -339,8 +339,7 @@ const cursorPosition = computed(() => ({
         <WidgetStage
           ref="widgetStageRef"
           v-model:state="componentStateStage"
-          h-full w-full
-          flex-1
+          :class="['h-full w-full flex-1']"
           :cursor-position="cursorPosition"
           :paused="stagePaused"
           @select-avatar-model="openSettings({ route: '/settings/models' })"
@@ -352,13 +351,14 @@ const cursorPosition = computed(() => ({
         <ControlsIslandRoot :frozen="controlsIslandInteractionActive">
           <ControlsIsland
             ref="controlsIslandRef"
+            :cursor-away="isOutsideWindow && !isAroundWindowBorder"
             @interaction-change="controlsIslandInteractionActive = $event"
           />
         </ControlsIslandRoot>
       </div>
     </div>
     <!-- Loading overlay sits on top, does not hide the stage -->
-    <div v-show="isLoading" class="absolute left-0 top-0 z-99 h-full w-full flex cursor-grab items-center justify-center overflow-hidden">
+    <div v-show="isLoading" :class="['absolute left-0 top-0 z-99 h-full w-full flex cursor-grab items-center justify-center overflow-hidden']">
       <div
         :class="[
           'absolute h-24 w-full overflow-hidden rounded-xl',
@@ -392,13 +392,12 @@ const cursorPosition = computed(() => ({
   >
     <div
       v-if="false"
-      class="absolute left-0 top-0 z-99 h-full w-full flex cursor-grab items-center justify-center overflow-hidden drag-region"
+      :class="['absolute left-0 top-0 z-99 h-full w-full flex cursor-grab items-center justify-center overflow-hidden drag-region']"
     >
       <div
-        class="absolute h-32 w-full flex items-center justify-center overflow-hidden rounded-xl"
-        bg="white/80 dark:neutral-950/80" backdrop-blur="md"
+        :class="['absolute h-32 w-full flex items-center justify-center overflow-hidden rounded-xl bg-white/80 dark:bg-neutral-950/80 backdrop-blur-md']"
       >
-        <div class="wall absolute top-0 h-8" />
+        <div :class="['wall absolute top-0 h-8']" />
         <div
           :class="[
             'absolute left-0 top-0 h-full w-full',
@@ -409,7 +408,7 @@ const cursorPosition = computed(() => ({
         >
           DRAG HERE TO MOVE
         </div>
-        <div class="wall absolute bottom-0 h-8 drag-region" />
+        <div :class="['wall absolute bottom-0 h-8 drag-region']" />
       </div>
     </div>
   </Transition>
@@ -421,7 +420,7 @@ const cursorPosition = computed(() => ({
     leave-from-class="opacity-100"
     leave-to-class="opacity-50"
   >
-    <div v-if="isAroundWindowBorderFor250Ms && !isLoading" class="pointer-events-none absolute left-0 top-0 z-999 h-full w-full">
+    <div v-if="isAroundWindowBorderFor250Ms && !isLoading" :class="['pointer-events-none absolute left-0 top-0 z-999 h-full w-full']">
       <div
         :class="[
           'b-primary/50',

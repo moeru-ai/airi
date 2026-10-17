@@ -122,6 +122,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
   let contextChannel: ReturnType<typeof createContextChannel> | undefined
   const localProducedStreams = new Map<string, { sessionId: string, turnId: string, context: ChatStreamEventContext }>()
   let initialized = false
+  let localRuntimeInitialized = false
   /** The stream view runs without `initialize` in a minimal window. See {@link initializeStreamView}. */
   let streamViewInitialized = false
 
@@ -474,7 +475,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
    * Shows the chat streams that other renderers produce, and returns the cleanup of every listener that it adds.
    *
    * With `emitHooks`, this renderer also runs its chat hooks for a remote stream, so its plugins and speech react.
-   * Only the full runtime sets it. A minimal window, such as the chat window, shows the text and runs no hooks.
+   * A host runtime sets it. A minimal chat window shows the text without hooks.
    * `remoteContexts` marks the contexts of remote events, so the outgoing hooks do not send them back.
    */
   function watchRemoteStreams(channel: ReturnType<typeof createContextChannel>, options: { emitHooks: boolean, remoteContexts?: WeakSet<object> }) {
@@ -588,7 +589,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     await mutex.acquire()
 
     try {
-      if (initialized || streamViewInitialized)
+      if (initialized || localRuntimeInitialized || streamViewInitialized)
         return
 
       contextChannel = createContextChannel()
@@ -600,8 +601,127 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     }
   }
 
+  /** Shares local turns and receives remote turns without a server connection. The caller owns listener cleanup. */
+  function startChatStreams(channel: ReturnType<typeof createContextChannel>) {
+    const remoteContexts = new WeakSet<object>()
+    disposeHookFns.value.push(getSpeechBusContext().on(voiceGenerationEnded, ({ body }) => {
+      if (!body)
+        return
+      if (localProducedStreams.get(body.sessionId)?.turnId === body.turnId) {
+        localProducedStreams.delete(body.sessionId)
+        if (body.status !== 'finished')
+          void contextChannel?.emitStreamFailed(body)
+      }
+    }))
+    // `watchRemoteStreams` removes the remote stream of a cancel. This listener cancels the turn that this renderer runs.
+    disposeHookFns.value.push(channel.onStreamCancel(async (command) => {
+      if (localProducedStreams.get(command.sessionId)?.turnId !== command.turnId)
+        return
+      localProducedStreams.delete(command.sessionId)
+      await chatOrchestrator.cancelTurn(command)
+    }))
+
+    disposeHookFns.value.push(
+      chatOrchestrator.onBeforeMessageComposed(async (message, context) => {
+        if (remoteContexts.has(context))
+          return
+
+        await contextChannel?.emitStream({ type: 'before-compose', message, sessionId: context.sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+      }),
+      chatOrchestrator.onAfterMessageComposed(async (message, context) => {
+        if (remoteContexts.has(context))
+          return
+
+        await contextChannel?.emitStream({ type: 'after-compose', message, sessionId: context.sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+      }),
+      chatOrchestrator.onBeforeSend(async (message, context) => {
+        if (remoteContexts.has(context))
+          return
+
+        const sessionId = context.sessionId
+        const snapshot = structuredClone(normalizeContextSnapshot(context))
+        localProducedStreams.set(sessionId, { sessionId, turnId: context.turnId, context: snapshot })
+        await contextChannel?.emitStream({ type: 'before-send', message, sessionId, context: snapshot })
+        // A view learns of the stream from `before-send`, so the reply so far follows it at once, and the view shows the waiting reply.
+        emitLocalProgress()
+      }),
+      watch(() => chatStream.activeTurns, emitLocalProgress),
+      chatOrchestrator.onAfterSend(async (message, context) => {
+        if (remoteContexts.has(context))
+          return
+
+        const sessionId = context.sessionId
+        await contextChannel?.emitStream({ type: 'after-send', message, sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+        if (localProducedStreams.get(sessionId)?.turnId === context.turnId)
+          localProducedStreams.delete(sessionId)
+      }),
+      chatOrchestrator.onTokenLiteral(async (literal, context) => {
+        if (remoteContexts.has(context))
+          return
+
+        await contextChannel?.emitStream({ type: 'token-literal', literal, sessionId: context.sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+      }),
+      chatOrchestrator.onTokenSpecial(async (special, context) => {
+        if (remoteContexts.has(context))
+          return
+
+        await contextChannel?.emitStream({ type: 'token-special', special, sessionId: context.sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+      }),
+      chatOrchestrator.onStreamEnd(async (context) => {
+        if (remoteContexts.has(context))
+          return
+
+        await contextChannel?.emitStream({ type: 'stream-end', sessionId: context.sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+      }),
+      chatOrchestrator.onAssistantResponseEnd(async (message, context) => {
+        if (remoteContexts.has(context))
+          return
+
+        await contextChannel?.emitStream({ type: 'assistant-end', message, sessionId: context.sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+      }),
+    )
+    disposeHookFns.value.push(...watchRemoteStreams(channel, { emitHooks: true, remoteContexts }))
+  }
+
+  /**
+   * Starts the chat runtime of a desktop host that has no server channel.
+   * It publishes local turns, runs speech hooks for remote turns, and forwards cancellation.
+   * Repeated calls reuse that runtime. Dispose it before starting the server-connected runtime.
+   */
+  async function initializeLocal() {
+    await mutex.acquire()
+    if (streamViewInitialized) {
+      mutex.release()
+      throw new Error('Dispose the stream view before starting the local chat runtime.')
+    }
+
+    try {
+      if (initialized || localRuntimeInitialized)
+        return
+
+      contextChannel = createContextChannel()
+      startChatStreams(contextChannel)
+      localRuntimeInitialized = true
+    }
+    catch (error) {
+      for (const stop of disposeHookFns.value)
+        stop()
+      disposeHookFns.value = []
+      contextChannel?.dispose(error)
+      contextChannel = undefined
+      throw error
+    }
+    finally {
+      mutex.release()
+    }
+  }
+
   async function initialize() {
     await mutex.acquire()
+    if (localRuntimeInitialized || streamViewInitialized) {
+      mutex.release()
+      throw new Error('Dispose the local chat runtime before starting the server-connected runtime.')
+    }
 
     try {
       if (initialized)
@@ -626,8 +746,6 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
       registerConsumers()
       disposeHookFns.value.push(serverChannelStore.onReconnected(() => registerConsumers()))
-
-      const remoteContexts = new WeakSet<object>()
 
       const stopContextUpdates = contextChannel.onContext((event) => {
         contextObservability.recordLifecycle({
@@ -668,23 +786,6 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }
       })
       disposeHookFns.value.push(stopContextUpdates)
-
-      disposeHookFns.value.push(getSpeechBusContext().on(voiceGenerationEnded, ({ body }) => {
-        if (!body)
-          return
-        if (localProducedStreams.get(body.sessionId)?.turnId === body.turnId) {
-          localProducedStreams.delete(body.sessionId)
-          if (body.status !== 'finished')
-            void contextChannel?.emitStreamFailed(body)
-        }
-      }))
-      // `watchRemoteStreams` removes the remote stream of a cancel. This listener cancels the turn that this renderer runs.
-      disposeHookFns.value.push(contextChannel.onStreamCancel(async (command) => {
-        if (localProducedStreams.get(command.sessionId)?.turnId !== command.turnId)
-          return
-        localProducedStreams.delete(command.sessionId)
-        await chatOrchestrator.cancelTurn(command)
-      }))
 
       const { stop: stopSparkNotifyBridgeWatch } = watch(incomingSparkNotifyBridgeMessage, async (event) => {
         if (!event) {
@@ -968,64 +1069,6 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       }))
 
       disposeHookFns.value.push(
-        chatOrchestrator.onBeforeMessageComposed(async (message, context) => {
-          if (remoteContexts.has(context))
-            return
-
-          await contextChannel?.emitStream({ type: 'before-compose', message, sessionId: context.sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
-        }),
-        chatOrchestrator.onAfterMessageComposed(async (message, context) => {
-          if (remoteContexts.has(context))
-            return
-
-          await contextChannel?.emitStream({ type: 'after-compose', message, sessionId: context.sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
-        }),
-        chatOrchestrator.onBeforeSend(async (message, context) => {
-          if (remoteContexts.has(context))
-            return
-
-          const sessionId = context.sessionId
-          const snapshot = structuredClone(normalizeContextSnapshot(context))
-          localProducedStreams.set(sessionId, { sessionId, turnId: context.turnId, context: snapshot })
-          await contextChannel?.emitStream({ type: 'before-send', message, sessionId, context: snapshot })
-          // A view learns of the stream from `before-send`, so the reply so far follows it at once, and the view shows the waiting reply.
-          emitLocalProgress()
-        }),
-        watch(() => chatStream.activeTurns, emitLocalProgress),
-        chatOrchestrator.onAfterSend(async (message, context) => {
-          if (remoteContexts.has(context))
-            return
-
-          const sessionId = context.sessionId
-          await contextChannel?.emitStream({ type: 'after-send', message, sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
-          if (localProducedStreams.get(sessionId)?.turnId === context.turnId)
-            localProducedStreams.delete(sessionId)
-        }),
-        chatOrchestrator.onTokenLiteral(async (literal, context) => {
-          if (remoteContexts.has(context))
-            return
-
-          await contextChannel?.emitStream({ type: 'token-literal', literal, sessionId: context.sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
-        }),
-        chatOrchestrator.onTokenSpecial(async (special, context) => {
-          if (remoteContexts.has(context))
-            return
-
-          await contextChannel?.emitStream({ type: 'token-special', special, sessionId: context.sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
-        }),
-        chatOrchestrator.onStreamEnd(async (context) => {
-          if (remoteContexts.has(context))
-            return
-
-          await contextChannel?.emitStream({ type: 'stream-end', sessionId: context.sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
-        }),
-        chatOrchestrator.onAssistantResponseEnd(async (message, context) => {
-          if (remoteContexts.has(context))
-            return
-
-          await contextChannel?.emitStream({ type: 'assistant-end', message, sessionId: context.sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
-        }),
-
         chatOrchestrator.onAssistantMessage(async (message, _messageText, context) => {
           // The stored user message of the turn holds its images and recordings as asset references.
           const userMessage = chatSession.getSessionMessagesIfLoaded(context.sessionId)?.find(item => item.id === context.turnId)
@@ -1076,7 +1119,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }),
       )
 
-      disposeHookFns.value.push(...watchRemoteStreams(contextChannel, { emitHooks: true, remoteContexts }))
+      startChatStreams(contextChannel)
       initialized = true
     }
     catch (error) {
@@ -1096,7 +1139,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     await mutex.acquire()
 
     try {
-      if (!initialized && !streamViewInitialized)
+      if (!initialized && !localRuntimeInitialized && !streamViewInitialized)
         return
 
       // Only `initialize` registers consumers. The stream view has no server channel.
@@ -1119,6 +1162,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       contextChannel = undefined
 
       initialized = false
+      localRuntimeInitialized = false
       streamViewInitialized = false
       remoteStreams.clear()
       localProducedStreams.clear()
@@ -1138,6 +1182,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
   return {
     initialize,
+    initializeLocal,
     initializeStreamView,
     dispose,
     dispatchSparkNotifyReaction,

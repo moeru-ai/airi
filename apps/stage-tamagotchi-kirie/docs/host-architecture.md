@@ -115,3 +115,11 @@ The renderer fetch supplies initial state. Mutation events start after that rend
 Closing uses a one-way event, so the renderer does not wait for a response from the transport it closes.
 Expiry uses Godot's monotonic clock and runs on the main thread.
 A partial update preserves its expiry unless `ttlMs` is present.
+
+## Local chat and voice
+
+The main renderer uses the shared context bridge's local runtime to publish turns and receive remote streams.
+The minimal Chat renderer uses its passive stream view. Both dispose their bridge with their application scope.
+No server consumer registrations occur in local mode.
+The stage supplies built-in tool references to the voice host.
+Push to Talk binds the native global keyboard service only while its input mode and microphone preference are active.

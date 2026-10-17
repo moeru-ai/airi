@@ -10,6 +10,8 @@ import { computed, onMounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
+import PushToTalkShortcut from '../../../components/settings/push-to-talk-shortcut.vue'
+
 import { isSafeSpotlightAccelerator } from '../../../../shared/spotlight-shortcut'
 
 const { get: getShortcut, set: setShortcut } = useHostSpotlightShortcut()
@@ -144,6 +146,7 @@ onMounted(async () => {
       />
     </div>
   </section>
+  <PushToTalkShortcut :class="['mt-4']" />
 </template>
 
 <route lang="yaml">

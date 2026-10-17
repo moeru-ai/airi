@@ -191,3 +191,30 @@ This adds native widget lifecycle support. Plugin iframe requests and Artistry g
 
 The one-second expiry also removed the native window, CEF target, and host snapshot.
 The root `mise x -- pnpm typecheck` passed all 56 workspaces.
+
+## Local chat streams and voice controls (2026-10-18)
+
+The main renderer starts the shared local context bridge. Minimal Chat starts its stream view.
+The local runtime supplies chat progress, tool results, speech hooks, and cancellation without the deferred server host.
+Spoken turns now receive the same built-in tool references as typed turns.
+
+The stage supplies the current microphone toggle, permission wait state, speech mute, and focus-aware control hiding.
+Push to Talk uses Kirie's global shortcut adapter, including key-down and key-up delivery.
+The Window Shortcuts page records and resets its accelerator. Spotlight conflict checks use the host-owned shortcut.
+
+A real model request returned Tokyo's three-day forecast in the follower Chat window.
+Its weather tool card displayed the current weather and the three forecast days.
+The shortcut recording flow changed the accelerator to F8, then restored Ctrl+Shift+Space.
+The microphone remained disabled. Physical hold-to-capture and speech playback remain unverified.
+Speech playback reported that its model and voice were unconfigured.
+
+Checks:
+
+- Shared context bridge browser tests: 31 passed, including two tests with real Pinia stores and transport.
+- Kirie tests: 77 passed and one optional provider test skipped.
+- Stage UI and Kirie workspace typechecks: passed.
+- Root typecheck: all 56 workspaces passed.
+- Repository lint: passed with existing warnings.
+
+The recordings use agent-browser's fixed-quality H.264 encoder at requested 60 fps and native page dimensions.
+Frame receipts distinguish captured frames from encoded frames. They do not prove 60 distinct paints each second.

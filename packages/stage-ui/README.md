@@ -347,3 +347,13 @@ The default pack contains twelve generated chibi reactions of AIRI's official bl
 See [artwork provenance](src/assets/stickers/README.md) for references, exact prompts, and inspection notes.
 These are static assets. No runtime image-generation dependency is included.
 The four development-only Fluent Emoji images are removed. No old-ID migration is included.
+
+## Local desktop chat streams
+
+`useContextBridgeStore().initializeLocal()` publishes local turns and receives remote turns without a server channel.
+Use this entry in the main renderer of a desktop host that supplies no AIRI server.
+It also forwards cancellation and runs the host's speech hooks for remote turns.
+
+A minimal chat renderer uses `initializeStreamView()` to display those streams without running speech hooks.
+A stage with an AIRI server uses `initialize()` instead.
+Call `dispose()` before changing startup modes or closing the renderer.

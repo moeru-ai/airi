@@ -8,6 +8,7 @@ import { initializeAnalytics } from '@proj-airi/stage-ui/libs/product-signals'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
+import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
@@ -58,6 +59,7 @@ const isSettingsWindow = initialRoutePath === '/settings' || initialRoutePath.st
 const isChatWindow = initialRoutePath === '/chat'
 const isSpotlightWindow = initialRoutePath === '/spotlight'
 const isMainRenderer = windowContext.leadership === 'leader-only'
+const chatContextBridge = isMainRenderer || isChatWindow ? useContextBridgeStore() : null
 const microphonePermission = useHostMicrophonePermission()
 const microphonePermissionPrompt = microphonePermission.prompt
 const microphonePermissionBusy = shallowRef(false)
@@ -228,6 +230,10 @@ onMounted(async () => {
   })
 
   await chatStore.initialize(syncedPinia)
+  if (isMainRenderer)
+    await chatContextBridge?.initializeLocal()
+  else
+    await chatContextBridge?.initializeStreamView()
   await fullStageRuntime?.initialize()
 })
 
@@ -242,6 +248,7 @@ watch(themeColorsHueDynamic, () => {
 onUnmounted(() => {
   stopSpotlightShortcut?.()
   stopLeadershipListener?.()
+  void chatContextBridge?.dispose()
   chatStore.dispose()
   fullStageRuntime?.dispose()
 })

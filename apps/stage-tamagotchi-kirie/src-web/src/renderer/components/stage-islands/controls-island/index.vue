@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { useHostAlwaysOnTop, useHostAppQuit, useHostChat, useHostEventaInvoke, useHostMouseInElement, useHostWindowCenter, useHostWindowMove } from '@proj-airi/stage-host-context'
 import { IS_DEV } from '@proj-airi/stage-shared'
+import { HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { ScrollableArea, useTheme } from '@proj-airi/ui'
-import { refDebounced, useIntervalFn, useMouseInElement, useMousePressed } from '@vueuse/core'
+import { refDebounced, useFocusWithin, useIntervalFn, useMouseInElement, useMousePressed } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, reactive, ref, useId, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -13,14 +14,11 @@ import ControlButtonTooltip from './control-button-tooltip.vue'
 import ControlButton from './control-button.vue'
 import ControlsIslandAuthButton from './controls-island-auth-button.vue'
 import ControlsIslandFadeOnHover from './controls-island-fade-on-hover.vue'
-import ControlsIslandHearingConfig from './controls-island-hearing-config.vue'
 import ControlsIslandProfilePicker from './controls-island-profile-picker.vue'
-import ControlsIslandStopSpeaking from './controls-island-stop-speaking.vue'
+import ControlsIslandSpeechMute from './controls-island-speech-mute.vue'
 import IndicatorMicVolume from './indicator-mic-volume.vue'
 
-import {
-  electronOpenSettings,
-} from '../../../../shared/eventa'
+import { electronOpenSettings } from '../../../../shared/eventa'
 import { useControlsIslandLayout } from './use-controls-island-layout'
 import { useControlsIslandPlacement } from './use-controls-island-placement'
 
@@ -29,11 +27,20 @@ interface Emits {
   interactionChange: [active: boolean]
 }
 
+const props = withDefaults(defineProps<{
+  /**
+   * The cursor is away from the stage window, so the Island hides. The stage
+   * page owns the cursor signals and decides this.
+   */
+  cursorAway?: boolean
+}>(), {
+  cursorAway: false,
+})
+
 const emit = defineEmits<Emits>()
 
 const { themeMode, switchToNextTheme } = useTheme()
 const { t } = useI18n()
-
 // The button shows the current theme, and its label tells what a press selects.
 const themeIcons = {
   light: 'i-solar:sun-2-outline',
@@ -58,17 +65,18 @@ const settingsStore = useSettings()
 const { enabled } = storeToRefs(settingsAudioDeviceStore)
 const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
 const openSettings = useHostEventaInvoke(electronOpenSettings)
-const openChat = useHostChat()
 const quitApp = useHostAppQuit()
 const setAlwaysOnTop = useHostAlwaysOnTop()
 const centerMainWindow = useHostWindowCenter()
-const { beginMove, isNativeMoveSupported, usesCssDragRegion } = useHostWindowMove()
+const { beginMove } = useHostWindowMove()
+const openChat = useHostChat()
 
 const expanded = ref(false)
 // Closing disables interaction immediately. Keep layout until the exit
 // animation ends, then isolate the same menu for natural-size measurement.
 const panelPresent = ref(false)
 const islandElement = useTemplateRef<HTMLElement>('island')
+const profileCreationActive = ref(false)
 const islandScrollArea = useTemplateRef<InstanceType<typeof ScrollableArea>>('islandScrollArea')
 const islandViewport = computed(() => islandScrollArea.value?.viewport)
 const islandContent = useTemplateRef<HTMLElement>('islandContent')
@@ -105,30 +113,58 @@ function setOverlay(key: string, active: boolean) {
   blockingOverlays.delete(key)
 }
 
-// The stage page observes this element for cursor hit testing.
-defineExpose({
-  get element() { return islandElement.value },
-  get overlayActive() { return blockingOverlays.size > 0 || pressed.value },
-  get hearingDialogOpen() { return blockingOverlays.has('hearing') },
-  set hearingDialogOpen(v: boolean) { setOverlay('hearing', v) },
-})
+/** True while the microphone button waits for the permission prompt. The button is disabled, so a second press cannot start another request. */
+const microphonePending = ref(false)
+const microphoneLabel = computed(() => enabled.value
+  ? t('tamagotchi.stage.controls-island.disable-microphone')
+  : t('tamagotchi.stage.controls-island.enable-microphone'))
 
-// NOTICE: On native Wayland, `isOutsideByCursor` can get permanently stuck
-// because it is driven by Electron's screen.getCursorScreenPoint(), which
-// Chromium's Ozone/Wayland backend cannot query reliably the way X11 does.
-// Source: https://github.com/moeru-ai/airi/issues/2521 (CachyOS + KDE
-// Plasma, Flatpak). OR it with the DOM-based `isOutsideByDom`
-// (useMouseInElement), which self-corrects on every pointermove and needs
-// no OS-level cursor query, so a broken cursor signal cannot force a false
-// collapse. The Electron-cursor signal stays the one used elsewhere (e.g.
-// hit-testing over click-through regions, where DOM events never reach the
-// renderer). Removal condition: once Ozone/Wayland reports the absolute
-// cursor position reliably upstream, or the click-through hit-testing no
-// longer depends on this composable.
+/**
+ * Turns the microphone preference on or off. The Hearing input mode still decides when the microphone captures.
+ * Only this press asks for permission. A refusal opens Hearing controls, which show the reason from the device store.
+ */
+async function toggleMicrophone() {
+  if (microphonePending.value)
+    return
+  if (enabled.value) {
+    enabled.value = false
+    return
+  }
+
+  microphonePending.value = true
+  try {
+    if (await settingsAudioDeviceStore.askPermission()) {
+      enabled.value = true
+      return
+    }
+    // The dialog trigger lives in the menu, so the menu opens with it.
+    expanded.value = true
+    setOverlay('hearing', true)
+  }
+  finally {
+    microphonePending.value = false
+  }
+}
+
+// DOM interaction keeps controls available between native pointer samples.
 const { isOutside: isOutsideByCursor } = useHostMouseInElement(islandElement)
 const { isOutside: isOutsideByDom } = useMouseInElement(islandElement)
 const isOutside = computed(() => isOutsideByCursor.value && isOutsideByDom.value)
 const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
+
+// A user who works in the menu, in a dialog, or with the keyboard keeps the
+// Island after the cursor leaves the window.
+const { focused: islandFocused } = useFocusWithin(islandElement)
+const concealed = computed(() => props.cursorAway && !expanded.value && !isBlocked.value && !islandFocused.value)
+
+// The stage page observes this element for cursor hit testing.
+defineExpose({
+  get element() { return islandElement.value },
+  get isOutside() { return isOutside.value },
+  get overlayActive() { return blockingOverlays.size > 0 || pressed.value },
+  get hearingDialogOpen() { return blockingOverlays.has('hearing') },
+  set hearingDialogOpen(v: boolean) { setOverlay('hearing', v) },
+})
 
 watch(isOutsideAfter2seconds, (outside) => {
   if (outside && expanded.value && !isBlocked.value) {
@@ -140,6 +176,7 @@ watch(expanded, (isExpanded) => {
   if (isExpanded)
     panelPresent.value = true
   if (!isExpanded) {
+    profileCreationActive.value = false
     if (menuContent.value?.contains(document.activeElement) || blockingOverlays.size > 0)
       mainControlsElement.value?.querySelector<HTMLButtonElement>('[aria-controls]')?.focus()
     profileOpen.value = false
@@ -160,7 +197,6 @@ useIntervalFn(() => {
 // Apply alwaysOnTop on mount and when it changes
 watch(alwaysOnTop, (val) => {
   setAlwaysOnTop(val)
-    .catch(error => console.error('[host-context] Failed to update always-on-top state.', error))
 }, { immediate: true })
 
 function toggleAlwaysOnTop() {
@@ -209,7 +245,8 @@ const islandMotionClasses = computed(() => {
       ? 'transition-none'
       : 'transition-[opacity,transform] duration-200 ease-out',
     motionPhase.value === 'idle' ? '' : 'will-change-[opacity,transform] pointer-events-none',
-    isHidden ? 'opacity-0 scale-95' : 'opacity-100 scale-100',
+    isHidden ? 'scale-95' : 'scale-100',
+    isHidden || concealed.value ? 'opacity-0' : 'opacity-100',
     isHidden && isLeft.value ? '-translate-x-3' : '',
     isHidden && !isLeft.value ? 'translate-x-3' : '',
     isHidden && isTop.value ? '-translate-y-2' : '',
@@ -231,26 +268,12 @@ const panelPositionClasses = computed(() => {
   return ['origin-bottom-right']
 })
 
-/**
- * This is a know issue (or expected behavior maybe) to Electron.
- * We don't use this approach on Linux because it's not working.
- *
- * See `apps/stage-tamagotchi/src/main/windows/main/index.ts` for handler definition
- */
-function startDraggingWindow() {
-  if (!isNativeMoveSupported.value)
-    return
-
-  beginMove()
-    .catch(error => console.error('[host-context] Failed to begin moving the host window.', error))
-}
-
 function refreshWindow() {
   window.location.reload()
 }
 
 /**
- * Requests the main process to move the AIRI desktop window back to screen center.
+ * Requests the native host to move the AIRI desktop window back to screen center.
  */
 function resetMainWindowPosition() {
   centerMainWindow().catch(console.error)
@@ -293,7 +316,7 @@ function resetMainWindowPosition() {
             data-testid="controls-menu"
             orientation="both"
             :style="panelStyle"
-            :class="['w-max shrink-0', panelPositionClasses]"
+            :class="['w-max shrink-0 rounded-2xl', panelPositionClasses]"
             viewport-class="overscroll-contain"
           >
             <div
@@ -314,7 +337,7 @@ function resetMainWindowPosition() {
                   :icon-class="adjustStyleClasses.icon"
                 />
 
-                <div grid grid-cols-3 gap-2>
+                <div :class="['grid grid-cols-3 gap-2']">
                   <ControlButtonTooltip disable-hoverable-content>
                     <ControlButton
                       v-track-button="{ name: 'controls_island_action', action: 'toggle_settings' }"
@@ -322,7 +345,7 @@ function resetMainWindowPosition() {
                       :aria-label="t('tamagotchi.stage.controls-island.open-settings')"
                       @click="openSettings({ route: '/settings' })"
                     >
-                      <div i-solar:settings-minimalistic-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                      <div :class="['i-solar:settings-minimalistic-outline text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
                     </ControlButton>
                     <template #tooltip>
                       {{ t('tamagotchi.stage.controls-island.open-settings') }}
@@ -330,7 +353,12 @@ function resetMainWindowPosition() {
                   </ControlButtonTooltip>
 
                   <ControlButtonTooltip disable-hoverable-content>
-                    <ControlsIslandProfilePicker v-model:open="profileOpen" :active="expanded" @interaction-change="setOverlay('profile-picker', $event)">
+                    <ControlsIslandProfilePicker
+                      v-model:open="profileOpen"
+                      v-model:creating="profileCreationActive"
+                      :active="expanded"
+                      @interaction-change="setOverlay('profile-picker', $event)"
+                    >
                       <template #default="{ toggle }">
                         <ControlButton
                           v-track-button="{ name: 'controls_island_action', action: 'toggle_profile_picker' }"
@@ -338,7 +366,7 @@ function resetMainWindowPosition() {
                           :aria-label="t('tamagotchi.stage.controls-island.switch-profile')"
                           @click="toggle"
                         >
-                          <div i-solar:emoji-funny-square-broken :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                          <div :class="['i-solar:emoji-funny-square-broken text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
                         </ControlButton>
                       </template>
                     </ControlsIslandProfilePicker>
@@ -354,7 +382,7 @@ function resetMainWindowPosition() {
                       :aria-label="t('tamagotchi.stage.controls-island.refresh')"
                       @click="refreshWindow"
                     >
-                      <div i-solar:refresh-linear :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                      <div :class="['i-solar:refresh-linear text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
                     </ControlButton>
                     <template #tooltip>
                       {{ t('tamagotchi.stage.controls-island.refresh') }}
@@ -368,7 +396,7 @@ function resetMainWindowPosition() {
                       :aria-label="t('tamagotchi.stage.controls-island.center-main-window')"
                       @click="resetMainWindowPosition"
                     >
-                      <div i-solar:target-linear :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                      <div :class="['i-solar:target-linear text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
                     </ControlButton>
                     <template #tooltip>
                       {{ t('tamagotchi.stage.controls-island.center-main-window') }}
@@ -386,7 +414,7 @@ function resetMainWindowPosition() {
                       @click="switchToNextTheme"
                     >
                       <Transition name="fade" mode="out-in">
-                        <div :key="themeMode" :class="[themeIcons[themeMode], adjustStyleClasses.icon]" text="neutral-800 dark:neutral-300" />
+                        <div :key="themeMode" :class="[themeIcons[themeMode], 'text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
                       </Transition>
                     </ControlButton>
                     <template #tooltip>
@@ -404,8 +432,8 @@ function resetMainWindowPosition() {
                       :aria-label="alwaysOnTop ? t('tamagotchi.stage.controls-island.unpin-from-top') : t('tamagotchi.stage.controls-island.pin-on-top')"
                       @click="toggleAlwaysOnTop"
                     >
-                      <div v-if="alwaysOnTop" i-solar:pin-bold :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
-                      <div v-else i-solar:pin-linear :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300 opacity-50" />
+                      <div v-if="alwaysOnTop" :class="['i-solar:pin-bold text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
+                      <div v-else :class="['i-solar:pin-linear text-neutral-800 dark:text-neutral-300 opacity-50', adjustStyleClasses.icon]" />
                     </ControlButton>
                     <template #tooltip>
                       {{ alwaysOnTop ? t('tamagotchi.stage.controls-island.unpin-from-top') : t('tamagotchi.stage.controls-island.pin-on-top') }}
@@ -415,15 +443,29 @@ function resetMainWindowPosition() {
                   <ControlsIslandFadeOnHover :icon-class="adjustStyleClasses.icon" :button-style="adjustStyleClasses.button" />
 
                   <ControlButtonTooltip disable-hoverable-content>
+                    <HearingConfigDialog :show="blockingOverlays.has('hearing')" @update:show="setOverlay('hearing', $event)">
+                      <ControlButton
+                        data-testid="controls-island-hearing-controls"
+                        :button-style="adjustStyleClasses.button"
+                        :aria-label="t('tamagotchi.stage.controls-island.open-hearing-controls')"
+                      >
+                        <div :class="['i-solar:microphone-3-linear text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
+                      </ControlButton>
+                    </HearingConfigDialog>
+                    <template #tooltip>
+                      {{ t('tamagotchi.stage.controls-island.open-hearing-controls') }}
+                    </template>
+                  </ControlButtonTooltip>
+
+                  <ControlButtonTooltip disable-hoverable-content>
                     <ControlButton
                       v-track-button="{ name: 'controls_island_action', action: 'close_app' }"
                       :button-style="adjustStyleClasses.button"
                       :aria-label="t('tamagotchi.stage.controls-island.close')"
-                      hover:bg-red-500
-                      hover:text-white
+                      :class="['hover:bg-red-500 hover:text-white']"
                       @click="() => quitApp()"
                     >
-                      <div i-solar:close-circle-outline :class="adjustStyleClasses.icon" />
+                      <div :class="['i-solar:close-circle-outline', adjustStyleClasses.icon]" />
                     </ControlButton>
                     <template #tooltip>
                       {{ t('tamagotchi.stage.controls-island.close') }}
@@ -450,10 +492,8 @@ function resetMainWindowPosition() {
               @click="toggleControls"
             >
               <div
-                :class="adjustStyleClasses.icon"
+                :class="['i-solar:alt-arrow-up-line-duotone scale-110 transition-all duration-300', 'text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]"
                 :style="{ transform: `rotate(${arrowRotation}deg)` }"
-                i-solar:alt-arrow-up-line-duotone scale-110 transition-all duration-300
-                text="neutral-800 dark:neutral-300"
               />
             </ControlButton>
             <template #tooltip>
@@ -467,14 +507,13 @@ function resetMainWindowPosition() {
             :icon-class="adjustStyleClasses.icon"
           />
 
-          <ControlButtonTooltip side="inward">
+          <ControlButtonTooltip side="inward" as-child>
             <ControlButton
-              v-track-button="{ name: 'controls_island_action', action: 'toggle_chat' }"
               :button-style="adjustStyleClasses.button"
               :aria-label="t('tamagotchi.stage.controls-island.open-chat')"
-              @click="() => openChat()"
+              @click="openChat()"
             >
-              <div i-solar:chat-line-line-duotone :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+              <div :class="['i-solar:chat-line-line-duotone text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
             </ControlButton>
             <template #tooltip>
               {{ t('tamagotchi.stage.controls-island.open-chat') }}
@@ -482,29 +521,33 @@ function resetMainWindowPosition() {
           </ControlButtonTooltip>
 
           <ControlButtonTooltip side="inward">
-            <ControlsIslandHearingConfig :show="blockingOverlays.has('hearing')" @update:show="setOverlay('hearing', $event)">
-              <div class="relative">
-                <ControlButton :button-style="adjustStyleClasses.button">
-                  <Transition name="fade" mode="out-in">
-                    <IndicatorMicVolume v-if="enabled" :class="adjustStyleClasses.icon" />
-                    <div v-else i-ph:microphone-slash :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
-                  </Transition>
-                </ControlButton>
-              </div>
-            </ControlsIslandHearingConfig>
+            <ControlButton
+              data-testid="controls-island-microphone"
+              :button-style="adjustStyleClasses.button"
+              :aria-label="microphoneLabel"
+              :aria-pressed="enabled"
+              :aria-busy="microphonePending"
+              :disabled="microphonePending"
+              @click="toggleMicrophone"
+            >
+              <Transition name="fade" mode="out-in">
+                <IndicatorMicVolume v-if="enabled" :class="adjustStyleClasses.icon" />
+                <div v-else :class="['i-ph:microphone-slash text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
+              </Transition>
+            </ControlButton>
             <template #tooltip>
-              {{ t('tamagotchi.stage.controls-island.open-hearing-controls') }}
+              {{ microphoneLabel }}
             </template>
           </ControlButtonTooltip>
 
-          <ControlsIslandStopSpeaking
+          <ControlsIslandSpeechMute
             :button-style="adjustStyleClasses.button"
             :icon-class="adjustStyleClasses.icon"
           />
 
           <ControlButtonTooltip side="inward">
-            <ControlButton :button-style="adjustStyleClasses.button" cursor-move :class="{ 'drag-region': usesCssDragRegion }" @mousedown="startDraggingWindow">
-              <div i-ph:arrows-out-cardinal :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+            <ControlButton :button-style="adjustStyleClasses.button" :class="['cursor-move']" @mousedown="beginMove()">
+              <div :class="['i-ph:arrows-out-cardinal text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
             </ControlButton>
             <template #tooltip>
               {{ t('tamagotchi.stage.controls-island.drag-to-move-window') }}
