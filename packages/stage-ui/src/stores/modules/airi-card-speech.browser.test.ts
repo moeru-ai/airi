@@ -27,6 +27,21 @@ const cleanups: Array<() => void> = []
 const initializations: Array<Promise<void>> = []
 const renderErrors: unknown[] = []
 
+const nativeFetch = globalThis.fetch
+
+// https://github.com/moeru-ai/airi/pull/2887
+// ROOT CAUSE: Catalog mocks returned JSON to the audio runtime's WASM requests.
+// Keep those requests on the browser fetch, as in speech.browser.test.ts.
+function stubCatalogFetch(catalogFetch: typeof fetch) {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>((input, init) => {
+    const url = input instanceof Request ? input.url : String(input)
+    if (url.startsWith('data:application/wasm') || url.split('?')[0].endsWith('.wasm'))
+      return nativeFetch(input, init)
+
+    return catalogFetch(input, init)
+  }))
+}
+
 /** Mounts a real renderer with a separate Pinia and BroadcastChannel runtime. */
 function mountRenderer(namespace: string, page?: Component, leadership: 'leader-only' | 'follower-only' | 'follower-preferred' = page ? 'follower-only' : 'leader-only') {
   const pinia = createPinia()
@@ -104,7 +119,7 @@ afterEach(async () => {
 it.each(['automatic', 'explicit'])('uses the displayed voice after %s selection (Issue #2861)', async (selection) => {
   localStorage.clear()
   const voices = Promise.withResolvers<Response>()
-  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
+  stubCatalogFetch(vi.fn<typeof fetch>(async (input) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
     if (url.includes('voices'))
       return voices.promise.then(response => response.clone())
@@ -156,7 +171,7 @@ it.each(['automatic', 'explicit'])('uses the displayed voice after %s selection 
 // https://github.com/moeru-ai/airi/issues/2861
 it('completes inherited defaults without creating card overrides (Issue #2861)', async () => {
   localStorage.clear()
-  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({
+  stubCatalogFetch(vi.fn<typeof fetch>(async () => Response.json({
     models: [{ id: 'voice-pack', name: 'Voice pack' }],
     default: 'voice-pack',
     data: [],
@@ -183,7 +198,7 @@ it('completes inherited defaults without creating card overrides (Issue #2861)',
 it.each(['voice', 'mute', 'character'])('preserves a later %s selection while discovery is pending (Issue #2861)', async (change) => {
   localStorage.clear()
   const voices = Promise.withResolvers<Response>()
-  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
+  stubCatalogFetch(vi.fn<typeof fetch>(async (input) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
     if (url.includes('voices'))
       return voices.promise.then(response => response.clone())
@@ -249,7 +264,7 @@ it.each(['voice', 'mute', 'character'])('preserves a later %s selection while di
 // Discovery must preserve each inherited field when it commits a missing voice.
 it('preserves an inherited provider while completing a model override (Issue #2861)', async () => {
   localStorage.clear()
-  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({
+  stubCatalogFetch(vi.fn<typeof fetch>(async () => Response.json({
     models: [{ id: 'voice-pack', name: 'Voice pack' }, { id: 'other-pack', name: 'Other pack' }],
     default: 'voice-pack',
     data: [],
@@ -279,7 +294,7 @@ it('preserves an inherited provider while completing a model override (Issue #28
 it.each(['official-provider-speech', 'official-provider-speech-streaming'])('resolves %s without changing runtime selection (Issue #2861)', async (provider) => {
   localStorage.clear()
   const model = provider.endsWith('streaming') ? 'volcengine/seed-tts-2.0' : 'voice-pack'
-  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({
+  stubCatalogFetch(vi.fn<typeof fetch>(async () => Response.json({
     available: true,
     models: [{ id: model, name: 'Speech model' }],
     default: model,
@@ -304,7 +319,7 @@ it.each(['official-provider-speech', 'official-provider-speech-streaming'])('res
 it('shows a configuration error and retries through the same commit command (Issue #2861)', async () => {
   localStorage.clear()
   let available = false
-  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
+  stubCatalogFetch(vi.fn<typeof fetch>(async (input) => {
     const url = String(input)
     if (url.includes('voices') && !available)
       return new Response('Voice service unavailable', { status: 503 })
@@ -338,7 +353,7 @@ it('shows a configuration error and retries through the same commit command (Iss
 // https://github.com/moeru-ai/airi/issues/2861#issuecomment-6095004263
 it('keeps provider and model inherited after a manual voice edit (Issue #2861)', async () => {
   localStorage.clear()
-  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({
+  stubCatalogFetch(vi.fn<typeof fetch>(async () => Response.json({
     models: [{ id: 'voice-pack', name: 'Voice pack' }],
     default: 'voice-pack',
     data: [],
@@ -361,7 +376,7 @@ it('keeps provider and model inherited after a manual voice edit (Issue #2861)',
 // https://github.com/moeru-ai/airi/issues/2861#issuecomment-6095004263
 it('leaves third-party voices incomplete until the user selects one (Issue #2861)', async () => {
   localStorage.clear()
-  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [{ voice_id: 'suggested', name: 'Suggested' }], data: [] })))
+  stubCatalogFetch(vi.fn<typeof fetch>(async () => Response.json({ voices: [{ voice_id: 'suggested', name: 'Suggested' }], data: [] })))
   const namespace = crypto.randomUUID()
   const leader = mountRenderer(namespace)
   await expect.poll(() => leader.runtime.isLeader()).toBe(true)
@@ -380,7 +395,7 @@ it('leaves third-party voices incomplete until the user selects one (Issue #2861
 it('captures the session character for output and skips synthesis when incomplete or muted (Issue #2861)', async () => {
   localStorage.clear()
   const requests: Array<Record<string, unknown>> = []
-  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (_input, init) => {
+  stubCatalogFetch(vi.fn<typeof fetch>(async (_input, init) => {
     if (init?.method === 'POST') {
       requests.push(JSON.parse(String(init.body)))
       return new Response(new Uint8Array([0, 1]))
@@ -428,7 +443,7 @@ it('retries a failed third-party voice catalog without selecting a voice (Issue 
   localStorage.clear()
   let available = false
   let voiceRequests = 0
-  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
+  stubCatalogFetch(vi.fn<typeof fetch>(async (input) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
     if (url.includes('voices')) {
       voiceRequests++
@@ -463,7 +478,7 @@ it('retries a failed third-party voice catalog without selecting a voice (Issue 
 it('clears an old error after another window completes configuration (Issue #2861)', async () => {
   localStorage.clear()
   let available = false
-  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
+  stubCatalogFetch(vi.fn<typeof fetch>(async (input) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
     if (url.includes('voices') && !available)
       return new Response('Voice service unavailable', { status: 503 })
@@ -500,7 +515,7 @@ it('clears an old error after another window completes configuration (Issue #286
 // Derive field options and status from the same committed provider.
 it('issue #2861: model options use the committed provider during runtime divergence', async () => {
   localStorage.clear()
-  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], data: [] })))
+  stubCatalogFetch(vi.fn<typeof fetch>(async () => Response.json({ voices: [], data: [] })))
   const namespace = crypto.randomUUID()
   const leader = mountRenderer(namespace)
   await expect.poll(() => leader.runtime.isLeader()).toBe(true)
@@ -525,7 +540,7 @@ it('issue #2861: model options use the committed provider during runtime diverge
 // Wait for the active card before resolving its modules.
 it('issue #2861: an initializing page tolerates a persisted missing active card', async () => {
   localStorage.clear()
-  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], data: [] })))
+  stubCatalogFetch(vi.fn<typeof fetch>(async () => Response.json({ voices: [], data: [] })))
   const namespace = crypto.randomUUID()
   const leader = mountRenderer(namespace)
   await expect.poll(() => leader.runtime.isLeader()).toBe(true)
@@ -545,7 +560,7 @@ it('issue #2861: an initializing page tolerates a persisted missing active card'
 it('issue #2861: completed matching voice catalog is reused for discovery', async () => {
   localStorage.clear()
   let voiceRequests = 0
-  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
+  stubCatalogFetch(vi.fn<typeof fetch>(async (input) => {
     if (String(input).includes('voices'))
       voiceRequests++
     return Response.json({ models: [{ id: 'voice-pack', name: 'Voice pack' }], default: 'voice-pack', data: [], voices: [{ id: 'voice-a', name: 'Voice A', languages: [] }], recommended: { en: 'voice-a' } })
@@ -574,7 +589,7 @@ it('issue #2861: a new leader completes discovery and rejects the disposed leade
   const oldVoices = Promise.withResolvers<Response>()
   let retired = false
   let pendingLoads = 0
-  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
+  stubCatalogFetch(vi.fn<typeof fetch>(async (input) => {
     if (String(input).includes('voices')) {
       if (!retired) {
         pendingLoads++

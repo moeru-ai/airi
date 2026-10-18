@@ -28,6 +28,21 @@ vi.mock('../../libs/product-signals/client', { spy: true })
 const cleanups: Array<() => void> = []
 const initializations: Array<Promise<void>> = []
 
+const nativeFetch = globalThis.fetch
+
+// https://github.com/moeru-ai/airi/pull/2887
+// ROOT CAUSE: Catalog mocks returned JSON to the audio runtime's WASM requests.
+// Keep those requests on the browser fetch, as in speech.browser.test.ts.
+function stubCatalogFetch(catalogFetch: typeof fetch) {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>((input, init) => {
+    const url = input instanceof Request ? input.url : String(input)
+    if (url.startsWith('data:application/wasm') || url.split('?')[0].endsWith('.wasm'))
+      return nativeFetch(input, init)
+
+    return catalogFetch(input, init)
+  }))
+}
+
 /** Mounts a real renderer with a separate Pinia and BroadcastChannel runtime. */
 function mountRenderer(namespace: string, page?: Component) {
   const pinia = createPinia()
@@ -90,7 +105,7 @@ afterEach(async () => {
 // without handling transport disposal. Passing assertions hid a teardown rejection.
 it.each(['mount', 'provider change'])('handles interrupted model discovery after %s', async (trigger) => {
   localStorage.clear()
-  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [], flux: 0 })))
+  stubCatalogFetch(vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [], flux: 0 })))
   const namespace = `speech-settings:${crypto.randomUUID()}`
   const leader = mountRenderer(namespace)
   await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
@@ -139,7 +154,7 @@ it('reports the committed provider and model after a settings-page click', async
   vi.mocked(captureAnalyticsEvent).mockReset().mockReturnValue(true)
   vi.mocked(enableAnalyticsCapture).mockReturnValue(true)
   vi.mocked(isAnalyticsAvailableInBuild).mockReturnValue(true)
-  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [], flux: 0 })))
+  stubCatalogFetch(vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [], flux: 0 })))
   const namespace = `speech-settings:${crypto.randomUUID()}`
   const leader = mountRenderer(namespace)
   await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
@@ -170,7 +185,7 @@ it('reports the committed provider and model after a settings-page click', async
 // leader RPC reached Vue's global handler instead of the page error display.
 it('shows a manual model transport failure in the settings page', async () => {
   localStorage.clear()
-  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], data: [] })))
+  stubCatalogFetch(vi.fn<typeof fetch>(async () => Response.json({ voices: [], data: [] })))
   const namespace = `speech-settings:${crypto.randomUUID()}`
   const leader = mountRenderer(namespace)
   await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))

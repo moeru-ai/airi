@@ -22,7 +22,6 @@ import { isEqual } from 'es-toolkit'
 import { nanoid } from 'nanoid'
 import { defineStore, getActivePinia, storeToRefs } from 'pinia'
 import { array, looseObject, object, parse, safeParse, string } from 'valibot'
-
 import { computed, hasInjectionContext, inject, onScopeDispose, ref, shallowRef, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
@@ -136,7 +135,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   // Pinia can then be another one, so keep the Pinia that owns this store.
   const pinia = getActivePinia()
   const { t } = useI18n()
-  const pinia = getActivePinia()!
   const speechRequests = useSpeechConfigurationRequests(pinia)
   const runtime = hasInjectionContext() ? inject(injectKeyPiniaSynced, undefined) : undefined
   let disposed = false
@@ -246,11 +244,9 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         next[module].model = runtime[module].model
     }
 
-    if (!appliedModules.displayModelId)
-      next.displayModelId = runtime.displayModelId
     if (!appliedModules.speech.provider && !appliedModules.speech.model && !appliedModules.speech.voice_id)
       next.speech.voice_id = runtime.speech.voice_id
-    
+
     moduleDefaults.value = next
   }
 
