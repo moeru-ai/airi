@@ -1893,6 +1893,9 @@ importers:
       '@formkit/auto-animate':
         specifier: 'catalog:'
         version: 0.10.0(vue@3.5.41(typescript@6.0.3))
+      '@google/genai':
+        specifier: 'catalog:'
+        version: 2.30.0(@modelcontextprotocol/sdk@1.30.0(supports-color@10.2.2)(zod@4.4.3))(bufferutil@4.1.0)(supports-color@10.2.2)(utf-8-validate@5.0.10)
       '@guiiai/logg':
         specifier: 'catalog:'
         version: 1.2.12
