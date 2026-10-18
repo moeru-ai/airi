@@ -19,7 +19,7 @@ const props = {
   modelId: 'model',
 }
 
-async function renderItem(syncState?: 'synced' | 'pending' | 'refused', isActive = false) {
+async function renderItem(syncState?: 'synced' | 'pending' | 'refused', isActive = false, modelId = props.modelId) {
   const pinia = createPinia()
   useDisplayModelsStore(pinia).displayModels = [{
     id: 'model',
@@ -38,7 +38,7 @@ async function renderItem(syncState?: 'synced' | 'pending' | 'refused', isActive
   return {
     pinia,
     screen: await render(CardListItem, {
-      props: { ...props, syncState, isActive },
+      props: { ...props, syncState, isActive, modelId },
       global: {
         plugins: [
           pinia,
@@ -78,6 +78,15 @@ describe('card list item', () => {
     const image = screen.container.querySelector('img')
     expect(image?.getAttribute('src')).toBe('data:image/png;base64,preview')
     await expect.element(screen.getByText('Currently Active')).toBeVisible()
+    disposePinia(pinia)
+  })
+
+  it('shows the ghost placeholder with an accessible name when no model is selected', async () => {
+    const { screen, pinia } = await renderItem(undefined, false, '')
+
+    const placeholder = screen.container.querySelector('[role="img"]')
+    expect(placeholder?.getAttribute('aria-label')).toBe('No model selected')
+    expect(placeholder?.querySelector('svg[data-icon="ghost-smile-bold-duotone"]')).not.toBeNull()
     disposePinia(pinia)
   })
 })
