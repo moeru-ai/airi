@@ -1446,9 +1446,9 @@ pages:
         zone: Zone
     tool-cards:
       title: Tool cards
-      description: Cards that the chat model makes for tools without a widget
-      enable: Make cards for tools
-      enable-description: When a tool without a widget finishes for the first time, the chat model makes a card for its results. Each new card uses the chat model once.
+      description: Cards that the chat model makes for tools and for its replies
+      enable: Let the chat model make cards
+      enable-description: When a tool without a widget finishes for the first time, the chat model makes a card for its results. When a card answers better than text, it can also draw one in its reply. Each new card uses the chat model.
       page-description: The card templates that the chat model made for tools without a widget. After you delete one, the next call of its tool makes a new one.
       empty: No cards yet. A card appears here after a tool without a widget finishes.
       source-tool: 'Source: app tool'
@@ -2372,7 +2372,7 @@ pages:
                 description: Stress markdown parsing and rendering with heavy chat payloads
               tool-payloads-as-json:
                 title: Show tool data as JSON
-                description: Show the arguments and results of chat tool calls as a JSON tree, not as formatted fields
+                description: Show the arguments and results of chat tool calls as a JSON tree, not as formatted fields. Cards in replies also offer their raw data.
               plugin-host:
                 actions:
                   enable-and-load: Enable and Load

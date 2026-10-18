@@ -3,15 +3,14 @@ import type {} from 'pinia-plugin-synced'
 
 import type { McpCallToolResult } from '../tools/mcp'
 
-import { getIconData } from '@iconify/utils'
 import { errorMessageFrom } from '@moeru/std'
-import { createParser, createStore, evaluate, evaluateElementProps, extractToolResult } from '@openuidev/lang-core'
+import { extractToolResult } from '@openuidev/lang-core'
 import { createToolCardAgent } from '@proj-airi/agents/tool-card'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
-import { loadCardIcons, toolCardLibrary } from '../components/scenarios/chat/components/tool-card-library'
+import { problemsOfProgram, toolCardLibrary } from '../components/scenarios/chat/components/tool-card-library'
 import { useTextGeneration } from '../composables/text-generation'
 import { MCP_CALL_TOOL_NAME } from '../tools/mcp'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
@@ -118,64 +117,6 @@ export function readToolCardCall(toolName: string, args: string, result: unknown
   return value === undefined || value === null || value === '' ? undefined : { key, data: value }
 }
 
-const programParser = createParser(toolCardLibrary.toJSONSchema(), 'Card')
-/** A tool name in a Query is a string literal, so it evaluates without state or references. */
-const LITERAL_CONTEXT = { getState: () => null, resolveRef: () => null }
-
-/** The icon names of a drawn card, from every part that has an icon. */
-function iconNamesOf(value: unknown, names = new Set<string>()): Set<string> {
-  if (Array.isArray(value)) {
-    for (const item of value)
-      iconNamesOf(item, names)
-  }
-  else if (value !== null && typeof value === 'object') {
-    const node = value as { type?: unknown, props?: Record<string, unknown> }
-    if (node.type === 'element' && node.props) {
-      if (typeof node.props.icon === 'string' && node.props.icon)
-        names.add(node.props.icon)
-      for (const prop of Object.values(node.props))
-        iconNamesOf(prop, names)
-    }
-  }
-  return names
-}
-
-/** The problems that keep a program from showing every later result of its tool. The model reads them in a fix round. */
-async function problemsOf(program: string, key: string, sample: unknown): Promise<string[]> {
-  const parsed = programParser.parse(program)
-  const problems = parsed.meta.errors.map(error => `${error.statementId ?? error.component}${error.path ? ` ${error.path}` : ''}: ${error.message}`)
-  if (!parsed.queryStatements.some(query => query.toolAST && evaluate(query.toolAST, LITERAL_CONTEXT) === key))
-    problems.push(`The program must read the result with \`Query("${key}", {}, defaults)\` instead of fixed values.`)
-  if (parsed.mutationStatements.length > 0)
-    problems.push('Remove every Mutation. A card only shows a result.')
-  if (!parsed.root) {
-    problems.push('No statement renders a Card. Start the program with `root = Card(...)`.')
-    return problems
-  }
-
-  // The chat draws the program with each result, so it is drawn here with the sample. An icon name that MingCute does
-  // not have, or a value that fails to draw, shows now, while the model can still fix it.
-  const store = createStore()
-  store.initialize(parsed.stateDeclarations ?? {}, {})
-  const queries = new Set(parsed.queryStatements.map(query => query.statementId))
-  try {
-    const drawn = evaluateElementProps(parsed.root, {
-      ctx: { getState: name => store.get(name) ?? null, resolveRef: name => queries.has(name) ? sample : null },
-      library: toolCardLibrary,
-      store,
-    })
-    const icons = await loadCardIcons()
-    for (const name of iconNamesOf(drawn)) {
-      if (!getIconData(icons, name))
-        problems.push(`"${name}" is not a MingCute icon name. Use a MingCute name such as "github-line", or leave the icon out.`)
-    }
-  }
-  catch (error) {
-    problems.push(`Drawing the sample failed: ${errorMessageFrom(error) ?? 'unknown error'}`)
-  }
-  return problems
-}
-
 /**
  * The saved cards, shared by every window.
  *
@@ -204,10 +145,11 @@ const useToolCardsStateStore = defineStore('tool-cards-state', () => {
     const description = request.key === request.toolName ? tool?.function.description : undefined
     const agent = createToolCardAgent({
       generateText: generateText({ providerId, model }),
-      validate: program => problemsOf(program, request.key, request.sample),
+      validate: program => problemsOfProgram(program, { key: request.key, sample: request.sample }),
     })
     return agent.make({
       catalogPrompt: toolCardLibrary.prompt({
+        preamble: 'You write a card in openui-lang, a declarative UI language, as the program of an app card.',
         inlineMode: true,
         toolCalls: true,
         bindings: false,

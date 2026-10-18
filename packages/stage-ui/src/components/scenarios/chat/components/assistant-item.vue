@@ -7,12 +7,14 @@ import type { ChatToolCallRendererRegistry, ChatToolCallWidgetRegistry } from '.
 import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
 import { computed } from 'vue'
 
+import ChatReplyCard from './reply-card.vue'
 import ChatReplyQuote from './reply-quote.vue'
 import ResponseCitations from './response-citations.vue'
 import ChatResponsePart from './response-part.vue'
 import ChatSticker from './sticker.vue'
 import ChatToolCallGroup from './tool-call-group.vue'
 
+import { DRAW_CARD_TOOL_NAME } from '../../../../tools/draw-card'
 import { MarkdownRenderer } from '../../../markdown'
 import { getChatHistoryItemCopyText } from '../utils'
 import { ChatActionMenu } from './action-menu'
@@ -104,8 +106,11 @@ function emitToolCallRerun(sliceIndex: number, payload: ToolCallRerunRequest) {
 
 const toolCallWidgets = computed<ChatToolCallWidgetRegistry>(() => ({ ...builtinToolCallWidgets, ...props.toolCallWidgets }))
 
+// A card that the model draws is part of its answer, so it shows by itself in the reply. An app can add renderers of its own.
+const toolCallRenderers = computed<ChatToolCallRendererRegistry>(() => ({ [DRAW_CARD_TOOL_NAME]: ChatReplyCard, ...props.toolCallRenderers }))
+
 // A call with its own renderer shows by itself. Every other call joins a group with the calls next to it.
-const sliceEntries = computed(() => groupToolCallSlices(resolvedSlices.value, toolName => Boolean(props.toolCallRenderers[toolName])))
+const sliceEntries = computed(() => groupToolCallSlices(resolvedSlices.value, toolName => Boolean(toolCallRenderers.value[toolName])))
 
 const showLoader = computed(() => props.showPlaceholder && resolvedSlices.value.length === 0)
 const containerClass = computed(() => props.variant === 'mobile' ? 'mr-0' : 'mr-12')
@@ -166,7 +171,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
                 @tool-call-rerun="emitToolCallRerun"
               />
               <component
-                :is="props.toolCallRenderers[entry.slice.toolCall.toolName]"
+                :is="toolCallRenderers[entry.slice.toolCall.toolName]"
                 v-else-if="entry.slice.type === 'tool-call'"
                 :tool-call-id="entry.slice.toolCall.toolCallId"
                 :tool-name="entry.slice.toolCall.toolName"

@@ -1392,9 +1392,9 @@ pages:
         zone: 区域
     tool-cards:
       title: 工具卡片
-      description: 聊天模型为没有小组件的工具做的卡片
-      enable: 为工具自动做卡片
-      enable-description: 没有小组件的工具第一次调用完成后，由聊天模型为它的结果做一张卡片。每做一张新卡片，会调用一次聊天模型。
+      description: 聊天模型为工具和回答做的卡片
+      enable: 让聊天模型做卡片
+      enable-description: 没有小组件的工具第一次调用完成后，聊天模型会为它的结果做一张卡片。回答更适合用卡片时，它也会直接在回复里画一张。每做一张卡片都会调用聊天模型。
       page-description: 聊天模型为没有小组件的工具做的卡片模板。删除后，这个工具下次调用时会重新做一份。
       empty: 还没有卡片。没有小组件的工具调用完成后，卡片会出现在这里。
       source-tool: 来源：应用自带的工具
@@ -2179,7 +2179,7 @@ pages:
                 description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
               tool-payloads-as-json:
                 title: 以 JSON 显示工具数据
-                description: 聊天里工具调用的参数和结果显示为 JSON 树，不再格式化
+                description: 聊天里工具调用的参数和结果显示为 JSON 树，不再格式化。回复里的卡片也会提供原始数据。
               plugin-host:
                 actions:
                   enable-and-load: 启用并加载

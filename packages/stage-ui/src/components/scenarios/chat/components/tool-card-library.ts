@@ -3,6 +3,8 @@ import type { ComponentRenderProps } from '@openuidev/vue-lang'
 import type { FunctionalComponent, VNodeChild } from 'vue'
 
 import { getIconData, iconToSVG, replaceIDs } from '@iconify/utils'
+import { errorMessageFrom } from '@moeru/std'
+import { createParser, createStore, evaluate, evaluateElementProps } from '@openuidev/lang-core'
 import { createLibrary, defineComponent } from '@openuidev/vue-lang'
 import { h, shallowRef } from 'vue'
 import { z } from 'zod'
@@ -217,3 +219,84 @@ export const toolCardLibrary = createLibrary({
   components: [Card, Stack, Row, Tag, Stat, Facts, Fact, Text, Image],
   root: 'Card',
 })
+
+const programParser = createParser(toolCardLibrary.toJSONSchema(), 'Card')
+/** A tool name in a Query is a string literal, so it evaluates without state or references. */
+const LITERAL_CONTEXT = { getState: () => null, resolveRef: () => null }
+
+/** The icon names of a drawn card, from every part that has an icon. */
+function iconNamesOf(value: unknown, names = new Set<string>()): Set<string> {
+  if (Array.isArray(value)) {
+    for (const item of value)
+      iconNamesOf(item, names)
+  }
+  else if (value !== null && typeof value === 'object') {
+    const node = value as { type?: unknown, props?: Record<string, unknown> }
+    if (node.type === 'element' && node.props) {
+      if (typeof node.props.icon === 'string' && node.props.icon)
+        names.add(node.props.icon)
+      for (const prop of Object.values(node.props))
+        iconNamesOf(prop, names)
+    }
+  }
+  return names
+}
+
+/**
+ * The problems that keep a program from drawing. The model reads them and fixes the program.
+ *
+ * A tool card passes the tool and a sample result: its program must read every value through `Query(key)`, and it is
+ * drawn with the sample. A reply card passes nothing: its program holds every value, so it must not query.
+ */
+export async function problemsOfProgram(program: string, query?: { key: string, sample: unknown }): Promise<string[]> {
+  const parsed = programParser.parse(program)
+  const problems = parsed.meta.errors.map(error => `${error.statementId ?? error.component}${error.path ? ` ${error.path}` : ''}: ${error.message}`)
+  if (query && !parsed.queryStatements.some(statement => statement.toolAST && evaluate(statement.toolAST, LITERAL_CONTEXT) === query.key))
+    problems.push(`The program must read the result with \`Query("${query.key}", {}, defaults)\` instead of fixed values.`)
+  if (!query && parsed.queryStatements.length > 0)
+    problems.push('Remove every Query. Write every value into the program.')
+  if (parsed.mutationStatements.length > 0)
+    problems.push('Remove every Mutation. A card only shows a result.')
+  if (!parsed.root) {
+    problems.push('No statement renders a Card. Start the program with `root = Card(...)`.')
+    return problems
+  }
+
+  // The program is drawn here as the chat will draw it, with the sample for a tool card. An icon name that MingCute does
+  // not have, or a value that fails to draw, shows now, while the model can still fix it.
+  const store = createStore()
+  store.initialize(parsed.stateDeclarations ?? {}, {})
+  const queries = new Set(parsed.queryStatements.map(query => query.statementId))
+  try {
+    const drawn = evaluateElementProps(parsed.root, {
+      ctx: { getState: name => store.get(name) ?? null, resolveRef: name => query && queries.has(name) ? query.sample : null },
+      library: toolCardLibrary,
+      store,
+    })
+    const icons = await loadCardIcons()
+    for (const name of iconNamesOf(drawn)) {
+      if (!getIconData(icons, name))
+        problems.push(`"${name}" is not a MingCute icon name. Use a MingCute name such as "github-line", or leave the icon out.`)
+    }
+  }
+  catch (error) {
+    problems.push(`Drawing the card failed: ${errorMessageFrom(error) ?? 'unknown error'}`)
+  }
+  return problems
+}
+
+/**
+ * How to write the program of a reply card. The draw tool returns it on its first call, so a turn without a card does
+ * not carry it.
+ */
+export function replyCardRules() {
+  return toolCardLibrary.prompt({
+    preamble: 'These are the rules for the `program` argument of the card tool. The program is openui-lang, a declarative UI language. Write it only in that argument, never in your reply text.',
+    toolCalls: false,
+    bindings: false,
+    additionalRules: [
+      'Write every value into the program. A reply card has no Query and no tools.',
+      'Keep the card small: the answer first, then the few facts that support it.',
+    ],
+  })
+}

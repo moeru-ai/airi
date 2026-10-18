@@ -156,6 +156,10 @@ chat:
       executing: 进行中
       done: 完成
       error: 失败
+  reply-card:
+    drawing: 正在画卡片…
+    raw: 原始数据
+    card: 卡片
   error-details:
     show: 查看详情
     hide: 收起详情
