@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { InboxMessage } from './inbox-presentation'
 
-import { BottomDrawer, Button } from '@proj-airi/ui'
+import { BasicButton, BottomDrawer, Button } from '@proj-airi/ui'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -22,7 +22,13 @@ const sortedMessages = [...initialMessages].sort((a, b) => b.createdAt.localeCom
 
 const messages = ref(structuredClone(sortedMessages))
 const readMessages = sortedMessages.map(message => ({ ...message, readAt: message.readAt || '2026-10-18T09:00:00Z' }))
-const drawerOpen = ref(true)
+const drawerOpen = ref(false)
+/** Copies the round button style of the real mobile header in stage-layouts. */
+const headerButtonClass = [
+  'size-11 shrink-0 rounded-full backdrop-blur-md',
+  'bg-neutral-50/70 text-neutral-600 dark:bg-neutral-900/70 dark:text-neutral-300',
+  'focus-visible:outline-2 focus-visible:outline-primary-500',
+]
 const unread = computed(() => messages.value.filter(message => message.readAt === '' && message.kind !== 'account.banned').length)
 
 function markRead(id: string) {
@@ -35,6 +41,7 @@ function markAllRead() {
 
 function reset() {
   messages.value = structuredClone(sortedMessages)
+  drawerOpen.value = false
 }
 </script>
 
@@ -91,10 +98,48 @@ function reset() {
       </div>
     </Variant>
 
-    <Variant id="mobile-drawer" title="Mobile · bottom drawer">
+    <Variant id="mobile-entry" title="Mobile · header entry">
       <div :class="['inbox-story-stage relative mx-auto h-[780px] w-[390px] overflow-hidden']">
-        <div :class="['absolute right-3 top-3']">
-          <Button icon="i-solar:bell-outline" shape="circle" :aria-label="t('stage.notifications.open')" @click="drawerOpen = true" />
+        <!--
+          Mirrors MobileHeader in stage-layouts with its real buttons: conversations on the left,
+          the character name in the middle, settings on the right. The bell joins the right group.
+        -->
+        <header :class="['absolute inset-x-0 top-0 z-30 grid grid-cols-[1fr_auto_1fr] items-center px-3 pt-3']">
+          <div :class="['flex justify-start']">
+            <BasicButton size="unset" :aria-label="t('stage.chat.sessions.title')" :class="headerButtonClass">
+              <span aria-hidden="true" :class="['i-solar:dialog-2-outline size-6']" />
+            </BasicButton>
+          </div>
+          <BasicButton size="unset" :class="['h-11 rounded-full px-3 text-neutral-700 dark:text-neutral-200']">
+            <span :class="['text-base font-semibold']">AIRI</span>
+            <span aria-hidden="true" :class="['i-solar:alt-arrow-down-outline size-4']" />
+          </BasicButton>
+          <div :class="['flex justify-end gap-2']">
+            <div :class="['relative']">
+              <BasicButton
+                size="unset" :class="headerButtonClass"
+                :aria-label="unread ? t('stage.notifications.open-unread', { count: unread }) : t('stage.notifications.open')"
+                @click="drawerOpen = true"
+              >
+                <span aria-hidden="true" :class="['i-solar:bell-outline size-6']" />
+              </BasicButton>
+              <span
+                v-if="unread"
+                aria-hidden="true"
+                :class="['pointer-events-none absolute -right-0.5 -top-0.5 min-w-5 rounded-full bg-primary-500 px-1 text-center text-xs text-white font-medium leading-5 ring-2 ring-white/80 dark:ring-neutral-900/80']"
+              >
+                {{ unread > 9 ? '9+' : unread }}
+              </span>
+            </div>
+            <BasicButton size="unset" :aria-label="t('stage.mobile-tools.title')" :class="headerButtonClass">
+              <span aria-hidden="true" :class="['i-solar:settings-outline size-6']" />
+            </BasicButton>
+          </div>
+        </header>
+        <!-- A stand-in for the composer, so the header reads at its real position on the screen. -->
+        <div :class="['absolute inset-x-3 bottom-4 flex items-center gap-2 rounded-full bg-neutral-50/80 px-4 py-3 text-sm text-neutral-400 backdrop-blur-md dark:bg-neutral-900/80']">
+          <span :class="['flex-1']">Aa</span>
+          <span aria-hidden="true" :class="['i-solar:soundwave-linear size-5']" />
         </div>
         <!-- The panel header names the drawer and holds mark-all-read, so the drawer hides its own title. -->
         <BottomDrawer v-model="drawerOpen" :title="t('stage.notifications.title')" minimum-height="half" hide-title>
