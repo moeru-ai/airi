@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
 import { compatibleProtocols, generationProtocolOptions, openAIProtocols } from '../generation'
-import { getGenerationProvider, isGenerationProvider } from '../types'
+import { getGenerationProvider, isGenerationProvider, withReasoning } from '../types'
 import { providerOpenAI } from './cloud/openai'
 import { providerOpenAICompatible } from './cloud/openai-compatible'
 import { providerOpenRouterAI } from './cloud/openrouter-ai'
@@ -75,6 +75,15 @@ it('adapts existing SDK instances once without replacing their provider definiti
   if (!inference)
     throw new Error('Expected a chat inference provider')
   expect(getGenerationProvider(inference)).toBe(inference)
+})
+
+it('applies one reasoning choice to every request', async () => {
+  const inference = getGenerationProvider(await providerOpenRouterAI.createProvider({ apiKey: 'test' }))
+  if (!inference)
+    throw new Error('Expected a chat inference provider')
+
+  expect(withReasoning(inference, { reasoning: 'disabled' }).generation('model').config).toMatchObject({ reasoning: { effort: 'none' } })
+  expect(withReasoning(inference, undefined).generation('model').config).not.toHaveProperty('reasoning')
 })
 
 it('declares protocol and search settings without rendering a settings page', async () => {

@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { HearingConfig } from '@proj-airi/stage-ui/components'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { Avatar, BasicButton, BottomDrawer, Checkbox, GhostButton, useTheme } from '@proj-airi/ui'
+import { useSpeechOutputControlStore } from '@proj-airi/stage-ui/stores/speech-output-control'
+import { Avatar, BasicButton, BottomDrawer, GhostButton, Range, SelectTab, useTheme } from '@proj-airi/ui'
+import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { shallowRef, watch } from 'vue'
+import { computed, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 
@@ -20,21 +20,37 @@ const emit = defineEmits<{
 }>()
 const characterVoiceEnabled = defineModel<boolean>('characterVoiceEnabled', { required: true })
 const { t } = useI18n()
-const { isDark } = useTheme()
+const { themeMode } = useTheme()
 const authStore = useAuthStore()
 const { isAuthenticated, user } = storeToRefs(authStore)
 const router = useRouter()
-const settingsAudioDevice = useSettingsAudioDevice()
-const hearingOpen = shallowRef(false)
+const speechOutputControl = useSpeechOutputControlStore()
+const { speechVolume } = storeToRefs(speechOutputControl)
 const backgroundDialogOpen = shallowRef(false)
 const settingsOpen = shallowRef(false)
 const aboutOpen = shallowRef(false)
-// Finish closing settings before opening a sibling modal, so focus and scroll locks have one owner.
-const nextPanel = shallowRef<'background' | 'about' | 'account' | 'hearing' | 'view'>()
+const keyboardNavigation = shallowRef(false)
 
-function openPanel(panel: 'background' | 'about' | 'account' | 'hearing' | 'view') {
+useEventListener('keydown', (event) => {
+  if (event.key === 'Tab')
+    keyboardNavigation.value = true
+}, { capture: true })
+useEventListener('pointerdown', () => {
+  keyboardNavigation.value = false
+}, { capture: true })
+
+// Finish closing settings before opening a sibling modal, so focus and scroll locks have one owner.
+const nextPanel = shallowRef<'background' | 'about' | 'account' | 'view'>()
+
+function openPanel(panel: 'background' | 'about' | 'account' | 'view') {
   nextPanel.value = panel
   settingsOpen.value = false
+}
+
+function focusDrawer(event: Event) {
+  event.preventDefault()
+  if (event.target instanceof HTMLElement)
+    event.target.focus({ preventScroll: true })
 }
 
 function finishSettingsClose() {
@@ -43,9 +59,6 @@ function finishSettingsClose() {
   }
   else if (nextPanel.value === 'about') {
     aboutOpen.value = true
-  }
-  else if (nextPanel.value === 'hearing') {
-    hearingOpen.value = true
   }
   else if (nextPanel.value === 'account') {
     if (isAuthenticated.value)
@@ -59,9 +72,18 @@ function finishSettingsClose() {
   nextPanel.value = undefined
 }
 
-watch(hearingOpen, async (open) => {
-  if (open)
-    await settingsAudioDevice.askPermission()
+const characterVoiceVolume = computed({
+  get: () => Math.round(speechVolume.value * 100),
+  // The store couples zero volume with mute and restores the voice above 0.
+  set: percent => speechOutputControl.setSpeechVolume(percent / 100),
+})
+
+const characterVoiceIcon = computed(() => {
+  if (!characterVoiceEnabled.value || speechVolume.value === 0)
+    return 'i-solar:volume-cross-outline'
+  if (speechVolume.value < 0.5)
+    return 'i-solar:volume-small-outline'
+  return 'i-solar:volume-loud-outline'
 })
 </script>
 
@@ -69,6 +91,8 @@ watch(hearingOpen, async (open) => {
   <BottomDrawer
     v-model="settingsOpen"
     :title="t('stage.mobile-tools.title')"
+    hide-title
+    @open-auto-focus="focusDrawer"
     @after-close="finishSettingsClose"
     @close-auto-focus="event => { if (nextPanel) event.preventDefault() }"
   >
@@ -83,116 +107,178 @@ watch(hearingOpen, async (open) => {
         <span aria-hidden="true" :class="['i-solar:settings-outline size-6']" />
       </BasicButton>
     </template>
-    <GhostButton
-      block size="unset"
-      :class="[
-        'mobile-tool-row rounded-2xl',
-        '[&_.basic-button-content]:w-full [&_.basic-button-content]:gap-3 [&_[aria-hidden]]:shrink-0',
-        isAuthenticated ? 'mobile-tool-row-authenticated mb-4 min-h-16' : 'mobile-tool-row-anonymous mb-3 min-h-14',
-      ]"
-      @click="openPanel('account')"
-    >
-      <Avatar v-if="isAuthenticated" :src="user?.image" :class="['size-12 shrink-0 rounded-full bg-neutral-200 text-neutral-500 dark:bg-neutral-700']" />
-      <span :class="['min-w-0 flex-1 text-left']">
-        <span :class="['block truncate text-base font-semibold']">{{ isAuthenticated ? user?.name : t('stage.mobile-tools.sign-in') }}</span>
-        <span :class="['block text-xs text-neutral-500 dark:text-neutral-400']">{{ t('stage.mobile-tools.account-description') }}</span>
-      </span>
-      <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 shrink-0 text-neutral-400']" />
-    </GhostButton>
-    <section :class="['mb-4']">
-      <h3 :class="['mb-2 px-1 text-xs font-semibold text-neutral-500 dark:text-neutral-400']">
-        {{ t('stage.mobile-tools.appearance') }}
-      </h3>
-      <div :class="['overflow-hidden rounded-2xl bg-white dark:bg-neutral-800/60']">
-        <label :class="['min-h-13 flex cursor-pointer items-center gap-3 px-4 py-3']">
-          <span aria-hidden="true" :class="['i-solar:moon-outline size-5 shrink-0 text-neutral-400']" />
-          <span :class="['flex-1 text-sm']">{{ t('stage.mobile-tools.dark-mode') }}</span>
-          <Checkbox v-model="isDark" :aria-label="t('stage.mobile-tools.dark-mode')" />
-        </label>
-        <div :class="['mx-4 border-t border-neutral-100 dark:border-neutral-700/50']" />
+    <div :class="['mobile-settings-actions select-none', keyboardNavigation && 'keyboard-navigation']">
+      <div :class="['mb-4 overflow-hidden rounded-2xl bg-white dark:bg-neutral-800/60']">
         <GhostButton
           block size="unset"
-          :class="['mobile-tool-row min-h-13 rounded-none px-4 py-3']"
-          @click="openPanel('background')"
-        >
-          <span aria-hidden="true" :class="['i-solar:gallery-wide-outline size-5 shrink-0 text-neutral-400']" />
-          <span :class="['flex-1 text-left text-sm']">{{ t('stage.mobile-tools.background') }}</span>
-          <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 text-neutral-400']" />
-        </GhostButton>
-        <div :class="['mx-4 border-t border-neutral-100 dark:border-neutral-700/50']" />
-        <GhostButton
-          block size="unset"
-          :disabled="!props.viewControlsAvailable"
-          :class="['mobile-tool-row min-h-13 rounded-none px-4 py-3']"
-          @click="openPanel('view')"
-        >
-          <span aria-hidden="true" :class="['i-solar:tuning-outline size-5 shrink-0 text-neutral-400']" />
-          <span :class="['flex-1 text-left text-sm']">{{ t('stage.mobile-tools.view') }}</span>
-          <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 text-neutral-400']" />
-        </GhostButton>
-      </div>
-    </section>
-    <section :class="['mb-4']">
-      <h3 :class="['mb-2 px-1 text-xs font-semibold text-neutral-500 dark:text-neutral-400']">
-        {{ t('stage.mobile-tools.sound') }}
-      </h3>
-      <div :class="['overflow-hidden rounded-2xl bg-white dark:bg-neutral-800/60']">
-        <label :class="['min-h-13 flex cursor-pointer items-center gap-3 px-4 py-3']">
-          <span aria-hidden="true" :class="['i-solar:volume-loud-outline size-5 shrink-0 text-neutral-400']" />
-          <span :class="['flex-1 text-sm']">{{ t('stage.mobile-tools.character-voice') }}</span>
-          <Checkbox v-model="characterVoiceEnabled" :aria-label="t('stage.mobile-tools.character-voice')" />
-        </label>
-        <div :class="['mx-4 border-t border-neutral-100 dark:border-neutral-700/50']" />
-        <GhostButton block size="unset" :class="['mobile-tool-row min-h-13 rounded-none px-4 py-3']" @click="openPanel('hearing')">
-          <span aria-hidden="true" :class="['i-solar:microphone-3-outline size-5 shrink-0 text-neutral-400']" />
-          <span :class="['flex-1 text-left text-sm']">{{ t('stage.mobile-tools.hearing') }}</span>
-          <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 text-neutral-400']" />
-        </GhostButton>
-      </div>
-    </section>
-    <section :class="['mb-4']">
-      <h3 :class="['mb-2 px-1 text-xs font-semibold text-neutral-500 dark:text-neutral-400']">
-        {{ t('stage.mobile-tools.application') }}
-      </h3>
-      <div :class="['overflow-hidden rounded-2xl bg-white dark:bg-neutral-800/60']">
-        <RouterLink
-          to="/settings"
           :class="[
-            'min-h-13 flex items-center gap-3 px-4 py-3 text-sm',
-            'hover:bg-primary-500/10 focus-visible:outline-2 focus-visible:outline-primary-500',
+            'mobile-tool-row min-h-16 rounded-none px-4 py-3',
+            '[&_.basic-button-content]:w-full [&_.basic-button-content]:gap-3 [&_[aria-hidden]]:shrink-0',
           ]"
-          @click="settingsOpen = false"
+          @click="openPanel('account')"
         >
-          <span aria-hidden="true" :class="['i-solar:settings-outline size-5 shrink-0 text-neutral-400']" />
-          <span :class="['flex-1']">{{ t('stage.mobile-tools.settings') }}</span>
-          <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 text-neutral-400']" />
-        </RouterLink>
-        <div :class="['mx-4 border-t border-neutral-100 dark:border-neutral-700/50']" />
-        <GhostButton
-          block size="unset"
-          :class="['mobile-tool-row min-h-13 rounded-none px-4 py-3']"
-          @click="openPanel('about')"
-        >
-          <span aria-hidden="true" :class="['i-solar:info-circle-outline size-5 text-neutral-400']" />
-          <span :class="['flex-1 text-left text-sm']">{{ t('stage.mobile-tools.about') }}</span>
-          <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 text-neutral-400']" />
+          <Avatar
+            :src="isAuthenticated ? user?.image : null"
+            :class="[
+              'size-12 shrink-0 rounded-full',
+              isAuthenticated ? 'bg-neutral-200 text-neutral-500 dark:bg-neutral-700' : 'bg-primary-500/10 text-primary-500',
+            ]"
+          >
+            <template #fallback>
+              <span :class="['i-solar:user-rounded-outline size-6']" />
+            </template>
+          </Avatar>
+          <span :class="['min-w-0 flex-1 text-left']">
+            <span :class="['block truncate text-base font-semibold']">{{ isAuthenticated ? user?.name : t('stage.mobile-tools.sign-in') }}</span>
+            <span :class="['block text-xs text-neutral-500 dark:text-neutral-400']">{{ t('stage.mobile-tools.account-description') }}</span>
+          </span>
+          <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 shrink-0 text-neutral-400']" />
         </GhostButton>
       </div>
-    </section>
-  </BottomDrawer>
-  <BottomDrawer
-    v-model="hearingOpen"
-    :title="t('stage.mobile-tools.hearing')"
-    @close-auto-focus="event => event.preventDefault()"
-    @after-close="settingsOpen = true"
-  >
-    <HearingConfig />
+      <section :class="['mb-4']">
+        <h3 :class="['mb-2 px-1 text-xs font-semibold text-neutral-500 dark:text-neutral-400']">
+          {{ t('stage.mobile-tools.appearance') }}
+        </h3>
+        <div :class="['overflow-hidden rounded-2xl bg-white dark:bg-neutral-800/60']">
+          <div :class="['min-h-13 flex flex-wrap items-center gap-3 px-4 py-3']">
+            <span aria-hidden="true" :class="['i-lucide:contrast size-5 shrink-0 text-neutral-400']" />
+            <span :class="['shrink-0 text-sm']">{{ t('stage.theme.title') }}</span>
+            <!--
+              The indicator takes an equal share of the tabs, so the tabs must be equal.
+              On a narrow screen they move below the title instead of shrinking.
+            -->
+            <SelectTab
+              v-model="themeMode"
+              size="xs"
+              tab-space="compact"
+              :class="['flex-1 basis-48', '[&_[role=radio]]:min-w-0']"
+              :aria-label="t('stage.theme.title')"
+              :options="[
+                { value: 'auto', label: t('stage.theme.system') },
+                { value: 'light', label: t('stage.theme.light') },
+                { value: 'dark', label: t('stage.theme.dark') },
+              ]"
+            />
+          </div>
+          <div :class="['mx-4 border-t border-neutral-100 dark:border-neutral-700/50']" />
+          <GhostButton
+            block size="unset"
+            :class="['mobile-tool-row min-h-13 rounded-none px-4 py-3']"
+            @click="openPanel('background')"
+          >
+            <span aria-hidden="true" :class="['i-solar:gallery-wide-outline size-5 shrink-0 text-neutral-400']" />
+            <span :class="['flex-1 text-left text-sm']">{{ t('stage.mobile-tools.background') }}</span>
+            <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 text-neutral-400']" />
+          </GhostButton>
+          <div :class="['mx-4 border-t border-neutral-100 dark:border-neutral-700/50']" />
+          <GhostButton
+            block size="unset"
+            :disabled="!props.viewControlsAvailable"
+            :class="['mobile-tool-row min-h-13 rounded-none px-4 py-3']"
+            @click="openPanel('view')"
+          >
+            <span aria-hidden="true" :class="['i-solar:tuning-outline size-5 shrink-0 text-neutral-400']" />
+            <span :class="['flex-1 text-left text-sm']">{{ t('stage.mobile-tools.view') }}</span>
+            <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 text-neutral-400']" />
+          </GhostButton>
+        </div>
+      </section>
+      <section :class="['mb-4']">
+        <h3 :class="['mb-2 px-1 text-xs font-semibold text-neutral-500 dark:text-neutral-400']">
+          {{ t('stage.mobile-tools.sound') }}
+        </h3>
+        <div :class="['overflow-hidden rounded-2xl bg-white dark:bg-neutral-800/60']">
+          <div :class="['min-h-13 flex items-center gap-3 px-4 py-3']">
+            <BasicButton
+              size="unset"
+              :aria-label="characterVoiceEnabled ? t('stage.speech-output.mute') : t('stage.speech-output.unmute')"
+              :class="[
+                'size-9 shrink-0 rounded-full',
+                'text-neutral-500 dark:text-neutral-400',
+                characterVoiceEnabled ? '' : 'text-neutral-400 dark:text-neutral-500',
+              ]"
+              @click="characterVoiceEnabled = !characterVoiceEnabled"
+            >
+              <span aria-hidden="true" :class="[characterVoiceIcon, 'size-5']" />
+            </BasicButton>
+            <Range
+              v-model="characterVoiceVolume"
+              :aria-label="t('stage.mobile-tools.character-voice')"
+              :class="['mobile-volume-slider w-full flex-1', !characterVoiceEnabled && 'opacity-50']"
+            />
+          </div>
+        </div>
+      </section>
+      <section :class="['mb-4']">
+        <h3 :class="['mb-2 px-1 text-xs font-semibold text-neutral-500 dark:text-neutral-400']">
+          {{ t('stage.mobile-tools.application') }}
+        </h3>
+        <div :class="['overflow-hidden rounded-2xl bg-white dark:bg-neutral-800/60']">
+          <RouterLink
+            to="/settings"
+            :class="[
+              'min-h-13 flex items-center gap-3 px-4 py-3 text-sm',
+              'mobile-tool-row hover:bg-primary-500/10 focus-visible:outline-2 focus-visible:outline-primary-500',
+            ]"
+            @click="settingsOpen = false"
+          >
+            <span aria-hidden="true" :class="['i-solar:settings-outline size-5 shrink-0 text-neutral-400']" />
+            <span :class="['flex-1']">{{ t('stage.mobile-tools.settings') }}</span>
+            <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 text-neutral-400']" />
+          </RouterLink>
+          <div :class="['mx-4 border-t border-neutral-100 dark:border-neutral-700/50']" />
+          <GhostButton
+            block size="unset"
+            :class="['mobile-tool-row min-h-13 rounded-none px-4 py-3']"
+            @click="openPanel('about')"
+          >
+            <span aria-hidden="true" :class="['i-solar:info-circle-outline size-5 text-neutral-400']" />
+            <span :class="['flex-1 text-left text-sm']">{{ t('stage.mobile-tools.about') }}</span>
+            <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 text-neutral-400']" />
+          </GhostButton>
+        </div>
+      </section>
+    </div>
   </BottomDrawer>
   <BackgroundDialogPicker v-model="backgroundDialogOpen" class="pointer-events-auto" />
   <ActionAbout v-model="aboutOpen" hide-trigger />
 </template>
 
 <style scoped>
+.mobile-settings-actions {
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-settings-actions :deep(button:focus-visible),
+.mobile-settings-actions :deep(a:focus-visible) {
+  outline: none;
+}
+
+.mobile-settings-actions.keyboard-navigation :deep(button:focus-visible),
+.mobile-settings-actions.keyboard-navigation :deep(a:focus-visible),
+.mobile-settings-actions.keyboard-navigation :deep(input[type='range']:focus-visible) {
+  @apply rounded-lg outline outline-2 outline-neutral-500;
+  outline-offset: -4px;
+}
+
+.mobile-settings-actions :deep(input),
+.mobile-settings-actions :deep(textarea),
+.mobile-settings-actions :deep([contenteditable]:not([contenteditable='false'])) {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+.mobile-tool-row:not(:disabled):is(:hover, :active) {
+  @apply bg-neutral-100 text-neutral-700 dark:bg-neutral-700/50 dark:text-neutral-200;
+}
+
+.mobile-tool-row:active {
+  transform: none;
+}
+
 .mobile-tool-row :deep(.basic-button-content) {
   width: 100%;
   gap: 0.75rem;
@@ -202,11 +288,27 @@ watch(hearingOpen, async (open) => {
   flex-shrink: 0;
 }
 
-.mobile-tool-row.mobile-tool-row-authenticated {
-  padding: 0.75rem 1rem !important;
+/* iOS-style volume bar: flush rounded track, theme-hue fill, no visible thumb. */
+.mobile-settings-actions :deep(.mobile-volume-slider) {
+  --height: 1.75rem;
+  --thumb-width: 0px;
+  --track-border: none;
+  --track-border-radius: 999px;
+  --track-value-padding: 0px;
+  --track-background: rgb(0 0 0 / 0.06);
+  --track-background-hover: rgb(0 0 0 / 0.06);
+  --track-background-active: rgb(0 0 0 / 0.06);
+  --track-value-background: oklch(72% var(--chromatic-chroma-400) var(--chromatic-hue));
+  --track-value-background-hover: oklch(76% var(--chromatic-chroma-400) var(--chromatic-hue));
+  --track-value-background-active: oklch(68% var(--chromatic-chroma-400) var(--chromatic-hue));
 }
 
-.mobile-tool-row.mobile-tool-row-anonymous {
-  padding: 0.5rem 0 !important;
+.dark .mobile-settings-actions :deep(.mobile-volume-slider) {
+  --track-background: rgb(255 255 255 / 0.12);
+  --track-background-hover: rgb(255 255 255 / 0.12);
+  --track-background-active: rgb(255 255 255 / 0.12);
+  --track-value-background: oklch(76% var(--chromatic-chroma-300) var(--chromatic-hue));
+  --track-value-background-hover: oklch(80% var(--chromatic-chroma-300) var(--chromatic-hue));
+  --track-value-background-active: oklch(72% var(--chromatic-chroma-300) var(--chromatic-hue));
 }
 </style>

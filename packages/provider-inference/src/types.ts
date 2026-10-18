@@ -62,6 +62,11 @@ export function getGenerationProvider(provider: ProviderInstance): GenerationPro
     return { generation: (model, options) => ({ protocol: 'chat-completions', config: provider.chat(model, options) }) }
 }
 
+/** Applies one reasoning choice to every request of a provider. Undefined options keep the provider default. */
+export function withReasoning(provider: GenerationProvider, options: ChatRequestOptions | undefined): GenerationProvider {
+  return { generation: model => provider.generation(model, options) }
+}
+
 /** Translates a provider label or description for the active interface locale. */
 export type ProviderTranslator = (input: string) => string
 
@@ -79,7 +84,7 @@ export type ProviderInstance
     | SpeechProvider
     | SpeechProviderWithExtraOptions
     | TranscriptionProvider
-    | TranscriptionProviderWithExtraOptions
+    | TranscriptionProviderWithExtraOptions<string, Record<string, unknown>>
     | ModelProvider
     | ModelProviderWithExtraOptions
 
@@ -227,11 +232,15 @@ export type ModelMetadata = Pick<AIChatModelCard, 'abilities' | 'maxOutput' | 'p
 
 export interface ModelInfo {
   metadata?: ModelMetadata
+  /** Provider-reported reasoning constraints for this model, when available. */
+  reasoning?: { mandatory?: boolean }
   id: string
   name: string
   provider: string
   description?: string
   capabilities?: string[]
+  /** Input media declared by the provider model catalog. Missing means unknown. */
+  inputModalities?: string[]
   contextLength?: number
   deprecated?: boolean
 }

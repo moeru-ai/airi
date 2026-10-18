@@ -1,0 +1,30 @@
+{
+  "name": "@proj-airi/evals-asr-rewrite",
+  "type": "module",
+  "private": true,
+  "description": "Vieval suite for the rewrite of speech recognition text",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "evals/asr-rewrite"
+  },
+  "scripts": {
+    "eval:run": "vieval run --config ./vieval.config.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@proj-airi/agents": "workspace:^",
+    "@proj-airi/provider-inference": "workspace:^",
+    "valibot": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "vieval": "catalog:"
+  }
+}

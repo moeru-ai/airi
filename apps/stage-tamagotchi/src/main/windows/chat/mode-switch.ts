@@ -11,13 +11,26 @@ const handoverTimeout = 10_000
 
 /** Opens and closes the window of one chat mode. */
 interface ChatModeWindow {
+  /**
+   * `true` when the window shows only the chat, so it closes once the chat is in another mode. A mode that shows
+   * the chat inside a window with other content sets `false`, and that window closes only when a switch leaves it.
+   */
+  ownsWindow: boolean
+  /** Whether the chat of this mode is open now, shown or hidden. */
+  isOpen: () => boolean
   /** Shows the chat in this mode, creating the window when needed. */
   open: () => Promise<void>
+  /**
+   * Tells the page of the open window that a switch carries a draft to it. A page that has not mounted yet misses
+   * it, and takes the draft when it mounts.
+   */
+  offerDraft: () => void
   /** Closes the window of this mode, including one that is still being created. */
   close: () => void
   /**
-   * The unsent draft of this mode's window, or `undefined` when the window is
-   * closed or its composer is empty. Rejects when the window cannot answer.
+   * The conversation and unsent draft of this mode's window, or `undefined`
+   * when the window is closed or shows no conversation. Rejects when the
+   * window cannot answer.
    */
   collectDraft: () => Promise<ChatDraftHandover | undefined>
 }
@@ -30,30 +43,34 @@ interface ChatModeWindow {
 interface DraftHandover {
   target: ChatWindowMode
   draft?: ChatDraftHandover
+  /** Whether the target window took the draft. Its report counts only after that. */
+  taken: boolean
   settle: (restored: boolean) => void
 }
 
 /**
- * Keeps the open chat window in step with the saved chat mode, without losing
- * the unsent draft on a switch.
+ * Moves the chat between the windows of the chat modes, without losing the
+ * unsent draft on a switch.
  *
- * Every piece of chat window work runs one at a time, so a switch always
- * starts from the window the previous one left open. A switch then runs as
- * one transaction:
+ * Every piece of chat window work runs one at a time. A switch starts from the
+ * window where the user chose the mode. That window is not always the window
+ * of the saved mode, because a window that does not own itself can show the
+ * chat in any mode. A switch then runs as one transaction:
  *
- * 1. Collect the draft from the open window.
+ * 1. Collect the draft from the window that asks.
  * 2. Save the new mode and open its window.
  * 3. Wait until the new window has put the draft back.
- * 4. Close the previous window.
+ * 4. Close the window that asked, and every other window that only shows the chat.
  *
- * A failure at any step closes the new window and restores the saved mode.
- * The previous window was not closed, so it still holds the draft.
+ * A failure at any step restores the saved mode, and closes the new window
+ * unless it was open before. The window that asked was not closed, so it still
+ * holds the draft.
  */
 export function createChatModeSwitch(params: {
   getMode: () => ChatWindowMode
   setMode: (mode: ChatWindowMode) => void
-  legacy: ChatModeWindow
-  floating: ChatModeWindow
+  /** The window of each chat mode. */
+  windows: Record<ChatWindowMode, ChatModeWindow>
 }) {
   const mutex = new Mutex()
   let handover: DraftHandover | undefined
@@ -69,58 +86,77 @@ export function createChatModeSwitch(params: {
     }
   }
 
-  function windowsFor(mode: ChatWindowMode) {
-    return mode === 'floating'
-      ? { next: params.floating, previous: params.legacy }
-      : { next: params.legacy, previous: params.floating }
+  /** Closes the windows that only show the chat, and `left`, the window that a switch leaves. The window of `mode` stays. */
+  function closeOtherWindows(mode: ChatWindowMode, left?: ChatModeWindow) {
+    for (const [other, window] of Object.entries(params.windows)) {
+      if (other !== mode && (window.ownsWindow || window === left))
+        window.close()
+    }
   }
 
-  async function switchWindows(mode: ChatWindowMode) {
-    const previousMode = params.getMode()
-    if (mode === previousMode)
+  async function switchWindows(mode: ChatWindowMode, from: ChatWindowMode) {
+    if (mode === from)
       return
 
-    const { next, previous } = windowsFor(mode)
+    const next = params.windows[mode]
+    const previous = params.windows[from]
+    const savedMode = params.getMode()
     const draft = await previous.collectDraft()
     const settled = Promise.withResolvers<boolean>()
-    handover = { target: mode, draft, settle: settled.resolve }
+    handover = { target: mode, draft, taken: false, settle: settled.resolve }
+    const wasOpen = next.isOpen()
     params.setMode(mode)
 
     try {
       await next.open()
+      next.offerDraft()
       if (!await withTimeout(() => settled.promise, handoverTimeout))
         throw new Error('The new chat window could not restore the draft')
     }
     catch (error) {
-      next.close()
-      params.setMode(previousMode)
+      // The switch closes only a window that it opened.
+      if (!wasOpen)
+        next.close()
+      params.setMode(savedMode)
       throw error
     }
     finally {
       handover = undefined
     }
 
-    previous.close()
+    closeOtherWindows(mode, previous)
   }
 
   return {
     run,
     /**
      * Shows the window of the saved mode, for a caller that does not change
-     * the mode. The other mode's window is already closed, so no draft moves.
+     * the mode. No draft moves. A window that shows the chat beside other
+     * content stays as it is.
      */
     show: () => run(async () => {
-      const { next, previous } = windowsFor(params.getMode())
-      await next.open()
-      previous.close()
+      const mode = params.getMode()
+      await params.windows[mode].open()
+      closeOtherWindows(mode)
     }),
-    /** Saves `mode` and swaps the open window, carrying the draft over. */
-    switchTo: (mode: ChatWindowMode) => run(() => switchWindows(mode)),
+    /**
+     * Saves `mode` and moves the chat from the window of `from`, where the
+     * user chose it, to the window of `mode`. The draft goes with it.
+     */
+    switchTo: (mode: ChatWindowMode, from: ChatWindowMode) => run(() => switchWindows(mode, from)),
     /** The draft for a window of `mode` while a switch opens it, otherwise `undefined`. */
-    takeDraft: (mode: ChatWindowMode) => handover?.target === mode ? handover.draft : undefined,
-    /** Records whether a window of `mode` restored its draft; ignored for any other window. */
+    takeDraft: (mode: ChatWindowMode) => {
+      if (handover?.target !== mode)
+        return undefined
+      handover.taken = true
+      return handover.draft
+    },
+    /**
+     * Records whether a window of `mode` restored its draft. A report from any other window is ignored, and so is a
+     * report from a take that came before the switch, such as the take of a page that mounted earlier.
+     */
     settleDraft: (mode: ChatWindowMode, restored: boolean) => {
-      if (handover?.target === mode)
+      if (handover?.target === mode && handover.taken)
         handover.settle(restored)
     },
   }

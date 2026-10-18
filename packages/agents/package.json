@@ -1,0 +1,35 @@
+{
+  "name": "@proj-airi/agents",
+  "type": "module",
+  "version": "0.12.0-beta.5",
+  "private": true,
+  "description": "Single-purpose model agents that AIRI runtimes and evals share",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/agents"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./voice-end-judge": "./src/voice-end-judge/index.ts",
+    "./voice-transcription-rephrase": "./src/voice-transcription-rephrase/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@proj-airi/core-agent": "workspace:^",
+    "@proj-airi/provider-inference": "workspace:^",
+    "valibot": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "vitest": "catalog:vitest"
+  }
+}

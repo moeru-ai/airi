@@ -37,7 +37,9 @@
   "dependencies": {
     "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
-    "clustr": "catalog:"
+    "@proj-airi/stream-kit": "workspace:^",
+    "clustr": "catalog:",
+    "nanoid": "catalog:"
   },
   "devDependencies": {}
 }

@@ -2,10 +2,11 @@ import type { LlmStreamingControlCallManifest } from '@proj-airi/pipelines-audio
 import type { WebSocketEventOf } from '@proj-airi/server-sdk'
 import type { UserMessage } from '@xsai/shared-chat'
 
-import type { ChatStreamEventContext, ContextMessage } from '../../../types/chat'
+import type { ChatStreamEventContext, ContextMessage, StreamingAssistantMessage } from '../../../types/chat'
 import type { SparkNotifyPerformanceResult, SparkNotifyReactionOptions } from './spark-notify-reaction'
 
 import { errorMessageFrom } from '@moeru/std'
+import { encodeBase64 } from '@moeru/std/base64'
 import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
 import { useBroadcastChannel } from '@vueuse/core'
 import { Mutex } from 'es-toolkit'
@@ -13,6 +14,8 @@ import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, shallowReactive, toRaw, watch } from 'vue'
 
+import { ChatAssetTooLargeError, chatEventAttachmentsOf, MAX_CHAT_ASSET_BYTES, readChatAsset } from '../../../libs/chat-assets'
+import { getSpeechBusContext, voiceGenerationEnded } from '../../../services/speech/bus'
 import { getEventSourceKey, getMetadataSourceLabel } from '../../../utils/event-source'
 import { useLlmStreamingControlStore } from '../../ai/chat-llm/streaming-control'
 import { useCharacterOrchestratorStore } from '../../character'
@@ -93,10 +96,12 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     sessionId: string
     generation: number
     turnId: string
+    /** Whether this renderer showed the stream, so it clears the view when the stream goes. */
     started: boolean
     completed: boolean
     refreshing: boolean
-    pendingLiterals: string[]
+    /** The latest whole reply that the producing renderer sent. A view shows it when its session is active. */
+    message?: StreamingAssistantMessage
   }
   const remoteStreams = shallowReactive(new Map<string, RemoteStream>())
   const isReceivingRemoteStream = computed(() => remoteStreams.has(chatSession.activeSessionId))
@@ -115,8 +120,10 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     return undefined
   })
   let contextChannel: ReturnType<typeof createContextChannel> | undefined
-  const localProducedStreams = new Map<string, { sessionId: string, turnId: string }>()
+  const localProducedStreams = new Map<string, { sessionId: string, turnId: string, context: ChatStreamEventContext }>()
   let initialized = false
+  /** The stream view runs without `initialize` in a minimal window. See {@link initializeStreamView}. */
+  let streamViewInitialized = false
 
   function removeRemoteStream(guard: RemoteStream) {
     if (remoteStreams.get(guard.sessionId) !== guard)
@@ -138,16 +145,31 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       removeRemoteStream(guard)
   }
 
+  /** Replies that this renderer already sent. The runtime makes a new message object for each change of a reply. */
+  const sentProgress = new WeakSet<StreamingAssistantMessage>()
+
+  /**
+   * Sends each changed reply that this renderer runs to the stream views in other windows.
+   * The whole reply travels, so a view shows tool calls, results, and stickers as they land, not only the text.
+   */
+  function emitLocalProgress() {
+    for (const turn of chatStream.activeTurns) {
+      const produced = localProducedStreams.get(turn.sessionId)
+      if (produced?.turnId !== turn.turnId || sentProgress.has(turn.message))
+        continue
+      sentProgress.add(turn.message)
+      void contextChannel?.emitStream({ type: 'assistant-progress', message: turn.message, sessionId: turn.sessionId, context: produced.context })
+    }
+  }
+
   function presentRemoteStreamIfActive() {
     const guard = remoteStreams.get(chatSession.activeSessionId)
     if (!guard || chatSession.getSessionGenerationValue(guard.sessionId) !== guard.generation)
       return false
-    if (!guard.started) {
+    if (guard.message) {
       guard.started = true
-      chatStream.beginStream(guard.turnId)
+      chatStream.streamingMessage = guard.message
     }
-    for (const literal of guard.pendingLiterals.splice(0))
-      chatStream.appendStreamLiteral(literal)
     if (guard.completed && !guard.refreshing)
       void refreshCompletedRemoteStream(guard)
     return true
@@ -448,6 +470,136 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     return await callback()
   }
 
+  /**
+   * Shows the chat streams that other renderers produce, and returns the cleanup of every listener that it adds.
+   *
+   * With `emitHooks`, this renderer also runs its chat hooks for a remote stream, so its plugins and speech react.
+   * Only the full runtime sets it. A minimal window, such as the chat window, shows the text and runs no hooks.
+   * `remoteContexts` marks the contexts of remote events, so the outgoing hooks do not send them back.
+   */
+  function watchRemoteStreams(channel: ReturnType<typeof createContextChannel>, options: { emitHooks: boolean, remoteContexts?: WeakSet<object> }) {
+    const stopFailed = channel.onStreamFailed((turn) => {
+      const guard = remoteStreams.get(turn.sessionId)
+      if (guard?.turnId === turn.turnId)
+        removeRemoteStream(guard)
+    })
+    const stopCancel = channel.onStreamCancel((command) => {
+      const guard = remoteStreams.get(command.sessionId)
+      if (guard?.turnId === command.turnId)
+        removeRemoteStream(guard)
+    })
+    const stopIncomingStreamWatch = channel.onStream(async (event) => {
+      if (event.context.sessionId !== event.sessionId)
+        return
+      options.remoteContexts?.add(event.context)
+      try {
+        const guard = remoteStreams.get(event.sessionId)
+        if (guard && chatSession.getSessionGenerationValue(guard.sessionId) !== guard.generation)
+          removeRemoteStream(guard)
+        const current = guard?.turnId === event.context.turnId
+          && chatSession.getSessionGenerationValue(guard.sessionId) === guard.generation
+        switch (event.type) {
+          case 'before-compose':
+            if (options.emitHooks)
+              await chatOrchestrator.emitBeforeMessageComposedHooks(event.message, event.context)
+            break
+          case 'after-compose':
+            if (options.emitHooks)
+              await chatOrchestrator.emitAfterMessageComposedHooks(event.message, event.context)
+            break
+          case 'before-send':
+            remoteStreams.set(event.sessionId, {
+              sessionId: event.sessionId,
+              generation: chatSession.getSessionGenerationValue(event.sessionId),
+              turnId: event.context.turnId,
+              started: false,
+              completed: false,
+              refreshing: false,
+            })
+            presentRemoteStreamIfActive()
+            if (options.emitHooks)
+              await chatOrchestrator.emitBeforeSendHooks(event.message, event.context)
+            break
+          case 'after-send':
+            if (options.emitHooks)
+              await chatOrchestrator.emitAfterSendHooks(event.message, event.context)
+            break
+          case 'assistant-progress':
+            if (!current || guard.completed)
+              return
+            guard.message = event.message
+            presentRemoteStreamIfActive()
+            break
+          case 'token-literal':
+            if (options.emitHooks && current && !guard.completed)
+              await chatOrchestrator.emitTokenLiteralHooks(event.literal, event.context)
+            break
+          case 'token-special':
+            if (options.emitHooks && current && !guard.completed)
+              await chatOrchestrator.emitTokenSpecialHooks(event.special, event.context)
+            break
+          case 'stream-end':
+            if (options.emitHooks && current)
+              await chatOrchestrator.emitStreamEndHooks(event.context)
+            break
+          case 'assistant-end':
+            if (!current)
+              return
+            {
+              // `remoteStreams` is shallow, so a nested write does not notify its readers.
+              // Replace the entry so that `liveRemoteStreamSessionId` sees the completion.
+              const completed = { ...guard, completed: true }
+              remoteStreams.set(guard.sessionId, completed)
+              if (options.emitHooks)
+                await chatOrchestrator.emitAssistantResponseEndHooks(event.message, event.context)
+              if (completed.sessionId === chatSession.activeSessionId)
+                await refreshCompletedRemoteStream(completed)
+            }
+            break
+        }
+      }
+      catch (error) {
+        const guard = remoteStreams.get(event.sessionId)
+        if (guard?.turnId === event.context.turnId)
+          removeRemoteStream(guard)
+        console.error('Remote chat stream failed', error)
+      }
+      finally {
+        options.remoteContexts?.delete(event.context)
+      }
+    })
+    const stopActiveSessionWatch = watch(
+      () => chatSession.activeSessionId,
+      () => presentRemoteStreamIfActive(),
+      { flush: 'sync' },
+    )
+
+    return [stopFailed, stopCancel, stopIncomingStreamWatch, stopActiveSessionWatch]
+  }
+
+  /**
+   * Starts only the stream view of the context bridge.
+   *
+   * A minimal window does not run `initialize`, because the server channel and the plugin runtime belong to the full
+   * runtime. A window that shows chat history still needs the live text of the renderer that runs the turn.
+   * That renderer publishes the text on the context channel, which is a `BroadcastChannel` and sends no request.
+   */
+  async function initializeStreamView() {
+    await mutex.acquire()
+
+    try {
+      if (initialized || streamViewInitialized)
+        return
+
+      contextChannel = createContextChannel()
+      disposeHookFns.value.push(...watchRemoteStreams(contextChannel, { emitHooks: false }))
+      streamViewInitialized = true
+    }
+    finally {
+      mutex.release()
+    }
+  }
+
   async function initialize() {
     await mutex.acquire()
 
@@ -517,10 +669,17 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       })
       disposeHookFns.value.push(stopContextUpdates)
 
+      disposeHookFns.value.push(getSpeechBusContext().on(voiceGenerationEnded, ({ body }) => {
+        if (!body)
+          return
+        if (localProducedStreams.get(body.sessionId)?.turnId === body.turnId) {
+          localProducedStreams.delete(body.sessionId)
+          if (body.status !== 'finished')
+            void contextChannel?.emitStreamFailed(body)
+        }
+      }))
+      // `watchRemoteStreams` removes the remote stream of a cancel. This listener cancels the turn that this renderer runs.
       disposeHookFns.value.push(contextChannel.onStreamCancel(async (command) => {
-        const guard = remoteStreams.get(command.sessionId)
-        if (guard?.turnId === command.turnId)
-          removeRemoteStream(guard)
         if (localProducedStreams.get(command.sessionId)?.turnId !== command.turnId)
           return
         localProducedStreams.delete(command.sessionId)
@@ -579,6 +738,13 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       })
       disposeHookFns.value.push(stopSparkNotifyBridgeWatch)
 
+      // A module that leaves takes its observations with it.
+      disposeHookFns.value.push(serverChannelStore.onEvent('extension:module:de-announced', (event) => {
+        const sourceKey = getMetadataSourceLabel(event.data.identity)
+        if (sourceKey)
+          chatContext.removeContextWriter(sourceKey)
+      }))
+
       disposeHookFns.value.push(serverChannelStore.onContextUpdate((event) => {
         contextObservability.recordLifecycle({
           phase: 'server-received',
@@ -636,6 +802,33 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           textPreview: contextMessage.text,
           sourceLabel: getMetadataSourceLabel(event.metadata?.source) ?? event.source,
           details: contextMessage,
+        })
+      }))
+
+      // Chat events reference images and recordings. A module reads their bytes here. Every stage window that holds
+      // the channel answers, and the module keeps the first answer.
+      disposeHookFns.value.push(serverChannelStore.onEvent('asset:get:request', async (event) => {
+        const { ref } = event.data
+        // A client can claim any `metadata.source`. The server names the sending connection, so only that is trusted.
+        const sender = event.metadata.sender
+        if (!sender?.modules.length) {
+          console.warn('[context-bridge] Ignored an asset request from a connection that announced no module:', ref)
+          return
+        }
+        console.info(`[context-bridge] Module ${sender.modules.join(', ')} (peer ${sender.peerId}) requested ${ref}`)
+
+        const answer = await readChatAsset(ref).then(
+          async (record) => {
+            if (record.blob.size > MAX_CHAT_ASSET_BYTES)
+              throw new ChatAssetTooLargeError(record.blob.size)
+            return { ref, mimeType: record.mimeType, data: encodeBase64(new Uint8Array(await record.blob.arrayBuffer())) }
+          },
+        ).catch((error: unknown) => ({ ref, error: errorMessageFrom(error) ?? 'Could not read the asset' }))
+        serverChannelStore.send({
+          type: 'asset:get:response',
+          data: answer,
+          metadata: { event: { parentId: event.metadata.event.id } },
+          route: { destinations: [`peer:${sender.peerId}`] },
         })
       }))
 
@@ -718,7 +911,6 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
         if (activeProvider.value && activeModel.value) {
           let messageText = text
-          const targetSessionId = overrides?.sessionId
 
           if (overrides?.messagePrefix) {
             messageText = `${overrides.messagePrefix}${text}`
@@ -748,8 +940,11 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           // - https://developer.mozilla.org/en-US/docs/Web/API/Web_Locks_API
           await withContextBridgeLock('context-bridge:event:input:text', async () => {
             try {
+              const targetSessionId = overrides?.binding
+                ? await chatSession.ensureBoundSession(overrides.binding)
+                : overrides?.sessionId ?? chatSession.activeSessionId
               await chatOrchestrator.send({
-                sessionId: targetSessionId ?? chatSession.activeSessionId,
+                sessionId: targetSessionId,
                 text: messageText,
                 temperature: activeTemperature.value,
                 topP: activeTopP.value,
@@ -790,9 +985,13 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
             return
 
           const sessionId = context.sessionId
-          localProducedStreams.set(sessionId, { sessionId, turnId: context.turnId })
-          await contextChannel?.emitStream({ type: 'before-send', message, sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          const snapshot = structuredClone(normalizeContextSnapshot(context))
+          localProducedStreams.set(sessionId, { sessionId, turnId: context.turnId, context: snapshot })
+          await contextChannel?.emitStream({ type: 'before-send', message, sessionId, context: snapshot })
+          // A view learns of the stream from `before-send`, so the reply so far follows it at once, and the view shows the waiting reply.
+          emitLocalProgress()
         }),
+        watch(() => chatStream.activeTurns, emitLocalProgress),
         chatOrchestrator.onAfterSend(async (message, context) => {
           if (remoteContexts.has(context))
             return
@@ -828,6 +1027,9 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }),
 
         chatOrchestrator.onAssistantMessage(async (message, _messageText, context) => {
+          // The stored user message of the turn holds its images and recordings as asset references.
+          const userMessage = chatSession.getSessionMessagesIfLoaded(context.sessionId)?.find(item => item.id === context.turnId)
+          const attachments = chatEventAttachmentsOf(userMessage)
           serverChannelStore.send({
             type: 'output:gen-ai:chat:message',
             data: {
@@ -840,6 +1042,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
                 composedMessage: context.composedMessage,
                 contexts: context.contexts,
                 input: context.input,
+                ...(attachments.length ? { attachments } : {}),
               },
             },
           })
@@ -873,85 +1076,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }),
       )
 
-      const stopIncomingStreamWatch = contextChannel.onStream(async (event) => {
-        if (event.context.sessionId !== event.sessionId)
-          return
-        remoteContexts.add(event.context)
-        try {
-          const guard = remoteStreams.get(event.sessionId)
-          if (guard && chatSession.getSessionGenerationValue(guard.sessionId) !== guard.generation)
-            removeRemoteStream(guard)
-          const current = guard?.turnId === event.context.turnId
-            && chatSession.getSessionGenerationValue(guard.sessionId) === guard.generation
-          switch (event.type) {
-            case 'before-compose':
-              await chatOrchestrator.emitBeforeMessageComposedHooks(event.message, event.context)
-              break
-            case 'after-compose':
-              await chatOrchestrator.emitAfterMessageComposedHooks(event.message, event.context)
-              break
-            case 'before-send':
-              remoteStreams.set(event.sessionId, {
-                sessionId: event.sessionId,
-                generation: chatSession.getSessionGenerationValue(event.sessionId),
-                turnId: event.context.turnId,
-                started: false,
-                completed: false,
-                refreshing: false,
-                pendingLiterals: [],
-              })
-              presentRemoteStreamIfActive()
-              await chatOrchestrator.emitBeforeSendHooks(event.message, event.context)
-              break
-            case 'after-send':
-              await chatOrchestrator.emitAfterSendHooks(event.message, event.context)
-              break
-            case 'token-literal':
-              if (!current || guard.completed)
-                return
-              guard.pendingLiterals.push(event.literal)
-              presentRemoteStreamIfActive()
-              await chatOrchestrator.emitTokenLiteralHooks(event.literal, event.context)
-              break
-            case 'token-special':
-              if (current && !guard.completed)
-                await chatOrchestrator.emitTokenSpecialHooks(event.special, event.context)
-              break
-            case 'stream-end':
-              if (current)
-                await chatOrchestrator.emitStreamEndHooks(event.context)
-              break
-            case 'assistant-end':
-              if (!current)
-                return
-              {
-                // `remoteStreams` is shallow, so a nested write does not notify its readers.
-                // Replace the entry so that `liveRemoteStreamSessionId` sees the completion.
-                const completed = { ...guard, completed: true }
-                remoteStreams.set(guard.sessionId, completed)
-                await chatOrchestrator.emitAssistantResponseEndHooks(event.message, event.context)
-                if (completed.sessionId === chatSession.activeSessionId)
-                  await refreshCompletedRemoteStream(completed)
-              }
-              break
-          }
-        }
-        catch (error) {
-          const guard = remoteStreams.get(event.sessionId)
-          if (guard?.turnId === event.context.turnId)
-            removeRemoteStream(guard)
-          console.error('Remote chat stream failed', error)
-        }
-        finally {
-          remoteContexts.delete(event.context)
-        }
-      })
-      disposeHookFns.value.push(stopIncomingStreamWatch)
-      disposeHookFns.value.push(watch(
-        () => chatSession.activeSessionId,
-        () => presentRemoteStreamIfActive(),
-        { flush: 'sync' },
-      ))
+      disposeHookFns.value.push(...watchRemoteStreams(contextChannel, { emitHooks: true, remoteContexts }))
       initialized = true
     }
     catch (error) {
@@ -971,10 +1096,11 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     await mutex.acquire()
 
     try {
-      if (!initialized)
+      if (!initialized && !streamViewInitialized)
         return
 
-      for (const consumerEvent of consumerRegistrationEvents) {
+      // Only `initialize` registers consumers. The stream view has no server channel.
+      for (const consumerEvent of initialized ? consumerRegistrationEvents : []) {
         serverChannelStore.send({
           type: 'module:consumer:unregister',
           data: {
@@ -993,6 +1119,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       contextChannel = undefined
 
       initialized = false
+      streamViewInitialized = false
       remoteStreams.clear()
       localProducedStreams.clear()
 
@@ -1011,6 +1138,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
   return {
     initialize,
+    initializeStreamView,
     dispose,
     dispatchSparkNotifyReaction,
     dispatchSparkNotifyPerformance,

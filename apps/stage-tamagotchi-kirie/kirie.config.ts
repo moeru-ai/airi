@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path'
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import templateCompilerOptions from '@tresjs/core/template-compiler-options'
 import Vue from '@vitejs/plugin-vue'
+import core from 'kirie/plugin/core'
 import UnoCss from 'unocss/vite'
 import Info from 'unplugin-info/vite'
 import Yaml from 'unplugin-yaml/vite'
@@ -21,6 +22,7 @@ const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
 const rendererRoot = resolve(join(import.meta.dirname, 'src-web', 'src', 'renderer'))
 
 export default defineKirieConfig({
+  plugins: [core],
   web: {
     vite: {
       build: {

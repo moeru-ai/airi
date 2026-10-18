@@ -5,7 +5,7 @@ import type { ProviderMetadata, ProviderValidationPlan } from '../../libs/provid
 import type { ChatRequestOptions, ModelInfo, ProviderDefinition, ProviderInstance, VoiceInfo } from '../../libs/providers/types'
 
 import { errorMessageFrom } from '@moeru/std'
-import { getGenerationProvider } from '@proj-airi/provider-inference'
+import { getGenerationProvider, withReasoning } from '@proj-airi/provider-inference'
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { computedAsync, useAsyncState, useIntervalFn } from '@vueuse/core'
 import { listModels } from '@xsai/model'
@@ -561,6 +561,9 @@ export const useProviderStore = defineStore('provider', () => {
 
   function normalizeProviderModels(providerId: string, models: Array<{
     metadata?: ModelInfo['metadata']
+    reasoning?: ModelInfo['reasoning']
+    inputModalities?: string[]
+    architecture?: { input_modalities?: string[] }
     context_length?: number
     contextLength?: number
     deprecated?: boolean
@@ -571,6 +574,8 @@ export const useProviderStore = defineStore('provider', () => {
   }>) {
     return models.map(model => ({
       metadata: model.metadata,
+      reasoning: model.reasoning,
+      inputModalities: model.inputModalities ?? model.architecture?.input_modalities,
       id: model.id,
       name: model.name ?? model.display_name ?? model.id,
       provider: providerId,
@@ -748,6 +753,8 @@ export const useProviderStore = defineStore('provider', () => {
       const normalizedModels = uniqBy(catalog.models.filter(model => !!model.id), m => m.id)
         .map(model => ({
           metadata: model.metadata,
+          reasoning: model.reasoning,
+          inputModalities: model.inputModalities,
           id: model.id,
           name: model.name,
           description: model.description,
@@ -955,7 +962,7 @@ export const useProviderStore = defineStore('provider', () => {
       throw new Error(`Provider ${providerId} does not support generation`)
     const reasoning = findProviderDefinition(providerId)?.capabilities?.chat?.reasoning
     const requestOptions = options && reasoning?.modes.includes(options.reasoning) ? options : undefined
-    return { generation: model => provider.generation(model, requestOptions) }
+    return withReasoning(provider, requestOptions)
   }
 
   /** Releases this renderer's transport; each window owns its own instance cache. */

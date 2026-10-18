@@ -1,6 +1,6 @@
 import type { AudioTestTask } from '@proj-airi/vitest-plugin-fakemic'
 
-import type { AudioInputPreflightContext, AudioInputSession, AudioInputTestCase } from './types'
+import type { AudioInputPipeline, AudioInputPreflightContext, AudioInputSession, AudioInputTestCase } from './types'
 
 import { env } from 'node:process'
 import { fileURLToPath } from 'node:url'
@@ -10,8 +10,11 @@ import { createAudioTestAPI, createAudioTestTask, runAudioTestSession, startFake
 import { inject } from 'vitest'
 
 import { expect, installAudioInputMatchers } from './expect-extend'
+import { prepareWakeWordModel } from './setup/wake-word-model'
 
-type RunnableAudioInputTest = AudioTestTask
+interface RunnableAudioInputTest extends AudioTestTask {
+  pipelines?: readonly AudioInputPipeline[]
+}
 
 installAudioInputMatchers()
 
@@ -23,7 +26,7 @@ const audioTestAPI = createAudioTestAPI<
 >({
   preflight: definition => definition.preflight,
   createPlans(name, testCase) {
-    const task = createAudioTestTask(name, testCase)
+    const task: RunnableAudioInputTest = { ...createAudioTestTask(name, testCase), pipelines: testCase.pipelines }
     return [{
       name: task.name,
       definition: task,
@@ -34,6 +37,9 @@ const audioTestAPI = createAudioTestAPI<
     }]
   },
   async execute({ plan, task, invokeHandler, runPreflight }) {
+    // Electron bundles the wake word model. Web downloads it, so the download must finish before the recording starts.
+    if (plan.definition.pipelines?.includes('kws') && inject('fakemicRuntime').kind === 'web')
+      await prepareWakeWordModel()
     await runAudioTestSession({
       start() {
         const microphoneInput = fileURLToPath(plan.definition.input)

@@ -25,6 +25,8 @@ dialogs:
     validationPartial: 配置部分验证
     validationFailed: 配置验证失败
     validationError: '验证错误：{error}'
+    testGeneration: 测试 API 连通性
+    testGenerationRunning: 正在测试连通性…
     testGenerationFailed: Ping 测试失败
     retryPingCheck: 重试
     skipForNow: 暂时跳过
@@ -116,6 +118,17 @@ model-select:
     select: 选择
     import: 导入
     remove: 移除
+    sync:
+      upload: 上传到云端
+      delete-cloud: 从云端删除
+      status:
+        local-only: 仅在本设备
+        queued: 等待上传
+        uploading: 上传中
+        synced: 已同步到云端
+        cloud-only: 在云端，未下载
+        downloading: 下载中
+        failed: 同步失败
     confirm: 确认
   live2d-report:
     title: 导入前检查
@@ -260,6 +273,7 @@ pages:
     logout: 登出
     fluxBalance: 剩余通量
     viewFluxDetails: 查看详情
+    viewCapacitor: 查看
     signedInAs: 登录 为
     profile:
       tab: 个人资料
@@ -335,17 +349,89 @@ pages:
         action: 删除帐户
         modal:
           title: 删除账户？
-          warning: 此操作无法撤销。已经激活的订阅将被取消，现存的 Flux 余额均会被清除。
+          warning: 此操作无法撤销。现存的 Flux 余额会被清除。如有生效中的订阅，请先取消。
           confirmEmail:
             label: 请再次输入电子邮箱以确认删除
             mismatch: 邮箱不匹配。
           confirm: 发送确认邮件
+          deleteNow: 永久删除
+          confirmPhrase: 请输入 DELETE 以确认删除
+          signInAgain: 重新登录
           cancel: 取消
         message:
+          deleted: 你的账号已删除。
           emailSent: 请查看 {email} 中的删除链接。
         error:
+          reauthenticate: 请重新登录，再回到此处确认删除。无需接收邮件。
           fallback: 无法开始删除操作，请稍后重试。
+          subscriptionActive: 您的订阅仍在生效。请先在 Capacitor 页面取消订阅，再删除帐户。
   card:
+    wake-word-conflicts:
+      title: '{count} 个共享的唤醒词发音需要选择角色'
+      description: 两张角色卡使用了相同的发音。选择角色之前，没有角色会回应它。
+      action: 选择回应的角色
+    sync:
+      notice: 角色卡会同步到账号。删除的角色卡可在 30 天内恢复。
+      off_notice: 你已登录，但角色卡同步还没有打开。
+      off_notice_link: 去实验性特性里打开。
+      state:
+        synced: 已同步到账号
+        pending: 等待上传
+        refused: 未上传。账号里没有空间再存角色卡，这张卡只保留在这台设备。
+      conflict_copy_name: '{name}（冲突副本）'
+      conflict_notice: 另一台设备修改了同一个角色，已将本设备的版本另存为副本。
+      history:
+        tab: 历史版本
+        empty: 这张角色卡还没有历史版本。
+        loading: 正在加载历史版本……
+        load_failed: 无法加载这张角色卡的历史版本。
+        current: 当前版本
+        changed_label: 改动
+        removed_label: 移除
+        fields:
+          name: 名称
+          nickname: 昵称
+          version: 版本
+          creator: 作者
+          description: 描述
+          personality: 性格
+          scenario: 场景
+          systemPrompt: 系统提示词
+          postHistoryInstructions: 历史后指令
+          notes: 创作者备注
+          greetings: 问候语
+          tags: 标签
+          metadata: 元数据
+          assets: 资源
+          characterBook: 世界书
+          source: 来源
+          wakeWords: 唤醒词
+          agents: 智能体
+          consciousness: 意识模型
+          vision: 视觉模型
+          speech: 语音模型
+          vrm: VRM 模型
+          live2d: Live2D 模型
+          displayModelId: 展示模型
+          activeBackgroundId: 固定背景
+          artistry: 绘画
+        restore: 恢复到此版本
+        restore_confirm_title: 恢复到此版本？
+        restore_confirm_body: 这会用 {date} 的内容替换 {name} 当前的内容。
+        restore_confirm_confirm: 恢复
+        restore_confirm_cancel: 取消
+        restore_success: 已将 {name} 恢复到较早的版本。
+        restore_failed: 无法恢复到此版本，服务端可能已不再保留它。
+      deleted:
+        title: 最近删除
+        empty: 没有最近删除的角色卡。
+        loading: 正在加载最近删除的角色卡……
+        load_failed: 无法加载最近删除的角色卡。
+        deleted_when: '删除于 {when}'
+        days_left: '还可恢复，剩余 {days} 天'
+        restore: 恢复
+        restore_success: 已恢复 {name}。
+        restore_failed: 无法恢复这张角色卡，服务端可能已不再保留它的内容。
     activate: 激活
     active: 已激活
     active_badge: 当前使用中
@@ -468,6 +554,7 @@ pages:
     description: 存放记忆的地方，以及策略
     title: 记忆体
   data:
+    title: 数据
     description: 管理存储 AIRI 数据、导出和重置
     sections:
       chats:
@@ -480,6 +567,13 @@ pages:
         title: 模型
         description: 删除导入的Live2D/VRM模型。
         delete: 删除所有模型
+      model-downloads:
+        title: 已下载的语音模型
+        description: 管理保存在此设备上的 Sherpaw 模型文件。
+        empty: 尚无已下载的语音模型。
+        wake-word-model: 唤醒词模型
+        voiceprint-model: 声纹模型
+        refresh: 刷新
       modules:
         title: 模块
         description: 重置模块偏好设置和凭据。
@@ -513,6 +607,8 @@ pages:
       import_error: 无法导入聊天会话。请检查文件格式。
       chats_deleted: 聊天会话已删除。
       models_deleted: 模型已删除。
+      model_download_cancelled: 已取消模型下载。
+      model_download_removed: 已删除下载的模型。
       modules_reset: 重置模块设置。
       providers_reset: 服务端设置重置。
       all_deleted: 已删除所有本地数据。
@@ -678,6 +774,8 @@ pages:
             title: 模型选项
             thinking:
               label: 思考
+              required-description: 此模型必须启用思考。
+              provider-default-description: AIRI 未提供此模型的推理设置，将使用 OpenRouter 的默认设置。
       title: 意识
     description: 思维，视觉，言语综合，游戏等
     gaming-factorio:
@@ -728,10 +826,112 @@ pages:
     hearing:
       description: 语音识别
       title: 听觉
+      transcriber:
+        title: 语音识别
+        description: 选择转写服务和模型，并测试麦克风。
+      wake-words:
+        title: 唤醒词
+        description: 查看每个角色的唤醒词，并选择由谁回应共享的发音。
+        intro: 唤醒词保存在每个角色的角色卡上。如需修改，可以在聊天中请角色更改。
+        empty: 这个角色还没有唤醒词。
+        state:
+          active: 已启用
+          paused: 已暂停。请选择回应它的角色。
+          other: '由 {name} 回应'
+          unsupported: 当前唤醒词模型不支持
+        conflicts:
+          title: 共享的发音
+          description: 多个角色使用了相同的发音。请选择在此设备上回应它的角色。每张角色卡都会保留自己的唤醒词。
+          choose-label: 回应的角色
+          choose: '{name}（「{word}」）'
+          answered-by: '由 {name} 回应'
+          unresolved: 还没有角色回应这个发音。
+      voiceprint:
+        title: 声纹
+        description: 登记你的声音，让 AIRI 能认出你。
+        intro: 声纹是声纹模型从你的语音中算出的一组数字。它不包含音频，但能识别出你。
+        privacy: AIRI 只把你的声纹保存在这台设备上。导出角色卡不会带上它，AIRI 也不会上传它。要删除它，可以使用本页的「删除声纹」，或数据设置中的「删除所有数据」。
+        download: 第一次登记时会下载声纹模型，约 28 MB。
+        speaker-recognition:
+          label: 说话人识别
+          description: 把由说话或唤醒词开始的每次语音输入和你的声纹比对，并把分数记录在这次输入的 IO trace 中。「按住说话」的输入没有分数。任何人的声音仍然可以开始输入，聊天模型也收不到这个分数。AIRI 聆听期间，声纹模型会一直留在内存中。
+          needs-voiceprint: 登记声纹后才能开启说话人识别。
+        status:
+          none: 你还没有声纹。
+          enrolled: '{date} 登记，使用了 {seconds} 秒语音。'
+          outdated: 声纹模型已更新。请重新登记，才能使用你的声纹。
+        instructions: 请一个人待在麦克风旁边。点击「开始录音」，然后用平时的声音读出下面的句子。
+        sentence-1: 今天我想看看天气，读一下消息，再安排好接下来要做的事情。
+        sentence-2: 我一般在晚上和 AIRI 聊天，那时候房间很安静，我也有空。
+        sentence-3: 请记住我的声音，这样你就能知道是我在说话。
+        progress: '已录到 {seconds} 秒语音。登记至少需要 {min} 秒。'
+        start: 开始录音
+        again: 重新登记
+        finish: 完成
+        cancel: 取消
+        delete: 删除声纹
+        enrolling: 正在计算你的声纹……
+        result:
+          enrolled: 你的声纹已保存。
+          cancelled: 已取消登记。
+          too-short: '这次录音只有 {seconds} 秒语音，登记至少需要 {min} 秒。请重新录音。'
+          error: '登记失败：{error}'
       sections:
         section:
           provider-selection:
             description: 选择合适的语音转文本的服务来源
+          microphone:
+            title: 麦克风
+            label: 麦克风
+            description: 为听觉打开麦克风。输入模式决定 AIRI 何时聆听。
+            error: 麦克风不可用
+          input-device:
+            label: 输入设备
+            description: 选择 AIRI 使用的麦克风。
+            playground-description: 听觉和测试区都使用这个麦克风。
+            placeholder: 选择麦克风
+          auto-send:
+            title: 转写文本
+            description: 选择 AIRI 如何处理识别出的文字。
+            label: 自动发送
+            label-description: AIRI 会在延迟后把转写文本发送到聊天。关闭后可以先阅读和编辑文字。每条发送的消息都会消耗 token。
+            delay: 发送延迟
+            delay-description: AIRI 发送转写文本之前等待的时间。
+            immediate: 立即
+          input-mode:
+            title: 输入模式
+            description: 选择麦克风开启时 AIRI 如何开始聆听。
+            label: 开始聆听
+            always-on: 持续聆听
+            always-on-description: AIRI 一直聆听，你说话时就会回应。
+            push-to-talk: 按住说话
+            push-to-talk-description: 只有按住「按住说话」按键时 AIRI 才会聆听。麦克风只在按住期间开启。
+            push-to-talk-unavailable: 此处不可用。此应用在当前设备上没有「按住说话」按键。
+            stranded-title: 此处无法使用按住说话
+            stranded-description: 此应用在当前设备上没有「按住说话」按键，所以 AIRI 不会聆听。如需在此处与 AIRI 对话，请选择「持续聆听」或「唤醒词」。
+            wake-word: 唤醒词
+            wake-word-description: 麦克风保持开启，但只有说出角色的唤醒词后 AIRI 才会聆听。
+            wake-word-status:
+              no-words: 还没有角色设置唤醒词。可以在聊天中请角色设置它的唤醒词。
+              unconfigured: 麦克风开启后开始检测唤醒词。
+              preparing: 正在准备唤醒词模型…
+              ready: 唤醒词已就绪。
+              error: '唤醒词模型不可用：{error}'
+          end-judge:
+            title: 说完判定
+            description: 你停顿时，对话模型会读取转写文本，判断你是否说完了。如果还没说完，AIRI 会再等 3 秒让你继续说。
+            enabled: 判断我是否说完了
+            enabled-description: 每次停顿时的转写文本会发送给改写所用的模型。关闭后，AIRI 会在短暂停顿后结束这次语音输入。
+          rephrase:
+            title: 转写改写
+            description: 在转写成为草稿之前，由对话模型修正识别错误并去掉口头禅。原始文本会被保留。
+            enabled: 改写转写文本
+            enabled-description: 每段完成的转写都会发送给所选的对话模型。模型失败或超过 10 秒时，使用原始文本。
+            provider: 服务来源
+            provider-description: 默认使用意识模块的对话模型。
+            same-as-chat: 与对话相同
+            model: 模型
+            model-placeholder: 选择模型
           playground:
             current: 当前转写
             description: 通过当前的听觉管线监听，并在下方保留每一段完成的语音转写。
@@ -756,6 +956,90 @@ pages:
               如果您的提供商没有返回 verbose_json 结果。置信度阈值将不会影响转录。
     memory-long-term:
       description: 长期记忆
+      enable: 使用长期记忆
+      enable-description: 角色会记住聊过的事。关掉后，它什么都不记得。
+      memories:
+        title: 记忆
+        description: 这是每个角色自己记下的小秘密，彼此看不到。共享后所有角色都会知道，而且收不回来哦。你可以删掉任何一条，但不能改写。
+        empty: 还没有记忆。
+        forget: '忘掉{name}'
+        make_general: '把{name}共享给所有角色'
+        general: 共享的秘密
+        entry:
+          title: 记忆
+          description: 每个角色的小秘密，和大家共享的秘密。
+      recipes:
+        title: 配方
+        empty: 还没有配方。
+        sources:
+          user: 你创建的
+          model: 角色提议的
+        pending: 等你批准，批准一次就不再问。
+        approve: 批准
+        remove: 删除
+        add:
+          name: 名称
+          description: 什么时候用
+          instructions: 怎么做
+          keywords:
+            label: 暗号
+            description: 消息里说出暗号，角色就会用这个配方。
+          submit: 添加
+        decision:
+          question: 问题
+          type:
+            label: 回答方式
+            noul: 是或否
+            choice: 多选一
+          yes_means: 选「是」的意思
+          no_means: 选「否」的意思
+          option: 这个选项的意思
+          add_option: 添加选项
+          remove_option: 删除
+          action:
+            label: 然后
+            reply: 正常回复
+            stay_quiet: 已读不回
+            hint: 回复时记住一句话
+            recipe: 接着用另一个配方
+          hint_text: 要记住的话
+          target_recipe: 配方
+          keywords: 消息里说出暗号，角色才会做这道判断。
+          note: 对上暗号后，角色会看完整段对话，选定一个答案，然后照着做。
+        entry:
+          title: 配方
+          description: 角色的技能、启动它们的契机，和等你批准的提议。
+        add_button: 添加配方
+        types:
+          title: 选择配方类型
+          instructions:
+            title: 指令
+            description: 一套做事的步骤。角色觉得合适就会用，说出暗号也行。
+          decision:
+            title: 判断
+            description: 对上暗号后，角色先答一道题再回复。不同答案，做不同的事。
+        styles:
+          instructions: 指令
+          decision: 判断
+        cancel: 取消
+        edit: 编辑
+        save: 保存
+        enabled: '启用{name}'
+        keywords_summary: '暗号：{words}'
+        tabs:
+          conversation: 对话中
+          auto_run: 自动运行
+          conversation_description: 聊天时用的配方，你发消息时才会用上。
+          auto_run_description: 契机一到就自己开始，不用你发消息。每次运行都会请求一次模型。
+        background:
+          label: 在后台运行
+          description: 适合查资料这类要花时间的事。在后台做完，再把结果带回对话。
+          tag: 后台
+        grants: '批准后它可以：{what}'
+        proposals:
+          label: 允许角色提议配方
+          description: 你让角色建配方时，它会先存成提议，你批准后才生效。
+        model_flow: 每次做什么由角色决定
       title: 长期记忆
     memory-short-term:
       description: 短期记忆
@@ -926,8 +1210,186 @@ pages:
         airi-tired: 疲惫
         airi-affectionate: 喜欢
         airi-awkward: 尴尬
-        airi-agree: 赞同
+        airi-agree: '赞同'
         airi-disagree: 拒绝
+    home-assistant:
+      description: 让 AIRI 读取和控制你的 Home Assistant 设备。
+      enable: 启用 Home Assistant
+      enable-description: 允许 AIRI 读取和控制你的设备
+      base-url:
+        label: 地址
+        description: 你的 Home Assistant 实例地址。
+      token:
+        label: 长期访问令牌
+        placeholder: 粘贴 Home Assistant 个人资料里的令牌
+        description: 在 Home Assistant 个人资料的「安全」里创建一个。
+        saved: 已保存令牌。留空则保持不变。更改地址时需要重新填写。
+      note: 令牌只保存在这台设备上，不会同步到你的账号。
+      actions:
+        save: 保存
+        test: 测试
+      status:
+        saved: 已保存。
+        saved-cleared: 已保存。地址已更改，设备名单已清空。
+        testing: 正在测试连接……
+        reachable: '已连接。Home Assistant 报告了 {count} 个实体。'
+        failed: '无法连接。{message}'
+        rejected-token: 请输入 Home Assistant 长期访问令牌。
+        rejected-address: 地址已更改，请输入新地址对应的访问令牌。
+        failed-policy: 设备名单没能同步到运行工具的窗口，地址未更改，请重试。
+        failed-policy-edit: 改动没能同步到运行工具的窗口，模型仍在用改动前的名单，请重试。
+        failed-policy-move: 地址已更改，但设备名单没能同步到运行工具的窗口，请重试。
+        failed-policy-rollback: 保存被拒绝，设备名单也没能同步回运行工具的窗口，模型现在访问不到任何设备，请重试。
+      access:
+        label: 设备访问范围
+        description: 选择 AIRI 可以读取和控制的设备。
+        mode-all: 全部设备
+        mode-allow: 白名单
+        mode-deny: 黑名单
+        all-hint: AIRI 可以访问全部设备。选择一个名单即可限制范围。
+        rule-allow: 只有你勾选的设备可以访问。
+        rule-deny: 除了你勾选的设备，其他设备都可以访问。
+        selected-count: '已选 {count} 个'
+        empty-warning: 至少勾选一个设备，否则 AIRI 无法访问任何设备。
+        search: 搜索设备
+        reload: 重新加载设备
+        loading: 正在加载设备……
+        no-devices: Home Assistant 没有报告任何设备。
+        no-match: 没有匹配的设备。
+        tab-all: 全部
+        shown-count: '显示 {shown} / {total} 个设备'
+        load-more: '再显示 {count} 个'
+        select-matching: 选中全部匹配
+        clear-matching: 取消全部匹配
+      states:
+        generic:
+          'on': '开启'
+          'off': '关闭'
+          above_horizon: 白天
+          armed: 已布防
+          armed_away: 离家布防
+          armed_custom_bypass: 已布防自定义旁路
+          armed_home: 在家布防
+          armed_night: 夜间布防
+          armed_vacation: 度假布防
+          arming: 正在布防
+          auto: 自动
+          below_horizon: 夜晚
+          buffering: 正在缓冲
+          cleaning: 正在清扫
+          clear-night: 晴
+          closed: 已关闭
+          closing: 正在关闭
+          cloudy: 阴
+          cool: 制冷
+          disarmed: 已撤防
+          disarming: 正在撤防
+          docked: 已停靠
+          dry: 除湿
+          eco: 节能
+          electric: 电热
+          error: 错误
+          exceptional: 特殊
+          fan_only: 仅送风
+          fog: 雾
+          gas: 燃气
+          hail: 冰雹
+          heat: 制热
+          heat_cool: 制热/制冷
+          heat_pump: 热泵
+          high_demand: 急需
+          home: 在家
+          idle: 空闲
+          jammed: 卡住
+          lightning: 雷电
+          lightning-rainy: 雷阵雨
+          locked: 已锁定
+          locking: 正在锁定
+          mowing: 正在割草
+          not_home: 离家
+          ok: 正常
+          open: 已打开
+          opening: 正在打开
+          partlycloudy: 多云
+          paused: 已暂停
+          pending: 待定
+          performance: 高性能
+          playing: 正在播放
+          pouring: 暴雨
+          problem: 异常
+          rainy: 雨
+          recording: 录制中
+          snowy: 雪
+          snowy-rainy: 雨夹雪
+          standby: 待机
+          stopped: 已停止
+          streaming: 监控中
+          sunny: 晴
+          triggered: 已触发
+          unlocked: 已解锁
+          unlocking: 正在解锁
+          windy: 大风
+          windy-variant: 有风、多云
+          unknown: 未知
+          unavailable: 不可用
+        lawn_mower:
+          returning: 正在返回
+        update:
+          'off': 最新
+          'on': 可用更新
+        vacuum:
+          returning: 正在返回基座
+      domains:
+        air_quality: 空气质量
+        alarm_control_panel: 安防面板
+        automation: 自动化
+        binary_sensor: 二元传感器
+        button: 按钮
+        calendar: 日历
+        camera: 摄像头
+        climate: 温控
+        conversation: 对话
+        cover: 窗帘
+        date: 日期
+        datetime: 日期时间
+        device_tracker: 设备追踪
+        event: 事件
+        fan: 风扇
+        geo_location: 地理位置
+        group: 分组
+        humidifier: 加湿器
+        image: 图像
+        image_processing: 图像处理
+        input_boolean: 开关辅助
+        input_datetime: 日期时间辅助
+        input_number: 数值辅助
+        input_select: 下拉辅助
+        input_text: 文本辅助
+        light: 灯
+        lock: 锁
+        media_player: 媒体播放器
+        notify: 通知
+        number: 数值
+        person: 人员
+        remote: 遥控器
+        scene: 场景
+        script: 脚本
+        select: 选择器
+        sensor: 传感器
+        siren: 警报器
+        stt: 语音转文字
+        sun: 太阳
+        switch: 开关
+        text: 文本
+        time: 时间
+        todo: 待办
+        tts: 文字转语音
+        update: 更新
+        vacuum: 扫地机器人
+        valve: 阀门
+        water_heater: 热水器
+        weather: 天气
+        zone: 区域
     web-search:
       title: 网络搜索
       description: 让 AIRI 联网搜索最新信息
@@ -961,6 +1423,7 @@ pages:
         restart: 刷新 MCP 状态
         add-server: 添加
         add-env: 添加变量
+        add-header: 添加请求头
         remove: 移除
         test: 测试
         edit-json: 编辑 JSON
@@ -976,6 +1439,19 @@ pages:
           label: 唯一标识符
           description: 唯一名称，作为 mcp.json 中的键。
           placeholder: 例如：filesystem
+        transport:
+          label: 类型
+          description: AIRI 连接这个服务器的方式。
+          stdio: 本地进程
+          http: 远程地址
+        url:
+          label: 地址
+          description: 服务器的 Streamable HTTP 接口地址。
+          placeholder: 例如：https://example.com/api/mcp
+        headers:
+          label: 请求头
+          description: 每次请求都会带上的请求头，比如授权令牌。
+          value-placeholder: Bearer 令牌
         command:
           label: 命令
           description: 通过 stdio 启动的可执行程序。
@@ -1000,7 +1476,7 @@ pages:
         placeholder: 在这里粘贴 mcp.json...
       test:
         title: 测试连接
-        description: 我们会临时把它启动一次，看看命令能不能跑、能列出哪些工具
+        description: AIRI 会临时连接一次，确认服务器可用并列出它提供的工具
         pick-server-label: 服务器
         no-servers: 还没有可以测试的服务器
         no-server-selected: 先选一个服务器吧
@@ -1014,12 +1490,15 @@ pages:
         empty-identifier: 服务器 # {index} is missing an identifier.
         duplicate-identifier: 标识符 "{name}" 重复了，每个服务器要用不同的名字。
         empty-command: '"{name}" 还没填启动命令。'
+        empty-url: '"{name}" 还没填地址。'
+        invalid-url: '"{name}" 需要填一个完整的 http 或 https 地址。'
         invalid-shape: mcp.json 结构不对，最外层得有 "mcpServers" 这个字段。
       messages:
         opened: 已经在文件管理器里打开 {path} 啦
         json-applied: JSON 已经解析完成了，点「保存并重启」就写到磁盘上啦。
         restarted: 重启好啦！启动了 {started} 个，失败 {failed} 个，跳过 {skipped} 个
   flux:
+    title: Flux 电量
     buy: 充值
     currency: 币种
     description: 充值 Flux
@@ -1049,6 +1528,33 @@ pages:
       title: Flux 电池包
       buy: 充值
       description: 可以选择购入的 Flux 电池包
+  capacitor:
+    statusError: 暂时无法获取 Capacitor 的状态，可以之后再试试吗？
+    packagesError: 暂时无法获取可用的 Capacitor，可以之后再试试吗？
+    preferenceError: 偏好保存失败，请稍后再试。
+    remaining: '剩余 {percent}'
+    ofQuota: 共 {quota} Flux
+    rechargesAt: '{date} 充满'
+    renewsAt: '{date} 续订'
+    expiresAt: '{date} 到期'
+    change: 更换 Capacitor
+    quota:
+      day: '每天 {quota} Flux'
+      week: '每周 {quota} Flux'
+      month: '每月 {quota} Flux'
+    perMonth: / 月
+    currentPackage: 当前
+    install: 装配
+    upgrade: 升级
+    downgrade: 降级
+    manageSubscription: 管理订阅
+    fallbackToFlux: Capacitor 放空后使用 Flux
+    fallbackToFluxHint: 关闭后，对话和语音会暂停，直到 Capacitor 充满。
+    checkout:
+      success: Capacitor 已装配并充满。
+      pending: 已收到付款，Capacitor 稍后充满。
+      canceled: 购买被取消
+      error: 哎呀，出错了，请稍后再试
   providers:
     catalog:
       edit:
@@ -1223,6 +1729,17 @@ pages:
         model:
           label: 模型
           description: 选择可用模型，自动识别模型支持的语言。更改后会重新启动当前识别会话。
+        asset:
+          title: 模型文件
+          unknown: 正在检查文件…
+          bundled: AIRI 已内置
+          installed: 已存储在此设备上
+          missing: 使用时下载
+          downloading: 正在下载…
+          error: 下载失败
+          download: 立即下载
+          cancel: 取消
+          remove: 删除已下载文件
       apple-vision:
         title: Apple 视觉理解
         description: 使用 macOS 27 或更高版本的设备端 Apple 基础模型理解图片，无需 API 密钥。
@@ -1291,6 +1808,22 @@ pages:
             volume:
               description: 调节语音的响度
               label: 响度
+      voicevox:
+        fields:
+          field:
+            intonation:
+              description: 调整语调的变化幅度
+              label: 语调
+        callout_origin_title: 从浏览器连接引擎
+        callout_origin: 浏览器只能连接本机的引擎。连接其他机器的引擎时，请使用桌面应用。引擎还必须允许此网站访问，可使用 --cors_policy_mode all，或使用 --allow_origin 指定此网站地址。
+      aivis-speech:
+        fields:
+          field:
+            intonation:
+              description: 调整说话风格的表现强度
+              label: 情感表现强度
+        callout_origin_title: 从浏览器连接引擎
+        callout_origin: 浏览器只能连接本机的引擎。连接其他机器的引擎时，请使用桌面应用。引擎还必须允许此网站访问，可在 10101 端口的设置页面中配置。
       speech-noop:
         title: 无
         description: 不使用语音合成
@@ -1461,6 +1994,17 @@ pages:
       index-tts-vllm:
         callout_indextts2_unavailable_title: 暂不支持
         callout_indextts2_unavailable: 目前尚未支持 IndexTTS2，请使用 IndexTTS。
+      minimax-speech:
+        errors:
+          provider-initialization-failed: 初始化 MiniMax 语音提供程序失败。
+        fields:
+          field:
+            model:
+              description: 选择用于生成语音的 MiniMax 文本转语音模型。
+              label: 模型
+              placeholder: 选择一个 MiniMax 模型...
+        playground:
+          default-text: 您好！这是 MiniMax 语音合成测试。
       moonshot:
         description: Moonshot.ai
         title: 月之暗面
@@ -1475,14 +2019,22 @@ pages:
         description: n1n.ai - 高性能的 AI API 提供商
       openrouter:
         description: OpenRouter.ai
+      openrouter-audio-speech:
+        description: OpenRouter.ai
       volcengine:
         fields:
           field:
             appId:
               description: 可在控制台获取的 App ID
+              label: 应用 ID
         title: 火山引擎
       volcengine-coding-plan:
         description: 火山引擎 Coding Plan
+        models:
+          ark-code-latest:
+            description: 使用 Coding Plan 控制台中选择的模型，包括 Auto。更改会在 3–5 分钟内生效。
+          legacy:
+            description: 此旧版 Coding Plan 模型即将停止服务，请切换到当前受支持的模型。
         title: 火山引擎 Coding Plan
       xai:
         description: X.AI
@@ -1549,6 +2101,35 @@ pages:
         title: 二维码扫描失败
         failed: 扫描或连接二维码失败。
   system:
+    experimental:
+      refresh: 刷新策略
+      title: 实验性特性
+      description: 体验开发中的功能，管理你的实验选择。
+      notice: 实验性特性可能变更或移除。你的选择仅保存在此设备上。
+      empty-title: 暂无可用实验
+      load-error: 云端功能暂不可用，本地功能不受影响。
+      retry: 重试
+      reset: 使用默认值
+      sources:
+        default: 应用默认值
+        local: 此设备的选择
+        global: 已向登录账户开放
+        account: 已向你的账户开放
+      features:
+        character_card_sync:
+          title: 角色卡云同步
+          description: 登录后把角色卡同步到账号，方便在其他设备上使用。默认关闭。删除的角色卡会在账号里保留 30 天。
+        display_model_sync:
+          title: 模型云同步
+          description: 登录后把导入的 Live2D 和 VRM 模型上传到账号，方便在其他设备上使用。默认关闭。
+        fullscreen_workspace:
+          title: 全屏工作区
+          description: 在铺满屏幕的工作区里打开设置和聊天，角色在左边。默认关闭。
+          window_mode:
+            title: 窗口模式
+            description: 选择工作区开在哪里。
+            single_window: 单窗口：角色自己展开成工作区
+            multi_window: 多窗口：角色留在桌面上
     color-scheme:
       description: 更改舞台的配色方案
       title: 配色方案
@@ -1580,7 +2161,11 @@ pages:
                 title: 性能可视化工具
                 description: 显示 FPS、帧时间、长任务和浏览器支持的内存指标
               markdown-stress:
+                title: Markdown 压力测试
                 description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
+              tool-payloads-as-json:
+                title: 以 JSON 显示工具数据
+                description: 聊天里工具调用的参数和结果显示为 JSON 树，不再格式化
               plugin-host:
                 actions:
                   enable-and-load: 启用并加载
@@ -1650,6 +2235,8 @@ pages:
         theme-presets:
           presets:
             default:
+              colors:
+                color-1: AIRI 绿
               description: 默认的绿色主题，由 AIRI 为您带来！
               title: 默认颜色
             morandi:
@@ -1751,7 +2338,10 @@ sections:
 theme:
   title: 主题
   description: |
-    切换 AIRI 的基础主题，亮色模式或暗色模式。
+    使用亮色主题、暗色主题，或跟随系统主题。
+  auto: 系统
+  light: 亮色
+  dark: 暗色
 title: 设置
 voices: 声线
 vrm:
@@ -1828,6 +2418,49 @@ spine:
   fps:
     options:
       unlimited: 不限
+mmd:
+  title: MMD 设置
+  scale-and-position:
+    title: 缩放与位置
+    scale: 缩放
+    rotation: 旋转
+  theme-color-from-model:
+    title: 从模型提取颜色
+    button-extract:
+      title: 提取
+  physics:
+    title: 物理与骨骼
+    enabled: 启用物理模拟（头发、裙子、配饰）
+    ik: 启用 IK（逆向运动学）
+    grant: 启用附加骨骼变换传递
+    gravity: 重力强度
+  gaze:
+    title: 视线
+    tracking: 模型注视方向
+    options:
+      cursor: 鼠标
+      camera: 相机
+      none: 已禁用
+  animation:
+    title: 动画
+    idle-motion: 待机动作
+    import-motion: 导入动作（.vmd）
+    play-once: 预览动画
+    remove: 移除动作
+    description: >-
+      导入 VMD 动作文件，将其中一个设为循环待机动作，或单次播放任意动作。将情绪映射到动作后，动作可与面部表情一同播放。
+  morphs:
+    title: 变形
+    auto: '（自动）'
+    revert: 恢复自动
+    no-morphs: 此模型没有可用的变形。
+    description: >-
+      渲染器会自动识别标准日文变形名称（あいうえお、まばたき）。如果模型使用其他名称，请在此覆盖对应项。
+  materials:
+    title: 材质
+    no-materials: 此模型没有可用的材质。
+    description: >-
+      调整各模型部位（脸、头发、服装、配饰）的不透明度。设为 0 可隐藏该部位。
 tachie:
   title: Tachie 设置
   archive-description: Tachie 模型使用包含情绪命名图片的 .tachie.zip 压缩包。

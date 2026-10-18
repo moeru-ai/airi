@@ -14,17 +14,24 @@ import VueMacros from 'vue-macros/vite'
 import VueRouter from 'vue-router/vite'
 
 import { paraformerBilingualZhEn, xAsrBilingualZhEnInt8, zipformerMultilingual } from '@proj-airi/provider-inference/sherpaw-transcription/models'
+import { speakerModel } from '@proj-airi/stage-shared/speaker-model'
+import { kwsModel } from '@proj-airi/stage-ui/libs/voice/kws-model-info'
 import { Download } from '@proj-airi/unplugin-fetch'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
-import { Sherpaw } from '@proj-airi/vite-plugin-sherpaw'
+import { resolveModelEndpoint, Sherpaw } from '@proj-airi/vite-plugin-sherpaw'
 import { defineConfig } from 'electron-vite'
 
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
 const sherpawModels = [paraformerBilingualZhEn, zipformerMultilingual, xAsrBilingualZhEnInt8]
+/** Main downloads remote Sherpaw models. It must use the endpoint that the renderer plugin uses. */
+const sherpawModelEndpoint = resolveModelEndpoint()
 
 export default defineConfig({
   main: {
+    define: {
+      'import.meta.env.SHERPAW_MODEL_ENDPOINT': JSON.stringify(sherpawModelEndpoint),
+    },
     build: {
       externalizeDeps: {
         include: [
@@ -236,6 +243,7 @@ export default defineConfig({
               '**/settings/data/index.vue',
               '**/settings/models/index.vue',
               '**/settings/system/general.vue',
+              '**/settings/modules/home-assistant.vue',
               '**/settings/modules/mcp.vue',
               '**/devtools/index.vue',
               '**/settings/index.vue',
@@ -266,11 +274,14 @@ export default defineConfig({
         fullInstall: true,
       }),
 
+      // Main downloads remote transcription and voiceprint models. Every build bundles the small wake word model,
+      // and development serves it from the cache, because main's model asset service does not serve it.
       Sherpaw({
-        models: sherpawModels,
-        developmentModels: sherpawModels,
-        bundledModels: env.SHERPAW_BUNDLE_MODELS === 'true' ? sherpawModels : [],
+        models: [...sherpawModels, kwsModel, speakerModel],
+        developmentModels: [kwsModel],
+        bundledModels: env.SHERPAW_BUNDLE_MODELS === 'true' ? [xAsrBilingualZhEnInt8, kwsModel] : [kwsModel],
         cacheDir: sharedCacheDir,
+        endpoint: sherpawModelEndpoint,
       }),
       DownloadLive2DSDK(),
       Download('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),

@@ -2,7 +2,8 @@ import type { ChatHistoryItem } from '../../../../types/chat'
 
 import en from '@proj-airi/i18n/locales/en'
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createPinia, disposePinia, setActivePinia } from 'pinia'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
@@ -127,6 +128,14 @@ function dispatchTouchEvent(
   }))
 }
 
+// A user message reads voice message snapshots from a store.
+let pinia: ReturnType<typeof createPinia>
+beforeEach(() => {
+  pinia = createPinia()
+  setActivePinia(pinia)
+})
+afterEach(() => disposePinia(pinia))
+
 describe('chat history', () => {
   beforeEach(() => {
     triggerHaptic.mockClear()
@@ -163,6 +172,74 @@ describe('chat history', () => {
       expect(replyBubble?.textContent).toContain('Replying to AIRI')
       expect(replyBubble?.textContent).toContain('Earlier answer')
     })
+  })
+
+  // A notice is not owner speech, so it shows as a folded label instead of an owner bubble, and nobody replies to it.
+  it('shows a stored notice as a folded label with its source', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [
+          { id: 'notice-1', role: 'user', content: 'The background task "Research" finished.\nThree builds compared.', notice: { source: 'recipe:Research' } },
+        ],
+        style: 'height: 240px; width: 320px;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(screen.container.textContent).toContain('Background report')
+      expect(screen.container.textContent).toContain('Research')
+      expect(screen.container.textContent).not.toContain('Three builds compared.')
+    })
+    expect(screen.container.querySelector('[data-chat-message-role="user"] .chat-message-item-container')).toBeNull()
+
+    screen.getByRole('button', { name: /Research/ }).element().dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await vi.waitFor(() => {
+      expect(screen.container.textContent).toContain('Three builds compared.')
+    })
+  })
+
+  // The owner must see when a reply handed a task to a recipe.
+  it('names the recipe that a reply used', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [
+          {
+            id: 'assistant-1',
+            role: 'assistant',
+            content: 'Next step: open the editor.',
+            slices: [
+              { type: 'tool-call', toolCall: { toolCallId: 'call-1', toolCallType: 'function', toolName: 'builtIn_useRecipe', args: '{"name":"Research","task":"Compare PC builds for 3000 yuan."}' } },
+              { type: 'text', text: 'Next step: open the editor.' },
+            ],
+            tool_results: [{ id: 'call-1', result: JSON.stringify({ status: 'started', name: 'Research', task: 'Compare PC builds for 3000 yuan.' }) }],
+          },
+        ],
+        style: 'height: 240px; width: 320px;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      const bubble = screen.container.querySelector<HTMLElement>('.chat-message-item-container')
+      expect(bubble?.textContent).toContain('Handed to recipe')
+      expect(bubble?.textContent).toContain('Research')
+      expect(bubble?.textContent).not.toContain('Compare PC builds for 3000 yuan.')
+    })
+
+    // The recipe call is a hit in the combo. Its row shows the task handed over. The recipe's steps stay in its own space.
+    screen.getByRole('button', { name: /Research/ }).first().element().dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: /Research/ }).all()).toHaveLength(2))
+    screen.getByRole('button', { name: /Research/ }).nth(1).element().dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await vi.waitFor(() => {
+      expect(screen.container.textContent).toContain('Compare PC builds for 3000 yuan.')
+    })
+    // A send builds the recipe tool for itself, so a rerun could not find it.
+    expect(screen.container.querySelector('button[aria-label="Run again"]')).toBeNull()
   })
 
   // ROOT CAUSE:
@@ -360,7 +437,7 @@ describe('chat history', () => {
       expect(hiddenMessages.length).toBeGreaterThan(0)
       expect(visibleMessages[0].classList.contains('opacity-100')).toBe(true)
       expect(visibleMessages[0].classList.contains('opacity-0')).toBe(false)
-      expect(visibleMessages[0].classList.contains('transition-opacity')).toBe(true)
+      expect(visibleMessages[0].classList.contains('transition-[opacity,visibility]')).toBe(true)
       expect(getComputedStyle(visibleMessages[0]).opacity).toBe('1')
       expect(hiddenMessages[0].classList.contains('opacity-0')).toBe(true)
     })
@@ -466,6 +543,115 @@ describe('chat history', () => {
         key: getChatHistoryItemKey(messages[1], 1),
       },
     ]])
+  })
+
+  it('hides expired messages in place, and keeps the indices of the rest', async () => {
+    const messages: ChatHistoryItem[] = [
+      { role: 'user', content: 'first question' },
+      { role: 'user', content: 'hello' },
+      { role: 'error', content: 'Remote sent 400 response' },
+    ]
+
+    const screen = await render(ChatHistory, {
+      props: {
+        messages,
+        expiredBefore: 0,
+        style: 'height: 480px; width: 480px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await expect.element(screen.getByText('first question')).toBeInTheDocument()
+    const expiredItem = screen.getByText('first question').element().closest('.chat-message-item')
+
+    const expiredTop = expiredItem?.getBoundingClientRect().top
+    await screen.rerender({ expiredBefore: 1 })
+    expect(expiredItem?.classList.contains('invisible')).toBe(true)
+    expect(expiredItem?.classList.contains('opacity-0')).toBe(true)
+    expect(expiredItem?.isConnected).toBe(true)
+    expect(expiredItem?.getBoundingClientRect().top).toBe(expiredTop)
+
+    await screen.getByRole('button', { name: 'Retry' }).click()
+    expect(screen.emitted('retryMessage')).toEqual([[
+      {
+        message: messages[2],
+        index: 2,
+        key: getChatHistoryItemKey(messages[2], 2),
+      },
+    ]])
+
+    await screen.rerender({ expiredBefore: 0 })
+    expect(expiredItem?.classList.contains('invisible')).toBe(false)
+    expect(expiredItem?.classList.contains('opacity-100')).toBe(true)
+  })
+
+  it('hides the time label of an expired message with it', async () => {
+    const createdAt = new Date('2026-10-05T12:00:00Z').getTime()
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ id: 'user-1', role: 'user', content: 'first question', createdAt }] satisfies ChatHistoryItem[],
+        expiredBefore: 0,
+        style: 'height: 480px; width: 480px; overflow-y: auto;',
+      },
+      global: { plugins: [createEnglishI18n()] },
+    })
+
+    await expect.element(screen.getByText('first question')).toBeInTheDocument()
+    const label = screen.container.querySelector('time')?.closest('.w-full')
+    expect(label).not.toBeNull()
+
+    await screen.rerender({ expiredBefore: 1 })
+    expect(label?.classList.contains('invisible')).toBe(true)
+  })
+
+  // Hidden messages keep their space, so a feed that stayed scrolled up to
+  // them would show only empty space.
+  it('returns to the newest message when more messages hide', async () => {
+    const messages: ChatHistoryItem[] = Array.from({ length: 60 }, (_, index) => ({
+      id: `user-${index}`,
+      role: 'user',
+      content: `Message ${index} `.repeat(index % 6 + 1),
+      createdAt: index,
+    }))
+
+    const screen = await render(ChatHistory, {
+      props: {
+        messages,
+        expiredBefore: 0,
+        style: 'height: 240px; width: 320px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    const history = screen.container.querySelector<HTMLElement>('.chat-history-list')
+    if (!history)
+      throw new Error('Expected a chat history viewport.')
+
+    const atTail = () => history.scrollTop + history.clientHeight >= history.scrollHeight - 24
+    // The history opens at the newest message, then the reader scrolls up.
+    await vi.waitFor(() => {
+      expect(history.scrollHeight).toBeGreaterThan(history.clientHeight)
+      expect(atTail()).toBe(true)
+    })
+    history.dispatchEvent(new WheelEvent('wheel', { deltaY: -1000 }))
+    history.scrollTop = 0
+    history.dispatchEvent(new Event('scroll'))
+    // The list aligns to the tail in an animation frame, so two frames show
+    // that the reader's position holds.
+    await new Promise(requestAnimationFrame)
+    await new Promise(requestAnimationFrame)
+    expect(history.scrollTop).toBe(0)
+
+    await screen.rerender({ expiredBefore: 55 })
+
+    await vi.waitFor(() => {
+      expect(atTail()).toBe(true)
+      expect(screen.container.textContent).toContain('Message 59')
+    })
   })
 
   it('keeps short error formatting', async () => {
@@ -1696,7 +1882,8 @@ describe('chat history', () => {
       props: { messages: [message], style: 'height: 480px; width: 480px; overflow-y: auto;' },
       global: { plugins: [createEnglishI18n()] },
     })
-    await screen.getByLabelText('Re-run tool call').nth(1).click()
+    await screen.getByText('2-hit combo', { exact: true }).click()
+    await screen.getByLabelText('Run again').nth(1).click()
     expect(screen.emitted('toolCallRerun')).toEqual([[expect.objectContaining({ invocationId: 'invocation-1', toolCallId: 'same' })]])
   })
 
@@ -1734,7 +1921,8 @@ describe('chat history', () => {
       },
     })
 
-    await screen.getByLabelText('Re-run tool call').click()
+    await screen.getByText('Using Weather').click()
+    await screen.getByLabelText('Run again').click()
 
     expect(screen.emitted('toolCallRerun')).toEqual([[
       {

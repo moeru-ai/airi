@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import ChatsSection from './components/chats-section.vue'
 import DangerSection from './components/danger-section.vue'
+import DownloadedModelsSection from './components/downloaded-models-section.vue'
 import ModelsModulesSection from './components/models-modules-section.vue'
 import StatusBanner from './components/status-banner.vue'
 
@@ -13,6 +14,7 @@ const { statusMessage, statusTone, handleStatus } = createDataSettingsStatusStat
   <div :class="['flex flex-col gap-4 pb-4']">
     <StatusBanner v-if="statusMessage" :message="statusMessage" :tone="statusTone" />
     <ChatsSection @status="handleStatus" />
+    <DownloadedModelsSection @status="handleStatus" />
     <ModelsModulesSection @status="handleStatus" />
     <DangerSection @status="handleStatus" />
   </div>

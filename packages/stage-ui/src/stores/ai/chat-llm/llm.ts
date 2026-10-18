@@ -24,10 +24,13 @@ export const useLLM = defineStore('llm', () => {
   const contentArrayCompatibility = ref<Map<string, boolean>>(new Map())
 
   async function stream(model: string, chatProvider: GenerationProvider, context: Conversation, options?: LlmStreamOptions) {
-    const key = modelKey(model, chatProvider.generation(model))
+    // Compatibility belongs to the model that received the failing request.
+    // `prepareConversation` runs for every resolved request, so the key follows a step that changes the model.
+    let key = modelKey(model, chatProvider.generation(model))
     let toolExecutionStarted = false
     const { tools: customTools, describeToolImage, ...streamOptions } = options ?? {}
     const builtinToolsResolver = () => resolveLlmTools({ customTools, describeImage: describeToolImage })
+    const resolveStep = streamOptions.resolveStep
 
     const runStream = () => coreStreamFrom({
       model,
@@ -35,6 +38,14 @@ export const useLLM = defineStore('llm', () => {
       conversation: context,
       options: {
         ...streamOptions,
+        // Core uses only the tools of a resolved step, so each step carries the complete tool list.
+        resolveStep: resolveStep
+          ? async () => ({ ...await resolveStep(), tools: await resolveLlmTools({ customTools, describeImage: describeToolImage }) })
+          : undefined,
+        prepareConversation: async (conversation, target) => {
+          key = modelKey(target.model, target.request)
+          return await streamOptions.prepareConversation?.(conversation, target) ?? conversation
+        },
         onStreamEvent: async (event) => {
           if (event.type === 'tool-call')
             toolExecutionStarted = true

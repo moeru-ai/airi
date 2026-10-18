@@ -30,7 +30,7 @@ signIn:
       description: Introduce tu correo electrónico para iniciar sesión o crear una cuenta.
     password:
       heading: Bienvenido de vuelta
-      description: Continuar como {{email}}.
+      description: Continuar como {email}.
     create:
       heading: Crear tu cuenta
       description: Crearemos una nueva cuenta para {email}.
@@ -57,8 +57,11 @@ signIn:
     useDifferentEmail: Usar un correo electrónico diferente
   divider:
     or: o
+  message:
+    redirecting: Redirigiendo a {provider}…
   error:
     fallback: Error en el inicio de sesión
+    providerTimeout: El inicio de sesión con el proveedor agotó el tiempo de espera. Vuelve a intentarlo.
     unknown: S produjo un error inesperado
     socialOnlyNoPassword: Este correo electrónico se registró con Google o GitHub. Inicia sesión con uno de los botones de abajo. Después de iniciar sesión, podrás agregar una contraseña en la configuración de tu cuenta.
     passwordMismatch: Las contraseñas no coinciden.
@@ -152,7 +155,7 @@ profile:
     setLinkSent: Revisa {email} para ver el enlace para establecer tu contraseña.
     setLinkFailed: No se pudo enviar el enlace de configuración de contraseña.
   linkedAccounts:
-    description: Inicia sesión en AIRI a través de estos proveedores. Desvinculate para revocar el acceso y vuelve a enlazar para cambiar a una cuenta diferente.
+    description: Inicia sesión en AIRI a través de estos proveedores. Desvincúlate para revocar el acceso y vuelve a enlazar para cambiar a una cuenta diferente.
     status:
       linked: Vinculado
       notLinked: No vinculado

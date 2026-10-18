@@ -7,6 +7,19 @@ function mathNodeCount(html: string): number {
 }
 
 describe('useMarkdown', () => {
+  // https://github.com/moeru-ai/airi/issues/2796
+  // ROOT CAUSE:
+  // The processor recognized only backtick fences and skipped highlighting for tilde fences.
+  // We fixed this by accepting both delimiters before language discovery.
+  it.each(['```', '~~~', '~~~~'])('highlights %s code fences for Issue #2796', async (fence) => {
+    const markdown = [`${fence}typescript`, 'const answer = 42', fence].join('\n')
+    const html = await useMarkdown().process(markdown)
+
+    expect(html).toContain('class="shiki')
+    expect(html).toContain('>const</span>')
+    expect(html).toContain('> answer</span>')
+  })
+
   // https://github.com/moeru-ai/airi/discussions/2239
   it('renders each LaTeX fence line as display math for Issue #2239', async () => {
     // ROOT CAUSE:

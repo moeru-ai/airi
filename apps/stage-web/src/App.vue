@@ -38,6 +38,7 @@ const contextBridgeStore = useContextBridgeStore()
 const authStore = useAuthStore()
 const i18n = useI18n()
 const router = useRouter()
+const activeRouteTransitionName = ref('')
 const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
 const settings = storeToRefs(settingsStore)
@@ -111,6 +112,22 @@ const colors = computed(() => {
   return [primaryColor.value, secondaryColor.value, tertiaryColor.value, isDark.value ? '#121212' : '#FFFFFF']
 })
 
+router.beforeEach((to, from) => {
+  if (typeof to.meta.transition === 'string') {
+    activeRouteTransitionName.value = to.meta.transition
+    return
+  }
+
+  if (typeof from.meta.transition !== 'string') {
+    activeRouteTransitionName.value = ''
+    return
+  }
+
+  activeRouteTransitionName.value = typeof from.meta.transitionBack === 'string'
+    ? from.meta.transitionBack
+    : from.meta.transition
+})
+
 const onboardingExtraSteps = computed(() => {
   return isAnalyticsAvailableInBuild()
     ? [{ id: 'analytics-notice', component: OnboardingStepAnalyticsNotice }]
@@ -144,7 +161,7 @@ async function loadStartup() {
     await startup.run('services', () => {
       void serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(error => console.error('Mods server initialization failed:', error))
       contextBridgeStore.initialize()
-      characterOrchestratorStore.initialize()
+      characterOrchestratorStore.initialize(syncedPinia)
     })
     await startup.run('modelData', () => displayModelsStore.loadDisplayModelsFromIndexedDB())
     await startup.run('modelSelection', () => settingsStore.initializeStageModel())
@@ -174,6 +191,7 @@ onUnmounted(() => {
   stopAuthenticatedSetup?.()
   stopLoggedOutSetup?.()
   chatStore.dispose()
+  characterOrchestratorStore.dispose()
   contextBridgeStore.dispose()
 })
 
@@ -204,13 +222,20 @@ function openOnboardingAfterStartup() {
       :disable-transitions="settings.disableTransitions.value"
       :use-page-specific-transitions="settings.usePageSpecificTransitions.value"
     >
-      <RouterView v-slot="{ Component }">
-        <ErrorBoundary
-          title="Something went wrong while rendering this page."
-          @error="(err, _, info) => console.error('[ErrorBoundary]', info, err)"
+      <RouterView v-slot="{ Component, route }">
+        <Transition
+          :name="activeRouteTransitionName"
+          mode="out-in"
         >
-          <component :is="Component" />
-        </ErrorBoundary>
+          <div :key="route.path" :class="['h-full w-full']">
+            <ErrorBoundary
+              title="Something went wrong while rendering this page."
+              @error="(err, _, info) => console.error('[ErrorBoundary]', info, err)"
+            >
+              <component :is="Component" />
+            </ErrorBoundary>
+          </div>
+        </Transition>
       </RouterView>
     </StageTransitionGroup>
 

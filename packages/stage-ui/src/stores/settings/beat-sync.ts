@@ -15,8 +15,8 @@ export const useSettingsBeatSync = defineStore('settings-beat-sync', () => {
   )
 
   function resetState() {
-    parameters.value = { ...DEFAULT_BEAT_SYNC_PARAMETERS }
-    spectrumScale.value = 'logarithm'
+    parameters.reset()
+    spectrumScale.reset()
   }
 
   return {

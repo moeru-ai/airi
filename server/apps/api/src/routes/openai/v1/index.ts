@@ -1,13 +1,14 @@
 import type { Context } from 'hono'
 
 import type { HonoEnv } from '../../../types/hono'
-import type { LlmTracingDeps, V1RouteDeps } from './types'
+import type { V1RouteDeps } from './types'
+
+import { createBadRequestError } from '@proj-airi/http-error-shared'
 
 import { authGuard } from '../../../middlewares/auth'
 import { configGuard } from '../../../middlewares/config-guard'
 import { rateLimiter } from '../../../middlewares/rate-limit'
 import { generationOperation, generationProtocols } from '../../../schemas/generation-protocol'
-import { createBadRequestError } from '../../../utils/error'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
   AIRI_CHAT_ROUND_ID_HEADER,
@@ -20,14 +21,11 @@ import { responsesCreate } from './operations/responses'
 import { parseResponsesRequest } from './operations/responses/request'
 import { createSpeechCatalogOperation } from './operations/speech-catalog'
 import { speechGeneration } from './operations/speech-generation'
-import { defaultLlmTracing } from './types'
 
-export interface CreateV1RoutesDeps extends Omit<V1RouteDeps, 'llmTracing'> {
-  llmTracing?: LlmTracingDeps
-}
+export type CreateV1RoutesDeps = V1RouteDeps
 
 export function createV1Routes(input: CreateV1RoutesDeps) {
-  const deps: V1RouteDeps = { ...input, llmTracing: input.llmTracing ?? defaultLlmTracing }
+  const deps: V1RouteDeps = input
   const gateway = createV1Gateway(deps)
     .useHono('*', '*', authGuard)
     .useHono('openai', '/chat/*', configGuard(deps.configKV, ['LLM_MINIMUM_BALANCE'], 'Service is not available yet'))

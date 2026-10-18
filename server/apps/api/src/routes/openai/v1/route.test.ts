@@ -5,13 +5,13 @@ import type { BillingService as WalletBillingService } from '../../../services/d
 import type { LlmBillingService } from '../../../services/domain/billing/llm-billing'
 import type { FluxService } from '../../../services/domain/flux'
 import type { LlmRouterService } from '../../../services/domain/llm-router'
-import type { ChatGenerationTrace, TtsGenerationTrace } from '../../../services/domain/llm-tracing'
 import type { ProductEventService } from '../../../services/domain/product-events'
 import type { ProviderCatalogService } from '../../../services/domain/provider-catalog'
 import type { RequestLogService } from '../../../services/domain/request-log'
 import type { VoicePackService } from '../../../services/domain/voice-packs'
 import type { HonoEnv } from '../../../types/hono'
 
+import { ApiError } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -28,7 +28,6 @@ import { createBillingService } from '../../../services/domain/billing/billing-s
 import { microFluxToFlux } from '../../../services/domain/billing/flux-posting'
 import { createLlmBillingService } from '../../../services/domain/billing/llm-billing'
 import { createRequestLogService } from '../../../services/domain/request-log'
-import { ApiError } from '../../../utils/error'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
   AIRI_CHAT_ROUND_ID_HEADER,
@@ -45,8 +44,8 @@ function createMockFluxService(flux = 100): FluxService {
 
 type BillingService = WalletBillingService & LlmBillingService
 
-function createTestBillingService(db: Parameters<typeof createBillingService>[0], redis: Parameters<typeof createBillingService>[1], _config: ConfigKVService, metrics?: Parameters<typeof createBillingService>[2]): BillingService {
-  const billing = createBillingService(db, redis, metrics)
+function createTestBillingService(db: Parameters<typeof createBillingService>[0], redis: Parameters<typeof createBillingService>[1], config: ConfigKVService, metrics?: Parameters<typeof createBillingService>[3]): BillingService {
+  const billing = createBillingService(db, redis, config, metrics)
   return { ...billing, ...createLlmBillingService(billing, metrics) }
 }
 
@@ -146,12 +145,12 @@ function createMockTtsMeter(unitsPerFlux = 1000, initialBalance = 100) {
 
 function createMockLlmTracing() {
   return {
-    startChatGeneration: vi.fn((): ChatGenerationTrace => ({
+    startChatGeneration: vi.fn(() => ({
       appendStreamChunk: vi.fn(),
       succeed: vi.fn(),
       fail: vi.fn(),
     })),
-    startTtsGeneration: vi.fn((): TtsGenerationTrace => ({
+    startTtsGeneration: vi.fn(() => ({
       succeed: vi.fn(),
       fail: vi.fn(),
     })),
@@ -373,7 +372,7 @@ function createTestApp(
   requestLogService?: RequestLogService,
   speechBilling?: ReturnType<typeof createMockTtsMeter>,
   llmRouter?: LlmRouterService,
-  llmTracing = createMockLlmTracing(),
+  _llmTracing = createMockLlmTracing(),
   productEventService = createMockProductEventService(),
   voicePackService = createMockVoicePackService(),
   providerCatalogService = createMockProviderCatalogService(),
@@ -393,7 +392,6 @@ function createTestApp(
     genAi,
     revenue: null,
     rateLimitMetrics: null,
-    llmTracing,
   })
   const app = new Hono<HonoEnv>()
 
@@ -1011,7 +1009,7 @@ describe('v1CompletionsRoutes', () => {
       }
     })
 
-    it('records Langfuse usage without forwarding generations to product analytics', async () => {
+    it('does not forward gateway generations to product analytics', async () => {
       const llmRouter = createMockLlmRouter({
         route: vi.fn(async (_req, ctx) => {
           if (ctx) {
@@ -1027,7 +1025,6 @@ describe('v1CompletionsRoutes', () => {
           })
         }) as any,
       })
-      const llmTracing = createMockLlmTracing()
       const productEventService = createMockProductEventService()
       const app = createTestApp(
         createMockFluxService(),
@@ -1036,7 +1033,7 @@ describe('v1CompletionsRoutes', () => {
         undefined,
         undefined,
         llmRouter,
-        llmTracing,
+        createMockLlmTracing(),
         productEventService,
       )
 
@@ -1054,14 +1051,6 @@ describe('v1CompletionsRoutes', () => {
         { user: testUser } as any,
       )
 
-      expect(llmTracing.startChatGeneration).toHaveBeenCalledWith(
-        expect.objectContaining({
-          model: 'openai/gpt-4o-mini',
-          requestId: expect.any(String),
-          userId: 'user-1',
-        }),
-      )
-      expect(llmTracing.startChatGeneration).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 'conversation-1' }))
       expect(productEventService.track).not.toHaveBeenCalled()
     })
 
@@ -2891,7 +2880,6 @@ describe('issue #2479 hosted Responses', () => {
     expect(harness.billing.settleLlmCost).toHaveBeenCalledTimes(1)
     expect(harness.billing.settleLlmCost).toHaveBeenCalledWith(expect.objectContaining({ usage: expect.objectContaining({ costUsd: 0.003, promptTokens: 100, completionTokens: 50 }), model: 'openai/gpt-5-mini' }))
     expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 200 }))
-    expect(harness.tracing.startChatGeneration).toHaveBeenCalledWith(expect.objectContaining({ protocol: 'responses' }))
   })
 
   it('forwards provider reasoning extensions without rebuilding input items', async () => {
@@ -2931,7 +2919,7 @@ describe('issue #2479 hosted Responses', () => {
     const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => now)
     vi.mocked(flux.getFlux).mockImplementation(async () => {
       now = 1000
-      return { userId: 'user-1', flux: 100, unsettledMicroFlux: 0 }
+      return { userId: 'user-1', flux: 100, unsettledMicroFlux: 0, fallbackToFlux: false, capacitorPercent: null, capacitorRechargesAt: null }
     })
     vi.mocked(catalog.resolveEnabledAlias).mockImplementation(async () => {
       now = 2000
@@ -3593,8 +3581,8 @@ it('keeps partial Responses content on unexpected EOF', async () => {
 // https://github.com/moeru-ai/airi/pull/2644#discussion_r4122406969
 // ROOT CAUSE:
 // Sequential candidate validation allowed primary dispatch before fallback pricing validation.
-// Validate the complete alias plan before the first route call.
-it.each(['chat/completions', 'responses'])('validates the full alias plan before dispatch for %s (PR #2644)', async (protocol) => {
+// Validate the complete alias capacitor before the first route call.
+it.each(['chat/completions', 'responses'])('validates the full alias capacitor before dispatch for %s (PR #2644)', async (protocol) => {
   const catalog = createMockProviderCatalogService()
   const alias = await catalog.resolveEnabledAlias('llm', 'auto')
   vi.mocked(catalog.resolveEnabledAlias).mockResolvedValue({ ...alias, fallbackEnabled: true, routes: [

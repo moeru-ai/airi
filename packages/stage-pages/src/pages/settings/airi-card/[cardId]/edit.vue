@@ -42,6 +42,6 @@ const {
 meta:
   layout: plain
   titleKey: settings.pages.card.edit_card
-  stageTransition:
-    name: slide
+  transition: card-expand
+  transitionBack: card-collapse
 </route>

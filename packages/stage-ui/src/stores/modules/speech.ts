@@ -1,6 +1,8 @@
+import type { SpeechOutput, TurnRef } from '@proj-airi/core-agent'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type {} from 'pinia-plugin-synced'
 
+import type { AiriExtension } from '../../types/airiCard'
 import type { VoiceCatalogConfiguration, VoiceCatalogIdentity, VoiceInfo } from '../providers/provider'
 
 import { errorMessageFrom } from '@moeru/std'
@@ -9,13 +11,15 @@ import { refManualReset } from '@vueuse/core'
 import { generateSpeech } from '@xsai/generate-speech'
 import { isEqual } from 'es-toolkit'
 import { defineStore, getActivePinia, storeToRefs } from 'pinia'
-import { computed, hasInjectionContext, inject, onScopeDispose, watch } from 'vue'
+import { computed, hasInjectionContext, inject, onScopeDispose, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toXml } from 'xast-util-to-xml'
 import { x } from 'xastscript'
 
 import { injectKeyPiniaSynced } from '../../libs/pinia/synced-context'
+import { getDefinedProvider } from '../../libs/providers/providers'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, pickOfficialSpeechVoice } from '../../libs/providers/providers/official'
+import { streamSpeech } from '../../libs/speech/streaming-pipeline'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 
@@ -537,6 +541,53 @@ export const useSpeechStore = defineStore('speech', () => {
     return response
   }
 
+  /** Captures one response's provider, voice, model, and settings before any asynchronous work. */
+  function createOutput(turn: TurnRef, selection: AiriExtension['modules']['speech'], output: Pick<SpeechOutput, 'playback' | 'onPlaybackStart' | 'onPlaybackEnd' | 'onSpecial'>, audioContext: AudioContext): SpeechOutput {
+    const providerId = selection.provider
+    const config = structuredClone(toRaw(providerStore.getProviderConfig(providerId) ?? {}))
+    const selectedVoice = availableVoices.value[providerId]?.find(voice => voice.id === selection.voice_id)
+    const voice = selectedVoice ? structuredClone(toRaw(selectedVoice)) : undefined
+    const model = selection.model || (typeof config.model === 'string' ? config.model : '')
+    const voiceId = selection.voice_id || (typeof config.voice === 'string' ? config.voice : '')
+    const useSSML = ssmlEnabled.value
+    const canUseSSML = ['elevenlabs', 'microsoft-speech', 'azure-speech'].includes(providerId) || (providerId === 'alibaba-cloud-model-studio' && model === 'cosyvoice-v2')
+    const pitchValue = pitch.value
+    const voiceType = providerId === OFFICIAL_SPEECH_PROVIDER_ID || providerId === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
+      ? 'official_selected' as const
+      : 'custom_configured' as const
+    if (!providerId || providerId === 'speech-noop')
+      return { ...output, synthesize: async () => null }
+    if (getDefinedProvider(providerId)?.capabilities?.speech?.transport === 'bidirectional-ws') {
+      const streamingModel = model.includes('/') ? model : providersStore.getDefaultModelForProvider(providerId)
+      if (!streamingModel?.includes('/') || !voiceId)
+        throw new Error('Streaming speech requires a model and voice')
+      const resource = streamingModel.split('/', 2)[1]
+      return { ...output, stream: async (text, signal) => streamSpeech({
+        audioContext,
+        model: streamingModel,
+        voice: voiceId,
+        turnId: turn.turnId,
+        ttsVoiceType: voiceType,
+        bufferEntireSession: resource.startsWith('seed-tts-2.0') || resource.startsWith('seed-icl-2.0'),
+        extraBody: { api_resource_id: resource, audio: { sample_rate: 24000, bit_rate: 64000 } },
+      }, text, signal) }
+    }
+    if (!model || !voiceId)
+      throw new Error('Speech requires a model and voice')
+    const provider = providersStore.getProviderInstance<SpeechProviderWithExtraOptions<string, Record<string, unknown>>>(providerId)
+    return { ...output, synthesize: async (request, signal) => {
+      signal.throwIfAborted()
+      const client = await provider
+      signal.throwIfAborted()
+      const input = voice && useSSML && canUseSSML ? generateSSML(request.text, voice, { ...config, pitch: pitchValue }) : request.text
+      const settings = providerId === OFFICIAL_SPEECH_PROVIDER_ID
+        ? { ...config, extraBody: { ...(config.extraBody as Record<string, unknown> | undefined), airi_analytics: { trigger: 'auto', source: 'chat_auto_tts', voice_type: voiceType, turn_id: turn.turnId } } }
+        : config
+      const audio = await generateSpeech({ ...client.speech(model, settings), input, voice: voiceId, abortSignal: signal })
+      return new Blob([audio])
+    } }
+  }
+
   function withAiriTtsAnalytics(
     providerConfig: Record<string, any>,
     analytics: SpeechAnalytics,
@@ -695,6 +746,7 @@ export const useSpeechStore = defineStore('speech', () => {
     ensureActiveSpeechModel,
     generateSSML,
     resolveSpeechInput,
+    createOutput,
     resetState,
     resetSettings,
   }

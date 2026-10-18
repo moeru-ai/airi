@@ -1,6 +1,9 @@
 import type { ChatWindowPreferences } from '../../../shared/eventa'
 
-import { describe, expect, it, onTestFinished, vi } from 'vitest'
+import { FULLSCREEN_WORKSPACE_FLAG } from '@proj-airi/stage-ui/libs/feature-flags'
+import { useFeatureFlagsStore } from '@proj-airi/stage-ui/stores/feature-flags'
+import { createPinia, disposePinia } from 'pinia'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { page } from 'vitest/browser'
 import { createI18n } from 'vue-i18n'
@@ -26,6 +29,25 @@ vi.mock('@proj-airi/electron-vueuse', async () => {
   }
 })
 
+let pinia: ReturnType<typeof createPinia>
+
+beforeEach(() => {
+  // The experiments catalog offers the fullscreen mode only in the desktop app, and it reads the environment when the
+  // store starts.
+  vi.stubEnv('RUNTIME_ENVIRONMENT', 'electron')
+  // The experiments store asks the Cloud for account policies. The local experiments need none.
+  vi.stubGlobal('fetch', async () => Response.json({ flags: [] }))
+  localStorage.clear()
+  pinia = createPinia()
+})
+
+afterEach(() => {
+  disposePinia(pinia)
+  vi.unstubAllEnvs()
+  vi.unstubAllGlobals()
+  localStorage.clear()
+})
+
 async function choose(style: string) {
   await page.getByRole('button', { name: 'tamagotchi.stage.chat-window.style.title' }).click()
   await page.getByRole('menuitemradio', { name: `tamagotchi.stage.chat-window.style.${style}` }).click()
@@ -43,7 +65,7 @@ describe('chatWindowStyleMenu', () => {
     // button beside it.
     mocks.getPreferences.mockResolvedValue({ mode: 'legacy', placement: 'attached', pinned: true })
     const screen = await render(ChatWindowStyleMenu, {
-      global: { plugins: [createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false, messages: { en: {} } })] },
+      global: { plugins: [pinia, createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false, messages: { en: {} } })] },
     })
     onTestFinished(() => screen.unmount())
     const reference = document.createElement('div')
@@ -77,7 +99,7 @@ describe('chatWindowStyleMenu', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
     const screen = await render(ChatWindowStyleMenu, {
-      global: { plugins: [createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false, messages: { en: {} } })] },
+      global: { plugins: [pinia, createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false, messages: { en: {} } })] },
     })
     onTestFinished(() => screen.unmount())
     await expect.element(page.getByRole('button', { name: 'tamagotchi.stage.chat-window.style.title' })).toBeEnabled()
@@ -99,7 +121,7 @@ describe('chatWindowStyleMenu', () => {
     mocks.getPreferences.mockReturnValue(saved.promise)
     mocks.setPreferences.mockClear()
     const screen = await render(ChatWindowStyleMenu, {
-      global: { plugins: [createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false, messages: { en: {} } })] },
+      global: { plugins: [pinia, createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false, messages: { en: {} } })] },
     })
     onTestFinished(() => screen.unmount())
     const trigger = page.getByRole('button', { name: 'tamagotchi.stage.chat-window.style.title' })
@@ -120,7 +142,7 @@ describe('chatWindowStyleMenu', () => {
     mocks.setPreferences.mockRejectedValueOnce(new Error('The new chat window could not restore the draft'))
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const screen = await render(ChatWindowStyleMenu, {
-      global: { plugins: [createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false, messages: { en: {} } })] },
+      global: { plugins: [pinia, createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false, messages: { en: {} } })] },
     })
     onTestFinished(() => screen.unmount())
     await expect.element(page.getByRole('button', { name: 'tamagotchi.stage.chat-window.style.title' })).toBeEnabled()
@@ -129,5 +151,32 @@ describe('chatWindowStyleMenu', () => {
 
     await page.getByRole('button', { name: 'tamagotchi.stage.chat-window.style.title' }).click()
     await expect.element(page.getByRole('menuitemradio', { name: 'tamagotchi.stage.chat-window.style.legacy' })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  // The fullscreen chat shows in the fullscreen mode, so the menu offers it only while that experiment is on.
+  it('leaves the fullscreen style out while the fullscreen workspace experiment is off', async () => {
+    mocks.getPreferences.mockResolvedValue({ mode: 'floating', placement: 'attached', pinned: true })
+    const screen = await render(ChatWindowStyleMenu, {
+      global: { plugins: [pinia, createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false, messages: { en: {} } })] },
+    })
+    onTestFinished(() => screen.unmount())
+
+    await page.getByRole('button', { name: 'tamagotchi.stage.chat-window.style.title' }).click()
+
+    await expect.element(page.getByRole('menuitemradio', { name: 'tamagotchi.stage.chat-window.style.legacy' })).toBeVisible()
+    expect(page.getByRole('menuitemradio', { name: 'tamagotchi.stage.chat-window.style.fullscreen' }).elements()).toHaveLength(0)
+  })
+
+  it('offers the fullscreen style while the fullscreen workspace experiment is on', async () => {
+    useFeatureFlagsStore(pinia).setPreference(FULLSCREEN_WORKSPACE_FLAG.key, true)
+    mocks.getPreferences.mockResolvedValue({ mode: 'floating', placement: 'attached', pinned: true })
+    const screen = await render(ChatWindowStyleMenu, {
+      global: { plugins: [pinia, createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false, messages: { en: {} } })] },
+    })
+    onTestFinished(() => screen.unmount())
+
+    await page.getByRole('button', { name: 'tamagotchi.stage.chat-window.style.title' }).click()
+
+    await expect.element(page.getByRole('menuitemradio', { name: 'tamagotchi.stage.chat-window.style.fullscreen' })).toBeVisible()
   })
 })

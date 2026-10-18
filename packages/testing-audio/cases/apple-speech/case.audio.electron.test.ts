@@ -41,7 +41,7 @@ describe('Apple Speech audio input', () => {
     const page = audio.runtimePage
     audio.activatePage(page)
     await page.evaluate(() => {
-      window.location.hash = '/settings/modules/hearing'
+      window.location.hash = '/settings/modules/hearing/transcriber'
     })
     await page.waitForURL(/#\/settings\/modules\/hearing/)
     await page.getByTestId('hearing-playground-monitor-toggle').waitFor({ state: 'visible', timeout: 60_000 })
@@ -89,8 +89,8 @@ describe('Apple Speech audio input', () => {
       throw new Error(`Apple Speech did not produce a transcript: ${JSON.stringify(diagnostics)}`, { cause: error })
     }
 
-    await expect(audio).toHaveTranscriptions([
-      ['Just let go.'],
-    ], { match: 'contains' })
+    await expect.poll(async () => (
+      await page.getByTestId('hearing-playground-transcript').allTextContents()
+    ).join(' '), { timeout: 60_000 }).toMatch(/Just let go[.!?]?/i)
   })
 })

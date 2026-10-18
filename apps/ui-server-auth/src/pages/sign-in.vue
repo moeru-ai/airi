@@ -160,6 +160,7 @@ async function handleProviderSelect(provider: OAuthProvider) {
   }
 }
 
+/** Routes unverified users before password entry while preserving the original OIDC continuation. */
 async function handleIdentify(event: Event) {
   event.preventDefault()
   if (identifierLoading.value)
@@ -171,6 +172,17 @@ async function handleIdentify(event: Event) {
   try {
     const email = credentials.email.trim()
     const result = await checkEmail({ apiServerUrl, email })
+
+    if (result.exists && result.emailVerified === false) {
+      await router.push({
+        path: '/verify-email',
+        query: {
+          email,
+          ...(oidcContinueURL.value ? { continueURL: oidcContinueURL.value } : {}),
+        },
+      })
+      return
+    }
 
     if (result.exists && !result.hasPassword) {
       // User signed up via a social provider only. Stay on the identifier step

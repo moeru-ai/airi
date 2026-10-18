@@ -233,6 +233,71 @@ it('continues one assistant turn in Responses after a Chat Completions tool swit
   expect(rounds[0].toolInvocations[0].id).toBe(`${rounds[0].id}/switch-1`)
 })
 
+it('projects stored audio again for the model that a tool step selects', async () => {
+  const live: { protocol: 'responses' | 'chat-completions', model: string } = { protocol: 'chat-completions', model: 'audio-model' }
+  const requests: Array<{ url: string, body: Record<string, unknown> }> = []
+  const fetch: typeof globalThis.fetch = async (url, init) => {
+    requests.push({ url: String(url), body: JSON.parse(String(init?.body)) })
+    if (requests.length === 1) {
+      return sse([
+        { choices: [{ index: 0, delta: { role: 'assistant', tool_calls: [{ index: 0, id: 'switch-1', type: 'function', function: { name: 'switch_model', arguments: '{}' } }] }, finish_reason: null }] },
+        { choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }] },
+      ])
+    }
+    return sse(completed([{ type: 'message', role: 'assistant', id: 'answer-1', content: [{ type: 'output_text', text: 'Continued.', annotations: [] }] }]))
+  }
+  const liveProvider: GenerationProvider = {
+    generation: model => live.protocol === 'chat-completions'
+      ? { protocol: 'chat-completions', config: { model, baseURL: 'https://chat.example/v1/', fetch } }
+      : { protocol: 'responses', webSearch: false, config: { model, baseURL: 'https://responses.example/v1/', fetch } },
+  }
+  const conversation: Conversation = {
+    turns: [{ type: 'user', id: 'audio-question', content: [{ type: 'audio', data: 'AA==', format: 'wav' }] }],
+  }
+  // The callback stands in for a host that sends audio only to a Chat Completions audio model.
+  const prepareConversation = vi.fn(async (source: Conversation, target: { model: string }) => {
+    if (target.model === 'audio-model')
+      return source
+    const projected = structuredClone(source)
+    for (const turn of projected.turns) {
+      if (turn.type === 'user')
+        turn.content = turn.content.map(part => part.type === 'audio' ? { type: 'text' as const, text: 'spoken words' } : part)
+    }
+    return projected
+  })
+
+  await streamFrom({
+    model: live.model,
+    chatProvider: liveProvider,
+    conversation,
+    options: {
+      prepareConversation,
+      resolveStep: async () => ({
+        model: live.model,
+        chatProvider: liveProvider,
+        providerId: 'live',
+        systemPrompt: '',
+        tools: [{
+          type: 'function',
+          function: { name: 'switch_model', parameters: { type: 'object', properties: {} } },
+          execute: () => {
+            live.protocol = 'responses'
+            live.model = 'text-model'
+            return 'switched'
+          },
+        }],
+      }),
+    },
+  })
+
+  expect(prepareConversation).toHaveBeenCalledTimes(2)
+  expect(prepareConversation.mock.calls.map(([, target]) => target.model)).toEqual(['audio-model', 'text-model'])
+  expect(JSON.stringify(requests[0].body.messages)).toContain('input_audio')
+  expect(JSON.stringify(requests[1].body.input)).toContain('spoken words')
+  expect(JSON.stringify(requests[1].body.input)).not.toContain('input_audio')
+  expect(conversation.turns[0]).toMatchObject({ content: [{ type: 'audio', data: 'AA==' }] })
+})
+
 // https://github.com/moeru-ai/airi/pull/2477#discussion_r4005498788
 // https://github.com/moeru-ai/airi/pull/2477#discussion_r4005940671
 it.each([

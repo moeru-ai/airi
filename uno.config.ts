@@ -80,11 +80,8 @@ export function safelistSettingsEntryIcons(): string[] {
   ]
 }
 
-export function presetWebFontsFonts(
-  provider: 'fontsource' | 'none',
-  options: { includeSpecialFonts?: boolean } = {},
-): Record<string, string | WebFontMeta | (string | WebFontMeta)[]> {
-  const fonts: Record<string, string | WebFontMeta | (string | WebFontMeta)[]> = {
+export function presetWebFontsFonts(provider: 'fontsource' | 'none'): Record<string, string | WebFontMeta | (string | WebFontMeta)[]> {
+  return {
     'sans': {
       name: provider === 'fontsource' ? 'DM Sans' : 'DM Sans Variable',
       provider,
@@ -130,20 +127,15 @@ export function presetWebFontsFonts(
       name: 'M PLUS Rounded 1c',
       provider,
     },
-  }
-
-  if (options.includeSpecialFonts ?? true) {
-    fonts.quanlai = {
+    'quanlai': {
       name: 'cjkfonts AllSeto',
       provider: 'none',
-    }
-    fonts.xiaolai = {
+    },
+    'xiaolai': {
       name: 'Xiaolai SC',
       provider: 'none',
-    }
+    },
   }
-
-  return fonts
 }
 
 export function sharedUnoConfig() {

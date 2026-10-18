@@ -1,7 +1,7 @@
 import type { AiriExtension } from '../types/airiCard'
 
 /** Persisted defaults, separate from the selections applied by the active card. */
-export type CardModuleDefaults = Pick<AiriExtension['modules'], 'consciousness' | 'vision' | 'speech' | 'displayModelId'>
+export type CardModuleDefaults = Pick<AiriExtension['modules'], 'consciousness' | 'vision' | 'speech'>
 
 /**
  * Resolves a card selection without borrowing a model from another provider.

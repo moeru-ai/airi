@@ -5,13 +5,14 @@ import { all } from '@proj-airi/i18n'
 import { Button, DropdownMenu } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuItem } from 'reka-ui'
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import onboardingLogo from '../../../../assets/onboarding.avif'
 
 import { AIRI_FLUX_URL, AIRI_TERMS_URL } from '../../../../constants/public-links'
 import { useAuthStore } from '../../../../stores/auth'
+import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useOnboardingStore } from '../../../../stores/onboarding'
 import { useSettingsGeneral } from '../../../../stores/settings'
 
@@ -26,9 +27,18 @@ const authStore = useAuthStore()
 const onboardingStore = useOnboardingStore()
 const settingsStore = useSettingsGeneral()
 const { language } = storeToRefs(settingsStore)
+const cardStore = useAiriCardStore()
 
 const languages = computed(() => {
   return Object.entries(all).map(([value, label]) => ({ value, label }))
+})
+
+// The built-in card gets its description before the user chooses a language here. While it still holds the built-in
+// text, it takes the text of the chosen language. A description that the user edited stays.
+watch(() => cardStore.builtInCard.description, (description, previous) => {
+  const card = cardStore.getCard('default')
+  if (card && card.description === previous)
+    void cardStore.updateCard('default', { ...card, description })
 })
 
 async function handleLogin() {
@@ -114,18 +124,18 @@ function handleLocalSetup() {
         {{ t('settings.dialogs.onboarding.description') }}
       </p>
     </div>
-    <div :class="['mx-2 mt-2 flex flex-col gap-3 md:flex-row']">
+    <div :class="['mx-2 flex flex-col items-stretch gap-2']">
       <Button
         v-motion="{
-          initial: { opacity: 0 },
-          enter: { opacity: 1 },
+          initial: { opacity: 0, y: 8 },
+          enter: { opacity: 1, y: 0 },
           duration: 500,
           delay: 200,
         }"
         color="primary"
-        variant="secondary"
+        variant="primary"
+        size="lg"
         :label="t('settings.dialogs.onboarding.loginAction')"
-        :class="['flex-1']"
         @click="handleLogin"
       />
       <Button
@@ -136,12 +146,14 @@ function handleLocalSetup() {
           duration: 500,
           delay: 250,
         }"
+        variant="secondary"
+        :outline="false"
+        :class="['bg-transparent! text-neutral-600 dark:bg-neutral-700/60! dark:text-neutral-200']"
         :label="t('settings.dialogs.onboarding.setupWithoutSigningIn')"
-        :class="['flex-1']"
         @click="handleLocalSetup"
       />
     </div>
-    <div
+    <nav
       v-motion="{
         initial: { opacity: 0 },
         enter: { opacity: 1 },
@@ -149,9 +161,9 @@ function handleLocalSetup() {
         delay: 300,
       }"
       :class="[
-        'mx-2 mb-1 mt-5 border-t border-neutral-200/70 pt-3',
-        'flex items-center justify-center gap-2',
-        'text-xs text-neutral-500 dark:border-neutral-800 dark:text-neutral-400',
+        'mx-2 mb-1 mt-8 md:mt-10',
+        'flex items-center justify-center gap-3',
+        'text-xs text-neutral-500 dark:text-neutral-500',
       ]"
     >
       <a
@@ -162,7 +174,7 @@ function handleLocalSetup() {
       >
         {{ t('settings.dialogs.onboarding.pricingLink') }}
       </a>
-      <span aria-hidden="true">·</span>
+      <span aria-hidden="true" :class="['size-0.5 rounded-full bg-current']" />
       <a
         :href="AIRI_TERMS_URL"
         target="_blank"
@@ -171,6 +183,6 @@ function handleLocalSetup() {
       >
         {{ t('settings.dialogs.onboarding.termsLink') }}
       </a>
-    </div>
+    </nav>
   </div>
 </template>

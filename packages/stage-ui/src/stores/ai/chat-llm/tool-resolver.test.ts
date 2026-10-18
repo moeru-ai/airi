@@ -21,6 +21,18 @@ vi.mock('../../modules/web-search', () => ({
   useWebSearchStore: useWebSearchStoreMock,
 }))
 
+// The default (non-injected) spark-command branch reads the channel store. Mock
+// it so the test observes the exact event the tool hands to the socket, without
+// a live connection and without Pinia.
+const { sendSparkCommandEventMock, useModsServerChannelStoreMock } = vi.hoisted(() => ({
+  sendSparkCommandEventMock: vi.fn((_event: { type: string, data: Record<string, unknown> }) => undefined),
+  useModsServerChannelStoreMock: vi.fn(),
+}))
+
+vi.mock('../../mods/api/channel-server', () => ({
+  useModsServerChannelStore: useModsServerChannelStoreMock,
+}))
+
 function createTool(name: string, description = `${name} description`): Tool {
   return {
     type: 'function',
@@ -45,6 +57,22 @@ describe('toolNameFrom', () => {
 })
 
 describe('resolveLlmTools', () => {
+  // https://github.com/moeru-ai/airi/issues/2779
+  // ROOT CAUSE:
+  //
+  // The default source added MCP proxies without a transport.
+  // We fixed this by keeping the default source empty and retaining runtime registrations.
+  it('exposes MCP proxies only from a registered runtime (Issue #2779)', async () => {
+    const options = { debugTools: [], sparkCommandTools: [], webSearchTools: [], activeTools: [] }
+
+    expect(await resolveLlmTools(options)).toEqual([])
+
+    const listTools = createTool('builtIn_mcpListTools')
+    const callTool = createTool('builtIn_mcpCallTool')
+
+    expect(await resolveLlmTools({ ...options, activeTools: [listTools, callTool] })).toEqual([listTools, callTool])
+  })
+
   it('reads the images of every tool when it receives an image reader', async () => {
     const screenshot = [{ type: 'image_url', image_url: { url: 'data:image/png;base64,aW1hZ2U=' } }]
     const builtInTool = { ...createTool('builtIn_mcpCallTool'), execute: async () => screenshot }
@@ -157,6 +185,56 @@ describe('resolveLlmTools', () => {
 
       expect(createWebSearchToolsMock).toHaveBeenCalledWith({ apiKey: 'tvly-key' })
       expect(tools).toEqual([builtInTool, webSearchTool])
+    })
+  })
+
+  describe('default spark-command branch (channel store)', () => {
+    beforeEach(() => {
+      sendSparkCommandEventMock.mockReset()
+      useModsServerChannelStoreMock.mockReset()
+      useModsServerChannelStoreMock.mockReturnValue({ send: sendSparkCommandEventMock })
+    })
+
+    async function resolveSparkCommandTool() {
+      // sparkCommandTools is intentionally omitted so resolveSparkCommandTools
+      // falls through to the real sender instead of an injected source.
+      const tools = await resolveLlmTools({
+        builtInTools: [],
+        debugTools: [],
+        webSearchTools: [],
+        customTools: [],
+        activeTools: [],
+      })
+      const tool = tools.find(candidate => toolNameFrom(candidate) === 'builtIn_emitSparkCommand')
+      if (!tool)
+        throw new Error('Expected the resolver to mount builtIn_emitSparkCommand.')
+
+      return tool
+    }
+
+    it('omits destinations from the emitted event so the server broadcasts', async () => {
+      const tool = await resolveSparkCommandTool()
+
+      const result = await tool.execute({
+        destinations: ['minecraft-bot'],
+        interrupt: null,
+        priority: null,
+        intent: 'action',
+        ack: null,
+        parentEventId: null,
+        guidance: null,
+        contexts: null,
+      }, { messages: [], toolCallId: 'call-spark-command' })
+
+      expect(sendSparkCommandEventMock).toHaveBeenCalledOnce()
+      const [event] = sendSparkCommandEventMock.mock.calls[0]
+      expect(event.type).toBe('spark:command')
+      // The delivery loop keeps an array-shaped `data.destinations` and delivers to the peers it
+      // names, so an empty array reaches nobody. Only an absent key broadcasts.
+      //
+      // Regression guard for a5d45bdd7 (#1635). The previous `destinations = []` predates it.
+      expect(Object.hasOwn(event.data, 'destinations')).toBe(false)
+      expect(result).toContain('broadcast')
     })
   })
 })
