@@ -1,8 +1,9 @@
 import type { GlobalShortcut } from '@gd-kirie/platform'
 import type { ShortcutAccelerator, ShortcutRegistrationResult } from '@proj-airi/stage-shared/global-shortcut'
 
-import { notificationActivated } from '@gd-kirie/platform'
+import { notificationActivated } from '@gd-kirie/notifications'
 import { defineInvoke, defineInvokeEventa } from '@moeru/eventa'
+import { onScopeDispose } from 'vue'
 
 import {
   airiSpotlightShortcutChanged,
@@ -28,6 +29,7 @@ const kirieSpotlightShortcutGet = defineInvokeEventa<ShortcutAccelerator, EmptyP
   electronSpotlightShortcutGet.sendEvent.id.slice(0, -sendSuffix.length),
 )
 
+/** Retains notification activation across send failures until the caller's Vue scope ends. */
 export function useHostSpotlightWindow() {
   const host = initializeHostContext()
   const openChat = useHostChat()
@@ -39,6 +41,7 @@ export function useHostSpotlightWindow() {
 
     openChat()
   })
+  onScopeDispose(stopActivated)
 
   return {
     async hide() {
@@ -48,7 +51,7 @@ export function useHostSpotlightWindow() {
       const id = `spotlight-result-${crypto.randomUUID()}`
       pendingNotificationIds.add(id)
       try {
-        await host.platform.notifications.show({
+        await host.notifications.show({
           body,
           id,
           title: 'AIRI',
@@ -56,8 +59,6 @@ export function useHostSpotlightWindow() {
       }
       catch (error) {
         pendingNotificationIds.delete(id)
-        if (pendingNotificationIds.size === 0)
-          stopActivated()
         throw error
       }
     },
