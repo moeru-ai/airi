@@ -285,7 +285,7 @@ export const useToolCardsStore = defineStore('tool-cards', () => {
   }
 
   /**
-   * Asks the leader for the first card of a tool, made from a new call that the chat shows with a card.
+   * Asks the leader for the first card of a tool, made from a call that the chat shows with a card.
    * Only the chat knows which tools show their own widget, so the chat asks, not the reply that the leader saves.
    */
   async function make(call: ToolCardCall) {
