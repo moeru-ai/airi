@@ -32,6 +32,8 @@ const props = defineProps<{
   resultOf: (sliceIndex: number) => ChatSlicesToolCallResult | undefined
   /** Widgets by tool name. An unfolded row shows the widget when the widget can read the result of the call. */
   widgets: ChatToolCallWidgetRegistry
+  /** The reply is still being written, so a call that finishes now is new. */
+  streaming?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -179,12 +181,15 @@ function cardCallOf(call: ToolCallGroupCall): ToolCardCall | undefined {
   return call.cardCall && { ...call.cardCall, toolName: call.toolCall.toolName, args: call.toolCall.args, locale: locale.value }
 }
 
-// A finished call of a tool without a card asks for one, in a new reply or an old one. Only a row that shows a card
-// asks, so a tool with a widget never gets one. Each call asks once. The leader makes each card once for every window.
+// A tool without a card gets one from a new call, so the card is ready when the owner unfolds the row. An old call asks
+// only when its row is unfolded, because nobody sees a folded card. Only a row that shows a card asks, so a tool with a
+// widget never gets one. Each call asks once. The leader makes each card once for every window.
 const askedCalls = new Set<string>()
 
-watch(calls, (current) => {
+watch([calls, open, openCalls], ([current]) => {
   for (const call of current) {
+    if (!props.streaming && (!open.value || !openCalls.value.has(call.key)))
+      continue
     const cardCall = cardCallOf(call)
     if (!cardCall || call.card || call.cardMaking || call.cardFailed || askedCalls.has(call.key))
       continue
