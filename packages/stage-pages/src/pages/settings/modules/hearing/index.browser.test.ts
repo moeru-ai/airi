@@ -171,7 +171,7 @@ describe('hearing provider changes', () => {
     await vi.waitFor(() => expect(providersStore.getModelsForProvider('openrouter-audio-transcription').map(model => model.id)).toContain('openrouter-model'))
 
     expect(hearingStore.activeTranscriptionModel).toBe('comet-model')
-    expect(hearingStore.getSavedProviderModel('browser-web-speech-api')).toBe('browser-model')
-    expect(hearingStore.getSavedProviderModel('openrouter-audio-transcription')).toBe('openrouter-model')
+    expect(localStorage.getItem('settings/hearing/provider-model/browser-web-speech-api')).toBe('browser-model')
+    expect(localStorage.getItem('settings/hearing/provider-model/openrouter-audio-transcription')).toBe('openrouter-model')
   })
 })
