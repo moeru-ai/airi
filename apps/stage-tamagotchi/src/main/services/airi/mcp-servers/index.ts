@@ -22,6 +22,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { defineInvokeHandler } from '@moeru/eventa'
+import { errorMessageFrom } from '@moeru/std'
 import { app, shell } from 'electron'
 
 import {
@@ -50,6 +51,7 @@ export interface McpManager {
   ensureConfigFile: () => Promise<{ path: string }>
   openConfigFile: () => Promise<{ path: string }>
   applyAndRestart: () => Promise<ElectronMcpApplyResult>
+  /** Returns the complete active-server catalog. Any discovery failure rejects with server names and reasons. */
   listTools: () => Promise<ElectronMcpToolDescriptor[]>
   callTool: (payload: ElectronMcpCallToolPayload) => Promise<ElectronMcpCallToolResult>
   stopAll: () => Promise<void>
@@ -181,6 +183,11 @@ function describeRuntime(
   }
 }
 
+/**
+ * Owns MCP sessions and runtime status in the main process.
+ * `applyAndRestart` replaces the sessions from disk. `stopAll` closes them.
+ * Discovery returns a complete catalog or rejects with all server failures.
+ */
 export function createMcpManager(): McpManager {
   const log = useLogg('main/mcp').useGlobalConfig()
   const sessions = new Map<string, McpServerSession>()
@@ -293,27 +300,39 @@ export function createMcpManager(): McpManager {
 
   const listTools = async (): Promise<ElectronMcpToolDescriptor[]> => {
     const entries = [...sessions.entries()].sort(([left], [right]) => left.localeCompare(right))
-    const listResult = await Promise.all(entries.map(async ([serverName, session]) => {
-      try {
-        const response = await session.client.listTools(undefined, {
-          timeout: mcpRequestTimeoutMsec,
-          maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
-        })
-        return response.tools.map<ElectronMcpToolDescriptor>(item => ({
-          serverName,
-          name: `${serverName}${toolNameSeparator}${item.name}`,
-          toolName: item.name,
-          description: item.description,
-          inputSchema: item.inputSchema,
-        }))
-      }
-      catch (error) {
-        log.withFields({ serverName }).withError(error).warn('failed to list tools from mcp server')
-        return []
-      }
+    const listResult = await Promise.allSettled(entries.map(async ([serverName, session]) => {
+      const response = await session.client.listTools(undefined, {
+        timeout: mcpRequestTimeoutMsec,
+        maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
+      })
+      return response.tools.map<ElectronMcpToolDescriptor>(item => ({
+        serverName,
+        name: `${serverName}${toolNameSeparator}${item.name}`,
+        toolName: item.name,
+        description: item.description,
+        inputSchema: item.inputSchema,
+      }))
     }))
+    const tools: ElectronMcpToolDescriptor[] = []
+    const failures: Error[] = []
 
-    return listResult.flat()
+    // Each result matches the sorted session snapshot. A partial catalog must
+    // not report successful discovery while a server's tools remain unknown.
+    for (const [index, result] of listResult.entries()) {
+      if (result.status === 'fulfilled') {
+        tools.push(...result.value)
+        continue
+      }
+
+      const [serverName] = entries[index]
+      log.withFields({ serverName }).withError(result.reason).warn('failed to list tools from mcp server')
+      failures.push(new Error(`MCP server "${serverName}": ${errorMessageFrom(result.reason) ?? 'Unknown error.'}`, { cause: result.reason }))
+    }
+
+    if (failures.length > 0)
+      throw new AggregateError(failures, failures.map(error => error.message).join('\n'))
+
+    return tools
   }
 
   const callTool = async (payload: ElectronMcpCallToolPayload): Promise<ElectronMcpCallToolResult> => {
