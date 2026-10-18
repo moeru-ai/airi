@@ -45,18 +45,21 @@ export function readCardDraw(args: string, result: unknown): { program: string, 
 /**
  * The part of the system prompt that says when to draw a card. A tool in the tool list alone almost never gets
  * called for this, so the model would keep answering a table or a conversion in text.
+ *
+ * - A model that failed with tools gets no tools, so the part applies only while the tool is in the list.
+ * - Speech, copy, quotes, and cloud sync read only the text of a reply, so the text still says the answer.
  */
 export function composeDrawCardPrompt() {
   return [
     '',
     '',
-    `Cards. You can show a card inside your reply with ${DRAW_CARD_TOOL_NAME}. A card reads better than text, so draw one whenever the answer is:`,
+    `Cards. When ${DRAW_CARD_TOOL_NAME} is in your tools, you can show a card inside your reply. A card reads better than text, so draw one whenever the answer is:`,
     '- a table, or a list of items that each have values, for example the time in several cities, prices, or scores',
     '- a conversion or a calculation, for example money or units',
     '- a comparison of a few options',
     '- a few key numbers or facts',
-    'Never write a markdown table. Draw a card instead.',
-    'Around the card, write at most one short sentence. The card holds the details, so do not repeat them in text.',
+    'While you have the tool, never write a markdown table. Draw a card instead.',
+    'Your text is spoken aloud and copied, so say the answer itself in one short sentence, for example the converted amount. Leave the rows and the details to the card, and do not repeat them in text.',
   ].join('\n')
 }
 
@@ -80,7 +83,7 @@ export async function createDrawCardTool(options: CreateDrawCardToolOptions): Pr
     rawTool({
       name: DRAW_CARD_TOOL_NAME,
       description: [
-        'Shows a card inside your reply. Use it when a card answers better than text, for example a conversion, a comparison, a list, or a few key facts.',
+        'Shows a card inside your reply. Use it when a card answers better than text, for example a conversion, a comparison, a list, or a few key facts. Still say the answer itself in one short sentence of your reply.',
         'On your first card in this conversation, call it with an empty program: it returns how to write one. Then call it again with the program.',
         'The owner sees only a card that draws. When the result lists problems, fix them and call again.',
       ].join('\n'),

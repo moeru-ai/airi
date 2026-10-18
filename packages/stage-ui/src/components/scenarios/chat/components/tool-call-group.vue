@@ -63,8 +63,10 @@ const calls = computed(() => {
     const cardCall = toolCards.enabled && !widget && state === 'done' ? readToolCardCall(item.toolCall.toolName, item.toolCall.args, result?.result) : undefined
     const card = cardCall ? toolCards.cardsByKey.get(cardCall.key) : undefined
     const cardMaking = cardCall ? toolCards.making.has(cardCall.key) : false
-    // A first card that failed offers a try again. A failed new card keeps the old card on show.
-    const cardFailed = Boolean(cardCall && !card && !cardMaking && toolCards.failed.has(cardCall.key))
+    // A card that failed with this result shows the result as it is.
+    const cardBroken = Boolean(card && brokenPrograms.value.has(card.program))
+    // A row without a usable card offers to try again after a failure. A failed new card keeps a usable old card on show.
+    const cardFailed = Boolean(cardCall && (!card || cardBroken) && !cardMaking && toolCards.failed.has(cardCall.key))
     return {
       ...item,
       // Result slices land between calls while a reply streams, so slice indexes shift. The call id stays.
@@ -82,7 +84,7 @@ const calls = computed(() => {
       cardMaking,
       cardFailed,
       // While a new card is made, the row shows the result as it is, under a line that says so.
-      cardShown: Boolean(card && !cardMaking && !brokenPrograms.value.has(card.program)),
+      cardShown: Boolean(card && !cardMaking && !cardBroken),
     }
   })
 })

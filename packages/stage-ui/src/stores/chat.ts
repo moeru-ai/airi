@@ -348,6 +348,8 @@ export const useChatStore = defineStore('chat', () => {
       void interruptOrphanedTasks().catch((error) => {
         console.warn('[chat] Failed to mark interrupted background tasks:', errorMessageFrom(error))
       })
+      // The plugin restores the synced state before it reports the promotion, so the old leader's requests are there.
+      toolCards.releaseOrphanedCards()
     })
 
     await chatSession.initialize()

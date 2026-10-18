@@ -62,7 +62,10 @@ function webUrl(url: string | undefined) {
  */
 export const CARD_PROBLEM: InjectionKey<(problem: string) => void> = Symbol('tool-card-problem')
 
-/** The data fields of each part, without the fields that hold nested parts. Each nested part checks its own fields. */
+/**
+ * The data fields of each part. A field that holds nested parts only has to be a list, because each nested part checks
+ * its own fields when it draws.
+ */
 const partDataSchemas = new Map<string, z.ZodObject>()
 
 /**
@@ -88,11 +91,12 @@ function definePart<T extends z.ZodObject>(config: {
   name: string
   description: string
   props: T
-  /** The fields that hold nested parts. */
+  /** The fields that hold nested parts. Each of them holds a list. */
   slots?: string[]
   render: (props: z.infer<T>, renderNode: (value: unknown) => VNodeChild) => VNodeChild
 }) {
-  partDataSchemas.set(config.name, z.object(Object.fromEntries(Object.entries(config.props.shape).filter(([key]) => !config.slots?.includes(key)))))
+  partDataSchemas.set(config.name, z.object(Object.fromEntries(Object.entries(config.props.shape)
+    .map(([key, field]) => [key, config.slots?.includes(key) ? z.array(z.unknown()) : field]))))
   const component: FunctionalComponent<ComponentRenderProps<z.infer<T>>> = ({ props, renderNode }) => {
     const problem = partProblem(config.name, props)
     if (problem) {

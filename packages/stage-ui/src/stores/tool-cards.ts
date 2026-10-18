@@ -247,6 +247,19 @@ const useToolCardsStateStore = defineStore('tool-cards-state', () => {
     save()
   }
 
+  /**
+   * Ends the card requests that no request in this window runs. A promoted leader calls it: the requests of the old
+   * leader died with it, and their keys would show a card on its way forever. They count as failed, so the chat offers
+   * to try again.
+   */
+  function releaseOrphanedCards() {
+    const orphaned = making.value.filter(key => !running.has(key))
+    if (orphaned.length === 0)
+      return
+    making.value = making.value.filter(key => running.has(key))
+    failed.value = [...new Set([...failed.value, ...orphaned])]
+  }
+
   /** Keeps the latest call of a tool on its card. A tool without a card keeps nothing. */
   async function recordCall(key: string, sample: unknown) {
     if (!cards.value.some(card => card.key === key))
@@ -256,7 +269,7 @@ const useToolCardsStateStore = defineStore('tool-cards-state', () => {
     save()
   }
 
-  return { cards, making, failed, makeCard, deleteCard, recordCall }
+  return { cards, making, failed, makeCard, deleteCard, recordCall, releaseOrphanedCards }
 }, {
   synced: {
     actions: ['makeCard', 'deleteCard', 'recordCall'],
@@ -312,5 +325,10 @@ export const useToolCardsStore = defineStore('tool-cards', () => {
       await state.recordCall(call.key, sampleOf(call.data))
   }
 
-  return { enabled, replyCardsEnabled, cards, cardsByKey, making, failed, make, remake, remove, recordCall }
+  /** Ends the card requests of an old leader. Only a promoted leader calls it. */
+  function releaseOrphanedCards() {
+    state.releaseOrphanedCards()
+  }
+
+  return { enabled, replyCardsEnabled, cards, cardsByKey, making, failed, make, remake, remove, recordCall, releaseOrphanedCards }
 })
