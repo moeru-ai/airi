@@ -2,6 +2,7 @@ import en from '@proj-airi/i18n/locales/en'
 
 import { CHARACTER_CARD_SYNC_FLAG } from '@proj-airi/stage-ui/libs/feature-flags'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
+import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useFeatureFlagsStore } from '@proj-airi/stage-ui/stores/feature-flags'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { createPinia, disposePinia } from 'pinia'
@@ -98,5 +99,27 @@ describe('card detail history', () => {
     await screen.rerender({ cardId })
 
     expect(screen.getByText('History').elements()).toHaveLength(0)
+  })
+
+  it('pins a background to the card', async () => {
+    const { screen, cardId } = await renderDetail()
+    const backgroundStore = useBackgroundStore(pinia)
+    const backgroundId = 'bg-test'
+    await expect.poll(() => backgroundStore.loading).toBe(false)
+    backgroundStore.entries = new Map([[backgroundId, {
+      id: backgroundId,
+      type: 'journal',
+      characterId: cardId,
+      title: 'Test image',
+      blob: new Blob(['image'], { type: 'image/png' }),
+      createdAt: 0,
+    }]])
+    await screen.rerender({ cardId })
+
+    await expect.element(screen.getByRole('img', { name: 'Test image' })).toBeVisible()
+    await screen.getByRole('button', { name: 'Set as background' }).click()
+
+    await expect.poll(() => useAiriCardStore(pinia).cards.get(cardId)?.extensions.airi.modules.activeBackgroundId).toBe(backgroundId)
+    backgroundStore.entries = new Map()
   })
 })

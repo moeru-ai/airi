@@ -10,7 +10,10 @@ const cardId = computed(() => String(route.params.cardId ?? ''))
 const initialTab = computed(() => typeof route.query.tab === 'string' ? route.query.tab : '')
 
 function handleBack() {
-  void router.replace('/settings/airi-card')
+  if (router.options.history.state.back)
+    router.back()
+  else
+    void router.replace('/settings/airi-card')
 }
 
 function handleEdit(id: string) {

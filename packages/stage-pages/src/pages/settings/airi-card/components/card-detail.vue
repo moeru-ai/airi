@@ -14,7 +14,7 @@ import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { Button, GhostButton, IconButton, Select } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, onMounted, shallowRef, watch } from 'vue'
+import { computed, nextTick, onMounted, shallowRef, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
@@ -168,7 +168,7 @@ const activeBackgroundId = computed({
     if (!selectedCard.value)
       return
 
-    const extensions = structuredClone(selectedCard.value.extensions)
+    const extensions = structuredClone(toRaw(selectedCard.value.extensions))
     extensions.airi.modules.activeBackgroundId = value
     await cardStore.updateCard(props.cardId, {
       ...selectedCard.value,
