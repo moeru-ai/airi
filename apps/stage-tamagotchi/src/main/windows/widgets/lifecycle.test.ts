@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => {
       isCrashed: vi.fn(() => false),
       isDestroyed: vi.fn(() => false),
       send: vi.fn(),
+      on: vi.fn(),
     }
 
     readonly close = vi.fn(() => {
@@ -204,6 +205,24 @@ describe('widget window lifecycle', () => {
     expect(mocks.windows[1].close).not.toHaveBeenCalled()
     expect(manager.getWidgetSnapshot(firstId)).toBeUndefined()
     expect(manager.getWidgetSnapshot(secondId)).toBeDefined()
+  })
+
+  it('cancels only the owning widget work on navigation and close', async () => {
+    const manager = createManager()
+    const first = await manager.pushWidget({ componentName: 'artistry' })
+    const second = await manager.pushWidget({ componentName: 'artistry' })
+    const before = manager.getWidgetSignal(first)
+    const other = manager.getWidgetSignal(second)
+    const navigate = mocks.windows[0].webContents.on.mock.calls.find(([event]) => event === 'did-start-navigation')![1]
+    navigate({}, 'http://localhost', false, true)
+    expect(before.aborted).toBe(true)
+    expect(other.aborted).toBe(false)
+    const after = manager.getWidgetSignal(first)
+    expect(after.aborted).toBe(false)
+    mocks.windows[0].close()
+    expect(after.aborted).toBe(true)
+    expect(other.aborted).toBe(false)
+    expect(manager.getWidgetSignal(first).aborted).toBe(true)
   })
 
   it('removes the widget record when the user closes its window', async () => {

@@ -207,13 +207,13 @@ export const providerOpenAICompatibleAudioSpeech = defineProvider<OpenAICompatib
   extraMethods: {
     voiceCatalogConfig: () => ({}),
     listVoices: async () => [],
-    listModels: async (config) => {
+    listModels: async (config, _provider, context) => {
       const apiKey = config.apiKey?.trim() ?? ''
       const baseUrl = normalizeBaseUrl(config.baseUrl)
       if (!apiKey || !baseUrl)
         return []
 
-      const models = await listModels({ apiKey, baseURL: baseUrl })
+      const models = await listModels({ apiKey, baseURL: baseUrl, fetch: context?.fetch })
       return models
         .filter(model => model.id.toLowerCase().includes('tts'))
         .map(model => ({

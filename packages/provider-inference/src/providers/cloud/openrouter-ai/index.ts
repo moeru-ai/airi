@@ -50,7 +50,7 @@ export const providerOpenRouterAI = defineProvider<OpenRouterConfig, 'openrouter
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
     }),
   }),
-  createProvider(config) {
+  createProvider(config, context) {
     const base = createOpenRouter(config.apiKey, config.baseUrl)
     return {
       ...base,
@@ -61,7 +61,7 @@ export const providerOpenRouterAI = defineProvider<OpenRouterConfig, 'openrouter
             const headers = new Headers(init?.headers)
             for (const [k, v] of Object.entries(OPENROUTER_ATTRIBUTION_HEADERS))
               headers.set(k, v)
-            return globalThis.fetch(input, { ...init, headers })
+            return (context?.fetch ?? globalThis.fetch)(input, { ...init, headers })
           },
         }
 
@@ -74,8 +74,8 @@ export const providerOpenRouterAI = defineProvider<OpenRouterConfig, 'openrouter
   },
 
   extraMethods: {
-    listModelCatalog: config => listModelCatalog(
-      { apiKey: config.apiKey, baseURL: config.baseUrl ?? 'https://openrouter.ai/api/v1/', headers: OPENROUTER_ATTRIBUTION_HEADERS },
+    listModelCatalog: (config, _provider, context) => listModelCatalog(
+      { fetch: context?.fetch, apiKey: config.apiKey, baseURL: config.baseUrl ?? 'https://openrouter.ai/api/v1/', headers: OPENROUTER_ATTRIBUTION_HEADERS },
       { models: openRouterModels.filter(model => model.type === 'chat'), providerId: 'openrouter-ai', baseURL: 'https://openrouter.ai/api/v1/' },
     ),
   },

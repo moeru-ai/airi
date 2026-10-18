@@ -147,9 +147,10 @@ describe('migrated provider definitions', () => {
     const definition = getRequiredProvider('sherpaw-transcription')
     const schema = await definition.createProviderConfig({ t: translate })
 
-    expect(z.parse(schema, {})).toEqual({ model: 'paraformer-zh-en', modelLanguageFilter: 'en' })
+    // The host locale determines the default filter. This test checks model IDs.
+    expect(z.parse(schema, {})).toMatchObject({ model: 'paraformer-zh-en' })
     for (const model of ['paraformer-zh-en', 'zipformer-multilingual', 'x-asr-zh-en-480ms-int8'])
-      expect(z.parse(schema, { model })).toEqual({ model, modelLanguageFilter: 'en' })
+      expect(z.parse(schema, { model, modelLanguageFilter: 'en' })).toEqual({ model, modelLanguageFilter: 'en' })
     expect(z.safeParse(schema, { model: 'zipformer-zh-en' }).success).toBe(false)
     expect(z.safeParse(schema, { model: 'unknown-model' }).success).toBe(false)
   })

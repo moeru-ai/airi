@@ -28,6 +28,13 @@ pages:
       title: MCP 服务器
   system:
     general:
+      ai-proxy:
+        title: 本地 AI 请求代理
+        description: 通过桌面应用发送 AI HTTP 请求，避免浏览器 CORS 限制。覆盖聊天、语音、模型列表、音色、绘图及连接检查。不包含 WebSocket 和浏览器本地推理。仅保存在当前设备。
+        enabled: 已开启。新的 AI HTTP 请求使用桌面代理。
+        disabled: 已关闭。AI HTTP 请求使用浏览器网络。
+        unavailable: 无法读取代理状态。桌面连接恢复前，AI HTTP 请求将被阻止。
+        save-error: 无法更新本地 AI 请求代理设置。
       hide-app-icon:
         title: 隐藏任务栏 / Dock 图标
         description: 仅保留托盘图标，通过托盘菜单打开窗口或退出应用。修改立即生效。

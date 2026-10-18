@@ -5,6 +5,7 @@ import { ofetch } from 'ofetch'
 import { subtle } from 'uncrypto'
 import { v4 as uuidV4 } from 'uuid'
 
+import { getAITransportFetch } from '../../../ai-transport'
 import { nlsMetaEndpointFromRegion } from './utils'
 
 const SIGNING_METHOD = 'HMAC-SHA1'
@@ -116,7 +117,8 @@ export async function buildCreateTokenRequest(accessKeyId: string, accessKeySecr
 
 export async function createToken(accessKeyId: string, accessKeySecret: string, options?: CreateTokenOptions): Promise<{ token: string, expiresAt: number }> {
   const request = await buildCreateTokenRequest(accessKeyId, accessKeySecret, options)
-  const response = await ofetch<{
+  const requestFetch = ofetch.create({ retry: 0 }, { fetch: getAITransportFetch() })
+  const response = await requestFetch<{
     NlsRequestId: string
     RequestId: string
     ErrMsg: string

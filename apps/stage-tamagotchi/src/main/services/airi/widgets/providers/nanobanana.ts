@@ -4,6 +4,8 @@ import { GoogleGenAI } from '@google/genai'
 import { useLogg } from '@guiiai/logg'
 import { errorMessageFrom } from '@moeru/std'
 
+import { fetchAI } from '../../../electron/ai-transport'
+
 const log = useLogg('providers-nanobanana').useGlobalConfig()
 
 export class NanoBananaProvider implements ArtistryProvider {
@@ -53,7 +55,7 @@ export class NanoBananaProvider implements ArtistryProvider {
     if (base64Image.includes('base64,'))
       base64Image = base64Image.split('base64,')[1]
 
-    this.runGeneration(jobId, model, resolution, request.prompt, base64Image)
+    this.runGeneration(jobId, model, resolution, request.prompt, base64Image, request.signal)
 
     return {
       jobId,
@@ -61,11 +63,11 @@ export class NanoBananaProvider implements ArtistryProvider {
     }
   }
 
-  private async runGeneration(jobId: string, model: string, resolution: string, prompt: string, base64Image: string) {
+  private async runGeneration(jobId: string, model: string, resolution: string, prompt: string, base64Image: string, signal?: AbortSignal) {
     this.updateStatus(jobId, { status: 'running', actionLabel: 'Inscribing with Nano Banana...' })
 
     try {
-      const ai = new GoogleGenAI({ apiKey: this.apiKey })
+      const ai = new GoogleGenAI({ apiKey: this.apiKey, httpOptions: { fetch: fetchAI } })
       const response = await ai.models.generateContent({
         model,
         contents: [{
@@ -74,7 +76,7 @@ export class NanoBananaProvider implements ArtistryProvider {
             ...(base64Image ? [{ inlineData: { mimeType: 'image/jpeg', data: base64Image } }] : []),
           ],
         }],
-        config: { imageConfig: { aspectRatio: '1:1', imageSize: resolution } },
+        config: { abortSignal: signal, imageConfig: { aspectRatio: '1:1', imageSize: resolution } },
       })
 
       // Search all parts for the first image
@@ -92,7 +94,7 @@ export class NanoBananaProvider implements ArtistryProvider {
     }
     catch (error: unknown) {
       const message = errorMessageFrom(error)
-      log.error(`[Nano Banana] Generation failed: ${message}`)
+      log.error('[Nano Banana] Generation failed.')
       this.updateStatus(jobId, { status: 'failed', error: message })
     }
     finally {

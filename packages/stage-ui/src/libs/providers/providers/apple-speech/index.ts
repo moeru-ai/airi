@@ -216,6 +216,7 @@ export function executeAppleSpeechStream(options: StreamTranscriptionOptions): A
 }
 
 export const providerAppleSpeechTranscription = defineProvider<AppleSpeechConfig, AppleSpeechTranscriptionProviderId>({
+  usesHTTP: false,
   id: APPLE_SPEECH_TRANSCRIPTION_PROVIDER_ID,
   name: 'Apple Speech',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.apple-speech-transcription.title'),

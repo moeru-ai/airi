@@ -28,6 +28,13 @@ pages:
       title: MCP Server
   system:
     general:
+      ai-proxy:
+        title: Local AI request proxy
+        description: Send AI HTTP requests through the desktop app to avoid browser CORS restrictions. Covers chat, speech, model lists, voices, images, and connection checks. Excludes WebSocket and browser inference. Saved on this device.
+        enabled: Enabled. New AI HTTP requests use the desktop proxy.
+        disabled: Disabled. AI HTTP requests use the browser network.
+        unavailable: Proxy state is unavailable. AI HTTP requests are blocked until the desktop connection recovers.
+        save-error: Failed to update the local AI request proxy.
       hide-app-icon:
         title: Hide taskbar / Dock icon
         description: Keep AIRI in the tray only. Use the tray menu to open windows or quit. Changes apply immediately.

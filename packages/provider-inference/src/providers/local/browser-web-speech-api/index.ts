@@ -21,6 +21,7 @@ function isWebSpeechApiAvailable() {
 }
 
 export const providerBrowserWebSpeechApi = defineProvider({
+  usesHTTP: false,
   id: 'browser-web-speech-api',
   name: 'Web Speech API (Browser)',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.browser-web-speech-api.title'),

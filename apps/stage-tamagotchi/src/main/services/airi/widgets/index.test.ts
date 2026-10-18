@@ -19,6 +19,7 @@ function createWidgetsManager() {
     clearWidgets: vi.fn(),
     fetchWidget: vi.fn(),
     getWindow: vi.fn(),
+    getWidgetSignal: vi.fn(() => new AbortController().signal),
     getWidgetSnapshot: vi.fn(),
     hideWindow: vi.fn(),
     onWidgetEvent: vi.fn(),

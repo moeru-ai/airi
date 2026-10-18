@@ -8,7 +8,7 @@ import { AIRI_CHAT_SESSION_ID_HEADER } from '../../../product-signals/headers'
 
 export const OFFICIAL_ICON = 'i-solar:star-bold-duotone'
 
-export function withCredentials() {
+export function withCredentials(fetch: typeof globalThis.fetch = globalThis.fetch) {
   return (input: RequestInfo | URL, init?: RequestInit) => {
     const headers = new Headers(init?.headers)
     const token = getAuthToken()
@@ -29,7 +29,7 @@ export function withCredentials() {
     if (init?.body instanceof ReadableStream)
       requestInit.duplex = 'half'
 
-    return globalThis.fetch(input, requestInit)
+    return fetch(input, requestInit)
   }
 }
 

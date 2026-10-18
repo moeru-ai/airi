@@ -37,7 +37,8 @@ export const providerIndexTtsVllm = defineProvider<IndexTtsConfig, 'index-tts-vl
       ({ t }) => ({
         id: 'index-tts-vllm:check-config',
         name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-config.title'),
-        validator: async (config) => {
+        validator: async (config, context) => {
+          const fetch = context?.fetch ?? globalThis.fetch
           const baseUrl = config.baseUrl?.trim() ?? ''
           if (!baseUrl) {
             const reason = 'Base URL is required. Default to http://localhost:11996/tts/ for Index-TTS.'
@@ -48,6 +49,7 @@ export const providerIndexTtsVllm = defineProvider<IndexTtsConfig, 'index-tts-vl
           const timeout = setTimeout(() => controller.abort(), 5000)
           try {
             const response = await fetch(voicesUrl(config), { signal: controller.signal })
+            await response.body?.cancel()
             if (!response.ok) {
               const reason = `IndexTTS unreachable: HTTP ${response.status} ${response.statusText}`
               return { errors: [{ error: new Error(reason) }], reason, reasonKey: '', valid: false }
@@ -76,8 +78,9 @@ export const providerIndexTtsVllm = defineProvider<IndexTtsConfig, 'index-tts-vl
       deprecated: false,
     }],
     voiceCatalogConfig: ({ baseUrl }) => ({ baseUrl }),
-    listVoices: async (config) => {
-      const response = await fetch(voicesUrl(config))
+    listVoices: async (config, _provider, _model, signal, context) => {
+      const fetch = context?.fetch ?? globalThis.fetch
+      const response = await fetch(voicesUrl(config), { signal })
       if (!response.ok)
         throw new Error(`Failed to fetch voices: ${response.statusText}`)
 

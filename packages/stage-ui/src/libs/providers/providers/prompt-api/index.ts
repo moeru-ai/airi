@@ -17,6 +17,7 @@ const openAICompatibleConfigSchema = z.object({
 type OpenAICompatibleConfig = z.input<typeof openAICompatibleConfigSchema>
 
 export const providerPromptAPICompatible = defineProvider<OpenAICompatibleConfig>({
+  usesHTTP: false,
   id: 'prompt-api',
   name: 'Prompt API',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.prompt-api.title'),
