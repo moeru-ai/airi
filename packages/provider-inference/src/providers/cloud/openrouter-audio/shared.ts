@@ -9,6 +9,13 @@ export const openRouterAudioConfigSchema = z.object({
 
 export type OpenRouterAudioConfig = z.input<typeof openRouterAudioConfigSchema>
 
+/**
+ * Normalizes the OpenRouter audio base URL.
+ *
+ * @example
+ * normalizeOpenRouterAudioBaseUrl('https://openrouter.ai/api/v1')
+ * // => 'https://openrouter.ai/api/v1/'
+ */
 export function normalizeOpenRouterAudioBaseUrl(baseUrl: string | undefined) {
   const value = baseUrl?.trim() || DEFAULT_OPENROUTER_AUDIO_BASE_URL
   return value.endsWith('/') ? value : `${value}/`
