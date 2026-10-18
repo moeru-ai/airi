@@ -6,12 +6,13 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useVoiceControlsStore } from '@proj-airi/stage-ui/stores/voice-controls'
 import { useEventListener, useTimeoutFn } from '@vueuse/core'
-import { computed, nextTick, shallowRef, watch } from 'vue'
+import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { electronInlayReturnHome } from '../../../shared/eventa'
 import { useChatFloatingClickThrough } from '../../composables/use-chat-floating-click-through'
 import { useGlobalEscape } from '../../composables/use-global-escape'
+import { useWindowBackdrop } from '../../composables/use-window-backdrop'
 
 /**
  * What the inlay paints.
@@ -31,6 +32,9 @@ const RETURN_HOME_DELAY_MS = 5000
 
 /** Bars of the capsule level meter. Each bar scales the same level by its own factor, so the meter looks like a voice. */
 const LEVEL_BARS = [0.55, 0.85, 1, 0.75, 0.5] as const
+
+const backdropRoot = useTemplateRef<HTMLElement>('backdrop-root')
+useWindowBackdrop(backdropRoot, 'inlay')
 
 const { t } = useI18n()
 const controls = useVoiceControlsStore()
@@ -168,16 +172,18 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 
 <template>
   <!-- The page anchors the inlay to the bottom edge. The space above it is room for the send animation. -->
-  <main :class="['h-full w-full flex flex-col items-center justify-end px-4 pb-4', 'bg-transparent text-neutral-900 dark:text-neutral-100']">
+  <main ref="backdrop-root" :class="['h-full w-full flex flex-col items-center justify-end px-4 pb-4', 'bg-transparent text-neutral-900 dark:text-neutral-100']">
     <!-- An explicit duration, because Vue otherwise also waits for the finished send animation on the leaving card. -->
     <Transition :name="`inlay-${leave}`" :duration="{ enter: 220, leave: leave === 'dismiss' ? 220 : 160 }" @after-enter="hitTest()" @after-leave="hitTest({ removed: true })">
       <div
         v-if="shown !== 'hidden'"
         data-testid="voice-inlay"
+        data-window-backdrop-surface
+        :style="{ '--un-bg-opacity': 0.95 }"
         :data-view="shown"
         :class="[
           'overflow-hidden shadow-lg',
-          'bg-white/95 dark:bg-neutral-900/95',
+          'bg-white dark:bg-neutral-900',
           'transition-[width,height,border-radius] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none',
           shown === 'capsule' ? 'h-11 w-44 rounded-full' : 'h-40 w-full max-w-110 rounded-3xl',
           shown === 'sent' && !sentRewrite ? 'inlay-send' : '',

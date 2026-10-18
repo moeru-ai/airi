@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isElectronWindow } from '@proj-airi/stage-shared'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { storeToRefs } from 'pinia'
@@ -13,6 +14,7 @@ import ChatPageShell from './chat-page-shell.vue'
 import { useChatDraftHandover } from '../composables/use-chat-draft-handover'
 
 const { activeCard } = storeToRefs(useAiriCardStore())
+const hasNativeControls = isElectronWindow(window) && window.platform === 'darwin'
 const sessionsDrawerOpen = shallowRef(false)
 const interactiveArea = useTemplateRef<InstanceType<typeof InteractiveArea>>('interactive-area')
 
@@ -23,6 +25,7 @@ useChatDraftHandover(interactiveArea)
   <ChatPageShell>
     <WindowTitleBar
       :title="activeCard?.name || 'AIRI'"
+      :class="{ 'pl-20!': hasNativeControls }"
       icon="i-solar:chat-line-bold"
       @title-click="sessionsDrawerOpen = true"
     >
