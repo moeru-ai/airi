@@ -150,10 +150,11 @@ describe('window native backdrop', () => {
     ], { duration: 300, fill: 'forwards' })
     // Web Animations has no animationstart event. A layout invalidation also discovers active animations.
     surface.style.willChange = 'transform'
-    await expect.poll(() => regions()[0]?.width).toBe(80)
-    expect(regions()[0].y).toBe(94)
-    expect(regions()[0].radius).toBe(16)
-    expect(regions()[0].opacity).toBe(0.25)
+    // Geometry is rounded to 0.01px. A frame just before the end can round the width to 80 while y is still 93.99.
+    await expect.poll(() => {
+      const region = regions()[0]
+      return region && { width: region.width, y: region.y, radius: region.radius, opacity: region.opacity }
+    }).toEqual({ width: 80, y: 94, radius: 16, opacity: 0.25 })
     surface.style.display = 'none'
     await expect.poll(() => regions()).toEqual([])
   })
