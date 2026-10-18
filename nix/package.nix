@@ -78,7 +78,7 @@ in
       pnpm -F @proj-airi/stage-tamagotchi... run build
       cd apps/stage-tamagotchi
       pnpm exec electron-builder build \
-        --dir --${if stdenvNoCC.isLinux then "linux" else "mac"} \
+        --dir --${if stdenvNoCC.hostPlatform.isLinux then "linux" else "mac"} \
         -c.electronDist="${electron'.dist}" \
         -c.electronVersion="${electron'.version}"
 
