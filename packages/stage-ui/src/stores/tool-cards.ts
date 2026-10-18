@@ -7,6 +7,7 @@ import { getIconData } from '@iconify/utils'
 import { errorMessageFrom } from '@moeru/std'
 import { createParser, createStore, evaluate, evaluateElementProps, extractToolResult } from '@openuidev/lang-core'
 import { createToolCardAgent } from '@proj-airi/agents/tool-card'
+import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
@@ -20,7 +21,11 @@ import { useConsciousnessStore } from './modules/consciousness'
 export interface SavedToolCard extends ToolCard {
   /** The tool that the card shows: the registered name, or `server::tool` for an MCP tool. */
   key: string
+  /** The shortened result of the latest call of the tool, at first the call that the card was made from. The settings page draws the card with it. */
+  sample: unknown
   createdAt: number
+  /** When the tool was last called with this card. */
+  usedAt: number
 }
 
 /** One call that needs a card. Every field crosses windows, so every field is plain data. */
@@ -221,6 +226,10 @@ const useToolCardsStateStore = defineStore('tool-cards-state', () => {
     }, new AbortController().signal)
   }
 
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cards.value))
+  }
+
   /**
    * Makes the card of a tool. Resolves to whether the tool has a card afterwards.
    * A request for a key that has a card resolves at once, unless it asks to replace the card.
@@ -236,9 +245,10 @@ const useToolCardsStateStore = defineStore('tool-cards-state', () => {
 
     const run = (async () => {
       try {
-        const card: SavedToolCard = { key: request.key, ...await make(request), createdAt: Date.now() }
+        const now = Date.now()
+        const card: SavedToolCard = { key: request.key, ...await make(request), sample: request.sample, createdAt: now, usedAt: now }
         cards.value = [...cards.value.filter(entry => entry.key !== card.key), card]
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(cards.value))
+        save()
         failed.delete(request.key)
         return true
       }
@@ -255,10 +265,26 @@ const useToolCardsStateStore = defineStore('tool-cards-state', () => {
     return run
   }
 
-  return { cards, makeCard }
+  /** Deletes the card of a tool. The next finished call of the tool makes a new one, even after a failure. */
+  async function deleteCard(key: string) {
+    failed.delete(key)
+    cards.value = cards.value.filter(card => card.key !== key)
+    save()
+  }
+
+  /** Keeps the latest call of a tool on its card. A tool without a card keeps nothing. */
+  async function recordCall(key: string, sample: unknown) {
+    if (!cards.value.some(card => card.key === key))
+      return
+    const now = Date.now()
+    cards.value = cards.value.map(card => card.key === key ? { ...card, sample, usedAt: now } : card)
+    save()
+  }
+
+  return { cards, makeCard, deleteCard, recordCall }
 }, {
   synced: {
-    actions: ['makeCard'],
+    actions: ['makeCard', 'deleteCard', 'recordCall'],
     state: true,
   },
 })
@@ -266,14 +292,18 @@ const useToolCardsStateStore = defineStore('tool-cards-state', () => {
 /** The cards of tool calls, as this window shows them. */
 export const useToolCardsStore = defineStore('tool-cards', () => {
   const state = useToolCardsStateStore()
+  // Off, the chat makes no cards and shows every call as it is. The saved cards stay for when it is on again.
+  const enabled = useLocalStorageManualReset<boolean>('settings/tool-cards/enabled', true)
 
   const cardsByKey = computed(() => new Map(state.cards.map(card => [card.key, card])))
+  /** The saved cards, newest first. */
+  const cards = computed(() => [...state.cards].sort((left, right) => right.createdAt - left.createdAt))
   // Keys whose card this window waits for. The chat shows that a card is on its way while the leader makes it.
   const making = ref<ReadonlySet<string>>(new Set())
 
   /** Asks the leader for the card of a call. A second request for a key that this window waits for does nothing. */
   async function request(call: { key: string, toolName: string, args: string, data: unknown, language: string, replace?: boolean }) {
-    if (making.value.has(call.key))
+    if (!enabled.value || making.value.has(call.key))
       return
     making.value = new Set(making.value).add(call.key)
     try {
@@ -286,5 +316,19 @@ export const useToolCardsStore = defineStore('tool-cards', () => {
     }
   }
 
-  return { cardsByKey, making, request }
+  async function remove(key: string) {
+    await state.deleteCard(key)
+  }
+
+  /**
+   * Keeps a finished call on the card of its tool, so the settings page shows the card with real data.
+   * The chat calls it once for each saved reply, in the leader, so every call counts once.
+   */
+  async function recordCall(toolName: string, args: string, result: unknown) {
+    const call = readToolCardCall(toolName, args, result)
+    if (call && cardsByKey.value.has(call.key))
+      await state.recordCall(call.key, sampleOf(call.data))
+  }
+
+  return { enabled, cards, cardsByKey, making, request, remove, recordCall }
 })

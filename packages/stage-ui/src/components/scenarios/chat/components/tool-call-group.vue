@@ -56,8 +56,8 @@ const calls = computed(() => {
     const reading = widget?.read(result?.result, item.toolCall.args)
     const title = widget?.title?.(result?.result, item.toolCall.args)
     const state = reading?.failed ? 'error' as const : resolveToolCallBlockState(result)
-    // A tool without a widget shows a card that a model made for it. Only a finished call has a result for it.
-    const cardCall = !widget && state === 'done' ? readToolCardCall(item.toolCall.toolName, item.toolCall.args, result?.result) : undefined
+    // A tool without a widget shows a card that a model made for it, while cards are on. Only a finished call has a result for it.
+    const cardCall = toolCards.enabled && !widget && state === 'done' ? readToolCardCall(item.toolCall.toolName, item.toolCall.args, result?.result) : undefined
     const card = cardCall ? toolCards.cardsByKey.get(cardCall.key) : undefined
     const cardMaking = cardCall ? toolCards.making.has(cardCall.key) : false
     return {

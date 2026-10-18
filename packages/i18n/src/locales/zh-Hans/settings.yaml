@@ -1390,6 +1390,20 @@ pages:
         water_heater: 热水器
         weather: 天气
         zone: 区域
+    tool-cards:
+      title: 工具卡片
+      description: 聊天模型为没有小组件的工具做的卡片
+      enable: 为工具自动做卡片
+      enable-description: 没有小组件的工具第一次调用完成后，由聊天模型为它的结果做一张卡片。每做一张新卡片，会调用一次聊天模型。
+      page-description: 聊天模型为没有小组件的工具做的卡片模板。删除后，这个工具下次调用时会重新做一份。
+      empty: 还没有卡片。没有小组件的工具调用完成后，卡片会出现在这里。
+      source-tool: 来源：应用自带的工具
+      source-mcp: '来源：MCP 服务 {server}'
+      used: '最近使用：{date}'
+      show-template: 看模板
+      hide-template: 收起模板
+      delete: 删除
+      deleted: '已删除 {name} 的模板。这个工具下次调用时会重新做一份。'
     web-search:
       title: 网络搜索
       description: 让 AIRI 联网搜索最新信息

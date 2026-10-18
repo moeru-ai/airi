@@ -1444,6 +1444,20 @@ pages:
         water_heater: Water heater
         weather: Weather
         zone: Zone
+    tool-cards:
+      title: Tool cards
+      description: Cards that the chat model makes for tools without a widget
+      enable: Make cards for tools
+      enable-description: When a tool without a widget finishes for the first time, the chat model makes a card for its results. Each new card uses the chat model once.
+      page-description: The card templates that the chat model made for tools without a widget. After you delete one, the next call of its tool makes a new one.
+      empty: No cards yet. A card appears here after a tool without a widget finishes.
+      source-tool: 'Source: app tool'
+      source-mcp: 'Source: MCP server {server}'
+      used: 'Last used: {date}'
+      show-template: Show template
+      hide-template: Hide template
+      delete: Delete
+      deleted: 'Deleted the template of {name}. The next call of the tool makes a new one.'
     web-search:
       title: Web Search
       description: Let AIRI search the web for current information

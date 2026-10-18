@@ -292,7 +292,7 @@ export const useChatStore = defineStore('chat', () => {
   const contextObservability = useContextObservabilityStore()
   // The leader makes the cards of tool calls for every window, so its synced action must exist in the leader even when
   // the leader shows no tool call. Every window creates the chat store, so the chat store creates the card store too.
-  useToolCardsStore()
+  const toolCards = useToolCardsStore()
   const { activeSessionId } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
 
@@ -1023,6 +1023,16 @@ export const useChatStore = defineStore('chat', () => {
           role: 'assistant',
           content: extractMessageText(message),
         })
+      }
+      // Each finished call of a saved reply becomes the latest call on the card of its tool, for the settings page.
+      for (const slice of message.slices) {
+        if (slice.type !== 'tool-call')
+          continue
+        const result = message.tool_results.findLast(entry => entry.id === slice.toolCall.toolCallId)
+        if (!result || result.isError)
+          continue
+        toolCards.recordCall(slice.toolCall.toolName, slice.toolCall.args, result.result)
+          .catch(error => console.warn('[chat] Failed to keep a tool call on its card:', errorMessageFrom(error)))
       }
     },
     onUserTurnReady: ({ sessionId, messageText, sessionMessages }) => {
