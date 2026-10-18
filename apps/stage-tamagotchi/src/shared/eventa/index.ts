@@ -327,6 +327,7 @@ export * from './plugin/assets'
 export * from './plugin/capabilities'
 export * from './plugin/host'
 export * from './plugin/tools'
+export * from './window-backdrop'
 
 export interface DesktopOverlayReadiness {
   state: 'booting' | 'ready' | 'degraded'
