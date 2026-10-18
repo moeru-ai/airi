@@ -2,7 +2,7 @@
 import { errorMessageFrom } from '@moeru/std'
 import { computedAsync, useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { nextTick, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -40,7 +40,7 @@ const providerMetadata = computedAsync(async () => {
 
 const apiKey = shallowRef('')
 const baseUrl = shallowRef('')
-let settingsInitialized = false
+const settingsInitialized = ref(false)
 let applyingSnapshot = false
 let hasLocalEdits = false
 
@@ -70,7 +70,7 @@ onMounted(async () => {
   await providersStore.initializeProvider(props.providerId)
   reconcileSettings()
   await nextTick()
-  settingsInitialized = true
+  settingsInitialized.value = true
   if (apiKey.value.trim()) {
     try {
       await providersStore.validateProvider(props.providerId)
@@ -106,7 +106,7 @@ onBeforeUnmount(() => {
 })
 
 watch([apiKey, baseUrl], () => {
-  if (!settingsInitialized || applyingSnapshot)
+  if (!settingsInitialized.value || applyingSnapshot)
     return
 
   hasLocalEdits = true
@@ -127,7 +127,7 @@ function handleResetTranscriptionSettings() {
     :on-back="() => router.back()"
   >
     <div flex="~ col md:row gap-6">
-      <ProviderSettingsContainer class="w-full md:w-[40%]">
+      <ProviderSettingsContainer :disabled="!settingsInitialized" class="w-full md:w-[40%]">
         <!-- Basic settings section -->
         <ProviderBasicSettings
           :title="t('settings.pages.providers.common.section.basic.title')"
