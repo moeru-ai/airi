@@ -242,7 +242,7 @@ function moveByKeyboard(delta: WindowDelta) {
           <div
             :class="[
               'shrink-0 rounded-full p-0.5 shadow-md',
-              'bg-white ring-1 ring-neutral-200 dark:bg-neutral-900 dark:ring-neutral-800',
+              'bg-white/80 ring-1 ring-neutral-200 dark:bg-neutral-900/80 dark:ring-neutral-800',
             ]"
           >
             <button
@@ -266,7 +266,7 @@ function moveByKeyboard(delta: WindowDelta) {
           <div
             :class="[
               'min-w-0 flex items-center gap-1 rounded-full p-1 shadow-md',
-              'bg-white ring-1 ring-neutral-200 dark:bg-neutral-900 dark:ring-neutral-800',
+              'bg-white/80 ring-1 ring-neutral-200 dark:bg-neutral-900/80 dark:ring-neutral-800',
             ]"
           >
             <button
@@ -301,7 +301,7 @@ function moveByKeyboard(delta: WindowDelta) {
           <div
             :class="[
               'shrink-0 rounded-full p-0.5 shadow-md',
-              'bg-white ring-1 ring-neutral-200 dark:bg-neutral-900 dark:ring-neutral-800',
+              'bg-white/80 ring-1 ring-neutral-200 dark:bg-neutral-900/80 dark:ring-neutral-800',
             ]"
           >
             <button
