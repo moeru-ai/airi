@@ -39,8 +39,11 @@ import { weatherToolCallWidget } from './chat-tool-renderers/weather-tool-call-w
 
 const props = withDefaults(defineProps<{
   /**
-   * The floating window uses translucent surfaces, a bordered composer,
-   * and a history scrollbar that appears on hover.
+   * `true` in the transparent floating chat window, which draws nothing
+   * behind the chat. Bubbles, the composer and the welcome card then paint
+   * solid backgrounds that keep their contrast over any desktop, and the
+   * history scrollbar shows on hover, because the wheel over the empty
+   * history reaches the app below instead.
    */
   floating?: boolean
   /**
@@ -384,7 +387,7 @@ defineExpose({
         <div
           :class="[
             'flex flex-col items-center gap-3 text-center',
-            props.floating ? 'rounded-2xl bg-white/80 px-6 py-6 shadow-md dark:bg-neutral-900/80' : '',
+            props.floating ? 'rounded-2xl bg-white px-6 py-6 shadow-md dark:bg-neutral-900' : '',
           ]"
         >
           <div :class="['chat-empty-state-icon size-14 flex items-center justify-center rounded-2xl bg-primary-100/60 text-primary-500 dark:bg-primary-900/30']">
@@ -404,6 +407,7 @@ defineExpose({
         :tail-inset="tailInset"
         :tool-call-renderers="toolCallRenderers"
         :tool-call-widgets="toolCallWidgets"
+        :surface="props.floating ? 'opaque' : 'translucent'"
         :scrollbar="props.floating ? 'hover' : 'scroll'"
         :passive="props.passive"
         :expired-before="props.expiredBefore"
@@ -424,7 +428,7 @@ defineExpose({
         :class="[
           'mx-auto h-5 w-10 flex items-center justify-center rounded-t-full border border-b-0 outline-none transition-colors',
           'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
-          'border-neutral-200 bg-white/80 text-neutral-400 hover:text-primary-500 dark:border-neutral-800 dark:bg-neutral-900/80 dark:text-neutral-500 dark:hover:text-primary-400',
+          'border-neutral-200 bg-white text-neutral-400 hover:text-primary-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-500 dark:hover:text-primary-400',
         ]"
         @click="composerFolded = !composerFolded"
       >
@@ -439,14 +443,17 @@ defineExpose({
         ref="message-composer"
         :class="[
           'min-h-0 max-h-full flex flex-col gap-1 overflow-hidden rounded-2xl',
-          'bg-neutral-100/70 p-2 backdrop-blur-xl dark:bg-neutral-900/65',
-          'transition-colors duration-200 ease-out focus-within:bg-neutral-100 dark:focus-within:bg-neutral-900 motion-reduce:transition-none',
           // A foldable composer leaves the bottom edge to its folded tab.
           props.composerFoldable ? 'chat-composer-foldable mb-4' : '',
           props.composerFoldable && composerFolded ? 'chat-composer-folded' : '',
           // The composer layer clips overflow, which would cut a ring or a
           // shadow; a border stays inside the box.
-          props.floating ? 'border border-neutral-200 dark:border-neutral-800' : '',
+          props.floating
+            ? 'border border-neutral-200 bg-white p-2 dark:border-neutral-800 dark:bg-neutral-900'
+            : [
+              'bg-neutral-100/70 p-2 backdrop-blur-xl dark:bg-neutral-900/65',
+              'transition-colors duration-200 ease-out focus-within:bg-neutral-100 dark:focus-within:bg-neutral-900 motion-reduce:transition-none',
+            ],
         ]"
       >
         <div
