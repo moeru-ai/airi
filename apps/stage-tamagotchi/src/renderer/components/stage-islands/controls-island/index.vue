@@ -2,7 +2,8 @@
 import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
 import { IS_DEV } from '@proj-airi/stage-shared'
-import { HearingConfigDialog } from '@proj-airi/stage-ui/components'
+import { formatUnreadBadge, HearingConfigDialog, InboxPopover } from '@proj-airi/stage-ui/components'
+import { useInboxStore } from '@proj-airi/stage-ui/stores/inbox'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { ScrollableArea, useTheme } from '@proj-airi/ui'
 import { refDebounced, useFocusWithin, useIntervalFn, useMouseInElement, useMousePressed } from '@vueuse/core'
@@ -81,6 +82,8 @@ const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
 const centerMainWindow = useElectronEventaInvoke(electronCenterMainWindow)
 
 const expanded = ref(false)
+// The store also polls the unread count, so the collapse button can show a dot while the menu is closed.
+const { unread: notificationsUnread } = storeToRefs(useInboxStore())
 // Closing disables interaction immediately. Keep layout until the exit
 // animation ends, then isolate the same menu for natural-size measurement.
 const panelPresent = ref(false)
@@ -107,7 +110,8 @@ const { direction, scrollWholeIsland, panelStyle, layoutClasses: islandLayoutCla
   content: islandContent,
 }, expanded, placement)
 
-// Tracks open overlays/dialogs that should prevent auto-collapse (e.g. 'hearing', 'profile-picker')
+// Tracks open overlays/dialogs that should prevent auto-collapse (e.g. 'hearing', 'profile-picker', 'notifications').
+// The stage page reads `overlayActive` and stops click-through while one is open, so portaled cards get clicks.
 const blockingOverlays = reactive(new Set<string>())
 // A scrollbar drag can leave the visible boundary before the user releases it.
 const { pressed } = useMousePressed({ target: islandElement })
@@ -365,6 +369,39 @@ function resetMainWindowPosition() {
                   :icon-class="adjustStyleClasses.icon"
                 />
 
+                <!-- The card opens toward the stage center, away from the docked edge. -->
+                <InboxPopover
+                  v-slot="{ unread, label }"
+                  :open="blockingOverlays.has('notifications')"
+                  :side="isLeft ? 'right' : 'left'"
+                  :align="isTop ? 'start' : 'end'"
+                  @update:open="setOverlay('notifications', $event)"
+                >
+                  <button
+                    type="button"
+                    data-testid="controls-island-notifications"
+                    :aria-label="label"
+                    :class="[
+                      'mb-1.5 w-full flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-left',
+                      'bg-transparent hover:bg-black/5 dark:hover:bg-white/5',
+                      'transition-colors duration-200 cursor-pointer border-none outline-none',
+                      'focus-visible:outline-2 focus-visible:outline-primary-500',
+                    ]"
+                  >
+                    <span aria-hidden="true" :class="['i-solar:bell-outline shrink-0 text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
+                    <span :class="['min-w-0 flex-1 truncate text-sm font-medium text-neutral-800 dark:text-neutral-200']">
+                      {{ t('stage.notifications.title') }}
+                    </span>
+                    <span
+                      v-if="unread > 0"
+                      aria-hidden="true"
+                      :class="['min-w-5 shrink-0 rounded-full bg-primary-500 px-1.5 text-center text-xs text-white font-medium leading-5']"
+                    >
+                      {{ formatUnreadBadge(unread) }}
+                    </span>
+                  </button>
+                </InboxPopover>
+
                 <div :class="['grid grid-cols-3 gap-2']">
                   <ControlButtonTooltip disable-hoverable-content>
                     <ControlButton
@@ -517,11 +554,19 @@ function resetMainWindowPosition() {
               :aria-expanded="expanded"
               :aria-controls="menuId"
               :aria-label="expanded ? t('tamagotchi.stage.controls-island.collapse') : t('tamagotchi.stage.controls-island.expand')"
+              :class="['relative']"
               @click="toggleControls"
             >
               <div
                 :class="['i-solar:alt-arrow-up-line-duotone scale-110 transition-all duration-300', 'text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]"
                 :style="{ transform: `rotate(${arrowRotation}deg)` }"
+              />
+              <!-- Unread Notifications are in the menu. The dot tells the user to open it. -->
+              <span
+                v-if="notificationsUnread > 0"
+                data-testid="controls-island-notifications-dot"
+                aria-hidden="true"
+                :class="['pointer-events-none absolute right-1 top-1 size-2 rounded-full bg-primary-500 ring-2 ring-neutral-100 dark:ring-neutral-900']"
               />
             </ControlButton>
             <template #tooltip>
