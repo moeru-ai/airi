@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatUnreadBadge, InboxPopover } from '@proj-airi/stage-ui/components'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { BasicButton } from '@proj-airi/ui'
@@ -48,22 +49,50 @@ const activeSessionTitle = computed(() => {
       </template>
     </ChatSessionsDrawer>
 
-    <BasicButton
-      size="unset"
-      data-testid="speech-mute-button"
-      :class="[
-        'size-8 shrink-0 rounded-lg outline-none',
-        'text-neutral-500 hover:bg-primary-100/60 hover:text-primary-700 dark:text-neutral-400 dark:hover:bg-primary-900/40 dark:hover:text-primary-200',
-        'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-1',
-        speechMuted ? 'bg-primary-100/80 text-primary-700 dark:bg-primary-900/50 dark:text-primary-200' : '',
-      ]"
-      :title="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
-      :aria-label="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
-      :aria-pressed="speechMuted"
-      @click="toggleSpeechMuted"
-    >
-      <span v-if="speechMuted" aria-hidden="true" :class="['i-solar:volume-cross-outline size-5']" />
-      <span v-else aria-hidden="true" :class="['i-solar:volume-loud-outline size-5']" />
-    </BasicButton>
+    <div :class="['flex shrink-0 items-center gap-1']">
+      <InboxPopover v-slot="{ unread, label, open }" side="bottom" align="end">
+        <BasicButton
+          size="unset"
+          data-testid="notifications-button"
+          :class="[
+            'relative size-8 shrink-0 rounded-lg outline-none',
+            'text-neutral-500 hover:bg-primary-100/60 hover:text-primary-700 dark:text-neutral-400 dark:hover:bg-primary-900/40 dark:hover:text-primary-200',
+            'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-1',
+            open ? 'bg-primary-100/80 text-primary-700 dark:bg-primary-900/50 dark:text-primary-200' : '',
+          ]"
+          :title="t('stage.notifications.title')"
+          :aria-label="label"
+        >
+          <span aria-hidden="true" :class="['i-solar:bell-outline size-5']" />
+          <span
+            v-if="unread > 0"
+            aria-hidden="true"
+            :class="[
+              'pointer-events-none absolute -right-1 -top-1 min-w-4 rounded-full px-1',
+              'bg-primary-500 text-center text-[10px] text-white font-medium leading-4',
+            ]"
+          >
+            {{ formatUnreadBadge(unread) }}
+          </span>
+        </BasicButton>
+      </InboxPopover>
+      <BasicButton
+        size="unset"
+        data-testid="speech-mute-button"
+        :class="[
+          'size-8 shrink-0 rounded-lg outline-none',
+          'text-neutral-500 hover:bg-primary-100/60 hover:text-primary-700 dark:text-neutral-400 dark:hover:bg-primary-900/40 dark:hover:text-primary-200',
+          'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-1',
+          speechMuted ? 'bg-primary-100/80 text-primary-700 dark:bg-primary-900/50 dark:text-primary-200' : '',
+        ]"
+        :title="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
+        :aria-label="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
+        :aria-pressed="speechMuted"
+        @click="toggleSpeechMuted"
+      >
+        <span v-if="speechMuted" aria-hidden="true" :class="['i-solar:volume-cross-outline size-5']" />
+        <span v-else aria-hidden="true" :class="['i-solar:volume-loud-outline size-5']" />
+      </BasicButton>
+    </div>
   </div>
 </template>
