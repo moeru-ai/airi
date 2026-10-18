@@ -71,4 +71,14 @@ describe('configure_wake_words tool', () => {
       properties: { words: { items: { required: expect.arrayContaining(['text', 'pronunciations']) } } },
     })
   })
+
+  // OpenAI-compatible providers with strict schemas rejected the whole request with 400 when a nested object allowed other keys.
+  it('closes every object in the parameter schema', async () => {
+    const agentTool = await createWakeWordTool({ characterId: 'turn-character', setWords: createSetWords() })
+
+    expect(agentTool.function.parameters).toMatchObject({
+      additionalProperties: false,
+      properties: { words: { items: { additionalProperties: false } } },
+    })
+  })
 })
