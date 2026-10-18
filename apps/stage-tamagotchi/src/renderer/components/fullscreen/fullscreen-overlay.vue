@@ -14,7 +14,7 @@ import { fullscreenSurfaces } from './surfaces'
 // mode shows this one component, so the mode looks and works the same in each of them.
 const { t } = useI18n()
 const { surface, mounted } = storeToRefs(useFullscreenStore())
-const { islandElement, surfaceMargin, surfaceRadius, surfaceWidth, surfaceDragging, startSurfaceDrag, moveSurfaceDrag, endSurfaceDrag } = useFullscreenLayout()
+const { islandElement, surfaceMargin, surfaceWidth, surfaceDragging, startSurfaceDrag, moveSurfaceDrag, endSurfaceDrag } = useFullscreenLayout()
 
 // The settings layout draws the panel content instead of the settings window frame when it shows here.
 provide(fullscreenPanelKey, true)
@@ -37,10 +37,9 @@ watchSyncEffect(() => {
     >
       <!-- The surface is a sheet that meets the bottom edge of the screen. It keeps a margin at the top and the right. -->
       <div
-        data-window-backdrop-panel-frame
-        :style="{ borderTopLeftRadius: surfaceRadius, borderTopRightRadius: surfaceRadius }"
         :class="[
           'h-full w-full',
+          'rounded-t-3xl',
           'bg-$bg-color',
           'overflow-hidden',
         ]"

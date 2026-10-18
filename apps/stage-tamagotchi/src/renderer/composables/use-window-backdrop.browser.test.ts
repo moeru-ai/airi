@@ -148,19 +148,8 @@ describe('window native backdrop', () => {
     await expect.poll(() => regions()).toEqual([])
   })
 
-  it('preserves the fullscreen sheet top corners and square bottom edge as intersecting clips', async () => {
-    await mountSurface(`
-      <div data-window-backdrop-panel-frame style="width:240px;height:160px;border-radius:24px 24px 0 0;overflow:hidden">
-        <div data-window-backdrop-surface style="width:240px;height:160px"></div>
-      </div>
-    `)
-    await expect.poll(() => regions().length).toBe(1)
-    expect(regions()[0].clips).toContainEqual({ x: 20, y: 30, width: 240, height: 160, radius: 0 })
-    expect(regions()[0].clips).toContainEqual({ x: 20, y: 30, width: 240, height: 184, radius: 24 })
-  })
-
-  it.each(['width', 'height'] as const)('keeps fullscreen material through a zero-%s opening, closing, and reopening transition', async (dimension) => {
-    // Fullscreen opens from a zero-width clipping area in pages/index.vue, then closes back to that same empty area.
+  it.each(['width', 'height'] as const)('keeps material through a zero-%s opening, closing, and reopening clip transition', async (dimension) => {
+    // An overflow ancestor opens from an empty clipping area, then closes back to it.
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
       const view = await render(defineComponent({
@@ -168,17 +157,15 @@ describe('window native backdrop', () => {
           useWindowBackdrop(useTemplateRef<HTMLElement>('root'), 'panel')
         },
         template: `
-          <div data-testid="fullscreen-area" style="position:fixed;left:20px;top:30px;width:${dimension === 'width' ? 0 : 300}px;height:${dimension === 'height' ? 0 : 250}px;overflow:hidden">
+          <div data-testid="clip-area" style="position:fixed;left:20px;top:30px;width:${dimension === 'width' ? 0 : 300}px;height:${dimension === 'height' ? 0 : 250}px;overflow:hidden">
             <div style="width:300px;height:250px">
-              <div data-window-backdrop-panel-frame style="width:240px;height:160px;border-radius:24px 24px 0 0;overflow:hidden">
-                <div ref="root" data-testid="chat-background" data-window-backdrop-surface class="bg-neutral-50" style="width:240px;height:160px"></div>
-              </div>
+              <div ref="root" data-testid="chat-background" data-window-backdrop-surface class="bg-neutral-50" style="width:240px;height:160px"></div>
             </div>
           </div>
         `,
       }))
       views.push(view)
-      const area = view.container.querySelector<HTMLElement>('[data-testid="fullscreen-area"]')!
+      const area = view.container.querySelector<HTMLElement>('[data-testid="clip-area"]')!
       const background = view.container.querySelector<HTMLElement>('[data-testid="chat-background"]')!
       const extent = dimension === 'width' ? 300 : 250
       const areaClip = (region: BackdropRegion) => region.clips.find(clip => clip.x === 20 && clip.y === 30 && clip.radius === 0 && (dimension === 'width' ? clip.height === 250 : clip.width === 300))
@@ -195,7 +182,6 @@ describe('window native backdrop', () => {
         const clip = areaClip(region)
         return clip !== undefined && clip[dimension] > 0 && clip[dimension] < extent
       }))).toBe(true)
-      expect(regions()[0].clips).toContainEqual({ x: 20, y: 30, width: 240, height: 184, radius: 24 })
 
       area.style[dimension] = '0px'
       await expect.poll(() => area.getBoundingClientRect()[dimension]).toBe(0)

@@ -101,7 +101,7 @@ function overflowClips(element: HTMLElement, style: CSSStyleDeclaration, rect: D
     height: clipY ? element.clientHeight * scale.y : window.innerHeight,
     radius: 0,
   }
-  // Fullscreen opens and closes through an empty clipping area. It paints no material while either edge is zero.
+  // An empty clipping area paints no material. Corner radii of a zero edge are not needed.
   if (clip.width <= 0 || clip.height <= 0)
     return [clip]
   if (!clipX || !clipY)
@@ -109,9 +109,6 @@ function overflowClips(element: HTMLElement, style: CSSStyleDeclaration, rect: D
   const [topLeft, topRight, bottomRight, bottomLeft] = cornerRadii(style, rect, scale)
   if (topLeft === topRight && topLeft === bottomRight && topLeft === bottomLeft)
     return [{ ...clip, radius: topLeft }]
-  // The fullscreen sheet has square bottom corners. Extending a rounded clip below its rectangular clip preserves them.
-  if (element.hasAttribute('data-window-backdrop-panel-frame') && topLeft === topRight && bottomRight === 0 && bottomLeft === 0)
-    return [clip, { ...clip, height: clip.height + topLeft, radius: topLeft }]
   throw new Error('Unsupported backdrop overflow corner radii')
 }
 
