@@ -3,7 +3,7 @@ import type { ChatHistoryReplyPayload, ChatImageAttachment } from '@proj-airi/st
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
-import { CharacterSwitcherDrawer, ChatBackgroundTasks, ChatHistory, HearingConfig, HearingStatus, InboxDrawer, VoiceDrafts } from '@proj-airi/stage-ui/components'
+import { CharacterSwitcherDrawer, ChatBackgroundTasks, ChatHistory, HearingConfig, HearingStatus, VoiceDrafts } from '@proj-airi/stage-ui/components'
 import { ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSessionsDrawer, useChatComposer, useChatImages, VoiceComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
@@ -315,7 +315,7 @@ onUnmounted(() => {
         size="unset"
         data-testid="conversation-selector-button"
         :class="[
-          'pointer-events-auto size-11 shrink-0 justify-self-start rounded-full backdrop-blur-md',
+          'pointer-events-auto size-11 shrink-0 rounded-full backdrop-blur-md',
           'bg-neutral-50/70 text-neutral-600 dark:bg-neutral-900/70 dark:text-neutral-300',
           'focus-visible:outline-2 focus-visible:outline-primary-500',
         ]"
@@ -328,14 +328,11 @@ onUnmounted(() => {
         <span aria-hidden="true" :class="['i-solar:dialog-2-outline size-6']" />
       </BasicButton>
       <CharacterSwitcherDrawer />
-      <div :class="['flex items-center justify-self-end gap-2']">
-        <InboxDrawer />
-        <MobileSettingsDrawer
-          v-model:character-voice-enabled="characterVoiceEnabled"
-          :view-controls-available="viewControlsAvailable"
-          @open-view-controls="openViewControls"
-        />
-      </div>
+      <MobileSettingsDrawer
+        v-model:character-voice-enabled="characterVoiceEnabled"
+        :view-controls-available="viewControlsAvailable"
+        @open-view-controls="openViewControls"
+      />
     </MobileHeader>
     <MobileHeader v-else>
       <BasicButton
@@ -344,7 +341,7 @@ onUnmounted(() => {
         :title="t('stage.mobile-tools.close-view')"
         :aria-label="t('stage.mobile-tools.close-view')"
         :class="[
-          'pointer-events-auto col-start-3 size-11 justify-self-end rounded-full backdrop-blur-md',
+          'pointer-events-auto ml-auto size-11 rounded-full backdrop-blur-md',
           'bg-neutral-50/70 text-neutral-600 dark:bg-neutral-900/70 dark:text-neutral-300',
           'focus-visible:outline-2 focus-visible:outline-primary-500',
         ]"

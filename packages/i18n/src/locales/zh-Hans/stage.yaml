@@ -18,6 +18,8 @@ mobile-tools:
   view: 视图
   close-view: 保存并关闭视图调节
   hearing: 听觉
+  menu: 菜单
+  menu-unread: 菜单，{count} 条未读通知
 chat:
   provider-configuration:
     title: 尚未正确配置聊天 Provider
@@ -348,6 +350,7 @@ notifications:
   mark-all-read: 全部已读
   empty: 暂无通知
   loading: 正在加载通知
+  back: 返回
   error: 通知加载失败。
   retry: 重试
   just-now: 刚刚

@@ -1,60 +1,65 @@
 <script setup lang="ts">
 import { useNow } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
-import { computed, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { PopoverAnchor, PopoverContent, PopoverPortal, PopoverRoot } from 'reka-ui'
+import { watch } from 'vue'
 
 import InboxPanel from './inbox-panel.vue'
 
 import { useInboxStore } from '../../../stores/inbox'
 
 withDefaults(defineProps<{
-  /** The side of the trigger where the card opens. @default 'bottom' */
+  /** The side of the anchor where the card opens. @default 'bottom' */
   side?: 'top' | 'right' | 'bottom' | 'left'
-  /** The card edge that lines up with the trigger. @default 'end' */
+  /** The card edge that lines up with the anchor. @default 'end' */
   align?: 'start' | 'center' | 'end'
 }>(), { side: 'bottom', align: 'end' })
 
 defineSlots<{
-  /** The trigger. It receives the unread count and an accessible label for it. */
-  default: (props: { unread: number, label: string, open: boolean }) => unknown
+  /** The anchor. The caller owns the control that opens the card, for example an account menu item. */
+  default: () => unknown
 }>()
 
+/** The caller opens the card from its own control. A click outside the card closes it. */
 const open = defineModel<boolean>('open', { default: false })
 
-const { t } = useI18n()
 const inbox = useInboxStore()
 const { unread, messages, loading, error, hasMore, signedIn } = storeToRefs(inbox)
 const now = useNow({ interval: 60_000 })
-const label = computed(() => unread.value > 0
-  ? t('stage.notifications.open-unread', { count: unread.value })
-  : t('stage.notifications.open'))
 
-// The list loads only when the user looks at it. The trigger uses the polled count.
+// The list loads only when the user looks at it. The anchor uses the polled count.
 watch(open, (value) => {
   if (value)
     void inbox.loadFirstPage()
 })
-// A sign-out removes the trigger, so an open card must not stay without it.
 watch(signedIn, (value) => {
   if (!value)
     open.value = false
 })
+
+// NOTICE:
+// The account menu closes and returns focus to its trigger, outside this card.
+// A non-modal popover closes on focus outside, so the card would close at once.
+// Source: reka-ui DropdownMenuContent close auto focus and PopoverContent focusOutside.
+// Remove when the card has its own trigger. A click outside still closes it.
+function keepOpenOnFocusOutside(event: Event) {
+  event.preventDefault()
+}
 </script>
 
 <template>
-  <PopoverRoot v-if="signedIn" v-model:open="open">
-    <PopoverTrigger as-child>
-      <slot :unread="unread" :label="label" :open="open" />
-    </PopoverTrigger>
-    <PopoverPortal>
+  <PopoverRoot v-model:open="open">
+    <PopoverAnchor as-child>
+      <slot />
+    </PopoverAnchor>
+    <PopoverPortal v-if="signedIn">
       <PopoverContent
         :side="side" :align="align" :side-offset="8" :collision-padding="8"
         :class="[
           'z-50 w-108 max-w-[calc(100vw-1rem)] rounded-3xl outline-none',
           'border border-white/8 bg-neutral-900/86 shadow-xl backdrop-blur-xl',
         ]"
+        @focus-outside="keepOpenOnFocusOutside"
       >
         <InboxPanel
           :messages="messages" :now="now" :unread="unread" :loading="loading" :error="error" :has-more="hasMore"

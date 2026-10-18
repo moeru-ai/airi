@@ -3,7 +3,8 @@ import en from '@proj-airi/i18n/locales/en'
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
-import { defineComponent, nextTick } from 'vue'
+import { page } from 'vitest/browser'
+import { defineComponent, nextTick, ref } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import InboxPopover from './inbox-popover.vue'
@@ -48,9 +49,13 @@ describe('notifications popover', () => {
   async function renderPopover() {
     const harness = defineComponent({
       components: { InboxPopover },
+      setup: () => ({ open: ref(false) }),
       template: `
-        <InboxPopover v-slot="{ unread, label }">
-          <button type="button" :aria-label="label">Bell {{ unread }}</button>
+        <InboxPopover v-model:open="open">
+          <div>
+            <button type="button" @click="open = true">Account menu item</button>
+            <button type="button">Account trigger</button>
+          </div>
         </InboxPopover>
       `,
     })
@@ -67,30 +72,32 @@ describe('notifications popover', () => {
     await nextTick()
   }
 
-  it('hides the trigger while signed out', async () => {
+  it('shows no card while signed out', async () => {
     const screen = await renderPopover()
 
-    await expect.element(screen.getByRole('button')).not.toBeInTheDocument()
+    await screen.getByRole('button', { name: 'Account menu item' }).click()
+    expect(document.querySelector('[role="dialog"]')).toBeNull()
     expect(routes).toEqual([])
   })
 
   it('loads the list on open, skips unknown kinds, and marks an opened message read', async () => {
     const screen = await renderPopover()
     await signIn()
-
-    const trigger = screen.getByRole('button', { name: 'Open notifications, 1 unread' })
-    await expect.element(trigger).toBeVisible()
+    await expect.poll(() => routes).toContain('GET /v1/inbox/unread-count')
     expect(routes).not.toContain('GET /v1/inbox')
 
-    await trigger.click()
-    const row = screen.getByRole('button', { name: /You received 500 Flux/ })
+    await screen.getByRole('button', { name: 'Account menu item' }).click()
+    const row = page.getByRole('button', { name: /You received 500 Flux/ })
     await expect.element(row).toBeVisible()
     expect(routes).toContain('GET /v1/inbox')
     expect(document.body.textContent).not.toContain('account.banned')
 
+    // The account menu returns focus to its trigger after it closes. The card must stay open.
+    screen.getByRole('button', { name: 'Account trigger' }).element().focus()
+    await expect.element(row).toBeVisible()
+
     await row.click()
     await expect.poll(() => routes).toContain('POST /v1/inbox/m1/read')
-    await expect.element(screen.getByRole('button', { name: 'Open notifications' })).toBeVisible()
-    await expect.element(screen.getByRole('button', { name: 'Mark all as read' })).toBeDisabled()
+    await expect.element(page.getByRole('button', { name: 'Mark all as read' })).toBeDisabled()
   })
 })

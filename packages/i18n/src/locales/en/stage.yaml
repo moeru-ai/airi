@@ -18,6 +18,8 @@ mobile-tools:
   view: View
   close-view: Save and close view controls
   hearing: Hearing
+  menu: Menu
+  menu-unread: Menu, {count} unread notifications
 chat:
   provider-configuration:
     title: Chat provider isn't configured
@@ -358,6 +360,7 @@ notifications:
   mark-all-read: Mark all as read
   empty: No notifications yet
   loading: Loading notifications
+  back: Back
   error: Notifications could not load.
   retry: Retry
   just-now: Just now

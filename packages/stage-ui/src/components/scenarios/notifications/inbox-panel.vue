@@ -34,6 +34,11 @@ const emit = defineEmits<{
   loadMore: []
 }>()
 
+defineSlots<{
+  /** Content before the title, for example a back button when the panel replaces a menu in place. */
+  leading: () => unknown
+}>()
+
 const { t, locale } = useI18n()
 const views = computed(() => presentInboxMessages(props.messages, t, locale.value))
 const unread = computed(() => props.unread ?? views.value.filter(view => view.unread).length)
@@ -54,6 +59,7 @@ const tone = computed(() => props.surface === 'island'
   <!-- Announcements have their own surface. This panel holds only the user's private messages. -->
   <section :class="['flex flex-col']" :aria-label="t('stage.notifications.title')">
     <header :class="['flex items-center gap-2', surface === 'island' ? 'pl-5 pr-3 pt-3' : 'pt-1']">
+      <slot name="leading" />
       <h2 :class="['flex flex-1 items-center gap-2 text-base font-semibold', tone.title]">
         {{ t('stage.notifications.title') }}
         <span
