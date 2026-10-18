@@ -63,10 +63,21 @@ function webUrl(url: string | undefined) {
 export const CARD_PROBLEM: InjectionKey<(problem: string) => void> = Symbol('tool-card-problem')
 
 /**
- * The data fields of each part. A field that holds nested parts only has to be a list, because each nested part checks
- * its own fields when it draws.
+ * The data fields of each part. A field that holds nested parts must hold a list of parts. Each nested part checks its
+ * own fields when it draws.
  */
 const partDataSchemas = new Map<string, z.ZodObject>()
+
+/**
+ * One item of a field that holds nested parts: a part of this catalog, or `null` for a missing value. OpenUI draws
+ * nothing for plain data in its place and reports nothing, so a list of data objects would draw an empty part.
+ */
+const nestedPart = z.custom(
+  value => value === null || (typeof value === 'object'
+    && (value as { type?: unknown }).type === 'element'
+    && partDataSchemas.has(String((value as { typeName?: unknown }).typeName))),
+  'must be a part, not plain data. Turn each data item into a part with @Each, for example @Each(data.items, "item", Fact(item.label, item.value))',
+)
 
 /**
  * The first problem of the values of a part, or undefined when they fit. The values come from data at runtime, so the
@@ -91,12 +102,12 @@ function definePart<T extends z.ZodObject>(config: {
   name: string
   description: string
   props: T
-  /** The fields that hold nested parts. Each of them holds a list. */
+  /** The fields that hold nested parts. Each of them holds a list of parts. */
   slots?: string[]
   render: (props: z.infer<T>, renderNode: (value: unknown) => VNodeChild) => VNodeChild
 }) {
   partDataSchemas.set(config.name, z.object(Object.fromEntries(Object.entries(config.props.shape)
-    .map(([key, field]) => [key, config.slots?.includes(key) ? z.array(z.unknown()) : field]))))
+    .map(([key, field]) => [key, config.slots?.includes(key) ? z.array(nestedPart) : field]))))
   const component: FunctionalComponent<ComponentRenderProps<z.infer<T>>> = ({ props, renderNode }) => {
     const problem = partProblem(config.name, props)
     if (problem) {
