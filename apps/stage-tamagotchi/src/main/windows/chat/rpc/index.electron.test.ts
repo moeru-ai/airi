@@ -2,7 +2,7 @@ import type { ElectronMainContextExtensions, ElectronMainEmitOptions } from '@mo
 
 import type { I18n } from '../../../libs/i18n'
 import type { ServerChannel } from '../../../services/airi/channel-server'
-import type { McpStdioManager } from '../../../services/airi/mcp-servers'
+import type { McpManager } from '../../../services/airi/mcp-servers'
 import type { WidgetsWindowManager } from '../../widgets'
 
 import { createContext, defineInvoke } from '@moeru/eventa'
@@ -47,7 +47,7 @@ it('registers chat invokes on each supplied window context', async () => {
   const services = {
     widgetsManager: {} as WidgetsWindowManager,
     serverChannel: {} as ServerChannel,
-    mcpStdioManager: {} as McpStdioManager,
+    mcpManager: {} as McpManager,
     i18n: {} as I18n,
     openSettingsWindow,
   }
@@ -66,7 +66,7 @@ it('registers chat invokes on each supplied window context', async () => {
     widgetsManager: services.widgetsManager,
     window: firstWindow,
   })
-  expect(createMcpServersService).toHaveBeenCalledWith({ context: firstContext, manager: services.mcpStdioManager })
+  expect(createMcpServersService).toHaveBeenCalledWith({ context: firstContext, manager: services.mcpManager })
 
   await defineInvoke(firstContext, electronOpenMainDevtools)()
   expect(firstOpenDevTools).toHaveBeenCalledWith({ mode: 'detach' })
