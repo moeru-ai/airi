@@ -4018,6 +4018,9 @@ importers:
       rehype-stringify:
         specifier: 'catalog:'
         version: 10.0.1
+      remark-parse:
+        specifier: 'catalog:'
+        version: 11.0.0(supports-color@10.2.2)
       unified:
         specifier: 'catalog:'
         version: 11.0.5
@@ -4037,6 +4040,9 @@ importers:
       '@types/hast':
         specifier: ^3.0.5
         version: 3.0.5
+      '@types/mdast':
+        specifier: 'catalog:'
+        version: 4.0.4
       '@types/node':
         specifier: 'catalog:'
         version: 26.2.0

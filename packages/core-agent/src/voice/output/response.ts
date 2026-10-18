@@ -9,6 +9,7 @@ import { createPushStream } from '@proj-airi/stream-kit'
 import { nanoid } from 'nanoid/non-secure'
 
 import { errorFromCause, errorMessageFromValue } from '../../utils/error'
+import { toSpeechText } from './speech-text'
 
 /** Each synthesized part carries optional display text. Audio ownership transfers to playback. */
 export interface SpeechAudio {
@@ -49,6 +50,14 @@ export type SpeechOutput = {
   readonly stream: (text: ReadableStream<string>, signal: AbortSignal) => Promise<ReadableStream<SpeechAudio>>
 })
 
+/**
+ * Marks where a special token or a flush occurs in the buffered text, so that markdown conversion keeps its position.
+ * It is a Unicode private use character. Model text does not contain it, and producer text is stripped of it.
+ */
+const controlMarker = '\uE000'
+
+type SpeechControl = { readonly type: 'special', readonly value: string } | { readonly type: 'flush' }
+
 // REVIEW: this doesn't look like the native Speech Stream, i'd rather to believe this is
 // naive wrapper and design for speech without much abstraction
 /** One producer owns its text, synthesis, queued audio, and cancellation within a response. */
@@ -66,6 +75,9 @@ export class SpeechStream {
   private settled = false
 
   private timer: ReturnType<typeof setTimeout> | undefined
+  /** Markdown that `end()` converts to speech text. A control marker holds the place of each entry in `controls`. */
+  private markdown = ''
+  private readonly controls: SpeechControl[] = []
   readonly signal = this.abort.signal
   readonly done = this.completion.promise
 
@@ -237,29 +249,33 @@ export class SpeechStream {
     return signal.aborted ? { status, reason: errorMessageFromValue(signal.reason) } : { status }
   }
 
-  /** Special tokens remain ordered through the chunker. Streaming providers handle these tokens outside their text transport. */
+  // REVIEW:
+  // Every purpose holds its text until `end()`, so markdown is converted with the full context.
+  // read-aloud already has the full text, but answer and notification start to speak only after the model ends.
+  // answer needs a streaming commit at clause boundaries. See the chunker punctuation in pipelines-audio.
+
+  /** Special tokens keep their position relative to the text. They are delivered when the producer ends. */
   special(value: string) {
     if (this.sealed || this.response.signal.aborted)
       return
-    if (this.intent)
-      this.intent.writeSpecial(value)
-    else
-      this.output.onSpecial?.(value)
+
+    this.markdown += controlMarker
+    this.controls.push({ type: 'special', value })
   }
 
   flush() {
-    if (!this.sealed)
-      this.intent?.writeFlush()
+    if (this.sealed)
+      return
+
+    this.markdown += controlMarker
+    this.controls.push({ type: 'flush' })
   }
 
   write(text: string): { status: 'accepted' | 'closed' } {
     if (this.sealed || this.response.signal.aborted)
       return { status: 'closed' }
-    if (this.text)
-      this.text.write(text)
-    else
-      this.intent!.writeLiteral(text)
 
+    this.markdown += text.replaceAll(controlMarker, '')
     return { status: 'accepted' }
   }
 
@@ -267,9 +283,42 @@ export class SpeechStream {
     if (this.sealed)
       return
 
+    if (!this.response.signal.aborted)
+      this.deliver()
     this.sealed = true
     this.text?.close()
     this.intent?.end()
+  }
+
+  /** Sends the speech text and the controls in source order. Controls that conversion lost are sent last, in order. */
+  private deliver() {
+    const parts = toSpeechText(this.markdown, { marker: controlMarker }).split(controlMarker)
+    parts.forEach((text, index) => {
+      if (text)
+        this.deliverText(text)
+
+      const control = this.controls[index]
+      if (control && index < parts.length - 1)
+        this.deliverControl(control)
+    })
+    this.controls.slice(parts.length - 1).forEach(control => this.deliverControl(control))
+  }
+
+  private deliverText(text: string) {
+    if (this.text)
+      this.text.write(text)
+    else
+      this.intent!.writeLiteral(text)
+  }
+
+  /** The chunker orders special tokens with the audio. Streaming providers handle them outside their text transport. */
+  private deliverControl(control: SpeechControl) {
+    if (control.type === 'flush')
+      this.intent?.writeFlush()
+    else if (this.intent)
+      this.intent.writeSpecial(control.value)
+    else
+      this.output.onSpecial?.(control.value)
   }
 
   cancel(reason: string) {
