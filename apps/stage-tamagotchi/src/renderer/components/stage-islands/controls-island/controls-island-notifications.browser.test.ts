@@ -102,7 +102,7 @@ describe('controls Island notifications', () => {
     authState.user.value = null
   })
 
-  it('hides the row and the dot while signed out', async () => {
+  it('hides the bell and the dot while signed out', async () => {
     const screen = mountIsland()
 
     await screen.getByLabelText(label('expand'), { exact: true }).click()
@@ -111,7 +111,7 @@ describe('controls Island notifications', () => {
     expect(document.querySelector('[data-testid="controls-island-notifications-dot"]')).toBeNull()
   })
 
-  it('shows the unread dot, the row count, and opens the card without collapsing the menu', async () => {
+  it('switches the menu to the list in place and back', async () => {
     authState.token.value = 'user-1-token'
     authState.user.value = { id: 'user-1', name: 'Neko', email: 'neko@example.test', emailVerified: true, createdAt: new Date(), updatedAt: new Date() }
     authState.isAuthenticated.value = true
@@ -120,11 +120,21 @@ describe('controls Island notifications', () => {
     await expect.element(screen.getByTestId('controls-island-notifications-dot')).toBeInTheDocument()
 
     await screen.getByLabelText(label('expand'), { exact: true }).click()
-    const row = screen.getByRole('button', { name: 'Open notifications, 2 unread' })
-    await expect.element(row).toBeVisible()
+    const bell = screen.getByRole('button', { name: 'Open notifications, 2 unread' })
+    await expect.element(bell).toBeVisible()
 
-    await row.click()
-    await expect.element(page.getByRole('button', { name: /You received 500 Flux/ })).toBeVisible()
-    await expect.element(screen.getByLabelText(label('collapse'), { exact: true })).toBeInTheDocument()
+    await bell.click()
+    const menu = screen.getByTestId('controls-menu').element()
+    const list = screen.getByTestId('controls-island-notifications-view')
+    await expect.element(list).toBeVisible()
+    // The list replaces the controls inside the same menu card. No new floating card opens.
+    expect(menu.contains(list.element())).toBe(true)
+    expect(document.querySelectorAll('[data-reka-popper-content-wrapper]').length).toBe(0)
+    await expect.element(screen.getByRole('button', { name: /You received 500 Flux/ })).toBeVisible()
+    await expect.element(screen.getByLabelText(label('open-settings'), { exact: true })).not.toBeVisible()
+
+    await screen.getByRole('button', { name: 'Back' }).click()
+    await expect.element(screen.getByLabelText(label('open-settings'), { exact: true })).toBeVisible()
+    expect(document.querySelector('[data-testid="controls-island-notifications-view"]')).toBeNull()
   })
 })

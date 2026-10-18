@@ -2,13 +2,13 @@
 import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
 import { IS_DEV } from '@proj-airi/stage-shared'
-import { formatUnreadBadge, HearingConfigDialog, InboxPopover } from '@proj-airi/stage-ui/components'
+import { HearingConfigDialog, InboxPanel } from '@proj-airi/stage-ui/components'
 import { useInboxStore } from '@proj-airi/stage-ui/stores/inbox'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { ScrollableArea, useTheme } from '@proj-airi/ui'
-import { refDebounced, useFocusWithin, useIntervalFn, useMouseInElement, useMousePressed } from '@vueuse/core'
+import { refDebounced, useFocusWithin, useIntervalFn, useMouseInElement, useMousePressed, useNow } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, reactive, ref, useId, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, reactive, ref, useId, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import StatusIsland from '../status-island/index.vue'
@@ -83,7 +83,19 @@ const centerMainWindow = useElectronEventaInvoke(electronCenterMainWindow)
 
 const expanded = ref(false)
 // The store also polls the unread count, so the collapse button can show a dot while the menu is closed.
-const { unread: notificationsUnread } = storeToRefs(useInboxStore())
+const inbox = useInboxStore()
+const {
+  unread: notificationsUnread,
+  messages: notificationMessages,
+  loading: notificationsLoading,
+  error: notificationsError,
+  hasMore: notificationsHasMore,
+  signedIn: notificationsSignedIn,
+} = storeToRefs(inbox)
+const now = useNow({ interval: 60_000 })
+/** The menu card shows the controls or, after the account card bell, the Notifications list. */
+const menuView = ref<'controls' | 'notifications'>('controls')
+const notificationsBack = useTemplateRef<HTMLButtonElement>('notificationsBack')
 // Closing disables interaction immediately. Keep layout until the exit
 // animation ends, then isolate the same menu for natural-size measurement.
 const panelPresent = ref(false)
@@ -110,8 +122,7 @@ const { direction, scrollWholeIsland, panelStyle, layoutClasses: islandLayoutCla
   content: islandContent,
 }, expanded, placement)
 
-// Tracks open overlays/dialogs that should prevent auto-collapse (e.g. 'hearing', 'profile-picker', 'notifications').
-// The stage page reads `overlayActive` and stops click-through while one is open, so portaled cards get clicks.
+// Tracks open overlays/dialogs that should prevent auto-collapse (e.g. 'hearing', 'profile-picker')
 const blockingOverlays = reactive(new Set<string>())
 // A scrollbar drag can leave the visible boundary before the user releases it.
 const { pressed } = useMousePressed({ target: islandElement })
@@ -204,6 +215,7 @@ watch(expanded, (isExpanded) => {
     if (menuContent.value?.contains(document.activeElement) || blockingOverlays.size > 0)
       mainControlsElement.value?.querySelector<HTMLButtonElement>('[aria-controls]')?.focus()
     profileOpen.value = false
+    menuView.value = 'controls'
     blockingOverlays.clear()
   }
 })
@@ -226,6 +238,25 @@ watch(alwaysOnTop, (val) => {
 function toggleAlwaysOnTop() {
   alwaysOnTop.value = !alwaysOnTop.value
 }
+
+async function showNotifications() {
+  menuView.value = 'notifications'
+  void inbox.loadFirstPage()
+  await nextTick()
+  notificationsBack.value?.focus()
+}
+
+async function showControls() {
+  menuView.value = 'controls'
+  await nextTick()
+  menuContent.value?.querySelector<HTMLButtonElement>('[data-testid="controls-island-notifications"]')?.focus()
+}
+
+// A sign-out removes the bell, so the list must not stay without a way back to it.
+watch(notificationsSignedIn, (signedIn) => {
+  if (!signedIn)
+    menuView.value = 'controls'
+})
 
 function toggleControls() {
   expanded.value = !expanded.value
@@ -363,179 +394,181 @@ function resetMainWindowPosition() {
                   'bg-neutral-100/80 shadow-2xl shadow-black/20 backdrop-blur-xl dark:bg-neutral-900/80',
                 ]"
               >
-                <ControlsIslandAuthButton
-                  :active="expanded"
-                  :button-style="adjustStyleClasses.button"
-                  :icon-class="adjustStyleClasses.icon"
-                />
-
-                <!-- The card opens toward the stage center, away from the docked edge. -->
-                <InboxPopover
-                  v-slot="{ unread, label }"
-                  :open="blockingOverlays.has('notifications')"
-                  :side="isLeft ? 'right' : 'left'"
-                  :align="isTop ? 'start' : 'end'"
-                  @update:open="setOverlay('notifications', $event)"
-                >
-                  <button
-                    type="button"
-                    data-testid="controls-island-notifications"
-                    :aria-label="label"
-                    :class="[
-                      'mb-1.5 w-full flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-left',
-                      'bg-transparent hover:bg-black/5 dark:hover:bg-white/5',
-                      'transition-colors duration-200 cursor-pointer border-none outline-none',
-                      'focus-visible:outline-2 focus-visible:outline-primary-500',
-                    ]"
+                <!--
+                  The bell on the account card switches this card to the Notifications list in place.
+                  The list stays inside the island, so the stage hit test already covers it.
+                -->
+                <div v-if="menuView === 'notifications'" data-testid="controls-island-notifications-view" :class="['w-80']">
+                  <InboxPanel
+                    :messages="notificationMessages" :now="now" :unread="notificationsUnread"
+                    :loading="notificationsLoading" :error="notificationsError" :has-more="notificationsHasMore"
+                    surface="drawer"
+                    @open="inbox.markRead" @read-all="inbox.markAllRead" @retry="inbox.loadFirstPage" @load-more="inbox.loadMore"
                   >
-                    <span aria-hidden="true" :class="['i-solar:bell-outline shrink-0 text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
-                    <span :class="['min-w-0 flex-1 truncate text-sm font-medium text-neutral-800 dark:text-neutral-200']">
-                      {{ t('stage.notifications.title') }}
-                    </span>
-                    <span
-                      v-if="unread > 0"
-                      aria-hidden="true"
-                      :class="['min-w-5 shrink-0 rounded-full bg-primary-500 px-1.5 text-center text-xs text-white font-medium leading-5']"
-                    >
-                      {{ formatUnreadBadge(unread) }}
-                    </span>
-                  </button>
-                </InboxPopover>
-
-                <div :class="['grid grid-cols-3 gap-2']">
-                  <ControlButtonTooltip disable-hoverable-content>
-                    <ControlButton
-                      v-track-button="{ name: 'controls_island_action', action: 'toggle_settings' }"
-                      :button-style="adjustStyleClasses.button"
-                      :aria-label="t('tamagotchi.stage.controls-island.open-settings')"
-                      @click="openSettings({ route: '/settings' })"
-                    >
-                      <div :class="['i-solar:settings-minimalistic-outline text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
-                    </ControlButton>
-                    <template #tooltip>
-                      {{ t('tamagotchi.stage.controls-island.open-settings') }}
-                    </template>
-                  </ControlButtonTooltip>
-
-                  <ControlButtonTooltip disable-hoverable-content>
-                    <ControlsIslandProfilePicker
-                      v-model:open="profileOpen"
-                      v-model:creating="profileCreationActive"
-                      :active="expanded"
-                      @interaction-change="setOverlay('profile-picker', $event)"
-                    >
-                      <template #default="{ toggle }">
-                        <ControlButton
-                          v-track-button="{ name: 'controls_island_action', action: 'toggle_profile_picker' }"
-                          :button-style="adjustStyleClasses.button"
-                          :aria-label="t('tamagotchi.stage.controls-island.switch-profile')"
-                          @click="toggle"
-                        >
-                          <div :class="['i-solar:emoji-funny-square-broken text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
-                        </ControlButton>
-                      </template>
-                    </ControlsIslandProfilePicker>
-                    <template #tooltip>
-                      {{ t('tamagotchi.stage.controls-island.switch-profile') }}
-                    </template>
-                  </ControlButtonTooltip>
-
-                  <ControlButtonTooltip disable-hoverable-content>
-                    <ControlButton
-                      v-track-button="{ name: 'controls_island_action', action: 'refresh_window' }"
-                      :button-style="adjustStyleClasses.button"
-                      :aria-label="t('tamagotchi.stage.controls-island.refresh')"
-                      @click="refreshWindow"
-                    >
-                      <div :class="['i-solar:refresh-linear text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
-                    </ControlButton>
-                    <template #tooltip>
-                      {{ t('tamagotchi.stage.controls-island.refresh') }}
-                    </template>
-                  </ControlButtonTooltip>
-
-                  <ControlButtonTooltip disable-hoverable-content>
-                    <ControlButton
-                      v-track-button="{ name: 'controls_island_action', action: 'center_main_window' }"
-                      :button-style="adjustStyleClasses.button"
-                      :aria-label="t('tamagotchi.stage.controls-island.center-main-window')"
-                      @click="resetMainWindowPosition"
-                    >
-                      <div :class="['i-solar:target-linear text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
-                    </ControlButton>
-                    <template #tooltip>
-                      {{ t('tamagotchi.stage.controls-island.center-main-window') }}
-                    </template>
-                  </ControlButtonTooltip>
-
-                  <ControlButtonTooltip disable-hoverable-content>
-                    <ControlButton
-                      v-track-button="{
-                        name: 'controls_island_action',
-                        action: themeActions[themeMode],
-                      }"
-                      :button-style="adjustStyleClasses.button"
-                      :aria-label="themeLabel"
-                      @click="switchToNextTheme"
-                    >
-                      <Transition name="fade" mode="out-in">
-                        <div :key="themeMode" :class="[themeIcons[themeMode], 'text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
-                      </Transition>
-                    </ControlButton>
-                    <template #tooltip>
-                      {{ themeLabel }}
-                    </template>
-                  </ControlButtonTooltip>
-
-                  <ControlButtonTooltip disable-hoverable-content>
-                    <ControlButton
-                      v-track-button="{
-                        name: 'controls_island_action',
-                        action: alwaysOnTop ? 'unpin_from_top' : 'pin_on_top',
-                      }"
-                      :button-style="adjustStyleClasses.button"
-                      :aria-label="alwaysOnTop ? t('tamagotchi.stage.controls-island.unpin-from-top') : t('tamagotchi.stage.controls-island.pin-on-top')"
-                      @click="toggleAlwaysOnTop"
-                    >
-                      <div v-if="alwaysOnTop" :class="['i-solar:pin-bold text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
-                      <div v-else :class="['i-solar:pin-linear text-neutral-800 dark:text-neutral-300 opacity-50', adjustStyleClasses.icon]" />
-                    </ControlButton>
-                    <template #tooltip>
-                      {{ alwaysOnTop ? t('tamagotchi.stage.controls-island.unpin-from-top') : t('tamagotchi.stage.controls-island.pin-on-top') }}
-                    </template>
-                  </ControlButtonTooltip>
-
-                  <ControlsIslandFadeOnHover :icon-class="adjustStyleClasses.icon" :button-style="adjustStyleClasses.button" />
-
-                  <ControlButtonTooltip disable-hoverable-content>
-                    <HearingConfigDialog :show="blockingOverlays.has('hearing')" @update:show="setOverlay('hearing', $event)">
-                      <ControlButton
-                        data-testid="controls-island-hearing-controls"
-                        :button-style="adjustStyleClasses.button"
-                        :aria-label="t('tamagotchi.stage.controls-island.open-hearing-controls')"
+                    <template #leading>
+                      <button
+                        ref="notificationsBack"
+                        type="button"
+                        data-testid="controls-island-notifications-back"
+                        :aria-label="t('stage.notifications.back')" :title="t('stage.notifications.back')"
+                        :class="[
+                          'size-8 shrink-0 flex items-center justify-center rounded-full outline-none',
+                          'text-neutral-600 hover:bg-black/5 hover:text-neutral-900',
+                          'dark:text-neutral-300 dark:hover:bg-white/5 dark:hover:text-white',
+                          'transition-colors duration-200 ease-in-out focus-visible:outline-2 focus-visible:outline-primary-400',
+                        ]"
+                        @click="showControls"
                       >
-                        <div :class="['i-solar:microphone-3-linear text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
-                      </ControlButton>
-                    </HearingConfigDialog>
-                    <template #tooltip>
-                      {{ t('tamagotchi.stage.controls-island.open-hearing-controls') }}
+                        <span aria-hidden="true" :class="['i-solar:alt-arrow-left-linear size-5']" />
+                      </button>
                     </template>
-                  </ControlButtonTooltip>
+                  </InboxPanel>
+                </div>
+                <!-- v-show keeps dialogs and listeners of the controls mounted while the list shows. -->
+                <div v-show="menuView === 'controls'" :class="['flex flex-col gap-1']">
+                  <ControlsIslandAuthButton
+                    :active="expanded"
+                    :button-style="adjustStyleClasses.button"
+                    :icon-class="adjustStyleClasses.icon"
+                    :notifications-unread="notificationsUnread"
+                    @open-notifications="showNotifications"
+                  />
 
-                  <ControlButtonTooltip disable-hoverable-content>
-                    <ControlButton
-                      v-track-button="{ name: 'controls_island_action', action: 'close_app' }"
-                      :button-style="adjustStyleClasses.button"
-                      :aria-label="t('tamagotchi.stage.controls-island.close')"
-                      :class="['hover:bg-red-500 hover:text-white']"
-                      @click="() => quitApp()"
-                    >
-                      <div :class="['i-solar:close-circle-outline', adjustStyleClasses.icon]" />
-                    </ControlButton>
-                    <template #tooltip>
-                      {{ t('tamagotchi.stage.controls-island.close') }}
-                    </template>
-                  </ControlButtonTooltip>
+                  <div :class="['grid grid-cols-3 gap-2']">
+                    <ControlButtonTooltip disable-hoverable-content>
+                      <ControlButton
+                        v-track-button="{ name: 'controls_island_action', action: 'toggle_settings' }"
+                        :button-style="adjustStyleClasses.button"
+                        :aria-label="t('tamagotchi.stage.controls-island.open-settings')"
+                        @click="openSettings({ route: '/settings' })"
+                      >
+                        <div :class="['i-solar:settings-minimalistic-outline text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
+                      </ControlButton>
+                      <template #tooltip>
+                        {{ t('tamagotchi.stage.controls-island.open-settings') }}
+                      </template>
+                    </ControlButtonTooltip>
+
+                    <ControlButtonTooltip disable-hoverable-content>
+                      <ControlsIslandProfilePicker
+                        v-model:open="profileOpen"
+                        v-model:creating="profileCreationActive"
+                        :active="expanded"
+                        @interaction-change="setOverlay('profile-picker', $event)"
+                      >
+                        <template #default="{ toggle }">
+                          <ControlButton
+                            v-track-button="{ name: 'controls_island_action', action: 'toggle_profile_picker' }"
+                            :button-style="adjustStyleClasses.button"
+                            :aria-label="t('tamagotchi.stage.controls-island.switch-profile')"
+                            @click="toggle"
+                          >
+                            <div :class="['i-solar:emoji-funny-square-broken text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
+                          </ControlButton>
+                        </template>
+                      </ControlsIslandProfilePicker>
+                      <template #tooltip>
+                        {{ t('tamagotchi.stage.controls-island.switch-profile') }}
+                      </template>
+                    </ControlButtonTooltip>
+
+                    <ControlButtonTooltip disable-hoverable-content>
+                      <ControlButton
+                        v-track-button="{ name: 'controls_island_action', action: 'refresh_window' }"
+                        :button-style="adjustStyleClasses.button"
+                        :aria-label="t('tamagotchi.stage.controls-island.refresh')"
+                        @click="refreshWindow"
+                      >
+                        <div :class="['i-solar:refresh-linear text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
+                      </ControlButton>
+                      <template #tooltip>
+                        {{ t('tamagotchi.stage.controls-island.refresh') }}
+                      </template>
+                    </ControlButtonTooltip>
+
+                    <ControlButtonTooltip disable-hoverable-content>
+                      <ControlButton
+                        v-track-button="{ name: 'controls_island_action', action: 'center_main_window' }"
+                        :button-style="adjustStyleClasses.button"
+                        :aria-label="t('tamagotchi.stage.controls-island.center-main-window')"
+                        @click="resetMainWindowPosition"
+                      >
+                        <div :class="['i-solar:target-linear text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
+                      </ControlButton>
+                      <template #tooltip>
+                        {{ t('tamagotchi.stage.controls-island.center-main-window') }}
+                      </template>
+                    </ControlButtonTooltip>
+
+                    <ControlButtonTooltip disable-hoverable-content>
+                      <ControlButton
+                        v-track-button="{
+                          name: 'controls_island_action',
+                          action: themeActions[themeMode],
+                        }"
+                        :button-style="adjustStyleClasses.button"
+                        :aria-label="themeLabel"
+                        @click="switchToNextTheme"
+                      >
+                        <Transition name="fade" mode="out-in">
+                          <div :key="themeMode" :class="[themeIcons[themeMode], 'text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
+                        </Transition>
+                      </ControlButton>
+                      <template #tooltip>
+                        {{ themeLabel }}
+                      </template>
+                    </ControlButtonTooltip>
+
+                    <ControlButtonTooltip disable-hoverable-content>
+                      <ControlButton
+                        v-track-button="{
+                          name: 'controls_island_action',
+                          action: alwaysOnTop ? 'unpin_from_top' : 'pin_on_top',
+                        }"
+                        :button-style="adjustStyleClasses.button"
+                        :aria-label="alwaysOnTop ? t('tamagotchi.stage.controls-island.unpin-from-top') : t('tamagotchi.stage.controls-island.pin-on-top')"
+                        @click="toggleAlwaysOnTop"
+                      >
+                        <div v-if="alwaysOnTop" :class="['i-solar:pin-bold text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
+                        <div v-else :class="['i-solar:pin-linear text-neutral-800 dark:text-neutral-300 opacity-50', adjustStyleClasses.icon]" />
+                      </ControlButton>
+                      <template #tooltip>
+                        {{ alwaysOnTop ? t('tamagotchi.stage.controls-island.unpin-from-top') : t('tamagotchi.stage.controls-island.pin-on-top') }}
+                      </template>
+                    </ControlButtonTooltip>
+
+                    <ControlsIslandFadeOnHover :icon-class="adjustStyleClasses.icon" :button-style="adjustStyleClasses.button" />
+
+                    <ControlButtonTooltip disable-hoverable-content>
+                      <HearingConfigDialog :show="blockingOverlays.has('hearing')" @update:show="setOverlay('hearing', $event)">
+                        <ControlButton
+                          data-testid="controls-island-hearing-controls"
+                          :button-style="adjustStyleClasses.button"
+                          :aria-label="t('tamagotchi.stage.controls-island.open-hearing-controls')"
+                        >
+                          <div :class="['i-solar:microphone-3-linear text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
+                        </ControlButton>
+                      </HearingConfigDialog>
+                      <template #tooltip>
+                        {{ t('tamagotchi.stage.controls-island.open-hearing-controls') }}
+                      </template>
+                    </ControlButtonTooltip>
+
+                    <ControlButtonTooltip disable-hoverable-content>
+                      <ControlButton
+                        v-track-button="{ name: 'controls_island_action', action: 'close_app' }"
+                        :button-style="adjustStyleClasses.button"
+                        :aria-label="t('tamagotchi.stage.controls-island.close')"
+                        :class="['hover:bg-red-500 hover:text-white']"
+                        @click="() => quitApp()"
+                      >
+                        <div :class="['i-solar:close-circle-outline', adjustStyleClasses.icon]" />
+                      </ControlButton>
+                      <template #tooltip>
+                        {{ t('tamagotchi.stage.controls-island.close') }}
+                      </template>
+                    </ControlButtonTooltip>
+                  </div>
                 </div>
               </div>
             </div>
