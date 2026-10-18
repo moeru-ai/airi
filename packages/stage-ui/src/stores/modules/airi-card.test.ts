@@ -17,20 +17,17 @@ const { resetArtistryToGlobal } = vi.hoisted(() => ({
   resetArtistryToGlobal: vi.fn(),
 }))
 
-// NOTICE:
-// Vitest runs these store tests in Node, where localforage cannot select a
-// browser storage driver. The stage-model watcher legitimately asks the
-// display-model store to resolve IDs, so provide the storage boundary with a
-// deterministic no-op instead of allowing rejected driver initialization to
-// escape as an unrelated test error.
-vi.mock('localforage', () => ({
-  default: {
-    getItem: vi.fn(async () => undefined),
-    iterate: vi.fn(async () => undefined),
-    removeItem: vi.fn(async () => undefined),
-    setItem: vi.fn(async <T>(_: string, value: T) => value),
-  },
-}))
+// Vitest runs these store tests in Node, which has no IndexedDB. The stage-model
+// watcher asks the display-model store to resolve IDs, so an in-memory driver
+// replaces the IndexedDB mounts.
+vi.mock('../../database/storage', async (importOriginal) => {
+  const { createStorage } = await import('unstorage')
+  const { default: memoryDriver } = await import('unstorage/drivers/memory')
+  return {
+    ...await importOriginal<typeof import('../../database/storage')>(),
+    storage: createStorage({ driver: memoryDriver() }),
+  }
+})
 
 vi.mock('./artistry', async () => {
   const { defineStore } = await import('pinia')

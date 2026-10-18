@@ -1,15 +1,11 @@
+import type { Storage } from 'unstorage'
+
 import type { TransferTask } from '../../libs/file-transfer/transfer-queue'
 import type { DisplayModelFile } from '../../stores/display-models'
 
-import localforage from 'localforage'
+import { prefixStorage } from 'unstorage'
 
-/** The part of localforage that the repository uses. */
-export interface DisplayModelStore {
-  getItem: <T>(key: string) => Promise<T | null>
-  setItem: <T>(key: string, value: T) => Promise<T>
-  removeItem: (key: string) => Promise<void>
-  iterate: <T, U>(callback: (value: T, key: string) => U) => Promise<U>
-}
+import { listRawItems, storage } from '../storage'
 
 type StoredDisplayModel = Omit<DisplayModelFile, 'id' | 'type' | 'name'> & { name?: string }
 
@@ -18,25 +14,21 @@ const uploadPrefix = 'transfer-task-'
 
 /**
  * Device storage for imported display models and their pending uploads.
- * Models keep the localforage keys that earlier releases wrote, so existing imports stay in place.
+ * Models keep the keys that earlier releases wrote, so existing imports stay in place.
  */
-export function createDisplayModelsRepo(store: DisplayModelStore) {
+export function createDisplayModelsRepo(store: Storage) {
   return {
     async list() {
-      const models: DisplayModelFile[] = []
-      await store.iterate<StoredDisplayModel, void>((value, key) => {
-        if (key.startsWith(modelPrefix))
-          models.push({ ...value, id: key, type: 'file', name: value.name ?? value.file.name })
-      })
-      return models
+      const models = await listRawItems<StoredDisplayModel>(store, modelPrefix)
+      return models.map(([id, value]): DisplayModelFile => ({ ...value, id, type: 'file', name: value.name ?? value.file.name }))
     },
 
     async get(id: string) {
-      return await store.getItem<DisplayModelFile>(id) ?? undefined
+      return await store.getItemRaw<DisplayModelFile>(id) ?? undefined
     },
 
     async save(model: DisplayModelFile) {
-      await store.setItem(model.id, model)
+      await store.setItemRaw(model.id, model)
     },
 
     async remove(id: string) {
@@ -44,16 +36,12 @@ export function createDisplayModelsRepo(store: DisplayModelStore) {
     },
 
     async listUploads() {
-      const tasks: TransferTask[] = []
-      await store.iterate<TransferTask, void>((task, key) => {
-        if (key.startsWith(uploadPrefix))
-          tasks.push(task)
-      })
-      return tasks
+      const tasks = await listRawItems<TransferTask>(store, uploadPrefix)
+      return tasks.map(([, task]) => task)
     },
 
     async saveUpload(task: TransferTask) {
-      await store.setItem(`${uploadPrefix}${task.id}`, task)
+      await store.setItemRaw(`${uploadPrefix}${task.id}`, task)
     },
 
     async removeUpload(id: string) {
@@ -62,4 +50,4 @@ export function createDisplayModelsRepo(store: DisplayModelStore) {
   }
 }
 
-export const displayModelsRepo = createDisplayModelsRepo(localforage)
+export const displayModelsRepo = createDisplayModelsRepo(prefixStorage(storage, 'device'))
