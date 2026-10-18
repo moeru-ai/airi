@@ -37,6 +37,7 @@ watchSyncEffect(() => {
     >
       <!-- The surface is a sheet that meets the bottom edge of the screen. It keeps a margin at the top and the right. -->
       <div
+        data-window-backdrop-panel-frame
         :class="[
           'h-full w-full',
           'rounded-t-3xl',

@@ -32,6 +32,8 @@ import type { Rectangle } from 'electron'
 
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 
+export * from './plugin/assets'
+
 export const electronStartDraggingWindow = defineInvokeEventa('eventa:invoke:electron:start-dragging-window')
 
 export const electronOpenMainDevtools = defineInvokeEventa('eventa:invoke:electron:windows:main:devtools:open')
@@ -323,10 +325,10 @@ export interface ElectronUpdaterPreferences {
 export const electronGetUpdaterPreferences = defineInvokeEventa<ElectronUpdaterPreferences>('eventa:invoke:electron:auto-updater:get-preferences')
 export const electronSetUpdaterPreferences = defineInvokeEventa<ElectronUpdaterPreferences, ElectronUpdaterPreferences>('eventa:invoke:electron:auto-updater:set-preferences')
 
-export * from './plugin/assets'
 export * from './plugin/capabilities'
 export * from './plugin/host'
 export * from './plugin/tools'
+export * from './window-backdrop'
 
 export interface DesktopOverlayReadiness {
   state: 'booting' | 'ready' | 'degraded'

@@ -12,9 +12,13 @@ import InteractiveArea from '../InteractiveArea.vue'
 
 import { useChatDraftHandover } from '../../composables/use-chat-draft-handover'
 import { useFullscreenCarry } from '../../composables/use-fullscreen-carry'
+import { useWindowBackdrop } from '../../composables/use-window-backdrop'
 
 // The page of the chat surface: the legacy chat window, inside the fullscreen panel. The header takes the place of its
 // title bar, because the panel is not a window to drag.
+const backdropRoot = useTemplateRef<HTMLElement>('backdrop-root')
+useWindowBackdrop(backdropRoot, 'panel')
+
 const { activeCard } = storeToRefs(useAiriCardStore())
 const sessionsDrawerOpen = shallowRef(false)
 const interactiveArea = useTemplateRef<InstanceType<typeof InteractiveArea>>('interactive-area')
@@ -32,7 +36,7 @@ useFullscreenCarry<ChatDraftHandover>('chat', {
 </script>
 
 <template>
-  <div :class="['h-full w-full flex flex-col', 'bg-neutral-50 dark:bg-neutral-950']">
+  <div ref="backdrop-root" data-window-backdrop-surface :class="['h-full w-full flex flex-col', 'bg-neutral-50 dark:bg-neutral-950']">
     <div :class="['flex items-center', 'gap-2', 'px-4 py-2']">
       <button
         type="button"
