@@ -357,6 +357,7 @@ notifications:
   open-unread: Open notifications, {count} unread
   mark-all-read: Mark all as read
   empty: No notifications yet
+  loading: Loading notifications
   error: Notifications could not load.
   retry: Retry
   just-now: Just now

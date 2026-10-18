@@ -14,6 +14,18 @@ Missing Cloud grants disable Cloud features. Refresh failures and account change
 Set `VITE_CLOUD_URL` for a custom Cloud origin. Deploy its migration and API before the client.
 Keep authorization checks on the server.
 
+## Notifications
+
+Notifications are private messages from AIRI Cloud to the signed-in account. Code and API names use `inbox`.
+`useInboxStore()` in `stores/inbox.ts` owns the unread count, the loaded pages, and the read actions for one window.
+The store reads the count at sign-in, on window focus, and every 5 minutes. A list loads only when a panel opens.
+Opening a message marks it read. The count changes at once and rolls back if Cloud rejects the write.
+Sign-out and account changes clear all state. Responses from the old session are dropped.
+Requests use the generated `@proj-airi/cloud-client` functions with `authedFetch`, so a 401 refreshes the token once.
+The store keeps only kinds that `inbox-presentation.ts` can render. It skips unknown kinds and invalid params.
+Use `InboxDrawer` for the mobile header and `InboxPopover` for a floating card with a custom trigger.
+Both components show nothing while the user is signed out. Announcements are a separate public surface.
+
 ## Message times
 
 Chat history shows a centered timestamp before the first dated message and after five minutes without a message.

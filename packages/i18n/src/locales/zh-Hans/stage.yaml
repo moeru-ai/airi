@@ -347,6 +347,7 @@ notifications:
   open-unread: 打开通知，{count} 条未读
   mark-all-read: 全部已读
   empty: 暂无通知
+  loading: 正在加载通知
   error: 通知加载失败。
   retry: 重试
   just-now: 刚刚

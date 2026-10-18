@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import type { InboxMessage } from './inbox-presentation'
 
-import { computed } from 'vue'
+import { useIntersectionObserver } from '@vueuse/core'
+import { computed, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import InboxMessageItem from './inbox-message-item.vue'
 
-import { formatAge, presentInboxMessages } from './inbox-presentation'
+import { formatAge, formatUnreadBadge, presentInboxMessages } from './inbox-presentation'
 
 const props = withDefaults(defineProps<{
   messages: InboxMessage[]
@@ -15,17 +16,34 @@ const props = withDefaults(defineProps<{
   /** `island` is the floating card on desktop. `drawer` is the mobile bottom drawer body. @default 'island' */
   surface?: 'island' | 'drawer'
   error?: boolean
-}>(), { surface: 'island', error: false })
+  /**
+   * The server unread count, which also counts messages on later pages. Without it, the header
+   * counts the unread messages in `messages`.
+   */
+  unread?: number
+  /** The first page is loading. The panel shows a spinner instead of the empty state. */
+  loading?: boolean
+  /** More pages exist. The panel emits `loadMore` when the end of the list scrolls into view. */
+  hasMore?: boolean
+}>(), { surface: 'island', error: false, unread: undefined, loading: false, hasMore: false })
 
 const emit = defineEmits<{
   open: [id: string]
   readAll: []
   retry: []
+  loadMore: []
 }>()
 
 const { t, locale } = useI18n()
 const views = computed(() => presentInboxMessages(props.messages, t, locale.value))
-const unread = computed(() => views.value.filter(view => view.unread).length)
+const unread = computed(() => props.unread ?? views.value.filter(view => view.unread).length)
+
+// The sentinel works for both surfaces: the island card scrolls its list, and the drawer scrolls its body.
+const listEnd = useTemplateRef<HTMLElement>('listEnd')
+useIntersectionObserver(listEnd, ([entry]) => {
+  if (entry?.isIntersecting && props.hasMore)
+    emit('loadMore')
+})
 
 const tone = computed(() => props.surface === 'island'
   ? { title: 'text-white', muted: 'text-white/55', control: 'text-white/70 hover:text-white hover:bg-white/6' }
@@ -42,7 +60,7 @@ const tone = computed(() => props.surface === 'island'
           v-if="unread > 0"
           :class="['min-w-5 rounded-full bg-primary-500 px-1.5 text-center text-xs text-white font-medium leading-5']"
         >
-          {{ unread > 9 ? '9+' : unread }}
+          {{ formatUnreadBadge(unread) }}
         </span>
       </h2>
       <button
@@ -60,7 +78,14 @@ const tone = computed(() => props.surface === 'island'
       </button>
     </header>
 
-    <div v-if="error" :class="['flex flex-col items-center gap-3 px-6 py-10 text-sm', tone.muted]">
+    <div
+      v-if="loading && views.length === 0"
+      role="status" :aria-label="t('stage.notifications.loading')"
+      :class="['flex justify-center px-6 py-12', tone.muted]"
+    >
+      <span :class="['i-svg-spinners:ring-resize size-6']" />
+    </div>
+    <div v-else-if="error && views.length === 0" :class="['flex flex-col items-center gap-3 px-6 py-10 text-sm', tone.muted]">
       <span :class="['i-solar:cloud-cross-linear size-8']" />
       {{ t('stage.notifications.error') }}
       <button
@@ -82,6 +107,9 @@ const tone = computed(() => props.surface === 'island'
         :message="view" :age="formatAge(view.createdAt, now, locale, t)" :surface="surface"
         @open="emit('open', view.id)"
       />
+      <li v-if="hasMore" ref="listEnd" :class="['flex justify-center py-2', tone.muted]">
+        <span :class="['i-svg-spinners:ring-resize size-4']" />
+      </li>
     </ul>
   </section>
 </template>
