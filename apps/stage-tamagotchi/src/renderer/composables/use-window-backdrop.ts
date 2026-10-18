@@ -65,7 +65,14 @@ function cornerRadii(style: CSSStyleDeclaration, rect: DOMRect, scale: { x: numb
     return { x: pixels(horizontal, width), y: pixels(vertical, height) }
   })
   // CSS reduces every corner together when adjacent radii exceed an edge, including rounded-full's 9999px radii.
-  const factor = Math.min(1, width / (radii[0].x + radii[1].x), width / (radii[2].x + radii[3].x), height / (radii[0].y + radii[3].y), height / (radii[1].y + radii[2].y))
+  // A square edge imposes no radius constraint. Dividing its zero length by zero would poison every corner with NaN.
+  const edges = [
+    [width, radii[0].x + radii[1].x],
+    [width, radii[2].x + radii[3].x],
+    [height, radii[0].y + radii[3].y],
+    [height, radii[1].y + radii[2].y],
+  ]
+  const factor = Math.min(1, ...edges.flatMap(([extent, radius]) => radius > 0 ? [extent / radius] : []))
   return radii.map((radius) => {
     const x = radius.x * factor * scale.x
     const y = radius.y * factor * scale.y
@@ -94,6 +101,9 @@ function overflowClips(element: HTMLElement, style: CSSStyleDeclaration, rect: D
     height: clipY ? element.clientHeight * scale.y : window.innerHeight,
     radius: 0,
   }
+  // Fullscreen opens and closes through an empty clipping area. It paints no material while either edge is zero.
+  if (clip.width <= 0 || clip.height <= 0)
+    return [clip]
   if (!clipX || !clipY)
     return [clip]
   const [topLeft, topRight, bottomRight, bottomLeft] = cornerRadii(style, rect, scale)
@@ -301,6 +311,8 @@ class WindowBackdrop {
       }
       const { style, rect } = measured
       if (style.display === 'none' || style.visibility !== 'visible')
+        return
+      if (ancestor === element && (rect.width <= 0 || rect.height <= 0))
         return
       opacity *= Number(style.opacity)
       if (opacity <= 0)

@@ -159,6 +159,59 @@ describe('window native backdrop', () => {
     expect(regions()[0].clips).toContainEqual({ x: 20, y: 30, width: 240, height: 184, radius: 24 })
   })
 
+  it.each(['width', 'height'] as const)('keeps fullscreen material through a zero-%s opening, closing, and reopening transition', async (dimension) => {
+    // Fullscreen opens from a zero-width clipping area in pages/index.vue, then closes back to that same empty area.
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const view = await render(defineComponent({
+        setup() {
+          useWindowBackdrop(useTemplateRef<HTMLElement>('root'), 'panel')
+        },
+        template: `
+          <div data-testid="fullscreen-area" style="position:fixed;left:20px;top:30px;width:${dimension === 'width' ? 0 : 300}px;height:${dimension === 'height' ? 0 : 250}px;overflow:hidden">
+            <div style="width:300px;height:250px">
+              <div data-window-backdrop-panel-frame style="width:240px;height:160px;border-radius:24px 24px 0 0;overflow:hidden">
+                <div ref="root" data-testid="chat-background" data-window-backdrop-surface class="bg-neutral-50" style="width:240px;height:160px"></div>
+              </div>
+            </div>
+          </div>
+        `,
+      }))
+      views.push(view)
+      const area = view.container.querySelector<HTMLElement>('[data-testid="fullscreen-area"]')!
+      const background = view.container.querySelector<HTMLElement>('[data-testid="chat-background"]')!
+      const extent = dimension === 'width' ? 300 : 250
+      const areaClip = (region: BackdropRegion) => region.clips.find(clip => clip.x === 20 && clip.y === 30 && clip.radius === 0 && (dimension === 'width' ? clip.height === 250 : clip.width === 300))
+      await expect.poll(() => update.mock.calls.length).toBe(1)
+      expect(regions()).toEqual([])
+      expect(error).not.toHaveBeenCalled()
+
+      area.style.transition = `${dimension} 240ms linear`
+      area.getBoundingClientRect()
+      area.style[dimension] = `${extent}px`
+      await expect.poll(() => regions()[0] && areaClip(regions()[0])?.[dimension]).toBe(extent)
+      expect(background.getAttribute('data-window-backdrop-active')).toBe('panel')
+      expect(update.mock.calls.some(([request]) => request.regions.some((region) => {
+        const clip = areaClip(region)
+        return clip !== undefined && clip[dimension] > 0 && clip[dimension] < extent
+      }))).toBe(true)
+      expect(regions()[0].clips).toContainEqual({ x: 20, y: 30, width: 240, height: 184, radius: 24 })
+
+      area.style[dimension] = '0px'
+      await expect.poll(() => area.getBoundingClientRect()[dimension]).toBe(0)
+      await expect.poll(() => regions()).toEqual([])
+      expect(background.hasAttribute('data-window-backdrop-active')).toBe(false)
+
+      area.style[dimension] = `${extent}px`
+      await expect.poll(() => regions()[0] && areaClip(regions()[0])?.[dimension]).toBe(extent)
+      expect(background.getAttribute('data-window-backdrop-active')).toBe('panel')
+      expect(error).not.toHaveBeenCalled()
+    }
+    finally {
+      error.mockRestore()
+    }
+  })
+
   it('normalizes rounded-full radii before scaling fractional capsule dimensions', async () => {
     const root = await mountSurface('<div data-window-backdrop-surface class="bg-white" style="width:100.5px;height:40.25px;border-radius:9999px;transform:scale(.94)"></div>')
     const surface = root.firstElementChild as HTMLElement

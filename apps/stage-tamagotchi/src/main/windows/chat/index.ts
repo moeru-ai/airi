@@ -205,12 +205,15 @@ export function setupChatWindowManager(params: {
       show: false,
       icon,
       ...(isMacOS ? { transparent: true, backgroundColor: '#00000000' } : {}),
+      titleBarStyle: isMacOS ? 'hiddenInset' : undefined,
       webPreferences: {
         preload: join(getElectronMainDirname(), '../preload/index.mjs'),
         sandbox: false,
       },
     })
 
+    if (isMacOS)
+      window.setWindowButtonVisibility(true)
     window.on('ready-to-show', () => window.show())
     protectPrivilegedWindowNavigation(window)
 

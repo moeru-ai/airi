@@ -13,6 +13,8 @@ const SURFACE_SHARE = 0.54
 const SURFACE_MIN_WIDTH = SETTINGS_WINDOW_WIDTH
 /** The space between the surface and the top and right edges of the area. */
 const SURFACE_MARGIN = 24
+/** The top corners shared by the fullscreen sheet and its opening through the host background. */
+const SURFACE_RADIUS = '1.5rem'
 
 function createFullscreenLayout() {
   const { width: windowWidth } = useWindowSize()
@@ -79,6 +81,7 @@ function createFullscreenLayout() {
   return {
     /** The space between the surface and the top and right edges of the area. */
     surfaceMargin: SURFACE_MARGIN,
+    surfaceRadius: SURFACE_RADIUS,
     /** The surface width in the window as it is now. */
     surfaceWidth,
     /** Whether the user drags the surface edge now. */

@@ -22,3 +22,27 @@
 [data-window-backdrop-panel-frame]:has([data-window-backdrop-active='panel']) {
   background-color: transparent !important;
 }
+
+/* Subtract the sheet from the host fill. The hole unions two rectangles and the two round top corners. */
+body:has([data-window-backdrop-panel-frame] [data-window-backdrop-active='panel']) [data-window-backdrop-host-background] {
+  mask-image:
+    linear-gradient(#000 0 0),
+    linear-gradient(#000 0 0),
+    linear-gradient(#000 0 0),
+    radial-gradient(circle at right bottom, #000 var(--chat-background-radius), #0000 0),
+    radial-gradient(circle at left bottom, #000 var(--chat-background-radius), #0000 0);
+  mask-size:
+    100% 100%,
+    calc(var(--chat-background-width) - 2 * var(--chat-background-radius)) var(--chat-background-height),
+    var(--chat-background-width) calc(var(--chat-background-height) - var(--chat-background-radius)),
+    var(--chat-background-radius) var(--chat-background-radius),
+    var(--chat-background-radius) var(--chat-background-radius);
+  mask-position:
+    0 0,
+    calc(var(--chat-background-left) + var(--chat-background-radius)) var(--chat-background-top),
+    var(--chat-background-left) calc(var(--chat-background-top) + var(--chat-background-radius)),
+    var(--chat-background-left) var(--chat-background-top),
+    calc(var(--chat-background-left) + var(--chat-background-width) - var(--chat-background-radius)) var(--chat-background-top);
+  mask-repeat: no-repeat;
+  mask-composite: exclude, add, add, add;
+}
