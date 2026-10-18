@@ -14,6 +14,7 @@ public partial class Main : Node
     private OnboardingWindowManager? _onboarding;
     private SettingsWindowManager? _settings;
     private ChatWindowManager? _chat;
+    private WidgetWindowManager? _widgets;
     private SpotlightHost? _spotlight;
     private NoticeWindowManager? _notice;
     private DeveloperToolsService? _developerTools;
@@ -39,8 +40,8 @@ public partial class Main : Node
             return;
         }
 
-        var registry = AiriDesktopContracts.Register(
-            GdKiriePlatform.Register(new KirieEventaJsonRegistry()));
+        var registry = WidgetContracts.Register(AiriDesktopContracts.Register(
+            GdKiriePlatform.Register(new KirieEventaJsonRegistry())));
         _eventa = _kirie.CreateEventaContext(registry);
         _platform = GdKiriePlatform.Attach(_eventa.Context, window);
         _displaySnapshotRegistration = CurrentDisplaySnapshotService.Attach(
@@ -73,12 +74,15 @@ public partial class Main : Node
                 _kirie,
                 rendererUrl,
                 _microphonePermissions);
+            _widgets = new WidgetWindowManager(_eventa.Context, this, window,
+                registry, rendererUrl, _microphonePermissions);
             _developerTools = new DeveloperToolsService(
                 this,
                 GetWindow(),
                 registry,
                 rendererUrl,
-                _microphonePermissions);
+                _microphonePermissions,
+                _widgets);
             _developerToolsRegistration = _developerTools.Attach(_eventa.Context);
             _onboarding = new OnboardingWindowManager(
                 _eventa.Context,
@@ -112,7 +116,8 @@ public partial class Main : Node
                 _auth,
                 _microphonePermissions,
                 _developerTools,
-                _spotlight);
+                _spotlight,
+                _widgets);
             _notice = new NoticeWindowManager(
                 _eventa.Context,
                 this,
@@ -145,6 +150,7 @@ public partial class Main : Node
         _auth?.Dispose();
         _notice?.Dispose();
         _spotlight?.Dispose();
+        _widgets?.Dispose();
         _chat?.Dispose();
         _settings?.Dispose();
         _onboarding?.Dispose();
@@ -160,6 +166,7 @@ public partial class Main : Node
 
     public override void _Process(double delta)
     {
+        _widgets?.Process();
         _auth?.ProcessPending();
         _microphonePermissions?.Process();
     }
