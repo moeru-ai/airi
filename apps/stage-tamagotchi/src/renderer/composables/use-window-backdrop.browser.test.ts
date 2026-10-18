@@ -130,6 +130,16 @@ describe('window native backdrop', () => {
     await expect.poll(() => regions()).toEqual([])
   })
 
+  it('accepts exponent lengths that Chromium computes near the end of a fold transition', async () => {
+    await mountSurface(`
+      <div style="width:300px;height:250px;clip-path:inset(7.23473e-05% 0px 0px 7.23473e-05% round 24px)">
+        <div data-window-backdrop-surface class="bg-white" style="width:300px;height:250px"></div>
+      </div>
+    `)
+    await expect.poll(() => regions().length).toBe(1)
+    expect(regions()[0].clips).toContainEqual({ x: 20, y: 30, width: 300, height: 250, radius: 24 })
+  })
+
   it('tracks transforms and opacity for the complete surface animation, then removes hidden content', async () => {
     const root = await mountSurface('<div data-window-backdrop-surface class="bg-white" style="width:100px;height:40px;border-radius:20px"></div>')
     await expect.poll(() => regions().length).toBe(1)

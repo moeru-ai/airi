@@ -27,7 +27,8 @@ interface Snapshot {
 const sessions = new WeakMap<Document, WindowBackdrop>()
 
 function pixels(value: string, extent: number) {
-  if (!/^-?(?:\d*\.)?\d+(?:px|%)?$/.test(value))
+  // Chromium writes very small computed lengths in exponent form, for example `7.2e-05%` at the end of a clip-path transition.
+  if (!/^-?(?:\d*\.)?\d+(?:e[+-]?\d+)?(?:px|%)?$/i.test(value))
     throw new Error(`Unsupported backdrop length: ${value}`)
   return Number.parseFloat(value) * (value.endsWith('%') ? extent / 100 : 1)
 }

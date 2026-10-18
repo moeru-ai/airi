@@ -354,6 +354,9 @@ static BackdropSurface *CreateSurface(BackdropSession *session) {
   surface.view.wantsLayer = YES;
   surface.view.hidden = YES;
   surface.view.layer.backgroundColor = NSColor.clearColor.CGColor;
+  // Web content keeps its top edge while the window resizes. A non-flipped host keeps a fixed bottom margin by default,
+  // so the surface pins its top margin instead until the next region update arrives.
+  if (!session.host.isFlipped) surface.view.autoresizingMask = NSViewMaxXMargin | NSViewMinYMargin;
   surface.backdrop = [[NSClassFromString(@"CABackdropLayer") alloc] init];
   surface.backdrop.masksToBounds = YES;
   surface.backdrop.allowsEdgeAntialiasing = NO;
