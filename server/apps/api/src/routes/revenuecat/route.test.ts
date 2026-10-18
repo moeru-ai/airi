@@ -1,3 +1,5 @@
+import type Redis from 'ioredis'
+
 import type { Database } from '../../libs/db'
 import type { ConfigDefinitions, ConfigKVService } from '../../services/adapters/config-kv'
 import type { SubscriberEntitlement } from '../../services/adapters/revenuecat-subscriber'
@@ -12,8 +14,11 @@ import { Hono } from 'hono'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../../libs/mock-db'
-import { createTestRedis } from '../../libs/tests/redis'
+import { createStreamPublisher } from '../../libs/redis/stream'
+import { createTestRedis, readStreamFields } from '../../libs/tests/redis'
+import { accountEventsStream } from '../../services/adapters/account-events'
 import { createConfigKVService } from '../../services/adapters/config-kv'
+import { createRevenuecatSubscriberClient } from '../../services/adapters/revenuecat-subscriber'
 import { createRevenuecatSubscriptionSync } from '../../services/adapters/revenuecat-subscriptions'
 import { createBillingService } from '../../services/domain/billing/billing-service'
 import { createRevenuecatRoutes } from './index'
@@ -44,13 +49,23 @@ function signBody(rawBody: string, timestamp = Math.floor(Date.now() / 1000)): s
   return `t=${timestamp},v1=${signature}`
 }
 
+/** A production deployment that also grants the sandbox purchases of `tester`. */
+const subscriber = createRevenuecatSubscriberClient({
+  apiKey: null,
+  projectId: null,
+  environment: 'production',
+  sandboxUserIds: ['tester'],
+  sellsSubscriptions: true,
+})
+
 function createTestApp(
   subscriptionSync: RevenuecatSubscriptionSync,
   env = { REVENUECAT_WEBHOOK_AUTH: authorization, REVENUECAT_WEBHOOK_SECRET: signingSecret },
   /** The signed-in user of each request. Null leaves the request anonymous, as RevenueCat sends it. */
   signedInUserId: string | null = null,
+  redis: Redis = createTestRedis(),
 ) {
-  const routes = createRevenuecatRoutes(subscriptionSync, env, null)
+  const routes = createRevenuecatRoutes(subscriptionSync, createStreamPublisher(redis, accountEventsStream), subscriber, env, null)
   const app = new Hono<HonoEnv>()
 
   app.use('*', async (c, next) => {
@@ -118,7 +133,8 @@ describe('revenuecat routes', () => {
     const billing = createBillingService(db, createTestRedis(), { getOptional: async () => null })
     const fetchEntitlements = vi.fn(async (userId: string) => entitlements[userId] ?? [])
     const sync = createRevenuecatSubscriptionSync(billing, configKV, { fetchEntitlements })
-    return { billing, fetchEntitlements, app: createTestApp(sync, undefined, signedInUserId) }
+    const redis = createTestRedis()
+    return { billing, fetchEntitlements, redis, app: createTestApp(sync, undefined, signedInUserId, redis) }
   }
 
   async function readWallet(userId: string) {
@@ -247,6 +263,122 @@ describe('revenuecat routes', () => {
 
     const res = await postWebhook(app, webhookBody())
     expect(res.status).toBe(502)
+  })
+
+  describe('account events', () => {
+    const renewal = {
+      type: 'RENEWAL',
+      id: 'renewal-1',
+      app_user_id: 'user-1',
+      product_id: 'rc_go_monthly',
+      environment: 'PRODUCTION',
+      event_timestamp_ms: Date.parse('2026-10-18T00:00:00.000Z'),
+      expiration_at_ms: Date.parse('2026-11-18T00:00:00.000Z'),
+    }
+    const billingIssue = {
+      type: 'BILLING_ISSUE',
+      id: 'billing-issue-1',
+      app_user_id: 'user-1',
+      product_id: 'rc_go_monthly',
+      environment: 'PRODUCTION',
+      event_timestamp_ms: Date.parse('2026-10-18T00:00:00.000Z'),
+      grace_period_expiration_at_ms: Date.parse('2026-10-25T00:00:00.000Z'),
+    }
+
+    it('publishes subscription.renewed once after the reconciliation', async () => {
+      const { app, redis } = await setup()
+      entitlements['user-1'] = [goEntitlement]
+
+      const res = await postWebhook(app, webhookBody(renewal))
+
+      expect(res.status).toBe(200)
+      expect(await readWallet('user-1')).toMatchObject({ capacitorFlux: 2000 })
+      expect(await readStreamFields(redis, 'airi:account-events')).toEqual([{
+        id: 'revenuecat:renewal-1',
+        type: 'subscription.renewed',
+        version: '1',
+        occurredAt: '2026-10-18T00:00:00.000Z',
+        payload: '{"userId":"user-1","plan":"rc_go_monthly","periodEnd":"2026-11-18T00:00:00.000Z"}',
+      }])
+    })
+
+    it('publishes subscription.payment_failed once for BILLING_ISSUE', async () => {
+      const { app, redis } = await setup()
+
+      const res = await postWebhook(app, webhookBody(billingIssue))
+
+      expect(res.status).toBe(200)
+      expect(await readStreamFields(redis, 'airi:account-events')).toEqual([{
+        id: 'revenuecat:billing-issue-1',
+        type: 'subscription.payment_failed',
+        version: '1',
+        occurredAt: '2026-10-18T00:00:00.000Z',
+        payload: '{"userId":"user-1","plan":"rc_go_monthly"}',
+      }])
+    })
+
+    it('returns 500 when the publish fails, so RevenueCat sends the event again', async () => {
+      const { app, redis } = await setup()
+      entitlements['user-1'] = [goEntitlement]
+      vi.spyOn(redis, 'xadd').mockRejectedValueOnce(new Error('Connection is closed.'))
+
+      const failed = await postWebhook(app, webhookBody(renewal))
+      expect(failed.status).toBe(500)
+      expect(await readWallet('user-1')).toMatchObject({ capacitorFlux: 2000 })
+
+      const retried = await postWebhook(app, webhookBody(renewal))
+      expect(retried.status).toBe(200)
+      expect(await readWallet('user-1')).toMatchObject({ capacitorFlux: 2000, capacitorQuota: 2000 })
+      expect((await readStreamFields(redis, 'airi:account-events')).map(event => event.id)).toEqual(['revenuecat:renewal-1'])
+    })
+
+    it('returns 500 when the BILLING_ISSUE publish fails', async () => {
+      const { app, redis } = await setup()
+      vi.spyOn(redis, 'xadd').mockRejectedValueOnce(new Error('Connection is closed.'))
+
+      const res = await postWebhook(app, webhookBody(billingIssue))
+
+      expect(res.status).toBe(500)
+    })
+
+    it('publishes nothing for an event type without a notification', async () => {
+      const { app, redis } = await setup()
+      entitlements['user-1'] = [goEntitlement]
+
+      const res = await postWebhook(app, webhookBody())
+
+      expect(res.status).toBe(200)
+      expect(await readStreamFields(redis, 'airi:account-events')).toEqual([])
+    })
+
+    it('publishes nothing for a sandbox renewal of a production user', async () => {
+      const { app, redis } = await setup()
+
+      const res = await postWebhook(app, webhookBody({ ...renewal, environment: 'SANDBOX' }))
+
+      expect(res.status).toBe(200)
+      expect(await readStreamFields(redis, 'airi:account-events')).toEqual([])
+    })
+
+    it('publishes a sandbox renewal of a listed test account', async () => {
+      const { app, redis } = await setup()
+
+      const res = await postWebhook(app, webhookBody({ ...renewal, app_user_id: 'tester', environment: 'SANDBOX' }))
+
+      expect(res.status).toBe(200)
+      expect((await readStreamFields(redis, 'airi:account-events')).map(event => event.payload)).toEqual(['{"userId":"tester","plan":"rc_go_monthly","periodEnd":"2026-11-18T00:00:00.000Z"}'])
+    })
+
+    it('rejects a RENEWAL without its period end before the reconciliation', async () => {
+      const { app, redis, fetchEntitlements } = await setup()
+      const { expiration_at_ms: _, ...withoutPeriodEnd } = renewal
+
+      const res = await postWebhook(app, webhookBody(withoutPeriodEnd))
+
+      expect(res.status).toBe(400)
+      expect(fetchEntitlements).not.toHaveBeenCalled()
+      expect(await readStreamFields(redis, 'airi:account-events')).toEqual([])
+    })
   })
 
   it('does not read RevenueCat for a TEST event', async () => {
