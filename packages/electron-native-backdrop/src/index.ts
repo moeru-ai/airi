@@ -13,10 +13,8 @@ interface NativeBindings {
   detach: (sessionId: number) => void
 }
 
-export interface NativeBackdropOptions {
-  /** Blur radius in content points. The default is 16. */
-  blurRadius?: number
-}
+/** Blur radius in content points. */
+const BLUR_RADIUS = 16
 
 function isNativeBindings(value: unknown): value is NativeBindings {
   return typeof value === 'object'
@@ -31,22 +29,18 @@ export class NativeBackdrop {
   readonly #native: NativeBindings
   #sessionId: number | undefined
 
-  constructor(handle: Buffer, options: NativeBackdropOptions = {}) {
+  constructor(handle: Buffer) {
     if (platform !== 'darwin')
       throw new Error('Native desktop backdrop supports macOS only')
     if (arch !== 'arm64' && arch !== 'x64')
       throw new Error(`Native desktop backdrop does not support architecture ${arch}`)
-
-    const blurRadius = options.blurRadius ?? 16
-    if (!Number.isFinite(blurRadius) || blurRadius < 0 || blurRadius > 128)
-      throw new RangeError('Backdrop blurRadius must be between 0 and 128')
 
     const require = createRequire(import.meta.url)
     const native: unknown = require(`./darwin-${arch}/backdrop.node`)
     if (!isNativeBindings(native))
       throw new TypeError('Native desktop backdrop has an invalid module interface')
     this.#native = native
-    this.#sessionId = native.attach(handle, blurRadius)
+    this.#sessionId = native.attach(handle, BLUR_RADIUS)
   }
 
   /** Replaces all regions. An empty array clears the surfaces and retains the window session. */

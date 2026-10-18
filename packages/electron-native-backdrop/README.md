@@ -28,7 +28,7 @@ backdrop.setRegions([])
 backdrop.dispose()
 ```
 
-The optional constructor setting `blurRadius` defaults to 16 points. Its supported range is 0 through 128.
+The blur radius is 16 points.
 Coordinates use the top-left content origin in AppKit points. Multiply CSS coordinates and radii by the page zoom factor before sending them.
 Do not multiply by the screen scale factor. A clip uses the same absolute content coordinates as its region.
 
