@@ -585,14 +585,14 @@ export const useChatStore = defineStore('chat', () => {
   function invokedSkillsOf(invoked: readonly Recipe[]): ChatInvokedSkill[] | undefined {
     if (!invoked.length)
       return undefined
-    return invoked.map(recipe => ({
-      name: recipe.name,
-      instructions: recipe.decision
-        ? judgmentSkillText(recipe)
-        : isBackgroundRecipe(recipe)
-          ? 'It runs in the background for this message, and its result reaches you later. Reply briefly, and do not do its task yourself.'
-          : recipe.instructions.trim(),
-    }))
+    return invoked.map((recipe): ChatInvokedSkill => {
+      if (recipe.decision)
+        // The stored message keeps its own copy of the question. A reactive recipe would also fail `structuredClone`.
+        return { kind: 'decision', name: recipe.name, instructions: judgmentSkillText(recipe), question: structuredClone(toRaw(recipe.decision.question)) }
+      if (isBackgroundRecipe(recipe))
+        return { kind: 'background', name: recipe.name, instructions: 'It runs in the background for this message, and its result reaches you later. Reply briefly, and do not do its task yourself.' }
+      return { kind: 'steps', name: recipe.name, instructions: recipe.instructions.trim() }
+    })
   }
 
   /**

@@ -1543,16 +1543,19 @@ pages:
       buy: 充值
       description: 可以选择购入的 Flux 电池包
   capacitor:
-    description: Capacitor 装着 Flux，会自动充满。
     statusError: 暂时无法获取 Capacitor 的状态，可以之后再试试吗？
     packagesError: 暂时无法获取可用的 Capacitor，可以之后再试试吗？
     preferenceError: 偏好保存失败，请稍后再试。
-    noCapacitor: 尚未装配 Capacitor
-    available: 可选的 Capacitor
     remaining: '剩余 {percent}'
+    ofQuota: 共 {quota} Flux
     rechargesAt: '{date} 充满'
     renewsAt: '{date} 续订'
     expiresAt: '{date} 到期'
+    change: 更换 Capacitor
+    quota:
+      day: '每天 {quota} Flux'
+      week: '每周 {quota} Flux'
+      month: '每月 {quota} Flux'
     perMonth: / 月
     currentPackage: 当前
     install: 装配
@@ -1560,7 +1563,7 @@ pages:
     downgrade: 降级
     manageSubscription: 管理订阅
     fallbackToFlux: Capacitor 放空后使用 Flux
-    fallbackToFluxHint: 关闭后，Capacitor 放空即停止。
+    fallbackToFluxHint: 关闭后，对话和语音会暂停，直到 Capacitor 充满。
     checkout:
       success: Capacitor 已装配并充满。
       pending: 已收到付款，Capacitor 稍后充满。

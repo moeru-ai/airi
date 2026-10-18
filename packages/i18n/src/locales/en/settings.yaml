@@ -1600,16 +1600,19 @@ pages:
       description: Flux packages to choose from.
   capacitor:
     title: Capacitor
-    description: A Capacitor holds Flux and recharges by itself.
     statusError: Failed to load your Capacitor. Please try again later.
     packagesError: Failed to load Capacitors. Please try again later.
     preferenceError: Failed to save preference. Please try again later.
-    noCapacitor: No Capacitor
-    available: Capacitors
     remaining: '{percent} left'
-    rechargesAt: Recharges {date}
+    ofQuota: of {quota} Flux
+    rechargesAt: Refills {date}
     renewsAt: Renews {date}
-    expiresAt: Expires {date}
+    expiresAt: Ends {date}
+    change: Change Capacitor
+    quota:
+      day: '{quota} Flux every day'
+      week: '{quota} Flux every week'
+      month: '{quota} Flux every month'
     perMonth: / month
     currentPackage: Current
     install: Install
@@ -1617,7 +1620,7 @@ pages:
     downgrade: Downgrade
     manageSubscription: Manage subscription
     fallbackToFlux: Use Flux when the Capacitor is empty
-    fallbackToFluxHint: When off, usage stops when the Capacitor is empty.
+    fallbackToFluxHint: When off, chat and speech stop until the Capacitor refills.
     checkout:
       success: Your Capacitor is installed and charged.
       pending: Payment received. Your Capacitor charges shortly.

@@ -43,4 +43,5 @@ export function createRevenuecatRoutes(
       return c.json({ synced: true })
     })
     .get('/capacitors', authGuard, async c => c.json({ productIds: await subscriptionSync.listProductIds() }))
+    .get('/catalog', authGuard, async c => c.json(await subscriptionSync.listCapacitors()))
 }

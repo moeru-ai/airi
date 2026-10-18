@@ -3,6 +3,7 @@ import type { SourcesOptions } from 'electron'
 import type { MaybeRefOrGetter } from 'vue'
 
 import { useElectronScreenCapture } from '@proj-airi/electron-screen-capture/vue'
+import { getElectronEventaContext } from '@proj-airi/electron-vueuse'
 import { computed, ref, shallowRef, watch } from 'vue'
 
 import { createObjectUrlFromBytes } from '../utils/create-object-url-from-bytes'
@@ -43,7 +44,7 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
   const {
     getSources,
     selectWithSource,
-  } = useElectronScreenCapture(window.electron.ipcRenderer, sourcesOptions)
+  } = useElectronScreenCapture(getElectronEventaContext(), sourcesOptions)
 
   const activeSource = computed(() => sources.value.find(source => source.id === activeSourceId.value) || null)
 

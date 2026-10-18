@@ -20,6 +20,13 @@ When a caller supplies `resolveStep`, `streamFrom` reads current settings before
 
 The chat orchestrator forwards a send's `resolveStep`. It appends that send's system prompt supplement, including sticker instructions, to each resolved prompt.
 
+To cap each request's output, set `StreamOptions.maxTokens`. Chat sends `max_tokens`, and Responses sends `max_output_tokens`.
+A `resolveStep` cap overrides the caller's cap. If the step omits its cap, the caller's cap applies.
+If both omit it, the provider's default applies.
+
+The cap applies to each tool continuation, not the whole turn. Providers enforce the value and define how reasoning tokens count.
+This option adds no UI setting.
+
 ```ts
 await streamFrom({
   model: 'selected-model',
@@ -255,5 +262,8 @@ await response.finish()
 ```
 
 Producers can synthesize concurrently. Playback follows their reservation order.
+A producer holds its text until `end()`. Then `toSpeechText` removes markdown that has no sound, for example emphasis delimiters, link URLs, and code blocks.
+Symbols that markdown keeps as text, for example `2 * 3` and `x ~= 3`, stay in the speech text.
+Special tokens and flushes keep their position relative to the text.
 Cancelling an acknowledgment releases its place without reporting a user interruption.
 Whole-turn interruption aborts generation, synthesis, queued audio, and playback for that response.

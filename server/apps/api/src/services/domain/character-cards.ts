@@ -1,10 +1,11 @@
 import type { Database } from '../../libs/db'
 import type { PushedField } from './field-sync'
 
+import { createBadRequestError } from '@proj-airi/http-error-shared'
+
 import * as v from 'valibot'
 
 import { characterCardFields, characterCards } from '../../schemas/character-cards'
-import { createBadRequestError } from '../../utils/error'
 import { createFieldSyncStore } from './field-sync'
 
 /**

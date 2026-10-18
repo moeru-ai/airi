@@ -224,6 +224,7 @@ computer-use-tool-call:
   activated: '切到 {app}'
   in-front: 已在前台
   front-is: '前台是 {app}'
+  front-unknown: 没能确认前台应用
   permissions:
     title: 系统权限
     names:

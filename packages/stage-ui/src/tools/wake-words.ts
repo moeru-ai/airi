@@ -19,11 +19,13 @@ type SetWords = ReturnType<typeof useWakeWordsStore>['setWords']
  *   A conflicting pronunciation stays paused until the user chooses its owner on this device.
  * - `rejected`: the card did not change. `reason` explains why, for example a token outside the model vocabulary.
  */
+export const WAKE_WORDS_TOOL_NAME = 'configure_wake_words'
+
 export async function createWakeWordTool(options: { characterId: string, setWords: SetWords }): Promise<Tool> {
   const { characterId, setWords } = options
 
   return tool({
-    name: 'configure_wake_words',
+    name: WAKE_WORDS_TOOL_NAME,
     description: [
       'Replace the wake words that let the user call you by voice. This tool edits only your own character card.',
       'Each word needs its written text and one or more pronunciations. A pronunciation is a complete list of model tokens, not plain text or whole pinyin syllables.',

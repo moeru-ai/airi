@@ -1,7 +1,8 @@
+import { useLogger } from '@guiiai/logg'
+import { ApiError, createErrorHandler } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
 
-import { ApiError } from '../utils/error'
 import { createInternalAuthRoutes } from './internal-auth'
 
 describe('internal auth routes', () => {
@@ -9,11 +10,14 @@ describe('internal auth routes', () => {
     const userDeletionService = { register: vi.fn(), softDeleteAll: vi.fn() }
     const productEventService = { track: vi.fn() }
     const revenuecatSubscriber = { hasRenewingSubscription: vi.fn(async () => false) }
-    const app = createInternalAuthRoutes({ userDeletionService, productEventService, revenuecatSubscriber })
+    const app = new Hono()
+      .onError(createErrorHandler(useLogger('test')))
+      .route('/', createInternalAuthRoutes({ userDeletionService, productEventService, revenuecatSubscriber }))
 
     const response = await app.request('/user-deletion', { method: 'POST', body: '{}' })
 
     expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: 'BAD_REQUEST', message: 'Invalid user deletion request' })
     expect(userDeletionService.softDeleteAll).not.toHaveBeenCalled()
   })
 

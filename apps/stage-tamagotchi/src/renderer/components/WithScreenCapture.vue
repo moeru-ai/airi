@@ -2,6 +2,7 @@
 import type { SourcesOptions } from 'electron'
 
 import { useElectronScreenCapture } from '@proj-airi/electron-screen-capture/vue'
+import { getElectronEventaContext } from '@proj-airi/electron-vueuse'
 import { Button } from '@proj-airi/ui'
 import { useWindowFocus } from '@vueuse/core'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
@@ -29,7 +30,7 @@ const {
   selectWithSource,
   checkMacOSPermission,
   requestMacOSPermission,
-} = useElectronScreenCapture(window.electron.ipcRenderer, sourcesOptions)
+} = useElectronScreenCapture(getElectronEventaContext(), sourcesOptions)
 
 const focused = useWindowFocus()
 

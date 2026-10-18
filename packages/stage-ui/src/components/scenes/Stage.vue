@@ -65,6 +65,8 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   error: [error: Error]
+  /** The stage dropped a render error and starts a new load. */
+  reset: []
   /** The active card has no model. The app opens the model settings. */
   selectAvatarModel: []
 }>()
@@ -205,15 +207,22 @@ function reportStageRenderError(error: unknown) {
   handleStageRenderError(new Error(errorMessageFrom(error) ?? 'Failed to render stage'))
 }
 
-async function retryStageRenderer() {
+// Any reset clears the error the parent mirrors, so the loading surface can return
+// while the new load runs. Every path that drops `stageRenderError` reports it here.
+function clearStageRenderError() {
   stageRenderError.value = undefined
+  emit('reset')
+}
+
+async function retryStageRenderer() {
+  clearStageRenderError()
   showStage.value = false
   await nextTick()
   showStage.value = true
 }
 
 watch([stageModelRenderer, stageModelSelected, stageModelSelectedUrl], () => {
-  stageRenderError.value = undefined
+  clearStageRenderError()
 })
 
 // Caption + Presentation broadcast channels

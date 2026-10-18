@@ -83,7 +83,7 @@ describe('voiceController output', () => {
     await controller.close()
   })
 
-  it('plays bidirectional synthesis output before its text input ends', async () => {
+  it('plays bidirectional synthesis output before the provider ends', async () => {
     const words: string[] = []
     const samples: number[] = []
     const captions: string[] = []
@@ -112,24 +112,46 @@ describe('voiceController output', () => {
       void (async () => {
         for await (const part of text)
           words.push(part)
-        output.close()
       })()
       return output.stream
     } }) })
     const response = controller.openResponse({ sessionId: 'alice', turnId: 'answer' })
     const speech = response.openSpeech({ purpose: 'answer' })
-    await speech.write('Hello')
-    await expect.poll(() => words).toEqual(['Hello'])
-    output.write({ text: 'Hello', audio: new ReadableStream({ start(controller) {
+    await speech.write('**Hello**')
+    await speech.write(' there')
+    speech.end()
+    await expect.poll(() => words).toEqual(['Hello there'])
+    output.write({ text: 'Hello there', audio: new ReadableStream({ start(controller) {
       controller.enqueue({ range: { sourceId: 'tts', startFrame: 0, endFrame: 2 }, sampleRate: 1000, channels: [new Float32Array([0.25, 0.5])] })
       controller.close()
     } }) })
     await expect.poll(() => samples).toEqual([0.25, 0.5])
-    expect(captions).toEqual(['Hello'])
-    await speech.write(' there')
-    speech.end()
+    expect(captions).toEqual(['Hello there'])
+    output.close()
     expect(await response.finish()).toBe('finished')
-    expect(words).toEqual(['Hello', ' there'])
+    await controller.close()
+  })
+
+  it('sends speech text without markdown and keeps special tokens in order', async () => {
+    const requested: string[] = []
+    const specials: string[] = []
+    const playback = new Playback({ nowMs: () => 0, play: () => ({ done: Promise.resolve({ throughMs: 1 }), stop: async () => ({ throughMs: 0 }) }) })
+    const controller = new VoiceController({ speech: () => ({ playback, onSpecial: special => specials.push(special), synthesize: async (request) => {
+      requested.push(request.text)
+      return new Blob([request.text])
+    } }) })
+    const response = controller.openResponse({ sessionId: 'alice', turnId: 'markdown' })
+    const speech = response.openSpeech({ purpose: 'answer' })
+    speech.write('**Hel')
+    speech.special('<|ACT happy|>')
+    speech.write('lo** there.\n\n```ts\n')
+    speech.special('<|ACT code|>')
+    speech.write('const a = 1\n```\n\n- See [docs](https://example.com).')
+    speech.end()
+
+    expect(await response.finish()).toBe('finished')
+    expect(requested).toEqual(['Hel', 'lo there.', 'See docs.'])
+    expect(specials).toEqual(['<|ACT happy|>', '<|ACT code|>'])
     await controller.close()
   })
 

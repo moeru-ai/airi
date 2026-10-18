@@ -4,6 +4,7 @@ import type { InferOutput } from 'valibot'
 import { array, boolean, looseObject, nullable, number, optional, string, union } from 'valibot'
 
 // The fields below are the ones AUV 0.0.28 prints with `--json`, read from a run of every invoke command.
+// A field can be `null` where the driver protocol in `@auv-js/sdk` marks it optional.
 // The schemas keep unknown fields, so they can show under the card as other data.
 
 export const PointSchema = looseObject({ x: number(), y: number() })
@@ -25,10 +26,11 @@ export const TextMatchSchema = looseObject({ text: string(), confidence: number(
 export const TextMatchesSchema = union([array(TextMatchSchema), looseObject({ matches: array(TextMatchSchema) })])
 
 export const WindowSchema = looseObject({
-  app_name: string(),
+  app_name: nullable(string()),
   app_bundle_id: nullable(string()),
-  title: string(),
-  process_id: number(),
+  // A window can have no title, for example the System Settings window.
+  title: nullable(string()),
+  process_id: nullable(number()),
   is_main: boolean(),
   is_visible: boolean(),
   reference: looseObject({ id: string() }),
@@ -38,8 +40,8 @@ export const WindowSchema = looseObject({
 
 export const DisplaySchema = looseObject({
   id: string(),
-  name: string(),
-  is_builtin: boolean(),
+  name: nullable(string()),
+  is_builtin: nullable(boolean()),
   is_primary: boolean(),
   scale_factor: number(),
   frame: RectSchema,
