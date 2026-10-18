@@ -9,7 +9,7 @@ auth/OIDC routes.
 - Hono business APIs and WebSocket endpoints.
 - Characters, chats, providers, Flux, Stripe, model routing, and billing.
 - PostgreSQL migration ownership for the currently shared database. Drizzle reads the checked-in `drizzle/` journal and SQL files at startup.
-- Redis cache, configuration KV, and cross-instance Pub/Sub.
+- Redis cache, configuration KV, cross-instance Pub/Sub, and the account events stream producer.
 - Local verification of Auth-issued OIDC JWTs through public JWKS.
 
 ## LLM request content
@@ -42,6 +42,17 @@ Flux TTL. Flux services use its read, write, and invalidation functions.
 ConfigKV shares the write function while retaining its existing read policy.
 Keys use domain names: `config:{key}`, `stripe:prices`, and `user:{userId}:flux`.
 The cache functions do not add a key prefix.
+
+## Account events stream
+
+`src/services/adapters/account-events.ts` publishes account events to the Redis Stream `airi:account-events`.
+Cloud (`proj-airi/backend`) reads the stream and writes user notifications. This package has no consumer.
+
+- The RevenueCat webhook publishes `subscription.renewed` for `RENEWAL` and `subscription.payment_failed` for `BILLING_ISSUE`.
+- The deletion pipeline publishes `user.deleted` after every soft delete.
+
+A publish failure fails the request, so RevenueCat or Auth retries it. Do not catch the error.
+Cloud deduplicates on the `id` field. See the [account events ADR](../../docs/ai/adr/2026-10-18-account-events-stream.md).
 
 ## Flux usage
 

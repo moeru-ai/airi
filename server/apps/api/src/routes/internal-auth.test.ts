@@ -3,6 +3,9 @@ import { ApiError, createErrorHandler } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
 
+import { createTestRedis, readStreamFields } from '../libs/tests/redis'
+import { createAccountEventPublisher, createUserDeletedEventHandler } from '../services/adapters/account-events'
+import { createUserDeletionService } from '../services/domain/user-deletion'
 import { createInternalAuthRoutes } from './internal-auth'
 
 describe('internal auth routes', () => {
@@ -39,6 +42,47 @@ describe('internal auth routes', () => {
     expect(userDeletionService.softDeleteAll).toHaveBeenCalledWith({
       userId: 'user-1',
       reason: 'user-requested',
+    })
+  })
+
+  describe('user.deleted account event', () => {
+    function deletionApp(redis: ReturnType<typeof createTestRedis>) {
+      const userDeletionService = createUserDeletionService()
+      userDeletionService.register(createUserDeletedEventHandler(createAccountEventPublisher(redis)))
+      return new Hono()
+        .onError(createErrorHandler(useLogger('test')))
+        .route('/', createInternalAuthRoutes({
+          userDeletionService,
+          productEventService: { track: vi.fn() },
+          revenuecatSubscriber: { hasRenewingSubscription: vi.fn(async () => false) },
+        }))
+    }
+
+    function requestDeletion(app: ReturnType<typeof deletionApp>) {
+      return app.request('/user-deletion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: 'user-1', reason: 'user-requested' }),
+      })
+    }
+
+    it('publishes user.deleted before it confirms the deletion', async () => {
+      const redis = createTestRedis()
+
+      const response = await requestDeletion(deletionApp(redis))
+
+      expect(response.status).toBe(200)
+      expect((await readStreamFields(redis, 'airi:account-events')).map(event => event.id)).toEqual(['user-deletion:user-1'])
+    })
+
+    it('fails the deletion when the publish fails, so Auth retries it', async () => {
+      const redis = createTestRedis()
+      vi.spyOn(redis, 'xadd').mockRejectedValueOnce(new Error('Connection is closed.'))
+
+      const response = await requestDeletion(deletionApp(redis))
+
+      expect(response.status).toBe(500)
+      expect(await readStreamFields(redis, 'airi:account-events')).toEqual([])
     })
   })
 
