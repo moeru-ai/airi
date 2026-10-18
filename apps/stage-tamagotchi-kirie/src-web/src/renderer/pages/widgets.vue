@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import type { WidgetsIframeRequestPayload, WidgetsIframeRequestResultPayload, WidgetSnapshot, WidgetWindowSize } from '../../shared/eventa'
 
-import { useHostEventaContext, useHostEventaInvoke } from '@proj-airi/stage-host-context'
+import { useHostEventaContext, useHostEventaInvoke, useHostWindowMove } from '@proj-airi/stage-host-context'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { computed, defineAsyncComponent, defineComponent, h, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
-import { widgetsClearEvent, widgetsFetch, widgetsIframeRequestEvent, widgetsIframeRequestResultEvent, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdate, widgetsUpdateEvent } from '../../shared/eventa'
+import { widgetsClearEvent, widgetsCloseRequested, widgetsFetch, widgetsIframeRequestEvent, widgetsIframeRequestResultEvent, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdate, widgetsUpdateEvent } from '../../shared/eventa'
 
 const { t } = useI18n()
 
@@ -16,7 +16,7 @@ type SizePreset = 's' | 'm' | 'l' | { cols?: number, rows?: number }
 interface WidgetItem {
   id: string
   componentName: string
-  componentProps: Record<string, any>
+  componentProps: Record<string, unknown>
   alwaysOnTop: boolean
   size: SizePreset
   windowSize?: WidgetWindowSize
@@ -39,6 +39,7 @@ const loading = ref(false)
 const context = useHostEventaContext()
 const fetchWidget = useHostEventaInvoke(widgetsFetch)
 const updateWidgetInvoke = useHostEventaInvoke(widgetsUpdate)
+const { beginMove } = useHostWindowMove()
 const pinUpdating = shallowRef(false)
 const pendingIframeRequests = shallowRef<WidgetsIframeRequestPayload[]>([])
 const eventDisposers: Array<() => void> = []
@@ -198,7 +199,8 @@ function resolveWidgetComponent(name: string) {
 }
 
 function handleClose() {
-  window.close()
+  if (widgetId.value)
+    context.value.emit(widgetsCloseRequested, { id: widgetId.value })
 }
 
 async function toggleAlwaysOnTop() {
@@ -308,8 +310,11 @@ function handleIframeRequestResult(result: WidgetsIframeRequestResultPayload) {
       </div>
     </div>
   </div>
-  <div class="[-webkit-app-region:drag] pointer-events-none absolute left-1/2 top-2 h-[14px] w-[36px] rounded-[10px] bg-[rgba(125,125,125,0.28)] backdrop-blur-[6px] -translate-x-1/2">
-    <div class="absolute left-1/2 top-1/2 h-[3px] w-4 rounded-full bg-[rgba(255,255,255,0.85)] -translate-x-1/2 -translate-y-1/2" />
+  <div
+    :class="['absolute left-1/2 top-2 z-10 h-[14px] w-[36px] -translate-x-1/2', 'cursor-grab rounded-[10px] bg-neutral-500/30 backdrop-blur-[6px]']"
+    @pointerdown="beginMove()"
+  >
+    <div :class="['pointer-events-none absolute left-1/2 top-1/2 h-[3px] w-4 -translate-x-1/2 -translate-y-1/2', 'rounded-full bg-white/85']" />
   </div>
 </template>
 
