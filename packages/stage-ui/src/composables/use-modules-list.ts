@@ -144,7 +144,7 @@ export function useModulesList() {
       description: t('settings.pages.modules.tool-cards.description'),
       icon: 'i-solar:widget-5-bold-duotone',
       to: '/settings/modules/tool-cards',
-      configured: toolCardsStore.enabled,
+      configured: toolCardsStore.enabled || toolCardsStore.replyCardsEnabled,
       category: 'essential',
     },
     {

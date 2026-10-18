@@ -1051,7 +1051,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
               buildingMessage.citations = [...(buildingMessage.citations ?? []), ...event.citations]
               updateStream(sessionId, buildingMessage)
               break
+            case 'tool-call-start':
+              buildingMessage.writingToolCall = { toolCallId: event.toolCallId, toolName: event.toolName }
+              updateStream(sessionId, buildingMessage)
+              break
             case 'tool-call': {
+              if (buildingMessage.writingToolCall?.toolCallId === event.toolCallId)
+                delete buildingMessage.writingToolCall
               // The flush covers only preceding text. A call stays pending until its slice joins, including during interruption.
               const call: ChatSlicesToolCall = { type: 'tool-call', toolCall: event }
               pendingToolCalls.add(call)

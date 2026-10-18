@@ -1,12 +1,13 @@
 import type { IconifyJSON } from '@iconify-json/mingcute'
+import type { OpenUIError } from '@openuidev/lang-core'
 import type { ComponentRenderProps } from '@openuidev/vue-lang'
-import type { FunctionalComponent, VNodeChild } from 'vue'
+import type { FunctionalComponent, InjectionKey, VNodeChild } from 'vue'
 
 import { getIconData, iconToSVG, replaceIDs } from '@iconify/utils'
 import { errorMessageFrom } from '@moeru/std'
 import { createParser, createStore, evaluate, evaluateElementProps } from '@openuidev/lang-core'
-import { createLibrary, defineComponent } from '@openuidev/vue-lang'
-import { h, shallowRef } from 'vue'
+import { createLibrary, defineComponent, useIsQueryLoading } from '@openuidev/vue-lang'
+import { h, inject, shallowRef } from 'vue'
 import { z } from 'zod'
 
 // The parts that a model can use in a tool card. They copy the look of the widgets in this folder, so a card that a
@@ -56,16 +57,52 @@ function webUrl(url: string | undefined) {
 }
 
 /**
+ * Where a card hears about a part that cannot draw its values. The part draws nothing, so without this the card would
+ * lose the part without a sign. OpenUI catches errors of each part itself and does not report them.
+ */
+export const CARD_PROBLEM: InjectionKey<(problem: string) => void> = Symbol('tool-card-problem')
+
+/** The data fields of each part, without the fields that hold nested parts. Each nested part checks its own fields. */
+const partDataSchemas = new Map<string, z.ZodObject>()
+
+/**
+ * The first problem of the values of a part, or undefined when they fit. The values come from data at runtime, so the
+ * schema types alone do not hold them. OpenUI writes `null` for a missing value, which counts as an absent field.
+ */
+function partProblem(name: string, props: unknown) {
+  const schema = partDataSchemas.get(name)
+  if (!schema || props === null || typeof props !== 'object')
+    return undefined
+  const parsed = schema.safeParse(Object.fromEntries(Object.entries(props).filter(([, value]) => value !== null)))
+  if (parsed.success)
+    return undefined
+  const issue = parsed.error.issues[0]
+  return `${name}${issue?.path.length ? ` ${issue.path.join('.')}` : ''}: ${issue?.message ?? 'invalid value'}`
+}
+
+/**
  * Defines a part from its schema and its drawing. The drawing gets the values of the program as `props`, typed by the
- * schema, and `renderNode`, which draws the parts nested in it.
+ * schema, and `renderNode`, which draws the parts nested in it. Values that do not fit draw nothing and report a problem.
  */
 function definePart<T extends z.ZodObject>(config: {
   name: string
   description: string
   props: T
+  /** The fields that hold nested parts. */
+  slots?: string[]
   render: (props: z.infer<T>, renderNode: (value: unknown) => VNodeChild) => VNodeChild
 }) {
-  const component: FunctionalComponent<ComponentRenderProps<z.infer<T>>> = ({ props, renderNode }) => config.render(props, renderNode as (value: unknown) => VNodeChild)
+  partDataSchemas.set(config.name, z.object(Object.fromEntries(Object.entries(config.props.shape).filter(([key]) => !config.slots?.includes(key)))))
+  const component: FunctionalComponent<ComponentRenderProps<z.infer<T>>> = ({ props, renderNode }) => {
+    const problem = partProblem(config.name, props)
+    if (problem) {
+      // Before the data arrives, a part draws the Query defaults, which can be empty. Only values from the data count.
+      if (!useIsQueryLoading().value)
+        inject(CARD_PROBLEM, undefined)?.(problem)
+      return null
+    }
+    return config.render(props, renderNode as (value: unknown) => VNodeChild)
+  }
   component.props = ['props', 'renderNode']
   return defineComponent({ name: config.name, description: config.description, props: config.props, component })
 }
@@ -151,6 +188,7 @@ const Facts = definePart({
   name: 'Facts',
   description: 'Labels and values in two columns, for the fields of one item.',
   props: z.object({ items: z.array(Fact.ref) }),
+  slots: ['items'],
   render: (props, renderNode) => h('dl', {
     class: ['m-0 grid grid-cols-[max-content_1fr] gap-x-2.5 gap-y-0.5 text-xs', ...surface],
   }, props.items.map(item => renderNode(item))),
@@ -185,6 +223,7 @@ const Stack = definePart({
     children: z.array(z.union(leaves)),
     direction: z.enum(['column', 'row']).optional(),
   }),
+  slots: ['children'],
   render: (props, renderNode) => h('div', {
     class: [props.direction === 'row' ? 'flex flex-wrap items-start gap-1.5' : 'flex flex-col gap-1.5'],
   }, props.children.map(child => renderNode(child))),
@@ -198,6 +237,7 @@ const Card = definePart({
     title: z.string().optional(),
     icon: z.string().optional(),
   }),
+  slots: ['children'],
   render: (props, renderNode) => h('div', { class: ['flex flex-col gap-1.5'] }, [
     props.title
       ? h('span', { class: ['flex items-center gap-1 text-[11px]', 'text-neutral-500 dark:text-neutral-400'] }, [
@@ -208,6 +248,9 @@ const Card = definePart({
     ...props.children.map(child => renderNode(child)),
   ]),
 })
+
+/** OpenUI shows its own spinner while a Query loads. A card gets its data at once, so it shows none. */
+export const NoQueryLoader: FunctionalComponent = () => null
 
 /**
  * The parts of a tool card, as an OpenUI library.
@@ -224,22 +267,21 @@ const programParser = createParser(toolCardLibrary.toJSONSchema(), 'Card')
 /** A tool name in a Query is a string literal, so it evaluates without state or references. */
 const LITERAL_CONTEXT = { getState: () => null, resolveRef: () => null }
 
-/** The icon names of a drawn card, from every part that has an icon. */
-function iconNamesOf(value: unknown, names = new Set<string>()): Set<string> {
+/** Every part of a drawn card, with its evaluated values. */
+function partsOf(value: unknown, parts: { typeName: string, props: Record<string, unknown> }[] = []) {
   if (Array.isArray(value)) {
     for (const item of value)
-      iconNamesOf(item, names)
+      partsOf(item, parts)
   }
   else if (value !== null && typeof value === 'object') {
-    const node = value as { type?: unknown, props?: Record<string, unknown> }
-    if (node.type === 'element' && node.props) {
-      if (typeof node.props.icon === 'string' && node.props.icon)
-        names.add(node.props.icon)
+    const node = value as { type?: unknown, typeName?: unknown, props?: Record<string, unknown> }
+    if (node.type === 'element' && typeof node.typeName === 'string' && node.props) {
+      parts.push({ typeName: node.typeName, props: node.props })
       for (const prop of Object.values(node.props))
-        iconNamesOf(prop, names)
+        partsOf(prop, parts)
     }
   }
-  return names
+  return parts
 }
 
 /**
@@ -262,21 +304,29 @@ export async function problemsOfProgram(program: string, query?: { key: string, 
     return problems
   }
 
-  // The program is drawn here as the chat will draw it, with the sample for a tool card. An icon name that MingCute does
-  // not have, or a value that fails to draw, shows now, while the model can still fix it.
+  // The values are evaluated here as the chat will evaluate them, with the sample for a tool card, and each part checks
+  // them as it does before it draws. A value that fails, does not fit its part, or names an icon that MingCute does not
+  // have shows now, while the model can still fix it.
   const store = createStore()
   store.initialize(parsed.stateDeclarations ?? {}, {})
   const queries = new Set(parsed.queryStatements.map(query => query.statementId))
   try {
+    const errors: OpenUIError[] = []
     const drawn = evaluateElementProps(parsed.root, {
       ctx: { getState: name => store.get(name) ?? null, resolveRef: name => query && queries.has(name) ? query.sample : null },
       library: toolCardLibrary,
       store,
+      errors,
     })
+    problems.push(...errors.map(error => `${error.statementId ?? error.component ?? 'program'}: ${error.message}`))
     const icons = await loadCardIcons()
-    for (const name of iconNamesOf(drawn)) {
-      if (!getIconData(icons, name))
-        problems.push(`"${name}" is not a MingCute icon name. Use a MingCute name such as "github-line", or leave the icon out.`)
+    for (const part of partsOf(drawn)) {
+      const problem = partProblem(part.typeName, part.props)
+      if (problem)
+        problems.push(problem)
+      const icon = part.props.icon
+      if (typeof icon === 'string' && icon && !getIconData(icons, icon))
+        problems.push(`"${icon}" is not a MingCute icon name. Use a MingCute name such as "github-line", or leave the icon out.`)
     }
   }
   catch (error) {

@@ -40,6 +40,8 @@ export interface ChatAssistantMessage extends AssistantMessage {
   /** Sources returned by the provider, separate from text consumed by speech. */
   citations?: import('../messages/types').Citation[]
   search?: { id: string, status: 'in_progress' | 'searching' | 'completed' | 'failed' }
+  /** The tool call that the model writes now. The call joins `slices` only when it is complete. */
+  writingToolCall?: { toolCallId: string, toolName: string }
   slices: ChatSlices[]
   tool_results: {
     id: string

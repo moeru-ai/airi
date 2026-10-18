@@ -34,7 +34,7 @@ import {
   AIRI_CHAT_SESSION_ID_HEADER,
 } from '../libs/product-signals/headers'
 import { getSpeechBusContext, voiceGenerationEnded } from '../services/speech/bus'
-import { createDrawCardTool } from '../tools/draw-card'
+import { composeDrawCardPrompt, createDrawCardTool } from '../tools/draw-card'
 import { createJudgeRecipeTool, judgmentSkillText } from '../tools/judge-recipe'
 import { composeMemoryPrompt, createMemoryTools } from '../tools/memory'
 import { createProposeRecipeTool } from '../tools/propose-recipe'
@@ -278,13 +278,15 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /**
-   * The system prompt of a session: format rules, the persona's identity, and its memory index.
+   * The system prompt of a session: format rules, the persona's identity, its memory index, and when to draw a card.
    * A recipe's own session adds the recipe's steps after the identity. They stay the same there, so its prefix stays cacheable.
    * The first request and every later model step read it, so a card edit reaches the next step.
    */
   function sessionSystemPrompt(sessionId: string) {
     const persona = personaOf(sessionId)
-    const identity = composeSystemPrompt(cardStore.getSystemPrompt(persona)) + (memory.enabled ? composeMemoryPrompt(memory.indexFor(persona)) : '')
+    const identity = composeSystemPrompt(cardStore.getSystemPrompt(persona))
+      + (memory.enabled ? composeMemoryPrompt(memory.indexFor(persona)) : '')
+      + (drawsCards(sessionId) ? composeDrawCardPrompt() : '')
     const recipeId = chatSession.sessionMetas[sessionId]?.recipeId
     const recipe = recipeId ? recipes.recipes.find(entry => entry.id === recipeId) : undefined
     return recipe ? identity + composeRecipeSpacePrompt(recipe) : identity
@@ -416,6 +418,14 @@ export const useChatStore = defineStore('chat', () => {
   /** Whether a session is a background task's own space. */
   function isTaskSession(sessionId: string) {
     return Boolean(chatSession.sessionMetas[sessionId]?.recipeId)
+  }
+
+  /**
+   * Whether a session's replies can hold cards: the owner's own chat, with reply cards on. A background task reports in
+   * text, and a card there would take the details out of its report.
+   */
+  function drawsCards(sessionId: string) {
+    return toolCards.replyCardsEnabled && isOwnerSession(sessionId) && !isTaskSession(sessionId)
   }
 
   /** Whether a turn answers the owner: not a background task, and not a reply to a stored notice. */
@@ -624,7 +634,7 @@ export const useChatStore = defineStore('chat', () => {
       // The owner can turn proposals off. Every proposal waits for the owner's approval.
       ...(ownerOnly && recipes.proposalsEnabled ? await createProposeRecipeTool({ propose: recipe => recipes.propose(recipe) }) : []),
       // Cards show in the owner's own chat only. A scene, such as a Discord channel, gets text.
-      ...(ownerOnly && toolCards.enabled ? await createDrawCardTool({ rules: replyCardRules, check: program => problemsOfProgram(program) }) : []),
+      ...(drawsCards(sessionId) ? await createDrawCardTool({ rules: replyCardRules, check: program => problemsOfProgram(program) }) : []),
     ]
   }
 
@@ -1028,7 +1038,7 @@ export const useChatStore = defineStore('chat', () => {
           content: extractMessageText(message),
         })
       }
-      // Each finished call of a saved reply becomes the latest call on the card of its tool, for the settings page.
+      // Each finished call of a saved reply becomes the latest call on the card of its tool.
       for (const slice of message.slices) {
         if (slice.type !== 'tool-call')
           continue

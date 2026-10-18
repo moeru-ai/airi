@@ -12,7 +12,7 @@ import { useI18n } from 'vue-i18n'
 
 const { t, locale } = useI18n()
 const toolCards = useToolCardsStore()
-const { enabled, cards } = storeToRefs(toolCards)
+const { enabled, replyCardsEnabled, cards } = storeToRefs(toolCards)
 const llmTools = useLlmToolsStore()
 
 const KEY = 'settings.pages.modules.tool-cards'
@@ -57,8 +57,9 @@ function toggleTemplate(key: string) {
 
 <template>
   <div :class="['flex flex-col', 'gap-4']">
-    <div :class="['rounded-xl', 'bg-neutral-100 dark:bg-neutral-900', 'p-4']">
+    <div :class="['flex flex-col gap-4', 'rounded-xl', 'bg-neutral-100 dark:bg-neutral-900', 'p-4']">
       <FieldCheckbox v-model="enabled" :label="t(`${KEY}.enable`)" :description="t(`${KEY}.enable-description`)" />
+      <FieldCheckbox v-model="replyCardsEnabled" :label="t(`${KEY}.reply-cards`)" :description="t(`${KEY}.reply-cards-description`)" />
     </div>
 
     <p :class="['text-sm', 'text-neutral-500 dark:text-neutral-400']">

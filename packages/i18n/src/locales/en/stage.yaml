@@ -152,6 +152,8 @@ chat:
     card-making: Making a card for this tool…
     card-remaking: Making a new card…
     card-regenerate: Make a new card
+    card-failed: Could not make a card for this tool
+    card-retry: Try again
     state:
       executing: Running
       done: Done

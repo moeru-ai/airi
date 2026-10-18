@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ToolCallRerunRequest } from '../../../../stores/tool-call-rerun'
+import type { ToolCardCall } from '../../../../stores/tool-cards'
 import type { ChatSlicesToolCallResult } from '../../../../types/chat'
 import type { ToolCallGroupItem, ToolCallState } from './tool-call-group'
 import type { ChatToolCallWidgetRegistry } from './tool-call-renderer'
@@ -31,6 +32,8 @@ const props = defineProps<{
   resultOf: (sliceIndex: number) => ChatSlicesToolCallResult | undefined
   /** Widgets by tool name. An unfolded row shows the widget when the widget can read the result of the call. */
   widgets: ChatToolCallWidgetRegistry
+  /** The reply is still being written. A call that finishes now is new, so a tool without a card gets one from it. */
+  streaming?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -60,6 +63,8 @@ const calls = computed(() => {
     const cardCall = toolCards.enabled && !widget && state === 'done' ? readToolCardCall(item.toolCall.toolName, item.toolCall.args, result?.result) : undefined
     const card = cardCall ? toolCards.cardsByKey.get(cardCall.key) : undefined
     const cardMaking = cardCall ? toolCards.making.has(cardCall.key) : false
+    // A first card that failed offers a try again. A failed new card keeps the old card on show.
+    const cardFailed = Boolean(cardCall && !card && !cardMaking && toolCards.failed.has(cardCall.key))
     return {
       ...item,
       // Result slices land between calls while a reply streams, so slice indexes shift. The call id stays.
@@ -75,6 +80,7 @@ const calls = computed(() => {
       cardCall,
       card,
       cardMaking,
+      cardFailed,
       // While a new card is made, the row shows the result as it is, under a line that says so.
       cardShown: Boolean(card && !cardMaking && !brokenPrograms.value.has(card.program)),
     }
@@ -169,30 +175,38 @@ function toggleRaw(key: string) {
   rawCalls.value = next
 }
 
-/** The model writes the labels of a card in the language of the app at the time it makes the card. */
-const labelsLanguage = computed(() => new Intl.DisplayNames([locale.value], { type: 'language' }).of(locale.value) ?? locale.value)
-
 type ToolCallGroupCall = (typeof calls.value)[number]
 
-function requestCard(call: ToolCallGroupCall, replace = false) {
-  if (!call.cardCall)
-    return
-  const { key, data } = call.cardCall
-  toolCards.request({ key, toolName: call.toolCall.toolName, args: call.toolCall.args, data, language: labelsLanguage.value, replace })
-    .catch(error => console.warn('[tool-call-group] Failed to request a tool card:', error))
+function cardCallOf(call: ToolCallGroupCall): ToolCardCall | undefined {
+  return call.cardCall && { ...call.cardCall, toolName: call.toolCall.toolName, args: call.toolCall.args, locale: locale.value }
 }
 
-// The first finished call of a tool asks for its card. A group asks once for each key, and the leader joins the
-// requests of every window, so one card is made for a tool however many windows show its calls.
-const requestedKeys = new Set<string>()
-watch(calls, (value) => {
-  for (const call of value) {
-    if (!call.cardCall || call.card || requestedKeys.has(call.cardCall.key))
+// A call that finishes while the reply streams asks for the first card of its tool. Only a row that shows a card asks,
+// so a tool with a widget never gets one. Old messages never ask, so a deleted card returns only with the next call.
+// Each call asks once. The leader answers for every window.
+const askedCalls = new Set<string>()
+
+watch(calls, (current) => {
+  if (!props.streaming)
+    return
+  for (const call of current) {
+    const cardCall = cardCallOf(call)
+    if (!cardCall || call.card || call.cardMaking || call.cardFailed || askedCalls.has(call.key))
       continue
-    requestedKeys.add(call.cardCall.key)
-    requestCard(call)
+    askedCalls.add(call.key)
+    toolCards.make(cardCall)
+      .catch(error => console.warn('[tool-call-group] Failed to ask for a tool card:', error))
   }
 }, { immediate: true })
+
+// A row asks for another card when the owner wants one, tries again, or the card failed with this result.
+function remakeCard(call: ToolCallGroupCall) {
+  const cardCall = cardCallOf(call)
+  if (!cardCall)
+    return
+  toolCards.remake(cardCall)
+    .catch(error => console.warn('[tool-call-group] Failed to ask for a new tool card:', error))
+}
 
 // A call whose card fails asks once for a new card. When the new card fails too, the row keeps the result as it is.
 const remadeCalls = new Set<string>()
@@ -204,7 +218,7 @@ function markBroken(call: ToolCallGroupCall) {
   if (remadeCalls.has(call.key))
     return
   remadeCalls.add(call.key)
-  requestCard(call, true)
+  remakeCard(call)
 }
 
 const barButtonClass = [
@@ -305,7 +319,7 @@ function rerun(item: ToolCallGroupItem) {
             <!-- The row above already names the tool, so the details start with the result. -->
             <div v-if="call.widget || call.cardShown" :class="['flex justify-end gap-1']">
               <!-- A card that the owner does not like gets replaced by a new one. A widget of the app has no such action. -->
-              <button v-if="call.cardShown" type="button" :class="barButtonClass" @click="requestCard(call, true)">
+              <button v-if="call.cardShown" type="button" :class="barButtonClass" @click="remakeCard(call)">
                 <span :class="['i-mingcute:magic-2-line', 'text-xs']" aria-hidden="true" />
                 <span>{{ t(`${KEY}.card-regenerate`) }}</span>
               </button>
@@ -330,6 +344,14 @@ function rerun(item: ToolCallGroupItem) {
               <div v-if="call.cardMaking" :class="['flex items-center gap-1.5 text-[11px]', 'text-neutral-500 dark:text-neutral-400']" aria-live="polite">
                 <span :class="['i-svg-spinners:ring-resize', 'text-xs', 'text-primary-500 dark:text-primary-300']" aria-hidden="true" />
                 <span>{{ call.card ? t(`${KEY}.card-remaking`) : t(`${KEY}.card-making`) }}</span>
+              </div>
+              <div v-else-if="call.cardFailed" :class="['flex items-center gap-1.5 text-[11px]', 'text-neutral-500 dark:text-neutral-400']">
+                <span :class="['i-mingcute:close-circle-line', 'text-xs']" aria-hidden="true" />
+                <span :class="['min-w-0 flex-1']">{{ t(`${KEY}.card-failed`) }}</span>
+                <button type="button" :class="barButtonClass" @click="remakeCard(call)">
+                  <span :class="['i-mingcute:refresh-2-line', 'text-xs']" aria-hidden="true" />
+                  <span>{{ t(`${KEY}.card-retry`) }}</span>
+                </button>
               </div>
               <ToolCallPayload :label="t(`${KEY}.arguments`)" :payload="call.toolCall.args" />
               <ToolCallPayload :label="t(`${KEY}.result`)" :payload="call.result" />

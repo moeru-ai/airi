@@ -6,6 +6,7 @@ import type { ChatToolCallRendererRegistry, ChatToolCallWidgetRegistry } from '.
 
 import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import ChatReplyCard from './reply-card.vue'
 import ChatReplyQuote from './reply-quote.vue'
@@ -14,7 +15,7 @@ import ChatResponsePart from './response-part.vue'
 import ChatSticker from './sticker.vue'
 import ChatToolCallGroup from './tool-call-group.vue'
 
-import { DRAW_CARD_TOOL_NAME } from '../../../../tools/draw-card'
+import { DRAW_CARD_TOOL_NAME, readCardDraw } from '../../../../tools/draw-card'
 import { MarkdownRenderer } from '../../../markdown'
 import { getChatHistoryItemCopyText } from '../utils'
 import { ChatActionMenu } from './action-menu'
@@ -29,6 +30,8 @@ const props = withDefaults(defineProps<{
   canReply?: boolean
   scrollContainer?: HTMLElement | null
   showPlaceholder?: boolean
+  /** The reply is still being written. */
+  streaming?: boolean
   variant?: 'desktop' | 'mobile'
   /** How the bubble paints its background; see `ChatHistory`'s `surface`. */
   surface?: 'translucent' | 'opaque'
@@ -38,6 +41,7 @@ const props = withDefaults(defineProps<{
 }>(), {
   canReply: false,
   showPlaceholder: false,
+  streaming: false,
   scrollContainer: null,
   variant: 'desktop',
   surface: 'translucent',
@@ -51,6 +55,8 @@ const emit = defineEmits<{
   (e: 'reply'): void
   (e: 'toolCallRerun', payload: ToolCallRerunRequest): void
 }>()
+
+const { t } = useI18n()
 
 const resolvedSlices = computed<ChatSlices[]>(() => {
   if (props.message.slices?.length) {
@@ -108,6 +114,20 @@ const toolCallWidgets = computed<ChatToolCallWidgetRegistry>(() => ({ ...builtin
 
 // A card that the model draws is part of its answer, so it shows by itself in the reply. An app can add renderers of its own.
 const toolCallRenderers = computed<ChatToolCallRendererRegistry>(() => ({ [DRAW_CARD_TOOL_NAME]: ChatReplyCard, ...props.toolCallRenderers }))
+
+// A card is on its way from the moment the model starts a card call until a card draws. Calls that only fetched the
+// rules or had problems show nothing, so without this line the reply looks empty.
+const drawingCard = computed(() => {
+  if (!props.streaming)
+    return false
+  if (props.message.writingToolCall?.toolName === DRAW_CARD_TOOL_NAME)
+    return true
+  const sliceIndex = resolvedSlices.value.findLastIndex(slice => slice.type === 'tool-call' && slice.toolCall.toolName === DRAW_CARD_TOOL_NAME)
+  const slice = resolvedSlices.value[sliceIndex]
+  if (slice?.type !== 'tool-call')
+    return false
+  return readCardDraw(slice.toolCall.args, getToolCallResult(sliceIndex)?.result).outcome?.status !== 'shown'
+})
 
 // A call with its own renderer shows by itself. Every other call joins a group with the calls next to it.
 const sliceEntries = computed(() => groupToolCallSlices(resolvedSlices.value, toolName => Boolean(toolCallRenderers.value[toolName])))
@@ -168,6 +188,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
                 :items="entry.items"
                 :result-of="getToolCallResult"
                 :widgets="toolCallWidgets"
+                :streaming="streaming"
                 @tool-call-rerun="emitToolCallRerun"
               />
               <component
@@ -183,6 +204,10 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
               <ChatSticker v-else-if="entry.slice.type === 'sticker'" :sticker-id="entry.slice.stickerId" />
               <MarkdownRenderer v-else-if="entry.slice.type === 'text'" :content="entry.slice.text" />
             </template>
+            <div v-if="drawingCard" :class="['flex items-center gap-1.5 text-[11px]', 'text-neutral-500 dark:text-neutral-400']" aria-live="polite">
+              <span :class="['i-svg-spinners:ring-resize', 'text-xs', 'text-primary-500 dark:text-primary-300']" aria-hidden="true" />
+              <span>{{ t('stage.chat.reply-card.drawing') }}</span>
+            </div>
           </div>
           <ResponseCitations v-if="message.citations?.length" :citations="message.citations" />
           <div v-if="!resolvedSlices.length && showLoader" :class="['i-eos-icons:three-dots-loading']" />

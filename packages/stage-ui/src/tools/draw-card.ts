@@ -42,6 +42,24 @@ export function readCardDraw(args: string, result: unknown): { program: string, 
   }
 }
 
+/**
+ * The part of the system prompt that says when to draw a card. A tool in the tool list alone almost never gets
+ * called for this, so the model would keep answering a table or a conversion in text.
+ */
+export function composeDrawCardPrompt() {
+  return [
+    '',
+    '',
+    `Cards. You can show a card inside your reply with ${DRAW_CARD_TOOL_NAME}. A card reads better than text, so draw one whenever the answer is:`,
+    '- a table, or a list of items that each have values, for example the time in several cities, prices, or scores',
+    '- a conversion or a calculation, for example money or units',
+    '- a comparison of a few options',
+    '- a few key numbers or facts',
+    'Never write a markdown table. Draw a card instead.',
+    'Around the card, write at most one short sentence. The card holds the details, so do not repeat them in text.',
+  ].join('\n')
+}
+
 interface CreateDrawCardToolOptions {
   /** How to write a program, with the parts of the card catalog. */
   rules: () => string
