@@ -21,7 +21,7 @@ async function executeGetWeather(input: { city: string }): Promise<string> {
   await executeWidgetAction({
     action: 'spawn',
     componentName: 'weather',
-    componentProps: weather,
+    componentProps: { ...weather },
     size: 'm',
     ttlSeconds: 60,
   })

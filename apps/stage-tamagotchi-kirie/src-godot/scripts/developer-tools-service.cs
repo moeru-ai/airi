@@ -14,6 +14,7 @@ internal sealed class DeveloperToolsService : IDisposable
     private readonly KirieEventaJsonRegistry _registry;
     private readonly string _rendererUrl;
     private readonly MicrophonePermissionService _microphonePermissions;
+    private readonly WidgetWindowManager _widgets;
     private readonly NetHttpClient _http = new()
     {
         Timeout = TimeSpan.FromSeconds(2),
@@ -26,13 +27,15 @@ internal sealed class DeveloperToolsService : IDisposable
         Window mainWindow,
         KirieEventaJsonRegistry registry,
         string rendererUrl,
-        MicrophonePermissionService microphonePermissions)
+        MicrophonePermissionService microphonePermissions,
+        WidgetWindowManager widgets)
     {
         _owner = owner;
         _mainWindow = mainWindow;
         _registry = registry;
         _rendererUrl = rendererUrl;
         _microphonePermissions = microphonePermissions;
+        _widgets = widgets;
     }
 
     public IDisposable Attach(IEventContext context)
@@ -102,7 +105,8 @@ internal sealed class DeveloperToolsService : IDisposable
                     _registry,
                     _rendererUrl,
                     request,
-                    _microphonePermissions);
+                    _microphonePermissions,
+                    _widgets);
             }
             catch
             {

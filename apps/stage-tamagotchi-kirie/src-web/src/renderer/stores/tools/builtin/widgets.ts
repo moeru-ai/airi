@@ -20,7 +20,7 @@ type WidgetActionInput
     action: 'spawn'
     id?: string
     componentName: string
-    componentProps: string | Record<string, any>
+    componentProps: string | Record<string, unknown>
     alwaysOnTop?: boolean
     size: SizePreset
     windowSize?: WidgetWindowSize
@@ -29,7 +29,7 @@ type WidgetActionInput
   | {
     action: 'update'
     id: string
-    componentProps: string | Record<string, any>
+    componentProps: string | Record<string, unknown>
     componentName?: string
     alwaysOnTop?: boolean
     size?: SizePreset
@@ -40,7 +40,7 @@ type WidgetActionInput
     action: 'remove'
     id: string
     componentName?: string
-    componentProps?: string | Record<string, any>
+    componentProps?: string | Record<string, unknown>
     alwaysOnTop?: boolean
     size?: SizePreset
     windowSize?: WidgetWindowSize
@@ -50,7 +50,7 @@ type WidgetActionInput
     action: 'clear'
     id: string
     componentName?: string
-    componentProps?: string | Record<string, any>
+    componentProps?: string | Record<string, unknown>
     alwaysOnTop?: boolean
     size?: SizePreset
     windowSize?: WidgetWindowSize
@@ -60,7 +60,7 @@ type WidgetActionInput
     action: 'open'
     id: string
     componentName?: string
-    componentProps?: string | Record<string, any>
+    componentProps?: string | Record<string, unknown>
     alwaysOnTop?: boolean
     size?: SizePreset
     windowSize?: WidgetWindowSize
@@ -200,7 +200,7 @@ function normalizeWidgetToolInput(input: WidgetToolInput): WidgetActionInput {
   }
 }
 
-export function normalizeComponentProps(raw?: string | Record<string, any>) {
+export function normalizeComponentProps(raw?: string | Record<string, unknown>) {
   if (raw === undefined || raw === null)
     return {}
 
@@ -225,7 +225,7 @@ export function normalizeComponentProps(raw?: string | Record<string, any>) {
 
 function resolveWindowSize(
   componentName: string | undefined,
-  componentProps: Record<string, any>,
+  componentProps: Record<string, unknown>,
   windowSize?: WidgetWindowSize,
 ) {
   const explicitWindowSize = normalizeWidgetWindowSize(windowSize)
@@ -235,10 +235,14 @@ function resolveWindowSize(
   if (componentName?.trim().toLowerCase() !== 'extension-ui')
     return undefined
 
-  return normalizeWidgetWindowSize(componentProps.windowSize)
+  const value = componentProps.windowSize
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    return undefined
+
+  return normalizeWidgetWindowSize(value as Record<string, unknown>)
 }
 
-function sanitizeComponentPropsForDispatch(componentName: string | undefined, componentProps: Record<string, any>) {
+function sanitizeComponentPropsForDispatch(componentName: string | undefined, componentProps: Record<string, unknown>) {
   if (componentName?.trim().toLowerCase() !== 'extension-ui')
     return componentProps
 
@@ -296,12 +300,12 @@ export async function executeWidgetAction(input: WidgetActionInput, deps?: { inv
       return `Removed widget (${normalizedId}).`
     }
     case 'clear': {
-      await invokers.clearWidgets()
+      await invokers.clearWidgets({})
       return 'Cleared all widgets.'
     }
     case 'open': {
       const id = await invokers.prepareWindow(normalizedId ? { id: normalizedId } : {})
-      await invokers.openWindow(normalizedId ? { id: normalizedId } : {})
+      await invokers.openWindow({ id })
       return `Opened widget window${id ? ` (${id})` : ''}.`
     }
     default:
