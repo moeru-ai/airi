@@ -9,7 +9,7 @@ auth/OIDC routes.
 - Hono business APIs and WebSocket endpoints.
 - Characters, chats, providers, Flux, Stripe, model routing, and billing.
 - PostgreSQL migration ownership for the currently shared database. Drizzle reads the checked-in `drizzle/` journal and SQL files at startup.
-- Redis cache, configuration KV, cross-instance Pub/Sub, and Redis Streams producers.
+- Redis cache, configuration KV, cross-instance Pub/Sub, and the Redis Streams infrastructure.
 - Local verification of Auth-issued OIDC JWTs through public JWKS.
 
 ## LLM request content
@@ -45,16 +45,23 @@ The cache functions do not add a key prefix.
 
 ## Redis Streams
 
-`src/libs/redis/stream.ts` is the shared producer for Redis Streams. This package has no consumer.
+`src/libs/redis/` has the shared Redis Streams code. Both halves use the same stream definitions and envelope.
 
-- `defineStream({ key, maxLength, events })` defines a stream. `events` maps each `type` to `{ version, payload }`, with a Valibot payload schema.
-- `createStreamPublisher(redis, definition).publish(type, { id, payload, occurredAt? })` validates the input and runs `XADD <key> MAXLEN ~ <maxLength> * ...`.
+- `stream.ts`: `defineStream({ key, maxLength, events })` defines a stream. `events` maps each `type` to `{ version, payload }`, with a Valibot schema of the JSON payload.
+- `stream.ts`: `createStreamPublisher(redis, definition).publish(type, { id, payload, occurredAt? })` validates the input and runs `XADD <key> MAXLEN ~ <maxLength> * ...`.
+- `stream-consumer.ts`: `createStreamConsumer(redis, definition, handlers, options)` reads with a consumer group. It acks after the handler succeeds, retries failed entries after `claimMinIdleMs`, and dead-letters invalid entries.
 - Each entry has the flat fields `id`, `type`, `version`, `occurredAt`, and `payload` (a JSON string).
 
 A publish failure must fail the request, so its caller retries it. Do not catch the error.
 Consumers deduplicate on `id`, so a retry must publish the same `id`.
 
-To add an event, add a type to the `defineStream` call of its domain module. To add a stream, call `defineStream` in a domain module and provide its publisher through `injeca` in `app.ts`.
+The API does not run a consumer now. The API has no background loops, so the first consumer needs an ADR.
+
+Each change stays in one domain module, plus wiring in `app.ts`:
+
+- To add a stream or an event, edit the `defineStream` call of the domain module.
+- To add a producer, provide `createStreamPublisher` through `injeca`.
+- To add a consumer, provide `createStreamConsumer` through `injeca`, and register `start()` and `stop()` with `lifecycle.appHooks`.
 
 The account events stream (`src/services/adapters/account-events.ts`) is the first user. Cloud (`proj-airi/backend`) reads it and writes user notifications.
 

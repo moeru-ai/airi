@@ -17,7 +17,10 @@ const idSchema = pipe(string(), nonEmpty())
 export interface StreamEventDefinition<TPayload extends GenericSchema<unknown, Record<string, unknown>> = GenericSchema<unknown, Record<string, unknown>>> {
   /** Payload schema version. It is written as a decimal string. */
   version: number
-  /** Valibot schema of the payload object. The output is written as a JSON string. */
+  /**
+   * Valibot schema of the JSON payload object. Producers and consumers validate with the same schema,
+   * so it must describe JSON values only. Write a date as an RFC 3339 string, for example `pipe(string(), isoTimestamp())`.
+   */
   payload: TPayload
 }
 
@@ -104,7 +107,7 @@ export function createStreamPublisher<TEvents extends Record<string, StreamEvent
         'occurredAt',
         occurredAt.toISOString(),
         'payload',
-        // `JSON.stringify` writes a `Date` as an RFC 3339 UTC string and omits unset optional fields.
+        // `JSON.stringify` omits unset optional fields.
         JSON.stringify(payload),
       )
       // ioredis types the reply as nullable. Redis returns null only for NOMKSTREAM, which this

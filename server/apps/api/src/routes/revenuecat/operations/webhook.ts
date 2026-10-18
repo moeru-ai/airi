@@ -124,7 +124,7 @@ function accountEventPublishFrom(
     return () => accountEvents.publish('subscription.renewed', {
       id: `revenuecat:${event.id}`,
       occurredAt: new Date(event.event_timestamp_ms),
-      payload: { userId: event.app_user_id, plan: event.product_id, periodEnd: new Date(event.expiration_at_ms) },
+      payload: { userId: event.app_user_id, plan: event.product_id, periodEnd: new Date(event.expiration_at_ms).toISOString() },
     })
   }
 

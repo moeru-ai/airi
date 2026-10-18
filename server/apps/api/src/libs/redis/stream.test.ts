@@ -1,4 +1,4 @@
-import { date, object, optional, string } from 'valibot'
+import { isoTimestamp, object, optional, pipe, string } from 'valibot'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createTestRedis, readStreamFields } from '../tests/redis'
@@ -8,7 +8,7 @@ const orderEvents = defineStream({
   key: 'test:order-events',
   maxLength: 500,
   events: {
-    'order.paid': { version: 1, payload: object({ orderId: string(), paidAt: date() }) },
+    'order.paid': { version: 1, payload: object({ orderId: string(), paidAt: pipe(string(), isoTimestamp()) }) },
     'order.refunded': { version: 2, payload: object({ orderId: string(), note: optional(string()) }) },
   },
 })
@@ -32,7 +32,7 @@ describe('createStreamPublisher', () => {
     const streamEntryId = await publisher.publish('order.paid', {
       id: 'order:1',
       occurredAt: new Date('2026-10-19T01:02:03.000Z'),
-      payload: { orderId: 'o-1', paidAt: new Date('2026-10-19T01:00:00.000Z') },
+      payload: { orderId: 'o-1', paidAt: '2026-10-19T01:00:00.000Z' },
     })
     await publisher.publish('order.refunded', {
       id: 'order:2',
@@ -111,8 +111,8 @@ describe('createStreamPublisher', () => {
 
     await expect(publisher.publish('order.refunded', { id: '', payload: { orderId: 'o-5' } })).rejects.toThrow()
     await expect(publisher.publish('order.refunded', { id: 'order:5', occurredAt: new Date(Number.NaN), payload: { orderId: 'o-5' } })).rejects.toThrow()
-    await expect(publisher.publish('order.paid', { id: 'order:5', payload: { orderId: 'o-5', paidAt: new Date(Number.NaN) } })).rejects.toThrow()
-    await expect(publisher.publish('order.shipped' as 'order.paid', { id: 'order:5', payload: { orderId: 'o-5', paidAt: new Date() } })).rejects.toThrow('Stream test:order-events has no event type order.shipped')
+    await expect(publisher.publish('order.paid', { id: 'order:5', payload: { orderId: 'o-5', paidAt: 'yesterday' } })).rejects.toThrow()
+    await expect(publisher.publish('order.shipped' as 'order.paid', { id: 'order:5', payload: { orderId: 'o-5', paidAt: '2026-10-19T00:00:00.000Z' } })).rejects.toThrow('Stream test:order-events has no event type order.shipped')
 
     expect(await readStreamFields(redis, 'test:order-events')).toEqual([])
   })

@@ -14,7 +14,7 @@ describe('accountEventsStream', () => {
     await publisher.publish('subscription.renewed', {
       id: 'revenuecat:evt-1',
       occurredAt,
-      payload: { userId: 'user-1', plan: 'rc_go_monthly', periodEnd: new Date('2026-11-18T00:00:00.000Z') },
+      payload: { userId: 'user-1', plan: 'rc_go_monthly', periodEnd: '2026-11-18T00:00:00.000Z' },
     })
     await publisher.publish('subscription.payment_failed', {
       id: 'revenuecat:evt-2',

@@ -12,13 +12,44 @@ moeru-ai/airi #1792 removed an earlier Redis Streams pipeline. Its `debitFlux` c
 
 ## Decision
 
-Redis Streams are shared API infrastructure in `server/apps/api/src/libs/redis/stream.ts`, next to `cache.ts`. Account events are the first stream that uses it.
+Redis Streams are shared API infrastructure in `server/apps/api/src/libs/redis/`, next to `cache.ts`. It has two halves on the same definitions and envelope:
 
-### Infrastructure
+- `stream.ts`: stream definitions and the producer.
+- `stream-consumer.ts`: the consumer group loop. It matches the Go `internal/streams` consumer in `proj-airi/backend`.
+
+Account events are the first stream. This API only produces them. No TypeScript consumer runs now.
+
+### Producer
 
 - `defineStream({ key, maxLength, events })` returns a typed stream definition. `events` maps each `type` to `{ version, payload }`, where `payload` is a Valibot schema. It checks the key, the limit, and each version when the module loads.
 - `createStreamPublisher(redis, definition)` returns `{ publish(type, { id, payload, occurredAt? }) }`. The payload type follows `type`. `publish` validates the input, encodes the envelope, and runs `XADD <key> MAXLEN ~ <maxLength> * ...`.
 - `occurredAt` is the publish time when the producer omits it.
+- A payload schema describes the JSON object, because both halves validate with it. A date is an RFC 3339 string, for example `pipe(string(), isoTimestamp())`.
+
+### Consumer
+
+`createStreamConsumer(redis, definition, handlers, options)` returns `{ start(), stop() }`.
+
+- `handlers` maps a `type` to an async handler. The handler gets `{ streamEntryId, id, type, version, occurredAt, payload }`, with the payload output of the schema.
+- `options`: `group`, `consumer`, `deadLetterKey`, `maxDeliveries` (default 5), `claimMinIdleMs` (default 30000), `blockMs` (default 5000), `count` (default 10), `deadLetterMaxLength` (default 10000).
+
+The loop runs these steps:
+
+1. `start()` runs `XGROUP CREATE <key> <group> $ MKSTREAM` and ignores `BUSYGROUP`.
+2. `XAUTOCLAIM` entries that are idle for `claimMinIdleMs`. `XPENDING` gives the delivery count of each claimed entry.
+3. When nothing is claimed, `XREADGROUP ... BLOCK <blockMs> COUNT <count> STREAMS <key> >` on a dedicated connection. A blocking read stops all other commands on its connection.
+4. Validate the envelope and the payload, then call the handler of the type.
+
+| Result | Action |
+| --- | --- |
+| Handler success | `XACK` |
+| Invalid envelope, invalid payload, `InvalidStreamEntryError` from the handler, or more than `maxDeliveries` deliveries | Copy the fields with `reason` to the dead-letter stream, then `XACK` |
+| Unknown type, unknown version, or no handler | Log a warning, then `XACK`. A producer can deploy first. |
+| Other handler error | No ack. The entry stays pending, and a later claim retries it. |
+
+`stop()` interrupts a blocking read, lets the current batch finish, and closes the read connection. Register `start()` and `stop()` with `lifecycle.appHooks`.
+
+The API does not wire a consumer now. The API has no background loops (see `server/apps/api/AGENTS.md`), so the first consumer needs its own ADR.
 
 Every entry has the same flat string envelope. The envelope has no domain fields:
 
@@ -30,13 +61,15 @@ Every entry has the same flat string envelope. The envelope has no domain fields
 | `occurredAt` | RFC 3339 UTC timestamp |
 | `payload` | JSON object as a string |
 
-### Add a stream or an event
+### Add a stream, an event, a producer, or a consumer
 
-The infrastructure does not change. Edit only the domain module that owns the stream:
+The infrastructure does not change. Edit only the domain module that owns the stream, and `app.ts` for wiring:
 
-1. To add an event, add a `type` with `version: 1` and its payload schema to the `defineStream` call.
-2. To change a payload in a breaking way, increase its `version`. Deploy the consumer handler for the new version first.
-3. To add a stream, call `defineStream` in the domain module. Provide `createStreamPublisher(redis, definition)` through `injeca` in `app.ts`.
+1. To add a stream, call `defineStream` in the domain module.
+2. To add an event, add a `type` with `version: 1` and its payload schema to the `defineStream` call.
+3. To change a payload in a breaking way, increase its `version`. Deploy the consumer handler for the new version first.
+4. To add a producer, provide `createStreamPublisher(redis, definition)` through `injeca` in `app.ts`. Let each publish failure fail the request.
+5. To add a consumer, write idempotent handlers for `id` in the domain module. Provide `createStreamConsumer(...)` through `injeca`, and register `start()` and `stop()` with `lifecycle.appHooks`.
 
 ### Account events
 
@@ -86,7 +119,7 @@ A `RENEWAL` or `BILLING_ISSUE` event without the required fields returns 400 bef
 
 This change adds the stream infrastructure and the account events stream. It publishes from the RevenueCat webhook and the deletion pipeline, and wires them in `app.ts`.
 
-It does not add a TypeScript consumer, a worker, a dead-letter stream, or a stream for `flux.granted`. Admin delivers `flux.granted` in process.
+It does not wire a TypeScript consumer into the API, and it does not add a stream for `flux.granted`. Admin delivers `flux.granted` in process.
 It does not add Stripe subscriptions. It does not change the Capacitor reconciliation or the deletion handlers that exist.
 
 ## Dependencies
@@ -103,6 +136,7 @@ flowchart LR
   Definition[adapters/account-events.ts accountEventsStream] -->|defineStream| Publisher
   Publisher --> Stream[libs/redis/stream.ts]
   Stream -->|XADD| Redis[(Redis airi:account-events)]
+  Consumer[libs/redis/stream-consumer.ts, not wired] -.->|XREADGROUP| Redis
   Redis -->|XREADGROUP cloud-inbox| Cloud[proj-airi/backend Cloud]
 ```
 
@@ -114,7 +148,10 @@ server/
   apps/api/src/app.test.ts
   apps/api/src/libs/redis/stream.ts
   apps/api/src/libs/redis/stream.test.ts
+  apps/api/src/libs/redis/stream-consumer.ts
+  apps/api/src/libs/redis/stream-consumer.test.ts
   apps/api/src/libs/tests/redis.ts
+  apps/api/src/libs/tests/redis-stream-groups.ts
   apps/api/src/routes/internal-auth.test.ts
   apps/api/src/routes/revenuecat/index.ts
   apps/api/src/routes/revenuecat/operations/webhook.ts
@@ -165,6 +202,36 @@ sequenceDiagram
   end
 ```
 
+```mermaid
+sequenceDiagram
+  participant C as stream-consumer
+  participant R as Redis
+  participant H as Handler
+  C->>R: XGROUP CREATE key group $ MKSTREAM (ignore BUSYGROUP)
+  loop until stop()
+    C->>R: XAUTOCLAIM key group consumer claimMinIdleMs cursor COUNT n
+    C->>R: XPENDING key group id id 1 (claimed entries)
+    alt nothing claimed
+      C->>R: XREADGROUP GROUP group consumer COUNT n BLOCK ms STREAMS key >
+    end
+    C->>C: Validate envelope and payload
+    alt valid and known
+      C->>H: handler(entry)
+      alt success
+        C->>R: XACK
+      else InvalidStreamEntryError
+        C->>R: XADD dead-letter ... reason, then XACK
+      else other error
+        C->>C: Leave pending for a later claim
+      end
+    else invalid, or too many deliveries
+      C->>R: XADD dead-letter ... reason, then XACK
+    else unknown type or version
+      C->>R: XACK
+    end
+  end
+```
+
 ## Test plan
 
 - `defineStream` rejects an empty key, a limit that is not a positive integer, and a version that is not a positive integer.
@@ -172,6 +239,15 @@ sequenceDiagram
 - `publish` rejects an invalid ID, date, payload, or type, and writes nothing.
 - `publish` rejects when `XADD` fails or returns null.
 - The account events stream writes the three contract payloads at version 1 and rejects fields outside the contract.
+- The consumer round-trips a published entry and acks it. It creates the group at the stream end and tolerates `BUSYGROUP`.
+- The consumer dead-letters an invalid envelope, an invalid payload, an `InvalidStreamEntryError`, and an entry with more than `maxDeliveries` deliveries.
+- The consumer acks an unknown type, an unknown version, and a type without a handler.
+- A failed handler leaves the entry pending, and a later claim retries it.
+- `stop()` waits for the running handler and its ack, and interrupts a blocking read.
+
+ioredis-mock 8.13 has no `XGROUP`, `XREADGROUP`, `XAUTOCLAIM`, `XPENDING`, `XACK`, or generic `call()`.
+`libs/tests/redis-stream-groups.ts` adds these commands in memory for the consumer tests.
+One test runs the consumer against a real Redis when `TEST_REDIS_URL` is set.
 - `RENEWAL` and `BILLING_ISSUE` each publish one event after the reconciliation.
 - A publish failure returns 500. The retry publishes the same `id` and does not grant Flux again.
 - Other event types, and sandbox events of production users, publish nothing.

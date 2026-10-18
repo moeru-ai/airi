@@ -1,12 +1,14 @@
 import type { StreamPublisher } from '../../libs/redis/stream'
 import type { UserDeletionHandler } from '../domain/user-deletion'
 
-import { date, nonEmpty, optional, pipe, strictObject, string } from 'valibot'
+import { isoTimestamp, nonEmpty, optional, pipe, strictObject, string } from 'valibot'
 
 import { defineStream } from '../../libs/redis/stream'
 
 const userIdSchema = pipe(string(), nonEmpty())
 const planSchema = pipe(string(), nonEmpty())
+/** RFC 3339 UTC string. Producers write `Date.prototype.toISOString()`. */
+const timestampSchema = pipe(string(), isoTimestamp())
 
 /**
  * Account facts that Cloud (`proj-airi/backend`) turns into user notifications.
@@ -23,11 +25,11 @@ export const accountEventsStream = defineStream({
   events: {
     'subscription.renewed': {
       version: 1,
-      payload: strictObject({ userId: userIdSchema, plan: planSchema, periodEnd: date() }),
+      payload: strictObject({ userId: userIdSchema, plan: planSchema, periodEnd: timestampSchema }),
     },
     'subscription.payment_failed': {
       version: 1,
-      payload: strictObject({ userId: userIdSchema, plan: planSchema, retryAt: optional(date()) }),
+      payload: strictObject({ userId: userIdSchema, plan: planSchema, retryAt: optional(timestampSchema) }),
     },
     'user.deleted': {
       version: 1,
