@@ -149,6 +149,9 @@ chat:
     other: Other data
     widget: Widget
     rerun: Run again
+    card-making: Making a card for this tool…
+    card-remaking: Making a new card…
+    card-regenerate: Make a new card
     state:
       executing: Running
       done: Done

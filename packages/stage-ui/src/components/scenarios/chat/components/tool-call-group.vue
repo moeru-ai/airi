@@ -11,10 +11,12 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import HitPill from './hit-pill.vue'
+import ToolCallCard from './tool-call-card.vue'
 import ToolCallPayload from './tool-call-payload.vue'
 
 import { useLlmToolsStore } from '../../../../stores/ai/chat-llm/tools'
 import { canRerunToolCall } from '../../../../stores/tool-call-rerun'
+import { readToolCardCall, useToolCardsStore } from '../../../../stores/tool-cards'
 import { toolIconOf } from '../../../../tools/icons'
 import { summarizeToolCallGroup, toolDisplayName } from './tool-call-group'
 import { resolveToolCallBlockState } from './tool-call-results'
@@ -35,10 +37,14 @@ const emit = defineEmits<{
   (e: 'toolCallRerun', sliceIndex: number, payload: ToolCallRerunRequest): void
 }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const KEY = 'stage.chat.tool-calls'
 
 const llmTools = useLlmToolsStore()
+const toolCards = useToolCardsStore()
+
+// A card that fails with a result shows that result as it is.
+const brokenPrograms = ref<ReadonlySet<string>>(new Set())
 
 const calls = computed(() => {
   const occurrences = new Map<string, number>()
@@ -49,6 +55,11 @@ const calls = computed(() => {
     const widget = props.widgets[item.toolCall.toolName]
     const reading = widget?.read(result?.result, item.toolCall.args)
     const title = widget?.title?.(result?.result, item.toolCall.args)
+    const state = reading?.failed ? 'error' as const : resolveToolCallBlockState(result)
+    // A tool without a widget shows a card that a model made for it. Only a finished call has a result for it.
+    const cardCall = !widget && state === 'done' ? readToolCardCall(item.toolCall.toolName, item.toolCall.args, result?.result) : undefined
+    const card = cardCall ? toolCards.cardsByKey.get(cardCall.key) : undefined
+    const cardMaking = cardCall ? toolCards.making.has(cardCall.key) : false
     return {
       ...item,
       // Result slices land between calls while a reply streams, so slice indexes shift. The call id stays.
@@ -58,9 +69,14 @@ const calls = computed(() => {
       // A widget title already says the state of the call.
       titled: Boolean(title),
       icon: toolIconOf(item.toolCall.toolName, llmTools.tools.findLast(tool => tool.function.name === item.toolCall.toolName)?.icon),
-      state: reading?.failed ? 'error' as const : resolveToolCallBlockState(result),
+      state,
       result: result?.result,
       widget: widget && reading ? { component: widget.component, ...reading } : undefined,
+      cardCall,
+      card,
+      cardMaking,
+      // While a new card is made, the row shows the result as it is, under a line that says so.
+      cardShown: Boolean(card && !cardMaking && !brokenPrograms.value.has(card.program)),
     }
   })
 })
@@ -153,6 +169,52 @@ function toggleRaw(key: string) {
   rawCalls.value = next
 }
 
+/** The model writes the labels of a card in the language of the app at the time it makes the card. */
+const labelsLanguage = computed(() => new Intl.DisplayNames([locale.value], { type: 'language' }).of(locale.value) ?? locale.value)
+
+type ToolCallGroupCall = (typeof calls.value)[number]
+
+function requestCard(call: ToolCallGroupCall, replace = false) {
+  if (!call.cardCall)
+    return
+  const { key, data } = call.cardCall
+  toolCards.request({ key, toolName: call.toolCall.toolName, args: call.toolCall.args, data, language: labelsLanguage.value, replace })
+    .catch(error => console.warn('[tool-call-group] Failed to request a tool card:', error))
+}
+
+// The first finished call of a tool asks for its card. A group asks once for each key, and the leader joins the
+// requests of every window, so one card is made for a tool however many windows show its calls.
+const requestedKeys = new Set<string>()
+watch(calls, (value) => {
+  for (const call of value) {
+    if (!call.cardCall || call.card || requestedKeys.has(call.cardCall.key))
+      continue
+    requestedKeys.add(call.cardCall.key)
+    requestCard(call)
+  }
+}, { immediate: true })
+
+// A call whose card fails asks once for a new card. When the new card fails too, the row keeps the result as it is.
+const remadeCalls = new Set<string>()
+
+function markBroken(call: ToolCallGroupCall) {
+  if (!call.card)
+    return
+  brokenPrograms.value = new Set(brokenPrograms.value).add(call.card.program)
+  if (remadeCalls.has(call.key))
+    return
+  remadeCalls.add(call.key)
+  requestCard(call, true)
+}
+
+const barButtonClass = [
+  'shrink-0 inline-flex items-center gap-1 rounded-md px-1.5 py-px text-[11px]',
+  'outline-none transition-colors duration-200',
+  'text-neutral-500 hover:bg-neutral-200/70 hover:text-primary-600',
+  'dark:text-neutral-400 dark:hover:bg-neutral-800/80 dark:hover:text-primary-300',
+  'focus-visible:ring-2 focus-visible:ring-primary-400/60',
+]
+
 function rerun(item: ToolCallGroupItem) {
   emit('toolCallRerun', item.sliceIndex, {
     toolCallId: item.toolCall.toolCallId,
@@ -241,18 +303,13 @@ function rerun(item: ToolCallGroupItem) {
         <TransitionVertical>
           <div v-if="openCalls.has(call.key)" :class="['flex flex-col gap-2 px-1.5 pb-2 pt-1']">
             <!-- The row above already names the tool, so the details start with the result. -->
-            <div v-if="call.widget" :class="['flex justify-end']">
-              <button
-                type="button"
-                :class="[
-                  'shrink-0 inline-flex items-center gap-1 rounded-md px-1.5 py-px text-[11px]',
-                  'outline-none transition-colors duration-200',
-                  'text-neutral-500 hover:bg-neutral-200/70 hover:text-primary-600',
-                  'dark:text-neutral-400 dark:hover:bg-neutral-800/80 dark:hover:text-primary-300',
-                  'focus-visible:ring-2 focus-visible:ring-primary-400/60',
-                ]"
-                @click="toggleRaw(call.key)"
-              >
+            <div v-if="call.widget || call.cardShown" :class="['flex justify-end gap-1']">
+              <!-- A card that the owner does not like gets replaced by a new one. A widget of the app has no such action. -->
+              <button v-if="call.cardShown" type="button" :class="barButtonClass" @click="requestCard(call, true)">
+                <span :class="['i-mingcute:magic-2-line', 'text-xs']" aria-hidden="true" />
+                <span>{{ t(`${KEY}.card-regenerate`) }}</span>
+              </button>
+              <button type="button" :class="barButtonClass" @click="toggleRaw(call.key)">
                 <span :class="['i-mingcute:code-line', 'text-xs']" aria-hidden="true" />
                 <span>{{ rawCalls.has(call.key) ? t(`${KEY}.widget`) : t(`${KEY}.raw`) }}</span>
               </button>
@@ -262,7 +319,18 @@ function rerun(item: ToolCallGroupItem) {
               <!-- Fields that the widget does not show still appear, so the widget never hides part of the result. -->
               <ToolCallPayload v-if="call.widget.rest !== undefined" :label="t(`${KEY}.other`)" :payload="call.widget.rest" />
             </template>
+            <ToolCallCard
+              v-else-if="call.cardShown && call.card && call.cardCall && !rawCalls.has(call.key)"
+              :card-key="call.cardCall.key"
+              :program="call.card.program"
+              :data="call.cardCall.data"
+              @broken="markBroken(call)"
+            />
             <template v-else>
+              <div v-if="call.cardMaking" :class="['flex items-center gap-1.5 text-[11px]', 'text-neutral-500 dark:text-neutral-400']" aria-live="polite">
+                <span :class="['i-svg-spinners:ring-resize', 'text-xs', 'text-primary-500 dark:text-primary-300']" aria-hidden="true" />
+                <span>{{ call.card ? t(`${KEY}.card-remaking`) : t(`${KEY}.card-making`) }}</span>
+              </div>
               <ToolCallPayload :label="t(`${KEY}.arguments`)" :payload="call.toolCall.args" />
               <ToolCallPayload :label="t(`${KEY}.result`)" :payload="call.result" />
             </template>

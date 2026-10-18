@@ -158,6 +158,8 @@ catalog:
   '@opentelemetry/sdk-trace-base': ^2.10.0
   '@opentelemetry/sdk-trace-node': ^2.10.0
   '@opentelemetry/semantic-conventions': ^1.43.0
+  '@openuidev/lang-core': 0.4.1
+  '@openuidev/vue-lang': 0.4.2
   '@pinia/colada': ^1.4.2
   '@pinia/testing': ^2.0.1
   '@pixi/app': ^6.5.10
@@ -470,6 +472,7 @@ allowBuilds:
   '@ffmpeg-installer/linux-arm64': true
   '@ffmpeg-installer/linux-x64': true
   '@napi-rs/image': true
+  '@openuidev/lang-core': false # Its postinstall only sends install telemetry.
   '@parcel/watcher': true
   '@prisma/client': false
   better-sqlite3: false

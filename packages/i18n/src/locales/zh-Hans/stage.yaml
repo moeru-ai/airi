@@ -149,6 +149,9 @@ chat:
     other: 其他数据
     widget: 小组件
     rerun: 重新运行
+    card-making: 正在为这个工具做卡片…
+    card-remaking: 正在重新做这张卡片…
+    card-regenerate: 重新生成
     state:
       executing: 进行中
       done: 完成

@@ -61,6 +61,7 @@ import { useVisionStore } from './modules/vision'
 import { useWebSearchStore } from './modules/web-search'
 import { useRecipesStore } from './recipes'
 import { executeToolCallRerun } from './tool-call-rerun'
+import { useToolCardsStore } from './tool-cards'
 import { useWakeWordsStore } from './wake-words'
 
 interface ForkOptions {
@@ -289,6 +290,9 @@ export const useChatStore = defineStore('chat', () => {
   const wakeWords = useWakeWordsStore()
   const stickersStore = useStickersStore()
   const contextObservability = useContextObservabilityStore()
+  // The leader makes the cards of tool calls for every window, so its synced action must exist in the leader even when
+  // the leader shows no tool call. Every window creates the chat store, so the chat store creates the card store too.
+  useToolCardsStore()
   const { activeSessionId } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
 
