@@ -720,8 +720,6 @@ export const useHearingStore = defineStore('hearing-store', () => {
     activeProviderModelError,
     configured,
 
-    getSavedProviderModel: providerModelStorage.get,
-    saveProviderModel: providerModelStorage.save,
     restoreProviderModel,
 
     transcription,

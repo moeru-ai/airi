@@ -62,7 +62,7 @@ it('restores provider models through the leader action', async () => {
   await leader.hearing.restoreProviderModel(oldProvider)
   leader.hearing.activeTranscriptionModel = 'old-model'
   leader.hearing.activeCustomModelName = 'old-model'
-  leader.hearing.saveProviderModel(nextProvider, 'saved-model')
+  localStorage.setItem(`settings/hearing/provider-model/${encodeURIComponent(nextProvider)}`, 'saved-model')
   await vi.waitFor(() => expect(follower.hearing.activeTranscriptionModel).toBe('old-model'))
 
   leader.hearing.activeTranscriptionProvider = nextProvider
@@ -81,7 +81,7 @@ it('restores provider models through the leader action', async () => {
   expect(leader.hearing.activeTranscriptionModel).toBe('saved-model')
   expect(leader.hearing.activeCustomModelName).toBe('saved-model')
   expect(follower.hearing.activeCustomModelName).toBe('saved-model')
-  expect(leader.hearing.getSavedProviderModel(oldProvider)).toBe('old-model')
+  expect(localStorage.getItem(`settings/hearing/provider-model/${encodeURIComponent(oldProvider)}`)).toBe('old-model')
 
   let leaderStateUpdates = 0
   const stopObservingLeader = leader.hearing.$subscribe(() => leaderStateUpdates++, { flush: 'sync' })
