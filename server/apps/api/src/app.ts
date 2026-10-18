@@ -45,6 +45,7 @@ import { createLoggLogger, injeca, lifecycle } from 'injeca'
 import { createDrizzle, migrateDatabase } from './libs/db'
 import { parsedEnv } from './libs/env'
 import { initializeExternalDependency } from './libs/external-dependency'
+import { createStreamPublisher } from './libs/redis/stream'
 import { resolveRequestAuth } from './libs/request-auth'
 import { createUnauthorizedWsEvents } from './libs/ws-auth'
 import { authGuard, sessionMiddleware } from './middlewares/auth'
@@ -72,7 +73,7 @@ import { createProviderRoutes } from './routes/providers'
 import { createRevenuecatRoutes } from './routes/revenuecat'
 import { createStripeRoutes } from './routes/stripe'
 import { createVoicePackRoutes } from './routes/voice-packs'
-import { createAccountEventPublisher, createUserDeletedEventHandler } from './services/adapters/account-events'
+import { accountEventsStream, createUserDeletedEventHandler } from './services/adapters/account-events'
 import { createConfigKVService } from './services/adapters/config-kv'
 import { createConfigKVStore } from './services/adapters/config-kv/store'
 import { createS3ObjectStore } from './services/adapters/object-store'
@@ -745,7 +746,7 @@ export async function createApp() {
   // Producer of the account events stream that Cloud turns into notifications.
   const accountEvents = injeca.provide('adapters:accountEvents', {
     dependsOn: { redis },
-    build: ({ dependsOn }) => createAccountEventPublisher(dependsOn.redis),
+    build: ({ dependsOn }) => createStreamPublisher(dependsOn.redis, accountEventsStream),
   })
 
   const subscriptionSync = injeca.provide('services:revenuecatSubscriptionSync', {

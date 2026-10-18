@@ -1,6 +1,6 @@
 import type { InferOutput } from 'valibot'
 
-import type { AccountEvent, AccountEventPublisher } from '../../../services/adapters/account-events'
+import type { AccountEventPublisher } from '../../../services/adapters/account-events'
 import type { RevenuecatSubscriberClient } from '../../../services/adapters/revenuecat-subscriber'
 import type { RevenuecatSubscriptionSync } from '../../../services/adapters/revenuecat-subscriptions'
 
@@ -102,43 +102,41 @@ function verifySignature(
 
 /**
  * Maps a RevenueCat event to the account event that Cloud turns into a notification.
- * Returns null for event types without a notification and for a store environment that
- * this deployment does not grant. Throws 400 when a mapped event type lacks a required field.
+ * Returns the publish call to run after the reconciliation. Returns null for event types without
+ * a notification and for a store environment that this deployment does not grant.
+ * Throws 400 when a mapped event type lacks a required field.
  *
  * - RENEWAL -> `subscription.renewed`. `periodEnd` is the new `expiration_at_ms`.
  * - BILLING_ISSUE -> `subscription.payment_failed`. RevenueCat sends no retry time, so `retryAt` stays unset.
  *
  * `plan` is the store product ID, which is also the key of the `REVENUECAT_CAPACITORS` config.
  */
-function accountEventFrom(
+function accountEventPublishFrom(
   body: unknown,
   type: string,
   subscriber: Pick<RevenuecatSubscriberClient, 'countsFor'>,
-): AccountEvent | null {
+  accountEvents: Pick<AccountEventPublisher, 'publish'>,
+): (() => Promise<string>) | null {
   if (type === 'RENEWAL') {
     const event = parseSubscriptionEvent(renewalWebhookSchema, body)
     if (!countsForDeployment(event, subscriber))
       return null
-    return {
+    return () => accountEvents.publish('subscription.renewed', {
       id: `revenuecat:${event.id}`,
-      type: 'subscription.renewed',
-      userId: event.app_user_id,
       occurredAt: new Date(event.event_timestamp_ms),
-      payload: { plan: event.product_id, periodEnd: new Date(event.expiration_at_ms) },
-    }
+      payload: { userId: event.app_user_id, plan: event.product_id, periodEnd: new Date(event.expiration_at_ms) },
+    })
   }
 
   if (type === 'BILLING_ISSUE') {
     const event = parseSubscriptionEvent(billingIssueWebhookSchema, body)
     if (!countsForDeployment(event, subscriber))
       return null
-    return {
+    return () => accountEvents.publish('subscription.payment_failed', {
       id: `revenuecat:${event.id}`,
-      type: 'subscription.payment_failed',
-      userId: event.app_user_id,
       occurredAt: new Date(event.event_timestamp_ms),
-      payload: { plan: event.product_id },
-    }
+      payload: { userId: event.app_user_id, plan: event.product_id },
+    })
   }
 
   return null
@@ -215,7 +213,7 @@ export function createWebhookOperation(
       return { received: true }
 
     // Map before the reconciliation, so an invalid event changes nothing.
-    const accountEvent = accountEventFrom(body, event.type, subscriber)
+    const publishAccountEvent = accountEventPublishFrom(body, event.type, subscriber, accountEvents)
 
     const userIds = new Set([
       ...(event.app_user_id ? [event.app_user_id] : []),
@@ -225,8 +223,8 @@ export function createWebhookOperation(
     for (const userId of userIds)
       await subscriptionSync.reconcile(userId)
 
-    if (accountEvent)
-      await accountEvents.publish(accountEvent)
+    if (publishAccountEvent)
+      await publishAccountEvent()
     return { received: true }
   }
 }

@@ -3,8 +3,9 @@ import { ApiError, createErrorHandler } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
 
+import { createStreamPublisher } from '../libs/redis/stream'
 import { createTestRedis, readStreamFields } from '../libs/tests/redis'
-import { createAccountEventPublisher, createUserDeletedEventHandler } from '../services/adapters/account-events'
+import { accountEventsStream, createUserDeletedEventHandler } from '../services/adapters/account-events'
 import { createUserDeletionService } from '../services/domain/user-deletion'
 import { createInternalAuthRoutes } from './internal-auth'
 
@@ -48,7 +49,7 @@ describe('internal auth routes', () => {
   describe('user.deleted account event', () => {
     function deletionApp(redis: ReturnType<typeof createTestRedis>) {
       const userDeletionService = createUserDeletionService()
-      userDeletionService.register(createUserDeletedEventHandler(createAccountEventPublisher(redis)))
+      userDeletionService.register(createUserDeletedEventHandler(createStreamPublisher(redis, accountEventsStream)))
       return new Hono()
         .onError(createErrorHandler(useLogger('test')))
         .route('/', createInternalAuthRoutes({

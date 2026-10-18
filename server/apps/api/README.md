@@ -9,7 +9,7 @@ auth/OIDC routes.
 - Hono business APIs and WebSocket endpoints.
 - Characters, chats, providers, Flux, Stripe, model routing, and billing.
 - PostgreSQL migration ownership for the currently shared database. Drizzle reads the checked-in `drizzle/` journal and SQL files at startup.
-- Redis cache, configuration KV, cross-instance Pub/Sub, and the account events stream producer.
+- Redis cache, configuration KV, cross-instance Pub/Sub, and Redis Streams producers.
 - Local verification of Auth-issued OIDC JWTs through public JWKS.
 
 ## LLM request content
@@ -43,16 +43,25 @@ ConfigKV shares the write function while retaining its existing read policy.
 Keys use domain names: `config:{key}`, `stripe:prices`, and `user:{userId}:flux`.
 The cache functions do not add a key prefix.
 
-## Account events stream
+## Redis Streams
 
-`src/services/adapters/account-events.ts` publishes account events to the Redis Stream `airi:account-events`.
-Cloud (`proj-airi/backend`) reads the stream and writes user notifications. This package has no consumer.
+`src/libs/redis/stream.ts` is the shared producer for Redis Streams. This package has no consumer.
+
+- `defineStream({ key, maxLength, events })` defines a stream. `events` maps each `type` to `{ version, payload }`, with a Valibot payload schema.
+- `createStreamPublisher(redis, definition).publish(type, { id, payload, occurredAt? })` validates the input and runs `XADD <key> MAXLEN ~ <maxLength> * ...`.
+- Each entry has the flat fields `id`, `type`, `version`, `occurredAt`, and `payload` (a JSON string).
+
+A publish failure must fail the request, so its caller retries it. Do not catch the error.
+Consumers deduplicate on `id`, so a retry must publish the same `id`.
+
+To add an event, add a type to the `defineStream` call of its domain module. To add a stream, call `defineStream` in a domain module and provide its publisher through `injeca` in `app.ts`.
+
+The account events stream (`src/services/adapters/account-events.ts`) is the first user. Cloud (`proj-airi/backend`) reads it and writes user notifications.
 
 - The RevenueCat webhook publishes `subscription.renewed` for `RENEWAL` and `subscription.payment_failed` for `BILLING_ISSUE`.
 - The deletion pipeline publishes `user.deleted` after every soft delete.
 
-A publish failure fails the request, so RevenueCat or Auth retries it. Do not catch the error.
-Cloud deduplicates on the `id` field. See the [account events ADR](../../docs/ai/adr/2026-10-18-account-events-stream.md).
+See the [account events ADR](../../docs/ai/adr/2026-10-18-account-events-stream.md).
 
 ## Flux usage
 

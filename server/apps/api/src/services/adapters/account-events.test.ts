@@ -1,132 +1,73 @@
 import { describe, expect, it, vi } from 'vitest'
 
+import { createStreamPublisher } from '../../libs/redis/stream'
 import { createTestRedis, readStreamFields } from '../../libs/tests/redis'
 import { createUserDeletionService } from '../domain/user-deletion'
-import { createAccountEventPublisher, createUserDeletedEventHandler } from './account-events'
+import { accountEventsStream, createUserDeletedEventHandler } from './account-events'
 
-describe('createAccountEventPublisher', () => {
-  it('encodes subscription.renewed as flat contract fields', async () => {
+describe('accountEventsStream', () => {
+  it('publishes the contract payloads at version 1 with the user ID in the payload', async () => {
     const redis = createTestRedis()
-    const publisher = createAccountEventPublisher(redis)
+    const publisher = createStreamPublisher(redis, accountEventsStream)
+    const occurredAt = new Date('2026-10-18T00:00:00.000Z')
 
-    const streamMessageId = await publisher.publish({
+    await publisher.publish('subscription.renewed', {
       id: 'revenuecat:evt-1',
-      type: 'subscription.renewed',
-      userId: 'user-1',
-      occurredAt: new Date('2026-10-18T01:02:03.000Z'),
-      payload: { plan: 'rc_go_monthly', periodEnd: new Date('2026-11-18T01:02:03.000Z') },
+      occurredAt,
+      payload: { userId: 'user-1', plan: 'rc_go_monthly', periodEnd: new Date('2026-11-18T00:00:00.000Z') },
     })
-
-    expect(streamMessageId).toMatch(/^\d+-\d+$/)
-    expect(await readStreamFields(redis, 'airi:account-events')).toEqual([{
-      id: 'revenuecat:evt-1',
-      type: 'subscription.renewed',
-      userId: 'user-1',
-      occurredAt: '2026-10-18T01:02:03.000Z',
-      version: '1',
-      payload: '{"plan":"rc_go_monthly","periodEnd":"2026-11-18T01:02:03.000Z"}',
-    }])
-  })
-
-  it('omits an unset retryAt from subscription.payment_failed', async () => {
-    const redis = createTestRedis()
-    const publisher = createAccountEventPublisher(redis)
-
-    await publisher.publish({
+    await publisher.publish('subscription.payment_failed', {
       id: 'revenuecat:evt-2',
-      type: 'subscription.payment_failed',
-      userId: 'user-1',
-      occurredAt: new Date('2026-10-18T00:00:00.000Z'),
-      payload: { plan: 'rc_go_monthly' },
+      occurredAt,
+      payload: { userId: 'user-1', plan: 'rc_go_monthly' },
     })
+    await publisher.publish('user.deleted', { id: 'user-deletion:user-1', occurredAt, payload: { userId: 'user-1' } })
 
-    const [entry] = await readStreamFields(redis, 'airi:account-events')
-    expect(entry?.type).toBe('subscription.payment_failed')
-    expect(entry?.payload).toBe('{"plan":"rc_go_monthly"}')
+    expect(await readStreamFields(redis, 'airi:account-events')).toEqual([
+      {
+        id: 'revenuecat:evt-1',
+        type: 'subscription.renewed',
+        version: '1',
+        occurredAt: '2026-10-18T00:00:00.000Z',
+        payload: '{"userId":"user-1","plan":"rc_go_monthly","periodEnd":"2026-11-18T00:00:00.000Z"}',
+      },
+      {
+        id: 'revenuecat:evt-2',
+        type: 'subscription.payment_failed',
+        version: '1',
+        occurredAt: '2026-10-18T00:00:00.000Z',
+        payload: '{"userId":"user-1","plan":"rc_go_monthly"}',
+      },
+      {
+        id: 'user-deletion:user-1',
+        type: 'user.deleted',
+        version: '1',
+        occurredAt: '2026-10-18T00:00:00.000Z',
+        payload: '{"userId":"user-1"}',
+      },
+    ])
   })
 
   it('trims the stream approximately at 100000 entries', async () => {
     const redis = createTestRedis()
     const xadd = vi.spyOn(redis, 'xadd')
-    const publisher = createAccountEventPublisher(redis)
 
-    await publisher.publish({
-      id: 'user-deletion:user-1',
-      type: 'user.deleted',
-      userId: 'user-1',
-      occurredAt: new Date('2026-10-18T00:00:00.000Z'),
-      payload: {},
-    })
+    await createStreamPublisher(redis, accountEventsStream).publish('user.deleted', { id: 'user-deletion:user-1', payload: { userId: 'user-1' } })
 
-    expect(xadd).toHaveBeenCalledWith(
-      'airi:account-events',
-      'MAXLEN',
-      '~',
-      100_000,
-      '*',
-      'id',
-      'user-deletion:user-1',
-      'type',
-      'user.deleted',
-      'userId',
-      'user-1',
-      'occurredAt',
-      '2026-10-18T00:00:00.000Z',
-      'version',
-      '1',
-      'payload',
-      '{}',
-    )
+    expect(xadd.mock.calls[0]?.slice(0, 5)).toEqual(['airi:account-events', 'MAXLEN', '~', 100_000, '*'])
   })
 
-  it('rejects an event outside the contract without writing it', async () => {
+  it('rejects a payload without a user ID or with fields outside the contract', async () => {
     const redis = createTestRedis()
-    const publisher = createAccountEventPublisher(redis)
+    const publisher = createStreamPublisher(redis, accountEventsStream)
 
-    await expect(publisher.publish({
-      id: 'evt-without-provider',
-      type: 'subscription.renewed',
-      userId: 'user-1',
-      occurredAt: new Date(),
-      payload: { plan: 'rc_go_monthly', periodEnd: new Date() },
+    await expect(publisher.publish('user.deleted', { id: 'user-deletion:', payload: { userId: '' } })).rejects.toThrow()
+    await expect(publisher.publish('subscription.payment_failed', {
+      id: 'revenuecat:evt-3',
+      payload: { userId: 'user-1', plan: 'rc_go_monthly', reason: 'card_declined' } as never,
     })).rejects.toThrow()
-    await expect(publisher.publish({
-      id: 'user-deletion:someone-else',
-      type: 'user.deleted',
-      userId: 'user-1',
-      occurredAt: new Date(),
-      payload: {},
-    })).rejects.toThrow('user.deleted id must be user-deletion:<userId>')
 
     expect(await readStreamFields(redis, 'airi:account-events')).toEqual([])
-  })
-
-  it('propagates an XADD failure to the caller', async () => {
-    const redis = createTestRedis()
-    vi.spyOn(redis, 'xadd').mockRejectedValue(new Error('READONLY You cannot write against a read only replica.'))
-    const publisher = createAccountEventPublisher(redis)
-
-    await expect(publisher.publish({
-      id: 'revenuecat:evt-3',
-      type: 'subscription.payment_failed',
-      userId: 'user-1',
-      occurredAt: new Date(),
-      payload: { plan: 'rc_go_monthly' },
-    })).rejects.toThrow('READONLY')
-  })
-
-  it('rejects when XADD stores no entry', async () => {
-    const redis = createTestRedis()
-    vi.spyOn(redis, 'xadd').mockResolvedValue(null)
-    const publisher = createAccountEventPublisher(redis)
-
-    await expect(publisher.publish({
-      id: 'user-deletion:user-1',
-      type: 'user.deleted',
-      userId: 'user-1',
-      occurredAt: new Date(),
-      payload: {},
-    })).rejects.toThrow('returned no stream entry ID')
   })
 })
 
@@ -135,7 +76,7 @@ describe('createUserDeletedEventHandler', () => {
     const redis = createTestRedis()
     const calls: string[] = []
     const service = createUserDeletionService()
-    service.register(createUserDeletedEventHandler(createAccountEventPublisher(redis)))
+    service.register(createUserDeletedEventHandler(createStreamPublisher(redis, accountEventsStream)))
     service.register({
       name: 'chats',
       priority: 30,
@@ -150,15 +91,14 @@ describe('createUserDeletedEventHandler', () => {
     const [entry] = await readStreamFields(redis, 'airi:account-events')
     expect(entry?.id).toBe('user-deletion:user-1')
     expect(entry?.type).toBe('user.deleted')
-    expect(entry?.userId).toBe('user-1')
-    expect(entry?.payload).toBe('{}')
+    expect(entry?.payload).toBe('{"userId":"user-1"}')
   })
 
   it('fails the deletion when the publish fails', async () => {
     const redis = createTestRedis()
     vi.spyOn(redis, 'xadd').mockRejectedValue(new Error('Connection is closed.'))
     const service = createUserDeletionService()
-    service.register(createUserDeletedEventHandler(createAccountEventPublisher(redis)))
+    service.register(createUserDeletedEventHandler(createStreamPublisher(redis, accountEventsStream)))
 
     await expect(service.softDeleteAll({ userId: 'user-1', reason: 'user-requested' })).rejects.toThrow('Connection is closed.')
   })

@@ -14,8 +14,9 @@ import { Hono } from 'hono'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../../libs/mock-db'
+import { createStreamPublisher } from '../../libs/redis/stream'
 import { createTestRedis, readStreamFields } from '../../libs/tests/redis'
-import { createAccountEventPublisher } from '../../services/adapters/account-events'
+import { accountEventsStream } from '../../services/adapters/account-events'
 import { createConfigKVService } from '../../services/adapters/config-kv'
 import { createRevenuecatSubscriberClient } from '../../services/adapters/revenuecat-subscriber'
 import { createRevenuecatSubscriptionSync } from '../../services/adapters/revenuecat-subscriptions'
@@ -64,7 +65,7 @@ function createTestApp(
   signedInUserId: string | null = null,
   redis: Redis = createTestRedis(),
 ) {
-  const routes = createRevenuecatRoutes(subscriptionSync, createAccountEventPublisher(redis), subscriber, env, null)
+  const routes = createRevenuecatRoutes(subscriptionSync, createStreamPublisher(redis, accountEventsStream), subscriber, env, null)
   const app = new Hono<HonoEnv>()
 
   app.use('*', async (c, next) => {
@@ -295,10 +296,9 @@ describe('revenuecat routes', () => {
       expect(await readStreamFields(redis, 'airi:account-events')).toEqual([{
         id: 'revenuecat:renewal-1',
         type: 'subscription.renewed',
-        userId: 'user-1',
-        occurredAt: '2026-10-18T00:00:00.000Z',
         version: '1',
-        payload: '{"plan":"rc_go_monthly","periodEnd":"2026-11-18T00:00:00.000Z"}',
+        occurredAt: '2026-10-18T00:00:00.000Z',
+        payload: '{"userId":"user-1","plan":"rc_go_monthly","periodEnd":"2026-11-18T00:00:00.000Z"}',
       }])
     })
 
@@ -311,10 +311,9 @@ describe('revenuecat routes', () => {
       expect(await readStreamFields(redis, 'airi:account-events')).toEqual([{
         id: 'revenuecat:billing-issue-1',
         type: 'subscription.payment_failed',
-        userId: 'user-1',
-        occurredAt: '2026-10-18T00:00:00.000Z',
         version: '1',
-        payload: '{"plan":"rc_go_monthly"}',
+        occurredAt: '2026-10-18T00:00:00.000Z',
+        payload: '{"userId":"user-1","plan":"rc_go_monthly"}',
       }])
     })
 
@@ -367,7 +366,7 @@ describe('revenuecat routes', () => {
       const res = await postWebhook(app, webhookBody({ ...renewal, app_user_id: 'tester', environment: 'SANDBOX' }))
 
       expect(res.status).toBe(200)
-      expect((await readStreamFields(redis, 'airi:account-events')).map(event => event.userId)).toEqual(['tester'])
+      expect((await readStreamFields(redis, 'airi:account-events')).map(event => event.payload)).toEqual(['{"userId":"tester","plan":"rc_go_monthly","periodEnd":"2026-11-18T00:00:00.000Z"}'])
     })
 
     it('rejects a RENEWAL without its period end before the reconciliation', async () => {
