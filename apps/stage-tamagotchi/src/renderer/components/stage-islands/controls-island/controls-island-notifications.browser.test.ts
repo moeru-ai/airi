@@ -52,6 +52,9 @@ vi.mock('@proj-airi/stage-ui/stores/auth', async () => {
   return { useAuthStore: () => store }
 })
 
+const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
+const label = (key: string) => i18n.global.t(`tamagotchi.stage.controls-island.${key}`)
+
 function mountIsland() {
   const dock = ref<'bottom-right'>('bottom-right')
   return render(ControlsIsland, {
@@ -64,7 +67,7 @@ function mountIsland() {
           motionPhase: ref('idle'),
         },
       },
-      plugins: [createPinia(), createI18n({ legacy: false, locale: 'en', messages: { en } })],
+      plugins: [createPinia(), i18n],
       directives: { 'track-button': {} },
     },
   })
@@ -102,7 +105,7 @@ describe('controls Island notifications', () => {
   it('hides the row and the dot while signed out', async () => {
     const screen = mountIsland()
 
-    await screen.getByLabelText(en.tamagotchi.stage['controls-island'].expand, { exact: true }).click()
+    await screen.getByLabelText(label('expand'), { exact: true }).click()
     await expect.element(screen.getByTestId('controls-menu')).toBeVisible()
     expect(document.querySelector('[data-testid="controls-island-notifications"]')).toBeNull()
     expect(document.querySelector('[data-testid="controls-island-notifications-dot"]')).toBeNull()
@@ -116,12 +119,12 @@ describe('controls Island notifications', () => {
 
     await expect.element(screen.getByTestId('controls-island-notifications-dot')).toBeInTheDocument()
 
-    await screen.getByLabelText(en.tamagotchi.stage['controls-island'].expand, { exact: true }).click()
+    await screen.getByLabelText(label('expand'), { exact: true }).click()
     const row = screen.getByRole('button', { name: 'Open notifications, 2 unread' })
     await expect.element(row).toBeVisible()
 
     await row.click()
     await expect.element(page.getByRole('button', { name: /You received 500 Flux/ })).toBeVisible()
-    await expect.element(screen.getByLabelText(en.tamagotchi.stage['controls-island'].collapse, { exact: true })).toBeInTheDocument()
+    await expect.element(screen.getByLabelText(label('collapse'), { exact: true })).toBeInTheDocument()
   })
 })
