@@ -1,6 +1,8 @@
 import type { Database } from '../../libs/db'
 import type { HonoEnv } from '../../types/hono'
 
+import { useLogger } from '@guiiai/logg'
+import { createErrorHandler } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -122,6 +124,7 @@ describe('request log and billing ownership', () => {
     await logs.beginRequest({ ...observation, prompt: captureRequestContent('private-prompt') })
     await logs.observeAttempts(observation.userId, observation.requestId).start({ gateway: 'gateway', credentialId: 'secret-key-reference', model: 'model' })
     const app = new Hono<HonoEnv>()
+    app.onError(createErrorHandler(useLogger('test')))
     app.use('*', async (context, next) => {
       context.set('user', { id: observation.userId, name: 'Test', email: 'test@example.com', emailVerified: true, createdAt: new Date(), updatedAt: new Date() })
       await next()
