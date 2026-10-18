@@ -2,8 +2,6 @@ import type { Session, User } from 'better-auth'
 
 import type { CloudDisplayModel } from '../services/display-model-sync'
 
-import localforage from 'localforage'
-
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -16,25 +14,31 @@ import { DisplayModelFormat, useDisplayModelsStore } from './display-models'
 import { useSettingsStageModel } from './settings/stage-model'
 import { useSyncPreferencesStore } from './sync-preferences'
 
-const storage = vi.hoisted(() => new Map<string, unknown>())
+const records = vi.hoisted(() => new Map<string, unknown>())
+const listDeviceKeys = vi.hoisted(() => vi.fn(() => [...records.keys()]))
 
+// Node has no IndexedDB. The `device` mount reads and writes `records` instead.
 // IndexedDB returns a copy of each record, so a change is not visible until a write.
-vi.mock('localforage', () => ({
-  default: {
-    getItem: vi.fn(async (key: string) => storage.has(key) ? { ...storage.get(key) as object } : null),
-    iterate: vi.fn(async (callback: (value: unknown, key: string) => void) => {
-      for (const [key, value] of storage)
-        callback({ ...value as object }, key)
-    }),
-    removeItem: vi.fn(async (key: string) => {
-      storage.delete(key)
-    }),
-    setItem: vi.fn(async (key: string, value: unknown) => {
-      storage.set(key, value)
-      return value
-    }),
-  },
-}))
+vi.mock('../database/storage', async (importOriginal) => {
+  const { createStorage } = await import('unstorage')
+  const storage = createStorage()
+  const read = (key: string) => records.has(key) ? { ...records.get(key) as object } : null
+  storage.mount('device', {
+    name: 'device-records',
+    hasItem: key => records.has(key),
+    getItem: read,
+    getItemRaw: read,
+    setItemRaw: (key, value) => {
+      records.set(key, value)
+    },
+    removeItem: (key) => {
+      records.delete(key)
+    },
+    getKeys: listDeviceKeys,
+    clear: () => records.clear(),
+  })
+  return { ...await importOriginal<typeof import('../database/storage')>(), storage }
+})
 
 const cloudModel: CloudDisplayModel = {
   id: 'display-model-cloud',
@@ -87,7 +91,7 @@ describe('display models store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
-    storage.clear()
+    records.clear()
     vi.mocked(listCloudDisplayModels).mockReset().mockResolvedValue([cloudModel])
     // Signing in refreshes Flux credits. Keep that request off the network.
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({})))
@@ -142,7 +146,7 @@ describe('display models store', () => {
 
     await expect(download).rejects.toThrow()
     expect(store.displayModels.some(model => model.id === cloudModel.id)).toBe(false)
-    expect(localforage.setItem).not.toHaveBeenCalledWith(cloudModel.id, expect.anything())
+    expect(records.has(cloudModel.id)).toBe(false)
     expect(store.syncErrors).toEqual({})
   })
 
@@ -156,7 +160,7 @@ describe('display models store', () => {
   it('hides a model that another account downloaded from a direct lookup', async () => {
     signIn('owner-b')
     const store = useDisplayModelsStore()
-    vi.mocked(localforage.getItem).mockResolvedValueOnce({
+    records.set('display-model-private', {
       id: 'display-model-private',
       format: DisplayModelFormat.Live2dZip,
       type: 'file',
@@ -205,7 +209,7 @@ describe('display models store', () => {
       store.loadDisplayModelsFromIndexedDB(),
     ])
 
-    expect(localforage.iterate).toHaveBeenCalledTimes(1)
+    expect(listDeviceKeys).toHaveBeenCalledTimes(1)
   })
 
   describe('reconciliation', () => {
@@ -216,7 +220,7 @@ describe('display models store', () => {
     const flush = () => new Promise(resolve => setTimeout(resolve, 20))
 
     async function startWithModel(overrides = {}, directory: CloudDisplayModel[] = []) {
-      storage.set(modelId, record(overrides))
+      records.set(modelId, record(overrides))
       vi.mocked(listCloudDisplayModels).mockResolvedValue(directory)
       signIn('owner-a')
       useSyncPreferencesStore().setEnabled('display-models', true)
@@ -299,7 +303,7 @@ describe('display models store', () => {
 
       expect(vi.mocked(reserveDisplayModelUpload).mock.calls[0][0].name).toBe('x.vrm')
       await flush()
-      expect(storage.has('undefined')).toBe(false)
+      expect(records.has('undefined')).toBe(false)
     })
 
     it('keeps a rename during an upload and sends it to the account', async () => {
@@ -317,7 +321,7 @@ describe('display models store', () => {
       finishReservation(null)
 
       await vi.waitFor(() => expect(renameCloudDisplayModel).toHaveBeenCalledWith(modelId, 'renamed', 1, expect.anything()))
-      await vi.waitFor(() => expect(storage.get(modelId)).toMatchObject({ name: 'renamed', syncedName: 'renamed' }))
+      await vi.waitFor(() => expect(records.get(modelId)).toMatchObject({ name: 'renamed', syncedName: 'renamed' }))
       await vi.waitFor(() => expect(store.displayModels.find(model => model.id === modelId)?.name).toBe('renamed'))
     })
 
@@ -347,7 +351,7 @@ describe('display models store', () => {
       const store = await startWithModel({ cloudOwnerId: 'owner-a' }, [directoryEntry({ deletedAt: '2026-10-15T00:00:00.000Z' })])
 
       await vi.waitFor(() => expect(store.displayModels.some(model => model.id === modelId)).toBe(false))
-      expect(storage.has(modelId)).toBe(false)
+      expect(records.has(modelId)).toBe(false)
     })
 
     it('reads the directory again after a failed first read', async () => {
@@ -409,11 +413,11 @@ describe('display models store', () => {
 
     it('stops reporting a model as cloud-only after another window stored it', async () => {
       const store = await startWithModel({}, [directoryEntry()])
-      storage.delete(modelId)
+      records.delete(modelId)
       await store.loadDisplayModelsFromIndexedDB()
       await vi.waitFor(() => expect(store.syncStatuses[modelId]).toBe('cloud-only'))
 
-      storage.set(modelId, record({ cloudOwnerId: 'owner-a' }))
+      records.set(modelId, record({ cloudOwnerId: 'owner-a' }))
       await store.ensureDisplayModelAvailable(modelId)
 
       expect(store.syncStatuses[modelId]).toBe('synced')
@@ -489,7 +493,7 @@ describe('display models store', () => {
     //
     // We fixed this by treating a copy that came from the account as kept by the account.
     it('keeps card references when it removes a copy of an account model with sync off', async () => {
-      storage.set(modelId, record({ cloudOwnerId: 'owner-a' }))
+      records.set(modelId, record({ cloudOwnerId: 'owner-a' }))
       const store = useDisplayModelsStore()
       await store.loadDisplayModelsFromIndexedDB()
       const deleted = vi.fn()
@@ -498,7 +502,7 @@ describe('display models store', () => {
       await store.removeDisplayModel(modelId)
 
       expect(deleted).not.toHaveBeenCalled()
-      expect(storage.has(modelId)).toBe(false)
+      expect(records.has(modelId)).toBe(false)
     })
   })
 })
