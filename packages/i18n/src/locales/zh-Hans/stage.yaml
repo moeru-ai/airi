@@ -10,7 +10,6 @@ mobile-tools:
   character-voice: 角色声音
   title: 设置
   appearance: 外观
-  dark-mode: 深色模式
   application: 应用
   more: 更多
   background: 背景
@@ -53,6 +52,9 @@ chat:
     input-device: 麦克风
     system-default: 系统默认
     listen: 持续聆听
+    push-to-talk: 按住说话
+    push-to-talk-unavailable: 当前设备没有「按住说话」按键，所以 AIRI 不会聆听。请在听觉设置中更改输入模式。
+    wake-word: 监听唤醒词
     hearing-settings: 更多听觉设置…
     options-hint: 悬停或右键查看选项
     recording: 正在录音
@@ -80,7 +82,77 @@ chat:
     discard: 丢弃草稿
     listening: 正在聆听
     finalizing: 正在整理……
+    sent: 已发送
   voice-input: 语音输入
+  notice:
+    label: '后台汇报 {name}'
+  background-tasks:
+    label: 后台任务
+    stop: '停止{name}'
+    dismiss: '移除{name}'
+    status:
+      running: 进行中
+      done: 已完成
+      failed: 没做完
+      interrupted: 已停止
+  judgment:
+    running: '正在判断 {name}'
+    judged: '判断 {name}'
+    invalid: '判断没成功 {name}'
+  judgment-tool-call:
+    answer: 答案
+    next: 接下来
+    reply: 正常回复
+    stay-quiet: 不回复
+    hint: '回复，并记住：{text}'
+    recipe-steps: '用配方 {name}'
+    recipe-decision: '接着判断 {name}'
+    recipe-background: '交给配方 {name}'
+  recipe:
+    using: '正在用配方 {name}'
+    loaded: '用了配方 {name}'
+    started: '已交给配方 {name}'
+    pending: '配方还没批准 {name}'
+    disabled: '配方已关闭 {name}'
+    unknown: '找不到配方 {name}'
+    refused: '配方没能开始 {name}'
+    failed: '配方没能开始 {name}'
+  recipe-tool-call:
+    task: 任务
+    usable: 现在能用的配方
+    pending: 这个配方还没批准，批准后才能用。
+    disabled: 这个配方已经关闭。
+    unknown: 没有叫这个名字的配方。
+    refused: 配方没能开始。
+  invoked-skill:
+    steps: '用了配方 {name}'
+    background: '已交给配方 {name}'
+    decision: '用了配方 {name}'
+    question: 问题
+    'yes': 是
+    'no': 否
+  home-assistant-tool-call:
+    shown: '显示 {count} / {total} 个设备'
+  web-search-tool-call:
+    results: '“{query}” 的搜索结果 · {count} 条'
+  tool-calls:
+    running-one: '正在 {name}'
+    failed-one: '{name} 没成功'
+    combo-running: '连击 ×{count}'
+    combo: '{count} 连击'
+    combo-failed: '{count} 连击，{failed} 次落空'
+    arguments: 参数
+    result: 结果
+    copy: 复制原始数据
+    copied: 已复制
+    raw: 原始数据
+    other: 其他数据
+    widget: 小组件
+    rerun: 重新运行
+    state:
+      executing: 进行中
+      done: 完成
+      error: 失败
   error-details:
     show: 查看详情
     hide: 收起详情
@@ -131,6 +203,11 @@ chat:
     cloud-badge: 已同步到云
     new-chat-fallback: 新建对话
     delete: 删除对话
+avatar-model-missing:
+  title: 还没有选择模型
+  unavailable-title: 这台设备上没有这个模型
+  description: 选择一个模型，让 {name} 出现在舞台上。
+  select: 选择模型
 render-error:
   title: '{renderer} 无法渲染这个模型'
   description: 模型已经选中，但舞台无法显示它。
@@ -147,6 +224,7 @@ startup:
   close-details: 关闭详情
   retry: 重新启动 AIRI
   continue-without-model: 暂不加载角色
+  model-timeout: 角色模型加载超时，请检查网络连接后重试。
   resources:
     auth: 账户设置
     modelIndex: 模型列表
@@ -159,6 +237,14 @@ startup:
     route: 页面
     model: 角色模型
 message: 说点什么...
+theme:
+  title: 主题
+  system: 系统
+  light: 亮色
+  dark: 暗色
+  switch-to-light: 切换到亮色主题
+  switch-to-dark: 切换到暗色主题
+  switch-to-system: 跟随系统主题
 send-mode:
   title: 发送键值
   double-enter: 双击Enter

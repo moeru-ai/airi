@@ -1,3 +1,4 @@
+import type { Span } from '@opentelemetry/api'
 import type { StreamingTranscriber, TranscriptionEvent, TranscriptSegment } from '@proj-airi/core-agent'
 
 import type { AIRIStreamTranscriptionDelta } from '../providers/stream-transcription'
@@ -7,7 +8,16 @@ import { errorMessageFrom } from '@moeru/std'
 import { SpanStatusCode } from '@opentelemetry/api'
 import { IOAttributes, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 
-import { activeTurnSpan, startSpan } from '../../composables/use-io-tracer'
+import { activeVoiceInputSpan, startSpan } from '../../composables/use-io-tracer'
+
+export interface HearingTranscriberTraceOptions {
+  /**
+   * The span that each speech recognition span starts under.
+   *
+   * @default the voice input that runs now
+   */
+  traceParent?: Span
+}
 
 /**
  * Converts provider output into complete transcript revisions. Each adapter owns its segmenters and cancellation.
@@ -17,6 +27,7 @@ import { activeTurnSpan, startSpan } from '../../composables/use-io-tracer'
  */
 export function createHearingTranscriber(
   invoke: (audio: Parameters<StreamingTranscriber['transcribe']>[0]['audio'], signal: AbortSignal) => Promise<HearingTranscriptionResult>,
+  options: HearingTranscriberTraceOptions = {},
 ): StreamingTranscriber {
   const words = new Intl.Segmenter(undefined, { granularity: 'word' })
   const sentences = new Intl.Segmenter(undefined, { granularity: 'sentence' })
@@ -26,7 +37,9 @@ export function createHearingTranscriber(
     const signal = AbortSignal.any([request.signal, cancelled.signal])
     let reader: ReadableStreamDefaultReader<AIRIStreamTranscriptionDelta> | undefined
     let closed = false
-    const span = startSpan(IOSpanNames.SpeechRecognition, activeTurnSpan.value, { [IOAttributes.Subsystem]: IOSubsystems.ASR })
+    // Recognition belongs to what it transcribes: the turn that the caller names, such as the turn of a voice
+    // message, or else the voice input that runs now. The microphone has one voice input at a time.
+    const span = startSpan(IOSpanNames.SpeechRecognition, options.traceParent ?? activeVoiceInputSpan.value, { [IOAttributes.Subsystem]: IOSubsystems.ASR })
 
     return new ReadableStream<TranscriptionEvent>({
       start: (output) => {

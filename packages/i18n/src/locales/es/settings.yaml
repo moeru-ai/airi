@@ -26,6 +26,7 @@ dialogs:
     validationFailed: La validación de la configuración falló
     validationError: 'Error de validación: {error}'
     testGeneration: API Ping
+    testGenerationRunning: Comprobando conexión…
     testGenerationFailed: Prueba de ping fallida
     retryPingCheck: Reintentar
     skipForNow: Omitir por ahora
@@ -43,6 +44,8 @@ dialogs:
     loginPrompt: Inicia sesión para utilizar el proveedor oficial de AIRI para obtener la mejor experiencia.
     loginAction: Iniciar sesión
     setupWithoutSigningIn: Configurar con su proveedor
+    pricingLink: Precios
+    termsLink: Términos de servicio
     flux: Flujo
     buyFlux: Flujo de Carga
     select-model: Elegir modelo
@@ -116,6 +119,36 @@ model-select:
     import: Importar
     remove: Eliminar
     confirm: Confirmar
+  live2d-report:
+    title: Antes de importar
+    description: Revisa los datos del modelo y los problemas encontrados en el archivo.
+    description-short: Revisa los datos del modelo y los problemas.
+    close: Cerrar
+    model:
+      title: Modelo
+      files: '{count} archivos'
+      types:
+        unknown: Desconocido
+    resources:
+      title: Recursos
+      motions: Movimientos
+      expressions: Expresiones
+      parameters: Parámetros
+      textures: Texturas
+      referenced-and-found: '{referenced} referenciados · {found} encontrados'
+      referenced: '{count} referenciados'
+      found: '{count} encontrados'
+    issues:
+      title: Problemas
+      errors: '{count} errores'
+      warnings: '{count} advertencias'
+      none: No se encontraron problemas.
+      how-to-fix: Cómo solucionarlo
+      resolve-before-import: Resuelve los errores antes de importar.
+    actions:
+      cancel: Cancelar
+      confirm: Confirmar importación
+      import-anyway: Importar de todos modos
 live2d:
   change-model:
     from-file: Cargar desde Archivo
@@ -144,6 +177,31 @@ live2d:
       title: Extraer
   animation:
     title: Animación
+    motion-driver:
+      title: Controlador de movimiento
+      description: Elige cómo AIRI genera los movimientos del cuerpo y los ojos en reposo.
+      options:
+        universal:
+          description: Usa los movimientos del modelo, los movimientos oculares en reposo y el seguimiento del ratón.
+        magic:
+          description: Genera movimientos con el conjunto de datos MAGIC incluido.
+      magic:
+        profile:
+          title: Perfil de MAGIC
+          description: Elige el conjunto de datos de movimiento incluido para el controlador MAGIC.
+          options:
+            idle-calm:
+              title: Reposo / calma
+              description: Usa la grabación incluida de movimientos en reposo y tranquilos.
+            speaking-excited:
+              title: Habla / entusiasmo
+              description: Usa la grabación incluida de movimientos al hablar y con entusiasmo.
+        skip-mouth-open:
+          title: Omitir la apertura de boca generada
+          description: Mantén la sincronización labial de la voz. Desactiva esta opción para usar la apertura de boca del perfil.
+        force-view-target:
+          title: Forzar la mirada hacia delante
+          description: Mantén la mirada hacia delante mientras MAGIC mueve la cabeza.
     focus:
       title: Habilitar Seguimiento del Ratón
       description: Fíjate en el cursor mientras se mueve. El movimiento ocular espontáneo se reanuda cuando el cursor se detiene.
@@ -203,6 +261,7 @@ pages:
     logout: Cerrar sesión
     fluxBalance: Saldo de Flux
     viewFluxDetails: Ver detalles
+    viewCapacitor: Ver
     signedInAs: Sesión iniciada como
     profile:
       tab: Perfil
@@ -283,12 +342,84 @@ pages:
             label: Escriba su correo electrónico para confirmar
             mismatch: El correo electrónico no coincide.
           confirm: Enviar correo de confirmación
+          deleteNow: Eliminar permanentemente
+          confirmPhrase: Escribe DELETE para confirmar
+          signInAgain: Volver a iniciar sesión
           cancel: Cancelar
         message:
+          deleted: Tu cuenta se ha eliminado.
           emailSent: Compruebe {email} para el enlace de eliminación.
         error:
+          reauthenticate: Vuelve a iniciar sesión y regresa aquí para confirmar la eliminación. No se envía ningún correo.
           fallback: No se pudo iniciar la eliminación. Inténtalo de nuevo más tarde.
+          subscriptionActive: Tu suscripción sigue activa. Cancélala primero en la página Capacitor y después elimina tu cuenta.
   card:
+    wake-word-conflicts:
+      title: 'Una pronunciación compartida necesita un personaje | {count} pronunciaciones compartidas necesitan un personaje'
+      description: Dos tarjetas usan la misma pronunciación. Ningún personaje responderá hasta que elijas uno.
+      action: Elegir quién responde
+    sync:
+      notice: Las tarjetas de personaje se sincronizan con tu cuenta. Puedes restaurar una tarjeta eliminada durante 30 días.
+      off_notice: Has iniciado sesión, pero la sincronización de tarjetas de personaje está desactivada.
+      off_notice_link: Actívala en Funciones experimentales.
+      state:
+        synced: Sincronizado con tu cuenta
+        pending: Pendiente de subir
+        refused: No se ha subido. Tu cuenta no tiene espacio para más tarjetas, por lo que esta tarjeta permanece en este dispositivo.
+      conflict_copy_name: '{name} (copia por conflicto)'
+      conflict_notice: Otro dispositivo modificó el mismo personaje. AIRI conservó la versión de este dispositivo como una copia.
+      history:
+        tab: Historial
+        empty: Esta tarjeta aún no tiene historial.
+        loading: Cargando historial…
+        load_failed: No se pudo cargar el historial de esta tarjeta.
+        current: Actual
+        changed_label: Modificado
+        removed_label: Eliminado
+        fields:
+          name: Nombre
+          nickname: Apodo
+          version: Versión
+          creator: Creador
+          description: Descripción
+          personality: Personalidad
+          scenario: Escenario
+          systemPrompt: Instrucciones del sistema
+          postHistoryInstructions: Instrucciones posteriores al historial
+          notes: Notas del creador
+          greetings: Saludos
+          tags: Etiquetas
+          metadata: Metadatos
+          assets: Recursos
+          characterBook: Libro de contexto
+          source: Origen
+          wakeWords: Palabras de activación
+          agents: Agentes
+          consciousness: Modelo de consciencia
+          vision: Modelo de visión
+          speech: Modelo de habla
+          vrm: Modelo VRM
+          live2d: Modelo Live2D
+          displayModelId: Modelo de apariencia
+          activeBackgroundId: Fondo fijado
+          artistry: Generación de imágenes
+        restore: Restaurar esta versión
+        restore_confirm_title: '¿Restaurar esta versión?'
+        restore_confirm_body: Se reemplazará el contenido actual de {name} por el de {date}.
+        restore_confirm_confirm: Restaurar
+        restore_confirm_cancel: Cancelar
+        restore_success: Se ha restaurado {name} a una versión anterior.
+        restore_failed: No se pudo restaurar esta versión. Es posible que el servidor ya no la tenga.
+      deleted:
+        title: Eliminadas recientemente
+        empty: No hay tarjetas eliminadas recientemente.
+        loading: Cargando tarjetas eliminadas recientemente…
+        load_failed: No se pudieron cargar las tarjetas eliminadas recientemente.
+        deleted_when: 'Eliminada {when}'
+        days_left: 'Quedan {days} días para restaurar'
+        restore: Restaurar
+        restore_success: Se ha restaurado {name}.
+        restore_failed: No se pudo restaurar esta tarjeta. Es posible que el servidor ya no tenga su contenido.
     activate: Activar
     active: Activo
     active_badge: Actualmente Activo
@@ -297,6 +428,7 @@ pages:
     save: Guardar cambios
     save_and_activate: Guardar y activar
     card_not_found: Tarjeta no encontrada
+    back: Atrás
     character: Personaje
     close: Cerrar
     chat:
@@ -316,6 +448,13 @@ pages:
     drop_here: Suelta para subir
     create_card: Crear una nueva Tarjeta
     edit_card: Modificar tarjeta
+    saved: Tarjeta guardada
+    unsaved:
+      badge: Sin guardar
+      title: '¿Descartar los cambios?'
+      message: Tus cambios no se han guardado. Si sales de esta página, los perderás.
+      keep_editing: Seguir editando
+      discard: Descartar cambios
     creation:
       identity: Identidad
       name: Nombre
@@ -334,8 +473,14 @@ pages:
         posthistoryinstructions: Recuerda imitar a un humano.
       modules_info: >-
         Configura los módulos para esta tarjeta de Personaje. Si no se establece, se utilizará la configuración predeterminada.
+      sections:
+        chat: Conversación
+        vision: Visión
+        speech: Habla
+        body: Cuerpo
       use_default: Usar predeterminado
       use_default_not_configured: Usar predeterminado (no configurado)
+      inherit_global_settings: Usar los ajustes globales
       fields_info:
         subtitle: >-
           Puedes poner aquí algunos detalles sobre el personaje que estás creando, explicar su historia y contexto, y cómo deben responderse tus interacciones.
@@ -355,6 +500,7 @@ pages:
         consciousness_model: Seleccione el modelo de conciencia (modelo IA) para este personaje.
         speech_model: Seleccione el modelo de síntesis de voz y la voz para este personaje.
       errors:
+        model_required: Elige un modelo para cada proveedor definido. No se pueden heredar modelos de otro proveedor.
         name: El nombre debe ser válido o no estar vacío.
         version: '¡Error: Número de versión inválido!'
         description: 'Error: Debes proporcionar una descripción para esta tarjeta.'
@@ -364,6 +510,7 @@ pages:
         posthistoryinstructions: 'Error: Se requiere un prompt post-historial.'
         invalid_artistry_json: 'Error: Las opciones del proveedor Artistry contienen un JSON no válido.'
       none: Nada
+      none_disabled: Ninguno (desactivado)
     modules: Módulos
     name_asc: Nombre (A-Z)
     name_desc: Nombre (Z-A)
@@ -408,6 +555,12 @@ pages:
         title: Modelos
         description: Borrar modelos Live2D/VRM importados.
         delete: Borrar todos los modelos
+      model-downloads:
+        title: Modelos de voz descargados
+        description: Archivos de modelos Sherpaw guardados en este dispositivo.
+        empty: No hay modelos de voz descargados.
+        wake-word-model: Modelo de palabras de activación
+        refresh: Actualizar
       modules:
         title: Módulos
         description: Restablecer preferencias de módulo y credenciales.
@@ -441,6 +594,8 @@ pages:
       import_error: Error al importar las sesiones de chat. Por favor, compruebe el formato del archivo.
       chats_deleted: Sesiones de chat borradas.
       models_deleted: Modelo eliminado.
+      model_download_cancelled: Se canceló la descarga del modelo.
+      model_download_removed: Se eliminó el modelo descargado.
       modules_reset: Ajustes del módulo restablecidos.
       providers_reset: Ajustes del proveedor restablecidos.
       all_deleted: Todos los datos locales eliminados.
@@ -505,6 +660,7 @@ pages:
               description: Se calienta antes de detectar ritmos para una mejor precisión.
               label: Calentamiento
     artistry:
+      title: Generación de imágenes
       description: Generación de imágenes, fondo de escena y dibujo.
       page:
         title: Configuración del proveedor de Artistry
@@ -551,9 +707,11 @@ pages:
       model:
         label: Modelo de Artistry (Anulación opcional)
         description: Identificador del modelo si el proveedor lo requiere
+        placeholder: Por ejemplo, black-forest-labs/flux-schnell
       prompt-prefix:
         label: Prefijo predeterminado del prompt artístico
         description: Se añade al principio de cada prompt enviado al generador de imágenes.
+        placeholder: Por ejemplo, Masterpiece, high quality, 1girl, anime,
       options:
         label: Opciones de Proveedor de Artistry (JSON)
       widget-instructions:
@@ -562,6 +720,8 @@ pages:
     categories:
       essential: Esencial
       messaging: Mensajería
+      gaming: Juegos
+      artistry: Generación de imágenes
     consciousness:
       description: Personalidad, modelo deseado, etc.
       sections:
@@ -589,8 +749,20 @@ pages:
             search_results: Encontrados {count} de {total} modelos
             show_less: Mostrar menos
             show_more: Mostrar más
+            temperature_label: Temperatura
+            temperature_enabled: Temperatura personalizada
+            top_p_enabled: Top P personalizado
+            sampling_override_description: Desactivado por defecto. Actívalo solo si tu modelo admite este parámetro. Algunos modelos solo aceptan un parámetro de muestreo a la vez.
+            temperature_description: Controla la aleatoriedad de las respuestas del modelo. Un valor bajo, como 0.2, produce respuestas más predecibles, precisas y analíticas. Un valor alto, como 1.0, aumenta la creatividad y la variedad.
+            top_p_description: Controla la variedad de las respuestas mediante muestreo de núcleo. Un valor bajo, como 0.2, limita las respuestas a tokens muy probables. Un valor alto, como 1.0, incluye más posibilidades.
             subtitle: Seleccionar un modelo por defecto del proveedor
             title: Modelo
+          model-options:
+            title: Opciones del modelo
+            thinking:
+              label: Razonamiento
+              required-description: Este modelo requiere razonamiento.
+              provider-default-description: AIRI no tiene ajustes de razonamiento para este modelo. OpenRouter aplica sus valores predeterminados.
       title: Consciencia
     description: Pensamiento, visión, síntesis de voz, juegos, etc.
     gaming-factorio:
@@ -621,6 +793,7 @@ pages:
         description: >-
           Puedes encontrar las instrucciones para configurar el bot en el siguiente archivo
       runtime:
+        title: Estado de ejecución observado
         connection: Conexión
         latest-context: Último contexto del bot
         waiting: Esperando una nueva actualización de contexto originada por el bot.
@@ -638,10 +811,94 @@ pages:
     hearing:
       description: Configurar cómo funciona el reconocimiento de voz
       title: Audición
+      transcriber:
+        title: Reconocimiento de voz
+        description: Elige el proveedor y el modelo de transcripción y prueba tu micrófono.
+      wake-words:
+        title: Palabras de activación
+        description: Consulta las palabras de activación de cada personaje y elige quién responde a una pronunciación compartida.
+        intro: Cada personaje guarda sus palabras de activación en su tarjeta. Para cambiarlas, pídeselo al personaje en el chat.
+        empty: Este personaje no tiene palabras de activación.
+        state:
+          active: Activo
+          paused: En pausa. Elige un personaje para responder.
+          other: 'Responde {name}'
+          unsupported: No disponible con el modelo actual de palabras de activación
+        conflicts:
+          title: Pronunciaciones compartidas
+          description: Dos o más personajes usan la misma pronunciación. Elige quién responde en este dispositivo. Cada tarjeta conserva sus palabras.
+          choose-label: Personaje que responde
+          answered-by: 'Responde {name}'
+          unresolved: Ningún personaje responde a esta pronunciación.
       sections:
         section:
           provider-selection:
             description: Selecciona el proveedor de reconocimiento de voz adecuado
+          microphone:
+            title: Micrófono
+            label: Micrófono
+            description: Enciende el micrófono para Audición. El modo de entrada controla cuándo escucha AIRI.
+            error: El micrófono no está disponible
+          input-device:
+            label: Dispositivo de entrada
+            description: Elige el micrófono que usa AIRI.
+            playground-description: Audición y el área de pruebas usan este micrófono.
+            placeholder: Elige un micrófono
+          auto-send:
+            title: Transcripciones
+            description: Elige qué hace AIRI con el texto de tu voz.
+            label: Enviar automáticamente
+            label-description: AIRI envía la transcripción al chat tras un retraso. Desactívalo para revisar y editar el texto antes. Cada mensaje enviado consume tokens.
+            delay: Retraso de envío
+            delay-description: Tiempo que espera AIRI antes de enviar la transcripción.
+            immediate: Inmediatamente
+          input-mode:
+            title: Modo de entrada
+            description: Elige cómo empieza a escuchar AIRI cuando el micrófono está encendido.
+            label: Empezar a escuchar
+            always-on: Siempre activo
+            always-on-description: AIRI escucha siempre y responde cuando hablas.
+            push-to-talk: Pulsar para hablar
+            push-to-talk-description: AIRI solo escucha mientras mantienes pulsada la tecla de Pulsar para hablar. El micrófono solo se abre durante la pulsación.
+            push-to-talk-unavailable: No disponible aquí. Esta aplicación no tiene una tecla de Pulsar para hablar en este dispositivo.
+            stranded-title: Pulsar para hablar no está disponible aquí
+            stranded-description: Esta aplicación no tiene una tecla de Pulsar para hablar en este dispositivo, así que AIRI no escucha. Elige Siempre activo o Palabras de activación para hablar con AIRI aquí.
+            wake-word: Palabras de activación
+            wake-word-description: El micrófono permanece encendido, pero AIRI solo escucha después de que digas la palabra de activación de un personaje.
+            wake-word-status:
+              no-words: Ningún personaje tiene palabras de activación. Pídele a un personaje que las configure en el chat.
+              unconfigured: La detección de palabras de activación empieza cuando se enciende el micrófono.
+              preparing: Preparando el modelo de palabras de activación…
+              ready: Las palabras de activación están listas.
+              error: 'El modelo de palabras de activación no está disponible: {error}'
+          end-judge:
+            title: Fin del habla
+            description: Cuando haces una pausa, un modelo de chat lee la transcripción y decide si terminaste. Si no terminaste, AIRI espera 3 segundos más para que continúes.
+            enabled: Comprobar si terminé de hablar
+            enabled-description: La transcripción de cada pausa se envía al modelo de reescritura. Si desactivas esta opción, AIRI termina tu intervención tras una pausa breve.
+          rephrase:
+            title: Reescritura de transcripciones
+            description: Un modelo de chat corrige errores de reconocimiento y elimina muletillas antes de crear un borrador. Se conserva el texto original.
+            enabled: Reescribir transcripciones
+            enabled-description: Cada transcripción completada se envía al modelo de chat elegido. Si falla o tarda más de 10 segundos, se usa el texto original.
+            provider: Proveedor
+            provider-description: Por defecto se usa el modelo de chat del módulo Consciencia.
+            same-as-chat: Igual que el chat
+            model: Modelo
+            model-placeholder: Seleccionar Modelo
+          playground:
+            current: Transcripción actual
+            description: Escucha con el flujo de Audición activo y conserva abajo cada segmento de voz completado.
+            empty: Inicia la monitorización y habla por el micrófono seleccionado.
+            error-title: Error de transcripción
+            listening: Escuchando voz…
+            no-transcription: No se reconoció voz en este audio.
+            segment: 'Segmento de voz {number}'
+            start: Iniciar monitorización
+            stop: Detener monitorización
+            title: Área de pruebas de Audición
+            transcribing: Transcribiendo…
+            transcription-failed: Error al transcribir.
           confidence-threshold:
             title: Umbral de confianza
             description: >-
@@ -714,6 +971,31 @@ pages:
     vision:
       description: Visión
       title: Visión
+      tool-images:
+        label: Usar el modelo de visión para imágenes de herramientas
+        description: El modelo de visión lee las imágenes de las herramientas, como capturas de Usar ordenador, antes de que responda el modelo de chat. Si su proveedor admite imágenes, el modelo de chat las recibe directamente. Una descripción no contiene posiciones de píxeles.
+      capture:
+        title: Frecuencia de captura de visión
+        description: Ajusta la frecuencia con la que el proceso de visión captura un fotograma.
+        interval:
+          label: Intervalo de captura
+          description: Un valor menor captura con más frecuencia y consume más recursos.
+      stats:
+        captures: Capturas
+        context-updates: Actualizaciones de contexto
+        inferences: Llamadas de reconocimiento de imágenes
+        inferences-description: Todas las llamadas al modelo de visión, incluidas las imágenes del chat
+        failed-inferences: Llamadas fallidas
+        last-inference: Última llamada
+        last-update: Última actualización {time}
+        since-start: Desde el inicio de la aplicación
+        never: Nunca
+      ollama:
+        title: Opciones de solicitud del proveedor
+        description: Controla los parámetros de solicitud específicos del proveedor para la inferencia visual.
+        thinking:
+          label: Razonamiento (Ollama)
+          description: 'Si está activado, las solicitudes de visión a Ollama incluyen `think: true`. Si está desactivado, incluyen `think: false`.'
     x:
       description: Navegación y uso de X / Twitter
       enable: Habilitar integración con X / Twitter
@@ -731,6 +1013,245 @@ pages:
       access-token-secret-description: Su secreto de token de acceso de X / Twitter
       access-token-secret-placeholder: Ingrese su secreto de token de acceso de X / Twitter
       configured: '¡X / Twitter está configurado correctamente!'
+    stickers:
+      frequency: Frecuencia de stickers
+      frequency-description: Permite stickers en este porcentaje de respuestas. El personaje decide si un sticker es adecuado.
+      frequency-options:
+        25: Ocasionalmente (25%)
+        50: A veces (50%)
+        75: A menudo (75%)
+        100: Siempre que sea adecuado (100%)
+      description: Añade reacciones con imágenes a las respuestas del chat
+      enable: Activar stickers
+      enable-description: Deja que el personaje elija un sticker por respuesta apta según su nombre y etiquetas de emoción.
+      local-only: Las imágenes permanecen en este dispositivo. La sincronización del chat en la nube solo transfiere texto por ahora.
+      catalog: Stickers disponibles
+      unavailable: Sticker no disponible
+      import: 'Importar imagen'
+      editor: 'Editor de stickers'
+      image: 'Imagen'
+      replace: 'Reemplazar imagen (opcional)'
+      image-limits: 'PNG, JPG, WebP o GIF. Máximo 2 MB y 4096 × 4096 píxeles.'
+      choose-file: 'Elige una imagen'
+      preview: 'Vista previa del sticker'
+      name: 'Nombre'
+      name-limit: 'Usa entre 1 y 80 caracteres. El modelo lee este nombre.'
+      emotions: 'Etiquetas de emoción'
+      save: 'Guardar sticker'
+      cancel: 'Cancelar'
+      edit: 'Editar'
+      delete: 'Eliminar'
+      confirm-delete: 'Confirmar eliminación'
+      empty: 'Tu biblioteca está vacía. Importa una imagen para añadir un sticker.'
+      history-note: 'Eliminar o reemplazar un sticker afecta a las respuestas futuras. Las respuestas guardadas y ya preparadas conservan su imagen original.'
+      saved-image: 'Sticker guardado'
+      errors:
+        name: 'Introduce un nombre de entre 1 y 80 caracteres.'
+        emotions: 'Elige al menos una etiqueta de emoción válida.'
+        format: 'Elige una imagen PNG, JPG, WebP o GIF.'
+        size: 'Elige una imagen de menos de 2 MB.'
+        image: 'No se puede abrir esta imagen. Elige otro archivo.'
+        dimensions: 'Elige una imagen de hasta 4096 × 4096 píxeles.'
+        missing: 'Este sticker se eliminó en otra ventana.'
+        storage: 'No se pudo guardar o cargar la biblioteca de stickers. Inténtalo de nuevo.'
+      emotion-labels:
+        happy: 'Feliz'
+        sad: 'Triste'
+        confused: 'Confundido'
+        surprised: 'Sorprendido'
+        thanks: 'Agradecimiento'
+        celebrate: 'Celebración'
+        angry: 'Enfadado'
+        tired: 'Cansado'
+        affectionate: 'Cariño'
+        awkward: 'Incómodo'
+        agree: 'De acuerdo'
+        disagree: 'En desacuerdo'
+      artwork:
+        airi-happy: Feliz
+        airi-sad: Triste
+        airi-confused: Confundido
+        airi-surprised: Sorprendido
+        airi-thanks: Gracias
+        airi-celebrate: Celebración
+        airi-angry: Enfadado
+        airi-tired: Cansado
+        airi-affectionate: Amor
+        airi-awkward: Incómodo
+        airi-agree: 'Sí'
+        airi-disagree: No, gracias
+    home-assistant:
+      description: Permite que AIRI lea y controle tus dispositivos de Home Assistant.
+      enable: Activar Home Assistant
+      enable-description: Permitir que AIRI lea y controle tus dispositivos
+      base-url:
+        label: Dirección
+        description: Dirección de tu instancia de Home Assistant.
+      token:
+        label: Token de acceso de larga duración
+        placeholder: Pega un token de tu perfil de Home Assistant
+        description: Créalo en tu perfil de Home Assistant, en Seguridad.
+        saved: Ya hay un token guardado. Deja el campo vacío para conservarlo. Vuelve a introducirlo si cambia la dirección.
+      note: El token permanece en este dispositivo. No se sincroniza con tu cuenta.
+      actions:
+        save: Guardar
+        test: Probar
+      status:
+        saved: Guardado.
+        saved-cleared: Guardado. La dirección cambió, por lo que las listas de dispositivos están vacías.
+        testing: Probando la conexión…
+        reachable: 'Conectado. Home Assistant informó de {count} entidades.'
+        failed: 'No se pudo conectar. {message}'
+        rejected-token: Introduce un token de acceso de Home Assistant.
+        rejected-address: La dirección cambió. Introduce el token de acceso de la nueva dirección.
+        failed-policy: La lista de dispositivos no llegó a la ventana que ejecuta las herramientas, por lo que la dirección no cambió. Inténtalo de nuevo.
+        failed-policy-edit: El cambio no llegó a la ventana que ejecuta las herramientas. El modelo conserva la lista anterior. Inténtalo de nuevo.
+        failed-policy-move: La dirección cambió, pero las listas de dispositivos no llegaron a la ventana que ejecuta las herramientas. Inténtalo de nuevo.
+        failed-policy-rollback: Se rechazó el guardado. La lista de dispositivos no llegó a la ventana que ejecuta las herramientas, así que el modelo no tiene acceso a ningún dispositivo. Inténtalo de nuevo.
+      access:
+        label: Acceso a dispositivos
+        description: Elige qué dispositivos puede leer y controlar AIRI.
+        mode-all: Todos los dispositivos
+        mode-allow: Lista de permitidos
+        mode-deny: Lista de bloqueados
+        all-hint: AIRI tiene acceso a todos los dispositivos. Elige una lista para limitarlo.
+        rule-allow: Solo se puede acceder a los dispositivos seleccionados.
+        rule-deny: Se puede acceder a todos los dispositivos excepto los seleccionados.
+        selected-count: '{count} seleccionados'
+        empty-warning: Elige al menos un dispositivo. AIRI no tiene acceso a ninguno hasta que lo hagas.
+        search: Buscar dispositivos
+        reload: Recargar dispositivos
+        loading: Cargando dispositivos…
+        no-devices: Home Assistant no informó de ningún dispositivo.
+        no-match: No hay dispositivos coincidentes.
+        tab-all: Todo
+        shown-count: '{shown} de {total} dispositivos'
+        load-more: 'Mostrar {count} más'
+        select-matching: Seleccionar todas las coincidencias
+        clear-matching: Quitar todas las coincidencias
+      states:
+        generic:
+          'on': 'Encendido'
+          'off': 'Apagado'
+          above_horizon: Sobre el horizonte
+          armed: Alarma activada
+          armed_away: Alarma activada, fuera de casa
+          armed_custom_bypass: Alarma activada, exclusiones personalizadas
+          armed_home: Alarma activada, en casa
+          armed_night: Alarma activada, modo nocturno
+          armed_vacation: Alarma activada, vacaciones
+          arming: Activando alarma
+          auto: Automático
+          below_horizon: Bajo el horizonte
+          buffering: Almacenando en búfer
+          cleaning: Limpiando
+          clear-night: Noche despejada
+          closed: Cerrado
+          closing: Cerrando
+          cloudy: Nublado
+          cool: Refrigeración
+          disarmed: Alarma desactivada
+          disarming: Desactivando alarma
+          docked: En la base
+          dry: Deshumidificación
+          electric: Eléctrico
+          exceptional: Condiciones excepcionales
+          fan_only: Solo ventilador
+          fog: Niebla
+          hail: Granizo
+          heat: Calefacción
+          heat_cool: Calefacción/refrigeración
+          heat_pump: Bomba de calor
+          high_demand: Alta demanda
+          home: En casa
+          idle: Inactivo
+          jammed: Atascado
+          lightning: Tormenta eléctrica
+          lightning-rainy: Tormenta con lluvia
+          locked: Bloqueado
+          locking: Bloqueando
+          mowing: Cortando el césped
+          not_home: Fuera de casa
+          open: Abierto
+          opening: Abriendo
+          partlycloudy: Parcialmente nublado
+          paused: En pausa
+          pending: Pendiente
+          performance: Rendimiento
+          playing: Reproduciendo
+          pouring: Lluvia intensa
+          problem: Problema
+          rainy: Lluvioso
+          recording: Grabando
+          snowy: Nevando
+          snowy-rainy: Nieve y lluvia
+          standby: En espera
+          stopped: Detenido
+          streaming: Transmitiendo
+          sunny: Soleado
+          triggered: Alarma disparada
+          unlocked: Desbloqueado
+          unlocking: Desbloqueando
+          windy: Ventoso
+          windy-variant: Viento y nubes
+          unknown: Desconocido
+          unavailable: No disponible
+        lawn_mower:
+          returning: Volviendo
+        update:
+          'off': Actualizado
+          'on': Actualización disponible
+        vacuum:
+          returning: Volviendo a la base
+      domains:
+        air_quality: Calidad del aire
+        alarm_control_panel: Panel de alarma
+        automation: Automatización
+        binary_sensor: Sensor binario
+        button: Botón
+        calendar: Calendario
+        camera: Cámara
+        climate: Climatización
+        conversation: Conversación
+        cover: Persiana
+        date: Fecha
+        datetime: Fecha y hora
+        device_tracker: Rastreador de dispositivos
+        event: Evento
+        fan: Ventilador
+        geo_location: Geolocalización
+        group: Grupo
+        humidifier: Humidificador
+        image: Imagen
+        image_processing: Procesamiento de imágenes
+        input_boolean: Ayudante de interruptor
+        input_datetime: Ayudante de fecha y hora
+        input_number: Ayudante numérico
+        input_select: Ayudante de lista desplegable
+        input_text: Ayudante de texto
+        light: Luz
+        lock: Cerradura
+        media_player: Reproductor multimedia
+        notify: Notificación
+        number: Número
+        person: Persona
+        remote: Mando a distancia
+        scene: Escena
+        select: Selector
+        siren: Sirena
+        stt: Voz a texto
+        sun: Sol
+        switch: Interruptor
+        text: Texto
+        time: Hora
+        todo: Lista de tareas
+        tts: Texto a voz
+        update: Actualización
+        vacuum: Aspiradora
+        valve: Válvula
+        water_heater: Calentador de agua
+        weather: Tiempo meteorológico
+        zone: Zona
     web-search:
       title: Búsqueda web
       description: Permitir que AIRI busque información actual en la web
@@ -764,6 +1285,7 @@ pages:
         restart: Reiniciar MCP
         add-server: Agregar servidor
         add-env: Añadir variable
+        add-header: Añadir cabecera
         remove: Eliminar
         test: Probar
         edit-json: Editar JSON
@@ -779,6 +1301,18 @@ pages:
           label: Identificador
           description: Nombre único; se convierte en la clave en mcp.json.
           placeholder: ej. sistema de archivos
+        transport:
+          label: Tipo
+          description: Cómo se conecta AIRI a este servidor.
+          stdio: Proceso local
+          http: URL remota
+        url:
+          description: Endpoint Streamable HTTP del servidor.
+          placeholder: Por ejemplo, https://example.com/api/mcp
+        headers:
+          label: Cabeceras
+          description: Cabeceras enviadas con cada solicitud, como un token de autorización.
+          value-placeholder: Token Bearer
         command:
           label: Comando
           description: Ejecutable iniciado mediante stdio.
@@ -818,6 +1352,8 @@ pages:
         empty-identifier: Servidor # {index} is missing an identifier.
         duplicate-identifier: El identificador "{name}" se utiliza más de una vez — los nombres deben ser únicos.
         empty-command: '"{name}" no tiene un comando.'
+        empty-url: 'Falta una URL para «{name}».'
+        invalid-url: '«{name}» necesita una URL absoluta http o https.'
         invalid-shape: Eso no parece un mcp.json válido; la raíz necesita un campo "mcpServers".
       messages:
         opened: Abierto {path} en tu gestor de archivos
@@ -828,6 +1364,8 @@ pages:
     buy: Cobro
     currency: Divisa
     description: Flujo actual
+    terms: Términos
+    privacy: Política de Privacidad
     packagesError: Error al cargar paquetes. Por favor, inténtalo de nuevo más tarde.
     checkout:
       success: '¡Pago exitoso! Tu Flujo ha sido recargado.'
@@ -852,6 +1390,29 @@ pages:
       title: Paquetes de flujo
       buy: Carga
       description: Paquetes Flujo entre los que elegir.
+  capacitor:
+    description: Un Capacitor almacena Flux y se recarga automáticamente.
+    statusError: No se pudo cargar tu Capacitor. Inténtalo más tarde.
+    packagesError: No se pudieron cargar los Capacitor. Inténtalo más tarde.
+    preferenceError: No se pudo guardar la preferencia. Inténtalo más tarde.
+    noCapacitor: Sin Capacitor
+    remaining: 'Queda {percent}'
+    rechargesAt: Se recarga {date}
+    renewsAt: Se renueva {date}
+    expiresAt: Caduca {date}
+    perMonth: / mes
+    currentPackage: Actual
+    install: Instalar
+    upgrade: Mejorar
+    downgrade: Reducir
+    manageSubscription: Gestionar suscripción
+    fallbackToFlux: Usar Flux cuando el Capacitor esté vacío
+    fallbackToFluxHint: Si se desactiva, el uso se detiene cuando el Capacitor está vacío.
+    checkout:
+      success: Tu Capacitor está instalado y cargado.
+      pending: Pago recibido. Tu Capacitor se cargará pronto.
+      canceled: Se canceló la compra.
+      error: Algo ha ido mal, inténtalo más tarde.
   providers:
     catalog:
       edit:
@@ -867,9 +1428,19 @@ pages:
               Todavía puede guardar la configuración actual si quiere continuar.
             action: Guardar de todas formas
         config:
+          loading: Cargando ajustes del proveedor…
+          load-error: No se pudieron cargar los ajustes del proveedor.
+          save-error: No se pudieron guardar los ajustes del proveedor.
+          retry: Reintentar
           common:
             fields:
               field:
+                web-search:
+                  label: Búsqueda web
+                  description: Permite que los modelos OpenAI compatibles busquen cuando sea necesario. Usa tu clave API y puede generar cargos de búsqueda. Requiere Responses API.
+                api-protocol:
+                  label: Protocolo API
+                  description: Elige la API compatible con este proveedor y modelo.
                 api-key:
                   label: Clave API
                   description: Clave API usada para autorizar peticiones a este proveedor
@@ -912,6 +1483,9 @@ pages:
               title: Lista de modelos
             check-supports-chat-completion:
               title: Completado del chat
+          apple-vision:
+            check-availability:
+              title: disponibilidad
           prompt-api:
             check-availability:
               title: disponibilidad
@@ -955,6 +1529,10 @@ pages:
           title: Configuraciones de Voz
     labels:
       recommended: Recomendado
+    sync:
+      synced: Sincronizado
+      pending: Pendiente de subir
+      not-uploaded: No se ha subido. Completa la configuración de este proveedor en este dispositivo.
     filters:
       pricing: Precios
       deployment: Despliegue
@@ -965,17 +1543,21 @@ pages:
       cloud: Nube
     categories:
       chat:
+        title: Conversación
         description: Proveedores de modelos de generación de texto. ej. OpenRouter, OpenAI, Ollama.
       vision:
         title: Visión
         description: Proveedores de modelos de visión para la comprensión de imágenes.
       speech:
         title: Habla
+        description: Proveedores de modelos de habla (texto a voz). ej. ElevenLabs, Azure Speech.
       transcription:
         title: Transcripción
         description: >-
           Proveedores de modelos de transcripción (voz a texto). ej. Whisper.cpp, OpenAI, Azure Speech
       artistry:
+        title: Generación de imágenes
+        description: Proveedores de modelos de generación y diseño de imágenes, como ComfyUI y Replicate.
         items:
           comfyui:
             description: Corredor local de generación de imágenes.
@@ -994,6 +1576,38 @@ pages:
         Proveedores de modelos de transcripción (voz a texto). ej. Whisper.cpp, OpenAI, Azure Speech
     description: LLMs, proveedores de voz, etc.
     provider:
+      sherpaw-transcription:
+        description: Reconocimiento de voz local con modelos incluidos o descargados bajo demanda. No requiere clave API.
+        language:
+          label: Idioma del modelo
+          description: Muestra modelos compatibles con este idioma. El modelo elegido detecta automáticamente los idiomas que admite.
+          all: Todos los idiomas
+        model:
+          label: Modelo
+          description: Elige un modelo disponible. El reconocimiento detecta uno de sus idiomas compatibles. Al cambiarlo se reinicia la sesión actual.
+        asset:
+          title: Archivos del modelo
+          unknown: Comprobando archivos…
+          bundled: Incluido con AIRI
+          installed: Guardado en este dispositivo
+          missing: Descargar al usar
+          downloading: Descargando…
+          error: Error al descargar
+          download: Descargar ahora
+          cancel: Cancelar
+          remove: Eliminar descarga
+      apple-vision:
+        description: Comprensión de imágenes en el dispositivo con Apple Foundation Models en macOS 27 o posterior. No requiere clave API.
+      apple-speech-transcription:
+        description: Reconocimiento de voz en el dispositivo en macOS 26 o posterior. No requiere clave API.
+        fields:
+          locale:
+            label: Configuración regional
+            description: Usa un código regional exacto de Apple Speech, como en-US o zh-CN.
+      app-local-audio-transcription:
+        title: Aplicación (local)
+      app-local-audio-speech:
+        title: Aplicación (local)
       browser-local-audio-transcription:
         title: Navegador (Local)
       browser-local-audio-speech:
@@ -1005,6 +1619,7 @@ pages:
             description: Clave API Bedrock de Amazon (generar en la consola AWS → Bedrock → Claves API)
           region:
             label: Región de AWS
+            description: Región de AWS donde Bedrock está habilitado, como us-east-1 o us-west-2.
       anthropic:
         helpinfo:
           title: Antes de comenzar
@@ -1042,6 +1657,22 @@ pages:
             volume:
               description: Ajustar el volumen del habla
               label: Volumen
+      voicevox:
+        fields:
+          field:
+            intonation:
+              description: Ajusta cuánto varía la entonación de la lectura
+              label: Entonación
+        callout_origin_title: Conectarse al motor desde un navegador
+        callout_origin: El navegador solo puede conectarse a un motor en este equipo. Para un motor en otro equipo, usa la aplicación de escritorio. El motor debe aceptar este sitio. Configúralo con --cors_policy_mode all o con --allow_origin y esta dirección.
+      aivis-speech:
+        fields:
+          field:
+            intonation:
+              description: Ajusta la intensidad del estilo de habla
+              label: Intensidad de expresión emocional
+        callout_origin_title: Conectarse al motor desde un navegador
+        callout_origin: El navegador solo puede conectarse a un motor en este equipo. Para un motor en otro equipo, usa la aplicación de escritorio. El motor debe aceptar este sitio. Configúralo en su página de ajustes del puerto 10101.
       speech-noop:
         title: Ninguno
         description: Sin salida de voz.
@@ -1049,13 +1680,17 @@ pages:
         settings:
           title: ConfyUI (local)
           heading: API nativa de ComfyUI
+          description: Conecta tu ComfyUI local y utiliza tus propios flujos de trabajo.
           info:
             what_you_need:
               label: Lo que necesitas
+              value: ComfyUI ejecutándose en tu equipo o en tu red.
             how_to_export:
               label: Cómo exportar
+              value: Activa Dev Mode → «Save (API Format)».
             scope_boundary:
               label: Límite de alcance
+              value: Debes descargar los modelos e instalar los nodos por tu cuenta.
           connection:
             title: Conexión
             connected: Conectado
@@ -1069,15 +1704,18 @@ pages:
               description: La dirección donde se ejecuta ComfyUI
           cors:
             title: Bloque de CORS detectado
+            description: ComfyUI bloquea por defecto las solicitudes de otras aplicaciones. Para permitir que AIRI se conecte, inicia ComfyUI con `--enable-cors-header "*"`.
           workflows:
             title: Plantillas de flujo de trabajo
             upload: Subir flujo de trabajo
             cancel_upload: Cancelar
+            empty: No hay flujos de trabajo subidos. Haz clic en «Subir flujo de trabajo» para importar un workflow_api.json de ComfyUI.
             exposed_parameters: Parámetros expuestos
             summary: '{nodes} nodos · {fields} campos expuestos'
             remove: Eliminar
             config_snippet: Snippet de configuración de Artistry
             copy_json: Copiar JSON
+            paste_hint: Pega esto en la configuración de generación de imágenes de tu tarjeta AIRI para sobrescribir estos nodos.
           upload:
             prompt: Soltar o seleccionar un archivo workflow_api.json
             invalid_json: JSON inválido
@@ -1098,11 +1736,13 @@ pages:
             placeholder: r8_XXXXXXXXXXXXXXXXXXXXXXXXXXXX
           default_model:
             label: Modelo por defecto
+            description: Cadena owner/model usada si la tarjeta de personaje no especifica ninguna
           aspect_ratio:
             label: Relación de aspecto
             description: Relación de aspecto por defecto de la imagen (por ejemplo, 16:9, 1:1, 9:16)
           inference_steps:
             label: Pasos de inferencia
+            description: Número de pasos del proceso de difusión. Menos pasos aumentan la velocidad, más pasos mejoran la calidad.
       nanobanana:
         settings:
           description: Configurar las capacidades de generación de imágenes nativas de Google Gemini.
@@ -1111,12 +1751,19 @@ pages:
             description: Tu clave API de Google AI Studio
           preferred_model:
             label: Modelo preferido
+            description: Modelo específico de vista previa de imágenes de Gemini que se usará
           default_resolution:
             label: Resolución por defecto
+            description: Resolución objetivo de las imágenes generadas
           model_options:
             nano_banana_2: Nano Banana 2 (Imagen Flash Gemini 3.1)
             nano_banana_pro: Nano Banana Pro (Imagen Flash Gemini 3)
             nano_banana: Nano Banana (Imagen Flash Gemini 2.5)
+      deepseek:
+        fields:
+          field:
+            thinking-mode:
+              description: Controla si los modelos de razonamiento DeepSeek usan el modo de pensamiento en las solicitudes de chat.
       elevenlabs:
         fields:
           field:
@@ -1199,6 +1846,9 @@ pages:
               placeholder: Selecciona un modelo de MiniMax...
         playground:
           default-text: '¡Hola! Esta es una prueba de síntesis de voz de MiniMax.'
+      openai-compatible:
+        description: Compatible con OpenAI
+        title: Compatible con OpenAI
       n1n:
         description: n1n.ai - Proveedor de API de IA de alto rendimiento.
       volcengine:
@@ -1209,6 +1859,11 @@ pages:
               label: ID de App
       volcengine-coding-plan:
         description: Plan de Codificación Volcengine
+        models:
+          ark-code-latest:
+            description: Usa el modelo elegido en la consola Coding Plan, incluido Auto. Los cambios se aplican en 3–5 minutos.
+          legacy:
+            description: Este modelo antiguo de Coding Plan dejará de estar disponible. Cambia a un modelo compatible actualmente.
         title: Plan de Codificación Volcengine
       byteplus-coding-plan:
         description: Plan de codificación BytePlus
@@ -1225,6 +1880,7 @@ pages:
         speech-title: Proveedor oficial de voz
         speech-description: Proveedor oficial de texto a voz de AIRI.
         speech-streaming-title: Proveedor oficial de voz en streaming
+        speech-streaming-description: Proveedor oficial de texto a voz de baja latencia de AIRI, mediante WebSocket bidireccional.
         transcription-title: Proveedor Oficial de Transcripción
         transcription-description: Proveedor oficial de voz a texto por AIRI.
       transcriptions:
@@ -1253,6 +1909,7 @@ pages:
         Scan this QR code from Stage Pocket to try all reachable local network addresses and save the first working one.
       refresh: Actualizar
       image-alt: Código QR de conexión de canal del servidor AIRI
+      candidates: Direcciones candidatas
       token-hint: >-
         The QR code includes the auth token so Stage Pocket can authenticate after connecting. Do not share it publicly.
       errors:
@@ -1270,6 +1927,24 @@ pages:
         title: Escaneo QR fallido
         failed: Fallo al escanear o conectar con el código QR.
   system:
+    experimental:
+      refresh: Actualizar políticas
+      title: Funciones experimentales
+      description: Prueba funciones en desarrollo y gestiona tus preferencias.
+      notice: Las funciones experimentales pueden cambiar o eliminarse. Tus preferencias se aplican a este dispositivo.
+      empty-title: No hay experimentos disponibles
+      load-error: Las funciones en la nube no están disponibles. Las funciones locales siguen disponibles.
+      retry: Reintentar
+      reset: Usar predeterminado
+      sources:
+        default: Valor predeterminado de la aplicación
+        local: Tu preferencia en este dispositivo
+        global: Disponible para cuentas con sesión iniciada
+        account: Disponible para tu cuenta
+      features:
+        character_card_sync:
+          title: Sincronización de tarjetas de personaje en la nube
+          description: Sincroniza tus tarjetas de personaje con tu cuenta cuando inicias sesión para usarlas en otros dispositivos. Desactivado por defecto. Las tarjetas eliminadas permanecen en el historial durante 30 días.
     color-scheme:
       description: Cambiar el esquema de colores del escenario.
       title: Esquema de Colores
@@ -1299,16 +1974,49 @@ pages:
               performance-visualizer:
                 title: Visualizador de rendimiento
                 description: Cambiar FPS/tareas largas/superposición de memoria
+              markdown-stress:
+                title: Prueba de carga de Markdown
+                description: Análisis y renderizado de Markdown bajo estrés con cargas de chat pesadas
+              plugin-host:
+                actions:
+                  enable-and-load: Activar y cargar
+                  disable-and-unload: Desactivar y descargar
+                  import-folder: Importar carpeta
+                  confirm-import: Importar extensión
+                  cancel-import: Cancelar
+                errors:
+                  enable-and-load: 'No se pudo activar y cargar el complemento {extensionId}.'
+                  disable-and-unload: 'No se pudo desactivar y descargar el complemento {extensionId}.'
+                  prepare-import: No se pudo examinar la carpeta de la extensión.
+                  commit-import: 'No se pudo importar la extensión {extensionId}.'
+                  cancel-import: No se pudo cancelar la importación de la extensión.
+                import:
+                  title: Revisar importación de extensión
+                  description: La extensión permanece desactivada y descargada después de importarla.
+                  source: Carpeta de origen
+                  runtimes: Entornos de ejecución
+                  entrypoints: Puntos de entrada
+                  package-size: Paquete
+                  package-size-value: '{fileCount} archivos · {totalBytes}'
+                  permissions: Permisos
+                  no-permissions: No se han declarado permisos.
+                  no-kits: No se han declarado kits.
+                  imported: 'Se importó la extensión {extensionId}.'
               use-magic-keys:
+                title: Herramienta useMagicKeys
                 description: Probar accesos directos
               audio-record:
                 title: Grabación de Audio
                 description: Probar compuestos relacionados con audio
               background-gradient-blending:
                 title: Mezcla de color del tema de fondo
+                description: Probar mezclas y temas
               background-removal:
                 title: Eliminación de fondo (WebGPU requerido)
                 description: Utilidad para eliminar el fondo
+              chat:
+                title: Conversación
+                description: Conversación
               gesture-circle:
                 title: Círculo de gestos (Sólo escritorio)
                 description: Prueba el reconocimiento de gestos
@@ -1342,6 +2050,7 @@ pages:
               title: Color Predeterminado
             morandi:
               colors:
+                color-1: Gris topo
                 color-3: Gris Ceniza
                 color-4: Taupe Claro
                 color-5: Marfil
@@ -1366,6 +2075,7 @@ pages:
               colors:
                 color-1: Bronceado
                 color-2: Taupe Cálido
+                color-3: Tierra de sombra
                 color-4: Café
                 color-5: Bronce
                 color-6: Oro
@@ -1428,13 +2138,22 @@ pages:
       delete_confirm: '¿Seguro que quieres borrar este fondo?'
     tip:
       label: '¡Un consejo!'
+      description: Una imagen cuadrada usa el recorte <b>cover</b> en modo vertical, centrado en la escena.
 theme:
   title: Tema
   description: |
     Cambiar el tema base de AIRI, modo Claro o modo Oscuro.
+  auto: Sistema
+  light: Claro
+  dark: Oscuro
 title: Configuración
 voices: Voz
 vrm:
+  fps:
+    title: Límite de fotogramas
+    description: Limita el renderizado VRM en el escenario y la vista previa del modelo. Un límite menor reduce el uso de GPU sin cambiar la velocidad de la animación.
+    options:
+      unlimited: Ilimitado
   change-model:
     from-file: Cargar desde Archivo
     from-file-select: Seleccionar
@@ -1515,9 +2234,17 @@ mmd:
       title: Extraer
   physics:
     title: Física y Rig
+    enabled: Activar la física del pelo, la falda y los accesorios
+    ik: Activar IK (cinemática inversa)
+    grant: Activar la propagación de huesos adicionales
+    gravity: Intensidad de la gravedad
   gaze:
+    title: Mirada
+    tracking: Mirando a
     options:
+      cursor: Ratón
       camera: Cámara
+      none: Desactivado
   animation:
     title: Animación
     idle-motion: Movimiento inactivo
@@ -1527,6 +2254,8 @@ mmd:
     description: >-
       Importa archivos de movimiento VMD, establece uno como animación inactiva en bucle o reproduce cualquiera como un gesto de una sola vez. Asigna emociones a movimientos para reproducir gestos junto con expresiones faciales.
   morphs:
+    title: Morfos
+    auto: (automático)
     revert: Revertir a auto
     no-morphs: Este modelo no expone ningún Morph.
     description: >-
@@ -1558,3 +2287,6 @@ wip:
   title: Trabajo en Proceso
   description: >-
     Esta característica está actualmente en desarrollo y aún no está disponible públicamente. Vuelve a intentarlo en futuras actualizaciones para esta funcionalidad.
+streamer-mode:
+  title: Modo de transmisión
+  description: Oculta los indicadores del micrófono y de inicio de sesión en la ventana del personaje.

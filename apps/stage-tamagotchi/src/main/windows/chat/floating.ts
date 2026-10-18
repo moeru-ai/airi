@@ -59,6 +59,8 @@ interface FloatingChatWindow {
   applyPlacement: () => void
   /** Whether the chat is unfolded, which the chat button shows as pressed. */
   isUnfolded: () => boolean
+  /** Hides the chat while the main window covers its display, and shows it again after, unless it is folded. */
+  setCovered: (covered: boolean) => void
 }
 
 /**
@@ -109,6 +111,8 @@ export function setupFloatingChatWindow(params: {
   let relocating = false
   /** The chat window's own always-on-top state, as its `always-on-top-changed` events report it. */
   let pinned = false
+  /** `true` while the main window covers its display. The chat hides then, and shows again after unless folded. */
+  let covered = false
   let slide: ReturnType<typeof animate> | undefined
   let detachFromMain: (() => void) | undefined
   /**
@@ -278,13 +282,15 @@ export function setupFloatingChatWindow(params: {
    */
   function attachToMain(target: BrowserWindow) {
     const main = params.getMainWindow()
-    if (!main || main.isDestroyed())
+    // A covered chat stays apart from the main window. A child window shows again with its parent, and an attached
+    // chat follows the main window over the display.
+    if (!main || main.isDestroyed() || covered)
       return
 
     const follow = () => followMain(main, target)
     const hideWithMain = () => target.hide()
     const showWithMain = () => {
-      if (!folded)
+      if (!folded && !covered)
         target.showInactive()
     }
     const linkToMain = () => target.setParentWindow(main)
@@ -506,6 +512,9 @@ export function setupFloatingChatWindow(params: {
     const target = await reusable.getWindow()
     setFolded(false)
     emitState()
+    // The chat shows once the main window stops covering the display.
+    if (covered)
+      return
 
     if (target.isMinimized())
       target.restore()
@@ -546,5 +555,17 @@ export function setupFloatingChatWindow(params: {
         applyPlacementTo(window)
     },
     isUnfolded: () => !folded,
+    setCovered(value: boolean) {
+      covered = value
+      const window = reusable.getOpenWindow()
+      if (!window)
+        return
+      // The placement leaves the main window while it covers the display, and comes back to it after.
+      applyPlacementTo(window)
+      if (value)
+        window.hide()
+      else if (!folded)
+        window.showInactive()
+    },
   }
 }

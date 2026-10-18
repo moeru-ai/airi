@@ -1,14 +1,13 @@
 name: Cloudflare Workers (server-dev)
 
+# The "Deploy to server-dev" workflow starts this workflow on the branch under
+# test. Start it there, not here, so that the backend uses the same branch.
 on:
-  push:
-    branches:
-      - 'server-dev'
-
   workflow_dispatch:
 
+# All runs deploy to the same preview alias, whatever branch they build.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}
   cancel-in-progress: true
 
 jobs:
@@ -45,10 +44,6 @@ jobs:
         run: |
           pnpm -F @proj-airi/stage-web run build
 
-          pnpm -F @proj-airi/docs run build:base
-          mv ./docs/.vitepress/dist ./apps/stage-web/dist/docs
-          cp ./apps/stage-web/dist/docs/sitemap.xml ./apps/stage-web/dist/sitemap.xml
-
           pnpm -F @proj-airi/stage-ui run story:build
           mv ./packages/stage-ui/.histoire/dist ./apps/stage-web/dist/ui
         env:
@@ -57,7 +52,8 @@ jobs:
           S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
           S3_REGION: ${{ secrets.S3_REGION }}
           WARP_DRIVE_PUBLIC_BASE: ${{ secrets.WARP_DRIVE_PUBLIC_BASE }}
-          VITE_SERVER_URL: 'https://airi-server-dev.up.railway.app'
+          VITE_SERVER_URL: 'https://api-dev.airi.build'
+          VITE_REVENUECAT_WEB_KEY: ${{ vars.VITE_REVENUECAT_WEB_KEY }}
 
       - name: Wrangler Upload
         id: wrangler-versions-upload
@@ -117,7 +113,7 @@ jobs:
       - name: Build ui-server-auth
         run: pnpm -F @proj-airi/ui-server-auth run build
         env:
-          VITE_SERVER_URL: 'https://airi-server-dev.up.railway.app'
+          VITE_SERVER_URL: 'https://api-dev.airi.build'
           VITE_WEB_APP_URL: 'https://airi.moeru.ai/'
 
       - name: Wrangler Pages Deploy

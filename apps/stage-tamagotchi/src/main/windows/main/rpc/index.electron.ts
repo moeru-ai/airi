@@ -1,4 +1,4 @@
-import type { BrowserWindow } from 'electron'
+import type { BrowserWindow, Rectangle } from 'electron'
 
 import type { I18n } from '../../../libs/i18n'
 import type { ServerChannel } from '../../../services/airi/channel-server'
@@ -6,6 +6,7 @@ import type { GodotStageManager } from '../../../services/airi/godot-stage'
 import type { IOTraceRecordingService } from '../../../services/airi/io-trace-recording'
 import type { McpManager } from '../../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../../services/electron/auto-updater'
+import type { GlobalShortcutService } from '../../../services/electron/global-shortcut'
 import type { ChatWindowManager } from '../../chat'
 import type { EditorWindowManager } from '../../editor'
 import type { NoticeWindowManager } from '../../notice'
@@ -35,7 +36,6 @@ import { createMcpServersService } from '../../../services/airi/mcp-servers'
 import { createOnboardingService } from '../../../services/airi/onboarding'
 import { createWidgetsService } from '../../../services/airi/widgets'
 import { createAutoUpdaterService } from '../../../services/electron'
-import { centerWindowOnDisplay } from '../../shared/display'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
 export async function setupMainWindowElectronInvokes(params: {
@@ -53,6 +53,11 @@ export async function setupMainWindowElectronInvokes(params: {
   onboardingWindowManager: OnboardingWindowManager
   ioTraceRecording: IOTraceRecordingService
   inlayWindow: () => Promise<BrowserWindow>
+  globalShortcut: GlobalShortcutService
+  /** Owns the main window's pin, which fullscreen mode overrides. */
+  setPinned: (pinned: boolean) => void
+  /** Centers the main window on its display, and returns its new bounds. Fullscreen mode centers the bounds it returns to. */
+  center: () => Rectangle
 }) {
   // TODO: once we refactored eventa to support window-namespaced contexts,
   // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -61,17 +66,19 @@ export async function setupMainWindowElectronInvokes(params: {
 
   const { context } = createContext(ipcMain, params.window)
 
-  await setupBaseWindowElectronInvokes({ context, window: params.window, serverChannel: params.serverChannel, i18n: params.i18n })
+  await setupBaseWindowElectronInvokes({ context, window: params.window, serverChannel: params.serverChannel, i18n: params.i18n, setAlwaysOnTop: params.setPinned })
+  // The stage renderer owns the voice host, so it registers the Push to Talk hold shortcut and receives its key events.
+  params.globalShortcut.registerWindow({ context, window: params.window })
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.window })
   createAutoUpdaterService({ context, window: params.window, service: params.autoUpdater })
   createMcpServersService({ context, manager: params.mcpManager })
   createGodotStageService({ context, manager: params.godotStageManager, window: params.window })
   createOnboardingService({ context, onboardingWindowManager: params.onboardingWindowManager, mainWindow: params.window })
   createAuthService({ context, window: params.window })
-  const stopIOTraceRecording = registerIOTraceRecording(context, params.ioTraceRecording)
+  const stopIOTraceRecording = registerIOTraceRecording(context, params.ioTraceRecording, params.window)
   params.window.once('closed', stopIOTraceRecording)
 
-  defineInvokeHandler(context, electronCenterMainWindow, () => centerWindowOnDisplay(params.window))
+  defineInvokeHandler(context, electronCenterMainWindow, () => params.center())
   defineInvokeHandler(context, electronOpenMainDevtools, () => params.window.webContents.openDevTools({ mode: 'detach' }))
   defineInvokeHandler(context, electronOpenEditor, () => params.editorWindow.openWindow())
   // Speech opens the inlay without focus, so the user can keep working in another app while speaking.

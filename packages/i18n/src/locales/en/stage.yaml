@@ -10,7 +10,6 @@ mobile-tools:
   character-voice: Character voice
   title: Settings
   appearance: Appearance
-  dark-mode: Dark mode
   application: Application
   more: More
   background: Background
@@ -53,6 +52,9 @@ chat:
     input-device: Microphone
     system-default: System default
     listen: Listen continuously
+    push-to-talk: Push to Talk
+    push-to-talk-unavailable: This device has no Push to Talk key, so AIRI does not listen. Change the input mode in Hearing settings.
+    wake-word: Listen for wake words
     hearing-settings: More Hearing settings…
     options-hint: Hover or right-click for options
     recording: Recording
@@ -80,7 +82,77 @@ chat:
     discard: Discard draft
     listening: Listening
     finalizing: Finishing…
+    sent: Sent
   voice-input: Voice input
+  notice:
+    label: 'Background report from {name}'
+  background-tasks:
+    label: Background tasks
+    stop: 'Stop {name}'
+    dismiss: 'Dismiss {name}'
+    status:
+      running: Working on
+      done: Done
+      failed: Not finished
+      interrupted: Stopped
+  judgment:
+    running: 'Judging {name}'
+    judged: 'Judged {name}'
+    invalid: 'Could not judge {name}'
+  judgment-tool-call:
+    answer: Answer
+    next: Then
+    reply: Reply as usual
+    stay-quiet: Stay quiet
+    hint: 'Reply, keeping in mind: {text}'
+    recipe-steps: 'Use recipe {name}'
+    recipe-decision: 'Judge {name}'
+    recipe-background: 'Hand to recipe {name}'
+  recipe:
+    using: 'Using recipe {name}'
+    loaded: 'Used recipe {name}'
+    started: 'Handed to recipe {name}'
+    pending: 'Recipe {name} waits for approval'
+    disabled: 'Recipe {name} is off'
+    unknown: 'Recipe {name} not found'
+    refused: 'Recipe {name} did not start'
+    failed: 'Recipe {name} did not start'
+  recipe-tool-call:
+    task: Task
+    usable: Recipes you can use now
+    pending: This recipe waits for your approval.
+    disabled: This recipe is turned off.
+    unknown: No recipe has this name.
+    refused: The recipe could not start.
+  invoked-skill:
+    steps: 'Used recipe {name}'
+    background: 'Handed to recipe {name}'
+    decision: 'Used recipe {name}'
+    question: Question
+    'yes': 'Yes'
+    'no': 'No'
+  home-assistant-tool-call:
+    shown: 'Showing {count} of {total} devices'
+  web-search-tool-call:
+    results: 'Results for "{query}" · {count}'
+  tool-calls:
+    running-one: 'Using {name}'
+    failed-one: "{name} didn't finish"
+    combo-running: 'Combo ×{count}'
+    combo: '{count}-hit combo'
+    combo-failed: '{count}-hit combo, {failed} missed'
+    arguments: Arguments
+    result: Result
+    copy: Copy raw data
+    copied: Copied
+    raw: Raw data
+    other: Other data
+    widget: Widget
+    rerun: Run again
+    state:
+      executing: Running
+      done: Done
+      error: Failed
   error-details:
     show: Show details
     hide: Hide details
@@ -132,6 +204,11 @@ chat:
     cloud-badge: Synced to cloud
     new-chat-fallback: New chat
     delete: Delete conversation
+avatar-model-missing:
+  title: No model selected
+  unavailable-title: This model is not on this device
+  description: Select a model to show {name} on the Stage.
+  select: Select model
 render-error:
   title: '{renderer} could not render this model'
   description: The model is selected, but the Stage could not display it.
@@ -161,6 +238,14 @@ startup:
     route: page
     model: character model
 message: Say something...
+theme:
+  title: Theme
+  system: System
+  light: Light
+  dark: Dark
+  switch-to-light: Switch to the light theme
+  switch-to-dark: Switch to the dark theme
+  switch-to-system: Follow the system theme
 send-mode:
   title: Send key
   enter: Enter

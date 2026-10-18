@@ -11,8 +11,20 @@ import ChatToolbarButton from './ChatToolbarButton.vue'
 
 import { BackgroundDialogPicker } from '../Backgrounds'
 
-const { isDark, toggleDark } = useTheme()
+const { themeMode, switchToNextTheme } = useTheme()
 const { t } = useI18n()
+
+// The button shows the current theme, and its label tells what a press selects.
+const themeIcons = {
+  light: 'i-solar:sun-2-outline',
+  dark: 'i-solar:moon-outline',
+  auto: 'i-lucide:contrast',
+} as const
+const themeLabel = computed(() => ({
+  light: t('stage.theme.switch-to-dark'),
+  dark: t('stage.theme.switch-to-system'),
+  auto: t('stage.theme.switch-to-light'),
+})[themeMode.value])
 
 const SEND_MODES = ['enter', 'ctrl-enter', 'double-enter'] as const
 type SendMode = (typeof SEND_MODES)[number]
@@ -78,13 +90,12 @@ const sendModeLabels = computed<Record<SendMode, string>>(() => ({
       </DropdownMenuPortal>
     </DropdownMenuRoot>
     <ChatToolbarButton
-      :title="t('stage.mobile-tools.dark-mode')"
-      :aria-label="t('stage.mobile-tools.dark-mode')"
-      @click="() => toggleDark()"
+      :title="themeLabel"
+      :aria-label="themeLabel"
+      @click="switchToNextTheme"
     >
       <Transition name="fade" mode="out-in">
-        <div v-if="isDark" class="i-solar:moon-outline size-5" />
-        <div v-else class="i-solar:sun-2-outline size-5" />
+        <div :key="themeMode" :class="[themeIcons[themeMode], 'size-5']" />
       </Transition>
     </ChatToolbarButton>
     <ChatToolbarButton

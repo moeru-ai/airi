@@ -601,17 +601,22 @@ describe('vOICEVOX provider defaults', () => {
       .toEqual({ speed: 1, pitch: 0, intonation: 1, volume: 1 })
   })
   // ROOT CAUSE: Model reloads lived in the settings page, so card changes bypassed them.
+  // https://github.com/moeru-ai/airi/actions/runs/39113696560/job/117634993202
+  // Catalog hashing is asynchronous. Wait for each request instead of assuming it finishes within 20 ms.
   it('refreshes voices when only the active model changes outside settings', async () => {
     const providers = useProviderStore()
     const loads = vi.spyOn(providers, 'listProviderVoices').mockResolvedValue([])
     const speech = useSpeechStore()
     speech.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
     speech.activeSpeechModel = 'model-a'
-    await new Promise(resolve => setTimeout(resolve, 20))
+    await vi.waitFor(() => {
+      expect(loads).toHaveBeenCalledWith(OFFICIAL_SPEECH_PROVIDER_ID, 'model-a', expect.anything())
+    })
     loads.mockClear()
     speech.activeSpeechModel = 'model-b'
-    await new Promise(resolve => setTimeout(resolve, 20))
-    expect(loads).toHaveBeenCalledWith(OFFICIAL_SPEECH_PROVIDER_ID, 'model-b', expect.anything())
+    await vi.waitFor(() => {
+      expect(loads).toHaveBeenCalledWith(OFFICIAL_SPEECH_PROVIDER_ID, 'model-b', expect.anything())
+    })
   })
 
   // https://github.com/moeru-ai/airi/pull/2490#discussion_r3964660980

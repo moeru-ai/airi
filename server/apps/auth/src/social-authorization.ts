@@ -3,13 +3,12 @@ import type { AuthEnv } from './env'
 
 import { Buffer } from 'node:buffer'
 
+import { createBadGatewayError, createServiceUnavailableError } from '@proj-airi/http-error-shared'
 import { eq } from 'drizzle-orm'
 import { importPKCS8, SignJWT } from 'jose'
 import { literal, object, safeParse } from 'valibot'
 
 import * as authSchema from '@proj-airi/auth-shared'
-
-import { createBadGatewayError, createServiceUnavailableError } from './error'
 
 type AppleCredentials = Pick<AuthEnv, 'AUTH_APPLE_CLIENT_ID' | 'AUTH_APPLE_TEAM_ID' | 'AUTH_APPLE_KEY_ID' | 'AUTH_APPLE_PRIVATE_KEY_PEM'>
 
@@ -227,6 +226,7 @@ export function createSocialAuthorizationRevoker(
   fetchRequest: typeof fetch = fetch,
 ): SocialAuthorizationRevoker {
   return {
+    /** Revokes external grants before local deletion, leaving unknown providers blocked. */
     async revokeForUser(userId) {
       const accounts = await db
         .select({
@@ -238,7 +238,8 @@ export function createSocialAuthorizationRevoker(
         .where(eq(authSchema.account.userId, userId))
 
       for (const account of accounts) {
-        if (account.providerId === 'credential')
+        // Steam OpenID 2.0 authenticates identity without issuing an OAuth grant.
+        if (account.providerId === 'credential' || account.providerId === 'steam')
           continue
         if (account.providerId === 'apple') {
           await revokeAppleAuthorization(account, credentials, fetchRequest)

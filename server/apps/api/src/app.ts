@@ -4,11 +4,14 @@ import type { OtelInstance } from './otel'
 import type { Verifier as AppleIapVerifier } from './routes/apple-iap/verifier'
 import type { StreamingTtsVoiceType } from './routes/audio-speech-ws/session'
 import type { ConfigKVService } from './services/adapters/config-kv'
+import type { RevenuecatSubscriberClient } from './services/adapters/revenuecat-subscriber'
+import type { RevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
 import type { BillingService } from './services/domain/billing/billing-service'
 import type { LlmBillingService } from './services/domain/billing/llm-billing'
 import type { CharacterCardService } from './services/domain/character-cards'
 import type { CharacterService } from './services/domain/characters'
 import type { ChatService } from './services/domain/chats'
+import type { DisplayModelService } from './services/domain/display-models'
 import type { FluxService } from './services/domain/flux'
 import type { FluxTransactionService } from './services/domain/flux-transaction'
 import type { LlmRouterService } from './services/domain/llm-router'
@@ -30,6 +33,7 @@ import Stripe from 'stripe'
 import { initLogger, LoggerFormat, LoggerLevel, setGlobalHookPostLog, useLogger } from '@guiiai/logg'
 import { createNodeWebSocket } from '@hono/node-ws'
 import { httpInstrumentationMiddleware } from '@hono/otel'
+import { createErrorHandler, createPayloadTooLargeError } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
@@ -58,23 +62,28 @@ import { createChatWsV1Handlers } from './routes/chat-ws/v1'
 import { createChatWsV2Handlers } from './routes/chat-ws/v2'
 import { createChatWsPayloadLimit } from './routes/chat-ws/v2/payload-limit'
 import { createChatRoutes } from './routes/chats'
+import { createDisplayModelRoutes } from './routes/display-models'
 import { createFluxRoutes } from './routes/flux'
 import { createInternalAuthRoutes } from './routes/internal-auth'
 import { createLlmRequestRoutes } from './routes/llm-requests'
 import { createV1Routes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
+import { createRevenuecatRoutes } from './routes/revenuecat'
 import { createStripeRoutes } from './routes/stripe'
 import { createVoicePackRoutes } from './routes/voice-packs'
 import { createConfigKVService } from './services/adapters/config-kv'
 import { createConfigKVStore } from './services/adapters/config-kv/store'
 import { createS3ObjectStore } from './services/adapters/object-store'
 import { createOpenpanelSink } from './services/adapters/openpanel'
+import { createRevenuecatSubscriberClient } from './services/adapters/revenuecat-subscriber'
+import { createRevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
 import { createBillingService } from './services/domain/billing/billing-service'
 import { createLlmBillingService } from './services/domain/billing/llm-billing'
 import { SpeechBilling } from './services/domain/billing/speech-billing'
 import { createCharacterCardService } from './services/domain/character-cards'
 import { createCharacterService } from './services/domain/characters'
 import { createChatService } from './services/domain/chats'
+import { createDisplayModelService } from './services/domain/display-models'
 import { createFluxService } from './services/domain/flux'
 import { createFluxTransactionService } from './services/domain/flux-transaction'
 import { createConcurrencyLedger, createConfigSyncSubscriber, createLlmRouterService } from './services/domain/llm-router'
@@ -83,10 +92,10 @@ import { createProductEventService } from './services/domain/product-events'
 import { createProviderCatalogService } from './services/domain/provider-catalog'
 import { createProviderService } from './services/domain/providers'
 import { createRequestLogService } from './services/domain/request-log'
+import { createUploadSessionService } from './services/domain/upload-sessions'
 import { createUserDeletionService } from './services/domain/user-deletion'
 import { createVoicePackService } from './services/domain/voice-packs'
 import { createEnvelopeCrypto } from './utils/envelope-crypto'
-import { ApiError, createInternalError } from './utils/error'
 import { nanoid } from './utils/id'
 import { getTrustedOrigin } from './utils/origin'
 
@@ -104,8 +113,11 @@ interface AppDeps {
   llmBilling: LlmBillingService
   billingService: BillingService
   speechBilling: SpeechBilling
+  subscriptionSync: RevenuecatSubscriptionSync
+  revenuecatSubscriber: RevenuecatSubscriberClient
   requestLogService: RequestLogService
   voicePackService: VoicePackService
+  displayModelService: DisplayModelService
   productEventService: ProductEventService
   configKV: ConfigKVService
   envelopeCrypto: EnvelopeCrypto
@@ -125,7 +137,9 @@ const DEFAULT_API_MAX_REQUEST_BYTES = 1024 * 1024
 function apiBodyLimit(maxSize: number) {
   return bodyLimit({
     maxSize,
-    onError: c => c.json({ error: 'PAYLOAD_TOO_LARGE', message: 'Payload Too Large' }, 413),
+    onError: () => {
+      throw createPayloadTooLargeError('Payload Too Large')
+    },
   })
 }
 
@@ -316,35 +330,7 @@ export async function buildApp(deps: AppDeps) {
         return next()
       return defaultApiBodyLimit(c, next)
     })
-    .onError((err, c) => {
-      if (err instanceof ApiError) {
-        // Surface details + cause to the server-side log only. SEC-5 keeps
-        // upstream body content (carried by `cause`) out of the client
-        // response body; the logger / OTel pipeline is the right channel
-        // for operators to see the real upstream message.
-        const logFields = { details: err.details, cause: (err as { cause?: unknown }).cause }
-
-        if (err.statusCode >= 500) {
-          logger.withError(err).withFields(logFields).error('API error occurred')
-        }
-        else if (err.statusCode !== 401) {
-          logger.withError(err).withFields(logFields).warn('API error occurred')
-        }
-
-        return c.json({
-          error: err.errorCode,
-          message: err.message,
-          details: err.details,
-        }, err.statusCode)
-      }
-
-      logger.withError(err).error('Unhandled error')
-      const internalError = createInternalError()
-      return c.json({
-        error: internalError.errorCode,
-        message: internalError.message,
-      }, internalError.statusCode)
-    })
+    .onError(createErrorHandler(logger))
 
     /**
      * Liveness probe (K8s convention). Returns 200 as long as the Node
@@ -397,6 +383,7 @@ export async function buildApp(deps: AppDeps) {
     .route('/internal/auth', createInternalAuthRoutes({
       userDeletionService: deps.userDeletionService,
       productEventService: deps.productEventService,
+      revenuecatSubscriber: deps.revenuecatSubscriber,
     }))
 
     /**
@@ -408,6 +395,11 @@ export async function buildApp(deps: AppDeps) {
      * Character card routes synchronize the cards of a user between devices.
      */
     .route('/api/v1/character-cards', createCharacterCardRoutes(deps.characterCardService))
+
+    /**
+     * Display model routes sync imported Live2D and VRM originals through private object storage.
+     */
+    .route('/api/v1/display-models', createDisplayModelRoutes(deps.displayModelService))
 
     /**
      * Provider routes are handled by the provider service.
@@ -436,7 +428,7 @@ export async function buildApp(deps: AppDeps) {
     /**
      * Flux routes.
      */
-    .route('/api/v1/flux', createFluxRoutes(deps.fluxService, deps.fluxTransactionService))
+    .route('/api/v1/flux', createFluxRoutes(deps.fluxService, deps.fluxTransactionService, deps.billingService))
     .route('/api/v1/llm-requests', createLlmRequestRoutes(deps.requestLogService))
 
     /**
@@ -451,6 +443,15 @@ export async function buildApp(deps: AppDeps) {
       deps.otel?.revenue ?? null,
       deps.otel?.rateLimit ?? null,
       deps.productEventService,
+    ))
+
+    /**
+     * RevenueCat webhook ingress and Capacitor reconciliation for the caller.
+     */
+    .route('/api/v1/revenuecat', createRevenuecatRoutes(
+      deps.subscriptionSync,
+      deps.env,
+      deps.otel?.rateLimit ?? null,
     ))
 
     /**
@@ -594,8 +595,7 @@ export async function createApp() {
     dependsOn: { env: parsedEnv, lifecycle },
     build: ({ dependsOn }) => {
       const store = createS3ObjectStore(dependsOn.env)
-      if (store)
-        dependsOn.lifecycle.appHooks.onStop(() => store.dispose())
+      dependsOn.lifecycle.appHooks.onStop(() => store.dispose())
       return store
     },
   })
@@ -701,14 +701,19 @@ export async function createApp() {
     build: ({ dependsOn }) => createVoicePackService(dependsOn.db),
   })
 
+  const displayModelService = injeca.provide('services:displayModel', {
+    dependsOn: { db, objectStore },
+    build: ({ dependsOn }) => createDisplayModelService(dependsOn.db, dependsOn.objectStore, createUploadSessionService(dependsOn.objectStore)),
+  })
+
   const providerCatalogService = injeca.provide('services:providerCatalog', {
     dependsOn: { db },
     build: ({ dependsOn }) => createProviderCatalogService(dependsOn.db),
   })
 
   const billingService = injeca.provide('services:billing', {
-    dependsOn: { db, redis, otel },
-    build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.otel?.revenue),
+    dependsOn: { db, redis, configKV, otel },
+    build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.configKV, dependsOn.otel?.revenue),
   })
 
   const llmBilling = injeca.provide('services:llmBilling', {
@@ -719,6 +724,26 @@ export async function createApp() {
   const paymentService = injeca.provide('services:payment', {
     dependsOn: { db, billingService },
     build: ({ dependsOn }) => createPaymentService(dependsOn.db, dependsOn.billingService),
+  })
+
+  const revenuecatSubscriber = injeca.provide('adapters:revenuecatSubscriber', {
+    dependsOn: { env: parsedEnv },
+    build: ({ dependsOn }) => createRevenuecatSubscriberClient({
+      apiKey: dependsOn.env.REVENUECAT_V2_API_KEY ?? null,
+      projectId: dependsOn.env.REVENUECAT_PROJECT_ID ?? null,
+      environment: dependsOn.env.REVENUECAT_ENVIRONMENT,
+      sandboxUserIds: dependsOn.env.REVENUECAT_SANDBOX_USER_IDS,
+      sellsSubscriptions: Boolean(dependsOn.env.REVENUECAT_WEBHOOK_AUTH || dependsOn.env.REVENUECAT_WEBHOOK_SECRET),
+    }),
+  })
+
+  const subscriptionSync = injeca.provide('services:revenuecatSubscriptionSync', {
+    dependsOn: { billingService, configKV, revenuecatSubscriber },
+    build: ({ dependsOn }) => createRevenuecatSubscriptionSync(
+      dependsOn.billingService,
+      dependsOn.configKV,
+      dependsOn.revenuecatSubscriber,
+    ),
   })
 
   // NOTICE:
@@ -778,8 +803,10 @@ export async function createApp() {
     fluxTransactionService,
     requestLogService,
     voicePackService,
+    displayModelService,
     productEventService,
     paymentService,
+    subscriptionSync,
     appleIapVerifier,
     stripe,
     billingService,
@@ -791,6 +818,7 @@ export async function createApp() {
     env: parsedEnv,
     otel,
     userDeletionService,
+    revenuecatSubscriber,
     llmRouter,
     providerCatalogService,
     ttsConcurrencyLedger,
@@ -809,9 +837,11 @@ export async function createApp() {
     fluxService: resolved.fluxService,
     fluxTransactionService: resolved.fluxTransactionService,
     paymentService: resolved.paymentService,
+    subscriptionSync: resolved.subscriptionSync,
     appleIapVerifier: resolved.appleIapVerifier,
     stripe: resolved.stripe,
     voicePackService: resolved.voicePackService,
+    displayModelService: resolved.displayModelService,
     billingService: resolved.billingService,
     llmBilling: resolved.llmBilling,
     speechBilling: resolved.speechBilling,
@@ -823,6 +853,7 @@ export async function createApp() {
     env: resolved.env,
     otel: resolved.otel,
     userDeletionService: resolved.userDeletionService,
+    revenuecatSubscriber: resolved.revenuecatSubscriber,
     llmRouter: resolved.llmRouter,
     providerCatalogService: resolved.providerCatalogService,
   }

@@ -1,15 +1,22 @@
 <script setup lang="ts">
+import type { WeatherEffect } from '../../../components/weather/condition-icons'
+
 import { computed } from 'vue'
 
 import Skeleton from './Skeleton.vue'
 
-type WeatherEffect = 'rain' | 'snow' | 'thunder' | 'fog' | 'cloudy' | 'none'
+import { weatherIconMap } from '../../../components/weather/condition-icons'
+
 type SizePreset = 's' | 'm' | 'l' | { cols?: number, rows?: number }
 
 const props = withDefaults(defineProps<{
   propsLoading?: boolean
 
   city?: string
+  /** Which moment or day the widget shows, for example `Now`, `Tomorrow`, or a date. */
+  label?: string
+  /** The forecast day, `YYYY-MM-DD`. The weather tool sends it with each daily entry. */
+  date?: string
   temperature?: string
   condition?: string
   icon?: string
@@ -28,34 +35,10 @@ const props = withDefaults(defineProps<{
   isNight: false,
 })
 
-const weatherIconMap = {
-  'clear-day': { icon: 'i-iconify-meteocons:clear-day-fill', effect: 'none', nightKey: 'clear-night' },
-  'clear-night': { icon: 'i-iconify-meteocons:clear-night-fill', effect: 'none' },
-  'partly-cloudy-day': { icon: 'i-iconify-meteocons:partly-cloudy-day-fill', effect: 'cloudy', nightKey: 'partly-cloudy-night' },
-  'partly-cloudy-night': { icon: 'i-iconify-meteocons:partly-cloudy-night-fill', effect: 'cloudy' },
-  'cloudy': { icon: 'i-iconify-meteocons:cloudy-fill', effect: 'cloudy' },
-  'overcast': { icon: 'i-iconify-meteocons:overcast-fill', effect: 'cloudy' },
-  'rain': { icon: 'i-iconify-meteocons:rain-fill', effect: 'rain' },
-  'drizzle': { icon: 'i-iconify-meteocons:drizzle-fill', effect: 'rain' },
-  'extreme-rain': { icon: 'i-iconify-meteocons:extreme-rain-fill', effect: 'rain' },
-  'thunderstorm': { icon: 'i-iconify-meteocons:thunderstorms-fill', effect: 'thunder' },
-  'snow': { icon: 'i-iconify-meteocons:snow-fill', effect: 'snow' },
-  'extreme-snow': { icon: 'i-iconify-meteocons:extreme-snow-fill', effect: 'snow' },
-  'sleet': { icon: 'i-iconify-meteocons:sleet-fill', effect: 'snow' },
-  'hail': { icon: 'i-iconify-meteocons:hail-fill', effect: 'snow' },
-  'fog': { icon: 'i-iconify-meteocons:fog-fill', effect: 'fog' },
-  'mist': { icon: 'i-iconify-meteocons:mist-fill', effect: 'fog' },
-  'haze': { icon: 'i-iconify-meteocons:haze-fill', effect: 'fog' },
-  'dust': { icon: 'i-iconify-meteocons:dust-fill', effect: 'fog' },
-  'smoke': { icon: 'i-iconify-meteocons:smoke-fill', effect: 'fog' },
-  'wind': { icon: 'i-iconify-meteocons:wind-fill', effect: 'cloudy' },
-  'tornado': { icon: 'i-iconify-meteocons:tornado-fill', effect: 'thunder' },
-  'hurricane': { icon: 'i-iconify-meteocons:hurricane-fill', effect: 'thunder' },
-} as Record<string, { icon: string, effect?: WeatherEffect, nightKey?: string }>
-
 const normalizedCondition = computed(() => (props.condition ?? '').toLowerCase().trim())
 const normalizedCode = computed(() => (props.conditionCode ?? '').toLowerCase().trim())
 const isLarge = computed(() => props.size === 'l')
+const place = computed(() => [props.city ?? 'Unknown', props.label].filter(Boolean).join(' · '))
 
 const conditionMappings: Array<{ keywords: string[], key: string }> = [
   { keywords: ['thunder', 'storm', 'lightning'], key: 'thunderstorm' },
@@ -186,7 +169,7 @@ const resolvedIconClass = computed(() => weatherIconMap[resolvedIconKey.value].i
             {{ props.condition ?? '—' }}
           </div>
           <div :class="['text-sm', 'text-white/55']">
-            {{ props.city ?? 'Unknown' }}
+            {{ place }}
           </div>
         </div>
         <div :class="['h-px', 'w-full', 'bg-white/10']" />
@@ -240,7 +223,7 @@ const resolvedIconClass = computed(() => weatherIconMap[resolvedIconKey.value].i
               {{ props.temperature ?? '--' }}
             </div>
             <div :class="['text-xs', 'text-white/60']">
-              {{ props.city ?? 'Unknown' }}
+              {{ place }}
             </div>
           </div>
         </div>

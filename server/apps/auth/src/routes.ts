@@ -8,12 +8,12 @@ import type { RateLimitMetrics } from './otel'
 import { createHash } from 'node:crypto'
 
 import { account, isUserBannedNow, user } from '@proj-airi/auth-shared'
+import { createBadRequestError, createForbiddenError, createInternalError } from '@proj-airi/http-error-shared'
 import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
-import { email, nonEmpty, object, pipe, regex, safeParse, string, transform } from 'valibot'
+import { boolean, email, nonEmpty, object, pipe, regex, safeParse, string, transform } from 'valibot'
 
 import { ensureDynamicFirstPartyRedirectUri } from './auth'
-import { createBadRequestError, createForbiddenError } from './error'
 import { createOidcAccessTokenVerifier } from './oidc-access-token'
 import { rateLimiter } from './rate-limit'
 
@@ -27,7 +27,7 @@ export interface HonoEnv {
 export const SERVER_AUTH_UI_BASE_PATH = '/auth'
 export const AUTH_UI_PUBLIC_URL_QUERY_PARAM = 'api_server_url'
 export const DEFAULT_AUTH_UI_URL = 'https://accounts.airi.build/ui'
-export const SERVER_DEV_PUBLIC_URL = 'https://airi-server-dev.up.railway.app'
+export const SERVER_DEV_PUBLIC_URL = 'https://api-dev.airi.build'
 export const SERVER_DEV_AUTH_UI_URL = 'https://server-dev.airi-server-auth.pages.dev/ui'
 
 const FORWARDED_AUTH_UI_PROVIDERS = new Set(['google', 'github', 'steam'])
@@ -201,21 +201,28 @@ const CheckEmailIdentifierBodySchema = object({
   ),
 })
 
-async function checkEmailIdentifier(db: AuthDatabase, body: { email?: unknown } | null) {
+const CheckEmailIdentifierResponseSchema = object({
+  exists: boolean(),
+  hasPassword: boolean(),
+  emailVerified: boolean(),
+})
+
+/** Returns navigation hints from persisted account state without authenticating the caller. */
+async function checkEmailIdentifier(db: AuthDatabase, body: unknown) {
   const parsed = safeParse(CheckEmailIdentifierBodySchema, body)
   if (!parsed.success)
     throw createBadRequestError('Invalid email', 'INVALID_EMAIL')
 
-  const [matched] = await db.select({ id: user.id }).from(user).where(eq(user.email, parsed.output.email)).limit(1)
+  const [matched] = await db.select({ id: user.id, emailVerified: user.emailVerified }).from(user).where(eq(user.email, parsed.output.email)).limit(1)
   if (!matched)
-    return { exists: false, hasPassword: false }
+    return { exists: false, hasPassword: false, emailVerified: false }
 
   const [credential] = await db
     .select({ id: account.id })
     .from(account)
     .where(and(eq(account.userId, matched.id), eq(account.providerId, 'credential')))
     .limit(1)
-  return { exists: true, hasPassword: !!credential }
+  return { exists: true, hasPassword: !!credential, emailVerified: matched.emailVerified }
 }
 
 function createAuthUiRoutes(env: AuthEnv) {
@@ -349,6 +356,7 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
      * social provider when only social accounts exist).
      *
      * Returns:
+     * - `emailVerified`: the stored verification flag, or false for an unknown email.
      * - `exists`: a `user` row matches the email (case-insensitive).
      * - `hasPassword`: that user has an account row with `providerId='credential'`,
      *   i.e. can sign in via email + password (vs. social-only).
@@ -358,9 +366,13 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
      * accept the disclosure since the existing rate limiter applies a fixed
      * per-IP request limit to `/api/auth/*` and throttles enumeration attempts.
      */
+    // Reject malformed adapter output without exposing internal validation details.
     .on('POST', '/api/auth/check-email', async (c) => {
-      const body = await c.req.json().catch(() => null) as { email?: unknown } | null
-      return c.json(await checkEmailIdentifier(deps.db, body))
+      const body: unknown = await c.req.json().catch(() => null)
+      const result = safeParse(CheckEmailIdentifierResponseSchema, await checkEmailIdentifier(deps.db, body))
+      if (!result.success)
+        throw createInternalError()
+      return c.json(result.output)
     })
     .on(['POST', 'GET'], '/api/auth/*', async (c) => {
       return handleAuthRequest(c.req.raw)

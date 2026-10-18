@@ -76,7 +76,10 @@ async function renderArea(component: Component = InteractiveArea, options: { pro
   onTestFinished(() => localStorage.clear())
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: '/', component: { template: '<div />' } }],
+    routes: [
+      { path: '/', component: { template: '<div />' } },
+      { path: '/settings/providers', component: { template: '<div />' } },
+    ],
   })
   await router.push('/')
   await router.isReady()
@@ -101,6 +104,7 @@ async function renderArea(component: Component = InteractiveArea, options: { pro
     chatSession: useChatSessionStore(pinia),
     chatStream: useChatStreamStore(pinia),
     stageModel: useSettingsStageModel(pinia),
+    router,
     screen,
   }
 }
@@ -257,11 +261,10 @@ describe('interactive area synchronized state', () => {
     expect(account.getBoundingClientRect().height).toBeGreaterThanOrEqual(44)
     expect(account.querySelector('[data-avatar-fallback]')).not.toBeNull()
     await expect.element(screen.getByText('stage.mobile-tools.cleanup', { exact: true })).not.toBeInTheDocument()
-    await expect.element(screen.getByRole('switch', { name: 'stage.mobile-tools.character-voice' })).toBeVisible()
-    const voice = screen.getByRole('switch', { name: 'stage.mobile-tools.character-voice' })
-    const before = voice.element().getAttribute('aria-checked')
-    await voice.click()
-    await expect.element(voice).toHaveAttribute('aria-checked', before === 'true' ? 'false' : 'true')
+    await expect.element(screen.getByRole('slider', { name: 'stage.mobile-tools.character-voice' })).toBeVisible()
+    const mute = screen.getByRole('button', { name: 'stage.speech-output.mute', exact: true })
+    await mute.click()
+    await expect.element(screen.getByRole('button', { name: 'stage.speech-output.unmute', exact: true })).toBeVisible()
     await expect.element(screen.getByRole('button', { name: 'Close', exact: true })).not.toBeInTheDocument()
     await userEvent.keyboard('{Escape}')
     await expect.element(trigger).toHaveFocus()
@@ -557,6 +560,29 @@ describe('interactive area synchronized state', () => {
 
     await screen.getByText('stage.chat.provider-configuration.action').click()
     expect(openSettings).toHaveBeenCalledWith({ route: '/settings/providers' })
+  })
+
+  // ROOT CAUSE:
+  //
+  // If no chat provider was selected, the web and mobile composers sent the draft.
+  // The chat store then threw, and the history showed the raw error text.
+  //
+  // We fixed this by sharing the Electron setup callout and readiness check in all composers.
+  it.each([
+    ['mobile', MobileInteractiveArea],
+    ['web', SharedInteractiveArea],
+  ] as const)('keeps the draft and offers provider settings in %s when no chat provider is configured', async (_name, component) => {
+    const { chat, router, screen } = await renderArea(component, { providerConfigured: false })
+    const send = vi.spyOn(chat, 'send')
+
+    const input = await submitDraft(screen, 'Hello')
+
+    await expect.element(screen.getByText('stage.chat.provider-configuration.action')).toBeVisible()
+    await expect.element(input).toHaveValue('Hello')
+    expect(send).not.toHaveBeenCalled()
+
+    await screen.getByText('stage.chat.provider-configuration.action').click()
+    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/settings/providers'))
   })
 
   // https://github.com/moeru-ai/airi/pull/2399

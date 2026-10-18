@@ -1,6 +1,7 @@
 import type { SpeechSubmission } from '@proj-airi/core-agent'
 
 import type { VoiceDraft } from '../services/speech/bus'
+import type { ChatToolReference } from '../types/chat'
 
 import { joinTranscriptSegments } from '@proj-airi/provider-inference'
 import { ref } from 'vue'
@@ -8,8 +9,11 @@ import { ref } from 'vue'
 import { useChatStore } from '../stores/chat'
 import { useHearingStore } from '../stores/modules/hearing'
 
-/** Owns voice draft selection, source evidence, and submission to the chat runtime. */
-export function useVoiceDrafts(report: (cause: unknown) => void) {
+/**
+ * Owns voice draft selection, source evidence, and submission to the chat runtime.
+ * `tools` returns the tool references of a sent draft, read once at each send. Without tools, a draft sends none.
+ */
+export function useVoiceDrafts(report: (cause: unknown) => void, tools: () => readonly ChatToolReference[] | undefined) {
   const chat = useChatStore()
   const hearing = useHearingStore()
   const drafts = ref<VoiceDraft[]>([])
@@ -21,8 +25,10 @@ export function useVoiceDrafts(report: (cause: unknown) => void) {
     if (!submissions)
       return undefined
 
-    const evidence = submissions.map(source => ({ context: source.context, speakers: source.speakers }))
-    if (!evidence.some(item => item.context.length || item.speakers))
+    // Speaker evidence stays out of the prompt. Its cosine has no calibrated threshold yet, and the model can read a low
+    // score as another person. The speaker gate decides what the model receives. Until then, only the IO trace has it.
+    const evidence = submissions.map(source => ({ context: source.context }))
+    if (!evidence.some(item => item.context.length))
       return undefined
 
     // Prompt formatting is an application transport boundary. Plugin context keeps its typed values.
@@ -76,9 +82,11 @@ export function useVoiceDrafts(report: (cause: unknown) => void) {
     }
 
     const speechContext = formatSpeechContext(sources.get(id))
+    // The send crosses windows as a synced action, so it takes a plain copy of the references.
+    const requestTools = tools()?.map(tool => ({ ...tool }))
     signal?.addEventListener('abort', cancel, { once: true })
     markSending(id, true)
-    const committed = chat.submit({ sessionId: draft.sessionId, messageId: draft.id, text: draft.text, speechContext }).then((receipt) => {
+    const committed = chat.submit({ sessionId: draft.sessionId, messageId: draft.id, text: draft.text, speechContext, ...(requestTools ? { tools: requestTools } : {}) }).then((receipt) => {
       removeDraft(id)
       return receipt
     }).catch((error: unknown) => {

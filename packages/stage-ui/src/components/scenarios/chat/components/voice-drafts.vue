@@ -3,22 +3,32 @@ import type { VoiceDraft } from '../../../../services/speech/bus'
 
 import { joinTranscriptSegments } from '@proj-airi/provider-inference'
 import { BasicButton, BasicTextarea, Button, GhostButton } from '@proj-airi/ui'
-import { computed, ref, useTemplateRef, watch } from 'vue'
+import { computed, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+import PoppinText from '../../../widgets/poppin-text/PoppinText.web.vue'
+import RewriteText from '../../../widgets/rewrite-text/rewrite-text.vue'
 
 import { useChatSessionStore } from '../../../../stores/chat/session-store'
 import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useVoiceControlsStore } from '../../../../stores/voice-controls'
+import { createBlurFadeAnimator } from '../../../widgets/poppin-text/animators'
 
 const props = withDefaults(defineProps<{
   /**
    * Layout and surface treatment.
    * `card` draws its own panel with labeled actions.
-   * `composer` fills its host, such as a vibrancy window, and leaves the surface to the host.
+   * `composer` fills its host, such as the desktop inlay card, and leaves the surface to the host.
    * @default 'card'
    */
   variant?: 'card' | 'composer'
-}>(), { variant: 'card' })
+  /**
+   * Shows the listening state while the host captures speech that has no transcript text yet.
+   * A host that opens at the start of a capture, such as the desktop inlay for Push to Talk, uses it.
+   * @default false
+   */
+  showSilentSpeech?: boolean
+}>(), { variant: 'card', showSilentSpeech: false })
 
 const emit = defineEmits<{
   /** Whether a draft or live speech is shown. A host window can hide itself when nothing is shown. */
@@ -34,12 +44,15 @@ const sending = ref(false)
 /** Drafts that the user can still edit. A draft that the host is sending is on its way to the chat and stays hidden. */
 const drafts = computed(() => controls.snapshot.drafts.filter(item => !item.sending))
 
-/** Speech that the host is still transcribing. It is shown read-only until it becomes part of a draft. */
+/**
+ * Speech that the host is still transcribing. It is shown read-only until it becomes part of a draft.
+ * Without `showSilentSpeech`, a capture appears only after its first transcript text.
+ */
 const liveInput = computed(() => {
   const input = controls.snapshot.input
   if (!input || (input.phase !== 'capturing' && input.phase !== 'finalizing'))
     return undefined
-  return input.segments.some(segment => segment.text.trim()) ? input : undefined
+  return props.showSilentSpeech || input.segments.some(segment => segment.text.trim()) ? input : undefined
 })
 
 /**
@@ -87,12 +100,44 @@ const liveSegments = computed(() => {
     tier: segment.final ? 'final' as const : index === latest ? 'latest' as const : 'interim' as const,
   }))
 })
+/**
+ * The draft text when the current speech began. The host merges the speech into the draft one snapshot before the
+ * input settles. The live paragraph keeps this text, so the speech does not show twice in that snapshot.
+ */
+const spokenBase = shallowRef('')
+watch(() => liveInput.value?.requestId, (requestId, previous) => {
+  if (requestId && requestId !== previous)
+    spokenBase.value = text.value.trim()
+}, { immediate: true })
+
 const liveSeparator = computed(() => {
-  const base = text.value.trim()
+  const base = spokenBase.value
   const live = liveInput.value?.text.trim() ?? ''
   if (!base || !live)
     return ''
   return joinTranscriptSegments([base, live]).length > base.length + live.length ? ' ' : ''
+})
+
+/** New transcript graphemes fade in. One animator for the component, because a new animator replays all text. */
+const appear = createBlurFadeAnimator()
+
+/**
+ * The rewrite that plays when live speech settles into a draft with other text, for example after the rephrase
+ * plugin. Only the changed words animate. The textarea returns when the animation finishes, and new speech drops it.
+ */
+const rewrite = shallowRef<{ from: string, to: string }>()
+watch(liveInput, (input, previous) => {
+  if (input) {
+    rewrite.value = undefined
+    return
+  }
+  if (!previous)
+    return
+
+  // The last live paragraph, joined by the same rule as on screen. It is built once, when the speech settles.
+  const from = joinTranscriptSegments([spokenBase.value, previous.text.trim()]).trim()
+  const to = text.value.trim()
+  rewrite.value = from && to && from !== to ? { from, to } : undefined
 })
 
 const visible = computed(() => !!draft.value || !!liveInput.value)
@@ -155,8 +200,7 @@ function handleKeydown(event: KeyboardEvent) {
     :aria-label="t('stage.chat.voice-draft.title')"
     :class="['drag-region h-full min-h-0 w-full flex flex-col']"
   >
-    <header :class="['flex shrink-0 flex-col items-center gap-1.5 px-4 pt-1.5']">
-      <span aria-hidden="true" :class="['h-1 w-8 rounded-full bg-neutral-900/15 dark:bg-white/20']" />
+    <header :class="['flex shrink-0 flex-col items-center gap-1.5 px-4 pt-3']">
       <div :class="['min-w-0 w-full flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400']">
         <span
           aria-hidden="true"
@@ -196,18 +240,25 @@ function handleKeydown(event: KeyboardEvent) {
     >
       <!-- v-text keeps template whitespace out of this pre-wrap block. -->
       <p v-if="liveInput" data-testid="voice-draft-live" :class="['m-0 whitespace-pre-wrap break-words']">
-        <span v-if="text.trim()" v-text="text.trim() + liveSeparator" />
-        <span
+        <span v-if="spokenBase" v-text="spokenBase + liveSeparator" />
+        <!-- Keyed by grapheme position, so a provider revision of shown text does not replay it. -->
+        <PoppinText
           v-for="segment in liveSegments"
           :key="segment.id"
+          as="span"
+          inline
+          :text="[{ key: segment.id, text: segment.text }]"
+          :animator="appear"
           :data-tier="segment.tier"
           :class="[
             'transition-colors duration-300 motion-reduce:transition-none',
             segment.tier === 'interim' ? 'text-primary-600/60 dark:text-primary-300/60' : '',
             segment.tier === 'latest' ? 'text-primary-600 dark:text-primary-300' : '',
           ]"
-          v-text="segment.text"
         />
+      </p>
+      <p v-else-if="rewrite" data-testid="voice-draft-rewrite" :class="['m-0 whitespace-pre-wrap break-words']">
+        <RewriteText :from="rewrite.from" :to="rewrite.to" @finished="rewrite = undefined" />
       </p>
       <BasicTextarea
         v-else-if="draft"

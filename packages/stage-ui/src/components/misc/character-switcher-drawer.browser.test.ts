@@ -36,6 +36,7 @@ function card(name: string): AiriCard {
     version: '1.0.0',
     extensions: {
       airi: {
+        avatarModels: [],
         agents: {},
         modules: {
           consciousness: { provider: '', model: '' },

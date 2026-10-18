@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ChatToolCallRendererRegistry } from '@proj-airi/stage-ui/components'
+import type { ChatToolCallRendererRegistry, ChatToolCallWidgetRegistry } from '@proj-airi/stage-ui/components'
 import type { ChatHistoryReplyPayload, ChatImageAttachment } from '@proj-airi/stage-ui/components/scenarios/chat'
 import type { ChatToolCallRerunEvent } from '@proj-airi/stage-ui/stores/tool-call-rerun'
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
@@ -8,8 +8,8 @@ import type { ChatDraftHandover } from '../../shared/eventa'
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useChatInterruption } from '@proj-airi/stage-layouts/composables/use-chat-interruption'
-import { ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
-import { ChatImageAttachmentPreview, ChatReplyPreview, ChatSendButton, useChatComposer, useChatImages, VoiceInputButton } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatBackgroundTasks, ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
+import { ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSendButton, useChatComposer, useChatImages, VoiceInputButton } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -18,7 +18,7 @@ import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store
 import { useJournalPreviewStore } from '@proj-airi/stage-ui/stores/journal-preview'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { BasicButton, BasicTextarea, Callout, GhostButton } from '@proj-airi/ui'
+import { BasicTextarea, GhostButton } from '@proj-airi/ui'
 import { until, useLocalStorage } from '@vueuse/core'
 import { nanoid } from 'nanoid/non-secure'
 import { storeToRefs } from 'pinia'
@@ -30,7 +30,12 @@ import ChatViewportLayout from './chat-viewport-layout.vue'
 
 import { electronOpenSettings } from '../../shared/eventa'
 import { useHearingInputChannel } from '../composables/use-hearing-input-channel'
-import { artistryToolReferences, computerUseToolReferences, widgetToolReferences } from '../stores/tools'
+import { computerUseToolReferences, useToolSelectionStore, widgetToolReferences } from '../stores/tools'
+import { COMPUTER_USE_READ_IMAGE_TOOL_NAME, COMPUTER_USE_TOOL_NAME } from '../stores/tools/builtin/computer-use'
+import { WEATHER_TOOL_NAME } from '../stores/tools/builtin/weather'
+import { computerUseReadImageToolCallWidget } from './chat-tool-renderers/computer-use-read-image-tool-call-widget'
+import { computerUseToolCallWidget } from './chat-tool-renderers/computer-use/widget'
+import { weatherToolCallWidget } from './chat-tool-renderers/weather-tool-call-widget'
 
 const props = withDefaults(defineProps<{
   /**
@@ -79,8 +84,9 @@ const voicePending = shallowRef(false)
 /** A recording is open. Dictation writes into the text, so the text stays read-only and send waits until it closes. */
 const voiceActive = shallowRef(false)
 const lastEnterTime = ref(0)
-// Each request captures this composer selection, including retries and tool reruns.
-const computerUseEnabled = ref(true)
+// Each request captures this selection, including retries and tool reruns. Spoken turns read the same store.
+const toolSelection = useToolSelectionStore()
+const { computerUseEnabled, requestTools } = storeToRefs(toolSelection)
 
 const chatStore = useChatStore()
 const chatSession = useChatSessionStore()
@@ -91,7 +97,7 @@ const airiCardStore = useAiriCardStore()
 
 const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
-const { activeTurns } = storeToRefs(chatStore)
+const { activeTurns, backgroundTasks } = storeToRefs(chatStore)
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
 const { chatReady } = storeToRefs(useConsciousnessStore())
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
@@ -107,7 +113,7 @@ const composer = useChatComposer<ChatImageAttachment>({
       data: attachment.data,
       mimeType: attachment.mimeType,
     })),
-    tools: computerUseEnabled.value ? [...artistryToolReferences, ...computerUseToolReferences] : artistryToolReferences,
+    tools: requestTools.value,
   }),
 })
 const {
@@ -131,6 +137,11 @@ const toolCallRenderers = {
   image_journal: JournalToolCallBlock,
   text_journal: JournalToolCallBlock,
 } satisfies ChatToolCallRendererRegistry
+const toolCallWidgets = {
+  [WEATHER_TOOL_NAME]: weatherToolCallWidget,
+  [COMPUTER_USE_TOOL_NAME]: computerUseToolCallWidget,
+  [COMPUTER_USE_READ_IMAGE_TOOL_NAME]: computerUseReadImageToolCallWidget,
+} satisfies ChatToolCallWidgetRegistry
 const {
   trackChatMessageDeleted,
   trackChatMessageRetried,
@@ -395,6 +406,7 @@ defineExpose({
         :streaming-message="visibleStreamingMessage"
         :tail-inset="tailInset"
         :tool-call-renderers="toolCallRenderers"
+        :tool-call-widgets="toolCallWidgets"
         :surface="props.floating ? 'opaque' : 'translucent'"
         :scrollbar="props.floating ? 'hover' : 'scroll'"
         :passive="props.passive"
@@ -422,25 +434,11 @@ defineExpose({
       >
         <div :class="[composerFolded ? 'i-solar:alt-arrow-up-linear' : 'i-solar:alt-arrow-down-linear', 'size-4']" />
       </button>
-      <Callout
+      <ChatProviderSetupCallout
         v-if="!chatReady"
-        class="mx-2 mb-1"
-        theme="orange"
-        :label="t('stage.chat.provider-configuration.title')"
-      >
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <span class="min-w-48 flex-1 text-sm">
-            {{ t('stage.chat.provider-configuration.description') }}
-          </span>
-          <BasicButton
-            size="unset"
-            class="rounded-lg bg-primary-500 px-3 py-1 text-sm text-white"
-            @click="openSettings({ route: '/settings/providers' })"
-          >
-            {{ t('stage.chat.provider-configuration.action') }}
-          </BasicButton>
-        </div>
-      </Callout>
+        :class="['mx-2 mb-1']"
+        @configure="openSettings({ route: '/settings/providers' })"
+      />
       <div
         ref="message-composer"
         :class="[
@@ -464,6 +462,7 @@ defineExpose({
             'min-h-0 overflow-y-auto scrollbar-none',
           ]"
         >
+          <ChatBackgroundTasks :tasks="backgroundTasks" @stop="task => chatStore.stopBackgroundTask(task.sessionId)" @dismiss="task => chatStore.dismissBackgroundTask(task.sessionId)" />
           <div ref="voice-attachment" :class="['px-2 pt-1 empty:hidden']" />
           <!-- Journal Preview Chips -->
           <div v-if="latestImageEntries.length > 0" class="flex gap-2 overflow-x-auto px-2 py-1 scrollbar-none">
@@ -572,12 +571,12 @@ defineExpose({
               :attachment-element="voiceAttachment"
               :session-id="activeSessionId"
               :reply-to-message-id="replyTarget?.message.id"
-              :tools="computerUseEnabled ? [...artistryToolReferences, ...computerUseToolReferences] : artistryToolReferences"
+              :tools="requestTools"
               @recording-change="voiceActive = $event"
               @pending-change="voicePending = $event"
               @sent="composer.clearReply()"
               @submit="handleSend"
-              @configure="openSettings({ route: '/settings/modules/hearing' })"
+              @configure="route => openSettings({ route })"
             />
             <GhostButton
               v-if="showStopAction"

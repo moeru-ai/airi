@@ -186,17 +186,7 @@ Browse the live UI component storyboard at [airi.moeru.ai/ui](https://airi.moeru
 
 ### Documentation site
 
-```shell
-pnpm dev:docs
-```
-
-> [!NOTE]
->
-> For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
->
-> ```shell
-> nr dev:docs
-> ```
+The documentation site lives in [moeru-ai/airi-docs](https://github.com/moeru-ai/airi-docs), see its README for development.
 
 ### Telegram bot integration
 

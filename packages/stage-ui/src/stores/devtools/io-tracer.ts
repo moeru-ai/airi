@@ -7,7 +7,7 @@ import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/st
 import { defineStore } from 'pinia'
 import { computed, ref, triggerRef } from 'vue'
 
-import { activeTurnSpan, initIOTracer, onIOSpan, onRemoteIOSpan } from '../../composables/use-io-tracer'
+import { initIOTracer, onIOSpan, onRemoteIOSpan } from '../../composables/use-io-tracer'
 
 const MAX_TURNS = 50
 
@@ -83,13 +83,15 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
     function getOrCreateTurn(): IOTurn {
       let turn = turnsByTraceId.get(traceId)
       if (!turn) {
-        turn = {
+        turns.value.push({
           id: traceId,
           startTs: startMs,
           spans: [],
-        }
+        })
+        // The reactive copy, not the raw object. Later spans of this trace mutate it, and views that hold the turn
+        // list, such as the chart through its prop, only see mutations through the proxy.
+        turn = turns.value.at(-1)!
         turnsByTraceId.set(traceId, turn)
-        turns.value.push(turn)
 
         while (turns.value.length > MAX_TURNS) {
           const evicted = turns.value.shift()
@@ -97,6 +99,9 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
             turnsByTraceId.delete(evicted.id)
         }
       }
+      // Spans arrive when they end, so a child, such as a VAD segment, can arrive before the span that starts the turn.
+      if (startMs < turn.startTs)
+        turn.startTs = startMs
       return turn
     }
 
@@ -185,9 +190,6 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
   function stopRecording() {
     if (!isRecording.value)
       return
-
-    activeTurnSpan.value?.end()
-    activeTurnSpan.value = undefined
 
     onIOSpan(undefined)
     unsubscribeRemote?.()

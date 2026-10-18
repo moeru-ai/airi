@@ -172,7 +172,7 @@ export type WidgetGridSize = 's' | 'm' | 'l' | { cols?: number, rows?: number }
 export interface WidgetsAddPayload {
   id?: string
   componentName: string
-  componentProps?: Record<string, any>
+  componentProps?: Record<string, unknown>
   alwaysOnTop?: boolean
   // size presets or explicit spans; renderer decides mapping
   size?: WidgetGridSize
@@ -183,7 +183,7 @@ export interface WidgetsAddPayload {
 
 export interface WidgetsUpdatePayload {
   id: string
-  componentProps?: Record<string, any>
+  componentProps?: Record<string, unknown>
   alwaysOnTop?: boolean
   size?: WidgetGridSize
   windowSize?: WidgetWindowSize | Record<string, unknown>
@@ -194,7 +194,7 @@ export interface WidgetsUpdatePayload {
 export interface WidgetSnapshot {
   id: string
   componentName: string
-  componentProps: Record<string, any>
+  componentProps: Record<string, unknown>
   alwaysOnTop: boolean
   size: WidgetGridSize
   windowSize?: WidgetWindowSize
@@ -377,11 +377,14 @@ export const electronMcpReadConfigText = defineInvokeEventa<ElectronMcpStdioConf
 export const electronMcpWriteConfigText = defineInvokeEventa<ElectronMcpStdioConfigText, { text: string }>('eventa:invoke:electron:mcp:write-config-text')
 export const electronMcpTestServer = defineInvokeEventa<ElectronMcpStdioTestResult, ElectronMcpStdioTestPayload>('eventa:invoke:electron:mcp:test-server')
 
+/** The widget requests its own close without waiting for a reply from the transport it closes. */
+export const widgetsCloseRequested = defineEventa<{ id: string }>('eventa:event:airi:widgets:close-requested')
+
 export const widgetsOpenWindow = defineInvokeEventa<void, { id?: string }>('eventa:invoke:electron:windows:widgets:open')
 export const widgetsHideWindow = defineInvokeEventa<void, { id?: string }>('eventa:invoke:electron:windows:widgets:hide')
 export const widgetsAdd = defineInvokeEventa<string | undefined, WidgetsAddPayload>('eventa:invoke:electron:windows:widgets:add')
 export const widgetsRemove = defineInvokeEventa<void, { id: string }>('eventa:invoke:electron:windows:widgets:remove')
-export const widgetsClear = defineInvokeEventa('eventa:invoke:electron:windows:widgets:clear')
+export const widgetsClear = defineInvokeEventa<void, Record<string, never>>('eventa:invoke:electron:windows:widgets:clear')
 export const widgetsUpdate = defineInvokeEventa<void, WidgetsUpdatePayload>('eventa:invoke:electron:windows:widgets:update')
 export const widgetsFetch = defineInvokeEventa<WidgetSnapshot | void, { id: string }>('eventa:invoke:electron:windows:widgets:fetch')
 export const widgetsPrepareWindow = defineInvokeEventa<string | undefined, { id?: string }>('eventa:invoke:electron:windows:widgets:prepare')

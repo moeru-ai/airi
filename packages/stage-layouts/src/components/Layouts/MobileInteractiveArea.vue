@@ -3,8 +3,8 @@ import type { ChatHistoryReplyPayload, ChatImageAttachment } from '@proj-airi/st
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
-import { CharacterSwitcherDrawer, ChatHistory, HearingConfig, HearingStatus, VoiceDrafts } from '@proj-airi/stage-ui/components'
-import { ChatImageAttachmentPreview, ChatReplyPreview, ChatSessionsDrawer, useChatComposer, useChatImages, VoiceComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { CharacterSwitcherDrawer, ChatBackgroundTasks, ChatHistory, HearingConfig, HearingStatus, VoiceDrafts } from '@proj-airi/stage-ui/components'
+import { ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSessionsDrawer, useChatComposer, useChatImages, VoiceComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -12,6 +12,7 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useL2dViewControl } from '@proj-airi/stage-ui/stores/live2d'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
+import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { BasicButton, BasicTextarea, BottomDrawer } from '@proj-airi/ui'
@@ -39,8 +40,9 @@ const chatSession = useChatSessionStore()
 const chatStream = useChatStreamStore()
 const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
-const { activeTurns } = storeToRefs(chatOrchestrator)
+const { activeTurns, backgroundTasks } = storeToRefs(chatOrchestrator)
 const { isReceivingRemoteStream } = storeToRefs(useContextBridgeStore())
+const { chatReady } = storeToRefs(useConsciousnessStore())
 const historyMessages = computed(() => messages.value)
 const isActiveSessionSending = computed(() => (
   (activeTurns.value.some(turn => turn.sessionId === activeSessionId.value))
@@ -264,7 +266,8 @@ async function handleSubmit() {
 }
 
 async function handleSend() {
-  if (!voiceActive.value && !pendingImages.value)
+  // The draft stays in the composer while the setup callout is shown.
+  if (!voiceActive.value && !pendingImages.value && chatReady.value)
     await submitInterruptingResponse()
 }
 
@@ -401,6 +404,11 @@ onUnmounted(() => {
           <ChatSessionsDrawer v-model="sessionsDrawerOpen" />
         </div>
       </div>
+      <ChatProviderSetupCallout
+        v-if="!chatReady"
+        :class="['mx-3']"
+        @configure="router.push('/settings/providers')"
+      />
       <div
         ref="messageComposer"
         data-testid="mobile-message-composer"
@@ -460,6 +468,7 @@ onUnmounted(() => {
             :class="['w-full', voiceActive && 'invisible']"
             @cancel="handleCancelReply"
           />
+          <ChatBackgroundTasks :tasks="backgroundTasks" @stop="task => chatOrchestrator.stopBackgroundTask(task.sessionId)" @dismiss="task => chatOrchestrator.dismissBackgroundTask(task.sessionId)" />
           <div v-if="attachments.length" :class="['flex gap-2 overflow-x-auto p-2', voiceActive && 'invisible']">
             <ChatImageAttachmentPreview v-for="(attachment, index) in attachments" :key="attachment.previewId" :file="attachment.file" @remove="removeAttachment(index)" />
           </div>
@@ -532,7 +541,7 @@ onUnmounted(() => {
             :reply-to-message-id="replyTarget?.message.id"
             @recording-change="voiceActive = $event"
             @sent="composer.clearReply()"
-            @configure="router.push('/settings/modules/hearing')"
+            @configure="router.push('/settings/modules/hearing/transcriber')"
           />
         </div>
       </div>

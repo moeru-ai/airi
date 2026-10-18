@@ -875,6 +875,10 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       return
     }
 
+    // A client can claim any `metadata.source`. The sender is the connection, so receivers can trust it.
+    const modules = [...new Set([p.name, ...[...p.extensionModules?.values() ?? []].map(module => module.name)].filter(Boolean))]
+    event.metadata = { ...event.metadata, sender: { peerId: peer.id, modules } }
+
     const payload = stringifyEvent(event)
     const allowBypass = options?.routing?.allowBypass !== false
     const shouldBypass = Boolean(event.route?.bypass && allowBypass && isDevtoolsPeer(p))

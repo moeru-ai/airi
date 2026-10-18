@@ -18,6 +18,9 @@ import { moduleAnnounce, moduleAuthenticate } from '@proj-airi/plugin-protocol/t
 
 ## When to use
 
+`input:text` can carry `overrides.binding` for an external scene. The host resolves that binding to a persistent persona session.
+`overrides.sessionId` identifies an existing host session. A binding takes precedence when both fields are present.
+
 - You need canonical protocol contracts for plugin <-> host communication.
 - You need event name stability and matching payload definitions across runtimes.
 

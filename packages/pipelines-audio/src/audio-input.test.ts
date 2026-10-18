@@ -1,8 +1,9 @@
 import type { LiveAudioSource, PcmBlock } from './index'
 
+import { createPushStream } from '@proj-airi/stream-kit'
 import { describe, expect, it, vi } from 'vitest'
 
-import { AudioInput, capture, createPushStream, createScope, observe } from './index'
+import { AudioInput, capture, observe } from './index'
 
 /**
  * A live test source whose connections the test drives by hand. Each open call starts a new connection.
@@ -316,24 +317,5 @@ describe('observe completion', () => {
     mic.write(0, Array.from<number>({ length: 10 }).fill(0))
 
     expect(await observer.done).toMatchObject({ status: 'failed', error: new Error('Audio detector fell behind') })
-  })
-})
-
-describe('createScope', () => {
-  it('closes children first, then runs its own cleanups once in reverse order', async () => {
-    const parent = new AbortController()
-    const scope = createScope(parent.signal)
-    const child = scope.child()
-    const order: string[] = []
-    scope.defer(() => order.push('first'))
-    scope.defer(() => order.push('second'))
-    child.defer(() => order.push('child'))
-    parent.abort('Stopped')
-    await scope.closed
-    await child.closed
-    await scope.close()
-
-    expect(order).toEqual(['child', 'second', 'first'])
-    expect(child.signal.reason).toBe('Stopped')
   })
 })

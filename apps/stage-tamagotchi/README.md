@@ -8,6 +8,13 @@ Shared character behavior belongs in `packages/stage-ui`. Use `stage-web` for br
 From the repository root, run `pnpm install`, then `pnpm dev:tamagotchi`.
 Run `pnpm -F @proj-airi/stage-tamagotchi build` to build the app.
 
+## Local model files
+
+Sherpaw downloads remote model files into the app user data directory. The main
+process serves installed files to the renderer through `airi-model`. The desktop
+release bundles X-ASR through `airi-sherpaw`. Sherpaw settings control
+remote downloads. The Resource Status Island shows transfer progress and errors.
+
 ## Computer use
 
 The desktop chat composer starts with **Use computer** on. Turn it off to send a request without desktop access.
@@ -36,12 +43,51 @@ Use this feature for local native applications. It does not expose a remote-devi
 The desktop package includes the platform CLI as an optional dependency and unpacks its executable from ASAR.
 Do not omit optional dependencies when building an installer. Windows ARM64 and Linux musl do not have a matching CLI in this version.
 
+## Fullscreen workspace
+
+The fullscreen workspace is an experiment, and it is off by default. It shows settings and the chat beside the character, in a workspace that covers the work area.
+Turn on **Fullscreen workspace** in the experimental features of the system settings. Then choose a window mode:
+
+- **Single window**: the main window grows over the work area and becomes the workspace.
+- **Separate window**: a window of its own shows the workspace with its own view of the character. The main window stays on the desktop, above that window.
+
+The two modes differ only in the window that hosts the workspace. Both use the same parts in `src/renderer`:
+
+- `components/fullscreen/surfaces.ts` is the registry of the surfaces, such as settings and the chat.
+- `stores/fullscreen.ts` holds the phase of the mode, the surface that shows, and the surfaces that stay mounted.
+- `composables/use-fullscreen-layout.ts` holds the surface width, its drag, and the place of the character.
+- `components/fullscreen/fullscreen-overlay.vue` shows the island and the surface. `fullscreen-backdrop.vue` shows the backdrop.
+
+Each host adds only what its window needs:
+
+- `pages/index.vue` is the page of the main window. It runs the open and close transitions, because the main window moves and grows.
+- `pages/workspace.vue` is the page of the separate window. The window covers the work area from the start.
+- In `src/main`, `windows/main` and `windows/workspace` answer the same fullscreen events for their windows.
+- `src/main/index.ts` opens settings and the fullscreen chat where the mode says.
+
+To add a surface, add an entry to `fullscreenSurfaces`, and add its id to `FullscreenSurfaceId` in `src/shared/eventa`.
+The island then shows its button, and its panel stays mounted until the mode closes. The routes under its `prefixes` sit under the page of each host.
+
+When the user changes the window mode, `moveFullscreen` in `src/main/windows/shared/fullscreen.ts` moves the workspace.
+It packs the surfaces of the old window, closes that window through its pages, and opens the pack in the new window.
+A page with unsaved changes can stop the move. A panel that holds state calls `useFullscreenCarry(surface, { collect, restore })`.
+The chat carries its unsent draft this way, and settings carry the page that shows.
+
+The view of the character in the separate window is a second render. It only renders the model, so the main window stays the one host of voice.
+It does not follow speech or expressions.
+
 ## Verification
 
 Run the focused runtime tests:
 
 ```sh
 pnpm -F @proj-airi/stage-tamagotchi exec vitest run src/main/services/airi/computer-use/runtime.test.ts
+```
+
+Run the tests of the fullscreen workspace:
+
+```sh
+pnpm -F @proj-airi/stage-tamagotchi exec vitest run src/renderer/stores/fullscreen.test.ts src/renderer/window-context.test.ts src/main/windows/chat/mode-switch.test.ts src/main/windows/shared/fullscreen.test.ts
 ```
 
 Set `AIRI_COMPUTER_USE_LIVE=1` to include the bundled CLI/private-daemon test.
