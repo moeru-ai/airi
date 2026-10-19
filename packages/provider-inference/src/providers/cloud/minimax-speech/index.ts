@@ -1,8 +1,8 @@
 import type { VoiceInfo } from '../../../types'
 
+import { EventSourceParserStream } from '@xsai/shared-stream'
 import { z } from 'zod'
 
-import { parseServerSentEvents } from '../../../streams/sse'
 import { defineProvider } from '../../registry'
 
 const minimaxSpeechConfigSchema = z.object({
@@ -281,7 +281,10 @@ export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig, 'minima
 
           // MiniMax streams SSE events that contain hex-encoded audio chunks.
           const audioChunks: Uint8Array[] = []
-          for await (const { data } of parseServerSentEvents(response.body)) {
+          const events = response.body
+            .pipeThrough(new TextDecoderStream())
+            .pipeThrough(new EventSourceParserStream())
+          for await (const { data } of events) {
             if (!data || data === '[DONE]')
               continue
 

@@ -1,7 +1,7 @@
 import { toWavFromPCM16 } from '@proj-airi/audio/encoding'
+import { EventSourceParserStream } from '@xsai/shared-stream'
 import { z } from 'zod'
 
-import { parseServerSentEvents } from '../../../streams/sse'
 import { defineProvider } from '../../registry'
 import { OPENROUTER_ATTRIBUTION_HEADERS } from '../openrouter-ai'
 
@@ -40,9 +40,12 @@ function ttsPrompt(input: string) {
   return `Read this text aloud exactly as written, without any commentary or extra words:\n\n${input}`
 }
 
-async function collectAudioChunks(body: ReadableStream<Uint8Array>) {
+async function collectAudioChunks(body: ReadableStream<Uint8Array<ArrayBuffer>>) {
   const chunks: string[] = []
-  for await (const { data } of parseServerSentEvents(body)) {
+  const events = body
+    .pipeThrough(new TextDecoderStream())
+    .pipeThrough(new EventSourceParserStream())
+  for await (const { data } of events) {
     if (!data)
       continue
     if (data === '[DONE]')
