@@ -48,6 +48,15 @@ Use pnpm workspace filters to limit a command to one workspace. Replace `<packag
 - Test one file: `pnpm exec vitest run <path>`.
 - Test one workspace: `pnpm -F <package name> exec vitest run`.
 - Test all projects: `pnpm test:run`. If Vitest finds no tests, examine the `include` patterns in `vitest.config.ts`.
+- Test the changes of a branch: run each command of the root `test:run` script with `--changed <base> --passWithNoTests`.
+  Use the merge base with `origin/main` as `<base>`. The root `vitest run` does not run the browser projects.
+
+  ```sh
+  base=$(git merge-base origin/main HEAD)
+  pnpm exec vitest run --changed "$base" --passWithNoTests
+  pnpm exec vitest run --config apps/stage-tamagotchi/vitest.config.ts --project browser --changed "$base" --passWithNoTests
+  ```
+
 - Lint: `pnpm lint`. ESLint also does the formatting. To fix lint and format errors, run `pnpm lint:fix`.
 - Build one workspace: `pnpm -F <package name> build`. For stage-tamagotchi, this command runs the typecheck and `electron-vite build`.
 
@@ -59,6 +68,7 @@ Use pnpm workspace filters to limit a command to one workspace. Replace `<packag
 - If new logic can become a shared utility, propose the shared approach to the user.
 - If a refactor is small, do it step by step.
 - After a task, run the typecheck and the related tests for each workspace that you changed.
+- Before you create a PR or push to one, run the tests of the branch changes. CI runs every project, including the browser projects.
 - If you change a shared package or an exported type, also run the root `pnpm typecheck`.
 - Run `pnpm lint` before you finish.
 - Report only the checks that you ran. Give each command and its result.
