@@ -151,7 +151,8 @@ describe('window native backdrop', () => {
     // Web Animations has no animationstart event. A layout invalidation also discovers active animations.
     surface.style.willChange = 'transform'
     await expect.poll(() => regions()[0]?.width).toBe(80)
-    expect(regions()[0].y).toBe(94)
+    // Linux Chromium lays out the scaled end frame at 93.99. The y position depends on platform subpixel rounding.
+    expect(regions()[0].y).toBeCloseTo(94, 1)
     expect(regions()[0].radius).toBe(16)
     expect(regions()[0].opacity).toBe(0.25)
     surface.style.display = 'none'
