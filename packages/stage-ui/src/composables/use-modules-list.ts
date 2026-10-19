@@ -19,6 +19,7 @@ import { useStickersStore } from '../stores/modules/stickers'
 import { useTwitterStore } from '../stores/modules/twitter'
 import { useVisionStore } from '../stores/modules/vision'
 import { useWebSearchStore } from '../stores/modules/web-search'
+import { useToolCardsStore } from '../stores/tool-cards'
 
 export interface Module {
   id: string
@@ -49,6 +50,7 @@ export function useModulesList() {
   const homeAssistantStore = useHomeAssistantStore()
   const artistryStore = useArtistryStore()
   const memoryStore = useMemoryStore()
+  const toolCardsStore = useToolCardsStore()
   const beatSyncState = ref<BeatSyncDetectorState>()
   const beatSyncSupported = isBeatSyncSupported()
 
@@ -134,6 +136,15 @@ export function useModulesList() {
       icon: 'i-solar:book-bookmark-bold-duotone',
       to: '/settings/modules/memory-long-term',
       configured: memoryStore.enabled,
+      category: 'essential',
+    },
+    {
+      id: 'tool-cards',
+      name: t('settings.pages.modules.tool-cards.title'),
+      description: t('settings.pages.modules.tool-cards.description'),
+      icon: 'i-solar:widget-5-bold-duotone',
+      to: '/settings/modules/tool-cards',
+      configured: toolCardsStore.enabled || toolCardsStore.replyCardsEnabled,
       category: 'essential',
     },
     {

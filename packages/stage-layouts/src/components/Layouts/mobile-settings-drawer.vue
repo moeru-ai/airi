@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useSpeechOutputControlStore } from '@proj-airi/stage-ui/stores/speech-output-control'
-import { Avatar, BasicButton, BottomDrawer, GhostButton, Range, SelectTab, useTheme } from '@proj-airi/ui'
+import { Avatar, BasicButton, BottomDrawer, GhostButton, RoundRange, SelectTab, useTheme } from '@proj-airi/ui'
 import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, shallowRef } from 'vue'
@@ -201,10 +201,18 @@ const characterVoiceIcon = computed(() => {
             >
               <span aria-hidden="true" :class="[characterVoiceIcon, 'size-5']" />
             </BasicButton>
-            <Range
+            <!--
+              NOTICE:
+              On iOS, a touch drag on this range does not move the value.
+              The modal drawer locks body scroll. The lock adds a document `touchmove` listener that cancels moves outside a scrollable element.
+              Source: reka-ui `dist/shared/useBodyScrollLock.js`, `preventDefault` and `checkOverflowScroll`.
+              Remove `@touchmove.stop` when reka-ui stops cancelling `touchmove` on range inputs.
+            -->
+            <RoundRange
               v-model="characterVoiceVolume"
               :aria-label="t('stage.mobile-tools.character-voice')"
-              :class="['mobile-volume-slider w-full flex-1', !characterVoiceEnabled && 'opacity-50']"
+              :class="['w-full flex-1', !characterVoiceEnabled && 'opacity-50']"
+              @touchmove.stop
             />
           </div>
         </div>
@@ -286,29 +294,5 @@ const characterVoiceIcon = computed(() => {
 
 .mobile-tool-row :deep([aria-hidden]) {
   flex-shrink: 0;
-}
-
-/* iOS-style volume bar: flush rounded track, theme-hue fill, no visible thumb. */
-.mobile-settings-actions :deep(.mobile-volume-slider) {
-  --height: 1.75rem;
-  --thumb-width: 0px;
-  --track-border: none;
-  --track-border-radius: 999px;
-  --track-value-padding: 0px;
-  --track-background: rgb(0 0 0 / 0.06);
-  --track-background-hover: rgb(0 0 0 / 0.06);
-  --track-background-active: rgb(0 0 0 / 0.06);
-  --track-value-background: oklch(72% var(--chromatic-chroma-400) var(--chromatic-hue));
-  --track-value-background-hover: oklch(76% var(--chromatic-chroma-400) var(--chromatic-hue));
-  --track-value-background-active: oklch(68% var(--chromatic-chroma-400) var(--chromatic-hue));
-}
-
-.dark .mobile-settings-actions :deep(.mobile-volume-slider) {
-  --track-background: rgb(255 255 255 / 0.12);
-  --track-background-hover: rgb(255 255 255 / 0.12);
-  --track-background-active: rgb(255 255 255 / 0.12);
-  --track-value-background: oklch(76% var(--chromatic-chroma-300) var(--chromatic-hue));
-  --track-value-background-hover: oklch(80% var(--chromatic-chroma-300) var(--chromatic-hue));
-  --track-value-background-active: oklch(72% var(--chromatic-chroma-300) var(--chromatic-hue));
 }
 </style>
