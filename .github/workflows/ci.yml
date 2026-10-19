@@ -156,6 +156,7 @@ jobs:
         run: npx playwright install chromium
 
       - run: pnpm run build:packages
+      - run: pnpm run test:root
       - run: pnpm run test:run
         env:
           NODE_OPTIONS: --no-experimental-webstorage
