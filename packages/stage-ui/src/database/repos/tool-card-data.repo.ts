@@ -1,9 +1,15 @@
-import type { StorageValue } from 'unstorage'
-
 import { storage } from '../storage'
 
 // A tool key can hold `::` for an MCP tool, and the storage reads `:` as a separator.
 const keyOf = (tool: string) => `local:tool-cards/latest/${encodeURIComponent(tool)}`
+
+/**
+ * One saved result. The storage writes a top-level string without quotes and reads a string that looks like JSON as
+ * another type, so the result sits in a field and every JSON value comes back as it was saved.
+ */
+interface LatestCallRecord {
+  data: unknown
+}
 
 /**
  * The result of the latest call of each tool that has a card. The settings page draws the preview of a card with it.
@@ -13,12 +19,14 @@ const keyOf = (tool: string) => `local:tool-cards/latest/${encodeURIComponent(to
  * cannot clone.
  */
 export const toolCardDataRepo = {
+  /** The saved result, or undefined when the tool has none. */
   async get(tool: string) {
-    return await storage.getItem(keyOf(tool)) ?? undefined
+    const record = await storage.getItem(keyOf(tool)) as LatestCallRecord | null
+    return record ? record.data : undefined
   },
   async set(tool: string, data: unknown) {
-    // A tool result is JSON data: a string, a number, a boolean, null, a list, or an object.
-    await storage.setItem(keyOf(tool), data as StorageValue)
+    const record: LatestCallRecord = { data }
+    await storage.setItem(keyOf(tool), record)
   },
   async remove(tool: string) {
     await storage.removeItem(keyOf(tool))
