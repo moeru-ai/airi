@@ -474,7 +474,7 @@ describe('stepfunAdapter', () => {
   it.each([
     ['en-US', 'en'],
     ['ja', 'ja'],
-    ['ZH-cn', 'zh'],
+    ['zh-CN', 'zh'],
   ])('sends the StepFun language code for %s', async (language, expected) => {
     const adapter = getAdapter('stepfun')
     const fetchImpl = vi.fn<typeof fetch>(async () => new Response(new Uint8Array([1]), {

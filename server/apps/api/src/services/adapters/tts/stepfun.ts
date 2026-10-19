@@ -118,7 +118,7 @@ function buildExtraBody(input: TtsInput, ctx: TtsAdapterContext): Record<string,
 /**
  * Maps a BCP 47 tag to the language code of StepFun.
  *
- * StepFun takes the primary language subtag. A language that StepFun does not read is not sent, so the request
+ * StepFun takes the primary language subtag. The tag is canonical, so the subtag is lower case. A language that StepFun does not read is not sent, so the request
  * still succeeds and StepFun reads the text as it did without a language.
  *
  * @example
@@ -128,6 +128,6 @@ function buildExtraBody(input: TtsInput, ctx: TtsAdapterContext): Record<string,
  * // => undefined
  */
 function stepfunLanguage(tag: string | undefined): string | undefined {
-  const primary = tag?.split('-')[0]?.toLowerCase()
+  const primary = tag?.split('-')[0]
   return primary && STEPFUN_LANGUAGES.has(primary) ? primary : undefined
 }

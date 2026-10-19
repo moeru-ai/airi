@@ -8,7 +8,7 @@ import type { VoicePackService } from '../voice-packs'
 import { useLogger } from '@guiiai/logg'
 import { context, SpanStatusCode, trace } from '@opentelemetry/api'
 import { ApiError, createBadRequestError, createPaymentRequiredError } from '@proj-airi/http-error-shared'
-import { maxLength, pipe, regex, safeParse, string } from 'valibot'
+import { check, pipe, safeParse, string, transform } from 'valibot'
 
 import { nanoid } from '../../../utils/id'
 import {
@@ -33,9 +33,24 @@ const SAFE_ERROR_RESPONSE_HEADERS = new Set([
 
 /**
  * The language of the speech text, as a BCP 47 tag such as `en-US` or `ja`.
- * The check is structural. Each TTS adapter decides which languages its provider reads.
+ * The output is the canonical form, so adapters compare tags without case handling: `ZH-cn` becomes `zh-CN`.
+ * Each TTS adapter decides which languages its provider reads.
  */
-const speechLanguageSchema = pipe(string(), maxLength(35), regex(/^[a-z]{2,3}(?:-[a-z0-9]{1,8})*$/i))
+const speechLanguageSchema = pipe(
+  string(),
+  check(isLanguageTag, 'must be a BCP 47 language tag'),
+  transform(tag => Intl.getCanonicalLocales(tag)[0]!),
+)
+
+/** `Intl.getCanonicalLocales` parses BCP 47 and throws a `RangeError` for a malformed tag. */
+function isLanguageTag(value: string): boolean {
+  try {
+    return Intl.getCanonicalLocales(value).length === 1
+  }
+  catch {
+    return false
+  }
+}
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   if (typeof value !== 'object' || value == null || Array.isArray(value))

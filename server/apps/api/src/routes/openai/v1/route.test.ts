@@ -1533,9 +1533,9 @@ describe('v1CompletionsRoutes', () => {
 
     /**
      * @example
-     * POST /api/v1/audio/speech { "input": "50 percent", "extra_body": { "language": "en-US" } }
+     * POST /api/v1/audio/speech { "input": "50 percent", "extra_body": { "language": "EN-us" } }
      */
-    it('passes the language of the speech text to the TTS router', async () => {
+    it('passes the canonical language of the speech text to the TTS router', async () => {
       const routeTts = vi.fn(async () => new Response(new Uint8Array([1]), {
         status: 200,
         headers: { 'Content-Type': 'audio/mpeg' },
@@ -1553,7 +1553,7 @@ describe('v1CompletionsRoutes', () => {
         new Request('http://localhost/api/v1/audio/speech', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: 'auto', input: '50 percent', voice: 'alloy', extra_body: { language: 'en-US' } }),
+          body: JSON.stringify({ model: 'auto', input: '50 percent', voice: 'alloy', extra_body: { language: 'EN-us' } }),
         }),
         { user: testUser } as any,
       )

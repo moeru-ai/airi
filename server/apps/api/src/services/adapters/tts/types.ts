@@ -23,7 +23,8 @@ export interface TtsInput {
   /** Provider format key (e.g. `mp3`, `wav`, Azure-specific `audio-24khz-48kbitrate-mono-mp3`). */
   responseFormat?: string
   /**
-   * The language of {@link text}, as a BCP 47 tag such as `en-US` or `ja`.
+   * The language of {@link text}, as a canonical BCP 47 tag such as `en-US` or `ja`.
+   * The speech domain canonicalizes it, so `zh-CN` never arrives as `ZH-cn`.
    *
    * An adapter whose provider takes a language maps the tag to the provider code. Other adapters ignore it.
    * Without it, the provider guesses. A short text, such as a digit next to Latin letters, can then be read in the
