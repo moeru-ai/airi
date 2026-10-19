@@ -255,11 +255,10 @@ function rerun(item: ToolCallGroupItem) {
                 ]"
               />
             </span>
-            <!-- The summary leads the row, and the tool name moves to its end. A call without a summary shows the tool name. -->
+            <!-- The summary names the row, and the unfolded details name the tool. A call without a summary shows the tool name. -->
             <span :class="['min-w-0 flex-1 truncate', 'text-primary-600 dark:text-primary-300']">
               {{ call.summary ?? call.name }}<template v-if="call.summary && call.state === 'executing'">…</template>
             </span>
-            <span v-if="call.summary" :class="['max-w-2/5 shrink-0 truncate text-[10px]', 'text-neutral-400 dark:text-neutral-500']">{{ call.name }}</span>
             <span :class="['sr-only']">{{ t(`${KEY}.state.${call.state}`) }}</span>
           </button>
           <!-- The rerun action shows on every call that a rerun can rebuild, in every state. -->
@@ -282,8 +281,10 @@ function rerun(item: ToolCallGroupItem) {
         </div>
         <TransitionVertical>
           <div v-if="openCalls.has(call.key)" :class="['flex flex-col gap-2 px-1.5 pb-2 pt-1']">
-            <!-- The row above already names the tool, so the details start with the result. -->
-            <div v-if="call.widget || call.card?.status === 'shown'" :class="['flex justify-end gap-1']">
+            <!-- A row with a summary names the tool here, on the line of the actions. Otherwise the row already names it. -->
+            <!-- The buttons hang their padding past the edge, so a label ends with the content and a hover box with the rerun button. -->
+            <div v-if="call.summary || call.widget || call.card?.status === 'shown'" :class="['flex items-center justify-end gap-1 -me-1.5']">
+              <span v-if="call.summary" :class="['me-auto min-w-0 truncate text-[10px]', 'text-neutral-400 dark:text-neutral-500']">{{ call.name }}</span>
               <!-- A card that the owner does not like gets replaced by a new one. A widget of the app has no such action. -->
               <button v-if="call.cardCall && call.card?.status === 'shown'" type="button" :class="barButtonClass" @click="toolCards.remake(call.cardCall)">
                 <span :class="['i-mingcute:magic-2-line', 'text-xs']" aria-hidden="true" />
