@@ -45,7 +45,7 @@ const emit = defineEmits<{
         {{ message.body }}
       </span>
     </button>
-    <!-- The unread mark of a row. Rows show no count, so the primary color separates it from the red badges. -->
+    <!-- The unread mark of a row. It uses the theme color like Badge, but stays smaller than the trigger dot, so it does not compete with the title. -->
     <span
       v-if="message.unread"
       aria-hidden="true"

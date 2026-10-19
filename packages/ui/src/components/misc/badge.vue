@@ -23,7 +23,7 @@ const label = computed(() => props.count > props.max ? `${props.max}+` : String(
     v-if="dot"
     aria-hidden="true"
     data-badge="dot"
-    :class="['inline-block size-2.5 shrink-0 rounded-full bg-red-500']"
+    :class="['inline-block size-2.5 shrink-0 rounded-full bg-primary-500 dark:bg-primary-400']"
   />
   <span
     v-else-if="count > 0"
@@ -31,7 +31,7 @@ const label = computed(() => props.count > props.max ? `${props.max}+` : String(
     data-badge="count"
     :class="[
       'inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5',
-      'bg-red-500 text-xs text-white font-medium leading-none tabular-nums',
+      'bg-primary-500 text-xs text-white font-medium leading-none tabular-nums dark:bg-primary-600',
     ]"
   >
     {{ label }}
