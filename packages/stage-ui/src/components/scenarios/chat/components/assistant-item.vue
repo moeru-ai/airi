@@ -174,6 +174,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
                 :result-of="getToolCallResult"
                 :widgets="toolCallWidgets"
                 :streaming="streaming"
+                :message-id="message.id"
                 @tool-call-rerun="emitToolCallRerun"
               />
               <component

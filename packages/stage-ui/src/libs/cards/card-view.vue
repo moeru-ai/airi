@@ -3,7 +3,6 @@ import type { FunctionalComponent } from 'vue'
 
 import { computed, watch } from 'vue'
 
-import { drawCard } from './catalog'
 import { evaluateCard } from './program'
 
 /**
@@ -26,7 +25,7 @@ watch(() => card.value.problems, (problems) => {
     emit('broken', problems)
 }, { immediate: true })
 
-const Drawn: FunctionalComponent = () => card.value.problems.length > 0 ? null : drawCard(card.value.root)
+const Drawn: FunctionalComponent = () => card.value.drawn ?? null
 </script>
 
 <template>

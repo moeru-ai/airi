@@ -1,20 +1,23 @@
 import type { ElementNode, OpenUIError, ParseResult } from '@openuidev/lang-core'
+import type { VNodeChild } from 'vue'
 
 import { getIconData } from '@iconify/utils'
 import { errorMessageFrom } from '@moeru/std'
 import { createParser, createStore, evaluate, evaluateElementProps } from '@openuidev/lang-core'
 
-import { cardLibrary, isPartNode, loadCardIcons, partProblem } from './catalog'
+import { cardLibrary, drawCard, isPartNode, loadCardIcons, partProblem } from './catalog'
 
 const programParser = createParser(cardLibrary.toJSONSchema(), 'Card')
 /** A tool name in a Query is a string literal, so it evaluates without state or references. */
 const LITERAL_CONTEXT = { getState: () => null, resolveRef: () => null }
 
-/** A program evaluated with its data, ready to draw when it has no problems. */
+/** A program evaluated with its data and drawn, when it has no problems. */
 export interface EvaluatedCard {
   parsed: ParseResult
   /** The root part with every value evaluated. */
   root?: ElementNode
+  /** The drawn card. A card with problems has none. */
+  drawn?: VNodeChild
   /** What keeps the card from drawing. A model reads them, so each names the statement or the part. */
   problems: string[]
 }
@@ -34,8 +37,9 @@ function partsOf(value: unknown, parts: ElementNode[] = []) {
 }
 
 /**
- * Evaluates a program and checks the values of each part. Generation checks a program this way, and the chat draws
- * the result, so a card that passes its check draws as checked.
+ * Evaluates a program, checks the values of each part, and draws it. Generation checks a program this way, and the chat
+ * shows the drawing of the same call, so a card that passes its check draws as checked.
+ * A part that fails while it draws counts as a problem too.
  *
  * A Query reads `data`, the result of one tool call. A reply card has no Query, so it evaluates without data.
  */
@@ -64,7 +68,9 @@ export function evaluateCard(program: string, data?: unknown): EvaluatedCard {
       if (problem)
         problems.push(problem)
     }
-    return { parsed, root, problems }
+    if (problems.length > 0)
+      return { parsed, root, problems }
+    return { parsed, root, drawn: drawCard(root), problems }
   }
   catch (error) {
     problems.push(`Drawing the card failed: ${errorMessageFrom(error) ?? 'unknown error'}`)

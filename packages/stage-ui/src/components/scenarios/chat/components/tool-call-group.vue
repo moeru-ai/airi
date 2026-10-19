@@ -34,6 +34,8 @@ const props = defineProps<{
   widgets: ChatToolCallWidgetRegistry
   /** The reply is still being written, so a call that finishes now is new. */
   streaming?: boolean
+  /** The id of the reply that holds the calls. */
+  messageId?: string
 }>()
 
 const emit = defineEmits<{
@@ -47,24 +49,18 @@ const llmTools = useLlmToolsStore()
 const toolCards = useToolCardsStore()
 
 const calls = computed(() => {
-  const occurrences = new Map<string, number>()
   return props.items.map((item) => {
     const result = props.resultOf(item.sliceIndex)
-    const occurrence = occurrences.get(item.toolCall.toolCallId) ?? 0
-    occurrences.set(item.toolCall.toolCallId, occurrence + 1)
     const widget = props.widgets[item.toolCall.toolName]
     const reading = widget?.read(result?.result, item.toolCall.args)
     const title = widget?.title?.(result?.result, item.toolCall.args)
     const state = reading?.failed ? 'error' as const : resolveToolCallBlockState(result)
-    // Result slices land between calls while a reply streams, so slice indexes shift. The call id stays.
-    // A provider can repeat an id across rounds, so the occurrence keeps the key unique.
-    const key = `${item.toolCall.toolCallId}#${occurrence}`
-    // A tool without a widget shows its result on a card. Only a finished call has a result for it.
+    // A tool without a widget shows its result on a card. Only a finished call has a result for it. The card store
+    // keeps the state of every call in the window, so the call names its message too.
     const read = !widget && state === 'done' ? readToolCardCall(item.toolCall.toolName, item.toolCall.args, result?.result) : undefined
-    const cardCall: ToolCardCall | undefined = read && { ...read, callId: key, toolName: item.toolCall.toolName, args: item.toolCall.args, locale: locale.value }
+    const cardCall: ToolCardCall | undefined = read && { ...read, callId: `${props.messageId}/${item.key}`, toolName: item.toolCall.toolName, args: item.toolCall.args, locale: locale.value }
     return {
       ...item,
-      key,
       name: title ? t(title.key, title.params ?? {}) : toolDisplayName(item.toolCall.toolName),
       // A widget title already says the state of the call.
       titled: Boolean(title),

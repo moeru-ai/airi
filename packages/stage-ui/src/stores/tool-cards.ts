@@ -30,7 +30,10 @@ export interface SavedToolCard extends ToolCard {
 
 /** A call that the chat shows with a card, as the chat asks for its card. */
 export interface ToolCardCall {
-  /** The call in the chat. Each call gets at most one new card on its own after its card failed to draw. */
+  /**
+   * The call in the chat: its message and its key in the reply. Each call gets at most one new card on its own after
+   * its card failed to draw.
+   */
   callId: string
   key: string
   toolName: string

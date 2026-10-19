@@ -117,7 +117,12 @@ function definePart<T extends z.ZodObject>(config: {
 }) {
   partDataSchemas.set(config.name, z.object(Object.fromEntries(Object.entries(config.props.shape)
     .map(([key, field]) => [key, config.slots?.includes(key) ? z.array(nestedPartOf(field as z.ZodType)) : field]))))
-  const component: DrawPart = (props, draw) => config.render(props as z.infer<T>, draw)
+  // A field of nested parts can hold null for a missing part, for example from a condition. It draws nothing, so the
+  // drawing gets the parts only.
+  const component: DrawPart = (props, draw) => config.render({
+    ...props,
+    ...Object.fromEntries((config.slots ?? []).map(slot => [slot, (props[slot] as unknown[]).filter(item => item !== null)])),
+  } as z.infer<T>, draw)
   const part = defineComponent({ name: config.name, description: config.description, props: config.props, component })
   partNamesOfRefs.set(part.ref, config.name)
   return part

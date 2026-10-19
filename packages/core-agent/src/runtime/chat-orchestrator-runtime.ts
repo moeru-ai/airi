@@ -707,16 +707,17 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       id: assistantMessageId,
       ...(options.notice ? { proactive: { turnId: roundId, source: options.notice.source } } : {}),
     }
-    // Received calls stay here until their slices join the reply. Interrupted turns preserve them without waiting for token hooks.
-    const pendingToolCalls = new Set<ChatSlicesToolCall>()
+    // Received calls and the content of finished content calls stay here until their slices join the reply. Interrupted
+    // turns preserve them without waiting for token hooks.
+    const pendingSlices = new Set<ChatSlicesToolCall | ChatSlicesToolContent>()
     // Calls of content tools wait here for their results, which become content of the reply.
     const contentCalls = new Map<string, { content: ToolContent, args: string, flushed: Promise<unknown> }>()
     // Content calls from their start until their result or error. Text in this time was written before the call.
     const openContentCalls = new Set<string>()
 
-    function preservePendingToolCalls() {
-      buildingMessage.slices.push(...pendingToolCalls)
-      pendingToolCalls.clear()
+    function preservePendingSlices() {
+      buildingMessage.slices.push(...pendingSlices)
+      pendingSlices.clear()
     }
 
     activeSends.get(sessionId)!.turnId = roundId
@@ -932,7 +933,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
             if (shouldAbort())
               return
             if (ctx.data.type === 'tool-call') {
-              if (!pendingToolCalls.delete(ctx.data))
+              if (!pendingSlices.delete(ctx.data))
                 return
               buildingMessage.slices.push(ctx.data)
               updateStream(sessionId, buildingMessage)
@@ -946,6 +947,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
             }
 
             if (ctx.data.type === 'card') {
+              if (!pendingSlices.delete(ctx.data))
+                return
               buildingMessage.slices.push(ctx.data)
               delete buildingMessage.pendingContent
               updateStream(sessionId, buildingMessage)
@@ -1101,9 +1104,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
               }
               // The flush covers only preceding text. A call stays pending until its slice joins, including during interruption.
               const call: ChatSlicesToolCall = { type: 'tool-call', toolCall: event }
-              pendingToolCalls.add(call)
+              pendingSlices.add(call)
               const enqueue = () => {
-                if (pendingToolCalls.has(call))
+                if (pendingSlices.has(call))
                   toolCallQueue.enqueue(call)
               }
               void parser.flush().then(enqueue, enqueue)
@@ -1114,8 +1117,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
               if (contentCall) {
                 contentCalls.delete(event.toolCallId)
                 openContentCalls.delete(event.toolCallId)
+                // The content joins after the flush, so the text before the call stays in front of it. Until then it is
+                // pending, so an interrupted turn keeps it.
                 const slices = contentCall.content.contentOf(contentCall.args, event.result)
-                void contentCall.flushed.then(() => slices.forEach(slice => toolCallQueue.enqueue(slice)))
+                slices.forEach(slice => pendingSlices.add(slice))
+                void contentCall.flushed.then(() => slices.forEach((slice) => {
+                  if (pendingSlices.has(slice))
+                    toolCallQueue.enqueue(slice)
+                }))
                 break
               }
               toolCallQueue.enqueue({
@@ -1274,7 +1283,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (shouldAbort())
         return
       failed = true
-      preservePendingToolCalls()
+      preservePendingSlices()
 
       if (!assistantStored && !generationCompleted && hasAssistantOutput(buildingMessage)) {
         // Keep received output local, but do not run completion hooks or cloud
@@ -1306,9 +1315,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     }
     finally {
       if (abortSignal.aborted && !isStaleGeneration())
-        preservePendingToolCalls()
-      // A late flush cannot enqueue calls after this turn ends, including when its session no longer exists.
-      pendingToolCalls.clear()
+        preservePendingSlices()
+      // A late flush cannot enqueue calls or content after this turn ends, including when its session no longer exists.
+      pendingSlices.clear()
       if (!assistantStored
         && !generationCompleted
         && abortSignal.aborted
