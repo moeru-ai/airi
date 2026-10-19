@@ -211,7 +211,7 @@ const characterVoiceIcon = computed(() => {
             <RoundRange
               v-model="characterVoiceVolume"
               :aria-label="t('stage.mobile-tools.character-voice')"
-              :class="['mobile-volume-slider w-full flex-1', !characterVoiceEnabled && 'opacity-50']"
+              :class="['w-full flex-1', !characterVoiceEnabled && 'opacity-50']"
               @touchmove.stop
             />
           </div>
@@ -294,22 +294,5 @@ const characterVoiceIcon = computed(() => {
 
 .mobile-tool-row :deep([aria-hidden]) {
   flex-shrink: 0;
-}
-
-/*
-  iOS-style volume bar on the shared round range.
-  Its thumb fills the track height, so a touch can drag from any point of the fill.
-*/
-.mobile-settings-actions :deep(.mobile-volume-slider) {
-  --width: 1.75rem;
-  --track-border-radius: 999px;
-  --track-box-shadow: none;
-  --track-background: rgb(0 0 0 / 0.06);
-  --track-value-background: oklch(72% var(--chromatic-chroma-400) var(--chromatic-hue));
-}
-
-.dark .mobile-settings-actions :deep(.mobile-volume-slider) {
-  --track-background: rgb(255 255 255 / 0.12);
-  --track-value-background: oklch(76% var(--chromatic-chroma-300) var(--chromatic-hue));
 }
 </style>
