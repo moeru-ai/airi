@@ -171,4 +171,16 @@ describe('display models store', () => {
     expect(deleted).toHaveBeenCalledWith([cloudModel.id])
     expect(store.cloudModels).toEqual([])
   })
+
+  it('loads stored models once when several callers initialize at the same time', async () => {
+    const store = useDisplayModelsStore()
+
+    await Promise.all([
+      store.loadDisplayModelsFromIndexedDB(),
+      store.loadDisplayModelsFromIndexedDB(),
+      store.loadDisplayModelsFromIndexedDB(),
+    ])
+
+    expect(localforage.iterate).toHaveBeenCalledTimes(1)
+  })
 })
