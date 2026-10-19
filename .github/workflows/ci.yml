@@ -157,8 +157,7 @@ jobs:
         run: npx playwright install chromium
 
       - run: pnpm run build:packages
-      - name: Run root tests with CPU and wall-time metrics
-        run: /usr/bin/time -v pnpm run test:root
+      - run: pnpm run test:root
       - name: Setup Xvfb
         run: |
           if ! command -v xvfb-run >/dev/null; then
@@ -166,8 +165,7 @@ jobs:
             sudo apt-get install --no-install-recommends -y xvfb
           fi
 
-      - name: Run Turbo tests with CPU and wall-time metrics
-        run: /usr/bin/time -v xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24 -nolisten tcp" pnpm run test:run
+      - run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24 -nolisten tcp" pnpm run test:run
         env:
           NODE_OPTIONS: --no-experimental-webstorage
 
