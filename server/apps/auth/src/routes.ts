@@ -11,7 +11,7 @@ import { account, isUserBannedNow, user } from '@proj-airi/auth-shared'
 import { createBadRequestError, createForbiddenError, createInternalError } from '@proj-airi/http-error-shared'
 import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
-import { boolean, email, nonEmpty, object, pipe, regex, safeParse, string, transform } from 'valibot'
+import { boolean, email, jwsCompact, nonEmpty, object, pipe, safeParse, string, transform } from 'valibot'
 
 import { ensureDynamicFirstPartyRedirectUri } from './auth'
 import { createOidcAccessTokenVerifier } from './oidc-access-token'
@@ -34,7 +34,7 @@ const FORWARDED_AUTH_UI_PROVIDERS = new Set(['google', 'github', 'steam'])
 const JwtBearerTokenSchema = pipe(
   string(),
   transform(value => value.trim()),
-  regex(/^[\w-]+\.[\w-]+\.[\w-]+$/, 'Bearer token must be a compact JWT'),
+  jwsCompact('Bearer token must be a compact JWT'),
 )
 
 /** Builds a route URL below the configured standalone Auth UI base. */
