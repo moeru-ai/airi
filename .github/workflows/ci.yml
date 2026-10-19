@@ -157,7 +157,14 @@ jobs:
 
       - run: pnpm run build:packages
       - run: pnpm run test:root
-      - run: pnpm run test:run
+      - name: Setup Xvfb
+        run: |
+          if ! command -v xvfb-run >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install --no-install-recommends -y xvfb
+          fi
+
+      - run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24 -nolisten tcp" pnpm run test:run
         env:
           NODE_OPTIONS: --no-experimental-webstorage
 
