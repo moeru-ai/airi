@@ -835,6 +835,8 @@ pages:
           unresolved: 이 발음에 응답하는 캐릭터가 없습니다.
       sections:
         section:
+          provider-model-selection:
+            openrouter-catalog-error: 'OpenRouter 전사 모델 목록 요청에 실패했습니다:'
           provider-selection:
             description: 적절한 음성 인식 제공자 선택
           microphone:
@@ -891,6 +893,7 @@ pages:
             model-placeholder: 모델 선택
           playground:
             current: 현재 인식된 텍스트
+            select-model-before-testing: 테스트하기 전에 OpenRouter 설정에서 모델을 선택하세요.
             description: 활성 청력 처리 흐름으로 듣고 완료된 음성 구간을 아래에 보관합니다.
             empty: 모니터링을 시작하고 선택한 마이크에 대고 말하세요.
             error-title: 음성 인식 오류

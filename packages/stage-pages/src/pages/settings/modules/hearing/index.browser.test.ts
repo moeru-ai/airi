@@ -1,6 +1,8 @@
 import en from '@proj-airi/i18n/locales/en'
 
 import { pushToTalkTriggerKey } from '@proj-airi/stage-ui/composables/push-to-talk-trigger'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { createPinia, disposePinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from 'vitest-browser-vue'
@@ -8,6 +10,7 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 import HearingPage from './index.vue'
+import TranscriberPage from './transcriber.vue'
 
 import 'virtual:uno.css'
 
@@ -17,12 +20,12 @@ afterEach(() => {
   cleanup()
   pinias.splice(0).forEach(pinia => disposePinia(pinia))
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
   localStorage.clear()
 })
 
 /** Renders the Hearing overview in a host that declares whether it has a Push to Talk trigger. `undefined` provides nothing. */
-async function renderHearing(trigger: boolean | undefined) {
-  const pinia = createPinia()
+async function renderHearing(trigger: boolean | undefined, pinia = createPinia()) {
   pinias.push(pinia)
   const router = createRouter({
     history: createMemoryHistory(),
@@ -34,6 +37,21 @@ async function renderHearing(trigger: boolean | undefined) {
     global: {
       plugins: [pinia, router, createI18n({ legacy: false, locale: 'en', messages: { en }, missingWarn: false, fallbackWarn: false })],
       provide: trigger === undefined ? {} : { [pushToTalkTriggerKey as symbol]: trigger },
+    },
+  })
+}
+
+async function renderTranscriber(pinia = createPinia()) {
+  pinias.push(pinia)
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/:path(.*)*', component: { template: '<div />' } }],
+  })
+  await router.push('/settings/modules/hearing/transcriber')
+
+  return render(TranscriberPage, {
+    global: {
+      plugins: [pinia, router, createI18n({ legacy: false, locale: 'en', messages: { en }, missingWarn: false, fallbackWarn: false })],
     },
   })
 }
@@ -104,5 +122,56 @@ describe('hearing input mode', () => {
 
     await expect.element(screen.getByTestId('hearing-input-mode')).toBeVisible()
     expect(screen.getByTestId('hearing-input-mode-stranded').query()).toBeNull()
+  })
+})
+
+describe('hearing provider changes', () => {
+  it('keeps the latest provider model when earlier model requests finish later', async () => {
+    localStorage.setItem('settings/hearing/active-provider', 'browser-web-speech-api')
+    localStorage.setItem('settings/hearing/active-model', 'browser-model')
+    localStorage.setItem('settings/hearing/active-custom-model', 'browser-model')
+    localStorage.setItem('settings/hearing/provider-model/openrouter-audio-transcription', 'openrouter-model')
+    localStorage.setItem('settings/hearing/provider-model/comet-api-transcription', 'comet-model')
+    localStorage.setItem('settings/providers/configured', JSON.stringify({
+      'openrouter-audio-transcription': {
+        id: 'openrouter-audio-transcription',
+        definitionId: 'openrouter-audio-transcription',
+        config: { apiKey: 'test-key', baseUrl: 'https://openrouter.test/api/v1' },
+        status: 'configured',
+        configuredBy: 'user',
+      },
+      'comet-api-transcription': {
+        id: 'comet-api-transcription',
+        definitionId: 'comet-api-transcription',
+        config: { apiKey: 'test-key', baseUrl: 'https://comet.test/v1' },
+        status: 'configured',
+        configuredBy: 'user',
+      },
+    }))
+    const pinia = createPinia()
+    await renderTranscriber(pinia)
+    const hearingStore = useHearingStore(pinia)
+    const providersStore = useProviderStore(pinia)
+    const requests: Array<{ url: string, resolve: (response: Response) => void }> = []
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(input => new Promise((resolve) => {
+      requests.push({
+        url: String(input),
+        resolve,
+      })
+    })))
+
+    hearingStore.activeTranscriptionProvider = 'openrouter-audio-transcription'
+    await vi.waitFor(() => expect(requests.some(request => request.url.includes('openrouter.test'))).toBe(true))
+    hearingStore.activeTranscriptionProvider = 'comet-api-transcription'
+    await vi.waitFor(() => expect(requests.some(request => request.url.includes('comet.test'))).toBe(true))
+
+    requests.find(request => request.url.includes('comet.test'))?.resolve(Response.json({ data: [{ id: 'comet-model' }] }))
+    await vi.waitFor(() => expect(providersStore.getModelsForProvider('comet-api-transcription').map(model => model.id)).toContain('comet-model'))
+    requests.find(request => request.url.includes('openrouter.test'))?.resolve(Response.json({ data: [{ id: 'openrouter-model' }] }))
+    await vi.waitFor(() => expect(providersStore.getModelsForProvider('openrouter-audio-transcription').map(model => model.id)).toContain('openrouter-model'))
+
+    expect(hearingStore.activeTranscriptionModel).toBe('comet-model')
+    expect(localStorage.getItem('settings/hearing/provider-model/browser-web-speech-api')).toBe('browser-model')
+    expect(localStorage.getItem('settings/hearing/provider-model/openrouter-audio-transcription')).toBe('openrouter-model')
   })
 })

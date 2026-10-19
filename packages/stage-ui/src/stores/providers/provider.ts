@@ -166,6 +166,12 @@ export const useProviderStore = defineStore('provider', () => {
   })
   const providerValidationInFlight = new Map<string, Promise<boolean>>()
   const providerVoiceListInFlight = new Map<string, Promise<VoiceInfo[] | undefined>>()
+  const modelCatalogRequestGenerationByProviderId = new Map<string, number>()
+
+  function isCurrentModelCatalogRequest(providerId: string, requestGeneration: number) {
+    return modelCatalogRequestGenerationByProviderId.get(providerId) === requestGeneration
+  }
+
   // Authentication epochs are local request ownership, never replicated state.
   // Logout, account changes, and token replacement invalidate old completions.
   let voiceSessionEpoch = 0
@@ -738,6 +744,9 @@ export const useProviderStore = defineStore('provider', () => {
     if (!config && definition.requiresCredentials !== false)
       return { models: [] }
 
+    const requestGeneration = (modelCatalogRequestGenerationByProviderId.get(providerId) ?? 0) + 1
+    modelCatalogRequestGenerationByProviderId.set(providerId, requestGeneration)
+
     initializeProviderRuntimeState(providerId)
     providerRuntimeState.value = {
       ...providerRuntimeState.value,
@@ -750,6 +759,9 @@ export const useProviderStore = defineStore('provider', () => {
 
     try {
       const catalog = await listProviderModels(providerId, config || {})
+      if (!isCurrentModelCatalogRequest(providerId, requestGeneration))
+        return { models: [] }
+
       const normalizedModels = uniqBy(catalog.models.filter(model => !!model.id), m => m.id)
         .map(model => ({
           metadata: model.metadata,
@@ -790,6 +802,9 @@ export const useProviderStore = defineStore('provider', () => {
       return { models: [] }
     }
     catch (error) {
+      if (!isCurrentModelCatalogRequest(providerId, requestGeneration))
+        return { models: [] }
+
       console.error(`Error fetching models for ${providerId}:`, error)
       const currentRuntimeState = providerRuntimeState.value[providerId]
       if (currentRuntimeState) {
@@ -797,6 +812,8 @@ export const useProviderStore = defineStore('provider', () => {
           ...providerRuntimeState.value,
           [providerId]: {
             ...currentRuntimeState,
+            models: [],
+            defaultModel: null,
             modelStatus: 'error',
             modelError: errorMessageFrom(error) ?? 'Unknown error',
           },

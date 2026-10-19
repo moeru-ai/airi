@@ -787,6 +787,7 @@ pages:
             no_providers_configured_description: Click here to set up your LLM providers
             expand: Expand
             loading: Loading available models...
+            model_id_label: Model ID
             manual_model_name: Model Name
             manual_model_placeholder: Enter the model name to use with this provider
             no_models: No models available
@@ -920,6 +921,8 @@ pages:
           error: 'Enrollment failed: {error}'
       sections:
         section:
+          provider-model-selection:
+            openrouter-catalog-error: 'OpenRouter transcription model list request failed:'
           provider-selection:
             description: Select the suitable speech recognition provider
           microphone:
@@ -981,6 +984,7 @@ pages:
             error-title: Transcription error
             listening: Listening for speech…
             no-transcription: No speech was recognized in this audio.
+            select-model-before-testing: Select a model in OpenRouter settings before testing.
             segment: 'Speech segment {number}'
             start: Start monitoring
             stop: Stop monitoring
