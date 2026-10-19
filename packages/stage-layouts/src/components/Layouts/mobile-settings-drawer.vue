@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { formatUnreadBadge, InboxDrawer } from '@proj-airi/stage-ui/components'
+import { InboxDrawer } from '@proj-airi/stage-ui/components'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useInboxStore } from '@proj-airi/stage-ui/stores/inbox'
 import { useSpeechOutputControlStore } from '@proj-airi/stage-ui/stores/speech-output-control'
-import { Avatar, BasicButton, BottomDrawer, GhostButton, Range, SelectTab, useTheme } from '@proj-airi/ui'
+import { Avatar, Badge, BasicButton, BottomDrawer, GhostButton, Range, SelectTab, useTheme } from '@proj-airi/ui'
 import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, shallowRef } from 'vue'
@@ -133,12 +133,12 @@ const characterVoiceIcon = computed(() => {
         ]"
       >
         <span aria-hidden="true" :class="['i-solar:hamburger-menu-outline size-6']" />
-        <!-- Unread Notifications are in this menu. The dot tells the user to open it. -->
-        <span
+        <!-- Unread Notifications are in this menu. A fixed-size dot keeps the button stable. -->
+        <Badge
           v-if="isAuthenticated && unread > 0"
+          dot
           data-testid="mobile-menu-notifications-dot"
-          aria-hidden="true"
-          :class="['pointer-events-none absolute right-1.5 top-1.5 size-2.5 rounded-full bg-primary-500 ring-2 ring-neutral-50 dark:ring-neutral-900']"
+          :class="['pointer-events-none absolute right-1.5 top-1.5 ring-2 ring-neutral-50 dark:ring-neutral-900']"
         />
       </BasicButton>
     </template>
@@ -180,13 +180,7 @@ const characterVoiceIcon = computed(() => {
           >
             <span aria-hidden="true" :class="['i-solar:bell-outline size-5 shrink-0 text-neutral-400']" />
             <span :class="['flex-1 text-left text-sm']">{{ t('stage.notifications.title') }}</span>
-            <span
-              v-if="unread > 0"
-              aria-hidden="true"
-              :class="['min-w-5 rounded-full bg-primary-500 px-1.5 text-center text-xs text-white font-medium leading-5']"
-            >
-              {{ formatUnreadBadge(unread) }}
-            </span>
+            <Badge :count="unread" />
             <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 text-neutral-400']" />
           </GhostButton>
         </template>

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { isCapacitorAvailable } from '@proj-airi/stage-shared'
-import { formatUnreadBadge, InboxPopover } from '@proj-airi/stage-ui/components'
+import { InboxPopover } from '@proj-airi/stage-ui/components'
 import { signOut } from '@proj-airi/stage-ui/libs/auth'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useInboxStore } from '@proj-airi/stage-ui/stores/inbox'
-import { Avatar, DropdownMenu } from '@proj-airi/ui'
+import { Avatar, Badge, DropdownMenu } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import {
   DropdownMenuItem,
@@ -61,12 +61,12 @@ const notificationsLabel = computed(() => unread.value > 0
             ]"
             @click="authStore.updateCredits()"
           >
-            <!-- Unread Notifications are in this menu. The dot tells the user to open it. -->
-            <span
+            <!-- Unread Notifications are in this menu. A fixed-size dot keeps the pill width stable. -->
+            <Badge
               v-if="isAuthenticated && unread > 0"
+              dot
               data-testid="account-notifications-dot"
-              aria-hidden="true"
-              :class="['pointer-events-none absolute left-6.5 top-0.5 size-2.5 rounded-full bg-primary-500 ring-2 ring-neutral-50 dark:ring-neutral-800']"
+              :class="['pointer-events-none absolute left-6.5 top-0.5 ring-2 ring-neutral-50 dark:ring-neutral-800']"
             />
             <Avatar
               v-if="isAuthenticated"
@@ -109,7 +109,7 @@ const notificationsLabel = computed(() => unread.value > 0
         <template v-if="isAuthenticated">
           <div class="px-3 py-2">
             <p class="text-xs text-neutral-500 dark:text-neutral-400">
-              Signed in as
+              {{ t('settings.pages.account.signedInAs') }}
             </p>
             <p class="truncate text-sm text-neutral-900 font-medium dark:text-white">
               {{ userName }}
@@ -143,13 +143,7 @@ const notificationsLabel = computed(() => unread.value > 0
             >
               <span :class="['i-solar:bell-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500']" aria-hidden="true" />
               <span :class="['flex-1 text-left']">{{ t('stage.notifications.title') }}</span>
-              <span
-                v-if="unread > 0"
-                aria-hidden="true"
-                :class="['min-w-5 rounded-full bg-primary-500 px-1.5 text-center text-xs text-white font-medium leading-5']"
-              >
-                {{ formatUnreadBadge(unread) }}
-              </span>
+              <Badge :count="unread" />
             </button>
           </DropdownMenuItem>
 
@@ -164,7 +158,7 @@ const notificationsLabel = computed(() => unread.value > 0
               ]"
             >
               <div class="i-solar:user-id-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
-              Profile
+              {{ t('settings.pages.account.profile.title') }}
             </RouterLink>
           </DropdownMenuItem>
 
@@ -179,7 +173,7 @@ const notificationsLabel = computed(() => unread.value > 0
               ]"
             >
               <div class="i-solar:battery-charge-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
-              Flux
+              {{ t('settings.pages.flux.title') }}
             </RouterLink>
           </DropdownMenuItem>
 
@@ -209,7 +203,7 @@ const notificationsLabel = computed(() => unread.value > 0
               ]"
             >
               <div class="i-solar:settings-minimalistic-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
-              Settings
+              {{ t('settings.title') }}
             </RouterLink>
           </DropdownMenuItem>
 
@@ -226,7 +220,7 @@ const notificationsLabel = computed(() => unread.value > 0
               @click="signOut"
             >
               <div class="i-solar:logout-3-bold-duotone text-lg transition group-hover:text-red-600 dark:group-hover:text-red-400" />
-              Sign out
+              {{ t('settings.pages.account.logout') }}
             </button>
           </DropdownMenuItem>
         </template>
