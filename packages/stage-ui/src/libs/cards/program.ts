@@ -86,8 +86,9 @@ export function evaluateCard(program: string, data?: unknown): EvaluatedCard {
  */
 export async function problemsOfProgram(program: string, query?: { key: string, data: unknown }): Promise<string[]> {
   const { parsed, root, problems } = evaluateCard(program, query?.data)
-  if (query && !parsed.queryStatements.some(statement => statement.toolAST && evaluate(statement.toolAST, LITERAL_CONTEXT) === query.key))
-    problems.push(`The program must read the result with \`Query("${query.key}", {}, defaults)\` instead of fixed values.`)
+  // Every Query reads the result of the one call, so a tool card has exactly one, and it names the tool.
+  if (query && (parsed.queryStatements.length !== 1 || !parsed.queryStatements.some(statement => statement.toolAST && evaluate(statement.toolAST, LITERAL_CONTEXT) === query.key)))
+    problems.push(`The program must read the result with exactly one \`Query("${query.key}", {}, defaults)\` instead of fixed values.`)
   if (!query && parsed.queryStatements.length > 0)
     problems.push('Remove every Query. Write every value into the program.')
   if (parsed.mutationStatements.length > 0)
