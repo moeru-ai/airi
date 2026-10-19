@@ -30,6 +30,8 @@ export interface ToolCardRequest {
   description?: string
   /** The arguments of this call, as the chat model sent them. */
   args: string
+  /** What this call does and why, in the words of the chat model. It is about this call only, not every call of the tool. */
+  summary?: string
   /** The result of this call, in full. */
   result: unknown
   /** The language of the labels, as a name that the model reads, for example `简体中文`. */
@@ -70,6 +72,7 @@ function describeCall(request: ToolCardRequest) {
     `Tool: ${request.key}`,
     ...(request.description ? [`What the tool does: ${request.description}`] : []),
     `Arguments of this call: ${request.args}`,
+    ...(request.summary ? [`Why the chat model made this call: ${request.summary}`] : []),
     `Labels language: ${request.language}`,
     'Result of this call, with only the first item of each list:',
     JSON.stringify(shapeOf(request.result), null, 2),

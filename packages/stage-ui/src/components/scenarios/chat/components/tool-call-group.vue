@@ -15,6 +15,7 @@ import CardView from '../../../../libs/cards/card-view.vue'
 import HitPill from './hit-pill.vue'
 import ToolCallPayload from './tool-call-payload.vue'
 
+import { readCallSummary } from '../../../../stores/ai/chat-llm/tool-call-summary'
 import { useLlmToolsStore } from '../../../../stores/ai/chat-llm/tools'
 import { canRerunToolCall } from '../../../../stores/tool-call-rerun'
 import { readToolCardCall, useToolCardsStore } from '../../../../stores/tool-cards'
@@ -50,6 +51,8 @@ const toolCards = useToolCardsStore()
 
 const calls = computed(() => {
   return props.items.map((item) => {
+    // The model says in the call what it does and why. The row shows it, and a new card of the tool learns from it.
+    const summary = readCallSummary(item.toolCall.args)
     const result = props.resultOf(item.sliceIndex)
     const widget = props.widgets[item.toolCall.toolName]
     const reading = widget?.read(result?.result, item.toolCall.args)
@@ -58,9 +61,10 @@ const calls = computed(() => {
     // A tool without a widget shows its result on a card. Only a finished call has a result for it. The card store
     // keeps the state of every call in the window, so the call names its message too.
     const read = !widget && state === 'done' ? readToolCardCall(item.toolCall.toolName, item.toolCall.args, result?.result) : undefined
-    const cardCall: ToolCardCall | undefined = read && { ...read, callId: `${props.messageId}/${item.key}`, toolName: item.toolCall.toolName, args: item.toolCall.args, locale: locale.value }
+    const cardCall: ToolCardCall | undefined = read && { ...read, callId: `${props.messageId}/${item.key}`, toolName: item.toolCall.toolName, args: item.toolCall.args, summary, locale: locale.value }
     return {
       ...item,
+      summary,
       name: title ? t(title.key, title.params ?? {}) : toolDisplayName(item.toolCall.toolName),
       // A widget title already says the state of the call.
       titled: Boolean(title),
@@ -179,6 +183,15 @@ watch([calls, open, openCalls], () => {
   }
 }, { immediate: true })
 
+// The rerun action and the raw data switch. An unfolded row puts the switch under the rerun action, so both are one shape.
+const iconButtonClass = [
+  'size-6 shrink-0 inline-flex items-center justify-center rounded-lg',
+  'outline-none transition-colors duration-200',
+  'text-neutral-500 hover:bg-neutral-200/70 hover:text-primary-600',
+  'dark:text-neutral-400 dark:hover:bg-neutral-800/80 dark:hover:text-primary-300',
+  'focus-visible:ring-2 focus-visible:ring-primary-400/60',
+]
+
 const barButtonClass = [
   'shrink-0 inline-flex items-center gap-1 rounded-md px-1.5 py-px text-[11px]',
   'outline-none transition-colors duration-200',
@@ -251,7 +264,10 @@ function rerun(item: ToolCallGroupItem) {
                 ]"
               />
             </span>
-            <span :class="['min-w-0 flex-1 truncate', 'text-primary-600 dark:text-primary-300']">{{ call.name }}</span>
+            <!-- The summary names the row, and the unfolded details name the tool. A call without a summary shows the tool name. -->
+            <span :class="['min-w-0 flex-1 truncate', 'text-primary-600 dark:text-primary-300']">
+              {{ call.summary ?? call.name }}<template v-if="call.summary && call.state === 'executing'">…</template>
+            </span>
             <span :class="['sr-only']">{{ t(`${KEY}.state.${call.state}`) }}</span>
           </button>
           <!-- The rerun action shows on every call that a rerun can rebuild, in every state. -->
@@ -260,13 +276,7 @@ function rerun(item: ToolCallGroupItem) {
             type="button"
             :aria-label="t(`${KEY}.rerun`)"
             :title="t(`${KEY}.rerun`)"
-            :class="[
-              'size-6 shrink-0 inline-flex items-center justify-center rounded-lg',
-              'outline-none transition-colors duration-200',
-              'text-neutral-500 hover:bg-neutral-200/70 hover:text-primary-600',
-              'dark:text-neutral-400 dark:hover:bg-neutral-800/80 dark:hover:text-primary-300',
-              'focus-visible:ring-2 focus-visible:ring-primary-400/60',
-            ]"
+            :class="iconButtonClass"
             @click="rerun(call)"
           >
             <span :class="['i-mingcute:refresh-2-line', 'text-xs']" aria-hidden="true" />
@@ -274,16 +284,25 @@ function rerun(item: ToolCallGroupItem) {
         </div>
         <TransitionVertical>
           <div v-if="openCalls.has(call.key)" :class="['flex flex-col gap-2 px-1.5 pb-2 pt-1']">
-            <!-- The row above already names the tool, so the details start with the result. -->
-            <div v-if="call.widget || call.card?.status === 'shown'" :class="['flex justify-end gap-1']">
+            <!-- A row with a summary names the tool here, on the line of the actions. Otherwise the row already names it. -->
+            <!-- The line reaches the edge of the row above, so its last button ends where the rerun button ends. -->
+            <div v-if="call.summary || call.widget || call.card?.status === 'shown'" :class="['flex items-center justify-end gap-1 -me-1.5']">
+              <span v-if="call.summary" :class="['me-auto min-w-0 truncate text-[10px]', 'text-neutral-400 dark:text-neutral-500']">{{ call.name }}</span>
               <!-- A card that the owner does not like gets replaced by a new one. A widget of the app has no such action. -->
               <button v-if="call.cardCall && call.card?.status === 'shown'" type="button" :class="barButtonClass" @click="toolCards.remake(call.cardCall)">
                 <span :class="['i-mingcute:magic-2-line', 'text-xs']" aria-hidden="true" />
                 <span>{{ t(`${KEY}.card-regenerate`) }}</span>
               </button>
-              <button type="button" :class="barButtonClass" @click="toggleRaw(call.key)">
-                <span :class="['i-mingcute:code-line', 'text-xs']" aria-hidden="true" />
-                <span>{{ rawCalls.has(call.key) ? t(`${KEY}.widget`) : t(`${KEY}.raw`) }}</span>
+              <button
+                v-if="call.widget || call.card?.status === 'shown'"
+                type="button"
+                :aria-label="rawCalls.has(call.key) ? t(`${KEY}.widget`) : t(`${KEY}.raw`)"
+                :title="rawCalls.has(call.key) ? t(`${KEY}.widget`) : t(`${KEY}.raw`)"
+                :class="iconButtonClass"
+                @click="toggleRaw(call.key)"
+              >
+                <!-- The switch shows the view that it opens: the raw data, or the widget again. -->
+                <span :class="[rawCalls.has(call.key) ? 'i-mingcute:layout-4-line' : 'i-mingcute:code-line', 'text-xs']" aria-hidden="true" />
               </button>
             </div>
             <template v-if="call.widget && !rawCalls.has(call.key)">

@@ -34,8 +34,9 @@ const drawCardResultSchema = union([
   object({ status: literal('shown') }),
 ])
 
-// A finished call holds its arguments and its result as JSON text.
-const recordedInputSchema = pipe(string(), parseJson(), drawCardParameters)
+// A finished call holds its arguments and its result as JSON text. The arguments also hold the summary that every call
+// carries (see `stores/ai/chat-llm/tool-call-summary`), so the record reads only the fields of the card.
+const recordedInputSchema = pipe(string(), parseJson(), object(drawCardParameters.entries))
 const recordedResultSchema = pipe(string(), parseJson(), drawCardResultSchema)
 
 /** The card of a finished call. A call that only got the rules, or whose program had problems, adds no card. */
