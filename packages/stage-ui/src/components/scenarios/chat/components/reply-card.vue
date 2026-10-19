@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import type { ChatToolCallRendererProps } from './tool-call-renderer'
 
-import { Renderer } from '@openuidev/vue-lang'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import CardView from '../../../../libs/cards/card-view.vue'
+
 import { useSettingsDeveloper } from '../../../../stores/settings/developer'
 import { readCardDraw } from '../../../../tools/draw-card'
-import { NoQueryLoader, toolCardLibrary } from './tool-card-library'
 
 // The chat passes every renderer the call id and the rerun listener. This card uses neither, and it often renders nothing.
 defineOptions({ inheritAttrs: false })
@@ -36,7 +36,7 @@ const showProgram = ref(false)
         v-if="showToolPayloadsAsJson && showProgram"
         :class="['m-0 rounded-lg px-2.5 py-2', 'whitespace-pre-wrap break-words text-[11px] font-mono', 'bg-white/75 dark:bg-neutral-800/60']"
       >{{ draw.program }}</pre>
-      <Renderer v-else :response="draw.program" :library="toolCardLibrary" :query-loader="NoQueryLoader" />
+      <CardView v-else :program="draw.program" />
     </div>
     <div v-if="showToolPayloadsAsJson" :class="['flex justify-end']">
       <button

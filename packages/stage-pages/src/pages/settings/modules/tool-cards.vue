@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { SavedToolCard } from '@proj-airi/stage-ui/stores/tool-cards'
 
-import { ChatToolCallCard } from '@proj-airi/stage-ui/components'
+import { CardView } from '@proj-airi/stage-ui/libs/cards'
 import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 import { useToolCardsStore } from '@proj-airi/stage-ui/stores/tool-cards'
 import { TOOL_ICONS, toolIconOf } from '@proj-airi/stage-ui/tools/icons'
@@ -110,7 +110,7 @@ function toggleTemplate(key: string) {
           </div>
           <!-- The preview sits on the panel color of the chat, and draws the card with the latest call of the tool. -->
           <div :class="['self-start', 'rounded-xl', 'bg-neutral-100/90 dark:bg-neutral-900/80', 'p-2']">
-            <ChatToolCallCard :card-key="row.card.key" :program="row.card.program" :data="row.card.sample" />
+            <CardView :program="row.card.program" :data="row.card.data" />
           </div>
         </div>
       </li>

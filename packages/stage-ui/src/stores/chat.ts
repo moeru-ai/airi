@@ -19,7 +19,6 @@ import { defineStore, storeToRefs } from 'pinia'
 import { computed, shallowRef, toRaw } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { problemsOfProgram, replyCardRules } from '../components/scenarios/chat/components/tool-card-library'
 import { getConversationAnalyticsSurface } from '../composables'
 import { useAiriRuntimePrompt } from '../composables/use-airi-runtime-prompt'
 import { registerTurnSpan, startSpan, takeComposerVoiceParent, takeVoiceTurnParent } from '../composables/use-io-tracer'
@@ -636,7 +635,7 @@ export const useChatStore = defineStore('chat', () => {
       // The owner can turn proposals off. Every proposal waits for the owner's approval.
       ...(ownerOnly && recipes.proposalsEnabled ? await createProposeRecipeTool({ propose: recipe => recipes.propose(recipe) }) : []),
       // Cards show in the owner's own chat only. A scene, such as a Discord channel, gets text.
-      ...(drawsCards(sessionId) ? await createDrawCardTool({ rules: replyCardRules, check: program => problemsOfProgram(program) }) : []),
+      ...(drawsCards(sessionId) ? await createDrawCardTool() : []),
     ]
   }
 

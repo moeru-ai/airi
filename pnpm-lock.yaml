@@ -333,9 +333,6 @@ catalogs:
     '@openuidev/lang-core':
       specifier: 0.4.1
       version: 0.4.1
-    '@openuidev/vue-lang':
-      specifier: 0.4.2
-      version: 0.4.2
     '@pinia/colada':
       specifier: ^1.4.2
       version: 1.4.2
@@ -4905,9 +4902,6 @@ importers:
       '@openuidev/lang-core':
         specifier: 'catalog:'
         version: 0.4.1(@modelcontextprotocol/sdk@1.30.0(supports-color@10.2.2)(zod@4.4.3))(zod@4.4.3)
-      '@openuidev/vue-lang':
-        specifier: 'catalog:'
-        version: 0.4.2(@modelcontextprotocol/sdk@1.30.0(supports-color@10.2.2)(zod@4.4.3))(vue@3.5.41(typescript@6.0.3))(zod@4.4.3)
       '@pinia/colada':
         specifier: 'catalog:'
         version: 1.4.2(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
@@ -9868,12 +9862,6 @@ packages:
     peerDependenciesMeta:
       '@modelcontextprotocol/sdk':
         optional: true
-
-  '@openuidev/vue-lang@0.4.2':
-    resolution: {integrity: sha512-jkBA09Y//tktcIW3I32ovtMqL/pp2pX5lgZhaOzmHAEi9t7jMSLkcZayUvE7S6pqyAIKYuRJ30Hb35d3MYMLOQ==}
-    peerDependencies:
-      vue: '>=3.5.0'
-      zod: ^3.25.0 || ^4.0.0
 
   '@ota-meshi/ast-token-store@0.3.0':
     resolution: {integrity: sha512-XRO0zi2NIUKq2lUk3T1ecFSld1fMWRKE6naRFGkgkdeosx7IslyUKNv5Dcb5PJTja9tHJoFu0v/7yEpAkrkrTg==}
@@ -24830,14 +24818,6 @@ snapshots:
       zod: 4.4.3
     optionalDependencies:
       '@modelcontextprotocol/sdk': 1.30.0(supports-color@10.2.2)(zod@4.4.3)
-
-  '@openuidev/vue-lang@0.4.2(@modelcontextprotocol/sdk@1.30.0(supports-color@10.2.2)(zod@4.4.3))(vue@3.5.41(typescript@6.0.3))(zod@4.4.3)':
-    dependencies:
-      '@openuidev/lang-core': 0.4.1(@modelcontextprotocol/sdk@1.30.0(supports-color@10.2.2)(zod@4.4.3))(zod@4.4.3)
-      vue: 3.5.41(typescript@6.0.3)
-      zod: 4.4.3
-    transitivePeerDependencies:
-      - '@modelcontextprotocol/sdk'
 
   '@ota-meshi/ast-token-store@0.3.0': {}
 

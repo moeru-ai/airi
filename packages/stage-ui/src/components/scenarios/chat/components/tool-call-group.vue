@@ -11,8 +11,8 @@ import { animate, createSpring } from 'animejs'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import CardView from '../../../../libs/cards/card-view.vue'
 import HitPill from './hit-pill.vue'
-import ToolCallCard from './tool-call-card.vue'
 import ToolCallPayload from './tool-call-payload.vue'
 
 import { useLlmToolsStore } from '../../../../stores/ai/chat-llm/tools'
@@ -46,9 +46,6 @@ const KEY = 'stage.chat.tool-calls'
 const llmTools = useLlmToolsStore()
 const toolCards = useToolCardsStore()
 
-// A card that fails with a result shows that result as it is.
-const brokenPrograms = ref<ReadonlySet<string>>(new Set())
-
 const calls = computed(() => {
   const occurrences = new Map<string, number>()
   return props.items.map((item) => {
@@ -59,19 +56,15 @@ const calls = computed(() => {
     const reading = widget?.read(result?.result, item.toolCall.args)
     const title = widget?.title?.(result?.result, item.toolCall.args)
     const state = reading?.failed ? 'error' as const : resolveToolCallBlockState(result)
-    // A tool without a widget shows a card that a model made for it, while cards are on. Only a finished call has a result for it.
-    const cardCall = toolCards.enabled && !widget && state === 'done' ? readToolCardCall(item.toolCall.toolName, item.toolCall.args, result?.result) : undefined
-    const card = cardCall ? toolCards.cardsByKey.get(cardCall.key) : undefined
-    const cardMaking = cardCall ? toolCards.making.has(cardCall.key) : false
-    // A card that failed with this result shows the result as it is.
-    const cardBroken = Boolean(card && brokenPrograms.value.has(card.program))
-    // A row without a usable card offers to try again after a failure. A failed new card keeps a usable old card on show.
-    const cardFailed = Boolean(cardCall && (!card || cardBroken) && !cardMaking && toolCards.failed.has(cardCall.key))
+    // Result slices land between calls while a reply streams, so slice indexes shift. The call id stays.
+    // A provider can repeat an id across rounds, so the occurrence keeps the key unique.
+    const key = `${item.toolCall.toolCallId}#${occurrence}`
+    // A tool without a widget shows its result on a card. Only a finished call has a result for it.
+    const read = !widget && state === 'done' ? readToolCardCall(item.toolCall.toolName, item.toolCall.args, result?.result) : undefined
+    const cardCall: ToolCardCall | undefined = read && { ...read, callId: key, toolName: item.toolCall.toolName, args: item.toolCall.args, locale: locale.value }
     return {
       ...item,
-      // Result slices land between calls while a reply streams, so slice indexes shift. The call id stays.
-      // A provider can repeat an id across rounds, so the occurrence keeps the key unique.
-      key: `${item.toolCall.toolCallId}#${occurrence}`,
+      key,
       name: title ? t(title.key, title.params ?? {}) : toolDisplayName(item.toolCall.toolName),
       // A widget title already says the state of the call.
       titled: Boolean(title),
@@ -80,11 +73,7 @@ const calls = computed(() => {
       result: result?.result,
       widget: widget && reading ? { component: widget.component, ...reading } : undefined,
       cardCall,
-      card,
-      cardMaking,
-      cardFailed,
-      // While a new card is made, the row shows the result as it is, under a line that says so.
-      cardShown: Boolean(card && !cardMaking && !cardBroken),
+      card: cardCall ? toolCards.viewOf(cardCall) : undefined,
     }
   })
 })
@@ -179,49 +168,20 @@ function toggleRaw(key: string) {
 
 type ToolCallGroupCall = (typeof calls.value)[number]
 
-function cardCallOf(call: ToolCallGroupCall): ToolCardCall | undefined {
-  return call.cardCall && { ...call.cardCall, toolName: call.toolCall.toolName, args: call.toolCall.args, locale: locale.value }
+// The row then shows the result as it is, and the card store decides on a new card.
+function reportBroken(call: ToolCallGroupCall) {
+  if (call.cardCall && call.card?.status === 'shown')
+    toolCards.reportBroken(call.cardCall, call.card.card.program)
 }
 
-// A tool without a card gets one from a new call, so the card is ready when the owner unfolds the row. An old call asks
-// only when its row is unfolded, because nobody sees a folded card. Only a row that shows a card asks, so a tool with a
-// widget never gets one. Each call asks once. The leader makes each card once for every window.
-const askedCalls = new Set<string>()
-
-watch([calls, open, openCalls], ([current]) => {
-  for (const call of current) {
-    if (!props.streaming && (!open.value || !openCalls.value.has(call.key)))
-      continue
-    const cardCall = cardCallOf(call)
-    if (!cardCall || call.card || call.cardMaking || call.cardFailed || askedCalls.has(call.key))
-      continue
-    askedCalls.add(call.key)
-    toolCards.make(cardCall)
-      .catch(error => console.warn('[tool-call-group] Failed to ask for a tool card:', error))
+// Each row reports what the owner can see of it: a call that finishes while the reply streams, or an unfolded row. The
+// card store decides whether that asks for a card.
+watch([calls, open, openCalls], () => {
+  for (const call of calls.value) {
+    if (call.cardCall)
+      toolCards.want(call.cardCall, { fresh: props.streaming ?? false, open: open.value && openCalls.value.has(call.key) })
   }
 }, { immediate: true })
-
-// A row asks for another card when the owner wants one, tries again, or the card failed with this result.
-function remakeCard(call: ToolCallGroupCall) {
-  const cardCall = cardCallOf(call)
-  if (!cardCall)
-    return
-  toolCards.remake(cardCall)
-    .catch(error => console.warn('[tool-call-group] Failed to ask for a new tool card:', error))
-}
-
-// A call whose card fails asks once for a new card. When the new card fails too, the row keeps the result as it is.
-const remadeCalls = new Set<string>()
-
-function markBroken(call: ToolCallGroupCall) {
-  if (!call.card)
-    return
-  brokenPrograms.value = new Set(brokenPrograms.value).add(call.card.program)
-  if (remadeCalls.has(call.key))
-    return
-  remadeCalls.add(call.key)
-  remakeCard(call)
-}
 
 const barButtonClass = [
   'shrink-0 inline-flex items-center gap-1 rounded-md px-1.5 py-px text-[11px]',
@@ -319,9 +279,9 @@ function rerun(item: ToolCallGroupItem) {
         <TransitionVertical>
           <div v-if="openCalls.has(call.key)" :class="['flex flex-col gap-2 px-1.5 pb-2 pt-1']">
             <!-- The row above already names the tool, so the details start with the result. -->
-            <div v-if="call.widget || call.cardShown" :class="['flex justify-end gap-1']">
+            <div v-if="call.widget || call.card?.status === 'shown'" :class="['flex justify-end gap-1']">
               <!-- A card that the owner does not like gets replaced by a new one. A widget of the app has no such action. -->
-              <button v-if="call.cardShown" type="button" :class="barButtonClass" @click="remakeCard(call)">
+              <button v-if="call.cardCall && call.card?.status === 'shown'" type="button" :class="barButtonClass" @click="toolCards.remake(call.cardCall)">
                 <span :class="['i-mingcute:magic-2-line', 'text-xs']" aria-hidden="true" />
                 <span>{{ t(`${KEY}.card-regenerate`) }}</span>
               </button>
@@ -335,22 +295,21 @@ function rerun(item: ToolCallGroupItem) {
               <!-- Fields that the widget does not show still appear, so the widget never hides part of the result. -->
               <ToolCallPayload v-if="call.widget.rest !== undefined" :label="t(`${KEY}.other`)" :payload="call.widget.rest" />
             </template>
-            <ToolCallCard
-              v-else-if="call.cardShown && call.card && call.cardCall && !rawCalls.has(call.key)"
-              :card-key="call.cardCall.key"
-              :program="call.card.program"
+            <CardView
+              v-else-if="call.cardCall && call.card?.status === 'shown' && !rawCalls.has(call.key)"
+              :program="call.card.card.program"
               :data="call.cardCall.data"
-              @broken="markBroken(call)"
+              @broken="reportBroken(call)"
             />
             <template v-else>
-              <div v-if="call.cardMaking" :class="['flex items-center gap-1.5 text-[11px]', 'text-neutral-500 dark:text-neutral-400']" aria-live="polite">
+              <div v-if="call.card?.status === 'making'" :class="['flex items-center gap-1.5 text-[11px]', 'text-neutral-500 dark:text-neutral-400']" aria-live="polite">
                 <span :class="['i-svg-spinners:ring-resize', 'text-xs', 'text-primary-500 dark:text-primary-300']" aria-hidden="true" />
-                <span>{{ call.card ? t(`${KEY}.card-remaking`) : t(`${KEY}.card-making`) }}</span>
+                <span>{{ call.card.card ? t(`${KEY}.card-remaking`) : t(`${KEY}.card-making`) }}</span>
               </div>
-              <div v-else-if="call.cardFailed" :class="['flex items-center gap-1.5 text-[11px]', 'text-neutral-500 dark:text-neutral-400']">
+              <div v-else-if="call.cardCall && call.card?.status === 'failed'" :class="['flex items-center gap-1.5 text-[11px]', 'text-neutral-500 dark:text-neutral-400']">
                 <span :class="['i-mingcute:close-circle-line', 'text-xs']" aria-hidden="true" />
                 <span :class="['min-w-0 flex-1']">{{ t(`${KEY}.card-failed`) }}</span>
-                <button type="button" :class="barButtonClass" @click="remakeCard(call)">
+                <button type="button" :class="barButtonClass" @click="toolCards.remake(call.cardCall)">
                   <span :class="['i-mingcute:refresh-2-line', 'text-xs']" aria-hidden="true" />
                   <span>{{ t(`${KEY}.card-retry`) }}</span>
                 </button>

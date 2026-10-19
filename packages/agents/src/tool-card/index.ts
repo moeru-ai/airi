@@ -30,8 +30,8 @@ export interface ToolCardRequest {
   description?: string
   /** The arguments of this call, as the chat model sent them. */
   args: string
-  /** The result of this call. The caller shortens long strings and lists, because only the shape matters. */
-  sample: unknown
+  /** The result of this call, in full. */
+  result: unknown
   /** The language of the labels, as a name that the model reads, for example `简体中文`. */
   language: string
 }
@@ -56,14 +56,23 @@ export function readToolCardReply(reply: string): ToolCard {
   return { description, program }
 }
 
+/** The result as the model sees it. The items of a list share one shape, so each list keeps only its first item. */
+function shapeOf(value: unknown): unknown {
+  if (Array.isArray(value))
+    return value.slice(0, 1).map(shapeOf)
+  if (value !== null && typeof value === 'object')
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, shapeOf(item)]))
+  return value
+}
+
 function describeCall(request: ToolCardRequest) {
   return [
     `Tool: ${request.key}`,
     ...(request.description ? [`What the tool does: ${request.description}`] : []),
     `Arguments of this call: ${request.args}`,
     `Labels language: ${request.language}`,
-    'Result of this call, with long strings and lists shortened:',
-    JSON.stringify(request.sample, null, 2),
+    'Result of this call, with only the first item of each list:',
+    JSON.stringify(shapeOf(request.result), null, 2),
   ].join('\n')
 }
 
@@ -80,7 +89,7 @@ export interface ToolCardAgentOptions {
   /** Sends the request to the selected chat model. */
   generateText: GenerateText
   /**
-   * Checks a program with the app's catalog and the sample. Returns the problems, empty when the program renders as written.
+   * Checks a program with the app's catalog and the result. Returns the problems, empty when the program renders as written.
    * The model reads each problem in the fix round, so a problem names the statement and the fix.
    */
   validate: (program: string) => string[] | Promise<string[]>

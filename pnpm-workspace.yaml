@@ -159,7 +159,6 @@ catalog:
   '@opentelemetry/sdk-trace-node': ^2.10.0
   '@opentelemetry/semantic-conventions': ^1.43.0
   '@openuidev/lang-core': 0.4.1
-  '@openuidev/vue-lang': 0.4.2
   '@pinia/colada': ^1.4.2
   '@pinia/testing': ^2.0.1
   '@pixi/app': ^6.5.10

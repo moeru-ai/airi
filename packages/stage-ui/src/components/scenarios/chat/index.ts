@@ -8,7 +8,6 @@ export { default as ChatProviderSetupCallout } from './components/provider-setup
 export { default as ChatReplyPreview } from './components/reply-preview.vue'
 export { default as ChatSendButton } from './components/send-button.vue'
 export { default as ChatSessionsDrawer } from './components/sessions-drawer.vue'
-export { default as ChatToolCallCard } from './components/tool-call-card.vue'
 export { createToolResultError, normalizeToolResultText } from './components/tool-call-display'
 export type { ChatToolCallRendererProps, ChatToolCallRendererRegistry, ChatToolCallTitle, ChatToolCallWidget, ChatToolCallWidgetReading, ChatToolCallWidgetRegistry } from './components/tool-call-renderer'
 export { defineToolCallWidget } from './components/tool-call-renderer'

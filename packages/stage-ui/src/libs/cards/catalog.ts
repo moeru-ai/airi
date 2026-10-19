@@ -1,17 +1,14 @@
 import type { IconifyJSON } from '@iconify-json/mingcute'
-import type { OpenUIError } from '@openuidev/lang-core'
-import type { ComponentRenderProps } from '@openuidev/vue-lang'
-import type { FunctionalComponent, InjectionKey, VNodeChild } from 'vue'
+import type { ElementNode } from '@openuidev/lang-core'
+import type { FunctionalComponent, VNodeChild } from 'vue'
 
 import { getIconData, iconToSVG, replaceIDs } from '@iconify/utils'
-import { errorMessageFrom } from '@moeru/std'
-import { createParser, createStore, evaluate, evaluateElementProps } from '@openuidev/lang-core'
-import { createLibrary, defineComponent, useIsQueryLoading } from '@openuidev/vue-lang'
-import { h, inject, shallowRef } from 'vue'
+import { createLibrary, defineComponent } from '@openuidev/lang-core'
+import { h, shallowRef } from 'vue'
 import { z } from 'zod'
 
-// The parts that a model can use in a tool card. They copy the look of the widgets in this folder, so a card that a
-// model writes reads like a widget of the app. A part holds its own behavior, and the program only arranges parts.
+// The parts that a model can use in a card. They copy the look of the chat's tool widgets, so a card that a model
+// writes reads like a widget of the app. A part holds its own look, and the program only arranges parts.
 
 /** The icon set of every card icon. It loads on first use, so the app does not carry 1.5 MB of icons until a card needs one. */
 let iconSet: Promise<IconifyJSON> | undefined
@@ -56,37 +53,37 @@ function webUrl(url: string | undefined) {
   return url && /^https?:\/\//i.test(url) ? url : undefined
 }
 
-/**
- * Where a card hears about a part that cannot draw its values. The part draws nothing, so without this the card would
- * lose the part without a sign. OpenUI catches errors of each part itself and does not report them.
- */
-export const CARD_PROBLEM: InjectionKey<(problem: string) => void> = Symbol('tool-card-problem')
+/** Whether a value is a part as OpenUI evaluates it. */
+export function isPartNode(value: unknown): value is ElementNode {
+  if (value === null || typeof value !== 'object')
+    return false
+  const node = value as Partial<ElementNode>
+  return node.type === 'element' && typeof node.typeName === 'string' && node.props !== null && typeof node.props === 'object'
+}
+
+/** Draws one part from its checked values. `draw` draws the parts nested in it. */
+type DrawPart = (props: Record<string, unknown>, draw: (value: unknown) => VNodeChild) => VNodeChild
 
 /**
  * The data fields of each part. A field that holds nested parts must hold a list of parts. Each nested part checks its
- * own fields when it draws.
+ * own fields.
  */
 const partDataSchemas = new Map<string, z.ZodObject>()
 
-/**
- * One item of a field that holds nested parts: a part of this catalog, or `null` for a missing value. OpenUI draws
- * nothing for plain data in its place and reports nothing, so a list of data objects would draw an empty part.
- */
+/** One item of a field that holds nested parts: a part of this catalog, or `null` for a missing value. */
 const nestedPart = z.custom(
-  value => value === null || (typeof value === 'object'
-    && (value as { type?: unknown }).type === 'element'
-    && partDataSchemas.has(String((value as { typeName?: unknown }).typeName))),
-  'must be a part, not plain data. Turn each data item into a part with @Each, for example @Each(data.items, "item", Fact(item.label, item.value))',
+  value => value === null || (isPartNode(value) && partDataSchemas.has(value.typeName)),
+  'must be a part, not plain data. Turn each data item into a part with @Each.',
 )
 
 /**
- * The first problem of the values of a part, or undefined when they fit. The values come from data at runtime, so the
- * schema types alone do not hold them. OpenUI writes `null` for a missing value, which counts as an absent field.
+ * The first problem of the values of a part, or undefined when they fit. The values can come from data, so the schema
+ * types alone do not hold them. OpenUI writes `null` for a missing value, which counts as an absent field.
  */
-function partProblem(name: string, props: unknown) {
+export function partProblem(name: string, props: Record<string, unknown>) {
   const schema = partDataSchemas.get(name)
-  if (!schema || props === null || typeof props !== 'object')
-    return undefined
+  if (!schema)
+    return `${name} is not a part of the card catalog.`
   const parsed = schema.safeParse(Object.fromEntries(Object.entries(props).filter(([, value]) => value !== null)))
   if (parsed.success)
     return undefined
@@ -95,8 +92,8 @@ function partProblem(name: string, props: unknown) {
 }
 
 /**
- * Defines a part from its schema and its drawing. The drawing gets the values of the program as `props`, typed by the
- * schema, and `renderNode`, which draws the parts nested in it. Values that do not fit draw nothing and report a problem.
+ * Defines a part from its schema and its drawing. The drawing gets the values of the program, typed by the schema. A
+ * card checks the values of every part before it draws, so the drawing can trust them.
  */
 function definePart<T extends z.ZodObject>(config: {
   name: string
@@ -104,21 +101,11 @@ function definePart<T extends z.ZodObject>(config: {
   props: T
   /** The fields that hold nested parts. Each of them holds a list of parts. */
   slots?: string[]
-  render: (props: z.infer<T>, renderNode: (value: unknown) => VNodeChild) => VNodeChild
+  render: (props: z.infer<T>, draw: (value: unknown) => VNodeChild) => VNodeChild
 }) {
   partDataSchemas.set(config.name, z.object(Object.fromEntries(Object.entries(config.props.shape)
     .map(([key, field]) => [key, config.slots?.includes(key) ? z.array(nestedPart) : field]))))
-  const component: FunctionalComponent<ComponentRenderProps<z.infer<T>>> = ({ props, renderNode }) => {
-    const problem = partProblem(config.name, props)
-    if (problem) {
-      // Before the data arrives, a part draws the Query defaults, which can be empty. Only values from the data count.
-      if (!useIsQueryLoading().value)
-        inject(CARD_PROBLEM, undefined)?.(problem)
-      return null
-    }
-    return config.render(props, renderNode as (value: unknown) => VNodeChild)
-  }
-  component.props = ['props', 'renderNode']
+  const component: DrawPart = (props, draw) => config.render(props as z.infer<T>, draw)
   return defineComponent({ name: config.name, description: config.description, props: config.props, component })
 }
 
@@ -135,7 +122,7 @@ const Tag = definePart({
 
 const Row = definePart({
   name: 'Row',
-  description: 'One line of a list: a title, small gray details under it, an icon, and tags. The icon is a MingCute icon name, for example "github-line" or "time-line". With a web url, the row opens the page.',
+  description: 'One line of a list: a title, small gray details under it, an icon, and tags. The icon is a MingCute icon name, for example "github-line". With a web url, the row opens the page.',
   props: z.object({
     title: z.string(),
     details: z.array(z.string()).optional(),
@@ -204,9 +191,9 @@ const Facts = definePart({
   description: 'Labels and values in two columns, for the fields of one item.',
   props: z.object({ items: z.array(Fact.ref) }),
   slots: ['items'],
-  render: (props, renderNode) => h('dl', {
+  render: (props, draw) => h('dl', {
     class: ['m-0 grid grid-cols-[max-content_1fr] gap-x-2.5 gap-y-0.5 text-xs', ...surface],
-  }, props.items.map(item => renderNode(item))),
+  }, props.items.map(item => draw(item))),
 })
 
 const Text = definePart({
@@ -239,9 +226,9 @@ const Stack = definePart({
     direction: z.enum(['column', 'row']).optional(),
   }),
   slots: ['children'],
-  render: (props, renderNode) => h('div', {
+  render: (props, draw) => h('div', {
     class: [props.direction === 'row' ? 'flex flex-wrap items-start gap-1.5' : 'flex flex-col gap-1.5'],
-  }, props.children.map(child => renderNode(child))),
+  }, props.children.map(child => draw(child))),
 })
 
 const Card = definePart({
@@ -253,115 +240,33 @@ const Card = definePart({
     icon: z.string().optional(),
   }),
   slots: ['children'],
-  render: (props, renderNode) => h('div', { class: ['flex flex-col gap-1.5'] }, [
+  render: (props, draw) => h('div', { class: ['flex flex-col gap-1.5'] }, [
     props.title
       ? h('span', { class: ['flex items-center gap-1 text-[11px]', 'text-neutral-500 dark:text-neutral-400'] }, [
           iconOf(props.icon, 'text-xs'),
           h('span', { class: ['min-w-0 truncate'] }, props.title),
         ])
       : null,
-    ...props.children.map(child => renderNode(child)),
+    ...props.children.map(child => draw(child)),
   ]),
 })
 
-/** OpenUI shows its own spinner while a Query loads. A card gets its data at once, so it shows none. */
-export const NoQueryLoader: FunctionalComponent = () => null
-
 /**
- * The parts of a tool card, as an OpenUI library.
+ * The parts of a card, as an OpenUI library.
  *
- * The prompt of the card agent lists their signatures, the parser checks a program against them, and the renderer
- * draws a program with them. Every program starts at `Card`.
+ * The prompts list their signatures, the parser checks a program against them, and `drawCard` draws a program with
+ * them. Every program starts at `Card`.
  */
-export const toolCardLibrary = createLibrary({
+export const cardLibrary = createLibrary<DrawPart>({
   components: [Card, Stack, Row, Tag, Stat, Facts, Fact, Text, Image],
   root: 'Card',
 })
 
-const programParser = createParser(toolCardLibrary.toJSONSchema(), 'Card')
-/** A tool name in a Query is a string literal, so it evaluates without state or references. */
-const LITERAL_CONTEXT = { getState: () => null, resolveRef: () => null }
-
-/** Every part of a drawn card, with its evaluated values. */
-function partsOf(value: unknown, parts: { typeName: string, props: Record<string, unknown> }[] = []) {
-  if (Array.isArray(value)) {
-    for (const item of value)
-      partsOf(item, parts)
-  }
-  else if (value !== null && typeof value === 'object') {
-    const node = value as { type?: unknown, typeName?: unknown, props?: Record<string, unknown> }
-    if (node.type === 'element' && typeof node.typeName === 'string' && node.props) {
-      parts.push({ typeName: node.typeName, props: node.props })
-      for (const prop of Object.values(node.props))
-        partsOf(prop, parts)
-    }
-  }
-  return parts
-}
-
-/**
- * The problems that keep a program from drawing. The model reads them and fixes the program.
- *
- * A tool card passes the tool and a sample result: its program must read every value through `Query(key)`, and it is
- * drawn with the sample. A reply card passes nothing: its program holds every value, so it must not query.
- */
-export async function problemsOfProgram(program: string, query?: { key: string, sample: unknown }): Promise<string[]> {
-  const parsed = programParser.parse(program)
-  const problems = parsed.meta.errors.map(error => `${error.statementId ?? error.component}${error.path ? ` ${error.path}` : ''}: ${error.message}`)
-  if (query && !parsed.queryStatements.some(statement => statement.toolAST && evaluate(statement.toolAST, LITERAL_CONTEXT) === query.key))
-    problems.push(`The program must read the result with \`Query("${query.key}", {}, defaults)\` instead of fixed values.`)
-  if (!query && parsed.queryStatements.length > 0)
-    problems.push('Remove every Query. Write every value into the program.')
-  if (parsed.mutationStatements.length > 0)
-    problems.push('Remove every Mutation. A card only shows a result.')
-  if (!parsed.root) {
-    problems.push('No statement renders a Card. Start the program with `root = Card(...)`.')
-    return problems
-  }
-
-  // The values are evaluated here as the chat will evaluate them, with the sample for a tool card, and each part checks
-  // them as it does before it draws. A value that fails, does not fit its part, or names an icon that MingCute does not
-  // have shows now, while the model can still fix it.
-  const store = createStore()
-  store.initialize(parsed.stateDeclarations ?? {}, {})
-  const queries = new Set(parsed.queryStatements.map(query => query.statementId))
-  try {
-    const errors: OpenUIError[] = []
-    const drawn = evaluateElementProps(parsed.root, {
-      ctx: { getState: name => store.get(name) ?? null, resolveRef: name => query && queries.has(name) ? query.sample : null },
-      library: toolCardLibrary,
-      store,
-      errors,
-    })
-    problems.push(...errors.map(error => `${error.statementId ?? error.component ?? 'program'}: ${error.message}`))
-    const icons = await loadCardIcons()
-    for (const part of partsOf(drawn)) {
-      const problem = partProblem(part.typeName, part.props)
-      if (problem)
-        problems.push(problem)
-      const icon = part.props.icon
-      if (typeof icon === 'string' && icon && !getIconData(icons, icon))
-        problems.push(`"${icon}" is not a MingCute icon name. Use a MingCute name such as "github-line", or leave the icon out.`)
-    }
-  }
-  catch (error) {
-    problems.push(`Drawing the card failed: ${errorMessageFrom(error) ?? 'unknown error'}`)
-  }
-  return problems
-}
-
-/**
- * How to write the program of a reply card. The draw tool returns it on its first call, so a turn without a card does
- * not carry it.
- */
-export function replyCardRules() {
-  return toolCardLibrary.prompt({
-    preamble: 'These are the rules for the `program` argument of the card tool. The program is openui-lang, a declarative UI language. Write it only in that argument, never in your reply text.',
-    toolCalls: false,
-    bindings: false,
-    additionalRules: [
-      'Write every value into the program. A reply card has no Query and no tools.',
-      'Keep the card small: the answer first, then the few facts that support it.',
-    ],
-  })
+/** Draws an evaluated card. Each part trusts its values, so the caller draws only a card whose check passed. */
+export function drawCard(value: unknown): VNodeChild {
+  if (Array.isArray(value))
+    return value.map(drawCard)
+  if (!isPartNode(value))
+    return null
+  return cardLibrary.components[value.typeName]?.component(value.props, drawCard) ?? null
 }

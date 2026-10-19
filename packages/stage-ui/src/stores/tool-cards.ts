@@ -8,10 +8,11 @@ import { extractToolResult } from '@openuidev/lang-core'
 import { createToolCardAgent } from '@proj-airi/agents/tool-card'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
 
-import { problemsOfProgram, toolCardLibrary } from '../components/scenarios/chat/components/tool-card-library'
 import { useTextGeneration } from '../composables/text-generation'
+import { cardLibrary } from '../libs/cards/catalog'
+import { problemsOfProgram } from '../libs/cards/program'
 import { MCP_CALL_TOOL_NAME } from '../tools/mcp'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useConsciousnessStore } from './modules/consciousness'
@@ -20,8 +21,8 @@ import { useConsciousnessStore } from './modules/consciousness'
 export interface SavedToolCard extends ToolCard {
   /** The tool that the card shows: the registered name, or `server::tool` for an MCP tool. */
   key: string
-  /** The shortened result of the latest call of the tool, at first the call that the card was made from. The settings page draws the card with it. */
-  sample: unknown
+  /** The result of the latest call of the tool, at first the call that the card was made from. The settings page draws the card with it. */
+  data: unknown
   createdAt: number
   /** When the tool was last called with this card. */
   usedAt: number
@@ -29,6 +30,8 @@ export interface SavedToolCard extends ToolCard {
 
 /** A call that the chat shows with a card, as the chat asks for its card. */
 export interface ToolCardCall {
+  /** The call in the chat. Each call gets at most one new card on its own after its card failed to draw. */
+  callId: string
   key: string
   toolName: string
   args: string
@@ -44,8 +47,8 @@ export interface ToolCardRequest {
   /** The name of the called tool. For an MCP tool it is the proxy tool, and `key` names the MCP tool. */
   toolName: string
   args: string
-  /** The result of the call, shortened by {@link sampleOf}. */
-  sample: unknown
+  /** The result of the call. */
+  data: unknown
   /** The language of the labels, as a name that the model reads. */
   language: string
   /** Makes a new card when the tool already has one. The new card replaces it. */
@@ -53,10 +56,6 @@ export interface ToolCardRequest {
 }
 
 const STORAGE_KEY = 'tool-cards/cards'
-
-/** A sample keeps the first items of each list and the start of each long string. The model needs only the shape. */
-const SAMPLE_LIST_ITEMS = 5
-const SAMPLE_STRING_LENGTH = 300
 
 function readStoredCards(): SavedToolCard[] {
   try {
@@ -66,17 +65,6 @@ function readStoredCards(): SavedToolCard[] {
   catch {
     return []
   }
-}
-
-/** Shortens a result for the model. Long strings are often images as data URLs, and long lists repeat one shape. */
-function sampleOf(value: unknown): unknown {
-  if (typeof value === 'string')
-    return value.length > SAMPLE_STRING_LENGTH ? `${value.slice(0, SAMPLE_STRING_LENGTH)}…` : value
-  if (Array.isArray(value))
-    return value.slice(0, SAMPLE_LIST_ITEMS).map(sampleOf)
-  if (value !== null && typeof value === 'object')
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, sampleOf(item)]))
-  return value
 }
 
 /** The value of a JSON string, or the text itself when it holds no JSON. */
@@ -168,10 +156,10 @@ const useToolCardsStateStore = defineStore('tool-cards-state', () => {
     const description = request.key === request.toolName ? tool?.function.description : undefined
     const agent = createToolCardAgent({
       generateText: generateText({ providerId, model }),
-      validate: program => problemsOfProgram(program, { key: request.key, sample: request.sample }),
+      validate: program => problemsOfProgram(program, { key: request.key, data: request.data }),
     })
     return agent.make({
-      catalogPrompt: toolCardLibrary.prompt({
+      catalogPrompt: cardLibrary.prompt({
         preamble: 'You write a card in openui-lang, a declarative UI language, as the program of an app card.',
         inlineMode: true,
         toolCalls: true,
@@ -186,7 +174,7 @@ const useToolCardsStateStore = defineStore('tool-cards-state', () => {
       key: request.key,
       description,
       args: request.args,
-      sample: request.sample,
+      result: request.data,
       language: request.language,
     }, new AbortController().signal)
   }
@@ -219,7 +207,7 @@ const useToolCardsStateStore = defineStore('tool-cards-state', () => {
         if ((generations.get(key) ?? 0) !== generation)
           return false
         const now = Date.now()
-        const card: SavedToolCard = { key, ...made, sample: request.sample, createdAt: now, usedAt: now }
+        const card: SavedToolCard = { key, ...made, data: request.data, createdAt: now, usedAt: now }
         cards.value = [...cards.value.filter(entry => entry.key !== key), card]
         save()
         return true
@@ -261,11 +249,11 @@ const useToolCardsStateStore = defineStore('tool-cards-state', () => {
   }
 
   /** Keeps the latest call of a tool on its card. A tool without a card keeps nothing. */
-  async function recordCall(key: string, sample: unknown) {
+  async function recordCall(key: string, data: unknown) {
     if (!cards.value.some(card => card.key === key))
       return
     const now = Date.now()
-    cards.value = cards.value.map(card => card.key === key ? { ...card, sample, usedAt: now } : card)
+    cards.value = cards.value.map(card => card.key === key ? { ...card, data, usedAt: now } : card)
     save()
   }
 
@@ -277,7 +265,21 @@ const useToolCardsStateStore = defineStore('tool-cards-state', () => {
   },
 })
 
-/** The cards of tool calls, as this window shows them. */
+/** How the chat shows the card of one call. */
+export type ToolCardView
+  = | { status: 'none' }
+    /** The leader makes a card for the tool. `card` is the card that the new one replaces. */
+    | { status: 'making', card?: SavedToolCard }
+    | { status: 'shown', card: SavedToolCard }
+    /** The tool has no card that draws this result, and the last try failed. The owner can try again. */
+    | { status: 'failed' }
+
+/**
+ * The cards of tool calls, as this window shows them.
+ *
+ * The chat reports what it shows and which card failed to draw. This store decides when a card is made: a new call
+ * asks at once, so its card is ready when the owner unfolds it, and an old call asks only when its row is unfolded.
+ */
 export const useToolCardsStore = defineStore('tool-cards', () => {
   const state = useToolCardsStateStore()
   // Off, the chat makes no cards and shows every call as it is. The saved cards stay for when it is on again.
@@ -288,30 +290,54 @@ export const useToolCardsStore = defineStore('tool-cards', () => {
   const cardsByKey = computed(() => new Map(state.cards.map(card => [card.key, card])))
   /** The saved cards, newest first. */
   const cards = computed(() => [...state.cards].sort((left, right) => right.createdAt - left.createdAt))
-  /** Tools whose card the leader makes now. The chat shows that a card is on its way. */
-  const making = computed<ReadonlySet<string>>(() => new Set(state.making))
-  /** Tools whose card failed. The chat offers to try again. */
-  const failed = computed<ReadonlySet<string>>(() => new Set(state.failed))
+  const making = computed(() => new Set(state.making))
+  const failed = computed(() => new Set(state.failed))
+  // The program that failed to draw the result of each call. The program of a new card draws again.
+  const brokenCalls = shallowRef<ReadonlyMap<string, string>>(new Map())
 
   function requestOf(call: ToolCardCall, replace?: boolean): ToolCardRequest {
-    return { key: call.key, toolName: call.toolName, args: call.args, sample: sampleOf(call.data), language: languageNameOf(call.locale), replace }
+    return { key: call.key, toolName: call.toolName, args: call.args, data: call.data, language: languageNameOf(call.locale), replace }
+  }
+
+  function ask(call: ToolCardCall, replace?: boolean) {
+    state.makeCard(requestOf(call, replace))
+      .catch(error => console.warn('[tool-cards] Failed to ask for a card:', errorMessageFrom(error)))
+  }
+
+  function viewOf(call: ToolCardCall): ToolCardView {
+    if (!enabled.value)
+      return { status: 'none' }
+    const card = cardsByKey.value.get(call.key)
+    if (making.value.has(call.key))
+      return { status: 'making', card }
+    if (card)
+      return brokenCalls.value.get(call.callId) === card.program ? { status: 'failed' } : { status: 'shown', card }
+    return failed.value.has(call.key) ? { status: 'failed' } : { status: 'none' }
   }
 
   /**
-   * Asks the leader for the first card of a tool, made from a call that the chat shows with a card.
-   * Only the chat knows which tools show their own widget, so the chat asks, not the reply that the leader saves.
+   * Reports a call that the chat shows. `fresh` says that the call finished while its reply streams, and `open` that
+   * its row is unfolded. A tool without a card gets one from such a call. A tool that failed waits for a try again.
    */
-  async function make(call: ToolCardCall) {
-    if (!enabled.value)
-      return
-    await state.makeCard(requestOf(call))
+  function want(call: ToolCardCall, shown: { fresh: boolean, open: boolean }) {
+    if (enabled.value && (shown.fresh || shown.open) && viewOf(call).status === 'none')
+      ask(call)
   }
 
-  /** Asks the leader for a new card of a call: the owner wants another card, or tries again after a failure. */
-  async function remake(call: ToolCardCall) {
-    if (!enabled.value)
+  /** Reports a card that failed to draw the result of a call. The first failure of each call asks for a new card. */
+  function reportBroken(call: ToolCardCall, program: string) {
+    if (brokenCalls.value.get(call.callId) === program)
       return
-    await state.makeCard(requestOf(call, true))
+    const first = !brokenCalls.value.has(call.callId)
+    brokenCalls.value = new Map(brokenCalls.value).set(call.callId, program)
+    if (first && enabled.value)
+      ask(call, true)
+  }
+
+  /** Asks for a new card of a call: the owner wants another card, or tries again after a failure. */
+  function remake(call: ToolCardCall) {
+    if (enabled.value)
+      ask(call, true)
   }
 
   async function remove(key: string) {
@@ -322,7 +348,7 @@ export const useToolCardsStore = defineStore('tool-cards', () => {
   async function recordCall(toolName: string, args: string, result: unknown) {
     const call = readToolCardCall(toolName, args, result)
     if (call && cardsByKey.value.has(call.key))
-      await state.recordCall(call.key, sampleOf(call.data))
+      await state.recordCall(call.key, call.data)
   }
 
   /** Ends the card requests of an old leader. Only a promoted leader calls it. */
@@ -330,5 +356,5 @@ export const useToolCardsStore = defineStore('tool-cards', () => {
     state.releaseOrphanedCards()
   }
 
-  return { enabled, replyCardsEnabled, cards, cardsByKey, making, failed, make, remake, remove, recordCall, releaseOrphanedCards }
+  return { enabled, replyCardsEnabled, cards, viewOf, want, reportBroken, remake, remove, recordCall, releaseOrphanedCards }
 })
