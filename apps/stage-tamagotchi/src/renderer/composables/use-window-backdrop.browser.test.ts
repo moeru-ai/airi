@@ -150,12 +150,11 @@ describe('window native backdrop', () => {
     ], { duration: 300, fill: 'forwards' })
     // Web Animations has no animationstart event. A layout invalidation also discovers active animations.
     surface.style.willChange = 'transform'
-    // The values of one frame are rounded one by one, so near the end the width can read final while the offset does
-    // not yet. The whole final frame is the state to wait for.
-    await expect.poll(() => {
-      const region = regions()[0]
-      return region && [region.width, region.y, region.radius, region.opacity]
-    }).toEqual([80, 94, 16, 0.25])
+    await expect.poll(() => regions()[0]?.width).toBe(80)
+    // Linux Chromium lays out the scaled end frame at 93.99. The y position depends on platform subpixel rounding.
+    expect(regions()[0].y).toBeCloseTo(94, 1)
+    expect(regions()[0].radius).toBe(16)
+    expect(regions()[0].opacity).toBe(0.25)
     surface.style.display = 'none'
     await expect.poll(() => regions()).toEqual([])
   })

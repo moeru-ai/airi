@@ -1,5 +1,5 @@
 import type { BackdropClip, BackdropRegion } from '@proj-airi/electron-native-backdrop/types'
-import type { BrowserWindow } from 'electron'
+import type { BrowserWindow, Event as ElectronEvent, WebContentsDidStartNavigationEventParams } from 'electron'
 
 import type { WindowBackdropStatus } from '../../../shared/eventa/window-backdrop'
 
@@ -62,15 +62,25 @@ export class WindowBackdropService {
     const { context } = createContext(ipcMain, window, { onlySameWindow: true })
     defineInvokeHandler(context, electronWindowBackdropUpdate, payload => this.update(payload))
     const contents = window.webContents
-    contents.on('did-start-loading', this.release)
+    contents.on('did-start-navigation', this.releaseOnDocumentChange)
     contents.on('render-process-gone', this.release)
     window.once('closed', () => {
       this.closed = true
       WindowBackdropService.windows.delete(window)
       this.release()
-      contents.off('did-start-loading', this.release)
+      contents.off('did-start-navigation', this.releaseOnDocumentChange)
       contents.off('render-process-gone', this.release)
     })
+  }
+
+  /**
+   * A reload or a main-frame navigation replaces the page that owns the regions, so its layers go with it.
+   * `did-start-loading` is not this signal. Chromium also emits it for every window on a macOS Space change,
+   * and the page keeps its lowered fill while the released layers no longer draw.
+   */
+  private releaseOnDocumentChange = (details: ElectronEvent<WebContentsDidStartNavigationEventParams>) => {
+    if (details.isMainFrame && !details.isSameDocument)
+      this.release()
   }
 
   private release = () => {
