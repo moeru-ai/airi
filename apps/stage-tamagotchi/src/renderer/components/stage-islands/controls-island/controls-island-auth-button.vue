@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { Avatar, Badge, IconButton } from '@proj-airi/ui'
+import { Avatar } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onScopeDispose, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -17,20 +17,9 @@ const props = defineProps<{
   active: boolean
   buttonStyle?: string
   iconClass?: string
-  /** The polled unread count of Notifications. The island owns the inbox store. @default 0 */
-  notificationsUnread?: number
-}>()
-
-const emit = defineEmits<{
-  /** The bell on the account card asks the menu to show the Notifications list in place. */
-  openNotifications: []
 }>()
 
 const { t } = useI18n()
-const unread = computed(() => props.notificationsUnread ?? 0)
-const notificationsLabel = computed(() => unread.value > 0
-  ? t('stage.notifications.open-unread', { count: unread.value })
-  : t('stage.notifications.open'))
 const authStore = useAuthStore()
 const { isAuthenticated, user, needsLogin, credits } = storeToRefs(authStore)
 const context = useElectronEventaContext()
@@ -104,7 +93,7 @@ watch(isAuthenticated, (val) => {
   </div>
 
   <!-- Authenticated state -->
-  <div v-else-if="isAuthenticated" :class="['mb-1.5 flex items-center gap-1']">
+  <div v-else-if="isAuthenticated" flex="~ col gap-1.5" mb-1.5>
     <button
       type="button"
       :class="[
@@ -113,7 +102,7 @@ watch(isAuthenticated, (val) => {
         'bg-transparent hover:bg-black/5 dark:hover:bg-white/5',
         'transition-colors duration-200',
         'cursor-pointer border-none outline-none',
-        'min-w-0 flex-1 text-left',
+        'w-full text-left',
         props.buttonStyle,
       ]"
       @click="handleClick"
@@ -157,27 +146,6 @@ watch(isAuthenticated, (val) => {
         </div>
       </div>
     </button>
-    <IconButton
-      data-testid="controls-island-notifications"
-      :aria-label="notificationsLabel"
-      :title="t('stage.notifications.title')"
-      :class="[
-        'relative size-9 rounded-xl',
-        'bg-transparent hover:bg-black/5 dark:hover:bg-white/5',
-        'cursor-pointer border-none outline-none',
-        'focus-visible:outline-2 focus-visible:outline-primary-500',
-      ]"
-      @click="emit('openNotifications')"
-    >
-      <span aria-hidden="true" :class="['i-solar:bell-outline text-neutral-800 dark:text-neutral-300', props.iconClass ?? 'size-5']" />
-      <!-- A trigger shows only a fixed-size dot, so a large count cannot widen the account card. -->
-      <Badge
-        v-if="unread > 0"
-        dot
-        data-testid="controls-island-notifications-unread"
-        :class="['pointer-events-none absolute right-1.5 top-1.5 ring-2 ring-neutral-100 dark:ring-neutral-900']"
-      />
-    </IconButton>
   </div>
 
   <!-- Not authenticated state -->

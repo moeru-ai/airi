@@ -93,7 +93,10 @@ const {
   signedIn: notificationsSignedIn,
 } = storeToRefs(inbox)
 const now = useNow({ interval: 60_000 })
-/** The menu card shows the controls or, after the account card bell, the Notifications list. */
+const notificationsLabel = computed(() => notificationsUnread.value > 0
+  ? t('stage.notifications.open-unread', { count: notificationsUnread.value })
+  : t('stage.notifications.open'))
+/** The menu card shows the controls or, after the Notifications row, the Notifications list. */
 const menuView = ref<'controls' | 'notifications'>('controls')
 // Closing disables interaction immediately. Keep layout until the exit
 // animation ends, then isolate the same menu for natural-size measurement.
@@ -251,7 +254,7 @@ async function showControls() {
   menuContent.value?.querySelector<HTMLButtonElement>('[data-testid="controls-island-notifications"]')?.focus()
 }
 
-// A sign-out removes the bell, so the list must not stay without a way back to it.
+// A sign-out removes the Notifications row, so the list must not stay without a way back to it.
 watch(notificationsSignedIn, (signedIn) => {
   if (!signedIn)
     menuView.value = 'controls'
@@ -394,7 +397,7 @@ function resetMainWindowPosition() {
                 ]"
               >
                 <!--
-                  The bell on the account card switches this card to the Notifications list in place.
+                  The Notifications row switches this card to the Notifications list in place.
                   The list stays inside the island, so the stage hit test already covers it.
                 -->
                 <div v-if="menuView === 'notifications'" data-testid="controls-island-notifications-view" :class="['w-80']">
@@ -427,9 +430,31 @@ function resetMainWindowPosition() {
                     :active="expanded"
                     :button-style="adjustStyleClasses.button"
                     :icon-class="adjustStyleClasses.icon"
-                    :notifications-unread="notificationsUnread"
-                    @open-notifications="showNotifications"
                   />
+
+                  <!--
+                    The same Notifications row as the mobile menu. It is a plain button like the account card above,
+                    because BasicButton centers its content and does not suit a full-width row.
+                  -->
+                  <button
+                    v-if="notificationsSignedIn"
+                    type="button"
+                    data-testid="controls-island-notifications"
+                    :aria-label="notificationsLabel"
+                    :class="[
+                      'mb-1.5 flex items-center gap-2.5 rounded-xl px-3 py-2',
+                      'bg-black/4 hover:bg-black/8 dark:bg-white/4 dark:hover:bg-white/8',
+                      'text-sm text-neutral-800 dark:text-neutral-200',
+                      'cursor-pointer border-none outline-none transition-colors duration-200',
+                      'focus-visible:outline-2 focus-visible:outline-primary-500',
+                    ]"
+                    @click="showNotifications"
+                  >
+                    <span aria-hidden="true" :class="['i-solar:bell-outline shrink-0 text-neutral-500 dark:text-neutral-400', adjustStyleClasses.icon]" />
+                    <span :class="['flex-1 text-left']">{{ t('stage.notifications.title') }}</span>
+                    <Badge :count="notificationsUnread" data-testid="controls-island-notifications-count" />
+                    <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 shrink-0 text-neutral-400']" />
+                  </button>
 
                   <div :class="['grid grid-cols-3 gap-2']">
                     <ControlButtonTooltip disable-hoverable-content>

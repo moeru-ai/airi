@@ -105,7 +105,7 @@ describe('controls Island notifications', () => {
     authState.user.value = null
   })
 
-  it('hides the bell and the dot while signed out', async () => {
+  it('hides the Notifications row and the dot while signed out', async () => {
     const screen = mountIsland()
 
     await screen.getByLabelText(label('expand'), { exact: true }).click()
@@ -123,10 +123,11 @@ describe('controls Island notifications', () => {
     await expect.element(screen.getByTestId('controls-island-notifications-dot')).toBeInTheDocument()
 
     await screen.getByLabelText(label('expand'), { exact: true }).click()
-    const bell = screen.getByRole('button', { name: 'Open notifications, 2 unread' })
-    await expect.element(bell).toBeVisible()
+    const row = screen.getByRole('button', { name: 'Open notifications, 2 unread' })
+    await expect.element(row).toBeVisible()
+    await expect.element(row).toHaveTextContent('Notifications')
 
-    await bell.click()
+    await row.click()
     const menu = screen.getByTestId('controls-menu').element()
     const list = screen.getByTestId('controls-island-notifications-view')
     await expect.element(list).toBeVisible()
@@ -141,7 +142,7 @@ describe('controls Island notifications', () => {
     expect(document.querySelector('[data-testid="controls-island-notifications-view"]')).toBeNull()
   })
 
-  it('shows only a dot on triggers, even for a five-digit count', async () => {
+  it('shows a dot on the expand button and a capped count in the row', async () => {
     unreadCount = 12345
     authState.token.value = 'user-1-token'
     authState.user.value = { id: 'user-1', name: 'Neko', email: 'neko@example.test', emailVerified: true, createdAt: new Date(), updatedAt: new Date() }
@@ -153,12 +154,12 @@ describe('controls Island notifications', () => {
     expect(expandDot.element().textContent).toBe('')
 
     await screen.getByLabelText(label('expand'), { exact: true }).click()
-    const bell = screen.getByRole('button', { name: 'Open notifications, 12345 unread' })
-    await expect.element(bell).toBeVisible()
-    expect(bell.element().textContent?.trim()).toBe('')
-    expect(bell.element().querySelector('[data-badge="dot"]')).not.toBeNull()
+    const row = screen.getByRole('button', { name: 'Open notifications, 12345 unread' })
+    await expect.element(row).toBeVisible()
+    // The row is a menu row, so it shows the count. Badge caps it, so the menu card keeps its width.
+    await expect.element(screen.getByTestId('controls-island-notifications-count')).toHaveTextContent('99+')
 
-    await bell.click()
+    await row.click()
     const heading = screen.getByRole('heading', { name: /Notifications/ })
     await expect.element(heading).toHaveTextContent('99+')
   })
