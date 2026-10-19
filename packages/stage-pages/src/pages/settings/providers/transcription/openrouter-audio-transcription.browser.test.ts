@@ -65,6 +65,7 @@ describe('openRouter audio transcription settings', () => {
     await renderPage(pinia)
 
     await expect.poll(() => vi.mocked(globalThis.fetch).mock.calls.length).toBe(1)
+    await page.getByText('Advanced', { exact: true }).click()
     await page.getByRole('textbox', { name: 'Base URL' }).fill('https://openrouter.example/v1')
 
     await expect.poll(() => vi.mocked(globalThis.fetch).mock.calls.length).toBe(2)
@@ -84,6 +85,7 @@ describe('openRouter audio transcription settings', () => {
     await expect.element(page.getByRole('combobox', { name: /Model ID/ })).toBeVisible()
     await expect.element(page.getByText('Transcription Playground')).toBeVisible()
     await page.getByRole('button', { name: /Start/ }).click()
+    await new Promise(resolve => setTimeout(resolve, 100))
     await page.getByRole('button', { name: /Finish/ }).click()
 
     await expect.element(page.getByText('Select a model in OpenRouter settings before testing.')).toBeVisible()
