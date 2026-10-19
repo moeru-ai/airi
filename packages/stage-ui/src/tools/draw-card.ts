@@ -2,7 +2,7 @@ import type { ChatSlicesCard, ToolContent } from '@proj-airi/core-agent'
 import type { Tool } from '@xsai/shared-chat'
 
 import { rawTool } from '@xsai/tool'
-import { array, description, literal, object, optional, pipe, safeParse, strictObject, string, union } from 'valibot'
+import { array, description, literal, nullable, object, pipe, safeParse, strictObject, string, union } from 'valibot'
 import { toJsonSchema } from 'xsschema'
 
 import { problemsOfProgram } from '../libs/cards/program'
@@ -22,9 +22,11 @@ export type DrawCardResult
     | { status: 'problems', problems: string[] }
     | { status: 'shown' }
 
+// A strict OpenAI-compatible provider rejects a tool whose properties are not all required, so `text` is nullable
+// instead of optional.
 const drawCardParameters = strictObject({
   program: pipe(string(), description('The openui-lang program of the card, with every value written in it. Empty on your first card of the conversation, to get the rules.')),
-  text: optional(pipe(string(), description('The card as plain text: the answer and its key values, in a sentence or two. Copy, cloud sync, and export show it in place of the card.'))),
+  text: nullable(pipe(string(), description('The card as plain text: the answer and its key values, in a sentence or two. Copy, cloud sync, and export show it in place of the card. Null while you only get the rules.'))),
 })
 
 const drawCardResultSchema = union([
