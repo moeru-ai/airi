@@ -100,6 +100,7 @@ catalog:
   '@fontsource/kiwi-maru': ^5.3.0
   '@fontsource/m-plus-rounded-1c': ^5.3.0
   '@formkit/auto-animate': ^0.10.0
+  '@google/genai': ^2.30.0
   '@grammyjs/files': ^1.2.0
   '@guiiai/logg': ^1.2.12
   '@histoire/plugin-vue': 1.0.0-beta.1
@@ -470,6 +471,7 @@ allowBuilds:
   '@ffmpeg-installer/darwin-x64': true
   '@ffmpeg-installer/linux-arm64': true
   '@ffmpeg-installer/linux-x64': true
+  '@google/genai': false
   '@napi-rs/image': true
   '@openuidev/lang-core': false # Its postinstall only sends install telemetry.
   '@parcel/watcher': true

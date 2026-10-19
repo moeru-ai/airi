@@ -41,6 +41,7 @@
     "test:browser": "vitest run --project browser"
   },
   "dependencies": {
+    "@google/genai": "catalog:",
     "@moeru/std": "catalog:",
     "@proj-airi/audio": "workspace:^",
     "@sherpaw/asr": "catalog:",

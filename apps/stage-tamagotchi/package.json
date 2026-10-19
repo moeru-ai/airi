@@ -53,6 +53,7 @@
     "@fontsource/kiwi-maru": "catalog:",
     "@fontsource/m-plus-rounded-1c": "catalog:",
     "@formkit/auto-animate": "catalog:",
+    "@google/genai": "catalog:",
     "@guiiai/logg": "catalog:",
     "@huggingface/transformers": "catalog:",
     "@intlify/core": "catalog:",
