@@ -11,7 +11,7 @@
     },
     "test:run": {
       "dependsOn": ["^build"],
-      "env": ["NODE_OPTIONS"]
+      "env": ["CI", "NODE_OPTIONS"]
     },
     "@proj-airi/electron-vueuse#build": {
       "dependsOn": ["@proj-airi/electron-eventa#build"],
