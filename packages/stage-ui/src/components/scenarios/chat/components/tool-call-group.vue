@@ -15,6 +15,7 @@ import CardView from '../../../../libs/cards/card-view.vue'
 import HitPill from './hit-pill.vue'
 import ToolCallPayload from './tool-call-payload.vue'
 
+import { mingcuteIconMask } from '../../../../libs/mingcute-icons'
 import { readCallSummary } from '../../../../stores/ai/chat-llm/tool-call-summary'
 import { useLlmToolsStore } from '../../../../stores/ai/chat-llm/tools'
 import { canRerunToolCall } from '../../../../stores/tool-call-rerun'
@@ -51,8 +52,12 @@ const toolCards = useToolCardsStore()
 
 const calls = computed(() => {
   return props.items.map((item) => {
-    // The model says in the call what it does and why. The row shows it, and a new card of the tool learns from it.
-    const summary = readCallSummary(item.toolCall.args)
+    // The model says in the call what it does and why, with an icon for it. The row shows both, and a new card of the
+    // tool learns from the line.
+    const { text: summary, icons } = readCallSummary(item.toolCall.args)
+    // The icon draws in the element of the tool icon, so it keeps the size and the color of that icon. The tool icon
+    // shows when no candidate leads to an icon.
+    const iconMask = mingcuteIconMask(icons)
     const result = props.resultOf(item.sliceIndex)
     const widget = props.widgets[item.toolCall.toolName]
     const reading = widget?.read(result?.result, item.toolCall.args)
@@ -69,6 +74,7 @@ const calls = computed(() => {
       // A widget title already says the state of the call.
       titled: Boolean(title),
       icon: toolIconOf(item.toolCall.toolName, llmTools.tools.findLast(tool => tool.function.name === item.toolCall.toolName)?.icon),
+      iconStyle: iconMask ? { '--un-icon': iconMask } : undefined,
       state,
       result: result?.result,
       widget: widget && reading ? { component: widget.component, ...reading } : undefined,
@@ -223,7 +229,7 @@ function rerun(item: ToolCallGroupItem) {
         <span v-for="call in visibleHits" :key="call.key" :class="hitClass">
           <!-- A call casts with a spinner. The spinner shrinks away, then the call lands as its own icon with a bounce. -->
           <Transition mode="out-in" :css="false" @enter="popIn" @leave="popOut">
-            <span :key="hitIcon(call)" :class="[hitIcon(call), 'text-[11px]']" />
+            <span :key="hitIcon(call)" :class="[hitIcon(call), 'text-[11px]']" :style="hitIcon(call) === call.icon ? call.iconStyle : undefined" />
           </Transition>
         </span>
       </TransitionGroup>
@@ -253,7 +259,10 @@ function rerun(item: ToolCallGroupItem) {
             @click="toggleCall(call.key)"
           >
             <span :class="['relative shrink-0 inline-flex']" aria-hidden="true">
-              <span :class="[call.state === 'executing' ? 'i-svg-spinners:ring-resize' : call.icon, 'text-sm', 'text-primary-500 dark:text-primary-300']" />
+              <span
+                :class="[call.state === 'executing' ? 'i-svg-spinners:ring-resize' : call.icon, 'text-sm', 'text-primary-500 dark:text-primary-300']"
+                :style="call.state === 'executing' ? undefined : call.iconStyle"
+              />
               <!-- The ring takes the panel color, so the dot reads apart from the icon under it. -->
               <span
                 v-if="STATE_DOTS[call.state]"

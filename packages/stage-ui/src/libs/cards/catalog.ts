@@ -1,51 +1,18 @@
-import type { IconifyJSON } from '@iconify-json/mingcute'
 import type { ElementNode } from '@openuidev/lang-core'
-import type { FunctionalComponent, VNodeChild } from 'vue'
+import type { VNodeChild } from 'vue'
 
-import { getIconData, iconToSVG, replaceIDs } from '@iconify/utils'
 import { createLibrary, defineComponent } from '@openuidev/lang-core'
-import { h, shallowRef } from 'vue'
+import { h } from 'vue'
 import { z } from 'zod'
+
+import { SEARCH_ICONS_TOOL_NAME } from '../../tools/search-icons'
+import { MingcuteIcon } from '../mingcute-icons'
 
 // The parts that a model can use in a card. They copy the look of the chat's tool widgets, so a card that a model
 // writes reads like a widget of the app. A part holds its own look, and the program only arranges parts.
 
-/** The icon set of every card icon. It loads on first use, so the app does not carry 1.5 MB of icons until a card needs one. */
-let iconSet: Promise<IconifyJSON> | undefined
-const loadedIconSet = shallowRef<IconifyJSON>()
-
-/**
- * Loads the MingCute icons, once. A program can name any of them, so they do not go through UnoCSS, which only
- * generates icons whose class a scanned file writes out.
- */
-export function loadCardIcons() {
-  iconSet ??= import('@iconify-json/mingcute').then(({ icons }) => {
-    loadedIconSet.value = icons
-    return icons
-  })
-  return iconSet
-}
-
-/** Draws a MingCute icon by name. An unknown name, or an icon set that is still loading, draws nothing. */
-const CardIcon: FunctionalComponent<{ name?: string }> = (props, { attrs }) => {
-  if (!props.name)
-    return null
-  if (!loadedIconSet.value) {
-    void loadCardIcons()
-    return null
-  }
-  const data = getIconData(loadedIconSet.value, props.name)
-  if (!data)
-    return null
-  const { attributes, body } = iconToSVG(data, { height: '1em' })
-  return h('svg', { ...attributes, ...attrs, 'aria-hidden': 'true', 'innerHTML': replaceIDs(body) })
-}
-CardIcon.props = ['name']
-// The caller's class goes on the svg through `attrs`, so Vue must not add it a second time.
-CardIcon.inheritAttrs = false
-
 function iconOf(name: string | undefined, extra: string) {
-  return name ? h(CardIcon, { name, class: extra }) : null
+  return name ? h(MingcuteIcon, { name, class: extra }) : null
 }
 
 /** As in the web search widget, only a web page becomes a link. Another scheme leaves the part without a link. */
@@ -147,7 +114,7 @@ const Tag = definePart({
 
 const Row = definePart({
   name: 'Row',
-  description: 'One item with its own title: small gray details under it, an icon, tags, and a link, for example an issue or a message. Several items with the same fields read better as a Table. The icon is a MingCute icon name, for example "github-line".',
+  description: `One item with its own title: small gray details under it, an icon, tags, and a link, for example an issue or a message. Several items with the same fields read better as a Table. The icon is a MingCute icon name that \`${SEARCH_ICONS_TOOL_NAME}\` found.`,
   props: z.object({
     title: z.string(),
     details: z.array(z.string()).optional(),
@@ -411,7 +378,7 @@ const Stack = definePart({
 
 const Card = definePart({
   name: 'Card',
-  description: 'The whole card, with an optional title line and a MingCute icon name for it. Every other part goes inside it.',
+  description: `The whole card, with an optional title line and an icon for it: a MingCute icon name that \`${SEARCH_ICONS_TOOL_NAME}\` found. Every other part goes inside it.`,
   props: z.object({
     children: z.array(z.union([...leaves, Stack.ref])),
     title: z.string().optional(),

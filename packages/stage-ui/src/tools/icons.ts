@@ -1,11 +1,11 @@
 import { JUDGE_RECIPE_TOOL_NAME } from './judge-recipe'
 import { FORGET_MEMORY_TOOL_NAME, READ_MEMORY_TOOL_NAME, WRITE_MEMORY_TOOL_NAME } from './memory'
 import { PROPOSE_RECIPE_TOOL_NAME } from './propose-recipe'
+import { SEARCH_ICONS_TOOL_NAME } from './search-icons'
 import { USE_RECIPE_TOOL_NAME } from './use-recipe'
 
-// UnoCSS generates an icon only when its class appears literally in a file that it scans. Every app scans stage-ui,
-// but an app scans only some of its own folders. So every tool icon class lives here, and a tool registration
-// refers to one of these values instead of writing a class of its own.
+// UnoCSS generates an icon only for a class that a scanned file writes out. Every app scans stage-ui, but only some of
+// its own folders. So every tool icon class lives here, and a tool registration refers to one of these values.
 
 /** The icon of each kind of skill. The skills settings page and the chat show the same icons. */
 export const SKILL_ICONS = {
@@ -23,6 +23,8 @@ export const TOOL_ICONS = {
   memory: 'i-mingcute:book-2-fill',
   wakeWords: 'i-mingcute:mic-fill',
   spark: 'i-mingcute:send-plane-fill',
+  /** A search, for example of the icons that a card names. */
+  search: 'i-mingcute:search-2-fill',
   /** Every tool that an MCP server provides. */
   mcp: 'i-mingcute:server-fill',
   /** Every tool of the skills feature that has no kind of its own. */
@@ -40,6 +42,7 @@ const SEND_TOOL_ICONS: Record<string, string> = {
   [WRITE_MEMORY_TOOL_NAME]: TOOL_ICONS.memory,
   [FORGET_MEMORY_TOOL_NAME]: TOOL_ICONS.memory,
   configure_wake_words: TOOL_ICONS.wakeWords,
+  [SEARCH_ICONS_TOOL_NAME]: TOOL_ICONS.search,
   builtIn_mcpListTools: TOOL_ICONS.mcp,
   builtIn_mcpCallTool: TOOL_ICONS.mcp,
   builtIn_emitSparkCommand: TOOL_ICONS.spark,
