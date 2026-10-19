@@ -1531,6 +1531,68 @@ describe('v1CompletionsRoutes', () => {
       expect(productEventService.track).not.toHaveBeenCalled()
     })
 
+    /**
+     * @example
+     * POST /api/v1/audio/speech { "input": "50 percent", "extra_body": { "language": "EN-us" } }
+     */
+    it('passes the canonical language of the speech text to the TTS router', async () => {
+      const routeTts = vi.fn(async () => new Response(new Uint8Array([1]), {
+        status: 200,
+        headers: { 'Content-Type': 'audio/mpeg' },
+      }))
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({ DEFAULT_TTS_MODEL: 'tts-1-hd' }),
+        undefined,
+        undefined,
+        undefined,
+        createMockLlmRouter({ routeTts }),
+      )
+
+      const response = await app.fetch(
+        new Request('http://localhost/api/v1/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', input: '50 percent', voice: 'alloy', extra_body: { language: 'EN-us' } }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(response.status).toBe(200)
+      expect(routeTts).toHaveBeenCalledWith(expect.objectContaining({
+        input: expect.objectContaining({ text: '50 percent', language: 'en-US' }),
+      }), expect.any(Object))
+    })
+
+    /**
+     * @example
+     * POST /api/v1/audio/speech { "input": "hello", "extra_body": { "language": "english please" } }
+     */
+    it('rejects a malformed language before billing or upstream routing', async () => {
+      const routeTts = vi.fn(async () => new Response(new Uint8Array([1]), { status: 200 }))
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({ DEFAULT_TTS_MODEL: 'tts-1-hd' }),
+        undefined,
+        undefined,
+        undefined,
+        createMockLlmRouter({ routeTts }),
+      )
+
+      const response = await app.fetch(
+        new Request('http://localhost/api/v1/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', input: 'hello', voice: 'alloy', extra_body: { language: 'english please' } }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(response.status).toBe(400)
+      expect(await response.json()).toMatchObject({ error: 'INVALID_SPEECH_LANGUAGE' })
+      expect(routeTts).not.toHaveBeenCalled()
+    })
+
     it('should not charge when routeTts upstream returns error', async () => {
       const llmRouter = createMockLlmRouter({
         routeTts: vi.fn(async () => new Response('{"error":"service down"}', {

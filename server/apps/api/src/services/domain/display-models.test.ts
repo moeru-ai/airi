@@ -4,10 +4,11 @@ import type { ObjectStore } from '../adapters/object-store'
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 
+import { safeParse } from 'valibot'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { mockDB } from '../../libs/mock-db'
-import { createDisplayModelService } from './display-models'
+import { createDisplayModelService, ReserveDisplayModelUploadSchema } from './display-models'
 import { createUploadSessionService } from './upload-sessions'
 
 import * as schema from '../../schemas'
@@ -159,5 +160,23 @@ describe('displayModelService', () => {
     expect(marker.deletedAt).not.toBeNull()
     await expect(service.createDownload('owner', model.id)).rejects.toMatchObject({ statusCode: 404 })
     await expect(service.reserveUpload('owner', reserveInput(zipBytes, { requestId: 'req-9' }))).rejects.toMatchObject({ statusCode: 409 })
+  })
+})
+
+describe('reserveDisplayModelUploadSchema', () => {
+  const input = { id: 'display-model-a', requestId: 'req-1', format: 'live2d-zip', name: 'Hiyori', originalFilename: 'hiyori.zip', byteSize: 1 }
+
+  it('lowers an uppercase digest, so it matches the lowercase digest of the stored bytes', () => {
+    const result = safeParse(ReserveDisplayModelUploadSchema, { ...input, sha256: 'AB'.repeat(32) })
+
+    expect(result.success).toBe(true)
+    expect(result.output).toMatchObject({ sha256: 'ab'.repeat(32) })
+  })
+
+  it.each([
+    ['a short digest', 'a'.repeat(63)],
+    ['a digest with a non-hex character', `${'a'.repeat(63)}g`],
+  ])('rejects %s', (_, sha256) => {
+    expect(safeParse(ReserveDisplayModelUploadSchema, { ...input, sha256 }).success).toBe(false)
   })
 })
