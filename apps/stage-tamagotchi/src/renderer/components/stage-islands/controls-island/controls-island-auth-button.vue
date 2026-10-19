@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { formatUnreadBadge } from '@proj-airi/stage-ui/components'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { Avatar } from '@proj-airi/ui'
+import { Avatar, Badge, IconButton } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onScopeDispose, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -158,28 +157,27 @@ watch(isAuthenticated, (val) => {
         </div>
       </div>
     </button>
-    <button
-      type="button"
+    <IconButton
       data-testid="controls-island-notifications"
       :aria-label="notificationsLabel"
       :title="t('stage.notifications.title')"
       :class="[
-        'relative shrink-0 flex items-center gap-1 rounded-xl px-2 py-2',
+        'relative size-9 rounded-xl',
         'bg-transparent hover:bg-black/5 dark:hover:bg-white/5',
-        'transition-colors duration-200 cursor-pointer border-none outline-none',
+        'cursor-pointer border-none outline-none',
         'focus-visible:outline-2 focus-visible:outline-primary-500',
       ]"
       @click="emit('openNotifications')"
     >
       <span aria-hidden="true" :class="['i-solar:bell-outline text-neutral-800 dark:text-neutral-300', props.iconClass ?? 'size-5']" />
-      <span
+      <!-- A trigger shows only a fixed-size dot, so a large count cannot widen the account card. -->
+      <Badge
         v-if="unread > 0"
-        aria-hidden="true"
-        :class="['min-w-5 rounded-full bg-primary-500 px-1.5 text-center text-xs text-white font-medium leading-5']"
-      >
-        {{ formatUnreadBadge(unread) }}
-      </span>
-    </button>
+        dot
+        data-testid="controls-island-notifications-unread"
+        :class="['pointer-events-none absolute right-1.5 top-1.5 ring-2 ring-neutral-100 dark:ring-neutral-900']"
+      />
+    </IconButton>
   </div>
 
   <!-- Not authenticated state -->

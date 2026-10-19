@@ -73,19 +73,22 @@ function mountIsland() {
   })
 }
 
+let unreadCount = 2
+
 describe('controls Island notifications', () => {
   beforeEach(async () => {
+    unreadCount = 2
     await page.viewport(900, 640)
     // Cloud is the HTTP boundary of the notifications row.
     vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
       const request = input instanceof Request ? input : new Request(input)
       const { pathname } = new URL(request.url)
       if (pathname === '/v1/inbox/unread-count')
-        return Promise.resolve(Response.json({ unread: 2 }))
+        return Promise.resolve(Response.json({ unread: unreadCount }))
       if (pathname === '/v1/inbox') {
         return Promise.resolve(Response.json({
           messages: [
-            { id: 'm1', kind: 'flux.granted', params: { amount: 500, reason: 'Thanks for testing AIRI.' }, readAt: '', createdAt: '2026-10-18T08:00:00Z' },
+            { id: 'm1', kind: 'flux.granted', params: { amount: 500, reason: '感谢参与 AIRI 测试。' }, readAt: '', createdAt: '2026-10-18T08:00:00Z' },
             { id: 'm2', kind: 'subscription.payment_failed', params: { plan: 'Pro', retryAt: '2026-10-20T00:00:00Z' }, readAt: '', createdAt: '2026-10-17T08:00:00Z' },
           ],
           nextCursor: '',
@@ -136,5 +139,27 @@ describe('controls Island notifications', () => {
     await screen.getByRole('button', { name: 'Back' }).click()
     await expect.element(screen.getByLabelText(label('open-settings'), { exact: true })).toBeVisible()
     expect(document.querySelector('[data-testid="controls-island-notifications-view"]')).toBeNull()
+  })
+
+  it('shows only a dot on triggers, even for a five-digit count', async () => {
+    unreadCount = 12345
+    authState.token.value = 'user-1-token'
+    authState.user.value = { id: 'user-1', name: 'Neko', email: 'neko@example.test', emailVerified: true, createdAt: new Date(), updatedAt: new Date() }
+    authState.isAuthenticated.value = true
+    const screen = mountIsland()
+
+    const expandDot = screen.getByTestId('controls-island-notifications-dot')
+    await expect.element(expandDot).toBeInTheDocument()
+    expect(expandDot.element().textContent).toBe('')
+
+    await screen.getByLabelText(label('expand'), { exact: true }).click()
+    const bell = screen.getByRole('button', { name: 'Open notifications, 12345 unread' })
+    await expect.element(bell).toBeVisible()
+    expect(bell.element().textContent?.trim()).toBe('')
+    expect(bell.element().querySelector('[data-badge="dot"]')).not.toBeNull()
+
+    await bell.click()
+    const heading = screen.getByRole('heading', { name: /Notifications/ })
+    await expect.element(heading).toHaveTextContent('99+')
   })
 })

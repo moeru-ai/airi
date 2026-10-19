@@ -5,7 +5,7 @@ import { IS_DEV } from '@proj-airi/stage-shared'
 import { HearingConfigDialog, InboxPanel } from '@proj-airi/stage-ui/components'
 import { useInboxStore } from '@proj-airi/stage-ui/stores/inbox'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { ScrollableArea, useTheme } from '@proj-airi/ui'
+import { Badge, IconButton, ScrollableArea, useTheme } from '@proj-airi/ui'
 import { refDebounced, useFocusWithin, useIntervalFn, useMouseInElement, useMousePressed, useNow } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, reactive, ref, useId, useTemplateRef, watch } from 'vue'
@@ -95,7 +95,6 @@ const {
 const now = useNow({ interval: 60_000 })
 /** The menu card shows the controls or, after the account card bell, the Notifications list. */
 const menuView = ref<'controls' | 'notifications'>('controls')
-const notificationsBack = useTemplateRef<HTMLButtonElement>('notificationsBack')
 // Closing disables interaction immediately. Keep layout until the exit
 // animation ends, then isolate the same menu for natural-size measurement.
 const panelPresent = ref(false)
@@ -243,7 +242,7 @@ async function showNotifications() {
   menuView.value = 'notifications'
   void inbox.loadFirstPage()
   await nextTick()
-  notificationsBack.value?.focus()
+  menuContent.value?.querySelector<HTMLButtonElement>('[data-testid="controls-island-notifications-back"]')?.focus()
 }
 
 async function showControls() {
@@ -406,21 +405,19 @@ function resetMainWindowPosition() {
                     @open="inbox.markRead" @read-all="inbox.markAllRead" @retry="inbox.loadFirstPage" @load-more="inbox.loadMore"
                   >
                     <template #leading>
-                      <button
-                        ref="notificationsBack"
-                        type="button"
+                      <IconButton
                         data-testid="controls-island-notifications-back"
                         :aria-label="t('stage.notifications.back')" :title="t('stage.notifications.back')"
                         :class="[
-                          'size-8 shrink-0 flex items-center justify-center rounded-full outline-none',
+                          'size-8 rounded-full outline-none',
                           'text-neutral-600 hover:bg-black/5 hover:text-neutral-900',
                           'dark:text-neutral-300 dark:hover:bg-white/5 dark:hover:text-white',
-                          'transition-colors duration-200 ease-in-out focus-visible:outline-2 focus-visible:outline-primary-400',
+                          'focus-visible:outline-2 focus-visible:outline-primary-400',
                         ]"
                         @click="showControls"
                       >
                         <span aria-hidden="true" :class="['i-solar:alt-arrow-left-linear size-5']" />
-                      </button>
+                      </IconButton>
                     </template>
                   </InboxPanel>
                 </div>
@@ -595,11 +592,11 @@ function resetMainWindowPosition() {
                 :style="{ transform: `rotate(${arrowRotation}deg)` }"
               />
               <!-- Unread Notifications are in the menu. The dot tells the user to open it. -->
-              <span
+              <Badge
                 v-if="notificationsUnread > 0"
+                dot
                 data-testid="controls-island-notifications-dot"
-                aria-hidden="true"
-                :class="['pointer-events-none absolute right-1 top-1 size-2 rounded-full bg-primary-500 ring-2 ring-neutral-100 dark:ring-neutral-900']"
+                :class="['pointer-events-none absolute right-1 top-1 ring-2 ring-neutral-100 dark:ring-neutral-900']"
               />
             </ControlButton>
             <template #tooltip>
