@@ -78,6 +78,9 @@ export interface McpToolRuntime {
   callTool: (payload: McpCallToolPayload) => Promise<McpCallToolResult>
 }
 
+/** The proxy tool that calls an MCP tool. Each call names the MCP tool in its `name` argument, as `server::tool`. */
+export const MCP_CALL_TOOL_NAME = 'builtIn_mcpCallTool'
+
 /**
  * Creates MCP proxy tools backed by a runtime-provided transport.
  *
@@ -107,7 +110,7 @@ export function createMcpTools(runtime: McpToolRuntime): Array<Promise<Tool>> {
       parameters: z.object({}).strict(),
     }),
     tool({
-      name: 'builtIn_mcpCallTool',
+      name: MCP_CALL_TOOL_NAME,
       description: 'Call an MCP tool by name. Use builtIn_mcpListTools first to get available tool names.',
       execute: async ({ name, arguments: argsJson }) => {
         try {

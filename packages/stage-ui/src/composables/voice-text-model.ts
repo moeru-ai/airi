@@ -1,9 +1,6 @@
-import type { GenerateText } from '@proj-airi/agents'
-
-import { useLLM } from '../stores/ai/chat-llm/llm'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useHearingStore } from '../stores/modules/hearing'
-import { useProviderStore } from '../stores/providers/provider'
+import { useTextGeneration } from './text-generation'
 
 /**
  * The chat model of voice text tasks, such as the end judge and the transcript rewrite.
@@ -16,31 +13,14 @@ import { useProviderStore } from '../stores/providers/provider'
  * - `generateText`, which sends a conversation through the LLM store. The store remembers Provider compatibility.
  */
 export function useVoiceTextModel() {
-  const llm = useLLM()
-  const providers = useProviderStore()
   const consciousness = useConsciousnessStore()
   const hearing = useHearingStore()
+  const { generateText } = useTextGeneration()
 
   function select(): { providerId: string, model: string } | undefined {
     const providerId = hearing.rephraseProvider || consciousness.activeProvider
     const model = hearing.rephraseProvider ? hearing.rephraseModel : consciousness.activeModel
     return providerId && model ? { providerId, model } : undefined
-  }
-
-  function generateText(selection: { providerId: string, model: string }): GenerateText {
-    return async (conversation, signal) => {
-      const provider = await providers.getChatProviderInstance(selection.providerId, { reasoning: 'disabled' })
-      let reply = ''
-      await llm.stream(selection.model, provider, conversation, {
-        supportsTools: false,
-        abortSignal: signal,
-        onStreamEvent: (event) => {
-          if (event.type === 'text-delta')
-            reply += event.text
-        },
-      })
-      return reply
-    }
   }
 
   return { select, generateText }

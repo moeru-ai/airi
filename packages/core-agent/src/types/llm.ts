@@ -18,6 +18,8 @@ export type StreamEvent
   = | { type: 'text-delta', text: string }
     | { type: 'reasoning-delta', text: string }
     | { type: 'finish' }
+    /** The model starts to write a tool call. Its arguments arrive with `tool-call`, when the call is complete. */
+    | { type: 'tool-call-start', toolCallId: string, toolName: string }
     | ({ type: 'tool-call' } & CompletionToolCall)
     | { type: 'tool-error', toolCallId: string, result?: string | CommonContentPart[], isError: true }
     | { type: 'tool-result', toolCallId: string, result?: string | CommonContentPart[] }
