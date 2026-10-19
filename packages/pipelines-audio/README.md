@@ -37,7 +37,7 @@ for await (const event of output)
 - `retain(signal)` returns a lease. Its holder calls `hold(position)` to keep history from that position.
 - `observe(input, options, detector, onResult)` runs a detector over windows with `ordered` or `latest` scheduling.
 - `audioWindows(shape)` is the windowing transform alone, for callers that schedule their own work.
-- `createScope(signal)` owns one lifetime: an abort signal, reverse-order cleanups, and child scopes.
+- Lifetime and stream helpers, such as `createScope` and `createPushStream`, are in `@proj-airi/stream-kit`.
 
 Observers support sliding windows and growing windows.
 `preRollMs` keeps the history that pending detector windows need, including time spent in inference.

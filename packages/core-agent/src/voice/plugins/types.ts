@@ -1,99 +1,79 @@
+import type { Eventa } from '@moeru/eventa'
 import type { AudioRange, AudioWindow, Observer, WindowOptions } from '@proj-airi/pipelines-audio'
 
-import type { BeginSpeechInput, SpeechInputAttemptOutcome } from '../input/attempt-types'
-import type { EndDetectionOptions, EndDetector, SpeechActivityEvidence } from '../input/end-detection'
-import type { SpeechSelection, SpeechSnapshot } from '../input/snapshot'
+import type { ConversationContext } from '../input/ports'
 import type { TranscriptEdit, WriteResult } from '../input/transcript'
+import type { BeginSpeechInput, SpeechInputAttemptOutcome, TranscriptDocument } from '../input/types'
 import type { Interruption } from '../interruption'
+import type { InputRevisions, VoiceRule } from '../policy/types'
 import type { TurnRef } from '../turn'
 
-/** Keys belong to the current plugin and input. Values remain in-process references. Publishers replace values to signal changes. */
-export interface ContextWriter {
-  set: <T>(key: string, value: T) => WriteResult
-  delete: (key: string) => WriteResult
-}
-
-/** This view expires when its task ends. Detached callbacks cannot publish through it. */
-export interface SpeechView {
-  readonly snapshot: SpeechSnapshot
-  readonly context: ContextWriter
-  patch: (proposal: { readonly edits: readonly TranscriptEdit[], readonly evidenceIds: readonly string[] }) => WriteResult
-}
-
-/** Cancellation closes this invocation. Failure also stops its subscription and reports to the host. */
-export interface SpeechTask extends SpeechView {
-  readonly controls: VoicePluginControls
-  readonly signal: AbortSignal
-  cancel: (reason: string) => void
-  fail: (error: Error) => void
-}
-
-/** A completed transcription is independent of plugin completion and message submission. */
-export type TranscriptionEnd
-  = { readonly status: 'finished', readonly value: SpeechView }
-    | { readonly status: 'cancelled', readonly reason: string }
-    | { readonly status: 'failed', readonly error: Error }
-
-/** A lifecycle task can wait without occupying a transcript subscription's active slot. */
-export interface SpeechLifecycleTask {
-  readonly controls: VoicePluginControls
-  readonly signal: AbortSignal
-  untilTranscriptionEnded: () => Promise<TranscriptionEnd>
-  /** Waits for transcription and the expanded upstream plugin-input scopes to settle successfully. */
-  untilDependenciesSettled: () => Promise<TranscriptionEnd>
-  cancel: (reason: string) => void
-  fail: (error: Error) => void
-}
-
-/** Subscription handles cancel only their own work. Operational results resolve rather than reject. */
-export interface SpeechSubscription {
-  readonly done: Promise<{ status: 'finished' } | { status: 'cancelled', reason: string } | { status: 'failed', error: Error }>
-  cancel: (reason: string) => void
-}
-
-/** This plugin's scope for one accepted input. Installation is synchronous and precedes the first update. */
-export interface SpeechInputScope {
-  readonly inputId: string
-  readonly sessionId: string
-  readonly signal: AbortSignal
-  readonly state: Map<string, unknown>
-  subscribe: (settings: SpeechSelection & {
-    scheduling: 'latest' | 'ordered'
-    /** Optional timeout from callback start. Omission adds no timeout. */
-    timeoutMs?: number
-    /** @default 0. Final draining can delay submission within this caller-selected grace period. */
-    waitForSubmissionMs?: number
-  }, run: (ctx: SpeechTask) => Promise<void>) => SpeechSubscription
-  task: (settings: {
-    name: string
-    selection: SpeechSelection & { scope?: 'document' }
-    /** Optional timeout for the entire task, including waits. Omission adds no timeout. */
-    timeoutMs?: number
-    /** @default 0. A positive value delays submission after transcription for at most this many milliseconds. */
-    waitForSubmissionMs?: number
-  }, run: (ctx: SpeechLifecycleTask) => Promise<void>) => SpeechSubscription
-  /** Stops this plugin's work for this input. It does not cancel the input itself. */
-  cancel: (reason: string) => void
-  fail: (error: Error) => void
-  onDispose: (cleanup: () => void | Promise<void>) => void
-}
-
-/** Task-bound attempt access never exposes an unrestricted input handle. */
+/** Commands on one speech input. Each command checks the installation grant and that the calling work is still live. */
 export interface SpeechInputControl {
   readonly id: string
   readonly sessionId: string
-  noteActivity: (evidence: SpeechActivityEvidence) => boolean
   end: () => { status: 'accepted', done: Promise<SpeechInputAttemptOutcome> } | { status: 'denied' }
   cancel: (reason: string) => 'cancelled' | 'closed' | 'denied'
-  detectEnd: (options: EndDetectionOptions, detector: EndDetector) => { status: 'installed', observer: Observer } | { status: 'denied' }
 }
 
-/** Each command checks both installation grants and the calling task's live ownership. */
+/** Each command checks both installation grants and the calling work's live ownership. */
 export interface VoicePluginControls {
   activeInput: () => SpeechInputControl | undefined
   beginInput: (settings: BeginSpeechInput) => { status: 'started', input: SpeechInputControl } | { status: 'denied' }
   cancelInput: (inputId: string, reason: string) => 'cancelled' | 'closed' | 'denied'
   interrupt: (turns: readonly TurnRef[], cause: string) => { status: 'started', interruption: Interruption } | { status: 'denied' }
+}
+
+export interface TranscriptWatchOptions {
+  /**
+   * The part of the document that the work depends on. A document with an equal key (`Object.is`) does not restart
+   * the work. Omission restarts it on every new document version.
+   */
+  readonly key?: (document: TranscriptDocument) => unknown
+  /** Waits until the key stays the same for this long. @default 0 */
+  readonly debounceMs?: number
+}
+
+/**
+ * Work on the complete transcript, after the provider ends and before the host receives the submission.
+ *
+ * Stages run one after another, in plugin installation order, then registration order. Each stage sees the
+ * corrections of earlier stages in `document.corrected`.
+ */
+export interface FinalizeContext {
+  readonly document: TranscriptDocument
+  /** Aborts when the stage times out or the input closes. Writes after the abort are rejected. */
+  readonly signal: AbortSignal
+  /** Applies corrections to raw segments. `expectedText` must match the raw text of each edited range. */
+  patch: (edits: readonly TranscriptEdit[], evidenceIds?: readonly string[]) => WriteResult
+  /** Adds a value to the submission context. A later value with the same key from this plugin replaces it. */
+  attach: (key: string, value: unknown) => WriteResult
+}
+
+export interface FinalizeOptions {
+  /**
+   * Submission waits at most this long for the stage. Then the stage aborts and submission continues without
+   * its later writes. Omission waits until the stage ends.
+   */
+  readonly timeoutMs?: number
+}
+
+/** This plugin's scope for one accepted input. Its signal aborts when the input closes or the plugin is disposed. */
+export interface SpeechInputScope {
+  readonly inputId: string
+  readonly sessionId: string
+  readonly signal: AbortSignal
+  /** The input commands, or undefined without the `input-control` grant. */
+  readonly control: SpeechInputControl | undefined
+  /**
+   * Runs `run` for the newest document while the provider transcribes, like a language server analysis.
+   *
+   * A newer key aborts the active run. The first run sees the document at registration time. Use it for
+   * speculative work, for example a rewrite that a finalization stage reuses when the text did not change.
+   */
+  watch: (run: (document: TranscriptDocument, signal: AbortSignal) => Promise<void> | void, options?: TranscriptWatchOptions) => void
+  finalize: (stage: (ctx: FinalizeContext) => Promise<void> | void, options?: FinalizeOptions) => void
+  onDispose: (cleanup: () => void | Promise<void>) => void
 }
 
 /** Audio callbacks have plugin ownership and cancellation. They cannot change transcript documents. */
@@ -110,9 +90,27 @@ export interface AudioPluginTask {
 /** Plugin installation exposes scoped operations, not the mutable controller or source. */
 export interface VoicePluginScope {
   readonly signal: AbortSignal
-  readonly state: Map<string, unknown>
-  observeAudio: (settings: WindowOptions & { minWindowMs?: number }, run: (ctx: AudioPluginTask) => Promise<void>) => Observer
-  onSpeechInput: (install: (ctx: SpeechInputScope) => undefined | (() => void | Promise<void>)) => void
+  observeAudio: (
+    settings: WindowOptions & { minWindowMs?: number },
+    run: (ctx: AudioPluginTask) => Promise<void>,
+  ) => Observer
+  /**
+   * Runs `install` for each accepted input, in plugin installation order. `install` can be asynchronous.
+   * Finalization waits for pending installs, so a stage that an install registers late still runs.
+   */
+  onSpeechInput: (install: (ctx: SpeechInputScope) => void | Promise<void>) => void
+  /**
+   * Emits a voice event, usually a signal that this plugin defines with `defineEventa`.
+   * Emits after disposal are dropped.
+   */
+  emit: <P>(eventa: Eventa<P>, body: P) => void
+  /** Receives voice events of one definition. Disposal removes the listener. */
+  on: <P>(eventa: Eventa<P>, listener: (body: P) => void) => void
+  /** Adds a voice rule. Disposal removes it. Rules run in the order that plugins add them. */
+  rule: <S>(rule: VoiceRule<S>) => void
+  /** The current revisions of an input. A slow signal reads them before its work and returns them as `readAt`. */
+  revisions: (inputId: string) => InputRevisions
+  conversationContext: (sessionId: string) => ConversationContext
   cancel: (reason: string) => void
   fail: (error: Error) => void
   onDispose: (cleanup: () => void | Promise<void>) => void
@@ -128,14 +126,13 @@ export interface VoicePlugin {
 export interface VoicePluginError {
   readonly plugin: string
   readonly inputId?: string
-  readonly stage: 'setup' | 'subscription' | 'task' | 'dependency' | 'cleanup'
+  readonly stage: 'setup' | 'input' | 'watch' | 'finalize' | 'audio' | 'cleanup'
   readonly error: Error
 }
 
-/** Grants authorize domain operations. They do not sandbox trusted in-process plugins. */
+/** Grants authorize control operations. Plugins are trusted in-process code, so grants are not a sandbox. */
 export interface VoicePluginSettings {
-  readonly grants?: readonly ('input-control' | 'cancel-input' | 'interrupt-turns' | 'transcript-patch')[]
-  readonly dependsOn?: readonly string[]
+  readonly grants?: readonly ('input-control' | 'cancel-input' | 'interrupt-turns')[]
   readonly onAudioEvidence?: (event: { plugin: string, range: AudioRange, value: unknown }) => void
   readonly onError?: (event: VoicePluginError) => void
 }

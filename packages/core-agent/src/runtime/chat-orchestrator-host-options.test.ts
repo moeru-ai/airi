@@ -1,6 +1,6 @@
 import type { GenerationProvider } from '@proj-airi/provider-inference'
 
-import type { Conversation } from '../messages/types'
+import type { AssistantTurn, Conversation } from '../messages/types'
 import type { ChatHistoryItem, ChatStreamEventContext } from '../types/chat'
 import type { StreamOptions } from '../types/llm'
 import type { ChatOrchestratorRuntimeDeps } from './chat-orchestrator-runtime'
@@ -58,6 +58,7 @@ describe('chat orchestrator host options', () => {
     expect(harness.messages['session-1']?.map(message => message.role)).toEqual(['user', 'assistant', 'user', 'assistant'])
     expect(harness.messages['session-1']?.[0]).toMatchObject({ content: 'The task finished.', notice: { source: 'recipe:Research' } })
     expect(harness.messages['session-1']?.[1]).toMatchObject({ proactive: { source: 'recipe:Research' } })
+    expect(harness.messages['session-1']?.[1]).toMatchObject({ slices: [{ type: 'text', text: 'reply' }] })
     expect(harness.prompt(0)).toContain('[Notice from recipe:Research, not a message from the owner.]')
     expect(harness.prompt(0)).toContain('Speak about this notice only if it fits now')
     // A later turn still knows the result, and only the request that delivered the notice offers silence.
@@ -82,15 +83,15 @@ describe('chat orchestrator host options', () => {
   it('stores invoked skills with the user message and keeps their steps in later prompts', async () => {
     const harness = createHarness()
 
-    await harness.runtime.ingest('/focus plan my day', { model: 'test', chatProvider: provider, skills: [{ name: 'Focus', instructions: 'Give one next step.' }] })
+    await harness.runtime.ingest('/focus plan my day', { model: 'test', chatProvider: provider, skills: [{ kind: 'steps', name: 'Focus', instructions: 'Give one next step.' }] })
     await harness.runtime.ingest('and then?', { model: 'test', chatProvider: provider })
 
-    expect(harness.messages['session-1']?.[0]).toMatchObject({ role: 'user', content: '/focus plan my day', skills: [{ name: 'Focus', instructions: 'Give one next step.' }] })
+    expect(harness.messages['session-1']?.[0]).toMatchObject({ role: 'user', content: '/focus plan my day', skills: [{ kind: 'steps', name: 'Focus', instructions: 'Give one next step.' }] })
     expect(harness.prompt(0)).toContain('Give one next step.')
     expect(harness.prompt(1)).toContain('[The owner used the skill \\"Focus\\".')
   })
 
-  it('stores no reply for an empty answer, but keeps a reply that only called a tool', async () => {
+  it('stores no reply for an empty answer, but keeps a notice reply that only called a tool', async () => {
     const harness = createHarness()
     harness.stream.mockImplementationOnce(async (_model, _provider, _conversation, streamOptions) => {
       await streamOptions?.onStreamEvent?.({ type: 'finish' })
@@ -101,9 +102,62 @@ describe('chat orchestrator host options', () => {
     })
 
     await harness.runtime.ingest('first', { model: 'test', chatProvider: provider })
-    await harness.runtime.ingest('second', { model: 'test', chatProvider: provider })
+    await harness.runtime.ingest('second', {
+      model: 'test',
+      chatProvider: provider,
+      notice: { source: 'recipe:Research' },
+    })
 
     expect(harness.messages['session-1']?.map(message => message.role)).toEqual(['user', 'user', 'assistant'])
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2988
+  // ROOT CAUSE:
+  //
+  // Raw provider text can contain ACT markers that parsing removes.
+  // Before this fix, `fullText.trim()` treated those markers as visible replies.
+  //
+  // We now check parsed text, stickers, and tool calls before storing notice replies.
+  // After this fix, replies without visible output stay silent.
+  it('does not store an Issue #2988 notice reply that only contains reasoning and an ACT marker', async () => {
+    const harness = createHarness()
+    const generatedTurn: AssistantTurn = {
+      type: 'assistant',
+      id: 'turn-1',
+      status: 'completed',
+      rounds: [{ id: 'round-1', content: [], toolInvocations: [], projectionIssues: [] }],
+    }
+    harness.stream.mockImplementationOnce(async (_model, _provider, _conversation, streamOptions) => {
+      await streamOptions?.onStreamEvent?.({ type: 'text-delta', text: '<think>Reasoning.</think><|ACT {"emotion":"neutral"}|>' })
+      await streamOptions?.onGeneratedTurn?.(generatedTurn)
+      await streamOptions?.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await harness.runtime.ingest('The task finished.', {
+      model: 'test',
+      chatProvider: provider,
+      notice: { source: 'recipe:Research' },
+    })
+
+    expect(harness.messages['session-1']?.map(message => message.role)).toEqual(['user'])
+  })
+
+  it('keeps a notice reply that only contains a valid sticker', async () => {
+    const harness = createHarness()
+    harness.stream.mockImplementationOnce(async (_model, _provider, _conversation, streamOptions) => {
+      await streamOptions?.onStreamEvent?.({ type: 'text-delta', text: '<|STICKER wave|>' })
+      await streamOptions?.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await harness.runtime.ingest('The task finished.', {
+      model: 'test',
+      chatProvider: provider,
+      notice: { source: 'recipe:Research' },
+      stickers: [{ id: 'wave', description: 'A wave' }],
+    })
+
+    expect(harness.messages['session-1']?.map(message => message.role)).toEqual(['user', 'assistant'])
+    expect(harness.messages['session-1']?.[1]).toMatchObject({ slices: [{ type: 'sticker', stickerId: 'wave' }] })
   })
 
   // The owner hears local replies. A scene reply returns as text, and background work stays silent.

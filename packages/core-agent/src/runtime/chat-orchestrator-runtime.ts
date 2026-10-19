@@ -5,7 +5,7 @@ import type { AgentContextPort } from '../contracts/context-port'
 import type { AgentLLMPort } from '../contracts/llm-port'
 import type { AgentForegroundStreamPort } from '../contracts/stream-port'
 import type { AssistantTurn, Conversation, Turn } from '../messages/types'
-import type { ChatHistoryItem, ChatInvokedSkill, ChatSlices, ChatStreamEventContext, ChatToolReference, ContextMessage, StreamingAssistantMessage } from '../types/chat'
+import type { ChatHistoryItem, ChatInvokedSkill, ChatSlices, ChatSlicesToolCall, ChatStreamEventContext, ChatToolReference, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 import type { LlmUsage, StreamEvent, StreamOptions } from '../types/llm'
 
 import { createQueue } from '@proj-airi/stream-kit'
@@ -694,6 +694,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       id: assistantMessageId,
       ...(options.notice ? { proactive: { turnId: roundId, source: options.notice.source } } : {}),
     }
+    // Received calls stay here until their slices join the reply. Interrupted turns preserve them without waiting for token hooks.
+    const pendingToolCalls = new Set<ChatSlicesToolCall>()
+
+    function preservePendingToolCalls() {
+      buildingMessage.slices.push(...pendingToolCalls)
+      pendingToolCalls.clear()
+    }
+
     activeSends.get(sessionId)!.turnId = roundId
     beginStream(sessionId, buildingMessage)
     const hasVoice = options.input?.type === 'input:voice'
@@ -903,6 +911,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
             if (shouldAbort())
               return
             if (ctx.data.type === 'tool-call') {
+              if (!pendingToolCalls.delete(ctx.data))
+                return
               buildingMessage.slices.push(ctx.data)
               updateStream(sessionId, buildingMessage)
               return
@@ -1041,13 +1051,17 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
               buildingMessage.citations = [...(buildingMessage.citations ?? []), ...event.citations]
               updateStream(sessionId, buildingMessage)
               break
-            case 'tool-call':
-              toolCallQueue.enqueue({
-                type: 'tool-call',
-                toolCall: event,
-              })
-
+            case 'tool-call': {
+              // The flush covers only preceding text. A call stays pending until its slice joins, including during interruption.
+              const call: ChatSlicesToolCall = { type: 'tool-call', toolCall: event }
+              pendingToolCalls.add(call)
+              const enqueue = () => {
+                if (pendingToolCalls.has(call))
+                  toolCallQueue.enqueue(call)
+              }
+              void parser.flush().then(enqueue, enqueue)
               break
+            }
             case 'tool-result':
               toolCallQueue.enqueue({
                 type: 'tool-call-result',
@@ -1125,8 +1139,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         console.error('Assistant response observer failed:', error)
       }
 
-      // A notice lets the conversation stay quiet. A reply to it with no text and no tool call leaves no assistant message and no reply hooks.
-      const silent = Boolean(options.notice) && !fullText.trim() && !buildingMessage.slices.some(slice => slice.type === 'tool-call')
+      // A notice lets the conversation stay quiet. Only rendered text, stickers, and tool calls count as a reply.
+      const hasVisibleReply = buildingMessage.slices.some(slice => slice.type === 'sticker'
+        || slice.type === 'tool-call'
+        || (slice.type === 'text' && Boolean(slice.text.trim())))
+      const silent = Boolean(options.notice) && !hasVisibleReply
       if (!silent && !shouldAbort() && (buildingMessage.slices.length > 0 || generatedTurn?.rounds.length)) {
         const finalAssistant = buildingMessage
         finalAssistant.completedAt = now()
@@ -1196,6 +1213,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (shouldAbort())
         return
       failed = true
+      preservePendingToolCalls()
 
       if (!assistantStored && !generationCompleted && hasAssistantOutput(buildingMessage)) {
         // Keep received output local, but do not run completion hooks or cloud
@@ -1226,6 +1244,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       throw error
     }
     finally {
+      if (abortSignal.aborted && !isStaleGeneration())
+        preservePendingToolCalls()
+      // A late flush cannot enqueue calls after this turn ends, including when its session no longer exists.
+      pendingToolCalls.clear()
       if (!assistantStored
         && !generationCompleted
         && abortSignal.aborted

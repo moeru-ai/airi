@@ -5,7 +5,7 @@ import type { ProviderMetadata, ProviderValidationPlan } from '../../libs/provid
 import type { ChatRequestOptions, ModelInfo, ProviderDefinition, ProviderInstance, VoiceInfo } from '../../libs/providers/types'
 
 import { errorMessageFrom } from '@moeru/std'
-import { getGenerationProvider } from '@proj-airi/provider-inference'
+import { getGenerationProvider, withReasoning } from '@proj-airi/provider-inference'
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { computedAsync, useAsyncState, useIntervalFn } from '@vueuse/core'
 import { listModels } from '@xsai/model'
@@ -979,7 +979,7 @@ export const useProviderStore = defineStore('provider', () => {
       throw new Error(`Provider ${providerId} does not support generation`)
     const reasoning = findProviderDefinition(providerId)?.capabilities?.chat?.reasoning
     const requestOptions = options && reasoning?.modes.includes(options.reasoning) ? options : undefined
-    return { generation: model => provider.generation(model, requestOptions) }
+    return withReasoning(provider, requestOptions)
   }
 
   /** Releases this renderer's transport; each window owns its own instance cache. */

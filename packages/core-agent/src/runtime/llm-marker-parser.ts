@@ -3,10 +3,15 @@ const TAG_CLOSE = '|>'
 const ESCAPED_TAG_OPEN = '<{\'|\'}'
 const ESCAPED_TAG_CLOSE = '{\'|\'}>'
 
-interface MarkerToken {
-  type: 'literal' | 'special'
-  value: string
+/** A point in the text. The parser settles it once every literal before it is handled. */
+interface MarkerFlush {
+  settle: () => void
 }
+
+type MarkerToken
+  = | { type: 'literal', value: string }
+    | { type: 'special', value: string }
+    | { type: 'flush', flush: MarkerFlush }
 
 interface MarkerParserOptions {
   minLiteralEmitLength?: number
@@ -114,7 +119,8 @@ function createLlmMarkerParser(options?: MarkerParserOptions) {
       }
     },
 
-    async end(onLiteral: (value: string) => Promise<void> | void) {
+    /** Emits the text held back to find a marker, unless a marker is still open. */
+    async flush(onLiteral: (value: string) => Promise<void> | void) {
       if (!inTag && buffer.length > 0) {
         await onLiteral(buffer)
         buffer = ''
@@ -123,11 +129,18 @@ function createLlmMarkerParser(options?: MarkerParserOptions) {
   }
 }
 
-function createLlmMarkerStream(input: ReadableStream<string>, options?: MarkerParserOptions) {
+function createLlmMarkerStream(input: ReadableStream<string | MarkerFlush>, options?: MarkerParserOptions) {
   const { stream, write, close, error } = createPushStream<MarkerToken>()
   const parser = createLlmMarkerParser(options)
 
   void readStream(input, async (chunk) => {
+    if (typeof chunk !== 'string') {
+      await parser.flush(async (literal) => {
+        write({ type: 'literal', value: literal })
+      })
+      write({ type: 'flush', flush: chunk })
+      return
+    }
     await parser.consume(
       chunk,
       async (literal) => {
@@ -141,7 +154,7 @@ function createLlmMarkerStream(input: ReadableStream<string>, options?: MarkerPa
     )
   })
     .then(async () => {
-      await parser.end(async (literal) => {
+      await parser.flush(async (literal) => {
         if (!literal)
           return
         write({ type: 'literal', value: literal })
@@ -163,10 +176,10 @@ function createLlmMarkerStream(input: ReadableStream<string>, options?: MarkerPa
  * - Literal text and special marker tokens need to be emitted separately.
  *
  * Expects:
- * - Callers feed chunks in order and call `end()` once the model stream ends.
+ * - Callers feed chunks in order, call `flush()` where the text of a model step ends, and call `end()` once the model stream ends.
  *
  * Returns:
- * - A parser with `consume()` and `end()` methods.
+ * - A parser with `consume()`, `flush()`, and `end()` methods.
  */
 export function useLlmmarkerParser(options: {
   onLiteral?: (literal: string) => void | Promise<void>
@@ -183,15 +196,17 @@ export function useLlmmarkerParser(options: {
   minLiteralEmitLength?: number
 }) {
   let fullText = ''
-  const { stream, write, close } = createPushStream<string>()
+  const { stream, write, close } = createPushStream<string | MarkerFlush>()
 
   const markerStream = createLlmMarkerStream(stream, { minLiteralEmitLength: options.minLiteralEmitLength })
 
   const processing = readStream(markerStream, async (token) => {
     if (token.type === 'literal')
       await options.onLiteral?.(token.value)
-    if (token.type === 'special')
+    else if (token.type === 'special')
       await options.onSpecial?.(token.value)
+    else
+      token.flush.settle()
   })
 
   return {
@@ -203,6 +218,16 @@ export function useLlmmarkerParser(options: {
     async consume(textPart: string) {
       fullText += textPart
       write(textPart)
+    },
+
+    /**
+     * Emits the text that the parser holds back to find a marker, and waits until every literal before this call is handled.
+     *
+     * Use when the text of a model step ends, for example at a tool call, so the call lands after that text.
+     * After `end()`, it settles with the end of parsing.
+     */
+    flush() {
+      return Promise.race([new Promise<void>(settle => write({ settle })), processing])
     },
 
     /**

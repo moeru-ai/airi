@@ -1,29 +1,29 @@
-import type { AudioInput, AudioRange, Capture, Observer, Position } from '@proj-airi/pipelines-audio'
+import type { AudioInput, AudioRange, Capture, Position } from '@proj-airi/pipelines-audio'
 
 import type { Interruption } from '../interruption'
-import type { SpeechSubscription } from '../plugins/types'
 import type { TurnRef } from '../turn'
-import type { BeginSpeechInput, SpeechInputAttemptOutcome, SpeechInputAttemptState } from './attempt-types'
-import type { EndDetectionOptions, EndDetector, SpeechActivityEvidence } from './end-detection'
-import type { SpeechInputPorts, StreamingTranscriber } from './submission'
+import type { SpeechInputPorts, StreamingTranscriber } from './ports'
 import type { TranscriptionEvent } from './transcript'
+import type { BeginSpeechInput, SpeechContextEntry, SpeechInputAttemptOutcome, SpeechInputAttemptState, SpeechSubmission } from './types'
 
-import { capture, observe } from '@proj-airi/pipelines-audio'
+import { capture } from '@proj-airi/pipelines-audio'
 import { nanoid } from 'nanoid/non-secure'
 
 import { errorFromCause } from '../../utils/error'
 import { SpeechInput } from './speech-input'
 
+/** Plugin work on one input. `finish` runs finalization stages. `close` aborts all plugin work. */
 interface InputPluginLifetime {
+  readonly context: readonly SpeechContextEntry[]
   finish: () => Promise<void>
-  close: (outcome: Awaited<SpeechSubscription['done']>) => Promise<void>
+  close: (reason: string) => Promise<void>
 }
 
 /** The controller grants one attempt only the operations needed for its lifetime. */
 export interface SpeechInputAttemptOwner {
   audio: () => AudioInput | undefined
   interrupt: (options: { turns: readonly TurnRef[], cause: string }) => Interruption
-  createPlugins: (input: SpeechInput) => InputPluginLifetime
+  createPlugins: (attempt: SpeechInputAttempt, input: SpeechInput) => InputPluginLifetime
   options: SpeechInputPorts
   seal: (attempt: SpeechInputAttempt) => void
   reportError: (stage: string, error: unknown) => void
@@ -33,6 +33,7 @@ export interface SpeechInputAttemptOwner {
 export class SpeechInputAttempt {
   readonly id = nanoid()
   readonly sessionId: string
+  readonly cause: string | undefined
   readonly done: Promise<SpeechInputAttemptOutcome>
   private readonly completion = Promise.withResolvers<SpeechInputAttemptOutcome>()
   private readonly abort = new AbortController()
@@ -43,17 +44,17 @@ export class SpeechInputAttempt {
   private accepted: SpeechInput | undefined
   private plugins: InputPluginLifetime | undefined
   private audio: AudioInput | undefined
-  private activityEnd = 0
-  private speechRevision = 0
+  // The first frame of the capture. A speech onset knows it at once, and a live capture learns it from its first block.
   private from: Position | undefined
+  // The source position when a live capture was prepared. Its first block starts here.
+  private liveStart = 0
   private sealedFrame: number | undefined
-  private detector: (Observer & { start: () => void }) | undefined
-  private endProposal: (() => void) | undefined
   private stage: 'source' | 'admission' | 'capture' | 'transcription' | 'submission' = 'source'
   private started = false
 
   constructor(private readonly owner: SpeechInputAttemptOwner, private readonly options: BeginSpeechInput) {
     this.sessionId = options.sessionId
+    this.cause = options.cause
     this.done = this.completion.promise
   }
 
@@ -79,7 +80,6 @@ export class SpeechInputAttempt {
       this.owner.seal(this)
       this.sealedFrame = this.audio?.position?.frame
       this.change({ phase: 'finalizing' })
-      this.detector?.cancel('Speech input is finalizing')
       void this.capture?.finish()
     }
 
@@ -90,115 +90,12 @@ export class SpeechInputAttempt {
     this.settle({ status: 'cancelled', reason })
   }
 
-  noteActivity(evidence: SpeechActivityEvidence): boolean {
-    const range = evidence.range
-    // A reserved capture already owns audio from its start position, even before admission completes.
-    const acceptsPending = this.current.phase === 'pending' && this.capture !== undefined
-    if (this.current.phase !== 'capturing' && !acceptsPending)
-      return false
-
-    if (!this.acceptsEvidence(range) || !Number.isSafeInteger(range.startFrame) || !Number.isSafeInteger(range.endFrame))
-      return false
-
-    if (range.endFrame <= this.activityEnd)
-      return false
-
-    if (range.startFrame > this.activityEnd) {
-      this.endProposal = undefined
-      return false
-    }
-
-    this.activityEnd = range.endFrame
-    if (evidence.speech)
-      this.speechRevision += 1
-
-    this.endProposal?.()
-    return true
-  }
-
   acceptsEvidence(range: AudioRange): boolean {
     if (!this.from || range.sourceId !== this.from.sourceId)
       return false
+
     const latestFrame = this.sealedFrame ?? this.audio?.position?.frame ?? 0
     return range.startFrame >= this.from.frame && range.endFrame > range.startFrame && range.endFrame <= latestFrame
-  }
-
-  detectEnd(options: EndDetectionOptions, detector: EndDetector): Observer {
-    if (!Number.isFinite(options.windowMs) || options.windowMs <= 0 || !Number.isFinite(options.hopMs) || options.hopMs <= 0)
-      throw new Error('Audio window and hop must be finite and positive')
-
-    this.detector?.cancel('Replaced by a new end detector')
-    const completion = Promise.withResolvers<Awaited<Observer['done']>>()
-    let observer: Observer | undefined
-    let closed = false
-    const observationHandle = {
-      done: completion.promise,
-      cancel: (reason: string) => {
-        if (closed)
-          return
-
-        closed = true
-        observer?.cancel(reason)
-        if (this.detector === observationHandle) {
-          this.detector = undefined
-          this.endProposal = undefined
-        }
-        completion.resolve({ status: 'cancelled', reason })
-      },
-      start: () => {
-        if (closed || observer || !this.audio || !this.accepted || this.current.phase !== 'capturing')
-          return
-
-        observer = observe(this.audio, options, async (window, signal) => {
-          const transcript = this.accepted!.transcript.raw
-          const speechRevision = this.speechRevision
-          const context = this.owner.options.conversationContext?.(this.sessionId) ?? { revision: 0, messages: [] }
-          const result = await detector({ audio: window, transcript, speechRevision, context }, signal)
-          return { result, transcript, speechRevision, context }
-        }, (observation) => {
-          if (closed || observation.value.result !== 'end')
-            return
-
-          const { transcript, speechRevision, context } = observation.value
-          const apply = () => {
-            if (closed || this.current.phase !== 'capturing')
-              return
-
-            const currentContextRevision = this.owner.options.conversationContext?.(this.sessionId).revision ?? 0
-            const evidenceChanged = transcript.revision !== this.accepted!.transcript.raw.revision
-              || speechRevision !== this.speechRevision
-              || context.revision !== currentContextRevision
-            if (evidenceChanged) {
-              this.endProposal = undefined
-              return
-            }
-
-            if (options.activity === 'ordered' && observation.range.endFrame > this.activityEnd)
-              return
-
-            void this.end()
-          }
-          this.endProposal = apply
-          apply()
-        })
-        void observer.done.then((outcome) => {
-          if (closed)
-            return
-
-          completion.resolve(outcome)
-          observationHandle.cancel('End detection ended')
-          if (outcome.status === 'failed')
-            this.settle({ status: 'failed', stage: 'detector', error: outcome.error })
-        })
-      },
-    }
-    this.detector = observationHandle
-    if (this.current.phase === 'finalizing' || this.current.phase === 'settled')
-      observationHandle.cancel('Speech input is no longer capturing')
-    else
-      observationHandle.start()
-
-    return observationHandle
   }
 
   /** Triggering workflow: VoiceController.beginInput → admission → capture and provider output → submit. */
@@ -215,9 +112,8 @@ export class SpeechInputAttempt {
 
       const { provider, capture } = prepared
       this.accepted = new SpeechInput(this.id, this.sessionId)
-      this.plugins = this.owner.createPlugins(this.accepted)
+      this.plugins = this.owner.createPlugins(this, this.accepted)
       this.change({ phase: 'capturing', from: this.from! })
-      this.detector?.start()
 
       if (!await this.readTranscription(provider, capture))
         return
@@ -266,7 +162,7 @@ export class SpeechInputAttempt {
       return
 
     // A live capture starts at the first block it receives, so its start position is known only now.
-    this.from ??= audio.position && { sourceId: audio.position.sourceId, frame: this.activityEnd }
+    this.from ??= audio.position && { sourceId: audio.position.sourceId, frame: this.liveStart }
     return reserved
   }
 
@@ -299,13 +195,14 @@ export class SpeechInputAttempt {
 
     const accepted = this.accepted!
     const transcript = accepted.transcript
-    const submission = Object.freeze({
+    const { speakers } = accepted.document
+    const submission: SpeechSubmission = Object.freeze({
       submissionId: this.id,
       sessionId: this.sessionId,
       text: transcript.corrected.text,
       transcript: Object.freeze({ raw: transcript.raw, corrected: transcript.corrected, history: transcript.history, patches: transcript.patchHistory }),
-      context: accepted.context,
-      ...(accepted.speakers ? { speakers: accepted.speakers } : {}),
+      context: Object.freeze(this.plugins!.context),
+      ...(speakers ? { speakers } : {}),
     })
     accepted.seal()
     if (!this.owner.options.submit)
@@ -318,6 +215,7 @@ export class SpeechInputAttempt {
   private prepareCapture(audio: AudioInput) {
     this.stage = 'capture'
     this.audio = audio
+
     const provider = this.owner.options.transcriber?.(this.sessionId)
     if (!provider)
       throw new Error('Speech transcription is not configured')
@@ -327,13 +225,19 @@ export class SpeechInputAttempt {
       const { at, preRollMs } = this.options.start
       if (preRollMs && !audio.sampleRate)
         throw new Error('Source sample rate is unavailable for pre-roll')
-      from = preRollMs ? { ...at, frame: Math.max(0, at.frame - Math.floor(preRollMs * audio.sampleRate! / 1000)) } : at
-      this.activityEnd = at.frame
+
+      from = preRollMs
+        ? {
+            ...at,
+            frame: Math.max(0, at.frame - Math.floor(preRollMs * audio.sampleRate! / 1000)),
+          }
+        : at
     }
     else {
       // A live capture begins at the next block. That block starts at the current position when the source is open.
-      this.activityEnd = audio.position?.frame ?? 0
+      this.liveStart = audio.position?.frame ?? 0
     }
+
     this.from = from ?? audio.position
 
     const recording = capture(audio, { from, signal: this.abort.signal })
@@ -346,6 +250,7 @@ export class SpeechInputAttempt {
       if (outcome.status === 'finished' && this.current.phase === 'capturing')
         void this.end()
     })
+
     return { provider, capture: recording }
   }
 
@@ -368,16 +273,17 @@ export class SpeechInputAttempt {
   private settle(outcome: SpeechInputAttemptOutcome) {
     if (this.current.phase === 'settled')
       return
+
     this.owner.seal(this)
     this.change({ phase: 'settled', outcome })
-    this.detector?.cancel('Speech input settled')
     if (outcome.status === 'cancelled' || outcome.status === 'failed') {
       this.abort.abort(outcome)
       this.capture?.cancel('Speech input closed')
       void this.reader?.cancel(outcome).catch(() => {})
     }
+
     this.accepted?.seal()
-    void this.plugins?.close(outcome.status === 'failed' || outcome.status === 'cancelled' ? outcome : { status: 'finished' })
+    void this.plugins?.close(outcome.status === 'cancelled' ? outcome.reason : 'Speech input settled')
     this.completion.resolve(outcome)
   }
 }

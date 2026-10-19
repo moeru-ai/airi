@@ -116,7 +116,7 @@ controller.onInput((attempt) => {
     recordings.delete(attempt.id)
   })
 })
-watch(snapshot, value => replaceStreamingText(value?.transcript.text ?? ''))
+watch(snapshot, value => replaceStreamingText(value?.corrected.text ?? ''))
 const isSpeech = computed(() => inputState.value?.phase === 'capturing')
 const isSpeechVolume = isSpeech
 

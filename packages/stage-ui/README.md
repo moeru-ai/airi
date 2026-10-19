@@ -80,6 +80,7 @@ The Hearing store keeps `inputMode`. The microphone switch (`useSettingsAudioDev
 - `wake-word` keeps the microphone open and runs voice activity detection and wake word detection. Only a wake starts an input.
 
 `startsInputOnSpeech(mode)` decides if VAD alone starts an input. In `wake-word` mode, the voice store's speech target is undefined.
+`SileroVad` (`workers/vad/silero-vad`) runs the VAD model in a Worker of its own, so the inference of each 32 ms window does not block the Stage render on the main thread.
 Wake word detection runs in every mode that listens continuously. In `always-on` mode, a wake also moves the input to the matched character's session.
 The voice host publishes the detector preparation in its snapshot as `wakeWords`, so a settings window can show it.
 

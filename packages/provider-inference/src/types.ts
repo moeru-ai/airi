@@ -62,6 +62,11 @@ export function getGenerationProvider(provider: ProviderInstance): GenerationPro
     return { generation: (model, options) => ({ protocol: 'chat-completions', config: provider.chat(model, options) }) }
 }
 
+/** Applies one reasoning choice to every request of a provider. Undefined options keep the provider default. */
+export function withReasoning(provider: GenerationProvider, options: ChatRequestOptions | undefined): GenerationProvider {
+  return { generation: model => provider.generation(model, options) }
+}
+
 /** Translates a provider label or description for the active interface locale. */
 export type ProviderTranslator = (input: string) => string
 

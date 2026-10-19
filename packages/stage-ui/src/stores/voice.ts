@@ -114,7 +114,7 @@ export const useVoiceStore = defineStore('voice', () => {
   const { rephrase } = useVoiceRephrase()
   controller.use(
     createVoiceRephrasePlugin({ enabled: () => hearing.rephraseEnabled, rephrase, timeoutMs: VOICE_REPHRASE_TIMEOUT_MS }),
-    { grants: ['transcript-patch'], onError: event => report(event.error) },
+    { onError: event => report(event.error) },
   )
   const { judge } = useVoiceEndJudge()
   controller.use(
@@ -128,16 +128,11 @@ export const useVoiceStore = defineStore('voice', () => {
     console.error('[voice]', cause)
   }
 
-  /**
-   * The cause of the input that begins next. A control sets `control` around its begin call, and the voice activity
-   * plugin reports `speech` or `wake-word` right before its begin call. `onInput` runs inside that call and reads it.
-   */
-  let beginCause: 'control' | 'speech' | 'wake-word' | undefined
-
   controller.onInput((attempt) => {
     presentedInput = { requestId: attempt.id, attempt }
-    const cause = beginCause ?? 'speech'
-    beginCause = undefined
+    // A control begins with `control`, and the voice activity rule begins with `speech` or `wake-word`.
+    // An input that another caller began without a cause is traced as speech.
+    const cause = attempt.cause === 'control' || attempt.cause === 'wake-word' ? attempt.cause : 'speech'
     // Only an input that a wake began takes the wake span, so a wake that started nothing cannot join a later input.
     inputTracer.start(attempt, cause, cause === 'wake-word' ? wakeWordDetection.claimWakeSpan() : undefined)
   })
@@ -158,8 +153,8 @@ export const useVoiceStore = defineStore('voice', () => {
             requestId: presentedInput.requestId,
             sessionId: presentedInput.attempt.sessionId,
             phase: presentedInput.attempt.state.phase,
-            text: transcript.value?.transcript.text ?? '',
-            segments: (transcript.value?.transcript.segments ?? []).map(segment => ({ id: segment.id, text: segment.text, final: segment.final })),
+            text: transcript.value?.corrected.text ?? '',
+            segments: (transcript.value?.corrected.segments ?? []).map(segment => ({ id: segment.id, text: segment.text, final: segment.final })),
           } }
         : {}),
     }
@@ -179,13 +174,7 @@ export const useVoiceStore = defineStore('voice', () => {
   function beginManual(sessionId: string) {
     if (captureLease.held)
       return undefined
-    beginCause = 'control'
-    try {
-      return beginInput({ sessionId, interruptTurns: activeTurns.value.filter(turn => turn.sessionId === sessionId), start: { kind: 'after-silence' } })
-    }
-    finally {
-      beginCause = undefined
-    }
+    return beginInput({ sessionId, interruptTurns: activeTurns.value.filter(turn => turn.sessionId === sessionId), start: { kind: 'after-silence' }, cause: 'control' })
   }
 
   function endInput() {
@@ -511,9 +500,6 @@ export const useVoiceStore = defineStore('voice', () => {
       onActivity: (activity) => {
         inputTracer.activity(activity)
         speakerEvidence.noteActivity(activity)
-      },
-      beforeBeginInput: (cause) => {
-        beginCause = cause
       },
       detectWakeWord: options.detectWakeWord ?? wakeWords?.detect,
       // A capture lease, for example a voiceprint enrollment, records speech that can contain a wake word. It must not start an input.

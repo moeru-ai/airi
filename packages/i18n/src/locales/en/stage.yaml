@@ -85,7 +85,7 @@ chat:
     sent: Sent
   voice-input: Voice input
   notice:
-    label: Background report
+    label: 'Background report from {name}'
   background-tasks:
     label: Background tasks
     stop: 'Stop {name}'
@@ -96,16 +96,45 @@ chat:
       failed: Not finished
       interrupted: Stopped
   judgment:
-    label: Judged
+    running: 'Judging {name}'
+    judged: 'Judged {name}'
+    invalid: 'Could not judge {name}'
+  judgment-tool-call:
+    answer: Answer
+    next: Then
+    reply: Reply as usual
+    stay-quiet: Stay quiet
+    hint: 'Reply, keeping in mind: {text}'
+    recipe-steps: 'Use recipe {name}'
+    recipe-decision: 'Judge {name}'
+    recipe-background: 'Hand to recipe {name}'
   recipe:
-    using: Using recipe
-    loaded: Used recipe
-    started: Handed to recipe
-    pending: Recipe waits for approval
-    disabled: Recipe is off
-    unknown: Recipe not found
-    refused: Recipe did not start
-    failed: Recipe did not start
+    using: 'Using recipe {name}'
+    loaded: 'Used recipe {name}'
+    started: 'Handed to recipe {name}'
+    pending: 'Recipe {name} waits for approval'
+    disabled: 'Recipe {name} is off'
+    unknown: 'Recipe {name} not found'
+    refused: 'Recipe {name} did not start'
+    failed: 'Recipe {name} did not start'
+  recipe-tool-call:
+    task: Task
+    usable: Recipes you can use now
+    pending: This recipe waits for your approval.
+    disabled: This recipe is turned off.
+    unknown: No recipe has this name.
+    refused: The recipe could not start.
+  invoked-skill:
+    steps: 'Used recipe {name}'
+    background: 'Handed to recipe {name}'
+    decision: 'Used recipe {name}'
+    question: Question
+    'yes': 'Yes'
+    'no': 'No'
+  home-assistant-tool-call:
+    shown: 'Showing {count} of {total} devices'
+  web-search-tool-call:
+    results: 'Results for "{query}" · {count}'
   tool-calls:
     running-one: 'Using {name}'
     failed-one: "{name} didn't finish"
@@ -116,6 +145,9 @@ chat:
     result: Result
     copy: Copy raw data
     copied: Copied
+    raw: Raw data
+    other: Other data
+    widget: Widget
     rerun: Run again
     state:
       executing: Running

@@ -14,6 +14,7 @@ import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { createContext as createElectronContext } from '@moeru/eventa/adapters/electron/main'
 import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow, ipcMain } from 'electron'
+import { isMacOS } from 'std-env'
 import { boolean, number, object, optional, picklist } from 'valibot'
 
 import icon from '../../../../resources/icon.png?asset'
@@ -203,12 +204,16 @@ export function setupChatWindowManager(params: {
       height: 800.0,
       show: false,
       icon,
+      ...(isMacOS ? { transparent: true, backgroundColor: '#00000000' } : {}),
+      titleBarStyle: isMacOS ? 'hiddenInset' : undefined,
       webPreferences: {
         preload: join(getElectronMainDirname(), '../preload/index.mjs'),
         sandbox: false,
       },
     })
 
+    if (isMacOS)
+      window.setWindowButtonVisibility(true)
     window.on('ready-to-show', () => window.show())
     protectPrivilegedWindowNavigation(window)
 

@@ -7,10 +7,8 @@ import type { NoticeWindowManager } from '../notice'
 import type { SettingsWindowManager } from '../settings'
 
 import { dirname, join, resolve } from 'node:path'
-import { env } from 'node:process'
 import { fileURLToPath } from 'node:url'
 
-import { is } from '@electron-toolkit/utils'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
@@ -22,6 +20,7 @@ import { array, number, object, optional, string } from 'valibot'
 import icon from '../../../../resources/icon.png?asset'
 
 import { electronStartDraggingWindow } from '../../../shared/eventa'
+import { shouldOpenDevTools } from '../../libs/electron/devtools'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { protectPrivilegedWindowNavigation } from '../shared'
@@ -80,8 +79,7 @@ export async function setupDashboardWindow(params: {
     params.onWindowCreated(window)
   }
 
-  // NOTICE: in development mode, open devtools by default
-  if (is.dev || env.MAIN_APP_DEBUG || env.APP_DEBUG) {
+  if (shouldOpenDevTools()) {
     try {
       window.webContents.openDevTools({ mode: 'detach' })
     }
