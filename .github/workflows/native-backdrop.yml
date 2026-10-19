@@ -1,0 +1,33 @@
+name: Native backdrop
+
+on:
+  pull_request:
+    paths:
+      - packages/electron-native-backdrop/**
+      - apps/stage-tamagotchi/src/main/services/electron/window-backdrop*
+      - pnpm-lock.yaml
+      - .github/workflows/native-backdrop.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    name: Build and load (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-26]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 26.7.0
+      - run: npm install --global pnpm@11.24.0
+      - run: pnpm install --filter @proj-airi/electron-native-backdrop --frozen-lockfile --ignore-scripts
+      - run: pnpm -F @proj-airi/electron-native-backdrop build
+      - run: pnpm -F @proj-airi/electron-native-backdrop typecheck
+      - run: pnpm -F @proj-airi/electron-native-backdrop smoke:native

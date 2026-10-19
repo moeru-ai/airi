@@ -167,8 +167,8 @@ export default defineKirieConfig({
         // https://github.com/JohnCampionJr/vite-plugin-vue-layouts
         Layouts({
           layoutsDirs: [
-            resolve(rendererRoot, 'layouts'),
             resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-layouts', 'src', 'layouts')),
+            resolve(rendererRoot, 'layouts'),
           ],
           pagesDirs: [resolve(rendererRoot, 'pages')],
         }),

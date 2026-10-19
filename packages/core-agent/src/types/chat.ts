@@ -27,7 +27,21 @@ export interface ChatSlicesSticker {
   stickerId: string
 }
 
-export type ChatSlices = ChatSlicesText | ChatSlicesToolCall | ChatSlicesToolCallResult | ChatSlicesSticker
+/**
+ * A card that the model drew as part of its answer. The host draws `program`. Places that cannot draw it, such as copy,
+ * cloud sync, and export, use `text`.
+ */
+export interface ChatSlicesCard {
+  type: 'card'
+  program: string
+  /** The card as plain text: the answer and its key values. */
+  text: string
+}
+
+/** Content that a tool call adds to a reply in place of the call. */
+export type ChatSlicesToolContent = ChatSlicesCard
+
+export type ChatSlices = ChatSlicesText | ChatSlicesToolCall | ChatSlicesToolCallResult | ChatSlicesSticker | ChatSlicesCard
 
 export interface ChatAssistantMessage extends AssistantMessage {
   /** True when transport failure ended this locally preserved response before completion. */
@@ -40,6 +54,11 @@ export interface ChatAssistantMessage extends AssistantMessage {
   /** Sources returned by the provider, separate from text consumed by speech. */
   citations?: import('../messages/types').Citation[]
   search?: { id: string, status: 'in_progress' | 'searching' | 'completed' | 'failed' }
+  /**
+   * The kind of content that a tool call is about to add, from the moment the model starts the call until the content
+   * arrives or the model writes on. Only a reply that is still written uses it.
+   */
+  pendingContent?: ChatSlicesToolContent['type']
   slices: ChatSlices[]
   tool_results: {
     id: string
