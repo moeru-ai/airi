@@ -85,7 +85,7 @@ describe('window native backdrop', () => {
     const { window, update } = setup()
     await update({ regions: [surface] })
     const first = vi.mocked(NativeBackdrop).mock.results[0].value
-    window.webContents.emit('did-start-loading')
+    window.webContents.emit('did-start-navigation', { isMainFrame: true, isSameDocument: false })
     expect(first.dispose).toHaveBeenCalledTimes(1)
     await update({ regions: [surface] })
     expect(NativeBackdrop).toHaveBeenCalledTimes(2)
@@ -94,6 +94,20 @@ describe('window native backdrop', () => {
     expect(second.dispose).toHaveBeenCalledTimes(1)
     window.emit('closed')
     expect(second.dispose).toHaveBeenCalledTimes(1)
+  })
+
+  // A macOS Space change emits `did-start-loading` for every window without a navigation.
+  it('keeps native layers through loading events, same-document navigation, and subframe navigation', async () => {
+    const { window, update } = setup()
+    await update({ regions: [surface] })
+    const material = vi.mocked(NativeBackdrop).mock.results[0].value
+    window.webContents.emit('did-start-loading')
+    window.webContents.emit('did-start-navigation', { isMainFrame: true, isSameDocument: true })
+    window.webContents.emit('did-start-navigation', { isMainFrame: false, isSameDocument: false })
+    expect(material.dispose).not.toHaveBeenCalled()
+    await update({ regions: [surface] })
+    expect(NativeBackdrop).toHaveBeenCalledTimes(1)
+    window.emit('closed')
   })
 
   it('reports native failure once and prevents animation updates from retrying it', async () => {

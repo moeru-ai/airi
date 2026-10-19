@@ -565,6 +565,20 @@ pages:
     search: Search cards...
     sort_by: Sort by
     body-model: Body / Display Model
+    view-card: View card
+    model_not_bound: No model selected
+    gallery: Gallery
+    pinned_background: Pinned background
+    pinned_background_description: Select the image to show when this character is active.
+    select_background: Select background
+    refresh_gallery: Refresh gallery
+    gallery_empty: No images yet. Images the character creates in chat appear here.
+    gallery_delete_confirm: Are you sure you want to delete this image from the journal?
+    active_background: Active background
+    set_as_background: Set as background
+    download: Download
+    show_less: Show less
+    view_all_history: View all {count} versions
     speech:
       provider: Speech / Provider
       model: Speech / Model
@@ -1444,6 +1458,22 @@ pages:
         water_heater: Water heater
         weather: Weather
         zone: Zone
+    tool-cards:
+      title: Tool cards
+      description: Cards that the chat model makes for tools and for its replies
+      enable: Make cards for tool results
+      enable-description: When a call of a tool without a widget finishes and the tool has no card yet, the chat model makes one for its results. A call in an old message gets one when you unfold it. Each new card uses the chat model.
+      reply-cards: Draw cards in replies
+      reply-cards-description: When a card answers better than text, for example a conversion or a comparison, the chat model draws one in its reply. The card belongs to that reply and is not saved.
+      page-description: The card templates that the chat model made for tools without a widget. After you delete one, the chat makes a new one at the next call of its tool, or when you unfold one of its calls.
+      empty: No cards yet. A card appears here after a tool without a widget finishes.
+      source-tool: 'Source: app tool'
+      source-mcp: 'Source: MCP server {server}'
+      used: 'Last used: {date}'
+      show-template: Show template
+      hide-template: Hide template
+      delete: Delete
+      deleted: 'Deleted the template of {name}. The chat makes a new one at the next call of the tool, or when you unfold one of its calls.'
     web-search:
       title: Web Search
       description: Let AIRI search the web for current information
@@ -2358,7 +2388,7 @@ pages:
                 description: Stress markdown parsing and rendering with heavy chat payloads
               tool-payloads-as-json:
                 title: Show tool data as JSON
-                description: Show the arguments and results of chat tool calls as a JSON tree, not as formatted fields
+                description: Show the arguments and results of chat tool calls as a JSON tree, not as formatted fields. Cards in replies also offer their raw data.
               plugin-host:
                 actions:
                   enable-and-load: Enable and Load

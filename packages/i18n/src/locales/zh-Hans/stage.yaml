@@ -151,10 +151,19 @@ chat:
     other: 其他数据
     widget: 小组件
     rerun: 重新运行
+    card-making: 正在为这个工具做卡片…
+    card-remaking: 正在重新做这张卡片…
+    card-regenerate: 重新生成
+    card-failed: 没能为这个工具做出卡片
+    card-retry: 重试
     state:
       executing: 进行中
       done: 完成
       error: 失败
+  reply-card:
+    drawing: 正在画卡片…
+    raw: 原始数据
+    card: 卡片
   error-details:
     show: 查看详情
     hide: 收起详情

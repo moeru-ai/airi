@@ -535,6 +535,20 @@ pages:
     search: 搜索角色卡...
     sort_by: 排序方式
     body-model: 身体 / 显示模型
+    view-card: 查看角色卡
+    model_not_bound: 未选择形象
+    gallery: 图库
+    pinned_background: 固定背景
+    pinned_background_description: 选择角色启用时显示的图片。
+    select_background: 选择背景
+    refresh_gallery: 刷新图库
+    gallery_empty: 还没有图片。在对话里让角色画图后，图片会出现在这里。
+    gallery_delete_confirm: 确定要从图库删除这张图片吗？
+    active_background: 当前背景
+    set_as_background: 设为背景
+    download: 下载
+    show_less: 收起
+    view_all_history: 查看全部 {count} 个版本
     speech:
       provider: 语音 / 提供商
       model: 声音 / 模型
@@ -1390,6 +1404,22 @@ pages:
         water_heater: 热水器
         weather: 天气
         zone: 区域
+    tool-cards:
+      title: 工具卡片
+      description: 聊天模型为工具和回答做的卡片
+      enable: 为工具结果做卡片
+      enable-description: 没有小组件的工具调用完成后，如果这个工具还没有卡片，聊天模型会为它的结果做一张。旧消息里的调用要展开后才会做。每做一张卡片都会调用聊天模型。
+      reply-cards: 在回复里画卡片
+      reply-cards-description: 回答更适合用卡片时，比如换算或比较，聊天模型会直接在回复里画一张。这张卡片只属于这条回复，不会保存。
+      page-description: 聊天模型为没有小组件的工具做的卡片模板。删除后，这个工具下次调用，或你展开它的调用时，会重新做一份。
+      empty: 还没有卡片。没有小组件的工具调用完成后，卡片会出现在这里。
+      source-tool: 来源：应用自带的工具
+      source-mcp: '来源：MCP 服务 {server}'
+      used: '最近使用：{date}'
+      show-template: 看模板
+      hide-template: 收起模板
+      delete: 删除
+      deleted: '已删除 {name} 的模板。这个工具下次调用，或你展开它的调用时，会重新做一份。'
     web-search:
       title: 网络搜索
       description: 让 AIRI 联网搜索最新信息
@@ -2165,7 +2195,7 @@ pages:
                 description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
               tool-payloads-as-json:
                 title: 以 JSON 显示工具数据
-                description: 聊天里工具调用的参数和结果显示为 JSON 树，不再格式化
+                description: 聊天里工具调用的参数和结果显示为 JSON 树，不再格式化。回复里的卡片也会提供原始数据。
               plugin-host:
                 actions:
                   enable-and-load: 启用并加载

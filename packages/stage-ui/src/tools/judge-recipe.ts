@@ -77,9 +77,13 @@ export function parseJson(value: unknown): unknown {
   }
 }
 
+// A recorded call also holds the summary that every call carries (see `stores/ai/chat-llm/tool-call-summary`), so it is
+// read for the fields of the judgment only.
+const recordedInputSchema = object(judgeParameters.entries)
+
 /** Reads a recorded call for the chat: the recipe name from the arguments, and the outcome from the result. A running call has no outcome. */
 export function readJudgment(args: string, result: unknown): { name: string, outcome?: JudgeResult } {
-  const input = safeParse(judgeParameters, parseJson(args))
+  const input = safeParse(recordedInputSchema, parseJson(args))
   const outcome = safeParse(judgeResultSchema, parseJson(result))
   return {
     name: outcome.success && outcome.output.status === 'judged' ? outcome.output.name : input.success ? input.output.name : '',
