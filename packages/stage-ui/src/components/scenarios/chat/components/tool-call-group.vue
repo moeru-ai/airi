@@ -183,6 +183,15 @@ watch([calls, open, openCalls], () => {
   }
 }, { immediate: true })
 
+// The rerun action and the raw data switch. An unfolded row puts the switch under the rerun action, so both are one shape.
+const iconButtonClass = [
+  'size-6 shrink-0 inline-flex items-center justify-center rounded-lg',
+  'outline-none transition-colors duration-200',
+  'text-neutral-500 hover:bg-neutral-200/70 hover:text-primary-600',
+  'dark:text-neutral-400 dark:hover:bg-neutral-800/80 dark:hover:text-primary-300',
+  'focus-visible:ring-2 focus-visible:ring-primary-400/60',
+]
+
 const barButtonClass = [
   'shrink-0 inline-flex items-center gap-1 rounded-md px-1.5 py-px text-[11px]',
   'outline-none transition-colors duration-200',
@@ -267,13 +276,7 @@ function rerun(item: ToolCallGroupItem) {
             type="button"
             :aria-label="t(`${KEY}.rerun`)"
             :title="t(`${KEY}.rerun`)"
-            :class="[
-              'size-6 shrink-0 inline-flex items-center justify-center rounded-lg',
-              'outline-none transition-colors duration-200',
-              'text-neutral-500 hover:bg-neutral-200/70 hover:text-primary-600',
-              'dark:text-neutral-400 dark:hover:bg-neutral-800/80 dark:hover:text-primary-300',
-              'focus-visible:ring-2 focus-visible:ring-primary-400/60',
-            ]"
+            :class="iconButtonClass"
             @click="rerun(call)"
           >
             <span :class="['i-mingcute:refresh-2-line', 'text-xs']" aria-hidden="true" />
@@ -282,7 +285,7 @@ function rerun(item: ToolCallGroupItem) {
         <TransitionVertical>
           <div v-if="openCalls.has(call.key)" :class="['flex flex-col gap-2 px-1.5 pb-2 pt-1']">
             <!-- A row with a summary names the tool here, on the line of the actions. Otherwise the row already names it. -->
-            <!-- The buttons hang their padding past the edge, so a label ends with the content and a hover box with the rerun button. -->
+            <!-- The line reaches the edge of the row above, so its last button ends where the rerun button ends. -->
             <div v-if="call.summary || call.widget || call.card?.status === 'shown'" :class="['flex items-center justify-end gap-1 -me-1.5']">
               <span v-if="call.summary" :class="['me-auto min-w-0 truncate text-[10px]', 'text-neutral-400 dark:text-neutral-500']">{{ call.name }}</span>
               <!-- A card that the owner does not like gets replaced by a new one. A widget of the app has no such action. -->
@@ -290,9 +293,16 @@ function rerun(item: ToolCallGroupItem) {
                 <span :class="['i-mingcute:magic-2-line', 'text-xs']" aria-hidden="true" />
                 <span>{{ t(`${KEY}.card-regenerate`) }}</span>
               </button>
-              <button type="button" :class="barButtonClass" @click="toggleRaw(call.key)">
-                <span :class="['i-mingcute:code-line', 'text-xs']" aria-hidden="true" />
-                <span>{{ rawCalls.has(call.key) ? t(`${KEY}.widget`) : t(`${KEY}.raw`) }}</span>
+              <button
+                v-if="call.widget || call.card?.status === 'shown'"
+                type="button"
+                :aria-label="rawCalls.has(call.key) ? t(`${KEY}.widget`) : t(`${KEY}.raw`)"
+                :title="rawCalls.has(call.key) ? t(`${KEY}.widget`) : t(`${KEY}.raw`)"
+                :class="iconButtonClass"
+                @click="toggleRaw(call.key)"
+              >
+                <!-- The switch shows the view that it opens: the raw data, or the widget again. -->
+                <span :class="[rawCalls.has(call.key) ? 'i-mingcute:layout-4-line' : 'i-mingcute:code-line', 'text-xs']" aria-hidden="true" />
               </button>
             </div>
             <template v-if="call.widget && !rawCalls.has(call.key)">
