@@ -5,8 +5,8 @@ import { rawTool } from '@xsai/tool'
 import { array, description, literal, object, optional, pipe, safeParse, strictObject, string, union } from 'valibot'
 import { toJsonSchema } from 'xsschema'
 
-import { cardLibrary } from '../libs/cards/catalog'
 import { problemsOfProgram } from '../libs/cards/program'
+import { cardLanguagePrompt } from '../libs/cards/prompt'
 import { parseJson } from './judge-recipe'
 
 export const DRAW_CARD_TOOL_NAME = 'builtIn_drawCard'
@@ -65,15 +65,16 @@ export function composeDrawCardPrompt() {
 
 /** How to write the program of a reply card. The tool returns it on the first call, so a turn without a card does not carry it. */
 function replyCardRules() {
-  return cardLibrary.prompt({
-    preamble: 'These are the rules for the `program` argument of the card tool. The program is openui-lang, a declarative UI language. Write it only in that argument, never in your reply text.',
-    toolCalls: false,
-    bindings: false,
-    additionalRules: [
-      'Write every value into the program. A reply card has no Query and no tools.',
-      'Keep the card small: the answer first, then the few facts that support it.',
-    ],
-  })
+  return [
+    'These are the rules for the `program` argument of the card tool. The program is openui-lang, a declarative UI language. Write it only in that argument, never in your reply text.',
+    '',
+    cardLanguagePrompt(),
+    '',
+    '## Reply cards',
+    '',
+    '- Write every value into the program. A reply card has no Query and no tools.',
+    '- Keep the card small: the answer first, then the few facts that support it.',
+  ].join('\n')
 }
 
 /**

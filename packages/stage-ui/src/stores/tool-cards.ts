@@ -11,8 +11,8 @@ import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
 
 import { useTextGeneration } from '../composables/text-generation'
-import { cardLibrary } from '../libs/cards/catalog'
 import { problemsOfProgram } from '../libs/cards/program'
+import { cardLanguagePrompt } from '../libs/cards/prompt'
 import { MCP_CALL_TOOL_NAME } from '../tools/mcp'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useConsciousnessStore } from './modules/consciousness'
@@ -159,18 +159,7 @@ const useToolCardsStateStore = defineStore('tool-cards-state', () => {
       validate: program => problemsOfProgram(program, { key: request.key, data: request.data }),
     })
     return agent.make({
-      catalogPrompt: cardLibrary.prompt({
-        preamble: 'You write a card in openui-lang, a declarative UI language, as the program of an app card.',
-        inlineMode: true,
-        toolCalls: true,
-        bindings: false,
-        tools: [{
-          name: request.key,
-          description,
-          inputSchema: request.key === request.toolName ? tool?.function.parameters ?? { type: 'object' } : { type: 'object' },
-          outputSchema: { type: 'object' },
-        }],
-      }),
+      catalogPrompt: ['You write a card in openui-lang, a declarative UI language, as the program of an app card.', '', cardLanguagePrompt()].join('\n'),
       key: request.key,
       description,
       args: request.args,
