@@ -201,10 +201,18 @@ const characterVoiceIcon = computed(() => {
             >
               <span aria-hidden="true" :class="[characterVoiceIcon, 'size-5']" />
             </BasicButton>
+            <!--
+              NOTICE:
+              On iOS, a touch drag on this range does not move the value.
+              The modal drawer locks body scroll. The lock adds a document `touchmove` listener that cancels moves outside a scrollable element.
+              Source: reka-ui `dist/shared/useBodyScrollLock.js`, `preventDefault` and `checkOverflowScroll`.
+              Remove `@touchmove.stop` when reka-ui stops cancelling `touchmove` on range inputs.
+            -->
             <RoundRange
               v-model="characterVoiceVolume"
               :aria-label="t('stage.mobile-tools.character-voice')"
-              :class="['mobile-volume-slider w-full flex-1', !characterVoiceEnabled && 'opacity-50']"
+              :class="['w-full flex-1', !characterVoiceEnabled && 'opacity-50']"
+              @touchmove.stop
             />
           </div>
         </div>
@@ -286,22 +294,5 @@ const characterVoiceIcon = computed(() => {
 
 .mobile-tool-row :deep([aria-hidden]) {
   flex-shrink: 0;
-}
-
-/*
-  iOS-style volume bar on the shared round range.
-  Its thumb fills the track height, so a touch can drag from any point of the fill.
-*/
-.mobile-settings-actions :deep(.mobile-volume-slider) {
-  --width: 1.75rem;
-  --track-border-radius: 999px;
-  --track-box-shadow: none;
-  --track-background: rgb(0 0 0 / 0.06);
-  --track-value-background: oklch(72% var(--chromatic-chroma-400) var(--chromatic-hue));
-}
-
-.dark .mobile-settings-actions :deep(.mobile-volume-slider) {
-  --track-background: rgb(255 255 255 / 0.12);
-  --track-value-background: oklch(76% var(--chromatic-chroma-300) var(--chromatic-hue));
 }
 </style>
