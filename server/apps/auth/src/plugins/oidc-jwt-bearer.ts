@@ -9,14 +9,14 @@ import { createHmac } from 'node:crypto'
 import { isUserBannedNow } from '@proj-airi/auth-shared'
 import { APIError } from 'better-auth'
 import { createAuthMiddleware } from 'better-auth/api'
-import { array, boolean, date, looseObject, nonEmpty, nullable, object, optional, parse, pipe, regex, safeParse, string, transform } from 'valibot'
+import { array, boolean, date, jwsCompact, looseObject, nonEmpty, nullable, object, optional, parse, pipe, safeParse, string, transform } from 'valibot'
 
 import { createOidcAccessTokenVerifier } from '../oidc-access-token'
 
 const JwtBearerTokenSchema = pipe(
   string(),
   transform(value => value.trim()),
-  regex(/^[\w-]+\.[\w-]+\.[\w-]+$/, 'Bearer token must be a compact JWT'),
+  jwsCompact('Bearer token must be a compact JWT'),
 )
 
 const StoredJwkRowSchema = object({
