@@ -11,20 +11,22 @@ import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
 
 import { useTextGeneration } from '../composables/text-generation'
+import { toolCardDataRepo } from '../database/repos/tool-card-data.repo'
 import { problemsOfProgram } from '../libs/cards/program'
 import { cardLanguagePrompt } from '../libs/cards/prompt'
 import { MCP_CALL_TOOL_NAME } from '../tools/mcp'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useConsciousnessStore } from './modules/consciousness'
 
-/** A card that a model made for the results of one tool. */
+/**
+ * A card that a model made for the results of one tool. The result of the latest call of the tool lives apart, in
+ * {@link toolCardDataRepo}, because it can be large.
+ */
 export interface SavedToolCard extends ToolCard {
   /** The tool that the card shows: the registered name, or `server::tool` for an MCP tool. */
   key: string
-  /** The result of the latest call of the tool, at first the call that the card was made from. The settings page draws the card with it. */
-  data: unknown
   createdAt: number
-  /** When the tool was last called with this card. */
+  /** When the tool was last called with this card. The latest call changes with it. */
   usedAt: number
 }
 
@@ -175,6 +177,16 @@ const useToolCardsStateStore = defineStore('tool-cards-state', () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(cards.value))
   }
 
+  /** Keeps the result of the latest call of a tool for the preview of its card. A preview that fails to save leaves the card as it is. */
+  async function keepLatestCall(key: string, data: unknown) {
+    try {
+      await toolCardDataRepo.set(key, data)
+    }
+    catch (error) {
+      console.warn('[tool-cards] Failed to keep the latest call of a card:', errorMessageFrom(error))
+    }
+  }
+
   /**
    * Makes the card of a tool. Resolves to whether the tool has a card afterwards.
    * A request for a key that has a card resolves at once, unless it asks to replace the card. A key that failed is not
@@ -196,10 +208,12 @@ const useToolCardsStateStore = defineStore('tool-cards-state', () => {
       failed.value = failed.value.filter(entry => entry !== key)
       try {
         const made = await make(request)
+        // The latest call is in place before the card, so a preview of the new card finds it.
+        await keepLatestCall(key, request.data)
         if ((generations.get(key) ?? 0) !== generation)
           return false
         const now = Date.now()
-        const card: SavedToolCard = { key, ...made, data: request.data, createdAt: now, usedAt: now }
+        const card: SavedToolCard = { key, ...made, createdAt: now, usedAt: now }
         cards.value = [...cards.value.filter(entry => entry.key !== key), card]
         save()
         return true
@@ -225,6 +239,8 @@ const useToolCardsStateStore = defineStore('tool-cards-state', () => {
     failed.value = failed.value.filter(entry => entry !== key)
     cards.value = cards.value.filter(card => card.key !== key)
     save()
+    await toolCardDataRepo.remove(key)
+      .catch(error => console.warn('[tool-cards] Failed to remove the latest call of a card:', errorMessageFrom(error)))
   }
 
   /**
@@ -240,12 +256,16 @@ const useToolCardsStateStore = defineStore('tool-cards-state', () => {
     failed.value = [...new Set([...failed.value, ...orphaned])]
   }
 
-  /** Keeps the latest call of a tool on its card. A tool without a card keeps nothing. */
+  /**
+   * Keeps the latest call of a tool for its card. A tool without a card keeps nothing. The new `usedAt` comes after the
+   * call is in place, so a preview that reads again on it finds the new call.
+   */
   async function recordCall(key: string, data: unknown) {
     if (!cards.value.some(card => card.key === key))
       return
+    await keepLatestCall(key, data)
     const now = Date.now()
-    cards.value = cards.value.map(card => card.key === key ? { ...card, data, usedAt: now } : card)
+    cards.value = cards.value.map(card => card.key === key ? { ...card, usedAt: now } : card)
     save()
   }
 
@@ -348,5 +368,10 @@ export const useToolCardsStore = defineStore('tool-cards', () => {
     state.releaseOrphanedCards()
   }
 
-  return { enabled, replyCardsEnabled, cards, viewOf, want, reportBroken, remake, remove, recordCall, releaseOrphanedCards }
+  /** The result of the latest call of a tool, for the preview of its card. A card can have none, for example after a failed save. */
+  async function latestCallOf(key: string) {
+    return toolCardDataRepo.get(key)
+  }
+
+  return { enabled, replyCardsEnabled, cards, viewOf, want, reportBroken, remake, remove, recordCall, releaseOrphanedCards, latestCallOf }
 })

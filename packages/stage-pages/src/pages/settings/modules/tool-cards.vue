@@ -7,7 +7,7 @@ import { useToolCardsStore } from '@proj-airi/stage-ui/stores/tool-cards'
 import { TOOL_ICONS, toolIconOf } from '@proj-airi/stage-ui/tools/icons'
 import { Button, FieldCheckbox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t, locale } = useI18n()
@@ -44,6 +44,19 @@ function iconOf(key: string) {
     return TOOL_ICONS.mcp
   return toolIconOf(key, llmTools.tools.findLast(tool => tool.function.name === key)?.icon)
 }
+
+// The preview draws each card with the latest call of its tool, which the card store keeps apart from the cards. A new
+// call changes `usedAt`, so the previews read again.
+const latestCalls = shallowRef<ReadonlyMap<string, unknown>>(new Map())
+watch(() => cards.value.map(card => `${card.key}@${card.usedAt}`).join('\n'), async (_, __, onCleanup) => {
+  // A newer read replaces an older one that is still on its way.
+  let replaced = false
+  onCleanup(() => replaced = true)
+  const keys = cards.value.map(card => card.key)
+  const calls = await Promise.all(keys.map(async key => [key, await toolCards.latestCallOf(key)] as const))
+  if (!replaced)
+    latestCalls.value = new Map(calls.filter(([, data]) => data !== undefined))
+}, { immediate: true })
 
 const shownTemplates = ref<ReadonlySet<string>>(new Set())
 
@@ -109,8 +122,8 @@ function toggleTemplate(key: string) {
             >{{ row.card.program }}</pre>
           </div>
           <!-- The preview sits on the panel color of the chat, and draws the card with the latest call of the tool. -->
-          <div :class="['self-start', 'rounded-xl', 'bg-neutral-100/90 dark:bg-neutral-900/80', 'p-2']">
-            <CardView :program="row.card.program" :data="row.card.data" />
+          <div v-if="latestCalls.has(row.card.key)" :class="['self-start', 'rounded-xl', 'bg-neutral-100/90 dark:bg-neutral-900/80', 'p-2']">
+            <CardView :program="row.card.program" :data="latestCalls.get(row.card.key)" />
           </div>
         </div>
       </li>
