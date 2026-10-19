@@ -48,20 +48,15 @@ export async function enableChatMicrophone(
       return devices.some(device => device.kind === 'audioinput' && device.label.includes('Fake'))
     })
 
-    const hearingTrigger = runtime.runtimePage.locator('div[aria-haspopup="dialog"] button').first()
-    await hearingTrigger.waitFor({ state: 'visible', timeout: 15_000 })
-    await hearingTrigger.hover()
-    await hearingTrigger.click({ force: true })
-    await runtime.runtimePage.waitForTimeout(500)
-
-    const enableButton = runtime.runtimePage.locator('button[aria-label="Enable microphone input"]')
-    await enableButton.waitFor({ state: 'visible', timeout: 15_000 })
+    // The controls island has its own microphone switch. Its `aria-pressed` follows the microphone preference.
+    const microphoneSwitch = runtime.runtimePage.locator('[data-testid="controls-island-microphone"]')
+    await microphoneSwitch.waitFor({ state: 'visible', timeout: 15_000 })
     const inputReady = options.readiness === 'streaming-transcription'
       ? runtime.waitForStreamingTranscriptionReady()
       : undefined
-    await enableButton.click({ force: true })
-    const disableButton = runtime.runtimePage.locator('button[aria-label="Disable microphone input"]')
-    await disableButton.waitFor({ state: 'visible', timeout: 15_000 })
+    if (await microphoneSwitch.getAttribute('aria-pressed') !== 'true')
+      await microphoneSwitch.click({ force: true })
+    await runtime.runtimePage.locator('[data-testid="controls-island-microphone"][aria-pressed="true"]').waitFor({ state: 'visible', timeout: 15_000 })
     await inputReady
     return
   }
