@@ -118,7 +118,7 @@ export const useLLM = defineStore('llm', () => {
         contentArrayCompatibility: contentArrayCompatibility.value,
       },
       builtinToolsResolver,
-      toolCallGuardNames,
+      toolCallGuardNames: streamOptions.supportsTools === false ? undefined : toolCallGuardNames,
       onNativeToolCall: () => { hasCommittedAttemptOutput = true },
     })
 

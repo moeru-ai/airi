@@ -80,6 +80,7 @@ async function streamOnce({
   conversation,
   options,
   builtinToolsResolver,
+  toolCallGuardNames,
   onNativeToolCall,
 }: StreamFromOptions, guard: ToolCallGuard) {
   const initialStep = await options?.resolveStep?.()
@@ -110,7 +111,7 @@ async function streamOnce({
   if (!tools && (request.protocol !== 'responses' || !supportedTools || !request.webSearch) && toolChoiceRequiresTools(options?.toolChoice))
     throw new Error('Cannot satisfy a required tool choice because no tools are available for this request.')
   guard.addTools(mergedTools)
-  if (options?.supportsTools !== false)
+  if (options?.supportsTools !== false || toolCallGuardNames)
     guard.addTools(initialStep?.tools)
 
   const scope = createContinuationScope(request.config, { ...options, providerId: initialStep?.providerId ?? options?.providerId })
@@ -156,8 +157,9 @@ async function streamOnce({
           return consume()
       })
       void eventQueue.catch(rejectOnce)
-      // The owned queue observes consumer failures. Do not leak its rejection into an unawaited SDK callback.
-      return Promise.resolve()
+      // Responses awaits consumers and must stop its reader on failure.
+      // Chat leaves callbacks unawaited, so the owned queue observes their failures.
+      return request.protocol === 'responses' ? eventQueue : Promise.resolve()
     }
     const onEvent = (event: StreamEvent) => enqueue(() => guard.consume(event, emit, stopped))
     const onStepBoundary = () => enqueue(() => guard.inspect(false, emit, stopped))

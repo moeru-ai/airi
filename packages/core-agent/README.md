@@ -28,9 +28,12 @@ Plain output streams until a JSON candidate starts. Complete candidates are chec
 
 Native tool activity is reported before queued UI notifications. Accepted events keep their order. Failure stops queued output and waits for the active consumer. SDK completion rejects late provider events, but accepted errors and terminal consumer failures still reject the generation. Usage observers remain optional telemetry.
 
+Responses awaits each consumer callback. A consumer failure stops the SDK reader before later tool calls execute.
+Chat callbacks remain under the owned queue because that SDK does not await them.
+
 The stage-ui LLM store retries a plain-text call without tools only before output, generated-turn persistence, or native tool activity. Tool and content-array fallbacks each apply at most once, in either order. A required tool choice keeps tools despite a learned incompatibility. An explicit `supportsTools: false` wins, and a required choice without available tools rejects before the request. An explicit content-array override stays intact.
 
-`toolCallGuardNames` retains known names from earlier attempts of one generation. Cached tool-disabled requests inspect current tool names. Explicit tool-free requests skip builtin tool resolution. Spark forced-text prompts omit unavailable command instructions.
+`toolCallGuardNames` retains known names from earlier attempts of one generation and enables inspection of current resolved tools during internal tool-free retries. Cached tool-disabled requests inspect current tool names. Explicit tool-free requests omit this set and skip builtin tool resolution. Spark forced-text prompts omit unavailable command instructions.
 
 Already emitted output and executed tools cannot be rolled back. Active consumer callbacks must eventually settle. Highly malformed ordinary JSON can exhaust the inspection budget and fail.
 
