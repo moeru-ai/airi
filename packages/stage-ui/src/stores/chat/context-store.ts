@@ -50,6 +50,12 @@ export const useChatContextStore = defineStore('chat-context', () => {
     syncRegistrySnapshot()
   }
 
+  /** Drops one active context bucket by its stable source key. */
+  function removeContext(sourceKey: string) {
+    registry.remove(sourceKey)
+    syncRegistrySnapshot()
+  }
+
   /** Removes the observations of one writer, for example a module that left. */
   function removeContextWriter(sourceKey: string) {
     const removed = registry.removeWriter(sourceKey)
@@ -78,6 +84,7 @@ export const useChatContextStore = defineStore('chat-context', () => {
   return {
     ingestContextMessage,
     resetContexts,
+    removeContext,
     removeContextWriter,
     getContextsSnapshot,
     getContextBucketsSnapshot,

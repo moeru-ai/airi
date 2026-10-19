@@ -28,6 +28,7 @@ import { useOnboardingStore } from '../stores/onboarding'
 import { useProviderStore } from '../stores/providers/provider'
 import { useRecipesStore } from '../stores/recipes'
 import { useSettings, useSettingsAudioDevice } from '../stores/settings'
+import { useSettingsBilingualSubtitles } from '../stores/settings/bilingual-subtitles'
 import { useVoiceprintStore } from '../stores/voiceprint'
 
 export function useDataMaintenance() {
@@ -55,6 +56,7 @@ export function useDataMaintenance() {
   const mcpStore = useMcpStore()
   const onboardingStore = useOnboardingStore()
   const airiCardStore = useAiriCardStore()
+  const bilingualSubtitlesStore = useSettingsBilingualSubtitles()
   const memoryStore = useMemoryStore()
   const recipesStore = useRecipesStore()
   const voiceprintStore = useVoiceprintStore()
@@ -76,6 +78,7 @@ export function useDataMaintenance() {
       () => hearingStore.resetState(),
       () => homeAssistantStore.resetState(),
       () => speechStore.resetState(),
+      () => bilingualSubtitlesStore.resetState(),
       () => consciousnessStore.resetState(),
       () => consciousnessSettingsStore.resetState(),
       () => twitterStore.resetState(),

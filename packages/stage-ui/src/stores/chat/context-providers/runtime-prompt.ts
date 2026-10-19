@@ -3,19 +3,25 @@ import type { ContextMessage } from '../../../types/chat'
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { nanoid } from 'nanoid'
 
-const RUNTIME_PROMPT_CONTEXT_ID = 'system:airi-runtime-prompt'
+export const RUNTIME_PROMPT_CONTEXT_ID = 'system:airi-runtime-prompt'
+// Bilingual instructions need their own ReplaceSelf bucket: reusing the
+// runtime prompt id would overwrite the ACT/emoji instructions for the turn.
+export const BILINGUAL_PROMPT_CONTEXT_ID = 'system:bilingual-subtitles'
 
-/** Creates a user-role context for the current runtime prompt. */
-export function createRuntimePromptContext(prompt: string): ContextMessage | undefined {
+/**
+ * Creates a user-role ReplaceSelf context for a runtime prompt. Pass a
+ * distinct `contextId` so separate prompts replace only their own bucket.
+ */
+export function createRuntimePromptContext(prompt: string, contextId: string = RUNTIME_PROMPT_CONTEXT_ID): ContextMessage | undefined {
   if (!prompt)
     return undefined
 
   return {
     id: nanoid(),
-    contextId: RUNTIME_PROMPT_CONTEXT_ID,
+    contextId,
     strategy: ContextUpdateStrategy.ReplaceSelf,
     metadata: {
-      source: { id: RUNTIME_PROMPT_CONTEXT_ID },
+      source: { id: contextId },
     },
     text: prompt,
     createdAt: Date.now(),

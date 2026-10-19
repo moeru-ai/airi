@@ -1,5 +1,6 @@
 import type { BeatSyncDetectorState } from '@proj-airi/stage-shared/beat-sync'
 
+import { isStageCapacitor } from '@proj-airi/stage-shared'
 import { getBeatSyncState, isBeatSyncSupported, listenBeatSyncStateChange } from '@proj-airi/stage-shared/beat-sync'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -19,6 +20,7 @@ import { useStickersStore } from '../stores/modules/stickers'
 import { useTwitterStore } from '../stores/modules/twitter'
 import { useVisionStore } from '../stores/modules/vision'
 import { useWebSearchStore } from '../stores/modules/web-search'
+import { useSettingsBilingualSubtitles } from '../stores/settings/bilingual-subtitles'
 
 export interface Module {
   id: string
@@ -40,6 +42,7 @@ export function useModulesList() {
   const speechStore = useSpeechStore()
   const stickersStore = useStickersStore()
   const hearingStore = useHearingStore()
+  const bilingualSubtitlesStore = useSettingsBilingualSubtitles()
   const visionStore = useVisionStore()
   const discordStore = useDiscordStore()
   const twitterStore = useTwitterStore()
@@ -51,6 +54,10 @@ export function useModulesList() {
   const memoryStore = useMemoryStore()
   const beatSyncState = ref<BeatSyncDetectorState>()
   const beatSyncSupported = isBeatSyncSupported()
+  // Captions render in the Electron caption window and as an in-page overlay
+  // in stage-web. The Capacitor mobile app has no caption surface, so the
+  // settings entry stays hidden there.
+  const bilingualSubtitlesSupported = !isStageCapacitor()
 
   minecraftStore.initialize()
 
@@ -73,6 +80,17 @@ export function useModulesList() {
       configured: speechStore.configured,
       category: 'essential',
     },
+    ...(bilingualSubtitlesSupported
+      ? [{
+          id: 'bilingual-subtitles',
+          name: t('settings.pages.modules.bilingual_subtitles.title'),
+          description: t('settings.pages.modules.bilingual_subtitles.description'),
+          icon: 'i-solar:translation-2-bold-duotone',
+          to: '/settings/modules/bilingual-subtitles',
+          configured: bilingualSubtitlesStore.enabled,
+          category: 'essential',
+        }]
+      : []),
     {
       id: 'hearing',
       name: t('settings.pages.modules.hearing.title'),

@@ -36,7 +36,7 @@ function createHarness(options: Partial<Pick<ChatOrchestratorRuntimeDeps, 'getSy
       },
       getSessionGeneration: () => 1,
     },
-    context: { ingest: vi.fn(), snapshot: () => ({}) },
+    context: { ingest: vi.fn(), remove: vi.fn(), snapshot: () => ({}) },
     foregroundStream: { patch: vi.fn(), reset: vi.fn() },
     llm: { stream },
     getActiveSessionId: () => 'session-1',

@@ -351,9 +351,8 @@ export function setupCaptionWindowManager(params: {
 
     }
 
-    if (isFollowing) {
+    if (isFollowing)
       followMainWindow(window)
-    }
 
     window.on('closed', () => {
       detachFromMain()

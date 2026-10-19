@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Live2DLipSync, Live2DLipSyncOptions } from '@proj-airi/model-driver-lipsync'
 import type { Profile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
-import type { CaptionChannelEvent, PresenceBubbleState } from '@proj-airi/stage-shared'
+import type { PresenceBubbleState } from '@proj-airi/stage-shared'
 import type { VrmInteractionTarget } from '@proj-airi/stage-ui-three'
 
 import type { EmotionPayload } from '../../constants/emotions'
@@ -11,8 +11,8 @@ import { errorMessageFrom, sleep } from '@moeru/std'
 import { BrowserPlayback } from '@proj-airi/audio/browser'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
-import { normalizeActPayload, Playback } from '@proj-airi/pipelines-audio'
-import { presenceBubbleIdle, presenceBubbleThinking } from '@proj-airi/stage-shared'
+import { normalizeActPayload, Playback, TTS_FLUSH_INSTRUCTION } from '@proj-airi/pipelines-audio'
+import { presenceBubbleIdle, presenceBubbleThinking, publishCaption } from '@proj-airi/stage-shared'
 import { createLive2D, defaultLive2DMotionControlDynamics, Live2DScene, useLive2DMotionControl, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { MMDScene } from '@proj-airi/stage-ui-mmd'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
@@ -23,7 +23,7 @@ import { createQueue } from '@proj-airi/stream-kit'
 import { Callout } from '@proj-airi/ui'
 import { useBroadcastChannel, useEventListener } from '@vueuse/core'
 // import { createTransformers } from '@xsai-transformers/embed'
-// import embedWorkerURL from '@xsai-transformers/embed/worker?worker&url'
+// import embedWorkerURL from '@xsai-transformers/embed/worker?url'
 // import { embed } from '@xsai/embed'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onUnmounted, ref, shallowRef, watch } from 'vue'
@@ -34,6 +34,9 @@ import StageRenderError from './stage-render-error.vue'
 // import { useDuckDb } from '../../composables/use-duck-db'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { live2dMotionMagicProfiles, useLive2DMotionMagic, useLive2DMotionMagicSettings } from '../../features/motions/live2d'
+import { getDefinedProvider } from '../../libs/providers/providers'
+import { isBufferedStreamingResourceId, resolveStreamingSessionModel } from '../../libs/speech/streaming-buffer'
+import { clearSpeechTurnFlags, enableFlushBoundaryTurn, isBufferedSpeechTurn, markBufferedSpeechTurn, resetSpeechTurnFlags, useBilingualCaptionBus } from '../../services/bilingual-captions'
 import { getSpeechBusContext, speechOutputGetPlaybackState, speechOutputPlaybackStateChangedEvent } from '../../services/speech/bus'
 import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-control'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
@@ -44,7 +47,9 @@ import { useSharedLive2DExpressionPreview } from '../../stores/live2d'
 import { useAiriCardStore } from '../../stores/modules/airi-card'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useSettingsPresenceBubble } from '../../stores/presence-bubble'
+import { useProviderStore } from '../../stores/providers/provider'
 import { useSettings } from '../../stores/settings'
+import { useSettingsBilingualSubtitles } from '../../stores/settings/bilingual-subtitles'
 import { useSettingsStageModel } from '../../stores/settings/stage-model'
 import { useSpeechOutputControlStore } from '../../stores/speech-output-control'
 import { useVoiceStore } from '../../stores/voice'
@@ -78,6 +83,7 @@ const tachieSceneRef = ref<InstanceType<typeof TachieScene>>()
 const mmdSceneRef = ref<InstanceType<typeof MMDScene>>()
 
 const settingsStore = useSettings()
+const bilingualSettingsStore = useSettingsBilingualSubtitles()
 const {
   stageModelRenderer,
   stageViewControlsEnabled,
@@ -180,7 +186,7 @@ function onVRMInteract(target: VrmInteractionTarget) {
   vrmViewerRef.value?.setExpression(getVrmInteractionExpression(target), 1)
 }
 
-const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
+const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenTranslation, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
 const chatHookCleanups: Array<() => void> = []
 // WORKAROUND: clear previous handlers on unmount to avoid duplicate calls when this component remounts.
 //             We keep per-hook disposers instead of wiping the global chat hooks to play nicely with
@@ -220,8 +226,14 @@ watch([stageModelRenderer, stageModelSelected, stageModelSelectedUrl], () => {
 })
 
 // Caption + Presentation broadcast channels
-const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
 const assistantCaption = ref('')
+
+// Shared bilingual caption bus. Chat turns and spark reactions route
+// translated pairs and playback boundaries through this one owner.
+const bilingualCaptionBus = useBilingualCaptionBus()
+// Turn owning the current speech surface. Late translation pairs from an
+// interrupted turn must not repopulate captions after the new turn reset.
+let activeChatTurnId: string | undefined
 
 type PresentEvent
   = | { type: 'assistant-reset' }
@@ -247,8 +259,12 @@ function resetAssistantSpeechSurface(source: string) {
   mouthOpenSize.value = 0
   assistantCaption.value = ''
 
+  activeChatTurnId = undefined
+  bilingualCaptionBus.resetAll()
+  resetSpeechTurnFlags()
+
   try {
-    postCaption({ type: 'caption-assistant', text: '' })
+    publishCaption({ type: 'caption-assistant', text: '' })
   }
   catch (error) {
     console.warn(`[Stage] Failed to post caption reset for ${source} (channel may be closed)`, { error })
@@ -284,6 +300,8 @@ const { presenceOverride } = storeToRefs(useSettingsPresenceBubble())
 const chatPresence = computed<PresenceBubbleState>(() => chatSending.value ? presenceBubbleThinking : presenceBubbleIdle)
 const presenceBubble = computed<PresenceBubbleState>(() => presenceOverride.value ?? chatPresence.value)
 const speechStore = useSpeechStore()
+const cards = useAiriCardStore()
+const providersStore = useProviderStore()
 const chatSession = useChatSessionStore()
 const backgroundStore = useBackgroundStore()
 const { activeBackgroundUrl } = storeToRefs(backgroundStore)
@@ -435,23 +453,44 @@ watch(() => voice.activeTurns, (turns) => {
     speechVoicing.value = false
 })
 
-const cards = useAiriCardStore()
+/**
+ * Whether one session uses a whole-session buffered streaming model. Those
+ * models deliver sentence frames before the audio exists, so translation
+ * captions cannot align to playback for that turn.
+ */
+function isSessionBuffered(sessionId: string): boolean {
+  const characterId = chatSession.sessionMetas[sessionId]?.characterId
+  if (!characterId)
+    return false
+  const selection = cards.getModules(characterId)?.speech
+  if (!selection || getDefinedProvider(selection.provider)?.capabilities?.speech?.transport !== 'bidirectional-ws')
+    return false
+  const model = resolveStreamingSessionModel(selection.model, providersStore.getDefaultModelForProvider(selection.provider))
+  if (!model)
+    return false
+  return isBufferedStreamingResourceId(model.split('/', 2)[1] ?? '')
+}
+
 const disconnectVoiceOutput = voice.connectOutput((turn) => {
   const output = {
     playback,
     onSpecial: (special: string) => void playSpecialToken(special, { turnId: turn.turnId }),
-    onPlaybackStart: ({ text }: { text: string }) => {
+    onPlaybackStart: (clip: { text: string }) => {
       playingCount += 1
       nowSpeaking.value = true
       speechVoicing.value = true
-      assistantCaption.value += ` ${text}`
+      assistantCaption.value += ` ${clip.text}`
       try {
-        postCaption({ type: 'caption-assistant', text })
-        postPresent({ type: 'assistant-append', text })
+        publishCaption({ type: 'caption-assistant', text: clip.text })
+        postPresent({ type: 'assistant-append', text: clip.text })
       }
       catch (error) {
         console.error('Speech presentation channel failed', error)
       }
+      // Translation captions follow the spoken text offset: every started
+      // clip counts, so a pair split across several clips reveals at its
+      // first clip and the count per pair no longer matters.
+      bilingualCaptionBus.notePlayedText(turn.turnId, clip.text)
     },
     onPlaybackEnd: () => {
       playingCount -= 1
@@ -570,9 +609,26 @@ function holdsVoice(context: { speaks?: boolean }) {
 chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   if (!holdsVoice(context))
     return
-  voice.startResponse(context)
+
   if (context.sessionId === chatSession.activeSessionId)
     resetAssistantSpeechSurface('new-message')
+
+  // Capture bilingual mode before the speech response opens. startResponse
+  // runs the output factory synchronously and createOutput reads the
+  // flush-boundary flag there, so the flag must be set first. The
+  // orchestrator captured its own snapshot before this hook; this read
+  // pairs its mode with the chunker mode.
+  const bilingualEnabled = Boolean(bilingualSettingsStore.snapshot())
+  if (bilingualEnabled) {
+    enableFlushBoundaryTurn(context.turnId)
+    // A muted turn never opens audio, and a buffered stream cannot align
+    // captions; mark only a real buffered session.
+    if (!speechMuted.value && isSessionBuffered(context.sessionId))
+      markBufferedSpeechTurn(context.turnId)
+  }
+  activeChatTurnId = context.turnId
+
+  voice.startResponse(context)
   setupAnalyser()
   await setupLipSync()
 }))
@@ -583,8 +639,29 @@ chatHookCleanups.push(onBeforeSend(async (_message, context) => {
 }))
 
 chatHookCleanups.push(onTokenLiteral(async (literal, context) => {
-  if (holdsVoice(context) && !speechMuted.value)
-    await voice.getSpeech(context)?.write(literal)
+  if (!holdsVoice(context) || speechMuted.value)
+    return
+  const speech = voice.getSpeech(context)
+  // The orchestrator emits this zero-width marker between one bilingual
+  // pair's spoken sentence and its translation. The REST chunker cuts the
+  // pair there; on the streaming path flush is a harmless no-op. The byte
+  // itself is never sent to the WebSocket model.
+  if (literal === TTS_FLUSH_INSTRUCTION) {
+    speech?.flush()
+    return
+  }
+  await speech?.write(literal)
+}))
+
+chatHookCleanups.push(onTokenTranslation(async (translation, context) => {
+  if (!holdsVoice(context) || context.turnId !== activeChatTurnId)
+    return
+  // Buffered streams reveal translations during synthesis, before audio
+  // exists, so captions cannot follow playback. Skip them instead of
+  // showing a wrong line; the settings page warns about this.
+  if (isBufferedSpeechTurn(context.turnId))
+    return
+  bilingualCaptionBus.ingestTranslation(context.turnId, translation)
 }))
 
 chatHookCleanups.push(onTokenSpecial(async (special, context) => {
@@ -596,14 +673,33 @@ chatHookCleanups.push(onTokenSpecial(async (special, context) => {
     voice.getSpeech(context)?.special(special)
 }))
 
+async function finishSpeechTurn(context: Parameters<typeof voice.finishResponse>[0]) {
+  // finish resolves after playback drained. An interrupted or cancelled
+  // reply was abandoned on purpose: discard its unplayed translations and
+  // clear the line instead of dumping one large block. A normal finish
+  // flushes pairs playback never reached, such as a muted turn.
+  let outcome: Awaited<ReturnType<typeof voice.finishResponse>>
+  try {
+    outcome = await voice.finishResponse(context)
+  }
+  catch (error) {
+    console.error('Speech response completion failed', error)
+  }
+  if (outcome === 'interrupted' || outcome === 'cancelled')
+    bilingualCaptionBus.resetTurn(context.turnId)
+  else
+    bilingualCaptionBus.flushTurn(context.turnId)
+  clearSpeechTurnFlags(context.turnId)
+}
+
 chatHookCleanups.push(onStreamEnd(async (context) => {
-  void voice.finishResponse(context).catch(error => console.error('Speech response completion failed', error))
+  void finishSpeechTurn(context)
 }))
 
 chatHookCleanups.push(onAssistantResponseEnd(async (_message, context) => {
   if (!holdsVoice(context))
     return
-  void voice.finishResponse(context).catch(error => console.error('Speech response completion failed', error))
+  void finishSpeechTurn(context)
 }))
 
 // Resume audio context on first user interaction (browser requirement)
@@ -689,6 +785,8 @@ onUnmounted(() => {
   disconnectVoiceOutput()
   speechAnalysis.disconnect()
   speechDestination.disconnect()
+  bilingualCaptionBus.resetAll()
+  resetSpeechTurnFlags()
 })
 
 defineExpose({

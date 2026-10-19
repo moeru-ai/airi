@@ -1,3 +1,4 @@
+export { default as CaptionOverlay } from './caption-overlay.vue'
 export { default as WidgetStage } from './Stage.vue'
 export { default as ViewControlSlider } from './ViewControlSlider.vue'
 export {
