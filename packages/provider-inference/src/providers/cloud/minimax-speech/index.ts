@@ -2,6 +2,7 @@ import type { VoiceInfo } from '../../../types'
 
 import { z } from 'zod'
 
+import { parseServerSentEvents } from '../../../streams/sse'
 import { defineProvider } from '../../registry'
 
 const minimaxSpeechConfigSchema = z.object({
@@ -279,50 +280,33 @@ export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig, 'minima
             throw new Error(await readMinimaxRefusal(response, 'MiniMax rejected the synthesis request.'))
 
           // MiniMax streams SSE events that contain hex-encoded audio chunks.
-          const reader = response.body.getReader()
-          const decoder = new TextDecoder()
           const audioChunks: Uint8Array[] = []
-          let buffer = ''
+          for await (const { data } of parseServerSentEvents(response.body)) {
+            if (!data || data === '[DONE]')
+              continue
 
-          while (true) {
-            const { done, value } = await reader.read()
-            if (done)
-              break
+            let event: MinimaxStreamEvent
+            try {
+              event = JSON.parse(data) as MinimaxStreamEvent
+            }
+            catch {
+              // A malformed SSE event does not invalidate earlier audio chunks.
+              continue
+            }
 
-            buffer += decoder.decode(value, { stream: true })
-            const lines = buffer.split('\n')
-            buffer = lines.pop() || ''
-            for (const line of lines) {
-              if (!line.startsWith('data:'))
-                continue
+            // The HTTP status is already 200 by the time the stream opens, so
+            // each event carries the outcome on its own. A refusal here must
+            // not reach the player as silence.
+            const refusal = minimaxRefusal(event, 'MiniMax rejected the synthesis request.')
+            if (refusal)
+              throw new Error(refusal)
 
-              const json = line.slice(5).trim()
-              if (!json || json === '[DONE]')
-                continue
-
-              let event: MinimaxStreamEvent
-              try {
-                event = JSON.parse(json) as MinimaxStreamEvent
-              }
-              catch {
-                // A malformed SSE event does not invalidate earlier audio chunks.
-                continue
-              }
-
-              // The HTTP status is already 200 by the time the stream opens, so
-              // each event carries the outcome on its own. A refusal here must
-              // not reach the player as silence.
-              const refusal = minimaxRefusal(event, 'MiniMax rejected the synthesis request.')
-              if (refusal)
-                throw new Error(refusal)
-
-              // Status 2 is the final summary. Its audio duplicates prior chunks.
-              if (event.data?.audio && event.data.status !== 2) {
-                const bytes = new Uint8Array(event.data.audio.length / 2)
-                for (let index = 0; index < event.data.audio.length; index += 2)
-                  bytes[index / 2] = Number.parseInt(event.data.audio.slice(index, index + 2), 16)
-                audioChunks.push(bytes)
-              }
+            // Status 2 is the final summary. Its audio duplicates prior chunks.
+            if (event.data?.audio && event.data.status !== 2) {
+              const bytes = new Uint8Array(event.data.audio.length / 2)
+              for (let index = 0; index < event.data.audio.length; index += 2)
+                bytes[index / 2] = Number.parseInt(event.data.audio.slice(index, index + 2), 16)
+              audioChunks.push(bytes)
             }
           }
 

@@ -54,6 +54,7 @@
     "@xsai/utils-chat": "catalog:",
     "clustr": "catalog:",
     "es-toolkit": "catalog:",
+    "eventsource-parser": "catalog:",
     "is-network-error": "catalog:",
     "model-bank": "catalog:",
     "unspeech": "catalog:xsai",
