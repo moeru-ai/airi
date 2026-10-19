@@ -1,3 +1,4 @@
+import { electronAPI } from '@electron-toolkit/preload'
 import { defineInvoke } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { createTransportFetch } from '@proj-airi/ai-transport'
@@ -5,11 +6,12 @@ import { getDefinedProvider, getGenerationProvider } from '@proj-airi/provider-i
 import { generateSpeech } from '@xsai/generate-speech'
 import { generateText } from '@xsai/generate-text'
 import { listModels } from '@xsai/model'
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge } from 'electron'
 
 import { aiTransportCancel, aiTransportGetEnabled, aiTransportRead, aiTransportSetEnabled, aiTransportStart } from '../src/shared/eventa/ai-transport'
+import { networkProxyGet, networkProxySet } from '../src/shared/eventa/network-proxy'
 
-const { context } = createContext(ipcRenderer)
+const { context } = createContext(electronAPI.ipcRenderer)
 const start = defineInvoke(context, aiTransportStart)
 const read = defineInvoke(context, aiTransportRead)
 const cancel = defineInvoke(context, aiTransportCancel)
@@ -17,6 +19,8 @@ const proxy = createTransportFetch({ start, read, cancel })
 
 /** Test-only preload exercises the production Eventa contracts from an isolated renderer world. */
 contextBridge.exposeInMainWorld('aiTransportSmoke', {
+  networkGet: defineInvoke(context, networkProxyGet),
+  networkSet: defineInvoke(context, networkProxySet),
   enabled: defineInvoke(context, aiTransportGetEnabled),
   setEnabled: defineInvoke(context, aiTransportSetEnabled),
   start,

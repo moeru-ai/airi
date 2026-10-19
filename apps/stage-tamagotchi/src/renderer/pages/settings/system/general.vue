@@ -7,6 +7,8 @@ import { onMounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
+import NetworkProxySettings from '../../../components/settings/network-proxy-settings.vue'
+
 import { electron, electronAppIconGet, electronAppIconSet } from '../../../../shared/eventa'
 import { aiProxyAvailable, aiProxyEnabled, setAIProxyEnabled } from '../../../modules/ai-transport'
 
@@ -48,6 +50,7 @@ async function updateAIProxy(enabled: boolean) {
 <template>
   <SettingsGeneralFields>
     <template #additional-fields>
+      <NetworkProxySettings />
       <FieldCheckbox
         :model-value="aiProxyEnabled"
         :label="t('tamagotchi.settings.pages.system.general.ai-proxy.title')"

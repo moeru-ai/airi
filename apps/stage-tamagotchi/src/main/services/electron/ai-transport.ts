@@ -4,11 +4,14 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { createTransportFetch, RequestSession } from '@proj-airi/ai-transport'
 import { app, ipcMain } from 'electron'
+import { injeca } from 'injeca'
 import { array, boolean, instance, object, optional, parse, picklist, string, tuple } from 'valibot'
 
 import { aiTransportCancel, aiTransportEnabledChanged, aiTransportGetEnabled, aiTransportRead, aiTransportSetEnabled, aiTransportStart } from '../../../shared/eventa/ai-transport'
+import { networkProxyChanged, networkProxyGet, networkProxySet } from '../../../shared/eventa/network-proxy'
 import { createConfig } from '../../libs/electron/persistence'
 import { fetchNativeHTTP } from './native-http'
+import { networkProxyService } from './network-proxy'
 
 const requestSchema = object({
   id: string(),
@@ -51,6 +54,21 @@ export function setupAITransport(window: BrowserWindow) {
     if (!event || window.isDestroyed() || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame)
       throw new Error('AI request proxy rejected the caller.')
   }
+  const proxy = injeca.resolve({ service: networkProxyService })
+  let unsubscribeProxy: (() => void) | undefined
+  void proxy.then(({ service }) => {
+    if (!window.isDestroyed()) {
+      unsubscribeProxy = service.subscribe(state => void context.emit(networkProxyChanged, state))
+    }
+  }).catch(() => {})
+  defineInvokeHandler(context, networkProxyGet, async (_, options) => {
+    assertCaller(options?.raw.ipcMainEvent)
+    return (await proxy).service.get()
+  })
+  defineInvokeHandler(context, networkProxySet, async (value, options) => {
+    assertCaller(options?.raw.ipcMainEvent)
+    return (await proxy).service.set(value)
+  })
   defineInvokeHandler(context, aiTransportStart, (value, options) => {
     assertCaller(options?.raw.ipcMainEvent)
     if (!getConfig().get())
@@ -93,6 +111,7 @@ export function setupAITransport(window: BrowserWindow) {
   window.webContents.on('render-process-gone', dispose)
   app.on('before-quit', dispose)
   window.once('closed', () => {
+    unsubscribeProxy?.()
     dispose()
     disposeContext()
     listeners.delete(broadcast)

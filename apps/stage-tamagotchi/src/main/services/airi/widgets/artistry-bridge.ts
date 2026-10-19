@@ -104,9 +104,9 @@ function supportsJobCallback(provider: ArtistryProvider): provider is ArtistryPr
 
 // Maintaining a registry of providers
 export const artistryProviders = new Map<string, ArtistryProvider>()
-artistryProviders.set('comfyui', new ComfyUIProvider())
-artistryProviders.set('replicate', new ReplicateProvider())
-artistryProviders.set('nanobanana', new NanoBananaProvider())
+artistryProviders.set('comfyui', new ComfyUIProvider(fetchAI))
+artistryProviders.set('replicate', new ReplicateProvider(fetchAI))
+artistryProviders.set('nanobanana', new NanoBananaProvider(fetchAI))
 
 // Deduplication map for headless requests
 const pendingHeadlessRequests = new Map<string, Promise<{ imageUrl?: string, base64?: string, error?: string }>>()

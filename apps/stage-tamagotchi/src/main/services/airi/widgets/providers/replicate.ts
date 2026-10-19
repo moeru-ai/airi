@@ -1,15 +1,15 @@
-import type Replicate from 'replicate'
-
 import type { ArtistryJob, ArtistryJobStatus, ArtistryProvider, ArtistryRequest } from './base'
+
+import Replicate from 'replicate'
 
 import { useLogg } from '@guiiai/logg'
 import { errorMessageFrom } from '@moeru/std'
 
-import { ReplicateClient } from './replicate-client'
-
 const log = useLogg('providers-replicate').useGlobalConfig()
 
 export class ReplicateProvider implements ArtistryProvider {
+  constructor(private readonly fetch: typeof globalThis.fetch) {}
+
   readonly id = 'replicate'
   readonly name = 'Replicate.ai (Cloud)'
 
@@ -17,7 +17,6 @@ export class ReplicateProvider implements ArtistryProvider {
   private defaultModel = 'black-forest-labs/flux-schnell'
   private aspectRatio = '16:9'
   private inferenceSteps = 4
-  private replicate: Replicate | null = null
 
   private jobResults = new Map<string, ArtistryJobStatus>()
   private callbacks = new Map<string, (status: ArtistryJobStatus) => void>()
@@ -39,11 +38,9 @@ export class ReplicateProvider implements ArtistryProvider {
   async initialize(config: Record<string, unknown>): Promise<void> {
     if (typeof config.replicateApiKey === 'string') {
       this.apiKey = config.replicateApiKey
-      this.replicate = new ReplicateClient({ auth: this.apiKey, useFileOutput: false })
     }
     else {
       this.apiKey = ''
-      this.replicate = null
     }
     if (typeof config.replicateDefaultModel === 'string')
       this.defaultModel = config.replicateDefaultModel
@@ -54,7 +51,7 @@ export class ReplicateProvider implements ArtistryProvider {
   }
 
   async generate(request: ArtistryRequest): Promise<ArtistryJob> {
-    if (!this.replicate) {
+    if (!this.apiKey) {
       throw new Error('Replicate provider is not configured. Missing API Key.')
     }
 
@@ -134,7 +131,23 @@ export class ReplicateProvider implements ArtistryProvider {
     this.updateStatus(jobId, { status: 'running', actionLabel: 'Requesting cloud generation...' })
 
     try {
-      const output = await this.replicate!.run(model, { input, signal })
+      // NOTICE:
+      // Replicate 1.4.0 run() omits the signal from the initial prediction request.
+      // Bind cancellation at the Fetch boundary for every request in this job.
+      // Source: replicate/index.js run(), before predictions.create().
+      // Remove this binding when the SDK propagates the signal to every request.
+      const client = new Replicate({
+        auth: this.apiKey,
+        useFileOutput: false,
+        fetch: (url, init) => {
+          signal?.throwIfAborted()
+          return this.fetch(url, {
+            ...init,
+            signal: signal && init?.signal ? AbortSignal.any([signal, init.signal]) : signal ?? init?.signal,
+          })
+        },
+      })
+      const output = await client.run(model, { input, signal })
 
       if (!output) {
         throw new Error('No output received from Replicate.')

@@ -11,6 +11,7 @@ import { join } from 'node:path'
 import { app, BrowserWindow } from 'electron'
 
 import { fetchAI, setupAITransport } from '../src/main/services/electron/ai-transport'
+import { verifyNetworkProxy } from './network-proxy-fixture'
 
 app.on('window-all-closed', () => {})
 
@@ -118,6 +119,7 @@ async function run() {
       await window.loadURL(page)
     }
     const [first, second] = windows
+    await verifyNetworkProxy(first, second)
     const evaluate = (window: BrowserWindow, expression: string) => window.webContents.executeJavaScript(`window.aiTransportSmoke.${expression}`)
     await assert.rejects(first.webContents.executeJavaScript(`fetch(${JSON.stringify(`${base}/direct`)})`))
     await assert.rejects(evaluate(first, `request(${JSON.stringify(`${base}/disabled`)})`))
@@ -184,7 +186,7 @@ async function run() {
     first.destroy()
     await new Promise(resolve => setTimeout(resolve, 150))
     assert.equal(active, 0)
-    console.info('PASS: redirects, credential isolation, CORS, binary, multipart, SSE, status preservation, no retries, abort, caller isolation, toggle, protocol restriction, window cleanup')
+    console.info('PASS: HTTP/SOCKS5 routing, WebSocket continuity, redirects, credential isolation, CORS, binary, multipart, SSE, status preservation, transport without retries, abort, caller isolation, toggle, protocol restriction, window cleanup')
   }
   catch (error) {
     await writeFile(join(__dirname, 'result.json'), JSON.stringify({ passed: false, error: String(error) }))

@@ -4,11 +4,11 @@ import { GoogleGenAI } from '@google/genai'
 import { useLogg } from '@guiiai/logg'
 import { errorMessageFrom } from '@moeru/std'
 
-import { fetchAI } from '../../../electron/ai-transport'
-
 const log = useLogg('providers-nanobanana').useGlobalConfig()
 
 export class NanoBananaProvider implements ArtistryProvider {
+  constructor(private readonly fetch: typeof globalThis.fetch) {}
+
   readonly id = 'nanobanana'
   readonly name = 'Nano Banana (Google AI Studio)'
   private apiKey = ''
@@ -67,7 +67,7 @@ export class NanoBananaProvider implements ArtistryProvider {
     this.updateStatus(jobId, { status: 'running', actionLabel: 'Inscribing with Nano Banana...' })
 
     try {
-      const ai = new GoogleGenAI({ apiKey: this.apiKey, httpOptions: { fetch: fetchAI } })
+      const ai = new GoogleGenAI({ apiKey: this.apiKey, httpOptions: { fetch: this.fetch } })
       const response = await ai.models.generateContent({
         model,
         contents: [{

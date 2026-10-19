@@ -7,14 +7,14 @@ import { useLogg } from '@guiiai/logg'
 import { errorMessageFrom } from '@moeru/std'
 import { array, object, optional, parse, record, string } from 'valibot'
 
-import { fetchAI } from '../../../electron/ai-transport'
-
 const log = useLogg('providers-comfyui').useGlobalConfig()
 
 const POLL_INTERVAL_MS = 5000
 const POLL_TIMEOUT_MS = 1000 * 60 * 5 // 5 minutes
 
 export class ComfyUIProvider implements ArtistryProvider {
+  constructor(private readonly fetch: typeof globalThis.fetch) {}
+
   readonly id = 'comfyui'
   readonly name = 'ComfyUI (Local)'
 
@@ -29,7 +29,7 @@ export class ComfyUIProvider implements ArtistryProvider {
     const controller = new AbortController()
     const id = setTimeout(() => controller.abort(), timeoutMs)
     try {
-      const response = await fetchAI(url, {
+      const response = await this.fetch(url, {
         ...options,
         signal: options.signal ? AbortSignal.any([controller.signal, options.signal]) : controller.signal,
       })
