@@ -40,10 +40,13 @@ const showProgram = ref(false)
       <CardView v-else :program="props.card.program" @broken="broken = true" />
     </div>
     <div v-if="showToolPayloadsAsJson" :class="['flex justify-end']">
+      <!-- The same icon switch as on a tool call. It shows the view that it opens: the program, or the card again. -->
       <button
         type="button"
+        :aria-label="showProgram ? t(`${KEY}.card`) : t(`${KEY}.raw`)"
+        :title="showProgram ? t(`${KEY}.card`) : t(`${KEY}.raw`)"
         :class="[
-          'shrink-0 inline-flex items-center gap-1 rounded-md px-1.5 py-px text-[11px]',
+          'size-6 shrink-0 inline-flex items-center justify-center rounded-lg',
           'outline-none transition-colors duration-200',
           'text-neutral-500 hover:bg-neutral-200/70 hover:text-primary-600',
           'dark:text-neutral-400 dark:hover:bg-neutral-800/80 dark:hover:text-primary-300',
@@ -51,8 +54,7 @@ const showProgram = ref(false)
         ]"
         @click="showProgram = !showProgram"
       >
-        <span :class="['i-mingcute:code-line', 'text-xs']" aria-hidden="true" />
-        <span>{{ showProgram ? t(`${KEY}.card`) : t(`${KEY}.raw`) }}</span>
+        <span :class="[showProgram ? 'i-mingcute:layout-4-line' : 'i-mingcute:code-line', 'text-xs']" aria-hidden="true" />
       </button>
     </div>
   </div>
