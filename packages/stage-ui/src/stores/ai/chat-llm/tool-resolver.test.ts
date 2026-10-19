@@ -50,6 +50,11 @@ function createTool(name: string, description = `${name} description`): Tool {
   } as Tool
 }
 
+// The resolver wraps every tool with the call summary, so a resolved tool reads as its source by its description.
+function descriptionsOf(tools: Tool[]) {
+  return tools.map(tool => tool.function.description)
+}
+
 describe('toolNameFrom', () => {
   it('reads function.name', () => {
     expect(toolNameFrom(createTool('runtime_read_context'))).toBe('runtime_read_context')
@@ -70,7 +75,7 @@ describe('resolveLlmTools', () => {
     const listTools = createTool('builtIn_mcpListTools')
     const callTool = createTool('builtIn_mcpCallTool')
 
-    expect(await resolveLlmTools({ ...options, activeTools: [listTools, callTool] })).toEqual([listTools, callTool])
+    expect(descriptionsOf(await resolveLlmTools({ ...options, activeTools: [listTools, callTool] }))).toEqual(descriptionsOf([listTools, callTool]))
   })
 
   it('reads the images of every tool when it receives an image reader', async () => {
@@ -110,7 +115,7 @@ describe('resolveLlmTools', () => {
     })
 
     expect(tools).toHaveLength(1)
-    expect(tools[0]).toBe(runtimeTool)
+    expect(tools[0]?.function.description).toBe(runtimeTool.function.description)
   })
 
   it('places custom tools before active runtime tools so runtime tools can win by name', async () => {
@@ -127,7 +132,7 @@ describe('resolveLlmTools', () => {
       activeTools: [runtimeTool],
     })
 
-    expect(tools).toEqual([builtInTool, runtimeTool])
+    expect(descriptionsOf(tools)).toEqual(descriptionsOf([builtInTool, runtimeTool]))
   })
 
   it('includes injected web-search tools in the resolved list', async () => {
@@ -142,7 +147,7 @@ describe('resolveLlmTools', () => {
       activeTools: [],
     })
 
-    expect(tools).toEqual([builtInTool, webSearchTool])
+    expect(descriptionsOf(tools)).toEqual(descriptionsOf([builtInTool, webSearchTool]))
   })
 
   describe('default web-search branch (module store gate)', () => {
@@ -164,7 +169,7 @@ describe('resolveLlmTools', () => {
         activeTools: [],
       })
 
-      expect(tools).toEqual([builtInTool])
+      expect(descriptionsOf(tools)).toEqual(descriptionsOf([builtInTool]))
       expect(createWebSearchToolsMock).not.toHaveBeenCalled()
     })
 
@@ -184,7 +189,7 @@ describe('resolveLlmTools', () => {
       })
 
       expect(createWebSearchToolsMock).toHaveBeenCalledWith({ apiKey: 'tvly-key' })
-      expect(tools).toEqual([builtInTool, webSearchTool])
+      expect(descriptionsOf(tools)).toEqual(descriptionsOf([builtInTool, webSearchTool]))
     })
   })
 

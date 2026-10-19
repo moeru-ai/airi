@@ -40,6 +40,8 @@ export interface ToolCardCall {
   key: string
   toolName: string
   args: string
+  /** What the call does and why, as the chat model wrote it in the call. */
+  summary?: string
   /** The result of the call as data. */
   data: unknown
   /** The locale of the chat. The labels of the card use its language. */
@@ -52,6 +54,8 @@ export interface ToolCardRequest {
   /** The name of the called tool. For an MCP tool it is the proxy tool, and `key` names the MCP tool. */
   toolName: string
   args: string
+  /** What the call does and why, as the chat model wrote it in the call. */
+  summary?: string
   /** The result of the call. */
   data: unknown
   /** The language of the labels, as a name that the model reads. */
@@ -168,6 +172,7 @@ const useToolCardsStateStore = defineStore('tool-cards-state', () => {
       key: request.key,
       description,
       args: request.args,
+      summary: request.summary,
       result: request.data,
       language: request.language,
     }, new AbortController().signal)
@@ -319,7 +324,7 @@ export const useToolCardsStore = defineStore('tool-cards', () => {
   const brokenCalls = shallowRef<ReadonlyMap<string, string>>(new Map())
 
   function requestOf(call: ToolCardCall, replace?: boolean): ToolCardRequest {
-    return { key: call.key, toolName: call.toolName, args: call.args, data: call.data, language: languageNameOf(call.locale), replace }
+    return { key: call.key, toolName: call.toolName, args: call.args, summary: call.summary, data: call.data, language: languageNameOf(call.locale), replace }
   }
 
   function ask(call: ToolCardCall, replace?: boolean) {

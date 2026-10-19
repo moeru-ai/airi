@@ -15,6 +15,7 @@ import CardView from '../../../../libs/cards/card-view.vue'
 import HitPill from './hit-pill.vue'
 import ToolCallPayload from './tool-call-payload.vue'
 
+import { readCallSummary } from '../../../../stores/ai/chat-llm/tool-call-summary'
 import { useLlmToolsStore } from '../../../../stores/ai/chat-llm/tools'
 import { canRerunToolCall } from '../../../../stores/tool-call-rerun'
 import { readToolCardCall, useToolCardsStore } from '../../../../stores/tool-cards'
@@ -50,6 +51,8 @@ const toolCards = useToolCardsStore()
 
 const calls = computed(() => {
   return props.items.map((item) => {
+    // The model says in the call what it does and why. The row shows it, and a new card of the tool learns from it.
+    const summary = readCallSummary(item.toolCall.args)
     const result = props.resultOf(item.sliceIndex)
     const widget = props.widgets[item.toolCall.toolName]
     const reading = widget?.read(result?.result, item.toolCall.args)
@@ -58,9 +61,10 @@ const calls = computed(() => {
     // A tool without a widget shows its result on a card. Only a finished call has a result for it. The card store
     // keeps the state of every call in the window, so the call names its message too.
     const read = !widget && state === 'done' ? readToolCardCall(item.toolCall.toolName, item.toolCall.args, result?.result) : undefined
-    const cardCall: ToolCardCall | undefined = read && { ...read, callId: `${props.messageId}/${item.key}`, toolName: item.toolCall.toolName, args: item.toolCall.args, locale: locale.value }
+    const cardCall: ToolCardCall | undefined = read && { ...read, callId: `${props.messageId}/${item.key}`, toolName: item.toolCall.toolName, args: item.toolCall.args, summary, locale: locale.value }
     return {
       ...item,
+      summary,
       name: title ? t(title.key, title.params ?? {}) : toolDisplayName(item.toolCall.toolName),
       // A widget title already says the state of the call.
       titled: Boolean(title),
@@ -251,7 +255,11 @@ function rerun(item: ToolCallGroupItem) {
                 ]"
               />
             </span>
-            <span :class="['min-w-0 flex-1 truncate', 'text-primary-600 dark:text-primary-300']">{{ call.name }}</span>
+            <!-- The summary leads the row, and the tool name moves to its end. A call without a summary shows the tool name. -->
+            <span :class="['min-w-0 flex-1 truncate', 'text-primary-600 dark:text-primary-300']">
+              {{ call.summary ?? call.name }}<template v-if="call.summary && call.state === 'executing'">…</template>
+            </span>
+            <span v-if="call.summary" :class="['max-w-2/5 shrink-0 truncate text-[10px]', 'text-neutral-400 dark:text-neutral-500']">{{ call.name }}</span>
             <span :class="['sr-only']">{{ t(`${KEY}.state.${call.state}`) }}</span>
           </button>
           <!-- The rerun action shows on every call that a rerun can rebuild, in every state. -->

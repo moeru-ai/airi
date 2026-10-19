@@ -10,6 +10,7 @@ import { uniqBy } from 'es-toolkit'
 import { createWebSearchTools, debug, mcp } from '../../../tools'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { useWebSearchStore } from '../../modules/web-search'
+import { withCallSummary } from './tool-call-summary'
 import { withDescribedImages } from './tool-images'
 import { useLlmToolsStore } from './tools'
 
@@ -147,6 +148,8 @@ async function resolveWebSearchTools(webSearchTools?: ToolSource): Promise<Tool[
  * Runtime tools are placed last before de-duplication. The reverse/uniq/reverse
  * pass preserves the existing stable order while letting later runtime
  * registrations win when names collide with built-in or custom tools.
+ *
+ * Every tool asks the model for a summary of each call. See {@link withCallSummary}.
  */
 export async function resolveLlmTools(options: ResolveLlmToolsOptions = {}): Promise<Tool[]> {
   const activeTools = await resolveActiveTools(options.activeTools)
@@ -174,7 +177,7 @@ export async function resolveLlmTools(options: ResolveLlmToolsOptions = {}): Pro
       ...activeTools,
     ].toReversed(),
     tool => toolNameFrom(tool) ?? tool,
-  ).toReversed()
+  ).toReversed().map(withCallSummary)
 
   const describeImage = options.describeImage
   return describeImage ? tools.map(tool => withDescribedImages(tool, describeImage)) : tools
