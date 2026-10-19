@@ -23,7 +23,8 @@ import { createToolCallResultLookup, resolveToolCallBlockState } from './tool-ca
 import { builtinToolCallWidgets } from './tool-call-widgets'
 
 const props = withDefaults(defineProps<{
-  message: ChatAssistantMessage
+  /** A reply of the history, or the reply that streams now. The card state of its tool calls is keyed by its id. */
+  message: ChatAssistantMessage & { id?: string }
   label: string
   replyTarget?: ChatHistoryReplyPayload
   canReply?: boolean
