@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { InboxMessage } from './inbox-presentation'
 
-import { BasicButton, BottomDrawer, Button } from '@proj-airi/ui'
+import { Badge, BasicButton, BottomDrawer, Button } from '@proj-airi/ui'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -16,7 +16,7 @@ const initialMessages: InboxMessage[] = [
   { id: 'm2', kind: 'flux.granted', params: { amount: 500, reason: '感谢参与 AIRI 首发测试，这是给你的小礼物。' }, readAt: '', createdAt: '2026-10-18T09:59:30Z' },
   { id: 'm3', kind: 'account.banned', params: {}, readAt: '', createdAt: '2026-10-18T09:00:00Z' },
   { id: 'm4', kind: 'subscription.renewed', params: { plan: 'Pro', periodEnd: '2026-11-14T00:00:00Z' }, readAt: '2026-10-15T00:00:00Z', createdAt: '2026-10-14T23:10:00Z' },
-  { id: 'm5', kind: 'flux.granted', params: { amount: 1200, reason: 'Bug bounty: thanks for the Live2D import report.' }, readAt: '2026-10-02T00:00:00Z', createdAt: '2026-10-01T12:00:00Z' },
+  { id: 'm5', kind: 'flux.granted', params: { amount: 1200, reason: '漏洞赏金：感谢你报告 Live2D 导入问题。' }, readAt: '2026-10-02T00:00:00Z', createdAt: '2026-10-01T12:00:00Z' },
 ]
 const sortedMessages = [...initialMessages].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 
@@ -55,7 +55,7 @@ function reset() {
     <Variant id="desktop-unread" title="Desktop · unread messages">
       <div :class="['inbox-story-stage relative h-[640px] w-full overflow-hidden']">
         <div :class="['absolute bottom-10 left-6 flex flex-col items-start gap-3']">
-          <div :class="['w-108 rounded-3xl border border-white/8 bg-neutral-900/86 shadow-xl backdrop-blur-xl']">
+          <div :class="['w-108 rounded-2xl border border-neutral-100/80 bg-neutral-100/90 shadow-lg backdrop-blur-md dark:border-neutral-800/60 dark:bg-neutral-800/90']">
             <InboxPanel :messages="messages" :now="now" @open="markRead" @read-all="markAllRead" />
           </div>
           <div :class="['relative']">
@@ -63,12 +63,7 @@ function reset() {
               icon="i-solar:bell-outline" shape="circle"
               :aria-label="unread ? t('stage.notifications.open-unread', { count: unread }) : t('stage.notifications.open')"
             />
-            <span
-              v-if="unread"
-              :class="['absolute -right-1 -top-1 min-w-5 rounded-full bg-primary-500 px-1 text-center text-xs text-white leading-5 ring-2 ring-white dark:ring-neutral-900']"
-            >
-              {{ unread > 9 ? '9+' : unread }}
-            </span>
+            <Badge v-if="unread" dot :class="['pointer-events-none absolute right-0.5 top-0.5 ring-2 ring-white dark:ring-neutral-900']" />
           </div>
         </div>
       </div>
@@ -76,7 +71,7 @@ function reset() {
 
     <Variant id="desktop-all-read" title="Desktop · all read">
       <div :class="['inbox-story-stage relative h-[560px] w-full overflow-hidden']">
-        <div :class="['absolute bottom-10 left-6 w-108 rounded-3xl border border-white/8 bg-neutral-900/86 shadow-xl backdrop-blur-xl']">
+        <div :class="['absolute bottom-10 left-6 w-108 rounded-2xl border border-neutral-100/80 bg-neutral-100/90 shadow-lg backdrop-blur-md dark:border-neutral-800/60 dark:bg-neutral-800/90']">
           <InboxPanel :messages="readMessages" :now="now" />
         </div>
       </div>
@@ -84,7 +79,7 @@ function reset() {
 
     <Variant id="desktop-empty" title="Desktop · empty inbox">
       <div :class="['inbox-story-stage relative h-[420px] w-full overflow-hidden']">
-        <div :class="['absolute bottom-10 left-6 w-108 rounded-3xl border border-white/8 bg-neutral-900/86 shadow-xl backdrop-blur-xl']">
+        <div :class="['absolute bottom-10 left-6 w-108 rounded-2xl border border-neutral-100/80 bg-neutral-100/90 shadow-lg backdrop-blur-md dark:border-neutral-800/60 dark:bg-neutral-800/90']">
           <InboxPanel :messages="[]" :now="now" />
         </div>
       </div>
@@ -92,49 +87,34 @@ function reset() {
 
     <Variant id="desktop-error" title="Desktop · load failure">
       <div :class="['inbox-story-stage relative h-[420px] w-full overflow-hidden']">
-        <div :class="['absolute bottom-10 left-6 w-108 rounded-3xl border border-white/8 bg-neutral-900/86 shadow-xl backdrop-blur-xl']">
+        <div :class="['absolute bottom-10 left-6 w-108 rounded-2xl border border-neutral-100/80 bg-neutral-100/90 shadow-lg backdrop-blur-md dark:border-neutral-800/60 dark:bg-neutral-800/90']">
           <InboxPanel :messages="[]" :now="now" error />
         </div>
       </div>
     </Variant>
 
-    <Variant id="mobile-entry" title="Mobile · header entry">
+    <Variant id="mobile-entry" title="Mobile · menu entry">
       <div :class="['inbox-story-stage relative mx-auto h-[780px] w-[390px] overflow-hidden']">
         <!--
-          Mirrors MobileHeader in stage-layouts with its real buttons: conversations on the left,
-          the character name in the middle, settings on the right. The bell joins the right group.
+          Mirrors MobileHeader in stage-layouts: conversations on the left, the character name in the middle,
+          and the menu button on the right. Unread Notifications show as a dot on the menu button.
         -->
-        <header :class="['absolute inset-x-0 top-0 z-30 grid grid-cols-[1fr_auto_1fr] items-center px-3 pt-3']">
-          <div :class="['flex justify-start']">
-            <BasicButton size="unset" :aria-label="t('stage.chat.sessions.title')" :class="headerButtonClass">
-              <span aria-hidden="true" :class="['i-solar:dialog-2-outline size-6']" />
-            </BasicButton>
-          </div>
+        <header :class="['absolute inset-x-0 top-0 z-30 flex items-center justify-between px-3 pt-3']">
+          <BasicButton size="unset" :aria-label="t('stage.chat.sessions.title')" :class="headerButtonClass">
+            <span aria-hidden="true" :class="['i-solar:dialog-2-outline size-6']" />
+          </BasicButton>
           <BasicButton size="unset" :class="['h-11 rounded-full px-3 text-neutral-700 dark:text-neutral-200']">
             <span :class="['text-base font-semibold']">AIRI</span>
             <span aria-hidden="true" :class="['i-solar:alt-arrow-down-outline size-4']" />
           </BasicButton>
-          <div :class="['flex justify-end gap-2']">
-            <div :class="['relative']">
-              <BasicButton
-                size="unset" :class="headerButtonClass"
-                :aria-label="unread ? t('stage.notifications.open-unread', { count: unread }) : t('stage.notifications.open')"
-                @click="drawerOpen = true"
-              >
-                <span aria-hidden="true" :class="['i-solar:bell-outline size-6']" />
-              </BasicButton>
-              <span
-                v-if="unread"
-                aria-hidden="true"
-                :class="['pointer-events-none absolute -right-0.5 -top-0.5 min-w-5 rounded-full bg-primary-500 px-1 text-center text-xs text-white font-medium leading-5 ring-2 ring-white/80 dark:ring-neutral-900/80']"
-              >
-                {{ unread > 9 ? '9+' : unread }}
-              </span>
-            </div>
-            <BasicButton size="unset" :aria-label="t('stage.mobile-tools.title')" :class="headerButtonClass">
-              <span aria-hidden="true" :class="['i-solar:settings-outline size-6']" />
-            </BasicButton>
-          </div>
+          <BasicButton
+            size="unset" :class="[headerButtonClass, 'relative']"
+            :aria-label="unread ? t('stage.mobile-tools.menu-unread', { count: unread }) : t('stage.mobile-tools.menu')"
+            @click="drawerOpen = true"
+          >
+            <span aria-hidden="true" :class="['i-solar:hamburger-menu-outline size-6']" />
+            <Badge v-if="unread" dot :class="['pointer-events-none absolute right-1.5 top-1.5 ring-2 ring-neutral-50 dark:ring-neutral-900']" />
+          </BasicButton>
         </header>
         <!-- A stand-in for the composer, so the header reads at its real position on the screen. -->
         <div :class="['absolute inset-x-3 bottom-4 flex items-center gap-2 rounded-full bg-neutral-50/80 px-4 py-3 text-sm text-neutral-400 backdrop-blur-md dark:bg-neutral-900/80']">

@@ -4,8 +4,6 @@ import type { InboxMessageView } from './inbox-presentation'
 defineProps<{
   message: InboxMessageView
   age: string
-  /** `island` sits on the dark stage card. `drawer` follows the light or dark theme. */
-  surface: 'island' | 'drawer'
 }>()
 
 const emit = defineEmits<{
@@ -15,47 +13,39 @@ const emit = defineEmits<{
 
 <template>
   <li :class="['relative']">
-    <!-- Opening a message marks it read. A message has no actions of its own. -->
+    <!--
+      Opening a message marks it read. A message has no actions of its own.
+      This stays a plain button: BasicButton centers its content and scales on press,
+      which suits a compact action but not a full-width, two-line list row.
+    -->
     <button
       type="button"
       :class="[
         'w-full flex flex-col gap-1 rounded-2xl px-4 py-3 text-left',
         'transition-colors duration-200 ease-in-out outline-none',
+        'hover:bg-neutral-200/60 dark:hover:bg-neutral-700/50',
         'focus-visible:outline-2 focus-visible:outline-primary-400',
-        surface === 'island'
-          ? 'hover:bg-white/6'
-          : 'hover:bg-neutral-100 dark:hover:bg-neutral-800/70',
       ]"
       @click="emit('open')"
     >
       <span :class="['flex items-baseline gap-3']">
         <span
           :class="[
-            'min-w-0 flex-1 truncate text-sm',
+            'min-w-0 flex-1 truncate text-sm text-neutral-900 dark:text-neutral-100',
             message.unread ? 'font-semibold' : 'font-normal',
-            surface === 'island' ? 'text-white' : 'text-neutral-900 dark:text-neutral-100',
           ]"
         >
           {{ message.title }}
         </span>
-        <span
-          :class="[
-            'shrink-0 text-xs',
-            surface === 'island' ? 'text-white/45' : 'text-neutral-400 dark:text-neutral-500',
-          ]"
-        >
+        <span :class="['shrink-0 text-xs text-neutral-400 dark:text-neutral-500']">
           {{ age }}
         </span>
       </span>
-      <span
-        :class="[
-          'line-clamp-2 text-xs leading-relaxed',
-          surface === 'island' ? 'text-white/65' : 'text-neutral-500 dark:text-neutral-400',
-        ]"
-      >
+      <span :class="['line-clamp-2 text-xs leading-relaxed text-neutral-500 dark:text-neutral-400']">
         {{ message.body }}
       </span>
     </button>
+    <!-- The unread mark of a row. Rows show no count, so the primary color separates it from the red badges. -->
     <span
       v-if="message.unread"
       aria-hidden="true"

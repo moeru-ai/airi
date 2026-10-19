@@ -67,17 +67,6 @@ export function isRenderableInboxMessage(message: InboxMessage): boolean {
 }
 
 /**
- * Formats an unread count for a badge. Large counts stop at `9+`, so the badge keeps its size.
- *
- * @example
- * formatUnreadBadge(12)
- * // => '9+'
- */
-export function formatUnreadBadge(count: number): string {
-  return count > 9 ? '9+' : String(count)
-}
-
-/**
  * Renders the messages that this client understands. An unknown kind or invalid params drop the
  * message, so the server can release a new kind before every client knows it.
  */

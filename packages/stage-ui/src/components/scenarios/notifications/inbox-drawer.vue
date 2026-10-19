@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BottomDrawer } from '@proj-airi/ui'
+import { BottomDrawer, IconButton } from '@proj-airi/ui'
 import { useNow } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { watch } from 'vue'
@@ -45,20 +45,19 @@ watch(signedIn, (value) => {
       @open="inbox.markRead" @read-all="inbox.markAllRead" @retry="inbox.loadFirstPage" @load-more="inbox.loadMore"
     >
       <template #leading>
-        <button
-          type="button"
+        <IconButton
           data-testid="notifications-back"
           :aria-label="t('stage.notifications.back')" :title="t('stage.notifications.back')"
           :class="[
-            '-ml-2 size-8 shrink-0 flex items-center justify-center rounded-full outline-none',
+            '-ml-2 size-8 rounded-full outline-none',
             'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900',
             'dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-white',
-            'transition-colors duration-200 ease-in-out focus-visible:outline-2 focus-visible:outline-primary-400',
+            'focus-visible:outline-2 focus-visible:outline-primary-400',
           ]"
           @click="emit('back')"
         >
           <span aria-hidden="true" :class="['i-solar:alt-arrow-left-linear size-5']" />
-        </button>
+        </IconButton>
       </template>
     </InboxPanel>
   </BottomDrawer>

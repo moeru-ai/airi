@@ -56,14 +56,15 @@ function keepOpenOnFocusOutside(event: Event) {
       <PopoverContent
         :side="side" :align="align" :side-offset="8" :collision-padding="8"
         :class="[
-          'z-50 w-108 max-w-[calc(100vw-1rem)] rounded-3xl outline-none',
-          'border border-white/8 bg-neutral-900/86 shadow-xl backdrop-blur-xl',
+          'z-50 w-108 max-w-[calc(100vw-1rem)] rounded-2xl outline-none shadow-lg backdrop-blur-md',
+          // The same theme-aware surface as the blurry DropdownMenu that opens this card.
+          'border border-neutral-100/80 bg-neutral-100/90 dark:border-neutral-800/60 dark:bg-neutral-800/90',
         ]"
         @focus-outside="keepOpenOnFocusOutside"
       >
         <InboxPanel
           :messages="messages" :now="now" :unread="unread" :loading="loading" :error="error" :has-more="hasMore"
-          surface="island"
+          surface="floating"
           @open="inbox.markRead" @read-all="inbox.markAllRead" @retry="inbox.loadFirstPage" @load-more="inbox.loadMore"
         />
       </PopoverContent>
