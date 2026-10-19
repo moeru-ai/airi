@@ -1,28 +1,26 @@
 <script setup lang="ts">
-import type { ChatToolCallRendererProps } from './tool-call-renderer'
+import type { ChatSlicesCard } from '../../../../types/chat'
 
 import { storeToRefs } from 'pinia'
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import CardView from '../../../../libs/cards/card-view.vue'
 
 import { useSettingsDeveloper } from '../../../../stores/settings/developer'
-import { readCardDraw } from '../../../../tools/draw-card'
 
-// The chat passes every renderer the call id and the rerun listener. This card uses neither, and it often renders nothing.
-defineOptions({ inheritAttrs: false })
 /**
- * A card that the model drew as part of its reply. It shows where the call stands in the reply, not in a combo.
- * A call that only fetched the rules, or whose program had problems, shows nothing: the model draws again, and the
- * owner sees only the card that draws. While the card is on its way, the reply says so below its parts.
+ * A card that the model drew as part of its reply. A card that no longer draws, for example after the parts of a card
+ * change, shows its text instead.
  */
-const props = defineProps<ChatToolCallRendererProps>()
+const props = defineProps<{
+  card: ChatSlicesCard
+}>()
+
 const { t } = useI18n()
 const KEY = 'stage.chat.reply-card'
 
-const draw = computed(() => readCardDraw(props.args, props.result))
-const shown = computed(() => draw.value.outcome?.status === 'shown')
+const broken = ref(false)
 
 // The program is for developers. Only the developer setting that shows tool data as JSON offers it.
 const { showToolPayloadsAsJson } = storeToRefs(useSettingsDeveloper())
@@ -30,13 +28,16 @@ const showProgram = ref(false)
 </script>
 
 <template>
-  <div v-if="shown" :class="['w-full flex flex-col gap-1']">
+  <div :class="['w-full flex flex-col gap-1']">
     <div :class="['rounded-xl p-1.5', 'text-neutral-800 dark:text-neutral-100', 'bg-neutral-100/90 dark:bg-neutral-900/80']">
       <pre
         v-if="showToolPayloadsAsJson && showProgram"
         :class="['m-0 rounded-lg px-2.5 py-2', 'whitespace-pre-wrap break-words text-[11px] font-mono', 'bg-white/75 dark:bg-neutral-800/60']"
-      >{{ draw.program }}</pre>
-      <CardView v-else :program="draw.program" />
+      >{{ props.card.program }}</pre>
+      <p v-else-if="broken" :class="['m-0 px-1 text-xs whitespace-pre-wrap break-words', 'text-neutral-700 dark:text-neutral-200']">
+        {{ props.card.text }}
+      </p>
+      <CardView v-else :program="props.card.program" @broken="broken = true" />
     </div>
     <div v-if="showToolPayloadsAsJson" :class="['flex justify-end']">
       <button

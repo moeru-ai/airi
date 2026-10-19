@@ -15,7 +15,6 @@ import ChatResponsePart from './response-part.vue'
 import ChatSticker from './sticker.vue'
 import ChatToolCallGroup from './tool-call-group.vue'
 
-import { DRAW_CARD_TOOL_NAME, readCardDraw } from '../../../../tools/draw-card'
 import { MarkdownRenderer } from '../../../markdown'
 import { getChatHistoryItemCopyText } from '../utils'
 import { ChatActionMenu } from './action-menu'
@@ -112,25 +111,11 @@ function emitToolCallRerun(sliceIndex: number, payload: ToolCallRerunRequest) {
 
 const toolCallWidgets = computed<ChatToolCallWidgetRegistry>(() => ({ ...builtinToolCallWidgets, ...props.toolCallWidgets }))
 
-// A card that the model draws is part of its answer, so it shows by itself in the reply. An app can add renderers of its own.
-const toolCallRenderers = computed<ChatToolCallRendererRegistry>(() => ({ [DRAW_CARD_TOOL_NAME]: ChatReplyCard, ...props.toolCallRenderers }))
-
-// A card is on its way from the moment the model starts a card call until a card draws. Calls that only fetched the
-// rules or had problems show nothing, so without this line the reply looks empty.
-const drawingCard = computed(() => {
-  if (!props.streaming)
-    return false
-  if (props.message.writingToolCall?.toolName === DRAW_CARD_TOOL_NAME)
-    return true
-  const sliceIndex = resolvedSlices.value.findLastIndex(slice => slice.type === 'tool-call' && slice.toolCall.toolName === DRAW_CARD_TOOL_NAME)
-  const slice = resolvedSlices.value[sliceIndex]
-  if (slice?.type !== 'tool-call')
-    return false
-  return readCardDraw(slice.toolCall.args, getToolCallResult(sliceIndex)?.result).outcome?.status !== 'shown'
-})
+// The model writes a card for this reply now. Until it arrives, the reply says so, so it never looks empty.
+const drawingCard = computed(() => props.streaming && props.message.pendingContent === 'card')
 
 // A call with its own renderer shows by itself. Every other call joins a group with the calls next to it.
-const sliceEntries = computed(() => groupToolCallSlices(resolvedSlices.value, toolName => Boolean(toolCallRenderers.value[toolName])))
+const sliceEntries = computed(() => groupToolCallSlices(resolvedSlices.value, toolName => Boolean(props.toolCallRenderers[toolName])))
 
 const showLoader = computed(() => props.showPlaceholder && resolvedSlices.value.length === 0)
 const containerClass = computed(() => props.variant === 'mobile' ? 'mr-0' : 'mr-12')
@@ -192,7 +177,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
                 @tool-call-rerun="emitToolCallRerun"
               />
               <component
-                :is="toolCallRenderers[entry.slice.toolCall.toolName]"
+                :is="props.toolCallRenderers[entry.slice.toolCall.toolName]"
                 v-else-if="entry.slice.type === 'tool-call'"
                 :tool-call-id="entry.slice.toolCall.toolCallId"
                 :tool-name="entry.slice.toolCall.toolName"
@@ -202,6 +187,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
                 @tool-call-rerun="emitToolCallRerun(entry.sliceIndex, $event)"
               />
               <ChatSticker v-else-if="entry.slice.type === 'sticker'" :sticker-id="entry.slice.stickerId" />
+              <ChatReplyCard v-else-if="entry.slice.type === 'card'" :card="entry.slice" />
               <MarkdownRenderer v-else-if="entry.slice.type === 'text'" :content="entry.slice.text" />
             </template>
             <div v-if="drawingCard" :class="['flex items-center gap-1.5 text-[11px]', 'text-neutral-500 dark:text-neutral-400']" aria-live="polite">

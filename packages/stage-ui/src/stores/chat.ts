@@ -33,7 +33,7 @@ import {
   AIRI_CHAT_SESSION_ID_HEADER,
 } from '../libs/product-signals/headers'
 import { getSpeechBusContext, voiceGenerationEnded } from '../services/speech/bus'
-import { composeDrawCardPrompt, createDrawCardTool } from '../tools/draw-card'
+import { composeDrawCardPrompt, createDrawCardTool, DRAW_CARD_TOOL_NAME, drawCardContent } from '../tools/draw-card'
 import { createJudgeRecipeTool, judgmentSkillText } from '../tools/judge-recipe'
 import { composeMemoryPrompt, createMemoryTools } from '../tools/memory'
 import { createProposeRecipeTool } from '../tools/propose-recipe'
@@ -995,6 +995,8 @@ export const useChatStore = defineStore('chat', () => {
       () => createRuntimePromptContext(runtimePrompt.value),
       createMinecraftContext,
     ],
+    // A card that the model draws is part of its answer, so the reply shows the card, not the call.
+    toolContents: { [DRAW_CARD_TOOL_NAME]: drawCardContent },
     createId: nanoid,
     unwrapMessage: message => toRaw(message),
     onStateChange: syncRuntimeState,

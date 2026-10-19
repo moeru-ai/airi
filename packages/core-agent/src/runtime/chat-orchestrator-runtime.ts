@@ -5,7 +5,7 @@ import type { AgentContextPort } from '../contracts/context-port'
 import type { AgentLLMPort } from '../contracts/llm-port'
 import type { AgentForegroundStreamPort } from '../contracts/stream-port'
 import type { AssistantTurn, Conversation, Turn } from '../messages/types'
-import type { ChatHistoryItem, ChatInvokedSkill, ChatSlices, ChatSlicesToolCall, ChatStreamEventContext, ChatToolReference, ContextMessage, StreamingAssistantMessage } from '../types/chat'
+import type { ChatHistoryItem, ChatInvokedSkill, ChatSlices, ChatSlicesToolCall, ChatSlicesToolContent, ChatStreamEventContext, ChatToolReference, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 import type { LlmUsage, StreamEvent, StreamOptions } from '../types/llm'
 
 import { createQueue } from '@proj-airi/stream-kit'
@@ -296,6 +296,14 @@ interface ChatRoundCorrelation {
 /**
  * Dependency surface used by the platform-agnostic chat orchestrator runtime.
  */
+/** A tool whose calls add content to the reply in place of the calls. The host owns the tool and its content. */
+export interface ToolContent {
+  /** The kind of content that a call adds. While a call is on its way, the reply names this kind. */
+  kind: ChatSlicesToolContent['type']
+  /** The content of a finished call. An empty list adds nothing, for example when the model has to try again. */
+  contentOf: (args: string, result: unknown) => ChatSlicesToolContent[]
+}
+
 export interface ChatOrchestratorRuntimeDeps {
   /** Session persistence and generation guard port. */
   session: ChatOrchestratorSessionPort
@@ -318,6 +326,11 @@ export interface ChatOrchestratorRuntimeDeps {
   getSystemPrompt?: (sessionId: string) => string | undefined
   /** Runtime context providers ingested immediately before prompt composition. */
   runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
+  /**
+   * Tools whose calls show as content of the reply, by tool name. A reply keeps no slice for their calls, and the model
+   * still sees the calls in the provider transcript.
+   */
+  toolContents?: Readonly<Record<string, ToolContent>>
   /** Clock used for persisted message timestamps. @default Date.now */
   now?: () => number
   /** Monotonic clock used for elapsed telemetry in milliseconds. @default performance.now */
@@ -696,6 +709,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     }
     // Received calls stay here until their slices join the reply. Interrupted turns preserve them without waiting for token hooks.
     const pendingToolCalls = new Set<ChatSlicesToolCall>()
+    // Calls of content tools wait here for their results, which become content of the reply.
+    const contentCalls = new Map<string, { content: ToolContent, args: string, flushed: Promise<unknown> }>()
+    // Content calls from their start until their result or error. Text in this time was written before the call.
+    const openContentCalls = new Set<string>()
 
     function preservePendingToolCalls() {
       buildingMessage.slices.push(...pendingToolCalls)
@@ -852,6 +869,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
             if (shouldAbort())
               return
 
+            // Text after every content call has its result means that the model writes on instead of trying again. Text
+            // before a call can arrive late, when the call flushes it, so it does not count.
+            if (openContentCalls.size === 0 && speechOnly.trim())
+              delete buildingMessage.pendingContent
             const lastSlice = buildingMessage.slices.at(-1)
             if (lastSlice?.type === 'text') {
               lastSlice.text += speechOnly
@@ -920,6 +941,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
             if (ctx.data.type === 'tool-call-result') {
               buildingMessage.tool_results.push(ctx.data)
+              updateStream(sessionId, buildingMessage)
+              return
+            }
+
+            if (ctx.data.type === 'card') {
+              buildingMessage.slices.push(ctx.data)
+              delete buildingMessage.pendingContent
               updateStream(sessionId, buildingMessage)
             }
           },
@@ -1051,13 +1079,26 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
               buildingMessage.citations = [...(buildingMessage.citations ?? []), ...event.citations]
               updateStream(sessionId, buildingMessage)
               break
-            case 'tool-call-start':
-              buildingMessage.writingToolCall = { toolCallId: event.toolCallId, toolName: event.toolName }
-              updateStream(sessionId, buildingMessage)
+            case 'tool-call-start': {
+              const content = deps.toolContents?.[event.toolName]
+              if (content) {
+                openContentCalls.add(event.toolCallId)
+                buildingMessage.pendingContent = content.kind
+                updateStream(sessionId, buildingMessage)
+              }
               break
+            }
             case 'tool-call': {
-              if (buildingMessage.writingToolCall?.toolCallId === event.toolCallId)
-                delete buildingMessage.writingToolCall
+              const content = deps.toolContents?.[event.toolName]
+              if (content) {
+                // The content joins when the result arrives, after the flush, so the text before the call stays in front of it.
+                const flushed = parser.flush().catch(() => undefined)
+                contentCalls.set(event.toolCallId, { content, args: event.args, flushed })
+                openContentCalls.add(event.toolCallId)
+                buildingMessage.pendingContent = content.kind
+                updateStream(sessionId, buildingMessage)
+                break
+              }
               // The flush covers only preceding text. A call stays pending until its slice joins, including during interruption.
               const call: ChatSlicesToolCall = { type: 'tool-call', toolCall: event }
               pendingToolCalls.add(call)
@@ -1068,7 +1109,15 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
               void parser.flush().then(enqueue, enqueue)
               break
             }
-            case 'tool-result':
+            case 'tool-result': {
+              const contentCall = contentCalls.get(event.toolCallId)
+              if (contentCall) {
+                contentCalls.delete(event.toolCallId)
+                openContentCalls.delete(event.toolCallId)
+                const slices = contentCall.content.contentOf(contentCall.args, event.result)
+                void contentCall.flushed.then(() => slices.forEach(slice => toolCallQueue.enqueue(slice)))
+                break
+              }
               toolCallQueue.enqueue({
                 type: 'tool-call-result',
                 id: event.toolCallId,
@@ -1076,7 +1125,12 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
               })
 
               break
+            }
             case 'tool-error':
+              // A failed content call adds nothing. The model reads the error and tries again or writes on.
+              openContentCalls.delete(event.toolCallId)
+              if (contentCalls.delete(event.toolCallId))
+                break
               toolCallQueue.enqueue({
                 type: 'tool-call-result',
                 id: event.toolCallId,
@@ -1145,8 +1199,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         console.error('Assistant response observer failed:', error)
       }
 
-      // A notice lets the conversation stay quiet. Only rendered text, stickers, and tool calls count as a reply.
+      // A notice lets the conversation stay quiet. Only rendered text, stickers, cards, and tool calls count as a reply.
       const hasVisibleReply = buildingMessage.slices.some(slice => slice.type === 'sticker'
+        || slice.type === 'card'
         || slice.type === 'tool-call'
         || (slice.type === 'text' && Boolean(slice.text.trim())))
       const silent = Boolean(options.notice) && !hasVisibleReply
