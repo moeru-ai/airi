@@ -12,9 +12,10 @@ import type { NewMessagesPayload, WireMessage } from '@proj-airi/server-sdk-shar
  * Expects:
  * - Tool-result and tool-call slices are dropped silently. If you need full
  *   fidelity, wait until the server-side schema grows structured content.
+ * - A card uploads as its text, in its own paragraph.
  *
  * Returns:
- * - The first text slice for assistant messages with slice arrays; otherwise
+ * - The text and card slices for assistant messages with slice arrays; otherwise
  *   the message's stringified content. Empty string when nothing extractable.
  */
 export function extractMessageText(message: ChatHistoryItem): string {
@@ -24,10 +25,20 @@ export function extractMessageText(message: ChatHistoryItem): string {
     // `as` cast.
     const assistant: ChatAssistantMessage = message
     if (Array.isArray(assistant.slices) && assistant.slices.length > 0) {
-      const text = assistant.slices
-        .filter((slice): slice is { type: 'text', text: string } => slice.type === 'text')
-        .map(slice => slice.text)
-        .join('')
+      // Text slices of one run join as they streamed. A card ends the run and adds its text as a paragraph.
+      const blocks: string[] = []
+      let run = ''
+      for (const slice of assistant.slices) {
+        if (slice.type === 'text') {
+          run += slice.text
+        }
+        else if (slice.type === 'card') {
+          blocks.push(run, slice.text)
+          run = ''
+        }
+      }
+      blocks.push(run)
+      const text = blocks.filter(Boolean).join('\n\n')
       if (text)
         return text
     }

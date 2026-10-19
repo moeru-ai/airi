@@ -9,9 +9,9 @@ import ChatToolCallGroup from './tool-call-group.vue'
 import { builtinToolCallWidgets } from './tool-call-widgets'
 
 const items: ToolCallGroupItem[] = [
-  { sliceIndex: 0, toolCall: { toolCallId: 'light', toolCallType: 'function', toolName: 'home_assistant_call_service', args: '{"domain":"light","service":"turn_off","entity_id":"light.bedroom"}' } },
-  { sliceIndex: 1, toolCall: { toolCallId: 'spark', toolCallType: 'function', toolName: 'builtIn_emitSparkCommand', args: '{"destinations":["minecraft"],"intent":"action"}' } },
-  { sliceIndex: 2, toolCall: { toolCallId: 'search', toolCallType: 'function', toolName: 'web_search', args: 'village route' } },
+  { sliceIndex: 0, key: 'light#0', toolCall: { toolCallId: 'light', toolCallType: 'function', toolName: 'home_assistant_call_service', args: '{"domain":"light","service":"turn_off","entity_id":"light.bedroom"}' } },
+  { sliceIndex: 1, key: 'spark#0', toolCall: { toolCallId: 'spark', toolCallType: 'function', toolName: 'builtIn_emitSparkCommand', args: '{"destinations":["minecraft"],"intent":"action"}' } },
+  { sliceIndex: 2, key: 'search#0', toolCall: { toolCallId: 'search', toolCallType: 'function', toolName: 'web_search', args: 'village route' } },
 ]
 
 const done: Record<number, ChatSlicesToolCallResult> = {
