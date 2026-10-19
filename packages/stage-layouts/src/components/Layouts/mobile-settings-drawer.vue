@@ -201,10 +201,18 @@ const characterVoiceIcon = computed(() => {
             >
               <span aria-hidden="true" :class="[characterVoiceIcon, 'size-5']" />
             </BasicButton>
+            <!--
+              NOTICE:
+              On iOS, a touch drag on this range does not move the value.
+              The modal drawer locks body scroll. The lock adds a document `touchmove` listener that cancels moves outside a scrollable element.
+              Source: reka-ui `dist/shared/useBodyScrollLock.js`, `preventDefault` and `checkOverflowScroll`.
+              Remove `@touchmove.stop` when reka-ui stops cancelling `touchmove` on range inputs.
+            -->
             <RoundRange
               v-model="characterVoiceVolume"
               :aria-label="t('stage.mobile-tools.character-voice')"
               :class="['mobile-volume-slider w-full flex-1', !characterVoiceEnabled && 'opacity-50']"
+              @touchmove.stop
             />
           </div>
         </div>
