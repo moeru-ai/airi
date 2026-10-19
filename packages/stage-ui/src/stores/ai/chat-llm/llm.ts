@@ -20,7 +20,7 @@ export interface LlmStreamOptions extends StreamOptions {
   describeToolImage?: DescribeToolImage
   /**
    * The only tools of a task beside the chat, for example the icon search of a tool card. The request gets them in
-   * place of the tools of the chat, so a task never runs a tool of the chat.
+   * place of the tools of the chat, and without the tools of the provider, so a task runs nothing else.
    */
   taskTools?: Tool[]
 }
@@ -45,6 +45,7 @@ export const useLLM = defineStore('llm', () => {
       conversation: context,
       options: {
         ...streamOptions,
+        ...(taskTools ? { providerTools: false } : {}),
         // Core uses only the tools of a resolved step, so each step carries the complete tool list.
         resolveStep: resolveStep
           ? async () => ({ ...await resolveStep(), tools: await resolveTools() })
