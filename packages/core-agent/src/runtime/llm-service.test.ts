@@ -958,6 +958,7 @@ describe('streamFrom tool errors', () => {
     })
     expect(onStreamEvent.mock.calls.map(([event]) => event)).toEqual([
       { type: 'reasoning-delta', text: first },
+      { type: 'tool-call-start', toolCallId: 'call-1', toolName: 'builtIn_emitSparkCommand' },
       expect.objectContaining({ type: 'tool-call', toolCallId: 'call-1' }),
       { type: 'reasoning-delta', text: '}' },
       { type: 'tool-result', toolCallId: 'call-1', result: 'ok' },

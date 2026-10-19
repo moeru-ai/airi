@@ -137,7 +137,10 @@ export interface StreamFromOptions {
   conversation: Conversation
   options?: StreamOptions
   builtinToolsResolver?: BuiltinToolsResolver
-  /** Known tool names from earlier attempts of this generation, even after tools are disabled. */
+  /**
+   * Retains known names and inspects resolved tools during internal tool-free retries.
+   * Omit this set for explicit tool-free requests that do not inspect tool calls.
+   */
   toolCallGuardNames?: Set<string>
   /** Reports native tool activity before queued output, so retry owners can prevent duplicate side effects. */
   onNativeToolCall?: () => void

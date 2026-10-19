@@ -494,8 +494,8 @@ describe('isToolRelatedError', () => {
           expect(onStreamEvent.mock.calls.map(([event]) => event.type === 'reasoning-delta' ? event.text : '').join('')).toBe(scenario === 'native-safe' ? '{"note":"safe"}' : `{"example":${call}}`)
           expect(onStreamEvent).toHaveBeenCalledWith({ type: 'text-delta', text: 'Recovered.' })
           expect(onStreamEvent.mock.calls.map(([event]) => event.type)).toEqual(scenario === 'native-safe'
-            ? ['reasoning-delta', 'tool-call', 'tool-result', 'text-delta', 'finish']
-            : ['reasoning-delta', 'tool-call', 'tool-result', 'reasoning-delta', 'text-delta', 'finish'])
+            ? ['reasoning-delta', 'tool-call-start', 'tool-call', 'tool-result', 'text-delta', 'finish']
+            : ['reasoning-delta', 'tool-call-start', 'tool-call', 'tool-result', 'reasoning-delta', 'text-delta', 'finish'])
         }
         else {
           expect(String(outcome)).toContain(scenario === 'native-split-failure' ? 'fixture failed after a tool round' : 'as plain text')
@@ -1003,6 +1003,37 @@ describe('isToolRelatedError', () => {
     expect(streamTextMock.mock.calls[2]?.[0]?.tools).toBeUndefined()
     expect(streamTextMock.mock.calls[3]?.[0]?.tools).toBeUndefined()
     expect(onStreamEvent).not.toHaveBeenCalled()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r4260785258
+  // ROOT CAUSE:
+  // The guard copied retry names before resolveStep loaded the new tools.
+  // The retry inspection set now also admits the current resolved tools.
+  it.each(['text.delta', 'reasoning.delta'])('guards newly resolved retry tools in %s for Issue #2161', async (type) => {
+    const firstTool = createSparkTool()
+    const retryTool = createSparkTool()
+    retryTool.function.name = 'new_retry_tool'
+    const tools = vi.fn().mockResolvedValueOnce([firstTool]).mockResolvedValue([retryTool])
+    const resolveStep = vi.fn(async () => ({ model: 'model-b', chatProvider: provider, providerId: 'test', systemPrompt: '' }))
+    const onStreamEvent = vi.fn()
+    const onGeneratedTurn = vi.fn()
+    mockStreamEvents([{ type, delta: '{"name":"builtIn_emitSparkCommand","arguments":{}}' }])
+    mockStreamEvents([{ type, delta: '{"name":"new_retry_tool","arguments":{}}' }])
+
+    await expect(useLLM().stream('model-a', provider, { turns: [] }, {
+      tools,
+      resolveStep,
+      onStreamEvent,
+      onGeneratedTurn,
+    })).rejects.toThrow('tool call "new_retry_tool" as plain text')
+
+    expect(streamTextMock).toHaveBeenCalledTimes(2)
+    expect(streamTextMock.mock.calls[1]?.[0]?.tools).toBeUndefined()
+    expect(tools).toHaveBeenCalledTimes(2)
+    expect(resolveStep).toHaveBeenCalledTimes(2)
+    expect(retryTool.execute).not.toHaveBeenCalled()
+    expect(onStreamEvent).not.toHaveBeenCalled()
+    expect(onGeneratedTurn).not.toHaveBeenCalled()
   })
 
   it('records tool incompatibility for the model that a resolved step selects', async () => {

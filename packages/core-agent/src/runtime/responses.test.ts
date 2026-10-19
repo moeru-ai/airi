@@ -27,6 +27,79 @@ function provider(fetch: typeof globalThis.fetch): GenerationProvider {
   }
 }
 
+// https://github.com/moeru-ai/airi/pull/2459#discussion_r4260785240
+// ROOT CAUSE:
+// The queue hid consumer failures from the Responses reader, which continued into tool execution.
+// Return the queued work to this awaited callback so the SDK stops on failure.
+it.each(['text', 'reasoning'] as const)('stops Responses tools after a %s consumer fails for Issue #2161', async (channel) => {
+  const failure = new Error('consumer failed before the tool call')
+  const execute = vi.fn(async () => 'tool executed')
+  const onGeneratedTurn = vi.fn()
+  const onUsage = vi.fn()
+  const controller = new AbortController()
+  const fetch = vi.fn<typeof globalThis.fetch>()
+    .mockResolvedValueOnce(sse([
+      { type: channel === 'text' ? 'response.output_text.delta' : 'response.reasoning_summary_text.delta', delta: 'Visible output' },
+      ...completed([{ type: 'function_call', call_id: 'effect-1', name: 'side_effect', arguments: '{}' }]),
+    ]))
+    .mockImplementation(async () => sse(completed([])))
+
+  await expect(streamFrom({
+    model: 'test',
+    chatProvider: provider(fetch),
+    conversation: { turns: [] },
+    options: {
+      tools: [{ type: 'function', function: { name: 'side_effect', parameters: { type: 'object', properties: {} } }, execute }],
+      abortSignal: controller.signal,
+      onStreamEvent: async () => { throw failure },
+      onGeneratedTurn,
+      onUsage,
+    },
+  })).rejects.toBe(failure)
+  await new Promise(resolve => setImmediate(resolve))
+
+  expect(execute).not.toHaveBeenCalled()
+  expect(fetch).toHaveBeenCalledOnce()
+  expect(onGeneratedTurn).not.toHaveBeenCalled()
+  expect(onUsage).not.toHaveBeenCalled()
+  expect(controller.signal.aborted).toBe(false)
+})
+
+// https://github.com/moeru-ai/airi/pull/2459#discussion_r4260785258
+// ROOT CAUSE:
+// Internal retries need resolved names even when tools are disabled for transmission.
+// Only the retry inspection set opts into this policy for explicitly disabled tools.
+it.each(['text', 'reasoning'] as const)('keeps explicitly tool-free resolved %s output outside retry inspection for Issue #2161', async (channel) => {
+  const text = '{"name":"example_tool","arguments":{}}'
+  const onStreamEvent = vi.fn()
+  const fetch = vi.fn<typeof globalThis.fetch>(async () => sse([
+    { type: channel === 'text' ? 'response.output_text.delta' : 'response.reasoning_summary_text.delta', delta: text },
+    ...completed([]),
+  ]))
+  const chatProvider = provider(fetch)
+  await streamFrom({
+    model: 'test',
+    chatProvider,
+    conversation: { turns: [] },
+    options: {
+      supportsTools: false,
+      resolveStep: async () => ({
+        model: 'test',
+        chatProvider,
+        providerId: 'test',
+        systemPrompt: '',
+        tools: [{ type: 'function', function: { name: 'example_tool', parameters: { type: 'object', properties: {} } }, execute: vi.fn() }],
+      }),
+      onStreamEvent,
+    },
+  })
+
+  expect(onStreamEvent).toHaveBeenCalledWith({ type: channel === 'text' ? 'text-delta' : 'reasoning-delta', text })
+  expect(onStreamEvent).toHaveBeenCalledWith({ type: 'finish' })
+  expect(fetch).toHaveBeenCalledOnce()
+  expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body)).tools).toBeUndefined()
+})
+
 // https://github.com/moeru-ai/airi/issues/2161
 // ROOT CAUSE:
 // A new SDK stream starts after a protocol change, while consumers join output across that change.
