@@ -4384,6 +4384,9 @@ importers:
       '@xsai/model':
         specifier: 'catalog:'
         version: 0.5.1
+      '@xsai/shared-stream':
+        specifier: 'catalog:'
+        version: 0.5.1
       '@xsai/stream-transcription':
         specifier: 'catalog:'
         version: 0.5.1
