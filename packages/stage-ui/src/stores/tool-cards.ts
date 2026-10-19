@@ -173,6 +173,12 @@ const useToolCardsStateStore = defineStore('tool-cards-state', () => {
     }, new AbortController().signal)
   }
 
+  /** Removes the latest call of a card version that no card uses. One left behind has no card to show it. */
+  async function forgetLatestCall(key: string, version: number) {
+    await toolCardDataRepo.remove(key, version)
+      .catch(error => console.warn('[tool-cards] Failed to remove the latest call of a card:', errorMessageFrom(error)))
+  }
+
   /** Saves the cards, then shows them. When the save fails, the cards stay as they were. */
   function commit(next: SavedToolCard[]) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
@@ -200,14 +206,26 @@ const useToolCardsStateStore = defineStore('tool-cards-state', () => {
       failed.value = failed.value.filter(entry => entry !== key)
       try {
         const made = await make(request)
-        // The card and its latest call are one save. The latest call goes first, so a card never shows without its
-        // preview. A failed save fails the card, and the card that was there stays.
-        await toolCardDataRepo.set(key, request.data)
-        if ((generations.get(key) ?? 0) !== generation)
-          return false
         const now = Date.now()
         const card: SavedToolCard = { key, ...made, createdAt: now, usedAt: now }
-        commit([...cards.value.filter(entry => entry.key !== key), card])
+        // The card and its latest call are one save. The latest call goes first, under the version of the new card, so
+        // a card never shows without its preview. A failed save fails the card, and the card that was there keeps its
+        // own preview.
+        await toolCardDataRepo.set(key, card.createdAt, request.data)
+        const previous = cards.value.find(entry => entry.key === key)
+        try {
+          if ((generations.get(key) ?? 0) !== generation) {
+            await forgetLatestCall(key, card.createdAt)
+            return false
+          }
+          commit([...cards.value.filter(entry => entry.key !== key), card])
+        }
+        catch (error) {
+          await forgetLatestCall(key, card.createdAt)
+          throw error
+        }
+        if (previous)
+          await forgetLatestCall(key, previous.createdAt)
         return true
       }
       catch (error) {
@@ -229,10 +247,10 @@ const useToolCardsStateStore = defineStore('tool-cards-state', () => {
   async function deleteCard(key: string) {
     generations.set(key, (generations.get(key) ?? 0) + 1)
     failed.value = failed.value.filter(entry => entry !== key)
-    commit(cards.value.filter(card => card.key !== key))
-    // A latest call left behind has no card to show it, and the next card of the tool replaces it.
-    await toolCardDataRepo.remove(key)
-      .catch(error => console.warn('[tool-cards] Failed to remove the latest call of a card:', errorMessageFrom(error)))
+    const card = cards.value.find(entry => entry.key === key)
+    commit(cards.value.filter(entry => entry.key !== key))
+    if (card)
+      await forgetLatestCall(key, card.createdAt)
   }
 
   /**
@@ -249,13 +267,15 @@ const useToolCardsStateStore = defineStore('tool-cards-state', () => {
   }
 
   /**
-   * Keeps the latest call of a tool for its card. A tool without a card keeps nothing. The new `usedAt` comes after the
-   * call is in place, so a preview that reads again on it finds the new call. A failed save keeps the call before it.
+   * Keeps the latest call of a tool for the version of its card. A tool without a card keeps nothing. The new `usedAt`
+   * comes after the call is in place, so a preview that reads again on it finds the new call. A call that fails to save
+   * keeps the call before it.
    */
   async function recordCall(key: string, data: unknown) {
-    if (!cards.value.some(card => card.key === key))
+    const card = cards.value.find(entry => entry.key === key)
+    if (!card)
       return
-    await toolCardDataRepo.set(key, data)
+    await toolCardDataRepo.set(key, card.createdAt, data)
     const now = Date.now()
     commit(cards.value.map(card => card.key === key ? { ...card, usedAt: now } : card))
   }
@@ -359,9 +379,9 @@ export const useToolCardsStore = defineStore('tool-cards', () => {
     state.releaseOrphanedCards()
   }
 
-  /** The result of the latest call of a tool, for the preview of its card. A card can have none, for example after a failed save. */
-  async function latestCallOf(key: string) {
-    return toolCardDataRepo.get(key)
+  /** The result of the latest call of a tool, for the preview of its card. A card can have none. */
+  async function latestCallOf(card: SavedToolCard) {
+    return toolCardDataRepo.get(card.key, card.createdAt)
   }
 
   return { enabled, replyCardsEnabled, cards, viewOf, want, reportBroken, remake, remove, recordCall, releaseOrphanedCards, latestCallOf }

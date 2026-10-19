@@ -48,12 +48,11 @@ function iconOf(key: string) {
 // The preview draws each card with the latest call of its tool, which the card store keeps apart from the cards. A new
 // call changes `usedAt`, so the previews read again.
 const latestCalls = shallowRef<ReadonlyMap<string, unknown>>(new Map())
-watch(() => cards.value.map(card => `${card.key}@${card.usedAt}`).join('\n'), async (_, __, onCleanup) => {
+watch(() => cards.value.map(card => `${card.key}@${card.createdAt}@${card.usedAt}`).join('\n'), async (_, __, onCleanup) => {
   // A newer read replaces an older one that is still on its way.
   let replaced = false
   onCleanup(() => replaced = true)
-  const keys = cards.value.map(card => card.key)
-  const calls = await Promise.all(keys.map(async key => [key, await toolCards.latestCallOf(key)] as const))
+  const calls = await Promise.all(cards.value.map(async card => [card.key, await toolCards.latestCallOf(card)] as const))
   if (!replaced)
     latestCalls.value = new Map(calls.filter(([, data]) => data !== undefined))
 }, { immediate: true })
