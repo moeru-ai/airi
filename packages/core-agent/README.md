@@ -20,6 +20,23 @@ When a caller supplies `resolveStep`, `streamFrom` reads current settings before
 
 The chat orchestrator forwards a send's `resolveStep`. It appends that send's system prompt supplement, including sticker instructions, to each resolved prompt.
 
+### Tool output and compatibility retries
+
+`streamFrom` rejects serialized calls to known tools in text or reasoning. A call has a top-level tool `name` and `parameters` or `arguments`. Ordinary JSON and nested examples remain output. This policy applies to Chat Completions and Responses.
+
+Plain output streams until a JSON candidate starts. Complete candidates are checked at step boundaries. An unmatched candidate holds later output until generation completion, including across provider or protocol changes. This delay prevents incomplete outer objects from exposing a tool call or incorrectly rejecting an ordinary nested example. Text and reasoning keep separate candidates. Each inspection limits candidate parsing to eight times the channel length. Exhaustion rejects without releasing unchecked output. This bounds inspection work, not total input size or elapsed time.
+
+Native tool activity is reported before queued UI notifications. Accepted events keep their order. Failure stops queued output and waits for the active consumer. SDK completion rejects late provider events, but accepted errors and terminal consumer failures still reject the generation. Usage observers remain optional telemetry.
+
+Responses awaits each consumer callback. A consumer failure stops the SDK reader before later tool calls execute.
+Chat callbacks remain under the owned queue because that SDK does not await them.
+
+The stage-ui LLM store retries a plain-text call without tools only before output, generated-turn persistence, or native tool activity. Tool and content-array fallbacks each apply at most once, in either order. A required tool choice keeps tools despite a learned incompatibility. An explicit `supportsTools: false` wins, and a required choice without available tools rejects before the request. An explicit content-array override stays intact.
+
+`toolCallGuardNames` retains known names from earlier attempts of one generation and enables inspection of current resolved tools during internal tool-free retries. Cached tool-disabled requests inspect current tool names. Explicit tool-free requests omit this set and skip builtin tool resolution. Spark forced-text prompts omit unavailable command instructions.
+
+Already emitted output and executed tools cannot be rolled back. Active consumer callbacks must eventually settle. Highly malformed ordinary JSON can exhaust the inspection budget and fail.
+
 To cap each request's output, set `StreamOptions.maxTokens`. Chat sends `max_tokens`, and Responses sends `max_output_tokens`.
 A `resolveStep` cap overrides the caller's cap. If the step omits its cap, the caller's cap applies.
 If both omit it, the provider's default applies.
