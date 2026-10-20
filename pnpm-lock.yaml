@@ -1749,6 +1749,9 @@ importers:
       '@iconify-json/svg-spinners':
         specifier: 'catalog:'
         version: 1.2.4
+      '@iconify-json/tabler':
+        specifier: 'catalog:'
+        version: 1.2.38
       '@iconify-json/vscode-icons':
         specifier: 'catalog:'
         version: 1.2.74
@@ -2236,6 +2239,9 @@ importers:
       '@iconify-json/svg-spinners':
         specifier: 'catalog:'
         version: 1.2.4
+      '@iconify-json/tabler':
+        specifier: 'catalog:'
+        version: 1.2.38
       '@iconify-json/vscode-icons':
         specifier: 'catalog:'
         version: 1.2.74
@@ -2772,6 +2778,9 @@ importers:
       '@iconify-json/svg-spinners':
         specifier: 'catalog:'
         version: 1.2.4
+      '@iconify-json/tabler':
+        specifier: 'catalog:'
+        version: 1.2.38
       '@iconify-json/vscode-icons':
         specifier: 'catalog:'
         version: 1.2.74
@@ -4896,6 +4905,9 @@ importers:
       '@iconify-json/mingcute':
         specifier: 'catalog:'
         version: 1.2.8
+      '@iconify-json/tabler':
+        specifier: 'catalog:'
+        version: 1.2.38
       '@iconify/utils':
         specifier: 'catalog:'
         version: 3.1.4
