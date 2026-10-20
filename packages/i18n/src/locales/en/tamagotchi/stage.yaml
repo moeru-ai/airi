@@ -55,13 +55,12 @@ docs:
   style:
     title: Chat window style
     legacy: Classic window
-    floating-attached: Floating, beside the character
-    floating-free: Floating, anywhere on screen
-    floating-danmaku: Floating, message feed
+    floating: Floating
     fullscreen: Fullscreen, beside the character
-    pinned: Keep on top
-  resize: Drag to resize the chat
+    attached: Beside the character
   move: Drag to move the chat
+  danmaku: Message feed
+  pin: Keep on top
   fold: Hide chat
   composer:
     show: Show the message box

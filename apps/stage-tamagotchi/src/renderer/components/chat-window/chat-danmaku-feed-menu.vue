@@ -1,14 +1,23 @@
 <script setup lang="ts">
+import type { ChatHeaderButtonVariant } from './chat-header-button'
+
 import { Checkbox, Range } from '@proj-airi/ui'
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { danmakuFeedTiming, useDanmakuFeedSettings } from '../../composables/use-danmaku-feed-settings'
+import { chatHeaderButtonClass } from './chat-header-button'
 
 // The root is the popover, which renders no element, so a class from the
 // parent goes to the trigger button.
 defineOptions({ inheritAttrs: false })
+
+withDefaults(defineProps<{
+  variant?: ChatHeaderButtonVariant
+}>(), {
+  variant: 'plain',
+})
 
 const { hideReadMessages, charactersPerSecond, minimumSeconds } = useDanmakuFeedSettings()
 const { t } = useI18n()
@@ -42,12 +51,7 @@ const sliders = computed(() => [
       -->
       <button
         v-bind="$attrs"
-        :class="[
-          'h-7 w-7 flex items-center justify-center rounded-md outline-none',
-          'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
-          'text-base transition-colors transition-transform active:scale-95',
-          'text-neutral-400 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400',
-        ]"
+        :class="chatHeaderButtonClass(variant)"
         :title="t('tamagotchi.stage.chat-window.danmaku-feed.title')"
         :aria-label="t('tamagotchi.stage.chat-window.danmaku-feed.title')"
       >
