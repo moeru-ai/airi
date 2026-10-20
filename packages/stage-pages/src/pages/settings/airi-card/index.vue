@@ -1,21 +1,19 @@
 <script setup lang="ts">
 import { Alert } from '@proj-airi/stage-ui/components'
+import { getAiriCardEditorModuleSettings } from '@proj-airi/stage-ui/services/airi-card-editor'
 import { AiriCardPackageError, importAiriCardPackage } from '@proj-airi/stage-ui/services/airi-card-import-export'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { Button, InputFileCard } from '@proj-airi/ui'
+import { Button, Input } from '@proj-airi/ui'
 import { ComboboxSelect } from '@proj-airi/ui/components/form'
 import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
-import CardCreate from './components/CardCreate.vue'
-import CardDetailDialog from './components/CardDetailDialog.vue'
-import CardListItem from './components/CardListItem.vue'
-import DeleteCardDialog from './components/DeleteCardDialog.vue'
+import CardListItem from './components/card-list-item.vue'
 import WakeWordConflictAlert from './components/wake-word-conflict-alert.vue'
 
 import { formatRelativeTime } from './composables/relative-time'
@@ -23,35 +21,63 @@ import { formatRelativeTime } from './composables/relative-time'
 const { t, locale } = useI18n()
 const cardStore = useAiriCardStore()
 const displayModelsStore = useDisplayModelsStore()
-const { addCard, removeCard } = cardStore
+const { addCard } = cardStore
 const { cards, activeCardId, cardSyncStates, cloudSyncEnabled } = storeToRefs(cardStore)
 const { isAuthenticated } = storeToRefs(useAuthStore())
 
 const route = useRoute()
 const router = useRouter()
 
-// Currently selected card ID (different from active card ID)
-const selectedCardId = ref<string>('')
-// Initial tab to open in the dialog
-const initialTabId = ref<string>('')
-// Dialog state
-const isCardDialogOpen = ref(false)
+const searchQuery = shallowRef('')
+const sortOption = shallowRef<'nameAsc' | 'nameDesc' | 'recent'>('nameAsc')
+const inputFiles = shallowRef<File[]>([])
+const uploadInput = useTemplateRef<HTMLInputElement>('uploadInput')
 
-// Search query
-const searchQuery = ref('')
+function handleUploadChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  inputFiles.value = Array.from(input.files ?? [])
+  input.value = ''
+}
 
-// Sort option
-const sortOption = ref<'nameAsc' | 'nameDesc' | 'recent'>('nameAsc')
+const dragDepth = shallowRef(0)
+const isDraggingFile = computed(() => dragDepth.value > 0)
 
-const inputFiles = ref<File[]>([])
+function isFileDrag(event: DragEvent) {
+  return event.dataTransfer?.types.includes('Files') ?? false
+}
 
-// Card list data structure
+function handleDragEnter(event: DragEvent) {
+  if (!isFileDrag(event))
+    return
+  event.preventDefault()
+  dragDepth.value += 1
+}
+
+function handleDragOver(event: DragEvent) {
+  if (isFileDrag(event))
+    event.preventDefault()
+}
+
+function handleDragLeave(event: DragEvent) {
+  if (!isFileDrag(event))
+    return
+  dragDepth.value = Math.max(0, dragDepth.value - 1)
+}
+
+function handleDrop(event: DragEvent) {
+  if (!isFileDrag(event))
+    return
+  event.preventDefault()
+  dragDepth.value = 0
+  inputFiles.value = Array.from(event.dataTransfer?.files ?? [])
+}
+
 interface CardItem {
   id: string
   name: string
   description?: string
-  deprecated?: boolean
-  customizable?: boolean
+  version: string
+  displayModelId?: string
 }
 
 watch(inputFiles, async (newFiles) => {
@@ -74,28 +100,27 @@ watch(inputFiles, async (newFiles) => {
   }
 })
 
-// Transform cards Map to array for display
 const cardsArray = computed<CardItem[]>(() =>
   Array.from(cards.value.entries()).map(([id, card]) => ({
     id,
     name: card.name,
     description: card.description,
+    version: card.version,
+    displayModelId: getAiriCardEditorModuleSettings(card).displayModelId || undefined,
   })),
 )
 
-// Filtered cards based on search query
 const filteredCards = computed<CardItem[]>(() => {
-  if (!searchQuery.value)
+  const query = searchQuery.value.trim().toLocaleLowerCase(locale.value)
+  if (!query)
     return cardsArray.value
 
-  const query = searchQuery.value.toLowerCase()
   return cardsArray.value.filter(item =>
-    item.name.toLowerCase().includes(query)
-    || (item.description && item.description.toLowerCase().includes(query)),
+    item.name.toLocaleLowerCase(locale.value).includes(query)
+    || item.description?.toLocaleLowerCase(locale.value).includes(query),
   )
 })
 
-// Sorted filtered cards based on sort option
 const sortedFilteredCards = computed<CardItem[]>(() => {
   const sorted = [...filteredCards.value]
 
@@ -105,54 +130,12 @@ const sortedFilteredCards = computed<CardItem[]>(() => {
   if (sortOption.value === 'nameDesc')
     return sorted.sort((a, b) => b.name.localeCompare(a.name))
 
-  // The persisted Map retains insertion order; nanoids are random and cannot
-  // represent when a card was added.
+  // The persisted Map retains insertion order. Random IDs cannot represent creation time.
   return sorted.reverse()
 })
 
-// Delete confirmation
-const showDeleteConfirm = ref(false)
-const cardToDelete = ref<string | null>(null)
-
-async function handleDeleteConfirm() {
-  if (cardToDelete.value) {
-    await removeCard(cardToDelete.value)
-    cardToDelete.value = null
-    showDeleteConfirm.value = false
-  }
-}
-
-// Card deletion confirmation
-function confirmDelete(id: string) {
-  cardToDelete.value = id
-  showDeleteConfirm.value = true
-}
-
-function handleSelectCard(cardId: string) {
-  // Verify card exists before opening dialog
-  if (!cards.value.has(cardId)) {
-    console.error(`Card with id ${cardId} not found`)
-    return
-  }
-  selectedCardId.value = cardId
-  isCardDialogOpen.value = true
-}
-
-function handleEditCard(cardId: string) {
-  if (!cards.value.has(cardId)) {
-    console.error(`Card with id ${cardId} not found`)
-    return
-  }
-  void router.push(`/settings/airi-card/${encodeURIComponent(cardId)}/edit`)
-}
-
-function handleCardCreationDialog() {
+function handleCardCreation() {
   void router.push('/settings/airi-card/new')
-}
-
-// Card activation
-function activateCard(id: string) {
-  void cardStore.activateCard(id)
 }
 
 watch(activeCardId, (cardId, previousCardId) => {
@@ -164,61 +147,29 @@ watch(activeCardId, (cardId, previousCardId) => {
     toast(t('settings.pages.card.activation_notice', { name: activeCard.name }))
 })
 
-// Clear initial tab when detail dialog closes
-watch(isCardDialogOpen, (isOpen) => {
-  if (!isOpen) {
-    initialTabId.value = ''
-  }
-})
-
-// Handle deep-linking from query params
 watch(() => [route.query.cardId, route.query.tab], ([cardId, tab]) => {
-  if (!cardId || typeof cardId !== 'string' || !cards.value.has(cardId))
+  if (typeof cardId !== 'string' || !cards.value.has(cardId))
     return
 
-  const targetTab = typeof tab === 'string' ? tab : ''
-  selectedCardId.value = cardId
-  initialTabId.value = targetTab
-
-  // Gallery or other viewing tabs go to Detail dialog
-  if (['gallery', 'description', 'notes', 'character'].includes(targetTab)) {
-    isCardDialogOpen.value = true
-  }
-  // Artistry or other editing tabs go to Creation/Edit dialog
-  else if (['artistry', 'identity', 'behavior', 'modules', 'settings'].includes(targetTab)) {
-    void router.replace({
-      path: `/settings/airi-card/${encodeURIComponent(cardId)}/edit`,
-      query: { section: targetTab },
-    })
-    return
-  }
-  else {
-    // Default to detail if tab is unknown
-    isCardDialogOpen.value = true
-  }
-
-  // Clear query params to prevent re-triggering and keep URL clean
-  void router.replace({ query: {} })
+  const section = typeof tab === 'string' ? tab : ''
+  const edit = ['identity', 'behavior', 'modules', 'artistry', 'settings'].includes(section)
+  void router.replace({
+    path: `/settings/airi-card/${encodeURIComponent(cardId)}${edit ? '/edit' : ''}`,
+    query: edit ? { section } : { tab: section },
+  })
 }, { immediate: true })
 
-// Card version number
-function getVersionNumber(id: string) {
-  const card = cards.value.get(id)
-  return card?.version || '1.0.0'
-}
-
-// Recently deleted cards
 interface DeletedCard {
   id: string
   name: string
   deletedAt: string
 }
 
-const showDeletedPanel = ref(false)
-const deletedCardsList = ref<DeletedCard[]>([])
-const isLoadingDeleted = ref(false)
-const deletedLoadFailed = ref(false)
-const restoringDeletedId = ref<string | null>(null)
+const showDeletedPanel = shallowRef(false)
+const deletedCardsList = shallowRef<DeletedCard[]>([])
+const isLoadingDeleted = shallowRef(false)
+const deletedLoadFailed = shallowRef(false)
+const restoringDeletedId = shallowRef<string | null>(null)
 
 // The server keeps the content of a deleted card for 30 days.
 const DELETED_CARD_RETENTION_DAYS = 30
@@ -269,30 +220,12 @@ async function handleRestoreDeletedCard(card: DeletedCard) {
     restoringDeletedId.value = null
   }
 }
-
-// Card module short name
-function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
-  const card = cards.value.get(id)
-  if (!card || !card.extensions?.airi?.modules)
-    return 'default'
-
-  const airiExt = card.extensions.airi.modules
-
-  if (module === 'consciousness') {
-    return airiExt.consciousness?.model ? airiExt.consciousness.model.split('-').pop() || 'default' : 'default'
-  }
-  else if (module === 'voice') {
-    return airiExt.speech?.voice_id || 'default'
-  }
-
-  return 'default'
-}
 </script>
 
 <template>
-  <div :class="['rounded-xl p-4 flex flex-col gap-4']">
+  <div :class="['flex flex-col gap-6 rounded-xl p-4 sm:p-6']">
     <WakeWordConflictAlert />
-    <!-- Disclosure: signed-in users upload their cards -->
+
     <div
       v-if="isAuthenticated && cloudSyncEnabled"
       :class="[
@@ -309,15 +242,15 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
         <button
           type="button"
           :class="[
-            'flex flex-row shrink-0 items-center gap-1 text-sm',
+            'flex shrink-0 items-center gap-1 text-sm',
             'text-primary-600 dark:text-primary-400',
             'hover:underline',
           ]"
           @click="toggleDeletedPanel"
         >
-          <div :class="['i-solar:trash-bin-minimalistic-linear']" />
+          <span class="i-solar:trash-bin-minimalistic-linear" />
           {{ t('settings.pages.card.sync.deleted.title') }}
-          <div :class="showDeletedPanel ? 'i-solar:alt-arrow-up-linear' : 'i-solar:alt-arrow-down-linear'" />
+          <span :class="showDeletedPanel ? 'i-solar:alt-arrow-up-linear' : 'i-solar:alt-arrow-down-linear'" />
         </button>
       </div>
 
@@ -367,8 +300,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
       </div>
     </div>
 
-    <!-- Disclosure: a signed-in user who has not turned cloud sync on -->
-    <p v-else-if="isAuthenticated" :class="['flex items-center gap-2 text-sm', 'text-neutral-500 dark:text-neutral-400']">
+    <p v-else-if="isAuthenticated" :class="['flex flex-wrap items-center gap-2 text-sm', 'text-neutral-500 dark:text-neutral-400']">
       <span :class="['i-solar:cloud-cross-outline shrink-0']" />
       {{ t('settings.pages.card.sync.off_notice') }}
       <RouterLink to="/settings/system/experimental" :class="['text-primary-600 dark:text-primary-400 hover:underline']">
@@ -376,32 +308,15 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
       </RouterLink>
     </p>
 
-    <!-- Toolbar with search and filters -->
-    <div :class="['flex flex-row flex-wrap items-center justify-between gap-4']">
-      <!-- Search bar -->
-      <div :class="['relative min-w-[200px] w-full flex-1 inline-flex items-center']">
-        <div :class="['pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3']">
-          <div :class="['i-solar:magnifer-line-duotone', 'text-neutral-500 dark:text-neutral-400']" />
-        </div>
-        <input
-          v-model="searchQuery"
-          type="search"
-          :class="[
-            'w-full rounded-xl p-2.5 pl-10 text-sm outline-none',
-            'border-2 border-solid border-neutral-200 dark:border-neutral-800',
-            'focus:border-primary-100 dark:focus:border-primary-400/50',
-            'transition-all duration-200 ease-in-out',
-            'bg-white dark:bg-neutral-900',
-          ]"
-          :placeholder="t('settings.pages.card.search')"
-        >
-      </div>
-
-      <!-- Sort options -->
-      <div :class="['relative flex flex-row justify-start gap-2 lg:flex-col']">
-        <div :class="['top-[-32px] whitespace-nowrap text-sm leading-10 lg:absolute', 'text-neutral-500 dark:text-neutral-400']">
-          {{ t('settings.pages.card.sort_by') }}:
-        </div>
+    <div :class="['flex flex-wrap items-center gap-3']">
+      <Input
+        v-model="searchQuery"
+        type="search"
+        :placeholder="t('settings.pages.card.search')"
+        :aria-label="t('settings.pages.card.search')"
+        :class="['w-full flex-1 sm:max-w-xs']"
+      />
+      <div :class="['w-full shrink-0 sm:w-40']">
         <ComboboxSelect
           v-model="sortOption"
           :options="[
@@ -409,118 +324,90 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
             { value: 'nameDesc', label: t('settings.pages.card.name_desc') },
             { value: 'recent', label: t('settings.pages.card.recent') },
           ]"
-          placeholder="Select sort option"
-          :class="['min-w-[150px]']"
+          :placeholder="t('settings.pages.card.sort_by')"
+          :aria-label="t('settings.pages.card.sort_by')"
+          :class="['w-full']"
         />
       </div>
+      <div :class="['ms-auto flex flex-wrap justify-end gap-2 max-sm:w-full']">
+        <Button
+          icon="i-solar:upload-square-line-duotone"
+          :label="t('settings.pages.card.upload')"
+          @click="uploadInput?.click()"
+        />
+        <Button
+          variant="primary"
+          color="primary"
+          icon="i-solar:add-square-line-duotone"
+          :label="t('settings.pages.card.create_card')"
+          @click="handleCardCreation"
+        />
+      </div>
+      <input
+        ref="uploadInput"
+        type="file"
+        accept=".zip"
+        :class="['hidden']"
+        @change="handleUploadChange"
+      >
     </div>
 
-    <!-- Masonry card layout -->
     <div
-      :class="['mt-4', { 'grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 grid-auto-rows-[minmax(min-content,max-content)] grid-auto-flow-dense sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] sm:gap-5 md:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(250px,1fr))]': cards.size > 0 }]"
+      :class="['relative']"
+      @dragenter="handleDragEnter"
+      @dragover="handleDragOver"
+      @dragleave="handleDragLeave"
+      @drop="handleDrop"
     >
-      <!-- Upload card -->
-      <InputFileCard v-model="inputFiles" accept=".zip">
-        <template #default="{ isDragging }">
-          <template v-if="!isDragging">
-            <div :class="['flex flex-col items-center']">
-              <div :class="['i-solar:upload-square-line-duotone mb-4 text-5xl', 'text-neutral-400 dark:text-neutral-500']" />
-              <p :class="['font-medium', 'text-neutral-600 dark:text-neutral-300']">
-                {{ t('settings.pages.card.upload') }}
-              </p>
-              <p :class="['mt-2 text-sm', 'text-neutral-500 dark:text-neutral-400']">
-                {{ t('settings.pages.card.upload_desc') }}
-              </p>
-            </div>
-          </template>
-          <template v-else>
-            <div :class="['flex flex-col items-center']">
-              <div :class="['i-solar:upload-minimalistic-bold mb-2 text-5xl', 'text-primary-500 dark:text-primary-400']" />
-              <p :class="['font-medium', 'text-primary-600 dark:text-primary-300']">
-                {{ t('settings.pages.card.drop_here') }}
-              </p>
-            </div>
-          </template>
-        </template>
-      </InputFileCard>
-
-      <!-- Create card -->
-      <CardCreate @click="handleCardCreationDialog" />
-
-      <!-- Card Items -->
-      <template v-if="cards.size > 0">
+      <div :class="['grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5']">
         <CardListItem
           v-for="item in sortedFilteredCards"
           :id="item.id"
           :key="item.id"
           :name="item.name"
-          :description="item.description"
           :is-active="item.id === activeCardId"
-          :is-selected="item.id === selectedCardId && isCardDialogOpen"
-          :version="getVersionNumber(item.id)"
-          :consciousness-model="getModuleShortName(item.id, 'consciousness')"
-          :voice-model="getModuleShortName(item.id, 'voice')"
+          :version="item.version"
+          :model-id="item.displayModelId"
           :sync-state="cardSyncStates[item.id]"
-          @select="handleSelectCard(item.id)"
-          @activate="activateCard(item.id)"
-          @delete="confirmDelete(item.id)"
-          @edit="handleEditCard(item.id)"
         />
-      </template>
 
-      <!-- No cards message -->
-      <div
-        v-if="cards.size === 0"
-        :class="[
-          'col-span-full rounded-xl p-8 text-center',
-          'border border-neutral-200/50 dark:border-neutral-700/30',
-          'bg-neutral-50/50 dark:bg-neutral-900/50',
-        ]"
-      >
-        <div :class="['i-solar:card-search-broken mx-auto mb-3 text-6xl text-neutral-400']" />
-        <p>{{ t('settings.pages.card.no_cards') }}</p>
+        <div
+          v-if="cards.size === 0"
+          :class="[
+            'col-span-full rounded-xl p-8 text-center',
+            'border border-neutral-200/50 dark:border-neutral-700/30',
+            'bg-neutral-50/50 dark:bg-neutral-900/50',
+          ]"
+        >
+          <div :class="['i-solar:card-search-broken mx-auto mb-3 text-6xl text-neutral-400']" />
+          <p>{{ t('settings.pages.card.no_cards') }}</p>
+        </div>
+
+        <Alert v-if="searchQuery && sortedFilteredCards.length === 0" type="warning" :class="['col-span-full']">
+          <template #title>
+            {{ t('settings.pages.card.no_results') }}
+          </template>
+          <template #content>
+            {{ t('settings.pages.card.try_different_search') }}
+          </template>
+        </Alert>
       </div>
 
-      <!-- No search results -->
-      <Alert v-if="searchQuery && sortedFilteredCards.length === 0" type="warning">
-        <template #title>
-          {{ t('settings.pages.card.no_results') }}
-        </template>
-        <template #content>
-          {{ t('settings.pages.card.try_different_search') }}
-        </template>
-      </Alert>
+      <div
+        v-if="isDraggingFile"
+        :class="[
+          'pointer-events-none absolute inset-0 z-10',
+          'flex flex-col items-center justify-center gap-2 rounded-xl',
+          'border-2 border-dashed border-primary-400 dark:border-primary-500',
+          'bg-primary-500/10 dark:bg-primary-400/10',
+        ]"
+      >
+        <div :class="['i-solar:upload-minimalistic-bold text-4xl text-primary-500 dark:text-primary-400']" />
+        <p :class="['text-sm font-medium text-primary-600 dark:text-primary-300']">
+          {{ t('settings.pages.card.drop_here') }}
+        </p>
+      </div>
     </div>
-  </div>
-
-  <!-- Delete confirmation dialog -->
-  <DeleteCardDialog
-    v-model="showDeleteConfirm"
-    :card-name="cardToDelete ? cardStore.getCard(cardToDelete)?.name : ''"
-    @confirm="handleDeleteConfirm"
-    @cancel="cardToDelete = null"
-  />
-
-  <!-- Card detail dialog -->
-  <CardDetailDialog
-    v-model="isCardDialogOpen"
-    :card-id="selectedCardId"
-    :initial-tab="initialTabId"
-  />
-
-  <!-- Background decoration -->
-  <div
-    v-motion
-    :class="[
-      'pointer-events-none fixed bottom-0 right--5 top-[calc(100dvh-15rem)] z--1',
-      'size-60 flex items-center justify-center',
-      'text-neutral-200/50 dark:text-neutral-600/20',
-    ]"
-    :initial="{ scale: 0.9, opacity: 0, x: 20 }"
-    :enter="{ scale: 1, opacity: 1, x: 0 }"
-    :duration="500"
-  >
-    <div :class="['i-solar:emoji-funny-square-bold-duotone text-60']" />
   </div>
 </template>
 

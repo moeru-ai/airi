@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { WebSearchResultLink } from '../../../../tools/web-search'
 
+import { isWebUrl } from '@proj-airi/stage-shared'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -24,7 +25,7 @@ function parseUrl(value: string) {
 const cards = computed(() => props.links.map((link, index) => {
   const site = parseUrl(link.url)?.hostname ?? link.url
   // As in the citations of a reply, only a web page becomes a link. A hit with another scheme stays a card without a link.
-  const href = /^https?:\/\//i.test(link.url) ? link.url : undefined
+  const href = isWebUrl(link.url) ? link.url : undefined
   return { key: `${index}:${link.url}`, href, title: link.title, snippet: link.snippet, favicon: link.favicon, site, initial: site.charAt(0).toUpperCase() }
 }))
 

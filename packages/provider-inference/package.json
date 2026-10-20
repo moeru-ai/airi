@@ -41,6 +41,7 @@
     "test:browser": "vitest run --project browser"
   },
   "dependencies": {
+    "@google/genai": "catalog:",
     "@moeru/std": "catalog:",
     "@proj-airi/audio": "workspace:^",
     "@sherpaw/asr": "catalog:",
@@ -50,6 +51,7 @@
     "@xsai-transformers/shared": "catalog:",
     "@xsai/generate-text": "catalog:",
     "@xsai/model": "catalog:",
+    "@xsai/shared-stream": "catalog:",
     "@xsai/stream-transcription": "catalog:",
     "@xsai/utils-chat": "catalog:",
     "clustr": "catalog:",

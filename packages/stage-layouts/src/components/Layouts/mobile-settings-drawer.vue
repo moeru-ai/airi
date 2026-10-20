@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { InboxDrawer } from '@proj-airi/stage-ui/components'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
+import { useInboxStore } from '@proj-airi/stage-ui/stores/inbox'
 import { useSpeechOutputControlStore } from '@proj-airi/stage-ui/stores/speech-output-control'
-import { Avatar, BasicButton, BottomDrawer, GhostButton, Range, SelectTab, useTheme } from '@proj-airi/ui'
+import { Avatar, Badge, BasicButton, BottomDrawer, GhostButton, RoundRange, SelectTab, useTheme } from '@proj-airi/ui'
 import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, shallowRef } from 'vue'
@@ -30,6 +32,13 @@ const backgroundDialogOpen = shallowRef(false)
 const settingsOpen = shallowRef(false)
 const aboutOpen = shallowRef(false)
 const keyboardNavigation = shallowRef(false)
+const { unread } = storeToRefs(useInboxStore())
+const notificationsOpen = shallowRef(false)
+/** The Notifications drawer asked to return here. The menu reopens after that drawer closes. */
+const returnToMenu = shallowRef(false)
+const menuLabel = computed(() => isAuthenticated.value && unread.value > 0
+  ? t('stage.mobile-tools.menu-unread', { count: unread.value })
+  : t('stage.mobile-tools.menu'))
 
 useEventListener('keydown', (event) => {
   if (event.key === 'Tab')
@@ -40,9 +49,9 @@ useEventListener('pointerdown', () => {
 }, { capture: true })
 
 // Finish closing settings before opening a sibling modal, so focus and scroll locks have one owner.
-const nextPanel = shallowRef<'background' | 'about' | 'account' | 'view'>()
+const nextPanel = shallowRef<'background' | 'about' | 'account' | 'view' | 'notifications'>()
 
-function openPanel(panel: 'background' | 'about' | 'account' | 'view') {
+function openPanel(panel: 'background' | 'about' | 'account' | 'view' | 'notifications') {
   nextPanel.value = panel
   settingsOpen.value = false
 }
@@ -69,7 +78,22 @@ function finishSettingsClose() {
   else if (nextPanel.value === 'view') {
     emit('openViewControls')
   }
+  else if (nextPanel.value === 'notifications') {
+    notificationsOpen.value = true
+  }
   nextPanel.value = undefined
+}
+
+function backToMenu() {
+  returnToMenu.value = true
+  notificationsOpen.value = false
+}
+
+function finishNotificationsClose() {
+  if (!returnToMenu.value)
+    return
+  returnToMenu.value = false
+  settingsOpen.value = true
 }
 
 const characterVoiceVolume = computed({
@@ -99,12 +123,23 @@ const characterVoiceIcon = computed(() => {
     <template #trigger>
       <BasicButton
         size="unset"
-        :aria-label="t('stage.mobile-tools.title')"
-        :title="t('stage.mobile-tools.title')"
+        :aria-label="menuLabel"
+        :title="t('stage.mobile-tools.menu')"
         data-testid="mobile-settings-button"
-        :class="['pointer-events-auto size-11 rounded-full bg-neutral-50/70 text-neutral-600 backdrop-blur-md dark:bg-neutral-900/70 dark:text-neutral-300', 'focus-visible:outline-2 focus-visible:outline-primary-500']"
+        :class="[
+          'pointer-events-auto relative size-11 rounded-full backdrop-blur-md',
+          'bg-neutral-50/70 text-neutral-600 dark:bg-neutral-900/70 dark:text-neutral-300',
+          'focus-visible:outline-2 focus-visible:outline-primary-500',
+        ]"
       >
-        <span aria-hidden="true" :class="['i-solar:settings-outline size-6']" />
+        <span aria-hidden="true" :class="['i-solar:hamburger-menu-outline size-6']" />
+        <!-- Unread Notifications are in this menu. A fixed-size dot keeps the button stable. -->
+        <Badge
+          v-if="isAuthenticated && unread > 0"
+          dot
+          data-testid="mobile-menu-notifications-dot"
+          :class="['pointer-events-none absolute right-1.5 top-1.5 ring-2 ring-neutral-50 dark:ring-neutral-900']"
+        />
       </BasicButton>
     </template>
     <div :class="['mobile-settings-actions select-none', keyboardNavigation && 'keyboard-navigation']">
@@ -134,6 +169,21 @@ const characterVoiceIcon = computed(() => {
           </span>
           <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 shrink-0 text-neutral-400']" />
         </GhostButton>
+        <template v-if="isAuthenticated">
+          <div :class="['mx-4 border-t border-neutral-100 dark:border-neutral-700/50']" />
+          <GhostButton
+            block size="unset"
+            data-testid="mobile-notifications-row"
+            :aria-label="unread > 0 ? t('stage.notifications.open-unread', { count: unread }) : t('stage.notifications.open')"
+            :class="['mobile-tool-row min-h-13 rounded-none px-4 py-3']"
+            @click="openPanel('notifications')"
+          >
+            <span aria-hidden="true" :class="['i-solar:bell-outline size-5 shrink-0 text-neutral-400']" />
+            <span :class="['flex-1 text-left text-sm']">{{ t('stage.notifications.title') }}</span>
+            <Badge :count="unread" />
+            <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 text-neutral-400']" />
+          </GhostButton>
+        </template>
       </div>
       <section :class="['mb-4']">
         <h3 :class="['mb-2 px-1 text-xs font-semibold text-neutral-500 dark:text-neutral-400']">
@@ -201,10 +251,18 @@ const characterVoiceIcon = computed(() => {
             >
               <span aria-hidden="true" :class="[characterVoiceIcon, 'size-5']" />
             </BasicButton>
-            <Range
+            <!--
+              NOTICE:
+              On iOS, a touch drag on this range does not move the value.
+              The modal drawer locks body scroll. The lock adds a document `touchmove` listener that cancels moves outside a scrollable element.
+              Source: reka-ui `dist/shared/useBodyScrollLock.js`, `preventDefault` and `checkOverflowScroll`.
+              Remove `@touchmove.stop` when reka-ui stops cancelling `touchmove` on range inputs.
+            -->
+            <RoundRange
               v-model="characterVoiceVolume"
               :aria-label="t('stage.mobile-tools.character-voice')"
-              :class="['mobile-volume-slider w-full flex-1', !characterVoiceEnabled && 'opacity-50']"
+              :class="['w-full flex-1', !characterVoiceEnabled && 'opacity-50']"
+              @touchmove.stop
             />
           </div>
         </div>
@@ -242,6 +300,7 @@ const characterVoiceIcon = computed(() => {
   </BottomDrawer>
   <BackgroundDialogPicker v-model="backgroundDialogOpen" class="pointer-events-auto" />
   <ActionAbout v-model="aboutOpen" hide-trigger />
+  <InboxDrawer v-model:open="notificationsOpen" @back="backToMenu" @after-close="finishNotificationsClose" />
 </template>
 
 <style scoped>
@@ -286,29 +345,5 @@ const characterVoiceIcon = computed(() => {
 
 .mobile-tool-row :deep([aria-hidden]) {
   flex-shrink: 0;
-}
-
-/* iOS-style volume bar: flush rounded track, theme-hue fill, no visible thumb. */
-.mobile-settings-actions :deep(.mobile-volume-slider) {
-  --height: 1.75rem;
-  --thumb-width: 0px;
-  --track-border: none;
-  --track-border-radius: 999px;
-  --track-value-padding: 0px;
-  --track-background: rgb(0 0 0 / 0.06);
-  --track-background-hover: rgb(0 0 0 / 0.06);
-  --track-background-active: rgb(0 0 0 / 0.06);
-  --track-value-background: oklch(72% var(--chromatic-chroma-400) var(--chromatic-hue));
-  --track-value-background-hover: oklch(76% var(--chromatic-chroma-400) var(--chromatic-hue));
-  --track-value-background-active: oklch(68% var(--chromatic-chroma-400) var(--chromatic-hue));
-}
-
-.dark .mobile-settings-actions :deep(.mobile-volume-slider) {
-  --track-background: rgb(255 255 255 / 0.12);
-  --track-background-hover: rgb(255 255 255 / 0.12);
-  --track-background-active: rgb(255 255 255 / 0.12);
-  --track-value-background: oklch(76% var(--chromatic-chroma-300) var(--chromatic-hue));
-  --track-value-background-hover: oklch(80% var(--chromatic-chroma-300) var(--chromatic-hue));
-  --track-value-background-active: oklch(72% var(--chromatic-chroma-300) var(--chromatic-hue));
 }
 </style>

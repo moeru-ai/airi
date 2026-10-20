@@ -18,6 +18,8 @@ mobile-tools:
   view: View
   close-view: Save and close view controls
   hearing: Hearing
+  menu: Menu
+  menu-unread: Menu, {count} unread notifications
 chat:
   provider-configuration:
     title: Chat provider isn't configured
@@ -359,3 +361,25 @@ status:
   sign-in-unconfirmed: Could not confirm your session. Please sign in again.
   dismiss: Dismiss
   configure-hearing: Select and configure a Hearing provider in Settings.
+
+notifications:
+  title: Notifications
+  open: Open notifications
+  open-unread: Open notifications, {count} unread
+  mark-all-read: Mark all as read
+  empty: No notifications yet
+  loading: Loading notifications
+  back: Back
+  error: Notifications could not load.
+  retry: Retry
+  just-now: Just now
+  kinds:
+    flux-granted:
+      title: You received {amount} Flux
+    subscription-renewed:
+      title: '{plan} renewed'
+      body: Active until {periodEnd}.
+    subscription-payment-failed:
+      title: Renewal payment failed
+      body: We will retry on {retryAt}. Update your payment method to keep {plan}.
+      body-no-retry: Update your payment method to keep {plan}.

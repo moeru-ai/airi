@@ -535,6 +535,20 @@ pages:
     search: 搜索角色卡...
     sort_by: 排序方式
     body-model: 身体 / 显示模型
+    view-card: 查看角色卡
+    model_not_bound: 未选择形象
+    gallery: 图库
+    pinned_background: 固定背景
+    pinned_background_description: 选择角色启用时显示的图片。
+    select_background: 选择背景
+    refresh_gallery: 刷新图库
+    gallery_empty: 还没有图片。在对话里让角色画图后，图片会出现在这里。
+    gallery_delete_confirm: 确定要从图库删除这张图片吗？
+    active_background: 当前背景
+    set_as_background: 设为背景
+    download: 下载
+    show_less: 收起
+    view_all_history: 查看全部 {count} 个版本
     speech:
       provider: 语音 / 提供商
       model: 声音 / 模型

@@ -18,6 +18,8 @@ mobile-tools:
   view: 视图
   close-view: 保存并关闭视图调节
   hearing: 听觉
+  menu: 菜单
+  menu-unread: 菜单，{count} 条未读通知
 chat:
   provider-configuration:
     title: 尚未正确配置聊天 Provider
@@ -349,3 +351,25 @@ status:
   sign-in-unconfirmed: 未能确认登录会话，请重新登录。
   dismiss: 关闭提示
   configure-hearing: 请先在设置中选择并配置听觉服务。
+
+notifications:
+  title: 通知
+  open: 打开通知
+  open-unread: 打开通知，{count} 条未读
+  mark-all-read: 全部已读
+  empty: 暂无通知
+  loading: 正在加载通知
+  back: 返回
+  error: 通知加载失败。
+  retry: 重试
+  just-now: 刚刚
+  kinds:
+    flux-granted:
+      title: 获得 {amount} Flux
+    subscription-renewed:
+      title: '{plan} 已续费'
+      body: 有效期至 {periodEnd}。
+    subscription-payment-failed:
+      title: 续费扣款失败
+      body: 将于 {retryAt} 重试。请更新付款方式以继续使用 {plan}。
+      body-no-retry: 请更新付款方式以继续使用 {plan}。
