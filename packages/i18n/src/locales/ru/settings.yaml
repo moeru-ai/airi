@@ -242,14 +242,7 @@ live2d:
     sdk-preset-preserved-notice: >
       Диспетчер выражений SDK и моргание глаз сохраняются, если выключены.
     no-expression: Нет выражений для этой модели.
-    llm-integration-wip: Интеграция инструментов LLM еще не завершена.
-    save-default: Сохранить выражение по умолчанию
     reset: Сбросить все выражения
-    expose-to-llm-toggle: Распространять в LLM
-    expose-to-llm-options:
-      none: Отсутствует
-      all: Все
-      custom: Пользовательский
 microphone: Микрофон
 models: Модель
 pages:
@@ -1396,11 +1389,9 @@ pages:
       buy: Пополнить
       description: Пакеты Flux на выбор.
   capacitor:
-    description: Capacitor хранит Flux и перезаряжается автоматически.
     statusError: Не удалось загрузить ваш Capacitor. Повторите попытку позже.
     packagesError: Не удалось загрузить список Capacitor. Повторите попытку позже.
     preferenceError: Не удалось сохранить настройку. Повторите попытку позже.
-    noCapacitor: Нет Capacitor
     remaining: 'Осталось {percent}'
     rechargesAt: Перезарядка {date}
     renewsAt: Продление {date}
