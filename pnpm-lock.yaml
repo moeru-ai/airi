@@ -441,6 +441,9 @@ catalogs:
     '@snazzah/davey':
       specifier: ^0.1.12
       version: 0.1.12
+    '@tabler/icons':
+      specifier: ^3.49.0
+      version: 3.49.0
     '@tresjs/cientos':
       specifier: ^5.8.1
       version: 5.8.1
@@ -1746,6 +1749,9 @@ importers:
       '@iconify-json/svg-spinners':
         specifier: 'catalog:'
         version: 1.2.4
+      '@iconify-json/tabler':
+        specifier: 'catalog:'
+        version: 1.2.38
       '@iconify-json/vscode-icons':
         specifier: 'catalog:'
         version: 1.2.74
@@ -2230,6 +2236,9 @@ importers:
       '@iconify-json/svg-spinners':
         specifier: 'catalog:'
         version: 1.2.4
+      '@iconify-json/tabler':
+        specifier: 'catalog:'
+        version: 1.2.38
       '@iconify-json/vscode-icons':
         specifier: 'catalog:'
         version: 1.2.74
@@ -2766,6 +2775,9 @@ importers:
       '@iconify-json/svg-spinners':
         specifier: 'catalog:'
         version: 1.2.4
+      '@iconify-json/tabler':
+        specifier: 'catalog:'
+        version: 1.2.38
       '@iconify-json/vscode-icons':
         specifier: 'catalog:'
         version: 1.2.74
@@ -4878,6 +4890,9 @@ importers:
       '@iconify-json/mingcute':
         specifier: 'catalog:'
         version: 1.2.8
+      '@iconify-json/tabler':
+        specifier: 'catalog:'
+        version: 1.2.38
       '@iconify/utils':
         specifier: 'catalog:'
         version: 3.1.4
@@ -5007,6 +5022,9 @@ importers:
       '@shopify/draggable':
         specifier: 'catalog:'
         version: 1.2.1
+      '@tabler/icons':
+        specifier: 'catalog:'
+        version: 3.49.0
       '@vueuse/core':
         specifier: 'catalog:'
         version: 14.4.0(vue@3.5.41(typescript@6.0.3))
@@ -11925,6 +11943,9 @@ packages:
   '@szmarczak/http-timer@4.0.6':
     resolution: {integrity: sha512-4BAffykYOgO+5nzBWYwE3W90sBgLJoUPRWWcL8wlyiM8IB8ipJz3UMJ9KXQd1RKQXpKp8Tutn80HZtWsu2u76w==}
     engines: {node: '>=10'}
+
+  '@tabler/icons@3.49.0':
+    resolution: {integrity: sha512-l+GnSkFETx0U26icxv1VUFnxxiTqXfCcVRiRAnyMwibupM2S2L/hSaZ9gmSgz01rkrsH/93NvLsxykqdanc6lw==}
 
   '@tanstack/virtual-core@3.17.8':
     resolution: {integrity: sha512-BfEvehNpOT75r5Ksc5xW6NZuXujTfb7nlSEyVu4XHG3gdxNg1KqXruWbDewXOUaUYIo4oRbSfkjIajz4MAT8tA==}
@@ -26261,6 +26282,8 @@ snapshots:
   '@szmarczak/http-timer@4.0.6':
     dependencies:
       defer-to-connect: 2.0.1
+
+  '@tabler/icons@3.49.0': {}
 
   '@tanstack/virtual-core@3.17.8': {}
 

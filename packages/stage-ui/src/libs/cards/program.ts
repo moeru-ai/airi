@@ -5,7 +5,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { createParser, createStore, evaluate, evaluateElementProps } from '@openuidev/lang-core'
 
 import { SEARCH_ICONS_TOOL_NAME } from '../../tools/search-icons'
-import { hasMingcuteIcon } from '../mingcute-icons'
+import { hasTablerIcon } from '../tabler-icons'
 import { cardLibrary, drawCard, isPartNode, partProblem } from './catalog'
 
 const programParser = createParser(cardLibrary.toJSONSchema(), 'Card')
@@ -95,11 +95,11 @@ export async function problemsOfProgram(program: string, query?: { key: string, 
   if (parsed.mutationStatements.length > 0)
     problems.push('Remove every Mutation. A card only shows a result.')
 
-  // A part draws nothing for an icon that MingCute does not have. The model can still fix the name now.
+  // A part draws nothing for an icon that Tabler does not have. The model can still fix the name now.
   for (const part of partsOf(root)) {
     const icon = part.props.icon
-    if (typeof icon === 'string' && icon && !await hasMingcuteIcon(icon))
-      problems.push(`"${icon}" is not a MingCute icon name. Find one with \`${SEARCH_ICONS_TOOL_NAME}\`, or leave the icon out.`)
+    if (typeof icon === 'string' && icon && !await hasTablerIcon(icon))
+      problems.push(`"${icon}" is not a Tabler icon name. Find one with \`${SEARCH_ICONS_TOOL_NAME}\`, or leave the icon out.`)
   }
   return problems
 }

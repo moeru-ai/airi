@@ -21,7 +21,7 @@ const summaryProperties = {
   [CALL_ICON_ARGUMENT]: {
     type: 'array',
     items: { type: 'string' },
-    description: 'Write this second. Up to three MingCute icon names (mingcute.com) for what this call does, best first, without the "-fill" or "-line" ending, for example ["exchange-baht", "coin"]. The chat draws the first one that exists next to the label.',
+    description: 'Write this second. Up to three Tabler icon names (tabler.io/icons) for what this call does, best first, for example ["currency-baht", "coin"]. A name says what the icon draws: "app-window" is a program window, and "window" is a window of a house. The chat draws the first one that exists next to the label.',
   },
 }
 const summaryArguments = Object.keys(summaryProperties)

@@ -15,7 +15,7 @@ import CardView from '../../../../libs/cards/card-view.vue'
 import HitPill from './hit-pill.vue'
 import ToolCallPayload from './tool-call-payload.vue'
 
-import { mingcuteIconMask } from '../../../../libs/mingcute-icons'
+import { tablerIconMask } from '../../../../libs/tabler-icons'
 import { readCallSummary } from '../../../../stores/ai/chat-llm/tool-call-summary'
 import { useLlmToolsStore } from '../../../../stores/ai/chat-llm/tools'
 import { canRerunToolCall } from '../../../../stores/tool-call-rerun'
@@ -57,7 +57,7 @@ const calls = computed(() => {
     const { text: summary, icons } = readCallSummary(item.toolCall.args)
     // The icon draws in the element of the tool icon, so it keeps the size and the color of that icon. The tool icon
     // shows when no candidate leads to an icon.
-    const iconMask = mingcuteIconMask(icons)
+    const iconMask = tablerIconMask(icons)
     const result = props.resultOf(item.sliceIndex)
     const widget = props.widgets[item.toolCall.toolName]
     const reading = widget?.read(result?.result, item.toolCall.args)
@@ -134,7 +134,8 @@ function popLabelIn(el: Element, done: () => void) {
 function hitIcon(call: { state: ToolCallState, icon: string }) {
   if (call.state === 'executing')
     return 'i-svg-spinners:ring-resize'
-  return call.state === 'error' ? 'i-mingcute:close-circle-line' : call.icon
+  // The error icon takes the place of a tool icon, so it comes from the same set.
+  return call.state === 'error' ? 'i-tabler:circle-x' : call.icon
 }
 
 /**

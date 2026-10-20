@@ -6,13 +6,13 @@ import { h } from 'vue'
 import { z } from 'zod'
 
 import { SEARCH_ICONS_TOOL_NAME } from '../../tools/search-icons'
-import { MingcuteIcon } from '../mingcute-icons'
+import { TablerIcon } from '../tabler-icons'
 
 // The parts that a model can use in a card. They copy the look of the chat's tool widgets, so a card that a model
 // writes reads like a widget of the app. A part holds its own look, and the program only arranges parts.
 
 function iconOf(name: string | undefined, extra: string) {
-  return name ? h(MingcuteIcon, { name, class: extra }) : null
+  return name ? h(TablerIcon, { name, class: extra }) : null
 }
 
 /** As in the web search widget, only a web page becomes a link. Another scheme leaves the part without a link. */
@@ -114,7 +114,7 @@ const Tag = definePart({
 
 const Row = definePart({
   name: 'Row',
-  description: `One item with its own title: small gray details under it, an icon, tags, and a link, for example an issue or a message. Several items with the same fields read better as a Table. The icon is a MingCute icon name that \`${SEARCH_ICONS_TOOL_NAME}\` found.`,
+  description: `One item with its own title: small gray details under it, an icon, tags, and a link, for example an issue or a message. Several items with the same fields read better as a Table. The icon is a Tabler icon name that \`${SEARCH_ICONS_TOOL_NAME}\` found.`,
   props: z.object({
     title: z.string(),
     details: z.array(z.string()).optional(),
@@ -378,7 +378,7 @@ const Stack = definePart({
 
 const Card = definePart({
   name: 'Card',
-  description: `The whole card, with an optional title line and an icon for it: a MingCute icon name that \`${SEARCH_ICONS_TOOL_NAME}\` found. Every other part goes inside it.`,
+  description: `The whole card, with an optional title line and an icon for it: a Tabler icon name that \`${SEARCH_ICONS_TOOL_NAME}\` found. Every other part goes inside it.`,
   props: z.object({
     children: z.array(z.union([...leaves, Stack.ref])),
     title: z.string().optional(),

@@ -9,28 +9,31 @@ import { USE_RECIPE_TOOL_NAME } from './use-recipe'
 
 /** The icon of each kind of skill. The skills settings page and the chat show the same icons. */
 export const SKILL_ICONS = {
-  instructions: 'i-mingcute:document-fill',
-  decision: 'i-mingcute:git-branch-fill',
+  instructions: 'i-tabler:file-text',
+  decision: 'i-tabler:git-branch',
 } as const
 
-/** Each value matches the icon that the same feature shows in Settings or in the chat composer, in the MingCute set. */
+/**
+ * Tabler outline icons, as are the icons that the model picks for each call, so a row of tool icons uses one set. Each
+ * value draws the same thing as the icon of the feature in Settings or in the chat composer.
+ */
 export const TOOL_ICONS = {
-  weather: 'i-mingcute:sun-cloudy-fill',
-  widgets: 'i-mingcute:layout-4-fill',
-  imageJournal: 'i-mingcute:palette-fill',
-  computerUse: 'i-mingcute:monitor-fill',
-  homeAssistant: 'i-mingcute:home-4-fill',
-  memory: 'i-mingcute:book-2-fill',
-  wakeWords: 'i-mingcute:mic-fill',
-  spark: 'i-mingcute:send-plane-fill',
+  weather: 'i-tabler:cloud-rain',
+  widgets: 'i-tabler:layout-grid',
+  imageJournal: 'i-tabler:palette',
+  computerUse: 'i-tabler:device-desktop',
+  homeAssistant: 'i-tabler:home',
+  memory: 'i-tabler:book-2',
+  wakeWords: 'i-tabler:microphone',
+  spark: 'i-tabler:send',
   /** A search, for example of the icons that a card names. */
-  search: 'i-mingcute:search-2-fill',
+  search: 'i-tabler:search',
   /** Every tool that an MCP server provides. */
-  mcp: 'i-mingcute:server-fill',
+  mcp: 'i-tabler:server',
   /** Every tool of the skills feature that has no kind of its own. */
   skill: SKILL_ICONS.instructions,
   /** A tool that matches nothing else. */
-  generic: 'i-mingcute:magic-2-fill',
+  generic: 'i-tabler:wand',
 } as const
 
 /** Tools that stage-ui and core-agent create for each send. They never enter the tool registry, so their icons live here. */
