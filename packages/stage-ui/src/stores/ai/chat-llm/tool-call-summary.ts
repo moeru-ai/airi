@@ -97,8 +97,8 @@ export interface CallSummary {
  * Reads the summary from the recorded arguments of a call.
  *
  * @example
- * readCallSummary('{"call_summary":"Check the weather in Bangkok","call_icon":["sun-cloudy"],"city":"Bangkok"}')
- * // => { text: 'Check the weather in Bangkok', icons: ['sun-cloudy'] }
+ * readCallSummary('{"call_summary":"Check the weather in Bangkok","call_icon":["cloud-rain"],"city":"Bangkok"}')
+ * // => { text: 'Check the weather in Bangkok', icons: ['cloud-rain'] }
  */
 export function readCallSummary(args: string): CallSummary {
   const recorded = safeParse(recordedSummarySchema, args)
