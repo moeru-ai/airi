@@ -2,7 +2,6 @@ import type { IconifyJSON } from '@iconify-json/tabler'
 import type { FunctionalComponent } from 'vue'
 
 import { encodeSvgForCss, getIconData, iconToHTML, iconToSVG, replaceIDs } from '@iconify/utils'
-import { array, nullable, number, object, optional, parse, record, string, union } from 'valibot'
 import { h, shallowRef } from 'vue'
 
 // The Tabler icons that a model can name: in a card, or for a tool call. A model can name any of them, so they do not
@@ -45,53 +44,27 @@ TablerIcon.props = ['name']
 // The caller's class goes on the svg through `attrs`, so Vue must not add it a second time.
 TablerIcon.inheritAttrs = false
 
-/** One outline icon of the set, with the tags that Tabler gives it, for example `download` with `save` and `import`. */
+/** One outline icon of the set, with the words of its name, for example `cloud-rain` with `cloud` and `rain`. */
 interface SearchEntry {
   name: string
-  tags: string[]
-  nameWords: string[]
-  tagWords: string[]
+  words: string[]
 }
 
 /** One search hit, with the variants of the icon that the query also matches, for example `bookmark-plus`. */
 export interface TablerIconHit {
   name: string
-  tags: string[]
   variants: string[]
 }
 
-/** `icons.json` of `@tabler/icons`. A tag is a word, a number such as `911`, or `null`. */
-const tablerTagsSchema = record(string(), object({
-  tags: optional(array(nullable(union([string(), number()]))), []),
-}))
-
-let searchEntries: Promise<SearchEntry[]> | undefined
-const loadedSearchEntries = shallowRef<SearchEntry[]>()
+let searchEntries: SearchEntry[] | undefined
 
 function wordsOf(text: string) {
   return text.toLowerCase().split(/[^a-z0-9]+/).filter(word => word && !/^\d+$/.test(word))
 }
 
-/** Loads the outline icons with their tags, once. A search needs them, but drawing a name that exists does not. */
-function loadSearchEntries() {
-  searchEntries ??= Promise.all([
-    loadTablerIcons(),
-    // NOTICE:
-    // The tags of each icon are only in `icons.json` at the root of `@tabler/icons`.
-    // Its `exports` field maps every path to `./icons/*`, so `@tabler/icons/icons.json` does not resolve.
-    // node_modules/@tabler/icons/package.json, https://github.com/tabler/tabler-icons/tree/main/packages/icons
-    // Remove when `@tabler/icons` exports `icons.json`, and import it by the package name.
-    import('../../node_modules/@tabler/icons/icons.json?raw'),
-  ]).then(([icons, { default: text }]) => {
-    const tags = parse(tablerTagsSchema, JSON.parse(text))
-    // The chat draws outline icons, and Tabler names a filled one `<name>-filled`.
-    const entries = Object.keys(icons.icons).filter(name => !name.endsWith('-filled')).map((name) => {
-      const iconTags = (tags[name]?.tags ?? []).flatMap(tag => tag === null ? [] : [String(tag)])
-      return { name, tags: iconTags, nameWords: wordsOf(name), tagWords: [...new Set(iconTags.flatMap(wordsOf))] }
-    })
-    loadedSearchEntries.value = entries
-    return entries
-  })
+/** The outline icons of the set. The chat draws outline icons, and Tabler names a filled one `<name>-filled`. */
+function searchEntriesOf(icons: IconifyJSON) {
+  searchEntries ??= Object.keys(icons.icons).filter(name => !name.endsWith('-filled')).map(name => ({ name, words: wordsOf(name) }))
   return searchEntries
 }
 
@@ -109,8 +82,7 @@ function wordScore(query: string, word: string) {
 }
 
 /**
- * Ranks the icons for a query, best first. A word of the name counts more than a tag, because the name says what the
- * icon draws, and a tag says what it can stand for. An icon ranks by the query words that it matches, then by how few
+ * Ranks the icons for a query, best first. An icon ranks by the query words that its name matches, then by how few
  * other words its name has, so `cloud` comes before `cloud-rain`.
  */
 function rank(entries: SearchEntry[], query: string): SearchEntry[] {
@@ -121,17 +93,13 @@ function rank(entries: SearchEntry[], query: string): SearchEntry[] {
   const ranked = entries.flatMap((entry) => {
     let score = 0
     let matched = 0
-    let nameMatched = 0
     for (const word of words) {
-      const name = Math.max(0, ...entry.nameWords.map(entryWord => wordScore(word, entryWord)))
-      const tag = Math.max(0, ...entry.tagWords.map(entryWord => wordScore(word, entryWord)))
-      if (name > 0)
-        nameMatched += 1
-      if (name > 0 || tag > 0)
+      const best = Math.max(0, ...entry.words.map(entryWord => wordScore(word, entryWord)))
+      score += best
+      if (best > 0)
         matched += 1
-      score += name > 0 ? name + 2 : tag
     }
-    return matched > 0 ? [{ entry, score, matched, extra: entry.nameWords.length - nameMatched }] : []
+    return matched > 0 ? [{ entry, score, matched, extra: entry.words.length - matched }] : []
   })
   ranked.sort((left, right) =>
     right.matched - left.matched
@@ -144,23 +112,22 @@ function rank(entries: SearchEntry[], query: string): SearchEntry[] {
 }
 
 /**
- * Finds Tabler icons by the English words of their names and tags, best first.
- *
- * Each hit keeps its tags, so a model sees what else the icon can stand for. A variant, for example `bookmark-off`,
- * goes with its icon instead of taking a place of its own, so the hits cover more meanings.
+ * Finds Tabler icons by the English words of their names, best first. Tabler names an icon after what it draws, so a
+ * query names a thing, for example "cloud rain" or "device floppy". A variant, for example `bookmark-off`, goes with
+ * its icon instead of taking a place of its own, so the hits cover more icons.
  *
  * @example
- * await searchTablerIcons('save')
- * // => [{ name: 'archive', tags: ['storage', 'box', 'archived', 'save', ...], variants: ['archive-off'] }, ...]
+ * await searchTablerIcons('cloud rain')
+ * // => [{ name: 'cloud-rain', variants: [] }, { name: 'cloud', variants: ['cloud-off', ...] }, ...]
  */
 export async function searchTablerIcons(query: string, limit = 10): Promise<TablerIconHit[]> {
   const hits: TablerIconHit[] = []
-  for (const entry of rank(await loadSearchEntries(), query)) {
+  for (const entry of rank(searchEntriesOf(await loadTablerIcons()), query)) {
     const icon = hits.find(hit => entry.name.startsWith(`${hit.name}-`))
     if (icon)
       icon.variants.push(entry.name)
     else if (hits.length < limit)
-      hits.push({ name: entry.name, tags: entry.tags, variants: [] })
+      hits.push({ name: entry.name, variants: [] })
   }
   return hits
 }
@@ -168,7 +135,7 @@ export async function searchTablerIcons(query: string, limit = 10): Promise<Tabl
 /**
  * The outline icon of the best candidate. A candidate is an icon name, or English words that the search reads. A real
  * name among the candidates comes first, because a search for a wrong name finds only one of its words. The search
- * then corrects a name that is close. While the tags load, a candidate that is no name finds nothing.
+ * then corrects a name that is close.
  */
 function pickIcon(icons: IconifyJSON, candidates: readonly string[]) {
   for (const candidate of candidates) {
@@ -176,13 +143,8 @@ function pickIcon(icons: IconifyJSON, candidates: readonly string[]) {
     if (exact)
       return exact
   }
-  const entries = loadedSearchEntries.value
-  if (!entries) {
-    void loadSearchEntries()
-    return undefined
-  }
   for (const candidate of candidates) {
-    const [best] = rank(entries, candidate)
+    const [best] = rank(searchEntriesOf(icons), candidate)
     if (best)
       return getIconData(icons, best.name)
   }

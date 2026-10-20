@@ -196,7 +196,6 @@ catalog:
   '@shikijs/rehype': ^4.4.3
   '@shopify/draggable': ^1.2.1
   '@snazzah/davey': ^0.1.12
-  '@tabler/icons': ^3.49.0
   '@tresjs/cientos': ^5.8.1
   '@tresjs/core': ^5.8.3
   '@tresjs/post-processing': ^3.7.4
