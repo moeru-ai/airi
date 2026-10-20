@@ -9,6 +9,7 @@ import { listModelCatalog } from '../../../model-catalog'
 import { ProviderValidationCheck } from '../../../types'
 import { createOpenAICompatibleValidators } from '../../../validators'
 import { defineProvider } from '../../registry'
+import { selectMinimaxChatModels } from '../minimax/models'
 
 export const OPENROUTER_ATTRIBUTION_HEADERS: Record<string, string> = {
   'HTTP-Referer': 'https://airi.moeru.ai/',
@@ -65,7 +66,10 @@ export const providerOpenRouterAI = defineProvider<OpenRouterConfig, 'openrouter
           },
         }
 
-        if (!options?.reasoning)
+        // Flash requires reasoning on OpenRouter, including for an older saved toggle.
+        const endpoint = new URL(config.baseUrl ?? 'https://openrouter.ai/api/v1/')
+        const isOpenRouter = endpoint.origin === 'https://openrouter.ai' && endpoint.pathname.replace(/\/$/, '') === '/api/v1'
+        if (!options?.reasoning || (isOpenRouter && model === 'minimax/minimax-m3.1-flash:free' && options.reasoning === 'disabled'))
           return request
 
         return { ...request, reasoning: { effort: options.reasoning === 'enabled' ? 'medium' : 'none' } }
@@ -74,10 +78,22 @@ export const providerOpenRouterAI = defineProvider<OpenRouterConfig, 'openrouter
   },
 
   extraMethods: {
-    listModelCatalog: config => listModelCatalog(
-      { apiKey: config.apiKey, baseURL: config.baseUrl ?? 'https://openrouter.ai/api/v1/', headers: OPENROUTER_ATTRIBUTION_HEADERS },
-      { models: openRouterModels.filter(model => model.type === 'chat'), providerId: 'openrouter-ai', baseURL: 'https://openrouter.ai/api/v1/' },
-    ),
+    listModelCatalog: async (config) => {
+      const baseURL = 'https://openrouter.ai/api/v1/'
+      const catalog = await listModelCatalog(
+        { apiKey: config.apiKey, baseURL: config.baseUrl ?? baseURL, headers: OPENROUTER_ATTRIBUTION_HEADERS },
+        { models: openRouterModels.filter(model => model.type === 'chat'), providerId: 'openrouter-ai', baseURL },
+      )
+      const endpoint = new URL(config.baseUrl ?? baseURL)
+      if (endpoint.origin !== 'https://openrouter.ai' || endpoint.pathname.replace(/\/$/, '') !== '/api/v1')
+        return catalog
+      return {
+        ...catalog,
+        models: selectMinimaxChatModels(catalog.models, 'openrouter').map(model => model.id === 'minimax/minimax-m3.1-flash:free'
+          ? { ...model, reasoning: { ...model.reasoning, supported: true, mandatory: true } }
+          : model),
+      }
+    },
   },
 
   validationRequiredWhen(config) {
