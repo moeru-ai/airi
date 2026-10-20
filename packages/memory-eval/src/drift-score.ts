@@ -1,0 +1,121 @@
+/**
+ * Drift score: unified identity-continuity metric
+ *
+ * Drift = FP-instability ∨ W1-migration ∨ bimodality
+ * Fidelity = 1 - Drift
+ */
+
+import type { FixedPointResult } from './fixed-point'
+import { normalizedTextDistance } from './fixed-point'
+import type { RubricScore } from './barycenter'
+import type { BimodalityResult } from './modality'
+import { wassersteinDistance } from './barycenter'
+import { detectBimodality } from './modality'
+
+export interface DriftScoreResult {
+  /** Overall drift score (0-1, higher = more drift) */
+  driftScore: number
+  /** Identity fidelity (1 - drift) */
+  fidelity: number
+  /** Fixed-point instability component */
+  fpInstability: number
+  /** Barycenter migration component */
+  w1Migration: number
+  /** Bimodality component */
+  bimodality: number
+  /** Is drifted (any component exceeds threshold)? */
+  drifted: boolean
+}
+
+export interface DriftScoreConfig {
+  /** Fixed-point result (baseline vs current) */
+  fixedPointBaseline: FixedPointResult
+  fixedPointCurrent: FixedPointResult
+  /** Rubric scores (baseline vs current) */
+  scoresBaseline: RubricScore[]
+  scoresCurrent: RubricScore[]
+  /** Thresholds */
+  fpThreshold?: number
+  w1Threshold?: number
+  bicThreshold?: number
+}
+
+/**
+ * Compute unified drift score
+ */
+export function computeDriftScore(config: DriftScoreConfig): DriftScoreResult {
+  const {
+    fixedPointBaseline,
+    fixedPointCurrent,
+    scoresBaseline,
+    scoresCurrent,
+    fpThreshold = 0.15,
+    w1Threshold = 0.3,
+    bicThreshold = 10
+  } = config
+
+  const isFinitePositive = (x: number) => Number.isFinite(x) && x > 0
+  if (
+    !isFinitePositive(fpThreshold)
+    || !isFinitePositive(w1Threshold)
+    || !isFinitePositive(bicThreshold)
+  ) {
+    throw new Error('fpThreshold, w1Threshold and bicThreshold must be finite positive numbers')
+  }
+
+  // 1. FP instability. Both a non-converging baseline and a non-converging
+  //    current fixed point make the comparison unusable, so both count as
+  //    instability. A converging pair is scored by the distance between fixed
+  //    points.
+  let fpDrift: boolean
+  let fpInstability = 0
+  if (!fixedPointBaseline.converged || !fixedPointCurrent.converged) {
+    fpInstability = 1.0
+    fpDrift = true
+  } else {
+    const fpDist = normalizedTextDistance(
+      fixedPointBaseline.fixedPoint,
+      fixedPointCurrent.fixedPoint
+    )
+    fpInstability = Math.min(fpDist / fpThreshold, 1.0)
+    fpDrift = fpInstability >= 1
+  }
+
+  // 2. W1 migration
+  const w1 = wassersteinDistance(scoresBaseline, scoresCurrent)
+  const w1Migration = Math.min(w1 / w1Threshold, 1.0)
+
+  // 3. Bimodality
+  const flattenScores = (scores: RubricScore[]): number[][] =>
+    scores.map(s => [s.identity, s.value, s.expression, s.memory])
+
+  // Pass per-score weight so zero-mass observations do not create a split
+  // that W1 already excludes.
+  const weightsCurrent = scoresCurrent.map(s => s.weight ?? 1)
+  const bimodalityResult = detectBimodality(
+    flattenScores(scoresCurrent),
+    bicThreshold,
+    42,
+    weightsCurrent
+  )
+  const bimodality = bimodalityResult.bimodal ? 1.0 : 0.0
+
+  // Unified score (max of the normalized components). Kept for reporting.
+  const driftScore = Math.max(fpInstability, w1Migration, bimodality)
+
+  // A component signals drift only when the raw metric reaches its configured
+  // threshold, i.e. the normalized component reaches 1. Comparing with 0.5 here
+  // would flag drift at half the configured limit (W1 0.15 under a 0.3 limit).
+  const w1Drift = w1Migration >= 1
+  const bimodalDrift = bimodality >= 1
+  const drifted = fpDrift || w1Drift || bimodalDrift
+
+  return {
+    driftScore,
+    fidelity: 1 - driftScore,
+    fpInstability,
+    w1Migration,
+    bimodality,
+    drifted
+  }
+}
