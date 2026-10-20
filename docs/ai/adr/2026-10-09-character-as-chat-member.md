@@ -8,16 +8,20 @@ The product goal is a contact list, where each character is a contact, as in Dis
 A later goal is a group chat with one or more users and many characters.
 The client is local-first. A user without an account must get every function in this document.
 
-The code calls the entity a "card". A card holds the persona, the voice, the chat model, and one display model.
+The code calls the entity a "card". A card holds the persona, the voice, the chat model, and a set of display models.
 A chat session holds one `characterId`. The local index groups sessions by that id.
+
+These parts are already on `main`:
+
+- A character holds a set of Avatar Model references and one default (#2458).
+- Display model files synchronize to the account, and a downloaded model keeps its id (#2869).
+- Text turns, voice turns, and each model step read the settings of the session character through `getModules(characterId)` (#2725).
 
 The current code has these gaps:
 
 - Chat synchronization loses the character. A second device puts every received chat under the `default` character (`session-store.ts`, the `adopt` step).
-- A character refers to one display model, `modules.displayModelId`.
-- Display model files stay in IndexedDB on one device. Each device mints its own model ids.
-- The activation of a card writes its modules into the global runtime stores. Text turns then read the global stores.
-- Voice turns read the modules of the character of the session, through `getModules(characterId)`. The two paths differ.
+- The activation of a card writes its modules into the global runtime stores (`writeRuntimeModules`).
+- Code reads `meta.characterId` directly. No function tells which characters are members of a session.
 
 ## Decision
 
@@ -49,23 +53,20 @@ erDiagram
 ### Chat members
 
 - Chat synchronization sends and receives the members of each chat. See `server/docs/ai/adr/2026-10-09-chat-list-members.md`.
-- One function answers "which characters are members of this session". New code calls this function. Step 2 adds it with its first caller.
+- One function answers "which characters are members of this session". New code calls this function. Step 2 adds it.
 - New code does not read `meta.characterId` or the character groups of the local index.
 - The local storage shape stays. A later change for group chats replaces the body of that one function.
 
 ### Character settings
 
-- One function gives the settings of a character in a session: `(sessionId, characterId)` in, display model, voice, and chat model out.
-- Text turns and voice turns both call this function. The `voice` branch in `prepareSend` goes away.
+- Turns read the settings of the session character through `getModules(characterId)`. This is on `main`.
 - The activation of a card stops the writes into the global runtime stores. Those stores hold only the global defaults.
 - The order of the sources is: character value, then global default. A later change can put a value of the chat member first.
 
 ### Display models
 
-- A character holds a set of display model ids and one default id.
+- A character holds `avatarModels` and `defaultAvatarModelId` (#2458).
 - Many characters can refer to one display model.
-- The set and the default are one synchronized field, `modules.displayModels`, so the two values change together.
-- `resolveAiriExtension` is the boundary that reads a card. It converts `displayModelId` of an imported or stored card into the new field.
 
 ### Local-first rules
 
@@ -88,22 +89,20 @@ erDiagram
 
 - The UI of a group chat, and the order in which many characters speak.
 - Chats with many users. They need permissions and an order that the server decides.
-- Synchronization of display model files between devices.
 - Character memory. `stores/character/notebook.ts` stays global. New memory data must use a character id as its key.
 - A new name for `airi-card` identifiers in code.
 - A change to the chat model of a character.
 
 ## Steps
 
-| Step | Content | Workspaces |
-| --- | --- | --- |
-| 1 | Synchronize chat members. Repair old sessions. | `server/apps/api`, `packages/stage-ui` |
-| 2 | Add the functions for the members of a session and for character settings. Use them for text turns and voice turns. | `packages/stage-ui` |
-| 3 | Stop the writes into the global runtime stores when a card becomes active. | `packages/stage-ui`, settings pages |
-| 4 | Give a character a set of display models. | `packages/stage-ui`, `packages/stage-pages` |
-| 5 | Build the contact list for the mobile layout. | `packages/stage-ui`, `packages/stage-layouts` |
+| Step | Content | Workspaces | State |
+| --- | --- | --- | --- |
+| 1 | Synchronize chat members. Repair old sessions. | `server/apps/api`, `packages/stage-ui` | This change |
+| 2 | Add the function for the members of a session. | `packages/stage-ui` | To do |
+| 3 | Stop the writes into the global runtime stores when a card becomes active. | `packages/stage-ui`, settings pages | To do |
+| 4 | Build the contact list for the mobile layout. | `packages/stage-ui`, `packages/stage-layouts` | To do |
 
-Steps 1 and 2 do not depend on each other.
+Turns that read the session character (#2725) and a set of display models (#2458) are on `main`.
 
 ## Consequences
 
