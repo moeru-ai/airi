@@ -73,7 +73,7 @@ The infrastructure does not change. Edit only the domain module that owns the st
 
 ### Account events
 
-`src/services/adapters/account-events.ts` defines the `airi:account-events` stream with `maxLength` 100000. Cloud reads it with the `cloud-inbox` consumer group. The consumer is not part of this repository.
+`src/services/adapters/account-events.ts` defines the `account-events` stream with `maxLength` 100000. Cloud reads it with the `cloud-inbox` consumer group. The consumer is not part of this repository.
 
 | `type` | `version` | `payload` | `id` |
 | --- | --- | --- | --- |
@@ -135,7 +135,7 @@ flowchart LR
   Deletion -->|priority 40 handler| Publisher
   Definition[adapters/account-events.ts accountEventsStream] -->|defineStream| Publisher
   Publisher --> Stream[libs/redis/stream.ts]
-  Stream -->|XADD| Redis[(Redis airi:account-events)]
+  Stream -->|XADD| Redis[(Redis account-events)]
   Consumer[libs/redis/stream-consumer.ts, not wired] -.->|XREADGROUP| Redis
   Redis -->|XREADGROUP cloud-inbox| Cloud[proj-airi/backend Cloud]
 ```
@@ -175,7 +175,7 @@ sequenceDiagram
   RC->>API: POST /revenuecat/webhook (RENEWAL, id)
   API->>API: Validate the event fields
   API->>PG: Reconcile the Capacitor (idempotent)
-  API->>R: XADD airi:account-events (id = revenuecat:<id>)
+  API->>R: XADD account-events (id = revenuecat:<id>)
   alt XADD fails
     API-->>RC: 500
     RC->>API: Same event again

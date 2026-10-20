@@ -47,7 +47,7 @@ export interface StreamEventInput<TPayload extends GenericSchema<unknown, Record
  *
  * @example
  * const orderEvents = defineStream({
- *   key: 'airi:order-events',
+ *   key: 'order-events',
  *   maxLength: 10_000,
  *   events: { 'order.paid': { version: 1, payload: object({ orderId: string() }) } },
  * })
