@@ -21,6 +21,7 @@
     "./speech-models": "./eval/evaluators/speech/speech-models.ts"
   },
   "scripts": {
+    "test:run": "vitest run --config vitest.config.ts",
     "eval:compare": "pnpm -F @proj-airi/core-agent build && vieval run --config ./vieval.config.ts --with-viewer",
     "typecheck": "tsc --noEmit",
     "cases:math-bridge": "tsx eval/cases/math-bridge/fetch.ts",

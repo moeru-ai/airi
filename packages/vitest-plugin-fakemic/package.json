@@ -12,6 +12,7 @@
   "license": "MIT",
   "exports": "./src/index.ts",
   "scripts": {
+    "test:run": "vitest run --config vitest.config.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

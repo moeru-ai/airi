@@ -74,6 +74,9 @@ Set `rephrase: false` in `configureModuleHearing` when the case uses the scripte
 
 ## Test wake word detection
 
+CI skips cases with `pipelines: ['kws']` before runtime startup because wake word preparation times out.
+The root cause is not confirmed. Local runs keep these cases enabled.
+
 Use `configureWakeWord` to add AIRI Cards with wake words. Each configuration adds one card with one wake word and its pronunciations. The callback also turns on the microphone and selects the `wake-word` Hearing input mode. The case does not need an ASR Provider.
 
 Set `pipelines: ['kws']`. Then the Web runner downloads and verifies the pinned KWS model before the file microphone starts. The Web page gets the model from the workspace cache, not from the network. Electron uses its bundled model.

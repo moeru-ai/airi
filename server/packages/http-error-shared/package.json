@@ -6,6 +6,7 @@
   "description": "Shared HTTP error model and JSON error response for AIRI services",
   "exports": "./src/index.ts",
   "scripts": {
+    "test:run": "vitest run --config vitest.config.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

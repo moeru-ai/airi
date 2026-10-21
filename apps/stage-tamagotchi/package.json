@@ -21,6 +21,7 @@
     "dev": "install-electron && electron-vite dev",
     "dev:xwayland": "install-electron && electron-vite dev -- --ozone-platform=x11",
     "build": "electron-vite build",
+    "test:run": "vitest run",
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "pnpm run build && electron-builder --dir",
     "build:flatpak": "pnpm run build:unpack && flatpak-builder --user --install-deps-from=flathub ./flatpak ai.moeru.airi.flatpak.yml --force-clean",

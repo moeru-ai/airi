@@ -37,6 +37,7 @@
     "package.json"
   ],
   "scripts": {
+    "test:run": "vitest run --config vitest.config.ts",
     "build": "tsdown",
     "eval:run": "vieval run --config ./vieval.config.ts",
     "typecheck": "tsc --noEmit"
