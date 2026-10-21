@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const appMock = vi.hoisted(() => ({
   getVersion: vi.fn(() => '0.9.0-beta.4'),
-  getPath: vi.fn((name: string) => name === 'logs' ? '/tmp/airi/logs' : `/tmp/${name}`),
+  getPath: vi.fn((name: string) => {
+    if (name === 'cache')
+      throw new Error(`app.getPath('cache') is not supported by Electron — use app.getPath('userData') instead`)
+    return name === 'logs' ? '/tmp/airi/logs' : `/tmp/${name}`
+  }),
   quit: vi.fn(),
   isPackaged: false,
 }))
@@ -121,7 +125,11 @@ describe('setupAutoUpdater', () => {
     vi.clearAllMocks()
     updaterState.instance = createUpdaterMock()
     appMock.getVersion.mockReturnValue('0.9.0-beta.4')
-    appMock.getPath.mockImplementation((name: string) => name === 'logs' ? '/tmp/airi/logs' : `/tmp/${name}`)
+    appMock.getPath.mockImplementation((name: string) => {
+      if (name === 'cache')
+        throw new Error(`app.getPath('cache') is not supported by Electron — use app.getPath('userData') instead`)
+      return name === 'logs' ? '/tmp/airi/logs' : `/tmp/${name}`
+    })
     isDevState.value = false
     stdEnvState.isWindows = false
     delete process.env.UPDATE_SERVER_URL

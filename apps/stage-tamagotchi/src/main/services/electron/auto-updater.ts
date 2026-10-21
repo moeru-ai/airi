@@ -77,6 +77,11 @@ function getUpdaterLogFile() {
 
 function getOfficialUpdaterCacheDirs() {
   const officialUpdaterCacheDir = join(getCacheRoot(), 'ai.moeru.airi-updater')
+  // NOTICE:
+  // When APP_USER_DATA_PATH is set this is a smoke-run environment with a custom userData path.
+  // The platform cache root differs from the userData-derived cache root, so the legacy root is irrelevant.
+  // Source: smoke-run test harness - APP_USER_DATA_PATH overrides app.getPath(userData).
+  // Removal condition: Remove when the smoke-run harness is retired.
   if (process.env.APP_USER_DATA_PATH?.trim()) {
     return [officialUpdaterCacheDir]
   }
@@ -97,7 +102,8 @@ async function logToFile(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: st
 
 async function cleanupStaleUpdateFiles() {
   const officialUpdaterCacheDirs = getOfficialUpdaterCacheDirs()
-  // Remove both current and legacy updater cache roots so stale installers do not linger.
+  // Remove the updater cache roots so stale installers do not linger.
+  // When APP_USER_DATA_PATH is set (smoke-run), only the current root is removed; the legacy root is skipped.
   await Promise.allSettled(officialUpdaterCacheDirs.map(cacheDir => rm(cacheDir, { recursive: true, force: true })))
   await logToFile('INFO', `Updater cache cleanup attempted: ${officialUpdaterCacheDirs.join(', ')}`)
 }
