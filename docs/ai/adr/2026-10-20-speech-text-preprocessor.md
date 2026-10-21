@@ -104,6 +104,26 @@ A symbol keeps its letter case. The renderer says the case only when one formula
 `\ce{}` and `\pu{}` go through `mhchemParser.toTex`. KaTeX parses its output, and lowering turns it into `Chemistry`
 nodes: species, coefficients, charges, states, hydrate dots, and arrows. The hand-written mhchem grammar is removed.
 
+### Streamed segments
+
+A speech producer used to hold the whole reply until `end()`, so an answer started to speak only after the model
+ended. Markdown cannot be parsed one token at a time: a formula, a code block, a link, or a table that is cut in two
+reads as its source. The pipeline now has a segmenter before the transformation:
+
+```text
+model text ──MarkdownSegmenter──▶ segment ──toSpeechText──▶ spoken text ──TTS chunker──▶ TTS requests
+```
+
+- `MarkdownSegmenter` ends a segment after a sentence end or a line, only where nothing is open: fenced code,
+  `$$...$$`, `\[...\]`, inline code, `$...$`, `\(...\)`, link brackets, emphasis, or a table. A `$` before a price does
+  not open a formula.
+- A line ends a segment only when the next line has started. An indented line can continue a list item, and parsed
+  alone it would be a code block. A line of `=` makes a heading.
+- `toSpeechText` reads each segment. `before` is the spoken text of the segment before it, so a display formula that
+  starts a segment reads in the language of the text before it.
+- A flush follows each segment, because the chunker reads one character past a sentence end.
+- Constructs that refer to later text, as reference link definitions, read as text. Model replies rarely use them.
+
 ### A preprocessor for all spoken text
 
 `toSpeechText` becomes a host for preprocessor plugins. A plugin owns one kind of content, for example formulas,
@@ -193,6 +213,7 @@ graph LR
 ```text
 packages/core-agent/src/voice/output/speech-transformation/
   index.ts                           `toSpeechText`, the host of the preprocessor plugins
+  segmenter.ts                       `MarkdownSegmenter`, the safe ends of streamed markdown
   language.ts                        primary language subtags, and the language of the words around a formula
   markdown.ts                        code spans, and `\(...\)` and `\[...\]` delimiters
   preprocessor/types.ts              plugin contracts

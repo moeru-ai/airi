@@ -9,6 +9,7 @@ import { nanoid } from 'nanoid/non-secure'
 
 import { errorFromCause, errorMessageFromValue } from '../../utils/error'
 import { toSpeechText } from './speech-transformation'
+import { MarkdownSegmenter } from './speech-transformation/segmenter'
 
 /** Each synthesized part carries optional display text. Audio ownership transfers to playback. */
 export interface SpeechAudio {
@@ -52,7 +53,7 @@ export type SpeechOutput = {
 })
 
 /**
- * Marks where a special token or a flush occurs in the buffered text, so that markdown conversion keeps its position.
+ * Marks where a special token or a flush occurs in the streamed text, so that markdown conversion keeps its position.
  * It is a Unicode private use character. Model text does not contain it, and producer text is stripped of it.
  */
 const controlMarker = '\uE000'
@@ -76,9 +77,12 @@ export class SpeechStream {
   private settled = false
 
   private timer: ReturnType<typeof setTimeout> | undefined
-  /** Markdown that `end()` converts to speech text. A control marker holds the place of each entry in `controls`. */
-  private markdown = ''
+  /** Holds the text after the last safe end of the streamed markdown. A control marker holds the place of a control. */
+  private readonly segmenter = new MarkdownSegmenter()
+  /** Controls whose markers are still in the segmenter, in order. */
   private readonly controls: SpeechControl[] = []
+  /** The spoken text of the last segment, for the language of a formula that starts the next one. */
+  private spoken = ''
   readonly signal = this.abort.signal
   readonly done = this.completion.promise
 
@@ -251,34 +255,32 @@ export class SpeechStream {
     return signal.aborted ? { status, reason: errorMessageFromValue(signal.reason) } : { status }
   }
 
-  // REVIEW:
-  // Every purpose holds its text until `end()`, so markdown is converted with the full context.
-  // This also keeps each formula whole: a `$` that closes in a later write is still read as one formula.
-  // read-aloud already has the full text, but answer and notification start to speak only after the model ends.
-  // answer needs a streaming commit at clause boundaries. See the chunker punctuation in pipelines-audio.
+  // Text streams to TTS by segments, so an answer starts to speak after its first sentence. The segmenter ends a segment
+  // only where markdown parses alone: a formula, a code block, or a link that is still open waits for its end.
 
-  /** Special tokens keep their position relative to the text. They are delivered when the producer ends. */
+  /** Special tokens keep their position relative to the text. */
   special(value: string) {
     if (this.sealed || this.response.signal.aborted)
       return
 
-    this.markdown += controlMarker
     this.controls.push({ type: 'special', value })
+    this.deliver(this.segmenter.push(controlMarker))
   }
 
+  /** Sends the text so far, unless a formula or another construct is still open. Then the flush follows its end. */
   flush() {
     if (this.sealed)
       return
 
-    this.markdown += controlMarker
     this.controls.push({ type: 'flush' })
+    this.deliver([...this.segmenter.push(controlMarker), ...this.segmenter.flush()])
   }
 
   write(text: string): { status: 'accepted' | 'closed' } {
     if (this.sealed || this.response.signal.aborted)
       return { status: 'closed' }
 
-    this.markdown += text.replaceAll(controlMarker, '')
+    this.deliver(this.segmenter.push(text.replaceAll(controlMarker, '')))
     return { status: 'accepted' }
   }
 
@@ -287,24 +289,46 @@ export class SpeechStream {
       return
 
     if (!this.response.signal.aborted)
-      this.deliver()
+      this.deliver(this.segmenter.end())
     this.sealed = true
     this.text?.close()
     this.intent?.end()
   }
 
-  /** Sends the speech text and the controls in source order. Controls that conversion lost are sent last, in order. */
-  private deliver() {
-    const parts = toSpeechText(this.markdown, { marker: controlMarker, language: this.output.language }).split(controlMarker)
-    parts.forEach((text, index) => {
-      if (text)
-        this.deliverText(text)
+  /**
+   * Sends each segment as speech text, with its controls in source order. Controls that conversion lost are sent after
+   * the text of their segment, in order.
+   */
+  private deliver(segments: readonly string[]) {
+    if (this.response.signal.aborted)
+      return
 
-      const control = this.controls[index]
-      if (control && index < parts.length - 1)
-        this.deliverControl(control)
-    })
-    this.controls.slice(parts.length - 1).forEach(control => this.deliverControl(control))
+    for (const segment of segments) {
+      const count = segment.split(controlMarker).length - 1
+      const controls = this.controls.splice(0, count)
+      const parts = toSpeechText(segment, { marker: controlMarker, language: this.output.language, before: this.spoken }).split(controlMarker)
+      // Segments end inside a paragraph or between blocks. The space or the line break between them stays for TTS.
+      const separator = /\n\s*$/.test(segment) ? '\n' : /[ \t]$/.test(segment) ? ' ' : ''
+      parts.forEach((text, index) => {
+        const last = index === parts.length - 1
+        const spoken = last && text ? text + separator : text
+        if (spoken)
+          this.deliverText(spoken)
+        if (text.trim())
+          this.spoken = text
+
+        const control = controls[index]
+        if (control && !last)
+          this.deliverControl(control)
+      })
+      controls.slice(parts.length - 1).forEach(control => this.deliverControl(control))
+      // NOTICE:
+      // The TTS chunker reads one grapheme past a sentence end, to tell `3.14` and `...` from an end. Without more text,
+      // the last sentence of a segment waits for the next segment, which can be a long formula or code block.
+      // Source: chunkTtsInput in packages/pipelines-audio/src/processors/tts-chunker.ts.
+      // Remove when the chunker ends a chunk at the end of its input without lookahead.
+      this.intent?.writeFlush()
+    }
   }
 
   private deliverText(text: string) {

@@ -24,6 +24,11 @@ export interface SpeechTextOptions {
    */
   language?: string
   /**
+   * The spoken text before this markdown, when the markdown is one segment of a streamed reply, see ./segmenter.
+   * A formula without words around it, as a display formula that starts the segment, reads in its language.
+   */
+  before?: string
+  /**
    * The preprocessor plugins, in the order that their hooks run.
    * The default is the money plugin, then the math plugin. A list replaces the default, so it includes them to keep them.
    */
@@ -151,7 +156,9 @@ function compile(tree: Root, source: string, options: SpeechTextOptions | undefi
     const before = nodes.slice(0, index).map(plain).join('')
     const after = nodes.slice(index + 1).map(plain).join('')
     const sentence = before.split(sentenceEnd).at(-1)! + after.split(sentenceEnd)[0]!
-    return /\p{L}{2,}/u.test(sentence) ? sentence : before + after
+    if (/\p{L}{2,}/u.test(sentence))
+      return sentence
+    return /\p{L}{2,}/u.test(before + after) ? before + after : options?.before ?? ''
   }
 
   function blocks(nodes: readonly RootContent[]): string {
@@ -169,7 +176,9 @@ function compile(tree: Root, source: string, options: SpeechTextOptions | undefi
         return blocks(node.children)
       case 'math': {
         // A display formula reads in the language of the text before it, or after it when it opens the reply.
-        const context = [siblings[index - 1], siblings[index + 1]].map(sibling => sibling ? plain(sibling) : '').join('\n')
+        // In a streamed segment, the text before it can be in an earlier segment.
+        const previous = siblings[index - 1] ? plain(siblings[index - 1]!) : options?.before ?? ''
+        const context = [previous, siblings[index + 1] ? plain(siblings[index + 1]!) : ''].join('\n')
         return keepMarkers(node, speakFormula(node.value, context))
       }
       // TODO: Tell the listener that the reply has code, instead of a skip without a sound.

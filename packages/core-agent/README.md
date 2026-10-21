@@ -262,7 +262,8 @@ await response.finish()
 ```
 
 Producers can synthesize concurrently. Playback follows their reservation order.
-A producer holds its text until `end()`. Then `toSpeechText` removes markdown that has no sound, for example emphasis delimiters, link URLs, and code blocks.
+A producer streams its text to TTS by segments. `MarkdownSegmenter` ends a segment after a sentence or a line, only where no formula, code, link, emphasis, or table is open. Then `toSpeechText` reads the segment and removes markdown that has no sound, for example emphasis delimiters, link URLs, and code blocks.
+So an answer starts to speak after its first sentence, and a formula that later writes complete is still read as one formula.
 Symbols that markdown keeps as text, for example `2 * 3` and `x ~= 3`, stay in the speech text.
 TeX formulas, `\ce{}` chemistry, units, and dollar prices are read as words of the sentence language: Chinese, English, Japanese, or Korean.
 The rules are in [`@proj-airi/speech-transformer-math`](../speech-transformer-math) and [`@proj-airi/speech-transformer-chem`](../speech-transformer-chem), see [the ADR](../../docs/ai/adr/2026-10-20-speech-text-preprocessor.md).
