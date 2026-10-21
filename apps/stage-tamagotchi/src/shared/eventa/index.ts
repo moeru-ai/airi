@@ -17,7 +17,7 @@ import type {
   StageViewSnapshotPayload,
 } from '@proj-airi/stage-shared/godot-stage'
 import type { ServerChannelQrPayload } from '@proj-airi/stage-shared/server-channel-qr'
-import type { IOTraceRecordingState, SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
+import type { IOTraceHubState, IOTraceRecordingState, SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
 import type {
   ThreeHitTestReadTracePayload,
   ThreeSceneRenderInfoTracePayload,
@@ -144,7 +144,15 @@ export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windo
 export const ioTraceRecordingChanged = defineEventa<IOTraceRecordingState>('eventa:event:electron:io-trace-recording:changed')
 export const ioTraceRecordingGet = defineInvokeEventa<IOTraceRecordingState>('eventa:invoke:electron:io-trace-recording:get')
 export const ioTraceRecordingSetEnabled = defineInvokeEventa<IOTraceRecordingState, { enabled: boolean }>('eventa:invoke:electron:io-trace-recording:set-enabled')
-export const ioTraceRecordingRecordSpan = defineInvokeEventa<void, SerializedIOSpan>('eventa:invoke:electron:io-trace-recording:record-span')
+
+/** Sends an ended IO span of this window to the IO trace hub in the main process. */
+export const ioTraceHubPublish = defineInvokeEventa<void, SerializedIOSpan>('eventa:invoke:electron:io-trace-hub:publish')
+export const ioTraceHubGet = defineInvokeEventa<IOTraceHubState>('eventa:invoke:electron:io-trace-hub:get')
+export const ioTraceHubSetCollecting = defineInvokeEventa<IOTraceHubState, { collecting: boolean }>('eventa:invoke:electron:io-trace-hub:set-collecting')
+/** Returns the spans that the hub keeps, and sends each later span to this window as `ioTraceHubSpan`. */
+export const ioTraceHubSubscribe = defineInvokeEventa<SerializedIOSpan[]>('eventa:invoke:electron:io-trace-hub:subscribe')
+export const ioTraceHubUnsubscribe = defineInvokeEventa<void>('eventa:invoke:electron:io-trace-hub:unsubscribe')
+export const ioTraceHubSpan = defineEventa<SerializedIOSpan>('eventa:event:electron:io-trace-hub:span')
 
 /**
  * Where the Controls Island chat button opens the chat.
