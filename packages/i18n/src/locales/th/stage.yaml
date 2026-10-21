@@ -82,6 +82,7 @@ chat:
     discard: ทิ้งฉบับร่าง
     listening: กำลังฟัง
     finalizing: กำลังจัดการให้เสร็จ…
+    sent: ส่งแล้ว
   voice-input: การป้อนเสียง
   error-details:
     show: แสดงรายละเอียด
@@ -237,7 +238,7 @@ promo-banner:
       reward: ลด 6 เมื่อซื้อ 30 / ลด 15 เมื่อซื้อ 68
       cta: รับคูปอง
     home:
-      watermark: อยู่บ้าน
+      watermark: บ้าน
       fallbackLabel: ธีมห้อง
       title: อัปเดตธีมฤดูใบไม้ผลิ
       eventName: ปลดล็อกธีมหน้าต่าง โต๊ะ และโคมไฟกลางคืนเพื่อเปลี่ยนบรรยากาศห้อง

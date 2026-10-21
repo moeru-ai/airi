@@ -32,7 +32,7 @@ const {
   trackPasswordResetRequested,
 } = useAnalytics()
 const authStore = useAuthStore()
-const { isAuthenticated, user, credits } = storeToRefs(authStore)
+const { isAuthenticated, user, credits, capacitorPercent } = storeToRefs(authStore)
 
 const userName = computed(() => user.value?.name ?? '')
 const userEmail = computed(() => user.value?.email ?? null)
@@ -58,6 +58,9 @@ const gravatarProfileUrl = computed(() => {
 // formatter.
 const formattedCredits = computed(() => credits.value.toLocaleString())
 const capacitorAvailable = isCapacitorAvailable()
+const formattedCapacitorPercent = computed(() => capacitorPercent.value == null
+  ? null
+  : new Intl.NumberFormat(undefined, { style: 'percent' }).format(capacitorPercent.value / 100))
 
 // Profile form. Initialized from store and re-synced when user changes (e.g.
 // after a successful save we mutate the store).
@@ -563,6 +566,12 @@ async function handleConfirmDelete(event: Event) {
             >
               <span :class="['text-neutral-500 dark:text-neutral-400']">
                 {{ t('settings.pages.account.capacitorEntry') }}
+              </span>
+              <span
+                v-if="formattedCapacitorPercent"
+                :class="['text-neutral-900 font-medium tabular-nums dark:text-neutral-100']"
+              >
+                {{ t('settings.pages.capacitor.remaining', { percent: formattedCapacitorPercent }) }}
               </span>
               <span :class="['ml-auto flex items-center gap-1 text-primary-600 dark:text-primary-400']">
                 <span>{{ t('settings.pages.account.viewCapacitor') }}</span>

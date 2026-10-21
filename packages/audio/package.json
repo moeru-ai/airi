@@ -53,6 +53,7 @@
     "@alexanderolsen/libsamplerate-js": "catalog:",
     "@moeru/std": "catalog:",
     "@proj-airi/pipelines-audio": "workspace:*",
+    "@proj-airi/stream-kit": "workspace:*",
     "mediabunny": "catalog:",
     "nanoid": "catalog:"
   },

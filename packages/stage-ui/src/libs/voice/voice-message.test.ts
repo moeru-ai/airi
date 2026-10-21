@@ -1,7 +1,8 @@
 import type { PcmBlock } from '@proj-airi/pipelines-audio'
 
 import { fileSource } from '@proj-airi/audio/encoding'
-import { AudioInput, createPushStream } from '@proj-airi/pipelines-audio'
+import { AudioInput } from '@proj-airi/pipelines-audio'
+import { createPushStream } from '@proj-airi/stream-kit'
 import { expect, it, vi } from 'vitest'
 
 import { VoiceMessage } from './voice-message'

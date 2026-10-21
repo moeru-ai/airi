@@ -91,3 +91,29 @@ it('sends a spoken draft without tools when the application grants none', async 
 
   expect(vi.mocked(chat.submit).mock.calls[0]![0]).not.toHaveProperty('tools')
 })
+
+it('keeps speaker evidence out of the speech context that the chat model reads', async () => {
+  const { drafts, chat } = mountDrafts()
+  vi.mocked(chat.submit).mockResolvedValue({ sessionId: 'session', messageId: 'draft' })
+  const submission = { ...spokenSubmission('who is speaking'), speakers: { revision: 1, candidates: [{ speakerId: 'owner', score: 0.2 }], voicedMs: 1200 } }
+  await drafts.acceptSpeech(submission, new AbortController().signal)
+
+  await drafts.sendDraft('draft')
+
+  expect(vi.mocked(chat.submit).mock.calls[0]![0].speechContext).toBeUndefined()
+})
+
+it('sends plugin context without the speaker evidence of the same input', async () => {
+  const { drafts, chat } = mountDrafts()
+  vi.mocked(chat.submit).mockResolvedValue({ sessionId: 'session', messageId: 'draft' })
+  const submission = {
+    ...spokenSubmission('remind me'),
+    context: [{ plugin: 'calendar', key: 'today', revision: 1, value: 'Friday' }],
+    speakers: { revision: 1, candidates: [{ speakerId: 'owner', score: 0.2 }], voicedMs: 1200 },
+  }
+  await drafts.acceptSpeech(submission, new AbortController().signal)
+
+  await drafts.sendDraft('draft')
+
+  expect(JSON.parse(vi.mocked(chat.submit).mock.calls[0]![0].speechContext!)).toEqual([{ context: [{ plugin: 'calendar', key: 'today', revision: 1, value: 'Friday' }] }])
+})

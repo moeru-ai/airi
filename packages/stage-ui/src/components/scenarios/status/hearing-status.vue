@@ -65,9 +65,13 @@ const label = computed(() => {
         <span
           v-for="(weight, index) in [0.4, 0.75, 1, 0.7, 0.45]"
           :key="index"
-          :class="['hearing-bar block w-1 rounded-full bg-current', state === 'busy' && 'hearing-bar-busy']"
-          :style="{ height: `${4 + amplitude * weight * 16}px`, animationDelay: `${index * -120}ms` }"
-        />
+          :class="['relative block size-1', state === 'busy' && 'hearing-bar-busy']"
+          :style="{ '--hearing-bar-stretch': amplitude * weight * 4, 'animationDelay': `${index * -120}ms` }"
+        >
+          <span :class="['hearing-bar-top absolute inset-0 rounded-full bg-current']" />
+          <span :class="['hearing-bar-middle absolute inset-0 bg-current']" />
+          <span :class="['hearing-bar-bottom absolute inset-0 rounded-full bg-current']" />
+        </span>
       </span>
       <span v-if="issue" aria-hidden="true" :class="['i-solar:danger-circle-linear ml-1.5 size-4']" />
     </template>
@@ -91,8 +95,24 @@ const label = computed(() => {
 </template>
 
 <style scoped>
-.hearing-bar {
-  transition: height 100ms ease-out;
+/*
+ * A height transition lays out the page on each frame. A transform transition runs on the compositor, but a scaleY on
+ * one round element stretches its round ends into ellipses. So each bar has two round ends and a middle part. The ends
+ * move apart by half the extra height, and the middle part scales to fill the space between their centers.
+ */
+.hearing-bar-top,
+.hearing-bar-middle,
+.hearing-bar-bottom {
+  transition: transform 100ms ease-out;
+}
+.hearing-bar-top {
+  transform: translateY(calc(var(--hearing-bar-stretch) * -2px));
+}
+.hearing-bar-middle {
+  transform: scaleY(var(--hearing-bar-stretch));
+}
+.hearing-bar-bottom {
+  transform: translateY(calc(var(--hearing-bar-stretch) * 2px));
 }
 .hearing-bar-busy {
   animation: hearing-wave 900ms ease-in-out infinite;
@@ -102,7 +122,7 @@ const label = computed(() => {
   50% { transform: scaleY(3); opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .hearing-bar { transition: none; }
+  .hearing-bar-top, .hearing-bar-middle, .hearing-bar-bottom { transition: none; }
   .hearing-bar-busy { animation: none; }
 }
 </style>

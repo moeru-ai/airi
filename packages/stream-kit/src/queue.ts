@@ -16,7 +16,9 @@ export function createQueue<T>(options: {
   handlers: Array<(ctx: HandlerContext<T>) => Promise<void>>
 }) {
   const queue: T[] = []
-  let drainTask: Promise<any> | undefined
+  // Set before the first handler runs. `drain` calls a handler synchronously, before it returns its promise, so a
+  // handler that enqueues must see this flag. Otherwise that enqueue starts a nested drain and runs its item first.
+  let draining = false
 
   const internalEventListeners: Events<T> = {
     enqueue: [],
@@ -50,8 +52,9 @@ export function createQueue<T>(options: {
   function enqueue(payload: T) {
     queue.push(payload)
     emit('enqueue', payload, queue.length)
-    if (!drainTask) {
-      drainTask = drain()
+    if (!draining) {
+      draining = true
+      void drain()
     }
   }
 
@@ -76,8 +79,8 @@ export function createQueue<T>(options: {
       }
     }
 
+    draining = false
     emit('drain')
-    drainTask = undefined
   }
 
   function length() {

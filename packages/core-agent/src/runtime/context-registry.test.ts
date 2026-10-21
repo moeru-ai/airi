@@ -303,3 +303,13 @@ describe('createContextRegistry', () => {
     expect(registry.contextHistory().map(message => message.id)).toEqual(['stable'])
   })
 })
+
+describe('context registry writers', () => {
+  it('removes the observations of a writer that left', () => {
+    const registry = createContextRegistry()
+    registry.ingest(createContextMessage({ source: 'game', text: 'status' }))
+
+    expect(registry.removeWriter('game')).toBe(true)
+    expect(registry.snapshot()).toEqual({})
+  })
+})

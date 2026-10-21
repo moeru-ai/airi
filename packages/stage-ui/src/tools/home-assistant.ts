@@ -11,6 +11,13 @@ import { domainOf } from '../libs/home-assistant/client'
 import { allEntitiesExposure, assertEntityExposed, describeExposure, describeHidden, filterExposed } from '../libs/home-assistant/exposure'
 import { assertServiceAllowed, isGroupEntity } from '../libs/home-assistant/services'
 
+/** The names of the Home Assistant tools. The chat shows the devices in their results as device rows. */
+export const HOME_ASSISTANT_TOOL_NAMES = {
+  listEntities: 'home_assistant_list_entities',
+  getState: 'home_assistant_get_state',
+  callService: 'home_assistant_call_service',
+} as const
+
 /**
  * Default cap on the entity list one lookup returns.
  *
@@ -143,7 +150,7 @@ export async function createHomeAssistantTools(
   // resolves to the tool rather than returning one.
   return await Promise.all([
     tool({
-      name: 'home_assistant_list_entities',
+      name: HOME_ASSISTANT_TOOL_NAMES.listEntities,
       description: `List Home Assistant entities and their current states. Call this first to find the entity_id for a device the user named (match by the "name" field). Pass a domain like "light" or "climate" to browse one kind of device. Results are capped, so pass a domain on a large installation. ${policy}`,
       execute: async ({ domain }) => {
         const instance = await readInstance()
@@ -180,7 +187,7 @@ export async function createHomeAssistantTools(
       }).strict(),
     }),
     tool({
-      name: 'home_assistant_get_state',
+      name: HOME_ASSISTANT_TOOL_NAMES.getState,
       description: `Read the current state and attributes of one Home Assistant entity. Use this to answer questions about a device or check a value before changing it. ${policy}`,
       execute: async ({ entity_id: entityId }) => {
         assertEntityExposed(readExposure(), entityId)
@@ -201,7 +208,7 @@ export async function createHomeAssistantTools(
       }).strict(),
     }),
     tool({
-      name: 'home_assistant_call_service',
+      name: HOME_ASSISTANT_TOOL_NAMES.callService,
       description: `Call a Home Assistant service to control one device (turn on/off, set brightness, change temperature). Always list entities first to find the correct entity_id, then pass exactly one. Use the service of the device domain, for example light.turn_on for a light, or homeassistant.turn_on for any device. Report the returned state changes to the user. ${policy}`,
       execute: async ({ domain, service, entity_id: entityId, data }) => {
         // A service that is its own target, such as a script named as the

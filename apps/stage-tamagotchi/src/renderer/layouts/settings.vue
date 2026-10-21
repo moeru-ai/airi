@@ -2,12 +2,13 @@
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { PageHeader } from '@proj-airi/stage-ui/components'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
-import { computed, ref } from 'vue'
+import { computed, inject, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute } from 'vue-router'
 
 import WindowTitleBar from '../components/Window/TitleBar.vue'
 
+import { fullscreenPanelKey } from '../components/fullscreen/panel'
 import { useRestoreScroll } from '../composables/use-restore-scroll'
 
 const route = useRoute()
@@ -15,6 +16,8 @@ const { t } = useI18n()
 const providersStore = useProviderStore()
 const scrollContainer = ref<HTMLElement>()
 useRestoreScroll(scrollContainer)
+// The fullscreen panel of the main window frames settings itself, so the layout leaves out the window title bar.
+const inFullscreenPanel = inject(fullscreenPanelKey, false)
 
 const routeMeta = computed(() => route.meta as {
   titleKey?: string
@@ -62,10 +65,10 @@ const routeHeaderMetadata = computed(() => {
 
 <template>
   <div h-full w-full bg="$bg-color" flex="~ col">
-    <WindowTitleBar :title="routeHeaderMetadata?.title ?? ''" icon="i-solar:settings-bold" />
+    <WindowTitleBar v-if="!inFullscreenPanel" :title="routeHeaderMetadata?.title ?? ''" icon="i-solar:settings-bold" />
     <div
       :style="{
-        paddingTop: `44px`,
+        paddingTop: inFullscreenPanel ? '0px' : `44px`,
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         paddingRight: 'env(safe-area-inset-right, 0px)',
         paddingLeft: 'env(safe-area-inset-left, 0px)',

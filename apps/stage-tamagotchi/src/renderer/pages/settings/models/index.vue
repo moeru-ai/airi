@@ -61,7 +61,7 @@ const godotStageStatus = ref<ElectronGodotStageStatus>({
 const switchingGodotStage = ref(false)
 const godotViewError = ref<StageViewErrorPayload>()
 const godotViewSnapshot = ref<StageViewSnapshotPayload | null>(null)
-const { runtimeSnapshot, sendLive2DExpressionCommand } = useModelSettingsRuntimeSnapshot()
+const { runtimeSnapshot } = useModelSettingsRuntimeSnapshot()
 
 let sceneSyncGeneration = 0
 let godotSessionEpoch = 0
@@ -385,7 +385,6 @@ onUnmounted(() => {
           'sm:max-h-[80dvh]',
           'relative',
         ]"
-        @live2d-expression-command="sendLive2DExpressionCommand"
         @patch-godot-view-state="handleGodotViewPatch"
       >
         <template #actions>

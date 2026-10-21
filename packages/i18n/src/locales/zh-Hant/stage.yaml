@@ -82,6 +82,7 @@ chat:
     discard: 捨棄草稿
     listening: 聆聽中
     finalizing: 正在完成…
+    sent: 已傳送
   voice-input: 語音輸入
   error-details:
     show: 顯示詳細資料

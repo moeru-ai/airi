@@ -1,10 +1,10 @@
 import type { AuthRoutesDeps } from '../routes'
 
 import { user } from '@proj-airi/auth-shared'
+import { ApiError } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
 
-import { ApiError } from '../error'
 import { createAuthRoutes } from '../routes'
 
 /** Replaces database I/O while exercising the public discovery route and its validation. */

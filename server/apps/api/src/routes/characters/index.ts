@@ -1,11 +1,11 @@
 import type { CharacterService } from '../../services/domain/characters'
 import type { HonoEnv } from '../../types/hono'
 
+import { createBadRequestError, createForbiddenError, createNotFoundError } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { safeParse } from 'valibot'
 
 import { authGuard } from '../../middlewares/auth'
-import { createBadRequestError, createForbiddenError, createNotFoundError } from '../../utils/error'
 import { CreateCharacterSchema, UpdateCharacterSchema } from './schema'
 
 export function createCharacterRoutes(characterService: CharacterService) {

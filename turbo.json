@@ -12,6 +12,10 @@
     "@proj-airi/electron-vueuse#build": {
       "dependsOn": ["@proj-airi/electron-eventa#build"],
       "outputs": ["dist/**"]
+    },
+    "@proj-airi/electron-native-backdrop#build": {
+      "cache": false,
+      "outputs": ["dist/**"]
     }
   }
 }

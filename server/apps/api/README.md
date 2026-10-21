@@ -9,7 +9,7 @@ auth/OIDC routes.
 - Hono business APIs and WebSocket endpoints.
 - Characters, chats, providers, Flux, Stripe, model routing, and billing.
 - PostgreSQL migration ownership for the currently shared database. Drizzle reads the checked-in `drizzle/` journal and SQL files at startup.
-- Redis cache, configuration KV, and cross-instance Pub/Sub.
+- Redis cache, configuration KV, cross-instance Pub/Sub, and the Redis Streams infrastructure.
 - Local verification of Auth-issued OIDC JWTs through public JWKS.
 
 ## LLM request content
@@ -42,6 +42,33 @@ Flux TTL. Flux services use its read, write, and invalidation functions.
 ConfigKV shares the write function while retaining its existing read policy.
 Keys use domain names: `config:{key}`, `stripe:prices`, and `user:{userId}:flux`.
 The cache functions do not add a key prefix.
+
+## Redis Streams
+
+`src/libs/redis/` has the shared Redis Streams code. Both halves use the same stream definitions and envelope.
+
+- `stream.ts`: `defineStream({ key, maxLength, events })` defines a stream. `events` maps each `type` to `{ version, payload }`, with a Valibot schema of the JSON payload.
+- `stream.ts`: `createStreamPublisher(redis, definition).publish(type, { id, payload, occurredAt? })` validates the input and runs `XADD <key> MAXLEN ~ <maxLength> * ...`.
+- `stream-consumer.ts`: `createStreamConsumer(redis, definition, handlers, options)` reads with a consumer group. It acks after the handler succeeds, retries failed entries after `claimMinIdleMs`, and dead-letters invalid entries.
+- Each entry has the flat fields `id`, `type`, `version`, `occurredAt`, and `payload` (a JSON string).
+
+A publish failure must fail the request, so its caller retries it. Do not catch the error.
+Consumers deduplicate on `id`, so a retry must publish the same `id`.
+
+The API does not run a consumer now. The API has no background loops, so the first consumer needs an ADR.
+
+Each change stays in one domain module, plus wiring in `app.ts`:
+
+- To add a stream or an event, edit the `defineStream` call of the domain module.
+- To add a producer, provide `createStreamPublisher` through `injeca`.
+- To add a consumer, provide `createStreamConsumer` through `injeca`, and register `start()` and `stop()` with `lifecycle.appHooks`.
+
+The account events stream (`src/services/adapters/account-events.ts`) is the first user. Cloud (`proj-airi/backend`) reads it and writes user notifications.
+
+- The RevenueCat webhook publishes `subscription.renewed` for `RENEWAL` and `subscription.payment_failed` for `BILLING_ISSUE`.
+- The deletion pipeline publishes `user.deleted` after every soft delete.
+
+See the [account events ADR](../../docs/ai/adr/2026-10-18-account-events-stream.md).
 
 ## Flux usage
 
@@ -154,6 +181,7 @@ dashboard authorization header and HMAC signature over the raw body.
 Each event then reconciles the Capacitor from RevenueCat.
 `POST /sync` reconciles the Capacitor of the signed-in user. The client calls it after a purchase and when the Capacitor page opens.
 `GET /capacitors` returns the product ids that grant a Capacitor.
+`GET /catalog` returns each configured Capacitor's product id, Flux quota, and refill interval.
 RevenueCat does not sell Flux packs.
 The webhook stores no events.
 Flux balance stays self-managed. In-App Currency is not used.
