@@ -242,14 +242,7 @@ live2d:
     sdk-preset-preserved-notice: >
       無効化しても SDK の表情およびまばたきプリセットは保持されます。
     no-expression: このモデルで利用可能な表情はありません。
-    llm-integration-wip: LLM 統合エンジンは未完了です。
-    save-default: デフォルトの表情を保存
     reset: すべての表情をリセット
-    expose-to-llm-toggle: LLM へのアクセスを許可
-    expose-to-llm-options:
-      none: なし
-      all: すべて
-      custom: カスタム
 microphone: マイク
 models: モデル
 pages:
@@ -1397,11 +1390,9 @@ pages:
       buy: 購入
       description: 選択可能な Flux パッケージ。
   capacitor:
-    description: Capacitor は Flux を蓄え、自動で充電されます。
     statusError: Capacitor を読み込めませんでした。後でもう一度お試しください。
     packagesError: Capacitor の一覧を読み込めませんでした。後でもう一度お試しください。
     preferenceError: 設定を保存できませんでした。後でもう一度お試しください。
-    noCapacitor: Capacitor なし
     remaining: '残り {percent}'
     rechargesAt: '{date} に充電'
     renewsAt: '{date} に更新'

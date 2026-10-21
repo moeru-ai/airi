@@ -1,0 +1,1448 @@
+{
+  "source": "https://huggingface.co/datasets/Kyudan/MathBridge",
+  "license": "MIT",
+  "revision": "353fb2255f6959ad2940865346c38689cfce902a",
+  "seed": 20261020,
+  "rows": [
+    {
+      "stratum": "uniform",
+      "offset": 10614451,
+      "contextBefore": "10 & AlO A",
+      "equation": "$ ^2\\Pi_ { 3/2 } $",
+      "contextAfter": "-- X",
+      "spokenEnglish": "two pi sub three halves"
+    },
+    {
+      "stratum": "uniform",
+      "offset": 2545766,
+      "contextBefore": "and",
+      "equation": "$ \\hat { y } $",
+      "contextAfter": "to an explanation map",
+      "spokenEnglish": "y-hat."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 4200163,
+      "contextBefore": "Let",
+      "equation": "$ \\beta < 1 $",
+      "contextAfter": ". We introduce the exit time :",
+      "spokenEnglish": "Beta is less than one."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 3021182,
+      "contextBefore": "equipped with smooth maps",
+      "equation": "$ u_ { n } : \\Sigma_ { n } \\to W $",
+      "contextAfter": ". In",
+      "spokenEnglish": "u sub n, colon, Sigma sub n to W"
+    },
+    {
+      "stratum": "uniform",
+      "offset": 12016537,
+      "contextBefore": "Then the root of",
+      "equation": "$ F ( H , A , B , k_0 , T , { \\bf B } , X ) $",
+      "contextAfter": "is associated with",
+      "spokenEnglish": "F of H, A, B, k sub 0, T, bold B, X"
+    },
+    {
+      "stratum": "uniform",
+      "offset": 1289939,
+      "contextBefore": "if",
+      "equation": "$ \\hat { Y } =Y $",
+      "contextAfter": ". By the assumption on",
+      "spokenEnglish": "Y hat equals Y."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 1285100,
+      "contextBefore": "for",
+      "equation": "$ x \\in \\left ( M_ { \\sigma } /M^1 \\right ) ^ { \\vee } $",
+      "contextAfter": "and",
+      "spokenEnglish": "x belongs to the dual space of the quotient of the space M sub sigma by M raised to the power of 1."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 3961190,
+      "contextBefore": "but that",
+      "equation": "$ u ' ( \\theta ) $",
+      "contextAfter": "is either equal to",
+      "spokenEnglish": "you prime of theta"
+    },
+    {
+      "stratum": "uniform",
+      "offset": 9711756,
+      "contextBefore": "which gives the explicit expression for the inverse",
+      "equation": "$ \\psi ( y ) $",
+      "contextAfter": "",
+      "spokenEnglish": "Psi of y."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 12735629,
+      "contextBefore": "Evaluate the fitness of individuals in",
+      "equation": "$ P_ { t } $",
+      "contextAfter": "by using the proposed cell-based weight inheritance",
+      "spokenEnglish": "P sub t."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 6128864,
+      "contextBefore": "such as",
+      "equation": "$ \\mathbf { E } $",
+      "contextAfter": ", for a fair comparison . Naturally , poisoning more items will make the attack goal easier to achieve , however , it will also cause too many side effects",
+      "spokenEnglish": "E bold."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 5164016,
+      "contextBefore": "The restricted convex term has lower bounded curvature within a particular neighborhood of",
+      "equation": "$ \\Theta^ * $",
+      "contextAfter": ", motivating us to impose a constraint on the neighborhood radius",
+      "spokenEnglish": "Theta star."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 6684591,
+      "contextBefore": "&",
+      "equation": "$ 45.1_ { \\pm0.5 } $",
+      "contextAfter": "",
+      "spokenEnglish": "four one, subscript plus or minus zero point five."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 9393813,
+      "contextBefore": "Let",
+      "equation": "$ \\Sigma $",
+      "contextAfter": "be a surface of negative Euler characteristic , homeomorphic to a closed surface , possibly with a finite number of points removed . In this paper , we present a",
+      "spokenEnglish": "Sigma."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 15529913,
+      "contextBefore": "Let",
+      "equation": "$ \\hat \\mu $",
+      "contextAfter": "be the transverse measure on",
+      "spokenEnglish": "mu hat."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 2508752,
+      "contextBefore": "and",
+      "equation": "$ \\alpha_t < 1 $",
+      "contextAfter": ", thus :",
+      "spokenEnglish": "Alpha sub t less than one."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 4158564,
+      "contextBefore": "Its presence is independent of individual magnitudes of both",
+      "equation": "$ \\Omega_q $",
+      "contextAfter": "and",
+      "spokenEnglish": "Omega q."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 4634896,
+      "contextBefore": "and with the single particle dispersion relation",
+      "equation": "$ \\varepsilon_k $",
+      "contextAfter": "of the isolated SSH model defined by the magnitude of the Bloch vector ,",
+      "spokenEnglish": "epsilon sub k."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 6015283,
+      "contextBefore": "another possible Laplacian pyramid usage is to firstly smooth out the unwanted texture details from",
+      "equation": "$ L_ { k-1 } $",
+      "contextAfter": "by performing joint bilateral filtering using the initial upsampling output",
+      "spokenEnglish": "L sub k minus 1."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 519492,
+      "contextBefore": "Then for any",
+      "equation": "$ k=1 , \\dots , d $",
+      "contextAfter": ", we have",
+      "spokenEnglish": "k equals one comma dot dot dot comma d"
+    },
+    {
+      "stratum": "uniform",
+      "offset": 6401833,
+      "contextBefore": "with a lift",
+      "equation": "$ \\tilde { x } $",
+      "contextAfter": "to",
+      "spokenEnglish": "x tilde."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 13433106,
+      "contextBefore": "where",
+      "equation": "$ \\eta \\in ( 0,1 ) $",
+      "contextAfter": "is the step size . The server then broadcasts the updated parameters to all",
+      "spokenEnglish": "Eta belongs to the open interval from zero to one."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 2534572,
+      "contextBefore": "morphism and",
+      "equation": "$ y_1 , \\dots , y_m $",
+      "contextAfter": "be a",
+      "spokenEnglish": "y sub 1, dot dot dot, y sub m."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 10183014,
+      "contextBefore": "The average value of the square-norm of",
+      "equation": "$ \\psi_n $",
+      "contextAfter": "is normalized to",
+      "spokenEnglish": "Psi sub n."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 9215908,
+      "contextBefore": "&",
+      "equation": "$ 68.3\\ % $",
+      "contextAfter": "&",
+      "spokenEnglish": "68.3 percent."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 7175591,
+      "contextBefore": "with",
+      "equation": "$ \\overline { x } $",
+      "contextAfter": ". Thus , we have that",
+      "spokenEnglish": "x bar."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 15452024,
+      "contextBefore": "where",
+      "equation": "$ \\rho_M $",
+      "contextAfter": "is defined as pull back of",
+      "spokenEnglish": "rho sub M."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 7443697,
+      "contextBefore": "which only allows edges",
+      "equation": "$ X_i \\rightarrow X_j $",
+      "contextAfter": ", where",
+      "spokenEnglish": "X sub i goes to X sub j."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 13478849,
+      "contextBefore": "the internal structure of",
+      "equation": "$ \\mathcal { S } $",
+      "contextAfter": "is encoded into the dynamics of each",
+      "spokenEnglish": "ess"
+    },
+    {
+      "stratum": "uniform",
+      "offset": 15299684,
+      "contextBefore": "we identify state samples within",
+      "equation": "$ \\mathcal { Z } _s $",
+      "contextAfter": "that possess at least one control input leading to",
+      "spokenEnglish": "Z sub s."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 7472601,
+      "contextBefore": "and",
+      "equation": "$ \\beta=0.01 $",
+      "contextAfter": ". Without reaction mobility",
+      "spokenEnglish": "Beta equals zero point zero one."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 13092254,
+      "contextBefore": "on",
+      "equation": "$ \\Gamma $",
+      "contextAfter": "in Figure",
+      "spokenEnglish": "Gamma."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 221274,
+      "contextBefore": "We initialize",
+      "equation": "$ \\sigma $",
+      "contextAfter": "with the word",
+      "spokenEnglish": "Sigma."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 2794309,
+      "contextBefore": "/Ly",
+      "equation": "$ \\alpha $",
+      "contextAfter": "and",
+      "spokenEnglish": "Alpha."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 9071341,
+      "contextBefore": "of",
+      "equation": "$ \\cap_ { i=1 } ^r E_i $",
+      "contextAfter": ". Then we have local coordinates",
+      "spokenEnglish": "Intersection from i equals 1 to r of E sub i."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 1627293,
+      "contextBefore": "and tunneling current",
+      "equation": "$ I_ { \\rm t } = 100 $",
+      "contextAfter": "~pA .",
+      "spokenEnglish": "I sub t equals 100."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 11223418,
+      "contextBefore": "we see that the probability of",
+      "equation": "$ \\mathcal { Q } _n $",
+      "contextAfter": "occurring in",
+      "spokenEnglish": "Q sub n."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 8256122,
+      "contextBefore": "the early delivery policy schedules the items in",
+      "equation": "$ \\mathcal { S } _j $",
+      "contextAfter": "to be delivered at time",
+      "spokenEnglish": "S sub j."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 1162100,
+      "contextBefore": "to",
+      "equation": "$ \\mathbf { r } ' $",
+      "contextAfter": ". With respect to wavefunction",
+      "spokenEnglish": "r prime."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 4748410,
+      "contextBefore": "Shades indicate the",
+      "equation": "$ \\pm1\\sigma $",
+      "contextAfter": "confidence intervals . The fits are performed by minimizing the weighted , squared orthogonal residuals to the line . For the normal E sample , low-velocity-dispersion galaxies are discarded using",
+      "spokenEnglish": "Plus or minus one sigma."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 14831819,
+      "contextBefore": "on",
+      "equation": "$ \\Omega $",
+      "contextAfter": "; tensor fields",
+      "spokenEnglish": "Omega."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 7222018,
+      "contextBefore": "and",
+      "equation": "$ \\sigma_ { G } $",
+      "contextAfter": "describing the transit depth , central wavelength , and standard deviation wavelength of each excess absorption feature . We excluded telluric bands red-ward of the helium triplet , as well",
+      "spokenEnglish": "sigma G."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 352234,
+      "contextBefore": "and the optimal prior probabilities are",
+      "equation": "$ p ( a ) \\approx ( 0.2965,0.3518,0.3518 ) $",
+      "contextAfter": ". Additionally ,",
+      "spokenEnglish": "p of a approximately equals open parenthesis 0.2965, 0.3518, 0.3518 close parenthesis."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 7178784,
+      "contextBefore": "and an integer",
+      "equation": "$ k \\ge 1 $",
+      "contextAfter": ".",
+      "spokenEnglish": "k is greater than or equal to 1."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 10499854,
+      "contextBefore": "indicate",
+      "equation": "$ B_ { \\rm c2 } $",
+      "contextAfter": "at 85",
+      "spokenEnglish": "B sub c2."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 13555897,
+      "contextBefore": "with task weightings",
+      "equation": "$ \\lambda_i $",
+      "contextAfter": ".",
+      "spokenEnglish": "Lambda i."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 1128781,
+      "contextBefore": "we vary its value to",
+      "equation": "$ \\ { 1 , 2 , 3 , 4 , 5 ,6\\ } $",
+      "contextAfter": ". As shown in Fig.~",
+      "spokenEnglish": "Spoken English: The set containing the elements 1, 2, 3, 4, 5, and 6."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 9093279,
+      "contextBefore": "is negative still holds when",
+      "equation": "$ 1 \\leq t < \\eta $",
+      "contextAfter": ". Therefore",
+      "spokenEnglish": "One less than or equal to t, less than eta."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 7700814,
+      "contextBefore": "the full lines correspond to azimuthal angles",
+      "equation": "$ \\phi=0 $",
+      "contextAfter": ", the dotted line to",
+      "spokenEnglish": "phi equals zero."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 8790613,
+      "contextBefore": "We fix",
+      "equation": "$ T < \\infty $",
+      "contextAfter": ",",
+      "spokenEnglish": "T is less than infinity."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 8422271,
+      "contextBefore": "given a desired velocity for the end effector",
+      "equation": "$ \\dot { x } _ { ee } $",
+      "contextAfter": ". The second platform has access to both its kinematic chain and the model of the viscous fluidic model that it inhabits :",
+      "spokenEnglish": "dot x sub e e"
+    },
+    {
+      "stratum": "uniform",
+      "offset": 14417290,
+      "contextBefore": "& head height &",
+      "equation": "$ x_ { 16 } $",
+      "contextAfter": "& head circumference",
+      "spokenEnglish": "x sub 16."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 5868723,
+      "contextBefore": "The reason why we insist on changing the norm of",
+      "equation": "$ H^ { -1 } $",
+      "contextAfter": "to",
+      "spokenEnglish": "H to the power of negative one."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 11293457,
+      "contextBefore": "decrease as",
+      "equation": "$ x_ { k-1 } $",
+      "contextAfter": "increases from one odd positive integer to another .",
+      "spokenEnglish": "x sub k minus one."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 262170,
+      "contextBefore": "which is the difference of two linear combinations of",
+      "equation": "$ \\boldsymbol { y } $",
+      "contextAfter": "and hence is itself a linear combination of",
+      "spokenEnglish": "y."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 13614478,
+      "contextBefore": "where",
+      "equation": "$ C_ { \\mu\\nu\\sigma\\rho } $",
+      "contextAfter": "is the",
+      "spokenEnglish": "C mu nu sigma rho: None"
+    },
+    {
+      "stratum": "uniform",
+      "offset": 5901150,
+      "contextBefore": "there exists an integer",
+      "equation": "$ p_a ( x ) $",
+      "contextAfter": "such that",
+      "spokenEnglish": "p sub a of x."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 3748747,
+      "contextBefore": "of a graph~",
+      "equation": "$ G= ( V , E ) $",
+      "contextAfter": "is a map~",
+      "spokenEnglish": "G equals open parenthesis V comma E close parenthesis."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 552372,
+      "contextBefore": "Starting from the canonical basis",
+      "equation": "$ ( \\boldsymbol { e } _1 , \\dots , \\boldsymbol { e } _ { n+1 } ) $",
+      "contextAfter": "of",
+      "spokenEnglish": "Open parenthesis, bold e sub 1, comma, dot dot dot, bold e sub n plus 1, close parenthesis."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 937380,
+      "contextBefore": "target sentence and",
+      "equation": "$ y^ { ( k ) } _ { < i } $",
+      "contextAfter": "are the previously generated words of the target sentence",
+      "spokenEnglish": "y to the power of k sub i less than"
+    },
+    {
+      "stratum": "uniform",
+      "offset": 7588942,
+      "contextBefore": "to",
+      "equation": "$ \\ket { g } $",
+      "contextAfter": ".",
+      "spokenEnglish": "Ket g."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 740038,
+      "contextBefore": "of",
+      "equation": "$ X_ { u } ( t+1 ) $",
+      "contextAfter": "for each of 101 uniformly spaced points",
+      "spokenEnglish": "X sub u, open parenthesis, t plus 1, close parenthesis."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 616205,
+      "contextBefore": "we introduce the notation",
+      "equation": "$ \\theta_ { k+1 } = \\theta_k + \\alpha_k g_k + \\alpha_k w_k $",
+      "contextAfter": ", where",
+      "spokenEnglish": "Theta sub k plus 1 equals theta sub k plus alpha sub k g sub k plus alpha sub k w sub k."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 4014641,
+      "contextBefore": "indexed by a mask supported outside of",
+      "equation": "$ \\gamma_ { s_\\beta } $",
+      "contextAfter": ", and for each such pair of masks",
+      "spokenEnglish": "gamma sub s sub beta"
+    },
+    {
+      "stratum": "uniform",
+      "offset": 5565465,
+      "contextBefore": "&",
+      "equation": "$ \\frac { 7 } { 60 } \\mathbf { k } \\cdot \\mathbf { k } ^\\prime $",
+      "contextAfter": "",
+      "spokenEnglish": "Fraction 7 over 60 times bold k dot bold k prime."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 1115210,
+      "contextBefore": "where",
+      "equation": "$ m=\\lceil \\alpha \\rceil $",
+      "contextAfter": ". These derivatives differ , but obey some common general trends . Figures",
+      "spokenEnglish": "m equals the ceiling of alpha."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 2722416,
+      "contextBefore": "two upper thick solid curves are for",
+      "equation": "$ 1.4M_\\odot $",
+      "contextAfter": "neutron stars , with the lower curve for cooling only while the upper one includes the maximum vortex creep heating . Two curves between these thick solid curves show the",
+      "spokenEnglish": "1.4 times the mass of the Sun."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 8534820,
+      "contextBefore": "For a fiducial cluster redshift of",
+      "equation": "$ z = 0.5 $",
+      "contextAfter": ", we determined that 3 hours of integration time in",
+      "spokenEnglish": "z equals zero point five."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 1450389,
+      "contextBefore": "The assumptions for all of these results are that there is a jump from",
+      "equation": "$ \\alpha = ( a_1 , a_2 ) $",
+      "contextAfter": "to",
+      "spokenEnglish": "Alpha equals open parenthesis a sub 1, comma a sub 2 close parenthesis."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 3064229,
+      "contextBefore": "the following equalities are satisfied for all",
+      "equation": "$ k\\in [ K ] $",
+      "contextAfter": "and",
+      "spokenEnglish": "k belongs to the set of K."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 14001482,
+      "contextBefore": "Exchanging the two variables in the Whitney polynomial of collection of hypermaps",
+      "equation": "$ ( \\sigma , \\alpha ) $",
+      "contextAfter": "of genus zero yields the Whitney polynomial of its dual",
+      "spokenEnglish": "sigma, alpha."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 741475,
+      "contextBefore": "The combined results covering excitation energies up to 14 MeV clearly demonstrate the transition between the constant temperature and the Fermi gas regimes at",
+      "equation": "$ \\approx 7 $",
+      "contextAfter": "MeV . The experimental NLDs were used to estimate the role of the Porter-Thomas fluctuations in assessing the generalised Brink-Axel hypothesis below the neutron separation energy in",
+      "spokenEnglish": "Approximately seven."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 1548559,
+      "contextBefore": "Define",
+      "equation": "$ \\varphi\\coloneqq\\iota_\\infty\\circ\\mu_\\infty $",
+      "contextAfter": ". Then",
+      "spokenEnglish": "Phi is defined as iota infinity composed with mu infinity."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 1547557,
+      "contextBefore": "have moved to LN",
+      "equation": "$ _ { ( n,2 ) } ( P_t ) $",
+      "contextAfter": "at",
+      "spokenEnglish": "subscript n comma 2 of P sub t"
+    },
+    {
+      "stratum": "uniform",
+      "offset": 13998683,
+      "contextBefore": "such that for all regular dominant element",
+      "equation": "$ \\lambda\\in \\Lambda $",
+      "contextAfter": ",",
+      "spokenEnglish": "Lambda belongs to the set of lambdas."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 4831787,
+      "contextBefore": "and set the sets",
+      "equation": "$ \\mathcal { R } _i $",
+      "contextAfter": "to include",
+      "spokenEnglish": "R sub i."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 6904738,
+      "contextBefore": "Whenever a theory has a collection of higher-form symmetries",
+      "equation": "$ G^ { ( p ) } $",
+      "contextAfter": ",",
+      "spokenEnglish": "G raised to the power of p."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 6655716,
+      "contextBefore": "If",
+      "equation": "$ \\hat { H } ( t ) $",
+      "contextAfter": "possesses the PT-symmetry ,",
+      "spokenEnglish": "H-hat of t."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 5041888,
+      "contextBefore": "~",
+      "equation": "$ \\omega_ { \\rm BD } > 2230 $",
+      "contextAfter": "and",
+      "spokenEnglish": "Omega sub R B, greater than 2 2 3."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 11432946,
+      "contextBefore": "over a sequence of time stamps",
+      "equation": "$ t=1 , \\cdots , T $",
+      "contextAfter": "with a window size of",
+      "spokenEnglish": "t equals 1, dot dot dot, T"
+    },
+    {
+      "stratum": "uniform",
+      "offset": 12272241,
+      "contextBefore": "&",
+      "equation": "$ f_i , g_i $",
+      "contextAfter": "& none & none &",
+      "spokenEnglish": "f sub i, g sub i"
+    },
+    {
+      "stratum": "uniform",
+      "offset": 11121926,
+      "contextBefore": "as",
+      "equation": "$ \\omega \\to 0 $",
+      "contextAfter": ".",
+      "spokenEnglish": "Omega goes to zero."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 12772538,
+      "contextBefore": "The tendencies of relative",
+      "equation": "$ T_ { 0i } $",
+      "contextAfter": "and",
+      "spokenEnglish": "T sub zero i."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 1913164,
+      "contextBefore": "we produce a noisy one by sampling from the distribution",
+      "equation": "$ vMF ( \\mu , \\kappa ) $",
+      "contextAfter": ", where",
+      "spokenEnglish": "vee-ef mu, kappawe can infer that"
+    },
+    {
+      "stratum": "uniform",
+      "offset": 6279623,
+      "contextBefore": "with a non-trivial uncertainty interval is mandatory if and only if there is a hyperedge",
+      "equation": "$ S \\in E $",
+      "contextAfter": "with",
+      "spokenEnglish": "S belongs to E."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 1264807,
+      "contextBefore": "The following proposition says",
+      "equation": "$ \\hat { \\varphi } $",
+      "contextAfter": "is continuous .",
+      "spokenEnglish": "phi hat."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 3519845,
+      "contextBefore": "It follows from this and the series representation for",
+      "equation": "$ A ( s , z ; \\pi ) $",
+      "contextAfter": "given by the first equality in",
+      "spokenEnglish": "A of s, z, pi"
+    },
+    {
+      "stratum": "uniform",
+      "offset": 1167649,
+      "contextBefore": "we may assume that every component of",
+      "equation": "$ \\Sigma_ { B_T } $",
+      "contextAfter": ", that is vertical over",
+      "spokenEnglish": "Sigma B sub T."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 4289099,
+      "contextBefore": "When a cloud instead has",
+      "equation": "$ \\gtrsim 10 $",
+      "contextAfter": "neighbours in close proximity , the median distance to the nearest baryon-rich satellite drops to",
+      "spokenEnglish": "Greater than or approximately equal to ten."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 982870,
+      "contextBefore": "Integrating out",
+      "equation": "$ \\widehat { a } $",
+      "contextAfter": "enforces",
+      "spokenEnglish": "a-hat."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 407118,
+      "contextBefore": "Set",
+      "equation": "$ a : = ( 1+ \\bar { \\kappa } _0 R_0 \\sqrt { \\delta } ) ^2 $",
+      "contextAfter": ". First , for",
+      "spokenEnglish": "1 plus kappa bar sub-zero times R sub-zero times the square root of delta."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 3599218,
+      "contextBefore": "where",
+      "equation": "$ c_ { \\theta } $",
+      "contextAfter": "is some constant in",
+      "spokenEnglish": "c sub theta"
+    },
+    {
+      "stratum": "uniform",
+      "offset": 8969236,
+      "contextBefore": "when",
+      "equation": "$ \\theta > 1 $",
+      "contextAfter": ", when",
+      "spokenEnglish": "Theta is greater than one."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 13707144,
+      "contextBefore": "fixing an inner product on",
+      "equation": "$ \\mathfrak { g } $",
+      "contextAfter": ", such as the Frobenius inner product",
+      "spokenEnglish": "g in Fraktur font."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 11052164,
+      "contextBefore": "s",
+      "equation": "$ ^ { -1 } $",
+      "contextAfter": "throughout.",
+      "spokenEnglish": "to the power of negative one."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 2317842,
+      "contextBefore": "to",
+      "equation": "$ p\\vdash tr ( y ) $",
+      "contextAfter": "are removed , which means that",
+      "spokenEnglish": "p turnstile tr y"
+    },
+    {
+      "stratum": "uniform",
+      "offset": 7107825,
+      "contextBefore": "fundamental Dirac fermions",
+      "equation": "$ \\Psi_i $",
+      "contextAfter": ",",
+      "spokenEnglish": "Psi i."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 1876665,
+      "contextBefore": "'' is consistent for",
+      "equation": "$ \\kappa=\\omega_1 $",
+      "contextAfter": "by",
+      "spokenEnglish": "kappa equals omega sub 1."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 14313471,
+      "contextBefore": "так що",
+      "equation": "$ f_n ( x ) = x^2 , \\ |x| \\leq n $",
+      "contextAfter": ", причому",
+      "spokenEnglish": "f sub n of x equals x squared, absolute value of x less than or equal to n."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 2123535,
+      "contextBefore": "The Dirac matrix",
+      "equation": "$ \\mathbf { D } _1 $",
+      "contextAfter": "and its eigenvalues and eigenvectors are calculated . As the non-zero eigenvalues of",
+      "spokenEnglish": "D sub 1."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 8715240,
+      "contextBefore": "a basic way is to choose respectively random row and column index sets",
+      "equation": "$ \\mathcal { I } $",
+      "contextAfter": "and",
+      "spokenEnglish": "capital I."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 11092729,
+      "contextBefore": "and",
+      "equation": "$ \\theta_ { \\rm view } $",
+      "contextAfter": "constrained by SED fitting in",
+      "spokenEnglish": "Theta sub view."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 1727433,
+      "contextBefore": "if and only if",
+      "equation": "$ \\Delta_k < 0 $",
+      "contextAfter": ", where",
+      "spokenEnglish": "Delta sub k is less than zero."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 10206034,
+      "contextBefore": "Note that this bound will only be valid when there exists",
+      "equation": "$ \\delta_1 , \\delta_2 $",
+      "contextAfter": "with low values of",
+      "spokenEnglish": "Delta one, delta two."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 608470,
+      "contextBefore": "This in particular implies",
+      "equation": "$ \\pi\\nmid m $",
+      "contextAfter": "for any",
+      "spokenEnglish": "pi does not divide m."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 1727034,
+      "contextBefore": "Each literal",
+      "equation": "$ l_ { i } $",
+      "contextAfter": "is associated with a positive integer coefficient",
+      "spokenEnglish": "l sub i."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 12663600,
+      "contextBefore": "em",
+      "equation": "$ a_t=a_ { t ' } $",
+      "contextAfter": "",
+      "spokenEnglish": "a sub t equals a sub t prime"
+    },
+    {
+      "stratum": "uniform",
+      "offset": 6100476,
+      "contextBefore": "states that if",
+      "equation": "$ Q=\\mathbb { R } $",
+      "contextAfter": ", then",
+      "spokenEnglish": "Q equals the set of real numbers."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 12858590,
+      "contextBefore": "using Doppler parameter of",
+      "equation": "$ \\sim 50 $",
+      "contextAfter": "km s",
+      "spokenEnglish": "Approximately fifty."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 8649182,
+      "contextBefore": "the only unbounded quantifier in",
+      "equation": "$ \\varphi_1 $",
+      "contextAfter": "is the one existentially quantifying",
+      "spokenEnglish": "phi sub one."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 1047438,
+      "contextBefore": "equation with",
+      "equation": "$ \\sigma < 1 $",
+      "contextAfter": ". This form is chosen to mesh with previous work : if",
+      "spokenEnglish": "Sigma is less than one."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 7811323,
+      "contextBefore": "will be defined with a different value of",
+      "equation": "$ \\beta_k $",
+      "contextAfter": "so that price of the union bound is finite",
+      "spokenEnglish": "Beta sub k."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 13203154,
+      "contextBefore": "again about two orders of magnitude less that the variation in",
+      "equation": "$ \\gamma $",
+      "contextAfter": "or",
+      "spokenEnglish": "Gamma."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 15873220,
+      "contextBefore": "copies of",
+      "equation": "$ \\Sigma_1 $",
+      "contextAfter": "and use induction to complete the proof .",
+      "spokenEnglish": "Sigma one."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 14666412,
+      "contextBefore": "these secondary variables are the quadratic monomials",
+      "equation": "$ x_i x_j $",
+      "contextAfter": ", see Fig.~",
+      "spokenEnglish": "x sub i times x sub j."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 1546576,
+      "contextBefore": "then",
+      "equation": "$ P_ { 1 } = P_ { 0 } $",
+      "contextAfter": ", and hence , by the fairness of the scheduler , a robot such that it is not at",
+      "spokenEnglish": "P sub 1 equals P sub 0."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 2128356,
+      "contextBefore": "it is not a",
+      "equation": "$ \\lambda $",
+      "contextAfter": "-abstraction , so there is no",
+      "spokenEnglish": "Lambda."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 10480913,
+      "contextBefore": "the upper bound is tight for some choice of",
+      "equation": "$ \\ { p , q , r\\ } $",
+      "contextAfter": "whenever the Kapranov degree vanishes .",
+      "spokenEnglish": "curly brace p, comma q, comma r"
+    },
+    {
+      "stratum": "uniform",
+      "offset": 15691531,
+      "contextBefore": "00",
+      "equation": "$ _ { ( +0.65 ) } $",
+      "contextAfter": "",
+      "spokenEnglish": "sub plus zero point six five."
+    },
+    {
+      "stratum": "uniform",
+      "offset": 14640960,
+      "contextBefore": "by",
+      "equation": "$ \\lambda_1 , \\lambda_2 , \\ldots , \\lambda_N $",
+      "contextAfter": ", namely :",
+      "spokenEnglish": "Lambda one, lambda two, ellipsis, lambda N."
+    },
+    {
+      "stratum": "calligraphic-call",
+      "offset": 4377213,
+      "contextBefore": "The local topological property of the characteristic function",
+      "equation": "$ \\mathcal { F } ( z ) $",
+      "contextAfter": "can be reflected by the local topological number at its",
+      "spokenEnglish": "F of z."
+    },
+    {
+      "stratum": "calligraphic-call",
+      "offset": 13450953,
+      "contextBefore": "the bounds exhibit a decaying rate in the order of",
+      "equation": "$ \\mathcal { O } ( 1/\\sqrt { n } ) $",
+      "contextAfter": ", where",
+      "spokenEnglish": "big O of one over the square root of n."
+    },
+    {
+      "stratum": "calligraphic-call",
+      "offset": 14336637,
+      "contextBefore": "we subtract the delayed features",
+      "equation": "$ \\mathcal { D } ( \\boldsymbol { f } ,1 ) $",
+      "contextAfter": "from the input visual features",
+      "spokenEnglish": "D of f, 1"
+    },
+    {
+      "stratum": "calligraphic-call",
+      "offset": 3879866,
+      "contextBefore": "is",
+      "equation": "$ \\mathcal { B } ( \\mathcal { H } ) $",
+      "contextAfter": "-measurable if and only if",
+      "spokenEnglish": "B of H"
+    },
+    {
+      "stratum": "calligraphic-call",
+      "offset": 9673989,
+      "contextBefore": "The space",
+      "equation": "$ \\mathcal { O } ( b_1 , \\dots , b_L ) $",
+      "contextAfter": "is a subspace of",
+      "spokenEnglish": "Big O of b sub 1, dot dot dot, b sub L."
+    },
+    {
+      "stratum": "calligraphic-call",
+      "offset": 3406965,
+      "contextBefore": "the auto-tuning makes",
+      "equation": "$ \\mathcal { H } ( \\pi ) $",
+      "contextAfter": "converge to",
+      "spokenEnglish": "H of pi"
+    },
+    {
+      "stratum": "calligraphic-call",
+      "offset": 2878229,
+      "contextBefore": "the quantum state transition can be modelled by quantum channel",
+      "equation": "$ \\mathcal { E } ( \\rho ) =\\sum_ { i\\in [ k ] } K_i\\rho K_i^\\dag $",
+      "contextAfter": ". We define the tensor product of quantum channels",
+      "spokenEnglish": "Mathematical calligraphic E of rho equals the sum over i in the set of k of K sub i rho K sub i dagger."
+    },
+    {
+      "stratum": "calligraphic-call",
+      "offset": 8575803,
+      "contextBefore": "and",
+      "equation": "$ \\mathcal { B } ( B \\to \\ , K^ { * } \\ , \\nu\\ , \\bar { \\nu } ) $",
+      "contextAfter": ", respectively . It is evident that the allowed ranges of",
+      "spokenEnglish": "Mathcal B, open parenthesis, B goes to K star nu, bar nu, close parenthesis."
+    },
+    {
+      "stratum": "calligraphic-call",
+      "offset": 14864258,
+      "contextBefore": "or",
+      "equation": "$ \\mathcal { O } ( 4 ) $",
+      "contextAfter": "and the",
+      "spokenEnglish": "big O of four."
+    },
+    {
+      "stratum": "calligraphic-call",
+      "offset": 7789233,
+      "contextBefore": "computed from the VD observation is of the",
+      "equation": "$ \\mathcal { O } ( 1 ) $",
+      "contextAfter": ", suggesting the existence of a second galaxy lacking DM",
+      "spokenEnglish": "big O of one."
+    },
+    {
+      "stratum": "calligraphic-call",
+      "offset": 10344114,
+      "contextBefore": "can not be executed in parallel and has a time complexity of",
+      "equation": "$ \\mathcal { O } ( \\mathcal { T } HW ) $",
+      "contextAfter": ", i.e . the number of pixels in",
+      "spokenEnglish": "big O of T H W"
+    },
+    {
+      "stratum": "calligraphic-call",
+      "offset": 14431594,
+      "contextBefore": "&",
+      "equation": "$ \\mathcal { U } ( 1e-3 , 100 . ) $",
+      "contextAfter": "& RV jitter",
+      "spokenEnglish": "U one e minus three, one hundred dot."
+    },
+    {
+      "stratum": "distribution",
+      "offset": 9416790,
+      "contextBefore": "By redshift of",
+      "equation": "$ z \\sim 1 $",
+      "contextAfter": ", the three structures have become approximately virialized galaxy clusters . One can also see the filamentary structure surrounding the clusters , particularly visible in the lensing maps at low",
+      "spokenEnglish": "z is distributed according to a standard normal distribution."
+    },
+    {
+      "stratum": "distribution",
+      "offset": 2650564,
+      "contextBefore": "If the previous result can be extended to the range of",
+      "equation": "$ \\sim 10^ { 12 } $",
+      "contextAfter": "~m , the present work improves the existing upper bound by as much as 12 orders of magnitude . The obtained constraint on",
+      "spokenEnglish": "Approximately ten to the power of twelve."
+    },
+    {
+      "stratum": "distribution",
+      "offset": 1280471,
+      "contextBefore": "implying that the depths of the considered bands would be reduced to",
+      "equation": "$ \\sim 60 $",
+      "contextAfter": "",
+      "spokenEnglish": "Approximately sixty."
+    },
+    {
+      "stratum": "distribution",
+      "offset": 9159376,
+      "contextBefore": "which equate to roughly",
+      "equation": "$ \\sim 1 \\ \\mathrm { mm } $",
+      "contextAfter": "depth bins . The conversion from the DOI to the true depth is done by bounding the DOI values for the full-energy peak and the centroid . This is done",
+      "spokenEnglish": "sim one millimeter"
+    },
+    {
+      "stratum": "distribution",
+      "offset": 8664719,
+      "contextBefore": "leads to a decrease of the merger efficiency by a factor",
+      "equation": "$ \\sim 2 $",
+      "contextAfter": ". Moreover , the merger efficiency increases with the cluster density following a power-law with slope",
+      "spokenEnglish": "Approximately two."
+    },
+    {
+      "stratum": "distribution",
+      "offset": 5000487,
+      "contextBefore": "found that",
+      "equation": "$ \\sim 85\\ % $",
+      "contextAfter": "of SGRBs are observed in",
+      "spokenEnglish": "Approximately 85 percent."
+    },
+    {
+      "stratum": "distribution",
+      "offset": 4867559,
+      "contextBefore": "% and",
+      "equation": "$ a\\sim b $",
+      "contextAfter": "if",
+      "spokenEnglish": "a is approximately equal to b"
+    },
+    {
+      "stratum": "distribution",
+      "offset": 4996457,
+      "contextBefore": "converging in law to a complex normal random variable",
+      "equation": "$ Z\\sim\\mathcal { CN } ( 0 , \\frac { 1 } { 2\\lambda } ) $",
+      "contextAfter": "as",
+      "spokenEnglish": "Z is distributed as a normal distribution with mean zero and variance one over two lambda."
+    },
+    {
+      "stratum": "distribution",
+      "offset": 11649356,
+      "contextBefore": "and reddening contribute an additional",
+      "equation": "$ \\sim 0.06 $",
+      "contextAfter": "~mag to the error budget , the final distance modulus becomes",
+      "spokenEnglish": "Approximately zero point zero six."
+    },
+    {
+      "stratum": "distribution",
+      "offset": 14924247,
+      "contextBefore": "and",
+      "equation": "$ J_ { ij } \\sim Poi ( p_ { ij } ) $",
+      "contextAfter": ". Then , %",
+      "spokenEnglish": "J sub i j is distributed as Po sub i j."
+    },
+    {
+      "stratum": "distribution",
+      "offset": 13959242,
+      "contextBefore": "at",
+      "equation": "$ \\sim 45 $",
+      "contextAfter": "",
+      "spokenEnglish": "Approximately 45."
+    },
+    {
+      "stratum": "distribution",
+      "offset": 13012594,
+      "contextBefore": "we find that orbital circularization of disk particles results in a",
+      "equation": "$ \\sim 10\\ % $",
+      "contextAfter": "mean entropy gain to the disk , although our results show that this effect can produce most of the disk 's vapor as disk particles are shifted further into pure",
+      "spokenEnglish": "Approximately ten percent."
+    },
+    {
+      "stratum": "expectation",
+      "offset": 5630930,
+      "contextBefore": "points of",
+      "equation": "$ \\mathbb { E } $",
+      "contextAfter": ", one of which is",
+      "spokenEnglish": "E"
+    },
+    {
+      "stratum": "expectation",
+      "offset": 10788867,
+      "contextBefore": "Here",
+      "equation": "$ \\mathbb { E } $",
+      "contextAfter": "represents the conditional expectation of",
+      "spokenEnglish": "E"
+    },
+    {
+      "stratum": "expectation",
+      "offset": 7588277,
+      "contextBefore": "we pick once and for all an",
+      "equation": "$ \\mathbb E $",
+      "contextAfter": "-extension",
+      "spokenEnglish": "E"
+    },
+    {
+      "stratum": "expectation",
+      "offset": 9000673,
+      "contextBefore": "% % % % % % % % % % % Let",
+      "equation": "$ ( \\mathscr { C } , \\mathbb { E } , \\mathfrak { s } ) $",
+      "contextAfter": "be an extriangulated category . The axioms above ensure that any extriangle induce six-term exact sequences after application of some covariant or contravariant Hom-functor . In particular in any conflation",
+      "spokenEnglish": "Open parenthesis, script C, comma, blackboard bold E, comma, script s, close parenthesis."
+    },
+    {
+      "stratum": "expectation",
+      "offset": 10853365,
+      "contextBefore": "as",
+      "equation": "$ B ( \\mathbb E ) $",
+      "contextAfter": ", and",
+      "spokenEnglish": "B of E"
+    },
+    {
+      "stratum": "expectation",
+      "offset": 1672071,
+      "contextBefore": "let",
+      "equation": "$ \\mathbb { E } _ { p_ { G } } $",
+      "contextAfter": "be the expectation taken with respect to product measure with density",
+      "spokenEnglish": "Expectation with respect to the distribution p sub G."
+    },
+    {
+      "stratum": "expectation",
+      "offset": 4346518,
+      "contextBefore": "where",
+      "equation": "$ \\mathbb { E } $",
+      "contextAfter": "is a contour path enclosing the whole region of the",
+      "spokenEnglish": "E"
+    },
+    {
+      "stratum": "expectation",
+      "offset": 8846615,
+      "contextBefore": "three- or fourfold translative tile in",
+      "equation": "$ \\mathbb { E } ^2 $",
+      "contextAfter": ". Then what about the projection of a three-dimensional fivefold translative tile",
+      "spokenEnglish": "E squared."
+    },
+    {
+      "stratum": "expectation",
+      "offset": 764409,
+      "contextBefore": "where",
+      "equation": "$ \\sigma_ { 2 } ^2 = \\mathbb { E } [ \\phi_ { d_ { \\eta^\\ast } } ^2 ] $",
+      "contextAfter": "is the semiparametric efficiency bound . Therefore we obtain in the end",
+      "spokenEnglish": "Sigma squared sub 2 equals the expected value of phi squared sub d sub eta asterisk."
+    },
+    {
+      "stratum": "expectation",
+      "offset": 7855753,
+      "contextBefore": "it would be interesting to identify",
+      "equation": "$ \\mathbb E [ N_\\alpha^T ( v ) ] $",
+      "contextAfter": ". In the same remark , we saw that for",
+      "spokenEnglish": "Expectation of N sub alpha transpose of v."
+    },
+    {
+      "stratum": "expectation",
+      "offset": 330087,
+      "contextBefore": "And",
+      "equation": "$ \\mathbb { L } ^\\infty ( X ) = \\mathbb { E } \\left [ X\\right ] $",
+      "contextAfter": ",",
+      "spokenEnglish": "L-infinity of X equals the expected value of X."
+    },
+    {
+      "stratum": "expectation",
+      "offset": 9033551,
+      "contextBefore": "Note that",
+      "equation": "$ P_r = \\mathbb { E } \\ { \\lvert q_m ( t ) \\rvert^2 \\ } $",
+      "contextAfter": ". % Please refer to Fig . 3 in",
+      "spokenEnglish": "The value of P sub r is equal to the expectation of the absolute value of q sub m of t squared."
+    },
+    {
+      "stratum": "norm",
+      "offset": 12096080,
+      "contextBefore": "where",
+      "equation": "$ \\left \\| \\cdot \\right \\| $",
+      "contextAfter": "denotes the 2-norm of a vector ,",
+      "spokenEnglish": "norm of dot."
+    },
+    {
+      "stratum": "norm",
+      "offset": 842616,
+      "contextBefore": "we have also",
+      "equation": "$ \\Vert b - c \\Vert \\geq \\Delta $",
+      "contextAfter": ". Finally , we conclude",
+      "spokenEnglish": "The magnitude of the vector b minus c is greater than or equal to delta."
+    },
+    {
+      "stratum": "norm",
+      "offset": 7440886,
+      "contextBefore": "We first prove that the Hilbert-Schmidt norm of",
+      "equation": "$ \\lVert D_ { \\mu_1 , \\mu_2 } ^1 \\rVert $",
+      "contextAfter": "is bounded uniformly in",
+      "spokenEnglish": "the norm of D sub mu one comma mu two superscript one"
+    },
+    {
+      "stratum": "norm",
+      "offset": 6683662,
+      "contextBefore": "The prior analyses apply to generic",
+      "equation": "$ \\|\\cdot\\|_2 $",
+      "contextAfter": "-nonexpansive or contractive operators and",
+      "spokenEnglish": "norm of dot, subscript 2."
+    },
+    {
+      "stratum": "norm",
+      "offset": 8274825,
+      "contextBefore": "where",
+      "equation": "$ \\|\\cdot\\| $",
+      "contextAfter": "is an appropriate norm measuring the distance between",
+      "spokenEnglish": "norm of dot."
+    },
+    {
+      "stratum": "norm",
+      "offset": 12038442,
+      "contextBefore": "we see that the bound on",
+      "equation": "$ \\|E_1\\|_F $",
+      "contextAfter": "is cubic in",
+      "spokenEnglish": "Norm of E sub 1 sub F"
+    },
+    {
+      "stratum": "norm",
+      "offset": 6027028,
+      "contextBefore": "We interchangeably use the notations",
+      "equation": "$ \\|x\\|_2 $",
+      "contextAfter": "and",
+      "spokenEnglish": "the norm of x subscript 2."
+    },
+    {
+      "stratum": "norm",
+      "offset": 10691868,
+      "contextBefore": "where",
+      "equation": "$ \\|\\cdot\\| $",
+      "contextAfter": "denotes the norm induced by",
+      "spokenEnglish": "norm of dot."
+    },
+    {
+      "stratum": "norm",
+      "offset": 2423990,
+      "contextBefore": "let",
+      "equation": "$ \\|\\bm { x } \\|_1 : =\\sum_ { k=1 } ^K |x_k| $",
+      "contextAfter": ",",
+      "spokenEnglish": "The norm of vector x, subscript 1, is equal to the sum from k equals 1 to K of the absolute value of x subscript k."
+    },
+    {
+      "stratum": "norm",
+      "offset": 7859309,
+      "contextBefore": "inducing the norm",
+      "equation": "$ \\|\\cdot\\| $",
+      "contextAfter": ". Since",
+      "spokenEnglish": "norm of dot."
+    },
+    {
+      "stratum": "norm",
+      "offset": 14468741,
+      "contextBefore": "the norm inequality",
+      "equation": "$ \\|x\\|_1\\leq\\|x\\|_p $",
+      "contextAfter": "holds , since %",
+      "spokenEnglish": "The norm of x sub 1 is less than or equal to the norm of x sub p."
+    },
+    {
+      "stratum": "norm",
+      "offset": 10767879,
+      "contextBefore": "we can also obtain a local reliable bound for",
+      "equation": "$ \\|u-u_ { \\theta } \\|_U $",
+      "contextAfter": "through the following Assumption :",
+      "spokenEnglish": "Norm of u minus u sub theta, norm sub U."
+    },
+    {
+      "stratum": "variance",
+      "offset": 4602321,
+      "contextBefore": "The point in",
+      "equation": "$ \\mathbb { P } \\Gamma\\backslash \\mathbb { CH } ^9 =M $",
+      "contextAfter": "corresponding to the triangulation is the",
+      "spokenEnglish": "Mathematical double-struck P, Gamma, backslash, mathematical double-struck CH raised to the power of 9, equals M."
+    },
+    {
+      "stratum": "variance",
+      "offset": 12302759,
+      "contextBefore": "Let 's extend",
+      "equation": "$ \\bar { \\mathbb { P } } $",
+      "contextAfter": "again with",
+      "spokenEnglish": "bar P bold."
+    },
+    {
+      "stratum": "variance",
+      "offset": 1433602,
+      "contextBefore": "where",
+      "equation": "$ \\mathbb { P } _ { m } ( \\cdot |H_ { i , t } ^ { m } ) $",
+      "contextAfter": "represents this probability is conditional on history",
+      "spokenEnglish": "Probability of m given the event H sub i, t superscript m."
+    },
+    {
+      "stratum": "variance",
+      "offset": 13101408,
+      "contextBefore": "morphism to",
+      "equation": "$ \\mathbb { P } ^1 $",
+      "contextAfter": ", then it is also birational to a quintic in",
+      "spokenEnglish": "P one."
+    },
+    {
+      "stratum": "variance",
+      "offset": 2991800,
+      "contextBefore": "in",
+      "equation": "$ \\mathcal { M } _ { \\mathcal { N } , \\mathbb { P } } $",
+      "contextAfter": ". % , including distinct extensions from a matroid",
+      "spokenEnglish": "M sub N, P"
+    },
+    {
+      "stratum": "variance",
+      "offset": 1690856,
+      "contextBefore": "and in",
+      "equation": "$ L^p ( \\tilde { \\Omega } , \\tilde { \\mathbb { P } } ) $",
+      "contextAfter": ".",
+      "spokenEnglish": "L to the power of p, open parenthesis, tilde Omega, comma, tilde mathbb P, close parenthesis."
+    },
+    {
+      "stratum": "variance",
+      "offset": 7146627,
+      "contextBefore": "denotes the total variation distance between",
+      "equation": "$ \\mathbb { P } $",
+      "contextAfter": "and",
+      "spokenEnglish": "P"
+    },
+    {
+      "stratum": "variance",
+      "offset": 7984398,
+      "contextBefore": "of the sheaf cohomology of",
+      "equation": "$ \\mathbb { P } ^n $",
+      "contextAfter": ".",
+      "spokenEnglish": "P to the power of n."
+    },
+    {
+      "stratum": "variance",
+      "offset": 4536903,
+      "contextBefore": "assuming that",
+      "equation": "$ X_h\\in L^1 ( \\mathbb { P } ) $",
+      "contextAfter": "and that the cdf of",
+      "spokenEnglish": "X sub h belongs to L to the power of 1, open parenthesis, capital P, close parenthesis."
+    },
+    {
+      "stratum": "variance",
+      "offset": 2022535,
+      "contextBefore": "For this assumption it suffices to assume that",
+      "equation": "$ ( \\Omega , \\mathcal { F } , \\mathbb { P } ) $",
+      "contextAfter": "is separable see e.g . ,",
+      "spokenEnglish": "Open parenthesis, Omega, comma, script F, comma, double-struck P, close parenthesis."
+    },
+    {
+      "stratum": "variance",
+      "offset": 11561649,
+      "contextBefore": "measures the volume of the",
+      "equation": "$ \\mathbb { P } ^5 $",
+      "contextAfter": "factor . In the limit",
+      "spokenEnglish": "P to the power of 5."
+    },
+    {
+      "stratum": "variance",
+      "offset": 7928090,
+      "contextBefore": "Then",
+      "equation": "$ \\mathbb { P } $",
+      "contextAfter": "is a hyperfield , called the",
+      "spokenEnglish": "P"
+    }
+  ]
+}

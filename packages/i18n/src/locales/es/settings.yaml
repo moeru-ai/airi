@@ -242,14 +242,7 @@ live2d:
     sdk-preset-preserved-notice: >
       El gestor de expresiones del SDK y el parpadeo se mantienen cuando están desactivados.
     no-expression: No hay expresiones disponibles para este modelo.
-    llm-integration-wip: La integración de la herramienta LLM aún no está configurada
-    save-default: Guardar expresiones por defecto
     reset: Restablecer todas las expresiones
-    expose-to-llm-toggle: Exponer a LLM
-    expose-to-llm-options:
-      none: Nada
-      all: Todo
-      custom: Personalizado
 microphone: Micrófono
 models: Modelo
 pages:
@@ -1391,11 +1384,9 @@ pages:
       buy: Carga
       description: Paquetes Flujo entre los que elegir.
   capacitor:
-    description: Un Capacitor almacena Flux y se recarga automáticamente.
     statusError: No se pudo cargar tu Capacitor. Inténtalo más tarde.
     packagesError: No se pudieron cargar los Capacitor. Inténtalo más tarde.
     preferenceError: No se pudo guardar la preferencia. Inténtalo más tarde.
-    noCapacitor: Sin Capacitor
     remaining: 'Queda {percent}'
     rechargesAt: Se recarga {date}
     renewsAt: Se renueva {date}
