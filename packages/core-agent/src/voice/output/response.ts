@@ -1,5 +1,4 @@
 import type { AudioPlayback, IntentHandle, PcmBlock, PlaybackGroup, PlaybackItem, PlaybackReceipt, SpeechPipelineEvents, SpeechPipelineOptions } from '@proj-airi/pipelines-audio'
-
 import type { Outcome } from '@proj-airi/stream-kit'
 
 import type { TurnRef } from '../turn'
@@ -9,7 +8,7 @@ import { createPushStream } from '@proj-airi/stream-kit'
 import { nanoid } from 'nanoid/non-secure'
 
 import { errorFromCause, errorMessageFromValue } from '../../utils/error'
-import { toSpeechText } from './speech-text'
+import { toSpeechText } from './speech-transformation'
 
 /** Each synthesized part carries optional display text. Audio ownership transfers to playback. */
 export interface SpeechAudio {
@@ -43,6 +42,8 @@ export type SpeechOutput = {
   readonly onPlaybackStart?: (clip: SpeechClip) => void
   /** Runs once for each started clip after playback ends, stops, or fails. */
   readonly onPlaybackEnd?: (clip: SpeechClip, end: SpeechClipEnd) => void
+  /** BCP 47 code of the voice. The words around a formula or a price select its language first. */
+  readonly language?: string
 } & ({
   readonly synthesize: SpeechPipelineOptions<Blob>['tts']
 } | {
@@ -133,38 +134,39 @@ export class SpeechStream {
           const clip = { id: item.segmentId, text: item.text }
           let started = false
           void Promise.race([previous, this.done])
-          .then(async () => {
-            if (this.signal.aborted || response.signal.aborted)
-              return 'stopped' as const
+            .then(async () => {
+              if (this.signal.aborted || response.signal.aborted)
+                return 'stopped' as const
 
-            return response.playback.enqueue({
-              id: item.id,
-              audio: item.audio,
-              signal: this.signal,
-              onStart: () => {
-                started = true
-                listeners.start.forEach(listener => listener({ item, startedAt: Date.now() }))
-                output.onPlaybackStart?.(clip)
-            } })
-          })
-          .then((result) => {
-            if (started)
-              output.onPlaybackEnd?.(clip, this.clipEnd(result))
+              return response.playback.enqueue({
+                id: item.id,
+                audio: item.audio,
+                signal: this.signal,
+                onStart: () => {
+                  started = true
+                  listeners.start.forEach(listener => listener({ item, startedAt: Date.now() }))
+                  output.onPlaybackStart?.(clip)
+                },
+              })
+            })
+            .then((result) => {
+              if (started)
+                output.onPlaybackEnd?.(clip, this.clipEnd(result))
 
-            if (!pending.delete(item))
-              return
+              if (!pending.delete(item))
+                return
 
-            if (result === 'ended')
-              listeners.end.forEach(listener => listener({ item, endedAt: Date.now() }))
-            else
-              listeners.interrupt.forEach(listener => listener({ item, interruptedAt: Date.now(), reason: result }))
+              if (result === 'ended')
+                listeners.end.forEach(listener => listener({ item, endedAt: Date.now() }))
+              else
+                listeners.interrupt.forEach(listener => listener({ item, interruptedAt: Date.now(), reason: result }))
 
-            // REVIEW: can we have more manage-able error handling
-            // across our pipelines?
-            if (result === 'failed')
-              this.fail(new Error('Speech playback failed'))
+              // REVIEW: can we have more manage-able error handling
+              // across our pipelines?
+              if (result === 'failed')
+                this.fail(new Error('Speech playback failed'))
             // REVIEW: must we do this here?
-          }, cause => this.fail(errorFromCause(cause, 'Speech playback failed')))
+            }, cause => this.fail(errorFromCause(cause, 'Speech playback failed')))
         },
         stopByIntent: (_id, reason) => {
           for (const item of pending)
@@ -251,6 +253,7 @@ export class SpeechStream {
 
   // REVIEW:
   // Every purpose holds its text until `end()`, so markdown is converted with the full context.
+  // This also keeps each formula whole: a `$` that closes in a later write is still read as one formula.
   // read-aloud already has the full text, but answer and notification start to speak only after the model ends.
   // answer needs a streaming commit at clause boundaries. See the chunker punctuation in pipelines-audio.
 
@@ -292,7 +295,7 @@ export class SpeechStream {
 
   /** Sends the speech text and the controls in source order. Controls that conversion lost are sent last, in order. */
   private deliver() {
-    const parts = toSpeechText(this.markdown, { marker: controlMarker }).split(controlMarker)
+    const parts = toSpeechText(this.markdown, { marker: controlMarker, language: this.output.language }).split(controlMarker)
     parts.forEach((text, index) => {
       if (text)
         this.deliverText(text)
