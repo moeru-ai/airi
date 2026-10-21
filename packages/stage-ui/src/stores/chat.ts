@@ -37,6 +37,7 @@ import { composeDrawCardPrompt, createDrawCardTool, DRAW_CARD_TOOL_NAME, drawCar
 import { createJudgeRecipeTool, judgmentSkillText } from '../tools/judge-recipe'
 import { composeMemoryPrompt, createMemoryTools } from '../tools/memory'
 import { createProposeRecipeTool } from '../tools/propose-recipe'
+import { createSearchIconsTool } from '../tools/search-icons'
 import { createUseRecipeTool } from '../tools/use-recipe'
 import { createWakeWordTool } from '../tools/wake-words'
 import { useLLM } from './ai/chat-llm/llm'
@@ -634,8 +635,9 @@ export const useChatStore = defineStore('chat', () => {
       ...(ownerOnly ? await createUseRecipeTool({ recipes: () => recipes.recipes, start: (recipe, task) => startRecipe(recipe, { parentSessionId: sessionId, task }) }) : []),
       // The owner can turn proposals off. Every proposal waits for the owner's approval.
       ...(ownerOnly && recipes.proposalsEnabled ? await createProposeRecipeTool({ propose: recipe => recipes.propose(recipe) }) : []),
-      // Cards show in the owner's own chat only. A scene, such as a Discord channel, gets text.
-      ...(drawsCards(sessionId) ? await createDrawCardTool() : []),
+      // Cards show in the owner's own chat only. A scene, such as a Discord channel, gets text. A card names its icons
+      // from a search, so the model never guesses an icon name.
+      ...(drawsCards(sessionId) ? [...await createDrawCardTool(), ...await createSearchIconsTool()] : []),
     ]
   }
 
