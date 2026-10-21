@@ -250,7 +250,6 @@ interface WidgetRecord extends WidgetSnapshot {
   expiresAt?: number
   timer?: ReturnType<typeof setTimeout>
   timerGeneration?: number
-  pushGeneration?: number
 }
 
 interface WidgetWindowContext {
@@ -312,7 +311,6 @@ export function setupWidgetsWindowManager(params: {
   const defaultRoute = '/widgets'
 
   let widgetsManager: WidgetsWindowManager | undefined
-  let nextPushGeneration = 0
 
   /**
    * Reserves a widget id and its window context before rendering.
@@ -343,7 +341,6 @@ export function setupWidgetsWindowManager(params: {
       expiresAt: _expiresAt,
       timer: _timer,
       timerGeneration: _timerGeneration,
-      pushGeneration: _pushGeneration,
       ...snapshot
     } = record
     return snapshot
@@ -390,11 +387,11 @@ export function setupWidgetsWindowManager(params: {
     record.timer = setTimeout(armTimer, Math.min(record.ttlMs, MAX_TIMEOUT_MS))
   }
 
-  function createRecord(snapshot: WidgetSnapshot, options?: { pushGeneration?: number }): WidgetRecord {
+  function createRecord(snapshot: WidgetSnapshot): WidgetRecord {
     const record: WidgetRecord = {
       ...snapshot,
-      pushGeneration: options?.pushGeneration,
     }
+    scheduleDestruction(record)
     widgetRecords.set(snapshot.id, record)
     return record
   }
@@ -640,22 +637,10 @@ export function setupWidgetsWindowManager(params: {
       windowSize: resolveWindowSizeFromPayload(payload),
       ttlMs: payload.ttlMs ?? 0,
     }
-    const pushGeneration = ++nextPushGeneration
-    createRecord(snapshot, { pushGeneration })
+    createRecord(snapshot)
     const windowContext = windowContexts.get(id)!
     await showWindowWithRoute(`${defaultRoute}?id=${id}`, windowContext, snapshot)
     windowContext.eventa?.context.emit(widgetsRenderEvent, snapshot)
-
-    const current = widgetRecords.get(id)
-    if (
-      current
-      && current.pushGeneration === pushGeneration
-      && windowContexts.get(id) === windowContext
-      && !current.expiresAt
-      && current.timerGeneration === undefined
-    ) {
-      scheduleDestruction(current)
-    }
 
     return id
   }
@@ -694,7 +679,6 @@ export function setupWidgetsWindowManager(params: {
       expiresAt: existing.expiresAt,
       timer: existing.timer,
       timerGeneration: existing.timerGeneration,
-      pushGeneration: existing.pushGeneration,
     }
     widgetRecords.set(payload.id, nextRecord)
     if (payload.ttlMs !== undefined)
