@@ -2,10 +2,11 @@ import type { ChatRequestOptions, GenerationRequest } from '@proj-airi/provider-
 
 import type { ModelInfo, ProviderModelCatalog, VoiceInfo } from '../../types'
 
-import { generationProtocolOptions, openAIProtocols } from '@proj-airi/provider-inference'
+import { compatibleProtocols, generationProtocolOptions } from '@proj-airi/provider-inference'
 import { z } from 'zod'
 
 import { getAuthToken } from '../../../../libs/auth'
+import { OFFICIAL_RESPONSES_FLAG } from '../../../../libs/feature-flags'
 import { SERVER_URL } from '../../../../libs/server'
 import { defineProvider } from '../registry'
 import { OFFICIAL_CHAT_PROVIDER_ID, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from './constants'
@@ -15,7 +16,7 @@ export { OFFICIAL_CHAT_PROVIDER_ID, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH
 
 const officialConfigSchema = z.object({})
 const officialChatConfigSchema = z.object({
-  api: z.enum(openAIProtocols.supportedProtocols).default(openAIProtocols.defaultProtocol),
+  api: z.enum(compatibleProtocols.supportedProtocols).default(compatibleProtocols.defaultProtocol),
 })
 
 type OfficialChatConfig = z.input<typeof officialChatConfigSchema>
@@ -66,26 +67,38 @@ export const providerOfficialChat = defineProvider<OfficialChatConfig, typeof OF
   icon: OFFICIAL_ICON,
   requiresCredentials: false,
   configuredBy: 'authentication',
-  capabilities: { chat: { generation: openAIProtocols } },
+  capabilities: { chat: { generation: compatibleProtocols } },
 
   createProviderConfig: ({ t }) => officialChatConfigSchema.extend({
     api: officialChatConfigSchema.shape.api.meta({
       type: 'select',
-      options: generationProtocolOptions(openAIProtocols),
+      options: generationProtocolOptions(compatibleProtocols),
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-protocol.label'),
       descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-protocol.description'),
     }),
   }),
-  createProvider(config) {
+  createProvider(config, runtime) {
     const provider = createOfficialOpenAIProvider()
     const unsupportedResponseModels = new Set<string>()
+
+    function selectProtocol(model: string): GenerationRequest['protocol'] {
+      // The endpoint rejected Responses for this model before. The fallback in core-agent recorded it, so later
+      // requests skip the failed attempt until the provider store creates a new instance.
+      if (unsupportedResponseModels.has(model))
+        return 'chat-completions'
+      // AIRI Cloud rolls out Responses with this flag, and the user can turn it off. The flag wins over the saved
+      // `api` value, because the provider store saves the schema default and a saved value is not always a choice.
+      if (runtime?.isFeatureEnabled(OFFICIAL_RESPONSES_FLAG.key))
+        return 'responses'
+      return config.api ?? compatibleProtocols.defaultProtocol
+    }
+
     return {
       model: provider.model,
       generation(model: string, _options?: ChatRequestOptions): GenerationRequest {
         const request = provider.chat(model)
         request.fetch = withCredentials()
-        const protocol = unsupportedResponseModels.has(model) ? 'chat-completions' : config.api ?? openAIProtocols.defaultProtocol
-        switch (protocol) {
+        switch (selectProtocol(model)) {
           case 'responses':
             return {
               protocol: 'responses',

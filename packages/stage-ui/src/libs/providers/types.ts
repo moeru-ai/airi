@@ -3,6 +3,15 @@ import type { ProviderDefinition as CoreProviderDefinition } from '@proj-airi/pr
 import type { ProviderViews } from './views'
 
 /**
+ * Host state that the provider store gives to a provider instance. The provider reads it on each request, so a
+ * changed value applies without a new instance.
+ */
+export interface ProviderRuntime {
+  /** Reads a flag from `useFeatureFlagsStore()`. An unknown key returns false. */
+  isFeatureEnabled: (key: string) => boolean
+}
+
+/**
  * Stage-ui extends portable definitions with Vue-owned views.
  *
  * The core provider contract remains runtime-neutral.
@@ -17,6 +26,11 @@ export interface ProviderDefinition<TConfig = Record<string, unknown>, TId exten
    * `/settings/providers/<category>/<id>`, so the card does not open an empty route.
    */
   to?: string
+  /**
+   * Creates the provider instance. Only the cached instance of the provider store receives `runtime`. Temporary
+   * instances, for example for model lists and validators, omit it.
+   */
+  createProvider: (config: TConfig, runtime?: ProviderRuntime) => ReturnType<CoreProviderDefinition<TConfig, TId>['createProvider']>
 }
 
 export {
