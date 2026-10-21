@@ -57,14 +57,14 @@ export function createDesktopOverlayWindowOptions(params: {
  */
 export function applyDesktopOverlayInputIsolation(
   window: Pick<BrowserWindow, 'setAlwaysOnTop' | 'setContentProtection' | 'setIgnoreMouseEvents' | 'setVisibleOnAllWorkspaces'>,
-  options?: { hideAppIcon?: boolean },
+  options: { hideAppIcon?: boolean },
 ): void {
   window.setIgnoreMouseEvents(true, { forward: true })
   window.setAlwaysOnTop(true, 'screen-saver')
   window.setContentProtection(true)
   showWindowOnAllWorkspaces(window, {
     visibleOnFullScreen: true,
-    hideAppIcon: options?.hideAppIcon,
+    hideAppIcon: options.hideAppIcon,
   })
 }
 

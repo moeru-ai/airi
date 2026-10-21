@@ -1,4 +1,4 @@
-import type { BrowserWindow as ElectronBrowserWindow, Event } from 'electron'
+import type { BrowserWindow as ElectronBrowserWindow, Event, VisibleOnAllWorkspacesOptions } from 'electron'
 
 import type { globalAppConfigSchema } from '../../configs/global'
 import type { Config } from '../../libs/electron/persistence'
@@ -15,6 +15,13 @@ export function excludeWindowFromTaskbar(window: Pick<ElectronBrowserWindow, 'se
   taskbarExcludedWindows.add(window)
 }
 
+/**
+ * Sets the window visible on all macOS workspaces.
+ *
+ * Uses `skipTransformProcessType` from Electron issue #10078 to prevent the
+ * macOS process-type transform from unhiding the Dock when the preference is active.
+ * Pass `hideAppIcon: true` to force the skip, or omit it to infer from the dock state.
+ */
 // NOTICE:
 // macOS setVisibleOnAllWorkspaces changes process type and unhides Dock.
 // skipTransformProcessType prevents Electron from transforming process type.
@@ -22,7 +29,7 @@ export function excludeWindowFromTaskbar(window: Pick<ElectronBrowserWindow, 'se
 // Removal condition: When Electron preserves macOS dock visibility across workspace changes, remove this workaround.
 export function showWindowOnAllWorkspaces(
   window: Pick<ElectronBrowserWindow, 'setVisibleOnAllWorkspaces'>,
-  options?: { hideAppIcon?: boolean, skipTransformProcessType?: boolean, visibleOnFullScreen?: boolean },
+  options?: VisibleOnAllWorkspacesOptions & { hideAppIcon?: boolean },
 ): void {
   // `app.dock` exists only on macOS.
   window.setVisibleOnAllWorkspaces(true, {

@@ -6,6 +6,14 @@ import {
   showDesktopOverlayWithoutFocus,
 } from './window-contract'
 
+const electron = vi.hoisted(() => ({
+  dock: { isVisible: vi.fn(() => true) },
+}))
+
+vi.mock('electron', () => ({
+  app: { dock: electron.dock },
+}))
+
 describe('createDesktopOverlayWindowOptions', () => {
   it('creates non-focusable transparent overlay window options for display bounds', () => {
     const options = createDesktopOverlayWindowOptions({
@@ -41,7 +49,7 @@ describe('applyDesktopOverlayInputIsolation', () => {
       setVisibleOnAllWorkspaces: vi.fn(),
     }
 
-    applyDesktopOverlayInputIsolation(window)
+    applyDesktopOverlayInputIsolation(window, {})
 
     expect(window.setIgnoreMouseEvents).toHaveBeenCalledWith(true, { forward: true })
     expect(window.setAlwaysOnTop).toHaveBeenCalledWith(true, 'screen-saver')
