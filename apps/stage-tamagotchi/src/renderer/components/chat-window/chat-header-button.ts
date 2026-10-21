@@ -28,7 +28,7 @@ export function chatHeaderButtonClass(variant: ChatHeaderButtonVariant, pressed 
       'size-7 rounded-full',
       pressed
         ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/60 dark:text-primary-300'
-        : 'text-neutral-600 hover:bg-primary-50 hover:text-primary-600 dark:text-neutral-300 dark:hover:bg-primary-900/40 dark:hover:text-primary-300',
+        : 'text-neutral-400 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400',
     ]
   }
   return [

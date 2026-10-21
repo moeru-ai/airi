@@ -352,9 +352,9 @@ function moveByKeyboard(delta: WindowDelta) {
           <!-- The dock stays over the island, so the island can hide under its edge. -->
           <div
             :class="[
-              'relative z-1 min-w-0 flex items-center gap-1 rounded-full py-0.5 shadow-md',
+              'relative z-1 min-w-0 flex items-center gap-1 rounded-full p-0.5 shadow-md',
               'bg-white dark:bg-neutral-900',
-              characterOnLeft ? 'flex-row-reverse pl-1 pr-0.5' : 'pl-0.5 pr-1',
+              characterOnLeft ? 'flex-row-reverse' : '',
             ]"
           >
             <button
@@ -373,7 +373,7 @@ function moveByKeyboard(delta: WindowDelta) {
                 'h-7 w-5 shrink-0 cursor-grab touch-none rounded-full',
                 'flex items-center justify-center outline-none transition-colors',
                 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
-                'text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200',
+                'text-neutral-400 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400',
               ]"
               @pointerdown="holdPointer"
               @pointermove="moveWithHeldPointer"
@@ -396,7 +396,7 @@ function moveByKeyboard(delta: WindowDelta) {
                 :class="[
                   'size-6 shrink-0 rounded-full',
                   'flex items-center justify-center text-sm',
-                  'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300',
+                  'bg-neutral-100 text-neutral-400 dark:bg-neutral-800 dark:text-neutral-500',
                 ]"
               >
                 <span class="i-solar:chat-line-bold" />
