@@ -190,7 +190,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
               />
               <ChatSticker v-else-if="entry.slice.type === 'sticker'" :sticker-id="entry.slice.stickerId" />
               <ChatReplyCard v-else-if="entry.slice.type === 'card'" :card="entry.slice" />
-              <MarkdownRenderer v-else-if="entry.slice.type === 'text'" :content="entry.slice.text" />
+              <MarkdownRenderer v-else-if="entry.slice.type === 'text'" :content="entry.slice.text" :streaming="streaming" />
             </template>
             <div v-if="drawingCard" :class="['flex items-center gap-1.5 text-[11px]', 'text-neutral-500 dark:text-neutral-400']" aria-live="polite">
               <span :class="['i-svg-spinners:ring-resize', 'text-xs', 'text-primary-500 dark:text-primary-300']" aria-hidden="true" />
