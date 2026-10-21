@@ -141,7 +141,7 @@ Each case gets three listener answers. The case passes with a strict majority.
 
 Each answer also has a hearing status: `ok`, `partial`, or `unclear`. The listener sets it through structured output. An `unclear` vote scores 0 with the grading rule `unclear`, so a report tells an unintelligible clip apart from a wrong reading. The `tts_speech_formula.hearing` metric is the status of most votes.
 
-Each case also gets three judge verdicts on the spoken text: `natural`, `mixed`, or `spelled`. The judge never sees the answer of the listener and never judges correctness. The case takes the median verdict as the `tts_speech_formula.reading` metric, and records its score as the vieval `judge` score. The judge reads the spoken text, not the ASR transcript, so ASR errors do not count against the test object.
+Each case also gets three judge verdicts on the spoken text: `natural`, `mixed`, or `spelled`. The judge never sees the answer of the listener and never judges correctness. The case takes the median verdict as the `tts_speech_formula.reading` metric, and records its score as `formula.natural`. The judge reads the spoken text, not the ASR transcript, so ASR errors do not count against the test object.
 
 ### Judge calibration
 
@@ -150,11 +150,13 @@ A person labels a fixed set of readings, and the share of labels that the judge 
 the verdicts of the judge.
 
 1. After a change of the judge prompt, run the eval on the cases of the set, then refresh the verdicts with
-   `pnpm -F @proj-airi/evals-tts-speech-formula run judge:collect`. It keeps the set. `-- --pick` picks a new one.
-2. Label with `pnpm -F @proj-airi/evals-tts-speech-formula run judge:label`. It opens a local page on port 5299. Keys
-   1, 2, and 3 choose natural, mixed, and spelled. The verdict of the judge shows after the label.
+   `pnpm -F @proj-airi/evals-tts-speech-formula run judge:collect`. It keeps the set and prints how many labels the
+   judge matches. `-- --pick` picks a new set and keeps the labeled readings.
+2. To label a reading, set its `label` in `calibration.json` to `natural`, `mixed`, or `spelled`. `note` says why.
 
 On 2026-10-20 the judge matched 31 of 43 labels (72%). After the prompt took the labels into account, it matched 34 (79%).
+On 2026-10-21, after the eval review changed the prompt and the readings, it matched 32 (74%). Three labeled readings
+have new words since, so they keep an older verdict.
 
 The `tts_speech_formula.leftover_notation` metric counts the symbols and LaTeX command names that a test object left in its spoken text, for example `^`, `/`, `$`, or `mapsto`. It needs no TTS. The test `eval/test-objects/rule/src/read-aloud.test.ts` lists these leftovers of the rule engine for every case, without any model call.
 

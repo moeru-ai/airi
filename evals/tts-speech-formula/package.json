@@ -24,15 +24,14 @@
     "eval:compare": "pnpm -F @proj-airi/core-agent build && vieval run --config ./vieval.config.ts --with-viewer",
     "typecheck": "tsc --noEmit",
     "cases:math-bridge": "tsx eval/cases/math-bridge/fetch.ts",
-    "judge:collect": "tsx eval/evaluators/judge/calibration/collect.ts",
-    "judge:label": "vite --config eval/evaluators/judge/calibration/vite.config.ts"
+    "judge:collect": "tsx eval/evaluators/judge/calibration/collect.ts"
   },
   "dependencies": {
     "@cortex-js/compute-engine": "catalog:",
     "@duckdb/duckdb-wasm": "catalog:",
     "@moeru/std": "catalog:",
     "@proj-airi/core-agent": "workspace:^",
-    "@proj-airi/duckdb-wasm": "catalog:",
+    "@proj-airi/drizzle-duckdb-wasm": "catalog:",
     "@proj-airi/mathjson": "workspace:^",
     "@proj-airi/speech-transformer-math": "workspace:^",
     "@velin-dev/core-vue": "catalog:",
@@ -41,6 +40,7 @@
     "@xsai/generate-speech": "catalog:",
     "@xsai/generate-text": "catalog:",
     "@xsai/generate-transcription": "catalog:",
+    "drizzle-orm": "catalog:",
     "katex": "catalog:",
     "speech-rule-engine": "catalog:",
     "valibot": "catalog:",
@@ -52,12 +52,7 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "rehype-stringify": "catalog:",
-    "remark-parse": "catalog:",
-    "remark-rehype": "catalog:",
-    "unified": "catalog:",
     "vieval": "catalog:",
-    "vite": "catalog:",
     "vitest": "catalog:vitest"
   }
 }

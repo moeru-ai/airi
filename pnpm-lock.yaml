@@ -405,9 +405,6 @@ catalogs:
     '@proj-airi/drizzle-duckdb-wasm':
       specifier: ^0.6.0
       version: 0.6.0
-    '@proj-airi/duckdb-wasm':
-      specifier: ^0.6.0
-      version: 0.6.0
     '@proj-airi/iconify-meteocons':
       specifier: ^0.1.5
       version: 0.1.5
@@ -3547,7 +3544,7 @@ importers:
       '@proj-airi/core-agent':
         specifier: workspace:^
         version: link:../../packages/core-agent
-      '@proj-airi/duckdb-wasm':
+      '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
         version: 0.6.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))(web-worker@1.5.0)
       '@proj-airi/mathjson':
@@ -3574,6 +3571,9 @@ importers:
       '@xsai/generate-transcription':
         specifier: 'catalog:'
         version: 0.5.1
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9)
       katex:
         specifier: 'catalog:'
         version: 0.19.0
@@ -3590,24 +3590,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 26.2.0
-      rehype-stringify:
-        specifier: 'catalog:'
-        version: 10.0.1
-      remark-parse:
-        specifier: 'catalog:'
-        version: 11.0.0(supports-color@10.2.2)
-      remark-rehype:
-        specifier: 'catalog:'
-        version: 11.1.2
-      unified:
-        specifier: 'catalog:'
-        version: 11.0.5
       vieval:
         specifier: 'catalog:'
         version: 0.10.3(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(chokidar@5.0.0)(dotenv@17.4.2)(electron@43.4.1(supports-color@10.2.2))(esbuild@0.28.2)(giget@3.3.1)(h3@2.0.2(crossws@0.4.12(srvx@1.0.5)))(hono@4.13.3)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(less@4.9.0(supports-color@10.2.2))(magicast@0.5.4)(terser@5.50.0)(tsx@4.23.12)(typescript@6.0.3)(web-worker@1.5.0)(yaml@2.9.0)
-      vite:
-        specifier: 'catalog:'
-        version: 8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
       vitest:
         specifier: catalog:vitest
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
