@@ -69,6 +69,10 @@ Use pnpm workspace filters to limit a command to one workspace. Replace `<packag
 - If a refactor is small, do it step by step.
 - After a task, run the typecheck and the related tests for each workspace that you changed.
 - Before you create a PR or push to one, run the tests of the branch changes. CI runs every project, including the browser projects.
+- If a change alters UI structure, layout, or interaction, review the related browser and end-to-end tests.
+- If intended behavior changes, update the affected assertions. Keep valid regression checks. Do not delete an assertion only to make a test pass.
+- After the final UI change, run the related tests on the final commit.
+- Before you report a CI success, make sure that CI tested the current PR head.
 - If you change a shared package or an exported type, also run the root `pnpm typecheck`.
 - Run `pnpm lint` before you finish.
 - Report only the checks that you ran. Give each command and its result.
