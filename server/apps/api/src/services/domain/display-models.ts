@@ -7,12 +7,12 @@ import type { UploadSessionService } from './upload-sessions'
 
 import { Buffer } from 'node:buffer'
 
+import { createBadRequestError, createConflictError, createNotFoundError, createPayloadTooLargeError, createPaymentRequiredError } from '@proj-airi/http-error-shared'
 import { and, eq, isNull, ne, sql } from 'drizzle-orm'
 
 import * as v from 'valibot'
 
 import { displayModels } from '../../schemas/display-models'
-import { createBadRequestError, createConflictError, createNotFoundError, createPayloadTooLargeError, createPaymentRequiredError } from '../../utils/error'
 
 const PURPOSE = 'display-model'
 const DOWNLOAD_EXPIRES_IN_SECONDS = 900
@@ -33,11 +33,12 @@ export const ReserveDisplayModelUploadSchema = v.object({
   name: NameSchema,
   originalFilename: v.pipe(v.string(), v.minLength(1), v.maxLength(255)),
   byteSize: v.pipe(v.number(), v.integer(), v.minValue(1)),
-  sha256: v.pipe(v.string(), v.regex(/^[0-9a-f]{64}$/)),
+  // The stored and computed digests are lowercase, so an uppercase digest is lowered before the comparison.
+  sha256: v.pipe(v.string(), v.toLowerCase(), v.hash(['sha256'])),
 })
 
 export const RenameDisplayModelSchema = v.object({ name: NameSchema, revision: RevisionSchema })
-export const DeleteDisplayModelQuerySchema = v.object({ revision: v.pipe(v.string(), v.regex(/^\d+$/), v.transform(Number), RevisionSchema) })
+export const DeleteDisplayModelQuerySchema = v.object({ revision: v.pipe(v.string(), v.digits(), v.transform(Number), RevisionSchema) })
 
 export type ReserveDisplayModelUploadInput = InferOutput<typeof ReserveDisplayModelUploadSchema>
 

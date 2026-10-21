@@ -208,10 +208,14 @@ Use an opaque background for swipe content. If the visible label is hidden, pres
 | [TransitionHorizontal](./packages/ui/src/components/animations/transition-horizontal.vue) | 500ms width and opacity transition |
 | [AnimatedContent](./packages/ui/src/components/animations/animated-content.vue) | 220ms enter, 160ms exit, and 6px inner blur transition |
 | Shared UnoCSS animations | Overlay 300ms, content 150ms, directional entrance 400ms, fade 200ms |
+| [Blur fade](./packages/stage-ui/src/components/widgets/poppin-text/animators/blur-fade.ts) | Each grapheme fades and sharpens from 3px blur over 500ms. Starts are 40ms apart, at most 600ms in total |
+| [RewriteText](./packages/stage-ui/src/components/widgets/rewrite-text/rewrite-text.vue) | Changed words blur out, then the new words blur in, with the blur fade timing |
 
 `AnimatedContent` owns motion, not surface styles. Its lifecycle owner supplies `data-state` and keeps the node mounted until the exit animation ends.
 
-`AnimatedContent` and `BottomDrawer` explicitly handle reduced-motion preferences. Check other controls individually instead of assuming library-wide support.
+Live voice text appears with the blur fade through `PoppinText`. A rewrite of spoken text, for example by the rephrase plugin, plays `RewriteText`, so only the changed words move.
+
+`AnimatedContent`, `BottomDrawer`, and the blur fade explicitly handle reduced-motion preferences. Check other controls individually instead of assuming library-wide support.
 
 Icons use Iconify. Existing components and stories use sets such as Solar and Phosphor. The repository does not require one exclusive icon set.
 

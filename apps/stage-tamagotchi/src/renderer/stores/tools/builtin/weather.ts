@@ -10,6 +10,9 @@ export { fetchWeather, geocodeCity, mapWmoCode } from './weather-api'
 
 // -- LLM Tool --
 
+/** The name of the weather tool. The chat shows the results of calls with this name as a forecast card. */
+export const WEATHER_TOOL_NAME = 'get_weather'
+
 const weatherParams = z.object({
   // NOTICE:
   // Open-Meteo geocoding finds English names reliably. On 2026-10-13, "上海" with `language=en` found nothing,
@@ -36,7 +39,7 @@ async function executeGetWeather(input: { city: string, days: number }): Promise
 
 const tools: Promise<Tool>[] = [
   tool({
-    name: 'get_weather',
+    name: WEATHER_TOOL_NAME,
     description: [
       'Get the current weather and a daily forecast for a city. Returns JSON with `location`, `current`, and `daily`.',
       '`daily[0]` is today in the time zone of the city. `precipitation` is the chance of precipitation.',

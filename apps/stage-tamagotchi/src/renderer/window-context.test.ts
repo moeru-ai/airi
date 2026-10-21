@@ -36,9 +36,17 @@ describe('resolveRendererWindowContext', () => {
     expect(resolveRendererWindowContext('?synced-leader=false&stage-runtime=minimal').stageRuntime).toBe('minimal')
   })
 
+  // The query keeps naming the host after the page reloads on a surface.
+  it('marks only the pages that the main process names as hosts of the fullscreen mode', () => {
+    expect(resolveRendererWindowContext('?synced-leader=true&fullscreen-host=main-window').fullscreenHost).toBe('main-window')
+    expect(resolveRendererWindowContext('?synced-leader=false&fullscreen-host=workspace-window').fullscreenHost).toBe('workspace-window')
+    expect(resolveRendererWindowContext('?synced-leader=false').fullscreenHost).toBeUndefined()
+  })
+
   it('rejects a renderer URL without an explicit leadership query', () => {
     expect(() => resolveRendererWindowContext('')).toThrow('Missing synced-leader query')
     expect(() => resolveRendererWindowContext('?synced-leader=unknown')).toThrow('Invalid synced-leader query: unknown')
     expect(() => resolveRendererWindowContext('?synced-leader=false&stage-runtime=unknown')).toThrow('Invalid stage-runtime query: unknown')
+    expect(() => resolveRendererWindowContext('?synced-leader=false&fullscreen-host=true')).toThrow('Invalid fullscreen-host query: true')
   })
 })

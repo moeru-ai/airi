@@ -16,6 +16,7 @@ import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
 const paused = ref(false)
@@ -78,6 +79,8 @@ const cursorPosition = computed(() => ({
   x: mouseX.value,
   y: mouseY.value,
 }))
+
+const router = useRouter()
 </script>
 
 <template>
@@ -117,6 +120,7 @@ const cursorPosition = computed(() => ({
             :enable-orbit-controls="!isMobile"
             :paused="paused"
             @error="markModelFailed"
+            @select-avatar-model="router.push('/settings/models')"
           />
         </div>
         <InteractiveArea v-if="!isMobile" h="85dvh" absolute right-4 flex flex-1 flex-col max-w="500px" min-w="30%" />

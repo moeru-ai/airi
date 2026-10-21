@@ -78,6 +78,7 @@ chat:
     discard: Supprimer le brouillon
     listening: Écoute en cours
     finalizing: Finalisation…
+    sent: Envoyé
   voice-input: Saisie vocale
   error-details:
     show: Afficher les détails

@@ -1,3 +1,5 @@
+import { matchesTrustedOriginRule } from '@proj-airi/auth-shared'
+
 function getOriginFromUrl(url: string): string | undefined {
   try {
     return new URL(url).origin
@@ -26,21 +28,6 @@ const TRUSTED_AUTH_CALLBACK_ORIGINS = TRUSTED_EXACT_ORIGINS.filter((origin) => {
   return protocol === 'http:' || protocol === 'https:'
 })
 
-// NOTICE:
-// Private LAN / CGNAT-style dev hosts (e.g. https://10.x:5273 from cap-vite) are NOT matched
-// by regex here — list them explicitly via env `ADDITIONAL_TRUSTED_ORIGINS` (see env.ts).
-const TRUSTED_ORIGIN_PATTERNS = [
-  // Localhost dev (any port)
-  /^http:\/\/localhost(:\d+)?$/,
-  // Loopback interface for Electron OIDC callbacks (RFC 8252 S7.3)
-  /^http:\/\/127\.0\.0\.1(:\d+)?$/,
-  // Vite + mkcert (https://localhost:5273, etc.)
-  /^https:\/\/localhost(:\d+)?$/,
-  /^https:\/\/127\.0\.0\.1(:\d+)?$/,
-  // Cloudflare Workers subdomains
-  /^https:\/\/.*\.moeru-ai\.workers\.dev$/,
-]
-
 /**
  * Returns `origin` when it matches built-in trust rules or `additionalTrustedOrigins`.
  *
@@ -61,7 +48,7 @@ export function getTrustedOrigin(origin: string, additionalTrustedOrigins: reado
     return origin
   if (additionalTrustedOrigins.includes(origin))
     return origin
-  if (TRUSTED_ORIGIN_PATTERNS.some(pattern => pattern.test(origin)))
+  if (matchesTrustedOriginRule(origin))
     return origin
   return ''
 }

@@ -165,6 +165,17 @@ renders the fallback when the URL is missing, loading, or fails.
 
 **Slots**: `fallback` (optional override for the built-in user icon)
 
+### Badge
+
+Small unread marker in the theme `primary` color, so it follows the hue that the user selects. A count badge caps at `max+`, so its width never grows past three characters. A dot badge has a fixed size and no number.
+Put dots on triggers, such as icon buttons, avatars, and menu buttons. Put counts inside menus and panel headers. The badge is `aria-hidden`, so the owning control must name the count.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `count` | `number?` | `0` | Number to show; zero or less renders nothing unless `dot` is set |
+| `max` | `number?` | `99` | Counts above it render as `99+` |
+| `dot` | `boolean?` | `false` | Render a fixed-size dot instead of a number |
+
 ### BasicButton
 
 Behavioral foundation for custom buttons. It owns disabled/loading behavior,

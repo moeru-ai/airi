@@ -18,7 +18,12 @@ import {
 import { onAppBeforeQuit, onAppWindowAllClosed } from '../../libs/bootkit/lifecycle'
 import { resizeWindowByDelta, setWindowAlwaysOnTop } from '../../windows/shared/window'
 
-export function createWindowService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow }) {
+export function createWindowService(params: {
+  context: ReturnType<typeof createContext>['context']
+  window: BrowserWindow
+  /** Owns the window's pin when the window decides more than the renderer asks, like the main window in fullscreen mode. */
+  setAlwaysOnTop?: (flag: boolean) => void
+}) {
   function getWindowLifecycleState(reason: ElectronWindowLifecycleState['reason']): ElectronWindowLifecycleState {
     return {
       focused: params.window.isFocused(),
@@ -87,7 +92,10 @@ export function createWindowService(params: { context: ReturnType<typeof createC
 
   defineInvokeHandler(params.context, electronWindowSetAlwaysOnTop, (flag, options) => {
     if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
-      setWindowAlwaysOnTop(params.window, Boolean(flag))
+      if (params.setAlwaysOnTop)
+        params.setAlwaysOnTop(Boolean(flag))
+      else
+        setWindowAlwaysOnTop(params.window, Boolean(flag))
     }
   })
 

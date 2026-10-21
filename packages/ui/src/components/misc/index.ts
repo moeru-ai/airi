@@ -1,4 +1,5 @@
 export { default as Avatar } from './avatar.vue'
+export { default as Badge } from './badge.vue'
 export { default as BasicButton } from './basic-button.vue'
 export type { BasicButtonProps, ButtonColor, ButtonProps, ButtonShape, ButtonSize, ButtonVariant } from './button-types'
 export { default as Button } from './button.vue'

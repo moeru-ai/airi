@@ -66,6 +66,12 @@ describe('audio input pipeline', () => {
 
 A case can independently choose its VAD behavior, ASR, LLM, and TTS configuration. A configuration callback can read its own environment, write local storage, use another persistence mechanism, or deliberately leave onboarding incomplete.
 
+## Script the LLM reply
+
+When a case tests the output side of the pipeline, the reply must not depend on a model. Use `startScriptedLlm` from `cases/shared/providers`. It starts an OpenAI-compatible chat completion endpoint on `127.0.0.1` and streams a fixed reply in small chunks. AIRI receives the reply as model output, so the chat shows it and the speech output reads it. The case needs no LLM key.
+
+Set `rephrase: false` in `configureModuleHearing` when the case uses the scripted LLM. Otherwise the transcript rephrase also sends its request to the scripted LLM. Call `close()` at the end of the case.
+
 ## Test wake word detection
 
 Use `configureWakeWord` to add AIRI Cards with wake words. Each configuration adds one card with one wake word and its pronunciations. The callback also turns on the microphone and selects the `wake-word` Hearing input mode. The case does not need an ASR Provider.
@@ -131,6 +137,23 @@ pnpm -F @proj-airi/testing-audio test:run cases/wake-word
 ```
 
 For one host, build its app and select `--project audio-web` or `--project audio-electron`.
+
+## Test voice end latency
+
+`voice-end-latency` measures how fast a finished message reaches submission. It reads the IO spans of the input:
+
+- The end judgement starts after the 1.2 s pause and is not cancelled while the provider keeps the same text.
+- When the model judges the message complete, the input ends before the 4.2 s silence limit.
+- The rewrite starts during the pause, before speech recognition ends, so submission reuses it.
+
+The case needs streaming ASR, because the judge and the rewrite read text during the pause. It uses the
+`TESTING_AUDIO_ASR_ALIYUN_NLS_*` and `TESTING_AUDIO_LLM_*` variables. Its fixture is the `single-utterance-pipeline`
+recording with 8 s of trailing silence. On failure, the assertion message contains the measured timeline.
+
+```bash
+pnpm -F @proj-airi/stage-web build
+pnpm -F @proj-airi/testing-audio exec vitest run --project audio-web cases/voice-end-latency
+```
 
 ## Provider environment
 

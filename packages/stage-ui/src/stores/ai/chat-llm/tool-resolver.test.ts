@@ -50,6 +50,11 @@ function createTool(name: string, description = `${name} description`): Tool {
   } as Tool
 }
 
+// The resolver wraps every tool with the call summary, so a resolved tool reads as its source by its description.
+function descriptionsOf(tools: Tool[]) {
+  return tools.map(tool => tool.function.description)
+}
+
 describe('toolNameFrom', () => {
   it('reads function.name', () => {
     expect(toolNameFrom(createTool('runtime_read_context'))).toBe('runtime_read_context')
@@ -57,6 +62,22 @@ describe('toolNameFrom', () => {
 })
 
 describe('resolveLlmTools', () => {
+  // https://github.com/moeru-ai/airi/issues/2779
+  // ROOT CAUSE:
+  //
+  // The default source added MCP proxies without a transport.
+  // We fixed this by keeping the default source empty and retaining runtime registrations.
+  it('exposes MCP proxies only from a registered runtime (Issue #2779)', async () => {
+    const options = { debugTools: [], sparkCommandTools: [], webSearchTools: [], activeTools: [] }
+
+    expect(await resolveLlmTools(options)).toEqual([])
+
+    const listTools = createTool('builtIn_mcpListTools')
+    const callTool = createTool('builtIn_mcpCallTool')
+
+    expect(descriptionsOf(await resolveLlmTools({ ...options, activeTools: [listTools, callTool] }))).toEqual(descriptionsOf([listTools, callTool]))
+  })
+
   it('reads the images of every tool when it receives an image reader', async () => {
     const screenshot = [{ type: 'image_url', image_url: { url: 'data:image/png;base64,aW1hZ2U=' } }]
     const builtInTool = { ...createTool('builtIn_mcpCallTool'), execute: async () => screenshot }
@@ -94,7 +115,7 @@ describe('resolveLlmTools', () => {
     })
 
     expect(tools).toHaveLength(1)
-    expect(tools[0]).toBe(runtimeTool)
+    expect(tools[0]?.function.description).toBe(runtimeTool.function.description)
   })
 
   it('places custom tools before active runtime tools so runtime tools can win by name', async () => {
@@ -111,7 +132,7 @@ describe('resolveLlmTools', () => {
       activeTools: [runtimeTool],
     })
 
-    expect(tools).toEqual([builtInTool, runtimeTool])
+    expect(descriptionsOf(tools)).toEqual(descriptionsOf([builtInTool, runtimeTool]))
   })
 
   it('includes injected web-search tools in the resolved list', async () => {
@@ -126,7 +147,7 @@ describe('resolveLlmTools', () => {
       activeTools: [],
     })
 
-    expect(tools).toEqual([builtInTool, webSearchTool])
+    expect(descriptionsOf(tools)).toEqual(descriptionsOf([builtInTool, webSearchTool]))
   })
 
   describe('default web-search branch (module store gate)', () => {
@@ -148,7 +169,7 @@ describe('resolveLlmTools', () => {
         activeTools: [],
       })
 
-      expect(tools).toEqual([builtInTool])
+      expect(descriptionsOf(tools)).toEqual(descriptionsOf([builtInTool]))
       expect(createWebSearchToolsMock).not.toHaveBeenCalled()
     })
 
@@ -168,7 +189,7 @@ describe('resolveLlmTools', () => {
       })
 
       expect(createWebSearchToolsMock).toHaveBeenCalledWith({ apiKey: 'tvly-key' })
-      expect(tools).toEqual([builtInTool, webSearchTool])
+      expect(descriptionsOf(tools)).toEqual(descriptionsOf([builtInTool, webSearchTool]))
     })
   })
 

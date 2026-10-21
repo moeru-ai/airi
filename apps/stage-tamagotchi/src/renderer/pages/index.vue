@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { ModelSettingsRuntimeSnapshot } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 
+import type { FullscreenGlideCurve, FullscreenMode } from '../../shared/eventa'
+
 import { errorMessageFrom } from '@moeru/std'
 import { electron } from '@proj-airi/electron-eventa'
 import {
@@ -10,7 +12,6 @@ import {
   useElectronMouseInWindow,
   useElectronRelativeMouse,
 } from '@proj-airi/electron-vueuse'
-import { useExpressionStore } from '@proj-airi/stage-ui-live2d/stores/expression-store'
 import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
 import { HearingStatus, HoloCoupon } from '@proj-airi/stage-ui/components'
 import {
@@ -20,25 +21,34 @@ import {
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composables/canvas-alpha'
 import { useVoiceListening } from '@proj-airi/stage-ui/composables/voice-input-mode'
+import { FULLSCREEN_WORKSPACE_FLAG } from '@proj-airi/stage-ui/libs/feature-flags'
+import { useFeatureFlagsStore } from '@proj-airi/stage-ui/stores/feature-flags'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useVoiceStore } from '@proj-airi/stage-ui/stores/voice'
 import { refDebounced } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onScopeDispose, ref, shallowRef, toRef, watch } from 'vue'
+import { computed, nextTick, onMounted, onScopeDispose, ref, shallowRef, toRef, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
+import FullscreenBackdrop from '../components/fullscreen/fullscreen-backdrop.vue'
+import FullscreenOverlay from '../components/fullscreen/fullscreen-overlay.vue'
 import AuthStatusIsland from '../components/stage-islands/auth-status-island.vue'
 import ControlsIslandRoot from '../components/stage-islands/controls-island/controls-island-root.vue'
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
 
-import { electronAppIsWayland, electronOpenInlay, electronOpenOnboarding } from '../../shared/eventa'
+import { defaultFullscreenSurface, electronAppIsWayland, electronFullscreenExit, electronFullscreenSetMode, electronMainWindowEnterFullscreen, electronMainWindowGetFullscreenState, electronMainWindowSetFullscreenBounds, electronOpenInlay, electronOpenOnboarding, electronOpenSettings } from '../../shared/eventa'
+import { fullscreenHostPages, fullscreenSurfaceOf } from '../components/fullscreen/surfaces'
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
+import { useFullscreenHost } from '../composables/use-fullscreen-host'
+import { provideFullscreenLayout } from '../composables/use-fullscreen-layout'
 import { usePushToTalkShortcut } from '../composables/use-push-to-talk-shortcut'
 import { useScreenAmbientLight } from '../composables/use-screen-ambient-light'
 import { stageOpaqueAttribute } from '../composables/use-stage-painted-mask'
 import { useControlsIslandStore } from '../stores/controls-island'
+import { useFullscreenStore } from '../stores/fullscreen'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
 import { useToolSelectionStore } from '../stores/tools'
 import { resolveFadeOnHoverInteraction } from '../utils/fade-on-hover'
@@ -57,13 +67,17 @@ useScreenAmbientLight({ stageCanvas: () => widgetStageRef.value?.canvasElement()
 const stageCanvas = toRef(() => widgetStageRef.value?.canvasElement())
 const componentStateStage = ref<'pending' | 'loading' | 'mounted'>('pending')
 const stageMounted = computed(() => componentStateStage.value === 'mounted')
-const isLoading = computed(() => !stageMounted.value)
+// A stage that fails to render never reaches `mounted`, so the loading overlay would
+// keep covering the error surface. The error event ends the wait instead.
+const stageError = shallowRef<Error>()
+const isLoading = computed(() => !stageMounted.value && !stageError.value)
 
 const isIgnoringMouseEvents = ref(false)
 const shouldFadeOnCursorWithin = ref(false)
 
 const onboardingStore = useOnboardingStore()
 const openOnboarding = useElectronEventaInvoke(electronOpenOnboarding)
+const openSettings = useElectronEventaInvoke(electronOpenSettings)
 
 const { isOutside: isOutsideWindow } = useElectronMouseInWindow()
 // The island already pairs its cursor signal with a DOM one and owns that decision, so
@@ -99,8 +113,15 @@ const isTransparentByThreeExact = useThreeSceneIsTransparentAtPoint(
 
 const settingsStore = useSettings()
 const { alwaysOnTop, stageModelRenderer, stageModelSelectedUrl } = storeToRefs(settingsStore)
+function handleStageRenderError(error: Error) {
+  stageError.value = error
+}
+// The stage reports every reset, including a retry that changes no setting, so the
+// overlay returns during the new load instead of hiding behind a stale error.
+function handleStageReset() {
+  stageError.value = undefined
+}
 const modelStore = useModelStore()
-const expressionStore = useExpressionStore()
 const { sceneMutationLocked, scenePhase } = storeToRefs(modelStore)
 const { stagePaused } = storeToRefs(useStageWindowLifecycleStore())
 const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
@@ -190,13 +211,11 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
 
     return createEmptyModelSettingsRuntimeSnapshot({
       ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
-      modelId: expressionStore.modelId,
       renderer: 'live2d',
       phase,
       controlsLocked: hasModel ? phase !== 'mounted' : false,
       previewAvailable: hasModel,
       canCapturePreview: false,
-      live2dExpressions: expressionStore.settingsSnapshot,
       updatedAt: Date.now(),
     })
   }
@@ -275,6 +294,272 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
   })
 })
 
+const fullscreen = useFullscreenStore()
+const { phase: fullscreenPhase, active: fullscreenActive } = storeToRefs(fullscreen)
+const router = useRouter()
+useFullscreenHost()
+const enterFullscreenWindow = useElectronEventaInvoke(electronMainWindowEnterFullscreen)
+const setFullscreenWindowBounds = useElectronEventaInvoke(electronMainWindowSetFullscreenBounds)
+const exitFullscreenWindow = useElectronEventaInvoke(electronFullscreenExit)
+const getFullscreenWindowState = useElectronEventaInvoke(electronMainWindowGetFullscreenState)
+const setFullscreenMode = useElectronEventaInvoke(electronFullscreenSetMode)
+const featureFlags = useFeatureFlagsStore()
+
+/** The mode that the user chose: the experiment turns it on, and its variant names the window. */
+const fullscreenMode = computed<FullscreenMode>(() => {
+  if (!featureFlags.isEnabled(FULLSCREEN_WORKSPACE_FLAG.key))
+    return 'off'
+  return featureFlags.variantOf(FULLSCREEN_WORKSPACE_FLAG.key) === 'multi-window' ? 'multi-window' : 'single-window'
+})
+
+// The choice lives in page storage, so the page reports it. The main process moves what the mode shows to the window
+// that the new mode names.
+watch(fullscreenMode, async (mode) => {
+  try {
+    await setFullscreenMode({ mode })
+  }
+  catch (error) {
+    console.error('[Main window fullscreen] Failed to report the mode:', errorMessageFrom(error))
+  }
+}, { immediate: true })
+
+/**
+ * The stage in fullscreen mode. It keeps one size in window pixels, so the canvas resizes only when the mode starts
+ * and ends. A transform anchored at the top left scales it down to the size it had in the small window.
+ */
+interface StageLayout { width: number, height: number, offsetX: number, scale: number }
+const stageLayout = shallowRef<StageLayout>()
+/**
+ * The area of the fullscreen mode, from the top left of the window. It clips the backdrop, the island, and the surface,
+ * which keep their final layout, so they show as the area grows.
+ */
+const fullscreenArea = shallowRef<{ width: number, height: number }>()
+/** The direction that the stage and the area move in now. `false` sets them at once. */
+const fullscreenMotion = shallowRef<'open' | 'close' | false>(false)
+type StageLayoutBounds = Awaited<ReturnType<typeof enterFullscreenWindow>>['bounds']
+
+/** A part of the fullscreen transition. The window glide and the CSS transitions use the same curve. */
+interface FullscreenMotion { duration: number, curve: FullscreenGlideCurve }
+/**
+ * The parts of the fullscreen transition. `height` also moves the window and scales the stage, so the bottom edge of
+ * the stage and the area stays in place. `width` is slower, so the area fills the height first. Closing runs every part
+ * along `close`, an ease-out curve that overshoots a little, so the character lands with a slight spring.
+ */
+const FULLSCREEN_MOTION = {
+  height: { duration: 350, curve: [0.25, 1, 0.5, 1] },
+  width: { duration: 500, curve: [0.33, 1, 0.68, 1] },
+  close: { duration: 400, curve: [0.34, 1.1, 0.64, 1] },
+} satisfies Record<string, FullscreenMotion>
+/** The surface width, its drag, and the place of the stage beside the surface. The overlay reads the same layout. */
+const fullscreenLayout = provideFullscreenLayout()
+
+// The canvas keeps its size while the surface width changes, and the open stage follows by moving at once. A change
+// during a transition waits, because it would cut the transition that the mode waits for.
+watch(fullscreenLayout.stageOffset, (offsetX) => {
+  if (fullscreenPhase.value === 'open' && !fullscreenMotion.value && stageLayout.value)
+    stageLayout.value = { ...stageLayout.value, offsetX }
+})
+
+/** The bounds of the main window outside fullscreen mode, the work area, and the stage size in it. */
+function planFor(home: StageLayoutBounds, workArea: StageLayoutBounds) {
+  return { home, workArea, stage: fullscreenLayout.stageSizeIn(workArea) }
+}
+
+/** The CSS transitions of `parts` in the current direction, and none while nothing moves. */
+function motionTransitions(...parts: [property: string, part: FullscreenMotion][]) {
+  const direction = fullscreenMotion.value
+  if (!direction)
+    return []
+  return parts.map(([property, part]) => {
+    const { duration, curve } = direction === 'open' ? part : FULLSCREEN_MOTION.close
+    return `${property} ${duration}ms cubic-bezier(${curve.join(', ')})`
+  })
+}
+
+const stageFrameStyle = computed(() => {
+  const layout = stageLayout.value
+  if (!layout)
+    return undefined
+  return {
+    position: 'fixed' as const,
+    left: '0px',
+    top: '0px',
+    width: `${layout.width}px`,
+    height: `${layout.height}px`,
+    transformOrigin: '0 0',
+    transform: `translateX(${layout.offsetX}px) scale(${layout.scale})`,
+    transition: motionTransitions(['transform', FULLSCREEN_MOTION.height]).join(', ') || 'none',
+  }
+})
+
+const fullscreenAreaStyle = computed(() => {
+  const area = fullscreenArea.value
+  if (!area)
+    return undefined
+  return {
+    width: `${area.width}px`,
+    height: `${area.height}px`,
+    transition: motionTransitions(['width', FULLSCREEN_MOTION.width], ['height', FULLSCREEN_MOTION.height]).join(', ') || 'none',
+  }
+})
+
+/** The stage at its fullscreen size, drawn as large as it was in the small window, with the character centered as before. */
+function homeStageLayout(plan: ReturnType<typeof planFor>): StageLayout {
+  const scale = plan.home.height / plan.stage.height
+  return { ...plan.stage, scale, offsetX: (plan.home.width - plan.stage.width * scale) / 2 }
+}
+
+const stageFrameElement = ref<HTMLElement>()
+const fullscreenAreaElement = ref<HTMLElement>()
+
+/** Starts the next transition from the layout that the stage and the area have now, by making the browser commit it first. */
+function commitFullscreenLayout() {
+  stageFrameElement.value?.getBoundingClientRect()
+  fullscreenAreaElement.value?.getBoundingClientRect()
+}
+
+/** Resolves when every transition that the latest layout change started on the stage and the area has ended. */
+async function fullscreenTransitionsEnded() {
+  await nextTick()
+  const animations = [stageFrameElement.value, fullscreenAreaElement.value].flatMap(element => element?.getAnimations() ?? [])
+  await Promise.all(animations.map(animation => animation.finished))
+}
+
+/**
+ * Opens the fullscreen mode. A resize keeps the window's top left corner, and a glide keeps its size, so the content
+ * never shifts against the window and the stage never blinks. The islands hide as soon as the mode starts.
+ *
+ * 1. The stage takes its fullscreen size, scaled to look unchanged, and the window grows from its top left to the size
+ *    of the work area. The area starts with no width, so nothing on screen changes.
+ * 2. The window glides to the top left of the work area while the stage and the area grow along the same curve. The
+ *    area opens to the right along a slower curve and shows the island and the surface.
+ *
+ * The mode ends fully open or fully closed: any failed step rolls everything back through {@link leaveFullscreen}.
+ */
+async function expandToFullscreen() {
+  try {
+    const { bounds, workArea } = await enterFullscreenWindow()
+    const plan = planFor(bounds, workArea)
+    const { height } = FULLSCREEN_MOTION
+
+    fullscreenMotion.value = false
+    stageLayout.value = homeStageLayout(plan)
+    fullscreenArea.value = { width: 0, height: bounds.height }
+    await setFullscreenWindowBounds({ bounds: { x: bounds.x, y: bounds.y, width: workArea.width, height: workArea.height } })
+
+    commitFullscreenLayout()
+    // The island mounted with the area. Its place limits the surface width, so the stage reads it before it moves.
+    fullscreenLayout.measureIsland()
+    fullscreenMotion.value = 'open'
+    stageLayout.value = { ...plan.stage, scale: 1, offsetX: fullscreenLayout.stageOffsetIn(workArea.width) }
+    fullscreenArea.value = { width: workArea.width, height: workArea.height }
+    await Promise.all([
+      setFullscreenWindowBounds({ bounds: workArea, duration: height.duration, curve: height.curve }),
+      fullscreenTransitionsEnded(),
+    ])
+    // Nothing moves now, so the stage follows a drag of the surface edge at once. It also takes the width of a drag
+    // that ended during the transition.
+    fullscreenMotion.value = false
+    stageLayout.value = { ...plan.stage, scale: 1, offsetX: fullscreenLayout.stageOffsetIn(workArea.width) }
+    fullscreen.settle('open')
+  }
+  catch (error) {
+    console.error('[Main window fullscreen] Failed to open:', errorMessageFrom(error))
+    await leaveFullscreen(`opening failed: ${errorMessageFrom(error) ?? 'unknown error'}`)
+  }
+}
+
+/**
+ * Closes the fullscreen mode. The area closes to the left while the window glides back and the stage shrinks, all
+ * along the closing curve, then the window shrinks from its top left. The stage returns to its normal layout only
+ * after that, because its scaled layout fits both window sizes.
+ */
+async function collapseFromFullscreen() {
+  try {
+    // The main process keeps the bounds that the window returns to, and they can change while the mode is open.
+    const state = await getFullscreenWindowState()
+    if (state) {
+      const plan = planFor(state.home, state.workArea)
+      const { close } = FULLSCREEN_MOTION
+      commitFullscreenLayout()
+      fullscreenMotion.value = 'close'
+      stageLayout.value = homeStageLayout(plan)
+      fullscreenArea.value = { width: 0, height: plan.home.height }
+      await Promise.all([
+        setFullscreenWindowBounds({ bounds: { ...plan.workArea, x: plan.home.x, y: plan.home.y }, ...close }),
+        fullscreenTransitionsEnded(),
+      ])
+
+      await setFullscreenWindowBounds({ bounds: plan.home })
+    }
+    await exitFullscreenWindow({ reason: 'the user closed it' })
+    clearFullscreenLayout()
+    fullscreen.settle('closed')
+  }
+  catch (error) {
+    console.error('[Main window fullscreen] Failed to close:', errorMessageFrom(error))
+    await leaveFullscreen(`closing failed: ${errorMessageFrom(error) ?? 'unknown error'}`)
+  }
+}
+
+/** Returns the stage to its normal layout and unmounts the area. */
+function clearFullscreenLayout() {
+  fullscreenMotion.value = false
+  stageLayout.value = undefined
+  fullscreenArea.value = undefined
+}
+
+/**
+ * The way out after any failed step: the window and the stage return to their state before the mode, and it closes.
+ * The main process restores its bounds and always on top, and does nothing when it was never in fullscreen mode.
+ */
+async function leaveFullscreen(reason: string) {
+  clearFullscreenLayout()
+  try {
+    await exitFullscreenWindow({ reason })
+  }
+  catch (error) {
+    console.error('[Main window fullscreen] Failed to restore the window:', errorMessageFrom(error))
+  }
+  finally {
+    fullscreen.settle('closed')
+  }
+}
+
+/**
+ * Shows the fullscreen mode again when the page loads while the main window is still in it, after a reload for example.
+ * The window covers the work area again, because a reload can stop it in the middle of a glide.
+ */
+async function resumeFullscreen() {
+  try {
+    const state = await getFullscreenWindowState()
+    // The window decides. A route that names a surface while the window is not in the mode goes back to the main page.
+    if (!state) {
+      if (fullscreenSurfaceOf(router.currentRoute.value.path))
+        await router.replace(fullscreenHostPages['main-window'])
+      return
+    }
+    const plan = planFor(state.home, state.workArea)
+    fullscreenMotion.value = false
+    stageLayout.value = { ...plan.stage, scale: 1, offsetX: fullscreenLayout.stageOffsetIn(plan.workArea.width) }
+    fullscreenArea.value = { width: plan.workArea.width, height: plan.workArea.height }
+    await setFullscreenWindowBounds({ bounds: plan.workArea })
+    await fullscreen.resume(state.surface ?? defaultFullscreenSurface)
+  }
+  catch (error) {
+    console.error('[Main window fullscreen] Failed to show the mode again:', errorMessageFrom(error))
+    await leaveFullscreen(`showing the mode again after a reload failed: ${errorMessageFrom(error) ?? 'unknown error'}`)
+  }
+}
+onMounted(() => void resumeFullscreen())
+
+watch(fullscreenPhase, (phase) => {
+  if (phase === 'expanding')
+    void expandToFullscreen()
+  else if (phase === 'closing')
+    void collapseFromFullscreen()
+})
+
 /**
  * Keeps the rendered fade state and Electron click-through state synchronized.
  *
@@ -294,7 +579,8 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
  * - {@link setIgnoreMouseEvents}
  */
 function handleFadeOnHoverInteractionChange() {
-  if (stagePaused.value) {
+  // Settings cover the work area, so the whole window takes the pointer and the stage never fades.
+  if (stagePaused.value || fullscreenActive.value) {
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
     setIgnoreMouseEvents([false, { forward: true }])
@@ -344,7 +630,7 @@ function handleFadeOnHoverInteractionChange() {
 }
 
 watch(
-  [outsideHearingStatus, outsideAuthStatus, isOutside, isOutsideFor250Ms, isPointerOverStageCanvas, isAroundWindowBorder, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, alwaysOnTop, stagePaused, isWayland],
+  [outsideHearingStatus, outsideAuthStatus, isOutside, isOutsideFor250Ms, isPointerOverStageCanvas, isAroundWindowBorder, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, alwaysOnTop, stagePaused, isWayland, fullscreenActive],
   handleFadeOnHoverInteractionChange,
   { immediate: true },
 )
@@ -353,9 +639,6 @@ useModelSettingsRuntimeOwner({
   ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
   renderer: () => stageModelRenderer.value,
   runtimeSnapshot: modelSettingsRuntimeSnapshot,
-  applyLive2DExpressionCommand: (command) => {
-    expressionStore.applySettingsCommand(command)
-  },
 })
 
 const voice = useVoiceStore()
@@ -405,10 +688,10 @@ const cursorPosition = computed(() => ({
     relative z-2 h-full overflow-hidden rounded-xl
     transition="opacity duration-500 ease-in-out"
   >
-    <div v-show="!settingsStore.streamerMode" ref="hearingStatusElement" :class="['absolute bottom-3 left-1/2 z-30 w-fit -translate-x-1/2']">
+    <div v-show="!settingsStore.streamerMode && !fullscreenActive" ref="hearingStatusElement" :class="['absolute bottom-3 left-1/2 z-30 w-fit -translate-x-1/2']">
       <HearingStatus align="center" />
     </div>
-    <div v-show="!settingsStore.streamerMode" ref="authStatusElement" :class="['absolute left-1/2 top-3 z-40 w-fit -translate-x-1/2']">
+    <div v-show="!settingsStore.streamerMode && !fullscreenActive" ref="authStatusElement" :class="['absolute left-1/2 top-3 z-40 w-fit -translate-x-1/2']">
       <AuthStatusIsland />
     </div>
     <!-- Stage is always in DOM so TresCanvas can measure dimensions -->
@@ -419,6 +702,8 @@ const cursorPosition = computed(() => ({
       ]"
     >
       <div
+        ref="stageFrameElement"
+        :style="stageFrameStyle"
         :class="[
           shouldFadeOnCursorWithin ? 'op-0' : 'op-100',
           'absolute',
@@ -436,7 +721,10 @@ const cursorPosition = computed(() => ({
           portals them to the body and the mask finds them there. HoloCoupon
           never renders (v-if="false").
         -->
-        <ResourceStatusIsland />
+        <!-- These islands have no single root element for v-show, so a wrapper hides them while settings show. -->
+        <div v-show="!fullscreenActive">
+          <ResourceStatusIsland />
+        </div>
         <WidgetStage
           ref="widgetStageRef"
           v-model:state="componentStateStage"
@@ -444,16 +732,21 @@ const cursorPosition = computed(() => ({
           flex-1
           :cursor-position="cursorPosition"
           :paused="stagePaused"
+          @error="handleStageRenderError"
+          @reset="handleStageReset"
+          @select-avatar-model="openSettings({ route: '/settings/models' })"
         />
         <HoloCoupon />
-        <ControlsIslandRoot :frozen="controlsIslandInteractionActive">
-          <ControlsIsland
-            ref="controlsIslandRef"
-            :cursor-away="cursorAwayFromWindow"
-            :[stageOpaqueAttribute]="true"
-            @interaction-change="controlsIslandInteractionActive = $event"
-          />
-        </ControlsIslandRoot>
+        <div v-show="!fullscreenActive">
+          <ControlsIslandRoot :frozen="controlsIslandInteractionActive">
+            <ControlsIsland
+              ref="controlsIslandRef"
+              :cursor-away="cursorAwayFromWindow"
+              :[stageOpaqueAttribute]="true"
+              @interaction-change="controlsIslandInteractionActive = $event"
+            />
+          </ControlsIslandRoot>
+        </div>
       </div>
     </div>
     <!-- Loading overlay sits on top, does not hide the stage -->
@@ -520,7 +813,7 @@ const cursorPosition = computed(() => ({
     leave-from-class="opacity-100"
     leave-to-class="opacity-50"
   >
-    <div v-if="(isAroundWindowBorder || isAroundWindowBorderFor250Ms) && !isLoading" class="pointer-events-none absolute left-0 top-0 z-999 h-full w-full">
+    <div v-if="(isAroundWindowBorder || isAroundWindowBorderFor250Ms) && !isLoading && !fullscreenActive" class="pointer-events-none absolute left-0 top-0 z-999 h-full w-full">
       <div
         :class="[
           'b-primary/50',
@@ -529,6 +822,26 @@ const cursorPosition = computed(() => ({
       />
     </div>
   </Transition>
+  <!--
+    The fullscreen mode of the main window. Nothing of it mounts until it opens. Two layers share the size of the area:
+    the backdrop under the stage, and the island and the surface over it. Their content keeps its final layout from
+    the bottom left, so it shows from left to right as the area grows.
+  -->
+  <div
+    v-if="fullscreenAreaStyle"
+    ref="fullscreenAreaElement"
+    :style="fullscreenAreaStyle"
+    :class="['fixed left-0 top-0 z-1 overflow-hidden']"
+  >
+    <FullscreenBackdrop />
+  </div>
+  <div
+    v-if="fullscreenAreaStyle"
+    :style="fullscreenAreaStyle"
+    :class="['pointer-events-none fixed left-0 top-0 z-3 overflow-hidden']"
+  >
+    <FullscreenOverlay />
+  </div>
 </template>
 
 <style scoped>

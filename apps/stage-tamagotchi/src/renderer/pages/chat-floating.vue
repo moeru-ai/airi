@@ -25,7 +25,11 @@ import {
 import { useChatDraftHandover } from '../composables/use-chat-draft-handover'
 import { dismissOverlays, useChatFloatingClickThrough } from '../composables/use-chat-floating-click-through'
 import { useDanmakuFeedExpiry } from '../composables/use-danmaku-feed-expiry'
+import { useWindowBackdrop } from '../composables/use-window-backdrop'
 import { useControlsIslandStore } from '../stores/controls-island'
+
+const backdropRoot = useTemplateRef<HTMLElement>('backdrop-root')
+useWindowBackdrop(backdropRoot, 'panel')
 
 const { activeCard } = storeToRefs(useAiriCardStore())
 const sessionsDrawerOpen = shallowRef(false)
@@ -227,7 +231,13 @@ function moveByKeyboard(delta: WindowDelta) {
       @after-enter="hitTest()"
       @after-leave="reportContentHidden()"
     >
-      <div v-show="contentShown" :class="['absolute inset-0 flex flex-col gap-1 pt-3']">
+      <div
+        v-show="contentShown"
+        ref="backdrop-root"
+        data-window-backdrop-surface
+        data-window-backdrop-floating-background
+        :class="['absolute inset-0 flex flex-col gap-1 rounded-3xl pt-3']"
+      >
         <div :class="['flex items-center gap-2 px-4', characterOnLeft ? 'flex-row-reverse' : '']">
           <div
             :class="[

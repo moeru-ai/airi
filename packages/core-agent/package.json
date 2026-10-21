@@ -42,6 +42,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
     "@proj-airi/pipelines-audio": "workspace:^",
     "@proj-airi/plugin-protocol": "workspace:^",
@@ -61,6 +62,7 @@
     "nanoid": "catalog:",
     "rehype-parse": "catalog:",
     "rehype-stringify": "catalog:",
+    "remark-parse": "catalog:",
     "unified": "catalog:",
     "unist-util-visit": "catalog:",
     "vieval": "catalog:",
@@ -69,6 +71,7 @@
   },
   "devDependencies": {
     "@types/hast": "catalog:",
+    "@types/mdast": "catalog:",
     "@types/node": "catalog:",
     "@types/unist": "catalog:",
     "tsdown": "catalog:",

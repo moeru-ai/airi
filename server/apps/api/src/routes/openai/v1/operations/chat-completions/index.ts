@@ -5,12 +5,12 @@ import type { GatewayCallback } from '../../gateway'
 import type { V1RouteDeps } from '../../types'
 
 import { useLogger } from '@guiiai/logg'
+import { ApiError, createBadGatewayError } from '@proj-airi/http-error-shared'
 import { EventSourceParserStream } from '@xsai/shared-stream'
 import { array, nullish, object, safeParse, string, unknown } from 'valibot'
 
 import { extractUsageFromBody } from '../../../../../services/domain/generation-usage'
 import { captureErrorMessage, captureErrorResponse, captureRequestContent, captureResponseText, createResponseContentCapture } from '../../../../../services/domain/request-content'
-import { ApiError, createBadGatewayError } from '../../../../../utils/error'
 import { nanoid } from '../../../../../utils/id'
 import { buildSafeErrorResponseHeaders, buildSafeResponseHeaders } from '../../http/response'
 import { createOpenAiRouteBilling } from '../../middlewares/billing'
