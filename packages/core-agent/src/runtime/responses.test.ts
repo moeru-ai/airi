@@ -1,4 +1,4 @@
-import type { GenerationProvider } from '@proj-airi/provider-inference'
+import type { GenerationProvider, GenerationRequest } from '@proj-airi/provider-inference'
 import type { ItemParam } from '@xsai-ext/responses'
 import type { Tool } from '@xsai/shared-chat'
 
@@ -67,6 +67,29 @@ describe('responses protocol fallback', () => {
     expect(onGeneratedTurn).toHaveBeenCalledTimes(1)
     expect(onStreamEvent.mock.calls.some(([event]) => event.type === 'error')).toBe(false)
     expect(onStreamEvent.mock.calls.some(([event]) => event.type === 'text-delta' && event.text === 'Fallback reply')).toBe(true)
+  })
+
+  it('prepares the caller conversation again for the Chat Completions request', async () => {
+    let unsupported = false
+    const fetch: typeof globalThis.fetch = async (url) => {
+      if (String(url).endsWith('/responses'))
+        return new Response(null, { status: 405 })
+      return sse([{ choices: [{ index: 0, delta: { content: 'Fallback reply' }, finish_reason: 'stop' }] }])
+    }
+    const chatProvider: GenerationProvider = {
+      generation: model => unsupported
+        ? { protocol: 'chat-completions', config: { model, baseURL: 'https://example.test/v1/', fetch } }
+        : { protocol: 'responses', webSearch: false, config: { model, baseURL: 'https://example.test/v1/', fetch }, onUnsupported: () => { unsupported = true } },
+    }
+    const conversation: Conversation = { turns: [{ type: 'user', id: 'question', content: [{ type: 'text', text: 'Hello' }] }] }
+    const prepareConversation = vi.fn(async (source: Conversation, _target: { request: GenerationRequest }) => structuredClone(source))
+
+    await streamFrom({ model: 'test', chatProvider, conversation, options: { prepareConversation } })
+
+    expect(prepareConversation).toHaveBeenCalledTimes(2)
+    expect(prepareConversation.mock.calls[0][0]).toBe(conversation)
+    expect(prepareConversation.mock.calls[1][0]).toBe(conversation)
+    expect(prepareConversation.mock.calls.map(([, target]) => target.request.protocol)).toEqual(['responses', 'chat-completions'])
   })
 
   it.each([400, 401, 403, 404, 422, 429, 500, 503])('does not downgrade unrelated HTTP %s failures', async (status) => {
