@@ -231,11 +231,15 @@ describe('chat history', () => {
       expect(bubble?.textContent).not.toContain('Compare PC builds for 3000 yuan.')
     })
 
-    // The details show the task handed over. The recipe's steps stay in its own space.
-    screen.getByRole('button', { name: /Research/ }).element().dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    // The recipe call is a hit in the combo. Its row shows the task handed over. The recipe's steps stay in its own space.
+    screen.getByRole('button', { name: /Research/ }).first().element().dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: /Research/ }).all()).toHaveLength(2))
+    screen.getByRole('button', { name: /Research/ }).nth(1).element().dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await vi.waitFor(() => {
       expect(screen.container.textContent).toContain('Compare PC builds for 3000 yuan.')
     })
+    // A send builds the recipe tool for itself, so a rerun could not find it.
+    expect(screen.container.querySelector('button[aria-label="Run again"]')).toBeNull()
   })
 
   // ROOT CAUSE:

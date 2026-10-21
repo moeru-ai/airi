@@ -11,8 +11,8 @@ import { createI18n } from 'vue-i18n'
 import ChatToolCallGroup from './tool-call-group.vue'
 
 const items: ToolCallGroupItem[] = [
-  { sliceIndex: 1, toolCall: { toolCallId: 'call-light', toolCallType: 'function', toolName: 'home_assistant_call_service', args: '{"entity_id":"light.bedroom"}' } },
-  { sliceIndex: 3, toolCall: { toolCallId: 'call-search', toolCallType: 'function', toolName: 'web_search', args: '{"query":"village"}' } },
+  { sliceIndex: 1, key: 'call-light#0', toolCall: { toolCallId: 'call-light', toolCallType: 'function', toolName: 'home_assistant_call_service', args: '{"entity_id":"light.bedroom"}' } },
+  { sliceIndex: 3, key: 'call-search#0', toolCall: { toolCallId: 'call-search', toolCallType: 'function', toolName: 'web_search', args: '{"query":"village"}' } },
 ]
 
 // The group reads registered tool icons from the tools store.
@@ -25,7 +25,8 @@ afterEach(() => disposePinia(pinia))
 
 function mount(results: Record<number, ChatSlicesToolCallResult>) {
   return render(ChatToolCallGroup, {
-    props: { items, resultOf: (sliceIndex: number) => results[sliceIndex] },
+    // These tests cover the grouping, so no tool has a widget.
+    props: { items, resultOf: (sliceIndex: number) => results[sliceIndex], widgets: {} },
     global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })] },
   })
 }

@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import type { Citation } from '@proj-airi/core-agent'
 
+import { isWebUrl } from '@proj-airi/stage-shared'
 import { computed } from 'vue'
 
 const props = defineProps<{ citations: Citation[] }>()
 // Imported chat history is untrusted. Only web URLs can become clickable sources.
-const sources = computed(() => props.citations.filter(source => /^https?:\/\//i.test(source.url)))
+const sources = computed(() => props.citations.filter(source => isWebUrl(source.url)))
 </script>
 
 <template>

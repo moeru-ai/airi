@@ -360,6 +360,17 @@
       status: preferred
       context: Spotlight shortcut
 
+- id: notifications
+  subject: application
+  translatable: true
+  definition: Private notices that AIRI Cloud sends to one account, for example a Flux grant or a failed payment.
+  note: Not chat messages with the character, and not announcements for all users.
+  terms:
+    - text: Notifications
+      part-of-speech: noun
+      status: preferred
+      context: Open notifications, 2 unread
+
 # ---------------------------------------------------------------------------------------
 # Models and providers
 # ---------------------------------------------------------------------------------------
@@ -555,6 +566,17 @@
 # ---------------------------------------------------------------------------------------
 # Sound
 # ---------------------------------------------------------------------------------------
+
+- id: speaker-recognition
+  subject: sound
+  translatable: true
+  definition: A setting that compares each voice input with the saved voiceprint and records how similar they are.
+  note: Speaker means the person who speaks, not a loudspeaker. The setting does not block other voices.
+  terms:
+    - text: Speaker recognition
+      part-of-speech: noun
+      status: preferred
+      context: Enroll your voice to turn on speaker recognition.
 
 - id: voice-pack
   subject: sound

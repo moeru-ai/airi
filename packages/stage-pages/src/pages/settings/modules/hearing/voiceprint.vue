@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { useVoiceEnrollment } from '@proj-airi/stage-ui/composables/use-voice-enrollment'
 import { MIN_ENROLLMENT_SPEECH_SECONDS } from '@proj-airi/stage-ui/libs/voice/voice-enrollment'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useVoiceprintStore } from '@proj-airi/stage-ui/stores/voiceprint'
-import { Button, DoubleCheckButton, Progress, SettingsCard } from '@proj-airi/ui'
+import { Button, DoubleCheckButton, FieldCheckbox, Progress, SettingsCard } from '@proj-airi/ui'
+import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t, locale } = useI18n()
 const voiceprints = useVoiceprintStore()
+const { speakerRecognitionEnabled } = storeToRefs(useHearingStore())
 // The enrollment belongs to this page. It ends when the user leaves the page or closes the window.
 const { state: enrollment, busy, begin, finish, cancel } = useVoiceEnrollment()
 
@@ -60,7 +63,6 @@ const resultClasses = {
       <div :class="['flex flex-col gap-2 text-sm', 'text-neutral-500 dark:text-neutral-400']">
         <p>{{ t('settings.pages.modules.hearing.voiceprint.intro') }}</p>
         <p>{{ t('settings.pages.modules.hearing.voiceprint.privacy') }}</p>
-        <p>{{ t('settings.pages.modules.hearing.voiceprint.unused') }}</p>
       </div>
     </SettingsCard>
 
@@ -139,6 +141,20 @@ const resultClasses = {
 
       <p v-if="!voiceprints.record" :class="['text-xs', 'text-neutral-400 dark:text-neutral-500']">
         {{ t('settings.pages.modules.hearing.voiceprint.download') }}
+      </p>
+    </SettingsCard>
+
+    <SettingsCard>
+      <!-- The setting keeps its value without a usable voiceprint, but the voice host compares nothing then. -->
+      <FieldCheckbox
+        v-model="speakerRecognitionEnabled"
+        data-testid="speaker-recognition"
+        :disabled="!voiceprints.voiceprint"
+        :label="t('settings.pages.modules.hearing.voiceprint.speaker-recognition.label')"
+        :description="t('settings.pages.modules.hearing.voiceprint.speaker-recognition.description')"
+      />
+      <p v-if="!voiceprints.voiceprint" :class="['text-xs', 'text-neutral-400 dark:text-neutral-500']">
+        {{ t('settings.pages.modules.hearing.voiceprint.speaker-recognition.needs-voiceprint') }}
       </p>
     </SettingsCard>
   </div>

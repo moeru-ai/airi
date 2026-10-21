@@ -16,7 +16,7 @@ export const USE_RECIPE_TOOL_NAME = 'builtIn_useRecipe'
  * - `started`: a background recipe accepted the task and runs it in its own session.
  * - Other states: the recipe did not start, with the usable names so the model can correct itself.
  */
-type UseRecipeResult
+export type UseRecipeResult
   = | { status: 'loaded', name: string, instructions: string }
     | { status: 'started', name: string, task: string }
     | { status: 'pending' | 'disabled' | 'unknown' | 'refused', name: string, usable: string[], reason?: string }
@@ -35,12 +35,16 @@ const useRecipeResultSchema = union([
   object({ status: picklist(['pending', 'disabled', 'unknown', 'refused']), name: string(), usable: array(string()), reason: optional(string()) }),
 ])
 
+// A recorded call also holds the summary that every call carries (see `stores/ai/chat-llm/tool-call-summary`), so it is
+// read for the fields of the recipe only.
+const recordedInputSchema = object(useRecipeParameters.entries)
+
 /**
  * Reads a recorded call for the chat: the recipe name and task from the arguments, and the outcome from the result.
  * A call that is still running, or a result in another shape, has no outcome.
  */
 export function readRecipeUse(args: string, result: unknown): { name: string, task: string, outcome?: UseRecipeResult } {
-  const input = safeParse(useRecipeParameters, parseJson(args))
+  const input = safeParse(recordedInputSchema, parseJson(args))
   const outcome = safeParse(useRecipeResultSchema, parseJson(result))
   return {
     name: outcome.success ? outcome.output.name : input.success ? input.output.name : '',

@@ -2,6 +2,7 @@ import type { ContextUpdate, MetadataEventSource, WebSocketEventInputs } from '@
 import type { AssistantMessage, CommonContentPart, CompletionToolCall, Message, SystemMessage, ToolMessage, UserMessage } from '@xsai/shared-chat'
 
 import type { AssistantTurn } from '../messages/types'
+import type { DecisionQuestion } from '../runtime/recipe'
 
 export interface ChatSlicesText {
   type: 'text'
@@ -26,7 +27,21 @@ export interface ChatSlicesSticker {
   stickerId: string
 }
 
-export type ChatSlices = ChatSlicesText | ChatSlicesToolCall | ChatSlicesToolCallResult | ChatSlicesSticker
+/**
+ * A card that the model drew as part of its answer. The host draws `program`. Places that cannot draw it, such as copy,
+ * cloud sync, and export, use `text`.
+ */
+export interface ChatSlicesCard {
+  type: 'card'
+  program: string
+  /** The card as plain text: the answer and its key values. */
+  text: string
+}
+
+/** Content that a tool call adds to a reply in place of the call. */
+export type ChatSlicesToolContent = ChatSlicesCard
+
+export type ChatSlices = ChatSlicesText | ChatSlicesToolCall | ChatSlicesToolCallResult | ChatSlicesSticker | ChatSlicesCard
 
 export interface ChatAssistantMessage extends AssistantMessage {
   /** True when transport failure ended this locally preserved response before completion. */
@@ -39,6 +54,11 @@ export interface ChatAssistantMessage extends AssistantMessage {
   /** Sources returned by the provider, separate from text consumed by speech. */
   citations?: import('../messages/types').Citation[]
   search?: { id: string, status: 'in_progress' | 'searching' | 'completed' | 'failed' }
+  /**
+   * The kind of content that a tool call is about to add, from the moment the model starts the call until the content
+   * arrives or the model writes on. Only a reply that is still written uses it.
+   */
+  pendingContent?: ChatSlicesToolContent['type']
   slices: ChatSlices[]
   tool_results: {
     id: string
@@ -111,11 +131,15 @@ export type ChatHistoryItem = (ChatMessage | ErrorMessage) & {
   notice?: { source: string }
 }
 
-/** One skill that the owner invoked with a message, and the steps it gave the conversation. */
-export interface ChatInvokedSkill {
-  name: string
-  instructions: string
-}
+/**
+ * One skill that the owner invoked with a message. The model reads `instructions`. The chat shows the skill on the message.
+ * - `steps`: the skill gave its steps to the conversation.
+ * - `background`: the skill runs the message as a task in its own session.
+ * - `decision`: the skill asks the model a question, and the answer picks what follows.
+ */
+export type ChatInvokedSkill
+  = | { kind: 'steps' | 'background', name: string, instructions: string }
+    | { kind: 'decision', name: string, instructions: string, question: DecisionQuestion }
 
 export interface ChatStreamEventContext {
   /** Session ownership travels with the event across concurrent turns and renderer transports. */
@@ -139,6 +163,8 @@ export type ChatStreamEvent
     | { type: 'token-special', special: string, sessionId: string, context: ChatStreamEventContext }
     | { type: 'stream-end', sessionId: string, context: ChatStreamEventContext }
     | { type: 'assistant-end', message: string, sessionId: string, context: ChatStreamEventContext }
+    /** The whole reply so far, after each change. A view in another window shows it as it is, tool calls included. */
+    | { type: 'assistant-progress', message: StreamingAssistantMessage, sessionId: string, context: ChatStreamEventContext }
     | { type: 'assistant-message', message: ChatAssistantMessage, sessionId: string, messageText: string, context: ChatStreamEventContext }
 
 export type StreamingAssistantMessage = ChatAssistantMessage & { context?: ContextMessage } & { createdAt?: number, completedAt?: number, id?: string }

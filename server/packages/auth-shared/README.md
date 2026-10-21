@@ -6,7 +6,7 @@ Neutral authentication contracts shared by the resource API and the standalone a
 
 - The Better Auth-owned PostgreSQL schema.
 - The authenticated principal/session shape exchanged inside server code.
-- Authorization policy that must remain identical in both processes, such as ban expiry handling.
+- Authorization policy that must remain identical in both processes, such as ban expiry handling and the built-in trusted origin rules.
 
 ## Do not use it for
 

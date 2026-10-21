@@ -1,10 +1,10 @@
+import type { EndJudgement } from '@proj-airi/agents/voice-end-judge'
 import type { TranscriptionEvent } from '@proj-airi/core-agent'
 import type { PcmBlock } from '@proj-airi/pipelines-audio'
 
-import type { EndJudgement } from './voice-end-judge-plugin'
-
-import { VoiceController } from '@proj-airi/core-agent'
-import { AudioInput, createPushStream } from '@proj-airi/pipelines-audio'
+import { inputActivitySignal, VoiceController } from '@proj-airi/core-agent'
+import { AudioInput } from '@proj-airi/pipelines-audio'
+import { createPushStream } from '@proj-airi/stream-kit'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createVoiceEndJudgePlugin } from './voice-end-judge-plugin'
@@ -19,17 +19,25 @@ function createHarness(judge: (transcript: string, context: unknown, signal: Abo
   const submit = vi.fn(async () => ({ status: 'drafted' as const, draftId: 'draft' }))
   const controller = new VoiceController({ audio, submit, transcriber: () => ({ transcribe: () => output.stream }) })
   controller.use(createVoiceEndJudgePlugin({ enabled: () => enabled, judge, pauseMs: 1200 }), { grants: ['input-control'] })
+  // Stands in for the speech activity rule, which emits one activity signal for each window of its input.
+  let emitActivity: ((body: { inputId: string, range: { sourceId: string, startFrame: number, endFrame: number }, speech: boolean, durationMs: number }) => void) | undefined
+  controller.use({ name: 'test-activity', setup(scope) {
+    emitActivity = body => scope.emit(inputActivitySignal, body)
+    return undefined
+  } })
   const attempt = controller.beginInput({ sessionId: 'alice', interruptTurns: [], start: { kind: 'after-silence' } })
   let frame = 0
   let revision = 0
 
-  /** Writes 100 ms of audio and notes VAD evidence for it, as the voice activity plugin does for each window. */
+  /** Writes 100 ms of audio and emits its activity, as the speech activity rule does for each window. */
   async function hear(speech: boolean) {
     const range = { sourceId: 'mic', startFrame: frame, endFrame: frame + 100 }
     source.write({ range, sampleRate: SAMPLE_RATE, channels: [new Float32Array(100)] })
     frame += 100
-    await expect.poll(() => audio.position?.frame).toBe(range.endFrame)
-    attempt.noteActivity({ range, speech })
+    // A seal command runs after the engine queue drains, so the input can end and release the microphone here.
+    await expect.poll(() => audio.position?.frame === range.endFrame || attempt.state.phase !== 'capturing').toBe(true)
+    if (attempt.state.phase === 'capturing')
+      emitActivity!({ inputId: attempt.id, range, speech, durationMs: 100 })
   }
 
   return {

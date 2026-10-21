@@ -67,7 +67,10 @@ useScreenAmbientLight({ stageCanvas: () => widgetStageRef.value?.canvasElement()
 const stageCanvas = toRef(() => widgetStageRef.value?.canvasElement())
 const componentStateStage = ref<'pending' | 'loading' | 'mounted'>('pending')
 const stageMounted = computed(() => componentStateStage.value === 'mounted')
-const isLoading = computed(() => !stageMounted.value)
+// A stage that fails to render never reaches `mounted`, so the loading overlay would
+// keep covering the error surface. The error event ends the wait instead.
+const stageError = shallowRef<Error>()
+const isLoading = computed(() => !stageMounted.value && !stageError.value)
 
 const isIgnoringMouseEvents = ref(false)
 const shouldFadeOnCursorWithin = ref(false)
@@ -110,6 +113,14 @@ const isTransparentByThreeExact = useThreeSceneIsTransparentAtPoint(
 
 const settingsStore = useSettings()
 const { alwaysOnTop, stageModelRenderer, stageModelSelectedUrl } = storeToRefs(settingsStore)
+function handleStageRenderError(error: Error) {
+  stageError.value = error
+}
+// The stage reports every reset, including a retry that changes no setting, so the
+// overlay returns during the new load instead of hiding behind a stale error.
+function handleStageReset() {
+  stageError.value = undefined
+}
 const modelStore = useModelStore()
 const { sceneMutationLocked, scenePhase } = storeToRefs(modelStore)
 const { stagePaused } = storeToRefs(useStageWindowLifecycleStore())
@@ -721,6 +732,8 @@ const cursorPosition = computed(() => ({
           flex-1
           :cursor-position="cursorPosition"
           :paused="stagePaused"
+          @error="handleStageRenderError"
+          @reset="handleStageReset"
           @select-avatar-model="openSettings({ route: '/settings/models' })"
         />
         <HoloCoupon />

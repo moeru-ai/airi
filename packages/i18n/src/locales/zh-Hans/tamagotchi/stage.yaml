@@ -141,3 +141,136 @@ about:
       title: 有可用的更新
       description: 有新的 v{version} 版本可用
       no-release-notes-markdown: _无发布日志_
+computer-use-tool-call:
+  help: 帮助
+  status:
+    completed: 已完成
+    failed: 失败
+  display: 显示器
+  built-in: 内建
+  primary: 主显示器
+  logical-size: 逻辑尺寸
+  pixel-size: 像素尺寸
+  backend: 截图后端
+  fallback: 回退原因
+  file: 文件
+  window: 窗口
+  region: 区域
+  main: 主窗口
+  hidden: 不可见
+  displays: '{count} 个显示器'
+  windows: '{count} 个窗口'
+  found: '找到 “{query}”'
+  matches: '{count} 处'
+  not-found: '没有找到 “{query}”'
+  clicked-text: '点了 “{query}”'
+  options: 选项
+  typed: 逐字输入
+  pasted: 粘贴
+  pressed: 按下
+  interval: '间隔 {ms} 毫秒'
+  hold: '按住 {ms} 毫秒'
+  steps: '按顺序执行 {count} 步'
+  focused: '聚焦到 “{query}”'
+  app: 应用
+  process: 进程
+  control: 控件
+  title: 标题
+  value: 当前内容
+  ax-path: 辅助功能路径
+  moved: 移到
+  clicked: 点击
+  dragged: 拖拽
+  requested: 请求位置
+  on-screen: 屏幕位置
+  start: 起点
+  end: 终点
+  final: 实际终点
+  duration: '{ms} 毫秒'
+  normalized: 归一化坐标
+  relative:
+    screen: 相对屏幕
+    window: 相对窗口
+    display: 相对显示器
+  buttons:
+    left: 左键
+    right: 右键
+    middle: 中键
+  clicks:
+    single: 单击
+    double: 双击
+  delivery:
+    path: 送达方式
+    verified: 已验证效果
+    not-verified: 效果未验证
+    disturbance: 打扰
+    mouse: 鼠标
+    focus: 焦点
+    clipboard: 剪贴板
+    attempt: '第 {index} 次尝试'
+    attempt-succeeded: 成功
+    attempt-failed: 失败
+  paths:
+    foreground_system_events: 前台系统事件
+    window_targeted_keyboard: 发往窗口的键盘事件
+    ax_focus: 辅助功能聚焦
+  disturbances:
+    none: 未打扰
+    temporary: 暂时
+    foreground: 切到前台
+    unknown: 未知
+  activated: '切到 {app}'
+  in-front: 已在前台
+  front-is: '前台是 {app}'
+  front-unknown: 没能确认前台应用
+  permissions:
+    title: 系统权限
+    names:
+      screen_recording: 屏幕录制
+      accessibility: 辅助功能
+      automation_to_system_events: 自动化（System Events）
+    states:
+      granted: 已授权
+      missing: 未授权
+      denied: 已拒绝
+      unknown: 未知
+  media:
+    commands:
+      play: 播放
+      pause: 暂停
+      toggle: 播放或暂停
+      next: 下一首
+      previous: 上一首
+    verified: 已验证
+    not-verified: 未验证
+    playing: 正在播放
+    paused: 已暂停
+    nothing: 没有在播放
+    liked: 已喜欢
+    rate: '{rate} 倍速'
+computer-use-read-image-tool-call:
+  description: 视觉模型的描述
+  failed: 视觉模型没能读出这张图
+tool-call-screenshot:
+  view-full: 查看大图
+weather-tool-call:
+  feels-like: 体感
+  humidity: 湿度
+  wind: 风速
+  precipitation: 降水概率
+  high: 最高
+  low: 最低
+  conditions:
+    clear-day: 晴
+    clear-night: 晴
+    partly-cloudy-day: 多云
+    partly-cloudy-night: 多云
+    overcast: 阴
+    fog: 雾
+    drizzle: 毛毛雨
+    sleet: 雨夹雪
+    rain: 雨
+    extreme-rain: 大雨
+    snow: 雪
+    extreme-snow: 大雪
+    thunderstorm: 雷暴

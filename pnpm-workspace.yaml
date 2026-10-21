@@ -24,6 +24,7 @@ packages:
   - services/**
   - examples/**
   - engines/**
+  - evals/**
   - apps/**
   - server/**
   - '!**/dist/**'
@@ -99,6 +100,7 @@ catalog:
   '@fontsource/kiwi-maru': ^5.3.0
   '@fontsource/m-plus-rounded-1c': ^5.3.0
   '@formkit/auto-animate': ^0.10.0
+  '@google/genai': ^2.30.0
   '@grammyjs/files': ^1.2.0
   '@guiiai/logg': ^1.2.12
   '@histoire/plugin-vue': 1.0.0-beta.1
@@ -157,6 +159,7 @@ catalog:
   '@opentelemetry/sdk-trace-base': ^2.10.0
   '@opentelemetry/sdk-trace-node': ^2.10.0
   '@opentelemetry/semantic-conventions': ^1.43.0
+  '@openuidev/lang-core': 0.4.1
   '@pinia/colada': ^1.4.2
   '@pinia/testing': ^2.0.1
   '@pixi/app': ^6.5.10
@@ -417,7 +420,7 @@ catalog:
   valibot: ^1.4.2
   vaul-vue: ^0.4.1
   vec3: ^0.2.0
-  vieval: ^0.0.12
+  vieval: ^0.2.0
   virtua: ^0.50.4
   vite: ^8.2.2
   vite-bundle-visualizer: ^1.2.1
@@ -431,6 +434,7 @@ catalog:
   vue: ^3.5.41
   vue-demi: ^0.14.10
   vue-i18n: ^11.4.9
+  vue-json-pretty: ^2.6.0
   vue-macros: ^3.1.4
   vue-router: ^5.2.0
   vue-sonner: ^2.0.9
@@ -467,7 +471,9 @@ allowBuilds:
   '@ffmpeg-installer/darwin-x64': true
   '@ffmpeg-installer/linux-arm64': true
   '@ffmpeg-installer/linux-x64': true
+  '@google/genai': false
   '@napi-rs/image': true
+  '@openuidev/lang-core': false # Its postinstall only sends install telemetry.
   '@parcel/watcher': true
   '@prisma/client': false
   better-sqlite3: false

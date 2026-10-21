@@ -1,4 +1,7 @@
+import type { BackdropRegion } from '@proj-airi/electron-native-backdrop/types'
 import type { VoiceHostSnapshot, VoiceInputCommand } from '@proj-airi/stage-ui/services/speech/bus'
+
+import type { WindowBackdropStatus } from '../../../shared/eventa'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { getSpeechBusContext, voiceInputCommand, voiceSnapshotChanged } from '@proj-airi/stage-ui/services/speech/bus'
@@ -12,7 +15,8 @@ import VoiceInlay from './voice-inlay.vue'
 
 import 'virtual:uno.css'
 
-const { returnHome, setIgnoreMouseEvents, registerShortcut, unregisterShortcut, shortcutListeners, cursor } = vi.hoisted(() => ({
+const { backdrop, returnHome, setIgnoreMouseEvents, registerShortcut, unregisterShortcut, shortcutListeners, cursor } = vi.hoisted(() => ({
+  backdrop: vi.fn<(request: { regions: BackdropRegion[] }) => Promise<WindowBackdropStatus>>(async () => ({ state: 'unsupported', reason: 'Browser test' })),
   returnHome: vi.fn(),
   setIgnoreMouseEvents: vi.fn(),
   registerShortcut: vi.fn(async () => ({ ok: true })),
@@ -26,9 +30,10 @@ const { returnHome, setIgnoreMouseEvents, registerShortcut, unregisterShortcut, 
 // The inlay talks to its Electron window through these IPC composables. The cursor starts outside the page.
 vi.mock('@proj-airi/electron-vueuse', async () => {
   const { shallowRef } = await import('vue')
-  const { electronInlayReturnHome, electronShortcutRegister, electronShortcutUnregister } = await import('../../../shared/eventa')
+  const { electronInlayReturnHome, electronShortcutRegister, electronShortcutUnregister, electronWindowBackdropUpdate } = await import('../../../shared/eventa')
   const invokes = new Map<unknown, unknown>([
     [electronInlayReturnHome, returnHome],
+    [electronWindowBackdropUpdate, backdrop],
     [electronShortcutRegister, registerShortcut],
     [electronShortcutUnregister, unregisterShortcut],
   ])
@@ -53,6 +58,8 @@ const cleanups: (() => void)[] = []
 
 afterEach(() => {
   cleanups.splice(0).reverse().forEach(cleanup => cleanup())
+  backdrop.mockReset()
+  backdrop.mockResolvedValue({ state: 'unsupported', reason: 'Browser test' })
   returnHome.mockReset()
   setIgnoreMouseEvents.mockReset()
   registerShortcut.mockClear()
@@ -90,6 +97,30 @@ const capturing = { requestId: 'speech', sessionId: 'alice', phase: 'capturing' 
 const draft = { id: 'draft', sessionId: 'alice', rawText: 'hello', text: 'Hello there.' }
 
 describe('voice inlay', () => {
+  it('follows the real capsule and draft card bounds with native glass, then clears on dismissal', async () => {
+    backdrop.mockResolvedValue({ state: 'active' })
+    renderInlay()
+    publish({ drafts: [], input: { ...capturing, text: '', segments: [] } })
+    const nativeRegion = () => backdrop.mock.calls.at(-1)?.[0].regions[0]
+    await expect.poll(() => nativeRegion()?.width).toBe(176)
+    expect(nativeRegion()?.height).toBe(44)
+    expect(nativeRegion()?.radius).toBe(22)
+    const capsule = document.querySelector<HTMLElement>('[data-testid="voice-inlay"]')!
+    expect(getComputedStyle(capsule).backgroundColor).toBe('rgba(255, 255, 255, 0.3)')
+
+    publish({ drafts: [draft] })
+    await expect.poll(() => nativeRegion()?.height).toBe(160)
+    await expect.poll(() => nativeRegion()?.radius).toBe(24)
+    const rect = capsule.getBoundingClientRect()
+    expect(nativeRegion()?.x).toBeCloseTo(rect.x, 1)
+    expect(nativeRegion()?.y).toBeCloseTo(rect.y, 1)
+    expect(nativeRegion()?.width).toBeCloseTo(rect.width, 1)
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await expect.poll(() => backdrop.mock.calls.at(-1)?.[0].regions).toEqual([])
+    await expect.poll(inlayView).toBe('hidden')
+  })
+
   it('passes clicks through while it paints nothing', async () => {
     renderInlay()
 
@@ -138,6 +169,23 @@ describe('voice inlay', () => {
     publish({ drafts: [] })
     expect(inlayView()).toBe('sent')
 
+    await expect.poll(inlayView, { timeout: 3000 }).toBe('hidden')
+  })
+
+  it('plays the rewrite of auto-sent speech on the sent card before the card moves out', async () => {
+    const view = renderInlay()
+    publish({ drafts: [], input: { ...capturing, text: 'hello their', segments: [{ id: 'speech-0', text: 'hello their', final: true }] } })
+    await expect.element(view.getByTestId('voice-draft-live')).toHaveTextContent('hello their')
+
+    // Auto send: the speech settles into a draft that the host sends at once.
+    publish({ drafts: [{ ...draft, sending: true }], frontDraftId: 'draft' })
+    await expect.poll(inlayView).toBe('sent')
+    const card = document.querySelector('[data-testid="voice-inlay"]')!
+    expect(card.classList.contains('inlay-send')).toBe(false)
+
+    await expect.element(view.getByRole('status')).toHaveTextContent('Hello there.')
+    publish({ drafts: [] })
+    await expect.poll(() => card.classList.contains('inlay-send'), { timeout: 3000 }).toBe(true)
     await expect.poll(inlayView, { timeout: 3000 }).toBe('hidden')
   })
 

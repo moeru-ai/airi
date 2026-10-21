@@ -33,9 +33,11 @@ import {
   AIRI_CHAT_SESSION_ID_HEADER,
 } from '../libs/product-signals/headers'
 import { getSpeechBusContext, voiceGenerationEnded } from '../services/speech/bus'
+import { composeDrawCardPrompt, createDrawCardTool, DRAW_CARD_TOOL_NAME, drawCardContent } from '../tools/draw-card'
 import { createJudgeRecipeTool, judgmentSkillText } from '../tools/judge-recipe'
 import { composeMemoryPrompt, createMemoryTools } from '../tools/memory'
 import { createProposeRecipeTool } from '../tools/propose-recipe'
+import { createSearchIconsTool } from '../tools/search-icons'
 import { createUseRecipeTool } from '../tools/use-recipe'
 import { createWakeWordTool } from '../tools/wake-words'
 import { useLLM } from './ai/chat-llm/llm'
@@ -61,6 +63,7 @@ import { useVisionStore } from './modules/vision'
 import { useWebSearchStore } from './modules/web-search'
 import { useRecipesStore } from './recipes'
 import { executeToolCallRerun } from './tool-call-rerun'
+import { useToolCardsStore } from './tool-cards'
 import { useWakeWordsStore } from './wake-words'
 
 interface ForkOptions {
@@ -275,13 +278,15 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /**
-   * The system prompt of a session: format rules, the persona's identity, and its memory index.
+   * The system prompt of a session: format rules, the persona's identity, its memory index, and when to draw a card.
    * A recipe's own session adds the recipe's steps after the identity. They stay the same there, so its prefix stays cacheable.
    * The first request and every later model step read it, so a card edit reaches the next step.
    */
   function sessionSystemPrompt(sessionId: string) {
     const persona = personaOf(sessionId)
-    const identity = composeSystemPrompt(cardStore.getSystemPrompt(persona)) + (memory.enabled ? composeMemoryPrompt(memory.indexFor(persona)) : '')
+    const identity = composeSystemPrompt(cardStore.getSystemPrompt(persona))
+      + (memory.enabled ? composeMemoryPrompt(memory.indexFor(persona)) : '')
+      + (drawsCards(sessionId) ? composeDrawCardPrompt() : '')
     const recipeId = chatSession.sessionMetas[sessionId]?.recipeId
     const recipe = recipeId ? recipes.recipes.find(entry => entry.id === recipeId) : undefined
     return recipe ? identity + composeRecipeSpacePrompt(recipe) : identity
@@ -289,6 +294,9 @@ export const useChatStore = defineStore('chat', () => {
   const wakeWords = useWakeWordsStore()
   const stickersStore = useStickersStore()
   const contextObservability = useContextObservabilityStore()
+  // The leader makes the cards of tool calls for every window, so its synced action must exist in the leader even when
+  // the leader shows no tool call. Every window creates the chat store, so the chat store creates the card store too.
+  const toolCards = useToolCardsStore()
   const { activeSessionId } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
 
@@ -340,6 +348,8 @@ export const useChatStore = defineStore('chat', () => {
       void interruptOrphanedTasks().catch((error) => {
         console.warn('[chat] Failed to mark interrupted background tasks:', errorMessageFrom(error))
       })
+      // The plugin restores the synced state before it reports the promotion, so the old leader's requests are there.
+      toolCards.releaseOrphanedCards()
     })
 
     await chatSession.initialize()
@@ -410,6 +420,14 @@ export const useChatStore = defineStore('chat', () => {
   /** Whether a session is a background task's own space. */
   function isTaskSession(sessionId: string) {
     return Boolean(chatSession.sessionMetas[sessionId]?.recipeId)
+  }
+
+  /**
+   * Whether a session's replies can hold cards: the owner's own chat, with reply cards on. A background task reports in
+   * text, and a card there would take the details out of its report.
+   */
+  function drawsCards(sessionId: string) {
+    return toolCards.replyCardsEnabled && isOwnerSession(sessionId) && !isTaskSession(sessionId)
   }
 
   /** Whether a turn answers the owner: not a background task, and not a reply to a stored notice. */
@@ -583,14 +601,14 @@ export const useChatStore = defineStore('chat', () => {
   function invokedSkillsOf(invoked: readonly Recipe[]): ChatInvokedSkill[] | undefined {
     if (!invoked.length)
       return undefined
-    return invoked.map(recipe => ({
-      name: recipe.name,
-      instructions: recipe.decision
-        ? judgmentSkillText(recipe)
-        : isBackgroundRecipe(recipe)
-          ? 'It runs in the background for this message, and its result reaches you later. Reply briefly, and do not do its task yourself.'
-          : recipe.instructions.trim(),
-    }))
+    return invoked.map((recipe): ChatInvokedSkill => {
+      if (recipe.decision)
+        // The stored message keeps its own copy of the question. A reactive recipe would also fail `structuredClone`.
+        return { kind: 'decision', name: recipe.name, instructions: judgmentSkillText(recipe), question: structuredClone(toRaw(recipe.decision.question)) }
+      if (isBackgroundRecipe(recipe))
+        return { kind: 'background', name: recipe.name, instructions: 'It runs in the background for this message, and its result reaches you later. Reply briefly, and do not do its task yourself.' }
+      return { kind: 'steps', name: recipe.name, instructions: recipe.instructions.trim() }
+    })
   }
 
   /**
@@ -617,6 +635,9 @@ export const useChatStore = defineStore('chat', () => {
       ...(ownerOnly ? await createUseRecipeTool({ recipes: () => recipes.recipes, start: (recipe, task) => startRecipe(recipe, { parentSessionId: sessionId, task }) }) : []),
       // The owner can turn proposals off. Every proposal waits for the owner's approval.
       ...(ownerOnly && recipes.proposalsEnabled ? await createProposeRecipeTool({ propose: recipe => recipes.propose(recipe) }) : []),
+      // Cards show in the owner's own chat only. A scene, such as a Discord channel, gets text. A card names its icons
+      // from a search, so the model never guesses an icon name.
+      ...(drawsCards(sessionId) ? [...await createDrawCardTool(), ...await createSearchIconsTool()] : []),
     ]
   }
 
@@ -976,6 +997,8 @@ export const useChatStore = defineStore('chat', () => {
       () => createRuntimePromptContext(runtimePrompt.value),
       createMinecraftContext,
     ],
+    // A card that the model draws is part of its answer, so the reply shows the card, not the call.
+    toolContents: { [DRAW_CARD_TOOL_NAME]: drawCardContent },
     createId: nanoid,
     unwrapMessage: message => toRaw(message),
     onStateChange: syncRuntimeState,
@@ -1019,6 +1042,16 @@ export const useChatStore = defineStore('chat', () => {
           role: 'assistant',
           content: extractMessageText(message),
         })
+      }
+      // Each finished call of a saved reply becomes the latest call on the card of its tool.
+      for (const slice of message.slices) {
+        if (slice.type !== 'tool-call')
+          continue
+        const result = message.tool_results.findLast(entry => entry.id === slice.toolCall.toolCallId)
+        if (!result || result.isError)
+          continue
+        toolCards.recordCall(slice.toolCall.toolName, slice.toolCall.args, result.result)
+          .catch(error => console.warn('[chat] Failed to keep a tool call on its card:', errorMessageFrom(error)))
       }
     },
     onUserTurnReady: ({ sessionId, messageText, sessionMessages }) => {

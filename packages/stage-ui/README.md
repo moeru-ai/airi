@@ -14,6 +14,19 @@ Missing Cloud grants disable Cloud features. Refresh failures and account change
 Set `VITE_CLOUD_URL` for a custom Cloud origin. Deploy its migration and API before the client.
 Keep authorization checks on the server.
 
+## Notifications
+
+Notifications are private messages from AIRI Cloud to the signed-in account. Code and API names use `inbox`.
+`useInboxStore()` in `stores/inbox.ts` owns the unread count, the loaded pages, and the read actions for one window.
+The store reads the count at sign-in, on window focus, and every 5 minutes. A list loads only when a panel opens.
+Opening a message marks it read. The count changes at once and rolls back if Cloud rejects the write.
+Sign-out and account changes clear all state. Responses from the old session are dropped.
+Requests use the generated `@proj-airi/cloud-client` functions with `authedFetch`, so a 401 refreshes the token once.
+The store keeps only kinds that `inbox-presentation.ts` can render. It skips unknown kinds and invalid params.
+Entry points: the web account menu opens `InboxPopover` anchored to the account pill.
+The mobile menu opens `InboxDrawer` as a sub-panel with a back button. The Electron island shows `InboxPanel` in place.
+Entry points show nothing while the user is signed out. Announcements are a separate public surface.
+
 ## Message times
 
 Chat history shows a centered timestamp before the first dated message and after five minutes without a message.
@@ -55,6 +68,7 @@ Consumers subscribe to the microphone input with their own abort signal. The las
 - Speech preserves existing chunked synthesis and bidirectional provider output.
 - `createVoiceRephrasePlugin` rewrites final transcripts with a chat model through a checked transcript patch. The raw text stays in the transcript history. Each segment gets its own rewrite, so segment boundaries stay for later speaker labels. A reply with another segment count leaves the text unchanged.
 - `createVoiceEndJudgePlugin` ends a paused input early when a chat model reads its transcript as a finished message. The model is the rephrase model, or the chat model when no rephrase provider is set.
+- `createSpeakerEvidencePlugin` compares each automatic input with the owner's voiceprint while Speaker recognition is on. It writes the mean cosine of the speech as speaker evidence, and the IO trace of the input records it. It never changes an input, and the chat prompt does not include it.
 
 A pause of 1.2 seconds can end an input. With the end judge on, which is the default, the voice activity silence limit grows by 3 seconds.
 The judge then ends a finished message at the pause, and an unfinished one waits for the speaker to continue.
@@ -79,6 +93,7 @@ The Hearing store keeps `inputMode`. The microphone switch (`useSettingsAudioDev
 - `wake-word` keeps the microphone open and runs voice activity detection and wake word detection. Only a wake starts an input.
 
 `startsInputOnSpeech(mode)` decides if VAD alone starts an input. In `wake-word` mode, the voice store's speech target is undefined.
+`SileroVad` (`workers/vad/silero-vad`) runs the VAD model in a Worker of its own, so the inference of each 32 ms window does not block the Stage render on the main thread.
 Wake word detection runs in every mode that listens continuously. In `always-on` mode, a wake also moves the input to the matched character's session.
 The voice host publishes the detector preparation in its snapshot as `wakeWords`, so a settings window can show it.
 
