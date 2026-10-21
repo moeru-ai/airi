@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DataExportResult, DataTransferProgressHandler } from '@proj-airi/stage-ui/libs/data-transfer'
+import type { ButtonSize } from '@proj-airi/ui'
 
 import type { DataSettingsStatusEmits } from '../status'
 
@@ -22,6 +23,7 @@ interface Props {
   accept: string
   dataArea: string
   fileName?: string
+  size?: ButtonSize
   onExport?: (onProgress: DataTransferProgressHandler) => Promise<DataExportResult>
   onImport?: (file: File, onProgress: DataTransferProgressHandler) => Promise<void>
 }
@@ -112,10 +114,10 @@ async function importFile(event: Event) {
 <template>
   <div :class="['flex flex-col items-start gap-2']">
     <div :class="['flex flex-wrap items-center gap-2']">
-      <Button v-if="onExport" :disabled="busy || preparedExport !== undefined" @click="exportFile">
+      <Button v-if="onExport" :size="size" :disabled="busy || preparedExport !== undefined" @click="exportFile">
         {{ t('settings.pages.data.actions.export_area', { dataArea }) }}
       </Button>
-      <Button v-if="onImport" :disabled="busy" @click="openImportPicker">
+      <Button v-if="onImport" :size="size" :disabled="busy" @click="openImportPicker">
         {{ t('settings.pages.data.actions.import_area', { dataArea }) }}
       </Button>
     </div>
