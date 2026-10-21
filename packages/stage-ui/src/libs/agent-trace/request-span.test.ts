@@ -26,8 +26,8 @@ function chatInit(turnId: string, sessionId: string, signal?: AbortSignal): Requ
 it('records each request of a turn under the LLM inference span of that turn, with the gateway request ID', async () => {
   const first = startSpan(IOSpanNames.LLMInference)
   const second = startSpan(IOSpanNames.LLMInference)
-  const unregisterFirst = registerLlmInference('turn-a', first)
-  const unregisterSecond = registerLlmInference('turn-b', second)
+  const unregisterFirst = registerLlmInference({ sessionId: 'session-a', turnId: 'turn-a' }, first)
+  const unregisterSecond = registerLlmInference({ sessionId: 'session-b', turnId: 'turn-b' }, second)
   let requestCount = 0
   const fetch = withLlmRequestSpan(async () => new Response('data: [DONE]\n\n', { headers: { [AIRI_REQUEST_ID_HEADER]: `request-${++requestCount}` } }))
 
@@ -54,6 +54,25 @@ it('records each request of a turn under the LLM inference span of that turn, wi
   expect(recorded.map(span => span.attributes[IOAttributes.RequestId]).sort()).toEqual(['request-1', 'request-2', 'request-3'])
 })
 
+it('keeps two sessions apart when they use the same turn ID', async () => {
+  const first = startSpan(IOSpanNames.LLMInference)
+  const second = startSpan(IOSpanNames.LLMInference)
+  const unregisterFirst = registerLlmInference({ sessionId: 'session-a', turnId: 'message-1' }, first)
+  const unregisterSecond = registerLlmInference({ sessionId: 'session-b', turnId: 'message-1' }, second)
+  const fetch = withLlmRequestSpan(async () => new Response('data: [DONE]\n\n'))
+
+  await (await fetch('https://api.example/chat', chatInit('message-1', 'session-a'))).text()
+  await (await fetch('https://api.example/chat', chatInit('message-1', 'session-b'))).text()
+  unregisterFirst()
+  unregisterSecond()
+
+  const [ofSessionA, ofSessionB] = requestSpans()
+  expect(ofSessionA.parentSpanContext?.spanId).toBe(first.spanContext().spanId)
+  expect(ofSessionA.attributes[IOAttributes.LLMStepIndex]).toBe(0)
+  expect(ofSessionB.parentSpanContext?.spanId).toBe(second.spanContext().spanId)
+  expect(ofSessionB.attributes[IOAttributes.LLMStepIndex]).toBe(0)
+})
+
 it('records no span for a request outside a traced stream', async () => {
   const fetch = withLlmRequestSpan(async () => new Response('ok'))
   await (await fetch('https://api.example/audio', chatInit('no-stream', 'session'))).text()
@@ -62,7 +81,7 @@ it('records no span for a request outside a traced stream', async () => {
 })
 
 it('marks an error response with its status, and an aborted request as cancelled', async () => {
-  const unregister = registerLlmInference('turn', startSpan(IOSpanNames.LLMInference))
+  const unregister = registerLlmInference({ sessionId: 'session', turnId: 'turn' }, startSpan(IOSpanNames.LLMInference))
   const failing = withLlmRequestSpan(async () => new Response('busy', { status: 429, headers: { [AIRI_REQUEST_ID_HEADER]: 'request-429' } }))
   expect((await failing('https://api.example/chat', chatInit('turn', 'session'))).status).toBe(429)
 
@@ -83,7 +102,7 @@ it('marks an error response with its status, and an aborted request as cancelled
 })
 
 it('ends the span when the reader cancels the body', async () => {
-  const unregister = registerLlmInference('turn', startSpan(IOSpanNames.LLMInference))
+  const unregister = registerLlmInference({ sessionId: 'session', turnId: 'turn' }, startSpan(IOSpanNames.LLMInference))
   const cancelled = vi.fn()
   const body = new ReadableStream({ pull: controller => controller.enqueue(new TextEncoder().encode('data: {}\n\n')), cancel: cancelled })
   const fetch = withLlmRequestSpan(async () => new Response(body))

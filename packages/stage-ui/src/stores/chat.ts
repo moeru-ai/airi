@@ -824,8 +824,10 @@ export const useChatStore = defineStore('chat', () => {
     llmSpan.setAttribute(IOAttributes.LLMInputMessageRoles, providerMessages.map(message => message.role))
     const llmRequestTs = performance.now()
     let llmFirstTokenEmitted = false
-    // The official provider fetch finds this span by the round ID and records each request under it.
-    const unregisterLlmInference = correlation ? registerLlmInference(correlation.turnId, llmSpan) : undefined
+    // The official provider fetch finds this span by the session ID and round ID and records each request under it.
+    const unregisterLlmInference = correlation
+      ? registerLlmInference({ sessionId: correlation.conversationId, turnId: correlation.turnId }, llmSpan)
+      : undefined
 
     try {
       await llmStore.stream(model, chatProvider, providerContext, {

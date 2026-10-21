@@ -61,7 +61,7 @@ const ioTracerMocks = vi.hoisted(() => {
     /** The composer dictation span of a session. */
     takeComposerVoiceParent: vi.fn((_sessionId: string): unknown => undefined),
     unregisterLlmInference: vi.fn(),
-    registerLlmInference: vi.fn((_turnId: string, _span: unknown) => ioTracerMocks.unregisterLlmInference),
+    registerLlmInference: vi.fn((_turn: { sessionId: string, turnId: string }, _span: unknown) => ioTracerMocks.unregisterLlmInference),
   }
 })
 
@@ -1768,7 +1768,7 @@ describe('chat store contract', () => {
 
     const turnCall = ioTracerMocks.startSpanMock.mock.calls.find(([name]) => name === IOSpanNames.InteractionTurn)!
     const llmSpan = ioTracerMocks.spans.find(span => span.name === IOSpanNames.LLMInference)
-    expect(ioTracerMocks.registerLlmInference).toHaveBeenCalledWith(turnCall[2]![IOAttributes.TurnId], llmSpan)
+    expect(ioTracerMocks.registerLlmInference).toHaveBeenCalledWith({ sessionId: 'session-1', turnId: turnCall[2]![IOAttributes.TurnId] }, llmSpan)
     expect(streamOptions[0].toolSpanParent).toBe(llmSpan)
     expect(ioTracerMocks.unregisterLlmInference).toHaveBeenCalledOnce()
   })

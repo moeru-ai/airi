@@ -56,26 +56,25 @@ function endWithBody(span: Span, response: Response, signal: AbortSignal | null 
 /**
  * Records one `LLM request` span for each chat request of a traced turn.
  *
- * The round ID header names the turn, and the turn's `LLM inference` span is the parent.
- * A request without that header, such as speech or a model list, passes through without a span.
+ * The session ID and round ID headers name the turn, and the turn's `LLM inference` span is the parent.
+ * A request without both headers, such as speech or a model list, passes through without a span.
  * The span carries the gateway request ID from the response, so the admin trace can join it to `llm_request_log`.
  */
 export function withLlmRequestSpan(fetch: Fetch): Fetch {
   return async (input, init) => {
     const headers = new Headers(init?.headers)
+    const sessionId = headers.get(AIRI_CHAT_SESSION_ID_HEADER)
     const turnId = headers.get(AIRI_CHAT_ROUND_ID_HEADER)
-    const parent = turnId ? nextLlmRequestParent(turnId) : undefined
-    if (!turnId || !parent)
+    const parent = sessionId && turnId ? nextLlmRequestParent({ sessionId, turnId }) : undefined
+    if (!sessionId || !turnId || !parent)
       return fetch(input, init)
 
     const span = startSpan(IOSpanNames.LLMRequest, parent.span, {
       [IOAttributes.Subsystem]: IOSubsystems.LLMRequest,
       [IOAttributes.TurnId]: turnId,
+      [IOAttributes.GenAIConversationId]: sessionId,
       [IOAttributes.LLMStepIndex]: parent.stepIndex,
     })
-    const sessionId = headers.get(AIRI_CHAT_SESSION_ID_HEADER)
-    if (sessionId)
-      span.setAttribute(IOAttributes.GenAIConversationId, sessionId)
 
     let response: Response
     try {
