@@ -10,6 +10,7 @@ export default defineConfig({
       'server/packages/http-error-shared',
       'apps/ui-server-auth',
       'apps/stage-tamagotchi/vitest.node.config.ts',
+      'evals/tts-speech-formula',
       'packages/agents',
       'packages/cap-vite',
       'packages/ccc',
