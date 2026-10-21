@@ -49,7 +49,7 @@ describe('downloaded speech models in Data settings', () => {
     })
     const screen = await renderSection()
 
-    await expect.element(screen.getByText('Zipformer')).toBeVisible()
+    await expect.element(screen.getByText('Zipformer', { exact: true })).toBeVisible()
     await screen.getByRole('button', { name: 'Remove download' }).click()
     await screen.getByRole('button', { name: 'Yes' }).click()
 
@@ -75,7 +75,7 @@ describe('downloaded speech models in Data settings', () => {
     updateModelAssetStatus({ ...wakeWordModel, state: 'installed' })
     const screen = await renderSection()
 
-    await expect.element(screen.getByText('Wake word model')).toBeVisible()
+    await expect.element(screen.getByText('Wake word model', { exact: true })).toBeVisible()
     updateModelAssetStatus({ ...wakeWordModel, state: 'missing' })
   })
 })
