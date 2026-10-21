@@ -175,6 +175,7 @@ describe('display models store', () => {
 
   it('loads stored models once when several callers initialize at the same time', async () => {
     const store = useDisplayModelsStore()
+    const getKeys = vi.spyOn(storage, 'getKeys')
 
     await Promise.all([
       store.loadDisplayModelsFromIndexedDB(),
@@ -182,6 +183,7 @@ describe('display models store', () => {
       store.loadDisplayModelsFromIndexedDB(),
     ])
 
-    expect(localforage.iterate).toHaveBeenCalledTimes(1)
+    expect(getKeys).toHaveBeenCalledTimes(1)
+    expect(getKeys).toHaveBeenCalledWith('device:')
   })
 })
