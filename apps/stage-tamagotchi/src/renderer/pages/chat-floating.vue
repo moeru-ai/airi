@@ -343,12 +343,7 @@ function moveByKeyboard(delta: WindowDelta) {
             <button
               :title="t('tamagotchi.stage.chat-window.fold')"
               :aria-label="t('tamagotchi.stage.chat-window.fold')"
-              :class="[
-                'size-7 shrink-0 rounded-full',
-                'flex items-center justify-center outline-none transition-colors',
-                'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
-                'text-primary-300 hover:bg-primary-50 hover:text-primary-500 dark:text-primary-400/60 dark:hover:bg-primary-900/40 dark:hover:text-primary-300',
-              ]"
+              :class="['shrink-0', chatHeaderButtonClass('dock')]"
               @click="foldChat()"
             >
               <div class="i-lucide:minimize-2 size-4" />
@@ -361,7 +356,7 @@ function moveByKeyboard(delta: WindowDelta) {
                 'h-7 w-5 shrink-0 cursor-grab touch-none rounded-full',
                 'flex items-center justify-center outline-none transition-colors',
                 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
-                'text-primary-300 hover:text-primary-500 dark:text-primary-400/60 dark:hover:text-primary-300',
+                'text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200',
               ]"
               @pointerdown="holdPointer"
               @pointermove="moveWithHeldPointer"
@@ -375,7 +370,7 @@ function moveByKeyboard(delta: WindowDelta) {
               :class="[
                 'min-w-0 flex items-center gap-1.5 rounded-full py-0.5 outline-none transition-colors',
                 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
-                'hover:bg-primary-50 dark:hover:bg-primary-900/40',
+                'text-neutral-700 hover:bg-primary-50 hover:text-primary-700 dark:text-neutral-200 dark:hover:bg-primary-900/40 dark:hover:text-primary-300',
                 characterOnLeft ? 'flex-row-reverse pl-2 pr-0.5' : 'pl-0.5 pr-2',
               ]"
               @click="sessionsDrawerOpen = true"
@@ -384,14 +379,14 @@ function moveByKeyboard(delta: WindowDelta) {
                 :class="[
                   'size-6 shrink-0 rounded-full',
                   'flex items-center justify-center text-sm',
-                  'bg-primary-100 text-primary-500 dark:bg-primary-900/60 dark:text-primary-300',
+                  'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300',
                 ]"
               >
                 <span class="i-solar:chat-line-bold" />
               </span>
-              <span class="truncate text-sm text-primary-800 font-medium dark:text-primary-100">{{ activeCard?.name || 'AIRI' }}</span>
+              <span class="truncate text-sm font-medium">{{ activeCard?.name || 'AIRI' }}</span>
             </button>
-            <div :class="['mx-0.5 h-4 w-px shrink-0', 'bg-primary-200 dark:bg-primary-800/60']" />
+            <div :class="['mx-0.5 h-4 w-px shrink-0', 'bg-neutral-200 dark:bg-neutral-700']" />
             <div :class="['flex shrink-0 items-center gap-0.5', characterOnLeft ? 'flex-row-reverse' : '']">
               <ChatSpeechMuteButton variant="dock" />
               <button

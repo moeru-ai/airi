@@ -69,6 +69,7 @@ docs:
     title: Message timing
     hide-read: Hide read messages
     hide-read-description: Messages leave once read. Spoken replies leave when the speech ends.
+    options-hint: Hover or right-click for options
     reading-speed: Reading speed
     reading-speed-value: '{count} characters/s'
     minimum-time: Minimum time
