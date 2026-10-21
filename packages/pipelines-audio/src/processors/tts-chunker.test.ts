@@ -158,6 +158,20 @@ describe('tTS Chunker Logic Cleanup', () => {
       expect(chunks.join('')).toBe(input)
     })
 
+    it('keeps a kept punctuation once, with its own sentence, at the length limit', async () => {
+      const chunks = await collectChunkText('直觉上，模型在学习：“处于位置 x下标t、时间为 t 时，应该往哪个方向、以多快的速度移动？”生成时，从噪声出发。')
+
+      expect(chunks.join('').split('？')).toHaveLength(2)
+      expect(chunks.some(chunk => chunk.endsWith('方向、？'))).toBe(false)
+    })
+
+    it('does not send a chunk without sound, as a lone closing quote', async () => {
+      const chunks = await collectChunkText('以多快的速度移动？”\n生成时。')
+
+      expect(chunks).not.toContain('”')
+      expect(chunks.every(chunk => /[\p{L}\p{N}]/u.test(chunk))).toBe(true)
+    })
+
     it('preserves emoji grapheme clusters while chunking', async () => {
       const input = '👩‍💻👍🏽!'
 

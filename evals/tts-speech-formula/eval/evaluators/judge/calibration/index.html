@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Judge calibration</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main>
+      <header class="top">
+        <div class="title">
+          <h1>Judge calibration</h1>
+          <p class="stats" id="stats">Loading…</p>
+          <div class="progress" aria-hidden="true"><div class="progress-bar" id="progress"></div></div>
+        </div>
+        <div class="filters">
+          <label class="field">
+            <span>Language</span>
+            <select id="language"><option value="">All languages</option></select>
+          </label>
+          <label class="field">
+            <span>Show</span>
+            <select id="show">
+              <option value="unlabeled">Unlabeled first</option>
+              <option value="all">All</option>
+              <option value="disagree">Disagreements</option>
+            </select>
+          </label>
+        </div>
+      </header>
+
+      <section class="stage" id="stage" aria-live="polite"></section>
+
+      <nav class="pager">
+        <button class="button" id="previous" type="button"><kbd>←</kbd> Previous</button>
+        <span class="position" id="position"></span>
+        <button class="button" id="next" type="button">Next <kbd>Enter</kbd></button>
+      </nav>
+
+      <p class="hint">
+        <kbd>1</kbd> natural · <kbd>2</kbd> mixed · <kbd>3</kbd> spelled · press the same key again to clear ·
+        the judge verdict shows after you label.
+      </p>
+    </main>
+
+    <div class="toast" id="toast" role="status"></div>
+
+    <template id="card-template">
+      <article class="card">
+        <div class="meta"></div>
+        <div class="formula"></div>
+        <code class="source"></code>
+        <p class="spoken"></p>
+        <div class="choices" role="radiogroup" aria-label="Reading style">
+          <button class="choice" type="button" role="radio" data-label="natural"><kbd>1</kbd><span class="choice-name">Natural</span><span class="choice-help">says the meaning</span></button>
+          <button class="choice" type="button" role="radio" data-label="mixed"><kbd>2</kbd><span class="choice-name">Mixed</span><span class="choice-help">one or two spelled parts</span></button>
+          <button class="choice" type="button" role="radio" data-label="spelled"><kbd>3</kbd><span class="choice-name">Spelled</span><span class="choice-help">reads the markup</span></button>
+        </div>
+        <label class="note">
+          <span>Note</span>
+          <textarea rows="2" placeholder="Which part is spelled, or how it should be read. Markdown works."></textarea>
+        </label>
+        <div class="note-preview markdown" hidden></div>
+        <div class="judge" hidden></div>
+        <div class="tools">
+          <button class="button ghost" type="button" data-action="copy">Copy translation prompt</button>
+        </div>
+      </article>
+    </template>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

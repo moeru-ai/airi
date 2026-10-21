@@ -102,10 +102,6 @@ components.d.ts
 .devenv*
 devenv.*
 
-# Rust
-target/
-crates/*/target/
-
 # turborepo
 .turbo
 
