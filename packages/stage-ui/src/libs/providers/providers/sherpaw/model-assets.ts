@@ -4,7 +4,8 @@ import type { InferOutput } from 'valibot'
 import { ModelAssetRepository } from '@proj-airi/stage-shared/model-assets'
 import { speakerModel } from '@proj-airi/stage-shared/speaker-model'
 import { assets } from '@proj-airi/vite-plugin-sherpaw/assets'
-import { array, number, object, parse, string } from 'valibot'
+
+import * as v from 'valibot'
 
 import { updateModelAssetStatus } from '../../../../composables/use-model-asset-status'
 import { OpfsModelAssetStorage } from '../../../inference/model-assets-opfs'
@@ -56,7 +57,14 @@ interface HostModelAssets {
   ensure: (id: string) => Promise<void>
   cancel: (id: string) => Promise<void>
   remove: (id: string) => Promise<void>
+  restore: (id: string, revision: string, files: Readonly<Record<string, Uint8Array>>) => Promise<void>
   clear: () => Promise<void>
+}
+
+export interface SherpawModelAssetBundle {
+  id: string
+  revision: string
+  files: Record<string, Uint8Array>
 }
 
 let host: HostModelAssets | undefined
@@ -97,6 +105,67 @@ export async function removeSherpawModelAssets(id: string): Promise<void> {
   return sherpawModelAssets.remove(id)
 }
 
+/** Reads every installed file for one downloaded model. */
+export async function exportSherpawModelAssets(id: string): Promise<SherpawModelAssetBundle> {
+  const model = models.find(candidate => candidate.id === id)
+  if (!model || model.source === 'bundled')
+    throw new Error(`Downloaded model assets are unavailable: ${id}`)
+
+  const status = (await listSherpawModelAssets()).find(candidate => candidate.id === id)
+  if (status?.state !== 'installed')
+    throw new Error(`The model is not installed: ${id}`)
+
+  const entries = await Promise.all(model.files.map(async (file) => {
+    const response = await fetchSherpawModel(file.url)
+    if (!response.ok)
+      throw new Error(`Could not read model asset ${id}/${file.name}`)
+    return [file.name, new Uint8Array(await response.arrayBuffer())] as const
+  }))
+  return { id, revision: model.revision, files: Object.fromEntries(entries) }
+}
+
+const metadataSchema = v.strictObject({
+  files: v.array(v.pipe(
+    v.strictObject({
+      filename: v.pipe(v.string(), v.check(filename => /^[\w.-]+$/.test(filename))),
+      start: v.pipe(v.number(), v.finite()),
+      end: v.pipe(v.number(), v.finite()),
+    }),
+  )),
+  remote_package_size: v.pipe(v.number(), v.finite()),
+})
+
+function metadataSchemaForData(dataByteLength: number) {
+  return v.pipe(metadataSchema, v.check(metadata => metadata.remote_package_size === dataByteLength
+    && metadata.files.every(file => file.start >= 0 && file.end > file.start && file.end <= dataByteLength)))
+}
+
+/** Validates a complete downloaded model bundle against the local catalogue. */
+export function validateSherpawModelAssetBundle(id: string, revision: string, files: Readonly<Record<string, Uint8Array>>): SherpawModelAssetBundle {
+  const model = models.find(candidate => candidate.id === id)
+  if (!model || model.source === 'bundled' || model.revision !== revision)
+    throw new Error('The voice model file uses an unsupported model version')
+
+  const bundle = v.parse(v.strictObject({
+    id: v.literal(model.id),
+    revision: v.literal(model.revision),
+    files: v.strictObject(Object.fromEntries(model.files.map(file => [
+      file.name,
+      v.pipe(v.instance(Uint8Array), v.check(content => content.byteLength > 0)),
+    ]))),
+  }), { id, revision, files })
+  v.parse(metadataSchemaForData(bundle.files.data.byteLength), JSON.parse(new TextDecoder().decode(bundle.files.metadata)))
+
+  return bundle
+}
+
+/** Applies an adapter-validated model bundle through the platform-owned asset repository. */
+export async function restoreSherpawModelAssets(bundle: SherpawModelAssetBundle): Promise<void> {
+  if (host)
+    return host.restore(bundle.id, bundle.revision, bundle.files)
+  return sherpawModelAssets.restore(bundle.id, bundle.revision, bundle.files)
+}
+
 /** Removes every downloaded Sherpaw model. Bundled models stay in the application package. */
 export async function clearSherpawModelAssets(): Promise<void> {
   if (host)
@@ -116,11 +185,6 @@ export async function fetchSherpawModel(input: RequestInfo | URL, init?: Request
     return host.fetch(model, file.name, signal)
   return sherpawModelAssets.open(model.id, file.name, signal)
 }
-
-const metadataSchema = object({
-  files: array(object({ filename: string(), start: number(), end: number() })),
-  remote_package_size: number(),
-})
 
 /** A complete Sherpaw preload pack: the data file and the file table of its metadata. */
 export interface SherpawModelPack {
@@ -151,10 +215,7 @@ export async function fetchSherpawModelPack(id: string, name: string, signal?: A
     throw new Error(`Could not download the ${name} (${dataResponse.status}, ${metadataResponse.status})`)
 
   const [data, metadataValue] = await Promise.all([dataResponse.arrayBuffer(), metadataResponse.json()])
-  const metadata = parse(metadataSchema, metadataValue)
-  // A partial download must not reach a Sherpaw Worker.
-  if (metadata.remote_package_size !== data.byteLength)
-    throw new Error(`The ${name} download is incomplete`)
+  const metadata = v.parse(metadataSchemaForData(data.byteLength), metadataValue)
 
   return { data, metadata }
 }

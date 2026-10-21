@@ -34,6 +34,7 @@ export interface ModelAssetStatus {
 export interface ModelAssetStorage {
   has: (model: ModelAsset) => Promise<boolean>
   install: (model: ModelAsset, onProgress: (progress: ModelAssetProgress) => void, signal: AbortSignal) => Promise<void>
+  restore?: (model: ModelAsset, files: Readonly<Record<string, Uint8Array>>, onProgress: (progress: ModelAssetProgress) => void) => Promise<void>
   open: (model: ModelAsset, file: ModelAssetFile) => Promise<Response>
   remove: (model: ModelAsset) => Promise<void>
   /** Removes every stored model, including models that the catalogue no longer lists. */
@@ -166,6 +167,31 @@ export class ModelAssetRepository {
     }
     await this.storage.remove(model)
     this.update(id, { state: 'missing', progress: undefined, error: undefined })
+  }
+
+  /** Restores one complete, catalogue-matched model version from validated files. */
+  async restore(id: string, revision: string, files: Readonly<Record<string, Uint8Array>>, onProgress: (progress: ModelAssetProgress) => void = () => {}): Promise<void> {
+    const model = this.requireModel(id)
+    if (model.source === 'bundled' || model.revision !== revision)
+      throw new Error(`Model assets cannot be restored for this version: ${id}`)
+    if (!this.storage.restore)
+      throw new Error('This model storage does not support restore')
+
+    const active = this.downloads.get(id)
+    if (active) {
+      active.controller.abort()
+      try {
+        await active.promise
+      }
+      catch {
+        // The canceled download leaves no complete model to expose.
+      }
+    }
+
+    await this.storage.restore(model, files, onProgress)
+    if (!await this.storage.has(model))
+      throw new Error(`Restored model assets were not committed: ${id}`)
+    this.update(id, { state: 'installed', progress: undefined, error: undefined })
   }
 
   /** Cancels active downloads and removes every stored model. */

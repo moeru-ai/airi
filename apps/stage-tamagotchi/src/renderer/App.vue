@@ -45,7 +45,7 @@ import {
   i18nGetLocale,
   i18nSetLocale,
 } from '../shared/eventa'
-import { electronModelAssetCancel, electronModelAssetEnsure, electronModelAssetRemove, electronModelAssetsClear, electronModelAssetsList, electronModelAssetStatusChanged } from '../shared/eventa/model-assets'
+import { electronModelAssetCancel, electronModelAssetEnsure, electronModelAssetRemove, electronModelAssetRestore, electronModelAssetsClear, electronModelAssetsList, electronModelAssetStatusChanged } from '../shared/eventa/model-assets'
 import {
   electronPluginUpdateCapability,
   pluginProtocolListProviders,
@@ -89,6 +89,7 @@ const listModelAssets = useElectronEventaInvoke(electronModelAssetsList)
 const ensureModelAsset = useElectronEventaInvoke(electronModelAssetEnsure)
 const cancelModelAsset = useElectronEventaInvoke(electronModelAssetCancel)
 const removeModelAsset = useElectronEventaInvoke(electronModelAssetRemove)
+const restoreModelAsset = useElectronEventaInvoke(electronModelAssetRestore)
 const clearModelAssets = useElectronEventaInvoke(electronModelAssetsClear)
 const stopModelAssetStatus = context.value.on(electronModelAssetStatusChanged, (event) => {
   if (event.body && !isSherpawModelBundled(event.body.id))
@@ -103,6 +104,15 @@ setSherpawModelAssetHost({
   ensure: ensureModelAsset,
   cancel: cancelModelAsset,
   remove: removeModelAsset,
+  restore: (id, revision, files) => restoreModelAsset({
+    id,
+    revision,
+    files: Object.fromEntries(Object.entries(files).map(([name, bytes]) => {
+      const buffer = new ArrayBuffer(bytes.byteLength)
+      new Uint8Array(buffer).set(bytes)
+      return [name, buffer]
+    })),
+  }),
   clear: clearModelAssets,
 })
 const getMainLocale = useElectronEventaInvoke(i18nGetLocale)
