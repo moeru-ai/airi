@@ -90,7 +90,13 @@ describe('app icon visibility', () => {
     expect(laterWindow.setSkipTaskbar).not.toHaveBeenCalled()
   })
 
-  it.each([true, false])('skips the macOS process change only when the Dock is hidden (visible: %s)', (visible) => {
+  // https://github.com/electron/electron/issues/10078
+  //
+  // ROOT CAUSE:
+  // Calling setVisibleOnAllWorkspaces without skipTransformProcessType causes macOS to
+  // transform the process type and restore the Dock icon even when the user hid it.
+  // We skip the transform when the Dock is already hidden.
+  it.each([true, false])('skips the macOS process change only when the Dock is hidden (visible: %s) (Issue #10078)', (visible) => {
     electron.dock.isVisible.mockReturnValue(visible)
     const window = { setVisibleOnAllWorkspaces: vi.fn() }
 
@@ -99,7 +105,12 @@ describe('app icon visibility', () => {
     expect(window.setVisibleOnAllWorkspaces).toHaveBeenCalledWith(true, { skipTransformProcessType: !visible })
   })
 
-  it('skips the macOS process change when hideAppIcon preference is enabled even if dock is visible', () => {
+  // https://github.com/electron/electron/issues/10078
+  //
+  // ROOT CAUSE:
+  // When the user has opted to hide the app icon, passing hideAppIcon: true forces
+  // skipTransformProcessType regardless of dock visibility to prevent the Dock from reappearing.
+  it('skips the macOS process change when hideAppIcon preference is enabled even if dock is visible (Issue #10078)', () => {
     electron.dock.isVisible.mockReturnValue(true)
     const window = { setVisibleOnAllWorkspaces: vi.fn() }
 
@@ -108,7 +119,12 @@ describe('app icon visibility', () => {
     expect(window.setVisibleOnAllWorkspaces).toHaveBeenCalledWith(true, { skipTransformProcessType: true })
   })
 
-  it('passes visibleOnFullScreen option when specified', () => {
+  // https://github.com/electron/electron/issues/10078
+  //
+  // ROOT CAUSE:
+  // visibleOnFullScreen must be forwarded alongside skipTransformProcessType so
+  // the window stays visible on all workspaces when a fullscreen app is in focus.
+  it('passes visibleOnFullScreen option when specified (Issue #10078)', () => {
     electron.dock.isVisible.mockReturnValue(true)
     const window = { setVisibleOnAllWorkspaces: vi.fn() }
 
