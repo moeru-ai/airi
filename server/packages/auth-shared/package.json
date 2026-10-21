@@ -10,5 +10,8 @@
   },
   "dependencies": {
     "drizzle-orm": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
   }
 }

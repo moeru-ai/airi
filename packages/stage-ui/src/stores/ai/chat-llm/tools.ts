@@ -12,6 +12,11 @@ export interface ToolDefinition extends Omit<Tool, 'execute'> {
   defaultActive?: boolean
   /** Requires selection on each request; history and default activation cannot grant access. */
   requiresExplicitSelection?: boolean
+  /**
+   * The icon that the chat shows on each call of this tool. The tool's owner declares it where it registers the tool.
+   * Use a value of `TOOL_ICONS` from `tools/icons`, where UnoCSS can find the class. Without it, the chat picks a default.
+   */
+  icon?: string
 }
 
 /** A tool definition with the executor that is available in the current runtime. */
@@ -22,6 +27,11 @@ export interface ExecutableTool extends Tool {
   defaultActive?: boolean
   /** Requires selection on each request; history and default activation cannot grant access. */
   requiresExplicitSelection?: boolean
+  /**
+   * The icon that the chat shows on each call of this tool. The tool's owner declares it where it registers the tool.
+   * Use a value of `TOOL_ICONS` from `tools/icons`, where UnoCSS can find the class. Without it, the chat picks a default.
+   */
+  icon?: string
 }
 
 function unavailableToolResult(name: string) {
@@ -73,6 +83,7 @@ export const useLlmToolsStore = defineStore('llm-tools', () => {
         function: tool.function,
         ...(tool.defaultActive === undefined ? {} : { defaultActive: tool.defaultActive }),
         ...(tool.requiresExplicitSelection === undefined ? {} : { requiresExplicitSelection: tool.requiresExplicitSelection }),
+        ...(tool.icon === undefined ? {} : { icon: tool.icon }),
       })
       const existingIndex = definitions.findIndex(item => item.id === tool.id)
 

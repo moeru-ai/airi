@@ -2,6 +2,7 @@
 import { HearingConfig, IconStatusItem, RippleGrid } from '@proj-airi/stage-ui/components'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
+import { useVoiceprintStore } from '@proj-airi/stage-ui/stores/voiceprint'
 import { useWakeWordsStore } from '@proj-airi/stage-ui/stores/wake-words'
 import { FieldCheckbox, FieldCombobox, FieldInput, FieldRange, SettingsCard } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -12,6 +13,7 @@ const { t } = useI18n()
 const hearingStore = useHearingStore()
 const { configured, autoSendEnabled, autoSendDelay, endJudgeEnabled, rephraseEnabled, rephraseProvider, rephraseModel } = storeToRefs(hearingStore)
 const wakeWords = useWakeWordsStore()
+const voiceprints = useVoiceprintStore()
 
 const providersStore = useProviderStore()
 const { configuredChatProvidersMetadata } = storeToRefs(providersStore)
@@ -30,7 +32,8 @@ watch(rephraseProvider, (providerId, previous) => {
 
 /**
  * Detailed Hearing pages. A green status means that the page has nothing left to set up:
- * a transcription provider is configured, or every shared wake word pronunciation has a character that answers it.
+ * a transcription provider is configured, every shared wake word pronunciation has a character that answers it,
+ * or the user has a voiceprint that the current voiceprint model can use.
  */
 const pages = computed(() => [
   {
@@ -48,6 +51,14 @@ const pages = computed(() => [
     description: t('settings.pages.modules.hearing.wake-words.description'),
     icon: 'i-solar:bell-bing-bold-duotone',
     configured: wakeWords.catalog.active.length > 0 && wakeWords.catalog.conflicts.every(conflict => conflict.owner),
+  },
+  {
+    id: 'voiceprint',
+    to: '/settings/modules/hearing/voiceprint',
+    name: t('settings.pages.modules.hearing.voiceprint.title'),
+    description: t('settings.pages.modules.hearing.voiceprint.description'),
+    icon: 'i-solar:user-speak-rounded-bold-duotone',
+    configured: !!voiceprints.voiceprint,
   },
 ])
 </script>

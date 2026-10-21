@@ -185,3 +185,11 @@ export const voiceRequestMessages = defineEventa('eventa:voice:request-messages'
  * The control that recorded it reports `error`.
  */
 export const voiceMessageDropped = defineEventa<{ id: string, sessionId: string, error: string }>('eventa:voice:message-dropped')
+
+/**
+ * A window that needs the microphone alone, for example for a voiceprint enrollment, holds a capture lease.
+ * While any lease holds, the voice host begins no input and records no voice message, and it ends the ones that run.
+ * The holder renews the lease before `until`, a Unix time in milliseconds, and sends `until: 0` to release it.
+ * A lease that nobody renews ends at `until`, so a closed window cannot keep the voice host paused.
+ */
+export const voiceCaptureLease = defineEventa<{ id: string, until: number }>('eventa:voice:capture-lease')

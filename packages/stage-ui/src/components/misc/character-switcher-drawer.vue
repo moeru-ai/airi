@@ -20,7 +20,7 @@ const manageAfterClose = shallowRef(false)
 const entries = computed(() => Array.from(cards.value, ([id, card]) => ({
   id,
   name: card.name,
-  preview: displayModels.value.find(model => model.id === card.extensions.airi.modules.displayModelId)?.previewImage,
+  preview: displayModels.value.find(model => model.id === card.extensions.airi.avatarModels.find(avatarModel => avatarModel.id === card.extensions.airi.defaultAvatarModelId)?.displayModelId)?.previewImage,
 })))
 
 async function selectCharacter(id: string) {

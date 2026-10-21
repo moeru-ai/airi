@@ -38,7 +38,8 @@ export default defineConfig({
     browser: {
       enabled: true,
       headless: true,
-      provider: playwright(),
+      // The Voiceprint page records from the microphone. Chromium then uses a fake device without a permission prompt.
+      provider: playwright({ launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] } }),
       instances: [
         { browser: 'chromium' },
       ],

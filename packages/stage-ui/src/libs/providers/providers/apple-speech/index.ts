@@ -224,6 +224,8 @@ export const providerAppleSpeechTranscription = defineProvider<AppleSpeechConfig
   tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt', 'streaming-transcription'],
   requiresCredentials: false,
   isAvailableBy: isAppleSpeechAvailable,
+  // The settings live in the Hearing module, not under /settings/providers.
+  to: '/settings/modules/hearing/transcriber',
   views: {
     hearing: () => import('./hearing-settings.vue'),
   },

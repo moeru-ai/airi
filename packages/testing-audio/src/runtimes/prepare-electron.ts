@@ -13,7 +13,7 @@ export default async function prepareElectronRuntime(context: FakemicElectronPre
     const url = new URL(page.url())
     return url.pathname.endsWith('/index.html') && url.hash === '#/'
   })
-  await page.locator('[i-solar\\:alt-arrow-up-line-duotone]').first().waitFor({ state: 'visible', timeout: 30_000 })
+  await page.locator('[data-testid="main-controls"]').first().waitFor({ state: 'visible', timeout: 30_000 })
   await page.evaluate(stubForBrowser, browserProbeOptions)
 
   return createSession({

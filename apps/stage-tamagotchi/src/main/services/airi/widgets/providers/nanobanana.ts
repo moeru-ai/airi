@@ -1,6 +1,8 @@
 import type { ArtistryJob, ArtistryJobStatus, ArtistryProvider, ArtistryRequest } from './base'
 
+import { GoogleGenAI } from '@google/genai'
 import { useLogg } from '@guiiai/logg'
+import { errorMessageFrom } from '@moeru/std'
 
 const log = useLogg('providers-nanobanana').useGlobalConfig()
 
@@ -63,42 +65,35 @@ export class NanoBananaProvider implements ArtistryProvider {
     this.updateStatus(jobId, { status: 'running', actionLabel: 'Inscribing with Nano Banana...' })
 
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`
-      const generationParts: any[] = [{ text: prompt }]
-      if (base64Image) {
-        generationParts.push({ inline_data: { mime_type: 'image/jpeg', data: base64Image } })
-      }
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: generationParts }],
-          generationConfig: { imageConfig: { aspectRatio: '1:1', imageSize: resolution } },
-        }),
+      const ai = new GoogleGenAI({ apiKey: this.apiKey })
+      const response = await ai.models.generateContent({
+        model,
+        contents: [{
+          parts: [
+            { text: prompt },
+            ...(base64Image ? [{ inlineData: { mimeType: 'image/jpeg', data: base64Image } }] : []),
+          ],
+        }],
+        config: { imageConfig: { aspectRatio: '1:1', imageSize: resolution } },
       })
 
-      const json = await response.json()
-      if (json.error) {
-        throw new Error(json.error.message || 'Nano Banana API Error')
-      }
-
       // Search all parts for the first image
-      const responseParts = json.candidates?.[0]?.content?.parts || []
-      const imagePart = responseParts.find((p: any) => p.inlineData?.data)
+      const responseParts = response.candidates?.[0]?.content?.parts || []
+      const imagePart = responseParts.find(part => part.inlineData?.data)
       const inlineData = imagePart?.inlineData
 
       if (inlineData?.data) {
-        const dataUrl = `data:${inlineData.mimeType};base64,${inlineData.data}`
+        const dataUrl = `data:${inlineData.mimeType || 'image/png'};base64,${inlineData.data}`
         this.updateStatus(jobId, { status: 'succeeded', progress: 100, imageUrl: dataUrl })
       }
       else {
         throw new Error('No image data returned from Nano Banana')
       }
     }
-    catch (e: any) {
-      log.error(`[Nano Banana] Generation failed: ${e.message}`)
-      this.updateStatus(jobId, { status: 'failed', error: e.message })
+    catch (error: unknown) {
+      const message = errorMessageFrom(error)
+      log.error(`[Nano Banana] Generation failed: ${message}`)
+      this.updateStatus(jobId, { status: 'failed', error: message })
     }
     finally {
       // Clean up callback and job result after completion to prevent memory leaks
