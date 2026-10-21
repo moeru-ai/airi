@@ -262,8 +262,31 @@ await response.finish()
 ```
 
 Producers can synthesize concurrently. Playback follows their reservation order.
-A producer holds its text until `end()`. Then `toSpeechText` removes markdown that has no sound, for example emphasis delimiters, link URLs, and code blocks.
+A producer streams its text to TTS by segments. `MarkdownSegmenter` ends a segment after a sentence or a line, only where no formula, code, link, emphasis, or table is open. Then `toSpeechText` reads the segment and removes markdown that has no sound, for example emphasis delimiters, link URLs, and code blocks.
+So an answer starts to speak after its first sentence, and a formula that later writes complete is still read as one formula.
 Symbols that markdown keeps as text, for example `2 * 3` and `x ~= 3`, stay in the speech text.
+TeX formulas, `\ce{}` chemistry, units, and dollar prices are read as words of the sentence language: Chinese, English, Japanese, or Korean.
+The rules are in [`@proj-airi/speech-transformer-math`](../speech-transformer-math) and [`@proj-airi/speech-transformer-chem`](../speech-transformer-chem), see [the ADR](../../docs/ai/adr/2026-10-20-speech-text-preprocessor.md).
+`mathSpeech` is the instance that AIRI uses: the built-in locale packs, with chemistry.
+
+`toMathJson(tex)` returns the MathJSON of a formula without reading it, for tools that inspect formulas.
+`options.language` is the BCP 47 code of the voice. The words around a formula or a price select its language first.
+
+`toSpeechText` is a host of preprocessor plugins. The default plugins are `moneySpeechPreprocessor` and `mathSpeechPreprocessor`.
+A plugin can have three hooks: `prepare` rewrites the markdown, `formula` reads one formula, and `prose` rewrites a run of text.
+To add a reading, pass `preprocessors: [myPlugin, ...defaultSpeechPreprocessors()]`.
+
+```ts
+const spoken = toSpeechText(markdown, {
+  preprocessors: [
+    { name: 'brand', prose: text => text.replaceAll('AIRI', 'ai ree') },
+    ...defaultSpeechPreprocessors(),
+  ],
+})
+```
+
+The words of each language are in a locale pack of `@proj-airi/speech-transformer-math`.
+To add a language or change one, call `mathSpeech.register(pack)`. A language without a pack reads in English.
 Special tokens and flushes keep their position relative to the text.
 Cancelling an acknowledgment releases its place without reporting a user interruption.
 Whole-turn interruption aborts generation, synthesis, queued audio, and playback for that response.
