@@ -59,6 +59,11 @@ docs:
     fullscreen: Fullscreen, beside the character
     attached: Beside the character
   move: Drag to move the chat
+  resize-corner:
+    ne: Resize from the top-right corner
+    nw: Resize from the top-left corner
+    se: Resize from the bottom-right corner
+    sw: Resize from the bottom-left corner
   danmaku: Message feed
   pin: Keep on top
   fold: Hide chat

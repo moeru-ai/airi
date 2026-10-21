@@ -58,6 +58,11 @@ docs:
     fullscreen: 全屏，在角色旁
     attached: 吸附在角色旁
   move: 拖动以移动聊天
+  resize-corner:
+    ne: 从右上角调整大小
+    nw: 从左上角调整大小
+    se: 从右下角调整大小
+    sw: 从左下角调整大小
   danmaku: 弹幕机
   pin: 保持置顶
   fold: 收起聊天

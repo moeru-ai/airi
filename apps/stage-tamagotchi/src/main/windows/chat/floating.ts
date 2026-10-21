@@ -57,6 +57,11 @@ interface FloatingChatWindow {
   getOpenWindow: () => BrowserWindow | undefined
   /** Moves the window into the persisted placement. */
   applyPlacement: () => void
+  /**
+   * Applies the persisted pin and message feed without moving the window. An attached chat keeps the pin of the main
+   * window and the layout that it has.
+   */
+  applyPreferences: () => void
   /** Whether the chat is unfolded, which the chat button shows as pressed. */
   isUnfolded: () => boolean
   /** Hides the chat while the main window covers its display, and shows it again after, unless it is folded. */
@@ -563,6 +568,15 @@ export function setupFloatingChatWindow(params: {
       const window = reusable.getOpenWindow()
       if (window)
         applyPlacementTo(window)
+    },
+    applyPreferences() {
+      const window = reusable.getOpenWindow()
+      if (!window)
+        return
+      // The pin change reports itself through `always-on-top-changed`. The state below carries the message feed.
+      if (params.getPlacement() !== 'attached')
+        window.setAlwaysOnTop(params.getPinned())
+      emitState()
     },
     isUnfolded: () => !folded,
     setCovered(value: boolean) {

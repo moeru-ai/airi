@@ -356,8 +356,13 @@ export function setupChatWindowManager(params: {
     await modeSwitch.run(async () => {
       const previous = getConfig()
       updateConfig({ ...previous, placement: next.placement, danmaku: next.danmaku, pinned: next.pinned })
-      if (next.placement !== previous.placement || next.danmaku !== previous.danmaku || next.pinned !== previous.pinned)
+      // Only a new placement attaches the chat again. An attached chat keeps
+      // its layout through a new pin or message feed, so it does not jump to
+      // the preferred side while the main window stays still.
+      if (next.placement !== previous.placement)
         floating.applyPlacement()
+      else if (next.danmaku !== previous.danmaku || next.pinned !== previous.pinned)
+        floating.applyPreferences()
     })
 
     try {

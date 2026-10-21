@@ -184,6 +184,21 @@ const resizeHandleClasses: Record<ResizeDirection, string[]> = {
 /** The handles of the chat, the edges first, so a corner sits over the ends of its two edges. */
 const resizeHandles = computed(() => [...state.value.resizeEdges].sort((a, b) => a.length - b.length))
 
+type ResizeCorner = Extract<ResizeDirection, 'ne' | 'nw' | 'se' | 'sw'>
+
+function isResizeCorner(direction: ResizeDirection): direction is ResizeCorner {
+  return direction.length === 2
+}
+
+// A corner moves both edges that meet there, so the corners also resize from
+// the keyboard, and each one names its corner.
+const resizeCornerLabels = computed<Record<ResizeCorner, string>>(() => ({
+  ne: t('tamagotchi.stage.chat-window.resize-corner.ne'),
+  nw: t('tamagotchi.stage.chat-window.resize-corner.nw'),
+  se: t('tamagotchi.stage.chat-window.resize-corner.se'),
+  sw: t('tamagotchi.stage.chat-window.resize-corner.sw'),
+}))
+
 interface WindowDelta {
   deltaX: number
   deltaY: number
@@ -288,10 +303,10 @@ function pointerStillHeld(event: PointerEvent) {
 // A window that loses focus has no press left in it.
 useEventListener(window, 'blur', releasePointer)
 
-/** Keyboard step for the drag handle, in screen pixels. */
+/** Keyboard step for the drag handle and the resize corners, in screen pixels. */
 const keyboardStep = 16
 
-/** Moves the window from the arrow keys, as a pointer drag would. */
+/** Moves or resizes the window from the arrow keys, as a pointer drag would. */
 function handleArrowKey(event: KeyboardEvent, applyDelta: (delta: WindowDelta) => unknown) {
   const step = event.shiftKey ? keyboardStep * 4 : keyboardStep
   const deltas: Record<string, WindowDelta> = {
@@ -439,13 +454,21 @@ function moveByKeyboard(delta: WindowDelta) {
             :expired-before="expiredBefore"
           />
         </div>
-        <div
+        <!-- The corners are buttons that take keyboard focus and the arrow keys. The edges take only the pointer. -->
+        <component
+          :is="isResizeCorner(edge) ? 'button' : 'div'"
           v-for="edge in resizeHandles"
           :key="edge"
-          :class="['absolute z-1000 touch-none', resizeHandleClasses[edge]]"
+          :aria-label="isResizeCorner(edge) ? resizeCornerLabels[edge] : undefined"
+          :class="[
+            'absolute z-1000 touch-none outline-none',
+            isResizeCorner(edge) ? 'rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-300' : '',
+            resizeHandleClasses[edge],
+          ]"
           @pointerdown="holdPointer($event, edge)"
           @pointermove="resizeWithHeldPointer"
           @lostpointercapture="releasePointer"
+          @keydown="handleArrowKey($event, (delta: WindowDelta) => resizeBy({ ...delta, direction: edge }))"
         />
         <WindowResizeBorder :shown="nearResizeEdge || nearResizeEdgeFor250Ms" :class="['rounded-3xl']" />
       </div>
