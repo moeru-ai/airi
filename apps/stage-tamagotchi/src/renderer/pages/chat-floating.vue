@@ -454,11 +454,15 @@ function moveByKeyboard(delta: WindowDelta) {
             :expired-before="expiredBefore"
           />
         </div>
-        <!-- The corners are buttons that take keyboard focus and the arrow keys. The edges take only the pointer. -->
+        <!--
+          The corners are buttons that take keyboard focus and the arrow keys. The edges take only the pointer. The
+          handles paint nothing, so they mark that the window takes the pointer over them.
+        -->
         <component
           :is="isResizeCorner(edge) ? 'button' : 'div'"
           v-for="edge in resizeHandles"
           :key="edge"
+          data-takes-pointer
           :aria-label="isResizeCorner(edge) ? resizeCornerLabels[edge] : undefined"
           :class="[
             'absolute z-1000 touch-none outline-none',
