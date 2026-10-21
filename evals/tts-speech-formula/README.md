@@ -65,7 +65,8 @@ To add a TTS provider, add a `speechProviderFrom` and a `speechModelFrom` entry 
 ```text
 vieval.config.ts                  the comparison
 eval/
-  cases/formula-speech/           the dataset: 70 cases and the four languages
+  cases/formula-speech/           the main dataset: 70 cases and the four languages
+  cases/math-bridge/              a pinned sample of MathBridge and the script that draws it
   evaluators/
     speech/                       TTS and ASR. `speech-models.ts` is a vieval plugin, see below
     listener/                     the listener model: Velin prompt, votes, and cached answers
@@ -82,13 +83,13 @@ eval/
 
 | Vieval layer | In this suite |
 | --- | --- |
-| Comparison | `vieval.config.ts`, on the `formula-speech` dataset. |
+| Comparison | `vieval.config.ts`, on the `formula-speech` dataset. `EVAL_DATASET=math-bridge` selects MathBridge. |
 | Workspace | One test object under `eval/test-objects/`: `raw`, `rule`, `llm`, or `sre`. |
 | Project | One per test object, named `formula-speech-<object>`. |
 | Run matrix | `tts`: `none`, then TTS model ids. The `llm` object adds `rewrite`, its rewrite model. |
 | Eval matrix | `listener`, the listener model, `judge`, the judge model, and `asr`, the ASR model when `tts` has a provider. They are part of the measurement, not of the test object. |
 | Task | `read-aloud` in one language. During development, `EVAL_LANGUAGES=<language>,<language>` limits a run to some languages. |
-| Case | One of the 70 cases. During development, `EVAL_CASES=<id>,<id>` limits a run to some cases. |
+| Case | One case of the dataset. During development, `EVAL_CASES=<id>,<id>` limits a run to some cases. |
 
 The test objects are:
 
@@ -101,15 +102,34 @@ The prompts are [Velin](https://github.com/moeru-ai/velin) markdown. Keep each L
 
 To add a test object, add a directory under `eval/test-objects/` with a `ReadAloud` adapter, a config that calls `defineFormulaSpeechConfig`, and one task file per language. The comparison finds it automatically.
 
-`tts: none` sends the spoken text straight to the listener. It measures only what AIRI hands to TTS, independent of the provider. This is the floor that AIRI controls. A real provider shows which parts of that text the provider then reads wrong.
+`tts: none` sends the spoken text straight to the listener. It measures only the text that AIRI hands to TTS, independent of the provider. TTS and ASR can only lose information, so `none` is the best score that the text can reach through a provider. A real provider shows which parts of that text the provider then reads wrong, or the ASR model hears wrong.
+
+## Datasets
+
+| Dataset | Cases | Languages | Source |
+| --- | --- | --- | --- |
+| `formula-speech` | 70 per language, 280 in total | zh, en, ja, ko | Written for this suite. The cases are stratified by kind: math, chemistry, units, and dollar amounts. |
+| `math-bridge` | 180 | en | A sample of [MathBridge](https://huggingface.co/datasets/Kyudan/MathBridge) (MIT license), formulas from arXiv papers. |
+
+`formula-speech` is the default and the dataset that the results below compare. It covers the notation that AIRI replies hold, in four languages.
+
+`math-bridge` checks the rules on formulas that nobody wrote for them. It holds 120 `uniform` cases in a seeded random order over all rows, plus 12 cases for each of five topics: `expectation`, `variance`, `norm`, `distribution`, and `calligraphic-call`. Uniform rows rarely hold these topics. A formula longer than 80 characters gets a `-long` stratum suffix. MathBridge has only English, so run it in English:
+
+```shell
+EVAL_DATASET=math-bridge EVAL_LANGUAGES=en EVAL_TTS=none pnpm -F @proj-airi/evals-tts-speech-formula eval:compare
+```
+
+The eval reads the committed `eval/cases/math-bridge/sample.json`. Only a new sample needs the source file. `pnpm -F @proj-airi/evals-tts-speech-formula run cases:math-bridge` downloads the parquet file at a pinned revision into the ignored `.cache/mathbridge/`, checks its SHA-256, and queries it with DuckDB. The same revision and seed (`20261020`) always give the same sample. `index.ts` repairs the tokenized spacing of the source, for example `\ {`.
 
 ## ASR
 
-The `asr` axis selects the speech recognizer of every TTS clip. Two are registered:
+The `asr` axis selects the speech recognizer of every TTS clip. Three are registered:
 
-- `apple-speech`: Apple Speech on macOS, through `@xsai-apple-speech/transcription-native`. It runs locally and needs no key. It uses one recognizer per language: `zh-CN`, `en-US`, `ja-JP`, or `ko-KR`. Install these locales in the macOS speech settings. It is the default, because `whisper-1` fell into repetition loops on short clips.
+- `apple-speech`: Apple Speech on macOS, through `@xsai-apple-speech/transcription-native`. It runs locally and needs no key. It uses one recognizer per language: `zh-CN`, `en-US`, `ja-JP`, or `ko-KR`. Install these locales in the macOS speech settings. It is the default, so anyone on macOS can run the suite without an ASR key. It is not the reference: it got 4 of 20 test clips right, where Gemini got 13.
 - `whisper-1`: any OpenAI-compatible `/audio/transcriptions` endpoint, set with `ASR_BASE_URL` and `ASR_API_KEY`.
-- `gemini-3.8-flash`: Gemini through its `generateContent` API, set with `ASR_GEMINI_BASE_URL` and `ASR_GEMINI_API_KEY`. The base URL is the Gemini API root, for example `https://generativelanguage.googleapis.com/v1beta/`. Gemini has no `/audio/transcriptions` endpoint, so `evaluators/speech/gemini-transcription.ts` is a transcription executor that sends the clip as inline audio.
+- `gemini-3.8-flash`: Gemini through its `generateContent` API, set with `ASR_GEMINI_BASE_URL` and `ASR_GEMINI_API_KEY`. The base URL is the Gemini API root, for example `https://generativelanguage.googleapis.com/v1beta/`. A proxy needs its native Gemini route, for example `https://aihubmix.com/gemini/v1beta/`, not its OpenAI-compatible route. Formal runs and the results below use this model. Gemini has no `/audio/transcriptions` endpoint, so `evaluators/speech/gemini-transcription.ts` is a transcription executor that sends the clip as inline audio.
+
+`whisper-1` fell into repetition loops on short clips, for example `L-R-R-R…`, so it is only a comparison.
 
 Put several in the `asr` axis to compare them on the same clips. `EVAL_ASR=apple-speech,gemini-3.8-flash` selects them for one run.
 
@@ -184,6 +204,50 @@ The suite records what each run spends. It records only calls that reach a provi
 | ASR | `tts_speech_formula.asr.requests` | Case metrics |
 
 TTS and ASR use metrics because the vieval inference events accept only chat calls. The suite records no prices.
+
+## Benchmark results
+
+The runs of 2026-10-21. The listener and the judge are `gpt-6-luna`. The TTS tier is the official AIRI provider (StepFun `stepfun/stepaudio-2.5-tts`, voice `jilingshaonv`, `lively-girl` for English), and its ASR model is `gemini-3.8-flash`. The values are percentages of the scored cases.
+
+### `formula-speech`, `tts: none`
+
+| Test object | Correct | Natural | Pass | Leftover notation per case |
+| --- | --- | --- | --- | --- |
+| `raw` | 98.6 | 1.2 | 1.4 | 8.43 |
+| `rule` | 97.9 | 97.3 | **97.1** | 0.00 |
+| `llm` | 92.1 | 83.4 | 85.4 | 0.00 |
+| `sre` | 88.9 | 35.7 | 37.9 | 0.06 |
+
+### `formula-speech`, official TTS and Gemini ASR
+
+| Test object | Correct | Natural | Pass | Pass zh | Pass en | Pass ja | Pass ko | Unscored |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `rule` | 94.2 | 97.3 | **93.8** | 98.5 | 100.0 | 88.2 | 88.4 | 5 |
+| `llm` | 86.5 | 83.4 | 79.6 | 85.1 | 85.5 | 72.1 | 75.7 | 6 |
+| `sre` | 66.7 | 35.7 | 27.9 | 1.5 | 67.1 | 2.9 | 39.7 | 4 |
+
+`raw` has no TTS run: it spells markup, so the TTS tier adds nothing to its result. An unscored case is a clip that Gemini returned no transcript for (`asr_empty`). Natural is the same as in `none`, because the judge reads the spoken text, not the transcript.
+
+### `math-bridge`, `tts: none`
+
+| Test object | Correct | Natural | Pass | Pass `uniform` (120) | Pass topics (60) |
+| --- | --- | --- | --- | --- | --- |
+| `raw` | 93.9 | 0.0 | 0.0 | 0.0 | 0.0 |
+| `rule` | 71.1 | 96.9 | **70.6** | 78.3 | 55.0 |
+| `llm` | 77.8 | 58.1 | 51.7 | 61.7 | 31.7 |
+| `sre` | 67.2 | 65.8 | 60.0 | 69.2 | 41.7 |
+
+To get these numbers again, run each test object with `--report-out` and read `cases.jsonl` of its run.
+
+## Conclusion
+
+- `rule` has the best pass rate in every table. On `formula-speech` it loses 3 points through TTS and ASR, and most of the loss is in Japanese and Korean.
+- `raw` shows why the suite has the judge. A listener model writes spelled markup back almost perfectly, so `raw` has the highest correctness and almost no passes.
+- `llm` is not an upper bound in practice. It is less correct than `rule`, and the judge calls fewer of its readings natural. It is also too slow for the live path.
+- `sre` reads Chinese and Japanese in English, so its pass rate there is near 0. Its English is natural, but less correct than `rule`.
+- `math-bridge` is harder for every test object. On `rule`, almost all failures are correctness failures, not spelled readings. The topic strata (55.0) show the notation that the rules still read wrong, so they are the next work.
+- The judge is near its limit. It matched 72% of the human labels, then 79% after one prompt revision, and 74% after the next. Prompt changes no longer move it much. Some readings are hard to label even for a person. Read differences of natural of a few points as noise.
+- Most of the loss after `none` comes from TTS, and AIRI cannot fix it in this suite. The StepFun Chinese voice reads short Japanese and Korean digits in Chinese, and no tested voice reads bare Japanese digits reliably. Compare TTS providers with this suite, but change the rule engine only for failures that `none` also shows.
 
 ## When to use it
 
