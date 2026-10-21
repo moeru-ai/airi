@@ -133,7 +133,7 @@ const { controller, state, snapshot, error: testTranscriptionError } = useVoiceC
 })
 const isTestingSTT = computed(() => state.value?.phase === 'pending' || state.value?.phase === 'capturing')
 const isTranscribing = computed(() => state.value?.phase === 'finalizing')
-const testStreamingText = computed(() => isTestingSTT.value || isTranscribing.value ? snapshot.value?.transcript.text ?? '' : '')
+const testStreamingText = computed(() => isTestingSTT.value || isTranscribing.value ? snapshot.value?.corrected.text ?? '' : '')
 const testStatusMessage = computed(() => {
   if (state.value?.phase === 'pending')
     return t('stage.chat.voice-message.starting')

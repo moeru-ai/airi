@@ -1,15 +1,22 @@
 import type { AudioPlayback, IntentHandle, PcmBlock, PlaybackGroup, PlaybackItem, PlaybackReceipt, SpeechPipelineEvents, SpeechPipelineOptions } from '@proj-airi/pipelines-audio'
 
+import type { Outcome } from '@proj-airi/stream-kit'
+
 import type { TurnRef } from '../turn'
 
-import { createPushStream, createSpeechPipeline } from '@proj-airi/pipelines-audio'
+import { createSpeechPipeline } from '@proj-airi/pipelines-audio'
+import { createPushStream } from '@proj-airi/stream-kit'
 import { nanoid } from 'nanoid/non-secure'
 
 import { errorFromCause, errorMessageFromValue } from '../../utils/error'
+import { toSpeechText } from './speech-text'
 
 /** Each synthesized part carries optional display text. Audio ownership transfers to playback. */
 export interface SpeechAudio {
   readonly audio: Blob | ReadableStream<PcmBlock>
+  // REVIEW: I am wondering, is text enough here?
+  // Should we consider more richtext friendly design
+  // or consider more structural design here?
   readonly text?: string
 }
 
@@ -43,17 +50,34 @@ export type SpeechOutput = {
   readonly stream: (text: ReadableStream<string>, signal: AbortSignal) => Promise<ReadableStream<SpeechAudio>>
 })
 
+/**
+ * Marks where a special token or a flush occurs in the buffered text, so that markdown conversion keeps its position.
+ * It is a Unicode private use character. Model text does not contain it, and producer text is stripped of it.
+ */
+const controlMarker = '\uE000'
+
+type SpeechControl = { readonly type: 'special', readonly value: string } | { readonly type: 'flush' }
+
+// REVIEW: this doesn't look like the native Speech Stream, i'd rather to believe this is
+// naive wrapper and design for speech without much abstraction
 /** One producer owns its text, synthesis, queued audio, and cancellation within a response. */
 export class SpeechStream {
   private readonly abort = new AbortController()
-  private readonly completion = Promise.withResolvers<{ status: 'finished' } | { status: 'cancelled', reason: string } | { status: 'failed', error: Error }>()
+  private readonly completion = Promise.withResolvers<Outcome>()
+
   private intent: IntentHandle | undefined
+
   private text: ReturnType<typeof createPushStream<string>> | undefined
   private outputReader: ReadableStreamDefaultReader<SpeechAudio> | undefined
+
   private started = false
   private sealed = false
   private settled = false
+
   private timer: ReturnType<typeof setTimeout> | undefined
+  /** Markdown that `end()` converts to speech text. A control marker holds the place of each entry in `controls`. */
+  private markdown = ''
+  private readonly controls: SpeechControl[] = []
   readonly signal = this.abort.signal
   readonly done = this.completion.promise
 
@@ -91,6 +115,7 @@ export class SpeechStream {
       interrupt: new Set<SpeechPipelineEvents<Blob>['onPlaybackInterrupt']>(),
     }
     const pending = new Set<PlaybackItem<Blob>>()
+
     const pipeline = createSpeechPipeline<Blob>({
       tts: async (request, signal) => {
         try {
@@ -107,25 +132,38 @@ export class SpeechStream {
           pending.add(item)
           const clip = { id: item.segmentId, text: item.text }
           let started = false
-          void Promise.race([previous, this.done]).then(async () => {
+          void Promise.race([previous, this.done])
+          .then(async () => {
             if (this.signal.aborted || response.signal.aborted)
               return 'stopped' as const
-            return response.playback.enqueue({ id: item.id, audio: item.audio, signal: this.signal, onStart: () => {
-              started = true
-              listeners.start.forEach(listener => listener({ item, startedAt: Date.now() }))
-              output.onPlaybackStart?.(clip)
+
+            return response.playback.enqueue({
+              id: item.id,
+              audio: item.audio,
+              signal: this.signal,
+              onStart: () => {
+                started = true
+                listeners.start.forEach(listener => listener({ item, startedAt: Date.now() }))
+                output.onPlaybackStart?.(clip)
             } })
-          }).then((result) => {
+          })
+          .then((result) => {
             if (started)
               output.onPlaybackEnd?.(clip, this.clipEnd(result))
+
             if (!pending.delete(item))
               return
+
             if (result === 'ended')
               listeners.end.forEach(listener => listener({ item, endedAt: Date.now() }))
             else
               listeners.interrupt.forEach(listener => listener({ item, interruptedAt: Date.now(), reason: result }))
+
+            // REVIEW: can we have more manage-able error handling
+            // across our pipelines?
             if (result === 'failed')
               this.fail(new Error('Speech playback failed'))
+            // REVIEW: must we do this here?
           }, cause => this.fail(errorFromCause(cause, 'Speech playback failed')))
         },
         stopByIntent: (_id, reason) => {
@@ -147,7 +185,8 @@ export class SpeechStream {
     })
 
     pipeline.on('onSpecial', segment => segment.special && output.onSpecial?.(segment.special))
-    pipeline.on('onIntentEnd', () => this.settle({ status: 'finished' }))
+    pipeline.on('onIntentEnd', () => this.settle({ status: 'finished', value: undefined }))
+
     this.intent = pipeline.openIntent({ turnId: response.turn.turnId, ownerId: response.turn.sessionId })
   }
 
@@ -190,7 +229,7 @@ export class SpeechStream {
         throw new Error('Speech provider completed before text input ended')
 
       await Promise.all(playing)
-      this.settle({ status: 'finished' })
+      this.settle({ status: 'finished', value: undefined })
     }
     catch (cause) {
       this.fail(errorFromCause(cause, 'Streaming speech failed'))
@@ -210,29 +249,33 @@ export class SpeechStream {
     return signal.aborted ? { status, reason: errorMessageFromValue(signal.reason) } : { status }
   }
 
-  /** Special tokens remain ordered through the chunker. Streaming providers handle these tokens outside their text transport. */
+  // REVIEW:
+  // Every purpose holds its text until `end()`, so markdown is converted with the full context.
+  // read-aloud already has the full text, but answer and notification start to speak only after the model ends.
+  // answer needs a streaming commit at clause boundaries. See the chunker punctuation in pipelines-audio.
+
+  /** Special tokens keep their position relative to the text. They are delivered when the producer ends. */
   special(value: string) {
     if (this.sealed || this.response.signal.aborted)
       return
-    if (this.intent)
-      this.intent.writeSpecial(value)
-    else
-      this.output.onSpecial?.(value)
+
+    this.markdown += controlMarker
+    this.controls.push({ type: 'special', value })
   }
 
   flush() {
-    if (!this.sealed)
-      this.intent?.writeFlush()
+    if (this.sealed)
+      return
+
+    this.markdown += controlMarker
+    this.controls.push({ type: 'flush' })
   }
 
   write(text: string): { status: 'accepted' | 'closed' } {
     if (this.sealed || this.response.signal.aborted)
       return { status: 'closed' }
-    if (this.text)
-      this.text.write(text)
-    else
-      this.intent!.writeLiteral(text)
 
+    this.markdown += text.replaceAll(controlMarker, '')
     return { status: 'accepted' }
   }
 
@@ -240,9 +283,42 @@ export class SpeechStream {
     if (this.sealed)
       return
 
+    if (!this.response.signal.aborted)
+      this.deliver()
     this.sealed = true
     this.text?.close()
     this.intent?.end()
+  }
+
+  /** Sends the speech text and the controls in source order. Controls that conversion lost are sent last, in order. */
+  private deliver() {
+    const parts = toSpeechText(this.markdown, { marker: controlMarker }).split(controlMarker)
+    parts.forEach((text, index) => {
+      if (text)
+        this.deliverText(text)
+
+      const control = this.controls[index]
+      if (control && index < parts.length - 1)
+        this.deliverControl(control)
+    })
+    this.controls.slice(parts.length - 1).forEach(control => this.deliverControl(control))
+  }
+
+  private deliverText(text: string) {
+    if (this.text)
+      this.text.write(text)
+    else
+      this.intent!.writeLiteral(text)
+  }
+
+  /** The chunker orders special tokens with the audio. Streaming providers handle them outside their text transport. */
+  private deliverControl(control: SpeechControl) {
+    if (control.type === 'flush')
+      this.intent?.writeFlush()
+    else if (this.intent)
+      this.intent.writeSpecial(control.value)
+    else
+      this.output.onSpecial?.(control.value)
   }
 
   cancel(reason: string) {
@@ -267,7 +343,7 @@ export class SpeechStream {
     this.settle({ status: 'failed', error })
   }
 
-  private settle(outcome: Awaited<SpeechStream['done']>) {
+  private settle(outcome: Outcome) {
     if (this.settled)
       return
 

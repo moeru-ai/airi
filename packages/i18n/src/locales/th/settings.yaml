@@ -242,14 +242,7 @@ live2d:
     sdk-preset-preserved-notice: >
       ตัวจัดการสีหน้าและการกะพริบตาของ SDK จะยังคงทำงานเมื่อปิดตัวเลือกนี้
     no-expression: โมเดลนี้ไม่มีสีหน้าที่ใช้ได้
-    llm-integration-wip: ยังไม่ได้เชื่อมต่อเครื่องมือของ LLM
-    save-default: บันทึกค่าเริ่มต้นของสีหน้า
     reset: รีเซ็ตสีหน้าทั้งหมด
-    expose-to-llm-toggle: เปิดให้ LLM ใช้
-    expose-to-llm-options:
-      none: ไม่มี
-      all: ทั้งหมด
-      custom: กำหนดเอง
 microphone: ไมโครโฟน
 models: โมเดล
 pages:
@@ -342,10 +335,15 @@ pages:
             label: พิมพ์อีเมลของคุณเพื่อยืนยัน
             mismatch: อีเมลไม่ตรงกัน
           confirm: ส่งอีเมลยืนยัน
+          deleteNow: ลบถาวร
+          confirmPhrase: พิมพ์ DELETE เพื่อยืนยัน
+          signInAgain: เข้าสู่ระบบอีกครั้ง
           cancel: ยกเลิก
         message:
+          deleted: ลบบัญชีของคุณแล้ว
           emailSent: ตรวจสอบลิงก์สำหรับลบบัญชีที่ {email}
         error:
+          reauthenticate: เข้าสู่ระบบอีกครั้ง แล้วกลับมาที่นี่เพื่อยืนยันการลบ ระบบจะไม่ส่งอีเมล
           fallback: เริ่มการลบไม่ได้ โปรดลองอีกครั้งภายหลัง
           subscriptionActive: การสมัครสมาชิกของคุณยังใช้งานอยู่ ยกเลิกที่หน้า Capacitor ก่อน แล้วจึงลบบัญชี
   card:
@@ -866,6 +864,11 @@ pages:
               preparing: กำลังเตรียมโมเดลคำปลุก…
               ready: คำปลุกพร้อมแล้ว
               error: 'โมเดลคำปลุกไม่พร้อมใช้งาน: {error}'
+          end-judge:
+            title: การจบคำพูด
+            description: เมื่อคุณหยุดพูด โมเดลแชทจะอ่านข้อความถอดเสียงและตัดสินว่าคุณพูดจบแล้วหรือยัง หากยังไม่จบ AIRI จะรออีก 3 วินาทีให้คุณพูดต่อ
+            enabled: ตรวจว่าฉันพูดจบแล้วหรือยัง
+            enabled-description: ข้อความถอดเสียงของการหยุดแต่ละครั้งจะถูกส่งไปยังโมเดลที่ใช้เขียนข้อความใหม่ เมื่อปิดตัวเลือกนี้ AIRI จะจบการพูดของคุณหลังหยุดชั่วครู่
           rephrase:
             title: การเขียนข้อความถอดเสียงใหม่
             description: โมเดลแชทจะแก้ข้อผิดพลาดจากการรู้จำและตัดคำเติมออก ก่อนที่ข้อความถอดเสียงจะกลายเป็นฉบับร่าง ข้อความต้นฉบับยังเก็บไว้
@@ -1310,6 +1313,7 @@ pages:
         headers:
           label: Header
           description: Header ที่ส่งไปกับทุกคำขอ เช่น โทเค็นสำหรับการอนุญาต
+          value-placeholder: โทเค็น Bearer
         command:
           label: คำสั่ง
           description: โปรแกรมที่จะเรียกใช้ผ่าน stdio
@@ -1385,12 +1389,9 @@ pages:
       buy: เติมเงิน
       description: แพ็กเกจ Flux ที่เลือกได้
   capacitor:
-    description: Capacitor เก็บ Flux ไว้และเติมเองโดยอัตโนมัติ
     statusError: โหลด Capacitor ของคุณไม่สำเร็จ โปรดลองอีกครั้งภายหลัง
     packagesError: โหลด Capacitor ไม่สำเร็จ โปรดลองอีกครั้งภายหลัง
     preferenceError: บันทึกการกำหนดค่าไม่สำเร็จ โปรดลองอีกครั้งภายหลัง
-    noCapacitor: ไม่มี Capacitor
-    available: Capacitor ที่มี
     remaining: 'เหลือ {percent}'
     rechargesAt: เติมใหม่ {date}
     renewsAt: ต่ออายุ {date}

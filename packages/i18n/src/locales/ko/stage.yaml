@@ -82,6 +82,7 @@ chat:
     discard: 초안 버리기
     listening: 듣는 중
     finalizing: 마무리 중…
+    sent: 전송됨
   voice-input: 음성 입력
   error-details:
     show: 상세 정보 보기

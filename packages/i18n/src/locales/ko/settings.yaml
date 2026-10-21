@@ -41,8 +41,8 @@ dialogs:
     enableChatCheck: >-
       Airi가 첫 모델에게 "Ping" 메시지를 보낼 수 있도록 허용하기
     start: 그럼 시작합시다!
-    loginPrompt: 최고의 경험을 위해 공식 AIFI 제공업체를 이용하려면 로그인하세요.
-    loginAction: 가입하기
+    loginPrompt: 최고의 경험을 위해 공식 AIRI 제공업체를 이용하려면 로그인하세요.
+    loginAction: 로그인
     setupWithoutSigningIn: 당신의 제공업자로 설정하기
     pricingLink: 요금
     termsLink: 서비스 약관
@@ -245,14 +245,7 @@ live2d:
     sdk-preset-preserved-notice: >
       비활성화해도 SDK 표정 관리자와 눈 깜박임은 유지됩니다.
     no-expression: 이 모델에는 사용 가능한 표정이 없습니다.
-    llm-integration-wip: LLM 도구 연동은 아직 연결되지 않았습니다.
-    save-default: 표정 기본값 저장
     reset: 모든 표정 초기화
-    expose-to-llm-toggle: LLM에 공개
-    expose-to-llm-options:
-      none: 없음
-      all: 모두
-      custom: 사용자 지정
 microphone: 마이크
 models: 모델
 pages:
@@ -345,10 +338,15 @@ pages:
             label: 확인을 위해 이메일 입력
             mismatch: 이메일이 일치하지 않습니다.
           confirm: 확인 이메일 보내기
+          deleteNow: 영구 삭제
+          confirmPhrase: 확인을 위해 DELETE 입력
+          signInAgain: 다시 로그인
           cancel: 취소
         message:
+          deleted: 계정이 삭제되었습니다.
           emailSent: 삭제 링크를 {email}에서 확인하세요.
         error:
+          reauthenticate: 다시 로그인한 다음 여기로 돌아와 삭제를 확인하세요. 이메일은 발송되지 않습니다.
           fallback: 삭제를 시작하지 못했습니다. 나중에 다시 시도하세요.
           subscriptionActive: 구독이 아직 활성 상태입니다. Capacitor 페이지에서 구독을 취소한 다음 계정을 삭제하세요.
   card:
@@ -869,6 +867,11 @@ pages:
               preparing: 호출어 모델 준비 중…
               ready: 호출어가 준비되었습니다.
               error: '호출어 모델을 사용할 수 없습니다: {error}'
+          end-judge:
+            title: 발화 종료
+            description: 말을 멈추면 채팅 모델이 인식된 텍스트를 읽고 말을 마쳤는지 판단합니다. 아직 끝나지 않았다면 AIRI가 이어서 말할 수 있도록 3초 더 기다립니다.
+            enabled: 말을 마쳤는지 확인
+            enabled-description: 말을 멈출 때마다 인식된 텍스트가 다듬기 모델로 전송됩니다. 끄면 AIRI는 잠시 멈춘 뒤 발화를 끝냅니다.
           rephrase:
             title: 인식된 텍스트 다듬기
             description: 채팅 모델이 인식 오류와 불필요한 말을 제거한 뒤 초안을 만듭니다. 원문은 보관됩니다.
@@ -1314,6 +1317,7 @@ pages:
         headers:
           label: 헤더
           description: 인증 토큰처럼 모든 요청과 함께 보내는 헤더입니다.
+          value-placeholder: Bearer 토큰
         command:
           label: 명령어
           description: stdio를 통해 실행되는 실행 파일입니다.
@@ -1389,11 +1393,9 @@ pages:
       buy: 충전
       description: 선택할 수 있는 Flux 패키지입니다.
   capacitor:
-    description: Capacitor는 Flux를 저장하고 자동으로 충전됩니다.
     statusError: Capacitor를 불러오지 못했습니다. 나중에 다시 시도하세요.
     packagesError: Capacitor 목록을 불러오지 못했습니다. 나중에 다시 시도하세요.
     preferenceError: 환경설정을 저장하지 못했습니다. 나중에 다시 시도하세요.
-    noCapacitor: Capacitor 없음
     remaining: '{percent} 남음'
     rechargesAt: '{date}에 충전'
     renewsAt: '{date}에 갱신'

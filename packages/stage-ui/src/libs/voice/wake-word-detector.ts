@@ -7,6 +7,8 @@ import type { WakePronunciation } from './wake-words'
 import { errorMessageFrom } from '@moeru/std'
 import { observe } from '@proj-airi/pipelines-audio'
 
+import { toMonoSamples } from './mono-samples'
+
 /** The session that a wake selects. The voice activity plugin starts one input for it. */
 export interface WakeTarget {
   readonly sessionId: string
@@ -79,23 +81,6 @@ interface RecognitionBatch {
   readonly samples: Float32Array
   readonly sampleRate: number
   readonly reset: boolean
-}
-
-/** Sherpa-ONNX accepts finite mono PCM in [-1, 1]. */
-function toMonoSamples(window: AudioWindow) {
-  const length = window.channels[0]?.length ?? 0
-  const samples = new Float32Array(length)
-  for (const channel of window.channels) {
-    for (let index = 0; index < length; index++)
-      samples[index] += (channel[index] ?? 0) / window.channels.length
-  }
-  for (let index = 0; index < length; index++) {
-    const value = samples[index]
-    // NaN or Infinity from a device or a resampler would poison the decoder state until the next reset.
-    samples[index] = Number.isFinite(value) ? Math.min(1, Math.max(-1, value)) : 0
-  }
-
-  return samples
 }
 
 /**

@@ -3,11 +3,11 @@ import type { FluxService } from '../../services/domain/flux'
 import type { FluxTransactionService } from '../../services/domain/flux-transaction'
 import type { HonoEnv } from '../../types/hono'
 
+import { createBadRequestError } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { boolean, object, parse, safeParse } from 'valibot'
 
 import { authGuard } from '../../middlewares/auth'
-import { createBadRequestError } from '../../utils/error'
 import { LimitOffsetPaginationQuerySchema } from '../../utils/http-query'
 
 const FallbackBodySchema = object({ fallbackToFlux: boolean() })

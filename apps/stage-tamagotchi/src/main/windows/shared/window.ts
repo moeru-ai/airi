@@ -12,6 +12,7 @@ import { isMacOS, isWindows } from 'std-env'
 import { createServerChannelService } from '../../services/airi/channel-server'
 import { createI18nService } from '../../services/airi/i18n'
 import { createAppService, createPowerMonitorService, createScreenService, createSystemPreferencesService, createWindowService } from '../../services/electron'
+import { WindowBackdropService } from '../../services/electron/window-backdrop'
 
 export function toggleWindowShow(window?: BrowserWindow | null): void {
   if (!window) {
@@ -174,16 +175,19 @@ export async function setupBaseWindowElectronInvokes(params: {
   serverChannel: ServerChannel
   i18n: I18n
   signal?: AbortSignal
+  /** Owns the window's pin instead of the renderer request applying it directly. */
+  setAlwaysOnTop?: (flag: boolean) => void
 }) {
   if (params.signal?.aborted || params.window.isDestroyed?.()) {
     throw new Error('Window was closed before base invokes setup')
   }
 
   createScreenService({ context: params.context, window: params.window })
-  createWindowService({ context: params.context, window: params.window })
+  createWindowService({ context: params.context, window: params.window, setAlwaysOnTop: params.setAlwaysOnTop })
   createAppService({ context: params.context, window: params.window })
   createPowerMonitorService({ context: params.context, window: params.window })
   createSystemPreferencesService({ context: params.context, window: params.window })
+  WindowBackdropService.install(params.window)
 
   await createI18nService({
     context: params.context,

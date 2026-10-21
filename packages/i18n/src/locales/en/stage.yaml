@@ -18,6 +18,8 @@ mobile-tools:
   view: View
   close-view: Save and close view controls
   hearing: Hearing
+  menu: Menu
+  menu-unread: Menu, {count} unread notifications
 chat:
   provider-configuration:
     title: Chat provider isn't configured
@@ -84,6 +86,84 @@ chat:
     finalizing: Finishing…
     sent: Sent
   voice-input: Voice input
+  notice:
+    label: 'Background report from {name}'
+  background-tasks:
+    label: Background tasks
+    stop: 'Stop {name}'
+    dismiss: 'Dismiss {name}'
+    status:
+      running: Working on
+      done: Done
+      failed: Not finished
+      interrupted: Stopped
+  judgment:
+    running: 'Judging {name}'
+    judged: 'Judged {name}'
+    invalid: 'Could not judge {name}'
+  judgment-tool-call:
+    answer: Answer
+    next: Then
+    reply: Reply as usual
+    stay-quiet: Stay quiet
+    hint: 'Reply, keeping in mind: {text}'
+    recipe-steps: 'Use recipe {name}'
+    recipe-decision: 'Judge {name}'
+    recipe-background: 'Hand to recipe {name}'
+  recipe:
+    using: 'Using recipe {name}'
+    loaded: 'Used recipe {name}'
+    started: 'Handed to recipe {name}'
+    pending: 'Recipe {name} waits for approval'
+    disabled: 'Recipe {name} is off'
+    unknown: 'Recipe {name} not found'
+    refused: 'Recipe {name} did not start'
+    failed: 'Recipe {name} did not start'
+  recipe-tool-call:
+    task: Task
+    usable: Recipes you can use now
+    pending: This recipe waits for your approval.
+    disabled: This recipe is turned off.
+    unknown: No recipe has this name.
+    refused: The recipe could not start.
+  invoked-skill:
+    steps: 'Used recipe {name}'
+    background: 'Handed to recipe {name}'
+    decision: 'Used recipe {name}'
+    question: Question
+    'yes': 'Yes'
+    'no': 'No'
+  home-assistant-tool-call:
+    shown: 'Showing {count} of {total} devices'
+  web-search-tool-call:
+    results: 'Results for "{query}" · {count}'
+  tool-calls:
+    running-one: 'Using {name}'
+    failed-one: "{name} didn't finish"
+    combo-running: 'Combo ×{count}'
+    combo: '{count}-hit combo'
+    combo-failed: '{count}-hit combo, {failed} missed'
+    arguments: Arguments
+    result: Result
+    copy: Copy raw data
+    copied: Copied
+    raw: Raw data
+    other: Other data
+    widget: Widget
+    rerun: Run again
+    card-making: Making a card for this tool…
+    card-remaking: Making a new card…
+    card-regenerate: Make a new card
+    card-failed: Could not make a card for this tool
+    card-retry: Try again
+    state:
+      executing: Running
+      done: Done
+      error: Failed
+  reply-card:
+    drawing: Drawing a card…
+    raw: Raw data
+    card: Card
   error-details:
     show: Show details
     hide: Hide details
@@ -135,6 +215,11 @@ chat:
     cloud-badge: Synced to cloud
     new-chat-fallback: New chat
     delete: Delete conversation
+avatar-model-missing:
+  title: No model selected
+  unavailable-title: This model is not on this device
+  description: Select a model to show {name} on the Stage.
+  select: Select model
 render-error:
   title: '{renderer} could not render this model'
   description: The model is selected, but the Stage could not display it.
@@ -276,3 +361,25 @@ status:
   sign-in-unconfirmed: Could not confirm your session. Please sign in again.
   dismiss: Dismiss
   configure-hearing: Select and configure a Hearing provider in Settings.
+
+notifications:
+  title: Notifications
+  open: Open notifications
+  open-unread: Open notifications, {count} unread
+  mark-all-read: Mark all as read
+  empty: No notifications yet
+  loading: Loading notifications
+  back: Back
+  error: Notifications could not load.
+  retry: Retry
+  just-now: Just now
+  kinds:
+    flux-granted:
+      title: You received {amount} Flux
+    subscription-renewed:
+      title: '{plan} renewed'
+      body: Active until {periodEnd}.
+    subscription-payment-failed:
+      title: Renewal payment failed
+      body: We will retry on {retryAt}. Update your payment method to keep {plan}.
+      body-no-retry: Update your payment method to keep {plan}.

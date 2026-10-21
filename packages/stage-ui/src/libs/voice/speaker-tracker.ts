@@ -42,7 +42,7 @@ export class SpeakerTrackerRuntime {
   /** Resolves to the shared tracker after it has enrolled the current voiceprints. */
   acquire(): Promise<SpeakerTracker> {
     if (this.loading)
-      return this.loading.tracker
+      return this.enrolled(this.loading)
 
     const controller = new AbortController()
     const tracker = this.load(controller.signal)
@@ -100,6 +100,16 @@ export class SpeakerTrackerRuntime {
     this.loading = undefined
     loading.controller.abort(reason)
     void loading.tracker.then(tracker => tracker.dispose(), () => {})
+  }
+
+  /**
+   * The loaded tracker after the queued voiceprint changes. Between `reset` and `enrollVoiceprint`, the tracker has
+   * no speakers, so a comparison in that time fails.
+   */
+  private async enrolled(loading: TrackerLoad): Promise<SpeakerTracker> {
+    const tracker = await loading.tracker
+    await this.enrolling
+    return tracker
   }
 
   private async load(signal: AbortSignal): Promise<SpeakerTracker> {

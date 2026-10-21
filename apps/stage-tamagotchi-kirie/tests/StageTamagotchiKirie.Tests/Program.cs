@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using Godot;
 using HttpClient = System.Net.Http.HttpClient;
 
@@ -8,6 +9,7 @@ internal static class Program
     {
         try
         {
+            TestsWidgetWirePayloads();
             TestsDesktopWindowGeometry();
             TestsSpotlightShortcutPolicy();
             TestsNativeResizeEdges();
@@ -30,6 +32,34 @@ internal static class Program
             Console.Error.WriteLine(error);
             return 1;
         }
+    }
+
+    private static void TestsWidgetWirePayloads()
+    {
+        const string json = """
+            {"id":"weather-test","componentName":"weather","componentProps":{"city":"Tokyo"},
+            "alwaysOnTop":true,"size":"m","windowSize":{"width":620,"height":760},"ttlMs":1000}
+            """;
+        WidgetMutationPayload payload = JsonSerializer.Deserialize(
+            json, WidgetJsonContext.Default.WidgetMutationPayload)!;
+        AssertEqual("Tokyo", payload.ComponentProps!["city"].GetString(), "widget props from renderer");
+        AssertEqual(1000d, payload.TtlMs, "widget expiry in milliseconds");
+        AssertEqual(620, payload.WindowSize!.Width, "widget logical width");
+
+        WidgetMutationPayload partial = JsonSerializer.Deserialize(
+            "{\"id\":\"weather-test\",\"alwaysOnTop\":false}",
+            WidgetJsonContext.Default.WidgetMutationPayload)!;
+        AssertEqual<double?>(null, partial.TtlMs, "omitted update keeps its expiry");
+        AssertEqual(false, partial.AlwaysOnTop, "explicit unpin survives deserialization");
+
+        var snapshot = new WidgetSnapshotPayload(
+            payload.Id!, payload.ComponentName!, payload.ComponentProps!, true,
+            payload.Size!.Value, payload.WindowSize, payload.TtlMs!.Value);
+        using JsonDocument serialized = JsonDocument.Parse(JsonSerializer.Serialize(
+            snapshot, WidgetJsonContext.Default.WidgetSnapshotPayload));
+        AssertEqual("weather-test", serialized.RootElement.GetProperty("id").GetString(), "snapshot id");
+        AssertEqual("m", serialized.RootElement.GetProperty("size").GetString(), "snapshot grid size");
+        AssertEqual("Tokyo", serialized.RootElement.GetProperty("componentProps").GetProperty("city").GetString(), "snapshot props");
     }
 
     private static void TestsMicrophonePermissionPromptCoalescing()

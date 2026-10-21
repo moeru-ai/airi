@@ -242,14 +242,7 @@ live2d:
     sdk-preset-preserved-notice: >
       停用時仍會保留 SDK 表情管理器與眨眼功能。
     no-expression: 此模型沒有可用的表情。
-    llm-integration-wip: LLM 工具整合尚未接上。
-    save-default: 儲存表情預設值
     reset: 重設所有表情
-    expose-to-llm-toggle: 開放給 LLM
-    expose-to-llm-options:
-      none: 無
-      all: 全部
-      custom: 自訂
 microphone: 麥克風
 models: 模型
 pages:
@@ -342,10 +335,15 @@ pages:
             label: 輸入電子郵件地址以確認
             mismatch: 電子郵件不符。
           confirm: 傳送確認郵件
+          deleteNow: 永久刪除
+          confirmPhrase: 輸入 DELETE 以確認
+          signInAgain: 重新登入
           cancel: 取消
         message:
+          deleted: 你的帳戶已刪除。
           emailSent: 請查看 {email} 中的刪除連結。
         error:
+          reauthenticate: 請重新登入，再回到這裡確認刪除。不會寄送電子郵件。
           fallback: 無法開始刪除操作，請稍後再試。
           subscriptionActive: 訂閱仍然有效，請先在 Capacitor 頁面取消訂閱，再刪除帳戶。
   card:
@@ -825,6 +823,7 @@ pages:
           title: 共用發音
           description: 兩個以上的角色使用相同發音。請選擇在這部裝置上回應的角色，各角色卡仍會保留自己的喚醒詞。
           choose-label: 回應的角色
+          choose: '{name}（「{word}」）'
           answered-by: '由 {name} 回應'
           unresolved: 沒有角色回應此發音。
       sections:
@@ -868,6 +867,11 @@ pages:
               preparing: 正在準備喚醒詞模型…
               ready: 喚醒詞已就緒。
               error: '無法使用喚醒詞模型：{error}'
+          end-judge:
+            title: 說完判定
+            description: 你停頓時，對話模型會讀取轉錄文字，判斷你是否說完了。如果還沒說完，AIRI 會再等 3 秒讓你繼續說。
+            enabled: 判斷我是否說完了
+            enabled-description: 每次停頓時的轉錄文字會傳送給修正所用的模型。關閉後，AIRI 會在短暫停頓後結束這次語音輸入。
           rephrase:
             title: 轉錄文字修正
             description: 對話模型會在建立草稿前修正辨識錯誤並移除贅詞，原始文字仍會保留。
@@ -1312,6 +1316,7 @@ pages:
         headers:
           label: 標頭
           description: 每個請求都會傳送的標頭，例如授權權杖。
+          value-placeholder: Bearer 權杖
         command:
           label: 指令
           description: 透過標準輸入輸出啟動的可執行檔。
@@ -1388,11 +1393,9 @@ pages:
       buy: 儲值
       description: 可供選擇的 Flux 儲值組合。
   capacitor:
-    description: Capacitor 儲存 Flux，並會自行充能。
     statusError: 無法載入你的 Capacitor，請稍後再試。
     packagesError: 無法載入 Capacitor 清單，請稍後再試。
     preferenceError: 無法儲存偏好設定，請稍後再試。
-    noCapacitor: 沒有 Capacitor
     remaining: '剩餘 {percent}'
     rechargesAt: '{date} 充能'
     renewsAt: '{date} 續訂'

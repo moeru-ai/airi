@@ -3,11 +3,12 @@ import type { Context } from 'hono'
 import type { HonoEnv } from '../../../types/hono'
 import type { V1RouteDeps } from './types'
 
+import { createBadRequestError } from '@proj-airi/http-error-shared'
+
 import { authGuard } from '../../../middlewares/auth'
 import { configGuard } from '../../../middlewares/config-guard'
 import { rateLimiter } from '../../../middlewares/rate-limit'
 import { generationOperation, generationProtocols } from '../../../schemas/generation-protocol'
-import { createBadRequestError } from '../../../utils/error'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
   AIRI_CHAT_ROUND_ID_HEADER,

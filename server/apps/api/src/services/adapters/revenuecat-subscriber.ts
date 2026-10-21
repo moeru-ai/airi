@@ -1,8 +1,7 @@
 import type { InferOutput } from 'valibot'
 
+import { createBadGatewayError, createServiceUnavailableError } from '@proj-airi/http-error-shared'
 import { array, boolean, nullable, number, object, safeParse, string } from 'valibot'
-
-import { createBadGatewayError, createServiceUnavailableError } from '../../utils/error'
 
 const REQUEST_TIMEOUT_MS = 5_000
 
@@ -102,6 +101,7 @@ export function createRevenuecatSubscriberClient(input: {
   /**
    * Whether a subscription of this environment can grant the user anything here.
    * Sandbox subscriptions are test purchases. A production deployment grants them only to listed test accounts.
+   * The webhook also uses it, so a sandbox renewal does not notify a production user.
    */
   function countsFor(userId: string, environment: string): boolean {
     return environment === input.environment || (environment === 'sandbox' && sandboxUserIds.has(userId))
@@ -228,7 +228,7 @@ export function createRevenuecatSubscriberClient(input: {
     return (await fetchSubscriptions(userId)).some(subscription => countsFor(userId, subscription.environment) && canCharge(subscription))
   }
 
-  return { fetchEntitlements, hasRenewingSubscription }
+  return { countsFor, fetchEntitlements, hasRenewingSubscription }
 }
 
 export type RevenuecatSubscriberClient = ReturnType<typeof createRevenuecatSubscriberClient>
