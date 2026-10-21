@@ -327,13 +327,17 @@ function moveByKeyboard(delta: WindowDelta) {
         data-window-backdrop-floating-background
         :class="['absolute inset-0 flex flex-col gap-1 rounded-3xl pt-3']"
       >
-        <!-- The dock sits on the side away from the character. -->
-        <div :class="['flex items-center gap-2 px-4', characterOnLeft ? 'justify-end' : 'justify-start']">
+        <!--
+          The dock sits on the side away from the character. A character on the left mirrors the row and the dock, so
+          the fold button stays at the outer end.
+        -->
+        <div :class="['flex items-center gap-2 px-4', characterOnLeft ? 'flex-row-reverse' : '']">
           <!-- The dock stays over the island, so the island can hide under its edge. -->
           <div
             :class="[
-              'relative z-1 min-w-0 flex items-center gap-1 rounded-full py-0.5 pl-0.5 pr-1 shadow-md',
+              'relative z-1 min-w-0 flex items-center gap-1 rounded-full py-0.5 shadow-md',
               'bg-white dark:bg-neutral-900',
+              characterOnLeft ? 'flex-row-reverse pl-1 pr-0.5' : 'pl-0.5 pr-1',
             ]"
           >
             <button
@@ -369,9 +373,10 @@ function moveByKeyboard(delta: WindowDelta) {
             <!-- A plain button: GhostButton wraps its slot in a span that cannot shrink, so a long name could not truncate. -->
             <button
               :class="[
-                'min-w-0 flex items-center gap-1.5 rounded-full py-0.5 pl-0.5 pr-2 outline-none transition-colors',
+                'min-w-0 flex items-center gap-1.5 rounded-full py-0.5 outline-none transition-colors',
                 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
                 'hover:bg-primary-50 dark:hover:bg-primary-900/40',
+                characterOnLeft ? 'flex-row-reverse pl-2 pr-0.5' : 'pl-0.5 pr-2',
               ]"
               @click="sessionsDrawerOpen = true"
             >
@@ -387,7 +392,7 @@ function moveByKeyboard(delta: WindowDelta) {
               <span class="truncate text-sm text-primary-800 font-medium dark:text-primary-100">{{ activeCard?.name || 'AIRI' }}</span>
             </button>
             <div :class="['mx-0.5 h-4 w-px shrink-0', 'bg-primary-200 dark:bg-primary-800/60']" />
-            <div :class="['flex shrink-0 items-center gap-0.5']">
+            <div :class="['flex shrink-0 items-center gap-0.5', characterOnLeft ? 'flex-row-reverse' : '']">
               <ChatSpeechMuteButton variant="dock" />
               <button
                 :class="chatHeaderButtonClass('dock', danmaku)"
@@ -420,7 +425,6 @@ function moveByKeyboard(delta: WindowDelta) {
               :class="[
                 'relative z-0 shrink-0 rounded-full p-0.5 shadow-md',
                 'bg-white dark:bg-neutral-900',
-                characterOnLeft ? 'order-first' : '',
               ]"
             >
               <ChatDanmakuFeedMenu variant="dock" />
