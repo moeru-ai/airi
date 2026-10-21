@@ -17,9 +17,9 @@ const aliyunNlsRegions = [
 ] as const
 
 const aliyunNlsConfigSchema = z.object({
-  accessKeyId: z.string(),
-  accessKeySecret: z.string(),
-  appKey: z.string(),
+  accessKeyId: z.string().meta({ sensitive: true }),
+  accessKeySecret: z.string().meta({ sensitive: true }),
+  appKey: z.string().meta({ sensitive: true }),
   region: z.enum(aliyunNlsRegions).default('cn-shanghai'),
 })
 

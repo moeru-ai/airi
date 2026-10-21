@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { defineProvider } from '../../registry'
 
 const mimoSpeechConfigSchema = z.object({
-  apiKey: z.string(),
+  apiKey: z.string().meta({ sensitive: true }),
   baseUrl: z.string().default('https://api.xiaomimimo.com/v1/'),
   model: z.string().default('mimo-v2.5-tts'),
   voice: z.string().default('mimo_default'),
@@ -15,7 +15,7 @@ const mimoSpeechConfigSchema = z.object({
 })
 
 const mimoTranscriptionConfigSchema = z.object({
-  apiKey: z.string(),
+  apiKey: z.string().meta({ sensitive: true }),
   baseUrl: z.string().default('https://api.xiaomimimo.com/v1/'),
   model: z.string().default('mimo-v2-omni'),
 })
