@@ -20,6 +20,7 @@ import { handleHotUpdate, routes } from 'vue-router/auto-routes'
 import App from './App.vue'
 
 import { nestFullscreenSurfaces } from './components/fullscreen/surfaces'
+import { initializeAITransport } from './modules/ai-transport'
 import { i18n } from './modules/i18n'
 import { resolveRendererWindowContext } from './window-context'
 
@@ -78,17 +79,19 @@ if (import.meta.hot) {
   })
 }
 
-createApp(App)
-  .use(synced.vue)
-  .use(MotionPlugin)
+void initializeAITransport().then(() => {
+  createApp(App)
+    .use(synced.vue)
+    .use(MotionPlugin)
   // TODO: Fix autoAnimatePlugin type error
-  .use(autoAnimatePlugin as unknown as Plugin)
-  .use(router)
-  .use(pinia)
-  .use(PiniaColada)
-  .use(i18n)
-  .use(Tres)
-  .use(trackButtonPlugin)
+    .use(autoAnimatePlugin as unknown as Plugin)
+    .use(router)
+    .use(pinia)
+    .use(PiniaColada)
+    .use(i18n)
+    .use(Tres)
+    .use(trackButtonPlugin)
   // The stage window registers a global hold shortcut. Every window shares this app, so the settings window offers the mode too.
-  .provide(pushToTalkTriggerKey, true)
-  .mount('#app')
+    .provide(pushToTalkTriggerKey, true)
+    .mount('#app')
+})

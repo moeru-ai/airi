@@ -5,6 +5,7 @@ import { defineInvoke } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { errorMessageFrom } from '@moeru/std'
 import { artistryTestComfyUIConnection, isStageTamagotchi } from '@proj-airi/stage-shared'
+import { getAITransportFetch } from '@proj-airi/stage-ui/libs/ai-transport'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { Button, FieldInput, GhostButton, ScrollableArea } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -63,7 +64,7 @@ async function testConnection() {
     else {
       // Browser fallback (subject to CORS)
       const url = comfyuiServerUrl.value.replace(/\/+$/, '')
-      const resp = await fetch(`${url}/system_stats`, { mode: 'cors' })
+      const resp = await getAITransportFetch()(`${url}/system_stats`, { mode: 'cors' })
 
       if (!resp.ok)
         throw new Error(`HTTP ${resp.status}`)

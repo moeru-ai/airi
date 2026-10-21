@@ -55,7 +55,8 @@ export const providerPlayer2Speech = defineProvider<Player2Config, 'player2-spee
       ({ t }) => ({
         id: 'player2-speech:check-connectivity',
         name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-connectivity.title'),
-        validator: async (config) => {
+        validator: async (config, _provider, _extra, context) => {
+          const fetch = context?.fetch ?? globalThis.fetch
           const controller = new AbortController()
           const timeout = setTimeout(() => controller.abort(), 5000)
           try {
@@ -63,6 +64,7 @@ export const providerPlayer2Speech = defineProvider<Player2Config, 'player2-spee
               headers: { 'player2-game-key': 'airi' },
               signal: controller.signal,
             })
+            await response.body?.cancel()
             if (!response.ok) {
               const reason = `Player2 speech unreachable: HTTP ${response.status} ${response.statusText}`
               return { errors: [{ error: new Error(reason) }], reason, reasonKey: '', valid: false }
@@ -91,8 +93,9 @@ export const providerPlayer2Speech = defineProvider<Player2Config, 'player2-spee
       deprecated: false,
     }],
     voiceCatalogConfig: ({ baseUrl }) => ({ baseUrl }),
-    listVoices: async (config) => {
-      const response = await fetch(new URL('tts/voices', normalizeBaseUrl(config.baseUrl)))
+    listVoices: async (config, _provider, _model, signal, context) => {
+      const fetch = context?.fetch ?? globalThis.fetch
+      const response = await fetch(new URL('tts/voices', normalizeBaseUrl(config.baseUrl)), { signal })
       const data = await response.json() as {
         voices?: Array<{ id: string, language: Player2VoiceLanguage, name: string, gender: string }>
       }

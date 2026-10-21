@@ -1,6 +1,7 @@
 import type { ModelInfo } from '../../../types'
 
 import { createModelProvider, merge } from '@xsai-ext/providers/utils'
+import { array, number, object, optional, parse, string, unknown } from 'valibot'
 import { z } from 'zod'
 
 import { defineProvider } from '../../registry'
@@ -19,8 +20,8 @@ const amazonBedrockConfigSchema = z.object({
 type AmazonBedrockConfig = z.infer<typeof amazonBedrockConfigSchema>
 
 // Helper: merge consecutive messages with the same role (Converse API requires alternating)
-function mergeConsecutiveRoles(messages: Array<{ role: string, content: any[] }>) {
-  const merged: Array<{ role: string, content: any[] }> = []
+function mergeConsecutiveRoles(messages: Array<{ role: string, content: Array<{ text: string }> }>) {
+  const merged: Array<{ role: string, content: Array<{ text: string }> }> = []
   for (const msg of messages) {
     const last = merged.at(-1)
     if (last && last.role === msg.role) {
@@ -34,14 +35,17 @@ function mergeConsecutiveRoles(messages: Array<{ role: string, content: any[] }>
 }
 
 // Helper: convert xsai message content to Converse content blocks
-function toConverseContent(content: any): Array<{ text: string }> {
+function toConverseContent(content: unknown): Array<{ text: string }> {
   if (typeof content === 'string') {
     return [{ text: content }]
   }
   if (Array.isArray(content)) {
     return content
-      .filter((c: any) => c.type === 'text' && c.text)
-      .map((c: any) => ({ text: c.text }))
+      .flatMap((part: unknown) => {
+        if (typeof part === 'object' && part !== null && 'type' in part && part.type === 'text' && 'text' in part && typeof part.text === 'string')
+          return [{ text: part.text }]
+        return []
+      })
   }
   return [{ text: String(content) }]
 }
@@ -60,7 +64,7 @@ function fallbackModels(): ModelInfo[] {
 function createBedrockConverseProvider(config: {
   apiKey: string
   region: string
-}) {
+}, fetch: typeof globalThis.fetch = globalThis.fetch) {
   const { apiKey, region } = config
   // baseURL is a placeholder; all actual requests go through the custom fetch interceptor below
   const baseURL = `https://bedrock-runtime.${region}.amazonaws.com/v1/`
@@ -77,8 +81,14 @@ function createBedrockConverseProvider(config: {
       model,
       fetch: async (_input: RequestInfo | URL, init?: RequestInit) => {
         // Parse xsai chat request body (messages array + model)
-        const body = JSON.parse((init?.body as string) || '{}') as any
-        const messages: any[] = body.messages || []
+        const body = parse(object({
+          messages: array(object({ role: string(), content: unknown() })),
+          model: optional(string()),
+          max_tokens: optional(number()),
+          temperature: optional(number()),
+          top_p: optional(number()),
+        }), JSON.parse(String(init?.body)))
+        const messages = body.messages
         const modelId: string = body.model || model
 
         // Separate system messages
@@ -98,12 +108,13 @@ function createBedrockConverseProvider(config: {
           ? systemMessages.map(m => ({
               text: typeof m.content === 'string'
                 ? m.content
-                : (Array.isArray(m.content) ? m.content.map((c: any) => c.text || '').join('') : String(m.content)),
+                : toConverseContent(m.content).map(part => part.text).join(''),
             }))
           : undefined
 
         // Build Converse request body
-        const converseBody: any = {
+        const converseBody = {
+          system,
           messages: converseMessages,
           inferenceConfig: {
             maxTokens: body.max_tokens || 4096,
@@ -111,8 +122,6 @@ function createBedrockConverseProvider(config: {
             ...(body.top_p !== undefined && { topP: body.top_p }),
           },
         }
-        if (system)
-          converseBody.system = system
 
         // Use /converse (non-streaming) — bearer-token auth does not support
         // the binary event-stream protocol required by /converse-stream.
@@ -124,6 +133,7 @@ function createBedrockConverseProvider(config: {
           method: 'POST',
           headers: bedrockHeaders(),
           body: JSON.stringify(converseBody),
+          signal: init?.signal,
         })
 
         if (!response.ok) {
@@ -227,13 +237,13 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig, 'amazon
     },
   ],
 
-  createProvider(config) {
+  createProvider(config, context) {
     const region = config.region
     const baseURL = `https://bedrock-runtime.${region}.amazonaws.com/v1/`
     const chatProvider = createBedrockConverseProvider({
       apiKey: config.apiKey,
       region,
-    })
+    }, context?.fetch)
     return merge(
       chatProvider,
       createModelProvider({ apiKey: config.apiKey, baseURL }),
@@ -241,7 +251,8 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig, 'amazon
   },
 
   extraMethods: {
-    listModels: async (config, _provider) => {
+    listModels: async (config, _provider, context) => {
+      const fetch = context?.fetch ?? globalThis.fetch
       const { apiKey, region } = config
 
       const base = `https://bedrock.${region}.amazonaws.com`
@@ -257,8 +268,8 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig, 'amazon
             const url = `${base}/foundation-models?byInferenceType=ON_DEMAND&byOutputModality=TEXT&byProvider=${encodeURIComponent(provider)}`
             const res = await fetch(url, { method: 'GET', headers })
             if (!res.ok)
-              return { modelSummaries: [] as any[] }
-            return res.json() as Promise<{ modelSummaries: any[] }>
+              return { modelSummaries: [] }
+            return parse(object({ modelSummaries: array(object({ modelId: string(), modelName: string(), providerName: string() })) }), await res.json())
           }),
         )
         const allFoundationModels = foundationResults.flatMap(r => r.modelSummaries || [])
@@ -269,7 +280,7 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig, 'amazon
           { method: 'GET', headers },
         )
         const profilesData = profilesRes.ok
-          ? await profilesRes.json() as { inferenceProfileSummaries: any[] }
+          ? parse(object({ inferenceProfileSummaries: array(object({ inferenceProfileId: string(), inferenceProfileName: optional(string()) })) }), await profilesRes.json())
           : { inferenceProfileSummaries: [] }
 
         // 3. Build lookup map: baseModelId → { global?: profileId, us?: profileId }
@@ -364,7 +375,8 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig, 'amazon
       () => ({
         id: 'amazon-bedrock:check-credentials',
         name: 'Verify Amazon Bedrock API key',
-        validator: async (config: Record<string, any>) => {
+        validator: async (config, _provider, _extra, context) => {
+          const fetch = context?.fetch ?? globalThis.fetch
           const region = config.region || 'us-east-1'
           const apiKey = config.apiKey
           const errors: Array<{ error: unknown }> = []
@@ -378,6 +390,7 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig, 'amazon
                 },
               },
             )
+            await res.body?.cancel()
             if (res.status === 403 || res.status === 401) {
               errors.push({ error: new Error('Invalid Amazon Bedrock API key or insufficient permissions.') })
             }

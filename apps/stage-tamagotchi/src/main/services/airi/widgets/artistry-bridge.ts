@@ -8,6 +8,7 @@ import type { ArtistryProvider, ArtistryRequest } from './providers/base'
 
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
+import { setTimeout as delay } from 'node:timers/promises'
 
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
@@ -15,6 +16,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { artistryGenerateHeadless, artistrySyncConfig, artistryTestComfyUIConnection, errorMessageFromValue } from '@proj-airi/stage-shared'
 import { injeca } from 'injeca'
 
+import { fetchAI } from '../../electron/ai-transport'
 import { ComfyUIProvider } from './providers/comfyui'
 import { NanoBananaProvider } from './providers/nanobanana'
 import { ReplicateProvider } from './providers/replicate'
@@ -27,16 +29,16 @@ interface ArtistrySyncSnapshot {
   provider?: string
   model?: string
   promptPrefix?: string
-  options?: Record<string, any>
-  globals?: Record<string, any>
+  options?: Record<string, unknown>
+  globals?: Record<string, unknown>
 }
 
 interface TriggerConfig {
   provider?: string
   model?: string
   promptPrefix?: string
-  options?: Record<string, any>
-  globals?: Record<string, any>
+  options?: Record<string, unknown>
+  globals?: Record<string, unknown>
 }
 
 function robustParse(input: unknown, context?: string): Record<string, unknown> {
@@ -50,8 +52,8 @@ function robustParse(input: unknown, context?: string): Record<string, unknown> 
       log.warn(`[Artistry Bridge] robustParse(${context || 'unknown'}): Parsed JSON is not an object: ${typeof parsed}`)
       return {}
     }
-    catch (e) {
-      log.warn(`[Artistry Bridge] robustParse(${context || 'unknown'}): JSON parse failed: ${errorMessageFrom(e)} | Input: ${input.slice(0, 100)}`)
+    catch {
+      log.warn(`[Artistry Bridge] Invalid JSON in ${context || 'unknown'}.`)
       return {}
     }
   }
@@ -60,6 +62,7 @@ function robustParse(input: unknown, context?: string): Record<string, unknown> 
 
 const lastTriggerMap = new Map<string, string>()
 const activeRunMap = new Map<string, string>()
+const widgetControllers = new Map<string, AbortController>()
 
 /**
  * Volatile storage for active character card artistry defaults.
@@ -77,19 +80,20 @@ function createRunId(widgetId: string) {
   return `${widgetId}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`
 }
 
-async function downloadImageAsBase64(url: string): Promise<string> {
+async function downloadImageAsBase64(url: string, signal?: AbortSignal): Promise<string> {
   try {
-    log.log(`[Artistry Bridge] Downloading image from: ${url}`)
-    const response = await fetch(url)
-    if (!response.ok)
-      throw new Error(`Failed to fetch image: ${response.statusText}`)
+    const response = await fetchAI(url, { signal })
+    if (!response.ok) {
+      await response.body?.cancel()
+      throw new Error(`Image download failed: HTTP ${response.status}`)
+    }
     const buffer = await response.arrayBuffer()
     const base64 = Buffer.from(buffer).toString('base64')
     // NOTICE: Downstream renderer paths consume this via fetch(), which requires a data URL.
     return `data:image/png;base64,${base64}`
   }
   catch (error: unknown) {
-    log.error(`[Artistry Bridge] Failed to download image: ${errorMessageFrom(error)}`)
+    log.error('[Artistry Bridge] Image download failed.')
     throw error
   }
 }
@@ -100,9 +104,9 @@ function supportsJobCallback(provider: ArtistryProvider): provider is ArtistryPr
 
 // Maintaining a registry of providers
 export const artistryProviders = new Map<string, ArtistryProvider>()
-artistryProviders.set('comfyui', new ComfyUIProvider())
-artistryProviders.set('replicate', new ReplicateProvider())
-artistryProviders.set('nanobanana', new NanoBananaProvider())
+artistryProviders.set('comfyui', new ComfyUIProvider(fetchAI))
+artistryProviders.set('replicate', new ReplicateProvider(fetchAI))
+artistryProviders.set('nanobanana', new NanoBananaProvider(fetchAI))
 
 // Deduplication map for headless requests
 const pendingHeadlessRequests = new Map<string, Promise<{ imageUrl?: string, base64?: string, error?: string }>>()
@@ -111,12 +115,12 @@ export async function generateHeadless(params: {
   prompt: string
   model?: string
   provider?: string
-  options?: Record<string, any>
-  globals?: Record<string, any>
-}): Promise<{ imageUrl?: string, base64?: string, error?: string }> {
+  options?: Record<string, unknown>
+  globals?: Record<string, unknown>
+}, signal: AbortSignal = AbortSignal.timeout(300_000), owner?: number): Promise<{ imageUrl?: string, base64?: string, error?: string }> {
   // Resolve config and effective globals early to secure the deduplication fingerprint
   const { config: artistryConfig } = await injeca.resolve({ config: 'configs:artistry' } as { config: ProvidedBy<Config<typeof artistryConfigSchema>> })
-  const activeGlobals = (params.globals || artistryConfig.get()?.artistryGlobals || {}) as Record<string, any>
+  const activeGlobals = (params.globals || artistryConfig.get()?.artistryGlobals || {}) as Record<string, unknown>
 
   // Create a fingerprint for deduplication
   const sourceImage = activeGlobals?.image
@@ -130,6 +134,7 @@ export async function generateHeadless(params: {
   const globalsHash = createHash('sha256').update(JSON.stringify(globalsForFingerprint)).digest('hex')
 
   const fingerprint = JSON.stringify({
+    owner,
     p: params.prompt,
     m: params.model,
     pr: params.provider,
@@ -139,7 +144,7 @@ export async function generateHeadless(params: {
   })
 
   if (pendingHeadlessRequests.has(fingerprint)) {
-    log.log(`[Headless] Deduplicating identical request: ${params.prompt.slice(0, 30)}...`)
+    log.log('[Headless] Reusing the active request.')
     return pendingHeadlessRequests.get(fingerprint)!
   }
 
@@ -163,12 +168,12 @@ export async function generateHeadless(params: {
     }
 
     log.log(`[Headless] Globals keys: ${Object.keys(activeGlobals || {}).join(', ')}`)
-    if (activeGlobals?.image)
-      log.log(`[Headless] Source image length: ${activeGlobals.image.length}`)
 
+    signal?.throwIfAborted()
     const request: ArtistryRequest = {
+      signal,
       prompt: params.prompt,
-      negativePrompt: params.options?.negativePrompt,
+      negativePrompt: typeof params.options?.negativePrompt === 'string' ? params.options.negativePrompt : undefined,
       width: typeof params.options?.width === 'number' ? params.options.width : undefined,
       height: typeof params.options?.height === 'number' ? params.options.height : undefined,
       model: params.model,
@@ -183,66 +188,17 @@ export async function generateHeadless(params: {
     const job = await provider.generate(request)
     log.log(`[Headless] Job created: ${job.jobId}`)
 
-    // Polling/Wait for result
-    if (!supportsJobCallback(provider)) {
-      let isDone = false
-      let lastStatus = await provider.getStatus(job.jobId)
-      const start = Date.now()
-      const timeout = 1000 * 60 * 5 // 5 minutes timeout
-
-      while (!isDone) {
-        if (Date.now() - start > timeout) {
-          log.error(`[Headless] Job ${job.jobId} timed out after 5 minutes.`)
-          throw new Error('Image generation timed out after 5 minutes.')
-        }
-
-        log.log(`[Headless] Polling status for job: ${job.jobId}...`)
-        lastStatus = await provider.getStatus(job.jobId)
-        log.log(`[Headless] Status for job ${job.jobId}: ${lastStatus.status}`)
-
-        if (lastStatus.status === 'succeeded' || lastStatus.status === 'failed') {
-          isDone = true
-        }
-        if (!isDone) {
-          await new Promise(resolve => setTimeout(resolve, 2000))
-        }
+    // All providers retain terminal status until the consumer can collect it.
+    while (true) {
+      signal?.throwIfAborted()
+      const status = await provider.getStatus(job.jobId)
+      if (status.status === 'failed' || status.status === 'cancelled')
+        throw new Error(status.error || 'Image generation failed.')
+      if (status.status === 'succeeded') {
+        const base64 = status.imageUrl ? await downloadImageAsBase64(status.imageUrl, signal) : undefined
+        return { imageUrl: status.imageUrl, base64 }
       }
-
-      if (lastStatus.status === 'failed') {
-        log.error(`[Headless] Job ${job.jobId} failed: ${lastStatus.error || 'Unknown error'}`)
-        throw new Error(lastStatus.error || 'Generation failed')
-      }
-
-      log.log(`[Headless] Job ${job.jobId} succeeded. Image URL: ${lastStatus.imageUrl}`)
-      const base64 = lastStatus.imageUrl ? await downloadImageAsBase64(lastStatus.imageUrl) : undefined
-      return { imageUrl: lastStatus.imageUrl, base64 }
-    }
-    else {
-      // For providers with callbacks (like ComfyUI), we wait for the result via the callback
-      log.log(`[Headless] Using callback-based wait logic for provider: ${requestedProvider}`)
-      return new Promise<{ imageUrl?: string, base64?: string }>((resolve, reject) => {
-        const timeout = 1000 * 60 * 5 // 5 minutes timeout
-        const timer = setTimeout(() => {
-          reject(new Error('Image generation timed out after 5 minutes.'))
-        }, timeout)
-
-        provider.setJobCallback(request.extra?.internalJobId as string, async (status) => {
-          if (status.status === 'succeeded') {
-            clearTimeout(timer)
-            try {
-              const base64 = status.imageUrl ? await downloadImageAsBase64(status.imageUrl) : undefined
-              resolve({ imageUrl: status.imageUrl, base64 })
-            }
-            catch (e) {
-              reject(e)
-            }
-          }
-          else if (status.status === 'failed') {
-            clearTimeout(timer)
-            reject(new Error(status.error || 'Generation failed'))
-          }
-        })
-      })
+      await delay(250, undefined, { signal })
     }
   })()
 
@@ -319,10 +275,19 @@ async function handleArtistryTrigger(params: {
   // it protects users from unexpected credit consumption in a high-frequency reactive
   // bridge environment. (Refer to Catalog Issue #31).
   if (status === 'generating' && lastTriggerMap.get(params.id) !== triggerFingerprint && (prompt || remixId)) {
-    log.log(`🎯 TRIGGER DETECTED [${params.id}]: ${triggerFingerprint} | Mode: ${mode} | Provider: ${providerId}`)
+    log.log(`[Artistry Bridge] Generation requested for widget ${params.id}.`)
     lastTriggerMap.set(params.id, triggerFingerprint)
     const runId = createRunId(params.id)
     activeRunMap.set(params.id, runId)
+    widgetControllers.get(params.id)?.abort()
+    const controller = new AbortController()
+    widgetControllers.set(params.id, controller)
+    const signal = AbortSignal.any([controller.signal, params.widgetsManager.getWidgetSignal(params.id), AbortSignal.timeout(300_000)])
+    const cleanup = () => {
+      if (widgetControllers.get(params.id) === controller)
+        widgetControllers.delete(params.id)
+    }
+    signal.addEventListener('abort', cleanup, { once: true })
 
     const provider = artistryProviders.get(providerId)
     if (!provider) {
@@ -344,6 +309,7 @@ async function handleArtistryTrigger(params: {
     try {
       // Build the abstract request
       const request: ArtistryRequest = {
+        signal,
         prompt: config.promptPrefix ? `${config.promptPrefix} ${prompt}` : (prompt || ''),
         model: config.model,
         extra: {
@@ -355,7 +321,7 @@ async function handleArtistryTrigger(params: {
         },
       }
 
-      const updateIfActive = (statusUpdate: Record<string, any>) => {
+      const updateIfActive = (statusUpdate: Record<string, unknown>) => {
         // NOTICE: the same widget can kick off another generation before the previous one fully
         // settles. Only the most recent run is allowed to keep updating the widget state.
         if (activeRunMap.get(params.id) !== runId)
@@ -367,7 +333,7 @@ async function handleArtistryTrigger(params: {
         params.widgetsManager.updateWidget({
           id: params.id,
           componentProps: {
-            ...(existing?.componentProps as any),
+            ...robustParse(existing?.componentProps, 'componentProps'),
             ...statusUpdate,
           },
         })
@@ -376,7 +342,11 @@ async function handleArtistryTrigger(params: {
       // If the provider accepts callbacks (like ComfyUI streaming stdout)
       if (supportsJobCallback(provider)) {
         provider.setJobCallback(runId, (statusUpdate) => {
-          updateIfActive(statusUpdate as Record<string, any>)
+          updateIfActive({ ...statusUpdate })
+          if (['succeeded', 'failed', 'cancelled'].includes(statusUpdate.status)) {
+            cleanup()
+            signal.removeEventListener('abort', cleanup)
+          }
           if (statusUpdate.status === 'succeeded') {
             log.log(`🎉 Job complete (via callback) for ${params.id}. Sending final status: done`)
             updateIfActive({ status: 'done', progress: 100, actionLabel: undefined })
@@ -397,6 +367,7 @@ async function handleArtistryTrigger(params: {
         const timeoutLength = 1000 * 60 * 5 // 5 minutes timeout (Issue #56)
 
         while (!isDone) {
+          signal.throwIfAborted()
           // Check for timeout
           if (Date.now() - startTime > timeoutLength) {
             log.error(`[Artistry Bridge] Job ${job.jobId} timed out after 5 minutes.`)
@@ -416,10 +387,10 @@ async function handleArtistryTrigger(params: {
             isDone = true
           }
 
-          updateIfActive(status as Record<string, any>)
+          updateIfActive({ ...status })
 
           if (!isDone) {
-            await new Promise(resolve => setTimeout(resolve, 2000))
+            await delay(2000, undefined, { signal })
           }
         }
 
@@ -436,8 +407,10 @@ async function handleArtistryTrigger(params: {
       }
     }
     catch (error: unknown) {
+      cleanup()
+      signal.removeEventListener('abort', cleanup)
       const message = errorMessageFrom(error) ?? 'Unknown generation error'
-      log.error(`🔴 Generation failed: ${message}`)
+      log.error('[Artistry Bridge] Generation did not complete.')
       if (activeRunMap.get(params.id) === runId) {
         lastTriggerMap.delete(params.id) // [BY DESIGN]: Clear fingerprint on failure to allow retry (Issue #44)
         params.widgetsManager.updateWidget({
@@ -457,9 +430,26 @@ export async function setupArtistryBridge(params: {
   log.log('🚀 Initializing Artistry bridge (Spawn + Update Interceptor + Headless Handler)...')
 
   if (params.context) {
-    defineInvokeHandler(params.context, artistryGenerateHeadless, async (payload) => {
-      log.log(`[Artistry Bridge] [Headless] Received invoke for prompt: ${payload.prompt.slice(0, 50)}...`)
-      return await generateHeadless(payload)
+    defineInvokeHandler(params.context, artistryGenerateHeadless, async (payload, options) => {
+      const sender = options?.raw.ipcMainEvent.sender
+      const controller = new AbortController()
+      const abort = () => controller.abort()
+      const navigate = (_event: Electron.Event, _url: string, inPlace: boolean, mainFrame: boolean) => {
+        if (mainFrame && !inPlace)
+          abort()
+      }
+      sender?.once('destroyed', abort)
+      sender?.on('did-start-navigation', navigate)
+      const signals = [controller.signal, AbortSignal.timeout(300_000)]
+      if (options?.abortController?.signal)
+        signals.push(options.abortController.signal)
+      try {
+        return await generateHeadless(payload, AbortSignal.any(signals), sender?.id)
+      }
+      finally {
+        sender?.removeListener('destroyed', abort)
+        sender?.removeListener('did-start-navigation', navigate)
+      }
     })
 
     defineInvokeHandler(params.context, artistrySyncConfig, (payload) => {
@@ -492,13 +482,12 @@ export async function setupArtistryBridge(params: {
       log.log(`🔌 Testing ComfyUI connection at: ${payload.url}`)
       try {
         const url = payload.url.replace(/\/+$/, '')
-        const controller = new AbortController()
-        const id = setTimeout(() => controller.abort(), 10000)
-        const resp = await fetch(`${url}/system_stats`, { signal: controller.signal })
-        clearTimeout(id)
+        const resp = await fetchAI(`${url}/system_stats`, { signal: AbortSignal.timeout(10_000) })
 
-        if (!resp.ok)
+        if (!resp.ok) {
+          await resp.body?.cancel()
           throw new Error(`HTTP ${resp.status}`)
+        }
         const data = await resp.json() as { devices?: Array<{ name?: string, vram_total?: number }> }
         const gpus = data.devices?.map(d => d.name).join(', ') || 'Unknown GPU'
         const vram = data.devices?.[0]?.vram_total

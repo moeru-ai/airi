@@ -19,6 +19,7 @@ import {
   ProviderValidationDetailsDialog,
 } from '@proj-airi/stage-ui/components'
 import { getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
+import { getAITransportFetch } from '@proj-airi/stage-ui/libs/ai-transport'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { Button, Callout, FieldCheckbox, FieldCombobox, FieldInput, FieldKeyValues, GhostButton } from '@proj-airi/ui'
 import { computedAsync, useCloned, useDebounceFn } from '@vueuse/core'
@@ -276,7 +277,7 @@ async function runValidation() {
   providerStore.setProviderStatus(providerId.value, 'validating')
   validatorEventStates.value = {}
   try {
-    const results = await validateProvider(validationPlan, { t }, {
+    const results = await validateProvider(validationPlan, { t, fetch: getAITransportFetch() }, {
       onValidatorStart: ({ step }) => {
         validatorEventStates.value = { ...validatorEventStates.value, [step.id]: 'running' }
         syncValidationSteps()
@@ -352,7 +353,7 @@ async function getValidationPlan() {
     definition,
     config: (providerConfigEdit.value?.config ?? emptyProviderConfigValues) as Record<string, unknown>,
     schemaDefaults: providerSchemaDefault.value as Record<string, unknown>,
-    contextOptions: { t },
+    contextOptions: { t, fetch: getAITransportFetch() },
   })
   if (requestId !== validationPlanRequestId)
     return undefined

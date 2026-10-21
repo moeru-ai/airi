@@ -139,6 +139,8 @@ export interface WidgetsWindowManager {
    * - The current snapshot, or `undefined` when the widget is unknown
    */
   getWidgetSnapshot: (id: string) => WidgetSnapshot | undefined
+  /** Cancels widget-owned work on removal, renderer replacement, or window closure. */
+  getWidgetSignal: (id: string) => AbortSignal
   publishWidgetEvent: (id: string, event: Record<string, unknown>) => void
   onWidgetEvent: (listener: (event: { id: string, event: Record<string, unknown> }) => void) => () => void
   /**
@@ -251,6 +253,7 @@ interface WidgetRecord extends WidgetSnapshot {
 }
 
 interface WidgetWindowContext {
+  controller?: AbortController
   widgetId: string
   currentRoute?: string
   disposeInvokes?: () => void
@@ -365,6 +368,7 @@ export function setupWidgetsWindowManager(params: {
     if (record?.timer)
       clearTimeout(record.timer)
 
+    windowContext?.controller?.abort()
     widgetRecords.delete(id)
     windowContexts.delete(id)
     iframeRequests.rejectPendingWidgetIframeRequests(id)
@@ -473,6 +477,16 @@ export function setupWidgetsWindowManager(params: {
     }
 
     window.on('closed', handleWindowClosed)
+    window.webContents.on('did-start-navigation', (_event, _url, inPlace, mainFrame) => {
+      if (mainFrame && !inPlace) {
+        windowContext.controller?.abort()
+        windowContext.controller = undefined
+      }
+    })
+    window.webContents.on('render-process-gone', () => {
+      windowContext.controller?.abort()
+      windowContext.controller = undefined
+    })
     applyStoredOrDefaultBounds(window)
 
     const persist = () => {
@@ -747,6 +761,14 @@ export function setupWidgetsWindowManager(params: {
       window.hide()
   }
 
+  function getWidgetSignal(id: string): AbortSignal {
+    const context = windowContexts.get(id)
+    if (!context)
+      return AbortSignal.abort(new Error('Widget is closed.'))
+    context.controller ??= new AbortController()
+    return context.controller.signal
+  }
+
   widgetsManager = {
     getWindow,
     openWindow,
@@ -756,6 +778,7 @@ export function setupWidgetsWindowManager(params: {
     clearWidgets,
     hideWindow,
     getWidgetSnapshot,
+    getWidgetSignal,
     publishWidgetEvent,
     onWidgetEvent,
     requestWidgetIframe,

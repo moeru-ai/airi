@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from 'vue'
 import { createI18n } from 'vue-i18n'
 
+import { setAITransportFetch } from '../../libs/ai-transport'
 import { OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { useProviderConfigStore } from './config'
 import { useProviderStore } from './provider'
@@ -71,11 +72,43 @@ async function createTranscriptionRenderers() {
 }
 
 describe('provider model catalog synchronization', () => {
+  it('rebuilds each window client after a transport change and preserves the captured request path', async () => {
+    const { leader, follower } = await createTranscriptionRenderers()
+    const direct = vi.fn<typeof fetch>(async () => Response.json({ text: 'direct' }))
+    const proxy = vi.fn<typeof fetch>(async () => Response.json({ text: 'proxy' }))
+    setAITransportFetch(direct)
+    const previous = await follower.providerStore.getProviderInstance<TranscriptionProvider>(transcriptionProviderId)
+    const dispose = vi.fn()
+    Object.assign(previous, { dispose })
+    const pendingConfig = previous.transcription('whisper')
+    setAITransportFetch(proxy)
+    const current = await follower.providerStore.getProviderInstance<TranscriptionProvider>(transcriptionProviderId)
+    const leaderClient = await leader.providerStore.getProviderInstance<TranscriptionProvider>(transcriptionProviderId)
+    expect(current).not.toBe(previous)
+    expect(current.transcription('whisper').fetch).toBe(proxy)
+    expect(leaderClient.transcription('whisper').fetch).toBe(proxy)
+    expect(pendingConfig.fetch).toBe(direct)
+    expect(direct).not.toHaveBeenCalled()
+    expect(proxy).not.toHaveBeenCalled()
+    expect(dispose).not.toHaveBeenCalled()
+    await follower.providerStore.disposeProviderInstance(transcriptionProviderId)
+    expect(dispose).toHaveBeenCalledOnce()
+  })
+
+  it('retains browser-local runtimes when the HTTP route changes', async () => {
+    const { follower } = await createTranscriptionRenderers()
+    await follower.providerStore.initializeProvider('speech-noop')
+    const previous = await follower.providerStore.getProviderInstance('speech-noop')
+    setAITransportFetch(vi.fn<typeof fetch>())
+    expect(await follower.providerStore.getProviderInstance('speech-noop')).toBe(previous)
+  })
+
   beforeEach(() => {
     localStorage.clear()
   })
 
   afterEach(() => {
+    setAITransportFetch((...args) => globalThis.fetch(...args))
     for (const context of syncedContexts.splice(0)) {
       context.app.unmount()
       context.runtime.dispose()

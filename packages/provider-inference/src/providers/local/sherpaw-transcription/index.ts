@@ -47,6 +47,7 @@ export function executeSherpawStream(options: SherpawStreamOptions): SherpawStre
 /** Defines Sherpaw recognition with the model resources supplied by one host. */
 export function createSherpawTranscriptionDefinition(host: SherpawTranscriptionHost) {
   return defineProvider<SherpawConfig, typeof SHERPAW_TRANSCRIPTION_PROVIDER_ID>({
+    usesHTTP: false,
     id: SHERPAW_TRANSCRIPTION_PROVIDER_ID,
     name: 'Sherpaw',
     nameLocalize: ({ t }) => t('settings.pages.providers.provider.sherpaw-transcription.title'),

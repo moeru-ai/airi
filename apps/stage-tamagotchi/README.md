@@ -93,3 +93,46 @@ pnpm -F @proj-airi/stage-tamagotchi exec vitest run src/renderer/stores/fullscre
 Set `AIRI_COMPUTER_USE_LIVE=1` to include the bundled CLI/private-daemon test.
 It invokes help and an invalid argument, without injecting desktop input.
 For renderer verification, launch with `APP_REMOTE_DEBUG=true` and an unused `APP_REMOTE_DEBUG_PORT`, then attach `agent-browser` to the chat CDP target.
+
+## Local AI request proxy
+
+Open Settings > System > General and enable **Local AI request proxy**.
+New AI HTTP requests use the desktop network stack and avoid browser CORS restrictions.
+The switch defaults to disabled. AIRI saves it on this device and shares it across desktop windows.
+
+The proxy covers chat, HTTP speech and transcription, models, voices, connection checks, image generation, and image downloads.
+Existing main-process image generation remains native with either setting.
+WebSocket and browser-local inference keep their existing APIs. This HTTP bridge does not repair upstream authentication, rate limits, certificates, or connectivity.
+The bridge adds no retries. Provider SDKs retain their own retry policies, including Replicate.
+
+Requests already in progress retain their transport. The proxy has no upload size limit.
+Uploads use memory buffers. Available memory and upstream limits still apply.
+If the selected proxy is unavailable, requests fail without silently switching to direct access.
+
+For the transport contract and lifecycle, read [the shared package README](../../packages/ai-transport/README.md).
+
+### Network proxy
+
+**Settings > System > General > Network proxy** controls the desktop Chromium network route, independently of the local AI HTTP bridge.
+Choose the system proxy (default), a direct connection, or a custom HTTP or SOCKS5 proxy without authentication.
+Custom addresses use forms such as `http://127.0.0.1:7890` or `socks5://127.0.0.1:1080`.
+Optional comma-separated bypass rules select direct destinations. Chromium retains its default loopback bypass rules.
+
+The default renderer Session and the separate AI HTTP Session receive the same settings. Their cookies remain separate.
+This includes browser HTTP and WebSocket connections, sign-in requests, page resources, and native AI HTTP requests.
+Node clients that do not use Chromium are outside this setting.
+Network proxy settings do not remove browser CORS restrictions. Enable the local AI HTTP bridge for that purpose.
+
+Saved settings apply to new connections. Existing WebSockets and reused HTTP connections keep their previous route.
+Saving does not close sockets or restart active requests. A custom proxy has no automatic direct fallback.
+Settings stay on the current device and synchronize across desktop windows.
+
+To run the real Electron transport fixture:
+
+```sh
+pnpm -F @proj-airi/ai-transport build
+pnpm -F @proj-airi/stage-tamagotchi exec tsdown --config scripts/ai-transport-smoke.config.ts
+pnpm -F @proj-airi/stage-tamagotchi exec electron out/ai-transport-smoke/ai-transport-smoke.cjs
+```
+
+The fixture writes `out/ai-transport-smoke/result.json`. It uses hidden windows, loopback HTTP servers, and a temporary device configuration.

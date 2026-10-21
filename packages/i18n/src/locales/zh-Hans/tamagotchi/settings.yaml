@@ -28,6 +28,30 @@ pages:
       title: MCP 服务器
   system:
     general:
+      network-proxy:
+        title: 网络代理
+        description: 为桌面的 HTTP 和 WebSocket 连接设置网络代理，也会影响登录和页面资源。设置仅保存在当前设备。
+        system: 系统代理
+        direct: 直接连接
+        custom: 自定义代理
+        address: 代理地址
+        address-description: 使用 HTTP 或 SOCKS5 地址，暂不支持代理认证。
+        bypass: 绕过规则
+        bypass-description: 可选，填写直接连接的主机名或 IP 网段，以逗号分隔。Chromium 默认绕过回环地址。
+        connections: 修改对新建连接生效。已有连接（包括 WebSocket 和复用的 HTTP 连接）保留原出口。浏览器请求仍受 CORS 规则限制。
+        save: 保存网络代理
+        saved: 网络代理已保存，新建连接使用此设置。
+        unavailable: 无法获取网络代理状态。
+        invalid-address: 请输入不含凭据或路径的 HTTP 或 SOCKS5 地址，SOCKS5 必须指定端口。
+        load-error: 无法加载网络代理设置。
+        save-error: 无法保存网络代理设置，请检查连接状态后重试。
+      ai-proxy:
+        title: 本地 AI 请求代理
+        description: 通过桌面应用发送 AI HTTP 请求，避免浏览器 CORS 限制。覆盖聊天、语音、模型列表、音色、绘图及连接检查。不包含 WebSocket 和浏览器本地推理。仅保存在当前设备。
+        enabled: 已开启。新的 AI HTTP 请求使用桌面代理。
+        disabled: 已关闭。AI HTTP 请求使用浏览器网络。
+        unavailable: 无法读取代理状态。桌面连接恢复前，AI HTTP 请求将被阻止。
+        save-error: 无法更新本地 AI 请求代理设置。
       hide-app-icon:
         title: 隐藏任务栏 / Dock 图标
         description: 仅保留托盘图标，通过托盘菜单打开窗口或退出应用。修改立即生效。

@@ -73,7 +73,7 @@ export function defineVoicevoxFamilyProvider<const TId extends string>(
   const configSchema = createVoicevoxConfigSchema(options.defaultBaseUrl)
 
   return defineProvider<VoicevoxFamilyConfig, TId>({
-    createProvider(config) {
+    createProvider(config, context) {
       return {
         speech: () => ({
           baseURL: SENTINEL_BASE_URL,
@@ -86,7 +86,7 @@ export function defineVoicevoxFamilyProvider<const TId extends string>(
                 styleId: voice,
                 text: input,
               },
-              { signal: init?.signal ?? undefined },
+              { signal: init?.signal ?? undefined, fetch: context?.fetch },
             )
 
             return new Response(wav, { headers: { 'Content-Type': 'audio/wav' }, status: 200 })
@@ -109,8 +109,8 @@ export function defineVoicevoxFamilyProvider<const TId extends string>(
       }],
 
       voiceCatalogConfig: ({ baseUrl }) => ({ baseUrl }),
-      listVoices: async (config) => {
-        const speakers = await fetchSpeakers(config.baseUrl?.trim() ?? '')
+      listVoices: async (config, _provider, _model, signal, context) => {
+        const speakers = await fetchSpeakers(config.baseUrl?.trim() ?? '', { signal, fetch: context?.fetch })
         return speakers.flatMap(speaker => (speaker.styles ?? []).map(style => toVoiceInfo(options.id, speaker.name, style)))
       },
     },
@@ -149,11 +149,12 @@ export function defineVoicevoxFamilyProvider<const TId extends string>(
             intervalMs: REACHABILITY_INTERVAL_MS,
             mode: 'interval',
           },
-          validator: async (config) => {
+          validator: async (config, _provider, _extra, context) => {
+            const fetch = context?.fetch ?? globalThis.fetch
             const controller = new AbortController()
             const timeout = setTimeout(() => controller.abort(), REACHABILITY_TIMEOUT_MS)
             try {
-              await fetchEngineVersion(config.baseUrl?.trim() ?? '', { signal: controller.signal })
+              await fetchEngineVersion(config.baseUrl?.trim() ?? '', { signal: controller.signal, fetch })
               return { errors: [], reason: '', reasonKey: '', valid: true }
             }
             catch (error) {

@@ -175,7 +175,7 @@ export async function validateProvider(
 
   let providerInstance: ProviderInstance
   try {
-    providerInstance = await definition.createProvider(config)
+    providerInstance = await definition.createProvider(config, contextOptions)
   }
   catch (error) {
     for (let i = 0; i < providerValidators.length; i++) {

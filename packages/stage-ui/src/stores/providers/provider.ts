@@ -14,6 +14,7 @@ import { defineStore } from 'pinia'
 import { computed, onScopeDispose, ref, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { aiTransportRevision, getAITransportFetch } from '../../libs/ai-transport'
 import {
   CHAT_COMPLETIONS_VALIDATOR_ID,
   getProviderValidationIntervalMs,
@@ -89,7 +90,9 @@ export const useProviderStore = defineStore('provider', () => {
   const addedProviders = computed(() => providerConfigStore.addedProviders)
   // Provider instances contain functions and transport handles. Keep this map
   // private so it never enters Pinia state.
-  const providerInstanceCache = new Map<string, { configKey: string | undefined, instance: unknown }>()
+  const providerInstanceCache = new Map<string, { configKey: string, revision: number, instance: ProviderInstance }>()
+  // Retired HTTP clients can still own active requests. Explicit disposal releases every generation.
+  const retiredProviderInstances = new Map<string, ProviderInstance[]>()
   const previousCredentialHashes = new Map<string, string>()
   const { t } = useI18n()
 
@@ -129,7 +132,7 @@ export const useProviderStore = defineStore('provider', () => {
     await Promise.all(definedProviders.map(async (definition) => {
       const intervalMs = await getProviderValidationIntervalMs({
         definition,
-        contextOptions: { t },
+        contextOptions: { t, fetch: getAITransportFetch() },
       })
       if (!intervalMs || intervalMs <= 0)
         return
@@ -187,6 +190,8 @@ export const useProviderStore = defineStore('provider', () => {
   onScopeDispose(() => {
     voiceOwnerEpoch++
     invalidateVoiceSession()
+    for (const providerId of providerInstanceCache.keys())
+      void disposeProviderInstance(providerId)
   })
   const providerRevalidationLoops = new Map<string, { pause: () => void, resume: () => void }>()
 
@@ -253,7 +258,7 @@ export const useProviderStore = defineStore('provider', () => {
       definition,
       config,
       schemaDefaults,
-      contextOptions: { t },
+      contextOptions: { t, fetch: getAITransportFetch() },
     })
 
     if (options.onlyChatPingCheck) {
@@ -267,7 +272,7 @@ export const useProviderStore = defineStore('provider', () => {
     }
 
     if (plan.providerValidators.length > 0 || plan.configValidators.length > 0)
-      await runProviderValidation(plan, { t })
+      await runProviderValidation(plan, { t, fetch: getAITransportFetch() })
 
     const configOnly = !options.onlyChatPingCheck && !plan.shouldValidate
     const result = validationResultFromPlan(plan, configOnly)
@@ -322,7 +327,7 @@ export const useProviderStore = defineStore('provider', () => {
       return false
 
     initializeProviderRuntimeState(providerId)
-    const configString = JSON.stringify(config || {})
+    const configString = JSON.stringify([config || {}, aiTransportRevision.value])
     const runtimeState = providerRuntimeState.value[providerId]
     const configuredProvider = providerConfigStore.providers[providerId]
     const cacheKey = `${providerId}:${configString}`
@@ -534,7 +539,7 @@ export const useProviderStore = defineStore('provider', () => {
       // Also cache the current config to prevent re-validation from overwriting
       const config = providerCredentials.value[providerId]
       if (config) {
-        providerRuntimeState.value[providerId].validatedCredentialHash = JSON.stringify(config)
+        providerRuntimeState.value[providerId].validatedCredentialHash = JSON.stringify([config, aiTransportRevision.value])
       }
     }
     // The leader stores status before this action resolves. Callers read it immediately.
@@ -591,10 +596,10 @@ export const useProviderStore = defineStore('provider', () => {
 
   async function listProviderModels(providerId: string, config: Record<string, unknown>) {
     const definition = getProviderDefinition(providerId)
-    const provider = await definition.createProvider(config)
+    const provider = await definition.createProvider(config, { t, fetch: getAITransportFetch() })
     try {
       if (definition.extraMethods?.listModelCatalog) {
-        const catalog = await definition.extraMethods.listModelCatalog(config, provider, { t })
+        const catalog = await definition.extraMethods.listModelCatalog(config, provider, { t, fetch: getAITransportFetch() })
         return {
           ...catalog,
           models: normalizeProviderModels(providerId, catalog.models),
@@ -602,7 +607,7 @@ export const useProviderStore = defineStore('provider', () => {
       }
 
       if (definition.extraMethods?.listModels) {
-        const models = await definition.extraMethods.listModels(config, provider, { t })
+        const models = await definition.extraMethods.listModels(config, provider, { t, fetch: getAITransportFetch() })
         return { models: normalizeProviderModels(providerId, models) }
       }
 
@@ -616,6 +621,7 @@ export const useProviderStore = defineStore('provider', () => {
 
       return {
         models: normalizeProviderModels(providerId, await listModels({
+          fetch: getAITransportFetch(),
           baseURL: baseUrl,
           ...(apiKey ? { apiKey } : {}),
         })),
@@ -663,7 +669,7 @@ export const useProviderStore = defineStore('provider', () => {
     const config = request.config
     const ownerEpoch = voiceOwnerEpoch
     const sessionEpoch = definition.configuredBy === 'authentication' ? voiceSessionEpoch : undefined
-    const requestKey = JSON.stringify([providerId, request.definitionId, model ?? null, config, sessionEpoch])
+    const requestKey = JSON.stringify([providerId, request.definitionId, model ?? null, config, sessionEpoch, aiTransportRevision.value])
     const pending = providerVoiceListInFlight.get(requestKey)
     if (pending)
       return pending
@@ -674,11 +680,11 @@ export const useProviderStore = defineStore('provider', () => {
         authenticatedVoiceControllers.add(controller)
       let provider: ProviderInstance | undefined
       try {
-        provider = await definition.createProvider(config)
+        provider = await definition.createProvider(config, { t, fetch: getAITransportFetch() })
         // Provider creation can yield across logout before the network call starts.
         if (sessionEpoch !== undefined && sessionEpoch !== voiceSessionEpoch)
           return undefined
-        const voices = await listVoices(config, provider, model, controller?.signal)
+        const voices = await listVoices(config, provider, model, controller?.signal, { t, fetch: getAITransportFetch() })
         if (sessionEpoch !== undefined && sessionEpoch !== voiceSessionEpoch)
           return undefined
         return voices
@@ -719,7 +725,7 @@ export const useProviderStore = defineStore('provider', () => {
     if (!loadModel)
       return
 
-    const provider = await definition.createProvider(config)
+    const provider = await definition.createProvider(config, { t, fetch: getAITransportFetch() })
     try {
       await loadModel(config, provider)
     }
@@ -931,15 +937,22 @@ export const useProviderStore = defineStore('provider', () => {
     // Configuration snapshots can arrive after a follower creates an instance.
     // Compare serialized values so an equivalent snapshot preserves its transport.
     const configKey = JSON.stringify(config)
+    const revision = definition.usesHTTP === false ? 0 : aiTransportRevision.value
     const cached = providerInstanceCache.get(providerId)
-    if (cached && cached.configKey === configKey)
+    if (cached && cached.configKey === configKey && cached.revision === revision)
       return cached.instance as R
-    if (cached)
+    if (cached && cached.configKey !== configKey) {
       await disposeProviderInstance(providerId)
+    }
 
     try {
-      const instance = await definition.createProvider(config || {})
-      providerInstanceCache.set(providerId, { configKey, instance })
+      const instance = await definition.createProvider(config || {}, { t, fetch: getAITransportFetch() })
+      if (cached?.configKey === configKey && 'dispose' in cached.instance) {
+        const retired = retiredProviderInstances.get(providerId) ?? []
+        retired.push(cached.instance)
+        retiredProviderInstances.set(providerId, retired)
+      }
+      providerInstanceCache.set(providerId, { configKey, revision, instance })
       previousCredentialHashes.set(providerId, JSON.stringify(config || {}))
       return instance as R
     }
@@ -967,12 +980,13 @@ export const useProviderStore = defineStore('provider', () => {
 
   /** Releases this renderer's transport; each window owns its own instance cache. */
   async function disposeProviderInstance(providerId: string) {
-    const instance = providerInstanceCache.get(providerId)?.instance as { dispose?: () => Promise<void> | void } | undefined
+    const instance = providerInstanceCache.get(providerId)?.instance
+    const retired = retiredProviderInstances.get(providerId) ?? []
     // Remove ownership before awaiting cleanup so a concurrent request cannot reuse it.
     providerInstanceCache.delete(providerId)
+    retiredProviderInstances.delete(providerId)
     previousCredentialHashes.delete(providerId)
-    if (instance?.dispose)
-      await instance.dispose()
+    await Promise.all([...retired, ...(instance ? [instance] : [])].map(disposeTemporaryProvider))
   }
 
   const availableProvidersMetadata = computedAsync<ProviderMetadata[]>(async () => {

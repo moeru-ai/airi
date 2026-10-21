@@ -1,4 +1,4 @@
-import type { ProviderDefinition } from '../types'
+import type { ProviderDefinition, ProviderInstance } from '../types'
 
 /**
  * A read-only lookup surface for provider definitions.
@@ -19,7 +19,34 @@ export interface ProviderRegistry {
 export function defineProvider<TConfig, const TId extends string = string>(
   definition: ProviderDefinition<TConfig, TId>,
 ): ProviderDefinition<TConfig, TId> {
-  return definition
+  return {
+    ...definition,
+    createProvider(config, context) {
+      const result = definition.createProvider(config, context)
+      if (!context?.fetch || definition.usesHTTP === false)
+        return result
+      function bind(provider: ProviderInstance): ProviderInstance {
+      // SDK configurations without a custom adapter use the captured HTTP transport.
+      // Custom adapters own their final network call and receive the same context above.
+        return new Proxy(provider, {
+          get(target, property, receiver) {
+            const value: unknown = Reflect.get(target, property, receiver)
+            if (typeof value !== 'function' || !['chat', 'generation', 'model', 'speech', 'transcription', 'embed'].includes(String(property)))
+              return value
+            return (...args: unknown[]) => {
+              const result = Reflect.apply(value, target, args) as Record<string, unknown>
+              if (property === 'generation') {
+                const config = result.config as { fetch?: typeof globalThis.fetch }
+                return { ...result, config: { ...config, fetch: config.fetch ?? context?.fetch } }
+              }
+              return { ...result, fetch: result.fetch ?? context?.fetch }
+            }
+          },
+        })
+      }
+      return result instanceof Promise ? result.then(bind) : bind(result)
+    },
+  }
 }
 
 /**

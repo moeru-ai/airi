@@ -12,6 +12,7 @@ import { isMacOS, isWindows } from 'std-env'
 import { createServerChannelService } from '../../services/airi/channel-server'
 import { createI18nService } from '../../services/airi/i18n'
 import { createAppService, createPowerMonitorService, createScreenService, createSystemPreferencesService, createWindowService } from '../../services/electron'
+import { setupAITransport } from '../../services/electron/ai-transport'
 import { WindowBackdropService } from '../../services/electron/window-backdrop'
 
 export function toggleWindowShow(window?: BrowserWindow | null): void {
@@ -52,6 +53,7 @@ export function transparentWindowConfig(): BrowserWindowConstructorOptions {
  * - Nothing; installs navigation and popup guards on the window's web contents
  */
 export function protectPrivilegedWindowNavigation(window: BrowserWindow): void {
+  setupAITransport(window)
   function openSafeExternalUrl(rawUrl: string): void {
     try {
       const url = new URL(rawUrl)

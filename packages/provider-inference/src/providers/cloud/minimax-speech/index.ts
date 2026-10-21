@@ -148,7 +148,7 @@ interface MinimaxVoiceCatalog extends MinimaxBaseResponse {
  * Reads the account voice catalog from `POST /v1/get_voice`. The account holds
  * every system voice, plus cloned and generated voices.
  */
-async function requestMinimaxVoices(config: MinimaxSpeechConfig): Promise<VoiceCatalogOutcome> {
+async function requestMinimaxVoices(config: MinimaxSpeechConfig, fetch: typeof globalThis.fetch = globalThis.fetch, signal?: AbortSignal): Promise<VoiceCatalogOutcome> {
   const apiKey = config.apiKey?.trim()
   if (!apiKey)
     return { kind: 'rejected', reason: 'API key is required.' }
@@ -164,6 +164,7 @@ async function requestMinimaxVoices(config: MinimaxSpeechConfig): Promise<VoiceC
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({ voice_type: 'all' }),
+      signal,
     })
   }
   // Only the call itself is guarded. A refusal must reach the caller, because a
@@ -215,8 +216,8 @@ async function requestMinimaxVoices(config: MinimaxSpeechConfig): Promise<VoiceC
  * refusal. Only the payload tells the two apart, so this is the check that
  * separates "the user typed something" from "the account works".
  */
-async function probeMinimaxCredentials(config: MinimaxSpeechConfig): Promise<string> {
-  const outcome = await requestMinimaxVoices(config)
+async function probeMinimaxCredentials(config: MinimaxSpeechConfig, fetch: typeof globalThis.fetch = globalThis.fetch): Promise<string> {
+  const outcome = await requestMinimaxVoices(config, fetch)
   return outcome.kind === 'rejected' ? outcome.reason : ''
 }
 
@@ -230,7 +231,8 @@ export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig, 'minima
   icon: 'i-lobe-icons:minimax',
   iconColor: 'i-lobe-icons:minimax-color',
   createProviderConfig: () => minimaxSpeechConfigSchema,
-  createProvider(config) {
+  createProvider(config, context) {
+    const fetch = context?.fetch ?? globalThis.fetch
     const apiKey = config.apiKey.trim()
     const baseUrl = (config.baseUrl || 'https://api.minimax.io').replace(/\/$/, '')
 
@@ -340,7 +342,8 @@ export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig, 'minima
       ({ t }) => ({
         id: 'minimax-speech:check-config',
         name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-config.title'),
-        validator: async (config) => {
+        validator: async (config, context) => {
+          const fetch = context?.fetch ?? globalThis.fetch
           const errors: Array<{ error: unknown }> = []
 
           if (!config.apiKey?.trim()) {
@@ -348,7 +351,7 @@ export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig, 'minima
           }
           else {
             // A nonempty key is a supplied key, not an authenticated one.
-            const refusal = await probeMinimaxCredentials(config)
+            const refusal = await probeMinimaxCredentials(config, fetch)
             if (refusal)
               errors.push({ error: new Error(refusal) })
           }
@@ -369,8 +372,8 @@ export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig, 'minima
       { id: 'speech-2.8-turbo', name: 'Speech 2.8 Turbo', provider: 'minimax-speech', description: 'Fast TTS model for low-latency scenarios', deprecated: false },
     ],
     voiceCatalogConfig: () => ({}),
-    listVoices: async (config) => {
-      const outcome = await requestMinimaxVoices(config)
+    listVoices: async (config, _provider, _model, signal, context) => {
+      const outcome = await requestMinimaxVoices(config, context?.fetch, signal)
 
       // A refusal must not become a populated selector. The built-in list would
       // read as a working account and hide the rejected key.

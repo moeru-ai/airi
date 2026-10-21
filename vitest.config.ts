@@ -12,6 +12,7 @@ export default defineConfig({
       'apps/stage-tamagotchi/vitest.node.config.ts',
       'evals/tts-speech-formula',
       'packages/agents',
+      'packages/ai-transport',
       'packages/cap-vite',
       'packages/ccc',
       'packages/core-agent',

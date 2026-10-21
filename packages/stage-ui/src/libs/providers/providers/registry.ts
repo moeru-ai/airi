@@ -22,6 +22,7 @@ import type {
 } from './official'
 import type { providerSherpawTranscription } from './sherpaw'
 
+import { defineProvider as definePortableProvider } from '@proj-airi/provider-inference'
 import { orderBy } from 'es-toolkit'
 
 const providerRegistry = new Map<string, ProviderDefinition>()
@@ -79,13 +80,11 @@ interface ProviderDefinitionOptions<T, TId extends string = string> extends Prov
 }
 
 export function defineProvider<T, const TId extends string = string>(definition: ProviderDefinitionOptions<T, TId>): ProviderDefinition<T, TId> {
-  const provider = {
-    ...definition,
-  }
+  const provider = definePortableProvider(definition)
 
   // The registry selects a provider by id. The selected configuration shape is
   // only known by the caller after that lookup.
-  providerRegistry.set(definition.id, definition as unknown as ProviderDefinition)
+  providerRegistry.set(definition.id, provider as unknown as ProviderDefinition)
 
   return provider
 }

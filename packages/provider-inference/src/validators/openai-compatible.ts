@@ -1,4 +1,4 @@
-import type { ProviderDefinition, ProviderExtraMethods, ProviderInstance } from '../types'
+import type { ProviderContext, ProviderDefinition, ProviderExtraMethods, ProviderInstance } from '../types'
 
 import isNetworkError from 'is-network-error'
 
@@ -75,12 +75,13 @@ async function resolveModels<TConfig extends { apiKey?: string | null, baseUrl?:
   config: TConfig,
   provider: ProviderInstance,
   providerExtra: ProviderExtraMethods<TConfig> | undefined,
+  context?: ProviderContext,
 ) {
   if (providerExtra?.listModels) {
-    return providerExtra.listModels(config, provider)
+    return providerExtra.listModels(config, provider, context)
   }
   if (!isModelProvider(provider)) {
-    return listModels({ baseURL: config.baseUrl!, apiKey: config.apiKey! })
+    return listModels({ fetch: context?.fetch, baseURL: config.baseUrl!, apiKey: config.apiKey! })
   }
 
   return listModels(provider.model())
@@ -90,12 +91,13 @@ async function pickValidationModel<TConfig extends { apiKey?: string | null, bas
   config: TConfig,
   provider: ProviderInstance,
   providerExtra: ProviderExtraMethods<TConfig> | undefined,
+  context?: ProviderContext,
 ): Promise<string | null> {
   // A configured model expresses the user's protocol choice. Catalog order does not.
   if ('model' in config && typeof config.model === 'string' && config.model.trim())
     return config.model.trim()
   try {
-    const models = await resolveModels(config, provider, providerExtra)
+    const models = await resolveModels(config, provider, providerExtra, context)
     const modelId = extractModelId(models.find(model => !shouldSkipModelId(extractModelId(model))))
     return modelId || null
   }
@@ -122,8 +124,9 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     config: TConfig,
     provider: ProviderInstance,
     providerExtra: ProviderExtraMethods<TConfig> | undefined,
+    context?: ProviderContext,
   ): Promise<ChatCheckResult> {
-    const model = await pickValidationModel(config, provider, providerExtra)
+    const model = await pickValidationModel(config, provider, providerExtra, context)
     const normalizedModel = model ? options?.normalizeModelId?.(model) ?? model : model
 
     if (!normalizedModel) {
@@ -152,6 +155,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
         return { connectivityOk: true, chatOk: true }
       }
       await generateText({
+        fetch: generation?.protocol === 'chat-completions' ? generation.config.fetch : context?.fetch,
         apiKey: config.apiKey,
         baseURL: config.baseUrl!,
         headers: additionalHeaders,
@@ -186,7 +190,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     config: TConfig,
     provider: ProviderInstance,
     providerExtra: ProviderExtraMethods<TConfig> | undefined,
-    contextOptions?: { validationCache?: Map<string, unknown> },
+    contextOptions?: ProviderContext & { validationCache?: Map<string, unknown> },
   ): Promise<ChatCheckResult> => {
     const cache = contextOptions?.validationCache
     const existing = cache?.get(chatCheckCacheKey) as Promise<ChatCheckResult> | undefined
@@ -194,7 +198,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
       return existing
 
     if (!cache) {
-      return runChatCheck(config, provider, providerExtra)
+      return runChatCheck(config, provider, providerExtra, contextOptions)
     }
 
     let mutex = cache.get(chatCheckMutexKey) as Mutex | undefined
@@ -210,7 +214,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
       if (cached)
         return cached
 
-      const sharedCheck = runChatCheck(config, provider, providerExtra)
+      const sharedCheck = runChatCheck(config, provider, providerExtra, contextOptions)
 
       cache.set(chatCheckCacheKey, sharedCheck)
 
@@ -264,7 +268,8 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
       id: 'openai-compatible:check-connectivity',
       name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-connectivity.title'),
       schedule: options?.schedule,
-      validator: async (config) => {
+      validator: async (config, _provider, _extra, context) => {
+        const fetch = context?.fetch ?? globalThis.fetch
         const errors: Array<{ error: unknown }> = []
         const baseUrl = String(config.baseUrl ?? '')
         const modelsUrl = baseUrl.endsWith('/') ? `${baseUrl}models` : `${baseUrl}/models`
@@ -281,6 +286,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
             signal: controller.signal,
           })
 
+          await response.body?.cancel()
           if (response.status >= 500) {
             const errorMessage = `Server error: HTTP ${response.status}`
             const reason = options?.connectivityFailureReason
@@ -321,7 +327,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
           config,
           provider,
           providerExtra,
-          contextOptions as { validationCache?: Map<string, unknown> } | undefined,
+          contextOptions,
         )
         if (!result.chatOk) {
           errors.push({ error: new Error(`Chat completions check failed: ${result.errorMessage || 'Unknown error.'}`) })
@@ -342,10 +348,10 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
       id: 'openai-compatible:check-model-list',
       name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-supports-model-listing.title'),
       schedule: options?.schedule,
-      validator: async (config, provider, providerExtra) => {
+      validator: async (config, provider, providerExtra, context) => {
         const errors: Array<{ error: unknown }> = []
         try {
-          const models = await resolveModels(config, provider, providerExtra)
+          const models = await resolveModels(config, provider, providerExtra, context)
           if (!models || models.length === 0) {
             errors.push({ error: new Error('Model list check failed: no models found') })
           }

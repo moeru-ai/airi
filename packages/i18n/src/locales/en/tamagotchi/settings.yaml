@@ -28,6 +28,30 @@ pages:
       title: MCP Server
   system:
     general:
+      network-proxy:
+        title: Network proxy
+        description: Route desktop HTTP and WebSocket connections through a network proxy. This also affects sign-in and page resources. Saved on this device.
+        system: System proxy
+        direct: Direct connection
+        custom: Custom proxy
+        address: Proxy address
+        address-description: Use an HTTP or SOCKS5 URL. Proxy authentication is not supported.
+        bypass: Bypass rules
+        bypass-description: Optional comma-separated hosts or IP ranges that connect directly. Chromium bypasses loopback addresses by default.
+        connections: Changes apply to new connections. Existing connections, including WebSockets and reused HTTP connections, keep their current route. CORS rules still apply to browser requests.
+        save: Save network proxy
+        saved: Network proxy saved. New connections use these settings.
+        unavailable: Network proxy state is unavailable.
+        invalid-address: Enter an HTTP or SOCKS5 proxy URL without credentials or a path. SOCKS5 requires a port.
+        load-error: Failed to load network proxy settings.
+        save-error: Failed to save network proxy settings. Check the connection status and try again.
+      ai-proxy:
+        title: Local AI request proxy
+        description: Send AI HTTP requests through the desktop app to avoid browser CORS restrictions. Covers chat, speech, model lists, voices, images, and connection checks. Excludes WebSocket and browser inference. Saved on this device.
+        enabled: Enabled. New AI HTTP requests use the desktop proxy.
+        disabled: Disabled. AI HTTP requests use the browser network.
+        unavailable: Proxy state is unavailable. AI HTTP requests are blocked until the desktop connection recovers.
+        save-error: Failed to update the local AI request proxy.
       hide-app-icon:
         title: Hide taskbar / Dock icon
         description: Keep AIRI in the tray only. Use the tray menu to open windows or quit. Changes apply immediately.

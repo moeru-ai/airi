@@ -49,6 +49,7 @@ import { setupAutoUpdater } from './services/electron/auto-updater'
 import { setupSherpawModelAssetsProtocol } from './services/electron/bundled-sherpaw-assets'
 import { setupGlobalShortcutService } from './services/electron/global-shortcut'
 import { setupPermissionHandlers } from './services/electron/media-permissions'
+import { networkProxyService } from './services/electron/network-proxy'
 import { setupSherpawModelAssets } from './services/electron/sherpaw-model-assets'
 import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
@@ -242,6 +243,8 @@ app.whenReady().then(async () => {
   if (!shouldStartMainProcess) {
     return
   }
+
+  await injeca.resolve({ networkProxy: networkProxyService })
 
   setupSherpawModelAssetsProtocol(resolve(getElectronMainDirname(), '..', 'renderer'))
   setupSherpawModelAssets(createContext(ipcMain).context)

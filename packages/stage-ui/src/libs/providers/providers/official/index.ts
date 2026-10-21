@@ -7,6 +7,7 @@ import { z } from 'zod'
 
 import { getAuthToken } from '../../../../libs/auth'
 import { SERVER_URL } from '../../../../libs/server'
+import { getAITransportFetch } from '../../../ai-transport'
 import { defineProvider } from '../registry'
 import { OFFICIAL_CHAT_PROVIDER_ID, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from './constants'
 import { createOfficialAudioProvider, createOfficialOpenAIProvider, OFFICIAL_ICON, withCredentials } from './shared'
@@ -33,7 +34,7 @@ async function listStreamingModelCatalog(): Promise<ProviderModelCatalog> {
   // (`UNSPEECH_UPSTREAM.streaming`). Wire shape uses `<backend>/<api_resource_id>`
   // (see `unspeech/docs/wire-protocols/audio-speech-stream-v1.md`); the
   // server returns whatever the operator put there, no client-side defaults.
-  const res = await globalThis.fetch(`${SERVER_URL}/api/v1/audio/models/streaming`, { headers: authHeaders() })
+  const res = await getAITransportFetch()(`${SERVER_URL}/api/v1/audio/models/streaming`, { headers: authHeaders() })
   if (!res.ok)
     throw new Error(`streaming models upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
 
@@ -82,7 +83,7 @@ export const providerOfficialChat = defineProvider<OfficialChatConfig, typeof OF
       model: provider.model,
       generation(model: string, _options?: ChatRequestOptions): GenerationRequest {
         const request = provider.chat(model)
-        request.fetch = withCredentials()
+        request.fetch = withCredentials(getAITransportFetch())
         switch (config.api ?? compatibleProtocols.defaultProtocol) {
           case 'responses':
             return {
@@ -134,7 +135,7 @@ export const providerOfficialSpeech = defineProvider({
         ...originalSpeech(model),
         ...extraOptions,
       }
-      result.fetch = withCredentials()
+      result.fetch = withCredentials(getAITransportFetch())
       return result
     }
     return provider
@@ -142,7 +143,7 @@ export const providerOfficialSpeech = defineProvider({
   validationRequiredWhen: () => false,
   extraMethods: {
     listModelCatalog: async (): Promise<ProviderModelCatalog> => {
-      const res = await globalThis.fetch(`${SERVER_URL}/api/v1/audio/models`, { headers: authHeaders() })
+      const res = await getAITransportFetch()(`${SERVER_URL}/api/v1/audio/models`, { headers: authHeaders() })
       if (!res.ok)
         throw new Error(`audio models upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
 
@@ -170,7 +171,7 @@ export const providerOfficialSpeech = defineProvider({
       const target = model && model.length > 0 ? model : 'auto'
       const url = new URL(`${SERVER_URL}/api/v1/audio/voices`)
       url.searchParams.set('model', target)
-      const res = await globalThis.fetch(url.toString(), { headers: authHeaders(), signal })
+      const res = await getAITransportFetch()(url.toString(), { headers: authHeaders(), signal })
       if (!res.ok)
         throw new Error(`audio voices upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
 
@@ -262,7 +263,7 @@ export const providerOfficialSpeechStreaming = defineProvider({
         ...originalSpeech(model),
         ...extraOptions,
       }
-      result.fetch = withCredentials()
+      result.fetch = withCredentials(getAITransportFetch())
       return result
     }
     return provider
@@ -287,7 +288,7 @@ export const providerOfficialSpeechStreaming = defineProvider({
       const voicesURL = new URL(`${SERVER_URL}/api/v1/audio/voices/streaming`)
       if (apiResourceId)
         voicesURL.searchParams.set('model', apiResourceId)
-      const res = await globalThis.fetch(
+      const res = await getAITransportFetch()(
         voicesURL.toString(),
         { headers: authHeaders(), signal },
       )
@@ -354,7 +355,7 @@ export const providerOfficialTranscription = defineProvider({
     return {
       transcription: (model: string) => ({
         baseURL: new URL(`${SERVER_URL}/api/v1/audio/transcriptions/stream`),
-        fetch: withCredentials(),
+        fetch: withCredentials(getAITransportFetch()),
         model,
       }),
     }

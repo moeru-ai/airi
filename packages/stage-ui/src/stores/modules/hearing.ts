@@ -19,6 +19,7 @@ import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, toRaw, watch } from 'vue'
 
 import { useAnalytics } from '../../composables/use-analytics'
+import { getAITransportFetch } from '../../libs/ai-transport'
 import { createHearingTranscriber } from '../../libs/audio/hearing-transcriber'
 import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers'
 import { APPLE_SPEECH_TRANSCRIPTION_PROVIDER_ID, executeAppleSpeechStream } from '../../libs/providers/providers/apple-speech'
@@ -585,7 +586,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
         void media.done.then(() => result.recognition?.stop(), () => {})
         return { mode: 'stream', ...result }
       }
-      const provider = await definition.createProvider(config)
+      const provider = await definition.createProvider(config, { t: key => key, fetch: getAITransportFetch() })
       let disposal: Promise<void> | undefined
       const dispose = () => {
         disposal ??= Promise.resolve().then(async () => {

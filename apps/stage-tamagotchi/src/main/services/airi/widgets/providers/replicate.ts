@@ -3,10 +3,13 @@ import type { ArtistryJob, ArtistryJobStatus, ArtistryProvider, ArtistryRequest 
 import Replicate from 'replicate'
 
 import { useLogg } from '@guiiai/logg'
+import { errorMessageFrom } from '@moeru/std'
 
 const log = useLogg('providers-replicate').useGlobalConfig()
 
 export class ReplicateProvider implements ArtistryProvider {
+  constructor(private readonly fetch: typeof globalThis.fetch) {}
+
   readonly id = 'replicate'
   readonly name = 'Replicate.ai (Cloud)'
 
@@ -14,7 +17,6 @@ export class ReplicateProvider implements ArtistryProvider {
   private defaultModel = 'black-forest-labs/flux-schnell'
   private aspectRatio = '16:9'
   private inferenceSteps = 4
-  private replicate: Replicate | null = null
 
   private jobResults = new Map<string, ArtistryJobStatus>()
   private callbacks = new Map<string, (status: ArtistryJobStatus) => void>()
@@ -33,25 +35,23 @@ export class ReplicateProvider implements ArtistryProvider {
       callback(status)
   }
 
-  async initialize(config: any): Promise<void> {
-    if (config?.replicateApiKey) {
+  async initialize(config: Record<string, unknown>): Promise<void> {
+    if (typeof config.replicateApiKey === 'string') {
       this.apiKey = config.replicateApiKey
-      this.replicate = new Replicate({ auth: this.apiKey })
     }
     else {
       this.apiKey = ''
-      this.replicate = null
     }
-    if (config?.replicateDefaultModel)
+    if (typeof config.replicateDefaultModel === 'string')
       this.defaultModel = config.replicateDefaultModel
-    if (config?.replicateAspectRatio)
+    if (typeof config.replicateAspectRatio === 'string')
       this.aspectRatio = config.replicateAspectRatio
-    if (config?.replicateInferenceSteps)
+    if (typeof config.replicateInferenceSteps === 'number')
       this.inferenceSteps = config.replicateInferenceSteps
   }
 
   async generate(request: ArtistryRequest): Promise<ArtistryJob> {
-    if (!this.replicate) {
+    if (!this.apiKey) {
       throw new Error('Replicate provider is not configured. Missing API Key.')
     }
 
@@ -60,7 +60,7 @@ export class ReplicateProvider implements ArtistryProvider {
 
     // 1. Start with defaults
     const hasPromptPlaceholder = JSON.stringify(request.extra).includes('{{PROMPT}}')
-    let inputOptions: Record<string, any> = {
+    let inputOptions: Record<string, unknown> = {
       go_fast: request.extra?.go_fast ?? true,
       aspect_ratio: request.extra?.aspect_ratio ?? this.aspectRatio,
       output_format: request.extra?.output_format ?? 'png',
@@ -77,12 +77,12 @@ export class ReplicateProvider implements ArtistryProvider {
     if (request.extra) {
       const { image: _image, internalJobId: _internalJobId, remixId: _remixId, ...rest } = request.extra
       // [BY DESIGN]: Strip 'prompt' from rest to avoid overwriting the prefixed version from the bridge.
-      const { prompt: _overriddenPrompt, ...safeRest } = rest as any
+      const { prompt: _overriddenPrompt, ...safeRest } = rest
       inputOptions = { ...inputOptions, ...safeRest }
     }
 
     // 3. Recursive placeholder replacement for {{IMAGE}} and {{PROMPT}}
-    const replacePlaceholders = (obj: any): any => {
+    const replacePlaceholders = (obj: unknown): unknown => {
       if (typeof obj === 'string') {
         let result = obj
         // Handle image replacement
@@ -100,18 +100,18 @@ export class ReplicateProvider implements ArtistryProvider {
       if (Array.isArray(obj))
         return obj.map(replacePlaceholders)
       if (typeof obj === 'object' && obj !== null) {
-        const newObj: any = {}
-        for (const key in obj)
-          newObj[key] = replacePlaceholders(obj[key])
+        const newObj: Record<string, unknown> = {}
+        for (const [key, value] of Object.entries(obj))
+          newObj[key] = replacePlaceholders(value)
         return newObj
       }
       return obj
     }
 
-    inputOptions = replacePlaceholders(inputOptions)
+    inputOptions = Object.fromEntries(Object.entries(inputOptions).map(([key, value]) => [key, replacePlaceholders(value)]))
 
     // Ensure main prompt is also truncated if not using a placeholder
-    if (inputOptions.prompt && !hasPromptPlaceholder) {
+    if (typeof inputOptions.prompt === 'string' && !hasPromptPlaceholder) {
       inputOptions.prompt = this.truncatePrompt(inputOptions.prompt)
     }
 
@@ -122,62 +122,48 @@ export class ReplicateProvider implements ArtistryProvider {
     const jobId = request.extra?.internalJobId || Math.random().toString(36).slice(2)
 
     // Start generation asynchronously
-    this.runGeneration(jobId, model, inputOptions)
+    this.runGeneration(jobId, model, inputOptions, request.signal)
 
     return { jobId, providerJobId: jobId }
   }
 
-  private async runGeneration(jobId: string, model: `${string}/${string}`, input: object) {
+  private async runGeneration(jobId: string, model: `${string}/${string}`, input: object, signal?: AbortSignal) {
     this.updateStatus(jobId, { status: 'running', actionLabel: 'Requesting cloud generation...' })
 
     try {
-      const output = await this.replicate!.run(model, { input })
+      // NOTICE:
+      // Replicate 1.4.0 run() omits the signal from the initial prediction request.
+      // Bind cancellation at the Fetch boundary for every request in this job.
+      // Source: replicate/index.js run(), before predictions.create().
+      // Remove this binding when the SDK propagates the signal to every request.
+      const client = new Replicate({
+        auth: this.apiKey,
+        useFileOutput: false,
+        fetch: (url, init) => {
+          signal?.throwIfAborted()
+          return this.fetch(url, {
+            ...init,
+            signal: signal && init?.signal ? AbortSignal.any([signal, init.signal]) : signal ?? init?.signal,
+          })
+        },
+      })
+      const output = await client.run(model, { input, signal })
 
       if (!output) {
         throw new Error('No output received from Replicate.')
       }
 
-      log.log(`[Replicate] Raw output type: ${typeof output}, isArray: ${Array.isArray(output)}`)
-
-      // Replicate's run() can return a single string, an array of strings, or an array of FileUpload objects
-      const items = Array.isArray(output) ? output : [output]
-      if (items.length > 0) {
-        const first = items[0]
-        let imageUrl: string | undefined
-
-        // Case 1: FileUpload object with .url() method (common in recent SDK versions)
-        if (typeof first === 'object' && first !== null && 'url' in first && typeof (first as any).url === 'function') {
-          imageUrl = (first as any).url().href
-        }
-        // Case 2: Object with url property as a string
-        else if (typeof first === 'object' && first !== null && 'url' in first && typeof (first as any).url === 'string') {
-          imageUrl = (first as any).url
-        }
-        // Case 3: Simple string (the URL itself)
-        else if (typeof first === 'string') {
-          imageUrl = first
-        }
-
-        if (imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('data:'))) {
-          log.log(`[Replicate] EXTRACTED IMAGE: ${imageUrl.startsWith('data:') ? 'DATA_URL' : imageUrl}`)
-          this.updateStatus(jobId, { status: 'succeeded', progress: 100, imageUrl })
-        }
-        else {
-          log.error(`[Replicate] Failed to extract URL from output: ${JSON.stringify(first)}`)
-          throw new Error('Output does not contain a recognizable image URL.')
-        }
-      }
-      else {
-        throw new Error('Replicate returned an empty output array.')
-      }
+      const result: unknown = Array.isArray(output) ? output[0] : output
+      const imageUrl = typeof result === 'string' ? result : undefined
+      if (!imageUrl || !['http:', 'https:', 'data:'].includes(new URL(imageUrl).protocol))
+        throw new Error('Output does not contain an image URL.')
+      this.updateStatus(jobId, { status: 'succeeded', progress: 100, imageUrl })
     }
-    catch (error: any) {
-      const errorMessage = error.message || (typeof error === 'object' ? JSON.stringify(error) : String(error))
-      log.error(`[Replicate] Generation Failed for ${jobId}: ${errorMessage}`)
+    catch (error) {
+      log.error(`[Replicate] Generation failed for ${jobId}.`)
       this.updateStatus(jobId, {
         status: 'failed',
-        error: errorMessage,
-        actionLabel: `Error: ${errorMessage.slice(0, 50)}${errorMessage.length > 50 ? '...' : ''}`,
+        error: errorMessageFrom(error) ?? 'Image generation failed.',
       })
     }
     finally {

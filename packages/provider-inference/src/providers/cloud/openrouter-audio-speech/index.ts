@@ -75,13 +75,13 @@ function decodeBase64Pcm(chunks: string[]) {
   return bytes
 }
 
-function createAudioFetch(apiKey: string, baseUrl: string, model: string) {
+function createAudioFetch(apiKey: string, baseUrl: string, model: string, fetch: typeof globalThis.fetch = globalThis.fetch) {
   return async (_input: RequestInfo | URL, init?: RequestInit) => {
     if (!init?.body || typeof init.body !== 'string')
       throw new Error('Invalid request body')
 
     const body = JSON.parse(init.body) as { input?: string, voice?: string }
-    const response = await globalThis.fetch(new URL('chat/completions', baseUrl), {
+    const response = await fetch(new URL('chat/completions', baseUrl), {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -118,7 +118,7 @@ export const providerOpenRouterAudioSpeech = defineProvider<OpenRouterAudioConfi
   tasks: ['text-to-speech'],
   icon: 'i-lobe-icons:openrouter',
   createProviderConfig: () => openRouterAudioConfigSchema,
-  createProvider(config) {
+  createProvider(config, context) {
     const apiKey = config.apiKey.trim()
     const baseUrl = normalizeBaseUrl(config.baseUrl)
     return {
@@ -127,7 +127,7 @@ export const providerOpenRouterAudioSpeech = defineProvider<OpenRouterAudioConfi
         return {
           baseURL: baseUrl,
           model: resolvedModel,
-          fetch: createAudioFetch(apiKey, baseUrl, resolvedModel),
+          fetch: createAudioFetch(apiKey, baseUrl, resolvedModel, context?.fetch),
         }
       },
     }
@@ -151,9 +151,9 @@ export const providerOpenRouterAudioSpeech = defineProvider<OpenRouterAudioConfi
     ],
   },
   extraMethods: {
-    listModels: async (config) => {
+    listModels: async (config, _provider, context) => {
       try {
-        const response = await fetch(new URL('models?output_modality=audio', normalizeBaseUrl(config.baseUrl)), {
+        const response = await (context?.fetch ?? globalThis.fetch)(new URL('models?output_modality=audio', normalizeBaseUrl(config.baseUrl)), {
           headers: OPENROUTER_ATTRIBUTION_HEADERS,
         })
         if (!response.ok)
