@@ -235,7 +235,7 @@ catalog:
   '@valibot/to-json-schema': 1.0.0-rc.0
   '@velin-dev/core': ^0.4.0
   '@velin-dev/core-vue': 1.0.0-beta.6
-  '@vieval/ui': ^0.10.2
+  '@vieval/ui': ^0.10.3
   '@vishot/cli': ^0.2.0
   '@vishot/mockup-desktop-vue': ^0.2.0
   '@vishot/renderer-browser': ^0.2.0
@@ -434,7 +434,7 @@ catalog:
   valibot: ^1.4.2
   vaul-vue: ^0.4.1
   vec3: ^0.2.0
-  vieval: ^0.10.2
+  vieval: ^0.10.3
   virtua: ^0.50.4
   vite: ^8.3.4
   vite-bundle-visualizer: ^1.2.1

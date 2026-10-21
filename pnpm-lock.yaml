@@ -78,6 +78,9 @@ catalogs:
     '@capacitor/local-notifications':
       specifier: ^8.3.1
       version: 8.3.1
+    '@cortex-js/compute-engine':
+      specifier: ^0.153.0
+      version: 0.153.0
     '@date-fns/utc':
       specifier: ^2.1.1
       version: 2.1.1
@@ -87,6 +90,9 @@ catalogs:
     '@dotenvx/dotenvx':
       specifier: ^2.21.0
       version: 2.21.0
+    '@duckdb/duckdb-wasm':
+      specifier: 1.29.1-dev68.0
+      version: 1.29.1-dev68.0
     '@electric-sql/pglite':
       specifier: ^0.5.6
       version: 0.5.6
@@ -399,6 +405,9 @@ catalogs:
     '@proj-airi/drizzle-duckdb-wasm':
       specifier: ^0.6.0
       version: 0.6.0
+    '@proj-airi/duckdb-wasm':
+      specifier: ^0.6.0
+      version: 0.6.0
     '@proj-airi/iconify-meteocons':
       specifier: ^0.1.5
       version: 0.1.5
@@ -528,6 +537,12 @@ catalogs:
     '@velin-dev/core':
       specifier: ^0.4.0
       version: 0.4.1
+    '@velin-dev/core-vue':
+      specifier: 1.0.0-beta.6
+      version: 1.0.0-beta.6
+    '@vieval/ui':
+      specifier: ^0.10.3
+      version: 0.10.3
     '@vishot/cli':
       specifier: ^0.2.0
       version: 0.2.0
@@ -825,6 +840,9 @@ catalogs:
     jszip:
       specifier: ^3.10.1
       version: 3.10.1
+    katex:
+      specifier: 0.19.0
+      version: 0.19.0
     knip:
       specifier: ^6.32.2
       version: 6.32.2
@@ -849,6 +867,9 @@ catalogs:
     meta-png:
       specifier: ^1.0.6
       version: 1.0.6
+    mhchemparser:
+      specifier: ^4.2.1
+      version: 4.2.1
     minecraft-data:
       specifier: 3.102.3
       version: 3.102.3
@@ -996,6 +1017,9 @@ catalogs:
     simple-git-hooks:
       specifier: ^2.13.1
       version: 2.13.1
+    speech-rule-engine:
+      specifier: 5.0.0-rc.4
+      version: 5.0.0-rc.4
     splitpanes:
       specifier: ^4.1.2
       version: 4.1.2
@@ -1108,8 +1132,8 @@ catalogs:
       specifier: ^0.2.0
       version: 0.2.0
     vieval:
-      specifier: ^0.10.2
-      version: 0.10.2
+      specifier: ^0.10.3
+      version: 0.10.3
     virtua:
       specifier: ^0.50.4
       version: 0.50.4
@@ -1170,6 +1194,9 @@ catalogs:
     web-haptics:
       specifier: ^0.0.6
       version: 0.0.6
+    web-worker:
+      specifier: ^1.5.0
+      version: 1.5.0
     whatwg-mimetype:
       specifier: ^5.0.0
       version: 5.0.0
@@ -3504,7 +3531,93 @@ importers:
         version: 26.2.0
       vieval:
         specifier: 'catalog:'
-        version: 0.10.2(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(chokidar@5.0.0)(dotenv@17.4.2)(electron@43.4.1(supports-color@10.2.2))(esbuild@0.28.2)(giget@3.3.1)(h3@2.0.2(crossws@0.4.12(srvx@1.0.5)))(hono@4.13.3)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(less@4.9.0(supports-color@10.2.2))(magicast@0.5.4)(terser@5.50.0)(tsx@4.23.12)(typescript@6.0.3)(web-worker@1.5.0)(yaml@2.9.0)
+        version: 0.10.3(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(chokidar@5.0.0)(dotenv@17.4.2)(electron@43.4.1(supports-color@10.2.2))(esbuild@0.28.2)(giget@3.3.1)(h3@2.0.2(crossws@0.4.12(srvx@1.0.5)))(hono@4.13.3)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(less@4.9.0(supports-color@10.2.2))(magicast@0.5.4)(terser@5.50.0)(tsx@4.23.12)(typescript@6.0.3)(web-worker@1.5.0)(yaml@2.9.0)
+
+  evals/tts-speech-formula:
+    dependencies:
+      '@cortex-js/compute-engine':
+        specifier: 'catalog:'
+        version: 0.153.0
+      '@duckdb/duckdb-wasm':
+        specifier: 'catalog:'
+        version: 1.29.1-dev68.0
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
+      '@proj-airi/core-agent':
+        specifier: workspace:^
+        version: link:../../packages/core-agent
+      '@proj-airi/duckdb-wasm':
+        specifier: 'catalog:'
+        version: 0.6.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))(web-worker@1.5.0)
+      '@proj-airi/mathjson':
+        specifier: workspace:^
+        version: link:../../packages/mathjson
+      '@proj-airi/speech-transformer-math':
+        specifier: workspace:^
+        version: link:../../packages/speech-transformer-math
+      '@velin-dev/core-vue':
+        specifier: 'catalog:'
+        version: 1.0.0-beta.6(vue@3.5.41(typescript@6.0.3))
+      '@vieval/ui':
+        specifier: 'catalog:'
+        version: 0.10.3(crossws@0.4.12(srvx@1.0.5))(typescript@6.0.3)(vieval@0.10.3(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(chokidar@5.0.0)(dotenv@17.4.2)(electron@43.4.1(supports-color@10.2.2))(esbuild@0.28.2)(giget@3.3.1)(h3@2.0.2(crossws@0.4.12(srvx@1.0.5)))(hono@4.13.3)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(less@4.9.0(supports-color@10.2.2))(magicast@0.5.4)(terser@5.50.0)(tsx@4.23.12)(typescript@6.0.3)(web-worker@1.5.0)(yaml@2.9.0))
+      '@xsai-apple-speech/transcription-native':
+        specifier: 'catalog:'
+        version: 0.1.3(@xsai/generate-transcription@0.5.1)
+      '@xsai/generate-speech':
+        specifier: 'catalog:'
+        version: 0.5.1
+      '@xsai/generate-text':
+        specifier: 'catalog:'
+        version: 0.5.1
+      '@xsai/generate-transcription':
+        specifier: 'catalog:'
+        version: 0.5.1
+      katex:
+        specifier: 'catalog:'
+        version: 0.19.0
+      speech-rule-engine:
+        specifier: 'catalog:'
+        version: 5.0.0-rc.4
+      valibot:
+        specifier: 'catalog:'
+        version: 1.5.0(typescript@6.0.3)
+      web-worker:
+        specifier: 'catalog:'
+        version: 1.5.0
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.2.0
+      rehype-stringify:
+        specifier: 'catalog:'
+        version: 10.0.1
+      remark-parse:
+        specifier: 'catalog:'
+        version: 11.0.0(supports-color@10.2.2)
+      remark-rehype:
+        specifier: 'catalog:'
+        version: 11.1.2
+      unified:
+        specifier: 'catalog:'
+        version: 11.0.5
+      vieval:
+        specifier: 'catalog:'
+        version: 0.10.3(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(chokidar@5.0.0)(dotenv@17.4.2)(electron@43.4.1(supports-color@10.2.2))(esbuild@0.28.2)(giget@3.3.1)(h3@2.0.2(crossws@0.4.12(srvx@1.0.5)))(hono@4.13.3)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(less@4.9.0(supports-color@10.2.2))(magicast@0.5.4)(terser@5.50.0)(tsx@4.23.12)(typescript@6.0.3)(web-worker@1.5.0)(yaml@2.9.0)
+      vite:
+        specifier: 'catalog:'
+        version: 8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+      vitest:
+        specifier: catalog:vitest
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
+    optionalDependencies:
+      '@xsai-apple-speech/transcription-native-darwin-arm64':
+        specifier: 'catalog:'
+        version: 0.1.3
+      '@xsai-apple-speech/transcription-native-darwin-x64':
+        specifier: 'catalog:'
+        version: 0.1.3
 
   integrations/discord-bot:
     dependencies:
@@ -3996,6 +4109,9 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@proj-airi/mathjson':
+        specifier: workspace:^
+        version: link:../mathjson
       '@proj-airi/pipelines-audio':
         specifier: workspace:^
         version: link:../pipelines-audio
@@ -4011,6 +4127,12 @@ importers:
       '@proj-airi/server-shared':
         specifier: workspace:^
         version: link:../server-shared
+      '@proj-airi/speech-transformer-chem':
+        specifier: workspace:^
+        version: link:../speech-transformer-chem
+      '@proj-airi/speech-transformer-math':
+        specifier: workspace:^
+        version: link:../speech-transformer-math
       '@proj-airi/stream-kit':
         specifier: workspace:^
         version: link:../stream-kit
@@ -4050,6 +4172,9 @@ importers:
       rehype-stringify:
         specifier: 'catalog:'
         version: 10.0.1
+      remark-math:
+        specifier: 'catalog:'
+        version: 6.0.0(supports-color@10.2.2)
       remark-parse:
         specifier: 'catalog:'
         version: 11.0.0(supports-color@10.2.2)
@@ -4061,7 +4186,7 @@ importers:
         version: 5.1.0
       vieval:
         specifier: 'catalog:'
-        version: 0.10.2(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(chokidar@5.0.0)(dotenv@17.4.2)(electron@43.4.1(supports-color@10.2.2))(esbuild@0.28.2)(giget@3.3.1)(h3@2.0.2(crossws@0.4.12(srvx@1.0.5)))(hono@4.13.3)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(less@4.9.0(supports-color@10.2.2))(magicast@0.5.4)(terser@5.50.0)(tsx@4.23.12)(typescript@6.0.3)(web-worker@1.5.0)(yaml@2.9.0)
+        version: 0.10.3(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(chokidar@5.0.0)(dotenv@17.4.2)(electron@43.4.1(supports-color@10.2.2))(esbuild@0.28.2)(giget@3.3.1)(h3@2.0.2(crossws@0.4.12(srvx@1.0.5)))(hono@4.13.3)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(less@4.9.0(supports-color@10.2.2))(magicast@0.5.4)(terser@5.50.0)(tsx@4.23.12)(typescript@6.0.3)(web-worker@1.5.0)(yaml@2.9.0)
       xsschema:
         specifier: 'catalog:'
         version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.5.0(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
@@ -4232,6 +4357,8 @@ importers:
       '@types/w3c-web-hid':
         specifier: 'catalog:'
         version: 1.0.7
+
+  packages/mathjson: {}
 
   packages/memory-pgvector:
     dependencies:
@@ -4589,6 +4716,28 @@ importers:
       '@proj-airi/plugin-protocol':
         specifier: workspace:*
         version: link:../plugin-protocol
+
+  packages/speech-transformer-chem:
+    dependencies:
+      '@proj-airi/mathjson':
+        specifier: workspace:^
+        version: link:../mathjson
+      mhchemparser:
+        specifier: 'catalog:'
+        version: 4.2.1
+    devDependencies:
+      '@proj-airi/speech-transformer-math':
+        specifier: workspace:^
+        version: link:../speech-transformer-math
+
+  packages/speech-transformer-math:
+    dependencies:
+      '@proj-airi/mathjson':
+        specifier: workspace:^
+        version: link:../mathjson
+      katex:
+        specifier: 'catalog:'
+        version: 0.19.0
 
   packages/stage-layouts:
     dependencies:
@@ -6083,7 +6232,7 @@ importers:
         version: 66.7.5(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
       vieval:
         specifier: 'catalog:'
-        version: 0.10.2(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(chokidar@5.0.0)(dotenv@17.4.2)(electron@43.4.1(supports-color@10.2.2))(esbuild@0.28.2)(giget@3.3.1)(h3@2.0.2(crossws@0.4.12(srvx@1.0.5)))(hono@4.13.3)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(less@4.9.0(supports-color@10.2.2))(magicast@0.5.4)(terser@5.50.0)(tsx@4.23.12)(typescript@6.0.3)(web-worker@1.5.0)(yaml@2.9.0)
+        version: 0.10.3(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(chokidar@5.0.0)(dotenv@17.4.2)(electron@43.4.1(supports-color@10.2.2))(esbuild@0.28.2)(giget@3.3.1)(h3@2.0.2(crossws@0.4.12(srvx@1.0.5)))(hono@4.13.3)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(less@4.9.0(supports-color@10.2.2))(magicast@0.5.4)(terser@5.50.0)(tsx@4.23.12)(typescript@6.0.3)(web-worker@1.5.0)(yaml@2.9.0)
       xsschema:
         specifier: 'catalog:'
         version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.5.0(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
@@ -6690,6 +6839,9 @@ packages:
   '@arethetypeswrong/core@0.18.5':
     resolution: {integrity: sha512-9ytjzGwxjm9Uz7I9avfbt5vlQt6uk9uRRESzJjqrznl6WKvI6dwYTo+vJ3U02Wrq/mR3iql/PzhvHhKdJIAjDQ==}
     engines: {node: '>=20'}
+
+  '@arnog/colors@0.7.3':
+    resolution: {integrity: sha512-D7h3f498cu68+pI54eNl1UIm5xbs1uX5ggBTuFpLs3YQ17lqlWAmJ6d+tuvyLvJEzciN2YYR6D+9K8NfBGJGkQ==}
 
   '@asamuzakjp/css-color@4.1.2':
     resolution: {integrity: sha512-NfBUvBaYgKIuq6E/RBLY1m0IohzNHAYyaJGuTK79Z23uNwmz2jl1mPsC5ZxCCxylinKhT1Amn5oNTlx1wN8cQg==}
@@ -7663,6 +7815,11 @@ packages:
 
   '@codemirror/view@6.43.9':
     resolution: {integrity: sha512-sTuUzTpPMFebRhg6dawChoKKgndIwfjmJgKVxBefPElcU2NwQ6AFroupk0SFqEerQyZOGRfDNnSN8Dw/lMAsXw==}
+
+  '@cortex-js/compute-engine@0.153.0':
+    resolution: {integrity: sha512-bND48xa+p6hY1K5hJa/gELEOJpMRgWZYLLX+Np/GhwPy+b/e+MbTSFIRWbhPsmVvbGWqnAQGj8nCJqtLVNMmbA==}
+    engines: {node: '>=22.3.0', npm: '>=10.5.0'}
+    hasBin: true
 
   '@cryptography/aes@0.1.1':
     resolution: {integrity: sha512-PcYz4FDGblO6tM2kSC+VzhhK62vml6k6/YAkiWtyPvrgJVfnDRoHGDtKn5UiaRRUrvUTTocBpvc2rRgTCqxjsg==}
@@ -12670,12 +12827,28 @@ packages:
     peerDependencies:
       valibot: ^1.4.0
 
+  '@velin-dev/core-vue@1.0.0-beta.6':
+    resolution: {integrity: sha512-N56UMuJZT2pI4UQ0Sa221KefRmCKqrwm/seyXKH40uIK+aBNlKuI+JCgNfs3KSGhBA7fskiCNsDzcqS912PXQA==}
+    peerDependencies:
+      vue: '>= 3'
+
   '@velin-dev/core@0.4.1':
     resolution: {integrity: sha512-QBchJF5WvTAheQYezDRvAu3y2uJMoqYoLiXLBZnllg73aDZWSmqI2e0BTUOf/hoAdA/RVGIVDBm4FEp7GAY2EQ==}
     deprecated: 'BREAKING: @velin-dev/core has been renamed to @velin-dev/core-vue. Please migrate imports from @velin-dev/core and @velin-dev/core/* to @velin-dev/core-vue and @velin-dev/core-vue/*.'
 
+  '@velin-dev/source-shared@1.0.0-beta.8':
+    resolution: {integrity: sha512-xhjsPDI7KJ1EBbzG2r7h8FSgewki46NGw0i5vzN0FaOrnc30jqcijPDldt7Oy3nHiDHVi9amOfX2rVDw7WYTSA==}
+
+  '@velin-dev/source-vue@1.0.0-beta.8':
+    resolution: {integrity: sha512-go9D2oZ3bx4DltQw5jjUPaZ4EaTVoRQ31U+JWZjPCFz5TCF1XgIsNYimo6h8PjycQGazyAr+Z4nxbLZljrfaYQ==}
+    peerDependencies:
+      vue: '>= 3'
+
   '@velin-dev/utils@0.4.1':
     resolution: {integrity: sha512-sKGMgbkjdvxaJsBcRrGl3vsDZUkWnmP9VuBnYztl3IipIk2cVNc7oGVQrSPRa8VX6iOjJP2whqb2H0CWrWvhOw==}
+
+  '@velin-dev/utils@1.0.0-beta.8':
+    resolution: {integrity: sha512-OuS5tW09uEBBY4CDhhlHKRus9naEPD/MI9Ni0eomd57pUdjZpFss9k2+noxLrIVvSSp+RVHia74xRqbNFOhFWQ==}
 
   '@vibrant/color@4.0.4':
     resolution: {integrity: sha512-Fq2tAszz4QOPWfHZ+KuEAchXUD8i594BM2fOJt8dI/fvYbiVoBycBF/BlNH6F4IWBubxXoPqD4JmmAHvFYbNew==}
@@ -12709,6 +12882,12 @@ packages:
 
   '@vibrant/worker@4.0.4':
     resolution: {integrity: sha512-Q/R6PYhSMWCXEk/IcXbWIzIu7Z4b58ABkGvcdF8Y+q/7g+KnpxKW5x/jfQ/6ciyYSby13wZZoEdNr3QQVgsdBQ==}
+
+  '@vieval/ui@0.10.3':
+    resolution: {integrity: sha512-UBXGmfwDoVfsahP80ZisfLd8dgFxFh/5z9rNmWDMRhTQNhoNEo/Hal0gwBB6lC/L5drMhZtt5aQ5/bmL8qlkYQ==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      vieval: ^0.10.3
 
   '@vishot/cli@0.2.0':
     resolution: {integrity: sha512-LB50TkuEy2KZ7lzg4LQSKvahNN7zWNsn/6g6w99uQBNqauMYJGpOsJJTX0BI2bHV/LI1eNh6+sz2/1Ar0Wfu6Q==}
@@ -13597,6 +13776,9 @@ packages:
   argparse@2.0.1:
     resolution: {integrity: sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==}
 
+  argparse@3.0.3:
+    resolution: {integrity: sha512-Sn98ftV3KfsO8xfLPHG6oT8y+b0yvbrLgZjgPDXsharNY15tTAjqIsIju4S32nl6/iEUNNE4v+yL2Zhm8ooP3w==}
+
   args-tokenizer@0.3.0:
     resolution: {integrity: sha512-xXAd7G2Mll5W8uo37GETpQ2VrE84M181Z7ugHFGQnJZ50M2mbOv0osSZ9VsSgPfJQ+LVG0prSi0th+ELMsno7Q==}
 
@@ -14315,6 +14497,10 @@ packages:
     resolution: {integrity: sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA==}
     engines: {node: '>=18'}
 
+  commander@14.0.3:
+    resolution: {integrity: sha512-H+y0Jo/T1RZ9qPP4Eh1pkcQcLRglraJaSLoyOtHxu6AapkjWVCy2Sit1QQ4x3Dng8qDlSsZEet7g5Pq06MvTgw==}
+    engines: {node: '>=20'}
+
   commander@15.0.0:
     resolution: {integrity: sha512-z67u4ZhzCL/Tydu1lJARtEZYWbWaN7oYLHbsuzocr6y4N6WZAagG3RQ4FW61V1/0+jImpj293XfrcYnd1qxtPg==}
     engines: {node: '>=22.12.0'}
@@ -14360,6 +14546,9 @@ packages:
   compare-version@0.1.2:
     resolution: {integrity: sha512-pJDh5/4wrEnXX/VWRZvruAGHkzKdr46z11OlTPN+VrATlWWhSKewNCJ1futCO5C7eJB3nPMFZA1LeYtcFboZ2A==}
     engines: {node: '>=0.10.0'}
+
+  complex.js@2.4.3:
+    resolution: {integrity: sha512-UrQVSUur14tNX6tiP4y8T4w4FeJAX3bi2cIv0pu/DTLFNxoq7z2Yh83Vfzztj6Px3X/lubqQ9IrPp7Bpn6p4MQ==}
 
   compressible@2.0.18:
     resolution: {integrity: sha512-AF3r7P5dWxL8MxyITRMlORQNaOA2IkAFaTr4k7BUumjPtRpGDTZpl0Pb1XCO6JeDCBdp126Cgs9sMxqSjgYyRg==}
@@ -15254,6 +15443,10 @@ packages:
 
   entities@8.0.0:
     resolution: {integrity: sha512-zwfzJecQ/Uej6tusMqwAqU/6KL2XaB2VZ2Jg54Je6ahNBGNH6Ek6g3jjNCF0fG9EWQKGZNddNjU5F1ZQn/sBnA==}
+    engines: {node: '>=20.19.0'}
+
+  entities@8.1.0:
+    resolution: {integrity: sha512-kxL7msIffSuh9aaFAMD7rxAIuTRMAHMeBtgHW2yUdWw732ZNh4MehkF2gdjvtdmikkaIP9bFDDJOPlsvm7avrA==}
     engines: {node: '>=20.19.0'}
 
   env-paths@2.2.1:
@@ -16364,6 +16557,10 @@ packages:
   html-escaper@3.0.3:
     resolution: {integrity: sha512-RuMffC89BOWQoY0WKGpIhn5gX3iI54O6nRA0yC124NYVtzjmFWBIiFd8M0x+ZdX0P9R4lADg1mgP8C7PxGOWuQ==}
 
+  html-tags@5.1.0:
+    resolution: {integrity: sha512-n6l5uca7/y5joxZ3LUePhzmBFUJ+U2YWzhMa8XUTecSeSlQiZdF5XAd/Q3/WUl0VsXgUwWi8I7CNIwdI5WN1SQ==}
+    engines: {node: '>=20.10'}
+
   html-void-elements@3.0.0:
     resolution: {integrity: sha512-bEqo66MRXsUGxWHV5IP0PUiAWwoEjba4VCzg0LjFJBpchPaTfyfCKTG6bc5F8ucKec3q5y6qOdGyYTSBEvhCrg==}
 
@@ -17034,6 +17231,9 @@ packages:
   linkify-it@5.0.2:
     resolution: {integrity: sha512-ONTm2jCMAVZjgQa/Fy1kScXsuOoF5NPTsoFBdE1KVIZ2vAh/r9+Bqo+0jINCBYnavTPQZz38QzFTme79ENoN3Q==}
 
+  linkify-it@6.1.0:
+    resolution: {integrity: sha512-wJ/TwpSDTLepCrQoYWYIExIKg5Zchex2Nn5yk2mFnB+6PtdkHtyLx742md9csRjjOnGkKIS/RrbY7l8D6gT9Vw==}
+
   local-pkg@1.2.1:
     resolution: {integrity: sha512-++gUqRDEvcnN6Zhqrr+y/CkVEHhlrR96vZn3nZZPYzMcBUyBtTKzB9NadClFIsIVSsu+3i9tfk/erqy9kAmt7Q==}
     engines: {node: '>=14'}
@@ -17198,6 +17398,10 @@ packages:
     resolution: {integrity: sha512-RCEsPjR+sr0x+AuYp601tKTkgFG4YEPLCzHST3cQ/fhlJkqAkz1L2/Qbp1j9qw5SBwQHFBoW8+hoN5xssOF0Tw==}
     hasBin: true
 
+  markdown-it@15.0.3:
+    resolution: {integrity: sha512-+Az7Ojz3iRGu8KYMvJ6xVhvrxP3eE+vEtJX75Ow88XBpcQNV/0lGX5ZynIIBftREo4DC2jsveAMDaeltmm8QvQ==}
+    hasBin: true
+
   markdown-table@3.0.4:
     resolution: {integrity: sha512-wiYz4+JrLyb/DqW2hkFJxP7Vd7JuTDm77fvbM8VfEQdmSMqcImWeeRbHwZjBjIFki/VaMK2BhFi7oUUZeM5bqw==}
 
@@ -17292,6 +17496,9 @@ packages:
   methods@1.1.2:
     resolution: {integrity: sha512-iclAHeNqNm68zFtnZ0e+1L2yUIdvzNoauKU4WBA3VvH/vPFieF7qfRlwUZU+DA9P9bPXIS90ulxoUoCH23sV2w==}
     engines: {node: '>= 0.6'}
+
+  mhchemparser@4.2.1:
+    resolution: {integrity: sha512-kYmyrCirqJf3zZ9t/0wGgRZ4/ZJw//VwaRVGA75C4nhE60vtnIzhl9J9ndkX/h6hxSN7pjg/cE0VxbnNM+bnDQ==}
 
   micromark-core-commonmark@2.0.3:
     resolution: {integrity: sha512-RDBrHEMSxVFLg6xvnXmb1Ayr2WzLAWjeSATAoxwKYJV94TeNavgoIdA0a9ytzDSVzBy2YKFK+emCPOEibLeCrg==}
@@ -19083,6 +19290,10 @@ packages:
   spdx-license-ids@3.0.23:
     resolution: {integrity: sha512-CWLcCCH7VLu13TgOH+r8p1O/Znwhqv/dbb6lqWy67G+pT1kHmeD/+V36AVb/vq8QMIQwVShJ6Ssl5FPh0fuSdw==}
 
+  speech-rule-engine@5.0.0-rc.4:
+    resolution: {integrity: sha512-3dFcH2QtQNhtvUUc09TxoaEK4WG03B9Z57krFG9jocrKykKGu35BhIkWr0vgEAxZZomEWkeluff69y/EbYzP4Q==}
+    hasBin: true
+
   split-skip@0.0.1:
     resolution: {integrity: sha512-7dkvq+gofI4M8zx4iZnEZ3O1s7FP4Y/iaIDHJh5RyWrs8idcPauFi2OZe3TBi36fLvR2j5z3kSzVtz6IhPdncQ==}
 
@@ -19438,6 +19649,9 @@ packages:
   through2@4.0.2:
     resolution: {integrity: sha512-iOqSav00cVxEEICeD7TjLB1sueEL+81Wpzp2bY17uZjZN0pWZPuo4suZ/61VujxmqSGFfgOcNuTZ85QJwNZQpw==}
 
+  thumbhash@0.1.1:
+    resolution: {integrity: sha512-kH5pKeIIBPQXAOni2AiY/Cu/NKdkFREdpH+TLdM0g6WA7RriCv0kPLgP731ady67MhTAqrVG/4mnEeibVuCJcg==}
+
   timm@1.7.1:
     resolution: {integrity: sha512-IjZc9KIotudix8bMaBW6QvMuq64BrJWFs1+4V0lXwWGQZwH+LnX87doAYhem4caOEusRP9/g6jVDQmZ8XOk1nw==}
 
@@ -19698,6 +19912,9 @@ packages:
 
   uc.micro@2.1.0:
     resolution: {integrity: sha512-ARDJmphmdvUk6Glw7y9DQ2bFkKBHwQHLi2lsaH6PPmz/Ka9sFOBsBluozhDltWmnv9u/cF6Rt87znRTPV+yp/A==}
+
+  uc.micro@3.0.0:
+    resolution: {integrity: sha512-U3PppEkleoTnIfi8BozMx3yju3qc/L6SwqWo2Sw+54PX+PX0q9I+r1Um5HCmqD7n9VDX5/v3vQH/AjA6deDdtw==}
 
   ufo@1.6.4:
     resolution: {integrity: sha512-JFNbkD1Svwe0KvGi8GOeLcP4kAWQ609twvCdcHxq1oSL8svv39ZuSvajcD8B+5D0eL4+s1Is2D/O6KN3qcTeRA==}
@@ -20210,8 +20427,8 @@ packages:
   vfile@6.0.3:
     resolution: {integrity: sha512-KzIbH/9tXat2u30jf+smMwFCsno4wHVdNmzFyL+T/L3UGqqk6JKfVqOFOZEpZSHADH1k40ab6NUIXZq422ov3Q==}
 
-  vieval@0.10.2:
-    resolution: {integrity: sha512-zBVPgGKXWK8z958xF4P+vlLhVGul7zIQfW23R72DS8kxgPe6tfWFRt/83VVJtOGT7Ae5mWsuQ0jnguFe/zFk0Q==}
+  vieval@0.10.3:
+    resolution: {integrity: sha512-SZVakvCMGuI8V8jZvTRIhSon8ikpQyOIE+MHTgNkzEvOiZJyA5cZm26CbzYewQxPdwW6VghSQvYgTQHhleRmNQ==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -20719,6 +20936,9 @@ packages:
     resolution: {integrity: sha512-hUrmaWBdVDcxvYqnyh09zunKzROWjbZTiNy8dBEjkS7ehEDQibXJ7XvlmtbwuTclUiIyN+CyXQD4Vmko8fNm8w==}
     engines: {node: '>=8'}
     hasBin: true
+
+  wicked-good-xpath@1.3.0:
+    resolution: {integrity: sha512-Gd9+TUn5nXdwj/hFsPVx5cuHHiF5Bwuc30jZ4+ronF1qHK5O7HD0sgmXWSEgwKquT3ClLoKPVbO6qGwVwLzvAw==}
 
   wlipsync@1.3.1:
     resolution: {integrity: sha512-R7m2b7UkfpXxvQYxypIkJqtmgmgMXNZ/z3558u9S0rI0HoMhKusXz4tFdDSsct3eRoZg1WBan6YfcawGxJqP1g==}
@@ -21308,6 +21528,8 @@ snapshots:
       semver: 7.8.5
       typescript: 5.6.1-rc
       validate-npm-package-name: 5.0.1
+
+  '@arnog/colors@0.7.3': {}
 
   '@asamuzakjp/css-color@4.1.2':
     dependencies:
@@ -22693,6 +22915,11 @@ snapshots:
       crelt: 1.0.7
       style-mod: 4.1.3
       w3c-keyname: 2.2.8
+
+  '@cortex-js/compute-engine@0.153.0':
+    dependencies:
+      '@arnog/colors': 0.7.3
+      complex.js: 2.4.3
 
   '@cryptography/aes@0.1.1': {}
 
@@ -27385,6 +27612,23 @@ snapshots:
     dependencies:
       valibot: 1.5.0(typescript@6.0.3)
 
+  '@velin-dev/core-vue@1.0.0-beta.6(vue@3.5.41(typescript@6.0.3))':
+    dependencies:
+      '@moeru/std': 0.1.0-beta.18
+      '@unrteljs/eval': 0.2.1
+      '@velin-dev/source-vue': 1.0.0-beta.8(vue@3.5.41(typescript@6.0.3))
+      '@velin-dev/utils': 1.0.0-beta.8
+      '@vue/compiler-sfc': 3.5.41
+      '@vue/reactivity': 3.5.41
+      '@vue/runtime-core': 3.5.41
+      '@vue/server-renderer': 3.5.41
+      '@vue/shared': 3.5.41
+      error-stack-parser: 2.1.4
+      hast-util-from-html: 2.0.3
+      path-browserify-esm: 1.0.6
+      std-env: 4.2.0
+      vue: 3.5.41(typescript@6.0.3)
+
   '@velin-dev/core@0.4.1(typescript@6.0.3)':
     dependencies:
       '@moeru/std': 0.1.0-beta.18
@@ -27403,6 +27647,19 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
+  '@velin-dev/source-shared@1.0.0-beta.8':
+    dependencies:
+      mlly: 1.8.2
+
+  '@velin-dev/source-vue@1.0.0-beta.8(vue@3.5.41(typescript@6.0.3))':
+    dependencies:
+      '@moeru/std': 0.1.0-beta.18
+      '@unrteljs/eval': 0.2.1
+      '@velin-dev/source-shared': 1.0.0-beta.8
+      '@velin-dev/utils': 1.0.0-beta.8
+      '@vue/compiler-sfc': 3.5.41
+      vue: 3.5.41(typescript@6.0.3)
+
   '@velin-dev/utils@0.4.1':
     dependencies:
       '@vue/compiler-sfc': 3.5.41
@@ -27410,6 +27667,21 @@ snapshots:
       hast-util-select: 6.0.4
       hast-util-to-html: 9.0.5
       markdown-it: 14.3.0
+      rehype-parse: 9.0.1
+      rehype-remark: 10.0.1
+      rehype-remove-comments: 6.1.1
+      remark-stringify: 11.0.0
+      sucrase: 3.35.1
+      unified: 11.0.5
+      unist-util-remove: 4.0.0
+
+  '@velin-dev/utils@1.0.0-beta.8':
+    dependencies:
+      hast-util-from-html: 2.0.3
+      hast-util-select: 6.0.4
+      hast-util-to-html: 9.0.5
+      html-tags: 5.1.0
+      markdown-it: 15.0.3
       rehype-parse: 9.0.1
       rehype-remark: 10.0.1
       rehype-remove-comments: 6.1.1
@@ -27472,6 +27744,22 @@ snapshots:
   '@vibrant/worker@4.0.4':
     dependencies:
       '@vibrant/types': 4.0.4
+
+  '@vieval/ui@0.10.3(crossws@0.4.12(srvx@1.0.5))(typescript@6.0.3)(vieval@0.10.3(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(chokidar@5.0.0)(dotenv@17.4.2)(electron@43.4.1(supports-color@10.2.2))(esbuild@0.28.2)(giget@3.3.1)(h3@2.0.2(crossws@0.4.12(srvx@1.0.5)))(hono@4.13.3)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(less@4.9.0(supports-color@10.2.2))(magicast@0.5.4)(terser@5.50.0)(tsx@4.23.12)(typescript@6.0.3)(web-worker@1.5.0)(yaml@2.9.0))':
+    dependencies:
+      '@moeru/std': 0.1.0-beta.17
+      '@napi-rs/image': 1.15.0
+      es-toolkit: 1.43.0
+      h3: 2.0.2(crossws@0.4.12(srvx@1.0.5))
+      srvx: 1.0.5
+      thumbhash: 0.1.1
+      tinyglobby: 0.2.17
+      valibot: 1.5.0(typescript@6.0.3)
+      vieval: 0.10.3(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(chokidar@5.0.0)(dotenv@17.4.2)(electron@43.4.1(supports-color@10.2.2))(esbuild@0.28.2)(giget@3.3.1)(h3@2.0.2(crossws@0.4.12(srvx@1.0.5)))(hono@4.13.3)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(less@4.9.0(supports-color@10.2.2))(magicast@0.5.4)(terser@5.50.0)(tsx@4.23.12)(typescript@6.0.3)(web-worker@1.5.0)(yaml@2.9.0)
+    transitivePeerDependencies:
+      - crossws
+      - ocache
+      - typescript
 
   '@vishot/cli@0.2.0(@types/node@26.2.0)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)':
     dependencies:
@@ -28658,6 +28946,8 @@ snapshots:
 
   argparse@2.0.1: {}
 
+  argparse@3.0.3: {}
+
   args-tokenizer@0.3.0: {}
 
   aria-hidden@1.2.6:
@@ -29305,6 +29595,8 @@ snapshots:
 
   commander@12.1.0: {}
 
+  commander@14.0.3: {}
+
   commander@15.0.0: {}
 
   commander@2.20.3: {}
@@ -29329,6 +29621,8 @@ snapshots:
   commondir@1.0.1: {}
 
   compare-version@0.1.2: {}
+
+  complex.js@2.4.3: {}
 
   compressible@2.0.18:
     dependencies:
@@ -30143,6 +30437,8 @@ snapshots:
   entities@7.0.1: {}
 
   entities@8.0.0: {}
+
+  entities@8.1.0: {}
 
   env-paths@2.2.1: {}
 
@@ -31429,7 +31725,6 @@ snapshots:
       srvx: 1.0.5
     optionalDependencies:
       crossws: 0.4.12(srvx@1.0.5)
-    optional: true
 
   har-schema@2.0.0: {}
 
@@ -31696,6 +31991,8 @@ snapshots:
   html-escaper@2.0.2: {}
 
   html-escaper@3.0.3: {}
+
+  html-tags@5.1.0: {}
 
   html-void-elements@3.0.0: {}
 
@@ -32401,6 +32698,10 @@ snapshots:
     dependencies:
       uc.micro: 2.1.0
 
+  linkify-it@6.1.0:
+    dependencies:
+      uc.micro: 3.0.0
+
   local-pkg@1.2.1:
     dependencies:
       mlly: 1.8.2
@@ -32573,6 +32874,15 @@ snapshots:
       punycode.js: 2.3.1
       uc.micro: 2.1.0
 
+  markdown-it@15.0.3:
+    dependencies:
+      argparse: 3.0.3
+      entities: 8.1.0
+      linkify-it: 6.1.0
+      mdurl: 2.1.0
+      punycode.js: 2.3.1
+      uc.micro: 3.0.0
+
   markdown-table@3.0.4: {}
 
   matcher@3.0.0:
@@ -32744,6 +33054,8 @@ snapshots:
   meta-png@1.0.6: {}
 
   methods@1.1.2: {}
+
+  mhchemparser@4.2.1: {}
 
   micromark-core-commonmark@2.0.3:
     dependencies:
@@ -34788,8 +35100,7 @@ snapshots:
 
   rou3@0.9.2: {}
 
-  rou3@1.0.0:
-    optional: true
+  rou3@1.0.0: {}
 
   router@2.2.0(supports-color@10.2.2):
     dependencies:
@@ -35150,6 +35461,12 @@ snapshots:
 
   spdx-license-ids@3.0.23: {}
 
+  speech-rule-engine@5.0.0-rc.4:
+    dependencies:
+      '@xmldom/xmldom': 0.9.12
+      commander: 14.0.3
+      wicked-good-xpath: 1.3.0
+
   split-skip@0.0.1: {}
 
   split-skip@0.0.2: {}
@@ -35186,8 +35503,7 @@ snapshots:
 
   srvx@0.12.7: {}
 
-  srvx@1.0.5:
-    optional: true
+  srvx@1.0.5: {}
 
   sshpk@1.18.0:
     dependencies:
@@ -35553,6 +35869,8 @@ snapshots:
     dependencies:
       readable-stream: 3.6.2
 
+  thumbhash@0.1.1: {}
+
   timm@1.7.1: {}
 
   tiny-async-pool@1.3.0:
@@ -35777,6 +36095,8 @@ snapshots:
   typical@7.3.0: {}
 
   uc.micro@2.1.0: {}
+
+  uc.micro@3.0.0: {}
 
   ufo@1.6.4: {}
 
@@ -36255,7 +36575,7 @@ snapshots:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
 
-  vieval@0.10.2(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(chokidar@5.0.0)(dotenv@17.4.2)(electron@43.4.1(supports-color@10.2.2))(esbuild@0.28.2)(giget@3.3.1)(h3@2.0.2(crossws@0.4.12(srvx@1.0.5)))(hono@4.13.3)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(less@4.9.0(supports-color@10.2.2))(magicast@0.5.4)(terser@5.50.0)(tsx@4.23.12)(typescript@6.0.3)(web-worker@1.5.0)(yaml@2.9.0):
+  vieval@0.10.3(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(chokidar@5.0.0)(dotenv@17.4.2)(electron@43.4.1(supports-color@10.2.2))(esbuild@0.28.2)(giget@3.3.1)(h3@2.0.2(crossws@0.4.12(srvx@1.0.5)))(hono@4.13.3)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(less@4.9.0(supports-color@10.2.2))(magicast@0.5.4)(terser@5.50.0)(tsx@4.23.12)(typescript@6.0.3)(web-worker@1.5.0)(yaml@2.9.0):
     dependencies:
       '@henrygd/queue': 1.2.0
       '@moeru/eventa': 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.2(crossws@0.4.12(srvx@1.0.5)))(hono@4.13.3)(web-worker@1.5.0)
@@ -36728,8 +37048,7 @@ snapshots:
 
   web-streams-polyfill@3.3.3: {}
 
-  web-worker@1.5.0:
-    optional: true
+  web-worker@1.5.0: {}
 
   webcrypto-core@1.9.2:
     dependencies:
@@ -36810,6 +37129,8 @@ snapshots:
     dependencies:
       siginfo: 2.0.0
       stackback: 0.0.2
+
+  wicked-good-xpath@1.3.0: {}
 
   wlipsync@1.3.1: {}
 
