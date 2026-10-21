@@ -7,33 +7,10 @@ import type { Config } from '../../../libs/electron/persistence'
 import type { I18n } from '../../../libs/i18n'
 
 import { defineInvokeHandler } from '@moeru/eventa'
+import { waitWithSignal } from '@proj-airi/stage-shared'
 import { injeca } from 'injeca'
 
 import { i18nGetLocale, i18nSetLocale } from '../../../../shared/eventa'
-
-function raceWithSignal<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
-  if (!signal) {
-    return promise
-  }
-  if (signal.aborted) {
-    return Promise.reject(signal.reason ?? new Error('Aborted'))
-  }
-
-  return new Promise<T>((resolve, reject) => {
-    const onAbort = () => reject(signal.reason ?? new Error('Aborted'))
-    signal.addEventListener('abort', onAbort, { once: true })
-    promise.then(
-      (val) => {
-        signal.removeEventListener('abort', onAbort)
-        resolve(val)
-      },
-      (err) => {
-        signal.removeEventListener('abort', onAbort)
-        reject(err)
-      },
-    )
-  })
-}
 
 export async function createI18nService(params: {
   context: ReturnType<typeof createContext>['context']
@@ -45,7 +22,7 @@ export async function createI18nService(params: {
     throw new Error('Window was closed before i18n service setup')
   }
 
-  const { config } = await raceWithSignal(
+  const { config } = await waitWithSignal(
     injeca.resolve({ config: 'configs:app' } as { config: ProvidedBy<Config<typeof globalAppConfigSchema>> }),
     params.signal,
   )
