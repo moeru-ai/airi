@@ -462,6 +462,9 @@ catalogs:
     '@types/d3':
       specifier: ^7.4.3
       version: 7.4.3
+    '@types/file-saver':
+      specifier: ^2.0.7
+      version: 2.0.7
     '@types/ioredis-mock':
       specifier: ^8.2.8
       version: 8.2.8
@@ -768,6 +771,9 @@ catalogs:
     fflate:
       specifier: ^0.8.3
       version: 0.8.3
+    file-saver:
+      specifier: ^2.0.5
+      version: 2.0.5
     floating-vue:
       specifier: ^5.2.2
       version: 5.2.2
@@ -4756,6 +4762,9 @@ importers:
       es-toolkit:
         specifier: 'catalog:'
         version: 1.51.0
+      file-saver:
+        specifier: 'catalog:'
+        version: 2.0.5
       nanoid:
         specifier: 'catalog:'
         version: 6.0.1
@@ -4808,6 +4817,9 @@ importers:
       '@types/audioworklet':
         specifier: 'catalog:'
         version: 0.0.100
+      '@types/file-saver':
+        specifier: 'catalog:'
+        version: 2.0.7
       '@types/splitpanes':
         specifier: 'catalog:'
         version: 2.2.6
@@ -12180,6 +12192,9 @@ packages:
   '@types/estree@1.0.9':
     resolution: {integrity: sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==}
 
+  '@types/file-saver@2.0.7':
+    resolution: {integrity: sha512-dNKVfHd/jk0SkR/exKGj2ggkB45MAkzvWCaqLUUgkyjITkGNzH8H+yUwr+BLJUBjZOe9w8X3wgmXhZDRg1ED6A==}
+
   '@types/filesystem@0.0.36':
     resolution: {integrity: sha512-vPDXOZuannb9FZdxgHnqSwAG/jvdGM8Wq+6N4D/d80z+D4HWH+bItqsZaVRQykAn6WEVeEkLm2oQigyHtgb0RA==}
 
@@ -15628,6 +15643,9 @@ packages:
   file-entry-cache@8.0.0:
     resolution: {integrity: sha512-XXTUwCvisa5oacNGRP9SfNtYBNAMi+RPwBFmblZEF7N7swHYQS6/Zfk7SRwx4D5j3CH211YNRco1DEMNVfZCnQ==}
     engines: {node: '>=16.0.0'}
+
+  file-saver@2.0.5:
+    resolution: {integrity: sha512-P9bmyZ3h/PRG+Nzga+rbdI4OEpNDzAVyy74uVO9ATgzLK6VtAsYybF/+TOCvrc0MO793d6+42lLyZTw7/ArVzA==}
 
   file-type@16.5.4:
     resolution: {integrity: sha512-/yFHK0aGjFEgDJjEKP0pWCplsPFPhwyfwevf/pVxiN0tmE4L9LmwWxWukdJSHdoCli4VgQLehjJtwQBnqmsKcw==}
@@ -26575,6 +26593,8 @@ snapshots:
 
   '@types/estree@1.0.9': {}
 
+  '@types/file-saver@2.0.7': {}
+
   '@types/filesystem@0.0.36':
     dependencies:
       '@types/filewriter': 0.0.33
@@ -30546,6 +30566,8 @@ snapshots:
   file-entry-cache@8.0.0:
     dependencies:
       flat-cache: 4.0.1
+
+  file-saver@2.0.5: {}
 
   file-type@16.5.4:
     dependencies:
