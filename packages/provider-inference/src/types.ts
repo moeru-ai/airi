@@ -22,7 +22,13 @@ export type ResponsesConfig = Pick<ResponsesOptions, 'apiKey' | 'baseURL' | 'fet
 /** A resolved request selects exactly one wire protocol before context projection. */
 export type GenerationRequest
   = { protocol: 'chat-completions', config: ReturnType<ChatProvider['chat']> }
-    | { protocol: 'responses', config: ResponsesConfig, webSearch: boolean }
+    | {
+      protocol: 'responses'
+      config: ResponsesConfig
+      webSearch: boolean
+      /** Switches this model to Chat Completions after a protocol rejection before output. The provider owns runtime capability state. */
+      onUnsupported?: () => void
+    }
 
 /** A provider that owns protocol selection and model capabilities. */
 export interface GenerationProvider {

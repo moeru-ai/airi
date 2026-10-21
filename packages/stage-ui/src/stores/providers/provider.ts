@@ -25,6 +25,7 @@ import {
 import { selectProviderMetadata, selectProvidersMetadata } from '../../libs/providers/metadata'
 import { getSchemaDefault } from '../../libs/zod'
 import { useAuthStore } from '../auth'
+import { useFeatureFlagsStore } from '../feature-flags'
 import { useProviderConfigStore } from './config'
 import { normalizeProviderConfigDefaults } from './config-defaults'
 
@@ -938,7 +939,8 @@ export const useProviderStore = defineStore('provider', () => {
       await disposeProviderInstance(providerId)
 
     try {
-      const instance = await definition.createProvider(config || {})
+      // The feature flag store loads Cloud policies when it starts. Start it only when a provider reads a flag.
+      const instance = await definition.createProvider(config || {}, { isFeatureEnabled: key => useFeatureFlagsStore().isEnabled(key) })
       providerInstanceCache.set(providerId, { configKey, instance })
       previousCredentialHashes.set(providerId, JSON.stringify(config || {}))
       return instance as R

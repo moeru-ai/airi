@@ -159,6 +159,17 @@ The detector remains active during playback. A supplied `acceptSpeech` classifie
 The default policy allows barge-in when the browser reports echo cancellation. Without that support, automatic admission waits for playback to end.
 Model selection, acoustic echo classification, and enrollment remain external integrations.
 
+## Official chat
+
+The `official-responses` Cloud flag selects the protocol of the official chat provider.
+If the flag is on, the provider sends Responses API requests. The flag wins over the saved `api` value.
+If the flag is off, the provider uses the saved `api` value. The default is Chat Completions.
+AIRI Cloud grants the flag and sets its default. The user can change it in **Settings → System → Experimental Features**.
+The provider store passes `isFeatureEnabled` to the cached instance. The provider reads the flag on each request.
+
+If a Responses request reports an unsupported protocol before output, the runtime retries once with Chat Completions.
+The provider remembers unsupported models until its instance is recreated. Authentication errors and interrupted streams do not trigger this switch.
+
 ## Chat sampling
 
 In **Settings → Modules → Consciousness**, custom temperature and Top P are off

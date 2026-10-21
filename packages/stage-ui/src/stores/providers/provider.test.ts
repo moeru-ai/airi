@@ -5,9 +5,11 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
+import { OFFICIAL_RESPONSES_FLAG } from '../../libs/feature-flags'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { inferenceServiceProvidersService } from '../../services/inference-service-providers'
 import { useAuthStore } from '../auth'
+import { useFeatureFlagsStore } from '../feature-flags'
 import { useProviderConfigStore } from './config'
 import { useProviderStore } from './provider'
 
@@ -287,6 +289,32 @@ describe('provider store synchronization boundary', () => {
     if (!isGenerationProvider(baseProvider))
       throw new Error('Expected generation provider')
     expect(baseProvider.generation('gpt-5.1').config).not.toHaveProperty('reasoning')
+  })
+
+  // AIRI Cloud rolls out Responses for the official provider through the `official-responses` flag.
+  it('gives the cached official provider the current state of the Responses flag', async () => {
+    const policy = { key: OFFICIAL_RESPONSES_FLAG.key, mode: 'cloud-opt-in', source: 'global', defaultEnabled: true }
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).endsWith('/v1/feature-flags'))
+        return Response.json({ flags: [policy] })
+      return Response.json({})
+    }))
+    try {
+      useAuthStore().$patch(createAuthenticatedState())
+      const featureFlags = useFeatureFlagsStore()
+      await featureFlags.refresh()
+
+      const provider = await useProviderStore().getProviderInstance('official-provider')
+      if (!isGenerationProvider(provider))
+        throw new Error('Expected generation provider')
+      expect(provider.generation('auto').protocol).toBe('responses')
+
+      featureFlags.setPreference(OFFICIAL_RESPONSES_FLAG.key, false)
+      expect(provider.generation('auto').protocol).toBe('chat-completions')
+    }
+    finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   // https://github.com/moeru-ai/airi/pull/2471#discussion_r3948440504

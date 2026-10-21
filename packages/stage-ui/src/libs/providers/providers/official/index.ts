@@ -6,6 +6,7 @@ import { compatibleProtocols, generationProtocolOptions } from '@proj-airi/provi
 import { z } from 'zod'
 
 import { getAuthToken } from '../../../../libs/auth'
+import { OFFICIAL_RESPONSES_FLAG } from '../../../../libs/feature-flags'
 import { SERVER_URL } from '../../../../libs/server'
 import { defineProvider } from '../registry'
 import { OFFICIAL_CHAT_PROVIDER_ID, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from './constants'
@@ -76,19 +77,34 @@ export const providerOfficialChat = defineProvider<OfficialChatConfig, typeof OF
       descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-protocol.description'),
     }),
   }),
-  createProvider(config) {
+  createProvider(config, runtime) {
     const provider = createOfficialOpenAIProvider()
+    const unsupportedResponseModels = new Set<string>()
+
+    function selectProtocol(model: string): GenerationRequest['protocol'] {
+      // The endpoint rejected Responses for this model before. The fallback in core-agent recorded it, so later
+      // requests skip the failed attempt until the provider store creates a new instance.
+      if (unsupportedResponseModels.has(model))
+        return 'chat-completions'
+      // AIRI Cloud rolls out Responses with this flag, and the user can turn it off. The flag wins over the saved
+      // `api` value, because the provider store saves the schema default and a saved value is not always a choice.
+      if (runtime?.isFeatureEnabled(OFFICIAL_RESPONSES_FLAG.key))
+        return 'responses'
+      return config.api ?? compatibleProtocols.defaultProtocol
+    }
+
     return {
       model: provider.model,
       generation(model: string, _options?: ChatRequestOptions): GenerationRequest {
         const request = provider.chat(model)
         request.fetch = withCredentials()
-        switch (config.api ?? compatibleProtocols.defaultProtocol) {
+        switch (selectProtocol(model)) {
           case 'responses':
             return {
               protocol: 'responses',
               webSearch: true,
               config: request,
+              onUnsupported: () => { unsupportedResponseModels.add(model) },
             }
           case 'chat-completions':
             return {
