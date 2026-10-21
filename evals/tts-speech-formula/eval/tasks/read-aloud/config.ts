@@ -169,7 +169,7 @@ export function defineFormulaSpeechConfig(testObject: string, options: FormulaSp
   const selectedAsr = env.EVAL_ASR?.split(',').map(id => id.trim()).filter(Boolean)
 
   const matrix = {
-  /** `none` grades the spoken text without TTS: the floor that AIRI controls. Every other value is a TTS model. `EVAL_TTS=none` skips TTS. */
+    /** `none` grades the spoken text without TTS: the best score that the text can reach through a provider. Every other value is a TTS model. `EVAL_TTS=none` skips TTS. */
     tts: selectedTts?.length ? selectedTts : ['none', 'official'],
     /**
      * Transcribes the clip of every TTS model. Unused when `tts` is only `none`. Add `whisper-1` or `gemini-3.8-flash` to compare.
