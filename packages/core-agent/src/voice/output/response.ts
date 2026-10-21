@@ -1,5 +1,4 @@
 import type { AudioPlayback, IntentHandle, PcmBlock, PlaybackGroup, PlaybackItem, PlaybackReceipt, SpeechPipelineEvents, SpeechPipelineOptions } from '@proj-airi/pipelines-audio'
-
 import type { Outcome } from '@proj-airi/stream-kit'
 
 import type { TurnRef } from '../turn'
@@ -9,7 +8,8 @@ import { createPushStream } from '@proj-airi/stream-kit'
 import { nanoid } from 'nanoid/non-secure'
 
 import { errorFromCause, errorMessageFromValue } from '../../utils/error'
-import { toSpeechText } from './speech-text'
+import { toSpeechText } from './speech-transformation'
+import { MarkdownSegmenter } from './speech-transformation/segmenter'
 
 /** Each synthesized part carries optional display text. Audio ownership transfers to playback. */
 export interface SpeechAudio {
@@ -43,6 +43,8 @@ export type SpeechOutput = {
   readonly onPlaybackStart?: (clip: SpeechClip) => void
   /** Runs once for each started clip after playback ends, stops, or fails. */
   readonly onPlaybackEnd?: (clip: SpeechClip, end: SpeechClipEnd) => void
+  /** BCP 47 code of the voice. The words around a formula or a price select its language first. */
+  readonly language?: string
 } & ({
   readonly synthesize: SpeechPipelineOptions<Blob>['tts']
 } | {
@@ -51,7 +53,7 @@ export type SpeechOutput = {
 })
 
 /**
- * Marks where a special token or a flush occurs in the buffered text, so that markdown conversion keeps its position.
+ * Marks where a special token or a flush occurs in the streamed text, so that markdown conversion keeps its position.
  * It is a Unicode private use character. Model text does not contain it, and producer text is stripped of it.
  */
 const controlMarker = '\uE000'
@@ -75,9 +77,12 @@ export class SpeechStream {
   private settled = false
 
   private timer: ReturnType<typeof setTimeout> | undefined
-  /** Markdown that `end()` converts to speech text. A control marker holds the place of each entry in `controls`. */
-  private markdown = ''
+  /** Holds the text after the last safe end of the streamed markdown. A control marker holds the place of a control. */
+  private readonly segmenter = new MarkdownSegmenter()
+  /** Controls whose markers are still in the segmenter, in order. */
   private readonly controls: SpeechControl[] = []
+  /** The spoken text of the last segment, for the language of a formula that starts the next one. */
+  private spoken = ''
   readonly signal = this.abort.signal
   readonly done = this.completion.promise
 
@@ -133,38 +138,39 @@ export class SpeechStream {
           const clip = { id: item.segmentId, text: item.text }
           let started = false
           void Promise.race([previous, this.done])
-          .then(async () => {
-            if (this.signal.aborted || response.signal.aborted)
-              return 'stopped' as const
+            .then(async () => {
+              if (this.signal.aborted || response.signal.aborted)
+                return 'stopped' as const
 
-            return response.playback.enqueue({
-              id: item.id,
-              audio: item.audio,
-              signal: this.signal,
-              onStart: () => {
-                started = true
-                listeners.start.forEach(listener => listener({ item, startedAt: Date.now() }))
-                output.onPlaybackStart?.(clip)
-            } })
-          })
-          .then((result) => {
-            if (started)
-              output.onPlaybackEnd?.(clip, this.clipEnd(result))
+              return response.playback.enqueue({
+                id: item.id,
+                audio: item.audio,
+                signal: this.signal,
+                onStart: () => {
+                  started = true
+                  listeners.start.forEach(listener => listener({ item, startedAt: Date.now() }))
+                  output.onPlaybackStart?.(clip)
+                },
+              })
+            })
+            .then((result) => {
+              if (started)
+                output.onPlaybackEnd?.(clip, this.clipEnd(result))
 
-            if (!pending.delete(item))
-              return
+              if (!pending.delete(item))
+                return
 
-            if (result === 'ended')
-              listeners.end.forEach(listener => listener({ item, endedAt: Date.now() }))
-            else
-              listeners.interrupt.forEach(listener => listener({ item, interruptedAt: Date.now(), reason: result }))
+              if (result === 'ended')
+                listeners.end.forEach(listener => listener({ item, endedAt: Date.now() }))
+              else
+                listeners.interrupt.forEach(listener => listener({ item, interruptedAt: Date.now(), reason: result }))
 
-            // REVIEW: can we have more manage-able error handling
-            // across our pipelines?
-            if (result === 'failed')
-              this.fail(new Error('Speech playback failed'))
+              // REVIEW: can we have more manage-able error handling
+              // across our pipelines?
+              if (result === 'failed')
+                this.fail(new Error('Speech playback failed'))
             // REVIEW: must we do this here?
-          }, cause => this.fail(errorFromCause(cause, 'Speech playback failed')))
+            }, cause => this.fail(errorFromCause(cause, 'Speech playback failed')))
         },
         stopByIntent: (_id, reason) => {
           for (const item of pending)
@@ -249,33 +255,32 @@ export class SpeechStream {
     return signal.aborted ? { status, reason: errorMessageFromValue(signal.reason) } : { status }
   }
 
-  // REVIEW:
-  // Every purpose holds its text until `end()`, so markdown is converted with the full context.
-  // read-aloud already has the full text, but answer and notification start to speak only after the model ends.
-  // answer needs a streaming commit at clause boundaries. See the chunker punctuation in pipelines-audio.
+  // Text streams to TTS by segments, so an answer starts to speak after its first sentence. The segmenter ends a segment
+  // only where markdown parses alone: a formula, a code block, or a link that is still open waits for its end.
 
-  /** Special tokens keep their position relative to the text. They are delivered when the producer ends. */
+  /** Special tokens keep their position relative to the text. */
   special(value: string) {
     if (this.sealed || this.response.signal.aborted)
       return
 
-    this.markdown += controlMarker
     this.controls.push({ type: 'special', value })
+    this.deliver(this.segmenter.push(controlMarker))
   }
 
+  /** Sends the text so far, unless a formula or another construct is still open. Then the flush follows its end. */
   flush() {
     if (this.sealed)
       return
 
-    this.markdown += controlMarker
     this.controls.push({ type: 'flush' })
+    this.deliver([...this.segmenter.push(controlMarker), ...this.segmenter.flush()])
   }
 
   write(text: string): { status: 'accepted' | 'closed' } {
     if (this.sealed || this.response.signal.aborted)
       return { status: 'closed' }
 
-    this.markdown += text.replaceAll(controlMarker, '')
+    this.deliver(this.segmenter.push(text.replaceAll(controlMarker, '')))
     return { status: 'accepted' }
   }
 
@@ -284,24 +289,46 @@ export class SpeechStream {
       return
 
     if (!this.response.signal.aborted)
-      this.deliver()
+      this.deliver(this.segmenter.end())
     this.sealed = true
     this.text?.close()
     this.intent?.end()
   }
 
-  /** Sends the speech text and the controls in source order. Controls that conversion lost are sent last, in order. */
-  private deliver() {
-    const parts = toSpeechText(this.markdown, { marker: controlMarker }).split(controlMarker)
-    parts.forEach((text, index) => {
-      if (text)
-        this.deliverText(text)
+  /**
+   * Sends each segment as speech text, with its controls in source order. Controls that conversion lost are sent after
+   * the text of their segment, in order.
+   */
+  private deliver(segments: readonly string[]) {
+    if (this.response.signal.aborted)
+      return
 
-      const control = this.controls[index]
-      if (control && index < parts.length - 1)
-        this.deliverControl(control)
-    })
-    this.controls.slice(parts.length - 1).forEach(control => this.deliverControl(control))
+    for (const segment of segments) {
+      const count = segment.split(controlMarker).length - 1
+      const controls = this.controls.splice(0, count)
+      const parts = toSpeechText(segment, { marker: controlMarker, language: this.output.language, before: this.spoken }).split(controlMarker)
+      // Segments end inside a paragraph or between blocks. The space or the line break between them stays for TTS.
+      const separator = /\n\s*$/.test(segment) ? '\n' : /[ \t]$/.test(segment) ? ' ' : ''
+      parts.forEach((text, index) => {
+        const last = index === parts.length - 1
+        const spoken = last && text ? text + separator : text
+        if (spoken)
+          this.deliverText(spoken)
+        if (text.trim())
+          this.spoken = text
+
+        const control = controls[index]
+        if (control && !last)
+          this.deliverControl(control)
+      })
+      controls.slice(parts.length - 1).forEach(control => this.deliverControl(control))
+      // NOTICE:
+      // The TTS chunker reads one grapheme past a sentence end, to tell `3.14` and `...` from an end. Without more text,
+      // the last sentence of a segment waits for the next segment, which can be a long formula or code block.
+      // Source: chunkTtsInput in packages/pipelines-audio/src/processors/tts-chunker.ts.
+      // Remove when the chunker ends a chunk at the end of its input without lookahead.
+      this.intent?.writeFlush()
+    }
   }
 
   private deliverText(text: string) {
