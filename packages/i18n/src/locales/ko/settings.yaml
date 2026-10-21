@@ -245,14 +245,7 @@ live2d:
     sdk-preset-preserved-notice: >
       비활성화해도 SDK 표정 관리자와 눈 깜박임은 유지됩니다.
     no-expression: 이 모델에는 사용 가능한 표정이 없습니다.
-    llm-integration-wip: LLM 도구 연동은 아직 연결되지 않았습니다.
-    save-default: 표정 기본값 저장
     reset: 모든 표정 초기화
-    expose-to-llm-toggle: LLM에 공개
-    expose-to-llm-options:
-      none: 없음
-      all: 모두
-      custom: 사용자 지정
 microphone: 마이크
 models: 모델
 pages:
@@ -1400,11 +1393,9 @@ pages:
       buy: 충전
       description: 선택할 수 있는 Flux 패키지입니다.
   capacitor:
-    description: Capacitor는 Flux를 저장하고 자동으로 충전됩니다.
     statusError: Capacitor를 불러오지 못했습니다. 나중에 다시 시도하세요.
     packagesError: Capacitor 목록을 불러오지 못했습니다. 나중에 다시 시도하세요.
     preferenceError: 환경설정을 저장하지 못했습니다. 나중에 다시 시도하세요.
-    noCapacitor: Capacitor 없음
     remaining: '{percent} 남음'
     rechargesAt: '{date}에 충전'
     renewsAt: '{date}에 갱신'

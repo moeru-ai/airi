@@ -37,6 +37,7 @@
     "package.json"
   ],
   "scripts": {
+    "test:run": "vitest run --config vitest.config.ts",
     "build": "tsdown",
     "eval:run": "vieval run --config ./vieval.config.ts",
     "typecheck": "tsc --noEmit"
@@ -44,11 +45,14 @@
   "dependencies": {
     "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
+    "@proj-airi/mathjson": "workspace:^",
     "@proj-airi/pipelines-audio": "workspace:^",
     "@proj-airi/plugin-protocol": "workspace:^",
     "@proj-airi/provider-inference": "workspace:^",
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/server-shared": "workspace:^",
+    "@proj-airi/speech-transformer-chem": "workspace:^",
+    "@proj-airi/speech-transformer-math": "workspace:^",
     "@proj-airi/stream-kit": "workspace:^",
     "@xsai-ext/providers": "catalog:",
     "@xsai-ext/responses": "catalog:",
@@ -62,6 +66,7 @@
     "nanoid": "catalog:",
     "rehype-parse": "catalog:",
     "rehype-stringify": "catalog:",
+    "remark-math": "catalog:",
     "remark-parse": "catalog:",
     "unified": "catalog:",
     "unist-util-visit": "catalog:",

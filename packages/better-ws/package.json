@@ -40,6 +40,7 @@
     "package.json"
   ],
   "scripts": {
+    "test:run": "vitest run --config vitest.config.ts",
     "build": "tsdown",
     "dev": "pnpm run build",
     "test": "vitest",

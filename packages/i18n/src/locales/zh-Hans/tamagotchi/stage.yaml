@@ -173,7 +173,6 @@ computer-use-tool-call:
   typed: 逐字输入
   pasted: 粘贴
   pressed: 按下
-  repeat: '× {count}'
   interval: '间隔 {ms} 毫秒'
   hold: '按住 {ms} 毫秒'
   steps: '按顺序执行 {count} 步'
@@ -194,7 +193,6 @@ computer-use-tool-call:
   final: 实际终点
   duration: '{ms} 毫秒'
   normalized: 归一化坐标
-  click-count: '× {count}'
   relative:
     screen: 相对屏幕
     window: 相对窗口
@@ -234,7 +232,6 @@ computer-use-tool-call:
     title: 系统权限
     names:
       screen_recording: 屏幕录制
-      screen_capture_kit: ScreenCaptureKit
       accessibility: 辅助功能
       automation_to_system_events: 自动化（System Events）
     states:

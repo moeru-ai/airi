@@ -131,8 +131,8 @@ chat:
     background: '已交给配方 {name}'
     decision: '用了配方 {name}'
     question: 问题
-    'yes': 是
-    'no': 否
+    'yes': '是'
+    'no': '否'
   home-assistant-tool-call:
     shown: '显示 {count} / {total} 个设备'
   web-search-tool-call:
@@ -351,7 +351,6 @@ status:
   sign-in-unconfirmed: 未能确认登录会话，请重新登录。
   dismiss: 关闭提示
   configure-hearing: 请先在设置中选择并配置听觉服务。
-
 notifications:
   title: 通知
   open: 打开通知

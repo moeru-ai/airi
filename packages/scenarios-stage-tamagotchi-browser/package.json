@@ -16,6 +16,7 @@
     "directory": "packages/scenarios-stage-tamagotchi-browser"
   },
   "scripts": {
+    "test:run": "vitest run --config vitest.config.ts",
     "capture": "tsx scripts/capture.ts",
     "scenario:build": "vite build",
     "scenario:dev": "vite",

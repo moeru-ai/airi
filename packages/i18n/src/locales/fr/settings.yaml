@@ -236,14 +236,7 @@ live2d:
     sdk-preset-preserved-notice: >
       Le gestionnaire d’expressions du SDK et le clignement des yeux restent actifs lorsque cette option est désactivée.
     no-expression: Aucune expression disponible pour ce modèle.
-    llm-integration-wip: L’intégration des outils LLM n’est pas encore connectée.
-    save-default: Enregistrer les expressions par défaut
     reset: Réinitialiser toutes les expressions
-    expose-to-llm-toggle: Rendre accessible au LLM
-    expose-to-llm-options:
-      none: Aucun
-      all: Tout
-      custom: Personnalisé
 models: Modèle
 pages:
   account:
@@ -1360,11 +1353,9 @@ pages:
       buy: Recharger
       description: Offres Flux disponibles.
   capacitor:
-    description: Un Capacitor contient du Flux et se recharge automatiquement.
     statusError: Impossible de charger votre Capacitor. Réessayez plus tard.
     packagesError: Impossible de charger les Capacitor. Réessayez plus tard.
     preferenceError: Impossible d’enregistrer la préférence. Réessayez plus tard.
-    noCapacitor: Aucun Capacitor
     remaining: '{percent} restant'
     rechargesAt: Recharge le {date}
     renewsAt: Renouvellement le {date}
