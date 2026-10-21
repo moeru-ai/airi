@@ -1,21 +1,28 @@
 <script setup lang="ts">
+import type { DataTransferProgressHandler } from '@proj-airi/stage-ui/libs/data-transfer'
+
 import type { DataSettingsStatusEmits } from '../status'
 
 import { sherpawModels } from '@proj-airi/provider-inference/sherpaw-transcription/models'
 import { speakerModel } from '@proj-airi/stage-shared/speaker-model'
 import { useModelAssetStatus } from '@proj-airi/stage-ui/composables/use-model-asset-status'
+import { exportData, importData } from '@proj-airi/stage-ui/libs/data-transfer'
 import { cancelSherpawModelAssets, isSherpawModelBundled, listSherpawModelAssets, removeSherpawModelAssets } from '@proj-airi/stage-ui/libs/providers/providers/sherpaw/model-assets'
 import { kwsModel } from '@proj-airi/stage-ui/libs/voice/kws-model-info'
+import { createSherpawModelExportAdapter, createSherpawModelImportAdapter } from '@proj-airi/stage-ui/services/data-transfer/sherpaw-models'
 import { DoubleCheckButton, GhostButton } from '@proj-airi/ui'
 import { computed, onMounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+import DataTransferActions from './data-transfer-actions.vue'
 
 import { createDataSettingsStatusHelpers } from '../status'
 
 const emit = defineEmits<DataSettingsStatusEmits>()
 const { t } = useI18n()
-const { emitStatus, handleActionError } = createDataSettingsStatusHelpers(emit)
+const { emitStatus, handleActionError } = createDataSettingsStatusHelpers(emit, t('settings.pages.data.status.action_error'))
 const { models } = useModelAssetStatus()
+const modelImportAdapter = createSherpawModelImportAdapter()
 const names = new Map<string, string>(Object.values(sherpawModels).map(model => [model.id, model.name]))
 // Transcription presets show their recognizer family. The wake word and voiceprint packs have no family name users know.
 const packNameKeys = new Map<string, string>([
@@ -31,6 +38,19 @@ const downloads = computed(() => models.value.flatMap((status) => {
 }))
 const refreshing = shallowRef(false)
 const pendingId = shallowRef<string>()
+
+async function importModel(file: File, progress: DataTransferProgressHandler) {
+  await importData(modelImportAdapter, file, progress)
+  await listSherpawModelAssets()
+}
+
+async function exportModel(id: string, progress: DataTransferProgressHandler) {
+  return await exportData(createSherpawModelExportAdapter(id), progress)
+}
+
+function modelFileName(id: string, revision: string) {
+  return `airi-sherpaw-${id}-${revision}.zip`
+}
 
 async function refresh() {
   refreshing.value = true
@@ -90,14 +110,22 @@ onMounted(refresh)
             {{ t('settings.pages.data.sections.model-downloads.description') }}
           </p>
         </div>
-        <GhostButton
-          size="sm"
-          icon="i-solar:refresh-linear"
-          :label="t('settings.pages.data.sections.model-downloads.refresh')"
-          :loading="refreshing"
-          :disabled="pendingId !== undefined"
-          @click="refresh"
-        />
+        <div :class="['flex flex-wrap items-center gap-2']">
+          <DataTransferActions
+            accept="application/zip,.zip"
+            :data-area="t('settings.pages.data.sections.model-downloads.title')"
+            :on-import="importModel"
+            @status="emit('status', $event)"
+          />
+          <GhostButton
+            size="sm"
+            icon="i-solar:refresh-linear"
+            :label="t('settings.pages.data.sections.model-downloads.refresh')"
+            :loading="refreshing"
+            :disabled="pendingId !== undefined"
+            @click="refresh"
+          />
+        </div>
       </div>
 
       <div v-if="!refreshing && downloads.length === 0" :class="['text-sm text-neutral-500']">
@@ -114,29 +142,40 @@ onMounted(refresh)
             {{ t(`settings.pages.providers.provider.sherpaw-transcription.asset.${model.state}`) }}
           </span>
         </div>
-        <GhostButton
-          v-if="model.state === 'downloading'"
-          size="sm"
-          :label="t('settings.pages.providers.provider.sherpaw-transcription.asset.cancel')"
-          :loading="pendingId === model.id"
-          :disabled="pendingId !== undefined && pendingId !== model.id"
-          @click="cancelDownload(model.id)"
-        />
-        <DoubleCheckButton
-          v-else
-          size="sm"
-          :loading="pendingId === model.id"
-          :disabled="pendingId !== undefined"
-          @confirm="removeDownload(model.id)"
-        >
-          {{ t('settings.pages.providers.provider.sherpaw-transcription.asset.remove') }}
-          <template #confirm>
-            {{ t('settings.pages.data.confirmations.yes') }}
+        <div :class="['ml-auto flex flex-wrap items-center justify-end gap-2']">
+          <GhostButton
+            v-if="model.state === 'downloading'"
+            size="sm"
+            :label="t('settings.pages.providers.provider.sherpaw-transcription.asset.cancel')"
+            :loading="pendingId === model.id"
+            :disabled="pendingId !== undefined && pendingId !== model.id"
+            @click="cancelDownload(model.id)"
+          />
+          <template v-else>
+            <DataTransferActions
+              accept="application/zip,.zip"
+              :file-name="modelFileName(model.id, model.revision)"
+              :data-area="model.name"
+              size="sm"
+              :on-export="progress => exportModel(model.id, progress)"
+              @status="emit('status', $event)"
+            />
+            <DoubleCheckButton
+              size="sm"
+              :loading="pendingId === model.id"
+              :disabled="pendingId !== undefined"
+              @confirm="removeDownload(model.id)"
+            >
+              {{ t('settings.pages.providers.provider.sherpaw-transcription.asset.remove') }}
+              <template #confirm>
+                {{ t('settings.pages.data.confirmations.yes') }}
+              </template>
+              <template #cancel>
+                {{ t('settings.pages.card.cancel') }}
+              </template>
+            </DoubleCheckButton>
           </template>
-          <template #cancel>
-            {{ t('settings.pages.card.cancel') }}
-          </template>
-        </DoubleCheckButton>
+        </div>
       </div>
     </div>
   </div>
