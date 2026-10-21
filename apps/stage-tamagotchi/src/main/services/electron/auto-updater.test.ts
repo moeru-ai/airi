@@ -306,7 +306,7 @@ describe('setupAutoUpdater', () => {
   //
   // We fixed this by deriving the cache directory from app.getPath('userData').
   // join(app.getPath('userData'), 'cache')
-  it('issue #2937: resolves updater log path after userData path is configured', async () => {
+  it('resolves updater log path after userData path is configured (Issue #2937)', async () => {
     const { setupAutoUpdater } = await import('./auto-updater')
     appMock.getPath.mockImplementation((name: string) => name === 'userData' ? '/custom/user-data-dir' : `/tmp/${name}`)
 
