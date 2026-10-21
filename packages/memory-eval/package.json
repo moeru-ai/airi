@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/memory-eval",
   "type": "module",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "private": true,
   "description": "Identity-continuity evaluation for long-horizon memory (fixed-point, Wasserstein barycenter, bimodality, human kappa)",
   "author": {

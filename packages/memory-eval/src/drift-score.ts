@@ -1,14 +1,13 @@
 /**
  * Drift score: unified identity-continuity metric
  *
- * Drift = FP-instability ∨ W1-migration ∨ bimodality
+ * Drift = W1-migration ∨ bimodality (plus an opt-in fixed-point guard)
  * Fidelity = 1 - Drift
  */
 
 import type { FixedPointResult } from './fixed-point'
 import { normalizedTextDistance } from './fixed-point'
 import type { RubricScore } from './barycenter'
-import type { BimodalityResult } from './modality'
 import { wassersteinDistance } from './barycenter'
 import { detectBimodality } from './modality'
 
@@ -17,14 +16,20 @@ export interface DriftScoreResult {
   driftScore: number
   /** Identity fidelity (1 - drift) */
   fidelity: number
-  /** Fixed-point instability component */
+  /** Fixed-point instability component (diagnostic) */
   fpInstability: number
   /** Barycenter migration component */
   w1Migration: number
   /** Bimodality component */
   bimodality: number
-  /** Is drifted (any component exceeds threshold)? */
+  /** Is drifted (any *counting* component reaches its configured threshold)? */
   drifted: boolean
+  /**
+   * Did both sessions reach a numerical fixed point of the self-reference
+   * operator? Reported for interpretation only: a model that paraphrases
+   * itself every turn never converges, which is not by itself identity drift.
+   */
+  fpConverged: boolean
 }
 
 export interface DriftScoreConfig {
@@ -38,10 +43,28 @@ export interface DriftScoreConfig {
   fpThreshold?: number
   w1Threshold?: number
   bicThreshold?: number
+  /**
+   * Let the fixed-point component decide `drifted`.
+   *
+   * Default `false`. `examples/calibrate-fp-threshold.ts` measures the lexical
+   * distance of same-identity paraphrases (up to 0.94) against genuinely
+   * different characters (from 0.58): the two bands overlap, so the component
+   * cannot separate "reworded" from "became someone else". It is reported as a
+   * diagnostic and, with this flag, only acts as a guard against gross
+   * self-description collapse.
+   */
+  fpCountsAsDrift?: boolean
 }
 
 /**
- * Compute unified drift score
+ * Compute unified drift score.
+ *
+ * The fixed-point component is a *lexical* self-description diagnostic:
+ * `normalizedTextDistance` is an order-sensitive token edit distance, so it
+ * responds to wording rather than meaning. Because that band overlaps with real
+ * identity change (see `06-验证材料/fixed-point-calibration.json`), the drift
+ * verdict rests on the rubric distribution (W1) and its bimodality, which are
+ * measured from the judge's scored output rather than from surface text.
  */
 export function computeDriftScore(config: DriftScoreConfig): DriftScoreResult {
   const {
@@ -49,9 +72,10 @@ export function computeDriftScore(config: DriftScoreConfig): DriftScoreResult {
     fixedPointCurrent,
     scoresBaseline,
     scoresCurrent,
-    fpThreshold = 0.15,
+    fpThreshold = 0.95,
     w1Threshold = 0.3,
-    bicThreshold = 10
+    bicThreshold = 10,
+    fpCountsAsDrift = false
   } = config
 
   const isFinitePositive = (x: number) => Number.isFinite(x) && x > 0
@@ -63,23 +87,24 @@ export function computeDriftScore(config: DriftScoreConfig): DriftScoreResult {
     throw new Error('fpThreshold, w1Threshold and bicThreshold must be finite positive numbers')
   }
 
-  // 1. FP instability. Both a non-converging baseline and a non-converging
-  //    current fixed point make the comparison unusable, so both count as
-  //    instability. A converging pair is scored by the distance between fixed
-  //    points.
-  let fpDrift: boolean
-  let fpInstability = 0
-  if (!fixedPointBaseline.converged || !fixedPointCurrent.converged) {
-    fpInstability = 1.0
-    fpDrift = true
-  } else {
-    const fpDist = normalizedTextDistance(
-      fixedPointBaseline.fixedPoint,
-      fixedPointCurrent.fixedPoint
-    )
-    fpInstability = Math.min(fpDist / fpThreshold, 1.0)
-    fpDrift = fpInstability >= 1
-  }
+  // 1. FP instability. Two signals, both on the same 0..1 edit-distance scale:
+  //    - oscillation: how far the session's own self-description keeps moving;
+  //    - shift: how far the two session-end descriptions are from each other.
+  //    Taking the maximum keeps one unstable session from being masked by a
+  //    stable partner, without turning "the model paraphrases itself" into
+  //    maximal drift.
+  const fpConverged = fixedPointBaseline.converged && fixedPointCurrent.converged
+  const fpOscillation = Math.max(
+    fixedPointBaseline.finalResidual,
+    fixedPointCurrent.finalResidual
+  )
+  const fpShift = normalizedTextDistance(
+    fixedPointBaseline.fixedPoint,
+    fixedPointCurrent.fixedPoint
+  )
+  const fpRaw = Math.max(fpOscillation, fpShift)
+  const fpInstability = Math.min(fpRaw / fpThreshold, 1.0)
+  const fpDrift = fpInstability >= 1
 
   // 2. W1 migration
   const w1 = wassersteinDistance(scoresBaseline, scoresCurrent)
@@ -108,7 +133,7 @@ export function computeDriftScore(config: DriftScoreConfig): DriftScoreResult {
   // would flag drift at half the configured limit (W1 0.15 under a 0.3 limit).
   const w1Drift = w1Migration >= 1
   const bimodalDrift = bimodality >= 1
-  const drifted = fpDrift || w1Drift || bimodalDrift
+  const drifted = w1Drift || bimodalDrift || (fpCountsAsDrift && fpDrift)
 
   return {
     driftScore,
@@ -116,6 +141,7 @@ export function computeDriftScore(config: DriftScoreConfig): DriftScoreResult {
     fpInstability,
     w1Migration,
     bimodality,
-    drifted
+    drifted,
+    fpConverged
   }
 }

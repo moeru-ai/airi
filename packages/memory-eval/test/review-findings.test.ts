@@ -344,6 +344,16 @@ describe('Round 2 review findings', () => {
     expect(() => cohensKappa([], [])).toThrow()
   })
 
+  it('P1 round9: kappa reports undefined agreement instead of 0', () => {
+    // Both raters used one category, so p_e = 1 and kappa is 0/0. Returning 0
+    // would claim "chance-level agreement" for what is perfect agreement.
+    const result = cohensKappa([1, 1, 1, 1], [1, 1, 1, 1])
+    expect(result.expectedAgreement).toBe(1)
+    expect(result.degenerate).toBe(true)
+    expect(Number.isNaN(result.kappa)).toBe(true)
+    expect(result.valid).toBe(false)
+  })
+
   it('P2 round3: harness forwards bicThreshold to drift scoring', async () => {
     const infer = async () => 'a stable self description with fixed wording'
     const judge = async () => ({ identity: 0.9, value: 0.9, expression: 0.9, memory: 0.9 })
@@ -373,19 +383,44 @@ describe('Round 2 review findings', () => {
     expect(marginalW1ByAxis(a, b).identity).toBeCloseTo(1 / 6, 6)
   })
 
-  it('P1: non-converging baseline counts as fixed-point instability', () => {
+  it('P1: non-convergence is scored by the residual, not forced to maximum', () => {
+    // A model that rephrases itself never reaches a numerical fixed point, but
+    // its residual stays at the paraphrase floor (~0.5). That must not be
+    // reported as maximal identity drift.
+    const paraphrasing: FixedPointResult = {
+      iterations: ['a'], residuals: [0.53], converged: false, finalResidual: 0.53, fixedPoint: 'the same person described differently',
+    }
+    const s = stableScores(4)
+    const result = computeDriftScore({
+      fixedPointBaseline: paraphrasing,
+      fixedPointCurrent: paraphrasing,
+      scoresBaseline: s,
+      scoresCurrent: s,
+    })
+    expect(result.fpConverged).toBe(false)
+    expect(result.fpInstability).toBeCloseTo(0.53 / 0.95, 6)
+    expect(result.drifted).toBe(false)
+  })
+
+  it('P1: fixed-point collapse is a diagnostic unless the caller opts in', () => {
+    // Lexical distance cannot separate "reworded" from "became someone else"
+    // (see examples/calibrate-fp-threshold.ts), so it does not decide `drifted`
+    // by default. A caller that wants a gross-collapse guard can opt in.
     const baseline: FixedPointResult = {
       iterations: ['a'], residuals: [0.9], converged: false, finalResidual: 0.9, fixedPoint: 'unstable',
     }
     const current = fixedPoint('unstable')
     const s = stableScores(4)
-    const result = computeDriftScore({
+    const scoring = {
       fixedPointBaseline: baseline,
       fixedPointCurrent: current,
       scoresBaseline: s,
       scoresCurrent: s,
-    })
-    expect(result.drifted).toBe(true)
+    }
+    expect(computeDriftScore(scoring).drifted).toBe(false)
+    expect(
+      computeDriftScore({ ...scoring, fpCountsAsDrift: true, fpThreshold: 0.6 }).drifted
+    ).toBe(true)
   })
 
   it('P2: rejects non-positive drift thresholds', () => {
