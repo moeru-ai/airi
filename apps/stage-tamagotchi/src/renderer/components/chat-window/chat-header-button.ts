@@ -2,8 +2,8 @@
  * How a chat header button looks.
  *
  * - `plain`: a square button in a window title bar, such as the legacy chat window.
- * - `dock`: a round button in the dock of the floating chat. Its icon is neutral, and only a pressed one takes the
- *   theme color, on a light disc of it.
+ * - `dock`: a round button in the dock of the floating chat. Its icon is neutral, and only the icon of a pressed one
+ *   takes the theme color.
  */
 export type ChatHeaderButtonVariant = 'plain' | 'dock'
 
@@ -26,9 +26,10 @@ export function chatHeaderButtonClass(variant: ChatHeaderButtonVariant, pressed 
     return [
       ...base,
       'size-7 rounded-full',
+      'hover:bg-neutral-200 dark:hover:bg-neutral-800',
       pressed
-        ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/60 dark:text-primary-300'
-        : 'text-neutral-400 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400',
+        ? 'text-primary-500 dark:text-primary-400'
+        : 'text-neutral-400 hover:text-primary-500 dark:text-neutral-500 dark:hover:text-primary-400',
     ]
   }
   return [
