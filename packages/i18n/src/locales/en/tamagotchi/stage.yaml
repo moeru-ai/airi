@@ -55,13 +55,17 @@ docs:
   style:
     title: Chat window style
     legacy: Classic window
-    floating-attached: Floating, beside the character
-    floating-free: Floating, anywhere on screen
-    floating-danmaku: Floating, message feed
+    floating: Floating
     fullscreen: Fullscreen, beside the character
-    pinned: Keep on top
-  resize: Drag to resize the chat
+    attached: Beside the character
   move: Drag to move the chat
+  resize-corner:
+    ne: Resize from the top-right corner
+    nw: Resize from the top-left corner
+    se: Resize from the bottom-right corner
+    sw: Resize from the bottom-left corner
+  danmaku: Message feed
+  pin: Keep on top
   fold: Hide chat
   composer:
     show: Show the message box
@@ -70,6 +74,7 @@ docs:
     title: Message timing
     hide-read: Hide read messages
     hide-read-description: Messages leave once read. Spoken replies leave when the speech ends.
+    options-hint: Hover or right-click for options
     reading-speed: Reading speed
     reading-speed-value: '{count} characters/s'
     minimum-time: Minimum time
