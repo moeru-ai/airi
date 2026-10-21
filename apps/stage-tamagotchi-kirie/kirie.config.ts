@@ -1,6 +1,7 @@
 import { join, resolve } from 'node:path'
 
 import notifications from '@gd-kirie/notifications'
+import qr from '@gd-kirie/qr'
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import templateCompilerOptions from '@tresjs/core/template-compiler-options'
 import Vue from '@vitejs/plugin-vue'
@@ -23,7 +24,7 @@ const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
 const rendererRoot = resolve(join(import.meta.dirname, 'src-web', 'src', 'renderer'))
 
 export default defineKirieConfig({
-  plugins: [core, notifications],
+  plugins: [core, notifications, qr],
   godot: { csproj: 'StageTamagotchiKirie.csproj' },
   web: {
     vite: {

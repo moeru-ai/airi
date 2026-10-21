@@ -1,22 +1,25 @@
 import type { KirieEventaContext, KirieEventaContextHandle } from '@gd-kirie/ipc-eventa'
 import type { NotificationsClient } from '@gd-kirie/notifications'
 import type { PlatformClient } from '@gd-kirie/platform'
+import type { QrClient } from '@gd-kirie/qr'
 import type { InvokeEventa } from '@moeru/eventa'
 import type { ShallowRef } from 'vue'
 
 import { createContext as createKirieContext } from '@gd-kirie/ipc-eventa'
 import { createNotificationsClient } from '@gd-kirie/notifications'
 import { createPlatformClient } from '@gd-kirie/platform'
+import { createQrClient } from '@gd-kirie/qr'
 import { defineInvoke } from '@moeru/eventa'
 import { shallowRef } from 'vue'
 
 import '@gd-kirie/ipc'
 
-/** Owns the renderer's Eventa transport, Platform client, and notification client. */
+/** Owns this renderer's Eventa transport and Kirie clients. */
 export interface HostContextOwner {
   context: KirieEventaContext
   notifications: NotificationsClient
   platform: PlatformClient
+  qr: QrClient
 }
 
 // Adapters borrow one context per renderer. The renderer entry disposes its
@@ -29,6 +32,7 @@ function createHostContextOwner(): HostContextOwner & KirieEventaContextHandle {
     ...eventa,
     notifications: createNotificationsClient(eventa.context),
     platform: createPlatformClient(eventa.context),
+    qr: createQrClient(eventa.context),
   }
 }
 

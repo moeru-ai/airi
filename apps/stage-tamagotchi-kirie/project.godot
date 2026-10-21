@@ -34,7 +34,7 @@ project/assembly_name="StageTamagotchiKirie"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/airi-android/plugin.cfg", "res://addons/kirie/plugin.cfg", "res://addons/kirie_notifications/plugin.cfg")
+enabled=PackedStringArray("res://addons/airi-android/plugin.cfg", "res://addons/kirie/plugin.cfg", "res://addons/kirie_notifications/plugin.cfg", "res://addons/kirie_qr/plugin.cfg")
 
 [godot_cef]
 

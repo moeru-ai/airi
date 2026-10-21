@@ -18,7 +18,7 @@ def method(source, signature):
 
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument('case', choices=['authentication', 'websocket'])
+parser.add_argument('case', choices=['authentication', 'websocket', 'back'])
 parser.add_argument('--json-jar', type=Path, required=True)
 args = parser.parse_args()
 app = Path(__file__).resolve().parents[2]
@@ -31,6 +31,9 @@ if args.case == 'authentication':
         'private void sendEventaResponse(',
         'private void sendEventaError(',
     ]
+elif args.case == 'back':
+    fixture_name = 'BackFixture'
+    signatures = ['public void handleOnBackPressed()']
 else:
     fixture_name = 'WebSocketFixture'
     signatures = [

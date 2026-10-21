@@ -173,10 +173,10 @@ Update acceptance requires download, integrity checks, installation, relaunch, a
 
 ## Dependency baseline
 
-The notification migration uses Kirie npm, NuGet, and the Godot addon at 0.13.0.
-The [README](README.md#notifications) records the notification plugin setup.
+The notification and QR integrations use Kirie npm, NuGet, and the Godot addon at 0.15.0.
+The [README](README.md#qr-scanning) records the QR and notification plugin setup.
 This integration has no new device acceptance evidence yet.
-Godot and Godot.NET.Sdk use 4.7.2. Godot CEF uses 2.0.0.
+Godot and Godot.NET.Sdk use 4.7.2. The core plugin selects Godot CEF 2.1.0.
 The [0.8.0 release](https://github.com/moeru-ai/godot-kirie/releases/tag/v0.8.0) supplies official artifacts.
 
 The previous 0.8.0 addon SHA-256 is `e5063840514ea85b199e98755accc0b08661ed3b19f39c786cf740bcb51e7a2a`.

@@ -95,20 +95,6 @@ export const airiAndroidPermissionEventIds = {
   request: 'eventa:invoke:airi:android:permission:request',
 } as const
 
-export interface AiriAndroidBarcodeScanPayload {
-  scanInstructions: string
-}
-
-export interface AiriAndroidBarcodeScanResult {
-  ScanResult?: string
-  error?: string
-  format?: number
-}
-
-export const airiAndroidBarcodeEventIds = {
-  scan: 'eventa:invoke:airi:android:barcode:scan',
-} as const
-
 export const airiAndroidAuthenticationEventIds = {
   consumeUrlOpen: 'eventa:invoke:airi:android:app:url-open:consume',
   open: 'eventa:invoke:airi:android:authentication:open',

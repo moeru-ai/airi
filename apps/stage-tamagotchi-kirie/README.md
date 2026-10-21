@@ -2,7 +2,7 @@
 
 This application runs the Stage Tamagotchi Vue renderer in a Godot host.
 The shared `src-web` renderer supports desktop and Android exports.
-Kirie supplies the WebView, IPC transport, and notifications. AIRI owns application services and native surfaces.
+Kirie supplies the WebView, IPC transport, notifications, and QR scanning. AIRI owns application services and native surfaces.
 
 Use this application for Kirie desktop and Android development.
 The Electron application remains supported and supplies the behavior reference.
@@ -43,13 +43,14 @@ Install the Kirie addon that matches the npm and NuGet packages:
 ```sh
 mise x -- pnpm kirie doctor --fix plugin:core
 mise x -- pnpm kirie doctor --fix plugin:notifications
+mise x -- pnpm kirie doctor --fix plugin:qr
 ```
 
-The core plugin installs the bundled `0.13.0` addon and checks its declared version.
+The core plugin installs the bundled `0.15.0` addon and checks its declared version.
 The addon supplies `addons/kirie/`, including `KirieClient.cs`. Git ignores this installed dependency.
 After a Kirie version change, run the command again.
-The 0.13.0 npm bundle omits the Android AAR.
-For Android, extract `addons/kirie/libraries/android/Kirie-release.aar` from the official `v0.13.0` release archive into this application.
+The core npm bundle omits the Android AAR.
+For Android, extract `addons/kirie/libraries/android/Kirie-release.aar` from the official `v0.15.0` release archive into this application.
 
 Inspect the installed environment:
 
@@ -66,8 +67,8 @@ If CEF is absent or stale, install the configured backend:
 mise x -- pnpm kirie doctor --fix godot-cef
 ```
 
-The [installer](https://github.com/moeru-ai/godot-kirie/blob/v0.13.0/packages/cli/src/commands/doctor/addons.ts) verifies the Godot CEF archive and records its checksum under `.godot/kirie/`.
-The [doctor](https://github.com/moeru-ai/godot-kirie/blob/v0.13.0/packages/cli/src/commands/doctor/index.ts) checks required addon files, the Kirie version, and the CEF checksum marker.
+The [installer](https://github.com/gd-kirie/gd-kirie/blob/v0.15.0/packages/cli/src/commands/doctor/addons.ts) verifies the Godot CEF archive and records its checksum under `.godot/kirie/`.
+The [doctor](https://github.com/gd-kirie/gd-kirie/blob/v0.15.0/packages/cli/src/commands/doctor/index.ts) checks required addon files, the Kirie version, and the CEF checksum marker.
 It does not hash installed native files or inspect macOS signatures.
 
 After a CEF version change, repeat installation.
@@ -83,13 +84,13 @@ mise x -- pnpm kirie dev
 ```
 
 `kirie dev` starts Vite, Godot, and CEF renderers.
-The [dev command](https://github.com/moeru-ai/godot-kirie/blob/v0.13.0/packages/cli/src/commands/dev.ts) reuses the last C# build.
+The [dev command](https://github.com/gd-kirie/gd-kirie/blob/v0.15.0/packages/cli/src/commands/dev.ts) reuses the last C# build.
 After a C# change, repeat both commands.
 Spotlight opens through its global shortcut and has no in-app entry point.
 
 ## Notifications
 
-Notifications use the published Kirie 0.13.0 npm and NuGet packages.
+Notifications use the published Kirie 0.15.0 npm and NuGet packages.
 Restore C# dependencies with `dotnet restore StageTamagotchiKirie.csproj`.
 
 The `@gd-kirie/notifications` plugin supplies the renderer API and mobile export dependencies.
@@ -101,6 +102,19 @@ The notification developer page calls `show()` immediately. Android displays it 
 The former five-second schedule, AIRI alarm storage, boot receivers, and pending click queue are removed.
 Kirie reports live clicks through `notificationActivated`. It does not replay clicks after a cold start.
 Spotlight uses that event to open Chat for notifications sent by its current renderer.
+
+## QR scanning
+
+The connection settings page uses `@gd-kirie/qr` through the renderer's existing Eventa context.
+The main Godot scene registers `GdKirie.Qr` and attaches its host to the scene's `KirieNode`.
+Kirie core 0.15.0 forwards WebView visibility so the native camera preview can appear.
+
+A successful scan supplies text to AIRI's server-channel parser and connection probe.
+Cancellation returns without changing the connection or showing an error toast.
+While Kirie hides the WebView for capture, Android Back reaches Godot to cancel the scan.
+Permission denial and native errors use the existing error toast.
+Kirie owns camera permission, capture, preview, and native export dependencies.
+The former AIRI barcode Eventa contract and embedded Ionic scanner are removed.
 
 ## Checks and build
 

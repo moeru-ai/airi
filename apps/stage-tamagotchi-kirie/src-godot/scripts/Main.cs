@@ -2,6 +2,7 @@ using Eventa;
 using GdKirie.EventaAdapter;
 using GdKirie.Notifications;
 using GdKirie.Platform;
+using GdKirie.Qr;
 using Godot;
 
 public partial class Main : Node
@@ -13,6 +14,7 @@ public partial class Main : Node
     private KirieEventaContextHandle? _eventa;
     private GdKiriePlatformHost? _platform;
     private GdKirieNotificationsHost? _notifications;
+    private GdKirieQrHost? _qr;
     private OnboardingWindowManager? _onboarding;
     private SettingsWindowManager? _settings;
     private ChatWindowManager? _chat;
@@ -47,11 +49,15 @@ public partial class Main : Node
             return;
         }
 
-        var registry = AiriDesktopContracts.Register(
-            GdKirieNotifications.Register(GdKiriePlatform.Register(new KirieEventaJsonRegistry())));
+        var registry = new KirieEventaJsonRegistry();
+        GdKiriePlatform.Register(registry);
+        GdKirieNotifications.Register(registry);
+        GdKirieQr.Register(registry);
+        AiriDesktopContracts.Register(registry);
         _eventa = _kirie.CreateEventaContext(registry);
         _platform = GdKiriePlatform.Attach(_eventa.Context, window);
         _notifications = GdKirieNotifications.Attach(_eventa.Context, window);
+        _qr = GdKirieQr.Attach(_eventa.Context, this, GetNode<Control>("KirieNode"));
         _displaySnapshotRegistration = CurrentDisplaySnapshotService.Attach(
             _eventa.Context,
             window);
@@ -164,6 +170,7 @@ public partial class Main : Node
         _microphonePermissions?.Dispose();
         _microphonePermissionRegistration?.Dispose();
         _androidPermissions?.Dispose();
+        _qr?.Dispose();
         _notifications?.Dispose();
         _platform?.Dispose();
         _eventa?.Dispose();

@@ -29,16 +29,17 @@ minimumReleaseAgeExclude:
   - electron-builder-squirrel-windows@26.16.1
   - electron-builder@26.16.1
   # NOTICE:
-  # Kirie 0.13.0 supplies the plugin API required by notifications.
+  # Kirie 0.15.0 supplies native WebView visibility required by QR capture.
   # pnpm blocks releases within the configured minimum age.
   # Source: apps/stage-tamagotchi-kirie/kirie.config.ts.
   # Remove these exceptions when this release exceeds the minimum age.
-  - '@gd-kirie/build@0.13.0'
-  - '@gd-kirie/ipc-eventa@0.13.0'
-  - '@gd-kirie/ipc@0.13.0'
-  - '@gd-kirie/notifications@0.13.0'
-  - '@gd-kirie/platform@0.13.0'
-  - kirie@0.13.0
+  - '@gd-kirie/build@0.15.0'
+  - '@gd-kirie/ipc-eventa@0.15.0'
+  - '@gd-kirie/ipc@0.15.0'
+  - '@gd-kirie/notifications@0.15.0'
+  - '@gd-kirie/platform@0.15.0'
+  - '@gd-kirie/qr@0.15.0'
+  - kirie@0.15.0
   - '@moeru/*'
   - '@proj-airi/*'
   # NOTICE:

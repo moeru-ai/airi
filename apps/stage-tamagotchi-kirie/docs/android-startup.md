@@ -8,7 +8,8 @@ Stage-pocket remains the behavior reference. Its Web build is never packaged ins
 
 The Kirie Android plugin owns the WebView and its binary IPC transport.
 The AIRI Android plugin finds that WebView and adds Android host behavior.
-It configures system bars, permissions, file selection, external navigation, notifications, keyboard insets, and lifecycle callbacks.
+It configures system bars, permissions, file selection, external navigation, keyboard insets, and lifecycle callbacks.
+Kirie notification and QR plugins own notification delivery and camera scanning.
 
 The Godot scene creates the WebView after it registers AIRI and Kirie Eventa handlers.
 The packaged renderer therefore uses the same host-context API on every supported platform.

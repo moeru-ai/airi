@@ -17,3 +17,6 @@ obj/
 *.aar
 *.xcframework
 addons/kirie_notifications/
+addons/kirie_qr/
+ios/plugins/kirie_qr/
+ios/plugins/kirie_camera/

@@ -1,7 +1,7 @@
 # Android host JVM fixtures
 
 These fixtures compile unchanged methods extracted from the production Java source in `addons/airi-android/export-plugin.gd`.
-Only Android activity, URI, native reply transport, and WebSocket callback boundaries use fixture objects.
+Only Android activity, view visibility, Back dispatch, URI, native reply transport, and WebSocket callback boundaries use fixture objects.
 The JSON implementation is Pocket's existing `org.json:json:20240303` test dependency.
 No Android device, Gradle watcher, Vite build, or Godot build is required.
 
@@ -15,7 +15,7 @@ Authentication expectations come from Pocket's `WebAuthenticationPlugin.kt`.
 Missing handlers reject with `BROWSER_UNAVAILABLE`. Other `RuntimeException` failures use the same rejection.
 A healthy browser still opens once and resolves once.
 The browser-channel Vitest fixture also exercises the actual Eventa rejection path and restores an Error with Pocket's code and message.
-Existing string errors from notification scheduling retain their envelope shape.
+Other bridge errors retain their existing response envelope.
 
 The generated Java files exist only in a temporary directory.
 The `.gdignore` marker excludes these fixture sources from Godot assets.
@@ -29,6 +29,17 @@ The fixture executes Kirie's unchanged `onFailure`, `createEvent`, and `addEvent
 A null Throwable message gives the error event its fallback text and omits the close reason.
 Empty messages remain empty. An available HTTP response supplies the close code.
 All cases retain error-before-close ordering and remove the opened session.
+
+## QR preview Back dispatch
+
+```sh
+python3 run-fixtures.py back --json-jar "$JSON_JAR"
+```
+
+The fixture executes the production Back callback with external view and dispatcher boundaries.
+A visible WebView retains browser navigation. A hidden WebView yields Back to Godot's native preview.
+The callback becomes enabled again after native dispatch, including when the native callback throws.
+This fixture checks dispatch ownership. It does not establish device camera cancellation.
 
 ## Native dialog theme
 

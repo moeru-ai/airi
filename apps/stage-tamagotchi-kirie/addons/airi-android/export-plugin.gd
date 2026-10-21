@@ -96,9 +96,6 @@ import androidx.webkit.JavaScriptReplyProxy;
 import androidx.webkit.WebMessageCompat;
 import androidx.webkit.WebViewCompat;
 
-import com.outsystems.plugins.barcode.controller.OSBARCController;
-import com.outsystems.plugins.barcode.model.OSBARCScanParameters;
-import com.outsystems.plugins.barcode.model.OSBARCScannerHint;
 
 import com.godot.game.R;
 
@@ -155,8 +152,6 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         "eventa:invoke:airi:android:permission:request-send";
     private static final String OPEN_PERMISSION_SETTINGS_EVENT =
         "eventa:invoke:airi:android:permission:open-settings-send";
-    private static final String SCAN_BARCODE_EVENT =
-        "eventa:invoke:airi:android:barcode:scan-send";
     private static final String OPEN_AUTHORIZATION_EVENT =
         "eventa:invoke:airi:android:authentication:open-send";
     private static final String CONSUME_PENDING_URL_OPEN_EVENT =
@@ -173,7 +168,6 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     private static final int NOTIFICATION_PERMISSION_REQUEST = 4101;
     private static final int MICROPHONE_PERMISSION_REQUEST = 4102;
     private static final int FILE_CHOOSER_REQUEST = 4103;
-    private static final int BARCODE_SCAN_REQUEST = 112;
     private static final int NORMAL_WEB_SOCKET_CLOSE_CODE = 1000;
     private static final SignalInfo PERMISSION_RESULT =
         new SignalInfo("permission_result", String.class, Boolean.class);
@@ -193,10 +187,8 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     private int browserInsetsPaddingRight;
     private int browserInsetsPaddingBottom;
     private HostWebSocketBridge hostWebSocketBridge;
-    private final OSBARCController barcodeController = new OSBARCController();
     private final Map<String, PendingEventaRequest> pendingPermissionRequests =
         new HashMap<>();
-    private PendingEventaRequest pendingBarcodeScan;
     // The picker and both capture modes share the last listener, including after completion.
     private ActivityResultListener activityListener;
     private JavaScriptReplyProxy eventaReplyProxy;
@@ -247,6 +239,17 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         backPressedCallback = new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
+                // The QR host hides the WebView while Godot owns the camera preview.
+                // Forward Back to Godot so that the active scan can cancel.
+                if (browserWebView != null && browserWebView.getVisibility() != View.VISIBLE) {
+                    setEnabled(false);
+                    try {
+                        ((ComponentActivity) activity).getOnBackPressedDispatcher().onBackPressed();
+                    } finally {
+                        setEnabled(true);
+                    }
+                    return;
+                }
                 navigateBrowserBack();
             }
         };
@@ -295,7 +298,6 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         browserWebView = null;
         eventaReplyProxy = null;
         pendingPermissionRequests.clear();
-        pendingBarcodeScan = null;
     }
 
     @Override
@@ -305,41 +307,6 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             return;
         }
 
-        if (requestCode != BARCODE_SCAN_REQUEST || pendingBarcodeScan == null) {
-            return;
-        }
-
-        PendingEventaRequest pending = pendingBarcodeScan;
-        pendingBarcodeScan = null;
-        barcodeController.handleActivityResult(
-            requestCode,
-            resultCode,
-            data,
-            scanResult -> {
-                try {
-                    sendEventaResponse(
-                        pending,
-                        new JSONObject()
-                            .put("ScanResult", scanResult.getText())
-                            .put("format", scanResult.getFormat().ordinal())
-                    );
-                } catch (JSONException error) {
-                    Log.e("AiriAndroid", "Cannot create barcode response", error);
-                }
-                return kotlin.Unit.INSTANCE;
-            },
-            scanError -> {
-                try {
-                    sendEventaResponse(
-                        pending,
-                        new JSONObject().put("error", scanError.getDescription())
-                    );
-                } catch (JSONException error) {
-                    Log.e("AiriAndroid", "Cannot create barcode error response", error);
-                }
-                return kotlin.Unit.INSTANCE;
-            }
-        );
     }
 
     @Override
@@ -1030,13 +997,6 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             String invokeId = body.getString("invokeId");
             JSONObject content = body.getJSONObject("content");
 
-            if (SCAN_BARCODE_EVENT.equals(event)) {
-                startBarcodeScanner(
-                    content.getString("scanInstructions"),
-                    new PendingEventaRequest(event, invokeId, replyProxy)
-                );
-                return;
-            }
             if (OPEN_AUTHORIZATION_EVENT.equals(event)) {
                 openAuthorization(
                     content.optString("url", ""),
@@ -1174,31 +1134,6 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         } catch (JSONException error) {
             Log.e("AiriAndroid", "Cannot send URL open event", error);
         }
-    }
-
-    private void startBarcodeScanner(
-        String scanInstructions,
-        PendingEventaRequest pending
-    ) {
-        Activity activity = getActivity();
-        if (activity == null) {
-            return;
-        }
-
-        pendingBarcodeScan = pending;
-        OSBARCScanParameters parameters = new OSBARCScanParameters(
-            scanInstructions,
-            null,
-            null,
-            false,
-            "",
-            OSBARCScannerHint.QR_CODE,
-            null,
-            null,
-            null,
-            null
-        );
-        activity.runOnUiThread(() -> barcodeController.scanCode(activity, parameters));
     }
 
     private void sendEventaResponse(PendingEventaRequest request, Object content) {
@@ -1610,19 +1545,8 @@ func _supports_platform(platform: EditorExportPlatform) -> bool:
 func _get_android_dependencies(_platform: EditorExportPlatform, _debug: bool) -> PackedStringArray:
 	return PackedStringArray([
 		"androidx.core:core-splashscreen:1.2.0",
-		"io.ionic.libs:ionbarcode-android:2.1.1@aar",
 		"androidx.appcompat:appcompat:1.7.1",
 		"androidx.activity:activity-ktx:1.10.1",
-		"org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.10.2",
-		"org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2",
-		"com.google.zxing:core:3.5.3",
-		"com.google.mlkit:barcode-scanning:17.3.0",
-		"androidx.camera:camera-camera2:1.5.1",
-		"androidx.camera:camera-lifecycle:1.5.1",
-		"androidx.camera:camera-view:1.5.1",
-		"androidx.activity:activity-compose:1.10.1",
-		"androidx.compose.material3:material3:1.4.0",
-		"androidx.compose.material3:material3-window-size-class:1.4.0",
 		"com.squareup.okhttp3:okhttp:4.12.0",
 	])
 

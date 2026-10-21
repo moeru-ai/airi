@@ -8,9 +8,10 @@ import { shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
-import { scanAndroidBarcode } from '../../../host-context/android-barcode-scanner'
+import { initializeHostContext } from '../../../host-context/owner'
 
 const { t } = useI18n()
+const { qr } = initializeHostContext()
 const serverChannelStore = useModsServerChannelStore()
 const scanning = shallowRef(false)
 const errorMessage = shallowRef('')
@@ -20,7 +21,9 @@ async function scanServerChannelQrCode() {
   errorMessage.value = ''
 
   try {
-    const scanResult = await scanAndroidBarcode(t('settings.pages.connection.qr-scan.instructions'))
+    const scanResult = await qr.scan()
+    if (scanResult === null)
+      return
     const payload = parseServerChannelQrPayload(scanResult)
     const url = await probeServerChannelQrPayload(payload)
 
