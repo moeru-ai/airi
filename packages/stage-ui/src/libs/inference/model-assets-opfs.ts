@@ -128,6 +128,51 @@ export class OpfsModelAssetStorage implements ModelAssetStorage {
       await parent.removeEntry(name, { recursive: true })
   }
 
+  async restore(model: ModelAsset, files: Readonly<Record<string, Uint8Array>>, onProgress: (progress: ModelAssetProgress) => void): Promise<void> {
+    await this.removeRevision(model)
+    const directory = await this.modelDirectory(model, true)
+    const sizes: Record<string, number> = {}
+    try {
+      for (const file of model.files) {
+        const content = files[file.name]
+        const writable = await (await directory.getFileHandle(file.name, { create: true })).createWritable()
+        try {
+          const buffer = new ArrayBuffer(content.byteLength)
+          new Uint8Array(buffer).set(content)
+          await writable.write(buffer)
+          await writable.close()
+        }
+        catch (error) {
+          await writable.abort()
+          throw error
+        }
+        sizes[file.name] = content.byteLength
+        onProgress({ file: file.name, loaded: content.byteLength, total: content.byteLength })
+      }
+
+      const marker = await directory.getFileHandle(MARKER_NAME, { create: true })
+      const writable = await marker.createWritable()
+      await writable.write(JSON.stringify({ revision: model.revision, files: sizes } satisfies v.InferOutput<typeof installedModelSchema>))
+      await writable.close()
+    }
+    catch (error) {
+      await this.removeRevision(model)
+      throw error
+    }
+
+    const parent = await this.parentDirectory(model)
+    if (!parent)
+      return
+    const current = encodeURIComponent(model.revision)
+    const superseded: string[] = []
+    for await (const name of parent.keys()) {
+      if (name !== current)
+        superseded.push(name)
+    }
+    for (const name of superseded)
+      await parent.removeEntry(name, { recursive: true })
+  }
+
   async open(model: ModelAsset, file: ModelAssetFile): Promise<Response> {
     const directory = await this.modelDirectory(model, false)
     const stored = await (await directory.getFileHandle(file.name)).getFile()
