@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Input } from '@proj-airi/ui'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
 interface RangeConfig {
@@ -147,14 +148,18 @@ onUnmounted(() => {
 <template>
   <div>
     <slot name="label">
-      <span text-nowrap text-xs>{{ props.label }}</span>
+      <span
+        :class="[
+          'text-nowrap text-xs',
+        ]"
+      >{{ props.label }}</span>
     </slot>
   </div>
   <div />
   <div
-
-    h="5"
-    grid-col-span-2 w-full
+    :class="[
+      'h-5 grid-col-span-2 w-full',
+    ]"
   >
     <input
       ref="sliderRef"
@@ -164,36 +169,49 @@ onUnmounted(() => {
       :max="props.config?.max ?? 100"
       :step="props.config?.step ?? 1"
       :disabled="props.config?.disabled"
-      class="range-slider"
-      h-full w-full appearance-none bg-transparent outline-none
+      :class="[
+        'range-slider h-full w-full appearance-none bg-transparent',
+        'outline-none',
+      ]"
       @input="handleSliderChange"
     >
   </div>
 
   <!-- Value input -->
   <label
-    bg="neutral-100 dark:neutral-900"
-    h-fit min-w-12 inline-flex items-center rounded-md px="1.5" py="0.5"
+    :class="[
+      'bg-neutral-100 dark:bg-neutral-900 h-fit min-w-12 inline-flex',
+      'items-center rounded-md px-1.5 py-0.5',
+    ]"
   >
-    <span h-fit w-full inline-flex items-center gap-2 text-xs>
+    <span
+      :class="[
+        'h-fit w-full inline-flex items-center gap-2',
+        'text-xs',
+      ]"
+    >
       <span
-        cursor-col-resize
-        select-none
-        :class="{ 'text-blue-500': isDragging }"
+        :class="[
+          'cursor-col-resize select-none',
+          ({ 'text-blue-500': isDragging }),
+        ]"
         @mousedown="startDrag"
       >|</span>
-      <input
-        :value="normalizedValue"
+      <Input
+        :model-value="normalizedValue"
         type="number"
         :min="props.config?.min"
         :max="props.config?.max"
         :step="props.config?.step || 0.0001"
         :disabled="props.config?.disabled"
-        max-w-4lh w-full flex-1 appearance-none bg-transparent text-right font-mono outline-none
-        transition="all duration-200 ease-in-out"
-        class="[&::-webkit-inner-spin-button]:(m-0 appearance-none)"
+        :class="[
+          'max-w-4lh w-full flex-1 appearance-none bg-transparent! dark:bg-transparent!',
+          'border-0! p-0! text-xs! shadow-none!',
+          'text-right font-mono outline-none transition-all duration-200',
+          'ease-in-out [&::-webkit-inner-spin-button]:(m-0 appearance-none)',
+        ]"
         @change="handleInputChange"
-      >
+      />
     </span>
   </label>
 </template>

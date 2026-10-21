@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { IconButton } from '@proj-airi/ui'
 import { useMotion } from '@vueuse/motion'
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 const props = withDefaults(defineProps<{
@@ -15,6 +17,7 @@ const props = withDefaults(defineProps<{
   fallbackRoute: '/settings',
 })
 
+const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
 
@@ -53,7 +56,7 @@ onUnmounted(async () => {
   finalizedDisableBackButton.value = true
 })
 
-watch([() => props.title, () => props.subtitle, route], async () => {
+watch([() => props.title, () => props.subtitle, () => props.disableBackButton, route], async () => {
   await apply('leave')
   await nextTick()
 
@@ -75,22 +78,48 @@ watch([() => props.title, () => props.subtitle, route], async () => {
       right: 'env(safe-area-inset-right, 0px)',
       left: 'env(safe-area-inset-left, 0px)',
     }"
-    sticky inset-x-0 top-0 z-99 w-full pb-6 pt-10
-    flex="~ row items-center gap-2"
-    bg="$bg-color"
+    :class="[
+      'sticky inset-x-0 top-0 z-99 w-full',
+      'pb-6 pt-10 flex flex-row items-center',
+      'gap-2 bg-$bg-color',
+    ]"
   >
-    <button @click="handleBack">
+    <IconButton
+      type="button"
+      :aria-label="t('settings.pages.card.back')"
+      :disabled="props.disableBackButton || finalizedDisableBackButton || !showBackButton"
+      @click="handleBack"
+    >
       <div
         v-if="!finalizedDisableBackButton"
-        i-solar:alt-arrow-left-line-duotone text-2xl
-        :class="{ 'pointer-events-none op-0': !showBackButton }"
+        :class="[
+          'i-solar:alt-arrow-left-line-duotone text-2xl',
+          ({ 'pointer-events-none op-0': !showBackButton }),
+        ]"
       />
-    </button>
-    <h1 relative>
-      <div v-if="subtitle" absolute left-0 top-0 translate-y="[-80%]">
-        <span text="neutral-300 dark:neutral-500" text-nowrap>{{ subtitle }}</span>
+    </IconButton>
+    <h1
+      :class="[
+        'relative',
+      ]"
+    >
+      <div
+        v-if="subtitle"
+        :class="[
+          'absolute left-0 top-0 translate-y-[-80%]',
+        ]"
+      >
+        <span
+          :class="[
+            'text-neutral-300 dark:text-neutral-500 text-nowrap',
+          ]"
+        >{{ subtitle }}</span>
       </div>
-      <div text-nowrap text-3xl font-normal>
+      <div
+        :class="[
+          'text-nowrap text-3xl font-normal',
+        ]"
+      >
         {{ title }}
       </div>
     </h1>

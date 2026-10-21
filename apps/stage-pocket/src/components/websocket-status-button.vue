@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
-import { lampFlickerAnimationClass } from '@proj-airi/ui'
+import { BasicButton, lampFlickerAnimationClass } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -56,7 +56,8 @@ function openConnectionSettings() {
 </script>
 
 <template>
-  <button
+  <BasicButton
+    size="unset"
     type="button"
     :class="buttonClass"
     :aria-label="tooltipLabel"
@@ -64,7 +65,7 @@ function openConnectionSettings() {
     @click="openConnectionSettings"
   >
     <div :class="iconClasses" />
-  </button>
+  </BasicButton>
 </template>
 
 <style scoped>
