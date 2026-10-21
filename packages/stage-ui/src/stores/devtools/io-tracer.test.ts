@@ -1,9 +1,11 @@
+import type { ReadableSpan } from '../../composables/use-io-tracer'
+
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { createPinia, setActivePinia } from 'pinia'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { computed } from 'vue'
 
-import { startSpan } from '../../composables/use-io-tracer'
+import { setIOTraceSource, startSpan, subscribeIOSpan } from '../../composables/use-io-tracer'
 import { useIOTracerStore } from './io-tracer'
 
 describe('useIOTracerStore', () => {
@@ -89,5 +91,34 @@ describe('useIOTracerStore', () => {
 
     expect(store.turns).toHaveLength(50)
     expect(store.rawSpanCount).toBe(50)
+  })
+
+  it('shows the spans that a trace source kept before recording started, once each', async () => {
+    setActivePinia(createPinia())
+    const store = useIOTracerStore()
+    const ended: ReadableSpan[] = []
+    const stopCapture = subscribeIOSpan(span => ended.push(span))
+    startSpan(IOSpanNames.LLMInference, undefined, { [IOAttributes.Subsystem]: IOSubsystems.LLM }).end()
+    stopCapture()
+    const unsubscribe = vi.fn()
+    let onSpan: ((span: ReadableSpan) => void) | undefined
+    // The hub of the Electron main process is the real source. It is outside this package.
+    const stopSource = setIOTraceSource({
+      subscribe: async (listener) => {
+        onSpan = listener
+        return { spans: ended, unsubscribe }
+      },
+    })
+
+    store.startRecording()
+    await vi.waitFor(() => expect(store.turns).toHaveLength(1))
+    // The source can also send a span of its snapshot as a later span.
+    onSpan?.(ended[0]!)
+    store.stopRecording()
+    stopSource()
+
+    expect(store.turns[0]!.spans).toHaveLength(1)
+    expect(store.recordingStartTs).toBeLessThanOrEqual(store.turns[0]!.startTs)
+    expect(unsubscribe).toHaveBeenCalledTimes(1)
   })
 })

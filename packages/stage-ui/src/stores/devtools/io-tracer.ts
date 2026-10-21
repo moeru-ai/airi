@@ -2,12 +2,13 @@ import type { Attributes } from '@opentelemetry/api'
 import type { ReadableSpan } from '@opentelemetry/sdk-trace-base'
 import type { IOSpan, IOSubsystem, IOTurn } from '@proj-airi/stage-shared'
 
+import { errorMessageFrom } from '@moeru/std'
 import { hrTimeToMilliseconds } from '@opentelemetry/core'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { defineStore } from 'pinia'
 import { computed, ref, triggerRef } from 'vue'
 
-import { initIOTracer, onIOSpan, onRemoteIOSpan } from '../../composables/use-io-tracer'
+import { getIOTraceSource, initIOTracer, onIOSpan, onRemoteIOSpan } from '../../composables/use-io-tracer'
 import { toOTLPTrace } from './io-tracer-otlp'
 
 const MAX_TURNS = 50
@@ -39,7 +40,11 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
   const settledTraceIds = new Set<string>()
 
   const rawSpans: ReadableSpan[] = []
+  /** A trace source can send a span twice: in its snapshot and as a later span. */
+  let seenSpanIds = new Set<string>()
   let unsubscribeRemote: (() => void) | undefined
+  /** Increases on each start and stop, so a late subscription of an earlier recording is dropped. */
+  let recordingSession = 0
 
   function notifyUpdate() {
     triggerRef(turns)
@@ -64,6 +69,9 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
   })
 
   function handleSpan(readable: ReadableSpan) {
+    if (seenSpanIds.has(readable.spanContext().spanId))
+      return
+    seenSpanIds.add(readable.spanContext().spanId)
     rawSpans.push(readable)
     rawSpanCount.value++
 
@@ -187,6 +195,7 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
     const kept = rawSpans.filter(span => turnsByTraceId.has(span.spanContext().traceId))
     rawSpans.length = 0
     rawSpans.push(...kept)
+    seenSpanIds = new Set(kept.map(span => span.spanContext().spanId))
     rawSpanCount.value = rawSpans.length
   }
 
@@ -195,18 +204,38 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
       return
 
     initIOTracer()
-    onIOSpan(handleSpan)
-    unsubscribeRemote = onRemoteIOSpan(handleSpan)
     recordingStartTs.value = performance.timeOrigin + performance.now()
     isRecording.value = true
+    const session = ++recordingSession
 
-    console.info('[IOTracer] Recording started (OTel mode, local + remote)')
+    const source = getIOTraceSource()
+    if (!source) {
+      onIOSpan(handleSpan)
+      unsubscribeRemote = onRemoteIOSpan(handleSpan)
+      return
+    }
+
+    source.subscribe(handleSpan)
+      .then(({ spans, unsubscribe }) => {
+        if (session !== recordingSession) {
+          unsubscribe()
+          return
+        }
+        unsubscribeRemote = unsubscribe
+        for (const span of spans)
+          handleSpan(span)
+        // The time axis starts at the recording start. Spans that ended before it would sit left of zero.
+        for (const span of spans)
+          recordingStartTs.value = Math.min(recordingStartTs.value, hrTimeToMilliseconds(span.startTime))
+      })
+      .catch(error => console.error('[IOTracer] Failed to subscribe to the IO trace source:', errorMessageFrom(error)))
   }
 
   function stopRecording() {
     if (!isRecording.value)
       return
 
+    recordingSession++
     onIOSpan(undefined)
     unsubscribeRemote?.()
     unsubscribeRemote = undefined
@@ -216,6 +245,7 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
   function clear() {
     turns.value = []
     turnsByTraceId.clear()
+    seenSpanIds.clear()
     latestEndByTraceId.clear()
     settledTraceIds.clear()
     rawSpans.length = 0

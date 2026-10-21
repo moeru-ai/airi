@@ -86,7 +86,7 @@ export async function setupSettingsWindowInvokes(params: {
   createMcpServersService({ context, manager: params.mcpManager })
   createGodotStageService({ context, manager: params.godotStageManager, window: params.settingsWindow })
   createAuthService({ context, window: params.settingsWindow })
-  const stopIOTraceRecording = registerIOTraceRecording(context, params.ioTraceRecording, params.settingsWindow)
+  const stopIOTraceRecording = registerIOTraceRecording(context, params.ioTraceRecording)
   params.settingsWindow.once('closed', stopIOTraceRecording)
 
   // Register the global shortcut service for the settings window.
