@@ -28,6 +28,8 @@ export default defineConfig({
       'packages/scenarios-stage-tamagotchi-electron',
       'packages/server-runtime',
       'packages/server-sdk',
+      'packages/speech-transformer-chem',
+      'packages/speech-transformer-math',
       'packages/stage-shared',
       'packages/stage-ui-live2d/vitest.node.config.ts',
       'packages/stage-ui-three',
