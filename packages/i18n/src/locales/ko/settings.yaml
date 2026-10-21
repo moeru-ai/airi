@@ -547,6 +547,16 @@ pages:
   data:
     title: 데이터
     description: 저장된 AIRI 데이터, 내보낸 항목, 초기화된 항목 관리
+    actions:
+      export: 내보내기
+      import: 가져오기
+      export_area: '{dataArea} 내보내기'
+      import_area: '{dataArea} 가져오기'
+    sensitive:
+      title: 민감정보를 파일에 포함할까요?
+      description: 파일에 API 키 또는 모듈 인증 정보가 포함됩니다. 파일을 공유하면 다른 사람이 해당 서비스에 접근할 수 있습니다.
+      confirm: 민감정보 포함 후 내보내기
+      cancel: 취소
     sections:
       chats:
         title: 채팅 세션
@@ -556,17 +566,22 @@ pages:
         delete: 모든 채팅 세션 삭제
       models:
         title: 모델
-        description: 가져온 Live2D/VRM 모델을 삭제합니다.
+        description: 가져온 Live2D, VRM, Spine, Tachie, MMD 모델 파일을 내보내거나 가져옵니다.
+        empty: 가져온 모델이 없습니다.
         delete: 모든 모델 삭제
+      app-settings:
+        title: 앱 설정
+        description: 앱 설정 초기화에서 관리하는 설정을 내보내거나 가져옵니다.
       model-downloads:
         title: 다운로드한 음성 모델
-        description: 이 기기에 저장된 Sherpaw 모델 파일입니다.
+        description: 이 기기에 저장된 Sherpaw 모델 파일을 내보내거나 가져옵니다.
         empty: 다운로드한 음성 모델이 없습니다.
         wake-word-model: 호출어 모델
+        voiceprint-model: 음성 지문 모델
         refresh: 새로고침
       modules:
         title: 모듈
-        description: 모듈 환경설정 및 인증 정보를 초기화합니다.
+        description: 모듈 설정과 인증 정보를 내보내거나 가져옵니다.
         reset: 모듈 설정 초기화
       providers:
         title: 제공자
@@ -595,6 +610,12 @@ pages:
       exported: 채팅 세션을 내보냈습니다.
       imported: 채팅 세션을 가져왔습니다.
       import_error: 채팅 세션을 가져오지 못했습니다. 파일 형식을 확인해 주세요.
+      exported_area: '{dataArea} 내보내기를 완료했습니다.'
+      imported_area: '{dataArea} 가져오기를 완료했습니다.'
+      transfer_import_error: 가져오지 못했습니다. 파일 형식이나 설정 값을 확인해 주세요.
+      transfer_export_error: 데이터를 내보내지 못했습니다. 다시 시도해 주세요.
+      action_error: 작업에 실패했습니다. 다시 시도해 주세요.
+      processing: 처리 중
       chats_deleted: 채팅 세션이 삭제되었습니다.
       models_deleted: 모델이 삭제되었습니다.
       model_download_cancelled: 모델 다운로드가 취소되었습니다.
