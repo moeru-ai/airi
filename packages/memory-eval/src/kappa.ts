@@ -14,6 +14,12 @@ export interface KappaResult {
   expectedAgreement: number
   /** Is valid (κ >= threshold)? */
   valid: boolean
+  /**
+   * True when expected agreement is 1: every rater used the same single
+   * category, so κ is mathematically undefined (0/0). `kappa` is NaN and
+   * `valid` is false; reporting 0 here would read as "no agreement" instead.
+   */
+  degenerate: boolean
   /** Confusion matrix [[TN, FP], [FN, TP]] */
   confusionMatrix: number[][]
 }
@@ -72,14 +78,18 @@ export function cohensKappa(
   const judgePos = cm[0][1] + cm[1][1]
   const pe = (humanNeg * judgeNeg + humanPos * judgePos) / (n * n)
 
-  // Cohen's kappa
-  const kappa = pe < 1 ? (po - pe) / (1 - pe) : 0
+  // Cohen's kappa. When both raters used a single category, p_e = 1 and the
+  // statistic is 0/0. Returning 0 would claim "chance-level agreement", which
+  // is a stronger (and wrong) statement than "undefined".
+  const degenerate = pe >= 1
+  const kappa = degenerate ? Number.NaN : (po - pe) / (1 - pe)
 
   return {
     kappa,
     observedAgreement: po,
     expectedAgreement: pe,
-    valid: kappa >= validityThreshold,
+    valid: !degenerate && kappa >= validityThreshold,
+    degenerate,
     confusionMatrix: cm
   }
 }
