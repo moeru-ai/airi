@@ -36,7 +36,6 @@ import { useWindowBackdrop } from '../composables/use-window-backdrop'
 import { useControlsIslandStore } from '../stores/controls-island'
 
 const backdropRoot = useTemplateRef<HTMLElement>('backdrop-root')
-useWindowBackdrop(backdropRoot, 'panel')
 
 const { activeCard } = storeToRefs(useAiriCardStore())
 const sessionsDrawerOpen = shallowRef(false)
@@ -69,6 +68,9 @@ useChatDraftHandover(interactiveArea)
 // A free chat stays where the user drags it.
 const freePlacement = computed(() => state.value.placement === 'free')
 const danmaku = computed(() => state.value.danmaku)
+// The message feed has no glass. Its messages float over the desktop, so a
+// feed that fades out leaves nothing behind.
+useWindowBackdrop(backdropRoot, 'panel', () => !danmaku.value)
 // The danmaku feed starts with its composer folded, because it is mostly read.
 const composerFolded = useLocalStorage('chat-window/danmaku/composer-folded', true)
 // Fade on hover, which the main window's controls island switches, turns the
