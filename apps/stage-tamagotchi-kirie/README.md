@@ -69,6 +69,8 @@ System notification clicks and Windows behavior require native verification with
 Physical input, multiple displays, mixed DPI, and authentication require separate platform checks.
 Linux system notifications remain outside the supported scope.
 The Linux tray requires a StatusNotifierItem host. Without a tray, the application starts and logs an error.
+On macOS, the tray icon is 22pt. The Electron tray icon is 16pt.
+The fix waits for [tray-icon#391](https://github.com/tauri-apps/tray-icon/pull/391) and a matching `GdKirie.Tray` release. See the `NOTICE` comment in `src-godot/scripts/tray-host.cs`.
 
 ## Checks and build
 

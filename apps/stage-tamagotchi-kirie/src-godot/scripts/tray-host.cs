@@ -21,7 +21,10 @@ internal sealed class TrayHost : IDisposable
     // A 16px icon matches the Electron size but is blurry on Retina displays.
     // Source: tray-icon-0.26.1/src/platform_impl/macos/icon.rs, to_nsimage.
     // Source: Chromium ui/gfx/image/image_skia_util_mac.mm, NSImageFromImageSkia.
-    // Remove when GdKirie.Tray accepts a scale factor or a point size for custom icons.
+    // Source: https://github.com/tauri-apps/tray-icon/issues/390
+    // Source: https://github.com/tauri-apps/tray-icon/pull/391 adds Icon::from_rgba_with_scale.
+    // Remove after tray-icon releases that PR and GdKirie.Tray exposes it as IconSource Scale.
+    // Then pass Scale: 2 on macOS with this 32px icon to draw it at 16pt.
     private const int IconSize = 32;
     private const double AlignmentDurationSeconds = 0.35;
 
