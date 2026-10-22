@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
 import { env } from 'node:process'
 
@@ -26,6 +27,30 @@ const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
 const sherpawModels = [paraformerBilingualZhEn, zipformerMultilingual, xAsrBilingualZhEnInt8]
 /** Main downloads remote Sherpaw models. It must use the endpoint that the renderer plugin uses. */
 const sherpawModelEndpoint = resolveModelEndpoint()
+
+/**
+ * The time that `~build/time` reports.
+ *
+ * Two builds of one commit must give the same bytes in `out/`, so this value is not the wall clock.
+ * A packager can set `SOURCE_DATE_EPOCH` (https://reproducible-builds.org/specs/source-date-epoch/).
+ * Otherwise, the build uses the committer time of `HEAD`.
+ * If git cannot read the commit, `unplugin-info` uses the wall clock and the build is not reproducible.
+ */
+function resolveBuildTime() {
+  const sourceDateEpoch = env.SOURCE_DATE_EPOCH?.trim()
+  if (sourceDateEpoch)
+    return new Date(Number(sourceDateEpoch) * 1000)
+
+  try {
+    const committedAt = execFileSync('git', ['log', '-1', '--format=%ct'], { cwd: import.meta.dirname, encoding: 'utf8' })
+    return new Date(Number(committedAt.trim()) * 1000)
+  }
+  catch {
+    return undefined
+  }
+}
+
+const buildTime = resolveBuildTime()
 
 export default defineConfig({
   main: {
@@ -74,7 +99,7 @@ export default defineConfig({
           return options
         },
       },
-      Info(),
+      Info({ time: buildTime }),
       // Main bundles `@proj-airi/i18n/locales`, and its locale sources are YAML files.
       Yaml(),
     ],
@@ -192,7 +217,7 @@ export default defineConfig({
     },
 
     plugins: [
-      Info(),
+      Info({ time: buildTime }),
 
       {
         name: 'proj-airi:defines',
