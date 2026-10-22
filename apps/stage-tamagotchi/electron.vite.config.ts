@@ -33,19 +33,11 @@ export default defineConfig({
       'import.meta.env.SHERPAW_MODEL_ENDPOINT': JSON.stringify(sherpawModelEndpoint),
     },
     build: {
-      externalizeDeps: {
-        include: [
-          // Native modules that have `__dirname` usages. Externalize to avoid bundling
-          // them into ESM and causing issues in runtime.
-          'electron-click-drag-plugin',
-          'uiohook-napi',
-          '@proj-airi/electron-native-backdrop',
-          '@auv-js/cli',
-          '@auv-js/sdk',
-          '@xsai-apple-speech/transcription-native',
-          '@xsai-apple-vision/vision-native',
-        ],
-      },
+      // electron-vite externalizes exactly the `dependencies` of package.json.
+      // electron-builder copies only `dependencies` into app.asar.
+      // Keep only native modules there: they use `__dirname` or load `.node` and binary files at runtime.
+      // Put every pure JS package in `devDependencies`, so main bundles it and app.asar does not copy it again.
+      externalizeDeps: true,
     },
     plugins: [
       {
@@ -83,6 +75,8 @@ export default defineConfig({
         },
       },
       Info(),
+      // Main bundles `@proj-airi/i18n/locales`, and its locale sources are YAML files.
+      Yaml(),
     ],
 
     resolve: {
