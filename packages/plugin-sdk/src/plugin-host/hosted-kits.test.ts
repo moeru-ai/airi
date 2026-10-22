@@ -42,6 +42,10 @@ function registerHostApi(registry: KitProviderRegistry, id: string, version = '1
 
 describe('kit provider registry', () => {
   // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // Host validation rejected canonical build metadata because semver.valid omitted the build suffix.
+  // Full-version validation now accepts build identifiers while source matching retains exact build identity.
   it('preserves build metadata in Host sources and rejects a different build (PR #2687)', () => {
     const registry = new KitProviderRegistry()
     const version = '1.2.3+build.007'
@@ -54,6 +58,10 @@ describe('kit provider registry', () => {
   })
 
   // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // Shared canonical version validation discarded build metadata before equality checks.
+  // Contracts and declarations now retain complete versions, and registration requires exact equality between them.
   it('requires exact build identity between declarations and Contracts (PR #2687)', () => {
     const registry = new KitProviderRegistry()
     const version = '1.2.3-rc.1+build.007'

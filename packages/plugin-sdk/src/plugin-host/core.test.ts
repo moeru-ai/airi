@@ -496,6 +496,10 @@ describe('extension-hosted Kit registration lifecycle', () => {
   })
 
   // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // Stop released only committed Providers, so suspended setup retained its transaction and module registration access.
+  // The released lifecycle now rolls back pending ownership and rejects late registration.
   it('cancels an unfilled setup and rejects late provide and module registration (PR #2687)', async () => {
     const host = new ExtensionHost()
     const entered = Promise.withResolvers<void>()
@@ -529,6 +533,10 @@ describe('extension-hosted Kit registration lifecycle', () => {
   })
 
   // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // Repeated cleanup returned early after disposal started, so late setup failure lost the pending stop's cleanup error.
+  // A shared cleanup promise now preserves that error for every lifecycle caller.
   it('shares in-flight stop cleanup with late setup failure (PR #2687)', async () => {
     const host = new ExtensionHost()
     const entered = Promise.withResolvers<void>()
@@ -646,7 +654,7 @@ describe('extension-hosted Kit registration lifecycle', () => {
   // https://github.com/moeru-ai/airi/pull/2687
   // ROOT CAUSE:
   //
-  // Direct self-stop returned the pending cleanup promise before the disposer could finish.
+  // Direct self-stop returned the pending cleanup promise while the disposer remained pending.
   // Cleanup context now rejects the join, and best-effort disposal continues.
   it('rejects synchronous self-stop without skipping later cleanup (PR #2687)', async () => {
     const host = new ExtensionHost({ runtime: 'node' })
@@ -699,7 +707,7 @@ describe('extension-hosted Kit registration lifecycle', () => {
   // https://github.com/moeru-ai/airi/pull/2687
   // ROOT CAUSE:
   //
-  // A disposer could stop another session whose cleanup then awaited the first session.
+  // A disposer stopped another session whose cleanup then awaited the first session.
   // Active cleanup ancestors remain visible across nested asynchronous calls, so the cyclic join rejects.
   it('allows cleanup to stop another session but rejects a wait on an ancestor cleanup (PR #2687)', async () => {
     const host = new ExtensionHost()
@@ -732,6 +740,10 @@ describe('extension-hosted Kit registration lifecycle', () => {
   })
 
   // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // A Host-wide flag cannot distinguish valid nested cleanup from self-wait.
+  // This companion case requires exact session ancestry and permits independent later operations.
   it('keeps cleanup context isolated from unrelated sessions and later operations (PR #2687)', async () => {
     const host = new ExtensionHost()
     const remaining = vi.fn()
@@ -788,7 +800,7 @@ describe('extension-hosted Kit registration lifecycle', () => {
   // ROOT CAUSE:
   //
   // A module failure skipped later cleanup before the Host removed the session.
-  // The watcher then remained active without a session that could release it.
+  // The watcher then remained active without an owning session to release it.
   // Composite disposal now attempts remaining modules and root subscriptions before reporting failure.
   it('cleans remaining modules and root watchers after a module fails (PR #2687)', async () => {
     const host = new ExtensionHost()
@@ -976,6 +988,11 @@ describe('extension-hosted Kit registration lifecycle', () => {
     expect(host.getKitProvider(contract.id)?.owner.kind).toBe('extension')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // A Host-wide flag cannot distinguish external reload from a self-wait during cleanup.
+  // This companion case requires external reload to await full cleanup before it starts a new generation.
   it('awaits concurrent external cleanup before reload and ignores an old handle (PR #2687)', async () => {
     const host = new ExtensionHost()
     const entered = Promise.withResolvers<void>()

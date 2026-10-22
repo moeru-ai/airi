@@ -4,6 +4,10 @@ import { defineKitContract, defineKitEvent, defineKitMethod } from './index'
 
 describe('extension-hosted Kit Contract', () => {
   // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // Canonical version validation compared input with semver.valid, which omits build metadata.
+  // Validation now reconstructs the complete version so Contracts retain valid build identifiers.
   it('preserves exact Contract versions with build metadata (PR #2687)', () => {
     const version = '1.2.3-rc.1+build.007'
     const contract = defineKitContract({ id: 'kit.build-metadata', version, methods: {}, events: {} })
