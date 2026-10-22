@@ -153,6 +153,47 @@ describe('home assistant tools', () => {
     }, {})
   })
 
+  it('lists every property as required, so OpenAI strict mode accepts the tools', async () => {
+    const mounted = await tools(createClient())
+
+    for (const entry of mounted.values()) {
+      const parameters = entry.function.parameters as {
+        properties?: Record<string, unknown>
+        required?: string[]
+      }
+
+      expect(parameters.required?.slice().sort()).toEqual(Object.keys(parameters.properties ?? {}).sort())
+    }
+  })
+
+  it('treats a null domain and null data as not given', async () => {
+    const callService = vi.fn(async () => [])
+    const client = createClient({
+      callService,
+      listEntities: vi.fn(async () => [
+        { entityId: 'light.kitchen', state: 'on', attributes: {} },
+        { entityId: 'climate.hall', state: 'heat', attributes: {} },
+      ]),
+    })
+    const mounted = await tools(client)
+
+    const listed = JSON.parse(await execute(mounted.get('home_assistant_list_entities'), { domain: null }) as string)
+    expect(listed.total).toBe(2)
+
+    await execute(mounted.get('home_assistant_call_service'), {
+      domain: 'light',
+      service: 'turn_on',
+      entity_id: 'light.kitchen',
+      data: null,
+    })
+    expect(callService).toHaveBeenCalledWith({
+      domain: 'light',
+      service: 'turn_on',
+      entityId: 'light.kitchen',
+      data: undefined,
+    }, {})
+  })
+
   it('requires a target entity, so no call reaches a whole domain', async () => {
     const mounted = await tools(createClient())
 
