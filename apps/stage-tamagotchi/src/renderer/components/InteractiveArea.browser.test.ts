@@ -233,7 +233,7 @@ describe('interactive area synchronized state', () => {
   it('opens mobile settings from an icon-only header and restores focus', async () => {
     await page.viewport(390, 844)
     const { screen } = await renderArea(MobileInteractiveArea)
-    const trigger = screen.getByRole('button', { name: 'stage.mobile-tools.title', exact: true })
+    const trigger = screen.getByRole('button', { name: 'stage.mobile-tools.menu', exact: true })
     const bounds = trigger.element().getBoundingClientRect()
     expect(bounds.width).toBeGreaterThanOrEqual(44)
     expect(bounds.height).toBeGreaterThanOrEqual(44)

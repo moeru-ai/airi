@@ -23,7 +23,7 @@ describe('accountEventsStream', () => {
     })
     await publisher.publish('user.deleted', { id: 'user-deletion:user-1', occurredAt, payload: { userId: 'user-1' } })
 
-    expect(await readStreamFields(redis, 'airi:account-events')).toEqual([
+    expect(await readStreamFields(redis, 'account-events')).toEqual([
       {
         id: 'revenuecat:evt-1',
         type: 'subscription.renewed',
@@ -54,7 +54,7 @@ describe('accountEventsStream', () => {
 
     await createStreamPublisher(redis, accountEventsStream).publish('user.deleted', { id: 'user-deletion:user-1', payload: { userId: 'user-1' } })
 
-    expect(xadd.mock.calls[0]?.slice(0, 5)).toEqual(['airi:account-events', 'MAXLEN', '~', 100_000, '*'])
+    expect(xadd.mock.calls[0]?.slice(0, 5)).toEqual(['account-events', 'MAXLEN', '~', 100_000, '*'])
   })
 
   it('rejects a payload without a user ID or with fields outside the contract', async () => {
@@ -67,7 +67,7 @@ describe('accountEventsStream', () => {
       payload: { userId: 'user-1', plan: 'rc_go_monthly', reason: 'card_declined' } as never,
     })).rejects.toThrow()
 
-    expect(await readStreamFields(redis, 'airi:account-events')).toEqual([])
+    expect(await readStreamFields(redis, 'account-events')).toEqual([])
   })
 })
 
@@ -81,14 +81,14 @@ describe('createUserDeletedEventHandler', () => {
       name: 'chats',
       priority: 30,
       softDelete: async () => {
-        calls.push(`chats:${(await readStreamFields(redis, 'airi:account-events')).length}`)
+        calls.push(`chats:${(await readStreamFields(redis, 'account-events')).length}`)
       },
     })
 
     await service.softDeleteAll({ userId: 'user-1', reason: 'user-requested' })
 
     expect(calls).toEqual(['chats:0'])
-    const [entry] = await readStreamFields(redis, 'airi:account-events')
+    const [entry] = await readStreamFields(redis, 'account-events')
     expect(entry?.id).toBe('user-deletion:user-1')
     expect(entry?.type).toBe('user.deleted')
     expect(entry?.payload).toBe('{"userId":"user-1"}')

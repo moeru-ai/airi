@@ -11,6 +11,7 @@
     "./shared/wlipsync/profile.json": "./src/shared/wlipsync/profile.json"
   },
   "scripts": {
+    "test:run": "vitest run --config vitest.config.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

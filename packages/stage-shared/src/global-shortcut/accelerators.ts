@@ -235,17 +235,22 @@ const ELECTRON_KEY_OVERRIDES: Readonly<Record<string, string>> = {
   Slash: '/',
 }
 
+/** Keeps parser punctuation aliases aligned with Electron formatter output. */
+const ELECTRON_PUNCTUATION_ALIASES: ReadonlyMap<string, ShortcutKey> = new Map(
+  Object.entries(ELECTRON_KEY_OVERRIDES)
+    .filter(([, token]) => token.length === 1)
+    .map(([key, token]) => [token, key]),
+)
+
 const SINGLE_LETTER_RE = /^[A-Z]$/i
 const SINGLE_DIGIT_RE = /^\d$/
 
 /**
- * Normalizes a raw key token to a canonical `ShortcutKey`.
+ * Normalizes key tokens to W3C codes, including shorthand and Electron punctuation.
  *
- * Before:
- * - `"K"` / `"k"` / `"KeyK"` / `"Up"` / `"Esc"`
- *
- * After:
- * - `"KeyK"` / `"KeyK"` / `"KeyK"` / `"ArrowUp"` / `"Escape"`
+ * @example
+ * normalizeKeyToken(',')
+ * // => 'Comma'
  */
 function normalizeKeyToken(token: string): ShortcutKey {
   if (KEY_NAMES.has(token))
@@ -254,6 +259,10 @@ function normalizeKeyToken(token: string): ShortcutKey {
   const aliased = KEY_ALIASES.get(token)
   if (aliased !== undefined)
     return aliased
+
+  const punctuation = ELECTRON_PUNCTUATION_ALIASES.get(token)
+  if (punctuation !== undefined)
+    return punctuation
 
   if (SINGLE_LETTER_RE.test(token)) {
     const candidate = `Key${token.toUpperCase()}`
@@ -290,7 +299,7 @@ function lookupModifierToken(token: string): ShortcutModifier | undefined {
  * - `input` is a `+`-joined token string. Whitespace around tokens is
  *   tolerated and ignored. Modifier tokens are case-insensitive; key
  *   tokens are matched against `KEY_NAMES` and a small alias map, with
- *   single letters and digits accepted as shorthand.
+ *   single letters, digits, and Electron punctuation accepted as shorthand.
  *
  * Returns:
  * - A `ShortcutAccelerator` with modifiers in input order and a

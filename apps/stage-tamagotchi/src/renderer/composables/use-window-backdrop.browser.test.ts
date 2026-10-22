@@ -4,7 +4,7 @@ import type { WindowBackdropStatus } from '../../shared/eventa'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
-import { defineComponent, useTemplateRef } from 'vue'
+import { defineComponent, shallowRef, useTemplateRef } from 'vue'
 
 import { useWindowBackdrop } from './use-window-backdrop'
 
@@ -254,6 +254,28 @@ describe('window native backdrop', () => {
     views.shift()!.unmount()
     await expect.poll(() => regions().length).toBe(1)
     expect(regions()[0].x).toBe(400)
+  })
+
+  it('clears a surface that turns off while mounted, and draws it again once it turns on', async () => {
+    const enabled = shallowRef(true)
+    const view = await render(defineComponent({
+      setup() {
+        useWindowBackdrop(useTemplateRef<HTMLElement>('root'), 'panel', enabled)
+      },
+      template: `<div ref="root" data-testid="backdrop-root" data-window-backdrop-surface data-window-backdrop-floating-background style="position:fixed;left:20px;top:30px;width:300px;height:250px"></div>`,
+    }))
+    views.push(view)
+    const root = view.container.querySelector<HTMLElement>('[data-testid="backdrop-root"]')!
+    await expect.poll(() => root.getAttribute('data-window-backdrop-active')).toBe('panel')
+    expect(regions()).toHaveLength(1)
+
+    enabled.value = false
+    await expect.poll(() => regions()).toEqual([])
+    expect(root.hasAttribute('data-window-backdrop-active')).toBe(false)
+    expect(getComputedStyle(root).backgroundColor).toBe('rgba(0, 0, 0, 0)')
+
+    enabled.value = true
+    await expect.poll(() => regions()).toHaveLength(1)
   })
 
   it('restores CSS and clears native regions after a failure, without retrying on later mutations', async () => {

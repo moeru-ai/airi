@@ -242,14 +242,7 @@ live2d:
     sdk-preset-preserved-notice: >
       Quản lý biểu cảm SDK và nháy mắt được giữ nguyên khi tắt.
     no-expression: Không có biểu cảm khả dụng cho mô hình này.
-    llm-integration-wip: Tích hợp công cụ LLM chưa được hoàn thiện.
-    save-default: Lưu biểu cảm mặc định
     reset: Đặt lại tất cả biểu cảm
-    expose-to-llm-toggle: Cho phép LLM truy cập
-    expose-to-llm-options:
-      none: Không
-      all: Tất cả
-      custom: Tùy chỉnh
 microphone: Micro
 models: Mô hình
 pages:
@@ -1396,11 +1389,9 @@ pages:
       buy: Mua
       description: Các gói Flux để lựa chọn.
   capacitor:
-    description: Capacitor chứa Flux và tự nạp lại.
     statusError: Không thể tải Capacitor của bạn. Thử lại sau.
     packagesError: Không thể tải danh sách Capacitor. Thử lại sau.
     preferenceError: Không thể lưu tùy chọn. Thử lại sau.
-    noCapacitor: Không có Capacitor
     remaining: 'Còn {percent}'
     rechargesAt: Nạp lại vào {date}
     renewsAt: Gia hạn vào {date}

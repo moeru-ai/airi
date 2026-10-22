@@ -75,7 +75,7 @@ export async function setupMainWindowElectronInvokes(params: {
   createGodotStageService({ context, manager: params.godotStageManager, window: params.window })
   createOnboardingService({ context, onboardingWindowManager: params.onboardingWindowManager, mainWindow: params.window })
   createAuthService({ context, window: params.window })
-  const stopIOTraceRecording = registerIOTraceRecording(context, params.ioTraceRecording, params.window)
+  const stopIOTraceRecording = registerIOTraceRecording(context, params.ioTraceRecording)
   params.window.once('closed', stopIOTraceRecording)
 
   defineInvokeHandler(context, electronCenterMainWindow, () => params.center())

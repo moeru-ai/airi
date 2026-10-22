@@ -54,13 +54,17 @@ docs:
   style:
     title: 聊天窗口样式
     legacy: 经典窗口
-    floating-attached: 悬浮，吸附在角色旁
-    floating-free: 悬浮，自由摆放
-    floating-danmaku: 悬浮，弹幕机
+    floating: 悬浮
     fullscreen: 全屏，在角色旁
-    pinned: 保持置顶
-  resize: 拖动以调整聊天大小
+    attached: 吸附在角色旁
   move: 拖动以移动聊天
+  resize-corner:
+    ne: 从右上角调整大小
+    nw: 从左上角调整大小
+    se: 从右下角调整大小
+    sw: 从左下角调整大小
+  danmaku: 弹幕机
+  pin: 保持置顶
   fold: 收起聊天
   composer:
     show: 展开输入框
@@ -69,6 +73,7 @@ docs:
     title: 消息停留时间
     hide-read: 自动隐藏已读消息
     hide-read-description: 读完后自动消失，有语音时随语音结束消失。
+    options-hint: 悬停或右键查看选项
     reading-speed: 阅读速度
     reading-speed-value: '{count} 字/秒'
     minimum-time: 最短停留时间
@@ -168,7 +173,6 @@ computer-use-tool-call:
   typed: 逐字输入
   pasted: 粘贴
   pressed: 按下
-  repeat: '× {count}'
   interval: '间隔 {ms} 毫秒'
   hold: '按住 {ms} 毫秒'
   steps: '按顺序执行 {count} 步'
@@ -189,7 +193,6 @@ computer-use-tool-call:
   final: 实际终点
   duration: '{ms} 毫秒'
   normalized: 归一化坐标
-  click-count: '× {count}'
   relative:
     screen: 相对屏幕
     window: 相对窗口
@@ -229,7 +232,6 @@ computer-use-tool-call:
     title: 系统权限
     names:
       screen_recording: 屏幕录制
-      screen_capture_kit: ScreenCaptureKit
       accessibility: 辅助功能
       automation_to_system_events: 自动化（System Events）
     states:

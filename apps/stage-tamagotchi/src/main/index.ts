@@ -30,6 +30,7 @@ import { resolveIsWayland } from './app/ozone'
 import { installSingleInstanceGuard } from './app/single-instance'
 import { createArtistryConfig } from './configs/artistry'
 import { createGlobalAppConfig } from './configs/global'
+import { createIOTraceHubConfig } from './configs/io-trace-hub'
 import { createIOTraceRecordingConfig } from './configs/io-trace-recording'
 import { emitAppBeforeQuit, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
 import { getElectronMainDirname, setElectronMainDirname } from './libs/electron/location'
@@ -41,6 +42,8 @@ import { setupComputerUse } from './services/airi/computer-use'
 import { setupGodotStageManager } from './services/airi/godot-stage'
 import { setupHomeAssistant } from './services/airi/home-assistant'
 import { setupBuiltInServer } from './services/airi/http-server'
+import { IOTraceHub } from './services/airi/io-trace-hub'
+import { registerIOTraceHub } from './services/airi/io-trace-hub/register'
 import { IOTraceRecordingService } from './services/airi/io-trace-recording'
 import { setupMcpManager } from './services/airi/mcp-servers'
 import { setupExtensionHost } from './services/airi/plugins'
@@ -262,6 +265,7 @@ app.whenReady().then(async () => {
   const appConfig = injeca.provide('configs:app', () => createGlobalAppConfig())
   const artistryConfig = injeca.provide('configs:artistry', () => createArtistryConfig())
   const ioTraceRecordingConfig = injeca.provide('configs:io-trace-recording', () => createIOTraceRecordingConfig())
+  const ioTraceHubConfig = injeca.provide('configs:io-trace-hub', () => createIOTraceHubConfig())
   const electronApp = injeca.provide('host:electron:app', () => app)
   const autoUpdater = injeca.provide('services:auto-updater', {
     dependsOn: { appConfig },
@@ -312,13 +316,33 @@ app.whenReady().then(async () => {
     build: async () => setupMcpManager(),
   })
 
+  const ioTraceHub = injeca.provide('services:io-trace-hub', {
+    dependsOn: { config: ioTraceHubConfig, lifecycle },
+    build: ({ dependsOn }) => {
+      const hub = new IOTraceHub({
+        getStoredCollecting: () => dependsOn.config.get()?.collecting ?? false,
+        setStoredCollecting: collecting => dependsOn.config.update({ collecting }),
+      })
+      const unregister = registerIOTraceHub(hub)
+      dependsOn.lifecycle.appHooks.onStop(unregister)
+      return hub
+    },
+  })
+
   const ioTraceRecording = injeca.provide('services:io-trace-recording', {
-    dependsOn: { config: ioTraceRecordingConfig, lifecycle },
+    dependsOn: { config: ioTraceRecordingConfig, hub: ioTraceHub, lifecycle },
     build: ({ dependsOn }) => {
       const service = new IOTraceRecordingService({
         directory: join(app.getPath('userData'), 'io-traces'),
         getStoredEnabled: () => dependsOn.config.get()?.enabled ?? false,
         setStoredEnabled: enabled => dependsOn.config.update({ enabled }),
+      })
+      // The hub receives the spans of every window, so the files have the spans of every window.
+      const { unsubscribe } = dependsOn.hub.subscribe((span) => {
+        service.recordSpan(span).catch(error => log.withError(error).error('Failed to record IO trace span'))
+      })
+      dependsOn.lifecycle.appHooks.onStop(() => {
+        unsubscribe()
       })
       dependsOn.lifecycle.appHooks.onStart(async () => {
         try {

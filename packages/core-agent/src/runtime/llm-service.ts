@@ -143,7 +143,7 @@ async function streamOnce({
 
     try {
       const streamResult = request.protocol === 'responses'
-        ? streamResponses({ config: request.config, webSearch: supportedTools && request.webSearch, conversation, scope, options, tools, initialStep, onEvent })
+        ? streamResponses({ config: request.config, webSearch: supportedTools && options?.providerTools !== false && request.webSearch, conversation, scope, options, tools, initialStep, onEvent })
         : streamChatCompletions({ config: request.config, conversation, scope, options, tools, initialStep, onEvent, supportsContentArray: contentArraySupported })
 
       // NOTICE:

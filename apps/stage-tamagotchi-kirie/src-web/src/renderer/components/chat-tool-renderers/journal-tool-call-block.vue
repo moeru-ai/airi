@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ChatToolCallShell, createToolResultError, MarkdownRenderer, normalizeToolResultText } from '@proj-airi/stage-ui/components'
+import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useJournalPreviewStore } from '@proj-airi/stage-ui/stores/journal-preview'
 import { ContainerError } from '@proj-airi/ui'
 import { computed } from 'vue'
@@ -25,10 +26,11 @@ interface ImageJournalArgs {
 }
 
 interface ImageJournalResult {
-  imageUrl?: string
+  entryId: string
 }
 
 const { openImagePreview } = useJournalPreviewStore()
+const backgroundStore = useBackgroundStore()
 
 function parseObject<T extends object>(value: unknown): T | null {
   if (typeof value === 'string') {
@@ -95,6 +97,11 @@ const imageJournalResult = computed(() => {
   return parseObject<ImageJournalResult>(props.result)
 })
 
+const generatedImageUrl = computed(() => {
+  const entryId = imageJournalResult.value?.entryId
+  return entryId ? backgroundStore.getBackgroundUrl(entryId) : null
+})
+
 const resultText = computed(() => normalizeToolResultText(props.result))
 const resultError = computed(() => props.state === 'error' ? createToolResultError(props.result) : undefined)
 const formattedArgs = computed(() => {
@@ -119,7 +126,7 @@ const imageStatusBadgeClass = computed(() => {
 function openGeneratedImagePreview() {
   openImagePreview({
     title: parsedArgs.value?.title || 'Generated Image',
-    url: imageJournalResult.value?.imageUrl ?? null,
+    url: generatedImageUrl.value,
   })
 }
 </script>
@@ -130,7 +137,7 @@ function openGeneratedImagePreview() {
     :state="state"
   >
     <template #labelSuffix>
-      <span v-if="state === 'error' && resultText" class="ml-2 text-xs text-red-500 op-80">
+      <span v-if="state === 'error' && resultText" :class="['ml-2 text-xs', 'text-red-500 op-80']">
         (failed)
       </span>
     </template>
@@ -151,16 +158,16 @@ function openGeneratedImagePreview() {
       </div>
     </template>
     <template v-else-if="isTextJournalCreate">
-      <div class="mb-2 flex items-center gap-2">
-        <div class="i-solar:notebook-bookmark-bold-duotone text-base text-emerald-500" />
-        <div class="rounded-full bg-emerald-500/12 px-2.5 py-1 text-xs text-emerald-700 dark:text-emerald-300">
+      <div :class="['mb-2 flex items-center gap-2']">
+        <div :class="['i-solar:notebook-bookmark-bold-duotone', 'text-base text-emerald-500']" />
+        <div :class="['rounded-full px-2.5 py-1 text-xs', 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-300']">
           Saved to long-term memory
         </div>
       </div>
       <MarkdownRenderer :content="textJournalMarkdown" />
     </template>
     <template v-else-if="isImageJournalCreate">
-      <div class="mb-2 flex items-center gap-2">
+      <div :class="['mb-2 flex items-center gap-2']">
         <div :class="[imageStatusIconClass, 'text-base']" />
         <div
           :class="[
@@ -174,17 +181,21 @@ function openGeneratedImagePreview() {
       <MarkdownRenderer :content="imageJournalMarkdown" />
 
       <div
-        v-if="imageJournalResult?.imageUrl"
-        class="mt-4 overflow-hidden border border-primary-500/20 rounded-xl shadow-lg"
+        v-if="generatedImageUrl"
+        :class="['mt-4 overflow-hidden rounded-xl', 'border border-primary-500/20 shadow-lg']"
       >
         <img
-          :src="imageJournalResult.imageUrl"
-          class="w-full cursor-pointer object-contain transition-all active:scale-[0.98] hover:ring-2 hover:ring-primary-500/50"
+          :src="generatedImageUrl"
+          :class="[
+            'w-full cursor-pointer object-contain',
+            'transition-all',
+            'active:scale-[0.98] hover:ring-2 hover:ring-primary-500/50',
+          ]"
           @click="openGeneratedImagePreview"
         >
       </div>
     </template>
-    <div v-else class="whitespace-pre-wrap break-words font-mono">
+    <div v-else :class="['whitespace-pre-wrap break-words font-mono']">
       {{ formattedArgs }}
     </div>
   </ChatToolCallShell>

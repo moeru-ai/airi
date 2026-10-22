@@ -40,7 +40,7 @@ const minimumSize = { width: 300, height: 260 }
 interface FloatingChatBounds {
   width: number
   height: number
-  /** Position in `free` and `danmaku` placement. Attached placement derives it from the main window. */
+  /** Position in `free` placement. Attached placement derives it from the main window. */
   x?: number
   y?: number
 }
@@ -57,26 +57,34 @@ interface FloatingChatWindow {
   getOpenWindow: () => BrowserWindow | undefined
   /** Moves the window into the persisted placement. */
   applyPlacement: () => void
+  /**
+   * Applies the persisted pin and message feed without moving the window. An attached chat keeps the pin of the main
+   * window and the layout that it has.
+   */
+  applyPreferences: () => void
   /** Whether the chat is unfolded, which the chat button shows as pressed. */
   isUnfolded: () => boolean
   /** Hides the chat while the main window covers its display, and shows it again after, unless it is folded. */
   setCovered: (covered: boolean) => void
 }
 
+/** Every edge and corner of a chat that shares none with the main window. */
+const allResizeEdges: ResizeDirection[] = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw']
+
 /**
- * The resize grip sits on the top corner away from the character, and the
- * chat grows away from the edges it shares with the main window: a bottom
- * anchored chat grows up, a top anchored one down.
+ * The edges and the corner of an attached chat that it does not share with
+ * the main window: a bottom anchored chat grows up, a top anchored one down,
+ * and both grow away from the character.
  */
-function gripDirection(layout: AttachedChatLayout): ResizeDirection {
+function attachedResizeEdges(layout: AttachedChatLayout): ResizeDirection[] {
   const vertical = layout.anchor === 'bottom' ? 'n' : 's'
   const horizontal = layout.side === 'left' ? 'w' : 'e'
-  return `${vertical}${horizontal}`
+  return [vertical, horizontal, `${vertical}${horizontal}`]
 }
 
 /**
  * Owns the floating chat window: its placement beside the main window, the
- * fold that the chat button drives, and the resize grip.
+ * fold that the chat button drives, and the resize from its edges.
  *
  * State model:
  * - `folded` is the chat button state. It starts `true` because no chat is
@@ -96,6 +104,8 @@ function gripDirection(layout: AttachedChatLayout): ResizeDirection {
 export function setupFloatingChatWindow(params: {
   getMainWindow: () => BrowserWindow | undefined
   getPlacement: () => ChatFloatingPlacement
+  /** Whether the chat shows as a message feed. */
+  getDanmaku: () => boolean
   /** Whether a `free` chat stays above other windows. */
   getPinned: () => boolean
   getBounds: () => FloatingChatBounds
@@ -117,7 +127,7 @@ export function setupFloatingChatWindow(params: {
   let detachFromMain: (() => void) | undefined
   /**
    * The size the chat is meant to have. A new window takes the saved size, and
-   * then only the resize grip changes it.
+   * then only a resize from its edges changes it.
    */
   let size = { width: minimumSize.width, height: minimumSize.height }
 
@@ -140,11 +150,17 @@ export function setupFloatingChatWindow(params: {
       target.setBounds({ x, y, ...size })
   }
 
+  function resizeEdges() {
+    return params.getPlacement() === 'attached' ? attachedResizeEdges(layout) : allResizeEdges
+  }
+
   function currentState(): ChatFloatingState {
     const placement = params.getPlacement()
     return {
       placement,
+      danmaku: params.getDanmaku(),
       side: placement === 'attached' ? layout.side : 'left',
+      resizeEdges: resizeEdges(),
       folded,
       relocating,
       pinned,
@@ -227,7 +243,7 @@ export function setupFloatingChatWindow(params: {
       stopSlide()
       layout = next
       moveToLayout(main, target)
-      if (sideChanged)
+      if (sideChanged || anchorChanged)
         emitState()
       return
     }
@@ -247,6 +263,8 @@ export function setupFloatingChatWindow(params: {
     if (anchorChanged) {
       layout = next
       slideToLayout(main, target)
+      // The chat resizes from the edges away from the new anchor.
+      emitState()
       return
     }
 
@@ -347,14 +365,10 @@ export function setupFloatingChatWindow(params: {
 
     // The chat pins with Electron's default level, never the shared
     // `setWindowAlwaysOnTop`: that level also covers the input method
-    // candidates, and the chat takes text. An attached or danmaku chat takes
-    // the main window's pin state.
-    const placement = params.getPlacement()
-    const main = params.getMainWindow()
-    if (placement === 'attached')
+    // candidates, and the chat takes text. An attached chat takes the main
+    // window's pin state.
+    if (params.getPlacement() === 'attached')
       attachToMain(target)
-    else if (placement === 'danmaku' && main && !main.isDestroyed())
-      detachFromMain = followMainPin(main, target)
     else
       target.setAlwaysOnTop(params.getPinned())
 
@@ -377,22 +391,23 @@ export function setupFloatingChatWindow(params: {
     params.saveBounds({ width: bounds.width, height: bounds.height, ...position })
   }
 
-  function resizeBy(target: BrowserWindow, delta: { deltaX: number, deltaY: number }) {
+  function resizeBy(target: BrowserWindow, delta: { deltaX: number, deltaY: number, direction: ResizeDirection }) {
     const main = params.getMainWindow()
     const attachedTo = params.getPlacement() === 'attached' && main && !main.isDestroyed() ? main : undefined
+    // An edge that the chat shares with the main window stays in place.
+    if (!resizeEdges().includes(delta.direction))
+      return
 
     // The layout stays during a resize, so the chat never jumps to the other
-    // side under the cursor. A chat that is not attached has its grip at the
-    // top-left.
+    // side under the cursor.
     stopSlide()
     const resized = resizeBoundsByDelta(boundsOf(target), {
       ...delta,
-      direction: attachedTo ? gripDirection(layout) : 'nw',
       minWidth: minimumSize.width,
       minHeight: minimumSize.height,
     })
-    // The chat stops growing at the edges of the work area, so the grip stays
-    // in reach.
+    // The chat stops growing at the edges of the work area, so the edge under
+    // the cursor stays in reach.
     const placed = keepChatOnDisplay(resized, screen.getAllDisplays())
     size = { width: placed.width, height: placed.height }
     placeAt(target, placed.x, placed.y)
@@ -411,8 +426,8 @@ export function setupFloatingChatWindow(params: {
       height: saved.height,
       show: false,
       icon,
-      // The resize grip in the renderer owns resizing. Transparent windows do
-      // not resize reliably from native edges.
+      // The edges in the renderer own resizing. Transparent windows do not
+      // resize reliably from native edges.
       resizable: false,
       webPreferences: {
         preload: join(getElectronMainDirname(), '../preload/index.mjs'),
@@ -440,7 +455,7 @@ export function setupFloatingChatWindow(params: {
     context = targetContext
     // Every platform reports `move`; `moved` is only on macOS and Windows.
     // Only a chat that is not attached owns its position. An attached one
-    // follows the main window, and the grip saves its size.
+    // follows the main window, and a resize saves its size.
     const persistMove = debounce(() => {
       if (!target.isDestroyed() && params.getPlacement() !== 'attached')
         persistBounds(target)
@@ -553,6 +568,15 @@ export function setupFloatingChatWindow(params: {
       const window = reusable.getOpenWindow()
       if (window)
         applyPlacementTo(window)
+    },
+    applyPreferences() {
+      const window = reusable.getOpenWindow()
+      if (!window)
+        return
+      // The pin change reports itself through `always-on-top-changed`. The state below carries the message feed.
+      if (params.getPlacement() !== 'attached')
+        window.setAlwaysOnTop(params.getPinned())
+      emitState()
     },
     isUnfolded: () => !folded,
     setCovered(value: boolean) {

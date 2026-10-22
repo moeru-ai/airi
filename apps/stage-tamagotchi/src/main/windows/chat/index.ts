@@ -40,7 +40,9 @@ type EventaContext = ReturnType<typeof createContext>['context']
 
 const chatWindowConfigSchema = object({
   mode: picklist(['legacy', 'floating', 'fullscreen']),
-  placement: picklist(['attached', 'free', 'danmaku']),
+  placement: picklist(['attached', 'free']),
+  // A saved config without this field shows the chat without the message feed.
+  danmaku: optional(boolean(), false),
   pinned: boolean(),
   floating: object({
     width: number(),
@@ -61,6 +63,7 @@ type ChatWindowConfig = InferOutput<typeof chatWindowConfigSchema>
 const defaultChatWindowConfig: ChatWindowConfig = {
   mode: 'floating',
   placement: 'attached',
+  danmaku: false,
   pinned: true,
   floating: { width: 380, height: 560 },
 }
@@ -144,8 +147,8 @@ export function setupChatWindowManager(params: {
   const getConfig = (): ChatWindowConfig => getConfigRaw() ?? defaultChatWindowConfig
 
   function getPreferences(): ChatWindowPreferences {
-    const { mode, placement, pinned } = getConfig()
-    return { mode, placement, pinned }
+    const { mode, placement, danmaku, pinned } = getConfig()
+    return { mode, placement, danmaku, pinned }
   }
 
   /**
@@ -173,12 +176,14 @@ export function setupChatWindowManager(params: {
    */
   function setupPreferences(context: EventaContext, mode: ChatWindowMode) {
     defineInvokeHandler(context, electronChatWindowGetPreferences, () => ({ ...getPreferences(), mode }))
-    // A switch that succeeds closes the window that asked for it, and its
-    // reply goes nowhere. A switch that fails answers with the error, and the
-    // menu reads the preferences again.
-    defineInvokeHandler(context, electronChatWindowSetPreferences, async (preferences) => {
-      if (preferences)
-        await setPreferences(preferences, mode)
+    // Each control sends only what it changes, so a control that holds older
+    // preferences never writes them back. A request without a mode keeps the
+    // chat in the mode that it shows. A switch that succeeds closes the window
+    // that asked for it, and its reply goes nowhere. A switch that fails
+    // answers with the error, and the menu reads the preferences again.
+    defineInvokeHandler(context, electronChatWindowSetPreferences, async (changes) => {
+      if (changes)
+        await setPreferences({ ...getPreferences(), mode, ...changes }, mode)
     })
   }
 
@@ -247,6 +252,7 @@ export function setupChatWindowManager(params: {
   const floating = setupFloatingChatWindow({
     getMainWindow: params.getMainWindow,
     getPlacement: () => getConfig().placement,
+    getDanmaku: () => getConfig().danmaku,
     getPinned: () => getConfig().pinned,
     getBounds: () => getConfig().floating,
     saveBounds: bounds => updateConfig({ ...getConfig(), floating: bounds }),
@@ -349,9 +355,14 @@ export function setupChatWindowManager(params: {
     // below creates starts in it.
     await modeSwitch.run(async () => {
       const previous = getConfig()
-      updateConfig({ ...previous, placement: next.placement, pinned: next.pinned })
-      if (next.placement !== previous.placement || next.pinned !== previous.pinned)
+      updateConfig({ ...previous, placement: next.placement, danmaku: next.danmaku, pinned: next.pinned })
+      // Only a new placement attaches the chat again. An attached chat keeps
+      // its layout through a new pin or message feed, so it does not jump to
+      // the preferred side while the main window stays still.
+      if (next.placement !== previous.placement)
         floating.applyPlacement()
+      else if (next.danmaku !== previous.danmaku || next.pinned !== previous.pinned)
+        floating.applyPreferences()
     })
 
     try {

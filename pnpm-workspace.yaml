@@ -7,6 +7,7 @@ minimumReleaseAgeExclude:
   - '@proj-airi/*'
   - '@sherpaw/*'
   - '@vishot/*'
+  - '@vieval/*'
   - '@xsai/*'
   - '@xsai-apple-speech/*'
   - '@xsai-apple-vision/*'
@@ -15,6 +16,7 @@ minimumReleaseAgeExclude:
   - kirie
   - pinia-plugin-synced
   - xsschema
+  - vieval
 
 shellEmulator: true
 packages:
@@ -37,7 +39,11 @@ overrides:
   hono: 4.13.3
   is-core-module: npm:@nolyfill/is-core-module@^1.0.39
   isarray: npm:@nolyfill/isarray@^1.0.44
+  # rehype-katex 7.0.1 and micromark-extension-math 3.1.0 declare katex ^0.16. The speech transformers parse with the
+  # catalog katex, so display and speech use one version. Remove when both declare the catalog version.
+  micromark-extension-math>katex: 'catalog:'
   onnxruntime-web: npm:onnxruntime-web@^1.27.0
+  rehype-katex>katex: 'catalog:'
   safe-buffer: npm:@nolyfill/safe-buffer@^1.0.44
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
   side-channel: npm:@nolyfill/side-channel@^1.0.44
@@ -74,9 +80,11 @@ catalog:
   '@capacitor/ios': ^8.5.0
   '@capacitor/keyboard': ^8.0.5
   '@capacitor/local-notifications': ^8.3.1
+  '@cortex-js/compute-engine': ^0.153.0
   '@date-fns/utc': ^2.1.1
   '@discordjs/voice': ^0.19.2
   '@dotenvx/dotenvx': ^2.21.0
+  '@duckdb/duckdb-wasm': 1.29.1-dev68.0
   '@electric-sql/pglite': ^0.5.6
   '@electric-sql/pglite-pgvector': 0.0.7
   '@electron-toolkit/eslint-config-ts': ^3.1.0
@@ -226,6 +234,8 @@ catalog:
   '@unocss/reset': 66.7.5
   '@valibot/to-json-schema': 1.0.0-rc.0
   '@velin-dev/core': ^0.4.0
+  '@velin-dev/core-vue': 1.0.0-beta.6
+  '@vieval/ui': ^0.10.3
   '@vishot/cli': ^0.2.0
   '@vishot/mockup-desktop-vue': ^0.2.0
   '@vishot/renderer-browser': ^0.2.0
@@ -327,6 +337,7 @@ catalog:
   jose: ^6.2.10
   jsdom: ^30.0.1
   jszip: ^3.10.1
+  katex: 0.19.0
   knip: ^6.32.2
   kokoro-js: ^1.2.1
   kysely: 0.29.5
@@ -335,6 +346,7 @@ catalog:
   localforage: ^1.10.0
   mediabunny: ^1.55.2
   meta-png: ^1.0.6
+  mhchemparser: ^4.2.1
   minecraft-data: 3.102.3
   mineflayer: ^4.37.1
   mineflayer-armor-manager: ^2.0.1
@@ -385,6 +397,7 @@ catalog:
   semver: ^7.8.5
   shiki: ^4.4.3
   simple-git-hooks: ^2.13.1
+  speech-rule-engine: 5.0.0-rc.4
   splitpanes: ^4.1.2
   sponsorkit: 17.1.0
   sponsors-svg: ^0.3.0
@@ -422,9 +435,9 @@ catalog:
   valibot: ^1.4.2
   vaul-vue: ^0.4.1
   vec3: ^0.2.0
-  vieval: ^0.2.0
+  vieval: ^0.10.3
   virtua: ^0.50.4
-  vite: ^8.2.2
+  vite: ^8.3.4
   vite-bundle-visualizer: ^1.2.1
   vite-plugin-inspect: 12.0.0-beta.1
   vite-plugin-mkcert: ^2.1.0
@@ -443,6 +456,7 @@ catalog:
   vue-tsc: ^3.3.11
   wavefile: ^11.0.0
   web-haptics: ^0.0.6
+  web-worker: ^1.5.0
   whatwg-mimetype: ^5.0.0
   wheel-gestures: ^2.2.48
   wlipsync: ^1.3.1

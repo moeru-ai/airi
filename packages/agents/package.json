@@ -22,6 +22,7 @@
     "./voice-transcription-rephrase": "./src/voice-transcription-rephrase/index.ts"
   },
   "scripts": {
+    "test:run": "vitest run --config vitest.config.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
