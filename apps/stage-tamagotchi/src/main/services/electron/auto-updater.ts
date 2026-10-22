@@ -270,6 +270,17 @@ export interface AutoUpdaterOptions {
   setStoredUpdateLane?: (lane: UpdateLane | undefined) => void
 }
 
+/**
+ * Returns whether a store updates this installation, so AIRI must not run its own updater.
+ *
+ * - Steam builds set `VITE_DISTRIBUTION=steam` at build time.
+ * - The Flatpak bundle uses the same JavaScript build as the deb and rpm packages, so only the runtime can tell.
+ *   Flatpak sets `FLATPAK_ID` in each sandbox. Flathub updates the app with `flatpak update`.
+ */
+export function isStoreManagedInstall() {
+  return import.meta.env.VITE_DISTRIBUTION === 'steam' || !!process.env.FLATPAK_ID
+}
+
 function isPrereleaseVersion(version: string) {
   return (semver.prerelease(version)?.length ?? 0) > 0
 }
