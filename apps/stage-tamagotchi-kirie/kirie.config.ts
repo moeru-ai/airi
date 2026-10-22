@@ -1,6 +1,7 @@
 import { join, resolve } from 'node:path'
 
 import notifications from '@gd-kirie/notifications'
+import tray from '@gd-kirie/tray/plugin'
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import templateCompilerOptions from '@tresjs/core/template-compiler-options'
 import Vue from '@vitejs/plugin-vue'
@@ -25,7 +26,7 @@ const rendererRoot = resolve(join(import.meta.dirname, 'src-web', 'src', 'render
 const settingsSearch = createSettingsSearch()
 
 export default defineKirieConfig({
-  plugins: [core, notifications],
+  plugins: [core, notifications, tray],
   web: {
     vite: {
       build: {

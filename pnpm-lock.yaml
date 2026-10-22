@@ -2786,6 +2786,9 @@ importers:
         specifier: 'catalog:'
         version: 4.4.3
     devDependencies:
+      '@gd-kirie/tray':
+        specifier: 0.15.0
+        version: 0.15.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(kirie@0.15.0(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))(web-worker@1.5.0)
       '@iconify-json/carbon':
         specifier: 'catalog:'
         version: 1.2.25
@@ -8725,6 +8728,11 @@ packages:
 
   '@gd-kirie/platform@0.15.0':
     resolution: {integrity: sha512-dObhOjBHMXxKgcwpNR26cS+7HuJWk30GD8J0jy/aGF39JcPAgKLnmhCzr6ld6bnxIXGQCw3BTHbX+UF8V07Ayg==}
+
+  '@gd-kirie/tray@0.15.0':
+    resolution: {integrity: sha512-CQ2TQX+lAYIrg2htpeTPJI+GwbOBt6aCbSsQB6RbXJPykAzQgwa1+mIz/kiyrurGf9Ae2F7okt3m2OvLanxXfA==}
+    peerDependencies:
+      kirie: ^0.15.0
 
   '@google/genai@2.30.0':
     resolution: {integrity: sha512-Gkv1ix8iZey/V3WF4lHaRS8C71P533jenDT/lA+fdPTCfXYfmCVHvo+0H5jTgzonqsmROQG7QpzLJkpoP/x7bg==}
@@ -23620,6 +23628,18 @@ snapshots:
     dependencies:
       '@gd-kirie/ipc-eventa': 0.15.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/eventa': 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.2(crossws@0.4.12(srvx@1.0.5)))(hono@4.13.3)(web-worker@1.5.0)
+    transitivePeerDependencies:
+      - '@tauri-apps/api'
+      - electron
+      - h3
+      - hono
+      - web-worker
+
+  '@gd-kirie/tray@0.15.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(kirie@0.15.0(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))(web-worker@1.5.0)':
+    dependencies:
+      '@gd-kirie/ipc-eventa': 0.15.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+      '@moeru/eventa': 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.2(crossws@0.4.12(srvx@1.0.5)))(hono@4.13.3)(web-worker@1.5.0)
+      kirie: 0.15.0(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
     transitivePeerDependencies:
       - '@tauri-apps/api'
       - electron
