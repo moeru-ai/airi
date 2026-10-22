@@ -1,13 +1,15 @@
 import type { BackgroundOption } from '@proj-airi/stage-ui/components'
 import type { Ref, ShallowRef } from 'vue'
 
-import localforage from 'localforage'
-
+import { listRawItems, storage } from '@proj-airi/stage-ui/database/storage'
 import { useLocalStorage, useObjectUrl } from '@vueuse/core'
 import { defineStore } from 'pinia'
+import { prefixStorage } from 'unstorage'
 import { computed, markRaw, onScopeDispose, ref, shallowRef, watch } from 'vue'
 
 import { DefaultBackgroundPreview, TransparentBackgroundPreview } from '../components/Backgrounds/default'
+
+const backgroundFiles = prefixStorage(storage, 'device')
 
 export enum BackgroundKind {
   Wave = 'wave',
@@ -27,7 +29,7 @@ type PersistedBackgroundItem = Omit<BackgroundItem, 'file'> & {
 type BackgroundPreferenceRecord = Record<string, Pick<BackgroundOption, 'id' | 'blur'>>
 
 export const useBackgroundStore = defineStore('background', () => {
-  // TODO: STORAGE_PREFIX used with multiple less maintainable `localforage` and `key.startsWith(...)` call that creates complexity.
+  // TODO: STORAGE_PREFIX used with multiple less maintainable `key.startsWith(...)` calls that create complexity.
   const STORAGE_PREFIX = 'background-'
   const presets: BackgroundItem[] = [
     {
@@ -123,7 +125,7 @@ export const useBackgroundStore = defineStore('background', () => {
         file: blob,
       }
 
-      await localforage.setItem<PersistedBackgroundItem>(key, payload)
+      await backgroundFiles.setItemRaw<PersistedBackgroundItem>(key, payload)
     }
     catch (error) {
       console.error('Failed to migrate background data URL to Blob', error)
@@ -178,10 +180,7 @@ export const useBackgroundStore = defineStore('background', () => {
 
     const stored: BackgroundItem[] = []
     try {
-      await localforage.iterate<PersistedBackgroundItem, void>((val, key) => {
-        if (!key.startsWith(STORAGE_PREFIX))
-          return
-
+      for (const [key, val] of await listRawItems<PersistedBackgroundItem>(backgroundFiles, STORAGE_PREFIX)) {
         const storedBlob = val.file instanceof Blob ? val.file : undefined
         const storedSrc = typeof val.src === 'string' && val.src.length > 0 ? val.src : undefined
 
@@ -196,7 +195,7 @@ export const useBackgroundStore = defineStore('background', () => {
             component: undefined,
             removable: true,
           })
-          return
+          continue
         }
 
         if (storedSrc) {
@@ -216,7 +215,7 @@ export const useBackgroundStore = defineStore('background', () => {
             }, 0)
           }
         }
-      })
+      }
     }
     catch (error) {
       console.error('Failed to load backgrounds from IndexedDB', error)
@@ -270,7 +269,7 @@ export const useBackgroundStore = defineStore('background', () => {
         removable: true,
       }
       try {
-        await localforage.setItem<PersistedBackgroundItem>(payload.id, payload)
+        await backgroundFiles.setItemRaw<PersistedBackgroundItem>(payload.id, payload)
       }
       catch (error) {
         console.error('Failed to persist background', error)
@@ -287,10 +286,10 @@ export const useBackgroundStore = defineStore('background', () => {
 
     const option = options.value[optionIndex]
 
-    // Remove from localforage
+    // Remove from IndexedDB
     try {
       if (option.id.startsWith(STORAGE_PREFIX)) {
-        await localforage.removeItem(option.id)
+        await backgroundFiles.removeItem(option.id)
       }
     }
     catch (error) {

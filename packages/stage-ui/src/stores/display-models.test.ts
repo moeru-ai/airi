@@ -2,11 +2,10 @@ import type { Session, User } from 'better-auth'
 
 import type { CloudDisplayModel } from '../services/display-model-sync'
 
-import localforage from 'localforage'
-
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { storage } from '../database/storage'
 import { DISPLAY_MODEL_SYNC_FLAG } from '../libs/feature-flags'
 import { downloadVerified } from '../libs/file-transfer/transfer'
 import { listCloudDisplayModels, requestDisplayModelDownload } from '../services/display-model-sync'
@@ -14,14 +13,15 @@ import { useAuthStore } from './auth'
 import { DisplayModelFormat, useDisplayModelsStore } from './display-models'
 import { useFeatureFlagsStore } from './feature-flags'
 
-vi.mock('localforage', () => ({
-  default: {
-    getItem: vi.fn(async () => undefined),
-    iterate: vi.fn(async () => undefined),
-    removeItem: vi.fn(async () => undefined),
-    setItem: vi.fn(async (_key: string, value: unknown) => value),
-  },
-}))
+// Node has no IndexedDB. An in-memory driver keeps the repository behavior.
+vi.mock('../database/storage', async (importOriginal) => {
+  const { createStorage } = await import('unstorage')
+  const { default: memoryDriver } = await import('unstorage/drivers/memory')
+  return {
+    ...await importOriginal<typeof import('../database/storage')>(),
+    storage: createStorage({ driver: memoryDriver() }),
+  }
+})
 
 const cloudModel: CloudDisplayModel = {
   id: 'display-model-cloud',
@@ -66,9 +66,10 @@ async function startCloudSync() {
 }
 
 describe('display models store', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    await storage.clear()
     // Signing in refreshes Flux credits. Keep that request off the network.
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({})))
   })
@@ -122,7 +123,7 @@ describe('display models store', () => {
 
     await expect(download).rejects.toThrow()
     expect(store.displayModels.some(model => model.id === cloudModel.id)).toBe(false)
-    expect(localforage.setItem).not.toHaveBeenCalledWith(cloudModel.id, expect.anything())
+    expect(await storage.hasItem(`device:${cloudModel.id}`)).toBe(false)
     expect(store.syncErrors).toEqual({})
   })
 
@@ -136,7 +137,7 @@ describe('display models store', () => {
   it('hides a model that another account downloaded from a direct lookup', async () => {
     signIn('owner-b')
     const store = useDisplayModelsStore()
-    vi.mocked(localforage.getItem).mockResolvedValueOnce({
+    await storage.setItemRaw('device:display-model-private', {
       id: 'display-model-private',
       format: DisplayModelFormat.Live2dZip,
       type: 'file',
@@ -174,6 +175,7 @@ describe('display models store', () => {
 
   it('loads stored models once when several callers initialize at the same time', async () => {
     const store = useDisplayModelsStore()
+    const getKeys = vi.spyOn(storage, 'getKeys')
 
     await Promise.all([
       store.loadDisplayModelsFromIndexedDB(),
@@ -181,6 +183,7 @@ describe('display models store', () => {
       store.loadDisplayModelsFromIndexedDB(),
     ])
 
-    expect(localforage.iterate).toHaveBeenCalledTimes(1)
+    expect(getKeys).toHaveBeenCalledTimes(1)
+    expect(getKeys).toHaveBeenCalledWith('device:')
   })
 })

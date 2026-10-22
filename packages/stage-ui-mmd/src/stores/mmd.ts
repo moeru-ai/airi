@@ -1,12 +1,13 @@
 import type { Emotion } from '../constants/emotions'
 import type { MorphSlot } from '../constants/morphs'
 
-import localforage from 'localforage'
+import indexedDbDriver from 'unstorage/drivers/indexedb'
 
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { useBroadcastChannel } from '@vueuse/core'
 import { nanoid } from 'nanoid/non-secure'
 import { defineStore } from 'pinia'
+import { createStorage } from 'unstorage'
 import { ref, watch } from 'vue'
 
 import { EMOTION_ACTION_NAME } from '../constants/actions'
@@ -56,6 +57,14 @@ export interface MMDMaterialDescriptor {
 }
 
 const MOTION_STORAGE_PREFIX = 'mmd-motion-'
+
+/**
+ * The IndexedDB store of imported files that `@proj-airi/stage-ui/database/storage` mounts as `device`.
+ * This package cannot import that module, because `@proj-airi/stage-ui` depends on this package.
+ */
+const motionFiles = createStorage({
+  driver: indexedDbDriver({ dbName: 'localforage', storeName: 'keyvaluepairs' }),
+})
 
 /** Eye/head tracking mode, mirroring the VRM renderer's tracking modes. */
 export type MMDGazeMode = 'camera' | 'mouse' | 'none'
@@ -172,7 +181,7 @@ export const useMMD = defineStore('mmd', () => {
     const existing = availableMotions.value.find(motion => motion.name === name)
     const id = existing?.id ?? `${MOTION_STORAGE_PREFIX}${nanoid()}`
 
-    await localforage.setItem<PersistedMMDMotion>(id, { id, name, file })
+    await motionFiles.setItemRaw<PersistedMMDMotion>(id, { id, name, file })
     if (!existing)
       availableMotions.value = [...availableMotions.value, { id, name }]
 
@@ -181,7 +190,7 @@ export const useMMD = defineStore('mmd', () => {
 
   /** Loads a persisted VMD file by id so a window can build its own object URL. */
   async function getMotionFile(id: string): Promise<File | undefined> {
-    const persisted = await localforage.getItem<PersistedMMDMotion>(id)
+    const persisted = await motionFiles.getItemRaw<PersistedMMDMotion>(id)
     return persisted?.file
   }
 
@@ -189,7 +198,7 @@ export const useMMD = defineStore('mmd', () => {
   async function clearMotions(): Promise<void> {
     const motions = availableMotions.value
     availableMotions.value = []
-    await Promise.all(motions.map(motion => localforage.removeItem(motion.id)))
+    await Promise.all(motions.map(motion => motionFiles.removeItem(motion.id)))
   }
 
   /** Removes a single imported motion (from the synced list and IndexedDB). */
@@ -199,7 +208,7 @@ export const useMMD = defineStore('mmd', () => {
     // Drop the idle selection if it pointed at the removed motion.
     if (motion && idleMotionName.value === motion.name)
       idleMotionName.value = ''
-    await localforage.removeItem(id)
+    await motionFiles.removeItem(id)
   }
   /** Per-emotion gesture motion overrides; falls back to EMOTION_ACTION_NAME. */
   const emotionActionMap = useLocalStorageManualReset<Record<Emotion, string>>(
