@@ -43,7 +43,7 @@ function createHostTrayLabels(t: Translate): AiriTrayLabels {
   }
 }
 
-export interface HostTrayLabelsOptions {
+interface HostTrayLabelsOptions {
   locale: WatchSource<string>
   t: Translate
 }
