@@ -37,7 +37,7 @@ The production Web entry is `res://src-web/dist/index.html`.
 ## Window and context lifecycle
 
 Main receives `synced-leader=true` before Pinia initialization. Followers receive `synced-leader=false`.
-Chat and Spotlight use `stage-runtime=minimal`.
+About, Chat, and Spotlight use `stage-runtime=minimal`.
 Pointer, display, window-action, and lifecycle adapters borrow the same host context.
 Display placement uses one atomic snapshot. Kirie's pointer-inside result overrides stale renderer bounds.
 
@@ -60,7 +60,7 @@ Godot owns the tray through the `GdKirie.Tray` C# API. The tray stays usable whi
 The menu follows the [Electron tray](../../stage-tamagotchi/src/main/tray/index.ts).
 Godot applies the size and alignment items to the main window directly. Alignment animates with a Godot `Tween`.
 The checked size and alignment items follow the main-window geometry on each frame.
-Kirie has no About, Inlay, Widgets list, Caption, or BeatSync window. Their items stay disabled.
+Kirie has no Inlay, Widgets list, Caption, or BeatSync window. Their items stay disabled.
 The DevTools section appears only in debug builds.
 
 The main renderer owns translations. It sends all labels through `eventa:invoke:airi:tray:labels:set` at start and after each locale change.
