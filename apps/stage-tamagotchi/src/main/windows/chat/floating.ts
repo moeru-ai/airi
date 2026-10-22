@@ -5,8 +5,6 @@ import type { Point, Rectangle } from 'electron'
 import type { ChatFloatingPlacement, ChatFloatingState } from '../../../shared/eventa'
 import type { AttachedChatLayout } from './floating-placement'
 
-import { join, resolve } from 'node:path'
-
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext as createElectronContext } from '@moeru/eventa/adapters/electron/main'
 import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
@@ -25,7 +23,7 @@ import {
   electronChatFloatingResizeBy,
   electronChatFloatingStateChanged,
 } from '../../../shared/eventa'
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { showWindowOnAllWorkspaces } from '../shared/app-icon'
 import { protectPrivilegedWindowNavigation, resizeBoundsByDelta, transparentWindowConfig } from '../shared/window'
@@ -430,7 +428,7 @@ export function setupFloatingChatWindow(params: {
       // resize reliably from native edges.
       resizable: false,
       webPreferences: {
-        preload: join(getElectronMainDirname(), '../preload/index.mjs'),
+        preload: getPreloadPath(),
         sandbox: false,
       },
       ...transparentWindowConfig(),
@@ -506,7 +504,7 @@ export function setupFloatingChatWindow(params: {
     try {
       await params.setupChatInvokes(target, targetContext)
       applyPlacementTo(target)
-      await load(target, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/chat-floating', {
+      await load(target, withHashRoute(baseUrl(getRendererRoot()), '/chat-floating', {
         query: {
           'stage-runtime': 'minimal',
           'synced-leader': 'false',

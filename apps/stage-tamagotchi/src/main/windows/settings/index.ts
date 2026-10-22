@@ -9,8 +9,6 @@ import type { DevtoolsWindowManager } from '../devtools'
 import type { SpotlightWindowManager } from '../spotlight'
 import type { WidgetsWindowManager } from '../widgets'
 
-import { join, resolve } from 'node:path'
-
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
 import { BrowserWindow } from 'electron'
 
@@ -18,7 +16,7 @@ import icon from '../../../../resources/icon.png?asset'
 
 import { electronSettingsNavigate } from '../../../shared/eventa'
 import { SETTINGS_WINDOW_WIDTH } from '../../../shared/settings-window'
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { protectPrivilegedWindowNavigation, toggleWindowShow } from '../shared'
 import { setupSettingsWindowInvokes } from './rpc/index.electron'
@@ -46,7 +44,6 @@ export function setupSettingsWindowReusableFunc(params: {
   spotlightWindow: SpotlightWindowManager
   ioTraceRecording: IOTraceRecordingService
 }): SettingsWindowManager {
-  const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
   const defaultRoute = '/settings'
   let currentRoute = defaultRoute
   let settingsContext: Awaited<ReturnType<typeof setupSettingsWindowInvokes>> | undefined
@@ -59,7 +56,7 @@ export function setupSettingsWindowReusableFunc(params: {
       show: false,
       icon,
       webPreferences: {
-        preload: join(getElectronMainDirname(), '../preload/index.mjs'),
+        preload: getPreloadPath(),
         sandbox: false,
       },
     })
@@ -86,7 +83,7 @@ export function setupSettingsWindowReusableFunc(params: {
       ioTraceRecording: params.ioTraceRecording,
     })
 
-    await load(window, withHashRoute(rendererBase, currentRoute, {
+    await load(window, withHashRoute(baseUrl(getRendererRoot()), currentRoute, {
       query: { 'synced-leader': 'false' },
     }))
 

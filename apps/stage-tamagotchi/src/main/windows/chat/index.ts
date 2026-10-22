@@ -8,8 +8,6 @@ import type { McpManager } from '../../services/airi/mcp-servers'
 import type { SettingsWindowManager } from '../settings'
 import type { WidgetsWindowManager } from '../widgets'
 
-import { join, resolve } from 'node:path'
-
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { createContext as createElectronContext } from '@moeru/eventa/adapters/electron/main'
 import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
@@ -28,7 +26,7 @@ import {
   electronChatWindowTakeDraft,
   electronFullscreenClose,
 } from '../../../shared/eventa'
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { protectPrivilegedWindowNavigation } from '../shared'
@@ -212,7 +210,7 @@ export function setupChatWindowManager(params: {
       ...(isMacOS ? { transparent: true, backgroundColor: '#00000000' } : {}),
       titleBarStyle: isMacOS ? 'hiddenInset' : undefined,
       webPreferences: {
-        preload: join(getElectronMainDirname(), '../preload/index.mjs'),
+        preload: getPreloadPath(),
         sandbox: false,
       },
     })
@@ -232,7 +230,7 @@ export function setupChatWindowManager(params: {
 
     try {
       await setupChatInvokes(window, context, 'legacy')
-      await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/chat', {
+      await load(window, withHashRoute(baseUrl(getRendererRoot()), '/chat', {
         query: {
           'stage-runtime': 'minimal',
           'synced-leader': 'false',

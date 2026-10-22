@@ -19,9 +19,6 @@ import type { FullscreenPlace } from '../shared/fullscreen'
 import type { SpotlightWindowManager } from '../spotlight'
 import type { WidgetsWindowManager } from '../widgets'
 
-import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
-
 import { useLogg } from '@guiiai/logg'
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
@@ -39,7 +36,7 @@ import icon from '../../../../resources/icon.png?asset'
 import { electronFullscreenExit, electronFullscreenOpen, electronFullscreenPack, electronFullscreenRequestClose, electronFullscreenSetMode, electronFullscreenSurfaceChanged, electronMainWindowEnterFullscreen, electronMainWindowGetFullscreenState, electronMainWindowSetFullscreenBounds, electronStartDraggingWindow } from '../../../shared/eventa'
 import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
 import { shouldOpenDevTools } from '../../libs/electron/devtools'
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { setupSettingsPageInvokes } from '../settings/rpc/index.electron'
 import { protectPrivilegedWindowNavigation, setWindowAlwaysOnTop, transparentWindowConfig } from '../shared'
@@ -120,7 +117,7 @@ export async function setupMainWindow(params: {
     show: false,
     icon,
     webPreferences: {
-      preload: join(dirname(fileURLToPath(import.meta.url)), '../preload/index.mjs'),
+      preload: getPreloadPath(),
       sandbox: false,
     },
     // Thanks to [@HeartArmy](https://github.com/HeartArmy) for the tip implementation.
@@ -262,7 +259,7 @@ export async function setupMainWindow(params: {
     center: centerWindow,
   })
 
-  await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/', {
+  await load(window, withHashRoute(baseUrl(getRendererRoot()), '/', {
     // The main window page hosts the fullscreen mode, so it routes the fullscreen surfaces under its own page.
     query: { 'synced-leader': 'true', 'fullscreen-host': 'main-window' },
   }))

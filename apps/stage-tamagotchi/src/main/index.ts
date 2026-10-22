@@ -8,7 +8,7 @@ import type { WorkspaceWindowManager } from './windows/workspace'
 
 import process, { env, platform } from 'node:process'
 
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import messages from '@proj-airi/i18n/locales'
@@ -33,7 +33,7 @@ import { createGlobalAppConfig } from './configs/global'
 import { createIOTraceHubConfig } from './configs/io-trace-hub'
 import { createIOTraceRecordingConfig } from './configs/io-trace-recording'
 import { emitAppBeforeQuit, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
-import { getElectronMainDirname, setElectronMainDirname } from './libs/electron/location'
+import { getRendererRoot, setElectronMainDirname } from './libs/electron/location'
 import { createI18n } from './libs/i18n'
 import { setupAppleSpeechTranscriptionService } from './services/airi/apple-speech-transcription'
 import { setupAppleVisionService } from './services/airi/apple-vision'
@@ -246,7 +246,7 @@ app.whenReady().then(async () => {
     return
   }
 
-  setupSherpawModelAssetsProtocol(resolve(getElectronMainDirname(), '..', 'renderer'))
+  setupSherpawModelAssetsProtocol(getRendererRoot)
   setupSherpawModelAssets(createContext(ipcMain).context)
   setupPermissionHandlers(session.defaultSession, hasSelectedScreenCaptureSource)
 
