@@ -7,8 +7,6 @@ import type { ServerChannel } from '../../services/airi/channel-server'
 import type { GlobalShortcutService } from '../../services/electron/global-shortcut'
 import type { ChatWindowManager } from '../chat'
 
-import { join, resolve } from 'node:path'
-
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
@@ -23,7 +21,7 @@ import {
   electronSpotlightShowResultNotification,
 } from '../../../shared/eventa'
 import { isSafeSpotlightAccelerator } from '../../../shared/spotlight-shortcut'
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { excludeWindowFromTaskbar } from '../shared/app-icon'
 import { protectPrivilegedWindowNavigation, setupBaseWindowElectronInvokes, transparentWindowConfig } from '../shared/window'
@@ -60,7 +58,6 @@ export function setupSpotlightWindowManager(params: {
   appConfig: Config<typeof globalAppConfigSchema>
 }): SpotlightWindowManager {
   const log = useLogg('spotlight-window').useGlobalConfig()
-  const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
 
   // NOTICE:
   // Electron may GC a `Notification` once the constructor scope returns, which
@@ -110,7 +107,7 @@ export function setupSpotlightWindowManager(params: {
       alwaysOnTop: true,
       icon,
       webPreferences: {
-        preload: join(getElectronMainDirname(), '../preload/index.mjs'),
+        preload: getPreloadPath(),
         sandbox: false,
       },
     })
@@ -138,7 +135,7 @@ export function setupSpotlightWindowManager(params: {
       showNotification(payload.body, () => void openChatWindowFromNotification())
     })
 
-    await load(window, withHashRoute(rendererBase, '/spotlight', {
+    await load(window, withHashRoute(baseUrl(getRendererRoot()), '/spotlight', {
       query: {
         'stage-runtime': 'minimal',
         'synced-leader': 'false',

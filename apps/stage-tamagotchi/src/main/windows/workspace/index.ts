@@ -12,8 +12,6 @@ import type { FullscreenPlace } from '../shared/fullscreen'
 import type { SpotlightWindowManager } from '../spotlight'
 import type { WidgetsWindowManager } from '../widgets'
 
-import { join, resolve } from 'node:path'
-
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
@@ -32,7 +30,7 @@ import {
   electronOpenSettings,
   electronWorkspaceWindowGetOpenRequest,
 } from '../../../shared/eventa'
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { setupSettingsWindowInvokes } from '../settings/rpc/index.electron'
 import { protectPrivilegedWindowNavigation } from '../shared'
@@ -83,7 +81,6 @@ export function setupWorkspaceWindowManager(params: {
   /** Reports when the window opens and closes. */
   onOpenChange?: (open: boolean) => void
 }): WorkspaceWindowManager {
-  const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
   /**
    * What the next window shows first. Its page reads it once when it mounts and opens the surface through the registry,
    * like the main window does.
@@ -118,7 +115,7 @@ export function setupWorkspaceWindowManager(params: {
       hasShadow: false,
       roundedCorners: false,
       webPreferences: {
-        preload: join(getElectronMainDirname(), '../preload/index.mjs'),
+        preload: getPreloadPath(),
         sandbox: false,
       },
     })
@@ -186,7 +183,7 @@ export function setupWorkspaceWindowManager(params: {
         window.close()
     })
 
-    await load(window, withHashRoute(rendererBase, WORKSPACE_PAGE, {
+    await load(window, withHashRoute(baseUrl(getRendererRoot()), WORKSPACE_PAGE, {
       query: { 'synced-leader': 'false', 'fullscreen-host': 'workspace-window' },
     }))
 

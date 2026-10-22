@@ -11,8 +11,6 @@ import type { PluginModuleWidgetPayload } from '../../../shared/eventa/plugin/ho
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 
-import { join, resolve } from 'node:path'
-
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { safeClose } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow as ElectronBrowserWindow, ipcMain, screen } from 'electron'
@@ -24,7 +22,7 @@ import icon from '../../../../resources/icon.png?asset'
 
 import { widgetsClearEvent, widgetsIframeRequestEvent, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdateEvent } from '../../../shared/eventa'
 import { normalizeWidgetWindowSize } from '../../../shared/utils/electron/windows/window-size'
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { showWindowOnAllWorkspaces } from '../shared/app-icon'
 import { protectPrivilegedWindowNavigation, setWindowAlwaysOnTop, spotlightLikeWindowConfig, transparentWindowConfig } from '../shared/window'
@@ -226,7 +224,7 @@ function createWidgetsWindow() {
     show: false,
     icon,
     webPreferences: {
-      preload: join(getElectronMainDirname(), '../preload/index.mjs'),
+      preload: getPreloadPath(),
       sandbox: false,
     },
     // Top-level overlay style like other overlay windows
@@ -305,7 +303,6 @@ export function setupWidgetsWindowManager(params: {
     emitRequest: payload => windowContexts.get(payload.id)?.eventa?.context.emit(widgetsIframeRequestEvent, payload),
   })
 
-  const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
   const defaultRoute = '/widgets'
 
   let widgetsManager: WidgetsWindowManager | undefined
@@ -376,7 +373,7 @@ export function setupWidgetsWindowManager(params: {
   }
 
   async function loadWithRoute(windowContext: WidgetWindowContext, window: BrowserWindow, route: string) {
-    await load(window, withHashRoute(rendererBase, route, {
+    await load(window, withHashRoute(baseUrl(getRendererRoot()), route, {
       query: { 'synced-leader': 'false' },
     }))
     windowContext.currentRoute = route
