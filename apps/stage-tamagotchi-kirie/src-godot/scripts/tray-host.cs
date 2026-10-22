@@ -71,7 +71,6 @@ internal sealed class TrayHost : IDisposable
     private Tween? _alignmentTween;
     private Rect2I _checkedBounds;
     private int _checkedScreen = -1;
-    private bool _disposed;
 
     /// <summary>
     /// Creates the native tray on Godot's main thread.
@@ -119,7 +118,6 @@ internal sealed class TrayHost : IDisposable
     /// </summary>
     public void ApplyLabels(TrayLabelsPayload labels)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
         foreach (var (entry, label) in _labels)
         {
             entry.Text = label(labels);
@@ -131,11 +129,6 @@ internal sealed class TrayHost : IDisposable
     /// </summary>
     public void Process()
     {
-        if (_disposed)
-        {
-            return;
-        }
-
         if (CurrentBounds() != _checkedBounds || _mainWindow.CurrentScreen != _checkedScreen)
         {
             RefreshChecks();
@@ -144,12 +137,6 @@ internal sealed class TrayHost : IDisposable
 
     public void Dispose()
     {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
         _alignmentTween?.Kill();
         _alignmentTween = null;
         _events?.Dispose();
@@ -159,10 +146,6 @@ internal sealed class TrayHost : IDisposable
         {
             _objects[index].Dispose();
         }
-
-        _objects.Clear();
-        _labels.Clear();
-        _actions.Clear();
     }
 
     private TrayMenu BuildMenu()
@@ -300,11 +283,6 @@ internal sealed class TrayHost : IDisposable
             ?? throw new InvalidOperationException($"The tray icon is missing: {path}");
         var image = texture.GetImage()
             ?? throw new InvalidOperationException($"The tray icon has no image: {path}");
-        if (image.IsCompressed())
-        {
-            image.Decompress();
-        }
-
         image.Resize(IconSize, IconSize, Image.Interpolation.Lanczos);
         image.Convert(Image.Format.Rgba8);
         return new IconSource.Rgba(image.GetData(), IconSize, IconSize);
@@ -320,10 +298,7 @@ internal sealed class TrayHost : IDisposable
         action();
 
         // Native check items toggle on click. Restore the state that the geometry describes.
-        if (!_disposed)
-        {
-            RefreshChecks();
-        }
+        RefreshChecks();
     }
 
     private void OnTrayEvent(TrayIconEvent trayEvent)
@@ -368,15 +343,13 @@ internal sealed class TrayHost : IDisposable
         StopAlignment();
         RestoreMainWindow();
         var workArea = CurrentWorkArea();
-        var bounds = preset == TrayWindowSizePreset.FullScreen
-            ? workArea
-            : TrayWindowGeometry.ResolveAnchoredBounds(
-                CurrentBounds(),
-                TrayWindowGeometry.ResolvePresetSize(
-                    preset,
-                    workArea,
-                    DesktopWindowSizing.GetDisplayScale(_mainWindow)),
-                workArea);
+        var bounds = TrayWindowGeometry.ResolveAnchoredBounds(
+            CurrentBounds(),
+            TrayWindowGeometry.ResolvePresetSize(
+                preset,
+                workArea,
+                DesktopWindowSizing.GetDisplayScale(_mainWindow)),
+            workArea);
         _mainWindow.Position = bounds.Position;
         _mainWindow.Size = bounds.Size;
         _mainWindow.Show();
