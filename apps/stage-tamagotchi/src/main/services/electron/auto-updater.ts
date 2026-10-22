@@ -271,14 +271,18 @@ export interface AutoUpdaterOptions {
 }
 
 /**
- * Returns whether a store updates this installation, so AIRI must not run its own updater.
+ * Returns whether a store or a package manager updates this installation, so AIRI must not run its own updater.
  *
  * - Steam builds set `VITE_DISTRIBUTION=steam` at build time.
  * - The Flatpak bundle uses the same JavaScript build as the deb and rpm packages, so only the runtime can tell.
  *   Flatpak sets `FLATPAK_ID` in each sandbox. Flathub updates the app with `flatpak update`.
+ * - The Nix package runs the app from the read-only Nix store, so the updater cannot replace it.
+ *   The `nix/package.nix` launcher sets `AIRI_DISTRIBUTION=nix`. Nix updates the app with a new derivation.
  */
-export function isStoreManagedInstall() {
-  return import.meta.env.VITE_DISTRIBUTION === 'steam' || !!process.env.FLATPAK_ID
+export function isExternallyUpdatedInstall() {
+  return import.meta.env.VITE_DISTRIBUTION === 'steam'
+    || !!process.env.FLATPAK_ID
+    || process.env.AIRI_DISTRIBUTION === 'nix'
 }
 
 function isPrereleaseVersion(version: string) {
