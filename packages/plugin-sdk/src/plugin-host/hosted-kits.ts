@@ -682,9 +682,14 @@ export class KitProviderRegistry {
         }
 
         const endpoint = this.captureProviderEndpoint(acceptedContract, provider, owner)
+        // Input getters can reenter registration. Recheck ownership and state before writing without further external reads.
+        const currentSlot = this.getCurrentPendingSlot(transaction, normalized.id)
+        if (currentSlot.provider.state !== 'unfilled') {
+          throw new KitProviderRegistrationError('duplicate-provide', normalized.id, owner.extensionId, owner.sessionId)
+        }
         const registrationToken = Symbol(normalized.id)
         this.slots.set(normalized.id, {
-          ...slot,
+          ...currentSlot,
           provider: { state: 'filled', registrationToken, contract: acceptedContract, endpoint },
         })
         return {

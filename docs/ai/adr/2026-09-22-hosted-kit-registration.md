@@ -51,6 +51,10 @@ An accepted descriptor has these properties:
 - Each capability action is non-empty and has no outer whitespace.
 - Each action occurs once in its capability.
 
+Exact versions preserve prerelease and build identifiers, such as `1.2.3-rc.1+build.007`. Prefixes, outer whitespace, and version ranges remain invalid.
+
+Host sources and Extension Contracts match declaration versions by their complete strings, including build metadata. Consumer range compatibility still uses SemVer precedence rules.
+
 The Registry does not trim or remove duplicate values. This rule keeps accepted snapshots unambiguous. Invalid metadata fails with `invalid-host-source` before publication.
 
 This decision breaks compatibility with the earlier `KitRegistryService`. That Module accepted empty or duplicate metadata. Host Kit authors must update descriptors before migration.
@@ -117,9 +121,57 @@ The existing `ExtensionHost.getKit()`, `listKits()`, and `getKitCapabilities()` 
 
 `ExtensionHost` keeps Extension setup and cleanup orchestration. It starts one Provider transaction before setup.
 
-If setup succeeds, the Host commits the transaction and stores its session lease. If setup fails, the Host rolls back the transaction.
+The Host keeps registration ownership in a private state associated with the session object:
+
+- `pending` owns the setup transaction.
+- `ready` owns the committed registration lease.
+- `released` owns the shared cleanup promise.
+
+If setup succeeds while registration is pending, the Host commits the transaction and replaces it with its session lease.
+
+Stop releases pending reservations or the ready lease synchronously. A late setup completion cannot commit or restore the session to ready.
+
+The Host does not abort Extension code or wait for a suspended setup during stop. When that setup settles, its start operation rejects.
+
+Released sessions reject module registration. Concurrent stop calls and late setup failures share the same cleanup promise and its error.
+
+The Host removes the session even when cleanup fails. If setup and cleanup both fail, the start operation retains both errors.
 
 During stop or reload, the Host disposes the session lease before cleanup callbacks. These callbacks cannot observe a ready Provider after stop starts.
+
+## Best-effort cleanup
+
+`DisposableStore` attempts each registered entry sequentially in reverse registration order. A failed entry does not skip the remaining entries.
+
+The store drains its entries before callbacks run. Each entry is attempted once, with no automatic retry. Repeated disposal remains a no-op.
+
+Module and session cleanup compose these stores instead of implementing separate error loops:
+
+- Module cleanup attempts binding removal before subscription disposal.
+- Session cleanup attempts binding removal, all modules in reverse registration order, then root subscriptions.
+- Module and session records are removed after their cleanup attempts, including failed attempts.
+
+A single failure keeps its original identity. Multiple failures produce an `AggregateError` in attempt order. Nested cleanup groups retain their own error groups.
+
+The shared session cleanup promise settles only after all cleanup attempts finish. Concurrent stop calls and late setup failure observe the same result.
+
+This policy guarantees attempts, not successful release. It does not retry failed resources or impose timeouts on suspended disposers.
+
+## Cleanup self-wait detection
+
+Node/Electron Hosts use native `AsyncLocalStorage` to distinguish cleanup descendants from external callers. A shared boolean cannot distinguish these concurrent call chains.
+
+Before a released session joins its cleanup promise, the Host checks whether that exact session object has an active cleanup ancestor.
+If it does, stop or reload rejects instead of waiting for its own caller. Best-effort cleanup then attempts the remaining resources.
+An uncaught self-wait error becomes part of the shared cleanup result. External concurrent callers still await the full result.
+
+The context follows native asynchronous operations, including `await`. Nested cleanup can stop an unrelated session, but it cannot wait for an active ancestor.
+Session object identity prevents equal IDs in different Hosts from matching. Completed frames become inactive, including in detached continuations.
+This is call-chain detection, not a general detector for cycles between independently started cleanup operations.
+
+The Node implementation lives under `runtimes/node` and loads only when cleanup starts on a Node/Electron Host.
+The configured Host runtime selects this policy. A per-start Extension runtime override does not change the Host execution environment.
+Web cleanup retains best-effort disposal and shared completion, without self-wait detection. Browser context propagation and arbitrary plugin code transforms remain outside this change.
 
 ## Extension transaction publication
 

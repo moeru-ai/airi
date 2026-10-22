@@ -1,3 +1,5 @@
+import type { KitProviderHandle } from '../kit'
+
 import { describe, expect, it, vi } from 'vitest'
 
 import { defineKitContract, defineKitMethod } from '../kit'
@@ -39,6 +41,35 @@ function registerHostApi(registry: KitProviderRegistry, id: string, version = '1
 }
 
 describe('kit provider registry', () => {
+  // https://github.com/moeru-ai/airi/pull/2687
+  it('preserves build metadata in Host sources and rejects a different build (PR #2687)', () => {
+    const registry = new KitProviderRegistry()
+    const version = '1.2.3+build.007'
+    registerHostDescriptor(registry, 'kit.build-metadata', version)
+    expect(() => registerHostApi(registry, 'kit.build-metadata', '1.2.3+build.008')).toThrow('provider-slot-conflict')
+    registerHostApi(registry, 'kit.build-metadata', version)
+
+    expect(registry.getReady('kit.build-metadata')).toMatchObject({ version, generation: 2 })
+    expect(registry.getHostDescriptor('kit.build-metadata')?.version).toBe(version)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  it('requires exact build identity between declarations and Contracts (PR #2687)', () => {
+    const registry = new KitProviderRegistry()
+    const version = '1.2.3-rc.1+build.007'
+    const transaction = registry.beginExtensionSession({
+      owner: { kind: 'extension', extensionId: 'build-provider', sessionId: 'build-session' },
+      declarations: [{ id: 'kit.build-metadata', version, exposure: 'local-only' }],
+    })
+    const mismatched = defineKitContract({ id: 'kit.build-metadata', version: '1.2.3-rc.1+build.008', methods: {}, events: {} })
+    expect(() => transaction.provide(mismatched, { methods: {} })).toThrow('kit-version-mismatch')
+    const accepted = defineKitContract({ id: 'kit.build-metadata', version, methods: {}, events: {} })
+    transaction.provide(accepted, { methods: {} })
+    transaction.commit()
+
+    expect(registry.getReady(accepted.id)).toMatchObject({ version, generation: 1 })
+  })
+
   it('reserves all declarations before setup and publishes them only after commit', () => {
     const registry = new KitProviderRegistry()
     const transaction = begin(registry, 'one')
@@ -505,6 +536,126 @@ describe('kit provider registry', () => {
 
     expect(read).toHaveBeenCalledTimes(1)
     expect(registry.getReady(contract.id)).toBeDefined()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // Endpoint capture ran a getter after the outer call checked an unfilled slot.
+  // The outer write overwrote the inner registration and invalidated its handle.
+  // The Registry now rechecks the current slot after capture.
+  it('rejects an outer provide when its methods getter registers the same Kit (PR #2687)', () => {
+    const registry = new KitProviderRegistry()
+    const transaction = begin(registry, 'one')
+    const handles: KitProviderHandle[] = []
+    const innerRead = vi.fn(() => 'inner')
+    const outerRead = vi.fn(() => 'outer')
+    const methods = vi.fn(() => {
+      handles.push(transaction.provide(contract, { methods: { read: innerRead } }))
+      return { read: outerRead }
+    })
+    const provider = {
+      get methods() {
+        return methods()
+      },
+    }
+
+    expect(() => transaction.provide(contract, provider)).toThrow('duplicate-provide')
+    expect(methods).toHaveBeenCalledTimes(1)
+    expect(handles).toHaveLength(1)
+    transaction.commit()
+    expect(registry.getReady(contract.id)?.generation).toBe(1)
+    handles[0].dispose()
+    expect(registry.getReady(contract.id)).toBeUndefined()
+    expect(innerRead).not.toHaveBeenCalled()
+    expect(outerRead).not.toHaveBeenCalled()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // The outer call restored a slot withdrawn by a handler getter.
+  // The final state check now rejects both filled and withdrawn slots.
+  it('does not refill a registration withdrawn inside a handler getter (PR #2687)', () => {
+    const registry = new KitProviderRegistry()
+    const transaction = begin(registry, 'one')
+    const provider = {
+      methods: {
+        get read() {
+          const handle = transaction.provide(contract, { methods: { read: () => 'inner' } })
+          handle.dispose()
+          return () => 'outer'
+        },
+      },
+    }
+
+    expect(() => transaction.provide(contract, provider)).toThrow('duplicate-provide')
+    expect(() => transaction.commit()).toThrow('missing-declared-kit')
+    transaction.rollback()
+    const replacement = begin(registry, 'two')
+    replacement.provide(contract, { methods: { read: () => 'replacement' } })
+    replacement.commit()
+    expect(registry.getReady(contract.id)).toMatchObject({ generation: 1, owner: { sessionId: 'two' } })
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // A getter rolled back its transaction and installed a replacement.
+  // The stale outer write overwrote that replacement. The final ownership check now rejects it.
+  it('preserves a replacement after a getter rolls back its transaction (PR #2687)', () => {
+    const registry = new KitProviderRegistry()
+    const transaction = begin(registry, 'one')
+    const provider = {
+      get methods() {
+        transaction.rollback()
+        registerHostDescriptor(registry, contract.id)
+        return { read: () => 'outer' }
+      },
+    }
+
+    expect(() => transaction.provide(contract, provider)).toThrow('stale-provider-transaction')
+    transaction.rollback()
+    expect(registry.getReady(contract.id)).toMatchObject({ generation: 1, owner: { kind: 'host' } })
+    expect(registry.getHostDescriptor(contract.id)?.version).toBe(contract.version)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // The outer write replaced a ready registration with a pending slot after a getter committed.
+  // The final transaction check now rejects writes after commit.
+  it('preserves a registration committed inside a methods getter (PR #2687)', () => {
+    const registry = new KitProviderRegistry()
+    const transaction = begin(registry, 'one')
+    const handles: KitProviderHandle[] = []
+    const provider = {
+      get methods() {
+        handles.push(transaction.provide(contract, { methods: { read: () => 'inner' } }))
+        transaction.commit()
+        return { read: () => 'outer' }
+      },
+    }
+
+    expect(() => transaction.provide(contract, provider)).toThrow('stale-provider-transaction')
+    expect(registry.getReady(contract.id)).toMatchObject({ generation: 1, owner: { sessionId: 'one' } })
+    expect(handles).toHaveLength(1)
+    handles[0].dispose()
+    expect(registry.getReady(contract.id)).toBeUndefined()
+  })
+
+  it('allows a methods getter to provide a different declared Kit', () => {
+    const registry = new KitProviderRegistry()
+    const transaction = begin(registry, 'one', [contract.id, secondContract.id])
+    transaction.provide(contract, {
+      get methods() {
+        transaction.provide(secondContract, { methods: { read: () => 'second' } })
+        return { read: () => 'first' }
+      },
+    })
+
+    expect(transaction.commit().providers.map(provider => provider.id)).toEqual([contract.id, secondContract.id])
+    expect(registry.listReady()).toHaveLength(2)
   })
 
   it('adds registration context when reading Provider methods fails', () => {

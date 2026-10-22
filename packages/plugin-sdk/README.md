@@ -36,6 +36,8 @@ Manifest parsing is strict. Unknown fields, unsafe ids, empty entrypoints, and m
 
 Kit Provider declarations use exact semantic versions. Kit Consumer declarations accept semantic version ranges.
 
+Exact versions retain prerelease and build identifiers, such as `1.2.3-rc.1+build.007`. Provider declarations, Contracts, and matching Host sources require the same complete version.
+
 ## Extension-hosted Kit Registration
 
 An Extension-hosted Kit has a shared Contract and a Provider implementation. The Manifest declares the Kit before the Extension runs. Root setup calls `ctx.kits.provide(...)` with the same ID, version, and exposure policy.
@@ -60,6 +62,16 @@ export default defineExtension({
 ```
 
 The Host reserves every declared Kit before setup starts. It publishes all registrations only after setup succeeds. If setup fails or omits a declared Kit, the Host rolls back the registrations. Stop and reload withdraw the exact Provider session. A stale handle cannot withdraw a later generation.
+
+Stop also releases reservations while setup is pending. It does not wait for suspended Extension code. A stopped setup rejects when it settles and cannot publish Providers or register modules.
+
+Cleanup attempts every module and root subscription even when a disposer fails. Each subscription group runs sequentially in reverse registration order, without automatic retries.
+
+The Host removes the session after these attempts. One failure retains its original identity. Multiple failures use `AggregateError`, with nested groups preserved.
+
+Node/Electron Hosts reject stop or reload from the target session's active cleanup chain, including calls after `await`.
+Nested cleanup cannot wait for an active ancestor session. External concurrent callers still await the complete cleanup result.
+The Host loads Node asynchronous context only when its configured runtime is `node` or `electron`. Web Hosts do not provide this detection.
 
 Only root setup can provide a Kit. Module scopes can consume Host-provided Kits, but they cannot provide an Extension-hosted Kit. Phase 3 stores Provider handlers without invoking them. Consumer Clients, method calls, events, permissions, and transport belong to Phase 4.
 

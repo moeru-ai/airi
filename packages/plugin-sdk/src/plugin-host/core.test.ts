@@ -202,6 +202,32 @@ describe('extension manifest schema', () => {
     expect(safeParse(extensionManifestV2Schema, manifest).success).toBe(true)
   })
 
+  // https://github.com/moeru-ai/airi/pull/2687
+  it('accepts exact package and Provider versions with build metadata (PR #2687)', () => {
+    // ROOT CAUSE:
+    //
+    // semver.valid omits build metadata from its result.
+    // Comparing that result with the input rejected valid exact versions.
+    // The exact-version predicate now reconstructs the complete version before comparison.
+    const version = '1.2.3-rc.1+build.007'
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'build-metadata-provider',
+      version,
+      engines: { airi: '*', runtimes: ['electron'] },
+      permissions: {},
+      entrypoints: { electron: './extension.mjs' },
+      kits: { provides: [{ id: 'kit.build-metadata', version, exposure: 'local-only' }] },
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.output.version).toBe(version)
+      expect(result.output.kits?.provides?.[0]?.version).toBe(version)
+    }
+  })
+
   it('rejects duplicate provided Kit ids', () => {
     const result = safeParse(extensionManifestV2Schema, {
       manifestVersion: 2,
@@ -427,6 +453,123 @@ describe('extension-hosted Kit registration lifecycle', () => {
     expect(host.getKitProvider(contract.id)).toBeUndefined()
   })
 
+  // https://github.com/moeru-ai/airi/pull/2687
+  it('releases pending slots on stop and rejects late setup publication (PR #2687)', async () => {
+    // ROOT CAUSE:
+    //
+    // Stop owned only committed leases, so an async setup retained its pending transaction.
+    // The old setup then published after stop or blocked a replacement session.
+    // Session lifecycle state now owns the transaction until commit and releases it on stop.
+    const host = new ExtensionHost()
+    const entered = Promise.withResolvers<void>()
+    const resume = Promise.withResolvers<void>()
+    const dispose = vi.fn()
+    const starting = host.startExtension(defineExtension({
+      id: 'provider-one',
+      async setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'old' } })
+        ctx.subscriptions.add({ dispose })
+        entered.resolve()
+        await resume.promise
+      },
+    }), { manifest: manifest('provider-one') })
+    const result = starting.catch((error: unknown) => error)
+    await entered.promise
+    const [pending] = host.listSessions()
+    expect(pending.phase).toBe('setting-up')
+
+    const stopping = host.stop(pending.id)
+    const replacement = await host.startExtension(defineExtension({
+      id: 'provider-two',
+      setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'new' } })
+      },
+    }), { manifest: manifest('provider-two') })
+    await stopping
+    resume.resolve()
+    expect(await result).toMatchObject({ message: expect.stringContaining('stopped before setup completed') })
+
+    expect(pending.phase).toBe('stopped')
+    expect(dispose).toHaveBeenCalledTimes(1)
+    expect(host.listSessions()).toEqual([replacement])
+    expect(host.getKitProvider(contract.id)).toMatchObject({ generation: 1, owner: { sessionId: replacement.id } })
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  it('cancels an unfilled setup and rejects late provide and module registration (PR #2687)', async () => {
+    const host = new ExtensionHost()
+    const entered = Promise.withResolvers<void>()
+    const resume = Promise.withResolvers<void>()
+    const starting = host.startExtension(defineExtension({
+      id: 'provider-one',
+      async setup(ctx) {
+        entered.resolve()
+        await resume.promise
+        expect(() => ctx.kits.provide(contract, { methods: { read: () => 'late' } })).toThrow()
+        await expect(ctx.modules.register({ id: 'late-module' })).rejects.toThrow('stopped')
+      },
+    }), { manifest: manifest('provider-one') })
+    const result = starting.catch((error: unknown) => error)
+    await entered.promise
+    const [pending] = host.listSessions()
+    await host.stop(pending.id)
+    resume.resolve()
+    expect(await result).toMatchObject({ message: expect.stringContaining('stopped before setup completed') })
+
+    expect(host.listSessions()).toEqual([])
+    expect(host.listModules()).toEqual([])
+    expect(host.getKitProvider(contract.id)).toBeUndefined()
+    const replacement = await host.startExtension(defineExtension({
+      id: 'provider-two',
+      setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'new' } })
+      },
+    }), { manifest: manifest('provider-two') })
+    expect(host.getKitProvider(contract.id)).toMatchObject({ generation: 1, owner: { sessionId: replacement.id } })
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  it('shares in-flight stop cleanup with late setup failure (PR #2687)', async () => {
+    const host = new ExtensionHost()
+    const entered = Promise.withResolvers<void>()
+    const resume = Promise.withResolvers<void>()
+    const cleaning = Promise.withResolvers<void>()
+    const finishCleanup = Promise.withResolvers<void>()
+    const setupError = new Error('late setup failure')
+    const cleanupError = new Error('stop cleanup failure')
+    const dispose = vi.fn(async () => {
+      cleaning.resolve()
+      await finishCleanup.promise
+      throw cleanupError
+    })
+    const starting = host.startExtension(defineExtension({
+      id: 'provider-one',
+      async setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'old' } })
+        ctx.subscriptions.add({ dispose })
+        entered.resolve()
+        await resume.promise
+        throw setupError
+      },
+    }), { manifest: manifest('provider-one') })
+    const result = starting.catch((error: unknown) => error)
+    await entered.promise
+    const [pending] = host.listSessions()
+    const stopping = host.stop(pending.id).catch((error: unknown) => error)
+    const stoppingAgain = host.stop(pending.id).catch((error: unknown) => error)
+    await cleaning.promise
+    resume.resolve()
+    finishCleanup.resolve()
+    expect(await result).toMatchObject({ errors: [setupError, cleanupError], cause: setupError })
+    expect(await stopping).toBe(cleanupError)
+    expect(await stoppingAgain).toBe(cleanupError)
+
+    expect(dispose).toHaveBeenCalledTimes(1)
+    expect(pending.phase).toBe('stopped')
+    expect(host.listSessions()).toEqual([])
+    expect(host.getKitProvider(contract.id)).toBeUndefined()
+  })
+
   it('rolls back after setup failure and after an omitted declaration', async () => {
     const host = new ExtensionHost()
     const setupError = new Error('setup failed')
@@ -452,6 +595,325 @@ describe('extension-hosted Kit registration lifecycle', () => {
       },
     }), { manifest: manifest('provider-three') })
     expect(host.getKitProvider(contract.id)?.generation).toBe(1)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // Stop joined the cleanup promise that awaited its own disposer, including after await.
+  // Node asynchronous context now rejects self-waits while external callers retain the shared outcome.
+  it('rejects self-stop across an await while external stops share completed cleanup (PR #2687)', async () => {
+    const host = new ExtensionHost()
+    const entered = Promise.withResolvers<void>()
+    const resume = Promise.withResolvers<void>()
+    const remaining = vi.fn()
+    const session = await host.startExtension(defineExtension({
+      id: 'self-stop',
+      setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+        ctx.subscriptions.add({ dispose: remaining })
+        ctx.subscriptions.add({ dispose: async () => {
+          entered.resolve()
+          await resume.promise
+          await host.stop(session.id)
+        } })
+      },
+    }), { manifest: manifest('self-stop') })
+
+    const stopping = host.stop(session.id).catch((error: unknown) => error)
+    await entered.promise
+    const stoppingAgain = host.stop(session.id).catch((error: unknown) => error)
+    const reloading = host.reload(session.id).catch((error: unknown) => error)
+    let externalFinished = false
+    void stoppingAgain.then(() => {
+      externalFinished = true
+    })
+    await Promise.resolve()
+    expect(externalFinished).toBe(false)
+    expect(remaining).not.toHaveBeenCalled()
+    resume.resolve()
+
+    const failure = await stopping
+    expect(failure).toBeInstanceOf(Error)
+    expect(failure).toHaveProperty('message', expect.stringContaining('from its own cleanup'))
+    expect(await stoppingAgain).toBe(failure)
+    expect(await reloading).toBe(failure)
+    expect(remaining).toHaveBeenCalledTimes(1)
+    expect(host.listSessions()).toEqual([])
+    expect(host.getKitProvider(contract.id)).toBeUndefined()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // Direct self-stop returned the pending cleanup promise before the disposer could finish.
+  // Cleanup context now rejects the join, and best-effort disposal continues.
+  it('rejects synchronous self-stop without skipping later cleanup (PR #2687)', async () => {
+    const host = new ExtensionHost({ runtime: 'node' })
+    const remaining = vi.fn()
+    const session = await host.startExtension(defineExtension({
+      id: 'self-stop-sync',
+      setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+        ctx.subscriptions.add({ dispose: remaining })
+        ctx.subscriptions.add({ dispose: async () => {
+          await host.stop(session.id)
+        } })
+      },
+    }), { manifest: { ...manifest('self-stop-sync'), engines: { airi: '*', runtimes: ['node'] } } })
+
+    await expect(host.stop(session.id)).rejects.toThrow('from its own cleanup')
+    expect(remaining).toHaveBeenCalledTimes(1)
+    expect(host.listSessions()).toEqual([])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // Reload joined the same session cleanup from inside a module disposer and never reached fresh start.
+  // The shared cleanup join now rejects calls from that session's active cleanup chain.
+  it('rejects module self-reload after an await without starting a replacement (PR #2687)', async () => {
+    const host = new ExtensionHost()
+    const start = vi.spyOn(host, 'start')
+    const remaining = vi.fn()
+    const session = await host.startExtension(defineExtension({
+      id: 'self-reload',
+      async setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+        ctx.subscriptions.add({ dispose: remaining })
+        const module = await ctx.modules.register({ id: 'module-one' })
+        module.subscriptions.add({ dispose: async () => {
+          await Promise.resolve()
+          await host.reload(session.id)
+        } })
+      },
+    }), { manifest: manifest('self-reload') })
+
+    await expect(host.stop(session.id)).rejects.toThrow('from its own cleanup')
+    expect(start).not.toHaveBeenCalled()
+    expect(remaining).toHaveBeenCalledTimes(1)
+    expect(session.modules.size).toBe(0)
+    expect(host.listSessions()).toEqual([])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // A disposer could stop another session whose cleanup then awaited the first session.
+  // Active cleanup ancestors remain visible across nested asynchronous calls, so the cyclic join rejects.
+  it('allows cleanup to stop another session but rejects a wait on an ancestor cleanup (PR #2687)', async () => {
+    const host = new ExtensionHost()
+    const order: string[] = []
+    let secondId: string
+    const first = await host.startExtension(defineExtension({
+      id: 'first-cleanup',
+      setup(ctx) {
+        ctx.subscriptions.add({ dispose: async () => {
+          order.push('first')
+          await host.stop(secondId)
+        } })
+      },
+    }), { manifest: { ...manifest('first-cleanup'), kits: undefined } })
+    const second = await host.startExtension(defineExtension({
+      id: 'second-cleanup',
+      setup(ctx) {
+        ctx.subscriptions.add({ dispose: async () => {
+          order.push('second')
+          await Promise.resolve()
+          await host.stop(first.id)
+        } })
+      },
+    }), { manifest: { ...manifest('second-cleanup'), kits: undefined } })
+    secondId = second.id
+
+    await expect(host.stop(first.id)).rejects.toThrow('from its own cleanup')
+    expect(order).toEqual(['first', 'second'])
+    expect(host.listSessions()).toEqual([])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  it('keeps cleanup context isolated from unrelated sessions and later operations (PR #2687)', async () => {
+    const host = new ExtensionHost()
+    const remaining = vi.fn()
+    const second = await host.startExtension(defineExtension({
+      id: 'independent-cleanup',
+      setup(ctx) {
+        ctx.subscriptions.add({ dispose: remaining })
+      },
+    }), { manifest: { ...manifest('independent-cleanup'), kits: undefined } })
+    const first = await host.startExtension(defineExtension({
+      id: 'nested-cleanup',
+      setup(ctx) {
+        ctx.subscriptions.add({ dispose: async () => {
+          await Promise.resolve()
+          await host.stop(second.id)
+        } })
+      },
+    }), { manifest: { ...manifest('nested-cleanup'), kits: undefined } })
+
+    await expect(host.stop(first.id)).resolves.toBe(first)
+    expect(remaining).toHaveBeenCalledTimes(1)
+    expect(host.listSessions()).toEqual([])
+    await expect(host.stop(first.id)).resolves.toBeUndefined()
+  })
+
+  it('preserves shared external cleanup for a Web Host without Node context detection', async () => {
+    const host = new ExtensionHost({ runtime: 'web' })
+    const entered = Promise.withResolvers<void>()
+    const resume = Promise.withResolvers<void>()
+    const remaining = vi.fn()
+    const session = await host.startExtension(defineExtension({
+      id: 'web-cleanup',
+      setup(ctx) {
+        ctx.subscriptions.add({ dispose: remaining })
+        ctx.subscriptions.add({ dispose: async () => {
+          entered.resolve()
+          await resume.promise
+        } })
+      },
+    }), { manifest: { ...manifest('web-cleanup'), kits: undefined, engines: { airi: '*', runtimes: ['web'] } } })
+
+    const stopping = host.stop(session.id)
+    await entered.promise
+    const stoppingAgain = host.stop(session.id)
+    expect(remaining).not.toHaveBeenCalled()
+    resume.resolve()
+    expect(await stopping).toBe(session)
+    expect(await stoppingAgain).toBe(session)
+    expect(remaining).toHaveBeenCalledTimes(1)
+    expect(host.listSessions()).toEqual([])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // A module failure skipped later cleanup before the Host removed the session.
+  // The watcher then remained active without a session that could release it.
+  // Composite disposal now attempts remaining modules and root subscriptions before reporting failure.
+  it('cleans remaining modules and root watchers after a module fails (PR #2687)', async () => {
+    const host = new ExtensionHost()
+    const cleanupError = new Error('module cleanup failed')
+    const order: string[] = []
+    const observe = vi.fn()
+    const kit = defineKit({ id: 'kit.cleanup-watch', version: '1.0.0', createClient: () => ({}) })
+    const lease = host.registerKitApi(kit)
+    const session = await host.startExtension(defineExtension({
+      id: 'provider-one',
+      async setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+        ctx.subscriptions.add({ dispose: () => {
+          order.push('root')
+        } })
+        ctx.kits.watch(kit, observe)
+        const first = await ctx.modules.register({ id: 'first' })
+        first.subscriptions.add({ dispose: () => {
+          order.push('first')
+        } })
+        const failing = await ctx.modules.register({ id: 'failing' })
+        failing.subscriptions.add({ dispose: () => {
+          order.push('failing-tail')
+        } })
+        failing.subscriptions.add({ dispose: () => {
+          order.push('failing-error')
+          throw cleanupError
+        } })
+      },
+    }), { manifest: {
+      ...manifest('provider-one'),
+      permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+    } })
+    expect(observe).toHaveBeenCalledTimes(1)
+
+    await expect(host.stop(session.id)).rejects.toBe(cleanupError)
+    expect(order).toEqual(['failing-error', 'failing-tail', 'first', 'root'])
+    expect(session.modules.size).toBe(0)
+    expect(host.listSessions()).toEqual([])
+    expect(host.getKitProvider(contract.id)).toBeUndefined()
+    lease.dispose()
+    const replacementLease = host.registerKitApi(kit)
+    expect(observe).toHaveBeenCalledTimes(1)
+    replacementLease.dispose()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // Fail-fast cleanup reported only the first module failure and never attempted root subscriptions.
+  // Each cleanup group now retains its failures, and concurrent stops receive the same completed result.
+  it('shares all module and root cleanup failures between concurrent stops (PR #2687)', async () => {
+    const host = new ExtensionHost()
+    const firstError = new Error('first module cleanup failed')
+    const secondError = new Error('second module cleanup failed')
+    const rootError = new Error('root cleanup failed')
+    const entered = Promise.withResolvers<void>()
+    const resume = Promise.withResolvers<void>()
+    const remaining = vi.fn()
+    const session = await host.startExtension(defineExtension({
+      id: 'provider-one',
+      async setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+        ctx.subscriptions.add({ dispose: remaining })
+        ctx.subscriptions.add({ dispose: () => {
+          throw rootError
+        } })
+        const first = await ctx.modules.register({ id: 'first' })
+        first.subscriptions.add({ dispose: () => {
+          throw firstError
+        } })
+        const second = await ctx.modules.register({ id: 'second' })
+        second.subscriptions.add({ dispose: async () => {
+          entered.resolve()
+          await resume.promise
+          throw secondError
+        } })
+      },
+    }), { manifest: manifest('provider-one') })
+
+    const stopping = host.stop(session.id).catch((error: unknown) => error)
+    const stoppingAgain = host.stop(session.id).catch((error: unknown) => error)
+    await entered.promise
+    expect(remaining).not.toHaveBeenCalled()
+    resume.resolve()
+    const failure = await stopping
+    expect(failure).toBeInstanceOf(AggregateError)
+    if (!(failure instanceof AggregateError)) {
+      throw new Error('Expected all cleanup failures.')
+    }
+    expect(failure.errors).toEqual([expect.objectContaining({ errors: [secondError, firstError] }), rootError])
+    expect(await stoppingAgain).toBe(failure)
+    expect(remaining).toHaveBeenCalledTimes(1)
+    expect(session.modules.size).toBe(0)
+    expect(host.listSessions()).toEqual([])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // A rejected module subscription skipped removal of its module record.
+  // Module cleanup now releases its record after all cleanup attempts, including failures.
+  it('removes a manually disposed module after its cleanup fails without retrying it (PR #2687)', async () => {
+    const host = new ExtensionHost()
+    const cleanupError = new Error('module cleanup failed')
+    const remaining = vi.fn()
+    const failing = vi.fn(() => {
+      throw cleanupError
+    })
+    const session = await host.startExtension(defineExtension({
+      id: 'provider-one',
+      async setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+        const module = await ctx.modules.register({ id: 'module-one' })
+        module.subscriptions.add({ dispose: remaining })
+        module.subscriptions.add({ dispose: failing })
+      },
+    }), { manifest: manifest('provider-one') })
+    const [module] = session.modules.values()
+
+    await expect(module.dispose()).rejects.toBe(cleanupError)
+    expect(session.modules.size).toBe(0)
+    await host.stop(session.id)
+    expect(remaining).toHaveBeenCalledTimes(1)
+    expect(failing).toHaveBeenCalledTimes(1)
   })
 
   it('keeps both setup and cleanup errors after withdrawing the Provider', async () => {
@@ -514,8 +976,10 @@ describe('extension-hosted Kit registration lifecycle', () => {
     expect(host.getKitProvider(contract.id)?.owner.kind).toBe('extension')
   })
 
-  it('reloads with a new generation and ignores an old handle', async () => {
+  it('awaits concurrent external cleanup before reload and ignores an old handle (PR #2687)', async () => {
     const host = new ExtensionHost()
+    const entered = Promise.withResolvers<void>()
+    const resume = Promise.withResolvers<void>()
     const fixture = await import('./testdata/test-hosted-kit-provider-entrypoint')
     const session = await host.start({
       ...manifest('reload-provider'),
@@ -523,8 +987,19 @@ describe('extension-hosted Kit registration lifecycle', () => {
       entrypoints: { electron: join(import.meta.dirname, 'testdata', 'test-hosted-kit-provider-entrypoint.ts') },
     })
     const oldHandle = fixture.providerHandleState.current
+    session.subscriptions.add({ dispose: async () => {
+      entered.resolve()
+      await resume.promise
+    } })
 
-    const next = await host.reload(session.id)
+    const stopping = host.stop(session.id)
+    await entered.promise
+    const reloading = host.reload(session.id)
+    expect(host.getKitProvider(fixture.hostedKitContract.id)).toBeUndefined()
+    expect(host.listSessions()).toEqual([session])
+    resume.resolve()
+    expect(await stopping).toBe(session)
+    const next = await reloading
     oldHandle?.dispose()
 
     expect(next.id).not.toBe(session.id)

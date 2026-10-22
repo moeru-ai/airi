@@ -512,7 +512,11 @@ export interface ExtensionHostOptions {
     persisted?: ModulePermissionGrant
     requested: ModulePermissionDeclaration
   }) => ModulePermissionGrant | Promise<ModulePermissionGrant>
-  /** Runtime used when callers do not override it per load/start call. @default 'electron' */
+  /**
+   * Host execution runtime and default Extension target. Only Node/Electron Hosts enable asynchronous cleanup self-wait detection.
+   * Per-start overrides change the Extension target, not the Host's cleanup context.
+   * @default 'electron'
+   */
   runtime?: PluginRuntime
 }
 
