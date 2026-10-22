@@ -82,7 +82,7 @@ export async function setupSettingsWindowInvokes(params: {
   await setupBaseWindowElectronInvokes({ context, window: params.settingsWindow, i18n: params.i18n, serverChannel: params.serverChannel })
 
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.settingsWindow })
-  createAutoUpdaterService({ context, window: params.settingsWindow, service: params.autoUpdater })
+  createAutoUpdaterService({ window: params.settingsWindow, service: params.autoUpdater })
   createMcpServersService({ context, manager: params.mcpManager })
   createGodotStageService({ context, manager: params.godotStageManager, window: params.settingsWindow })
   createAuthService({ context, window: params.settingsWindow })

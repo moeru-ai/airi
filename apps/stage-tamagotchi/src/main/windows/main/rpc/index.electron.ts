@@ -70,7 +70,7 @@ export async function setupMainWindowElectronInvokes(params: {
   // The stage renderer owns the voice host, so it registers the Push to Talk hold shortcut and receives its key events.
   params.globalShortcut.registerWindow({ context, window: params.window })
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.window })
-  createAutoUpdaterService({ context, window: params.window, service: params.autoUpdater })
+  createAutoUpdaterService({ window: params.window, service: params.autoUpdater })
   createMcpServersService({ context, manager: params.mcpManager })
   createGodotStageService({ context, manager: params.godotStageManager, window: params.window })
   createOnboardingService({ context, onboardingWindowManager: params.onboardingWindowManager, mainWindow: params.window })
