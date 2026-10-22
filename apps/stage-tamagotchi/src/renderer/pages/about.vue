@@ -36,8 +36,8 @@ const {
 } = useAnalytics()
 
 const isDisabled = computed(() => updateState.value.status === 'disabled')
-// Only a store-managed install reports `disabled`. Flatpak is known only at runtime, so the Steam build flag is not enough.
-const isStoreManaged = computed(() => import.meta.env.VITE_DISTRIBUTION === 'steam' || isDisabled.value)
+// Only an install that a store or a package manager updates reports `disabled`. Flatpak and Nix are known only at runtime, so the Steam build flag is not enough.
+const isExternallyUpdated = computed(() => import.meta.env.VITE_DISTRIBUTION === 'steam' || isDisabled.value)
 const isLatestVersion = computed(() => {
   return updateState.value.status === 'not-available' && !isDisabled.value
 })
@@ -278,7 +278,7 @@ onMounted(() => {
             </div>
 
             <FieldSelect
-              v-if="!isStoreManaged"
+              v-if="!isExternallyUpdated"
               :model-value="selectedUpdateChannel"
               :disabled="isUpdateChannelUpdating || isBusy"
               :label="t('tamagotchi.stage.about.update.lane.label')"
