@@ -81,6 +81,8 @@ const synchronizedCardSchema = looseObject({ name: string(), version: string() }
 
 /** Every device can load this Display Model, because it is bundled and not stored. */
 const BUILT_IN_DISPLAY_MODEL_ID = 'preset-live2d-1'
+/** Global Stage model choice that versions before PR #2458 stored outside any card. */
+const LEGACY_STAGE_MODEL_STORAGE_KEY = 'settings/stage/model'
 const emptyAvatarModels: readonly CharacterAvatarModelReference[] = Object.freeze([])
 const emptyLive2DExpressions: readonly Live2DExpressionControl[] = Object.freeze([])
 const emptyLive2DMotions: readonly Live2DMotionControl[] = Object.freeze([])
@@ -1158,13 +1160,10 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
     initialized = true
     // NOTICE:
-    // Cards saved before Avatar Models existed store their model in
-    // `modules.displayModelId`. Normalization deletes that field, so read it first
-    // and move it into an Avatar Model reference. Without this step, an upgraded
-    // card shows an empty Stage and its model choice cannot be recovered.
+    // Cards saved before Avatar Models store their model in `modules.displayModelId`.
+    // Normalization deletes it, so move it into an Avatar Model reference first.
     // Source: PR #2458 replaced `modules.displayModelId` with `avatarModels`.
-    // Removal condition: delete after the first stable release that contains
-    // PR #2458 has been out for one more stable release.
+    // Removal condition: one stable release after the first stable release with PR #2458.
     const legacyDisplayModelIds = new Map<string, string>()
     for (const [id, card] of cards.value) {
       const legacyDisplayModelId = legacyDisplayModelIdOf(toRaw(card))
@@ -1208,6 +1207,23 @@ export const useAiriCardStore = defineStore('airi-card', () => {
           },
         },
       })
+    }
+
+    // NOTICE:
+    // Up to v0.12.0-beta.5 the Stage model was also stored in `settings/stage/model`.
+    // PR #2458 stopped reading it, so an upgrade showed the bundled preset.
+    // Move it once, only into a card that shows the bundled preset.
+    // Removal condition: the same as the migration above.
+    const legacyStageModelId = globalThis.localStorage?.getItem(LEGACY_STAGE_MODEL_STORAGE_KEY)
+    if (legacyStageModelId) {
+      const card = toRaw(cards.value.get(activeCardId.value))
+      const cardDefaultAvatarModelId = card?.extensions.airi.defaultAvatarModelId
+      const cardDisplayModelId = card?.extensions.airi.avatarModels.find(model => model.id === cardDefaultAvatarModelId)?.displayModelId
+      if (legacyStageModelId !== BUILT_IN_DISPLAY_MODEL_ID && (!cardDisplayModelId || cardDisplayModelId === BUILT_IN_DISPLAY_MODEL_ID))
+        await setCharacterDefaultAvatarModelFromDisplayModel(activeCardId.value, legacyStageModelId)
+      // A model that this device does not store gives no reference, as above.
+      // Remove the key in all cases, so that the migration runs only once.
+      localStorage.removeItem(LEGACY_STAGE_MODEL_STORAGE_KEY)
     }
 
     if (!activeAvatarModels.value.some(model => model.id === selectedAvatarModelId.value))
