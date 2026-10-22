@@ -58,6 +58,7 @@ internal sealed class TrayHost : IDisposable
     private readonly Node _owner;
     private readonly Window _mainWindow;
     private readonly SettingsWindowManager _settings;
+    private readonly AboutWindowManager _about;
     private readonly Action _quit;
     private readonly bool _isMacOS = OS.GetName() == "macOS";
     private readonly List<TrayObject> _objects = [];
@@ -81,11 +82,13 @@ internal sealed class TrayHost : IDisposable
         Node owner,
         Window mainWindow,
         SettingsWindowManager settings,
+        AboutWindowManager about,
         Action quit)
     {
         _owner = owner;
         _mainWindow = mainWindow;
         _settings = settings;
+        _about = about;
         _quit = quit;
 
         try
@@ -186,10 +189,10 @@ internal sealed class TrayHost : IDisposable
                 AlignmentItem(TrayWindowAlignment.BottomRight, labels => labels.BottomRight)),
             Separator(),
             Item(labels => labels.Settings, () => _settings.Open(null)),
-            // The Kirie host has no About, Inlay, Widgets, Caption, or BeatSync window yet.
-            // These items stay disabled so that the menu keeps the Electron layout.
-            Item(labels => labels.About, null),
+            Item(labels => labels.About, _about.Open),
             Separator(),
+            // The Kirie host has no Inlay, Widgets, Caption, or BeatSync window yet.
+            // These items stay disabled so that the menu keeps the Electron layout.
             Item(labels => labels.OpenInlay, null),
             Item(labels => labels.OpenWidgets, null),
             Item(labels => labels.OpenCaption, null),

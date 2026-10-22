@@ -59,7 +59,7 @@ The following work remains deferred:
 | Artistry | Credentials, provider jobs, downloads, and Widget updates |
 | MCP | Configuration and stdio process lifecycle |
 | Packaging and updates | Exports, signatures, installation, update manifests, and relaunch |
-| Auxiliary windows | About, Inlay, Widgets list, Caption, and BeatSync. Their tray items stay disabled. |
+| Auxiliary windows | Inlay, Widgets list, Caption, and BeatSync. Their tray items stay disabled. |
 
 The Node services remain outside the Kirie bootstrap until AIRI supplies their runtime and lifecycle.
 The workspace Node.js command is not a production sidecar.

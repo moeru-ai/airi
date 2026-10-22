@@ -16,6 +16,7 @@ public partial class Main : Node
     private GdKirieNotificationsHost? _notifications;
     private OnboardingWindowManager? _onboarding;
     private SettingsWindowManager? _settings;
+    private AboutWindowManager? _about;
     private ChatWindowManager? _chat;
     private WidgetWindowManager? _widgets;
     private SpotlightHost? _spotlight;
@@ -126,6 +127,12 @@ public partial class Main : Node
                 _developerTools,
                 _spotlight,
                 _widgets);
+            _about = new AboutWindowManager(
+                this,
+                window,
+                registry,
+                rendererUrl,
+                _microphonePermissions);
             _notice = new NoticeWindowManager(
                 _eventa.Context,
                 this,
@@ -146,6 +153,7 @@ public partial class Main : Node
                 this,
                 window,
                 _settings,
+                _about,
                 () => GetTree().Quit());
         }
         catch (Exception error) when (error is TrayException or InvalidOperationException)
@@ -187,6 +195,7 @@ public partial class Main : Node
         _spotlight?.Dispose();
         _widgets?.Dispose();
         _chat?.Dispose();
+        _about?.Dispose();
         _settings?.Dispose();
         _onboarding?.Dispose();
         _developerToolsRegistration?.Dispose();
