@@ -37,13 +37,13 @@ import { array, number, object, optional, string } from 'valibot'
 import icon from '../../../../resources/icon.png?asset'
 
 import { electronFullscreenExit, electronFullscreenOpen, electronFullscreenPack, electronFullscreenRequestClose, electronFullscreenSetMode, electronFullscreenSurfaceChanged, electronMainWindowEnterFullscreen, electronMainWindowGetFullscreenState, electronMainWindowSetFullscreenBounds, electronStartDraggingWindow } from '../../../shared/eventa'
-import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
 import { shouldOpenDevTools } from '../../libs/electron/devtools'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { setupSettingsPageInvokes } from '../settings/rpc/index.electron'
 import { protectPrivilegedWindowNavigation, setWindowAlwaysOnTop, transparentWindowConfig } from '../shared'
 import { centerWindowOnDisplay, computeCenteredWindowBounds } from '../shared/display'
+import { hideOnClose } from './hide-on-close'
 import { setupMainWindowElectronInvokes } from './rpc/index.electron'
 
 const appConfigSchema = object({
@@ -135,10 +135,7 @@ export async function setupMainWindow(params: {
     params.onWindowCreated(window)
   }
 
-  let allowClose = false
-  onAppBeforeQuit(() => {
-    allowClose = true
-  })
+  hideOnClose(window)
 
   if (shouldOpenDevTools()) {
     try {
@@ -203,14 +200,6 @@ export async function setupMainWindow(params: {
 
   window.on('resize', () => handleNewBounds(window.getBounds()))
   window.on('move', () => handleNewBounds(window.getBounds()))
-  window.on('close', (event) => {
-    if (allowClose) {
-      return
-    }
-
-    event.preventDefault()
-    window.hide()
-  })
 
   // Thanks to [@HeartArmy](https://github.com/HeartArmy) for the tip implementation.
   //
