@@ -36,7 +36,8 @@ const {
 } = useAnalytics()
 
 const isDisabled = computed(() => updateState.value.status === 'disabled')
-const isStoreManaged = import.meta.env.VITE_DISTRIBUTION === 'steam'
+// Only a store-managed install reports `disabled`. Flatpak is known only at runtime, so the Steam build flag is not enough.
+const isStoreManaged = computed(() => import.meta.env.VITE_DISTRIBUTION === 'steam' || isDisabled.value)
 const isLatestVersion = computed(() => {
   return updateState.value.status === 'not-available' && !isDisabled.value
 })
@@ -389,9 +390,7 @@ onMounted(() => {
                       : isLatestVersion
                         ? t('tamagotchi.stage.about.update.actions.latest-version')
                         : isDisabled
-                          ? t(isStoreManaged
-                            ? 'tamagotchi.stage.about.update.actions.managed-by-store'
-                            : 'tamagotchi.stage.about.update.actions.disabled-dev')
+                          ? t('tamagotchi.stage.about.update.actions.managed-by-store')
                           : isError
                             ? t('tamagotchi.stage.about.update.actions.retry-check')
                             : t('tamagotchi.stage.about.update.actions.check-for-updates')"
