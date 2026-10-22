@@ -26,6 +26,7 @@ import type {
   VrmLoadStartTracePayload,
   VrmUpdateFrameTracePayload,
 } from '@proj-airi/stage-ui-three/trace'
+import type { ChatHistoryReplyPayload } from '@proj-airi/stage-ui/components/scenarios/chat'
 import type { Rectangle } from 'electron'
 
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
@@ -87,6 +88,19 @@ export const electronSettingsNavigate = defineEventa<{ route: string }>('eventa:
 export const electronSettingsReady = defineEventa<Record<string, never>>('eventa:event:electron:windows:settings:ready')
 export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windows:chat:open')
 export const electronChatReady = defineEventa<Record<string, never>>('eventa:event:electron:windows:chat:ready')
+
+/**
+ * The conversation and the unsent composer content that a chat mode switch
+ * carries from the window it closes to the window it opens.
+ */
+export interface ChatDraftHandover {
+  /** The chat session that the closing window shows, and that the content belongs to. */
+  sessionId: string
+  text: string
+  replyTarget?: ChatHistoryReplyPayload
+  /** Images as the composer sends them: base64 data without the data URL prefix. */
+  attachments: { data: string, mimeType: string, name: string }[]
+}
 export const electronSpotlightOpen = defineInvokeEventa<void>('eventa:invoke:electron:windows:spotlight:open')
 export const electronSpotlightHide = defineInvokeEventa<void>('eventa:invoke:electron:windows:spotlight:hide')
 export const electronSpotlightShowResultNotification = defineInvokeEventa<void, { body: string }>('eventa:invoke:electron:windows:spotlight:show-result-notification')
@@ -252,51 +266,6 @@ export type WidgetsIframeRequestResultPayload
   = | WidgetsIframeRequestSuccessPayload
     | WidgetsIframeRequestFailurePayload
 
-export interface PluginManifestSummary {
-  extensionId: string
-  entrypoints: Record<string, string | undefined>
-  path: string
-  enabled: boolean
-  loaded: boolean
-  isNew: boolean
-}
-
-export interface PluginRegistrySnapshot {
-  root: string
-  plugins: PluginManifestSummary[]
-}
-
-// TODO: Replace these manually duplicated IPC types with re-exports from
-// @proj-airi/plugin-sdk (CapabilityDescriptor) once stage-ui and the shared
-// eventa layer can depend on the SDK without introducing unwanted coupling.
-export interface PluginCapabilityPayload {
-  key: string
-  state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
-  metadata?: Record<string, unknown>
-}
-
-export interface PluginCapabilityState {
-  key: string
-  state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
-  metadata?: Record<string, unknown>
-  updatedAt: number
-}
-
-export interface PluginHostSessionSummary {
-  id: string
-  extensionId: string
-  phase: string
-  runtime: 'electron' | 'node' | 'web'
-  moduleId: string
-}
-
-export interface PluginHostDebugSnapshot {
-  registry: PluginRegistrySnapshot
-  sessions: PluginHostSessionSummary[]
-  capabilities: PluginCapabilityState[]
-  refreshedAt: number
-}
-
 export interface ElectronMcpStdioServerConfig {
   command: string
   args?: string[]
@@ -305,29 +274,68 @@ export interface ElectronMcpStdioServerConfig {
   enabled?: boolean
 }
 
-export interface ElectronMcpStdioConfigFile {
-  mcpServers: Record<string, ElectronMcpStdioServerConfig>
+/**
+ * One remote MCP server that AIRI reaches over streamable HTTP.
+ *
+ * Use when:
+ * - A server runs outside this machine and AIRI talks to it by URL
+ *
+ * Expects:
+ * - `url` is an absolute `http` or `https` endpoint
+ * - `headers` carries whatever the server expects, usually an `Authorization` entry
+ */
+export interface ElectronMcpHttpServerConfig {
+  url: string
+  headers?: Record<string, string>
+  enabled?: boolean
 }
 
-export interface ElectronMcpStdioApplyResult {
+/**
+ * Configuration of one MCP server.
+ *
+ * The transport follows from the fields that are present: `command` starts a
+ * child process over stdio, `url` reaches a remote server over streamable HTTP.
+ */
+export type ElectronMcpServerConfig = ElectronMcpStdioServerConfig | ElectronMcpHttpServerConfig
+
+export interface ElectronMcpConfigFile {
+  mcpServers: Record<string, ElectronMcpServerConfig>
+}
+
+export interface ElectronMcpApplyResult {
   path: string
   started: Array<{ name: string }>
   failed: Array<{ name: string, error: string }>
   skipped: Array<{ name: string, reason: string }>
 }
 
-export interface ElectronMcpStdioServerRuntimeStatus {
-  name: string
-  state: 'running' | 'stopped' | 'error'
-  command: string
-  args: string[]
-  pid: number | null
-  lastError?: string
-}
+/**
+ * Runtime state of one MCP server, narrowed by the transport that carries it.
+ *
+ * A stdio server reports the process it spawned. An HTTP server reports the
+ * endpoint it talks to and has no process to report.
+ */
+export type ElectronMcpServerRuntimeStatus
+  = | {
+    name: string
+    state: 'running' | 'stopped' | 'error'
+    transport: 'stdio'
+    command: string
+    args: string[]
+    pid: number | null
+    lastError?: string
+  }
+  | {
+    name: string
+    state: 'running' | 'stopped' | 'error'
+    transport: 'http'
+    url: string
+    lastError?: string
+  }
 
-export interface ElectronMcpStdioRuntimeStatus {
+export interface ElectronMcpRuntimeStatus {
   path: string
-  servers: ElectronMcpStdioServerRuntimeStatus[]
+  servers: ElectronMcpServerRuntimeStatus[]
   updatedAt: number
 }
 
@@ -351,31 +359,31 @@ export interface ElectronMcpCallToolResult {
   isError?: boolean
 }
 
-export interface ElectronMcpStdioConfigText {
+export interface ElectronMcpConfigText {
   path: string
   text: string
 }
 
-export interface ElectronMcpStdioTestResult {
+export interface ElectronMcpTestResult {
   ok: boolean
   error?: string
   tools?: string[]
   durationMs: number
 }
 
-export interface ElectronMcpStdioTestPayload {
+export interface ElectronMcpTestPayload {
   name: string
-  config: ElectronMcpStdioServerConfig
+  config: ElectronMcpServerConfig
 }
 
 export const electronMcpOpenConfigFile = defineInvokeEventa<{ path: string }>('eventa:invoke:electron:mcp:open-config-file')
-export const electronMcpApplyAndRestart = defineInvokeEventa<ElectronMcpStdioApplyResult>('eventa:invoke:electron:mcp:apply-and-restart')
-export const electronMcpGetRuntimeStatus = defineInvokeEventa<ElectronMcpStdioRuntimeStatus>('eventa:invoke:electron:mcp:get-runtime-status')
+export const electronMcpApplyAndRestart = defineInvokeEventa<ElectronMcpApplyResult>('eventa:invoke:electron:mcp:apply-and-restart')
+export const electronMcpGetRuntimeStatus = defineInvokeEventa<ElectronMcpRuntimeStatus>('eventa:invoke:electron:mcp:get-runtime-status')
 export const electronMcpListTools = defineInvokeEventa<ElectronMcpToolDescriptor[]>('eventa:invoke:electron:mcp:list-tools')
 export const electronMcpCallTool = defineInvokeEventa<ElectronMcpCallToolResult, ElectronMcpCallToolPayload>('eventa:invoke:electron:mcp:call-tool')
-export const electronMcpReadConfigText = defineInvokeEventa<ElectronMcpStdioConfigText>('eventa:invoke:electron:mcp:read-config-text')
-export const electronMcpWriteConfigText = defineInvokeEventa<ElectronMcpStdioConfigText, { text: string }>('eventa:invoke:electron:mcp:write-config-text')
-export const electronMcpTestServer = defineInvokeEventa<ElectronMcpStdioTestResult, ElectronMcpStdioTestPayload>('eventa:invoke:electron:mcp:test-server')
+export const electronMcpReadConfigText = defineInvokeEventa<ElectronMcpConfigText>('eventa:invoke:electron:mcp:read-config-text')
+export const electronMcpWriteConfigText = defineInvokeEventa<ElectronMcpConfigText, { text: string }>('eventa:invoke:electron:mcp:write-config-text')
+export const electronMcpTestServer = defineInvokeEventa<ElectronMcpTestResult, ElectronMcpTestPayload>('eventa:invoke:electron:mcp:test-server')
 
 /** The widget requests its own close without waiting for a reply from the transport it closes. */
 export const widgetsCloseRequested = defineEventa<{ id: string }>('eventa:event:airi:widgets:close-requested')
