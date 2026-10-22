@@ -33,6 +33,7 @@
     "package.json"
   ],
   "scripts": {
+    "test:run": "vitest run --config vitest.config.ts",
     "dev": "tsx ./src/bin/run.js",
     "start": "tsx ./src/bin/run.js",
     "build": "tsdown",

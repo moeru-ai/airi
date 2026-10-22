@@ -242,14 +242,7 @@ live2d:
     sdk-preset-preserved-notice: >
       ตัวจัดการสีหน้าและการกะพริบตาของ SDK จะยังคงทำงานเมื่อปิดตัวเลือกนี้
     no-expression: โมเดลนี้ไม่มีสีหน้าที่ใช้ได้
-    llm-integration-wip: ยังไม่ได้เชื่อมต่อเครื่องมือของ LLM
-    save-default: บันทึกค่าเริ่มต้นของสีหน้า
     reset: รีเซ็ตสีหน้าทั้งหมด
-    expose-to-llm-toggle: เปิดให้ LLM ใช้
-    expose-to-llm-options:
-      none: ไม่มี
-      all: ทั้งหมด
-      custom: กำหนดเอง
 microphone: ไมโครโฟน
 models: โมเดล
 pages:
@@ -1396,12 +1389,9 @@ pages:
       buy: เติมเงิน
       description: แพ็กเกจ Flux ที่เลือกได้
   capacitor:
-    description: Capacitor เก็บ Flux ไว้และเติมเองโดยอัตโนมัติ
     statusError: โหลด Capacitor ของคุณไม่สำเร็จ โปรดลองอีกครั้งภายหลัง
     packagesError: โหลด Capacitor ไม่สำเร็จ โปรดลองอีกครั้งภายหลัง
     preferenceError: บันทึกการกำหนดค่าไม่สำเร็จ โปรดลองอีกครั้งภายหลัง
-    noCapacitor: ไม่มี Capacitor
-    available: Capacitor ที่มี
     remaining: 'เหลือ {percent}'
     rechargesAt: เติมใหม่ {date}
     renewsAt: ต่ออายุ {date}

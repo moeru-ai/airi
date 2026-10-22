@@ -14,6 +14,19 @@ Missing Cloud grants disable Cloud features. Refresh failures and account change
 Set `VITE_CLOUD_URL` for a custom Cloud origin. Deploy its migration and API before the client.
 Keep authorization checks on the server.
 
+## Notifications
+
+Notifications are private messages from AIRI Cloud to the signed-in account. Code and API names use `inbox`.
+`useInboxStore()` in `stores/inbox.ts` owns the unread count, the loaded pages, and the read actions for one window.
+The store reads the count at sign-in, on window focus, and every 5 minutes. A list loads only when a panel opens.
+Opening a message marks it read. The count changes at once and rolls back if Cloud rejects the write.
+Sign-out and account changes clear all state. Responses from the old session are dropped.
+Requests use the generated `@proj-airi/cloud-client` functions with `authedFetch`, so a 401 refreshes the token once.
+The store keeps only kinds that `inbox-presentation.ts` can render. It skips unknown kinds and invalid params.
+Entry points: the web account menu opens `InboxPopover` anchored to the account pill.
+The mobile menu opens `InboxDrawer` as a sub-panel with a back button. The Electron island shows `InboxPanel` in place.
+Entry points show nothing while the user is signed out. Announcements are a separate public surface.
+
 ## Message times
 
 Chat history shows a centered timestamp before the first dated message and after five minutes without a message.
@@ -216,6 +229,13 @@ Each request rebuilds the analytics correlation headers for its provider.
 Tool and content-array compatibility failures belong to the model of the failing request, not the first model of the turn.
 Session resets and autonomous artistry hooks also use the session character.
 Each concurrent turn owns its IO trace. `activeTurnSpan` points to the most recently started turn that is still running.
+
+A tracer view reads spans from the source that `setIOTraceSource` sets. Without a source, as in stage-web, it reads
+the spans of its own window and the spans that other windows broadcast.
+
+Tamagotchi sets the IO trace hub of the main process as the source. Each window sends its ended spans to the hub.
+The hub sends them to the disk recording and to open tracer views. When **Keep recent IO traces in memory** is on, the
+hub also keeps the spans of the last 30 minutes, up to 5000. A tracer view that opens later shows them.
 
 A spoken turn is one IO trace, from the wake word to playback:
 

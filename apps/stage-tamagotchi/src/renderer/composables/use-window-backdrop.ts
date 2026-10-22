@@ -4,7 +4,7 @@ import type { MaybeRefOrGetter } from 'vue'
 import type { WindowBackdropStatus } from '../../shared/eventa'
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { onMounted, onScopeDispose, toValue } from 'vue'
+import { onMounted, onScopeDispose, toValue, watch } from 'vue'
 
 import { electronWindowBackdropUpdate } from '../../shared/eventa'
 
@@ -432,20 +432,31 @@ class WindowBackdrop {
   }
 }
 
-/** Registers a page's local surfaces. The last unmount clears native regions after any pending update. */
-export function useWindowBackdrop(element: MaybeRefOrGetter<HTMLElement | null | undefined>, kind: SurfaceKind) {
+/**
+ * Registers a page's local surfaces. The last unmount clears native regions after any pending update.
+ *
+ * `enabled` turns the surface off and on while the page stays mounted. An off surface draws no native material and
+ * no CSS fill.
+ */
+export function useWindowBackdrop(element: MaybeRefOrGetter<HTMLElement | null | undefined>, kind: SurfaceKind, enabled: MaybeRefOrGetter<boolean> = true) {
   const update = useElectronEventaInvoke(electronWindowBackdropUpdate)
   let unregister: (() => void) | undefined
   onMounted(() => {
     const root = toValue(element)
     if (!root)
       throw new Error('The native backdrop root is missing after mount')
-    let session = sessions.get(root.ownerDocument)
-    if (!session) {
-      session = new WindowBackdrop(root.ownerDocument, update)
-      sessions.set(root.ownerDocument, session)
-    }
-    unregister = session.register(root, kind)
+    watch(() => toValue(enabled), (on) => {
+      unregister?.()
+      unregister = undefined
+      if (!on)
+        return
+      let session = sessions.get(root.ownerDocument)
+      if (!session) {
+        session = new WindowBackdrop(root.ownerDocument, update)
+        sessions.set(root.ownerDocument, session)
+      }
+      unregister = session.register(root, kind)
+    }, { immediate: true })
   })
   onScopeDispose(() => unregister?.())
 }

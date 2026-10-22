@@ -1,4 +1,5 @@
 import type { Locale } from '@intlify/core'
+import type { ResizeDirection } from '@proj-airi/electron-eventa'
 import type {
   GameletIframeRequestPayload as GameletIframeInvokePayload,
   GameletIframeResponsePayload,
@@ -16,7 +17,7 @@ import type {
   StageViewSnapshotPayload,
 } from '@proj-airi/stage-shared/godot-stage'
 import type { ServerChannelQrPayload } from '@proj-airi/stage-shared/server-channel-qr'
-import type { IOTraceRecordingState, SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
+import type { IOTraceHubState, IOTraceRecordingState, SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
 import type {
   ThreeHitTestReadTracePayload,
   ThreeSceneRenderInfoTracePayload,
@@ -143,7 +144,15 @@ export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windo
 export const ioTraceRecordingChanged = defineEventa<IOTraceRecordingState>('eventa:event:electron:io-trace-recording:changed')
 export const ioTraceRecordingGet = defineInvokeEventa<IOTraceRecordingState>('eventa:invoke:electron:io-trace-recording:get')
 export const ioTraceRecordingSetEnabled = defineInvokeEventa<IOTraceRecordingState, { enabled: boolean }>('eventa:invoke:electron:io-trace-recording:set-enabled')
-export const ioTraceRecordingRecordSpan = defineInvokeEventa<void, SerializedIOSpan>('eventa:invoke:electron:io-trace-recording:record-span')
+
+/** Sends an ended IO span of this window to the IO trace hub in the main process. */
+export const ioTraceHubPublish = defineInvokeEventa<void, SerializedIOSpan>('eventa:invoke:electron:io-trace-hub:publish')
+export const ioTraceHubGet = defineInvokeEventa<IOTraceHubState>('eventa:invoke:electron:io-trace-hub:get')
+export const ioTraceHubSetCollecting = defineInvokeEventa<IOTraceHubState, { collecting: boolean }>('eventa:invoke:electron:io-trace-hub:set-collecting')
+/** Returns the spans that the hub keeps, and sends each later span to this window as `ioTraceHubSpan`. */
+export const ioTraceHubSubscribe = defineInvokeEventa<SerializedIOSpan[]>('eventa:invoke:electron:io-trace-hub:subscribe')
+export const ioTraceHubUnsubscribe = defineInvokeEventa<void>('eventa:invoke:electron:io-trace-hub:unsubscribe')
+export const ioTraceHubSpan = defineEventa<SerializedIOSpan>('eventa:event:electron:io-trace-hub:span')
 
 /**
  * Where the Controls Island chat button opens the chat.
@@ -161,19 +170,22 @@ export type ChatWindowMode = 'legacy' | 'floating' | 'fullscreen'
  *
  * - `attached`: beside the main window, moving with it.
  * - `free`: where the user drags it.
- * - `danmaku`: where the user drags it, like `free`. The chat shows as a
- *   message feed: the composer folds away, and with fade on hover the feed
- *   only follows new messages and lets every click through.
  */
-export type ChatFloatingPlacement = 'attached' | 'free' | 'danmaku'
+export type ChatFloatingPlacement = 'attached' | 'free'
 
 /** Chat window choices that the main process persists for every chat renderer. */
 export interface ChatWindowPreferences {
   mode: ChatWindowMode
   placement: ChatFloatingPlacement
   /**
-   * Keeps a `free` floating chat above other windows. An `attached` or
-   * `danmaku` chat ignores it and follows the main window's pin state instead.
+   * Shows the floating chat as a message feed: the composer folds away, and
+   * with fade on hover the feed only follows new messages and lets every
+   * click through.
+   */
+  danmaku: boolean
+  /**
+   * Keeps a `free` floating chat above other windows. An `attached` chat
+   * ignores it and follows the main window's pin state instead.
    */
   pinned: boolean
 }
@@ -181,12 +193,19 @@ export interface ChatWindowPreferences {
 /** What the floating chat renderer needs from the main process to lay itself out. */
 export interface ChatFloatingState {
   placement: ChatFloatingPlacement
+  danmaku: boolean
   /**
-   * The side of the main window that the chat sits on in `attached` placement.
-   * The renderer folds toward the character on this side and puts the resize
-   * grip on the other. `left` in `free` and `danmaku` placement.
+   * The side of the main window that the chat sits on in `attached`
+   * placement. The renderer folds toward the character on this side. `left`
+   * in `free` placement.
    */
   side: 'left' | 'right'
+  /**
+   * The edges and corners that resize the chat. A `free` chat resizes from
+   * all of them. An `attached` chat keeps the edges that it shares with the
+   * main window, so it resizes only from the others.
+   */
+  resizeEdges: ResizeDirection[]
   /**
    * `true` after the chat button folds the chat. The renderer plays the fold
    * and then calls {@link electronChatFloatingContentHidden}, so the main
@@ -239,17 +258,17 @@ export const electronGetChatButtonState = defineInvokeEventa<ChatButtonState>('e
 export const electronChatButtonStateChanged = defineEventa<ChatButtonState>('eventa:event:electron:windows:chat:button-state-changed')
 
 /**
- * Reads the saved placement and pin, with the mode of the chat that asks. That mode is the saved mode, except in a
- * fullscreen chat that the fullscreen island opened while another mode is saved.
+ * Reads the saved placement, message feed, and pin, with the mode of the chat that asks. That mode is the saved mode,
+ * except in a fullscreen chat that the fullscreen island opened while another mode is saved.
  */
 export const electronChatWindowGetPreferences = defineInvokeEventa<ChatWindowPreferences>('eventa:invoke:electron:windows:chat:get-preferences')
 /**
- * Persists the preferences. A mode that differs from the mode of the chat
- * that asks moves the chat to the window of that mode. The move carries the
- * unsent draft over, and it rejects without closing the chat that asked when
- * the draft cannot be carried.
+ * Persists the preferences that the request names, and keeps the others. A
+ * mode that differs from the mode of the chat that asks moves the chat to the
+ * window of that mode. The move carries the unsent draft over, and it rejects
+ * without closing the chat that asked when the draft cannot be carried.
  */
-export const electronChatWindowSetPreferences = defineInvokeEventa<void, ChatWindowPreferences>('eventa:invoke:electron:windows:chat:set-preferences')
+export const electronChatWindowSetPreferences = defineInvokeEventa<void, Partial<ChatWindowPreferences>>('eventa:invoke:electron:windows:chat:set-preferences')
 /**
  * Asks the chat window that a mode switch is about to close for its unsent
  * draft. The main process invokes it and the chat renderer answers, after any
@@ -279,11 +298,10 @@ export const electronChatFloatingStateChanged = defineEventa<ChatFloatingState>(
 /** The renderer finished hiding the chat content for a fold or a relocation. */
 export const electronChatFloatingContentHidden = defineInvokeEventa<void>('eventa:invoke:electron:windows:chat-floating:content-hidden')
 /**
- * Resizes the floating chat window from its resize grip, by the cursor
- * movement in screen pixels. The window grows away from the character, so the
- * corner beside the main window stays in place.
+ * Resizes the floating chat window from one of its {@link ChatFloatingState.resizeEdges}, by the cursor movement in
+ * screen pixels. The edges across from it stay in place.
  */
-export const electronChatFloatingResizeBy = defineInvokeEventa<void, { deltaX: number, deltaY: number }>('eventa:invoke:electron:windows:chat-floating:resize-by')
+export const electronChatFloatingResizeBy = defineInvokeEventa<void, { deltaX: number, deltaY: number, direction: ResizeDirection }>('eventa:invoke:electron:windows:chat-floating:resize-by')
 /**
  * Moves a `free` floating chat to where its drag handle puts it: the window
  * position in screen pixels, before any screen edge stops it. The main

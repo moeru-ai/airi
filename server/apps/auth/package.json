@@ -4,6 +4,7 @@
   "version": "0.12.0-beta.5",
   "private": true,
   "scripts": {
+    "test:run": "vitest run --config vitest.config.ts",
     "apply:env": "dotenvx run -f .env.local --overload --ignore=MISSING_ENV_FILE",
     "auth:generate": "pnpm run apply:env -- better-auth generate --config src/tooling/auth-config.ts --output ../../packages/auth-shared/src/schema.ts -y",
     "dev": "pnpm run apply:env -- tsx --import ./instrumentation.ts --watch src/main.ts",
