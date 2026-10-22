@@ -11,6 +11,7 @@ internal static class Program
         {
             TestsWidgetWirePayloads();
             TestsDesktopWindowGeometry();
+            TestsTrayWindowGeometry();
             TestsSpotlightShortcutPolicy();
             TestsNativeResizeEdges();
             TestsOnboardingTitleBarDragRegion();
@@ -168,6 +169,59 @@ internal static class Program
                 new Rect2I(0, 25, 1200, 800),
                 new Vector2I(720, 100)),
             "spotlight slot");
+    }
+
+    private static void TestsTrayWindowGeometry()
+    {
+        var workArea = new Rect2I(0, 25, 1200, 800);
+        AssertEqual(
+            new Vector2I(900, 1200),
+            TrayWindowGeometry.ResolvePresetSize(TrayWindowSizePreset.Recommended, workArea, 2.0f),
+            "recommended size uses physical pixels");
+        AssertEqual(
+            new Vector2I(600, 800),
+            TrayWindowGeometry.ResolvePresetSize(TrayWindowSizePreset.FullHeight, workArea, 2.0f),
+            "full height keeps the recommended aspect ratio");
+        AssertEqual(
+            new Vector2I(300, 400),
+            TrayWindowGeometry.ResolvePresetSize(TrayWindowSizePreset.HalfHeight, workArea, 2.0f),
+            "half height keeps the recommended aspect ratio");
+        AssertEqual(
+            new Rect2I(800, 425, 300, 400),
+            TrayWindowGeometry.ResolveAnchoredBounds(
+                new Rect2I(500, 225, 600, 600),
+                new Vector2I(300, 400),
+                workArea),
+            "resize keeps the bottom-right edges in the bottom-right quadrant");
+        AssertEqual(
+            new Rect2I(0, 25, 450, 800),
+            TrayWindowGeometry.ResolveAnchoredBounds(
+                new Rect2I(-50, 0, 400, 400),
+                new Vector2I(450, 1000),
+                workArea),
+            "resize stays inside the work area");
+        AssertEqual(
+            new Vector2I(750, 25),
+            TrayWindowGeometry.ResolveAlignedPosition(
+                TrayWindowAlignment.TopRight,
+                workArea,
+                new Vector2I(450, 600)),
+            "top-right alignment");
+        AssertEqual(
+            new Vector2I(375, 125),
+            TrayWindowGeometry.ResolveAlignedPosition(
+                TrayWindowAlignment.Center,
+                workArea,
+                new Vector2I(450, 600)),
+            "center alignment");
+        AssertEqual(
+            true,
+            TrayWindowGeometry.IsPositionMatch(new Vector2I(754, 21), new Vector2I(750, 25)),
+            "position match tolerance");
+        AssertEqual(
+            false,
+            TrayWindowGeometry.IsSizeMatch(new Vector2I(453, 600), new Vector2I(450, 600)),
+            "size match tolerance");
     }
 
     private static void TestsSpotlightShortcutPolicy()
