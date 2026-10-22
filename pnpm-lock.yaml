@@ -2689,6 +2689,9 @@ importers:
       mediabunny:
         specifier: 'catalog:'
         version: 1.55.2
+      nanoid:
+        specifier: 'catalog:'
+        version: 6.0.1
       node-vibrant:
         specifier: 'catalog:'
         version: 4.0.4
