@@ -1,4 +1,3 @@
-import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { AutoUpdaterState } from '@proj-airi/electron-eventa/electron-updater'
 import type { BrowserWindow } from 'electron'
 import type { UpdateInfo } from 'electron-updater'
@@ -16,10 +15,11 @@ import semver from 'semver'
 import { is } from '@electron-toolkit/utils'
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
+import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { tryCatch } from '@moeru/std'
 import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { committerDate } from '~build/git'
-import { app } from 'electron'
+import { app, ipcMain } from 'electron'
 import { Semaphore } from 'es-toolkit'
 import { isWindows } from 'std-env'
 
@@ -246,8 +246,6 @@ export function fromImported(): AppUpdaterLike {
   const { autoUpdater } = electronUpdater
   return autoUpdater as unknown as AppUpdaterLike
 }
-
-type MainContext = ReturnType<typeof createContext>['context']
 
 export interface AutoUpdater {
   state: AutoUpdaterState
@@ -494,6 +492,29 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
     },
   }))
 
+  // Callers that arrive while a check or a download runs share its promise, so electron-updater runs it once.
+  // On macOS, a second download unpacks over the first, and the install fails with `ditto: ... No such file`.
+  let checkPromise: Promise<void> | undefined
+  let downloadPromise: Promise<void> | undefined
+  // `quitAndInstall` starts the app quit. It stays true because the app process ends after the install starts.
+  let installStarted = false
+
+  async function download() {
+    await semaphore.acquire()
+
+    try {
+      // The lock serializes download and install. Read the status after the lock, because a download that held the
+      // lock can finish while this call waits.
+      if (state.status === 'downloaded')
+        return
+
+      await autoUpdater.downloadUpdate()
+    }
+    finally {
+      semaphore.release()
+    }
+  }
+
   void checkForUpdatesWithPreparedFeed()
     .catch(error => broadcastUpdaterError(error, 'checkForUpdates() failed'))
 
@@ -502,30 +523,35 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
       return state
     },
     async checkForUpdates() {
-      broadcast({ status: 'checking' })
-      await checkForUpdatesWithPreparedFeed().catch(error => broadcastUpdaterError(error, 'checkForUpdates() failed'))
+      checkPromise ??= (async () => {
+        broadcast({ status: 'checking' })
+        await checkForUpdatesWithPreparedFeed().catch(error => broadcastUpdaterError(error, 'checkForUpdates() failed'))
+      })().finally(() => {
+        checkPromise = undefined
+      })
+
+      await checkPromise
     },
     async downloadUpdate() {
-      if (state.status === 'downloading' || state.status === 'downloaded')
-        return
+      downloadPromise ??= download().finally(() => {
+        downloadPromise = undefined
+      })
 
-      await semaphore.acquire()
-
-      try {
-        await autoUpdater.downloadUpdate()
-      }
-      finally {
-        semaphore.release()
-      }
+      await downloadPromise
     },
     async quitAndInstall() {
       await semaphore.acquire()
 
       try {
+        if (installStarted)
+          return
+
         if (isWindows)
           autoUpdater.quitAndInstall(true, true)
         else
           autoUpdater.quitAndInstall()
+
+        installStarted = true
       }
       finally {
         semaphore.release()
@@ -560,10 +586,19 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
   }
 }
 
-export function createAutoUpdaterService(params: { context: MainContext, window: BrowserWindow, service: AutoUpdater }) {
-  const { context, window, service } = params
+/**
+ * Serves the updater IPC to the renderer of one window.
+ *
+ * The context hears only IPC from this window (`onlySameWindow`) and disposes with the window. A shared window
+ * context hears the IPC of all windows, so one click in one window ran the handler once for each open window.
+ *
+ * Returns a cleanup that stops the state broadcast and removes the handlers before the window closes.
+ */
+export function createAutoUpdaterService(params: { window: BrowserWindow, service: AutoUpdater }) {
+  const { window, service } = params
 
   const log = useLogg('auto-updater-service').useGlobalConfig()
+  const { context, dispose } = createContext(ipcMain, window, { onlySameWindow: true })
 
   const unsubscribe = service.subscribe((state) => {
     if (window.isDestroyed())
@@ -600,6 +635,7 @@ export function createAutoUpdaterService(params: { context: MainContext, window:
   const cleanup = () => {
     for (const fn of cleanups)
       fn()
+    dispose()
   }
 
   window.on('closed', cleanup)

@@ -1,3 +1,10 @@
+import type { BrowserWindow } from 'electron'
+
+import { EventEmitter } from 'node:events'
+
+import { defineInvoke } from '@moeru/eventa'
+import { createContext as createRendererContext } from '@moeru/eventa/adapters/electron/renderer'
+import { autoUpdater as autoUpdaterEventa } from '@proj-airi/electron-eventa/electron-updater'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const appMock = vi.hoisted(() => ({
@@ -34,9 +41,13 @@ function createUpdaterMock() {
   }
 }
 
-vi.mock('electron', () => ({
-  app: appMock,
-}))
+vi.mock('electron', async () => {
+  const { EventEmitter } = await import('node:events')
+  return {
+    app: appMock,
+    ipcMain: new EventEmitter(),
+  }
+})
 
 vi.mock('@electron-toolkit/utils', () => ({
   is: {
@@ -77,6 +88,37 @@ vi.mock('electron-updater', () => ({
 vi.mock('~build/git', () => ({
   committerDate: '2026-04-01T00:00:00.000Z',
 }))
+
+let nextWebContentsId = 1
+
+/**
+ * Connects one fake window to the shared fake `ipcMain`, as Electron connects a renderer to the main process.
+ *
+ * The renderer side sends with the window's `webContents` as the IPC sender. The main side sends to the window
+ * through `webContents.send`.
+ */
+function createWindowIpc(ipcMain: EventEmitter) {
+  const rendererIpc = new EventEmitter()
+  const window = Object.assign(new EventEmitter(), {
+    isDestroyed: () => false,
+    webContents: {
+      id: nextWebContentsId++,
+      isDestroyed: () => false,
+      send: (channel: string, payload: unknown) => rendererIpc.emit(channel, {}, payload),
+    },
+  })
+  // The fake IPC objects carry only the members that the Eventa adapters call.
+  const { context } = createRendererContext({
+    on: (channel: string, listener: (...args: unknown[]) => void) => {
+      rendererIpc.on(channel, listener)
+      return () => rendererIpc.off(channel, listener)
+    },
+    send: (channel: string, payload: unknown) => ipcMain.emit(channel, { sender: window.webContents }, payload),
+  } as never)
+
+  const browserWindow: BrowserWindow = window as never
+  return { window: browserWindow, context }
+}
 
 describe('setupAutoUpdater', () => {
   const expectedChannelByArch = process.arch === 'arm64' ? 'latest-arm64' : 'latest-x64'
@@ -306,7 +348,57 @@ describe('setupAutoUpdater', () => {
 
     stdEnvState.isWindows = false
     updaterState.instance.quitAndInstall.mockClear()
-    await service.quitAndInstall()
+    // One service starts the install once, so a second service checks the other platforms.
+    await setupAutoUpdater().quitAndInstall()
     expect(updaterState.instance.quitAndInstall).toHaveBeenCalledWith()
+  })
+
+  // ROOT CAUSE:
+  //
+  // One click downloaded once per open window. Each window context heard the IPC of all windows, and the status
+  // check ran before the lock.
+  //
+  // We fixed this with a per-window updater context and one shared in-flight download.
+  it('downloads once when the main, settings, and about windows are open and one window requests the download', async () => {
+    const { ipcMain } = await import('electron')
+    const { createAutoUpdaterService, setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater()
+    const windows = [createWindowIpc(ipcMain), createWindowIpc(ipcMain), createWindowIpc(ipcMain)]
+    for (const { window } of windows)
+      createAutoUpdaterService({ window, service })
+
+    await defineInvoke(windows[1].context, autoUpdaterEventa.downloadUpdate)()
+
+    expect(updaterState.instance.downloadUpdate).toHaveBeenCalledTimes(1)
+  })
+
+  it('shares one download between concurrent requests and skips it after the update is downloaded', async () => {
+    let finishDownload: () => void = () => {}
+    updaterState.instance.downloadUpdate.mockImplementation(() => new Promise<void>((resolve) => {
+      finishDownload = resolve
+    }))
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater()
+
+    const requests = [service.downloadUpdate(), service.downloadUpdate(), service.downloadUpdate()]
+    await vi.waitFor(() => expect(updaterState.instance.downloadUpdate).toHaveBeenCalledTimes(1))
+    const emitDownloaded = updaterState.instance.on.mock.calls.find(([event]) => event === 'update-downloaded')?.[1]
+    emitDownloaded?.({ version: '0.9.0-beta.6', files: [], releaseDate: '' })
+    finishDownload()
+    await Promise.all(requests)
+    await service.downloadUpdate()
+
+    expect(updaterState.instance.downloadUpdate).toHaveBeenCalledTimes(1)
+    expect(service.state.status).toBe('downloaded')
+  })
+
+  it('starts the install once when the install is requested again', async () => {
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater()
+
+    await Promise.all([service.quitAndInstall(), service.quitAndInstall()])
+    await service.quitAndInstall()
+
+    expect(updaterState.instance.quitAndInstall).toHaveBeenCalledTimes(1)
   })
 })
