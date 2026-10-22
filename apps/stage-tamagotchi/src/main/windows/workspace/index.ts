@@ -1,3 +1,5 @@
+import type { createContext } from '@moeru/eventa/adapters/electron/main'
+
 import type { FullscreenOpenRequest, FullscreenPack, FullscreenSurfaceId } from '../../../shared/eventa'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
@@ -8,15 +10,15 @@ import type { AutoUpdater } from '../../services/electron/auto-updater'
 import type { GlobalShortcutService } from '../../services/electron/global-shortcut'
 import type { ChatWindowManager } from '../chat'
 import type { DevtoolsWindowManager } from '../devtools'
+import type { EditorWindowManager } from '../editor'
 import type { FullscreenPlace } from '../shared/fullscreen'
 import type { SpotlightWindowManager } from '../spotlight'
 import type { WidgetsWindowManager } from '../widgets'
 
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
-import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
 import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
-import { BrowserWindow, ipcMain, screen } from 'electron'
+import { BrowserWindow, screen } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
 
@@ -31,6 +33,7 @@ import {
   electronWorkspaceWindowGetOpenRequest,
 } from '../../../shared/eventa'
 import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
+import { createWindowContext } from '../../libs/electron/window-context'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { setupSettingsWindowInvokes } from '../settings/rpc/index.electron'
 import { protectPrivilegedWindowNavigation } from '../shared'
@@ -66,6 +69,7 @@ export function setupWorkspaceWindowManager(params: {
   widgetsManager: WidgetsWindowManager
   autoUpdater: AutoUpdater
   devtoolsWindow: DevtoolsWindowManager
+  editorWindow: EditorWindowManager
   serverChannel: ServerChannel
   godotStageManager: GodotStageManager
   mcpManager: McpManager
@@ -130,6 +134,7 @@ export function setupWorkspaceWindowManager(params: {
       widgetsManager: params.widgetsManager,
       autoUpdater: params.autoUpdater,
       devtoolsWindow: params.devtoolsWindow,
+      editorWindow: params.editorWindow,
       getMainWindow: params.getMainWindow,
       serverChannel: params.serverChannel,
       godotStageManager: params.godotStageManager,
@@ -141,7 +146,7 @@ export function setupWorkspaceWindowManager(params: {
     })
 
     // `onlySameWindow` hears only this window, so no other window can close it or change what it shows.
-    const { context: windowContext } = createContext(ipcMain, window, { onlySameWindow: true })
+    const { context: windowContext } = createWindowContext(window)
     context = windowContext
     // The request that opened the window counts once. After a reload, the page shows the surface that it showed before,
     // as the page of the main window does.

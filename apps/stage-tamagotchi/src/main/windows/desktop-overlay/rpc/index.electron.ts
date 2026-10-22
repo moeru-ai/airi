@@ -17,11 +17,11 @@ import type { McpManager } from '../../../services/airi/mcp-servers'
 import type { DesktopOverlayReadiness } from './contracts'
 
 import { defineInvokeHandler } from '@moeru/eventa'
-import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { ipcMain } from 'electron'
 
 import { getDesktopOverlayReadinessContract } from '../../../../shared/eventa'
+import { createWindowContext } from '../../../libs/electron/window-context'
 import { createMcpServersService } from '../../../services/airi/mcp-servers'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
@@ -36,7 +36,7 @@ export async function setupDesktopOverlayElectronInvokes(params: {
   // manage events within eventa's context system.
   ipcMain.setMaxListeners(0)
 
-  const { context } = createContext(ipcMain, params.window)
+  const { context } = createWindowContext(params.window)
 
   let readiness: DesktopOverlayReadiness = { state: 'booting' }
 

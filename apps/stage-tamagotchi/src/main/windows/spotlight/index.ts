@@ -9,9 +9,8 @@ import type { ChatWindowManager } from '../chat'
 
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
-import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ShortcutFailureReasons } from '@proj-airi/stage-shared/global-shortcut'
-import { BrowserWindow, ipcMain, Notification, screen } from 'electron'
+import { BrowserWindow, Notification, screen } from 'electron'
 import { isMacOS } from 'std-env'
 
 import icon from '../../../../resources/icon.png?asset'
@@ -22,6 +21,7 @@ import {
 } from '../../../shared/eventa'
 import { isSafeSpotlightAccelerator } from '../../../shared/spotlight-shortcut'
 import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
+import { createWindowContext } from '../../libs/electron/window-context'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { excludeWindowFromTaskbar } from '../shared/app-icon'
 import { protectPrivilegedWindowNavigation, setupBaseWindowElectronInvokes, transparentWindowConfig } from '../shared/window'
@@ -117,7 +117,7 @@ export function setupSpotlightWindowManager(params: {
 
     window.on('blur', () => window.hide())
 
-    const { context } = createContext(ipcMain, window)
+    const { context } = createWindowContext(window)
     await setupBaseWindowElectronInvokes({ context, window, i18n: params.i18n, serverChannel: params.serverChannel })
 
     // Only the Spotlight window may call these private invokes.

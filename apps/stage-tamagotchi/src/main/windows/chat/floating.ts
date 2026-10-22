@@ -6,10 +6,9 @@ import type { ChatFloatingPlacement, ChatFloatingState } from '../../../shared/e
 import type { AttachedChatLayout } from './floating-placement'
 
 import { defineInvokeHandler } from '@moeru/eventa'
-import { createContext as createElectronContext } from '@moeru/eventa/adapters/electron/main'
 import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
 import { animate } from 'animejs'
-import { BrowserWindow, ipcMain, screen } from 'electron'
+import { BrowserWindow, screen } from 'electron'
 import { debounce } from 'es-toolkit'
 import { isMacOS } from 'std-env'
 
@@ -24,6 +23,7 @@ import {
   electronChatFloatingStateChanged,
 } from '../../../shared/eventa'
 import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
+import { createWindowContext } from '../../libs/electron/window-context'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { showWindowOnAllWorkspaces } from '../shared/app-icon'
 import { protectPrivilegedWindowNavigation, resizeBoundsByDelta, transparentWindowConfig } from '../shared/window'
@@ -449,7 +449,7 @@ export function setupFloatingChatWindow(params: {
     protectPrivilegedWindowNavigation(target)
 
     // `onlySameWindow` hears only this window and disposes with it.
-    const { context: targetContext } = createElectronContext(ipcMain, target, { onlySameWindow: true })
+    const { context: targetContext } = createWindowContext(target)
     context = targetContext
     // Every platform reports `move`; `moved` is only on macOS and Windows.
     // Only a chat that is not attached owns its position. An attached one

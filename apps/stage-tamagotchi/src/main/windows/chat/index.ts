@@ -9,7 +9,6 @@ import type { SettingsWindowManager } from '../settings'
 import type { WidgetsWindowManager } from '../widgets'
 
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
-import { createContext as createElectronContext } from '@moeru/eventa/adapters/electron/main'
 import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow, ipcMain } from 'electron'
 import { isMacOS } from 'std-env'
@@ -28,6 +27,7 @@ import {
 } from '../../../shared/eventa'
 import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
+import { createWindowContext } from '../../libs/electron/window-context'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { protectPrivilegedWindowNavigation } from '../shared'
 import { setupFloatingChatWindow } from './floating'
@@ -226,7 +226,7 @@ export function setupChatWindowManager(params: {
     ipcMain.setMaxListeners(0)
     // `onlySameWindow` hears only this window and disposes with it, so a mode
     // switch that closes the window leaves no handlers behind.
-    const { context } = createElectronContext(ipcMain, window, { onlySameWindow: true })
+    const { context } = createWindowContext(window)
 
     try {
       await setupChatInvokes(window, context, 'legacy')

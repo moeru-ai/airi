@@ -4,9 +4,9 @@ import type { I18n } from '../../../libs/i18n'
 import type { ServerChannel } from '../../../services/airi/channel-server'
 import type { WidgetsWindowManager } from '../../widgets'
 
-import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ipcMain } from 'electron'
 
+import { createWindowContext } from '../../../libs/electron/window-context'
 import { createWidgetsService } from '../../../services/airi/widgets'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
@@ -31,7 +31,7 @@ export async function setupWidgetsWindowInvokes(params: {
   // manage events within eventa's context system.
   ipcMain.setMaxListeners(0)
 
-  const { context, dispose } = createContext(ipcMain, params.widgetWindow, { onlySameWindow: true })
+  const { context, dispose } = createWindowContext(params.widgetWindow)
 
   setupBaseWindowElectronInvokes({ context, window: params.widgetWindow, i18n: params.i18n, serverChannel: params.serverChannel })
 
