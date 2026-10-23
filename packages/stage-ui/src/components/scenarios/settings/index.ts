@@ -1,5 +1,7 @@
 export { default as Bar } from './bar.vue'
 export { default as ButtonBar } from './button-bar.vue'
 export { default as CheckBar } from './check-bar.vue'
+export { default as MicrophonePicker } from './microphone-picker.vue'
 export type * from './model-settings'
 export { default as ModelCacheManager } from './ModelCacheManager.vue'
+export { default as OptionList } from './option-list.vue'
