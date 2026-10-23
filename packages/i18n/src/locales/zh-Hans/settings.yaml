@@ -2161,6 +2161,9 @@ pages:
             description: 选择工作区开在哪里。
             single_window: '单窗口：角色自己展开成工作区'
             multi_window: '多窗口：角色留在桌面上'
+        official_responses:
+          title: 官方提供商使用 Responses API
+          description: 通过 Responses API 向官方提供商发送聊天请求。如果模型不支持，这个模型改用 Chat Completions。
     color-scheme:
       description: 更改舞台的配色方案
       title: 配色方案

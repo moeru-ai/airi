@@ -2361,6 +2361,9 @@ pages:
             description: Choose where the workspace opens.
             single_window: 'Single window: the character grows into the workspace'
             multi_window: 'Separate window: the character stays on the desktop'
+        official_responses:
+          title: Responses API for the official provider
+          description: Send chat requests to the official provider through the Responses API. If a model does not support it, chat uses Chat Completions for that model.
     color-scheme:
       description: Change the color scheme of the stage.
       title: Color Scheme
