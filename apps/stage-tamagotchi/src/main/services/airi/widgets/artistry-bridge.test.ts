@@ -67,6 +67,9 @@ describe('artistryBridge and comfyui provider', () => {
       { payload: { url: 123 } },
       { payload: {} },
       { payload: undefined },
+      { payload: null },
+      { payload: { url: null } },
+      { payload: { url: undefined } },
     ])('returns ok: false without info when payload is invalid (%j)', async ({ payload }) => {
       const context = createContext()
       await setupArtistryBridge({
