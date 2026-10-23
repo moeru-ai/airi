@@ -27,6 +27,7 @@ describe('computer use runtime', () => {
     await expect(runtime.run({ argv: ['serve', '--help'] })).rejects.toThrow('Use invoke')
     await expect(runtime.run({ argv: ['invoke', 'app.activate', '--device=other'] })).rejects.toThrow('managed by AIRI')
     await expect(runtime.run({ argv: ['invoke', 'window.list', '--store-root', 'elsewhere'] })).rejects.toThrow('managed by AIRI')
+    await expect(runtime.run({ argv: ['invoke', 'window.list', '--credential-stdin'] })).rejects.toThrow('managed by AIRI')
     await expect(runtime.run({ argv: ['invoke', 'scan.frame'] })).rejects.toThrow('Use invoke')
     await expect(runtime.run({ argv: ['invoke', 5] })).rejects.toThrow()
   })
@@ -66,5 +67,9 @@ describe('computer use runtime', () => {
     expect(failure.stderr).toContain('invalid-option')
     const next = await runtime.run({ argv: ['invoke', '--help'] })
     expect(next.exitCode).toBe(0)
+    // A read-only command must still succeed when the CLI reads the launcher token from stdin.
+    const displays = await runtime.run({ argv: ['invoke', 'display.list'] })
+    expect(displays.exitCode, displays.stderr).toBe(0)
+    expect(displays.output).toEqual(expect.objectContaining({ command_id: 'display.list', status: 'completed' }))
   }, 30000)
 })
