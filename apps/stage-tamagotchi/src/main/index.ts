@@ -8,7 +8,7 @@ import type { WorkspaceWindowManager } from './windows/workspace'
 
 import process, { env, platform } from 'node:process'
 
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import messages from '@proj-airi/i18n/locales'
@@ -33,7 +33,7 @@ import { createGlobalAppConfig } from './configs/global'
 import { createIOTraceHubConfig } from './configs/io-trace-hub'
 import { createIOTraceRecordingConfig } from './configs/io-trace-recording'
 import { emitAppBeforeQuit, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
-import { getElectronMainDirname, setElectronMainDirname } from './libs/electron/location'
+import { getRendererRoot, setElectronMainDirname } from './libs/electron/location'
 import { createI18n } from './libs/i18n'
 import { setupAppleSpeechTranscriptionService } from './services/airi/apple-speech-transcription'
 import { setupAppleVisionService } from './services/airi/apple-vision'
@@ -48,7 +48,7 @@ import { IOTraceRecordingService } from './services/airi/io-trace-recording'
 import { setupMcpManager } from './services/airi/mcp-servers'
 import { setupExtensionHost } from './services/airi/plugins'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
-import { setupAutoUpdater } from './services/electron/auto-updater'
+import { isExternallyUpdatedInstall, setupAutoUpdater } from './services/electron/auto-updater'
 import { setupSherpawModelAssetsProtocol } from './services/electron/bundled-sherpaw-assets'
 import { setupGlobalShortcutService } from './services/electron/global-shortcut'
 import { setupPermissionHandlers } from './services/electron/media-permissions'
@@ -246,7 +246,7 @@ app.whenReady().then(async () => {
     return
   }
 
-  setupSherpawModelAssetsProtocol(resolve(getElectronMainDirname(), '..', 'renderer'))
+  setupSherpawModelAssetsProtocol(getRendererRoot)
   setupSherpawModelAssets(createContext(ipcMain).context)
   setupPermissionHandlers(session.defaultSession, hasSelectedScreenCaptureSource)
 
@@ -270,7 +270,7 @@ app.whenReady().then(async () => {
   const autoUpdater = injeca.provide('services:auto-updater', {
     dependsOn: { appConfig },
     build: ({ dependsOn }) => setupAutoUpdater({
-      enabled: import.meta.env.VITE_DISTRIBUTION !== 'steam',
+      enabled: !isExternallyUpdatedInstall(),
       getStoredUpdateLane: () => dependsOn.appConfig.get()?.updateChannel,
       setStoredUpdateLane: (lane) => {
         const currentConfig = dependsOn.appConfig.get()
@@ -422,7 +422,7 @@ app.whenReady().then(async () => {
   })
 
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpManager, i18n, globalShortcut, spotlightWindow, ioTraceRecording },
+    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, editorWindow, serverChannel, godotStageManager, mcpManager, i18n, globalShortcut, spotlightWindow, ioTraceRecording },
     build: async ({ dependsOn }) => {
       settingsWindowManager = setupSettingsWindowReusableFunc({
         ...dependsOn,
@@ -435,7 +435,7 @@ app.whenReady().then(async () => {
   })
 
   const workspaceWindow = injeca.provide('windows:workspace', {
-    dependsOn: { chatWindow, widgetsManager, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpManager, i18n, globalShortcut, spotlightWindow, ioTraceRecording },
+    dependsOn: { chatWindow, widgetsManager, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, editorWindow, serverChannel, godotStageManager, mcpManager, i18n, globalShortcut, spotlightWindow, ioTraceRecording },
     build: ({ dependsOn }) => {
       workspaceWindowManager = setupWorkspaceWindowManager({
         ...dependsOn,

@@ -247,8 +247,6 @@ export function fromImported(): AppUpdaterLike {
   return autoUpdater as unknown as AppUpdaterLike
 }
 
-type MainContext = ReturnType<typeof createContext>['context']
-
 export interface AutoUpdater {
   state: AutoUpdaterState
   checkForUpdates: () => Promise<void>
@@ -270,6 +268,21 @@ export interface AutoUpdaterOptions {
   getStoredUpdateLane?: () => UpdateLane | undefined
   /** Persists a release-channel change requested through updater IPC. */
   setStoredUpdateLane?: (lane: UpdateLane | undefined) => void
+}
+
+/**
+ * Returns whether a store or a package manager updates this installation, so AIRI must not run its own updater.
+ *
+ * - Steam builds set `VITE_DISTRIBUTION=steam` at build time.
+ * - The Flatpak bundle uses the same JavaScript build as the deb and rpm packages, so only the runtime can tell.
+ *   Flatpak sets `FLATPAK_ID` in each sandbox. Flathub updates the app with `flatpak update`.
+ * - The Nix package runs the app from the read-only Nix store, so the updater cannot replace it.
+ *   The `nix/package.nix` launcher sets `AIRI_DISTRIBUTION=nix`. Nix updates the app with a new derivation.
+ */
+export function isExternallyUpdatedInstall() {
+  return import.meta.env.VITE_DISTRIBUTION === 'steam'
+    || !!process.env.FLATPAK_ID
+    || process.env.AIRI_DISTRIBUTION === 'nix'
 }
 
 function isPrereleaseVersion(version: string) {
@@ -494,6 +507,29 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
     },
   }))
 
+  // Callers that arrive while a check or a download runs share its promise, so electron-updater runs it once.
+  // On macOS, a second download unpacks over the first, and the install fails with `ditto: ... No such file`.
+  let checkPromise: Promise<void> | undefined
+  let downloadPromise: Promise<void> | undefined
+  // `quitAndInstall` starts the app quit. It stays true because the app process ends after the install starts.
+  let installStarted = false
+
+  async function download() {
+    await semaphore.acquire()
+
+    try {
+      // The lock serializes download and install. Read the status after the lock, because a download that held the
+      // lock can finish while this call waits.
+      if (state.status === 'downloaded')
+        return
+
+      await autoUpdater.downloadUpdate()
+    }
+    finally {
+      semaphore.release()
+    }
+  }
+
   void checkForUpdatesWithPreparedFeed()
     .catch(error => broadcastUpdaterError(error, 'checkForUpdates() failed'))
 
@@ -502,30 +538,35 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
       return state
     },
     async checkForUpdates() {
-      broadcast({ status: 'checking' })
-      await checkForUpdatesWithPreparedFeed().catch(error => broadcastUpdaterError(error, 'checkForUpdates() failed'))
+      checkPromise ??= (async () => {
+        broadcast({ status: 'checking' })
+        await checkForUpdatesWithPreparedFeed().catch(error => broadcastUpdaterError(error, 'checkForUpdates() failed'))
+      })().finally(() => {
+        checkPromise = undefined
+      })
+
+      await checkPromise
     },
     async downloadUpdate() {
-      if (state.status === 'downloading' || state.status === 'downloaded')
-        return
+      downloadPromise ??= download().finally(() => {
+        downloadPromise = undefined
+      })
 
-      await semaphore.acquire()
-
-      try {
-        await autoUpdater.downloadUpdate()
-      }
-      finally {
-        semaphore.release()
-      }
+      await downloadPromise
     },
     async quitAndInstall() {
       await semaphore.acquire()
 
       try {
+        if (installStarted)
+          return
+
         if (isWindows)
           autoUpdater.quitAndInstall(true, true)
         else
           autoUpdater.quitAndInstall()
+
+        installStarted = true
       }
       finally {
         semaphore.release()
@@ -560,7 +601,14 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
   }
 }
 
-export function createAutoUpdaterService(params: { context: MainContext, window: BrowserWindow, service: AutoUpdater }) {
+/**
+ * Serves the updater IPC to the renderer of one window.
+ *
+ * `context` must hear only this window, so one click runs one handler. Use the context from `createWindowContext`.
+ *
+ * Returns a cleanup that stops the state broadcast and removes the handlers before the window closes.
+ */
+export function createAutoUpdaterService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow, service: AutoUpdater }) {
   const { context, window, service } = params
 
   const log = useLogg('auto-updater-service').useGlobalConfig()

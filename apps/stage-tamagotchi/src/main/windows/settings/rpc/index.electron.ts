@@ -1,3 +1,4 @@
+import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { BrowserWindow } from 'electron'
 
 import type { I18n } from '../../../libs/i18n'
@@ -8,20 +9,22 @@ import type { McpManager } from '../../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../../services/electron/auto-updater'
 import type { GlobalShortcutService } from '../../../services/electron/global-shortcut'
 import type { DevtoolsWindowManager } from '../../devtools'
+import type { EditorWindowManager } from '../../editor'
 import type { SpotlightWindowManager } from '../../spotlight'
 import type { WidgetsWindowManager } from '../../widgets'
 
 import { defineInvokeHandler } from '@moeru/eventa'
-import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ipcMain } from 'electron'
 
 import {
   electronCenterMainWindow,
   electronOpenDevtoolsWindow,
+  electronOpenEditor,
   electronOpenSettingsDevtools,
   electronSpotlightShortcutGet,
   electronSpotlightShortcutSet,
 } from '../../../../shared/eventa'
+import { createWindowContext } from '../../../libs/electron/window-context'
 import { createAuthService } from '../../../services/airi/auth'
 import { createGodotStageService } from '../../../services/airi/godot-stage'
 import { registerIOTraceRecording } from '../../../services/airi/io-trace-recording/register'
@@ -63,6 +66,7 @@ export async function setupSettingsWindowInvokes(params: {
   widgetsManager: WidgetsWindowManager
   autoUpdater: AutoUpdater
   devtoolsWindow: DevtoolsWindowManager
+  editorWindow: EditorWindowManager
   getMainWindow?: () => BrowserWindow | undefined
   serverChannel: ServerChannel
   godotStageManager: GodotStageManager
@@ -77,7 +81,7 @@ export async function setupSettingsWindowInvokes(params: {
   // manage events within eventa's context system.
   ipcMain.setMaxListeners(0)
 
-  const { context } = createContext(ipcMain, params.settingsWindow)
+  const { context } = createWindowContext(params.settingsWindow)
 
   await setupBaseWindowElectronInvokes({ context, window: params.settingsWindow, i18n: params.i18n, serverChannel: params.serverChannel })
 
@@ -98,6 +102,7 @@ export async function setupSettingsWindowInvokes(params: {
     devtoolsWindow: params.devtoolsWindow,
   })
   defineInvokeHandler(context, electronCenterMainWindow, () => centerWindowOnDisplay(params.getMainWindow?.()))
+  defineInvokeHandler(context, electronOpenEditor, () => params.editorWindow.openWindow())
 
   return context
 }

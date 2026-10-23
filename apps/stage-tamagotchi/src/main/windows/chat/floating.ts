@@ -5,13 +5,10 @@ import type { Point, Rectangle } from 'electron'
 import type { ChatFloatingPlacement, ChatFloatingState } from '../../../shared/eventa'
 import type { AttachedChatLayout } from './floating-placement'
 
-import { join, resolve } from 'node:path'
-
 import { defineInvokeHandler } from '@moeru/eventa'
-import { createContext as createElectronContext } from '@moeru/eventa/adapters/electron/main'
 import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
 import { animate } from 'animejs'
-import { BrowserWindow, ipcMain, screen } from 'electron'
+import { BrowserWindow, screen } from 'electron'
 import { debounce } from 'es-toolkit'
 import { isMacOS } from 'std-env'
 
@@ -25,7 +22,8 @@ import {
   electronChatFloatingResizeBy,
   electronChatFloatingStateChanged,
 } from '../../../shared/eventa'
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
+import { createWindowContext } from '../../libs/electron/window-context'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { showWindowOnAllWorkspaces } from '../shared/app-icon'
 import { protectPrivilegedWindowNavigation, resizeBoundsByDelta, transparentWindowConfig } from '../shared/window'
@@ -430,7 +428,7 @@ export function setupFloatingChatWindow(params: {
       // resize reliably from native edges.
       resizable: false,
       webPreferences: {
-        preload: join(getElectronMainDirname(), '../preload/index.mjs'),
+        preload: getPreloadPath(),
         sandbox: false,
       },
       ...transparentWindowConfig(),
@@ -451,7 +449,7 @@ export function setupFloatingChatWindow(params: {
     protectPrivilegedWindowNavigation(target)
 
     // `onlySameWindow` hears only this window and disposes with it.
-    const { context: targetContext } = createElectronContext(ipcMain, target, { onlySameWindow: true })
+    const { context: targetContext } = createWindowContext(target)
     context = targetContext
     // Every platform reports `move`; `moved` is only on macOS and Windows.
     // Only a chat that is not attached owns its position. An attached one
@@ -506,7 +504,7 @@ export function setupFloatingChatWindow(params: {
     try {
       await params.setupChatInvokes(target, targetContext)
       applyPlacementTo(target)
-      await load(target, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/chat-floating', {
+      await load(target, withHashRoute(baseUrl(getRendererRoot()), '/chat-floating', {
         query: {
           'stage-runtime': 'minimal',
           'synced-leader': 'false',

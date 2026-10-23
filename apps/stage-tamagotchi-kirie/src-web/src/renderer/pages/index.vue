@@ -11,7 +11,7 @@ import {
   useHostRelativeMouse,
 } from '@proj-airi/stage-host-context'
 import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
-import { HoloCoupon, VoiceDrafts } from '@proj-airi/stage-ui/components'
+import { HearingStatus, HoloCoupon, VoiceDrafts } from '@proj-airi/stage-ui/components'
 import {
   createEmptyModelSettingsRuntimeSnapshot,
   resolveComponentStateToRuntimePhase,
@@ -24,28 +24,35 @@ import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useVoiceStore } from '@proj-airi/stage-ui/stores/voice'
 import { refDebounced } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, shallowRef, toRef, watch } from 'vue'
+import { computed, onMounted, onScopeDispose, ref, shallowRef, toRef, watch } from 'vue'
 import { toast } from 'vue-sonner'
 
 import ControlsIslandRoot from '../components/stage-islands/controls-island/controls-island-root.vue'
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
+import WindowResizeBorder from '../components/window-resize-border.vue'
 
 import { electronOpenSettings } from '../../shared/eventa'
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
+import { usePushToTalkShortcut } from '../composables/use-push-to-talk-shortcut'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
+import { useToolSelectionStore } from '../stores/tools'
 import { resolveFadeOnHoverInteraction } from '../utils/fade-on-hover'
 import { shouldSampleStageTransparency } from '../utils/stage-three-transparency'
 
+const hearingStatusElement = ref<HTMLElement>()
+const { isOutside: outsideHearingStatus } = useHostMouseInElement(hearingStatusElement)
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
 const controlsIslandInteractionActive = shallowRef(false)
-const controlsIslandElement = toRef(() => controlsIslandRef.value?.element)
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
 const stageCanvas = toRef(() => widgetStageRef.value?.canvasElement())
 const componentStateStage = ref<'pending' | 'loading' | 'mounted'>('pending')
 const stageMounted = computed(() => componentStateStage.value === 'mounted')
-const isLoading = computed(() => !stageMounted.value)
+// A stage that fails to render never reaches `mounted`, so the loading overlay would
+// keep covering the error surface. The error event ends the wait instead.
+const stageError = shallowRef<Error>()
+const isLoading = computed(() => !stageMounted.value && !stageError.value)
 
 const isIgnoringMouseEvents = ref(false)
 const shouldFadeOnCursorWithin = ref(false)
@@ -55,7 +62,9 @@ const { open: openOnboarding } = useHostOnboarding()
 const openSettings = useHostEventaInvoke(electronOpenSettings)
 
 const { isOutside: isOutsideWindow } = useHostMouseInWindow()
-const { isOutside } = useHostMouseInElement(controlsIslandElement)
+// The island already pairs its cursor signal with a DOM one and owns that decision, so
+// read its answer rather than mounting a second set of listeners over the same element.
+const isOutside = computed(() => controlsIslandRef.value?.isOutside ?? true)
 const isOutsideFor250Ms = refDebounced(isOutside, 250)
 const { x: relativeMouseX, y: relativeMouseY } = useHostRelativeMouse()
 // NOTICE: In real-world use cases of Fade on Hover feature, the cursor may move around the edge of the
@@ -85,7 +94,15 @@ const isTransparentByThreeExact = useThreeSceneIsTransparentAtPoint(
 )
 
 const settingsStore = useSettings()
-const { stageModelRenderer, stageModelSelectedUrl } = storeToRefs(settingsStore)
+const { alwaysOnTop, stageModelRenderer, stageModelSelectedUrl } = storeToRefs(settingsStore)
+function handleStageRenderError(error: Error) {
+  stageError.value = error
+}
+// The stage reports every reset, including a retry that changes no setting, so the
+// overlay returns during the new load instead of hiding behind a stale error.
+function handleStageReset() {
+  stageError.value = undefined
+}
 const modelStore = useModelStore()
 const { sceneMutationLocked, scenePhase } = storeToRefs(modelStore)
 const { stagePaused } = storeToRefs(useStageWindowLifecycleStore())
@@ -93,37 +110,70 @@ const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
 const modelSettingsRuntimeOwnerInstanceId = `tamagotchi-main-stage:${Math.random().toString(36).slice(2, 10)}`
 const shouldUseThreeTransparencyHitTest = computed(() => shouldSampleStageTransparency({
   componentState: componentStateStage.value,
-  fadeOnHoverEnabled: fadeOnHoverEnabled.value,
   stageModelRenderer: stageModelRenderer.value,
   stagePaused: stagePaused.value,
 }))
+/**
+ * Drives the Auto Hide fade. `true` means "do not fade", so any case without a usable
+ * region sampler reports `true` and the stage stays visible.
+ */
 const isTransparent = computed(() => {
   if (stagePaused.value || componentStateStage.value !== 'mounted' || !fadeOnHoverEnabled.value)
     return true
 
+  // TresCanvas leaves preserveDrawingBuffer off, so VRM's canvas reads back empty and
+  // has to sample an offscreen render target. Every other renderer keeps its last frame
+  // readable, and a renderer with no canvas samples nothing and stays visible.
   if (stageModelRenderer.value === 'vrm')
     return shouldUseThreeTransparencyHitTest.value ? isTransparentByThree.value : true
 
-  if (stageModelRenderer.value === 'live2d' || stageModelRenderer.value === 'tachie')
-    return isTransparentByPixels.value
-
-  return true
+  return isTransparentByPixels.value
 })
+/**
+ * Whether the cursor sits on the stage canvas rather than on interface drawn over it.
+ *
+ * The pixel test can only answer for the canvas, and the canvas draws nothing beneath a
+ * DOM overlay, so a button, a toast or a portaled panel floating over blank canvas
+ * would read as empty space and lose its clicks. Ask the document what is really under
+ * the cursor instead. This is a hit test, not an event, so it still answers while the
+ * window is click-through.
+ */
+const isPointerOverStageCanvas = computed(() =>
+  document.elementFromPoint(relativeMouseX.value, relativeMouseY.value) === stageCanvas.value,
+)
+/**
+ * Drives native click-through, and runs whether or not Auto Hide is on.
+ *
+ * `true` surrenders the pixel to the app below, the opposite sense of
+ * {@link isTransparent}. The samplers report a missing canvas as transparent, so the
+ * guards below are what keep the window interactive when nothing can answer. Godot
+ * lands there: it draws a DOM panel and exposes no canvas to read.
+ */
 const isTransparentForMouseEvents = computed(() => {
-  if (stagePaused.value || componentStateStage.value !== 'mounted' || !fadeOnHoverEnabled.value)
-    return true
+  if (stagePaused.value || componentStateStage.value !== 'mounted')
+    return false
+
+  // Load-bearing, not a convenience. A scene swap unmounts the canvas while the state
+  // still reads mounted, and both samplers answer "transparent" without one, which would
+  // hand the whole window away, character included, until the next scene reports itself.
+  if (!stageCanvas.value)
+    return false
+
+  if (!isPointerOverStageCanvas.value)
+    return false
 
   if (stageModelRenderer.value === 'vrm')
-    return shouldUseThreeTransparencyHitTest.value ? isTransparentByThreeExact.value : true
+    return shouldUseThreeTransparencyHitTest.value ? isTransparentByThreeExact.value : false
 
-  if (stageModelRenderer.value === 'live2d' || stageModelRenderer.value === 'tachie')
-    return isTransparentByPixelsExact.value
-
-  return true
+  return isTransparentByPixelsExact.value
 })
 
 const { isNearAnyBorder: isAroundWindowBorder } = useHostMouseAroundWindowBorder({ threshold: 10 })
 const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
+
+// The controls Island hides while the cursor is away from the window. The edge
+// band counts as the window, because a resize holds the cursor there.
+const cursorAwayFromWindow = computed(() => isOutsideWindow.value && !isAroundWindowBorder.value)
 
 const setPointerPassthrough = useHostPointerPassthrough()
 
@@ -232,7 +282,7 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
  * Upstream:
  * - {@link isOutsideFor250Ms} and {@link isAroundWindowBorderFor250Ms}
  * - {@link isOutsideWindow}, {@link isTransparent}, and {@link isTransparentForMouseEvents}
- * - {@link controlsOverlayActive}, {@link fadeOnHoverEnabled}, and {@link stagePaused}
+ * - {@link controlsOverlayActive}, {@link fadeOnHoverEnabled}, {@link alwaysOnTop}, and {@link stagePaused}
  *
  * Downstream:
  * - {@link resolveFadeOnHoverInteraction}
@@ -247,7 +297,7 @@ function handleFadeOnHoverInteractionChange() {
     return
   }
 
-  if (controlsOverlayActive.value) {
+  if (controlsOverlayActive.value || !outsideHearingStatus.value) {
     // Portaled controls must receive clicks even outside the Island's bounds.
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
@@ -256,8 +306,11 @@ function handleFadeOnHoverInteractionChange() {
     return
   }
 
-  const insideControls = !isOutsideFor250Ms.value
-  const nearBorder = isAroundWindowBorderFor250Ms.value
+  // Entering counts at once and leaving keeps the region for the debounce window.
+  // Waiting for the debounce on the way in would leave the button click-through for
+  // 250ms, which the pixel hit test reads as blank canvas and passes to the app below.
+  const insideControls = !isOutside.value || !isOutsideFor250Ms.value
+  const nearBorder = isAroundWindowBorder.value || isAroundWindowBorderFor250Ms.value
 
   if (insideControls || nearBorder) {
     // Inside interactive controls or near resize border: do NOT ignore events
@@ -268,7 +321,9 @@ function handleFadeOnHoverInteractionChange() {
   }
   else {
     const interaction = resolveFadeOnHoverInteraction({
+      alwaysOnTop: alwaysOnTop.value,
       cursorInsideWindow: !isOutsideWindow.value,
+      clickThroughAvailable: true,
       enabled: fadeOnHoverEnabled.value,
       transparentForFade: isTransparent.value,
       transparentForPointer: isTransparentForMouseEvents.value,
@@ -282,7 +337,7 @@ function handleFadeOnHoverInteractionChange() {
 }
 
 watch(
-  [isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, stagePaused],
+  [outsideHearingStatus, isOutside, isOutsideFor250Ms, isPointerOverStageCanvas, isAroundWindowBorder, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, alwaysOnTop, stagePaused],
   handleFadeOnHoverInteractionChange,
   { immediate: true },
 )
@@ -294,7 +349,11 @@ useModelSettingsRuntimeOwner({
 })
 
 const voice = useVoiceStore()
+const toolSelection = useToolSelectionStore()
+// Spoken turns start in this window. They use the tools that the chat window composer grants.
+onScopeDispose(voice.connectTools(() => toolSelection.requestTools))
 useVoiceListening()
+usePushToTalkShortcut()
 watch(() => voice.error, (error) => {
   if (error)
     toast.error(error)
@@ -318,6 +377,10 @@ const cursorPosition = computed(() => ({
     relative z-2 h-full overflow-hidden rounded-xl
     transition="opacity duration-500 ease-in-out"
   >
+    <div v-show="!settingsStore.streamerMode" ref="hearingStatusElement" :class="['absolute bottom-3 left-1/2 z-30 flex w-fit -translate-x-1/2 flex-col items-center gap-2']">
+      <HearingStatus align="center" />
+      <VoiceDrafts />
+    </div>
     <!-- Stage is always in DOM so TresCanvas can measure dimensions -->
     <div
       :class="[
@@ -343,22 +406,22 @@ const cursorPosition = computed(() => ({
           flex-1
           :cursor-position="cursorPosition"
           :paused="stagePaused"
+          @error="handleStageRenderError"
+          @reset="handleStageReset"
           @select-avatar-model="openSettings({ route: '/settings/models' })"
         />
         <HoloCoupon />
-        <div :class="['absolute bottom-3 left-1/2 z-30 w-fit -translate-x-1/2']">
-          <VoiceDrafts />
-        </div>
         <ControlsIslandRoot :frozen="controlsIslandInteractionActive">
           <ControlsIsland
             ref="controlsIslandRef"
+            :cursor-away="cursorAwayFromWindow"
             @interaction-change="controlsIslandInteractionActive = $event"
           />
         </ControlsIslandRoot>
       </div>
     </div>
     <!-- Loading overlay sits on top, does not hide the stage -->
-    <div v-show="isLoading" class="absolute left-0 top-0 z-99 h-full w-full flex cursor-grab items-center justify-center overflow-hidden">
+    <div v-show="isLoading" :class="['absolute left-0 top-0 z-99 h-full w-full flex cursor-grab items-center justify-center overflow-hidden']">
       <div
         :class="[
           'absolute h-24 w-full overflow-hidden rounded-xl',
@@ -392,13 +455,12 @@ const cursorPosition = computed(() => ({
   >
     <div
       v-if="false"
-      class="absolute left-0 top-0 z-99 h-full w-full flex cursor-grab items-center justify-center overflow-hidden drag-region"
+      :class="['absolute left-0 top-0 z-99 h-full w-full flex cursor-grab items-center justify-center overflow-hidden drag-region']"
     >
       <div
-        class="absolute h-32 w-full flex items-center justify-center overflow-hidden rounded-xl"
-        bg="white/80 dark:neutral-950/80" backdrop-blur="md"
+        :class="['absolute h-32 w-full flex items-center justify-center overflow-hidden rounded-xl', 'bg-white/80 backdrop-blur-md dark:bg-neutral-950/80']"
       >
-        <div class="wall absolute top-0 h-8" />
+        <div :class="['wall absolute top-0 h-8']" />
         <div
           :class="[
             'absolute left-0 top-0 h-full w-full',
@@ -409,27 +471,11 @@ const cursorPosition = computed(() => ({
         >
           DRAG HERE TO MOVE
         </div>
-        <div class="wall absolute bottom-0 h-8 drag-region" />
+        <div :class="['wall absolute bottom-0 h-8 drag-region']" />
       </div>
     </div>
   </Transition>
-  <Transition
-    enter-active-class="transition-opacity duration-250 ease-in-out"
-    enter-from-class="opacity-50"
-    enter-to-class="opacity-100"
-    leave-active-class="transition-opacity duration-250 ease-in-out"
-    leave-from-class="opacity-100"
-    leave-to-class="opacity-50"
-  >
-    <div v-if="isAroundWindowBorderFor250Ms && !isLoading" class="pointer-events-none absolute left-0 top-0 z-999 h-full w-full">
-      <div
-        :class="[
-          'b-primary/50',
-          'h-full w-full animate-flash animate-duration-3s animate-count-infinite b-4 rounded-2xl',
-        ]"
-      />
-    </div>
-  </Transition>
+  <WindowResizeBorder :shown="isAroundWindowBorderFor250Ms && !isLoading" :class="['rounded-2xl']" />
 </template>
 
 <style scoped>

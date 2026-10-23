@@ -7,13 +7,10 @@ import type { ServerChannel } from '../../services/airi/channel-server'
 import type { GlobalShortcutService } from '../../services/electron/global-shortcut'
 import type { ChatWindowManager } from '../chat'
 
-import { join, resolve } from 'node:path'
-
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
-import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ShortcutFailureReasons } from '@proj-airi/stage-shared/global-shortcut'
-import { BrowserWindow, ipcMain, Notification, screen } from 'electron'
+import { BrowserWindow, Notification, screen } from 'electron'
 import { isMacOS } from 'std-env'
 
 import icon from '../../../../resources/icon.png?asset'
@@ -23,7 +20,8 @@ import {
   electronSpotlightShowResultNotification,
 } from '../../../shared/eventa'
 import { isSafeSpotlightAccelerator } from '../../../shared/spotlight-shortcut'
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
+import { createWindowContext } from '../../libs/electron/window-context'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { excludeWindowFromTaskbar } from '../shared/app-icon'
 import { protectPrivilegedWindowNavigation, setupBaseWindowElectronInvokes, transparentWindowConfig } from '../shared/window'
@@ -60,7 +58,6 @@ export function setupSpotlightWindowManager(params: {
   appConfig: Config<typeof globalAppConfigSchema>
 }): SpotlightWindowManager {
   const log = useLogg('spotlight-window').useGlobalConfig()
-  const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
 
   // NOTICE:
   // Electron may GC a `Notification` once the constructor scope returns, which
@@ -110,7 +107,7 @@ export function setupSpotlightWindowManager(params: {
       alwaysOnTop: true,
       icon,
       webPreferences: {
-        preload: join(getElectronMainDirname(), '../preload/index.mjs'),
+        preload: getPreloadPath(),
         sandbox: false,
       },
     })
@@ -120,7 +117,7 @@ export function setupSpotlightWindowManager(params: {
 
     window.on('blur', () => window.hide())
 
-    const { context } = createContext(ipcMain, window)
+    const { context } = createWindowContext(window)
     await setupBaseWindowElectronInvokes({ context, window, i18n: params.i18n, serverChannel: params.serverChannel })
 
     // Only the Spotlight window may call these private invokes.
@@ -138,7 +135,7 @@ export function setupSpotlightWindowManager(params: {
       showNotification(payload.body, () => void openChatWindowFromNotification())
     })
 
-    await load(window, withHashRoute(rendererBase, '/spotlight', {
+    await load(window, withHashRoute(baseUrl(getRendererRoot()), '/spotlight', {
       query: {
         'stage-runtime': 'minimal',
         'synced-leader': 'false',

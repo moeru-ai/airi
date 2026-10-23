@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import type { PluginHostModuleSummary } from '@proj-airi/stage-shared/plugin-host'
 import type { ComponentPublicInstance } from 'vue'
 
 import type {
   WidgetsIframeRequestPayload,
   WidgetsIframeRequestResultPayload,
 } from '../../../../shared/eventa'
-import type { PluginHostModuleSummary, PluginModuleWidgetPayload } from '../../../../shared/eventa/plugin/host'
+import type { PluginModuleWidgetPayload } from '../../../../shared/eventa/plugin/host'
 
 import { useHostEventaInvoke } from '@proj-airi/stage-host-context'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'

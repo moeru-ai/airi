@@ -15,7 +15,6 @@ import type { SettingsWindowManager } from '../../settings'
 import type { WidgetsWindowManager } from '../../widgets'
 
 import { defineInvokeHandler } from '@moeru/eventa'
-import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ipcMain } from 'electron'
 
 import {
@@ -29,6 +28,7 @@ import {
   electronOpenSettings,
   noticeWindowEventa,
 } from '../../../../shared/eventa'
+import { createWindowContext } from '../../../libs/electron/window-context'
 import { createAuthService } from '../../../services/airi/auth'
 import { createGodotStageService } from '../../../services/airi/godot-stage'
 import { registerIOTraceRecording } from '../../../services/airi/io-trace-recording/register'
@@ -64,7 +64,7 @@ export async function setupMainWindowElectronInvokes(params: {
   // manage events within eventa's context system.
   ipcMain.setMaxListeners(0)
 
-  const { context } = createContext(ipcMain, params.window)
+  const { context } = createWindowContext(params.window)
 
   await setupBaseWindowElectronInvokes({ context, window: params.window, serverChannel: params.serverChannel, i18n: params.i18n, setAlwaysOnTop: params.setPinned })
   // The stage renderer owns the voice host, so it registers the Push to Talk hold shortcut and receives its key events.

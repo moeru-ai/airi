@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/stage-tamagotchi-kirie",
   "type": "module",
-  "version": "0.0.0",
+  "version": "0.12.0-beta.6",
   "private": true,
   "description": "LLM powered virtual character",
   "author": {
@@ -100,6 +100,7 @@
     "jszip": "catalog:",
     "localforage": "catalog:",
     "mediabunny": "catalog:",
+    "nanoid": "catalog:",
     "node-vibrant": "catalog:",
     "nprogress": "catalog:",
     "onnxruntime-web": "catalog:",
