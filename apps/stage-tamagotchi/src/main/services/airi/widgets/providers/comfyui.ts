@@ -3,15 +3,15 @@ import type { ArtistryJob, ArtistryJobStatus, ArtistryProvider, ArtistryRequest 
 import { Buffer } from 'node:buffer'
 
 import { useLogg } from '@guiiai/logg'
-import { array, fallback, object, optional, parse, record, string, unknown } from 'valibot'
+import { array, object, optional, parse, record, string, unknown } from 'valibot'
 
 const ComfyUIConfigSchema = object({
   comfyuiServerUrl: optional(string()),
-  comfyuiSavedWorkflows: fallback(array(object({
+  comfyuiSavedWorkflows: optional(array(object({
     id: string(),
     workflow: record(string(), unknown()),
     exposedFields: record(string(), array(string())),
-  })), []),
+  }))),
   comfyuiActiveWorkflow: optional(string()),
 })
 
@@ -67,7 +67,7 @@ export class ComfyUIProvider implements ArtistryProvider {
     const parsed = parse(ComfyUIConfigSchema, config)
     if (parsed.comfyuiServerUrl)
       this.serverUrl = parsed.comfyuiServerUrl.trim().replace(/\/+$/, '') // strip trailing slashes
-    if (parsed.comfyuiSavedWorkflows.length > 0)
+    if (parsed.comfyuiSavedWorkflows)
       this.savedWorkflows = parsed.comfyuiSavedWorkflows
     if (parsed.comfyuiActiveWorkflow)
       this.activeWorkflowId = parsed.comfyuiActiveWorkflow
@@ -78,7 +78,7 @@ export class ComfyUIProvider implements ArtistryProvider {
 
     // Resolve which workflow template to use --- per-request template override takes precedence over card model default
     const templateId = request.extra?.template || request.model || this.activeWorkflowId
-    const template = this.savedWorkflows.find((w: any) => w.id === templateId)
+    const template = this.savedWorkflows.find(w => w.id === templateId)
 
     if (!template) {
       this.updateStatus(jobId, {
