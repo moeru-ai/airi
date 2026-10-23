@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/agents",
   "type": "module",
-  "version": "0.12.0-beta.5",
+  "version": "0.12.0",
   "private": true,
   "description": "Single-purpose model agents that AIRI runtimes and evals share",
   "author": {
@@ -22,6 +22,7 @@
     "./voice-transcription-rephrase": "./src/voice-transcription-rephrase/index.ts"
   },
   "scripts": {
+    "test:run": "vitest run --config vitest.config.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

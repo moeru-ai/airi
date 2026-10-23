@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/core-agent",
   "type": "module",
-  "version": "0.12.0-beta.5",
+  "version": "0.12.0",
   "private": true,
   "description": "Core agent runtime orchestration for AIRI",
   "author": {
@@ -37,6 +37,7 @@
     "package.json"
   ],
   "scripts": {
+    "test:run": "vitest run --config vitest.config.ts",
     "build": "tsdown",
     "eval:run": "vieval run --config ./vieval.config.ts",
     "typecheck": "tsc --noEmit"

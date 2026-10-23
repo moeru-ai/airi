@@ -1,3 +1,4 @@
+import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { BrowserWindow, BrowserWindowConstructorOptions, Rectangle } from 'electron'
 import type { InferOutput } from 'valibot'
 
@@ -5,10 +6,8 @@ import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 
 import { createHash } from 'node:crypto'
-import { join, resolve } from 'node:path'
 
 import { defineInvokeHandler } from '@moeru/eventa'
-import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { animate, utils } from 'animejs'
 import { BrowserWindow as ElectronBrowserWindow, ipcMain, screen } from 'electron'
 import { debounce, throttle } from 'es-toolkit'
@@ -19,8 +18,9 @@ import icon from '../../../../resources/icon.png?asset'
 
 import { captionGetIsFollowingWindow, captionIsFollowingWindowChanged } from '../../../shared/eventa'
 import { clampBoundsWithinRect } from '../../../shared/utils/electron/display'
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
+import { createWindowContext } from '../../libs/electron/window-context'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { showWindowOnAllWorkspaces } from '../shared/app-icon'
 import { mapForBreakpoints, resolutionBreakpoints, widthFrom } from '../shared/display'
@@ -107,7 +107,7 @@ function createCaptionWindow(options?: BrowserWindowConstructorOptions) {
     show: false,
     icon,
     webPreferences: {
-      preload: join(getElectronMainDirname(), '../preload/index.mjs'),
+      preload: getPreloadPath(),
       sandbox: false,
     },
     // Thanks to [@HeartArmy](https://github.com/HeartArmy) for the tip implementation.
@@ -301,7 +301,7 @@ export function setupCaptionWindowManager(params: {
 
     const window = createCaptionWindow()
     currentWindow = window
-    const { context } = createContext(ipcMain, window)
+    const { context } = createWindowContext(window)
     eventaContext = context
 
     await setupBaseWindowElectronInvokes({ context, window, serverChannel: params.serverChannel, i18n: params.i18n })
@@ -340,7 +340,7 @@ export function setupCaptionWindowManager(params: {
 
     const cleanupGetAttached = defineInvokeHandler(context, captionGetIsFollowingWindow, async () => isFollowing)
 
-    await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/caption', {
+    await load(window, withHashRoute(baseUrl(getRendererRoot()), '/caption', {
       query: { 'synced-leader': 'false' },
     }))
 

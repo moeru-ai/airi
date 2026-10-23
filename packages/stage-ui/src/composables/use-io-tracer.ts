@@ -146,6 +146,34 @@ export function onRemoteIOSpan(cb: SpanCallback): () => void {
   }
 }
 
+/**
+ * Spans that another process collects, such as the IO trace hub in the Electron main process.
+ *
+ * Without a source, a tracer view reads the spans of its own window and the spans that other windows broadcast.
+ */
+export interface IOTraceSource {
+  /**
+   * Calls `onSpan` for each span that ends later, and returns the spans that ended earlier.
+   * The returned spans and the later spans do not overlap.
+   */
+  subscribe: (onSpan: SpanCallback) => Promise<{ spans: ReadableSpan[], unsubscribe: () => void }>
+}
+
+let ioTraceSource: IOTraceSource | undefined
+
+/** Makes tracer views read spans from `source` until the returned function runs. */
+export function setIOTraceSource(source: IOTraceSource): () => void {
+  ioTraceSource = source
+  return () => {
+    if (ioTraceSource === source)
+      ioTraceSource = undefined
+  }
+}
+
+export function getIOTraceSource(): IOTraceSource | undefined {
+  return ioTraceSource
+}
+
 export function startSpan(name: string, parent?: Span, attrs?: Record<string, boolean | number | string>): Span {
   initIOTracer()
 

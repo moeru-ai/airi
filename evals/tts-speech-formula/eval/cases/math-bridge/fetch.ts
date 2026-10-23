@@ -10,8 +10,9 @@ import { fileURLToPath } from 'node:url'
 import katex from 'katex'
 
 import { DuckDBDataProtocol } from '@duckdb/duckdb-wasm'
-import { connect } from '@proj-airi/duckdb-wasm'
-import { getBundles } from '@proj-airi/duckdb-wasm/bundles/default-node'
+import { connect, drizzle } from '@proj-airi/drizzle-duckdb-wasm'
+import { getBundles } from '@proj-airi/drizzle-duckdb-wasm/bundles/default-node'
+import { sql } from 'drizzle-orm'
 
 import 'katex/contrib/mhchem'
 
@@ -33,7 +34,7 @@ import 'katex/contrib/mhchem'
  *
  * main
  *   -> download, once per revision, then verify
- *   -> connect (@proj-airi/duckdb-wasm), registerFileURL with NODE_FS
+ *   -> connect (@proj-airi/drizzle-duckdb-wasm), registerFileURL with NODE_FS
  *     -> uniform query and topic query, see {@link gradableRows}
  *       -> sample.json
  */
@@ -113,8 +114,8 @@ async function download(): Promise<void> {
  * About 88% of the first 16 million rows hold notation, but under 1% of the rest do: they are single letters, for
  * example `$ A $`. Gradable rows therefore come from the first 16 million rows, and that is the data, not the hash.
  */
-function gradableRows(): string {
-  return `
+function gradableRows() {
+  return sql`
     WITH source AS (
       SELECT
         file_row_number AS row_offset,
@@ -122,7 +123,8 @@ function gradableRows(): string {
         equation, context_before, context_after, "spoken_English" AS spoken_english
       FROM read_parquet('mathbridge.parquet', file_row_number = true)
     )
-    SELECT *, hash(row_offset, ${seed}) AS priority
+    -- A bound number is a DOUBLE. The cast keeps the INTEGER of a literal seed, so the hash and the order stay the same.
+    SELECT *, hash(row_offset, CAST(${seed} AS INTEGER)) AS priority
     FROM source
     WHERE length(tex) BETWEEN 6 AND ${maxLength}
       AND regexp_matches(tex, '[\\\\^_=<>]')
@@ -144,20 +146,17 @@ function usesStandardTex(tex: string): boolean {
   }
 }
 
-/** Escapes a value for a single-quoted SQL string. The patterns are constants, so this only doubles quotes. */
-function sqlString(value: string): string {
-  return `'${value.replaceAll('\'', '\'\'')}'`
-}
-
 async function main() {
   await download()
 
   const client = await connect({ bundles: getBundles() })
+  // Drizzle binds every value of a `sql` template as a parameter, so the patterns and numbers need no escaping.
+  const db = drizzle({ client: Promise.resolve(client) })
   try {
     // NODE_FS reads the file from disk in pieces, so DuckDB never holds the whole gigabyte in WebAssembly memory.
     await client.db.registerFileURL('mathbridge.parquet', cacheFile, DuckDBDataProtocol.NODE_FS, false)
 
-    const topicCase = topics.map(([name, pattern]) => `WHEN regexp_matches(tex, ${sqlString(pattern)}) THEN ${sqlString(name)}`).join(' ')
+    const topicCase = sql.join(topics.map(([name, pattern]) => sql`WHEN regexp_matches(tex, ${pattern}) THEN ${name}`), sql` `)
     const toRow = (row: Record<string, unknown>, stratum: string): MathBridgeRow => ({
       stratum: String(row.tex).length > shortLength ? `${stratum}-long` : stratum,
       offset: Number(row.row_offset),
@@ -167,8 +166,8 @@ async function main() {
       spokenEnglish: String(row.spoken_english ?? ''),
     })
 
-    const uniform = await client.query(`${gradableRows()} ORDER BY priority LIMIT ${uniformCases * candidateFactor}`)
-    const byTopic = await client.query(`
+    const uniform = await db.execute<Record<string, unknown>>(sql`${gradableRows()} ORDER BY priority LIMIT ${uniformCases * candidateFactor}`)
+    const byTopic = await db.execute<Record<string, unknown>>(sql`
       SELECT * FROM (SELECT *, CASE ${topicCase} END AS topic FROM (${gradableRows()}))
       WHERE topic IS NOT NULL
       QUALIFY row_number() OVER (PARTITION BY topic ORDER BY priority) <= ${topicCases * candidateFactor}

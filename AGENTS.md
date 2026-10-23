@@ -45,9 +45,20 @@ Key files and directories:
 Use pnpm workspace filters to limit a command to one workspace. Replace `<package name>` with the `name` field in `package.json`, for example `@proj-airi/stage-tamagotchi`.
 
 - Typecheck one workspace: `pnpm -F <package name> typecheck`. For stage-tamagotchi, this command runs `tsc` and `vue-tsc`.
-- Test one file: `pnpm exec vitest run <path>`.
+- Test one file: `pnpm -F <package name> exec vitest run <path>`. Give `<path>` relative to the workspace.
 - Test one workspace: `pnpm -F <package name> exec vitest run`.
-- Test all projects: `pnpm test:run`. If Vitest finds no tests, examine the `include` patterns in `vitest.config.ts`.
+- Test all workspaces: `pnpm test:run`. Turbo runs the `test:run` script of each workspace, with its browser projects.
+- Test the root scripts in `.github/scripts`: `pnpm test:root`. The root `vitest.config.ts` has only these tests.
+- Test the changes of a branch: run the `test:run` script of each changed workspace and of each workspace that depends on it.
+  Use the merge base with `origin/main` as the base.
+
+  ```sh
+  base=$(git merge-base origin/main HEAD)
+  TURBO_SCM_BASE="$base" pnpm exec turbo run test:run --affected
+  ```
+
+  If the branch changes `.github/scripts`, also run `pnpm test:root`.
+
 - Lint: `pnpm lint`. ESLint also does the formatting. To fix lint and format errors, run `pnpm lint:fix`.
 - Build one workspace: `pnpm -F <package name> build`. For stage-tamagotchi, this command runs the typecheck and `electron-vite build`.
 
@@ -59,6 +70,11 @@ Use pnpm workspace filters to limit a command to one workspace. Replace `<packag
 - If new logic can become a shared utility, propose the shared approach to the user.
 - If a refactor is small, do it step by step.
 - After a task, run the typecheck and the related tests for each workspace that you changed.
+- Before you create a PR or push to one, run the tests of the branch changes. CI runs every project, including the browser projects.
+- If a change alters UI structure, layout, or interaction, review the related browser and end-to-end tests.
+- If intended behavior changes, update the affected assertions. Keep valid regression checks. Do not delete an assertion only to make a test pass.
+- After the final UI change, run the related tests on the final commit.
+- Before you report a CI success, make sure that CI tested the current PR head.
 - If you change a shared package or an exported type, also run the root `pnpm typecheck`.
 - Run `pnpm lint` before you finish.
 - Report only the checks that you ran. Give each command and its result.

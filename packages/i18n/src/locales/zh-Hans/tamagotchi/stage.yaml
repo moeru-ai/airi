@@ -54,13 +54,17 @@ docs:
   style:
     title: 聊天窗口样式
     legacy: 经典窗口
-    floating-attached: 悬浮，吸附在角色旁
-    floating-free: 悬浮，自由摆放
-    floating-danmaku: 悬浮，弹幕机
+    floating: 悬浮
     fullscreen: 全屏，在角色旁
-    pinned: 保持置顶
-  resize: 拖动以调整聊天大小
+    attached: 吸附在角色旁
   move: 拖动以移动聊天
+  resize-corner:
+    ne: 从右上角调整大小
+    nw: 从左上角调整大小
+    se: 从右下角调整大小
+    sw: 从左下角调整大小
+  danmaku: 弹幕机
+  pin: 保持置顶
   fold: 收起聊天
   composer:
     show: 展开输入框
@@ -69,6 +73,7 @@ docs:
     title: 消息停留时间
     hide-read: 自动隐藏已读消息
     hide-read-description: 读完后自动消失，有语音时随语音结束消失。
+    options-hint: 悬停或右键查看选项
     reading-speed: 阅读速度
     reading-speed-value: '{count} 字/秒'
     minimum-time: 最短停留时间
@@ -132,7 +137,7 @@ about:
       checking: 正在检查...
       latest-version: 最新版本
       disabled-dev: 已禁用开发环境时的更新
-      managed-by-store: 更新由应用商店管理
+      managed-by-store: 更新由应用商店或包管理器管理
       retry-check: 重新检查
       restart-silent: 重新启动以静默更新
       restart-install: 重启并安装更新

@@ -60,7 +60,7 @@ const globalRange = computed(() => {
   let max = -Infinity
   for (const { span } of visibleSpans.value) {
     min = Math.min(min, span.startTs)
-    max = Math.max(max, span.endTs ?? performance.now())
+    max = Math.max(max, span.endTs ?? Date.now())
   }
   if (min === Infinity)
     return { min: props.timeOrigin, max: props.timeOrigin + 1000 }
@@ -214,7 +214,7 @@ function spanBarX(span: IOSpan): number {
 }
 
 function spanBarWidth(span: IOSpan): number {
-  const end = span.endTs ?? performance.now()
+  const end = span.endTs ?? Date.now()
   const x1 = timeToX(span.startTs)
   const x2 = timeToX(end)
   return Math.max(x2 - x1, 3)
@@ -225,7 +225,7 @@ function isClippedLeft(span: IOSpan): boolean {
 }
 
 function isClippedRight(span: IOSpan): boolean {
-  const end = span.endTs ?? performance.now()
+  const end = span.endTs ?? Date.now()
   return timeToX(end) > chartWidth.value && timeToX(span.startTs) < chartWidth.value
 }
 
@@ -245,7 +245,7 @@ const edgeIndicators = computed(() => {
     if (row.type !== 'span')
       continue
     const span = row.span
-    const spanEnd = span.endTs ?? performance.now()
+    const spanEnd = span.endTs ?? Date.now()
 
     if (spanEnd < vStart) {
       indicators.push({ subsystem: span.subsystem, side: 'left', y: row.y, spanId: span.id })
@@ -300,7 +300,7 @@ function minimapSpanW(span: IOSpan): number {
   const dur = range.max - range.min
   if (dur <= 0)
     return 0
-  const end = span.endTs ?? performance.now()
+  const end = span.endTs ?? Date.now()
   return Math.max(((end - span.startTs) / dur) * chartWidth.value, 1)
 }
 

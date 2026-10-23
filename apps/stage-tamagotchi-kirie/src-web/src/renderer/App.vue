@@ -8,6 +8,7 @@ import { initializeAnalytics } from '@proj-airi/stage-ui/libs/product-signals'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
+import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
@@ -174,6 +175,9 @@ function createFullStageRuntime() {
 const fullStageRuntime = windowContext.stageRuntime === 'full'
   ? createFullStageRuntime()
   : null
+const chatStreamView = !fullStageRuntime && isChatWindow
+  ? useContextBridgeStore()
+  : null
 
 const { restore: restoreLocale } = useLanguage(language, getMainLocale, setLocale)
 
@@ -229,6 +233,7 @@ onMounted(async () => {
 
   await chatStore.initialize(syncedPinia)
   await fullStageRuntime?.initialize()
+  await chatStreamView?.initializeStreamView()
 })
 
 watch(themeColorsHue, () => {
@@ -244,6 +249,7 @@ onUnmounted(() => {
   stopLeadershipListener?.()
   chatStore.dispose()
   fullStageRuntime?.dispose()
+  void chatStreamView?.dispose()
 })
 
 function handleRouteRenderError(error: unknown, _instance: unknown, info: string) {
