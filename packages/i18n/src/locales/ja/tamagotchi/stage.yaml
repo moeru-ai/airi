@@ -45,11 +45,6 @@ docs:
   style:
     title: チャットウィンドウのスタイル
     legacy: 従来のウィンドウ
-    floating-attached: フローティング、キャラクターの隣
-    floating-free: フローティング、画面の好きな位置
-    floating-danmaku: フローティング、メッセージフィード
-    pinned: 常に最前面に表示
-  resize: ドラッグしてチャットのサイズを変更
   move: ドラッグしてチャットを移動
   fold: チャットを非表示
   composer:
