@@ -6,19 +6,19 @@ import type { McpManager } from '../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
 import type { GlobalShortcutService } from '../../services/electron/global-shortcut'
 import type { DevtoolsWindowManager } from '../devtools'
+import type { EditorWindowManager } from '../editor'
 import type { SpotlightWindowManager } from '../spotlight'
 import type { WidgetsWindowManager } from '../widgets'
 
-import { join, resolve } from 'node:path'
-
+import { defineInvokeHandler } from '@moeru/eventa'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
 import { BrowserWindow } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { electronSettingsNavigate } from '../../../shared/eventa'
+import { electronOpenMainDevtools, electronSettingsNavigate } from '../../../shared/eventa'
 import { SETTINGS_WINDOW_WIDTH } from '../../../shared/settings-window'
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { protectPrivilegedWindowNavigation, toggleWindowShow } from '../shared'
 import { setupSettingsWindowInvokes } from './rpc/index.electron'
@@ -36,6 +36,7 @@ export function setupSettingsWindowReusableFunc(params: {
   widgetsManager: WidgetsWindowManager
   autoUpdater: AutoUpdater
   devtoolsWindow: DevtoolsWindowManager
+  editorWindow: EditorWindowManager
   getMainWindow?: () => BrowserWindow | undefined
   onWindowCreated?: (window: BrowserWindow) => void
   serverChannel: ServerChannel
@@ -46,7 +47,6 @@ export function setupSettingsWindowReusableFunc(params: {
   spotlightWindow: SpotlightWindowManager
   ioTraceRecording: IOTraceRecordingService
 }): SettingsWindowManager {
-  const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
   const defaultRoute = '/settings'
   let currentRoute = defaultRoute
   let settingsContext: Awaited<ReturnType<typeof setupSettingsWindowInvokes>> | undefined
@@ -59,7 +59,7 @@ export function setupSettingsWindowReusableFunc(params: {
       show: false,
       icon,
       webPreferences: {
-        preload: join(getElectronMainDirname(), '../preload/index.mjs'),
+        preload: getPreloadPath(),
         sandbox: false,
       },
     })
@@ -76,6 +76,7 @@ export function setupSettingsWindowReusableFunc(params: {
       widgetsManager: params.widgetsManager,
       autoUpdater: params.autoUpdater,
       devtoolsWindow: params.devtoolsWindow,
+      editorWindow: params.editorWindow,
       getMainWindow: params.getMainWindow,
       serverChannel: params.serverChannel,
       godotStageManager: params.godotStageManager,
@@ -85,8 +86,11 @@ export function setupSettingsWindowReusableFunc(params: {
       spotlightWindow: params.spotlightWindow,
       ioTraceRecording: params.ioTraceRecording,
     })
+    // The Developer page asks for the devtools of the main window. The workspace window shows the same page and opens
+    // its own devtools instead, so this handler is not in `setupSettingsWindowInvokes`.
+    defineInvokeHandler(settingsContext, electronOpenMainDevtools, () => params.getMainWindow?.()?.webContents.openDevTools({ mode: 'detach' }))
 
-    await load(window, withHashRoute(rendererBase, currentRoute, {
+    await load(window, withHashRoute(baseUrl(getRendererRoot()), currentRoute, {
       query: { 'synced-leader': 'false' },
     }))
 

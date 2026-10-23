@@ -15,9 +15,12 @@ import { DrawerContent, DrawerDescription, DrawerHandle, DrawerOverlay, DrawerPo
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { electronGetUpdaterPreferences, electronSetUpdaterPreferences } from '../../shared/eventa'
+import { electronAppGetVersion, electronGetUpdaterPreferences, electronSetUpdaterPreferences } from '../../shared/eventa'
 
 const buildInfo = useBuildInfo()
+// The main process owns the app version. Packaging can change it after the renderer build, so `buildInfo.version`
+// can be out of date. The page shows an empty version until main replies.
+const appVersion = ref('')
 const { t } = useI18n()
 const { copy: copyToClipboard, isSupported: isClipboardSupported } = useClipboard()
 
@@ -36,7 +39,8 @@ const {
 } = useAnalytics()
 
 const isDisabled = computed(() => updateState.value.status === 'disabled')
-const isStoreManaged = import.meta.env.VITE_DISTRIBUTION === 'steam'
+// Only an install that a store or a package manager updates reports `disabled`. Flatpak and Nix are known only at runtime, so the Steam build flag is not enough.
+const isExternallyUpdated = computed(() => import.meta.env.VITE_DISTRIBUTION === 'steam' || isDisabled.value)
 const isLatestVersion = computed(() => {
   return updateState.value.status === 'not-available' && !isDisabled.value
 })
@@ -112,7 +116,7 @@ function normalizeSemver(version: string | undefined) {
 }
 
 const isDowngradeUpdate = computed(() => {
-  const currentVersion = normalizeSemver(buildInfo.version)
+  const currentVersion = normalizeSemver(appVersion.value)
   const targetVersion = normalizeSemver(updateState.value.info?.version)
   if (!currentVersion || !targetVersion)
     return false
@@ -120,6 +124,7 @@ const isDowngradeUpdate = computed(() => {
   return semver.lt(targetVersion, currentVersion)
 })
 
+const getAppVersion = useElectronEventaInvoke(electronAppGetVersion)
 const getUpdaterPreferences = useElectronEventaInvoke(electronGetUpdaterPreferences)
 const setUpdaterPreferences = useElectronEventaInvoke(electronSetUpdaterPreferences)
 
@@ -149,7 +154,7 @@ function confirmDownload() {
 
 function openBugReportDialog() {
   const details = [
-    `Current version: ${buildInfo.version}`,
+    `Current version: ${appVersion.value}`,
     `Update status: ${updateState.value.status}`,
     updaterErrorMessage.value ? `Error: ${updaterErrorMessage.value}` : '',
   ]
@@ -184,6 +189,10 @@ async function onBugReportSubmit(payload: BugReportDialogSubmitPayload) {
   finally {
     bugReportSending.value = false
   }
+}
+
+async function refreshAppVersion() {
+  appVersion.value = await getAppVersion()
 }
 
 async function refreshUpdaterChannelPreference() {
@@ -224,6 +233,7 @@ const releaseNotesContent = computed(() => {
 })
 
 onMounted(() => {
+  void refreshAppVersion()
   void refreshUpdaterChannelPreference()
 })
 </script>
@@ -267,7 +277,7 @@ onMounted(() => {
                   {{ t('tamagotchi.stage.about.current-version') }}
                 </div>
                 <div :class="['text-xl font-medium font-mono']">
-                  {{ buildInfo.version }}
+                  {{ appVersion }}
                 </div>
               </div>
               <div :class="['text-right text-xs text-neutral-400 dark:text-neutral-500']">
@@ -277,7 +287,7 @@ onMounted(() => {
             </div>
 
             <FieldSelect
-              v-if="!isStoreManaged"
+              v-if="!isExternallyUpdated"
               :model-value="selectedUpdateChannel"
               :disabled="isUpdateChannelUpdating || isBusy"
               :label="t('tamagotchi.stage.about.update.lane.label')"
@@ -302,7 +312,7 @@ onMounted(() => {
               <!-- State: Available -->
               <div v-if="updateState.status === 'available'" :class="['flex flex-col gap-4']">
                 <div :class="['text-sm flex flex-wrap items-center gap-2']">
-                  <span :class="['font-mono text-neutral-600 dark:text-neutral-300']">v{{ buildInfo.version }}</span>
+                  <span :class="['font-mono text-neutral-600 dark:text-neutral-300']">v{{ appVersion }}</span>
                   <div :class="['i-solar:arrow-right-line-duotone text-lg text-neutral-400']" />
                   <span :class="['font-mono text-pink-500 dark:text-pink-400 font-bold']">v{{ updateState.info?.version }}</span>
                 </div>
@@ -373,7 +383,7 @@ onMounted(() => {
                   />
                 </div>
                 <div v-else-if="isLatestVersion" :class="['text-sm text-emerald-600 dark:text-emerald-400']">
-                  {{ t('tamagotchi.stage.about.update.status.latest', { version: buildInfo.version }) }}
+                  {{ t('tamagotchi.stage.about.update.status.latest', { version: appVersion }) }}
                 </div>
 
                 <div :class="['flex flex-wrap gap-2']">
@@ -389,9 +399,7 @@ onMounted(() => {
                       : isLatestVersion
                         ? t('tamagotchi.stage.about.update.actions.latest-version')
                         : isDisabled
-                          ? t(isStoreManaged
-                            ? 'tamagotchi.stage.about.update.actions.managed-by-store'
-                            : 'tamagotchi.stage.about.update.actions.disabled-dev')
+                          ? t('tamagotchi.stage.about.update.actions.managed-by-store')
                           : isError
                             ? t('tamagotchi.stage.about.update.actions.retry-check')
                             : t('tamagotchi.stage.about.update.actions.check-for-updates')"

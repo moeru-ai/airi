@@ -76,6 +76,16 @@ The chat carries its unsent draft this way, and settings carry the page that sho
 The view of the character in the separate window is a second render. It only renders the model, so the main window stays the one host of voice.
 It does not follow speech or expressions.
 
+## Dependencies
+
+The main process bundles every package in `devDependencies`. The renderer bundles all packages.
+electron-builder copies only `dependencies` and `optionalDependencies` into `app.asar`.
+
+- Add a pure JS package to `devDependencies`, also when the main process imports it at runtime.
+- Add a package to `dependencies` only when it loads a `.node` file or another binary file at runtime.
+
+A package in `dependencies` stays external in the main bundle. electron-builder then copies it and its dependency tree into `app.asar`.
+
 ## Verification
 
 Run the focused runtime tests:

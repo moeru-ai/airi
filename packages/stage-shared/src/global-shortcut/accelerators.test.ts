@@ -77,6 +77,33 @@ describe('parseAccelerator', () => {
     expect(parseAccelerator('Return').key).toBe('Enter')
   })
 
+  // https://github.com/moeru-ai/airi/issues/3030
+  // ROOT CAUSE:
+  //
+  // If a key token contained literal punctuation, normalizeKeyToken rejected it.
+  // The parser recognized W3C codes, named aliases, letters, and digits only.
+  // Before: parseAccelerator('CmdOrCtrl+,') threw an unknown-key error.
+  //
+  // We fixed this by reversing the punctuation entries in ELECTRON_KEY_OVERRIDES.
+  // After: parseAccelerator('CmdOrCtrl+,') returns the canonical Comma key.
+  it.each([
+    ['`', 'Backquote'],
+    ['-', 'Minus'],
+    ['=', 'Equal'],
+    ['[', 'BracketLeft'],
+    [']', 'BracketRight'],
+    ['\\', 'Backslash'],
+    [';', 'Semicolon'],
+    ['\'', 'Quote'],
+    [',', 'Comma'],
+    ['.', 'Period'],
+    ['/', 'Slash'],
+  ])('parses Electron punctuation %s as %s (Issue #3030)', (token, key) => {
+    expect(parseAccelerator(token)).toEqual({ modifiers: [], key })
+    expect(parseAccelerator(`CmdOrCtrl+${token}`)).toEqual({ modifiers: ['cmd-or-ctrl'], key })
+    expect(parseAccelerator(` Alt + ${token} `)).toEqual({ modifiers: ['alt'], key })
+  })
+
   it('tolerates whitespace around tokens', () => {
     expect(parseAccelerator(' Mod + Shift + K '))
       .toEqual(parseAccelerator('Mod+Shift+K'))
@@ -191,6 +218,23 @@ describe('formatElectronAccelerator', () => {
 })
 
 describe('round-trip parse -> format', () => {
+  // https://github.com/moeru-ai/airi/issues/3030
+  // ROOT CAUSE:
+  //
+  // If the Electron formatter emitted punctuation, the parser rejected its output.
+  // Before: parseAccelerator(formatElectronAccelerator(acc)) threw for punctuation keys.
+  //
+  // We fixed this by deriving parser aliases from the formatter map.
+  // After: Electron output parses to the same key and canonical modifier order.
+  it('parses Electron output for every supported key (Issue #3030)', () => {
+    for (const key of KEY_NAMES) {
+      const bare = { modifiers: [], key }
+      const modified = parseAccelerator(`Mod+Alt+Shift+${key}`)
+      expect(parseAccelerator(formatElectronAccelerator(bare))).toEqual(bare)
+      expect(parseAccelerator(formatElectronAccelerator(modified))).toEqual(modified)
+    }
+  })
+
   it('is idempotent on canonical IR strings', () => {
     for (const input of [
       'Mod+Shift+KeyK',

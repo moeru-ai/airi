@@ -230,6 +230,13 @@ Tool and content-array compatibility failures belong to the model of the failing
 Session resets and autonomous artistry hooks also use the session character.
 Each concurrent turn owns its IO trace. `activeTurnSpan` points to the most recently started turn that is still running.
 
+A tracer view reads spans from the source that `setIOTraceSource` sets. Without a source, as in stage-web, it reads
+the spans of its own window and the spans that other windows broadcast.
+
+Tamagotchi sets the IO trace hub of the main process as the source. Each window sends its ended spans to the hub.
+The hub sends them to the disk recording and to open tracer views. When **Keep recent IO traces in memory** is on, the
+hub also keeps the spans of the last 30 minutes, up to 5000. A tracer view that opens later shows them.
+
 A spoken turn is one IO trace, from the wake word to playback:
 
 - `Wake word` (KWS) is the root when a wake started the input. It covers the match and the session selection.

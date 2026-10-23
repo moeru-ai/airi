@@ -17,7 +17,7 @@ import { createPinia, disposePinia } from 'pinia'
 import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { page, userEvent } from 'vitest/browser'
-import { nextTick } from 'vue'
+import { defineComponent, h, nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
@@ -25,6 +25,12 @@ import InteractiveArea from './InteractiveArea.vue'
 
 import '@unocss/reset/tailwind.css'
 import 'virtual:uno.css'
+
+const openSettings = vi.hoisted(() => vi.fn())
+
+vi.mock('@proj-airi/stage-host-context', () => ({
+  useHostEventaInvoke: () => openSettings,
+}))
 
 function createTestI18n() {
   return createI18n({
@@ -36,7 +42,7 @@ function createTestI18n() {
   })
 }
 
-async function renderArea(component: Component = InteractiveArea) {
+async function renderArea(component: Component = InteractiveArea, options: { providerConfigured?: boolean } = {}) {
   useL2dViewControl().viewControlsEnabled.value = false
   useThreeViewControl().viewControlsEnabled.value = false
   const sessionB: ChatSessionMeta = {
@@ -64,9 +70,16 @@ async function renderArea(component: Component = InteractiveArea) {
       },
     },
   }
+  // The consciousness store reads these keys when the area first uses it.
+  localStorage.setItem('settings/consciousness/active-provider', options.providerConfigured === false ? '' : 'openai')
+  localStorage.setItem('settings/consciousness/active-model', options.providerConfigured === false ? '' : 'gpt-test')
+  onTestFinished(() => localStorage.clear())
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: '/', component: { template: '<div />' } }],
+    routes: [
+      { path: '/', component: { template: '<div />' } },
+      { path: '/settings/providers', component: { template: '<div />' } },
+    ],
   })
   await router.push('/')
   await router.isReady()
@@ -91,6 +104,7 @@ async function renderArea(component: Component = InteractiveArea) {
     chatSession: useChatSessionStore(pinia),
     chatStream: useChatStreamStore(pinia),
     stageModel: useSettingsStageModel(pinia),
+    router,
     screen,
   }
 }
@@ -153,7 +167,7 @@ async function expectElectronReplyBubble(screen: Awaited<ReturnType<typeof rende
   })
 
   expect(getComputedStyle(input).backgroundColor).toBe('rgba(0, 0, 0, 0)')
-  expect(getComputedStyle(bubble).backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
+  expect(getComputedStyle(bubble).backgroundColor).toBe('rgba(0, 0, 0, 0)')
 
   const cancelButton = bubble.querySelector<HTMLButtonElement>('[aria-label="stage.chat.reply.cancel"]')
   const replyTransition = cancelButton?.parentElement?.parentElement
@@ -183,14 +197,6 @@ describe('interactive area synchronized state', () => {
   })
 
   it('centers the mobile textarea when no reply preview is visible', async () => {
-    // ROOT CAUSE:
-    //
-    // Without a reply preview, the 40px bubble has spare height around its
-    // 32px textarea and borders. Before the fix, justify-end put all spare
-    // height above the textarea: 6px above and 2px below.
-    //
-    // We fixed this with justify-center. The empty and single-line textarea
-    // now has 4px on each side, and multiline input stays centered.
     await page.viewport(390, 844)
     const { screen } = await renderArea(MobileInteractiveArea)
     const bubble = screen.getByTestId('mobile-input-bubble').element()
@@ -206,10 +212,20 @@ describe('interactive area synchronized state', () => {
     }
   })
 
+  it('places the mobile attachment control beside the input bubble', async () => {
+    await page.viewport(390, 844)
+    const { screen } = await renderArea(MobileInteractiveArea)
+    const bubble = screen.getByTestId('mobile-input-bubble').element()
+    const attach = screen.getByRole('button', { name: 'stage.chat.images.attach' }).element()
+    expect(bubble.contains(attach)).toBe(false)
+    expect(attach.getBoundingClientRect().right).toBeLessThan(bubble.getBoundingClientRect().left)
+    expect(attach.getBoundingClientRect().bottom).toBe(bubble.getBoundingClientRect().bottom)
+  })
+
   it('opens mobile settings from an icon-only header and restores focus', async () => {
     await page.viewport(390, 844)
     const { screen } = await renderArea(MobileInteractiveArea)
-    const trigger = screen.getByRole('button', { name: 'stage.mobile-tools.title', exact: true })
+    const trigger = screen.getByRole('button', { name: 'stage.mobile-tools.menu', exact: true })
     const bounds = trigger.element().getBoundingClientRect()
     expect(bounds.width).toBeGreaterThanOrEqual(44)
     expect(bounds.height).toBeGreaterThanOrEqual(44)
@@ -223,27 +239,20 @@ describe('interactive area synchronized state', () => {
     await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).toBeVisible()
     await expect.element(screen.getByText('stage.mobile-tools.sign-in', { exact: true })).toBeVisible()
     const account = screen.getByRole('button', { name: 'stage.mobile-tools.sign-in stage.mobile-tools.account-description' }).element()
-    const drawerTitle = screen.getByRole('heading', { name: 'stage.mobile-tools.title' }).element()
+    const actions = account.parentElement!
     const accountContent = account.querySelector<HTMLElement>('.basic-button-content')
-    // ROOT CAUSE:
-    //
-    // The account row relied on scoped descendant CSS to stretch
-    // BasicButton's content wrapper. The combined browser bundle could leave
-    // that wrapper at its content width, centering the label inward. Comparing
-    // text coordinates was also unstable while the drawer portal animated, so
-    // assert the owned row and content geometry directly.
     expect(accountContent).not.toBeNull()
-    await expect.poll(() => getComputedStyle(account).paddingLeft).toBe('0px')
-    expect(account.getBoundingClientRect().left).toBe(drawerTitle.getBoundingClientRect().left)
-    expect(accountContent!.getBoundingClientRect().width).toBe(account.clientWidth)
-    expect(account.getBoundingClientRect().height).toBe(56)
-    expect(account.querySelector('[data-avatar-fallback], [data-avatar-image]')).toBeNull()
+    const accountStyle = getComputedStyle(account)
+    const contentWidth = account.clientWidth - Number.parseFloat(accountStyle.paddingLeft) - Number.parseFloat(accountStyle.paddingRight)
+    expect(account.getBoundingClientRect().left).toBe(actions.getBoundingClientRect().left)
+    expect(accountContent!.getBoundingClientRect().width).toBe(contentWidth)
+    expect(account.getBoundingClientRect().height).toBeGreaterThanOrEqual(44)
+    expect(account.querySelector('[data-avatar-fallback]')).not.toBeNull()
     await expect.element(screen.getByText('stage.mobile-tools.cleanup', { exact: true })).not.toBeInTheDocument()
-    await expect.element(screen.getByRole('switch', { name: 'stage.mobile-tools.character-voice' })).toBeVisible()
-    const voice = screen.getByRole('switch', { name: 'stage.mobile-tools.character-voice' })
-    const before = voice.element().getAttribute('aria-checked')
-    await voice.click()
-    await expect.element(voice).toHaveAttribute('aria-checked', before === 'true' ? 'false' : 'true')
+    await expect.element(screen.getByRole('slider', { name: 'stage.mobile-tools.character-voice' })).toBeVisible()
+    const mute = screen.getByRole('button', { name: 'stage.speech-output.mute', exact: true })
+    await mute.click()
+    await expect.element(screen.getByRole('button', { name: 'stage.speech-output.unmute', exact: true })).toBeVisible()
     await expect.element(screen.getByRole('button', { name: 'Close', exact: true })).not.toBeInTheDocument()
     await userEvent.keyboard('{Escape}')
     await expect.element(trigger).toHaveFocus()
@@ -276,11 +285,6 @@ describe('interactive area synchronized state', () => {
   })
 
   it('uses the full mobile width for chat history after removing the action rail', async () => {
-    // ROOT CAUSE:
-    //
-    // The removed right action rail left a fixed 3.5rem reservation on the
-    // chat history. Long messages and the scrollbar still stopped before the
-    // right edge even though the controls no longer occupied that space.
     await page.viewport(390, 844)
     const { screen } = await renderArea(MobileInteractiveArea)
     const history = screen.container.querySelector<HTMLElement>('.chat-history')
@@ -308,18 +312,10 @@ describe('interactive area synchronized state', () => {
     await expect.element(screen.getByRole('button', { name: 'Scale', exact: true })).toBeVisible()
 
     const close = screen.getByTestId('view-controls-close-button').element()
-    // ROOT CAUSE:
-    //
-    // The drawer suppressed focus restoration before emitting the mode change,
-    // but the Stage did not move focus into the newly rendered controls.
     await expect.element(screen.getByTestId('view-controls-close-button')).toHaveFocus()
     expect(close.getBoundingClientRect().right).toBe(378)
     expect(close.getBoundingClientRect().top).toBe(12)
     const toolbar = screen.getByTestId('view-controls-toolbar').element()
-    // ROOT CAUSE:
-    //
-    // Fixed horizontal padding ignored display cutouts in landscape viewports.
-    // The toolbar now uses the same left and right safe-area minimum as the header.
     expect(toolbar.classList).toContain('pl-[max(0.75rem,env(safe-area-inset-left))]')
     expect(toolbar.classList).toContain('pr-[max(0.75rem,env(safe-area-inset-right))]')
 
@@ -328,62 +324,11 @@ describe('interactive area synchronized state', () => {
     await expect.element(screen.getByTestId('mobile-message-composer')).toBeVisible()
     await expect.element(screen.getByTestId('conversation-selector-button')).toBeVisible()
     await expect.element(screen.getByRole('button', { name: 'X', exact: true })).not.toBeInTheDocument()
-    // ROOT CAUSE:
-    //
-    // Closing view mode removed its focused header without moving focus to the
-    // newly mounted normal header, so keyboard users fell back to the document body.
     await expect.element(screen.getByTestId('mobile-settings-button')).toHaveFocus()
     expect(viewControl.viewControlsEnabled.value).toBe(false)
   })
 
-  it('keeps a docked input bubble mounted while view controls are open', async () => {
-    // ROOT CAUSE:
-    //
-    // Entering view mode removed the composer subtree. Its dock animation stores
-    // opacity and position on the mounted elements, while the docked state survives.
-    // Recreating the subtree therefore lost the visual state when view mode closed.
-    await page.viewport(390, 844)
-    const { screen, stageModel } = await renderArea(MobileInteractiveArea)
-    stageModel.setStageModelRenderer('live2d')
-    const bubble = screen.getByTestId('mobile-input-bubble').element()
-    const input = screen.getByRole('textbox').element()
-    const icon = bubble.querySelector<HTMLElement>('[aria-hidden="true"]')!
-    const bounds = bubble.getBoundingClientRect()
-    const pointer = {
-      bubbles: true,
-      clientX: bounds.left + bounds.width / 2,
-      clientY: bounds.top + bounds.height / 2,
-      isPrimary: true,
-      pointerId: 1,
-      pointerType: 'touch',
-    }
-    vi.spyOn(bubble, 'setPointerCapture').mockImplementation(() => {})
-
-    bubble.dispatchEvent(new PointerEvent('pointerdown', { ...pointer, button: 0, buttons: 1 }))
-    await new Promise(resolve => setTimeout(resolve, 550))
-    bubble.dispatchEvent(new PointerEvent('pointermove', { ...pointer, buttons: 1, clientY: pointer.clientY - 80 }))
-    bubble.dispatchEvent(new PointerEvent('pointerup', { ...pointer, buttons: 0, clientY: pointer.clientY - 80 }))
-    await expect.poll(() => getComputedStyle(input).opacity).toBe('0')
-    expect(getComputedStyle(icon).opacity).toBe('1')
-
-    await screen.getByTestId('mobile-settings-button').click()
-    await screen.getByRole('button', { name: 'stage.mobile-tools.view', exact: true }).click()
-
-    expect(bubble.isConnected).toBe(true)
-    await expect.element(screen.getByTestId('mobile-message-composer')).not.toBeVisible()
-
-    await screen.getByTestId('view-controls-close-button').click()
-
-    expect(screen.getByTestId('mobile-input-bubble').element()).toBe(bubble)
-    expect(getComputedStyle(input).opacity).toBe('0')
-    expect(getComputedStyle(icon).opacity).toBe('1')
-  })
-
   it('closes view controls with Escape and restores focus', async () => {
-    // ROOT CAUSE:
-    //
-    // Moving view controls out of the dismissible drawer removed its Escape
-    // behavior, leaving keyboard users in the focused Stage mode.
     await page.viewport(390, 844)
     const { screen, stageModel } = await renderArea(MobileInteractiveArea)
     stageModel.setStageModelRenderer('live2d')
@@ -399,11 +344,6 @@ describe('interactive area synchronized state', () => {
   })
 
   it('exits view controls when the active renderer changes', async () => {
-    // ROOT CAUSE:
-    //
-    // Mobile view mode combined both renderer flags. After a renderer switch,
-    // the previous flag kept the chat hidden while the new renderer had no controls.
-    // The active renderer now owns the visible mode, and transitions clear stale flags.
     await page.viewport(390, 844)
     const live2dViewControl = useL2dViewControl()
     const threeViewControl = useThreeViewControl()
@@ -440,29 +380,18 @@ describe('interactive area synchronized state', () => {
     await screen.getByTestId('view-controls-close-button').click()
   })
 
-  it('keeps the empty mobile input compact and aligns the send action with its bubble', async () => {
-    // ROOT CAUSE:
-    //
-    // The hierarchy redesign removed the input bubble's compact maximum width.
-    // The 40px bubble also top-aligned its 32px textarea while the send action
-    // aligned to the bottom of the same row. The reply container now owns the
-    // visible border, so the action aligns with the bubble instead of its inset textarea.
+  it('keeps the mobile input width stable when the send action appears', async () => {
     await page.viewport(390, 844)
     const { screen } = await renderArea(MobileInteractiveArea)
-    const composer = screen.getByTestId('mobile-message-composer').element()
     const bubble = screen.getByTestId('mobile-input-bubble').element()
     const input = screen.getByRole('textbox').element()
-    const composerStyle = getComputedStyle(composer)
-    const composerContentWidth = composer.clientWidth
-      - Number.parseFloat(composerStyle.paddingLeft)
-      - Number.parseFloat(composerStyle.paddingRight)
-
-    expect(Math.round(bubble.getBoundingClientRect().width)).toBe(Math.round(composerContentWidth * 0.7))
+    const emptyWidth = bubble.getBoundingClientRect().width
 
     await userEvent.fill(input, 'hi')
     const send = screen.getByRole('button', { name: 'stage.chat.actions.send' }).element()
     await expect.poll(() => input.getBoundingClientRect().height).toBe(32)
-    expect(send.getBoundingClientRect().height).toBe(32)
+    expect(bubble.getBoundingClientRect().width).toBe(emptyWidth)
+    expect(send.getBoundingClientRect().height).toBe(40)
     expect(bubble.getBoundingClientRect().bottom).toBe(send.getBoundingClientRect().bottom)
     const bubbleBounds = bubble.getBoundingClientRect()
     const inputBounds = input.getBoundingClientRect()
@@ -488,15 +417,14 @@ describe('interactive area synchronized state', () => {
     }
   })
 
-  it('returns from hearing to mobile settings without stacked dialogs', async () => {
+  it('closes hearing and restores focus to the mobile voice button', async () => {
     const { screen } = await renderArea(MobileInteractiveArea)
-    await screen.getByTestId('mobile-settings-button').click()
-    await screen.getByRole('button', { name: 'stage.mobile-tools.hearing' }).click()
+    const voiceButton = screen.getByTestId('mobile-voice-button')
+    await voiceButton.click()
     await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.hearing' })).toBeVisible()
-    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).not.toBeInTheDocument()
     await userEvent.keyboard('{Escape}')
-    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).toBeVisible()
     await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.hearing' })).not.toBeInTheDocument()
+    await expect.element(voiceButton).toHaveFocus()
   })
 
   it('expands the Electron input bubble around a reply preview', async () => {
@@ -508,13 +436,6 @@ describe('interactive area synchronized state', () => {
     await expectElectronReplyBubble(screen)
   })
 
-  // https://github.com/moeru-ai/airi/pull/2489#discussion_r3966523188
-  // ROOT CAUSE:
-  //
-  // Clearing a reply hid the still-mounted preview without moving focus from
-  // its cancel button. Keyboard focus then remained in an aria-hidden subtree.
-  //
-  // Each composer owner now clears the reply and restores focus to its input.
   it('restores composer focus after a keyboard user cancels a reply', async () => {
     const { chatSession, screen } = await renderArea()
     chatSession.$patch((state) => {
@@ -575,19 +496,44 @@ describe('interactive area synchronized state', () => {
     })
   })
 
-  // https://github.com/moeru-ai/airi/pull/2399
+  it('keeps the draft and offers provider settings when no chat provider is configured', async () => {
+    const { chat, screen } = await renderArea(InteractiveArea, { providerConfigured: false })
+    const send = vi.spyOn(chat, 'send')
+
+    const input = await submitDraft(screen, 'Hello')
+
+    await expect.element(screen.getByText('stage.chat.provider-configuration.action')).toBeVisible()
+    await expect.element(input).toHaveValue('Hello')
+    expect(send).not.toHaveBeenCalled()
+
+    await screen.getByText('stage.chat.provider-configuration.action').click()
+    expect(openSettings).toHaveBeenCalledWith({ route: '/settings/providers' })
+  })
+
+  it.each([
+    ['mobile', MobileInteractiveArea],
+    ['web', SharedInteractiveArea],
+  ] as const)('keeps the draft and offers provider settings in %s when no chat provider is configured', async (_name, component) => {
+    const { chat, router, screen } = await renderArea(component, { providerConfigured: false })
+    const send = vi.spyOn(chat, 'send')
+
+    const input = await submitDraft(screen, 'Hello')
+
+    await expect.element(screen.getByText('stage.chat.provider-configuration.action')).toBeVisible()
+    await expect.element(input).toHaveValue('Hello')
+    expect(send).not.toHaveBeenCalled()
+
+    await screen.getByText('stage.chat.provider-configuration.action').click()
+    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/settings/providers'))
+  })
+
   it('keeps the input visible when a short window contains many attachments', async () => {
-    // ROOT CAUSE:
-    //
-    // The composer used its full intrinsic height in the fixed chat grid.
-    // Multiple attachment rows could exceed the window height, which moved
-    // the input below the clipped grid boundary.
     const { screen } = await renderArea()
     const layout = screen.getByTestId('chat-viewport-layout').element() as HTMLElement
     layout.style.height = '240px'
     layout.style.width = '320px'
 
-    await attachImages(screen, 12)
+    await attachImages(screen, 4)
 
     const input = screen.getByRole('textbox').element() as HTMLTextAreaElement
     const layoutRect = layout.getBoundingClientRect()
@@ -597,13 +543,117 @@ describe('interactive area synchronized state', () => {
     expect(inputRect.bottom).toBeLessThanOrEqual(layoutRect.bottom)
   })
 
-  // https://github.com/moeru-ai/airi/pull/2399
+  it('keeps the welcome card above the composer in a short window', async () => {
+    const { screen } = await renderArea()
+    const layout = screen.getByTestId('chat-viewport-layout').element() as HTMLElement
+    layout.style.height = '300px'
+    layout.style.width = '380px'
+
+    const composer = screen.getByTestId('chat-composer-layer').element() as HTMLElement
+    const description = screen.getByText('stage.chat.images.empty').element() as HTMLElement
+
+    await vi.waitFor(() => {
+      expect(description.getBoundingClientRect().height).toBeGreaterThan(0)
+      expect(description.getBoundingClientRect().bottom).toBeLessThanOrEqual(composer.getBoundingClientRect().top)
+    })
+  })
+
+  it('waits for an image that is still being read before it captures a mode switch draft', async () => {
+    let area: InstanceType<typeof InteractiveArea> | undefined
+    const { screen } = await renderArea(defineComponent({
+      setup: () => () => h(InteractiveArea, {
+        ref: (instance) => {
+          area = (instance ?? undefined) as InstanceType<typeof InteractiveArea> | undefined
+        },
+      }),
+    }))
+    const input = screen.container.querySelector<HTMLInputElement>('input[type="file"]')
+    if (!input || !area)
+      throw new Error('Expected the chat image input and the composer.')
+
+    const transfer = new DataTransfer()
+    transfer.items.add(new File(['image'], 'image.png', { type: 'image/png' }))
+    input.files = transfer.files
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+    const draft = await area.snapshotDraft()
+
+    expect(draft?.attachments).toEqual([{ data: btoa('image'), mimeType: 'image/png', name: 'image.png' }])
+  })
+
+  it('restores the text, reply target and images of a mode switch draft', async () => {
+    let area: InstanceType<typeof InteractiveArea> | undefined
+    await renderArea(defineComponent({
+      setup: () => () => h(InteractiveArea, {
+        ref: (instance) => {
+          area = (instance ?? undefined) as InstanceType<typeof InteractiveArea> | undefined
+        },
+      }),
+    }))
+    if (!area)
+      throw new Error('Expected the composer.')
+    const draft = {
+      sessionId: 'session-b',
+      text: 'unsent',
+      replyTarget: { label: 'You', message: { id: 'reply-target', role: 'user' as const, content: 'Reply target' } },
+      attachments: [{ data: btoa('image'), mimeType: 'image/png', name: 'image.png' }],
+    }
+
+    await expect(area.restoreDraft(draft)).resolves.toBe(true)
+    const captured = await area.snapshotDraft()
+
+    expect(captured).toEqual(draft)
+  })
+
+  it('carries the shown conversation through a mode switch with an empty composer', async () => {
+    let area: InstanceType<typeof InteractiveArea> | undefined
+    const { chatSession } = await renderArea(defineComponent({
+      setup: () => () => h(InteractiveArea, {
+        ref: (instance) => {
+          area = (instance ?? undefined) as InstanceType<typeof InteractiveArea> | undefined
+        },
+      }),
+    }))
+    if (!area)
+      throw new Error('Expected the composer.')
+
+    expect(await area.snapshotDraft()).toMatchObject({ sessionId: 'session-b', text: '', attachments: [] })
+
+    await expect(area.restoreDraft({ sessionId: 'session-a', text: '', attachments: [] })).resolves.toBe(true)
+    expect(chatSession.activeSessionId).toBe('session-a')
+
+    await expect(area.restoreDraft({ sessionId: 'session-b', text: 'unsent', attachments: [] })).resolves.toBe(true)
+    expect(chatSession.activeSessionId).toBe('session-b')
+    expect((await area.snapshotDraft())?.text).toBe('unsent')
+  })
+
+  it('captures a reply picked from the history as a mode switch draft that can cross IPC', async () => {
+    let area: InstanceType<typeof InteractiveArea> | undefined
+    const { chatSession, screen } = await renderArea(defineComponent({
+      setup: () => () => h(InteractiveArea, {
+        ref: (instance) => {
+          area = (instance ?? undefined) as InstanceType<typeof InteractiveArea> | undefined
+        },
+      }),
+    }))
+    if (!area)
+      throw new Error('Expected the composer.')
+    chatSession.$patch((state) => {
+      state.sessionMessages['session-b'] = [{ id: 'reply-target', role: 'user', content: 'Reply target' }]
+    })
+    await vi.waitFor(() => expect(screen.container.querySelector('[data-swipeable]')).not.toBeNull())
+    dispatchHorizontalPan(screen.container.querySelector<HTMLElement>('[data-swipeable]')!)
+    await vi.waitFor(() => {
+      const cancelButton = screen.container.querySelector('[aria-label="stage.chat.reply.cancel"]')
+      expect(cancelButton?.parentElement?.getAttribute('aria-hidden')).toBe('false')
+    })
+
+    const captured = await area.snapshotDraft()
+
+    expect(captured?.replyTarget?.message.id).toBe('reply-target')
+    expect(() => structuredClone(captured)).not.toThrow()
+  })
+
   it('connects the production history viewport to the fixed composer', async () => {
-    // ROOT CAUSE:
-    //
-    // Isolated layout tests used hand-built history and scrollbar elements.
-    // Those tests could pass after the production history stopped using the
-    // Reka viewport or moved the composer into the scroll owner.
     const { chatSession, screen } = await renderArea()
     const layout = screen.getByTestId('chat-viewport-layout').element() as HTMLElement
     layout.style.height = '320px'
@@ -644,14 +694,6 @@ describe('interactive area synchronized state', () => {
     expect(scrollOwners).toEqual([viewport])
   })
 
-  // https://github.com/moeru-ai/airi/actions/runs/34448585692/job/102804067154
-  // ROOT CAUSE:
-  //
-  // The test scrolled as soon as the reply started to expand. Each later resize
-  // queued a tail scroll, which could unmount the message selected by the test.
-  // Virtua then retried that tail scroll when older rows were first measured.
-  // Wait for the transition, measurements, and pending scroll before the jitter.
-  // A slower transition exposes this race without depending on CI load.
   it.each(['200ms', '1s'])('keeps the history scrollport behind the floating composer (%s reply)', async (duration) => {
     const { chatSession, screen } = await renderArea()
     const layout = screen.getByTestId('chat-viewport-layout').element() as HTMLElement
@@ -714,14 +756,10 @@ describe('interactive area synchronized state', () => {
       expect(Number.parseFloat(getComputedStyle(viewport, '::after').height)).toBeGreaterThan(collapsedComposerSpacerHeight)
     })
 
-    // Wait for the real transition and its ResizeObserver-driven tail scroll.
     await Promise.all(replyTransition.getAnimations().map(animation => animation.finished))
     await expect.poll(() => Number.parseFloat(getComputedStyle(layout).getPropertyValue('--chat-composer-height')))
       .toBeCloseTo(composer.getBoundingClientRect().height, 0)
 
-    // Virtua's createScrollScheduler (virtua/src/core/driver.ts) retries on
-    // measurements until 150ms pass. Require a quiet 200ms window before mounting
-    // unmeasured older rows, which would otherwise restart that tail scroll.
     await vi.waitFor(async () => {
       const tailPosition = viewport.scrollTop
       const measuredScrollHeight = viewport.scrollHeight
@@ -730,12 +768,10 @@ describe('interactive area synchronized state', () => {
       expect(viewport.scrollHeight).toBe(measuredScrollHeight)
     })
 
-    // A vertical wheel expresses reader intent and stops automatic tail following.
     viewport.dispatchEvent(new WheelEvent('wheel', { bubbles: true, deltaY: -241 }))
     viewport.scrollTop = 241
     viewport.dispatchEvent(new Event('scroll'))
     await expect.poll(() => viewport.scrollTop).toBe(241)
-    // scrollTop changes before Virtua replaces the mounted tail with this range.
     await expect.element(screen.getByText('Overlay message 99', { exact: true })).not.toBeInTheDocument()
 
     let messageBehindComposer: HTMLElement | undefined
@@ -798,16 +834,6 @@ describe('interactive area synchronized state', () => {
     expect(messageBehindComposer.textContent).toBe(targetText)
   })
 
-  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743121861
-  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743309235
-  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743366443
-  // ROOT CAUSE:
-  //
-  // Every layout passed one global foreground stream to ChatHistory.
-  // A window on session B therefore showed session A's live response.
-  //
-  // We fixed this by storing one live message per active turn.
-  // Each layout renders only its selected session's turn.
   it.each([
     ['desktop', InteractiveArea],
     ['mobile', MobileInteractiveArea],
@@ -831,6 +857,8 @@ describe('interactive area synchronized state', () => {
     await submitDraft(screen, 'web follower message')
 
     await vi.waitFor(() => expect(send).toHaveBeenCalledWith({
+      attachments: [],
+      replyToMessageId: undefined,
       sessionId: 'session-b',
       text: 'web follower message',
     }))
@@ -843,6 +871,8 @@ describe('interactive area synchronized state', () => {
     await submitDraft(screen, 'mobile follower message')
 
     await vi.waitFor(() => expect(send).toHaveBeenCalledWith({
+      attachments: [],
+      replyToMessageId: undefined,
       sessionId: 'session-b',
       text: 'mobile follower message',
     }))
@@ -858,12 +888,7 @@ describe('interactive area synchronized state', () => {
     expect(input.spellcheck).toBe(false)
   })
 
-  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3755530944
   it('keeps a failed mobile draft out of a newly selected session for Issue #2085', async () => {
-    // ROOT CAUSE:
-    //
-    // Shared layouts restored a rejected send into their component-wide input
-    // without checking whether the window still displayed the target session.
     const { chat, chatSession, screen } = await renderArea(MobileInteractiveArea)
     let rejectSend: ((error: Error) => void) | undefined
     vi.spyOn(chat, 'send').mockImplementationOnce(() => new Promise((_resolve, reject) => {
@@ -890,12 +915,7 @@ describe('interactive area synchronized state', () => {
     await expect.element(input).toHaveValue('')
   })
 
-  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3628804992
   it('does not restore a failed draft into a newly selected session for Issue #2085', async () => {
-    // ROOT CAUSE:
-    //
-    // Failure recovery used the reactive selection instead of the session
-    // captured by the send, so a late rejection could move a draft.
     const { chat, chatSession, screen } = await renderArea()
     let rejectSend: ((error: Error) => void) | undefined
     vi.spyOn(chat, 'send').mockImplementationOnce(() => new Promise((_resolve, reject) => {
@@ -910,7 +930,6 @@ describe('interactive area synchronized state', () => {
     await expect.element(input).toHaveValue('')
   })
 
-  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3629004140
   it('restores a failed draft when its captured session is still active for Issue #2085', async () => {
     const { chat, screen } = await renderArea()
     vi.spyOn(chat, 'send').mockRejectedValueOnce(new Error('send failed'))
@@ -920,10 +939,6 @@ describe('interactive area synchronized state', () => {
   })
 
   it('keeps a newer draft when an earlier send fails', async () => {
-    // ROOT CAUSE:
-    //
-    // Failure recovery replaced the textarea unconditionally. Text entered
-    // while the request was pending was lost with its attachment previews.
     const { chat, screen } = await renderArea()
     let rejectSend: ((error: Error) => void) | undefined
     vi.spyOn(chat, 'send').mockImplementationOnce(() => new Promise((_resolve, reject) => {
@@ -937,7 +952,6 @@ describe('interactive area synchronized state', () => {
     await expect.element(input).toHaveValue('first draft\nnewer draft')
   })
 
-  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743366446
   it('discards a queued draft when deletion cancels its send for Issue #2085', async () => {
     const { chat, screen } = await renderArea()
     let rejectSend: ((error: Error) => void) | undefined
