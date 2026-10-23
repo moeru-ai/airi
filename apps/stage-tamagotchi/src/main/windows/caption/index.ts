@@ -1,3 +1,4 @@
+import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { BrowserWindow, BrowserWindowConstructorOptions, Rectangle } from 'electron'
 import type { InferOutput } from 'valibot'
 
@@ -7,7 +8,6 @@ import type { ServerChannel } from '../../services/airi/channel-server'
 import { createHash } from 'node:crypto'
 
 import { defineInvokeHandler } from '@moeru/eventa'
-import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { animate, utils } from 'animejs'
 import { BrowserWindow as ElectronBrowserWindow, ipcMain, screen } from 'electron'
 import { debounce, throttle } from 'es-toolkit'
@@ -20,6 +20,7 @@ import { captionGetIsFollowingWindow, captionIsFollowingWindowChanged } from '..
 import { clampBoundsWithinRect } from '../../../shared/utils/electron/display'
 import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
+import { createWindowContext } from '../../libs/electron/window-context'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { showWindowOnAllWorkspaces } from '../shared/app-icon'
 import { mapForBreakpoints, resolutionBreakpoints, widthFrom } from '../shared/display'
@@ -300,7 +301,7 @@ export function setupCaptionWindowManager(params: {
 
     const window = createCaptionWindow()
     currentWindow = window
-    const { context } = createContext(ipcMain, window)
+    const { context } = createWindowContext(window)
     eventaContext = context
 
     await setupBaseWindowElectronInvokes({ context, window, serverChannel: params.serverChannel, i18n: params.i18n })

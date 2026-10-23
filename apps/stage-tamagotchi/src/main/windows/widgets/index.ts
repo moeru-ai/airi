@@ -1,3 +1,4 @@
+import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { BrowserWindow, Rectangle } from 'electron'
 import type { InferOutput } from 'valibot'
 
@@ -11,7 +12,6 @@ import type { PluginModuleWidgetPayload } from '../../../shared/eventa/plugin/ho
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 
-import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { safeClose } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow as ElectronBrowserWindow, ipcMain, screen } from 'electron'
 import { clamp } from 'es-toolkit/math'
@@ -24,6 +24,7 @@ import { widgetsClearEvent, widgetsIframeRequestEvent, widgetsRemoveEvent, widge
 import { normalizeWidgetWindowSize } from '../../../shared/utils/electron/windows/window-size'
 import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
+import { createWindowContext } from '../../libs/electron/window-context'
 import { showWindowOnAllWorkspaces } from '../shared/app-icon'
 import { protectPrivilegedWindowNavigation, setWindowAlwaysOnTop, spotlightLikeWindowConfig, transparentWindowConfig } from '../shared/window'
 import { createWidgetIframeRequestCoordinator } from './iframe-request-coordinator'
@@ -438,7 +439,7 @@ export function setupWidgetsWindowManager(params: {
 
     const window = createWidgetsWindow()
     windowContext.window = window
-    windowContext.eventa = createContext(ipcMain, window)
+    windowContext.eventa = createWindowContext(window)
 
     /**
      * Releases the state owned by one closed widget window.

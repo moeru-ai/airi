@@ -1,11 +1,9 @@
-import type { BrowserWindow } from 'electron'
-
-import { EventEmitter } from 'node:events'
-
 import { defineInvoke } from '@moeru/eventa'
-import { createContext as createRendererContext } from '@moeru/eventa/adapters/electron/renderer'
 import { autoUpdater as autoUpdaterEventa } from '@proj-airi/electron-eventa/electron-updater'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { createWindowIpc } from '../../libs/electron/testing/window-ipc'
+import { createWindowContext } from '../../libs/electron/window-context'
 
 const appMock = vi.hoisted(() => ({
   getVersion: vi.fn(() => '0.9.0-beta.4'),
@@ -88,37 +86,6 @@ vi.mock('electron-updater', () => ({
 vi.mock('~build/git', () => ({
   committerDate: '2026-04-01T00:00:00.000Z',
 }))
-
-let nextWebContentsId = 1
-
-/**
- * Connects one fake window to the shared fake `ipcMain`, as Electron connects a renderer to the main process.
- *
- * The renderer side sends with the window's `webContents` as the IPC sender. The main side sends to the window
- * through `webContents.send`.
- */
-function createWindowIpc(ipcMain: EventEmitter) {
-  const rendererIpc = new EventEmitter()
-  const window = Object.assign(new EventEmitter(), {
-    isDestroyed: () => false,
-    webContents: {
-      id: nextWebContentsId++,
-      isDestroyed: () => false,
-      send: (channel: string, payload: unknown) => rendererIpc.emit(channel, {}, payload),
-    },
-  })
-  // The fake IPC objects carry only the members that the Eventa adapters call.
-  const { context } = createRendererContext({
-    on: (channel: string, listener: (...args: unknown[]) => void) => {
-      rendererIpc.on(channel, listener)
-      return () => rendererIpc.off(channel, listener)
-    },
-    send: (channel: string, payload: unknown) => ipcMain.emit(channel, { sender: window.webContents }, payload),
-  } as never)
-
-  const browserWindow: BrowserWindow = window as never
-  return { window: browserWindow, context }
-}
 
 describe('setupAutoUpdater', () => {
   const expectedChannelByArch = process.arch === 'arm64' ? 'latest-arm64' : 'latest-x64'
@@ -358,14 +325,15 @@ describe('setupAutoUpdater', () => {
   // One click downloaded once per open window. Each window context heard the IPC of all windows, and the status
   // check ran before the lock.
   //
-  // We fixed this with a per-window updater context and one shared in-flight download.
+  // We fixed this with window contexts that hear only their own window (`createWindowContext`) and one shared
+  // in-flight download.
   it('downloads once when the main, settings, and about windows are open and one window requests the download', async () => {
     const { ipcMain } = await import('electron')
     const { createAutoUpdaterService, setupAutoUpdater } = await import('./auto-updater')
     const service = setupAutoUpdater()
     const windows = [createWindowIpc(ipcMain), createWindowIpc(ipcMain), createWindowIpc(ipcMain)]
     for (const { window } of windows)
-      createAutoUpdaterService({ window, service })
+      createAutoUpdaterService({ context: createWindowContext(window).context, window, service })
 
     await defineInvoke(windows[1].context, autoUpdaterEventa.downloadUpdate)()
 

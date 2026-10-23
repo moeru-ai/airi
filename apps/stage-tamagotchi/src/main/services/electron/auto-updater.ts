@@ -1,3 +1,4 @@
+import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { AutoUpdaterState } from '@proj-airi/electron-eventa/electron-updater'
 import type { BrowserWindow } from 'electron'
 import type { UpdateInfo } from 'electron-updater'
@@ -15,11 +16,10 @@ import semver from 'semver'
 import { is } from '@electron-toolkit/utils'
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
-import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { tryCatch } from '@moeru/std'
 import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { committerDate } from '~build/git'
-import { app, ipcMain } from 'electron'
+import { app } from 'electron'
 import { Semaphore } from 'es-toolkit'
 import { isWindows } from 'std-env'
 
@@ -604,16 +604,14 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
 /**
  * Serves the updater IPC to the renderer of one window.
  *
- * The context hears only IPC from this window (`onlySameWindow`) and disposes with the window. A shared window
- * context hears the IPC of all windows, so one click in one window ran the handler once for each open window.
+ * `context` must hear only this window, so one click runs one handler. Use the context from `createWindowContext`.
  *
  * Returns a cleanup that stops the state broadcast and removes the handlers before the window closes.
  */
-export function createAutoUpdaterService(params: { window: BrowserWindow, service: AutoUpdater }) {
-  const { window, service } = params
+export function createAutoUpdaterService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow, service: AutoUpdater }) {
+  const { context, window, service } = params
 
   const log = useLogg('auto-updater-service').useGlobalConfig()
-  const { context, dispose } = createContext(ipcMain, window, { onlySameWindow: true })
 
   const unsubscribe = service.subscribe((state) => {
     if (window.isDestroyed())
@@ -650,7 +648,6 @@ export function createAutoUpdaterService(params: { window: BrowserWindow, servic
   const cleanup = () => {
     for (const fn of cleanups)
       fn()
-    dispose()
   }
 
   window.on('closed', cleanup)
