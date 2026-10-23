@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/mathjson",
   "type": "module",
-  "version": "0.12.0-beta.5",
+  "version": "0.12.0",
   "private": true,
   "description": "MathJSON types and helpers, with the heads that speech readings add",
   "author": {

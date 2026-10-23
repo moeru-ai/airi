@@ -14,7 +14,7 @@ Create a reviewable PR from the exact commits intended for publication. The PR b
 3. Detect stacked work. Separate inherited changes from this PR's own changes.
 4. Review the complete diff. Trace changed files to their entry points, callers, state owners, persistence, and external boundaries.
 5. Classify the PR as a feature, fix, refactor, maintenance change, or a combination. Select context evidence that helps reviewers understand this change.
-6. Run checks that match the changed surfaces. Satisfy the repository's required final checks.
+6. Run checks that match the changed surfaces. Run the tests of the branch changes, as `AGENTS.md` describes. Satisfy the repository's required final checks.
 7. If the diff changes user-visible UI, follow the visual-evidence workflow below.
 8. Read [the PR body template](references/pr-body.md). Compose the body from verified code and runtime evidence.
 9. Publish the intended commits through the available GitHub or `gh` workflow.

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { IOTraceRecordingState } from '@proj-airi/stage-shared/types/io-trace'
+import type { IOTraceHubState, IOTraceRecordingState } from '@proj-airi/stage-shared/types/io-trace'
 
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { ButtonBar, CheckBar, IconItem } from '@proj-airi/stage-ui/components'
@@ -9,7 +9,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
-import { electronOpenDevtoolsWindow, electronOpenEditor, electronOpenMainDevtools, ioTraceRecordingChanged, ioTraceRecordingGet, ioTraceRecordingSetEnabled } from '../../../../shared/eventa'
+import { electronOpenDevtoolsWindow, electronOpenEditor, electronOpenMainDevtools, ioTraceHubGet, ioTraceHubSetCollecting, ioTraceRecordingChanged, ioTraceRecordingGet, ioTraceRecordingSetEnabled } from '../../../../shared/eventa'
 
 const { t } = useI18n()
 const settings = useSettings()
@@ -20,14 +20,29 @@ const getIOTraceRecording = useElectronEventaInvoke(ioTraceRecordingGet)
 const setIOTraceRecordingEnabled = useElectronEventaInvoke(ioTraceRecordingSetEnabled)
 const ioTraceRecording = ref<IOTraceRecordingState>()
 const ioTraceRecordingBusy = ref(false)
+const getIOTraceHub = useElectronEventaInvoke(ioTraceHubGet)
+const setIOTraceHubCollecting = useElectronEventaInvoke(ioTraceHubSetCollecting)
+const ioTraceHub = ref<IOTraceHubState>()
+const ioTraceHubBusy = ref(false)
 
 const stopIOTraceRecordingListener = eventaContext.value.on(ioTraceRecordingChanged, (event) => {
   ioTraceRecording.value = event.body
 })
 onMounted(async () => {
   ioTraceRecording.value = await getIOTraceRecording()
+  ioTraceHub.value = await getIOTraceHub()
 })
 onUnmounted(stopIOTraceRecordingListener)
+
+async function updateIOTraceHubCollecting(collecting: boolean | undefined) {
+  ioTraceHubBusy.value = true
+  try {
+    ioTraceHub.value = await setIOTraceHubCollecting({ collecting: collecting === true })
+  }
+  finally {
+    ioTraceHubBusy.value = false
+  }
+}
 
 async function updateIOTraceRecording(enabled: boolean | undefined) {
   ioTraceRecordingBusy.value = true
@@ -184,6 +199,17 @@ const openEditor = useElectronEventaInvoke(electronOpenEditor)
   >
     {{ t('tamagotchi.settings.devtools.pages.io-tracer.title') }}
   </ButtonBar>
+  <CheckBar
+    :model-value="ioTraceHub?.collecting ?? false"
+    :disabled="ioTraceHub === undefined || ioTraceHubBusy"
+    :class="['mb-2']"
+    icon-on="i-solar:history-bold-duotone"
+    icon-off="i-solar:history-line-duotone"
+    text="tamagotchi.settings.devtools.pages.io-tracer.collection.title"
+    description="tamagotchi.settings.devtools.pages.io-tracer.collection.description"
+    transition="all ease-in-out duration-250"
+    @update:model-value="updateIOTraceHubCollecting"
+  />
   <CheckBar
     :model-value="ioTraceRecording?.enabled ?? false"
     :disabled="ioTraceRecording === undefined || ioTraceRecordingBusy"

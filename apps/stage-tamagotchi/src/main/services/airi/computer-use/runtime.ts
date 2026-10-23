@@ -6,10 +6,8 @@ import process from 'node:process'
 
 import { Buffer } from 'node:buffer'
 import { execFile } from 'node:child_process'
-import { randomUUID } from 'node:crypto'
-import { chmod, mkdtemp, readFile, realpath, rm, stat } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { isAbsolute, join, relative, sep } from 'node:path'
+import { readFile, realpath, stat } from 'node:fs/promises'
+import { isAbsolute, relative, sep } from 'node:path'
 import { promisify } from 'node:util'
 
 import { startAuv } from '@auv-js/sdk/node'
@@ -24,7 +22,6 @@ const inputSchema = v.object({ argv: v.pipe(v.array(v.pipe(v.string(), v.maxLeng
 /** Owns one private daemon and serializes desktop operations across renderer windows. */
 export function createComputerUseRuntime(options: { binaryPath: string, storeRoot: string }) {
   let daemon: AuvDaemon | undefined
-  let socketDirectory: string | undefined
   let disposed = false
   let queue: Promise<unknown> = Promise.resolve()
   const abort = new AbortController()
@@ -33,44 +30,19 @@ export function createComputerUseRuntime(options: { binaryPath: string, storeRoo
     if (daemon)
       return daemon
 
-    await cleanupSocket()
-    let listener: string
-    if (process.platform === 'win32') {
-      listener = `npipe://./pipe/airi-auv-${randomUUID()}`
-    }
-    else {
-      // Keep the socket separate from the long Electron user-data path.
-      socketDirectory = await mkdtemp(join(await realpath(tmpdir()), 'auv-'))
-      await chmod(socketDirectory, 0o700)
-      listener = `unix://${join(socketDirectory, 's')}`
-    }
-
-    try {
-      const started = await startAuv({
-        binaryPath: options.binaryPath,
-        storeRoot: options.storeRoot,
-        listeners: [listener],
-        noDiscovery: true,
-        signal: abort.signal,
-      })
-      daemon = started
-      void started.exited.then(() => {
-        if (daemon === started)
-          daemon = undefined
-      })
-      return started
-    }
-    catch (error) {
-      await cleanupSocket()
-      throw error
-    }
-  }
-
-  async function cleanupSocket() {
-    if (socketDirectory) {
-      await rm(socketDirectory, { recursive: true, force: true })
-      socketDirectory = undefined
-    }
+    // The SDK creates a private socket or pipe and requires its launcher token from every local caller.
+    const started = await startAuv({
+      binaryPath: options.binaryPath,
+      storeRoot: options.storeRoot,
+      noRegister: true,
+      signal: abort.signal,
+    })
+    daemon = started
+    void started.exited.then(() => {
+      if (daemon === started)
+        daemon = undefined
+    })
+    return started
   }
 
   function enqueue<T>(operation: () => Promise<T>): Promise<T> {
@@ -90,7 +62,7 @@ export function createComputerUseRuntime(options: { binaryPath: string, storeRoo
       throw new Error('Use invoke with a desktop command or --help.')
 
     // The host owns routing and artifact storage. CLI global flags must not replace them.
-    const managedFlags = ['--store-root', '--endpoint', '--device', '--device-id', '--run', '--config', '--profile', '--discovery-file', '--pairing-store']
+    const managedFlags = ['--credential-stdin', '--store-root', '--endpoint', '--device', '--device-id', '--run', '--config', '--profile', '--discovery-file', '--pairing-store']
     if (argv.some(arg => managedFlags.some(flag => arg === flag || arg.startsWith(`${flag}=`))))
       throw new Error('Computer use routing and storage are managed by AIRI.')
 
@@ -103,15 +75,24 @@ export function createComputerUseRuntime(options: { binaryPath: string, storeRoo
       let stdout: string
       let stderr: string
       let exitCode = 0
+      const credential = active.connectionOptions.credential
+      if (!credential)
+        throw new Error('AUV did not issue a launcher token.')
       try {
-        ({ stdout, stderr } = await execFileAsync(options.binaryPath, command, {
-          env: { ...process.env, AUV_ENDPOINT: active.connectionOptions.endpoint, AUV_CONTEXT: undefined },
+        // Send the launcher token on stdin. Other processes of the same user can read argv and the environment.
+        const pending = execFileAsync(options.binaryPath, ['--credential-stdin', ...command], {
+          // connectionOptions.endpoint is a bare socket path. The CLI needs the URI form from endpoints.
+          env: { ...process.env, AUV_ENDPOINT: active.endpoints[0], AUV_CONTEXT: undefined },
           encoding: 'utf8',
           timeout: 120000,
           maxBuffer: 4 * 1024 * 1024,
           windowsHide: true,
           signal: abort.signal,
-        }))
+        })
+        // A CLI that exits before it reads stdin must not raise EPIPE as an unhandled error.
+        pending.child.stdin?.on('error', () => {})
+        pending.child.stdin?.end(`${credential}\n`)
+        ;({ stdout, stderr } = await pending)
       }
       catch (error) {
         // Nonzero exits carry AUV's failure_details. Spawn failures and timeouts throw.
@@ -160,12 +141,7 @@ export function createComputerUseRuntime(options: { binaryPath: string, storeRoo
     disposed = true
     abort.abort()
     await queue
-    try {
-      await daemon?.stop()
-    }
-    finally {
-      await cleanupSocket()
-    }
+    await daemon?.stop()
   }
 
   return { run, readImage, dispose }

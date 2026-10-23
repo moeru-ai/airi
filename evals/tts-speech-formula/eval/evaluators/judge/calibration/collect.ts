@@ -8,7 +8,8 @@ import { formulaSpeechCases } from '../../../cases/formula-speech'
 import { mathBridgeCases } from '../../../cases/math-bridge'
 
 /**
- * Collects the readings that a person labels in the calibration tool, see ./README.md.
+ * Collects the readings of the judge calibration set, and prints how many labels of a person the judge matches. See the
+ * judge calibration section of the eval README.
  *
  * It reads the newest `result.json` of each case from the reports.
  *
@@ -50,8 +51,16 @@ function order(key: string): number {
   return hash >>> 0
 }
 
-/** The newest judged reading of each object, case, and language, without TTS. */
-async function newestReadings(): Promise<CalibrationItem[]> {
+/** The key of one spoken text of an item. A label applies to the words that a person read, not to the case. */
+function readingKey(item: Pick<CalibrationItem, 'id' | 'spoken'>): string {
+  return `${item.id}\u0000${item.spoken}`
+}
+
+/**
+ * The newest judged reading of each object, case, language, and spoken text, without TTS. A rule change gives a case
+ * new words, and the result for the old words stays in older reports.
+ */
+async function newestReadings(): Promise<{ time: number, item: CalibrationItem }[]> {
   const newest = new Map<string, { time: number, item: CalibrationItem }>()
   for (const object of objects) {
     for await (const path of glob(`${object}/*/tts-speech-formula/attempt-*/run-*/artifacts/*/*/result.json`, { cwd: reportsRoot.pathname })) {
@@ -60,10 +69,11 @@ async function newestReadings(): Promise<CalibrationItem[]> {
       if (!currentCases.has(result.id) || result.tts !== 'none' || result.reading === undefined || typeof result.reference !== 'string' || !result.spoken.trim())
         continue
       const id = `${object}|${result.id}|${result.language}`
+      const key = readingKey({ id, spoken: result.spoken })
       const time = (await stat(file)).mtimeMs
-      if ((newest.get(id)?.time ?? 0) >= time)
+      if ((newest.get(key)?.time ?? 0) >= time)
         continue
-      newest.set(id, {
+      newest.set(key, {
         time,
         item: {
           id,
@@ -79,7 +89,7 @@ async function newestReadings(): Promise<CalibrationItem[]> {
       })
     }
   }
-  return [...newest.values()].map(({ item }) => item)
+  return [...newest.values()]
 }
 
 /**
@@ -108,7 +118,20 @@ function pick(readings: readonly CalibrationItem[]): CalibrationItem[] {
   return picked
 }
 
-/** Written next to the file and renamed over it, as the labeling server does, so a reader never sees half a file. */
+/**
+ * Prints how many labeled readings the judge verdict matches, the measure of the judge. `stale` readings have no
+ * newer verdict on their words, so they keep an older verdict.
+ */
+function reportAgreement(items: readonly CalibrationItem[], stale = 0) {
+  const labeled = items.filter(item => item.label !== null)
+  const matched = labeled.filter(item => item.label === item.judge.reading).length
+  const share = labeled.length ? Math.round(100 * matched / labeled.length) : 0
+  process.stdout.write(`the judge matches ${matched} of ${labeled.length} labels (${share}%)\n`)
+  if (stale > 0)
+    process.stdout.write(`${stale} readings kept an older verdict, because no report judged their words again\n`)
+}
+
+/** Written next to the file and renamed over it, so a reader never sees half a file. */
 async function write(items: CalibrationItem[]) {
   const partial = new URL('./calibration.json.partial', import.meta.url)
   await writeFile(partial, `${JSON.stringify({ seed, items } satisfies CalibrationFile, null, 2)}\n`)
@@ -119,17 +142,25 @@ async function main() {
   const previous = await readFile(calibrationFile, 'utf8').then(text => JSON.parse(text) as CalibrationFile, () => ({ items: [] }))
   const labeled = new Map(previous.items.filter(item => item.label !== null).map(item => [item.id, item]))
 
-  const readings = await newestReadings()
+  const judged = await newestReadings()
+  const readings = judged.map(({ item }) => item)
   if (previous.items.length > 0 && !process.argv.includes('--pick')) {
-    const newest = new Map(readings.map(item => [item.id, item]))
-    const items = previous.items.map(item => ({ ...item, judge: newest.get(item.id)?.judge ?? item.judge }))
+    // A verdict counts only on the words that the person labeled. A case that reads differently now keeps its verdict.
+    const newest = new Map(readings.map(item => [readingKey(item), item]))
+    const items = previous.items.map(item => ({ ...item, judge: newest.get(readingKey(item))?.judge ?? item.judge }))
+    const stale = previous.items.filter(item => !newest.has(readingKey(item))).length
     await write(items)
-    process.stdout.write(`refreshed the judge verdicts of ${items.length} readings, ${labeled.size} labeled\n`)
+    process.stdout.write(`refreshed the judge verdicts of ${items.length - stale} readings, ${labeled.size} labeled\n`)
+    reportAgreement(items, stale)
     return
   }
 
+  // A new pick takes the newest words of each case.
+  const current = new Map<string, CalibrationItem>()
+  for (const { item } of judged.toSorted((left, right) => left.time - right.time))
+    current.set(item.id, item)
   const languages = [...new Set(readings.map(item => item.language))].sort()
-  const items = languages.flatMap(language => pick(readings.filter(item => item.language === language)))
+  const items = languages.flatMap(language => pick([...current.values()].filter(item => item.language === language)))
     // A labeled item keeps its label and note. Its judge verdict is the newest one.
     .map(item => ({ ...item, label: labeled.get(item.id)?.label ?? null, note: labeled.get(item.id)?.note ?? '' }))
   // Labeled items that the new pick left out stay, so collecting again never loses work.
@@ -141,6 +172,7 @@ async function main() {
 
   await write(items)
   process.stdout.write(`collected ${items.length} readings from ${readings.length}, ${labeled.size} labeled\n`)
+  reportAgreement(items)
 }
 
 void main()
