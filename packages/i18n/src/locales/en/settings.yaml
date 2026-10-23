@@ -946,6 +946,9 @@ pages:
             description: Select the microphone that AIRI uses.
             playground-description: Hearing and the playground use this microphone.
             placeholder: Select a microphone
+            allow: Allow microphone access
+            allow-description: The browser lists microphones after you allow access.
+            allow-denied: The browser blocked microphone access. Allow it in the site settings, then try again.
           auto-send:
             title: Transcripts
             description: Choose what AIRI does with the text of your speech.

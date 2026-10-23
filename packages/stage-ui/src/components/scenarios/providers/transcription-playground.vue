@@ -6,9 +6,11 @@ import type { HearingTranscriptionResult } from '../../../libs/providers/transcr
 import { errorMessageFrom } from '@moeru/std'
 import { encodeWav } from '@proj-airi/audio/encoding'
 import { capture as captureAudio, observe } from '@proj-airi/pipelines-audio'
-import { Button, FieldCombobox, FieldRange } from '@proj-airi/ui'
+import { Button, FieldRange } from '@proj-airi/ui'
 import { computed, onScopeDispose, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+import MicrophoneSelect from '../settings/microphone-select.vue'
 
 import { useAudioDevice } from '../../../composables/audio/audio-device'
 import { LevelMeter, TestDummyMarker, ThresholdMeter } from '../../gadgets'
@@ -125,13 +127,13 @@ onScopeDispose(() => {
 
     <!-- Audio Input Selection -->
     <div :class="['mb-2']">
-      <FieldCombobox
+      <MicrophoneSelect
         v-model="selectedAudioInput"
         :label="t('stage.chat.voice-preview.device')"
         :description="t('stage.chat.voice-preview.device-description')"
         :options="audioInputOptions"
         :placeholder="t('stage.chat.voice-preview.device-placeholder')"
-        layout="vertical"
+        :request-access="devices.askPermission"
         :class="['h-fit w-full']"
       />
     </div>

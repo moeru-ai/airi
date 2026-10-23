@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { Callout, FieldCheckbox, FieldCombobox, FieldSelect } from '@proj-airi/ui'
+import { Callout, FieldCheckbox, FieldSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import MicrophoneSelect from '../../settings/microphone-select.vue'
 import WakeWordStatus from './wake-word-status.vue'
 
 import { usePushToTalkTrigger } from '../../../../composables/push-to-talk-trigger'
@@ -100,13 +101,13 @@ async function setMicrophoneEnabled(value: boolean) {
       @update:model-value="setMicrophoneEnabled"
     />
 
-    <FieldCombobox
+    <MicrophoneSelect
       v-model="selectedAudioInput"
       :label="t('settings.pages.modules.hearing.sections.section.input-device.label')"
       :description="t('settings.pages.modules.hearing.sections.section.input-device.description')"
       :options="audioInputOptions"
       :placeholder="t('settings.pages.modules.hearing.sections.section.input-device.placeholder')"
-      layout="vertical"
+      :request-access="deviceStore.askPermission"
     />
 
     <Callout
