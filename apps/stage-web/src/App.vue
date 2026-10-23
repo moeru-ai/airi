@@ -4,6 +4,7 @@ import { useInferencePreload } from '@proj-airi/stage-ui/composables'
 import { useStartupResourceTimeout } from '@proj-airi/stage-ui/composables/use-startup-resource-timeout'
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { initializeAnalytics, isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/product-signals'
+import { connectReplySpeechRelay } from '@proj-airi/stage-ui/services/speech/reply-relay'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -20,6 +21,7 @@ import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { useStartupResourcesStore } from '@proj-airi/stage-ui/stores/startup-resources'
+import { useVoiceControlsStore } from '@proj-airi/stage-ui/stores/voice-controls'
 import { ErrorBoundary, useTheme } from '@proj-airi/ui'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
 import { storeToRefs } from 'pinia'
@@ -44,6 +46,9 @@ const settingsStore = useSettings()
 const settings = storeToRefs(settingsStore)
 const onboardingStore = useOnboardingStore()
 const chatStore = useChatStore()
+const voiceControls = useVoiceControlsStore()
+// Browser tabs elect any tab as the chat leader. A leader without a Stage speaks through a tab that has one.
+onUnmounted(connectReplySpeechRelay(chatStore, () => voiceControls.snapshot.connected))
 const syncedPinia = usePiniaSynced()
 const serverChannelStore = useModsServerChannelStore()
 const characterOrchestratorStore = useCharacterOrchestratorStore()

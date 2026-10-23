@@ -36,6 +36,29 @@ function getChannel() {
   return channel
 }
 
+/** Output hosts in this window. `Stage.vue` connects one while it is mounted. */
+let localSpeechHosts = 0
+
+/**
+ * Marks this window as a speech output host until the returned function runs.
+ * A reply that runs in this window then speaks here, so the cross-window relay stays idle.
+ */
+export function holdLocalSpeechHost(): () => void {
+  localSpeechHosts++
+  let released = false
+  return () => {
+    if (released)
+      return
+    released = true
+    localSpeechHosts--
+  }
+}
+
+/** Whether this window has its own speech output host. */
+export function hasLocalSpeechHost(): boolean {
+  return localSpeechHosts > 0
+}
+
 export function getSpeechBusContext() {
   if (!context)
     context = createBroadcastChannelContext(getChannel()).context
