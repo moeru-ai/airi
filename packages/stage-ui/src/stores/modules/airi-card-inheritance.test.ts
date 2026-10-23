@@ -53,7 +53,7 @@ describe('card inheritance with real module stores', () => {
     const pinia = createPinia()
     createApp({}).use(pinia).use(PiniaColada)
     setActivePinia(pinia)
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ recommended: {}, voices: [], data: [] }))))
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ recommended: {}, voices: [], models: [], data: [] }))))
   })
 
   afterEach(() => vi.unstubAllGlobals())
@@ -298,7 +298,7 @@ describe('card inheritance with real module stores', () => {
           voices: [{ id: 'voice-a', name: 'Voice A', languages: ['en-US'] }],
         })
       }
-      return Response.json({ flux: 0 })
+      return Response.json({ flux: 0, models: [{ id: 'auto', name: 'Auto' }], default: 'auto' })
     }))
 
     const user: User = {
@@ -353,7 +353,7 @@ describe('card inheritance with real module stores', () => {
         voiceRequests.push(url)
         return pendingVoices
       }
-      return Response.json({ flux: 0 })
+      return Response.json({ flux: 0, models: [] })
     }))
 
     const user: User = {

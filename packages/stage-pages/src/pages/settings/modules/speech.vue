@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { VoiceType } from '@proj-airi/stage-ui/composables'
+import type { SpeechSelection } from '@proj-airi/stage-ui/services/airi-card-modules'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import { errorMessageFrom } from '@moeru/std'
@@ -13,11 +14,13 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '@proj-airi/stage-ui/libs/providers/providers/official'
+import { getSpeechSelectionState } from '@proj-airi/stage-ui/services/airi-card-modules'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import {
+  Button,
   FieldCheckbox,
   FieldInput,
   FieldRange,
@@ -38,18 +41,9 @@ const speechStore = useSpeechStore()
 const airiCardStore = useAiriCardStore()
 const { allAudioSpeechProvidersMetadata, moduleSpeechProvidersMetadata } = storeToRefs(providersStore)
 const {
-  activeSpeechProvider,
-  activeSpeechModel,
-  activeSpeechVoice,
-  activeSpeechVoiceId,
   pitch,
-  isLoadingSpeechProviderVoices,
-  supportsModelListing,
-  providerModels,
-  isLoadingActiveProviderModels,
-  activeProviderModelError,
   modelSearchQuery,
-  speechProviderError,
+  voiceCatalogStatus,
   ssmlEnabled,
   availableVoices,
 } = storeToRefs(speechStore)
@@ -63,6 +57,63 @@ const {
   trackVoicePreviewPlayed,
   trackVoiceSelected,
 } = useAnalytics()
+
+// The form and chat resolve the same committed character configuration.
+const emptySelection = Object.freeze({ provider: '', model: '', voice_id: '' })
+const selection = computed(() => airiCardStore.activeCard && airiCardStore.moduleDefaults
+  ? airiCardStore.getModules(airiCardStore.activeCardId).speech
+  : emptySelection)
+const activeSpeechProvider = computed(() => selection.value.provider)
+const activeSpeechModel = computed(() => selection.value.model)
+const activeSpeechVoiceId = computed(() => selection.value.voice_id)
+const supportsModelListing = computed(() => providersStore.supportsModelListing(activeSpeechProvider.value))
+const providerModels = computed(() => providersStore.getModelsForProvider(activeSpeechProvider.value))
+const isLoadingActiveProviderModels = computed(() => providersStore.isLoadingModels[activeSpeechProvider.value] || false)
+const activeProviderModelError = computed(() => providersStore.modelLoadError[activeSpeechProvider.value] || null)
+const isLoadingSpeechProviderVoices = computed(() => voiceCatalogStatus.value[activeSpeechProvider.value]?.loading || false)
+const speechProviderError = computed(() => voiceCatalogStatus.value[activeSpeechProvider.value]?.error || null)
+const supportsSSML = computed(() => ['elevenlabs', 'microsoft-speech', 'azure-speech'].includes(activeSpeechProvider.value)
+  || (activeSpeechProvider.value === 'alibaba-cloud-model-studio' && activeSpeechModel.value === 'cosyvoice-v2'))
+const configurationPending = ref(false)
+const configurationError = ref('')
+const customVoiceName = ref('')
+let configurationRequest = 0
+const configurationSource = computed(() => {
+  const speech = airiCardStore.activeCard?.extensions.airi.modules.speech
+  const overrides = [speech?.provider, speech?.model, speech?.voice_id].filter(Boolean).length
+  return overrides === 0 ? 'defaults' : overrides === 3 ? 'character' : 'mixed'
+})
+const configurationVoiceName = computed(() => availableVoices.value[selection.value.provider]?.find(voice => voice.id === selection.value.voice_id)?.name || selection.value.voice_id)
+
+/** Tracks this renderer's command wait without publishing UI state to other windows. */
+async function configureSpeech(intent?: Partial<SpeechSelection>, reloadCatalogs = false) {
+  const request = ++configurationRequest
+  const characterId = airiCardStore.activeCardId
+  configurationPending.value = true
+  configurationError.value = ''
+  try {
+    if (reloadCatalogs) {
+      const provider = activeSpeechProvider.value
+      // Retry failed discovery without changing the user's configuration intent.
+      if (providersStore.modelLoadError[provider])
+        await providersStore.fetchModelsForProvider(provider)
+      if (request !== configurationRequest || characterId !== airiCardStore.activeCardId || provider !== activeSpeechProvider.value)
+        return
+      await speechStore.loadVoicesForProvider(provider, activeSpeechModel.value || undefined)
+      if (request !== configurationRequest || characterId !== airiCardStore.activeCardId || provider !== activeSpeechProvider.value)
+        return
+    }
+    return await airiCardStore.configureSpeechSelection(characterId, intent)
+  }
+  catch (error) {
+    if (request === configurationRequest && characterId === airiCardStore.activeCardId)
+      configurationError.value = errorMessageFrom(error) ?? t('settings.pages.modules.speech.configuration.error')
+  }
+  finally {
+    if (request === configurationRequest)
+      configurationPending.value = false
+  }
+}
 
 const voiceSearchQuery = ref('')
 const useSSML = ref(false)
@@ -165,6 +216,31 @@ const displayedModelsLoading = computed(() => {
     || false
 })
 
+// A complete committed choice does not require another catalog request to be usable.
+// Catalog errors still appear beside the fields, but cannot invalidate that choice.
+const configurationFailure = computed(() => configurationError.value
+  || airiCardStore.speechConfigurationError
+  || providersStore.modelLoadError[selection.value.provider]
+  || voiceCatalogStatus.value[selection.value.provider]?.error
+  || '')
+const configurationState = computed(() => {
+  // A failed edit must remain visible even when the previous committed choice is usable.
+  if (configurationError.value)
+    return 'error'
+  const committed = getSpeechSelectionState(selection.value)
+  if (committed === 'muted')
+    return 'muted'
+  if (configurationPending.value)
+    return 'loading'
+  if (committed === 'ready' && providerStore.configuredProviders[selection.value.provider])
+    return 'ready'
+  if (displayedModelsLoading.value || voiceCatalogStatus.value[selection.value.provider]?.loading)
+    return 'loading'
+  if (configurationFailure.value)
+    return 'error'
+  return 'incomplete'
+})
+
 const displayedModelError = computed(() => {
   if (!isOfficialSpeechSourceSelected.value)
     return activeProviderModelError.value
@@ -189,12 +265,7 @@ const displayedVoiceOptions = computed(() => {
     }))
 })
 
-const displayedSpeechVoiceId = computed({
-  get: () => activeSpeechVoiceId.value,
-  set: (value: string) => {
-    activeSpeechVoiceId.value = value
-  },
-})
+const displayedSpeechVoiceId = computed(() => activeSpeechVoiceId.value)
 
 const currentSpeechVoiceId = computed(() => activeSpeechVoiceId.value || '')
 
@@ -272,7 +343,7 @@ function withManualPreviewAnalytics<TProviderConfig extends Record<string, unkno
  * Tracks explicit voice selection from catalog or custom input controls.
  */
 async function selectSpeechVoice(voiceId: string | undefined) {
-  await persistSelection()
+  await configureSpeech({ voice_id: voiceId || '' })
   if (!voiceId)
     return
 
@@ -286,18 +357,17 @@ async function selectSpeechVoice(voiceId: string | undefined) {
 
 /** Persists the selection only after the leader commits its provider and model. */
 async function selectSpeechSource(sourceId: string) {
-  const selection = await speechStore.selectProviderModel(sourceId, '')
-  if (!selection)
+  const resolved = await configureSpeech({ provider: sourceId, model: '', voice_id: '' })
+  if (!resolved)
     return
   const providerId = providerStore.providers[sourceId]?.definitionId || sourceId
   // Use this command's receipt: another selection can reach the store before
   // this caller resumes, but must not relabel this analytics event.
   trackTtsProviderSelected({
     tts_provider_id: providerId,
-    tts_model_id: selection.model || 'unknown',
+    tts_model_id: resolved.model || 'unknown',
     source: 'settings',
   })
-  await persistSelection()
 }
 
 /** Resolves the displayed model option before committing it in the leader. */
@@ -310,8 +380,10 @@ async function selectSpeechModel(modelOptionId: string) {
     : OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
   const nextModel = streamingModelId ?? modelOptionId
 
-  await speechStore.selectProviderModel(nextProvider, nextModel)
-  await persistSelection()
+  await configureSpeech({
+    ...(nextProvider !== activeSpeechProvider.value ? { provider: nextProvider } : {}),
+    model: nextModel,
+  })
 }
 
 /**
@@ -333,25 +405,11 @@ function trackOfficialTtsExposure(providerId = activeSpeechProvider.value, model
   })
 }
 
-/** Applies provider defaults in the leader without a follower state proposal. */
-async function syncOpenAICompatibleSettings() {
-  if (activeSpeechProvider.value !== 'openai-compatible-audio-speech')
-    return
-
-  const providerConfig = providerStore.getProviderConfig(activeSpeechProvider.value)
-  // Empty provider fields select the same OpenAI defaults as the provider form.
-  await speechStore.selectProviderModel(
-    activeSpeechProvider.value,
-    providerConfig?.model as string || 'tts-1',
-    providerConfig?.voice as string || 'alloy',
-  )
-}
-
 onMounted(async () => {
   try {
     await providersStore.loadModelsForConfiguredProviders()
     await speechStore.loadVoicesForProvider(activeSpeechProvider.value, activeSpeechModel.value || undefined)
-    await syncOpenAICompatibleSettings()
+    await configureSpeech()
     trackOfficialTtsExposure()
   }
   catch (error) {
@@ -372,8 +430,6 @@ watch(activeSpeechProvider, async (newProvider) => {
     if (newProvider !== activeSpeechProvider.value)
       return
     trackOfficialTtsExposure(newProvider, currentTtsModelId())
-
-    await syncOpenAICompatibleSettings()
   }
   catch (error) {
     // An obsolete provider request must not replace the current form error.
@@ -389,14 +445,6 @@ watch(activeSpeechModel, () => {
   trackOfficialTtsExposure(activeSpeechProvider.value, currentTtsModelId())
 })
 
-async function persistSelection() {
-  await airiCardStore.updateActiveCardSpeech({
-    provider: activeSpeechProvider.value,
-    model: activeSpeechModel.value,
-    voice_id: activeSpeechVoiceId.value,
-  })
-}
-
 // Function to generate speech
 async function generateTestSpeech() {
   if (!testText.value.trim() && !useSSML.value)
@@ -405,7 +453,7 @@ async function generateTestSpeech() {
   if (useSSML.value && !ssmlText.value.trim())
     return
 
-  const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, any>
+  const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, Record<string, unknown>>
   if (!provider) {
     console.error('Failed to initialize speech provider')
     return
@@ -413,35 +461,18 @@ async function generateTestSpeech() {
 
   const providerConfig = providerStore.getProviderConfig(activeSpeechProvider.value)
 
-  // For OpenAI Compatible providers, fall back to provider config for model and voice
-  let model = activeSpeechModel.value
-  let voice = activeSpeechVoice.value
-
-  if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
-    if (!model && providerConfig?.model) {
-      model = providerConfig.model as string
-    }
-    if (!voice && providerConfig?.voice) {
-      voice = {
-        id: providerConfig.voice as string,
-        name: providerConfig.voice as string,
-        description: providerConfig.voice as string,
-        previewURL: '',
-        languages: [{ code: 'en', title: 'English' }],
-        provider: activeSpeechProvider.value,
-        gender: 'neutral',
-      }
-    }
-  }
-
-  if (!model) {
-    console.error('No model selected')
+  const model = selection.value.model
+  const voiceId = selection.value.voice_id
+  if (!model || !voiceId)
     return
-  }
-
-  if (!voice) {
-    console.error('No voice selected')
-    return
+  const voice = availableVoices.value[selection.value.provider]?.find(candidate => candidate.id === voiceId) ?? {
+    id: voiceId,
+    name: voiceId,
+    description: '',
+    previewURL: '',
+    languages: [],
+    provider: selection.value.provider,
+    gender: 'neutral' as const,
   }
 
   const previewVoice = voice
@@ -472,7 +503,7 @@ async function generateTestSpeech() {
             pitch: ssmlEnabled.value ? pitch.value : undefined,
           },
           forceSSML: ssmlEnabled.value,
-          supportsSSML: speechStore.supportsSSML,
+          supportsSSML: supportsSSML.value,
         })
 
     if (isOfficialTtsProvider(previewProvider)) {
@@ -552,41 +583,29 @@ onUnmounted(() => {
 })
 
 function updateCustomVoiceName(value: string | undefined) {
-  activeSpeechVoiceId.value = value || ''
-  if (!value) {
-    activeSpeechVoice.value = undefined
-    return
-  }
-
-  activeSpeechVoice.value = {
-    id: value,
-    name: value,
-    description: value,
-    previewURL: value,
-    languages: [{ code: 'en', title: 'English' }],
-    provider: activeSpeechProvider.value,
-    gender: 'male',
-  }
+  customVoiceName.value = value || ''
 }
 
-/**
- * Tracks a manual voice after the input value is committed by the user.
- */
-function commitCustomVoiceSelection() {
-  selectSpeechVoice(activeSpeechVoiceId.value)
+async function commitCustomVoiceSelection() {
+  await selectSpeechVoice(customVoiceName.value)
 }
 
-/** Routes manual model edits through the same leader commit as listed models. */
 async function updateCustomModelName(value: string | undefined) {
-  errorMessage.value = ''
-  try {
-    await speechStore.selectProviderModel(activeSpeechProvider.value, value || '')
-    await persistSelection()
-  }
-  catch (error) {
-    errorMessage.value = errorMessageFrom(error) ?? 'An unknown error occurred'
-  }
+  await configureSpeech({ model: value || '' })
 }
+
+watch(activeSpeechVoiceId, (voiceId) => {
+  customVoiceName.value = voiceId
+}, { immediate: true })
+
+// Remote commits also replace the configuration that a local error described.
+watch([() => airiCardStore.activeCardId, activeSpeechProvider, activeSpeechModel, activeSpeechVoiceId], () => {
+  configurationError.value = ''
+}, { flush: 'sync' })
+
+watch(() => airiCardStore.activeCardId, async () => {
+  await configureSpeech()
+})
 
 async function handleDeleteProvider(providerId: string) {
   if (providerId === 'speech-noop') {
@@ -600,21 +619,52 @@ async function handleDeleteProvider(providerId: string) {
 
 <template>
   <ErrorContainer v-if="errorMessage" :error="errorMessage" />
-  <div flex="~ col md:row gap-6">
-    <SettingsCard class="md:w-[40%]">
-      <div flex="~ col gap-4">
+  <section
+    role="status"
+    aria-live="polite"
+    :aria-busy="configurationState === 'loading'"
+    :data-speech-state="configurationState"
+    :class="['mb-6 rounded-xl p-4', 'bg-neutral-100 dark:bg-neutral-900', 'flex flex-col gap-2']"
+  >
+    <div :class="['flex flex-wrap items-center justify-between gap-3']">
+      <span :class="['font-medium']">{{ t(`settings.pages.modules.speech.configuration.${configurationState}`) }}</span>
+      <Button
+        v-if="configurationState === 'error' || configurationState === 'incomplete'"
+        size="sm"
+        @click="configureSpeech(undefined, true)"
+      >
+        {{ t('settings.pages.modules.speech.configuration.retry') }}
+      </Button>
+    </div>
+    <p v-if="configurationState === 'ready'" :class="['text-sm text-neutral-600 dark:text-neutral-300']">
+      {{ t('settings.pages.modules.speech.configuration.selection', { model: activeSpeechModel, voice: configurationVoiceName }) }}
+      · {{ t(`settings.pages.modules.speech.configuration.source.${configurationSource}`) }}
+    </p>
+    <p v-else-if="configurationState === 'error'" :class="['text-sm text-red-600 dark:text-red-300']">
+      {{ configurationFailure }}
+    </p>
+    <p v-if="configurationState !== 'ready'" :class="['text-sm text-neutral-600 dark:text-neutral-400']">
+      {{ t('settings.pages.modules.speech.configuration.text-chat-available') }}
+    </p>
+    <a v-if="configurationState === 'incomplete'" href="#speech-configuration-fields" :class="['text-sm text-primary-600 underline dark:text-primary-300']">
+      {{ t('settings.pages.modules.speech.configuration.select') }}
+    </a>
+  </section>
+  <div id="speech-configuration-fields" :class="['flex flex-col md:flex-row gap-6']">
+    <SettingsCard :class="['md:w-[40%]']">
+      <div :class="['flex flex-col gap-4']">
         <div>
-          <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
+          <h2 :class="['text-lg text-neutral-500 md:text-2xl dark:text-neutral-400']">
             {{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.title') }}
           </h2>
-          <div text="neutral-400 dark:neutral-500">
+          <div :class="['text-neutral-400 dark:text-neutral-500']">
             <span>{{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.description') }}</span>
           </div>
         </div>
-        <div max-w-full>
+        <div :class="['max-w-full']">
           <fieldset
-            v-if="selectableSpeechSources.length > 0" flex="~ row gap-4"
-            min-w-0 overflow-x-auto scroll-smooth role="radiogroup"
+            v-if="selectableSpeechSources.length > 0" role="radiogroup"
+            :class="['flex flex-row gap-4 min-w-0', 'overflow-x-auto scroll-smooth']"
           >
             <RadioCardSimple
               v-for="source in selectableSpeechSources"
@@ -631,41 +681,36 @@ async function handleDeleteProvider(providerId: string) {
                 <button
                   v-if="source.providerId && source.providerId !== 'speech-noop' && !source.providerId.startsWith('official-provider')"
                   type="button"
-                  class="rounded bg-neutral-100 p-1 text-neutral-600 transition-colors dark:bg-neutral-800/60 hover:bg-neutral-200 dark:text-neutral-300 dark:hover:bg-neutral-700/60"
+                  :class="['rounded bg-neutral-100 p-1 text-neutral-600', 'transition-colors dark:bg-neutral-800/60 hover:bg-neutral-200 dark:text-neutral-300', 'dark:hover:bg-neutral-700/60']"
                   @click.stop.prevent="handleDeleteProvider(source.providerId)"
                 >
-                  <div i-solar:trash-bin-trash-bold-duotone class="text-base" />
+                  <div :class="['i-solar:trash-bin-trash-bold-duotone text-base']" />
                 </button>
               </template>
             </RadioCardSimple>
             <RouterLink
               to="/settings/providers#speech"
-              border="2px solid"
-              class="border-neutral-100 bg-white dark:border-neutral-900 hover:border-primary-500/30 dark:bg-neutral-900/20 dark:hover:border-primary-400/30"
-              flex="~ col items-center justify-center"
-              transition="all duration-200 ease-in-out"
-              relative min-w-50 w-fit rounded-xl p-4
+              :class="['border-2px border-solid border-neutral-100 bg-white', 'dark:border-neutral-900 hover:border-primary-500/30 dark:bg-neutral-900/20 dark:hover:border-primary-400/30', 'flex flex-col items-center justify-center', 'transition-all duration-200 ease-in-out relative', 'min-w-50 w-fit rounded-xl p-4']"
             >
-              <div i-solar:add-circle-line-duotone class="text-2xl text-neutral-500 dark:text-neutral-500" />
+              <div :class="['i-solar:add-circle-line-duotone text-2xl text-neutral-500 dark:text-neutral-500']" />
               <div
-                class="bg-dotted-neutral-200/80 dark:bg-dotted-neutral-700/50"
-                absolute inset-0 z--1
                 style="background-size: 10px 10px; mask-image: linear-gradient(165deg, white 30%, transparent 50%);"
+                :class="['bg-dotted-neutral-200/80 dark:bg-dotted-neutral-700/50 absolute inset-0', 'z--1']"
               />
             </RouterLink>
           </fieldset>
           <div v-else>
             <RouterLink
-              class="flex items-center gap-3 rounded-lg p-4" border="2 dashed neutral-200 dark:neutral-800"
-              bg="neutral-50 dark:neutral-800" transition="colors duration-200 ease-in-out" to="/settings/providers"
+              to="/settings/providers"
+              :class="['flex items-center gap-3 rounded-lg', 'p-4 border-2 border-dashed border-neutral-200', 'dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800 transition-colors', 'duration-200 ease-in-out']"
             >
-              <div i-solar:warning-circle-line-duotone class="text-2xl text-amber-500 dark:text-amber-400" />
-              <div class="flex flex-col">
-                <span class="font-medium">No Speech Providers Configured</span>
-                <span class="text-sm text-neutral-400 dark:text-neutral-500">Click here to set up your speech
+              <div :class="['i-solar:warning-circle-line-duotone text-2xl text-amber-500 dark:text-amber-400']" />
+              <div :class="['flex flex-col']">
+                <span :class="['font-medium']">No Speech Providers Configured</span>
+                <span :class="['text-sm text-neutral-400 dark:text-neutral-500']">Click here to set up your speech
                   providers</span>
               </div>
-              <div i-solar:arrow-right-line-duotone class="ml-auto text-xl text-neutral-400 dark:text-neutral-500" />
+              <div :class="['i-solar:arrow-right-line-duotone ml-auto text-xl text-neutral-400', 'dark:text-neutral-500']" />
             </RouterLink>
           </div>
         </div>
@@ -673,14 +718,14 @@ async function handleDeleteProvider(providerId: string) {
 
       <!-- Model selection section -->
       <div v-if="activeSpeechProvider && activeSpeechProvider !== 'speech-noop'">
-        <div flex="~ col gap-4">
+        <div :class="['flex flex-col gap-4']">
           <div>
-            <h2 class="text-lg md:text-2xl">
+            <h2 :class="['text-lg md:text-2xl']">
               {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.title') }}
             </h2>
-            <div class="flex flex-col items-start gap-1 text-neutral-400 md:flex-row md:items-center md:justify-between dark:text-neutral-400">
+            <div :class="['flex flex-col items-start gap-1', 'text-neutral-400 md:flex-row md:items-center md:justify-between', 'dark:text-neutral-400']">
               <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle') }}</span>
-              <span v-if="currentSpeechModelId" class="text-sm text-neutral-400 font-medium dark:text-neutral-400">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.current_model_label') }} {{ currentSpeechModelId }}</span>
+              <span v-if="currentSpeechModelId" :class="['text-sm text-neutral-400 font-medium dark:text-neutral-400']">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.current_model_label') }} {{ currentSpeechModelId }}</span>
             </div>
           </div>
 
@@ -696,11 +741,11 @@ async function handleDeleteProvider(providerId: string) {
           </div>
 
           <!-- Model listing for other providers -->
-          <div v-else-if="supportsModelListing" class="flex flex-col gap-4">
+          <div v-else-if="supportsModelListing" :class="['flex flex-col gap-4']">
             <!-- Loading state -->
-            <div v-if="displayedModelsLoading" class="flex items-center justify-center py-4">
-              <div class="mr-2 animate-spin">
-                <div i-solar:spinner-line-duotone text-xl />
+            <div v-if="displayedModelsLoading" :class="['flex items-center justify-center py-4']">
+              <div :class="['mr-2 animate-spin']">
+                <div :class="['i-solar:spinner-line-duotone text-xl']" />
               </div>
               <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.loading') }}</span>
             </div>
@@ -765,14 +810,14 @@ async function handleDeleteProvider(providerId: string) {
 
       <!-- Voice Configuration Section -->
       <div v-if="activeSpeechProvider && activeSpeechProvider !== 'speech-noop'">
-        <div flex="~ col gap-4">
+        <div :class="['flex flex-col gap-4']">
           <div>
-            <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
+            <h2 :class="['text-lg text-neutral-500 md:text-2xl dark:text-neutral-400']">
               Voice Configuration
             </h2>
-            <div class="flex flex-col items-start gap-1 text-neutral-400 md:flex-row md:items-center md:justify-between dark:text-neutral-500">
+            <div :class="['flex flex-col items-start gap-1', 'text-neutral-400 md:flex-row md:items-center md:justify-between', 'dark:text-neutral-500']">
               <span>Customize how your AI assistant speaks</span>
-              <span v-if="currentSpeechVoiceId" class="text-sm text-neutral-400 font-medium dark:text-neutral-400">
+              <span v-if="currentSpeechVoiceId" :class="['text-sm text-neutral-400 font-medium dark:text-neutral-400']">
                 Current voice: {{ currentSpeechVoiceId }}
               </span>
             </div>
@@ -780,23 +825,23 @@ async function handleDeleteProvider(providerId: string) {
 
           <!-- Loading state -->
           <div v-if="isLoadingSpeechProviderVoices">
-            <div class="flex flex-col gap-4">
-              <Skeleton class="w-full rounded-lg p-2.5 text-sm">
-                <div class="h-1lh" />
+            <div :class="['flex flex-col gap-4']">
+              <Skeleton :class="['w-full rounded-lg p-2.5 text-sm']">
+                <div :class="['h-1lh']" />
               </Skeleton>
-              <div flex="~ row gap-4">
-                <Skeleton class="w-full rounded-lg p-4 text-sm">
-                  <div class="h-1lh" />
+              <div :class="['flex flex-row gap-4']">
+                <Skeleton :class="['w-full rounded-lg p-4 text-sm']">
+                  <div :class="['h-1lh']" />
                 </Skeleton>
-                <Skeleton class="w-full rounded-lg p-4 text-sm">
-                  <div class="h-1lh" />
+                <Skeleton :class="['w-full rounded-lg p-4 text-sm']">
+                  <div :class="['h-1lh']" />
                 </Skeleton>
-                <Skeleton class="w-full rounded-lg p-4 text-sm">
-                  <div class="h-1lh" />
+                <Skeleton :class="['w-full rounded-lg p-4 text-sm']">
+                  <div :class="['h-1lh']" />
                 </Skeleton>
               </div>
-              <Skeleton class="w-full rounded-lg p-3 text-sm">
-                <div class="h-1lh" />
+              <Skeleton :class="['w-full rounded-lg p-3 text-sm']">
+                <div :class="['h-1lh']" />
               </Skeleton>
             </div>
           </div>
@@ -805,11 +850,11 @@ async function handleDeleteProvider(providerId: string) {
           <!-- Voice selection with RadioCardManySelect (skip for OpenAI Compatible) -->
           <div
             v-else-if="activeSpeechProvider !== 'openai-compatible-audio-speech' && displayedVoiceOptions.length > 0"
-            class="space-y-6"
+            :class="['space-y-6']"
           >
             <VoiceCardManySelect
               v-model:search-query="voiceSearchQuery"
-              v-model:voice-id="displayedSpeechVoiceId"
+              :voice-id="displayedSpeechVoiceId"
               :voices="displayedVoiceOptions"
               :searchable="true"
               :search-placeholder="t('settings.pages.modules.speech.sections.section.provider-voice-selection.search_voices_placeholder')"
@@ -830,9 +875,9 @@ async function handleDeleteProvider(providerId: string) {
 
           <ErrorContainer
             v-else-if="speechProviderError"
-            class="mb-2"
             title="Error loading voices"
             :error="speechProviderError"
+            :class="['mb-2']"
           />
 
           <!-- No voices available -->
@@ -840,7 +885,7 @@ async function handleDeleteProvider(providerId: string) {
             v-else
             type="warning"
             icon="i-solar:info-circle-line-duotone"
-            class="mb-2"
+            :class="['mb-2']"
           >
             <template #title>
               {{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices') }}
@@ -852,7 +897,7 @@ async function handleDeleteProvider(providerId: string) {
           </Alert>
 
           <!-- Voice parameters -->
-          <div flex="~ col gap-4">
+          <div :class="['flex flex-col gap-4']">
             <FieldRange
               v-model="pitch"
               label="Pitch"
@@ -871,11 +916,11 @@ async function handleDeleteProvider(providerId: string) {
           <!-- Manual voice input when no voices are available or for OpenAI Compatible -->
           <div
             v-if="activeSpeechProvider === 'openai-compatible-audio-speech' || !availableVoices[activeSpeechProvider] || availableVoices[activeSpeechProvider].length === 0"
-            class="mt-2 space-y-6"
+            :class="['mt-2 space-y-6']"
           >
             <FieldInput
               type="text"
-              :model-value="activeSpeechVoiceId || ''"
+              :model-value="customVoiceName"
               label="Voice Name"
               description="Enter the voice name for your custom voice"
               placeholder="Enter voice name (e.g., 'alloy', 'echo')"
@@ -885,7 +930,7 @@ async function handleDeleteProvider(providerId: string) {
 
             <!-- Model selection for ElevenLabs -->
             <div v-if="activeSpeechProvider === 'elevenlabs'">
-              <label class="mb-1 block text-sm font-medium">
+              <label :class="['mb-1 block text-sm font-medium']">
                 Model
               </label>
               <select
@@ -912,17 +957,17 @@ async function handleDeleteProvider(providerId: string) {
       </div>
     </SettingsCard>
 
-    <div flex="~ col gap-6" class="w-full md:w-[60%]">
-      <div w-full rounded-xl>
-        <h2 class="mb-4 text-lg text-neutral-500 md:text-2xl dark:text-neutral-400" w-full>
-          <div class="inline-flex items-center gap-4">
+    <div :class="['flex flex-col gap-6 w-full', 'md:w-[60%]']">
+      <div :class="['w-full rounded-xl']">
+        <h2 :class="['mb-4 text-lg text-neutral-500 md:text-2xl', 'dark:text-neutral-400 w-full']">
+          <div :class="['inline-flex items-center gap-4']">
             <TestDummyMarker />
             <div>
               {{ t('settings.pages.providers.provider.elevenlabs.playground.title') }}
             </div>
           </div>
         </h2>
-        <div flex="~ col gap-4">
+        <div :class="['flex flex-col gap-4']">
           <FieldCheckbox
             v-model="useSSML"
             label="Use Custom SSML"
@@ -931,46 +976,40 @@ async function handleDeleteProvider(providerId: string) {
 
           <template v-if="!useSSML">
             <Textarea
-              v-model="testText" h-24
-              w-full
+              v-model="testText"
               :placeholder="t('settings.pages.providers.provider.elevenlabs.playground.fields.field.input.placeholder')"
+              :class="['h-24 w-full']"
             />
           </template>
           <template v-else>
             <textarea
               v-model="ssmlText"
               placeholder="Enter SSML text..."
-              border="neutral-100 dark:neutral-800 solid 2 focus:neutral-200 dark:focus:neutral-700"
-              transition="all duration-250 ease-in-out"
-              bg="neutral-100 dark:neutral-800 focus:neutral-50 dark:focus:neutral-900"
-              h-48 w-full rounded-lg px-3 py-2 text-sm font-mono outline-none
+              :class="['border-neutral-100 dark:border-neutral-800 border-solid border-2', 'focus:border-neutral-200 dark:focus:border-neutral-700 transition-all duration-250', 'ease-in-out bg-neutral-100 dark:bg-neutral-800 focus:bg-neutral-50', 'dark:focus:bg-neutral-900 h-48 w-full rounded-lg', 'px-3 py-2 text-sm font-mono', 'outline-none']"
             />
           </template>
 
-          <div flex="~ row" gap-4>
+          <div :class="['flex flex-row gap-4']">
             <button
-              border="neutral-800 dark:neutral-200 solid 2" transition="border duration-250 ease-in-out"
-              rounded-lg px-4 text="neutral-100 dark:neutral-900" py-2 text-sm
-              :disabled="isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !activeSpeechVoice"
-              :class="{ 'opacity-50 cursor-not-allowed': isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !activeSpeechVoice }"
-              bg="neutral-700 dark:neutral-300" @click="generateTestSpeech"
+              :disabled="isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || configurationState !== 'ready'"
+              :class="['border-neutral-800 dark:border-neutral-200 border-solid border-2', 'transition-border duration-250 ease-in-out rounded-lg', 'px-4 text-neutral-100 dark:text-neutral-900 py-2', 'text-sm bg-neutral-700 dark:bg-neutral-300', { 'opacity-50 cursor-not-allowed': isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || configurationState !== 'ready' }]" @click="generateTestSpeech"
             >
-              <div flex="~ row" items-center gap-2>
-                <div i-solar:play-circle-bold-duotone />
+              <div :class="['flex flex-row items-center gap-2']">
+                <div :class="['i-solar:play-circle-bold-duotone']" />
                 <span>{{ isGenerating ? t('settings.pages.providers.provider.elevenlabs.playground.buttons.button.test-voice.generating') : t('settings.pages.providers.provider.elevenlabs.playground.buttons.button.test-voice.label') }}</span>
               </div>
             </button>
             <button
-              v-if="audioUrl" border="primary-300 dark:primary-800 solid 2"
-              transition="border duration-250 ease-in-out" rounded-lg px-4 py-2 text-sm @click="stopTestAudio"
+              v-if="audioUrl" :class="['border-primary-300 dark:border-primary-800 border-solid border-2', 'transition-border duration-250 ease-in-out rounded-lg', 'px-4 py-2 text-sm']"
+              @click="stopTestAudio"
             >
-              <div flex="~ row" items-center gap-2>
-                <div i-solar:stop-circle-bold-duotone />
+              <div :class="['flex flex-row items-center gap-2']">
+                <div :class="['i-solar:stop-circle-bold-duotone']" />
                 <span>Stop</span>
               </div>
             </button>
           </div>
-          <audio v-if="audioUrl" ref="audioPlayer" :src="audioUrl" controls class="mt-2 w-full" />
+          <audio v-if="audioUrl" ref="audioPlayer" :src="audioUrl" controls :class="['mt-2 w-full']" />
         </div>
       </div>
     </div>
@@ -978,15 +1017,12 @@ async function handleDeleteProvider(providerId: string) {
 
   <div
     v-motion
-    text="neutral-200/50 dark:neutral-600/20" pointer-events-none
-    fixed top="[calc(100dvh-15rem)]" bottom-0 right--5 z--1
     :initial="{ scale: 0.9, opacity: 0, x: 20 }"
     :enter="{ scale: 1, opacity: 1, x: 0 }"
     :duration="500"
-    size-60
-    flex items-center justify-center
+    :class="['text-neutral-200/50 dark:text-neutral-600/20 pointer-events-none fixed', 'top-[calc(100dvh-15rem)] bottom-0 right--5 z--1', 'size-60 flex items-center justify-center']"
   >
-    <div text="60" i-solar:user-speak-rounded-bold-duotone />
+    <div :class="['text-60 i-solar:user-speak-rounded-bold-duotone']" />
   </div>
 </template>
 
