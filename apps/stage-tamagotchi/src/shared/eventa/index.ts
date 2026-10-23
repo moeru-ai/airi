@@ -631,6 +631,13 @@ export const electronGetWindowLifecycleState = defineInvokeEventa<ElectronWindow
 export const electronWindowSetAlwaysOnTop = defineInvokeEventa<void, boolean>('eventa:invoke:electron:window:set-always-on-top')
 export const electronAppOpenUserDataFolder = defineInvokeEventa<{ path: string }>('eventa:invoke:electron:app:open-user-data-folder')
 export const electronAppQuit = defineInvokeEventa<void>('eventa:invoke:electron:app:quit')
+/**
+ * The version of the installed app, from `app.getVersion()` in the main process.
+ *
+ * Packaging can set a version that the renderer bundle does not know, for example
+ * `electron-builder -c.extraMetadata.version`. Screens that show the app version use this value.
+ */
+export const electronAppGetVersion = defineInvokeEventa<string>('eventa:invoke:electron:app:get-version')
 /** Whether the app runs on the Wayland Ozone backend, where Electron cannot read the cursor position reliably. */
 export const electronAppIsWayland = defineInvokeEventa<boolean>('eventa:invoke:electron:app:is-wayland')
 export const electronAppIconGet = defineInvokeEventa<boolean>('eventa:invoke:electron:app-icon:get')

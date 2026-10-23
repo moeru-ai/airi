@@ -11,7 +11,7 @@ import { isMacOS, isWindows } from 'std-env'
 
 import { createServerChannelService } from '../../services/airi/channel-server'
 import { createI18nService } from '../../services/airi/i18n'
-import { createAppService, createPowerMonitorService, createScreenService, createSystemPreferencesService, createWindowService } from '../../services/electron'
+import { createAppService, createAppVersionService, createPowerMonitorService, createScreenService, createSystemPreferencesService, createWindowService } from '../../services/electron'
 import { WindowBackdropService } from '../../services/electron/window-backdrop'
 
 export function toggleWindowShow(window?: BrowserWindow | null): void {
@@ -180,6 +180,7 @@ export async function setupBaseWindowElectronInvokes(params: {
   createScreenService({ context: params.context, window: params.window })
   createWindowService({ context: params.context, window: params.window, setAlwaysOnTop: params.setAlwaysOnTop })
   createAppService({ context: params.context, window: params.window })
+  createAppVersionService({ window: params.window })
   createPowerMonitorService({ context: params.context, window: params.window })
   createSystemPreferencesService({ context: params.context, window: params.window })
   WindowBackdropService.install(params.window)
