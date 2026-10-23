@@ -45,11 +45,6 @@ docs:
   style:
     title: 채팅 창 스타일
     legacy: 클래식 창
-    floating-attached: 캐릭터 옆에 떠 있는 창
-    floating-free: 화면 어디에나 떠 있는 창
-    floating-danmaku: 떠 있는 메시지 피드
-    pinned: 항상 위에 표시
-  resize: 드래그하여 채팅 크기 조절
   move: 드래그하여 채팅 이동
   fold: 채팅 숨기기
   composer:
