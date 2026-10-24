@@ -10,7 +10,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { cloneDeep } from 'es-toolkit'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, toRaw, watch } from 'vue'
 
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
 import { authedFetch } from '../../libs/auth-fetch'
@@ -310,6 +310,39 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       throw error
     }
     return { status: existing ? 'existing' as const : 'inserted' as const, messageId: message.id }
+  }
+
+  /**
+   * Stores a message by identity. It replaces the stored message with the same id, or appends the message.
+   * Resolves after durable storage, so a retried store does not append the message twice.
+   */
+  async function storeMessage(sessionId: string, message: ChatHistoryItem & { id: string }) {
+    if (!sessionMetas.value[sessionId])
+      throw new Error('Cannot store a message in an unknown session')
+    const messages = ensureSessionMessageIds(sessionId)
+    const index = messages.findIndex(item => item.id === message.id)
+    replaceSessionMessages(sessionId, index < 0 ? [...messages, message] : messages.with(index, message), { persist: false })
+    await persistSession(sessionId)
+  }
+
+  /** Replaces fields of one stored user message. It ignores a message that the session no longer has. */
+  async function updateUserMessage(sessionId: string, messageId: string, fields: Partial<Pick<Extract<ChatHistoryItem, { role: 'user' }>, 'audioTranscripts' | 'imageDescriptions'>>) {
+    const messages = sessionMessages.value[sessionId]
+    const index = messages?.findIndex(message => message.id === messageId) ?? -1
+    const message = messages?.[index]
+    if (!messages || message?.role !== 'user')
+      return
+    // Spreading a reactive message copies its nested arrays as proxies, which `structuredClone` rejects later.
+    replaceSessionMessages(sessionId, toRaw(messages).with(index, { ...toRaw(message), ...fields }), { persist: false })
+    await persistSession(sessionId)
+  }
+
+  /** Replaces the history of a loaded session. Resolves after durable storage. */
+  async function replaceSessionHistory(sessionId: string, next: ChatHistoryItem[]) {
+    if (!sessionMetas.value[sessionId])
+      throw new Error('Cannot replace the history of an unknown session')
+    replaceSessionMessages(sessionId, next, { persist: false })
+    await persistSession(sessionId)
   }
 
   /** Persists a control event under its turn's session. Retries retain the original event identity. */
@@ -1501,11 +1534,17 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   function cleanupMessages(sessionId = activeSessionId.value) {
+    return clearSessionMessages(sessionId)
+  }
+
+  /** Removes every message of a session and rejects its queued sends. Resolves after durable storage. */
+  async function clearSessionMessages(sessionId: string) {
     ensureGeneration(sessionId)
     sessionGenerations.value[sessionId] += 1
     const previous = sessionMessages.value[sessionId] ?? []
-    setSessionMessages(sessionId, [])
-    void releaseRemovedAssets(sessionId, previous, [])
+    replaceSessionMessages(sessionId, [], { persist: false })
+    await persistSession(sessionId)
+    await releaseRemovedAssets(sessionId, previous, [])
   }
 
   function getAllSessions() {
@@ -1543,8 +1582,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     await createSession(characterId)
   }
 
+  /** Returns the messages of a session. It does not write, because the store can be synchronized from another context. */
   function getSessionMessages(sessionId: string) {
-    ensureSession(sessionId)
     return sessionMessages.value[sessionId] ?? []
   }
 
@@ -1553,8 +1592,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return sessionMessages.value[sessionId]
   }
 
+  /** Returns the generation of a session. It does not write, for the same reason as `getSessionMessages`. */
   function getSessionGeneration(sessionId: string) {
-    ensureGeneration(sessionId)
     return sessionGenerations.value[sessionId] ?? 0
   }
 
@@ -1786,6 +1825,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     applyRemoteSnapshot,
     getSnapshot,
     cleanupMessages,
+    clearSessionMessages,
     getAllSessions,
     resetAllSessions,
 
@@ -1794,6 +1834,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     setSessionMessages,
     appendSessionMessage,
     commitUserMessage,
+    storeMessage,
+    updateUserMessage,
+    replaceSessionHistory,
     recordInterruption,
     persistSessionMessages,
     getSessionMessages,
@@ -1828,7 +1871,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   synced: {
     actions: [
       'activateCurrentUser',
+      'clearSessionMessages',
       'commitUserMessage',
+      'replaceSessionHistory',
+      'storeMessage',
+      'updateUserMessage',
       'recordInterruption',
       'createSession',
       'deleteMessage',
