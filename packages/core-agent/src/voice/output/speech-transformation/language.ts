@@ -1,14 +1,8 @@
-/**
- * The primary language subtag of a BCP 47 code: `zh` for `zh-CN`, `ko` for `ko_KR`. Chinese dialect codes are `zh`,
- * because the readers have one Chinese pack.
- */
+import { primaryLanguage } from '@proj-airi/speech-transformer-math'
+
+/** The primary language subtag of a BCP 47 code, see `primaryLanguage` of `@proj-airi/speech-transformer-math`. */
 export function toSpeechLanguage(code: string | undefined): string | undefined {
-  if (code === undefined)
-    return undefined
-  const primary = code.toLowerCase().split(/[-_]/)[0] ?? ''
-  if (primary === 'cmn' || primary === 'yue')
-    return 'zh'
-  return primary || undefined
+  return code === undefined ? undefined : primaryLanguage(code) || undefined
 }
 
 const kana = /[\p{Script=Hiragana}\p{Script=Katakana}]/u

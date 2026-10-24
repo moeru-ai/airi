@@ -60,8 +60,10 @@ export const tools = [
     },
     parameters: z.object({
       name: z.string().describe('Spine animation name (e.g. "idle", "walk", "celebrate"). Case-insensitive partial match accepted.'),
-      loop: z.boolean().optional().describe('Whether the animation should loop. Defaults to true.'),
-      oneShot: z.boolean().optional().describe('Play once on the emotion track instead of replacing the idle loop.'),
+      // Required-nullable instead of `.optional()`: OpenAI strict mode wants every
+      // property in `required`, or the whole request fails.
+      loop: z.union([z.boolean(), z.null()]).describe('Whether the animation should loop, or null for the default (true, or false for a one-shot).'),
+      oneShot: z.union([z.boolean(), z.null()]).describe('Play once on the emotion track instead of replacing the idle loop, or null for false.'),
     }),
   }),
 

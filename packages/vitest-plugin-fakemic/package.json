@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/vitest-plugin-fakemic",
   "type": "module",
-  "version": "0.12.0-beta.5",
+  "version": "0.12.0",
   "private": true,
   "description": "Fake microphone test runtime and Vitest integration",
   "author": {
@@ -12,6 +12,7 @@
   "license": "MIT",
   "exports": "./src/index.ts",
   "scripts": {
+    "test:run": "vitest run --config vitest.config.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

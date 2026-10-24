@@ -78,7 +78,7 @@ describe('keepChatOnDisplay', () => {
   const leftDisplay = { bounds: { x: -1280, y: 0, width: 1280, height: 800 }, workArea: { x: -1280, y: 0, width: 1280, height: 800 } }
   const displays = [primary, leftDisplay]
 
-  it('keeps the top edge, where the grip and the drag handle sit, below the menu bar', () => {
+  it('keeps the top edge, where the drag handle sits, below the menu bar', () => {
     const bounds = keepChatOnDisplay({ x: 600, y: -200, width: 380, height: 560 }, displays)
 
     expect(bounds).toEqual({ x: 600, y: 25, width: 380, height: 560 })
@@ -102,7 +102,7 @@ describe('keepChatOnDisplay', () => {
     // ROOT CAUSE:
     //
     // The clamp kept the size, so a chat taller than the work area got a top
-    // edge above it, with the grip and the drag handle out of reach.
+    // edge above it, with the top edge and the drag handle out of reach.
     //
     // The clamp now fits the size to the work area first.
     const bounds = keepChatOnDisplay({ x: -1280, y: 0, width: 1400, height: 1000 }, displays)

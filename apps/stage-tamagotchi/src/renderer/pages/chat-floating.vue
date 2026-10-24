@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import type { ChatFloatingState } from '../../shared/eventa'
+import type { ResizeDirection } from '@proj-airi/electron-eventa'
 
-import { getElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
+import type { ChatFloatingState, ChatWindowPreferences } from '../../shared/eventa'
+
+import { getElectronEventaContext, useElectronEventaInvoke, useElectronMouseAroundWindowBorder, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { useEventListener, useLocalStorage } from '@vueuse/core'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { refDebounced, useEventListener, useLocalStorage, usePreferredReducedMotion } from '@vueuse/core'
+import { animate, createSpring } from 'animejs'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onScopeDispose, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -13,6 +17,7 @@ import ChatDanmakuFeedMenu from '../components/chat-window/chat-danmaku-feed-men
 import ChatSpeechMuteButton from '../components/chat-window/chat-speech-mute-button.vue'
 import ChatWindowStyleMenu from '../components/chat-window/chat-window-style-menu.vue'
 import InteractiveArea from '../components/InteractiveArea.vue'
+import WindowResizeBorder from '../components/window-resize-border.vue'
 
 import {
   electronChatFloatingContentHidden,
@@ -21,7 +26,9 @@ import {
   electronChatFloatingMoveTo,
   electronChatFloatingResizeBy,
   electronChatFloatingStateChanged,
+  electronChatWindowSetPreferences,
 } from '../../shared/eventa'
+import { chatHeaderButtonClass } from '../components/chat-window/chat-header-button'
 import { useChatDraftHandover } from '../composables/use-chat-draft-handover'
 import { dismissOverlays, useChatFloatingClickThrough } from '../composables/use-chat-floating-click-through'
 import { useDanmakuFeedExpiry } from '../composables/use-danmaku-feed-expiry'
@@ -29,7 +36,6 @@ import { useWindowBackdrop } from '../composables/use-window-backdrop'
 import { useControlsIslandStore } from '../stores/controls-island'
 
 const backdropRoot = useTemplateRef<HTMLElement>('backdrop-root')
-useWindowBackdrop(backdropRoot, 'panel')
 
 const { activeCard } = storeToRefs(useAiriCardStore())
 const sessionsDrawerOpen = shallowRef(false)
@@ -38,12 +44,13 @@ const { t } = useI18n()
 
 // Folded until the main process answers, so the first unfold plays the same
 // animation as every later one.
-const state = shallowRef<ChatFloatingState>({ placement: 'attached', side: 'left', folded: true, relocating: false, pinned: false })
+const state = shallowRef<ChatFloatingState>({ placement: 'attached', danmaku: false, side: 'left', resizeEdges: [], folded: true, relocating: false, pinned: false })
 const getState = useElectronEventaInvoke(electronChatFloatingGetState)
 const reportContentHidden = useElectronEventaInvoke(electronChatFloatingContentHidden)
 const resizeBy = useElectronEventaInvoke(electronChatFloatingResizeBy)
 const moveTo = useElectronEventaInvoke(electronChatFloatingMoveTo)
 const foldChat = useElectronEventaInvoke(electronChatFloatingFold)
+const setPreferences = useElectronEventaInvoke(electronChatWindowSetPreferences)
 
 // The main process can emit before this page mounts, so the first state comes
 // from the invoke and later ones from the event.
@@ -58,9 +65,12 @@ onMounted(async () => {
 
 useChatDraftHandover(interactiveArea)
 
-// `free` and `danmaku` both stay where the user drags them.
-const freePlacement = computed(() => state.value.placement !== 'attached')
-const danmaku = computed(() => state.value.placement === 'danmaku')
+// A free chat stays where the user drags it.
+const freePlacement = computed(() => state.value.placement === 'free')
+const danmaku = computed(() => state.value.danmaku)
+// The message feed has no glass. Its messages float over the desktop, so a
+// feed that fades out leaves nothing behind.
+useWindowBackdrop(backdropRoot, 'panel', () => !danmaku.value)
 // The danmaku feed starts with its composer folded, because it is mostly read.
 const composerFolded = useLocalStorage('chat-window/danmaku/composer-folded', true)
 // Fade on hover, which the main window's controls island switches, turns the
@@ -92,9 +102,102 @@ watch(contentShown, (shown) => {
     void dismissOverlays()
 })
 
-// The character stands on the other side of the chat: the chat folds toward
-// it, and the resize grip sits away from it.
+// The character stands on the other side of the chat, and the chat folds
+// toward it. The dock sits on the other side.
 const characterOnLeft = computed(() => state.value.side === 'right')
+
+function savePreference(changes: Partial<ChatWindowPreferences>) {
+  void setPreferences(changes).catch(error => console.error('[chat-floating] Failed to save the chat preferences:', error))
+}
+
+/** The space between the dock and the island beside it, in pixels. It matches the `gap-2` of their row. */
+const ISLAND_GAP = 8
+// The island buds off the dock like a bubble: the spring carries it a little past its place and lets it settle.
+const ISLAND_SPRING = createSpring({ bounce: 0.45, duration: 520 })
+const reducedMotion = usePreferredReducedMotion()
+
+/** How far the island moves to sit under the dock: past the gap and its own width, toward the dock. */
+function underDock(island: HTMLElement) {
+  const towardDock = characterOnLeft.value ? 1 : -1
+  return towardDock * (ISLAND_GAP + island.offsetWidth)
+}
+
+/** The island starts small under the edge of the dock and springs out to its place. */
+function budIsland(el: Element, done: () => void) {
+  if (reducedMotion.value === 'reduce')
+    return done()
+  const island = el as HTMLElement
+  animate(island, { x: { from: underDock(island) }, scale: { from: 0.4 }, ease: ISLAND_SPRING, onComplete: () => done() })
+}
+
+/** The island shrinks and slides back under the dock, which takes it in. */
+function mergeIsland(el: Element, done: () => void) {
+  if (reducedMotion.value === 'reduce')
+    return done()
+  const island = el as HTMLElement
+  animate(island, { x: underDock(island), scale: 0.4, duration: 220, ease: 'inQuad', onComplete: () => done() })
+}
+
+function toggleDanmaku() {
+  savePreference({ danmaku: !state.value.danmaku })
+}
+
+// An attached chat takes the pin of the main window, so its pin button pins
+// the main window, through the setting that the Controls Island pin also
+// changes. A free chat has a pin of its own.
+const { alwaysOnTop } = storeToRefs(useSettings())
+function togglePinned() {
+  if (state.value.placement === 'attached')
+    alwaysOnTop.value = !state.value.pinned
+  else
+    savePreference({ pinned: !state.value.pinned })
+}
+
+// The edges flash while the cursor is near one that resizes the chat, like
+// the edges of the main window.
+const {
+  nearTop,
+  nearBottom,
+  nearLeft,
+  nearRight,
+} = useElectronMouseAroundWindowBorder({ threshold: 10 })
+const nearResizeEdge = computed(() => {
+  const edges = state.value.resizeEdges
+  return (edges.includes('n') && nearTop.value)
+    || (edges.includes('s') && nearBottom.value)
+    || (edges.includes('w') && nearLeft.value)
+    || (edges.includes('e') && nearRight.value)
+})
+const nearResizeEdgeFor250Ms = refDebounced(nearResizeEdge, 250)
+
+/** Where each resize handle sits: a band along each edge, and a square in each corner, over the bands. */
+const resizeHandleClasses: Record<ResizeDirection, string[]> = {
+  n: ['left-[5px] right-[5px] top-0 h-[5px]', 'cursor-n-resize'],
+  s: ['left-[5px] right-[5px] bottom-0 h-[5px]', 'cursor-s-resize'],
+  e: ['top-[5px] bottom-[5px] right-0 w-[5px]', 'cursor-e-resize'],
+  w: ['top-[5px] bottom-[5px] left-0 w-[5px]', 'cursor-w-resize'],
+  ne: ['right-0 top-0 size-[10px]', 'cursor-ne-resize'],
+  nw: ['left-0 top-0 size-[10px]', 'cursor-nw-resize'],
+  se: ['right-0 bottom-0 size-[10px]', 'cursor-se-resize'],
+  sw: ['left-0 bottom-0 size-[10px]', 'cursor-sw-resize'],
+}
+/** The handles of the chat, the edges first, so a corner sits over the ends of its two edges. */
+const resizeHandles = computed(() => [...state.value.resizeEdges].sort((a, b) => a.length - b.length))
+
+type ResizeCorner = Extract<ResizeDirection, 'ne' | 'nw' | 'se' | 'sw'>
+
+function isResizeCorner(direction: ResizeDirection): direction is ResizeCorner {
+  return direction.length === 2
+}
+
+// A corner moves both edges that meet there, so the corners also resize from
+// the keyboard, and each one names its corner.
+const resizeCornerLabels = computed<Record<ResizeCorner, string>>(() => ({
+  ne: t('tamagotchi.stage.chat-window.resize-corner.ne'),
+  nw: t('tamagotchi.stage.chat-window.resize-corner.nw'),
+  se: t('tamagotchi.stage.chat-window.resize-corner.se'),
+  sw: t('tamagotchi.stage.chat-window.resize-corner.sw'),
+}))
 
 interface WindowDelta {
   deltaX: number
@@ -102,13 +205,15 @@ interface WindowDelta {
 }
 
 /**
- * A press on the resize grip or the drag handle, in screen pixels, which stay
+ * A press on a resize handle or the drag handle, in screen pixels, which stay
  * valid while the window moves under the pointer. Pointer capture sends the
  * moves to the pressed element even when the window lags behind the pointer.
  */
 interface HeldPointer {
-  /** The pressed grip or handle, which holds the pointer capture. */
+  /** The pressed handle, which holds the pointer capture. */
   element: HTMLElement
+  /** The edge or the corner that a resize handle moves. The drag handle has none. */
+  direction?: ResizeDirection
   pointerId: number
   pressX: number
   pressY: number
@@ -120,14 +225,15 @@ interface HeldPointer {
   resizedY: number
 }
 
-/** `undefined` when neither the grip nor the handle is held. */
+/** `undefined` when no handle is held. */
 let heldPointer: HeldPointer | undefined
 
-function holdPointer(event: PointerEvent) {
+function holdPointer(event: PointerEvent, direction?: ResizeDirection) {
   const element = event.currentTarget as HTMLElement
   element.setPointerCapture(event.pointerId)
   heldPointer = {
     element,
+    direction,
     pointerId: event.pointerId,
     pressX: event.screenX,
     pressY: event.screenY,
@@ -141,7 +247,7 @@ function holdPointer(event: PointerEvent) {
 /** Sends the pointer movement since the last step to the main process, which resizes the window. */
 function resizeWithHeldPointer(event: PointerEvent) {
   const held = pointerStillHeld(event)
-  if (!held)
+  if (!held?.direction)
     return
 
   // Whole pixels only; the rounding remainder carries into the next step.
@@ -152,7 +258,7 @@ function resizeWithHeldPointer(event: PointerEvent) {
 
   held.resizedX += deltaX
   held.resizedY += deltaY
-  void resizeBy({ deltaX, deltaY })
+  void resizeBy({ deltaX, deltaY, direction: held.direction })
 }
 
 /**
@@ -184,9 +290,9 @@ function releasePointer() {
  * The held press, or `undefined` once the buttons are up.
  *
  * A release can miss this window, for example while another window takes the
- * pointer. The grip would then stay held, and the mouse moves that reach this
- * window while the main window is dragged would resize the chat. A move with
- * no button down ends the hold instead.
+ * pointer. A resize handle would then stay held, and the mouse moves that
+ * reach this window while the main window is dragged would resize the chat. A
+ * move with no button down ends the hold instead.
  */
 function pointerStillHeld(event: PointerEvent) {
   if (heldPointer && event.buttons === 0)
@@ -197,7 +303,7 @@ function pointerStillHeld(event: PointerEvent) {
 // A window that loses focus has no press left in it.
 useEventListener(window, 'blur', releasePointer)
 
-/** Keyboard step for the resize grip and the drag handle, in screen pixels. */
+/** Keyboard step for the drag handle and the resize corners, in screen pixels. */
 const keyboardStep = 16
 
 /** Moves or resizes the window from the arrow keys, as a pointer drag would. */
@@ -238,42 +344,37 @@ function moveByKeyboard(delta: WindowDelta) {
         data-window-backdrop-floating-background
         :class="['absolute inset-0 flex flex-col gap-1 rounded-3xl pt-3']"
       >
+        <!--
+          The dock sits on the side away from the character. A character on the left mirrors the row and the dock, so
+          the fold button stays at the outer end.
+        -->
         <div :class="['flex items-center gap-2 px-4', characterOnLeft ? 'flex-row-reverse' : '']">
+          <!-- The dock stays over the island, so the island can hide under its edge. -->
           <div
             :class="[
-              'shrink-0 rounded-full p-0.5 shadow-md',
-              'bg-white ring-1 ring-neutral-200 dark:bg-neutral-900 dark:ring-neutral-800',
+              'relative z-1 min-w-0 flex items-center gap-1 rounded-full p-0.5 shadow-md',
+              'bg-white dark:bg-neutral-900',
+              characterOnLeft ? 'flex-row-reverse' : '',
             ]"
           >
             <button
-              :title="t('tamagotchi.stage.chat-window.resize')"
-              :aria-label="t('tamagotchi.stage.chat-window.resize')"
-              :class="[
-                'size-8 touch-none rounded-full',
-                'flex items-center justify-center outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300 transition-colors text-neutral-400 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400',
-                characterOnLeft ? 'cursor-nesw-resize' : 'cursor-nwse-resize',
-              ]"
-              @pointerdown="holdPointer"
-              @pointermove="resizeWithHeldPointer"
-              @lostpointercapture="releasePointer"
-              @keydown="handleArrowKey($event, resizeBy)"
+              :title="t('tamagotchi.stage.chat-window.fold')"
+              :aria-label="t('tamagotchi.stage.chat-window.fold')"
+              :class="['shrink-0', chatHeaderButtonClass('dock')]"
+              @click="foldChat()"
             >
-              <!-- The two-headed arrow matches the resize cursor of the grip corner. -->
-              <div :class="[characterOnLeft ? 'i-lucide:move-diagonal' : 'i-lucide:move-diagonal-2', 'size-4']" />
+              <div class="i-lucide:minimize-2 size-4" />
             </button>
-          </div>
-
-          <div
-            :class="[
-              'min-w-0 flex items-center gap-1 rounded-full p-1 shadow-md',
-              'bg-white ring-1 ring-neutral-200 dark:bg-neutral-900 dark:ring-neutral-800',
-            ]"
-          >
             <button
               v-if="freePlacement"
               :title="t('tamagotchi.stage.chat-window.move')"
               :aria-label="t('tamagotchi.stage.chat-window.move')"
-              :class="['h-7 w-5 shrink-0 cursor-grab touch-none rounded-full', 'flex items-center justify-center outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300 transition-colors text-neutral-400 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400']"
+              :class="[
+                'h-7 w-5 shrink-0 cursor-grab touch-none rounded-full',
+                'flex items-center justify-center outline-none transition-colors',
+                'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
+                'text-neutral-400 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400',
+              ]"
               @pointerdown="holdPointer"
               @pointermove="moveWithHeldPointer"
               @lostpointercapture="releasePointer"
@@ -284,35 +385,63 @@ function moveByKeyboard(delta: WindowDelta) {
             <!-- A plain button: GhostButton wraps its slot in a span that cannot shrink, so a long name could not truncate. -->
             <button
               :class="[
-                'min-w-0 flex items-center gap-2 rounded-full px-2 py-0.5 outline-none transition-colors',
+                'min-w-0 flex items-center gap-1.5 rounded-full py-0.5 outline-none transition-colors',
                 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
-                'text-neutral-700 hover:bg-primary-500/10 hover:text-primary-700 dark:text-neutral-200 dark:hover:bg-primary-400/10 dark:hover:text-primary-300',
+                'text-neutral-700 hover:bg-primary-50 hover:text-primary-700 dark:text-neutral-200 dark:hover:bg-primary-900/40 dark:hover:text-primary-300',
+                characterOnLeft ? 'flex-row-reverse pl-2 pr-0.5' : 'pl-0.5 pr-2',
               ]"
               @click="sessionsDrawerOpen = true"
             >
-              <div class="i-solar:chat-line-bold shrink-0 text-neutral-400 dark:text-neutral-500" />
+              <span
+                :class="[
+                  'size-6 shrink-0 rounded-full',
+                  'flex items-center justify-center text-sm',
+                  'bg-neutral-100 text-neutral-400 dark:bg-neutral-800 dark:text-neutral-500',
+                ]"
+              >
+                <span class="i-solar:chat-line-bold" />
+              </span>
               <span class="truncate text-sm font-medium">{{ activeCard?.name || 'AIRI' }}</span>
             </button>
-            <ChatSpeechMuteButton :class="['shrink-0 rounded-full!']" />
-            <ChatDanmakuFeedMenu v-if="danmaku" :class="['shrink-0 rounded-full!']" />
-            <ChatWindowStyleMenu :class="['shrink-0 rounded-full!']" />
+            <div :class="['mx-0.5 h-4 w-px shrink-0', 'bg-neutral-200 dark:bg-neutral-700']" />
+            <div :class="['flex shrink-0 items-center gap-0.5', characterOnLeft ? 'flex-row-reverse' : '']">
+              <ChatSpeechMuteButton variant="dock" />
+              <button
+                :class="chatHeaderButtonClass('dock', danmaku)"
+                :title="t('tamagotchi.stage.chat-window.danmaku')"
+                :aria-label="t('tamagotchi.stage.chat-window.danmaku')"
+                :aria-pressed="danmaku"
+                @click="toggleDanmaku"
+              >
+                <div class="i-solar:subtitles-bold-duotone" />
+              </button>
+              <button
+                :class="chatHeaderButtonClass('dock', state.pinned)"
+                :title="t('tamagotchi.stage.chat-window.pin')"
+                :aria-label="t('tamagotchi.stage.chat-window.pin')"
+                :aria-pressed="state.pinned"
+                @click="togglePinned"
+              >
+                <div :class="state.pinned ? 'i-solar:pin-bold-duotone' : 'i-solar:pin-linear'" />
+              </button>
+              <ChatWindowStyleMenu variant="dock" />
+            </div>
           </div>
-
-          <div
-            :class="[
-              'shrink-0 rounded-full p-0.5 shadow-md',
-              'bg-white ring-1 ring-neutral-200 dark:bg-neutral-900 dark:ring-neutral-800',
-            ]"
-          >
-            <button
-              :title="t('tamagotchi.stage.chat-window.fold')"
-              :aria-label="t('tamagotchi.stage.chat-window.fold')"
-              :class="['size-8 rounded-full', 'flex items-center justify-center outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300 transition-colors text-neutral-400 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400']"
-              @click="foldChat()"
+          <!--
+            The settings of the message feed are an island of their own while the feed is on. It buds off the dock on
+            the side that leaves the dock in place, and goes back under the dock when the feed turns off.
+          -->
+          <Transition :css="false" @enter="budIsland" @leave="mergeIsland">
+            <div
+              v-if="danmaku"
+              :class="[
+                'relative z-0 shrink-0 rounded-full p-0.5 shadow-md',
+                'bg-white dark:bg-neutral-900',
+              ]"
             >
-              <div class="i-lucide:minimize-2 size-4" />
-            </button>
-          </div>
+              <ChatDanmakuFeedMenu variant="dock" />
+            </div>
+          </Transition>
         </div>
 
         <div :class="['relative min-h-0 flex-1']">
@@ -325,6 +454,27 @@ function moveByKeyboard(delta: WindowDelta) {
             :expired-before="expiredBefore"
           />
         </div>
+        <!--
+          The corners are buttons that take keyboard focus and the arrow keys. The edges take only the pointer. The
+          handles paint nothing, so they mark that the window takes the pointer over them.
+        -->
+        <component
+          :is="isResizeCorner(edge) ? 'button' : 'div'"
+          v-for="edge in resizeHandles"
+          :key="edge"
+          data-takes-pointer
+          :aria-label="isResizeCorner(edge) ? resizeCornerLabels[edge] : undefined"
+          :class="[
+            'absolute z-1000 touch-none outline-none',
+            isResizeCorner(edge) ? 'rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-300' : '',
+            resizeHandleClasses[edge],
+          ]"
+          @pointerdown="holdPointer($event, edge)"
+          @pointermove="resizeWithHeldPointer"
+          @lostpointercapture="releasePointer"
+          @keydown="handleArrowKey($event, (delta: WindowDelta) => resizeBy({ ...delta, direction: edge }))"
+        />
+        <WindowResizeBorder :shown="nearResizeEdge || nearResizeEdgeFor250Ms" :class="['rounded-3xl']" />
       </div>
     </Transition>
     <ChatSessionsDrawer v-model="sessionsDrawerOpen" />

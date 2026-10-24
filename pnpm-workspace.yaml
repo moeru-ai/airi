@@ -2,6 +2,7 @@ catalogMode: prefer
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
   # Packages from the AIRI team must always be trusted
+  - '@auv-js/*'
   - '@gd-kirie/*'
   - '@moeru/*'
   - '@proj-airi/*'
@@ -63,8 +64,8 @@ catalog:
   '@anthropic-ai/claude-code': ^2.1.241
   '@apple/app-store-server-library': ^3.1.0
   '@arethetypeswrong/core': ^0.18.5
-  '@auv-js/cli': 0.0.28
-  '@auv-js/sdk': 0.0.28
+  '@auv-js/cli': 0.0.38
+  '@auv-js/sdk': 0.0.38
   '@aws-sdk/client-s3': ^3.1135.0
   '@aws-sdk/s3-request-presigner': ^3.1135.0
   '@ax-llm/ax': ^24.0.5
@@ -189,7 +190,6 @@ catalog:
   '@pnpm/find-workspace-dir': ^1000.1.5
   '@proj-airi/chromatic': ^1.1.4
   '@proj-airi/drizzle-duckdb-wasm': ^0.6.0
-  '@proj-airi/duckdb-wasm': ^0.6.0
   '@proj-airi/iconify-meteocons': ^0.1.5
   '@proj-airi/lobe-icons': ^1.0.19
   '@proj-airi/unocss-preset-chromatic': ^1.1.4
@@ -369,7 +369,7 @@ catalog:
   p-limit: ^7.3.1
   pg: ^8.23.0
   pinia: ^4.0.3
-  pinia-plugin-synced: ^0.1.5
+  pinia-plugin-synced: ^0.1.6
   pixi-filters: ^4.2.0
   pixi-live2d-display: ^0.4.0
   playwright: ^1.62.1

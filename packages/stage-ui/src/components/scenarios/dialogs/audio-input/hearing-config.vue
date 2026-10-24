@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { Callout, FieldCheckbox, FieldCombobox, FieldSelect } from '@proj-airi/ui'
+import { Callout, FieldCheckbox, FieldSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import MicrophonePicker from '../../settings/microphone-picker.vue'
+import OptionList from '../../settings/option-list.vue'
 import WakeWordStatus from './wake-word-status.vue'
 
 import { usePushToTalkTrigger } from '../../../../composables/push-to-talk-trigger'
+import { useBreakpoints } from '../../../../composables/use-breakpoints'
 import { useHearingStore } from '../../../../stores/modules/hearing'
 import { useSettingsAudioDevice } from '../../../../stores/settings/audio-device'
 
@@ -19,7 +22,9 @@ const { t } = useI18n()
 const { inputMode } = storeToRefs(useHearingStore())
 const { available: pushToTalkAvailable, stranded: pushToTalkStranded } = usePushToTalkTrigger()
 const deviceStore = useSettingsAudioDevice()
-const { audioInputOptions, enabled, error, selectedAudioInput } = storeToRefs(deviceStore)
+const { audioInputOptions, enabled, error, permission, selectedAudioInput } = storeToRefs(deviceStore)
+// A phone shows this config in a bottom drawer. A select there opens a second floating layer, so choices are rows.
+const { isDesktop } = useBreakpoints()
 
 const inputModeOptions = computed(() => [
   {
@@ -74,6 +79,7 @@ async function setMicrophoneEnabled(value: boolean) {
 <template>
   <div :class="['flex flex-col gap-4']">
     <FieldSelect
+      v-if="isDesktop"
       v-model="inputMode"
       data-testid="hearing-input-mode"
       :label="t('settings.pages.modules.hearing.sections.section.input-mode.label')"
@@ -81,6 +87,13 @@ async function setMicrophoneEnabled(value: boolean) {
       :options="inputModeOptions"
       layout="vertical"
     />
+    <div v-else data-testid="hearing-input-mode" :class="['flex flex-col gap-2']">
+      <div :class="['flex flex-col gap-1']">
+        <span :class="['text-sm font-medium']">{{ t('settings.pages.modules.hearing.sections.section.input-mode.label') }}</span>
+        <span :class="['text-xs text-neutral-500 dark:text-neutral-400']">{{ t('settings.pages.modules.hearing.sections.section.input-mode.description') }}</span>
+      </div>
+      <OptionList v-model="inputMode" :label="t('settings.pages.modules.hearing.sections.section.input-mode.label')" :options="inputModeOptions" />
+    </div>
     <WakeWordStatus v-if="inputMode === 'wake-word'" />
     <Callout
       v-if="pushToTalkStranded"
@@ -100,13 +113,14 @@ async function setMicrophoneEnabled(value: boolean) {
       @update:model-value="setMicrophoneEnabled"
     />
 
-    <FieldCombobox
+    <MicrophonePicker
       v-model="selectedAudioInput"
       :label="t('settings.pages.modules.hearing.sections.section.input-device.label')"
       :description="t('settings.pages.modules.hearing.sections.section.input-device.description')"
       :options="audioInputOptions"
       :placeholder="t('settings.pages.modules.hearing.sections.section.input-device.placeholder')"
-      layout="vertical"
+      :permission="permission"
+      :request-access="deviceStore.askPermission"
     />
 
     <Callout

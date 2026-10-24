@@ -141,5 +141,5 @@ describe('imported VRM view settings', () => {
 
     expect(modelStore.lastCommittedModelId).toBe('display-model-incoming')
     expect(modelStore.modelOffset).toEqual({ x: 0, y: 0, z: 0 })
-  }, 45_000)
+  }, 120_000) // Repeated real VRM loads need a generous timeout.
 })
