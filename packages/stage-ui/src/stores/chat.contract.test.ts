@@ -1191,9 +1191,12 @@ describe('chat store contract', () => {
     let leadershipListener: ((isLeader: boolean) => void) | undefined
     const stopLeadershipListener = vi.fn()
     const syncedPinia: SyncedPiniaRuntime = {
+      addRole: vi.fn(() => vi.fn()),
       dispose: vi.fn(),
       getLeaderId: vi.fn(),
       getParticipantCount: vi.fn(() => 1),
+      getParticipants: vi.fn(() => []),
+      getRoles: vi.fn(() => []),
       isLeader: vi.fn(() => false),
       onCoordinationChange: vi.fn(() => vi.fn()),
       onLeadershipChange: vi.fn((listener) => {

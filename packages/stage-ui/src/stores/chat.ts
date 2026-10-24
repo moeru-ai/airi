@@ -27,6 +27,7 @@ import { useChatVision } from '../composables/vision/use-chat-vision'
 import { useVisionInference } from '../composables/vision/use-vision-inference'
 import { chatAssetIdFrom, inlineConversationAssets, storeChatAttachments } from '../libs/chat-assets'
 import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
+import { syncedRoles } from '../libs/pinia/synced-context'
 import { createChatAnalyticsHooks, getProviderMode } from '../libs/product-signals/events/chat'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
@@ -248,6 +249,12 @@ const STORED_TOOL_IMAGE = 'A tool image was left out of the history.'
 
 /** Stands in for an earlier image whose read failed with the current vision selection. */
 const UNREADABLE_EARLIER_IMAGE = 'The user attached an image here earlier. The vision model failed to read it.'
+
+// REVIEW:
+// Executor order: the leader, the caller, then any speech player. With several Stage tabs, a call from elsewhere
+// speaks in an arbitrary one, and a cancel can miss its turn. The chat runtime can elect its own owner among speech
+// players, as a Kubernetes controller does with a Lease.
+const inSpeechPlayer = { roles: [syncedRoles.speechPlayer] }
 
 export const useChatStore = defineStore('chat', () => {
   const { t } = useI18n()
@@ -1561,7 +1568,22 @@ export const useChatStore = defineStore('chat', () => {
   }
 }, {
   synced: {
-    actions: ['submit', 'settleAudioTranscript', 'cancelTurn', 'receiveInterruption', 'cancelPendingSends', 'cleanup', 'deleteSession', 'dismissBackgroundTask', 'rerunToolCall', 'retry', 'send', 'stopBackgroundTask'],
+    // Only the Stage chat hooks speak a reply, so generation runs in a speech player. Requests and runtime turns are
+    // local to that context, so every chat action runs there. Without a speech player, the leader runs them silently.
+    actions: {
+      submit: inSpeechPlayer,
+      settleAudioTranscript: inSpeechPlayer,
+      cancelTurn: inSpeechPlayer,
+      receiveInterruption: inSpeechPlayer,
+      cancelPendingSends: inSpeechPlayer,
+      cleanup: inSpeechPlayer,
+      deleteSession: inSpeechPlayer,
+      dismissBackgroundTask: inSpeechPlayer,
+      rerunToolCall: inSpeechPlayer,
+      retry: inSpeechPlayer,
+      send: inSpeechPlayer,
+      stopBackgroundTask: inSpeechPlayer,
+    },
     state: true,
   },
 })
