@@ -251,10 +251,9 @@ const STORED_TOOL_IMAGE = 'A tool image was left out of the history.'
 const UNREADABLE_EARLIER_IMAGE = 'The user attached an image here earlier. The vision model failed to read it.'
 
 // REVIEW:
-// The plugin picks the executor: the leader, then the caller, then the first speech player by participant ID.
-// With several Stage tabs, a call from a tab without a Stage speaks in an arbitrary one, and a cancel can miss the turn.
-// A Kubernetes controller elects its own leader with a Lease, apart from the cluster. The chat runtime can do the same
-// among speech players, for example to prefer the visible tab, and keep each turn with its owner.
+// Executor order: the leader, the caller, then any speech player. With several Stage tabs, a call from elsewhere
+// speaks in an arbitrary one, and a cancel can miss its turn. The chat runtime can elect its own owner among speech
+// players, as a Kubernetes controller does with a Lease.
 const inSpeechPlayer = { roles: [syncedRoles.speechPlayer] }
 
 export const useChatStore = defineStore('chat', () => {
