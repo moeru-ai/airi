@@ -13,19 +13,8 @@ internal sealed class TrayHost : IDisposable
     private const string MacOSIconPath = "res://src-godot/assets/tray-icon-macos.png";
     private const string DefaultIconPath = "res://icon.svg";
     private const string Tooltip = "Project AIRI";
-    // NOTICE:
-    // On macOS, this icon appears at 22pt. The Electron tray icon is 16pt.
-    // Root cause is upstream. tray-icon 0.26.1, used by GdKirie.Tray 0.15.0, takes the
-    // pixel size as the point size, up to 22pt. It also stores only one image representation.
-    // Electron stores 1x (16px) and 2x (32px) representations in one 16pt NSImage.
-    // A 16px icon matches the Electron size but is blurry on Retina displays.
-    // Source: tray-icon-0.26.1/src/platform_impl/macos/icon.rs, to_nsimage.
-    // Source: Chromium ui/gfx/image/image_skia_util_mac.mm, NSImageFromImageSkia.
-    // Source: https://github.com/tauri-apps/tray-icon/issues/390
-    // Source: https://github.com/tauri-apps/tray-icon/pull/391 adds Icon::from_rgba_with_scale.
-    // Remove after tray-icon releases that PR and GdKirie.Tray exposes it as IconSource Scale.
-    // Then pass Scale: 2 on macOS with this 32px icon to draw it at 16pt.
     private const int IconSize = 32;
+    private const double MacOSIconScale = 2;
     private const double AlignmentDurationSeconds = 0.35;
 
     // These labels apply until the main renderer sends the translated labels.
@@ -95,12 +84,17 @@ internal sealed class TrayHost : IDisposable
             var menu = BuildMenu();
             _tray = Track(new TrayIcon(new TrayOptions
             {
-                Icon = LoadIcon(),
-                IconAsTemplate = _isMacOS,
+                Icon = _isMacOS ? null : LoadIcon(),
+                IconAsTemplate = false,
                 Menu = menu,
                 Tooltip = Tooltip,
                 MenuOnLeftClick = _isMacOS,
             }));
+            if (_isMacOS)
+            {
+                ApplyMacOSIcon();
+            }
+
             _events = new TrayEvents();
             _events.Menu += OnMenuEvent;
             _events.Tray += OnTrayEvent;
@@ -276,16 +270,47 @@ internal sealed class TrayHost : IDisposable
         return entry;
     }
 
-    private IconSource LoadIcon()
+    private static IconSource LoadIcon()
     {
-        var path = _isMacOS ? MacOSIconPath : DefaultIconPath;
+        return new IconSource.Rgba(LoadIconPixels(DefaultIconPath), IconSize, IconSize);
+    }
+
+    // NOTICE:
+    // Pass the 2x icon scale directly to KirieTrayIcon so macOS draws a 16pt icon.
+    // GdKirie.Tray 0.15.0 does not expose Scale on IconSource.Rgba yet.
+    // Source: https://github.com/tauri-apps/tray-icon/pull/391
+    // Remove after tray-icon merges PR #391 and GdKirie.Tray publishes a new release.
+    private void ApplyMacOSIcon()
+    {
+        var native = GodotObject.InstanceFromId(_tray.InstanceId)
+            ?? throw new InvalidOperationException("The native tray icon is missing.");
+        using var icon = new Godot.Collections.Dictionary
+        {
+            ["kind"] = "rgba",
+            ["rgba"] = LoadIconPixels(MacOSIconPath),
+            ["width"] = IconSize,
+            ["height"] = IconSize,
+            ["scale"] = MacOSIconScale,
+        };
+        using var result = native.Call("set_icon", Variant.From(icon), true);
+        using var reply = result.AsGodotDictionary();
+        if (!reply["ok"].AsBool())
+        {
+            using var errorValue = reply["error"];
+            using var error = errorValue.AsGodotDictionary();
+            throw new TrayException(error["code"].AsString(), error["message"].AsString());
+        }
+    }
+
+    private static byte[] LoadIconPixels(string path)
+    {
         var texture = ResourceLoader.Load<Texture2D>(path)
             ?? throw new InvalidOperationException($"The tray icon is missing: {path}");
         var image = texture.GetImage()
             ?? throw new InvalidOperationException($"The tray icon has no image: {path}");
         image.Resize(IconSize, IconSize, Image.Interpolation.Lanczos);
         image.Convert(Image.Format.Rgba8);
-        return new IconSource.Rgba(image.GetData(), IconSize, IconSize);
+        return image.GetData();
     }
 
     private void OnMenuEvent(string id)
