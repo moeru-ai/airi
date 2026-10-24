@@ -59,6 +59,7 @@
     "package.json"
   ],
   "scripts": {
+    "test:run": "vitest run --config vitest.config.ts",
     "dev": "pnpm run build",
     "build": "tsdown",
     "glossary:build": "tsx glossary/build-tbx.ts",

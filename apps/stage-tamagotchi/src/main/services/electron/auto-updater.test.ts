@@ -1,4 +1,9 @@
+import { defineInvoke } from '@moeru/eventa'
+import { autoUpdater as autoUpdaterEventa } from '@proj-airi/electron-eventa/electron-updater'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { createWindowIpc } from '../../libs/electron/testing/window-ipc'
+import { createWindowContext } from '../../libs/electron/window-context'
 
 const appMock = vi.hoisted(() => ({
   getVersion: vi.fn(() => '0.9.0-beta.4'),
@@ -34,9 +39,13 @@ function createUpdaterMock() {
   }
 }
 
-vi.mock('electron', () => ({
-  app: appMock,
-}))
+vi.mock('electron', async () => {
+  const { EventEmitter } = await import('node:events')
+  return {
+    app: appMock,
+    ipcMain: new EventEmitter(),
+  }
+})
 
 vi.mock('@electron-toolkit/utils', () => ({
   is: {
@@ -306,7 +315,76 @@ describe('setupAutoUpdater', () => {
 
     stdEnvState.isWindows = false
     updaterState.instance.quitAndInstall.mockClear()
-    await service.quitAndInstall()
+    // One service starts the install once, so a second service checks the other platforms.
+    await setupAutoUpdater().quitAndInstall()
     expect(updaterState.instance.quitAndInstall).toHaveBeenCalledWith()
+  })
+
+  // ROOT CAUSE:
+  //
+  // One click downloaded once per open window. Each window context heard the IPC of all windows, and the status
+  // check ran before the lock.
+  //
+  // We fixed this with window contexts that hear only their own window (`createWindowContext`) and one shared
+  // in-flight download.
+  it('downloads once when the main, settings, and about windows are open and one window requests the download', async () => {
+    const { ipcMain } = await import('electron')
+    const { createAutoUpdaterService, setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater()
+    const windows = [createWindowIpc(ipcMain), createWindowIpc(ipcMain), createWindowIpc(ipcMain)]
+    for (const { window } of windows)
+      createAutoUpdaterService({ context: createWindowContext(window).context, window, service })
+
+    await defineInvoke(windows[1].context, autoUpdaterEventa.downloadUpdate)()
+
+    expect(updaterState.instance.downloadUpdate).toHaveBeenCalledTimes(1)
+  })
+
+  it('shares one download between concurrent requests and skips it after the update is downloaded', async () => {
+    let finishDownload: () => void = () => {}
+    updaterState.instance.downloadUpdate.mockImplementation(() => new Promise<void>((resolve) => {
+      finishDownload = resolve
+    }))
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater()
+
+    const requests = [service.downloadUpdate(), service.downloadUpdate(), service.downloadUpdate()]
+    await vi.waitFor(() => expect(updaterState.instance.downloadUpdate).toHaveBeenCalledTimes(1))
+    const emitDownloaded = updaterState.instance.on.mock.calls.find(([event]) => event === 'update-downloaded')?.[1]
+    emitDownloaded?.({ version: '0.9.0-beta.6', files: [], releaseDate: '' })
+    finishDownload()
+    await Promise.all(requests)
+    await service.downloadUpdate()
+
+    expect(updaterState.instance.downloadUpdate).toHaveBeenCalledTimes(1)
+    expect(service.state.status).toBe('downloaded')
+  })
+
+  it('starts the install once when the install is requested again', async () => {
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater()
+
+    await Promise.all([service.quitAndInstall(), service.quitAndInstall()])
+    await service.quitAndInstall()
+
+    expect(updaterState.instance.quitAndInstall).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    { name: 'a Flatpak sandbox', env: { FLATPAK_ID: 'ai.moeru.airi' }, externallyUpdated: true },
+    { name: 'a Steam build', env: { VITE_DISTRIBUTION: 'steam' }, externallyUpdated: true },
+    { name: 'a Nix package', env: { AIRI_DISTRIBUTION: 'nix' }, externallyUpdated: true },
+    { name: 'a direct download', env: {}, externallyUpdated: false },
+  ])('reports whether a store or a package manager updates $name', async ({ env, externallyUpdated }) => {
+    vi.stubEnv('FLATPAK_ID', undefined)
+    vi.stubEnv('VITE_DISTRIBUTION', undefined)
+    vi.stubEnv('AIRI_DISTRIBUTION', undefined)
+    for (const [key, value] of Object.entries(env))
+      vi.stubEnv(key, value)
+
+    const { isExternallyUpdatedInstall } = await import('./auto-updater')
+
+    expect(isExternallyUpdatedInstall()).toBe(externallyUpdated)
+    vi.unstubAllEnvs()
   })
 })

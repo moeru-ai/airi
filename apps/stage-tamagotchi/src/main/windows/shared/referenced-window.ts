@@ -1,3 +1,4 @@
+import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { BrowserWindow } from 'electron'
 
 import type { createRequestWindowEventa, RequestWindowPayload } from '../../../shared/eventa'
@@ -5,10 +6,10 @@ import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 
 import { defineInvokeHandler } from '@moeru/eventa'
-import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { safeClose } from '@proj-airi/electron-vueuse/main'
 import { ipcMain } from 'electron'
 
+import { createWindowContext } from '../../libs/electron/window-context'
 import { setupBaseWindowElectronInvokes } from './window'
 
 export interface ReferencedWindowHandle {
@@ -42,7 +43,7 @@ export function createReferencedWindowManager<Payload extends RequestWindowPaylo
     // we can remove the setMaxListeners call below since eventa will be able to dispatch and
     // manage events within eventa's context system.
     ipcMain.setMaxListeners(0)
-    const { context } = createContext(ipcMain, win)
+    const { context } = createWindowContext(win)
 
     defineInvokeHandler(context, params.eventa.pageMounted, (req) => {
       if (req?.id && req.id !== id)

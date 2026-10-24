@@ -1,6 +1,6 @@
 import type { BrowserWindow, LoadFileOptions, LoadURLOptions } from 'electron'
 
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { env } from 'node:process'
 
 import { is } from '@electron-toolkit/utils'
@@ -13,6 +13,27 @@ export function setElectronMainDirname(dirname: string) {
 
 export function getElectronMainDirname() {
   return electronMainDirname
+}
+
+/**
+ * Gets the directory that holds the packaged renderer `index.html`.
+ *
+ * Windows call this when they load a page, not when their manager is set up.
+ * Thus each new window loads from the current renderer root.
+ * In development, {@link baseUrl} ignores this path and uses `ELECTRON_RENDERER_URL`.
+ */
+export function getRendererRoot() {
+  return resolve(electronMainDirname, '..', 'renderer')
+}
+
+/**
+ * Gets the path of a preload script in the build output of the running main bundle.
+ *
+ * @param filename Preload entry file name in the preload output directory.
+ * @default 'index.mjs'
+ */
+export function getPreloadPath(filename = 'index.mjs') {
+  return join(electronMainDirname, '..', 'preload', filename)
 }
 
 export function baseUrl(parentOfIndexHtml: string, filename?: string) {

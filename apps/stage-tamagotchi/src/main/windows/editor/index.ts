@@ -3,13 +3,11 @@ import type { BrowserWindow } from 'electron'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 
-import { join, resolve } from 'node:path'
-
 import { BrowserWindow as ElectronBrowserWindow } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { protectPrivilegedWindowNavigation, toggleWindowShow } from '../shared'
 import { setupEditorWindowInvokes } from './rpc/index.electron'
@@ -31,7 +29,6 @@ export function setupEditorWindowManager(params: {
   i18n: I18n
   serverChannel: ServerChannel
 }): EditorWindowManager {
-  const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
   const reusable = createReusableWindow(async () => {
     const window = new ElectronBrowserWindow({
       title: 'AIRI Editor',
@@ -42,7 +39,7 @@ export function setupEditorWindowManager(params: {
       show: false,
       icon,
       webPreferences: {
-        preload: join(getElectronMainDirname(), '../preload/index.mjs'),
+        preload: getPreloadPath(),
         sandbox: false,
       },
     })
@@ -55,7 +52,7 @@ export function setupEditorWindowManager(params: {
       i18n: params.i18n,
       serverChannel: params.serverChannel,
     })
-    await load(window, withHashRoute(rendererBase, '/editor', {
+    await load(window, withHashRoute(baseUrl(getRendererRoot()), '/editor', {
       query: {
         'stage-runtime': 'minimal',
         'synced-leader': 'false',

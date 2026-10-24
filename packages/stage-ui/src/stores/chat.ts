@@ -14,6 +14,7 @@ import { SpanStatusCode } from '@opentelemetry/api'
 import { fileSource } from '@proj-airi/audio/encoding'
 import { createChatOrchestratorRuntime, isBackgroundRecipe, matchKeywordRecipes, renderConversationPreview } from '@proj-airi/core-agent'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
+import { isEqual } from 'es-toolkit'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, shallowRef, toRaw } from 'vue'
@@ -26,6 +27,7 @@ import { useChatVision } from '../composables/vision/use-chat-vision'
 import { useVisionInference } from '../composables/vision/use-vision-inference'
 import { chatAssetIdFrom, inlineConversationAssets, storeChatAttachments } from '../libs/chat-assets'
 import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
+import { syncedRoles } from '../libs/pinia/synced-context'
 import { createChatAnalyticsHooks, getProviderMode } from '../libs/product-signals/events/chat'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
@@ -247,6 +249,12 @@ const STORED_TOOL_IMAGE = 'A tool image was left out of the history.'
 
 /** Stands in for an earlier image whose read failed with the current vision selection. */
 const UNREADABLE_EARLIER_IMAGE = 'The user attached an image here earlier. The vision model failed to read it.'
+
+// REVIEW:
+// Executor order: the leader, the caller, then any speech player. With several Stage tabs, a call from elsewhere
+// speaks in an arbitrary one, and a cancel can miss its turn. The chat runtime can elect its own owner among speech
+// players, as a Kubernetes controller does with a Lease.
+const inSpeechPlayer = { roles: [syncedRoles.speechPlayer] }
 
 export const useChatStore = defineStore('chat', () => {
   const { t } = useI18n()
@@ -726,7 +734,7 @@ export const useChatStore = defineStore('chat', () => {
 
           if (description.trim()) {
             if (sessionId)
-              saveImageDescription(sessionId, turnId, imageIndex, description)
+              await saveImageDescription(sessionId, turnId, imageIndex, description)
             return description
           }
           sessionFailedReads.add(readKey)
@@ -793,7 +801,7 @@ export const useChatStore = defineStore('chat', () => {
               throw new Error('The recording has no completed transcription')
 
             if (sessionId && stored?.id)
-              writeAudioTranscript(sessionId, stored.id, sourceIndex, text)
+              await writeAudioTranscript(sessionId, stored.id, sourceIndex, text)
           }
 
           turn.content[index] = { type: 'text', text }
@@ -939,30 +947,24 @@ export const useChatStore = defineStore('chat', () => {
       ?.description
   }
 
-  function saveImageDescription(sessionId: string, turnId: string, imageIndex: number, description: string) {
-    const messages = chatSession.getSessionMessages(sessionId)
-    const messageIndex = messages.findIndex(message => message.role === 'user' && ownsProjectedTurn(message, turnId))
-    if (messageIndex < 0)
+  async function saveImageDescription(sessionId: string, turnId: string, imageIndex: number, description: string) {
+    const message = chatSession.getSessionMessages(sessionId).find(message => message.role === 'user' && ownsProjectedTurn(message, turnId))
+    if (message?.role !== 'user' || !message.id)
       return
 
-    const message = messages[messageIndex]
     const imageDescriptions = [
-      ...(message.imageDescriptions ?? []).filter(cached => cached.imageIndex !== imageIndex),
+      // A reactive entry is a proxy, which `structuredClone` rejects when the fields leave this context.
+      ...(toRaw(message.imageDescriptions) ?? []).filter(cached => cached.imageIndex !== imageIndex).map(cached => toRaw(cached)),
       { description, imageIndex },
     ]
-    const nextMessages = [...messages]
-    // Spreading a reactive message copies its nested arrays as proxies, which
-    // `structuredClone` rejects when the send result leaves the leader.
-    nextMessages[messageIndex] = { ...toRaw(message), imageDescriptions }
-    chatSession.setSessionMessages(sessionId, nextMessages)
+    await chatSession.updateUserMessage(sessionId, message.id, { imageDescriptions })
   }
 
   const runtime = createChatOrchestratorRuntime({
     session: {
-      ensureSession: sessionId => chatSession.ensureSession(sessionId),
       getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId).map(message => toRaw(message)),
-      appendSessionMessage: (sessionId, message) => chatSession.appendSessionMessage(sessionId, message),
       commitUserMessage: (sessionId, message) => chatSession.commitUserMessage(sessionId, message),
+      commitAssistantMessage: (sessionId, message) => chatSession.storeMessage(sessionId, message),
       getSessionGeneration: sessionId => chatSession.getSessionGeneration(sessionId),
     },
     context: {
@@ -1150,17 +1152,13 @@ export const useChatStore = defineStore('chat', () => {
     return [...names].map(name => ({ name }))
   }
 
-  function writeAudioTranscript(sessionId: string, messageId: string, index: number, text: string) {
-    const messages = chatSession.getSessionMessagesIfLoaded(sessionId)
-    if (!messages?.some(message => message.id === messageId))
+  async function writeAudioTranscript(sessionId: string, messageId: string, index: number, text: string) {
+    const message = chatSession.getSessionMessagesIfLoaded(sessionId)?.find(message => message.id === messageId)
+    if (message?.role !== 'user')
       return
-    chatSession.setSessionMessages(sessionId, messages.map((message) => {
-      if (message.id !== messageId)
-        return message
-      const audioTranscripts = [...(message.audioTranscripts ?? [])]
-      audioTranscripts[index] = text
-      return { ...message, audioTranscripts }
-    }))
+    const audioTranscripts = [...(message.audioTranscripts ?? [])]
+    audioTranscripts[index] = text
+    await chatSession.updateUserMessage(sessionId, messageId, { audioTranscripts })
   }
 
   /**
@@ -1170,7 +1168,7 @@ export const useChatStore = defineStore('chat', () => {
   async function settleAudioTranscript(payload: { sessionId: string, messageId: string, transcript?: string }) {
     const key = JSON.stringify([payload.sessionId, payload.messageId])
     if (payload.transcript) {
-      writeAudioTranscript(payload.sessionId, payload.messageId, 0, payload.transcript)
+      await writeAudioTranscript(payload.sessionId, payload.messageId, 0, payload.transcript)
     }
     else if (payload.transcript === '') {
       droppedTurns.add(key)
@@ -1190,12 +1188,12 @@ export const useChatStore = defineStore('chat', () => {
     if (!chatSession.getSessionMessagesIfLoaded(sessionId))
       return
 
-    chatSession.appendSessionMessage(sessionId, {
+    void chatSession.storeMessage(sessionId, {
       role: 'error',
       content: errorMessageFrom(error) ?? 'Unknown chat operation failure',
       id: nanoid(),
       createdAt: Date.now(),
-    })
+    }).catch(storeError => console.error('[chat] Failed to store a send error:', errorMessageFrom(storeError)))
   }
 
   /** Options that only the host sets: a background recipe task, a notice, and what keyword-matched recipes gave the message. */
@@ -1405,8 +1403,10 @@ export const useChatStore = defineStore('chat', () => {
       throw new Error('Retry target has no retriable user message')
 
     // The new turn must not see the source turn or its replies, so the history ends before the source while it runs.
-    const retryHistory = currentMessages.slice(0, sourceIndex)
-    chatSession.setSessionMessages(payload.sessionId, retryHistory)
+    // Raw messages, because a reactive proxy cannot leave this context.
+    const storedMessages = toRaw(currentMessages).map(message => toRaw(message))
+    const retryHistory = storedMessages.slice(0, sourceIndex)
+    await chatSession.replaceSessionHistory(payload.sessionId, retryHistory)
     // A retried notice stays a notice, so it never becomes owner speech.
     const request = startSend({
       sessionId: payload.sessionId,
@@ -1420,9 +1420,10 @@ export const useChatStore = defineStore('chat', () => {
     }
     catch (error) {
       // The new turn was never stored. The source turn can hold the only copy of a recording or image, so it comes back.
-      // The session store replaces the array on every change, so the same array means that nothing else changed the history.
-      if (toRaw(chatSession.getSessionMessagesIfLoaded(payload.sessionId)) === retryHistory)
-        chatSession.setSessionMessages(payload.sessionId, currentMessages)
+      // The same message identities mean that nothing else changed the history meanwhile.
+      const historyIds = chatSession.getSessionMessagesIfLoaded(payload.sessionId)?.map(message => message.id)
+      if (isEqual(historyIds, retryHistory.map(message => message.id)))
+        await chatSession.replaceSessionHistory(payload.sessionId, storedMessages)
       appendSendError(payload.sessionId, error)
       throw error
     }
@@ -1462,13 +1463,14 @@ export const useChatStore = defineStore('chat', () => {
         describeImage: chatVision.toolImageReader(activeModel.value),
       }),
     })
-    chatSession.setSessionMessages(payload.sessionId, nextMessages)
+    // Raw messages, because a reactive proxy cannot leave this context.
+    await chatSession.replaceSessionHistory(payload.sessionId, nextMessages.map(message => toRaw(message)))
   }
 
   /** Clears one session and stops runtime work that still belongs to it. */
   async function cleanup(sessionId: string) {
     failedImageReads.delete(sessionId)
-    chatSession.cleanupMessages(sessionId)
+    await chatSession.clearSessionMessages(sessionId)
     chatContext.resetContexts()
     await cancelPendingSends(sessionId)
     chatStream.resetStream()
@@ -1566,7 +1568,22 @@ export const useChatStore = defineStore('chat', () => {
   }
 }, {
   synced: {
-    actions: ['submit', 'settleAudioTranscript', 'cancelTurn', 'receiveInterruption', 'cancelPendingSends', 'cleanup', 'deleteSession', 'dismissBackgroundTask', 'rerunToolCall', 'retry', 'send', 'stopBackgroundTask'],
+    // Only the Stage chat hooks speak a reply, so generation runs in a speech player. Requests and runtime turns are
+    // local to that context, so every chat action runs there. Without a speech player, the leader runs them silently.
+    actions: {
+      submit: inSpeechPlayer,
+      settleAudioTranscript: inSpeechPlayer,
+      cancelTurn: inSpeechPlayer,
+      receiveInterruption: inSpeechPlayer,
+      cancelPendingSends: inSpeechPlayer,
+      cleanup: inSpeechPlayer,
+      deleteSession: inSpeechPlayer,
+      dismissBackgroundTask: inSpeechPlayer,
+      rerunToolCall: inSpeechPlayer,
+      retry: inSpeechPlayer,
+      send: inSpeechPlayer,
+      stopBackgroundTask: inSpeechPlayer,
+    },
     state: true,
   },
 })
