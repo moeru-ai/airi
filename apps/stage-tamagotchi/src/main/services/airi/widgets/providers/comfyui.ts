@@ -3,6 +3,17 @@ import type { ArtistryJob, ArtistryJobStatus, ArtistryProvider, ArtistryRequest 
 import { Buffer } from 'node:buffer'
 
 import { useLogg } from '@guiiai/logg'
+import { array, object, optional, parse, record, string, unknown } from 'valibot'
+
+const ComfyUIConfigSchema = object({
+  comfyuiServerUrl: optional(string()),
+  comfyuiSavedWorkflows: optional(array(object({
+    id: string(),
+    workflow: record(string(), unknown()),
+    exposedFields: record(string(), array(string())),
+  }))),
+  comfyuiActiveWorkflow: optional(string()),
+})
 
 const log = useLogg('providers-comfyui').useGlobalConfig()
 
@@ -14,7 +25,7 @@ export class ComfyUIProvider implements ArtistryProvider {
   readonly name = 'ComfyUI (Local)'
 
   private serverUrl = 'http://localhost:8188'
-  private savedWorkflows: any[] = []
+  private savedWorkflows: Array<{ id: string, workflow: Record<string, unknown>, exposedFields: Record<string, string[]> }> = []
   private activeWorkflowId = ''
 
   private jobResults = new Map<string, ArtistryJobStatus>()
@@ -52,13 +63,14 @@ export class ComfyUIProvider implements ArtistryProvider {
       callback(status)
   }
 
-  async initialize(config: any): Promise<void> {
-    if (config?.comfyuiServerUrl)
-      this.serverUrl = config.comfyuiServerUrl.replace(/\/+$/, '') // strip trailing slashes
-    if (config?.comfyuiSavedWorkflows)
-      this.savedWorkflows = config.comfyuiSavedWorkflows
-    if (config?.comfyuiActiveWorkflow)
-      this.activeWorkflowId = config.comfyuiActiveWorkflow
+  async initialize(config: Record<string, unknown>): Promise<void> {
+    const parsed = parse(ComfyUIConfigSchema, config)
+    if (parsed.comfyuiServerUrl)
+      this.serverUrl = parsed.comfyuiServerUrl.trim().replace(/\/+$/, '') // strip trailing slashes
+    if (parsed.comfyuiSavedWorkflows)
+      this.savedWorkflows = parsed.comfyuiSavedWorkflows
+    if (parsed.comfyuiActiveWorkflow)
+      this.activeWorkflowId = parsed.comfyuiActiveWorkflow
   }
 
   async generate(request: ArtistryRequest): Promise<ArtistryJob> {
@@ -66,7 +78,7 @@ export class ComfyUIProvider implements ArtistryProvider {
 
     // Resolve which workflow template to use --- per-request template override takes precedence over card model default
     const templateId = request.extra?.template || request.model || this.activeWorkflowId
-    const template = this.savedWorkflows.find((w: any) => w.id === templateId)
+    const template = this.savedWorkflows.find(w => w.id === templateId)
 
     if (!template) {
       this.updateStatus(jobId, {
@@ -85,7 +97,7 @@ export class ComfyUIProvider implements ArtistryProvider {
 
   private async pollForResult(
     jobId: string,
-    template: { workflow: Record<string, any>, exposedFields: Record<string, string[]> },
+    template: { workflow: Record<string, unknown>, exposedFields: Record<string, string[]> },
     request: ArtistryRequest,
   ) {
     this.updateStatus(jobId, { status: 'running', actionLabel: 'Preparing workflow...' })
