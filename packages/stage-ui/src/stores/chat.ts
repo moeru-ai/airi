@@ -22,7 +22,7 @@ import { useI18n } from 'vue-i18n'
 
 import { getConversationAnalyticsSurface } from '../composables'
 import { useAiriRuntimePrompt } from '../composables/use-airi-runtime-prompt'
-import { registerTurnSpan, startSpan, takeComposerVoiceParent, takeVoiceTurnParent } from '../composables/use-io-tracer'
+import { registerLlmInference, registerTurnSpan, startSpan, takeComposerVoiceParent, takeVoiceTurnParent } from '../composables/use-io-tracer'
 import { useChatVision } from '../composables/vision/use-chat-vision'
 import { useVisionInference } from '../composables/vision/use-vision-inference'
 import { chatAssetIdFrom, inlineConversationAssets, storeChatAttachments } from '../libs/chat-assets'
@@ -832,6 +832,10 @@ export const useChatStore = defineStore('chat', () => {
     llmSpan.setAttribute(IOAttributes.LLMInputMessageRoles, providerMessages.map(message => message.role))
     const llmRequestTs = performance.now()
     let llmFirstTokenEmitted = false
+    // The official provider fetch finds this span by the session ID and round ID and records each request under it.
+    const unregisterLlmInference = correlation
+      ? registerLlmInference({ sessionId: correlation.conversationId, turnId: correlation.turnId }, llmSpan)
+      : undefined
 
     try {
       await llmStore.stream(model, chatProvider, providerContext, {
@@ -858,6 +862,7 @@ export const useChatStore = defineStore('chat', () => {
           return projected
         },
         describeToolImage,
+        toolSpanParent: llmSpan,
         onStreamEvent: async (event: StreamEvent) => {
           if (isTextDelta(event)) {
             llmOutputChunkCount += 1
@@ -876,6 +881,7 @@ export const useChatStore = defineStore('chat', () => {
       })
     }
     finally {
+      unregisterLlmInference?.()
       llmSpan.setAttribute(IOAttributes.LLMOutputChunkCount, llmOutputChunkCount)
       llmSpan.setAttribute(IOAttributes.LLMOutputChunkLengths, llmOutputChunkLengths)
       llmSpan.setAttribute(IOAttributes.LLMTextLength, llmTextLength)

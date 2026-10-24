@@ -4,12 +4,13 @@ import { getActivePinia } from 'pinia'
 import { getAuthToken } from '../../../../libs/auth'
 import { SERVER_URL } from '../../../../libs/server'
 import { useChatSessionStore } from '../../../../stores/chat/session-store'
+import { withLlmRequestSpan } from '../../../agent-trace/request-span'
 import { AIRI_CHAT_SESSION_ID_HEADER } from '../../../product-signals/headers'
 
 export const OFFICIAL_ICON = 'i-solar:star-bold-duotone'
 
 export function withCredentials() {
-  return (input: RequestInfo | URL, init?: RequestInit) => {
+  return withLlmRequestSpan((input: RequestInfo | URL, init?: RequestInit) => {
     const headers = new Headers(init?.headers)
     const token = getAuthToken()
     if (token) {
@@ -30,7 +31,7 @@ export function withCredentials() {
       requestInit.duplex = 'half'
 
     return globalThis.fetch(input, requestInit)
-  }
+  })
 }
 
 export function createOfficialOpenAIProvider() {
