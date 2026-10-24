@@ -600,6 +600,16 @@ pages:
   data:
     title: Data
     description: Manage stored AIRI data, exports, and resets
+    actions:
+      export: Export
+      import: Import
+      export_area: Export {dataArea}
+      import_area: Import {dataArea}
+    sensitive:
+      title: Include sensitive information?
+      description: This file contains API keys or module credentials. Anyone who receives it can access those services.
+      confirm: Export with sensitive information
+      cancel: Cancel
     sections:
       chats:
         title: Chat sessions
@@ -609,18 +619,22 @@ pages:
         delete: Delete all chat sessions
       models:
         title: Models
-        description: Remove imported Live2D, VRM, Spine, and MMD models.
+        description: Export or import imported Live2D, VRM, Spine, Tachie, and MMD model files.
+        empty: No imported models.
         delete: Delete all models
+      app-settings:
+        title: App settings
+        description: Export or import settings managed by the app settings reset.
       model-downloads:
         title: Downloaded speech models
-        description: Sherpaw model files stored on this device.
+        description: Export or import Sherpaw model files stored on this device.
         empty: No speech models are downloaded.
         wake-word-model: Wake word model
         voiceprint-model: Voiceprint model
         refresh: Refresh
       modules:
         title: Modules
-        description: Reset module preferences and credentials.
+        description: Export or import module settings and credentials.
         reset: Reset module settings
       providers:
         title: Providers
@@ -649,6 +663,12 @@ pages:
       exported: Chat sessions exported.
       imported: Chat sessions imported.
       import_error: Failed to import chat sessions. Please check the file format.
+      exported_area: Exported {dataArea}.
+      imported_area: Imported {dataArea}.
+      transfer_import_error: Import failed. Check the file format or settings.
+      transfer_export_error: Could not export this data. Please try again.
+      action_error: The action failed. Please try again.
+      processing: Processing
       chats_deleted: Chat sessions deleted.
       models_deleted: Models deleted.
       model_download_cancelled: Model download canceled.

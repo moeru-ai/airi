@@ -1,12 +1,19 @@
-import type { ChatSessionsExport } from '../types/chat-session'
+import type { StoreGeneric } from 'pinia'
+
+import type { DataExportAdapter, DataImportAdapter } from '../libs/data-transfer'
+import type { AiriCardBackupState } from '../stores/modules/airi-card'
 
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useSettingsScreenAmbientLight } from '@proj-airi/stage-shared/stores/screen-ambient-light'
 import { useSettingsLive2d } from '@proj-airi/stage-ui-live2d/composables/live2d'
 import { useLive2dParams } from '@proj-airi/stage-ui-live2d/stores/model-parameters'
 import { useModelStore } from '@proj-airi/stage-ui-three'
+import { pick } from 'es-toolkit'
+
+import * as v from 'valibot'
 
 import { useLive2DMotionMagicSettings } from '../features/motions/live2d'
+import { createJsonDataExportAdapter, decodeJsonFile } from '../libs/data-transfer'
 import { clearSherpawModelAssets } from '../libs/providers/providers/sherpaw/model-assets'
 import { useChatStore } from '../stores/chat'
 import { useChatSessionStore } from '../stores/chat/session-store'
@@ -29,6 +36,68 @@ import { useProviderStore } from '../stores/providers/provider'
 import { useRecipesStore } from '../stores/recipes'
 import { useSettings, useSettingsAudioDevice } from '../stores/settings'
 import { useVoiceprintStore } from '../stores/voiceprint'
+import { appSettingsSchema, appSettingsSchemas, moduleSettingsSchema, moduleSettingsSchemas } from './data-maintenance-schemas'
+
+interface StoreStateOwner {
+  state: () => Record<string, unknown>
+  restore: (state: unknown) => void | Promise<void>
+}
+
+type StoreBundleSchema = typeof appSettingsSchema | typeof moduleSettingsSchema
+type ExportStoreBundle = Record<string, Record<string, unknown>>
+type ValidatedStoreBundle = Record<string, Record<string, unknown>>
+
+const serializedStoreStateSchema = v.pipe(
+  v.unknown(),
+  v.stringifyJson({
+    replacer: (_key, value) => {
+      if (value instanceof Map)
+        return [...value.entries()]
+      if (value instanceof Set)
+        return [...value.values()]
+      return value
+    },
+  }),
+  v.parseJson(),
+  v.record(v.string(), v.unknown()),
+)
+
+function isNonEmptyString(value: unknown): boolean {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
+function moduleBundleContainsCredentials(bundle: ExportStoreBundle): boolean {
+  return [
+    bundle.twitter?.apiKey,
+    bundle.twitter?.apiSecret,
+    bundle.twitter?.accessToken,
+    bundle.twitter?.accessTokenSecret,
+    bundle.webSearch?.apiKey,
+    bundle.discord?.token,
+  ].some(isNonEmptyString)
+}
+
+/**
+ * Uses declared backup fields for capture, including writable computed settings outside Pinia state.
+ *
+ * @param store - Concrete TStore that supplies every field declared by TSchema.
+ * @param schema - TSchema that selects the backup fields.
+ */
+function bindStoreFromSchema<
+  TSchema extends v.StrictObjectSchema<v.ObjectEntries, undefined>,
+  TStore extends StoreGeneric & Record<keyof TSchema['entries'], unknown>,
+>(store: TStore, schema: TSchema) {
+  return {
+    state: () => pick<TStore, keyof TSchema['entries']>(store, v.keyof(schema).options),
+    restore: (state: unknown) => store.$patch(current => Object.assign(current, state)),
+  }
+}
+
+async function restoreStoreBundle(bundle: ValidatedStoreBundle, owners: Record<string, StoreStateOwner>): Promise<void> {
+  for (const [key, owner] of Object.entries(owners)) {
+    await owner.restore(bundle[key])
+  }
+}
 
 export function useDataMaintenance() {
   const chatStore = useChatSessionStore()
@@ -97,24 +166,6 @@ export function useDataMaintenance() {
     await chatStore.resetAllSessions()
   }
 
-  async function exportChatSessions() {
-    const data = await chatStore.exportSessions()
-    return new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-  }
-
-  function isChatSessionsPayload(payload: unknown): payload is ChatSessionsExport {
-    if (!payload || typeof payload !== 'object')
-      return false
-    return (payload as { format?: string }).format === 'chat-sessions-index:v1'
-  }
-
-  async function importChatSessions(payload: Record<string, unknown>) {
-    if (!isChatSessionsPayload(payload))
-      throw new Error('Invalid chat session export format')
-    await chatStore.importSessions(payload)
-    return payload
-  }
-
   async function resetSettingsState() {
     await settingsStore.resetState()
     audioSettingsStore.resetState()
@@ -147,13 +198,130 @@ export function useDataMaintenance() {
     await resetModulesSettings()
   }
 
+  const appSettingsOwners = {
+    settings: bindStoreFromSchema(settingsStore, appSettingsSchemas.settings),
+    audioDevices: bindStoreFromSchema(audioSettingsStore, appSettingsSchemas.audioDevices),
+    live2dParameters: bindStoreFromSchema(live2dParamsStore, appSettingsSchemas.live2dParameters),
+    live2dSettings: bindStoreFromSchema(live2dSettingsStore, appSettingsSchemas.live2dSettings),
+    live2dMotionSettings: bindStoreFromSchema(live2dMagicSettingsStore, appSettingsSchemas.live2dMotionSettings),
+    screenAmbientLight: bindStoreFromSchema(screenAmbientLightSettingsStore, appSettingsSchemas.screenAmbientLight),
+    modulesConnection: bindStoreFromSchema(mcpStore, appSettingsSchemas.modulesConnection),
+    onboarding: {
+      ...bindStoreFromSchema(onboardingStore, appSettingsSchemas.onboarding),
+      restore: (state) => {
+        const onboarding = state as v.InferOutput<typeof appSettingsSchemas.onboarding>
+        onboardingStore.resetSetupState()
+        if (onboarding.hasCompletedSetup)
+          onboardingStore.markSetupCompleted()
+        else if (onboarding.hasSkippedSetup)
+          onboardingStore.markSetupSkipped()
+      },
+    },
+    characterCards: {
+      ...bindStoreFromSchema(airiCardStore, appSettingsSchemas.characterCards),
+      restore: state => airiCardStore.restoreBackup(state as AiriCardBackupState),
+    },
+  } satisfies Record<keyof typeof appSettingsSchemas, StoreStateOwner>
+
+  const moduleSettingsOwners = {
+    hearing: bindStoreFromSchema(hearingStore, moduleSettingsSchemas.hearing),
+    homeAssistant: {
+      ...bindStoreFromSchema(homeAssistantStore, moduleSettingsSchemas.homeAssistant),
+      restore: (state) => {
+        const settings = state as v.InferOutput<typeof moduleSettingsSchemas.homeAssistant>
+        homeAssistantStore.exposureMode = settings.exposureMode
+        homeAssistantStore.$patch({
+          enabled: settings.enabled,
+          allowedEntities: settings.allowedEntities,
+          deniedEntities: settings.deniedEntities,
+        })
+      },
+    },
+    speech: bindStoreFromSchema(speechStore, moduleSettingsSchemas.speech),
+    consciousness: bindStoreFromSchema(consciousnessStore, moduleSettingsSchemas.consciousness),
+    consciousnessSettings: {
+      ...bindStoreFromSchema(consciousnessSettingsStore, moduleSettingsSchemas.consciousnessSettings),
+      restore: async (state) => {
+        const settings = state as v.InferOutput<typeof moduleSettingsSchemas.consciousnessSettings>
+        await consciousnessSettingsStore.setReasoning(settings.reasoning)
+        await consciousnessSettingsStore.setTemperatureEnabled(settings.temperatureEnabled)
+        await consciousnessSettingsStore.setTopPEnabled(settings.topPEnabled)
+      },
+    },
+    twitter: bindStoreFromSchema(twitterStore, moduleSettingsSchemas.twitter),
+    webSearch: bindStoreFromSchema(webSearchStore, moduleSettingsSchemas.webSearch),
+    discord: bindStoreFromSchema(discordStore, moduleSettingsSchemas.discord),
+    factorio: bindStoreFromSchema(factorioStore, moduleSettingsSchemas.factorio),
+    recipes: bindStoreFromSchema(recipesStore, moduleSettingsSchemas.recipes),
+    memory: {
+      ...bindStoreFromSchema(memoryStore, moduleSettingsSchemas.memory),
+      restore: (state) => {
+        memoryStore.restoreState(state as v.InferOutput<typeof moduleSettingsSchemas.memory>)
+      },
+    },
+  } satisfies Record<keyof typeof moduleSettingsSchemas, StoreStateOwner>
+
+  function createStoreExportAdapter(
+    schema: StoreBundleSchema,
+    owners: Record<string, StoreStateOwner>,
+    containsSensitiveInformation?: (bundle: ExportStoreBundle) => boolean,
+  ): DataExportAdapter<ExportStoreBundle> {
+    const read = async () => Object.fromEntries(Object.entries(owners).map(([key, owner]) => [key, v.parse(serializedStoreStateSchema, owner.state())]))
+    const format = schema.entries.format.literal
+    const adapter = createJsonDataExportAdapter(format, read, containsSensitiveInformation)
+    return {
+      ...adapter,
+      encode: async (data, onProgress) => {
+        v.parse(schema, { format, version: 1, data })
+        return adapter.encode(data, onProgress)
+      },
+    }
+  }
+
+  function createStoreImportAdapter(
+    schema: StoreBundleSchema,
+    owners: Record<string, StoreStateOwner>,
+    afterApply?: () => void | Promise<void>,
+  ): DataImportAdapter<ValidatedStoreBundle> {
+    return {
+      decode: decodeJsonFile,
+      validate: async value => v.parse(schema, value).data,
+      apply: async (value) => {
+        await restoreStoreBundle(value, owners)
+        await afterApply?.()
+      },
+    }
+  }
+
+  function createAppSettingsExportAdapter() {
+    return createStoreExportAdapter(appSettingsSchema, appSettingsOwners)
+  }
+
+  function createAppSettingsImportAdapter() {
+    return createStoreImportAdapter(appSettingsSchema, appSettingsOwners)
+  }
+
+  function createModuleSettingsExportAdapter() {
+    return createStoreExportAdapter(moduleSettingsSchema, moduleSettingsOwners, moduleBundleContainsCredentials)
+  }
+
+  function createModuleSettingsImportAdapter() {
+    return createStoreImportAdapter(moduleSettingsSchema, moduleSettingsOwners, () => {
+      twitterStore.saveSettings()
+      discordStore.saveSettings()
+      factorioStore.saveSettings()
+    })
+  }
+
   return {
     deleteAllModels,
     resetProvidersSettings,
     resetModulesSettings,
     deleteAllChatSessions,
-    exportChatSessions,
-    importChatSessions,
+    createAppSettingsExportAdapter,
+    createAppSettingsImportAdapter,
+    createModuleSettingsExportAdapter,
+    createModuleSettingsImportAdapter,
     deleteAllData,
     resetDesktopApplicationState,
   }

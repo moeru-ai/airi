@@ -52,6 +52,15 @@ import { useVisionStore } from './vision'
 
 export type { AiriCard, AiriExtension } from '../../types/airiCard'
 
+/** The persisted Character configuration and cloud status included in an app settings backup. */
+export interface AiriCardBackupState {
+  cards: Map<string, Record<string, unknown>>
+  activeCardId: string
+  moduleDefaults: CardModuleDefaults | null
+  syncedCardFields: Record<string, DocumentFields>
+  refusedCardIds: string[]
+}
+
 /**
  * Where a card stands with the account. `refused` means that the server does
  * not accept the card, for example because the account is over its storage limit.
@@ -1233,6 +1242,23 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     ready.value = true
   }
 
+  async function restoreBackup(state: AiriCardBackupState) {
+    await pendingAuthenticationSetup
+    initialized = false
+    ready.value = false
+    appliedModules = undefined
+    cards.value = new Map([...state.cards].map(([id, card]) => {
+      const core = parse(synchronizedCardSchema, card)
+      return [id, newAiriCard({ ...card, ...core } as Card)]
+    }))
+    activeCardId.value = state.activeCardId
+    moduleDefaults.value = state.moduleDefaults
+    syncedCardFields.value = state.syncedCardFields
+    refusedCardIds.value = state.refusedCardIds
+    selectedAvatarModelId.value = undefined
+    await initialize()
+  }
+
   /**
    * Selects a card and applies its module settings in the synchronization
    * leader. Replicated state snapshots never invoke this command.
@@ -1430,6 +1456,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     getModules,
     getSystemPrompt,
     resetState,
+    restoreBackup,
     selectAvatarModel,
     updateLive2DControlPolicy,
     initialize,
@@ -1486,6 +1513,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       'updateCard',
       'restoreCardVersion',
       'restoreDeletedCard',
+      'restoreBackup',
       'synchronizeCards',
       'updateLive2DControlPolicy',
     ],

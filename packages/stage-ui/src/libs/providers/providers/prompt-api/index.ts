@@ -7,7 +7,8 @@ import { defineProvider } from '../registry'
 const openAICompatibleConfigSchema = z.object({
   apiKey: z
     .string('API Key')
-    .optional(),
+    .optional()
+    .meta({ sensitive: true }),
   baseUrl: z
     .string('Base URL')
     .optional()
