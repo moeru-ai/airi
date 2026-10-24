@@ -1,3 +1,5 @@
+import type { globalAppConfigSchema } from '../../configs/global'
+import type { Config } from '../../libs/electron/persistence'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { GlobalShortcutService } from '../../services/electron/global-shortcut'
@@ -9,6 +11,7 @@ import icon from '../../../../resources/icon.png?asset'
 
 import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager/reusable'
+import { showWindowOnAllWorkspaces } from '../shared/app-icon'
 import { protectPrivilegedWindowNavigation, setWindowAlwaysOnTop, transparentWindowConfig } from '../shared/window'
 import { INLAY_WINDOW_HEIGHT, inlayWindowBounds } from './bounds'
 import { setupInlayWindowInvokes } from './rpc/index.electron'
@@ -28,6 +31,7 @@ export function setupInlayWindowReusable(params: {
   serverChannel: ServerChannel
   i18n: I18n
   globalShortcut: GlobalShortcutService
+  appConfig: Config<typeof globalAppConfigSchema>
 }) {
   return createReusableWindow(async () => {
     const window = new BrowserWindow({
@@ -51,7 +55,10 @@ export function setupInlayWindowReusable(params: {
       window.setWindowButtonVisibility(false)
       window.setHiddenInMissionControl(true)
     }
-    window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+    showWindowOnAllWorkspaces(window, {
+      visibleOnFullScreen: true,
+      hideAppIcon: params.appConfig.get()?.hideAppIcon,
+    })
     setWindowAlwaysOnTop(window, true)
     // The page takes the pointer back over what it paints. `forward` keeps mouse moves reaching the page for that hit test.
     window.setIgnoreMouseEvents(true, { forward: true })
