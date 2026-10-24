@@ -8,6 +8,9 @@ import { useBuildInfo } from '../../composables/use-build-info'
 import { useAuthStore } from '../../stores/auth'
 import { useAiriCardStore } from '../../stores/modules/airi-card'
 import { useSettingsAnalytics } from '../../stores/settings/analytics'
+import { startAgentTraceUpload } from '../agent-trace'
+import { getAuthToken } from '../auth'
+import { SERVER_URL } from '../server'
 import {
   captureAnalyticsEvent,
   configureAnalyticsAdapter,
@@ -81,6 +84,15 @@ class Analytics implements AnalyticsRecorder {
 
     if (authStore.isAuthenticated && authStore.user?.id)
       identifyAnalyticsUser(authStore.user.id)
+
+    // Agent traces follow the analytics setting. The exporter reads it again before each upload.
+    startAgentTraceUpload({
+      enabled: () => isAnalyticsAvailableInBuild() && settingsAnalytics.analyticsEnabled,
+      // The API uses the surface names of the chat header, where the desktop app is `electron`.
+      resource: () => ({ appSurface: isStageTamagotchi() ? 'electron' : isStageCapacitor() ? 'mobile' : 'web', appVersion: buildInfo.version }),
+      token: getAuthToken,
+      endpoint: `${SERVER_URL}/api/v1/agent-traces`,
+    })
 
     authStore.onAuthenticated(() => {
       if (authStore.user?.id)

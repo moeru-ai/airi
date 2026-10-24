@@ -65,6 +65,8 @@ const ioTracerMocks = vi.hoisted(() => {
   }
 })
 
+const markAgentTraceStepMock = vi.hoisted(() => vi.fn())
+
 const llmStreamMock = vi.fn()
 const trackFirstMessageMock = vi.fn()
 const chatAnalyticsMocks = vi.hoisted(() => ({
@@ -119,6 +121,10 @@ vi.mock('../composables/use-io-tracer', () => ({
   takeVoiceTurnParent: ioTracerMocks.takeVoiceTurnParent,
   takeComposerVoiceParent: ioTracerMocks.takeComposerVoiceParent,
   registerLlmInference: ioTracerMocks.registerLlmInference,
+}))
+
+vi.mock('../libs/agent-trace', () => ({
+  markAgentTraceStep: markAgentTraceStepMock,
 }))
 
 vi.mock('./chat/context-providers', () => ({
@@ -386,6 +392,7 @@ describe('chat store contract', () => {
     ioTracerMocks.startSpanMock.mockClear()
     ioTracerMocks.registerLlmInference.mockClear()
     ioTracerMocks.unregisterLlmInference.mockClear()
+    markAgentTraceStepMock.mockClear()
     ioTracerMocks.takeVoiceTurnParent.mockReset()
     ioTracerMocks.takeComposerVoiceParent.mockReset()
     activeSessionIdRef.value = 'session-1'
@@ -1775,6 +1782,22 @@ describe('chat store contract', () => {
     expect(ioTracerMocks.registerLlmInference).toHaveBeenCalledWith({ sessionId: 'session-1', turnId: turnCall[2]![IOAttributes.TurnId] }, llmSpan)
     expect(streamOptions[0].toolSpanParent).toBe(llmSpan)
     expect(ioTracerMocks.unregisterLlmInference).toHaveBeenCalledOnce()
+  })
+
+  it('marks the provider of each step on the trace of its turn', async () => {
+    cardSelections.set('alice', { provider: 'official-provider', model: 'chat-auto' })
+    llmStreamMock.mockImplementationOnce(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
+      // A tool step changes the character to a provider that AIRI does not run.
+      cardSelections.set('alice', { provider: 'alice-provider', model: 'alice-model' })
+      await options.resolveStep!()
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    const store = useChatStore()
+    await store.send({ sessionId: 'session-1', text: 'Use a tool' })
+
+    const traceId = ioTracerMocks.spans.find(span => span.name === IOSpanNames.InteractionTurn)!.spanContext().traceId
+    expect(markAgentTraceStepMock.mock.calls).toEqual([[traceId, true], [traceId, false]])
   })
 
   it('continues a composer dictation trace when the turn has no voice input of its own', async () => {
