@@ -239,6 +239,13 @@
       "when": 1791896559829,
       "tag": "0033_display_models",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1792135934437,
+      "tag": "0034_add_provider_display_name",
+      "breakpoints": true
     }
   ]
 }
