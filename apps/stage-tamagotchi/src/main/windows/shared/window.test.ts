@@ -18,11 +18,22 @@ vi.mock('../../services/airi/channel-server', () => ({
   createServerChannelService: createServerChannelServiceMock,
 }))
 
+vi.mock('../../services/electron/window-backdrop', () => ({
+  WindowBackdropService: {
+    install: vi.fn(),
+  },
+}))
+
 vi.mock('electron', () => ({
   shell: {
     openExternal: vi.fn(),
   },
   BrowserWindow: vi.fn(),
+  ipcMain: {
+    handle: vi.fn(),
+    on: vi.fn(),
+    removeHandler: vi.fn(),
+  },
 }))
 
 vi.mock('std-env', () => ({

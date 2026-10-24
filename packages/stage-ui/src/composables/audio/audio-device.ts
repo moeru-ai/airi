@@ -34,6 +34,12 @@ function audioDeviceErrorCode(error: unknown): 'permission_denied' | 'device_una
   return 'device_unavailable'
 }
 
+/**
+ * Microphone permission of the page. `unknown` means the browser has no Permissions API entry for the microphone,
+ * for example Safari before 16. Then only a request tells the state.
+ */
+export type MicrophonePermission = 'granted' | 'denied' | 'prompt' | 'unknown'
+
 /** Prefers the system default microphone, then the first detected input. */
 function resolvePreferredAudioInput(audioInputs: readonly MediaDeviceInfo[]) {
   return audioInputs.find(device => device.deviceId === 'default')?.deviceId || audioInputs[0]?.deviceId || ''
@@ -57,6 +63,22 @@ export function useAudioDevice(selectedAudioInput: Ref<string> = ref('')) {
   const { trackMicrophonePermissionDenied } = useAnalytics()
   const { devices, audioInputs } = useDevicesList({ requestPermissions: false })
   const permissionGranted = ref(false)
+  /**
+   * The permission state that the picker shows. The browser lists devices with IDs only after access is granted, so a
+   * change to `granted`, for example from the site settings, lists the devices again.
+   */
+  const permission = shallowRef<MicrophonePermission>('unknown')
+  let permissionStatus: PermissionStatus | undefined
+  void navigator.permissions?.query({ name: 'microphone' as PermissionName }).then((status) => {
+    permissionStatus = status
+    const update = () => {
+      permission.value = status.state
+      if (status.state === 'granted')
+        void navigator.mediaDevices.enumerateDevices().then(list => devices.value = list).catch(() => {})
+    }
+    update()
+    status.onchange = update
+  }).catch(() => {})
   const audioInputOptions = computed(() => audioInputs.value.filter(device => device.deviceId).map(device => ({ label: device.label || device.deviceId, value: device.deviceId })))
   // An empty selection and `default` both mean the system default.
   // Chromium opens its first listed device for constraints without a device, not the device it lists as `default`.
@@ -130,11 +152,13 @@ export function useAudioDevice(selectedAudioInput: Ref<string> = ref('')) {
     try {
       await reader.read()
       permissionGranted.value = true
+      permission.value = 'granted'
       devices.value = await navigator.mediaDevices.enumerateDevices()
     }
     catch (error) {
       if (audioDeviceErrorCode(error) === 'permission_denied') {
         permissionGranted.value = false
+        permission.value = 'denied'
         trackMicrophonePermissionDenied({ stt_provider_id: UNKNOWN_STT_PROVIDER_ID, error_code: 'permission_denied' })
       }
       throw error
@@ -145,9 +169,11 @@ export function useAudioDevice(selectedAudioInput: Ref<string> = ref('')) {
   }
 
   onScopeDispose(() => {
+    if (permissionStatus)
+      permissionStatus.onchange = null
     void input.value.close()
     void unprocessedInput.value.close()
   })
 
-  return { audioInputs, audioInputOptions, selectedAudioInput, deviceConstraints, permissionGranted, source, input, unprocessedInput, stream, askPermission }
+  return { audioInputs, audioInputOptions, selectedAudioInput, deviceConstraints, permissionGranted, permission, source, input, unprocessedInput, stream, askPermission }
 }
