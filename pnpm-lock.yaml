@@ -934,8 +934,8 @@ catalogs:
       specifier: ^4.0.3
       version: 4.0.3
     pinia-plugin-synced:
-      specifier: ^0.1.5
-      version: 0.1.5
+      specifier: ^0.1.6
+      version: 0.1.6
     pixi-filters:
       specifier: ^4.2.0
       version: 4.2.0
@@ -5310,7 +5310,7 @@ importers:
         version: 4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3))
       pinia-plugin-synced:
         specifier: 'catalog:'
-        version: 0.1.5(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
+        version: 0.1.6(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
       rehype-katex:
         specifier: 'catalog:'
         version: 7.0.1
@@ -18190,8 +18190,8 @@ packages:
     resolution: {integrity: sha512-udgsAY+fTnvv7kI7aaxbqwWNb0AHiB0qBO89PZKPkoTmGOgdbrHDKD+0B2X4uTfJ/FT1R09r9gTsjUjNJotuog==}
     engines: {node: '>=0.10.0'}
 
-  pinia-plugin-synced@0.1.5:
-    resolution: {integrity: sha512-O+SUSbbLcYC8fRz8aCg4JRkaVn3UFH+cDlmpAMHc81EYWyz9FHQZgLCkBIj8moIyaWIjeqcPG5j7MmK6e6eG7Q==}
+  pinia-plugin-synced@0.1.6:
+    resolution: {integrity: sha512-x0EXEd/ogygHxKljGE3Op4DQlTI7E7qzd1xzO0ohHBQT4iA5ReqQpFAi7/7apGr6CxBjXrLSCUwvnd+hmoQe2Q==}
     peerDependencies:
       pinia: '>=3.0.4 <5'
       vue: ^3.5.0
@@ -33948,7 +33948,7 @@ snapshots:
 
   pify@2.3.0: {}
 
-  pinia-plugin-synced@0.1.5(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3)):
+  pinia-plugin-synced@0.1.6(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3)):
     dependencies:
       '@moeru/std': 0.1.0-beta.20
       es-toolkit: 1.51.0

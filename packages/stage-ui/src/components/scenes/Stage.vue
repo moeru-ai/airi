@@ -34,6 +34,7 @@ import StageRenderError from './stage-render-error.vue'
 // import { useDuckDb } from '../../composables/use-duck-db'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { live2dMotionMagicProfiles, useLive2DMotionMagic, useLive2DMotionMagicSettings } from '../../features/motions/live2d'
+import { syncedRoles, usePiniaSynced } from '../../libs/pinia/synced-context'
 import { getSpeechBusContext, speechOutputGetPlaybackState, speechOutputPlaybackStateChangedEvent } from '../../services/speech/bus'
 import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-control'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
@@ -181,6 +182,8 @@ function onVRMInteract(target: VrmInteractionTarget) {
 }
 
 const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
+// This context registers the hooks that speak a reply, so chat actions must run here.
+const releaseSpeechPlayerRole = usePiniaSynced().addRole(syncedRoles.speechPlayer)
 const chatHookCleanups: Array<() => void> = []
 // WORKAROUND: clear previous handlers on unmount to avoid duplicate calls when this component remounts.
 //             We keep per-hook disposers instead of wiping the global chat hooks to play nicely with
@@ -687,6 +690,7 @@ onUnmounted(() => {
   chatHookCleanups.forEach(dispose => dispose?.())
   viewUpdateCleanups.forEach(dispose => dispose?.())
   disconnectVoiceOutput()
+  releaseSpeechPlayerRole()
   speechAnalysis.disconnect()
   speechDestination.disconnect()
 })
