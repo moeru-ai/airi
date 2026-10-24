@@ -180,7 +180,7 @@ describe('migrated provider definitions', () => {
     const models = await definition.extraMethods?.listModels?.(defaults, provider)
 
     expect(defaults).toMatchObject({
-      baseUrl: 'https://unspeech.hyp3r.link/v1/',
+      baseUrl: 'https://api.elevenlabs.io/v1/',
       voiceSettings: {
         similarityBoost: 0.75,
         stability: 0.5,
