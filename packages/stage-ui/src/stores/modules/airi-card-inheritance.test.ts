@@ -331,6 +331,53 @@ describe('card inheritance with real module stores', () => {
     })
   })
 
+  it('gives an inherited card the voice that the official catalog picks after login', async () => {
+    // ROOT CAUSE:
+    //
+    // Login stored the defaults before the voice catalog loaded. The catalog picked a voice later, but the defaults
+    // kept an empty one, so replies failed with "Speech requires a model and voice".
+    //
+    // The fix keeps inherited defaults in step with the runtime modules.
+    const speechStore = useSpeechStore()
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
+      if (String(input).includes('/api/v1/audio/voices')) {
+        return Response.json({
+          recommended: { 'en-US': 'voice-a' },
+          voices: [{ id: 'voice-a', name: 'Voice A', languages: ['en-US'] }],
+        })
+      }
+      return Response.json({ flux: 0 })
+    }))
+    const user: User = {
+      id: 'user-1',
+      name: 'AIRI User',
+      email: 'user@example.com',
+      emailVerified: true,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    }
+    const session: Session = {
+      id: 'session-1',
+      token: 'server-session-token',
+      userId: user.id,
+      expiresAt: new Date('2026-12-01T00:00:00.000Z'),
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    }
+    useAuthStore().$patch({ session, token: 'restored-access-token', user })
+    await nextTick()
+
+    const cards = useAiriCardStore()
+    await cards.initialize()
+    await cards.configureForAuthentication(true)
+
+    await vi.waitFor(() => expect(speechStore.activeSpeechVoiceId).toBe('voice-a'))
+    await vi.waitFor(() => expect(cards.getModules(cards.activeCardId).speech).toMatchObject({
+      provider: OFFICIAL_SPEECH_PROVIDER_ID,
+      voice_id: 'voice-a',
+    }))
+  })
+
   // https://github.com/moeru-ai/airi/pull/2490#discussion_r3960117808
   // ROOT CAUSE:
   // Authentication setup awaited the optional voice catalog. A pending response

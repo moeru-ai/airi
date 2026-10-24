@@ -13,7 +13,7 @@ import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared'
 import { createPinia, defineStore, disposePinia, setActivePinia } from 'pinia'
 import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { computed, createApp, nextTick, reactive, ref } from 'vue'
+import { computed, createApp, nextTick, reactive, ref, toRaw } from 'vue'
 
 import { getAnalytics } from '../libs/product-signals'
 import {
@@ -84,7 +84,6 @@ const createUserAccountContextMock = vi.fn()
 const persistSessionMessagesMock = vi.fn()
 const forkSessionMock = vi.fn()
 const createSessionMock = vi.fn()
-const ensureSessionMock = vi.fn()
 const loadSessionMock = vi.fn()
 const deleteSessionMock = vi.fn()
 const initializeSessionMock = vi.fn()
@@ -174,13 +173,16 @@ vi.mock('./chat/session-store', () => ({
     activeSessionId: activeSessionIdRef,
     sessionMessages,
     sessionMetas,
-    ensureSession: (sessionId: string) => {
-      ensureSessionMock(sessionId)
-      sessionMessages[sessionId] ??= [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
+    storeMessage: async (sessionId: string, message: ChatHistoryItem & { id: string }) => {
+      const messages = sessionMessages[sessionId] ?? []
+      const index = messages.findIndex(item => item.id === message.id)
+      sessionMessages[sessionId] = index < 0 ? [...messages, message] : messages.with(index, message)
     },
-    appendSessionMessage: (sessionId: string, message: ChatHistoryItem) => {
-      sessionMessages[sessionId] ??= []
-      sessionMessages[sessionId].push(message)
+    updateUserMessage: async (sessionId: string, messageId: string, fields: Partial<ChatHistoryItem>) => {
+      sessionMessages[sessionId] = (sessionMessages[sessionId] ?? []).map(message => message.id === messageId ? { ...toRaw(message), ...fields } as ChatHistoryItem : message)
+    },
+    replaceSessionHistory: async (sessionId: string, messages: ChatHistoryItem[]) => {
+      sessionMessages[sessionId] = messages
     },
     commitUserMessage: (async (sessionId, message) => {
       sessionMessages[sessionId] ??= []
@@ -190,7 +192,7 @@ vi.mock('./chat/session-store', () => ({
       await persistSessionMessagesMock(sessionId)
       return { status: existing ? 'existing' : 'inserted', messageId: message.id }
     }) satisfies ChatOrchestratorSessionPort['commitUserMessage'],
-    cleanupMessages: (sessionId: string) => {
+    clearSessionMessages: async (sessionId: string) => {
       sessionMessages[sessionId] = []
     },
     getSessionMessages: (sessionId: string) => sessionMessages[sessionId] ?? [],
@@ -351,7 +353,6 @@ describe('chat store contract', () => {
     createMinecraftContextMock.mockReturnValue(undefined)
     persistSessionMessagesMock.mockReset()
     forkSessionMock.mockReset()
-    ensureSessionMock.mockReset()
     loadSessionMock.mockReset().mockResolvedValue(true)
     createSessionMock.mockReset().mockImplementation(async (characterId: string, options: Partial<ChatSessionMeta>) => {
       const sessionId = `created-${createSessionMock.mock.calls.length}`
@@ -1190,9 +1191,12 @@ describe('chat store contract', () => {
     let leadershipListener: ((isLeader: boolean) => void) | undefined
     const stopLeadershipListener = vi.fn()
     const syncedPinia: SyncedPiniaRuntime = {
+      addRole: vi.fn(() => vi.fn()),
       dispose: vi.fn(),
       getLeaderId: vi.fn(),
       getParticipantCount: vi.fn(() => 1),
+      getParticipants: vi.fn(() => []),
+      getRoles: vi.fn(() => []),
       isLeader: vi.fn(() => false),
       onCoordinationChange: vi.fn(() => vi.fn()),
       onLeadershipChange: vi.fn((listener) => {
@@ -1280,7 +1284,8 @@ describe('chat store contract', () => {
     await store.send({ sessionId: 'session-2', text: 'continue persisted chat' })
 
     expect(loadSessionMock).toHaveBeenCalledWith('session-2')
-    expect(loadSessionMock.mock.invocationCallOrder[0]).toBeLessThan(ensureSessionMock.mock.invocationCallOrder[0])
+    // The user message commits after the history loads, so the commit never writes a history that did not load.
+    expect(loadSessionMock.mock.invocationCallOrder[0]).toBeLessThan(persistSessionMessagesMock.mock.invocationCallOrder[0])
     expect(sessionMessages['session-2']?.[0]).toMatchObject({
       content: 'persisted system prompt',
       id: 'system-2',
@@ -1299,7 +1304,6 @@ describe('chat store contract', () => {
       .rejects
       .toThrow('Failed to load the target chat session')
 
-    expect(ensureSessionMock).not.toHaveBeenCalledWith('session-2')
     expect(sessionMessages['session-2']).toBeUndefined()
   })
 
@@ -2148,6 +2152,7 @@ describe('chat store contract', () => {
       reason: 'retry',
       hidden: true,
     })
-    expect(ensureSessionMock).toHaveBeenCalledWith('session-forked')
+    // The send commits its user message to the forked session.
+    expect(persistSessionMessagesMock).toHaveBeenCalledWith('session-forked')
   })
 })

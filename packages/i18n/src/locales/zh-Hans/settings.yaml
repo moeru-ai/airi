@@ -897,6 +897,14 @@ pages:
             description: 选择 AIRI 使用的麦克风。
             playground-description: 听觉和测试区都使用这个麦克风。
             placeholder: 选择麦克风
+            system-default: 系统默认
+            allow: 允许使用麦克风
+            allow-description: 允许访问后，AIRI 才能列出你的麦克风。
+            allow-action: 允许
+            blocked: 浏览器阻止了麦克风
+            blocked-description: 请在浏览器的网站设置里允许这个网站使用麦克风，然后再试一次。
+            retry: 再试一次
+            missing: 没有找到麦克风。请连接麦克风后重新打开这个页面。
           auto-send:
             title: 转写文本
             description: 选择 AIRI 如何处理识别出的文字。
