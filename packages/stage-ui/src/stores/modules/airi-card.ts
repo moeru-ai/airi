@@ -22,7 +22,7 @@ import { isEqual } from 'es-toolkit'
 import { nanoid } from 'nanoid'
 import { defineStore, getActivePinia, storeToRefs } from 'pinia'
 import { array, looseObject, object, parse, safeParse, string } from 'valibot'
-import { computed, ref, shallowRef, toRaw, watch } from 'vue'
+import { computed, getCurrentScope, ref, shallowRef, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
@@ -157,6 +157,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     serializer: StorageSerializers.object,
   })
   let appliedModules: AiriExtension['modules'] | undefined
+  let followingInheritedSettings = false
+  const storeScope = getCurrentScope()
   let pendingAuthenticationSetup: Promise<void> | undefined
 
   const activeCard = computed(() => cards.value.get(activeCardId.value))
@@ -236,7 +238,26 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
     if (!appliedModules.speech.provider && !appliedModules.speech.model && !appliedModules.speech.voice_id)
       next.speech.voice_id = runtime.speech.voice_id
-    moduleDefaults.value = next
+    if (!isEqual(next, toRaw(defaults)))
+      moduleDefaults.value = next
+  }
+
+  /**
+   * Keeps inherited defaults in step with the runtime modules after a card applies.
+   * A module store can change an inherited selection later, for example when the official voice catalog picks a voice.
+   * Replies resolve speech from the card and the defaults, so the defaults must follow.
+   * The watcher starts at the first application, because metadata-only consumers must not create the module stores.
+   */
+  function followInheritedSettings() {
+    if (followingInheritedSettings)
+      return
+    followingInheritedSettings = true
+    // An action runs outside the store scope. Run the watcher in it, so the store disposal stops it.
+    storeScope?.run(() => watch(readRuntimeModules, () => {
+      // An application clears `appliedModules` while the runtime holds a mix of two cards.
+      if (appliedModules)
+        rememberInheritedSettings()
+    }, { deep: true }))
   }
 
   /** Applies card speech through the leader command so catalog invalidation precedes its saved voice. */
@@ -283,6 +304,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
   async function applyAuthenticationDefaults(authenticated: boolean) {
     rememberInheritedSettings()
+    appliedModules = undefined
     if (!moduleDefaults.value)
       return
     await writeRuntimeModules(moduleDefaults.value)
@@ -1349,6 +1371,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
   async function applyActiveCardSettings(newCard = activeCard.value) {
     rememberInheritedSettings()
+    // The runtime holds a mix of two cards until the write completes. See followInheritedSettings.
+    appliedModules = undefined
     const artistry = useArtistryStore()
 
     artistry.resetToGlobal()
@@ -1368,6 +1392,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     const resolved = resolveModules(modules, defaults)
     await writeRuntimeModules(resolved)
     appliedModules = modules
+    followInheritedSettings()
     await applyActiveAvatarModel()
 
     if (extension.modules?.artistry) {

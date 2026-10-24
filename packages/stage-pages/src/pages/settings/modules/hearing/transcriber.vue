@@ -3,7 +3,7 @@ import type { VoicePluginHandle } from '@proj-airi/core-agent'
 
 import { errorMessageFrom } from '@moeru/std'
 import { encodeWav } from '@proj-airi/audio/encoding'
-import { Alert, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
+import { Alert, ErrorContainer, LevelMeter, MicrophonePicker, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
 import { useAnalytics, useHearingPlaygroundSegments } from '@proj-airi/stage-ui/composables'
 import { useVoiceController } from '@proj-airi/stage-ui/composables/audio/voice-controller'
 import { hearingProviderViewContextKey } from '@proj-airi/stage-ui/libs'
@@ -13,7 +13,7 @@ import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/con
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { SileroVad } from '@proj-airi/stage-ui/workers/vad/silero-vad'
-import { Button, FieldCheckbox, FieldCombobox, FieldInput, FieldRange, SettingsCard } from '@proj-airi/ui'
+import { Button, FieldCheckbox, FieldInput, FieldRange, SettingsCard } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, defineAsyncComponent, onMounted, onUnmounted, provide, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -41,7 +41,7 @@ const { moduleTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
 const { trackProviderClick } = useAnalytics()
 const settingsAudioDeviceStore = useSettingsAudioDevice()
-const { audioInputOptions, selectedAudioInput } = storeToRefs(settingsAudioDeviceStore)
+const { audioInputOptions, permission, selectedAudioInput } = storeToRefs(settingsAudioDeviceStore)
 const supportsStreamInput = computed(() => providersStore.getTranscriptionFeatures(activeTranscriptionProvider.value).supportsStreamInput)
 const error = shallowRef('')
 const isMonitoring = shallowRef(false)
@@ -347,13 +347,14 @@ onUnmounted(() => {
   <div :class="['flex flex-col gap-6 md:flex-row']">
     <SettingsCard :class="['md:w-[40%]']">
       <div :class="['flex flex-col gap-4']">
-        <FieldCombobox
+        <MicrophonePicker
           v-model="selectedAudioInput"
           :label="t('settings.pages.modules.hearing.sections.section.input-device.label')"
           :description="t('settings.pages.modules.hearing.sections.section.input-device.playground-description')"
           :options="audioInputOptions"
           :placeholder="t('settings.pages.modules.hearing.sections.section.input-device.placeholder')"
-          layout="vertical"
+          :permission="permission"
+          :request-access="settingsAudioDeviceStore.askPermission"
         />
 
         <div :class="['flex flex-col gap-4']">
