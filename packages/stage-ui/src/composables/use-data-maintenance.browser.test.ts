@@ -14,6 +14,7 @@ import { toStoredVoiceprint } from '../libs/voice/voiceprint'
 import { useDisplayModelsStore } from '../stores/display-models'
 import { useMemoryStore } from '../stores/memory'
 import { useModsServerChannelStore } from '../stores/mods/api/channel-server'
+import { useAiriCardStore } from '../stores/modules/airi-card'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useConsciousnessSettingsStore } from '../stores/modules/consciousness-settings'
 import { useDiscordStore } from '../stores/modules/discord'
@@ -241,6 +242,27 @@ it.each(['allow', 'deny'] as const)('preserves the Home Assistant %s policy thro
   expect(homeAssistant.enabled).toBe(true)
 })
 
+it('persists restored consciousness policies', async () => {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
+  const { pinia, runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
+  await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
+  const settings = useConsciousnessSettingsStore(pinia)
+  await settings.setReasoning(true)
+  await settings.setTemperatureEnabled(true)
+  await settings.setTopPEnabled(true)
+  const exporter = maintenance.createModuleSettingsExportAdapter()
+  const file = new File([await exporter.encode(await exporter.read())], 'modules.json')
+  await settings.resetState()
+  const importer = maintenance.createModuleSettingsImportAdapter()
+
+  await importer.apply(await importer.validate(await importer.decode(file)))
+
+  const reopened = useConsciousnessSettingsStore(createPinia())
+  expect(reopened.reasoning).toBe(true)
+  expect(reopened.temperatureEnabled).toBe(true)
+  expect(reopened.topPEnabled).toBe(true)
+})
+
 it('uses the same fixed contract for export and import validation', async () => {
   vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
   const { pinia, runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
@@ -258,10 +280,11 @@ it('uses the same fixed contract for export and import validation', async () => 
   await expect(exporter.encode(await exporter.read())).rejects.toThrow()
 })
 
-it('restores app settings across optional renderer values and different motion maps', async () => {
+it('restores app settings and cards across optional renderer values and different motion maps', async () => {
   vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
-  const { runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
+  const { pinia, runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
   await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
+  await useAiriCardStore(pinia).initialize()
   const exporter = maintenance.createAppSettingsExportAdapter()
   const importer = maintenance.createAppSettingsImportAdapter()
   const data = await exporter.read()

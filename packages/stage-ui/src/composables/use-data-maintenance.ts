@@ -1,6 +1,7 @@
 import type { StoreGeneric } from 'pinia'
 
 import type { DataExportAdapter, DataImportAdapter } from '../libs/data-transfer'
+import type { AiriCardBackupState } from '../stores/modules/airi-card'
 
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useSettingsScreenAmbientLight } from '@proj-airi/stage-shared/stores/screen-ambient-light'
@@ -38,9 +39,8 @@ import { useVoiceprintStore } from '../stores/voiceprint'
 import { appSettingsSchema, appSettingsSchemas, moduleSettingsSchema, moduleSettingsSchemas } from './data-maintenance-schemas'
 
 interface StoreStateOwner {
-  store: StoreGeneric
   state: () => Record<string, unknown>
-  apply?: (state: Record<string, unknown>) => void | Promise<void>
+  restore: (state: unknown) => void | Promise<void>
 }
 
 type StoreBundleSchema = typeof appSettingsSchema | typeof moduleSettingsSchema
@@ -88,20 +88,14 @@ function bindStoreFromSchema<
   TStore extends StoreGeneric & Record<keyof TSchema['entries'], unknown>,
 >(store: TStore, schema: TSchema) {
   return {
-    store,
     state: () => pick<TStore, keyof TSchema['entries']>(store, v.keyof(schema).options),
+    restore: (state: unknown) => store.$patch(current => Object.assign(current, state)),
   }
 }
 
-async function applyStoreBundle(bundle: ValidatedStoreBundle, owners: Record<string, StoreStateOwner>): Promise<void> {
+async function restoreStoreBundle(bundle: ValidatedStoreBundle, owners: Record<string, StoreStateOwner>): Promise<void> {
   for (const [key, owner] of Object.entries(owners)) {
-    const state = bundle[key]
-    if (owner.apply) {
-      await owner.apply(state)
-    }
-    else {
-      owner.store.$patch(current => Object.assign(current, state))
-    }
+    await owner.restore(bundle[key])
   }
 }
 
@@ -214,7 +208,7 @@ export function useDataMaintenance() {
     modulesConnection: bindStoreFromSchema(mcpStore, appSettingsSchemas.modulesConnection),
     onboarding: {
       ...bindStoreFromSchema(onboardingStore, appSettingsSchemas.onboarding),
-      apply: (state) => {
+      restore: (state) => {
         const onboarding = state as v.InferOutput<typeof appSettingsSchemas.onboarding>
         onboardingStore.resetSetupState()
         if (onboarding.hasCompletedSetup)
@@ -223,14 +217,17 @@ export function useDataMaintenance() {
           onboardingStore.markSetupSkipped()
       },
     },
-    characterCards: bindStoreFromSchema(airiCardStore, appSettingsSchemas.characterCards),
+    characterCards: {
+      ...bindStoreFromSchema(airiCardStore, appSettingsSchemas.characterCards),
+      restore: state => airiCardStore.restoreBackup(state as AiriCardBackupState),
+    },
   } satisfies Record<keyof typeof appSettingsSchemas, StoreStateOwner>
 
   const moduleSettingsOwners = {
     hearing: bindStoreFromSchema(hearingStore, moduleSettingsSchemas.hearing),
     homeAssistant: {
       ...bindStoreFromSchema(homeAssistantStore, moduleSettingsSchemas.homeAssistant),
-      apply: (state) => {
+      restore: (state) => {
         const settings = state as v.InferOutput<typeof moduleSettingsSchemas.homeAssistant>
         homeAssistantStore.exposureMode = settings.exposureMode
         homeAssistantStore.$patch({
@@ -242,7 +239,15 @@ export function useDataMaintenance() {
     },
     speech: bindStoreFromSchema(speechStore, moduleSettingsSchemas.speech),
     consciousness: bindStoreFromSchema(consciousnessStore, moduleSettingsSchemas.consciousness),
-    consciousnessSettings: bindStoreFromSchema(consciousnessSettingsStore, moduleSettingsSchemas.consciousnessSettings),
+    consciousnessSettings: {
+      ...bindStoreFromSchema(consciousnessSettingsStore, moduleSettingsSchemas.consciousnessSettings),
+      restore: async (state) => {
+        const settings = state as v.InferOutput<typeof moduleSettingsSchemas.consciousnessSettings>
+        await consciousnessSettingsStore.setReasoning(settings.reasoning)
+        await consciousnessSettingsStore.setTemperatureEnabled(settings.temperatureEnabled)
+        await consciousnessSettingsStore.setTopPEnabled(settings.topPEnabled)
+      },
+    },
     twitter: bindStoreFromSchema(twitterStore, moduleSettingsSchemas.twitter),
     webSearch: bindStoreFromSchema(webSearchStore, moduleSettingsSchemas.webSearch),
     discord: bindStoreFromSchema(discordStore, moduleSettingsSchemas.discord),
@@ -250,7 +255,7 @@ export function useDataMaintenance() {
     recipes: bindStoreFromSchema(recipesStore, moduleSettingsSchemas.recipes),
     memory: {
       ...bindStoreFromSchema(memoryStore, moduleSettingsSchemas.memory),
-      apply: (state) => {
+      restore: (state) => {
         memoryStore.restoreState(state as v.InferOutput<typeof moduleSettingsSchemas.memory>)
       },
     },
@@ -282,7 +287,7 @@ export function useDataMaintenance() {
       decode: decodeJsonFile,
       validate: async value => v.parse(schema, value).data,
       apply: async (value) => {
-        await applyStoreBundle(value, owners)
+        await restoreStoreBundle(value, owners)
         await afterApply?.()
       },
     }
