@@ -42,11 +42,20 @@ const GITHUB_RELEASE_DOWNLOAD_BASE_URL = 'https://github.com/moeru-ai/airi/relea
 const UPDATE_CHANNEL_ENV_KEY = 'AIRI_UPDATE_CHANNEL'
 
 function getCacheRoot() {
-  // NOTICE: Electron resolves the cache directory per platform/app, but the
-  // shipped type definitions here do not expose `cache`, so we cast the key.
-  return app.getPath('cache' as Parameters<typeof app.getPath>[0])
+  // NOTICE:
+  // Electron app.getPath does not support a 'cache' name, throwing an error if requested.
+  // Synthesize a cache directory under userData instead.
+  // Source: Electron app.getPath documentation (https://www.electronjs.org/docs/latest/api/app#appgetpathname).
+  // Removal condition: When Electron adds native cache directory support to app.getPath, remove this workaround.
+  return join(app.getPath('userData'), 'cache')
 }
 
+// NOTICE:
+// Returns the platform standard cache root used before the getCacheRoot fix.
+// Older installations wrote updater files here. The cleanup in
+// getOfficialUpdaterCacheDirs includes it so stale installers do not linger.
+// Source: PR #2937 — bitxwolf/fix/electron-get-path-cache-crash.
+// Removal condition: After two stable release cycles once users run cleanup, remove this fallback.
 function getLegacyCacheRoot() {
   switch (process.platform) {
     case 'win32':
@@ -58,24 +67,45 @@ function getLegacyCacheRoot() {
   }
 }
 
-const UPDATER_DEBUG_CACHE_DIR = join(getCacheRoot(), 'stage-tamagotchi-updater')
-const UPDATER_LOG_FILE = join(UPDATER_DEBUG_CACHE_DIR, 'updater-log.txt')
-const OFFICIAL_UPDATER_CACHE_DIR = join(getCacheRoot(), 'ai.moeru.airi-updater')
-const LEGACY_OFFICIAL_UPDATER_CACHE_DIR = join(getLegacyCacheRoot(), 'ai.moeru.airi-updater')
-const OFFICIAL_UPDATER_CACHE_DIRS = Array.from(new Set([
-  OFFICIAL_UPDATER_CACHE_DIR,
-  LEGACY_OFFICIAL_UPDATER_CACHE_DIR,
-]))
+function getUpdaterDebugCacheDir() {
+  return join(getCacheRoot(), 'stage-tamagotchi-updater')
+}
+
+function getUpdaterLogFile() {
+  return join(getUpdaterDebugCacheDir(), 'updater-log.txt')
+}
+
+function getOfficialUpdaterCacheDirs() {
+  const officialUpdaterCacheDir = join(getCacheRoot(), 'ai.moeru.airi-updater')
+  // NOTICE:
+  // When APP_USER_DATA_PATH is set this is a smoke-run environment with a custom userData path.
+  // The platform cache root differs from the userData-derived cache root, so the legacy root is irrelevant.
+  // Source: smoke-run test harness - APP_USER_DATA_PATH overrides app.getPath(userData).
+  // Removal condition: Remove when the smoke-run harness is retired.
+  if (process.env.APP_USER_DATA_PATH?.trim()) {
+    return [officialUpdaterCacheDir]
+  }
+
+  const legacyOfficialUpdaterCacheDir = join(getLegacyCacheRoot(), 'ai.moeru.airi-updater')
+  return Array.from(new Set([
+    officialUpdaterCacheDir,
+    legacyOfficialUpdaterCacheDir,
+  ]))
+}
 
 async function logToFile(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: string) {
-  await mkdir(UPDATER_DEBUG_CACHE_DIR, { recursive: true }).catch(() => {})
-  await appendFile(UPDATER_LOG_FILE, `${new Date().toISOString()} [${level}] ${message}\n`).catch(() => {})
+  const debugCacheDir = getUpdaterDebugCacheDir()
+  const logFile = getUpdaterLogFile()
+  await mkdir(debugCacheDir, { recursive: true }).catch(() => {})
+  await appendFile(logFile, `${new Date().toISOString()} [${level}] ${message}\n`).catch(() => {})
 }
 
 async function cleanupStaleUpdateFiles() {
-  // Remove both current and legacy updater cache roots so stale installers do not linger.
-  await Promise.allSettled(OFFICIAL_UPDATER_CACHE_DIRS.map(cacheDir => rm(cacheDir, { recursive: true, force: true })))
-  await logToFile('INFO', `Updater cache cleanup attempted: ${OFFICIAL_UPDATER_CACHE_DIRS.join(', ')}`)
+  const officialUpdaterCacheDirs = getOfficialUpdaterCacheDirs()
+  // Remove the updater cache roots so stale installers do not linger.
+  // When APP_USER_DATA_PATH is set (smoke-run), only the current root is removed; the legacy root is skipped.
+  await Promise.allSettled(officialUpdaterCacheDirs.map(cacheDir => rm(cacheDir, { recursive: true, force: true })))
+  await logToFile('INFO', `Updater cache cleanup attempted: ${officialUpdaterCacheDirs.join(', ')}`)
 }
 
 export type UpdateLane = ElectronUpdaterChannel
@@ -368,7 +398,7 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
       platform: process.platform,
       arch: process.arch,
       channel: autoUpdater.channel || releaseChannelName,
-      logFilePath: UPDATER_LOG_FILE,
+      logFilePath: getUpdaterLogFile(),
       executablePath: process.execPath,
       installDirectory: dirname(process.execPath),
       requiresAdminForInstallPath: requiresAdminForInstallPath(process.execPath),

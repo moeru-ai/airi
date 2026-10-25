@@ -7,7 +7,11 @@ import { createWindowContext } from '../../libs/electron/window-context'
 
 const appMock = vi.hoisted(() => ({
   getVersion: vi.fn(() => '0.9.0-beta.4'),
-  getPath: vi.fn((name: string) => name === 'logs' ? '/tmp/airi/logs' : `/tmp/${name}`),
+  getPath: vi.fn((name: string) => {
+    if (name === 'cache')
+      throw new Error(`app.getPath('cache') is not supported by Electron — use app.getPath('userData') instead`)
+    return name === 'logs' ? '/tmp/airi/logs' : `/tmp/${name}`
+  }),
   quit: vi.fn(),
   isPackaged: false,
 }))
@@ -130,7 +134,11 @@ describe('setupAutoUpdater', () => {
     vi.clearAllMocks()
     updaterState.instance = createUpdaterMock()
     appMock.getVersion.mockReturnValue('0.9.0-beta.4')
-    appMock.getPath.mockImplementation((name: string) => name === 'logs' ? '/tmp/airi/logs' : `/tmp/${name}`)
+    appMock.getPath.mockImplementation((name: string) => {
+      if (name === 'cache')
+        throw new Error(`app.getPath('cache') is not supported by Electron — use app.getPath('userData') instead`)
+      return name === 'logs' ? '/tmp/airi/logs' : `/tmp/${name}`
+    })
     isDevState.value = false
     stdEnvState.isWindows = false
     delete process.env.UPDATE_SERVER_URL
@@ -294,6 +302,26 @@ describe('setupAutoUpdater', () => {
     expect(service.state.diagnostics).not.toHaveProperty('pendingDir')
     expect(service.state.diagnostics).not.toHaveProperty('uninstallPath')
     expect(service.state.diagnostics).not.toHaveProperty('uninstallExists')
+  })
+
+  // Issue #2937: https://github.com/moeru-ai/airi/pull/2937
+  //
+  // ROOT CAUSE:
+  //
+  // Electron throws an error when calling app.getPath('cache') because 'cache' is unsupported.
+  // This happens when resolving cache roots during auto-updater initialization.
+  //
+  // app.getPath('cache')
+  //
+  // We fixed this by deriving the cache directory from app.getPath('userData').
+  // join(app.getPath('userData'), 'cache')
+  it('resolves updater log path after userData path is configured (Issue #2937)', async () => {
+    const { setupAutoUpdater } = await import('./auto-updater')
+    appMock.getPath.mockImplementation((name: string) => name === 'userData' ? '/custom/user-data-dir' : `/tmp/${name}`)
+
+    const service = setupAutoUpdater()
+
+    expect(service.state.diagnostics?.logFilePath).toMatch(/[\\/]custom[\\/]user-data-dir[\\/]cache[\\/]stage-tamagotchi-updater[\\/]updater-log\.txt$/)
   })
 
   it('does not treat build metadata as prerelease', async () => {
