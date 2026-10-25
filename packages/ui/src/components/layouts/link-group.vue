@@ -16,9 +16,8 @@ defineProps<{
 const group = useTemplateRef<HTMLElement>('group')
 const items = new Set<LinkGroupItemHandle>()
 
-// The dots of a hovered item sit on the dot grid of the group, so the two grids overlap.
-// An item starts its dots at its own corner, so the group shifts them by the offset of the item.
-// Items that come or go change the height of the group, so a size change is the time to align them again.
+// The dots of a hovered item sit on the dot grid of the group. The group shifts them by the offset of the item,
+// again when its size changes, as items come or go.
 function alignDots() {
   for (const item of items) {
     const element = item.element()
@@ -28,10 +27,22 @@ function alignDots() {
 }
 useResizeObserver(group, alignDots)
 
+// Many items mount in one update, so they share one alignment after it.
+let alignScheduled = false
+function scheduleAlign() {
+  if (alignScheduled)
+    return
+  alignScheduled = true
+  void nextTick(() => {
+    alignScheduled = false
+    alignDots()
+  })
+}
+
 provide(linkGroupContextKey, {
   register(item) {
     items.add(item)
-    void nextTick(alignDots)
+    scheduleAlign()
     return () => items.delete(item)
   },
 })
@@ -91,17 +102,13 @@ defineExpose({ naturalWidth })
 </template>
 
 <style scoped>
-/*
- * The dot texture fills the top-left corner and fades out toward the middle.
- * The dots take the text color, so a color utility sets them, theme colors included.
- */
+/* The dot texture fills the top-left corner and fades out toward the middle, as on IconItem. */
 .link-group::after {
-  --at-apply: 'text-neutral-200/60 dark:text-neutral-700/25';
+  --at-apply: 'bg-dotted-[neutral-200/60] dark:bg-dotted-[neutral-700/25]';
   content: '';
   position: absolute;
   inset: 0;
   z-index: -2;
-  background-image: radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0);
   background-size: 10px 10px;
   mask-image: linear-gradient(165deg, white 20%, transparent 40%);
 }

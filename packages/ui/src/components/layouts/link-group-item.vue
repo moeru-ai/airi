@@ -105,15 +105,14 @@ onBeforeUnmount(() => unregister?.())
 
 /*
  * The dots under the item light up in the theme color. LinkGroup shifts them onto its own dot grid.
- * The dots take the text color, as the dots of LinkGroup do.
+ * The dots take the text color: `bg-dotted-[primary-300/50]` drops theme colors, and a text color utility keeps them.
  */
 .link-group-item::after {
-  --at-apply: 'text-primary-300/50 dark:text-primary-200/20';
+  --at-apply: 'bg-dotted-[current] text-primary-300/50 dark:text-primary-200/20';
   content: '';
   position: absolute;
   inset: 0;
   z-index: -1;
-  background-image: radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0);
   background-size: 10px 10px;
   background-position: var(--link-group-dot-x, 0) var(--link-group-dot-y, 0);
   mask-image: linear-gradient(to right, white 10%, transparent 75%);

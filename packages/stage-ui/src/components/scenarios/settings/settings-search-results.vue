@@ -33,14 +33,8 @@ const groups = computed(() => {
   return [...byCategory.values()]
 })
 
-// The cards keep their whole content, and each column takes whole cards.
-// - A column is as wide as the widest card needs, so every name and its location fit on one line. One column holds the rest.
-// - The columns get the cards so that their heights differ the least: the tallest card first, each one into the shortest column.
-// - Of the column counts that fit, the one with the lowest tallest column wins. On a tie, the smaller height difference wins,
-//   then the fewer columns. A very tall card sets the height alone, so more columns would only leave more space next to it.
-// - In a column, the cards keep the order of the results, and the column with the best card comes first.
-// All cards stay in one grid in the order of the results. A card that moves to another column keeps its element, so a focused
-// link keeps the focus, and Tab follows the order of the results. Until the cards are measured, they stand in one column.
+// Cards stay whole, in one grid, in the order of the results. A card that changes column keeps its element,
+// so a focused link keeps the focus. Until the cards are measured, they stand in one column.
 const container = useTemplateRef<HTMLElement>('container')
 const cards = useTemplateRef<Array<InstanceType<typeof LinkGroup>>>('cards')
 const width = ref(0)
@@ -70,7 +64,11 @@ function measure() {
 useResizeObserver(container, measure)
 watch(groups, measure, { flush: 'post' })
 
-/** The number of columns and the column of each card, by category. `undefined` until the cards are measured. */
+/**
+ * The number of columns and the column of each card, by category. `undefined` until the cards are measured.
+ * Each count that fits gets the cards tallest first, each into the shortest column. The lowest tallest column wins,
+ * then the smaller height difference, then the fewer columns.
+ */
 const layout = computed(() => {
   if (columnWidth.value <= 0 || !groups.value.every(group => heights.value.has(group.category.title)))
     return undefined
@@ -90,6 +88,7 @@ const layout = computed(() => {
   const counts = Array.from({ length: Math.max(1, Math.min(fits, groups.value.length)) }, (_, index) => index + 1)
   const { count, columns } = counts.map(arrange).reduce((best, next) =>
     next.tallest < best.tallest || (next.tallest === best.tallest && next.spread < best.spread) ? next : best)
+  // The column with the best card comes first. The DOM order keeps the order of the results in each column.
   const bestRank = (column: { groups: Group[] }) => Math.min(...column.groups.map(group => group.rank))
   const columnOf = new Map<string, number>()
   columns.toSorted((left, right) => bestRank(left) - bestRank(right))
@@ -109,17 +108,19 @@ function cardStyle(group: Group) {
     : { gridColumn: `${column + 1}`, gridRowEnd: `span ${(heights.value.get(group.category.title) ?? 0) + gap.value}` }
 }
 
+const needle = computed(() => props.query.trim().toLocaleLowerCase())
+
 /** The parts of a name, with each part that matches the query marked. Bold marks a match, so color stays for hover. */
 function partsOf(title: string) {
-  const needle = props.query.trim().toLocaleLowerCase()
+  const query = needle.value
   const lower = title.toLocaleLowerCase()
   const parts: Array<{ text: string, match: boolean }> = []
   let from = 0
-  for (let at = needle ? lower.indexOf(needle) : -1; at !== -1; at = lower.indexOf(needle, from)) {
+  for (let at = query ? lower.indexOf(query) : -1; at !== -1; at = lower.indexOf(query, from)) {
     if (at > from)
       parts.push({ text: title.slice(from, at), match: false })
-    parts.push({ text: title.slice(at, at + needle.length), match: true })
-    from = at + needle.length
+    parts.push({ text: title.slice(at, at + query.length), match: true })
+    from = at + query.length
   }
   if (from < title.length)
     parts.push({ text: title.slice(from), match: false })

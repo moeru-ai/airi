@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Input } from '@proj-airi/ui'
-import { useMagicKeys, whenever } from '@vueuse/core'
+import { useEventListener } from '@vueuse/core'
 import { useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -9,26 +9,13 @@ const query = defineModel<string>({ required: true })
 const { t } = useI18n()
 const field = useTemplateRef<HTMLElement>('field')
 
-/** Cmd+F or Ctrl+F, the find shortcut of the browser. On this page, it finds settings instead. */
-function isFindShortcut(event: KeyboardEvent) {
-  return event.type === 'keydown' && (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'f'
-}
-
-// NOTICE:
-// useMagicKeys updates its key refs before it calls onEventFired, so the shortcut and the default handling share one event.
-// The default opens the find bar of the browser, which the settings search replaces while this field is on the page.
-// Source: https://github.com/vueuse/vueuse/blob/main/packages/core/useMagicKeys/index.ts
-// Remove this handler when useMagicKeys can prevent the default of a declared shortcut.
-const keys = useMagicKeys({
-  passive: false,
-  onEventFired(event) {
-    if (isFindShortcut(event))
-      event.preventDefault()
-  },
-})
-
-// The shortcut moves the focus to the field from anywhere on the page, and selects the old query, so typing replaces it.
-whenever(() => keys['Meta+F']?.value || keys['Ctrl+F']?.value, () => {
+// Cmd+F or Ctrl+F, the find shortcut of the browser, finds settings while this field is on the page.
+// It moves the focus to the field from anywhere on the page, and selects the old query, so typing replaces it.
+useEventListener(window, 'keydown', (event: KeyboardEvent) => {
+  const command = event.metaKey || event.ctrlKey
+  if (!command || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'f')
+    return
+  event.preventDefault()
   const input = field.value?.querySelector('input')
   input?.focus()
   input?.select()
