@@ -15,6 +15,7 @@
 import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -25,11 +26,16 @@ function parseArgs(argv) {
   const out = { tag: '', getVersion: false, getArtifactName: false, platform: '', arch: '' }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
-    if (a === '--get-version') out.getVersion = true
-    else if (a === '--get-artifact-name') out.getArtifactName = true
-    else if (a === '--tag') out.tag = String(argv[++i] ?? '').trim()
-    else if (a === '--platform') out.platform = String(argv[++i] ?? '').trim()
-    else if (a === '--arch') out.arch = String(argv[++i] ?? '').trim()
+    if (a === '--get-version')
+      out.getVersion = true
+    else if (a === '--get-artifact-name')
+      out.getArtifactName = true
+    else if (a === '--tag')
+      out.tag = String(argv[++i] ?? '').trim()
+    else if (a === '--platform')
+      out.platform = String(argv[++i] ?? '').trim()
+    else if (a === '--arch')
+      out.arch = String(argv[++i] ?? '').trim()
   }
   return out
 }
@@ -77,7 +83,7 @@ const args = parseArgs(process.argv.slice(2))
 const version = resolveVersion(args.tag)
 
 if (args.getVersion) {
-  console.log(version)
+  console.info(version)
   process.exit(0)
 }
 
@@ -86,7 +92,7 @@ if (args.getArtifactName) {
     console.error('--platform is required with --get-artifact-name')
     process.exit(1)
   }
-  console.log(artifactName(version, args.platform, args.arch))
+  console.info(artifactName(version, args.platform, args.arch))
   process.exit(0)
 }
 

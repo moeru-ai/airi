@@ -27,6 +27,11 @@ env:
   ARTIFACT_NAME: ''
 
 on:
+  # Temporary: allow running from the PR branch before the workflow lands on main
+  # (workflow_dispatch only works for workflows on the default branch).
+  push:
+    branches:
+      - ci/tamagotchi-kirie-artifacts
   workflow_dispatch:
     inputs:
       build_only:
@@ -332,7 +337,7 @@ jobs:
           ls -la bundle/
 
       - name: Upload CI artifact
-        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && !inputs.build_only) }}
+        if: ${{ github.event_name == 'schedule' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.build_only) }}
         uses: actions/upload-artifact@v7
         with:
           name: ${{ env.ARTIFACT_NAME }}
