@@ -7,6 +7,7 @@ import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/com
 import { artistrySyncConfig } from '@proj-airi/stage-shared'
 import { ToasterRoot } from '@proj-airi/stage-ui/components'
 import { updateModelAssetStatus, useInferencePreload } from '@proj-airi/stage-ui/composables'
+import { copyArrayBuffer } from '@proj-airi/stage-ui/libs/data-transfer'
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { initializeAnalytics } from '@proj-airi/stage-ui/libs/product-signals'
 import { isSherpawModelBundled, setSherpawModelAssetHost } from '@proj-airi/stage-ui/libs/providers/providers/sherpaw/model-assets'
@@ -107,11 +108,7 @@ setSherpawModelAssetHost({
   restore: (id, revision, files) => restoreModelAsset({
     id,
     revision,
-    files: Object.fromEntries(Object.entries(files).map(([name, bytes]) => {
-      const buffer = new ArrayBuffer(bytes.byteLength)
-      new Uint8Array(buffer).set(bytes)
-      return [name, buffer]
-    })),
+    files: Object.fromEntries(Object.entries(files).map(([name, bytes]) => [name, copyArrayBuffer(bytes)] as const)),
   }),
   clear: clearModelAssets,
 })
