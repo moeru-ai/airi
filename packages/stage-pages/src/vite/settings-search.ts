@@ -1,6 +1,7 @@
 import type { Plugin, ViteDevServer } from 'vite'
 import type { SFCDescriptor, SFCTemplateBlock } from 'vue/compiler-sfc'
 
+import { createHash } from 'node:crypto'
 import { access, readFile } from 'node:fs/promises'
 
 import { SETTINGS_SEARCH_ATTRIBUTE } from '@proj-airi/stage-shared/settings-search'
@@ -12,6 +13,8 @@ type TemplateElement = Extract<TemplateChild, { tag: string }>
 type ScriptProgram = ReturnType<typeof babelParse>['program']
 type Statement = ScriptProgram['body'][number]
 type Expression = Extract<Statement, { type: 'ExpressionStatement' }>['expression']
+type ObjectMethod = Extract<Extract<Expression, { type: 'ObjectExpression' }>['properties'][number], { type: 'ObjectMethod' }>
+type Getter = Extract<Expression, { type: 'ArrowFunctionExpression' | 'FunctionExpression' }> | ObjectMethod
 
 /** The fields of a route node that the scan reads and writes. `vue-router/vite` passes an `EditableTreeNode`. */
 export interface SettingsSearchRouteNode {
@@ -34,29 +37,74 @@ interface ImportBinding {
 }
 
 /**
- * A setting that a component renders.
+ * A runtime condition around a setting: a `v-if`, `v-else`, or `v-show` that the build cannot decide, or a slot of a component
+ * that shows its content only in some state, such as a collapsed section.
  *
- * `conditions` lists the runtime conditions around the setting, outermost first. Each one is a `v-if`, `v-else`, or `v-show`
- * that the build cannot decide, such as the current model type. The setting shows only when all of them hold.
+ * `gates` lists the markers of the rows that control the condition, best first:
+ * - the controls whose `v-model` binds a value that the condition reads;
+ * - for a slot, the name of the component usage, such as the title of a section.
+ */
+interface ScanCondition {
+  gates: string[]
+}
+
+/**
+ * A setting or a control that a component renders.
+ *
+ * `conditions` lists the runtime conditions around it, outermost first. It shows only when all of them hold.
  */
 interface ScanEntry {
   key: string
-  conditions: string[]
+  conditions: ScanCondition[]
 }
 
 /** What a component adds to the page that renders it. */
 interface ComponentScan {
   /** The settings that the component renders on the page, in document order. */
   entries: ScanEntry[]
+  /** The controls that the component renders on the page. The key is the marker of the value that the control binds. */
+  controls: ScanEntry[]
   /** Whether the component marks rows of runtime items itself, with a bound `:data-settings-search`. */
   marksItems: boolean
   /**
-   * The runtime conditions around the default slot, such as the `v-if="visible"` of a collapsible section.
-   * Content passed to the component shows only when they hold.
+   * The runtime conditions around each slot, by slot name, such as the `v-if="visible"` of a collapsible section around its default slot.
+   * Content passed to a slot shows only when they hold.
    */
-  slotConditions: string[]
+  slotConditions: ReadonlyMap<string, ScanCondition[]>
   /** Whether every slot of the component renders inside an overlay or a notice, so content passed to it is not on the page. */
   slotsHidden: boolean
+}
+
+/**
+ * How a top-level name of a component gets its value. Two names hold the same value when their sources are the same.
+ *
+ * - `local`: state that the component creates, such as a ref or a computed value. A computed value keeps its getter:
+ *   a condition on it depends on every value that the getter reads, and a control bound to it sets the values that the getter returns.
+ * - `constant`: a value that never changes, so no control sets it.
+ * - `outside`: props and models, which the parent passes in. The scan does not follow them.
+ * - `import`: a value that a module exports, the same in every component.
+ * - `call`: the result of a call, such as a store, or one field of it. A store is the same in every component.
+ */
+type SourceBinding
+  = | { kind: 'local', getter?: Getter }
+    | { kind: 'constant' }
+    | { kind: 'outside' }
+    | { kind: 'import', binding: ImportBinding }
+    | { kind: 'call', callee: ImportBinding | undefined, field?: string }
+
+/**
+ * The value that a name holds. `id` is the same in every component that reads the same value.
+ * `wholeStore` marks a store itself, which no control binds. Only its fields are values.
+ */
+interface ValueSource {
+  id: string
+  wholeStore: boolean
+}
+
+/** The script facts of one component that its template expressions read. */
+interface ComponentScope {
+  file: string
+  bindings: ReadonlyMap<string, SourceBinding>
 }
 
 /** What a condition can use: the constants of its file, the static props of the usage, and the imports. */
@@ -114,6 +162,10 @@ const I18N_KEY = /^[\w.-]+$/
 const PROVIDERS_MODULE = 'virtual:settings-search-providers'
 const RESOLVED_PROVIDERS_MODULE = `\0${PROVIDERS_MODULE}`
 const SCRIPT_FILE = /\.[cm]?[jt]sx?$/
+/** The props that bind the value of a control. */
+const MODEL_PROPS = new Set(['model-value', 'modelValue'])
+/** Calls whose result comes from the parent, not from the component. */
+const OUTSIDE_VALUES = new Set(['defineProps', 'withDefaults', 'defineModel'])
 
 function stripQuery(id: string) {
   return id.split('?')[0]
@@ -131,12 +183,13 @@ function isElement(node: TemplateChild): node is TemplateElement {
   return 'tag' in node && 'props' in node
 }
 
-function* elementsOf(children: TemplateChild[]): Generator<TemplateElement> {
+/** Every element, with its nearest parent element that renders. A `<template>` renders no element of its own. */
+function* elementsOf(children: TemplateChild[], parent?: TemplateElement): Generator<{ element: TemplateElement, parent: TemplateElement | undefined }> {
   for (const child of children) {
     if (!isElement(child))
       continue
-    yield child
-    yield* elementsOf(child.children)
+    yield { element: child, parent }
+    yield* elementsOf(child.children, child.tag === 'template' ? parent : child)
   }
 }
 
@@ -189,6 +242,226 @@ function parseExpression(source: string): { expression: Expression, code: string
   catch {
     return undefined
   }
+}
+
+/** The path of a plain value read, such as `['settings', 'autoSend']` for `settings.autoSend`. `undefined` for any other expression. */
+function chainOf(node: Expression): string[] | undefined {
+  if (node.type === 'Identifier')
+    return [node.name]
+  if ((node.type === 'MemberExpression' || node.type === 'OptionalMemberExpression') && !node.computed && node.property.type === 'Identifier') {
+    const object = chainOf(node.object)
+    return object ? [...object, node.property.name] : undefined
+  }
+  if (node.type === 'TSNonNullExpression' || node.type === 'TSAsExpression' || node.type === 'ParenthesizedExpression')
+    return chainOf(node.expression)
+  return undefined
+}
+
+/** The value paths that an expression reads, such as `activeProvider` and `supportsModelListing` in `activeProvider && supportsModelListing`. */
+function chainsOf(node: Expression, chains: string[][] = []): string[][] {
+  const chain = chainOf(node)
+  if (chain) {
+    chains.push(chain)
+    return chains
+  }
+  switch (node.type) {
+    case 'MemberExpression':
+    case 'OptionalMemberExpression':
+      chainsOf(node.object, chains)
+      if (node.computed && node.property.type !== 'PrivateName')
+        chainsOf(node.property, chains)
+      break
+    case 'UnaryExpression':
+      chainsOf(node.argument, chains)
+      break
+    case 'BinaryExpression':
+    case 'LogicalExpression':
+      if (node.left.type !== 'PrivateName')
+        chainsOf(node.left, chains)
+      chainsOf(node.right, chains)
+      break
+    case 'ConditionalExpression':
+      chainsOf(node.test, chains)
+      chainsOf(node.consequent, chains)
+      chainsOf(node.alternate, chains)
+      break
+    case 'CallExpression':
+    case 'OptionalCallExpression':
+      // A method call reads its object, such as `providers` in `providers.includes(id)`.
+      if (node.callee.type === 'MemberExpression' || node.callee.type === 'OptionalMemberExpression')
+        chainsOf(node.callee.object, chains)
+      for (const argument of node.arguments) {
+        if (argument.type !== 'SpreadElement' && argument.type !== 'ArgumentPlaceholder')
+          chainsOf(argument as Expression, chains)
+      }
+      break
+    case 'TemplateLiteral':
+      node.expressions.forEach(expression => chainsOf(expression as Expression, chains))
+      break
+    case 'TSNonNullExpression':
+    case 'TSAsExpression':
+    case 'ParenthesizedExpression':
+      chainsOf(node.expression, chains)
+      break
+  }
+  return chains
+}
+
+/** The marker of a value. Every control that binds the value carries it, so a condition that reads the value finds its control. */
+function valueMarker(source: string) {
+  return `value:${createHash('sha256').update(source).digest('hex').slice(0, 12)}`
+}
+
+/** The expressions that bind the value of a control: `v-model` with or without an argument, and `:model-value`. */
+function modelExpressionsOf(element: TemplateElement) {
+  return element.props.flatMap((prop) => {
+    const isModel = prop.name === 'model' || (prop.name === 'bind' && 'arg' in prop && prop.arg && 'content' in prop.arg && MODEL_PROPS.has(prop.arg.content))
+    return isModel && 'exp' in prop && prop.exp && 'content' in prop.exp ? [prop.exp.content] : []
+  })
+}
+
+/** The name of the slot that a `<template #name>` child fills, or `default` for other content. */
+function slotNameOf(child: TemplateElement) {
+  if (child.tag !== 'template')
+    return 'default'
+  const directive = child.props.find(prop => prop.name === 'slot')
+  return directive && 'arg' in directive && directive.arg && 'content' in directive.arg && directive.arg.isStatic ? directive.arg.content : 'default'
+}
+
+/** Whether an expression is a literal, such as `'speech-noop'` or `42`. */
+function isLiteral(node: Expression | null | undefined) {
+  return node?.type === 'StringLiteral' || node?.type === 'NumericLiteral' || node?.type === 'BooleanLiteral'
+    || (node?.type === 'TemplateLiteral' && node.expressions.length === 0)
+}
+
+/** The expressions that a getter reads: the returned values, and the tests and values on the way. */
+function readsOf(getter: Getter): Expression[] {
+  if (getter.body.type !== 'BlockStatement')
+    return [getter.body]
+  const reads: Expression[] = []
+  const visit = (statement: Statement) => {
+    if (statement.type === 'ReturnStatement' && statement.argument) {
+      reads.push(statement.argument)
+    }
+    else if (statement.type === 'IfStatement') {
+      reads.push(statement.test)
+      visit(statement.consequent)
+      if (statement.alternate)
+        visit(statement.alternate)
+    }
+    else if (statement.type === 'BlockStatement') {
+      statement.body.forEach(visit)
+    }
+    else if (statement.type === 'VariableDeclaration') {
+      statement.declarations.forEach(declarator => declarator.init && reads.push(declarator.init))
+    }
+  }
+  getter.body.body.forEach(visit)
+  return reads
+}
+
+/** The value paths that an expression can return, such as `model` in `ready && model`. A test, such as `a === b`, returns no value path. */
+function resultChainsOf(node: Expression): string[][] {
+  const chain = chainOf(node)
+  if (chain)
+    return [chain]
+  if (node.type === 'LogicalExpression')
+    return node.operator === '&&' ? resultChainsOf(node.right) : [...resultChainsOf(node.left), ...resultChainsOf(node.right)]
+  if (node.type === 'ConditionalExpression')
+    return [...resultChainsOf(node.consequent), ...resultChainsOf(node.alternate)]
+  if (node.type === 'TSNonNullExpression' || node.type === 'TSAsExpression' || node.type === 'ParenthesizedExpression')
+    return resultChainsOf(node.expression)
+  return []
+}
+
+/** The value paths that a getter returns. */
+function returnChainsOf(getter: Getter): string[][] {
+  if (getter.body.type !== 'BlockStatement')
+    return resultChainsOf(getter.body)
+  const chains: string[][] = []
+  const visit = (statement: Statement) => {
+    if (statement.type === 'ReturnStatement' && statement.argument) {
+      chains.push(...resultChainsOf(statement.argument))
+    }
+    else if (statement.type === 'IfStatement') {
+      visit(statement.consequent)
+      if (statement.alternate)
+        visit(statement.alternate)
+    }
+    else if (statement.type === 'BlockStatement') {
+      statement.body.forEach(visit)
+    }
+  }
+  getter.body.body.forEach(visit)
+  return chains
+}
+
+/** The getter of `computed(getter)` or `computed({ get, set })`, or `undefined` for another value. */
+function computedGetterOf(init: Expression | null | undefined): Getter | undefined {
+  if (init?.type !== 'CallExpression' || init.callee.type !== 'Identifier' || init.callee.name !== 'computed')
+    return undefined
+  const [argument] = init.arguments
+  if (argument?.type === 'ArrowFunctionExpression' || argument?.type === 'FunctionExpression')
+    return argument
+  if (argument?.type !== 'ObjectExpression')
+    return undefined
+  const get = argument.properties.find(property =>
+    (property.type === 'ObjectMethod' || property.type === 'ObjectProperty') && property.key.type === 'Identifier' && property.key.name === 'get')
+  if (get?.type === 'ObjectMethod')
+    return get
+  const value = get?.type === 'ObjectProperty' ? get.value : undefined
+  return value?.type === 'ArrowFunctionExpression' || value?.type === 'FunctionExpression' ? value : undefined
+}
+
+/** How each top-level name of a script gets its value. */
+function bindingsOf(program: ScriptProgram, imports: ReadonlyMap<string, ImportBinding>) {
+  const bindings = new Map<string, SourceBinding>()
+  for (const [local, binding] of imports)
+    bindings.set(local, { kind: 'import', binding })
+
+  const calleeOf = (node: Expression | null | undefined) =>
+    node?.type === 'CallExpression' && node.callee.type === 'Identifier' ? node.callee.name : undefined
+  for (const statement of program.body) {
+    const declaration = statement.type === 'ExportNamedDeclaration' ? statement.declaration : statement
+    if (declaration?.type !== 'VariableDeclaration')
+      continue
+    for (const declarator of declaration.declarations) {
+      const init = declarator.init
+      const callee = calleeOf(init)
+      if (declarator.id.type === 'Identifier') {
+        const getter = computedGetterOf(init)
+        bindings.set(declarator.id.name, getter
+          ? { kind: 'local', getter }
+          : isLiteral(init)
+            ? { kind: 'constant' }
+            : callee && OUTSIDE_VALUES.has(callee)
+              ? { kind: 'outside' }
+              : callee ? { kind: 'call', callee: imports.get(callee) } : { kind: 'local' })
+        continue
+      }
+      if (declarator.id.type !== 'ObjectPattern')
+        continue
+      // `const { a } = storeToRefs(store)`, `const { a } = useStore()`, or `const { a } = defineProps()`.
+      const source = callee === 'storeToRefs' && init?.type === 'CallExpression' ? init.arguments[0] as Expression | undefined : init
+      const sourceCallee = calleeOf(source)
+      const base: SourceBinding | undefined = source?.type === 'Identifier'
+        ? bindings.get(source.name)
+        : sourceCallee && OUTSIDE_VALUES.has(sourceCallee)
+          ? { kind: 'outside' }
+          : sourceCallee ? { kind: 'call', callee: imports.get(sourceCallee) } : undefined
+      for (const property of declarator.id.properties) {
+        if (property.type !== 'ObjectProperty' || property.key.type !== 'Identifier')
+          continue
+        const value = property.value.type === 'AssignmentPattern' ? property.value.left : property.value
+        if (value.type !== 'Identifier')
+          continue
+        bindings.set(value.name, base?.kind === 'outside'
+          ? base
+          : base?.kind === 'call' && !base.field ? { kind: 'call', callee: base.callee, field: property.key.name } : { kind: 'local' })
+      }
+    }
+  }
+  return bindings
 }
 
 /** The marker for keys that the build knows: one string, with the keys separated by spaces, as {@link SETTINGS_SEARCH_ATTRIBUTE} reads it. */
@@ -442,6 +715,8 @@ export function createSettingsSearch() {
   /** Files that the scan reached. Only these files get row markers. */
   const scannedFiles = new Set<string>()
   const unreadableNames = new Map<string, UnreadableName>()
+  /** The value of each top-level name, by file and name. */
+  const sources = new Map<string, Promise<ValueSource | undefined>>()
   /** The runtime item provider of each settings route, by route path. */
   const providers = new Map<string, string>()
   /** Pages that mark rows of runtime items but have no provider, so search cannot list those items. */
@@ -621,10 +896,11 @@ export function createSettingsSearch() {
     return props
   }
 
-  /** The imports, the constants, and the translation helpers of a component's scripts. */
+  /** The imports, the constants, the translation helpers, and the value sources of a component's scripts. */
   async function scriptsOf(descriptor: SFCDescriptor, file: string, usage: ComponentUsage = NO_USAGE) {
     const imports = new Map<string, ImportBinding>()
     const helpers = new Map<string, TranslationHelper>()
+    const bindings = new Map<string, SourceBinding>()
     let statics: ReadonlyMap<string, unknown> = new Map()
     for (const block of [descriptor.script, descriptor.scriptSetup]) {
       if (!block)
@@ -632,36 +908,53 @@ export function createSettingsSearch() {
       const program = await readProgram(`${file}?${block.setup ? 'setup' : 'script'}`, block.content)
       if (!program)
         continue
-      for (const [local, binding] of importsOf(program))
-        imports.set(local, binding)
+      const blockImports = importsOf(program)
+      blockImports.forEach((binding, local) => imports.set(local, binding))
+      bindingsOf(program, blockImports).forEach((binding, name) => bindings.set(name, binding))
       scopeOf(program).helpers.forEach((helper, name) => helpers.set(name, helper))
       statics = await staticsOf(program, { file, statics, imports }, usage)
     }
     const values = new Map([...statics].filter((entry): entry is [string, string] => typeof entry[1] === 'string'))
-    return { imports, values, helpers, statics }
+    const scope: ComponentScope = { file, bindings }
+    return { imports, values, helpers, statics, scope }
   }
 
-  /** Finds an exported function with one returned expression, such as `export function isStageWeb() { return ... }`. */
-  async function findExportedFunction(module: string, name: string, depth = 0): Promise<{ expression: Expression, context: EvaluationContext } | undefined> {
+  /**
+   * Finds the declaration of an export, through re-exports.
+   *
+   * Returns:
+   * - The declaring file, its name there, and the declared function or the initial value, or `undefined` when the export is not found.
+   */
+  async function declarationOf(module: string, name: string, depth = 0): Promise<{ file: string, name: string, node: Expression | Statement | undefined } | undefined> {
     if (depth > 8)
       return undefined
     const program = await readProgram(module)
     if (!program)
       return undefined
     const imports = importsOf(program)
-    const context: EvaluationContext = { file: module, statics: new Map(), imports }
+    const local = (localName: string) => {
+      for (const statement of program.body) {
+        const declaration = statement.type === 'ExportNamedDeclaration' ? statement.declaration : statement
+        if (declaration?.type === 'FunctionDeclaration' && declaration.id?.name === localName)
+          return { file: module, name: localName, node: declaration }
+        if (declaration?.type !== 'VariableDeclaration')
+          continue
+        for (const declarator of declaration.declarations) {
+          if (declarator.id.type === 'Identifier' && declarator.id.name === localName)
+            return { file: module, name: localName, node: declarator.init ?? undefined }
+        }
+      }
+      return undefined
+    }
 
     for (const statement of program.body) {
       if (statement.type === 'ExportNamedDeclaration') {
         const declaration = statement.declaration
-        if (declaration?.type === 'FunctionDeclaration' && declaration.id?.name === name)
-          return returnedExpression(declaration, context)
-        if (declaration?.type === 'VariableDeclaration') {
-          for (const declarator of declaration.declarations) {
-            if (declarator.id.type === 'Identifier' && declarator.id.name === name)
-              return returnedExpression(declarator.init, context)
-          }
-        }
+        const declared = declaration?.type === 'FunctionDeclaration'
+          ? [declaration.id?.name]
+          : declaration?.type === 'VariableDeclaration' ? declaration.declarations.map(declarator => declarator.id.type === 'Identifier' ? declarator.id.name : undefined) : []
+        if (declared.includes(name))
+          return local(name)
         for (const specifier of statement.specifiers) {
           if (specifier.type !== 'ExportSpecifier')
             continue
@@ -669,19 +962,139 @@ export function createSettingsSearch() {
           if (exported !== name)
             continue
           const binding = statement.source ? { source: statement.source.value, imported: specifier.local.name } : imports.get(specifier.local.name)
-          const target = binding ? await resolveFile(binding.source, module) : undefined
-          if (binding && target && SCRIPT_FILE.test(target))
-            return findExportedFunction(target, binding.imported, depth + 1)
+          if (!binding)
+            return local(specifier.local.name)
+          const target = await resolveFile(binding.source, module)
+          return target && SCRIPT_FILE.test(target) ? declarationOf(target, binding.imported, depth + 1) : undefined
         }
       }
       else if (statement.type === 'ExportAllDeclaration') {
         const target = await resolveFile(statement.source.value, module)
-        const found = target && SCRIPT_FILE.test(target) ? await findExportedFunction(target, name, depth + 1) : undefined
+        const found = target && SCRIPT_FILE.test(target) ? await declarationOf(target, name, depth + 1) : undefined
         if (found)
           return found
       }
     }
     return undefined
+  }
+
+  /** Finds an exported function with one returned expression, such as `export function isStageWeb() { return ... }`. */
+  async function findExportedFunction(module: string, name: string) {
+    const declaration = await declarationOf(module, name)
+    const program = declaration ? await readProgram(declaration.file) : undefined
+    return declaration && program ? returnedExpression(declaration.node, { file: declaration.file, statics: new Map(), imports: importsOf(program) }) : undefined
+  }
+
+  /** The declaration that an import names, or `undefined` for a dependency. */
+  async function importedDeclaration(binding: ImportBinding, importer: string) {
+    const target = await resolveFile(binding.source, importer)
+    return target && SCRIPT_FILE.test(target) ? declarationOf(target, binding.imported) : undefined
+  }
+
+  /**
+   * The value that a top-level name holds, as an id that is the same in every component that reads the same value.
+   * A store field is shared. State that a component creates is its own. Props come from outside, so they have no id.
+   */
+  function sourceOf(name: string, scope: ComponentScope) {
+    const cacheKey = `${scope.file}\n${name}`
+    let source = sources.get(cacheKey)
+    if (!source) {
+      source = (async () => {
+        const binding = scope.bindings.get(name)
+        const local = { id: `local:${scope.file}#${name}`, wholeStore: false }
+        if (!binding || binding.kind === 'outside' || binding.kind === 'constant')
+          return undefined
+        if (binding.kind === 'local')
+          return local
+        if (binding.kind === 'import') {
+          // Only state that a module creates, such as `export const open = ref(false)`, is shared. A constant or a function is not state.
+          const declaration = await importedDeclaration(binding.binding, scope.file)
+          return declaration?.node?.type === 'CallExpression' ? { id: `import:${declaration.file}#${declaration.name}`, wholeStore: false } : undefined
+        }
+        // A call creates state of the component, such as `ref()`, unless it returns a store.
+        const declaration = binding.callee ? await importedDeclaration(binding.callee, scope.file) : undefined
+        const node = declaration?.node
+        const isStore = node?.type === 'CallExpression' && node.callee.type === 'Identifier' && node.callee.name === 'defineStore'
+        if (!declaration || !isStore)
+          return local
+        return { id: `store:${declaration.file}#${declaration.name}${binding.field ? `.${binding.field}` : ''}`, wholeStore: !binding.field }
+      })()
+      sources.set(cacheKey, source)
+    }
+    return source
+  }
+
+  /**
+   * The markers of a value path, longest first. A control of `settings` also controls a condition on `settings.length`.
+   * A whole store is not a value that a control binds, so a path into a store keeps at least its field.
+   */
+  async function valueMarkersOf(chain: string[], scope: ComponentScope, prefixes: boolean) {
+    const [root, ...path] = chain
+    const source = root ? await sourceOf(root, scope) : undefined
+    const shortest = source?.wholeStore ? 1 : 0
+    if (!source || path.length < shortest)
+      return []
+    const lengths = prefixes ? Array.from({ length: path.length - shortest + 1 }, (_, index) => path.length - index) : [path.length]
+    return lengths.map(length => valueMarker([source.id, ...path.slice(0, length)].join('.')))
+  }
+
+  /**
+   * The value paths that a getter of a computed value reads. A script reads a ref as `name.value`, which is `name` in a template.
+   * A store is not a ref, so `store.value` stays a field.
+   */
+  async function scriptChainsOf(scriptChains: string[][], scope: ComponentScope) {
+    const chains: string[][] = []
+    for (const [root, ...path] of scriptChains) {
+      const source = root ? await sourceOf(root, scope) : undefined
+      if (root)
+        chains.push([root, ...(path[0] === 'value' && !source?.wholeStore ? path.slice(1) : path)])
+    }
+    return chains
+  }
+
+  /**
+   * The markers of the values that the expressions of a condition read. A control that binds one of them is the gate.
+   * A computed value adds the values that its getter reads, such as the tab behind `isAutoRunTab`.
+   */
+  async function conditionGates(expressions: string[], scope: ComponentScope) {
+    const gates: string[] = []
+    const visit = async (chains: string[][], followed: ReadonlySet<string>) => {
+      for (const chain of chains) {
+        gates.push(...await valueMarkersOf(chain, scope, true))
+        const [root] = chain
+        const binding = root ? scope.bindings.get(root) : undefined
+        if (root && binding?.kind === 'local' && binding.getter && !followed.has(root)) {
+          for (const read of readsOf(binding.getter))
+            await visit(await scriptChainsOf(chainsOf(read), scope), new Set(followed).add(root))
+        }
+      }
+    }
+    for (const expression of expressions) {
+      const parsed = parseExpression(expression)
+      if (parsed)
+        await visit(chainsOf(parsed.expression), new Set())
+    }
+    return [...new Set(gates)]
+  }
+
+  /**
+   * The markers of the values that a control binds with `v-model` or `:model-value`.
+   * A control bound to a computed value, such as a writable `computed({ get, set })` over a store field, also sets what its getter returns.
+   */
+  async function controlMarkersOf(element: TemplateElement, scope: ComponentScope) {
+    const markers: string[] = []
+    for (const expression of modelExpressionsOf(element)) {
+      const parsed = parseExpression(expression)
+      const chain = parsed ? chainOf(parsed.expression) : undefined
+      if (!chain)
+        continue
+      markers.push(...await valueMarkersOf(chain, scope, false))
+      const binding = chain.length === 1 && chain[0] ? scope.bindings.get(chain[0]) : undefined
+      const getter = binding?.kind === 'local' ? binding.getter : undefined
+      for (const returned of getter ? await scriptChainsOf(returnChainsOf(getter), scope) : [])
+        markers.push(...await valueMarkersOf(returned, scope, false))
+    }
+    return [...new Set(markers)]
   }
 
   function returnedExpression(fn: Expression | Statement | null | undefined, context: EvaluationContext) {
@@ -800,74 +1213,91 @@ export function createSettingsSearch() {
     if (known)
       return known
     // A component that contains itself adds nothing new.
+    const empty: ComponentScan = { entries: [], controls: [], slotsHidden: false, marksItems: false, slotConditions: new Map() }
     if (stack.has(file))
-      return { entries: [], slotsHidden: false, marksItems: false, slotConditions: [] }
+      return empty
 
     const descriptor = await readDescriptor(file)
     const root = descriptor?.template?.ast
     if (!descriptor || !root)
-      return { entries: [], slotsHidden: false, marksItems: false, slotConditions: [] }
+      return empty
 
     scannedFiles.add(file)
-    const { imports, values, helpers, statics } = await scriptsOf(descriptor, file, usage)
+    const { imports, values, helpers, statics, scope: valueScope } = await scriptsOf(descriptor, file, usage)
     const scope: NameScope = { values: new Map([...usage.values, ...values]), helpers }
     const context: EvaluationContext = { file, statics, imports }
     const path = new Set(stack).add(file)
     const entries: ScanEntry[] = []
+    const controls: ScanEntry[] = []
     let slots = 0
     let hiddenSlots = 0
     let marksItems = false
-    let slotConditions: string[] | undefined
+    const slotConditions = new Map<string, ScanCondition[]>()
+    const prefixed = (items: ScanEntry[], conditions: ScanCondition[]) => items.map(item => ({ key: item.key, conditions: [...conditions, ...item.conditions] }))
 
     const decide = async (expression: string | undefined) => {
       const parsed = expression ? parseExpression(expression) : undefined
       return parsed ? evaluate(parsed.expression, context) : UNKNOWN
     }
 
-    const walk = async (children: TemplateChild[], hidden: boolean, conditions: string[]) => {
+    const walk = async (children: TemplateChild[], hidden: boolean, conditions: ScanCondition[]) => {
       // The state of a `v-if` chain: a branch already shows, every branch so far is hidden, or the build cannot tell.
       let chain: 'none' | 'taken' | 'open' | 'unknown' = 'none'
+      // The tests of the chain so far. A `v-else` branch depends on the values that they read.
+      let chainTests: string[] = []
       for (const element of children) {
         if (!isElement(element))
           continue
 
         const condition = conditionOf(element)
+        const test = condition?.expression ? [condition.expression] : []
         let shows: unknown = true
+        let tests: string[] = []
         if (!condition || condition.kind === 'show') {
           chain = 'none'
-          if (condition)
+          chainTests = []
+          if (condition) {
             shows = await decide(condition.expression)
+            tests = test
+          }
         }
         else if (condition.kind === 'if' || (condition.kind === 'else-if' && chain === 'open')) {
+          chainTests = condition.kind === 'if' ? test : [...chainTests, ...test]
+          tests = chainTests
           shows = await decide(condition.expression)
           chain = shows === UNKNOWN ? 'unknown' : shows ? 'taken' : 'open'
         }
         else if (condition.kind === 'else-if') {
+          chainTests = [...chainTests, ...test]
+          tests = chainTests
           shows = chain === 'taken' ? false : UNKNOWN
         }
         else {
+          tests = chainTests
           shows = chain === 'taken' ? false : chain === 'open' ? true : UNKNOWN
           chain = 'none'
+          chainTests = []
         }
         // A branch that this build never renders, such as a desktop-only row on the web, is not in the index.
         if (shows !== UNKNOWN && !shows)
           continue
-        const here = shows === UNKNOWN ? [...conditions, `${file}:${element.loc.start.offset}`] : conditions
+        const here = shows === UNKNOWN ? [...conditions, { gates: await conditionGates(tests, valueScope) }] : conditions
 
         if (element.tag === 'slot') {
           slots++
           if (hidden)
             hiddenSlots++
-          const slotName = element.props.find(prop => prop.name === 'name' && 'value' in prop)
-          if (!slotConditions && (!slotName || ('value' in slotName && slotName.value?.content === 'default')))
-            slotConditions = here
+          const nameProp = element.props.find(prop => prop.name === 'name' && 'value' in prop)
+          const slotName = nameProp && 'value' in nameProp && nameProp.value ? nameProp.value.content : 'default'
+          if (!slotConditions.has(slotName))
+            slotConditions.set(slotName, here)
         }
 
         const hidesHere = hidden || hidesContent(element)
-        if (!hidesHere && marksItemRows(element))
-          marksItems = true
+        const { names, unreadable } = namesOf(element, scope)
         if (!hidesHere) {
-          const { names, unreadable } = namesOf(element, scope)
+          if (marksItemRows(element))
+            marksItems = true
           for (const name of names) {
             if (name.keys)
               entries.push(...name.keys.map(key => ({ key, conditions: here })))
@@ -878,32 +1308,41 @@ export function createSettingsSearch() {
             const line = element.loc.start.line
             unreadableNames.set(`${file}:${line}:${expression}`, { file, line, expression })
           }
+          for (const key of await controlMarkersOf(element, valueScope))
+            controls.push({ key, conditions: here })
         }
 
-        let slotsHidden = false
-        let childSlotConditions: string[] = []
-        if (element.tagType === 1) {
-          const binding = imports.get(element.tag) ?? imports.get(pascalCase(element.tag))
-          const child = binding ? await resolveBinding(binding, file) : undefined
-          if (child) {
-            const scan = await scanComponent(child, usageOf(element), path)
-            if (!hidesHere) {
-              entries.push(...scan.entries.map(entry => ({ key: entry.key, conditions: [...here, ...entry.conditions] })))
-              marksItems ||= scan.marksItems
-            }
-            slotsHidden = scan.slotsHidden
-            childSlotConditions = scan.slotConditions
-          }
+        const binding = element.tagType === 1 ? imports.get(element.tag) ?? imports.get(pascalCase(element.tag)) : undefined
+        const child = binding ? await resolveBinding(binding, file) : undefined
+        const childScan = child ? await scanComponent(child, usageOf(element), path) : undefined
+        if (!childScan) {
+          await walk(element.children, hidesHere, here)
+          continue
+        }
+        if (!hidesHere) {
+          entries.push(...prefixed(childScan.entries, here))
+          controls.push(...prefixed(childScan.controls, here))
+          marksItems ||= childScan.marksItems
         }
 
-        // The children of a component are its slot content. They are hidden where its slots are,
-        // and they show under the same conditions as its default slot, such as an open collapsible section.
-        await walk(element.children, hidesHere || slotsHidden, [...here, ...childSlotConditions])
+        // The children of a component fill its slots. They are hidden where its slots are, and they show under the conditions of
+        // their slot, such as the default slot of a collapsible section. The name of the component, such as the section title, is
+        // the gate of those conditions after the controls that the component itself has.
+        const usageGates = names.flatMap(name => name.keys ?? [])
+        const slotGroups = new Map<string, TemplateChild[]>()
+        for (const slotChild of element.children) {
+          const slotName = isElement(slotChild) ? slotNameOf(slotChild) : 'default'
+          slotGroups.set(slotName, [...slotGroups.get(slotName) ?? [], slotChild])
+        }
+        for (const [slotName, group] of slotGroups) {
+          const conditionsOfSlot = (childScan.slotConditions.get(slotName) ?? []).map(slotCondition => ({ gates: [...slotCondition.gates, ...usageGates] }))
+          await walk(group, hidesHere || childScan.slotsHidden, [...here, ...conditionsOfSlot])
+        }
       }
     }
     await walk(root.children, false, [])
 
-    const scan = { entries, slotsHidden: slots > 0 && slots === hiddenSlots, marksItems, slotConditions: slotConditions ?? [] }
+    const scan: ComponentScan = { entries, controls, slotsHidden: slots > 0 && slots === hiddenSlots, marksItems, slotConditions }
     componentScans.set(cacheKey, scan)
     return scan
   }
@@ -983,6 +1422,8 @@ export function createSettingsSearch() {
         if (key.startsWith(`${file}\n`))
           componentScans.delete(key)
       }
+      // A changed module can change what any name reads, such as a store that moved.
+      sources.clear()
     },
     buildEnd() {
       const report = [reportUnreadableNames(), reportPagesWithoutProvider()].filter(Boolean).join('\n')
@@ -1008,14 +1449,33 @@ export function createSettingsSearch() {
         return undefined
 
       // Without the usage, a key with a prefix from a prop is known only at runtime. Its marker binds the key expression.
-      const { values, helpers } = await scriptsOf(descriptor, id)
+      // A control also carries the marker of the value that it binds, so a setting that depends on the value finds its gate.
+      // Controls from a `v-for`, such as the cards of a radio group, give it to their parent: the group is the control, not its first card.
+      const { values, helpers, scope } = await scriptsOf(descriptor, id)
+      const markersOf = new Map<TemplateElement, string[]>()
+      const add = (element: TemplateElement, markers: string[]) => markersOf.set(element, [...markersOf.get(element) ?? [], ...markers])
+      for (const { element, parent } of elementsOf(root.children)) {
+        const controls = (await controlMarkersOf(element, scope)).map(marker => `'${marker}'`)
+        const repeated = element.props.some(prop => prop.name === 'for')
+        add(repeated && parent ? parent : element, controls)
+        // A row of a runtime item binds its own marker. Its names are not settings of the page.
+        if (!hasOwnMarker(element))
+          add(element, namesOf(element, { values, helpers }).names.flatMap(name => name.marker ? [name.marker] : []))
+      }
+
       const output = new MagicString(code)
-      for (const element of elementsOf(root.children)) {
-        const markers = namesOf(element, { values, helpers }).names.flatMap(name => name.marker ? [name.marker] : [])
-        if (!markers.length || hasOwnMarker(element))
+      for (const [element, found] of markersOf) {
+        const markers = [...new Set(found)]
+        if (!markers.length)
           continue
-        const marker = markers.length === 1 ? markers[0] : `[${markers.join(', ')}].join(' ')`
-        output.appendLeft(element.loc.start.offset + 1 + element.tag.length, ` :${SETTINGS_SEARCH_ATTRIBUTE}="${marker.replaceAll('"', '&quot;')}"`)
+        const own = element.props.find(prop => prop.name === SETTINGS_SEARCH_ATTRIBUTE) ?? boundProp(element, [SETTINGS_SEARCH_ATTRIBUTE])
+        const ownMarker = !own ? undefined : 'value' in own ? `'${own.value?.content ?? ''}'` : own.exp && 'content' in own.exp ? `(${own.exp.content})` : undefined
+        const all = ownMarker ? [ownMarker, ...markers] : markers
+        const attribute = ` :${SETTINGS_SEARCH_ATTRIBUTE}="${(all.length === 1 ? all[0] : `[${all.join(', ')}].join(' ')`).replaceAll('"', '&quot;')}"`
+        if (own)
+          output.overwrite(own.loc.start.offset, own.loc.end.offset, attribute.trimStart())
+        else
+          output.appendLeft(element.loc.start.offset + 1 + element.tag.length, attribute)
       }
       return output.hasChanged() ? { code: output.toString(), map: output.generateMap({ source: id, hires: true }) } : undefined
     },
@@ -1031,18 +1491,28 @@ export function createSettingsSearch() {
     await updateProvider(route.fullPath, file, scan.marksItems)
 
     const entries = scan.entries.filter(entry => entry.key !== route.meta.titleKey)
-    // The gate of a conditional setting is the nearest setting before it that shows whenever its section shows,
-    // such as the switch that turns it on. Search highlights the gate when the setting itself is not on the page.
+    // The gate of a conditional setting is the row that controls its innermost condition, such as the switch that binds the value
+    // that its `v-if` reads, or the section that holds it. Search highlights the gate when the setting itself is not on the page.
+    // A control can have a gate of its own, such as a switch inside a collapsed section, so the gates of gates are written too.
+    const onPage = new Set([...entries, ...scan.controls].map(item => item.key))
+    const controlsByKey = Map.groupBy(scan.controls, control => control.key)
+    const gateOf = (item: ScanEntry) => {
+      for (const condition of item.conditions.toReversed()) {
+        const gate = condition.gates.find(key => key !== item.key && onPage.has(key))
+        if (gate)
+          return gate
+      }
+      return undefined
+    }
     const gates: Record<string, string> = {}
-    entries.forEach((entry, index) => {
-      if (!entry.conditions.length || gates[entry.key])
-        return
-      const gate = entries.slice(0, index).findLast(previous =>
-        previous.conditions.length < entry.conditions.length
-        && previous.conditions.every((condition, position) => entry.conditions[position] === condition))
-      if (gate)
-        gates[entry.key] = gate.key
-    })
+    const pending = [...entries]
+    for (let item = pending.shift(); item; item = pending.shift()) {
+      const gate = gates[item.key] ? undefined : gateOf(item)
+      if (!gate)
+        continue
+      gates[item.key] = gate
+      pending.push(...controlsByKey.get(gate) ?? [])
+    }
 
     const keys = [...new Set(entries.map(entry => entry.key))]
     if (keys.length)

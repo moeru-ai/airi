@@ -4,16 +4,15 @@ import type { HomeAssistantEntitySummary } from '@proj-airi/stage-ui/libs/home-a
 
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { settingsSearchTargetOf } from '@proj-airi/stage-shared/settings-search'
 import { HomeAssistantEntityTile } from '@proj-airi/stage-ui/components/scenarios/home-assistant'
 import { useHomeAssistantStateLabel } from '@proj-airi/stage-ui/composables/use-home-assistant-state-label'
+import { useSettingsSearchTarget } from '@proj-airi/stage-ui/composables/use-settings-search'
 import { domainLabel, summarizeDomains, summarizeEntities } from '@proj-airi/stage-ui/libs/home-assistant/presentation'
 import { useHomeAssistantStore } from '@proj-airi/stage-ui/stores/modules/home-assistant'
 import { Button, FieldCheckbox, FieldInput, GhostButton, Input, Radio, ScrollableArea, SettingsCard } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute } from 'vue-router'
 
 import { homeAssistantConfigRejections, homeAssistantGetConfig, homeAssistantSetConfig } from '../../../../shared/eventa/home-assistant'
 import { useTamagotchiHomeAssistantStore } from '../../../stores/tools/home-assistant'
@@ -122,9 +121,9 @@ const visibleEntities = computed(() => {
 })
 
 // A search result names one device. The grid mounts only a batch of the rows, so it filters to that device first.
-const route = useRoute()
-watch(() => route.query, (query) => {
-  const entityId = settingsSearchTargetOf(query).keys.map(homeAssistantEntityOfSearchKey).find(id => id !== undefined)
+const searchTarget = useSettingsSearchTarget()
+watch(() => searchTarget.value.keys, (keys) => {
+  const entityId = keys.map(homeAssistantEntityOfSearchKey).find(id => id !== undefined)
   if (!entityId)
     return
   activeDomain.value = null

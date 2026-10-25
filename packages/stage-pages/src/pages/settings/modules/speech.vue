@@ -146,6 +146,17 @@ const displayedProviderModels = computed(() => {
   ]
 })
 
+/**
+ * The search marker of a model option. The official card lists the models of the regular and the streaming provider,
+ * so each option names the provider that owns it, not the active one.
+ */
+function speechModelSearchKey(optionId: string) {
+  const streamingModelId = modelIdFromStreamingOptionId(optionId)
+  if (streamingModelId != null)
+    return moduleModelSearchKey('speech', OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, streamingModelId)
+  return moduleModelSearchKey('speech', isOfficialSpeechSourceSelected.value ? OFFICIAL_SPEECH_PROVIDER_ID : activeSpeechProvider.value, optionId)
+}
+
 const displayedSpeechModel = computed({
   get: () => activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID && activeSpeechModel.value
     ? streamingModelOptionId(activeSpeechModel.value)
@@ -750,7 +761,7 @@ async function handleDeleteProvider(providerId: string) {
                 v-model="displayedSpeechModel"
                 v-model:search-query="modelSearchQuery"
                 :items="displayedProviderModels"
-                :search-key-of="model => moduleModelSearchKey('speech', activeSpeechProvider, model.id)"
+                :search-key-of="model => speechModelSearchKey(model.id)"
                 :searchable="true"
                 :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
                 :search-no-results-title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results')"

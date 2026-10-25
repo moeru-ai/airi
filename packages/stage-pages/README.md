@@ -48,12 +48,17 @@ The settings home searches every settings page, the settings on it, and the runt
   - Button text, notices (`Callout`, `Alert`, `ErrorContainer`), and overlay content are not settings, so they are not in the index.
   - A branch that the app build never renders, such as a desktop-only row on the web, is not in the index either.
 - **Conditional settings**:
-  - When a setting shows only in some state, the scan writes its gate into `meta.searchGates`. The gate is the setting before it that controls it, such as its switch or its collapsed section.
-  - If the setting is not on the page, search opens a collapsed section, or highlights the gate.
+  - When a setting shows only in some state, the scan writes its gate into `meta.searchGates`.
+  - The gate of a `v-if` or `v-show` is the control whose `v-model` or `:model-value` binds a value that the condition reads.
+    A value is a store field or state of the component. A computed value stands for the values that its getter reads.
+  - The gate of a slot that shows only in some state, such as the content of a collapsible section, is the name of the component usage.
+  - Each control carries a `value:` marker of the value that it binds. The controls of a `v-for` give the marker to their parent.
+  - If the setting is not on the page, search opens a collapsed section, or highlights the gate. Without a gate, a toast says that the setting shows in another state.
 - **Runtime items**, such as character cards or models:
   - A page lists them with a sibling `<page>.search.ts`. Its default export is a `SettingsSearchProvider` from `@proj-airi/stage-shared/settings-search`.
   - Each row binds the same key to `data-settings-search`. Build the key with `settingsSearchItemKey`, so a name with spaces stays one key.
-  - An item that shows only after another step names that row as its `gate`. For example, a model names the card of its provider.
+  - An item that shows only after another step names those rows as its `gates`, nearest first. For example, a model names the card of its provider.
   - A shared list component, such as `RadioCardManySelect`, takes `searchKeyOf` for its items.
+  - A page that renders only part of a long list, such as a grid that mounts rows in batches, reads `useSettingsSearchTarget()` from stage-ui. It renders the named row first.
 - **Address**: a result opens its page with one `setting` query parameter for each key, and one `setting-gate` parameter for each gate.
 - **Checks**: a production build fails when a name cannot be read, or when a page marks runtime rows without a provider. Development only warns.

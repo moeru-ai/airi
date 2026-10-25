@@ -4,7 +4,7 @@ import type { MaybeRefOrGetter } from 'vue'
 import type { ProviderMetadata } from '../libs/providers/metadata'
 
 import { errorMessageFrom } from '@moeru/std'
-import { SETTINGS_SEARCH_ATTRIBUTE, SETTINGS_SEARCH_GATE_QUERY, SETTINGS_SEARCH_QUERY, settingsSearchLocation, settingsSearchTargetOf } from '@proj-airi/stage-shared/settings-search'
+import { SETTINGS_SEARCH_ATTRIBUTE, settingsSearchLocation, settingsSearchTargetOf } from '@proj-airi/stage-shared/settings-search'
 import { storeToRefs } from 'pinia'
 import { computed, onScopeDispose, shallowRef, toValue, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -41,10 +41,19 @@ const LOCATION_SEPARATOR = ' › '
 const REVEAL_TIMEOUT_MS = 3000
 /** When the page stops changing for this long and the row is still missing, the current state hides it. */
 const REVEAL_QUIET_MS = 600
+/** A page can render its rows again, such as after it reloads a list. The highlight follows the new row for this long. */
+const REVEAL_FOLLOW_MS = 10000
+/** Any of these inputs means that the person took over the page, so the search stops moving it. */
+const TAKE_OVER_EVENTS = ['wheel', 'touchstart', 'pointerdown', 'keydown'] as const
 /** How long the row keeps its highlight before it fades out. */
 const HIGHLIGHT_MS = 1600
 /** The highlight is an outline like the focus outline of AIRI buttons. It keeps the surface of the row. */
-const HIGHLIGHT_CLASSES = ['outline-2', 'outline-solid', 'outline-offset-4']
+const HIGHLIGHT_CLASSES = ['outline-2', 'outline-solid']
+/** The outline sits outside the row when it fits there, and inside the row when a parent would cut it. */
+const HIGHLIGHT_OUTSIDE_CLASS = 'outline-offset-4'
+const HIGHLIGHT_INSIDE_CLASS = '-outline-offset-2'
+/** The room that the outline takes outside the row: its offset and its width, in pixels. */
+const HIGHLIGHT_OUTSIDE_ROOM = 6
 const HIGHLIGHT_COLOR_CLASS = 'outline-primary-400/60'
 /** The outline fades to transparent. Its style must stay solid until then, because a style change does not animate. */
 const HIGHLIGHT_FADE_CLASSES = ['transition-[outline-color]', 'duration-500']
@@ -180,7 +189,7 @@ export function useSettingsSearch(
         title: item.title,
         description: [...(listing ? [...listing.location, listing.title] : []), ...(item.section ? [item.section] : [])].join(LOCATION_SEPARATOR),
         icon: listing?.icon,
-        to: item.to ?? settingsSearchLocation(path, { keys: [item.key], gates: item.gate ? [item.gate] : [] }),
+        to: item.to ?? settingsSearchLocation(path, { keys: [item.key], gates: item.gates }),
       })
     }
     for (const [path, page] of [...pages, ...providerPages]) {
@@ -233,30 +242,72 @@ export function useSettingsSearch(
 }
 
 /**
+ * The settings that the current search result names on this page.
+ *
+ * Use when:
+ * - A page renders only part of a long list, such as a batch of devices. It brings the named row into the rendered part.
+ *
+ * Returns:
+ * - The keys and the gates of the route query. Both are empty when the page did not open from a search.
+ */
+export function useSettingsSearchTarget() {
+  const route = useRoute()
+  return computed(() => settingsSearchTargetOf(route.query))
+}
+
+/**
  * Scrolls to the setting that a search result names, then highlights its row.
  *
  * Use when:
  * - A settings layout owns the scroll container of its pages.
  *
  * Expects:
- * - The route query {@link SETTINGS_SEARCH_QUERY} names the keys of the setting, one key in each parameter.
- *   {@link SETTINGS_SEARCH_GATE_QUERY} can name the row to show when the setting is not on the page, such as a provider card.
+ * - The route query names the keys of the setting in `setting` parameters, one key in each.
+ *   `setting-gate` parameters can name the rows to show when the setting is not on the page, such as a provider card.
  * - The build-time scan or the page marked the row with the same key in {@link SETTINGS_SEARCH_ATTRIBUTE},
  *   and the scan wrote the gate of each conditional setting into `meta.searchGates`.
  *
  * Returns:
  * - Nothing. A setting that shows only in another state is not on the page. Its gate, such as the switch that turns it on,
  *   gets the highlight instead. Without a gate, such as a setting of another model type, a toast says so.
+ * - When the page renders the row again, such as after it reloads a list, the highlight moves to the new row.
+ *   It stops when the person scrolls, clicks, or types.
  */
 export function useSettingsSearchReveal(container: MaybeRefOrGetter<HTMLElement | null | undefined>) {
   const route = useRoute()
+  const target = useSettingsSearchTarget()
   const { t } = useI18n()
   let stopWaiting: (() => void) | undefined
 
-  function highlight(row: HTMLElement) {
-    row.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  /**
+   * Whether the outline fits outside the row. A parent that clips its content, such as a horizontal strip of cards,
+   * cuts an outline that reaches past the edges of its content. The check uses positions in the content of each parent,
+   * so it does not depend on where the parent is scrolled.
+   */
+  function outlineFitsOutside(row: HTMLElement, root: HTMLElement) {
+    const rect = row.getBoundingClientRect()
+    for (let parent = row.parentElement; parent && parent !== root.parentElement; parent = parent.parentElement) {
+      const style = getComputedStyle(parent)
+      if (style.overflowX === 'visible' && style.overflowY === 'visible')
+        continue
+      const box = parent.getBoundingClientRect()
+      const left = rect.left - box.left - parent.clientLeft + parent.scrollLeft
+      const top = rect.top - box.top - parent.clientTop + parent.scrollTop
+      if (left < HIGHLIGHT_OUTSIDE_ROOM || top < HIGHLIGHT_OUTSIDE_ROOM
+        || left + rect.width + HIGHLIGHT_OUTSIDE_ROOM > parent.scrollWidth
+        || top + rect.height + HIGHLIGHT_OUTSIDE_ROOM > parent.scrollHeight) {
+        return false
+      }
+    }
+    return true
+  }
+
+  function highlight(row: HTMLElement, root: HTMLElement) {
+    // `inline` centers a row of a horizontal strip too, such as a collapsed list of voice cards.
+    row.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' })
     const corners = getComputedStyle(row).borderRadius === '0px' ? HIGHLIGHT_CORNER_CLASSES : []
-    const added = [...corners, ...HIGHLIGHT_CLASSES, HIGHLIGHT_COLOR_CLASS]
+    const offset = outlineFitsOutside(row, root) ? HIGHLIGHT_OUTSIDE_CLASS : HIGHLIGHT_INSIDE_CLASS
+    const added = [...corners, ...HIGHLIGHT_CLASSES, offset, HIGHLIGHT_COLOR_CLASS]
     row.classList.add(...added)
     setTimeout(() => {
       row.classList.add(...HIGHLIGHT_FADE_CLASSES)
@@ -281,10 +332,9 @@ export function useSettingsSearchReveal(container: MaybeRefOrGetter<HTMLElement 
 
   // The layout resets the scroll position after a path change. This watcher runs after it, in the same flush.
   // The container is a source too, so a window that opens on a search link still finds the row after mount.
-  watch(() => [route.path, route.query[SETTINGS_SEARCH_QUERY], route.query[SETTINGS_SEARCH_GATE_QUERY], toValue(container)] as const, ([, , , root]) => {
+  watch(() => [route.path, target.value, toValue(container)] as const, ([, { keys, gates }, root]) => {
     stopWaiting?.()
     // Settings with the same name, such as "Scale" of each model type, share one result. The page shows one of them.
-    const { keys, gates } = settingsSearchTargetOf(route.query)
     if (!keys.length || !root)
       return
 
@@ -299,19 +349,22 @@ export function useSettingsSearchReveal(container: MaybeRefOrGetter<HTMLElement 
       return null
     }
 
-    const row = findAny(keys)
-    if (row) {
-      highlight(row)
-      return
+    // The row that has the highlight. When the page renders its rows again, the highlight moves to the new row.
+    let shownRow: HTMLElement | undefined
+    const showRow = (row: HTMLElement) => {
+      shownRow = row
+      highlight(row, root)
     }
 
-    // The row is not rendered yet, or it shows only in another state. Watch the page until it settles.
     let gateShown = false
     let quiet: ReturnType<typeof setTimeout> | undefined
     const opened = new Set<HTMLElement>()
-    // The nearest gate on the page decides the next step. A collapsed section opens, because that changes only the view,
-    // and the search waits for the row again. Any other gate, such as a switch, only gets the highlight: search never changes a setting.
+    // When the row is missing, the nearest gate on the page decides the next step. A collapsed section opens, because that changes
+    // only the view, and the search waits for the row again. Any other gate, such as a switch, only gets the highlight:
+    // search never changes a setting.
     const settle = () => {
+      if (shownRow)
+        return
       for (const key of gateKeys) {
         const gate = findAny([key])
         if (!gate)
@@ -324,39 +377,56 @@ export function useSettingsSearchReveal(container: MaybeRefOrGetter<HTMLElement 
         }
         if (!gateShown) {
           gateShown = true
-          highlight(gate)
+          highlight(gate, root)
         }
         return
       }
     }
     const observer = new MutationObserver(() => {
+      if (shownRow?.isConnected)
+        return
+      // The row appeared, such as after its data loaded, or the page rendered it again.
       const found = findAny(keys)
       if (found) {
-        stopWaiting?.()
-        highlight(found)
+        showRow(found)
         return
       }
+      // A shown row that went away comes back with the list. The gates are only for a row that the page has not shown.
+      if (shownRow)
+        return
       // The page stopped changing and the setting is still missing, so the current state hides it.
       clearTimeout(quiet)
       quiet = setTimeout(settle, REVEAL_QUIET_MS)
     })
-    quiet = setTimeout(settle, REVEAL_QUIET_MS)
+
+    const row = findAny(keys)
+    if (row)
+      showRow(row)
+    else
+      quiet = setTimeout(settle, REVEAL_QUIET_MS)
     const timeout = setTimeout(() => {
-      stopWaiting?.()
-      const found = findAny(keys)
-      const gate = found ? null : findAny(gateKeys)
-      if (found)
-        highlight(found)
-      else if (gate && !gateShown)
-        highlight(gate)
-      else if (!gate)
+      if (shownRow)
+        return
+      const gate = findAny(gateKeys)
+      if (gate && !gateShown) {
+        gateShown = true
+        highlight(gate, root)
+      }
+      else if (!gate) {
         toast.info(t('settings.search.not-shown', { name: t(keys[0] ?? '') }))
+      }
     }, REVEAL_TIMEOUT_MS)
+    // The search stops following after a while, or as soon as the person scrolls, clicks, or types.
+    const follow = setTimeout(() => stopWaiting?.(), REVEAL_FOLLOW_MS)
+    const takeOver = () => stopWaiting?.()
+    TAKE_OVER_EVENTS.forEach(type => root.addEventListener(type, takeOver, { passive: true }))
     observer.observe(root, { childList: true, subtree: true })
     stopWaiting = () => {
       observer.disconnect()
       clearTimeout(timeout)
       clearTimeout(quiet)
+      clearTimeout(follow)
+      TAKE_OVER_EVENTS.forEach(type => root.removeEventListener(type, takeOver))
       stopWaiting = undefined
     }
   }, { flush: 'post', immediate: true })

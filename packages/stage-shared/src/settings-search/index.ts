@@ -85,10 +85,10 @@ export interface SettingsSearchItem {
   /** The marker of the item's row on the page. The row binds the same value to {@link SETTINGS_SEARCH_ATTRIBUTE}. */
   key: string
   /**
-   * The marker of the row to show when the item's row is not on the page, such as the card of the provider that lists a model.
-   * The model list shows only the models of the picked provider, so picking that provider is the step to take first.
+   * The markers of the rows to show when the item's row is not on the page, nearest first.
+   * For example, a voice that shows only under some models names those model cards, then the card of its provider.
    */
-  gate?: string
+  gates?: string[]
   /** A page that shows the item itself, such as the page of one card. Without it, the result opens the listing page at the row. */
   to?: string
 }
