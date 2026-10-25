@@ -3,11 +3,16 @@ import type { SherpawModelAssetBundle } from '../../libs/providers/providers/she
 
 import * as v from 'valibot'
 
-import { dataArchiveManifestPath, decodeManifestZipFile, encodeManifestZip, validateZipPaths } from '../../libs/data-transfer'
-import { exportSherpawModelAssets, restoreSherpawModelAssets, validateSherpawModelAssetBundle } from '../../libs/providers/providers/sherpaw/model-assets'
+import { dataArchiveManifestPath, decodeManifestZipFile, encodeManifestZip, exportData, validateZipPaths } from '../../libs/data-transfer'
+import { exportSherpawModelAssets, listSherpawModelAssets, removeSherpawModelAssets, restoreSherpawModelAssets, validateSherpawModelAssetBundle } from '../../libs/providers/providers/sherpaw/model-assets'
 
 const manifestPath = dataArchiveManifestPath
 const archiveFormat = 'airi-sherpaw-model-assets'
+
+interface SherpawModelRollbackSnapshot {
+  id: string
+  archive?: Blob
+}
 
 const manifestSchema = v.strictObject({
   format: v.literal(archiveFormat),
@@ -32,18 +37,43 @@ export function createSherpawModelExportAdapter(id: string): DataExportAdapter<S
 }
 
 /** Creates an adapter that validates all declared model files before restore. */
-export function createSherpawModelImportAdapter(): DataImportAdapter<SherpawModelAssetBundle, ManifestArchive> {
+export function createSherpawModelImportAdapter(): DataImportAdapter<SherpawModelAssetBundle, ManifestArchive, SherpawModelRollbackSnapshot> {
+  const validate = async ({ archive, manifest }: ManifestArchive) => {
+    const parsed = v.parse(manifestSchema, manifest)
+
+    validateZipPaths(archive, [...parsed.files, manifestPath])
+
+    const files = await readDeclaredFiles(archive, parsed.files)
+    return validateSherpawModelAssetBundle(parsed.id, parsed.revision, files)
+  }
+
   return {
     decode: async (file, onProgress) => await decodeManifestZipFile(file, onProgress),
-    validate: async ({ archive, manifest }) => {
-      const parsed = v.parse(manifestSchema, manifest)
-
-      validateZipPaths(archive, [...parsed.files, manifestPath])
-
-      const files = await readDeclaredFiles(archive, parsed.files)
-      return validateSherpawModelAssetBundle(parsed.id, parsed.revision, files)
-    },
+    validate,
     apply: async value => await restoreSherpawModelAssets(value),
+    rollback: {
+      capture: async (value, onProgress) => {
+        const status = (await listSherpawModelAssets()).find(candidate => candidate.id === value.id)
+        if (status?.state !== 'installed')
+          return { id: value.id }
+
+        const backup = await exportData(
+          createSherpawModelExportAdapter(value.id),
+          progress => onProgress?.(progress.percentage),
+        )
+        return { id: value.id, archive: backup.blob }
+      },
+      restore: async ({ id, archive }, onProgress) => {
+        if (!archive) {
+          await removeSherpawModelAssets(id)
+          return
+        }
+
+        const file = new File([archive], 'sherpaw-model-rollback.zip', { type: 'application/zip' })
+        const previous = await validate(await decodeManifestZipFile(file, onProgress))
+        await restoreSherpawModelAssets(previous)
+      },
+    },
   }
 }
 
