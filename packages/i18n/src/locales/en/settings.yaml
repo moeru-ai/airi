@@ -1618,6 +1618,29 @@ pages:
       loadMore: Load More
       delayHint: Usage records may be delayed by up to 1 minute
       ttsRequests: requests
+    usage:
+      title: Usage
+      rangeHint: Last 365 days, in your local time
+      empty: No usage yet.
+      today: Today
+      days: '{count}d'
+      fluxAmount: '{amount} Flux'
+      heatmapLabel: Flux used on each of the last 365 days
+      heatmapDay: '{flux} Flux, no new sessions | {flux} Flux, 1 new session | {flux} Flux, {count} new sessions'
+      newSessions: 'No new sessions | 1 new session | {count} new sessions'
+      layers:
+        llm: LLM
+        speech: Speech
+      summary:
+        longestSession: Longest session
+        sessions: Sessions
+        flux: Flux used
+        longestStreak: Longest streak
+        currentStreak: Current streak
+      areaChart:
+        title: Flux used, last 30 days
+      sessionChart:
+        title: New sessions, last 30 days
     packages:
       title: Flux Packages
       buy: Charge
