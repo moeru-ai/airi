@@ -93,6 +93,18 @@ export interface SettingsSearchItem {
   to?: string
 }
 
+/**
+ * The export that the build-time scan adds to a provider view, such as the Hearing controls of a transcription provider.
+ * A page renders such a view by provider at runtime, so its own scan cannot reach it. The view lists its settings instead.
+ */
+export const SETTINGS_SEARCH_VIEW_EXPORT = 'settingsSearchEntries'
+
+/** A setting of a provider view: its i18n key, and the rows to show when it is not on the page, nearest first. */
+export interface SettingsSearchViewEntry {
+  key: string
+  gates: string[]
+}
+
 /** What a provider gets from the search, so its names match the page. */
 export interface SettingsSearchContext {
   /** Translates a key in the current locale, as the page does. */

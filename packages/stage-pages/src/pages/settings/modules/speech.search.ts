@@ -13,8 +13,9 @@ function cardOf(providerId: string) {
 /** Lists the speech providers of the page, with their models and voices. The page offers the same providers as cards. */
 const provideSpeechModels: SettingsSearchProvider = async () => {
   const providers = useProviderStore().moduleSpeechProvidersMetadata.filter(provider => provider.id !== 'speech-noop')
-  const [models, voices] = await Promise.all([moduleModelItems('speech', providers, cardOf), speechVoiceItems(providers, cardOf)])
-  return [...models, ...voices]
+  // The voices of a provider with a catalog for each model need its model list, so the models load first.
+  const models = await moduleModelItems('speech', providers, cardOf)
+  return [...models, ...await speechVoiceItems(providers, cardOf)]
 }
 
 export default provideSpeechModels

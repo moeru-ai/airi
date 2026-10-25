@@ -37,7 +37,8 @@ const groups = computed(() => {
 // - A column is as wide as the widest card needs, so every name and its location fit on one line. One column holds the rest.
 // - The columns get the cards so that their heights differ the least: the tallest card first, each one into the shortest column.
 // - In a column, the cards keep the order of the results, and the column with the best card comes first.
-// Until the cards are measured, they stand in one column.
+// All cards stay in one grid in the order of the results. A card that moves to another column keeps its element, so a focused
+// link keeps the focus, and Tab follows the order of the results. Until the cards are measured, they stand in one column.
 const container = useTemplateRef<HTMLElement>('container')
 const cards = useTemplateRef<Array<InstanceType<typeof LinkGroup>>>('cards')
 const width = ref(0)
@@ -67,9 +68,11 @@ function measure() {
 useResizeObserver(container, measure)
 watch(groups, measure, { flush: 'post' })
 
-const columns = computed(() => {
-  const measured = columnWidth.value > 0 && groups.value.every(group => heights.value.has(group.category.title))
-  const fits = measured ? Math.floor((width.value + gap.value) / (columnWidth.value + gap.value)) : 1
+/** The number of columns and the column of each card, by category. `undefined` until the cards are measured. */
+const layout = computed(() => {
+  if (columnWidth.value <= 0 || !groups.value.every(group => heights.value.has(group.category.title)))
+    return undefined
+  const fits = Math.floor((width.value + gap.value) / (columnWidth.value + gap.value))
   const count = Math.max(1, Math.min(fits, groups.value.length))
   const columns = Array.from({ length: count }, () => ({ height: 0, groups: [] as Group[] }))
   const heightOf = (group: Group) => heights.value.get(group.category.title) ?? 0
@@ -79,10 +82,24 @@ const columns = computed(() => {
     shortest.groups.push(group)
     shortest.height += heightOf(group) + gap.value
   }
-  for (const column of columns)
-    column.groups.sort((left, right) => left.rank - right.rank)
-  return columns.toSorted((left, right) => (left.groups[0]?.rank ?? 0) - (right.groups[0]?.rank ?? 0))
+  const bestRank = (column: { groups: Group[] }) => Math.min(...column.groups.map(group => group.rank))
+  const columnOf = new Map<string, number>()
+  columns.toSorted((left, right) => bestRank(left) - bestRank(right))
+    .forEach((column, index) => column.groups.forEach(group => columnOf.set(group.category.title, index)))
+  return { count, columnOf }
 })
+
+// The grid has rows of 1px, and each card spans as many rows as its height and the gap below it.
+// A card with a set column takes the first free rows in that column, so the cards of a column stack in the order of the results.
+const gridStyle = computed(() => layout.value
+  ? { gridTemplateColumns: `repeat(${layout.value.count}, minmax(0, 1fr))`, gridAutoRows: '1px', gridAutoFlow: 'row dense', rowGap: '0px' }
+  : { gridTemplateColumns: 'minmax(0, 1fr)' })
+function cardStyle(group: Group) {
+  const column = layout.value?.columnOf.get(group.category.title)
+  return column === undefined
+    ? undefined
+    : { gridColumn: `${column + 1}`, gridRowEnd: `span ${(heights.value.get(group.category.title) ?? 0) + gap.value}` }
+}
 
 /** The parts of a name, with each part that matches the query marked. Bold marks a match, so color stays for hover. */
 function partsOf(title: string) {
@@ -103,35 +120,30 @@ function partsOf(title: string) {
 </script>
 
 <template>
-  <div ref="container" :class="['flex items-start gap-3']">
-    <div
-      v-for="(column, index) in columns"
-      :key="index"
-      :class="['min-w-0 flex flex-1 flex-col gap-3']"
+  <div ref="container" :class="['grid items-start gap-3']" :style="gridStyle">
+    <LinkGroup
+      v-for="group in groups"
+      ref="cards"
+      :key="group.category.title"
+      :data-category="group.category.title"
+      :title="group.category.title"
+      :icon="group.category.icon"
+      :style="cardStyle(group)"
     >
-      <LinkGroup
-        v-for="group in column.groups"
-        ref="cards"
-        :key="group.category.title"
-        :data-category="group.category.title"
-        :title="group.category.title"
-        :icon="group.category.icon"
+      <LinkGroupItem
+        v-for="result in group.results"
+        :key="`${result.to}\n${result.title}`"
+        :as="RouterLink"
+        :to="result.to"
+        :detail="result.location.join(LOCATION_SEPARATOR)"
       >
-        <LinkGroupItem
-          v-for="result in group.results"
-          :key="`${result.to}\n${result.title}`"
-          :as="RouterLink"
-          :to="result.to"
-          :detail="result.location.join(LOCATION_SEPARATOR)"
-        >
-          <template v-for="(part, partIndex) in partsOf(result.title)" :key="partIndex">
-            <b v-if="part.match" :class="['font-semibold']">{{ part.text }}</b>
-            <template v-else>
-              {{ part.text }}
-            </template>
+        <template v-for="(part, partIndex) in partsOf(result.title)" :key="partIndex">
+          <b v-if="part.match" :class="['font-semibold']">{{ part.text }}</b>
+          <template v-else>
+            {{ part.text }}
           </template>
-        </LinkGroupItem>
-      </LinkGroup>
-    </div>
+        </template>
+      </LinkGroupItem>
+    </LinkGroup>
   </div>
 </template>

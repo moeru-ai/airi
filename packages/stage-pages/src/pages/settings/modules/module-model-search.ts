@@ -1,7 +1,10 @@
-import type { SettingsSearchItem } from '@proj-airi/stage-shared/settings-search'
+import type { SettingsSearchContext, SettingsSearchItem, SettingsSearchViewEntry } from '@proj-airi/stage-shared/settings-search'
 import type { ProviderMetadata } from '@proj-airi/stage-ui/libs/providers/metadata'
+import type { ProviderViews } from '@proj-airi/stage-ui/libs/providers/views'
+import type { VoiceInfo } from '@proj-airi/stage-ui/stores/providers/provider'
 
-import { settingsSearchItemKey } from '@proj-airi/stage-shared/settings-search'
+import { SETTINGS_SEARCH_VIEW_EXPORT, settingsSearchItemKey } from '@proj-airi/stage-shared/settings-search'
+import { getDefinedProvider } from '@proj-airi/stage-ui/libs/providers/providers'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 
@@ -28,6 +31,15 @@ export type ProviderCardOf = (providerId: string) => string
 
 const ownCard: ProviderCardOf = providerId => providerId
 
+/** Loads the model catalog of each provider that lists its models, as its page does when it opens. A loaded catalog is reused. */
+async function loadModelCatalogs(providers: readonly ProviderMetadata[]) {
+  const providerStore = useProviderStore()
+  await Promise.all(providers.map(async (provider) => {
+    if (providerStore.supportsModelListing(provider.id) && providerStore.providerRuntimeState[provider.id]?.modelStatus !== 'ready')
+      await providerStore.fetchModelsForProvider(provider.id).catch(() => undefined)
+  }))
+}
+
 /**
  * Lists the providers that a module page offers, and the models of each one.
  *
@@ -35,15 +47,10 @@ const ownCard: ProviderCardOf = providerId => providerId
  * when the provider is not picked, search highlights its card, which is the step to take first.
  * A provider without a card of its own, such as the streaming variant of the official speech provider,
  * shows its models under the card that `cardOf` names.
- *
- * A catalog that the app already loaded is reused. Only a provider without one loads it, as its page does when it opens.
  */
 export async function moduleModelItems(module: ModelSearchModule, providers: readonly ProviderMetadata[], cardOf: ProviderCardOf = ownCard): Promise<SettingsSearchItem[]> {
   const providerStore = useProviderStore()
-  await Promise.all(providers.map(async (provider) => {
-    if (providerStore.supportsModelListing(provider.id) && providerStore.providerRuntimeState[provider.id]?.modelStatus !== 'ready')
-      await providerStore.fetchModelsForProvider(provider.id).catch(() => undefined)
-  }))
+  await loadModelCatalogs(providers)
 
   return providers.flatMap((provider) => {
     const card = providers.find(candidate => candidate.id === cardOf(provider.id)) ?? provider
@@ -62,25 +69,80 @@ export async function moduleModelItems(module: ModelSearchModule, providers: rea
 
 /**
  * Lists the voices of the speech providers.
- * A voice shows only under the models that it supports, and a model shows only under its picked provider.
+ * A voice shows only under the models that offer it, and a model shows only under its picked provider.
  * So the gates of a voice are the cards of those models, then the card of its provider.
+ *
+ * A provider that declares `voicesByModel` has a voice catalog for each model. Its voices come from the catalog of each model,
+ * and each voice names the models that list it. Another provider has one catalog, and a voice can name its models itself.
+ * The speech page keeps the catalog of one model, so a provider with a catalog for each model reuses it only for that model.
  */
 export async function speechVoiceItems(providers: readonly ProviderMetadata[], cardOf: ProviderCardOf = ownCard): Promise<SettingsSearchItem[]> {
   const providerStore = useProviderStore()
   const speechStore = useSpeechStore()
-  const voices = await Promise.all(providers.map(async provider =>
-    speechStore.availableVoices[provider.id] ?? await providerStore.listProviderVoices(provider.id).catch(() => undefined) ?? []))
+  await loadModelCatalogs(providers)
 
-  return providers.flatMap((provider, index) => {
+  const catalogOf = async (providerId: string, model: string | undefined, byModel: boolean): Promise<VoiceInfo[]> => {
+    const cached = speechStore.availableVoices[providerId]
+    if (cached && (!byModel || speechStore.voiceCatalogIdentities[providerId]?.model === model))
+      return cached
+    return await providerStore.listProviderVoices(providerId, model).catch(() => undefined) ?? []
+  }
+
+  const items = await Promise.all(providers.map(async (provider) => {
     const card = providers.find(candidate => candidate.id === cardOf(provider.id)) ?? provider
-    return voices[index].map(voice => ({
+    const byModel = getDefinedProvider(provider.id)?.capabilities?.speech?.voicesByModel === true
+    const models = byModel ? providerStore.getModelsForProvider(provider.id).map(model => model.id) : []
+    const catalogs = models.length
+      ? await Promise.all(models.map(async model => ({ model, voices: await catalogOf(provider.id, model, true) })))
+      : [{ model: undefined, voices: await catalogOf(provider.id, undefined, byModel) }]
+
+    // Each voice once, with the models whose catalog lists it.
+    const voices = new Map<string, { voice: VoiceInfo, models: string[] }>()
+    for (const catalog of catalogs) {
+      for (const voice of catalog.voices) {
+        const entry = voices.get(voice.id) ?? { voice, models: [] }
+        if (catalog.model)
+          entry.models.push(catalog.model)
+        voices.set(voice.id, entry)
+      }
+    }
+    return [...voices.values()].map(({ voice, models: listedBy }) => ({
       title: voice.name || voice.id,
       key: speechVoiceSearchKey(provider.id, voice.id),
       gates: [
-        ...(voice.compatibleModels ?? []).map(model => moduleModelSearchKey('speech', provider.id, model)),
+        ...(listedBy.length ? listedBy : voice.compatibleModels ?? []).map(model => moduleModelSearchKey('speech', provider.id, model)),
         moduleProviderSearchKey('speech', card.id),
       ],
       section: card.localizedName,
     }))
-  })
+  }))
+  return items.flat()
+}
+
+/**
+ * Lists the settings of the views that the providers add to a module page, such as the Hearing controls of a transcription provider.
+ *
+ * The build-time scan gives each view the list of its settings. The page shows only the view of the picked provider,
+ * so the provider card is the last gate of each setting.
+ */
+export async function providerViewItems(
+  module: ModelSearchModule,
+  view: keyof ProviderViews,
+  providers: readonly ProviderMetadata[],
+  t: SettingsSearchContext['t'],
+): Promise<SettingsSearchItem[]> {
+  const providerStore = useProviderStore()
+  const items = await Promise.all(providers.map(async (provider) => {
+    const load = providerStore.findProviderDefinition(provider.id)?.views?.[view]
+    if (!load)
+      return []
+    const entries: unknown = Reflect.get(await load(), SETTINGS_SEARCH_VIEW_EXPORT)
+    return (Array.isArray(entries) ? entries as SettingsSearchViewEntry[] : []).map(entry => ({
+      title: t(entry.key),
+      key: entry.key,
+      gates: [...entry.gates, moduleProviderSearchKey(module, provider.id)],
+      section: provider.localizedName,
+    }))
+  }))
+  return items.flat()
 }

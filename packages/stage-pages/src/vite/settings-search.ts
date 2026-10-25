@@ -4,7 +4,7 @@ import type { SFCDescriptor, SFCTemplateBlock } from 'vue/compiler-sfc'
 import { createHash } from 'node:crypto'
 import { access, readFile } from 'node:fs/promises'
 
-import { SETTINGS_SEARCH_ATTRIBUTE } from '@proj-airi/stage-shared/settings-search'
+import { SETTINGS_SEARCH_ATTRIBUTE, SETTINGS_SEARCH_VIEW_EXPORT } from '@proj-airi/stage-shared/settings-search'
 import { babelParse, MagicString, parse } from 'vue/compiler-sfc'
 
 type TemplateRoot = NonNullable<SFCTemplateBlock['ast']>
@@ -464,6 +464,42 @@ function bindingsOf(program: ScriptProgram, imports: ReadonlyMap<string, ImportB
   return bindings
 }
 
+/**
+ * The modules that the provider definitions of a program load as views, such as `views: { hearing: () => import('./hearing-settings.vue') }`.
+ * A provider definition is the first argument of `defineProvider()`.
+ */
+function providerViewImportsOf(program: ScriptProgram) {
+  const specifiers: string[] = []
+  const visit = (node: unknown) => {
+    if (!node || typeof node !== 'object')
+      return
+    if (Array.isArray(node)) {
+      node.forEach(visit)
+      return
+    }
+    const call = node as Expression
+    const [definition] = call.type === 'CallExpression' && call.callee.type === 'Identifier' && call.callee.name === 'defineProvider' ? call.arguments : []
+    const views = definition?.type === 'ObjectExpression'
+      ? definition.properties.find(property => property.type === 'ObjectProperty' && property.key.type === 'Identifier' && property.key.name === 'views')
+      : undefined
+    if (views?.type === 'ObjectProperty' && views.value.type === 'ObjectExpression') {
+      for (const view of views.value.properties) {
+        const loader = view.type === 'ObjectProperty' ? view.value : undefined
+        const body = loader?.type === 'ArrowFunctionExpression' ? loader.body : undefined
+        const [specifier] = body?.type === 'CallExpression' && body.callee.type === 'Import' ? body.arguments : []
+        if (specifier?.type === 'StringLiteral')
+          specifiers.push(specifier.value)
+      }
+    }
+    for (const [name, child] of Object.entries(node)) {
+      if (name !== 'loc' && name !== 'leadingComments' && name !== 'trailingComments')
+        visit(child)
+    }
+  }
+  visit(program.body)
+  return specifiers
+}
+
 /** The marker for keys that the build knows: one string, with the keys separated by spaces, as {@link SETTINGS_SEARCH_ATTRIBUTE} reads it. */
 function markerOf(keys: string[]) {
   return `'${[...new Set(keys)].join(' ')}'`
@@ -680,6 +716,44 @@ function usageOf(element: TemplateElement): ComponentUsage {
 }
 
 /**
+ * The gate of each conditional setting on a page or in a view.
+ *
+ * The gate is the row that controls the innermost condition of the setting, such as the switch that binds the value
+ * that its `v-if` reads, or the section that holds it. Search highlights the gate when the setting itself is not on the page.
+ * A control can have a gate of its own, such as a switch inside a collapsed section, so the gates of gates are in the result too.
+ */
+function gatesOf(entries: readonly ScanEntry[], controls: readonly ScanEntry[]) {
+  const present = new Set([...entries, ...controls].map(item => item.key))
+  const controlsByKey = Map.groupBy(controls, control => control.key)
+  const gateOf = (item: ScanEntry) => {
+    for (const condition of item.conditions.toReversed()) {
+      const gate = condition.gates.find(key => key !== item.key && present.has(key))
+      if (gate)
+        return gate
+    }
+    return undefined
+  }
+  const gates: Record<string, string> = {}
+  const pending = [...entries]
+  for (let item = pending.shift(); item; item = pending.shift()) {
+    const gate = gates[item.key] ? undefined : gateOf(item)
+    if (!gate)
+      continue
+    gates[item.key] = gate
+    pending.push(...controlsByKey.get(gate) ?? [])
+  }
+  return gates
+}
+
+/** The gates of a key, nearest first, following the gate of each gate. */
+function gateChainOf(key: string, gates: Readonly<Record<string, string>>) {
+  const chain: string[] = []
+  for (let gate = gates[key]; gate && !chain.includes(gate); gate = gates[gate])
+    chain.push(gate)
+  return chain
+}
+
+/**
  * Builds the settings search index at build time and marks the searchable rows.
  *
  * Use when:
@@ -715,6 +789,11 @@ export function createSettingsSearch() {
   /** Files that the scan reached. Only these files get row markers. */
   const scannedFiles = new Set<string>()
   const unreadableNames = new Map<string, UnreadableName>()
+  /**
+   * Components that a provider definition loads as a view. A page renders such a view by provider at runtime,
+   * so the page scan cannot reach it. The view gets the marks of its settings, and an export that lists them.
+   */
+  const providerViews = new Set<string>()
   /** The value of each top-level name, by file and name. */
   const sources = new Map<string, Promise<ValueSource | undefined>>()
   /** The runtime item provider of each settings route, by route path. */
@@ -1441,7 +1520,14 @@ export function createSettingsSearch() {
       return `export default {\n${entries.join('\n')}\n}\n`
     },
     async transform(code, id) {
-      if (id.includes('?') || !scannedFiles.has(id))
+      if (id.includes('?'))
+        return undefined
+      if (SCRIPT_FILE.test(id)) {
+        if (!id.includes('/node_modules/') && code.includes('defineProvider(') && code.includes('views'))
+          await registerProviderViews(code, id)
+        return undefined
+      }
+      if (!scannedFiles.has(id) && !providerViews.has(id))
         return undefined
       const descriptor = parse(code, { filename: id }).descriptor
       const root = descriptor.template?.ast
@@ -1477,8 +1563,39 @@ export function createSettingsSearch() {
         else
           output.appendLeft(element.loc.start.offset + 1 + element.tag.length, attribute)
       }
+      if (providerViews.has(id))
+        await exportViewEntries(descriptor, id, output)
       return output.hasChanged() ? { code: output.toString(), map: output.generateMap({ source: id, hires: true }) } : undefined
     },
+  }
+
+  /** Records the views that the provider definitions of a module load. A view that loaded before, as after an edit, loads again. */
+  async function registerProviderViews(code: string, file: string) {
+    const program = await readProgram(file, code)
+    for (const specifier of program ? providerViewImportsOf(program) : []) {
+      const view = await resolveFile(specifier, file)
+      if (!view?.endsWith('.vue') || providerViews.has(view))
+        continue
+      providerViews.add(view)
+      const module = server?.moduleGraph.getModuleById(view)
+      if (module)
+        server?.moduleGraph.invalidateModule(module)
+    }
+  }
+
+  /** Adds the settings of a provider view to its module as {@link SETTINGS_SEARCH_VIEW_EXPORT}, each with its gates. */
+  async function exportViewEntries(descriptor: SFCDescriptor, file: string, output: MagicString) {
+    const scan = await scanComponent(file, NO_USAGE, new Set())
+    const gates = gatesOf(scan.entries, scan.controls)
+    const entries = [...new Set(scan.entries.map(entry => entry.key))].map(key => ({ key, gates: gateChainOf(key, gates) }))
+    const exported = `\nexport const ${SETTINGS_SEARCH_VIEW_EXPORT} = ${JSON.stringify(entries)}\n`
+    if (descriptor.script) {
+      output.appendLeft(descriptor.script.loc.end.offset, exported)
+      return
+    }
+    // A plain script block next to `<script setup>` holds the export. Both blocks need the same language.
+    const lang = descriptor.scriptSetup?.lang ? ` lang="${descriptor.scriptSetup.lang}"` : ''
+    output.append(`\n<script${lang}>${exported}</script>\n`)
   }
 
   async function extendRoute(route: SettingsSearchRouteNode) {
@@ -1491,29 +1608,7 @@ export function createSettingsSearch() {
     await updateProvider(route.fullPath, file, scan.marksItems)
 
     const entries = scan.entries.filter(entry => entry.key !== route.meta.titleKey)
-    // The gate of a conditional setting is the row that controls its innermost condition, such as the switch that binds the value
-    // that its `v-if` reads, or the section that holds it. Search highlights the gate when the setting itself is not on the page.
-    // A control can have a gate of its own, such as a switch inside a collapsed section, so the gates of gates are written too.
-    const onPage = new Set([...entries, ...scan.controls].map(item => item.key))
-    const controlsByKey = Map.groupBy(scan.controls, control => control.key)
-    const gateOf = (item: ScanEntry) => {
-      for (const condition of item.conditions.toReversed()) {
-        const gate = condition.gates.find(key => key !== item.key && onPage.has(key))
-        if (gate)
-          return gate
-      }
-      return undefined
-    }
-    const gates: Record<string, string> = {}
-    const pending = [...entries]
-    for (let item = pending.shift(); item; item = pending.shift()) {
-      const gate = gates[item.key] ? undefined : gateOf(item)
-      if (!gate)
-        continue
-      gates[item.key] = gate
-      pending.push(...controlsByKey.get(gate) ?? [])
-    }
-
+    const gates = gatesOf(entries, scan.controls)
     const keys = [...new Set(entries.map(entry => entry.key))]
     if (keys.length)
       route.addToMeta({ searchKeys: keys, ...(Object.keys(gates).length ? { searchGates: gates } : {}) })
