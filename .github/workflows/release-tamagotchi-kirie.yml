@@ -33,7 +33,9 @@ env:
   PRODUCT_NAME: 'AIRI-Kirie'
   GODOT_VERSION: '4.7.2'
   APP_DIR: apps/stage-tamagotchi-kirie
-  VERSION: ''
+  # Not named VERSION: MSBuild imports env vars as properties, and a
+  # nightly-* string in $(Version) breaks NuGet restore (NU1105).
+  KIRIE_VERSION: ''
   ARTIFACT_NAME: ''
   MISE_EXEC_AUTO_INSTALL: 'false'
   MISE_NOT_FOUND_AUTO_INSTALL: 'false'
@@ -280,11 +282,11 @@ jobs:
           if [ -n "${INPUT_TAG:-}" ]; then
             TAG_ARGS=(--tag "$INPUT_TAG")
           fi
-          VERSION="$(mise x -- node scripts/artifacts-version.mjs --get-version "${TAG_ARGS[@]}")"
+          KIRIE_VERSION="$(mise x -- node scripts/artifacts-version.mjs --get-version "${TAG_ARGS[@]}")"
           ARTIFACT_NAME="$(mise x -- node scripts/artifacts-version.mjs --get-artifact-name --platform '${{ matrix.platform }}' --arch '${{ matrix.arch }}' "${TAG_ARGS[@]}")"
-          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "KIRIE_VERSION=$KIRIE_VERSION" >> "$GITHUB_ENV"
           echo "ARTIFACT_NAME=$ARTIFACT_NAME" >> "$GITHUB_ENV"
-          echo "Resolved VERSION=$VERSION ARTIFACT_NAME=$ARTIFACT_NAME"
+          echo "Resolved KIRIE_VERSION=$KIRIE_VERSION ARTIFACT_NAME=$ARTIFACT_NAME"
 
       - name: Install Kirie plugins (doctor)
         working-directory: ${{ env.APP_DIR }}
