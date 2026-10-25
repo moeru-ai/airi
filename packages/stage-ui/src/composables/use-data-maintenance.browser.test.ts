@@ -9,6 +9,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { createApp, nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
 
+import { importData } from '../libs/data-transfer'
 import { injectKeyPiniaSynced } from '../libs/pinia/synced-context'
 import { toStoredVoiceprint } from '../libs/voice/voiceprint'
 import { useDisplayModelsStore } from '../stores/display-models'
@@ -260,6 +261,31 @@ it('persists restored consciousness policies', async () => {
   expect(reopened.reasoning).toBe(true)
   expect(reopened.temperatureEnabled).toBe(true)
   expect(reopened.topPEnabled).toBe(true)
+})
+
+it('restores previous module settings when applying an import fails', async () => {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
+  const { pinia, runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
+  await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
+  const settings = useConsciousnessSettingsStore(pinia)
+  await settings.setReasoning(true)
+  await settings.setTemperatureEnabled(true)
+  await settings.setTopPEnabled(true)
+
+  const exporter = maintenance.createModuleSettingsExportAdapter()
+  const target = await exporter.read()
+  target.consciousnessSettings.reasoning = false
+  target.consciousnessSettings.temperatureEnabled = false
+  target.consciousnessSettings.topPEnabled = false
+  const file = new File([await exporter.encode(target)], 'modules.json')
+  const importer = maintenance.createModuleSettingsImportAdapter()
+  vi.spyOn(settings, 'setTopPEnabled').mockRejectedValueOnce(new Error('Module setting apply failed'))
+
+  await expect(importData(importer, file)).rejects.toThrow('Module setting apply failed')
+
+  expect(settings.reasoning).toBe(true)
+  expect(settings.temperatureEnabled).toBe(true)
+  expect(settings.topPEnabled).toBe(true)
 })
 
 it('uses the same fixed contract for export and import validation', async () => {

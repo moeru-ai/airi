@@ -256,13 +256,27 @@ export function useDataMaintenance() {
     schema: StoreBundleSchema,
     owners: Record<string, StoreStateOwner>,
     afterApply?: () => void | Promise<void>,
-  ): DataImportAdapter<ValidatedStoreBundle> {
+  ): DataImportAdapter<ValidatedStoreBundle, unknown, Blob> {
+    const exporter = createStoreExportAdapter(schema, owners)
+    const validate = async (value: unknown) => v.parse(schema, value).data
+    const apply = async (value: ValidatedStoreBundle) => {
+      await restoreStoreBundle(value, owners)
+      await afterApply?.()
+    }
+
     return {
       decode: decodeJsonFile,
-      validate: async value => v.parse(schema, value).data,
-      apply: async (value) => {
-        await restoreStoreBundle(value, owners)
-        await afterApply?.()
+      validate,
+      apply,
+      rollback: {
+        capture: async (_value, onProgress) => {
+          return await exporter.encode(await exporter.read(), onProgress)
+        },
+        restore: async (snapshot) => {
+          const file = new File([snapshot], 'settings-rollback.json', { type: 'application/json' })
+          const previous = await validate(await decodeJsonFile(file))
+          await apply(previous)
+        },
       },
     }
   }
