@@ -14,7 +14,9 @@
 #   - manual with tag              → tag with leading "v" stripped
 #
 # Toolchain:
-#   - Root .tool-versions → nodejs, pnpm, dotnet (via jdx/mise-action)
+#   - Root .tool-versions → nodejs, pnpm (via jdx/mise-action)
+#   - .NET SDK → actions/setup-dotnet (same as repo ci.yml; mise dotnet has
+#     been associated with opaque MSB4181 RestoreTask failures on GHA)
 #   - apps/stage-tamagotchi-kirie/mise.toml → godot + java (via mise)
 #   - Windows Godot: chickensoft-games/setup-godot (mise godot is unreliable there)
 #   - Android SDK packages: android-actions/setup-android (mise does not install these)
@@ -172,7 +174,7 @@ jobs:
         with:
           working_directory: ${{ env.APP_DIR }}
           install: true
-          install_args: nodejs pnpm dotnet java godot
+          install_args: nodejs pnpm java godot
           cache: true
 
       - name: Install toolchain (mise, no Godot)
@@ -181,7 +183,7 @@ jobs:
         with:
           working_directory: ${{ env.APP_DIR }}
           install: true
-          install_args: nodejs pnpm dotnet java
+          install_args: nodejs pnpm java
           cache: true
 
       - name: Setup Godot Mono + export templates (Windows)
@@ -231,6 +233,12 @@ jobs:
           mv "$TMP/extracted/templates" "$DEST"
           echo "Installed export templates to $DEST"
           ls -la "$DEST" | head
+
+      # Prefer official setup-dotnet over mise's dotnet-root for NuGet restore reliability.
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
 
       - name: Setup Android SDK
         if: matrix.platform == 'android'
@@ -287,7 +295,24 @@ jobs:
       # Surface NuGet/MSB4181 detail that `kirie build` otherwise swallows.
       - name: Dotnet restore (verbose)
         working-directory: ${{ env.APP_DIR }}
-        run: mise x -- dotnet restore StageTamagotchiKirie.csproj --verbosity detailed
+        run: |
+          set -euo pipefail
+          echo "dotnet=$(command -v dotnet)"
+          dotnet --info
+          dotnet nuget list source || true
+          rm -rf .godot/mono/temp/obj obj bin
+          if ! dotnet restore StageTamagotchiKirie.csproj --force --force-evaluate --verbosity detailed; then
+            echo '----- project.assets.json -----'
+            assets='.godot/mono/temp/obj/project.assets.json'
+            if [ -f "$assets" ]; then
+              python3 -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p,encoding="utf-8-sig")); print("success=", data.get("success")); print("logs=", json.dumps(data.get("logs"), indent=2)[:8000]); libs=data.get("libraries") or {}; print("libraries=", sorted(libs)[:80], "count=", len(libs))' "$assets" || sed -n '1,200p' "$assets"
+            else
+              echo "(no $assets)"
+            fi
+            echo '----- nuget cache gdkirie -----'
+            ls -la "${HOME}/.nuget/packages/gdkirie.platform/" 2>/dev/null || true
+            exit 1
+          fi
 
       - name: Build web + C# (kirie build)
         working-directory: ${{ env.APP_DIR }}
