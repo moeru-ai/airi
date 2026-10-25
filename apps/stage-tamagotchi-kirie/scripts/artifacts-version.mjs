@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import process from 'node:process'
+
 /**
  * Version / artifact naming helper for stage-tamagotchi-kirie CI.
  * No electron-builder dependency — mirrors Electron nightly naming:
@@ -15,7 +17,6 @@
 import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
