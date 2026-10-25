@@ -24,6 +24,12 @@ const rendererRoot = resolve(join(import.meta.dirname, 'src-web', 'src', 'render
 
 export default defineKirieConfig({
   plugins: [core, notifications],
+  // Point doctor at the csproj explicitly. When a .sln sits beside the csproj,
+  // bare `dotnet msbuild -getProperty…` (no project arg) prefers the solution
+  // and fails with MSB1063 — which is what broke CI after we committed the .sln.
+  godot: {
+    csproj: 'StageTamagotchiKirie.csproj',
+  },
   web: {
     vite: {
       build: {

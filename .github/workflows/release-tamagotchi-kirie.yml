@@ -294,9 +294,12 @@ jobs:
           mise x -- pnpm kirie doctor --fix plugin:core
           mise x -- pnpm kirie doctor --fix plugin:notifications
 
-      # npm-bundled kirie addon omits libraries/android/*.aar and ios xcframeworks;
-      # those only ship in gd-kirie/gd-kirie's kirie-addon.zip (local installs that
-      # used the release zip already have them — which is why local Android works).
+      # Official split (gd-kirie docs/addon-release.md + README Installation):
+      # `kirie doctor --fix plugin:core` installs the *npm-bundled* addon (GDScript
+      # + desktop CEF), which intentionally omits Android AAR / iOS xcframeworks.
+      # Those native artifacts ship only in the GitHub Release `kirie-addon.zip`
+      # (manual install path). Overlay that zip's libraries/ios onto the doctor
+      # install so CI matches a local machine that extracted the release zip.
       - name: Overlay Kirie native libraries (AAR / xcframework)
         if: matrix.platform == 'android' || matrix.platform == 'ios'
         working-directory: ${{ env.APP_DIR }}
