@@ -124,10 +124,17 @@ export async function exportSherpawModelAssets(id: string): Promise<SherpawModel
   return { id, revision: model.revision, files: Object.fromEntries(entries) }
 }
 
+function isSherpawMetadataFilename(filename: string): boolean {
+  const filenameWithoutRootSlash = filename.startsWith('/') ? filename.slice(1) : filename
+  return filenameWithoutRootSlash !== '.'
+    && filenameWithoutRootSlash !== '..'
+    && /^[\w.-]+$/.test(filenameWithoutRootSlash)
+}
+
 const metadataSchema = v.strictObject({
   files: v.array(v.pipe(
     v.strictObject({
-      filename: v.pipe(v.string(), v.check(filename => /^[\w.-]+$/.test(filename))),
+      filename: v.pipe(v.string(), v.check(isSherpawMetadataFilename)),
       start: v.pipe(v.number(), v.finite()),
       end: v.pipe(v.number(), v.finite()),
     }),
