@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { settingsSearchProviders } from '@proj-airi/stage-pages/settings-search-providers'
-import { IconItem, SettingsSearchResults } from '@proj-airi/stage-ui/components'
+import { IconItem, SettingsSearchField, SettingsSearchResults } from '@proj-airi/stage-ui/components'
 import { useSettingsSearch } from '@proj-airi/stage-ui/composables/use-settings-search'
-import { Input } from '@proj-airi/ui'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -33,16 +32,7 @@ const searching = computed(() => searchQuery.value.trim() !== '')
     <!-- The search stays at the top while the list scrolls under it, as the page header does above it. -->
     <!-- It is the first element, so it rests where it sticks and does not move when the list starts to scroll. -->
     <div :class="['sticky top-0 z-10', 'bg-$bg-color', 'pb-2']">
-      <div :class="['relative']">
-        <div :class="['i-solar:magnifer-linear', 'pointer-events-none absolute left-3 top-1/2 -translate-y-1/2', 'text-neutral-400 dark:text-neutral-500']" />
-        <Input
-          v-model="searchQuery"
-          type="search"
-          :placeholder="t('settings.search.placeholder')"
-          :aria-label="t('settings.search.placeholder')"
-          :class="['pl-9!']"
-        />
-      </div>
+      <SettingsSearchField v-model="searchQuery" />
     </div>
     <!-- Results appear at once while the user types, so they skip the enter animation of the categories. -->
     <div v-if="searching" :class="['pb-12']">
