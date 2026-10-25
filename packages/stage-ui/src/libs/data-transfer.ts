@@ -20,7 +20,7 @@ export interface DataExportAdapter<T> {
   containsSensitiveInformation?: (value: T) => boolean
 }
 
-export interface DataImportAdapter<T, Decoded = unknown> {
+export interface DataImportAdapter<T, Decoded = unknown, Rollback = never> {
   /** Decodes the selected file before its data format is validated. */
   decode: (file: File, onProgress?: (percentage: number) => void) => Promise<Decoded>
 
@@ -29,6 +29,12 @@ export interface DataImportAdapter<T, Decoded = unknown> {
 
   /** Applies the validated value to its existing data owner. */
   apply: (value: T) => Promise<void>
+
+  /** Captures the prior value before apply and restores it when apply fails. */
+  rollback?: {
+    capture: (value: T, onProgress?: (percentage: number) => void) => Promise<Rollback>
+    restore: (snapshot: Rollback, onProgress?: (percentage: number) => void) => Promise<void>
+  }
 }
 
 export interface DataExportResult {
@@ -70,9 +76,9 @@ export async function exportData<T>(adapter: DataExportAdapter<T>, onProgress?: 
   return { blob, containsSensitiveInformation }
 }
 
-/** Runs decode, validation, and apply in order. It never applies a value after decode or validation fails. */
-export async function importData<T, Decoded = unknown>(
-  adapter: DataImportAdapter<T, Decoded>,
+/** Decodes and validates before apply. Adapters with rollback restore their captured value when apply fails. */
+export async function importData<T, Decoded = unknown, Rollback = never>(
+  adapter: DataImportAdapter<T, Decoded, Rollback>,
   file: File,
   onProgress?: DataTransferProgressHandler,
 ): Promise<void> {
@@ -80,8 +86,21 @@ export async function importData<T, Decoded = unknown>(
   const decoded = await adapter.decode(file, percentage => onProgress?.({ phase: 'decode', percentage }))
   onProgress?.({ phase: 'validate', percentage: 0 })
   const value = await adapter.validate(decoded)
-  onProgress?.({ phase: 'apply', percentage: 0 })
-  await adapter.apply(value)
+  const rollback = adapter.rollback
+  if (rollback) {
+    const snapshot = await rollback.capture(value, percentage => onProgress?.({ phase: 'encode', percentage }))
+    onProgress?.({ phase: 'apply', percentage: 0 })
+    await adapter.apply(value).catch(error =>
+      rollback.restore(snapshot, percentage => onProgress?.({ phase: 'apply', percentage })).then(
+        () => { throw error },
+        (rollbackError) => { throw new AggregateError([error, rollbackError], 'Import failed and rollback failed.') },
+      ),
+    )
+  }
+  else {
+    onProgress?.({ phase: 'apply', percentage: 0 })
+    await adapter.apply(value)
+  }
   onProgress?.({ phase: 'apply', percentage: 100 })
 }
 
