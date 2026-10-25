@@ -13,30 +13,34 @@ import { toast } from 'vue-sonner'
 
 import { useProviderStore } from '../stores/providers/provider'
 
+/** The top-level settings page that holds a search result, such as "Modules". */
+export interface SettingsSearchCategory {
+  title: string
+  icon?: string
+}
+
 /** A page or a setting that a settings search can open. */
 export interface SettingsSearchResult {
   /** The name of the page or the setting. */
   title: string
-  /** The pages above the result. A top-level page shows its own description. */
-  description: string
-  icon?: string
+  /** The top-level page that holds the result. A top-level page is its own category. */
+  category: SettingsSearchCategory
+  /** The pages and the section between the category and the result, from the top. */
+  location: string[]
   to: string
 }
 
 /** A settings page in the search index. */
 interface SearchPage {
   title: string
-  /** The titles of the pages above this page, from the top. */
+  /** The titles of the pages above this page, from the top. The first one is the category. */
   location: string[]
-  description: string
-  icon?: string
+  category: SettingsSearchCategory
   searchKeys: string[]
 }
 
 const SETTINGS_ROOT = '/settings'
 const PROVIDERS_PAGE = '/settings/providers'
-/** Joins the page titles of a location, for example "Modules › Hearing". */
-const LOCATION_SEPARATOR = ' › '
 /** A page can render its rows after async data loads. Stop waiting for the row after this time. */
 const REVEAL_TIMEOUT_MS = 3000
 /** When the page stops changing for this long and the row is still missing, the current state hides it. */
@@ -133,20 +137,19 @@ export function useSettingsSearch(
       pages.set(route.path, {
         title,
         location: [],
-        description: meta.descriptionKey ? t(meta.descriptionKey) : meta.description ?? '',
-        icon: meta.icon,
+        category: { title, icon: meta.icon },
         searchKeys: meta.searchKeys ?? [],
       })
     }
 
-    // The location of a page is the titled pages on its path, from the top.
+    // The location of a page is the titled pages on its path, from the top. The top one is its category.
     for (const [path, page] of pages) {
       const segments = path.slice(SETTINGS_ROOT.length + 1).split('/')
       const ancestors = segments.slice(0, -1)
         .map((_, end) => pages.get(`${SETTINGS_ROOT}/${segments.slice(0, end + 1).join('/')}`))
         .filter(ancestor => ancestor !== undefined)
       page.location = ancestors.map(ancestor => ancestor.title)
-      page.icon ??= ancestors.findLast(ancestor => ancestor.icon)?.icon
+      page.category = ancestors[0]?.category ?? page.category
     }
 
     // Provider pages take their names from the provider registry, as the providers page shows them.
@@ -161,8 +164,10 @@ export function useSettingsSearch(
     // Some providers keep their settings on a module page, such as a local transcriber on the speech recognition page.
     // Such a provider is a result of its own, under that page, and the page keeps its own entry and settings.
     const providerPages: Array<[string, SearchPage]> = []
-    for (const [category, providers] of providerGroups) {
-      const location = [providersPage?.title, t(`settings.pages.providers.categories.${category}.title`)].filter(title => title !== undefined)
+    for (const [kind, providers] of providerGroups) {
+      if (!providersPage)
+        break
+      const location = [providersPage.title, t(`settings.pages.providers.categories.${kind}.title`)]
       for (const provider of providers) {
         // The providers page hides the No Speech choice. It has no settings.
         if (!provider.to || provider.id === 'speech-noop')
@@ -172,8 +177,7 @@ export function useSettingsSearch(
         providerPages.push([provider.to, {
           title: provider.localizedName,
           location: routePage ? [...routePage.location, routePage.title] : location,
-          description: location.join(LOCATION_SEPARATOR),
-          icon: provider.icon ?? providersPage?.icon,
+          category: routePage?.category ?? providersPage.category,
           searchKeys: routePage ? [] : meta?.searchKeys ?? [],
         }])
       }
@@ -181,22 +185,26 @@ export function useSettingsSearch(
     const providerPageByPath = new Map(providerPages.toReversed())
 
     const results: SettingsSearchResult[] = []
+    // A location starts with the category. The result names the category apart, so its location is what comes after it.
+    const below = (titles: string[]) => titles.slice(1)
     // A runtime item opens its own page, or the listing page at its row. Its location is the page that lists it.
     for (const { path, item } of items.value) {
       const itemPath = (item.to ?? '').split('?')[0]
       const listing = pages.get(path) ?? pages.get(itemPath) ?? providerPageByPath.get(itemPath)
+      if (!listing)
+        continue
       results.push({
         title: item.title,
-        description: [...(listing ? [...listing.location, listing.title] : []), ...(item.section ? [item.section] : [])].join(LOCATION_SEPARATOR),
-        icon: listing?.icon,
+        category: listing.category,
+        location: below([...listing.location, listing.title, ...(item.section ? [item.section] : [])]),
         to: item.to ?? settingsSearchLocation(path, { keys: [item.key], gates: item.gates }),
       })
     }
     for (const [path, page] of [...pages, ...providerPages]) {
       results.push({
         title: page.title,
-        description: page.location.length ? page.location.join(LOCATION_SEPARATOR) : page.description,
-        icon: page.icon,
+        category: page.category,
+        location: below(page.location),
         to: path,
       })
       // A section and its switch often share a name, such as "Microphone", and each model type has its own "Scale".
@@ -210,8 +218,8 @@ export function useSettingsSearch(
       for (const [title, keys] of keysByTitle) {
         results.push({
           title,
-          description: [...page.location, page.title].join(LOCATION_SEPARATOR),
-          icon: page.icon,
+          category: page.category,
+          location: below([...page.location, page.title]),
           to: settingsSearchLocation(path, { keys }),
         })
       }
@@ -220,7 +228,7 @@ export function useSettingsSearch(
     // Runtime items come first, so the result that points to a row stays.
     const seen = new Set<string>()
     return results.filter((result) => {
-      const key = `${result.to.split('?')[0]}\n${result.title}\n${result.description}`
+      const key = [result.to.split('?')[0], result.title, result.category.title, ...result.location].join('\n')
       if (seen.has(key))
         return false
       seen.add(key)

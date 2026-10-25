@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconItem, RippleGrid } from '@proj-airi/stage-ui/components'
+import { IconItem, RippleGrid, SettingsSearchResults } from '@proj-airi/stage-ui/components'
 import { useRippleGridState } from '@proj-airi/stage-ui/composables/use-ripple-grid-state'
 import { useSettingsSearch } from '@proj-airi/stage-ui/composables/use-settings-search'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
@@ -65,18 +65,11 @@ const searching = computed(() => searchQuery.value.trim() !== '')
       </div>
     </div>
     <!-- Results appear at once while the user types, so they skip the enter animation of the categories. -->
-    <div v-if="searching" :class="['flex flex-col gap-4', 'pb-12']">
+    <div v-if="searching" :class="['pb-12']">
       <p v-if="!searchResults.length" :class="['text-sm text-neutral-500 dark:text-neutral-400']">
         {{ t('settings.search.empty', { query: searchQuery.trim() }) }}
       </p>
-      <IconItem
-        v-for="result in searchResults"
-        :key="`${result.to}\n${result.title}`"
-        :title="result.title"
-        :description="result.description"
-        :icon="result.icon"
-        :to="result.to"
-      />
+      <SettingsSearchResults v-else :results="searchResults" :query="searchQuery" />
     </div>
     <div v-else pb-12>
       <RippleGrid
