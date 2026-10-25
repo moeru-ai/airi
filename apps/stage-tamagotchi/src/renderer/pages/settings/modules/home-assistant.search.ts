@@ -1,21 +1,23 @@
 import type { SettingsSearchProvider } from '@proj-airi/stage-shared/settings-search'
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { settingsSearchItemKey } from '@proj-airi/stage-shared/settings-search'
 import { useHomeAssistantStore } from '@proj-airi/stage-ui/stores/modules/home-assistant'
 
 import { homeAssistantGetConfig } from '../../../../shared/eventa/home-assistant'
 import { useTamagotchiHomeAssistantStore } from '../../../stores/tools/home-assistant'
 
-const ENTITY_KEY_PREFIX = 'home-assistant-entity:'
+const ENTITY_KIND = 'home-assistant-entity'
 
 /** The marker of a device's tile. The page and the provider share it. */
 export function homeAssistantEntitySearchKey(entityId: string) {
-  return `${ENTITY_KEY_PREFIX}${entityId}`
+  return settingsSearchItemKey(ENTITY_KIND, entityId)
 }
 
 /** The device that a search result names, or `undefined` for any other setting. */
 export function homeAssistantEntityOfSearchKey(key: unknown) {
-  return typeof key === 'string' && key.startsWith(ENTITY_KEY_PREFIX) ? key.slice(ENTITY_KEY_PREFIX.length) : undefined
+  const prefix = `${ENTITY_KIND}:`
+  return typeof key === 'string' && key.startsWith(prefix) ? decodeURIComponent(key.slice(prefix.length)) : undefined
 }
 
 /**

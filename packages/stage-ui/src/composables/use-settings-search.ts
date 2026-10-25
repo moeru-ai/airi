@@ -4,7 +4,7 @@ import type { MaybeRefOrGetter } from 'vue'
 import type { ProviderMetadata } from '../libs/providers/metadata'
 
 import { errorMessageFrom } from '@moeru/std'
-import { SETTINGS_SEARCH_ATTRIBUTE, SETTINGS_SEARCH_QUERY } from '@proj-airi/stage-shared/settings-search'
+import { SETTINGS_SEARCH_ATTRIBUTE, SETTINGS_SEARCH_GATE_QUERY, SETTINGS_SEARCH_QUERY, settingsSearchLocation, settingsSearchTargetOf } from '@proj-airi/stage-shared/settings-search'
 import { storeToRefs } from 'pinia'
 import { computed, onScopeDispose, shallowRef, toValue, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -180,7 +180,7 @@ export function useSettingsSearch(
         title: item.title,
         description: [...(listing ? [...listing.location, listing.title] : []), ...(item.section ? [item.section] : [])].join(LOCATION_SEPARATOR),
         icon: listing?.icon,
-        to: item.to ?? `${path}?${SETTINGS_SEARCH_QUERY}=${encodeURIComponent(item.key)}`,
+        to: item.to ?? settingsSearchLocation(path, { keys: [item.key], gates: item.gate ? [item.gate] : [] }),
       })
     }
     for (const [path, page] of [...pages, ...providerPages]) {
@@ -203,7 +203,7 @@ export function useSettingsSearch(
           title,
           description: [...page.location, page.title].join(LOCATION_SEPARATOR),
           icon: page.icon,
-          to: `${path}?${SETTINGS_SEARCH_QUERY}=${encodeURIComponent(keys.join(' '))}`,
+          to: settingsSearchLocation(path, { keys }),
         })
       }
     }
@@ -239,9 +239,10 @@ export function useSettingsSearch(
  * - A settings layout owns the scroll container of its pages.
  *
  * Expects:
- * - The route query {@link SETTINGS_SEARCH_QUERY} names the i18n keys of the setting, separated by spaces.
- * - The build-time scan marked the row with the same key in {@link SETTINGS_SEARCH_ATTRIBUTE},
- *   and wrote the gate of each conditional setting into `meta.searchGates`.
+ * - The route query {@link SETTINGS_SEARCH_QUERY} names the keys of the setting, one key in each parameter.
+ *   {@link SETTINGS_SEARCH_GATE_QUERY} can name the row to show when the setting is not on the page, such as a provider card.
+ * - The build-time scan or the page marked the row with the same key in {@link SETTINGS_SEARCH_ATTRIBUTE},
+ *   and the scan wrote the gate of each conditional setting into `meta.searchGates`.
  *
  * Returns:
  * - Nothing. A setting that shows only in another state is not on the page. Its gate, such as the switch that turns it on,
@@ -280,15 +281,15 @@ export function useSettingsSearchReveal(container: MaybeRefOrGetter<HTMLElement 
 
   // The layout resets the scroll position after a path change. This watcher runs after it, in the same flush.
   // The container is a source too, so a window that opens on a search link still finds the row after mount.
-  watch(() => [route.path, route.query[SETTINGS_SEARCH_QUERY], toValue(container)] as const, ([, query, root]) => {
+  watch(() => [route.path, route.query[SETTINGS_SEARCH_QUERY], route.query[SETTINGS_SEARCH_GATE_QUERY], toValue(container)] as const, ([, , , root]) => {
     stopWaiting?.()
-    if (typeof query !== 'string' || !root)
+    // Settings with the same name, such as "Scale" of each model type, share one result. The page shows one of them.
+    const { keys, gates } = settingsSearchTargetOf(route.query)
+    if (!keys.length || !root)
       return
 
-    // Settings with the same name, such as "Scale" of each model type, share one result. The page shows one of them.
-    const keys = query.split(' ').filter(Boolean)
     const meta = route.matched.at(-1)?.meta as SettingsSearchRouteMeta | undefined
-    const gateKeys = gatesOf(keys, meta?.searchGates ?? {})
+    const gateKeys = [...new Set([...gates, ...gatesOf([...keys, ...gates], meta?.searchGates ?? {})])]
     const findAny = (candidates: string[]) => {
       for (const key of candidates) {
         const row = root.querySelector<HTMLElement>(`[${SETTINGS_SEARCH_ATTRIBUTE}~="${CSS.escape(key)}"]`)

@@ -1,10 +1,11 @@
 import type { SettingsSearchProvider } from '@proj-airi/stage-shared/settings-search'
 
+import { settingsSearchItemKey } from '@proj-airi/stage-shared/settings-search'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 
 /** The marker of a wake word's block. A word is unique for each card. */
 export function wakeWordSearchKey(cardId: string, text: string) {
-  return `wake-word:${cardId}:${text}`
+  return settingsSearchItemKey('wake-word', cardId, text)
 }
 
 /** Lists the wake words of every card, with the card that answers each one, as the page groups them. */

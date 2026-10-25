@@ -1,6 +1,7 @@
 import type { ModelAssetStatus } from '@proj-airi/stage-shared/model-assets'
 
 import { sherpawModels } from '@proj-airi/provider-inference/sherpaw-transcription/models'
+import { settingsSearchItemKey } from '@proj-airi/stage-shared/settings-search'
 import { speakerModel } from '@proj-airi/stage-shared/speaker-model'
 import { isSherpawModelBundled } from '@proj-airi/stage-ui/libs/providers/providers/sherpaw/model-assets'
 import { kwsModel } from '@proj-airi/stage-ui/libs/voice/kws-model-info'
@@ -14,7 +15,7 @@ const packNameKeys = new Map<string, string>([
 
 /** The marker of a downloaded model's row. The section and the settings search share it. */
 export function downloadedModelSearchKey(id: string) {
-  return `downloaded-model:${id}`
+  return settingsSearchItemKey('downloaded-model', id)
 }
 
 /**

@@ -52,6 +52,8 @@ The settings home searches every settings page, the settings on it, and the runt
   - If the setting is not on the page, search opens a collapsed section, or highlights the gate.
 - **Runtime items**, such as character cards or models:
   - A page lists them with a sibling `<page>.search.ts`. Its default export is a `SettingsSearchProvider` from `@proj-airi/stage-shared/settings-search`.
-  - Each row binds the same key to `data-settings-search`.
+  - Each row binds the same key to `data-settings-search`. Build the key with `settingsSearchItemKey`, so a name with spaces stays one key.
+  - An item that shows only after another step names that row as its `gate`. For example, a model names the card of its provider.
   - A shared list component, such as `RadioCardManySelect`, takes `searchKeyOf` for its items.
+- **Address**: a result opens its page with one `setting` query parameter for each key, and one `setting-gate` parameter for each gate.
 - **Checks**: a production build fails when a name cannot be read, or when a page marks runtime rows without a provider. Development only warns.

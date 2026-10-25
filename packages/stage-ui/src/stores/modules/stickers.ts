@@ -1,6 +1,7 @@
 import type { StickerEntry } from '../../types/sticker'
 
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
+import { settingsSearchItemKey } from '@proj-airi/stage-shared/settings-search'
 import { useBroadcastChannel } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, onScopeDispose, ref, watch } from 'vue'
@@ -11,7 +12,7 @@ import { StickerValidationError, validateStickerImage, validateStickerMetadata }
 
 /** The marker of a sticker's row in settings. The page and the settings search share it. */
 export function stickerSearchKey(id: string) {
-  return `sticker:${id}`
+  return settingsSearchItemKey('sticker', id)
 }
 
 /** The name that settings shows for a sticker: the translated name of a bundled sticker, or the name that its owner gave. */

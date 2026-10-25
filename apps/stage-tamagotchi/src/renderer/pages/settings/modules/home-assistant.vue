@@ -4,6 +4,7 @@ import type { HomeAssistantEntitySummary } from '@proj-airi/stage-ui/libs/home-a
 
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { settingsSearchTargetOf } from '@proj-airi/stage-shared/settings-search'
 import { HomeAssistantEntityTile } from '@proj-airi/stage-ui/components/scenarios/home-assistant'
 import { useHomeAssistantStateLabel } from '@proj-airi/stage-ui/composables/use-home-assistant-state-label'
 import { domainLabel, summarizeDomains, summarizeEntities } from '@proj-airi/stage-ui/libs/home-assistant/presentation'
@@ -122,8 +123,8 @@ const visibleEntities = computed(() => {
 
 // A search result names one device. The grid mounts only a batch of the rows, so it filters to that device first.
 const route = useRoute()
-watch(() => route.query.setting, (key) => {
-  const entityId = homeAssistantEntityOfSearchKey(key)
+watch(() => route.query, (query) => {
+  const entityId = settingsSearchTargetOf(query).keys.map(homeAssistantEntityOfSearchKey).find(id => id !== undefined)
   if (!entityId)
     return
   activeDomain.value = null

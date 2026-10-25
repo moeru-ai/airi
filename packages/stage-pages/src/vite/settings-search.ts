@@ -1,4 +1,4 @@
-import type { Plugin } from 'vite'
+import type { Plugin, ViteDevServer } from 'vite'
 import type { SFCDescriptor, SFCTemplateBlock } from 'vue/compiler-sfc'
 
 import { access, readFile } from 'node:fs/promises'
@@ -191,7 +191,7 @@ function parseExpression(source: string): { expression: Expression, code: string
   }
 }
 
-/** The marker for keys that the build knows: one string, with the keys separated by spaces. */
+/** The marker for keys that the build knows: one string, with the keys separated by spaces, as {@link SETTINGS_SEARCH_ATTRIBUTE} reads it. */
 function markerOf(keys: string[]) {
   return `'${[...new Set(keys)].join(' ')}'`
 }
@@ -446,6 +446,30 @@ export function createSettingsSearch() {
   const providers = new Map<string, string>()
   /** Pages that mark rows of runtime items but have no provider, so search cannot list those items. */
   const pagesWithoutProvider = new Set<string>()
+  /** The settings routes by page file, with whether the page marks runtime rows. A provider file next to the page can come and go. */
+  const routesByPage = new Map<string, { path: string, marksItems: boolean }>()
+  let server: ViteDevServer | undefined
+
+  /** Records the provider of a route, or the lack of one. In development, the page reloads with the new table. */
+  async function updateProvider(path: string, pageFile: string, marksItems: boolean) {
+    const providerFile = pageFile.replace(/\.vue$/, '.search.ts')
+    const hasProvider = await access(providerFile).then(() => true, () => false)
+    const changed = hasProvider ? providers.get(path) !== providerFile : providers.has(path)
+    if (hasProvider)
+      providers.set(path, providerFile)
+    else
+      providers.delete(path)
+    if (!hasProvider && marksItems)
+      pagesWithoutProvider.add(pageFile)
+    else
+      pagesWithoutProvider.delete(pageFile)
+
+    const module = changed ? server?.moduleGraph.getModuleById(RESOLVED_PROVIDERS_MODULE) : undefined
+    if (module) {
+      server?.moduleGraph.invalidateModule(module)
+      server?.ws.send({ type: 'full-reload' })
+    }
+  }
 
   function readDescriptor(file: string) {
     let descriptor = descriptors.get(file)
@@ -933,6 +957,17 @@ export function createSettingsSearch() {
           env.set(name.slice('import.meta.env.'.length), literal.value)
       }
     },
+    configureServer(devServer) {
+      server = devServer
+      // A provider file that appears or goes away changes the table of its page, while the page itself stays the same.
+      const onProviderFile = (file: string) => {
+        const route = file.endsWith('.search.ts') ? routesByPage.get(file.replace(/\.search\.ts$/, '.vue')) : undefined
+        if (route)
+          void updateProvider(route.path, file.replace(/\.search\.ts$/, '.vue'), route.marksItems)
+      }
+      devServer.watcher.on('add', onProviderFile)
+      devServer.watcher.on('unlink', onProviderFile)
+    },
     buildStart() {
       resolveId = async (id, importer) => (await this.resolve(id, importer, { skipSelf: true }))?.id
       markResolverReady()
@@ -992,12 +1027,8 @@ export function createSettingsSearch() {
       return
 
     const scan = await scanComponent(file, NO_USAGE, new Set())
-    const providerFile = file.replace(/\.vue$/, '.search.ts')
-    const hasProvider = await access(providerFile).then(() => true, () => false)
-    if (hasProvider)
-      providers.set(route.fullPath, providerFile)
-    else if (scan.marksItems)
-      pagesWithoutProvider.add(file)
+    routesByPage.set(file, { path: route.fullPath, marksItems: scan.marksItems })
+    await updateProvider(route.fullPath, file, scan.marksItems)
 
     const entries = scan.entries.filter(entry => entry.key !== route.meta.titleKey)
     // The gate of a conditional setting is the nearest setting before it that shows whenever its section shows,

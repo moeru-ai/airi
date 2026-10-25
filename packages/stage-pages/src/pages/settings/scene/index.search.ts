@@ -1,11 +1,12 @@
 import type { SettingsSearchProvider } from '@proj-airi/stage-shared/settings-search'
 
+import { settingsSearchItemKey } from '@proj-airi/stage-shared/settings-search'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores'
 import { until } from '@vueuse/core'
 
 /** The marker of a background's tile. The page and the provider share it. */
 export function sceneBackgroundSearchKey(id: string) {
-  return `scene-background:${id}`
+  return settingsSearchItemKey('scene-background', id)
 }
 
 /** The gallery shows the scene backgrounds and the built-in ones, not journal images or selfies. */
