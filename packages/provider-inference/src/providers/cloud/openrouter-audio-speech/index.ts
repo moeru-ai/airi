@@ -9,7 +9,7 @@ const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1/'
 const DEFAULT_MODEL = 'openai/gpt-audio-mini'
 
 const openRouterAudioConfigSchema = z.object({
-  apiKey: z.string().meta({ sensitive: true }),
+  apiKey: z.string(),
   baseUrl: z.string().default(DEFAULT_BASE_URL),
 })
 

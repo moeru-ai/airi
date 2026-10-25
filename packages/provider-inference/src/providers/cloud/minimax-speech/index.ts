@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { defineProvider } from '../../registry'
 
 const minimaxSpeechConfigSchema = z.object({
-  apiKey: z.string().meta({ sensitive: true }),
+  apiKey: z.string(),
   baseUrl: z.string().default('https://api.minimax.io'),
 })
 

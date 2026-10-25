@@ -622,9 +622,6 @@ pages:
         description: Export or import imported Live2D, VRM, Spine, Tachie, and MMD model files.
         empty: No imported models.
         delete: Delete all models
-      app-settings:
-        title: App settings
-        description: Export or import settings managed by the app settings reset.
       model-downloads:
         title: Downloaded speech models
         description: Export or import Sherpaw model files stored on this device.

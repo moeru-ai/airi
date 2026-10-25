@@ -8,7 +8,7 @@ const DEFAULT_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/'
 const DEFAULT_MODEL = 'gemini-2.5-flash-preview-tts'
 
 const googleGeminiSpeechConfigSchema = z.object({
-  apiKey: z.string().meta({ sensitive: true }),
+  apiKey: z.string(),
   baseUrl: z.string().default(DEFAULT_BASE_URL),
 })
 

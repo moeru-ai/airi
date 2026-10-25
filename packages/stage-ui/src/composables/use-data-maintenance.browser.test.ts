@@ -241,6 +241,27 @@ it.each(['allow', 'deny'] as const)('preserves the Home Assistant %s policy thro
   expect(homeAssistant.enabled).toBe(true)
 })
 
+it('persists restored consciousness policies', async () => {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
+  const { pinia, runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
+  await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
+  const settings = useConsciousnessSettingsStore(pinia)
+  await settings.setReasoning(true)
+  await settings.setTemperatureEnabled(true)
+  await settings.setTopPEnabled(true)
+  const exporter = maintenance.createModuleSettingsExportAdapter()
+  const file = new File([await exporter.encode(await exporter.read())], 'modules.json')
+  await settings.resetState()
+  const importer = maintenance.createModuleSettingsImportAdapter()
+
+  await importer.apply(await importer.validate(await importer.decode(file)))
+
+  const reopened = useConsciousnessSettingsStore(createPinia())
+  expect(reopened.reasoning).toBe(true)
+  expect(reopened.temperatureEnabled).toBe(true)
+  expect(reopened.topPEnabled).toBe(true)
+})
+
 it('uses the same fixed contract for export and import validation', async () => {
   vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
   const { pinia, runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
@@ -256,31 +277,4 @@ it('uses the same fixed contract for export and import validation', async () => 
   useSpeechStore(pinia).pitch = Number.NaN
 
   await expect(exporter.encode(await exporter.read())).rejects.toThrow()
-})
-
-it('restores app settings across optional renderer values and different motion maps', async () => {
-  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
-  const { runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
-  await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
-  const exporter = maintenance.createAppSettingsExportAdapter()
-  const importer = maintenance.createAppSettingsImportAdapter()
-  const data = await exporter.read()
-  data.settings.stageModelRenderer = 'live2d'
-  data.live2dParameters.motionMap = { greeting: 'wave' }
-  const file = new File([await exporter.encode(data)], 'settings.json')
-
-  await importer.apply(await importer.validate(await importer.decode(file)))
-
-  const restored = await exporter.read()
-  expect(restored.settings.stageModelRenderer).toBe('live2d')
-  expect(restored.live2dParameters.motionMap).toEqual({ greeting: 'wave' })
-  expect(restored.characterCards.cards).toEqual(data.characterCards.cards)
-
-  delete data.settings.stageModelRenderer
-  data.live2dParameters.motionMap = { farewell: 'bow' }
-  await importer.apply(await importer.validate(await importer.decode(new File([await exporter.encode(data)], 'settings.json'))))
-
-  const cleared = await exporter.read()
-  expect(cleared.settings.stageModelRenderer).toBeUndefined()
-  expect(cleared.live2dParameters.motionMap).toEqual({ farewell: 'bow' })
 })

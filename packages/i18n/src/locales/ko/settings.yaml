@@ -562,9 +562,6 @@ pages:
         description: 가져온 Live2D, VRM, Spine, Tachie, MMD 모델 파일을 내보내거나 가져옵니다.
         empty: 가져온 모델이 없습니다.
         delete: 모든 모델 삭제
-      app-settings:
-        title: 앱 설정
-        description: 앱 설정 초기화에서 관리하는 설정을 내보내거나 가져옵니다.
       model-downloads:
         title: 다운로드한 음성 모델
         description: 이 기기에 저장된 Sherpaw 모델 파일을 내보내거나 가져옵니다.

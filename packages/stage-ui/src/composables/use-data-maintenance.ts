@@ -35,15 +35,14 @@ import { useProviderStore } from '../stores/providers/provider'
 import { useRecipesStore } from '../stores/recipes'
 import { useSettings, useSettingsAudioDevice } from '../stores/settings'
 import { useVoiceprintStore } from '../stores/voiceprint'
-import { appSettingsSchema, appSettingsSchemas, moduleSettingsSchema, moduleSettingsSchemas } from './data-maintenance-schemas'
+import { moduleSettingsSchema, moduleSettingsSchemas } from './data-maintenance-schemas'
 
 interface StoreStateOwner {
-  store: StoreGeneric
   state: () => Record<string, unknown>
-  apply?: (state: Record<string, unknown>) => void | Promise<void>
+  restore: (state: unknown) => void | Promise<void>
 }
 
-type StoreBundleSchema = typeof appSettingsSchema | typeof moduleSettingsSchema
+type StoreBundleSchema = typeof moduleSettingsSchema
 type ExportStoreBundle = Record<string, Record<string, unknown>>
 type ValidatedStoreBundle = Record<string, Record<string, unknown>>
 
@@ -88,20 +87,14 @@ function bindStoreFromSchema<
   TStore extends StoreGeneric & Record<keyof TSchema['entries'], unknown>,
 >(store: TStore, schema: TSchema) {
   return {
-    store,
     state: () => pick<TStore, keyof TSchema['entries']>(store, v.keyof(schema).options),
+    restore: (state: unknown) => store.$patch(current => Object.assign(current, state)),
   }
 }
 
-async function applyStoreBundle(bundle: ValidatedStoreBundle, owners: Record<string, StoreStateOwner>): Promise<void> {
+async function restoreStoreBundle(bundle: ValidatedStoreBundle, owners: Record<string, StoreStateOwner>): Promise<void> {
   for (const [key, owner] of Object.entries(owners)) {
-    const state = bundle[key]
-    if (owner.apply) {
-      await owner.apply(state)
-    }
-    else {
-      owner.store.$patch(current => Object.assign(current, state))
-    }
+    await owner.restore(bundle[key])
   }
 }
 
@@ -204,33 +197,11 @@ export function useDataMaintenance() {
     await resetModulesSettings()
   }
 
-  const appSettingsOwners = {
-    settings: bindStoreFromSchema(settingsStore, appSettingsSchemas.settings),
-    audioDevices: bindStoreFromSchema(audioSettingsStore, appSettingsSchemas.audioDevices),
-    live2dParameters: bindStoreFromSchema(live2dParamsStore, appSettingsSchemas.live2dParameters),
-    live2dSettings: bindStoreFromSchema(live2dSettingsStore, appSettingsSchemas.live2dSettings),
-    live2dMotionSettings: bindStoreFromSchema(live2dMagicSettingsStore, appSettingsSchemas.live2dMotionSettings),
-    screenAmbientLight: bindStoreFromSchema(screenAmbientLightSettingsStore, appSettingsSchemas.screenAmbientLight),
-    modulesConnection: bindStoreFromSchema(mcpStore, appSettingsSchemas.modulesConnection),
-    onboarding: {
-      ...bindStoreFromSchema(onboardingStore, appSettingsSchemas.onboarding),
-      apply: (state) => {
-        const onboarding = state as v.InferOutput<typeof appSettingsSchemas.onboarding>
-        onboardingStore.resetSetupState()
-        if (onboarding.hasCompletedSetup)
-          onboardingStore.markSetupCompleted()
-        else if (onboarding.hasSkippedSetup)
-          onboardingStore.markSetupSkipped()
-      },
-    },
-    characterCards: bindStoreFromSchema(airiCardStore, appSettingsSchemas.characterCards),
-  } satisfies Record<keyof typeof appSettingsSchemas, StoreStateOwner>
-
   const moduleSettingsOwners = {
     hearing: bindStoreFromSchema(hearingStore, moduleSettingsSchemas.hearing),
     homeAssistant: {
       ...bindStoreFromSchema(homeAssistantStore, moduleSettingsSchemas.homeAssistant),
-      apply: (state) => {
+      restore: (state) => {
         const settings = state as v.InferOutput<typeof moduleSettingsSchemas.homeAssistant>
         homeAssistantStore.exposureMode = settings.exposureMode
         homeAssistantStore.$patch({
@@ -242,7 +213,15 @@ export function useDataMaintenance() {
     },
     speech: bindStoreFromSchema(speechStore, moduleSettingsSchemas.speech),
     consciousness: bindStoreFromSchema(consciousnessStore, moduleSettingsSchemas.consciousness),
-    consciousnessSettings: bindStoreFromSchema(consciousnessSettingsStore, moduleSettingsSchemas.consciousnessSettings),
+    consciousnessSettings: {
+      ...bindStoreFromSchema(consciousnessSettingsStore, moduleSettingsSchemas.consciousnessSettings),
+      restore: async (state) => {
+        const settings = state as v.InferOutput<typeof moduleSettingsSchemas.consciousnessSettings>
+        await consciousnessSettingsStore.setReasoning(settings.reasoning)
+        await consciousnessSettingsStore.setTemperatureEnabled(settings.temperatureEnabled)
+        await consciousnessSettingsStore.setTopPEnabled(settings.topPEnabled)
+      },
+    },
     twitter: bindStoreFromSchema(twitterStore, moduleSettingsSchemas.twitter),
     webSearch: bindStoreFromSchema(webSearchStore, moduleSettingsSchemas.webSearch),
     discord: bindStoreFromSchema(discordStore, moduleSettingsSchemas.discord),
@@ -250,7 +229,7 @@ export function useDataMaintenance() {
     recipes: bindStoreFromSchema(recipesStore, moduleSettingsSchemas.recipes),
     memory: {
       ...bindStoreFromSchema(memoryStore, moduleSettingsSchemas.memory),
-      apply: (state) => {
+      restore: (state) => {
         memoryStore.restoreState(state as v.InferOutput<typeof moduleSettingsSchemas.memory>)
       },
     },
@@ -282,18 +261,10 @@ export function useDataMaintenance() {
       decode: decodeJsonFile,
       validate: async value => v.parse(schema, value).data,
       apply: async (value) => {
-        await applyStoreBundle(value, owners)
+        await restoreStoreBundle(value, owners)
         await afterApply?.()
       },
     }
-  }
-
-  function createAppSettingsExportAdapter() {
-    return createStoreExportAdapter(appSettingsSchema, appSettingsOwners)
-  }
-
-  function createAppSettingsImportAdapter() {
-    return createStoreImportAdapter(appSettingsSchema, appSettingsOwners)
   }
 
   function createModuleSettingsExportAdapter() {
@@ -313,8 +284,6 @@ export function useDataMaintenance() {
     resetProvidersSettings,
     resetModulesSettings,
     deleteAllChatSessions,
-    createAppSettingsExportAdapter,
-    createAppSettingsImportAdapter,
     createModuleSettingsExportAdapter,
     createModuleSettingsImportAdapter,
     deleteAllData,
