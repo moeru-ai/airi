@@ -1,0 +1,341 @@
+# Release Tamagotchi Kirie — CI artifacts only
+#
+# Builds/exports the Godot Mono + Kirie host for desktop and mobile, then uploads
+# GitHub Actions artifacts. Never publishes GitHub Release assets (no softprops /
+# action-gh-release). Packaging remains experimental; unsigned / ad-hoc signing
+# is intentional for this first-pass workflow.
+#
+# Triggers:
+#   - workflow_dispatch: manual (build_only skips upload; tag overrides version)
+#   - schedule: nightly at 02:00 UTC (offset from Electron's midnight cron)
+#
+# Versioning (mirrors Electron nightly naming):
+#   - schedule / manual without tag → nightly-YYYYMMDD-<sha7>
+#   - manual with tag              → tag with leading "v" stripped
+
+name: Release Tamagotchi Kirie (artifacts only)
+
+permissions:
+  contents: read
+  actions: write
+
+env:
+  PRODUCT_NAME: 'AIRI-Kirie'
+  GODOT_VERSION: '4.7.2'
+  APP_DIR: apps/stage-tamagotchi-kirie
+  VERSION: ''
+  ARTIFACT_NAME: ''
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_only:
+        description: Build/export only (skip artifact upload)
+        required: false
+        default: false
+        type: boolean
+      tag:
+        description: Version override (e.g. v0.12.0). Empty → nightly-YYYYMMDD-<sha7>
+        required: false
+        type: string
+      platform:
+        description: Platform
+        type: choice
+        options:
+          - all
+          - windows
+          - macos
+          - linux
+          - android
+          - ios
+        default: all
+  schedule:
+    # Electron release-tamagotchi.yml uses 0 0 * * *; keep this offset.
+    - cron: '0 2 * * *'
+
+concurrency:
+  group: release-tamagotchi-kirie-${{ github.ref }}-${{ github.event_name }}-${{ inputs.platform || 'all' }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    # Experimental platforms (esp. iOS unsigned) may flake; fail-fast false keeps others green.
+    continue-on-error: ${{ matrix.skip || matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows-latest
+            platform: windows
+            arch: x64
+            preset: Windows Desktop
+            export_mode: release
+            experimental: false
+            skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'windows' }}
+
+          - name: macOS universal
+            os: macos-26
+            platform: macos
+            arch: universal
+            preset: macOS
+            export_mode: release
+            experimental: false
+            skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'macos' }}
+
+          - name: Linux x64
+            os: ubuntu-latest
+            platform: linux
+            arch: x64
+            preset: Linux/X11
+            export_mode: release
+            experimental: false
+            skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'linux' }}
+
+          - name: Linux arm64
+            os: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            preset: Linux/X11 arm64
+            export_mode: release
+            experimental: true
+            skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'linux' }}
+
+          - name: Android
+            os: ubuntu-latest
+            platform: android
+            arch: arm64
+            preset: Android
+            export_mode: debug
+            experimental: true
+            skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'android' }}
+
+          - name: iOS (Xcode project, unsigned)
+            os: macos-26
+            platform: ios
+            arch: arm64
+            preset: iOS
+            export_mode: debug
+            experimental: true
+            skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'ios' }}
+
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Skip the build (fail fast for filtered platforms)
+        if: ${{ matrix.skip }}
+        run: |
+          echo "Skipping ${{ matrix.name }} (platform filter)."
+          echo "This fails the job on purpose when not building for all — expected."
+          exit 1
+
+      - name: Free Disk Space
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+
+      - uses: actions/checkout@v6
+
+      # NOTICE:
+      # pnpm 11 does not ship a working standalone executable for Intel macOS.
+      # Install pnpm through npm so it uses the Node.js runtime from setup-node.
+      # https://github.com/pnpm/pnpm/issues/11423
+      # Remove this branch when the project uses pnpm 12 or later.
+      - uses: actions/setup-node@v6
+        if: matrix.os == 'macos-15-intel'
+        with:
+          node-version: 26.7.0
+
+      - name: Install pnpm with npm
+        if: matrix.os == 'macos-15-intel'
+        run: npm install --global pnpm@11.24.0
+
+      - name: Get pnpm store path
+        if: matrix.os == 'macos-15-intel'
+        id: pnpm-store-intel
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache pnpm store (Intel macOS)
+        if: matrix.os == 'macos-15-intel'
+        uses: actions/cache@v5
+        with:
+          path: ${{ steps.pnpm-store-intel.outputs.path }}
+          key: ${{ runner.os }}-${{ runner.arch }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-pnpm-store-
+
+      - uses: pnpm/setup@v2
+        if: matrix.os != 'macos-15-intel'
+        with:
+          runtime: node@26.7.0
+          cache: true
+          install: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Godot Mono + export templates
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: ${{ env.GODOT_VERSION }}
+          use-dotnet: true
+          include-templates: true
+
+      - name: Setup Java (Android)
+        if: matrix.platform == 'android'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Android SDK
+        if: matrix.platform == 'android'
+        uses: android-actions/setup-android@v4
+        with:
+          packages: >-
+            platform-tools
+            platforms;android-35
+            platforms;android-36
+            build-tools;36.0.0
+
+      - name: Install macOS System Dependencies for node-canvas
+        if: runner.os == 'macOS'
+        run: |
+          brew install pkg-config cairo pango jpeg giflib librsvg || true
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm run build:packages
+
+      - name: Resolve version and artifact name
+        working-directory: ${{ env.APP_DIR }}
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          TAG_ARGS=()
+          if [ -n "${INPUT_TAG:-}" ]; then
+            TAG_ARGS=(--tag "$INPUT_TAG")
+          fi
+          VERSION="$(node scripts/artifacts-version.mjs --get-version "${TAG_ARGS[@]}")"
+          ARTIFACT_NAME="$(node scripts/artifacts-version.mjs --get-artifact-name --platform '${{ matrix.platform }}' --arch '${{ matrix.arch }}' "${TAG_ARGS[@]}")"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "ARTIFACT_NAME=$ARTIFACT_NAME" >> "$GITHUB_ENV"
+          echo "Resolved VERSION=$VERSION ARTIFACT_NAME=$ARTIFACT_NAME"
+
+      - name: Install Kirie plugins (doctor)
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          pnpm kirie doctor --fix plugin:core
+          pnpm kirie doctor --fix plugin:notifications
+
+      - name: Build web + C# (kirie build)
+        working-directory: ${{ env.APP_DIR }}
+        run: pnpm run build
+
+      - name: Import Godot project
+        working-directory: ${{ env.APP_DIR }}
+        timeout-minutes: 10
+        run: |
+          godot --headless --import || true
+          # Second pass after first-time addon registration
+          godot --headless --import || true
+
+      - name: Export (desktop — Godot preset)
+        if: matrix.platform == 'windows' || matrix.platform == 'macos' || matrix.platform == 'linux'
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          set -euo pipefail
+          OUT_DIR="dist/kirie/${{ matrix.platform }}-${{ matrix.arch }}"
+          mkdir -p "$OUT_DIR"
+          case "${{ matrix.platform }}" in
+            windows)
+              OUT_FILE="$OUT_DIR/AIRI-Kirie.exe"
+              ;;
+            macos)
+              OUT_FILE="$OUT_DIR/AIRI-Kirie.app"
+              ;;
+            linux)
+              OUT_FILE="$OUT_DIR/AIRI-Kirie"
+              ;;
+          esac
+          EXPORT_FLAG="--export-release"
+          if [ "${{ matrix.export_mode }}" = "debug" ]; then
+            EXPORT_FLAG="--export-debug"
+          fi
+          echo "Exporting preset '${{ matrix.preset }}' → $OUT_FILE"
+          godot --headless $EXPORT_FLAG "${{ matrix.preset }}" "$OUT_FILE"
+          # Stage into a named bundle directory for upload
+          BUNDLE_DIR="bundle/${{ env.ARTIFACT_NAME }}"
+          mkdir -p "$BUNDLE_DIR"
+          # Collect export outputs (exe+pck, .app, linux binary+pck, etc.)
+          cp -a "$OUT_DIR"/. "$BUNDLE_DIR"/
+          # Zip for a single uploadable archive on all OSes
+          (
+            cd bundle
+            if command -v zip >/dev/null 2>&1; then
+              zip -r "${{ env.ARTIFACT_NAME }}.zip" "${{ env.ARTIFACT_NAME }}"
+            else
+              powershell -NoProfile -Command "Compress-Archive -Path '${{ env.ARTIFACT_NAME }}' -DestinationPath '${{ env.ARTIFACT_NAME }}.zip' -Force"
+            fi
+          )
+          ls -la bundle/
+
+      - name: Export (Android — kirie CLI)
+        if: matrix.platform == 'android'
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          set -euo pipefail
+          # kirie 0.15 uses subcommands: `kirie export android` (not --platform).
+          # Default mode is debug (unsigned debug keystore) — fine for CI artifacts.
+          pnpm kirie export android --no-build
+          BUNDLE_DIR="bundle/${{ env.ARTIFACT_NAME }}"
+          mkdir -p "$BUNDLE_DIR"
+          # Default kirie output: dist/kirie/android/debug.apk (or release.apk)
+          found="$(find dist/kirie/android -type f \( -name '*.apk' -o -name '*.aab' \) 2>/dev/null | head -n 1 || true)"
+          if [ -z "$found" ]; then
+            echo "No APK/AAB under dist/kirie/android; listing dist:"
+            find dist -type f | head -n 100 || true
+            exit 1
+          fi
+          cp -a "$found" "$BUNDLE_DIR/${{ env.ARTIFACT_NAME }}.apk"
+          (
+            cd bundle
+            zip -r "${{ env.ARTIFACT_NAME }}.zip" "${{ env.ARTIFACT_NAME }}"
+          )
+          ls -la bundle/
+
+      - name: Export (iOS — Godot Xcode project only / unsigned)
+        if: matrix.platform == 'ios'
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          set -euo pipefail
+          # `kirie export ios` also runs xcodebuild for an installable .app and needs
+          # signing. For CI artifacts we call Godot directly; export_presets.cfg sets
+          # application/export_project_only=true and leaves app_store_team_id empty.
+          OUT_DIR="dist/kirie/ios"
+          mkdir -p "$OUT_DIR"
+          OUT_FILE="$OUT_DIR/debug.xcodeproj"
+          godot --headless --export-debug "iOS" "$OUT_FILE"
+          BUNDLE_DIR="bundle/${{ env.ARTIFACT_NAME }}"
+          mkdir -p "$BUNDLE_DIR"
+          # Godot writes the xcodeproj and sibling export files under OUT_DIR
+          cp -a "$OUT_DIR"/. "$BUNDLE_DIR"/
+          (
+            cd bundle
+            zip -r "${{ env.ARTIFACT_NAME }}.zip" "${{ env.ARTIFACT_NAME }}"
+          )
+          ls -la bundle/
+
+      - name: Upload CI artifact
+        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && !inputs.build_only) }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ env.APP_DIR }}/bundle/${{ env.ARTIFACT_NAME }}.zip
+          if-no-files-found: error
+          retention-days: 14
