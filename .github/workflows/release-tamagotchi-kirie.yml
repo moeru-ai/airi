@@ -153,6 +153,9 @@ jobs:
       - name: Free Disk Space
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
         uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        with:
+          # Keep the runner Android SDK root — setup-android needs /usr/local/lib/android.
+          android: false
 
       - uses: actions/checkout@v6
 
@@ -280,6 +283,11 @@ jobs:
         run: |
           mise x -- pnpm kirie doctor --fix plugin:core
           mise x -- pnpm kirie doctor --fix plugin:notifications
+
+      # Surface NuGet/MSB4181 detail that `kirie build` otherwise swallows.
+      - name: Dotnet restore (verbose)
+        working-directory: ${{ env.APP_DIR }}
+        run: mise x -- dotnet restore StageTamagotchiKirie.csproj --verbosity detailed
 
       - name: Build web + C# (kirie build)
         working-directory: ${{ env.APP_DIR }}
