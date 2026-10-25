@@ -1,5 +1,7 @@
 export { default as BottomDrawer } from './bottom-drawer.vue'
 export { default as Collapsible } from './collapsible.vue'
+export { default as LinkGroupItem } from './link-group-item.vue'
+export { default as LinkGroup } from './link-group.vue'
 export { default as Screen } from './screen.vue'
 export { default as ScrollableArea } from './scrollable-area.vue'
 export { default as SettingsCard } from './settings-card.vue'

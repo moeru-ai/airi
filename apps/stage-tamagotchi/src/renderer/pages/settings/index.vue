@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { IconItem } from '@proj-airi/stage-ui/components'
-import { computed } from 'vue'
+import { settingsSearchProviders } from '@proj-airi/stage-pages/settings-search-providers'
+import { IconItem, SettingsSearchField, SettingsSearchResults } from '@proj-airi/stage-ui/components'
+import { useSettingsSearch } from '@proj-airi/stage-ui/composables/use-settings-search'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -19,12 +21,27 @@ const settings = computed(() => {
       to: route.path,
     }))
 })
+
+const searchQuery = ref('')
+const searchResults = useSettingsSearch(searchQuery, settingsSearchProviders)
+const searching = computed(() => searchQuery.value.trim() !== '')
 </script>
 
 <template>
   <div :class="['flex flex-col gap-4', 'font-normal']">
-    <div />
-    <div :class="['flex flex-col gap-4', 'pb-12']">
+    <!-- The search stays at the top while the list scrolls under it, as the page header does above it. -->
+    <!-- It is the first element, so it rests where it sticks and does not move when the list starts to scroll. -->
+    <div :class="['sticky top-0 z-10', 'bg-$bg-color', 'pb-2']">
+      <SettingsSearchField v-model="searchQuery" />
+    </div>
+    <!-- Results appear at once while the user types, so they skip the enter animation of the categories. -->
+    <div v-if="searching" :class="['pb-12']">
+      <p v-if="!searchResults.length" :class="['text-sm text-neutral-500 dark:text-neutral-400']">
+        {{ t('settings.search.empty', { query: searchQuery.trim() }) }}
+      </p>
+      <SettingsSearchResults v-else :results="searchResults" :query="searchQuery" />
+    </div>
+    <div v-else :class="['flex flex-col gap-4', 'pb-12']">
       <IconItem
         v-for="(setting, index) in settings"
         :key="setting.to"

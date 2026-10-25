@@ -73,6 +73,33 @@ Expandable/collapsible container with trigger button and vertical animation.
 **v-model**: `visible: boolean`
 **Slots**: `trigger({ visible, setVisible })`, `default({ visible, setVisible })`
 
+### LinkGroup
+
+Card that groups `LinkGroupItem` links under a small title, such as the settings search results of one category.
+It has the surface and the dot texture of the settings category cards, and its icon shows large and faded in the bottom-right corner.
+When an item has hover or focus, the icon scales up.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `title` | `string?` | — | Name of the group, shown small in the top-left corner |
+| `icon` | `string?` | — | Iconify class. It shows next to the title, and large in the corner |
+
+**Slots**: `default` (the `LinkGroupItem` links)
+**Exposes**: `naturalWidth()`, the narrowest width at which no item cuts its text. A layout can use it to decide how many groups fit side by side.
+
+### LinkGroupItem
+
+One link in a `LinkGroup`: a name on the left, a short detail on the right, and an arrow.
+On hover, the theme color sweeps in from the left and the dots under the item light up.
+The name keeps its width. The detail shrinks and cuts first.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `as` | `PrimitiveProps['as']?` | `'a'` | Element or component to render, such as `RouterLink`. Other attributes, such as `to`, pass to it |
+| `detail` | `string?` | — | Short note on the right, such as where the link goes |
+
+**Slots**: `default` (the name), `detail` (replaces the `detail` prop)
+
 ### Screen
 
 Responsive screen component that calculates canvas dimensions based on breakpoints.
