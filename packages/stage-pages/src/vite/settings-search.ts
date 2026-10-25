@@ -146,8 +146,6 @@ interface ReadName {
 const NAME_PROPS = new Set(['label', 'title'])
 /** Elements whose text names a setting or a section. A button names an action, not a setting, so it is not here. */
 const NAME_TAGS = /^(?:h[1-6]|label|legend)$/
-/** A button names an action, not a setting, so its `label` and `title` props are not names either. */
-const BUTTON = /Button$/
 /**
  * Overlay parts. Their content shows only after a click, so it is not on the page. Chrome settings search skips dialogs and menus for the same reason.
  * A component whose slots all render inside an overlay part counts as an overlay too. The scan finds that by itself.
@@ -600,8 +598,9 @@ function readName(expression: Expression, code: string, scope: NameScope): ReadN
  * Returns:
  * - The names that the element shows, and the expressions that look like names but cannot be read.
  *   A link to another page (`to`) names that page, not a setting here, so it has no names.
+ *   A button names an action, not a setting, so the `label` and `title` props of a button component are not names either.
  */
-function namesOf(element: TemplateElement, scope: NameScope) {
+function namesOf(element: TemplateElement, scope: NameScope, isButton: boolean) {
   const names: ReadName[] = []
   const unreadable: string[] = []
   const read = (expressionSource: string) => {
@@ -620,7 +619,7 @@ function namesOf(element: TemplateElement, scope: NameScope) {
   }
 
   // On a native element, `title` is a hover hint. Only component props name a control.
-  if (element.tagType === 1 && !BUTTON.test(pascalCase(element.tag))) {
+  if (element.tagType === 1 && !isButton) {
     for (const prop of element.props) {
       if (prop.name === 'bind' && 'arg' in prop && prop.arg && 'content' in prop.arg && NAME_PROPS.has(prop.arg.content) && prop.exp && 'content' in prop.exp)
         read(prop.exp.content)
@@ -794,6 +793,8 @@ export function createSettingsSearch() {
    * so the page scan cannot reach it. The view gets the marks of its settings, and an export that lists them.
    */
   const providerViews = new Set<string>()
+  /** Whether each component is a button, by file. */
+  const buttons = new Map<string, Promise<boolean>>()
   /** The value of each top-level name, by file and name. */
   const sources = new Map<string, Promise<ValueSource | undefined>>()
   /** The runtime item provider of each settings route, by route path. */
@@ -1283,6 +1284,33 @@ export function createSettingsSearch() {
   }
 
   /**
+   * Whether a component is a button: its template has one root element, and that root is a `<button>` or a button component,
+   * as `Button` renders `BasicButton`. A component from a dependency is not known, so it is not a button.
+   */
+  function isButtonComponent(file: string, depth = 0): Promise<boolean> {
+    let known = buttons.get(file)
+    if (!known) {
+      known = (async () => {
+        const descriptor = await readDescriptor(file)
+        const roots = descriptor?.template?.ast?.children.filter(isElement) ?? []
+        const [root] = roots
+        if (!descriptor || roots.length !== 1 || !root)
+          return false
+        if (root.tag === 'button')
+          return true
+        if (root.tagType !== 1 || depth > 8)
+          return false
+        const { imports } = await scriptsOf(descriptor, file)
+        const binding = imports.get(root.tag) ?? imports.get(pascalCase(root.tag))
+        const child = binding ? await resolveBinding(binding, file) : undefined
+        return child ? isButtonComponent(child, depth + 1) : false
+      })()
+      buttons.set(file, known)
+    }
+    return known
+  }
+
+  /**
    * Scans one component as it is used.
    * `props` holds the static string props of the usage, because a template key can use one as its prefix.
    */
@@ -1373,7 +1401,9 @@ export function createSettingsSearch() {
         }
 
         const hidesHere = hidden || hidesContent(element)
-        const { names, unreadable } = namesOf(element, scope)
+        const binding = element.tagType === 1 ? imports.get(element.tag) ?? imports.get(pascalCase(element.tag)) : undefined
+        const child = binding ? await resolveBinding(binding, file) : undefined
+        const { names, unreadable } = namesOf(element, scope, child ? await isButtonComponent(child) : false)
         if (!hidesHere) {
           if (marksItemRows(element))
             marksItems = true
@@ -1391,8 +1421,6 @@ export function createSettingsSearch() {
             controls.push({ key, conditions: here })
         }
 
-        const binding = element.tagType === 1 ? imports.get(element.tag) ?? imports.get(pascalCase(element.tag)) : undefined
-        const child = binding ? await resolveBinding(binding, file) : undefined
         const childScan = child ? await scanComponent(child, usageOf(element), path) : undefined
         if (!childScan) {
           await walk(element.children, hidesHere, here)
@@ -1501,8 +1529,9 @@ export function createSettingsSearch() {
         if (key.startsWith(`${file}\n`))
           componentScans.delete(key)
       }
-      // A changed module can change what any name reads, such as a store that moved.
+      // A changed module can change what any name reads, such as a store that moved, or what a button renders.
       sources.clear()
+      buttons.clear()
     },
     buildEnd() {
       const report = [reportUnreadableNames(), reportPagesWithoutProvider()].filter(Boolean).join('\n')
@@ -1537,7 +1566,7 @@ export function createSettingsSearch() {
       // Without the usage, a key with a prefix from a prop is known only at runtime. Its marker binds the key expression.
       // A control also carries the marker of the value that it binds, so a setting that depends on the value finds its gate.
       // Controls from a `v-for`, such as the cards of a radio group, give it to their parent: the group is the control, not its first card.
-      const { values, helpers, scope } = await scriptsOf(descriptor, id)
+      const { values, helpers, scope, imports } = await scriptsOf(descriptor, id)
       const markersOf = new Map<TemplateElement, string[]>()
       const add = (element: TemplateElement, markers: string[]) => markersOf.set(element, [...markersOf.get(element) ?? [], ...markers])
       for (const { element, parent } of elementsOf(root.children)) {
@@ -1545,8 +1574,12 @@ export function createSettingsSearch() {
         const repeated = element.props.some(prop => prop.name === 'for')
         add(repeated && parent ? parent : element, controls)
         // A row of a runtime item binds its own marker. Its names are not settings of the page.
-        if (!hasOwnMarker(element))
-          add(element, namesOf(element, { values, helpers }).names.flatMap(name => name.marker ? [name.marker] : []))
+        if (!hasOwnMarker(element)) {
+          const binding = element.tagType === 1 ? imports.get(element.tag) ?? imports.get(pascalCase(element.tag)) : undefined
+          const child = binding ? await resolveBinding(binding, id) : undefined
+          const isButton = child ? await isButtonComponent(child) : false
+          add(element, namesOf(element, { values, helpers }, isButton).names.flatMap(name => name.marker ? [name.marker] : []))
+        }
       }
 
       const output = new MagicString(code)

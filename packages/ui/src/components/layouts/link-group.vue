@@ -1,6 +1,10 @@
 <script setup lang="ts">
+import type { LinkGroupItemHandle } from './link-group-context'
+
 import { useResizeObserver } from '@vueuse/core'
-import { onMounted, useTemplateRef } from 'vue'
+import { nextTick, provide, useTemplateRef } from 'vue'
+
+import { linkGroupContextKey } from './link-group-context'
 
 defineProps<{
   /** The name of the group, shown small in the top-left corner. */
@@ -9,22 +13,32 @@ defineProps<{
   icon?: string
 }>()
 
+const group = useTemplateRef<HTMLElement>('group')
+const items = new Set<LinkGroupItemHandle>()
+
 // The dots of a hovered item sit on the dot grid of the group, so the two grids overlap.
 // An item starts its dots at its own corner, so the group shifts them by the offset of the item.
 // Items that come or go change the height of the group, so a size change is the time to align them again.
-const group = useTemplateRef<HTMLElement>('group')
 function alignDots() {
-  for (const item of group.value?.querySelectorAll<HTMLElement>('.link-group-item') ?? []) {
-    item.style.setProperty('--link-group-dot-x', `${-item.offsetLeft}px`)
-    item.style.setProperty('--link-group-dot-y', `${-item.offsetTop}px`)
+  for (const item of items) {
+    const element = item.element()
+    element?.style.setProperty('--link-group-dot-x', `${-element.offsetLeft}px`)
+    element?.style.setProperty('--link-group-dot-y', `${-element.offsetTop}px`)
   }
 }
 useResizeObserver(group, alignDots)
-onMounted(alignDots)
+
+provide(linkGroupContextKey, {
+  register(item) {
+    items.add(item)
+    void nextTick(alignDots)
+    return () => items.delete(item)
+  },
+})
 
 /**
- * The narrowest width at which no item cuts its text: the widest item at the natural width of its parts,
- * with the padding and the border of the group around it. A layout can use it to decide how many groups fit side by side.
+ * The narrowest width at which no item cuts its text: the widest item, with the padding and the border of the group around it.
+ * A layout can use it to decide how many groups fit side by side.
  */
 function naturalWidth() {
   const element = group.value
@@ -32,25 +46,7 @@ function naturalWidth() {
     return 0
   const style = getComputedStyle(element)
   const frame = element.offsetWidth - element.clientWidth + Number.parseFloat(style.paddingLeft) + Number.parseFloat(style.paddingRight)
-  // A part of an item can grow to fill the item, so its box is not its natural width. Its text is: a range measures the laid-out text.
-  // A part without text, such as the arrow, keeps its own width.
-  const range = document.createRange()
-  const naturalWidthOf = (part: HTMLElement) => {
-    if (!part.textContent?.trim())
-      return part.offsetWidth
-    range.selectNodeContents(part)
-    return Math.max(range.getBoundingClientRect().width, Number.parseFloat(getComputedStyle(part).minWidth) || 0)
-  }
-  let widest = 0
-  for (const item of element.querySelectorAll<HTMLElement>('.link-group-item')) {
-    const itemStyle = getComputedStyle(item)
-    const parts = [...item.children] as HTMLElement[]
-    const gaps = Number.parseFloat(itemStyle.columnGap) * Math.max(0, parts.length - 1)
-    const padding = Number.parseFloat(itemStyle.paddingLeft) + Number.parseFloat(itemStyle.paddingRight)
-    widest = Math.max(widest, parts.reduce((sum, part) => sum + naturalWidthOf(part), 0) + gaps + padding)
-  }
-  range.detach()
-  return Math.ceil(widest + frame)
+  return Math.ceil(Math.max(0, ...[...items].map(item => item.naturalWidth())) + frame)
 }
 
 defineExpose({ naturalWidth })

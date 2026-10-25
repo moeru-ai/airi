@@ -36,6 +36,8 @@ const groups = computed(() => {
 // The cards keep their whole content, and each column takes whole cards.
 // - A column is as wide as the widest card needs, so every name and its location fit on one line. One column holds the rest.
 // - The columns get the cards so that their heights differ the least: the tallest card first, each one into the shortest column.
+// - Of the column counts that fit, the one with the lowest tallest column wins. On a tie, the smaller height difference wins,
+//   then the fewer columns. A very tall card sets the height alone, so more columns would only leave more space next to it.
 // - In a column, the cards keep the order of the results, and the column with the best card comes first.
 // All cards stay in one grid in the order of the results. A card that moves to another column keeps its element, so a focused
 // link keeps the focus, and Tab follows the order of the results. Until the cards are measured, they stand in one column.
@@ -73,15 +75,21 @@ const layout = computed(() => {
   if (columnWidth.value <= 0 || !groups.value.every(group => heights.value.has(group.category.title)))
     return undefined
   const fits = Math.floor((width.value + gap.value) / (columnWidth.value + gap.value))
-  const count = Math.max(1, Math.min(fits, groups.value.length))
-  const columns = Array.from({ length: count }, () => ({ height: 0, groups: [] as Group[] }))
   const heightOf = (group: Group) => heights.value.get(group.category.title) ?? 0
   const tallestFirst = groups.value.toSorted((left, right) => heightOf(right) - heightOf(left) || left.rank - right.rank)
-  for (const group of tallestFirst) {
-    const shortest = columns.reduce((lowest, column) => column.height < lowest.height ? column : lowest)
-    shortest.groups.push(group)
-    shortest.height += heightOf(group) + gap.value
+  const arrange = (count: number) => {
+    const columns = Array.from({ length: count }, () => ({ height: 0, groups: [] as Group[] }))
+    for (const group of tallestFirst) {
+      const shortest = columns.reduce((lowest, column) => column.height < lowest.height ? column : lowest)
+      shortest.groups.push(group)
+      shortest.height += heightOf(group) + gap.value
+    }
+    const heightsOf = columns.map(column => column.height)
+    return { count, columns, tallest: Math.max(...heightsOf), spread: Math.max(...heightsOf) - Math.min(...heightsOf) }
   }
+  const counts = Array.from({ length: Math.max(1, Math.min(fits, groups.value.length)) }, (_, index) => index + 1)
+  const { count, columns } = counts.map(arrange).reduce((best, next) =>
+    next.tallest < best.tallest || (next.tallest === best.tallest && next.spread < best.spread) ? next : best)
   const bestRank = (column: { groups: Group[] }) => Math.min(...column.groups.map(group => group.rank))
   const columnOf = new Map<string, number>()
   columns.toSorted((left, right) => bestRank(left) - bestRank(right))

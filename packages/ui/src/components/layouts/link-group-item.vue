@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import type { PrimitiveProps } from 'reka-ui'
+import type { ComponentPublicInstance } from 'vue'
 
 import { Primitive } from 'reka-ui'
+import { inject, onBeforeUnmount, onMounted, useTemplateRef } from 'vue'
+
+import { linkGroupContextKey } from './link-group-context'
 
 withDefaults(defineProps<{
   /** Element or component that the item renders as, such as `RouterLink`. Other attributes, such as `to`, pass to it. */
@@ -11,10 +15,45 @@ withDefaults(defineProps<{
 }>(), {
   as: 'a',
 })
+
+const root = useTemplateRef<ComponentPublicInstance>('root')
+const nameBox = useTemplateRef<HTMLElement>('nameBox')
+const nameText = useTemplateRef<HTMLElement>('nameText')
+const detailBox = useTemplateRef<HTMLElement>('detailBox')
+const detailText = useTemplateRef<HTMLElement>('detailText')
+const arrow = useTemplateRef<HTMLElement>('arrow')
+const element = () => root.value?.$el as HTMLElement | undefined
+
+/**
+ * The narrowest width at which the item does not cut its text: each part at its natural width, with the gaps and the padding.
+ * A text sits in an inline box inside its part. The inline box keeps the full width of the text when the part cuts it.
+ */
+function naturalWidth() {
+  const item = element()
+  if (!item)
+    return 0
+  const style = getComputedStyle(item)
+  const textWidth = (box: HTMLElement | null, text: HTMLElement | null) => box && text
+    ? Math.max(text.getBoundingClientRect().width, Number.parseFloat(getComputedStyle(box).minWidth) || 0)
+    : undefined
+  const parts = [textWidth(nameBox.value, nameText.value), textWidth(detailBox.value, detailText.value), arrow.value?.offsetWidth]
+    .filter(width => width !== undefined)
+  const gaps = Number.parseFloat(style.columnGap) * Math.max(0, parts.length - 1)
+  const padding = Number.parseFloat(style.paddingLeft) + Number.parseFloat(style.paddingRight)
+  return parts.reduce((sum, width) => sum + width, 0) + gaps + padding
+}
+
+const group = inject(linkGroupContextKey, undefined)
+let unregister: (() => void) | undefined
+onMounted(() => {
+  unregister = group?.register({ element, naturalWidth })
+})
+onBeforeUnmount(() => unregister?.())
 </script>
 
 <template>
   <Primitive
+    ref="root"
     :as="as"
     :class="[
       'link-group-item',
@@ -25,20 +64,22 @@ withDefaults(defineProps<{
     ]"
   >
     <!-- The name keeps its width. The detail shrinks and cuts first. -->
-    <span :class="['link-group-item-name', 'min-w-[4em] flex-[0_1_auto] truncate', 'text-base']">
-      <slot />
+    <span ref="nameBox" :class="['link-group-item-name', 'min-w-[4em] flex-[0_1_auto] truncate', 'text-base']">
+      <span ref="nameText"><slot /></span>
     </span>
     <span
       v-if="detail || $slots.detail"
+      ref="detailBox"
       :class="[
         'link-group-item-detail',
         'min-w-[3em] flex-[1_4_auto] truncate text-right',
         'text-[13px] leading-[18px] text-neutral-400 dark:text-neutral-500',
       ]"
     >
-      <slot name="detail">{{ detail }}</slot>
+      <span ref="detailText"><slot name="detail">{{ detail }}</slot></span>
     </span>
     <div
+      ref="arrow"
       :class="[
         'link-group-item-arrow',
         'i-solar:alt-arrow-right-linear ml-auto size-4 shrink-0',
