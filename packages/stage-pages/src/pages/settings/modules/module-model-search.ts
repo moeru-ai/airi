@@ -4,7 +4,6 @@ import type { ProviderViews } from '@proj-airi/stage-ui/libs/providers/views'
 import type { VoiceInfo } from '@proj-airi/stage-ui/stores/providers/provider'
 
 import { SETTINGS_SEARCH_VIEW_EXPORT, settingsSearchItemKey } from '@proj-airi/stage-shared/settings-search'
-import { getDefinedProvider } from '@proj-airi/stage-ui/libs/providers/providers'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 
@@ -90,7 +89,7 @@ export async function speechVoiceItems(providers: readonly ProviderMetadata[], c
 
   const items = await Promise.all(providers.map(async (provider) => {
     const card = providers.find(candidate => candidate.id === cardOf(provider.id)) ?? provider
-    const byModel = getDefinedProvider(provider.id)?.capabilities?.speech?.voicesByModel === true
+    const byModel = providerStore.findProviderDefinition(provider.id)?.capabilities?.speech?.voicesByModel === true
     const models = byModel ? providerStore.getModelsForProvider(provider.id).map(model => model.id) : []
     const catalogs = models.length
       ? await Promise.all(models.map(async model => ({ model, voices: await catalogOf(provider.id, model, true) })))
