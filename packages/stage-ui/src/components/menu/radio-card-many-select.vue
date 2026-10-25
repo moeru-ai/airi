@@ -33,6 +33,11 @@ interface Props {
    * expand/collapse stays visible above the grid scroll area (e.g. onboarding modal).
    */
   fillAvailableHeight?: boolean
+  /**
+   * The settings search marker of each item, such as a model's key. A settings page passes it,
+   * so a search result for an item scrolls to that item. Without it, the items have no marker.
+   */
+  searchKeyOf?: (item: Item) => string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -209,6 +214,7 @@ function updateCustomValue(value: string) {
               :id="item.id"
               :key="item.id"
               v-model="modelValue"
+              :data-settings-search="props.searchKeyOf?.(item)"
               :value="item.id"
               :title="item.name"
               :description="item.description"

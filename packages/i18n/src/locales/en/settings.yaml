@@ -2569,6 +2569,10 @@ pages:
       label: Tip!
       description: Using a square image will leverage <b>cover</b> cropping in
         portrait mode, focusing on the center of the scene.
+search:
+  placeholder: Search settings
+  empty: 'No settings match "{query}".'
+  not-shown: '"{name}" shows only in another state of this page, for example after you turn on a switch or choose another model type.'
 sections:
   section:
     general:

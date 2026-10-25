@@ -36,6 +36,7 @@ import {
   syncJsonDraftFromServers,
   validateServerForm,
 } from './mcp-config'
+import { mcpServerSearchKey } from './mcp.search'
 
 const { t } = useI18n()
 const { trackMcpServerRemoved, trackMcpConnectionTestRun } = useAnalytics()
@@ -399,6 +400,7 @@ onMounted(async () => {
       <article
         v-for="server in savedServers"
         :key="server.rowId"
+        :data-settings-search="mcpServerSearchKey(server.identifier)"
         :class="server.enabled ? CARD_PRIMARY : CARD_MUTED"
       >
         <div class="flex items-center gap-3">

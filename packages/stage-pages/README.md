@@ -34,3 +34,24 @@ The active chat and vision provider routes live under `/settings/providers`. The
 - `/settings/modules/hearing/wake-words` lists the wake words of each card and the detector status. When two cards share a pronunciation, the user chooses the character that answers it. The choice stays on the device, and both cards keep their words.
 
 The character card page shows an alert while a shared pronunciation has no character. The alert links to the wake words page.
+
+## Settings search
+
+The settings home searches every settings page, the settings on it, and the runtime items that a page lists.
+
+- **Settings**: `createSettingsSearch` from `@proj-airi/stage-pages/vite/settings-search` scans each settings route at build time.
+  - It follows the components that the page imports.
+  - It writes the i18n keys of the names into `meta.searchKeys`, and marks the same elements with `data-settings-search`.
+  - A name is `t('key')` in the `label` or `title` prop of a component, a heading, a label, or a legend.
+  - A key can use a string constant of the file, a static prop, or a translation helper, such as `tn('enable')`, as its prefix.
+- **Excluded content**:
+  - Button text, notices (`Callout`, `Alert`, `ErrorContainer`), and overlay content are not settings, so they are not in the index.
+  - A branch that the app build never renders, such as a desktop-only row on the web, is not in the index either.
+- **Conditional settings**:
+  - When a setting shows only in some state, the scan writes its gate into `meta.searchGates`. The gate is the setting before it that controls it, such as its switch or its collapsed section.
+  - If the setting is not on the page, search opens a collapsed section, or highlights the gate.
+- **Runtime items**, such as character cards or models:
+  - A page lists them with a sibling `<page>.search.ts`. Its default export is a `SettingsSearchProvider` from `@proj-airi/stage-shared/settings-search`.
+  - Each row binds the same key to `data-settings-search`.
+  - A shared list component, such as `RadioCardManySelect`, takes `searchKeyOf` for its items.
+- **Checks**: a production build fails when a name cannot be read, or when a page marks runtime rows without a provider. Development only warns.

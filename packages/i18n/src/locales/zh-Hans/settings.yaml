@@ -2362,6 +2362,10 @@ pages:
     tip:
       label: 提示！
       description: 使用正方形图片将在竖屏模式下应用<b>封面</b>裁剪，聚焦场景中心。
+search:
+  placeholder: 搜索设置
+  empty: 没有找到与“{query}”相关的设置。
+  not-shown: “{name}”只在这个页面的其他状态下显示，比如打开某个开关或换一种模型之后。
 sections:
   section:
     general:

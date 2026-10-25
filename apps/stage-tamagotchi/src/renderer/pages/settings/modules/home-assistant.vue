@@ -12,9 +12,11 @@ import { Button, FieldCheckbox, FieldInput, GhostButton, Input, Radio, Scrollabl
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 
 import { homeAssistantConfigRejections, homeAssistantGetConfig, homeAssistantSetConfig } from '../../../../shared/eventa/home-assistant'
 import { useTamagotchiHomeAssistantStore } from '../../../stores/tools/home-assistant'
+import { homeAssistantEntityOfSearchKey, homeAssistantEntitySearchKey } from './home-assistant.search'
 
 const { t } = useI18n()
 /**
@@ -117,6 +119,16 @@ const visibleEntities = computed(() => {
       || entity.name.toLowerCase().includes(query)
       || entity.entityId.toLowerCase().includes(query))
 })
+
+// A search result names one device. The grid mounts only a batch of the rows, so it filters to that device first.
+const route = useRoute()
+watch(() => route.query.setting, (key) => {
+  const entityId = homeAssistantEntityOfSearchKey(key)
+  if (!entityId)
+    return
+  activeDomain.value = null
+  entityQuery.value = entityId
+}, { immediate: true })
 
 const allVisibleSelected = computed(() =>
   visibleEntities.value.length > 0 && visibleEntities.value.every(entity => selectedIds.value.has(entity.entityId)))
@@ -666,6 +678,7 @@ watch(exposureMode, async (mode) => {
               <HomeAssistantEntityTile
                 v-for="entity in mountedEntities"
                 :key="entity.entityId"
+                :data-settings-search="homeAssistantEntitySearchKey(entity.entityId)"
                 :entity="entity"
                 :selected="selectedIds.has(entity.entityId)"
                 :state-label="stateLabel(entity.domain, entity.state)"

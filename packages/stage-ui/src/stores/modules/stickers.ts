@@ -9,6 +9,17 @@ import { chatStickers } from '../../assets/stickers'
 import { stickersRepo } from '../../database/repos/stickers.repo'
 import { StickerValidationError, validateStickerImage, validateStickerMetadata } from '../../libs/stickers/import'
 
+/** The marker of a sticker's row in settings. The page and the settings search share it. */
+export function stickerSearchKey(id: string) {
+  return `sticker:${id}`
+}
+
+/** The name that settings shows for a sticker: the translated name of a bundled sticker, or the name that its owner gave. */
+export function stickerDisplayName(entry: StickerEntry, t: (key: string) => string) {
+  const bundled = chatStickers.find(sticker => sticker.id === entry.id)
+  return bundled && entry.name === bundled.description ? t(`settings.pages.modules.stickers.artwork.${entry.id}`) : entry.name
+}
+
 /** IndexedDB owns the library. Broadcasts invalidate snapshots without sending image bytes between windows. */
 export const useStickersStore = defineStore('stickers', () => {
   const enabled = useLocalStorageManualReset('settings/stickers/enabled', false)
