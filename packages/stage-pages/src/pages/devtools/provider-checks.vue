@@ -33,12 +33,19 @@ function listOf(names: string[]) {
   return new Intl.ListFormat(locale.value, { type: 'conjunction' }).format(names)
 }
 
-/** The providers that the checks cover, with what their recent checks found. */
-const rows = computed(() => Object.entries(providersStore.providerRuntimeState).flatMap(([id, runtime]) => {
+/** The ids of the added providers, and of the providers that a check already covered. */
+const ids = computed(() => [...new Set([
+  ...Object.keys(providerConfigStore.addedProviders).filter(id => providerConfigStore.addedProviders[id]),
+  ...Object.keys(providersStore.providerRuntimeState),
+])])
+
+/** The providers that the checks cover, with what their recent checks found. A provider that no check ran on yet has no runtime state. */
+const rows = computed(() => ids.value.flatMap((id) => {
+  const runtime = providersStore.providerRuntimeState[id]
   const metadata = providersStore.availableProvidersMetadata.find(entry => entry.id === id)
   if (!metadata)
     return []
-  const times = runtime.validationTimes ?? []
+  const times = runtime?.validationTimes ?? []
   const gaps = times.slice(1).map((time, index) => time - times[index]!)
   return [{
     id,
@@ -46,7 +53,7 @@ const rows = computed(() => Object.entries(providersStore.providerRuntimeState).
     icon: metadata.icon ?? providerKindIconOf(metadata.category),
     kind: (KINDS as readonly string[]).includes(metadata.category) ? metadata.category : 'other',
     status: (providerConfigStore.providers[id]?.status ?? 'unconfigured') as ProviderValidationStatus,
-    reason: runtime.validationReason,
+    reason: runtime?.validationReason,
     lastCheck: times.at(-1),
     count: times.length,
     averageGap: gaps.length ? gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length : undefined,
