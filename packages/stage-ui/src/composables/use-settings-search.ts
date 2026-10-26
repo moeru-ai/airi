@@ -11,6 +11,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
+import { providerSettingsRouteOf } from '../libs/providers/metadata'
 import { useProviderStore } from '../stores/providers/provider'
 
 /** The top-level settings page that holds a search result, such as "Modules". */
@@ -170,11 +171,13 @@ export function useSettingsSearch(
       const location = [providersPage.title, t(`settings.pages.providers.categories.${kind}.title`)]
       for (const provider of providers) {
         // The providers page hides the No Speech choice. It has no settings.
-        if (!provider.to || provider.id === 'speech-noop')
+        if (provider.id === 'speech-noop')
           continue
-        const routePage = pages.get(provider.to)
-        const meta = router.resolve(provider.to).matched.at(-1)?.meta as SettingsSearchRouteMeta | undefined
-        providerPages.push([provider.to, {
+        // The same page that the provider card links to, so a result and the card open the same place.
+        const to = providerSettingsRouteOf(provider)
+        const routePage = pages.get(to)
+        const meta = router.resolve(to).matched.at(-1)?.meta as SettingsSearchRouteMeta | undefined
+        providerPages.push([to, {
           title: provider.localizedName,
           location: routePage ? [...routePage.location, routePage.title] : location,
           category: routePage?.category ?? providersPage.category,
