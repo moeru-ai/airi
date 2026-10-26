@@ -3,3 +3,4 @@ godot = "https://github.com/LemonNekoGH/vfox-godot.git#dd88823451008524efde019c6
 
 [tools]
 godot = "4.7.2-stable_mono"
+java = "temurin-21.0.10+7.0.LTS"
