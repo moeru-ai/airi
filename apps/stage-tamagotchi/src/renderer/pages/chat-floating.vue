@@ -385,18 +385,19 @@ function moveByKeyboard(delta: WindowDelta) {
             <!-- A plain button: GhostButton wraps its slot in a span that cannot shrink, so a long name could not truncate. -->
             <button
               :class="[
-                'min-w-0 flex items-center gap-1.5 rounded-full py-0.5 outline-none transition-colors',
+                'group min-w-0 flex items-center gap-1.5 rounded-full py-0.5 outline-none transition-colors',
                 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
-                'text-neutral-700 hover:bg-primary-50 hover:text-primary-700 dark:text-neutral-200 dark:hover:bg-primary-900/40 dark:hover:text-primary-300',
+                'text-neutral-700 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-200 dark:hover:bg-neutral-800 dark:hover:text-primary-400',
                 characterOnLeft ? 'flex-row-reverse pl-2 pr-0.5' : 'pl-0.5 pr-2',
               ]"
               @click="sessionsDrawerOpen = true"
             >
+              <!-- The icon looks like the dock icons beside it: light gray at rest, the theme color on hover, no disc. -->
               <span
                 :class="[
-                  'size-6 shrink-0 rounded-full',
-                  'flex items-center justify-center text-sm',
-                  'bg-neutral-100 text-neutral-400 dark:bg-neutral-800 dark:text-neutral-500',
+                  'size-6 shrink-0',
+                  'flex items-center justify-center text-base transition-colors',
+                  'text-neutral-400 group-hover:text-primary-500 dark:text-neutral-500 dark:group-hover:text-primary-400',
                 ]"
               >
                 <span class="i-solar:chat-line-bold" />

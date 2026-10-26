@@ -73,11 +73,8 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
   const runtime = createChatOrchestratorRuntime({
     session: {
       commitUserMessage,
-      ensureSession: (sessionId) => {
-        sessionMessages[sessionId] ??= []
-      },
       getSessionMessages: sessionId => sessionMessages[sessionId] ?? [],
-      appendSessionMessage: (sessionId, message) => {
+      commitAssistantMessage: async (sessionId, message) => {
         sessionMessages[sessionId] ??= []
         sessionMessages[sessionId].push(message)
       },

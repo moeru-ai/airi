@@ -18,6 +18,7 @@ function toggleVisible() {
   <Collapsible w-full>
     <template #trigger="slotProps">
       <button
+        :aria-expanded="slotProps.visible"
         transition="all ease-in-out duration-250"
         w-full flex items-center gap-1.5 outline-none
         class="[&_.provider-icon]:grayscale-100 [&_.provider-icon]:hover:grayscale-0"

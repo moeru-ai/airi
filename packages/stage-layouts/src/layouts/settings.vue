@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { PageHeader } from '@proj-airi/stage-ui/components'
+import { useSettingsSearchReveal } from '@proj-airi/stage-ui/composables/use-settings-search'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useTheme } from '@proj-airi/ui'
 import { computed, onMounted, useTemplateRef, watch } from 'vue'
@@ -20,6 +21,8 @@ watch(() => route.path, () => {
   if (scrollContainer.value)
     scrollContainer.value.scrollTop = 0
 }, { flush: 'post' })
+// A search result opens its page with the setting in the query. Scroll to that row and highlight it.
+useSettingsSearchReveal(scrollContainer)
 
 const { isDark: dark } = useTheme()
 const { t } = useI18n()

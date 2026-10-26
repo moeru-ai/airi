@@ -28,11 +28,11 @@ catalogs:
       specifier: ^0.18.5
       version: 0.18.5
     '@auv-js/cli':
-      specifier: 0.0.28
-      version: 0.0.28
+      specifier: 0.0.38
+      version: 0.0.38
     '@auv-js/sdk':
-      specifier: 0.0.28
-      version: 0.0.28
+      specifier: 0.0.38
+      version: 0.0.38
     '@aws-sdk/client-s3':
       specifier: ^3.1135.0
       version: 3.1139.0
@@ -934,8 +934,8 @@ catalogs:
       specifier: ^4.0.3
       version: 4.0.3
     pinia-plugin-synced:
-      specifier: ^0.1.5
-      version: 0.1.5
+      specifier: ^0.1.6
+      version: 0.1.6
     pixi-filters:
       specifier: ^4.2.0
       version: 4.2.0
@@ -1882,10 +1882,10 @@ importers:
     dependencies:
       '@auv-js/cli':
         specifier: 'catalog:'
-        version: 0.0.28
+        version: 0.0.38
       '@auv-js/sdk':
         specifier: 'catalog:'
-        version: 0.0.28
+        version: 0.0.38
       '@proj-airi/electron-native-backdrop':
         specifier: workspace:^
         version: link:../../packages/electron-native-backdrop
@@ -5310,7 +5310,7 @@ importers:
         version: 4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3))
       pinia-plugin-synced:
         specifier: 'catalog:'
-        version: 0.1.5(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
+        version: 0.1.6(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
       rehype-katex:
         specifier: 'catalog:'
         version: 7.0.1
@@ -6848,53 +6848,53 @@ packages:
   '@asamuzakjp/nwsapi@2.3.9':
     resolution: {integrity: sha512-n8GuYSrI9bF7FFZ/SjhwevlHc8xaVlb/7HmHelnc/PZXBD2ZR49NnN9sMMuDdEGPeeRQ5d0hqlSlEpgCX3Wl0Q==}
 
-  '@auv-js/api-client@0.0.28':
-    resolution: {integrity: sha512-dM/41Bymh9AeK+ePORUF+IJ9d1U2eguOO1ywyFYmAsDdLZqm2/C6mAkiqNFXj3UKYuNo2eL8z+pQNrmS3BSoFg==}
+  '@auv-js/api-client@0.0.38':
+    resolution: {integrity: sha512-5TWH9YTxtN18MnyUtWw0bpYCMycAbSkZMJGIC+LlRIdHNFdD4b6JydU0Ptb/HfZWt221gOH+4BBptBrWaVdQ0w==}
 
-  '@auv-js/cli-darwin-arm64@0.0.28':
-    resolution: {integrity: sha512-mgwnJuzHeAX3KfQSrcR0sniZBCRmXU/FSoBH6dF5jTm+uzeRY37EPJY7YwxvZXsS6TAHLDIjA9JpAzKN1HzRKQ==}
+  '@auv-js/cli-darwin-arm64@0.0.38':
+    resolution: {integrity: sha512-2jOUDX5Z9Ya3B0yOJYpYDTB/0uMS2PZrSellXxoUPYnVq2zNcDSKnT14XK+HP5puUt2K+1vBKfeawNUFw1xUrA==}
     engines: {node: '>=20.19.0'}
     cpu: [arm64]
     os: [darwin]
 
-  '@auv-js/cli-darwin-x64@0.0.28':
-    resolution: {integrity: sha512-3ZSziSCV2AZF/F1hUauu7fYVlChQ96+4oHgp/fv7OZobAq+/EiAQqyrbatvYE4O27NcjamiNDdMq6SBdcJCvOw==}
+  '@auv-js/cli-darwin-x64@0.0.38':
+    resolution: {integrity: sha512-zfSYeQMJkCh2MvRuCFXFZd2C6JLBYp0VOCyLZnBqvQbkh0Y8LZfb0LUCEykLgNOUyZ9v3eO5YWT6vceOEXwj4A==}
     engines: {node: '>=20.19.0'}
     cpu: [x64]
     os: [darwin]
 
-  '@auv-js/cli-linux-arm64-gnu@0.0.28':
-    resolution: {integrity: sha512-x4WVMjqysLyqFZlBfSQI7d5pWBeiY48twodcYaBa49c8xagzfSs1adrJfXqYDW6hptPhtooKRsdFU3HbLsrkgQ==}
+  '@auv-js/cli-linux-arm64-gnu@0.0.38':
+    resolution: {integrity: sha512-EAKqJpT2vh0RW186vpjZeStkgz89dSfZlVok7f6XlXEDzJRMO2D7Op2YsXh2qnjQe4VsntvQJ8x1WeT5i0z7dg==}
     engines: {node: '>=20.19.0'}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
 
-  '@auv-js/cli-linux-x64-gnu@0.0.28':
-    resolution: {integrity: sha512-rvKrKQ+C/K/JetZef8WroXsC3ZZThv96Szjye/w15+vvJVPujNOcoGeiRc112MrJ6PktKsxbJQXC+B4krZkFWQ==}
+  '@auv-js/cli-linux-x64-gnu@0.0.38':
+    resolution: {integrity: sha512-gDjiTdWhraVDRYtCRCjpQGT1S6pUoc3x3Ex4cu+DzhlqqBEdzZCG3R3kp2OfPHj5c7wYZ5jTVYlse8fgKnJiEg==}
     engines: {node: '>=20.19.0'}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@auv-js/cli-win32-arm64-msvc@0.0.28':
-    resolution: {integrity: sha512-R9Nu9TUT2heshiDWbaDOZiuXs/H4yd0RQdatuX/uKSsTnEhgPfKmdYj7hpGqtJf6b52pENbdvUs8ZlOyV5rRJQ==}
+  '@auv-js/cli-win32-arm64-msvc@0.0.38':
+    resolution: {integrity: sha512-ASacCa5ID4q+PcWEte2pwhGExX8N4+/z0u5oHba88EOJv7gcTkxvqE+bcGtB++q2PshOUjWXSw8bVjXirquvvA==}
     engines: {node: '>=20.19.0'}
     cpu: [arm64]
     os: [win32]
 
-  '@auv-js/cli-win32-x64-msvc@0.0.28':
-    resolution: {integrity: sha512-AwVXaJBqfqidq8VWdQNXfmvkhXDKu4ZwmljBG4y4KxD74zHWVGRPDO3ANRE72HBZuU0sSEP3a8LDUCSo5Ycz2w==}
+  '@auv-js/cli-win32-x64-msvc@0.0.38':
+    resolution: {integrity: sha512-11XZT8y0Lqel9koA0saOqdRw9PX7zOkqwM5iOl1Z8yMmpnMiV0XOvTUskUjPeKlseipUfKfk0kBVXMBbTGlbrg==}
     engines: {node: '>=20.19.0'}
     cpu: [x64]
     os: [win32]
 
-  '@auv-js/cli@0.0.28':
-    resolution: {integrity: sha512-ZgLD6e0ruwjaxObls1yldzYFiyiXnwrv5Uoo2vOi6nnycxcHGcYa6C/3Paq9R+48QnDzH1HaLZMXbrPLbFRfLA==}
+  '@auv-js/cli@0.0.38':
+    resolution: {integrity: sha512-Onm/Wy0eYdikZOvjyuajn5QaqGuOdGeKe4YXf3XlMc6GO7AY9izsIdlYFnM/qGEfYKtfvMXvSJUjkoPlTVZkKQ==}
     hasBin: true
 
-  '@auv-js/sdk@0.0.28':
-    resolution: {integrity: sha512-Moknh7kgfTH5eaLqbny1X5u4oDxvJrxhRwQHhaUARo1a6FrdWbwsG821VbXPcYlyUJWD+7XItchdt7o0Rqu0Rw==}
+  '@auv-js/sdk@0.0.38':
+    resolution: {integrity: sha512-yK6nuWUwVTnUp2UHB+VXU8FF8f8G/64JbihCxNUr8QTJvdrxGkD4GPGkxlpGJpNWVEIILNQrFCAc+EasCHg6EA==}
 
   '@aws-sdk/checksums@3.1001.1':
     resolution: {integrity: sha512-x12Q17KYlJAd3nKf8LV5LV0vt8sh8/6YfQLGPtrGnQf/tW4jqxPGq5GPpuVitpQYM3eUR4XB7CbxZf751NMbLw==}
@@ -18190,8 +18190,8 @@ packages:
     resolution: {integrity: sha512-udgsAY+fTnvv7kI7aaxbqwWNb0AHiB0qBO89PZKPkoTmGOgdbrHDKD+0B2X4uTfJ/FT1R09r9gTsjUjNJotuog==}
     engines: {node: '>=0.10.0'}
 
-  pinia-plugin-synced@0.1.5:
-    resolution: {integrity: sha512-O+SUSbbLcYC8fRz8aCg4JRkaVn3UFH+cDlmpAMHc81EYWyz9FHQZgLCkBIj8moIyaWIjeqcPG5j7MmK6e6eG7Q==}
+  pinia-plugin-synced@0.1.6:
+    resolution: {integrity: sha512-x0EXEd/ogygHxKljGE3Op4DQlTI7E7qzd1xzO0ohHBQT4iA5ReqQpFAi7/7apGr6CxBjXrLSCUwvnd+hmoQe2Q==}
     peerDependencies:
       pinia: '>=3.0.4 <5'
       vue: ^3.5.0
@@ -21389,40 +21389,40 @@ snapshots:
 
   '@asamuzakjp/nwsapi@2.3.9': {}
 
-  '@auv-js/api-client@0.0.28': {}
+  '@auv-js/api-client@0.0.38': {}
 
-  '@auv-js/cli-darwin-arm64@0.0.28':
+  '@auv-js/cli-darwin-arm64@0.0.38':
     optional: true
 
-  '@auv-js/cli-darwin-x64@0.0.28':
+  '@auv-js/cli-darwin-x64@0.0.38':
     optional: true
 
-  '@auv-js/cli-linux-arm64-gnu@0.0.28':
+  '@auv-js/cli-linux-arm64-gnu@0.0.38':
     optional: true
 
-  '@auv-js/cli-linux-x64-gnu@0.0.28':
+  '@auv-js/cli-linux-x64-gnu@0.0.38':
     optional: true
 
-  '@auv-js/cli-win32-arm64-msvc@0.0.28':
+  '@auv-js/cli-win32-arm64-msvc@0.0.38':
     optional: true
 
-  '@auv-js/cli-win32-x64-msvc@0.0.28':
+  '@auv-js/cli-win32-x64-msvc@0.0.38':
     optional: true
 
-  '@auv-js/cli@0.0.28':
+  '@auv-js/cli@0.0.38':
     dependencies:
       std-env: 4.2.0
     optionalDependencies:
-      '@auv-js/cli-darwin-arm64': 0.0.28
-      '@auv-js/cli-darwin-x64': 0.0.28
-      '@auv-js/cli-linux-arm64-gnu': 0.0.28
-      '@auv-js/cli-linux-x64-gnu': 0.0.28
-      '@auv-js/cli-win32-arm64-msvc': 0.0.28
-      '@auv-js/cli-win32-x64-msvc': 0.0.28
+      '@auv-js/cli-darwin-arm64': 0.0.38
+      '@auv-js/cli-darwin-x64': 0.0.38
+      '@auv-js/cli-linux-arm64-gnu': 0.0.38
+      '@auv-js/cli-linux-x64-gnu': 0.0.38
+      '@auv-js/cli-win32-arm64-msvc': 0.0.38
+      '@auv-js/cli-win32-x64-msvc': 0.0.38
 
-  '@auv-js/sdk@0.0.28':
+  '@auv-js/sdk@0.0.38':
     dependencies:
-      '@auv-js/api-client': 0.0.28
+      '@auv-js/api-client': 0.0.38
       '@bufbuild/protobuf': 2.13.0
       '@grpc/grpc-js': 1.14.4
       '@moeru/std': 0.1.0-beta.20
@@ -33948,7 +33948,7 @@ snapshots:
 
   pify@2.3.0: {}
 
-  pinia-plugin-synced@0.1.5(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3)):
+  pinia-plugin-synced@0.1.6(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3)):
     dependencies:
       '@moeru/std': 0.1.0-beta.20
       es-toolkit: 1.51.0

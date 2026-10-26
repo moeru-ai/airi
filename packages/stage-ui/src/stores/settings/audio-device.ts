@@ -106,6 +106,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     audioInputOptions: device.audioInputOptions,
     deviceConstraints: device.deviceConstraints,
     permissionGranted: device.permissionGranted,
+    permission: device.permission,
     stream: device.stream,
     input: device.input,
     unprocessedInput: device.unprocessedInput,

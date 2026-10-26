@@ -45,11 +45,6 @@ docs:
   style:
     title: Estilo de ventana de chat
     legacy: Ventana clásica
-    floating-attached: Flotante, junto al personaje
-    floating-free: Flotante, en cualquier lugar de la pantalla
-    floating-danmaku: Flotante, flujo de mensajes
-    pinned: Mantener siempre encima
-  resize: Arrastra para cambiar el tamaño del chat
   move: Arrastra para mover el chat
   fold: Ocultar chat
   composer:
