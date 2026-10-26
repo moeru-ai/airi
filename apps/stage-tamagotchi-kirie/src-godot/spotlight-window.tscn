@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://src-godot/scripts/SpotlightWindow.cs" id="1_window"]
 [ext_resource type="Script" path="res://addons/kirie/kirie_node.gd" id="2_kirie"]
+[ext_resource type="Script" path="res://src-godot/scripts/CefTrackpadScroll.cs" id="trackpad_scroll"]
 
 [node name="SpotlightWindow" type="Window"]
 title = "Spotlight"
@@ -28,3 +29,6 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("2_kirie")
 auto_create = false
+
+[node name="CefTrackpadScroll" type="Node" parent="."]
+script = ExtResource("trackpad_scroll")
