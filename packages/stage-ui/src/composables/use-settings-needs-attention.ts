@@ -2,6 +2,7 @@ import { useLocalStorage } from '@vueuse/core'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { providerSettingsRouteOf } from '../libs/providers/metadata'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useHearingStore } from '../stores/modules/hearing'
 import { useSpeechStore } from '../stores/modules/speech'
@@ -28,9 +29,6 @@ export interface SettingsNeedsAttentionItem {
   /** The settings page of the provider. */
   to: string
 }
-
-/** The page that lists all providers. A provider without its own page opens this one. */
-const PROVIDERS_PAGE = '/settings/providers'
 
 /** The module icon for each provider kind, as the modules page shows it. */
 const KIND_ICONS: Record<string, string> = {
@@ -116,7 +114,7 @@ export function useSettingsNeedsAttention() {
           fallbackIcon: providerKindIconOf(metadata.category),
           modules,
           reason: failure.reason,
-          to: metadata.to ?? PROVIDERS_PAGE,
+          to: providerSettingsRouteOf(metadata),
         }]
       })
       .sort((left, right) => Number(right.modules.length > 0) - Number(left.modules.length > 0) || left.name.localeCompare(right.name))
