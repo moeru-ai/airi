@@ -25,7 +25,8 @@ const providerStorageOptions = {
 
 const PUSH_DEBOUNCE_MS = 1000
 /** Same idle interval as VS Code Settings Sync. */
-const PULL_INTERVAL_MS = 5 * 60 * 1000
+/** How often a signed-in app syncs the provider configs with the cloud. The provider store checks the added providers after each sync. */
+export const PULL_INTERVAL_MS = 5 * 60 * 1000
 
 export type ProviderReplicaSyncState = 'synced' | 'pending' | 'not-uploaded'
 

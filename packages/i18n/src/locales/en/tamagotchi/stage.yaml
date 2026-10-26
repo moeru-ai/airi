@@ -129,6 +129,7 @@ about:
       beta: Beta
       nightly: Nightly
       canary: Canary
+      dev: Dev (every change on main)
     status:
       downloading: Downloading update...
       error-prefix: Error

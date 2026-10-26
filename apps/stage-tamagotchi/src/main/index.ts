@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url'
 import messages from '@proj-airi/i18n/locales'
 
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
+import { updater } from '@ergosphere-it/electron/main'
 import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { hasSelectedScreenCaptureSource, initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
@@ -526,7 +527,11 @@ app.whenReady().then(async () => {
     },
   })
 
-  injeca.start().catch(err => log.withError(err).error('Failed to start injeca'))
+  // The update launcher keeps a new bundle only after it reports healthy, and rolls it back otherwise. Report when every
+  // module, and so every window, has started.
+  injeca.start()
+    .then(() => updater.markBundleHealthy())
+    .catch(err => log.withError(err).error('Failed to start injeca'))
 
   // Extra
   openDebugger()

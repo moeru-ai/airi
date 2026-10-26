@@ -2,6 +2,9 @@ import { execFileSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
 import { env } from 'node:process'
 
+import ErgosphereMain from '@ergosphere-it/electron/vite/main'
+import ErgospherePreload from '@ergosphere-it/electron/vite/preload'
+import ErgosphereRenderer from '@ergosphere-it/electron/vite/renderer'
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import templateCompilerOptions from '@tresjs/core/template-compiler-options'
 import Vue from '@vitejs/plugin-vue'
@@ -67,6 +70,8 @@ export default defineConfig({
       externalizeDeps: true,
     },
     plugins: [
+      ErgosphereMain({ launcher: 'src/launcher/index.ts' }),
+
       {
         // To replace `build.rolldownOptions`, as electron-vite still uses the deprecated
         // `rollupOptions`, using `rollupOptions` and `rolldownOptions` at the same
@@ -125,7 +130,9 @@ export default defineConfig({
       },
     },
 
-    plugins: [],
+    plugins: [
+      ErgospherePreload(),
+    ],
   },
 
   renderer: {
@@ -220,6 +227,7 @@ export default defineConfig({
 
     plugins: [
       Info({ time: buildTime }),
+      ErgosphereRenderer(),
 
       {
         name: 'proj-airi:defines',

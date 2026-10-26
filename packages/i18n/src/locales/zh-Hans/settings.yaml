@@ -2194,6 +2194,36 @@ pages:
               markdown-stress:
                 title: Markdown 压力测试
                 description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
+              provider-checks:
+                title: 提供商检查
+                description: 查看提供商检查的时间，并让选中的提供商故意检查失败
+                timing-label: 检查时机
+                timing-signed-in: '已登录：登录时和之后每 {minutes} 分钟同步一次，同步完检查已添加的提供商'
+                timing-signed-out: 未登录：不会自动检查，只在部分提供商设置页里改配置，或点下面的按钮时检查
+                timing-periodic: '{names} 另外每 {seconds} 秒检查一次'
+                check-all: 立即全部检查
+                restore-all: '重新显示全部已忽略的（{count}）'
+                empty: 还没有检查过任何提供商。
+                not-checked: 还没检查
+                checked-ago: '{seconds} 秒前'
+                every: '每 {seconds} 秒'
+                measured: '最近 {count} 次平均 {seconds} 秒'
+                dismissed: 已忽略
+                restore-one: 取消忽略
+                simulate: 故意失败
+                simulated-reason: 开发者工具模拟的失败。
+                kinds:
+                  chat: 对话
+                  vision: 视觉
+                  speech: 语音合成
+                  transcription: 语音识别
+                  other: 其他
+                status:
+                  unconfigured: 未配置
+                  validating: 检查中
+                  configured: 通过
+                  invalid: 没通过
+                  bypassed: 不检查
               tool-payloads-as-json:
                 title: 以 JSON 显示工具数据
                 description: 聊天里工具调用的参数和结果显示为 JSON 树，不再格式化。回复里的卡片也会提供原始数据。
@@ -2366,6 +2396,14 @@ search:
   placeholder: 搜索设置
   empty: 没有找到与“{query}”相关的设置。
   not-shown: “{name}”只在这个页面的其他状态下显示，比如打开某个开关或换一种模型之后。
+needs-attention:
+  title-one: '{name} 上次检查没通过'
+  title-unconfigured: '{name} 还没配置好'
+  title-many: '{count} 个提供商需要处理'
+  affects: '{modules}用到时会出错'
+  used-by: '{modules}在用'
+  fix: 去修改
+  dismiss: 忽略
 sections:
   section:
     general:
