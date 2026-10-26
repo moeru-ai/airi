@@ -205,7 +205,7 @@ export function useProviderValidation(providerId: string) {
   const debouncedValidateConfiguration = useDebounceFn(async () => {
     if (!await shouldValidateConfiguration()) {
       isValid.value = false
-      providerStore.setProviderStatus(providerId, 'unconfigured')
+      await providersStore.recordUnfinishedConfig(providerId)
       validationMessage.value = ''
       isValidating.value = 0
       return

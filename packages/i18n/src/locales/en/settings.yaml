@@ -2605,9 +2605,9 @@ search:
   not-shown: '"{name}" shows only in another state of this page, for example after you turn on a switch or choose another model type.'
 needs-attention:
   title-one: '{name} failed its last check'
-  title-many: '{count} providers failed their last check'
+  title-unconfigured: '{name} is not set up'
+  title-many: '{count} providers need attention'
   affects: 'Affects {modules}'
-  unused-many: No module uses them now
   used-by: 'Used by {modules}'
   fix: Edit
   dismiss: Dismiss

@@ -2398,9 +2398,9 @@ search:
   not-shown: “{name}”只在这个页面的其他状态下显示，比如打开某个开关或换一种模型之后。
 needs-attention:
   title-one: '{name} 上次检查没通过'
-  title-many: '{count} 个提供商上次检查没通过'
+  title-unconfigured: '{name} 还没配置好'
+  title-many: '{count} 个提供商需要处理'
   affects: '{modules}用到时会出错'
-  unused-many: 现在没有模块在用它们
   used-by: '{modules}在用'
   fix: 去修改
   dismiss: 忽略
