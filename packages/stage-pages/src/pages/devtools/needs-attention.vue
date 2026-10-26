@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CharacterSpeechState } from '@proj-airi/stage-ui/composables/use-settings-needs-attention'
+import type { CharacterSpeechState, ModuleSelectionState } from '@proj-airi/stage-ui/composables/use-settings-needs-attention'
 import type { ProviderValidationStatus } from '@proj-airi/stage-ui/libs/providers/types'
 
 import { providerKindIconOf, useSettingsNeedsAttention } from '@proj-airi/stage-ui/composables/use-settings-needs-attention'
@@ -15,7 +15,16 @@ const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const providersStore = useProviderStore()
 const providerConfigStore = useProviderConfigStore()
-const { entries, restoreDismissed, characterSpeech, setSimulatedSpeechGap } = useSettingsNeedsAttention()
+const {
+  entries,
+  restoreDismissed,
+  characterSpeech,
+  setSimulatedSpeechGap,
+  moduleSelections,
+  setSimulatedUnusable,
+  voiceInput,
+  setSimulatedVoiceInputGap,
+} = useSettingsNeedsAttention()
 const dismissedCount = computed(() => entries.value.filter(entry => entry.dismissed).length)
 const now = useNow({ interval: 1000 })
 const checking = shallowRef(false)
@@ -115,6 +124,24 @@ function speechDetailsOf(speech: CharacterSpeechState) {
   return [speech.providerName ?? speech.provider, status].join(' · ')
 }
 
+/** The status of a module selection, by its state. */
+const SELECTION_STATE_KEYS: Record<ModuleSelectionState['state'], string> = {
+  'usable': 'selection-usable',
+  'provider-item': 'selection-provider-item',
+  'unusable': 'selection-unusable',
+}
+
+function selectionNameOf(selection: ModuleSelectionState) {
+  return selection.characterName === undefined ? selection.moduleTitle : `${selection.characterName} · ${selection.moduleTitle}`
+}
+
+/** Whether the microphone is on, the input mode, and whether Hearing can transcribe. */
+const voiceInputDetails = computed(() => [
+  t(key(voiceInput.value.microphoneOn ? 'voice-input-mic-on' : 'voice-input-mic-off')),
+  t(`settings.pages.modules.hearing.sections.section.input-mode.${voiceInput.value.mode}`),
+  t(key(voiceInput.value.configured ? 'voice-input-ready' : 'voice-input-not-ready')),
+].join(' · '))
+
 // A forced check skips the cache of the last result, so every provider runs its check now.
 async function checkAll() {
   checking.value = true
@@ -207,6 +234,29 @@ async function checkAll() {
       </div>
     </section>
 
+    <section v-if="moduleSelections.length" :class="['flex flex-col gap-1.5']">
+      <h2 :class="['m-0 px-1', 'text-xs font-normal text-neutral-500 dark:text-neutral-400']">
+        {{ t(key('selections-title')) }}
+      </h2>
+      <div :class="['rounded-xl bg-neutral-50 px-1.5 py-1 dark:bg-neutral-900']">
+        <div
+          v-for="selection in moduleSelections"
+          :key="selection.key"
+          :class="['flex flex-wrap items-center gap-x-3 gap-y-1', 'px-2.5 py-2']"
+        >
+          <span :class="['size-4.5 shrink-0', selection.icon]" />
+          <span :class="['text-sm']">{{ selectionNameOf(selection) }}</span>
+          <span :class="['min-w-0 flex-1', 'text-xs text-neutral-500 dark:text-neutral-400']">
+            {{ selection.providerName ?? selection.provider }} · {{ t(key(SELECTION_STATE_KEYS[selection.state])) }}
+          </span>
+          <label :class="['flex items-center gap-2', 'text-xs text-neutral-500 dark:text-neutral-400']">
+            {{ t(key('simulate-unusable')) }}
+            <Checkbox :model-value="selection.simulated" @update:model-value="setSimulatedUnusable(selection.key, $event)" />
+          </label>
+        </div>
+      </div>
+    </section>
+
     <section v-if="characterSpeech.length" :class="['flex flex-col gap-1.5']">
       <h2 :class="['m-0 px-1', 'text-xs font-normal text-neutral-500 dark:text-neutral-400']">
         {{ t(key('speech-title')) }}
@@ -223,6 +273,23 @@ async function checkAll() {
           <label :class="['flex items-center gap-2', 'text-xs text-neutral-500 dark:text-neutral-400']">
             {{ t(key('simulate-speech')) }}
             <Checkbox :model-value="speech.simulated" @update:model-value="setSimulatedSpeechGap(speech.id, $event)" />
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <section :class="['flex flex-col gap-1.5']">
+      <h2 :class="['m-0 px-1', 'text-xs font-normal text-neutral-500 dark:text-neutral-400']">
+        {{ t(key('voice-input-title')) }}
+      </h2>
+      <div :class="['rounded-xl bg-neutral-50 px-1.5 py-1 dark:bg-neutral-900']">
+        <div :class="['flex flex-wrap items-center gap-x-3 gap-y-1', 'px-2.5 py-2']">
+          <span :class="['size-4.5 shrink-0', providerKindIconOf('transcription')]" />
+          <span :class="['text-sm']">{{ t('settings.pages.modules.hearing.title') }}</span>
+          <span :class="['min-w-0 flex-1', 'text-xs text-neutral-500 dark:text-neutral-400']">{{ voiceInputDetails }}</span>
+          <label :class="['flex items-center gap-2', 'text-xs text-neutral-500 dark:text-neutral-400']">
+            {{ t(key('simulate-voice-input')) }}
+            <Checkbox :model-value="voiceInput.simulated" @update:model-value="setSimulatedVoiceInputGap($event)" />
           </label>
         </div>
       </div>

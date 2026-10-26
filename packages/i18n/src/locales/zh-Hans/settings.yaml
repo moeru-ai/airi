@@ -2222,6 +2222,17 @@ pages:
                 speech-pending: 等目录加载
                 items-title: 列表里的项
                 items-empty: 现在没有需要注意的项。
+                selections-title: 模块的提供商
+                selection-usable: 可以用
+                selection-provider-item: 已添加，由提供商那一项报告
+                selection-unusable: 模块用不了它
+                simulate-unusable: 当作不能用
+                voice-input-title: 语音输入
+                voice-input-mic-on: 麦克风已开
+                voice-input-mic-off: 麦克风已关
+                voice-input-ready: 听觉可以转写
+                voice-input-not-ready: 听觉没有转写服务或模型
+                simulate-voice-input: 当作开着但不能转写
                 simulate-speech: 当作没选声线
                 kinds:
                   chat: 对话

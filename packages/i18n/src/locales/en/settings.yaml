@@ -2422,6 +2422,17 @@ pages:
                 speech-pending: Waiting for the catalog
                 items-title: Items in the list
                 items-empty: Nothing needs attention now.
+                selections-title: Module providers
+                selection-usable: Can be used
+                selection-provider-item: 'Added, so the provider item reports it'
+                selection-unusable: The module cannot use it
+                simulate-unusable: Treat as unusable
+                voice-input-title: Voice input
+                voice-input-mic-on: Microphone on
+                voice-input-mic-off: Microphone off
+                voice-input-ready: Hearing can transcribe
+                voice-input-not-ready: Hearing has no transcription provider or model
+                simulate-voice-input: Treat as on without transcription
                 simulate-speech: Treat as no voice
                 kinds:
                   chat: Chat

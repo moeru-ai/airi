@@ -1,3 +1,4 @@
+import type { HearingInputMode } from '../stores/modules/hearing'
 import type { MissingSpeechField } from '../stores/modules/speech'
 
 import { useLocalStorage } from '@vueuse/core'
@@ -77,11 +78,62 @@ export interface CharacterSpeechState {
   simulated: boolean
 }
 
-/**
- * The characters whose speech the developer tools make the list treat as one without a voice.
- * The settings home and the developer tools share it in one window. It ends when the app quits.
- */
+/** The provider of one module selection, as the list sees it. The developer tools show it. */
+export interface ModuleSelectionState {
+  /** `<character id>:<module>`, or `hearing` for the Hearing module, which is the same for every character. */
+  key: string
+  /** The character that selects the provider. It is empty for Hearing. */
+  characterId?: string
+  /** The name of the character. */
+  characterName?: string
+  /** The localized title of the module. */
+  moduleTitle: string
+  /** The icon of the module. */
+  icon: string
+  /** The selected provider. */
+  provider: string
+  /** The localized name of the provider, when the provider is known. */
+  providerName?: string
+  /**
+   * - `usable`: the module page lists the provider, and the provider has no provider item.
+   * - `provider-item`: the provider is added, or it has a provider item. The provider item reports it.
+   * - `unusable`: the module page does not list the provider, and nothing else reports it.
+   */
+  state: 'usable' | 'provider-item' | 'unusable'
+  /** The developer tools make the list treat this selection as unusable. */
+  simulated: boolean
+}
+
+/** The voice input, as the list sees it. The developer tools show it. */
+export interface VoiceInputState {
+  /** Whether the microphone preference is on. */
+  microphoneOn: boolean
+  /** The Hearing input mode. */
+  mode: HearingInputMode
+  /** Whether Hearing has a transcription provider and a model. */
+  configured: boolean
+  /** The developer tools make the list treat voice input as on in the Always on mode, without transcription. */
+  simulated: boolean
+}
+
+// The developer tools set these to test the list. The settings home and the developer tools share them in one window.
+// They end when the app quits.
+/** The characters whose speech the list treats as one without a voice. */
 const simulatedSpeechIds = shallowRef<ReadonlySet<string>>(new Set())
+/** The module selections that the list treats as unusable, by `ModuleSelectionState.key`. */
+const simulatedUnusableKeys = shallowRef<ReadonlySet<string>>(new Set())
+/** Whether the list treats voice input as on without transcription. */
+const simulatedVoiceInputGap = shallowRef(false)
+
+/** A copy of a set, with a key added or removed. */
+function toggledSet(set: ReadonlySet<string>, key: string, included: boolean): ReadonlySet<string> {
+  const next = new Set(set)
+  if (included)
+    next.add(key)
+  else
+    next.delete(key)
+  return next
+}
 
 /** The module icon for each provider kind, as the modules page shows it. */
 const KIND_ICONS: Record<string, string> = {
@@ -161,8 +213,9 @@ function fingerprintOf(text: string) {
  * - `entries`: every problem, and whether the person dismissed it. The developer tools use it.
  * - `dismiss(id)`: hides a problem on this device until its cause changes.
  * - `restoreDismissed(id?)`: shows a dismissed problem again, or all of them without an id. The developer tools use it.
- * - `characterSpeech`: the speech of every character, as the list sees it. The developer tools use it.
- * - `setSimulatedSpeechGap(id, simulated)`: makes the list treat the speech of a character as one without a voice.
+ * - `characterSpeech`, `moduleSelections`, and `voiceInput`: the states that the list reads. The developer tools show them.
+ * - `setSimulatedSpeechGap`, `setSimulatedUnusable`, and `setSimulatedVoiceInputGap`: make the list show a problem on purpose,
+ *   to test it. The developer tools use them.
  */
 export function useSettingsNeedsAttention() {
   const { t, locale } = useI18n()
@@ -280,12 +333,8 @@ export function useSettingsNeedsAttention() {
     return moduleProviderIds.value[module].has(provider) && !providerItemIds.value.has(provider)
   }
 
-  /**
-   * Selections whose provider the module cannot select, for example a provider that was removed or was never added.
-   * A character keeps such a selection, because the person can add the provider again.
-   * An added provider shows as a provider item after its check instead.
-   */
-  const unavailableProviderProblems = computed(() => {
+  /** The module selections with a provider: each module of every character, and the Hearing module. */
+  const moduleSelections = computed(() => {
     const selections = [
       ...[...cardStore.characterModules].flatMap(([characterId, modules]) => CHARACTER_MODULES.map(module => ({
         characterId: characterId as string | undefined,
@@ -294,29 +343,59 @@ export function useSettingsNeedsAttention() {
       }))),
       { characterId: undefined, module: 'hearing' as Module, provider: hearingStore.activeTranscriptionProvider },
     ]
-    return selections.flatMap(({ characterId, module, provider }): Problem[] => {
-      if (!provider || provider === 'speech-noop' || moduleProviderIds.value[module].has(provider)
-        || providerConfigStore.addedProviders[provider] || providerItemIds.value.has(provider)) {
-        return []
-      }
-
-      const moduleTitle = moduleTitleOf(module)
-      return [{
-        item: {
-          id: characterId === undefined ? `provider-unavailable:${module}` : `provider-unavailable:${characterId}:${module}`,
-          title: characterId === undefined
-            ? t('settings.needs-attention.module-provider-unavailable', { module: moduleTitle })
-            : t('settings.needs-attention.character-provider-unavailable', { name: characterNameOf(characterId), module: moduleTitle }),
-          detail: t('settings.needs-attention.provider-not-listed', { provider: providerNameOf(provider) ?? provider }),
-          fallbackIcon: providerKindIconOf(MODULE_KINDS[module]),
-          modules: [moduleTitle],
-          blocking: true,
-          to: fixRouteOf(characterId, module),
-        },
-        fingerprint: fingerprintOf(`${module}\n${provider}`),
-      }]
-    })
+    return selections
+      .filter(({ provider }) => provider && provider !== 'speech-noop')
+      .map(({ characterId, module, provider }) => {
+        const key = characterId === undefined ? module : `${characterId}:${module}`
+        let state: ModuleSelectionState['state'] = 'unusable'
+        if (providerItemIds.value.has(provider) || (!moduleProviderIds.value[module].has(provider) && providerConfigStore.addedProviders[provider]))
+          state = 'provider-item'
+        else if (moduleProviderIds.value[module].has(provider))
+          state = 'usable'
+        return {
+          selection: {
+            key,
+            characterId,
+            characterName: characterId === undefined ? undefined : characterNameOf(characterId),
+            moduleTitle: moduleTitleOf(module),
+            icon: providerKindIconOf(MODULE_KINDS[module]),
+            provider,
+            providerName: providerNameOf(provider),
+            state,
+            simulated: simulatedUnusableKeys.value.has(key),
+          } satisfies ModuleSelectionState,
+          module,
+        }
+      })
   })
+
+  /**
+   * Selections whose provider the module cannot select, for example a provider that was removed or was never added.
+   * A character keeps such a selection, because the person can add the provider again.
+   * An added provider shows as a provider item after its check instead.
+   */
+  const unavailableProviderProblems = computed(() => moduleSelections.value.flatMap(({ selection, module }): Problem[] => {
+    if (selection.state !== 'unusable' && !selection.simulated)
+      return []
+
+    const providerName = selection.providerName ?? selection.provider
+    return [{
+      item: {
+        id: `provider-unavailable:${selection.key}`,
+        title: selection.characterName === undefined
+          ? t('settings.needs-attention.module-provider-unavailable', { module: selection.moduleTitle })
+          : t('settings.needs-attention.character-provider-unavailable', { name: selection.characterName, module: selection.moduleTitle }),
+        detail: selection.simulated
+          ? [providerName, t('settings.needs-attention.simulated')].join(' · ')
+          : t('settings.needs-attention.provider-not-listed', { provider: providerName }),
+        fallbackIcon: selection.icon,
+        modules: [selection.moduleTitle],
+        blocking: true,
+        to: fixRouteOf(selection.characterId, module),
+      },
+      fingerprint: fingerprintOf(`${module}\n${selection.provider}${selection.simulated ? '\nsimulated' : ''}`),
+    }]
+  }))
 
   /** The speech of every character, resolved as a reply resolves it. */
   const characterSpeech = computed(() => [...cardStore.characterModules].map(([id, modules]): CharacterSpeechState => {
@@ -367,6 +446,13 @@ export function useSettingsNeedsAttention() {
     }]
   }))
 
+  const voiceInput = computed<VoiceInputState>(() => ({
+    microphoneOn: audioDevice.enabled,
+    mode: hearingStore.inputMode,
+    configured: hearingStore.configured,
+    simulated: simulatedVoiceInputGap.value,
+  }))
+
   /**
    * Voice input that listens all the time, while Hearing has no transcription provider or model.
    * Speech then starts no input, and nothing tells the person why.
@@ -374,23 +460,26 @@ export function useSettingsNeedsAttention() {
    */
   const hearingProblems = computed((): Problem[] => {
     const provider = hearingStore.activeTranscriptionProvider
-    if (!audioDevice.enabled || !startsInputOnSpeech(hearingStore.inputMode) || hearingStore.configured)
-      return []
-    // A provider that the module cannot use shows as its own item.
-    if (provider && !usable('hearing', provider))
-      return []
+    const { microphoneOn, mode, configured, simulated } = voiceInput.value
+    if (!simulated) {
+      if (!microphoneOn || !startsInputOnSpeech(mode) || configured)
+        return []
+      // A provider that the module cannot use shows as its own item.
+      if (provider && !usable('hearing', provider))
+        return []
+    }
 
     return [{
       item: {
         id: 'hearing',
         title: t(provider ? 'settings.needs-attention.hearing-no-model' : 'settings.needs-attention.hearing-no-provider'),
-        detail: t('settings.needs-attention.not-transcribed'),
+        detail: [t('settings.needs-attention.not-transcribed'), simulated ? t('settings.needs-attention.simulated') : ''].filter(Boolean).join(' · '),
         fallbackIcon: providerKindIconOf('transcription'),
         modules: [moduleTitleOf('hearing')],
         blocking: true,
         to: MODULE_ROUTES.hearing,
       },
-      fingerprint: fingerprintOf(`${provider}\n${hearingStore.activeTranscriptionModel}`),
+      fingerprint: fingerprintOf(`${provider}\n${hearingStore.activeTranscriptionModel}${simulated ? '\nsimulated' : ''}`),
     }]
   })
 
@@ -425,13 +514,29 @@ export function useSettingsNeedsAttention() {
 
   /** Makes the list treat the speech of a character as one without a voice, or stops it. The developer tools use it. */
   function setSimulatedSpeechGap(id: string, simulated: boolean) {
-    const next = new Set(simulatedSpeechIds.value)
-    if (simulated)
-      next.add(id)
-    else
-      next.delete(id)
-    simulatedSpeechIds.value = next
+    simulatedSpeechIds.value = toggledSet(simulatedSpeechIds.value, id, simulated)
   }
 
-  return { items, entries, dismiss, restoreDismissed, characterSpeech, setSimulatedSpeechGap }
+  /** Makes the list treat a module selection as unusable, or stops it. The developer tools use it. */
+  function setSimulatedUnusable(key: string, simulated: boolean) {
+    simulatedUnusableKeys.value = toggledSet(simulatedUnusableKeys.value, key, simulated)
+  }
+
+  /** Makes the list treat voice input as on without transcription, or stops it. The developer tools use it. */
+  function setSimulatedVoiceInputGap(simulated: boolean) {
+    simulatedVoiceInputGap.value = simulated
+  }
+
+  return {
+    items,
+    entries,
+    dismiss,
+    restoreDismissed,
+    characterSpeech,
+    setSimulatedSpeechGap,
+    moduleSelections: computed(() => moduleSelections.value.map(({ selection }) => selection)),
+    setSimulatedUnusable,
+    voiceInput,
+    setSimulatedVoiceInputGap,
+  }
 }

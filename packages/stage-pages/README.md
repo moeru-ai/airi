@@ -82,5 +82,5 @@ The settings home lists the settings that keep a feature in use from working. It
 - Blocking items come first. Only a failed check is not blocking, because the next check can pass.
 - **Edit** opens the page that fixes the item. A module page edits the active character. For another character, it opens the character editor. **Dismiss** hides the item on this device until its cause changes.
 - `/devtools/needs-attention` tests this list. It lists every item, also the dismissed ones, and can show a dismissed item again.
-- It shows when the provider checks run, when each provider was checked, and how often a provider checks itself. It also shows the speech of each character.
-- It can make chosen providers fail their check, and make the list treat the speech of chosen characters as one without a voice. These choices end when the app quits.
+- It shows when the provider checks run, when each provider was checked, and how often a provider checks itself. It also shows the provider of each module selection, the speech of each character, and the voice input.
+- It can make the list show each kind of item on purpose: a provider fails its check, a module selection cannot be used, a character has no voice, or voice input has no transcription. These choices end when the app quits.
