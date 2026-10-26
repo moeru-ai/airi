@@ -44,7 +44,7 @@
     "@xsai-apple-speech/transcription-native": "catalog:",
     "@xsai-apple-vision/vision-native": "catalog:",
     "electron-click-drag-plugin": "catalog:",
-    "electron-updater": "catalog:",
+    "electron-updater": "^6.8.9",
     "uiohook-napi": "catalog:"
   },
   "optionalDependencies": {

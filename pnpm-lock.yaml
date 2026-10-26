@@ -747,9 +747,6 @@ catalogs:
     electron-click-drag-plugin:
       specifier: ^2.0.2
       version: 2.0.2
-    electron-updater:
-      specifier: ^6.8.9
-      version: 6.8.9
     electron-vite:
       specifier: ^6.0.0
       version: 6.0.0
@@ -1905,7 +1902,7 @@ importers:
         specifier: 'catalog:'
         version: 2.0.2
       electron-updater:
-        specifier: 'catalog:'
+        specifier: ^6.8.9
         version: 6.8.9(supports-color@10.2.2)
       uiohook-napi:
         specifier: 'catalog:'

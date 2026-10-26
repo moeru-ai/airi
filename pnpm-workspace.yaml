@@ -306,7 +306,6 @@ catalog:
   electron: ^43.4.1
   electron-builder: ^26.16.1
   electron-click-drag-plugin: ^2.0.2
-  electron-updater: ^6.8.9
   electron-vite: ^6.0.0
   embla-carousel-autoplay: 9.0.0-rc01
   embla-carousel-vue: 9.0.0-rc02
