@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { IconItem, RippleGrid, SettingsSearchField, SettingsSearchResults } from '@proj-airi/stage-ui/components'
+import { IconItem, RippleGrid, SettingsNeedsAttention, SettingsSearchField, SettingsSearchResults } from '@proj-airi/stage-ui/components'
 import { useRippleGridState } from '@proj-airi/stage-ui/composables/use-ripple-grid-state'
+import { useSettingsNeedsAttention } from '@proj-airi/stage-ui/composables/use-settings-needs-attention'
 import { useSettingsSearch } from '@proj-airi/stage-ui/composables/use-settings-search'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { computed, ref } from 'vue'
@@ -45,6 +46,7 @@ const settings = computed(() => {
 const searchQuery = ref('')
 const searchResults = useSettingsSearch(searchQuery, settingsSearchProviders)
 const searching = computed(() => searchQuery.value.trim() !== '')
+const { items: needsAttention, dismiss: dismissNeedsAttention } = useSettingsNeedsAttention()
 </script>
 
 <template>
@@ -62,6 +64,13 @@ const searching = computed(() => searchQuery.value.trim() !== '')
       <SettingsSearchResults v-else :results="searchResults" :query="searchQuery" />
     </div>
     <div v-else pb-12>
+      <!-- Providers whose last check failed. It is secondary, so it scrolls with the list. -->
+      <SettingsNeedsAttention
+        :items="needsAttention"
+        :class="['mb-4']"
+        @fix="item => router.push(item.to)"
+        @dismiss="item => dismissNeedsAttention(item.id)"
+      />
       <RippleGrid
         :items="settings"
         :get-key="item => item.to"
