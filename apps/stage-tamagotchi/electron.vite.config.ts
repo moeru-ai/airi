@@ -126,6 +126,7 @@ export default defineConfig({
         entry: {
           'index': resolve(join(import.meta.dirname, 'src', 'preload', 'index.ts')),
           'beat-sync': resolve(join(import.meta.dirname, 'src', 'preload', 'beat-sync.ts')),
+          'webp-decoder': resolve(join(import.meta.dirname, 'src', 'preload', 'webp-decoder.ts')),
         },
       },
     },

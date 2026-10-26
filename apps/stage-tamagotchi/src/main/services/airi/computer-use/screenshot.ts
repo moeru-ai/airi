@@ -1,19 +1,18 @@
 import { Buffer } from 'node:buffer'
 
+import { defineInvoke } from '@moeru/eventa'
+import { errorMessageFrom } from '@moeru/std'
 import { BrowserWindow } from 'electron'
 
-interface RendererResult {
-  png?: string
-  error?: string
-}
+import { electronWebpScreenshotDecode } from '../../../../shared/eventa/webp-decoder'
+import { getPreloadPath } from '../../../libs/electron/location'
+import { createWindowContext } from '../../../libs/electron/window-context'
 
-/**
- * Converts a WebP screenshot to PNG.
- *
- * Electron's `nativeImage` only decodes PNG and JPEG, while Chromium decodes WebP. The bytes are
- * therefore decoded in a throwaway sandboxed renderer, which keeps the conversion independent of
- * the platform-specific screenshot backend.
- */
+// NOTICE:
+// Electron's nativeImage decodes only PNG and JPEG, but AUV's Windows capture backend writes WebP.
+// This function decodes the WebP in a renderer that Chromium provides and returns PNG over Eventa.
+// Source: Electron nativeImage documentation and AUV xcap.windows screenshot artifacts.
+// Remove when nativeImage decodes WebP or AUV can write PNG.
 export async function webpToPng(data: Buffer): Promise<Buffer> {
   let frame: BrowserWindow | undefined
   let timeout: ReturnType<typeof setTimeout> | undefined
@@ -24,57 +23,32 @@ export async function webpToPng(data: Buffer): Promise<Buffer> {
       height: 64,
       skipTaskbar: true,
       webPreferences: {
-        offscreen: true,
+        preload: getPreloadPath('webp-decoder.mjs'),
         contextIsolation: true,
         nodeIntegration: false,
-        sandbox: true,
+        sandbox: false,
       },
     })
     await frame.loadURL('data:text/html,<!doctype html><html><body></body></html>')
+    const decode = defineInvoke(createWindowContext(frame).context, electronWebpScreenshotDecode)
     const converted = await Promise.race([
-      frame.webContents.executeJavaScript(createDecodeScript(data), true) as Promise<RendererResult>,
+      decode({ webp: data.toString('base64') }),
       new Promise<never>((_, reject) => {
         timeout = setTimeout(() => reject(new Error('Timed out decoding the WebP screenshot in the renderer.')), 15_000)
+        timeout.unref?.()
       }),
     ])
-    if (converted.error)
-      throw new Error(`Could not decode the WebP screenshot: ${converted.error}`)
-    if (!converted.png)
-      throw new Error('The renderer returned no PNG data.')
     const png = Buffer.from(converted.png, 'base64')
     if (png[0] !== 137 || png[1] !== 80 || png[2] !== 78 || png[3] !== 71)
       throw new Error('The renderer did not return PNG data.')
     return png
+  }
+  catch (error) {
+    throw new Error(`Could not decode the WebP screenshot: ${errorMessageFrom(error) ?? 'unknown error'}`)
   }
   finally {
     clearTimeout(timeout)
     if (frame && !frame.isDestroyed())
       frame.destroy()
   }
-}
-
-/** Builds the renderer snippet that decodes one WebP image and re-encodes it as PNG. */
-function createDecodeScript(data: Buffer) {
-  const source = data.toString('base64')
-  return `(async (source) => {
-    try {
-      const binary = atob(source)
-      const bytes = new Uint8Array(binary.length)
-      for (let index = 0; index < binary.length; index += 1)
-        bytes[index] = binary.charCodeAt(index)
-      const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/webp' }))
-      const canvas = document.createElement('canvas')
-      canvas.width = bitmap.width
-      canvas.height = bitmap.height
-      const context = canvas.getContext('2d')
-      if (!context)
-        throw new Error('Cannot create a 2D canvas context.')
-      context.drawImage(bitmap, 0, 0)
-      bitmap.close()
-      return { png: canvas.toDataURL('image/png').slice('data:image/png;base64,'.length) }
-    }
-    catch (error) {
-      return { error: String((error && error.message) || error) }
-    }
-  })(${JSON.stringify(source)})`
 }
