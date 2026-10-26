@@ -98,6 +98,7 @@ watch(appliedConfig, () => {
   <Collapsible :default="false">
     <template #trigger="slotProps">
       <button
+        :aria-expanded="slotProps.visible"
         :class="[
           'w-full flex items-center justify-between gap-3 rounded-xl text-left outline-none transition-all duration-250 ease-in-out',
         ]"
@@ -168,6 +169,7 @@ watch(appliedConfig, () => {
           <Collapsible :default="false">
             <template #trigger="slotProps">
               <button
+                :aria-expanded="slotProps.visible"
                 :class="[
                   'w-full flex items-center justify-between gap-3 rounded-xl text-left outline-none transition-all duration-250 ease-in-out',
                 ]"
