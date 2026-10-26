@@ -75,7 +75,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          # pnpm/setup reads the pnpm version from packageManager of the root package.json.
           sparse-checkout: |
+            /package.json
             .github/scripts
             apps/stage-tamagotchi/package.json
           sparse-checkout-cone-mode: false
