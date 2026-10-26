@@ -3,7 +3,6 @@ import { IconItem, RippleGrid, SettingsNeedsAttention, SettingsSearchField, Sett
 import { useRippleGridState } from '@proj-airi/stage-ui/composables/use-ripple-grid-state'
 import { useSettingsNeedsAttention } from '@proj-airi/stage-ui/composables/use-settings-needs-attention'
 import { useSettingsSearch } from '@proj-airi/stage-ui/composables/use-settings-search'
-import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -11,24 +10,8 @@ import { useRouter } from 'vue-router'
 import { settingsSearchProviders } from '../../settings-search-providers'
 
 const router = useRouter()
-const resolveAnimation = ref<() => void>()
 const { t } = useI18n()
 const { lastClickedIndex, setLastClickedIndex } = useRippleGridState()
-
-const settingsStore = useSettings()
-
-const removeBeforeEach = router.beforeEach(async (_, __, next) => {
-  if (!settingsStore.usePageSpecificTransitions || settingsStore.disableTransitions) {
-    next()
-    return
-  }
-
-  await new Promise<void>((resolve) => {
-    resolveAnimation.value = resolve
-  })
-  removeBeforeEach()
-  next()
-})
 
 const settings = computed(() => {
   return router
