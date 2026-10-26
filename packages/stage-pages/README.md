@@ -74,11 +74,13 @@ The settings home lists the settings that keep a feature in use from working. It
 - **Provider check failed**: the last check of a provider in use failed. The item shows the first reason of the check.
 - A provider shows only after a check in this session, so a status from the last session does not show it.
 - A provider is in use when a module or any character selects it. A chat session resolves its own character, so the active card is not the only user. A provider that nothing uses does not show. The providers page shows its status.
-- **Character without a speech model or voice**: the speech of a character has a configured provider, but no model or no voice. Its replies stay text only. The speech store uses the same check, `missingSpeechFields()`.
+- **Provider cannot be used**: a character or the Hearing module selects a provider that its module page does not list, for example a removed provider. A character keeps this selection, because the person can add the provider again.
+- **Character without a speech model or voice**: the speech of a character has a usable provider, but no model or no voice. Its replies stay text only. `speechFieldStatus()` in the speech store gives the check, and `createOutput` resolves the selection the same way.
+- An empty field that a catalog fills later is pending, not missing. The store picks a voice for an official provider, and a streaming provider takes its default model, after the catalog loads.
+- **Voice input without transcription**: the microphone is on in the Always on mode, but Hearing has no transcription provider or model. Speech then starts no input. Push to Talk and dictation explain this when the person presses them.
 - An item without a brand icon shows the icon of its module kind.
-- Blocking items come first: a provider that is not set up, and a character without a speech model or voice. A failed check comes after them, because the next check can pass.
-- **Edit** opens the page that fixes the item. For a character, it is the speech page when the character is active, and the character editor otherwise. **Dismiss** hides the item on this device until its cause changes.
-- `/devtools/needs-attention` tests this list. It shows when the provider checks run, when each provider was checked, and how often a provider checks itself.
-- It also shows the speech of each character: its provider, and whether the character can speak.
-- It lists the dismissed items and can show them again.
+- Blocking items come first. Only a failed check is not blocking, because the next check can pass.
+- **Edit** opens the page that fixes the item. A module page edits the active character. For another character, it opens the character editor. **Dismiss** hides the item on this device until its cause changes.
+- `/devtools/needs-attention` tests this list. It lists every item, also the dismissed ones, and can show a dismissed item again.
+- It shows when the provider checks run, when each provider was checked, and how often a provider checks itself. It also shows the speech of each character.
 - It can make chosen providers fail their check, and make the list treat the speech of chosen characters as one without a voice. These choices end when the app quits.

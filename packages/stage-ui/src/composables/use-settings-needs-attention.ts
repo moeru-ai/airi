@@ -7,17 +7,21 @@ import { useI18n } from 'vue-i18n'
 import { providerSettingsRouteOf } from '../libs/providers/metadata'
 import { useAiriCardStore } from '../stores/modules/airi-card'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
-import { useHearingStore } from '../stores/modules/hearing'
-import { missingSpeechFields, useSpeechStore } from '../stores/modules/speech'
+import { startsInputOnSpeech, useHearingStore } from '../stores/modules/hearing'
+import { speechFieldStatus, useSpeechStore } from '../stores/modules/speech'
 import { useVisionStore } from '../stores/modules/vision'
 import { useProviderConfigStore } from '../stores/providers/config'
 import { useProviderStore } from '../stores/providers/provider'
+import { useSettingsAudioDevice } from '../stores/settings/audio-device'
 
 /** A setting that keeps a feature in use from working. The settings home lists it. */
 export interface SettingsNeedsAttentionItem {
   /**
-   * A stable id. A dismissal keeps it.
-   * It is the provider id for a provider, and `speech:<character id>` for the speech of a character.
+   * A stable id. A dismissal keeps it. It is one of:
+   * - the provider id, for a provider that is not set up or that failed its check.
+   * - `provider-unavailable:<character id>:<module>`, or `provider-unavailable:hearing`, for a provider that a module cannot select.
+   * - `speech:<character id>`, for the speech of a character without a model or a voice.
+   * - `hearing`, for voice input that Hearing cannot transcribe.
    */
   id: string
   /** One sentence that names the problem, for example "OpenAI failed its last check". */
@@ -41,6 +45,12 @@ export interface SettingsNeedsAttentionItem {
   to: string
 }
 
+/** An item, and whether the person dismissed it. The developer tools list both kinds. */
+export interface SettingsNeedsAttentionEntry {
+  item: SettingsNeedsAttentionItem
+  dismissed: boolean
+}
+
 /** An item and the fingerprint of its cause. A dismissal stores the fingerprint, so a new cause shows the item again. */
 interface Problem {
   item: SettingsNeedsAttentionItem
@@ -57,10 +67,12 @@ export interface CharacterSpeechState {
   provider: string
   /** The localized name of the provider, when the provider is known. */
   providerName?: string
-  /** Whether the provider is configured. Without it, the provider shows as its own item, not the speech. */
-  providerConfigured: boolean
+  /** Whether the speech module can use the provider now. Without it, the provider shows as its own item, not the speech. */
+  providerUsable: boolean
   /** The fields that the speech lacks before it can speak. */
   missing: MissingSpeechField[]
+  /** The empty fields that a catalog fills after it loads. */
+  pending: MissingSpeechField[]
   /** The developer tools make the list treat this speech as one without a voice. */
   simulated: boolean
 }
@@ -84,6 +96,25 @@ const PROVIDERS_ICON = 'i-solar:box-minimalistic-bold-duotone'
 const MODULES = ['consciousness', 'speech', 'hearing', 'vision'] as const
 type Module = typeof MODULES[number]
 
+/** The modules that a character selects for itself. Hearing is the same for every character. */
+const CHARACTER_MODULES = ['consciousness', 'speech', 'vision'] as const
+
+/** The provider kind of each module. */
+const MODULE_KINDS: Record<Module, string> = {
+  consciousness: 'chat',
+  speech: 'speech',
+  hearing: 'transcription',
+  vision: 'vision',
+}
+
+/** The page that selects the provider of each module. It edits the selection of the active character. */
+const MODULE_ROUTES: Record<Module, string> = {
+  consciousness: '/settings/modules/consciousness',
+  speech: '/settings/modules/speech',
+  hearing: '/settings/modules/hearing/transcriber',
+  vision: '/settings/modules/vision',
+}
+
 /** The title of a character whose speech lacks fields, by the fields that it lacks. */
 const SPEECH_TITLE_KEYS: Record<string, string> = {
   'model': 'settings.needs-attention.speech-no-model',
@@ -92,7 +123,7 @@ const SPEECH_TITLE_KEYS: Record<string, string> = {
 }
 
 /** The item id of the speech of a character. */
-export function speechItemIdOf(characterId: string) {
+function speechItemIdOf(characterId: string) {
   return `speech:${characterId}`
 }
 
@@ -124,10 +155,14 @@ function fingerprintOf(text: string) {
  * - `items`: the problems that the person did not dismiss. Blocking problems come first. It lists:
  *   - providers in use that are not set up, or whose last check failed. A module or any character can use a provider.
  *     A provider that nothing uses affects nothing, so only the providers page shows its status.
- *   - characters whose speech has a configured provider, but no model or no voice. Their replies stay text only.
- * - `dismissedIds`: the ids of the problems that stay hidden because the person dismissed them.
+ *   - selections whose provider the module cannot select, for example a provider that was removed.
+ *   - characters whose speech has a usable provider, but no model or no voice. Their replies stay text only.
+ *   - voice input that listens all the time, while Hearing has no transcription provider or model.
+ * - `entries`: every problem, and whether the person dismissed it. The developer tools use it.
  * - `dismiss(id)`: hides a problem on this device until its cause changes.
  * - `restoreDismissed(id?)`: shows a dismissed problem again, or all of them without an id. The developer tools use it.
+ * - `characterSpeech`: the speech of every character, as the list sees it. The developer tools use it.
+ * - `setSimulatedSpeechGap(id, simulated)`: makes the list treat the speech of a character as one without a voice.
  */
 export function useSettingsNeedsAttention() {
   const { t, locale } = useI18n()
@@ -138,6 +173,7 @@ export function useSettingsNeedsAttention() {
   const hearingStore = useHearingStore()
   const visionStore = useVisionStore()
   const cardStore = useAiriCardStore()
+  const audioDevice = useSettingsAudioDevice()
   /** The fingerprint of the cause at the time of the dismissal, by item id. */
   const dismissed = useLocalStorage<Record<string, string>>('settings/needs-attention/dismissed', {})
 
@@ -147,6 +183,21 @@ export function useSettingsNeedsAttention() {
 
   function moduleTitleOf(module: Module) {
     return t(`settings.pages.modules.${module}.title`)
+  }
+
+  function providerNameOf(provider: string) {
+    return providersStore.availableProvidersMetadata.find(entry => entry.id === provider)?.localizedName
+  }
+
+  function characterNameOf(characterId: string) {
+    return cardStore.cards.get(characterId)?.name || characterId
+  }
+
+  /** The page that fixes a module selection. A module page edits the active character. Another character has its own editor. */
+  function fixRouteOf(characterId: string | undefined, module: Module) {
+    return characterId === undefined || characterId === cardStore.activeCardId
+      ? MODULE_ROUTES[module]
+      : `/settings/airi-card/${encodeURIComponent(characterId)}/edit?section=modules`
   }
 
   /**
@@ -172,6 +223,14 @@ export function useSettingsNeedsAttention() {
     }
     return result
   })
+
+  /** The providers that each module can select, as its settings page lists them. */
+  const moduleProviderIds = computed<Record<Module, ReadonlySet<string>>>(() => ({
+    consciousness: new Set(providersStore.moduleChatProvidersMetadata.map(entry => entry.id)),
+    speech: new Set(providersStore.moduleSpeechProvidersMetadata.map(entry => entry.id)),
+    hearing: new Set(providersStore.moduleTranscriptionProvidersMetadata.map(entry => entry.id)),
+    vision: new Set(providersStore.moduleVisionProvidersMetadata.map(entry => entry.id)),
+  }))
 
   /** Providers in use that are not set up, or whose last check in this session failed. */
   const providerProblems = computed(() => Object.entries(providersStore.providerRuntimeState).flatMap(([id, runtime]): Problem[] => {
@@ -213,31 +272,81 @@ export function useSettingsNeedsAttention() {
     return []
   }))
 
+  /** The providers that have a provider item. The other items leave these providers to it. */
+  const providerItemIds = computed(() => new Set(providerProblems.value.map(problem => problem.item.id)))
+
+  /** Whether a module can use a provider now: its settings page lists the provider, and the provider has no provider item. */
+  function usable(module: Module, provider: string) {
+    return moduleProviderIds.value[module].has(provider) && !providerItemIds.value.has(provider)
+  }
+
+  /**
+   * Selections whose provider the module cannot select, for example a provider that was removed or was never added.
+   * A character keeps such a selection, because the person can add the provider again.
+   * An added provider shows as a provider item after its check instead.
+   */
+  const unavailableProviderProblems = computed(() => {
+    const selections = [
+      ...[...cardStore.characterModules].flatMap(([characterId, modules]) => CHARACTER_MODULES.map(module => ({
+        characterId: characterId as string | undefined,
+        module: module as Module,
+        provider: modules[module].provider,
+      }))),
+      { characterId: undefined, module: 'hearing' as Module, provider: hearingStore.activeTranscriptionProvider },
+    ]
+    return selections.flatMap(({ characterId, module, provider }): Problem[] => {
+      if (!provider || provider === 'speech-noop' || moduleProviderIds.value[module].has(provider)
+        || providerConfigStore.addedProviders[provider] || providerItemIds.value.has(provider)) {
+        return []
+      }
+
+      const moduleTitle = moduleTitleOf(module)
+      return [{
+        item: {
+          id: characterId === undefined ? `provider-unavailable:${module}` : `provider-unavailable:${characterId}:${module}`,
+          title: characterId === undefined
+            ? t('settings.needs-attention.module-provider-unavailable', { module: moduleTitle })
+            : t('settings.needs-attention.character-provider-unavailable', { name: characterNameOf(characterId), module: moduleTitle }),
+          detail: t('settings.needs-attention.provider-not-listed', { provider: providerNameOf(provider) ?? provider }),
+          fallbackIcon: providerKindIconOf(MODULE_KINDS[module]),
+          modules: [moduleTitle],
+          blocking: true,
+          to: fixRouteOf(characterId, module),
+        },
+        fingerprint: fingerprintOf(`${module}\n${provider}`),
+      }]
+    })
+  })
+
   /** The speech of every character, resolved as a reply resolves it. */
   const characterSpeech = computed(() => [...cardStore.characterModules].map(([id, modules]): CharacterSpeechState => {
     const { provider } = modules.speech
+    const runtime = providersStore.providerRuntimeState[provider]
+    const status = speechFieldStatus(
+      modules.speech,
+      providerConfigStore.getProviderConfig(provider) ?? {},
+      () => runtime?.modelStatus === 'ready' ? runtime.defaultModel : undefined,
+      (speechStore.availableVoices[provider]?.length ?? 0) > 0,
+    )
     return {
       id,
-      name: cardStore.cards.get(id)?.name || id,
+      name: characterNameOf(id),
       provider,
-      providerName: providersStore.availableProvidersMetadata.find(entry => entry.id === provider)?.localizedName,
-      providerConfigured: providerConfigStore.providers[provider]?.status === 'configured',
-      missing: missingSpeechFields(
-        modules.speech,
-        providerConfigStore.getProviderConfig(provider) ?? {},
-        () => providersStore.getDefaultModelForProvider(provider),
-      ),
+      providerName: providerNameOf(provider),
+      providerUsable: usable('speech', provider),
+      missing: status.missing,
+      pending: status.pending,
       simulated: simulatedSpeechIds.value.has(id),
     }
   }))
 
   /**
-   * Characters whose speech has a configured provider, but no model or no voice.
+   * Characters whose speech has a usable provider, but no model or no voice.
    * Their replies stay text only, and nothing else tells the person why.
-   * A provider that is not set up, or that failed its check, shows as its own item instead.
+   * A provider that the speech module cannot use shows as its own item instead.
    */
   const speechProblems = computed(() => characterSpeech.value.flatMap((speech): Problem[] => {
-    const missing: MissingSpeechField[] = speech.simulated ? ['voice'] : speech.providerConfigured ? speech.missing : []
+    const missing: MissingSpeechField[] = speech.simulated ? ['voice'] : speech.providerUsable ? speech.missing : []
     const titleKey = SPEECH_TITLE_KEYS[missing.join(',')]
     if (!titleKey)
       return []
@@ -252,14 +361,67 @@ export function useSettingsNeedsAttention() {
         fallbackIcon: providerKindIconOf('speech'),
         modules: [moduleTitleOf('speech')],
         blocking: true,
-        // The speech page edits the speech of the active character. Another character changes it in its own editor.
-        to: speech.id === cardStore.activeCardId
-          ? '/settings/modules/speech'
-          : `/settings/airi-card/${encodeURIComponent(speech.id)}/edit?section=modules`,
+        to: fixRouteOf(speech.id, 'speech'),
       },
       fingerprint: fingerprintOf(`${JSON.stringify(selection)}\n${missing.join(',')}${speech.simulated ? '\nsimulated' : ''}`),
     }]
   }))
+
+  /**
+   * Voice input that listens all the time, while Hearing has no transcription provider or model.
+   * Speech then starts no input, and nothing tells the person why.
+   * Push to Talk and dictation explain it when the person presses them, so they do not show here.
+   */
+  const hearingProblems = computed((): Problem[] => {
+    const provider = hearingStore.activeTranscriptionProvider
+    if (!audioDevice.enabled || !startsInputOnSpeech(hearingStore.inputMode) || hearingStore.configured)
+      return []
+    // A provider that the module cannot use shows as its own item.
+    if (provider && !usable('hearing', provider))
+      return []
+
+    return [{
+      item: {
+        id: 'hearing',
+        title: t(provider ? 'settings.needs-attention.hearing-no-model' : 'settings.needs-attention.hearing-no-provider'),
+        detail: t('settings.needs-attention.not-transcribed'),
+        fallbackIcon: providerKindIconOf('transcription'),
+        modules: [moduleTitleOf('hearing')],
+        blocking: true,
+        to: MODULE_ROUTES.hearing,
+      },
+      fingerprint: fingerprintOf(`${provider}\n${hearingStore.activeTranscriptionModel}`),
+    }]
+  })
+
+  const problems = computed(() => [
+    ...providerProblems.value,
+    ...unavailableProviderProblems.value,
+    ...speechProblems.value,
+    ...hearingProblems.value,
+  ])
+
+  const entries = computed<SettingsNeedsAttentionEntry[]>(() => problems.value.map(problem => ({
+    item: problem.item,
+    dismissed: dismissed.value[problem.item.id] === problem.fingerprint,
+  })))
+
+  const items = computed<SettingsNeedsAttentionItem[]>(() => entries.value
+    .filter(entry => !entry.dismissed)
+    .map(entry => entry.item)
+    .sort((left, right) => Number(right.blocking) - Number(left.blocking) || left.title.localeCompare(right.title)))
+
+  function dismiss(id: string) {
+    const problem = problems.value.find(entry => entry.item.id === id)
+    if (problem)
+      dismissed.value = { ...dismissed.value, [id]: problem.fingerprint }
+  }
+
+  function restoreDismissed(id?: string) {
+    dismissed.value = id === undefined
+      ? {}
+      : Object.fromEntries(Object.entries(dismissed.value).filter(([entry]) => entry !== id))
+  }
 
   /** Makes the list treat the speech of a character as one without a voice, or stops it. The developer tools use it. */
   function setSimulatedSpeechGap(id: string, simulated: boolean) {
@@ -271,28 +433,5 @@ export function useSettingsNeedsAttention() {
     simulatedSpeechIds.value = next
   }
 
-  const problems = computed(() => [...providerProblems.value, ...speechProblems.value])
-
-  const items = computed<SettingsNeedsAttentionItem[]>(() => problems.value
-    .filter(problem => dismissed.value[problem.item.id] !== problem.fingerprint)
-    .map(problem => problem.item)
-    .sort((left, right) => Number(right.blocking) - Number(left.blocking) || left.title.localeCompare(right.title)))
-
-  function dismiss(id: string) {
-    const problem = problems.value.find(entry => entry.item.id === id)
-    if (problem)
-      dismissed.value = { ...dismissed.value, [id]: problem.fingerprint }
-  }
-
-  const dismissedIds = computed(() => new Set(problems.value
-    .filter(problem => dismissed.value[problem.item.id] === problem.fingerprint)
-    .map(problem => problem.item.id)))
-
-  function restoreDismissed(id?: string) {
-    dismissed.value = id === undefined
-      ? {}
-      : Object.fromEntries(Object.entries(dismissed.value).filter(([entry]) => entry !== id))
-  }
-
-  return { items, dismissedIds, dismiss, restoreDismissed, characterSpeech, setSimulatedSpeechGap }
+  return { items, entries, dismiss, restoreDismissed, characterSpeech, setSimulatedSpeechGap }
 }

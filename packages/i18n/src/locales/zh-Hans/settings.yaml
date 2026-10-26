@@ -2218,7 +2218,10 @@ pages:
                 speech-missing-model: 没选语音合成模型
                 speech-missing-voice: 没选声线
                 speech-missing-model-voice: 没选语音合成模型和声线
-                speech-provider-pending: 提供商还没配好，列表里显示提供商那一项
+                speech-provider-unusable: 发声模块现在用不了这个提供商，列表里显示提供商那一项
+                speech-pending: 等目录加载
+                items-title: 列表里的项
+                items-empty: 现在没有需要注意的项。
                 simulate-speech: 当作没选声线
                 kinds:
                   chat: 对话
@@ -2413,6 +2416,12 @@ needs-attention:
   speech-no-model-voice: '{name} 还没选语音合成模型和声线'
   text-only: 现在只回复文字
   simulated: 开发者工具模拟
+  character-provider-unavailable: '{name} 的{module}提供商不能用'
+  module-provider-unavailable: '{module}的提供商不能用'
+  provider-not-listed: '{provider} 不在可选的提供商里'
+  hearing-no-provider: 语音输入开着，但还没选转写服务
+  hearing-no-model: 语音输入开着，但还没选转写模型
+  not-transcribed: 说的话不会被转写
   affects: '影响{modules}'
   used-by: '{modules}在用'
   fix: 去修改

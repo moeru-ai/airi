@@ -2418,7 +2418,10 @@ pages:
                 speech-missing-model: No speech model
                 speech-missing-voice: No voice
                 speech-missing-model-voice: No speech model or voice
-                speech-provider-pending: 'The provider is not configured, so the list shows the provider instead'
+                speech-provider-unusable: 'The speech module cannot use the provider now, so the list shows the provider instead'
+                speech-pending: Waiting for the catalog
+                items-title: Items in the list
+                items-empty: Nothing needs attention now.
                 simulate-speech: Treat as no voice
                 kinds:
                   chat: Chat
@@ -2620,6 +2623,12 @@ needs-attention:
   speech-no-model-voice: '{name} has no speech model or voice'
   text-only: Replies are text only
   simulated: Simulated from the developer tools
+  character-provider-unavailable: 'The {module} provider of {name} cannot be used'
+  module-provider-unavailable: 'The {module} provider cannot be used'
+  provider-not-listed: '{provider} is not in the provider list'
+  hearing-no-provider: Voice input is on, but no transcription provider is selected
+  hearing-no-model: Voice input is on, but no transcription model is selected
+  not-transcribed: Your speech is not transcribed
   affects: 'Affects {modules}'
   used-by: 'Used by {modules}'
   fix: Edit

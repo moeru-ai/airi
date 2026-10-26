@@ -2,7 +2,7 @@
 import type { CharacterSpeechState } from '@proj-airi/stage-ui/composables/use-settings-needs-attention'
 import type { ProviderValidationStatus } from '@proj-airi/stage-ui/libs/providers/types'
 
-import { providerKindIconOf, speechItemIdOf, useSettingsNeedsAttention } from '@proj-airi/stage-ui/composables/use-settings-needs-attention'
+import { providerKindIconOf, useSettingsNeedsAttention } from '@proj-airi/stage-ui/composables/use-settings-needs-attention'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { PULL_INTERVAL_MS, useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
@@ -15,7 +15,8 @@ const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const providersStore = useProviderStore()
 const providerConfigStore = useProviderConfigStore()
-const { dismissedIds, restoreDismissed, characterSpeech, setSimulatedSpeechGap } = useSettingsNeedsAttention()
+const { entries, restoreDismissed, characterSpeech, setSimulatedSpeechGap } = useSettingsNeedsAttention()
+const dismissedCount = computed(() => entries.value.filter(entry => entry.dismissed).length)
 const now = useNow({ interval: 1000 })
 const checking = shallowRef(false)
 
@@ -60,7 +61,6 @@ const rows = computed(() => ids.value.flatMap((id) => {
     averageGap: gaps.length ? gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length : undefined,
     intervalMs: providersStore.getValidationIntervalMs(id),
     simulated: providersStore.simulatedValidationFailures.includes(id),
-    dismissed: dismissedIds.value.has(id),
   }]
 }).sort((left, right) => left.name.localeCompare(right.name)))
 
@@ -106,10 +106,12 @@ function speechDetailsOf(speech: CharacterSpeechState) {
   if (!speech.provider || speech.provider === 'speech-noop')
     return t(key('speech-off'))
   let status = t(key('speech-ready'))
-  if (!speech.providerConfigured)
-    status = t(key('speech-provider-pending'))
+  if (!speech.providerUsable)
+    status = t(key('speech-provider-unusable'))
   else if (speech.missing.length)
     status = t(key(SPEECH_MISSING_KEYS[speech.missing.join(',')] ?? 'speech-missing-model-voice'))
+  else if (speech.pending.length)
+    status = t(key('speech-pending'))
   return [speech.providerName ?? speech.provider, status].join(' · ')
 }
 
@@ -143,10 +145,37 @@ async function checkAll() {
 
     <div :class="['flex flex-wrap items-center gap-2']">
       <Button size="sm" icon="i-solar:refresh-linear" :loading="checking" :label="t(key('check-all'))" @click="checkAll" />
-      <GhostButton size="sm" :disabled="!dismissedIds.size" @click="restoreDismissed()">
-        {{ t(key('restore-all'), { count: dismissedIds.size }) }}
+      <GhostButton size="sm" :disabled="!dismissedCount" @click="restoreDismissed()">
+        {{ t(key('restore-all'), { count: dismissedCount }) }}
       </GhostButton>
     </div>
+
+    <!-- What the settings home lists now, and the items that the person dismissed. -->
+    <section :class="['flex flex-col gap-1.5']">
+      <h2 :class="['m-0 px-1', 'text-xs font-normal text-neutral-500 dark:text-neutral-400']">
+        {{ t(key('items-title')) }}
+      </h2>
+      <p v-if="!entries.length" :class="['m-0 px-1 text-sm text-neutral-500 dark:text-neutral-400']">
+        {{ t(key('items-empty')) }}
+      </p>
+      <div v-else :class="['rounded-xl bg-neutral-50 px-1.5 py-1 dark:bg-neutral-900']">
+        <div
+          v-for="entry in entries"
+          :key="entry.item.id"
+          :class="['flex flex-wrap items-center gap-x-3 gap-y-1', 'px-2.5 py-2']"
+        >
+          <span :class="['size-4.5 shrink-0', entry.item.icon ?? entry.item.fallbackIcon]" />
+          <span :class="['text-sm']">{{ entry.item.title }}</span>
+          <span :class="['min-w-0 flex-1', 'text-xs text-neutral-500 dark:text-neutral-400']">{{ entry.item.detail }}</span>
+          <span v-if="entry.dismissed" :class="['flex items-center gap-1', 'text-xs text-neutral-500 dark:text-neutral-400']">
+            {{ t(key('dismissed')) }}
+            <GhostButton size="sm" @click="restoreDismissed(entry.item.id)">
+              {{ t(key('restore-one')) }}
+            </GhostButton>
+          </span>
+        </div>
+      </div>
+    </section>
 
     <p v-if="!rows.length" :class="['m-0 text-sm text-neutral-500 dark:text-neutral-400']">
       {{ t(key('empty')) }}
@@ -164,12 +193,6 @@ async function checkAll() {
           <span :class="['size-4.5 shrink-0', row.icon]" />
           <span :class="['text-sm']">{{ row.name }}</span>
           <span :class="['min-w-0 flex-1', 'text-xs text-neutral-500 dark:text-neutral-400']">{{ detailsOf(row) }}</span>
-          <span v-if="row.dismissed" :class="['flex items-center gap-1', 'text-xs text-neutral-500 dark:text-neutral-400']">
-            {{ t(key('dismissed')) }}
-            <GhostButton size="sm" @click="restoreDismissed(row.id)">
-              {{ t(key('restore-one')) }}
-            </GhostButton>
-          </span>
           <label :class="['flex items-center gap-2', 'text-xs text-neutral-500 dark:text-neutral-400']">
             {{ t(key('simulate')) }}
             <Checkbox :model-value="row.simulated" @update:model-value="providersStore.setSimulatedValidationFailure(row.id, $event)" />
@@ -197,12 +220,6 @@ async function checkAll() {
           <span :class="['size-4.5 shrink-0', providerKindIconOf('speech')]" />
           <span :class="['text-sm']">{{ speech.name }}</span>
           <span :class="['min-w-0 flex-1', 'text-xs text-neutral-500 dark:text-neutral-400']">{{ speechDetailsOf(speech) }}</span>
-          <span v-if="dismissedIds.has(speechItemIdOf(speech.id))" :class="['flex items-center gap-1', 'text-xs text-neutral-500 dark:text-neutral-400']">
-            {{ t(key('dismissed')) }}
-            <GhostButton size="sm" @click="restoreDismissed(speechItemIdOf(speech.id))">
-              {{ t(key('restore-one')) }}
-            </GhostButton>
-          </span>
           <label :class="['flex items-center gap-2', 'text-xs text-neutral-500 dark:text-neutral-400']">
             {{ t(key('simulate-speech')) }}
             <Checkbox :model-value="speech.simulated" @update:model-value="setSimulatedSpeechGap(speech.id, $event)" />

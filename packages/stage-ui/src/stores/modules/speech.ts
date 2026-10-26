@@ -18,7 +18,7 @@ import { x } from 'xastscript'
 
 import { injectKeyPiniaSynced } from '../../libs/pinia/synced-context'
 import { getDefinedProvider } from '../../libs/providers/providers'
-import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, pickOfficialSpeechVoice } from '../../libs/providers/providers/official'
+import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, pickOfficialSpeechVoice, picksSpeechVoiceAutomatically } from '../../libs/providers/providers/official'
 import { streamSpeech } from '../../libs/speech/streaming-pipeline'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
@@ -47,23 +47,38 @@ function resolveSpeechSelection(selection: AiriExtension['modules']['speech'], c
   return { model, voiceId, streaming, streamingModel }
 }
 
+/** The empty fields of a speech selection. */
+export interface SpeechFieldStatus {
+  /** Fields that the speech lacks. Without them, `createOutput` of the speech store cannot speak, so the replies stay text only. */
+  missing: MissingSpeechField[]
+  /** Empty fields that a catalog fills after it loads. Until then, it is unknown if the speech can speak. */
+  pending: MissingSpeechField[]
+}
+
 /**
- * Lists the fields that a speech selection lacks before it can speak. The list is empty when speech is off, or when it can speak.
- * Without a model or a voice, `createOutput` of the speech store cannot speak, so the replies stay text only.
+ * Tells which fields a speech selection lacks before it can speak. Both lists are empty when speech is off, or when it can speak.
+ * The store picks a voice for an official provider from its voice catalog, and a streaming provider uses the default model of
+ * its model catalog. While these catalogs load, their empty fields are pending, not missing.
  *
  * @param config The config of the selected provider.
- * @param defaultModel Gives the default model of the selected provider. Only a streaming provider uses it.
+ * @param defaultModel Gives the default model of the selected provider, or `undefined` while its model catalog is not loaded.
+ * @param voicesLoaded Whether the voice catalog of the selected provider is loaded.
  */
-export function missingSpeechFields(selection: AiriExtension['modules']['speech'], config: Record<string, unknown>, defaultModel: () => string | null | undefined): MissingSpeechField[] {
+export function speechFieldStatus(
+  selection: AiriExtension['modules']['speech'],
+  config: Record<string, unknown>,
+  defaultModel: () => string | null | undefined,
+  voicesLoaded: boolean,
+): SpeechFieldStatus {
+  const status: SpeechFieldStatus = { missing: [], pending: [] }
   if (!selection.provider || selection.provider === 'speech-noop')
-    return []
+    return status
   const { model, voiceId, streaming, streamingModel } = resolveSpeechSelection(selection, config, defaultModel)
-  const missing: MissingSpeechField[] = []
   if (streaming ? !streamingModel?.includes('/') : !model)
-    missing.push('model')
+    status[streaming && streamingModel === undefined ? 'pending' : 'missing'].push('model')
   if (!voiceId)
-    missing.push('voice')
-  return missing
+    status[picksSpeechVoiceAutomatically(selection.provider) && !voicesLoaded ? 'pending' : 'missing'].push('voice')
+  return status
 }
 
 interface SpeechInputOptions {
