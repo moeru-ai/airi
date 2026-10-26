@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { Alert } from '@proj-airi/stage-ui/components'
+import { Alert, SettingsSearchField } from '@proj-airi/stage-ui/components'
 import { getAiriCardEditorModuleSettings } from '@proj-airi/stage-ui/services/airi-card-editor'
 import { AiriCardPackageError, importAiriCardPackage } from '@proj-airi/stage-ui/services/airi-card-import-export'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { Button, Input } from '@proj-airi/ui'
+import { Button } from '@proj-airi/ui'
 import { ComboboxSelect } from '@proj-airi/ui/components/form'
 import { storeToRefs } from 'pinia'
 import { computed, shallowRef, useTemplateRef, watch } from 'vue'
@@ -309,11 +309,9 @@ async function handleRestoreDeletedCard(card: DeletedCard) {
     </p>
 
     <div :class="['flex flex-wrap items-center gap-3']">
-      <Input
+      <SettingsSearchField
         v-model="searchQuery"
-        type="search"
         :placeholder="t('settings.pages.card.search')"
-        :aria-label="t('settings.pages.card.search')"
         :class="['w-full flex-1 sm:max-w-xs']"
       />
       <div :class="['w-full shrink-0 sm:w-40']">

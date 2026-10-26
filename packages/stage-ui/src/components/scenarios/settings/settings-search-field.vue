@@ -1,15 +1,21 @@
 <script setup lang="ts">
 import { Input } from '@proj-airi/ui'
 import { useEventListener } from '@vueuse/core'
-import { useTemplateRef } from 'vue'
+import { computed, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+const props = defineProps<{
+  /** What the field searches, for example "Search cards...". Without it, the field searches the settings. */
+  placeholder?: string
+}>()
 
 const query = defineModel<string>({ required: true })
 
 const { t } = useI18n()
 const field = useTemplateRef<HTMLElement>('field')
+const label = computed(() => props.placeholder ?? t('settings.search.placeholder'))
 
-// Cmd+F or Ctrl+F, the find shortcut of the browser, finds settings while this field is on the page.
+// Cmd+F or Ctrl+F, the find shortcut of the browser, searches with this field while it is on the page.
 // It moves the focus to the field from anywhere on the page, and selects the old query, so typing replaces it.
 useEventListener(window, 'keydown', (event: KeyboardEvent) => {
   const command = event.metaKey || event.ctrlKey
@@ -28,8 +34,8 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
     <Input
       v-model="query"
       type="search"
-      :placeholder="t('settings.search.placeholder')"
-      :aria-label="t('settings.search.placeholder')"
+      :placeholder="label"
+      :aria-label="label"
       :class="['pl-9!']"
     />
   </div>
