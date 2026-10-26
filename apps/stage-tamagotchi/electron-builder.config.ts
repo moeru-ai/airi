@@ -103,7 +103,7 @@ export default {
     '!electron.vite.config.{js,ts,mjs,cjs}',
     '!vite.config.{js,ts,mjs,cjs}',
     '!uno.config.{js,ts,mjs,cjs}',
-    '!{.eslintcache,eslint.config.ts,.yaml,dev-app-update.yml,CHANGELOG.md,README.md}',
+    '!{.eslintcache,eslint.config.ts,.yaml,CHANGELOG.md,README.md}',
     '!{.env,.env.*,.npmrc,pnpm-lock.yaml}',
     '!{tsconfig.json}',
   ],
@@ -121,7 +121,7 @@ export default {
   ],
   extraMetadata: {
     name: 'ai.moeru.airi',
-    main: 'out/main/index.js',
+    main: 'out/launcher/index.mjs',
     homepage: 'https://airi.moeru.ai/docs/',
     repository: 'https://github.com/moeru-ai/airi',
     license: 'MIT',

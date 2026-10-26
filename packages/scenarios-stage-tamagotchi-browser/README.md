@@ -48,7 +48,7 @@ pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --route /releases/
 From repo root, run:
 
 ```bash
-pnpm exec vishot capture --target electron ./packages/scenarios-stage-tamagotchi-electron/src/scenarios/demo-controls-settings-chat-websocket/index.ts --app-entrypoint ./apps/stage-tamagotchi/out/main/index.js --cwd . --output-dir ./packages/scenarios-stage-tamagotchi-browser/artifacts/raw --format avif
+pnpm exec vishot capture --target electron ./packages/scenarios-stage-tamagotchi-electron/src/scenarios/demo-controls-settings-chat-websocket/index.ts --app-entrypoint ./apps/stage-tamagotchi --cwd . --output-dir ./packages/scenarios-stage-tamagotchi-browser/artifacts/raw --format avif
 pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --route '/docs/setup-and-use/intro-chat' --output-dir ../../airi-docs/content/en/docs/manual/tamagotchi/setup-and-use/assets --settle-ms 800
 pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --route '/docs/setup-and-use/intro-websocket' --output-dir ../../airi-docs/content/en/docs/manual/tamagotchi/setup-and-use/assets --settle-ms 800
 pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --route '/docs/setup-and-use/main-window' --output-dir ../../airi-docs/content/en/docs/manual/tamagotchi/setup-and-use/assets --settle-ms 800

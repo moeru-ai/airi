@@ -64,7 +64,7 @@ const updaterErrorMessage = computed(() => {
 const showChangelog = ref(false)
 const showBugReportDialog = ref(false)
 const { isDesktop } = useBreakpoints()
-const updateChannelOptions = ['auto', 'latest', 'stable', 'alpha', 'beta', 'nightly', 'canary'] as const
+const updateChannelOptions = ['auto', 'latest', 'stable', 'alpha', 'beta', 'nightly', 'canary', 'dev'] as const
 type UpdateChannelOption = typeof updateChannelOptions[number]
 const updateChannelSelectOptions = computed(() => updateChannelOptions.map(channel => ({
   label: channel === 'latest'

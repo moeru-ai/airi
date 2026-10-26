@@ -1,17 +1,19 @@
-import { join, resolve } from 'node:path'
+import { resolve } from 'node:path'
 
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { baseUrl, getPreloadPath, getRendererRoot, setElectronMainDirname, withHashRoute } from './location'
 
-const electronToolkit = vi.hoisted(() => ({ is: { dev: true } }))
+// The launcher of @ergosphere-it/electron knows the running bundle: the files of a built bundle, or the
+// development server under `electron-vite dev`.
+const bundle = vi.hoisted(() => ({ pageOrigin: 'http://127.0.0.1:40000/', preloadDir: '/opt/airi/bundles/2/preload' }))
 
-vi.mock(import('@electron-toolkit/utils'), () => electronToolkit)
-
-afterEach(() => {
-  electronToolkit.is.dev = true
-  vi.unstubAllEnvs()
-})
+vi.mock('@ergosphere-it/electron/main', () => ({
+  activeBundle: {
+    pageUrl: (options?: { page?: string }) => new URL(options?.page ?? '', bundle.pageOrigin).href,
+    preloadOf: (name: string) => `${bundle.preloadDir}/${name}.js`,
+  },
+}))
 
 describe('withHashRoute', () => {
   it('should use string url construct URL with hash route correctly', () => {
@@ -59,34 +61,20 @@ describe('getRendererRoot', () => {
     expect(getRendererRoot()).toBe(resolve('/opt/airi/out/renderer'))
   })
 
-  it('loads the packaged index.html from the renderer root', () => {
-    electronToolkit.is.dev = false
-    vi.stubEnv('ELECTRON_RENDERER_URL', 'http://localhost:5173')
+  it('loads the pages of the running bundle', () => {
     setElectronMainDirname(mainDirname)
 
-    expect(baseUrl(getRendererRoot())).toEqual({ file: join(resolve('/opt/airi/out/renderer'), 'index.html') })
-    expect(baseUrl(getRendererRoot(), 'beat-sync.html')).toEqual({ file: join(resolve('/opt/airi/out/renderer'), 'beat-sync.html') })
-  })
-
-  it('uses the development server URL instead of the renderer root in development', () => {
-    vi.stubEnv('ELECTRON_RENDERER_URL', 'http://localhost:5173/')
-    setElectronMainDirname(mainDirname)
-
-    expect(baseUrl(getRendererRoot())).toEqual({ url: 'http://localhost:5173/' })
-    expect(baseUrl(getRendererRoot(), 'beat-sync.html')).toEqual({ url: 'http://localhost:5173/beat-sync.html' })
+    expect(baseUrl(getRendererRoot())).toEqual({ url: 'http://127.0.0.1:40000/' })
+    expect(baseUrl(getRendererRoot(), 'beat-sync.html')).toEqual({ url: 'http://127.0.0.1:40000/beat-sync.html' })
   })
 })
 
 describe('getPreloadPath', () => {
-  it('resolves the default preload entry next to the main bundle', () => {
-    setElectronMainDirname(resolve('/opt/airi/out/main'))
-
-    expect(getPreloadPath()).toBe(join(resolve('/opt/airi/out/preload'), 'index.mjs'))
+  it('resolves the default preload entry of the running bundle', () => {
+    expect(getPreloadPath()).toBe('/opt/airi/bundles/2/preload/index.js')
   })
 
-  it('resolves a named preload entry next to the main bundle', () => {
-    setElectronMainDirname(resolve('/opt/airi/out/main'))
-
-    expect(getPreloadPath('beat-sync.mjs')).toBe(join(resolve('/opt/airi/out/preload'), 'beat-sync.mjs'))
+  it('resolves a named preload entry of the running bundle', () => {
+    expect(getPreloadPath('beat-sync')).toBe('/opt/airi/bundles/2/preload/beat-sync.js')
   })
 })
