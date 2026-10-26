@@ -50,6 +50,12 @@ const PROVIDERS_ICON = 'i-solar:box-minimalistic-bold-duotone'
 const MODULES = ['consciousness', 'speech', 'hearing', 'vision'] as const
 type Module = typeof MODULES[number]
 
+/** A provider with a problem, before the list checks who uses it and whether the person dismissed it. */
+interface ProviderProblem extends Pick<SettingsNeedsAttentionItem, 'id' | 'problem' | 'reason'> {
+  /** The fingerprint of the config and the problem. A dismissal stores it. */
+  fingerprint: string
+}
+
 /** The icon of a provider kind, such as `chat` or `speech`. It stands in for a provider without a brand icon. */
 export function providerKindIconOf(kind: string) {
   return KIND_ICONS[kind] ?? PROVIDERS_ICON
@@ -93,16 +99,16 @@ export function useSettingsNeedsAttention() {
   /** The fingerprint of the config and the problem at the time of the dismissal, by provider. */
   const dismissed = useLocalStorage<Record<string, string>>('settings/needs-attention/dismissed', {})
 
-  const problems = computed(() => Object.entries(providersStore.providerRuntimeState).flatMap(([id, runtime]) => {
+  const problems = computed(() => Object.entries(providersStore.providerRuntimeState).flatMap(([id, runtime]): ProviderProblem[] => {
     // The stored status can come from the last session. The outcome and the reason come only from this session,
     // so the list does not show a provider before the startup check, or hide it while a later check runs.
     // The status must still agree, because some pages set it without a check, for example after a save.
     const status = providerConfigStore.providers[id]?.status
     const config = JSON.stringify(providerConfigStore.configs[id] ?? {})
     if (runtime.validationOutcome === 'unconfigured' && (status === 'unconfigured' || status === 'validating'))
-      return [{ id, problem: 'unconfigured' as const, reason: '', fingerprint: fingerprintOf(`${config}\nunconfigured`) }]
+      return [{ id, problem: 'unconfigured', reason: '', fingerprint: fingerprintOf(`${config}\nunconfigured`) }]
     if (runtime.validationReason !== undefined && (status === 'invalid' || status === 'validating'))
-      return [{ id, problem: 'failed' as const, reason: runtime.validationReason, fingerprint: fingerprintOf(`${config}\n${runtime.validationReason}`) }]
+      return [{ id, problem: 'failed', reason: runtime.validationReason, fingerprint: fingerprintOf(`${config}\n${runtime.validationReason}`) }]
     return []
   }))
 
