@@ -14,6 +14,16 @@ env:
   VERSION: ''
 
 on:
+  # Each push to main publishes the bundle to the `dev` channel as an over-the-air update. It builds no installer.
+  push:
+    branches:
+      - main
+    paths:
+      - apps/stage-tamagotchi/**
+      - packages/**
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - .github/workflows/release-tamagotchi.yml
   release:
     types:
       - prereleased
@@ -44,12 +54,57 @@ on:
   schedule:
     - cron: '0 0 * * *'
 
+# Only the newest push matters on `dev`, so a push cancels the run of an older push. Other runs never cancel.
+# A cancelled publish is safe: the CLI uploads the files of a bundle before it moves the channel file to it.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'push' && 'dev' || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
+
 jobs:
+  # Decides the update channel of this run, and the release IDs and the version that every build of the run shares, so
+  # the installers ship the bundle that the channel serves. `.github/scripts/plan-tamagotchi-updates.ts` has the rules:
+  # a push to main publishes to `dev`, a scheduled run to `nightly`, and a release to the lane of its tag.
+  updates:
+    name: Plan Updates
+    runs-on: ubuntu-latest
+    outputs:
+      channel: ${{ steps.plan.outputs.channel }}
+      version: ${{ steps.plan.outputs.version }}
+      bundle-release-id: ${{ steps.plan.outputs.bundle-release-id }}
+      installer-release-id: ${{ steps.plan.outputs.installer-release-id }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            .github/scripts
+            apps/stage-tamagotchi/package.json
+          sparse-checkout-cone-mode: false
+
+      # The script uses only Node.js built-ins, so it needs no install.
+      - uses: pnpm/setup@v2
+        with:
+          runtime: node@26.7.0
+          install: false
+
+      - id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+          BUILD_ONLY: ${{ inputs.build_only }}
+          ARTIFACTS_ONLY: ${{ inputs.artifacts_only }}
+        run: node .github/scripts/plan-tamagotchi-updates.ts
+
   build:
     name: Build
+    needs: updates
+    # A push publishes only the bundle, in publish-bundle.
+    if: ${{ github.event_name != 'push' }}
     continue-on-error: ${{ matrix.skip }} # WORKAROUND: Skipping subsequent steps without failing the whole workflow
     env:
       VITE_ENABLE_ANALYTICS: ${{ ((github.event_name == 'release') || (github.event_name == 'workflow_dispatch' && !inputs.build_only)) && 'true' || 'false' }}
+      ERGOSPHERE_IT_RELEASE_ID: ${{ needs.updates.outputs.bundle-release-id }}
+      ERGOSPHERE_IT_INSTALLER_RELEASE_ID: ${{ needs.updates.outputs.installer-release-id }}
+      ERGOSPHERE_IT_VERSION: ${{ needs.updates.outputs.version }}
     strategy:
       matrix:
         include:
@@ -596,6 +651,63 @@ jobs:
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.flatpak
             apps/stage-tamagotchi/bundle/latest-*.yml
           append_body: true
+
+  # Publishes the bundle (main, preload, and renderer) to the channel of the run, as an over-the-air update with
+  # ergosphere-it. Installs on the channel download it, and switch to it on the next start. A release publishes it only
+  # after the installers of every platform built. A change of the native version reaches installs only with a new
+  # installer, and the launcher skips a bundle that needs a newer one.
+  #
+  # Repository settings, in the `Release` environment:
+  # - secret ERGOSPHERE_IT_SIGNING_KEY: the PKCS#8 PEM of the update key. ergo.config.ts has its public key.
+  # - secrets AIRI_UPDATES_R2_ACCESS_KEY_ID and AIRI_UPDATES_R2_SECRET_ACCESS_KEY: an R2 API token that can write the bucket.
+  # - variable AIRI_UPDATES_R2_BUCKET: the bucket behind https://release-updates.airi.build.
+  # - secret AIRI_UPDATES_R2_ENDPOINT: https://<account id>.r2.cloudflarestorage.com. A secret, as it names the account.
+  publish-bundle:
+    name: Publish Bundle
+    needs: [updates, build]
+    # NOTICE: Forks have no secrets, and pull requests never run this workflow: it signs what it builds.
+    # `always()` lets a push run it after the skipped build. A failed build of a release stops it.
+    if: ${{ always() && github.repository == 'moeru-ai/airi' && needs.updates.outputs.channel != '' && needs.updates.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    # The secrets live in the `Release` environment. Only the publish step reads them. `pnpm install` runs the scripts
+    # of every dependency, and the build runs every plugin, so they must not see the signing key.
+    environment: Release
+    env:
+      # The same build as the installers of this run, so the channel serves the bundle that they ship.
+      VITE_ENABLE_ANALYTICS: ${{ ((github.event_name == 'release') || (github.event_name == 'workflow_dispatch' && !inputs.build_only)) && 'true' || 'false' }}
+      ERGOSPHERE_IT_RELEASE_ID: ${{ needs.updates.outputs.bundle-release-id }}
+      ERGOSPHERE_IT_INSTALLER_RELEASE_ID: ${{ needs.updates.outputs.installer-release-id }}
+      ERGOSPHERE_IT_VERSION: ${{ needs.updates.outputs.version }}
+    steps:
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/setup@v2
+        with:
+          runtime: node@26.7.0
+          cache: true
+          install: false
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm run build:packages
+
+      - run: pnpm run -F @proj-airi/stage-tamagotchi build
+
+      - name: Publish the bundle
+        working-directory: ./apps/stage-tamagotchi
+        env:
+          CHANNEL: ${{ needs.updates.outputs.channel }}
+          ERGOSPHERE_IT_SIGNING_KEY: ${{ secrets.ERGOSPHERE_IT_SIGNING_KEY }}
+          ERGOSPHERE_IT_STORE: s3://${{ vars.AIRI_UPDATES_R2_BUCKET }}
+          ERGOSPHERE_IT_S3_ENDPOINT: ${{ secrets.AIRI_UPDATES_R2_ENDPOINT }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AIRI_UPDATES_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AIRI_UPDATES_R2_SECRET_ACCESS_KEY }}
+        run: |
+          echo "Publishing $ERGOSPHERE_IT_VERSION to $CHANNEL"
+          pnpm exec ergosphere-it publish bundle --channel "$CHANNEL" | tee -a "$GITHUB_STEP_SUMMARY"
 
   publish-gitcode-release:
     name: Publish GitCode Release Mirror

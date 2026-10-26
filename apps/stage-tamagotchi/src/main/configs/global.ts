@@ -11,7 +11,7 @@ export const globalAppConfigSchema = object({
   hideAppIcon: optional(boolean()),
   language: optional(string()),
   spotlightShortcutAccelerator: optional(shortcutAcceleratorSchema),
-  updateChannel: optional(picklist(['latest', 'stable', 'alpha', 'beta', 'nightly', 'canary'])),
+  updateChannel: optional(picklist(['latest', 'stable', 'alpha', 'beta', 'nightly', 'canary', 'dev'])),
 })
 
 export function createGlobalAppConfig() {
