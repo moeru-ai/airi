@@ -21,5 +21,5 @@ export default defineConfig({
   // A test build can point at another feed and key, for example a local S3.
   feedUrl: env.AIRI_UPDATE_FEED_URL || 'https://release-updates.airi.build',
   nativeVersion: 1,
-  publicKeys: env.AIRI_UPDATE_PUBLIC_KEY ? [env.AIRI_UPDATE_PUBLIC_KEY] : ['ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICXg+TVZirFJaNGj5tNeJxOgGCUe7s5CnOhOoQzTpdtF'],
+  publicKeys: env.AIRI_UPDATE_PUBLIC_KEY ? [env.AIRI_UPDATE_PUBLIC_KEY] : ['ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJcEtAvYgV3AieXiFwNNoFviCxQ5Jrc80Zm78msiTHon'],
 })
