@@ -55,8 +55,9 @@ jobs:
           - app_name: stage-web
             command: pnpm -F @proj-airi/stage-web run build && pnpm -F @proj-airi/stage-ui run story:build && mv ./packages/stage-ui/.histoire/dist ./apps/stage-web/dist/ui
 
+          # The check builds the app two times. A file that changes without a source change makes each update larger.
           - app_name: stage-tamagotchi
-            command: pnpm -F @proj-airi/stage-tamagotchi run build
+            command: pnpm -F @proj-airi/stage-tamagotchi run check:reproducible-build
 
           - app_name: stage-tamagotchi-godot
             command: cd engines/stage-tamagotchi-godot && dotnet restore && dotnet build -c ExportRelease
