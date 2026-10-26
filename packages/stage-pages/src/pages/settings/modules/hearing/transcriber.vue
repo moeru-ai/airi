@@ -20,6 +20,8 @@ import { useI18n } from 'vue-i18n'
 
 import HearingPlaygroundTranscripts from '../components/hearing-playground-transcripts.vue'
 
+import { moduleModelSearchKey, moduleProviderSearchKey } from '../module-model-search'
+
 const { t } = useI18n()
 
 const hearingStore = useHearingStore()
@@ -382,6 +384,7 @@ onUnmounted(() => {
                 :id="metadata.id"
                 :key="metadata.id"
                 v-model="activeTranscriptionProvider"
+                :data-settings-search="moduleProviderSearchKey('transcription', metadata.id)"
                 name="provider"
                 :value="metadata.id"
                 :title="metadata.localizedName || 'Unknown'"
@@ -494,6 +497,7 @@ onUnmounted(() => {
                 v-model="activeTranscriptionModel"
                 v-model:search-query="transcriptionModelSearchQuery"
                 :items="sortedProviderModels"
+                :search-key-of="model => moduleModelSearchKey('transcription', activeTranscriptionProvider, model.id)"
                 :searchable="true"
                 :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
                 :search-no-results-title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results')"

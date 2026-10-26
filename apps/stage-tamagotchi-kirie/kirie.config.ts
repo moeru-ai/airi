@@ -14,6 +14,7 @@ import Layouts from 'vite-plugin-vue-layouts'
 import VueMacros from 'vue-macros/vite'
 import VueRouter from 'vue-router/vite'
 
+import { createSettingsSearch } from '@proj-airi/stage-pages/vite/settings-search'
 import { Download } from '@proj-airi/unplugin-fetch'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
 import { defineKirieConfig } from 'kirie'
@@ -21,6 +22,7 @@ import { defineKirieConfig } from 'kirie'
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
 const rendererRoot = resolve(join(import.meta.dirname, 'src-web', 'src', 'renderer'))
+const settingsSearch = createSettingsSearch()
 
 export default defineKirieConfig({
   plugins: [core, notifications],
@@ -129,6 +131,8 @@ export default defineKirieConfig({
 
         Yaml(),
 
+        settingsSearch.plugin,
+
         VueMacros({
           plugins: {
             vue: Vue({
@@ -160,6 +164,7 @@ export default defineKirieConfig({
             resolve(rendererRoot, 'pages'),
           ],
           exclude: ['**/components/**'],
+          extendRoute: settingsSearch.extendRoute,
         }),
 
         VitePluginVueDevTools(),

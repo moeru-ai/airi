@@ -125,6 +125,9 @@ export const providerOfficialSpeech = defineProvider({
   icon: OFFICIAL_ICON,
   requiresCredentials: false,
   configuredBy: 'authentication',
+  capabilities: {
+    speech: { transport: 'rest', voicesByModel: true },
+  },
   createProviderConfig: () => officialConfigSchema,
   createProvider(_config) {
     const provider = createOfficialAudioProvider()
@@ -247,7 +250,7 @@ export const providerOfficialSpeechStreaming = defineProvider({
   configuredBy: 'authentication',
   // The speech adapter selects the WebSocket transport from this capability.
   capabilities: {
-    speech: { transport: 'bidirectional-ws' },
+    speech: { transport: 'bidirectional-ws', voicesByModel: true },
   },
   createProviderConfig: () => officialConfigSchema,
   createProvider(_config) {

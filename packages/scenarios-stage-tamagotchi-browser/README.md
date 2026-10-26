@@ -21,6 +21,23 @@ Current docs capture target route:
 - `/docs/setup-and-use/main-window` -> `src/scenes/docs/setup-and-use/main-window.vue`
 - `/docs/setup-and-use/settings` -> `src/scenes/docs/setup-and-use/settings.vue`
 
+## Release Areas
+
+`/releases/v0-12` -> `src/scenes/releases/v0-12/index.vue` shows the v0.12 feature areas. Each area is a 1600x640 (2.5:1) capture root, so each one exports as one shareable image.
+
+- Each area renders in a dark and a light theme. Vishot exports `<area>-dark.png` and `<area>-light.png`.
+- The raw screenshots are in `artifacts/raw/releases/v0-12`. A `-light` file is the same state in the light app theme. `components/release-shots.ts` lists them with the CSS width of the screen that took each one.
+- The text of all areas is in `components/release-copy.ts`.
+- Each layer is a `ReleaseReveal` with an entry time `at`. `?play` plays the entry timeline with the AIRI blur fade, so a screen recorder can record an area as a video.
+- `?area=<name>` shows one area, for example `?area=release-v0-12-voice`.
+- `?theme=dark` or `?theme=light` shows one theme.
+
+Export all areas in both themes, 3200x1280 each:
+
+```bash
+pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --route /releases/v0-12 --output-dir artifacts/final/releases/v0-12 --settle-ms 1000
+```
+
 ## Workflow
 
 1. Run Electron capture first and populate `artifacts/raw` (see electron package README).
