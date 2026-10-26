@@ -681,9 +681,6 @@ jobs:
       ERGOSPHERE_IT_INSTALLER_RELEASE_ID: ${{ needs.updates.outputs.installer-release-id }}
       ERGOSPHERE_IT_VERSION: ${{ needs.updates.outputs.version }}
     steps:
-      - name: Free Disk Space
-        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
-
       - uses: actions/checkout@v6
 
       - uses: pnpm/setup@v2
