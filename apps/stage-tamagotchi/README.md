@@ -86,6 +86,19 @@ electron-builder copies only `dependencies` and `optionalDependencies` into `app
 
 A package in `dependencies` stays external in the main bundle. electron-builder then copies it and its dependency tree into `app.asar`.
 
+## Reproducible builds
+
+An update downloads each file of `out/bundle` whose hash changed. A build that is not reproducible makes each update larger.
+
+- Two builds of one source must give the same bytes, on each machine and at each checkout path.
+- A value that changes with each commit, such as `~build/git` or `~build/time`, goes into `renderer/assets/build-info.js`. That chunk has no hash in its name, so its importers do not change.
+
+Run the check. It builds two times, with two build times, and fails when another file differs:
+
+```sh
+pnpm -F @proj-airi/stage-tamagotchi run check:reproducible-build
+```
+
 ## Verification
 
 Run the focused runtime tests:

@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { createOutputManifest, diffOutputManifests } from './check-reproducible-build'
+import { createOutputManifest, diffOutputManifests, unexpectedDifferences } from './check-reproducible-build'
 
 const roots: string[] = []
 
@@ -64,5 +64,21 @@ describe('diffOutputManifests', () => {
     expect(diff.changed).toEqual(['main/index.js'])
     expect(diff.removed).toEqual(['renderer/assets/settings-AAAA.js'])
     expect(diff.added).toEqual(['renderer/assets/settings-BBBB.js'])
+  })
+})
+
+describe('unexpectedDifferences', () => {
+  it('keeps only the differences outside the allowed files', () => {
+    const diff = {
+      changed: ['bundle.json', 'bundle/renderer/assets/build-info.js'],
+      removed: ['bundle/renderer/assets/hearing-AAAAAAAA.js'],
+      added: ['bundle/renderer/assets/hearing-BBBBBBBB.js'],
+    }
+
+    const unexpected = unexpectedDifferences(diff, new Set(['bundle.json', 'bundle/renderer/assets/build-info.js']))
+
+    expect(unexpected.changed).toEqual([])
+    expect(unexpected.removed).toEqual(['bundle/renderer/assets/hearing-AAAAAAAA.js'])
+    expect(unexpected.added).toEqual(['bundle/renderer/assets/hearing-BBBBBBBB.js'])
   })
 })
