@@ -2,7 +2,7 @@ import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type {} from 'pinia-plugin-synced'
 
 import type { ProviderMetadata, ProviderValidationPlan } from '../../libs/providers'
-import type { ChatRequestOptions, ModelInfo, ProviderDefinition, ProviderInstance, VoiceInfo } from '../../libs/providers/types'
+import type { ChatRequestOptions, ModelInfo, ProviderDefinition, ProviderInstance, ProviderValidationResult, VoiceInfo } from '../../libs/providers/types'
 
 import { errorMessageFrom } from '@moeru/std'
 import { getGenerationProvider, withReasoning } from '@proj-airi/provider-inference'
@@ -327,8 +327,38 @@ export const useProviderStore = defineStore('provider', () => {
     return { valid: false, reason: t('settings.pages.system.sections.section.developer.sections.section.provider-checks.simulated-reason'), errors: [] }
   }
 
-  function recordValidationTime(runtimeState: ProviderRuntimeState) {
-    runtimeState.validationTimes = [...(runtimeState.validationTimes ?? []), Date.now()].slice(-VALIDATION_TIMES_KEPT)
+  async function recordValidationResult(providerId: string, result: Pick<ProviderValidationResult, 'valid' | 'reason'>) {
+    const runtimeState = providerRuntimeState.value[providerId]
+    if (!runtimeState)
+      return
+
+    providerRuntimeState.value[providerId] = {
+      ...runtimeState,
+      validationReason: result.valid ? undefined : result.reason,
+      validationTimes: [...(runtimeState.validationTimes ?? []), Date.now()].slice(-VALIDATION_TIMES_KEPT),
+    }
+    await providerConfigStore.setProviderStatus(providerId, result.valid ? 'configured' : 'invalid')
+  }
+
+  /**
+   * Checks an initialized provider's settings and records the result for failure notices and developer tools.
+   * Settings pages and background checks share this entry. It skips the billable chat probe.
+   * Candidate configs use `validateProviderConfig` without changing the current provider's status or check history.
+   */
+  async function validateProviderSettings(providerId: string, config: Record<string, unknown>) {
+    let result
+    try {
+      result = simulatedValidationFailure(providerId) ?? await validateProviderConfig(providerId, config, {
+        skipChatPingCheck: true,
+      })
+    }
+    catch (error) {
+      await recordValidationResult(providerId, { valid: false, reason: errorMessageFrom(error) ?? '' })
+      throw error
+    }
+
+    await recordValidationResult(providerId, result)
+    return result
   }
 
   /**
@@ -384,29 +414,10 @@ export const useProviderStore = defineStore('provider', () => {
     const runValidation = async () => {
       providerConfigStore.setProviderStatus(providerId, 'validating')
 
-      // PITFALL: Please consider skip chat ping check during automatic/background validation,
-      // since this can consume API tokens and may only be triggered
-      // by user action (e.g. "Ping API" button on settings pages) or other user intentions.
-      let validationResult
-      try {
-        validationResult = simulatedValidationFailure(providerId) ?? await validateProviderConfig(providerId, config || {}, {
-          skipChatPingCheck: true,
-        })
-      }
-      catch (error) {
-        if (providerRuntimeState.value[providerId]) {
-          providerRuntimeState.value[providerId].validationReason = errorMessageFrom(error) ?? ''
-          recordValidationTime(providerRuntimeState.value[providerId])
-        }
-        providerConfigStore.setProviderStatus(providerId, 'invalid')
-        throw error
-      }
+      const validationResult = await validateProviderSettings(providerId, config || {})
 
       if (providerRuntimeState.value[providerId]) {
-        recordValidationTime(providerRuntimeState.value[providerId])
         providerRuntimeState.value[providerId].validatedCredentialHash = configString
-        providerRuntimeState.value[providerId].validationReason = validationResult.valid ? undefined : validationResult.reason
-        providerConfigStore.setProviderStatus(providerId, validationResult.valid ? 'configured' : 'invalid')
         // Auto-mark Web Speech API as added if valid and available
         if (validationResult.valid && ['browser-web-speech-api', 'player2'].includes(providerId)) {
           markProviderAdded(providerId)
@@ -1182,6 +1193,7 @@ export const useProviderStore = defineStore('provider', () => {
     findProviderDefinition,
     getDefaultProviderConfig,
     validateProviderConfig,
+    validateProviderSettings,
     hasManualProviderValidators,
     supportsModelListing,
     getTranscriptionFeatures,
@@ -1244,6 +1256,7 @@ export const useProviderStore = defineStore('provider', () => {
       'setSimulatedValidationFailure',
       'validateProvider',
       'validateProviderConfig',
+      'validateProviderSettings',
     ],
     state: false,
   },
