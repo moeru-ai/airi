@@ -31,7 +31,8 @@ interface RuncrateModel {
 /**
  * Runcrate's `/models` also lists image, video, speech and embedding models.
  * Keep the text-out models with a context window, so model pickers and the
- * chat validation probe only see chat models.
+ * chat validation probe only see chat models. Declared image input is also
+ * written to `metadata.abilities.vision`, which the chat vision check reads.
  */
 export function toRuncrateChatModels(models: RuncrateModel[]): ModelInfo[] {
   return models
@@ -42,6 +43,7 @@ export function toRuncrateChatModels(models: RuncrateModel[]): ModelInfo[] {
       provider: 'runcrate',
       inputModalities: model.input_modalities,
       contextLength: model.context_length,
+      ...(model.input_modalities?.includes('image') && { metadata: { abilities: { vision: true } } }),
     }))
 }
 
