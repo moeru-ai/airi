@@ -1,4 +1,5 @@
 export * from './bindings'
+export * from './host-sources'
 export * from './kits'
 export * from './manifest'
 export * from './types'
