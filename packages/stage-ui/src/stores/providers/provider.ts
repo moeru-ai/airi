@@ -2,7 +2,7 @@ import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type {} from 'pinia-plugin-synced'
 
 import type { ProviderMetadata, ProviderValidationPlan } from '../../libs/providers'
-import type { ChatRequestOptions, ModelInfo, ProviderDefinition, ProviderInstance, VoiceInfo } from '../../libs/providers/types'
+import type { ChatRequestOptions, ModelInfo, ProviderDefinition, ProviderInstance, ProviderValidationResult, VoiceInfo } from '../../libs/providers/types'
 
 import { errorMessageFrom } from '@moeru/std'
 import { getGenerationProvider, withReasoning } from '@proj-airi/provider-inference'
@@ -46,8 +46,18 @@ export interface VoiceCatalogIdentity {
 }
 
 /** Serializable request and model-discovery state for one provider instance. */
+/** How many check times the runtime state keeps for each provider. */
+const VALIDATION_TIMES_KEPT = 10
+
 export interface ProviderRuntimeState {
   validatedCredentialHash?: string
+  /**
+   * Why the last check in this session failed. It is empty when the check gave no reason,
+   * and `undefined` when the check passed or did not run yet.
+   */
+  validationReason?: string
+  /** When the recent checks finished, oldest first. The developer tools read it to measure how often checks run. */
+  validationTimes?: number[]
   models: ModelInfo[]
   defaultModel: string | null
   modelStatus: 'idle' | 'loading' | 'ready' | 'error'
@@ -64,10 +74,14 @@ Object.freeze(emptyProviderModels)
 const useProviderStateStore = defineStore('provider-state', () => {
   const runtime = ref<Record<string, ProviderRuntimeState>>({})
   const availabilityOverrides = ref<Record<string, boolean>>({})
+  // The developer tools make the checks of these providers fail on purpose. Like the rest of the
+  // runtime state, the list is not stored, so it ends when the app quits.
+  const simulatedValidationFailures = ref<string[]>([])
 
   return {
     runtime,
     availabilityOverrides,
+    simulatedValidationFailures,
   }
 }, {
   synced: {
@@ -303,6 +317,65 @@ export const useProviderStore = defineStore('provider', () => {
     return findProviderDefinition(providerId) !== undefined
   }
 
+  /**
+   * A failed check for a provider that the developer tools mark, so the failure notices can be tested
+   * without a broken config. Other providers get `undefined` and run their real check.
+   */
+  function simulatedValidationFailure(providerId: string) {
+    if (!providerStateStore.simulatedValidationFailures.includes(providerId))
+      return undefined
+    return { valid: false, reason: t('settings.pages.system.sections.section.developer.sections.section.provider-checks.simulated-reason'), errors: [] }
+  }
+
+  async function recordValidationResult(providerId: string, result: Pick<ProviderValidationResult, 'valid' | 'reason'>) {
+    const runtimeState = providerRuntimeState.value[providerId]
+    if (!runtimeState)
+      return
+
+    providerRuntimeState.value[providerId] = {
+      ...runtimeState,
+      validationReason: result.valid ? undefined : result.reason,
+      validationTimes: [...(runtimeState.validationTimes ?? []), Date.now()].slice(-VALIDATION_TIMES_KEPT),
+    }
+    await providerConfigStore.setProviderStatus(providerId, result.valid ? 'configured' : 'invalid')
+  }
+
+  /**
+   * Checks an initialized provider's settings and records the result for failure notices and developer tools.
+   * Settings pages and background checks share this entry. It skips the billable chat probe.
+   * Candidate configs use `validateProviderConfig` without changing the current provider's status or check history.
+   */
+  async function validateProviderSettings(providerId: string, config: Record<string, unknown>) {
+    let result
+    try {
+      result = simulatedValidationFailure(providerId) ?? await validateProviderConfig(providerId, config, {
+        skipChatPingCheck: true,
+      })
+    }
+    catch (error) {
+      await recordValidationResult(providerId, { valid: false, reason: errorMessageFrom(error) ?? '' })
+      throw error
+    }
+
+    await recordValidationResult(providerId, result)
+    return result
+  }
+
+  /**
+   * Makes the check of a provider fail on purpose, or stop failing, and runs the check again.
+   * The developer tools use it to test the failure notices. It lasts until the app quits.
+   */
+  async function setSimulatedValidationFailure(providerId: string, simulated: boolean) {
+    const rest = providerStateStore.simulatedValidationFailures.filter(id => id !== providerId)
+    providerStateStore.simulatedValidationFailures = simulated ? [...rest, providerId] : rest
+    return validateProvider(providerId, { force: true })
+  }
+
+  /** How often the provider checks itself in the background, in milliseconds. It is 0 when it has no periodic check. */
+  function getValidationIntervalMs(providerId: string) {
+    return providerValidationIntervalMsById.get(providerId) ?? 0
+  }
+
   // Configuration validation functions
   async function validateProvider(providerId: string, options: { force?: boolean } = {}): Promise<boolean> {
     await waitForProviderMetadata()
@@ -341,23 +414,10 @@ export const useProviderStore = defineStore('provider', () => {
     const runValidation = async () => {
       providerConfigStore.setProviderStatus(providerId, 'validating')
 
-      // PITFALL: Please consider skip chat ping check during automatic/background validation,
-      // since this can consume API tokens and may only be triggered
-      // by user action (e.g. "Ping API" button on settings pages) or other user intentions.
-      let validationResult
-      try {
-        validationResult = await validateProviderConfig(providerId, config || {}, {
-          skipChatPingCheck: true,
-        })
-      }
-      catch (error) {
-        providerConfigStore.setProviderStatus(providerId, 'invalid')
-        throw error
-      }
+      const validationResult = await validateProviderSettings(providerId, config || {})
 
       if (providerRuntimeState.value[providerId]) {
         providerRuntimeState.value[providerId].validatedCredentialHash = configString
-        providerConfigStore.setProviderStatus(providerId, validationResult.valid ? 'configured' : 'invalid')
         // Auto-mark Web Speech API as added if valid and available
         if (validationResult.valid && ['browser-web-speech-api', 'player2'].includes(providerId)) {
           markProviderAdded(providerId)
@@ -439,6 +499,7 @@ export const useProviderStore = defineStore('provider', () => {
         continue
       providerConfigStore.setProviderStatus(providerId, 'unconfigured')
       runtimeState.validatedCredentialHash = undefined
+      runtimeState.validationReason = undefined
     }
   }
 
@@ -545,6 +606,7 @@ export const useProviderStore = defineStore('provider', () => {
   async function setProviderUnconfigured(providerId: string) {
     if (providerRuntimeState.value[providerId]) {
       providerRuntimeState.value[providerId].validatedCredentialHash = undefined
+      providerRuntimeState.value[providerId].validationReason = undefined
     }
     await providerConfigStore.setProviderStatus(providerId, 'unconfigured')
     await unmarkProviderAdded(providerId)
@@ -1131,11 +1193,15 @@ export const useProviderStore = defineStore('provider', () => {
     findProviderDefinition,
     getDefaultProviderConfig,
     validateProviderConfig,
+    validateProviderSettings,
     hasManualProviderValidators,
     supportsModelListing,
     getTranscriptionFeatures,
     initializeProvider,
     validateProvider,
+    getValidationIntervalMs,
+    simulatedValidationFailures: computed(() => providerStateStore.simulatedValidationFailures),
+    setSimulatedValidationFailure,
     refreshListedProviderValidation,
     refreshModelsForChangedCredentials,
     isLoadingModels,
@@ -1187,8 +1253,10 @@ export const useProviderStore = defineStore('provider', () => {
       'resetProviderSettings',
       'setProviderAvailabilityOverride',
       'setProviderUnconfigured',
+      'setSimulatedValidationFailure',
       'validateProvider',
       'validateProviderConfig',
+      'validateProviderSettings',
     ],
     state: false,
   },

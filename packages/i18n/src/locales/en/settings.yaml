@@ -2394,6 +2394,36 @@ pages:
               markdown-stress:
                 title: Markdown Stress
                 description: Stress markdown parsing and rendering with heavy chat payloads
+              provider-checks:
+                title: Provider Checks
+                description: See when provider checks run, and make chosen providers fail their check on purpose
+                timing-label: Check timing
+                timing-signed-in: 'Signed in: the app checks the added providers at sign-in, and after each sync every {minutes} min'
+                timing-signed-out: 'Not signed in: no automatic check. A check runs only on some provider settings pages, or when you use the button below.'
+                timing-periodic: '{names} also check every {seconds} s'
+                check-all: Check all now
+                restore-all: 'Show all dismissed again ({count})'
+                empty: No provider was checked yet.
+                not-checked: not checked yet
+                checked-ago: '{seconds} s ago'
+                every: 'every {seconds} s'
+                measured: 'last {count} checks {seconds} s apart on average'
+                dismissed: Dismissed
+                restore-one: Undo dismiss
+                simulate: Fail on purpose
+                simulated-reason: Simulated failure from the developer tools.
+                kinds:
+                  chat: Chat
+                  vision: Vision
+                  speech: Speech
+                  transcription: Transcription
+                  other: Other
+                status:
+                  unconfigured: Not set up
+                  validating: Checking
+                  configured: Passed
+                  invalid: Failed
+                  bypassed: Not checked
               tool-payloads-as-json:
                 title: Show tool data as JSON
                 description: Show the arguments and results of chat tool calls as a JSON tree, not as formatted fields. Cards in replies also offer their raw data.
@@ -2573,6 +2603,14 @@ search:
   placeholder: Search settings
   empty: 'No settings match "{query}".'
   not-shown: '"{name}" shows only in another state of this page, for example after you turn on a switch or choose another model type.'
+needs-attention:
+  title-one: '{name} failed its last check'
+  title-many: '{count} providers failed their last check'
+  affects: 'Affects {modules}'
+  unused-many: No module uses them now
+  used-by: 'Used by {modules}'
+  fix: Edit
+  dismiss: Dismiss
 sections:
   section:
     general:
