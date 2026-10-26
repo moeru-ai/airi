@@ -25,7 +25,7 @@ export function createComputerUseRuntime(options: {
   binaryPath: string
   storeRoot: string
   /** Converts a WebP screenshot to PNG. AUV's Windows capture backend writes WebP. */
-  webpToPng: (data: Buffer) => Promise<Buffer>
+  webpToPng: (data: Buffer, signal?: AbortSignal) => Promise<Buffer>
 }) {
   let daemon: AuvDaemon | undefined
   let disposed = false
@@ -141,7 +141,7 @@ export function createComputerUseRuntime(options: {
       if (!png && !jpeg && !webp)
         throw new Error('Screenshot must be PNG, JPEG, or WebP.')
       if (webp) {
-        const pngData = await options.webpToPng(data)
+        const pngData = await options.webpToPng(data, abort.signal)
         if (pngData.length > MAX_IMAGE_BYTES)
           throw new Error('Screenshot must be smaller than 8 MiB after converting from WebP to PNG.')
         return `data:image/png;base64,${pngData.toString('base64')}`

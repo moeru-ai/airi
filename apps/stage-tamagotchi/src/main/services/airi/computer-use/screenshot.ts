@@ -13,10 +13,13 @@ import { createWindowContext } from '../../../libs/electron/window-context'
 // This function decodes the WebP in a renderer that Chromium provides and returns PNG over Eventa.
 // Source: Electron nativeImage documentation and AUV xcap.windows screenshot artifacts.
 // Remove when nativeImage decodes WebP or AUV can write PNG.
-export async function webpToPng(data: Buffer): Promise<Buffer> {
+export async function webpToPng(data: Buffer, signal?: AbortSignal): Promise<Buffer> {
   let frame: BrowserWindow | undefined
   let timeout: ReturnType<typeof setTimeout> | undefined
+  let rejectAbort: ((reason: Error) => void) | undefined
+  let onAbort: (() => void) | undefined
   try {
+    signal?.throwIfAborted()
     frame = new BrowserWindow({
       show: false,
       width: 64,
@@ -29,10 +32,23 @@ export async function webpToPng(data: Buffer): Promise<Buffer> {
         sandbox: false,
       },
     })
+    const aborted = new Promise<never>((_, reject) => {
+      rejectAbort = reject
+    })
+    // The abort can win the race before the decode promise settles. Keep that rejection handled.
+    void aborted.catch(() => undefined)
+    onAbort = () => {
+      if (frame && !frame.isDestroyed())
+        frame.destroy()
+      rejectAbort?.(new Error('WebP conversion aborted.'))
+    }
+    signal?.addEventListener('abort', onAbort, { once: true })
+    signal?.throwIfAborted()
     await frame.loadURL('data:text/html,<!doctype html><html><body></body></html>')
     const decode = defineInvoke(createWindowContext(frame).context, electronWebpScreenshotDecode)
     const converted = await Promise.race([
       decode({ webp: data.toString('base64') }),
+      aborted,
       new Promise<never>((_, reject) => {
         timeout = setTimeout(() => reject(new Error('Timed out decoding the WebP screenshot in the renderer.')), 15_000)
         timeout.unref?.()
@@ -48,6 +64,8 @@ export async function webpToPng(data: Buffer): Promise<Buffer> {
   }
   finally {
     clearTimeout(timeout)
+    if (onAbort)
+      signal?.removeEventListener('abort', onAbort)
     if (frame && !frame.isDestroyed())
       frame.destroy()
   }

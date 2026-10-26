@@ -13,14 +13,14 @@ import { createComputerUseRuntime } from './runtime'
 describe('computer use runtime', () => {
   let directory: string
   let runtime: ReturnType<typeof createComputerUseRuntime>
-  let convertWebp: (data: Buffer) => Promise<Buffer>
+  let convertWebp: (data: Buffer, signal?: AbortSignal) => Promise<Buffer>
   beforeEach(async () => {
     directory = await mkdtemp(join(tmpdir(), 'airi-cu-test-'))
     await mkdir(join(directory, 'store'))
     convertWebp = async () => {
       throw new Error('WebP conversion is not expected in this test.')
     }
-    runtime = createComputerUseRuntime({ binaryPath: binaryPath(), storeRoot: join(directory, 'store'), webpToPng: data => convertWebp(data) })
+    runtime = createComputerUseRuntime({ binaryPath: binaryPath(), storeRoot: join(directory, 'store'), webpToPng: (data, signal) => convertWebp(data, signal) })
   })
   afterEach(async () => {
     await runtime.dispose()
@@ -74,6 +74,26 @@ describe('computer use runtime', () => {
     await writeFile(path, webp)
     convertWebp = async () => Buffer.alloc(8 * 1024 * 1024 + 1)
     await expect(runtime.readImage({ path })).rejects.toThrow('smaller than 8 MiB after converting')
+  })
+
+  it('aborts a pending conversion when the runtime is disposed', async () => {
+    const webp = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBPVP8L'), Buffer.alloc(16)])
+    const path = join(directory, 'store', 'pending.webp')
+    await writeFile(path, webp)
+    let started: (() => void) | undefined
+    const startedPromise = new Promise<void>((resolve) => {
+      started = resolve
+    })
+    convertWebp = async (_data, signal) => {
+      started?.()
+      return await new Promise<Buffer>((_resolve, reject) => {
+        signal?.addEventListener('abort', () => reject(new Error('conversion aborted')), { once: true })
+      })
+    }
+    const pending = runtime.readImage({ path })
+    await startedPromise
+    await runtime.dispose()
+    await expect(pending).rejects.toThrow('conversion aborted')
   })
 
   it('keeps PNG and JPEG screenshots unchanged without converting them', async () => {
