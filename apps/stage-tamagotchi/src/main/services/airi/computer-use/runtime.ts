@@ -20,7 +20,12 @@ const execFileAsync = promisify(execFile)
 const inputSchema = v.object({ argv: v.pipe(v.array(v.pipe(v.string(), v.maxLength(16384), v.check(value => !value.includes('\0')))), v.minLength(2), v.maxLength(128)) })
 
 /** Owns one private daemon and serializes desktop operations across renderer windows. */
-export function createComputerUseRuntime(options: { binaryPath: string, storeRoot: string }) {
+export function createComputerUseRuntime(options: {
+  binaryPath: string
+  storeRoot: string
+  /** Converts a WebP screenshot to PNG. AUV's Windows capture backend writes WebP. */
+  webpToPng: (data: Buffer) => Promise<Buffer>
+}) {
   let daemon: AuvDaemon | undefined
   let disposed = false
   let queue: Promise<unknown> = Promise.resolve()
@@ -130,8 +135,12 @@ export function createComputerUseRuntime(options: { binaryPath: string, storeRoo
       const data = await readFile(target)
       const png = data.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
       const jpeg = data[0] === 255 && data[1] === 216 && data[2] === 255
-      if (!png && !jpeg)
-        throw new Error('Screenshot must be PNG or JPEG.')
+      // AUV's Windows capture backend writes WebP, which vision models and providers do not accept.
+      const webp = data.length >= 12 && data.subarray(0, 4).toString('latin1') === 'RIFF' && data.subarray(8, 12).toString('latin1') === 'WEBP'
+      if (!png && !jpeg && !webp)
+        throw new Error('Screenshot must be PNG, JPEG, or WebP.')
+      if (webp)
+        return `data:image/png;base64,${(await options.webpToPng(data)).toString('base64')}`
       return `data:image/${png ? 'png' : 'jpeg'};base64,${data.toString('base64')}`
     })
   }

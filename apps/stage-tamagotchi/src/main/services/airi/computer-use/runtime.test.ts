@@ -13,10 +13,14 @@ import { createComputerUseRuntime } from './runtime'
 describe('computer use runtime', () => {
   let directory: string
   let runtime: ReturnType<typeof createComputerUseRuntime>
+  let convertWebp: (data: Buffer) => Promise<Buffer>
   beforeEach(async () => {
     directory = await mkdtemp(join(tmpdir(), 'airi-cu-test-'))
     await mkdir(join(directory, 'store'))
-    runtime = createComputerUseRuntime({ binaryPath: binaryPath(), storeRoot: join(directory, 'store') })
+    convertWebp = async () => {
+      throw new Error('WebP conversion is not expected in this test.')
+    }
+    runtime = createComputerUseRuntime({ binaryPath: binaryPath(), storeRoot: join(directory, 'store'), webpToPng: data => convertWebp(data) })
   })
   afterEach(async () => {
     await runtime.dispose()
@@ -47,7 +51,38 @@ describe('computer use runtime', () => {
     }
     const text = join(directory, 'store', 'text.png')
     await writeFile(text, 'not an image')
-    await expect(runtime.readImage({ path: text })).rejects.toThrow('PNG or JPEG')
+    await expect(runtime.readImage({ path: text })).rejects.toThrow('PNG, JPEG, or WebP')
+  })
+
+  it('converts WebP screenshots to PNG before returning them', async () => {
+    const webp = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBPVP8L'), Buffer.alloc(16)])
+    const path = join(directory, 'store', 'capture.webp')
+    await writeFile(path, webp)
+    const png = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
+    const converted: Buffer[] = []
+    convertWebp = async (data) => {
+      converted.push(data)
+      return png
+    }
+    expect(await runtime.readImage({ path })).toBe(`data:image/png;base64,${png.toString('base64')}`)
+    expect(converted).toEqual([webp])
+  })
+
+  it('keeps PNG and JPEG screenshots unchanged without converting them', async () => {
+    const jpeg = Buffer.from([255, 216, 255, 224, 0, 16, 74, 70, 73, 70])
+    const path = join(directory, 'store', 'capture.jpg')
+    await writeFile(path, jpeg)
+    expect(await runtime.readImage({ path })).toBe(`data:image/jpeg;base64,${jpeg.toString('base64')}`)
+  })
+
+  it('reports a WebP conversion failure instead of returning the WebP bytes', async () => {
+    const webp = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBPVP8L'), Buffer.alloc(16)])
+    const path = join(directory, 'store', 'broken.webp')
+    await writeFile(path, webp)
+    convertWebp = async () => {
+      throw new Error('decoder unavailable')
+    }
+    await expect(runtime.readImage({ path })).rejects.toThrow('decoder unavailable')
   })
 
   it('rejects queued and future work after disposal', async () => {
