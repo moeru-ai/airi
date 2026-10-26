@@ -328,6 +328,7 @@ describe('createStreamingCategorizer', () => {
   })
 
   // Related final-response fix: https://github.com/moeru-ai/airi/pull/1322
+  // Review: https://github.com/moeru-ai/airi/pull/2916#discussion_r4358684288
   // ROOT CAUSE:
   // A nested segment can move the streaming cursor behind the outer segment.
   // Keeping the furthest segment end excludes the entire outer tag.
@@ -339,6 +340,14 @@ describe('createStreamingCategorizer', () => {
     {
       chunking: 'separate chunks',
       chunks: ['Start ', '<think>outer <analysis>inner</analysis> hidden</think>', ' end'],
+    },
+    {
+      chunking: 'a split opening tag',
+      chunks: ['Start ', '<thi', 'nk>', 'outer <analysis>inner</analysis> hidden</think>', ' end'],
+    },
+    {
+      chunking: 'split nested content',
+      chunks: ['Start ', '<think>outer <analysis>in', 'ner</analysis> hidden</think>', ' end'],
     },
   ])('excludes nested reasoning from streamed speech in $chunking', ({ chunks }) => {
     const categorizer = createStreamingCategorizer()
