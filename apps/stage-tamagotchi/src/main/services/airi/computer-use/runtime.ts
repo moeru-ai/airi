@@ -17,6 +17,7 @@ import * as v from 'valibot'
 import { isComputerUseHelpCall } from '../../../../shared/eventa/computer-use'
 
 const execFileAsync = promisify(execFile)
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024
 const inputSchema = v.object({ argv: v.pipe(v.array(v.pipe(v.string(), v.maxLength(16384), v.check(value => !value.includes('\0')))), v.minLength(2), v.maxLength(128)) })
 
 /** Owns one private daemon and serializes desktop operations across renderer windows. */
@@ -130,7 +131,7 @@ export function createComputerUseRuntime(options: {
       if (!within || isAbsolute(within) || within === '..' || within.startsWith(`..${sep}`))
         throw new Error('Only screenshots from this AIRI computer-use store can be read.')
       const info = await stat(target)
-      if (!info.isFile() || info.size > 8 * 1024 * 1024)
+      if (!info.isFile() || info.size > MAX_IMAGE_BYTES)
         throw new Error('Screenshot must be a file smaller than 8 MiB.')
       const data = await readFile(target)
       const png = data.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
@@ -139,8 +140,12 @@ export function createComputerUseRuntime(options: {
       const webp = data.length >= 12 && data.subarray(0, 4).toString('latin1') === 'RIFF' && data.subarray(8, 12).toString('latin1') === 'WEBP'
       if (!png && !jpeg && !webp)
         throw new Error('Screenshot must be PNG, JPEG, or WebP.')
-      if (webp)
-        return `data:image/png;base64,${(await options.webpToPng(data)).toString('base64')}`
+      if (webp) {
+        const pngData = await options.webpToPng(data)
+        if (pngData.length > MAX_IMAGE_BYTES)
+          throw new Error('Screenshot must be smaller than 8 MiB after converting from WebP to PNG.')
+        return `data:image/png;base64,${pngData.toString('base64')}`
+      }
       return `data:image/${png ? 'png' : 'jpeg'};base64,${data.toString('base64')}`
     })
   }

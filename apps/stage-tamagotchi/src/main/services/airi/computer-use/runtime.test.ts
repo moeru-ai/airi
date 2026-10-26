@@ -68,6 +68,14 @@ describe('computer use runtime', () => {
     expect(converted).toEqual([webp])
   })
 
+  it('rejects a converted PNG that grows past the image limit', async () => {
+    const webp = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBPVP8L'), Buffer.alloc(16)])
+    const path = join(directory, 'store', 'large.webp')
+    await writeFile(path, webp)
+    convertWebp = async () => Buffer.alloc(8 * 1024 * 1024 + 1)
+    await expect(runtime.readImage({ path })).rejects.toThrow('smaller than 8 MiB after converting')
+  })
+
   it('keeps PNG and JPEG screenshots unchanged without converting them', async () => {
     const jpeg = Buffer.from([255, 216, 255, 224, 0, 16, 74, 70, 73, 70])
     const path = join(directory, 'store', 'capture.jpg')
