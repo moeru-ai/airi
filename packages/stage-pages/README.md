@@ -68,6 +68,6 @@ The settings home searches every settings page, the settings on it, and the runt
 The settings home lists the providers whose last check failed. It shows under the search field and scrolls with the list.
 
 - `useSettingsNeedsAttention()` from stage-ui gives the list. A provider shows only after a check in this session failed, so a status from the last session does not show it.
-- Each provider shows the modules that use it now and the reason of the check. A provider without a brand icon shows the icon of its module kind.
+- Each provider shows the reason of the check, and the modules that use it now, if any. A provider without a brand icon shows the icon of its module kind.
 - **Edit** opens the settings page of the provider. **Dismiss** hides it on this device until its config or its failure reason changes.
 - `/devtools/provider-checks` shows when the checks run, when each provider was checked, and how often a provider checks itself. It lists the dismissed providers and can show them again. It can make chosen providers fail their check on purpose, to test the list. This choice ends when the app quits.

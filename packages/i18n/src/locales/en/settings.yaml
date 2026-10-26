@@ -2607,10 +2607,8 @@ needs-attention:
   title-one: '{name} failed its last check'
   title-many: '{count} providers failed their last check'
   affects: 'Affects {modules}'
-  unused-one: No module uses it now
   unused-many: No module uses them now
   used-by: 'Used by {modules}'
-  unused: Not in use
   fix: Edit
   dismiss: Dismiss
 sections:

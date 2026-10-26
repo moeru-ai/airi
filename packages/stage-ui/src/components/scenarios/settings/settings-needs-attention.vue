@@ -51,8 +51,14 @@ const title = computed(() => props.items.length === 1
 const summary = computed(() => {
   if (modules.value.length)
     return t('settings.needs-attention.affects', { modules: listOf(modules.value) })
-  return t(props.items.length === 1 ? 'settings.needs-attention.unused-one' : 'settings.needs-attention.unused-many')
+  return t('settings.needs-attention.unused-many')
 })
+
+/** One quiet line under a provider name: the reason of the check, and the modules that use the provider, if any. */
+function detailOf(item: SettingsNeedsAttentionItem) {
+  const usedBy = item.modules.length ? t('settings.needs-attention.used-by', { modules: listOf(item.modules) }) : ''
+  return [item.reason, usedBy].filter(Boolean).join(' · ')
+}
 </script>
 
 <template>
@@ -81,12 +87,9 @@ const summary = computed(() => {
         <div :class="['text-base']">
           {{ title }}
         </div>
-        <div :class="['text-sm text-neutral-500 dark:text-neutral-400']">
-          {{ summary }}
+        <div v-if="detailOf(single)" :class="['mt-0.5 text-sm text-neutral-500 dark:text-neutral-400', 'break-words line-clamp-2']">
+          {{ detailOf(single) }}
         </div>
-        <p v-if="single.reason" :class="['m-0 mt-0.5', 'font-mono text-xs break-all line-clamp-2', 'text-neutral-400 dark:text-neutral-500']">
-          {{ single.reason }}
-        </p>
       </div>
       <div :class="['ml-auto flex shrink-0 items-center gap-1']">
         <Button size="sm" :label="t('settings.needs-attention.fix')" @click="emit('fix', single)" />
@@ -158,21 +161,10 @@ const summary = computed(() => {
             <div :class="['min-w-48 flex-1']">
               <div :class="['text-sm']">
                 {{ item.name }}
-                <span :class="['ml-1.5 text-neutral-500 dark:text-neutral-400']">
-                  {{ item.modules.length ? t('settings.needs-attention.used-by', { modules: listOf(item.modules) }) : t('settings.needs-attention.unused') }}
-                </span>
               </div>
-              <!-- The reason is the text of the check, often in English. It stays small and in the code font. -->
-              <p
-                v-if="item.reason"
-                :class="[
-                  'm-0 mt-0.5',
-                  'font-mono text-xs break-all line-clamp-2',
-                  'text-neutral-400 dark:text-neutral-500',
-                ]"
-              >
-                {{ item.reason }}
-              </p>
+              <div v-if="detailOf(item)" :class="['mt-0.5 text-xs text-neutral-500 dark:text-neutral-400', 'break-words line-clamp-2']">
+                {{ detailOf(item) }}
+              </div>
             </div>
             <div :class="['ml-auto flex shrink-0 items-center gap-1']">
               <Button size="sm" :label="t('settings.needs-attention.fix')" @click="emit('fix', item)" />
