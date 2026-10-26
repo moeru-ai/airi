@@ -294,18 +294,24 @@ jobs:
           mise x -- pnpm kirie doctor --fix plugin:core
           mise x -- pnpm kirie doctor --fix plugin:notifications
 
-      # Official split (gd-kirie docs/addon-release.md + README Installation):
-      # `kirie doctor --fix plugin:core` installs the *npm-bundled* addon (GDScript
-      # + desktop CEF), which intentionally omits Android AAR / iOS xcframeworks.
-      # Those native artifacts ship only in the GitHub Release `kirie-addon.zip`
-      # (manual install path). Overlay that zip's libraries/ios onto the doctor
-      # install so CI matches a local machine that extracted the release zip.
+      # TEMPORARY: published npm `kirie@0.15.0` tarball has no AAR (addon/ is
+      # GDScript-only; npm-publish.yml only runs build:packages, not
+      # build:android-aar). Release asset kirie-addon.zip DOES contain
+      # libraries/android/Kirie-release.aar. If upstream starts shipping AAR
+      # inside the npm package, delete this step. Until then Android/iOS CI
+      # overlays natives from the matching GitHub Release zip after doctor.
+      # (kirie is a devDependency in this app — do not read .dependencies.kirie.)
       - name: Overlay Kirie native libraries (AAR / xcframework)
         if: matrix.platform == 'android' || matrix.platform == 'ios'
         working-directory: ${{ env.APP_DIR }}
         run: |
           set -euo pipefail
-          KIRIE_VER="$(node -p "require('./package.json').dependencies.kirie")"
+          # Resolve installed kirie version (app lists it under devDependencies).
+          if [ -f node_modules/kirie/package.json ]; then
+            KIRIE_VER="$(node -p "require('./node_modules/kirie/package.json').version")"
+          else
+            KIRIE_VER="$(node -p "const p=require('./package.json'); const v=p.devDependencies?.kirie||p.dependencies?.kirie; if(!v) throw new Error('kirie version missing'); String(v).replace(/^[^0-9]*/, '')")"
+          fi
           URL="https://github.com/gd-kirie/gd-kirie/releases/download/v${KIRIE_VER}/kirie-addon.zip"
           TMP="$(mktemp -d)"
           echo "Downloading $URL"
