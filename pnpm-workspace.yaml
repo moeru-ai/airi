@@ -468,7 +468,7 @@ catalog:
   xastscript: ^4.0.0
   xsai-chromium-prompt: ^0.2.2
   xsschema: 0.5.1
-  yaml: ^2.9.0
+  yaml: ^2.9.1
   yauzl: ^3.4.0
   zod: ^4.4.3
   zod-to-json-schema: ^3.25.2

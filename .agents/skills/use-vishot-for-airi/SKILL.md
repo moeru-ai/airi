@@ -19,7 +19,7 @@ AIRI_DISPLAY_MODEL_PATH='/Users/neko/Pictures/Project AIRI 静态资产/形象 -
 pnpm exec vishot capture \
   ./packages/scenarios-stage-tamagotchi-electron/src/scenarios/display-model-from-file.ts \
   --target electron \
-  --app-entrypoint ./apps/stage-tamagotchi/out/main/index.js \
+  --app-entrypoint ./apps/stage-tamagotchi \
   --cwd . \
   --settle-ms 2500 \
   --output-dir ./.vishot/display-model/live2d
