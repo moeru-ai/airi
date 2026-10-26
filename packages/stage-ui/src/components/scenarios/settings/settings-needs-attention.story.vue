@@ -7,11 +7,21 @@ import SettingsNeedsAttention from './settings-needs-attention.vue'
 
 const sample: SettingsNeedsAttentionItem[] = [
   {
+    id: 'minimax-speech',
+    name: 'MiniMax Speech',
+    fallbackIcon: 'i-solar:user-speak-rounded-bold-duotone',
+    modules: ['Speech'],
+    problem: 'unconfigured',
+    reason: '',
+    to: '/settings/providers/speech/minimax-speech',
+  },
+  {
     id: 'openai',
     name: 'OpenAI',
     icon: 'i-lobe-icons:openai',
     fallbackIcon: 'i-solar:ghost-bold-duotone',
     modules: ['Consciousness'],
+    problem: 'failed',
     reason: 'Model list check failed: 401 Incorrect API key provided.',
     to: '/settings/providers/chat/openai',
   },
@@ -21,16 +31,9 @@ const sample: SettingsNeedsAttentionItem[] = [
     icon: 'i-lobe-icons:ollama',
     fallbackIcon: 'i-solar:eye-closed-bold-duotone',
     modules: ['Vision'],
+    problem: 'failed',
     reason: 'Connectivity check failed: Failed to fetch',
     to: '/settings/providers/vision/ollama',
-  },
-  {
-    id: 'deepseek',
-    name: 'DeepSeek',
-    fallbackIcon: 'i-solar:ghost-bold-duotone',
-    modules: [],
-    reason: '',
-    to: '/settings/providers/chat/deepseek',
   },
 ]
 
@@ -50,9 +53,14 @@ function dismiss(item: SettingsNeedsAttentionItem) {
         <p>Edit opens: {{ fixed || '—' }}. Dismiss removes the row.</p>
       </div>
     </Variant>
-    <Variant id="one" title="One provider">
+    <Variant id="one-unconfigured" title="One provider, not set up">
       <div :class="['p-4']">
         <SettingsNeedsAttention :items="sample.slice(0, 1)" />
+      </div>
+    </Variant>
+    <Variant id="one-failed" title="One provider, check failed">
+      <div :class="['p-4']">
+        <SettingsNeedsAttention :items="sample.slice(1, 2)" />
       </div>
     </Variant>
   </Story>

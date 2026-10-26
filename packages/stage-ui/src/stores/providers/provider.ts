@@ -45,12 +45,20 @@ export interface VoiceCatalogIdentity {
   owner: string | undefined
 }
 
-/** Serializable request and model-discovery state for one provider instance. */
 /** How many check times the runtime state keeps for each provider. */
 const VALIDATION_TIMES_KEPT = 10
 
+/** Serializable request and model-discovery state for one provider instance. */
 export interface ProviderRuntimeState {
   validatedCredentialHash?: string
+  /**
+   * What the last check in this session found. The settings home reads it, so a status from the last session shows nothing.
+   * - `configured`: the check passed.
+   * - `unconfigured`: required fields are empty, so the check cannot pass. The settings page also records this while it is edited.
+   * - `invalid`: the check failed. `validationReason` tells why.
+   * - `undefined`: no check ran in this session, or the provider is no longer added.
+   */
+  validationOutcome?: 'configured' | 'unconfigured' | 'invalid'
   /**
    * Why the last check in this session failed. It is empty when the check gave no reason,
    * and `undefined` when the check passed or did not run yet.
@@ -284,7 +292,12 @@ export const useProviderStore = defineStore('provider', () => {
       await runProviderValidation(plan, { t })
 
     const configOnly = !options.onlyChatPingCheck && !plan.shouldValidate
-    const result = validationResultFromPlan(plan, configOnly)
+    const result = {
+      ...validationResultFromPlan(plan, configOnly),
+      // `validationRequiredWhen` accepted the config. When it did not, a failed check means that fields are not filled in yet,
+      // so the recorded status is unconfigured, not invalid.
+      validationRequired: plan.shouldValidate,
+    }
     if (result.valid)
       return result
 
@@ -327,17 +340,44 @@ export const useProviderStore = defineStore('provider', () => {
     return { valid: false, reason: t('settings.pages.system.sections.section.developer.sections.section.provider-checks.simulated-reason'), errors: [] }
   }
 
-  async function recordValidationResult(providerId: string, result: Pick<ProviderValidationResult, 'valid' | 'reason'>) {
+  async function recordValidationResult(
+    providerId: string,
+    result: Pick<ProviderValidationResult, 'valid' | 'reason'> & { validationRequired?: boolean },
+  ) {
     const runtimeState = providerRuntimeState.value[providerId]
     if (!runtimeState)
       return
 
+    let outcome: NonNullable<ProviderRuntimeState['validationOutcome']> = 'invalid'
+    if (result.valid) {
+      outcome = 'configured'
+    }
+    else if (result.validationRequired === false) {
+      // The settings page does not check a config that `validationRequiredWhen` rejects, such as one without its API key.
+      // Background checks still run it, so that providers with default configs become configured. A failure here is
+      // an unfinished config, so it gets no failure reason.
+      outcome = 'unconfigured'
+    }
+
     providerRuntimeState.value[providerId] = {
       ...runtimeState,
-      validationReason: result.valid ? undefined : result.reason,
+      validationOutcome: outcome,
+      validationReason: outcome === 'invalid' ? result.reason : undefined,
       validationTimes: [...(runtimeState.validationTimes ?? []), Date.now()].slice(-VALIDATION_TIMES_KEPT),
     }
-    await providerConfigStore.setProviderStatus(providerId, result.valid ? 'configured' : 'invalid')
+    await providerConfigStore.setProviderStatus(providerId, outcome)
+  }
+
+  /**
+   * Records that the required fields of a provider are empty, without a check.
+   * The settings page calls it when `validationRequiredWhen` rejects the edited config, so the settings home learns
+   * that a provider in use lost its API key. The check history does not change, because no check ran.
+   */
+  async function recordUnfinishedConfig(providerId: string) {
+    const runtimeState = providerRuntimeState.value[providerId]
+    if (runtimeState)
+      providerRuntimeState.value[providerId] = { ...runtimeState, validationOutcome: 'unconfigured', validationReason: undefined }
+    await providerConfigStore.setProviderStatus(providerId, 'unconfigured')
   }
 
   /**
@@ -499,6 +539,7 @@ export const useProviderStore = defineStore('provider', () => {
         continue
       providerConfigStore.setProviderStatus(providerId, 'unconfigured')
       runtimeState.validatedCredentialHash = undefined
+      runtimeState.validationOutcome = undefined
       runtimeState.validationReason = undefined
     }
   }
@@ -531,8 +572,8 @@ export const useProviderStore = defineStore('provider', () => {
       .map(async ([providerId]) => {
         try {
           initializeProviderRuntimeState(providerId)
-          const isValid = await validateProvider(providerId)
-          providerConfigStore.setProviderStatus(providerId, isValid ? 'configured' : 'invalid')
+          // The check records the status itself. An unfinished config stays unconfigured, not invalid.
+          await validateProvider(providerId)
         }
         catch {
           providerConfigStore.setProviderStatus(providerId, 'invalid')
@@ -606,6 +647,7 @@ export const useProviderStore = defineStore('provider', () => {
   async function setProviderUnconfigured(providerId: string) {
     if (providerRuntimeState.value[providerId]) {
       providerRuntimeState.value[providerId].validatedCredentialHash = undefined
+      providerRuntimeState.value[providerId].validationOutcome = undefined
       providerRuntimeState.value[providerId].validationReason = undefined
     }
     await providerConfigStore.setProviderStatus(providerId, 'unconfigured')
@@ -1194,6 +1236,7 @@ export const useProviderStore = defineStore('provider', () => {
     getDefaultProviderConfig,
     validateProviderConfig,
     validateProviderSettings,
+    recordUnfinishedConfig,
     hasManualProviderValidators,
     supportsModelListing,
     getTranscriptionFeatures,
@@ -1248,6 +1291,7 @@ export const useProviderStore = defineStore('provider', () => {
       'listProviderVoices',
       'loadModelsForConfiguredProviders',
       'loadProviderModel',
+      'recordUnfinishedConfig',
       'refreshListedProviderValidation',
       'refreshModelsForChangedCredentials',
       'resetProviderSettings',

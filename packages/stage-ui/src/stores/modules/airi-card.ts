@@ -87,6 +87,7 @@ const emptyAvatarModels: readonly CharacterAvatarModelReference[] = Object.freez
 const emptyLive2DExpressions: readonly Live2DExpressionControl[] = Object.freeze([])
 const emptyLive2DMotions: readonly Live2DMotionControl[] = Object.freeze([])
 const emptyLive2DModelControls: Live2DModelControls = { expressions: [], motions: [] }
+const emptyCharacterModules: readonly CardModuleDefaults[] = Object.freeze([])
 
 /**
  * Returns the Display Model ID that a card stored before Avatar Models existed.
@@ -1360,6 +1361,18 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return resolved
   }
 
+  /**
+   * The module selections of every character, resolved against the defaults.
+   * A chat session resolves its own character through `getModules`, so a provider can be in use without the active card.
+   * The settings home reads it to find the providers in use.
+   */
+  const characterModules = computed<readonly CardModuleDefaults[]>(() => {
+    const defaults = moduleDefaults.value
+    if (!defaults)
+      return emptyCharacterModules
+    return [...cards.value.values()].map(card => resolveModules(card.extensions.airi.modules, defaults))
+  })
+
   function getSystemPrompt(characterId: string) {
     // Live2D controls are inspected only for the active Avatar Model. Another
     // Character gets its prompt without ACT controls until it becomes active.
@@ -1424,6 +1437,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   return {
     cards,
     moduleDefaults,
+    characterModules,
     activeCard,
     activeCardId,
     builtInCard,

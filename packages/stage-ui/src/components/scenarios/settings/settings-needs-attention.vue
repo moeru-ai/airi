@@ -6,7 +6,7 @@ import { computed, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
-  /** The providers whose last check failed. The section shows nothing when the list is empty. */
+  /** The providers in use that are not set up, or whose last check failed. The section shows nothing when the list is empty. */
   items: SettingsNeedsAttentionItem[]
 }>()
 
@@ -45,18 +45,18 @@ function listOf(names: string[]) {
 
 const single = computed(() => props.items.length === 1 ? props.items[0] : undefined)
 const modules = computed(() => [...new Set(props.items.flatMap(item => item.modules))])
-const title = computed(() => props.items.length === 1
-  ? t('settings.needs-attention.title-one', { name: props.items[0]?.name ?? '' })
-  : t('settings.needs-attention.title-many', { count: props.items.length }))
-const summary = computed(() => {
-  if (modules.value.length)
-    return t('settings.needs-attention.affects', { modules: listOf(modules.value) })
-  return t('settings.needs-attention.unused-many')
+const title = computed(() => {
+  if (!single.value)
+    return t('settings.needs-attention.title-many', { count: props.items.length })
+  return single.value.problem === 'unconfigured'
+    ? t('settings.needs-attention.title-unconfigured', { name: single.value.name })
+    : t('settings.needs-attention.title-one', { name: single.value.name })
 })
+const summary = computed(() => t('settings.needs-attention.affects', { modules: listOf(modules.value) }))
 
-/** One quiet line under a provider name: the reason of the check, and the modules that use the provider, if any. */
+/** One quiet line under a provider name: the reason of the check, and the modules that use the provider. */
 function detailOf(item: SettingsNeedsAttentionItem) {
-  const usedBy = item.modules.length ? t('settings.needs-attention.used-by', { modules: listOf(item.modules) }) : ''
+  const usedBy = t('settings.needs-attention.used-by', { modules: listOf(item.modules) })
   return [item.reason, usedBy].filter(Boolean).join(' · ')
 }
 </script>
