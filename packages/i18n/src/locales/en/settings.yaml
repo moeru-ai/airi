@@ -2394,9 +2394,9 @@ pages:
               markdown-stress:
                 title: Markdown Stress
                 description: Stress markdown parsing and rendering with heavy chat payloads
-              provider-checks:
-                title: Provider Checks
-                description: See when provider checks run, and make chosen providers fail their check on purpose
+              needs-attention:
+                title: Needs Attention
+                description: Test the needs-attention list of the settings home. See the provider checks and the speech of each character, and cause problems on purpose
                 timing-label: Check timing
                 timing-signed-in: 'Signed in: the app checks the added providers at sign-in, and after each sync every {minutes} min'
                 timing-signed-out: 'Not signed in: no automatic check. A check runs only on some provider settings pages, or when you use the button below.'
@@ -2412,6 +2412,14 @@ pages:
                 restore-one: Undo dismiss
                 simulate: Fail on purpose
                 simulated-reason: Simulated failure from the developer tools.
+                speech-title: Character speech
+                speech-off: Speech is off
+                speech-ready: Can speak
+                speech-missing-model: No speech model
+                speech-missing-voice: No voice
+                speech-missing-model-voice: No speech model or voice
+                speech-provider-pending: 'The provider is not configured, so the list shows the provider instead'
+                simulate-speech: Treat as no voice
                 kinds:
                   chat: Chat
                   vision: Vision
@@ -2606,7 +2614,12 @@ search:
 needs-attention:
   title-one: '{name} failed its last check'
   title-unconfigured: '{name} is not set up'
-  title-many: '{count} providers need attention'
+  title-many: '{count} items need attention'
+  speech-no-model: '{name} has no speech model'
+  speech-no-voice: '{name} has no voice'
+  speech-no-model-voice: '{name} has no speech model or voice'
+  text-only: Replies are text only
+  simulated: Simulated from the developer tools
   affects: 'Affects {modules}'
   used-by: 'Used by {modules}'
   fix: Edit

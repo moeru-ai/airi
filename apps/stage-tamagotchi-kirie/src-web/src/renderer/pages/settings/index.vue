@@ -44,7 +44,7 @@ const { items: needsAttention, dismiss: dismissNeedsAttention } = useSettingsNee
       <SettingsSearchResults v-else :results="searchResults" :query="searchQuery" />
     </div>
     <div v-else :class="['flex flex-col gap-4', 'pb-12']">
-      <!-- Providers whose last check failed. It is secondary, so it scrolls with the list. -->
+      <!-- Settings that keep a feature in use from working. It is secondary, so it scrolls with the list. -->
       <SettingsNeedsAttention
         :items="needsAttention"
         @fix="item => router.push(item.to)"

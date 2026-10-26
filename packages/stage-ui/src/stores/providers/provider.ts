@@ -337,7 +337,7 @@ export const useProviderStore = defineStore('provider', () => {
   function simulatedValidationFailure(providerId: string) {
     if (!providerStateStore.simulatedValidationFailures.includes(providerId))
       return undefined
-    return { valid: false, reason: t('settings.pages.system.sections.section.developer.sections.section.provider-checks.simulated-reason'), errors: [] }
+    return { valid: false, reason: t('settings.pages.system.sections.section.developer.sections.section.needs-attention.simulated-reason'), errors: [] }
   }
 
   async function recordValidationResult(

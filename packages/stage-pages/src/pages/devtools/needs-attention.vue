@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import type { CharacterSpeechState } from '@proj-airi/stage-ui/composables/use-settings-needs-attention'
 import type { ProviderValidationStatus } from '@proj-airi/stage-ui/libs/providers/types'
 
-import { providerKindIconOf, useSettingsNeedsAttention } from '@proj-airi/stage-ui/composables/use-settings-needs-attention'
+import { providerKindIconOf, speechItemIdOf, useSettingsNeedsAttention } from '@proj-airi/stage-ui/composables/use-settings-needs-attention'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { PULL_INTERVAL_MS, useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
@@ -14,7 +15,7 @@ const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const providersStore = useProviderStore()
 const providerConfigStore = useProviderConfigStore()
-const { dismissedIds, restoreDismissed } = useSettingsNeedsAttention()
+const { dismissedIds, restoreDismissed, characterSpeech, setSimulatedSpeechGap } = useSettingsNeedsAttention()
 const now = useNow({ interval: 1000 })
 const checking = shallowRef(false)
 
@@ -22,7 +23,7 @@ const checking = shallowRef(false)
 const KINDS = ['chat', 'vision', 'speech', 'transcription'] as const
 
 function key(name: string) {
-  return `settings.pages.system.sections.section.developer.sections.section.provider-checks.${name}`
+  return `settings.pages.system.sections.section.developer.sections.section.needs-attention.${name}`
 }
 
 function secondsOf(ms: number) {
@@ -91,6 +92,25 @@ function detailsOf(row: (typeof rows.value)[number]) {
       parts.push(t(key('measured'), { count: row.count, seconds: secondsOf(row.averageGap) }))
   }
   return parts.join(' · ')
+}
+
+/** The status of a speech that lacks fields, by the fields that it lacks. */
+const SPEECH_MISSING_KEYS: Record<string, string> = {
+  'model': 'speech-missing-model',
+  'voice': 'speech-missing-voice',
+  'model,voice': 'speech-missing-model-voice',
+}
+
+/** The provider of the speech, and whether the list can show it. */
+function speechDetailsOf(speech: CharacterSpeechState) {
+  if (!speech.provider || speech.provider === 'speech-noop')
+    return t(key('speech-off'))
+  let status = t(key('speech-ready'))
+  if (!speech.providerConfigured)
+    status = t(key('speech-provider-pending'))
+  else if (speech.missing.length)
+    status = t(key(SPEECH_MISSING_KEYS[speech.missing.join(',')] ?? 'speech-missing-model-voice'))
+  return [speech.providerName ?? speech.provider, status].join(' · ')
 }
 
 // A forced check skips the cache of the last result, so every provider runs its check now.
@@ -163,12 +183,39 @@ async function checkAll() {
         </div>
       </div>
     </section>
+
+    <section v-if="characterSpeech.length" :class="['flex flex-col gap-1.5']">
+      <h2 :class="['m-0 px-1', 'text-xs font-normal text-neutral-500 dark:text-neutral-400']">
+        {{ t(key('speech-title')) }}
+      </h2>
+      <div :class="['rounded-xl bg-neutral-50 px-1.5 py-1 dark:bg-neutral-900']">
+        <div
+          v-for="speech in characterSpeech"
+          :key="speech.id"
+          :class="['flex flex-wrap items-center gap-x-3 gap-y-1', 'px-2.5 py-2']"
+        >
+          <span :class="['size-4.5 shrink-0', providerKindIconOf('speech')]" />
+          <span :class="['text-sm']">{{ speech.name }}</span>
+          <span :class="['min-w-0 flex-1', 'text-xs text-neutral-500 dark:text-neutral-400']">{{ speechDetailsOf(speech) }}</span>
+          <span v-if="dismissedIds.has(speechItemIdOf(speech.id))" :class="['flex items-center gap-1', 'text-xs text-neutral-500 dark:text-neutral-400']">
+            {{ t(key('dismissed')) }}
+            <GhostButton size="sm" @click="restoreDismissed(speechItemIdOf(speech.id))">
+              {{ t(key('restore-one')) }}
+            </GhostButton>
+          </span>
+          <label :class="['flex items-center gap-2', 'text-xs text-neutral-500 dark:text-neutral-400']">
+            {{ t(key('simulate-speech')) }}
+            <Checkbox :model-value="speech.simulated" @update:model-value="setSimulatedSpeechGap(speech.id, $event)" />
+          </label>
+        </div>
+      </div>
+    </section>
   </div>
 </template>
 
 <route lang="yaml">
 meta:
   layout: settings
-  titleKey: settings.pages.system.sections.section.developer.sections.section.provider-checks.title
+  titleKey: settings.pages.system.sections.section.developer.sections.section.needs-attention.title
   subtitleKey: tamagotchi.settings.devtools.title
 </route>

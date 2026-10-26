@@ -31,6 +31,41 @@ export function toSignedPercent(value: number): string {
   return '0%'
 }
 
+/** A field that a speech selection needs before it can speak. */
+export type MissingSpeechField = 'model' | 'voice'
+
+/**
+ * Resolves the model and the voice that a speech selection speaks with.
+ * The provider config can supply them, for example for an OpenAI-compatible provider.
+ * A streaming provider needs a model with a resource path. Without one, it uses `defaultModel`, the default model of the provider.
+ */
+function resolveSpeechSelection(selection: AiriExtension['modules']['speech'], config: Record<string, unknown>, defaultModel: () => string | null | undefined) {
+  const model = selection.model || (typeof config.model === 'string' ? config.model : '')
+  const voiceId = selection.voice_id || (typeof config.voice === 'string' ? config.voice : '')
+  const streaming = getDefinedProvider(selection.provider)?.capabilities?.speech?.transport === 'bidirectional-ws'
+  const streamingModel = streaming ? (model.includes('/') ? model : defaultModel()) : undefined
+  return { model, voiceId, streaming, streamingModel }
+}
+
+/**
+ * Lists the fields that a speech selection lacks before it can speak. The list is empty when speech is off, or when it can speak.
+ * Without a model or a voice, `createOutput` of the speech store cannot speak, so the replies stay text only.
+ *
+ * @param config The config of the selected provider.
+ * @param defaultModel Gives the default model of the selected provider. Only a streaming provider uses it.
+ */
+export function missingSpeechFields(selection: AiriExtension['modules']['speech'], config: Record<string, unknown>, defaultModel: () => string | null | undefined): MissingSpeechField[] {
+  if (!selection.provider || selection.provider === 'speech-noop')
+    return []
+  const { model, voiceId, streaming, streamingModel } = resolveSpeechSelection(selection, config, defaultModel)
+  const missing: MissingSpeechField[] = []
+  if (streaming ? !streamingModel?.includes('/') : !model)
+    missing.push('model')
+  if (!voiceId)
+    missing.push('voice')
+  return missing
+}
+
 interface SpeechInputOptions {
   text: string
   voice: VoiceInfo
@@ -547,8 +582,7 @@ export const useSpeechStore = defineStore('speech', () => {
     const config = structuredClone(toRaw(providerStore.getProviderConfig(providerId) ?? {}))
     const selectedVoice = availableVoices.value[providerId]?.find(voice => voice.id === selection.voice_id)
     const voice = selectedVoice ? structuredClone(toRaw(selectedVoice)) : undefined
-    const model = selection.model || (typeof config.model === 'string' ? config.model : '')
-    const voiceId = selection.voice_id || (typeof config.voice === 'string' ? config.voice : '')
+    const { model, voiceId, streaming, streamingModel } = resolveSpeechSelection(selection, config, () => providersStore.getDefaultModelForProvider(providerId))
     const useSSML = ssmlEnabled.value
     const canUseSSML = ['elevenlabs', 'microsoft-speech', 'azure-speech'].includes(providerId) || (providerId === 'alibaba-cloud-model-studio' && model === 'cosyvoice-v2')
     const pitchValue = pitch.value
@@ -558,8 +592,7 @@ export const useSpeechStore = defineStore('speech', () => {
       : 'custom_configured' as const
     if (!providerId || providerId === 'speech-noop')
       return { ...output, synthesize: async () => null }
-    if (getDefinedProvider(providerId)?.capabilities?.speech?.transport === 'bidirectional-ws') {
-      const streamingModel = model.includes('/') ? model : providersStore.getDefaultModelForProvider(providerId)
+    if (streaming) {
       if (!streamingModel?.includes('/') || !voiceId)
         throw new Error('Streaming speech requires a model and voice')
       const resource = streamingModel.split('/', 2)[1]

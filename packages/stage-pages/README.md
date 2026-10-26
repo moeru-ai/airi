@@ -65,12 +65,20 @@ The settings home searches every settings page, the settings on it, and the runt
 
 ## Needs attention
 
-The settings home lists the providers in use that are not set up, or whose last check failed. It shows under the search field and scrolls with the list.
+The settings home lists the settings that keep a feature in use from working. It shows under the search field and scrolls with the list.
 
-- `useSettingsNeedsAttention()` from stage-ui gives the list. A provider shows only after a check in this session, so a status from the last session does not show it.
+- `useSettingsNeedsAttention()` from stage-ui gives the list.
+- An item shows only when a feature in use cannot work, a check or the saved settings confirm the cause, and a settings page fixes it.
+- A failed save, a sync problem, or a new version is not an item. The place of the action reports it.
+- **Provider not set up**: the required fields of a provider in use are empty, for example after its API key was cleared.
+- **Provider check failed**: the last check of a provider in use failed. The item shows the first reason of the check.
+- A provider shows only after a check in this session, so a status from the last session does not show it.
 - A provider is in use when a module or any character selects it. A chat session resolves its own character, so the active card is not the only user. A provider that nothing uses does not show. The providers page shows its status.
-- **Not set up**: the required fields of the provider are empty, for example after its API key was cleared. These providers come first, because a module cannot use them at all.
-- **Check failed**: the provider shows the first reason of the check.
-- Each provider shows the modules that use it. A provider without a brand icon shows the icon of its module kind.
-- **Edit** opens the settings page of the provider. **Dismiss** hides it on this device until its config or its failure reason changes.
-- `/devtools/provider-checks` shows when the checks run, when each provider was checked, and how often a provider checks itself. It lists the dismissed providers and can show them again. It can make chosen providers fail their check on purpose, to test the list. This choice ends when the app quits.
+- **Character without a speech model or voice**: the speech of a character has a configured provider, but no model or no voice. Its replies stay text only. The speech store uses the same check, `missingSpeechFields()`.
+- An item without a brand icon shows the icon of its module kind.
+- Blocking items come first: a provider that is not set up, and a character without a speech model or voice. A failed check comes after them, because the next check can pass.
+- **Edit** opens the page that fixes the item. For a character, it is the speech page when the character is active, and the character editor otherwise. **Dismiss** hides the item on this device until its cause changes.
+- `/devtools/needs-attention` tests this list. It shows when the provider checks run, when each provider was checked, and how often a provider checks itself.
+- It also shows the speech of each character: its provider, and whether the character can speak.
+- It lists the dismissed items and can show them again.
+- It can make chosen providers fail their check, and make the list treat the speech of chosen characters as one without a voice. These choices end when the app quits.

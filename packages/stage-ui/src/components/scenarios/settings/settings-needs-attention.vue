@@ -6,24 +6,24 @@ import { computed, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
-  /** The providers in use that are not set up, or whose last check failed. The section shows nothing when the list is empty. */
+  /** The settings that keep a feature in use from working. The section shows nothing when the list is empty. */
   items: SettingsNeedsAttentionItem[]
 }>()
 
 const emit = defineEmits<{
-  /** The person wants to change the provider. Open its settings page. */
+  /** The person wants to fix the problem. Open the settings page of the item. */
   fix: [item: SettingsNeedsAttentionItem]
-  /** The person dismissed the provider. */
+  /** The person dismissed the item. */
   dismiss: [item: SettingsNeedsAttentionItem]
 }>()
 
-/** The most provider icons that the summary shows on top of each other. */
+/** The most item icons that the summary shows on top of each other. */
 const MAX_FACES = 4
 
 const { t, locale } = useI18n()
 const open = shallowRef(false)
 
-/** Providers whose image did not load. Their module icon shows instead. */
+/** Items whose image did not load. Their module icon shows instead. */
 const fallbackIds = shallowRef(new Set<string>())
 
 function useFallbackIcon(id: string) {
@@ -45,20 +45,8 @@ function listOf(names: string[]) {
 
 const single = computed(() => props.items.length === 1 ? props.items[0] : undefined)
 const modules = computed(() => [...new Set(props.items.flatMap(item => item.modules))])
-const title = computed(() => {
-  if (!single.value)
-    return t('settings.needs-attention.title-many', { count: props.items.length })
-  return single.value.problem === 'unconfigured'
-    ? t('settings.needs-attention.title-unconfigured', { name: single.value.name })
-    : t('settings.needs-attention.title-one', { name: single.value.name })
-})
+const title = computed(() => single.value?.title ?? t('settings.needs-attention.title-many', { count: props.items.length }))
 const summary = computed(() => t('settings.needs-attention.affects', { modules: listOf(modules.value) }))
-
-/** One quiet line under a provider name: the reason of the check, and the modules that use the provider. */
-function detailOf(item: SettingsNeedsAttentionItem) {
-  const usedBy = t('settings.needs-attention.used-by', { modules: listOf(item.modules) })
-  return [item.reason, usedBy].filter(Boolean).join(' · ')
-}
 </script>
 
 <template>
@@ -71,7 +59,7 @@ function detailOf(item: SettingsNeedsAttentionItem) {
       'rounded-xl bg-neutral-50 dark:bg-neutral-900',
     ]"
   >
-    <!-- One provider: the row itself holds the reason and the actions, so nothing repeats in a list below. -->
+    <!-- One item: the row itself holds the detail and the actions, so nothing repeats in a list below. -->
     <div v-if="single" :class="['flex flex-wrap items-center gap-x-3 gap-y-2', 'px-3.5 py-3']">
       <span
         :class="[
@@ -87,8 +75,8 @@ function detailOf(item: SettingsNeedsAttentionItem) {
         <div :class="['text-base']">
           {{ title }}
         </div>
-        <div v-if="detailOf(single)" :class="['mt-0.5 text-sm text-neutral-500 dark:text-neutral-400', 'break-words line-clamp-2']">
-          {{ detailOf(single) }}
+        <div v-if="single.detail" :class="['mt-0.5 text-sm text-neutral-500 dark:text-neutral-400', 'break-words line-clamp-2']">
+          {{ single.detail }}
         </div>
       </div>
       <div :class="['ml-auto flex shrink-0 items-center gap-1']">
@@ -99,7 +87,7 @@ function detailOf(item: SettingsNeedsAttentionItem) {
       </div>
     </div>
 
-    <!-- More providers: one line sums them up, and it opens the list with the reasons and the actions. -->
+    <!-- More items: one line sums them up, and it opens the list with the details and the actions. -->
     <template v-else>
       <button
         type="button"
@@ -160,10 +148,10 @@ function detailOf(item: SettingsNeedsAttentionItem) {
             <span v-else :class="['mt-0.5 size-4.5 shrink-0', iconOf(item)]" />
             <div :class="['min-w-48 flex-1']">
               <div :class="['text-sm']">
-                {{ item.name }}
+                {{ item.title }}
               </div>
-              <div v-if="detailOf(item)" :class="['mt-0.5 text-xs text-neutral-500 dark:text-neutral-400', 'break-words line-clamp-2']">
-                {{ detailOf(item) }}
+              <div v-if="item.detail" :class="['mt-0.5 text-xs text-neutral-500 dark:text-neutral-400', 'break-words line-clamp-2']">
+                {{ item.detail }}
               </div>
             </div>
             <div :class="['ml-auto flex shrink-0 items-center gap-1']">
