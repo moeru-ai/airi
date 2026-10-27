@@ -17,6 +17,8 @@ using Godot;
 ///   hidden. Then the content unfolds again.
 /// - `_slide` animates a change of the vertical anchor, which does not cross the character.
 /// - The window is created on the first open and freed on a switch to the legacy mode.
+/// - On macOS, an attached chat is a child window of the main window, so the window server moves
+///   it with the main window during a drag.
 ///
 /// The main window has no move or resize signal, so <see cref="Process"/> compares its rectangle on
 /// each frame. All handlers and frame updates run on the Godot main thread.
@@ -47,6 +49,16 @@ internal sealed class FloatingChatHost : IDisposable
     /// </summary>
     private static readonly Vector2I MinimumLogicalSize = new(300, 260);
 
+    // NOTICE:
+    // The window server drags the main window by itself. During a drag, the attached chat that
+    // Process places moved about 9 times a second, while the main window moved at the display
+    // rate. A child window moves with its parent inside the window server.
+    // Only macOS moves a child window with its parent, so only macOS links the chat.
+    // Source: `attachToMain` in apps/stage-tamagotchi/src/main/windows/chat/floating.ts, and a
+    // CGWindowList recording of a drag in Kirie on 2026-10-27.
+    // Removal: when Godot reports the main window position on each frame of a native drag.
+    private static readonly bool LinksToMain = OperatingSystem.IsMacOS();
+
     private readonly Node _owner;
     private readonly Window _mainWindow;
     private readonly KirieEventaJsonRegistry _registry;
@@ -68,6 +80,7 @@ internal sealed class FloatingChatHost : IDisposable
 
     private Rect2I _lastMainRect;
     private bool _lastMainVisible;
+    private bool _lastMainPinned;
     private Vector2I _lastPosition;
     private Slide? _slide;
     private ulong? _settleDeadline;
@@ -365,7 +378,7 @@ internal sealed class FloatingChatHost : IDisposable
             ResizeEdges(),
             _folded,
             _relocating,
-            _window?.AlwaysOnTop ?? false);
+            attached ? _mainWindow.AlwaysOnTop : (_window?.AlwaysOnTop ?? false));
     }
 
     private string[] ResizeEdges()
@@ -441,13 +454,14 @@ internal sealed class FloatingChatHost : IDisposable
                 AttachedChatLayout.Preferred,
                 ReturnMargin(window));
             MoveToLayout(window);
-            // An attached chat takes the pin of the main window. FollowMain keeps it equal.
-            window.AlwaysOnTop = _mainWindow.AlwaysOnTop;
+            LinkToMain(window);
             _lastMainRect = main;
             _lastMainVisible = _mainWindow.Visible;
+            _lastMainPinned = _mainWindow.AlwaysOnTop;
         }
         else
         {
+            window.Transient = false;
             window.AlwaysOnTop = _preferences.Current.Pinned;
         }
 
@@ -455,13 +469,32 @@ internal sealed class FloatingChatHost : IDisposable
     }
 
     /// <summary>
+    /// Gives an attached chat the pin of the main window. On macOS the chat becomes a child window
+    /// of the main window, which takes the level of its parent. Godot does not link a window that
+    /// stays on top, so the chat drops its own pin first.
+    /// </summary>
+    private void LinkToMain(FloatingChatWindow window)
+    {
+        if (LinksToMain)
+        {
+            window.AlwaysOnTop = false;
+            window.Transient = true;
+            return;
+        }
+
+        window.AlwaysOnTop = _mainWindow.AlwaysOnTop;
+    }
+
+    /// <summary>
     /// Keeps an attached chat beside the main window, with its pin and its visibility.
     /// </summary>
     private void FollowMain(FloatingChatWindow window, ulong now)
     {
-        if (window.AlwaysOnTop != _mainWindow.AlwaysOnTop)
+        var mainPinned = _mainWindow.AlwaysOnTop;
+        if (mainPinned != _lastMainPinned)
         {
-            window.AlwaysOnTop = _mainWindow.AlwaysOnTop;
+            _lastMainPinned = mainPinned;
+            LinkToMain(window);
             EmitState();
         }
 
