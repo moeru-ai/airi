@@ -61,7 +61,10 @@ internal sealed class SettingsWindowManager : IDisposable
         _openRegistration.Dispose();
     }
 
-    private void Open(string? requestedRoute)
+    /// <summary>
+    /// Opens or reuses the settings window. A null route opens /settings.
+    /// </summary>
+    public void Open(string? requestedRoute)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         var route = ResolveRoute(requestedRoute);

@@ -35,7 +35,7 @@ import {
 import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-callback'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useLanguage } from './composables/use-language'
-import { initializeHostContext, startHostOwnedSpotlightShortcut, useHostMicrophonePermission } from './host-context'
+import { initializeHostContext, startHostOwnedSpotlightShortcut, startHostTrayLabels, useHostMicrophonePermission } from './host-context'
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
 import { useTamagotchiBuiltinToolsStore } from './stores/tools/built-in'
 import { resolveInitialRendererRoutePath, resolveRendererWindowContext } from './window-context'
@@ -62,8 +62,12 @@ const isMainRenderer = windowContext.leadership === 'leader-only'
 const microphonePermission = useHostMicrophonePermission()
 const microphonePermissionPrompt = microphonePermission.prompt
 const microphonePermissionBusy = shallowRef(false)
-const { t } = useI18n()
+const { t, locale: i18nLocale } = useI18n()
 let stopSpotlightShortcut: (() => void) | undefined
+// Godot owns the tray. The main renderer only supplies its translated labels.
+const stopTrayLabels = isMainRenderer
+  ? startHostTrayLabels({ locale: i18nLocale, t })
+  : undefined
 
 if (isSpotlightWindow)
   document.documentElement.classList.add('spotlight-window')
@@ -246,6 +250,7 @@ watch(themeColorsHueDynamic, () => {
 
 onUnmounted(() => {
   stopSpotlightShortcut?.()
+  stopTrayLabels?.()
   stopLeadershipListener?.()
   chatStore.dispose()
   fullStageRuntime?.dispose()

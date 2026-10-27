@@ -78,6 +78,35 @@ export const airiMicrophonePermissionStateChanged = defineEventa<AiriMicrophoneP
 export const airiMicrophonePermissionPromptRequested = defineEventa<AiriMicrophonePermissionPromptPayload>('eventa:event:airi:permissions:microphone:prompt-requested')
 export const airiMicrophonePermissionPromptDismissed = defineEventa<{ promptId: string }>('eventa:event:airi:permissions:microphone:prompt-dismissed')
 
+/** Localized tray menu labels. Godot owns the tray. The main renderer owns the translations. */
+export interface AiriTrayLabels {
+  show: string
+  adjustSizes: string
+  recommendedSize: string
+  fullHeight: string
+  halfHeight: string
+  fullScreen: string
+  alignTo: string
+  center: string
+  topLeft: string
+  topRight: string
+  bottomLeft: string
+  bottomRight: string
+  settings: string
+  about: string
+  openInlay: string
+  openWidgets: string
+  openCaption: string
+  captionOverlay: string
+  followWindow: string
+  resetPosition: string
+  devtools: string
+  troubleshootBeatSync: string
+  quit: string
+}
+
+export const airiTraySetLabels = defineInvokeEventa<void, AiriTrayLabels>('eventa:invoke:airi:tray:labels:set')
+
 export const electronStartTrackMousePosition = defineInvokeEventa('eventa:invoke:electron:start-tracking-mouse-position')
 export const electronStartDraggingWindow = defineInvokeEventa('eventa:invoke:electron:start-dragging-window')
 
