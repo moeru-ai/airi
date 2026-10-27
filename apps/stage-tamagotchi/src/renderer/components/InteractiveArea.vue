@@ -64,6 +64,12 @@ const props = withDefaults(defineProps<{
    * Hidden messages stay in the session.
    */
   expiredBefore?: number
+  /**
+   * The side where an open dock stands over the history, such as the dock of the attached floating feed while the
+   * cursor is near it. The messages slide aside to keep a lane free for it. The composer and the welcome card keep
+   * their place.
+   */
+  dockSide?: 'left' | 'right'
 }>(), {
   floating: false,
   composerFoldable: false,
@@ -410,6 +416,7 @@ defineExpose({
         :surface="props.floating ? 'opaque' : 'translucent'"
         :scrollbar="props.floating ? 'hover' : 'scroll'"
         :passive="props.passive"
+        :class="['transition-[padding] duration-300 ease-out motion-reduce:transition-none', props.dockSide && { left: 'pl-12', right: 'pr-12' }[props.dockSide]]"
         :expired-before="props.expiredBefore"
         @delete-message="handleDeleteMessage"
         @reply-message="handleReplyMessage"

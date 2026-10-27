@@ -8,10 +8,10 @@ import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
 import { useDanmakuFeedExpiry } from '@proj-airi/stage-ui/composables/use-danmaku-feed-expiry'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
-import { refDebounced, useEventListener, useLocalStorage, usePreferredReducedMotion } from '@vueuse/core'
+import { refDebounced, useEventListener, useFocusWithin, useLocalStorage, useMutationObserver, usePreferredReducedMotion } from '@vueuse/core'
 import { animate, createSpring } from 'animejs'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onScopeDispose, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onMounted, onScopeDispose, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ChatDanmakuFeedMenu from '../components/chat-window/chat-danmaku-feed-menu.vue'
@@ -116,10 +116,101 @@ const ISLAND_GAP = 8
 const ISLAND_SPRING = createSpring({ bounce: 0.45, duration: 520 })
 const reducedMotion = usePreferredReducedMotion()
 
-/** How far the island moves to sit under the dock: past the gap and its own width, toward the dock. */
-function underDock(island: HTMLElement) {
+// The message feed has no panel behind it, so a dock across the top would hang in the air. An attached feed stands
+// its dock up along the side of the character instead. A free chat has no character beside it.
+const verticalDock = computed(() => danmaku.value && state.value.placement === 'attached')
+
+// A dock that stands up rests as a narrow bar, as the home indicator of a phone, and opens when the cursor comes near.
+// The zone around it is transparent, so the page lets clicks through there. The main process reports where the cursor is.
+const dockZone = useTemplateRef<HTMLElement>('dock-zone')
+const { isOutside: cursorAwayFromDock } = useElectronMouseInElement(dockZone)
+const cursorNearDock = computed(() => !cursorAwayFromDock.value)
+// The dock waits a moment before it closes, so a cursor that slips off its edge does not make it flicker.
+const cursorNearDockLately = refDebounced(cursorNearDock, 400)
+const { focused: focusInDock } = useFocusWithin(dockZone)
+// Only keyboard focus keeps the dock open. A click leaves the focus on its button, and the dock still closes when the cursor leaves.
+const dockFocused = computed(() => focusInDock.value && document.activeElement?.matches(':focus-visible') === true)
+// A menu of the dock opens over the page, away from the dock. The dock stays open while the trigger of a menu is open.
+const dockMenuOpen = shallowRef(false)
+useMutationObserver(dockZone, () => {
+  dockMenuOpen.value = dockZone.value?.querySelector('[data-state="open"]') != null
+}, { subtree: true, attributes: true, attributeFilter: ['data-state'] })
+const dockOpen = computed(() => !verticalDock.value || cursorNearDock.value || cursorNearDockLately.value || dockFocused.value || dockMenuOpen.value)
+
+const dockElement = useTemplateRef<HTMLElement>('dock')
+/**
+ * The bar of a closed dock: 3px wide and 56px tall, at the middle of the dock. The dock stands 8px from the window edge,
+ * so the bar keeps 2px of the dock on the side of the edge and sits 10px from it.
+ */
+const DOCK_BAR = { width: 3, height: 56, edgeInset: 2 }
+const DOCK_OPEN_CLIP = 'inset(0px 0px 0px 0px round 999px)'
+
+/** The clip that leaves only the bar of the dock. */
+function dockBarClip(dock: HTMLElement) {
+  const along = (dock.offsetHeight - DOCK_BAR.height) / 2
+  const across = dock.offsetWidth - DOCK_BAR.edgeInset - DOCK_BAR.width
+  const [left, right] = characterOnLeft.value ? [DOCK_BAR.edgeInset, across] : [across, DOCK_BAR.edgeInset]
+  return `inset(${along}px ${right}px ${along}px ${left}px round 999px)`
+}
+
+/** The items of the dock in their order along it: the buttons, the separator, and the buttons of the group. */
+function dockItems(dock: HTMLElement) {
+  return [...dock.children].flatMap(child => child.tagName === 'DIV' && child.childElementCount > 0 ? [...child.children] : [child]) as HTMLElement[]
+}
+
+let dockAnimations: Array<ReturnType<typeof animate>> = []
+
+/**
+ * Turns the dock into its bar and back. The bar is the dock itself under a clip, so opening grows the same white shape
+ * out of the bar, and the items fade in together once the shape is nearly open. They do not move, so the column stays
+ * straight. Closing fades the items first and then draws the shape back into the bar.
+ */
+watch([verticalDock, dockOpen], async ([vertical, open], previous) => {
+  await nextTick()
+  const dock = dockElement.value
+  if (!dock)
+    return
+  dockAnimations.forEach(animation => animation.pause())
+  dockAnimations = []
+  const items = dockItems(dock)
+  // A dock across the top has no bar.
+  if (!vertical) {
+    dock.style.removeProperty('clip-path')
+    items.forEach((item) => {
+      item.style.removeProperty('opacity')
+      item.style.removeProperty('transform')
+    })
+    return
+  }
+  // The items never move. A transform left by an animation that stopped early would shift them.
+  items.forEach(item => item.style.removeProperty('transform'))
+  const target = open ? DOCK_OPEN_CLIP : dockBarClip(dock)
+  // A dock that only now stands up, or a reduced motion, takes the state at once.
+  if (!previous?.[0] || reducedMotion.value === 'reduce') {
+    dock.style.clipPath = target
+    items.forEach(item => item.style.opacity = open ? '' : '0')
+    return
+  }
+  const from = dock.style.clipPath || DOCK_OPEN_CLIP
+  if (open) {
+    dockAnimations.push(animate(dock, { clipPath: [from, target], ease: ISLAND_SPRING }))
+    dockAnimations.push(animate(items, { opacity: [0, 1], duration: 160, delay: 120, ease: 'outQuad' }))
+  }
+  else {
+    dockAnimations.push(animate(items, { opacity: 0, duration: 100, ease: 'inQuad' }))
+    dockAnimations.push(animate(dock, { clipPath: [from, target], duration: 300, delay: 60, ease: 'inOutQuad' }))
+  }
+}, { immediate: true })
+
+/**
+ * How far the island moves to sit under the dock: past the gap and its own size, toward the dock.
+ * A dock across the top has the island beside it. A dock that stands up has the island below it.
+ */
+function underDock(island: HTMLElement): ['x' | 'y', number] {
+  if (verticalDock.value)
+    return ['y', -(ISLAND_GAP + island.offsetHeight)]
   const towardDock = characterOnLeft.value ? 1 : -1
-  return towardDock * (ISLAND_GAP + island.offsetWidth)
+  return ['x', towardDock * (ISLAND_GAP + island.offsetWidth)]
 }
 
 /** The island starts small under the edge of the dock and springs out to its place. */
@@ -127,7 +218,9 @@ function budIsland(el: Element, done: () => void) {
   if (reducedMotion.value === 'reduce')
     return done()
   const island = el as HTMLElement
-  animate(island, { x: { from: underDock(island) }, scale: { from: 0.4 }, ease: ISLAND_SPRING, onComplete: () => done() })
+  const [axis, offset] = underDock(island)
+  // Under a dock that stands up, the island waits until the dock has grown out of its bar.
+  animate(island, { [axis]: { from: offset }, scale: { from: 0.4 }, delay: verticalDock.value ? 160 : 0, ease: ISLAND_SPRING, onComplete: () => done() })
 }
 
 /** The island shrinks and slides back under the dock, which takes it in. */
@@ -135,7 +228,8 @@ function mergeIsland(el: Element, done: () => void) {
   if (reducedMotion.value === 'reduce')
     return done()
   const island = el as HTMLElement
-  animate(island, { x: underDock(island), scale: 0.4, duration: 220, ease: 'inQuad', onComplete: () => done() })
+  const [axis, offset] = underDock(island)
+  animate(island, { [axis]: offset, scale: 0.4, duration: 220, ease: 'inQuad', onComplete: () => done() })
 }
 
 function toggleDanmaku() {
@@ -346,86 +440,105 @@ function moveByKeyboard(delta: WindowDelta) {
       >
         <!--
           The dock sits on the side away from the character. A character on the left mirrors the row and the dock, so
-          the fold button stays at the outer end.
+          the fold button stays at the outer end. A dock that stands up sits at the middle of the side of the character,
+          with the island of the feed below it. Closed, it shrinks into a narrow bar. Its 16px padding is the zone where
+          the cursor opens it, so the dock itself stays 8px from the edge of the window. The zone takes no pointer, so
+          the history and its scrollbar under it still take hover, wheel, and clicks.
         -->
-        <div :class="['flex items-center gap-2 px-4', characterOnLeft ? 'flex-row-reverse' : '']">
-          <!-- The dock stays over the island, so the island can hide under its edge. -->
-          <div
-            :class="[
-              'relative z-1 min-w-0 flex items-center gap-1 rounded-full p-0.5 shadow-md',
-              'bg-white dark:bg-neutral-900',
-              characterOnLeft ? 'flex-row-reverse' : '',
-            ]"
-          >
-            <button
-              :title="t('tamagotchi.stage.chat-window.fold')"
-              :aria-label="t('tamagotchi.stage.chat-window.fold')"
-              :class="['shrink-0', chatHeaderButtonClass('dock')]"
-              @click="foldChat()"
-            >
-              <div class="i-lucide:minimize-2 size-4" />
-            </button>
-            <button
-              v-if="freePlacement"
-              :title="t('tamagotchi.stage.chat-window.move')"
-              :aria-label="t('tamagotchi.stage.chat-window.move')"
+        <div
+          ref="dock-zone"
+          :class="verticalDock
+            ? ['pointer-events-none absolute top-1/2 z-10 w-16 flex flex-col items-center gap-2 p-4 -translate-y-1/2', characterOnLeft ? '-left-2' : '-right-2']
+            : ['flex items-center gap-2 px-4', characterOnLeft ? 'flex-row-reverse' : '']"
+        >
+          <!--
+            The dock stays over the island, so the island can hide under its edge. A dock that stands up draws its
+            shadow on this wrapper, because the clip that turns it into its bar would cut a box shadow.
+          -->
+          <div :class="['relative z-1 min-w-0', verticalDock ? 'drop-shadow-md' : '']">
+            <div
+              ref="dock"
               :class="[
-                'h-7 w-5 shrink-0 cursor-grab touch-none rounded-full',
-                'flex items-center justify-center outline-none transition-colors',
-                'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
-                'text-neutral-400 hover:bg-neutral-200 dark:text-neutral-500 dark:hover:bg-neutral-800',
+                'pointer-events-auto min-w-0 flex items-center gap-1 rounded-full p-0.5',
+                'bg-white dark:bg-neutral-900',
+                verticalDock ? 'flex-col' : ['shadow-md', characterOnLeft ? 'flex-row-reverse' : ''],
               ]"
-              @pointerdown="holdPointer"
-              @pointermove="moveWithHeldPointer"
-              @lostpointercapture="releasePointer"
-              @keydown="handleArrowKey($event, moveByKeyboard)"
             >
-              <div class="i-ph:dots-six-vertical-bold size-4" />
-            </button>
-            <!-- A plain button: GhostButton wraps its slot in a span that cannot shrink, so a long name could not truncate. -->
-            <button
-              :class="[
-                'group min-w-0 flex items-center gap-1.5 rounded-full py-0.5 outline-none transition-colors',
-                'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
-                'text-neutral-700 hover:bg-neutral-200 dark:text-neutral-200 dark:hover:bg-neutral-800',
-                characterOnLeft ? 'flex-row-reverse pl-2 pr-0.5' : 'pl-0.5 pr-2',
-              ]"
-              @click="sessionsDrawerOpen = true"
-            >
-              <!-- The icon looks like the dock icons beside it: light gray, no disc. Hover shows the background of the button. -->
-              <span
+              <button
+                :title="t('tamagotchi.stage.chat-window.fold')"
+                :aria-label="t('tamagotchi.stage.chat-window.fold')"
+                :class="['shrink-0', chatHeaderButtonClass('dock')]"
+                @click="foldChat()"
+              >
+                <div class="i-lucide:minimize-2 size-4" />
+              </button>
+              <button
+                v-if="freePlacement"
+                :title="t('tamagotchi.stage.chat-window.move')"
+                :aria-label="t('tamagotchi.stage.chat-window.move')"
                 :class="[
-                  'size-6 shrink-0',
-                  'flex items-center justify-center text-base transition-colors',
-                  'text-neutral-400 dark:text-neutral-500',
+                  'h-7 w-5 shrink-0 cursor-grab touch-none rounded-full',
+                  'flex items-center justify-center outline-none transition-colors',
+                  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
+                  'text-neutral-400 hover:bg-neutral-200 dark:text-neutral-500 dark:hover:bg-neutral-800',
                 ]"
+                @pointerdown="holdPointer"
+                @pointermove="moveWithHeldPointer"
+                @lostpointercapture="releasePointer"
+                @keydown="handleArrowKey($event, moveByKeyboard)"
               >
-                <span class="i-solar:chat-line-bold" />
-              </span>
-              <span class="truncate text-sm font-medium">{{ activeCard?.name || 'AIRI' }}</span>
-            </button>
-            <div :class="['mx-0.5 h-4 w-px shrink-0', 'bg-neutral-200 dark:bg-neutral-700']" />
-            <div :class="['flex shrink-0 items-center gap-0.5', characterOnLeft ? 'flex-row-reverse' : '']">
-              <ChatSpeechMuteButton variant="dock" />
-              <button
-                :class="chatHeaderButtonClass('dock', danmaku)"
-                :title="t('tamagotchi.stage.chat-window.danmaku')"
-                :aria-label="t('tamagotchi.stage.chat-window.danmaku')"
-                :aria-pressed="danmaku"
-                @click="toggleDanmaku"
-              >
-                <div class="i-solar:subtitles-bold-duotone" />
+                <div class="i-ph:dots-six-vertical-bold size-4" />
               </button>
+              <!--
+              A plain button: GhostButton wraps its slot in a span that cannot shrink, so a long name could not truncate.
+              A dock that stands up has no room for the name, so the name moves to the tooltip.
+            -->
               <button
-                :class="chatHeaderButtonClass('dock', state.pinned)"
-                :title="t('tamagotchi.stage.chat-window.pin')"
-                :aria-label="t('tamagotchi.stage.chat-window.pin')"
-                :aria-pressed="state.pinned"
-                @click="togglePinned"
+                :title="verticalDock ? activeCard?.name || 'AIRI' : undefined"
+                :aria-label="verticalDock ? activeCard?.name || 'AIRI' : undefined"
+                :class="[
+                  'group min-w-0 flex items-center gap-1.5 rounded-full outline-none transition-colors',
+                  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
+                  'text-neutral-700 hover:bg-neutral-200 dark:text-neutral-200 dark:hover:bg-neutral-800',
+                  verticalDock ? 'p-0.5' : characterOnLeft ? 'flex-row-reverse py-0.5 pl-2 pr-0.5' : 'py-0.5 pl-0.5 pr-2',
+                ]"
+                @click="sessionsDrawerOpen = true"
               >
-                <div :class="state.pinned ? 'i-solar:pin-bold-duotone' : 'i-solar:pin-linear'" />
+                <!-- The icon looks like the dock icons beside it: light gray, no disc. Hover shows the background of the button. -->
+                <span
+                  :class="[
+                    'size-6 shrink-0',
+                    'flex items-center justify-center text-base transition-colors',
+                    'text-neutral-400 dark:text-neutral-500',
+                  ]"
+                >
+                  <span class="i-solar:chat-line-bold" />
+                </span>
+                <span v-if="!verticalDock" class="truncate text-sm font-medium">{{ activeCard?.name || 'AIRI' }}</span>
               </button>
-              <ChatWindowStyleMenu variant="dock" />
+              <div :class="[verticalDock ? 'my-0.5 h-px w-4' : 'mx-0.5 h-4 w-px', 'shrink-0', 'bg-neutral-200 dark:bg-neutral-700']" />
+              <div :class="['flex shrink-0 items-center gap-0.5', verticalDock ? 'flex-col' : characterOnLeft ? 'flex-row-reverse' : '']">
+                <ChatSpeechMuteButton variant="dock" />
+                <button
+                  :class="chatHeaderButtonClass('dock', danmaku)"
+                  :title="t('tamagotchi.stage.chat-window.danmaku')"
+                  :aria-label="t('tamagotchi.stage.chat-window.danmaku')"
+                  :aria-pressed="danmaku"
+                  @click="toggleDanmaku"
+                >
+                  <div class="i-solar:subtitles-bold-duotone" />
+                </button>
+                <button
+                  :class="chatHeaderButtonClass('dock', state.pinned)"
+                  :title="t('tamagotchi.stage.chat-window.pin')"
+                  :aria-label="t('tamagotchi.stage.chat-window.pin')"
+                  :aria-pressed="state.pinned"
+                  @click="togglePinned"
+                >
+                  <div :class="state.pinned ? 'i-solar:pin-bold-duotone' : 'i-solar:pin-linear'" />
+                </button>
+                <ChatWindowStyleMenu variant="dock" />
+              </div>
             </div>
           </div>
           <!--
@@ -434,9 +547,9 @@ function moveByKeyboard(delta: WindowDelta) {
           -->
           <Transition :css="false" @enter="budIsland" @leave="mergeIsland">
             <div
-              v-if="danmaku"
+              v-if="danmaku && dockOpen"
               :class="[
-                'relative z-0 shrink-0 rounded-full p-0.5 shadow-md',
+                'pointer-events-auto relative z-0 shrink-0 rounded-full p-0.5 shadow-md',
                 'bg-white dark:bg-neutral-900',
               ]"
             >
@@ -451,6 +564,7 @@ function moveByKeyboard(delta: WindowDelta) {
             v-model:composer-folded="composerFolded"
             floating
             :composer-foldable="danmaku"
+            :dock-side="verticalDock && dockOpen ? (characterOnLeft ? 'left' : 'right') : undefined"
             :passive="passiveFeed"
             :expired-before="expiredBefore"
           />
