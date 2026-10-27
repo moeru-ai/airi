@@ -479,6 +479,33 @@ it('keeps calling tools until the model answers, with no step limit', async () =
   expect(onGeneratedTurn.mock.calls[0][0].rounds).toHaveLength(toolSteps + 1)
 })
 
+it('forces the tool choice only on the first request, so the model can answer after the tool', async () => {
+  // ROOT CAUSE:
+  // Each request of the tool loop kept a tool choice that names one function.
+  // The model had to call it again every time, so a loop without a step limit
+  // never ended. The caller's tool choice now applies to the first request.
+  const bodies: Array<{ tool_choice?: unknown }> = []
+  const execute = vi.fn(() => 'sent')
+  await streamFrom({
+    model: 'test',
+    chatProvider: provider(async (_url, init) => {
+      bodies.push(JSON.parse(String(init?.body)))
+      if (bodies.length === 1)
+        return sse(completed([{ type: 'function_call', id: 'fc_1', call_id: 'call_1', name: 'command', arguments: '{}' }]))
+      return sse(completed([{ type: 'message', role: 'assistant', id: 'answer-1', content: [{ type: 'output_text', text: 'Done.', annotations: [] }] }]))
+    }),
+    conversation: { turns: [] },
+    options: {
+      tools: [{ type: 'function', function: { name: 'command', parameters: { type: 'object', properties: {} } }, execute }],
+      toolChoice: { type: 'function', function: { name: 'command' } },
+    },
+  })
+  expect(bodies).toHaveLength(2)
+  expect(bodies[0].tool_choice).toEqual({ type: 'function', name: 'command' })
+  expect(bodies[1].tool_choice).toBeUndefined()
+  expect(execute).toHaveBeenCalledOnce()
+})
+
 it('projects structured context and media directly without Chat compatibility loss', async () => {
   // ROOT CAUSE:
   // The shared Chat sanitizer ran before protocol selection and discarded
