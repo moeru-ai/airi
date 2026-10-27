@@ -1,9 +1,9 @@
-import type { SettingsSearchContext, SettingsSearchItem, SettingsSearchViewEntry } from '@proj-airi/stage-shared/settings-search'
+import type { SettingsSearchContext, SettingsSearchItem } from '@proj-airi/stage-shared/settings-search'
 import type { ProviderMetadata } from '@proj-airi/stage-ui/libs/providers/metadata'
 import type { ProviderViews } from '@proj-airi/stage-ui/libs/providers/views'
 import type { VoiceInfo } from '@proj-airi/stage-ui/stores/providers/provider'
 
-import { SETTINGS_SEARCH_VIEW_EXPORT, settingsSearchItemKey } from '@proj-airi/stage-shared/settings-search'
+import { settingsSearchItemKey } from '@proj-airi/stage-shared/settings-search'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 
@@ -121,8 +121,8 @@ export async function speechVoiceItems(providers: readonly ProviderMetadata[], c
 /**
  * Lists the settings of the views that the providers add to a module page, such as the Hearing controls of a transcription provider.
  *
- * The build-time scan gives each view the list of its settings. The page shows only the view of the picked provider,
- * so the provider card is the last gate of each setting.
+ * Each provider imports the settings of its views with `?settings-search`, so the build-time scan reads them from the view itself.
+ * The page shows only the view of the picked provider, so the provider card is the last gate of each setting.
  */
 export async function providerViewItems(
   module: ModelSearchModule,
@@ -132,11 +132,11 @@ export async function providerViewItems(
 ): Promise<SettingsSearchItem[]> {
   const providerStore = useProviderStore()
   const items = await Promise.all(providers.map(async (provider) => {
-    const load = providerStore.findProviderDefinition(provider.id)?.views?.[view]
+    const load = providerStore.findProviderDefinition(provider.id)?.viewSearchEntries?.[view]
     if (!load)
       return []
-    const entries: unknown = Reflect.get(await load(), SETTINGS_SEARCH_VIEW_EXPORT)
-    return (Array.isArray(entries) ? entries as SettingsSearchViewEntry[] : []).map(entry => ({
+    const { default: entries } = await load()
+    return entries.map(entry => ({
       title: t(entry.key),
       key: entry.key,
       gates: [...entry.gates, moduleProviderSearchKey(module, provider.id)],

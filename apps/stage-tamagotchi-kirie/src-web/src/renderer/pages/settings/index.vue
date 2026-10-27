@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { settingsSearchProviders } from '@proj-airi/stage-pages/settings-search-providers'
 import { IconItem, SettingsNeedsAttention, SettingsSearchField, SettingsSearchResults } from '@proj-airi/stage-ui/components'
 import { useSettingsNeedsAttention } from '@proj-airi/stage-ui/composables/use-settings-needs-attention'
 import { useSettingsSearch } from '@proj-airi/stage-ui/composables/use-settings-search'
@@ -24,7 +23,7 @@ const settings = computed(() => {
 })
 
 const searchQuery = ref('')
-const searchResults = useSettingsSearch(searchQuery, settingsSearchProviders)
+const searchResults = useSettingsSearch(searchQuery)
 const searching = computed(() => searchQuery.value.trim() !== '')
 const { items: needsAttention, dismiss: dismissNeedsAttention } = useSettingsNeedsAttention()
 </script>
