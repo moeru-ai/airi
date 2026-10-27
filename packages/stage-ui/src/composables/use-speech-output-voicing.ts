@@ -1,6 +1,7 @@
 import { defineInvoke } from '@moeru/eventa'
-import { getSpeechBusContext, speechOutputGetPlaybackState, speechOutputPlaybackStateChangedEvent } from '@proj-airi/stage-ui/services/speech/bus'
 import { onScopeDispose, shallowRef } from 'vue'
+
+import { getSpeechBusContext, speechOutputGetPlaybackState, speechOutputPlaybackStateChangedEvent } from '../services/speech/bus'
 
 /**
  * Follows `voicing` of the speech output, which plays in the main window, from

@@ -43,11 +43,19 @@ internal sealed class SettingsWindowManager : IDisposable
         _spotlight = spotlight;
         _openRegistration = context.RegisterInvokeHandler(
             AiriDesktopEvents.OpenSettings,
-            (OpenSettingsPayload payload, CancellationToken _) =>
-            {
-                Open(payload.Route);
-                return Task.FromResult(new EmptyPayload());
-            });
+            (OpenSettingsPayload payload, CancellationToken _) => OpenFromRenderer(payload));
+    }
+
+    /// <summary>
+    /// Lets another renderer open settings, for example a chat window that links to a settings
+    /// page. The window disposes the registration when it closes.
+    /// </summary>
+    public IDisposable Attach(IEventContext context)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return context.RegisterInvokeHandler(
+            AiriDesktopEvents.OpenSettings,
+            (OpenSettingsPayload payload, CancellationToken _) => OpenFromRenderer(payload));
     }
 
     public void Dispose()
@@ -59,6 +67,12 @@ internal sealed class SettingsWindowManager : IDisposable
 
         _disposed = true;
         _openRegistration.Dispose();
+    }
+
+    private Task<EmptyPayload> OpenFromRenderer(OpenSettingsPayload payload)
+    {
+        Open(payload.Route);
+        return Task.FromResult(new EmptyPayload());
     }
 
     /// <summary>

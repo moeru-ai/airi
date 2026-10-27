@@ -57,6 +57,7 @@ const builtinToolsStore = useTamagotchiBuiltinToolsStore()
 const syncedPinia = usePiniaSynced()
 const isSettingsWindow = initialRoutePath === '/settings' || initialRoutePath.startsWith('/settings/')
 const isChatWindow = initialRoutePath === '/chat'
+const isFloatingChatWindow = initialRoutePath === '/chat-floating'
 const isSpotlightWindow = initialRoutePath === '/spotlight'
 const isMainRenderer = windowContext.leadership === 'leader-only'
 const microphonePermission = useHostMicrophonePermission()
@@ -71,6 +72,9 @@ const stopTrayLabels = isMainRenderer
 
 if (isSpotlightWindow)
   document.documentElement.classList.add('spotlight-window')
+// The floating chat window is transparent. Only its bubbles and controls paint.
+if (isFloatingChatWindow)
+  document.documentElement.classList.add('chat-floating-window')
 
 watch(microphonePermission.status, (state, previousState) => {
   if (previousState !== 'granted' || state === 'granted')
@@ -179,14 +183,14 @@ function createFullStageRuntime() {
 const fullStageRuntime = windowContext.stageRuntime === 'full'
   ? createFullStageRuntime()
   : null
-const chatStreamView = !fullStageRuntime && isChatWindow
+const chatStreamView = !fullStageRuntime && (isChatWindow || isFloatingChatWindow)
   ? useContextBridgeStore()
   : null
 
 const { restore: restoreLocale } = useLanguage(language, getMainLocale, setLocale)
 
 const { updateThemeColor } = useThemeColor(themeColorFromValue(
-  isSpotlightWindow
+  isSpotlightWindow || isFloatingChatWindow
     ? { light: 'rgb(255 255 255 / 0)', dark: 'rgb(18 18 18 / 0)' }
     : { light: 'rgb(255 255 255)', dark: 'rgb(18 18 18)' },
 ))
@@ -208,7 +212,7 @@ if (isSettingsWindow) {
   context.value.emit(electronSettingsReady, {})
 }
 
-if (isChatWindow) {
+if (isChatWindow || isFloatingChatWindow) {
   context.value.emit(electronChatReady, {})
 }
 
