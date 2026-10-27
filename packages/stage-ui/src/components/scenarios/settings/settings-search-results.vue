@@ -5,7 +5,7 @@ import { LinkGroup, LinkGroupItem } from '@proj-airi/ui'
 import { useResizeObserver } from '@vueuse/core'
 import { minBy } from 'es-toolkit'
 import { RovingFocusGroup, RovingFocusItem } from 'reka-ui'
-import { computed, ref, useTemplateRef, watch } from 'vue'
+import { computed, ref, useId, useTemplateRef, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 const props = defineProps<{
@@ -20,6 +20,22 @@ const LOCATION_SEPARATOR = ' › '
 const RESULT_SELECTOR = '[data-settings-search-result]'
 /** Positions closer than this, in CSS pixels, are the same. Layout can round an edge to a fraction of a pixel. */
 const SAME_POSITION_PX = 1
+
+/** The prefix of the element id of each result. It keeps the ids of two result lists apart. */
+const idPrefix = useId()
+
+/** Identifies a result. A page can have two settings with the same name, so the address is part of it. */
+function resultKey(result: SettingsSearchResult) {
+  return `${result.to}\n${result.title}`
+}
+
+/**
+ * The element id of a result, which is also its tab stop in reka-ui. When Tab enters the list again, reka-ui finds the last
+ * focused result by its element id. An id has no whitespace, so the key is encoded.
+ */
+function resultId(result: SettingsSearchResult) {
+  return `${idPrefix}-${encodeURIComponent(resultKey(result))}`
+}
 
 interface Group {
   category: SettingsSearchCategory
@@ -196,10 +212,12 @@ function moveFocus(event: KeyboardEvent) {
       >
         <RovingFocusItem
           v-for="result in group.results"
-          :key="`${result.to}\n${result.title}`"
+          :key="resultKey(result)"
+          :tab-stop-id="resultId(result)"
           as-child
         >
           <LinkGroupItem
+            :id="resultId(result)"
             :as="RouterLink"
             :to="result.to"
             :detail="result.location.join(LOCATION_SEPARATOR)"
