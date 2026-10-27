@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Callout, FieldCheckbox, FieldInput, SettingsCard } from '@proj-airi/ui'
+import { Callout, FieldCheckbox, FieldInput, FieldSelect, SettingsCard } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 
@@ -7,9 +7,11 @@ import { useWebSearchStore } from '../../stores/modules/web-search'
 
 const { t } = useI18n()
 const webSearchStore = useWebSearchStore()
-// Settings persist to localStorage on change (useLocalStorageManualReset), and
-// the tool + prompt react to `configured` — so there is no explicit save step.
-const { enabled, apiKey, configured } = storeToRefs(webSearchStore)
+const { enabled, provider, activeApiKey, configured } = storeToRefs(webSearchStore)
+const providers = [
+  { label: 'Tavily', value: 'tavily' },
+  { label: 'DeepSeek', value: 'deepseek' },
+]
 </script>
 
 <template>
@@ -20,8 +22,23 @@ const { enabled, apiKey, configured } = storeToRefs(webSearchStore)
       :description="t('settings.pages.modules.web-search.enable-description')"
     />
 
+    <FieldSelect
+      v-model="provider"
+      :label="t('settings.pages.modules.web-search.provider')"
+      :options="providers"
+    />
+
     <FieldInput
-      v-model="apiKey"
+      v-if="provider === 'deepseek'"
+      v-model="activeApiKey"
+      type="password"
+      :label="t('settings.pages.modules.web-search.deepseek.api-key')"
+      :description="t('settings.pages.modules.web-search.deepseek.api-key-description')"
+      :placeholder="t('settings.pages.modules.web-search.deepseek.api-key-placeholder')"
+    />
+    <FieldInput
+      v-else
+      v-model="activeApiKey"
       type="password"
       :label="t('settings.pages.modules.web-search.api-key')"
       :description="t('settings.pages.modules.web-search.api-key-description')"
