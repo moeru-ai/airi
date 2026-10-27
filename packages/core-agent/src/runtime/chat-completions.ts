@@ -5,7 +5,7 @@ import type { Conversation } from '../messages/types'
 import type { StreamEvent, StreamOptions } from '../types/llm'
 import type { ResolvedStep } from './request-context'
 
-import { stepCountAtLeast } from '@xsai/shared-chat'
+import { hasToolCall, not } from '@xsai/shared-chat'
 import { streamText } from '@xsai/stream-text'
 
 import { chatContentToString, chatMessagesToProjectionEntries, conversationToChatMessages } from '../messages/chat-completions'
@@ -104,7 +104,8 @@ export function streamChatCompletions(input: {
     messages,
     headers: mergeRequestHeaders(input.config.headers, input.options?.headers),
     streamOptions: { includeUsage: true },
-    stopWhen: stepCountAtLeast(10),
+    // The tool loop has no step limit. It stops when the model answers without a tool call.
+    stopWhen: not(hasToolCall()),
     tools: input.tools,
     toolChoice: input.options?.resolveStep ? undefined : input.options?.toolChoice,
     onEvent: async (event) => {

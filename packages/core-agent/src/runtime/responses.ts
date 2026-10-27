@@ -8,7 +8,7 @@ import type { StreamEvent, StreamOptions } from '../types/llm'
 import type { ResolvedStep } from './request-context'
 
 import { responses } from '@xsai-ext/responses'
-import { stepCountAtLeast } from '@xsai/shared-chat'
+import { hasToolCall, not } from '@xsai/shared-chat'
 
 import { renderSegmentText } from '../messages/render-context'
 import { projectInput, projectRound } from '../messages/turns'
@@ -247,7 +247,8 @@ export function streamResponses(input: {
     headers: mergeRequestHeaders(input.config.headers, input.options?.headers),
     tools: input.webSearch ? [...(input.tools ?? []), { type: 'web_search' }] : input.tools,
     toolChoice: input.options?.resolveStep ? undefined : toolChoice(input.options?.toolChoice),
-    stopWhen: stepCountAtLeast(10),
+    // The tool loop has no step limit. It stops when the model answers without a tool call.
+    stopWhen: not(hasToolCall()),
     onEvent: async (event) => {
       const mapped = toAiriStreamEvent(event)
       if (mapped)

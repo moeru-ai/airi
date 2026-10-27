@@ -450,14 +450,21 @@ describe('responses generation', () => {
   })
 })
 
-it('fails instead of storing an unanswered function call at the step limit', async () => {
+it('keeps calling tools until the model answers, with no step limit', async () => {
+  // ROOT CAUSE:
+  // The tool loop stopped after 10 steps with "Generation tool step limit
+  // reached", so a long computer-use task failed in the middle.
+  // The loop now ends only when the model answers or the request aborts.
+  const toolSteps = 15
   let requestCount = 0
   const execute = vi.fn(() => 'done')
   const onGeneratedTurn = vi.fn()
-  await expect(streamFrom({
+  await streamFrom({
     model: 'test',
     chatProvider: provider(async () => {
       requestCount += 1
+      if (requestCount > toolSteps)
+        return sse(completed([{ type: 'message', role: 'assistant', id: 'answer-1', content: [{ type: 'output_text', text: 'Done.', annotations: [] }] }]))
       return sse(completed([{ type: 'function_call', id: `fc_${requestCount}`, call_id: `call_${requestCount}`, name: 'repeat', arguments: '{}' }]))
     }),
     conversation: { turns: [] },
@@ -465,10 +472,11 @@ it('fails instead of storing an unanswered function call at the step limit', asy
       tools: [{ type: 'function', function: { name: 'repeat', parameters: { type: 'object', properties: {} } }, execute }],
       onGeneratedTurn,
     },
-  })).rejects.toThrow('tool step limit')
-  expect(requestCount).toBe(10)
-  expect(execute).toHaveBeenCalledTimes(9)
-  expect(onGeneratedTurn).not.toHaveBeenCalled()
+  })
+  expect(requestCount).toBe(toolSteps + 1)
+  expect(execute).toHaveBeenCalledTimes(toolSteps)
+  expect(onGeneratedTurn).toHaveBeenCalledTimes(1)
+  expect(onGeneratedTurn.mock.calls[0][0].rounds).toHaveLength(toolSteps + 1)
 })
 
 it('projects structured context and media directly without Chat compatibility loss', async () => {
