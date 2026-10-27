@@ -40,7 +40,7 @@ import ControlsIsland from '../components/stage-islands/controls-island/index.vu
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
 import WindowResizeBorder from '../components/window-resize-border.vue'
 
-import { defaultFullscreenSurface, electronAppIsWayland, electronFullscreenExit, electronFullscreenSetMode, electronMainWindowEnterFullscreen, electronMainWindowGetFullscreenState, electronMainWindowSetFullscreenBounds, electronOpenInlay, electronOpenOnboarding, electronOpenSettings } from '../../shared/eventa'
+import { defaultFullscreenSurface, electronAppIsWayland, electronFullscreenExit, electronFullscreenSetMode, electronMainPageMounted, electronMainWindowEnterFullscreen, electronMainWindowGetFullscreenState, electronMainWindowSetFullscreenBounds, electronOpenInlay, electronOpenOnboarding, electronOpenSettings } from '../../shared/eventa'
 import { fullscreenHostPages, fullscreenSurfaceOf } from '../components/fullscreen/surfaces'
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
 import { useFullscreenHost } from '../composables/use-fullscreen-host'
@@ -198,6 +198,11 @@ const isWayland = ref(true)
 useElectronEventaInvoke(electronAppIsWayland)()
   .then(value => isWayland.value = value)
   .catch(error => console.warn('[Main Page] Failed to detect Wayland; the controls Island stays shown:', errorMessageFrom(error)))
+
+// The update launcher keeps a new bundle only when it reports healthy. The main window mounting this page is part of it.
+const reportPageMounted = useElectronEventaInvoke(electronMainPageMounted)
+onMounted(() => void reportPageMounted())
+
 const cursorAwayFromWindow = computed(() => !isWayland.value && isOutsideWindow.value && !isAroundWindowBorder.value)
 
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)

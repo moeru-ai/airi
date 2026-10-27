@@ -183,15 +183,53 @@ describe('setupAutoUpdater', () => {
     expect(fake.updater.channel).toBe('beta')
   })
 
-  it('applies a ready update once when the install is requested again', async () => {
+  it('applies a ready update once while two clicks arrive at once', async () => {
     const fake = createFakeUpdater({ status: 'ready', update })
     const { setupAutoUpdater } = await import('./auto-updater')
     const service = setupAutoUpdater({ updater: fake.updater })
 
     await Promise.all([service.quitAndInstall(), service.quitAndInstall()])
-    await service.quitAndInstall()
 
     expect(fake.updater.applyUpdate).toHaveBeenCalledTimes(1)
+  })
+
+  // A page-only update reloaded the windows in place and kept the app. The next update that needed a restart did
+  // nothing when clicked, because the service took the first apply for the last one.
+  it('applies the next update after an update reloaded the windows in place', async () => {
+    const fake = createFakeUpdater({ status: 'ready', update: { ...update, requires: 'reload' } })
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater })
+
+    await service.quitAndInstall()
+    fake.setStatus({ status: 'ready', update })
+    await service.quitAndInstall()
+
+    expect(fake.updater.applyUpdate).toHaveBeenCalledTimes(2)
+  })
+
+  it('reports healthy once main is ready and the main window mounted its page, and again after a reload', async () => {
+    const fake = createFakeUpdater({ status: 'up-to-date' })
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater })
+
+    service.markMainPageMounted()
+    expect(fake.updater.markBundleHealthy).not.toHaveBeenCalled()
+    service.markMainReady()
+    expect(fake.updater.markBundleHealthy).toHaveBeenCalledTimes(1)
+    // A page-only update reloads the page, and it mounts again.
+    service.markMainPageMounted()
+    expect(fake.updater.markBundleHealthy).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not report health while main has not started', async () => {
+    const fake = createFakeUpdater({ status: 'up-to-date' })
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater })
+
+    service.markMainPageMounted()
+    service.markMainPageMounted()
+
+    expect(fake.updater.markBundleHealthy).not.toHaveBeenCalled()
   })
 
   it('applies nothing while no update is ready', async () => {
