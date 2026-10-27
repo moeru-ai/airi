@@ -2204,7 +2204,7 @@ pages:
                 description: 调试设置首页的“需要注意”列表：查看提供商检查和每个角色的语音，并故意制造问题
                 timing-label: 检查时机
                 timing-signed-in: '已登录：登录时和之后每 {minutes} 分钟同步一次，同步完检查已添加的提供商'
-                timing-signed-out: 未登录：不会自动检查，只在部分提供商设置页里改配置，或点下面的按钮时检查
+                timing-signed-out: '未登录：不会自动检查，只在部分提供商设置页里改配置，或点下面的按钮时检查'
                 timing-periodic: '{names} 另外每 {seconds} 秒检查一次'
                 check-all: 立即全部检查
                 restore-all: '重新显示全部已忽略的（{count}）'
@@ -2223,14 +2223,14 @@ pages:
                 speech-missing-model: 没选语音合成模型
                 speech-missing-voice: 没选声线
                 speech-missing-model-voice: 没选语音合成模型和声线
-                speech-provider-unusable: 发声模块现在用不了这个提供商，列表里显示提供商那一项
+                speech-provider-unusable: '发声模块现在用不了这个提供商，列表里显示提供商那一项'
                 speech-pending: 等目录加载
                 items-title: 列表里的项
                 items-empty: 现在没有需要注意的项。
                 selections-title: 模块的提供商
                 selection-usable: 可以用
                 selection-provider-item: 由提供商那一项报告
-                selection-awaiting-check: 已添加，等检查结果
+                selection-awaiting-check: '已添加，等检查结果'
                 selection-unusable: 模块用不了它
                 simulate-unusable: 当作不能用
                 voice-input-title: 语音输入
@@ -2422,8 +2422,8 @@ pages:
       description: 使用正方形图片将在竖屏模式下应用<b>封面</b>裁剪，聚焦场景中心。
 search:
   placeholder: 搜索设置
-  empty: 没有找到与“{query}”相关的设置。
-  not-shown: “{name}”只在这个页面的其他状态下显示，比如打开某个开关或换一种模型之后。
+  empty: '没有找到与“{query}”相关的设置。'
+  not-shown: '“{name}”只在这个页面的其他状态下显示，比如打开某个开关或换一种模型之后。'
 needs-attention:
   title-one: '{name} 上次检查没通过'
   title-unconfigured: '{name} 还没配置好'
