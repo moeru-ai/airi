@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import Icon from '../../../../components/icon.vue'
-import ReleaseArea from './release-area.vue'
-import ReleaseReveal from './release-reveal.vue'
+import ReleaseArea from '../../components/release-area.vue'
+import ReleaseReveal from '../../components/release-reveal.vue'
 
 import { PlatformRoot } from '../../../../components/platforms/macos-26'
 import { Application } from '../../../../components/platforms/macos-26/containers/dock'
 import { WindowRoot } from '../../../../components/platforms/macos-26/containers/window'
+import { useReleaseShot } from '../../components/release-shot'
+import { copyTimeline } from '../../components/release-timeline'
 import { releaseCopy } from './release-copy'
-import { releaseShots, useReleaseShot } from './release-shots'
-import { copyTimeline } from './release-timeline'
+import { releaseShots } from './release-shots'
 
 const shotSrc = useReleaseShot()
 </script>

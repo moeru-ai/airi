@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import ReleaseArea from './release-area.vue'
-import ReleaseReveal from './release-reveal.vue'
-import ShotCrop from './shot-crop.vue'
+import ReleaseArea from '../../components/release-area.vue'
+import ReleaseReveal from '../../components/release-reveal.vue'
+import ShotCrop from '../../components/shot-crop.vue'
 
+import { copyTimeline } from '../../components/release-timeline'
 import { releaseCopy } from './release-copy'
 import { releaseShots } from './release-shots'
-import { copyTimeline } from './release-timeline'
 
 const cards = [
   { shot: releaseShots.stageMmd, label: 'MMD', note: 'New · CG-CA Gene, CC BY 4.0' },

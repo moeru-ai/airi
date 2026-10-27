@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { ReleaseShot } from './release-shots'
+import type { ReleaseShot } from './release-shot'
 
 import { computed } from 'vue'
 
-import { useReleaseShot } from './release-shots'
+import { useReleaseShot } from './release-shot'
 
 /**
  * Shows one rectangle of a screenshot, in the theme of the current area.
