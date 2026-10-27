@@ -172,6 +172,10 @@ export interface AutoUpdater {
   checkForUpdates: () => Promise<void>
   downloadUpdate: () => Promise<void>
   quitAndInstall: () => Promise<void>
+  /** Main started every module. With the page of the main window, the running bundle reports healthy. */
+  markMainReady: () => void
+  /** The main window mounted its page, also after a page-only update reloaded it. */
+  markMainPageMounted: () => void
   getPreferredUpdateLane: () => UpdateLane | undefined
   setPreferredUpdateLane: (lane: UpdateLane | undefined) => Promise<void>
   subscribe: (callback: (state: AutoUpdaterState) => void) => () => void
@@ -224,6 +228,8 @@ function createDisabledAutoUpdater(options: AutoUpdaterOptions): AutoUpdater {
     async checkForUpdates() {},
     async downloadUpdate() {},
     async quitAndInstall() {},
+    markMainReady() {},
+    markMainPageMounted() {},
     getPreferredUpdateLane() {
       return storedPreferredLane
     },
@@ -303,6 +309,10 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
     follow(chosenLane)
 
   updater.onEvent((event: LauncherEvent) => {
+    // A download reports progress many times a second. Its start and its end are statuses of their own.
+    if (event.type === 'status' && event.status.status === 'downloading')
+      return
+
     void logToFile(event.type === 'boot-failed' || event.type === 'rollback' ? 'ERROR' : 'INFO', JSON.stringify(event))
   })
 
@@ -319,9 +329,19 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
     broadcast(stateFromStatus(status))
   })
 
-  // `applyUpdate` starts a reload, a restart, or an installer. It stays true, because the app goes away after it
-  // starts.
-  let applyStarted = false
+  // A second click while the update applies waits for the same apply. A reload keeps the app, so a later update can
+  // apply again.
+  let applying: Promise<void> | undefined
+
+  // The launcher keeps a new bundle only when it reports healthy, and rolls it back otherwise. The bundle works when
+  // main started every module and the main window mounted its page. A page-only update reloads the windows in place,
+  // so its page reports again after the reload.
+  let mainReady = false
+  let pageMounted = false
+  function reportHealthWhenReady() {
+    if (mainReady && pageMounted && updater.status.status !== 'disabled')
+      updater.markBundleHealthy()
+  }
 
   return {
     get state() {
@@ -337,17 +357,23 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
       // The updater downloads an update by itself after a check finds it.
     },
     async quitAndInstall() {
-      if (applyStarted || updater.status.status !== 'ready')
+      if (!applying && updater.status.status !== 'ready')
         return
 
-      applyStarted = true
-      try {
-        await updater.applyUpdate()
-      }
-      catch (error) {
-        applyStarted = false
-        broadcastUpdaterError(error, 'applyUpdate() failed')
-      }
+      applying ??= updater.applyUpdate()
+        .catch(error => broadcastUpdaterError(error, 'applyUpdate() failed'))
+        .finally(() => {
+          applying = undefined
+        })
+      await applying
+    },
+    markMainReady() {
+      mainReady = true
+      reportHealthWhenReady()
+    },
+    markMainPageMounted() {
+      pageMounted = true
+      reportHealthWhenReady()
     },
     getPreferredUpdateLane() {
       return storedPreferredLane
