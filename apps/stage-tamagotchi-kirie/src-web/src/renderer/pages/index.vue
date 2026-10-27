@@ -3,6 +3,7 @@ import type { ModelSettingsRuntimeSnapshot } from '@proj-airi/stage-ui/component
 
 import {
   useHostEventaInvoke,
+  useHostInlay,
   useHostMouseAroundWindowBorder,
   useHostMouseInElement,
   useHostMouseInWindow,
@@ -349,11 +350,24 @@ useModelSettingsRuntimeOwner({
 })
 
 const voice = useVoiceStore()
+const inlay = useHostInlay()
 const toolSelection = useToolSelectionStore()
 // Spoken turns start in this window. They use the tools that the chat window composer grants.
 onScopeDispose(voice.connectTools(() => toolSelection.requestTools))
 useVoiceListening()
 usePushToTalkShortcut()
+// Speech restores the retained window after a native close request hides it.
+watch(() => voice.state?.phase === 'capturing', (capturing) => {
+  if (capturing)
+    inlay.open().catch(error => console.error('[inlay] Failed to show voice input:', error))
+})
+watch(
+  () => voice.drafts.filter(draft => !draft.sending).map(draft => `${draft.id}:${draft.rawText}`).join('\0'),
+  (drafts) => {
+    if (drafts)
+      inlay.open().catch(error => console.error('[inlay] Failed to show voice drafts:', error))
+  },
+)
 watch(() => voice.error, (error) => {
   if (error)
     toast.error(error)

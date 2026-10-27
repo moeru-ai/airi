@@ -31,6 +31,11 @@ import type { Rectangle } from 'electron'
 
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 
+/** Shows the reusable Inlay without taking focus from the current application. */
+export const airiOpenInlay = defineInvokeEventa<Record<string, never>, Record<string, never>>('eventa:invoke:airi:windows:inlay:open')
+/** Restores the Inlay to the primary display's bottom-center position. */
+export const airiInlayReturnHome = defineInvokeEventa<Record<string, never>, Record<string, never>>('eventa:invoke:airi:windows:inlay:return-home')
+
 export interface AiriDesktopDisplayBounds {
   x: number
   y: number

@@ -97,6 +97,12 @@ internal static class AiriDesktopEvents
     public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> OpenChat =
         new("eventa:invoke:electron:windows:chat:open");
 
+    public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> OpenInlay =
+        new("eventa:invoke:airi:windows:inlay:open");
+
+    public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> InlayReturnHome =
+        new("eventa:invoke:airi:windows:inlay:return-home");
+
     public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> OpenMainDevtools =
         new("eventa:invoke:electron:windows:main:devtools:open");
 
@@ -214,6 +220,14 @@ internal static class AiriDesktopContracts
                 AiriDesktopJsonContext.Default.EmptyPayload)
             .RegisterInvoke(
                 AiriDesktopEvents.OpenChat,
+                AiriDesktopJsonContext.Default.EmptyPayload,
+                AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.OpenInlay,
+                AiriDesktopJsonContext.Default.EmptyPayload,
+                AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.InlayReturnHome,
                 AiriDesktopJsonContext.Default.EmptyPayload,
                 AiriDesktopJsonContext.Default.EmptyPayload)
             .RegisterInvoke(

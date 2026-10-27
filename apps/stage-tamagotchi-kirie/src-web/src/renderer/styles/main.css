@@ -32,13 +32,13 @@ html.dark {
   color-scheme: dark;
 }
 
-html.spotlight-window,
-html.spotlight-window body,
-html.spotlight-window #app {
+html.transparent-window,
+html.transparent-window body,
+html.transparent-window #app {
   background: transparent;
 }
 
-html.spotlight-window.dark {
+html.transparent-window.dark {
   color-scheme: normal;
 }
 

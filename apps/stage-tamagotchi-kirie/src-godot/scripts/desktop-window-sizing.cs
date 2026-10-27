@@ -79,18 +79,26 @@ internal static class DesktopWindowSizing
     /// </summary>
     public static float GetDisplayScale(Window window)
     {
+        return GetDisplayScale(window.CurrentScreen);
+    }
+
+    /// <summary>
+    /// Reads a display's pixel scale without moving a window to that display.
+    /// </summary>
+    public static float GetDisplayScale(int screen)
+    {
         var displayServerName = DisplayServer.GetName();
         if (displayServerName == "Windows")
         {
             return ResolveDisplayScale(
                 displayServerName,
                 1.0f,
-                DisplayServer.ScreenGetDpi(window.CurrentScreen));
+                DisplayServer.ScreenGetDpi(screen));
         }
 
         var screenScale = displayServerName == "Wayland"
             ? DisplayServer.ScreenGetScale((int)DisplayServer.ScreenOfMainWindow)
-            : DisplayServer.ScreenGetScale(window.CurrentScreen);
+            : DisplayServer.ScreenGetScale(screen);
         return ResolveDisplayScale(
             displayServerName,
             screenScale,

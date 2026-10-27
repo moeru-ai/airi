@@ -58,6 +58,7 @@ const syncedPinia = usePiniaSynced()
 const isSettingsWindow = initialRoutePath === '/settings' || initialRoutePath.startsWith('/settings/')
 const isChatWindow = initialRoutePath === '/chat'
 const isSpotlightWindow = initialRoutePath === '/spotlight'
+const isTransparentWindow = isSpotlightWindow || initialRoutePath === '/inlay'
 const isMainRenderer = windowContext.leadership === 'leader-only'
 const microphonePermission = useHostMicrophonePermission()
 const microphonePermissionPrompt = microphonePermission.prompt
@@ -69,8 +70,8 @@ const stopTrayLabels = isMainRenderer
   ? startHostTrayLabels({ locale: i18nLocale, t })
   : undefined
 
-if (isSpotlightWindow)
-  document.documentElement.classList.add('spotlight-window')
+if (isTransparentWindow)
+  document.documentElement.classList.add('transparent-window')
 
 watch(microphonePermission.status, (state, previousState) => {
   if (previousState !== 'granted' || state === 'granted')
@@ -186,7 +187,7 @@ const chatStreamView = !fullStageRuntime && isChatWindow
 const { restore: restoreLocale } = useLanguage(language, getMainLocale, setLocale)
 
 const { updateThemeColor } = useThemeColor(themeColorFromValue(
-  isSpotlightWindow
+  isTransparentWindow
     ? { light: 'rgb(255 255 255 / 0)', dark: 'rgb(18 18 18 / 0)' }
     : { light: 'rgb(255 255 255)', dark: 'rgb(18 18 18)' },
 ))

@@ -47,7 +47,7 @@ Spotlight opens through its global shortcut and has no in-app entry point.
 
 ## Scope and limitations
 
-The desktop host supplies native windows, Spotlight, the system tray, permissions, authentication, desktop operations, and shared browser storage.
+The desktop host supplies native windows, Spotlight, Inlay, the system tray, permissions, authentication, desktop operations, and shared browser storage.
 Model-specific rendering, assets, and media for Live2D, VRM, and MMD require separate verification.
 
 The following work remains deferred:
@@ -59,7 +59,7 @@ The following work remains deferred:
 | Artistry | Credentials, provider jobs, downloads, and Widget updates |
 | MCP | Configuration and stdio process lifecycle |
 | Packaging and updates | Exports, signatures, installation, update manifests, and relaunch |
-| Auxiliary windows | Inlay, Widgets list, Caption, and BeatSync. Their tray items stay disabled. |
+| Auxiliary windows | Widgets list, Caption, and BeatSync. Their tray items stay disabled. |
 
 The Node services remain outside the Kirie bootstrap until AIRI supplies their runtime and lifecycle.
 The workspace Node.js command is not a production sidecar.

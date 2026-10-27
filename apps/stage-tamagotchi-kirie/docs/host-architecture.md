@@ -37,7 +37,7 @@ The production Web entry is `res://src-web/dist/index.html`.
 ## Window and context lifecycle
 
 Main receives `synced-leader=true` before Pinia initialization. Followers receive `synced-leader=false`.
-About, Chat, and Spotlight use `stage-runtime=minimal`.
+About, Chat, Spotlight, and Inlay use `stage-runtime=minimal`.
 Pointer, display, window-action, and lifecycle adapters borrow the same host context.
 Display placement uses one atomic snapshot. Kirie's pointer-inside result overrides stale renderer bounds.
 
@@ -60,13 +60,25 @@ Godot owns the tray through the `GdKirie.Tray` C# API. The tray stays usable whi
 The menu follows the [Electron tray](../../stage-tamagotchi/src/main/tray/index.ts).
 Godot applies the size and alignment items to the main window directly. Alignment animates with a Godot `Tween`.
 The checked size and alignment items follow the main-window geometry on each frame.
-Kirie has no Inlay, Widgets list, Caption, or BeatSync window. Their items stay disabled.
+The Inlay item opens the reusable voice overlay. Widgets list, Caption, and BeatSync stay disabled.
 The DevTools section appears only in debug builds.
 
 The main renderer owns translations. It sends all labels through `eventa:invoke:airi:tray:labels:set` at start and after each locale change.
 Godot shows English labels until the first labels arrive.
 A left click shows the main window on Windows. On macOS, a left click opens the menu and a double click shows the main window.
 If the platform has no tray, Main logs the error and continues. Main still answers the label invoke, because an unanswered invoke never settles.
+
+## Inlay
+
+Main preloads one reusable Inlay window. Speech and pending drafts show it without activation. The tray opens it with focus.
+Without speech or drafts, the page stays transparent.
+The main renderer owns audio capture. Inlay uses the shared speech bus to display snapshots and send draft commands.
+Only the painted card accepts pointer input. Its drag regions use Platform `beginMove()`.
+Local Escape dismisses the content. Global Escape is not registered.
+Five seconds without content returns the window to the primary display's lower center. Display geometry changes also restore that position.
+
+The window uses Godot transparency and a solid card surface. Native desktop blur and cross-Space visibility are not implemented.
+Inactive display restores focusability after `Show()`. Native editing, desktop compositing, and cross-display behavior require platform verification.
 
 ## Spotlight and permissions
 

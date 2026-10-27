@@ -19,6 +19,7 @@ public partial class Main : Node
     private ChatWindowManager? _chat;
     private WidgetWindowManager? _widgets;
     private SpotlightHost? _spotlight;
+    private InlayWindowManager? _inlay;
     private NoticeWindowManager? _notice;
     private TrayHost? _tray;
     private IDisposable? _trayLabelsRegistration;
@@ -108,6 +109,12 @@ public partial class Main : Node
                 registry,
                 rendererUrl,
                 _microphonePermissions);
+            _inlay = new InlayWindowManager(
+                _eventa.Context,
+                this,
+                registry,
+                rendererUrl,
+                _microphonePermissions);
             _spotlight = new SpotlightHost(
                 _eventa.Context,
                 this,
@@ -154,6 +161,7 @@ public partial class Main : Node
                 window,
                 _settings,
                 about,
+                _inlay,
                 () => GetTree().Quit());
         }
         catch (Exception error) when (error is TrayException or InvalidOperationException)
@@ -192,6 +200,7 @@ public partial class Main : Node
         _displaySnapshotRegistration?.Dispose();
         _auth?.Dispose();
         _notice?.Dispose();
+        _inlay?.Dispose();
         _spotlight?.Dispose();
         _widgets?.Dispose();
         _chat?.Dispose();
@@ -212,6 +221,7 @@ public partial class Main : Node
     {
         _widgets?.Process();
         _tray?.Process();
+        _inlay?.Process();
         _auth?.ProcessPending();
         _microphonePermissions?.Process();
     }
@@ -228,9 +238,10 @@ public partial class Main : Node
         return environmentUrl.Length > 0 ? environmentUrl : PageUrl;
     }
 
-    private static void OnWebViewReady()
+    private void OnWebViewReady()
     {
         GD.Print("signal webview_ready");
+        _inlay?.OpenInactive();
     }
 
     private static void OnIpcError(string error)

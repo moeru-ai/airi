@@ -12,6 +12,7 @@ internal static class Program
             TestsWidgetWirePayloads();
             TestsDesktopWindowGeometry();
             TestsTrayWindowGeometry();
+            TestsInlayWindowGeometry();
             TestsSpotlightShortcutPolicy();
             TestsNativeResizeEdges();
             TestsOnboardingTitleBarDragRegion();
@@ -137,6 +138,30 @@ internal static class Program
         permissions.Dispose();
 
         AssertEqual(false, decision, "permission decision during shutdown");
+    }
+
+    private static void TestsInlayWindowGeometry()
+    {
+        AssertEqual(
+            new Rect2I(483, 545, 475, 200),
+            InlayWindowGeometry.ResolveBounds(new Rect2I(0, 25, 1440, 800), 1),
+            "Inlay laptop placement above the Dock");
+        AssertEqual(
+            new Rect2I(965, 1090, 950, 400),
+            InlayWindowGeometry.ResolveBounds(new Rect2I(0, 50, 2880, 1600), 2),
+            "Inlay Retina dimensions use logical breakpoints");
+        AssertEqual(
+            new Rect2I(-2180, 1071, 520, 200),
+            InlayWindowGeometry.ResolveBounds(new Rect2I(-3840, 0, 3840, 1412), 1),
+            "Inlay width stays narrow on a large primary display");
+        AssertEqual(
+            new Rect2I(250, 244, 500, 200),
+            InlayWindowGeometry.ResolveBounds(new Rect2I(0, 0, 1000, 500), 1),
+            "Inlay minimum bottom clearance on a short work area");
+        AssertEqual(
+            new Rect2I(200, 20, 400, 200),
+            InlayWindowGeometry.ResolveBounds(new Rect2I(0, 20, 800, 180), 1),
+            "Inlay stays below the work-area top on a very short display");
     }
 
     private static void TestsDesktopWindowGeometry()
