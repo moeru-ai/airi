@@ -34,12 +34,14 @@ describe('providerService', () => {
       instanceId: 'prov-1',
       ownerId: testUser.id,
       definitionId: 'openai',
+      displayName: 'Personal OpenAI',
       config: { apiKey: 'sk-123' },
     })
 
     expect(result.instanceId).toBe('prov-1')
     expect(result.id).not.toBe('prov-1')
     expect(result.definitionId).toBe('openai')
+    expect(result.displayName).toBe('Personal OpenAI')
     expect(result.config).toEqual({ apiKey: 'sk-123' })
     expect(result.deletedAt).toBeNull()
     expect(result.updatedAt).toEqual(expect.any(String))
