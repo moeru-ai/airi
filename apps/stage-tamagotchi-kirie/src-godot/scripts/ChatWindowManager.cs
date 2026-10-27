@@ -21,6 +21,7 @@ internal sealed class ChatWindowManager : IDisposable
     private readonly KirieEventaJsonRegistry _registry;
     private readonly string _rendererUrl;
     private readonly MicrophonePermissionService _microphonePermissions;
+    private readonly Func<IEventContext, IDisposable> _attachSettings;
     private readonly ChatWindowPreferences _preferences = new();
     private readonly FloatingChatHost _floating;
     private readonly ChatModeSwitch _modeSwitch;
@@ -34,7 +35,8 @@ internal sealed class ChatWindowManager : IDisposable
         Window mainWindow,
         KirieEventaJsonRegistry registry,
         string rendererUrl,
-        MicrophonePermissionService microphonePermissions)
+        MicrophonePermissionService microphonePermissions,
+        Func<IEventContext, IDisposable> attachSettings)
     {
         _owner = owner;
         _mainWindow = mainWindow;
@@ -42,6 +44,7 @@ internal sealed class ChatWindowManager : IDisposable
         _registry = registry;
         _rendererUrl = rendererUrl;
         _microphonePermissions = microphonePermissions;
+        _attachSettings = attachSettings;
         _floating = new FloatingChatHost(
             owner,
             mainWindow,
@@ -126,7 +129,8 @@ internal sealed class ChatWindowManager : IDisposable
     }
 
     /// <summary>
-    /// Answers the style menu of a chat, and lets a mode switch hand a draft to it.
+    /// Answers the style menu of a chat, lets a mode switch hand a draft to it, and lets it open
+    /// settings.
     /// <paramref name="mode"/> is the mode of that chat. The menu shows the style that the user
     /// looks at, a choice moves the chat from there, and the draft handover uses the mode as its
     /// key.
@@ -135,6 +139,7 @@ internal sealed class ChatWindowManager : IDisposable
     {
         IDisposable[] registrations =
         [
+            _attachSettings(context),
             context.RegisterInvokeHandler(
                 ChatWindowContracts.GetPreferences,
                 (EmptyPayload _, CancellationToken _) => Task.FromResult(PreferencesFor(mode))),

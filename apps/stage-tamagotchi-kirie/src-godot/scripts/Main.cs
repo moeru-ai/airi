@@ -104,7 +104,12 @@ public partial class Main : Node
                 GetWindow(),
                 registry,
                 rendererUrl,
-                _microphonePermissions);
+                _microphonePermissions,
+                // A chat window opens only after this method returns, so the settings manager
+                // below exists by then.
+                chatContext => _settings?.Attach(chatContext)
+                    ?? throw new InvalidOperationException(
+                        "The settings window manager is unavailable."));
             _spotlight = new SpotlightHost(
                 _eventa.Context,
                 this,

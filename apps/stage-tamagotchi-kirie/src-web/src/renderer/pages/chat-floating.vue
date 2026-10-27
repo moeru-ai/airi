@@ -449,6 +449,24 @@ function handleArrowKey(event: KeyboardEvent, applyDelta: (delta: ChatFloatingDe
 }
 </style>
 
+<style>
+/*
+ * NOTICE:
+ * A page cannot blur the desktop behind a transparent window, so a frosted
+ * menu shows other windows through its fill. Menus of the floating chat keep
+ * the same fill without transparency.
+ * Source: the `blurry` variant of packages/ui/src/components/misc/dropdown-menu.vue.
+ * Removal: when the floating chat window gets a native material behind it.
+ */
+html.chat-floating-window [data-reka-popper-content-wrapper] .backdrop-blur-md {
+  --at-apply: border-neutral-100 bg-neutral-100;
+}
+
+html.chat-floating-window.dark [data-reka-popper-content-wrapper] .backdrop-blur-md {
+  --at-apply: border-neutral-800 bg-neutral-800;
+}
+</style>
+
 <route lang="yaml">
 meta:
   layout: stage
