@@ -2,7 +2,7 @@
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { storeToRefs } from 'pinia'
-import { shallowRef } from 'vue'
+import { shallowRef, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ChatSpeechMuteButton from '../components/chat-window/chat-speech-mute-button.vue'
@@ -12,10 +12,14 @@ import WindowTitleBar from '../components/Window/TitleBar.vue'
 import ChatPageShell from './chat-page-shell.vue'
 
 import { chatHeaderButtonClass } from '../components/chat-window/chat-header-button'
+import { useChatDraftHandover } from '../composables/use-chat-draft-handover'
 
 const { activeCard } = storeToRefs(useAiriCardStore())
 const sessionsDrawerOpen = shallowRef(false)
+const interactiveArea = useTemplateRef<InstanceType<typeof InteractiveArea>>('interactive-area')
 const { t } = useI18n()
+
+useChatDraftHandover(interactiveArea)
 </script>
 
 <template>
@@ -40,6 +44,7 @@ const { t } = useI18n()
       </template>
     </WindowTitleBar>
     <InteractiveArea
+      ref="interactive-area"
       :class="['interaction-area block h-full w-full', 'transition-opacity duration-250']"
     />
     <ChatSessionsDrawer v-model="sessionsDrawerOpen" />

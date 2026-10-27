@@ -16,6 +16,13 @@ public partial class ChatWindow : Window
     private bool _showRequested;
     private bool _initialGeometryApplied;
 
+    internal IEventContext Context =>
+        _eventa?.Context
+        ?? throw new InvalidOperationException("The chat window is not initialized.");
+
+    /// <summary>Whether the chat page has mounted.</summary>
+    internal bool IsRendererReady => _ready;
+
     internal void Initialize(
         KirieEventaJsonRegistry registry,
         string rendererUrl,

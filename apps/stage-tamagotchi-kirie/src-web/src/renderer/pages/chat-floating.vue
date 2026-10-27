@@ -29,6 +29,7 @@ import {
   electronChatWindowSetPreferences,
 } from '../../shared/eventa'
 import { chatHeaderButtonClass } from '../components/chat-window/chat-header-button'
+import { useChatDraftHandover } from '../composables/use-chat-draft-handover'
 import { dismissOverlays, useChatFloatingClickThrough } from '../composables/use-chat-floating-click-through'
 import { useDanmakuFeedExpiry } from '../composables/use-danmaku-feed-expiry'
 import { useControlsIslandStore } from '../stores/controls-island'
@@ -37,6 +38,8 @@ const { activeCard } = storeToRefs(useAiriCardStore())
 const sessionsDrawerOpen = shallowRef(false)
 const interactiveArea = useTemplateRef<InstanceType<typeof InteractiveArea>>('interactive-area')
 const { t } = useI18n()
+
+useChatDraftHandover(interactiveArea)
 
 // Folded until the host answers, so the first unfold plays the same animation
 // as every later one.

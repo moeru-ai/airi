@@ -7,7 +7,8 @@ using Godot;
 ///
 /// Both modes load the same chat components, so a mode changes only the window around the chat.
 /// Transparency is fixed when a window is created, so the legacy and floating modes have their own
-/// windows. A mode switch opens one and closes the other. It matches
+/// windows. A mode switch opens one and closes the other, and <see cref="ChatModeSwitch"/> carries
+/// the unsent draft between them. It matches
 /// `apps/stage-tamagotchi/src/main/windows/chat/index.ts`, without the fullscreen mode.
 /// </summary>
 internal sealed class ChatWindowManager : IDisposable
@@ -22,6 +23,7 @@ internal sealed class ChatWindowManager : IDisposable
     private readonly MicrophonePermissionService _microphonePermissions;
     private readonly ChatWindowPreferences _preferences = new();
     private readonly FloatingChatHost _floating;
+    private readonly ChatModeSwitch _modeSwitch;
     private readonly IDisposable[] _mainRegistrations;
     private ChatWindow? _window;
     private bool _disposed;
@@ -47,14 +49,36 @@ internal sealed class ChatWindowManager : IDisposable
             rendererUrl,
             microphonePermissions,
             _preferences,
-            chatContext => AttachPreferences(chatContext, ChatWindowPreferences.FloatingMode),
+            chatContext => AttachChat(chatContext, ChatWindowPreferences.FloatingMode),
             EmitButtonState);
+        _modeSwitch = new ChatModeSwitch(
+            () => _preferences.Current.Mode,
+            mode => _preferences.Save(_preferences.Current with { Mode = mode }),
+            new Dictionary<string, ChatModeWindow>
+            {
+                [ChatWindowPreferences.LegacyMode] = new(
+                    () => LiveLegacyWindow() is not null,
+                    OpenLegacy,
+                    CloseLegacy,
+                    () => LiveLegacyWindow() is { IsRendererReady: true } window
+                        ? window.Context
+                        : null),
+                [ChatWindowPreferences.FloatingMode] = new(
+                    () => _floating.IsOpen,
+                    _floating.Open,
+                    _floating.Close,
+                    () => _floating.RendererContext),
+            });
         _mainRegistrations =
         [
             // The Controls Island chat button folds and unfolds the floating chat.
             context.RegisterInvokeHandler(
                 AiriDesktopEvents.OpenChat,
-                (EmptyPayload _, CancellationToken _) => Complete(Toggle)),
+                async (EmptyPayload _, CancellationToken _) =>
+                {
+                    await _modeSwitch.RunAsync(Toggle);
+                    return new EmptyPayload();
+                }),
             context.RegisterInvokeHandler(
                 ChatWindowContracts.GetChatButtonState,
                 (EmptyPayload _, CancellationToken _) => Task.FromResult(ButtonState())),
@@ -68,7 +92,12 @@ internal sealed class ChatWindowManager : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         return context.RegisterInvokeHandler(
             AiriDesktopEvents.OpenChat,
-            (EmptyPayload _, CancellationToken _) => Complete(Show));
+            async (EmptyPayload _, CancellationToken _) =>
+            {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                await _modeSwitch.ShowAsync();
+                return new EmptyPayload();
+            });
     }
 
     /// <summary>
@@ -96,29 +125,42 @@ internal sealed class ChatWindowManager : IDisposable
         _floating.Dispose();
     }
 
-    private static Task<EmptyPayload> Complete(Action action)
-    {
-        action();
-        return Task.FromResult(new EmptyPayload());
-    }
-
     /// <summary>
-    /// Answers the style menu of a chat. <paramref name="mode"/> is the mode of that chat, so the
-    /// menu shows the style that the user looks at, and a choice moves the chat from there.
+    /// Answers the style menu of a chat, and lets a mode switch hand a draft to it.
+    /// <paramref name="mode"/> is the mode of that chat. The menu shows the style that the user
+    /// looks at, a choice moves the chat from there, and the draft handover uses the mode as its
+    /// key.
     /// </summary>
-    private IDisposable AttachPreferences(IEventContext context, string mode)
+    private IDisposable AttachChat(IEventContext context, string mode)
     {
-        var getRegistration = context.RegisterInvokeHandler(
-            ChatWindowContracts.GetPreferences,
-            (EmptyPayload _, CancellationToken _) => Task.FromResult(PreferencesFor(mode)));
-        // Each control sends only what it changes, so a control that holds older preferences never
-        // writes them back. A switch closes the window that asked for it after this handler
-        // answers.
-        var setRegistration = context.RegisterInvokeHandler(
-            ChatWindowContracts.SetPreferences,
-            (ChatWindowPreferencesChangePayload changes, CancellationToken _) =>
-                Complete(() => SetPreferences(changes, mode)));
-        return new DisposableGroup(getRegistration, setRegistration);
+        IDisposable[] registrations =
+        [
+            context.RegisterInvokeHandler(
+                ChatWindowContracts.GetPreferences,
+                (EmptyPayload _, CancellationToken _) => Task.FromResult(PreferencesFor(mode))),
+            // Each control sends only what it changes, so a control that holds older preferences
+            // never writes them back. A switch that succeeds closes the window that asked for it,
+            // and its reply goes nowhere. A switch that fails rejects, and that window stays.
+            context.RegisterInvokeHandler(
+                ChatWindowContracts.SetPreferences,
+                async (ChatWindowPreferencesChangePayload changes, CancellationToken _) =>
+                {
+                    await SetPreferencesAsync(changes, mode);
+                    return new EmptyPayload();
+                }),
+            context.RegisterInvokeHandler(
+                ChatWindowContracts.TakeDraft,
+                (EmptyPayload _, CancellationToken _) =>
+                    Task.FromResult(new ChatDraftPayload(_modeSwitch.TakeDraft(mode)))),
+            context.RegisterInvokeHandler(
+                ChatWindowContracts.DraftSettled,
+                (ChatDraftSettledPayload payload, CancellationToken _) =>
+                {
+                    _modeSwitch.SettleDraft(mode, payload.Restored);
+                    return Task.FromResult(new EmptyPayload());
+                }),
+        ];
+        return new DisposableGroup(registrations);
     }
 
     private ChatWindowPreferencesPayload PreferencesFor(string mode)
@@ -133,9 +175,9 @@ internal sealed class ChatWindowManager : IDisposable
 
     /// <summary>
     /// Saves the preferences. <paramref name="from"/> is the mode of the chat where the user chose
-    /// them.
+    /// them. A new mode moves the chat, with its draft, to the window of that mode.
     /// </summary>
-    private void SetPreferences(ChatWindowPreferencesChangePayload changes, string from)
+    private async Task SetPreferencesAsync(ChatWindowPreferencesChangePayload changes, string from)
     {
         if (changes.Mode is { } requestedMode && !ChatWindowPreferences.IsMode(requestedMode))
         {
@@ -148,6 +190,23 @@ internal sealed class ChatWindowManager : IDisposable
             throw new ArgumentException($"Unknown floating chat placement: {requestedPlacement}");
         }
 
+        await _modeSwitch.RunAsync(() => SavePreferences(changes));
+        try
+        {
+            await _modeSwitch.SwitchToAsync(changes.Mode ?? from, from);
+        }
+        finally
+        {
+            EmitButtonState();
+        }
+    }
+
+    /// <summary>
+    /// Saves the placement, the message feed, and the pin. They are saved before a mode switch, so
+    /// a floating window that the switch creates starts in them.
+    /// </summary>
+    private void SavePreferences(ChatWindowPreferencesChangePayload changes)
+    {
         var previous = _preferences.Current;
         var next = previous with
         {
@@ -156,8 +215,6 @@ internal sealed class ChatWindowManager : IDisposable
             Pinned = changes.Pinned ?? previous.Pinned,
         };
 
-        // The placement is saved first, so a floating window that the switch below creates starts
-        // in it.
         _preferences.Save(next);
         // Only a new placement attaches the chat again. An attached chat keeps its layout through a
         // new pin or message feed, so it does not jump to the preferred side while the main window
@@ -170,40 +227,6 @@ internal sealed class ChatWindowManager : IDisposable
         {
             _floating.ApplyPreferences();
         }
-
-        var mode = changes.Mode ?? from;
-        if (mode != from)
-        {
-            SwitchTo(mode);
-        }
-
-        EmitButtonState();
-    }
-
-    /// <summary>
-    /// Saves <paramref name="mode"/>, opens its window, and closes the window of the other mode.
-    /// </summary>
-    private void SwitchTo(string mode)
-    {
-        _preferences.Save(_preferences.Current with { Mode = mode });
-        Show();
-    }
-
-    /// <summary>
-    /// Shows the chat in the saved mode, and closes the window of the other mode.
-    /// </summary>
-    private void Show()
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        if (_preferences.Current.Mode == ChatWindowPreferences.FloatingMode)
-        {
-            _floating.Open();
-            CloseLegacy();
-            return;
-        }
-
-        OpenLegacy();
-        _floating.Close();
     }
 
     /// <summary>
@@ -238,47 +261,54 @@ internal sealed class ChatWindowManager : IDisposable
         }
     }
 
+    /// <summary>The legacy chat window, or `null` when it is closed or closing.</summary>
+    private ChatWindow? LiveLegacyWindow()
+    {
+        return _window is { } window
+            && GodotObject.IsInstanceValid(window)
+            && !window.IsQueuedForDeletion()
+            ? window
+            : null;
+    }
+
     private void OpenLegacy()
     {
-        if (_window is null
-            || !GodotObject.IsInstanceValid(_window)
-            || _window.IsQueuedForDeletion())
+        var window = LiveLegacyWindow() ?? CreateLegacyWindow();
+        window.Open(_mainWindow.CurrentScreen);
+    }
+
+    private ChatWindow CreateLegacyWindow()
+    {
+        var scene = ResourceLoader.Load<PackedScene>(WindowScenePath)
+            ?? throw new InvalidOperationException(
+                $"The chat window scene is missing: {WindowScenePath}");
+        var window = scene.Instantiate<ChatWindow>();
+        _window = window;
+        try
         {
-            var scene = ResourceLoader.Load<PackedScene>(WindowScenePath)
-                ?? throw new InvalidOperationException(
-                    $"The chat window scene is missing: {WindowScenePath}");
-            var window = scene.Instantiate<ChatWindow>();
-            _window = window;
-            try
-            {
-                window.TreeExiting += () => OnWindowClosed(window);
-                _owner.AddChild(window);
-                window.CurrentScreen = _mainWindow.CurrentScreen;
-                DesktopWindowSizing.ApplyInitialDisplayScale(window);
-                window.Initialize(
-                    _registry,
-                    _rendererUrl,
-                    _microphonePermissions,
-                    chatContext => AttachPreferences(
-                        chatContext,
-                        ChatWindowPreferences.LegacyMode));
-            }
-            catch
-            {
-                window.QueueFree();
-                _window = null;
-                throw;
-            }
+            window.TreeExiting += () => OnWindowClosed(window);
+            _owner.AddChild(window);
+            window.CurrentScreen = _mainWindow.CurrentScreen;
+            DesktopWindowSizing.ApplyInitialDisplayScale(window);
+            window.Initialize(
+                _registry,
+                _rendererUrl,
+                _microphonePermissions,
+                chatContext => AttachChat(chatContext, ChatWindowPreferences.LegacyMode));
+        }
+        catch
+        {
+            window.QueueFree();
+            _window = null;
+            throw;
         }
 
-        _window.Open(_mainWindow.CurrentScreen);
+        return window;
     }
 
     private void CloseLegacy()
     {
-        if (_window is { } window
-            && GodotObject.IsInstanceValid(window)
-            && !window.IsQueuedForDeletion())
+        if (LiveLegacyWindow() is { } window)
         {
             window.Hide();
             window.QueueFree();

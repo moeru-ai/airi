@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Eventa;
 using GdKirie.EventaAdapter;
@@ -53,6 +54,17 @@ internal sealed record ChatFloatingMoveByPayload(int DeltaX, int DeltaY);
 internal sealed record ChatFloatingResizeByPayload(int DeltaX, int DeltaY, string Direction);
 
 /// <summary>
+/// The unsent draft that a chat mode switch carries from one chat window to the other.
+/// </summary>
+/// <param name="Draft">The `ChatDraftHandover` of the renderer, which the host passes on without
+/// reading it. It is `null` when there is no draft. The adapter drops a reply without a body, so
+/// the draft travels inside this object.</param>
+internal sealed record ChatDraftPayload(JsonElement? Draft);
+
+/// <summary>Whether the chat window that took a draft put it back into its composer.</summary>
+internal sealed record ChatDraftSettledPayload(bool Restored);
+
+/// <summary>
 /// Matches the chat window contracts of the renderer. The IDs keep the Electron names of the shared
 /// UI.
 /// </summary>
@@ -88,6 +100,25 @@ internal static class ChatWindowContracts
     public static readonly InvokeEventDefinition<EmptyPayload, ChatFloatingResizeByPayload>
         FloatingResizeBy = new("eventa:invoke:electron:windows:chat-floating:resize-by");
 
+    /// <summary>The host asks the chat window that a mode switch closes for its draft.</summary>
+    public static readonly InvokeEventDefinition<ChatDraftPayload, EmptyPayload> CollectDraft =
+        new("eventa:invoke:electron:windows:chat:collect-draft");
+
+    /// <summary>The chat window that a mode switch opens takes the draft when it mounts.</summary>
+    public static readonly InvokeEventDefinition<ChatDraftPayload, EmptyPayload> TakeDraft =
+        new("eventa:invoke:electron:windows:chat:take-draft");
+
+    /// <summary>Tells a mounted chat window that a mode switch carries a draft to it.</summary>
+    public static readonly EventDefinition<EmptyPayload> DraftOffered =
+        new("eventa:event:electron:windows:chat:draft-offered");
+
+    /// <summary>
+    /// The chat window reports what happened to the draft it took. A window with no draft to take
+    /// reports `true`, which also tells the switch that the page mounted.
+    /// </summary>
+    public static readonly InvokeEventDefinition<EmptyPayload, ChatDraftSettledPayload>
+        DraftSettled = new("eventa:invoke:electron:windows:chat:draft-settled");
+
     public static KirieEventaJsonRegistry Register(KirieEventaJsonRegistry registry)
     {
         var empty = AiriDesktopJsonContext.Default.EmptyPayload;
@@ -102,7 +133,11 @@ internal static class ChatWindowContracts
             .RegisterInvoke(FloatingContentHidden, empty, empty)
             .RegisterInvoke(FloatingFold, empty, empty)
             .RegisterInvoke(FloatingMoveBy, empty, json.ChatFloatingMoveByPayload)
-            .RegisterInvoke(FloatingResizeBy, empty, json.ChatFloatingResizeByPayload);
+            .RegisterInvoke(FloatingResizeBy, empty, json.ChatFloatingResizeByPayload)
+            .RegisterInvoke(CollectDraft, json.ChatDraftPayload, empty)
+            .RegisterInvoke(TakeDraft, json.ChatDraftPayload, empty)
+            .RegisterEvent(DraftOffered, empty)
+            .RegisterInvoke(DraftSettled, empty, json.ChatDraftSettledPayload);
     }
 }
 
@@ -113,4 +148,6 @@ internal static class ChatWindowContracts
 [JsonSerializable(typeof(ChatFloatingStatePayload))]
 [JsonSerializable(typeof(ChatFloatingMoveByPayload))]
 [JsonSerializable(typeof(ChatFloatingResizeByPayload))]
+[JsonSerializable(typeof(ChatDraftPayload))]
+[JsonSerializable(typeof(ChatDraftSettledPayload))]
 internal sealed partial class ChatWindowJsonContext : JsonSerializerContext;

@@ -65,7 +65,7 @@ internal sealed class FloatingChatHost : IDisposable
     private readonly string _rendererUrl;
     private readonly MicrophonePermissionService _microphonePermissions;
     private readonly ChatWindowPreferences _preferences;
-    private readonly Func<IEventContext, IDisposable> _attachPreferences;
+    private readonly Func<IEventContext, IDisposable> _attachChat;
     private readonly Action _onFoldedChanged;
     private FloatingChatWindow? _window;
     private bool _ready;
@@ -94,7 +94,7 @@ internal sealed class FloatingChatHost : IDisposable
         string rendererUrl,
         MicrophonePermissionService microphonePermissions,
         ChatWindowPreferences preferences,
-        Func<IEventContext, IDisposable> attachPreferences,
+        Func<IEventContext, IDisposable> attachChat,
         Action onFoldedChanged)
     {
         _owner = owner;
@@ -103,12 +103,19 @@ internal sealed class FloatingChatHost : IDisposable
         _rendererUrl = rendererUrl;
         _microphonePermissions = microphonePermissions;
         _preferences = preferences;
-        _attachPreferences = attachPreferences;
+        _attachChat = attachChat;
         _onFoldedChanged = onFoldedChanged;
     }
 
     /// <summary>Whether the chat is unfolded. The chat button shows this as pressed.</summary>
     public bool IsUnfolded => !_folded;
+
+    /// <summary>Whether the floating chat window exists, shown or folded.</summary>
+    public bool IsOpen => _window is not null;
+
+    /// <summary>The context of the mounted chat page, or `null` before it mounts.</summary>
+    public IEventContext? RendererContext =>
+        _window is { } window && _ready ? window.Context : null;
 
     private bool IsAttached =>
         _preferences.Current.Placement == ChatWindowPreferences.AttachedPlacement;
@@ -296,7 +303,7 @@ internal sealed class FloatingChatHost : IDisposable
     {
         IDisposable[] registrations =
         [
-            _attachPreferences(context),
+            _attachChat(context),
             context.RegisterInvokeHandler(
                 ChatWindowContracts.GetFloatingState,
                 (EmptyPayload _, CancellationToken _) => Task.FromResult(CurrentState())),

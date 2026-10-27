@@ -178,7 +178,9 @@ export const electronChatButtonStateChanged = defineEventa<ChatButtonState>('eve
 export const electronChatWindowGetPreferences = defineInvokeEventa<ChatWindowPreferences, Record<string, never>>('eventa:invoke:electron:windows:chat:get-preferences')
 /**
  * Saves the preferences that a control changes. A mode that differs from the
- * mode of the chat that asks opens the window of that mode and closes this one.
+ * mode of the chat that asks moves the chat to the window of that mode. The
+ * move carries the unsent draft over, and it rejects without closing the chat
+ * that asked when the draft cannot be carried.
  */
 export const electronChatWindowSetPreferences = defineInvokeEventa<void, Partial<ChatWindowPreferences>>('eventa:invoke:electron:windows:chat:set-preferences')
 export const electronChatFloatingGetState = defineInvokeEventa<ChatFloatingState, Record<string, never>>('eventa:invoke:electron:windows:chat-floating:get-state')
@@ -204,6 +206,39 @@ export interface ChatDraftHandover {
   /** Images as the composer sends them: base64 data without the data URL prefix. */
   attachments: { data: string, mimeType: string, name: string }[]
 }
+
+/**
+ * A draft of a chat mode switch, which is missing or `null` when there is
+ * none. The Godot host drops a reply without a body, so the draft travels
+ * inside this object.
+ */
+export interface ChatDraftHandoverReply {
+  draft?: ChatDraftHandover | null
+}
+
+/**
+ * Asks the chat window that a mode switch is about to close for its unsent
+ * draft. The host invokes it and the chat renderer answers, after any image it
+ * is still reading has entered the draft.
+ */
+export const electronChatWindowCollectDraft = defineInvokeEventa<ChatDraftHandoverReply, Record<string, never>>('eventa:invoke:electron:windows:chat:collect-draft')
+/**
+ * Returns the draft that a mode switch carries into the calling chat window.
+ * A chat renderer calls it once it has mounted.
+ */
+export const electronChatWindowTakeDraft = defineInvokeEventa<ChatDraftHandoverReply, Record<string, never>>('eventa:invoke:electron:windows:chat:take-draft')
+/**
+ * Tells a chat window that is already open that a mode switch carries a draft
+ * to it. The page takes the draft again, as it did when it mounted.
+ */
+export const electronChatWindowDraftOffered = defineEventa<Record<string, never>>('eventa:event:electron:windows:chat:draft-offered')
+/**
+ * Reports what happened to the taken draft. The mode switch closes the
+ * previous window only after `restored: true`. With `false` it closes the new
+ * window instead, and the draft stays where it was. A window with no draft to
+ * take reports `true`, which also tells the switch that the page has mounted.
+ */
+export const electronChatWindowDraftSettled = defineInvokeEventa<void, { restored: boolean }>('eventa:invoke:electron:windows:chat:draft-settled')
 export const electronSpotlightOpen = defineInvokeEventa<void>('eventa:invoke:electron:windows:spotlight:open')
 export const electronSpotlightHide = defineInvokeEventa<void>('eventa:invoke:electron:windows:spotlight:hide')
 export const electronSpotlightShowResultNotification = defineInvokeEventa<void, { body: string }>('eventa:invoke:electron:windows:spotlight:show-result-notification')
