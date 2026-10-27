@@ -15,9 +15,9 @@ const cardQuery = shallowRef('')
         <p>Query: {{ query }}. Press Cmd+F or Ctrl+F anywhere to focus the field.</p>
       </div>
     </Variant>
-    <Variant id="placeholder" title="Another page">
+    <Variant id="placeholder" title="In a row of filters">
       <div :class="['p-4']">
-        <SettingsSearchField v-model="cardQuery" placeholder="Search cards..." />
+        <SettingsSearchField v-model="cardQuery" placeholder="Search cards..." size="md" />
       </div>
     </Variant>
   </Story>

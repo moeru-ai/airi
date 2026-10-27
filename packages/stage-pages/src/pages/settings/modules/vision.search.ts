@@ -1,11 +1,13 @@
-import type { SettingsSearchProvider } from '@proj-airi/stage-shared/settings-search'
+import type { SettingsSearchModule } from '@proj-airi/stage-ui/libs/settings-search'
 
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 
 import { moduleModelItems } from './module-model-search'
 
-/** Lists the vision providers of the page and their models. */
-const provideVisionModels: SettingsSearchProvider = () =>
-  moduleModelItems('vision', useProviderStore().moduleVisionProvidersMetadata)
-
-export default provideVisionModels
+/** The vision page, with its vision providers and their models. */
+export default {
+  routes: [{
+    path: '/settings/modules/vision',
+    items: () => moduleModelItems('vision', useProviderStore().moduleVisionProvidersMetadata),
+  }],
+} satisfies SettingsSearchModule

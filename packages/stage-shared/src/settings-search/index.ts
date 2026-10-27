@@ -1,8 +1,9 @@
 /**
  * The contract between the settings search index, the pages, and the settings layout.
  *
- * The build-time scan in `@proj-airi/stage-pages/vite/settings-search` writes the index and marks the rows.
- * The settings search in stage-ui reads the index and opens a row.
+ * The build-time scan in `@proj-airi/stage-pages/vite/settings-search` reads the facts of each template: the settings on a page,
+ * their gates, and the rows that show them. The modules in the settings search registry of stage-ui decide which pages
+ * and items are in the index. The settings search reads both and opens a row.
  * This module has no runtime dependencies, so both sides can import it.
  */
 
@@ -36,13 +37,15 @@ export interface SettingsSearchRouteMeta {
   searchKeys?: string[]
   /** For a setting that shows only in some state, the setting that controls it, such as its switch. The build-time scan writes them. */
   searchGates?: Record<string, string>
+  /** Whether the page marks rows of runtime items, such as character cards. The module of the page lists the items. The build-time scan writes it. */
+  searchItemRows?: boolean
 }
 
 /**
  * Builds the marker of a runtime item from its kind and its parts, such as a card id and a wake word.
  *
  * Use when:
- * - A provider and its page need the same marker for an item.
+ * - A module of the settings search and its page need the same marker for an item.
  *
  * Returns:
  * - `kind:part:part`, with each part URI-encoded. The marker has no spaces, so a name such as "Hey AIRI" stays one key
@@ -94,18 +97,19 @@ export interface SettingsSearchItem {
 }
 
 /**
- * The export that the build-time scan adds to a provider view, such as the Hearing controls of a transcription provider.
- * A page renders such a view by provider at runtime, so its own scan cannot reach it. The view lists its settings instead.
+ * The import query that gives the settings of one component, such as `import('./hearing-settings.vue?settings-search')`.
+ * A page that renders a component by runtime data, such as the Hearing controls of the picked provider, cannot reach it in its own scan.
+ * The code that knows the component imports its settings with this query instead.
  */
-export const SETTINGS_SEARCH_VIEW_EXPORT = 'settingsSearchEntries'
+export const SETTINGS_SEARCH_ENTRIES_QUERY = 'settings-search'
 
-/** A setting of a provider view: its i18n key, and the rows to show when it is not on the page, nearest first. */
+/** A setting that a component renders: its i18n key, and the rows to show when it is not on the page, nearest first. */
 export interface SettingsSearchViewEntry {
   key: string
   gates: string[]
 }
 
-/** What a provider gets from the search, so its names match the page. */
+/** What a module of the settings search gets from the search, so its names match the page. */
 export interface SettingsSearchContext {
   /** Translates a key in the current locale, as the page does. */
   t: (key: string, params?: Record<string, unknown>) => string
@@ -114,7 +118,7 @@ export interface SettingsSearchContext {
 /**
  * Lists the runtime items of one settings page for the search.
  *
- * A page provides it in a sibling file named `<page>.search.ts`, as the default export.
+ * The module that holds the page lists it with the route of the page, in the settings search registry of stage-ui.
  * The search calls it when a person starts to search, so it can load data, such as a model catalog.
  */
 export type SettingsSearchProvider = (context: SettingsSearchContext) => SettingsSearchItem[] | Promise<SettingsSearchItem[]>

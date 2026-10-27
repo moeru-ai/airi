@@ -7,8 +7,6 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
-import { settingsSearchProviders } from '../../settings-search-providers'
-
 const router = useRouter()
 const { t } = useI18n()
 const { lastClickedIndex, setLastClickedIndex } = useRippleGridState()
@@ -27,7 +25,7 @@ const settings = computed(() => {
 })
 
 const searchQuery = ref('')
-const searchResults = useSettingsSearch(searchQuery, settingsSearchProviders)
+const searchResults = useSettingsSearch(searchQuery)
 const searching = computed(() => searchQuery.value.trim() !== '')
 const { items: needsAttention, dismiss: dismissNeedsAttention } = useSettingsNeedsAttention()
 </script>

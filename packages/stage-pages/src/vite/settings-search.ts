@@ -2,11 +2,12 @@ import type { Plugin, ViteDevServer } from 'vite'
 import type { SFCDescriptor, SFCTemplateBlock } from 'vue/compiler-sfc'
 
 import { createHash } from 'node:crypto'
-import { access, readFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { relative, sep } from 'node:path'
 import { cwd } from 'node:process'
 
-import { SETTINGS_SEARCH_ATTRIBUTE, SETTINGS_SEARCH_VIEW_EXPORT } from '@proj-airi/stage-shared/settings-search'
+import { SETTINGS_SEARCH_ATTRIBUTE, SETTINGS_SEARCH_ENTRIES_QUERY } from '@proj-airi/stage-shared/settings-search'
+import { escapeRegExp } from 'es-toolkit'
 import { babelParse, MagicString, parse } from 'vue/compiler-sfc'
 
 type TemplateRoot = NonNullable<SFCTemplateBlock['ast']>
@@ -158,9 +159,15 @@ const NOTICE = /^(?:Callout|Alert|ErrorContainer)$/
 /** The translation functions of a template. */
 const TRANSLATE = new Set(['t', '$t'])
 const I18N_KEY = /^[\w.-]+$/
-/** The module that maps each settings route to the loader of its runtime item provider. */
-const PROVIDERS_MODULE = 'virtual:settings-search-providers'
-const RESOLVED_PROVIDERS_MODULE = `\0${PROVIDERS_MODULE}`
+/** The end of an import that asks for the settings of a component, such as `./hearing-settings.vue?settings-search`. */
+const ENTRIES_SUFFIX = `?${SETTINGS_SEARCH_ENTRIES_QUERY}`
+/** A string literal that ends with {@link ENTRIES_SUFFIX}. The second group is the import of the component itself. */
+const ENTRIES_IMPORT = new RegExp(`(['"\`])([^'"\`\\n]+)${escapeRegExp(ENTRIES_SUFFIX)}\\1`, 'g')
+/**
+ * The id of the module that holds the settings of a component. The null byte keeps other plugins, such as `@vitejs/plugin-vue`,
+ * from compiling the module as the component itself.
+ */
+const ENTRIES_MODULE_PREFIX = '\0settings-search-entries:'
 const SCRIPT_FILE = /\.[cm]?[jt]sx?$/
 /** The props that bind the value of a control. */
 const MODEL_PROPS = new Set(['model-value', 'modelValue'])
@@ -210,7 +217,7 @@ function hasOwnMarker(element: TemplateElement) {
 }
 
 /**
- * Whether an element marks rows of runtime items, so its page needs a provider.
+ * Whether an element marks rows of runtime items, so the module of its page must list the items.
  *
  * A shared list component marks its items only when its user asks, with `searchKeyOf?.(item)`. That marker does not count by itself.
  * A usage that passes `:search-key-of` counts instead.
@@ -464,42 +471,6 @@ function bindingsOf(program: ScriptProgram, imports: ReadonlyMap<string, ImportB
   return bindings
 }
 
-/**
- * The modules that the provider definitions of a program load as views, such as `views: { hearing: () => import('./hearing-settings.vue') }`.
- * A provider definition is the first argument of `defineProvider()`.
- */
-function providerViewImportsOf(program: ScriptProgram) {
-  const specifiers: string[] = []
-  const visit = (node: unknown) => {
-    if (!node || typeof node !== 'object')
-      return
-    if (Array.isArray(node)) {
-      node.forEach(visit)
-      return
-    }
-    const call = node as Expression
-    const [definition] = call.type === 'CallExpression' && call.callee.type === 'Identifier' && call.callee.name === 'defineProvider' ? call.arguments : []
-    const views = definition?.type === 'ObjectExpression'
-      ? definition.properties.find(property => property.type === 'ObjectProperty' && property.key.type === 'Identifier' && property.key.name === 'views')
-      : undefined
-    if (views?.type === 'ObjectProperty' && views.value.type === 'ObjectExpression') {
-      for (const view of views.value.properties) {
-        const loader = view.type === 'ObjectProperty' ? view.value : undefined
-        const body = loader?.type === 'ArrowFunctionExpression' ? loader.body : undefined
-        const [specifier] = body?.type === 'CallExpression' && body.callee.type === 'Import' ? body.arguments : []
-        if (specifier?.type === 'StringLiteral')
-          specifiers.push(specifier.value)
-      }
-    }
-    for (const [name, child] of Object.entries(node)) {
-      if (name !== 'loc' && name !== 'leadingComments' && name !== 'trailingComments')
-        visit(child)
-    }
-  }
-  visit(program.body)
-  return specifiers
-}
-
 /** The marker for keys that the build knows: one string, with the keys separated by spaces, as {@link SETTINGS_SEARCH_ATTRIBUTE} reads it. */
 function markerOf(keys: string[]) {
   return `'${[...new Set(keys)].join(' ')}'`
@@ -717,7 +688,7 @@ function usageOf(element: TemplateElement): ComponentUsage {
 }
 
 /**
- * The gate of each conditional setting on a page or in a view.
+ * The gate of each conditional setting on a page or in a component that a module asks for.
  *
  * The gate is the row that controls the innermost condition of the setting, such as the switch that binds the value
  * that its `v-if` reads, or the section that holds it. Search highlights the gate when the setting itself is not on the page.
@@ -755,7 +726,11 @@ function gateChainOf(key: string, gates: Readonly<Record<string, string>>) {
 }
 
 /**
- * Builds the settings search index at build time and marks the searchable rows.
+ * Reads the settings that the settings pages render at build time, and marks their rows.
+ *
+ * The scan gives facts of the templates only: which settings a page or a component renders, which rows control them,
+ * and whether a page marks rows of runtime items. It does not decide what search lists.
+ * The modules in the settings search registry of stage-ui decide that at runtime.
  *
  * Use when:
  * - An app routes the shared settings pages with `vue-router/vite`.
@@ -770,6 +745,8 @@ function gateChainOf(key: string, gates: Readonly<Record<string, string>>) {
  *   It follows the components that the page imports, and skips overlays and notices.
  * - `plugin`, which binds the row marker to the same elements, and reports names that the scan cannot read.
  *   A production build fails on such a name. Development only warns.
+ *   It also answers an import of a component with `?settings-search` with the settings of that component, such as the Hearing
+ *   controls that a provider adds. A page renders such a component by runtime data, so its own scan cannot reach it.
  *
  * In development, the index of a page updates when the page file changes.
  * A change in a component that a page imports updates the index after a restart.
@@ -793,42 +770,15 @@ export function createSettingsSearch() {
   const scannedFiles = new Set<string>()
   const unreadableNames = new Map<string, UnreadableName>()
   /**
-   * Components that a provider definition loads as a view. A page renders such a view by provider at runtime,
-   * so the page scan cannot reach it. The view gets the marks of its settings, and an export that lists them.
+   * Components whose settings a module imports with `?settings-search`. A page renders such a component by runtime data,
+   * so the page scan cannot reach it. The component gets the marks of its settings too.
    */
-  const providerViews = new Set<string>()
+  const entryComponents = new Set<string>()
   /** Whether each component is a button, by file. */
   const buttons = new Map<string, Promise<boolean>>()
   /** The value of each top-level name, by file and name. */
   const sources = new Map<string, Promise<ValueSource | undefined>>()
-  /** The runtime item provider of each settings route, by route path. */
-  const providers = new Map<string, string>()
-  /** Pages that mark rows of runtime items but have no provider, so search cannot list those items. */
-  const pagesWithoutProvider = new Set<string>()
-  /** The settings routes by page file, with whether the page marks runtime rows. A provider file next to the page can come and go. */
-  const routesByPage = new Map<string, { path: string, marksItems: boolean }>()
   let server: ViteDevServer | undefined
-
-  /** Records the provider of a route, or the lack of one. In development, the page reloads with the new table. */
-  async function updateProvider(path: string, pageFile: string, marksItems: boolean) {
-    const providerFile = pageFile.replace(/\.vue$/, '.search.ts')
-    const hasProvider = await access(providerFile).then(() => true, () => false)
-    const changed = hasProvider ? providers.get(path) !== providerFile : providers.has(path)
-    if (hasProvider)
-      providers.set(path, providerFile)
-    else
-      providers.delete(path)
-    if (!hasProvider && marksItems)
-      pagesWithoutProvider.add(pageFile)
-    else
-      pagesWithoutProvider.delete(pageFile)
-
-    const module = changed ? server?.moduleGraph.getModuleById(RESOLVED_PROVIDERS_MODULE) : undefined
-    if (module) {
-      server?.moduleGraph.invalidateModule(module)
-      server?.ws.send({ type: 'full-reload' })
-    }
-  }
 
   function readDescriptor(file: string) {
     let descriptor = descriptors.get(file)
@@ -1466,13 +1416,6 @@ export function createSettingsSearch() {
     return `[settings-search] Search cannot read these setting names. Use t('key') with a literal key, or a prefix from a constant or a static prop:\n${lines.join('\n')}`
   }
 
-  function reportPagesWithoutProvider() {
-    if (!pagesWithoutProvider.size)
-      return undefined
-    const lines = [...pagesWithoutProvider].map(file => `  ${file}`)
-    return `[settings-search] These pages mark rows of runtime items, but search cannot list the items. Add a sibling <page>.search.ts that exports the provider:\n${lines.join('\n')}`
-  }
-
   /** In development, the scan never ends, so the names are reported once the routes settle. */
   function reportNewUnreadableNamesSoon() {
     if (failOnUnreadable)
@@ -1484,10 +1427,6 @@ export function createSettingsSearch() {
       const report = reportUnreadableNames(fresh.map(([, name]) => name))
       if (report)
         console.warn(report)
-      const missing = [...pagesWithoutProvider].filter(file => !reported.has(file))
-      missing.forEach(file => reported.add(file))
-      if (missing.length)
-        console.warn(reportPagesWithoutProvider())
     }, 1000)
   }
 
@@ -1511,14 +1450,6 @@ export function createSettingsSearch() {
     },
     configureServer(devServer) {
       server = devServer
-      // A provider file that appears or goes away changes the table of its page, while the page itself stays the same.
-      const onProviderFile = (file: string) => {
-        const route = file.endsWith('.search.ts') ? routesByPage.get(file.replace(/\.search\.ts$/, '.vue')) : undefined
-        if (route)
-          void updateProvider(route.path, file.replace(/\.search\.ts$/, '.vue'), route.marksItems)
-      }
-      devServer.watcher.on('add', onProviderFile)
-      devServer.watcher.on('unlink', onProviderFile)
     },
     buildStart() {
       resolveId = async (id, importer) => (await this.resolve(id, importer, { skipSelf: true }))?.id
@@ -1538,33 +1469,42 @@ export function createSettingsSearch() {
       // A changed module can change what any name reads, such as a store that moved, or what a button renders.
       sources.clear()
       buttons.clear()
+      // The settings of a component that a module imports come from a module of their own, which the edit of the component does not reach.
+      const entries = entryComponents.has(file) ? server?.moduleGraph.getModuleById(`${ENTRIES_MODULE_PREFIX}${file}`) : undefined
+      if (entries)
+        server?.moduleGraph.invalidateModule(entries)
     },
     buildEnd() {
-      const report = [reportUnreadableNames(), reportPagesWithoutProvider()].filter(Boolean).join('\n')
+      const report = reportUnreadableNames()
       if (report && failOnUnreadable)
         this.error(report)
     },
-    resolveId(id) {
-      return id === PROVIDERS_MODULE ? RESOLVED_PROVIDERS_MODULE : undefined
+    async resolveId(id, importer) {
+      if (!id.endsWith(ENTRIES_SUFFIX) || !importer)
+        return undefined
+      const component = (await this.resolve(id.slice(0, -ENTRIES_SUFFIX.length), importer, { skipSelf: true }))?.id
+      return component?.endsWith('.vue') ? `${ENTRIES_MODULE_PREFIX}${component}` : undefined
     },
     async load(id) {
-      if (id !== RESOLVED_PROVIDERS_MODULE)
+      if (!id.startsWith(ENTRIES_MODULE_PREFIX))
         return undefined
-      // The routes are scanned in `buildStart`, before any module loads.
-      // The scans run at the same time, so the insertion order of `providers` changes between builds.
-      // Sort by route path, so that two builds of one source give the same chunk.
-      const entries = [...providers].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([path, file]) => `  ${JSON.stringify(path)}: () => import(${JSON.stringify(file)}).then(module => module.default),`)
-      return `export default {\n${entries.join('\n')}\n}\n`
+      const file = id.slice(ENTRIES_MODULE_PREFIX.length)
+      entryComponents.add(file)
+      this.addWatchFile(file)
+      const scan = await scanComponent(file, NO_USAGE, new Set())
+      const gates = gatesOf(scan.entries, scan.controls)
+      const entries = [...new Set(scan.entries.map(entry => entry.key))].map(key => ({ key, gates: gateChainOf(key, gates) }))
+      return `export default ${JSON.stringify(entries)}\n`
     },
     async transform(code, id) {
-      if (id.includes('?'))
+      if (id.includes('?') || id.startsWith('\0'))
         return undefined
       if (SCRIPT_FILE.test(id)) {
-        if (!id.includes('/node_modules/') && code.includes('defineProvider(') && code.includes('views'))
-          await registerProviderViews(code, id)
+        if (!id.includes('/node_modules/') && code.includes(ENTRIES_SUFFIX))
+          await registerEntryComponents(code, id)
         return undefined
       }
-      if (!scannedFiles.has(id) && !providerViews.has(id))
+      if (!scannedFiles.has(id) && !entryComponents.has(id))
         return undefined
       const descriptor = parse(code, { filename: id }).descriptor
       const root = descriptor.template?.ast
@@ -1604,39 +1544,25 @@ export function createSettingsSearch() {
         else
           output.appendLeft(element.loc.start.offset + 1 + element.tag.length, attribute)
       }
-      if (providerViews.has(id))
-        await exportViewEntries(descriptor, id, output)
       return output.hasChanged() ? { code: output.toString(), map: output.generateMap({ source: id, hires: true }) } : undefined
     },
   }
 
-  /** Records the views that the provider definitions of a module load. A view that loaded before, as after an edit, loads again. */
-  async function registerProviderViews(code: string, file: string) {
-    const program = await readProgram(file, code)
-    for (const specifier of program ? providerViewImportsOf(program) : []) {
-      const view = await resolveFile(specifier, file)
-      if (!view?.endsWith('.vue') || providerViews.has(view))
+  /**
+   * Records the components whose settings a module imports, so their rows get markers.
+   * The module that imports them is transformed before its imports load, so the record is in place before the component is transformed.
+   * In development, a component that loaded before, as after an edit, loads again.
+   */
+  async function registerEntryComponents(code: string, file: string) {
+    for (const [, , specifier] of code.matchAll(ENTRIES_IMPORT)) {
+      const component = specifier ? await resolveFile(specifier, file) : undefined
+      if (!component?.endsWith('.vue') || entryComponents.has(component))
         continue
-      providerViews.add(view)
-      const module = server?.moduleGraph.getModuleById(view)
+      entryComponents.add(component)
+      const module = server?.moduleGraph.getModuleById(component)
       if (module)
         server?.moduleGraph.invalidateModule(module)
     }
-  }
-
-  /** Adds the settings of a provider view to its module as {@link SETTINGS_SEARCH_VIEW_EXPORT}, each with its gates. */
-  async function exportViewEntries(descriptor: SFCDescriptor, file: string, output: MagicString) {
-    const scan = await scanComponent(file, NO_USAGE, new Set())
-    const gates = gatesOf(scan.entries, scan.controls)
-    const entries = [...new Set(scan.entries.map(entry => entry.key))].map(key => ({ key, gates: gateChainOf(key, gates) }))
-    const exported = `\nexport const ${SETTINGS_SEARCH_VIEW_EXPORT} = ${JSON.stringify(entries)}\n`
-    if (descriptor.script) {
-      output.appendLeft(descriptor.script.loc.end.offset, exported)
-      return
-    }
-    // A plain script block next to `<script setup>` holds the export. Both blocks need the same language.
-    const lang = descriptor.scriptSetup?.lang ? ` lang="${descriptor.scriptSetup.lang}"` : ''
-    output.append(`\n<script${lang}>${exported}</script>\n`)
   }
 
   async function extendRoute(route: SettingsSearchRouteNode) {
@@ -1645,14 +1571,14 @@ export function createSettingsSearch() {
       return
 
     const scan = await scanComponent(file, NO_USAGE, new Set())
-    routesByPage.set(file, { path: route.fullPath, marksItems: scan.marksItems })
-    await updateProvider(route.fullPath, file, scan.marksItems)
-
     const entries = scan.entries.filter(entry => entry.key !== route.meta.titleKey)
     const gates = gatesOf(entries, scan.controls)
     const keys = [...new Set(entries.map(entry => entry.key))]
     if (keys.length)
       route.addToMeta({ searchKeys: keys, ...(Object.keys(gates).length ? { searchGates: gates } : {}) })
+    // The module that holds the route lists those items. The settings home reports a page whose module lists none.
+    if (scan.marksItems)
+      route.addToMeta({ searchItemRows: true })
     reportNewUnreadableNamesSoon()
   }
 

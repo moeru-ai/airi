@@ -1,4 +1,4 @@
-import type { SettingsSearchProvider } from '@proj-airi/stage-shared/settings-search'
+import type { SettingsSearchModule } from '@proj-airi/stage-ui/libs/settings-search'
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { settingsSearchItemKey } from '@proj-airi/stage-shared/settings-search'
@@ -9,7 +9,7 @@ import { useTamagotchiHomeAssistantStore } from '../../../stores/tools/home-assi
 
 const ENTITY_KIND = 'home-assistant-entity'
 
-/** The marker of a device's tile. The page and the provider share it. */
+/** The marker of a device's tile. The page and its module share it. */
 export function homeAssistantEntitySearchKey(entityId: string) {
   return settingsSearchItemKey(ENTITY_KIND, entityId)
 }
@@ -21,15 +21,18 @@ export function homeAssistantEntityOfSearchKey(key: unknown) {
 }
 
 /**
- * Lists the devices of the instance by name.
- * The page reads the device list only while it shows the device grid, so the provider reads it under the same condition.
+ * The Home Assistant page, with the devices of the instance by name.
+ * The page reads the device list only while it shows the device grid, so the module reads it under the same condition.
  */
-const provideEntities: SettingsSearchProvider = async () => {
-  const config = await useElectronEventaInvoke(homeAssistantGetConfig)()
-  if (useHomeAssistantStore().exposureMode === 'all' || !config.baseUrl || !config.hasToken)
-    return []
-  const entities = await useTamagotchiHomeAssistantStore().listEntities()
-  return entities.map(entity => ({ title: entity.name, key: homeAssistantEntitySearchKey(entity.entityId) }))
-}
-
-export default provideEntities
+export default {
+  routes: [{
+    path: '/settings/modules/home-assistant',
+    items: async () => {
+      const config = await useElectronEventaInvoke(homeAssistantGetConfig)()
+      if (useHomeAssistantStore().exposureMode === 'all' || !config.baseUrl || !config.hasToken)
+        return []
+      const entities = await useTamagotchiHomeAssistantStore().listEntities()
+      return entities.map(entity => ({ title: entity.name, key: homeAssistantEntitySearchKey(entity.entityId) }))
+    },
+  }],
+} satisfies SettingsSearchModule
