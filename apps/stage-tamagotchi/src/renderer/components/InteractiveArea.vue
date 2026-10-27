@@ -64,6 +64,17 @@ const props = withDefaults(defineProps<{
    * Hidden messages stay in the session.
    */
   expiredBefore?: number
+  /**
+   * The side where an open dock stands over the history, such as the dock of the attached floating feed while the
+   * cursor is near it. The messages slide aside to keep a lane free for it. The composer and the welcome card keep
+   * their place.
+   */
+  dockSide?: 'left' | 'right'
+  /**
+   * The width in pixels of a band along the right edge of the window that resizes it, such as the outer edge of an
+   * attached floating chat. The history keeps clear of the band, so its scrollbar ends where the band starts.
+   */
+  rightResizeBand?: number
 }>(), {
   floating: false,
   composerFoldable: false,
@@ -410,6 +421,8 @@ defineExpose({
         :surface="props.floating ? 'opaque' : 'translucent'"
         :scrollbar="props.floating ? 'hover' : 'scroll'"
         :passive="props.passive"
+        :class="['transition-[padding] duration-300 ease-out motion-reduce:transition-none', props.dockSide && { left: 'pl-12', right: 'pr-12' }[props.dockSide]]"
+        :style="props.rightResizeBand ? { width: `calc(100% - ${props.rightResizeBand}px)` } : undefined"
         :expired-before="props.expiredBefore"
         @delete-message="handleDeleteMessage"
         @reply-message="handleReplyMessage"
