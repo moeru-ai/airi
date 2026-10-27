@@ -128,8 +128,12 @@ const cursorNearDock = computed(() => !cursorAwayFromDock.value)
 // The dock waits a moment before it closes, so a cursor that slips off its edge does not make it flicker.
 const cursorNearDockLately = refDebounced(cursorNearDock, 400)
 const { focused: focusInDock } = useFocusWithin(dockZone)
-// Only keyboard focus keeps the dock open. A click leaves the focus on its button, and the dock still closes when the cursor leaves.
-const dockFocused = computed(() => focusInDock.value && document.activeElement?.matches(':focus-visible') === true)
+// Only keyboard focus keeps the dock open. A click leaves the focus on its button, and the dock still closes when the
+// cursor leaves. The last input decides, as for `:focus-visible`. It is reactive, so a later click lets the dock close.
+const keyboardInput = shallowRef(false)
+useEventListener(window, 'keydown', () => keyboardInput.value = true, { capture: true, passive: true })
+useEventListener(window, 'pointerdown', () => keyboardInput.value = false, { capture: true, passive: true })
+const dockFocused = computed(() => focusInDock.value && keyboardInput.value)
 // A menu of the dock opens over the page, away from the dock. The dock stays open while the trigger of a menu is open.
 const dockMenuOpen = shallowRef(false)
 useMutationObserver(dockZone, () => {
@@ -164,6 +168,10 @@ let dockAnimations: Array<ReturnType<typeof animate>> = []
  * Turns the dock into its bar and back. The bar is the dock itself under a clip, so opening grows the same white shape
  * out of the bar, and the items fade in together once the shape is nearly open. They do not move, so the column stays
  * straight. Closing fades the items first and then draws the shape back into the bar.
+ *
+ * The window lets clicks through where nothing is painted, and it checks that again only when the cursor moves. The
+ * dock changes what is painted under a still cursor, so each change checks again once it is done. Closing removes the
+ * dock from under the cursor, so the window lets clicks through there at once.
  */
 watch([verticalDock, dockOpen], async ([vertical, open], previous) => {
   await nextTick()
@@ -189,16 +197,18 @@ watch([verticalDock, dockOpen], async ([vertical, open], previous) => {
   if (!previous?.[0] || reducedMotion.value === 'reduce') {
     dock.style.clipPath = target
     items.forEach(item => item.style.opacity = open ? '' : '0')
+    hitTest({ removed: !open })
     return
   }
   const from = dock.style.clipPath || DOCK_OPEN_CLIP
   if (open) {
-    dockAnimations.push(animate(dock, { clipPath: [from, target], ease: ISLAND_SPRING }))
-    dockAnimations.push(animate(items, { opacity: [0, 1], duration: 160, delay: 120, ease: 'outQuad' }))
+    // The buttons take clicks once they show, before the spring of the shape settles.
+    dockAnimations.push(animate(dock, { clipPath: [from, target], ease: ISLAND_SPRING, onComplete: () => hitTest() }))
+    dockAnimations.push(animate(items, { opacity: [0, 1], duration: 160, delay: 120, ease: 'outQuad', onComplete: () => hitTest() }))
   }
   else {
     dockAnimations.push(animate(items, { opacity: 0, duration: 100, ease: 'inQuad' }))
-    dockAnimations.push(animate(dock, { clipPath: [from, target], duration: 300, delay: 60, ease: 'inOutQuad' }))
+    dockAnimations.push(animate(dock, { clipPath: [from, target], duration: 300, delay: 60, ease: 'inOutQuad', onComplete: () => hitTest({ removed: true }) }))
   }
 }, { immediate: true })
 
