@@ -119,10 +119,10 @@ const menu = computed(() => [
     to: '/devtools/model-driver-mediapipe',
   },
   {
-    title: t('settings.pages.system.sections.section.developer.sections.section.provider-checks.title'),
-    description: t('settings.pages.system.sections.section.developer.sections.section.provider-checks.description'),
+    title: t('settings.pages.system.sections.section.developer.sections.section.needs-attention.title'),
+    description: t('settings.pages.system.sections.section.developer.sections.section.needs-attention.description'),
     icon: 'i-solar:shield-check-bold-duotone',
-    to: '/devtools/provider-checks',
+    to: '/devtools/needs-attention',
   },
 ])
 </script>

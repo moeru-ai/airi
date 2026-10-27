@@ -8,7 +8,7 @@ import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, pic
 import { useAuthStore } from '../auth'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
-import { toSignedPercent, useSpeechStore } from './speech'
+import { speechFieldsKeyOf, speechFieldStatus, toSignedPercent, useSpeechStore } from './speech'
 
 const i18nState = vi.hoisted(() => ({
   locale: { value: 'en-US' },
@@ -825,5 +825,52 @@ describe('vOICEVOX provider defaults', () => {
       rejectActive?.(new Error('test cleanup'))
       await active
     }
+  })
+})
+
+describe('speechFieldStatus', () => {
+  const official = { provider: OFFICIAL_SPEECH_PROVIDER_ID, model: 'auto', voice_id: '' }
+  const streaming = { provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, model: '', voice_id: 'voice' }
+
+  it('waits for the voice that the store picks while the voice catalog of an official provider loads', () => {
+    expect(speechFieldStatus(official, {}, () => null, true)).toEqual({ missing: [], pending: ['voice'] })
+  })
+
+  it('reports the voice of an official provider as missing when its voice catalog is not loading', () => {
+    // A catalog that failed, came back empty, or was not requested picks no voice, so the reply stays text only.
+    expect(speechFieldStatus(official, {}, () => null, false)).toEqual({ missing: ['voice'], pending: [] })
+  })
+
+  it('waits for the default model while the model catalog of a streaming provider loads', () => {
+    expect(speechFieldStatus(streaming, {}, () => undefined, false)).toEqual({ missing: [], pending: ['model'] })
+  })
+
+  it('reports the model of a streaming provider as missing when its catalog has no default model', () => {
+    expect(speechFieldStatus(streaming, {}, () => null, false)).toEqual({ missing: ['model'], pending: [] })
+  })
+
+  it('takes the default model of a streaming provider', () => {
+    expect(speechFieldStatus(streaming, {}, () => 'volcengine/seed-tts-1.0', false)).toEqual({ missing: [], pending: [] })
+  })
+
+  it('reports a missing voice of a provider that does not pick one, even while a catalog loads', () => {
+    expect(speechFieldStatus({ provider: 'minimax-speech', model: 'speech-02-hd', voice_id: '' }, {}, () => undefined, true)).toEqual({ missing: ['voice'], pending: [] })
+  })
+
+  it('takes the model and the voice from the provider config', () => {
+    expect(speechFieldStatus({ provider: 'openai-compatible-audio-speech', model: '', voice_id: '' }, { model: 'tts-1', voice: 'alloy' }, () => null, false)).toEqual({ missing: [], pending: [] })
+  })
+
+  it('reports nothing when speech is off', () => {
+    expect(speechFieldStatus({ provider: 'speech-noop', model: '', voice_id: '' }, {}, () => null, false)).toEqual({ missing: [], pending: [] })
+  })
+})
+
+describe('speechFieldsKeyOf', () => {
+  it('names each set of fields with one key', () => {
+    expect(speechFieldsKeyOf(['model'])).toBe('model')
+    expect(speechFieldsKeyOf(['voice'])).toBe('voice')
+    expect(speechFieldsKeyOf(['model', 'voice'])).toBe('model-voice')
+    expect(speechFieldsKeyOf([])).toBeUndefined()
   })
 })

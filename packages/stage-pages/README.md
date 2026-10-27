@@ -65,12 +65,22 @@ The settings home searches every settings page, the settings on it, and the runt
 
 ## Needs attention
 
-The settings home lists the providers in use that are not set up, or whose last check failed. It shows under the search field and scrolls with the list.
+The settings home lists the settings that keep a feature in use from working. It shows under the search field and scrolls with the list.
 
-- `useSettingsNeedsAttention()` from stage-ui gives the list. A provider shows only after a check in this session, so a status from the last session does not show it.
+- `useSettingsNeedsAttention()` from stage-ui gives the list.
+- An item shows only when a feature in use cannot work, a check or the saved settings confirm the cause, and a settings page fixes it.
+- A failed save, a sync problem, or a new version is not an item. The place of the action reports it.
+- **Provider not set up**: the required fields of a provider in use are empty, for example after its API key was cleared.
+- **Provider check failed**: the last check of a provider in use failed. The item shows the first reason of the check.
+- A provider shows only after a check in this session, so a status from the last session does not show it.
 - A provider is in use when a module or any character selects it. A chat session resolves its own character, so the active card is not the only user. A provider that nothing uses does not show. The providers page shows its status.
-- **Not set up**: the required fields of the provider are empty, for example after its API key was cleared. These providers come first, because a module cannot use them at all.
-- **Check failed**: the provider shows the first reason of the check.
-- Each provider shows the modules that use it. A provider without a brand icon shows the icon of its module kind.
-- **Edit** opens the settings page of the provider. **Dismiss** hides it on this device until its config or its failure reason changes.
-- `/devtools/provider-checks` shows when the checks run, when each provider was checked, and how often a provider checks itself. It lists the dismissed providers and can show them again. It can make chosen providers fail their check on purpose, to test the list. This choice ends when the app quits.
+- **Provider cannot be used**: a character or the Hearing module selects a provider that its module page does not list, for example a removed provider. A character keeps this selection, because the person can add the provider again. An added provider of the right kind waits for its check instead: the page lists it after a check passes, and a failed check gives a provider item.
+- **Character without a speech model or voice**: the speech of a character has a usable provider, but no model or no voice. Its replies stay text only. `speechFieldStatus()` in the speech store gives the check, and `createOutput` resolves the selection the same way.
+- An empty field that a catalog fills later is pending, not missing. The store picks a voice for an official provider, and a streaming provider takes its default model, after the catalog loads. Only a catalog that is loading counts. A catalog that failed, came back empty, or was not requested leaves the field missing.
+- **Voice input without transcription**: the microphone is on in the Always on mode, but Hearing has no transcription provider or model. Speech then starts no input. Push to Talk and dictation explain this when the person presses them.
+- An item without a brand icon shows the icon of its module kind.
+- Blocking items come first. Only a failed check is not blocking, because the next check can pass.
+- **Edit** opens the page that fixes the item. A module page edits the active character. For another character, it opens the character editor. **Dismiss** hides the item on this device until its cause changes.
+- `/devtools/needs-attention` tests this list. It lists every item, also the dismissed ones, and can show a dismissed item again.
+- It shows when the provider checks run, when each provider was checked, and how often a provider checks itself. It also shows the provider of each module selection, the speech of each character, and the voice input.
+- It can make the list show each kind of item on purpose: a provider fails its check, a module selection cannot be used, a character has no voice, or voice input has no transcription. These choices end when the app quits.

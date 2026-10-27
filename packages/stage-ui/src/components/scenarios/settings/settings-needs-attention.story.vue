@@ -8,31 +8,40 @@ import SettingsNeedsAttention from './settings-needs-attention.vue'
 const sample: SettingsNeedsAttentionItem[] = [
   {
     id: 'minimax-speech',
-    name: 'MiniMax Speech',
+    title: 'MiniMax Speech is not set up',
+    detail: 'Used by Speech',
     fallbackIcon: 'i-solar:user-speak-rounded-bold-duotone',
     modules: ['Speech'],
-    problem: 'unconfigured',
-    reason: '',
+    blocking: true,
     to: '/settings/providers/speech/minimax-speech',
   },
   {
+    id: 'speech:default',
+    title: 'AIRI has no voice',
+    detail: 'Replies are text only · ElevenLabs',
+    fallbackIcon: 'i-solar:user-speak-rounded-bold-duotone',
+    modules: ['Speech'],
+    blocking: true,
+    to: '/settings/modules/speech',
+  },
+  {
     id: 'openai',
-    name: 'OpenAI',
+    title: 'OpenAI failed its last check',
+    detail: 'Model list check failed: 401 Incorrect API key provided. · Used by Consciousness',
     icon: 'i-lobe-icons:openai',
     fallbackIcon: 'i-solar:ghost-bold-duotone',
     modules: ['Consciousness'],
-    problem: 'failed',
-    reason: 'Model list check failed: 401 Incorrect API key provided.',
+    blocking: false,
     to: '/settings/providers/chat/openai',
   },
   {
     id: 'vision-ollama',
-    name: 'Ollama',
+    title: 'Ollama failed its last check',
+    detail: 'Connectivity check failed: Failed to fetch · Used by Vision',
     icon: 'i-lobe-icons:ollama',
     fallbackIcon: 'i-solar:eye-closed-bold-duotone',
     modules: ['Vision'],
-    problem: 'failed',
-    reason: 'Connectivity check failed: Failed to fetch',
+    blocking: false,
     to: '/settings/providers/vision/ollama',
   },
 ]
@@ -47,7 +56,7 @@ function dismiss(item: SettingsNeedsAttentionItem) {
 
 <template>
   <Story title="Settings Needs Attention" group="misc">
-    <Variant id="many" title="Three providers">
+    <Variant id="many" title="Four items">
       <div :class="['flex flex-col gap-4 p-4']">
         <SettingsNeedsAttention :items="items" @fix="fixed = $event.to" @dismiss="dismiss" />
         <p>Edit opens: {{ fixed || '—' }}. Dismiss removes the row.</p>
@@ -58,9 +67,14 @@ function dismiss(item: SettingsNeedsAttentionItem) {
         <SettingsNeedsAttention :items="sample.slice(0, 1)" />
       </div>
     </Variant>
-    <Variant id="one-failed" title="One provider, check failed">
+    <Variant id="one-speech" title="One character without a voice">
       <div :class="['p-4']">
         <SettingsNeedsAttention :items="sample.slice(1, 2)" />
+      </div>
+    </Variant>
+    <Variant id="one-failed" title="One provider, check failed">
+      <div :class="['p-4']">
+        <SettingsNeedsAttention :items="sample.slice(2, 3)" />
       </div>
     </Variant>
   </Story>

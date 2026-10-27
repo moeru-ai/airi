@@ -2194,9 +2194,9 @@ pages:
               markdown-stress:
                 title: Markdown 压力测试
                 description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
-              provider-checks:
-                title: 提供商检查
-                description: 查看提供商检查的时间，并让选中的提供商故意检查失败
+              needs-attention:
+                title: 需要注意
+                description: 调试设置首页的“需要注意”列表：查看提供商检查和每个角色的语音，并故意制造问题
                 timing-label: 检查时机
                 timing-signed-in: '已登录：登录时和之后每 {minutes} 分钟同步一次，同步完检查已添加的提供商'
                 timing-signed-out: 未登录：不会自动检查，只在部分提供商设置页里改配置，或点下面的按钮时检查
@@ -2212,6 +2212,29 @@ pages:
                 restore-one: 取消忽略
                 simulate: 故意失败
                 simulated-reason: 开发者工具模拟的失败。
+                speech-title: 角色语音
+                speech-off: 语音已关闭
+                speech-ready: 可以发声
+                speech-missing-model: 没选语音合成模型
+                speech-missing-voice: 没选声线
+                speech-missing-model-voice: 没选语音合成模型和声线
+                speech-provider-unusable: 发声模块现在用不了这个提供商，列表里显示提供商那一项
+                speech-pending: 等目录加载
+                items-title: 列表里的项
+                items-empty: 现在没有需要注意的项。
+                selections-title: 模块的提供商
+                selection-usable: 可以用
+                selection-provider-item: 由提供商那一项报告
+                selection-awaiting-check: 已添加，等检查结果
+                selection-unusable: 模块用不了它
+                simulate-unusable: 当作不能用
+                voice-input-title: 语音输入
+                voice-input-mic-on: 麦克风已开
+                voice-input-mic-off: 麦克风已关
+                voice-input-ready: 听觉可以转写
+                voice-input-not-ready: 听觉没有转写服务或模型
+                simulate-voice-input: 当作开着但不能转写
+                simulate-speech: 当作没选声线
                 kinds:
                   chat: 对话
                   vision: 视觉
@@ -2399,8 +2422,19 @@ search:
 needs-attention:
   title-one: '{name} 上次检查没通过'
   title-unconfigured: '{name} 还没配置好'
-  title-many: '{count} 个提供商需要处理'
-  affects: '{modules}用到时会出错'
+  title-many: '{count} 项需要处理'
+  speech-no-model: '{name} 还没选语音合成模型'
+  speech-no-voice: '{name} 还没选声线'
+  speech-no-model-voice: '{name} 还没选语音合成模型和声线'
+  text-only: 现在只回复文字
+  simulated: 开发者工具模拟
+  character-provider-unavailable: '{name} 的{module}提供商不能用'
+  module-provider-unavailable: '{module}的提供商不能用'
+  provider-not-listed: '{provider} 不在可选的提供商里'
+  hearing-no-provider: 语音输入开着，但还没选转写服务
+  hearing-no-model: 语音输入开着，但还没选转写模型
+  not-transcribed: 说的话不会被转写
+  affects: '影响{modules}'
   used-by: '{modules}在用'
   fix: 去修改
   dismiss: 忽略
