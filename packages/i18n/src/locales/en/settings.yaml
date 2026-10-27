@@ -1487,6 +1487,11 @@ pages:
       description: Let AIRI search the web for current information
       enable: Enable Web Search
       enable-description: Allow AIRI to search the web during chat
+      provider: Search provider
+      deepseek:
+        api-key: DeepSeek API Key
+        api-key-description: Enter a DeepSeek API key for web search. This key is separate from your chat provider settings.
+        api-key-placeholder: Enter your DeepSeek API key
       api-key: Tavily API Key
       api-key-description: Web search is powered by Tavily. Get a free API key at tavily.com.
       api-key-placeholder: Enter your Tavily API key
