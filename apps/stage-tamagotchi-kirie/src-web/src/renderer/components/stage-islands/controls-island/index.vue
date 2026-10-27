@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useHostAlwaysOnTop, useHostAppQuit, useHostChat, useHostEventaInvoke, useHostMouseInElement, useHostWindowCenter, useHostWindowMove } from '@proj-airi/stage-host-context'
+import { useHostAlwaysOnTop, useHostAppQuit, useHostEventaInvoke, useHostMouseInElement, useHostWindowCenter, useHostWindowMove } from '@proj-airi/stage-host-context'
 import { IS_DEV } from '@proj-airi/stage-shared'
 import { HearingConfigDialog, InboxPanel } from '@proj-airi/stage-ui/components'
 import { useInboxStore } from '@proj-airi/stage-ui/stores/inbox'
@@ -14,6 +14,7 @@ import StatusIsland from '../status-island/index.vue'
 import ControlButtonTooltip from './control-button-tooltip.vue'
 import ControlButton from './control-button.vue'
 import ControlsIslandAuthButton from './controls-island-auth-button.vue'
+import ControlsIslandChatButton from './controls-island-chat-button.vue'
 import ControlsIslandFadeOnHover from './controls-island-fade-on-hover.vue'
 import ControlsIslandProfilePicker from './controls-island-profile-picker.vue'
 import ControlsIslandSpeechMute from './controls-island-speech-mute.vue'
@@ -69,7 +70,6 @@ const settingsStore = useSettings()
 const { enabled } = storeToRefs(settingsAudioDeviceStore)
 const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
 const openSettings = useHostEventaInvoke(electronOpenSettings)
-const openChat = useHostChat()
 const quitApp = useHostAppQuit()
 const setAlwaysOnTop = useHostAlwaysOnTop()
 const centerMainWindow = useHostWindowCenter()
@@ -630,19 +630,7 @@ function resetMainWindowPosition() {
             :icon-class="adjustStyleClasses.icon"
           />
 
-          <ControlButtonTooltip side="inward">
-            <ControlButton
-              v-track-button="{ name: 'controls_island_action', action: 'toggle_chat' }"
-              :button-style="adjustStyleClasses.button"
-              :aria-label="t('tamagotchi.stage.controls-island.open-chat')"
-              @click="() => openChat()"
-            >
-              <div :class="['i-solar:chat-line-line-duotone text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
-            </ControlButton>
-            <template #tooltip>
-              {{ t('tamagotchi.stage.controls-island.open-chat') }}
-            </template>
-          </ControlButtonTooltip>
+          <ControlsIslandChatButton :button-style="adjustStyleClasses.button" :icon-class="adjustStyleClasses.icon" />
 
           <ControlButtonTooltip side="inward">
             <ControlButton

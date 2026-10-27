@@ -45,10 +45,11 @@ public partial class Main : Node
             return;
         }
 
-        var registry = WidgetContracts.Register(
-            AiriDesktopContracts.Register(
-                GdKirieNotifications.Register(
-                    GdKiriePlatform.Register(new KirieEventaJsonRegistry()))));
+        var registry = ChatWindowContracts.Register(
+            WidgetContracts.Register(
+                AiriDesktopContracts.Register(
+                    GdKirieNotifications.Register(
+                        GdKiriePlatform.Register(new KirieEventaJsonRegistry())))));
         _eventa = _kirie.CreateEventaContext(registry);
         _platform = GdKiriePlatform.Attach(_eventa.Context, window);
         _notifications = GdKirieNotifications.Attach(_eventa.Context, window);
@@ -107,7 +108,12 @@ public partial class Main : Node
                 GetWindow(),
                 registry,
                 rendererUrl,
-                _microphonePermissions);
+                _microphonePermissions,
+                // A chat window opens only after this method returns, so the settings manager
+                // below exists by then.
+                chatContext => _settings?.Attach(chatContext)
+                    ?? throw new InvalidOperationException(
+                        "The settings window manager is unavailable."));
             _spotlight = new SpotlightHost(
                 _eventa.Context,
                 this,
@@ -211,6 +217,7 @@ public partial class Main : Node
     public override void _Process(double delta)
     {
         _widgets?.Process();
+        _chat?.Process();
         _tray?.Process();
         _auth?.ProcessPending();
         _microphonePermissions?.Process();
