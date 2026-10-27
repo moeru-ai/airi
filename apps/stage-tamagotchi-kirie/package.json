@@ -133,6 +133,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@gd-kirie/tray": "0.15.0",
     "@iconify-json/carbon": "catalog:",
     "@iconify-json/eos-icons": "catalog:",
     "@iconify-json/lucide": "catalog:",

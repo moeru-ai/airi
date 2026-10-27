@@ -10,7 +10,7 @@
     "url": "https://github.com/moeru-ai"
   },
   "homepage": "https://airi.moeru.ai/docs/",
-  "main": "./out/main/index.js",
+  "main": "./out/launcher/index.mjs",
   "scripts": {
     "lint": "eslint --cache .",
     "typecheck": "vue-tsc --noEmit",
@@ -34,18 +34,18 @@
     "artifacts-metadata": "tsx scripts/artifacts-metadata.ts",
     "check:reproducible-build": "tsx scripts/check-reproducible-build.ts",
     "smoke:desktop-overlay-live-window": "NODE_OPTIONS='--experimental-websocket' tsx scripts/desktop-overlay-live-window-smoke.ts",
-    "smoke:linux-window-render": "NODE_OPTIONS='--experimental-websocket' tsx scripts/linux-window-render-smoke.ts",
-    "update-test:generate": "tsx scripts/update-test/generate-manifest.ts",
-    "update-test:server": "tsx scripts/update-test/start-server.ts",
-    "update-test:matrix": "bash scripts/update-test/run-matrix.sh"
+    "smoke:linux-window-render": "NODE_OPTIONS='--experimental-websocket' tsx scripts/linux-window-render-smoke.ts"
   },
   "dependencies": {
     "@auv-js/cli": "catalog:",
     "@auv-js/sdk": "catalog:",
+    "@ergosphere-it/electron": "catalog:",
+    "@napi-rs/image": "catalog:",
     "@proj-airi/electron-native-backdrop": "workspace:^",
     "@xsai-apple-speech/transcription-native": "catalog:",
     "@xsai-apple-vision/vision-native": "catalog:",
     "electron-click-drag-plugin": "catalog:",
+    "electron-updater": "^6.8.9",
     "uiohook-napi": "catalog:"
   },
   "optionalDependencies": {
@@ -174,10 +174,10 @@
     "drizzle-orm": "catalog:",
     "electron": "catalog:",
     "electron-builder": "catalog:",
-    "electron-updater": "catalog:",
     "electron-vite": "catalog:",
     "embla-carousel-vue": "catalog:",
     "es-toolkit": "catalog:",
+    "file-type": "catalog:",
     "get-port-please": "catalog:",
     "h3": "catalog:",
     "injeca": "catalog:",

@@ -155,7 +155,7 @@ describe('voicevox family settings', () => {
   // A follower renderer reported "Failed to execute 'postMessage' on
   // 'BroadcastChannel': #<Object> could not be cloned."
   //
-  // `validateProviderConfig` is a synchronized action. A follower posts its
+  // `validateProviderSettings` is a synchronized action. A follower posts its
   // arguments to the leader. The caller built them with `{ ...credentials.value }`,
   // which leaves every nested value a Vue reactive proxy. `structuredClone`
   // rejects a proxy. A flat credential pair survived that check, so only the
@@ -177,7 +177,7 @@ describe('voicevox family settings', () => {
         return
 
       store.$onAction(({ args, name }) => {
-        if (name === 'validateProviderConfig')
+        if (name === 'validateProviderSettings')
           validationArgs.push(args)
       })
     })

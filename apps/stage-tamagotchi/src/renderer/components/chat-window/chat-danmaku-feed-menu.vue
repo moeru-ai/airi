@@ -2,12 +2,12 @@
 import type { ChatHeaderButtonVariant } from './chat-header-button'
 
 import { useHoverMenu } from '@proj-airi/stage-ui/components/scenarios/chat/composables/use-hover-menu'
+import { danmakuFeedTiming, useDanmakuFeedSettings } from '@proj-airi/stage-ui/composables/use-danmaku-feed-settings'
 import { DropdownMenu, Range } from '@proj-airi/ui'
 import { DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator } from 'reka-ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { danmakuFeedTiming, useDanmakuFeedSettings } from '../../composables/use-danmaku-feed-settings'
 import { chatHeaderButtonClass } from './chat-header-button'
 
 // The root holds the button and its menu, so a class from the parent goes to

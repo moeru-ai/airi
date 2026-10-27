@@ -4,19 +4,20 @@ import type { ComputerUseResult } from '../../../../shared/eventa/computer-use'
 
 import process from 'node:process'
 
-import { Buffer } from 'node:buffer'
 import { execFile } from 'node:child_process'
 import { readFile, realpath, stat } from 'node:fs/promises'
 import { isAbsolute, relative, sep } from 'node:path'
 import { promisify } from 'node:util'
 
 import { startAuv } from '@auv-js/sdk/node'
+import { fileTypeFromBuffer } from 'file-type'
 
 import * as v from 'valibot'
 
 import { isComputerUseHelpCall } from '../../../../shared/eventa/computer-use'
 
 const execFileAsync = promisify(execFile)
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024
 const inputSchema = v.object({ argv: v.pipe(v.array(v.pipe(v.string(), v.maxLength(16384), v.check(value => !value.includes('\0')))), v.minLength(2), v.maxLength(128)) })
 
 /** Owns one private daemon and serializes desktop operations across renderer windows. */
@@ -125,14 +126,22 @@ export function createComputerUseRuntime(options: { binaryPath: string, storeRoo
       if (!within || isAbsolute(within) || within === '..' || within.startsWith(`..${sep}`))
         throw new Error('Only screenshots from this AIRI computer-use store can be read.')
       const info = await stat(target)
-      if (!info.isFile() || info.size > 8 * 1024 * 1024)
+      if (!info.isFile() || info.size > MAX_IMAGE_BYTES)
         throw new Error('Screenshot must be a file smaller than 8 MiB.')
       const data = await readFile(target)
-      const png = data.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
-      const jpeg = data[0] === 255 && data[1] === 216 && data[2] === 255
-      if (!png && !jpeg)
-        throw new Error('Screenshot must be PNG or JPEG.')
-      return `data:image/${png ? 'png' : 'jpeg'};base64,${data.toString('base64')}`
+      const type = await fileTypeFromBuffer(data)
+      if (type?.mime === 'image/png' || type?.mime === 'image/jpeg')
+        return `data:${type.mime};base64,${data.toString('base64')}`
+      if (type?.mime !== 'image/webp')
+        throw new Error('Screenshot must be PNG, JPEG, or WebP.')
+
+      // AUV's Windows backend writes WebP. Convert it to PNG for providers that require PNG or JPEG.
+      // Only that backend needs the native codec, so load it on first use, not at app start.
+      const { Transformer } = await import('@napi-rs/image')
+      const converted = await new Transformer(data).png(null, abort.signal)
+      if (converted.length > MAX_IMAGE_BYTES)
+        throw new Error('Screenshot must be smaller than 8 MiB after converting from WebP to PNG.')
+      return `data:image/png;base64,${converted.toString('base64')}`
     })
   }
 

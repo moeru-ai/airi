@@ -21,3 +21,8 @@ export function useHostWindowMove() {
     usesCssDragRegion,
   }
 }
+
+/** Starts a native resize from one edge or corner. Call it on the press of a resize handle. */
+export function useHostWindowResize() {
+  return initializeHostContext().platform.hostWindow.beginResize
+}

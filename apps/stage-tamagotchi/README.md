@@ -25,7 +25,8 @@ Only the current selection grants access, including retries and tool reruns. His
 The selected request receives `computer_use` and `computer_use_read_image`.
 The first tool accepts AUV arguments, such as `["invoke", "window.list"]`.
 Use `["invoke", "--help"]` and command-specific help to discover supported operations.
-The image tool returns a screenshot as model image content. It accepts only PNG and JPEG artifacts inside the app's computer-use store.
+The image tool returns a screenshot as model image content. It accepts PNG, JPEG, and WebP artifacts inside the app's computer-use store.
+WebP artifacts convert to PNG. PNG and JPEG artifacts keep their original bytes.
 Use a model and provider that support tool calls for visual tasks.
 With **Use the vision model for tool images** on, the vision model reads the screenshot first for a chat model whose provider does not report image input.
 The chat model then gets a text description. It has the visible text and layout, but no pixel positions.

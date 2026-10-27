@@ -22,7 +22,7 @@ import { isEqual } from 'es-toolkit'
 import { nanoid } from 'nanoid'
 import { defineStore, getActivePinia, storeToRefs } from 'pinia'
 import { array, looseObject, object, parse, safeParse, string } from 'valibot'
-import { computed, ref, shallowRef, toRaw, watch } from 'vue'
+import { computed, getCurrentScope, ref, shallowRef, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
@@ -87,6 +87,7 @@ const emptyAvatarModels: readonly CharacterAvatarModelReference[] = Object.freez
 const emptyLive2DExpressions: readonly Live2DExpressionControl[] = Object.freeze([])
 const emptyLive2DMotions: readonly Live2DMotionControl[] = Object.freeze([])
 const emptyLive2DModelControls: Live2DModelControls = { expressions: [], motions: [] }
+const emptyCharacterModules: ReadonlyMap<string, CardModuleDefaults> = new Map()
 
 /**
  * Returns the Display Model ID that a card stored before Avatar Models existed.
@@ -157,6 +158,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     serializer: StorageSerializers.object,
   })
   let appliedModules: AiriExtension['modules'] | undefined
+  let followingInheritedSettings = false
+  const storeScope = getCurrentScope()
   let pendingAuthenticationSetup: Promise<void> | undefined
 
   const activeCard = computed(() => cards.value.get(activeCardId.value))
@@ -236,7 +239,26 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
     if (!appliedModules.speech.provider && !appliedModules.speech.model && !appliedModules.speech.voice_id)
       next.speech.voice_id = runtime.speech.voice_id
-    moduleDefaults.value = next
+    if (!isEqual(next, toRaw(defaults)))
+      moduleDefaults.value = next
+  }
+
+  /**
+   * Keeps inherited defaults in step with the runtime modules after a card applies.
+   * A module store can change an inherited selection later, for example when the official voice catalog picks a voice.
+   * Replies resolve speech from the card and the defaults, so the defaults must follow.
+   * The watcher starts at the first application, because metadata-only consumers must not create the module stores.
+   */
+  function followInheritedSettings() {
+    if (followingInheritedSettings)
+      return
+    followingInheritedSettings = true
+    // An action runs outside the store scope. Run the watcher in it, so the store disposal stops it.
+    storeScope?.run(() => watch(readRuntimeModules, () => {
+      // An application clears `appliedModules` while the runtime holds a mix of two cards.
+      if (appliedModules)
+        rememberInheritedSettings()
+    }, { deep: true }))
   }
 
   /** Applies card speech through the leader command so catalog invalidation precedes its saved voice. */
@@ -283,6 +305,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
   async function applyAuthenticationDefaults(authenticated: boolean) {
     rememberInheritedSettings()
+    appliedModules = undefined
     if (!moduleDefaults.value)
       return
     await writeRuntimeModules(moduleDefaults.value)
@@ -1338,6 +1361,18 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return resolved
   }
 
+  /**
+   * The module selections of every character, resolved against the defaults, by character id.
+   * A chat session resolves its own character through `getModules`, so a provider can be in use without the active card.
+   * The settings home reads it to find the providers in use, and the characters that cannot speak.
+   */
+  const characterModules = computed<ReadonlyMap<string, CardModuleDefaults>>(() => {
+    const defaults = moduleDefaults.value
+    if (!defaults)
+      return emptyCharacterModules
+    return new Map([...cards.value].map(([id, card]) => [id, resolveModules(card.extensions.airi.modules, defaults)]))
+  })
+
   function getSystemPrompt(characterId: string) {
     // Live2D controls are inspected only for the active Avatar Model. Another
     // Character gets its prompt without ACT controls until it becomes active.
@@ -1349,6 +1384,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
   async function applyActiveCardSettings(newCard = activeCard.value) {
     rememberInheritedSettings()
+    // The runtime holds a mix of two cards until the write completes. See followInheritedSettings.
+    appliedModules = undefined
     const artistry = useArtistryStore()
 
     artistry.resetToGlobal()
@@ -1368,6 +1405,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     const resolved = resolveModules(modules, defaults)
     await writeRuntimeModules(resolved)
     appliedModules = modules
+    followInheritedSettings()
     await applyActiveAvatarModel()
 
     if (extension.modules?.artistry) {
@@ -1399,6 +1437,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   return {
     cards,
     moduleDefaults,
+    characterModules,
     activeCard,
     activeCardId,
     builtInCard,

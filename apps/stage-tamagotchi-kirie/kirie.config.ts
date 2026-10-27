@@ -1,6 +1,7 @@
 import { join, resolve } from 'node:path'
 
 import notifications from '@gd-kirie/notifications'
+import tray from '@gd-kirie/tray/plugin'
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import templateCompilerOptions from '@tresjs/core/template-compiler-options'
 import Vue from '@vitejs/plugin-vue'
@@ -14,6 +15,7 @@ import Layouts from 'vite-plugin-vue-layouts'
 import VueMacros from 'vue-macros/vite'
 import VueRouter from 'vue-router/vite'
 
+import { createSettingsSearch } from '@proj-airi/stage-pages/vite/settings-search'
 import { Download } from '@proj-airi/unplugin-fetch'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
 import { defineKirieConfig } from 'kirie'
@@ -21,9 +23,32 @@ import { defineKirieConfig } from 'kirie'
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
 const rendererRoot = resolve(join(import.meta.dirname, 'src-web', 'src', 'renderer'))
+const settingsSearch = createSettingsSearch()
+
+// NOTICE:
+// Use the prerelease Tray addon so macOS draws the 32px tray icon at 16pt.
+// @gd-kirie/tray 0.15.0 uses tray-icon 0.26.1, which lacks icon scale support.
+// Source: https://github.com/tauri-apps/tray-icon/pull/391
+// Remove after tray-icon merges PR #391 and @gd-kirie/tray publishes a new release.
+const trayPlugin = {
+  ...tray,
+  godotAddons: [
+    {
+      id: 'kirie-tray',
+      path: 'addons/kirie_tray',
+      source: {
+        type: 'remote' as const,
+        archivePath: 'kirie_tray',
+        sha256: '0df7786683aa1c8667d57c4a265145761b8f3228e02ec9b7df5095a00d280914',
+        url: 'https://github.com/gd-kirie/kirie-plugins/releases/download/tray-icon-scale-3c1698f/kirie_tray.zip',
+      },
+      version: '0.15.0',
+    },
+  ],
+}
 
 export default defineKirieConfig({
-  plugins: [core, notifications],
+  plugins: [core, notifications, trayPlugin],
   web: {
     vite: {
       build: {
@@ -129,6 +154,8 @@ export default defineKirieConfig({
 
         Yaml(),
 
+        settingsSearch.plugin,
+
         VueMacros({
           plugins: {
             vue: Vue({
@@ -160,6 +187,7 @@ export default defineKirieConfig({
             resolve(rendererRoot, 'pages'),
           ],
           exclude: ['**/components/**'],
+          extendRoute: settingsSearch.extendRoute,
         }),
 
         VitePluginVueDevTools(),

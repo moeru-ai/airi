@@ -1,3 +1,5 @@
+import type { LauncherEvent, Updater, UpdaterStatus } from '@ergosphere-it/electron/main'
+
 import { defineInvoke } from '@moeru/eventa'
 import { autoUpdater as autoUpdaterEventa } from '@proj-airi/electron-eventa/electron-updater'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -5,69 +7,44 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createWindowIpc } from '../../libs/electron/testing/window-ipc'
 import { createWindowContext } from '../../libs/electron/window-context'
 
-const appMock = vi.hoisted(() => ({
-  getVersion: vi.fn(() => '0.9.0-beta.4'),
-  getPath: vi.fn((name: string) => name === 'logs' ? '/tmp/airi/logs' : `/tmp/${name}`),
-  quit: vi.fn(),
-  isPackaged: false,
+const bundleState = vi.hoisted(() => ({
+  version: '0.9.0-beta.4',
 }))
-
-const isDevState = vi.hoisted(() => ({
-  value: false,
-}))
-
-const stdEnvState = vi.hoisted(() => ({
-  isWindows: false,
-}))
-
-const updaterState = vi.hoisted(() => ({
-  instance: createUpdaterMock(),
-}))
-
-function createUpdaterMock() {
-  return {
-    on: vi.fn(),
-    autoDownload: true,
-    allowPrerelease: false,
-    channel: undefined as string | undefined,
-    logger: undefined as any,
-    forceDevUpdateConfig: false,
-    setFeedURL: vi.fn(),
-    checkForUpdates: vi.fn().mockResolvedValue(undefined),
-    downloadUpdate: vi.fn().mockResolvedValue(undefined),
-    quitAndInstall: vi.fn(),
-  }
-}
 
 vi.mock('electron', async () => {
   const { EventEmitter } = await import('node:events')
   return {
-    app: appMock,
+    app: { getPath: (name: string) => `/tmp/${name}` },
     ipcMain: new EventEmitter(),
   }
 })
 
-vi.mock('@electron-toolkit/utils', () => ({
-  is: {
-    get dev() {
-      return isDevState.value
+vi.mock('@ergosphere-it/electron/main', () => ({
+  activeBundle: {
+    fromInstaller: true,
+    releaseId: 1775000000000,
+    get version() {
+      return bundleState.version
     },
   },
+  updater: undefined,
 }))
 
 vi.mock('std-env', () => ({
-  get isWindows() {
-    return stdEnvState.isWindows
-  },
+  isWindows: false,
+}))
+
+vi.mock('node:fs/promises', () => ({
+  appendFile: vi.fn().mockResolvedValue(undefined),
+  mkdir: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('@guiiai/logg', () => ({
   useLogg: () => ({
     useGlobalConfig: () => ({
-      info: vi.fn(),
+      log: vi.fn(),
       warn: vi.fn(),
       error: vi.fn(),
-      debug: vi.fn(),
       withError: () => ({
         error: vi.fn(),
       }),
@@ -75,299 +52,264 @@ vi.mock('@guiiai/logg', () => ({
   }),
 }))
 
-vi.mock('electron-updater', () => ({
-  default: {
-    get autoUpdater() {
-      return updaterState.instance
-    },
-  },
-}))
+const update = { fromInstaller: false, releaseId: 1776000000000, requires: 'restart', version: '0.9.0-beta.6' } as const
 
-vi.mock('~build/git', () => ({
-  committerDate: '2026-04-01T00:00:00.000Z',
-}))
+/** An ergosphere-it updater that a test drives with `setStatus`. */
+function createFakeUpdater(initial: UpdaterStatus = { status: 'idle' }) {
+  let status = initial
+  let channel = 'stable'
+  const statusListeners = new Set<(status: UpdaterStatus) => void>()
+  const eventListeners = new Set<(event: LauncherEvent) => void>()
+  const setChannel = vi.fn((next: string) => {
+    channel = next
+  })
+
+  const updater = {
+    applyUpdate: vi.fn().mockResolvedValue(undefined),
+    get channel() {
+      return channel
+    },
+    set channel(next) {
+      setChannel(next)
+    },
+    checkForUpdates: vi.fn().mockResolvedValue(undefined),
+    cohorts: [],
+    delayHealthCheck: vi.fn(),
+    dismissRollback: vi.fn().mockResolvedValue(undefined),
+    markBundleHealthy: vi.fn(),
+    onBundleChange: vi.fn(() => () => {}),
+    onEvent: vi.fn((listener: (event: LauncherEvent) => void) => {
+      eventListeners.add(listener)
+      return () => eventListeners.delete(listener)
+    }),
+    onStatus: vi.fn((listener: (status: UpdaterStatus) => void) => {
+      statusListeners.add(listener)
+      listener(status)
+      return () => statusListeners.delete(listener)
+    }),
+    get status() {
+      return status
+    },
+  } satisfies Updater
+
+  return {
+    updater,
+    setChannel,
+    setStatus(next: UpdaterStatus) {
+      status = next
+      for (const listener of statusListeners)
+        listener(next)
+    },
+  }
+}
 
 describe('setupAutoUpdater', () => {
-  const expectedChannelByArch = process.arch === 'arm64' ? 'latest-arm64' : 'latest-x64'
-
-  const laneReleaseTagMap = {
-    latest: 'v0.9.12-nightly.7',
-    stable: 'v0.9.9',
-    beta: 'v0.9.10-beta.3',
-    alpha: 'v0.9.11-alpha.4',
-    nightly: 'v0.9.12-nightly.7',
-  } as const
-  const bundleVersions = ['0.9.0', '0.9.0-beta.4', '0.9.0-alpha.2'] as const
-  const laneMatrix = ['latest', 'stable', 'beta', 'alpha', 'nightly'] as const
-
-  const defaultReleases = [
-    { tag_name: 'v0.9.0-beta.6', draft: false, prerelease: true },
-  ]
-  const matrixReleases = [
-    { tag_name: 'v0.9.7', draft: false, prerelease: false },
-    { tag_name: 'v0.9.9', draft: false, prerelease: false },
-    { tag_name: 'v0.9.9-beta.1', draft: false, prerelease: true },
-    { tag_name: 'v0.9.10-beta.3', draft: false, prerelease: true },
-    { tag_name: 'v0.9.10-alpha.5', draft: false, prerelease: true },
-    { tag_name: 'v0.9.11-alpha.4', draft: false, prerelease: true },
-    { tag_name: 'v0.9.11-nightly.1', draft: false, prerelease: true },
-    { tag_name: 'v0.9.12-nightly.7', draft: false, prerelease: true },
-  ]
-
-  function mockGitHubReleasesFetch(releases = defaultReleases) {
-    const fetchSpy = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      statusText: 'OK',
-      json: async () => releases,
-    })
-    vi.stubGlobal('fetch', fetchSpy)
-    return fetchSpy
-  }
-
   beforeEach(() => {
     vi.resetModules()
     vi.clearAllMocks()
-    updaterState.instance = createUpdaterMock()
-    appMock.getVersion.mockReturnValue('0.9.0-beta.4')
-    appMock.getPath.mockImplementation((name: string) => name === 'logs' ? '/tmp/airi/logs' : `/tmp/${name}`)
-    isDevState.value = false
-    stdEnvState.isWindows = false
-    delete process.env.UPDATE_SERVER_URL
-    delete process.env.AIRI_UPDATE_CHANNEL
-    mockGitHubReleasesFetch()
+    vi.unstubAllEnvs()
+    vi.stubEnv('AIRI_UPDATE_CHANNEL', undefined)
+    bundleState.version = '0.9.0-beta.4'
   })
 
-  it('resolves release tag from GitHub API and configures generic provider for checks', async () => {
-    const fetchSpy = mockGitHubReleasesFetch([
-      { tag_name: 'v0.9.0-beta.6', draft: false, prerelease: true },
-      { tag_name: 'v0.9.0-beta.5', draft: false, prerelease: true },
-    ])
+  it.each([
+    { name: 'a check', status: { status: 'checking' }, expected: { status: 'checking' } },
+    { name: 'no update', status: { status: 'up-to-date' }, expected: { status: 'not-available', info: { version: '0.9.0-beta.4' } } },
+    { name: 'a download', status: { status: 'downloading', bytesPerSecond: 524_288, downloadedBytes: 4_200_000, percent: 42, totalBytes: 10_000_000, update }, expected: { status: 'downloading', info: { version: '0.9.0-beta.6' }, progress: { bytesPerSecond: 524_288, percent: 42, total: 10_000_000, transferred: 4_200_000 } } },
+    { name: 'a patch after a download', status: { status: 'preparing', percent: 70, update }, expected: { status: 'downloading', progress: { bytesPerSecond: 0, percent: 70 } } },
+    { name: 'a ready update', status: { status: 'ready', update }, expected: { status: 'downloaded', info: { version: '0.9.0-beta.6', releaseDate: new Date(update.releaseId).toISOString() } } },
+    { name: 'a failed download', status: { status: 'download-failed', error: { code: 'download-failed', message: 'Socket closed.' }, retryAt: '2026-10-26T00:00:00.000Z', update }, expected: { status: 'error' } },
+    { name: 'a bad signature', status: { status: 'verification-failed', error: { code: 'invalid-signature', message: 'Bad signature.' } }, expected: { status: 'error', error: { message: 'Bad signature.' } } },
+    { name: 'turned off updates', status: { status: 'disabled', reason: 'store-build' }, expected: { status: 'disabled' } },
+  ] satisfies Array<{ name: string, status: UpdaterStatus, expected: object }>)('shows $name to the renderer', async ({ status, expected }) => {
+    const fake = createFakeUpdater()
     const { setupAutoUpdater } = await import('./auto-updater')
-    const service = setupAutoUpdater()
+    const service = setupAutoUpdater({ updater: fake.updater })
 
-    await Promise.resolve()
-    await service.checkForUpdates()
+    fake.setStatus(status)
 
-    expect(fetchSpy).toHaveBeenCalledTimes(1)
-    expect(updaterState.instance.setFeedURL).toHaveBeenCalledWith({
-      provider: 'generic',
-      url: 'https://github.com/moeru-ai/airi/releases/download/v0.9.0-beta.6',
-    })
-    expect(updaterState.instance.channel).toBe(expectedChannelByArch)
+    expect(service.state).toMatchObject(expected)
   })
 
-  it('ignores UPDATE_SERVER_URL in non-dev runtime', async () => {
-    process.env.UPDATE_SERVER_URL = 'http://localhost:8787/stable'
-
+  it.each([
+    { name: 'the lane that the user chose', stored: 'nightly', env: undefined, expected: 'nightly' },
+    { name: 'AIRI_UPDATE_CHANNEL', stored: 'nightly', env: 'alpha', expected: 'alpha' },
+  ] as const)('follows $name', async ({ stored, env, expected }) => {
+    if (env)
+      vi.stubEnv('AIRI_UPDATE_CHANNEL', env)
+    const fake = createFakeUpdater()
     const { setupAutoUpdater } = await import('./auto-updater')
-    const service = setupAutoUpdater()
-    await service.checkForUpdates()
 
-    expect(updaterState.instance.setFeedURL).toHaveBeenCalledWith({
-      provider: 'generic',
-      url: 'https://github.com/moeru-ai/airi/releases/download/v0.9.0-beta.6',
-    })
+    setupAutoUpdater({ updater: fake.updater, getStoredUpdateLane: () => stored })
+
+    expect(fake.updater.channel).toBe(expected)
   })
 
-  it('uses UPDATE_SERVER_URL only in dev mode for update-test harness', async () => {
-    isDevState.value = true
-    process.env.UPDATE_SERVER_URL = 'http://localhost:8787/stable'
-
-    const fetchSpy = mockGitHubReleasesFetch()
+  // A test build follows a channel such as `ota-test` from `ergo.config.ts`, and its version names no lane.
+  it('keeps the channel of the build when nobody chose a lane', async () => {
+    bundleState.version = '0.12.0-ota.1'
+    const fake = createFakeUpdater()
+    fake.updater.channel = 'ota-test'
+    fake.setChannel.mockClear()
     const { setupAutoUpdater } = await import('./auto-updater')
-    setupAutoUpdater()
 
-    expect(updaterState.instance.setFeedURL).toHaveBeenCalledWith({
-      provider: 'generic',
-      url: 'http://localhost:8787/stable',
-    })
-    expect(updaterState.instance.forceDevUpdateConfig).toBe(true)
-    expect(fetchSpy).not.toHaveBeenCalled()
+    setupAutoUpdater({ updater: fake.updater })
+
+    expect(fake.setChannel).not.toHaveBeenCalled()
+    expect(fake.updater.channel).toBe('ota-test')
   })
 
-  // https://github.com/moeru-ai/airi/pull/1827
-  it('keeps storefront-managed distributions outside the GitHub updater flow (PR #1827)', async () => {
-    const fetchSpy = mockGitHubReleasesFetch()
+  it('switches the channel, saves the choice, and checks again when the user picks a lane', async () => {
+    const fake = createFakeUpdater()
+    const setStoredUpdateLane = vi.fn()
     const { setupAutoUpdater } = await import('./auto-updater')
-    const service = setupAutoUpdater({ enabled: false })
+    const service = setupAutoUpdater({ updater: fake.updater, setStoredUpdateLane })
 
-    await service.checkForUpdates()
-    await service.downloadUpdate()
+    await service.setPreferredUpdateLane('nightly')
+
+    expect(fake.updater.channel).toBe('nightly')
+    expect(setStoredUpdateLane).toHaveBeenCalledWith('nightly')
+    expect(fake.updater.checkForUpdates).toHaveBeenCalledTimes(1)
+    expect(service.getPreferredUpdateLane()).toBe('nightly')
+  })
+
+  it('goes back to the lane of the build when the user picks auto', async () => {
+    const fake = createFakeUpdater()
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater, getStoredUpdateLane: () => 'nightly' })
+
+    await service.setPreferredUpdateLane(undefined)
+
+    expect(fake.updater.channel).toBe('beta')
+  })
+
+  it('applies a ready update once while two clicks arrive at once', async () => {
+    const fake = createFakeUpdater({ status: 'ready', update })
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater })
+
+    await Promise.all([service.quitAndInstall(), service.quitAndInstall()])
+
+    expect(fake.updater.applyUpdate).toHaveBeenCalledTimes(1)
+  })
+
+  // A page-only update reloaded the windows in place and kept the app. The next update that needed a restart did
+  // nothing when clicked, because the service took the first apply for the last one.
+  it('applies the next update after an update reloaded the windows in place', async () => {
+    const fake = createFakeUpdater({ status: 'ready', update: { ...update, requires: 'reload' } })
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater })
+
     await service.quitAndInstall()
+    fake.setStatus({ status: 'ready', update })
+    await service.quitAndInstall()
+
+    expect(fake.updater.applyUpdate).toHaveBeenCalledTimes(2)
+  })
+
+  it('reports healthy once main is ready and the main window mounted its page, and again after a reload', async () => {
+    const fake = createFakeUpdater({ status: 'up-to-date' })
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater })
+
+    service.markMainPageMounted()
+    expect(fake.updater.markBundleHealthy).not.toHaveBeenCalled()
+    service.markMainReady()
+    expect(fake.updater.markBundleHealthy).toHaveBeenCalledTimes(1)
+    // A page-only update reloads the page, and it mounts again.
+    service.markMainPageMounted()
+    expect(fake.updater.markBundleHealthy).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not report health while main has not started', async () => {
+    const fake = createFakeUpdater({ status: 'up-to-date' })
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater })
+
+    service.markMainPageMounted()
+    service.markMainPageMounted()
+
+    expect(fake.updater.markBundleHealthy).not.toHaveBeenCalled()
+  })
+
+  it('applies nothing while no update is ready', async () => {
+    const fake = createFakeUpdater({ status: 'up-to-date' })
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater })
+
+    await service.quitAndInstall()
+
+    expect(fake.updater.applyUpdate).not.toHaveBeenCalled()
+  })
+
+  it('reports a failed apply and lets the user try again', async () => {
+    const fake = createFakeUpdater({ status: 'ready', update })
+    fake.updater.applyUpdate.mockRejectedValueOnce(new Error('The installer did not start.'))
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater })
+
+    await service.quitAndInstall()
+    expect(service.state).toMatchObject({ status: 'error', error: { message: 'The installer did not start.' } })
+
+    await service.quitAndInstall()
+    expect(fake.updater.applyUpdate).toHaveBeenCalledTimes(2)
+  })
+
+  it('dismisses a rollback, because the app runs a bundle that works', async () => {
+    const fake = createFakeUpdater()
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater })
+
+    fake.setStatus({
+      status: 'rolled-back',
+      reason: 'not-marked-healthy',
+      from: { fromInstaller: false, releaseId: 1776000000000, version: '0.9.0-beta.6' },
+      to: { fromInstaller: true, releaseId: 1775000000000, version: '0.9.0-beta.4' },
+    })
+
+    expect(fake.updater.dismissRollback).toHaveBeenCalledTimes(1)
+    expect(service.state.status).toBe('not-available')
+  })
+
+  it('does not touch the updater when the launcher turned it off', async () => {
+    const fake = createFakeUpdater({ status: 'disabled', reason: 'store-build' })
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater })
+
+    await service.checkForUpdates()
+    await service.setPreferredUpdateLane('nightly')
+
+    expect(fake.setChannel).not.toHaveBeenCalled()
+    expect(fake.updater.checkForUpdates).not.toHaveBeenCalled()
+    expect(service.state.status).toBe('disabled')
+  })
+
+  it('serves the disabled contract without the updater for an install that a store updates', async () => {
+    const fake = createFakeUpdater()
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ enabled: false, updater: fake.updater })
+
+    await service.checkForUpdates()
 
     expect(service.state.status).toBe('disabled')
-    expect(fetchSpy).not.toHaveBeenCalled()
-    expect(updaterState.instance.on).not.toHaveBeenCalled()
-    expect(updaterState.instance.checkForUpdates).not.toHaveBeenCalled()
-    expect(updaterState.instance.downloadUpdate).not.toHaveBeenCalled()
-    expect(updaterState.instance.quitAndInstall).not.toHaveBeenCalled()
+    expect(fake.updater.onStatus).not.toHaveBeenCalled()
   })
 
-  it('supports explicit stable lane selection for future dynamic channel switching', async () => {
-    process.env.AIRI_UPDATE_CHANNEL = 'stable'
-    mockGitHubReleasesFetch([
-      { tag_name: 'v0.9.0-beta.6', draft: false, prerelease: true },
-      { tag_name: 'v0.8.9', draft: false, prerelease: false },
-      { tag_name: 'v0.8.8', draft: false, prerelease: false },
-    ])
-
-    const { setupAutoUpdater } = await import('./auto-updater')
-    const service = setupAutoUpdater()
-    await service.checkForUpdates()
-
-    expect(updaterState.instance.setFeedURL).toHaveBeenCalledWith({
-      provider: 'generic',
-      url: 'https://github.com/moeru-ai/airi/releases/download/v0.8.9',
-    })
-  })
-
-  it.each(laneMatrix)('supports AIRI_UPDATE_CHANNEL override for lane=%s', async (lane) => {
-    appMock.getVersion.mockReturnValue('0.9.0-alpha.2')
-    process.env.AIRI_UPDATE_CHANNEL = lane
-    mockGitHubReleasesFetch(matrixReleases)
-
-    const { setupAutoUpdater } = await import('./auto-updater')
-    const service = setupAutoUpdater()
-    await service.checkForUpdates()
-
-    expect(updaterState.instance.setFeedURL).toHaveBeenCalledWith({
-      provider: 'generic',
-      url: `https://github.com/moeru-ai/airi/releases/download/${laneReleaseTagMap[lane]}`,
-    })
-  })
-
-  it.each(bundleVersions)('uses bundled version lane when no AIRI_UPDATE_CHANNEL (bundle=%s)', async (bundleVersion) => {
-    appMock.getVersion.mockReturnValue(bundleVersion)
-    mockGitHubReleasesFetch(matrixReleases)
-
-    const { setupAutoUpdater } = await import('./auto-updater')
-    const service = setupAutoUpdater()
-    await service.checkForUpdates()
-
-    const expectedLane = bundleVersion.includes('-beta')
-      ? 'beta'
-      : bundleVersion.includes('-alpha')
-        ? 'alpha'
-        : 'stable'
-
-    expect(updaterState.instance.setFeedURL).toHaveBeenCalledWith({
-      provider: 'generic',
-      url: `https://github.com/moeru-ai/airi/releases/download/${laneReleaseTagMap[expectedLane]}`,
-    })
-  })
-
-  it.each(bundleVersions.flatMap(bundleVersion => laneMatrix.map(lane => ({ bundleVersion, lane }))))(
-    'matrix lane/feed/bundle works with UPDATE_SERVER_URL override (%o)',
-    async ({ bundleVersion, lane }) => {
-      appMock.getVersion.mockReturnValue(bundleVersion)
-      isDevState.value = true
-      process.env.AIRI_UPDATE_CHANNEL = lane
-      process.env.UPDATE_SERVER_URL = `http://127.0.0.1:8787/${lane}`
-
-      const fetchSpy = mockGitHubReleasesFetch(matrixReleases)
-      const { setupAutoUpdater } = await import('./auto-updater')
-      const service = setupAutoUpdater()
-      await service.checkForUpdates()
-
-      expect(updaterState.instance.setFeedURL).toHaveBeenCalledWith({
-        provider: 'generic',
-        url: `http://127.0.0.1:8787/${lane}`,
-      })
-      expect(fetchSpy).not.toHaveBeenCalled()
-    },
-  )
-
-  it('reports only authoritative diagnostics fields', async () => {
-    const { setupAutoUpdater } = await import('./auto-updater')
-    const service = setupAutoUpdater()
-
-    expect(service.state.diagnostics).toEqual(expect.objectContaining({
-      platform: process.platform,
-      arch: process.arch,
-      channel: expectedChannelByArch,
-      executablePath: expect.any(String),
-      logFilePath: expect.stringMatching(/stage-tamagotchi-updater[\\/]updater-log\.txt$/),
-      isOverrideActive: false,
-    }))
-    expect(service.state.diagnostics).not.toHaveProperty('updaterCacheDir')
-    expect(service.state.diagnostics).not.toHaveProperty('pendingDir')
-    expect(service.state.diagnostics).not.toHaveProperty('uninstallPath')
-    expect(service.state.diagnostics).not.toHaveProperty('uninstallExists')
-  })
-
-  it('does not treat build metadata as prerelease', async () => {
-    appMock.getVersion.mockReturnValue('1.2.3+build-1')
-
-    const { setupAutoUpdater } = await import('./auto-updater')
-    setupAutoUpdater()
-
-    expect(updaterState.instance.allowPrerelease).toBe(false)
-  })
-
-  it('uses silent relaunch install on Windows only', async () => {
-    stdEnvState.isWindows = true
-    const { setupAutoUpdater } = await import('./auto-updater')
-    const service = setupAutoUpdater()
-
-    await service.quitAndInstall()
-    expect(updaterState.instance.quitAndInstall).toHaveBeenCalledWith(true, true)
-
-    stdEnvState.isWindows = false
-    updaterState.instance.quitAndInstall.mockClear()
-    // One service starts the install once, so a second service checks the other platforms.
-    await setupAutoUpdater().quitAndInstall()
-    expect(updaterState.instance.quitAndInstall).toHaveBeenCalledWith()
-  })
-
-  // ROOT CAUSE:
+  // One click checked once per open window. Each window context heard the IPC of all windows.
   //
-  // One click downloaded once per open window. Each window context heard the IPC of all windows, and the status
-  // check ran before the lock.
-  //
-  // We fixed this with window contexts that hear only their own window (`createWindowContext`) and one shared
-  // in-flight download.
-  it('downloads once when the main, settings, and about windows are open and one window requests the download', async () => {
+  // We fixed this with window contexts that hear only their own window (`createWindowContext`).
+  it('checks once when the main, settings, and about windows are open and one window requests a check', async () => {
     const { ipcMain } = await import('electron')
+    const fake = createFakeUpdater()
     const { createAutoUpdaterService, setupAutoUpdater } = await import('./auto-updater')
-    const service = setupAutoUpdater()
+    const service = setupAutoUpdater({ updater: fake.updater })
     const windows = [createWindowIpc(ipcMain), createWindowIpc(ipcMain), createWindowIpc(ipcMain)]
     for (const { window } of windows)
       createAutoUpdaterService({ context: createWindowContext(window).context, window, service })
 
-    await defineInvoke(windows[1].context, autoUpdaterEventa.downloadUpdate)()
+    await defineInvoke(windows[1].context, autoUpdaterEventa.checkForUpdates)()
 
-    expect(updaterState.instance.downloadUpdate).toHaveBeenCalledTimes(1)
-  })
-
-  it('shares one download between concurrent requests and skips it after the update is downloaded', async () => {
-    let finishDownload: () => void = () => {}
-    updaterState.instance.downloadUpdate.mockImplementation(() => new Promise<void>((resolve) => {
-      finishDownload = resolve
-    }))
-    const { setupAutoUpdater } = await import('./auto-updater')
-    const service = setupAutoUpdater()
-
-    const requests = [service.downloadUpdate(), service.downloadUpdate(), service.downloadUpdate()]
-    await vi.waitFor(() => expect(updaterState.instance.downloadUpdate).toHaveBeenCalledTimes(1))
-    const emitDownloaded = updaterState.instance.on.mock.calls.find(([event]) => event === 'update-downloaded')?.[1]
-    emitDownloaded?.({ version: '0.9.0-beta.6', files: [], releaseDate: '' })
-    finishDownload()
-    await Promise.all(requests)
-    await service.downloadUpdate()
-
-    expect(updaterState.instance.downloadUpdate).toHaveBeenCalledTimes(1)
-    expect(service.state.status).toBe('downloaded')
-  })
-
-  it('starts the install once when the install is requested again', async () => {
-    const { setupAutoUpdater } = await import('./auto-updater')
-    const service = setupAutoUpdater()
-
-    await Promise.all([service.quitAndInstall(), service.quitAndInstall()])
-    await service.quitAndInstall()
-
-    expect(updaterState.instance.quitAndInstall).toHaveBeenCalledTimes(1)
+    expect(fake.updater.checkForUpdates).toHaveBeenCalledTimes(1)
   })
 
   it.each([
@@ -385,6 +327,5 @@ describe('setupAutoUpdater', () => {
     const { isExternallyUpdatedInstall } = await import('./auto-updater')
 
     expect(isExternallyUpdatedInstall()).toBe(externallyUpdated)
-    vi.unstubAllEnvs()
   })
 })

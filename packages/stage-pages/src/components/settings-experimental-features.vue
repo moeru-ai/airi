@@ -3,6 +3,8 @@ import { useFeatureFlagsStore } from '@proj-airi/stage-ui/stores/feature-flags'
 import { Button, FieldCheckbox, FieldSelect } from '@proj-airi/ui'
 import { useI18n } from 'vue-i18n'
 
+import { experimentSearchKey } from '../pages/settings/system/experimental.search'
+
 const { t } = useI18n()
 const experiments = useFeatureFlagsStore()
 const prefix = 'settings.pages.system.experimental'
@@ -30,6 +32,7 @@ const prefix = 'settings.pages.system.experimental'
     <section
       v-for="feature in experiments.features"
       :key="feature.key"
+      :data-settings-search="experimentSearchKey(feature.key)"
       :class="['flex flex-col gap-3', 'rounded-xl bg-neutral-50 p-4 dark:bg-neutral-900']"
     >
       <FieldCheckbox

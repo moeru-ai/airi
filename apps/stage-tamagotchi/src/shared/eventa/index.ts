@@ -332,7 +332,7 @@ export const electronGetServerChannelConfig = defineInvokeEventa<ElectronServerC
 export const electronApplyServerChannelConfig = defineInvokeEventa<ElectronServerChannelConfig, Partial<ElectronServerChannelConfig>>('eventa:invoke:electron:server-channel:apply-config')
 export const electronGetServerChannelQrPayload = defineInvokeEventa<ServerChannelQrPayload>('eventa:invoke:electron:server-channel:get-qr-payload')
 
-export type ElectronUpdaterChannel = 'latest' | 'stable' | 'alpha' | 'beta' | 'nightly' | 'canary'
+export type ElectronUpdaterChannel = 'latest' | 'stable' | 'alpha' | 'beta' | 'nightly' | 'canary' | 'dev'
 
 export interface ElectronUpdaterPreferences {
   channel?: ElectronUpdaterChannel
@@ -640,6 +640,11 @@ export const electronAppQuit = defineInvokeEventa<void>('eventa:invoke:electron:
 export const electronAppGetVersion = defineInvokeEventa<string>('eventa:invoke:electron:app:get-version')
 /** Whether the app runs on the Wayland Ozone backend, where Electron cannot read the cursor position reliably. */
 export const electronAppIsWayland = defineInvokeEventa<boolean>('eventa:invoke:electron:app:is-wayland')
+/**
+ * The main window mounted its page. The update launcher keeps a new bundle only when it reports healthy, so the page
+ * calls it once it mounts, also after a page-only update reloaded it.
+ */
+export const electronMainPageMounted = defineInvokeEventa<void>('eventa:invoke:electron:main-window:page-mounted')
 export const electronAppIconGet = defineInvokeEventa<boolean>('eventa:invoke:electron:app-icon:get')
 export const electronAppIconSet = defineInvokeEventa<boolean, boolean>('eventa:invoke:electron:app-icon:set')
 
