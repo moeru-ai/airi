@@ -70,6 +70,11 @@ const props = withDefaults(defineProps<{
    * their place.
    */
   dockSide?: 'left' | 'right'
+  /**
+   * The width in pixels of a band along the right edge of the window that resizes it, such as the outer edge of an
+   * attached floating chat. The history keeps clear of the band, so its scrollbar ends where the band starts.
+   */
+  rightResizeBand?: number
 }>(), {
   floating: false,
   composerFoldable: false,
@@ -417,6 +422,7 @@ defineExpose({
         :scrollbar="props.floating ? 'hover' : 'scroll'"
         :passive="props.passive"
         :class="['transition-[padding] duration-300 ease-out motion-reduce:transition-none', props.dockSide && { left: 'pl-12', right: 'pr-12' }[props.dockSide]]"
+        :style="props.rightResizeBand ? { width: `calc(100% - ${props.rightResizeBand}px)` } : undefined"
         :expired-before="props.expiredBefore"
         @delete-message="handleDeleteMessage"
         @reply-message="handleReplyMessage"

@@ -172,8 +172,10 @@ let dockAnimations: Array<ReturnType<typeof animate>> = []
  * The window lets clicks through where nothing is painted, and it checks that again only when the cursor moves. The
  * dock changes what is painted under a still cursor, so each change checks again once it is done. Closing removes the
  * dock from under the cursor, so the window lets clicks through there at once.
+ *
+ * The bar sits on the side of the dock toward the character, so a switch of the attached side moves it too.
  */
-watch([verticalDock, dockOpen], async ([vertical, open], previous) => {
+watch([verticalDock, dockOpen, characterOnLeft], async ([vertical, open, onLeft], previous) => {
   await nextTick()
   const dock = dockElement.value
   if (!dock)
@@ -193,8 +195,8 @@ watch([verticalDock, dockOpen], async ([vertical, open], previous) => {
   // The items never move. A transform left by an animation that stopped early would shift them.
   items.forEach(item => item.style.removeProperty('transform'))
   const target = open ? DOCK_OPEN_CLIP : dockBarClip(dock)
-  // A dock that only now stands up, or a reduced motion, takes the state at once.
-  if (!previous?.[0] || reducedMotion.value === 'reduce') {
+  // A dock that only now stands up, a dock that changes sides, or a reduced motion takes the state at once.
+  if (!previous?.[0] || previous[2] !== onLeft || reducedMotion.value === 'reduce') {
     dock.style.clipPath = target
     items.forEach(item => item.style.opacity = open ? '' : '0')
     hitTest({ removed: !open })
@@ -274,6 +276,8 @@ const nearResizeEdge = computed(() => {
 })
 const nearResizeEdgeFor250Ms = refDebounced(nearResizeEdge, 250)
 
+/** The width of the resize band along an edge, in pixels. It matches the `w-[5px]` and `h-[5px]` of the bands below. */
+const RESIZE_BAND = 5
 /** Where each resize handle sits: a band along each edge, and a square in each corner, over the bands. */
 const resizeHandleClasses: Record<ResizeDirection, string[]> = {
   n: ['left-[5px] right-[5px] top-0 h-[5px]', 'cursor-n-resize'],
@@ -576,6 +580,7 @@ function moveByKeyboard(delta: WindowDelta) {
             floating
             :composer-foldable="danmaku"
             :dock-side="verticalDock && dockOpen ? (characterOnLeft ? 'left' : 'right') : undefined"
+            :right-resize-band="state.resizeEdges.includes('e') ? RESIZE_BAND : undefined"
             :passive="passiveFeed"
             :expired-before="expiredBefore"
           />
