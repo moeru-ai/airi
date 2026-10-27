@@ -97,12 +97,39 @@ describe('putInChest', () => {
     expect(container.close).toHaveBeenCalledOnce()
   })
 
-  it('puts every stack by default without including another matching item type', async () => {
+  // https://github.com/moeru-ai/airi/pull/3108#discussion_r4387200771
+  // ROOT CAUSE:
+  //
+  // The first substring match selected cobblestone before stone.
+  // Exact names now take priority over substring matches.
+  it.each([
+    { quantity: 'default', requested: undefined, expected: 80 },
+    { quantity: 'all', requested: -1, expected: 80 },
+    { quantity: 'limited', requested: 70, expected: 70 },
+    { quantity: 'excess', requested: 128, expected: 80 },
+  ])('prefers exact-name stacks for a $quantity quantity (PR #3108)', async ({ requested, expected }) => {
     const { mineflayer, container } = createFixture({
       inventory: [
         { name: 'cobblestone', count: 64 },
         { name: 'cobblestone', count: 32 },
         { name: 'stone', count: 64 },
+        { name: 'stone', count: 16 },
+      ],
+    })
+
+    const transferred = await putInChest(mineflayer, 'stone', requested)
+
+    expect(container.deposit).toHaveBeenCalledExactlyOnceWith(registry.itemsByName.stone.id, null, expected)
+    expect(transferred).toBe(expected)
+    expect(container.close).toHaveBeenCalledOnce()
+  })
+
+  it('uses the first substring match when no exact name exists', async () => {
+    const { mineflayer, container } = createFixture({
+      inventory: [
+        { name: 'cobblestone', count: 64 },
+        { name: 'mossy_cobblestone', count: 64 },
+        { name: 'cobblestone', count: 32 },
       ],
     })
 
@@ -150,8 +177,11 @@ describe('putInChest', () => {
     expect(container.close).toHaveBeenCalledOnce()
   })
 
-  it('closes the open window when the item is absent', async () => {
-    const { mineflayer, container, openContainer } = createFixture()
+  it.each([
+    { inventory: [] },
+    { inventory: [{ name: 'dirt', count: 64 }] },
+  ])('closes the open window when neither name match exists: %j', async ({ inventory }) => {
+    const { mineflayer, container, openContainer } = createFixture({ inventory })
 
     await expect(putInChest(mineflayer, 'cobblestone')).rejects.toMatchObject({ code: 'ITEM_NOT_FOUND' })
 
@@ -189,12 +219,39 @@ describe('takeFromChest', () => {
     expect(container.close).toHaveBeenCalledOnce()
   })
 
-  it('takes every stack by default without including another matching item type', async () => {
+  // https://github.com/moeru-ai/airi/pull/3108#discussion_r4387200771
+  // ROOT CAUSE:
+  //
+  // The first substring match selected cobblestone before stone.
+  // Exact names now take priority over substring matches.
+  it.each([
+    { quantity: 'default', requested: undefined, expected: 80 },
+    { quantity: 'all', requested: -1, expected: 80 },
+    { quantity: 'limited', requested: 70, expected: 70 },
+    { quantity: 'excess', requested: 128, expected: 80 },
+  ])('prefers exact-name stacks for a $quantity quantity (PR #3108)', async ({ requested, expected }) => {
     const { mineflayer, container } = createFixture({
       chest: [
         { name: 'cobblestone', count: 64 },
         { name: 'cobblestone', count: 32 },
         { name: 'stone', count: 64 },
+        { name: 'stone', count: 16 },
+      ],
+    })
+
+    const transferred = await takeFromChest(mineflayer, 'stone', requested)
+
+    expect(container.withdraw).toHaveBeenCalledExactlyOnceWith(registry.itemsByName.stone.id, null, expected)
+    expect(transferred).toBe(expected)
+    expect(container.close).toHaveBeenCalledOnce()
+  })
+
+  it('uses the first substring match when no exact name exists', async () => {
+    const { mineflayer, container } = createFixture({
+      chest: [
+        { name: 'cobblestone', count: 64 },
+        { name: 'mossy_cobblestone', count: 64 },
+        { name: 'cobblestone', count: 32 },
       ],
     })
 
@@ -228,11 +285,15 @@ describe('takeFromChest', () => {
     expect(container.close).toHaveBeenCalledOnce()
   })
 
-  it('closes the open window when the item is absent', async () => {
-    const { mineflayer, container } = createFixture()
+  it.each([
+    { chest: [] },
+    { chest: [{ name: 'dirt', count: 64 }] },
+  ])('closes the open window when neither name match exists: %j', async ({ chest }) => {
+    const { mineflayer, container, openContainer } = createFixture({ chest })
 
     await expect(takeFromChest(mineflayer, 'cobblestone')).rejects.toMatchObject({ code: 'ITEM_NOT_FOUND' })
 
+    expect(openContainer).toHaveBeenCalledOnce()
     expect(container.withdraw).not.toHaveBeenCalled()
     expect(container.close).toHaveBeenCalledOnce()
   })

@@ -70,11 +70,12 @@ export async function discard(mineflayer: Mineflayer, itemName: string, num = -1
 }
 
 /**
- * Selects the first matching item type from the open inventory.
+ * Prefers an exact item name in the open inventory.
+ * If no exact name exists, selects the first substring match.
  * Transfers up to `num` items across its stacks, without metadata or NBT filters.
  * Attempts to close the opened container after a transfer, including on failure.
  * @param mineflayer The bot that owns the inventory and the container.
- * @param itemName A substring that selects the first matching item type.
+ * @param itemName The exact item name, or a substring when no exact name exists.
  * @param num Maximum quantity to transfer. Use `-1` for all available items.
  * @default -1
  * @returns The completed transfer quantity, limited to the available quantity.
@@ -88,7 +89,8 @@ export async function putInChest(mineflayer: Mineflayer, itemName: string, num =
   }
   await goToPosition(mineflayer, chest.position.x, chest.position.y, chest.position.z)
   const transferred = await withContainer(mineflayer, chest, async (container) => {
-    const item = container.items().find(item => item.name.includes(itemName))
+    const items = container.items()
+    const item = items.find(item => item.name === itemName) ?? items.find(item => item.name.includes(itemName))
     if (!item) {
       logger.log(`You do not have any ${itemName} to put in the chest.`)
       throw new ActionError('ITEM_NOT_FOUND', `You do not have any ${itemName} to put in the chest`, { item: itemName })
@@ -103,11 +105,12 @@ export async function putInChest(mineflayer: Mineflayer, itemName: string, num =
 }
 
 /**
- * Selects the first matching item type from the open chest.
+ * Prefers an exact item name in the open chest.
+ * If no exact name exists, selects the first substring match.
  * Transfers up to `num` items across its stacks, without metadata or NBT filters.
  * Attempts to close the opened container after a transfer, including on failure.
  * @param mineflayer The bot that owns the inventory and the container.
- * @param itemName A substring that selects the first matching item type.
+ * @param itemName The exact item name, or a substring when no exact name exists.
  * @param num Maximum quantity to transfer. Use `-1` for all available items.
  * @default -1
  * @returns The completed transfer quantity, limited to the available quantity.
@@ -125,7 +128,8 @@ export async function takeFromChest(
   }
   await goToPosition(mineflayer, chest.position.x, chest.position.y, chest.position.z)
   const transferred = await withContainer(mineflayer, chest, async (container) => {
-    const item = container.containerItems().find(item => item.name.includes(itemName))
+    const items = container.containerItems()
+    const item = items.find(item => item.name === itemName) ?? items.find(item => item.name.includes(itemName))
     if (!item) {
       logger.log(`Could not find any ${itemName} in the chest.`)
       throw new ActionError('ITEM_NOT_FOUND', `Could not find any ${itemName} in the chest`, { item: itemName })
