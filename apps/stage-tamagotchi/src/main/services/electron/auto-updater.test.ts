@@ -133,7 +133,7 @@ describe('setupAutoUpdater', () => {
 
   it.each([
     { name: 'the lane that the user chose', stored: 'nightly', env: undefined, expected: 'nightly' },
-    { name: 'AIRI_UPDATE_CHANNEL', stored: 'nightly', env: 'alpha', expected: 'alpha' },
+    { name: 'AIRI_UPDATE_CHANNEL', stored: 'nightly', env: 'dev', expected: 'dev' },
   ] as const)('follows $name', async ({ stored, env, expected }) => {
     if (env)
       vi.stubEnv('AIRI_UPDATE_CHANNEL', env)
@@ -159,6 +159,20 @@ describe('setupAutoUpdater', () => {
     expect(fake.updater.channel).toBe('ota-test')
   })
 
+  it.each([
+    { saved: 'latest', version: '0.13.0+dev.821.13eef81', expected: 'dev' },
+    { saved: 'beta', version: '0.14.0-rc.1', expected: 'canary' },
+  ])('leaves the removed channel $saved that the launcher saved, for the channel of $version', async ({ saved, version, expected }) => {
+    bundleState.version = version
+    const fake = createFakeUpdater()
+    fake.updater.channel = saved
+    const { setupAutoUpdater } = await import('./auto-updater')
+
+    setupAutoUpdater({ updater: fake.updater })
+
+    expect(fake.updater.channel).toBe(expected)
+  })
+
   it('switches the channel, saves the choice, and checks again when the user picks a lane', async () => {
     const fake = createFakeUpdater()
     const setStoredUpdateLane = vi.fn()
@@ -173,14 +187,21 @@ describe('setupAutoUpdater', () => {
     expect(service.getPreferredUpdateLane()).toBe('nightly')
   })
 
-  it('goes back to the lane of the build when the user picks auto', async () => {
+  it.each([
+    { version: '0.9.0-beta.4', expected: 'canary' },
+    { version: '0.13.0+nightly.12.13eef81', expected: 'nightly' },
+    { version: '0.13.0+dev.821.13eef81', expected: 'dev' },
+    { version: '0.13.0', expected: 'stable' },
+  ])('goes back to the channel of $version when the user picks auto', async ({ version, expected }) => {
+    bundleState.version = version
     const fake = createFakeUpdater()
+    fake.updater.channel = 'canary'
     const { setupAutoUpdater } = await import('./auto-updater')
-    const service = setupAutoUpdater({ updater: fake.updater, getStoredUpdateLane: () => 'nightly' })
+    const service = setupAutoUpdater({ updater: fake.updater, getStoredUpdateLane: () => 'dev' })
 
     await service.setPreferredUpdateLane(undefined)
 
-    expect(fake.updater.channel).toBe('beta')
+    expect(fake.updater.channel).toBe(expected)
   })
 
   it('applies a ready update once while two clicks arrive at once', async () => {

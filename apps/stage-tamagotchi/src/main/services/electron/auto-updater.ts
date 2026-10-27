@@ -10,8 +10,6 @@ import process from 'node:process'
 import { appendFile, mkdir } from 'node:fs/promises'
 import { dirname, join, normalize } from 'node:path'
 
-import semver from 'semver'
-
 import { activeBundle, updater as ergosphereUpdater } from '@ergosphere-it/electron/main'
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
@@ -26,6 +24,7 @@ import {
   electronGetUpdaterPreferences,
   electronSetUpdaterPreferences,
 } from '../../../shared/eventa'
+import { channelOfVersion, updateChannels } from '../../../shared/update-channels'
 
 const UPDATE_CHANNEL_ENV_KEY = 'AIRI_UPDATE_CHANNEL'
 
@@ -48,35 +47,15 @@ async function logToFile(level: 'INFO' | 'WARN' | 'ERROR', message: string) {
 export type UpdateLane = ElectronUpdaterChannel
 
 function normalizeLane(value: string | undefined): UpdateLane | undefined {
-  if (!value)
-    return undefined
-
-  switch (value.toLowerCase()) {
-    case 'stable':
-    case 'latest':
-    case 'alpha':
-    case 'beta':
-    case 'nightly':
-    case 'canary':
-    case 'dev':
-      return value.toLowerCase() as UpdateLane
-    default:
-      return undefined
-  }
-}
-
-function laneFromVersion(version: string): UpdateLane {
-  const prerelease = semver.prerelease(version)?.[0]?.toString().toLowerCase()
-  return normalizeLane(prerelease) ?? 'stable'
+  const lane = value?.toLowerCase()
+  return updateChannels.find(channel => channel === lane)
 }
 
 /**
  * The lane that the user or the environment chose: `AIRI_UPDATE_CHANNEL`, then the channel that the user chose.
- * Without one, the app follows the channel of its build, which `ergo.config.ts` derives from the version, so a beta
- * build follows `beta`.
+ * Without one, the app follows the channel of its version, see `channelOfVersion`, so a nightly build follows `nightly`.
  *
- * Each lane is a channel of the ergosphere-it release store with the same name. `latest` is the channel that every
- * release is promoted to. `dev` gets the bundle of each push to main, from `.github/workflows/release-tamagotchi.yml`.
+ * Each lane is a channel of the ergosphere-it release store with the same name.
  */
 export function getChosenUpdateLane(storedLane: UpdateLane | undefined): UpdateLane | undefined {
   return normalizeLane(process.env[UPDATE_CHANNEL_ENV_KEY]?.trim()) ?? storedLane
@@ -304,9 +283,16 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
     log.withError(error).error(reason)
   }
 
-  const chosenLane = getChosenUpdateLane(storedPreferredLane)
-  if (updater.status.status !== 'disabled' && chosenLane)
-    follow(chosenLane)
+  if (updater.status.status !== 'disabled') {
+    // NOTICE:
+    // Up to v0.13.0, the launcher saved `latest`, `alpha`, or `beta`, which the store never had. Each check got a 404.
+    // `src/main/configs/global.ts` maps the choice of the user. This maps the channel that the launcher saved.
+    // Remove it after the next stable release, with the mapping in `global.ts`.
+    const savedRemovedChannel = ['latest', 'alpha', 'beta'].includes(updater.channel)
+    const lane = getChosenUpdateLane(storedPreferredLane) ?? (savedRemovedChannel ? channelOfVersion(activeBundle.version) : undefined)
+    if (lane)
+      follow(lane)
+  }
 
   updater.onEvent((event: LauncherEvent) => {
     // A download reports progress many times a second. Its start and its end are statuses of their own.
@@ -334,8 +320,8 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
   let applying: Promise<void> | undefined
 
   // The launcher keeps a new bundle only when it reports healthy, and rolls it back otherwise. The bundle works when
-  // main started every module and the main window mounted its page. A page-only update reloads the windows in place,
-  // so its page reports again after the reload.
+  // main started every module and the main window finished loading its stage. After a page-only update, the reloaded
+  // page reports again.
   let mainReady = false
   let pageMounted = false
   function reportHealthWhenReady() {
@@ -384,8 +370,7 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
 
       storedPreferredLane = lane
       options.setStoredUpdateLane?.(lane)
-      // Auto goes back to the lane of the running version, as `ergo.config.ts` derives the channel of a build.
-      const next = getChosenUpdateLane(lane) ?? laneFromVersion(activeBundle.version)
+      const next = getChosenUpdateLane(lane) ?? channelOfVersion(activeBundle.version)
       if (updater.status.status !== 'disabled' && follow(next))
         await updater.checkForUpdates().catch(error => broadcastUpdaterError(error, 'checkForUpdates() failed'))
     },

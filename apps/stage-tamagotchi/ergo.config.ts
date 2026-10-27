@@ -3,19 +3,17 @@ import { env } from 'node:process'
 
 import { defineConfig } from '@ergosphere-it/electron/config'
 
-const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }
+// Node loads this file with type stripping, which resolves only full file names.
+// eslint-disable-next-line no-restricted-syntax
+import { channelOfVersion } from './src/shared/update-channels.ts'
 
-/**
- * The channel of a build: the prerelease name of the version, for example `beta` for `0.9.0-beta.4`, or `stable`.
- * The app can switch to another lane at run time, see `src/main/services/electron/auto-updater.ts`.
- */
-function laneOf(version: string) {
-  const prerelease = /^\d+\.\d+\.\d+-([a-z]+)/i.exec(version)?.[1]?.toLowerCase()
-  return prerelease && ['alpha', 'beta', 'nightly', 'canary'].includes(prerelease) ? prerelease : 'stable'
-}
+// CI names each build in `ERGOSPHERE_IT_VERSION`, for example `0.13.0+nightly.12.13eef81`. The build uses the same name.
+const version = env.ERGOSPHERE_IT_VERSION
+  || (JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }).version
 
 export default defineConfig({
-  channel: env.AIRI_UPDATE_CHANNEL || laneOf(version),
+  // The app can switch to another channel at run time, see `src/main/services/electron/auto-updater.ts`.
+  channel: env.AIRI_UPDATE_CHANNEL || channelOfVersion(version),
   // Steam updates the Steam build. Flatpak and Nix are known only at runtime, see src/launcher/index.ts.
   disabled: env.VITE_DISTRIBUTION === 'steam',
   // A test build can point at another feed and key, for example a local S3.
