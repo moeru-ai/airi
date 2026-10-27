@@ -1,18 +1,15 @@
 import type { SettingsSearchItem, SettingsSearchProvider, SettingsSearchRouteMeta } from '@proj-airi/stage-shared/settings-search'
 import type { MaybeRefOrGetter } from 'vue'
-
-import type { ProviderMetadata } from '../libs/providers/metadata'
+import type { Router } from 'vue-router'
 
 import { errorMessageFrom } from '@moeru/std'
 import { SETTINGS_SEARCH_ATTRIBUTE, settingsSearchLocation, settingsSearchTargetOf } from '@proj-airi/stage-shared/settings-search'
-import { storeToRefs } from 'pinia'
 import { computed, onScopeDispose, shallowRef, toValue, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
-import { providerSettingsRouteOf } from '../libs/providers/metadata'
-import { useProviderStore } from '../stores/providers/provider'
+import { settingsSearch } from '../libs/settings-search'
 
 /** The top-level settings page that holds a search result, such as "Modules". */
 export interface SettingsSearchCategory {
@@ -41,7 +38,6 @@ interface SearchPage {
 }
 
 const SETTINGS_ROOT = '/settings'
-const PROVIDERS_PAGE = '/settings/providers'
 /** A page can render its rows after async data loads. Stop waiting for the row after this time. */
 const REVEAL_TIMEOUT_MS = 3000
 /** When the page stops changing for this long and the row is still missing, the current state hides it. */
@@ -67,74 +63,123 @@ const HIGHLIGHT_FADED_CLASS = 'outline-transparent'
 /** A row without its own corners gets these, so the outline is not square. A card keeps its corners. */
 const HIGHLIGHT_CORNER_CLASSES = ['rounded-lg']
 
+/** The development report of routes that no module holds runs once in each window, not once for each settings home. */
+let coverageReported = false
+
+/** The settings routes that search can list by themselves: routes with a title and without parameters. */
+function settingsRoutesOf(router: Router) {
+  return router.getRoutes().filter((route) => {
+    const meta = route.meta as SettingsSearchRouteMeta
+    return route.path.startsWith(`${SETTINGS_ROOT}/`) && !route.path.includes(':') && Boolean(meta.titleKey || meta.title)
+  })
+}
+
 /**
- * Finds settings pages, the settings on them, and providers by name.
+ * Reports, in development, the settings routes that search cannot list as they are:
+ * - routes that no module holds, so they are not in the search at all;
+ * - routes whose page marks rows of runtime items, while the module that holds the route lists no items for it.
+ */
+function reportCoverage(router: Router) {
+  const unheld: string[] = []
+  const withoutItems: string[] = []
+  for (const route of settingsRoutesOf(router)) {
+    const owner = settingsSearch.ownerOf(route.path)
+    if (!owner)
+      unheld.push(route.path)
+    else if ((route.meta as SettingsSearchRouteMeta).searchItemRows && (!owner.exact || !owner.route.items))
+      withoutItems.push(route.path)
+  }
+  if (unheld.length)
+    console.warn(`[settings search] No module holds these settings routes, so search does not list them. Provide a module that names them:\n${unheld.map(path => `  ${path}`).join('\n')}`)
+  if (withoutItems.length)
+    console.warn(`[settings search] These pages mark rows of runtime items, but their module lists no items. Add \`items\` to the route of the module:\n${withoutItems.map(path => `  ${path}`).join('\n')}`)
+}
+
+/**
+ * Finds settings pages, the settings on them, and runtime items by name.
  *
  * Use when:
  * - The settings home filters its list as the user types.
  *
  * Expects:
+ * - The app provided its modules to {@link settingsSearch}. Only the routes, pages, and items of a module that is on are in the results.
  * - Settings routes keep their titles in route meta, as the settings layout reads them.
  * - The build-time scan in `@proj-airi/stage-pages/vite/settings-search` wrote `searchKeys` into the route meta.
- * - `providers` lists the runtime items of each page, such as character cards, by route path.
- *   The search calls them each time a person starts to search, so the items are fresh.
  *
  * Returns:
  * - The results in index order, with titles that start with the query first. An empty query returns no results.
+ *   The search lists the items of a module each time a person starts to search, so the items are fresh.
  */
-export function useSettingsSearch(
-  query: MaybeRefOrGetter<string>,
-  providers: Readonly<Record<string, () => Promise<SettingsSearchProvider>>> = {},
-) {
+export function useSettingsSearch(query: MaybeRefOrGetter<string>) {
   const router = useRouter()
   const { t } = useI18n()
-  const {
-    allChatProvidersMetadata,
-    allVisionProvidersMetadata,
-    allAudioSpeechProvidersMetadata,
-    allAudioTranscriptionProvidersMetadata,
-  } = storeToRefs(useProviderStore())
 
-  /** The runtime items of each page, by route path. */
-  const itemsByPath = shallowRef<ReadonlyMap<string, SettingsSearchItem[]>>(new Map())
-  const items = computed(() => [...itemsByPath.value].flatMap(([path, pathItems]) => pathItems.map(item => ({ path, item }))))
-  let loadGeneration = 0
-
-  /** Loads every provider. Each page's items show as soon as they arrive, so a slow catalog does not hold back the cards. */
-  function loadItems() {
-    const generation = ++loadGeneration
-    for (const [path, load] of Object.entries(providers)) {
-      void (async () => {
-        try {
-          const provide = await load()
-          const loaded = await provide({ t })
-          if (generation === loadGeneration)
-            itemsByPath.value = new Map([...itemsByPath.value, [path, loaded]])
-        }
-        catch (error) {
-          // One failing provider, such as an offline model catalog, must not hide the other results.
-          console.warn(`[settings search] The items of ${path} did not load:`, errorMessageFrom(error) ?? error)
-        }
-      })()
+  // The modules load when the settings home opens, so the pages are ready when the person starts to type.
+  void settingsSearch.load().then(() => {
+    if (import.meta.env.DEV && !coverageReported) {
+      coverageReported = true
+      reportCoverage(router)
     }
+  })
+
+  const searching = computed(() => toValue(query).trim() !== '')
+
+  /** The item lists of the routes of the modules that are on, by route path. A module that turns on during a search adds its list. */
+  const itemSources = computed(() => {
+    const sources: Array<[string, SettingsSearchProvider]> = []
+    for (const module of settingsSearch.modules.values()) {
+      for (const route of module.routes ?? []) {
+        if (typeof route !== 'string' && route.items && settingsSearch.ownerOf(route.path)?.active)
+          sources.push([route.path, route.items])
+      }
+    }
+    return sources
+  })
+
+  /** The runtime items of each page, by route path. The items of the last search stay until the new ones arrive. */
+  const itemsByPath = shallowRef<ReadonlyMap<string, SettingsSearchItem[]>>(new Map())
+  /** Each search lists the items again. A list from an earlier search that arrives late is dropped. */
+  let loadGeneration = 0
+  /** The routes whose items this search asked for, so a module that turns on adds its list once. */
+  const requested = new Set<string>()
+
+  /** Lists the items of one route. Each page's items show as soon as they arrive, so a slow catalog does not hold back the cards. */
+  function loadItems(path: string, provide: SettingsSearchProvider) {
+    if (requested.has(path))
+      return
+    requested.add(path)
+    const generation = loadGeneration
+    void (async () => {
+      try {
+        const loaded = await provide({ t })
+        if (generation === loadGeneration)
+          itemsByPath.value = new Map([...itemsByPath.value, [path, loaded]])
+      }
+      catch (error) {
+        // One failing list, such as an offline model catalog, must not hide the other results.
+        console.warn(`[settings search] The items of ${path} did not load:`, errorMessageFrom(error) ?? error)
+      }
+    })()
   }
 
-  watch(() => toValue(query).trim() !== '', (searching) => {
-    if (searching)
-      loadItems()
+  watch([searching, itemSources], ([isSearching, sources], previous) => {
+    if (!isSearching)
+      return
+    if (!previous?.[0]) {
+      loadGeneration++
+      requested.clear()
+    }
+    for (const [path, provide] of sources)
+      loadItems(path, provide)
   }, { immediate: true })
 
   const index = computed<SettingsSearchResult[]>(() => {
+    // Every titled settings route, whether search lists it or not. The titles of the routes above a page make its location.
+    // Routes with parameters, such as one card, need data that a route does not have. Modules name those pages or items themselves.
     const pages = new Map<string, SearchPage>()
-
-    // Routes with parameters, such as one card, need data that a route does not have. Providers name theirs below.
-    for (const route of router.getRoutes()) {
-      if (!route.path.startsWith(`${SETTINGS_ROOT}/`) || route.path.includes(':'))
-        continue
+    for (const route of settingsRoutesOf(router)) {
       const meta = route.meta as SettingsSearchRouteMeta
-      const title = meta.titleKey ? t(meta.titleKey) : meta.title
-      if (!title)
-        continue
+      const title = meta.titleKey ? t(meta.titleKey) : meta.title ?? ''
       pages.set(route.path, {
         title,
         location: [],
@@ -143,67 +188,87 @@ export function useSettingsSearch(
       })
     }
 
-    // The location of a page is the titled pages on its path, from the top. The top one is its category.
-    for (const [path, page] of pages) {
+    /** The titled pages on a path, from the top, without the page at the path itself. */
+    const ancestorsOf = (path: string) => {
       const segments = path.slice(SETTINGS_ROOT.length + 1).split('/')
-      const ancestors = segments.slice(0, -1)
+      return segments.slice(0, -1)
         .map((_, end) => pages.get(`${SETTINGS_ROOT}/${segments.slice(0, end + 1).join('/')}`))
         .filter(ancestor => ancestor !== undefined)
+    }
+
+    // The location of a page is the titled pages on its path, from the top. The top one is its category.
+    for (const [path, page] of pages) {
+      const ancestors = ancestorsOf(path)
       page.location = ancestors.map(ancestor => ancestor.title)
       page.category = ancestors[0]?.category ?? page.category
     }
 
-    // Provider pages take their names from the provider registry, as the providers page shows them.
-    // A provider page can be a route with a parameter, so its settings come from the route that its link resolves to.
-    const providersPage = pages.get(PROVIDERS_PAGE)
-    const providerGroups: Array<[string, ProviderMetadata[]]> = [
-      ['chat', allChatProvidersMetadata.value],
-      ['vision', allVisionProvidersMetadata.value],
-      ['speech', allAudioSpeechProvidersMetadata.value],
-      ['transcription', allAudioTranscriptionProvidersMetadata.value],
-    ]
-    // Some providers keep their settings on a module page, such as a local transcriber on the speech recognition page.
-    // Such a provider is a result of its own, under that page, and the page keeps its own entry and settings.
-    const providerPages: Array<[string, SearchPage]> = []
-    for (const [kind, providers] of providerGroups) {
-      if (!providersPage)
-        break
-      const location = [providersPage.title, t(`settings.pages.providers.categories.${kind}.title`)]
-      for (const provider of providers) {
-        // The providers page hides the No Speech choice. It has no settings.
-        if (provider.id === 'speech-noop')
+    // A route is in the results only while the modules that hold it are on. A key with a condition of its route also needs the condition.
+    const routePages: Array<[string, SearchPage]> = []
+    for (const [path, page] of pages) {
+      const owner = settingsSearch.ownerOf(path)
+      if (!owner?.active)
+        continue
+      const conditions = owner.exact ? owner.route.conditions : undefined
+      routePages.push([path, conditions ? { ...page, searchKeys: page.searchKeys.filter(key => conditions[key]?.() ?? true) } : page])
+    }
+
+    // Pages that a module names from runtime data, such as one page for each provider.
+    const modulePages: Array<[string, SearchPage]> = []
+    for (const module of settingsSearch.modules.values()) {
+      if (!settingsSearch.isActive(module))
+        continue
+      for (const page of module.pages?.({ t }) ?? []) {
+        // A page under a route of a module that is off is off too.
+        if (settingsSearch.ownerOf(page.to)?.active === false)
           continue
-        // The same page that the provider card links to, so a result and the card open the same place.
-        const to = providerSettingsRouteOf(provider)
-        const routePage = pages.get(to)
-        const meta = router.resolve(to).matched.at(-1)?.meta as SettingsSearchRouteMeta | undefined
-        providerPages.push([to, {
-          title: provider.localizedName,
-          location: routePage ? [...routePage.location, routePage.title] : location,
-          category: routePage?.category ?? providersPage.category,
-          searchKeys: routePage ? [] : meta?.searchKeys ?? [],
+        // A page can be another name for a route that has its own result, such as a provider whose settings sit on a module page.
+        // It is a result under that route, and the route keeps the settings.
+        const routePage = pages.get(page.to)
+        if (routePage) {
+          modulePages.push([page.to, {
+            title: page.title,
+            location: [...routePage.location, routePage.title],
+            category: routePage.category,
+            searchKeys: [],
+          }])
+          continue
+        }
+        // Another page has its settings on the route that its address resolves to, such as the route of a provider with a parameter.
+        const ancestors = ancestorsOf(page.to)
+        const meta = router.resolve(page.to).matched.at(-1)?.meta as SettingsSearchRouteMeta | undefined
+        modulePages.push([page.to, {
+          title: page.title,
+          location: [...ancestors.map(ancestor => ancestor.title), ...(page.section ? [page.section] : [])],
+          category: ancestors[0]?.category ?? { title: page.title },
+          searchKeys: meta?.searchKeys ?? [],
         }])
       }
     }
-    const providerPageByPath = new Map(providerPages.toReversed())
+    const modulePageByPath = new Map(modulePages.toReversed())
 
     const results: SettingsSearchResult[] = []
     // A location starts with the category. The result names the category apart, so its location is what comes after it.
     const below = (titles: string[]) => titles.slice(1)
     // A runtime item opens its own page, or the listing page at its row. Its location is the page that lists it.
-    for (const { path, item } of items.value) {
-      const itemPath = (item.to ?? '').split('?')[0]
-      const listing = pages.get(path) ?? pages.get(itemPath) ?? providerPageByPath.get(itemPath)
-      if (!listing)
+    for (const [path, pathItems] of itemsByPath.value) {
+      // The module of the route can turn off after its items loaded.
+      if (!settingsSearch.ownerOf(path)?.active)
         continue
-      results.push({
-        title: item.title,
-        category: listing.category,
-        location: below([...listing.location, listing.title, ...(item.section ? [item.section] : [])]),
-        to: item.to ?? settingsSearchLocation(path, { keys: [item.key], gates: item.gates }),
-      })
+      for (const item of pathItems) {
+        const itemPath = (item.to ?? '').split('?')[0]
+        const listing = pages.get(path) ?? pages.get(itemPath) ?? modulePageByPath.get(itemPath)
+        if (!listing)
+          continue
+        results.push({
+          title: item.title,
+          category: listing.category,
+          location: below([...listing.location, listing.title, ...(item.section ? [item.section] : [])]),
+          to: item.to ?? settingsSearchLocation(path, { keys: [item.key], gates: item.gates }),
+        })
+      }
     }
-    for (const [path, page] of [...pages, ...providerPages]) {
+    for (const [path, page] of [...routePages, ...modulePages]) {
       results.push({
         title: page.title,
         category: page.category,

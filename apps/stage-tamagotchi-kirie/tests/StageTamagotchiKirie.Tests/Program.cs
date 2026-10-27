@@ -11,6 +11,7 @@ internal static class Program
         {
             TestsWidgetWirePayloads();
             TestsDesktopWindowGeometry();
+            TestsFloatingChatPlacement();
             TestsTrayWindowGeometry();
             TestsSpotlightShortcutPolicy();
             TestsNativeResizeEdges();
@@ -169,6 +170,103 @@ internal static class Program
                 new Rect2I(0, 25, 1200, 800),
                 new Vector2I(720, 100)),
             "spotlight slot");
+    }
+
+    private static void TestsFloatingChatPlacement()
+    {
+        var workArea = new Rect2I(0, 25, 1920, 1055);
+        var chatSize = new Vector2I(360, 520);
+        var leftBottom = AttachedChatLayout.Preferred;
+        var rightBottom = new AttachedChatLayout(AttachedChatSide.Right, AttachedChatAnchor.Bottom);
+        var leftTop = new AttachedChatLayout(AttachedChatSide.Left, AttachedChatAnchor.Top);
+
+        AssertEqual(
+            AttachedChatSide.Right,
+            FloatingChatPlacement.ChooseAttachedLayout(
+                new Rect2I(100, 300, 450, 600), chatSize, workArea, leftBottom, 24).Side,
+            "attached chat moves right without room on the left");
+        AssertEqual(
+            AttachedChatSide.Right,
+            FloatingChatPlacement.ChooseAttachedLayout(
+                new Rect2I(370, 300, 450, 600), chatSize, workArea, rightBottom, 24).Side,
+            "attached chat stays right until the left has room to spare");
+        AssertEqual(
+            AttachedChatSide.Left,
+            FloatingChatPlacement.ChooseAttachedLayout(
+                new Rect2I(400, 300, 450, 600), chatSize, workArea, rightBottom, 24).Side,
+            "attached chat returns left with room to spare");
+        AssertEqual(
+            AttachedChatAnchor.Top,
+            FloatingChatPlacement.ChooseAttachedLayout(
+                new Rect2I(1000, 25, 450, 300), chatSize, workArea, leftBottom, 24).Anchor,
+            "attached chat lines up with the top near the top of the work area");
+        AssertEqual(
+            AttachedChatAnchor.Top,
+            FloatingChatPlacement.ChooseAttachedLayout(
+                new Rect2I(1000, 250, 450, 300), chatSize, workArea, leftTop, 24).Anchor,
+            "attached chat stays top anchored until the bottom has room to spare");
+        AssertEqual(
+            AttachedChatAnchor.Bottom,
+            FloatingChatPlacement.ChooseAttachedLayout(
+                new Rect2I(1000, 280, 450, 300), chatSize, workArea, leftTop, 24).Anchor,
+            "attached chat returns to the bottom anchor with room to spare");
+        AssertEqual(
+            AttachedChatSide.Left,
+            FloatingChatPlacement.ChooseAttachedLayout(
+                new Rect2I(380, 300, 1300, 600), chatSize, workArea, rightBottom, 24).Side,
+            "attached chat goes back left when neither side has room to spare");
+
+        AssertEqual(
+            new Vector2I(-360, 80),
+            FloatingChatPlacement.AttachedOffset(
+                new Rect2I(1000, 300, 450, 600), chatSize, workArea, leftBottom),
+            "left bottom attached offset");
+        AssertEqual(
+            new Vector2I(450, 0),
+            FloatingChatPlacement.AttachedOffset(
+                new Rect2I(100, 25, 450, 300),
+                chatSize,
+                workArea,
+                new AttachedChatLayout(AttachedChatSide.Right, AttachedChatAnchor.Top)),
+            "right top attached offset");
+        AssertEqual(
+            new Vector2I(-100, 0),
+            FloatingChatPlacement.AttachedOffset(
+                new Rect2I(100, 25, 450, 300), chatSize, workArea, leftBottom),
+            "attached offset without room stays in the work area");
+        AssertEqual(
+            "n,w,nw",
+            string.Join(',', FloatingChatPlacement.AttachedResizeEdges(leftBottom)),
+            "left bottom attached resize edges");
+
+        DisplayArea[] displays =
+        [
+            new(new Rect2I(0, 0, 1920, 1080), workArea),
+            new(new Rect2I(-1280, 0, 1280, 800), new Rect2I(-1280, 0, 1280, 800)),
+        ];
+        AssertEqual(
+            new Rect2I(600, 25, 380, 560),
+            FloatingChatPlacement.KeepOnDisplay(new Rect2I(600, -200, 380, 560), displays),
+            "floating chat top edge stays below the menu bar");
+        AssertEqual(
+            new Rect2I(-380, 240, 380, 560),
+            FloatingChatPlacement.KeepOnDisplay(new Rect2I(-300, 600, 380, 560), displays),
+            "floating chat moves onto the display that holds most of it");
+        AssertEqual(
+            new Rect2I(-1280, 0, 1280, 800),
+            FloatingChatPlacement.KeepOnDisplay(new Rect2I(-1280, 0, 1400, 1000), displays),
+            "floating chat larger than the work area shrinks to it");
+
+        AssertEqual(
+            new Rect2I(80, 70, 420, 530),
+            FloatingChatPlacement.ResizeByDelta(
+                new Rect2I(100, 100, 400, 500), new Vector2I(-20, -30), "nw", new Vector2I(300, 260)),
+            "floating chat resize from the top-left corner");
+        AssertEqual(
+            new Rect2I(200, 100, 300, 500),
+            FloatingChatPlacement.ResizeByDelta(
+                new Rect2I(100, 100, 400, 500), new Vector2I(250, 0), "w", new Vector2I(300, 260)),
+            "floating chat resize stops at the minimum width");
     }
 
     private static void TestsTrayWindowGeometry()

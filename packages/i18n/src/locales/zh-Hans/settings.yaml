@@ -1426,6 +1426,11 @@ pages:
       description: 让 AIRI 联网搜索最新信息
       enable: 启用网络搜索
       enable-description: 允许 AIRI 在对话中联网搜索
+      provider: 搜索服务
+      deepseek:
+        api-key: DeepSeek API 密钥
+        api-key-description: 输入用于网页搜索的 DeepSeek API 密钥。此密钥独立于聊天服务设置。
+        api-key-placeholder: 输入您的 DeepSeek API 密钥
       api-key: Tavily API 密钥
       api-key-description: 网络搜索由 Tavily 提供支持，可在 tavily.com 免费获取 API 密钥。
       api-key-placeholder: 输入您的 Tavily API 密钥

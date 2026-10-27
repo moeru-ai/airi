@@ -3,7 +3,9 @@ import type { SettingsSearchCategory, SettingsSearchResult } from '../../../comp
 
 import { LinkGroup, LinkGroupItem } from '@proj-airi/ui'
 import { useResizeObserver } from '@vueuse/core'
-import { computed, ref, useTemplateRef, watch } from 'vue'
+import { minBy } from 'es-toolkit'
+import { RovingFocusGroup, RovingFocusItem } from 'reka-ui'
+import { computed, ref, useId, useTemplateRef, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 const props = defineProps<{
@@ -14,6 +16,26 @@ const props = defineProps<{
 
 /** Joins the pages of a location, for example "Hearing › Wake words". */
 const LOCATION_SEPARATOR = ' › '
+/** Finds the link of each result among the elements of the cards. The template puts this attribute on each result link. */
+const RESULT_SELECTOR = '[data-settings-search-result]'
+/** Positions closer than this, in CSS pixels, are the same. Layout can round an edge to a fraction of a pixel. */
+const SAME_POSITION_PX = 1
+
+/** The prefix of the element id of each result. It keeps the ids of two result lists apart. */
+const idPrefix = useId()
+
+/** Identifies a result. A page can have two settings with the same name, so the address is part of it. */
+function resultKey(result: SettingsSearchResult) {
+  return `${result.to}\n${result.title}`
+}
+
+/**
+ * The element id of a result, which is also its tab stop in reka-ui. When Tab enters the list again, reka-ui finds the last
+ * focused result by its element id. An id has no whitespace, so the key is encoded.
+ */
+function resultId(result: SettingsSearchResult) {
+  return `${idPrefix}-${encodeURIComponent(resultKey(result))}`
+}
 
 interface Group {
   category: SettingsSearchCategory
@@ -126,33 +148,91 @@ function partsOf(title: string) {
     parts.push({ text: title.slice(from), match: false })
   return parts
 }
+
+/**
+ * The result that an arrow key moves to, by where the results stand. Up and Down stay in the column. Left and Right go to the
+ * nearest column on that side, to the result nearest to the same height.
+ *
+ * Returns:
+ * - The link of that result, or `undefined` at the edge of the grid, so the focus stays.
+ */
+function resultToward(current: HTMLElement, key: string) {
+  const from = current.getBoundingClientRect()
+  const results = [...container.value?.querySelectorAll<HTMLElement>(RESULT_SELECTOR) ?? []]
+    .filter(element => element !== current)
+    .map(element => ({ element, rect: element.getBoundingClientRect() }))
+  // A card spans one column, so the results of one column share their left edge.
+  const inColumnOf = (left: number) => results.filter(result => Math.abs(result.rect.left - left) < SAME_POSITION_PX)
+
+  if (key === 'ArrowDown')
+    return minBy(inColumnOf(from.left).filter(result => result.rect.top > from.bottom - SAME_POSITION_PX), result => result.rect.top)?.element
+  if (key === 'ArrowUp')
+    return minBy(inColumnOf(from.left).filter(result => result.rect.bottom < from.top + SAME_POSITION_PX), result => -result.rect.bottom)?.element
+
+  const toRight = key === 'ArrowRight'
+  const side = results.filter(result => toRight ? result.rect.left > from.right - SAME_POSITION_PX : result.rect.right < from.left + SAME_POSITION_PX)
+  const nearestColumn = minBy(side, result => Math.abs(result.rect.left - from.left))
+  if (!nearestColumn)
+    return undefined
+  const middle = (rect: DOMRect) => rect.top + rect.height / 2
+  return minBy(inColumnOf(nearestColumn.rect.left), result => Math.abs(middle(result.rect) - middle(from)))?.element
+}
+
+/**
+ * Moves the focus with the arrow keys. reka-ui moves in document order, which follows the results and jumps between columns,
+ * so this handler takes the arrow keys before it. reka-ui still owns the rest: Tab enters at the last focused result, and Home
+ * and End go to the first and the last result. Focusing the result tells reka-ui which result is the tab stop now.
+ */
+function moveFocus(event: KeyboardEvent) {
+  const isArrow = event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'ArrowLeft' || event.key === 'ArrowRight'
+  const current = event.target
+  if (!isArrow || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || !(current instanceof HTMLElement) || !current.matches(RESULT_SELECTOR))
+    return
+  event.preventDefault()
+  event.stopPropagation()
+  const next = resultToward(current, event.key)
+  // The nearest scroll moves the list only as far as needed. The scroll margin of the result keeps it clear of the search field above.
+  next?.focus({ preventScroll: true })
+  next?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+}
 </script>
 
 <template>
-  <div ref="container" :class="['grid items-start gap-3']" :style="gridStyle">
-    <LinkGroup
-      v-for="group in groups"
-      ref="cards"
-      :key="group.category.title"
-      :data-category="group.category.title"
-      :title="group.category.title"
-      :icon="group.category.icon"
-      :style="cardStyle(group)"
-    >
-      <LinkGroupItem
-        v-for="result in group.results"
-        :key="`${result.to}\n${result.title}`"
-        :as="RouterLink"
-        :to="result.to"
-        :detail="result.location.join(LOCATION_SEPARATOR)"
+  <!-- The results are one stop of the Tab key. The arrow keys move between them. -->
+  <RovingFocusGroup @keydown.capture="moveFocus">
+    <div ref="container" :class="['grid items-start gap-3']" :style="gridStyle">
+      <LinkGroup
+        v-for="group in groups"
+        ref="cards"
+        :key="group.category.title"
+        :data-category="group.category.title"
+        :title="group.category.title"
+        :icon="group.category.icon"
+        :style="cardStyle(group)"
       >
-        <template v-for="(part, partIndex) in partsOf(result.title)" :key="partIndex">
-          <b v-if="part.match" :class="['font-semibold']">{{ part.text }}</b>
-          <template v-else>
-            {{ part.text }}
-          </template>
-        </template>
-      </LinkGroupItem>
-    </LinkGroup>
-  </div>
+        <RovingFocusItem
+          v-for="result in group.results"
+          :key="resultKey(result)"
+          :tab-stop-id="resultId(result)"
+          as-child
+        >
+          <LinkGroupItem
+            :id="resultId(result)"
+            :as="RouterLink"
+            :to="result.to"
+            :detail="result.location.join(LOCATION_SEPARATOR)"
+            data-settings-search-result
+            :class="['scroll-mt-16']"
+          >
+            <template v-for="(part, partIndex) in partsOf(result.title)" :key="partIndex">
+              <b v-if="part.match" :class="['font-semibold']">{{ part.text }}</b>
+              <template v-else>
+                {{ part.text }}
+              </template>
+            </template>
+          </LinkGroupItem>
+        </RovingFocusItem>
+      </LinkGroup>
+    </div>
+  </RovingFocusGroup>
 </template>

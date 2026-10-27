@@ -1,9 +1,9 @@
 import type { MaybeRefOrGetter } from 'vue'
 
-import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { storeToRefs } from 'pinia'
 import { computed, effectScope, shallowRef, toValue, watch } from 'vue'
 
+import { useChatSessionStore } from '../stores/chat/session-store'
 import { useChatFeedExpiry } from './use-chat-feed-expiry'
 import { useDanmakuFeedSettings } from './use-danmaku-feed-settings'
 import { useSpeechOutputVoicing } from './use-speech-output-voicing'

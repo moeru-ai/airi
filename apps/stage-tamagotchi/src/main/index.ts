@@ -2,6 +2,7 @@ import type { BrowserWindow } from 'electron'
 
 import type { FullscreenMode, FullscreenSurfaceId } from '../shared/eventa'
 import type { FileLoggerHandle } from './app/file-logger'
+import type { AutoUpdater } from './services/electron/auto-updater'
 import type { SettingsWindowManager } from './windows/settings'
 import type { FullscreenPlace } from './windows/shared/fullscreen'
 import type { WorkspaceWindowManager } from './windows/workspace'
@@ -14,7 +15,6 @@ import { fileURLToPath } from 'node:url'
 import messages from '@proj-airi/i18n/locales'
 
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
-import { updater } from '@ergosphere-it/electron/main'
 import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { hasSelectedScreenCaptureSource, initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
@@ -527,10 +527,18 @@ app.whenReady().then(async () => {
     },
   })
 
-  // The update launcher keeps a new bundle only after it reports healthy, and rolls it back otherwise. Report when every
-  // module, and so every window, has started.
+  // The update launcher keeps a new bundle only after it reports healthy, and rolls it back otherwise. The updater service
+  // reports it when every module has started and the main window has mounted its page.
+  let updates: AutoUpdater | undefined
+  injeca.invoke({
+    dependsOn: { autoUpdater },
+    callback: (deps) => {
+      updates = deps.autoUpdater
+    },
+  })
+
   injeca.start()
-    .then(() => updater.markBundleHealthy())
+    .then(() => updates?.markMainReady())
     .catch(err => log.withError(err).error('Failed to start injeca'))
 
   // Extra
