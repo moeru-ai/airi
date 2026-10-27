@@ -140,7 +140,11 @@ export function createComputerUseRuntime(options: { binaryPath: string, storeRoo
         abort.signal.throwIfAborted()
         let onAbort: (() => void) | undefined
         try {
-          // Disposal stops waiting for the native task. The codec can finish in the background.
+          // NOTICE:
+          // Disposal must stop waiting while the native codec finishes in the background.
+          // N-API cannot cancel async work that already started.
+          // Source: https://github.com/napi-rs/napi-rs/blob/main/crates/napi/src/bindgen_runtime/js_values/task.rs#L224-L230
+          // Remove this race when the codec can interrupt running work.
           const pngData = await Promise.race([
             new Transformer(data).png(),
             new Promise<never>((_resolve, reject) => {
