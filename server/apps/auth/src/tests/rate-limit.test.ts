@@ -1,6 +1,8 @@
 import type { HonoEnv } from '../routes'
 
+import { useLogger } from '@guiiai/logg'
 import { serve } from '@hono/node-server'
+import { createErrorHandler } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -22,7 +24,9 @@ async function createApp(trustedProxy?: 'railway') {
     rateLimitMetrics: null,
   })
 
-  return new Hono<HonoEnv>().route('/', routes)
+  return new Hono<HonoEnv>()
+    .onError(createErrorHandler(useLogger('test')))
+    .route('/', routes)
 }
 
 async function listen(app: Hono<HonoEnv>, hostname = '127.0.0.1') {
@@ -61,6 +65,25 @@ describe('auth API rate limiting behind Railway', () => {
         expect((await request(server.origin, `203.0.113.${index + 1}`)).status).toBe(200)
 
       expect((await request(server.origin, '203.0.113.21')).status).toBe(429)
+    }
+    finally {
+      await server.close()
+    }
+  })
+
+  it('keeps the RateLimit headers and the JSON error body on a blocked request', async () => {
+    const server = await listen(await createApp())
+
+    try {
+      for (let index = 0; index < 20; index += 1)
+        await request(server.origin, '203.0.113.1')
+
+      const blocked = await request(server.origin, '203.0.113.1')
+
+      expect(blocked.status).toBe(429)
+      expect(blocked.headers.get('ratelimit-remaining')).toBe('0')
+      expect(blocked.headers.get('retry-after')).not.toBeNull()
+      expect(await blocked.json()).toEqual({ error: 'TOO_MANY_REQUESTS', message: 'Too many requests' })
     }
     finally {
       await server.close()

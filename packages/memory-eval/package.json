@@ -29,7 +29,8 @@
   "scripts": {
     "build": "tsdown",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:run": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
     "valibot": "catalog:"

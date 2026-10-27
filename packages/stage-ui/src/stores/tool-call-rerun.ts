@@ -5,7 +5,31 @@ import type { ChatAssistantMessage, ChatHistoryItem, ChatSlicesToolCallResult } 
 import { errorMessageFrom } from '@moeru/std'
 import { chatContentToInputSegments } from '@proj-airi/core-agent'
 
+import { JUDGE_RECIPE_TOOL_NAME } from '../tools/judge-recipe'
+import { FORGET_MEMORY_TOOL_NAME, READ_MEMORY_TOOL_NAME, WRITE_MEMORY_TOOL_NAME } from '../tools/memory'
+import { PROPOSE_RECIPE_TOOL_NAME } from '../tools/propose-recipe'
+import { USE_RECIPE_TOOL_NAME } from '../tools/use-recipe'
+import { WAKE_WORDS_TOOL_NAME } from '../tools/wake-words'
 import { toolNameFrom } from './ai/chat-llm/tool-resolver'
+
+/**
+ * Tools that the chat builds for each send, from the recipes, the memory, or the character of its session.
+ * They never enter the tool registry, so a rerun cannot rebuild them. See `withRunTools` and `prepareSend` in `stores/chat.ts`.
+ */
+const SEND_BUILT_TOOL_NAMES: ReadonlySet<string> = new Set([
+  USE_RECIPE_TOOL_NAME,
+  JUDGE_RECIPE_TOOL_NAME,
+  PROPOSE_RECIPE_TOOL_NAME,
+  READ_MEMORY_TOOL_NAME,
+  WRITE_MEMORY_TOOL_NAME,
+  FORGET_MEMORY_TOOL_NAME,
+  WAKE_WORDS_TOOL_NAME,
+])
+
+/** Whether a rerun can rebuild the tool of a call. Without that, a rerun replaces the stored result with an error. */
+export function canRerunToolCall(toolName: string) {
+  return !SEND_BUILT_TOOL_NAMES.has(toolName)
+}
 
 /** Identifies one tool invocation inside the selected assistant message. */
 export interface ToolCallRerunRequest {

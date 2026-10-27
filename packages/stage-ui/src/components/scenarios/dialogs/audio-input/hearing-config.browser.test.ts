@@ -1,5 +1,6 @@
 import { createPinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { page } from 'vitest/browser'
 import { createApp, nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
 
@@ -39,6 +40,7 @@ vi.mock('../../../../composables/audio', async () => {
         stream: shallowRef<MediaStream>(),
         deviceConstraints: computed(() => ({ audio: true })),
         permissionGranted,
+        permission: shallowRef('granted'),
         source: shallowRef(),
         input: shallowRef({ subscribe: () => new ReadableStream() }),
         askPermission: audioDeviceMocks.storeAskPermission,
@@ -117,12 +119,28 @@ describe('hearing config audio device ownership', () => {
     host.remove()
   })
 
-  it('renders the microphone selected by the settings store', () => {
+  it('renders the microphone selected by the settings store in a select on a wide screen', async () => {
+    await page.viewport(1280, 800)
     localStorage.setItem('settings/audio/input', 'store-microphone')
     const { app, host } = mountHearingConfig()
 
-    expect(host.querySelector<HTMLInputElement>('input[role="combobox"]')?.value).toBe('Store microphone')
+    await expect.poll(() => host.querySelector<HTMLInputElement>('input[role="combobox"]')?.value).toBe('Store microphone')
     expect(host.textContent).not.toContain('Detached microphone')
+
+    app.unmount()
+    host.remove()
+  })
+
+  // A phone shows this config in a bottom drawer. A select there opened a second floating layer that the drawer
+  // and the composer covered, so a narrow screen lists the microphones as rows.
+  it('lists the microphones as rows on a narrow screen', async () => {
+    await page.viewport(390, 844)
+    localStorage.setItem('settings/audio/input', 'store-microphone')
+    const { app, host } = mountHearingConfig()
+
+    await expect.poll(() => host.querySelector('[data-testid="microphone-picker"]')?.getAttribute('data-layout')).toBe('list')
+    expect(host.querySelector('input[role="combobox"]')).toBeNull()
+    expect(host.querySelector('[data-testid="microphone-picker"] [role="radio"][data-state="checked"]')?.textContent).toContain('Store microphone')
 
     app.unmount()
     host.remove()

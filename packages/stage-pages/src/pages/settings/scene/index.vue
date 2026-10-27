@@ -6,6 +6,8 @@ import { Button, Callout } from '@proj-airi/ui'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { isSceneBackground, sceneBackgroundSearchKey } from './index.search'
+
 const { t } = useI18n()
 const { trackSceneBackgroundSet } = useAnalytics()
 const backgroundStore = useBackgroundStore()
@@ -13,10 +15,7 @@ const cardStore = useAiriCardStore()
 
 const fileInputRef = ref<HTMLInputElement>()
 
-const sceneEntries = computed(() => {
-  return backgroundStore.availableBackgrounds
-    .filter(e => e.type === 'scene' || e.type === 'builtin')
-})
+const sceneEntries = computed(() => backgroundStore.availableBackgrounds.filter(isSceneBackground))
 
 const activeBackgroundId = computed({
   get: () => cardStore.activeCard?.extensions?.airi?.modules?.activeBackgroundId || 'none',
@@ -125,6 +124,7 @@ function clearDefault() {
           <div
             v-for="bg in sceneEntries"
             :key="bg.id"
+            :data-settings-search="sceneBackgroundSearchKey(bg.id)"
             :class="[
               'relative aspect-square overflow-hidden rounded-xl border-2 group transition-all',
               bg.id === activeBackgroundId ? 'border-primary shadow-lg' : 'border-transparent bg-neutral-100 dark:bg-neutral-900',

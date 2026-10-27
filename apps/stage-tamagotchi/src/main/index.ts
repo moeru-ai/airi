@@ -2,13 +2,14 @@ import type { BrowserWindow } from 'electron'
 
 import type { FullscreenMode, FullscreenSurfaceId } from '../shared/eventa'
 import type { FileLoggerHandle } from './app/file-logger'
+import type { AutoUpdater } from './services/electron/auto-updater'
 import type { SettingsWindowManager } from './windows/settings'
 import type { FullscreenPlace } from './windows/shared/fullscreen'
 import type { WorkspaceWindowManager } from './windows/workspace'
 
 import process, { env, platform } from 'node:process'
 
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import messages from '@proj-airi/i18n/locales'
@@ -30,9 +31,10 @@ import { resolveIsWayland } from './app/ozone'
 import { installSingleInstanceGuard } from './app/single-instance'
 import { createArtistryConfig } from './configs/artistry'
 import { createGlobalAppConfig } from './configs/global'
+import { createIOTraceHubConfig } from './configs/io-trace-hub'
 import { createIOTraceRecordingConfig } from './configs/io-trace-recording'
 import { emitAppBeforeQuit, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
-import { getElectronMainDirname, setElectronMainDirname } from './libs/electron/location'
+import { getRendererRoot, setElectronMainDirname } from './libs/electron/location'
 import { createI18n } from './libs/i18n'
 import { setupAppleSpeechTranscriptionService } from './services/airi/apple-speech-transcription'
 import { setupAppleVisionService } from './services/airi/apple-vision'
@@ -41,11 +43,13 @@ import { setupComputerUse } from './services/airi/computer-use'
 import { setupGodotStageManager } from './services/airi/godot-stage'
 import { setupHomeAssistant } from './services/airi/home-assistant'
 import { setupBuiltInServer } from './services/airi/http-server'
+import { IOTraceHub } from './services/airi/io-trace-hub'
+import { registerIOTraceHub } from './services/airi/io-trace-hub/register'
 import { IOTraceRecordingService } from './services/airi/io-trace-recording'
 import { setupMcpManager } from './services/airi/mcp-servers'
 import { setupExtensionHost } from './services/airi/plugins'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
-import { setupAutoUpdater } from './services/electron/auto-updater'
+import { isExternallyUpdatedInstall, setupAutoUpdater } from './services/electron/auto-updater'
 import { setupSherpawModelAssetsProtocol } from './services/electron/bundled-sherpaw-assets'
 import { setupGlobalShortcutService } from './services/electron/global-shortcut'
 import { setupPermissionHandlers } from './services/electron/media-permissions'
@@ -243,7 +247,7 @@ app.whenReady().then(async () => {
     return
   }
 
-  setupSherpawModelAssetsProtocol(resolve(getElectronMainDirname(), '..', 'renderer'))
+  setupSherpawModelAssetsProtocol(getRendererRoot)
   setupSherpawModelAssets(createContext(ipcMain).context)
   setupPermissionHandlers(session.defaultSession, hasSelectedScreenCaptureSource)
 
@@ -262,11 +266,12 @@ app.whenReady().then(async () => {
   const appConfig = injeca.provide('configs:app', () => createGlobalAppConfig())
   const artistryConfig = injeca.provide('configs:artistry', () => createArtistryConfig())
   const ioTraceRecordingConfig = injeca.provide('configs:io-trace-recording', () => createIOTraceRecordingConfig())
+  const ioTraceHubConfig = injeca.provide('configs:io-trace-hub', () => createIOTraceHubConfig())
   const electronApp = injeca.provide('host:electron:app', () => app)
   const autoUpdater = injeca.provide('services:auto-updater', {
     dependsOn: { appConfig },
     build: ({ dependsOn }) => setupAutoUpdater({
-      enabled: import.meta.env.VITE_DISTRIBUTION !== 'steam',
+      enabled: !isExternallyUpdatedInstall(),
       getStoredUpdateLane: () => dependsOn.appConfig.get()?.updateChannel,
       setStoredUpdateLane: (lane) => {
         const currentConfig = dependsOn.appConfig.get()
@@ -312,13 +317,33 @@ app.whenReady().then(async () => {
     build: async () => setupMcpManager(),
   })
 
+  const ioTraceHub = injeca.provide('services:io-trace-hub', {
+    dependsOn: { config: ioTraceHubConfig, lifecycle },
+    build: ({ dependsOn }) => {
+      const hub = new IOTraceHub({
+        getStoredCollecting: () => dependsOn.config.get()?.collecting ?? false,
+        setStoredCollecting: collecting => dependsOn.config.update({ collecting }),
+      })
+      const unregister = registerIOTraceHub(hub)
+      dependsOn.lifecycle.appHooks.onStop(unregister)
+      return hub
+    },
+  })
+
   const ioTraceRecording = injeca.provide('services:io-trace-recording', {
-    dependsOn: { config: ioTraceRecordingConfig, lifecycle },
+    dependsOn: { config: ioTraceRecordingConfig, hub: ioTraceHub, lifecycle },
     build: ({ dependsOn }) => {
       const service = new IOTraceRecordingService({
         directory: join(app.getPath('userData'), 'io-traces'),
         getStoredEnabled: () => dependsOn.config.get()?.enabled ?? false,
         setStoredEnabled: enabled => dependsOn.config.update({ enabled }),
+      })
+      // The hub receives the spans of every window, so the files have the spans of every window.
+      const { unsubscribe } = dependsOn.hub.subscribe((span) => {
+        service.recordSpan(span).catch(error => log.withError(error).error('Failed to record IO trace span'))
+      })
+      dependsOn.lifecycle.appHooks.onStop(() => {
+        unsubscribe()
       })
       dependsOn.lifecycle.appHooks.onStart(async () => {
         try {
@@ -398,7 +423,7 @@ app.whenReady().then(async () => {
   })
 
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpManager, i18n, globalShortcut, spotlightWindow, ioTraceRecording },
+    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, editorWindow, serverChannel, godotStageManager, mcpManager, i18n, globalShortcut, spotlightWindow, ioTraceRecording },
     build: async ({ dependsOn }) => {
       settingsWindowManager = setupSettingsWindowReusableFunc({
         ...dependsOn,
@@ -411,7 +436,7 @@ app.whenReady().then(async () => {
   })
 
   const workspaceWindow = injeca.provide('windows:workspace', {
-    dependsOn: { chatWindow, widgetsManager, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpManager, i18n, globalShortcut, spotlightWindow, ioTraceRecording },
+    dependsOn: { chatWindow, widgetsManager, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, editorWindow, serverChannel, godotStageManager, mcpManager, i18n, globalShortcut, spotlightWindow, ioTraceRecording },
     build: ({ dependsOn }) => {
       workspaceWindowManager = setupWorkspaceWindowManager({
         ...dependsOn,
@@ -502,7 +527,19 @@ app.whenReady().then(async () => {
     },
   })
 
-  injeca.start().catch(err => log.withError(err).error('Failed to start injeca'))
+  // The update launcher keeps a new bundle only after it reports healthy, and rolls it back otherwise. The updater service
+  // reports it when every module has started and the main window has mounted its page.
+  let updates: AutoUpdater | undefined
+  injeca.invoke({
+    dependsOn: { autoUpdater },
+    callback: (deps) => {
+      updates = deps.autoUpdater
+    },
+  })
+
+  injeca.start()
+    .then(() => updates?.markMainReady())
+    .catch(err => log.withError(err).error('Failed to start injeca'))
 
   // Extra
   openDebugger()

@@ -76,7 +76,7 @@ const listenLabelKeys = {
   'wake-word': 'stage.chat.voice-composer.wake-word',
 } as const satisfies Record<HearingInputMode, string>
 const devices = useSettingsAudioDevice()
-const { audioInputOptions, selectedAudioInput, enabled: listening } = storeToRefs(devices)
+const { audioInputOptions, permission, selectedAudioInput, enabled: listening } = storeToRefs(devices)
 const controls = useVoiceControlsStore()
 
 /** Composer text before dictation started. The live transcript is shown after it until the input ends. */
@@ -202,6 +202,11 @@ const currentDevice = computed(() => {
 // Opening the menu does not ask for permission. A hover is no user activation, so the opened AudioContext never resumes.
 // Source: `microphoneSource` in packages/audio/src/browser/sources.ts awaits `context.resume()`.
 // Remove when that source stops waiting for resume.
+/** Asks for access from the device submenu. A denial leaves the reason in the store and the item says so. */
+async function allowMicrophone() {
+  await devices.askPermission()
+}
+
 async function setListening(value: boolean) {
   if (value && !await devices.askPermission())
     return
@@ -350,6 +355,16 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
               ]"
               @pointerenter="menu.enter()"
             >
+              <!-- Browsers list microphones only after access. A click in the menu is a user gesture, so it can ask. -->
+              <DropdownMenuItem
+                v-if="audioInputOptions.length === 0"
+                data-testid="voice-menu-device-allow"
+                :class="itemClasses"
+                @select.prevent="allowMicrophone"
+              >
+                <span :class="['i-solar:microphone-3-linear size-4 shrink-0']" />
+                <span :class="['flex-1']">{{ permission === 'denied' ? t('settings.pages.modules.hearing.sections.section.input-device.blocked') : t('settings.pages.modules.hearing.sections.section.input-device.allow') }}</span>
+              </DropdownMenuItem>
               <DropdownMenuRadioGroup v-model="selectedAudioInput">
                 <DropdownMenuRadioItem
                   v-for="device in audioInputOptions"

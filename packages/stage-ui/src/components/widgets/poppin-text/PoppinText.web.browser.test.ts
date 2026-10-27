@@ -72,4 +72,20 @@ describe('poppin text', () => {
     app.unmount()
     host.remove()
   })
+
+  it('renders inline graphemes inside the chosen root element', async () => {
+    const host = document.createElement('p')
+    document.body.appendChild(host)
+    const app = createApp({ render: () => h(PoppinText, { text: [{ key: 'one', text: 'Hi' }], as: 'span', inline: true }) })
+    app.mount(host)
+    await nextTick()
+
+    const root = host.firstElementChild!
+    expect(root.tagName).toBe('SPAN')
+    expect(root.textContent).toBe('Hi')
+    expect(Array.from(root.children).every(span => !span.classList.contains('inline-block'))).toBe(true)
+
+    app.unmount()
+    host.remove()
+  })
 })

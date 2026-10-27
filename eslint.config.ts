@@ -18,8 +18,13 @@ export default defineConfig({
     'crowdin.yaml',
     'crowdin.yml',
     '**/assets/js/**',
+    'packages/cloud-client/src/generated/**', // Hey API owns these files.
+    'packages/cloud-client/openapi.yaml', // Generated from the Cloud protobuf contract.
     '**/assets/live2d/models/**',
     'apps/stage-tamagotchi/out/**',
+    'apps/stage-tamagotchi-kirie/addons/**',
+    'apps/stage-tamagotchi-kirie/tests/**/bin/**',
+    'apps/stage-tamagotchi-kirie/tests/**/obj/**',
     'apps/stage-tamagotchi/src/bindings/**',
     'apps/stage-tamagotchi-electron/out/**',
     'apps/stage-tamagotchi-electron/src/renderer/bindings/**',

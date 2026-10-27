@@ -6,7 +6,7 @@ import ComputerUseKeycaps from './keycaps.vue'
 import ComputerUseTextMatches from './text-matches.vue'
 
 import { CHIP, LINE, LINE_ICON, NOTE } from './classes'
-import { pointText, rectText } from './format'
+import { pointText, rectText, windowText } from './format'
 import { useComputerUseLabels } from './use-labels'
 
 /** Text that OCR found on the screen or in a window, and the text that a click command clicked. */
@@ -26,7 +26,7 @@ const { t, KEY, label } = useComputerUseLabels()
         : t(`${KEY}.not-found`, { query: props.view.query }) }}
     </span>
     <span v-if="props.view.window" :class="NOTE">
-      {{ t(`${KEY}.window`) }} · {{ props.view.window.title }} · {{ props.view.window.app_name }} · {{ rectText(props.view.window.frame) }}
+      {{ t(`${KEY}.window`) }} · {{ windowText(props.view.window) }} · {{ rectText(props.view.window.frame) }}
     </span>
     <ComputerUseTextMatches v-if="props.view.matches.length > 0" :matches="props.view.matches" />
   </template>
@@ -38,7 +38,7 @@ const { t, KEY, label } = useComputerUseLabels()
       <span :class="['font-semibold tabular-nums']">{{ pointText(props.view.point) }}</span>
     </span>
     <span v-if="props.view.window" :class="NOTE">
-      {{ t(`${KEY}.window`) }} · {{ props.view.window.title }} · {{ props.view.window.app_name }} · {{ rectText(props.view.window.frame) }}
+      {{ t(`${KEY}.window`) }} · {{ windowText(props.view.window) }} · {{ rectText(props.view.window.frame) }}
     </span>
     <ComputerUseTextMatches :matches="props.view.matches" :selected-index="props.view.selectedIndex" />
     <div v-if="props.view.options" :class="['flex flex-wrap items-center gap-1']">

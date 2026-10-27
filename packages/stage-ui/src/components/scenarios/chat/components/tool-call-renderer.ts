@@ -32,6 +32,14 @@ export interface ChatToolCallWidgetReading {
   props: object
   /** The fields of the result that the props do not cover. The row shows them under the widget, so no field is lost. */
   rest?: unknown
+  /** The tool returned, but its result says that the call did not do what it asked. The row and the pill count the call as failed. */
+  failed?: boolean
+}
+
+/** A translation key with its named values. A widget names its call with it, and the chat translates it. */
+export interface ChatToolCallTitle {
+  key: string
+  params?: Record<string, string>
 }
 
 /**
@@ -41,15 +49,19 @@ export interface ChatToolCallWidgetReading {
  * - A tool returns data that reads better as a small view than as fields, for example a forecast or a list of links
  *
  * Expects:
- * - `read` gets the raw tool result and the serialized arguments of the call.
+ * - `read` gets the raw tool result and the serialized arguments as the model wrote them. They also hold the call
+ *   summary, so a reader reads only the fields that it needs.
  * - `read` returns `undefined` when the widget cannot show the result, for example an error text.
+ * - `title` gets the same values, and `undefined` as the result while the call runs.
  *
  * Returns:
  * - The component and its reader. The row shows the generic arguments and result when `read` returns `undefined`.
+ * - An optional title. The row and a pill of one call show it in place of the tool name, so it also says the state of the call.
  */
 export interface ChatToolCallWidget {
   component: Component
   read: (result: unknown, args: string) => ChatToolCallWidgetReading | undefined
+  title?: (result: unknown, args: string) => ChatToolCallTitle | undefined
 }
 
 /** The props that a component takes, read from its instance type. */
@@ -66,9 +78,10 @@ type PropsOf<TComponent> = TComponent extends abstract new (...args: never[]) =>
  */
 export function defineToolCallWidget<TComponent extends Component>(
   component: TComponent,
-  read: (result: unknown, args: string) => { props: PropsOf<TComponent>, rest?: unknown } | undefined,
+  read: (result: unknown, args: string) => { props: PropsOf<TComponent>, rest?: unknown, failed?: boolean } | undefined,
+  options?: Pick<ChatToolCallWidget, 'title'>,
 ): ChatToolCallWidget {
-  return { component, read }
+  return { component, read, ...options }
 }
 
 /**

@@ -78,7 +78,7 @@ in
       pnpm -F @proj-airi/stage-tamagotchi... run build
       cd apps/stage-tamagotchi
       pnpm exec electron-builder build \
-        --dir --${if stdenvNoCC.isLinux then "linux" else "mac"} \
+        --dir --${if stdenvNoCC.hostPlatform.isLinux then "linux" else "mac"} \
         -c.electronDist="${electron'.dist}" \
         -c.electronVersion="${electron'.version}"
 
@@ -100,10 +100,19 @@ in
       cp -r "$assets"/{vrm,live2d} app/out/renderer/assets
       asar pack app app.asar
 
+      # DevTools opens since nix build is not packaged, therefore considered
+      # as dev build. Set MAIN_APP_DEBUG to 0 by default to disable DevTools.
+      # See src/main/libs/electron/devtools.ts
+      #
+      # The app runs from the read-only Nix store, and Nix owns its updates.
+      # AIRI_DISTRIBUTION=nix disables the built-in updater.
+      # See isExternallyUpdatedInstall in src/main/services/electron/auto-updater.ts
       makeWrapper "${lib.getExe electron'}" "$out/bin/airi" \
         --add-flags "$out/opt/AIRI/resources/app.asar" \
         --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--enable-wayland-ime=true --wayland-text-input-version=3}}" \
-        --prefix LD_LIBRARY_PATH : "${libraryPath}"
+        --prefix LD_LIBRARY_PATH : "${libraryPath}" \
+        --set-default MAIN_APP_DEBUG 0 \
+        --set AIRI_DISTRIBUTION nix
 
       runHook postInstall
     '';

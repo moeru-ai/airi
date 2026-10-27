@@ -1,6 +1,6 @@
-import type { ApiError } from '../../../utils/error'
+import type { ApiError } from '@proj-airi/http-error-shared'
 
-import { createBadGatewayError, createGatewayTimeoutError, createInternalError, createServiceUnavailableError } from '../../../utils/error'
+import { createBadGatewayError, createGatewayTimeoutError, createInternalError, createServiceUnavailableError } from '@proj-airi/http-error-shared'
 
 /**
  * Sanitized context for `mapUpstreamError`.

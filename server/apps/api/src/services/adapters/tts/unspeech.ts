@@ -3,9 +3,9 @@ import type { Voice } from 'unspeech'
 import type { TtsAdapterContext, TtsResult, TtsVoiceCatalogContext } from './types'
 
 import { errorMessageFrom } from '@moeru/std'
+import { createBadGatewayError, createInternalError } from '@proj-airi/http-error-shared'
 import { generateSpeechResponse, listVoices, UnSpeechAPIError } from 'unspeech'
 
-import { createBadGatewayError, createInternalError } from '../../../utils/error'
 import { TtsUpstreamResponseError } from './types'
 
 interface SendSpeechOptions {

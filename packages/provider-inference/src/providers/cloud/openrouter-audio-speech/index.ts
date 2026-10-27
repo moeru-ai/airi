@@ -1,4 +1,5 @@
 import { toWavFromPCM16 } from '@proj-airi/audio/encoding'
+import { EventSourceParserStream } from '@xsai/shared-stream'
 import { z } from 'zod'
 
 import { defineProvider } from '../../registry'
@@ -39,42 +40,27 @@ function ttsPrompt(input: string) {
   return `Read this text aloud exactly as written, without any commentary or extra words:\n\n${input}`
 }
 
-async function collectAudioChunks(body: ReadableStream<Uint8Array>) {
-  const reader = body.getReader()
-  const decoder = new TextDecoder()
+async function collectAudioChunks(body: ReadableStream<Uint8Array<ArrayBuffer>>) {
   const chunks: string[] = []
-  let buffer = ''
-  let done = false
-
-  while (!done) {
-    const result = await reader.read()
-    if (result.done)
+  const events = body
+    .pipeThrough(new TextDecoderStream())
+    .pipeThrough(new EventSourceParserStream())
+  for await (const { data } of events) {
+    if (!data)
+      continue
+    if (data === '[DONE]')
       break
 
-    buffer += decoder.decode(result.value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop() || ''
-    for (const line of lines) {
-      if (!line.startsWith('data: '))
-        continue
-
-      const data = line.slice('data: '.length).trim()
-      if (data === '[DONE]') {
-        done = true
-        break
+    try {
+      const event = JSON.parse(data) as {
+        choices?: Array<{ delta?: { audio?: { data?: string } } }>
       }
-
-      try {
-        const event = JSON.parse(data) as {
-          choices?: Array<{ delta?: { audio?: { data?: string } } }>
-        }
-        const audio = event.choices?.[0]?.delta?.audio?.data
-        if (audio)
-          chunks.push(audio)
-      }
-      catch (error) {
-        console.warn('Skipping malformed SSE chunk from OpenRouter audio stream:', data, error)
-      }
+      const audio = event.choices?.[0]?.delta?.audio?.data
+      if (audio)
+        chunks.push(audio)
+    }
+    catch (error) {
+      console.warn('Skipping malformed SSE chunk from OpenRouter audio stream:', data, error)
     }
   }
 

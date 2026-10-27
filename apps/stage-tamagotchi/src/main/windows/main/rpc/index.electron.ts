@@ -15,13 +15,13 @@ import type { SettingsWindowManager } from '../../settings'
 import type { WidgetsWindowManager } from '../../widgets'
 
 import { defineInvokeHandler } from '@moeru/eventa'
-import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ipcMain } from 'electron'
 
 import {
   electronCenterMainWindow,
   electronChatButtonStateChanged,
   electronGetChatButtonState,
+  electronMainPageMounted,
   electronOpenChat,
   electronOpenEditor,
   electronOpenInlay,
@@ -29,6 +29,7 @@ import {
   electronOpenSettings,
   noticeWindowEventa,
 } from '../../../../shared/eventa'
+import { createWindowContext } from '../../../libs/electron/window-context'
 import { createAuthService } from '../../../services/airi/auth'
 import { createGodotStageService } from '../../../services/airi/godot-stage'
 import { registerIOTraceRecording } from '../../../services/airi/io-trace-recording/register'
@@ -64,18 +65,19 @@ export async function setupMainWindowElectronInvokes(params: {
   // manage events within eventa's context system.
   ipcMain.setMaxListeners(0)
 
-  const { context } = createContext(ipcMain, params.window)
+  const { context } = createWindowContext(params.window)
 
   await setupBaseWindowElectronInvokes({ context, window: params.window, serverChannel: params.serverChannel, i18n: params.i18n, setAlwaysOnTop: params.setPinned })
   // The stage renderer owns the voice host, so it registers the Push to Talk hold shortcut and receives its key events.
   params.globalShortcut.registerWindow({ context, window: params.window })
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.window })
   createAutoUpdaterService({ context, window: params.window, service: params.autoUpdater })
+  defineInvokeHandler(context, electronMainPageMounted, () => params.autoUpdater.markMainPageMounted())
   createMcpServersService({ context, manager: params.mcpManager })
   createGodotStageService({ context, manager: params.godotStageManager, window: params.window })
   createOnboardingService({ context, onboardingWindowManager: params.onboardingWindowManager, mainWindow: params.window })
   createAuthService({ context, window: params.window })
-  const stopIOTraceRecording = registerIOTraceRecording(context, params.ioTraceRecording, params.window)
+  const stopIOTraceRecording = registerIOTraceRecording(context, params.ioTraceRecording)
   params.window.once('closed', stopIOTraceRecording)
 
   defineInvokeHandler(context, electronCenterMainWindow, () => params.center())

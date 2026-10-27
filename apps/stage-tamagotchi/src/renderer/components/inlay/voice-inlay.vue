@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { RewriteText } from '@proj-airi/stage-ui/components'
 import { VoiceDrafts } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useVoiceControlsStore } from '@proj-airi/stage-ui/stores/voice-controls'
 import { useEventListener, useTimeoutFn } from '@vueuse/core'
-import { computed, nextTick, shallowRef, watch } from 'vue'
+import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { electronInlayReturnHome } from '../../../shared/eventa'
 import { useChatFloatingClickThrough } from '../../composables/use-chat-floating-click-through'
 import { useGlobalEscape } from '../../composables/use-global-escape'
+import { useWindowBackdrop } from '../../composables/use-window-backdrop'
 
 /**
  * What the inlay paints.
@@ -30,6 +32,9 @@ const RETURN_HOME_DELAY_MS = 5000
 
 /** Bars of the capsule level meter. Each bar scales the same level by its own factor, so the meter looks like a voice. */
 const LEVEL_BARS = [0.55, 0.85, 1, 0.75, 0.5] as const
+
+const backdropRoot = useTemplateRef<HTMLElement>('backdrop-root')
+useWindowBackdrop(backdropRoot, 'inlay')
 
 const { t } = useI18n()
 const controls = useVoiceControlsStore()
@@ -56,9 +61,30 @@ const sendingDraft = computed(() => controls.snapshot.drafts.find(draft => draft
 
 /** The last text that went to the chat. It stays on the card while the card moves out, after the host removed the draft. */
 const sentText = shallowRef('')
+
+/**
+ * The text that live speech showed last. Auto send moves the card from live speech straight to the sent text, so a
+ * rewrite of the speech plays on the sent card. An editable draft in between already showed the rewritten text.
+ */
+const spokenText = shallowRef('')
+/** The rewrite that the sent card plays before it moves out. Undefined when the sent text equals the spoken text. */
+const sentRewrite = shallowRef<{ from: string, to: string }>()
+watch(() => liveInput.value?.text, (value) => {
+  if (value?.trim())
+    spokenText.value = value.trim()
+})
+// Speech that settled into an editable draft showed its rewrite in the draft. A later manual send does not replay it.
+watch(() => !liveInput.value && editableDrafts.value.length > 0, (settledIntoDraft) => {
+  if (settledIntoDraft)
+    spokenText.value = ''
+})
 watch(sendingDraft, (draft) => {
-  if (draft)
-    sentText.value = draft.text
+  if (!draft)
+    return
+  sentText.value = draft.text
+  const from = spokenText.value
+  spokenText.value = ''
+  sentRewrite.value = from && from !== draft.text.trim() ? { from, to: draft.text.trim() } : undefined
 })
 
 const view = computed<InlayView>(() => {
@@ -146,19 +172,21 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 
 <template>
   <!-- The page anchors the inlay to the bottom edge. The space above it is room for the send animation. -->
-  <main :class="['h-full w-full flex flex-col items-center justify-end px-4 pb-4', 'bg-transparent text-neutral-900 dark:text-neutral-100']">
+  <main ref="backdrop-root" :class="['h-full w-full flex flex-col items-center justify-end px-4 pb-4', 'bg-transparent text-neutral-900 dark:text-neutral-100']">
     <!-- An explicit duration, because Vue otherwise also waits for the finished send animation on the leaving card. -->
     <Transition :name="`inlay-${leave}`" :duration="{ enter: 220, leave: leave === 'dismiss' ? 220 : 160 }" @after-enter="hitTest()" @after-leave="hitTest({ removed: true })">
       <div
         v-if="shown !== 'hidden'"
         data-testid="voice-inlay"
+        data-window-backdrop-surface
+        :style="{ '--un-bg-opacity': 0.95 }"
         :data-view="shown"
         :class="[
           'overflow-hidden shadow-lg',
-          'bg-white/95 dark:bg-neutral-900/95',
+          'bg-white dark:bg-neutral-900',
           'transition-[width,height,border-radius] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none',
           shown === 'capsule' ? 'h-11 w-44 rounded-full' : 'h-40 w-full max-w-110 rounded-3xl',
-          shown === 'sent' ? 'inlay-send' : '',
+          shown === 'sent' && !sentRewrite ? 'inlay-send' : '',
         ]"
         @animationend="sending = false"
       >
@@ -188,7 +216,10 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
             <span aria-hidden="true" :class="['i-solar:arrow-up-outline size-3.5 text-primary-500']" />
             {{ t('stage.chat.voice-draft.sent') }}
           </span>
-          <p :class="['m-0 line-clamp-4 whitespace-pre-wrap break-words text-[15px] font-medium leading-relaxed']" v-text="sentText" />
+          <p v-if="sentRewrite" :class="['m-0 line-clamp-4 whitespace-pre-wrap break-words text-[15px] font-medium leading-relaxed']">
+            <RewriteText :from="sentRewrite.from" :to="sentRewrite.to" @finished="sentRewrite = undefined" />
+          </p>
+          <p v-else :class="['m-0 line-clamp-4 whitespace-pre-wrap break-words text-[15px] font-medium leading-relaxed']" v-text="sentText" />
         </div>
         <VoiceDrafts v-else variant="composer" show-silent-speech>
           <template #hint>

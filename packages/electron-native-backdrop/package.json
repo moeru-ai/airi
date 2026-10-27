@@ -1,0 +1,30 @@
+{
+  "name": "@proj-airi/electron-native-backdrop",
+  "type": "module",
+  "version": "0.12.0",
+  "private": true,
+  "description": "Regional macOS desktop blur for transparent Electron windows",
+  "license": "MIT",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./types": "./dist/types.mjs",
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.d.mts",
+  "files": [
+    "README.md",
+    "THIRD-PARTY-LICENSE.txt",
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown && node scripts/build-native.mjs",
+    "dev": "pnpm run build",
+    "typecheck": "tsc --noEmit",
+    "smoke:native": "node scripts/smoke-native.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:"
+  }
+}

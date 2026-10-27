@@ -34,6 +34,7 @@ import StageRenderError from './stage-render-error.vue'
 // import { useDuckDb } from '../../composables/use-duck-db'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { live2dMotionMagicProfiles, useLive2DMotionMagic, useLive2DMotionMagicSettings } from '../../features/motions/live2d'
+import { syncedRoles, usePiniaSynced } from '../../libs/pinia/synced-context'
 import { getSpeechBusContext, speechOutputGetPlaybackState, speechOutputPlaybackStateChangedEvent } from '../../services/speech/bus'
 import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-control'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
@@ -60,6 +61,8 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   error: [error: Error]
+  /** The stage dropped a render error and starts a new load. */
+  reset: []
   /** The active card has no model. The app opens the model settings. */
   selectAvatarModel: []
 }>()
@@ -179,6 +182,8 @@ function onVRMInteract(target: VrmInteractionTarget) {
 }
 
 const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
+// This context registers the hooks that speak a reply, so chat actions must run here.
+const releaseSpeechPlayerRole = usePiniaSynced().addRole(syncedRoles.speechPlayer)
 const chatHookCleanups: Array<() => void> = []
 // WORKAROUND: clear previous handlers on unmount to avoid duplicate calls when this component remounts.
 //             We keep per-hook disposers instead of wiping the global chat hooks to play nicely with
@@ -199,15 +204,22 @@ function reportStageRenderError(error: unknown) {
   handleStageRenderError(new Error(errorMessageFrom(error) ?? 'Failed to render stage'))
 }
 
-async function retryStageRenderer() {
+// Any reset clears the error the parent mirrors, so the loading surface can return
+// while the new load runs. Every path that drops `stageRenderError` reports it here.
+function clearStageRenderError() {
   stageRenderError.value = undefined
+  emit('reset')
+}
+
+async function retryStageRenderer() {
+  clearStageRenderError()
   showStage.value = false
   await nextTick()
   showStage.value = true
 }
 
 watch([stageModelRenderer, stageModelSelected, stageModelSelectedUrl], () => {
-  stageRenderError.value = undefined
+  clearStageRenderError()
 })
 
 // Caption + Presentation broadcast channels
@@ -678,6 +690,7 @@ onUnmounted(() => {
   chatHookCleanups.forEach(dispose => dispose?.())
   viewUpdateCleanups.forEach(dispose => dispose?.())
   disconnectVoiceOutput()
+  releaseSpeechPlayerRole()
   speechAnalysis.disconnect()
   speechDestination.disconnect()
 })

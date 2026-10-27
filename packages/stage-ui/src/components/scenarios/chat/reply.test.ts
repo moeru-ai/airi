@@ -28,4 +28,32 @@ describe('chat reply composition', () => {
       tool_results: [],
     })).toBe(true)
   })
+
+  it('truncates long text to 160 characters and trims trailing whitespace before ellipsis', () => {
+    const longTextWithSpace = `${'a'.repeat(158)}   ${'b'.repeat(20)}`
+    expect(normalizeChatReplyPreview(longTextWithSpace)).toBe(`${'a'.repeat(158)}…`)
+
+    const exactLimitAscii = 'a'.repeat(200)
+    expect(normalizeChatReplyPreview(exactLimitAscii)).toBe(`${'a'.repeat(159)}…`)
+  })
+
+  it('keeps astral-plane emoji whole when straddling the truncation boundary', () => {
+    const straddling = `${'a'.repeat(158)}😀 more text after the emoji`
+    const straddlingResult = normalizeChatReplyPreview(straddling)
+    expect(straddlingResult).toBe(`${'a'.repeat(158)}😀…`)
+    expect(straddlingResult.isWellFormed()).toBe(true)
+    expect(() => encodeURIComponent(straddlingResult)).not.toThrow()
+
+    const atBoundary = `${'a'.repeat(159)}😀 more text`
+    const atBoundaryResult = normalizeChatReplyPreview(atBoundary)
+    expect(atBoundaryResult).toBe(`${'a'.repeat(159)}…`)
+    expect(atBoundaryResult.isWellFormed()).toBe(true)
+    expect(() => encodeURIComponent(atBoundaryResult)).not.toThrow()
+
+    const exact160WithEmoji = `${'a'.repeat(159)}😀`
+    const exact160Result = normalizeChatReplyPreview(exact160WithEmoji)
+    expect(exact160Result).toBe(exact160WithEmoji)
+    expect(exact160Result.isWellFormed()).toBe(true)
+    expect(() => encodeURIComponent(exact160Result)).not.toThrow()
+  })
 })

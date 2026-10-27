@@ -2,13 +2,11 @@ import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
 
-import { join, resolve } from 'node:path'
-
 import { BrowserWindow } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { protectPrivilegedWindowNavigation } from '../shared'
 import { setupAboutWindowElectronInvokes } from './rpc/index.electron'
@@ -29,7 +27,7 @@ export function setupAboutWindowReusable(params: {
       minimizable: false,
       icon,
       webPreferences: {
-        preload: join(getElectronMainDirname(), '../preload/index.mjs'),
+        preload: getPreloadPath(),
         sandbox: false,
       },
     })
@@ -44,7 +42,7 @@ export function setupAboutWindowReusable(params: {
       serverChannel: params.serverChannel,
     })
 
-    await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/about', {
+    await load(window, withHashRoute(baseUrl(getRendererRoot()), '/about', {
       query: { 'synced-leader': 'false' },
     }))
 

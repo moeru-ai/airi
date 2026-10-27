@@ -23,11 +23,8 @@ function createHarness(options: Partial<Pick<ChatOrchestratorRuntimeDeps, 'getSy
   })
   const runtime = createChatOrchestratorRuntime({
     session: {
-      ensureSession: (sessionId) => {
-        messages[sessionId] ??= []
-      },
       getSessionMessages: sessionId => messages[sessionId] ?? [],
-      appendSessionMessage: (sessionId, message) => {
+      commitAssistantMessage: async (sessionId, message) => {
         (messages[sessionId] ??= []).push(message)
       },
       commitUserMessage: async (sessionId, message) => {
@@ -83,10 +80,10 @@ describe('chat orchestrator host options', () => {
   it('stores invoked skills with the user message and keeps their steps in later prompts', async () => {
     const harness = createHarness()
 
-    await harness.runtime.ingest('/focus plan my day', { model: 'test', chatProvider: provider, skills: [{ name: 'Focus', instructions: 'Give one next step.' }] })
+    await harness.runtime.ingest('/focus plan my day', { model: 'test', chatProvider: provider, skills: [{ kind: 'steps', name: 'Focus', instructions: 'Give one next step.' }] })
     await harness.runtime.ingest('and then?', { model: 'test', chatProvider: provider })
 
-    expect(harness.messages['session-1']?.[0]).toMatchObject({ role: 'user', content: '/focus plan my day', skills: [{ name: 'Focus', instructions: 'Give one next step.' }] })
+    expect(harness.messages['session-1']?.[0]).toMatchObject({ role: 'user', content: '/focus plan my day', skills: [{ kind: 'steps', name: 'Focus', instructions: 'Give one next step.' }] })
     expect(harness.prompt(0)).toContain('Give one next step.')
     expect(harness.prompt(1)).toContain('[The owner used the skill \\"Focus\\".')
   })

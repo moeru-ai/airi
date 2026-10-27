@@ -1,27 +1,14 @@
 <script setup lang="ts">
-import { IconItem } from '@proj-airi/stage-ui/components'
-import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { settingsSearchProviders } from '@proj-airi/stage-pages/settings-search-providers'
+import { IconItem, SettingsNeedsAttention, SettingsSearchField, SettingsSearchResults } from '@proj-airi/stage-ui/components'
+import { useSettingsNeedsAttention } from '@proj-airi/stage-ui/composables/use-settings-needs-attention'
+import { useSettingsSearch } from '@proj-airi/stage-ui/composables/use-settings-search'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const resolveAnimation = ref<() => void>()
 const { t } = useI18n()
-const settingsStore = useSettings()
-
-const removeBeforeEach = router.beforeEach(async (_, __, next) => {
-  if (!settingsStore.usePageSpecificTransitions || settingsStore.disableTransitions) {
-    next()
-    return
-  }
-
-  await new Promise<void>((resolve) => {
-    resolveAnimation.value = resolve
-  })
-  removeBeforeEach()
-  next()
-})
 
 const settings = computed(() => {
   return router
@@ -35,12 +22,34 @@ const settings = computed(() => {
       to: route.path,
     }))
 })
+
+const searchQuery = ref('')
+const searchResults = useSettingsSearch(searchQuery, settingsSearchProviders)
+const searching = computed(() => searchQuery.value.trim() !== '')
+const { items: needsAttention, dismiss: dismissNeedsAttention } = useSettingsNeedsAttention()
 </script>
 
 <template>
-  <div flex="~ col gap-4" font-normal>
-    <div />
-    <div flex="~ col gap-4" pb-12>
+  <div :class="['flex flex-col gap-4', 'font-normal']">
+    <!-- The search stays at the top while the list scrolls under it, as the page header does above it. -->
+    <!-- It is the first element, so it rests where it sticks and does not move when the list starts to scroll. -->
+    <div :class="['sticky top-0 z-10', 'bg-$bg-color', 'pb-2']">
+      <SettingsSearchField v-model="searchQuery" />
+    </div>
+    <!-- Results appear at once while the user types, so they skip the enter animation of the categories. -->
+    <div v-if="searching" :class="['pb-12']">
+      <p v-if="!searchResults.length" :class="['text-sm text-neutral-500 dark:text-neutral-400']">
+        {{ t('settings.search.empty', { query: searchQuery.trim() }) }}
+      </p>
+      <SettingsSearchResults v-else :results="searchResults" :query="searchQuery" />
+    </div>
+    <div v-else :class="['flex flex-col gap-4', 'pb-12']">
+      <!-- Settings that keep a feature in use from working. It is secondary, so it scrolls with the list. -->
+      <SettingsNeedsAttention
+        :items="needsAttention"
+        @fix="item => router.push(item.to)"
+        @dismiss="item => dismissNeedsAttention(item.id)"
+      />
       <IconItem
         v-for="(setting, index) in settings"
         :key="setting.to"
@@ -49,7 +58,7 @@ const settings = computed(() => {
         :enter="{ opacity: 1, y: 0 }"
         :duration="250"
         :style="{
-          transitionDelay: `${index * 50}ms`, // delay between each item, unocss doesn't support dynamic generation of classes now
+          transitionDelay: `${index * 50}ms`,
         }"
         :title="setting.title"
         :description="setting.description"
@@ -59,15 +68,16 @@ const settings = computed(() => {
     </div>
     <div
       v-motion
-      text="neutral-200/50 dark:neutral-600/20" pointer-events-none
-      fixed top="[calc(100dvh-12rem)]" bottom-0 right--10 z--1
+      :class="[
+        'pointer-events-none text-neutral-200/50 dark:text-neutral-600/20',
+        'fixed top-[calc(100dvh-12rem)] bottom-0 right--10 z--1',
+        'size-60 flex items-center justify-center',
+      ]"
       :initial="{ scale: 0.9, opacity: 0, rotate: 180 }"
       :enter="{ scale: 1, opacity: 1, rotate: 0 }"
       :duration="500"
-      size-60
-      flex items-center justify-center
     >
-      <div v-motion text="60" i-solar:settings-bold-duotone />
+      <div v-motion :class="['text-60', 'i-solar:settings-bold-duotone']" />
     </div>
   </div>
 </template>

@@ -360,6 +360,17 @@
       status: preferred
       context: Spotlight shortcut
 
+- id: notifications
+  subject: application
+  translatable: true
+  definition: Private notices that AIRI Cloud sends to one account, for example a Flux grant or a failed payment.
+  note: Not chat messages with the character, and not announcements for all users.
+  terms:
+    - text: Notifications
+      part-of-speech: noun
+      status: preferred
+      context: Open notifications, 2 unread
+
 # ---------------------------------------------------------------------------------------
 # Models and providers
 # ---------------------------------------------------------------------------------------

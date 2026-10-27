@@ -23,13 +23,12 @@ import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { McpManager } from '../../services/airi/mcp-servers'
 
-import { join, resolve } from 'node:path'
 import { env } from 'node:process'
 
 import { BrowserWindow, screen } from 'electron'
 
 import { desktopOverlayPollHeartbeatMarker, desktopOverlayPollHeartbeatQueryParam } from '../../../shared/desktop-overlay-heartbeat'
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { protectPrivilegedWindowNavigation } from '../shared/window'
 import { setupDesktopOverlayElectronInvokes } from './rpc/index.electron'
 import {
@@ -76,7 +75,7 @@ export async function setupDesktopOverlayWindow(params: {
   // Use primary display bounds (not just size) — the origin may be non-zero
   // when multiple displays are arranged in macOS Display Preferences.
   const primaryDisplay = screen.getPrimaryDisplay()
-  const preloadPath = join(getElectronMainDirname(), '../preload/index.mjs')
+  const preloadPath = getPreloadPath()
 
   overlayWindow = new BrowserWindow(createDesktopOverlayWindowOptions({
     bounds: primaryDisplay.bounds,
@@ -119,7 +118,7 @@ export async function setupDesktopOverlayWindow(params: {
   await load(
     overlayWindow,
     withHashRoute(
-      baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')),
+      baseUrl(getRendererRoot()),
       isDesktopOverlayPollHeartbeatEnabled()
         ? `/desktop-overlay?${desktopOverlayPollHeartbeatQueryParam}=1`
         : '/desktop-overlay',

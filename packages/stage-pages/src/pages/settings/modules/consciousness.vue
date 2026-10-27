@@ -12,6 +12,8 @@ import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
+import { moduleModelSearchKey, moduleProviderSearchKey } from './module-model-search'
+
 const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
 const airiCardStore = useAiriCardStore()
@@ -108,6 +110,7 @@ async function updateTopPEnabled(value: boolean) {
               :id="metadata.id"
               :key="metadata.id"
               v-model="activeProvider"
+              :data-settings-search="moduleProviderSearchKey('consciousness', metadata.id)"
               name="provider"
               :value="metadata.id"
               :title="metadata.localizedName || 'Unknown'"
@@ -245,6 +248,7 @@ async function updateTopPEnabled(value: boolean) {
             v-model:search-query="modelSearchQuery"
             :model-value="activeModel"
             :items="providerModels"
+            :search-key-of="model => moduleModelSearchKey('consciousness', activeProvider, model.id)"
             :searchable="true"
             :allow-custom="true"
             :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"

@@ -14,6 +14,7 @@ import { SpanStatusCode } from '@opentelemetry/api'
 import { fileSource } from '@proj-airi/audio/encoding'
 import { createChatOrchestratorRuntime, isBackgroundRecipe, matchKeywordRecipes, renderConversationPreview } from '@proj-airi/core-agent'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
+import { isEqual } from 'es-toolkit'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, shallowRef, toRaw } from 'vue'
@@ -26,6 +27,7 @@ import { useChatVision } from '../composables/vision/use-chat-vision'
 import { useVisionInference } from '../composables/vision/use-vision-inference'
 import { chatAssetIdFrom, inlineConversationAssets, storeChatAttachments } from '../libs/chat-assets'
 import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
+import { syncedRoles } from '../libs/pinia/synced-context'
 import { createChatAnalyticsHooks, getProviderMode } from '../libs/product-signals/events/chat'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
@@ -33,9 +35,11 @@ import {
   AIRI_CHAT_SESSION_ID_HEADER,
 } from '../libs/product-signals/headers'
 import { getSpeechBusContext, voiceGenerationEnded } from '../services/speech/bus'
+import { composeDrawCardPrompt, createDrawCardTool, DRAW_CARD_TOOL_NAME, drawCardContent } from '../tools/draw-card'
 import { createJudgeRecipeTool, judgmentSkillText } from '../tools/judge-recipe'
 import { composeMemoryPrompt, createMemoryTools } from '../tools/memory'
 import { createProposeRecipeTool } from '../tools/propose-recipe'
+import { createSearchIconsTool } from '../tools/search-icons'
 import { createUseRecipeTool } from '../tools/use-recipe'
 import { createWakeWordTool } from '../tools/wake-words'
 import { useLLM } from './ai/chat-llm/llm'
@@ -61,6 +65,7 @@ import { useVisionStore } from './modules/vision'
 import { useWebSearchStore } from './modules/web-search'
 import { useRecipesStore } from './recipes'
 import { executeToolCallRerun } from './tool-call-rerun'
+import { useToolCardsStore } from './tool-cards'
 import { useWakeWordsStore } from './wake-words'
 
 interface ForkOptions {
@@ -245,6 +250,12 @@ const STORED_TOOL_IMAGE = 'A tool image was left out of the history.'
 /** Stands in for an earlier image whose read failed with the current vision selection. */
 const UNREADABLE_EARLIER_IMAGE = 'The user attached an image here earlier. The vision model failed to read it.'
 
+// REVIEW:
+// Executor order: the leader, the caller, then any speech player. With several Stage tabs, a call from elsewhere
+// speaks in an arbitrary one, and a cancel can miss its turn. The chat runtime can elect its own owner among speech
+// players, as a Kubernetes controller does with a Lease.
+const inSpeechPlayer = { roles: [syncedRoles.speechPlayer] }
+
 export const useChatStore = defineStore('chat', () => {
   const { t } = useI18n()
   const runtimePrompt = useAiriRuntimePrompt()
@@ -275,13 +286,15 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /**
-   * The system prompt of a session: format rules, the persona's identity, and its memory index.
+   * The system prompt of a session: format rules, the persona's identity, its memory index, and when to draw a card.
    * A recipe's own session adds the recipe's steps after the identity. They stay the same there, so its prefix stays cacheable.
    * The first request and every later model step read it, so a card edit reaches the next step.
    */
   function sessionSystemPrompt(sessionId: string) {
     const persona = personaOf(sessionId)
-    const identity = composeSystemPrompt(cardStore.getSystemPrompt(persona)) + (memory.enabled ? composeMemoryPrompt(memory.indexFor(persona)) : '')
+    const identity = composeSystemPrompt(cardStore.getSystemPrompt(persona))
+      + (memory.enabled ? composeMemoryPrompt(memory.indexFor(persona)) : '')
+      + (drawsCards(sessionId) ? composeDrawCardPrompt() : '')
     const recipeId = chatSession.sessionMetas[sessionId]?.recipeId
     const recipe = recipeId ? recipes.recipes.find(entry => entry.id === recipeId) : undefined
     return recipe ? identity + composeRecipeSpacePrompt(recipe) : identity
@@ -289,6 +302,9 @@ export const useChatStore = defineStore('chat', () => {
   const wakeWords = useWakeWordsStore()
   const stickersStore = useStickersStore()
   const contextObservability = useContextObservabilityStore()
+  // The leader makes the cards of tool calls for every window, so its synced action must exist in the leader even when
+  // the leader shows no tool call. Every window creates the chat store, so the chat store creates the card store too.
+  const toolCards = useToolCardsStore()
   const { activeSessionId } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
 
@@ -340,6 +356,8 @@ export const useChatStore = defineStore('chat', () => {
       void interruptOrphanedTasks().catch((error) => {
         console.warn('[chat] Failed to mark interrupted background tasks:', errorMessageFrom(error))
       })
+      // The plugin restores the synced state before it reports the promotion, so the old leader's requests are there.
+      toolCards.releaseOrphanedCards()
     })
 
     await chatSession.initialize()
@@ -410,6 +428,14 @@ export const useChatStore = defineStore('chat', () => {
   /** Whether a session is a background task's own space. */
   function isTaskSession(sessionId: string) {
     return Boolean(chatSession.sessionMetas[sessionId]?.recipeId)
+  }
+
+  /**
+   * Whether a session's replies can hold cards: the owner's own chat, with reply cards on. A background task reports in
+   * text, and a card there would take the details out of its report.
+   */
+  function drawsCards(sessionId: string) {
+    return toolCards.replyCardsEnabled && isOwnerSession(sessionId) && !isTaskSession(sessionId)
   }
 
   /** Whether a turn answers the owner: not a background task, and not a reply to a stored notice. */
@@ -583,14 +609,14 @@ export const useChatStore = defineStore('chat', () => {
   function invokedSkillsOf(invoked: readonly Recipe[]): ChatInvokedSkill[] | undefined {
     if (!invoked.length)
       return undefined
-    return invoked.map(recipe => ({
-      name: recipe.name,
-      instructions: recipe.decision
-        ? judgmentSkillText(recipe)
-        : isBackgroundRecipe(recipe)
-          ? 'It runs in the background for this message, and its result reaches you later. Reply briefly, and do not do its task yourself.'
-          : recipe.instructions.trim(),
-    }))
+    return invoked.map((recipe): ChatInvokedSkill => {
+      if (recipe.decision)
+        // The stored message keeps its own copy of the question. A reactive recipe would also fail `structuredClone`.
+        return { kind: 'decision', name: recipe.name, instructions: judgmentSkillText(recipe), question: structuredClone(toRaw(recipe.decision.question)) }
+      if (isBackgroundRecipe(recipe))
+        return { kind: 'background', name: recipe.name, instructions: 'It runs in the background for this message, and its result reaches you later. Reply briefly, and do not do its task yourself.' }
+      return { kind: 'steps', name: recipe.name, instructions: recipe.instructions.trim() }
+    })
   }
 
   /**
@@ -617,6 +643,9 @@ export const useChatStore = defineStore('chat', () => {
       ...(ownerOnly ? await createUseRecipeTool({ recipes: () => recipes.recipes, start: (recipe, task) => startRecipe(recipe, { parentSessionId: sessionId, task }) }) : []),
       // The owner can turn proposals off. Every proposal waits for the owner's approval.
       ...(ownerOnly && recipes.proposalsEnabled ? await createProposeRecipeTool({ propose: recipe => recipes.propose(recipe) }) : []),
+      // Cards show in the owner's own chat only. A scene, such as a Discord channel, gets text. A card names its icons
+      // from a search, so the model never guesses an icon name.
+      ...(drawsCards(sessionId) ? [...await createDrawCardTool(), ...await createSearchIconsTool()] : []),
     ]
   }
 
@@ -705,7 +734,7 @@ export const useChatStore = defineStore('chat', () => {
 
           if (description.trim()) {
             if (sessionId)
-              saveImageDescription(sessionId, turnId, imageIndex, description)
+              await saveImageDescription(sessionId, turnId, imageIndex, description)
             return description
           }
           sessionFailedReads.add(readKey)
@@ -772,7 +801,7 @@ export const useChatStore = defineStore('chat', () => {
               throw new Error('The recording has no completed transcription')
 
             if (sessionId && stored?.id)
-              writeAudioTranscript(sessionId, stored.id, sourceIndex, text)
+              await writeAudioTranscript(sessionId, stored.id, sourceIndex, text)
           }
 
           turn.content[index] = { type: 'text', text }
@@ -918,30 +947,24 @@ export const useChatStore = defineStore('chat', () => {
       ?.description
   }
 
-  function saveImageDescription(sessionId: string, turnId: string, imageIndex: number, description: string) {
-    const messages = chatSession.getSessionMessages(sessionId)
-    const messageIndex = messages.findIndex(message => message.role === 'user' && ownsProjectedTurn(message, turnId))
-    if (messageIndex < 0)
+  async function saveImageDescription(sessionId: string, turnId: string, imageIndex: number, description: string) {
+    const message = chatSession.getSessionMessages(sessionId).find(message => message.role === 'user' && ownsProjectedTurn(message, turnId))
+    if (message?.role !== 'user' || !message.id)
       return
 
-    const message = messages[messageIndex]
     const imageDescriptions = [
-      ...(message.imageDescriptions ?? []).filter(cached => cached.imageIndex !== imageIndex),
+      // A reactive entry is a proxy, which `structuredClone` rejects when the fields leave this context.
+      ...(toRaw(message.imageDescriptions) ?? []).filter(cached => cached.imageIndex !== imageIndex).map(cached => toRaw(cached)),
       { description, imageIndex },
     ]
-    const nextMessages = [...messages]
-    // Spreading a reactive message copies its nested arrays as proxies, which
-    // `structuredClone` rejects when the send result leaves the leader.
-    nextMessages[messageIndex] = { ...toRaw(message), imageDescriptions }
-    chatSession.setSessionMessages(sessionId, nextMessages)
+    await chatSession.updateUserMessage(sessionId, message.id, { imageDescriptions })
   }
 
   const runtime = createChatOrchestratorRuntime({
     session: {
-      ensureSession: sessionId => chatSession.ensureSession(sessionId),
       getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId).map(message => toRaw(message)),
-      appendSessionMessage: (sessionId, message) => chatSession.appendSessionMessage(sessionId, message),
       commitUserMessage: (sessionId, message) => chatSession.commitUserMessage(sessionId, message),
+      commitAssistantMessage: (sessionId, message) => chatSession.storeMessage(sessionId, message),
       getSessionGeneration: sessionId => chatSession.getSessionGeneration(sessionId),
     },
     context: {
@@ -976,6 +999,8 @@ export const useChatStore = defineStore('chat', () => {
       () => createRuntimePromptContext(runtimePrompt.value),
       createMinecraftContext,
     ],
+    // A card that the model draws is part of its answer, so the reply shows the card, not the call.
+    toolContents: { [DRAW_CARD_TOOL_NAME]: drawCardContent },
     createId: nanoid,
     unwrapMessage: message => toRaw(message),
     onStateChange: syncRuntimeState,
@@ -1019,6 +1044,16 @@ export const useChatStore = defineStore('chat', () => {
           role: 'assistant',
           content: extractMessageText(message),
         })
+      }
+      // Each finished call of a saved reply becomes the latest call on the card of its tool.
+      for (const slice of message.slices) {
+        if (slice.type !== 'tool-call')
+          continue
+        const result = message.tool_results.findLast(entry => entry.id === slice.toolCall.toolCallId)
+        if (!result || result.isError)
+          continue
+        toolCards.recordCall(slice.toolCall.toolName, slice.toolCall.args, result.result)
+          .catch(error => console.warn('[chat] Failed to keep a tool call on its card:', errorMessageFrom(error)))
       }
     },
     onUserTurnReady: ({ sessionId, messageText, sessionMessages }) => {
@@ -1117,17 +1152,13 @@ export const useChatStore = defineStore('chat', () => {
     return [...names].map(name => ({ name }))
   }
 
-  function writeAudioTranscript(sessionId: string, messageId: string, index: number, text: string) {
-    const messages = chatSession.getSessionMessagesIfLoaded(sessionId)
-    if (!messages?.some(message => message.id === messageId))
+  async function writeAudioTranscript(sessionId: string, messageId: string, index: number, text: string) {
+    const message = chatSession.getSessionMessagesIfLoaded(sessionId)?.find(message => message.id === messageId)
+    if (message?.role !== 'user')
       return
-    chatSession.setSessionMessages(sessionId, messages.map((message) => {
-      if (message.id !== messageId)
-        return message
-      const audioTranscripts = [...(message.audioTranscripts ?? [])]
-      audioTranscripts[index] = text
-      return { ...message, audioTranscripts }
-    }))
+    const audioTranscripts = [...(message.audioTranscripts ?? [])]
+    audioTranscripts[index] = text
+    await chatSession.updateUserMessage(sessionId, messageId, { audioTranscripts })
   }
 
   /**
@@ -1137,7 +1168,7 @@ export const useChatStore = defineStore('chat', () => {
   async function settleAudioTranscript(payload: { sessionId: string, messageId: string, transcript?: string }) {
     const key = JSON.stringify([payload.sessionId, payload.messageId])
     if (payload.transcript) {
-      writeAudioTranscript(payload.sessionId, payload.messageId, 0, payload.transcript)
+      await writeAudioTranscript(payload.sessionId, payload.messageId, 0, payload.transcript)
     }
     else if (payload.transcript === '') {
       droppedTurns.add(key)
@@ -1157,12 +1188,12 @@ export const useChatStore = defineStore('chat', () => {
     if (!chatSession.getSessionMessagesIfLoaded(sessionId))
       return
 
-    chatSession.appendSessionMessage(sessionId, {
+    void chatSession.storeMessage(sessionId, {
       role: 'error',
       content: errorMessageFrom(error) ?? 'Unknown chat operation failure',
       id: nanoid(),
       createdAt: Date.now(),
-    })
+    }).catch(storeError => console.error('[chat] Failed to store a send error:', errorMessageFrom(storeError)))
   }
 
   /** Options that only the host sets: a background recipe task, a notice, and what keyword-matched recipes gave the message. */
@@ -1372,8 +1403,10 @@ export const useChatStore = defineStore('chat', () => {
       throw new Error('Retry target has no retriable user message')
 
     // The new turn must not see the source turn or its replies, so the history ends before the source while it runs.
-    const retryHistory = currentMessages.slice(0, sourceIndex)
-    chatSession.setSessionMessages(payload.sessionId, retryHistory)
+    // Raw messages, because a reactive proxy cannot leave this context.
+    const storedMessages = toRaw(currentMessages).map(message => toRaw(message))
+    const retryHistory = storedMessages.slice(0, sourceIndex)
+    await chatSession.replaceSessionHistory(payload.sessionId, retryHistory)
     // A retried notice stays a notice, so it never becomes owner speech.
     const request = startSend({
       sessionId: payload.sessionId,
@@ -1387,9 +1420,10 @@ export const useChatStore = defineStore('chat', () => {
     }
     catch (error) {
       // The new turn was never stored. The source turn can hold the only copy of a recording or image, so it comes back.
-      // The session store replaces the array on every change, so the same array means that nothing else changed the history.
-      if (toRaw(chatSession.getSessionMessagesIfLoaded(payload.sessionId)) === retryHistory)
-        chatSession.setSessionMessages(payload.sessionId, currentMessages)
+      // The same message identities mean that nothing else changed the history meanwhile.
+      const historyIds = chatSession.getSessionMessagesIfLoaded(payload.sessionId)?.map(message => message.id)
+      if (isEqual(historyIds, retryHistory.map(message => message.id)))
+        await chatSession.replaceSessionHistory(payload.sessionId, storedMessages)
       appendSendError(payload.sessionId, error)
       throw error
     }
@@ -1429,13 +1463,14 @@ export const useChatStore = defineStore('chat', () => {
         describeImage: chatVision.toolImageReader(activeModel.value),
       }),
     })
-    chatSession.setSessionMessages(payload.sessionId, nextMessages)
+    // Raw messages, because a reactive proxy cannot leave this context.
+    await chatSession.replaceSessionHistory(payload.sessionId, nextMessages.map(message => toRaw(message)))
   }
 
   /** Clears one session and stops runtime work that still belongs to it. */
   async function cleanup(sessionId: string) {
     failedImageReads.delete(sessionId)
-    chatSession.cleanupMessages(sessionId)
+    await chatSession.clearSessionMessages(sessionId)
     chatContext.resetContexts()
     await cancelPendingSends(sessionId)
     chatStream.resetStream()
@@ -1533,7 +1568,22 @@ export const useChatStore = defineStore('chat', () => {
   }
 }, {
   synced: {
-    actions: ['submit', 'settleAudioTranscript', 'cancelTurn', 'receiveInterruption', 'cancelPendingSends', 'cleanup', 'deleteSession', 'dismissBackgroundTask', 'rerunToolCall', 'retry', 'send', 'stopBackgroundTask'],
+    // Only the Stage chat hooks speak a reply, so generation runs in a speech player. Requests and runtime turns are
+    // local to that context, so every chat action runs there. Without a speech player, the leader runs them silently.
+    actions: {
+      submit: inSpeechPlayer,
+      settleAudioTranscript: inSpeechPlayer,
+      cancelTurn: inSpeechPlayer,
+      receiveInterruption: inSpeechPlayer,
+      cancelPendingSends: inSpeechPlayer,
+      cleanup: inSpeechPlayer,
+      deleteSession: inSpeechPlayer,
+      dismissBackgroundTask: inSpeechPlayer,
+      rerunToolCall: inSpeechPlayer,
+      retry: inSpeechPlayer,
+      send: inSpeechPlayer,
+      stopBackgroundTask: inSpeechPlayer,
+    },
     state: true,
   },
 })
