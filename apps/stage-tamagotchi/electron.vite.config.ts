@@ -57,6 +57,9 @@ function resolveBuildTime() {
 
 const buildTime = resolveBuildTime()
 
+/** The renderer chunk that holds the `unplugin-info` modules. Its file name has no hash. */
+const buildInfoChunkName = 'build-info'
+
 export default defineConfig({
   main: {
     define: {
@@ -152,6 +155,15 @@ export default defineConfig({
         input: {
           'main': resolve(join(import.meta.dirname, 'src', 'renderer', 'index.html')),
           'beat-sync': resolve(join(import.meta.dirname, 'src', 'renderer', 'beat-sync.html')),
+        },
+        output: {
+          // `~build/git` and `~build/time` change with each commit. An update downloads each file whose hash changed.
+          // The build info goes into a small chunk with a fixed name. Then the names of the chunks that import it
+          // do not change, and a new commit does not rename the other chunks.
+          codeSplitting: {
+            groups: [{ name: buildInfoChunkName, test: /^\0~build\// }],
+          },
+          chunkFileNames: chunk => chunk.name === buildInfoChunkName ? `assets/${buildInfoChunkName}.js` : 'assets/[name]-[hash].js',
         },
       },
     },
@@ -297,6 +309,19 @@ export default defineConfig({
         ],
         pagesDirs: [resolve(import.meta.dirname, 'src', 'renderer', 'pages')],
       }),
+      {
+        // NOTICE:
+        // Checkouts at different paths must build the same chunks.
+        // The layouts virtual id looks absolute, so its `//#region` comment gets one `../` per parent directory.
+        // Source: MODULE_ID_VIRTUAL in node_modules/vite-plugin-vue-layouts/dist/index.mjs (0.11.0).
+        // Remove when the plugin uses a `\0` virtual id.
+        name: 'proj-airi:layouts-region-comment',
+        apply: 'build',
+        renderChunk(code) {
+          const stable = code.replace(/(\/\/#region )(?:\.\.\/)+(@vite-plugin-vue-layouts\/)/g, '$1$2')
+          return stable === code ? undefined : { code: stable, map: null }
+        },
+      },
 
       UnoCss(),
 

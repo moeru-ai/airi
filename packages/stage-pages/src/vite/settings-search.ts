@@ -3,6 +3,8 @@ import type { SFCDescriptor, SFCTemplateBlock } from 'vue/compiler-sfc'
 
 import { createHash } from 'node:crypto'
 import { access, readFile } from 'node:fs/promises'
+import { relative, sep } from 'node:path'
+import { cwd } from 'node:process'
 
 import { SETTINGS_SEARCH_ATTRIBUTE, SETTINGS_SEARCH_VIEW_EXPORT } from '@proj-airi/stage-shared/settings-search'
 import { babelParse, MagicString, parse } from 'vue/compiler-sfc'
@@ -777,6 +779,8 @@ export function createSettingsSearch() {
   let markResolverReady: () => void = () => {}
   const resolverReady = new Promise<void>(resolve => markResolverReady = resolve)
   let failOnUnreadable = false
+  /** The root of the app build. The value ids use file paths relative to it, so the markers do not depend on the checkout directory. */
+  let root = cwd()
   /** `import.meta.env` of the app build. Platform checks, such as `RUNTIME_ENVIRONMENT`, are known at build time. */
   const env = new Map<string, unknown>()
   let reportTimer: ReturnType<typeof setTimeout> | undefined
@@ -1076,12 +1080,13 @@ export function createSettingsSearch() {
    * A store field is shared. State that a component creates is its own. Props come from outside, so they have no id.
    */
   function sourceOf(name: string, scope: ComponentScope) {
+    const idOf = (kind: string, file: string, member: string) => `${kind}:${relative(root, file).split(sep).join('/')}#${member}`
     const cacheKey = `${scope.file}\n${name}`
     let source = sources.get(cacheKey)
     if (!source) {
       source = (async () => {
         const binding = scope.bindings.get(name)
-        const local = { id: `local:${scope.file}#${name}`, wholeStore: false }
+        const local = { id: idOf('local', scope.file, name), wholeStore: false }
         if (!binding || binding.kind === 'outside' || binding.kind === 'constant')
           return undefined
         if (binding.kind === 'local')
@@ -1089,7 +1094,7 @@ export function createSettingsSearch() {
         if (binding.kind === 'import') {
           // Only state that a module creates, such as `export const open = ref(false)`, is shared. A constant or a function is not state.
           const declaration = await importedDeclaration(binding.binding, scope.file)
-          return declaration?.node?.type === 'CallExpression' ? { id: `import:${declaration.file}#${declaration.name}`, wholeStore: false } : undefined
+          return declaration?.node?.type === 'CallExpression' ? { id: idOf('import', declaration.file, declaration.name), wholeStore: false } : undefined
         }
         // A call creates state of the component, such as `ref()`, unless it returns a store.
         const declaration = binding.callee ? await importedDeclaration(binding.callee, scope.file) : undefined
@@ -1097,7 +1102,7 @@ export function createSettingsSearch() {
         const isStore = node?.type === 'CallExpression' && node.callee.type === 'Identifier' && node.callee.name === 'defineStore'
         if (!declaration || !isStore)
           return local
-        return { id: `store:${declaration.file}#${declaration.name}${binding.field ? `.${binding.field}` : ''}`, wholeStore: !binding.field }
+        return { id: idOf('store', declaration.file, `${declaration.name}${binding.field ? `.${binding.field}` : ''}`), wholeStore: !binding.field }
       })()
       sources.set(cacheKey, source)
     }
@@ -1491,6 +1496,7 @@ export function createSettingsSearch() {
     enforce: 'pre',
     configResolved(config) {
       failOnUnreadable = config.command === 'build'
+      root = config.root
       for (const [name, value] of Object.entries(config.env))
         env.set(name, value)
       // `define` holds values as code, such as `"'electron'"`.
@@ -1545,7 +1551,9 @@ export function createSettingsSearch() {
       if (id !== RESOLVED_PROVIDERS_MODULE)
         return undefined
       // The routes are scanned in `buildStart`, before any module loads.
-      const entries = [...providers].map(([path, file]) => `  ${JSON.stringify(path)}: () => import(${JSON.stringify(file)}).then(module => module.default),`)
+      // The scans run at the same time, so the insertion order of `providers` changes between builds.
+      // Sort by route path, so that two builds of one source give the same chunk.
+      const entries = [...providers].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([path, file]) => `  ${JSON.stringify(path)}: () => import(${JSON.stringify(file)}).then(module => module.default),`)
       return `export default {\n${entries.join('\n')}\n}\n`
     },
     async transform(code, id) {

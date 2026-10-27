@@ -8,7 +8,7 @@ import type { StreamEvent, StreamOptions } from '../types/llm'
 import type { ResolvedStep } from './request-context'
 
 import { responses } from '@xsai-ext/responses'
-import { stepCountAtLeast } from '@xsai/shared-chat'
+import { hasToolCall, not } from '@xsai/shared-chat'
 
 import { renderSegmentText } from '../messages/render-context'
 import { projectInput, projectRound } from '../messages/turns'
@@ -151,7 +151,7 @@ function readOutput(items: ItemParam[]): ProjectionEntry[] {
   })
 }
 
-function toolChoice(choice: StreamOptions['toolChoice']): ResponsesOptions['toolChoice'] {
+function toolChoice(choice: StreamOptions['toolChoice']): NonNullable<ResponsesOptions['toolChoice']> | undefined {
   if (choice == null || typeof choice === 'string')
     return choice
   if (choice.type === 'function')
@@ -183,6 +183,10 @@ export function streamResponses(input: {
     continuation: (data: ItemParam[], index) => ({ protocol: 'responses' as const, scope: scopes[index] ?? input.scope, data }),
     project: item => readOutput([item]),
   })
+  // The caller's tool choice applies to the first model request of the generation. A choice that forces a tool
+  // call on every request leaves the model no way to answer, and the tool loop has no step limit.
+  const callerToolChoice = (steps: readonly CompletionStep[]) =>
+    steps.length === 0 && !input.options?.generationRoundOffset ? input.options?.toolChoice : undefined
   let providerConfigKeys = Object.keys(input.config)
   const requestOptions: ResponsesOptions = {
     ...input.config,
@@ -190,7 +194,8 @@ export function streamResponses(input: {
       const resolveStep = input.options?.resolveStep
       if (!resolveStep) {
         scopes.push(input.scope)
-        return generation.prepareStep({ input: current })
+        generation.prepareStep({ input: current })
+        return { toolChoice: toolChoice(callerToolChoice(steps)) }
       }
       return (async () => {
         const firstStep = scopes.length === 0 && input.initialStep
@@ -234,7 +239,7 @@ export function streamResponses(input: {
         else if (next.systemPrompt)
           current.unshift({ type: 'message', role: 'system', content: next.systemPrompt })
 
-        return { input: current, model: next.model, toolChoice: toolsSupported ? toolChoice(input.options?.toolChoice) : undefined }
+        return { input: current, model: next.model, toolChoice: toolsSupported ? toolChoice(callerToolChoice(steps)) : undefined }
       })()
     },
     input: items,
@@ -246,8 +251,8 @@ export function streamResponses(input: {
     maxOutputTokens: input.options?.maxTokens,
     headers: mergeRequestHeaders(input.config.headers, input.options?.headers),
     tools: input.webSearch ? [...(input.tools ?? []), { type: 'web_search' }] : input.tools,
-    toolChoice: input.options?.resolveStep ? undefined : toolChoice(input.options?.toolChoice),
-    stopWhen: stepCountAtLeast(10),
+    // The tool loop has no step limit. It stops when the model answers without a tool call.
+    stopWhen: not(hasToolCall()),
     onEvent: async (event) => {
       const mapped = toAiriStreamEvent(event)
       if (mapped)

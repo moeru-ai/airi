@@ -2,6 +2,7 @@ using Eventa;
 using GdKirie.EventaAdapter;
 using GdKirie.Notifications;
 using GdKirie.Platform;
+using GdKirie.Tray;
 using Godot;
 
 public partial class Main : Node
@@ -19,6 +20,8 @@ public partial class Main : Node
     private WidgetWindowManager? _widgets;
     private SpotlightHost? _spotlight;
     private NoticeWindowManager? _notice;
+    private TrayHost? _tray;
+    private IDisposable? _trayLabelsRegistration;
     private DeveloperToolsService? _developerTools;
     private IDisposable? _developerToolsRegistration;
     private AuthService? _auth;
@@ -72,6 +75,7 @@ public partial class Main : Node
         _eventa.Adapter.Error += OnEventaError;
 
         string initialUrl;
+        AboutWindowManager about;
         try
         {
             var rendererUrl = ResolveInitialUrl();
@@ -129,6 +133,12 @@ public partial class Main : Node
                 _developerTools,
                 _spotlight,
                 _widgets);
+            about = new AboutWindowManager(
+                this,
+                window,
+                registry,
+                rendererUrl,
+                _microphonePermissions);
             _notice = new NoticeWindowManager(
                 _eventa.Context,
                 this,
@@ -143,6 +153,32 @@ public partial class Main : Node
             return;
         }
 
+        try
+        {
+            _tray = new TrayHost(
+                this,
+                window,
+                _settings,
+                about,
+                () => GetTree().Quit());
+        }
+        catch (Exception error) when (error is TrayException or InvalidOperationException)
+        {
+            // The application stays usable without a tray, for example on Linux without
+            // a StatusNotifierItem host.
+            GD.PushError($"The system tray is unavailable: {error.Message}");
+        }
+
+        // The main renderer awaits this invoke, and an unanswered invoke never settles.
+        // Answer it also when the platform has no tray.
+        _trayLabelsRegistration = _eventa.Context.RegisterInvokeHandler(
+            AiriDesktopEvents.SetTrayLabels,
+            (TrayLabelsPayload labels, CancellationToken _) =>
+            {
+                _tray?.ApplyLabels(labels);
+                return Task.FromResult(new EmptyPayload());
+            });
+
         GD.Print($"create_webview initial_url={initialUrl}");
         _kirie.CreateWebView(initialUrl);
     }
@@ -155,6 +191,8 @@ public partial class Main : Node
     public override void _ExitTree()
     {
         _nativeResize?.Dispose();
+        _trayLabelsRegistration?.Dispose();
+        _tray?.Dispose();
         _quitRegistration?.Dispose();
         _authRegistration?.Dispose();
         _displaySnapshotRegistration?.Dispose();
@@ -180,6 +218,7 @@ public partial class Main : Node
     {
         _widgets?.Process();
         _chat?.Process();
+        _tray?.Process();
         _auth?.ProcessPending();
         _microphonePermissions?.Process();
     }

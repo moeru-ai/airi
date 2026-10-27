@@ -19,5 +19,6 @@ export {
   useHostSpotlightShortcut,
   useHostSpotlightWindow,
 } from './spotlight'
+export { startHostTrayLabels } from './tray'
 export * from './window-actions'
 export { useHostWindowLifecycle } from './window-lifecycle'
