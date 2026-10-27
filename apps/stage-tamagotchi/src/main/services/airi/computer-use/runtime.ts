@@ -11,6 +11,7 @@ import { isAbsolute, relative, sep } from 'node:path'
 import { promisify } from 'node:util'
 
 import { startAuv } from '@auv-js/sdk/node'
+import { Transformer } from '@napi-rs/image'
 
 import * as v from 'valibot'
 
@@ -21,12 +22,7 @@ const MAX_IMAGE_BYTES = 8 * 1024 * 1024
 const inputSchema = v.object({ argv: v.pipe(v.array(v.pipe(v.string(), v.maxLength(16384), v.check(value => !value.includes('\0')))), v.minLength(2), v.maxLength(128)) })
 
 /** Owns one private daemon and serializes desktop operations across renderer windows. */
-export function createComputerUseRuntime(options: {
-  binaryPath: string
-  storeRoot: string
-  /** Converts a WebP screenshot to PNG. AUV's Windows capture backend writes WebP. */
-  webpToPng: (data: Buffer, signal?: AbortSignal) => Promise<Buffer>
-}) {
+export function createComputerUseRuntime(options: { binaryPath: string, storeRoot: string }) {
   let daemon: AuvDaemon | undefined
   let disposed = false
   let queue: Promise<unknown> = Promise.resolve()
@@ -136,15 +132,30 @@ export function createComputerUseRuntime(options: {
       const data = await readFile(target)
       const png = data.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
       const jpeg = data[0] === 255 && data[1] === 216 && data[2] === 255
-      // AUV's Windows capture backend writes WebP, which vision models and providers do not accept.
+      // AUV's Windows backend writes WebP. Convert it to PNG for providers that require PNG or JPEG.
       const webp = data.length >= 12 && data.subarray(0, 4).toString('latin1') === 'RIFF' && data.subarray(8, 12).toString('latin1') === 'WEBP'
       if (!png && !jpeg && !webp)
         throw new Error('Screenshot must be PNG, JPEG, or WebP.')
       if (webp) {
-        const pngData = await options.webpToPng(data, abort.signal)
-        if (pngData.length > MAX_IMAGE_BYTES)
-          throw new Error('Screenshot must be smaller than 8 MiB after converting from WebP to PNG.')
-        return `data:image/png;base64,${pngData.toString('base64')}`
+        abort.signal.throwIfAborted()
+        let onAbort: (() => void) | undefined
+        try {
+          // Disposal stops waiting for the native task. The codec can finish in the background.
+          const pngData = await Promise.race([
+            new Transformer(data).png(),
+            new Promise<never>((_resolve, reject) => {
+              onAbort = () => reject(new Error('Computer use has stopped.'))
+              abort.signal.addEventListener('abort', onAbort, { once: true })
+            }),
+          ])
+          if (pngData.length > MAX_IMAGE_BYTES)
+            throw new Error('Screenshot must be smaller than 8 MiB after converting from WebP to PNG.')
+          return `data:image/png;base64,${pngData.toString('base64')}`
+        }
+        finally {
+          if (onAbort)
+            abort.signal.removeEventListener('abort', onAbort)
+        }
       }
       return `data:image/${png ? 'png' : 'jpeg'};base64,${data.toString('base64')}`
     })

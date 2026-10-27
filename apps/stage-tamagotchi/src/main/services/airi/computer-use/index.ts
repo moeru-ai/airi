@@ -9,7 +9,6 @@ import { app } from 'electron'
 import { computerUseReadImage, computerUseRun } from '../../../../shared/eventa/computer-use'
 import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
 import { createComputerUseRuntime } from './runtime'
-import { webpToPng } from './screenshot'
 
 /** Registers host-owned computer use. The executable is resolved only on the first call. */
 export function setupComputerUse(context: ReturnType<typeof createContext>['context']) {
@@ -24,7 +23,6 @@ export function setupComputerUse(context: ReturnType<typeof createContext>['cont
         // Native executables cannot run inside Electron's archive.
         binaryPath: app.isPackaged ? executable.replace(`${sep}app.asar${sep}`, `${sep}app.asar.unpacked${sep}`) : executable,
         storeRoot: join(app.getPath('userData'), 'computer-use'),
-        webpToPng,
       })
     }
     return runtime

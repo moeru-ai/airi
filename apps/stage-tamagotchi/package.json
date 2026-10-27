@@ -40,6 +40,7 @@
     "@auv-js/cli": "catalog:",
     "@auv-js/sdk": "catalog:",
     "@ergosphere-it/electron": "catalog:",
+    "@napi-rs/image": "catalog:",
     "@proj-airi/electron-native-backdrop": "workspace:^",
     "@xsai-apple-speech/transcription-native": "catalog:",
     "@xsai-apple-vision/vision-native": "catalog:",

@@ -6,25 +6,24 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { binaryPath } from '@auv-js/cli/binary'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { Transformer } from '@napi-rs/image'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createComputerUseRuntime } from './runtime'
 
 describe('computer use runtime', () => {
   let directory: string
   let runtime: ReturnType<typeof createComputerUseRuntime>
-  let convertWebp: (data: Buffer, signal?: AbortSignal) => Promise<Buffer>
+  const webp = Buffer.from('UklGRh4AAABXRUJQVlA4TBEAAAAvAQAAAA+w//Mf8x8VMqL/AQA=', 'base64')
   beforeEach(async () => {
     directory = await mkdtemp(join(tmpdir(), 'airi-cu-test-'))
     await mkdir(join(directory, 'store'))
-    convertWebp = async () => {
-      throw new Error('WebP conversion is not expected in this test.')
-    }
-    runtime = createComputerUseRuntime({ binaryPath: binaryPath(), storeRoot: join(directory, 'store'), webpToPng: (data, signal) => convertWebp(data, signal) })
+    runtime = createComputerUseRuntime({ binaryPath: binaryPath(), storeRoot: join(directory, 'store') })
   })
   afterEach(async () => {
     await runtime.dispose()
     await rm(directory, { recursive: true, force: true })
+    vi.restoreAllMocks()
   })
 
   it('rejects shell commands, route overrides, and invalid input before starting AUV', async () => {
@@ -54,63 +53,64 @@ describe('computer use runtime', () => {
     await expect(runtime.readImage({ path: text })).rejects.toThrow('PNG, JPEG, or WebP')
   })
 
-  it('converts WebP screenshots to PNG before returning them', async () => {
-    const webp = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBPVP8L'), Buffer.alloc(16)])
+  // https://github.com/moeru-ai/airi/issues/3120
+  // ROOT CAUSE:
+  // AUV writes WebP screenshots on Windows, but readImage accepted only PNG and JPEG.
+  // Decode WebP to PNG with the native image library before returning model image content.
+  it('converts a real WebP screenshot to PNG without changing its pixels (Issue #3120)', async () => {
     const path = join(directory, 'store', 'capture.webp')
     await writeFile(path, webp)
-    const png = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
-    const converted: Buffer[] = []
-    convertWebp = async (data) => {
-      converted.push(data)
-      return png
-    }
-    expect(await runtime.readImage({ path })).toBe(`data:image/png;base64,${png.toString('base64')}`)
-    expect(converted).toEqual([webp])
+    const result = await runtime.readImage({ path })
+    expect(result).toMatch(/^data:image\/png;base64,/)
+    const png = Buffer.from(result.slice('data:image/png;base64,'.length), 'base64')
+    expect(png.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+    expect(png.readUInt32BE(16)).toBe(2)
+    expect(png.readUInt32BE(20)).toBe(1)
+    expect(await new Transformer(png).rawPixels()).toEqual(Buffer.from([255, 0, 0, 0, 255, 0]))
   })
 
   it('rejects a converted PNG that grows past the image limit', async () => {
-    const webp = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBPVP8L'), Buffer.alloc(16)])
     const path = join(directory, 'store', 'large.webp')
     await writeFile(path, webp)
-    convertWebp = async () => Buffer.alloc(8 * 1024 * 1024 + 1)
+    vi.spyOn(Transformer.prototype, 'png').mockResolvedValue(Buffer.alloc(8 * 1024 * 1024 + 1))
     await expect(runtime.readImage({ path })).rejects.toThrow('smaller than 8 MiB after converting')
   })
 
-  it('aborts a pending conversion when the runtime is disposed', async () => {
-    const webp = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBPVP8L'), Buffer.alloc(16)])
+  it('stops waiting for a pending native conversion when the runtime is disposed', async () => {
     const path = join(directory, 'store', 'pending.webp')
     await writeFile(path, webp)
     let started: (() => void) | undefined
     const startedPromise = new Promise<void>((resolve) => {
       started = resolve
     })
-    convertWebp = async (_data, signal) => {
+    vi.spyOn(Transformer.prototype, 'png').mockImplementation(() => {
       started?.()
-      return await new Promise<Buffer>((_resolve, reject) => {
-        signal?.addEventListener('abort', () => reject(new Error('conversion aborted')), { once: true })
-      })
-    }
+      return new Promise<Buffer>(() => {})
+    })
     const pending = runtime.readImage({ path })
+    const rejected = expect(pending).rejects.toThrow('Computer use has stopped.')
     await startedPromise
     await runtime.dispose()
-    await expect(pending).rejects.toThrow('conversion aborted')
+    await rejected
   })
 
   it('keeps PNG and JPEG screenshots unchanged without converting them', async () => {
     const jpeg = Buffer.from([255, 216, 255, 224, 0, 16, 74, 70, 73, 70])
     const path = join(directory, 'store', 'capture.jpg')
     await writeFile(path, jpeg)
+    const convert = vi.spyOn(Transformer.prototype, 'png')
     expect(await runtime.readImage({ path })).toBe(`data:image/jpeg;base64,${jpeg.toString('base64')}`)
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6SAAAAABJRU5ErkJggg==', 'base64')
+    const pngPath = join(directory, 'store', 'capture.png')
+    await writeFile(pngPath, png)
+    expect(await runtime.readImage({ path: pngPath })).toBe(`data:image/png;base64,${png.toString('base64')}`)
+    expect(convert).not.toHaveBeenCalled()
   })
 
   it('reports a WebP conversion failure instead of returning the WebP bytes', async () => {
-    const webp = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBPVP8L'), Buffer.alloc(16)])
     const path = join(directory, 'store', 'broken.webp')
-    await writeFile(path, webp)
-    convertWebp = async () => {
-      throw new Error('decoder unavailable')
-    }
-    await expect(runtime.readImage({ path })).rejects.toThrow('decoder unavailable')
+    await writeFile(path, webp.subarray(0, 16))
+    await expect(runtime.readImage({ path })).rejects.toThrow()
   })
 
   it('rejects queued and future work after disposal', async () => {
