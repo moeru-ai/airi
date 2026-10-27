@@ -287,7 +287,7 @@ function handleArrowKey(event: KeyboardEvent, applyDelta: (delta: ChatFloatingDe
                 'h-7 w-5 shrink-0 cursor-grab touch-none rounded-full',
                 'flex items-center justify-center outline-none transition-colors',
                 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
-                'text-neutral-400 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400',
+                'text-neutral-400 hover:bg-neutral-200 dark:text-neutral-500 dark:hover:bg-neutral-800',
               ]"
               @pointerdown="startMove"
               @keydown="handleArrowKey($event, moveBy)"
@@ -299,17 +299,17 @@ function handleArrowKey(event: KeyboardEvent, applyDelta: (delta: ChatFloatingDe
               :class="[
                 'group min-w-0 flex items-center gap-1.5 rounded-full py-0.5 outline-none transition-colors',
                 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
-                'text-neutral-700 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-200 dark:hover:bg-neutral-800 dark:hover:text-primary-400',
+                'text-neutral-700 hover:bg-neutral-200 dark:text-neutral-200 dark:hover:bg-neutral-800',
                 characterOnLeft ? 'flex-row-reverse pl-2 pr-0.5' : 'pl-0.5 pr-2',
               ]"
               @click="sessionsDrawerOpen = true"
             >
-              <!-- The icon looks like the dock icons beside it: light gray at rest, the theme color on hover, no disc. -->
+              <!-- The icon looks like the dock icons beside it: light gray, no disc. Hover shows the background of the button. -->
               <span
                 :class="[
                   'size-6 shrink-0',
                   'flex items-center justify-center text-base transition-colors',
-                  'text-neutral-400 group-hover:text-primary-500 dark:text-neutral-500 dark:group-hover:text-primary-400',
+                  'text-neutral-400 dark:text-neutral-500',
                 ]"
               >
                 <span :class="['i-solar:chat-line-bold']" />
