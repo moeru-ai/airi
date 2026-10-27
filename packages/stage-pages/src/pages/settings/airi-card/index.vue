@@ -312,6 +312,7 @@ async function handleRestoreDeletedCard(card: DeletedCard) {
       <SettingsSearchField
         v-model="searchQuery"
         :placeholder="t('settings.pages.card.search')"
+        size="md"
         :class="['w-full flex-1 sm:max-w-xs']"
       />
       <div :class="['w-full shrink-0 sm:w-40']">
