@@ -11,6 +11,7 @@ public partial class ChatWindow : Window
     private WebViewPermissionHandler? _permissions;
     private IDisposable? _microphonePermissionRegistration;
     private IDisposable? _readyRegistration;
+    private IDisposable? _chatRegistration;
     private bool _ready;
     private bool _showRequested;
     private bool _initialGeometryApplied;
@@ -18,7 +19,8 @@ public partial class ChatWindow : Window
     internal void Initialize(
         KirieEventaJsonRegistry registry,
         string rendererUrl,
-        MicrophonePermissionService microphonePermissions)
+        MicrophonePermissionService microphonePermissions,
+        Func<IEventContext, IDisposable> attachChat)
     {
         if (!IsInsideTree())
         {
@@ -40,6 +42,7 @@ public partial class ChatWindow : Window
         _platform = GdKiriePlatform.Attach(_eventa.Context, this);
         _microphonePermissionRegistration = microphonePermissions.Attach(_eventa.Context);
         _permissions = new WebViewPermissionHandler(_kirie, rendererUrl);
+        _chatRegistration = attachChat(_eventa.Context);
         _readyRegistration = _eventa.Context.Subscribe(
             AiriDesktopEvents.ChatReady,
             _ => OnRendererReady());
@@ -74,6 +77,7 @@ public partial class ChatWindow : Window
         }
 
         _readyRegistration?.Dispose();
+        _chatRegistration?.Dispose();
         _permissions?.Dispose();
         _microphonePermissionRegistration?.Dispose();
         _platform?.Dispose();

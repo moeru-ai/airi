@@ -6,6 +6,7 @@ import { shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ChatSpeechMuteButton from '../components/chat-window/chat-speech-mute-button.vue'
+import ChatWindowStyleMenu from '../components/chat-window/chat-window-style-menu.vue'
 import InteractiveArea from '../components/InteractiveArea.vue'
 import WindowTitleBar from '../components/Window/TitleBar.vue'
 import ChatPageShell from './chat-page-shell.vue'
@@ -35,6 +36,7 @@ const { t } = useI18n()
           <div :class="['i-solar:chat-line-bold-duotone']" />
         </button>
         <ChatSpeechMuteButton />
+        <ChatWindowStyleMenu />
       </template>
     </WindowTitleBar>
     <InteractiveArea

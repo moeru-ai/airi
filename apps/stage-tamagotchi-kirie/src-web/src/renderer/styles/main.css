@@ -34,11 +34,15 @@ html.dark {
 
 html.spotlight-window,
 html.spotlight-window body,
-html.spotlight-window #app {
+html.spotlight-window #app,
+html.chat-floating-window,
+html.chat-floating-window body,
+html.chat-floating-window #app {
   background: transparent;
 }
 
-html.spotlight-window.dark {
+html.spotlight-window.dark,
+html.chat-floating-window.dark {
   color-scheme: normal;
 }
 

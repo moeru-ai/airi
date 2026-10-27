@@ -90,6 +90,109 @@ export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windo
 export const electronChatReady = defineEventa<Record<string, never>>('eventa:event:electron:windows:chat:ready')
 
 /**
+ * Where the Controls Island chat button opens the chat.
+ *
+ * - `legacy`: the opaque chat window with a title bar.
+ * - `floating`: a transparent, click-through window where only the chat
+ *   bubbles and controls are drawn. The chat button folds and unfolds it.
+ */
+export type ChatWindowMode = 'legacy' | 'floating'
+
+/**
+ * Where the floating chat window stays.
+ *
+ * - `attached`: beside the main window, which it follows.
+ * - `free`: where the user drags it.
+ */
+export type ChatFloatingPlacement = 'attached' | 'free'
+
+/** An edge or a corner of the floating chat window, by compass direction. */
+export type ChatFloatingResizeEdge = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
+
+/** Chat window choices that the host saves for every chat renderer. */
+export interface ChatWindowPreferences {
+  mode: ChatWindowMode
+  placement: ChatFloatingPlacement
+  /**
+   * Shows the floating chat as a message feed: the composer folds away, and
+   * read messages hide.
+   */
+  danmaku: boolean
+  /**
+   * Keeps a `free` floating chat above other windows. An `attached` chat
+   * takes the pin of the main window.
+   */
+  pinned: boolean
+}
+
+/** What the floating chat renderer needs from the host to lay itself out. */
+export interface ChatFloatingState {
+  placement: ChatFloatingPlacement
+  danmaku: boolean
+  /** The side of the main window that an attached chat sits on. It is `left` for a `free` chat. */
+  side: 'left' | 'right'
+  /**
+   * The edges and corners that resize the chat. A `free` chat resizes from
+   * all of them. An `attached` chat keeps the edges that it shares with the
+   * main window in place.
+   */
+  resizeEdges: ChatFloatingResizeEdge[]
+  /**
+   * `true` after the chat button folds the chat. The renderer plays the fold
+   * and then calls {@link electronChatFloatingContentHidden}, so the host
+   * hides the window.
+   */
+  folded: boolean
+  /**
+   * `true` while an attached chat moves to the other side of the main window.
+   * The renderer hides the content and calls
+   * {@link electronChatFloatingContentHidden}. The host then moves the window
+   * and sets this back to `false`.
+   */
+  relocating: boolean
+  /** Whether the chat window stays above other windows. */
+  pinned: boolean
+}
+
+/**
+ * What the Controls Island chat button reflects. In the floating mode the
+ * button folds and unfolds the chat, so it shows a pressed state while the
+ * chat is unfolded. In the legacy mode it only opens the window.
+ */
+export interface ChatButtonState {
+  mode: ChatWindowMode
+  /** `true` while the floating chat is unfolded. It is always `false` in the legacy mode. */
+  floatingShown: boolean
+}
+
+/** A keyboard move or resize of the floating chat, in CSS pixels. */
+export interface ChatFloatingDelta {
+  deltaX: number
+  deltaY: number
+}
+
+// The Godot host answers requests without a body only when they carry `{}`.
+export const electronGetChatButtonState = defineInvokeEventa<ChatButtonState, Record<string, never>>('eventa:invoke:electron:windows:chat:get-button-state')
+export const electronChatButtonStateChanged = defineEventa<ChatButtonState>('eventa:event:electron:windows:chat:button-state-changed')
+/** Reads the saved placement, message feed, and pin, with the mode of the chat that asks. */
+export const electronChatWindowGetPreferences = defineInvokeEventa<ChatWindowPreferences, Record<string, never>>('eventa:invoke:electron:windows:chat:get-preferences')
+/**
+ * Saves the preferences that a control changes. A mode that differs from the
+ * mode of the chat that asks opens the window of that mode and closes this one.
+ */
+export const electronChatWindowSetPreferences = defineInvokeEventa<void, Partial<ChatWindowPreferences>>('eventa:invoke:electron:windows:chat:set-preferences')
+export const electronChatFloatingGetState = defineInvokeEventa<ChatFloatingState, Record<string, never>>('eventa:invoke:electron:windows:chat-floating:get-state')
+export const electronChatFloatingStateChanged = defineEventa<ChatFloatingState>('eventa:event:electron:windows:chat-floating:state-changed')
+/** Reports that the content finished its fold, so the host can hide or move the window. */
+export const electronChatFloatingContentHidden = defineInvokeEventa<void, Record<string, never>>('eventa:invoke:electron:windows:chat-floating:content-hidden')
+/** Folds the chat, as the chat button does. */
+export const electronChatFloatingFold = defineInvokeEventa<void, Record<string, never>>('eventa:invoke:electron:windows:chat-floating:fold')
+/** Moves a `free` chat from the keyboard. The pointer moves it with the native window gesture. */
+export const electronChatFloatingMoveBy = defineInvokeEventa<void, ChatFloatingDelta>('eventa:invoke:electron:windows:chat-floating:move-by')
+/** Resizes the chat from the keyboard. The pointer resizes it with the native window gesture. */
+export const electronChatFloatingResizeBy = defineInvokeEventa<void, ChatFloatingDelta & { direction: ChatFloatingResizeEdge }>('eventa:invoke:electron:windows:chat-floating:resize-by')
+
+/**
  * The conversation and the unsent composer content that a chat mode switch
  * carries from the window it closes to the window it opens.
  */
