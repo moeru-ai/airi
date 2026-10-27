@@ -74,9 +74,9 @@ The settings home lists the settings that keep a feature in use from working. It
 - **Provider check failed**: the last check of a provider in use failed. The item shows the first reason of the check.
 - A provider shows only after a check in this session, so a status from the last session does not show it.
 - A provider is in use when a module or any character selects it. A chat session resolves its own character, so the active card is not the only user. A provider that nothing uses does not show. The providers page shows its status.
-- **Provider cannot be used**: a character or the Hearing module selects a provider that its module page does not list, for example a removed provider. A character keeps this selection, because the person can add the provider again.
+- **Provider cannot be used**: a character or the Hearing module selects a provider that its module page does not list, for example a removed provider. A character keeps this selection, because the person can add the provider again. An added provider of the right kind waits for its check instead: the page lists it after a check passes, and a failed check gives a provider item.
 - **Character without a speech model or voice**: the speech of a character has a usable provider, but no model or no voice. Its replies stay text only. `speechFieldStatus()` in the speech store gives the check, and `createOutput` resolves the selection the same way.
-- An empty field that a catalog fills later is pending, not missing. The store picks a voice for an official provider, and a streaming provider takes its default model, after the catalog loads.
+- An empty field that a catalog fills later is pending, not missing. The store picks a voice for an official provider, and a streaming provider takes its default model, after the catalog loads. Only a catalog that is loading counts. A catalog that failed, came back empty, or was not requested leaves the field missing.
 - **Voice input without transcription**: the microphone is on in the Always on mode, but Hearing has no transcription provider or model. Speech then starts no input. Push to Talk and dictation explain this when the person presses them.
 - An item without a brand icon shows the icon of its module kind.
 - Blocking items come first. Only a failed check is not blocking, because the next check can pass.

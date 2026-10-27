@@ -9,7 +9,7 @@ import { providerSettingsRouteOf } from '../libs/providers/metadata'
 import { useAiriCardStore } from '../stores/modules/airi-card'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { startsInputOnSpeech, useHearingStore } from '../stores/modules/hearing'
-import { speechFieldStatus, useSpeechStore } from '../stores/modules/speech'
+import { speechFieldsKeyOf, speechFieldStatus, useSpeechStore } from '../stores/modules/speech'
 import { useVisionStore } from '../stores/modules/vision'
 import { useProviderConfigStore } from '../stores/providers/config'
 import { useProviderStore } from '../stores/providers/provider'
@@ -94,12 +94,8 @@ export interface ModuleSelectionState {
   provider: string
   /** The localized name of the provider, when the provider is known. */
   providerName?: string
-  /**
-   * - `usable`: the module page lists the provider, and the provider has no provider item.
-   * - `provider-item`: the provider is added, or it has a provider item. The provider item reports it.
-   * - `unusable`: the module page does not list the provider, and nothing else reports it.
-   */
-  state: 'usable' | 'provider-item' | 'unusable'
+  /** Whether the module can use the provider. `selectionStateOf` tells how. */
+  state: SelectionState
   /** The developer tools make the list treat this selection as unusable. */
   simulated: boolean
 }
@@ -114,6 +110,37 @@ export interface VoiceInputState {
   configured: boolean
   /** The developer tools make the list treat voice input as on in the Always on mode, without transcription. */
   simulated: boolean
+}
+
+/**
+ * How a module can use the provider of a selection:
+ * - `usable`: the module page lists the provider, and the provider has no provider item.
+ * - `provider-item`: the provider has a provider item, which reports it.
+ * - `awaiting-check`: the provider is added, of the right kind, and not listed. The page lists it after a check passes.
+ *   A check that fails gives a provider item. Until a check runs, it is unknown if the provider works.
+ * - `unusable`: nothing else reports it. The provider is not added, is of another kind, or no longer exists, for example
+ *   after an update removed it.
+ */
+export type SelectionState = 'usable' | 'provider-item' | 'awaiting-check' | 'unusable'
+
+/** Classifies a module selection. See `SelectionState`. */
+export function selectionStateOf(facts: {
+  /** The provider has a provider item. */
+  hasProviderItem: boolean
+  /** The module page lists the provider. */
+  listed: boolean
+  /** The provider exists, and it is of the kind of the module. */
+  ofModuleKind: boolean
+  /** The person added the provider. */
+  added: boolean
+}): SelectionState {
+  if (facts.hasProviderItem)
+    return 'provider-item'
+  if (facts.listed)
+    return 'usable'
+  if (facts.ofModuleKind && facts.added)
+    return 'awaiting-check'
+  return 'unusable'
 }
 
 // The developer tools set these to test the list. The settings home and the developer tools share them in one window.
@@ -165,13 +192,6 @@ const MODULE_ROUTES: Record<Module, string> = {
   speech: '/settings/modules/speech',
   hearing: '/settings/modules/hearing/transcriber',
   vision: '/settings/modules/vision',
-}
-
-/** The title of a character whose speech lacks fields, by the fields that it lacks. */
-const SPEECH_TITLE_KEYS: Record<string, string> = {
-  'model': 'settings.needs-attention.speech-no-model',
-  'voice': 'settings.needs-attention.speech-no-voice',
-  'model,voice': 'settings.needs-attention.speech-no-model-voice',
 }
 
 /** The item id of the speech of a character. */
@@ -285,6 +305,20 @@ export function useSettingsNeedsAttention() {
     vision: new Set(providersStore.moduleVisionProvidersMetadata.map(entry => entry.id)),
   }))
 
+  /**
+   * Whether the provider registry has loaded. It always holds the built-in providers, so an empty list means that it is
+   * still loading. Until then, every list of providers is empty, and no selection can be called unusable.
+   */
+  const providersLoaded = computed(() => providersStore.availableProvidersMetadata.length > 0)
+
+  /** The providers of the kind of each module, whatever their state. A provider that no longer exists is in none. */
+  const moduleKindProviderIds = computed<Record<Module, ReadonlySet<string>>>(() => ({
+    consciousness: new Set(providersStore.allChatProvidersMetadata.map(entry => entry.id)),
+    speech: new Set(providersStore.allAudioSpeechProvidersMetadata.map(entry => entry.id)),
+    hearing: new Set(providersStore.allAudioTranscriptionProvidersMetadata.map(entry => entry.id)),
+    vision: new Set(providersStore.allVisionProvidersMetadata.map(entry => entry.id)),
+  }))
+
   /** Providers in use that are not set up, or whose last check in this session failed. */
   const providerProblems = computed(() => Object.entries(providersStore.providerRuntimeState).flatMap(([id, runtime]): Problem[] => {
     const metadata = providersStore.availableProvidersMetadata.find(entry => entry.id === id)
@@ -347,11 +381,12 @@ export function useSettingsNeedsAttention() {
       .filter(({ provider }) => provider && provider !== 'speech-noop')
       .map(({ characterId, module, provider }) => {
         const key = characterId === undefined ? module : `${characterId}:${module}`
-        let state: ModuleSelectionState['state'] = 'unusable'
-        if (providerItemIds.value.has(provider) || (!moduleProviderIds.value[module].has(provider) && providerConfigStore.addedProviders[provider]))
-          state = 'provider-item'
-        else if (moduleProviderIds.value[module].has(provider))
-          state = 'usable'
+        const state = selectionStateOf({
+          hasProviderItem: providerItemIds.value.has(provider),
+          listed: moduleProviderIds.value[module].has(provider),
+          ofModuleKind: moduleKindProviderIds.value[module].has(provider),
+          added: !!providerConfigStore.addedProviders[provider],
+        })
         return {
           selection: {
             key,
@@ -375,7 +410,7 @@ export function useSettingsNeedsAttention() {
    * An added provider shows as a provider item after its check instead.
    */
   const unavailableProviderProblems = computed(() => moduleSelections.value.flatMap(({ selection, module }): Problem[] => {
-    if (selection.state !== 'unusable' && !selection.simulated)
+    if (!selection.simulated && (selection.state !== 'unusable' || !providersLoaded.value))
       return []
 
     const providerName = selection.providerName ?? selection.provider
@@ -404,8 +439,8 @@ export function useSettingsNeedsAttention() {
     const status = speechFieldStatus(
       modules.speech,
       providerConfigStore.getProviderConfig(provider) ?? {},
-      () => runtime?.modelStatus === 'ready' ? runtime.defaultModel : undefined,
-      (speechStore.availableVoices[provider]?.length ?? 0) > 0,
+      () => runtime?.modelStatus === 'loading' ? undefined : (runtime?.defaultModel ?? null),
+      speechStore.voiceCatalogStatus[provider]?.loading ?? false,
     )
     return {
       id,
@@ -426,8 +461,8 @@ export function useSettingsNeedsAttention() {
    */
   const speechProblems = computed(() => characterSpeech.value.flatMap((speech): Problem[] => {
     const missing: MissingSpeechField[] = speech.simulated ? ['voice'] : speech.providerUsable ? speech.missing : []
-    const titleKey = SPEECH_TITLE_KEYS[missing.join(',')]
-    if (!titleKey)
+    const fieldsKey = speechFieldsKeyOf(missing)
+    if (!fieldsKey)
       return []
 
     const selection = cardStore.characterModules.get(speech.id)?.speech
@@ -435,7 +470,7 @@ export function useSettingsNeedsAttention() {
     return [{
       item: {
         id: speechItemIdOf(speech.id),
-        title: t(titleKey, { name: speech.name }),
+        title: t(`settings.needs-attention.speech-no-${fieldsKey}`, { name: speech.name }),
         detail: [t('settings.needs-attention.text-only'), cause].filter(Boolean).join(' · '),
         fallbackIcon: providerKindIconOf('speech'),
         modules: [moduleTitleOf('speech')],
@@ -490,15 +525,17 @@ export function useSettingsNeedsAttention() {
     ...hearingProblems.value,
   ])
 
-  const entries = computed<SettingsNeedsAttentionEntry[]>(() => problems.value.map(problem => ({
-    item: problem.item,
-    dismissed: dismissed.value[problem.item.id] === problem.fingerprint,
-  })))
+  /** Every problem, in the order of the list: blocking items first, then by title. */
+  const entries = computed<SettingsNeedsAttentionEntry[]>(() => problems.value
+    .map(problem => ({
+      item: problem.item,
+      dismissed: dismissed.value[problem.item.id] === problem.fingerprint,
+    }))
+    .sort((left, right) => Number(right.item.blocking) - Number(left.item.blocking) || left.item.title.localeCompare(right.item.title)))
 
   const items = computed<SettingsNeedsAttentionItem[]>(() => entries.value
     .filter(entry => !entry.dismissed)
-    .map(entry => entry.item)
-    .sort((left, right) => Number(right.blocking) - Number(left.blocking) || left.title.localeCompare(right.title)))
+    .map(entry => entry.item))
 
   function dismiss(id: string) {
     const problem = problems.value.find(entry => entry.item.id === id)

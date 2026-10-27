@@ -2224,7 +2224,8 @@ pages:
                 items-empty: 现在没有需要注意的项。
                 selections-title: 模块的提供商
                 selection-usable: 可以用
-                selection-provider-item: 已添加，由提供商那一项报告
+                selection-provider-item: 由提供商那一项报告
+                selection-awaiting-check: 已添加，等检查结果
                 selection-unusable: 模块用不了它
                 simulate-unusable: 当作不能用
                 voice-input-title: 语音输入

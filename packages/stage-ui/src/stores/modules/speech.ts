@@ -59,16 +59,17 @@ export interface SpeechFieldStatus {
  * Tells which fields a speech selection lacks before it can speak. Both lists are empty when speech is off, or when it can speak.
  * The store picks a voice for an official provider from its voice catalog, and a streaming provider uses the default model of
  * its model catalog. While these catalogs load, their empty fields are pending, not missing.
+ * A catalog that failed, that came back empty, or that nobody requested fills nothing, so its empty fields are missing.
  *
  * @param config The config of the selected provider.
- * @param defaultModel Gives the default model of the selected provider, or `undefined` while its model catalog is not loaded.
- * @param voicesLoaded Whether the voice catalog of the selected provider is loaded.
+ * @param defaultModel Gives the default model of the selected provider. It gives `null` when there is none, and `undefined` while the model catalog loads.
+ * @param voiceCatalogLoading Whether the voice catalog of the selected provider is loading now.
  */
 export function speechFieldStatus(
   selection: AiriExtension['modules']['speech'],
   config: Record<string, unknown>,
   defaultModel: () => string | null | undefined,
-  voicesLoaded: boolean,
+  voiceCatalogLoading: boolean,
 ): SpeechFieldStatus {
   const status: SpeechFieldStatus = { missing: [], pending: [] }
   if (!selection.provider || selection.provider === 'speech-noop')
@@ -77,8 +78,21 @@ export function speechFieldStatus(
   if (streaming ? !streamingModel?.includes('/') : !model)
     status[streaming && streamingModel === undefined ? 'pending' : 'missing'].push('model')
   if (!voiceId)
-    status[picksSpeechVoiceAutomatically(selection.provider) && !voicesLoaded ? 'pending' : 'missing'].push('voice')
+    status[picksSpeechVoiceAutomatically(selection.provider) && voiceCatalogLoading ? 'pending' : 'missing'].push('voice')
   return status
+}
+
+/** One key for a set of speech fields, for the strings that name them. It is `undefined` for no fields. */
+export function speechFieldsKeyOf(fields: readonly MissingSpeechField[]): 'model' | 'voice' | 'model-voice' | undefined {
+  const model = fields.includes('model')
+  const voice = fields.includes('voice')
+  if (model && voice)
+    return 'model-voice'
+  if (model)
+    return 'model'
+  if (voice)
+    return 'voice'
+  return undefined
 }
 
 interface SpeechInputOptions {

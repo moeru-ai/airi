@@ -4,6 +4,7 @@ import type { ProviderValidationStatus } from '@proj-airi/stage-ui/libs/provider
 
 import { providerKindIconOf, useSettingsNeedsAttention } from '@proj-airi/stage-ui/composables/use-settings-needs-attention'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
+import { speechFieldsKeyOf } from '@proj-airi/stage-ui/stores/modules/speech'
 import { PULL_INTERVAL_MS, useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { Button, Checkbox, GhostButton } from '@proj-airi/ui'
@@ -103,13 +104,6 @@ function detailsOf(row: (typeof rows.value)[number]) {
   return parts.join(' · ')
 }
 
-/** The status of a speech that lacks fields, by the fields that it lacks. */
-const SPEECH_MISSING_KEYS: Record<string, string> = {
-  'model': 'speech-missing-model',
-  'voice': 'speech-missing-voice',
-  'model,voice': 'speech-missing-model-voice',
-}
-
 /** The provider of the speech, and whether the list can show it. */
 function speechDetailsOf(speech: CharacterSpeechState) {
   if (!speech.provider || speech.provider === 'speech-noop')
@@ -118,7 +112,7 @@ function speechDetailsOf(speech: CharacterSpeechState) {
   if (!speech.providerUsable)
     status = t(key('speech-provider-unusable'))
   else if (speech.missing.length)
-    status = t(key(SPEECH_MISSING_KEYS[speech.missing.join(',')] ?? 'speech-missing-model-voice'))
+    status = t(key(`speech-missing-${speechFieldsKeyOf(speech.missing)}`))
   else if (speech.pending.length)
     status = t(key('speech-pending'))
   return [speech.providerName ?? speech.provider, status].join(' · ')
@@ -128,6 +122,7 @@ function speechDetailsOf(speech: CharacterSpeechState) {
 const SELECTION_STATE_KEYS: Record<ModuleSelectionState['state'], string> = {
   'usable': 'selection-usable',
   'provider-item': 'selection-provider-item',
+  'awaiting-check': 'selection-awaiting-check',
   'unusable': 'selection-unusable',
 }
 
