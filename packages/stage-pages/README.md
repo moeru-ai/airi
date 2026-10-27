@@ -80,7 +80,7 @@ The settings home lists the settings that keep a feature in use from working. It
 - **Voice input without transcription**: the microphone is on in the Always on mode, but Hearing has no transcription provider or model. Speech then starts no input. Push to Talk and dictation explain this when the person presses them.
 - An item without a brand icon shows the icon of its module kind.
 - Blocking items come first. Only a failed check is not blocking, because the next check can pass.
-- **Edit** opens the page that fixes the item. A module page edits the active character. For another character, it opens the character editor. **Dismiss** hides the item on this device until its cause changes.
+- **Edit** opens the page that fixes the item, scrolled to the row to change and highlighted, as a settings search result opens it. For a character, it is the editor of that character at its modules, also for the active character. A page without that row opens at the top. **Dismiss** hides the item on this device until its cause changes.
 - `/devtools/needs-attention` tests this list. It lists every item, also the dismissed ones, and can show a dismissed item again.
 - It shows when the provider checks run, when each provider was checked, and how often a provider checks itself. It also shows the provider of each module selection, the speech of each character, and the voice input.
 - It can make the list show each kind of item on purpose: a provider fails its check, a module selection cannot be used, a character has no voice, or voice input has no transcription. These choices end when the app quits.

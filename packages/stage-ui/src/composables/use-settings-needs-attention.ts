@@ -1,9 +1,13 @@
+import type { SettingsSearchRouteMeta } from '@proj-airi/stage-shared/settings-search'
+
 import type { HearingInputMode } from '../stores/modules/hearing'
 import type { MissingSpeechField } from '../stores/modules/speech'
 
+import { SETTINGS_SEARCH_QUERY } from '@proj-airi/stage-shared/settings-search'
 import { useLocalStorage } from '@vueuse/core'
 import { computed, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 
 import { providerSettingsRouteOf } from '../libs/providers/metadata'
 import { useAiriCardStore } from '../stores/modules/airi-card'
@@ -186,12 +190,36 @@ const MODULE_KINDS: Record<Module, string> = {
   vision: 'vision',
 }
 
-/** The page that selects the provider of each module. It edits the selection of the active character. */
-const MODULE_ROUTES: Record<Module, string> = {
-  consciousness: '/settings/modules/consciousness',
-  speech: '/settings/modules/speech',
-  hearing: '/settings/modules/hearing/transcriber',
-  vision: '/settings/modules/vision',
+/** The page that selects the transcription provider of Hearing. Hearing is the same for every character. */
+const HEARING_ROUTE = '/settings/modules/hearing/transcriber'
+
+/**
+ * The row that selects the provider of each module: in the character editor for the modules that a character selects,
+ * and the list of providers on the Hearing page for Hearing. The keys are the markers that the settings search scan gives
+ * these rows.
+ */
+const PROVIDER_ROWS: Record<Module, string> = {
+  consciousness: 'settings.pages.card.chat.provider',
+  speech: 'settings.pages.card.speech.provider',
+  vision: 'settings.pages.card.vision.provider',
+  hearing: 'settings.pages.providers.title',
+}
+
+/** The row that selects the transcription model on the Hearing page. It shows once a provider is selected. */
+const HEARING_MODEL_ROW = 'settings.pages.modules.consciousness.sections.section.provider-model-selection.title'
+
+/** The row of each speech field in the character editor. */
+const SPEECH_FIELD_ROWS: Record<MissingSpeechField, string> = {
+  model: 'settings.pages.card.speech.model',
+  voice: 'settings.pages.card.speech.voice',
+}
+
+/** The section of a provider page that holds its required fields, such as the API key. */
+const PROVIDER_BASIC_ROW = 'settings.pages.providers.common.section.basic.title'
+
+/** The character editor of a character. Its `modules` section holds the module selections. */
+function characterEditorPathOf(characterId: string) {
+  return `/settings/airi-card/${encodeURIComponent(characterId)}/edit`
 }
 
 /** The item id of the speech of a character. */
@@ -266,11 +294,27 @@ export function useSettingsNeedsAttention() {
     return cardStore.cards.get(characterId)?.name || characterId
   }
 
-  /** The page that fixes a module selection. A module page edits the active character. Another character has its own editor. */
-  function fixRouteOf(characterId: string | undefined, module: Module) {
-    return characterId === undefined || characterId === cardStore.activeCardId
-      ? MODULE_ROUTES[module]
-      : `/settings/airi-card/${encodeURIComponent(characterId)}/edit?section=modules`
+  const router = useRouter()
+
+  /**
+   * A page that opens at the setting to change and highlights it, as a search result opens it. `query` names the part of
+   * the page to show first, such as the `modules` section of the character editor. A page without that setting, such as
+   * a provider page without a basic section, opens without the target, so it shows no notice of a missing setting.
+   */
+  function settingLocationOf(path: string, setting: string, query: Record<string, string> = {}) {
+    const meta = router.resolve(path).matched.at(-1)?.meta as SettingsSearchRouteMeta | undefined
+    const target = meta?.searchKeys?.includes(setting) ? { [SETTINGS_SEARCH_QUERY]: setting } : {}
+    return router.resolve({ path, query: { ...query, ...target } }).fullPath
+  }
+
+  /**
+   * The row that selects the provider of a module selection. A character keeps its own selection, and its editor shows
+   * and changes it, also for the active character. The module pages show the selection of the running modules instead.
+   */
+  function providerRowOf(characterId: string | undefined, module: Module) {
+    return characterId === undefined
+      ? settingLocationOf(HEARING_ROUTE, PROVIDER_ROWS[module])
+      : settingLocationOf(characterEditorPathOf(characterId), PROVIDER_ROWS[module], { section: 'modules' })
   }
 
   /**
@@ -334,7 +378,7 @@ export function useSettingsNeedsAttention() {
       iconImage: metadata.iconImage,
       fallbackIcon: providerKindIconOf(metadata.category),
       modules,
-      to: providerSettingsRouteOf(metadata),
+      to: settingLocationOf(providerSettingsRouteOf(metadata), PROVIDER_BASIC_ROW),
     }
     // The stored status can come from the last session. The outcome and the reason come only from this session,
     // so the list does not show a provider before the startup check, or hide it while a later check runs.
@@ -426,7 +470,7 @@ export function useSettingsNeedsAttention() {
         fallbackIcon: selection.icon,
         modules: [selection.moduleTitle],
         blocking: true,
-        to: fixRouteOf(selection.characterId, module),
+        to: providerRowOf(selection.characterId, module),
       },
       fingerprint: fingerprintOf(`${module}\n${selection.provider}${selection.simulated ? '\nsimulated' : ''}`),
     }]
@@ -475,7 +519,8 @@ export function useSettingsNeedsAttention() {
         fallbackIcon: providerKindIconOf('speech'),
         modules: [moduleTitleOf('speech')],
         blocking: true,
-        to: fixRouteOf(speech.id, 'speech'),
+        // The first empty field: the model, and then the voice, which the model offers.
+        to: settingLocationOf(characterEditorPathOf(speech.id), SPEECH_FIELD_ROWS[missing[0] ?? 'voice'], { section: 'modules' }),
       },
       fingerprint: fingerprintOf(`${JSON.stringify(selection)}\n${missing.join(',')}${speech.simulated ? '\nsimulated' : ''}`),
     }]
@@ -512,7 +557,7 @@ export function useSettingsNeedsAttention() {
         fallbackIcon: providerKindIconOf('transcription'),
         modules: [moduleTitleOf('hearing')],
         blocking: true,
-        to: MODULE_ROUTES.hearing,
+        to: settingLocationOf(HEARING_ROUTE, provider ? HEARING_MODEL_ROW : PROVIDER_ROWS.hearing),
       },
       fingerprint: fingerprintOf(`${provider}\n${hearingStore.activeTranscriptionModel}${simulated ? '\nsimulated' : ''}`),
     }]
