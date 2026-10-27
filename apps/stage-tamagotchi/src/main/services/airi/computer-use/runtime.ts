@@ -11,7 +11,6 @@ import { isAbsolute, relative, sep } from 'node:path'
 import { promisify } from 'node:util'
 
 import { startAuv } from '@auv-js/sdk/node'
-import { Transformer } from '@napi-rs/image'
 
 import * as v from 'valibot'
 
@@ -140,6 +139,8 @@ export function createComputerUseRuntime(options: { binaryPath: string, storeRoo
         abort.signal.throwIfAborted()
         let onAbort: (() => void) | undefined
         try {
+          // Only the Windows backend writes WebP. Load the native codec on first use, not at app start.
+          const { Transformer } = await import('@napi-rs/image')
           // NOTICE:
           // Disposal must stop waiting while the native codec finishes in the background.
           // N-API cannot cancel async work that already started.
