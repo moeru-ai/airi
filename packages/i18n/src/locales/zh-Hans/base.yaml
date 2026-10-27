@@ -47,6 +47,8 @@ prompt:
 toaster:
   pwaUpdateReady:
     message: 新版本就绪，现在更新？
+    current: '当前：{build}'
+    next: '新版本：{build}'
     action:
       notNow: 稍后
       ok: 好的

@@ -65,6 +65,8 @@ prompt:
 toaster:
   pwaUpdateReady:
     message: New version ready, reload now?
+    current: 'Current: {build}'
+    next: 'New: {build}'
     action:
       notNow: Not now
       ok: OK

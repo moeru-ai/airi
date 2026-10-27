@@ -5,9 +5,15 @@ import { useI18n } from 'vue-i18n'
 
 import { ToasterRootInjectionKey } from './constants'
 
-const props = defineProps<{ id?: string }>()
+const props = defineProps<{
+  id?: string
+  /** Build label of the running page. */
+  current?: string
+  /** Build label the waiting service worker will switch to. */
+  next?: string
+}>()
 
-const emits = defineEmits<{ (e: 'update'): void }>()
+const emits = defineEmits<{ (e: 'update'): void, (e: 'dismiss'): void }>()
 
 const { t } = useI18n()
 
@@ -19,6 +25,7 @@ function handleUpdate() {
 }
 
 function handleNotNow() {
+  emits('dismiss')
   toastRoot.close(props.id || '')
 }
 </script>
@@ -38,6 +45,17 @@ function handleNotNow() {
       ]"
     >
       {{ t('base.toaster.pwaUpdateReady.message') }}
+    </div>
+    <div
+      v-if="props.current || props.next"
+      :class="[
+        'mb-1 font-mono text-xs',
+        'text-neutral-500 dark:text-neutral-400',
+        'flex flex-col',
+      ]"
+    >
+      <span v-if="props.current">{{ t('base.toaster.pwaUpdateReady.current', { build: props.current }) }}</span>
+      <span v-if="props.next">{{ t('base.toaster.pwaUpdateReady.next', { build: props.next }) }}</span>
     </div>
     <div
       :class="[
