@@ -57,7 +57,7 @@ public partial class FloatingChatWindow : Window
         _eventa = _kirie.CreateEventaContext(registry);
         _platform = GdKiriePlatform.Attach(_eventa.Context, this);
         _microphonePermissionRegistration = microphonePermissions.Attach(_eventa.Context);
-        _permissions = new WebViewPermissionHandler(_kirie, rendererUrl);
+        _permissions = new WebViewPermissionHandler(_kirie, rendererUrl, microphonePermissions);
         _chatRegistration = attachChat(_eventa.Context);
         _readyRegistration = _eventa.Context.Subscribe(
             AiriDesktopEvents.ChatReady,

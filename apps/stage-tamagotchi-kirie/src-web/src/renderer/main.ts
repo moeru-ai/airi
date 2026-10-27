@@ -19,7 +19,7 @@ import { handleHotUpdate, routes } from 'vue-router/auto-routes'
 
 import App from './App.vue'
 
-import { disposeHostContext, initializeHostContext, installExternalNavigation } from './host-context'
+import { disposeHostContext, initializeHostContext, installExternalNavigation, installMicrophonePermissionStatus } from './host-context'
 import { i18n } from './modules/i18n'
 import { resolveRendererWindowContext } from './window-context'
 
@@ -51,7 +51,9 @@ registerAuthorizationHandler(browserAuthorizationHandler)
 
 const hostContext = initializeHostContext()
 const disposeExternalNavigation = installExternalNavigation()
+const disposeMicrophonePermissionStatus = installMicrophonePermissionStatus()
 function disposeRendererHost() {
+  disposeMicrophonePermissionStatus()
   disposeExternalNavigation()
   disposeHostContext()
 }
