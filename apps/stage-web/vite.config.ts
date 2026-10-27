@@ -1,7 +1,6 @@
 import process, { cwd, env } from 'node:process'
 
 import { execSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
@@ -35,15 +34,6 @@ const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'package
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
 const settingsSearch = createSettingsSearch()
 
-// One build stamp for the bundle and for `version.json`, so the running page and the
-// waiting service worker can be compared by the same identifier.
-const stageWebBuild = {
-  // stage-web has no version of its own; it ships with the monorepo release.
-  version: JSON.parse(readFileSync(join(import.meta.dirname, '..', '..', 'package.json'), 'utf8')).version as string,
-  commit: tryCatch(() => execSync('git rev-parse --short HEAD', { stdio: 'pipe' }).toString().trim()).data ?? 'unknown',
-  builtAt: new Date().toISOString(),
-}
-
 function hasFlagEnableMkcert(): boolean {
   if (process.argv.includes('--mkcert')) {
     return true
@@ -56,9 +46,6 @@ function hasFlagEnableMkcert(): boolean {
 }
 
 export default defineConfig({
-  define: {
-    __STAGE_WEB_BUILD__: JSON.stringify(stageWebBuild),
-  },
   optimizeDeps: {
     exclude: [
       // Internal Packages
@@ -159,15 +146,6 @@ export default defineConfig({
 
     Info(),
 
-    // `version.json` is fetched past the service worker when an update is waiting, so the
-    // prompt can say which build it will switch to.
-    {
-      name: 'stage-web-version-json',
-      generateBundle() {
-        this.emitFile({ type: 'asset', fileName: 'version.json', source: `${JSON.stringify(stageWebBuild)}\n` })
-      },
-    },
-
     Yaml(),
 
     settingsSearch.plugin,
@@ -258,7 +236,7 @@ export default defineConfig({
             // The WebAssembly files are over 80% of the build (DuckDB alone ships
             // three variants and a browser loads one). Precaching them downloads
             // them all at install, so they are cached on first use instead.
-            globIgnores: ['**/*.wasm', 'version.json'],
+            globIgnores: ['**/*.wasm'],
             runtimeCaching: [
               {
                 urlPattern: ({ url }) => url.pathname.endsWith('.wasm'),

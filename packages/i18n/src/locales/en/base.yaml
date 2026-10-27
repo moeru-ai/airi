@@ -64,9 +64,7 @@ prompt:
     And the last, do what ever you want!
 toaster:
   pwaUpdateReady:
-    message: New version ready, reload now?
-    current: 'Current: {build}'
-    next: 'New: {build}'
+    message: A new version of AIRI is here. Reload the page to start using it.
     action:
-      notNow: Not now
-      ok: OK
+      notNow: Later
+      ok: Reload

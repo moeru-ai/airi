@@ -1,5 +1,3 @@
-import type { StageWebBuild } from '../modules/pwa'
-
 import { isEnvTruthy } from '@proj-airi/stage-shared'
 import { ToasterPWAUpdateReady } from '@proj-airi/stage-ui/components'
 import { breakpointsTailwind, useBreakpoints, useEventListener } from '@vueuse/core'
@@ -17,7 +15,6 @@ const TOAST_ID = 'pwa-update-ready'
 export const usePWAStore = defineStore('pwa', () => {
   const updateReadyHooks = ref<(() => void)[]>([])
   const needRefresh = ref(false)
-  const waitingBuild = ref<StageWebBuild>()
   const lastCheckedAt = ref<string>()
   const breakpoints = useBreakpoints(breakpointsTailwind)
   const isMobile = breakpoints.smaller('md')
@@ -31,8 +28,7 @@ export const usePWAStore = defineStore('pwa', () => {
       return
     }
 
-    const { currentBuild, fetchWaitingBuild, formatBuild, registerSW } = await import('../modules/pwa')
-    console.info('[pwa] running build', formatBuild(currentBuild))
+    const { registerSW } = await import('../modules/pwa')
 
     // Assigned by registerSW below; the prompt only calls it after registration.
     let updateSW: (reloadPage?: boolean) => Promise<void> = async () => {}
@@ -41,11 +37,9 @@ export const usePWAStore = defineStore('pwa', () => {
       if (Date.now() - dismissedAt < REMIND_AFTER_MS) {
         return
       }
-      console.info('[pwa] prompt shown', { current: formatBuild(currentBuild), next: waitingBuild.value && formatBuild(waitingBuild.value) })
+      console.info('[pwa] prompt shown')
       toast.custom(markRaw(h(ToasterPWAUpdateReady, {
         id: TOAST_ID,
-        current: formatBuild(currentBuild),
-        next: waitingBuild.value ? formatBuild(waitingBuild.value) : undefined,
         onUpdate: () => {
           console.info('[pwa] user accepted; activating the waiting service worker and reloading')
           void updateSW(true)
@@ -89,10 +83,9 @@ export const usePWAStore = defineStore('pwa', () => {
       onRegisterError(err) {
         console.warn('[pwa] service worker registration failed', err)
       },
-      onNeedRefresh: async () => {
+      onNeedRefresh: () => {
         needRefresh.value = true
-        waitingBuild.value = await fetchWaitingBuild()
-        console.info('[pwa] new service worker installed and waiting', { current: formatBuild(currentBuild), next: waitingBuild.value && formatBuild(waitingBuild.value) })
+        console.info('[pwa] new service worker installed and waiting')
         showPrompt()
       },
     })
@@ -108,5 +101,5 @@ export const usePWAStore = defineStore('pwa', () => {
     updateReadyHooks.value.push(updateSW)
   })
 
-  return { needRefresh, waitingBuild, lastCheckedAt }
+  return { needRefresh, lastCheckedAt }
 })

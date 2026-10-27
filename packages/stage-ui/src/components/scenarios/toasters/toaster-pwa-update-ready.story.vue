@@ -53,17 +53,5 @@ function handlePopToast() {
         </div>
       </div>
     </Variant>
-
-    <Variant
-      id="with-builds"
-      title="With builds"
-    >
-      <ToasterRoot @close="id => toast.dismiss(id)">
-        <ToasterPWAUpdateReady
-          current="0.12.0 · 4a1903b · 10-26 09:12"
-          next="0.12.0 · 311295a · 10-27 14:40"
-        />
-      </ToasterRoot>
-    </Variant>
   </Story>
 </template>

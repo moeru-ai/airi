@@ -68,7 +68,7 @@ prompt:
     最後，做任何你想做的事！
 toaster:
   pwaUpdateReady:
-    message: 新版本已準備就緒，要立即更新嗎？
+    message: AIRI 有新版本了，重新整理頁面就能使用。
     action:
       notNow: 稍後
-      ok: 好的
+      ok: 重新整理
