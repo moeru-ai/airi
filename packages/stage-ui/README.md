@@ -157,6 +157,19 @@ The detector remains active during playback. A supplied `acceptSpeech` classifie
 The default policy allows barge-in when the browser reports echo cancellation. Without that support, automatic admission waits for playback to end.
 Model selection, acoustic echo classification, and enrollment remain external integrations.
 
+## Web search
+
+Open **Settings → Modules → Web Search**, select **Tavily** or **DeepSeek**, enter that service's API key, and enable search.
+Tavily is the default. Each service keeps its own device-local key when you switch services.
+These credentials are independent of the chat provider. Any chat model that supports tool calls can use the selected search service.
+Resetting settings clears both keys and restores Tavily with search disabled.
+
+DeepSeek uses the [Search API](https://api-docs.deepseek.com/zh-cn/api/search/).
+Queries accept 1–128 Unicode characters and support operators such as `site:` and `after:`.
+The tool requests five results by default, with a maximum of ten. It uses summaries without fetching full pages.
+Results retain source links and site icons in the existing search cards. Search requests time out after 15 seconds and stop when the turn stops.
+An API error fails the tool call without switching services. Use another search service when your network cannot reach the selected endpoint.
+
 ## Chat sampling
 
 In **Settings → Modules → Consciousness**, custom temperature and Top P are off

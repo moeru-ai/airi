@@ -2,6 +2,9 @@ import { execFileSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
 import { env } from 'node:process'
 
+import ErgosphereMain from '@ergosphere-it/electron/vite/main'
+import ErgospherePreload from '@ergosphere-it/electron/vite/preload'
+import ErgosphereRenderer from '@ergosphere-it/electron/vite/renderer'
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import templateCompilerOptions from '@tresjs/core/template-compiler-options'
 import Vue from '@vitejs/plugin-vue'
@@ -15,6 +18,7 @@ import VueMacros from 'vue-macros/vite'
 import VueRouter from 'vue-router/vite'
 
 import { paraformerBilingualZhEn, xAsrBilingualZhEnInt8, zipformerMultilingual } from '@proj-airi/provider-inference/sherpaw-transcription/models'
+import { createSettingsSearch } from '@proj-airi/stage-pages/vite/settings-search'
 import { speakerModel } from '@proj-airi/stage-shared/speaker-model'
 import { kwsModel } from '@proj-airi/stage-ui/libs/voice/kws-model-info'
 import { Download } from '@proj-airi/unplugin-fetch'
@@ -24,6 +28,7 @@ import { defineConfig } from 'electron-vite'
 
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
+const settingsSearch = createSettingsSearch()
 const sherpawModels = [paraformerBilingualZhEn, zipformerMultilingual, xAsrBilingualZhEnInt8]
 /** Main downloads remote Sherpaw models. It must use the endpoint that the renderer plugin uses. */
 const sherpawModelEndpoint = resolveModelEndpoint()
@@ -52,6 +57,9 @@ function resolveBuildTime() {
 
 const buildTime = resolveBuildTime()
 
+/** The renderer chunk that holds the `unplugin-info` modules. Its file name has no hash. */
+const buildInfoChunkName = 'build-info'
+
 export default defineConfig({
   main: {
     define: {
@@ -65,6 +73,8 @@ export default defineConfig({
       externalizeDeps: true,
     },
     plugins: [
+      ErgosphereMain({ launcher: 'src/launcher/index.ts' }),
+
       {
         // To replace `build.rolldownOptions`, as electron-vite still uses the deprecated
         // `rollupOptions`, using `rollupOptions` and `rolldownOptions` at the same
@@ -123,7 +133,9 @@ export default defineConfig({
       },
     },
 
-    plugins: [],
+    plugins: [
+      ErgospherePreload(),
+    ],
   },
 
   renderer: {
@@ -143,6 +155,15 @@ export default defineConfig({
         input: {
           'main': resolve(join(import.meta.dirname, 'src', 'renderer', 'index.html')),
           'beat-sync': resolve(join(import.meta.dirname, 'src', 'renderer', 'beat-sync.html')),
+        },
+        output: {
+          // `~build/git` and `~build/time` change with each commit. An update downloads each file whose hash changed.
+          // The build info goes into a small chunk with a fixed name. Then the names of the chunks that import it
+          // do not change, and a new commit does not rename the other chunks.
+          codeSplitting: {
+            groups: [{ name: buildInfoChunkName, test: /^\0~build\// }],
+          },
+          chunkFileNames: chunk => chunk.name === buildInfoChunkName ? `assets/${buildInfoChunkName}.js` : 'assets/[name]-[hash].js',
         },
       },
     },
@@ -218,6 +239,7 @@ export default defineConfig({
 
     plugins: [
       Info({ time: buildTime }),
+      ErgosphereRenderer(),
 
       {
         name: 'proj-airi:defines',
@@ -239,6 +261,8 @@ export default defineConfig({
       Inspect(),
 
       Yaml(),
+
+      settingsSearch.plugin,
 
       VueMacros({
         plugins: {
@@ -272,6 +296,7 @@ export default defineConfig({
           resolve(import.meta.dirname, 'src', 'renderer', 'pages'),
         ],
         exclude: ['**/components/**'],
+        extendRoute: settingsSearch.extendRoute,
       }),
 
       VitePluginVueDevTools(),
@@ -284,6 +309,19 @@ export default defineConfig({
         ],
         pagesDirs: [resolve(import.meta.dirname, 'src', 'renderer', 'pages')],
       }),
+      {
+        // NOTICE:
+        // Checkouts at different paths must build the same chunks.
+        // The layouts virtual id looks absolute, so its `//#region` comment gets one `../` per parent directory.
+        // Source: MODULE_ID_VIRTUAL in node_modules/vite-plugin-vue-layouts/dist/index.mjs (0.11.0).
+        // Remove when the plugin uses a `\0` virtual id.
+        name: 'proj-airi:layouts-region-comment',
+        apply: 'build',
+        renderChunk(code) {
+          const stable = code.replace(/(\/\/#region )(?:\.\.\/)+(@vite-plugin-vue-layouts\/)/g, '$1$2')
+          return stable === code ? undefined : { code: stable, map: null }
+        },
+      },
 
       UnoCss(),
 

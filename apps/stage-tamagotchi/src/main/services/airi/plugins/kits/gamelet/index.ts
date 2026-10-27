@@ -1,4 +1,4 @@
-import type { ExtensionHost, KitDescriptor } from '@proj-airi/plugin-sdk/plugin-host'
+import type { KitDescriptor } from '@proj-airi/plugin-sdk/plugin-host'
 
 /**
  * Declares the built-in gamelet kit exposed by `stage-tamagotchi`.
@@ -21,20 +21,3 @@ export const gameletPluginKitDescriptor = {
     { key: 'kit.gamelet.runtime', actions: ['announce', 'activate', 'update', 'withdraw', 'publish', 'subscribe'] },
   ],
 } satisfies KitDescriptor
-
-/**
- * Registers the built-in gamelet kit on one host instance.
- *
- * Use when:
- * - Bootstrapping the Electron extension host with gamelet kit support
- * - Keeping gamelet descriptor registration inside the gamelet kit module
- *
- * Expects:
- * - `host` is the initialized extension host instance
- *
- * Returns:
- * - The registered gamelet kit descriptor
- */
-export function registerGameletPluginKit(host: ExtensionHost): KitDescriptor {
-  return host.registerKit(gameletPluginKitDescriptor)
-}

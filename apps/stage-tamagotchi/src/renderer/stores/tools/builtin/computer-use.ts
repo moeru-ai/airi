@@ -47,7 +47,7 @@ export async function computerUseTools(): Promise<Tool[]> {
     }),
     rawTool({
       name: COMPUTER_USE_READ_IMAGE_TOOL_NAME,
-      description: 'View a PNG or JPEG screenshot artifact produced by computer_use. Only files inside AIRI computer-use storage can be read. Select this tool together with computer_use for visual tasks.',
+      description: 'View a PNG, JPEG, or WebP screenshot artifact produced by computer_use. Only files inside AIRI computer-use storage can be read. Select this tool together with computer_use for visual tasks.',
       parameters: {
         type: 'object',
         properties: { path: { type: 'string', description: 'Absolute screenshot artifact path returned by computer_use.' } },

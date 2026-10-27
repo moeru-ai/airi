@@ -11,6 +11,8 @@ import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
+import { moduleModelSearchKey, moduleProviderSearchKey } from './module-model-search'
+
 const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
 const airiCardStore = useAiriCardStore()
@@ -136,6 +138,7 @@ function formatRelativeTime(timestamp: number | null) {
               v-for="metadata in moduleVisionProvidersMetadata"
               :id="metadata.id"
               :key="metadata.id"
+              :data-settings-search="moduleProviderSearchKey('vision', metadata.id)"
               :model-value="activeProvider"
               name="provider"
               :value="metadata.id"
@@ -289,6 +292,7 @@ function formatRelativeTime(timestamp: number | null) {
             v-model="activeModel"
             v-model:search-query="modelSearchQuery"
             :items="providerModels.sort((a, b) => a.id === activeModel ? -1 : b.id === activeModel ? 1 : 0)"
+            :search-key-of="model => moduleModelSearchKey('vision', activeProvider, model.id)"
             :searchable="true"
             :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
             :search-no-results-title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results')"

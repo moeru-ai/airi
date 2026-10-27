@@ -1,3 +1,5 @@
+import type { WebSearchProvider } from '../../tools/web-search'
+
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 import { computed, watch } from 'vue'
@@ -6,7 +8,7 @@ import { WEB_SEARCH_TOOLSET_PROMPT } from '../../tools/web-search'
 import { useLlmToolsetPromptsStore } from '../ai/chat-llm/toolset-prompts'
 
 /**
- * Settings + lifecycle for the web-search capability (Tavily-backed).
+ * Device-local search credentials and tool-prompt lifecycle for the selected service.
  *
  * Renderer-only: unlike the messaging modules it does not broadcast to a backend
  * service, so there is no configurator channel here. The tool itself is mounted
@@ -20,8 +22,19 @@ export const useWebSearchStore = defineStore('web-search', () => {
 
   const enabled = useLocalStorageManualReset<boolean>('settings/web-search/enabled', false)
   const apiKey = useLocalStorageManualReset<string>('settings/web-search/api-key', '')
+  const provider = useLocalStorageManualReset<WebSearchProvider>('settings/web-search/provider', 'tavily')
+  const deepSeekApiKey = useLocalStorageManualReset<string>('settings/web-search/deepseek-api-key', '')
 
-  const configured = computed(() => enabled.value && apiKey.value.trim().length > 0)
+  const activeApiKey = computed({
+    get: () => provider.value === 'deepseek' ? deepSeekApiKey.value : apiKey.value,
+    set: (value: string) => {
+      if (provider.value === 'deepseek')
+        deepSeekApiKey.value = value
+      else
+        apiKey.value = value
+    },
+  })
+  const configured = computed(() => enabled.value && activeApiKey.value.trim().length > 0)
 
   // Keep the safety/when-to-search guidance mounted iff the tool is mounted.
   // Clauses must key off the same `configured` gate the tool does, never a raw
@@ -36,11 +49,16 @@ export const useWebSearchStore = defineStore('web-search', () => {
   function resetState() {
     enabled.reset()
     apiKey.reset()
+    provider.reset()
+    deepSeekApiKey.reset()
   }
 
   return {
     enabled,
     apiKey,
+    provider,
+    deepSeekApiKey,
+    activeApiKey,
     configured,
     resetState,
   }

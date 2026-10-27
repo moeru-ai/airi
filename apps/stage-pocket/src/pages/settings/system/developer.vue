@@ -86,6 +86,12 @@ const menu = computed(() => [
     icon: 'i-solar:transfer-horizontal-bold-duotone',
     to: '/devtools/websocket-inspector',
   },
+  {
+    title: t('settings.pages.system.sections.section.developer.sections.section.needs-attention.title'),
+    description: t('settings.pages.system.sections.section.developer.sections.section.needs-attention.description'),
+    icon: 'i-solar:shield-check-bold-duotone',
+    to: '/devtools/needs-attention',
+  },
 ])
 </script>
 

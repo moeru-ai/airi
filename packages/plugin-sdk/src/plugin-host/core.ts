@@ -1,5 +1,6 @@
 import type {
   Extension,
+  ExtensionKitConsumer,
   ExtensionKitRegistry,
   ExtensionModuleContext,
   ExtensionSetupContext,
@@ -7,13 +8,15 @@ import type {
 } from '../extension/shared'
 import type { KitAvailability, KitRef, KitUseResult } from '../kit'
 import type { AnnounceBindingInput, UpdateBindingInput } from '../plugin/apis/client/bindings'
-import type { BindingRecord, KitCapabilityDescriptor, KitDescriptor } from './shared'
+import type { ExtensionProviderTransaction, ExtensionRegistrationLease } from './hosted-kits'
+import type { BindingRecord, HostSourceLease, KitCapabilityDescriptor, KitCapabilityDescriptorSnapshot, KitDescriptor, KitDescriptorSnapshot } from './shared'
 import type {
   ExtensionHostContribution,
   ExtensionHostInstallContext,
   ExtensionHostOptions,
   ExtensionHostPermissionRequest,
   ExtensionManifestV2,
+  ExtensionProvidedKitDeclaration,
   ExtensionStartOptions,
   HostDataRecord,
   HostDataValue,
@@ -36,15 +39,18 @@ import {
 import {
   protocolListProvidersEventName,
 } from '../plugin/apis/protocol/resources/providers'
+import { KitProviderRegistry } from './hosted-kits'
 import { FileSystemLoader } from './runtimes/node/loaders'
 import {
   DependencyService,
   ExtensionSessionService,
   KitApiBindingRegistryService,
-  KitRegistryService,
   PermissionService,
   ResourceService,
 } from './runtimes/shared'
+
+/** Stable empty declaration set for Manifests that do not provide Kits. */
+const emptyProvidedKitDeclarations: readonly ExtensionProvidedKitDeclaration[] = Object.freeze([])
 
 /**
  * Extension host lifecycle overview.
@@ -53,7 +59,8 @@ import {
  * permission grants, and module cleanup. Extension code uses `setup(ctx)` as
  * the common authoring entrypoint and requests host-installed kits through
  * `ctx.kits`. Explicit modules are optional lifecycle and attribution scopes
- * that can narrow kit usage through `module.kits`.
+ * that can narrow kit usage through `module.kits`. Root setup can also provide
+ * Kits declared in its Manifest. The Host publishes them only after setup succeeds.
  *
  * Permission checks are intentionally two-layered: the extension grant is the
  * package/session ceiling. Extension-scoped kit usage is checked against that
@@ -110,6 +117,16 @@ export interface ExtensionSession {
 }
 
 /**
+ * Host-private ownership for one session's Provider registrations.
+ * Stop releases pending reservations or the committed lease before cleanup starts.
+ * Released sessions retain one cleanup promise so concurrent callers share its outcome.
+ */
+type SessionRegistration
+  = | { phase: 'pending', transaction: ExtensionProviderTransaction }
+    | { phase: 'ready', lease: ExtensionRegistrationLease }
+    | { phase: 'released', cleanup: Promise<void> }
+
+/**
  * Filters the binding list returned by `ExtensionHost.listBindings(...)`.
  *
  * Use when:
@@ -160,16 +177,17 @@ function cloneHostDataRecord<T extends HostDataRecord>(record: T): T {
   return cloneHostDataValue(record)
 }
 
-function cloneKitCapabilities(capabilities: KitCapabilityDescriptor[]): KitCapabilityDescriptor[] {
+function cloneKitCapabilities(capabilities: readonly KitCapabilityDescriptorSnapshot[]): KitCapabilityDescriptor[] {
   return capabilities.map(capability => ({
     key: capability.key,
     actions: [...capability.actions],
   }))
 }
 
-function cloneKitDescriptor<TKit extends KitDescriptor>(kit: TKit): TKit {
+function cloneKitDescriptor(kit: KitDescriptorSnapshot): KitDescriptor {
   return {
-    ...kit,
+    kitId: kit.kitId,
+    version: kit.version,
     runtimes: [...kit.runtimes],
     capabilities: cloneKitCapabilities(kit.capabilities),
   }
@@ -209,8 +227,9 @@ export class ExtensionHost {
   private readonly extensionSessionService = new ExtensionSessionService<ExtensionSession>()
   private readonly runtime: PluginRuntime
   private readonly dependencies = new DependencyService()
-  private readonly kits = new KitRegistryService()
-  private readonly kitApis = new Map<string, KitRef<unknown>>()
+  private readonly providers = new KitProviderRegistry()
+  private readonly sessionRegistrations = new WeakMap<ExtensionSession, SessionRegistration>()
+  private cleanupContext?: Promise<typeof import('./runtimes/node/cleanup-context')>
   private readonly kitApiWatchers = new Map<string, Set<() => Promise<void>>>()
   private readonly modules = new KitApiBindingRegistryService()
   private readonly extensionModuleResources = new Map<string, ExtensionModuleResourceTracker>()
@@ -250,6 +269,11 @@ export class ExtensionHost {
     }
   }
 
+  /**
+   * Runs setup and publishes its declared Providers only while the session remains pending.
+   * Stop releases reservations immediately but does not abort Extension code.
+   * If stop interrupts setup, this promise rejects when setup settles.
+   */
   async startExtension(
     extension: Extension,
     options: { manifest: ExtensionManifestV2, cwd?: string, runtime?: PluginRuntime },
@@ -274,10 +298,21 @@ export class ExtensionHost {
       requested: options.manifest.permissions,
       persisted: persistedGrant,
     }) ?? options.manifest.permissions
-    const permissionSnapshot = this.permissions.initialize(sessionIdentity.sessionId, options.manifest.permissions, {
-      grant: resolvedGrant,
-      persisted: this.permissionResolver ? undefined : persistedGrant,
+    const providerTransaction = this.providers.beginExtensionSession({
+      owner: { kind: 'extension', extensionId: extension.id, sessionId: sessionIdentity.sessionId },
+      declarations: options.manifest.kits?.provides ?? emptyProvidedKitDeclarations,
     })
+    let permissionSnapshot: ReturnType<PermissionService['initialize']>
+    try {
+      permissionSnapshot = this.permissions.initialize(sessionIdentity.sessionId, options.manifest.permissions, {
+        grant: resolvedGrant,
+        persisted: this.permissionResolver ? undefined : persistedGrant,
+      })
+    }
+    catch (error) {
+      providerTransaction.rollback()
+      throw error
+    }
     this.persistedPermissionGrants.set(extension.id, permissionSnapshot.granted)
     const subscriptions = new DisposableStore()
     const session: ExtensionSession = {
@@ -297,19 +332,27 @@ export class ExtensionHost {
       subscriptions,
     }
 
+    this.sessionRegistrations.set(session, { phase: 'pending', transaction: providerTransaction })
     this.extensionSessionService.register(session)
 
     const ctx: ExtensionSetupContext = {
       extension: session.extension,
-      kits: this.createExtensionKitRegistry(session),
+      kits: this.createExtensionKitRegistry(session, providerTransaction),
       subscriptions,
       modules: {
         register: async (input: RegisterExtensionModuleInput) => {
+          if (this.sessionRegistrations.get(session)?.phase === 'released') {
+            throw new Error(`Extension session ${session.id} is stopped and cannot register modules.`)
+          }
           if (session.modules.has(input.id)) {
             throw new Error(`Extension module \`${input.id}\` is already registered for session ${session.id}.`)
           }
 
           const moduleSubscriptions = new DisposableStore()
+          const moduleCleanup = new DisposableStore()
+          moduleCleanup.add(moduleSubscriptions)
+          // Bindings must disappear before callbacks run. A binding failure cannot skip subscription disposal.
+          moduleCleanup.add({ dispose: () => this.cleanupExtensionModuleResources(session, input.id) })
           const permissions = this.permissions.intersectGrant(
             session.permissions.granted,
             input.permissions ?? session.permissions.granted,
@@ -325,9 +368,12 @@ export class ExtensionHost {
             kits: this.createModuleKitRegistry(session, moduleSubscriptions, input.id),
             subscriptions: moduleSubscriptions,
             dispose: async () => {
-              await this.cleanupExtensionModuleResources(session, input.id)
-              await moduleSubscriptions.dispose()
-              session.modules.delete(input.id)
+              try {
+                await moduleCleanup.dispose()
+              }
+              finally {
+                session.modules.delete(input.id)
+              }
             },
           }
           session.modules.set(module.id, module)
@@ -338,12 +384,25 @@ export class ExtensionHost {
 
     try {
       await extension.setup(ctx)
+      const registration = this.sessionRegistrations.get(session)
+      if (registration?.phase !== 'pending') {
+        throw new Error(`Extension session ${session.id} stopped before setup completed.`)
+      }
+      const committed = registration.transaction.commit()
+      this.sessionRegistrations.set(session, { phase: 'ready', lease: committed.lease })
       session.phase = 'ready'
       return session
     }
     catch (error) {
-      session.phase = 'failed'
-      await this.cleanupExtensionSession(session)
+      if (this.sessionRegistrations.get(session)?.phase !== 'released') {
+        session.phase = 'failed'
+      }
+      try {
+        await this.cleanupExtensionSession(session)
+      }
+      catch (cleanupError) {
+        throw new AggregateError([error, cleanupError], `Extension \`${extension.id}\` setup and cleanup both failed.`, { cause: error })
+      }
       throw error
     }
   }
@@ -354,23 +413,43 @@ export class ExtensionHost {
       .flatMap(session => [...session.modules.values()])
   }
 
-  registerKitApi<TClient>(kit: KitRef<TClient>) {
-    this.kitApis.set(kit.id, kit as KitRef<unknown>)
-    void this.notifyKitApiWatchers(kit.id)
-    return kit
-  }
-
-  unregisterKitApi(kitId: string) {
-    const deleted = this.kitApis.delete(kitId)
-    void this.notifyKitApiWatchers(kitId)
-    return deleted
+  /**
+   * Registers one Host Client factory.
+   *
+   * The returned lease owns this exact registration. A duplicate current factory causes a conflict.
+   * A current lease disposal notifies Kit watchers.
+   *
+   * @template TClient Client type that the factory creates.
+   * @param kit Host Client factory to register.
+   */
+  registerKitApi<TClient>(kit: KitRef<TClient>): HostSourceLease<KitRef<TClient>> {
+    const lease = this.providers.contributeHost({ kind: 'client-factory', factory: kit })
+    void this.notifyKitApiWatchers(lease.kitId)
+    return Object.freeze({
+      accepted: lease.accepted,
+      kitId: lease.kitId,
+      sourceKind: lease.sourceKind,
+      dispose: () => {
+        const changed = lease.dispose()
+        if (changed) {
+          void this.notifyKitApiWatchers(lease.kitId)
+        }
+        return changed
+      },
+    })
   }
 
   private async cleanupExtensionSessionModules(session: ExtensionSession) {
-    for (const module of [...session.modules.values()].reverse()) {
-      await module.dispose()
+    const cleanup = new DisposableStore()
+    for (const module of session.modules.values()) {
+      cleanup.add(module)
     }
-    session.modules.clear()
+    try {
+      await cleanup.dispose()
+    }
+    finally {
+      session.modules.clear()
+    }
   }
 
   private getExtensionModuleResourceKey(sessionId: string, moduleId: string) {
@@ -429,8 +508,8 @@ export class ExtensionHost {
     subscriptions: DisposableStore,
     moduleId?: string,
   ): KitUseResult<TClient> {
-    const registered = this.kitApis.get(kit.id) as KitRef<TClient> | undefined
-    if (!registered) {
+    const createClient = this.providers.getHostClientFactory<TClient>(kit.id)
+    if (!createClient) {
       return kitUseFailure(kit, 'missing-kit')
     }
 
@@ -444,16 +523,16 @@ export class ExtensionHost {
 
     return {
       ok: true,
-      client: registered.createClient({
+      client: Reflect.apply(createClient, undefined, [{
         extensionId: session.extension.id,
         sessionId: session.id,
         moduleId,
         subscriptions,
-      }),
+      }]),
     }
   }
 
-  private createKitRegistry(session: ExtensionSession, subscriptions: DisposableStore, moduleId?: string): ExtensionKitRegistry {
+  private createKitRegistry(session: ExtensionSession, subscriptions: DisposableStore, moduleId?: string): ExtensionKitConsumer {
     return {
       use: async <TClient>(kit: KitRef<TClient>) => {
         const result = this.resolveKitApi(session, kit, subscriptions, moduleId)
@@ -503,8 +582,16 @@ export class ExtensionHost {
     }
   }
 
-  private createExtensionKitRegistry(session: ExtensionSession): ExtensionKitRegistry {
-    return this.createKitRegistry(session, session.subscriptions)
+  private createExtensionKitRegistry(session: ExtensionSession, transaction: ExtensionProviderTransaction): ExtensionKitRegistry {
+    return {
+      ...this.createKitRegistry(session, session.subscriptions),
+      provide: (contract, provider) => {
+        if (session.phase !== 'setting-up') {
+          throw new Error(`Extension session ${session.id} cannot provide Kits after setup.`)
+        }
+        return transaction.provide(contract, provider)
+      },
+    }
   }
 
   private createModuleKitRegistry(session: ExtensionSession, subscriptions: DisposableStore, moduleId: string): ExtensionModuleContext['kits'] {
@@ -543,7 +630,6 @@ export class ExtensionHost {
   private createInstallContext(): ExtensionHostInstallContext {
     return {
       registerKit: kit => this.registerKit(kit),
-      unregisterKit: kitId => this.unregisterKit(kitId),
       setResourceResolver: (key, resolver) => this.setResourceResolver(key, resolver),
       setResourceValue: (key, value) => this.setResourceValue(key, value),
       announceCapability: (key, metadata) => {
@@ -565,16 +651,63 @@ export class ExtensionHost {
     contribution.install(this.installContext)
   }
 
-  private async cleanupExtensionSession(session: ExtensionSession) {
-    session.phase = 'stopped'
-
-    for (const module of this.modules.listByOwner(session.id)) {
-      this.modules.withdraw(session.id, session.extension.id, module.moduleId)
-      this.modules.unbind(session.id, session.extension.id, module.moduleId)
+  private cleanupExtensionSession(session: ExtensionSession): Promise<void> {
+    const registration = this.sessionRegistrations.get(session)
+    if (!registration) {
+      throw new Error(`Unknown registration lifecycle for Extension session ${session.id}.`)
     }
-    await this.cleanupExtensionSessionModules(session)
-    await session.subscriptions.dispose()
-    this.extensionSessionService.remove(session.id)
+    if (registration.phase === 'released') {
+      return this.waitForSessionCleanup(session, registration.cleanup)
+    }
+    if (this.runtime !== 'web') {
+      // Keep Node async hooks behind the runtime boundary. Web cleanup retains the shared outcome without self-wait detection.
+      this.cleanupContext ??= import('./runtimes/node/cleanup-context')
+    }
+
+    // Store the shared outcome before any cleanup callback can call stop again.
+    const cleanup = Promise.resolve().then(async () => {
+      const resources = new DisposableStore()
+      resources.add(session.subscriptions)
+      resources.add({ dispose: () => this.cleanupExtensionSessionModules(session) })
+      // Reverse disposal preserves binding, module, then root cleanup order without stopping at the first failure.
+      resources.add({ dispose: () => {
+        for (const module of this.modules.listByOwner(session.id)) {
+          this.modules.withdraw(session.id, session.extension.id, module.moduleId)
+          this.modules.unbind(session.id, session.extension.id, module.moduleId)
+        }
+      } })
+      try {
+        const context = await this.cleanupContext
+        if (context) {
+          await context.runCleanup(session, () => resources.dispose())
+        }
+        else {
+          await resources.dispose()
+        }
+      }
+      finally {
+        this.extensionSessionService.remove(session.id)
+      }
+    })
+    this.sessionRegistrations.set(session, { phase: 'released', cleanup })
+    session.phase = 'stopped'
+    // Release ownership synchronously. Late setup cannot publish, and cleanup callbacks cannot observe a ready Provider.
+    if (registration.phase === 'pending') {
+      registration.transaction.rollback()
+    }
+    else {
+      registration.lease.dispose()
+    }
+    return cleanup
+  }
+
+  private async waitForSessionCleanup(session: ExtensionSession, cleanup: Promise<void>): Promise<void> {
+    const context = await this.cleanupContext
+    if (context?.isCleanupActive(session)) {
+      // Joining an ancestor waits for the callback that made this call. External callers have no matching cleanup frame.
+      throw new Error(`Cannot await Extension session ${session.id} from its own cleanup or a descendant cleanup.`)
+    }
+    await cleanup
   }
 
   private getModuleOrThrow(moduleId: string) {
@@ -587,7 +720,7 @@ export class ExtensionHost {
   }
 
   private assertKitAvailableForRuntime(kitId: string, runtime: PluginRuntime) {
-    const kit = this.kits.get(kitId)
+    const kit = this.providers.getHostDescriptor(kitId)
     if (!kit) {
       throw new Error(`Kit \`${kitId}\` is not registered.`)
     }
@@ -607,33 +740,39 @@ export class ExtensionHost {
     return this.extensionSessionService.get(sessionId)
   }
 
-  registerKit(kit: KitDescriptor) {
-    return this.kits.register(kit)
+  /**
+   * Registers one Host descriptor.
+   *
+   * The returned lease owns this exact registration. A duplicate current descriptor causes a conflict.
+   */
+  registerKit(kit: KitDescriptor): HostSourceLease<KitDescriptorSnapshot> {
+    return this.providers.contributeHost({ kind: 'descriptor', descriptor: kit })
   }
 
-  unregisterKit(kitId: string) {
-    return this.kits.remove(kitId)
+  /** Returns a point-in-time Provider snapshot without its endpoint. Re-query after stop or reload. */
+  getKitProvider(kitId: string) {
+    return this.providers.getReady(kitId)
   }
 
-  getKit(kitId: string) {
-    const kit = this.kits.get(kitId)
-    if (!kit) {
-      return undefined
-    }
-
-    return cloneKitDescriptor(kit)
+  /** Returns a point-in-time Provider list without endpoints. Re-query after stop or reload. */
+  listKitProviders() {
+    return this.providers.listReady()
   }
 
-  listKits(runtime?: PluginRuntime) {
-    const kits = runtime
-      ? this.kits.listByRuntime(runtime)
-      : this.kits.list()
-
-    return kits.map(kit => cloneKitDescriptor(kit))
+  /** Returns a mutable descriptor copy from the current registration. Re-query after registration changes. */
+  getKit(kitId: string): KitDescriptor | undefined {
+    const kit = this.providers.getHostDescriptor(kitId)
+    return kit ? cloneKitDescriptor(kit) : undefined
   }
 
+  /** Returns mutable descriptor copies from the current registrations. Re-query after registration changes. */
+  listKits(runtime?: PluginRuntime): KitDescriptor[] {
+    return this.providers.listHostDescriptors(runtime).map(cloneKitDescriptor)
+  }
+
+  /** Returns a mutable capability copy from the current registration. Re-query after registration changes. */
   getKitCapabilities(kitId: string): KitCapabilityDescriptor[] {
-    const capabilities = this.kits.get(kitId)?.capabilities
+    const capabilities = this.providers.getHostDescriptor(kitId)?.capabilities
     if (!capabilities) {
       return []
     }
@@ -852,6 +991,10 @@ export class ExtensionHost {
     return await this.dependencies.waitFor(key, timeoutMs)
   }
 
+  /**
+   * Releases the session and awaits every cleanup attempt. Concurrent external callers share the completed outcome.
+   * Node/Electron cleanup cannot stop or reload an active cleanup ancestor, including its own session.
+   */
   async stop(sessionId: string): Promise<ExtensionSession | undefined> {
     const extensionSession = this.extensionSessionService.get(sessionId)
     if (!extensionSession) {
@@ -862,6 +1005,7 @@ export class ExtensionHost {
     return extensionSession
   }
 
+  /** Starts a fresh session only after cleanup succeeds. Node/Electron cleanup cannot reload an active cleanup ancestor. */
   async reload(sessionId: string, options: ExtensionStartOptions = {}): Promise<ExtensionSession> {
     // Reload preserves manifest/runtime intent, then performs stop + fresh start.
     // This intentionally creates a new session identity for deterministic re-bootstrap.
