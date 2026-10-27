@@ -139,10 +139,10 @@ const dockOpen = computed(() => !verticalDock.value || cursorNearDock.value || c
 
 const dockElement = useTemplateRef<HTMLElement>('dock')
 /**
- * The bar of a closed dock: 3px wide and 56px tall, at the middle of the dock. The dock stands 8px from the window edge,
- * so the bar keeps 2px of the dock on the side of the edge and sits 10px from it.
+ * The bar of a closed dock: 3px wide and 56px tall, at the middle of the dock, on its side of the window edge.
+ * The dock stands 10px from the edge, just past the hover scrollbar, so the bar sits between the scrollbar and the messages.
  */
-const DOCK_BAR = { width: 3, height: 56, edgeInset: 2 }
+const DOCK_BAR = { width: 3, height: 56, edgeInset: 0 }
 const DOCK_OPEN_CLIP = 'inset(0px 0px 0px 0px round 999px)'
 
 /** The clip that leaves only the bar of the dock. */
@@ -219,8 +219,8 @@ function budIsland(el: Element, done: () => void) {
     return done()
   const island = el as HTMLElement
   const [axis, offset] = underDock(island)
-  // Under a dock that stands up, the island waits until the dock has grown out of its bar.
-  animate(island, { [axis]: { from: offset }, scale: { from: 0.4 }, delay: verticalDock.value ? 160 : 0, ease: ISLAND_SPRING, onComplete: () => done() })
+  // Under a dock that stands up, the island waits until the dock has grown out of its bar. It stays clear while it waits.
+  animate(island, { [axis]: { from: offset }, scale: { from: 0.4 }, opacity: { from: 0 }, delay: verticalDock.value ? 160 : 0, ease: ISLAND_SPRING, onComplete: () => done() })
 }
 
 /** The island shrinks and slides back under the dock, which takes it in. */
@@ -441,14 +441,15 @@ function moveByKeyboard(delta: WindowDelta) {
         <!--
           The dock sits on the side away from the character. A character on the left mirrors the row and the dock, so
           the fold button stays at the outer end. A dock that stands up sits at the middle of the side of the character,
-          with the island of the feed below it. Closed, it shrinks into a narrow bar. Its 16px padding is the zone where
-          the cursor opens it, so the dock itself stays 8px from the edge of the window. The zone takes no pointer, so
-          the history and its scrollbar under it still take hover, wheel, and clicks.
+          with the island of the feed below it. Closed, it shrinks into a narrow bar. The dock stands 10px from the window
+          edge, past the 10px hover scrollbar there, so it never covers the scrollbar. Its 16px padding on the other
+          sides is the zone where the cursor opens it, so the scrollbar never opens it. The zone takes no pointer, so the
+          history under it still takes hover, wheel, and clicks.
         -->
         <div
           ref="dock-zone"
           :class="verticalDock
-            ? ['pointer-events-none absolute top-1/2 z-10 w-16 flex flex-col items-center gap-2 p-4 -translate-y-1/2', characterOnLeft ? '-left-2' : '-right-2']
+            ? ['pointer-events-none absolute top-1/2 z-10 w-12 flex flex-col items-center gap-2 py-4 -translate-y-1/2', characterOnLeft ? 'left-2.5 pr-4' : 'right-2.5 pl-4']
             : ['flex items-center gap-2 px-4', characterOnLeft ? 'flex-row-reverse' : '']"
         >
           <!--
