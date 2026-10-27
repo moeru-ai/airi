@@ -11,6 +11,8 @@ import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { comfyuiWorkflowSearchKey } from './comfyui.search'
+
 const artistryStore = useArtistryStore()
 const { t } = useI18n()
 
@@ -362,7 +364,7 @@ function copyToClipboard(text: string) {
         {{ t('settings.pages.providers.provider.comfyui.settings.workflows.empty') }}
       </div>
 
-      <div v-for="wf in comfyuiSavedWorkflows" :key="wf.id" class="flex flex-col gap-2 border border-neutral-200 rounded-lg p-3 dark:border-neutral-700">
+      <div v-for="wf in comfyuiSavedWorkflows" :key="wf.id" :data-settings-search="comfyuiWorkflowSearchKey(wf.id)" class="flex flex-col gap-2 border border-neutral-200 rounded-lg p-3 dark:border-neutral-700">
         <div class="flex items-center gap-3">
           <input
             type="radio"

@@ -16,6 +16,18 @@ const appMock = vi.hoisted(() => ({
   quit: vi.fn(),
 }))
 
+const bundleMock = vi.hoisted(() => ({
+  getVersion: vi.fn(),
+}))
+
+vi.mock('@ergosphere-it/electron/main', () => ({
+  activeBundle: {
+    get version() {
+      return bundleMock.getVersion()
+    },
+  },
+}))
+
 const shellMock = vi.hoisted(() => ({
   openPath: vi.fn(),
 }))
@@ -99,8 +111,9 @@ describe('createAppVersionService', () => {
     vi.clearAllMocks()
   })
 
-  it('returns the packaged app version, not the version of the renderer build', async () => {
-    appMock.getVersion.mockReturnValue('0.0.0-test.1')
+  it('returns the version of the running bundle, not the version of the renderer build or the installer', async () => {
+    appMock.getVersion.mockReturnValue('0.0.0-installer.1')
+    bundleMock.getVersion.mockReturnValue('0.0.0-test.1')
     const { window, context } = createWindowIpc()
     createAppVersionService({ window })
 
@@ -108,13 +121,13 @@ describe('createAppVersionService', () => {
   })
 
   it('reads the version once when several windows are open and one window requests it', async () => {
-    appMock.getVersion.mockReturnValue('0.12.0')
+    bundleMock.getVersion.mockReturnValue('0.12.0')
     const windows = [createWindowIpc(), createWindowIpc(), createWindowIpc()]
     for (const { window } of windows)
       createAppVersionService({ window })
 
     await defineInvoke(windows[1].context, electronAppGetVersion)()
 
-    expect(appMock.getVersion).toHaveBeenCalledTimes(1)
+    expect(bundleMock.getVersion).toHaveBeenCalledTimes(1)
   })
 })

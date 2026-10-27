@@ -7,7 +7,7 @@ import { ToasterRootInjectionKey } from './constants'
 
 const props = defineProps<{ id?: string }>()
 
-const emits = defineEmits<{ (e: 'update'): void }>()
+const emits = defineEmits<{ (e: 'update'): void, (e: 'dismiss'): void }>()
 
 const { t } = useI18n()
 
@@ -19,6 +19,7 @@ function handleUpdate() {
 }
 
 function handleNotNow() {
+  emits('dismiss')
   toastRoot.close(props.id || '')
 }
 </script>

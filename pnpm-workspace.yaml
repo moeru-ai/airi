@@ -18,6 +18,7 @@ minimumReleaseAgeExclude:
   - pinia-plugin-synced
   - xsschema
   - vieval
+  - '@ergosphere-it/*'
 
 shellEmulator: true
 packages:
@@ -93,6 +94,7 @@ catalog:
   '@electron-toolkit/tsconfig': ^2.0.0
   '@electron-toolkit/utils': ^4.0.0
   '@electron/notarize': ^3.1.1
+  '@ergosphere-it/electron': ^0.0.12
   '@esotericsoftware/spine-webgl': ~4.2.0
   '@esotericsoftware/spine-webgl-4-0': npm:@esotericsoftware/spine-webgl@~4.0.31
   '@esotericsoftware/spine-webgl-4-1': npm:@esotericsoftware/spine-webgl@~4.1.56
@@ -304,8 +306,7 @@ catalog:
   electron: ^43.4.1
   electron-builder: ^26.16.1
   electron-click-drag-plugin: ^2.0.2
-  electron-updater: ^6.8.9
-  electron-vite: ^5.0.0
+  electron-vite: ^6.0.0
   embla-carousel-autoplay: 9.0.0-rc01
   embla-carousel-vue: 9.0.0-rc02
   es-toolkit: ^1.51.0
@@ -316,6 +317,7 @@ catalog:
   eslint-plugin-slop: 0.1.3
   eventemitter3: ^5.0.4
   fflate: ^0.8.3
+  file-type: ^22.2.0
   floating-vue: ^5.2.2
   fluent-ffmpeg: ^2.1.3
   get-port-please: ^3.2.0
@@ -466,7 +468,7 @@ catalog:
   xastscript: ^4.0.0
   xsai-chromium-prompt: ^0.2.2
   xsschema: 0.5.1
-  yaml: ^2.9.0
+  yaml: ^2.9.1
   yauzl: ^3.4.0
   zod: ^4.4.3
   zod-to-json-schema: ^3.25.2
