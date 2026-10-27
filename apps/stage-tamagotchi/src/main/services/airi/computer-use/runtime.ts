@@ -4,13 +4,13 @@ import type { ComputerUseResult } from '../../../../shared/eventa/computer-use'
 
 import process from 'node:process'
 
-import { Buffer } from 'node:buffer'
 import { execFile } from 'node:child_process'
 import { readFile, realpath, stat } from 'node:fs/promises'
 import { isAbsolute, relative, sep } from 'node:path'
 import { promisify } from 'node:util'
 
 import { startAuv } from '@auv-js/sdk/node'
+import { fileTypeFromBuffer } from 'file-type'
 
 import * as v from 'valibot'
 
@@ -129,40 +129,19 @@ export function createComputerUseRuntime(options: { binaryPath: string, storeRoo
       if (!info.isFile() || info.size > MAX_IMAGE_BYTES)
         throw new Error('Screenshot must be a file smaller than 8 MiB.')
       const data = await readFile(target)
-      const png = data.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
-      const jpeg = data[0] === 255 && data[1] === 216 && data[2] === 255
-      // AUV's Windows backend writes WebP. Convert it to PNG for providers that require PNG or JPEG.
-      const webp = data.length >= 12 && data.subarray(0, 4).toString('latin1') === 'RIFF' && data.subarray(8, 12).toString('latin1') === 'WEBP'
-      if (!png && !jpeg && !webp)
+      const type = await fileTypeFromBuffer(data)
+      if (type?.mime === 'image/png' || type?.mime === 'image/jpeg')
+        return `data:${type.mime};base64,${data.toString('base64')}`
+      if (type?.mime !== 'image/webp')
         throw new Error('Screenshot must be PNG, JPEG, or WebP.')
-      if (webp) {
-        abort.signal.throwIfAborted()
-        let onAbort: (() => void) | undefined
-        try {
-          // Only the Windows backend writes WebP. Load the native codec on first use, not at app start.
-          const { Transformer } = await import('@napi-rs/image')
-          // NOTICE:
-          // Disposal must stop waiting while the native codec finishes in the background.
-          // N-API cannot cancel async work that already started.
-          // Source: https://github.com/napi-rs/napi-rs/blob/main/crates/napi/src/bindgen_runtime/js_values/task.rs#L224-L230
-          // Remove this race when the codec can interrupt running work.
-          const pngData = await Promise.race([
-            new Transformer(data).png(),
-            new Promise<never>((_resolve, reject) => {
-              onAbort = () => reject(new Error('Computer use has stopped.'))
-              abort.signal.addEventListener('abort', onAbort, { once: true })
-            }),
-          ])
-          if (pngData.length > MAX_IMAGE_BYTES)
-            throw new Error('Screenshot must be smaller than 8 MiB after converting from WebP to PNG.')
-          return `data:image/png;base64,${pngData.toString('base64')}`
-        }
-        finally {
-          if (onAbort)
-            abort.signal.removeEventListener('abort', onAbort)
-        }
-      }
-      return `data:image/${png ? 'png' : 'jpeg'};base64,${data.toString('base64')}`
+
+      // AUV's Windows backend writes WebP. Convert it to PNG for providers that require PNG or JPEG.
+      // Only that backend needs the native codec, so load it on first use, not at app start.
+      const { Transformer } = await import('@napi-rs/image')
+      const converted = await new Transformer(data).png(null, abort.signal)
+      if (converted.length > MAX_IMAGE_BYTES)
+        throw new Error('Screenshot must be smaller than 8 MiB after converting from WebP to PNG.')
+      return `data:image/png;base64,${converted.toString('base64')}`
     })
   }
 

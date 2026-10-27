@@ -76,19 +76,21 @@ describe('computer use runtime', () => {
     await expect(runtime.readImage({ path })).rejects.toThrow('smaller than 8 MiB after converting')
   })
 
-  it('stops waiting for a pending native conversion when the runtime is disposed', async () => {
+  it('gives the native conversion the runtime abort signal, so disposal cancels it', async () => {
     const path = join(directory, 'store', 'pending.webp')
     await writeFile(path, webp)
     let started: (() => void) | undefined
     const startedPromise = new Promise<void>((resolve) => {
       started = resolve
     })
-    vi.spyOn(Transformer.prototype, 'png').mockImplementation(() => {
+    vi.spyOn(Transformer.prototype, 'png').mockImplementation((_options, signal) => {
       started?.()
-      return new Promise<Buffer>(() => {})
+      return new Promise<Buffer>((_resolve, reject) => {
+        signal?.addEventListener('abort', () => reject(new Error('conversion aborted')), { once: true })
+      })
     })
     const pending = runtime.readImage({ path })
-    const rejected = expect(pending).rejects.toThrow('Computer use has stopped.')
+    const rejected = expect(pending).rejects.toThrow('conversion aborted')
     await startedPromise
     await runtime.dispose()
     await rejected
