@@ -141,11 +141,16 @@ export function stateFromStatus(status: UpdaterStatus): AutoUpdaterState {
     case 'up-to-date':
       return { status: 'not-available', info: infoOf(activeBundle) }
     case 'downloading':
-    case 'preparing':
       return {
         status: 'downloading',
         info: infoOf(status.update),
-        // NOTICE: the ergosphere-it updater reports a percentage only, without bytes.
+        progress: { percent: status.percent, bytesPerSecond: status.bytesPerSecond, transferred: status.downloadedBytes, total: status.totalBytes },
+      }
+    case 'preparing':
+      // Work after a download, for example a Sparkle patch, has a percentage and no bytes.
+      return {
+        status: 'downloading',
+        info: infoOf(status.update),
         progress: { percent: status.percent, bytesPerSecond: 0, transferred: 0, total: 0 },
       }
     case 'ready':

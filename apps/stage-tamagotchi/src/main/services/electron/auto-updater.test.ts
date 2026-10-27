@@ -115,7 +115,8 @@ describe('setupAutoUpdater', () => {
   it.each([
     { name: 'a check', status: { status: 'checking' }, expected: { status: 'checking' } },
     { name: 'no update', status: { status: 'up-to-date' }, expected: { status: 'not-available', info: { version: '0.9.0-beta.4' } } },
-    { name: 'a download', status: { status: 'downloading', percent: 42, update }, expected: { status: 'downloading', info: { version: '0.9.0-beta.6' }, progress: { percent: 42 } } },
+    { name: 'a download', status: { status: 'downloading', bytesPerSecond: 524_288, downloadedBytes: 4_200_000, percent: 42, totalBytes: 10_000_000, update }, expected: { status: 'downloading', info: { version: '0.9.0-beta.6' }, progress: { bytesPerSecond: 524_288, percent: 42, total: 10_000_000, transferred: 4_200_000 } } },
+    { name: 'a patch after a download', status: { status: 'preparing', percent: 70, update }, expected: { status: 'downloading', progress: { bytesPerSecond: 0, percent: 70 } } },
     { name: 'a ready update', status: { status: 'ready', update }, expected: { status: 'downloaded', info: { version: '0.9.0-beta.6', releaseDate: new Date(update.releaseId).toISOString() } } },
     { name: 'a failed download', status: { status: 'download-failed', error: { code: 'download-failed', message: 'Socket closed.' }, retryAt: '2026-10-26T00:00:00.000Z', update }, expected: { status: 'error' } },
     { name: 'a bad signature', status: { status: 'verification-failed', error: { code: 'invalid-signature', message: 'Bad signature.' } }, expected: { status: 'error', error: { message: 'Bad signature.' } } },
