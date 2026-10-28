@@ -90,7 +90,7 @@ function makeConfigKV(config: RouterConfig | null): ConfigKVService {
 }
 
 function makeConfig(opts: {
-  upstreams?: Array<{ baseURL: string, keyIds: string[], overrideModel?: string, timeoutMs?: number }>
+  upstreams?: Array<{ baseURL: string, keyIds: string[], overrideModel?: string, timeoutMs?: number, headers?: Record<string, string> }>
   fallbackHttpCodes?: number[]
 }): { config: RouterConfig, ciphertextByKey: Map<string, string>, crypto: ReturnType<typeof createEnvelopeCrypto> } {
   const crypto = createEnvelopeCrypto({ masterKey: freshMasterKey() })
@@ -102,6 +102,7 @@ function makeConfig(opts: {
     baseURL: u.baseURL,
     overrideModel: u.overrideModel,
     headerTemplate: 'Bearer {KEY}',
+    headers: u.headers ?? {},
     timeoutMs: u.timeoutMs,
     keys: u.keyIds.map((id) => {
       const plaintext = `sk-${id}`
@@ -336,6 +337,50 @@ describe('createLlmRouterService', () => {
     const sent = JSON.parse(init.body) as { model: string, messages: unknown }
     expect(sent.model).toBe('openai/gpt-5-mini')
     expect(sent.messages).toEqual([{ role: 'user', content: 'hi' }])
+  })
+
+  describe('upstream headers', () => {
+    const openRouterHeaders = { 'HTTP-Referer': 'https://airi.moeru.ai', 'X-Title': 'AIRI' }
+
+    async function sentHeaders(opts: { protocol: 'chat-completions' | 'responses', headers?: Record<string, string> }) {
+      const { config, crypto } = makeConfig({ upstreams: [{ baseURL: 'https://openrouter.ai/api/v1', keyIds: ['kA1'], headers: opts.headers }] })
+      config.llm.models['openai/gpt-5-mini'].upstreams[0].protocols = [opts.protocol]
+      const fetchImpl = vi.fn<typeof fetch>(async () => happyResponse({ ok: 1 }))
+      const router = createLlmRouterService({ gatewayMetrics: null, configKV: makeConfigKV(config), envelopeCrypto: crypto, fetchImpl, redis: makeRedisStub(), concurrencyLedger: makeLedger() })
+
+      await router.route({ modelName: 'openai/gpt-5-mini', protocol: opts.protocol, body: {} })
+
+      expect(fetchImpl).toHaveBeenCalledTimes(1)
+      return fetchImpl.mock.calls[0][1]?.headers
+    }
+
+    it.each(['chat-completions', 'responses'] as const)('sends the configured upstream headers with %s', async (protocol) => {
+      const headers = await sentHeaders({ protocol, headers: openRouterHeaders })
+
+      expect(headers).toEqual({
+        'HTTP-Referer': 'https://airi.moeru.ai',
+        'X-Title': 'AIRI',
+        'authorization': 'Bearer sk-kA1',
+        'content-type': 'application/json',
+      })
+    })
+
+    // The config schema rejects these names. This pins the spread order as a second guard.
+    it.each(['chat-completions', 'responses'] as const)('does not let upstream headers replace authorization or content-type with %s', async (protocol) => {
+      const headers = await sentHeaders({ protocol, headers: { ...openRouterHeaders, 'authorization': 'Bearer attacker', 'content-type': 'text/plain' } })
+
+      expect(headers).toMatchObject({ 'authorization': 'Bearer sk-kA1', 'content-type': 'application/json' })
+    })
+
+    // The config schema defaults omitted headers to {}, so an old config sends the same headers as before.
+    it.each(['chat-completions', 'responses'] as const)('sends only authorization and content-type with %s when headers are empty', async (protocol) => {
+      const headers = await sentHeaders({ protocol, headers: {} })
+
+      expect(headers).toEqual({
+        'authorization': 'Bearer sk-kA1',
+        'content-type': 'application/json',
+      })
+    })
   })
 
   it('uses upstream.overrideModel when set (so admin can rewrite the model id sent upstream)', async () => {

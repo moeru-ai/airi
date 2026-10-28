@@ -49,6 +49,7 @@ export const responsesAdapter: GenerationAdapter = {
         method: 'POST',
         headers: {
           ...request.headers,
+          ...upstream.headers,
           'authorization': upstream.headerTemplate.replace('{KEY}', apiKey),
           'content-type': 'application/json',
         },
