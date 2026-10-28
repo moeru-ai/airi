@@ -272,6 +272,30 @@ export default {
   appImage: {
     artifactName: '${productName}-${version}-linux-${arch}.${ext}',
   },
+  pacman: {
+    // NOTICE:
+    // The default depends name `http-parser` and `libappindicator-gtk3`. Arch removed both, so `pacman -U` fails.
+    // Source: getDefaultDepends in app-builder-lib/out/targets/FpmTarget.js.
+    // Remove it when electron-builder updates its pacman defaults.
+    // This list comes from `ldd`, plus the libraries that Electron loads at run time.
+    depends: [
+      'alsa-lib',
+      'at-spi2-core',
+      'gtk3',
+      'libcups',
+      'libnotify',
+      'libsecret',
+      'libxkbcommon',
+      'libxss',
+      'libxt',
+      'libxtst',
+      'mesa',
+      'nspr',
+      'nss',
+      'util-linux-libs',
+      'xdg-utils',
+    ],
+  },
   rpm: {
     // NOTICE:
     // Two Electron rpm packages conflict on the same `/usr/lib/.build-id` links, so one of them fails to install.
