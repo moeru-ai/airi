@@ -365,11 +365,28 @@ describe('createLlmRouterService', () => {
       })
     })
 
-    // The config schema rejects these names. This pins the spread order as a second guard.
-    it.each(['chat-completions', 'responses'] as const)('does not let upstream headers replace authorization or content-type with %s', async (protocol) => {
-      const headers = await sentHeaders({ protocol, headers: { ...openRouterHeaders, 'authorization': 'Bearer attacker', 'content-type': 'text/plain' } })
+    // The admin catalog keeps one header list, Authorization included; {KEY} stands for the attempt's key.
+    it.each(['chat-completions', 'responses'] as const)('sends the Authorization header from the list with %s', async (protocol) => {
+      const headers = await sentHeaders({ protocol, headers: { Authorization: 'Bearer {KEY}', ...openRouterHeaders } })
 
-      expect(headers).toMatchObject({ 'authorization': 'Bearer sk-kA1', 'content-type': 'application/json' })
+      expect(headers).toEqual({
+        'Authorization': 'Bearer sk-kA1',
+        'HTTP-Referer': 'https://airi.moeru.ai',
+        'X-Title': 'AIRI',
+        'content-type': 'application/json',
+      })
+    })
+
+    // The config schema rejects content-type. This pins the adapter's JSON content type as a second guard.
+    it.each(['chat-completions', 'responses'] as const)('does not let upstream headers replace content-type with %s', async (protocol) => {
+      const headers = await sentHeaders({ protocol, headers: { ...openRouterHeaders, 'Content-Type': 'text/plain' } })
+
+      expect(headers).toEqual({
+        'HTTP-Referer': 'https://airi.moeru.ai',
+        'X-Title': 'AIRI',
+        'authorization': 'Bearer sk-kA1',
+        'content-type': 'application/json',
+      })
     })
 
     // The config schema defaults omitted headers to {}, so an old config sends the same headers as before.

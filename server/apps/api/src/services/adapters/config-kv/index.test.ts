@@ -401,7 +401,15 @@ describe('configKVService', () => {
       })
     })
 
-    it.each(['authorization', 'Authorization', 'AUTHORIZATION', 'content-type', 'Content-Type'])('rejects the reserved header %s', async (name) => {
+    it.each(['authorization', 'Authorization', 'AUTHORIZATION'])('accepts %s with a {KEY} value', async (name) => {
+      storeUpstream({ headers: { [name]: 'Bearer {KEY}' } })
+
+      const value = await service.getOrThrow('LLM_ROUTER_CONFIG')
+
+      expect(value.llm.models['openrouter/small'].upstreams[0].headers).toEqual({ [name]: 'Bearer {KEY}' })
+    })
+
+    it.each(['content-type', 'Content-Type', 'CONTENT-TYPE'])('rejects the reserved header %s', async (name) => {
       storeUpstream({ headers: { [name]: 'value' } })
 
       await expect(service.getOptional('LLM_ROUTER_CONFIG'))
