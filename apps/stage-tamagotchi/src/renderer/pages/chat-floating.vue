@@ -154,7 +154,11 @@ const verticalDockZoneStyle = computed(() => ({ transform: `translateY(${-(DOCK_
  * The dock stands 10px from the edge, just past the hover scrollbar, so the bar sits between the scrollbar and the messages.
  */
 const DOCK_BAR = { width: 8, height: 56, edgeInset: 0 }
-const DOCK_OPEN_CLIP = 'inset(0px 0px 0px 0px round 999px)'
+/**
+ * The clip of an open dock. It reaches 4px past the dock, so the focus ring of a button is not cut. The ring is 2px
+ * wide and 2px from the button, and the button is 2px inside the dock.
+ */
+const DOCK_OPEN_CLIP = 'inset(-4px -4px -4px -4px round 999px)'
 
 /** The clip that leaves only the bar of the dock. */
 function dockBarClip(dock: HTMLElement) {
