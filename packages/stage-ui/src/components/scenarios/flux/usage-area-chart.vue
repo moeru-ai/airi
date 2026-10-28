@@ -13,17 +13,12 @@ import { useI18n } from 'vue-i18n'
 import UsageChartFrame from './usage-chart-frame.vue'
 
 import { formatDay, formatFlux, totalMicroFlux } from './usage-stats'
+import { CHART_HEIGHT, placeTooltip, TOP_PADDING } from './usage-tooltip.vue'
 
 const props = defineProps<{
   /** The days to draw, oldest first. The last day is today. */
   days: readonly DailyUsage[]
 }>()
-
-const CHART_HEIGHT = 128
-/** Keeps the top edge of the tallest day inside the chart. */
-const TOP_PADDING = 8
-/** Half of the widest tooltip. Keeps the tooltip inside the chart at both edges. */
-const TOOLTIP_HALF_WIDTH = 72
 
 const layerKeys = ['llmMicroFlux', 'ttsMicroFlux'] as const
 type LayerKey = typeof layerKeys[number]
@@ -77,11 +72,8 @@ const tooltip = computed<UsageTooltipContent | null>(() => {
   if (!day || marker.value === null)
     return null
 
-  const placeLeft = marker.value.x > width.value - TOOLTIP_HALF_WIDTH * 2
   return {
-    left: marker.value.x,
-    top: marker.value.y,
-    placement: placeLeft ? 'left' : 'right',
+    ...placeTooltip(marker.value.y, width.value, { left: marker.value.x, right: marker.value.x }),
     title: formatDay(day.date, locale.value),
     lines: [
       `${t('settings.pages.flux.usage.layers.llm')} ${t('settings.pages.flux.usage.fluxAmount', { amount: formatFlux(day.llmMicroFlux, locale.value) })}`,

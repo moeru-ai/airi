@@ -43,7 +43,7 @@ const DAY_MS = 24 * HOUR_MS
 /** A month label needs this many columns of room, or it overlaps the next label. */
 const MIN_MONTH_LABEL_GAP = 3
 
-export function microFluxToFlux(microFlux: number): number {
+function microFluxToFlux(microFlux: number): number {
   return microFlux / MICRO_FLUX_PER_FLUX
 }
 
@@ -152,7 +152,7 @@ export function buildHeatmap(days: readonly DailyUsage[]): HeatmapLayout {
   return { cells, weekCount: cells.at(-1)!.weekIndex + 1, monthLabels }
 }
 
-/** Formats a `YYYY-MM-DD` day for the reader. The day is already local, so the formatter must not shift it. */
+/** The day is already local, so the formatter must not shift it. */
 export function formatDay(date: string, locale: string): string {
   return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(`${date}T00:00:00Z`))
 }

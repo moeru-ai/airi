@@ -11,17 +11,12 @@ import { useI18n } from 'vue-i18n'
 import UsageChartFrame from './usage-chart-frame.vue'
 
 import { formatDay } from './usage-stats'
+import { CHART_HEIGHT, placeTooltip, TOP_PADDING } from './usage-tooltip.vue'
 
 const props = defineProps<{
   /** The days to draw, oldest first. The last day is today. */
   days: readonly DailyUsage[]
 }>()
-
-const CHART_HEIGHT = 128
-/** Keeps the tallest bar inside the chart. */
-const TOP_PADDING = 8
-/** Half of the widest tooltip. Keeps the tooltip inside the chart at both edges. */
-const TOOLTIP_HALF_WIDTH = 72
 
 const { t, locale } = useI18n()
 const chartElement = ref<HTMLElement>()
@@ -54,11 +49,8 @@ const tooltip = computed<UsageTooltipContent | null>(() => {
     return null
 
   const center = (xScale.value(index) ?? 0) + xScale.value.bandwidth() / 2
-  const placeLeft = center > width.value - TOOLTIP_HALF_WIDTH * 2
   return {
-    left: center,
-    top: yScale.value(day.newSessionCount),
-    placement: placeLeft ? 'left' : 'right',
+    ...placeTooltip(yScale.value(day.newSessionCount), width.value, { left: center, right: center }),
     title: formatDay(day.date, locale.value),
     lines: [t('settings.pages.flux.usage.newSessions', day.newSessionCount)],
   }

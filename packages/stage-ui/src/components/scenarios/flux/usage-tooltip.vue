@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script lang="ts">
 import { computed } from 'vue'
 
 export interface UsageTooltipContent {
@@ -12,6 +12,23 @@ export interface UsageTooltipContent {
   lines: string[]
 }
 
+export const CHART_HEIGHT = 128
+export const TOP_PADDING = 8
+
+/** Widest bubble. A point closer than this to the right edge puts the bubble on the left. */
+const TOOLTIP_WIDTH = 144
+
+export function placeTooltip(anchorY: number, chartWidth: number, edges: { left: number, right: number }): Pick<UsageTooltipContent, 'left' | 'top' | 'placement'> {
+  const placeLeft = edges.right > chartWidth - TOOLTIP_WIDTH
+  return {
+    left: placeLeft ? edges.left : edges.right,
+    top: anchorY,
+    placement: placeLeft ? 'left' : 'right',
+  }
+}
+</script>
+
+<script setup lang="ts">
 const props = defineProps<UsageTooltipContent>()
 
 const transform = computed(() => {
