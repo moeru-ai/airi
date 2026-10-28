@@ -16,7 +16,14 @@ export function createQueryIntegerSchema(options: QueryIntegerSchemaOptions) {
     pipe(
       optional(string(), String(options.defaultValue)),
       transform(input => input.trim()),
-      transform(input => Number.parseInt(input, 10)),
+      transform((input) => {
+        // Require the entire trimmed string to be a signed decimal integer.
+        // Number.parseInt alone accepts prefixes like "12abc", "12.9", and "1e2".
+        if (!/^[+-]?\d+$/.test(input)) {
+          return Number.NaN
+        }
+        return Number.parseInt(input, 10)
+      }),
       integer(),
       transform(value => clamp(value, options.minimum ?? Number.NEGATIVE_INFINITY, options.maximum ?? Number.POSITIVE_INFINITY)),
     ),

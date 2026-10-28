@@ -25,6 +25,31 @@ describe('http query utils', () => {
     expect(parse(schema, '')).toBe(20)
   })
 
+  it('falls back when the query value is only a parseInt prefix', () => {
+    const schema = createQueryIntegerSchema({
+      defaultValue: 20,
+      minimum: 1,
+      maximum: 100,
+    })
+
+    // Number.parseInt would accept these as 12, 12, and 1 respectively.
+    expect(parse(schema, '12abc')).toBe(20)
+    expect(parse(schema, '12.9')).toBe(20)
+    expect(parse(schema, '1e2')).toBe(20)
+  })
+
+  it('accepts exact signed decimal integers', () => {
+    const schema = createQueryIntegerSchema({
+      defaultValue: 20,
+      minimum: 1,
+      maximum: 100,
+    })
+
+    expect(parse(schema, '42')).toBe(42)
+    expect(parse(schema, '+7')).toBe(7)
+    expect(parse(schema, ' 15 ')).toBe(15)
+  })
+
   it('clamps values to the declared bounds', () => {
     const schema = createQueryIntegerSchema({
       defaultValue: 20,
