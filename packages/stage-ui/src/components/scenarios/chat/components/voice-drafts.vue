@@ -2,7 +2,7 @@
 import type { VoiceDraft } from '../../../../services/speech/bus'
 
 import { joinTranscriptSegments } from '@proj-airi/provider-inference'
-import { BasicButton, BasicTextarea, Button, GhostButton } from '@proj-airi/ui'
+import { BasicButton, BasicTextarea, GhostButton } from '@proj-airi/ui'
 import { computed, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -14,21 +14,17 @@ import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useVoiceControlsStore } from '../../../../stores/voice-controls'
 import { createBlurFadeAnimator } from '../../../widgets/poppin-text/animators'
 
+/**
+ * Fills its host, such as the desktop inlay card, and leaves the surface to the host.
+ */
 const props = withDefaults(defineProps<{
-  /**
-   * Layout and surface treatment.
-   * `card` draws its own panel with labeled actions.
-   * `composer` fills its host, such as the desktop inlay card, and leaves the surface to the host.
-   * @default 'card'
-   */
-  variant?: 'card' | 'composer'
   /**
    * Shows the listening state while the host captures speech that has no transcript text yet.
    * A host that opens at the start of a capture, such as the desktop inlay for Push to Talk, uses it.
    * @default false
    */
   showSilentSpeech?: boolean
-}>(), { variant: 'card', showSilentSpeech: false })
+}>(), { showSilentSpeech: false })
 
 const emit = defineEmits<{
   /** Whether a draft or live speech is shown. A host window can hide itself when nothing is shown. */
@@ -196,7 +192,7 @@ function handleKeydown(event: KeyboardEvent) {
 <template>
   <!-- The whole surface drags its host window. Text editing and buttons opt out. -->
   <section
-    v-if="visible && props.variant === 'composer'"
+    v-if="visible"
     :aria-label="t('stage.chat.voice-draft.title')"
     :class="['drag-region h-full min-h-0 w-full flex flex-col']"
   >
@@ -278,7 +274,7 @@ function handleKeydown(event: KeyboardEvent) {
     </p>
     <footer :class="['h-11 flex shrink-0 items-center gap-2 px-3']">
       <div :class="['min-w-0 flex flex-1 items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400']">
-        <!-- Composer variant only. The host puts content at the start of the action row, such as a shortcut hint. -->
+        <!-- The host puts content at the start of the action row, such as a shortcut hint. -->
         <slot name="hint" />
       </div>
       <div :class="['flex shrink-0 items-center gap-1', '[-webkit-app-region:no-drag]']">
@@ -308,44 +304,5 @@ function handleKeydown(event: KeyboardEvent) {
         </BasicButton>
       </div>
     </footer>
-  </section>
-  <section
-    v-else-if="draft"
-    :aria-label="t('stage.chat.voice-draft.title')"
-    :class="['min-w-0 w-full flex flex-col gap-2 rounded-xl p-3', 'bg-neutral-100/90 text-neutral-900 dark:bg-neutral-900/90 dark:text-neutral-100']"
-  >
-    <div :class="['min-w-0 w-full flex items-center gap-2 overflow-x-auto text-sm scrollbar-none']">
-      <span :class="['shrink-0']">{{ t('stage.chat.voice-draft.title') }}</span>
-      <span v-if="characterName && !otherDrafts.length" :class="['max-w-32 shrink-0 truncate']">{{ characterName }}</span>
-      <Button
-        v-for="item in otherDrafts"
-        :key="item.id"
-        size="sm"
-        :class="['max-w-32 shrink-0 truncate']"
-        :disabled="sending || item.id === draft.id"
-        @click="select(item.id)"
-      >
-        {{ nameOf(item.sessionId) ?? t('stage.chat.voice-draft.title') }}
-      </Button>
-    </div>
-    <BasicTextarea
-      v-model="text"
-      :submit-on-enter="false"
-      :class="['w-full max-w-full']"
-      :disabled="sending || !controls.snapshot.connected"
-      :aria-label="t('stage.chat.voice-draft.title')"
-      @keydown="handleKeydown"
-    />
-    <p v-if="controls.error" role="alert" :class="['text-sm text-red-600 dark:text-red-400']">
-      {{ controls.error }}
-    </p>
-    <div :class="['flex justify-end gap-2']">
-      <Button :disabled="sending" size="sm" @click="discard">
-        {{ t('stage.chat.voice-draft.discard') }}
-      </Button>
-      <Button :disabled="!canSend" size="sm" variant="primary" @click="send">
-        {{ t('stage.chat.actions.send') }}
-      </Button>
-    </div>
   </section>
 </template>

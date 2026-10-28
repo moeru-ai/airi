@@ -221,7 +221,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
           </p>
           <p v-else :class="['m-0 line-clamp-4 whitespace-pre-wrap break-words text-[15px] font-medium leading-relaxed']" v-text="sentText" />
         </div>
-        <VoiceDrafts v-else variant="composer" show-silent-speech>
+        <VoiceDrafts v-else show-silent-speech>
           <template #hint>
             <kbd
               :class="[
