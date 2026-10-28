@@ -3,6 +3,8 @@ import process from 'node:process'
 import { appendFile, readFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 
+import semver from 'semver'
+
 /** The feed of the ergosphere-it release store, as `feedUrl` of `apps/stage-tamagotchi/ergo.config.ts` names it. */
 const FEED_URL = 'https://release-updates.airi.build'
 
@@ -63,11 +65,6 @@ export interface UpdatePlan {
   installerReleaseId: number
 }
 
-/** Returns the version that a tag names: `0.13.0-rc.1` for `v0.13.0-rc.1`. Undefined when the tag is not a version. */
-function versionOfTag(tag: string) {
-  return /^v?(\d+\.\d+\.\d+(?:-[0-9a-z.-]+)?(?:\+[0-9a-z.-]+)?)$/i.exec(tag)?.[1]
-}
-
 /**
  * Plans the over-the-air update of one run of `release-tamagotchi.yml`. AIRI has four channels:
  *
@@ -103,7 +100,8 @@ export function planUpdates(input: PlanInput): UpdatePlan {
   if (!releaseRun || !input.tag)
     return { ...ids, skipReason: 'This run is not a release.', version }
 
-  const tagVersion = versionOfTag(input.tag)
+  // `0.13.0-rc.1` for `v0.13.0-rc.1`, or null when the tag is not a version.
+  const tagVersion = semver.clean(input.tag)
   if (!tagVersion)
     return { ...ids, skipReason: `The tag ${input.tag} is not a version.`, version }
 
