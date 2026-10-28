@@ -101,8 +101,8 @@ about:
       stable: 안정
       alpha: 알파
       beta: 베타
-      nightly: 실험적
       canary: 카나리아
+      nightly: 실험적
     status:
       downloading: 업데이트 다운로드 중...
       error-prefix: 에러

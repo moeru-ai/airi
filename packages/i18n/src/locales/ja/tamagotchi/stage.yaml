@@ -100,8 +100,8 @@ about:
       stable: 安定版 (Stable)
       alpha: アルファ版 (Alpha)
       beta: ベータ版 (Beta)
-      nightly: ナイトリー版 (Nightly)
       canary: カナリア版 (Canary)
+      nightly: ナイトリー版 (Nightly)
     status:
       downloading: アップデートをダウンロード中...
       error-prefix: エラー
