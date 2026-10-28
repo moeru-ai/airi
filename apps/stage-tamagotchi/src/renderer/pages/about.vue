@@ -126,8 +126,11 @@ const isDowngradeUpdate = computed(() => {
 /**
  * The version of the running build in three parts: the release, the build of that release, and its channel.
  *
+ * `channelOfVersion` gives the channel. When the channel is `dev` or `nightly`, the build part leaves out that
+ * identifier, in the prerelease or in the build metadata.
+ *
  * @example
- * // '0.13.1-dev.821.13eef81' -> { release: '0.13.1', build: '821 · 13eef81', channel: 'dev' }
+ * // '0.13.0+dev.821.13eef81' -> { release: '0.13.0', build: '821 · 13eef81', channel: 'dev' }
  * // '0.14.0-rc.1' -> { release: '0.14.0', build: 'rc.1', channel: 'canary' }
  */
 const runningVersion = computed(() => {
