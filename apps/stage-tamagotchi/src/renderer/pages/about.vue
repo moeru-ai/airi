@@ -16,7 +16,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { electronAppGetVersion, electronGetUpdaterPreferences, electronSetUpdaterPreferences } from '../../shared/eventa'
-import { updateChannels } from '../../shared/update-channels'
+import { channelOfVersion, updateChannels } from '../../shared/update-channels'
 
 const buildInfo = useBuildInfo()
 // The main process owns the app version. Packaging can change it after the renderer build, so `buildInfo.version`
@@ -121,6 +121,47 @@ const isDowngradeUpdate = computed(() => {
     return false
 
   return semver.lt(targetVersion, currentVersion)
+})
+
+/**
+ * The version of the running build in three parts: the release, the build of that release, and its channel.
+ *
+ * @example
+ * // '0.13.1-dev.821.13eef81' -> { release: '0.13.1', build: '821 · 13eef81', channel: 'dev' }
+ * // '0.14.0-rc.1' -> { release: '0.14.0', build: 'rc.1', channel: 'canary' }
+ */
+const runningVersion = computed(() => {
+  const parsed = semver.parse(appVersion.value)
+  if (!parsed)
+    return undefined
+
+  const channel = channelOfVersion(parsed.raw)
+  // The channel badge already names `dev` or `nightly`, so the build part leaves it out.
+  const parts = [...parsed.prerelease, ...parsed.build].map(String).filter(part => part !== channel)
+  const build = parts.length === 0
+    ? buildInfo.commit
+    : channel === 'canary'
+      ? parts.join('.')
+      : parts.join(' · ')
+
+  return { release: `${parsed.major}.${parsed.minor}.${parsed.patch}`, build, channel }
+})
+
+const channelBadgeClass: Record<ReturnType<typeof channelOfVersion>, string[]> = {
+  stable: ['bg-primary-500/15 text-primary-600', 'dark:bg-primary-400/15 dark:text-primary-300'],
+  canary: ['bg-amber-500/15 text-amber-700', 'dark:bg-amber-400/15 dark:text-amber-300'],
+  nightly: ['bg-violet-500/15 text-violet-700', 'dark:bg-violet-400/15 dark:text-violet-300'],
+  dev: ['bg-pink-500/15 text-pink-700', 'dark:bg-pink-400/15 dark:text-pink-300'],
+}
+
+// The header button already says when the app is up to date, so the status area shows only what needs attention.
+const hasUpdateStatus = computed(() => requiresWindowsAdminUpdatePrompt.value
+  || isError.value
+  || ['available', 'downloading', 'downloaded', 'manual-install-required'].includes(updateState.value.status))
+
+const builtOnText = computed(() => {
+  const date = new Date(buildInfo.builtOn)
+  return Number.isNaN(date.getTime()) ? buildInfo.builtOn : date.toLocaleString()
 })
 
 const getAppVersion = useElectronEventaInvoke(electronAppGetVersion)
@@ -266,22 +307,79 @@ onMounted(() => {
             ]"
           >
             <!-- Build Info -->
-            <div
-              :class="[
-                'flex flex-wrap items-center justify-between gap-4',
-              ]"
-            >
-              <div>
-                <div :class="['text-sm text-neutral-500 dark:text-neutral-400']">
-                  {{ t('tamagotchi.stage.about.current-version') }}
+            <div :class="['flex flex-wrap items-center justify-between gap-4']">
+              <div :class="['flex flex-col gap-1.5']">
+                <div v-if="runningVersion" :class="['flex flex-wrap items-center gap-2']">
+                  <span :class="['rounded-md px-2 py-0.5', 'font-mono text-sm font-medium', 'bg-neutral-300/60 text-neutral-700', 'dark:bg-neutral-700/60 dark:text-neutral-200']">
+                    v{{ runningVersion.release }}
+                  </span>
+                  <span :class="['rounded-md px-2 py-0.5', 'font-mono text-sm', 'bg-neutral-300/40 text-neutral-500', 'dark:bg-neutral-700/40 dark:text-neutral-400']">
+                    {{ runningVersion.build }}
+                  </span>
+                  <span :class="['rounded-md px-2 py-0.5', 'text-sm font-medium', ...channelBadgeClass[runningVersion.channel]]">
+                    {{ t(`tamagotchi.stage.about.update.channels.${runningVersion.channel}`) }}
+                  </span>
                 </div>
-                <div :class="['text-xl font-medium font-mono']">
-                  {{ appVersion }}
+                <div
+                  v-if="runningVersion && runningVersion.channel !== 'stable'"
+                  :class="['text-xs text-neutral-500 dark:text-neutral-400']"
+                >
+                  {{ t('tamagotchi.stage.about.build-origin', { time: builtOnText, branch: buildInfo.branch, commit: buildInfo.commit }) }}
                 </div>
               </div>
-              <div :class="['text-right text-xs text-neutral-400 dark:text-neutral-500']">
-                <div>{{ buildInfo.branch }}@{{ buildInfo.commit }}</div>
-                <div>{{ buildInfo.builtOn }}</div>
+
+              <div :class="['flex flex-wrap items-center gap-2']">
+                <Button
+                  v-if="updateState.status === 'available'"
+                  :loading="isBusy"
+                  icon="i-solar:download-minimalistic-outline"
+                  :label="t('tamagotchi.stage.about.update.actions.download')"
+                  @click="handleDownloadClick()"
+                />
+                <a
+                  v-else-if="updateState.status === 'manual-install-required'"
+                  href="https://github.com/moeru-ai/airi/releases"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button
+                    icon="i-solar:download-minimalistic-outline"
+                    :label="t('tamagotchi.stage.about.update.actions.open-download-page')"
+                  />
+                </a>
+                <DoubleCheckButton
+                  v-else-if="updateState.status === 'downloaded'"
+                  color="neutral"
+                  variant="secondary"
+                  @confirm="handleQuitAndInstall()"
+                >
+                  {{ restartButtonLabel }}
+                  <template #confirm>
+                    {{ t('tamagotchi.stage.about.update.actions.confirm-restart') }}
+                  </template>
+                  <template #cancel>
+                    {{ t('tamagotchi.stage.about.common.cancel') }}
+                  </template>
+                </DoubleCheckButton>
+                <Button
+                  v-else-if="updateState.status !== 'downloading'"
+                  v-track-button="{ name: 'update_check_clicked', channel: selectedUpdateChannel }"
+                  :color="isError ? 'orange' : 'neutral'"
+                  :variant="isError ? 'primary' : 'secondary'"
+                  :loading="isBusy"
+                  :disabled="isDisabled"
+                  :icon="isLatestVersion ? 'i-solar:check-circle-outline' : isDisabled ? 'i-solar:forbidden-circle-outline' : 'i-solar:refresh-outline'"
+                  :label="isBusy
+                    ? t('tamagotchi.stage.about.update.actions.checking')
+                    : isLatestVersion
+                      ? t('tamagotchi.stage.about.update.actions.latest-version')
+                      : isDisabled
+                        ? t('tamagotchi.stage.about.update.actions.managed-by-store')
+                        : isError
+                          ? t('tamagotchi.stage.about.update.actions.retry-check')
+                          : t('tamagotchi.stage.about.update.actions.check-for-updates')"
+                  @click="checkForUpdates()"
+                />
               </div>
             </div>
 
@@ -297,7 +395,7 @@ onMounted(() => {
             />
 
             <!-- Update Logic -->
-            <div :class="['flex flex-col gap-4']">
+            <div v-if="hasUpdateStatus" :class="['flex flex-col gap-4']">
               <div
                 v-if="requiresWindowsAdminUpdatePrompt"
                 :class="['text-sm rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-700 dark:text-amber-200']"
@@ -321,33 +419,12 @@ onMounted(() => {
                 >
                   Selected channel offers an older build than your current version. Installing this update will downgrade AIRI.
                 </div>
-                <div>
-                  <Button
-
-                    :loading="isBusy"
-                    icon="i-solar:download-minimalistic-outline"
-                    :label="t('tamagotchi.stage.about.update.actions.download')"
-                    @click="handleDownloadClick()"
-                  />
-                </div>
               </div>
 
               <!-- State: Manual install required -->
               <div v-else-if="updateState.status === 'manual-install-required'" :class="['flex flex-col gap-4']">
                 <div :class="['text-sm text-amber-700 dark:text-amber-200']">
                   {{ t('tamagotchi.stage.about.update.status.manual-install-required', { version: updateState.info?.version }) }}
-                </div>
-                <div>
-                  <a
-                    href="https://github.com/moeru-ai/airi/releases"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Button
-                      icon="i-solar:download-minimalistic-outline"
-                      :label="t('tamagotchi.stage.about.update.actions.open-download-page')"
-                    />
-                  </a>
                 </div>
               </div>
 
@@ -374,21 +451,6 @@ onMounted(() => {
                 >
                   Downgrade package downloaded from selected channel. Restart will install an older version.
                 </div>
-                <div>
-                  <DoubleCheckButton
-                    color="neutral"
-                    variant="secondary"
-                    @confirm="handleQuitAndInstall()"
-                  >
-                    {{ restartButtonLabel }}
-                    <template #confirm>
-                      {{ t('tamagotchi.stage.about.update.actions.confirm-restart') }}
-                    </template>
-                    <template #cancel>
-                      {{ t('tamagotchi.stage.about.common.cancel') }}
-                    </template>
-                  </DoubleCheckButton>
-                </div>
               </div>
 
               <!-- State: Idle, Checking, Error, Disabled, Not Available -->
@@ -398,30 +460,6 @@ onMounted(() => {
                     :message="updaterErrorMessage"
                     height-preset="sm"
                     @feedback="openBugReportDialog"
-                  />
-                </div>
-                <div v-else-if="isLatestVersion" :class="['text-sm text-emerald-600 dark:text-emerald-400']">
-                  {{ t('tamagotchi.stage.about.update.status.latest', { version: appVersion }) }}
-                </div>
-
-                <div :class="['flex flex-wrap gap-2']">
-                  <Button
-                    v-track-button="{ name: 'update_check_clicked', channel: selectedUpdateChannel }"
-                    :color="isError ? 'orange' : 'neutral'"
-                    :variant="isError ? 'primary' : 'secondary'"
-                    :loading="isBusy"
-                    :disabled="isDisabled"
-                    :icon="isLatestVersion ? 'i-solar:check-circle-outline' : isDisabled ? 'i-solar:forbidden-circle-outline' : 'i-solar:refresh-outline'"
-                    :label="isBusy
-                      ? t('tamagotchi.stage.about.update.actions.checking')
-                      : isLatestVersion
-                        ? t('tamagotchi.stage.about.update.actions.latest-version')
-                        : isDisabled
-                          ? t('tamagotchi.stage.about.update.actions.managed-by-store')
-                          : isError
-                            ? t('tamagotchi.stage.about.update.actions.retry-check')
-                            : t('tamagotchi.stage.about.update.actions.check-for-updates')"
-                    @click="checkForUpdates()"
                   />
                 </div>
               </div>
