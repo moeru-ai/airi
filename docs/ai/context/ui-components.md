@@ -275,11 +275,13 @@ Alert/callout box with themed accent bar.
 
 ### ContainerError
 
-Error display with copy/feedback buttons and scrollable stack trace.
+Error panel with a title row and a scrollable details area. The title row shows the error name and the copy and feedback buttons. The details area shows the message, the stack, and the cause.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `error` | `unknown?` | — | Error object |
+| `title` | `string?` | — | Replaces the error name in the title row. The error name then starts the message |
+| `description` | `string?` | — | Short context under the title row |
 | `message` | `string?` | — | Custom message |
 | `stack` | `string?` | — | Stack trace |
 | `includeStack` | `boolean?` | `true` | Show stack |
@@ -288,13 +290,14 @@ Error display with copy/feedback buttons and scrollable stack trace.
 | `copyButtonLabel` | `string?` | `'Copy'` | Copy button text |
 | `copiedButtonLabel` | `string?` | `'Copied'` | Copied state text |
 | `feedbackButtonLabel` | `string?` | `'Feedback'` | Feedback button text |
-| `heightPreset` | `'sm' \| 'md' \| 'lg' \| 'xl' \| 'auto'` | `'md'` | Container height |
+| `heightPreset` | `'sm' \| 'md' \| 'lg' \| 'xl' \| 'auto'` | `'md'` | Maximum height of the details area. Short details keep their natural height |
 
+**Slots**: `actions` (buttons at the end of the panel)
 **Emits**: `copy(content: string)`, `feedback()`
 
 ### ErrorBoundary
 
-Catches synchronous render/setup errors in descendants via `onErrorCaptured` and renders a fallback (built-in `ContainerError` + retry button) instead of letting the error propagate. Use to wrap `<RouterView>` or any subtree where partial failure should not blank the host layout. Async/unhandled rejections are NOT captured — use `app.config.errorHandler` for those.
+Catches synchronous render/setup errors in descendants via `onErrorCaptured` and renders a fallback (built-in `ContainerError` with the title, the failed phase, and a retry `Button` in its `actions` slot) instead of letting the error propagate. Use to wrap `<RouterView>` or any subtree where partial failure should not blank the host layout. Async/unhandled rejections are NOT captured — use `app.config.errorHandler` for those.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
