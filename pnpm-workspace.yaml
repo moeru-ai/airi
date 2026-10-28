@@ -111,11 +111,11 @@ catalog:
   '@fontsource-variable/nunito': ^5.3.0
   '@fontsource-variable/quicksand': ^5.3.0
   '@fontsource-variable/urbanist': ^5.3.0
-  '@fontsource/dm-mono': ^5.3.0
   '@fontsource/dm-serif-display': ^5.3.0
   '@fontsource/gugi': ^5.3.0
   '@fontsource/kiwi-maru': ^5.3.0
   '@fontsource/m-plus-rounded-1c': ^5.3.0
+  '@fontsource/maple-mono': ^5.3.0
   '@formkit/auto-animate': ^0.10.0
   '@google/genai': ^2.30.0
   '@grammyjs/files': ^1.2.0
