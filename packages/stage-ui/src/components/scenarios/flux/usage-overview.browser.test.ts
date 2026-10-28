@@ -48,13 +48,12 @@ describe('flux usage overview', () => {
 
     await expect.element(screen.getByText('Longest session')).toBeVisible()
     await expect.element(screen.getByText('Sessions', { exact: true })).toBeVisible()
-    await expect.element(screen.getByText('Flux used', { exact: true })).toBeVisible()
+    expect(screen.getByText('Flux used', { exact: true }).elements()).toHaveLength(2)
     await expect.element(screen.getByText('Longest streak')).toBeVisible()
     await expect.element(screen.getByText('Current streak')).toBeVisible()
     await expect.element(screen.getByText('3d', { exact: true })).toBeVisible()
     await expect.element(screen.getByText('2d', { exact: true })).toBeVisible()
-    await expect.element(screen.getByText('Flux used, last 30 days')).toBeVisible()
-    await expect.element(screen.getByText('New sessions, last 30 days')).toBeVisible()
+    await expect.element(screen.getByText('New sessions', { exact: true })).toBeVisible()
     await expect.element(screen.getByRole('img', { name: 'Flux used on each day of this year' })).toBeVisible()
   })
 
@@ -68,8 +67,8 @@ describe('flux usage overview', () => {
     })
 
     const heatmapLocator = screen.getByRole('img', { name: 'Flux used on each day of this year' })
-    const areaLocator = screen.getByRole('img', { name: 'Flux used, last 30 days' })
-    const sessionLocator = screen.getByRole('img', { name: 'New sessions, last 30 days' })
+    const areaLocator = screen.getByRole('img', { name: 'Flux used', exact: true })
+    const sessionLocator = screen.getByRole('img', { name: 'New sessions', exact: true })
     await expect.element(heatmapLocator).toBeVisible()
     await expect.element(areaLocator).toBeVisible()
     await expect.element(sessionLocator).toBeVisible()

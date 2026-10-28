@@ -77,8 +77,11 @@ const tooltip = computed<UsageTooltipContent | null>(() => {
   if (!day || marker.value === null)
     return null
 
+  const placeLeft = marker.value.x > width.value - TOOLTIP_HALF_WIDTH * 2
   return {
-    left: clamp(marker.value.x, TOOLTIP_HALF_WIDTH, Math.max(width.value - TOOLTIP_HALF_WIDTH, TOOLTIP_HALF_WIDTH)),
+    left: marker.value.x,
+    top: marker.value.y,
+    placement: placeLeft ? 'left' : 'right',
     title: formatDay(day.date, locale.value),
     lines: [
       `${t('settings.pages.flux.usage.layers.llm')} ${t('settings.pages.flux.usage.fluxAmount', { amount: formatFlux(day.llmMicroFlux, locale.value) })}`,

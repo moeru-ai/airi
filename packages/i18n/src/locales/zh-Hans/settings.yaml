@@ -1578,9 +1578,9 @@ pages:
         longestStreak: 最长连续
         currentStreak: 当前连续
       areaChart:
-        title: 近 30 天消耗的 Flux
+        title: 消耗 Flux
       sessionChart:
-        title: 近 30 天新开的会话
+        title: 新会话
     packages:
       title: Flux 电池包
       buy: 充值

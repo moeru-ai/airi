@@ -1641,9 +1641,9 @@ pages:
         longestStreak: Longest streak
         currentStreak: Current streak
       areaChart:
-        title: Flux used, last 30 days
+        title: Flux used
       sessionChart:
-        title: New sessions, last 30 days
+        title: New sessions
     packages:
       title: Flux Packages
       buy: Charge
