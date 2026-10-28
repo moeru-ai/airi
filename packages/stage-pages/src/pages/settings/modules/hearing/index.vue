@@ -161,6 +161,7 @@ const pages = computed(() => [
             <FieldCombobox
               v-if="rephraseProvider && rephraseModelOptions.length"
               v-model="rephraseModel"
+              data-testid="hearing-rephrase-model"
               :label="t('settings.pages.modules.hearing.sections.section.rephrase.model')"
               :options="rephraseModelOptions"
               :placeholder="t('settings.pages.modules.hearing.sections.section.rephrase.model-placeholder')"

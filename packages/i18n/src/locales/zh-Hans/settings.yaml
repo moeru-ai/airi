@@ -2095,6 +2095,8 @@ pages:
         speech-streaming-description: AIRI 官方低延迟文本转语音服务提供商（双向 WebSocket）。
         transcription-title: AIRI 官方语音识别服务
         transcription-description: 登录后即可使用的听觉单元服务
+        models:
+          asr-rewrite: 语音改写
       transcriptions:
         playground:
           title: 实验平台
