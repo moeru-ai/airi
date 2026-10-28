@@ -294,19 +294,41 @@ jobs:
           mise x -- pnpm kirie doctor --fix plugin:core
           mise x -- pnpm kirie doctor --fix plugin:notifications
 
-      # TEMPORARY: published npm `kirie@0.15.0` tarball has no AAR (addon/ is
-      # GDScript-only; npm-publish.yml only runs build:packages, not
-      # build:android-aar). Release asset kirie-addon.zip DOES contain
-      # libraries/android/Kirie-release.aar. If upstream starts shipping AAR
-      # inside the npm package, delete this step. Until then Android/iOS CI
-      # overlays natives from the matching GitHub Release zip after doctor.
-      # (kirie is a devDependency in this app — do not read .dependencies.kirie.)
-      - name: Overlay Kirie native libraries (AAR / xcframework)
-        if: matrix.platform == 'android' || matrix.platform == 'ios'
+      # Godot Android export still needs addon-bundled AAR at
+      # addons/kirie/libraries/android/Kirie-release.aar (npm tarball has no
+      # native; see gd-kirie docs/maven-publishing.md). Fetch release AAR from
+      # Maven Central instead of kirie-addon.zip. iOS xcframework is not on
+      # Maven — still overlay from the matching GitHub Release zip.
+      - name: Fetch Kirie Android AAR from Maven Central
+        if: matrix.platform == 'android'
         working-directory: ${{ env.APP_DIR }}
         run: |
           set -euo pipefail
-          # Resolve installed kirie version (app lists it under devDependencies).
+          if [ -f node_modules/kirie/package.json ]; then
+            KIRIE_VER="$(node -p "require('./node_modules/kirie/package.json').version")"
+          else
+            KIRIE_VER="$(node -p "const p=require('./package.json'); const v=p.devDependencies?.kirie||p.dependencies?.kirie; if(!v) throw new Error('kirie version missing'); String(v).replace(/^[^0-9]*/, '')")"
+          fi
+          DEST="addons/kirie/libraries/android/Kirie-release.aar"
+          URL="https://repo1.maven.org/maven2/moe/gdkirie/kirie/core/${KIRIE_VER}/core-${KIRIE_VER}.aar"
+          mkdir -p "$(dirname "$DEST")"
+          echo "Downloading moe.gdkirie.kirie:core:${KIRIE_VER} from Maven Central"
+          curl -fsSL "$URL" -o "$DEST"
+          case "$KIRIE_VER" in
+            0.15.2)
+              echo "e6ea3b04183e57c46ea4e2fd0d8e89e53c5d47c67980b3f33ccacefac7081869  $DEST" | sha256sum -c -
+              ;;
+            *)
+              echo "WARN: no pinned sha256 for moe.gdkirie.kirie:core:$KIRIE_VER; proceeding without checksum"
+              ;;
+          esac
+          ls -la "$DEST"
+
+      - name: Overlay Kirie iOS xcframework from release zip
+        if: matrix.platform == 'ios'
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          set -euo pipefail
           if [ -f node_modules/kirie/package.json ]; then
             KIRIE_VER="$(node -p "require('./node_modules/kirie/package.json').version")"
           else
@@ -316,27 +338,9 @@ jobs:
           TMP="$(mktemp -d)"
           echo "Downloading $URL"
           curl -fsSL "$URL" -o "$TMP/kirie-addon.zip"
-          case "$KIRIE_VER" in
-            0.15.0)
-              echo "6b2acad54f7f215ec45a761c21e70d14237d63a915ad238bb4fe1f52312274fc  $TMP/kirie-addon.zip" | sha256sum -c -
-              ;;
-            *)
-              echo "WARN: no pinned sha256 for kirie $KIRIE_VER; proceeding without checksum"
-              ;;
-          esac
-          # Zip root is addons/kirie/... — merge into the doctor-installed addon.
-          unzip -o "$TMP/kirie-addon.zip" \
-            "addons/kirie/libraries/*" \
-            "addons/kirie/ios/*" \
-            -d .
-          if [ "${{ matrix.platform }}" = "android" ]; then
-            test -f addons/kirie/libraries/android/Kirie-release.aar
-            ls -la addons/kirie/libraries/android/
-          fi
-          if [ "${{ matrix.platform }}" = "ios" ]; then
-            test -d addons/kirie/ios/Kirie.release.xcframework
-            ls -la addons/kirie/ios/
-          fi
+          unzip -o "$TMP/kirie-addon.zip" "addons/kirie/ios/*" -d .
+          test -d addons/kirie/ios/Kirie.release.xcframework
+          ls -la addons/kirie/ios/
 
       # Surface NuGet/MSB4181 detail that `kirie build` otherwise swallows.
       - name: Dotnet restore (verbose)
