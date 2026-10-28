@@ -6,3 +6,4 @@ export {
   openHearingPlayground,
   readHearingPlaygroundTranscriptions,
 } from './hearing-playground'
+export { waitForVoiceDraft } from './voice-drafts'

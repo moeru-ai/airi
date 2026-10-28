@@ -86,7 +86,7 @@ A pause of 1.2 seconds can end an input. With the end judge on, which is the def
 The judge then ends a finished message at the pause, and an unfinished one waits for the speaker to continue.
 A failed or slow judgement never blocks new speech. Without the end judge, the 1.2-second pause ends every input.
 
-The host snapshot carries the corrected transcript segments of the active input. `VoiceDrafts` shows them as the continuation of the draft, in one paragraph. The paragraph is read-only while speech is transcribed, and becomes the editable draft when the speech settles. Final text uses the body color. Pending text uses the theme color at a lower opacity, and the newest pending segment uses full opacity.
+The host snapshot carries the corrected transcript segments of the active input. `VoiceDrafts` is the draft composer of the desktop voice inlay. It shows them as the continuation of the draft, in one paragraph. The paragraph is read-only while speech is transcribed, and becomes the editable draft when the speech settles. Final text uses the body color. Pending text uses the theme color at a lower opacity, and the newest pending segment uses full opacity.
 A draft that the host is sending stays hidden. Drafts of other conversations show as named chips. `VoiceDrafts` emits `presence`, so a host can react when it shows nothing, for example after a send or a discard.
 Rephrasing is on by default. A failure or a 10-second timeout submits the provider text.
 
