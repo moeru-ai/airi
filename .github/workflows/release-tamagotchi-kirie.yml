@@ -1,28 +1,3 @@
-# Release Tamagotchi Kirie — CI artifacts only
-#
-# Builds/exports the Godot Mono + Kirie host for desktop and mobile, then uploads
-# GitHub Actions artifacts. Never publishes GitHub Release assets (no softprops /
-# action-gh-release). Packaging remains experimental; unsigned / ad-hoc signing
-# is intentional for this first-pass workflow.
-#
-# Triggers:
-#   - workflow_dispatch: manual (build_only skips upload; tag overrides version)
-#   - schedule: nightly at 02:00 UTC (offset from Electron's midnight cron)
-#
-# Versioning (mirrors Electron nightly naming):
-#   - schedule / manual without tag → nightly-YYYYMMDD-<sha7>
-#   - manual with tag              → tag with leading "v" stripped
-#
-# Toolchain:
-#   - Root .tool-versions → nodejs, pnpm (via jdx/mise-action)
-#   - .NET SDK → actions/setup-dotnet (same as repo ci.yml; mise dotnet has
-#     been associated with opaque MSB4181 RestoreTask failures on GHA)
-#   - apps/stage-tamagotchi-kirie/mise.toml → godot + java (via mise)
-#   - Windows Godot: chickensoft-games/setup-godot (mise godot is unreliable there)
-#   - Android SDK packages: android-actions/setup-android (mise does not install these)
-#   - Godot export templates: installed separately when using mise godot (plugin
-#     does not ship templates); chickensoft installs them on Windows.
-
 name: Release Tamagotchi Kirie (artifacts only)
 
 permissions:
@@ -33,8 +8,7 @@ env:
   PRODUCT_NAME: 'AIRI-Kirie'
   GODOT_VERSION: '4.7.2'
   APP_DIR: apps/stage-tamagotchi-kirie
-  # Not named VERSION: MSBuild imports env vars as properties, and a
-  # nightly-* string in $(Version) breaks NuGet restore (NU1105).
+  # Not named VERSION: MSBuild would treat nightly-* as $(Version) → NU1105.
   KIRIE_VERSION: ''
   ARTIFACT_NAME: ''
   MISE_EXEC_AUTO_INSTALL: 'false'
@@ -43,8 +17,6 @@ env:
   MISE_WINDOWS_DEFAULT_INLINE_SHELL_ARGS: 'bash -c'
 
 on:
-  # Temporary: allow running from the PR branch before the workflow lands on main
-  # (workflow_dispatch only works for workflows on the default branch).
   push:
     branches:
       - ci/tamagotchi-kirie-artifacts
@@ -71,7 +43,6 @@ on:
           - ios
         default: all
   schedule:
-    # Electron release-tamagotchi.yml uses 0 0 * * *; keep this offset.
     - cron: '0 2 * * *'
 
 concurrency:
@@ -81,7 +52,6 @@ concurrency:
 jobs:
   build:
     name: ${{ matrix.name }}
-    # Experimental platforms (esp. iOS unsigned) may flake; fail-fast false keeps others green.
     continue-on-error: ${{ matrix.skip || matrix.experimental }}
     strategy:
       fail-fast: false
@@ -158,18 +128,10 @@ jobs:
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
         uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
         with:
-          # Keep the runner Android SDK root — setup-android needs /usr/local/lib/android.
           android: false
 
       - uses: actions/checkout@v6
 
-      # Root .tool-versions (nodejs/pnpm/dotnet) + app mise.toml (godot/java).
-      # Skip mise godot on Windows — use chickensoft-games/setup-godot instead
-      # (same pattern as gd-kirie desktop CI).
-      # NOTICE: pnpm 11 has no working standalone executable for Intel macOS
-      # (https://github.com/pnpm/pnpm/issues/11423). This matrix has no Intel
-      # macOS runner; if one is added, install pnpm via npm against mise node
-      # instead of the mise pnpm binary until pnpm 12+.
       - name: Install toolchain (mise)
         if: runner.os != 'Windows'
         uses: jdx/mise-action@v3
@@ -203,7 +165,6 @@ jobs:
           test -f "$godot_exe"
           echo "GODOT=$(cygpath -w "$godot_exe")" >> "$GITHUB_ENV"
 
-      # vfox-godot installs the editor only; export needs official mono templates.
       - name: Install Godot export templates (mise Godot)
         if: runner.os != 'Windows'
         run: |
@@ -236,7 +197,6 @@ jobs:
           echo "Installed export templates to $DEST"
           ls -la "$DEST" | head
 
-      # Prefer official setup-dotnet over mise's dotnet-root for NuGet restore reliability.
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -294,11 +254,6 @@ jobs:
           mise x -- pnpm kirie doctor --fix plugin:core
           mise x -- pnpm kirie doctor --fix plugin:notifications
 
-      # Godot Android export still needs addon-bundled AAR at
-      # addons/kirie/libraries/android/Kirie-release.aar (npm tarball has no
-      # native; see gd-kirie docs/maven-publishing.md). Fetch release AAR from
-      # Maven Central instead of kirie-addon.zip. iOS xcframework is not on
-      # Maven — still overlay from the matching GitHub Release zip.
       - name: Fetch Kirie Android AAR from Maven Central
         if: matrix.platform == 'android'
         working-directory: ${{ env.APP_DIR }}
@@ -342,7 +297,6 @@ jobs:
           test -d addons/kirie/ios/Kirie.release.xcframework
           ls -la addons/kirie/ios/
 
-      # Surface NuGet/MSB4181 detail that `kirie build` otherwise swallows.
       - name: Dotnet restore (verbose)
         working-directory: ${{ env.APP_DIR }}
         run: |
@@ -380,7 +334,6 @@ jobs:
             godot_command="$(cygpath -u "$godot_command")"
           fi
           "$godot_command" --headless --import || true
-          # Second pass after first-time addon registration
           "$godot_command" --headless --import || true
 
       - name: Export (desktop — Godot preset)
@@ -414,12 +367,9 @@ jobs:
           fi
           echo "Exporting preset '${{ matrix.preset }}' → $OUT_FILE"
           "$godot_command" --headless $EXPORT_FLAG "${{ matrix.preset }}" "$OUT_FILE"
-          # Stage into a named bundle directory for upload
           BUNDLE_DIR="bundle/${{ env.ARTIFACT_NAME }}"
           mkdir -p "$BUNDLE_DIR"
-          # Collect export outputs (exe+pck, .app, linux binary+pck, etc.)
           cp -a "$OUT_DIR"/. "$BUNDLE_DIR"/
-          # Zip for a single uploadable archive on all OSes
           (
             cd bundle
             if command -v zip >/dev/null 2>&1; then
@@ -435,12 +385,9 @@ jobs:
         working-directory: ${{ env.APP_DIR }}
         run: |
           set -euo pipefail
-          # kirie 0.15 uses subcommands: `kirie export android` (not --platform).
-          # Default mode is debug (unsigned debug keystore) — fine for CI artifacts.
           mise x -- pnpm kirie export android --no-build
           BUNDLE_DIR="bundle/${{ env.ARTIFACT_NAME }}"
           mkdir -p "$BUNDLE_DIR"
-          # Default kirie output: dist/kirie/android/debug.apk (or release.apk)
           found="$(find dist/kirie/android -type f \( -name '*.apk' -o -name '*.aab' \) 2>/dev/null | head -n 1 || true)"
           if [ -z "$found" ]; then
             echo "No APK/AAB under dist/kirie/android; listing dist:"
@@ -459,9 +406,6 @@ jobs:
         working-directory: ${{ env.APP_DIR }}
         run: |
           set -euo pipefail
-          # `kirie export ios` also runs xcodebuild for an installable .app and needs
-          # signing. For CI artifacts we call Godot directly; export_presets.cfg sets
-          # application/export_project_only=true and leaves app_store_team_id empty.
           godot_command="${GODOT:-}"
           if [ -z "$godot_command" ]; then
             godot_command="$(mise which godot)"
@@ -472,7 +416,6 @@ jobs:
           "$godot_command" --headless --export-debug "iOS" "$OUT_FILE"
           BUNDLE_DIR="bundle/${{ env.ARTIFACT_NAME }}"
           mkdir -p "$BUNDLE_DIR"
-          # Godot writes the xcodeproj and sibling export files under OUT_DIR
           cp -a "$OUT_DIR"/. "$BUNDLE_DIR"/
           (
             cd bundle

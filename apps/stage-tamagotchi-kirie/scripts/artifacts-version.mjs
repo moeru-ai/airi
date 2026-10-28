@@ -1,19 +1,6 @@
 #!/usr/bin/env node
 import process from 'node:process'
 
-/**
- * Version / artifact naming helper for stage-tamagotchi-kirie CI.
- * No electron-builder dependency — mirrors Electron nightly naming:
- *   nightly-YYYYMMDD-<sha7>  when no explicit tag is provided
- *   <tag without leading v>   when --tag is provided
- *
- * Usage:
- *   node scripts/artifacts-version.mjs --get-version [--tag v0.12.0]
- *   node scripts/artifacts-version.mjs --get-artifact-name --platform windows --arch x64 [--tag ...]
- *   node scripts/artifacts-version.mjs --get-artifact-name --platform macos --arch universal
- *   node scripts/artifacts-version.mjs --get-artifact-name --platform linux --arch x64|arm64
- *   node scripts/artifacts-version.mjs --get-artifact-name --platform android|ios
- */
 import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
