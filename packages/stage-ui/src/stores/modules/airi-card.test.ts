@@ -608,6 +608,87 @@ describe('airi-card store', () => {
     expect(useSettingsStageModel().stageModelSelected).toBe('display-model-on-other-device')
   })
 
+  // https://github.com/moeru-ai/airi/issues/2855
+  // ROOT CAUSE:
+  //
+  // A remote edit of the active card calls `activateCard`. That function always
+  // set the selection to the card default, so a model the user picked on this
+  // device was lost even when the card still listed it.
+  //
+  // We fixed this by keeping the current selection when it is still on the card,
+  // and falling back to the card default only when it is missing or invalid.
+  it('issue #2855: keeps the device Avatar Model selection after activateCard', async () => {
+    const cardStore = useAiriCardStore()
+    await cardStore.initialize()
+
+    const cardId = await cardStore.addCard({
+      name: 'Two models',
+      version: '1.0.0',
+      description: '',
+      extensions: {
+        airi: {
+          avatarModels: [
+            { id: 'default-avatar', displayModelId: 'preset-live2d-1', type: 'live2d', config: {} },
+            { id: 'device-avatar', displayModelId: 'preset-vrm-1', type: 'vrm', config: {} },
+          ],
+          defaultAvatarModelId: 'default-avatar',
+          modules: {
+            consciousness: { provider: '', model: '' },
+            vision: { provider: '', model: '' },
+            speech: { provider: '', model: '', voice_id: '' },
+          },
+          agents: {},
+        },
+      },
+    }, 'import')
+    await cardStore.activateCard(cardId)
+    expect(cardStore.selectedAvatarModelId).toBe('default-avatar')
+
+    expect(await cardStore.selectAvatarModel('device-avatar')).toBe(true)
+    expect(cardStore.selectedAvatarModelId).toBe('device-avatar')
+
+    // Same path as a remote edit of the active card during synchronization.
+    expect(await cardStore.activateCard(cardId)).toBe(true)
+    expect(cardStore.selectedAvatarModelId).toBe('device-avatar')
+    expect(useSettingsStageModel().stageModelSelected).toBe('preset-vrm-1')
+  })
+
+  it('issue #2855: resets Avatar Model selection when activateCard finds it gone', async () => {
+    const cardStore = useAiriCardStore()
+    await cardStore.initialize()
+
+    const cardId = await cardStore.addCard({
+      name: 'Selection removed',
+      version: '1.0.0',
+      description: '',
+      extensions: {
+        airi: {
+          avatarModels: [
+            { id: 'default-avatar', displayModelId: 'preset-live2d-1', type: 'live2d', config: {} },
+            { id: 'device-avatar', displayModelId: 'preset-vrm-1', type: 'vrm', config: {} },
+          ],
+          defaultAvatarModelId: 'default-avatar',
+          modules: {
+            consciousness: { provider: '', model: '' },
+            vision: { provider: '', model: '' },
+            speech: { provider: '', model: '', voice_id: '' },
+          },
+          agents: {},
+        },
+      },
+    }, 'import')
+    await cardStore.activateCard(cardId)
+    expect(await cardStore.selectAvatarModel('device-avatar')).toBe(true)
+
+    const card = structuredClone(toRaw(cardStore.getCard(cardId)!))
+    card.extensions.airi.avatarModels = card.extensions.airi.avatarModels.filter(model => model.id !== 'device-avatar')
+    cardStore.cards.set(cardId, card)
+
+    expect(await cardStore.activateCard(cardId)).toBe(true)
+    expect(cardStore.selectedAvatarModelId).toBe('default-avatar')
+    expect(useSettingsStageModel().stageModelSelected).toBe('preset-live2d-1')
+  })
+
   it('removes the references to a model only when the model is gone from the account', async () => {
     const cardStore = useAiriCardStore()
     await cardStore.initialize()

@@ -1302,7 +1302,12 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
     activeCardId.value = id
     persistActiveCardId(id)
-    selectedAvatarModelId.value = resolveDefaultAvatarModelId()
+    // Device-local selection survives a remote edit of the active card when the
+    // card still lists that Avatar Model. Only reset when the selection is gone
+    // or invalid on the card that is about to become active.
+    // https://github.com/moeru-ai/airi/issues/2855
+    if (!activeAvatarModels.value.some(model => model.id === selectedAvatarModelId.value))
+      selectedAvatarModelId.value = resolveDefaultAvatarModelId()
     await applyActiveCardSettings()
     return true
   }
