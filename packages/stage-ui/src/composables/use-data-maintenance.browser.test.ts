@@ -158,6 +158,21 @@ it('removes downloaded speech models when all data is deleted', async () => {
   await expect(origin.getDirectoryHandle('airi-model-assets')).rejects.toThrow()
 })
 
+// https://github.com/moeru-ai/airi/pull/2920#discussion_r4243056317
+// ROOT CAUSE:
+//
+// Module reset cleared Hearing state but left per-provider model keys in localStorage.
+// The reset now removes those keys with the other Hearing settings.
+it('clears saved provider models when module settings reset', async () => {
+  localStorage.setItem('settings/hearing/provider-model/openrouter-audio-transcription', 'openai/whisper-1')
+  const { runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
+  await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
+
+  await maintenance.resetModulesSettings()
+
+  expect(localStorage.getItem('settings/hearing/provider-model/openrouter-audio-transcription')).toBeNull()
+})
+
 it('removes the voiceprint when all data is deleted', async () => {
   vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
   localStorage.setItem('settings/voice/voiceprint', JSON.stringify(toStoredVoiceprint({ embedding: new Float32Array([1, 0]), seconds: 8 }, Date.now())))

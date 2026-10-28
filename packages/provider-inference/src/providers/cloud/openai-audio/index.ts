@@ -5,6 +5,7 @@ import { listModels } from '@xsai/model'
 import { z } from 'zod'
 
 import { defineProvider } from '../../registry'
+import { withTranscriptionOptions } from '../../transcription'
 
 const OPENAI_BASE_URL = 'https://api.openai.com/v1/'
 
@@ -48,13 +49,7 @@ function createAudioProvider(config: AudioConfig) {
 }
 
 function createTranscriptionProvider(config: AudioConfig) {
-  const provider = createAudioProvider(config)
-  const transcription = provider.transcription.bind(provider)
-  provider.transcription = (model: string, extraOptions?: Record<string, unknown>) => ({
-    ...transcription(model),
-    ...extraOptions,
-  })
-  return provider
+  return withTranscriptionOptions(createAudioProvider(config))
 }
 
 function createAudioValidators<TConfig extends AudioConfig>() {
