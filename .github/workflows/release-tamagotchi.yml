@@ -100,7 +100,7 @@ jobs:
       # The script uses only Node.js built-ins, so it needs no install.
       - uses: pnpm/setup@v2
         with:
-          runtime: node@26.7.0
+          runtime: node@^26.12.1
           install: false
 
       - id: plan
@@ -199,7 +199,8 @@ jobs:
       - uses: actions/setup-node@v6
         if: matrix.os == 'macos-15-intel'
         with:
-          node-version: 26.7.0
+          node-version: '^26.12.1'
+          check-latest: true
 
       - name: Install pnpm with npm
         if: matrix.os == 'macos-15-intel'
@@ -222,7 +223,7 @@ jobs:
       - uses: pnpm/setup@v2
         if: matrix.os != 'macos-15-intel'
         with:
-          runtime: node@26.7.0
+          runtime: node@^26.12.1
           cache: true
           install: false
 
@@ -718,7 +719,7 @@ jobs:
 
       - uses: pnpm/setup@v2
         with:
-          runtime: node@26.7.0
+          runtime: node@^26.12.1
           cache: true
           install: false
 
@@ -797,7 +798,7 @@ jobs:
 
       - uses: pnpm/setup@v2
         with:
-          runtime: node@26.7.0
+          runtime: node@^26.12.1
           cache: true
           install: false
 
