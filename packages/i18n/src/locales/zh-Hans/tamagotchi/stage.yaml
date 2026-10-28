@@ -104,6 +104,7 @@ notice:
 about:
   subtitle: 桌面版本
   current-version: 当前版本
+  build-origin: "构建于 {time}，基于 {branch}{'@'}{commit}"
   common:
     cancel: 取消
   links:
