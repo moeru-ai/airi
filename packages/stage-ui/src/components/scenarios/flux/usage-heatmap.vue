@@ -5,7 +5,7 @@ import type { UsageTooltipContent } from './usage-tooltip.vue'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import UsageTooltip from './usage-tooltip.vue'
+import UsageTooltip, { placeTooltip } from './usage-tooltip.vue'
 
 import { buildHeatmap, daysOfCalendarYear, formatDay, formatFlux } from './usage-stats'
 
@@ -16,9 +16,6 @@ const props = defineProps<{
 
 /** Rows that get a weekday label. Row 0 is Sunday. */
 const LABELED_WEEKDAYS = [1, 3, 5]
-/** Half of the widest tooltip. Keeps the bubble inside the chart. */
-const TOOLTIP_HALF_WIDTH = 72
-/** Fixed drawing size. The chart scales this drawing to the page width. */
 const CELL = 12
 const GAP = 2
 const LABEL_WIDTH = 16
@@ -70,7 +67,6 @@ function rowY(weekday: number) {
   return MONTH_ROW + weekday * (CELL + GAP)
 }
 
-/** A drawing coordinate, placed on the scaled chart. Text stays outside that scale. */
 function place(drawingPixels: number) {
   return `calc(${drawingPixels} * 100cqw / ${frame.value.width})`
 }
@@ -84,12 +80,8 @@ function showTooltip(cell: HeatmapCell, event: PointerEvent) {
   const centerY = cellBounds.top + cellBounds.height / 2 - containerBounds.top
   const cellLeft = cellBounds.left - containerBounds.left
   const cellRight = cellBounds.right - containerBounds.left
-  // The grid is shorter than the bubble, so the bubble sits beside the day and follows that row.
-  const placeLeft = cellRight > containerBounds.width - TOOLTIP_HALF_WIDTH * 2
   tooltip.value = {
-    left: placeLeft ? cellLeft : cellRight,
-    top: centerY,
-    placement: placeLeft ? 'left' : 'right',
+    ...placeTooltip(centerY, containerBounds.width, { left: cellLeft, right: cellRight }),
     title: formatDay(cell.date, locale.value),
     lines: [t('settings.pages.flux.usage.fluxAmount', { amount: formatFlux(cell.microFlux, locale.value) })],
   }

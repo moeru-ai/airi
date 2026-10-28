@@ -64,8 +64,6 @@ export function createFluxTransactionService(db: Database) {
       // NOTICE:
       // `created_at` is a `timestamp` without time zone, and Drizzle writes it as UTC.
       // Read it as UTC first, then convert to the caller zone. This needs a database `now()` default in UTC.
-      // Source: server/docs/ai/adr/2026-10-25-flux-usage-charts.md.
-      // Removal condition: when the ledger tables use `timestamptz`.
       const localDay = sql<string>`to_char((${fluxUsage.createdAt} AT TIME ZONE 'UTC') AT TIME ZONE ${timeZone}, 'YYYY-MM-DD')`
       // A subquery keeps the zone bind parameter out of GROUP BY, where PostgreSQL does not match repeated placeholders.
       const usageByRequest = db.select({

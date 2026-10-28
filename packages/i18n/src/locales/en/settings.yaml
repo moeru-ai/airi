@@ -1627,7 +1627,6 @@ pages:
       title: Usage
       empty: No usage yet.
       today: Today
-      days: '{count}d'
       fluxAmount: '{amount} Flux'
       heatmapLabel: Flux used on each day of this year
       newSessions: 'No new sessions | 1 new session | {count} new sessions'

@@ -1564,7 +1564,6 @@ pages:
       title: 用量
       empty: 还没有用量记录
       today: 今天
-      days: '{count} 天'
       fluxAmount: '{amount} Flux'
       heatmapLabel: 今年每天消耗的 Flux
       newSessions: '没有新会话 | 1 个新会话 | {count} 个新会话'

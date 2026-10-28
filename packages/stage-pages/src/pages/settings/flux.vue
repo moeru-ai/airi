@@ -150,9 +150,7 @@ async function fetchStats() {
       capacity.value = data.capacity
     }
   }
-  catch {
-    // silently fail
-  }
+  catch {}
 }
 
 async function fetchDailyUsage() {
@@ -163,9 +161,7 @@ async function fetchDailyUsage() {
     if (res.ok)
       usageSummary.value = await res.json() as DailyUsageSummary
   }
-  catch {
-    // silently fail
-  }
+  catch {}
 }
 
 async function fetchAuditHistory(loadMore = false) {
@@ -187,9 +183,7 @@ async function fetchAuditHistory(loadMore = false) {
       auditOffset.value = offset + data.records.length
     }
   }
-  catch {
-    // silently fail
-  }
+  catch {}
   finally {
     auditLoading.value = false
   }

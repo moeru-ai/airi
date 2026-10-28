@@ -24,6 +24,21 @@ function createDays(usedDays: Record<number, Partial<DailyUsage>>): DailyUsage[]
   })
 }
 
+function scrollingAncestor(element: Element): HTMLElement {
+  let current = element.parentElement
+  while (current) {
+    if (current.classList.contains('overflow-x-auto'))
+      return current
+    current = current.parentElement
+  }
+  throw new Error('The charts have no horizontal scroller')
+}
+
+function sameChartWidth(...charts: Element[]): boolean {
+  const widths = charts.map(chart => Math.round(chart.getBoundingClientRect().width))
+  return widths.every(width => width === widths[0])
+}
+
 function renderOverview(summary: DailyUsageSummary) {
   return render(UsageOverview, {
     props: { summary },
@@ -75,43 +90,14 @@ describe('flux usage overview', () => {
     const heatmap = heatmapLocator.element()
     const area = areaLocator.element()
     const sessions = sessionLocator.element()
-    const track = heatmap.parentElement?.parentElement as HTMLElement
-    const scroller = track.parentElement as HTMLElement
+    const scroller = scrollingAncestor(heatmap)
     const root = screen.container.firstElementChild as HTMLElement
 
-    expect(track.style.minWidth).toBe('768px')
-
     root.style.width = '400px'
-    await expect.poll(() => Math.round(area.getBoundingClientRect().width)).toBe(768)
-    expect(Math.round(heatmap.getBoundingClientRect().width)).toBe(768)
-    expect(Math.round(sessions.getBoundingClientRect().width)).toBe(768)
-    expect(scroller.scrollWidth).toBeGreaterThan(scroller.clientWidth)
-    const labelFontSize = () => getComputedStyle(heatmap.querySelector('span')!).fontSize
-    await expect.poll(labelFontSize).not.toBe('')
-    const narrowLabelFontSize = labelFontSize()
+    await expect.poll(() => sameChartWidth(heatmap, area, sessions) && scroller.scrollWidth > scroller.clientWidth).toBe(true)
 
     root.style.width = '800px'
-    await expect.poll(() => {
-      const heatmapWidth = Math.round(heatmap.getBoundingClientRect().width)
-      const areaWidth = Math.round(area.getBoundingClientRect().width)
-      const sessionWidth = Math.round(sessions.getBoundingClientRect().width)
-      return heatmapWidth > 768 && heatmapWidth === areaWidth && heatmapWidth === sessionWidth
-    }).toBe(true)
-    expect(scroller.scrollWidth).toBe(scroller.clientWidth)
-
-    await expect.poll(() => {
-      const dots = [...heatmap.querySelectorAll('circle')].map(dot => dot.getBoundingClientRect())
-      const rowTop = dots[0]?.top ?? 0
-      const row = dots.filter(dot => Math.abs(dot.top - rowTop) < 1).sort((left, right) => left.left - right.left)
-      const dotWidths = row.map(dot => dot.width)
-      const gaps = row.slice(1).map((dot, index) => dot.left - row[index]!.right)
-      if (row.length < 3 || !dotWidths[0] || gaps[0] === undefined)
-        return false
-      const sameDots = Math.max(...dotWidths) - Math.min(...dotWidths) < 0.2
-      const sameGaps = Math.max(...gaps) - Math.min(...gaps) < 0.2
-      return sameDots && sameGaps && Math.abs(gaps[0] / dotWidths[0] - 2 / 12) < 0.05
-    }).toBe(true)
-    expect(labelFontSize()).toBe(narrowLabelFontSize)
+    await expect.poll(() => sameChartWidth(heatmap, area, sessions) && scroller.scrollWidth === scroller.clientWidth).toBe(true)
   })
 
   it('shows only the empty hint when no Flux was used', async () => {

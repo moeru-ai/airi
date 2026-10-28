@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DailyUsageSummary } from './usage-stats'
 
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import UsageAreaChart from './usage-area-chart.vue'
@@ -34,19 +34,22 @@ const totalSessions = computed(() => props.summary.days.reduce((sum, day) => sum
 const hasUsage = computed(() => totalFlux.value > 0 || totalSessions.value > 0)
 
 // The newest days are on the right, so a narrow page opens there.
-watch(() => props.summary.days.length, async () => {
-  await nextTick()
-  if (chartScroll.value)
-    chartScroll.value.scrollLeft = chartScroll.value.scrollWidth
-}, { immediate: true, flush: 'post' })
+onMounted(() => {
+  const scroller = chartScroll.value
+  if (scroller)
+    scroller.scrollLeft = scroller.scrollWidth
+})
 
-const cards = computed(() => [
-  { key: 'longestSession', value: formatDuration(props.summary.longestSessionMs, locale.value) },
-  { key: 'sessions', value: new Intl.NumberFormat(locale.value).format(totalSessions.value) },
-  { key: 'flux', value: formatFlux(totalFlux.value, locale.value) },
-  { key: 'longestStreak', value: t('settings.pages.flux.usage.days', { count: streaks.value.longest }) },
-  { key: 'currentStreak', value: t('settings.pages.flux.usage.days', { count: streaks.value.current }) },
-])
+const cards = computed(() => {
+  const dayCount = new Intl.NumberFormat(locale.value, { style: 'unit', unit: 'day', unitDisplay: 'narrow' })
+  return [
+    { key: 'longestSession', value: formatDuration(props.summary.longestSessionMs, locale.value) },
+    { key: 'sessions', value: new Intl.NumberFormat(locale.value).format(totalSessions.value) },
+    { key: 'flux', value: formatFlux(totalFlux.value, locale.value) },
+    { key: 'longestStreak', value: dayCount.format(streaks.value.longest) },
+    { key: 'currentStreak', value: dayCount.format(streaks.value.current) },
+  ]
+})
 </script>
 
 <template>

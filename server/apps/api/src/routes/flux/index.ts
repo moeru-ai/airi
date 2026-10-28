@@ -5,26 +5,26 @@ import type { HonoEnv } from '../../types/hono'
 
 import { createBadRequestError } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
-import { boolean, check, object, parse, pipe, regex, safeParse, string } from 'valibot'
+import { boolean, check, object, parse, pipe, safeParse, string } from 'valibot'
 
 import { authGuard } from '../../middlewares/auth'
 import { LimitOffsetPaginationQuerySchema } from '../../utils/http-query'
 
 const FallbackBodySchema = object({ fallbackToFlux: boolean() })
 
+// Intl accepts a fixed offset such as `+08:00`. PostgreSQL reads the sign of that offset the other way.
 function isKnownTimeZone(timeZone: string): boolean {
   try {
-    return Boolean(new Intl.DateTimeFormat('en-CA', { timeZone }).resolvedOptions().timeZone)
+    const resolved = new Intl.DateTimeFormat('en-CA', { timeZone }).resolvedOptions().timeZone
+    return !/^[+-]/.test(resolved)
   }
   catch {
     return false
   }
 }
 
-// The name goes to PostgreSQL `AT TIME ZONE` and to `Intl`. Both read an IANA name the same way.
-// An offset such as `+08:00` is not the same in the two, because PostgreSQL reads the sign the other way round.
 const TimeZoneQuerySchema = object({
-  timeZone: pipe(string(), regex(/^[A-Z][\w+-]*(?:\/[\w+-]+)*$/i), check(isKnownTimeZone)),
+  timeZone: pipe(string(), check(isKnownTimeZone)),
 })
 
 export function createFluxRoutes(
