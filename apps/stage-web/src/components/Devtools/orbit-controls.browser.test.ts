@@ -79,8 +79,11 @@ describe('orbit gesture ownership', () => {
       const angles: number[] = []
       await session.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y })
       await session.send('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', buttons: 1, clickCount: 1, x, y })
-      // Blink starts a text drag only after the button is held for its text drag delay.
-      // The delay is 0.15s on macOS and 0s on other platforms, so hold the button longer than it.
+      // NOTICE:
+      // Without this hold, macOS Chromium fires no native dragstart.
+      // Blink starts a selection drag only after kTextDragDelay: 0.15s on macOS, 0s elsewhere.
+      // Source: third_party/blink/renderer/core/input/mouse_event_manager.cc (kTextDragDelay, crbug.com/653490).
+      // Remove this hold when Blink starts a selection drag on macOS without the delay.
       await new Promise(resolve => setTimeout(resolve, 200))
       try {
         for (const delta of [10, 40, 100, 180, 260]) {
