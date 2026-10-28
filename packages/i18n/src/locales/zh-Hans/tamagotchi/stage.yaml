@@ -124,6 +124,7 @@ about:
       nightly: 每日更新版
       dev: 开发版
     status:
+      manual-install-required: 新版本 v{version} 需要重新安装。请下载后手动安装。
       downloading: 正在下载更新......
       error-prefix: 错误
       latest: 已是最新版（v{version}）
@@ -131,6 +132,7 @@ about:
         windows: 已准备好静默更新版本至 v{version}
         restart: 已准备好重启后安装版本 v{version}
     actions:
+      open-download-page: 打开下载页面
       download: 下载更新
       download-short: 下载
       confirm-download: 确认下载

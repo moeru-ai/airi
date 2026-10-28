@@ -332,6 +332,25 @@ onMounted(() => {
                 </div>
               </div>
 
+              <!-- State: Manual install required -->
+              <div v-else-if="updateState.status === 'manual-install-required'" :class="['flex flex-col gap-4']">
+                <div :class="['text-sm text-amber-700 dark:text-amber-200']">
+                  {{ t('tamagotchi.stage.about.update.status.manual-install-required', { version: updateState.info?.version }) }}
+                </div>
+                <div>
+                  <a
+                    href="https://github.com/moeru-ai/airi/releases"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button
+                      icon="i-solar:download-minimalistic-outline"
+                      :label="t('tamagotchi.stage.about.update.actions.open-download-page')"
+                    />
+                  </a>
+                </div>
+              </div>
+
               <!-- State: Downloading -->
               <div v-else-if="updateState.status === 'downloading'" :class="['flex flex-col gap-2']">
                 <div :class="['flex justify-between text-sm']">

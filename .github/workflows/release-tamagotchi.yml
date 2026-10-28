@@ -13,8 +13,14 @@ env:
   SHERPAW_BUNDLE_MODELS: 'true'
   VERSION: ''
 
+# AIRI has four update channels. `.github/scripts/plan-tamagotchi-updates.ts` has the rules:
+# - dev: each push to main publishes its bundle as an over-the-air update. It builds no installer.
+# - nightly: the scheduled run publishes its bundle.
+# - canary: a GitHub pre-release publishes its bundle, and names its installers on canary and dev. This is every tag:
+#   `v0.13.0-rc.1`, `v0.13.0-beta.2`, and `v0.13.0` before it is stable.
+# - stable: when the pre-release becomes a release, the run moves the bundle and the installer of canary to stable.
+#   It builds nothing.
 on:
-  # Each push to main publishes the bundle to the `dev` channel as an over-the-air update. It builds no installer.
   push:
     branches:
       - main
@@ -24,9 +30,12 @@ on:
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
       - .github/workflows/release-tamagotchi.yml
+  # A pre-release reports `published`: `prereleased` does not fire for a pre-release that was a draft first. A direct
+  # release also reports `published`, with `release.prerelease` false, and the plan skips it.
   release:
     types:
-      - prereleased
+      - published
+      - released
   workflow_dispatch:
     inputs:
       build_only:
@@ -62,8 +71,7 @@ concurrency:
 
 jobs:
   # Decides the update channel of this run, and the release IDs and the version that every build of the run shares, so
-  # the installers ship the bundle that the channel serves. `.github/scripts/plan-tamagotchi-updates.ts` has the rules:
-  # a push to main publishes to `dev`, a scheduled run to `nightly`, and a release to the lane of its tag.
+  # the installers ship the bundle that the channel serves. `.github/scripts/plan-tamagotchi-updates.ts` has the rules.
   updates:
     name: Plan Updates
     runs-on: ubuntu-latest
@@ -72,6 +80,10 @@ jobs:
       version: ${{ steps.plan.outputs.version }}
       bundle-release-id: ${{ steps.plan.outputs.bundle-release-id }}
       installer-release-id: ${{ steps.plan.outputs.installer-release-id }}
+      installer-channels: ${{ steps.plan.outputs.installer-channels }}
+      installer-files-url: ${{ steps.plan.outputs.installer-files-url }}
+      installer-download-page: ${{ steps.plan.outputs.installer-download-page }}
+      promote-from: ${{ steps.plan.outputs.promote-from }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -91,6 +103,8 @@ jobs:
       - id: plan
         env:
           EVENT: ${{ github.event_name }}
+          ACTION: ${{ github.event.action }}
+          PRERELEASE: ${{ github.event.release.prerelease }}
           TAG: ${{ github.event.release.tag_name || inputs.tag }}
           BUILD_ONLY: ${{ inputs.build_only }}
           ARTIFACTS_ONLY: ${{ inputs.artifacts_only }}
@@ -99,8 +113,9 @@ jobs:
   build:
     name: Build
     needs: updates
-    # A push publishes only the bundle, in publish-bundle.
-    if: ${{ github.event_name != 'push' }}
+    # A push publishes only the bundle, in publish-bundle. A pre-release that becomes a release moves canary to stable,
+    # in promote-to-stable.
+    if: ${{ github.event_name != 'push' && (github.event_name != 'release' || (github.event.action == 'published' && github.event.release.prerelease)) }}
     continue-on-error: ${{ matrix.skip }} # WORKAROUND: Skipping subsequent steps without failing the whole workflow
     env:
       VITE_ENABLE_ANALYTICS: ${{ ((github.event_name == 'release') || (github.event_name == 'workflow_dispatch' && !inputs.build_only)) && 'true' || 'false' }}
@@ -656,8 +671,9 @@ jobs:
 
   # Publishes the bundle (main, preload, and renderer) to the channel of the run, as an over-the-air update with
   # ergosphere-it. Installs on the channel download it, and switch to it on the next start. A release publishes it only
-  # after the installers of every platform built. A change of the native version reaches installs only with a new
-  # installer, and the launcher skips a bundle that needs a newer one.
+  # after the installers of every platform built. Then it names the installers of the release on canary and dev. A
+  # change of the native version reaches installs only with a new installer. An install that has no installer to take
+  # tells the user to install the new version by hand.
   #
   # Repository settings, in the `Release` environment:
   # - secret ERGOSPHERE_IT_SIGNING_KEY: the PKCS#8 PEM of the update key. ergo.config.ts has its public key.
@@ -708,10 +724,73 @@ jobs:
           echo "Publishing $ERGOSPHERE_IT_VERSION to $CHANNEL"
           pnpm exec ergosphere-it publish bundle --channel "$CHANNEL" | tee -a "$GITHUB_STEP_SUMMARY"
 
+      # The build jobs uploaded the installers and their electron-builder feeds to the GitHub Release. The Windows feed
+      # there describes the installer after SignPath signed it.
+      - name: Download the installer feeds of the release
+        if: ${{ needs.updates.outputs.installer-channels != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern 'latest*.yml' --dir installer-feeds
+
+      - name: Register the installers
+        if: ${{ needs.updates.outputs.installer-channels != '' }}
+        working-directory: ./apps/stage-tamagotchi
+        env:
+          INSTALLER_CHANNELS: ${{ needs.updates.outputs.installer-channels }}
+          FILES_URL: ${{ needs.updates.outputs.installer-files-url }}
+          DOWNLOAD_PAGE: ${{ needs.updates.outputs.installer-download-page }}
+          ERGOSPHERE_IT_SIGNING_KEY: ${{ secrets.ERGOSPHERE_IT_SIGNING_KEY }}
+          ERGOSPHERE_IT_STORE: s3://${{ vars.AIRI_UPDATES_R2_BUCKET }}
+          ERGOSPHERE_IT_S3_ENDPOINT: ${{ secrets.AIRI_UPDATES_R2_ENDPOINT }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AIRI_UPDATES_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AIRI_UPDATES_R2_SECRET_ACCESS_KEY }}
+        run: |
+          for channel in $INSTALLER_CHANNELS; do
+            echo "Registering the installers of $ERGOSPHERE_IT_VERSION on $channel"
+            pnpm exec ergosphere-it register installer --channel "$channel" --dist ../../installer-feeds \
+              --files-url "$FILES_URL" --download-page "$DOWNLOAD_PAGE" | tee -a "$GITHUB_STEP_SUMMARY"
+          done
+
+  # Moves the bundle and the installer that canary serves to stable, when a pre-release becomes a release. The plan job
+  # stops the run when canary does not serve the version of the tag.
+  promote-to-stable:
+    name: Promote Canary to Stable
+    needs: updates
+    if: ${{ github.repository == 'moeru-ai/airi' && needs.updates.outputs.promote-from != '' }}
+    runs-on: ubuntu-latest
+    # The secrets live in the `Release` environment. Only the promote step reads them.
+    environment: Release
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/setup@v2
+        with:
+          runtime: node@26.7.0
+          cache: true
+          install: false
+
+      # The CLI reads publicKeys of ergo.config.ts to verify the channel file that it moves.
+      - run: pnpm install --frozen-lockfile
+
+      - name: Promote
+        working-directory: ./apps/stage-tamagotchi
+        env:
+          FROM: ${{ needs.updates.outputs.promote-from }}
+          VERSION: ${{ needs.updates.outputs.version }}
+          ERGOSPHERE_IT_SIGNING_KEY: ${{ secrets.ERGOSPHERE_IT_SIGNING_KEY }}
+          ERGOSPHERE_IT_STORE: s3://${{ vars.AIRI_UPDATES_R2_BUCKET }}
+          ERGOSPHERE_IT_S3_ENDPOINT: ${{ secrets.AIRI_UPDATES_R2_ENDPOINT }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AIRI_UPDATES_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AIRI_UPDATES_R2_SECRET_ACCESS_KEY }}
+        run: |
+          echo "Moving $VERSION from $FROM to stable"
+          pnpm exec ergosphere-it promote --from "$FROM" --to stable | tee -a "$GITHUB_STEP_SUMMARY"
+
   publish-gitcode-release:
     name: Publish GitCode Release Mirror
     needs: build
-    if: ${{ always() && github.repository == 'moeru-ai/airi' && (github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only && inputs.tag != '')) }}
+    if: ${{ always() && github.repository == 'moeru-ai/airi' && ((github.event_name == 'release' && github.event.action == 'published' && github.event.release.prerelease) || (github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only && inputs.tag != '')) }}
     continue-on-error: true
     runs-on: ubuntu-latest
     steps:
@@ -735,7 +814,7 @@ jobs:
   publish-distribution:
     name: Publish Distribution
     needs: build
-    if: ${{ github.event_name == 'release' }}
+    if: ${{ github.event_name == 'release' && github.event.action == 'published' && github.event.release.prerelease }}
     runs-on: ubuntu-latest
     strategy:
       matrix:

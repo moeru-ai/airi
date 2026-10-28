@@ -119,6 +119,8 @@ export function stateFromStatus(status: UpdaterStatus): AutoUpdaterState {
       return { status: 'disabled' }
     case 'up-to-date':
       return { status: 'not-available', info: infoOf(activeBundle) }
+    case 'manual-install-required':
+      return { status: 'manual-install-required', info: infoOf(status.update) }
     case 'downloading':
       return {
         status: 'downloading',

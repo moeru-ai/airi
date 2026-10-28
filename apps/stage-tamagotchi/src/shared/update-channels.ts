@@ -1,3 +1,5 @@
+import semver from 'semver'
+
 /**
  * The update channels of the ergosphere-it release store, as `.github/scripts/plan-tamagotchi-updates.ts` publishes
  * them.
@@ -24,11 +26,11 @@ export type UpdateChannel = typeof updateChannels[number]
  * channelOfVersion('0.13.0') // 'stable'
  */
 export function channelOfVersion(version: string): UpdateChannel {
-  const match = /^v?\d+\.\d+\.\d+(?:-([0-9a-z.-]+))?(?:\+([0-9a-z.-]+))?$/i.exec(version)
-  const build = match?.[2]?.split('.')[0]?.toLowerCase()
+  const parsed = semver.parse(version)
+  const build = parsed?.build[0]?.toLowerCase()
   if (build === 'dev' || build === 'nightly')
     return build
-  if (match?.[1] !== undefined)
+  if (parsed && parsed.prerelease.length > 0)
     return 'canary'
 
   return 'stable'
