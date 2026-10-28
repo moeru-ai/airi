@@ -130,10 +130,12 @@ describe('resolveControlsIslandDock', () => {
     const dock = resolveControlsIslandDock({
       displays: [primaryDisplay, secondaryDisplay],
       previousDock: 'bottom-right',
+      // This window overhangs the secondary work-area bottom, so the Island
+      // flips to the top while staying on the right half of that display.
       windowBounds: { x: -500, y: -300, width: 450, height: 600 },
     })
 
-    expect(dock).toBe('bottom-right')
+    expect(dock).toBe('top-right')
   })
 
   it('keeps the previous dock inside the display center dead zone', () => {
@@ -164,6 +166,25 @@ describe('resolveControlsIslandDock', () => {
     })
 
     expect(dock).toBe('bottom-right')
+  })
+
+  it('docks left when the window sits against the right work-area edge', () => {
+    // Right-half placement would choose top-right, but the window is flush with
+    // the work-area right edge, so the Island flips inward to stay reachable.
+    expect(resolve({ x: 1470, y: 100, width: 450, height: 600 })).toBe('top-left')
+  })
+
+  it('docks left when the window overhangs the right work-area edge', () => {
+    expect(resolve({ x: 1700, y: 100, width: 450, height: 600 })).toBe('top-left')
+  })
+
+  it('docks right when the window sits against the left work-area edge', () => {
+    expect(resolve({ x: 0, y: 100, width: 450, height: 600 })).toBe('top-right')
+  })
+
+  it('docks top when the window overhangs the bottom work-area edge', () => {
+    // Right-half + bottom overhang: stay on the right half, flip vertically inward.
+    expect(resolve({ x: 1370, y: 900, width: 450, height: 600 })).toBe('top-right')
   })
 })
 

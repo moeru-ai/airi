@@ -39,6 +39,7 @@ import { createConfig } from '../../libs/electron/persistence'
 import { createWindowContext } from '../../libs/electron/window-context'
 import { setupSettingsPageInvokes } from '../settings/rpc/index.electron'
 import { protectPrivilegedWindowNavigation, setWindowAlwaysOnTop, transparentWindowConfig } from '../shared'
+import { clampBoundsWithinRect } from '../../../shared/utils/electron/display'
 import { centerWindowOnDisplay, computeCenteredWindowBounds } from '../shared/display'
 import { hideOnClose } from './hide-on-close'
 import { setupMainWindowElectronInvokes } from './rpc/index.electron'
@@ -107,13 +108,27 @@ export async function setupMainWindow(params: {
   setupConfig()
 
   const mainWindowConfig = getConfig().windows?.find(w => w.title === 'AIRI' && w.tag === 'main')
+  let initialWidth = mainWindowConfig?.width ?? 450.0
+  let initialHeight = mainWindowConfig?.height ?? 600.0
+  let initialX = mainWindowConfig?.x
+  let initialY = mainWindowConfig?.y
+  if (initialX != null && initialY != null) {
+    const clamped = clampBoundsWithinRect(
+      { x: initialX, y: initialY, width: initialWidth, height: initialHeight },
+      screen.getDisplayMatching({ x: initialX, y: initialY, width: initialWidth, height: initialHeight }).workArea,
+    )
+    initialX = clamped.x
+    initialY = clamped.y
+    initialWidth = clamped.width
+    initialHeight = clamped.height
+  }
 
   const window = new BrowserWindow({
     title: 'AIRI',
-    width: mainWindowConfig?.width ?? 450.0,
-    height: mainWindowConfig?.height ?? 600.0,
-    x: mainWindowConfig?.x,
-    y: mainWindowConfig?.y,
+    width: initialWidth,
+    height: initialHeight,
+    x: initialX,
+    y: initialY,
     show: false,
     icon,
     webPreferences: {
@@ -163,6 +178,21 @@ export async function setupMainWindow(params: {
   function handleNewBounds(newBounds: Rectangle) {
     if (boundsBeforeFullscreen)
       return
+
+    // Keep the whole main window in the work area so the Controls Island (and
+    // its Move handle) cannot leave the visible screen. Same clamp path as chat
+    // and caption windows.
+    const workArea = screen.getDisplayMatching(newBounds).workArea
+    const clamped = clampBoundsWithinRect(newBounds, workArea)
+    if (
+      clamped.x !== newBounds.x
+      || clamped.y !== newBounds.y
+      || clamped.width !== newBounds.width
+      || clamped.height !== newBounds.height
+    ) {
+      window.setBounds(clamped)
+      newBounds = clamped
+    }
 
     const config = getConfig()
     if (!config.windows || !Array.isArray(config.windows)) {

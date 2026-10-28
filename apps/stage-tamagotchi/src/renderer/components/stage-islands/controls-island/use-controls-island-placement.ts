@@ -26,6 +26,9 @@ const displayCenterDeadZoneRatio = 0.05
 /**
  * Resolves the window corner in the same quadrant as its display position.
  *
+ * Near a work-area edge the Island flips to the opposite side so Move and the
+ * other controls stay reachable when the desktop pet sits against the screen.
+ *
  * The screen geometry stays in Electron logical coordinates. The returned
  * dock contains no DOM coordinates, so display scaling cannot affect layout.
  */
@@ -60,6 +63,31 @@ export function resolveControlsIslandDock(options: ResolveControlsIslandDockOpti
     verticalDock = 'top'
   }
   else if (windowCenterY > displayCenterY + verticalDeadZone) {
+    verticalDock = 'bottom'
+  }
+
+  const windowLeft = options.windowBounds.x
+  const windowRight = options.windowBounds.x + options.windowBounds.width
+  const windowTop = options.windowBounds.y
+  const windowBottom = options.windowBounds.y + options.windowBounds.height
+  const workLeft = display.workArea.x
+  const workRight = display.workArea.x + display.workArea.width
+  const workTop = display.workArea.y
+  const workBottom = display.workArea.y + display.workArea.height
+
+  // Prefer the inward side when the window touches or passes a work-area edge.
+  // That keeps the Controls Island (and the Move handle) on the visible side.
+  if (horizontalDock === 'right' && windowRight >= workRight) {
+    horizontalDock = 'left'
+  }
+  else if (horizontalDock === 'left' && windowLeft <= workLeft) {
+    horizontalDock = 'right'
+  }
+
+  if (verticalDock === 'bottom' && windowBottom >= workBottom) {
+    verticalDock = 'top'
+  }
+  else if (verticalDock === 'top' && windowTop <= workTop) {
     verticalDock = 'bottom'
   }
 
