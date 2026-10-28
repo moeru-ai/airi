@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import type { BugReportDialogSubmitPayload } from '@proj-airi/stage-ui/components'
 
-import type { ElectronUpdaterChannel } from '../../shared/eventa'
+import type { ElectronUpdaterChannel, ElectronUpdaterPreferences } from '../../shared/eventa'
 
 import semver from 'semver'
 
 import { useElectronAutoUpdater, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { AboutContent, BugReportDialog, createBugReportPageContext, MarkdownRenderer } from '@proj-airi/stage-ui/components'
 import { useAnalytics, useBreakpoints, useBuildInfo } from '@proj-airi/stage-ui/composables'
-import { Button, ContainerError, DoubleCheckButton, FieldSelect, Progress, ScrollableArea } from '@proj-airi/ui'
+import { Button, ContainerError, DoubleCheckButton, FieldCheckbox, FieldSelect, Progress, ScrollableArea } from '@proj-airi/ui'
 import { useClipboard } from '@vueuse/core'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { DrawerContent, DrawerDescription, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTitle } from 'vaul-vue'
@@ -72,7 +72,9 @@ const updateChannelSelectOptions = computed(() => updateChannelOptions.map(chann
   value: channel,
 })))
 const selectedUpdateChannel = ref<UpdateChannelOption>('auto')
-const isUpdateChannelUpdating = ref(false)
+const autoDownload = ref(true)
+// Starts true, so no change sends defaults in place of the stored preferences before the first read returns.
+const isUpdatePreferenceUpdating = ref(true)
 const bugReportDescription = ref('')
 const includeBugReportTriageContext = ref(false)
 const uploadBugReportMediaFromLibrary = ref(false)
@@ -238,21 +240,36 @@ async function refreshAppVersion() {
   appVersion.value = await getAppVersion()
 }
 
-async function refreshUpdaterChannelPreference() {
-  const preferences = await getUpdaterPreferences()
+function applyUpdaterPreferences(preferences: ElectronUpdaterPreferences | undefined) {
   selectedUpdateChannel.value = preferences?.channel ?? 'auto'
+  autoDownload.value = preferences?.autoDownload ?? true
+}
+
+async function refreshUpdaterPreferences() {
+  try {
+    applyUpdaterPreferences(await getUpdaterPreferences())
+  }
+  finally {
+    isUpdatePreferenceUpdating.value = false
+  }
+}
+
+/** Sends every preference, because main reads a missing channel as auto. */
+async function saveUpdaterPreferences(next: { channel: UpdateChannelOption, autoDownload: boolean }) {
+  applyUpdaterPreferences(await setUpdaterPreferences({
+    autoDownload: next.autoDownload,
+    channel: next.channel === 'auto' ? undefined : next.channel as ElectronUpdaterChannel,
+  }))
 }
 
 async function setUpdateChannelPreference(channel: UpdateChannelOption) {
-  if (isUpdateChannelUpdating.value)
+  if (isUpdatePreferenceUpdating.value)
     return
 
-  isUpdateChannelUpdating.value = true
+  isUpdatePreferenceUpdating.value = true
   try {
     const previousChannel = selectedUpdateChannel.value
-    const nextChannel = channel === 'auto' ? undefined : channel as ElectronUpdaterChannel
-    const preferences = await setUpdaterPreferences({ channel: nextChannel })
-    selectedUpdateChannel.value = preferences?.channel ?? 'auto'
+    await saveUpdaterPreferences({ channel, autoDownload: autoDownload.value })
     trackSettingsChanged({
       setting_name: 'update_channel',
       previous_value: previousChannel,
@@ -262,7 +279,27 @@ async function setUpdateChannelPreference(channel: UpdateChannelOption) {
     await checkForUpdates()
   }
   finally {
-    isUpdateChannelUpdating.value = false
+    isUpdatePreferenceUpdating.value = false
+  }
+}
+
+async function setAutoDownloadPreference(enabled: boolean) {
+  if (isUpdatePreferenceUpdating.value)
+    return
+
+  isUpdatePreferenceUpdating.value = true
+  try {
+    const previous = autoDownload.value
+    await saveUpdaterPreferences({ channel: selectedUpdateChannel.value, autoDownload: enabled })
+    trackSettingsChanged({
+      setting_name: 'update_auto_download',
+      previous_value: previous,
+      new_value: autoDownload.value,
+      source: 'settings',
+    })
+  }
+  finally {
+    isUpdatePreferenceUpdating.value = false
   }
 }
 
@@ -277,7 +314,7 @@ const releaseNotesContent = computed(() => {
 
 onMounted(() => {
   void refreshAppVersion()
-  void refreshUpdaterChannelPreference()
+  void refreshUpdaterPreferences()
 })
 </script>
 
@@ -310,8 +347,8 @@ onMounted(() => {
             ]"
           >
             <!-- Build Info -->
-            <div :class="['flex flex-wrap items-center justify-between gap-4']">
-              <div :class="['flex flex-col gap-1.5']">
+            <div :class="['flex items-center justify-between gap-4']">
+              <div :class="['min-w-0 flex flex-col gap-1.5']">
                 <div v-if="runningVersion" :class="['flex flex-wrap items-center gap-2']">
                   <span :class="['rounded-md px-2 py-0.5', 'font-mono text-sm font-medium', 'bg-neutral-300/60 text-neutral-700', 'dark:bg-neutral-700/60 dark:text-neutral-200']">
                     v{{ runningVersion.release }}
@@ -331,7 +368,7 @@ onMounted(() => {
                 </div>
               </div>
 
-              <div :class="['flex flex-wrap items-center gap-2']">
+              <div :class="['flex shrink-0 items-center gap-2']">
                 <Button
                   v-if="updateState.status === 'available'"
                   :loading="isBusy"
@@ -389,12 +426,21 @@ onMounted(() => {
             <FieldSelect
               v-if="!isExternallyUpdated"
               :model-value="selectedUpdateChannel"
-              :disabled="isUpdateChannelUpdating || isBusy"
+              :disabled="isUpdatePreferenceUpdating || isBusy"
               :label="t('tamagotchi.stage.about.update.lane.label')"
               :description="t('tamagotchi.stage.about.update.lane.description')"
               :placeholder="t('tamagotchi.stage.about.update.lane.placeholder')"
               :options="updateChannelSelectOptions"
               @update:model-value="setUpdateChannelPreference($event as UpdateChannelOption)"
+            />
+
+            <FieldCheckbox
+              v-if="!isExternallyUpdated"
+              :model-value="autoDownload"
+              :disabled="isUpdatePreferenceUpdating"
+              :label="t('tamagotchi.stage.about.update.auto-download.label')"
+              :description="t('tamagotchi.stage.about.update.auto-download.description')"
+              @update:model-value="setAutoDownloadPreference($event)"
             />
 
             <!-- Update Logic -->

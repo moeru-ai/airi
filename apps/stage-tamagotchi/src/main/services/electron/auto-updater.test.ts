@@ -58,14 +58,24 @@ const update = { fromInstaller: false, releaseId: 1776000000000, requires: 'rest
 function createFakeUpdater(initial: UpdaterStatus = { status: 'idle' }) {
   let status = initial
   let channel = 'stable'
+  let autoDownload = true
   const statusListeners = new Set<(status: UpdaterStatus) => void>()
   const eventListeners = new Set<(event: LauncherEvent) => void>()
   const setChannel = vi.fn((next: string) => {
     channel = next
   })
+  const setAutoDownload = vi.fn((next: boolean) => {
+    autoDownload = next
+  })
 
   const updater = {
     applyUpdate: vi.fn().mockResolvedValue(undefined),
+    get autoDownload() {
+      return autoDownload
+    },
+    set autoDownload(next) {
+      setAutoDownload(next)
+    },
     get channel() {
       return channel
     },
@@ -76,6 +86,7 @@ function createFakeUpdater(initial: UpdaterStatus = { status: 'idle' }) {
     cohorts: [],
     delayHealthCheck: vi.fn(),
     dismissRollback: vi.fn().mockResolvedValue(undefined),
+    downloadUpdate: vi.fn(async () => status),
     markBundleHealthy: vi.fn(),
     onBundleChange: vi.fn(() => () => {}),
     onEvent: vi.fn((listener: (event: LauncherEvent) => void) => {
@@ -94,6 +105,7 @@ function createFakeUpdater(initial: UpdaterStatus = { status: 'idle' }) {
 
   return {
     updater,
+    setAutoDownload,
     setChannel,
     setStatus(next: UpdaterStatus) {
       status = next
@@ -114,6 +126,7 @@ describe('setupAutoUpdater', () => {
 
   it.each([
     { name: 'a check', status: { status: 'checking' }, expected: { status: 'checking' } },
+    { name: 'an update that waits for a download', status: { status: 'available', update }, expected: { status: 'available', info: { version: '0.9.0-beta.6' } } },
     { name: 'no update', status: { status: 'up-to-date' }, expected: { status: 'not-available', info: { version: '0.9.0-beta.4' } } },
     { name: 'a download', status: { status: 'downloading', bytesPerSecond: 524_288, downloadedBytes: 4_200_000, percent: 42, totalBytes: 10_000_000, update }, expected: { status: 'downloading', info: { version: '0.9.0-beta.6' }, progress: { bytesPerSecond: 524_288, percent: 42, total: 10_000_000, transferred: 4_200_000 } } },
     { name: 'a patch after a download', status: { status: 'preparing', percent: 70, update }, expected: { status: 'downloading', progress: { bytesPerSecond: 0, percent: 70 } } },
@@ -203,6 +216,45 @@ describe('setupAutoUpdater', () => {
     await service.setPreferredUpdateLane(undefined)
 
     expect(fake.updater.channel).toBe(expected)
+  })
+
+  it('downloads an available update when the user asks', async () => {
+    const fake = createFakeUpdater({ status: 'available', update })
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater })
+
+    await service.downloadUpdate()
+
+    expect(fake.updater.downloadUpdate).toHaveBeenCalledTimes(1)
+  })
+
+  it('reports a failed download start', async () => {
+    const fake = createFakeUpdater({ status: 'available', update })
+    fake.updater.downloadUpdate.mockRejectedValueOnce(new Error('No space left.'))
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater })
+
+    await service.downloadUpdate()
+
+    expect(service.state).toMatchObject({ status: 'error', error: { message: 'No space left.' } })
+  })
+
+  it('saves the download preference and the lane from one renderer request', async () => {
+    const { ipcMain } = await import('electron')
+    const { electronGetUpdaterPreferences, electronSetUpdaterPreferences } = await import('../../../shared/eventa')
+    const fake = createFakeUpdater()
+    const setStoredUpdateLane = vi.fn()
+    const { createAutoUpdaterService, setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater, setStoredUpdateLane })
+    const { context, window } = createWindowIpc(ipcMain)
+    createAutoUpdaterService({ context: createWindowContext(window).context, window, service })
+
+    const saved = await defineInvoke(context, electronSetUpdaterPreferences)({ autoDownload: false, channel: 'nightly' })
+
+    expect(saved).toEqual({ autoDownload: false, channel: 'nightly' })
+    expect(fake.setAutoDownload).toHaveBeenCalledWith(false)
+    expect(setStoredUpdateLane).toHaveBeenCalledWith('nightly')
+    expect(await defineInvoke(context, electronGetUpdaterPreferences)()).toEqual({ autoDownload: false, channel: 'nightly' })
   })
 
   it('applies a ready update once while two clicks arrive at once', async () => {
@@ -315,8 +367,10 @@ describe('setupAutoUpdater', () => {
 
     await service.checkForUpdates()
     await service.setPreferredUpdateLane('nightly')
+    service.setAutoDownload(false)
 
     expect(fake.setChannel).not.toHaveBeenCalled()
+    expect(fake.setAutoDownload).not.toHaveBeenCalled()
     expect(fake.updater.checkForUpdates).not.toHaveBeenCalled()
     expect(service.state.status).toBe('disabled')
   })

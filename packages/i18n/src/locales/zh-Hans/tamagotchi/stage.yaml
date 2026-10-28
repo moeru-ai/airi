@@ -112,6 +112,9 @@ about:
     home: 首页
     documentation: 文档
   update:
+    auto-download:
+      label: 自动下载更新
+      description: 关闭后，只有点击「下载更新」时才会下载更新。
     lane:
       label: 更新频道
       description: 选择更新频道
