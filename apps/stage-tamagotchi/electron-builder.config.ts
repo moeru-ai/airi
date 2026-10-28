@@ -248,9 +248,12 @@ export default {
     artifactName: '${productName}-${version}-darwin-${arch}.${ext}',
   },
   linux: {
+    // AUR packages and Arch users install the `pacman` package. Other distributions can run the AppImage.
     target: [
       'deb',
       'rpm',
+      'pacman',
+      'AppImage',
     ],
     // NOTICE: Same channel rule as Windows/macOS. Keep `${arch}` to avoid x64/arm64 feed collisions on Linux.
     publish: {
@@ -268,6 +271,14 @@ export default {
   },
   appImage: {
     artifactName: '${productName}-${version}-linux-${arch}.${ext}',
+  },
+  rpm: {
+    // NOTICE:
+    // Two Electron rpm packages conflict on the same `/usr/lib/.build-id` links, so one of them fails to install.
+    // rpmbuild creates these links for each ELF file. Electron ships the same Chromium binaries in each app.
+    // https://github.com/jordansissel/fpm/issues/1503, https://github.com/jgraph/drawio-desktop/issues/259
+    // Remove it when fpm stops the creation of build-id links by default.
+    fpm: ['--rpm-rpmbuild-define', '_build_id_links none'],
   },
   npmRebuild: false,
 

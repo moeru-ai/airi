@@ -296,6 +296,13 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_DEVELOPER_APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_DEVELOPER_TEAM_ID }}
 
+      # fpm writes the `.MTREE` file of the pacman package with bsdtar.
+      - name: Install Linux Packaging Dependencies (Linux Only)
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libarchive-tools
+
       - name: Build (Linux Only) # Linux
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
         run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }} --publish=${{ (inputs.build_only || inputs.artifacts_only) && 'never' || 'onTagOrDraft' }}
@@ -355,6 +362,8 @@ jobs:
         run: |
           echo "DEB_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename deb)" >> $GITHUB_ENV
           echo "RPM_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename rpm)" >> $GITHUB_ENV
+          echo "PACMAN_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename pacman)" >> $GITHUB_ENV
+          echo "APPIMAGE_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename AppImage)" >> $GITHUB_ENV
           echo "FLATPAK_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename flatpak)" >> $GITHUB_ENV
 
       - name: Upload Artifacts (Nightly + Non-Linux)
@@ -378,6 +387,20 @@ jobs:
         with:
           name: ${{ env.RPM_BUNDLE_NAME }}
           path: apps/stage-tamagotchi/bundle/${{ env.RPM_BUNDLE_NAME }}
+
+      - name: Upload Artifacts (Nightly + Linux pacman)
+        if: ${{ github.event_name == 'schedule' && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.PACMAN_BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/${{ env.PACMAN_BUNDLE_NAME }}
+
+      - name: Upload Artifacts (Nightly + Linux AppImage)
+        if: ${{ github.event_name == 'schedule' && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.APPIMAGE_BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/${{ env.APPIMAGE_BUNDLE_NAME }}
 
       - name: Upload Flatpak Artifact (Nightly + Linux Only)
         if: ${{ github.event_name == 'schedule' && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
@@ -486,6 +509,8 @@ jobs:
         run: |
           echo "DEB_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename deb --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $GITHUB_ENV
           echo "RPM_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename rpm --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $GITHUB_ENV
+          echo "PACMAN_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename pacman --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $GITHUB_ENV
+          echo "APPIMAGE_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename AppImage --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $GITHUB_ENV
           echo "FLATPAK_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename flatpak --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $GITHUB_ENV
 
       - name: Upload Artifacts (Manual + Non-Release + Non-Linux)
@@ -509,6 +534,20 @@ jobs:
         with:
           name: ${{ env.RPM_BUNDLE_NAME }}
           path: apps/stage-tamagotchi/bundle/${{ env.RPM_BUNDLE_NAME }}
+
+      - name: Upload Artifacts (Manual + Non-Release + Linux pacman)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.PACMAN_BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/${{ env.PACMAN_BUNDLE_NAME }}
+
+      - name: Upload Artifacts (Manual + Non-Release + Linux AppImage)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.APPIMAGE_BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/${{ env.APPIMAGE_BUNDLE_NAME }}
 
       - name: Upload Flatpak Artifact (Manual + Non-Release + Linux)
         if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
@@ -570,6 +609,8 @@ jobs:
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.dmg
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.deb
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.rpm
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.pacman
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.AppImage
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.flatpak
             apps/stage-tamagotchi/bundle/latest-*.yml
           append_body: true
@@ -683,6 +724,8 @@ jobs:
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.dmg
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.deb
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.rpm
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.pacman
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.AppImage
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.flatpak
             apps/stage-tamagotchi/bundle/latest-*.yml
           append_body: true
