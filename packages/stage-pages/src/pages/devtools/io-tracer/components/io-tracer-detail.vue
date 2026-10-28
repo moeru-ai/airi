@@ -46,11 +46,13 @@ const relativeEnd = computed(() => {
 const timingBar = computed(() => {
   if (!props.turn || !props.span)
     return null
-  const turnDur = (props.turn.endTs ?? performance.now()) - props.turn.startTs
+  // Span times are epoch milliseconds. A turn that never submitted has no end, so it ends at its latest span.
+  const turnEnd = props.turn.endTs ?? Math.max(...props.turn.spans.map(s => s.endTs ?? s.startTs))
+  const turnDur = turnEnd - props.turn.startTs
   if (turnDur <= 0)
     return null
   const start = (props.span.startTs - props.turn.startTs) / turnDur
-  const end = ((props.span.endTs ?? performance.now()) - props.turn.startTs) / turnDur
+  const end = ((props.span.endTs ?? Date.now()) - props.turn.startTs) / turnDur
   return { startPct: `${(start * 100).toFixed(1)}%`, widthPct: `${((end - start) * 100).toFixed(1)}%` }
 })
 

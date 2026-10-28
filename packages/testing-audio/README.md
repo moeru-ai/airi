@@ -74,6 +74,9 @@ Set `rephrase: false` in `configureModuleHearing` when the case uses the scripte
 
 ## Test wake word detection
 
+CI skips cases with `pipelines: ['kws']` before runtime startup because wake word preparation times out.
+The root cause is not confirmed. Local runs keep these cases enabled.
+
 Use `configureWakeWord` to add AIRI Cards with wake words. Each configuration adds one card with one wake word and its pronunciations. The callback also turns on the microphone and selects the `wake-word` Hearing input mode. The case does not need an ASR Provider.
 
 Set `pipelines: ['kws']`. Then the Web runner downloads and verifies the pinned KWS model before the file microphone starts. The Web page gets the model from the workspace cache, not from the network. Electron uses its bundled model.
@@ -133,7 +136,7 @@ The speech changes a little on each request. After you generate the fixtures, ru
 Run the cases on both hosts:
 
 ```bash
-pnpm -F @proj-airi/testing-audio test:run cases/wake-word
+pnpm -F @proj-airi/testing-audio test:e2e cases/wake-word
 ```
 
 For one host, build its app and select `--project audio-web` or `--project audio-electron`.
@@ -154,6 +157,32 @@ recording with 8 s of trailing silence. On failure, the assertion message contai
 pnpm -F @proj-airi/stage-web build
 pnpm -F @proj-airi/testing-audio exec vitest run --project audio-web cases/voice-end-latency
 ```
+
+## Test formula speech
+
+`formula-speech` checks that TeX formulas in an assistant reply reach the TTS Provider as words. The case tests the output side of the pipeline, so the reply must not depend on a model:
+
+```text
+scripted LLM reply -> marker parser -> speech filter -> markdown segmenter -> speech text -> TTS chunker -> TTS
+```
+
+`startScriptedLlm` in `cases/shared/providers` starts an OpenAI-compatible chat completion endpoint on `127.0.0.1`. It streams a fixed reply in small chunks, as a model does. AIRI receives the reply as the output of the consciousness Provider, so the chat shows it and the speech output reads it. The case needs no LLM key. It turns off the transcript rephrase, because the rephrase would also send its request to the scripted LLM.
+
+The reply holds the Basel sum, `\ce{2H2 + O2 -> 2H2O}`, `\ce{N2 + 3H2 <=> 2NH3}`, `AB \perp CD`, and `l_1 \parallel l_2`, in Chinese and in English. The case asserts these rules:
+
+- No TTS segment contains TeX delimiters, backslashes, braces, scripts, or command names such as `frac` and `perp`.
+- The segments, without whitespace, contain each expected reading, for example `当n趋于无穷大时`, `氢气 和 氧气 反应生成 水`, `A B 垂直于 C D`, and `the limit as n approaches infinity`.
+- The text after `<=>` reaches TTS. A `<` that is not a tag once removed the rest of the reply.
+- Each segment has more than 100 ms of audio. The chat message still shows the formula.
+
+The case uses the `single-utterance-pipeline` recording to start the turn, so it needs the `TESTING_AUDIO_ASR_*` and `TESTING_AUDIO_TTS_*` variables.
+
+```bash
+pnpm -F @proj-airi/stage-tamagotchi build
+pnpm -F @proj-airi/testing-audio exec vitest run --project audio-electron cases/formula-speech
+```
+
+The Electron app imports `@proj-airi/core-agent` and `@proj-airi/pipelines-audio` from their `dist` directories. After a change in these packages, build them before you build the app. The unit tests next to the locale packs of `packages/speech-transformer-math` and `packages/speech-transformer-chem` cover the readings in Chinese, English, Japanese, and Korean.
 
 ## Provider environment
 
@@ -195,7 +224,7 @@ These tests send audio and text to external Providers. Each run can incur Provid
 Build both targets and run all runtime projects:
 
 ```bash
-pnpm -F @proj-airi/testing-audio test:run
+pnpm -F @proj-airi/testing-audio test:e2e
 ```
 
 Use existing builds:

@@ -18,6 +18,8 @@ mobile-tools:
   view: 视图
   close-view: 保存并关闭视图调节
   hearing: 听觉
+  menu: 菜单
+  menu-unread: 菜单，{count} 条未读通知
 chat:
   provider-configuration:
     title: 尚未正确配置聊天 Provider
@@ -129,8 +131,8 @@ chat:
     background: '已交给配方 {name}'
     decision: '用了配方 {name}'
     question: 问题
-    'yes': 是
-    'no': 否
+    'yes': '是'
+    'no': '否'
   home-assistant-tool-call:
     shown: '显示 {count} / {total} 个设备'
   web-search-tool-call:
@@ -149,10 +151,19 @@ chat:
     other: 其他数据
     widget: 小组件
     rerun: 重新运行
+    card-making: 正在为这个工具做卡片…
+    card-remaking: 正在重新做这张卡片…
+    card-regenerate: 重新生成
+    card-failed: 没能为这个工具做出卡片
+    card-retry: 重试
     state:
       executing: 进行中
       done: 完成
       error: 失败
+  reply-card:
+    drawing: 正在画卡片…
+    raw: 原始数据
+    card: 卡片
   error-details:
     show: 查看详情
     hide: 收起详情
@@ -340,3 +351,24 @@ status:
   sign-in-unconfirmed: 未能确认登录会话，请重新登录。
   dismiss: 关闭提示
   configure-hearing: 请先在设置中选择并配置听觉服务。
+notifications:
+  title: 通知
+  open: 打开通知
+  open-unread: 打开通知，{count} 条未读
+  mark-all-read: 全部已读
+  empty: 暂无通知
+  loading: 正在加载通知
+  back: 返回
+  error: 通知加载失败。
+  retry: 重试
+  just-now: 刚刚
+  kinds:
+    flux-granted:
+      title: 获得 {amount} Flux
+    subscription-renewed:
+      title: '{plan} 已续费'
+      body: 有效期至 {periodEnd}。
+    subscription-payment-failed:
+      title: 续费扣款失败
+      body: 将于 {retryAt} 重试。请更新付款方式以继续使用 {plan}。
+      body-no-retry: 请更新付款方式以继续使用 {plan}。

@@ -125,6 +125,9 @@ export const providerOfficialSpeech = defineProvider({
   icon: OFFICIAL_ICON,
   requiresCredentials: false,
   configuredBy: 'authentication',
+  capabilities: {
+    speech: { transport: 'rest', voicesByModel: true },
+  },
   createProviderConfig: () => officialConfigSchema,
   createProvider(_config) {
     const provider = createOfficialAudioProvider()
@@ -247,7 +250,7 @@ export const providerOfficialSpeechStreaming = defineProvider({
   configuredBy: 'authentication',
   // The speech adapter selects the WebSocket transport from this capability.
   capabilities: {
-    speech: { transport: 'bidirectional-ws' },
+    speech: { transport: 'bidirectional-ws', voicesByModel: true },
   },
   createProviderConfig: () => officialConfigSchema,
   createProvider(_config) {
@@ -420,6 +423,11 @@ function findRecommendedVoice(voices: VoiceInfo[], recommendedMap: Record<string
 }
 
 const AUTO_PICK_PROVIDER_IDS = new Set([OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID])
+
+/** Whether the speech store picks a voice for this provider, after its voice catalog loads. */
+export function picksSpeechVoiceAutomatically(providerId: string) {
+  return AUTO_PICK_PROVIDER_IDS.has(providerId)
+}
 
 // NOTICE: Only the official speech providers (HTTP + streaming) auto-configure
 // a default voice after login. Third-party providers leave voice selection to

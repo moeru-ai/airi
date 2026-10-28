@@ -41,6 +41,7 @@ import { providerOpenRouterAI } from './cloud/openrouter-ai'
 import { providerOpenRouterAudioSpeech } from './cloud/openrouter-audio-speech'
 import { providerOpenRouterAudioTranscription } from './cloud/openrouter-audio-transcription'
 import { providerPerplexityAI } from './cloud/perplexity-ai'
+import { providerRuncrate } from './cloud/runcrate'
 import { providerTogetherAI } from './cloud/together-ai'
 import {
   providerAlibabaCloudModelStudio,
@@ -129,6 +130,7 @@ export const portableProviderDefinitions = eraseProviderDefinitions(
   providerOpenRouterAudioSpeech,
   providerOpenRouterAudioTranscription,
   providerPerplexityAI,
+  providerRuncrate,
   providerTogetherAI,
   providerAlibabaCloudModelStudio,
   providerDeepgramTts,

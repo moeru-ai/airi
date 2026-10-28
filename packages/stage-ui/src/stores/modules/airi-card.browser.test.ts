@@ -1,11 +1,14 @@
 import type { LeadershipMode, SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
+import type { AiriCard } from './airi-card'
+
 import { PiniaColada } from '@pinia/colada'
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createApp } from 'vue'
+import { createApp, nextTick } from 'vue'
 
+import { useSettingsStageModel } from '../settings/stage-model'
 import { useAiriCardStore } from './airi-card'
 
 const syncedContexts: Array<{
@@ -88,5 +91,188 @@ describe('airi card Live2D control synchronization', () => {
       expect(leaderStore.selectedAvatarModel.config.controls).toEqual(policy)
     expect(leaderActions).toBe(1)
     expect(followerActions).toBe(0)
+  })
+})
+
+// https://github.com/moeru-ai/airi/pull/2458
+// ROOT CAUSE:
+//
+// Up to v0.12.0-beta.5 the Stage model was also stored in `settings/stage/model`.
+// PR #2458 stopped reading it, so an upgrade showed the bundled preset.
+//
+// We fixed this by moving the key once into the active card, only while that
+// card shows the bundled preset.
+describe('pr #2458 migrates the global Stage model of v0.12.0-beta.5 and earlier', () => {
+  const legacyStageModelKey = 'settings/stage/model'
+  const pinias: Array<ReturnType<typeof createPinia>> = []
+
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  afterEach(() => {
+    for (const pinia of pinias.splice(0))
+      disposePinia(pinia)
+    localStorage.clear()
+  })
+
+  /** Starts the app again on the cards and keys that `localStorage` holds. */
+  async function launch() {
+    const pinia = createPinia()
+    createApp({}).use(pinia).use(PiniaColada)
+    pinias.push(pinia)
+    setActivePinia(pinia)
+    const stageModelStore = useSettingsStageModel()
+    const cardStore = useAiriCardStore()
+    await cardStore.initialize()
+    // The card map writes to `localStorage` in a watcher. Let it flush before the next launch.
+    await nextTick()
+    return { cardStore, stageModelStore }
+  }
+
+  function defaultDisplayModelId(card: AiriCard | undefined) {
+    const extension = card?.extensions.airi
+    return extension?.avatarModels.find(model => model.id === extension.defaultAvatarModelId)?.displayModelId
+  }
+
+  it('moves the global Stage model into a card that shows the bundled preset', async () => {
+    await launch()
+    localStorage.setItem(legacyStageModelKey, 'preset-vrm-2')
+
+    const { cardStore, stageModelStore } = await launch()
+
+    expect(defaultDisplayModelId(cardStore.cards.get('default'))).toBe('preset-vrm-2')
+    expect(stageModelStore.stageModelSelected).toBe('preset-vrm-2')
+    expect(localStorage.getItem(legacyStageModelKey)).toBeNull()
+  })
+
+  it('keeps a model chosen on the card over a stale global Stage model', async () => {
+    const { cardStore: firstRun } = await launch()
+    await firstRun.setActiveCardDefaultAvatarModel('preset-vrm-1')
+    await nextTick()
+    localStorage.setItem(legacyStageModelKey, 'preset-vrm-2')
+
+    const { cardStore, stageModelStore } = await launch()
+
+    expect(defaultDisplayModelId(cardStore.cards.get('default'))).toBe('preset-vrm-1')
+    expect(stageModelStore.stageModelSelected).toBe('preset-vrm-1')
+    expect(localStorage.getItem(legacyStageModelKey)).toBeNull()
+  })
+
+  it('leaves the cards unchanged without a global Stage model', async () => {
+    await launch()
+    const storedCards = localStorage.getItem('airi-cards')
+
+    const { cardStore, stageModelStore } = await launch()
+
+    expect(defaultDisplayModelId(cardStore.cards.get('default'))).toBe('preset-live2d-1')
+    expect(stageModelStore.stageModelSelected).toBe('preset-live2d-1')
+    expect(localStorage.getItem('airi-cards')).toBe(storedCards)
+  })
+
+  it('moves the global Stage model only once', async () => {
+    await launch()
+    localStorage.setItem(legacyStageModelKey, 'preset-vrm-2')
+    const { cardStore: migrated } = await launch()
+    // The user selects the bundled preset again after the migration.
+    await migrated.setActiveCardDefaultAvatarModel('preset-live2d-1')
+    await nextTick()
+
+    const { cardStore, stageModelStore } = await launch()
+
+    expect(defaultDisplayModelId(cardStore.cards.get('default'))).toBe('preset-live2d-1')
+    expect(stageModelStore.stageModelSelected).toBe('preset-live2d-1')
+  })
+})
+
+describe('issue #3124 restores the active Character after a restart', () => {
+  const activeCardIdKey = 'airi-card-active-id'
+  const pinias: Array<ReturnType<typeof createPinia>> = []
+
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  afterEach(() => {
+    for (const pinia of pinias.splice(0))
+      disposePinia(pinia)
+    localStorage.clear()
+  })
+
+  /** Starts the app again on the cards and keys that `localStorage` holds. */
+  async function launch() {
+    const pinia = createPinia()
+    createApp({}).use(pinia).use(PiniaColada)
+    pinias.push(pinia)
+    setActivePinia(pinia)
+    const cardStore = useAiriCardStore()
+    await cardStore.initialize()
+    // The card map writes to `localStorage` in a watcher. Let it flush before the next launch.
+    await nextTick()
+    return cardStore
+  }
+
+  // https://github.com/moeru-ai/airi/issues/3124
+  // ROOT CAUSE:
+  //
+  // The store started the selection from a constant, so every launch picked the
+  // built-in Character. Nothing read or wrote the key.
+  //
+  //   const activeCardId = shallowRef('default')
+  //
+  // We fixed this by reading the key when the store is created, and writing it in
+  // the actions that change the selection.
+  it('issue #3124 restores the Character that was active before the restart', async () => {
+    const firstRun = await launch()
+    const cardId = await firstRun.addCard({ name: 'Second Character', version: '1.0.0', description: 'The selected Character.' }, 'scratch')
+    await firstRun.activateCard(cardId)
+
+    expect(localStorage.getItem(activeCardIdKey)).toBe(cardId)
+
+    const secondRun = await launch()
+
+    expect(secondRun.activeCardId).toBe(cardId)
+    expect(secondRun.activeCard?.name).toBe('Second Character')
+  })
+
+  it('starts from the built-in Character when nothing is stored', async () => {
+    const cardStore = await launch()
+
+    expect(cardStore.activeCardId).toBe('default')
+    expect(localStorage.getItem(activeCardIdKey)).toBe('default')
+  })
+
+  it('falls back to the built-in Character when the stored selection is gone', async () => {
+    localStorage.setItem(activeCardIdKey, 'deleted-card')
+
+    const cardStore = await launch()
+
+    expect(cardStore.activeCardId).toBe('default')
+    expect(localStorage.getItem(activeCardIdKey)).toBe('default')
+  })
+
+  it('records the built-in Character after the active card is deleted', async () => {
+    const firstRun = await launch()
+    const cardId = await firstRun.addCard({ name: 'Temporary', version: '1.0.0', description: 'Removed again.' }, 'scratch')
+    await firstRun.activateCard(cardId)
+
+    await firstRun.removeCard(cardId)
+
+    expect(localStorage.getItem(activeCardIdKey)).toBe('default')
+
+    const secondRun = await launch()
+
+    expect(secondRun.activeCardId).toBe('default')
+  })
+
+  it('forgets the selection when all data is reset', async () => {
+    const cardStore = await launch()
+    const cardId = await cardStore.addCard({ name: 'Reset me', version: '1.0.0' }, 'scratch')
+    await cardStore.activateCard(cardId)
+    expect(localStorage.getItem(activeCardIdKey)).toBe(cardId)
+
+    cardStore.resetState()
+
+    expect(localStorage.getItem(activeCardIdKey)).toBeNull()
   })
 })

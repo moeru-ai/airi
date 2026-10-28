@@ -2,12 +2,14 @@ import type { Attributes } from '@opentelemetry/api'
 import type { ReadableSpan } from '@opentelemetry/sdk-trace-base'
 import type { IOSpan, IOSubsystem, IOTurn } from '@proj-airi/stage-shared'
 
-import { hrTimeToMilliseconds, hrTimeToNanoseconds } from '@opentelemetry/core'
+import { errorMessageFrom } from '@moeru/std'
+import { hrTimeToMilliseconds } from '@opentelemetry/core'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { defineStore } from 'pinia'
 import { computed, ref, triggerRef } from 'vue'
 
-import { initIOTracer, onIOSpan, onRemoteIOSpan } from '../../composables/use-io-tracer'
+import { getIOTraceSource, initIOTracer, onIOSpan, onRemoteIOSpan } from '../../composables/use-io-tracer'
+import { toOTLPTrace } from './io-tracer-otlp'
 
 const MAX_TURNS = 50
 
@@ -32,9 +34,17 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
   const rawSpanCount = ref(0)
 
   const turnsByTraceId = new Map<string, IOTurn>()
+  /** Latest end time of any span of each trace, including spans that the chart does not draw. */
+  const latestEndByTraceId = new Map<string, number>()
+  /** Traces whose `Interaction turn` span ended. Only these turns have an end. */
+  const settledTraceIds = new Set<string>()
 
   const rawSpans: ReadableSpan[] = []
+  /** A trace source can send a span twice: in its snapshot and as a later span. */
+  let seenSpanIds = new Set<string>()
   let unsubscribeRemote: (() => void) | undefined
+  /** Increases on each start and stop, so a late subscription of an earlier recording is dropped. */
+  let recordingSession = 0
 
   function notifyUpdate() {
     triggerRef(turns)
@@ -58,19 +68,10 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
     return undefined
   })
 
-  function formatOtlpValue(value: unknown): Record<string, unknown> {
-    if (typeof value === 'string')
-      return { stringValue: value }
-    if (typeof value === 'number')
-      return Number.isInteger(value) ? { intValue: String(value) } : { doubleValue: value }
-    if (typeof value === 'boolean')
-      return { boolValue: value }
-    if (Array.isArray(value))
-      return { arrayValue: { values: value.map(v => formatOtlpValue(v)) } }
-    return { stringValue: String(value) }
-  }
-
   function handleSpan(readable: ReadableSpan) {
+    if (seenSpanIds.has(readable.spanContext().spanId))
+      return
+    seenSpanIds.add(readable.spanContext().spanId)
     rawSpans.push(readable)
     rawSpanCount.value++
 
@@ -93,22 +94,23 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
         turn = turns.value.at(-1)!
         turnsByTraceId.set(traceId, turn)
 
-        while (turns.value.length > MAX_TURNS) {
-          const evicted = turns.value.shift()
-          if (evicted)
-            turnsByTraceId.delete(evicted.id)
-        }
+        evictOldTurns()
       }
       // Spans arrive when they end, so a child, such as a VAD segment, can arrive before the span that starts the turn.
       if (startMs < turn.startTs)
         turn.startTs = startMs
+      // A spoken turn ends when its last playback ends. The `Speech turn` span outlives the `Interaction turn` span.
+      if (settledTraceIds.has(traceId))
+        turn.endTs = latestEndByTraceId.get(traceId)
       return turn
     }
 
+    if (endMs != null)
+      latestEndByTraceId.set(traceId, Math.max(latestEndByTraceId.get(traceId) ?? endMs, endMs))
+
     if (readable.name === IOSpanNames.InteractionTurn) {
+      settledTraceIds.add(traceId)
       const turn = getOrCreateTurn()
-      if (endMs)
-        turn.endTs = endMs
       const text = readable.attributes[IOAttributes.ASRText]
       if (typeof text === 'string')
         turn.inputText = text
@@ -120,6 +122,9 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
     const subsystem = readable.attributes[IOAttributes.Subsystem] as IOSubsystem | undefined
 
     if (!subsystem) {
+      // A span without a subsystem, such as `Speech turn`, is not drawn. It can still move the end of its turn.
+      if (turnsByTraceId.has(traceId))
+        getOrCreateTurn()
       notifyUpdate()
       return
     }
@@ -139,15 +144,13 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
       meta: attrsToMeta(event.attributes ?? {}),
     }))
 
-    for (const event of readable.events) {
-      const eventAttrs = event.attributes ?? {}
-      for (const [key, value] of Object.entries(eventAttrs)) {
-        const shortKey = key.includes('.') ? key.split('.').at(-1)! : key
-        meta[shortKey] = value
-      }
-      if (event.name === IOEvents.LLMFirstToken) {
-        meta.firstTokenTs = hrTimeToMilliseconds(event.time)
-      }
+    // Event attributes stay in `events`. Copying them into the span meta overwrote span attributes with the same short key.
+    const firstToken = readable.events.find(event => event.name === IOEvents.LLMFirstToken)
+    if (firstToken) {
+      meta.firstTokenTs = hrTimeToMilliseconds(firstToken.time)
+      const ttft = firstToken.attributes?.[IOAttributes.LLM_TTFT]
+      if (typeof ttft === 'number')
+        meta.ttftMs = ttft
     }
 
     if (subsystem === IOSubsystems.ASR && typeof readable.attributes[IOAttributes.ASRText] === 'string')
@@ -174,23 +177,65 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
     notifyUpdate()
   }
 
+  function evictOldTurns() {
+    let evicted = false
+    while (turns.value.length > MAX_TURNS) {
+      const turn = turns.value.shift()
+      if (!turn)
+        break
+      turnsByTraceId.delete(turn.id)
+      latestEndByTraceId.delete(turn.id)
+      settledTraceIds.delete(turn.id)
+      evicted = true
+    }
+    if (!evicted)
+      return
+
+    // The export reads the raw spans, so it must contain the same turns as the views.
+    const kept = rawSpans.filter(span => turnsByTraceId.has(span.spanContext().traceId))
+    rawSpans.length = 0
+    rawSpans.push(...kept)
+    seenSpanIds = new Set(kept.map(span => span.spanContext().spanId))
+    rawSpanCount.value = rawSpans.length
+  }
+
   function startRecording() {
     if (isRecording.value)
       return
 
     initIOTracer()
-    onIOSpan(handleSpan)
-    unsubscribeRemote = onRemoteIOSpan(handleSpan)
     recordingStartTs.value = performance.timeOrigin + performance.now()
     isRecording.value = true
+    const session = ++recordingSession
 
-    console.info('[IOTracer] Recording started (OTel mode, local + remote)')
+    const source = getIOTraceSource()
+    if (!source) {
+      onIOSpan(handleSpan)
+      unsubscribeRemote = onRemoteIOSpan(handleSpan)
+      return
+    }
+
+    source.subscribe(handleSpan)
+      .then(({ spans, unsubscribe }) => {
+        if (session !== recordingSession) {
+          unsubscribe()
+          return
+        }
+        unsubscribeRemote = unsubscribe
+        for (const span of spans)
+          handleSpan(span)
+        // The time axis starts at the recording start. Spans that ended before it would sit left of zero.
+        for (const span of spans)
+          recordingStartTs.value = Math.min(recordingStartTs.value, hrTimeToMilliseconds(span.startTime))
+      })
+      .catch(error => console.error('[IOTracer] Failed to subscribe to the IO trace source:', errorMessageFrom(error)))
   }
 
   function stopRecording() {
     if (!isRecording.value)
       return
 
+    recordingSession++
     onIOSpan(undefined)
     unsubscribeRemote?.()
     unsubscribeRemote = undefined
@@ -200,6 +245,9 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
   function clear() {
     turns.value = []
     turnsByTraceId.clear()
+    seenSpanIds.clear()
+    latestEndByTraceId.clear()
+    settledTraceIds.clear()
     rawSpans.length = 0
     rawSpanCount.value = 0
     selectedSpanId.value = null
@@ -214,50 +262,7 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
     if (rawSpans.length === 0)
       return
 
-    const spans = rawSpans.map((span) => {
-      const ctx = span.spanContext()
-      const parentCtx = span.parentSpanContext
-
-      return {
-        traceId: ctx.traceId,
-        spanId: ctx.spanId,
-        parentSpanId: parentCtx?.spanId ?? '',
-        name: span.name,
-        kind: span.kind,
-        startTimeUnixNano: String(hrTimeToNanoseconds(span.startTime)),
-        endTimeUnixNano: span.ended ? String(hrTimeToNanoseconds(span.endTime)) : '0',
-        attributes: Object.entries(span.attributes).map(([key, value]) => ({
-          key,
-          value: formatOtlpValue(value),
-        })),
-        events: span.events.map(event => ({
-          timeUnixNano: String(hrTimeToNanoseconds(event.time)),
-          name: event.name,
-          attributes: Object.entries(event.attributes ?? {}).map(([key, value]) => ({
-            key,
-            value: formatOtlpValue(value),
-          })),
-        })),
-        status: {
-          code: span.status.code,
-          message: span.status.message ?? '',
-        },
-      }
-    })
-
-    const otlpPayload = {
-      resourceSpans: [{
-        resource: {
-          attributes: [
-            { key: 'service.name', value: { stringValue: 'airi-io' } },
-          ],
-        },
-        scopeSpans: [{
-          scope: { name: 'io' },
-          spans,
-        }],
-      }],
-    }
+    const otlpPayload = toOTLPTrace(rawSpans)
 
     const json = JSON.stringify(otlpPayload, null, 2)
     const blob = new Blob([json], { type: 'application/json' })

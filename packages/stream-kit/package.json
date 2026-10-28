@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/stream-kit",
   "type": "module",
-  "version": "0.12.0-beta.5",
+  "version": "0.13.0",
   "private": true,
   "description": "Lifetime, scheduling, and stream utilities for AIRI",
   "author": {
@@ -29,6 +29,7 @@
     "package.json"
   ],
   "scripts": {
+    "test:run": "vitest run --config vitest.config.ts",
     "build": "tsdown",
     "typecheck": "tsc --noEmit"
   },

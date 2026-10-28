@@ -5,11 +5,13 @@ import Tres from '@tresjs/core'
 
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import { PiniaColada } from '@pinia/colada'
+import { settingsSearchModules } from '@proj-airi/stage-pages/settings-search'
 import { pushToTalkTriggerKey } from '@proj-airi/stage-ui/composables/push-to-talk-trigger'
 import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/track-button'
 import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
 import { piniaPluginTracing, setupSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { configureAnalyticsAdapter } from '@proj-airi/stage-ui/libs/product-signals'
+import { settingsSearch } from '@proj-airi/stage-ui/libs/settings-search'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
@@ -48,6 +50,14 @@ configureAnalyticsAdapter(async (options) => {
   return createOpenpanelAdapter(options)
 })
 registerAuthorizationHandler(browserAuthorizationHandler)
+
+// The settings search lists only what these modules hold. Each module decides at runtime whether it is on.
+for (const [name, source] of Object.entries({
+  ...settingsSearchModules,
+  'modules:home-assistant': () => import('./pages/settings/modules/home-assistant.search'),
+  'modules:mcp': () => import('./pages/settings/modules/mcp.search'),
+}))
+  settingsSearch.provide(name, source)
 
 const windowContext = resolveRendererWindowContext()
 const pinia = createPinia()

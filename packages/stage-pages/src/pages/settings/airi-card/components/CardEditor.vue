@@ -8,6 +8,7 @@ import type { Ref } from 'vue'
 import { errorMessageFrom } from '@moeru/std'
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
+import { useSettingsSearchReveal } from '@proj-airi/stage-ui/composables/use-settings-search'
 import { DEFAULT_ARTISTRY_WIDGET_INSTRUCTION } from '@proj-airi/stage-ui/constants/prompts/artistry-instruction'
 import { applyAiriCardEditorModules, getAiriCardEditorModuleSettings, safeParseAiriCardDraft } from '@proj-airi/stage-ui/services/airi-card-editor'
 import { resolveModuleSelection } from '@proj-airi/stage-ui/services/airi-card-modules'
@@ -20,10 +21,11 @@ import { Button, FieldInput, FieldValues, GhostButton, IconButton } from '@proj-
 import { ComboboxSelect } from '@proj-airi/ui/components/form'
 import { isEqual } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, toRaw, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, toRaw, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
+import CardModelPreview from './card-model-preview.vue'
 import CardCreationTabArtistry from './tabs/CardCreationTabArtistry.vue'
 
 interface Props {
@@ -387,6 +389,10 @@ watch(activeSection, async (section) => {
 }, { immediate: true, flush: 'post' })
 
 onMounted(() => revealActiveSection(activeSection.value))
+
+// A link that names a setting, such as the voice from the settings home, scrolls to its row and highlights it, as a
+// settings search result does. The editor has its own scroll container, outside the settings layout.
+useSettingsSearchReveal(useTemplateRef<HTMLElement>('section-scroll'))
 
 onUnmounted(() => window.clearTimeout(revealTimer))
 
@@ -863,7 +869,7 @@ function handleBack() {
           </div>
         </div>
 
-        <div :class="['min-h-0 flex-1 overflow-y-auto']">
+        <div ref="section-scroll" :class="['min-h-0 flex-1 overflow-y-auto']">
           <div :class="['mx-auto w-full max-w-6xl', 'px-4 py-5 lg:px-8 lg:py-8']">
             <!-- Error banner -->
             <div
@@ -879,16 +885,45 @@ function handleBack() {
               <p>{{ errorMessage }}</p>
             </div>
 
+            <section
+              :class="[
+                'mb-8 grid overflow-hidden rounded-2xl',
+                'bg-primary-100 text-primary-950 dark:bg-primary-950 dark:text-primary-100',
+                'lg:grid-cols-[minmax(0,1fr)_36%]',
+              ]"
+            >
+              <div :class="['flex flex-col justify-center gap-6 p-5 sm:p-7 lg:p-8']">
+                <div :class="['grid grid-cols-1 gap-5', 'sm:grid-cols-2']">
+                  <FieldInput v-model="cardName" :label="t('settings.pages.card.creation.name')" :description="t('settings.pages.card.creation.fields_info.name')" :required="true" />
+                  <FieldInput v-model="cardNickname" :label="t('settings.pages.card.creation.nickname')" :description="t('settings.pages.card.creation.fields_info.nickname')" />
+                </div>
+                <div :class="['grid grid-cols-1 gap-5', 'sm:grid-cols-2']">
+                  <div :class="['flex flex-col gap-1.5']">
+                    <label :class="moduleFieldLabelClasses">
+                      {{ t('settings.pages.card.body-model') }}
+                    </label>
+                    <ComboboxSelect
+                      v-model="displayModelSelection"
+                      :options="displayModelOptions"
+                      :placeholder="t('settings.pages.card.creation.no_model')"
+                      class="w-full"
+                    />
+                  </div>
+                  <FieldInput v-model="cardVersion" :label="t('settings.pages.card.creation.version')" :required="true" :description="t('settings.pages.card.creation.fields_info.version')" />
+                </div>
+              </div>
+              <CardModelPreview
+                :model-id="selectedDisplayModelId"
+                fit="contain"
+                :class="['order--1 !h-56 sm:!h-64 lg:order-none lg:!h-auto lg:min-h-[300px]']"
+              />
+            </section>
+
             <!-- Identity details -->
             <div v-if="activeSection === 'identity'" :class="['flex flex-col gap-6']">
               <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
                 {{ t('settings.pages.card.creation.fields_info.subtitle') }}
               </p>
-
-              <div :class="['grid grid-cols-1 gap-5', 'sm:grid-cols-2']">
-                <FieldInput v-model="cardName" :label="t('settings.pages.card.creation.name')" :description="t('settings.pages.card.creation.fields_info.name')" :required="true" />
-                <FieldInput v-model="cardNickname" :label="t('settings.pages.card.creation.nickname')" :description="t('settings.pages.card.creation.fields_info.nickname')" />
-              </div>
 
               <div :class="['grid grid-cols-1 gap-5', 'xl:grid-cols-2']">
                 <FieldInput v-model="cardDescription" :label="t('settings.pages.card.creation.description')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.description')" :input-class="editorTextareaClass" />
@@ -1015,34 +1050,12 @@ function handleBack() {
                   </div>
                 </div>
               </section>
-
-              <!-- Body -->
-              <section :class="moduleSectionClasses">
-                <div :class="moduleSectionHeaderClasses">
-                  <div i-solar:ghost-bold-duotone :class="['text-base text-primary-500 dark:text-primary-400']" />
-                  {{ t('settings.pages.card.creation.sections.body') }}
-                </div>
-                <div :class="['flex flex-col gap-1.5']">
-                  <label :class="moduleFieldLabelClasses">
-                    {{ t('settings.pages.card.body-model') }}
-                  </label>
-                  <ComboboxSelect
-                    v-model="displayModelSelection"
-                    :options="displayModelOptions"
-                    :placeholder="t('settings.pages.card.creation.no_model')"
-                    class="w-full"
-                  />
-                </div>
-              </section>
             </div>
             <!-- Settings -->
             <div v-else-if="activeSection === 'settings'" :class="['flex flex-col gap-5']">
               <div :class="['grid grid-cols-1 gap-5', 'xl:grid-cols-2']">
                 <FieldInput v-model="cardSystemPrompt" :label="t('settings.pages.card.systemprompt')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.systemprompt')" :input-class="editorLongTextareaClass" />
                 <FieldInput v-model="cardPostHistoryInstructions" :label="t('settings.pages.card.posthistoryinstructions')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.posthistoryinstructions')" :input-class="editorLongTextareaClass" />
-              </div>
-              <div :class="['grid grid-cols-1 gap-5', 'sm:grid-cols-2']">
-                <FieldInput v-model="cardVersion" :label="t('settings.pages.card.creation.version')" :required="true" :description="t('settings.pages.card.creation.fields_info.version')" />
               </div>
             </div>
             <!-- Artistry -->

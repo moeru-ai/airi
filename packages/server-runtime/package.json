@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/server-runtime",
   "type": "module",
-  "version": "0.12.0-beta.5",
+  "version": "0.13.0",
   "description": "Server runtime implementation for AIRI running in different environments",
   "author": {
     "name": "Moeru AI Project AIRI Team",
@@ -33,6 +33,7 @@
     "package.json"
   ],
   "scripts": {
+    "test:run": "vitest run --config vitest.config.ts",
     "dev": "tsx ./src/bin/run.js",
     "start": "tsx ./src/bin/run.js",
     "build": "tsdown",

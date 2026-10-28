@@ -188,6 +188,20 @@ describe('useChatFloatingClickThrough', () => {
     expect(area.value?.style.opacity).toBe('0')
   })
 
+  it('takes the pointer over a transparent element that is marked to take it, also beside a passive area', async () => {
+    // ROOT CAUSE:
+    //
+    // The resize handles along the edges of the chat paint nothing. Without
+    // the glass behind them, as in the message feed, the window stayed
+    // click-through over them, and a press never reached a handle.
+    //
+    // An element with `data-takes-pointer` now takes the pointer.
+    const area = shallowRef<HTMLElement | null>(null)
+    await renderPainted(() => h('div', [h('div', { ref: area }), h('div', { 'data-takes-pointer': '', 'style': box })]), true, area)
+
+    await vi.waitFor(() => expect(mocks.setIgnoreMouseEvents).toHaveBeenLastCalledWith([false, { forward: true }]))
+  })
+
   it('closes an open menu when the chat hides', async () => {
     // ROOT CAUSE:
     //

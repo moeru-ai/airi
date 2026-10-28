@@ -191,6 +191,8 @@ export function sharedUnoConfig() {
           '(components|src)/**/*.{js,ts,vue}', // THIS CAN INCLUDE node_modules
           '**/stage-ui/**/*.{vue,js,ts}', // THIS TOO
           '**/ui/**/*.{vue,js,ts}', // THIS TOO
+          // Provider definitions declare their brand icons, such as `i-lobe-icons:openai`. Apps load the built files.
+          '**/provider-inference/**/*.{mjs,ts}',
         ],
         exclude: [
 

@@ -6,6 +6,7 @@ import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { createPinia, disposePinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from 'vitest-browser-vue'
+import { page } from 'vitest/browser'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
@@ -24,8 +25,12 @@ afterEach(() => {
   localStorage.clear()
 })
 
-/** Renders the Hearing overview in a host that declares whether it has a Push to Talk trigger. `undefined` provides nothing. */
-async function renderHearing(trigger: boolean | undefined, pinia = createPinia()) {
+/**
+ * Renders the Hearing overview in a host that declares whether it has a Push to Talk trigger. `undefined` provides nothing.
+ * The page renders selects on a wide screen and row lists on a narrow one, so each test sets its width.
+ */
+async function renderHearing(trigger: boolean | undefined, width = 1280, pinia = createPinia()) {
+  await page.viewport(width, 800)
   pinias.push(pinia)
   const router = createRouter({
     history: createMemoryHistory(),
@@ -89,6 +94,15 @@ describe('hearing overview', () => {
 })
 
 describe('hearing input mode', () => {
+  it('lists the input modes as rows on a narrow screen and disables Push to Talk without a trigger', async () => {
+    const screen = await renderHearing(undefined, 390)
+
+    const pushToTalk = screen.getByTestId('hearing-input-mode').getByRole('radio', { name: /Push to Talk/ })
+    await expect.element(pushToTalk).toBeVisible()
+    await expect.element(pushToTalk).toHaveAttribute('data-disabled')
+    await expect.element(screen.getByTestId('hearing-input-mode').getByRole('radio', { name: /Always on/ })).toHaveAttribute('data-state', 'checked')
+  })
+
   // Review: https://github.com/moeru-ai/airi/pull/2729#discussion_r4237157722
   it('disables Push to Talk with a hint when the host declares no trigger', async () => {
     const screen = await renderHearing(undefined)

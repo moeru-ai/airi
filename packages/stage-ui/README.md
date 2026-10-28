@@ -14,6 +14,19 @@ Missing Cloud grants disable Cloud features. Refresh failures and account change
 Set `VITE_CLOUD_URL` for a custom Cloud origin. Deploy its migration and API before the client.
 Keep authorization checks on the server.
 
+## Notifications
+
+Notifications are private messages from AIRI Cloud to the signed-in account. Code and API names use `inbox`.
+`useInboxStore()` in `stores/inbox.ts` owns the unread count, the loaded pages, and the read actions for one window.
+The store reads the count at sign-in, on window focus, and every 5 minutes. A list loads only when a panel opens.
+Opening a message marks it read. The count changes at once and rolls back if Cloud rejects the write.
+Sign-out and account changes clear all state. Responses from the old session are dropped.
+Requests use the generated `@proj-airi/cloud-client` functions with `authedFetch`, so a 401 refreshes the token once.
+The store keeps only kinds that `inbox-presentation.ts` can render. It skips unknown kinds and invalid params.
+Entry points: the web account menu opens `InboxPopover` anchored to the account pill.
+The mobile menu opens `InboxDrawer` as a sub-panel with a back button. The Electron island shows `InboxPanel` in place.
+Entry points show nothing while the user is signed out. Announcements are a separate public surface.
+
 ## Message times
 
 Chat history shows a centered timestamp before the first dated message and after five minutes without a message.
@@ -144,6 +157,19 @@ The detector remains active during playback. A supplied `acceptSpeech` classifie
 The default policy allows barge-in when the browser reports echo cancellation. Without that support, automatic admission waits for playback to end.
 Model selection, acoustic echo classification, and enrollment remain external integrations.
 
+## Web search
+
+Open **Settings → Modules → Web Search**, select **Tavily** or **DeepSeek**, enter that service's API key, and enable search.
+Tavily is the default. Each service keeps its own device-local key when you switch services.
+These credentials are independent of the chat provider. Any chat model that supports tool calls can use the selected search service.
+Resetting settings clears both keys and restores Tavily with search disabled.
+
+DeepSeek uses the [Search API](https://api-docs.deepseek.com/zh-cn/api/search/).
+Queries accept 1–128 Unicode characters and support operators such as `site:` and `after:`.
+The tool requests five results by default, with a maximum of ten. It uses summaries without fetching full pages.
+Results retain source links and site icons in the existing search cards. Search requests time out after 15 seconds and stop when the turn stops.
+An API error fails the tool call without switching services. Use another search service when your network cannot reach the selected endpoint.
+
 ## Chat sampling
 
 In **Settings → Modules → Consciousness**, custom temperature and Top P are off
@@ -216,6 +242,13 @@ Each request rebuilds the analytics correlation headers for its provider.
 Tool and content-array compatibility failures belong to the model of the failing request, not the first model of the turn.
 Session resets and autonomous artistry hooks also use the session character.
 Each concurrent turn owns its IO trace. `activeTurnSpan` points to the most recently started turn that is still running.
+
+A tracer view reads spans from the source that `setIOTraceSource` sets. Without a source, as in stage-web, it reads
+the spans of its own window and the spans that other windows broadcast.
+
+Tamagotchi sets the IO trace hub of the main process as the source. Each window sends its ended spans to the hub.
+The hub sends them to the disk recording and to open tracer views. When **Keep recent IO traces in memory** is on, the
+hub also keeps the spans of the last 30 minutes, up to 5000. A tracer view that opens later shows them.
 
 A spoken turn is one IO trace, from the wake word to playback:
 

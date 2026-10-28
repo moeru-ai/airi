@@ -45,11 +45,6 @@ docs:
   style:
     title: 聊天視窗樣式
     legacy: 傳統視窗
-    floating-attached: 浮動，位於角色旁
-    floating-free: 浮動，位於螢幕任意位置
-    floating-danmaku: 浮動，訊息串流
-    pinned: 保持在最上層
-  resize: 拖曳以調整聊天大小
   move: 拖曳以移動聊天
   fold: 隱藏聊天
   composer:

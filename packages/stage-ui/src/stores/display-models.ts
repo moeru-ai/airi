@@ -121,6 +121,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   let generateMMDPreview: (file: File) => Promise<string | undefined>
 
   const displayModelsFromIndexedDBLoading = ref(false)
+  let displayModelsLoadPromise: Promise<void> | undefined
 
   /** Downloaded private models stay hidden from other signed-in accounts on this device. */
   function isVisibleToAccount(model: DisplayModelFile) {
@@ -128,24 +129,32 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     return !model.cloudOwnerId || !authStore.isAuthenticated || authStore.userId === model.cloudOwnerId
   }
 
-  async function loadDisplayModelsFromIndexedDB() {
-    await until(displayModelsFromIndexedDBLoading).toBe(false)
+  function loadDisplayModelsFromIndexedDB() {
+    if (!displayModelsLoadPromise) {
+      displayModelsLoadPromise = (async () => {
+        await until(displayModelsFromIndexedDBLoading).toBe(false)
 
-    displayModelsFromIndexedDBLoading.value = true
-    const models = [...displayModelsPresets]
+        displayModelsFromIndexedDBLoading.value = true
+        const models = [...displayModelsPresets]
 
-    try {
-      for (const model of await displayModelsRepo.list()) {
-        if (isVisibleToAccount(model))
-          models.push(model)
-      }
+        try {
+          for (const model of await displayModelsRepo.list()) {
+            if (isVisibleToAccount(model))
+              models.push(model)
+          }
+        }
+        catch (err) {
+          console.error(err)
+        }
+
+        displayModels.value = models.sort((a, b) => b.importedAt - a.importedAt)
+        displayModelsFromIndexedDBLoading.value = false
+      })().finally(() => {
+        displayModelsLoadPromise = undefined
+      })
     }
-    catch (err) {
-      console.error(err)
-    }
 
-    displayModels.value = models.sort((a, b) => b.importedAt - a.importedAt)
-    displayModelsFromIndexedDBLoading.value = false
+    return displayModelsLoadPromise
   }
 
   async function getDisplayModel(id: string) {

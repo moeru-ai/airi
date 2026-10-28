@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/plugin-sdk-tamagotchi",
   "type": "module",
-  "version": "0.12.0-beta.5",
+  "version": "0.13.0",
   "private": true,
   "description": "Tamagotchi-specific DX helpers for Project AIRI plugins",
   "author": {
@@ -49,6 +49,7 @@
     "package.json"
   ],
   "scripts": {
+    "test:run": "vitest run --config vitest.config.ts",
     "test": "vitest",
     "typecheck": "tsc --noEmit",
     "build": "tsdown"

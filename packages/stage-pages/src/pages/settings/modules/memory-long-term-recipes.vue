@@ -12,6 +12,8 @@ import { useI18n } from 'vue-i18n'
 
 import RecipeEditor from './components/recipe-editor.vue'
 
+import { recipeSearchKey } from './memory-long-term-recipes.search'
+
 /** Recipe types that the owner can write. */
 type RecipeType = 'instructions' | 'decision'
 /** Conversation recipes work inside a reply. Auto-run recipes are still in development, so their tab shows a banner. */
@@ -173,6 +175,7 @@ function removeRecipe(id: string) {
         <li
           v-for="recipe in recipes"
           :key="recipe.id"
+          :data-settings-search="recipeSearchKey(recipe.id)"
           :class="[
             'flex flex-col', 'gap-3',
             'rounded-xl', 'px-4 py-3',

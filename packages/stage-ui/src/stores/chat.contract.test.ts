@@ -13,7 +13,7 @@ import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared'
 import { createPinia, defineStore, disposePinia, setActivePinia } from 'pinia'
 import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { computed, createApp, nextTick, reactive, ref } from 'vue'
+import { computed, createApp, nextTick, reactive, ref, toRaw } from 'vue'
 
 import { getAnalytics } from '../libs/product-signals'
 import {
@@ -21,6 +21,7 @@ import {
   AIRI_CHAT_ROUND_ID_HEADER,
   AIRI_CHAT_SESSION_ID_HEADER,
 } from '../libs/product-signals/headers'
+import { composeDrawCardPrompt } from '../tools/draw-card'
 import { composeMemoryPrompt } from '../tools/memory'
 import { useChatStore } from './chat'
 import { CHAT_FORMAT_RULES } from './chat/prompt-recipe'
@@ -83,7 +84,6 @@ const createUserAccountContextMock = vi.fn()
 const persistSessionMessagesMock = vi.fn()
 const forkSessionMock = vi.fn()
 const createSessionMock = vi.fn()
-const ensureSessionMock = vi.fn()
 const loadSessionMock = vi.fn()
 const deleteSessionMock = vi.fn()
 const initializeSessionMock = vi.fn()
@@ -173,13 +173,16 @@ vi.mock('./chat/session-store', () => ({
     activeSessionId: activeSessionIdRef,
     sessionMessages,
     sessionMetas,
-    ensureSession: (sessionId: string) => {
-      ensureSessionMock(sessionId)
-      sessionMessages[sessionId] ??= [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
+    storeMessage: async (sessionId: string, message: ChatHistoryItem & { id: string }) => {
+      const messages = sessionMessages[sessionId] ?? []
+      const index = messages.findIndex(item => item.id === message.id)
+      sessionMessages[sessionId] = index < 0 ? [...messages, message] : messages.with(index, message)
     },
-    appendSessionMessage: (sessionId: string, message: ChatHistoryItem) => {
-      sessionMessages[sessionId] ??= []
-      sessionMessages[sessionId].push(message)
+    updateUserMessage: async (sessionId: string, messageId: string, fields: Partial<ChatHistoryItem>) => {
+      sessionMessages[sessionId] = (sessionMessages[sessionId] ?? []).map(message => message.id === messageId ? { ...toRaw(message), ...fields } as ChatHistoryItem : message)
+    },
+    replaceSessionHistory: async (sessionId: string, messages: ChatHistoryItem[]) => {
+      sessionMessages[sessionId] = messages
     },
     commitUserMessage: (async (sessionId, message) => {
       sessionMessages[sessionId] ??= []
@@ -189,7 +192,7 @@ vi.mock('./chat/session-store', () => ({
       await persistSessionMessagesMock(sessionId)
       return { status: existing ? 'existing' : 'inserted', messageId: message.id }
     }) satisfies ChatOrchestratorSessionPort['commitUserMessage'],
-    cleanupMessages: (sessionId: string) => {
+    clearSessionMessages: async (sessionId: string) => {
       sessionMessages[sessionId] = []
     },
     getSessionMessages: (sessionId: string) => sessionMessages[sessionId] ?? [],
@@ -350,7 +353,6 @@ describe('chat store contract', () => {
     createMinecraftContextMock.mockReturnValue(undefined)
     persistSessionMessagesMock.mockReset()
     forkSessionMock.mockReset()
-    ensureSessionMock.mockReset()
     loadSessionMock.mockReset().mockResolvedValue(true)
     createSessionMock.mockReset().mockImplementation(async (characterId: string, options: Partial<ChatSessionMeta>) => {
       const sessionId = `created-${createSessionMock.mock.calls.length}`
@@ -605,9 +607,10 @@ describe('chat store contract', () => {
     expect(getChatProviderInstanceMock).toHaveBeenCalledWith('mock-provider', { reasoning: 'disabled' })
     expect(() => structuredClone(result)).not.toThrow()
     // The session character's wake word tool joins every turn. It is not a selectable stored tool.
+    // Reply cards are on by default, so the owner's chat also gets the card tool and the icon search of cards.
     expect(resolvedToolNames).toEqual([
-      ['stage_widgets', 'configure_wake_words', 'builtIn_readMemory', 'builtIn_writeMemory', 'builtIn_forgetMemory', 'builtIn_useRecipe', 'builtIn_proposeRecipe'],
-      ['stage_widgets', 'configure_wake_words', 'builtIn_readMemory', 'builtIn_writeMemory', 'builtIn_forgetMemory', 'builtIn_useRecipe', 'builtIn_proposeRecipe'],
+      ['stage_widgets', 'configure_wake_words', 'builtIn_readMemory', 'builtIn_writeMemory', 'builtIn_forgetMemory', 'builtIn_useRecipe', 'builtIn_proposeRecipe', 'builtIn_drawCard', 'builtIn_searchIcons'],
+      ['stage_widgets', 'configure_wake_words', 'builtIn_readMemory', 'builtIn_writeMemory', 'builtIn_forgetMemory', 'builtIn_useRecipe', 'builtIn_proposeRecipe', 'builtIn_drawCard', 'builtIn_searchIcons'],
     ])
   })
 
@@ -1188,9 +1191,12 @@ describe('chat store contract', () => {
     let leadershipListener: ((isLeader: boolean) => void) | undefined
     const stopLeadershipListener = vi.fn()
     const syncedPinia: SyncedPiniaRuntime = {
+      addRole: vi.fn(() => vi.fn()),
       dispose: vi.fn(),
       getLeaderId: vi.fn(),
       getParticipantCount: vi.fn(() => 1),
+      getParticipants: vi.fn(() => []),
+      getRoles: vi.fn(() => []),
       isLeader: vi.fn(() => false),
       onCoordinationChange: vi.fn(() => vi.fn()),
       onLeadershipChange: vi.fn((listener) => {
@@ -1278,7 +1284,8 @@ describe('chat store contract', () => {
     await store.send({ sessionId: 'session-2', text: 'continue persisted chat' })
 
     expect(loadSessionMock).toHaveBeenCalledWith('session-2')
-    expect(loadSessionMock.mock.invocationCallOrder[0]).toBeLessThan(ensureSessionMock.mock.invocationCallOrder[0])
+    // The user message commits after the history loads, so the commit never writes a history that did not load.
+    expect(loadSessionMock.mock.invocationCallOrder[0]).toBeLessThan(persistSessionMessagesMock.mock.invocationCallOrder[0])
     expect(sessionMessages['session-2']?.[0]).toMatchObject({
       content: 'persisted system prompt',
       id: 'system-2',
@@ -1297,7 +1304,6 @@ describe('chat store contract', () => {
       .rejects
       .toThrow('Failed to load the target chat session')
 
-    expect(ensureSessionMock).not.toHaveBeenCalledWith('session-2')
     expect(sessionMessages['session-2']).toBeUndefined()
   })
 
@@ -1525,9 +1531,9 @@ describe('chat store contract', () => {
     cardPrompt.value = 'edited prompt'
     await store.ingest('second', { model: 'gpt-test', chatProvider: provider })
 
-    // The owner's run reads the memory index after the identity.
-    const memoryPrompt = composeMemoryPrompt('')
-    expect(systemTexts).toEqual([`${CHAT_FORMAT_RULES}system prompt${memoryPrompt}`, `${CHAT_FORMAT_RULES}edited prompt${memoryPrompt}`])
+    // The owner's run reads the memory index and, with reply cards on by default, when to draw a card after the identity.
+    const after = `${composeMemoryPrompt('')}${composeDrawCardPrompt()}`
+    expect(systemTexts).toEqual([`${CHAT_FORMAT_RULES}system prompt${after}`, `${CHAT_FORMAT_RULES}edited prompt${after}`])
   })
 
   it('keeps hook order and composes context prompt after system message', async () => {
@@ -1633,7 +1639,7 @@ describe('chat store contract', () => {
     if (composedMessages[0].type !== 'system' || composedMessages[1].type !== 'user')
       throw new Error('Expected system and user turns')
     expect(composedMessages[0].content).toEqual([
-      { type: 'text', text: `${CHAT_FORMAT_RULES}system prompt${composeMemoryPrompt('')}` },
+      { type: 'text', text: `${CHAT_FORMAT_RULES}system prompt${composeMemoryPrompt('')}${composeDrawCardPrompt()}` },
       { type: 'text', text: '\n\nPlugin toolset guidance.' },
     ])
     expect(composedMessages[1].content[0]).toMatchObject({
@@ -2146,6 +2152,7 @@ describe('chat store contract', () => {
       reason: 'retry',
       hidden: true,
     })
-    expect(ensureSessionMock).toHaveBeenCalledWith('session-forked')
+    // The send commits its user message to the forked session.
+    expect(persistSessionMessagesMock).toHaveBeenCalledWith('session-forked')
   })
 })

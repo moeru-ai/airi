@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import type {
-  ElectronMcpStdioConfigFile,
-  ElectronMcpStdioRuntimeStatus,
-  ElectronMcpStdioTestResult,
+  ElectronMcpConfigFile,
+  ElectronMcpRuntimeStatus,
+  ElectronMcpTestResult,
 } from '../../../../shared/eventa'
 import type { ServerForm } from './mcp-config'
 
 import { errorMessageFrom } from '@moeru/std'
 import { useHostEventaInvoke } from '@proj-airi/stage-host-context'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
-import { Button, Callout, Checkbox, GhostButton, TransitionVertical } from '@proj-airi/ui'
+import { Button, Callout, Checkbox, GhostButton, SettingsCard, TransitionVertical } from '@proj-airi/ui'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -32,9 +32,11 @@ import {
   createServerForm,
   findServerIdentifierByRowId,
   loadServerForms,
-  previewServerCommand,
+  previewServerTarget,
   syncJsonDraftFromServers,
+  validateServerForm,
 } from './mcp-config'
+import { mcpServerSearchKey } from './mcp.search'
 
 const { t } = useI18n()
 const { trackMcpServerRemoved, trackMcpConnectionTestRun } = useAnalytics()
@@ -48,7 +50,7 @@ const invokeWriteConfigText = useHostEventaInvoke(electronMcpWriteConfigText)
 const invokeTestServer = useHostEventaInvoke(electronMcpTestServer)
 
 const servers = ref<ServerForm[]>([])
-const runtime = ref<ElectronMcpStdioRuntimeStatus>()
+const runtime = ref<ElectronMcpRuntimeStatus>()
 const infoMessage = ref('')
 const errorMessage = ref('')
 const isBusy = ref(false)
@@ -64,13 +66,13 @@ const expandedIds = ref<Set<string>>(new Set())
 
 const testRowId = ref('')
 const testRunning = ref(false)
-const testResult = ref<ElectronMcpStdioTestResult>()
+const testResult = ref<ElectronMcpTestResult>()
 
 function buildConfig() {
   return buildConfigFile(servers.value, tn)
 }
 
-function applyLoadedConfig(config: ElectronMcpStdioConfigFile) {
+function applyLoadedConfig(config: ElectronMcpConfigFile) {
   const selectedIdentifier = findServerIdentifierByRowId(servers.value, testRowId.value)
   const loaded = loadServerForms(config, { selectedIdentifier })
   servers.value = loaded.servers
@@ -126,13 +128,13 @@ function badgeClass(state: 'running' | 'stopped' | 'error' | undefined) {
   return RUNTIME_BADGE[state ?? 'stopped']
 }
 
-function commandPreview(s: ServerForm) {
-  return previewServerCommand(s)
+function targetPreview(s: ServerForm) {
+  return previewServerTarget(s)
 }
 
-const PANEL = 'flex flex-col gap-3 rounded-xl border-2 border-solid border-neutral-100 bg-white p-4 md:p-5 dark:border-neutral-900 dark:bg-neutral-900/30'
 const CARD_PRIMARY = 'flex flex-col gap-3 rounded-xl border-2 border-solid border-primary-100 bg-primary-50/50 p-3 transition-all duration-200 ease-in-out hover:border-primary-500/30 md:p-4 dark:border-primary-900/60 dark:bg-primary-900/10 dark:hover:border-primary-400/30'
-const CARD_MUTED = 'flex flex-col gap-3 rounded-xl border-2 border-solid border-neutral-100 bg-neutral-50/60 p-3 transition-all duration-200 ease-in-out hover:border-primary-500/30 md:p-4 dark:border-neutral-900 dark:bg-neutral-900/30 dark:hover:border-primary-400/30'
+// The section card is neutral-100, so a disabled card needs a lighter fill and a visible border to read as a card.
+const CARD_MUTED = 'flex flex-col gap-3 rounded-xl border-2 border-solid border-neutral-200 bg-white p-3 transition-all duration-200 ease-in-out hover:border-primary-500/30 md:p-4 dark:border-neutral-700/50 dark:bg-neutral-800/40 dark:hover:border-primary-400/30'
 
 async function refreshRuntime() {
   runtime.value = await invokeGetRuntimeStatus()
@@ -303,8 +305,9 @@ async function runConnectionTest() {
     testResult.value = { ok: false, error: tn('test.server-disabled', { name: target.identifier || '?' }), durationMs: 0 }
     return
   }
-  if (!target.command.trim()) {
-    testResult.value = { ok: false, error: tn('errors.empty-command', { name: target.identifier || '?' }), durationMs: 0 }
+  const invalid = validateServerForm(target, tn)
+  if (invalid) {
+    testResult.value = { ok: false, error: invalid, durationMs: 0 }
     return
   }
   testRunning.value = true
@@ -337,7 +340,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div flex="~ col gap-4">
+  <div :class="['flex flex-col gap-4']">
     <Callout v-if="errorMessage" theme="orange" :label="tn('error-title')">
       {{ errorMessage }}
     </Callout>
@@ -345,14 +348,14 @@ onMounted(async () => {
       {{ infoMessage }}
     </Callout>
 
-    <section :class="PANEL">
-      <p class="text-sm text-neutral-500 dark:text-neutral-400">
+    <SettingsCard>
+      <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
         {{ tn('description') }}
       </p>
-      <div class="break-all text-xs text-neutral-500 dark:text-neutral-400">
-        <span class="font-medium">{{ tn('config-path') }}:</span> {{ configPath || '-' }}
+      <div :class="['break-all text-xs text-neutral-500 dark:text-neutral-400']">
+        <span :class="['font-medium']">{{ tn('config-path') }}:</span> {{ configPath || '-' }}
       </div>
-      <div class="flex justify-end">
+      <div :class="['flex justify-end']">
         <GhostButton
           size="sm" :active="jsonOpen"
           :icon="jsonOpen ? 'i-solar:close-square-bold-duotone' : 'i-solar:document-text-bold-duotone'"
@@ -360,7 +363,7 @@ onMounted(async () => {
           @click="toggleJsonPanel"
         />
       </div>
-    </section>
+    </SettingsCard>
 
     <TransitionVertical>
       <McpJsonEditor
@@ -375,78 +378,81 @@ onMounted(async () => {
       />
     </TransitionVertical>
 
-    <section :class="PANEL">
-      <div flex="~ col gap-1">
-        <div class="flex items-center justify-between gap-2">
-          <h3 class="text-sm font-semibold">
+    <SettingsCard>
+      <div :class="['flex flex-col gap-1']">
+        <div :class="['flex items-center justify-between gap-2']">
+          <h3 :class="['text-sm font-semibold']">
             {{ tn('existing.title') }}
           </h3>
-          <span class="rounded-full bg-neutral-200/60 px-2 py-0.5 text-xs text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
+          <span :class="['rounded-full bg-neutral-200/60 px-2 py-0.5 text-xs text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300']">
             {{ savedServers.length }}
           </span>
         </div>
-        <p class="text-xs text-neutral-500 dark:text-neutral-400">
+        <p :class="['text-xs text-neutral-500 dark:text-neutral-400']">
           {{ tn('existing.description') }}
         </p>
       </div>
 
-      <div v-if="!savedServers.length" class="border-2 border-neutral-200 rounded-lg border-dashed p-6 text-center text-xs text-neutral-500 dark:border-neutral-800">
+      <div v-if="!savedServers.length" :class="['border-2 border-neutral-200 rounded-lg border-dashed p-6 text-center text-xs text-neutral-500 dark:border-neutral-800']">
         {{ tn('existing.empty') }}
       </div>
 
       <article
         v-for="server in savedServers"
         :key="server.rowId"
+        :data-settings-search="mcpServerSearchKey(server.identifier)"
         :class="server.enabled ? CARD_PRIMARY : CARD_MUTED"
       >
-        <div class="flex items-center gap-3">
+        <div :class="['flex items-center gap-3']">
           <button
             type="button"
-            class="flex items-center justify-center rounded-md p-1 text-neutral-500 transition-colors hover:bg-neutral-200/60 hover:text-neutral-800 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+            :class="['flex items-center justify-center rounded-md p-1 text-neutral-500 transition-colors hover:bg-neutral-200/60 hover:text-neutral-800 dark:hover:bg-neutral-800 dark:hover:text-neutral-100']"
             :aria-label="isExpanded(server.rowId) ? tn('actions.collapse') : tn('actions.expand')"
             @click="toggleExpanded(server.rowId)"
           >
-            <span :class="isExpanded(server.rowId) ? 'i-solar:alt-arrow-down-line-duotone' : 'i-solar:alt-arrow-right-line-duotone'" class="block size-4" />
+            <span :class="[isExpanded(server.rowId) ? 'i-solar:alt-arrow-down-line-duotone' : 'i-solar:alt-arrow-right-line-duotone', 'block size-4']" />
           </button>
 
-          <div class="min-w-0 flex flex-1 flex-col gap-0.5">
-            <div class="flex items-center gap-2">
-              <span class="truncate text-sm font-medium">
+          <div :class="['min-w-0 flex flex-1 flex-col gap-0.5']">
+            <div :class="['flex items-center gap-2']">
+              <span :class="['truncate text-sm font-medium']">
                 {{ server.identifier || tn('test.untitled') }}
               </span>
               <span
-                class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase"
-                :class="badgeClass(runtimeStateOf(server.identifier))"
+                :class="[
+                  'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase',
+                  badgeClass(runtimeStateOf(server.identifier)),
+                ]"
               >
-                <span class="size-1 rounded-full bg-current opacity-80" />
+                <span :class="['size-1 rounded-full bg-current opacity-80']" />
                 {{ runtimeStateOf(server.identifier) ?? tn('status.unknown') }}
               </span>
             </div>
-            <div class="truncate text-xs text-neutral-500 font-mono dark:text-neutral-400">
-              {{ commandPreview(server) || '-' }}
+            <div :class="['truncate text-xs text-neutral-500 font-mono dark:text-neutral-400']">
+              {{ targetPreview(server) || '-' }}
             </div>
           </div>
 
-          <label class="flex shrink-0 cursor-pointer items-center gap-2 text-xs text-neutral-600 dark:text-neutral-300">
+          <label :class="['flex shrink-0 cursor-pointer items-center gap-2 text-xs text-neutral-600 dark:text-neutral-300']">
             <span>{{ tn('fields.enabled.label') }}</span>
             <Checkbox v-model="server.enabled" />
           </label>
         </div>
 
         <TransitionVertical>
-          <div v-if="isExpanded(server.rowId)" class="border-t border-neutral-200/70 pt-3 dark:border-neutral-800">
+          <div v-if="isExpanded(server.rowId)" :class="['border-t border-neutral-200/70 pt-3 dark:border-neutral-800']">
             <McpServerForm :model-value="server" @remove="removeServer(server.rowId)" />
           </div>
         </TransitionVertical>
       </article>
-    </section>
+    </SettingsCard>
 
-    <section :class="PANEL">
-      <div flex="~ col gap-1">
-        <h3 class="text-sm font-semibold">
+    <SettingsCard>
+      <div :class="['flex flex-col gap-1']">
+        <h3 :class="['text-sm font-semibold']">
           {{ tn('add.title') }}
         </h3>
-        <p class="text-xs text-neutral-500 dark:text-neutral-400">
+        <p :class="['text-xs text-neutral-500 dark:text-neutral-400']">
           {{ tn('add.description') }}
         </p>
       </div>
@@ -456,11 +462,11 @@ onMounted(async () => {
         :key="server.rowId"
         :class="CARD_PRIMARY"
       >
-        <div class="flex items-center justify-between gap-2">
-          <span class="rounded-full bg-primary-500/15 px-2 py-0.5 text-[10px] text-primary-700 font-medium tracking-wide uppercase dark:text-primary-300">
+        <div :class="['flex items-center justify-between gap-2']">
+          <span :class="['rounded-full bg-primary-500/15 px-2 py-0.5 text-[10px] text-primary-700 font-medium tracking-wide uppercase dark:text-primary-300']">
             {{ tn('add.pending-badge') }}
           </span>
-          <label class="flex shrink-0 cursor-pointer items-center gap-2 text-xs text-neutral-600 dark:text-neutral-300">
+          <label :class="['flex shrink-0 cursor-pointer items-center gap-2 text-xs text-neutral-600 dark:text-neutral-300']">
             <span>{{ tn('fields.enabled.label') }}</span>
             <Checkbox v-model="server.enabled" />
           </label>
@@ -475,7 +481,7 @@ onMounted(async () => {
         icon="i-solar:add-circle-bold-duotone" :label="tn('actions.add-server')"
         @click="addServer"
       />
-    </section>
+    </SettingsCard>
 
     <Button
       size="md" block :disabled="isBusy" :loading="isBusy"
@@ -491,29 +497,28 @@ onMounted(async () => {
       @test="runConnectionTest"
     />
 
-    <section v-if="runtime?.servers?.length" :class="PANEL">
-      <div class="text-sm font-semibold">
+    <SettingsCard v-if="runtime?.servers?.length">
+      <div :class="['text-sm font-semibold']">
         {{ tn('runtime-title') }}
       </div>
-      <ul flex="~ col gap-2">
+      <ul :class="['flex flex-col gap-2']">
         <li
           v-for="s in runtime.servers" :key="s.name"
-          class="flex flex-col gap-1 rounded-md px-3 py-2"
-          :class="badgeClass(s.state)"
+          :class="['flex flex-col gap-1 rounded-md px-3 py-2', badgeClass(s.state)]"
         >
-          <div class="flex items-center justify-between gap-2 text-sm font-medium">
+          <div :class="['flex items-center justify-between gap-2 text-sm font-medium']">
             <span>{{ s.name }}</span>
-            <span class="text-xs tracking-wide uppercase opacity-80">{{ s.state }}</span>
+            <span :class="['text-xs tracking-wide uppercase opacity-80']">{{ s.state }}</span>
           </div>
-          <div class="break-all text-xs font-mono opacity-80">
-            {{ s.command }} {{ s.args.join(' ') }}
+          <div :class="['break-all text-xs font-mono opacity-80']">
+            {{ s.transport === 'stdio' ? `${s.command} ${s.args.join(' ')}`.trim() : s.url }}
           </div>
-          <div v-if="s.lastError" class="break-all text-xs">
+          <div v-if="s.lastError" :class="['break-all text-xs']">
             {{ s.lastError }}
           </div>
         </li>
       </ul>
-    </section>
+    </SettingsCard>
   </div>
 </template>
 

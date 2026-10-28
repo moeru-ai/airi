@@ -26,7 +26,7 @@ import { useFeatureFlagsStore } from '@proj-airi/stage-ui/stores/feature-flags'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useVoiceStore } from '@proj-airi/stage-ui/stores/voice'
-import { refDebounced } from '@vueuse/core'
+import { refDebounced, until } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, onScopeDispose, ref, shallowRef, toRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -38,8 +38,9 @@ import AuthStatusIsland from '../components/stage-islands/auth-status-island.vue
 import ControlsIslandRoot from '../components/stage-islands/controls-island/controls-island-root.vue'
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
+import WindowResizeBorder from '../components/window-resize-border.vue'
 
-import { defaultFullscreenSurface, electronAppIsWayland, electronFullscreenExit, electronFullscreenSetMode, electronMainWindowEnterFullscreen, electronMainWindowGetFullscreenState, electronMainWindowSetFullscreenBounds, electronOpenInlay, electronOpenOnboarding, electronOpenSettings } from '../../shared/eventa'
+import { defaultFullscreenSurface, electronAppIsWayland, electronFullscreenExit, electronFullscreenSetMode, electronMainPageMounted, electronMainWindowEnterFullscreen, electronMainWindowGetFullscreenState, electronMainWindowSetFullscreenBounds, electronOpenInlay, electronOpenOnboarding, electronOpenSettings } from '../../shared/eventa'
 import { fullscreenHostPages, fullscreenSurfaceOf } from '../components/fullscreen/surfaces'
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
 import { useFullscreenHost } from '../composables/use-fullscreen-host'
@@ -197,6 +198,12 @@ const isWayland = ref(true)
 useElectronEventaInvoke(electronAppIsWayland)()
   .then(value => isWayland.value = value)
   .catch(error => console.warn('[Main Page] Failed to detect Wayland; the controls Island stays shown:', errorMessageFrom(error)))
+
+// The update launcher keeps a new bundle only when it reports healthy, and rolls it back otherwise. This page reports
+// when the stage stops loading, with the model or with the error surface. A page stuck on loading never reports.
+const reportPageMounted = useElectronEventaInvoke(electronMainPageMounted)
+until(isLoading).toBe(false).then(() => reportPageMounted())
+
 const cursorAwayFromWindow = computed(() => !isWayland.value && isOutsideWindow.value && !isAroundWindowBorder.value)
 
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
@@ -805,23 +812,10 @@ const cursorPosition = computed(() => ({
       </div>
     </div>
   </Transition>
-  <Transition
-    enter-active-class="transition-opacity duration-250 ease-in-out"
-    enter-from-class="opacity-50"
-    enter-to-class="opacity-100"
-    leave-active-class="transition-opacity duration-250 ease-in-out"
-    leave-from-class="opacity-100"
-    leave-to-class="opacity-50"
-  >
-    <div v-if="(isAroundWindowBorder || isAroundWindowBorderFor250Ms) && !isLoading && !fullscreenActive" class="pointer-events-none absolute left-0 top-0 z-999 h-full w-full">
-      <div
-        :class="[
-          'b-primary/50',
-          'h-full w-full animate-flash animate-duration-3s animate-count-infinite b-4 rounded-2xl',
-        ]"
-      />
-    </div>
-  </Transition>
+  <WindowResizeBorder
+    :shown="(isAroundWindowBorder || isAroundWindowBorderFor250Ms) && !isLoading && !fullscreenActive"
+    :class="['rounded-2xl']"
+  />
   <!--
     The fullscreen mode of the main window. Nothing of it mounts until it opens. Two layers share the size of the area:
     the backdrop under the stage, and the island and the surface over it. Their content keeps its final layout from

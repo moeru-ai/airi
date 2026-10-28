@@ -18,6 +18,8 @@ export type StreamEvent
   = | { type: 'text-delta', text: string }
     | { type: 'reasoning-delta', text: string }
     | { type: 'finish' }
+    /** The model starts to write a tool call. Its arguments arrive with `tool-call`, when the call is complete. */
+    | { type: 'tool-call-start', toolCallId: string, toolName: string }
     | ({ type: 'tool-call' } & CompletionToolCall)
     | { type: 'tool-error', toolCallId: string, result?: string | CommonContentPart[], isError: true }
     | { type: 'tool-result', toolCallId: string, result?: string | CommonContentPart[] }
@@ -100,9 +102,18 @@ export interface StreamOptions {
   toolsCompatibility?: Map<string, boolean>
   supportsTools?: boolean
   waitForTools?: boolean
-  /** Provider tool-selection directive for one request. */
+  /**
+   * The tool choice of the first model request. Later requests of the tool loop let the model choose, so a forced
+   * tool call does not repeat and the model can answer.
+   */
   toolChoice?: ToolChoice
   tools?: Tool[] | (() => Promise<Tool[] | undefined>)
+  /**
+   * Lets the provider add its own tools, for example the web search of OpenAI Responses that its settings turn on.
+   * A task beside the chat sets it to `false`, so its request carries only the tools that it passes.
+   * @default true
+   */
+  providerTools?: boolean
   /**
    * Per-model runtime cache of whether the provider accepts content-part arrays
    * (e.g. `[{type:'text',...},{type:'image_url',...}]`) for `messages[].content`.
