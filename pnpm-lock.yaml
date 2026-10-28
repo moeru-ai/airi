@@ -1311,9 +1311,6 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 26.2.0
-      '@types/semver':
-        specifier: 'catalog:'
-        version: 7.8.0
       '@unocss/eslint-config':
         specifier: 'catalog:'
         version: 66.7.5(@typescript-eslint/types@8.67.0)(eslint@10.9.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -1374,9 +1371,6 @@ importers:
       rollup:
         specifier: 'catalog:'
         version: 4.62.5
-      semver:
-        specifier: 'catalog:'
-        version: 7.8.5
       simple-git-hooks:
         specifier: 'catalog:'
         version: 2.13.1
