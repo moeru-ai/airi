@@ -1,7 +1,7 @@
 import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
-import { onScopeDispose, ref, watch } from 'vue'
+import { computed, onScopeDispose, ref, watch } from 'vue'
 
 import { useAudioDevice } from '../../composables/audio'
 import { listensContinuously, useHearingStore } from '../modules/hearing'
@@ -30,11 +30,17 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   let disposed = false
   let initialized = false
   let holding: AbortController | undefined
+  /**
+   * True while the preference keeps the microphone open in the window that initialized this store.
+   * Each window computes it from the same persisted settings. A level meter observes the input only while this is
+   * true, so a meter alone never opens the microphone.
+   */
+  const heldOpen = computed(() => enabled.value && listensContinuously(hearing.inputMode))
 
   /** Holds the current input open. A failure other than release turns the preference off. */
   function hold() {
     holding?.abort('Microphone hold replaced')
-    if (!enabled.value || !listensContinuously(hearing.inputMode) || !initialized)
+    if (!heldOpen.value || !initialized)
       return
 
     const current = new AbortController()
@@ -48,7 +54,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     })
   }
 
-  watch([enabled, () => hearing.inputMode, device.input], hold, { flush: 'sync' })
+  watch([heldOpen, device.input], hold, { flush: 'sync' })
 
   function initialize() {
     if (initialized || disposed)
@@ -101,6 +107,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   return {
     error,
     enabled,
+    heldOpen,
     selectedAudioInput,
     audioInputs: device.audioInputs,
     audioInputOptions: device.audioInputOptions,

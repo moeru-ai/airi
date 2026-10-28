@@ -143,10 +143,23 @@ export function useAudioDevice(selectedAudioInput: Ref<string> = ref('')) {
   })
 
   /**
-   * Subscribes until the first block arrives, then leaves. It reports a denied or missing device.
-   * Device labels need enumeration after permission, so this also refreshes the device list.
+   * Gets microphone access, and refreshes the device list, because device labels need enumeration after permission.
+   *
+   * With access already granted, it only refreshes the list. Every capture turns on the system microphone indicator,
+   * so a capture only to check access shows the indicator although nothing records. A missing device then fails at
+   * the first real capture.
+   * Without granted access, it subscribes until the first block arrives, then leaves. That asks the user for access,
+   * and it reports a denied or missing device.
    */
   async function askPermission() {
+    // The state comes from the Permissions API watch above, not from a new query. The probe must open in the same
+    // task as the click that called it, so that the click still counts as a user gesture for its AudioContext.
+    if (permission.value === 'granted') {
+      permissionGranted.value = true
+      devices.value = await navigator.mediaDevices.enumerateDevices()
+      return
+    }
+
     const probe = new AbortController()
     const reader = input.value.subscribe({ signal: probe.signal }).getReader()
     try {

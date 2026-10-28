@@ -168,11 +168,6 @@ const viewControlsEnabled = computed(() => {
 const settingsAudioDevice = useSettingsAudioDevice()
 const { enabled, stream } = storeToRefs(settingsAudioDevice)
 
-watch(hearingOpen, async (open) => {
-  if (open)
-    await settingsAudioDevice.askPermission()
-})
-
 function restoreComposerFocus(event: Event) {
   event.preventDefault()
   const target = mobileInteractiveArea.value?.querySelector<HTMLButtonElement>('[data-testid="mobile-voice-button"]')

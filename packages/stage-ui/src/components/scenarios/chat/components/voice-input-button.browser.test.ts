@@ -11,7 +11,7 @@ import { createI18n } from 'vue-i18n'
 import VoiceInputButton from './voice-input-button.vue'
 
 import { pushToTalkTriggerKey } from '../../../../composables/push-to-talk-trigger'
-import { getSpeechBusContext, voiceInputCommand, voiceMessageCommand, voiceMessagesChanged, voiceRequestSnapshot, voiceSnapshotChanged } from '../../../../services/speech/bus'
+import { getSpeechBusContext, voiceInputCommand, voiceLevelMonitor, voiceMessageCommand, voiceMessagesChanged, voiceRequestSnapshot, voiceSnapshotChanged } from '../../../../services/speech/bus'
 
 const cleanups: (() => void)[] = []
 
@@ -86,6 +86,33 @@ describe('voiceInputButton', () => {
 
     await expect.element(screen.getByTestId('voice-menu-push-to-talk-stranded')).toBeVisible()
     await expect.element(screen.getByTestId('voice-menu-push-to-talk-stranded')).toHaveTextContent('stage.chat.voice-composer.push-to-talk-unavailable')
+  })
+
+  // A hover opens the menu. Users saw the system microphone indicator turn on while microphone input was off,
+  // because the menu asked the host for a level, and the host opened the microphone for it.
+  it('asks the host for no level while microphone input is off', async () => {
+    const monitorRequests: unknown[] = []
+    cleanups.push(getSpeechBusContext().on(voiceLevelMonitor, ({ body }) => monitorRequests.push(body)))
+    const { screen } = await mountButton()
+
+    await screen.getByTestId('voice-input-button').click({ button: 'right' })
+    await expect.element(screen.getByTestId('voice-menu-device')).toBeVisible()
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    expect(monitorRequests).toEqual([])
+    expect(screen.getByTestId('voice-menu-level').query()).toBeNull()
+  })
+
+  it('shows the level while microphone input holds the microphone open', async () => {
+    localStorage.setItem('settings/audio/input/enabled', 'true')
+    const monitorRequests: unknown[] = []
+    cleanups.push(getSpeechBusContext().on(voiceLevelMonitor, ({ body }) => monitorRequests.push(body)))
+    const { screen } = await mountButton()
+
+    await screen.getByTestId('voice-input-button').click({ button: 'right' })
+
+    await expect.element(screen.getByTestId('voice-menu-level')).toBeInTheDocument()
+    await expect.poll(() => monitorRequests.length).toBeGreaterThan(0)
   })
 
   it('shows no Push to Talk warning in the menu when the host has a trigger', async () => {

@@ -76,7 +76,7 @@ const listenLabelKeys = {
   'wake-word': 'stage.chat.voice-composer.wake-word',
 } as const satisfies Record<HearingInputMode, string>
 const devices = useSettingsAudioDevice()
-const { audioInputOptions, permission, selectedAudioInput, enabled: listening } = storeToRefs(devices)
+const { audioInputOptions, heldOpen, permission, selectedAudioInput, enabled: listening } = storeToRefs(devices)
 const controls = useVoiceControlsStore()
 
 /** Composer text before dictation started. The live transcript is shown after it until the input ends. */
@@ -165,32 +165,22 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
     void cancel()
 })
 
-// NOTICE:
-// A browser resumes the microphone AudioContext only after a user activation, and a hover is none.
-// So the meter waits for sticky activation. Electron plays without a gesture.
-// Source: `microphoneSource` in packages/audio/src/browser/sources.ts awaits `context.resume()`.
-// Remove when that source stops waiting for resume.
-const monitor = useIntervalFn(() => {
-  if (navigator.userActivation?.hasBeenActive ?? true)
-    controls.monitorLevel(LEVEL_MONITOR_RENEW_MS * 1.5)
-}, LEVEL_MONITOR_RENEW_MS, { immediate: false, immediateCallback: true })
-watch(menuOpen, async (open) => {
-  monitor.pause()
-  if (!open)
-    return
-  // The meter must not cause a permission prompt on hover. Without granted permission it stays empty.
-  const permission = await navigator.permissions?.query({ name: 'microphone' as PermissionName }).catch(() => undefined)
-  if (menuOpen.value && (!permission || permission.state === 'granted'))
-    monitor.resume()
-})
+/**
+ * The meter shows only while the microphone preference already holds the microphone open.
+ * A hover opens the menu, and a hover must never open the microphone, cause a permission prompt, or turn on the system
+ * microphone indicator. While the microphone is closed, the menu shows the device without a meter.
+ */
+const meterVisible = computed(() => menuOpen.value && heldOpen.value)
+const monitor = useIntervalFn(() => controls.monitorLevel(LEVEL_MONITOR_RENEW_MS * 1.5), LEVEL_MONITOR_RENEW_MS, { immediate: false, immediateCallback: true })
+watch(meterVisible, visible => visible ? monitor.resume() : monitor.pause(), { immediate: true })
 
-/** Level of the selected microphone while the menu is open. The host's level from an earlier capture is not shown. */
+/** Level of the selected microphone while the meter shows. The host's level from an earlier capture is not shown. */
 const meterLevel = shallowRef(0)
 watch(() => controls.level, (value) => {
-  if (menuOpen.value)
+  if (meterVisible.value)
     meterLevel.value = value
 })
-watch(menuOpen, () => meterLevel.value = 0)
+watch(meterVisible, () => meterLevel.value = 0)
 
 const currentDevice = computed(() => {
   const option = audioInputOptions.value.find(item => item.value === selectedAudioInput.value)
@@ -330,12 +320,12 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
         <DropdownMenuLabel :class="labelClasses">
           {{ t('stage.chat.voice-composer.input-device') }}
         </DropdownMenuLabel>
-        <!-- The current microphone and its live level. Its submenu lists the other devices. -->
+        <!-- The current microphone, with its live level while the microphone is open. Its submenu lists the other devices. -->
         <DropdownMenuSub>
           <DropdownMenuSubTrigger data-testid="voice-menu-device" :class="[itemClasses, 'py-1.5']">
             <span :class="['min-w-0 flex flex-1 flex-col gap-1.5']">
               <span :class="['truncate']">{{ currentDevice }}</span>
-              <span aria-hidden="true" :class="['h-1 w-full overflow-hidden rounded-full bg-neutral-900/10 dark:bg-white/10']">
+              <span v-if="meterVisible" aria-hidden="true" :class="['h-1 w-full overflow-hidden rounded-full bg-neutral-900/10 dark:bg-white/10']">
                 <span
                   data-testid="voice-menu-level"
                   :class="['block h-full rounded-full bg-primary-500 transition-[width] duration-75 motion-reduce:transition-none']"

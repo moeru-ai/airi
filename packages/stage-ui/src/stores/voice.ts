@@ -267,7 +267,11 @@ export const useVoiceStore = defineStore('voice', () => {
    */
   function publishInputLevel() {
     let observation: AbortController | undefined
-    /** A control shows a level meter. It turns off when the newest request expires. */
+    /**
+     * A control shows a level meter. It turns off when the newest request expires.
+     * The meter reads the level only while the microphone preference holds the input open. A user can hover the meter
+     * without intent to speak, so the meter alone must not open the microphone. While the input is closed, no level arrives.
+     */
     const monitoring = shallowRef(false)
     let monitorTimer: ReturnType<typeof setTimeout> | undefined
     const stopMonitor = getSpeechBusContext().on(voiceLevelMonitor, ({ body }) => {
@@ -280,7 +284,7 @@ export const useVoiceStore = defineStore('voice', () => {
         monitorTimer = setTimeout(() => monitoring.value = false, remaining)
     })
     const stop = watch(
-      [() => voiceMessages.isRecording || state.value?.phase === 'capturing' || monitoring.value, () => devices.input],
+      [() => voiceMessages.isRecording || state.value?.phase === 'capturing' || (monitoring.value && devices.heldOpen), () => devices.input],
       ([capturing, input]) => {
         observation?.abort('Voice capture changed')
         observation = undefined
