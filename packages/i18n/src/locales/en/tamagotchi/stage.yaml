@@ -119,6 +119,9 @@ about:
     documentation: Documentations
     github: GitHub
   update:
+    auto-download:
+      label: Download updates automatically
+      description: Turn this off to download each update only when you select Download Update.
     lane:
       label: Update lane
       description: Choose channel release to follow

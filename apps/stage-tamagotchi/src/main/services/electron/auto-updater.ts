@@ -105,8 +105,9 @@ function describeBundle(bundle: BundleInfo) {
 /**
  * Maps the status of the ergosphere-it updater to the state that the AIRI renderer knows.
  *
- * The updater downloads an update by itself after a check, so the renderer never sees `available`. `ready` is
- * `downloaded`, and `quitAndInstall` applies it: a page reload, a restart, or an installer.
+ * With automatic downloads on, the updater downloads an update by itself after a check. With them off, a check stops at
+ * `available` until `downloadUpdate`. `ready` is `downloaded`, and `quitAndInstall` applies it: a page reload, a restart,
+ * or an installer.
  */
 export function stateFromStatus(status: UpdaterStatus): AutoUpdaterState {
   switch (status.status) {
@@ -117,6 +118,8 @@ export function stateFromStatus(status: UpdaterStatus): AutoUpdaterState {
       return { status: 'disabled' }
     case 'up-to-date':
       return { status: 'not-available', info: infoOf(activeBundle) }
+    case 'available':
+      return { status: 'available', info: infoOf(status.update) }
     case 'manual-install-required':
       return { status: 'manual-install-required', info: infoOf(status.update) }
     case 'downloading':
@@ -157,6 +160,9 @@ export interface AutoUpdater {
   markMainPageMounted: () => void
   getPreferredUpdateLane: () => UpdateLane | undefined
   setPreferredUpdateLane: (lane: UpdateLane | undefined) => Promise<void>
+  /** Whether a check downloads the update that it finds. The ergosphere-it updater saves it for the next launches. */
+  getAutoDownload: () => boolean
+  setAutoDownload: (autoDownload: boolean) => void
   subscribe: (callback: (state: AutoUpdaterState) => void) => () => void
 }
 
@@ -201,6 +207,7 @@ export function isExternallyUpdatedInstall() {
 function createDisabledAutoUpdater(options: AutoUpdaterOptions): AutoUpdater {
   const state: AutoUpdaterState = { status: 'disabled' }
   let storedPreferredLane = options.getStoredUpdateLane?.()
+  let autoDownload = true
 
   return {
     state,
@@ -215,6 +222,12 @@ function createDisabledAutoUpdater(options: AutoUpdaterOptions): AutoUpdater {
     async setPreferredUpdateLane(lane) {
       storedPreferredLane = lane
       options.setStoredUpdateLane?.(lane)
+    },
+    getAutoDownload() {
+      return autoDownload
+    },
+    setAutoDownload(next) {
+      autoDownload = next
     },
     subscribe(callback) {
       callback(state)
@@ -340,7 +353,8 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
       await updater.checkForUpdates().catch(error => broadcastUpdaterError(error, 'checkForUpdates() failed'))
     },
     async downloadUpdate() {
-      // The updater downloads an update by itself after a check finds it.
+      // The updater does nothing when no update is available.
+      await updater.downloadUpdate().catch(error => broadcastUpdaterError(error, 'downloadUpdate() failed'))
     },
     async quitAndInstall() {
       if (!applying && updater.status.status !== 'ready')
@@ -373,6 +387,16 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
       const next = getChosenUpdateLane(lane) ?? channelOfVersion(activeBundle.version)
       if (updater.status.status !== 'disabled' && follow(next))
         await updater.checkForUpdates().catch(error => broadcastUpdaterError(error, 'checkForUpdates() failed'))
+    },
+    getAutoDownload() {
+      return updater.autoDownload
+    },
+    setAutoDownload(autoDownload) {
+      if (updater.status.status === 'disabled' || updater.autoDownload === autoDownload)
+        return
+
+      log.log(`[auto-updater] automatic downloads ${autoDownload ? 'on' : 'off'}`)
+      updater.autoDownload = autoDownload
     },
     subscribe(callback) {
       hooks.add(callback)
@@ -420,11 +444,17 @@ export function createAutoUpdaterService(params: { context: ReturnType<typeof cr
       return service.state
     }),
     defineInvokeHandler(context, electronGetUpdaterPreferences, async () => ({
+      autoDownload: service.getAutoDownload(),
       channel: service.getPreferredUpdateLane(),
     })),
     defineInvokeHandler(context, electronSetUpdaterPreferences, async (payload) => {
+      // The renderer sends every preference, so a missing channel means auto. Set the download preference first, so a
+      // check after a new channel follows it.
+      if (payload)
+        service.setAutoDownload(payload.autoDownload)
       await service.setPreferredUpdateLane(payload?.channel)
       return {
+        autoDownload: service.getAutoDownload(),
         channel: service.getPreferredUpdateLane(),
       }
     }),
