@@ -293,6 +293,21 @@ describe('setupAutoUpdater', () => {
     expect(service.state.status).toBe('not-available')
   })
 
+  // An install with its own user data directory, for example a test build, must not write into the log of another install.
+  it('writes the updater log in the user data directory and reports that path', async () => {
+    const { appendFile } = await import('node:fs/promises')
+    const { join } = await import('node:path')
+    const fake = createFakeUpdater()
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater })
+    const logFile = join('/tmp/userData', 'logs', 'updater-log.txt')
+
+    fake.setStatus({ status: 'error', error: { code: 'network-error', message: 'Offline.' } })
+
+    await vi.waitFor(() => expect(appendFile).toHaveBeenCalledWith(logFile, expect.stringContaining('network-error')))
+    expect(service.state.diagnostics?.logFilePath).toBe(logFile)
+  })
+
   it('does not touch the updater when the launcher turned it off', async () => {
     const fake = createFakeUpdater({ status: 'disabled', reason: 'store-build' })
     const { setupAutoUpdater } = await import('./auto-updater')
