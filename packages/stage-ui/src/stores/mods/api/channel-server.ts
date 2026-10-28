@@ -361,6 +361,11 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     connectionAttempt += 1
     connectionIdentity = null
     flush()
+    // Whatever the SDK still refuses at this point was meant for the client that is being
+    // torn down, so it is dropped instead of being sent on the next connection. Events
+    // queued while the channel was disconnected stay queued.
+    if (connected.value)
+      pendingSend.value = []
     hasEverConnected.value = false
     connected.value = false
     initializing.value = null

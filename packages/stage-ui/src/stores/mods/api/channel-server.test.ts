@@ -224,6 +224,38 @@ describe('channel-server store reconnect', () => {
     ])
   })
 
+  it('drops events the sdk refused when the client is replaced before it is ready', async () => {
+    const store = useModsServerChannelStore()
+
+    const initializePromise = store.initialize({ token: 'secret' })
+    const firstClient = serverSdkMocks.MockClient.instances[0]
+    firstClient.acceptsSends = false
+
+    firstClient.simulateAuthenticated()
+    await initializePromise
+
+    store.send({
+      type: 'module:consumer:register',
+      data: { event: 'input:text', mode: 'consumer-group', group: 'chat-ingestion' },
+    } as any)
+
+    expect(store.pendingSendCount).toBe(1)
+
+    store.websocketAuthToken = 'rotated-secret'
+    await nextTick()
+
+    expect(store.pendingSendCount).toBe(0)
+
+    const secondClient = serverSdkMocks.MockClient.instances.at(-1)!
+    expect(secondClient).not.toBe(firstClient)
+
+    secondClient.simulateAuthenticated()
+    secondClient.simulateReconnectReady()
+
+    expect(firstClient.sent).toEqual([])
+    expect(secondClient.sent).toEqual([])
+  })
+
   it('uses explicit heartbeat settings to avoid client/server timeout mismatch', async () => {
     const store = useModsServerChannelStore()
 
