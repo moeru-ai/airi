@@ -31,6 +31,8 @@ import type {
 import type { ChatHistoryReplyPayload } from '@proj-airi/stage-ui/components/scenarios/chat'
 import type { Rectangle } from 'electron'
 
+import type { UpdateChannel } from '../update-channels'
+
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 
 export const electronStartDraggingWindow = defineInvokeEventa('eventa:invoke:electron:start-dragging-window')
@@ -332,7 +334,7 @@ export const electronGetServerChannelConfig = defineInvokeEventa<ElectronServerC
 export const electronApplyServerChannelConfig = defineInvokeEventa<ElectronServerChannelConfig, Partial<ElectronServerChannelConfig>>('eventa:invoke:electron:server-channel:apply-config')
 export const electronGetServerChannelQrPayload = defineInvokeEventa<ServerChannelQrPayload>('eventa:invoke:electron:server-channel:get-qr-payload')
 
-export type ElectronUpdaterChannel = 'latest' | 'stable' | 'alpha' | 'beta' | 'nightly' | 'canary' | 'dev'
+export type ElectronUpdaterChannel = UpdateChannel
 
 export interface ElectronUpdaterPreferences {
   channel?: ElectronUpdaterChannel

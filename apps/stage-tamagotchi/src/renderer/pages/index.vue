@@ -26,7 +26,7 @@ import { useFeatureFlagsStore } from '@proj-airi/stage-ui/stores/feature-flags'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useVoiceStore } from '@proj-airi/stage-ui/stores/voice'
-import { refDebounced } from '@vueuse/core'
+import { refDebounced, until } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, onScopeDispose, ref, shallowRef, toRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -199,9 +199,10 @@ useElectronEventaInvoke(electronAppIsWayland)()
   .then(value => isWayland.value = value)
   .catch(error => console.warn('[Main Page] Failed to detect Wayland; the controls Island stays shown:', errorMessageFrom(error)))
 
-// The update launcher keeps a new bundle only when it reports healthy. The main window mounting this page is part of it.
+// The update launcher keeps a new bundle only when it reports healthy, and rolls it back otherwise. This page reports
+// when the stage stops loading, with the model or with the error surface. A page stuck on loading never reports.
 const reportPageMounted = useElectronEventaInvoke(electronMainPageMounted)
-onMounted(() => void reportPageMounted())
+until(isLoading).toBe(false).then(() => reportPageMounted())
 
 const cursorAwayFromWindow = computed(() => !isWayland.value && isOutsideWindow.value && !isAroundWindowBorder.value)
 

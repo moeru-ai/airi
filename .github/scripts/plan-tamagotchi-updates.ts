@@ -3,9 +3,6 @@ import process from 'node:process'
 import { appendFile, readFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 
-/** The update channels that a release tag can name with its prerelease, as `ergo.config.ts` derives them. */
-const PRERELEASE_CHANNELS = ['alpha', 'beta', 'nightly', 'canary'] as const
-
 export interface PlanInput {
   /** `github.event_name`. */
   event: string
@@ -40,9 +37,9 @@ export interface UpdatePlan {
  *
  * - A push to main publishes to `dev`, and a scheduled run to `nightly`. Their versions name the build, for example
  *   `0.12.0+dev.45.1bf946f`. Semver ignores the part after `+`, so the about page does not take them for a downgrade.
- * - A release, or a manual release run with a tag, publishes to the lane of the tag: `v0.13.0-beta.1` to `beta`, and
- *   `v0.13.0` to `stable`. A prerelease of another name, for example `v0.13.0-rc.1`, publishes nothing, so it never
- *   reaches stable.
+ * - A release, or a manual release run with a tag, publishes a prerelease such as `v0.13.0-rc.1` or `v0.13.0-beta.1`
+ *   to `canary`, and `v0.13.0` to `stable`. `channelOfVersion` of `apps/stage-tamagotchi/src/shared/update-channels.ts`
+ *   gives the same channel for the version, so an install follows the channel that gets its next release.
  * - Other manual runs publish nothing.
  */
 export function planUpdates(input: PlanInput): UpdatePlan {
@@ -66,15 +63,7 @@ export function planUpdates(input: PlanInput): UpdatePlan {
   const match = /^v?\d+\.\d+\.\d+(?:-([0-9a-z.-]+))?(?:\+[0-9a-z.-]+)?$/i.exec(input.tag)
   if (!match)
     return { ...ids, skipReason: `The tag ${input.tag} is not a version.`, version }
-  if (match[1] === undefined)
-    return { ...ids, channel: 'stable', version }
-
-  // The name of the prerelease: `beta` of `beta.1`, and of `beta1`.
-  const prerelease = /^[a-z]+/i.exec(match[1])?.[0].toLowerCase()
-  if (prerelease !== undefined && (PRERELEASE_CHANNELS as readonly string[]).includes(prerelease))
-    return { ...ids, channel: prerelease, version }
-
-  return { ...ids, skipReason: `The tag ${input.tag} names no update channel.`, version }
+  return { ...ids, channel: match[1] === undefined ? 'stable' : 'canary', version }
 }
 
 async function main() {
