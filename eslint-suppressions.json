@@ -1,0 +1,927 @@
+{
+  "apps/component-calling/src/pages/index.vue": {
+    "ts/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "apps/component-calling/src/plugins/plugin-component-calling/index.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "apps/stage-pocket/src/pages/devtools/performance-playground.vue": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "apps/stage-pocket/src/workers/vad/vad.ts": {
+    "ts/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "apps/stage-pocket/vite.config.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "apps/stage-tamagotchi-kirie/src-web/src/renderer/stores/tools/builtin/image-journal.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "apps/stage-tamagotchi-kirie/src-web/src/renderer/stores/tools/testing/strict-tool-schema.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "apps/stage-tamagotchi-kirie/src-web/src/renderer/widgets/extension-ui/components/extension-ui-host.vue": {
+    "ts/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "apps/stage-tamagotchi-kirie/src-web/src/renderer/widgets/extension-ui/components/iframe-request.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "apps/stage-tamagotchi-kirie/src-web/src/renderer/widgets/extension-ui/host.ts": {
+    "ts/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "apps/stage-tamagotchi-kirie/src-web/src/shared/eventa/index.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "apps/stage-tamagotchi-kirie/src-web/src/shared/eventa/plugin/host.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "apps/stage-tamagotchi/electron.vite.config.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "apps/stage-tamagotchi/src/main/libs/i18n/index.ts": {
+    "ts/no-explicit-any": {
+      "count": 10
+    }
+  },
+  "apps/stage-tamagotchi/src/main/services/airi/io-trace-recording/register.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "apps/stage-tamagotchi/src/main/services/airi/widgets/artistry-bridge.ts": {
+    "ts/no-explicit-any": {
+      "count": 11
+    }
+  },
+  "apps/stage-tamagotchi/src/main/services/airi/widgets/providers/base.ts": {
+    "ts/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "apps/stage-tamagotchi/src/main/services/airi/widgets/providers/comfyui.ts": {
+    "ts/no-explicit-any": {
+      "count": 15
+    }
+  },
+  "apps/stage-tamagotchi/src/main/services/airi/widgets/providers/nanobanana.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "apps/stage-tamagotchi/src/main/services/airi/widgets/providers/replicate.ts": {
+    "ts/no-explicit-any": {
+      "count": 11
+    }
+  },
+  "apps/stage-tamagotchi/src/main/tray/index.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "apps/stage-tamagotchi/src/renderer/bridges/io-trace-hub.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "apps/stage-tamagotchi/src/renderer/pages/devtools/use-electron-all-displays.vue": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "apps/stage-tamagotchi/src/renderer/pages/widgets.vue": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "apps/stage-tamagotchi/src/renderer/stores/tools/builtin/image-journal.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "apps/stage-tamagotchi/src/renderer/stores/tools/builtin/widgets.ts": {
+    "ts/no-explicit-any": {
+      "count": 8
+    }
+  },
+  "apps/stage-tamagotchi/src/renderer/stores/tools/testing/strict-tool-schema.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "apps/stage-tamagotchi/src/renderer/widgets/extension-ui/components/extension-ui-host.vue": {
+    "ts/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "apps/stage-tamagotchi/src/renderer/widgets/extension-ui/components/iframe-request.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "apps/stage-tamagotchi/src/renderer/widgets/extension-ui/host.ts": {
+    "ts/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "apps/stage-tamagotchi/src/shared/eventa/index.ts": {
+    "ts/no-explicit-any": {
+      "count": 5
+    }
+  },
+  "apps/stage-tamagotchi/src/shared/eventa/plugin/host.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "apps/stage-web/src/pages/devtools/performance-playground.vue": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "apps/stage-web/src/workers/vad/vad.ts": {
+    "ts/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "integrations/discord-bot/src/bots/discord/commands/summon.ts": {
+    "ts/no-explicit-any": {
+      "count": 6
+    }
+  },
+  "integrations/discord-bot/src/utils/opus.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "integrations/minecraft/src/cognitive/action/action-registry.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "integrations/minecraft/src/cognitive/action/llm-actions.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "integrations/minecraft/src/cognitive/conscious/brain.ts": {
+    "ts/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "integrations/minecraft/src/cognitive/conscious/js-planner-worker.ts": {
+    "ts/no-explicit-any": {
+      "count": 9
+    }
+  },
+  "integrations/minecraft/src/cognitive/conscious/llm-agent.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "integrations/minecraft/src/cognitive/conscious/llmlogic.ts": {
+    "ts/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "integrations/minecraft/src/cognitive/conscious/prompts/brain-prompt.ts": {
+    "ts/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "integrations/minecraft/src/cognitive/conscious/query-dsl.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "integrations/minecraft/src/cognitive/perception/events/definitions/arm-swing.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "integrations/minecraft/src/cognitive/perception/events/definitions/attacker-tracker.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "integrations/minecraft/src/cognitive/perception/events/definitions/damage-taken.ts": {
+    "ts/no-explicit-any": {
+      "count": 9
+    }
+  },
+  "integrations/minecraft/src/cognitive/perception/events/definitions/entity-moved.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "integrations/minecraft/src/cognitive/perception/events/definitions/sneak-toggle.ts": {
+    "ts/no-explicit-any": {
+      "count": 5
+    }
+  },
+  "integrations/minecraft/src/cognitive/perception/events/index.ts": {
+    "ts/no-explicit-any": {
+      "count": 11
+    }
+  },
+  "integrations/minecraft/src/cognitive/perception/events/types.ts": {
+    "ts/no-explicit-any": {
+      "count": 9
+    }
+  },
+  "integrations/minecraft/src/cognitive/perception/types/signals.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "integrations/minecraft/src/cognitive/reflex/behaviors/escape-hazard.ts": {
+    "ts/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "integrations/minecraft/src/cognitive/reflex/reflex-manager.ts": {
+    "ts/no-explicit-any": {
+      "count": 12
+    }
+  },
+  "integrations/minecraft/src/cognitive/reflex/runtime.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "integrations/minecraft/src/cognitive/types/index.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "integrations/minecraft/src/debug/debug-service.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "integrations/minecraft/src/debug/mcp-repl-server.ts": {
+    "ts/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "integrations/minecraft/src/debug/tool-executor.ts": {
+    "ts/no-explicit-any": {
+      "count": 11
+    }
+  },
+  "integrations/minecraft/src/libs/mineflayer/action.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "integrations/minecraft/src/libs/mineflayer/core.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "integrations/minecraft/src/minecraft-bot-runtime.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "integrations/minecraft/src/plugins/pathfinder.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "integrations/minecraft/src/skills/blocks.ts": {
+    "ts/no-explicit-any": {
+      "count": 17
+    }
+  },
+  "integrations/minecraft/src/skills/inventory.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "integrations/minecraft/src/skills/patched-goto.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "integrations/minecraft/src/utils/logger.ts": {
+    "ts/no-explicit-any": {
+      "count": 5
+    }
+  },
+  "integrations/minecraft/src/utils/mcdata.ts": {
+    "ts/no-explicit-any": {
+      "count": 6
+    }
+  },
+  "integrations/minecraft/src/utils/recipe-planner.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "integrations/satori-bot/src/adapter/satori/schema.ts": {
+    "ts/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "integrations/telegram-bot/src/bots/telegram/index.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "integrations/telegram-bot/src/index.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "integrations/telegram-bot/src/models/chat-completions-history.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "integrations/twitter-services/src/adapters/mcp-adapter.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "integrations/twitter-services/src/types/services.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "integrations/twitter-services/src/utils/error.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/core-agent/src/agents/spark-notify/tools.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/core-agent/src/runtime/agent-hooks.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/model-driver-mediapipe/src/three/apply-pose-to-vrm.ts": {
+    "ts/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "packages/plugin-protocol/src/types/events.ts": {
+    "ts/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "packages/plugin-sdk/src/channels/index.ts": {
+    "ts/no-explicit-any": {
+      "count": 6
+    }
+  },
+  "packages/plugin-sdk/src/channels/shared.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/plugin-sdk/src/plugin-host/runtimes/node/index.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/plugin-sdk/src/plugin-host/runtimes/web/index.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/plugin-sdk/src/plugin/apis/client/bindings/index.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/plugin-sdk/src/plugin/apis/client/index.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/plugin-sdk/src/plugin/apis/client/kits/index.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/plugin-sdk/src/plugin/apis/client/resources/index.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/plugin-sdk/src/plugin/apis/client/resources/providers/index.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/provider-inference/src/providers/cloud/amazon-bedrock/index.ts": {
+    "ts/no-explicit-any": {
+      "count": 13
+    }
+  },
+  "packages/provider-inference/src/providers/cloud/anthropic/index.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/provider-inference/src/providers/cloud/azure-openai/index.ts": {
+    "ts/no-explicit-any": {
+      "count": 7
+    }
+  },
+  "packages/provider-inference/src/validators/openai-compatible.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-pages/src/pages/devtools/context-flow/composables/use-context-flow-formatters.ts": {
+    "ts/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "packages/stage-pages/src/pages/devtools/context-flow/index.vue": {
+    "ts/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "packages/stage-pages/src/pages/settings/modules/speech.vue": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-pages/src/pages/settings/providers/artistry/comfyui.vue": {
+    "ts/no-explicit-any": {
+      "count": 7
+    }
+  },
+  "packages/stage-pages/src/pages/settings/providers/chat/[providerId].vue": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/stage-pages/src/pages/settings/providers/chat/amazon-bedrock.vue": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-pages/src/pages/settings/providers/chat/azure-ai-foundry.vue": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-pages/src/pages/settings/providers/chat/cloudflare-workers-ai.vue": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-pages/src/pages/settings/providers/chat/lm-studio.vue": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-pages/src/pages/settings/providers/chat/ollama.vue": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-pages/src/pages/settings/providers/speech/comet-api-speech.vue": {
+    "ts/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "packages/stage-pages/src/pages/settings/providers/speech/openai-compatible-audio-speech.vue": {
+    "ts/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "packages/stage-pages/src/pages/settings/providers/speech/volcengine.vue": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/stage-pages/src/pages/settings/providers/transcription/aliyun-nls-transcription.vue": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/stage-pages/src/pages/settings/providers/transcription/comet-api-transcription.vue": {
+    "ts/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "packages/stage-pages/src/pages/settings/providers/transcription/mimo-audio-transcription.vue": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/stage-pages/src/pages/settings/providers/transcription/openai-audio-transcription.vue": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-pages/src/pages/settings/providers/transcription/openai-compatible-audio-transcription.vue": {
+    "ts/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "packages/stage-pages/src/pages/settings/providers/vision/[providerId].vue": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/stage-pages/src/pages/settings/providers/vision/amazon-bedrock.vue": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-pages/src/pages/settings/providers/vision/azure-ai-foundry.vue": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-pages/src/pages/settings/providers/vision/cloudflare-workers-ai.vue": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-pages/src/pages/settings/providers/vision/lm-studio.vue": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-pages/src/pages/settings/providers/vision/ollama.vue": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-shared/src/artistry.ts": {
+    "ts/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "packages/stage-shared/src/beat-sync/detector.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-shared/src/perf/io-trace.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-shared/src/perf/tracer.ts": {
+    "ts/no-explicit-any": {
+      "count": 5
+    }
+  },
+  "packages/stage-ui-live2d/src/components/scenes/live2d/Model.vue": {
+    "ts/no-explicit-any": {
+      "count": 9
+    }
+  },
+  "packages/stage-ui-live2d/src/composables/live2d/animation.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-ui-live2d/src/composables/live2d/motion-manager.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/stage-ui-live2d/src/utils/live2d-structure-report.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/stage-ui-spine/src/components/scenes/spine/Model.vue": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/stage-ui-spine/src/utils/spine-preview.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-ui-three/src/components/Model/VRMModel.vue": {
+    "ts/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "packages/stage-ui-three/src/components/ThreeScene.vue": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-ui-three/src/composables/shader/ibl.ts": {
+    "ts/no-explicit-any": {
+      "count": 8
+    }
+  },
+  "packages/stage-ui-three/src/composables/vrm/animation.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-ui-three/src/composables/vrm/core.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-ui-three/src/composables/vrm/loader.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-ui-three/src/stores/model-store.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-ui/src/components/gadgets/audio-spectrum.vue": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-ui/src/components/layouts/ripple-grid/index.vue": {
+    "ts/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "packages/stage-ui/src/components/menu/radio-card-simple.vue": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/stage-ui/src/components/menu/voice-card-many-select.vue": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-ui/src/components/misc/alert.vue": {
+    "ts/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "packages/stage-ui/src/components/misc/error-container.vue": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-ui/src/components/misc/steppers/steppers.vue": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-ui/src/components/scenarios/dialogs/background-picker/background-picker.vue": {
+    "ts/no-explicit-any": {
+      "count": 6
+    }
+  },
+  "packages/stage-ui/src/components/scenarios/dialogs/onboarding/step-provider-configuration.vue": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-ui/src/components/scenarios/providers/speech-provider-settings.vue": {
+    "ts/no-explicit-any": {
+      "count": 11
+    }
+  },
+  "packages/stage-ui/src/components/scenarios/providers/transcription-provider-settings.vue": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-ui/src/composables/markdown.ts": {
+    "ts/no-explicit-any": {
+      "count": 6
+    }
+  },
+  "packages/stage-ui/src/composables/use-io-tracer.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-ui/src/composables/use-provider-validation.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/stage-ui/src/composables/whisper.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-ui/src/libs/audio/vad.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-ui/src/libs/inference/adapters/background-removal.ts": {
+    "ts/no-explicit-any": {
+      "count": 5
+    }
+  },
+  "packages/stage-ui/src/libs/inference/adapters/kokoro.ts": {
+    "ts/no-explicit-any": {
+      "count": 6
+    }
+  },
+  "packages/stage-ui/src/libs/inference/adapters/whisper.ts": {
+    "ts/no-explicit-any": {
+      "count": 5
+    }
+  },
+  "packages/stage-ui/src/libs/inference/load-queue.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/stage-ui/src/libs/inference/worker-manager.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/stage-ui/src/libs/workers/worker.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/stage-ui/src/stores/background.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/stage-ui/src/stores/devtools/io-tracer.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/stage-ui/src/stores/mods/api/channel-server.ts": {
+    "ts/no-explicit-any": {
+      "count": 11
+    }
+  },
+  "packages/stage-ui/src/stores/modules/airi-card.ts": {
+    "ts/no-explicit-any": {
+      "count": 13
+    }
+  },
+  "packages/stage-ui/src/stores/modules/artistry-autonomous.ts": {
+    "ts/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "packages/stage-ui/src/stores/modules/artistry.ts": {
+    "ts/no-explicit-any": {
+      "count": 6
+    }
+  },
+  "packages/stage-ui/src/stores/modules/gaming-minecraft.ts": {
+    "ts/no-explicit-any": {
+      "count": 6
+    }
+  },
+  "packages/stage-ui/src/stores/modules/speech.ts": {
+    "ts/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "packages/stage-ui/src/utils/stream.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/stage-ui/src/utils/tts.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/stage-ui/src/workers/background-removal/worker.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/stage-ui/src/workers/kokoro/worker.ts": {
+    "ts/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "packages/stage-ui/src/workers/vad/vad.ts": {
+    "ts/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "packages/stream-kit/src/queue.ts": {
+    "ts/no-explicit-any": {
+      "count": 9
+    }
+  },
+  "packages/ui-loading-screens/src/components/LoadingSciFiCircle/index.vue": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/ui-transitions/src/components/StageTransitionGroup.vue": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/ui/src/components/animations/transition-horizontal.vue": {
+    "ts/no-explicit-any": {
+      "count": 5
+    }
+  },
+  "packages/ui/src/utils/shim/local-storage.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "plugins/airi-plugin-claude-code/src/utils/general.ts": {
+    "ts/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "server/apps/api/src/libs/mock-db.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "server/apps/api/src/services/domain/characters.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "services/computer-use-mcp/src/bin/e2e-airi-chat-observable.ts": {
+    "ts/no-explicit-any": {
+      "count": 11
+    }
+  },
+  "services/computer-use-mcp/src/bin/e2e-airi-chat-terminal-self-acquire.ts": {
+    "ts/no-explicit-any": {
+      "count": 13
+    }
+  },
+  "services/computer-use-mcp/src/bin/e2e-airi-discord-agentic.ts": {
+    "ts/no-explicit-any": {
+      "count": 12
+    }
+  },
+  "services/computer-use-mcp/src/bin/e2e-airi-discord-observable.ts": {
+    "ts/no-explicit-any": {
+      "count": 11
+    }
+  },
+  "services/computer-use-mcp/src/browser-dom/cdp-bridge.ts": {
+    "ts/no-explicit-any": {
+      "count": 8
+    }
+  },
+  "services/computer-use-mcp/src/server/tool-descriptors/register-helper.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "services/computer-use-mcp/src/server/tool-lane-hygiene.ts": {
+    "ts/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "services/computer-use-mcp/src/terminal/pty-runner.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  }
+}
