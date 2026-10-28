@@ -161,7 +161,7 @@ describe('setupAutoUpdater', () => {
   })
 
   it.each([
-    { saved: 'latest', version: '0.13.0+dev.821.13eef81', expected: 'dev' },
+    { saved: 'latest', version: '0.13.1-dev.821.13eef81', expected: 'dev' },
     { saved: 'beta', version: '0.14.0-rc.1', expected: 'canary' },
   ])('leaves the removed channel $saved that the launcher saved, for the channel of $version', async ({ saved, version, expected }) => {
     bundleState.version = version
@@ -190,8 +190,8 @@ describe('setupAutoUpdater', () => {
 
   it.each([
     { version: '0.9.0-beta.4', expected: 'canary' },
-    { version: '0.13.0+nightly.12.13eef81', expected: 'nightly' },
-    { version: '0.13.0+dev.821.13eef81', expected: 'dev' },
+    { version: '0.13.1-nightly.12.13eef81', expected: 'nightly' },
+    { version: '0.13.1-dev.821.13eef81', expected: 'dev' },
     { version: '0.13.0', expected: 'stable' },
   ])('goes back to the channel of $version when the user picks auto', async ({ version, expected }) => {
     bundleState.version = version
