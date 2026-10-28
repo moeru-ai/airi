@@ -671,6 +671,8 @@ pages:
           description: Configure 3D VRM models and settings
         scene: Scene
   modules:
+    availability:
+      none: None
     beat_sync:
       description: Vibe with beats from the audio source
       title: Beat Sync

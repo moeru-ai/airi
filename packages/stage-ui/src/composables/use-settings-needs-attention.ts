@@ -324,13 +324,13 @@ export function useSettingsNeedsAttention() {
   const modulesByProvider = computed(() => {
     const selections: Array<readonly [provider: string, module: Module]> = [
       [consciousnessStore.activeProvider, 'consciousness'],
-      [speechStore.activeSpeechProvider, 'speech'],
-      [hearingStore.activeTranscriptionProvider, 'hearing'],
-      [visionStore.activeProvider, 'vision'],
+      [speechStore.enabled ? speechStore.activeSpeechProvider : '', 'speech'],
+      [hearingStore.enabled ? hearingStore.activeTranscriptionProvider : '', 'hearing'],
+      [visionStore.enabled ? visionStore.activeProvider : '', 'vision'],
       ...[...cardStore.characterModules.values()].flatMap(modules => [
         [modules.consciousness.provider, 'consciousness'],
-        [modules.speech.provider, 'speech'],
-        [modules.vision.provider, 'vision'],
+        [speechStore.enabled ? modules.speech.provider : '', 'speech'],
+        [visionStore.enabled ? modules.vision.provider : '', 'vision'],
       ] as const),
     ]
     const result = new Map<string, Set<Module>>()
@@ -417,9 +417,9 @@ export function useSettingsNeedsAttention() {
       ...[...cardStore.characterModules].flatMap(([characterId, modules]) => CHARACTER_MODULES.map(module => ({
         characterId: characterId as string | undefined,
         module: module as Module,
-        provider: modules[module].provider,
+        provider: (module === 'vision' && !visionStore.enabled) || (module === 'speech' && !speechStore.enabled) ? '' : modules[module].provider,
       }))),
-      { characterId: undefined, module: 'hearing' as Module, provider: hearingStore.activeTranscriptionProvider },
+      { characterId: undefined, module: 'hearing' as Module, provider: hearingStore.enabled ? hearingStore.activeTranscriptionProvider : '' },
     ]
     return selections
       .filter(({ provider }) => provider && provider !== 'speech-noop')
@@ -504,6 +504,8 @@ export function useSettingsNeedsAttention() {
    * A provider that the speech module cannot use shows as its own item instead.
    */
   const speechProblems = computed(() => characterSpeech.value.flatMap((speech): Problem[] => {
+    if (!speechStore.enabled)
+      return []
     const missing: MissingSpeechField[] = speech.simulated ? ['voice'] : speech.providerUsable ? speech.missing : []
     const fieldsKey = speechFieldsKeyOf(missing)
     if (!fieldsKey)
@@ -539,6 +541,8 @@ export function useSettingsNeedsAttention() {
    * Push to Talk and dictation explain it when the person presses them, so they do not show here.
    */
   const hearingProblems = computed((): Problem[] => {
+    if (!hearingStore.enabled)
+      return []
     const provider = hearingStore.activeTranscriptionProvider
     const { microphoneOn, mode, configured, simulated } = voiceInput.value
     if (!simulated) {

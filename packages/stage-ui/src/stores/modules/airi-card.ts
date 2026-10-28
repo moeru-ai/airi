@@ -648,6 +648,9 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   async function selectActiveCardVisionProvider(provider: string) {
     await pendingAuthenticationSetup
     const vision = useVisionStore()
+    vision.enabled = true
+    if (vision.activeProvider === provider)
+      return true
     vision.activeProvider = provider
     vision.resetModelSelection()
     await vision.loadModelsForProvider(provider)
