@@ -116,10 +116,6 @@ about:
       description: 选择更新频道
       placeholder: 选择更新频道
     channels:
-      auto: 自动
-      stable: 稳定版
-      alpha: Alpha 测试版
-      beta: Beta 测试版
       canary: 尝鲜版（预发布）
       nightly: 每夜构建（每天）
       dev: 开发版（main 分支的每次改动）
