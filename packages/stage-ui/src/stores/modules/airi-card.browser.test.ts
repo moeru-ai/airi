@@ -276,3 +276,39 @@ describe('issue #3124 restores the active Character after a restart', () => {
     expect(localStorage.getItem(activeCardIdKey)).toBeNull()
   })
 })
+
+// ROOT CAUSE:
+//
+// `initialize()` looked up the module stores after an `await`, through the active Pinia.
+// A stray action of a disposed Pinia could make that one active, so CI failed with `Pinia destroyed`.
+//
+// We fixed this by passing the card store's own Pinia to these lookups.
+describe('airi card store keeps to its own Pinia', () => {
+  afterEach(() => {
+    localStorage.clear()
+  })
+
+  it('initializes while another Pinia becomes active', async () => {
+    const stale = createPinia()
+    createApp({}).use(stale)
+    disposePinia(stale)
+
+    const pinia = createPinia()
+    // Stands in for that stray action: every action of this Pinia hands the active Pinia back to the stale one.
+    pinia.use(({ store }) => {
+      store.$onAction(({ after, onError }) => {
+        after(() => setActivePinia(stale))
+        onError(() => setActivePinia(stale))
+      })
+    })
+    createApp({}).use(pinia).use(PiniaColada)
+    setActivePinia(pinia)
+    const cardStore = useAiriCardStore()
+    const initialized = cardStore.initialize()
+    setActivePinia(stale)
+
+    await expect(initialized).resolves.toBeUndefined()
+    expect(cardStore.cards.has('default')).toBe(true)
+    disposePinia(pinia)
+  })
+})
