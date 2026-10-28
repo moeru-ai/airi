@@ -128,8 +128,8 @@ about:
       alpha: Alpha
       beta: Beta
       canary: Canary
-      nightly: Nightly (every day)
-      dev: Dev (every change on main)
+      nightly: Nightly
+      dev: Dev
     status:
       downloading: Downloading update...
       error-prefix: Error
