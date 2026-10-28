@@ -127,7 +127,7 @@ about:
       stable: Stable
       alpha: Alpha
       beta: Beta
-      canary: Canary (prereleases)
+      canary: Canary
       nightly: Nightly (every day)
       dev: Dev (every change on main)
     status:
