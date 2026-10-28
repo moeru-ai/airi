@@ -34,13 +34,7 @@ on:
       platform:
         description: Platform
         type: choice
-        options:
-          - all
-          - windows
-          - macos
-          - linux
-          - android
-          - ios
+        options: [all, windows, macos, linux, android, ios]
         default: all
   schedule:
     - cron: '0 2 * * *'
@@ -65,7 +59,6 @@ jobs:
             export_mode: release
             experimental: false
             skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'windows' }}
-
           - name: macOS universal
             os: macos-26
             platform: macos
@@ -74,7 +67,6 @@ jobs:
             export_mode: release
             experimental: false
             skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'macos' }}
-
           - name: Linux x64
             os: ubuntu-latest
             platform: linux
@@ -83,7 +75,6 @@ jobs:
             export_mode: release
             experimental: false
             skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'linux' }}
-
           - name: Linux arm64
             os: ubuntu-24.04-arm
             platform: linux
@@ -92,7 +83,6 @@ jobs:
             export_mode: release
             experimental: true
             skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'linux' }}
-
           - name: Android
             os: ubuntu-latest
             platform: android
@@ -101,8 +91,7 @@ jobs:
             export_mode: debug
             experimental: true
             skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'android' }}
-
-          - name: iOS (Xcode project, unsigned)
+          - name: iOS (unsigned)
             os: macos-26
             platform: ios
             arch: arm64
@@ -117,23 +106,17 @@ jobs:
         shell: bash
 
     steps:
-      - name: Skip the build (fail fast for filtered platforms)
-        if: ${{ matrix.skip }}
-        run: |
-          echo "Skipping ${{ matrix.name }} (platform filter)."
-          echo "This fails the job on purpose when not building for all — expected."
-          exit 1
+      - if: ${{ matrix.skip }}
+        run: exit 1
 
-      - name: Free Disk Space
-        if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
+      - if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
         uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
         with:
           android: false
 
       - uses: actions/checkout@v6
 
-      - name: Install toolchain (mise)
-        if: runner.os != 'Windows'
+      - if: runner.os != 'Windows'
         uses: jdx/mise-action@v3
         with:
           working_directory: ${{ env.APP_DIR }}
@@ -141,8 +124,7 @@ jobs:
           install_args: nodejs pnpm java godot
           cache: true
 
-      - name: Install toolchain (mise, no Godot)
-        if: runner.os == 'Windows'
+      - if: runner.os == 'Windows'
         uses: jdx/mise-action@v3
         with:
           working_directory: ${{ env.APP_DIR }}
@@ -150,281 +132,93 @@ jobs:
           install_args: nodejs pnpm java
           cache: true
 
-      - name: Setup Godot Mono + export templates (Windows)
-        if: runner.os == 'Windows'
+      - if: runner.os == 'Windows'
         uses: chickensoft-games/setup-godot@v2
         with:
           version: ${{ env.GODOT_VERSION }}
           use-dotnet: true
           include-templates: true
 
-      - name: Select Windows Godot executable
-        if: runner.os == 'Windows'
+      - if: runner.os == 'Windows'
         run: |
           godot_exe="$HOME/godot/Godot_v${GODOT_VERSION}-stable_mono_win64/Godot_v${GODOT_VERSION}-stable_mono_win64.exe"
           test -f "$godot_exe"
           echo "GODOT=$(cygpath -w "$godot_exe")" >> "$GITHUB_ENV"
 
-      - name: Install Godot export templates (mise Godot)
-        if: runner.os != 'Windows'
-        run: |
-          set -euo pipefail
-          VERSION="${{ env.GODOT_VERSION }}"
-          CHANNEL=stable
-          VARIANT=mono
-          TEMPLATE_DIR_NAME="${VERSION}.${CHANNEL}.${VARIANT}"
-          case "${RUNNER_OS}" in
-            macOS)
-              DEST="${HOME}/Library/Application Support/Godot/export_templates/${TEMPLATE_DIR_NAME}"
-              ;;
-            *)
-              DEST="${HOME}/.local/share/godot/export_templates/${TEMPLATE_DIR_NAME}"
-              ;;
-          esac
-          if [ -d "$DEST" ] && [ -n "$(ls -A "$DEST" 2>/dev/null || true)" ]; then
-            echo "Export templates already present at $DEST"
-            exit 0
-          fi
-          URL="https://github.com/godotengine/godot-builds/releases/download/${VERSION}-${CHANNEL}/Godot_v${VERSION}-${CHANNEL}_${VARIANT}_export_templates.tpz"
-          TMP="$(mktemp -d)"
-          echo "Downloading $URL"
-          curl -fsSL -o "$TMP/templates.tpz" "$URL"
-          mkdir -p "$TMP/extracted"
-          unzip -q "$TMP/templates.tpz" -d "$TMP/extracted"
-          mkdir -p "$(dirname "$DEST")"
-          rm -rf "$DEST"
-          mv "$TMP/extracted/templates" "$DEST"
-          echo "Installed export templates to $DEST"
-          ls -la "$DEST" | head
+      - if: runner.os != 'Windows'
+        working-directory: ${{ env.APP_DIR }}
+        run: bash scripts/ci-install-templates.sh
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
 
-      - name: Setup Android SDK
-        if: matrix.platform == 'android'
+      - if: matrix.platform == 'android'
         uses: android-actions/setup-android@v4
         with:
-          packages: >-
+          packages: |
             platform-tools
             platforms;android-35
             platforms;android-36
             build-tools;36.0.0
 
-      - name: Install macOS System Dependencies for node-canvas
-        if: runner.os == 'macOS'
-        run: |
-          brew install pkg-config cairo pango jpeg giflib librsvg || true
-
-      - name: Get pnpm store path
-        id: pnpm-store
-        run: echo "path=$(mise x -- pnpm store path --silent)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache pnpm store
-        uses: actions/cache@v5
-        with:
-          path: ${{ steps.pnpm-store.outputs.path }}
-          key: ${{ runner.os }}-${{ runner.arch }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-pnpm-store-
+      - if: runner.os == 'macOS'
+        run: brew install pkg-config cairo pango jpeg giflib librsvg || true
 
       - run: mise x -- pnpm install --frozen-lockfile
-
       - run: mise x -- pnpm run build:packages
 
-      - name: Resolve version and artifact name
+      - name: Resolve version
         working-directory: ${{ env.APP_DIR }}
         env:
           INPUT_TAG: ${{ inputs.tag }}
         run: |
           TAG_ARGS=()
-          if [ -n "${INPUT_TAG:-}" ]; then
-            TAG_ARGS=(--tag "$INPUT_TAG")
-          fi
-          KIRIE_VERSION="$(mise x -- node scripts/artifacts-version.mjs --get-version "${TAG_ARGS[@]}")"
-          ARTIFACT_NAME="$(mise x -- node scripts/artifacts-version.mjs --get-artifact-name --platform '${{ matrix.platform }}' --arch '${{ matrix.arch }}' "${TAG_ARGS[@]}")"
-          echo "KIRIE_VERSION=$KIRIE_VERSION" >> "$GITHUB_ENV"
-          echo "ARTIFACT_NAME=$ARTIFACT_NAME" >> "$GITHUB_ENV"
-          echo "Resolved KIRIE_VERSION=$KIRIE_VERSION ARTIFACT_NAME=$ARTIFACT_NAME"
+          [ -n "${INPUT_TAG:-}" ] && TAG_ARGS=(--tag "$INPUT_TAG")
+          echo "KIRIE_VERSION=$(mise x -- node scripts/artifacts-version.mjs --get-version "${TAG_ARGS[@]}")" >> "$GITHUB_ENV"
+          echo "ARTIFACT_NAME=$(mise x -- node scripts/artifacts-version.mjs --get-artifact-name --platform '${{ matrix.platform }}' --arch '${{ matrix.arch }}' "${TAG_ARGS[@]}")" >> "$GITHUB_ENV"
 
-      - name: Install Kirie plugins (doctor)
-        working-directory: ${{ env.APP_DIR }}
+      - working-directory: ${{ env.APP_DIR }}
         run: |
           mise x -- pnpm kirie doctor --fix plugin:core
           mise x -- pnpm kirie doctor --fix plugin:notifications
 
-      - name: Fetch Kirie Android AAR from Maven Central
-        if: matrix.platform == 'android'
+      - if: matrix.platform == 'android'
         working-directory: ${{ env.APP_DIR }}
-        run: |
-          set -euo pipefail
-          if [ -f node_modules/kirie/package.json ]; then
-            KIRIE_VER="$(node -p "require('./node_modules/kirie/package.json').version")"
-          else
-            KIRIE_VER="$(node -p "const p=require('./package.json'); const v=p.devDependencies?.kirie||p.dependencies?.kirie; if(!v) throw new Error('kirie version missing'); String(v).replace(/^[^0-9]*/, '')")"
-          fi
-          DEST="addons/kirie/libraries/android/Kirie-release.aar"
-          URL="https://repo1.maven.org/maven2/moe/gdkirie/kirie/core/${KIRIE_VER}/core-${KIRIE_VER}.aar"
-          mkdir -p "$(dirname "$DEST")"
-          echo "Downloading moe.gdkirie.kirie:core:${KIRIE_VER} from Maven Central"
-          curl -fsSL "$URL" -o "$DEST"
-          case "$KIRIE_VER" in
-            0.15.2)
-              echo "e6ea3b04183e57c46ea4e2fd0d8e89e53c5d47c67980b3f33ccacefac7081869  $DEST" | sha256sum -c -
-              ;;
-            *)
-              echo "WARN: no pinned sha256 for moe.gdkirie.kirie:core:$KIRIE_VER; proceeding without checksum"
-              ;;
-          esac
-          ls -la "$DEST"
+        run: bash scripts/ci-fetch-aar.sh
 
-      - name: Overlay Kirie iOS xcframework from release zip
-        if: matrix.platform == 'ios'
+      - if: matrix.platform == 'ios'
         working-directory: ${{ env.APP_DIR }}
-        run: |
-          set -euo pipefail
-          if [ -f node_modules/kirie/package.json ]; then
-            KIRIE_VER="$(node -p "require('./node_modules/kirie/package.json').version")"
-          else
-            KIRIE_VER="$(node -p "const p=require('./package.json'); const v=p.devDependencies?.kirie||p.dependencies?.kirie; if(!v) throw new Error('kirie version missing'); String(v).replace(/^[^0-9]*/, '')")"
-          fi
-          URL="https://github.com/gd-kirie/gd-kirie/releases/download/v${KIRIE_VER}/kirie-addon.zip"
-          TMP="$(mktemp -d)"
-          echo "Downloading $URL"
-          curl -fsSL "$URL" -o "$TMP/kirie-addon.zip"
-          unzip -o "$TMP/kirie-addon.zip" "addons/kirie/ios/*" -d .
-          test -d addons/kirie/ios/Kirie.release.xcframework
-          ls -la addons/kirie/ios/
+        run: bash scripts/ci-overlay-ios.sh
 
-      - name: Dotnet restore (verbose)
-        working-directory: ${{ env.APP_DIR }}
+      - working-directory: ${{ env.APP_DIR }}
         run: |
-          set -euo pipefail
-          echo "dotnet=$(command -v dotnet)"
-          dotnet --info
-          dotnet nuget list source || true
           rm -rf .godot/mono/temp/obj obj bin
-          if ! dotnet restore StageTamagotchiKirie.csproj --force --force-evaluate --verbosity detailed; then
-            echo '----- project.assets.json -----'
-            assets='.godot/mono/temp/obj/project.assets.json'
-            if [ -f "$assets" ]; then
-              python3 -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p,encoding="utf-8-sig")); print("success=", data.get("success")); print("logs=", json.dumps(data.get("logs"), indent=2)[:8000]); libs=data.get("libraries") or {}; print("libraries=", sorted(libs)[:80], "count=", len(libs))' "$assets" || sed -n '1,200p' "$assets"
-            else
-              echo "(no $assets)"
-            fi
-            echo '----- nuget cache gdkirie -----'
-            ls -la "${HOME}/.nuget/packages/gdkirie.platform/" 2>/dev/null || true
-            exit 1
-          fi
+          dotnet restore StageTamagotchiKirie.csproj --force --force-evaluate
 
-      - name: Build web + C# (kirie build)
-        working-directory: ${{ env.APP_DIR }}
+      - working-directory: ${{ env.APP_DIR }}
         run: mise x -- pnpm run build
 
-      - name: Import Godot project
-        working-directory: ${{ env.APP_DIR }}
+      - working-directory: ${{ env.APP_DIR }}
         timeout-minutes: 10
         run: |
-          godot_command="${GODOT:-}"
-          if [ -z "$godot_command" ]; then
-            godot_command="$(mise which godot)"
-          fi
-          if [[ "$RUNNER_OS" == "Windows" ]]; then
-            godot_command="$(cygpath -u "$godot_command")"
-          fi
-          "$godot_command" --headless --import || true
-          "$godot_command" --headless --import || true
+          GODOT="$(bash scripts/ci-godot.sh)"
+          "$GODOT" --headless --import || true
+          "$GODOT" --headless --import || true
 
-      - name: Export (desktop — Godot preset)
-        if: matrix.platform == 'windows' || matrix.platform == 'macos' || matrix.platform == 'linux'
+      - if: matrix.platform == 'windows' || matrix.platform == 'macos' || matrix.platform == 'linux'
         working-directory: ${{ env.APP_DIR }}
-        run: |
-          set -euo pipefail
-          godot_command="${GODOT:-}"
-          if [ -z "$godot_command" ]; then
-            godot_command="$(mise which godot)"
-          fi
-          if [[ "$RUNNER_OS" == "Windows" ]]; then
-            godot_command="$(cygpath -u "$godot_command")"
-          fi
-          OUT_DIR="dist/kirie/${{ matrix.platform }}-${{ matrix.arch }}"
-          mkdir -p "$OUT_DIR"
-          case "${{ matrix.platform }}" in
-            windows)
-              OUT_FILE="$OUT_DIR/AIRI-Kirie.exe"
-              ;;
-            macos)
-              OUT_FILE="$OUT_DIR/AIRI-Kirie.app"
-              ;;
-            linux)
-              OUT_FILE="$OUT_DIR/AIRI-Kirie"
-              ;;
-          esac
-          EXPORT_FLAG="--export-release"
-          if [ "${{ matrix.export_mode }}" = "debug" ]; then
-            EXPORT_FLAG="--export-debug"
-          fi
-          echo "Exporting preset '${{ matrix.preset }}' → $OUT_FILE"
-          "$godot_command" --headless $EXPORT_FLAG "${{ matrix.preset }}" "$OUT_FILE"
-          BUNDLE_DIR="bundle/${{ env.ARTIFACT_NAME }}"
-          mkdir -p "$BUNDLE_DIR"
-          cp -a "$OUT_DIR"/. "$BUNDLE_DIR"/
-          (
-            cd bundle
-            if command -v zip >/dev/null 2>&1; then
-              zip -r "${{ env.ARTIFACT_NAME }}.zip" "${{ env.ARTIFACT_NAME }}"
-            else
-              powershell -NoProfile -Command "Compress-Archive -Path '${{ env.ARTIFACT_NAME }}' -DestinationPath '${{ env.ARTIFACT_NAME }}.zip' -Force"
-            fi
-          )
-          ls -la bundle/
+        run: bash scripts/ci-export-desktop.sh '${{ matrix.platform }}' '${{ matrix.arch }}' '${{ matrix.preset }}' '${{ matrix.export_mode }}' '${{ env.ARTIFACT_NAME }}'
 
-      - name: Export (Android — kirie CLI)
-        if: matrix.platform == 'android'
+      - if: matrix.platform == 'android'
         working-directory: ${{ env.APP_DIR }}
-        run: |
-          set -euo pipefail
-          mise x -- pnpm kirie export android --no-build
-          BUNDLE_DIR="bundle/${{ env.ARTIFACT_NAME }}"
-          mkdir -p "$BUNDLE_DIR"
-          found="$(find dist/kirie/android -type f \( -name '*.apk' -o -name '*.aab' \) 2>/dev/null | head -n 1 || true)"
-          if [ -z "$found" ]; then
-            echo "No APK/AAB under dist/kirie/android; listing dist:"
-            find dist -type f | head -n 100 || true
-            exit 1
-          fi
-          cp -a "$found" "$BUNDLE_DIR/${{ env.ARTIFACT_NAME }}.apk"
-          (
-            cd bundle
-            zip -r "${{ env.ARTIFACT_NAME }}.zip" "${{ env.ARTIFACT_NAME }}"
-          )
-          ls -la bundle/
+        run: bash scripts/ci-export-android.sh '${{ env.ARTIFACT_NAME }}'
 
-      - name: Export (iOS — Godot Xcode project only / unsigned)
-        if: matrix.platform == 'ios'
+      - if: matrix.platform == 'ios'
         working-directory: ${{ env.APP_DIR }}
-        run: |
-          set -euo pipefail
-          godot_command="${GODOT:-}"
-          if [ -z "$godot_command" ]; then
-            godot_command="$(mise which godot)"
-          fi
-          OUT_DIR="dist/kirie/ios"
-          mkdir -p "$OUT_DIR"
-          OUT_FILE="$OUT_DIR/debug.xcodeproj"
-          "$godot_command" --headless --export-debug "iOS" "$OUT_FILE"
-          BUNDLE_DIR="bundle/${{ env.ARTIFACT_NAME }}"
-          mkdir -p "$BUNDLE_DIR"
-          cp -a "$OUT_DIR"/. "$BUNDLE_DIR"/
-          (
-            cd bundle
-            zip -r "${{ env.ARTIFACT_NAME }}.zip" "${{ env.ARTIFACT_NAME }}"
-          )
-          ls -la bundle/
+        run: bash scripts/ci-export-ios.sh '${{ env.ARTIFACT_NAME }}'
 
-      - name: Upload CI artifact
-        if: ${{ github.event_name == 'schedule' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.build_only) }}
+      - if: ${{ github.event_name == 'schedule' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.build_only) }}
         uses: actions/upload-artifact@v7
         with:
           name: ${{ env.ARTIFACT_NAME }}
