@@ -148,7 +148,8 @@ export async function getFilenames(target: string, options: { release: boolean, 
     throw new Error('<Target> is required')
   }
 
-  const beforeVersion = packageJSON.version
+  // electron-builder names the files with the version of the build, see `extraMetadata` of electron-builder.config.ts.
+  const beforeVersion = process.env.ERGOSPHERE_IT_VERSION || packageJSON.version
   const productName = electronBuilder.productName!
 
   switch (target) {

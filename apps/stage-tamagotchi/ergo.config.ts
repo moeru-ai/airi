@@ -7,7 +7,7 @@ import { defineConfig } from '@ergosphere-it/electron/config'
 // eslint-disable-next-line no-restricted-syntax
 import { channelOfVersion } from './src/shared/update-channels.ts'
 
-// CI names each build in `ERGOSPHERE_IT_VERSION`, for example `0.13.0+nightly.12.13eef81`. The build uses the same name.
+// CI names each build in `ERGOSPHERE_IT_VERSION`, for example `0.13.1-nightly.12.13eef81`. The build uses the same name.
 const version = env.ERGOSPHERE_IT_VERSION
   || (JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }).version
 

@@ -94,7 +94,7 @@ catalog:
   '@electron-toolkit/tsconfig': ^2.0.0
   '@electron-toolkit/utils': ^4.0.0
   '@electron/notarize': ^3.1.1
-  '@ergosphere-it/electron': ^0.0.13
+  '@ergosphere-it/electron': ^0.0.14
   '@esotericsoftware/spine-webgl': ~4.2.0
   '@esotericsoftware/spine-webgl-4-0': npm:@esotericsoftware/spine-webgl@~4.0.31
   '@esotericsoftware/spine-webgl-4-1': npm:@esotericsoftware/spine-webgl@~4.1.56
