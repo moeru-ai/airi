@@ -14,8 +14,14 @@ describe('upstreamHeaders', () => {
   })
 
   it('replaces {KEY} in any header value, every time it appears', () => {
-    expect(upstreamHeaders({ headerTemplate: 'Bearer {KEY}', headers: { 'x-api-key': '{KEY}', 'x-pair': '{KEY}:{KEY}' } }, 'sk-1'))
-      .toEqual({ 'x-api-key': 'sk-1', 'x-pair': 'sk-1:sk-1', 'authorization': 'Bearer sk-1' })
+    expect(upstreamHeaders({ headerTemplate: 'Bearer {KEY}', headers: { 'Authorization': 'Bearer {KEY}', 'x-pair': '{KEY}:{KEY}' } }, 'sk-1'))
+      .toEqual({ 'Authorization': 'Bearer sk-1', 'x-pair': 'sk-1:sk-1' })
+  })
+
+  // The admin catalog lets an upstream send its key in another header (for example api-key) and drop Authorization.
+  it('adds no Authorization when another header already carries {KEY}', () => {
+    expect(upstreamHeaders({ headerTemplate: 'Bearer {KEY}', headers: { 'api-key': '{KEY}', 'X-Title': 'AIRI' } }, 'sk-1'))
+      .toEqual({ 'api-key': 'sk-1', 'X-Title': 'AIRI' })
   })
 
   it('falls back to headerTemplate when the list has no Authorization header', () => {
