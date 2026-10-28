@@ -215,4 +215,210 @@ describe('widget window lifecycle', () => {
 
     expect(manager.getWidgetSnapshot(id)).toBeUndefined()
   })
+
+  // Regression: PR #2935 – bitxwolf/fix/clamp-ttlms-settimeout-overflow
+  // https://github.com/moeru-ai/airi/pull/2935
+  //
+  // ROOT CAUSE:
+  // Node.js setTimeout clamps delays over 2,147,483,647 ms to 1 ms.
+  // Widgets with large TTLs were destroyed almost immediately.
+  // We re-arm the timer in safe 32-bit chunks until the full TTL elapses.
+  it('pR #2935: preserves TTLs exceeding 32-bit timer limit and destroys widget across chunks', async () => {
+    const manager = createManager()
+    const ttlMs = 2_147_483_647 + 5000
+    const id = await manager.pushWidget({
+      componentName: 'weather',
+      ttlMs,
+    })
+    const window = mocks.windows[0]
+
+    await vi.advanceTimersByTimeAsync(2_147_483_647)
+    expect(manager.getWidgetSnapshot(id)).toBeDefined()
+    expect(window.close).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(manager.getWidgetSnapshot(id)).toBeUndefined()
+    expect(window.close).toHaveBeenCalledOnce()
+  })
+
+  // Regression: PR #2935 – bitxwolf/fix/clamp-ttlms-settimeout-overflow
+  // https://github.com/moeru-ai/airi/pull/2935
+  //
+  // ROOT CAUSE:
+  // A tiny TTL (1 ms) fired before showWindowWithRoute resolved, destroying
+  // the BrowserWindow while setup was still pending. The fix defers destruction
+  // until after window setup completes so callers receive a live window.
+  it('pR #2935: destroys widget cleanly with a tiny TTL after window setup finishes', async () => {
+    const manager = createManager()
+    const id = await manager.pushWidget({
+      componentName: 'weather',
+      ttlMs: 1,
+    })
+    const window = mocks.windows[0]
+
+    expect(manager.getWidgetSnapshot(id)).toBeDefined()
+    expect(window.close).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(manager.getWidgetSnapshot(id)).toBeUndefined()
+    expect(window.close).toHaveBeenCalledOnce()
+  })
+
+  // Regression: PR #2935 – bitxwolf/fix/clamp-ttlms-settimeout-overflow
+  // https://github.com/moeru-ai/airi/pull/2935
+  //
+  // ROOT CAUSE:
+  // Two rapid TTL updates enqueued two microtask callbacks; the first had no
+  // handle to cancel, so both armed a timer. Only the second handle was stored,
+  // leaving the first timer alive. A generation token (timerGeneration) ensures
+  // stale callbacks skip arming.
+  it('pR #2935: cancels stale destruction timer when multiple TTL updates run in succession', async () => {
+    const manager = createManager()
+    const id = await manager.pushWidget({
+      componentName: 'weather',
+      ttlMs: 5000,
+    })
+    const window = mocks.windows[0]
+
+    await manager.updateWidget({ id, ttlMs: 1000 })
+    await manager.updateWidget({ id, ttlMs: 3000 })
+
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(manager.getWidgetSnapshot(id)).toBeDefined()
+    expect(window.close).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(manager.getWidgetSnapshot(id)).toBeUndefined()
+    expect(window.close).toHaveBeenCalledOnce()
+  })
+
+  // Regression: PR #2935 – bitxwolf/fix/clamp-ttlms-settimeout-overflow
+  // https://github.com/moeru-ai/airi/pull/2935
+  //
+  // ROOT CAUSE:
+  // timerGeneration was added as an internal scheduling field but leaked into
+  // getWidgetSnapshot output via the object spread. The fix strips it alongside
+  // timer and expiresAt so the Eventa widgetsFetch response matches WidgetSnapshot.
+  it('pR #2935: strips timerGeneration, timer, and expiresAt from widget snapshots', async () => {
+    const manager = createManager()
+    const id = await manager.pushWidget({
+      componentName: 'weather',
+      ttlMs: 5000,
+    })
+
+    const snapshot = manager.getWidgetSnapshot(id)
+    expect(snapshot).toBeDefined()
+    expect(snapshot?.id).toBe(id)
+    expect('timerGeneration' in (snapshot ?? {})).toBe(false)
+    expect('timer' in (snapshot ?? {})).toBe(false)
+    expect('expiresAt' in (snapshot ?? {})).toBe(false)
+  })
+
+  // Regression: PR #2935 – bitxwolf/fix/clamp-ttlms-settimeout-overflow
+  // https://github.com/moeru-ai/airi/pull/2935
+  //
+  // ROOT CAUSE:
+  // A content-only updateWidget (no ttlMs) captured the pre-update record in
+  // its microtask closure. When it fired, it scheduled the stale record's timer
+  // and left the real positive-TTL widget alive indefinitely. The fix schedules
+  // on the current map record, preserving the established deadline.
+  it('pR #2935: preserves destruction timer when content-only update runs without ttlMs', async () => {
+    const manager = createManager()
+    const id = await manager.pushWidget({
+      componentName: 'weather',
+      ttlMs: 5000,
+    })
+    const window = mocks.windows[0]
+
+    await manager.updateWidget({ id, componentProps: { city: 'Tokyo' } })
+
+    await vi.advanceTimersByTimeAsync(4000)
+    expect(manager.getWidgetSnapshot(id)).toBeDefined()
+    expect(window.close).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(manager.getWidgetSnapshot(id)).toBeUndefined()
+    expect(window.close).toHaveBeenCalledOnce()
+  })
+
+  // Regression: PR #2935 – bitxwolf/fix/clamp-ttlms-settimeout-overflow
+  // https://github.com/moeru-ai/airi/pull/2935
+  //
+  // ROOT CAUSE:
+  // An explicit-id updateWidget without ttlMs replaced widgetRecords[id] with a
+  // record missing a deadline or timerGeneration, so the captured pre-setup
+  // record's deferred callback scheduled on the stale entry instead of the
+  // current record, leaving a positive-TTL widget alive indefinitely.
+  it('pR #2935: schedules destruction on updated record when update without ttlMs arrives during push', async () => {
+    const { load } = await import('../../libs/electron/location')
+    let resolveLoad: () => void
+    vi.mocked(load).mockImplementationOnce(() => new Promise((resolve) => {
+      resolveLoad = resolve as () => void
+    }))
+
+    const manager = createManager()
+    const pushPromise = manager.pushWidget({
+      id: 'pre-update',
+      componentName: 'weather',
+      ttlMs: 3000,
+    })
+
+    await manager.updateWidget({ id: 'pre-update', componentProps: { city: 'Paris' } })
+
+    resolveLoad!()
+    await pushPromise
+
+    const window = mocks.windows[0]
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(manager.getWidgetSnapshot('pre-update')).toBeDefined()
+    expect(window.close).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(manager.getWidgetSnapshot('pre-update')).toBeUndefined()
+    expect(window.close).toHaveBeenCalledOnce()
+  })
+
+  // Regression: PR #2935 – bitxwolf/fix/clamp-ttlms-settimeout-overflow
+  // https://github.com/moeru-ai/airi/pull/2935
+  //
+  // ROOT CAUSE:
+  // A superseded pushWidget call (same explicit id) could resume after the
+  // replacement record was inserted and arm the replacement timer before its
+  // window finished loading. If setup exceeded the TTL, the stale call destroyed
+  // the new widget. The push generation token prevents stale continuations from
+  // scheduling.
+  it('pR #2935: prevents superseded push from arming replacement widget timer early', async () => {
+    const { load } = await import('../../libs/electron/location')
+    let resolveFirstLoad: () => void
+    let resolveSecondLoad: () => void
+
+    vi.mocked(load)
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveFirstLoad = resolve as () => void
+      }))
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveSecondLoad = resolve as () => void
+      }))
+
+    const manager = createManager()
+    const firstPush = manager.pushWidget({ id: 'shared-id', componentName: 'weather', ttlMs: 100 })
+    await Promise.resolve()
+    const secondPush = manager.pushWidget({ id: 'shared-id', componentName: 'weather', ttlMs: 5000 })
+    await Promise.resolve()
+
+    resolveFirstLoad!()
+    await firstPush
+
+    await vi.advanceTimersByTimeAsync(200)
+    expect(manager.getWidgetSnapshot('shared-id')).toBeDefined()
+
+    resolveSecondLoad!()
+    await secondPush
+
+    await vi.advanceTimersByTimeAsync(4000)
+    expect(manager.getWidgetSnapshot('shared-id')).toBeDefined()
+
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(manager.getWidgetSnapshot('shared-id')).toBeUndefined()
+  })
 })
