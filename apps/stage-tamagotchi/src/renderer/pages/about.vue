@@ -73,7 +73,8 @@ const updateChannelSelectOptions = computed(() => updateChannelOptions.map(chann
 })))
 const selectedUpdateChannel = ref<UpdateChannelOption>('auto')
 const autoDownload = ref(true)
-const isUpdatePreferenceUpdating = ref(false)
+// Starts true, so no change sends defaults in place of the stored preferences before the first read returns.
+const isUpdatePreferenceUpdating = ref(true)
 const bugReportDescription = ref('')
 const includeBugReportTriageContext = ref(false)
 const uploadBugReportMediaFromLibrary = ref(false)
@@ -245,7 +246,12 @@ function applyUpdaterPreferences(preferences: ElectronUpdaterPreferences | undef
 }
 
 async function refreshUpdaterPreferences() {
-  applyUpdaterPreferences(await getUpdaterPreferences())
+  try {
+    applyUpdaterPreferences(await getUpdaterPreferences())
+  }
+  finally {
+    isUpdatePreferenceUpdating.value = false
+  }
 }
 
 /** Sends every preference, because main reads a missing channel as auto. */
