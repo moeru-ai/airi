@@ -22,16 +22,17 @@ describe('planUpdates', () => {
     { tag: 'v0.13.0', channel: 'stable' },
     { tag: '0.13.0', channel: 'stable' },
     { tag: 'v0.13.0+build.7', channel: 'stable' },
-    { tag: 'v0.13.0-beta.1', channel: 'beta' },
-    { tag: 'v0.13.0-alpha.36', channel: 'alpha' },
-    { tag: 'v0.13.0-Nightly.20261026', channel: 'nightly' },
+    { tag: 'v0.13.0-beta.1', channel: 'canary' },
+    { tag: 'v0.13.0-alpha.36', channel: 'canary' },
+    { tag: 'v0.13.0-rc.1', channel: 'canary' },
+    { tag: 'v0.13.0-1', channel: 'canary' },
     { tag: 'v0.13.0-canary1', channel: 'canary' },
   ])('publishes the release $tag to $channel with the version of package.json', ({ tag, channel }) => {
     expect(planUpdates({ ...base, event: 'release', tag })).toEqual({ ...planUpdates({ ...base, event: 'push' }), channel, version: '0.13.0' })
   })
 
-  // A prerelease that names no channel must never fall back to stable, or stable installs would take it.
-  it.each(['v0.13.0-rc.1', 'v0.13.0-1', 'v0.13.0.1', 'release-2026', 'v0.13'])('publishes nothing for the tag %s', (tag) => {
+  // A tag that is not a version must never fall back to stable, or stable installs would take it.
+  it.each(['v0.13.0.1', 'release-2026', 'v0.13'])('publishes nothing for the tag %s', (tag) => {
     const plan = planUpdates({ ...base, event: 'release', tag })
 
     expect(plan.channel).toBeUndefined()
@@ -39,7 +40,7 @@ describe('planUpdates', () => {
   })
 
   it('publishes a manual release run with a tag, and nothing for other manual runs', () => {
-    expect(planUpdates({ ...base, event: 'workflow_dispatch', tag: 'v0.13.0-beta.2' }).channel).toBe('beta')
+    expect(planUpdates({ ...base, event: 'workflow_dispatch', tag: 'v0.13.0-beta.2' }).channel).toBe('canary')
     expect(planUpdates({ ...base, event: 'workflow_dispatch' })).toMatchObject({ skipReason: 'This run is not a release.' })
     expect(planUpdates({ ...base, event: 'workflow_dispatch' }).channel).toBeUndefined()
     expect(planUpdates({ ...base, event: 'workflow_dispatch', tag: 'v0.13.0', buildOnly: true }).channel).toBeUndefined()
