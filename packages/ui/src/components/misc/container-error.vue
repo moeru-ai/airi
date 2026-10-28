@@ -199,6 +199,7 @@ async function copyContent() {
       <div :class="['flex shrink-0 items-center gap-0.5']">
         <IconButton
           v-if="showCopyButton"
+          type="button"
           :icon="copied ? 'i-mingcute:check-line' : 'i-mingcute:copy-2-line'"
           :title="copied ? copiedButtonLabel : copyButtonLabel"
           :aria-label="copied ? copiedButtonLabel : copyButtonLabel"
@@ -208,6 +209,7 @@ async function copyContent() {
 
         <IconButton
           v-if="showFeedbackButton"
+          type="button"
           icon="i-mingcute:message-4-line"
           :title="feedbackButtonLabel"
           :aria-label="feedbackButtonLabel"

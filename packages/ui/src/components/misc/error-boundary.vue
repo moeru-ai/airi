@@ -97,6 +97,7 @@ defineExpose({ retry, hasError: () => capturedError.value != null })
         >
           <template v-if="props.retryable" #actions>
             <Button
+              type="button"
               color="red"
               size="sm"
               :label="props.retryLabel"
