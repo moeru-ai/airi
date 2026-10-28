@@ -79,6 +79,9 @@ describe('orbit gesture ownership', () => {
       const angles: number[] = []
       await session.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y })
       await session.send('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', buttons: 1, clickCount: 1, x, y })
+      // Blink starts a text drag only after the button is held for its text drag delay.
+      // The delay is 0.15s on macOS and 0s on other platforms, so hold the button longer than it.
+      await new Promise(resolve => setTimeout(resolve, 200))
       try {
         for (const delta of [10, 40, 100, 180, 260]) {
           await session.send('Input.dispatchMouseEvent', { type: 'mouseMoved', button: 'left', buttons: 1, x: x + delta * scale, y })
