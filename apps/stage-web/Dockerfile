@@ -1,4 +1,4 @@
-FROM node:24-trixie AS build-stage
+FROM node:24.22.1-trixie AS build-stage
 
 WORKDIR /app
 

@@ -28,7 +28,7 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "electron": ">=39 <44"
+    "electron": ">=43.8.4 <44"
   },
   "dependencies": {
     "@moeru/eventa": "catalog:",

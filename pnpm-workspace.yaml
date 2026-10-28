@@ -1,6 +1,12 @@
 catalogMode: prefer
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
+  # NOTICE:
+  # Install the CVE-2026-111497 fix before the release-age delay ends.
+  # Electron 43.8.4 includes the patched Node.js 24.22.1 runtime.
+  # Source: https://releases.electronjs.org/release/v43.8.4
+  # Remove this exception after 2026-10-30T18:05:12Z.
+  - electron@43.8.4
   # Packages from the AIRI team must always be trusted
   - '@auv-js/*'
   - '@gd-kirie/*'
@@ -303,7 +309,7 @@ catalog:
   drizzle-kit: ^0.31.10
   drizzle-orm: ^0.45.2
   drizzle-valibot: ^0.4.2
-  electron: ^43.4.1
+  electron: ^43.8.4
   electron-builder: ^26.16.1
   electron-click-drag-plugin: ^2.0.2
   electron-vite: ^6.0.0
