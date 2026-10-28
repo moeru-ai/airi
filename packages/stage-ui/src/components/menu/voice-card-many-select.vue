@@ -47,6 +47,11 @@ interface Voice {
 
 interface Props {
   voices: Voice[]
+  /**
+   * The settings search marker of each voice. A settings page passes it,
+   * so a search result for a voice scrolls to that voice. Without it, the voices have no marker.
+   */
+  searchKeyOf?: (voice: Voice) => string
   columns?: number
   searchable?: boolean
   searchPlaceholder?: string
@@ -387,6 +392,7 @@ const customVoiceName = ref('')
             :key="voice.id"
             v-model:voice-id="voiceId"
             v-model:custom-voice-name="customVoiceName"
+            :data-settings-search="props.searchKeyOf?.(voice)"
             name="voice"
             class="snap-start"
             :voice="voice"

@@ -120,8 +120,9 @@ about:
       stable: 稳定版
       alpha: Alpha 测试版
       beta: Beta 测试版
-      nightly: 每夜构建
       canary: 尝鲜版
+      nightly: 每日更新版
+      dev: 开发版
     status:
       downloading: 正在下载更新......
       error-prefix: 错误

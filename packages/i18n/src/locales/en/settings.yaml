@@ -1487,6 +1487,11 @@ pages:
       description: Let AIRI search the web for current information
       enable: Enable Web Search
       enable-description: Allow AIRI to search the web during chat
+      provider: Search provider
+      deepseek:
+        api-key: DeepSeek API Key
+        api-key-description: Enter a DeepSeek API key for web search. This key is separate from your chat provider settings.
+        api-key-placeholder: Enter your DeepSeek API key
       api-key: Tavily API Key
       api-key-description: Web search is powered by Tavily. Get a free API key at tavily.com.
       api-key-placeholder: Enter your Tavily API key
@@ -2415,6 +2420,59 @@ pages:
               markdown-stress:
                 title: Markdown Stress
                 description: Stress markdown parsing and rendering with heavy chat payloads
+              needs-attention:
+                title: Needs Attention
+                description: Test the needs-attention list of the settings home. See the provider checks and the speech of each character, and cause problems on purpose
+                timing-label: Check timing
+                timing-signed-in: 'Signed in: the app checks the added providers at sign-in, and after each sync every {minutes} min'
+                timing-signed-out: 'Not signed in: no automatic check. A check runs only on some provider settings pages, or when you use the button below.'
+                timing-periodic: '{names} also check every {seconds} s'
+                check-all: Check all now
+                restore-all: 'Show all dismissed again ({count})'
+                empty: No provider was checked yet.
+                not-checked: not checked yet
+                checked-ago: '{seconds} s ago'
+                every: 'every {seconds} s'
+                measured: 'last {count} checks {seconds} s apart on average'
+                dismissed: Dismissed
+                restore-one: Undo dismiss
+                simulate: Fail on purpose
+                simulated-reason: Simulated failure from the developer tools.
+                speech-title: Character speech
+                speech-off: Speech is off
+                speech-ready: Can speak
+                speech-missing-model: No speech model
+                speech-missing-voice: No voice
+                speech-missing-model-voice: No speech model or voice
+                speech-provider-unusable: 'The speech module cannot use the provider now, so the list shows the provider instead'
+                speech-pending: Waiting for the catalog
+                items-title: Items in the list
+                items-empty: Nothing needs attention now.
+                selections-title: Module providers
+                selection-usable: Can be used
+                selection-provider-item: The provider item reports it
+                selection-awaiting-check: 'Added, waiting for its check'
+                selection-unusable: The module cannot use it
+                simulate-unusable: Treat as unusable
+                voice-input-title: Voice input
+                voice-input-mic-on: Microphone on
+                voice-input-mic-off: Microphone off
+                voice-input-ready: Hearing can transcribe
+                voice-input-not-ready: Hearing has no transcription provider or model
+                simulate-voice-input: Treat as on without transcription
+                simulate-speech: Treat as no voice
+                kinds:
+                  chat: Chat
+                  vision: Vision
+                  speech: Speech
+                  transcription: Transcription
+                  other: Other
+                status:
+                  unconfigured: Not set up
+                  validating: Checking
+                  configured: Passed
+                  invalid: Failed
+                  bypassed: Not checked
               tool-payloads-as-json:
                 title: Show tool data as JSON
                 description: Show the arguments and results of chat tool calls as a JSON tree, not as formatted fields. Cards in replies also offer their raw data.
@@ -2590,6 +2648,29 @@ pages:
       label: Tip!
       description: Using a square image will leverage <b>cover</b> cropping in
         portrait mode, focusing on the center of the scene.
+search:
+  placeholder: Search settings
+  empty: 'No settings match "{query}".'
+  not-shown: '"{name}" shows only in another state of this page, for example after you turn on a switch or choose another model type.'
+needs-attention:
+  title-one: '{name} failed its last check'
+  title-unconfigured: '{name} is not set up'
+  title-many: '{count} items need attention'
+  speech-no-model: '{name} has no speech model'
+  speech-no-voice: '{name} has no voice'
+  speech-no-model-voice: '{name} has no speech model or voice'
+  text-only: Replies are text only
+  simulated: Simulated from the developer tools
+  character-provider-unavailable: 'The {module} provider of {name} cannot be used'
+  module-provider-unavailable: 'The {module} provider cannot be used'
+  provider-not-listed: '{provider} is not in the provider list'
+  hearing-no-provider: Voice input is on, but no transcription provider is selected
+  hearing-no-model: Voice input is on, but no transcription model is selected
+  not-transcribed: Your speech is not transcribed
+  affects: 'Affects {modules}'
+  used-by: 'Used by {modules}'
+  fix: Edit
+  dismiss: Dismiss
 sections:
   section:
     general:

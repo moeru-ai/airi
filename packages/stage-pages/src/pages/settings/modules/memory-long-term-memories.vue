@@ -8,6 +8,8 @@ import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { memorySearchKey } from './memory-long-term-memories.search'
+
 const { t } = useI18n()
 const memory = useMemoryStore()
 const { cards } = storeToRefs(useAiriCardStore())
@@ -54,6 +56,7 @@ function remove(entry: MemoryEntry) {
         <li
           v-for="entry in group.entries"
           :key="entry.name"
+          :data-settings-search="memorySearchKey(entry)"
           :class="['flex items-start', 'gap-3', 'rounded-lg', 'bg-white dark:bg-neutral-900/60', 'px-3 py-2.5']"
         >
           <div :class="['min-w-0 flex-1', 'flex flex-col', 'gap-0.5']">
