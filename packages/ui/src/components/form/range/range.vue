@@ -84,9 +84,9 @@ https://toughengineer.github.io/demo/slider-styler*/
   --thumb-box-shadow: 0 0 0px #e6e6e6;
   --thumb-border: none;
   --thumb-border-radius: 999px;
-  --thumb-background: oklch(80% var(--chromatic-chroma-200) calc(var(--chromatic-hue) + 0));
-  --thumb-background-hover: oklch(90% var(--chromatic-chroma-200) calc(var(--chromatic-hue) + 0));
-  --thumb-background-active: oklch(70% var(--chromatic-chroma-200) calc(var(--chromatic-hue) + 0));
+  --thumb-background: theme('colors.primary.300');
+  --thumb-background-hover: theme('colors.primary.200');
+  --thumb-background-active: theme('colors.primary.400');
 
   --track-height: calc(var(--height) - var(--track-value-padding) * 2);
   --track-box-shadow: none;
@@ -103,9 +103,9 @@ https://toughengineer.github.io/demo/slider-styler*/
 }
 
 .dark .form_input-range {
-  --thumb-background: oklch(70% var(--chromatic-chroma-200) calc(var(--chromatic-hue) + 0));
-  --thumb-background-hover: oklch(90% var(--chromatic-chroma-200) calc(var(--chromatic-hue) + 0));
-  --thumb-background-active: oklch(80% var(--chromatic-chroma-200) calc(var(--chromatic-hue) + 0));
+  --thumb-background: theme('colors.primary.400');
+  --thumb-background-hover: theme('colors.primary.200');
+  --thumb-background-active: theme('colors.primary.300');
 
   --track-border: solid 2px rgb(44, 44, 44);
   --track-background: rgba(44, 44, 44, 0.7);

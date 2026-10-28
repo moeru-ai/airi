@@ -1,25 +1,5 @@
-/*
- * Chroma variables in the shape of @proj-airi/unocss-preset-chromatic 1.x (`0.18 + 0.04 · cos(hue)`, scaled per shade).
- *
- * NOTICE: since chromatic 2 the preset no longer emits these (its default `v2` model uses per-colour variables), so
- * this file is now their only source. They back the hand-made tints that pick their own lightness (stage transition
- * colours, nprogress, default backgrounds, range thumbs, the motion workbench). Keep them until those sites move to
- * chromatic utilities (`~` / `*` modifiers) or to `chromaticColorFrom()`.
- */
 :root {
   --chromatic-hue: 220.44;
-  --chromatic-chroma: calc(0.18 + (cos(var(--chromatic-hue) * 3.14159265 / 180) * 0.04));
-  --chromatic-chroma-50: calc(var(--chromatic-chroma) * 0.3);
-  --chromatic-chroma-100: calc(var(--chromatic-chroma) * 0.5);
-  --chromatic-chroma-200: calc(var(--chromatic-chroma) * 0.6);
-  --chromatic-chroma-300: calc(var(--chromatic-chroma) * 0.75);
-  --chromatic-chroma-400: calc(var(--chromatic-chroma) * 0.85);
-  --chromatic-chroma-500: var(--chromatic-chroma);
-  --chromatic-chroma-600: calc(var(--chromatic-chroma) * 1.15);
-  --chromatic-chroma-700: calc(var(--chromatic-chroma) * 1.1);
-  --chromatic-chroma-800: calc(var(--chromatic-chroma) * 0.85);
-  --chromatic-chroma-900: calc(var(--chromatic-chroma) * 0.7);
-  --chromatic-chroma-950: calc(var(--chromatic-chroma) * 0.5);
 }
 
 .is-interacting {
