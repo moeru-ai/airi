@@ -30,9 +30,11 @@ on:
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
       - .github/workflows/release-tamagotchi.yml
+  # A pre-release reports `published`: `prereleased` does not fire for a pre-release that was a draft first. A direct
+  # release also reports `published`, with `release.prerelease` false, and the plan skips it.
   release:
     types:
-      - prereleased
+      - published
       - released
   workflow_dispatch:
     inputs:
@@ -102,6 +104,7 @@ jobs:
         env:
           EVENT: ${{ github.event_name }}
           ACTION: ${{ github.event.action }}
+          PRERELEASE: ${{ github.event.release.prerelease }}
           TAG: ${{ github.event.release.tag_name || inputs.tag }}
           BUILD_ONLY: ${{ inputs.build_only }}
           ARTIFACTS_ONLY: ${{ inputs.artifacts_only }}
@@ -112,7 +115,7 @@ jobs:
     needs: updates
     # A push publishes only the bundle, in publish-bundle. A pre-release that becomes a release moves canary to stable,
     # in promote-to-stable.
-    if: ${{ github.event_name != 'push' && github.event.action != 'released' }}
+    if: ${{ github.event_name != 'push' && (github.event_name != 'release' || (github.event.action == 'published' && github.event.release.prerelease)) }}
     continue-on-error: ${{ matrix.skip }} # WORKAROUND: Skipping subsequent steps without failing the whole workflow
     env:
       VITE_ENABLE_ANALYTICS: ${{ ((github.event_name == 'release') || (github.event_name == 'workflow_dispatch' && !inputs.build_only)) && 'true' || 'false' }}
@@ -787,7 +790,7 @@ jobs:
   publish-gitcode-release:
     name: Publish GitCode Release Mirror
     needs: build
-    if: ${{ always() && github.repository == 'moeru-ai/airi' && ((github.event_name == 'release' && github.event.action == 'prereleased') || (github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only && inputs.tag != '')) }}
+    if: ${{ always() && github.repository == 'moeru-ai/airi' && ((github.event_name == 'release' && github.event.action == 'published' && github.event.release.prerelease) || (github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only && inputs.tag != '')) }}
     continue-on-error: true
     runs-on: ubuntu-latest
     steps:
@@ -811,7 +814,7 @@ jobs:
   publish-distribution:
     name: Publish Distribution
     needs: build
-    if: ${{ github.event_name == 'release' && github.event.action == 'prereleased' }}
+    if: ${{ github.event_name == 'release' && github.event.action == 'published' && github.event.release.prerelease }}
     runs-on: ubuntu-latest
     strategy:
       matrix:

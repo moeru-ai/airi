@@ -21,7 +21,7 @@ describe('planUpdates', () => {
   it.each(['v0.13.0', '0.13.0', 'v0.13.0+build.7', 'v0.13.0-beta.1', 'v0.13.0-alpha.36', 'v0.13.0-rc.1', 'v0.13.0-1', 'v0.13.0-canary1'])(
     'publishes the pre-release %s to canary, and names its installers on canary and dev',
     (tag) => {
-      expect(planUpdates({ ...base, event: 'release', action: 'prereleased', tag })).toEqual({
+      expect(planUpdates({ ...base, event: 'release', action: 'published', prerelease: true, tag })).toEqual({
         ...planUpdates({ ...base, event: 'push' }),
         channel: 'canary',
         installer: {
@@ -35,14 +35,18 @@ describe('planUpdates', () => {
   )
 
   it.each(['v0.13.0.1', 'release-2026', 'v0.13'])('publishes nothing for the tag %s', (tag) => {
-    const plan = planUpdates({ ...base, event: 'release', action: 'prereleased', tag })
+    const plan = planUpdates({ ...base, event: 'release', action: 'published', prerelease: true, tag })
 
     expect(plan.channel).toBeUndefined()
     expect(plan.skipReason).toContain(tag)
   })
 
-  it('publishes nothing for a release event that is not a pre-release or a release', () => {
-    expect(planUpdates({ ...base, event: 'release', action: 'published', tag: 'v0.13.0' })).toMatchObject({ skipReason: 'This run is not a release.' })
+  it('publishes nothing for a release that is published without being a pre-release first', () => {
+    expect(planUpdates({ ...base, event: 'release', action: 'published', prerelease: false, tag: 'v0.13.0' })).toMatchObject({ skipReason: 'This run is not a release.' })
+  })
+
+  it('publishes nothing for a release event of another action', () => {
+    expect(planUpdates({ ...base, event: 'release', action: 'prereleased', prerelease: true, tag: 'v0.13.0' })).toMatchObject({ skipReason: 'This run is not a release.' })
   })
 
   it('moves canary to stable when the pre-release becomes a release', () => {

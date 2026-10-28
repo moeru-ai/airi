@@ -20,8 +20,10 @@ export interface ServedChannel {
 export interface PlanInput {
   /** `github.event_name`. */
   event: string
-  /** `github.event.action`, for example `prereleased` or `released` of a `release` event. */
+  /** `github.event.action`, for example `published` or `released` of a `release` event. */
   action?: string
+  /** `github.event.release.prerelease`: whether the release of a `release` event is a pre-release. */
+  prerelease?: boolean
   /** The tag of a `release` event, or the `tag` input of a manual run. */
   tag?: string
   /** The `build_only` input of a manual run. */
@@ -103,7 +105,9 @@ export function planUpdates(input: PlanInput): UpdatePlan {
   }
 
   const version = input.packageVersion
-  const releaseRun = (input.event === 'release' && (input.action === 'prereleased' || input.action === 'released'))
+  // A pre-release reports `published`, also when it was a draft first. A release published directly also reports
+  // `published`, and its `released` run checks canary.
+  const releaseRun = (input.event === 'release' && ((input.action === 'published' && input.prerelease === true) || input.action === 'released'))
     || (input.event === 'workflow_dispatch' && !input.buildOnly && !input.artifactsOnly && !!input.tag)
   if (!releaseRun || !input.tag)
     return { ...ids, skipReason: 'This run is not a release.', version }
@@ -160,6 +164,7 @@ async function main() {
   const plan = planUpdates({
     event: env.EVENT ?? '',
     action: env.ACTION || undefined,
+    prerelease: env.PRERELEASE === 'true',
     tag: env.TAG || undefined,
     buildOnly: env.BUILD_ONLY === 'true',
     artifactsOnly: env.ARTIFACTS_ONLY === 'true',
