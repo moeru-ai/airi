@@ -17,7 +17,7 @@ const mimoSpeechConfigSchema = z.object({
 const mimoTranscriptionConfigSchema = z.object({
   apiKey: z.string(),
   baseUrl: z.string().default('https://api.xiaomimimo.com/v1/'),
-  model: z.string().default('mimo-v2-omni'),
+  model: z.string().default('mimo-v2.5-asr'),
 })
 
 type MimoSpeechConfig = z.input<typeof mimoSpeechConfigSchema>
@@ -139,16 +139,6 @@ function createMimoSpeechProvider(config: MimoSpeechConfig) {
   }
 }
 
-function audioFormatFromDataUri(dataUri: string) {
-  const mimeType = dataUri.split(';')[0]?.split(':')[1] || 'audio/wav'
-  const format = mimeType.split('/')[1] || 'wav'
-  if (format === 'webm' || format === 'mp4')
-    return format
-  if (format === 'mpeg' || format === 'mp3')
-    return 'mp3'
-  return 'wav'
-}
-
 async function readBlobAsDataUri(file: Blob): Promise<string> {
   const bytes = new Uint8Array(await file.arrayBuffer())
   let binary = ''
@@ -162,7 +152,7 @@ async function readBlobAsDataUri(file: Blob): Promise<string> {
 function createMimoTranscriptionProvider(config: MimoTranscriptionConfig) {
   const apiKey = config.apiKey?.trim() ?? ''
   const baseUrl = normalizeBaseUrl(config.baseUrl)
-  const defaultModel = config.model || 'mimo-v2-omni'
+  const defaultModel = config.model || 'mimo-v2.5-asr'
 
   return {
     transcription: (model: string) => ({
@@ -179,7 +169,6 @@ function createMimoTranscriptionProvider(config: MimoTranscriptionConfig) {
 
         const modelName = String(init.body.get('model') || defaultModel)
         const dataUri = await readBlobAsDataUri(file)
-        const base64Data = dataUri.split(',')[1]
         const response = await fetch(new URL('chat/completions', baseUrl), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'api-key': apiKey },
@@ -188,10 +177,12 @@ function createMimoTranscriptionProvider(config: MimoTranscriptionConfig) {
             messages: [{
               role: 'user',
               content: [
-                { type: 'text', text: 'Transcribe the audio content.' },
-                { type: 'input_audio', input_audio: { data: base64Data, format: audioFormatFromDataUri(dataUri) } },
+                // Xiaomi MiMo ASR expects a Data URL in input_audio.data and language via asr_options.
+                // https://mimo.mi.com/docs/zh-CN/quick-start/usage-guide/audio/Speech-Recognition
+                { type: 'input_audio', input_audio: { data: dataUri } },
               ],
             }],
+            asr_options: { language: 'auto' },
           }),
         })
         if (!response.ok) {
@@ -259,8 +250,7 @@ export const providerMimoAudioTranscription = defineProvider<MimoTranscriptionCo
   validators: createMimoValidators<MimoTranscriptionConfig>('mimo-audio-transcription'),
   extraMethods: {
     listModels: async () => [
-      { id: 'mimo-v2-omni', name: 'MiMo V2 Omni', provider: 'mimo-audio-transcription', description: 'Omni-modal model with native audio understanding and speech-to-text', contextLength: 256000, deprecated: false },
-      { id: 'mimo-v2.5', name: 'MiMo V2.5', provider: 'mimo-audio-transcription', description: 'Latest omni-modal model with audio understanding, 1M context', contextLength: 1_000_000, deprecated: false },
+      { id: 'mimo-v2.5-asr', name: 'MiMo V2.5 ASR', provider: 'mimo-audio-transcription', description: 'Speech recognition model for audio-to-text (mimo-v2.5-asr)', deprecated: false },
     ],
   },
 })

@@ -45,7 +45,7 @@ const baseUrl = computed({
 })
 
 const model = computed({
-  get: () => providers.value[providerId]?.model || 'mimo-v2-omni',
+  get: () => providers.value[providerId]?.model || 'mimo-v2.5-asr',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
