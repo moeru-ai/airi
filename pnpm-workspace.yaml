@@ -1,6 +1,12 @@
 catalogMode: prefer
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
+  # NOTICE:
+  # Install the CVE-2026-111497 fix before the release-age delay ends.
+  # Electron 43.8.4 includes the patched Node.js 24.22.1 runtime.
+  # Source: https://releases.electronjs.org/release/v43.8.4
+  # Remove this exception after 2026-10-30T18:05:12Z.
+  - electron@43.8.4
   # Packages from the AIRI team must always be trusted
   - '@auv-js/*'
   - '@gd-kirie/*'
@@ -94,7 +100,7 @@ catalog:
   '@electron-toolkit/tsconfig': ^2.0.0
   '@electron-toolkit/utils': ^4.0.0
   '@electron/notarize': ^3.1.1
-  '@ergosphere-it/electron': ^0.0.13
+  '@ergosphere-it/electron': ^0.0.14
   '@esotericsoftware/spine-webgl': ~4.2.0
   '@esotericsoftware/spine-webgl-4-0': npm:@esotericsoftware/spine-webgl@~4.0.31
   '@esotericsoftware/spine-webgl-4-1': npm:@esotericsoftware/spine-webgl@~4.1.56
@@ -190,11 +196,11 @@ catalog:
   '@pixiv/three-vrm-animation': ^3.5.5
   '@pixiv/three-vrm-core': ^3.5.5
   '@pnpm/find-workspace-dir': ^1000.1.5
-  '@proj-airi/chromatic': ^1.1.4
+  '@proj-airi/chromatic': ^2.0.0
   '@proj-airi/drizzle-duckdb-wasm': ^0.6.0
   '@proj-airi/iconify-meteocons': ^0.1.5
   '@proj-airi/lobe-icons': ^1.0.19
-  '@proj-airi/unocss-preset-chromatic': ^1.1.4
+  '@proj-airi/unocss-preset-chromatic': ^2.0.0
   '@proj-airi/unplugin-fetch': ^0.2.3
   '@proj-airi/unplugin-live2d-sdk': ^0.1.7
   '@revenuecat/purchases-js': ^1.15.0
@@ -303,7 +309,7 @@ catalog:
   drizzle-kit: ^0.31.10
   drizzle-orm: ^0.45.2
   drizzle-valibot: ^0.4.2
-  electron: ^43.4.1
+  electron: ^43.8.4
   electron-builder: ^26.16.1
   electron-click-drag-plugin: ^2.0.2
   electron-vite: ^6.0.0
@@ -371,7 +377,7 @@ catalog:
   p-limit: ^7.3.1
   pg: ^8.23.0
   pinia: ^4.0.3
-  pinia-plugin-synced: ^0.1.6
+  pinia-plugin-synced: ^0.1.7
   pixi-filters: ^4.2.0
   pixi-live2d-display: ^0.4.0
   playwright: ^1.62.1

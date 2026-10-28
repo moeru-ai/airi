@@ -474,11 +474,6 @@
       "count": 4
     }
   },
-  "packages/stage-pages/src/pages/settings/modules/speech.vue": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
   "packages/stage-pages/src/pages/settings/providers/artistry/comfyui.vue": {
     "ts/no-explicit-any": {
       "count": 7
@@ -816,7 +811,7 @@
   },
   "packages/stage-ui/src/stores/modules/speech.ts": {
     "ts/no-explicit-any": {
-      "count": 4
+      "count": 2
     }
   },
   "packages/stage-ui/src/utils/stream.ts": {

@@ -3,6 +3,7 @@
 import type { Configuration } from 'electron-builder'
 
 import { execSync } from 'node:child_process'
+import { env } from 'node:process'
 
 import { isMacOS } from 'std-env'
 
@@ -120,6 +121,9 @@ export default {
     },
   ],
   extraMetadata: {
+    // CI names each build in `ERGOSPHERE_IT_VERSION`, for example `0.13.1-nightly.45.1bf946f`. The installer and its
+    // electron-updater feed must have the version of the installer manifest, so the app takes the installer.
+    ...(env.ERGOSPHERE_IT_VERSION ? { version: env.ERGOSPHERE_IT_VERSION } : {}),
     name: 'ai.moeru.airi',
     main: 'out/launcher/index.mjs',
     homepage: 'https://airi.moeru.ai/docs/',

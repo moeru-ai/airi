@@ -13,6 +13,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '^26.12.1'
+          check-latest: true
+
       - name: Persist checkout metadata
         env:
           PR_NUM: ${{ github.event.number }}

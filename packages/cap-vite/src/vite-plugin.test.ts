@@ -1,10 +1,30 @@
-import type { Plugin } from 'vite'
+import type { Plugin, ViteDevServer } from 'vite'
 
 import process from 'node:process'
 
 import { EventEmitter } from 'node:events'
+import { resolve } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+const boundary = vi.hoisted(() => ({
+  stdin: undefined as ReturnType<typeof createMockStdin> | undefined,
+  kill: vi.fn(() => true),
+}))
+
+vi.mock('node:process', async (importOriginal) => {
+  const original = await importOriginal<{ default: typeof process }>()
+  return {
+    ...original,
+    default: {
+      ...original.default,
+      get stdin() { return boundary.stdin },
+      kill: boundary.kill,
+      once: vi.fn(),
+      off: vi.fn(),
+    },
+  }
+})
 
 const { emitKeypressEvents, x } = vi.hoisted(() => ({
   emitKeypressEvents: vi.fn(),
@@ -52,7 +72,7 @@ function createMockServer() {
         error: vi.fn(),
         info: vi.fn(),
       },
-      root: '/repo/app',
+      root: resolve(import.meta.dirname, 'testdata', 'app'),
     },
     httpServer,
     resolvedUrls: {
@@ -92,10 +112,8 @@ async function configurePluginServer(plugin: Plugin, server: ReturnType<typeof c
     ? configureServer
     : configureServer.handler
 
-  await handler.call({} as any, server as any)
+  await handler.call({} as ThisParameterType<typeof handler>, server as unknown as ViteDevServer)
 }
-
-const originalStdin = Object.getOwnPropertyDescriptor(process, 'stdin')
 
 describe('capVitePlugin', () => {
   beforeEach(() => {
@@ -104,9 +122,7 @@ describe('capVitePlugin', () => {
   })
 
   afterEach(() => {
-    if (originalStdin) {
-      Object.defineProperty(process, 'stdin', originalStdin)
-    }
+    boundary.stdin = undefined
   })
 
   it('restarts cap run when the terminal shortcut receives r', async () => {
@@ -115,10 +131,7 @@ describe('capVitePlugin', () => {
     x.mockReturnValueOnce(firstRun).mockReturnValueOnce(secondRun)
 
     const stdin = createMockStdin()
-    Object.defineProperty(process, 'stdin', {
-      configurable: true,
-      value: stdin,
-    })
+    boundary.stdin = stdin
 
     const { capVitePlugin } = await import('./vite-plugin')
     const server = createMockServer()
@@ -133,7 +146,7 @@ describe('capVitePlugin', () => {
     expect(stdin.setRawMode).toHaveBeenCalledWith(true)
     expect(x).toHaveBeenNthCalledWith(1, 'cap', ['run', 'ios', '--target', 'iPhone 16 Pro', '--scheme', 'AIRI'], {
       nodeOptions: {
-        cwd: '/repo/app',
+        cwd: resolve(import.meta.dirname, 'testdata', 'app'),
         env: {
           CAPACITOR_DEV_SERVER_URL: 'http://127.0.0.1:5173/',
         },
@@ -149,7 +162,7 @@ describe('capVitePlugin', () => {
       expect(server.config.logger.info).toHaveBeenCalledWith('[cap-vite] manual restart requested. Re-running "cap run ios --target iPhone 16 Pro --scheme AIRI".')
       expect(x).toHaveBeenNthCalledWith(2, 'cap', ['run', 'ios', '--target', 'iPhone 16 Pro', '--scheme', 'AIRI'], {
         nodeOptions: {
-          cwd: '/repo/app',
+          cwd: resolve(import.meta.dirname, 'testdata', 'app'),
           env: {
             CAPACITOR_DEV_SERVER_URL: 'http://127.0.0.1:5173/',
           },
@@ -171,12 +184,9 @@ describe('capVitePlugin', () => {
     x.mockReturnValue(run)
 
     const stdin = createMockStdin()
-    Object.defineProperty(process, 'stdin', {
-      configurable: true,
-      value: stdin,
-    })
+    boundary.stdin = stdin
 
-    const kill = vi.spyOn(process, 'kill').mockReturnValue(true)
+    const kill = boundary.kill
     const { capVitePlugin } = await import('./vite-plugin')
     const server = createMockServer()
 

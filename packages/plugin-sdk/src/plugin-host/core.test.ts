@@ -2175,8 +2175,9 @@ describe('for FileSystemLoader', () => {
     }, { cwd: '', runtime: 'electron' })).rejects.toThrow('Failed to resolve extension module. The entrypoint must export defineExtension(...).')
   })
 
-  it('should resolve entrypoint by runtime then default', () => {
+  it('resolves the runtime entrypoint before the default entrypoint', () => {
     const host = new FileSystemLoader()
+    const extensionRoot = join(import.meta.dirname, 'testdata', 'extension')
     const baseManifest = {
       manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
@@ -2202,14 +2203,14 @@ describe('for FileSystemLoader', () => {
       },
     }
     expect(host.resolveEntrypointFor(runtimeEntryManifest, {
-      cwd: '/tmp/extension',
+      cwd: extensionRoot,
       runtime: 'node',
-    })).toBe('/tmp/extension/node-entry.ts')
+    })).toBe(join(extensionRoot, 'node-entry.ts'))
 
     expect(host.resolveEntrypointFor(defaultFallbackManifest, {
-      cwd: '/tmp/extension',
+      cwd: extensionRoot,
       runtime: 'node',
-    })).toBe('/tmp/extension/default-entry.ts')
+    })).toBe(join(extensionRoot, 'default-entry.ts'))
   })
 
   it('should reject a runtime that the extension does not support', () => {

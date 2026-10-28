@@ -1,6 +1,7 @@
 import en from '@proj-airi/i18n/locales/en'
 
 import { pushToTalkTriggerKey } from '@proj-airi/stage-ui/composables/push-to-talk-trigger'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { createPinia, disposePinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from 'vitest-browser-vue'
@@ -49,6 +50,24 @@ async function openInputModeSelect(screen: Awaited<ReturnType<typeof renderHeari
 }
 
 describe('hearing overview', () => {
+  // https://github.com/moeru-ai/airi/issues/3153
+  // ROOT CAUSE:
+  // The overview lacked a module switch. The switch now preserves the selected provider and model.
+  it('issue #3153: switches hearing off and on without clearing its selection', async () => {
+    localStorage.setItem('settings/hearing/active-provider', 'browser-web-speech-api')
+    localStorage.setItem('settings/hearing/active-model', 'web-speech-api')
+    const screen = await renderHearing(true)
+    const hearing = useHearingStore(pinias[pinias.length - 1])
+    const toggle = screen.getByRole('switch', { name: 'Hearing', exact: true })
+    await expect.element(toggle).toBeChecked()
+    await toggle.click()
+    expect(hearing.configured).toBe(false)
+    expect(hearing.activeTranscriptionProvider).toBe('browser-web-speech-api')
+    expect(hearing.activeTranscriptionModel).toBe('web-speech-api')
+    await toggle.click()
+    expect(hearing.configured).toBe(true)
+  })
+
   it('links to the speech recognition and wake words pages', async () => {
     const screen = await renderHearing(true)
 

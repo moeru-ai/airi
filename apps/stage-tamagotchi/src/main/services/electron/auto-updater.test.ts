@@ -161,7 +161,7 @@ describe('setupAutoUpdater', () => {
   })
 
   it.each([
-    { saved: 'latest', version: '0.13.0+dev.821.13eef81', expected: 'dev' },
+    { saved: 'latest', version: '0.13.1-dev.821.13eef81', expected: 'dev' },
     { saved: 'beta', version: '0.14.0-rc.1', expected: 'canary' },
   ])('leaves the removed channel $saved that the launcher saved, for the channel of $version', async ({ saved, version, expected }) => {
     bundleState.version = version
@@ -190,8 +190,8 @@ describe('setupAutoUpdater', () => {
 
   it.each([
     { version: '0.9.0-beta.4', expected: 'canary' },
-    { version: '0.13.0+nightly.12.13eef81', expected: 'nightly' },
-    { version: '0.13.0+dev.821.13eef81', expected: 'dev' },
+    { version: '0.13.1-nightly.12.13eef81', expected: 'nightly' },
+    { version: '0.13.1-dev.821.13eef81', expected: 'dev' },
     { version: '0.13.0', expected: 'stable' },
   ])('goes back to the channel of $version when the user picks auto', async ({ version, expected }) => {
     bundleState.version = version
@@ -291,6 +291,21 @@ describe('setupAutoUpdater', () => {
 
     expect(fake.updater.dismissRollback).toHaveBeenCalledTimes(1)
     expect(service.state.status).toBe('not-available')
+  })
+
+  // An install with its own user data directory, for example a test build, must not write into the log of another install.
+  it('writes the updater log in the user data directory and reports that path', async () => {
+    const { appendFile } = await import('node:fs/promises')
+    const { join } = await import('node:path')
+    const fake = createFakeUpdater()
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater })
+    const logFile = join('/tmp/userData', 'logs', 'updater-log.txt')
+
+    fake.setStatus({ status: 'error', error: { code: 'network-error', message: 'Offline.' } })
+
+    await vi.waitFor(() => expect(appendFile).toHaveBeenCalledWith(logFile, expect.stringContaining('network-error')))
+    expect(service.state.diagnostics?.logFilePath).toBe(logFile)
   })
 
   it('does not touch the updater when the launcher turned it off', async () => {

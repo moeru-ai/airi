@@ -2,6 +2,18 @@
 
 Shared core for stage
 
+## Optional modules
+
+Provider lists expose `None` for optional features. Switches control module activation.
+Consciousness remains required. Minecraft runs as an external service and keeps its own lifecycle.
+
+Hearing, Speech, and Vision persist their enable states separately from provider and model selections.
+Disabling these modules preserves credentials and selections. Re-enabling restores their use.
+Their synchronized stores replicate the enable states across desktop windows.
+Hearing cancels active transcription and rejects results from its previous enabled period.
+The voice host also stops listening and dictation. Text chat can continue without transcribing stored recordings.
+Disabling Speech stops its producers and playback. Text generation and tool work continue until the chat turn ends.
+
 ## Experimental features
 
 Register flags in `libs/feature-flags.ts`. Read their state through `useFeatureFlagsStore().isEnabled(key)`.

@@ -14,8 +14,9 @@ env:
   VERSION: ''
 
 # AIRI has four update channels. `.github/scripts/plan-tamagotchi-updates.ts` has the rules:
-# - dev: each push to main publishes its bundle as an over-the-air update. It builds no installer.
-# - nightly: the scheduled run publishes its bundle.
+# - dev: each push to main publishes its bundle as an over-the-air update. It builds installers only when the native
+#   version changed, and the release store hosts them.
+# - nightly: the scheduled run publishes its bundle and builds installers. The release store hosts them.
 # - canary: a GitHub pre-release publishes its bundle, and names its installers on canary and dev. This is every tag:
 #   `v0.13.0-rc.1`, `v0.13.0-beta.2`, and `v0.13.0` before it is stable.
 # - stable: when the pre-release becomes a release, the run moves the bundle and the installer of canary to stable.
@@ -80,6 +81,7 @@ jobs:
       version: ${{ steps.plan.outputs.version }}
       bundle-release-id: ${{ steps.plan.outputs.bundle-release-id }}
       installer-release-id: ${{ steps.plan.outputs.installer-release-id }}
+      build-installers: ${{ steps.plan.outputs.build-installers }}
       installer-channels: ${{ steps.plan.outputs.installer-channels }}
       installer-files-url: ${{ steps.plan.outputs.installer-files-url }}
       installer-download-page: ${{ steps.plan.outputs.installer-download-page }}
@@ -92,12 +94,13 @@ jobs:
             /package.json
             .github/scripts
             apps/stage-tamagotchi/package.json
+            apps/stage-tamagotchi/ergo.config.ts
           sparse-checkout-cone-mode: false
 
       # The script uses only Node.js built-ins, so it needs no install.
       - uses: pnpm/setup@v2
         with:
-          runtime: node@26.7.0
+          runtime: node@^26.12.1
           install: false
 
       - id: plan
@@ -113,9 +116,9 @@ jobs:
   build:
     name: Build
     needs: updates
-    # A push publishes only the bundle, in publish-bundle. A pre-release that becomes a release moves canary to stable,
-    # in promote-to-stable.
-    if: ${{ github.event_name != 'push' && (github.event_name != 'release' || (github.event.action == 'published' && github.event.release.prerelease)) }}
+    # The plan decides: a push builds installers only when the native version changed. A pre-release that becomes a
+    # release builds nothing, and promote-to-stable moves canary to stable.
+    if: ${{ needs.updates.outputs.build-installers == 'true' }}
     continue-on-error: ${{ matrix.skip }} # WORKAROUND: Skipping subsequent steps without failing the whole workflow
     env:
       VITE_ENABLE_ANALYTICS: ${{ ((github.event_name == 'release') || (github.event_name == 'workflow_dispatch' && !inputs.build_only)) && 'true' || 'false' }}
@@ -196,7 +199,8 @@ jobs:
       - uses: actions/setup-node@v6
         if: matrix.os == 'macos-15-intel'
         with:
-          node-version: 26.7.0
+          node-version: '^26.12.1'
+          check-latest: true
 
       - name: Install pnpm with npm
         if: matrix.os == 'macos-15-intel'
@@ -219,7 +223,7 @@ jobs:
       - uses: pnpm/setup@v2
         if: matrix.os != 'macos-15-intel'
         with:
-          runtime: node@26.7.0
+          runtime: node@^26.12.1
           cache: true
           install: false
 
@@ -427,12 +431,26 @@ jobs:
       - name: Regenerate Windows latest-x64.yml (Nightly + Windows Only)
         if: ${{ github.event_name == 'schedule' && matrix.os == 'windows-latest' && steps.signpath-nightly-windows.outcome == 'success' }}
         run: |
-          pnpm -F @proj-airi/stage-tamagotchi run regenerate-windows-latest --input apps/stage-tamagotchi/bundle/signed/windows/${{ env.BUNDLE_NAME }} --output apps/stage-tamagotchi/bundle/latest-x64.yml --version ${{ env.VERSION }}
+          pnpm -F @proj-airi/stage-tamagotchi run regenerate-windows-latest --input apps/stage-tamagotchi/bundle/signed/windows/${{ env.BUNDLE_NAME }} --output apps/stage-tamagotchi/bundle/latest-x64.yml --version ${{ env.ERGOSPHERE_IT_VERSION }}
 
       - name: Regenerate Windows latest-x64.yml From Unsigned Artifact (Nightly Fallback)
         if: ${{ github.event_name == 'schedule' && matrix.os == 'windows-latest' && steps.signpath-nightly-windows.outcome != 'success' }}
         run: |
-          pnpm -F @proj-airi/stage-tamagotchi run regenerate-windows-latest --input apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }} --output apps/stage-tamagotchi/bundle/latest-x64.yml --version ${{ env.VERSION }}
+          pnpm -F @proj-airi/stage-tamagotchi run regenerate-windows-latest --input apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }} --output apps/stage-tamagotchi/bundle/latest-x64.yml --version ${{ env.ERGOSPHERE_IT_VERSION }}
+
+      # The release store hosts the installers of a nightly run, and of a push that changed the native version. The
+      # publish-bundle job uploads them with `ergosphere-it register installer --upload-files`.
+      - name: Collect the installers for the release store
+        if: ${{ needs.updates.outputs.installer-channels != '' && needs.updates.outputs.installer-files-url == '' }}
+        run: pnpm -F @proj-airi/stage-tamagotchi run collect-installer-files --dir bundle/signed/windows --dir bundle --dir dist --out installer-files
+
+      - name: Upload the installers for the release store
+        if: ${{ needs.updates.outputs.installer-channels != '' && needs.updates.outputs.installer-files-url == '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: installer-files-${{ matrix.artifact }}
+          path: apps/stage-tamagotchi/installer-files
+          retention-days: 3
 
       # ---------
       # Workflow Dispatch only
@@ -701,7 +719,7 @@ jobs:
 
       - uses: pnpm/setup@v2
         with:
-          runtime: node@26.7.0
+          runtime: node@^26.12.1
           cache: true
           install: false
 
@@ -727,11 +745,20 @@ jobs:
       # The build jobs uploaded the installers and their electron-builder feeds to the GitHub Release. The Windows feed
       # there describes the installer after SignPath signed it.
       - name: Download the installer feeds of the release
-        if: ${{ needs.updates.outputs.installer-channels != '' }}
+        if: ${{ needs.updates.outputs.installer-channels != '' && needs.updates.outputs.installer-files-url != '' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.event.release.tag_name || inputs.tag }}
         run: gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern 'latest*.yml' --dir installer-feeds
+
+      # A run without a GitHub Release: the build jobs collected the feeds and the installer files.
+      - name: Download the installers for the release store
+        if: ${{ needs.updates.outputs.installer-channels != '' && needs.updates.outputs.installer-files-url == '' }}
+        uses: actions/download-artifact@v5
+        with:
+          pattern: installer-files-*
+          merge-multiple: true
+          path: installer-feeds
 
       - name: Register the installers
         if: ${{ needs.updates.outputs.installer-channels != '' }}
@@ -748,8 +775,13 @@ jobs:
         run: |
           for channel in $INSTALLER_CHANNELS; do
             echo "Registering the installers of $ERGOSPHERE_IT_VERSION on $channel"
+            if [ -n "$FILES_URL" ]; then
+              files=(--files-url "$FILES_URL")
+            else
+              files=(--upload-files)
+            fi
             pnpm exec ergosphere-it register installer --channel "$channel" --dist ../../installer-feeds \
-              --files-url "$FILES_URL" --download-page "$DOWNLOAD_PAGE" | tee -a "$GITHUB_STEP_SUMMARY"
+              "${files[@]}" --download-page "$DOWNLOAD_PAGE" | tee -a "$GITHUB_STEP_SUMMARY"
           done
 
   # Moves the bundle and the installer that canary serves to stable, when a pre-release becomes a release. The plan job
@@ -766,7 +798,7 @@ jobs:
 
       - uses: pnpm/setup@v2
         with:
-          runtime: node@26.7.0
+          runtime: node@^26.12.1
           cache: true
           install: false
 

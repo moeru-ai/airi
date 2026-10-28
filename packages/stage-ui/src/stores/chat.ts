@@ -781,10 +781,15 @@ export const useChatStore = defineStore('chat', () => {
           }
 
           if (!text) {
+            if (!hearing.enabled) {
+              // Stored recordings stay intact. A text-only model can continue the conversation while recognition is disabled.
+              turn.content[index] = { type: 'text', text: t('stage.chat.audio.hearing-disabled') }
+              continue
+            }
             // The recording belongs to this turn. A voice input of another turn can run at the same time.
-            transcriber ??= hearing.createTranscriber(undefined, { traceParent: turnSpan })
             if (!hearing.configured)
               throw new Error('Configure a transcription provider to send audio to this model')
+            transcriber ??= hearing.createTranscriber(undefined, { traceParent: turnSpan })
 
             const blob = new Blob([new Uint8Array(decodeBase64(part.data))], { type: part.format === 'mp3' ? 'audio/mpeg' : 'audio/wav' })
             let completed = false

@@ -28,14 +28,12 @@ import { channelOfVersion, updateChannels } from '../../../shared/update-channel
 
 const UPDATE_CHANNEL_ENV_KEY = 'AIRI_UPDATE_CHANNEL'
 
-function getCacheRoot() {
-  // NOTICE: Electron resolves the cache directory per platform/app, but the
-  // shipped type definitions here do not expose `cache`, so we cast the key.
-  return app.getPath('cache' as Parameters<typeof app.getPath>[0])
-}
-
+/**
+ * The updater log is next to the session logs of `app/file-logger.ts`, in the user data directory. So an install with
+ * its own user data directory, for example a test build, writes its own log.
+ */
 function updaterLogFile() {
-  return join(getCacheRoot(), 'stage-tamagotchi-updater', 'updater-log.txt')
+  return join(app.getPath('userData'), 'logs', 'updater-log.txt')
 }
 
 async function logToFile(level: 'INFO' | 'WARN' | 'ERROR', message: string) {

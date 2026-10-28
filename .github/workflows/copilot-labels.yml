@@ -97,6 +97,10 @@ jobs:
             ].join('\n');
             await fs.writeFile(path.join(process.env.RUNNER_TEMP, 'label-prompt.txt'), prompt);
             await fs.writeFile(path.join(process.env.RUNNER_TEMP, 'label-context.json'), JSON.stringify({ itemNumber, allowed }));
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '^26.12.1'
+          check-latest: true
       - name: Install Copilot CLI
         run: npm install --global @github/copilot@1.0.91
       - name: Classify with Copilot

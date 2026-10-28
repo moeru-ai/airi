@@ -110,6 +110,7 @@ notice:
 about:
   subtitle: Desktop ver.
   current-version: Current Version
+  build-origin: "Built {time} from {branch}{'@'}{commit}"
   common:
     cancel: Cancel
   links:

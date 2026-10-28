@@ -134,7 +134,7 @@ describe('extension directory importer', () => {
 
   it('rejects symbolic links anywhere in the package', async () => {
     await mkdir(join(sourceRoot, 'nested'))
-    await symlink(join(sourceRoot, 'extension.mjs'), join(sourceRoot, 'nested', 'linked.mjs'))
+    await symlink(sourceRoot, join(sourceRoot, 'nested', 'linked'), 'junction')
 
     await expect(importer.prepare(sourceRoot)).rejects.toThrow('cannot contain symbolic links')
   })
