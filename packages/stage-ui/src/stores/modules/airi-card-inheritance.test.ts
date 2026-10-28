@@ -181,6 +181,46 @@ describe('card inheritance with real module stores', () => {
     expect(consciousness.activeModel).toBe('')
   })
 
+  // https://github.com/moeru-ai/airi/issues/3154
+  // ROOT CAUSE:
+  // Resetting providers left vision/speech pointing at deleted IDs. Drop those
+  // to none while keeping consciousness so the chat model pick survives.
+  it('clears non-consciousness module picks after a providers reset', async () => {
+    const consciousness = useConsciousnessStore()
+    const vision = useVisionStore()
+    const speech = useSpeechStore()
+    consciousness.activeProvider = 'chat-provider'
+    consciousness.activeModel = 'chat-model'
+    vision.activeProvider = 'vision-provider'
+    vision.activeModel = 'vision-model'
+    speech.activeSpeechProvider = 'speech-provider'
+    speech.activeSpeechModel = 'speech-model'
+    speech.activeSpeechVoiceId = 'speech-voice'
+    const cards = useAiriCardStore()
+    await cards.initialize()
+    const uploaded = card('chat-provider', 'chat-model')
+    uploaded.extensions.airi.modules.vision = { provider: 'vision-provider', model: 'vision-model' }
+    uploaded.extensions.airi.modules.speech = { provider: 'speech-provider', model: 'speech-model', voice_id: 'speech-voice' }
+    const id = await cards.addCard(uploaded, 'import')
+    await cards.activateCard(id)
+
+    await cards.clearNonConsciousnessProviderSelections()
+
+    expect(cards.moduleDefaults?.consciousness).toEqual({ provider: 'chat-provider', model: 'chat-model' })
+    expect(cards.moduleDefaults?.vision).toEqual({ provider: '', model: '' })
+    expect(cards.moduleDefaults?.speech).toEqual({ provider: 'speech-noop', model: '', voice_id: '' })
+    expect(cards.getCard(id)?.extensions.airi.modules.consciousness).toEqual({ provider: 'chat-provider', model: 'chat-model' })
+    expect(cards.getCard(id)?.extensions.airi.modules.vision).toEqual({ provider: '', model: '' })
+    expect(cards.getCard(id)?.extensions.airi.modules.speech).toMatchObject({ provider: '', model: '', voice_id: '' })
+    expect(consciousness.activeProvider).toBe('chat-provider')
+    expect(consciousness.activeModel).toBe('chat-model')
+    expect(vision.activeProvider).toBe('')
+    expect(vision.activeModel).toBe('')
+    expect(speech.activeSpeechProvider).toBe('speech-noop')
+    expect(speech.activeSpeechModel).toBe('')
+    expect(speech.activeSpeechVoiceId).toBe('')
+  })
+
   it('does not inherit a voice from a different speech model', async () => {
     const speech = useSpeechStore()
     speech.activeSpeechProvider = 'speech-provider'

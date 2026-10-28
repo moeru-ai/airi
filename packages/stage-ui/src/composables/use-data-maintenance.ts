@@ -66,6 +66,13 @@ export function useDataMaintenance() {
 
   async function resetProvidersSettings() {
     await providersStore.resetProviderSettings()
+    // Providers are gone; drop module picks that would only error, except consciousness.
+    await airiCardStore.clearNonConsciousnessProviderSelections()
+    hearingStore.activeTranscriptionProvider = ''
+    hearingStore.activeTranscriptionModel = ''
+    hearingStore.activeCustomModelName = ''
+    hearingStore.rephraseProvider = ''
+    hearingStore.rephraseModel = ''
   }
 
   /** Attempts every independent reset and reports the first failure only after all operations settle. */

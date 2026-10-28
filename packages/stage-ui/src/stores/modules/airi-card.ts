@@ -697,6 +697,28 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     await applyActiveCardSettings()
   }
 
+  /**
+   * After a full providers reset, drops stale vision/speech picks to none.
+   * Consciousness stays so the chat model choice is not wiped with credentials.
+   */
+  async function clearNonConsciousnessProviderSelections() {
+    await pendingAuthenticationSetup
+    rememberInheritedSettings()
+    const defaults = moduleDefaults.value
+    if (!defaults)
+      return
+    const next = structuredClone(toRaw(defaults))
+    next.vision = { provider: '', model: '' }
+    next.speech = { provider: 'speech-noop', model: '', voice_id: '' }
+    moduleDefaults.value = next
+    updateActiveCardModules(({ modules }) => ({
+      vision: { provider: '', model: '' },
+      speech: { ...modules.speech, provider: '', model: '', voice_id: '' },
+    }))
+    appliedModules = undefined
+    await applyActiveCardSettings()
+  }
+
   function resolveAiriExtension(card: Card | ccv3.CharacterCardV3): AiriExtension {
     // Get existing extension if available
     const existingExtension = ('data' in card
@@ -1512,6 +1534,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     activateCard,
     configureForAuthentication,
     clearProviderSelections,
+    clearNonConsciousnessProviderSelections,
 
     currentModels: computed(() => {
       const {
@@ -1551,6 +1574,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       'initialize',
       'configureForAuthentication',
       'clearProviderSelections',
+      'clearNonConsciousnessProviderSelections',
       'removeCard',
       'selectAvatarModel',
       'updateActiveCardConsciousness',

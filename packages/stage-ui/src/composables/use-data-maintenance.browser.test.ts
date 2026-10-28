@@ -14,6 +14,7 @@ import { toStoredVoiceprint } from '../libs/voice/voiceprint'
 import { useDisplayModelsStore } from '../stores/display-models'
 import { useMemoryStore } from '../stores/memory'
 import { useModsServerChannelStore } from '../stores/mods/api/channel-server'
+import { useAiriCardStore } from '../stores/modules/airi-card'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useConsciousnessSettingsStore } from '../stores/modules/consciousness-settings'
 import { useDiscordStore } from '../stores/modules/discord'
@@ -23,6 +24,7 @@ import { useHearingStore } from '../stores/modules/hearing'
 import { useHomeAssistantStore } from '../stores/modules/home-assistant'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useTwitterStore } from '../stores/modules/twitter'
+import { useVisionStore } from '../stores/modules/vision'
 import { useWebSearchStore } from '../stores/modules/web-search'
 import { useRecipesStore } from '../stores/recipes'
 import { useVoiceprintStore } from '../stores/voiceprint'
@@ -181,4 +183,46 @@ it('removes the voiceprint when an earlier cleanup fails', async () => {
   await expect(maintenance.deleteAllData()).rejects.toThrow('Model storage unavailable')
 
   expect(localStorage.getItem('settings/voice/voiceprint')).toBeNull()
+})
+
+// https://github.com/moeru-ai/airi/issues/3154
+// ROOT CAUSE:
+// resetProvidersSettings only wiped the providers store, so vision/speech/hearing
+// kept deleted provider IDs and errored. Clear those to none; keep consciousness.
+it('clears non-consciousness module providers when provider settings reset', async () => {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
+  const { pinia, runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
+  await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
+  const consciousness = useConsciousnessStore(pinia)
+  const vision = useVisionStore(pinia)
+  const speech = useSpeechStore(pinia)
+  const hearing = useHearingStore(pinia)
+  const cards = useAiriCardStore(pinia)
+  consciousness.activeProvider = 'chat-provider'
+  consciousness.activeModel = 'chat-model'
+  vision.activeProvider = 'vision-provider'
+  vision.activeModel = 'vision-model'
+  speech.activeSpeechProvider = 'speech-provider'
+  speech.activeSpeechModel = 'speech-model'
+  hearing.activeTranscriptionProvider = 'hearing-provider'
+  hearing.activeTranscriptionModel = 'hearing-model'
+  hearing.rephraseProvider = 'chat-provider'
+  hearing.rephraseModel = 'chat-model'
+  await cards.initialize()
+
+  await maintenance.resetProvidersSettings()
+
+  expect(consciousness.activeProvider).toBe('chat-provider')
+  expect(consciousness.activeModel).toBe('chat-model')
+  expect(vision.activeProvider).toBe('')
+  expect(vision.activeModel).toBe('')
+  expect(speech.activeSpeechProvider).toBe('speech-noop')
+  expect(speech.activeSpeechModel).toBe('')
+  expect(hearing.activeTranscriptionProvider).toBe('')
+  expect(hearing.activeTranscriptionModel).toBe('')
+  expect(hearing.rephraseProvider).toBe('')
+  expect(hearing.rephraseModel).toBe('')
+  expect(cards.moduleDefaults?.consciousness).toEqual({ provider: 'chat-provider', model: 'chat-model' })
+  expect(cards.moduleDefaults?.vision).toEqual({ provider: '', model: '' })
+  expect(cards.moduleDefaults?.speech).toEqual({ provider: 'speech-noop', model: '', voice_id: '' })
 })
