@@ -57,7 +57,8 @@ jobs:
 
           - depot: linux
             os: ubuntu-latest
-            builder-args: --linux --x64
+            # The depot ships `dist/linux-unpacked`, so electron-builder builds no Linux package.
+            builder-args: --linux dir --x64
             arch: x64
 
     steps:
