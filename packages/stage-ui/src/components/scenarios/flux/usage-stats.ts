@@ -25,7 +25,6 @@ export interface HeatmapCell {
   /** Row of the dot. 0 is Sunday. */
   weekday: number
   microFlux: number
-  newSessionCount: number
   /** 0 is a day without Flux usage. 1 to 4 give the share of the busiest days. */
   level: HeatmapLevel
 }
@@ -81,6 +80,23 @@ function weekdayOf(date: string): number {
   return new Date(`${date}T00:00:00Z`).getUTCDay()
 }
 
+/**
+ * One day for each date of `year`, from January 1 through December 31.
+ * A date missing from `days` is an empty day. Days outside `year` are left out.
+ */
+export function daysOfCalendarYear(days: readonly DailyUsage[], year: number): DailyUsage[] {
+  const byDate = new Map(days.map(day => [day.date, day]))
+  const filled: DailyUsage[] = []
+  const cursor = new Date(Date.UTC(year, 0, 1))
+  const end = Date.UTC(year, 11, 31)
+  while (cursor.getTime() <= end) {
+    const date = cursor.toISOString().slice(0, 10)
+    filled.push(byDate.get(date) ?? { date, llmMicroFlux: 0, ttsMicroFlux: 0, newSessionCount: 0 })
+    cursor.setUTCDate(cursor.getUTCDate() + 1)
+  }
+  return filled
+}
+
 function quantile(sortedValues: readonly number[], fraction: number): number {
   return sortedValues[Math.floor(fraction * (sortedValues.length - 1))]!
 }
@@ -113,7 +129,6 @@ export function buildHeatmap(days: readonly DailyUsage[]): HeatmapLayout {
       weekIndex: Math.floor((firstWeekday + index) / 7),
       weekday: (firstWeekday + index) % 7,
       microFlux: total,
-      newSessionCount: day.newSessionCount,
       level: levelOf(total),
     }
   })
@@ -147,7 +162,7 @@ export function formatFlux(microFlux: number, locale: string): string {
   return new Intl.NumberFormat(locale, { maximumFractionDigits: flux >= 100 ? 0 : 2 }).format(flux)
 }
 
-/** Formats a duration in the largest whole-ish unit, for example `42m`, `3.7h`, or `2.1d`. */
+/** Formats a duration as whole minutes, or as hours or days with one decimal. For example, `42m`, `3.7h`, or `2.1d`. */
 export function formatDuration(milliseconds: number, locale: string): string {
   let unit: 'minute' | 'hour' | 'day' = 'minute'
   let value = milliseconds / MINUTE_MS

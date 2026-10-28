@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { UsageChartTooltip } from './usage-chart-frame.vue'
 import type { DailyUsage } from './usage-stats'
+import type { UsageTooltipContent } from './usage-tooltip.vue'
 
 import { useElementSize } from '@vueuse/core'
 import { scaleBand, scaleLinear } from 'd3'
@@ -17,7 +17,7 @@ const props = defineProps<{
   days: readonly DailyUsage[]
 }>()
 
-const CHART_HEIGHT = 160
+const CHART_HEIGHT = 128
 /** Keeps the tallest bar inside the chart. */
 const TOP_PADDING = 8
 /** Half of the widest tooltip. Keeps the tooltip inside the chart at both edges. */
@@ -32,7 +32,7 @@ const maxCount = computed(() => Math.max(1, ...props.days.map(day => day.newSess
 const xScale = computed(() => scaleBand<number>()
   .domain(props.days.map((_day, index) => index))
   .range([0, width.value])
-  .paddingInner(0.25))
+  .paddingInner(0.3))
 const yScale = computed(() => scaleLinear().domain([0, maxCount.value]).range([CHART_HEIGHT, TOP_PADDING]))
 
 // A day without new sessions draws no bar, so the baseline stays visible.
@@ -47,7 +47,7 @@ const bars = computed(() => props.days.flatMap((day, index) => day.newSessionCou
 
 const totalSessions = computed(() => new Intl.NumberFormat(locale.value).format(props.days.reduce((sum, day) => sum + day.newSessionCount, 0)))
 
-const tooltip = computed<UsageChartTooltip | null>(() => {
+const tooltip = computed<UsageTooltipContent | null>(() => {
   const index = hoveredIndex.value
   const day = index === null ? undefined : props.days[index]
   if (!day || index === null)
@@ -76,7 +76,7 @@ function handlePointerMove(event: PointerEvent) {
     :end-label="t('settings.pages.flux.usage.today')"
     :tooltip="tooltip"
   >
-    <div ref="chartElement" :class="['w-full']" :style="{ height: `${CHART_HEIGHT}px` }">
+    <div ref="chartElement" :class="['min-w-0 w-full overflow-hidden']" :style="{ height: `${CHART_HEIGHT}px` }">
       <svg
         v-if="width > 0 && days.length > 0"
         role="img"
@@ -95,14 +95,14 @@ function handlePointerMove(event: PointerEvent) {
           :width="xScale.bandwidth()"
           :height="bar.height"
           rx="2"
-          :class="hoveredIndex === bar.index ? 'fill-primary-500' : 'fill-primary-300 dark:fill-primary-400/70'"
+          :class="hoveredIndex === bar.index ? 'fill-primary-500' : 'fill-primary-300 dark:fill-primary-600'"
         />
         <line
           :x1="0"
           :x2="width"
           :y1="CHART_HEIGHT - 0.5"
           :y2="CHART_HEIGHT - 0.5"
-          :class="['stroke-neutral-300 dark:stroke-neutral-700']"
+          :class="['stroke-neutral-200 dark:stroke-neutral-800']"
         />
       </svg>
     </div>

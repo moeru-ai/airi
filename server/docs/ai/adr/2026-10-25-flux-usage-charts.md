@@ -17,11 +17,11 @@ A request without a session ID counts for no session. LLM and speech are not sep
 `longestSessionMs` is the largest difference between the last and the first request of a session. Only sessions that started in the 365 days count.
 
 A missing or invalid `timeZone` returns 400 `INVALID_TIME_ZONE`. The name must be an IANA name. An offset such as `+08:00` is not valid.
-The Flux page shows three charts above the existing history panel: a 365-day heat map of Flux, a 30-day area chart of Flux with an LLM layer and a speech layer, and a 30-day bar chart of new sessions.
+The Flux page shows three charts above the existing history panel: a heat map of Flux for the calendar year of the newest day, including later days of that year, a 30-day area chart of Flux with an LLM layer and a speech layer, and a 30-day bar chart of new sessions.
 
 ## Scope
 
-The page reads one response for all three charts and the five summary cards. The client cuts the last 30 days from the 365 days.
+The page reads one response for all three charts and the five summary cards. The client cuts the last 30 days from the 365 days. The heat map keeps the days of the newest day's calendar year and adds an empty day for each later date of that year.
 The client calculates the streaks from days that have Flux usage.
 
 Non-goals:
@@ -63,6 +63,7 @@ packages/stage-ui/src/components/scenarios/flux/
   usage-heatmap.vue
   usage-area-chart.vue
   usage-session-chart.vue
+  usage-tooltip.vue                         tooltip shared by the charts and the heat map
 packages/stage-pages/src/pages/settings/flux.vue
 packages/i18n/src/locales/{en,zh-Hans}/settings.yaml
 server/docs/ai/adr/2026-10-25-flux-usage-charts.md

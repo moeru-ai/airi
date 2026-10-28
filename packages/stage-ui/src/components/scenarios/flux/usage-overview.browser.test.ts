@@ -55,7 +55,64 @@ describe('flux usage overview', () => {
     await expect.element(screen.getByText('2d', { exact: true })).toBeVisible()
     await expect.element(screen.getByText('Flux used, last 30 days')).toBeVisible()
     await expect.element(screen.getByText('New sessions, last 30 days')).toBeVisible()
-    await expect.element(screen.getByRole('img', { name: 'Flux used on each of the last 365 days' })).toBeVisible()
+    await expect.element(screen.getByRole('img', { name: 'Flux used on each day of this year' })).toBeVisible()
+  })
+
+  it('scrolls the three charts together when the page is narrower than 768px', async () => {
+    const screen = await renderOverview({
+      days: createDays({
+        0: { llmMicroFlux: 2_000_000, ttsMicroFlux: 500_000, newSessionCount: 2 },
+        1: { llmMicroFlux: 1_000_000, newSessionCount: 1 },
+      }),
+      longestSessionMs: 90 * 60_000,
+    })
+
+    const heatmapLocator = screen.getByRole('img', { name: 'Flux used on each day of this year' })
+    const areaLocator = screen.getByRole('img', { name: 'Flux used, last 30 days' })
+    const sessionLocator = screen.getByRole('img', { name: 'New sessions, last 30 days' })
+    await expect.element(heatmapLocator).toBeVisible()
+    await expect.element(areaLocator).toBeVisible()
+    await expect.element(sessionLocator).toBeVisible()
+    const heatmap = heatmapLocator.element()
+    const area = areaLocator.element()
+    const sessions = sessionLocator.element()
+    const track = heatmap.parentElement?.parentElement as HTMLElement
+    const scroller = track.parentElement as HTMLElement
+    const root = screen.container.firstElementChild as HTMLElement
+
+    expect(track.style.minWidth).toBe('768px')
+
+    root.style.width = '400px'
+    await expect.poll(() => Math.round(area.getBoundingClientRect().width)).toBe(768)
+    expect(Math.round(heatmap.getBoundingClientRect().width)).toBe(768)
+    expect(Math.round(sessions.getBoundingClientRect().width)).toBe(768)
+    expect(scroller.scrollWidth).toBeGreaterThan(scroller.clientWidth)
+    const labelFontSize = () => getComputedStyle(heatmap.querySelector('span')!).fontSize
+    await expect.poll(labelFontSize).not.toBe('')
+    const narrowLabelFontSize = labelFontSize()
+
+    root.style.width = '800px'
+    await expect.poll(() => {
+      const heatmapWidth = Math.round(heatmap.getBoundingClientRect().width)
+      const areaWidth = Math.round(area.getBoundingClientRect().width)
+      const sessionWidth = Math.round(sessions.getBoundingClientRect().width)
+      return heatmapWidth > 768 && heatmapWidth === areaWidth && heatmapWidth === sessionWidth
+    }).toBe(true)
+    expect(scroller.scrollWidth).toBe(scroller.clientWidth)
+
+    await expect.poll(() => {
+      const dots = [...heatmap.querySelectorAll('circle')].map(dot => dot.getBoundingClientRect())
+      const rowTop = dots[0]?.top ?? 0
+      const row = dots.filter(dot => Math.abs(dot.top - rowTop) < 1).sort((left, right) => left.left - right.left)
+      const dotWidths = row.map(dot => dot.width)
+      const gaps = row.slice(1).map((dot, index) => dot.left - row[index]!.right)
+      if (row.length < 3 || !dotWidths[0] || gaps[0] === undefined)
+        return false
+      const sameDots = Math.max(...dotWidths) - Math.min(...dotWidths) < 0.2
+      const sameGaps = Math.max(...gaps) - Math.min(...gaps) < 0.2
+      return sameDots && sameGaps && Math.abs(gaps[0] / dotWidths[0] - 2 / 12) < 0.05
+    }).toBe(true)
+    expect(labelFontSize()).toBe(narrowLabelFontSize)
   })
 
   it('shows only the empty hint when no Flux was used', async () => {

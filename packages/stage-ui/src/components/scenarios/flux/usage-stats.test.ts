@@ -2,7 +2,7 @@ import type { DailyUsage } from './usage-stats'
 
 import { describe, expect, it } from 'vitest'
 
-import { buildHeatmap, computeStreaks, formatDay, formatDuration, formatFlux, lastDays, microFluxToFlux, totalMicroFlux } from './usage-stats'
+import { buildHeatmap, computeStreaks, daysOfCalendarYear, formatDay, formatDuration, formatFlux, lastDays, microFluxToFlux, totalMicroFlux } from './usage-stats'
 
 function daysFrom(firstDate: string, totals: number[]): DailyUsage[] {
   return totals.map((total, index) => {
@@ -43,9 +43,37 @@ describe('usage stats', () => {
     })
   })
 
+  describe('daysOfCalendarYear', () => {
+    it('keeps the year and adds the days that have not happened', () => {
+      const days = daysFrom('2025-12-31', [8, 3])
+      const year = daysOfCalendarYear(days, 2026)
+
+      expect(year).toHaveLength(365)
+      expect(year[0]).toEqual({ date: '2026-01-01', llmMicroFlux: 3, ttsMicroFlux: 0, newSessionCount: 0 })
+      expect(year[1]).toEqual({ date: '2026-01-02', llmMicroFlux: 0, ttsMicroFlux: 0, newSessionCount: 0 })
+      expect(year.at(-1)?.date).toBe('2026-12-31')
+      expect(year.some(day => day.date.startsWith('2025'))).toBe(false)
+    })
+
+    it('includes February 29 in a leap year', () => {
+      const year = daysOfCalendarYear([], 2024)
+
+      expect(year).toHaveLength(366)
+      expect(year.some(day => day.date === '2024-02-29')).toBe(true)
+    })
+  })
+
   describe('buildHeatmap', () => {
     it('returns an empty layout for no days', () => {
       expect(buildHeatmap([])).toEqual({ cells: [], weekCount: 0, monthLabels: [] })
+    })
+
+    it('starts a calendar year on January 1 and keeps later empty days', () => {
+      const { cells } = buildHeatmap(daysOfCalendarYear(daysFrom('2025-12-31', [1, 2]), 2026))
+
+      expect(cells[0]).toMatchObject({ date: '2026-01-01', weekIndex: 0, weekday: 4, level: 1 })
+      expect(cells.at(-1)).toMatchObject({ date: '2026-12-31', level: 0 })
+      expect(cells).toHaveLength(365)
     })
 
     it('puts Sunday in row 0 and starts the first column on the weekday of the oldest day', () => {
