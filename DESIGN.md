@@ -23,7 +23,7 @@ API details belong in the [component reference](./docs/ai/context/ui-components.
 ## Colors
 
 - [UnoCSS configuration](./uno.config.ts) provides Chromatic palettes, fonts, icons, and shared animations.
-- [UI fallback variables](./packages/ui/src/fallback.css) define `--chromatic-hue` and shade-specific chroma variables.
+- [UI fallback variables](./packages/ui/src/fallback.css) define the `--chromatic-hue` fallback.
 - [Theme settings](./packages/stage-ui/src/stores/settings/theme.ts) store the selected hue. The default is `220.44`.
 - [The UI stylesheet entry](./packages/ui/src/main.css) includes fallback variables, lamp animation, and component styles.
 

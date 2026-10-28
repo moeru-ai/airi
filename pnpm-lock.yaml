@@ -403,8 +403,8 @@ catalogs:
       specifier: ^1000.1.5
       version: 1000.1.5
     '@proj-airi/chromatic':
-      specifier: ^2.0.0
-      version: 2.0.0
+      specifier: ^2.0.1
+      version: 2.0.1
     '@proj-airi/drizzle-duckdb-wasm':
       specifier: ^0.6.0
       version: 0.6.0
@@ -415,8 +415,8 @@ catalogs:
       specifier: ^1.0.19
       version: 1.0.19
     '@proj-airi/unocss-preset-chromatic':
-      specifier: ^2.0.0
-      version: 2.0.0
+      specifier: ^2.0.1
+      version: 2.0.1
     '@proj-airi/unplugin-fetch':
       specifier: ^0.2.3
       version: 0.2.3
@@ -1307,7 +1307,7 @@ importers:
         version: 0.1.0-beta.19(@antfu/eslint-config@8.2.0(@typescript-eslint/typescript-estree@8.67.0(supports-color@10.2.2)(typescript@6.0.3))(@typescript-eslint/utils@8.67.0(eslint@10.9.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@unocss/eslint-plugin@66.7.5(@typescript-eslint/types@8.67.0)(eslint@10.9.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.41)(eslint-plugin-format@2.0.1(eslint@10.9.0(jiti@2.7.0)(supports-color@10.2.2)))(eslint@10.9.0(jiti@2.7.0)(supports-color@10.2.2))(oxlint@1.79.0)(supports-color@10.2.2)(typescript@6.0.3)(vitest@4.1.11))(eslint-plugin-oxlint@1.79.0(oxlint@1.79.0))(eslint@10.9.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
       '@proj-airi/unocss-preset-chromatic':
         specifier: 'catalog:'
-        version: 2.0.0
+        version: 2.0.1
       '@types/node':
         specifier: 'catalog:'
         version: 26.2.0
@@ -5097,7 +5097,7 @@ importers:
         version: link:../ccc
       '@proj-airi/chromatic':
         specifier: 'catalog:'
-        version: 2.0.0
+        version: 2.0.1
       '@proj-airi/cloud-client':
         specifier: workspace:^
         version: link:../cloud-client
@@ -6205,7 +6205,7 @@ importers:
         version: link:../../packages/stage-ui
       '@proj-airi/unocss-preset-chromatic':
         specifier: 'catalog:'
-        version: 2.0.0
+        version: 2.0.1
       '@unocss/reset':
         specifier: 'catalog:'
         version: 66.7.5
@@ -11555,8 +11555,8 @@ packages:
       prisma:
         optional: true
 
-  '@proj-airi/chromatic@2.0.0':
-    resolution: {integrity: sha512-QAu6aqg/ZacEADRvnevakt5ksUneqt748IkRXn6sj0kQqU7EruFfmbv2O52lIK/ysiw5MNFs4qUuyYjg2z7GwQ==}
+  '@proj-airi/chromatic@2.0.1':
+    resolution: {integrity: sha512-CTZMkkqYEpUdWM1eFqQcJE2FdFKWY7NyrNYfzD4908GYcSVQaJAliVTEGVajxUfOJP0aD13BSyN7vo1PmsuW/g==}
 
   '@proj-airi/drizzle-duckdb-wasm@0.6.0':
     resolution: {integrity: sha512-iW7u6eGg7uHXQ/9MsyVfgqcoa07wcdaOp5v63crJnQx8XXdF2uus3yVtx7NXzHXWF6TF9IeybMNBM4CHLhjDGQ==}
@@ -11582,8 +11582,8 @@ packages:
   '@proj-airi/lobe-icons@1.0.19':
     resolution: {integrity: sha512-hBB/MUYqzckzMXYDLZ7/4HRuldqEvLKhMzTcVPLUOdXR0sn9y4vk+k14tynwgeePCrUKSUTP/bnPdETqvWJzqw==}
 
-  '@proj-airi/unocss-preset-chromatic@2.0.0':
-    resolution: {integrity: sha512-Msnsu3JFi0kxFnsf45LT2ZL5eT1bd9/inibv9/r826lScnZvQ1i8GD2RMVJUwoM9IiHqnEUVZn3ycKhxRcEqzQ==}
+  '@proj-airi/unocss-preset-chromatic@2.0.1':
+    resolution: {integrity: sha512-mXzCMxkO5113nhlG4dILCnh3WZgWBn45TEG5tQJzcOSpgqVmJNM9nLbLzB+JDDZ2sMXAo77WrRqSbvWoOlCWbQ==}
 
   '@proj-airi/unplugin-fetch@0.2.3':
     resolution: {integrity: sha512-90I6CfbC7xMSm9/0gl+DJvHmg2Hw9E/7L5rtfXpqMmrRQqd/jhfD1Sb5LjywqTZ3rlFfnb39d051yFGeYigi9A==}
@@ -26252,7 +26252,7 @@ snapshots:
 
   '@prisma/client@5.22.0': {}
 
-  '@proj-airi/chromatic@2.0.0':
+  '@proj-airi/chromatic@2.0.1':
     dependencies:
       culori: 4.0.2
 
@@ -26290,9 +26290,9 @@ snapshots:
     dependencies:
       '@iconify/types': 2.0.0
 
-  '@proj-airi/unocss-preset-chromatic@2.0.0':
+  '@proj-airi/unocss-preset-chromatic@2.0.1':
     dependencies:
-      '@proj-airi/chromatic': 2.0.0
+      '@proj-airi/chromatic': 2.0.1
 
   '@proj-airi/unplugin-fetch@0.2.3(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))':
     dependencies:
