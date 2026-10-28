@@ -1557,13 +1557,11 @@ pages:
       ttsRequests: 请求
     usage:
       title: 用量
-      rangeHint: 最近 365 天，按你的本地时间统计
       empty: 还没有用量记录
       today: 今天
       days: '{count} 天'
       fluxAmount: '{amount} Flux'
-      heatmapLabel: 最近 365 天每天消耗的 Flux
-      heatmapDay: '{flux} Flux，没有新会话 | {flux} Flux，1 个新会话 | {flux} Flux，{count} 个新会话'
+      heatmapLabel: 今年每天消耗的 Flux
       newSessions: '没有新会话 | 1 个新会话 | {count} 个新会话'
       layers:
         llm: LLM

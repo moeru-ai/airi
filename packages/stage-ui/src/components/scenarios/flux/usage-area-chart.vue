@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { SeriesPoint } from 'd3'
 
-import type { UsageChartTooltip } from './usage-chart-frame.vue'
 import type { DailyUsage } from './usage-stats'
+import type { UsageTooltipContent } from './usage-tooltip.vue'
 
 import { useElementSize } from '@vueuse/core'
-import { area, curveMonotoneX, line, scaleLinear, stack } from 'd3'
+import { area, curveLinear, line, scaleLinear, stack } from 'd3'
 import { clamp } from 'es-toolkit'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -19,7 +19,7 @@ const props = defineProps<{
   days: readonly DailyUsage[]
 }>()
 
-const CHART_HEIGHT = 160
+const CHART_HEIGHT = 128
 /** Keeps the top edge of the tallest day inside the chart. */
 const TOP_PADDING = 8
 /** Half of the widest tooltip. Keeps the tooltip inside the chart at both edges. */
@@ -27,6 +27,11 @@ const TOOLTIP_HALF_WIDTH = 72
 
 const layerKeys = ['llmMicroFlux', 'ttsMicroFlux'] as const
 type LayerKey = typeof layerKeys[number]
+
+const layerStyles: Record<LayerKey, { fill: string, stroke: string, dot: string, labelKey: string }> = {
+  llmMicroFlux: { fill: 'fill-primary-500/25', stroke: 'stroke-primary-500', dot: 'bg-primary-500', labelKey: 'settings.pages.flux.usage.layers.llm' },
+  ttsMicroFlux: { fill: 'fill-primary-300/60', stroke: 'stroke-primary-300', dot: 'bg-primary-300', labelKey: 'settings.pages.flux.usage.layers.speech' },
+}
 
 const { t, locale } = useI18n()
 const chartElement = ref<HTMLElement>()
@@ -37,18 +42,18 @@ const maxTotal = computed(() => Math.max(1, ...props.days.map(totalMicroFlux)))
 const xScale = computed(() => scaleLinear().domain([0, Math.max(props.days.length - 1, 1)]).range([0, width.value]))
 const yScale = computed(() => scaleLinear().domain([0, maxTotal.value]).range([CHART_HEIGHT, TOP_PADDING]))
 
-// The first key is the bottom layer. LLM sits at the bottom and speech stacks on top of it.
+// The first key is the bottom layer. Speech stacks on top of LLM.
 const layers = computed(() => {
-  const series = stack<DailyUsage, LayerKey>().keys(layerKeys).value((day, key) => day[key])(props.days as DailyUsage[])
+  const series = stack<DailyUsage, LayerKey>().keys(layerKeys).value((day, key) => day[key])([...props.days])
   const areaPath = area<SeriesPoint<DailyUsage>>()
     .x((_point, index) => xScale.value(index))
     .y0(point => yScale.value(point[0]))
     .y1(point => yScale.value(point[1]))
-    .curve(curveMonotoneX)
+    .curve(curveLinear)
   const edgePath = line<SeriesPoint<DailyUsage>>()
     .x((_point, index) => xScale.value(index))
     .y(point => yScale.value(point[1]))
-    .curve(curveMonotoneX)
+    .curve(curveLinear)
 
   return series.map(layer => ({
     key: layer.key,
@@ -60,17 +65,24 @@ const layers = computed(() => {
 const totalFlux = computed(() => formatFlux(props.days.reduce((sum, day) => sum + totalMicroFlux(day), 0), locale.value))
 
 const hoveredDay = computed(() => hoveredIndex.value === null ? undefined : props.days[hoveredIndex.value])
-const tooltip = computed<UsageChartTooltip | null>(() => {
+const marker = computed(() => {
   const day = hoveredDay.value
   if (!day || hoveredIndex.value === null)
     return null
+  return { x: xScale.value(hoveredIndex.value), y: yScale.value(totalMicroFlux(day)) }
+})
+
+const tooltip = computed<UsageTooltipContent | null>(() => {
+  const day = hoveredDay.value
+  if (!day || marker.value === null)
+    return null
 
   return {
-    left: clamp(xScale.value(hoveredIndex.value), TOOLTIP_HALF_WIDTH, Math.max(width.value - TOOLTIP_HALF_WIDTH, TOOLTIP_HALF_WIDTH)),
+    left: clamp(marker.value.x, TOOLTIP_HALF_WIDTH, Math.max(width.value - TOOLTIP_HALF_WIDTH, TOOLTIP_HALF_WIDTH)),
     title: formatDay(day.date, locale.value),
     lines: [
-      `${t('settings.pages.flux.usage.layers.llm')}: ${t('settings.pages.flux.usage.fluxAmount', { amount: formatFlux(day.llmMicroFlux, locale.value) })}`,
-      `${t('settings.pages.flux.usage.layers.speech')}: ${t('settings.pages.flux.usage.fluxAmount', { amount: formatFlux(day.ttsMicroFlux, locale.value) })}`,
+      `${t('settings.pages.flux.usage.layers.llm')} ${t('settings.pages.flux.usage.fluxAmount', { amount: formatFlux(day.llmMicroFlux, locale.value) })}`,
+      `${t('settings.pages.flux.usage.layers.speech')} ${t('settings.pages.flux.usage.fluxAmount', { amount: formatFlux(day.ttsMicroFlux, locale.value) })}`,
     ],
   }
 })
@@ -91,19 +103,15 @@ function handlePointerMove(event: PointerEvent) {
     :tooltip="tooltip"
   >
     <template #legend>
-      <div :class="['flex items-center gap-3 text-xs', 'text-neutral-500 dark:text-neutral-400']">
-        <span :class="['flex items-center gap-1.5']">
-          <span :class="['size-2 rounded-full', 'bg-primary-500']" />
-          {{ t('settings.pages.flux.usage.layers.llm') }}
-        </span>
-        <span :class="['flex items-center gap-1.5']">
-          <span :class="['size-2 rounded-full', 'bg-complementary-500']" />
-          {{ t('settings.pages.flux.usage.layers.speech') }}
+      <div :class="['flex items-center gap-4 pb-1 text-xs text-neutral-500 dark:text-neutral-400']">
+        <span v-for="key in layerKeys" :key="key" :class="['flex items-center gap-1.5']">
+          <span :class="['size-2 rounded-full', layerStyles[key].dot]" />
+          {{ t(layerStyles[key].labelKey) }}
         </span>
       </div>
     </template>
 
-    <div ref="chartElement" :class="['w-full']" :style="{ height: `${CHART_HEIGHT}px` }">
+    <div ref="chartElement" :class="['min-w-0 w-full overflow-hidden']" :style="{ height: `${CHART_HEIGHT}px` }">
       <svg
         v-if="width > 0 && days.length > 1"
         role="img"
@@ -115,16 +123,13 @@ function handlePointerMove(event: PointerEvent) {
         @pointerleave="hoveredIndex = null"
       >
         <g v-for="layer in layers" :key="layer.key">
-          <path
-            :d="layer.area"
-            :class="layer.key === 'llmMicroFlux' ? 'fill-primary-500/25' : 'fill-complementary-500/25'"
-          />
+          <path :d="layer.area" :class="layerStyles[layer.key].fill" />
           <path
             :d="layer.edge"
             fill="none"
             stroke-width="1.5"
             stroke-linejoin="round"
-            :class="layer.key === 'llmMicroFlux' ? 'stroke-primary-500' : 'stroke-complementary-500'"
+            :class="layerStyles[layer.key].stroke"
           />
         </g>
         <line
@@ -132,16 +137,15 @@ function handlePointerMove(event: PointerEvent) {
           :x2="width"
           :y1="CHART_HEIGHT - 0.5"
           :y2="CHART_HEIGHT - 0.5"
-          :class="['stroke-neutral-300 dark:stroke-neutral-700']"
+          :class="['stroke-neutral-200 dark:stroke-neutral-800']"
         />
-        <line
-          v-if="hoveredIndex !== null"
-          :x1="xScale(hoveredIndex)"
-          :x2="xScale(hoveredIndex)"
-          :y1="0"
-          :y2="CHART_HEIGHT"
-          stroke-dasharray="3 3"
-          :class="['stroke-neutral-400 dark:stroke-neutral-500']"
+        <circle
+          v-if="marker"
+          :cx="marker.x"
+          :cy="marker.y"
+          r="3.5"
+          stroke-width="2"
+          :class="['fill-primary-500 stroke-white dark:stroke-neutral-900']"
         />
       </svg>
     </div>

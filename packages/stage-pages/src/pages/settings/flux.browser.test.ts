@@ -63,7 +63,7 @@ describe('public Flux page', () => {
     await expect.element(screen.getByRole('button', { name: 'HOT 2000 Flux $12.00' })).toBeVisible()
     expect(screen.getByText('Current Flux').elements()).toHaveLength(0)
     expect(screen.getByText('Transaction History').elements()).toHaveLength(0)
-    expect(screen.getByText('Last 365 days, in your local time').elements()).toHaveLength(0)
+    expect(screen.getByText('No usage yet.').elements()).toHaveLength(0)
 
     await screen.getByRole('button', { name: '500 Flux $3.00' }).click()
 

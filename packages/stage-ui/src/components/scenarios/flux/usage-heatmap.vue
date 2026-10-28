@@ -1,37 +1,49 @@
 <script setup lang="ts">
 import type { DailyUsage, HeatmapCell, HeatmapLevel } from './usage-stats'
+import type { UsageTooltipContent } from './usage-tooltip.vue'
 
-import { computed, nextTick, ref, watch } from 'vue'
+import { clamp } from 'es-toolkit'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { buildHeatmap, formatDay, formatFlux } from './usage-stats'
+import UsageTooltip from './usage-tooltip.vue'
+
+import { buildHeatmap, daysOfCalendarYear, formatDay, formatFlux } from './usage-stats'
 
 const props = defineProps<{
   /** One item for each day, oldest first. */
   days: readonly DailyUsage[]
 }>()
 
-const DOT_SIZE = 12
-const DOT_GAP = 3
-const DOT_STEP = DOT_SIZE + DOT_GAP
-/** Space above the grid for the month labels. */
-const MONTH_LABEL_HEIGHT = 20
 /** Rows that get a weekday label. Row 0 is Sunday. */
 const LABELED_WEEKDAYS = [1, 3, 5]
+/** Half of the widest tooltip. Keeps the tooltip inside the chart at both edges. */
+const TOOLTIP_HALF_WIDTH = 72
+/** Fixed drawing size. The chart scales this drawing to the page width. */
+const CELL = 12
+const GAP = 2
+const LABEL_WIDTH = 16
+const MONTH_ROW = 16
 
-const levelClasses: Record<HeatmapLevel, string[]> = {
-  0: ['bg-neutral-200 dark:bg-neutral-800'],
-  1: ['bg-primary-200 dark:bg-primary-900'],
-  2: ['bg-primary-300 dark:bg-primary-700'],
-  3: ['bg-primary-400 dark:bg-primary-600'],
-  4: ['bg-primary-500 dark:bg-primary-400'],
+const levelClasses: Record<HeatmapLevel, string> = {
+  0: 'fill-neutral-200 dark:fill-neutral-800',
+  1: 'fill-primary-200 dark:fill-primary-900',
+  2: 'fill-primary-300 dark:fill-primary-700',
+  3: 'fill-primary-400 dark:fill-primary-600',
+  4: 'fill-primary-500 dark:fill-primary-400',
 }
 
 const { t, locale } = useI18n()
-const scrollElement = ref<HTMLElement>()
-const hoveredCell = ref<HeatmapCell | null>(null)
+const containerElement = ref<HTMLElement>()
+const tooltip = ref<UsageTooltipContent | null>(null)
 
-const layout = computed(() => buildHeatmap(props.days))
+// The heat map is the calendar year of the newest day, including later days of that year.
+const layout = computed(() => {
+  const newest = props.days.at(-1)
+  if (!newest)
+    return buildHeatmap([])
+  return buildHeatmap(daysOfCalendarYear(props.days, Number(newest.date.slice(0, 4))))
+})
 
 const monthFormatter = computed(() => new Intl.DateTimeFormat(locale.value, { month: 'short', timeZone: 'UTC' }))
 const weekdayFormatter = computed(() => new Intl.DateTimeFormat(locale.value, { weekday: 'narrow', timeZone: 'UTC' }))
@@ -46,78 +58,87 @@ const monthLabels = computed(() => layout.value.monthLabels.map(label => ({
   text: monthFormatter.value.format(new Date(Date.UTC(2024, label.month - 1, 1))),
 })))
 
-const gridWidth = computed(() => layout.value.weekCount * DOT_STEP - DOT_GAP)
-const gridHeight = 7 * DOT_STEP - DOT_GAP
+const frame = computed(() => ({
+  width: LABEL_WIDTH + layout.value.weekCount * (CELL + GAP),
+  height: MONTH_ROW + 7 * CELL + 6 * GAP,
+}))
 
-function describeCell(cell: HeatmapCell): string {
-  return `${formatDay(cell.date, locale.value)}: ${t('settings.pages.flux.usage.heatmapDay', { flux: formatFlux(cell.microFlux, locale.value) }, cell.newSessionCount)}`
+function columnX(weekIndex: number) {
+  return LABEL_WIDTH + GAP + weekIndex * (CELL + GAP)
 }
 
-// The newest days are on the right, so open the grid scrolled to them.
-watch(() => layout.value.weekCount, async () => {
-  await nextTick()
-  if (scrollElement.value)
-    scrollElement.value.scrollLeft = scrollElement.value.scrollWidth
-}, { immediate: true, flush: 'post' })
+function rowY(weekday: number) {
+  return MONTH_ROW + weekday * (CELL + GAP)
+}
+
+/** A drawing coordinate, placed on the scaled chart. Text stays outside that scale. */
+function place(drawingPixels: number) {
+  return `calc(${drawingPixels} * 100cqw / ${frame.value.width})`
+}
+
+function showTooltip(cell: HeatmapCell, event: PointerEvent) {
+  const container = containerElement.value
+  if (!container)
+    return
+  const cellBounds = (event.currentTarget as SVGCircleElement).getBoundingClientRect()
+  const containerBounds = container.getBoundingClientRect()
+  const center = cellBounds.left + cellBounds.width / 2 - containerBounds.left
+  tooltip.value = {
+    left: clamp(center, TOOLTIP_HALF_WIDTH, Math.max(containerBounds.width - TOOLTIP_HALF_WIDTH, TOOLTIP_HALF_WIDTH)),
+    title: formatDay(cell.date, locale.value),
+    lines: [t('settings.pages.flux.usage.fluxAmount', { amount: formatFlux(cell.microFlux, locale.value) })],
+  }
+}
 </script>
 
 <template>
-  <section :class="['flex flex-col gap-2']">
-    <p :class="['min-h-5 text-sm', 'text-neutral-600 dark:text-neutral-300']" aria-live="polite">
-      {{ hoveredCell ? describeCell(hoveredCell) : '' }}
-    </p>
-
-    <div :class="['flex gap-2']">
-      <div
-        :class="['relative shrink-0 text-xs', 'text-neutral-500 dark:text-neutral-400']"
-        :style="{ width: '1rem', height: `${MONTH_LABEL_HEIGHT + gridHeight}px` }"
-        aria-hidden="true"
+  <section ref="containerElement" :class="['relative min-w-0 w-full']" :style="{ containerType: 'inline-size' }">
+    <div
+      v-if="layout.weekCount > 0"
+      role="img"
+      :aria-label="t('settings.pages.flux.usage.heatmapLabel')"
+      :class="['relative w-full overflow-hidden']"
+      :style="{ height: `calc(100cqw * ${frame.height} / ${frame.width})` }"
+    >
+      <svg
+        :width="frame.width"
+        :height="frame.height"
+        :viewBox="`0 0 ${frame.width} ${frame.height}`"
+        :class="['absolute left-0 top-0 origin-top-left']"
+        :style="{ transform: `scale(calc(100cqw / ${frame.width}px))` }"
+        @pointerleave="tooltip = null"
       >
+        <circle
+          v-for="cell in layout.cells"
+          :key="cell.date"
+          :cx="columnX(cell.weekIndex) + CELL / 2"
+          :cy="rowY(cell.weekday) + CELL / 2"
+          :r="CELL / 2"
+          :class="levelClasses[cell.level]"
+          @pointerenter="showTooltip(cell, $event)"
+        />
+      </svg>
+
+      <div aria-hidden="true" :class="['pointer-events-none absolute inset-0 text-xs leading-none text-neutral-500 dark:text-neutral-400']">
         <span
           v-for="label in weekdayLabels"
           :key="label.weekday"
-          :class="['absolute leading-3']"
-          :style="{ top: `${MONTH_LABEL_HEIGHT + label.weekday * DOT_STEP}px` }"
+          :class="['absolute left-0 -translate-y-1/2']"
+          :style="{ top: place(rowY(label.weekday) + CELL / 2) }"
+        >
+          {{ label.text }}
+        </span>
+        <span
+          v-for="label in monthLabels"
+          :key="label.weekIndex"
+          :class="['absolute -translate-y-full whitespace-nowrap']"
+          :style="{ left: place(columnX(label.weekIndex)), top: place(MONTH_ROW) }"
         >
           {{ label.text }}
         </span>
       </div>
-
-      <div ref="scrollElement" :class="['min-w-0 flex-1 overflow-x-auto']">
-        <div
-          role="img"
-          :aria-label="t('settings.pages.flux.usage.heatmapLabel')"
-          :class="['relative']"
-          :style="{ width: `${gridWidth}px`, height: `${MONTH_LABEL_HEIGHT + gridHeight}px` }"
-          @pointerleave="hoveredCell = null"
-        >
-          <span
-            v-for="label in monthLabels"
-            :key="label.weekIndex"
-            :class="['absolute top-0 text-xs leading-4', 'text-neutral-500 dark:text-neutral-400']"
-            :style="{ left: `${label.weekIndex * DOT_STEP}px` }"
-          >
-            {{ label.text }}
-          </span>
-
-          <span
-            v-for="cell in layout.cells"
-            :key="cell.date"
-            :class="[
-              'absolute rounded-full transition-transform',
-              'hover:scale-125',
-              ...levelClasses[cell.level],
-            ]"
-            :style="{
-              left: `${cell.weekIndex * DOT_STEP}px`,
-              top: `${MONTH_LABEL_HEIGHT + cell.weekday * DOT_STEP}px`,
-              width: `${DOT_SIZE}px`,
-              height: `${DOT_SIZE}px`,
-            }"
-            @pointerenter="hoveredCell = cell"
-          />
-        </div>
-      </div>
     </div>
+
+    <UsageTooltip v-if="tooltip" v-bind="tooltip" />
   </section>
 </template>
