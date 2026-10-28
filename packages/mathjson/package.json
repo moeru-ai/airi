@@ -30,6 +30,8 @@
   ],
   "scripts": {
     "build": "tsdown",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:run": "vitest run --config vitest.config.ts",
+    "test": "vitest run"
   }
 }

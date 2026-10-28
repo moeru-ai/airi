@@ -25,7 +25,8 @@ export const nothing = 'Nothing'
 
 /** Wraps literal text as a MathJSON string, which MathJSON quotes with apostrophes: `'card'`. */
 export function text(value: string): string {
-  return `'${value}'`
+  // Escape backslashes first, then apostrophes, so embedded `'` / `\` stay valid MathJSON.
+  return `'${value.replace(/\\/g, '\\\\').replace(/'/g, '\\\'')}'`
 }
 
 export function isText(value: MathJson): value is string {
@@ -34,7 +35,10 @@ export function isText(value: MathJson): value is string {
 
 /** Reads the content of a MathJSON string. */
 export function textOf(value: MathJson): string {
-  return isText(value) ? value.slice(1, -1) : ''
+  if (!isText(value))
+    return ''
+  // Undo text() escaping: \' then \\ (order matters).
+  return value.slice(1, -1).replace(/\\'/g, '\'').replace(/\\\\/g, '\\')
 }
 
 export function isNumber(value: MathJson | undefined): value is MathJsonNumber {
