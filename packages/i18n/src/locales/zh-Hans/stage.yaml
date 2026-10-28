@@ -21,6 +21,8 @@ mobile-tools:
   menu: 菜单
   menu-unread: 菜单，{count} 条未读通知
 chat:
+  audio:
+    hearing-disabled: '[语音录音：转写已停用。]'
   provider-configuration:
     title: 尚未正确配置聊天 Provider
     description: 请先前往设置页面选择并验证一个 Provider，再发送消息。

@@ -16,7 +16,7 @@ import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
 import { generateTranscription } from '@xsai/generate-transcription'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed, ref, toRaw, watch } from 'vue'
+import { computed, onScopeDispose, ref, toRaw, watch } from 'vue'
 
 import { useAnalytics } from '../../composables/use-analytics'
 import { createHearingTranscriber } from '../../libs/audio/hearing-transcriber'
@@ -324,6 +324,17 @@ export const useHearingStore = defineStore('hearing-store', () => {
   // Pinia synchronization owns live cross-window state. localStorage only
   // loads and saves durable values for this synchronized store.
   const persistenceOptions = { listenToStorageChanges: false }
+  const enabled = useLocalStorageManualReset('settings/hearing/enabled', true, persistenceOptions)
+
+  // Each enabled period owns its requests. Disabling also invalidates transcribers captured by pending recordings.
+  let recognition = new AbortController()
+  watch(enabled, (value) => {
+    if (value)
+      recognition = new AbortController()
+    else
+      recognition.abort(new DOMException('Hearing is disabled', 'AbortError'))
+  }, { immediate: true, flush: 'sync' })
+  onScopeDispose(() => recognition.abort())
 
   // State
   const activeTranscriptionProvider = useLocalStorageManualReset('settings/hearing/active-provider', '', persistenceOptions)
@@ -387,7 +398,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
   }
 
   const configured = computed(() => {
-    if (!activeTranscriptionProvider.value)
+    if (!enabled.value || !activeTranscriptionProvider.value)
       return false
 
     // Web Speech API doesn't strictly need a model selected (it has a default)
@@ -407,6 +418,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
   })
 
   function resetState() {
+    enabled.reset()
     activeTranscriptionProvider.reset()
     activeTranscriptionModel.reset()
     activeCustomModelName.reset()
@@ -430,6 +442,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
     format?: 'json' | 'verbose_json',
     options?: HearingTranscriptionInvokeOptions,
   ): Promise<HearingTranscriptionResult> {
+    const signal = AbortSignal.any([recognition.signal, ...(options?.signal ? [options.signal] : [])])
+    signal.throwIfAborted()
     const normalizedInput = (input instanceof File ? { file: input } : input ?? {}) as {
       file?: File
       fileName?: string
@@ -462,7 +476,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
 
     try {
       if (features.supportsStreamOutput && streamExecutor) {
-        const request = { ...provider.transcription(model, options?.providerOptions), abortSignal: options?.signal }
+        const request = { ...provider.transcription(model, options?.providerOptions), abortSignal: signal }
 
         // Recorder files contain encoded media. Sherpaw accepts only the raw PCM16 stream from the live pipeline.
         if (providerId === SHERPAW_TRANSCRIPTION_PROVIDER_ID && normalizedInput.file && !normalizedInput.inputAudioStream) {
@@ -522,11 +536,13 @@ export const useHearingStore = defineStore('hearing-store', () => {
       const useVerboseJson = !format && threshold > CONFIDENCE_THRESHOLD_DISABLED
       const response = await generateTranscription({
         ...provider.transcription(model, options?.providerOptions),
-        abortSignal: options?.signal,
+        abortSignal: signal,
         file: normalizedInput.file,
         fileName: resolveTranscriptionFileName(normalizedInput.file, normalizedInput.fileName),
         responseFormat: useVerboseJson ? 'verbose_json' : format,
       })
+
+      signal.throwIfAborted()
 
       if (useVerboseJson) {
         if (response.segments) {
@@ -561,6 +577,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
 
   /** Freezes Hearing settings for one request. The controller supplies media and owns cancellation. */
   function createTranscriber(providerId = activeTranscriptionProvider.value, trace: HearingTranscriberTraceOptions = {}): StreamingTranscriber {
+    const recognitionSignal = recognition.signal
+    recognitionSignal.throwIfAborted()
     const config = structuredClone(toRaw(providerStore.getProviderConfig(providerId) ?? {}))
     const model = resolveActiveTranscriptionModel(activeTranscriptionModel.value, config)
     const threshold = confidenceThreshold.value
@@ -573,7 +591,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
       upload = 'media-stream'
     else if (providerId === SHERPAW_TRANSCRIPTION_PROVIDER_ID || features.supportsStreamInput)
       upload = 'pcm'
-    return createHearingTranscriber(async (audio, signal) => {
+    const transcriber = createHearingTranscriber(async (audio, signal) => {
       const setupError = resolveActiveTranscriptionProviderError(providerId)
       if (setupError)
         throw new Error(setupError)
@@ -625,9 +643,16 @@ export const useHearingStore = defineStore('hearing-store', () => {
         throw error
       }
     }, trace)
+    return {
+      transcribe: request => transcriber.transcribe({
+        ...request,
+        signal: AbortSignal.any([request.signal, recognitionSignal]),
+      }),
+    }
   }
 
   return {
+    enabled,
     activeTranscriptionProvider,
     activeTranscriptionModel,
     availableProvidersMetadata,

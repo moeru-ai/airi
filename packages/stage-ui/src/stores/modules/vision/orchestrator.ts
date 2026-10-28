@@ -59,7 +59,7 @@ export const useVisionOrchestratorStore = defineStore('vision-orchestrator', () 
   const lastWorkloadId = ref<VisionWorkloadId>('screen:interpret')
 
   async function processCapture(payload: VisionCapturePayload) {
-    if (!activeProvider.value || !activeModel.value) {
+    if (!visionStore.configured) {
       const configurationError = new Error('Vision model is not configured')
       recordError(configurationError)
       throw configurationError

@@ -19,7 +19,7 @@ const microphoneError = computed(() => snapshot.value.microphone?.error)
 const transcript = computed(() => snapshot.value.input?.text)
 const isTranscribing = computed(() => snapshot.value.input?.phase === 'finalizing')
 const { volumeLevel } = useAudioAnalyzer()
-const { configured } = storeToRefs(useHearingStore())
+const { configured, enabled: hearingEnabled } = storeToRefs(useHearingStore())
 const issue = computed(() => {
   // Device failure prevents all input, so it takes precedence over provider feedback.
   if (microphoneError.value)
@@ -53,7 +53,7 @@ const label = computed(() => {
 
 <template>
   <StatusCapsule
-    v-if="enabled || issue || isTranscribing"
+    v-if="hearingEnabled && (enabled || issue || isTranscribing)"
     :align="align"
     :data-status="state"
     :tone="issue ? 'error' : 'neutral'"
