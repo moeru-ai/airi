@@ -54,8 +54,11 @@ const tooltip = computed<UsageTooltipContent | null>(() => {
     return null
 
   const center = (xScale.value(index) ?? 0) + xScale.value.bandwidth() / 2
+  const placeLeft = center > width.value - TOOLTIP_HALF_WIDTH * 2
   return {
-    left: clamp(center, TOOLTIP_HALF_WIDTH, Math.max(width.value - TOOLTIP_HALF_WIDTH, TOOLTIP_HALF_WIDTH)),
+    left: center,
+    top: yScale.value(day.newSessionCount),
+    placement: placeLeft ? 'left' : 'right',
     title: formatDay(day.date, locale.value),
     lines: [t('settings.pages.flux.usage.newSessions', day.newSessionCount)],
   }
