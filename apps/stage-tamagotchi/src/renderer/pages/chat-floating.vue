@@ -8,7 +8,7 @@ import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
 import { useDanmakuFeedExpiry } from '@proj-airi/stage-ui/composables/use-danmaku-feed-expiry'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
-import { refDebounced, useEventListener, useFocusWithin, useLocalStorage, useMutationObserver, usePreferredReducedMotion } from '@vueuse/core'
+import { refDebounced, useElementSize, useEventListener, useFocusWithin, useLocalStorage, useMutationObserver, usePreferredReducedMotion } from '@vueuse/core'
 import { animate, createSpring } from 'animejs'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, onScopeDispose, shallowRef, useTemplateRef, watch } from 'vue'
@@ -142,11 +142,18 @@ useMutationObserver(dockZone, () => {
 const dockOpen = computed(() => !verticalDock.value || cursorNearDock.value || cursorNearDockLately.value || dockFocused.value || dockMenuOpen.value)
 
 const dockElement = useTemplateRef<HTMLElement>('dock')
+
+/** The padding of the zone along a dock that stands up, in pixels. It matches the `py-4` of the zone. */
+const DOCK_ZONE_PADDING = 16
+// A dock that stands up centers on the dock alone. The island below it only makes the zone longer, so the dock does
+// not move when the island buds off or goes back.
+const { height: dockHeight } = useElementSize(dockElement, undefined, { box: 'border-box' })
+const verticalDockZoneStyle = computed(() => ({ transform: `translateY(${-(DOCK_ZONE_PADDING + dockHeight.value / 2)}px)` }))
 /**
- * The bar of a closed dock: 3px wide and 56px tall, at the middle of the dock, on its side of the window edge.
+ * The bar of a closed dock: 8px wide and 56px tall, at the middle of the dock, on its side of the window edge.
  * The dock stands 10px from the edge, just past the hover scrollbar, so the bar sits between the scrollbar and the messages.
  */
-const DOCK_BAR = { width: 3, height: 56, edgeInset: 0 }
+const DOCK_BAR = { width: 8, height: 56, edgeInset: 0 }
 const DOCK_OPEN_CLIP = 'inset(0px 0px 0px 0px round 999px)'
 
 /** The clip that leaves only the bar of the dock. */
@@ -463,8 +470,9 @@ function moveByKeyboard(delta: WindowDelta) {
         <div
           ref="dock-zone"
           :class="verticalDock
-            ? ['pointer-events-none absolute top-1/2 z-10 w-12 flex flex-col items-center gap-2 py-4 -translate-y-1/2', characterOnLeft ? 'left-2.5 pr-4' : 'right-2.5 pl-4']
+            ? ['pointer-events-none absolute top-1/2 z-10 w-12 flex flex-col items-center gap-2 py-4', characterOnLeft ? 'left-2.5 pr-4' : 'right-2.5 pl-4']
             : ['flex items-center gap-2 px-4', characterOnLeft ? 'flex-row-reverse' : '']"
+          :style="verticalDock ? verticalDockZoneStyle : undefined"
         >
           <!--
             The dock stays over the island, so the island can hide under its edge. A dock that stands up draws its
