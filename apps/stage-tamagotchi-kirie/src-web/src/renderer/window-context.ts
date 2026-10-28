@@ -7,7 +7,7 @@ export interface RendererWindowContext {
   /**
    * Determines whether this renderer initializes Stage integrations.
    *
-   * Chat, notice, and Spotlight windows use `minimal`. Settings and onboarding stay `full`
+   * About, chat, notice, and Spotlight windows use `minimal`. Settings and onboarding stay `full`
    * so their pages can read Stage stores. Only the leader preloads browser inference models.
    * Deferred server, plugin, MCP, and Artistry services do not start during renderer setup.
    */

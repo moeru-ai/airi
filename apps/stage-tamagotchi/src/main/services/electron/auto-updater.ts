@@ -1,26 +1,21 @@
+import type { BundleInfo, LauncherEvent, Updater, UpdaterStatus } from '@ergosphere-it/electron/main'
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { AutoUpdaterState } from '@proj-airi/electron-eventa/electron-updater'
 import type { BrowserWindow } from 'electron'
-import type { UpdateInfo } from 'electron-updater'
 
 import type { ElectronUpdaterChannel } from '../../../shared/eventa'
 
 import process from 'node:process'
 
-import { appendFile, mkdir, rm } from 'node:fs/promises'
+import { appendFile, mkdir } from 'node:fs/promises'
 import { dirname, join, normalize } from 'node:path'
 
-import electronUpdater from 'electron-updater'
-import semver from 'semver'
-
-import { is } from '@electron-toolkit/utils'
+import { activeBundle, updater as ergosphereUpdater } from '@ergosphere-it/electron/main'
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { tryCatch } from '@moeru/std'
 import { errorMessageFromValue } from '@proj-airi/stage-shared'
-import { committerDate } from '~build/git'
 import { app } from 'electron'
-import { Semaphore } from 'es-toolkit'
 import { isWindows } from 'std-env'
 
 import {
@@ -28,17 +23,9 @@ import {
   electronAutoUpdaterStateChanged,
   electronGetUpdaterPreferences,
   electronSetUpdaterPreferences,
-
 } from '../../../shared/eventa'
-import { MockAutoUpdater } from './mock-auto-updater'
+import { channelOfVersion, updateChannels } from '../../../shared/update-channels'
 
-function getReleaseChannelName() {
-  return process.arch === 'arm64' ? 'latest-arm64' : 'latest-x64'
-}
-
-const GITHUB_RELEASES_API_URL = 'https://api.github.com/repos/moeru-ai/airi/releases?per_page=100'
-const GITHUB_RELEASES_ATOM_URL = 'https://github.com/moeru-ai/airi/releases.atom'
-const GITHUB_RELEASE_DOWNLOAD_BASE_URL = 'https://github.com/moeru-ai/airi/releases/download'
 const UPDATE_CHANNEL_ENV_KEY = 'AIRI_UPDATE_CHANNEL'
 
 function getCacheRoot() {
@@ -47,97 +34,31 @@ function getCacheRoot() {
   return app.getPath('cache' as Parameters<typeof app.getPath>[0])
 }
 
-function getLegacyCacheRoot() {
-  switch (process.platform) {
-    case 'win32':
-      return process.env.LOCALAPPDATA || join(process.env.USERPROFILE || '', 'AppData', 'Local')
-    case 'darwin':
-      return join(process.env.HOME || '', 'Library', 'Caches')
-    default:
-      return process.env.XDG_CACHE_HOME || join(process.env.HOME || '', '.cache')
-  }
+function updaterLogFile() {
+  return join(getCacheRoot(), 'stage-tamagotchi-updater', 'updater-log.txt')
 }
 
-const UPDATER_DEBUG_CACHE_DIR = join(getCacheRoot(), 'stage-tamagotchi-updater')
-const UPDATER_LOG_FILE = join(UPDATER_DEBUG_CACHE_DIR, 'updater-log.txt')
-const OFFICIAL_UPDATER_CACHE_DIR = join(getCacheRoot(), 'ai.moeru.airi-updater')
-const LEGACY_OFFICIAL_UPDATER_CACHE_DIR = join(getLegacyCacheRoot(), 'ai.moeru.airi-updater')
-const OFFICIAL_UPDATER_CACHE_DIRS = Array.from(new Set([
-  OFFICIAL_UPDATER_CACHE_DIR,
-  LEGACY_OFFICIAL_UPDATER_CACHE_DIR,
-]))
-
-async function logToFile(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: string) {
-  await mkdir(UPDATER_DEBUG_CACHE_DIR, { recursive: true }).catch(() => {})
-  await appendFile(UPDATER_LOG_FILE, `${new Date().toISOString()} [${level}] ${message}\n`).catch(() => {})
-}
-
-async function cleanupStaleUpdateFiles() {
-  // Remove both current and legacy updater cache roots so stale installers do not linger.
-  await Promise.allSettled(OFFICIAL_UPDATER_CACHE_DIRS.map(cacheDir => rm(cacheDir, { recursive: true, force: true })))
-  await logToFile('INFO', `Updater cache cleanup attempted: ${OFFICIAL_UPDATER_CACHE_DIRS.join(', ')}`)
+async function logToFile(level: 'INFO' | 'WARN' | 'ERROR', message: string) {
+  const file = updaterLogFile()
+  await mkdir(dirname(file), { recursive: true }).catch(() => {})
+  await appendFile(file, `${new Date().toISOString()} [${level}] ${message}\n`).catch(() => {})
 }
 
 export type UpdateLane = ElectronUpdaterChannel
-interface GitHubReleaseRecord {
-  tag_name?: string
-  draft?: boolean
-  prerelease?: boolean
-}
-
-function getUpdateServerOverride() {
-  // NOTICE: UPDATE_SERVER_URL is intentionally development-only for local update-test harness.
-  // Production update routing must not depend on this variable.
-  if (!is.dev)
-    return undefined
-
-  const value = process.env.UPDATE_SERVER_URL?.trim()
-  return value || undefined
-}
 
 function normalizeLane(value: string | undefined): UpdateLane | undefined {
-  if (!value)
-    return undefined
-
-  switch (value.toLowerCase()) {
-    case 'stable':
-    case 'latest':
-    case 'alpha':
-    case 'beta':
-    case 'nightly':
-    case 'canary':
-      return value.toLowerCase() as UpdateLane
-    default:
-      return undefined
-  }
+  const lane = value?.toLowerCase()
+  return updateChannels.find(channel => channel === lane)
 }
 
-function laneFromVersion(version: string): UpdateLane {
-  const prerelease = semver.prerelease(version)?.[0]?.toString().toLowerCase()
-  return normalizeLane(prerelease) ?? 'stable'
-}
-
-function getPreferredUpdateLane(params: { version: string, storedLane?: UpdateLane }): UpdateLane {
-  return normalizeLane(process.env[UPDATE_CHANNEL_ENV_KEY]?.trim()) ?? params.storedLane ?? laneFromVersion(params.version)
-}
-
-function getSemverFromTag(tag: string) {
-  return semver.valid(tag) ?? semver.valid(tag.startsWith('v') ? tag.slice(1) : tag)
-}
-
-function isTagInLane(tag: string, lane: UpdateLane) {
-  const version = getSemverFromTag(tag)
-  if (!version)
-    return false
-
-  if (lane === 'latest')
-    return true
-
-  const prerelease = semver.prerelease(version)?.[0]?.toString().toLowerCase()
-  if (lane === 'stable')
-    return !prerelease
-
-  return prerelease === lane
+/**
+ * The lane that the user or the environment chose: `AIRI_UPDATE_CHANNEL`, then the channel that the user chose.
+ * Without one, the app follows the channel of its version, see `channelOfVersion`, so a nightly build follows `nightly`.
+ *
+ * Each lane is a channel of the ergosphere-it release store with the same name.
+ */
+export function getChosenUpdateLane(storedLane: UpdateLane | undefined): UpdateLane | undefined {
+  return normalizeLane(process.env[UPDATE_CHANNEL_ENV_KEY]?.trim()) ?? storedLane
 }
 
 function isPathInside(parentPath: string, targetPath: string) {
@@ -167,84 +88,62 @@ function requiresAdminForInstallPath(executablePath: string) {
   return getWindowsProtectedInstallRoots().some(root => isPathInside(root, installDirectory))
 }
 
-function selectLatestTagForLane(releases: GitHubReleaseRecord[], lane: UpdateLane) {
-  const candidates = releases
-    .filter(release => !release.draft && typeof release.tag_name === 'string' && isTagInLane(release.tag_name, lane))
-    .map((release) => {
-      const tag = release.tag_name as string
-      const version = getSemverFromTag(tag)
-      return version ? { tag, version } : null
-    })
-    .filter(Boolean) as Array<{ tag: string, version: string }>
+/**
+ * The update info that the renderer shows. The release ID of a build is its time in milliseconds, so it gives the
+ * release date.
+ */
+function infoOf(bundle: BundleInfo): NonNullable<AutoUpdaterState['info']> {
+  return {
+    version: bundle.version,
+    files: [],
+    releaseDate: new Date(bundle.releaseId).toISOString(),
+  }
+}
 
-  candidates.sort((a, b) => semver.rcompare(a.version, b.version))
-  return candidates[0]?.tag
+function describeBundle(bundle: BundleInfo) {
+  return `${bundle.version} (${bundle.releaseId})`
 }
 
 /**
- * Extract release tags from GitHub releases Atom feed without adding XML-parser dependencies.
+ * Maps the status of the ergosphere-it updater to the state that the AIRI renderer knows.
  *
- * The current feed contains entries like:
- * `<entry><link rel="alternate" type="text/html" href="https://github.com/moeru-ai/airi/releases/tag/v0.9.0-beta.6"/></entry>`
- * and
- * `<entry><id>tag:github.com,2008:Repository/963495975/v0.9.0-alpha.36</id></entry>`
- *
- * We intentionally scan for `/moeru-ai/airi/releases/tag/` so we only consume actual release tag links.
+ * The updater downloads an update by itself after a check, so the renderer never sees `available`. `ready` is
+ * `downloaded`, and `quitAndInstall` applies it: a page reload, a restart, or an installer.
  */
-function extractReleaseTagsFromAtom(atom: string) {
-  const tags: string[] = []
-  const marker = '/moeru-ai/airi/releases/tag/'
-  let offset = 0
-
-  while (offset < atom.length) {
-    const markerIndex = atom.indexOf(marker, offset)
-    if (markerIndex === -1)
-      break
-
-    const start = markerIndex + marker.length
-    let end = start
-    while (end < atom.length) {
-      const char = atom[end]
-      if (char === '"' || char === '<' || char === '?' || char === '&')
-        break
-      end += 1
-    }
-
-    // Slice the raw path segment after the marker, e.g. `v0.9.0-beta.6`.
-    const rawTag = atom.slice(start, end).trim()
-    // Atom encodes URLs, so decode in case future tags contain escaped characters.
-    const decodedTag = decodeURIComponent(rawTag)
-    // Feed entries can repeat across updates; keep a unique ordered tag list.
-    if (decodedTag && !tags.includes(decodedTag))
-      tags.push(decodedTag)
-
-    offset = end + 1
+export function stateFromStatus(status: UpdaterStatus): AutoUpdaterState {
+  switch (status.status) {
+    case 'idle':
+    case 'checking':
+      return { status: status.status }
+    case 'disabled':
+      return { status: 'disabled' }
+    case 'up-to-date':
+      return { status: 'not-available', info: infoOf(activeBundle) }
+    case 'downloading':
+      return {
+        status: 'downloading',
+        info: infoOf(status.update),
+        progress: { percent: status.percent, bytesPerSecond: status.bytesPerSecond, transferred: status.downloadedBytes, total: status.totalBytes },
+      }
+    case 'preparing':
+      // Work after a download, for example a Sparkle patch, has a percentage and no bytes.
+      return {
+        status: 'downloading',
+        info: infoOf(status.update),
+        progress: { percent: status.percent, bytesPerSecond: 0, transferred: 0, total: 0 },
+      }
+    case 'ready':
+    case 'applying':
+      return { status: 'downloaded', info: infoOf(status.update) }
+    case 'download-failed':
+      return { status: 'error', info: infoOf(status.update), error: { message: `${status.error.message} The updater tries again at ${status.retryAt}.` } }
+    case 'error':
+    case 'verification-failed':
+      return { status: 'error', error: { message: status.error.message } }
+    case 'rolled-back':
+      // A rollback runs a bundle that works, and nothing waits. The service logs it and dismisses it.
+      return { status: 'not-available', info: infoOf(activeBundle) }
   }
-
-  return tags
-}
-
-export interface AppUpdaterLike {
-  on: (event: string, listener: (...args: any[]) => void) => any
-  checkForUpdates: () => Promise<any>
-  downloadUpdate: () => Promise<any>
-  quitAndInstall: (isSilent?: boolean, isForceRunAfter?: boolean) => Promise<void> | void
-  setFeedURL?: (options: { provider: 'generic', url: string }) => void
-  logger?: any
-  allowPrerelease?: boolean
-  autoDownload?: boolean
-  channel?: string
-  forceDevUpdateConfig?: boolean
-}
-
-// NOTICE: this part of code is copied from https://www.electron.build/auto-update
-// Or https://github.com/electron-userland/electron-builder/blob/b866e99ccd3ea9f85bc1e840f0f6a6a162fca388/pages/auto-update.md?plain=1#L57-L66
-export function fromImported(): AppUpdaterLike {
-  if (is.dev && !getUpdateServerOverride())
-    return new MockAutoUpdater()
-
-  const { autoUpdater } = electronUpdater
-  return autoUpdater as unknown as AppUpdaterLike
 }
 
 export interface AutoUpdater {
@@ -252,6 +151,10 @@ export interface AutoUpdater {
   checkForUpdates: () => Promise<void>
   downloadUpdate: () => Promise<void>
   quitAndInstall: () => Promise<void>
+  /** Main started every module. With the page of the main window, the running bundle reports healthy. */
+  markMainReady: () => void
+  /** The main window mounted its page, also after a page-only update reloaded it. */
+  markMainPageMounted: () => void
   getPreferredUpdateLane: () => UpdateLane | undefined
   setPreferredUpdateLane: (lane: UpdateLane | undefined) => Promise<void>
   subscribe: (callback: (state: AutoUpdaterState) => void) => () => void
@@ -268,6 +171,8 @@ export interface AutoUpdaterOptions {
   getStoredUpdateLane?: () => UpdateLane | undefined
   /** Persists a release-channel change requested through updater IPC. */
   setStoredUpdateLane?: (lane: UpdateLane | undefined) => void
+  /** The updater of `@ergosphere-it/electron/main`. Tests pass their own. */
+  updater?: Updater
 }
 
 /**
@@ -278,6 +183,8 @@ export interface AutoUpdaterOptions {
  *   Flatpak sets `FLATPAK_ID` in each sandbox. Flathub updates the app with `flatpak update`.
  * - The Nix package runs the app from the read-only Nix store, so the updater cannot replace it.
  *   The `nix/package.nix` launcher sets `AIRI_DISTRIBUTION=nix`. Nix updates the app with a new derivation.
+ *
+ * The launcher in `src/launcher/index.ts` turns the ergosphere-it updater off for the same installs.
  */
 export function isExternallyUpdatedInstall() {
   return import.meta.env.VITE_DISTRIBUTION === 'steam'
@@ -285,15 +192,11 @@ export function isExternallyUpdatedInstall() {
     || process.env.AIRI_DISTRIBUTION === 'nix'
 }
 
-function isPrereleaseVersion(version: string) {
-  return (semver.prerelease(version)?.length ?? 0) > 0
-}
-
 /**
  * Preserves the updater IPC contract when the storefront owns application updates.
  *
- * No method reaches Electron Updater or a release feed, while preference reads and
- * subscriptions remain available to existing renderer consumers.
+ * No method reaches the updater, while preference reads and subscriptions remain available to existing renderer
+ * consumers.
  */
 function createDisabledAutoUpdater(options: AutoUpdaterOptions): AutoUpdater {
   const state: AutoUpdaterState = { status: 'disabled' }
@@ -304,6 +207,8 @@ function createDisabledAutoUpdater(options: AutoUpdaterOptions): AutoUpdater {
     async checkForUpdates() {},
     async downloadUpdate() {},
     async quitAndInstall() {},
+    markMainReady() {},
+    markMainPageMounted() {},
     getPreferredUpdateLane() {
       return storedPreferredLane
     },
@@ -318,66 +223,43 @@ function createDisabledAutoUpdater(options: AutoUpdaterOptions): AutoUpdater {
   }
 }
 
+/**
+ * Serves the AIRI updater contract with the ergosphere-it updater, which the launcher runs. It checks at launch and
+ * then every hour by itself, downloads bundles and installers, and rolls back a bundle that does not report healthy.
+ */
 export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater {
   if (options.enabled === false)
     return createDisabledAutoUpdater(options)
 
-  const semaphore = new Semaphore(1)
-  const appVersion = app.getVersion()
-  const isPrereleaseBuild = isPrereleaseVersion(appVersion)
   const log = useLogg('auto-updater').useGlobalConfig()
-  const autoUpdater = fromImported()
-  const feedUrlOverride = getUpdateServerOverride()
+  const updater = options.updater ?? ergosphereUpdater
   let storedPreferredLane = options.getStoredUpdateLane?.()
-  const releaseChannelName = getReleaseChannelName()
-  let activeFeedUrlOverride = feedUrlOverride
-  let resolvedReleaseTag: string | undefined
-  let prepareFeedPromise: Promise<void> | undefined
 
-  autoUpdater.allowPrerelease = isPrereleaseBuild
-  autoUpdater.autoDownload = false
-  void cleanupStaleUpdateFiles()
-  if (activeFeedUrlOverride)
-    autoUpdater.channel = releaseChannelName
-  autoUpdater.forceDevUpdateConfig = !!feedUrlOverride && !app.isPackaged
-  autoUpdater.logger = {
-    info: (message: string) => {
-      log.log(message)
-      void logToFile('INFO', message)
-    },
-    warn: (message: string) => {
-      log.warn(message)
-      void logToFile('WARN', message)
-    },
-    error: (message: string) => {
-      log.error(message)
-      void logToFile('ERROR', message)
-    },
-    debug: (message: string) => {
-      log.debug(message)
-      void logToFile('DEBUG', message)
-    },
+  /** Moves the updater to `lane`, and returns whether the channel changed. The updater saves it for the next launches. */
+  function follow(lane: UpdateLane) {
+    if (updater.channel === lane)
+      return false
+
+    log.log(`[auto-updater] follows the channel ${lane}`)
+    updater.channel = lane
+    return true
   }
-
-  if (activeFeedUrlOverride)
-    autoUpdater.setFeedURL?.({ provider: 'generic', url: activeFeedUrlOverride })
 
   const withDiagnostics = (next: AutoUpdaterState): AutoUpdaterState => ({
     ...next,
     diagnostics: {
       platform: process.platform,
       arch: process.arch,
-      channel: autoUpdater.channel || releaseChannelName,
-      logFilePath: UPDATER_LOG_FILE,
+      channel: updater.channel,
+      logFilePath: updaterLogFile(),
       executablePath: process.execPath,
       installDirectory: dirname(process.execPath),
       requiresAdminForInstallPath: requiresAdminForInstallPath(process.execPath),
-      isOverrideActive: !!activeFeedUrlOverride,
-      ...(activeFeedUrlOverride ? { feedUrl: activeFeedUrlOverride } : {}),
+      isOverrideActive: !!process.env[UPDATE_CHANNEL_ENV_KEY],
     },
   })
 
-  let state: AutoUpdaterState = withDiagnostics({ status: 'idle' })
+  let state: AutoUpdaterState = withDiagnostics(stateFromStatus(updater.status))
   const hooks = new Set<(state: AutoUpdaterState) => void>()
 
   function broadcast(next: AutoUpdaterState) {
@@ -401,176 +283,83 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
     log.withError(error).error(reason)
   }
 
-  function applyGenericFeedOverride(url: string, reason: string) {
-    activeFeedUrlOverride = url
-    autoUpdater.channel = releaseChannelName
-    autoUpdater.setFeedURL?.({ provider: 'generic', url })
-    log.warn(`[auto-updater] applied generic feed override (${reason}): ${url}`)
+  if (updater.status.status !== 'disabled') {
+    // NOTICE:
+    // Up to v0.13.0, the launcher saved `latest`, `alpha`, or `beta`, which the store never had. Each check got a 404.
+    // `src/main/configs/global.ts` maps the choice of the user. This maps the channel that the launcher saved.
+    // Remove it after the next stable release, with the mapping in `global.ts`.
+    const savedRemovedChannel = ['latest', 'alpha', 'beta'].includes(updater.channel)
+    const lane = getChosenUpdateLane(storedPreferredLane) ?? (savedRemovedChannel ? channelOfVersion(activeBundle.version) : undefined)
+    if (lane)
+      follow(lane)
   }
 
-  function resetPreparedFeedForLaneChange() {
-    if (feedUrlOverride)
+  updater.onEvent((event: LauncherEvent) => {
+    // A download reports progress many times a second. Its start and its end are statuses of their own.
+    if (event.type === 'status' && event.status.status === 'downloading')
       return
 
-    activeFeedUrlOverride = undefined
-    resolvedReleaseTag = undefined
-    prepareFeedPromise = undefined
-    autoUpdater.channel = undefined
+    void logToFile(event.type === 'boot-failed' || event.type === 'rollback' ? 'ERROR' : 'INFO', JSON.stringify(event))
+  })
+
+  updater.onStatus((status) => {
+    if (status.status === 'rolled-back') {
+      const message = `[auto-updater] left ${describeBundle(status.from)} for ${describeBundle(status.to)}: ${status.reason}`
+      log.warn(message)
+      void logToFile('WARN', message)
+      void updater.dismissRollback()
+    }
+    if (status.status === 'error' || status.status === 'verification-failed' || status.status === 'download-failed')
+      void logToFile('ERROR', `[auto-updater] ${status.status} ${status.error.code}: ${status.error.message}`)
+
+    broadcast(stateFromStatus(status))
+  })
+
+  // A second click while the update applies waits for the same apply. A reload keeps the app, so a later update can
+  // apply again.
+  let applying: Promise<void> | undefined
+
+  // The launcher keeps a new bundle only when it reports healthy, and rolls it back otherwise. The bundle works when
+  // main started every module and the main window finished loading its stage. After a page-only update, the reloaded
+  // page reports again.
+  let mainReady = false
+  let pageMounted = false
+  function reportHealthWhenReady() {
+    if (mainReady && pageMounted && updater.status.status !== 'disabled')
+      updater.markBundleHealthy()
   }
-
-  async function resolveGitHubReleaseTagForLane(lane: UpdateLane) {
-    try {
-      const response = await fetch(GITHUB_RELEASES_API_URL, {
-        headers: {
-          accept: 'application/vnd.github+json',
-        },
-      })
-
-      if (!response.ok)
-        throw new Error(`Failed to fetch GitHub releases (${response.status} ${response.statusText})`)
-
-      const payload = await response.json()
-      if (!Array.isArray(payload))
-        throw new Error('Unexpected GitHub releases payload shape')
-
-      const tag = selectLatestTagForLane(payload as GitHubReleaseRecord[], lane)
-      if (tag)
-        return tag
-    }
-    catch (error) {
-      log.withError(error).warn('GitHub releases API lookup failed, trying releases.atom fallback')
-    }
-
-    const atomResponse = await fetch(GITHUB_RELEASES_ATOM_URL)
-    if (!atomResponse.ok)
-      throw new Error(`Failed to fetch GitHub releases atom (${atomResponse.status} ${atomResponse.statusText})`)
-
-    const atom = await atomResponse.text()
-    const releasesFromAtom = extractReleaseTagsFromAtom(atom).map(tag => ({ tag_name: tag }))
-    const tag = selectLatestTagForLane(releasesFromAtom, lane)
-    if (!tag)
-      throw new Error(`No GitHub release found for update lane "${lane}"`)
-
-    return tag
-  }
-
-  async function prepareGitHubGenericFeed() {
-    if (activeFeedUrlOverride)
-      return
-    if (resolvedReleaseTag)
-      return
-    if (prepareFeedPromise) {
-      await prepareFeedPromise
-      return
-    }
-
-    prepareFeedPromise = (async () => {
-      const preferredLane = getPreferredUpdateLane({ version: appVersion, storedLane: storedPreferredLane })
-      const tag = await resolveGitHubReleaseTagForLane(preferredLane)
-      resolvedReleaseTag = tag
-      applyGenericFeedOverride(`${GITHUB_RELEASE_DOWNLOAD_BASE_URL}/${tag}`, `github-release-lane:${preferredLane}`)
-    })()
-
-    try {
-      await prepareFeedPromise
-    }
-    finally {
-      prepareFeedPromise = undefined
-    }
-  }
-
-  async function checkForUpdatesWithPreparedFeed() {
-    await prepareGitHubGenericFeed()
-    await autoUpdater.checkForUpdates()
-  }
-
-  autoUpdater.on('error', error => broadcastUpdaterError(error, 'autoUpdater error'))
-  autoUpdater.on('checking-for-update', () => broadcast({ status: 'checking' }))
-  autoUpdater.on('update-available', (info: UpdateInfo) => broadcast({ status: 'available', info }))
-  autoUpdater.on('update-downloaded', (info: UpdateInfo) => broadcast({ status: 'downloaded', info }))
-  autoUpdater.on('update-not-available', () => broadcast({
-    status: 'not-available',
-    info: {
-      version: app.getVersion(),
-      files: [],
-      releaseDate: committerDate,
-    },
-  }))
-  autoUpdater.on('download-progress', progress => broadcast({
-    ...state,
-    status: 'downloading',
-    progress: {
-      percent: progress.percent,
-      bytesPerSecond: progress.bytesPerSecond,
-      transferred: progress.transferred,
-      total: progress.total,
-    },
-  }))
-
-  // Callers that arrive while a check or a download runs share its promise, so electron-updater runs it once.
-  // On macOS, a second download unpacks over the first, and the install fails with `ditto: ... No such file`.
-  let checkPromise: Promise<void> | undefined
-  let downloadPromise: Promise<void> | undefined
-  // `quitAndInstall` starts the app quit. It stays true because the app process ends after the install starts.
-  let installStarted = false
-
-  async function download() {
-    await semaphore.acquire()
-
-    try {
-      // The lock serializes download and install. Read the status after the lock, because a download that held the
-      // lock can finish while this call waits.
-      if (state.status === 'downloaded')
-        return
-
-      await autoUpdater.downloadUpdate()
-    }
-    finally {
-      semaphore.release()
-    }
-  }
-
-  void checkForUpdatesWithPreparedFeed()
-    .catch(error => broadcastUpdaterError(error, 'checkForUpdates() failed'))
 
   return {
     get state() {
       return state
     },
     async checkForUpdates() {
-      checkPromise ??= (async () => {
-        broadcast({ status: 'checking' })
-        await checkForUpdatesWithPreparedFeed().catch(error => broadcastUpdaterError(error, 'checkForUpdates() failed'))
-      })().finally(() => {
-        checkPromise = undefined
-      })
+      if (updater.status.status === 'disabled')
+        return
 
-      await checkPromise
+      await updater.checkForUpdates().catch(error => broadcastUpdaterError(error, 'checkForUpdates() failed'))
     },
     async downloadUpdate() {
-      downloadPromise ??= download().finally(() => {
-        downloadPromise = undefined
-      })
-
-      await downloadPromise
+      // The updater downloads an update by itself after a check finds it.
     },
     async quitAndInstall() {
-      await semaphore.acquire()
+      if (!applying && updater.status.status !== 'ready')
+        return
 
-      try {
-        if (installStarted)
-          return
-
-        if (isWindows)
-          autoUpdater.quitAndInstall(true, true)
-        else
-          autoUpdater.quitAndInstall()
-
-        installStarted = true
-      }
-      finally {
-        semaphore.release()
-      }
+      applying ??= updater.applyUpdate()
+        .catch(error => broadcastUpdaterError(error, 'applyUpdate() failed'))
+        .finally(() => {
+          applying = undefined
+        })
+      await applying
+    },
+    markMainReady() {
+      mainReady = true
+      reportHealthWhenReady()
+    },
+    markMainPageMounted() {
+      pageMounted = true
+      reportHealthWhenReady()
     },
     getPreferredUpdateLane() {
       return storedPreferredLane
@@ -581,10 +370,9 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
 
       storedPreferredLane = lane
       options.setStoredUpdateLane?.(lane)
-      resetPreparedFeedForLaneChange()
-      // Keep UI state consistent with the newly selected lane.
-      // A fresh check runs right after channel update from renderer.
-      broadcast({ status: 'idle' })
+      const next = getChosenUpdateLane(lane) ?? channelOfVersion(activeBundle.version)
+      if (updater.status.status !== 'disabled' && follow(next))
+        await updater.checkForUpdates().catch(error => broadcastUpdaterError(error, 'checkForUpdates() failed'))
     },
     subscribe(callback) {
       hooks.add(callback)

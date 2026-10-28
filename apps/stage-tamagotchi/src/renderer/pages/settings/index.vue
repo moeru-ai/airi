@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { settingsSearchProviders } from '@proj-airi/stage-pages/settings-search-providers'
-import { IconItem, SettingsSearchField, SettingsSearchResults } from '@proj-airi/stage-ui/components'
+import { IconItem, SettingsNeedsAttention, SettingsSearchField, SettingsSearchResults } from '@proj-airi/stage-ui/components'
+import { useSettingsNeedsAttention } from '@proj-airi/stage-ui/composables/use-settings-needs-attention'
 import { useSettingsSearch } from '@proj-airi/stage-ui/composables/use-settings-search'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -23,8 +23,9 @@ const settings = computed(() => {
 })
 
 const searchQuery = ref('')
-const searchResults = useSettingsSearch(searchQuery, settingsSearchProviders)
+const searchResults = useSettingsSearch(searchQuery)
 const searching = computed(() => searchQuery.value.trim() !== '')
+const { items: needsAttention, dismiss: dismissNeedsAttention } = useSettingsNeedsAttention()
 </script>
 
 <template>
@@ -42,6 +43,12 @@ const searching = computed(() => searchQuery.value.trim() !== '')
       <SettingsSearchResults v-else :results="searchResults" :query="searchQuery" />
     </div>
     <div v-else :class="['flex flex-col gap-4', 'pb-12']">
+      <!-- Settings that keep a feature in use from working. It is secondary, so it scrolls with the list. -->
+      <SettingsNeedsAttention
+        :items="needsAttention"
+        @fix="item => router.push(item.to)"
+        @dismiss="item => dismissNeedsAttention(item.id)"
+      />
       <IconItem
         v-for="(setting, index) in settings"
         :key="setting.to"

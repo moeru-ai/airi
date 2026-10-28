@@ -1,9 +1,8 @@
 import type { BrowserWindow, LoadFileOptions, LoadURLOptions } from 'electron'
 
-import { join, resolve } from 'node:path'
-import { env } from 'node:process'
+import { resolve } from 'node:path'
 
-import { is } from '@electron-toolkit/utils'
+import { activeBundle } from '@ergosphere-it/electron/main'
 
 let electronMainDirname: string = ''
 
@@ -29,29 +28,15 @@ export function getRendererRoot() {
 /**
  * Gets the path of a preload script in the build output of the running main bundle.
  *
- * @param filename Preload entry file name in the preload output directory.
- * @default 'index.mjs'
+ * @param entry Preload entry name in the preload output directory.
+ * @default 'index'
  */
-export function getPreloadPath(filename = 'index.mjs') {
-  return join(electronMainDirname, '..', 'preload', filename)
+export function getPreloadPath(entry = 'index') {
+  return activeBundle.preloadOf(entry)
 }
 
-export function baseUrl(parentOfIndexHtml: string, filename?: string) {
-  if (is.dev && env.ELECTRON_RENDERER_URL) {
-    if (!filename) {
-      return { url: env.ELECTRON_RENDERER_URL }
-    }
-
-    const url = new URL(env.ELECTRON_RENDERER_URL)
-    const paths = url.pathname.split('/')
-    paths.pop()
-    paths.push(filename)
-    url.pathname = paths.join('/')
-    return { url: url.toString() }
-  }
-  else {
-    return { file: join(parentOfIndexHtml, filename ?? 'index.html') }
-  }
+export function baseUrl(_parentOfIndexHtml: string, filename?: string) {
+  return { url: activeBundle.pageUrl(filename ? { page: filename } : undefined) }
 }
 
 export async function load(window: BrowserWindow, url: string | { url: string, options?: LoadURLOptions } | { file: string, options?: LoadFileOptions }) {

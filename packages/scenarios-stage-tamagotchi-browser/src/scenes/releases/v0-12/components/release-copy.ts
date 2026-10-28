@@ -1,22 +1,4 @@
-/** One run of a title. An accented run uses the primary color. */
-export interface TitleRun {
-  text: string
-  accent?: boolean
-}
-
-/** A list item. The `strong` part comes first and is bold. */
-export interface CopyPoint {
-  strong?: string
-  text: string
-}
-
-export interface AreaCopy {
-  eyebrow: string
-  title: TitleRun[]
-  lead?: string
-  points?: CopyPoint[]
-  chips?: string[]
-}
+import type { AreaCopy } from '../../components/release-copy'
 
 /**
  * The text of each release area. The areas read it in this order: eyebrow, title, lead, points, chips.

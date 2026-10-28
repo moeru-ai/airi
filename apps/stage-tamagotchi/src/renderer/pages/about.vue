@@ -16,6 +16,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { electronAppGetVersion, electronGetUpdaterPreferences, electronSetUpdaterPreferences } from '../../shared/eventa'
+import { updateChannels } from '../../shared/update-channels'
 
 const buildInfo = useBuildInfo()
 // The main process owns the app version. Packaging can change it after the renderer build, so `buildInfo.version`
@@ -64,12 +65,10 @@ const updaterErrorMessage = computed(() => {
 const showChangelog = ref(false)
 const showBugReportDialog = ref(false)
 const { isDesktop } = useBreakpoints()
-const updateChannelOptions = ['auto', 'latest', 'stable', 'alpha', 'beta', 'nightly', 'canary'] as const
+const updateChannelOptions = ['auto', ...updateChannels] as const
 type UpdateChannelOption = typeof updateChannelOptions[number]
 const updateChannelSelectOptions = computed(() => updateChannelOptions.map(channel => ({
-  label: channel === 'latest'
-    ? 'Latest (any release)'
-    : t(`tamagotchi.stage.about.update.channels.${channel}`),
+  label: t(`tamagotchi.stage.about.update.channels.${channel}`),
   value: channel,
 })))
 const selectedUpdateChannel = ref<UpdateChannelOption>('auto')

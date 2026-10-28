@@ -127,8 +127,9 @@ about:
       stable: Stable
       alpha: Alpha
       beta: Beta
-      nightly: Nightly
       canary: Canary
+      nightly: Nightly
+      dev: Dev
     status:
       downloading: Downloading update...
       error-prefix: Error

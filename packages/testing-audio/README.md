@@ -136,7 +136,7 @@ The speech changes a little on each request. After you generate the fixtures, ru
 Run the cases on both hosts:
 
 ```bash
-pnpm -F @proj-airi/testing-audio test:run cases/wake-word
+pnpm -F @proj-airi/testing-audio test:e2e cases/wake-word
 ```
 
 For one host, build its app and select `--project audio-web` or `--project audio-electron`.
@@ -224,7 +224,7 @@ These tests send audio and text to external Providers. Each run can incur Provid
 Build both targets and run all runtime projects:
 
 ```bash
-pnpm -F @proj-airi/testing-audio test:run
+pnpm -F @proj-airi/testing-audio test:e2e
 ```
 
 Use existing builds:
