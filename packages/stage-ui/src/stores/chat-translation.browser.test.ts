@@ -13,8 +13,8 @@ import { useChatStore } from './chat'
 import { useChatSessionStore } from './chat/session-store'
 import { useModsServerChannelStore } from './mods/api/channel-server'
 import { useConsciousnessStore } from './modules/consciousness'
+import { useStickersStore } from './modules/stickers'
 import { useSettingsGeneral } from './settings/general'
-import { useStickersStore } from './stickers'
 
 const stores: ReturnType<typeof createPinia>[] = []
 
