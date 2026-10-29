@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { Alert, ErrorContainer, RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
+import { RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useConsciousnessSettingsStore } from '@proj-airi/stage-ui/stores/modules/consciousness-settings'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
-import { FieldCheckbox, FieldRange, SettingsCard } from '@proj-airi/ui'
+import { Alert, FieldCheckbox, FieldRange, SettingsCard } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -193,10 +193,9 @@ async function updateTopPEnabled(value: boolean) {
 
         <!-- Error state -->
         <template v-else-if="activeProviderModelError">
-          <ErrorContainer
-            :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
-            :error="activeProviderModelError"
-          />
+          <Alert tone="danger" :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')">
+            <pre :class="['whitespace-pre-wrap break-all']">{{ String(activeProviderModelError) }}</pre>
+          </Alert>
           <!-- Manual model input fallback when model list fails to load -->
           <div class="mt-2">
             <label class="mb-1 block text-sm font-medium">
@@ -214,13 +213,8 @@ async function updateTopPEnabled(value: boolean) {
         <!-- No models available - Allow custom model input via search -->
         <!-- Only show when there are truly no models (not when fetch error occurred) to avoid competing UIs -->
         <template v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels && !activeProviderModelError">
-          <Alert type="warning">
-            <template #title>
-              {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models') }}
-            </template>
-            <template #content>
-              {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
-            </template>
+          <Alert tone="warning" :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models')">
+            {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
           </Alert>
 
           <!-- Using the new RadioCardManySelect component - works with empty list for custom input -->
@@ -278,17 +272,9 @@ async function updateTopPEnabled(value: boolean) {
           </div>
         </div>
 
-        <div
-          class="flex items-center gap-3 border border-primary-200 rounded-lg bg-primary-50 p-4 dark:border-primary-800 dark:bg-primary-900/20"
-        >
-          <div i-solar:info-circle-line-duotone class="text-2xl text-primary-500 dark:text-primary-400" />
-          <div class="flex flex-col">
-            <span class="font-medium">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.not_supported')
-            }}</span>
-            <span class="text-sm text-primary-600 dark:text-primary-400">{{
-              t('settings.pages.modules.consciousness.sections.section.provider-model-selection.not_supported_description') }}</span>
-          </div>
-        </div>
+        <Alert tone="info" :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.not_supported')">
+          {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.not_supported_description') }}
+        </Alert>
 
         <!-- Manual model input for providers without model listing -->
         <div class="mt-2">

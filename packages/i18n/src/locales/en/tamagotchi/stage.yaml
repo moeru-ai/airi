@@ -160,6 +160,17 @@ about:
       title: Update Available
       description: A new version (v{version}) is available.
       no-release-notes-markdown: _No release notes provided._
+    notices:
+      admin-required:
+        title: Administrator approval needed
+        description: AIRI is installed in a protected Windows folder. When you install the update, Windows can ask for administrator approval (UAC).
+        path: 'Install folder: {path}'
+      downgrade-available:
+        title: This update is an older version
+        description: The selected update lane offers an older build than your current version. If you install this update, AIRI goes back to the older version.
+      downgrade-downloaded:
+        title: Older version downloaded
+        description: The package from the selected update lane is an older version. When AIRI restarts, it installs this older version.
 computer-use-tool-call:
   help: Help
   status:

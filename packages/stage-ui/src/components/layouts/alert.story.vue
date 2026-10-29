@@ -1,8 +1,6 @@
 <script setup lang="ts">
-import { Alert, Button, Callout } from '@proj-airi/ui'
+import { Alert, Button } from '@proj-airi/ui'
 import { ref } from 'vue'
-
-import BusinessAlert from '../misc/alert.vue'
 
 const tones = ['info', 'success', 'warning', 'danger'] as const
 
@@ -166,35 +164,6 @@ const showInfo = ref(true)
             python main.py --enable-cors-header
           </div>
         </Alert>
-      </div>
-    </Variant>
-
-    <Variant id="compare" title="Compare with current">
-      <div :class="['grid grid-cols-[8rem_1fr] items-start gap-x-4 gap-y-3 p-4 text-xs text-neutral-500']">
-        <span>New Alert</span>
-        <Alert tone="warning">
-          Downgrade package downloaded from selected channel. Restart will install an older version.
-        </Alert>
-
-        <span>about.vue (hand-written)</span>
-        <div :class="['text-sm rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-700 dark:text-amber-200']">
-          Downgrade package downloaded from selected channel. Restart will install an older version.
-        </div>
-
-        <span>Callout orange</span>
-        <Callout theme="orange" label="Downgrade">
-          Downgrade package downloaded from selected channel. Restart will install an older version.
-        </Callout>
-
-        <span>stage-ui Alert warning</span>
-        <BusinessAlert type="warning">
-          <template #title>
-            Downgrade
-          </template>
-          <template #content>
-            Downgrade package downloaded from selected channel. Restart will install an older version.
-          </template>
-        </BusinessAlert>
       </div>
     </Variant>
   </Story>

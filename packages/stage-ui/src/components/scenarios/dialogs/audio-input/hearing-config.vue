@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Callout, FieldCheckbox, FieldSelect } from '@proj-airi/ui'
+import { Alert, FieldCheckbox, FieldSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -53,7 +53,7 @@ const enabling = shallowRef(false)
 
 /**
  * Only this explicit switch action asks for microphone permission. Rendering the controls never opens the microphone.
- * A denied request leaves the switch off. The device store keeps the reason in `error`, which the callout shows.
+ * A denied request leaves the switch off. The device store keeps the reason in `error`, which the alert shows.
  */
 async function setListening(value: boolean) {
   if (enabling.value)
@@ -104,14 +104,14 @@ async function setListening(value: boolean) {
       <OptionList v-model="inputMode" :label="t('settings.pages.modules.hearing.sections.section.input-mode.label')" :options="inputModeOptions" />
     </div>
     <WakeWordStatus v-if="inputMode === 'wake-word'" />
-    <Callout
+    <Alert
       v-if="pushToTalkStranded"
       data-testid="hearing-input-mode-stranded"
-      theme="orange"
-      :label="t('settings.pages.modules.hearing.sections.section.input-mode.stranded-title')"
+      tone="warning"
+      :title="t('settings.pages.modules.hearing.sections.section.input-mode.stranded-title')"
     >
       {{ t('settings.pages.modules.hearing.sections.section.input-mode.stranded-description') }}
-    </Callout>
+    </Alert>
 
     <FieldCheckbox
       data-testid="hearing-microphone-switch"
@@ -132,13 +132,14 @@ async function setListening(value: boolean) {
       :request-access="deviceStore.askPermission"
     />
 
-    <Callout
+    <Alert
       v-if="error"
       data-testid="hearing-microphone-error"
-      theme="orange"
-      :label="t('settings.pages.modules.hearing.sections.section.microphone.error')"
+      tone="danger"
+      live="polite"
+      :title="t('settings.pages.modules.hearing.sections.section.microphone.error')"
     >
       {{ error }}
-    </Callout>
+    </Alert>
   </div>
 </template>

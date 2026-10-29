@@ -8,7 +8,6 @@ import DOMPurify from 'dompurify'
 
 import { errorMessageFrom, merge } from '@moeru/std'
 import {
-  Alert,
   ProviderAccountIdInput,
   ProviderAdvancedSettings,
   ProviderApiKeyInput,
@@ -20,7 +19,7 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
-import { Button, Callout, FieldCheckbox, FieldCombobox, FieldInput, FieldKeyValues, GhostButton } from '@proj-airi/ui'
+import { Alert, Button, Callout, FieldCheckbox, FieldCombobox, FieldInput, FieldKeyValues, GhostButton } from '@proj-airi/ui'
 import { computedAsync, useCloned, useDebounceFn } from '@vueuse/core'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { computed, ref, watch } from 'vue'
@@ -476,19 +475,12 @@ function handleDeleteProvider() {
           </div>
         </div>
 
-        <Alert v-else-if="providerSchemaError" type="error">
-          <template #title>
-            {{ t('settings.pages.providers.catalog.edit.config.load-error') }}
-          </template>
-          <template #content>
-            <div :class="['flex', 'flex-col', 'items-start', 'gap-3']">
-              <span :class="['text-xs', 'text-neutral-600', 'dark:text-neutral-300']">
-                {{ providerSchemaError }}
-              </span>
-              <Button size="sm" @click="retryProviderSchema">
-                {{ t('settings.pages.providers.catalog.edit.config.retry') }}
-              </Button>
-            </div>
+        <Alert v-else-if="providerSchemaError" tone="danger" :title="t('settings.pages.providers.catalog.edit.config.load-error')">
+          {{ providerSchemaError }}
+          <template #actions>
+            <Button size="sm" @click="retryProviderSchema">
+              {{ t('settings.pages.providers.catalog.edit.config.retry') }}
+            </Button>
           </template>
         </Alert>
 
@@ -679,19 +671,12 @@ function handleDeleteProvider() {
             </div>
 
             <div :class="['flex', 'flex-col', 'gap-3']">
-              <Alert v-if="hasValidationFailures" type="warning">
-                <template #title>
-                  {{ t('settings.pages.providers.catalog.edit.validation.failed.title') }}
-                </template>
-                <template #content>
-                  <div :class="['flex', 'flex-col', 'gap-2', 'sm:flex-row', 'sm:items-center', 'sm:justify-between']">
-                    <span :class="['text-xs', 'text-neutral-600', 'dark:text-neutral-300']">
-                      {{ t('settings.pages.providers.catalog.edit.validation.failed.description') }}
-                    </span>
-                    <Button size="sm" color="orange" variant="primary" @click="handleSaveAnyway">
-                      {{ t('settings.pages.providers.catalog.edit.validation.failed.action') }}
-                    </Button>
-                  </div>
+              <Alert v-if="hasValidationFailures" tone="warning" :title="t('settings.pages.providers.catalog.edit.validation.failed.title')">
+                {{ t('settings.pages.providers.catalog.edit.validation.failed.description') }}
+                <template #actions>
+                  <Button size="sm" color="amber" variant="primary" @click="handleSaveAnyway">
+                    {{ t('settings.pages.providers.catalog.edit.validation.failed.action') }}
+                  </Button>
                 </template>
               </Alert>
             </div>

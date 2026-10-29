@@ -2,7 +2,7 @@
 import type { MicrophonePermission } from '../../../composables/audio/audio-device'
 
 import { errorMessageFrom } from '@moeru/std'
-import { Button, Callout, FieldCombobox } from '@proj-airi/ui'
+import { Alert, Button, FieldCombobox } from '@proj-airi/ui'
 import { computed, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -114,19 +114,19 @@ async function allow() {
         </Button>
       </div>
 
-      <Callout
+      <Alert
         v-else-if="state === 'blocked'"
         data-testid="microphone-picker-blocked"
-        theme="orange"
-        :label="t('settings.pages.modules.hearing.sections.section.input-device.blocked')"
+        tone="warning"
+        :title="t('settings.pages.modules.hearing.sections.section.input-device.blocked')"
       >
-        <div :class="['flex flex-col items-start gap-2']">
-          <span>{{ t('settings.pages.modules.hearing.sections.section.input-device.blocked-description') }}</span>
+        {{ t('settings.pages.modules.hearing.sections.section.input-device.blocked-description') }}
+        <template #actions>
           <Button size="sm" :loading="requesting" @click="allow">
             {{ t('settings.pages.modules.hearing.sections.section.input-device.retry') }}
           </Button>
-        </div>
-      </Callout>
+        </template>
+      </Alert>
 
       <div
         v-else
