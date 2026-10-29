@@ -60,5 +60,8 @@
   "dependencies": {
     "@moeru/std": "catalog:",
     "valibot": "catalog:"
+  },
+  "devDependencies": {
+    "@opentelemetry/semantic-conventions": "catalog:"
   }
 }

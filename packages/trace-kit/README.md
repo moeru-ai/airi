@@ -55,6 +55,21 @@ span.end({ attrs: { 'llm.ttft_ms': 412 } })
 
 `TraceSource` stamps `source`, `epoch`, and `seq`, and announces the definitions of its profiles when it starts.
 
+## Attribute names
+
+Attribute names are constants in the style of `@opentelemetry/semantic-conventions`: `ATTR_<NAME>`.
+
+```ts
+import { ATTR_AIRI_TOPIC_ID, ATTR_GEN_AI_REQUEST_MODEL } from '@proj-airi/trace-kit'
+
+span.update({ [ATTR_GEN_AI_REQUEST_MODEL]: model, [ATTR_AIRI_TOPIC_ID]: topicId })
+```
+
+- The `ATTR_GEN_AI_*` constants are copies of the exports of `@opentelemetry/semantic-conventions/incubating`, with the same names and values. `SEMCONV_VERSION` is the package version that they follow.
+- Upstream tells libraries not to import the incubating entry at runtime. A test compares each copy with the installed package, so a change upstream fails the tests.
+- `ATTR_GEN_AI_MEMORY_QUERY_TEXT` is not in the npm package yet. It follows the GenAI conventions repository.
+- The other constants, for example `ATTR_CENSORED`, `ATTR_DECISION_LATENCY_MS`, and `ATTR_AIRI_TOPIC_ID`, are AIRI names.
+
 ## Collect and read
 
 ```ts

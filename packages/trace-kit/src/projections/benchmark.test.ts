@@ -2,6 +2,7 @@ import type { TraceRecord, TraceRecordInput } from '../core/types'
 
 import { describe, expect, it } from 'vitest'
 
+import { ATTR_GEN_AI_REQUEST_MODEL, ATTR_GEN_AI_USAGE_INPUT_TOKENS } from '../conventions'
 import { createRecordStamper } from '../testing'
 import { TraceReader } from './reader'
 import { createTimelineProjection } from './timeline'
@@ -48,8 +49,8 @@ function spanRecords(count: number): TraceRecord[] {
   const inputs: TraceRecordInput[] = []
   for (let index = 0; index < count; index++) {
     const track = tracks[index % 3]!
-    inputs.push({ type: 'span.begin', ts: index * 10, track, spanId: `s${index}`, name: 'chat', ids: { turn: `t${index >> 4}` }, attrs: { 'gen_ai.request.model': 'demo-model' } })
-    inputs.push({ type: 'span.end', ts: index * 10 + 8, track, spanId: `s${index}`, status: 'ok', attrs: { 'gen_ai.usage.input_tokens': 1200 } })
+    inputs.push({ type: 'span.begin', ts: index * 10, track, spanId: `s${index}`, name: 'chat', ids: { turn: `t${index >> 4}` }, attrs: { [ATTR_GEN_AI_REQUEST_MODEL]: 'demo-model' } })
+    inputs.push({ type: 'span.end', ts: index * 10 + 8, track, spanId: `s${index}`, status: 'ok', attrs: { [ATTR_GEN_AI_USAGE_INPUT_TOKENS]: 1200 } })
   }
   return inputs.map(createRecordStamper())
 }

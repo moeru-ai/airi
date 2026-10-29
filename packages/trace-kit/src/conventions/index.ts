@@ -2,15 +2,19 @@ import type { TraceAggregate, TraceAttributeDefinition } from '../core/define'
 import type { TraceAttributes, TraceRecord } from '../core/types'
 
 import { defineAttribute } from '../core/define'
+import {
+  ATTR_GEN_AI_INPUT_MESSAGES,
+  ATTR_GEN_AI_MEMORY_QUERY_TEXT,
+  ATTR_GEN_AI_OUTPUT_MESSAGES,
+  ATTR_GEN_AI_SYSTEM_INSTRUCTIONS,
+  ATTR_GEN_AI_TOOL_CALL_ARGUMENTS,
+  ATTR_GEN_AI_TOOL_CALL_RESULT,
+} from './semconv'
+
+export * from './semconv'
 
 /** Version of the conventions. Exports write it into their metadata. */
 export const TRACE_CONVENTIONS_VERSION = '1'
-
-/**
- * Commit of open-telemetry/semantic-conventions-genai that the `gen_ai.*` names follow.
- * The conventions have development stability, so the package pins one commit.
- */
-export const GEN_AI_CONVENTIONS_COMMIT = '9ffc7e00c639be7712e544e3e54331e885dccf84'
 
 /** Relations between records. Profiles add more. */
 export const TraceLinkRelations = {
@@ -40,73 +44,53 @@ export const TraceEdgeKinds = {
   Signal: 'signal',
 } as const
 
-/** Attribute names that apply to any domain. */
-export const TraceAttributeNames = {
-  GenAIOperationName: 'gen_ai.operation.name',
-  GenAIProviderName: 'gen_ai.provider.name',
-  GenAIRequestModel: 'gen_ai.request.model',
-  GenAIResponseModel: 'gen_ai.response.model',
-  GenAIConversationId: 'gen_ai.conversation.id',
-  GenAIAgentId: 'gen_ai.agent.id',
-  GenAIAgentName: 'gen_ai.agent.name',
-  GenAIToolName: 'gen_ai.tool.name',
-  GenAIToolCallId: 'gen_ai.tool.call.id',
-  GenAIUsageInputTokens: 'gen_ai.usage.input_tokens',
-  GenAIUsageOutputTokens: 'gen_ai.usage.output_tokens',
-  GenAISystemInstructions: 'gen_ai.system_instructions',
-  GenAIInputMessages: 'gen_ai.input.messages',
-  GenAIOutputMessages: 'gen_ai.output.messages',
-  GenAIToolCallArguments: 'gen_ai.tool.call.arguments',
-  GenAIToolCallResult: 'gen_ai.tool.call.result',
-  GenAIMemoryQueryText: 'gen_ai.memory.query.text',
+/** Attribute names of AIRI that apply to any domain. The `gen_ai.*` names are in `./semconv`. */
+export const ATTR_PROVIDER_REQUEST_ID = 'provider.request_id' as const
+export const ATTR_PROVIDER_RESPONSE_ID = 'provider.response_id' as const
+export const ATTR_PROVIDER_ITEM_ID = 'provider.item_id' as const
 
-  ProviderRequestId: 'provider.request_id',
-  ProviderResponseId: 'provider.response_id',
-  ProviderItemId: 'provider.item_id',
+export const ATTR_RETRY_COUNT = 'retry.count' as const
+export const ATTR_FALLBACK_INDEX = 'fallback.index' as const
 
-  RetryCount: 'retry.count',
-  FallbackIndex: 'fallback.index',
+/** An interruption cut the measurement short. Percentiles leave it out. */
+export const ATTR_CENSORED = 'censored' as const
+/** A cold start. Percentiles leave it out. */
+export const ATTR_WARMUP = 'warmup' as const
 
-  /** An interruption cut the measurement short. Percentiles leave it out. */
-  Censored: 'censored',
-  /** A cold start. Percentiles leave it out. */
-  Warmup: 'warmup',
+export const ATTR_DECISION_CHOICES = 'decision.choices' as const
+export const ATTR_DECISION_VERDICT = 'decision.verdict' as const
+export const ATTR_DECISION_P = 'decision.p' as const
+export const ATTR_DECISION_THRESHOLD = 'decision.threshold' as const
+export const ATTR_DECISION_REASON = 'decision.reason' as const
+export const ATTR_DECISION_LATENCY_MS = 'decision.latency_ms' as const
+export const ATTR_DECIDER = 'decider' as const
 
-  DecisionChoices: 'decision.choices',
-  DecisionVerdict: 'decision.verdict',
-  DecisionP: 'decision.p',
-  DecisionThreshold: 'decision.threshold',
-  DecisionReason: 'decision.reason',
-  DecisionLatencyMs: 'decision.latency_ms',
-  Decider: 'decider',
+export const ATTR_MSG_KIND = 'msg.kind' as const
+export const ATTR_MSG_NAME = 'msg.name' as const
+export const ATTR_MSG_TO = 'msg.to' as const
 
-  MsgKind: 'msg.kind',
-  MsgName: 'msg.name',
-  MsgTo: 'msg.to',
+export const ATTR_WORK_INTERRUPTIBLE = 'work.interruptible' as const
 
-  WorkInterruptible: 'work.interruptible',
+export const ATTR_STREAM_ID = 'stream.id' as const
+export const ATTR_STREAM_START_FRAME = 'stream.start_frame' as const
+export const ATTR_STREAM_END_FRAME = 'stream.end_frame' as const
 
-  StreamId: 'stream.id',
-  StreamStartFrame: 'stream.start_frame',
-  StreamEndFrame: 'stream.end_frame',
+/** The rule that decided a state change. */
+export const ATTR_RULE = 'rule' as const
+/** An external input to a policy. A replay harness feeds it to a new policy. */
+export const ATTR_REPLAY_INPUT = 'replay.input' as const
 
-  /** The rule that decided a state change. */
-  Rule: 'rule',
-  /** An external input to a policy. A replay harness feeds it to a new policy. */
-  ReplayInput: 'replay.input',
-
-  /** Only the `conversation` ID key maps to `gen_ai.conversation.id`. The `topic` ID key maps to this attribute. */
-  TopicId: 'airi.topic.id',
-} as const
+/** Only the `conversation` ID key maps to `gen_ai.conversation.id`. The `topic` ID key maps to this attribute. */
+export const ATTR_AIRI_TOPIC_ID = 'airi.topic.id' as const
 
 /** Attribute definitions of the conventions. The content policy reads their sensitivity. */
 export const conventionAttributes: TraceAttributeDefinition[] = [
-  TraceAttributeNames.GenAISystemInstructions,
-  TraceAttributeNames.GenAIInputMessages,
-  TraceAttributeNames.GenAIOutputMessages,
-  TraceAttributeNames.GenAIToolCallArguments,
-  TraceAttributeNames.GenAIToolCallResult,
-  TraceAttributeNames.GenAIMemoryQueryText,
+  ATTR_GEN_AI_SYSTEM_INSTRUCTIONS,
+  ATTR_GEN_AI_INPUT_MESSAGES,
+  ATTR_GEN_AI_OUTPUT_MESSAGES,
+  ATTR_GEN_AI_TOOL_CALL_ARGUMENTS,
+  ATTR_GEN_AI_TOOL_CALL_RESULT,
+  ATTR_GEN_AI_MEMORY_QUERY_TEXT,
 ].map(key => defineAttribute({ key, type: 'json', sensitivity: 'content' }))
 
 export interface ContentPolicy {

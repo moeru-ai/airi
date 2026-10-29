@@ -2,6 +2,7 @@ import type { TraceRecordInput } from '../core/types'
 
 import recording from './fixtures/long-leading-silence.json'
 
+import { ATTR_GEN_AI_REQUEST_MODEL, ATTR_GEN_AI_USAGE_INPUT_TOKENS, ATTR_GEN_AI_USAGE_OUTPUT_TOKENS } from '../conventions'
 import { trackPath } from '../core/define'
 import { AgentNames, AgentTracks } from '../profiles/agent'
 import { VoiceAttributes, VoiceNames, VoiceSeries, VoiceTracks } from '../profiles/voice'
@@ -70,11 +71,11 @@ export function voiceTurnRecords(): TraceRecordInput[] {
     { type: 'span.end', ts: at.inputEnd, track: userTrack(VoiceTracks.Input), spanId: 'input', status: 'ok' },
 
     { type: 'span.begin', ts: at.inputEnd, track: trackPath(AgentTracks.Turn, { agent: 'agent' }), spanId: 'turn', name: AgentNames.ChatTurn, ids: turn, links: [{ rel: 'caused-by', to: { spanId: 'input' } }] },
-    { type: 'span.begin', ts: 5550, track: llm, spanId: 'llm-1', parentSpanId: 'turn', name: AgentNames.ModelRequest, ids: turn, attrs: { 'gen_ai.request.model': 'demo-model' } },
+    { type: 'span.begin', ts: 5550, track: llm, spanId: 'llm-1', parentSpanId: 'turn', name: AgentNames.ModelRequest, ids: turn, attrs: { [ATTR_GEN_AI_REQUEST_MODEL]: 'demo-model' } },
     { type: 'instant', ts: 6100, track: llm, spanId: 'llm-1', name: AgentNames.LLMFirstChunk },
     { type: 'span.begin', ts: 6200, track: trackPath(AgentTracks.Tools, { agent: 'agent' }), spanId: 'tool-1', parentSpanId: 'llm-1', name: 'web_search', ids: turn },
     { type: 'span.end', ts: 6600, track: trackPath(AgentTracks.Tools, { agent: 'agent' }), spanId: 'tool-1', status: 'ok' },
-    { type: 'span.end', ts: 6800, track: llm, spanId: 'llm-1', status: 'ok', attrs: { 'gen_ai.usage.input_tokens': 1200, 'gen_ai.usage.output_tokens': 86 } },
+    { type: 'span.end', ts: 6800, track: llm, spanId: 'llm-1', status: 'ok', attrs: { [ATTR_GEN_AI_USAGE_INPUT_TOKENS]: 1200, [ATTR_GEN_AI_USAGE_OUTPUT_TOKENS]: 86 } },
 
     { type: 'span.begin', ts: at.inputEnd, track: agentTrack(VoiceTracks.Output), spanId: 'output', name: VoiceNames.SpeechOutput, ids: { ...agent, ...turn } },
     { type: 'span.begin', ts: 6800, track: agentTrack(VoiceTracks.TTS), spanId: 'tts-1', name: VoiceNames.TTSRequest, ids: { ...agent, ...turn, segment: 's1' } },

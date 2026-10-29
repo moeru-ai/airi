@@ -2,6 +2,7 @@ import type { TraceRecordInput } from '../core/types'
 
 import { describe, expect, it } from 'vitest'
 
+import { ATTR_GEN_AI_USAGE_INPUT_TOKENS, ATTR_GEN_AI_USAGE_OUTPUT_TOKENS } from '../conventions'
 import { agentProfile } from '../profiles/agent'
 import { voiceProfile } from '../profiles/voice'
 import { createRecordStamper, readTimeline } from '../testing'
@@ -17,7 +18,7 @@ function trace() {
     { type: 'span.end', ts: 400, track: 'participants/user/input', spanId: 'input', status: 'ok' },
     { type: 'span.begin', ts: 400, track: 'participants/user/asr', spanId: 'asr', name: 'asr', ids: { input: 'i1' }, links: [{ rel: 'caused-by', to: { spanId: 'input' } }] },
     { type: 'span.end', ts: 900, track: 'participants/user/asr', spanId: 'asr', status: 'error', reason: 'timeout' },
-    { type: 'span.begin', ts: 900, track: 'agents/agent/llm', spanId: 'llm', name: 'chat', attrs: { 'gen_ai.usage.input_tokens': 120, 'gen_ai.usage.output_tokens': 30 } },
+    { type: 'span.begin', ts: 900, track: 'agents/agent/llm', spanId: 'llm', name: 'chat', attrs: { [ATTR_GEN_AI_USAGE_INPUT_TOKENS]: 120, [ATTR_GEN_AI_USAGE_OUTPUT_TOKENS]: 30 } },
     { type: 'instant', ts: 950, track: 'agents/agent/llm', name: 'llm.first_chunk' },
   ])
 }

@@ -4,6 +4,7 @@ import type { FlightRecorderDump } from './collector'
 
 import { describe, expect, it } from 'vitest'
 
+import { ATTR_GEN_AI_TOOL_CALL_ARGUMENTS } from '../conventions'
 import { TraceSource } from '../core/sink'
 import { TraceCollector } from './collector'
 
@@ -131,10 +132,10 @@ describe('traceCollector', () => {
 
   it('scrubs secrets from attributes but keeps content in the live buffer', () => {
     const { collector, source } = setup()
-    source('window:main').emit({ type: 'instant', ts: 0, track: 't', name: 'tool', attrs: { 'gen_ai.tool.call.arguments': 'say hi', 'error': 'Authorization: Bearer abcdefghijklmnopqrstu' } })
+    source('window:main').emit({ type: 'instant', ts: 0, track: 't', name: 'tool', attrs: { [ATTR_GEN_AI_TOOL_CALL_ARGUMENTS]: 'say hi', error: 'Authorization: Bearer abcdefghijklmnopqrstu' } })
 
     const instant = collector.snapshot().find(record => record.type === 'instant')
-    expect(instant?.attrs).toEqual({ 'gen_ai.tool.call.arguments': 'say hi', 'error': 'Authorization: [secret]' })
+    expect(instant?.attrs).toEqual({ [ATTR_GEN_AI_TOOL_CALL_ARGUMENTS]: 'say hi', error: 'Authorization: [secret]' })
   })
 
   it('keeps series in rings and sends them to a late viewer', () => {

@@ -1,4 +1,4 @@
-import { TraceAttributeNames } from '../conventions'
+import { ATTR_AIRI_TOPIC_ID } from '../conventions'
 import {
   defineAttribute,
   defineEndReason,
@@ -110,7 +110,7 @@ export const agentProfile = defineProfile({
     defineAttribute({ key: AgentAttributes.ControlRawToken, type: 'string', sensitivity: 'content' }),
     defineAttribute({ key: AgentAttributes.ControlParameter, type: 'string', sensitivity: 'content' }),
     defineAttribute({ key: AgentAttributes.LLMTtftMs, type: 'number', unit: 'ms', sensitivity: 'none', aggregatable: true }),
-    defineAttribute({ key: TraceAttributeNames.TopicId, type: 'string', sensitivity: 'none' }),
+    defineAttribute({ key: ATTR_AIRI_TOPIC_ID, type: 'string', sensitivity: 'none' }),
   ],
   metrics: [
     defineMetric({

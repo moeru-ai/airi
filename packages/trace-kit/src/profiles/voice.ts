@@ -2,7 +2,7 @@ import type { TraceRecord } from '../core/types'
 import type { MetricSample, MetricSamples } from '../projections/metrics'
 import type { TraceProjection } from '../projections/reader'
 
-import { TraceEdgeKinds } from '../conventions'
+import { ATTR_DECISION_LATENCY_MS, TraceEdgeKinds } from '../conventions'
 import {
   defineAttribute,
   defineEndReason,
@@ -196,7 +196,7 @@ export const voiceProfile = defineProfile({
       description: { 'en': 'How long one end-of-turn decision took.', 'zh-Hans': '一次轮次结束判断用了多久。' },
       unit: 'ms',
       better: 'lower',
-      value: { kind: 'attribute', track: VoiceTracks.Endpoint, record: 'span.end', attribute: 'decision.latency_ms' },
+      value: { kind: 'attribute', track: VoiceTracks.Endpoint, record: 'span.end', attribute: ATTR_DECISION_LATENCY_MS },
     }),
   ],
   pipelines: [

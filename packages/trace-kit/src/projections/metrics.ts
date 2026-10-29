@@ -2,7 +2,7 @@ import type { TraceAggregate, TraceMetricDefinition } from '../core/define'
 import type { TraceRecord } from '../core/types'
 import type { TraceProjection } from './reader'
 
-import { aggregate, TraceAttributeNames } from '../conventions'
+import { aggregate, ATTR_CENSORED, ATTR_WARMUP } from '../conventions'
 import { matchTrackPath } from '../core/define'
 
 /** One measurement. Censored, warm-up, and failed measurements are counted, but percentiles leave them out. */
@@ -33,9 +33,9 @@ interface MetricsState {
 }
 
 function exclusionOf(record: TraceRecord): MetricSample['excluded'] {
-  if (record.attrs?.[TraceAttributeNames.Censored] === true)
+  if (record.attrs?.[ATTR_CENSORED] === true)
     return 'censored'
-  if (record.attrs?.[TraceAttributeNames.Warmup] === true)
+  if (record.attrs?.[ATTR_WARMUP] === true)
     return 'warmup'
   if (record.type === 'span.end' && record.status !== 'ok')
     return 'failed'

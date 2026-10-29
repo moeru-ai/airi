@@ -2,7 +2,7 @@ import type { TraceLink, TraceRecord } from '../core/types'
 import type { TraceIndexes } from '../projections/reader'
 import type { TimelineInstant, TimelineSpan, TimelineState, TimelineStateChange, TimelineTrack } from '../projections/timeline'
 
-import { TraceAttributeNames } from '../conventions'
+import { ATTR_GEN_AI_USAGE_INPUT_TOKENS, ATTR_GEN_AI_USAGE_OUTPUT_TOKENS } from '../conventions'
 import { recordKey, spanKeyOf } from '../core/types'
 
 /** What a click, a hover, or a selection points to: a span, an instant, or a state change, by its key. */
@@ -85,7 +85,7 @@ export function childSpans(state: TimelineState, span: TimelineSpan): TimelineSp
 
 /** The input and output tokens of a model span. 0 for any other span. */
 export function spanTokens(span: TimelineSpan): number {
-  return Number(span.attrs[TraceAttributeNames.GenAIUsageInputTokens] ?? 0) + Number(span.attrs[TraceAttributeNames.GenAIUsageOutputTokens] ?? 0)
+  return Number(span.attrs[ATTR_GEN_AI_USAGE_INPUT_TOKENS] ?? 0) + Number(span.attrs[ATTR_GEN_AI_USAGE_OUTPUT_TOKENS] ?? 0)
 }
 
 /** ID keys that many unrelated spans share. They do not make two spans related. */
