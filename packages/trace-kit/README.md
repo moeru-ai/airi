@@ -2,7 +2,7 @@
 
 Trace records, clocks, collection, and projections for AIRI agent and pipeline activity.
 
-The package depends only on `@moeru/std` and `valibot`. Then `core-agent`, `pipelines-audio`, and `plugin-protocol` can depend on it without a cycle.
+The package depends only on `@proj-airi/stream-kit`, `es-toolkit`, and `valibot`. Then `core-agent`, `pipelines-audio`, and `plugin-protocol` can depend on it without a cycle.
 
 ## Use it for
 

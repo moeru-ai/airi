@@ -5941,9 +5941,6 @@ importers:
 
   packages/trace-kit:
     dependencies:
-      '@moeru/std':
-        specifier: 'catalog:'
-        version: 0.1.0-beta.17
       '@proj-airi/stream-kit':
         specifier: workspace:^
         version: link:../stream-kit

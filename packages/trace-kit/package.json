@@ -58,7 +58,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@moeru/std": "catalog:",
     "@proj-airi/stream-kit": "workspace:^",
     "es-toolkit": "catalog:",
     "valibot": "catalog:"
