@@ -53,8 +53,41 @@ describe('electron model asset storage', () => {
     })
     const { store } = await storage(download)
 
-    await expect(store.install(model, () => {}, new AbortController().signal)).rejects.toThrow('503')
+    await expect(store.install(model, () => {}, new AbortController().signal)).rejects.toMatchObject({ reason: 'server', host: 'example.test', status: 503 })
     expect(await store.has(model)).toBe(false)
+  })
+
+  it('reports a connection failure as a network failure', async () => {
+    // Node fetch rejects with this TypeError when it cannot reach the host.
+    const download = vi.fn(async () => {
+      throw new TypeError('fetch failed', { cause: new Error('Connect Timeout Error') })
+    })
+    const { store } = await storage(download)
+
+    await expect(store.install(model, () => {}, new AbortController().signal)).rejects.toMatchObject({ reason: 'network', host: 'example.test' })
+    expect(await store.has(model)).toBe(false)
+  })
+
+  it('reports a transfer that breaks midway as a network failure', async () => {
+    const download = vi.fn(async () => new Response(new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('part'))
+      },
+      pull(controller) {
+        controller.error(new TypeError('terminated'))
+      },
+    })))
+    const { store } = await storage(download)
+
+    await expect(store.install(model, () => {}, new AbortController().signal)).rejects.toMatchObject({ reason: 'network' })
+    expect(await store.has(model)).toBe(false)
+  })
+
+  it('reports a transfer shorter than its content length as incomplete', async () => {
+    const download = vi.fn(async () => new Response('part', { headers: { 'content-length': '100' } }))
+    const { store } = await storage(download)
+
+    await expect(store.install(model, () => {}, new AbortController().signal)).rejects.toMatchObject({ reason: 'incomplete' })
   })
 
   it('removes staging directories that a killed download left behind', async () => {

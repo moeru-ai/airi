@@ -1,5 +1,7 @@
 import type { ModelAsset, ModelAssetFile, ModelAssetProgress, ModelAssetStorage } from '@proj-airi/stage-shared/model-assets'
 
+import { ModelAssetDownloadError, readModelAssetChunk, requestModelAssetFile } from '@proj-airi/stage-shared/model-assets'
+
 import * as v from 'valibot'
 
 const installedModelSchema = v.object({
@@ -56,9 +58,7 @@ export class OpfsModelAssetStorage implements ModelAssetStorage {
     try {
       for (const file of model.files) {
         signal.throwIfAborted()
-        const response = await fetch(file.url, { signal })
-        if (!response.ok)
-          throw new Error(`Model asset download failed: ${response.status} ${file.url}`)
+        const response = await requestModelAssetFile(fetch, file.url, signal)
 
         const totalHeader = response.headers.get('content-length')
         const parsedTotal = totalHeader ? Number(totalHeader) : undefined
@@ -73,7 +73,7 @@ export class OpfsModelAssetStorage implements ModelAssetStorage {
             try {
               while (true) {
                 signal.throwIfAborted()
-                const { done, value } = await reader.read()
+                const { done, value } = await readModelAssetChunk(reader, file.url, signal)
                 if (done)
                   break
                 await writable.write(value)
@@ -99,7 +99,7 @@ export class OpfsModelAssetStorage implements ModelAssetStorage {
           throw error
         }
         if (loaded === 0 || (total !== undefined && loaded !== total))
-          throw new Error(`Incomplete model asset: ${model.id}/${file.name}`)
+          throw new ModelAssetDownloadError('incomplete', file.url)
         sizes[file.name] = loaded
       }
 

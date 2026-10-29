@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { ModelAssetProgress } from '@proj-airi/stage-ui/components'
 import { useModelAssetStatus } from '@proj-airi/stage-ui/composables'
+import { ensureSherpawModelAssets } from '@proj-airi/stage-ui/libs/providers/providers/sherpaw/model-assets'
 import { TransitionVertical } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { TooltipContent, TooltipPortal, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
@@ -7,7 +9,6 @@ import { computed, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import LoadingModules from './loading-modules.vue'
-import ModelAssetProgress from './model-asset-progress.vue'
 
 import { stageOpaqueAttribute } from '../../../composables/use-stage-painted-mask'
 import { useResourcesStore } from '../../../stores/resources'
@@ -30,6 +31,12 @@ watch(hasActiveResources, (newVal) => {
 
 function handleClick() {
   loadingProgressOpen.value = !loadingProgressOpen.value
+}
+
+function retry(id: string) {
+  // The repository publishes progress and any new failure as status, and this row shows it.
+  // The rejection carries nothing more, so it is not shown twice.
+  ensureSherpawModelAssets(id).catch(() => {})
 }
 </script>
 
@@ -80,7 +87,7 @@ function handleClick() {
                   'bg-white/80 dark:bg-neutral-900/80',
                 ]"
               >
-                <ModelAssetProgress v-if="modelAssets.length > 0" :statuses="modelAssets" />
+                <ModelAssetProgress v-if="modelAssets.length > 0" :statuses="modelAssets" @retry="retry" />
                 <LoadingModules v-if="atLeastOneLoading" />
               </div>
             </TooltipContent>

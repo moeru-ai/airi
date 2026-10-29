@@ -21,13 +21,99 @@ export interface ModelAssetProgress {
 
 export type ModelAssetState = 'unknown' | 'missing' | 'downloading' | 'installed' | 'bundled' | 'error'
 
+/**
+ * Why a model install failed. The interface picks a translated message from `reason`,
+ * because raw messages such as `fetch failed` do not tell users what to do.
+ */
+export interface ModelAssetFailure {
+  /**
+   * - `network`: the connection to `host` failed or broke during the transfer, for example a timeout or a blocked host.
+   * - `server`: `host` answered with a status other than 2xx.
+   * - `incomplete`: the transfer ended before the size that the server announced.
+   * - `unknown`: any other failure, for example a full disk.
+   */
+  reason: ModelAssetDownloadFailureReason | 'unknown'
+  /** The host of the file URL. Only download failures have it. */
+  host?: string
+  /** The HTTP status of a `server` failure. */
+  status?: number
+  /** The raw error message, for logs and for `unknown` failures. */
+  message: string
+}
+
+export type ModelAssetDownloadFailureReason = 'network' | 'server' | 'incomplete'
+
 /** Storage state is separate from the active inference Worker state. */
 export interface ModelAssetStatus {
   id: string
   revision: string
   state: ModelAssetState
   progress?: ModelAssetProgress
-  error?: string
+  error?: ModelAssetFailure
+}
+
+/** A storage adapter throws this error when a model file transfer fails, so the repository can report the reason. */
+export class ModelAssetDownloadError extends Error {
+  readonly host: string
+  readonly status?: number
+
+  constructor(readonly reason: ModelAssetDownloadFailureReason, url: string, options: { status?: number, cause?: unknown } = {}) {
+    const host = new URL(url).host
+    const details = {
+      network: `Could not connect to ${host}: ${errorMessageFrom(options.cause) ?? 'unknown error'}`,
+      server: `${host} answered with HTTP ${options.status}`,
+      incomplete: `The transfer from ${host} ended early`,
+    } satisfies Record<ModelAssetDownloadFailureReason, string>
+    super(`Model asset download failed. ${details[reason]}. ${url}`, { cause: options.cause })
+    this.name = 'ModelAssetDownloadError'
+    this.host = host
+    this.status = options.status
+  }
+}
+
+/**
+ * Requests one model file for a storage adapter.
+ *
+ * Aborting `signal` rethrows the abort reason unchanged.
+ * A connection failure or a status other than 2xx throws {@link ModelAssetDownloadError}.
+ */
+export async function requestModelAssetFile(download: typeof fetch, url: string, signal: AbortSignal): Promise<Response> {
+  let response: Response
+  try {
+    response = await download(url, { signal })
+  }
+  catch (error) {
+    signal.throwIfAborted()
+    throw new ModelAssetDownloadError('network', url, { cause: error })
+  }
+  if (!response.ok)
+    throw new ModelAssetDownloadError('server', url, { status: response.status })
+  return response
+}
+
+/**
+ * Reads the next chunk of a model file for a storage adapter.
+ *
+ * Aborting `signal` rethrows the abort reason unchanged.
+ * A connection that breaks during the transfer throws a `network` {@link ModelAssetDownloadError}.
+ *
+ * @param reader The reader of the response body. `T` is the chunk type that the platform's fetch gives.
+ */
+export async function readModelAssetChunk<T>(reader: ReadableStreamDefaultReader<T>, url: string, signal: AbortSignal): Promise<ReadableStreamReadResult<T>> {
+  try {
+    return await reader.read()
+  }
+  catch (error) {
+    signal.throwIfAborted()
+    throw new ModelAssetDownloadError('network', url, { cause: error })
+  }
+}
+
+function failureFrom(error: unknown): ModelAssetFailure {
+  const message = errorMessageFrom(error) ?? 'Model download failed'
+  if (error instanceof ModelAssetDownloadError)
+    return { reason: error.reason, host: error.host, status: error.status, message }
+  return { reason: 'unknown', message }
 }
 
 /** A platform adapter commits all files before it reports an installed model. */
@@ -218,7 +304,7 @@ export class ModelAssetRepository {
     catch (error) {
       this.update(id, signal.aborted
         ? { state: 'missing', progress: undefined, error: undefined }
-        : { state: 'error', progress: undefined, error: errorMessageFrom(error) ?? 'Model download failed' })
+        : { state: 'error', progress: undefined, error: failureFrom(error) })
       throw error
     }
   }
