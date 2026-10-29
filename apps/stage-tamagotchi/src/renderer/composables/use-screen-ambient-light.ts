@@ -206,8 +206,8 @@ export function useScreenAmbientLight(sources: {
 
       lastCaptureError = errorMessageFrom(error) ?? 'Unknown error'
       console.error(`Failed to start screen ambient light: ${lastCaptureError}`)
-      // Capture availability is runtime state, not a change to user intent.
       publishDiagnostics('error')
+      screenAmbientLightEnabled.value = false
     }
   }
 
