@@ -21,9 +21,8 @@ const { copy, copied, isSupported } = useClipboard({ legacy: true, copiedDuring:
       type="button"
       :aria-label="`Copy ${props.value}`"
       :class="[
-        'relative mt-px flex size-4 shrink-0 items-center justify-center rounded',
-        // The 16 px icon has a 44 px touch target that does not change the layout.
-        'before:absolute before:-inset-3.5 before:content-[\'\']',
+        // A touch screen gets a real 24 px box, so the target does not cover the text next to it.
+        'mt-px flex size-4 shrink-0 items-center justify-center rounded [@media(pointer:coarse)]:size-6',
         'text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200',
         // A touch screen has no hover, so the button always shows there.
         copied ? 'opacity-100' : 'opacity-0 group-hover/copy:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100',

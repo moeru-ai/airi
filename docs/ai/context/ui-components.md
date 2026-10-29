@@ -291,7 +291,7 @@ accessible name. Use it inside a Reka UI `TooltipProvider`. Attributes such as
 ### CopyableLabel
 
 Selectable text with a copy button. The button shows on hover, on keyboard
-focus, and always on a touch screen. Its touch target is 44 px. It shows a check
+focus, and always on a touch screen. Its touch target is 24 px there. It shows a check
 for a moment after a copy. It does not render without a clipboard.
 
 | Prop | Type | Default | Description |
