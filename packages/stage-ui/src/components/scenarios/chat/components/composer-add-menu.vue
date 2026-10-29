@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { BasicButton, DropdownMenu } from '@proj-airi/ui'
-import { DropdownMenuItem } from 'reka-ui'
+import { BasicButton, DropdownMenu, MenuItem } from '@proj-airi/ui'
 import { shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -18,7 +17,13 @@ const props = withDefaults(defineProps<{
    * @default false
    */
   inCall?: boolean
-}>(), { size: 'sm', inCall: false })
+  /**
+   * A composer recording is open. A call removes the composer microphone, which discards its recording, so the call
+   * item is off until the recording ends.
+   * @default false
+   */
+  recording?: boolean
+}>(), { size: 'sm', inCall: false, recording: false })
 
 const emit = defineEmits<{
   /** The user asked to attach images. The host opens its file picker. */
@@ -29,14 +34,6 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const open = shallowRef(false)
-
-const itemClasses = [
-  'w-full flex cursor-pointer select-none items-center gap-2.5 rounded-lg px-3 py-2.5 text-left',
-  'text-sm leading-none outline-none text-neutral-700 dark:text-neutral-200',
-  'data-[highlighted]:bg-primary-100/80 dark:data-[highlighted]:bg-primary-900/40',
-  'data-[disabled]:cursor-default data-[disabled]:opacity-50',
-  'transition-colors duration-150 ease-in-out',
-]
 </script>
 
 <template>
@@ -65,13 +62,13 @@ const itemClasses = [
         />
       </BasicButton>
     </template>
-    <DropdownMenuItem data-testid="composer-add-images" :class="itemClasses" @select="emit('attachImages')">
+    <MenuItem data-testid="composer-add-images" @select="emit('attachImages')">
       <span :class="['i-mingcute:pic-line size-4.5 shrink-0']" />
       <span>{{ t('stage.chat.composer.images') }}</span>
-    </DropdownMenuItem>
-    <DropdownMenuItem data-testid="composer-add-call" :disabled="props.inCall" :class="itemClasses" @select="emit('call')">
+    </MenuItem>
+    <MenuItem data-testid="composer-add-call" :disabled="props.inCall || props.recording" @select="emit('call')">
       <span :class="['i-mingcute:phone-line size-4.5 shrink-0']" />
       <span>{{ t('stage.chat.composer.call') }}</span>
-    </DropdownMenuItem>
+    </MenuItem>
   </DropdownMenu>
 </template>

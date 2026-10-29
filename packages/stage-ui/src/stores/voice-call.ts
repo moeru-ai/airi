@@ -61,6 +61,12 @@ export const useVoiceCallStore = defineStore('voice-call', () => {
       return 'microphone-off'
     if (!await devices.askPermission())
       return 'denied'
+    // The permission prompt can stay open for a while. The user can turn the microphone off, or start a call from
+    // another control, before it resolves, so both conditions are read again here.
+    if (devices.off)
+      return 'microphone-off'
+    if (voice.callActive)
+      return undefined
 
     startedAt.value = Date.now()
     minimized.value = false

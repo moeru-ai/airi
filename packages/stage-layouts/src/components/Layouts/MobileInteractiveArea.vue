@@ -438,6 +438,7 @@ onUnmounted(() => {
         <ChatComposerAddMenu
           size="md"
           :in-call="call.active"
+          :recording="voiceRecording"
           :class="[
             'self-end backdrop-blur-md',
             'border-2 border-solid border-neutral-200/60 bg-neutral-100/80',
