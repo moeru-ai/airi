@@ -126,8 +126,8 @@ function pushTo<K, V>(map: Map<K, V[]>, key: K, value: V): void {
 /**
  * Feeds collector messages to projections in apply order.
  *
- * Apply order is the `seq` order of each epoch, with epochs interleaved in arrival order. That is the order of the
- * feed. Display order is the converted time, which each projection reads from the context.
+ * Apply order is the arrival order of the feed. For one epoch, it is the `seq` order, as the transports deliver it.
+ * Display order is the converted time, which each projection reads from the context.
  *
  * The reader keeps its own clock graph from the snapshot records in the feed, so a replay of a file converts times in
  * the same way as the live view. `version` changes on each handled message. A view reads through selectors keyed on it.

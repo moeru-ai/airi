@@ -725,11 +725,16 @@ through `wants`.
 
 ### Order and lateness
 
-- The collector drops a record with a `(source, epoch, seq)` that it has seen.
+- The collector drops a record with a `(source, epoch, seq)` that it has seen, and a record with a lower `seq` than
+  one that it has applied.
+- Each transport delivers the records of one source in `seq` order, so the arrival order is the `seq` order. A record
+  after a gap in `seq` applies at once. The collector does not hold it until the gap closes, because that adds delay
+  for a case that the transports do not produce. A projection tolerates an end before its begin.
 - Each source has a watermark: the collector does not expect a later record from it with an earlier time. Before the
   watermark, the view is final. After it, the view is provisional.
-- A record that arrives later than the allowed lateness goes to a `late` counter and to the event log. It does not
-  change the final view.
+- A record that arrives later than the allowed lateness goes to a `late` counter and has a `late` mark. It still
+  changes the view: the timeline marks the item late, and the event log shows the mark. A trace viewer is a debugging
+  tool, so a late record stays visible instead of dropped.
 - A `span.end` without its begin becomes a span that starts at the left edge of the buffer, with a "start missing"
   marker. An update without its begin waits for the allowed lateness, then it is dropped and counted. A link to an
   evicted record draws a stub marked "evicted".
@@ -782,8 +787,8 @@ interface TraceProjection<State, View = State> {
 
 These rules apply to projections:
 
-- The apply order is the `seq` order of each epoch, with epochs interleaved in arrival order. The display order is
-  converted time. The two orders are separate.
+- The apply order is the arrival order. For one epoch, it is the `seq` order, as the transports deliver it. Epochs
+  interleave in arrival order. The display order is converted time. The two orders are separate.
 - A state track has one owner source unless its descriptor says `any`. The current state is the record with the
   latest converted time. A backdated state goes into the history but does not replace a later state.
 - A metric says whether it covers the buffer window or the whole session. A session metric keeps its accumulators

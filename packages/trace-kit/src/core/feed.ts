@@ -13,7 +13,7 @@ export type TraceFeedMessage
     record: TraceRecord
     /** The record came from the pinned set, which stays outside the buffer limits. */
     pinned?: boolean
-    /** The record arrived after the watermark of its source. It does not change the final view. */
+    /** The record arrived after the watermark of its source. It changes the view with a `late` mark. */
     late?: boolean
   }
   /** The buffer evicted records in this range of the trace clock. */
