@@ -1,18 +1,12 @@
 <script setup lang="ts">
-import {
-  Alert,
-  ErrorContainer,
-  ProviderBasicSettings,
-  ProviderSettingsContainer,
-  ProviderSettingsLayout,
-} from '@proj-airi/stage-ui/components'
+import { ProviderBasicSettings, ProviderSettingsContainer, ProviderSettingsLayout } from '@proj-airi/stage-ui/components'
 import { useVoiceController } from '@proj-airi/stage-ui/composables/audio/voice-controller'
 import { selectProviderMetadata } from '@proj-airi/stage-ui/libs'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { Button, FieldCombobox } from '@proj-airi/ui'
+import { Alert, Button, FieldCombobox } from '@proj-airi/ui'
 import { computedAsync } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
@@ -165,26 +159,18 @@ function stopSTTTest() {
       <ProviderSettingsContainer class="w-full md:w-[40%] space-y-6">
         <Alert
           v-if="!isWebSpeechAPIAvailable"
-          type="error"
+          tone="danger"
+          :title="t('settings.pages.providers.provider.browser-web-speech-api.unavailable.title')"
         >
-          <template #title>
-            Web Speech API Not Available
-          </template>
-          <template #content>
-            Web Speech API is not available in this browser. It requires Chrome, Edge, Safari, or other Chromium-based browsers. This provider cannot be used in your current environment.
-          </template>
+          {{ t('settings.pages.providers.provider.browser-web-speech-api.unavailable.description') }}
         </Alert>
 
         <Alert
           v-else
-          type="info"
+          tone="info"
+          :title="t('settings.pages.providers.provider.browser-web-speech-api.intro.title')"
         >
-          <template #title>
-            Free, Browser-Native Transcription
-          </template>
-          <template #content>
-            Web Speech API is a free, browser-native Speech-to-Text solution that requires no API keys or external services. It uses your browser's built-in speech recognition capabilities.
-          </template>
+          {{ t('settings.pages.providers.provider.browser-web-speech-api.intro.description') }}
         </Alert>
 
         <ProviderBasicSettings
@@ -193,12 +179,9 @@ function stopSTTTest() {
           :on-reset="handleResetSettings"
         >
           <div class="space-y-4">
-            <div class="border border-blue-200 rounded-lg bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
-              <div class="flex items-center gap-2 text-blue-700 dark:text-blue-400">
-                <div i-solar:info-circle-line-duotone class="text-sm" />
-                <span class="text-xs font-medium">No API key required - Web Speech API is free and built into your browser</span>
-              </div>
-            </div>
+            <Alert tone="info">
+              {{ t('settings.pages.providers.provider.browser-web-speech-api.no-api-key') }}
+            </Alert>
 
             <FieldCombobox
               v-model="language"
@@ -249,12 +232,9 @@ function stopSTTTest() {
             Test Web Speech API transcription with your selected audio device. This test will always use Web Speech API regardless of your default hearing provider.
           </div>
 
-          <div v-if="!isWebSpeechAPIAvailable" class="border border-amber-200 rounded-lg bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
-            <div class="flex items-center gap-2 text-amber-700 dark:text-amber-400">
-              <div i-solar:warning-circle-line-duotone class="text-lg" />
-              <span class="text-sm font-medium">Web Speech API is not available in this browser</span>
-            </div>
-          </div>
+          <Alert v-if="!isWebSpeechAPIAvailable" tone="warning">
+            {{ t('settings.pages.providers.provider.browser-web-speech-api.test.unavailable') }}
+          </Alert>
 
           <div v-else class="flex flex-col gap-4">
             <!-- Audio Input Device Selector - Always visible when Web Speech API is available -->
@@ -271,12 +251,9 @@ function stopSTTTest() {
             </div>
 
             <!-- Warning if no device selected -->
-            <div v-if="!selectedAudioInput" class="border border-amber-200 rounded-lg bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
-              <div class="flex items-center gap-2 text-amber-700 dark:text-amber-400">
-                <div i-solar:warning-circle-line-duotone class="text-lg" />
-                <span class="text-sm font-medium">Please select an audio input device to test</span>
-              </div>
-            </div>
+            <Alert v-if="!selectedAudioInput" tone="warning">
+              {{ t('settings.pages.providers.provider.browser-web-speech-api.test.select-device') }}
+            </Alert>
 
             <div class="flex items-center gap-2">
               <Button
@@ -297,22 +274,17 @@ function stopSTTTest() {
               </Button>
             </div>
 
-            <ErrorContainer v-if="testTranscriptionError" title="Transcription Error" :error="testTranscriptionError" />
+            <Alert v-if="testTranscriptionError" tone="danger" :title="t('settings.pages.providers.provider.browser-web-speech-api.test.error-title')" live="polite">
+              <pre :class="['whitespace-pre-wrap break-all']">{{ String(testTranscriptionError) }}</pre>
+            </Alert>
 
-            <div v-if="testStatusMessage" class="border border-primary-200 rounded-lg bg-primary-50 p-3 dark:border-primary-800 dark:bg-primary-900/20">
-              <div class="flex items-center gap-2 text-primary-700 dark:text-primary-400">
-                <div v-if="isTranscribing" class="animate-spin text-sm" i-solar:spinner-line-duotone />
-                <div v-else class="text-sm" i-solar:info-circle-line-duotone />
-                <span class="text-sm font-medium">{{ testStatusMessage }}</span>
-              </div>
-            </div>
+            <Alert v-if="testStatusMessage" tone="info" :loading="isTranscribing" live="polite">
+              {{ testStatusMessage }}
+            </Alert>
 
-            <div class="border border-blue-200 rounded-lg bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
-              <div class="flex items-center gap-2 text-blue-700 dark:text-blue-400">
-                <div i-solar:info-circle-line-duotone class="text-sm" />
-                <span class="text-xs">Streaming mode: Transcription will appear in real-time as you speak (Web Speech API)</span>
-              </div>
-            </div>
+            <Alert tone="info">
+              {{ t('settings.pages.providers.provider.browser-web-speech-api.test.streaming-mode') }}
+            </Alert>
 
             <div class="space-y-3">
               <div>

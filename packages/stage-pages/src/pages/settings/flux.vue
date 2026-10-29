@@ -7,7 +7,7 @@ import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { AIRI_PRIVACY_URL, AIRI_TERMS_URL } from '@proj-airi/stage-ui/constants/public-links'
 import { isSigningIn } from '@proj-airi/stage-ui/libs/auth'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { Button, SelectTab, Skeleton } from '@proj-airi/ui'
+import { Alert, Button, SelectTab, Skeleton } from '@proj-airi/ui'
 import { until, useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
@@ -388,15 +388,13 @@ async function handleBuy(stripePriceId: string) {
 <template>
   <div flex="~ col gap-6" min-h-full p-4>
     <!-- Message banner -->
-    <div
+    <Alert
       v-if="message"
-      rounded-lg p-3 text-sm
-      :class="message.type === 'success'
-        ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-        : 'bg-red-500/10 text-red-600 dark:text-red-400'"
+      :tone="message.type === 'success' ? 'success' : 'danger'"
+      live="polite"
     >
       {{ message.text }}
-    </div>
+    </Alert>
 
     <!-- Battery Card -->
     <div v-if="isAuthenticated" relative overflow-hidden rounded-2xl bg="neutral-100 dark:neutral-800" p-6 sm:p-8>

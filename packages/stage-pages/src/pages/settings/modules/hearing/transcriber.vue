@@ -3,7 +3,7 @@ import type { VoicePluginHandle } from '@proj-airi/core-agent'
 
 import { errorMessageFrom } from '@moeru/std'
 import { encodeWav } from '@proj-airi/audio/encoding'
-import { Alert, ErrorContainer, LevelMeter, MicrophonePicker, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
+import { LevelMeter, MicrophonePicker, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
 import { useAnalytics, useHearingPlaygroundSegments } from '@proj-airi/stage-ui/composables'
 import { useVoiceController } from '@proj-airi/stage-ui/composables/audio/voice-controller'
 import { hearingProviderViewContextKey } from '@proj-airi/stage-ui/libs'
@@ -13,7 +13,7 @@ import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/con
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { SileroVad } from '@proj-airi/stage-ui/workers/vad/silero-vad'
-import { Button, FieldCheckbox, FieldInput, FieldRange, SettingsCard } from '@proj-airi/ui'
+import { Alert, Button, FieldCheckbox, FieldInput, FieldRange, SettingsCard } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, defineAsyncComponent, onMounted, onUnmounted, provide, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -483,11 +483,13 @@ onUnmounted(() => {
             </div>
 
             <!-- Error state -->
-            <ErrorContainer
+            <Alert
               v-else-if="activeProviderModelError && supportsModelListing"
+              tone="danger"
               :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
-              :error="activeProviderModelError"
-            />
+            >
+              <pre :class="['whitespace-pre-wrap break-all']">{{ String(activeProviderModelError) }}</pre>
+            </Alert>
 
             <!-- Manual input for providers without model listing or when no models are available -->
             <div
@@ -504,14 +506,10 @@ onUnmounted(() => {
             <!-- No models available (for other providers with model listing but no models) -->
             <Alert
               v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels && supportsModelListing"
-              type="warning"
+              tone="warning"
+              :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models')"
             >
-              <template #title>
-                {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models') }}
-              </template>
-              <template #content>
-                {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
-              </template>
+              {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
             </Alert>
 
             <!-- Using the new RadioCardManySelect component for providers with models -->
@@ -580,12 +578,14 @@ onUnmounted(() => {
           {{ t('settings.pages.modules.hearing.sections.section.playground.description') }}
         </p>
 
-        <ErrorContainer
+        <Alert
           v-if="hearingStore.enabled && (error || transcriptionPipelineError)"
+          tone="danger"
           :title="t('settings.pages.modules.hearing.sections.section.playground.error-title')"
-          :error="error || transcriptionPipelineError"
           :class="['mb-4']"
-        />
+        >
+          <pre :class="['whitespace-pre-wrap break-all']">{{ String(error || transcriptionPipelineError) }}</pre>
+        </Alert>
 
         <!-- Browsers list device IDs only after permission, so starting with no selection uses the default device and asks for permission. -->
         <Button
@@ -684,11 +684,13 @@ onUnmounted(() => {
                     <span :class="['text-sm']">Loading...</span>
                   </div>
 
-                  <ErrorContainer
+                  <Alert
                     v-else-if="vadModelError"
-                    title="Inference error"
-                    :error="vadModelError"
-                  />
+                    tone="danger"
+                    :title="t('settings.pages.modules.hearing.sections.section.playground.vad-error-title')"
+                  >
+                    <pre :class="['whitespace-pre-wrap break-all']">{{ String(vadModelError) }}</pre>
+                  </Alert>
 
                   <div v-else-if="loadedVAD" :class="['flex items-center gap-2 text-green-600 dark:text-green-400']">
                     <div :class="['i-solar:check-circle-bold-duotone text-sm']" />

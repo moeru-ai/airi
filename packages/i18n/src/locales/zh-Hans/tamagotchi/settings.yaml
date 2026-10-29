@@ -22,6 +22,12 @@ spotlight:
     prefix: '出错啦：{message}'
     shortcutRegistrationFailed: '出错啦：快捷键注册失败'
 pages:
+  connection:
+    apply-error:
+      title: 未能应用连接设置
+  models:
+    godot-stage-error:
+      title: Godot 舞台出错
   modules:
     mcp-server:
       description: 连接与管理 MCP 服务器和工具

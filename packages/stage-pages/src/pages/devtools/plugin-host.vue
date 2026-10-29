@@ -8,7 +8,7 @@ import type {
 import { errorMessageFrom } from '@moeru/std'
 import { Section } from '@proj-airi/stage-ui/components'
 import { usePluginHostInspectorStore } from '@proj-airi/stage-ui/stores/devtools/plugin-host-debug'
-import { Button, Callout, GhostButton, Input } from '@proj-airi/ui'
+import { Alert, Button, Callout, GhostButton, Input } from '@proj-airi/ui'
 import { computed, onMounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
@@ -253,19 +253,21 @@ onMounted(async () => {
 
 <template>
   <div :class="['h-full', 'flex', 'flex-col', 'gap-4', 'overflow-y-auto', 'p-4']">
-    <Callout
+    <Alert
       v-if="!store.isAvailable"
-      theme="orange"
-      label="Plugin host debug is unavailable in this runtime."
-      description="Open this page from Stage Tamagotchi renderer to use Electron plugin host controls."
-    />
+      tone="warning"
+      title="Plugin host debug is unavailable in this runtime."
+    >
+      Open this page from Stage Tamagotchi renderer to use Electron plugin host controls.
+    </Alert>
 
-    <Callout
+    <Alert
       v-if="store.error"
-      theme="orange"
-      label="Last Error"
-      :description="store.error"
-    />
+      tone="danger"
+      title="Last Error"
+    >
+      {{ store.error }}
+    </Alert>
 
     <div :class="['grid', 'gap-2', 'sm:grid-cols-2', 'xl:grid-cols-6']">
       <div :class="['rounded-xl', 'bg-neutral-100', 'p-3', 'dark:bg-neutral-900/70']">

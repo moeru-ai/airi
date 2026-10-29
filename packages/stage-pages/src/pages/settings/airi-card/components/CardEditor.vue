@@ -17,7 +17,7 @@ import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
-import { Button, FieldInput, FieldValues, GhostButton, IconButton } from '@proj-airi/ui'
+import { Alert, Button, FieldInput, FieldValues, GhostButton, IconButton } from '@proj-airi/ui'
 import { ComboboxSelect } from '@proj-airi/ui/components/form'
 import { isEqual } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
@@ -872,18 +872,9 @@ function handleBack() {
         <div ref="section-scroll" :class="['min-h-0 flex-1 overflow-y-auto']">
           <div :class="['mx-auto w-full max-w-6xl', 'px-4 py-5 lg:px-8 lg:py-8']">
             <!-- Error banner -->
-            <div
-              v-if="showError"
-              :class="[
-                'mb-5 flex items-center gap-3',
-                'rounded-xl border border-red-500/30 bg-red-500/10',
-                'px-4 py-3 text-sm',
-                'text-red-600 dark:text-red-400',
-              ]"
-            >
-              <div class="i-solar:danger-triangle-bold-duotone shrink-0 text-lg" />
-              <p>{{ errorMessage }}</p>
-            </div>
+            <Alert v-if="showError" tone="danger" live="polite" :class="['mb-5']">
+              {{ errorMessage }}
+            </Alert>
 
             <section
               :class="[

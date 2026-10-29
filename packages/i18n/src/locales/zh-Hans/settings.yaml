@@ -639,6 +639,9 @@ pages:
       title: 同步音律
       sections:
         audio_source:
+          no_audio:
+            title: 未检测到音频
+            description: 请确认已授予所需权限，并且音频源正在播放声音。
           actions:
             start_screen_capture: 开始屏幕录制
             stop: 停止
@@ -954,6 +957,7 @@ pages:
             model: 模型
             model-placeholder: 选择模型
           playground:
+            vad-error-title: 语音活动检测错误
             current: 当前转写
             description: 通过当前的听觉管线监听，并在下方保留每一段完成的语音转写。
             empty: 开始监听，然后对着所选麦克风说话。
@@ -1091,6 +1095,7 @@ pages:
             loading: 正在加载语音包...
             title: 语音包
           provider-voice-selection:
+            load_error: 无法加载音色
             custom_model_placeholder: 输入指定模型名称...
             custom_voice_placeholder: 输入指定声线 ID...
             description: 选择合适的语音服务来源
@@ -1762,6 +1767,16 @@ pages:
         转录（语音转文本）模型服务来源，例如 Whisper.cpp, OpenAI, Azure Speech
     description: LLM，语音合成，语音识别服务来源等
     provider:
+      player2:
+        app-missing:
+          download: '请下载并运行 Player2 应用：{link}'
+          support: '安装后如果问题仍然存在，请在 Discord 联系我们：{link}'
+      mimo:
+        model-behavior:
+          title: MiMo 模型行为
+          preset: '{model} 使用下方的预设音色列表。'
+          voice-design: '{model} 根据风格提示词设计新音色，不接受 {field}。'
+          voice-clone: '{model} 使用你粘贴的音色样本，忽略预设音色选择。'
       sherpaw-transcription:
         description: 使用内置或按需加载的模型进行本地语音识别，无需 API 密钥。
         language:
@@ -2086,6 +2101,18 @@ pages:
         description: Aliyun 智能语音服务
         title: Aliyun 智能语音服务
       browser-web-speech-api:
+        test:
+          unavailable: 此浏览器不支持 Web Speech API。
+          select-device: 请选择音频输入设备以开始测试。
+          error-title: 转写错误
+          streaming-mode: 流式模式：说话时转写结果会实时显示。
+        no-api-key: 无需 API 密钥。Web Speech API 免费且内置于浏览器。
+        intro:
+          title: 浏览器内置的免费语音识别
+          description: Web Speech API 免费且内置于浏览器，无需 API 密钥或外部服务。它使用浏览器自带的语音识别能力。
+        unavailable:
+          title: Web Speech API 不可用
+          description: 此浏览器不支持 Web Speech API。请使用 Chrome、Edge、Safari 或其他基于 Chromium 的浏览器。当前环境无法使用此提供商。
         description: 浏览器原生STT (需要 Chrome/Edge/Safari)
         title: Web 语音API
       prompt-api:
@@ -2593,6 +2620,10 @@ tachie:
     title: 渲染
     render-scale: 渲染缩放
     shadow: 主题色动态阴影
+  audit-report:
+    status: 状态：{status}
+    critical-issues: 严重问题
+    warnings: 警告
 websocket-secure-enabled:
   title: 作为安全 WebSocket (WSS) 提供服务
   description: >-
