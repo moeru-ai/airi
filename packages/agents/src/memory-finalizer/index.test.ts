@@ -35,12 +35,13 @@ describe('createMemoryFinalizerAgent', () => {
       generalMemories: [{ id: 'Qw8e', description: 'Lives in Bangkok', body: 'Has lived in Bangkok for years.' }],
       userText: 'I stopped eating dairy too.',
       assistantText: 'Noted.',
+      time: '[2026-10-29 23:40]',
     }
 
     await expect(agent.collect(turn, new AbortController().signal)).resolves.toEqual([])
     expect(generateText.mock.calls[0]?.[0]).toMatchObject({ turns: [
       { type: 'system' },
-      { type: 'user', content: [{ text: JSON.stringify({ ownMemories: turn.ownMemories, generalMemories: turn.generalMemories, user: turn.userText, character: turn.assistantText }) }] },
+      { type: 'user', content: [{ text: JSON.stringify({ ownMemories: turn.ownMemories, generalMemories: turn.generalMemories, time: turn.time, user: turn.userText, character: turn.assistantText }) }] },
     ] })
   })
 })

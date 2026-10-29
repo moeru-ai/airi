@@ -13,7 +13,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { decodeBase64 } from '@moeru/std/base64'
 import { SpanStatusCode } from '@opentelemetry/api'
 import { fileSource } from '@proj-airi/audio/encoding'
-import { createChatOrchestratorRuntime, isBackgroundRecipe, matchKeywordRecipes, renderConversationPreview } from '@proj-airi/core-agent'
+import { createChatOrchestratorRuntime, formatTimePrefix, isBackgroundRecipe, matchKeywordRecipes, renderConversationPreview } from '@proj-airi/core-agent'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { isEqual } from 'es-toolkit'
 import { nanoid } from 'nanoid'
@@ -364,6 +364,8 @@ export const useChatStore = defineStore('chat', () => {
       generalMemories: memory.entries.filter(entry => !entry.persona).map(finalizerMemoryOf),
       userText,
       assistantText,
+      // The same format as the times that the chat model reads in front of messages. A message without a time was just sent.
+      time: formatTimePrefix(userMessage?.createdAt ?? Date.now()).trim(),
     }
     const entries = await memoryFinalizer.collect({ providerId: provider, model }, turn, signal)
     const saved: { id: string, description: string }[] = []
