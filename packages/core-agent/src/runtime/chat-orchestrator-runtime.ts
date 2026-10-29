@@ -1235,6 +1235,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (shouldAbort())
         return
 
+      // Display hooks receive source text. Native continuation keeps the complete provider response.
+      const responseText = translationLanguage ? sourceText : fullText
       generationCompleted = true
       buildingMessage.generationTranscript = generatedTurn
       try {
@@ -1263,7 +1265,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           sessionId,
           roundId,
           message: finalAssistant,
-          messageText: fullText,
+          messageText: responseText,
         })
       }
 
@@ -1272,7 +1274,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       await hooks.emitStreamEndHooks(streamingMessageContext)
       if (shouldAbort())
         return
-      await hooks.emitAssistantResponseEndHooks(fullText, streamingMessageContext)
+      await hooks.emitAssistantResponseEndHooks(responseText, streamingMessageContext)
 
       if (shouldAbort())
         return
@@ -1280,12 +1282,12 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (shouldAbort())
         return
       if (!silent)
-        await hooks.emitAssistantMessageHooks({ ...buildingMessage }, fullText, streamingMessageContext)
+        await hooks.emitAssistantMessageHooks({ ...buildingMessage }, responseText, streamingMessageContext)
       if (shouldAbort())
         return
       await hooks.emitChatTurnCompleteHooks({
         output: { ...buildingMessage },
-        outputText: fullText,
+        outputText: responseText,
         toolCalls: sessionMessagesForSend.filter(msg => msg.role === 'tool') as ToolMessage[],
       }, streamingMessageContext)
 
@@ -1293,7 +1295,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         return
       deps.onAssistantTurnReady?.({
         sessionId,
-        messageText: fullText,
+        messageText: responseText,
         sessionMessages: sessionMessagesForSend,
       })
 

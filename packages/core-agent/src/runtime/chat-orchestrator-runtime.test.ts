@@ -203,6 +203,36 @@ describe('createChatOrchestratorRuntime', () => {
     expect(prompt.at(-1)?.role).toBe('user')
   })
 
+  // https://github.com/moeru-ai/airi/pull/1518
+  // ROOT CAUSE:
+  // Final callbacks used the raw stream after translated tokens left the speech path.
+  // Source text now feeds display callbacks. Native continuation retains the provider response.
+  it('keeps final projections source-only and preserves native continuation', async () => {
+    const harness = createHarness()
+    const responseEnd = vi.fn(async () => {})
+    const assistantMessage = vi.fn(async () => {})
+    const turnComplete = vi.fn(async () => {})
+    harness.runtime.hooks.onAssistantResponseEnd(responseEnd)
+    harness.runtime.hooks.onAssistantMessage(assistantMessage)
+    harness.runtime.hooks.onChatTurnComplete(turnComplete)
+    const raw = 'Hello<|TRANS:|>你好'
+    const [nativeTurn] = chatMessagesToTurns([{ role: 'assistant', content: raw }])
+    if (nativeTurn.type !== 'assistant')
+      throw new Error('Expected assistant turn')
+    harness.stream.mockImplementationOnce(async (_model, _provider, _context, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: raw })
+      await options?.onGeneratedTurn?.(nativeTurn)
+    })
+    await harness.runtime.ingest('reply', { model: 'test', chatProvider: provider, translationLanguage: 'zh-Hans' })
+    expect(responseEnd).toHaveBeenCalledWith('Hello', expect.any(Object))
+    expect(assistantMessage).toHaveBeenCalledWith(expect.objectContaining({ content: 'Hello' }), 'Hello', expect.any(Object))
+    expect(turnComplete).toHaveBeenCalledWith(expect.objectContaining({ outputText: 'Hello' }), expect.any(Object))
+    expect(harness.assistantAppended).toEqual([expect.objectContaining({ messageText: 'Hello' })])
+    expect(harness.assistantTurns).toEqual([expect.objectContaining({ messageText: 'Hello' })])
+    const saved = harness.sessionMessages['session-1'].findLast(message => message.role === 'assistant')
+    expect(saved?.role === 'assistant' && saved.generationTranscript).toEqual(nativeTurn)
+  })
+
   it('preserves literal speech after a translation marker when subtitles are disabled', async () => {
     const harness = createHarness()
     const speech: string[] = []
