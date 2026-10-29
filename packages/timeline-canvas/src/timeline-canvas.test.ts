@@ -181,6 +181,19 @@ describe('series pyramid', () => {
     expect(envelope.maxs[1]).toBe(0)
   })
 
+  it('keeps the peaks of coarse buckets across the left and right edges of the view', () => {
+    const pyramid = new SeriesPyramid()
+    for (let index = 0; index < 600; index++)
+      pyramid.append(index, index === 101 || index === 500 ? 1 : 0)
+
+    // Columns of 20 ms. The bucket of 100 to 103 starts before the view and ends in column 0. The bucket of 500 to 503
+    // starts in the last column and ends after the view.
+    const envelope = pyramid.envelope({ start: 100.5, end: 500.5, width: 20 })
+    expect(envelope.level).toBe(1)
+    expect(envelope.maxs[0]).toBe(1)
+    expect(envelope.maxs[19]).toBe(1)
+  })
+
   it('includes the newest samples that do not fill a coarse bucket yet', () => {
     const pyramid = new SeriesPyramid()
     for (let index = 0; index < 10_003; index++)

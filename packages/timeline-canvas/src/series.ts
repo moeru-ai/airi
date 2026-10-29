@@ -95,9 +95,9 @@ export class SeriesPyramid {
       const last = data.ends ? columnOf(data.ends[index]!) : first
       if (last < 0 || first >= columns)
         return
-      // A bucket that reaches past the next column spans a pause, and its peak can be anywhere in it, so its buckets of
-      // the level below draw instead. A bucket across one column edge draws at its start, one column early at most.
-      if (last - first > 1) {
+      // The buckets of the level below draw instead of a bucket over a pause, whose peak can be anywhere, and of a
+      // bucket that starts before the view. Other buckets draw at their start, one column early at most.
+      if (last - first > 1 || first < 0) {
         const child = index * FACTOR
         for (let offset = 0; offset < FACTOR; offset++)
           add(levelIndex - 1, child + offset)
