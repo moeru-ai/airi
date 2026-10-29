@@ -1,10 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { intervalRuns, pointMarks } from './aggregate'
 import { CAPSULE_COLORS, capsuleStyle, laneCapsuleStyle, laneLayerOf, StyleTable } from './capsule'
 import { IntervalColumn, PointColumn } from './columns'
 import { hitInterval, hitPoint } from './hit'
-import { ROW_GEOMETRY, rowItemGeometry } from './row'
+import { drawTimelineRow, ROW_GEOMETRY, rowItemGeometry } from './row'
 import { lowerBound, upperBound } from './search'
 import { SeriesPyramid, waveformColumns } from './series'
 
@@ -255,5 +255,68 @@ describe('capsules', () => {
   it('centers lane items and insets detail items', () => {
     expect(rowItemGeometry('lane', 100, ROW_GEOMETRY.height.lane)).toEqual({ top: 112, height: 30, radius: 6 })
     expect(rowItemGeometry('detail', 100, ROW_GEOMETRY.height.detail)).toEqual({ top: 104, height: 26, radius: 4 })
+  })
+})
+
+describe('rows with content', () => {
+  class FakePath2D {
+    constructor(readonly d?: string) {}
+  }
+
+  /** A 2D context that records each call in order and accepts each property write. */
+  function recordingContext() {
+    const calls: { name: string, args: unknown[] }[] = []
+    const ctx = new Proxy<Partial<CanvasRenderingContext2D>>({ fillStyle: '#000000' }, {
+      get(target, key) {
+        if (key in target)
+          return Reflect.get(target, key)
+        return (...args: unknown[]) => {
+          calls.push({ name: String(key), args })
+          if (key === 'measureText')
+            return { width: 10 }
+          if (key === 'createLinearGradient')
+            return { addColorStop: () => {} }
+          return undefined
+        }
+      },
+      set(target, key, value) {
+        return Reflect.set(target, key, value)
+      },
+    })
+    return { ctx: ctx as CanvasRenderingContext2D, calls }
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function drawWaveformRow(style: ReturnType<typeof capsuleStyle>) {
+    vi.stubGlobal('Path2D', FakePath2D)
+    const column = new IntervalColumn()
+    column.append(0, 1000, 0, 'item')
+    const level = new SeriesPyramid()
+    for (let index = 0; index < 1000; index++)
+      level.append(index, 1)
+    const { ctx, calls } = recordingContext()
+    const frame = { view, kind: 'detail' as const, top: 0, height: ROW_GEOMETRY.height.detail }
+    drawTimelineRow(ctx, { styles: [style], layers: [{ column }], content: { kind: 'waveform', level } }, frame)
+    return { calls, geometry: rowItemGeometry('detail', 0, ROW_GEOMETRY.height.detail) }
+  }
+
+  it('draws the retry icon of an item that has a waveform and no label', () => {
+    const { calls } = drawWaveformRow(capsuleStyle({ color: '#3b82f6', retry: true }))
+    // The retry glyph is a stroked path.
+    expect(calls.some(call => call.name === 'stroke' && call.args[0] instanceof FakePath2D)).toBe(true)
+  })
+
+  it('keeps the waveform of a failed item below its status dot', () => {
+    const { calls } = drawWaveformRow(capsuleStyle({ color: '#3b82f6', failed: true }))
+    const arcs = calls.filter(call => call.name === 'arc')
+    expect(arcs.length).toBeGreaterThan(0)
+    // The dot is a circle at its center y with its radius, and its bottom is their sum.
+    const dotBottom = Math.max(...arcs.map(call => (call.args[1] as number) + (call.args[2] as number)))
+    const bars = calls.slice(calls.lastIndexOf(arcs.at(-1)!) + 1).filter(call => call.name === 'roundRect')
+    expect(bars.length).toBeGreaterThan(0)
+    expect(Math.min(...bars.map(call => call.args[1] as number))).toBeGreaterThanOrEqual(dotBottom)
   })
 })

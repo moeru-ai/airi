@@ -104,8 +104,6 @@ export function drawTimelineRow(ctx: CanvasRenderingContext2D | OffscreenCanvasR
   if (states.length > 0)
     drawIntervalRuns(ctx, states, row.styles, { ...shared, ...stateBandGeometry(frame.top, frame.height) })
 
-  // A row decorates its items when it labels them, gives trailing text, or can draw glyphs.
-  const decorated = frame.glyphs !== undefined || row.layers.some(layer => layer.label !== undefined || layer.trailing !== undefined)
   const runsByLayer = row.layers.map((layer) => {
     if (layer.column.count === 0)
       return []
@@ -117,6 +115,11 @@ export function drawTimelineRow(ctx: CanvasRenderingContext2D | OffscreenCanvasR
 
   if (row.content) {
     const runs = runsByLayer.flat()
+    // A row decorates its items when it labels them, gives trailing text, or can draw glyphs. A style marker decorates
+    // too: the retry icon, and the status dot that the content must not cover.
+    const decorated = frame.glyphs !== undefined
+      || row.layers.some(layer => layer.label !== undefined || layer.trailing !== undefined)
+      || runs.some(run => row.styles[run.style]?.icon !== undefined || row.styles[run.style]?.status !== undefined)
     // The decorations take a band at the top, and the content takes the rest, so neither covers the other.
     const band = decorated
       ? { top: geometry.top + LABEL_BAND_PX, height: geometry.height - LABEL_BAND_PX - ROW_GEOMETRY.contentInset }
