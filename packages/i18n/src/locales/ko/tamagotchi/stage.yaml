@@ -37,7 +37,7 @@ docs:
   'close': 닫기
   'expand': 확장
   'collapse': 접기
-  'login': 가입하기
+  'login': 로그인
   'logging-in': 로그인 중...
   'account': 계정
   'logout': 로그아웃
