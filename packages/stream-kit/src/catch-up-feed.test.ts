@@ -27,6 +27,21 @@ describe('createCatchUpFeed', () => {
     expect(feed.subscribers).toBe(1)
   })
 
+  it('removes a subscriber whose listener throws during the catch-up', () => {
+    const { feed, add } = createOwner()
+    add('a')
+    const received: string[] = []
+    feed.subscribe(message => received.push(message))
+
+    expect(() => feed.subscribe(() => {
+      throw new Error('listener failed')
+    })).toThrow('listener failed')
+    // The failed subscriber is gone, so later publishes reach the others without an error.
+    expect(feed.subscribers).toBe(1)
+    expect(() => add('b')).not.toThrow()
+    expect(received).toEqual(['a', 'caughtUp:1', 'b'])
+  })
+
   it('holds a message published during the backlog delivery until after caughtUp', () => {
     const { feed, add } = createOwner()
     add('a')
