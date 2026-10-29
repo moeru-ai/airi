@@ -132,6 +132,22 @@ describe('traceCollector', () => {
     expect(dumps[2]!.append).toBe(false)
   })
 
+  it('forgets the dump guard of a span after the span ends or its epoch ends', () => {
+    const { collector, source, advance } = setup({ flightRecorder: { onDump: () => {} } })
+    const window = source('window:main')
+    window.emit({ type: 'span.begin', ts: 0, track: 't', spanId: 'failed', name: 'request' })
+    window.emit({ type: 'span.end', ts: 0, track: 't', spanId: 'failed', status: 'error' })
+    window.emit({ type: 'span.begin', ts: 1000, track: 't', spanId: 'overdue', name: 'request', deadlineMs: 10 })
+    advance(100)
+    collector.tick()
+    collector.closeSource('window:main')
+
+    // The guard is private memory without a public view, so the test reads the field by name.
+    // A key that stays after its span ended grows the set for each failed span of a long session.
+    const guard: ReadonlySet<string> = Reflect.get(collector, 'dumpedSpans')
+    expect(guard.size).toBe(0)
+  })
+
   it('scrubs secrets from attributes but keeps content in the live buffer', () => {
     const { collector, source } = setup()
     source('window:main').emit({ type: 'instant', ts: 0, track: 't', name: 'tool', attrs: { [ATTR_GEN_AI_TOOL_CALL_ARGUMENTS]: 'say hi', error: 'Authorization: Bearer abcdefghijklmnopqrstu' } })

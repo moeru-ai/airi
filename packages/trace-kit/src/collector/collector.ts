@@ -149,6 +149,7 @@ export class TraceCollector {
   /** The tracks of each viewer, by subscription ID. */
   private readonly demand: DemandUnion<string>
   private nextSubscriptionId = 0
+  /** The open spans that already triggered an overdue dump. A key goes when its span ends or its epoch ends. */
   private readonly dumpedSpans = new Set<string>()
   /** The flight recorder cooldown of each source. */
   private readonly dumpCooldown: Cooldown
@@ -511,8 +512,10 @@ export class TraceCollector {
   private unpinEpoch(source: string, epoch: string): void {
     this.pinnedStarts.delete(`${source}/${epoch}`)
     for (const [key, { begin }] of this.pinnedSpans) {
-      if (begin.source === source && begin.epoch === epoch)
+      if (begin.source === source && begin.epoch === epoch) {
         this.pinnedSpans.delete(key)
+        this.dumpedSpans.delete(key)
+      }
     }
     for (const [track, { record }] of this.pinnedStates) {
       if (record.source === source && record.epoch === epoch)
@@ -588,14 +591,19 @@ export class TraceCollector {
   }
 
   /**
-   * Starts a flight recorder dump. Limits: each span triggers once, each source has a cooldown, and a window that
-   * overlaps the previous dump appends to it.
+   * Starts a flight recorder dump. Limits: an open span triggers one overdue dump, each source has a cooldown, and a
+   * window that overlaps the previous dump appends to it. An error comes from the one end of a span, so it needs no
+   * guard, and the guard does not keep the key of an ended span.
    */
   private triggerDump(spanKey: string, source: string, reason: FlightRecorderDump['reason'], now: number): void {
     const recorder = this.options.flightRecorder
-    if (!recorder || this.dumpedSpans.has(spanKey))
+    if (!recorder)
       return
-    this.dumpedSpans.add(spanKey)
+    if (reason === 'overdue') {
+      if (this.dumpedSpans.has(spanKey))
+        return
+      this.dumpedSpans.add(spanKey)
+    }
 
     if (!this.dumpCooldown.tryAcquire(source, now))
       return
