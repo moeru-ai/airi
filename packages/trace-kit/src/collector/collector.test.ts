@@ -106,6 +106,24 @@ describe('traceCollector', () => {
     expect(recordsOf(messages).some(record => record.type === 'source.started' && record.source === 'window:main')).toBe(true)
   })
 
+  it('keeps a bounded number of gaps that still cover every eviction', () => {
+    const { collector, source, advance } = setup({ maxAgeMs: 1000 })
+    const window = source('window:main')
+    // Each tick evicts the record of the previous round, and event times rise, so each eviction is a separate range.
+    for (let round = 0; round < 200; round++) {
+      window.emit({ type: 'instant', ts: round * 2000, track: 't', name: `r${round}` })
+      advance(2000)
+      collector.tick()
+    }
+
+    const messages: TraceFeedMessage[] = []
+    collector.subscribe(message => messages.push(message))
+    const gaps = messages.filter(message => message.kind === 'gap')
+    expect(gaps.length).toBeLessThanOrEqual(64)
+    expect(gaps[0]).toMatchObject({ from: 0 })
+    expect(gaps.at(-1)).toMatchObject({ to: 199 * 2000 })
+  })
+
   it('dumps once per span, keeps a cooldown per source, and appends an overlapping window', () => {
     const dumps: FlightRecorderDump[] = []
     const { source, advance } = setup({ flightRecorder: { windowMs: 60_000, cooldownMs: 30_000, onDump: dump => dumps.push(dump) } })

@@ -96,6 +96,12 @@ const DEFAULTS = {
 /** The newest snapshots of each clock set in the pinned set. The drift fit uses this many. */
 const PINNED_SNAPSHOTS_PER_CLOCK_SET = 16
 
+/**
+ * The most gaps that the collector keeps for late viewers. The buffer drops records oldest first, so the oldest gaps
+ * lie before every kept record, and merging them loses no kept record.
+ */
+const MAX_GAPS = 64
+
 /** A pinned clock record with its arrival order. */
 interface PinnedClockRecord<T> {
   record: T
@@ -587,6 +593,10 @@ export class TraceCollector {
       last.to = Math.max(last.to, to)
     else
       this.gaps.push({ from, to })
+    if (this.gaps.length > MAX_GAPS) {
+      const [oldest, next] = this.gaps.splice(0, 2)
+      this.gaps.unshift({ from: Math.min(oldest!.from, next!.from), to: Math.max(oldest!.to, next!.to) })
+    }
     this.feed.publish({ kind: 'gap', from, to })
   }
 
