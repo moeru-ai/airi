@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { defineComponent, h, ref, shallowRef } from 'vue'
 import { createI18n } from 'vue-i18n'
+import { Toaster } from 'vue-sonner'
 
 import VoiceInputButton from './voice-input-button.vue'
 
@@ -55,8 +56,9 @@ async function mountButton(options: { afterFinish?: Partial<VoiceMessageSnapshot
   const attachment = document.body.appendChild(document.createElement('div'))
   cleanups.push(() => status.remove(), () => attachment.remove())
   const button = shallowRef<{ sendPending: (text: string) => Promise<'none' | 'sent' | 'failed'> }>()
+  // The Toaster shows the toasts that the button raises, as the app root does.
   const component = defineComponent({ setup() {
-    return () => h(VoiceInputButton, {
+    return () => [h(Toaster), h(VoiceInputButton, {
       'modelValue': draft.value,
       'onUpdate:modelValue': (value: string) => draft.value = value,
       'ref': button,
@@ -64,7 +66,7 @@ async function mountButton(options: { afterFinish?: Partial<VoiceMessageSnapshot
       'attachmentElement': attachment,
       'sessionId': 'alice',
       'onSubmit': () => submitted.push(true),
-    })
+    })]
   } })
   const screen = await render(component, {
     global: {
@@ -113,6 +115,52 @@ describe('voiceInputButton', () => {
 
     await expect.element(screen.getByTestId('voice-menu-level')).toBeInTheDocument()
     await expect.poll(() => monitorRequests.length).toBeGreaterThan(0)
+  })
+
+  it('starts no recording while the microphone is off', async () => {
+    localStorage.setItem('settings/audio/input/off', 'true')
+    const { screen, commands } = await mountButton()
+    const button = screen.getByTestId('voice-input-button')
+    await expect.element(button).toHaveAccessibleName('stage.chat.voice-composer.microphone-off')
+
+    await button.click()
+
+    await expect.element(screen.getByText('stage.chat.voice-composer.microphone-off-description')).toBeVisible()
+    expect(commands).toEqual([])
+    await expect.element(button).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  // The microphone switch and a capture lease finish a recording on the host. The control stayed on its spinner.
+  it('frees the control and keeps the recording when the host finishes it', async () => {
+    const { screen, commands } = await mountButton()
+    const button = screen.getByTestId('voice-input-button')
+    await button.click()
+    await expect.element(screen.getByTestId('voice-status-bar')).toBeInTheDocument()
+    const record = commands[0] as Extract<VoiceMessageCommand, { type: 'record' }>
+
+    getSpeechBusContext().emit(voiceMessagesChanged, [{ id: record.id, sessionId: 'alice', phase: 'ready', audio: new Blob(['wav'], { type: 'audio/wav' }) }])
+
+    await expect.element(button).toHaveAttribute('aria-pressed', 'false')
+    await expect.element(screen.getByTestId('voice-status-bar')).not.toBeInTheDocument()
+    expect(commands).toHaveLength(1)
+  })
+
+  it('turns the microphone off and on from the menu', async () => {
+    const { screen } = await mountButton()
+    await screen.getByTestId('voice-input-button').click({ button: 'right' })
+    const microphone = screen.getByTestId('voice-menu-microphone')
+    await expect.element(microphone).toHaveAttribute('aria-checked', 'true')
+
+    await microphone.click()
+
+    await expect.element(microphone).toHaveAttribute('aria-checked', 'false')
+    expect(localStorage.getItem('settings/audio/input/off')).toBe('true')
+    await expect.element(screen.getByTestId('voice-menu-listen')).toHaveAttribute('data-disabled')
+
+    await microphone.click()
+
+    await expect.element(microphone).toHaveAttribute('aria-checked', 'true')
+    expect(localStorage.getItem('settings/audio/input/off')).toBe('false')
   })
 
   it('shows no Push to Talk warning in the menu when the host has a trigger', async () => {

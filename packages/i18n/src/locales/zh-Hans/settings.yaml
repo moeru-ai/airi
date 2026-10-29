@@ -891,9 +891,13 @@ pages:
             description: 选择合适的语音转文本的服务来源
           microphone:
             title: 麦克风
-            label: 麦克风
-            description: 为听觉打开麦克风。输入模式决定 AIRI 何时聆听。
             error: 麦克风不可用
+          microphone-switch:
+            label: 启用麦克风
+            description: 关闭后，AIRI 的所有功能都不能使用麦克风。
+          listen:
+            label: 聆听
+            description: AIRI 按上面的输入模式聆听。需要启用麦克风。
           input-device:
             label: 输入设备
             description: 选择 AIRI 使用的麦克风。

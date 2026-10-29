@@ -166,7 +166,7 @@ const viewControlsEnabled = computed(() => {
   return false
 })
 const settingsAudioDevice = useSettingsAudioDevice()
-const { enabled, stream } = storeToRefs(settingsAudioDevice)
+const { listening, stream } = storeToRefs(settingsAudioDevice)
 
 function restoreComposerFocus(event: Event) {
   event.preventDefault()
@@ -277,7 +277,7 @@ function teardownAnalyzer() {
 
 async function setupAnalyzer() {
   teardownAnalyzer()
-  if (!enabled.value || !stream.value)
+  if (!listening.value || !stream.value)
     return
   if (audioContext.state === 'suspended')
     await audioContext.resume()
@@ -288,7 +288,7 @@ async function setupAnalyzer() {
   analyzerSource.connect(analyser)
 }
 
-watch([enabled, stream], () => {
+watch([listening, stream], () => {
   setupAnalyzer()
 }, { immediate: true })
 
@@ -444,7 +444,7 @@ onUnmounted(() => {
         >
           <span
             aria-hidden="true"
-            :class="[enabled ? 'i-solar:soundwave-bold' : 'i-solar:soundwave-linear', 'size-5']"
+            :class="[listening ? 'i-solar:soundwave-bold' : 'i-solar:soundwave-linear', 'size-5']"
           />
         </BasicButton>
         <input ref="imageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple :class="['hidden']" @change="selectFiles">

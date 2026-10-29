@@ -76,7 +76,7 @@ const listenLabelKeys = {
   'wake-word': 'stage.chat.voice-composer.wake-word',
 } as const satisfies Record<HearingInputMode, string>
 const devices = useSettingsAudioDevice()
-const { audioInputOptions, heldOpen, permission, selectedAudioInput, enabled: listening } = storeToRefs(devices)
+const { audioInputOptions, heldOpen, off: microphoneOff, permission, selectedAudioInput, enabled: listening } = storeToRefs(devices)
 const controls = useVoiceControlsStore()
 
 /** Composer text before dictation started. The live transcript is shown after it until the input ends. */
@@ -129,6 +129,14 @@ watch(transcript, (text) => {
 async function toggle() {
   menu.close()
   if (!active.value) {
+    // The microphone switch is off, so nothing records. The toast tells why and turns the microphone on only on request.
+    if (microphoneOff.value) {
+      toast(t('stage.chat.voice-composer.microphone-off'), {
+        description: t('stage.chat.voice-composer.microphone-off-description'),
+        action: { label: t('stage.chat.voice-composer.turn-on-microphone'), onClick: () => microphoneOff.value = false },
+      })
+      return
+    }
     if (mode.value === 'transcription' && !voice.transcriptionConfigured.value) {
       toast(t('stage.chat.voice-composer.configure-title'), {
         description: t('stage.chat.voice-composer.configure-description'),
@@ -225,10 +233,14 @@ const iconClass = computed(() => {
     return 'i-svg-spinners:ring-resize'
   if (active.value)
     return 'i-solar:stop-bold'
+  if (microphoneOff.value)
+    return 'i-mingcute:mic-off-fill'
   return activeMode.value === 'audio' ? 'i-solar:microphone-3-bold' : 'i-solar:text-field-focus-linear'
 })
 
 const buttonLabel = computed(() => {
+  if (!active.value && microphoneOff.value)
+    return t('stage.chat.voice-composer.microphone-off')
   if (!active.value)
     return t(`stage.chat.voice-composer.${mode.value}`)
   return t(autoSendEnabled.value ? 'stage.chat.voice-composer.stop-send' : 'stage.chat.voice-composer.stop')
@@ -238,6 +250,7 @@ const itemClasses = [
   'w-full flex cursor-pointer select-none items-center gap-2 rounded-lg px-3 py-2 text-left',
   'text-sm leading-none outline-none text-neutral-700 dark:text-neutral-200',
   'data-[highlighted]:bg-primary-100/80 dark:data-[highlighted]:bg-primary-900/40',
+  'data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50',
   'transition-colors duration-150 ease-in-out',
 ]
 const radioItemClasses = [
@@ -320,6 +333,19 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
         <DropdownMenuLabel :class="labelClasses">
           {{ t('stage.chat.voice-composer.input-device') }}
         </DropdownMenuLabel>
+        <!-- The microphone switch. Off closes the microphone for every feature, and nothing records until it is on again. -->
+        <DropdownMenuCheckboxItem
+          :model-value="!microphoneOff"
+          data-testid="voice-menu-microphone"
+          :class="itemClasses"
+          @update:model-value="value => microphoneOff = !value"
+          @select.prevent
+        >
+          <span :class="['flex-1']">{{ t('stage.chat.voice-composer.use-microphone') }}</span>
+          <span aria-hidden="true" :class="switchTrackClasses(!microphoneOff)">
+            <span :class="switchThumbClasses(!microphoneOff)" />
+          </span>
+        </DropdownMenuCheckboxItem>
         <!-- The current microphone, with its live level while the microphone is open. Its submenu lists the other devices. -->
         <DropdownMenuSub>
           <DropdownMenuSubTrigger data-testid="voice-menu-device" :class="[itemClasses, 'py-1.5']">
@@ -380,8 +406,8 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
             <span :class="switchThumbClasses(autoSendEnabled)" />
           </span>
         </DropdownMenuCheckboxItem>
-        <DropdownMenuCheckboxItem :model-value="listening" data-testid="voice-menu-listen" :class="itemClasses" @update:model-value="setListening" @select.prevent>
-          <!-- The switch turns on the Hearing input mode. The mode itself is chosen in Hearing settings. -->
+        <DropdownMenuCheckboxItem :model-value="listening" :disabled="microphoneOff" data-testid="voice-menu-listen" :class="itemClasses" @update:model-value="setListening" @select.prevent>
+          <!-- The switch turns on the Hearing input mode. The mode itself is chosen in Hearing settings. It waits while the microphone is off. -->
           <span :class="['flex-1']">{{ t(listenLabelKeys[inputMode]) }}</span>
           <span aria-hidden="true" :class="switchTrackClasses(listening)">
             <span :class="switchThumbClasses(listening)" />

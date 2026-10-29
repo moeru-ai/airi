@@ -73,7 +73,7 @@ const { dock, isLeft, isTop, motionPhase } = placement
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const settingsStore = useSettings()
 const context = useElectronEventaContext()
-const { enabled } = storeToRefs(settingsAudioDeviceStore)
+const { enabled, listening, off: microphoneOff } = storeToRefs(settingsAudioDeviceStore)
 const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const isLinux = useElectronEventaInvoke(electron.app.isLinux)
@@ -141,21 +141,29 @@ function setOverlay(key: string, active: boolean) {
 
 /** True while the microphone button waits for the permission prompt. The button is disabled, so a second press cannot start another request. */
 const microphonePending = ref(false)
-const microphoneLabel = computed(() => enabled.value
+const microphoneLabel = computed(() => listening.value
   ? t('tamagotchi.stage.controls-island.disable-microphone')
   : t('tamagotchi.stage.controls-island.enable-microphone'))
 
 /**
- * Turns the microphone preference on or off. The Hearing input mode still decides when the microphone captures.
- * Only this press asks for permission. A refusal opens Hearing controls, which show the reason from the device store.
+ * Turns listening on, or turns the microphone off. The button is on while AIRI listens.
+ *
+ * Off is the microphone switch, so no feature can record until the microphone is on again. The listening preference
+ * stays, so the next press listens again without a permission request.
+ * On turns the microphone on. Only a first listening press asks for permission. A refusal opens Hearing controls,
+ * which show the reason from the device store. The Hearing input mode still decides when the microphone captures.
  */
 async function toggleMicrophone() {
   if (microphonePending.value)
     return
-  if (enabled.value) {
-    enabled.value = false
+  if (listening.value) {
+    microphoneOff.value = true
     return
   }
+
+  microphoneOff.value = false
+  if (enabled.value)
+    return
 
   microphonePending.value = true
   try {
@@ -642,13 +650,13 @@ function resetMainWindowPosition() {
               data-testid="controls-island-microphone"
               :button-style="adjustStyleClasses.button"
               :aria-label="microphoneLabel"
-              :aria-pressed="enabled"
+              :aria-pressed="listening"
               :aria-busy="microphonePending"
               :disabled="microphonePending"
               @click="toggleMicrophone"
             >
               <Transition name="fade" mode="out-in">
-                <IndicatorMicVolume v-if="enabled" :class="adjustStyleClasses.icon" />
+                <IndicatorMicVolume v-if="listening" :class="adjustStyleClasses.icon" />
                 <div v-else :class="['i-ph:microphone-slash text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
               </Transition>
             </ControlButton>

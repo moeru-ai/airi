@@ -60,6 +60,10 @@ chat:
     push-to-talk-unavailable: This device has no Push to Talk key, so AIRI does not listen. Change the input mode in Hearing settings.
     wake-word: Listen for wake words
     hearing-settings: More Hearing settings…
+    use-microphone: Use microphone
+    microphone-off: The microphone is off
+    microphone-off-description: Turn on the microphone to record.
+    turn-on-microphone: Turn on
     options-hint: Hover or right-click for options
     recording: Recording
     stop: Stop recording

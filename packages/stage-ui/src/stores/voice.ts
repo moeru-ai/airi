@@ -145,7 +145,7 @@ export const useVoiceStore = defineStore('voice', () => {
 
     const snapshot: VoiceHostSnapshot = {
       connected: true,
-      microphone: { enabled: devices.enabled, ready: !!devices.stream, error: devices.error },
+      microphone: { enabled: devices.listening, ready: !!devices.stream, error: devices.error },
       wakeWords: { preparation: wakeWordDetection.preparation, ...(wakeWordDetection.error ? { error: wakeWordDetection.error } : {}) },
       drafts: drafts.value.map(draft => ({ ...draft })),
       frontDraftId: frontDraftId.value,
@@ -184,7 +184,7 @@ export const useVoiceStore = defineStore('voice', () => {
 
   /** Begins an input that a control ends. Returns nothing while another window holds a capture lease. */
   function beginManual(sessionId: string) {
-    if (!hearing.enabled || captureLease.held)
+    if (!hearing.enabled || captureLease.held || devices.off)
       return undefined
     return beginInput({ sessionId, interruptTurns: activeTurns.value.filter(turn => turn.sessionId === sessionId), start: { kind: 'after-silence' }, cause: 'control' })
   }
@@ -350,6 +350,13 @@ export const useVoiceStore = defineStore('voice', () => {
         if (held)
           controller.activeInput?.cancel('Another window holds the microphone')
       }),
+      // The microphone switch ends every input, also dictation in a composer. The input is cancelled, not submitted,
+      // because the user turned the microphone off and did not finish speaking.
+      // The watcher is synchronous, so the input ends before the device store closes the microphone.
+      watch(() => devices.off, (off) => {
+        if (off)
+          controller.activeInput?.cancel('The microphone is turned off')
+      }, { flush: 'sync' }),
       publishInputLevel(),
       context.on(voiceGenerationEnded, ({ body }) => {
         if (!body)

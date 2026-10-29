@@ -120,7 +120,9 @@ export function useVoiceComposer(options: UseVoiceComposerOptions) {
         active.value = undefined
       }
       // A recording finished without sending becomes a pending message. The control is free for the next recording.
-      else if (snapshot.phase === 'ready' && recording.finishing && !recording.send) {
+      // The host can also finish a recording that the user did not stop, when the microphone turns off or another
+      // window takes it. That recording waits for the user too.
+      else if (snapshot.phase === 'ready' && (!recording.finishing || !recording.send)) {
         active.value = undefined
       }
       // The host owns a message that it sends. The send can wait in the session queue behind a reply, so the control

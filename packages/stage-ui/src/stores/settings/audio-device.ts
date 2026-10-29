@@ -13,29 +13,38 @@ function isAbort(cause: unknown) {
 /**
  * Stores microphone preferences and keeps the selected microphone open while it is enabled.
  *
+ * Two persisted preferences control the microphone:
+ * - `off` is the microphone switch. While `off` is true, no feature in AIRI can open the microphone. Setting it to
+ *   true ends every open capture at once. Controls then show the microphone as off and do not start a recording.
+ * - `enabled` is the listening preference. It has effect only while `off` is false. Then the Hearing input mode
+ *   controls when AIRI listens. `listening` combines the two.
+ *
  * `input` is the shared input for the selected device. Consumers subscribe with their own signal.
  * `unprocessedInput` is the same device without browser processing. Only keyword spotting subscribes to it, so the
  * preference does not hold it open.
- * The enabled preference holds one extra subscription, so later consumers start without waiting for permission.
+ * While AIRI listens, the store holds one extra subscription, so later consumers start without waiting for permission.
  * A Hearing input mode that does not listen continuously, such as Push to Talk, skips that subscription.
  * Then the microphone opens only while a speech input or a voice message uses it.
  */
 export const useSettingsAudioDevice = defineStore('settings-audio-devices', () => {
   const selectedAudioInput = useLocalStorageManualReset<string>('settings/audio/input', '')
-  const device = useAudioDevice(selectedAudioInput)
   const enabled = useLocalStorageManualReset<boolean>('settings/audio/input/enabled', false)
+  const off = useLocalStorageManualReset<boolean>('settings/audio/input/off', false)
+  const device = useAudioDevice(selectedAudioInput, { off })
   const hearing = useHearingStore()
   const error = ref<string>()
   let permissionStatus: PermissionStatus | undefined
   let disposed = false
   let initialized = false
   let holding: AbortController | undefined
+  /** True while AIRI listens in the Hearing input mode: the microphone is on and the listening preference is on. */
+  const listening = computed(() => enabled.value && !off.value)
   /**
    * True while the preference keeps the microphone open in the window that initialized this store.
    * Each window computes it from the same persisted settings. A level meter observes the input only while this is
    * true, so a meter alone never opens the microphone.
    */
-  const heldOpen = computed(() => enabled.value && listensContinuously(hearing.inputMode))
+  const heldOpen = computed(() => listening.value && listensContinuously(hearing.inputMode))
 
   /** Holds the current input open. A failure other than release turns the preference off. */
   function hold() {
@@ -95,6 +104,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     error.value = undefined
     selectedAudioInput.reset()
     enabled.reset()
+    off.reset()
   }
 
   onScopeDispose(() => {
@@ -107,6 +117,8 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   return {
     error,
     enabled,
+    off,
+    listening,
     heldOpen,
     selectedAudioInput,
     audioInputs: device.audioInputs,

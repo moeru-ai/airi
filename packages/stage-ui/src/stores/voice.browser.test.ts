@@ -113,6 +113,10 @@ it('publishes a requested level only while microphone input holds the microphone
   }
   cleanups.push(voice.connectOutput(() => output))
   devices.initialize()
+  // The device list decides which device the system default opens. A later list change replaces the input.
+  expect(await devices.askPermission()).toBe(true)
+  await expect.poll(() => devices.selectedAudioInput).not.toBe('')
+  await expect.poll(() => devices.stream).toBeUndefined()
   const context = getSpeechBusContext()
   const levels: number[] = []
   cleanups.push(context.on(voiceInputLevel, ({ body }) => body && levels.push(body.level)))
@@ -125,8 +129,10 @@ it('publishes a requested level only while microphone input holds the microphone
   expect(levels).toEqual([])
 
   devices.enabled = true
+  context.emit(voiceLevelMonitor, { until: Date.now() + 10_000 })
 
-  await expect.poll(() => levels.length).toBeGreaterThan(0)
+  // The first level waits for the device and the capture worklet, which is slow while other test files run.
+  await expect.poll(() => levels.length, { timeout: 10_000 }).toBeGreaterThan(0)
   expect(openMicrophone).toHaveBeenCalledOnce()
   const track = devices.stream!.getAudioTracks()[0]
 

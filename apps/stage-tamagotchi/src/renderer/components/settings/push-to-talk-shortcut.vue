@@ -24,7 +24,7 @@ const devices = useSettingsAudioDevice()
 const { accelerator, registrationError } = usePushToTalkShortcutSettings()
 const listShortcuts = useElectronEventaInvoke(electronShortcutList)
 const recording = shallowRef(false)
-const active = computed(() => devices.enabled && hearing.inputMode === 'push-to-talk')
+const active = computed(() => devices.listening && hearing.inputMode === 'push-to-talk')
 
 const shortcutLabel = computed(() => recording.value
   ? tt('actions.recording')
