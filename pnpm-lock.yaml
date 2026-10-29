@@ -115,8 +115,8 @@ catalogs:
       specifier: ^3.1.1
       version: 3.1.1
     '@ergosphere-it/electron':
-      specifier: ^0.0.15
-      version: 0.0.15
+      specifier: ^0.0.16
+      version: 0.0.16
     '@esotericsoftware/spine-webgl':
       specifier: ~4.2.0
       version: 4.2.119
@@ -1891,7 +1891,7 @@ importers:
         version: 0.0.38
       '@ergosphere-it/electron':
         specifier: 'catalog:'
-        version: 0.0.15(electron-updater@6.8.9(supports-color@10.2.2))(electron-vite@6.0.0(supports-color@10.2.2)(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)))(electron@43.8.4(supports-color@10.2.2))(typescript@6.0.3)(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))
+        version: 0.0.16(electron-updater@6.8.9(supports-color@10.2.2))(electron-vite@6.0.0(supports-color@10.2.2)(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)))(electron@43.8.4(supports-color@10.2.2))(typescript@6.0.3)(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))
       '@napi-rs/image':
         specifier: 'catalog:'
         version: 1.15.0
@@ -8047,12 +8047,12 @@ packages:
   '@emnapi/wasi-threads@1.2.2':
     resolution: {integrity: sha512-c95qOXkHdydNKhscBTebqEC1CVAZpyqOfVfBzQ1qgzyl3gfeldUjIggDbIZgDKsHLgnsM+igH7TJ/eAasaVuMA==}
 
-  '@ergosphere-it/client@0.0.15':
-    resolution: {integrity: sha512-tk/zCwkpcWYUxdxFsxBZe5Ry7LjXKPY9MehE9Fsa+HNicYHDZ7Qj7hw7LAh0r/OWuZ217nUVhRMYEkwv4GVkSQ==}
+  '@ergosphere-it/client@0.0.16':
+    resolution: {integrity: sha512-juS6AR/9Cq9Mm0KqLnaVlY7o6msCjm5/NGfP3vMAbiscSDQ7HeSh5CM5bMs+tiG0bWYQ7XLq+5vZHg4n0HJQPw==}
     engines: {node: '>=24'}
 
-  '@ergosphere-it/electron@0.0.15':
-    resolution: {integrity: sha512-V9zIguIchKiYOVLYZLcfBOlXOGjsXsWHOQO0tWWmLryg/HRk0yhb9q6p2Xx9kmtJ/YaInm6mzB7iZL+ZrJsAnQ==}
+  '@ergosphere-it/electron@0.0.16':
+    resolution: {integrity: sha512-YH3bQ2PgQlzO+ksZqoq/T9mnv/adWez9HKkdwuyVdELqz6gN1NbZu2UXb2bUfV0036fF5DYMKWhzdlkRvMXqnA==}
     engines: {node: '>=24'}
     hasBin: true
     peerDependencies:
@@ -8071,12 +8071,12 @@ packages:
       vite:
         optional: true
 
-  '@ergosphere-it/protocol@0.0.15':
-    resolution: {integrity: sha512-6jq9PLjEte9tfiwGNz7CyhsFuW9LBe1T40ZrAPGP1PNmuS7lbs/J5i2NyenGk8KCTfuD1thrItf9so5OWQRlUA==}
+  '@ergosphere-it/protocol@0.0.16':
+    resolution: {integrity: sha512-lVky31oAO72tatheHKy0upekYDxfdSQjhnhADDCXFrb/zUNiKBVjJswXDiqKiNVaN4xdRRtaqf9EiHyYkzLlLg==}
     engines: {node: '>=24'}
 
-  '@ergosphere-it/publish@0.0.15':
-    resolution: {integrity: sha512-V3OPDSynRl0ZonNSn9XJTop2Qb6JkwEGe4meYpySnIUMVZrogB94J0a7OfRIVin93zi6AlzPiJogcoJlwU/MeQ==}
+  '@ergosphere-it/publish@0.0.16':
+    resolution: {integrity: sha512-ToA3lApk/RN9o1i6bMNoI0zqkc7LYqHe/MiUNNThOYZywCwofQumUf25yt/vQIYPOT3OB2ChmKb+u6SnR2XXnw==}
     engines: {node: '>=24'}
 
   '@es-joy/jsdoccomment@0.86.0':
@@ -23135,9 +23135,9 @@ snapshots:
       tslib: 2.8.1
     optional: true
 
-  '@ergosphere-it/client@0.0.15(typescript@6.0.3)':
+  '@ergosphere-it/client@0.0.16(typescript@6.0.3)':
     dependencies:
-      '@ergosphere-it/protocol': 0.0.15(typescript@6.0.3)
+      '@ergosphere-it/protocol': 0.0.16(typescript@6.0.3)
       '@henrygd/queue': 1.2.0
       '@moeru/std': 0.1.0-beta.20
       es-toolkit: 1.51.0
@@ -23145,11 +23145,11 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  '@ergosphere-it/electron@0.0.15(electron-updater@6.8.9(supports-color@10.2.2))(electron-vite@6.0.0(supports-color@10.2.2)(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)))(electron@43.8.4(supports-color@10.2.2))(typescript@6.0.3)(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))':
+  '@ergosphere-it/electron@0.0.16(electron-updater@6.8.9(supports-color@10.2.2))(electron-vite@6.0.0(supports-color@10.2.2)(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)))(electron@43.8.4(supports-color@10.2.2))(typescript@6.0.3)(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))':
     dependencies:
-      '@ergosphere-it/client': 0.0.15(typescript@6.0.3)
-      '@ergosphere-it/protocol': 0.0.15(typescript@6.0.3)
-      '@ergosphere-it/publish': 0.0.15(typescript@6.0.3)
+      '@ergosphere-it/client': 0.0.16(typescript@6.0.3)
+      '@ergosphere-it/protocol': 0.0.16(typescript@6.0.3)
+      '@ergosphere-it/publish': 0.0.16(typescript@6.0.3)
       '@henrygd/queue': 1.2.0
       '@moeru/std': 0.1.0-beta.20
       electron: 43.8.4(supports-color@10.2.2)
@@ -23162,16 +23162,16 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  '@ergosphere-it/protocol@0.0.15(typescript@6.0.3)':
+  '@ergosphere-it/protocol@0.0.16(typescript@6.0.3)':
     dependencies:
       canonicalize: 5.1.0
       valibot: 1.5.0(typescript@6.0.3)
     transitivePeerDependencies:
       - typescript
 
-  '@ergosphere-it/publish@0.0.15(typescript@6.0.3)':
+  '@ergosphere-it/publish@0.0.16(typescript@6.0.3)':
     dependencies:
-      '@ergosphere-it/protocol': 0.0.15(typescript@6.0.3)
+      '@ergosphere-it/protocol': 0.0.16(typescript@6.0.3)
       es-toolkit: 1.51.0
     transitivePeerDependencies:
       - typescript
