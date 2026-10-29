@@ -1,0 +1,587 @@
+import type { TraceAttributeDefinition } from '../core/define'
+import type { TraceFeedMessage } from '../core/feed'
+import type {
+  TraceClockSnapshot,
+  TraceDefinitionRecord,
+  TraceRecord,
+  TraceRecordInput,
+  TraceSourceLostReason,
+  TraceSourceStarted,
+  TraceSpanBegin,
+  TraceState,
+  TraceStreamStarted,
+} from '../core/types'
+
+import { safeParse } from 'valibot'
+
+import { applyContentPolicy, conventionAttributes } from '../conventions'
+import { ClockGraph } from '../core/clock'
+import { traceRecordSchema } from '../core/schema'
+import { TraceSource } from '../core/sink'
+import { isTrackedRecord, spanKeyOf, streamClockOf } from '../core/types'
+import { SeriesRing } from './series-ring'
+
+export interface FlightRecorderDump {
+  /** The records of the window, in buffer order. With `append`, only the records after the previous dump. */
+  records: TraceRecord[]
+  /** Append to the previous dump file. The window overlaps the previous dump. */
+  append: boolean
+  reason: 'error' | 'overdue'
+  /** The window on the trace clock. */
+  from: number
+  to: number
+}
+
+export interface TraceCollectorOptions {
+  /**
+   * The monotonic clock of the collector. It is the trace clock: every value converts to it.
+   * @default 'mono:collector'
+   */
+  clock?: string
+  /** The value of the collector clock now. */
+  now: () => number
+  /** @default 30 minutes */
+  maxAgeMs?: number
+  /** JSON bytes of the event buffer. Objects in memory are often 2 to 3 times larger. @default 16 MB */
+  maxBytes?: number
+  /** Series rings keep the full rate for this time, then the min and max of each second. @default 5 minutes */
+  seriesFullRateMs?: number
+  /** A record later than this behind the newest record of its source is late. @default 5 seconds */
+  allowedLatenessMs?: number
+  /** A source without any record or ping for this time is lost. @default 60 seconds */
+  heartbeatTimeoutMs?: number
+  /** Writes the preceding window of the buffer when a span fails or goes overdue. */
+  flightRecorder?: {
+    /** @default 60 seconds */
+    windowMs?: number
+    /** A trigger from the same source in this time does not start a new dump. @default 60 seconds */
+    cooldownMs?: number
+    onDump: (dump: FlightRecorderDump) => void
+  }
+  /** Receives the union of the tracks that viewers show. Producers skip costly series that no reader wants. */
+  onWantedChange?: (tracks: ReadonlySet<string> | '*') => void
+  /** @default crypto.randomUUID */
+  createEpoch?: () => string
+}
+
+interface EpochState {
+  source: string
+  epoch: string
+  /** Every seq below it was seen. */
+  nextSeq: number
+  /** Seen seqs at or above `nextSeq`. A transport that reorders, such as a resend after a leader change, fills it. */
+  ahead: Set<number>
+  live: boolean
+  lastSeenAt: number
+  /** The newest event time of the source on the trace clock. The watermark trails it by the allowed lateness. */
+  newestTime: number
+}
+
+interface BufferEntry {
+  record: TraceRecord
+  /** Event time on the trace clock, or the observed time when no clock path exists yet. */
+  time: number
+  observedAt: number
+  bytes: number
+}
+
+interface Subscriber {
+  listener: (message: TraceFeedMessage) => void
+  tracks: ReadonlySet<string> | '*'
+}
+
+const DEFAULTS = {
+  clock: 'mono:collector',
+  maxAgeMs: 30 * 60_000,
+  maxBytes: 16 * 1024 * 1024,
+  seriesFullRateMs: 5 * 60_000,
+  allowedLatenessMs: 5_000,
+  heartbeatTimeoutMs: 60_000,
+  flightWindowMs: 60_000,
+  flightCooldownMs: 60_000,
+}
+
+/** The newest snapshots of each clock set in the pinned set. The drift fit uses this many. */
+const PINNED_SNAPSHOTS_PER_CLOCK_SET = 16
+
+/**
+ * Receives the records of every source in one place, keeps recent records, and feeds viewers.
+ *
+ * State model:
+ * - Epochs: one {@link EpochState} for each `source/epoch`. A record with a seen seq is dropped.
+ * - Event buffer: every record except series, limited by age and bytes. Eviction records a gap.
+ * - Series rings: one {@link SeriesRing} for each `track` and value key of `sample` and `sample.chunk` records.
+ * - Pinned set: the latest `source.started` of each live epoch, live streams, recent clock snapshots, open spans with
+ *   merged updates, the latest state of each state track, and the latest definition of each kind and key.
+ *   It stays outside the limits, so a late viewer and a dump can describe themselves.
+ * - The collector is a source too. It writes `source.lost` with its own identity.
+ *
+ * The host calls {@link TraceCollector.tick} about once a second. It compacts series, evicts old records, checks
+ * heartbeats, and checks span deadlines. The collector reads no clock except `now`.
+ */
+export class TraceCollector {
+  readonly traceClock: string
+  readonly clocks: ClockGraph
+  private readonly options: TraceCollectorOptions
+  private readonly self: TraceSource
+  private readonly epochs = new Map<string, EpochState>()
+  /** The live epoch of each source. */
+  private readonly liveEpochBySource = new Map<string, string>()
+  private buffer: BufferEntry[] = []
+  private bufferBytes = 0
+  private gaps: { from: number, to: number }[] = []
+  private readonly seriesRings = new Map<string, { source: string, track: string, key: string, ring: SeriesRing }>()
+  private readonly pinnedStarts = new Map<string, TraceSourceStarted>()
+  private readonly pinnedStreams = new Map<string, TraceStreamStarted>()
+  private readonly pinnedSnapshots = new Map<string, TraceClockSnapshot[]>()
+  private readonly pinnedSpans = new Map<string, { begin: TraceSpanBegin, updated: TraceSpanBegin }>()
+  private readonly pinnedStates = new Map<string, { record: TraceState, time: number }>()
+  private readonly pinnedDefinitions = new Map<string, TraceDefinitionRecord>()
+  private readonly attributeSensitivity = new Map<string, TraceAttributeDefinition['sensitivity']>()
+  private readonly subscribers = new Set<Subscriber>()
+  private readonly dumpedSpans = new Set<string>()
+  private readonly lastDumpAtBySource = new Map<string, number>()
+  private lastDumpEnd = Number.NEGATIVE_INFINITY
+  private lateCount = 0
+  private droppedCount = 0
+  /** Off: the collector forwards records to viewers but keeps only the pinned set. */
+  private buffering = true
+
+  constructor(options: TraceCollectorOptions) {
+    this.options = options
+    this.traceClock = options.clock ?? DEFAULTS.clock
+    this.clocks = new ClockGraph(this.traceClock)
+    for (const attribute of conventionAttributes)
+      this.attributeSensitivity.set(attribute.key, attribute.sensitivity)
+
+    this.self = new TraceSource({
+      source: 'collector',
+      clock: this.traceClock,
+      runtime: 'collector',
+      now: options.now,
+      createEpoch: options.createEpoch,
+      send: record => this.accept(record),
+    })
+  }
+
+  get stats() {
+    return {
+      bufferedRecords: this.buffer.length,
+      bufferedBytes: this.bufferBytes,
+      openSpans: this.pinnedSpans.size,
+      seriesTracks: this.seriesRings.size,
+      late: this.lateCount,
+      dropped: this.droppedCount,
+      maxAgeMs: this.options.maxAgeMs ?? DEFAULTS.maxAgeMs,
+      maxBytes: this.options.maxBytes ?? DEFAULTS.maxBytes,
+    }
+  }
+
+  /**
+   * Validates a record from a trust boundary, such as IPC from a window, then ingests it.
+   * Returns false and counts the record as dropped when it is not a valid record.
+   */
+  ingestUntrusted(value: unknown): boolean {
+    const result = safeParse(traceRecordSchema, value)
+    if (!result.success) {
+      this.droppedCount++
+      return false
+    }
+    this.ingest(result.output as TraceRecord)
+    return true
+  }
+
+  /**
+   * Turns the event buffer and the series rings on or off. Off drops what they hold. Viewers still get live records,
+   * and the pinned set stays, so a viewer that opens later still knows the live sources and open spans.
+   */
+  setBuffering(enabled: boolean): void {
+    this.buffering = enabled
+    if (enabled)
+      return
+    this.buffer = []
+    this.bufferBytes = 0
+    this.gaps = []
+    this.seriesRings.clear()
+  }
+
+  /** Writes a record of the collector itself, for example a discontinuity of its clock after a system resume. */
+  record(input: TraceRecordInput): void {
+    this.self.emit(input)
+  }
+
+  /** Ingests a record of a trusted producer in the same process. */
+  ingest(record: TraceRecord): void {
+    this.accept(record)
+  }
+
+  /** Records that a source is alive without a record, for example on a clock ping. */
+  touch(source: string): void {
+    const epoch = this.liveEpochBySource.get(source)
+    const state = epoch ? this.epochs.get(`${source}/${epoch}`) : undefined
+    if (state)
+      state.lastSeenAt = this.options.now()
+  }
+
+  /** The transport of a source closed. Its live epoch is lost unless it stopped first. */
+  closeSource(source: string): void {
+    this.loseSource(source, 'ipc-closed')
+  }
+
+  /**
+   * Adds a viewer. It receives the pinned set, the gaps, the buffer, the series, `caughtUp`, and then each later
+   * record, in that order. Nothing arrives between the backlog and the first live record, because one call does both.
+   */
+  subscribe(listener: (message: TraceFeedMessage) => void, tracks: Iterable<string> | '*' = '*'): { unsubscribe: () => void, setTracks: (tracks: Iterable<string> | '*') => void } {
+    const subscriber: Subscriber = { listener, tracks: tracks === '*' ? '*' : new Set(tracks) }
+
+    for (const record of this.pinnedRecords())
+      listener({ kind: 'record', record, pinned: true })
+    for (const gap of this.gaps)
+      listener({ kind: 'gap', ...gap })
+    for (const entry of this.buffer)
+      listener({ kind: 'record', record: entry.record })
+    for (const { source, track, key, ring } of this.seriesRings.values()) {
+      const { times, values } = ring.read()
+      if (times.length > 0)
+        listener({ kind: 'series', source, track, key, times, values })
+    }
+    const cursor: Record<string, number> = {}
+    for (const [key, state] of this.epochs)
+      cursor[key] = state.nextSeq - 1
+    listener({ kind: 'caughtUp', cursor, traceClock: this.traceClock, now: this.options.now() })
+
+    this.subscribers.add(subscriber)
+    this.publishWanted()
+    return {
+      unsubscribe: () => {
+        this.subscribers.delete(subscriber)
+        this.publishWanted()
+      },
+      setTracks: (next) => {
+        subscriber.tracks = next === '*' ? '*' : new Set(next)
+        this.publishWanted()
+      },
+    }
+  }
+
+  /**
+   * Runs the periodic work: series compaction, buffer eviction, heartbeat checks, and span deadline checks.
+   * The host calls it about once a second.
+   */
+  tick(): void {
+    const now = this.options.now()
+    for (const { ring } of this.seriesRings.values())
+      ring.compact(now)
+    this.evict(now)
+
+    const timeout = this.options.heartbeatTimeoutMs ?? DEFAULTS.heartbeatTimeoutMs
+    for (const [source, epoch] of this.liveEpochBySource) {
+      if (source === this.self.source)
+        continue
+      const state = this.epochs.get(`${source}/${epoch}`)
+      if (state && now - state.lastSeenAt > timeout)
+        this.loseSource(source, 'heartbeat-timeout')
+    }
+
+    for (const [key, { begin }] of this.pinnedSpans) {
+      if (begin.deadlineMs === undefined)
+        continue
+      const start = this.timeOf(begin)
+      if (start !== undefined && now - start > begin.deadlineMs)
+        this.triggerDump(key, begin.source, 'overdue', now)
+    }
+  }
+
+  /** The current records of the buffer and the pinned set, for a manual save. */
+  snapshot(): TraceRecord[] {
+    return [...this.pinnedRecords(), ...this.buffer.map(entry => entry.record)]
+  }
+
+  /** The sensitivity of an attribute key, from the conventions and the announced definitions. */
+  sensitivityOf = (key: string): TraceAttributeDefinition['sensitivity'] | undefined => this.attributeSensitivity.get(key)
+
+  private accept(incoming: TraceRecord): void {
+    const now = this.options.now()
+    const epochKey = `${incoming.source}/${incoming.epoch}`
+    let state = this.epochs.get(epochKey)
+
+    if (incoming.type === 'source.started' && !state) {
+      const previous = this.liveEpochBySource.get(incoming.source)
+      if (previous && previous !== incoming.epoch)
+        this.loseSource(incoming.source, 'epoch-replaced')
+      state = { source: incoming.source, epoch: incoming.epoch, nextSeq: 0, ahead: new Set(), live: true, lastSeenAt: now, newestTime: Number.NEGATIVE_INFINITY }
+      this.epochs.set(epochKey, state)
+      this.liveEpochBySource.set(incoming.source, incoming.epoch)
+    }
+
+    if (!state) {
+      // A record before its `source.started`, for example after the collector restarted. Track the epoch anyway.
+      state = { source: incoming.source, epoch: incoming.epoch, nextSeq: 0, ahead: new Set(), live: true, lastSeenAt: now, newestTime: Number.NEGATIVE_INFINITY }
+      this.epochs.set(epochKey, state)
+      if (!this.liveEpochBySource.has(incoming.source))
+        this.liveEpochBySource.set(incoming.source, incoming.epoch)
+    }
+
+    if (incoming.seq < state.nextSeq || state.ahead.has(incoming.seq))
+      return
+    state.ahead.add(incoming.seq)
+    while (state.ahead.delete(state.nextSeq))
+      state.nextSeq++
+    state.lastSeenAt = now
+
+    // The live buffer keeps content and drops secrets. Files on disk and exports apply the full policy.
+    const record = applyContentPolicy({ ...incoming, observedTs: now }, { keepContent: true, sensitivityOf: this.sensitivityOf })
+    this.updateClocks(record)
+    this.updateDefinitions(record)
+
+    const time = this.timeOf(record) ?? now
+    const late = time < state.newestTime - (this.options.allowedLatenessMs ?? DEFAULTS.allowedLatenessMs)
+    if (late)
+      this.lateCount++
+    state.newestTime = Math.max(state.newestTime, time)
+
+    this.updatePinned(record, time)
+
+    if (record.type === 'source.stopped') {
+      state.live = false
+      if (this.liveEpochBySource.get(record.source) === record.epoch)
+        this.liveEpochBySource.delete(record.source)
+      this.unpinEpoch(record.source, record.epoch)
+    }
+
+    // With buffering off, nothing is kept. The record still goes to the live viewers below.
+    if (this.buffering && (record.type === 'sample' || record.type === 'sample.chunk')) {
+      this.appendSeries(record, time)
+    }
+    else if (this.buffering) {
+      const bytes = JSON.stringify(record).length
+      this.buffer.push({ record, time, observedAt: now, bytes })
+      this.bufferBytes += bytes
+      if (this.bufferBytes > (this.options.maxBytes ?? DEFAULTS.maxBytes))
+        this.evict(now)
+    }
+
+    for (const subscriber of this.subscribers) {
+      if (this.wantsRecord(subscriber, record))
+        subscriber.listener({ kind: 'record', record, ...(late ? { late } : {}) })
+    }
+
+    if (record.type === 'span.end' && record.status === 'error')
+      this.triggerDump(spanKeyOf(record.source, record.epoch, record.spanId), record.source, 'error', now)
+  }
+
+  /** Converts the event time of a record to the trace clock. */
+  private timeOf(record: TraceRecord): number | undefined {
+    return this.clocks.convert(record.clock, record.ts)?.value
+  }
+
+  private updateClocks(record: TraceRecord): void {
+    if (record.type === 'clock.snapshot')
+      this.clocks.addSnapshot(record.values, record.uncertaintyMs, record.attrs?.estimated === true)
+    else if (record.type === 'clock.discontinuity')
+      this.clocks.addDiscontinuity(record.of)
+    else if (record.type === 'stream.started' && record.rate)
+      this.clocks.setUnitsPerMs(streamClockOf(record.streamId), record.rate / 1000)
+  }
+
+  private updateDefinitions(record: TraceRecord): void {
+    if (record.type !== 'definition')
+      return
+    this.pinnedDefinitions.set(`${record.kind}/${record.key}`, record)
+    if (record.kind === 'attribute') {
+      const data = record.data as Partial<TraceAttributeDefinition> | undefined
+      if (data?.sensitivity)
+        this.attributeSensitivity.set(record.key, data.sensitivity)
+    }
+  }
+
+  private updatePinned(record: TraceRecord, time: number): void {
+    const spanKey = 'spanId' in record && record.spanId ? spanKeyOf(record.source, record.epoch, record.spanId) : undefined
+    switch (record.type) {
+      case 'source.started':
+        this.pinnedStarts.set(`${record.source}/${record.epoch}`, record)
+        break
+      case 'stream.started':
+        this.pinnedStreams.set(record.streamId, record)
+        break
+      case 'stream.stopped':
+        this.pinnedStreams.delete(record.streamId)
+        break
+      case 'clock.snapshot': {
+        const key = record.values.map(value => value.clock).sort().join('|')
+        const list = this.pinnedSnapshots.get(key) ?? []
+        list.push(record)
+        if (list.length > PINNED_SNAPSHOTS_PER_CLOCK_SET)
+          list.shift()
+        this.pinnedSnapshots.set(key, list)
+        break
+      }
+      case 'span.begin':
+        this.pinnedSpans.set(spanKey!, { begin: record, updated: record })
+        break
+      case 'span.update': {
+        const open = this.pinnedSpans.get(spanKey!)
+        if (open)
+          open.updated = { ...open.updated, attrs: { ...open.updated.attrs, ...record.attrs } }
+        break
+      }
+      case 'span.end':
+        this.pinnedSpans.delete(spanKey!)
+        this.dumpedSpans.delete(spanKey!)
+        break
+      case 'state': {
+        // The current state is the record with the latest converted time. A backdated state does not replace it.
+        const current = this.pinnedStates.get(record.track)
+        if (!current || current.time <= time)
+          this.pinnedStates.set(record.track, { record, time })
+        break
+      }
+    }
+  }
+
+  private unpinEpoch(source: string, epoch: string): void {
+    this.pinnedStarts.delete(`${source}/${epoch}`)
+    for (const [key, { begin }] of this.pinnedSpans) {
+      if (begin.source === source && begin.epoch === epoch)
+        this.pinnedSpans.delete(key)
+    }
+    for (const [track, { record }] of this.pinnedStates) {
+      if (record.source === source && record.epoch === epoch)
+        this.pinnedStates.delete(track)
+    }
+  }
+
+  private loseSource(source: string, reason: TraceSourceLostReason): void {
+    const epoch = this.liveEpochBySource.get(source)
+    if (!epoch || source === this.self.source)
+      return
+    const state = this.epochs.get(`${source}/${epoch}`)
+    this.liveEpochBySource.delete(source)
+    if (state)
+      state.live = false
+    // The open spans of the lost epoch become abandoned in the view. The collector does not invent a `span.end`.
+    this.unpinEpoch(source, epoch)
+    this.self.emit({ type: 'source.lost', ts: this.options.now(), of: { source, epoch, lastSeq: (state?.nextSeq ?? 0) - 1 }, reason })
+  }
+
+  private appendSeries(record: Extract<TraceRecord, { type: 'sample' | 'sample.chunk' }>, time: number): void {
+    const maxAgeMs = this.options.maxAgeMs ?? DEFAULTS.maxAgeMs
+    const fullRateMs = this.options.seriesFullRateMs ?? DEFAULTS.seriesFullRateMs
+    const ringOf = (key: string) => {
+      const ringKey = `${record.source}/${record.track}/${key}`
+      let entry = this.seriesRings.get(ringKey)
+      if (!entry) {
+        entry = { source: record.source, track: record.track, key, ring: new SeriesRing(maxAgeMs, fullRateMs) }
+        this.seriesRings.set(ringKey, entry)
+      }
+      return entry.ring
+    }
+
+    if (record.type === 'sample') {
+      for (const [key, value] of Object.entries(record.values))
+        ringOf(key).append(time, value)
+      return
+    }
+    for (const [key, values] of Object.entries(record.values)) {
+      const ring = ringOf(key)
+      for (const [index, value] of values.entries()) {
+        const offset = record.offsetsMs?.[index] ?? index * (record.intervalMs ?? 0)
+        ring.append(time + offset, value)
+      }
+    }
+  }
+
+  /** Drops records older than the age limit, then the oldest records over the byte limit. Records the gap. */
+  private evict(now: number): void {
+    const cutoff = now - (this.options.maxAgeMs ?? DEFAULTS.maxAgeMs)
+    const maxBytes = this.options.maxBytes ?? DEFAULTS.maxBytes
+    let count = 0
+    let bytes = this.bufferBytes
+    while (count < this.buffer.length) {
+      const entry = this.buffer[count]!
+      if (entry.observedAt >= cutoff && bytes <= maxBytes)
+        break
+      bytes -= entry.bytes
+      count++
+    }
+    if (count === 0)
+      return
+
+    const evicted = this.buffer.slice(0, count)
+    this.buffer = this.buffer.slice(count)
+    this.bufferBytes = bytes
+    let from = Number.POSITIVE_INFINITY
+    let to = Number.NEGATIVE_INFINITY
+    for (const entry of evicted) {
+      from = Math.min(from, entry.time)
+      to = Math.max(to, entry.time)
+    }
+    const last = this.gaps.at(-1)
+    if (last && from <= last.to)
+      last.to = Math.max(last.to, to)
+    else
+      this.gaps.push({ from, to })
+    for (const subscriber of this.subscribers)
+      subscriber.listener({ kind: 'gap', from, to })
+  }
+
+  /**
+   * Starts a flight recorder dump. Limits: each span triggers once, each source has a cooldown, and a window that
+   * overlaps the previous dump appends to it.
+   */
+  private triggerDump(spanKey: string, source: string, reason: FlightRecorderDump['reason'], now: number): void {
+    const recorder = this.options.flightRecorder
+    if (!recorder || this.dumpedSpans.has(spanKey))
+      return
+    this.dumpedSpans.add(spanKey)
+
+    const cooldownMs = recorder.cooldownMs ?? DEFAULTS.flightCooldownMs
+    const lastDumpAt = this.lastDumpAtBySource.get(source)
+    if (lastDumpAt !== undefined && now - lastDumpAt < cooldownMs)
+      return
+    this.lastDumpAtBySource.set(source, now)
+
+    const from = now - (recorder.windowMs ?? DEFAULTS.flightWindowMs)
+    const append = from < this.lastDumpEnd
+    const start = append ? this.lastDumpEnd : from
+    const records = this.buffer.filter(entry => entry.observedAt > start).map(entry => entry.record)
+    this.lastDumpEnd = now
+    recorder.onDump({ records: append ? records : [...this.pinnedRecords(), ...records], append, reason, from: start, to: now })
+  }
+
+  private pinnedRecords(): TraceRecord[] {
+    return [
+      ...this.pinnedStarts.values(),
+      ...this.pinnedDefinitions.values(),
+      ...this.pinnedStreams.values(),
+      ...[...this.pinnedSnapshots.values()].flat(),
+      ...[...this.pinnedSpans.values()].map(span => span.updated),
+      ...[...this.pinnedStates.values()].map(state => state.record),
+    ]
+  }
+
+  private wantsRecord(subscriber: Subscriber, record: TraceRecord): boolean {
+    if (subscriber.tracks === '*' || !isTrackedRecord(record))
+      return true
+    // A viewer that shows a subset still needs every record that is not a series, for links, metrics, and the log.
+    if (record.type !== 'sample' && record.type !== 'sample.chunk')
+      return true
+    return subscriber.tracks.has(record.track)
+  }
+
+  private publishWanted(): void {
+    if (!this.options.onWantedChange)
+      return
+    const union = new Set<string>()
+    for (const subscriber of this.subscribers) {
+      if (subscriber.tracks === '*') {
+        this.options.onWantedChange('*')
+        return
+      }
+      for (const track of subscriber.tracks)
+        union.add(track)
+    }
+    this.options.onWantedChange(union)
+  }
+}

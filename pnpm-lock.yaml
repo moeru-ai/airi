@@ -5939,6 +5939,15 @@ importers:
         specifier: 'catalog:'
         version: 26.2.0
 
+  packages/trace-kit:
+    dependencies:
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
+      valibot:
+        specifier: 'catalog:'
+        version: 1.5.0(typescript@6.0.3)
+
   packages/ui:
     dependencies:
       '@moeru/std':
