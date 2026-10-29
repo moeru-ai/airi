@@ -2,6 +2,8 @@ import type { Plugin } from 'vue'
 
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import { defineSetupVue3 } from '@histoire/plugin-vue'
+import { useTheme } from '@proj-airi/ui'
+import { useMutationObserver } from '@vueuse/core'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 
@@ -27,6 +29,19 @@ import '@fontsource/kiwi-maru/index.css'
 import '@fontsource/m-plus-rounded-1c/index.css'
 import '@fontsource/maple-mono/index.css'
 import '@fontsource-variable/nunito/index.css'
+
+// NOTICE:
+// `useTheme` re-applies its stored scheme and removes the Histoire `dark` class.
+// Histoire keeps its own state in `htw-dark` (@histoire/app/dist/bundled/util/dark.js), so copy it into `useTheme`.
+// Remove when Histoire can drive an app-owned theme store.
+const { isDark } = useTheme()
+
+function syncHistoireDark() {
+  isDark.value = document.documentElement.classList.contains('htw-dark')
+}
+
+syncHistoireDark()
+useMutationObserver(document.documentElement, syncHistoireDark, { attributeFilter: ['class'] })
 
 export const setupVue3 = defineSetupVue3(({ app }) => {
   // Each story app gets its own Pinia, because components such as the chat history items read stores in setup.
