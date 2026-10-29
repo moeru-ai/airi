@@ -278,7 +278,7 @@ controls such as the Tamagotchi Controls Island. Includes all `BasicButton` prop
 
 ### Alert
 
-Status message for a result or a current state: an error, a warning, a success, or an operation that runs. Each tone has a fixed palette and a MingCute icon. The surface has a tint and no border. For introductions and tips that show no status, use `Callout`.
+Status message for a result or a current state: an error, a warning, a success, or an operation that runs. Each tone has a fixed palette and a MingCute icon. The surface is an opaque base with a tint and no border, so it stays readable on translucent panels. For introductions and tips that show no status, use `Callout`.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|

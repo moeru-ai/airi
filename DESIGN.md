@@ -87,7 +87,7 @@ Use neutral surface changes to separate ordinary content. Use translucency and b
 | Standard inputs | Neutral fill, 2px border, `shadow-sm` | Define the editable area without a floating-card appearance. |
 | Overlay controls | Translucent neutral fill and background blur | Preserve a relationship to the stage while keeping actions legible. |
 | Callouts | Tinted surface and a vertical accent bar | Separate contextual guidance from ordinary text. |
-| Alerts | Tinted surface without a border, and a tone icon | Show a status or a result that the user must notice. |
+| Alerts | Opaque tinted surface without a border, and a tone icon | Show a status or a result that the user must notice. Stay readable over translucent stage panels. |
 | Bottom drawer | Neutral surface, `shadow-xl`, and `bg-black/35` backdrop | Focus attention on a temporary task. |
 
 Button outlines express interaction, not elevation. Leave space for hover and focus outlines instead of clipping them at a container edge.

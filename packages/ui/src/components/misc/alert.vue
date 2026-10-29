@@ -56,25 +56,25 @@ const slots = useSlots()
 
 const toneClasses: Record<AlertTone, { container: string, icon: string, title: string, iconName: string }> = {
   info: {
-    container: 'bg-primary-500/10 dark:bg-primary-400/12',
+    container: 'from-primary-500/10 to-primary-500/10 dark:from-primary-400/12 dark:to-primary-400/12',
     icon: 'text-primary-500 dark:text-primary-400',
     title: 'text-primary-700 dark:text-primary-200',
     iconName: 'i-mingcute:information-fill',
   },
   success: {
-    container: 'bg-green-500/10 dark:bg-green-400/12',
+    container: 'from-green-500/10 to-green-500/10 dark:from-green-400/12 dark:to-green-400/12',
     icon: 'text-green-500 dark:text-green-400',
     title: 'text-green-700 dark:text-green-200',
     iconName: 'i-mingcute:check-circle-fill',
   },
   warning: {
-    container: 'bg-amber-500/12 dark:bg-amber-400/12',
+    container: 'from-amber-500/12 to-amber-500/12 dark:from-amber-400/12 dark:to-amber-400/12',
     icon: 'text-amber-500 dark:text-amber-400',
     title: 'text-amber-700 dark:text-amber-200',
     iconName: 'i-mingcute:warning-fill',
   },
   danger: {
-    container: 'bg-red-500/10 dark:bg-red-400/12',
+    container: 'from-red-500/10 to-red-500/10 dark:from-red-400/12 dark:to-red-400/12',
     icon: 'text-red-500 dark:text-red-400',
     title: 'text-red-700 dark:text-red-200',
     iconName: 'i-mingcute:close-circle-fill',
@@ -98,6 +98,9 @@ const iconClass = computed(() => props.loading
       'flex items-start gap-2.5',
       'rounded-xl px-3.5 py-3',
       'text-sm leading-5',
+      // The tint is a flat gradient over an opaque base, so a translucent parent
+      // (for example a blurred chat window over the desktop) cannot show through.
+      'bg-white dark:bg-neutral-900 bg-gradient-to-r',
       tone.container,
     ]"
   >
