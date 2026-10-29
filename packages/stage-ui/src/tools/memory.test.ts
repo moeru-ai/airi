@@ -45,7 +45,7 @@ describe('memory tools', () => {
 
   it('saves on request, leaves other facts to the finalizer, and shows the index', () => {
     expect(composeMemoryPrompt('General:\n- nick: d')).toContain('Memory index:\nGeneral:\n- nick: d')
-    expect(composeMemoryPrompt('')).toContain('An index line that already states the fact needs no read.')
+    expect(composeMemoryPrompt('')).toContain('An index line only helps you find an entry.')
     expect(composeMemoryPrompt('')).toContain('when someone asks you to remember something')
     expect(composeMemoryPrompt('')).toContain('Other lasting facts about the user are saved for you after each turn.')
     expect(composeMemoryPrompt('')).toContain('Never save what a recipe already holds')

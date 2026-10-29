@@ -52,7 +52,7 @@ A recipe is a skill, like a skill in a coding agent.
 ### Long-term memory
 
 - Memory is an index plus one entry per topic. A topic is one person, one pet, one hobby or interest, one place, one job, one project, or one kind of like, never the user as a whole. An entry holds every fact of its topic, each with its date.
-- The index lists every entry by its id and description, and joins the identity at the start of each run. A description names the topic and its main facts, so a run can find the entry from the index.
+- The index lists every entry by its id and description, and joins the identity at the start of each run. A description names the topic and its main facts, so a run can find the entry from the index. A run reads the entry before it answers from it, because the index line does not hold every fact.
 - The store makes a UUIDv7 id when it adds an entry. A write with the id of an entry changes that entry. A write without an id adds an entry.
 - IndexedDB keeps the entries on the device, one record for each entry. A removal leaves a tombstone. After a change, the other windows read the entries again.
 - The run reads, writes, and forgets entries with memory tools. It needs no approval. It saves only when someone asks it to remember something, or corrects a remembered fact.
