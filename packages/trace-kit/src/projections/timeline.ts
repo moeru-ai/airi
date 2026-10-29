@@ -217,10 +217,16 @@ function expirePendingUpdates(state: TimelineState, time: number): void {
   }
 }
 
-/** Marks the state tracks of a source unknown, because the source that owns them stopped or was lost. */
+/**
+ * Marks the state tracks of a source unknown, because the source that owns them stopped or was lost.
+ * A `single` track belongs to its first writer. On an `any` track, the source of the latest state owns the current value,
+ * so the stop of an earlier writer leaves a newer value of another source.
+ */
 function markOwnedStatesUnknown(state: TimelineState, source: string, key: string, time: number): void {
   for (const track of state.tracks.values()) {
-    if (track.stateOwner === source && track.states.at(-1)?.value !== 'unknown')
+    const latest = track.states.at(-1)
+    const owner = track.definition?.stateOwner === 'any' ? latest?.source : track.stateOwner
+    if (owner === source && latest?.value !== 'unknown')
       track.states.push({ key, track: track.path, time, value: 'unknown', source })
   }
 }

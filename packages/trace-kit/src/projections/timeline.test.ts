@@ -97,6 +97,22 @@ describe('timeline projection', () => {
     expect(states.map(change => change.value)).toEqual(['speaking', 'unknown'])
   })
 
+  it('keeps the newer state of another source on a shared state track when the first writer stops', () => {
+    const first = createRecordStamper({ source: 'window:a' })
+    const second = createRecordStamper({ source: 'window:b' })
+    const timeline = createTimelineProjection()
+    const reader = new TraceReader([timeline])
+    reader.handleRecords([
+      first({ type: 'definition', ts: 0, kind: 'track', key: 'shared/state', data: { path: 'shared/state', group: 'shared', order: 0, render: ['state'], stateOwner: 'any' } }),
+      first({ type: 'state', ts: 1, track: 'shared/state', value: 'idle' }),
+      second({ type: 'state', ts: 2, track: 'shared/state', value: 'busy' }),
+      first({ type: 'source.stopped', ts: 3 }),
+    ])
+
+    const states = reader.view(timeline).tracks.get('shared/state')!.states
+    expect(states.map(change => change.value)).toEqual(['idle', 'busy'])
+  })
+
   it('drops an update without its begin after the allowed lateness', () => {
     const record = createRecordStamper()
     const timeline = createTimelineProjection()
