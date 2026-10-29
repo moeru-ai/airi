@@ -47,6 +47,7 @@ const MIN_UNCERTAINTY_MS = 0.05
  * State model:
  * - Each `clock.snapshot` adds one sample to every clock pair in it, in both directions.
  * - A `clock.discontinuity` starts a new segment for each pair of that clock. Values after it use only later samples.
+ *   A segment is found by value, so a clock must only jump forward. A clock that goes back gets a new name.
  * - A conversion walks the shortest path of pairs from the clock to the trace clock, and composes the fits.
  *
  * The graph does not read a clock. It is a pure function of the snapshots that it received.
@@ -143,6 +144,10 @@ export class ClockGraph {
 
   /**
    * Fits `to = from * slope + offset` over the samples of the segment that holds `value`.
+   *
+   * The segment is the latest one that starts at or before `value`. This is correct when a clock only jumps forward.
+   * After a backward reset, a value from before the reset can match the new segment. So a clock that goes back must
+   * get a new name, as the `clock.discontinuity` record type says.
    *
    * One sample gives the offset only, with the slope from the declared units. Two or more samples give a weighted
    * least squares fit, which also measures drift. Each sample weighs `1 / uncertainty²`.

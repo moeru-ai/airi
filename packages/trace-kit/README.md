@@ -93,3 +93,8 @@ The timeline keeps each series in a `SeriesRing` with the retention of the colle
 ## Clocks
 
 Each record names its clock. A source writes `clock.snapshot` records that pair its clock with another clock, and `clock.discontinuity` after sleep or a device change. `ClockGraph` fits offset and drift for each clock pair, and converts through the shortest path of pairs. A media stream clock counts frames. Declare its rate with `setUnitsPerMs`.
+
+A discontinuity starts a new segment, and the graph finds the segment of a value by the value. So a clock name must only go forward:
+
+- After a forward jump, for example sleep, write `clock.discontinuity` and a new `clock.snapshot`. A backdated value from before the jump still converts with the earlier snapshots.
+- After a backward reset, for example a restarted audio context, start a new clock name, for example `mono:window#2`. Write `clock.discontinuity` for the old name and a `clock.snapshot` for the new name. Otherwise a backdated value from before the reset converts with the new segment.

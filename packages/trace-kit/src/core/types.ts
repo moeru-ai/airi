@@ -100,7 +100,14 @@ export interface TraceClockSnapshot extends TraceUntrackedRecordBase {
   uncertaintyMs: number
 }
 
-/** A clock jumped or stopped, for example on sleep, a device change, or an audio context suspend. */
+/**
+ * A clock jumped or stopped, for example on sleep, a device change, or an audio context suspend.
+ *
+ * Values after a forward jump use only the later snapshots, and a backdated value from before the jump still uses the
+ * earlier ones. A backward reset makes old and new values overlap, so a value cannot tell its segment. A source whose
+ * clock goes back starts a new clock name, for example `mono:window#2`. It writes this record for the old name and a
+ * `clock.snapshot` for the new name.
+ */
 export interface TraceClockDiscontinuity extends TraceUntrackedRecordBase {
   type: 'clock.discontinuity'
   of: string
