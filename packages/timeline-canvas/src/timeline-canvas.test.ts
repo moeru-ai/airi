@@ -167,6 +167,20 @@ describe('series pyramid', () => {
     }
   })
 
+  it('keeps a peak after a pause in its own column when a coarse bucket spans the pause', () => {
+    const pyramid = new SeriesPyramid()
+    // 200 quiet samples in the first 100 ms, then three more and one peak after a long pause. The last four samples
+    // fill one bucket of level 1, which starts before the pause and ends after it.
+    for (let index = 0; index < 200; index++)
+      pyramid.append(index / 2, 0)
+    pyramid.appendMany([100, 100.5, 101, 950], [0, 0, 0, 1])
+
+    const envelope = pyramid.envelope({ start: 0, end: 1000, width: 10 })
+    expect(envelope.level).toBe(1)
+    expect(envelope.maxs[9]).toBe(1)
+    expect(envelope.maxs[1]).toBe(0)
+  })
+
   it('includes the newest samples that do not fill a coarse bucket yet', () => {
     const pyramid = new SeriesPyramid()
     for (let index = 0; index < 10_003; index++)

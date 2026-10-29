@@ -10,6 +10,8 @@ const FACTOR = 4
 interface Level {
   /** Time of the first sample of each bucket. Level 0 holds the samples themselves. */
   times: Float64Array
+  /** Time of the last sample of each bucket. Level 0 has none, because a sample starts and ends at its time. */
+  ends?: Float64Array
   mins: Float32Array
   maxs: Float32Array
   count: number
@@ -30,11 +32,11 @@ export interface Envelope {
  * below. An envelope reads the coarsest level that still has at least two buckets per pixel, so its work follows the
  * view width, not the series length.
  *
- * Samples must arrive in time order. Irregular intervals are fine, because each bucket keeps the time of its first
- * sample.
+ * Samples must arrive in time order. Irregular intervals are fine. Each bucket keeps the times of its first and last
+ * samples, and an envelope reads the buckets of the level below for a bucket that spans a pause.
  */
 export class SeriesPyramid {
-  private readonly levels: Level[] = [createLevel(256)]
+  private readonly levels: Level[] = [createLevel(256, false)]
 
   get count(): number {
     return this.levels[0]!.count
@@ -54,13 +56,13 @@ export class SeriesPyramid {
   }
 
   append(time: number, value: number): void {
-    this.push(0, time, value, value)
+    this.push(0, time, time, value, value)
   }
 
   /** Appends many samples. `times` and `values` have the same length. */
   appendMany(times: ArrayLike<number>, values: ArrayLike<number>): void {
     for (let index = 0; index < times.length; index++)
-      this.push(0, times[index]!, values[index]!, values[index]!)
+      this.push(0, times[index]!, times[index]!, values[index]!, values[index]!)
   }
 
   /**
@@ -86,33 +88,45 @@ export class SeriesPyramid {
     while (level + 1 < this.levels.length && visibleSamples / FACTOR ** (level + 1) >= columns * 2)
       level++
 
-    const add = (time: number, min: number, max: number) => {
-      const column = Math.floor((time - view.start) * ppm)
-      if (column < 0 || column >= columns)
+    const columnOf = (time: number) => Math.floor((time - view.start) * ppm)
+    const add = (levelIndex: number, index: number) => {
+      const data = this.levels[levelIndex]!
+      const first = columnOf(data.times[index]!)
+      const last = data.ends ? columnOf(data.ends[index]!) : first
+      if (last < 0 || first >= columns)
         return
-      if (Number.isNaN(mins[column]!) || min < mins[column]!)
-        mins[column] = min
-      if (Number.isNaN(maxs[column]!) || max > maxs[column]!)
-        maxs[column] = max
+      // A bucket that reaches past the next column spans a pause, and its peak can be anywhere in it, so its buckets of
+      // the level below draw instead. A bucket across one column edge draws at its start, one column early at most.
+      if (last - first > 1) {
+        const child = index * FACTOR
+        for (let offset = 0; offset < FACTOR; offset++)
+          add(levelIndex - 1, child + offset)
+        return
+      }
+      const min = data.mins[index]!
+      const max = data.maxs[index]!
+      if (Number.isNaN(mins[first]!) || min < mins[first]!)
+        mins[first] = min
+      if (Number.isNaN(maxs[first]!) || max > maxs[first]!)
+        maxs[first] = max
     }
 
     const data = this.levels[level]!
-    // One bucket before the view, so the first column joins the samples that lead into the view.
-    const begin = Math.max(0, lowerBound(data.times, data.count, view.start) - 1)
     const end = Math.min(data.count, upperBound(data.times, data.count, view.end) + 1)
-    for (let index = begin; index < end; index++)
-      add(data.times[index]!, data.mins[index]!, data.maxs[index]!)
+    // One bucket before the view, so the first column joins the samples that lead into the view.
+    for (let index = Math.max(0, lowerBound(data.times, data.count, view.start) - 1); index < end; index++)
+      add(level, index)
 
     // The newest samples do not fill a bucket of this level yet. They come from the raw samples.
     for (let index = data.count * FACTOR ** level; index < raw.count; index++)
-      add(raw.times[index]!, raw.mins[index]!, raw.maxs[index]!)
+      add(0, index)
     return { mins, maxs, level }
   }
 
-  private push(levelIndex: number, time: number, min: number, max: number): void {
+  private push(levelIndex: number, time: number, endTime: number, min: number, max: number): void {
     let level = this.levels[levelIndex]
     if (!level) {
-      level = createLevel(64)
+      level = createLevel(64, true)
       this.levels.push(level)
     }
     if (level.count === level.times.length) {
@@ -120,8 +134,12 @@ export class SeriesPyramid {
       level.times = grow(level.times, capacity)
       level.mins = grow(level.mins, capacity)
       level.maxs = grow(level.maxs, capacity)
+      if (level.ends)
+        level.ends = grow(level.ends, capacity)
     }
     level.times[level.count] = time
+    if (level.ends)
+      level.ends[level.count] = endTime
     level.mins[level.count] = min
     level.maxs[level.count] = max
     level.count++
@@ -135,13 +153,20 @@ export class SeriesPyramid {
         groupMin = Math.min(groupMin, level.mins[index]!)
         groupMax = Math.max(groupMax, level.maxs[index]!)
       }
-      this.push(levelIndex + 1, level.times[first]!, groupMin, groupMax)
+      const lastTime = level.ends?.[level.count - 1] ?? level.times[level.count - 1]!
+      this.push(levelIndex + 1, level.times[first]!, lastTime, groupMin, groupMax)
     }
   }
 }
 
-function createLevel(capacity: number): Level {
-  return { times: new Float64Array(capacity), mins: new Float32Array(capacity), maxs: new Float32Array(capacity), count: 0 }
+function createLevel(capacity: number, withEnds: boolean): Level {
+  return {
+    times: new Float64Array(capacity),
+    ends: withEnds ? new Float64Array(capacity) : undefined,
+    mins: new Float32Array(capacity),
+    maxs: new Float32Array(capacity),
+    count: 0,
+  }
 }
 
 export interface WaveformColumnOptions {
