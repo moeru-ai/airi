@@ -184,3 +184,131 @@ describe('pr #2458 migrates the global Stage model of v0.12.0-beta.5 and earlier
     expect(stageModelStore.stageModelSelected).toBe('preset-live2d-1')
   })
 })
+
+describe('issue #3124 restores the active Character after a restart', () => {
+  const activeCardIdKey = 'airi-card-active-id'
+  const pinias: Array<ReturnType<typeof createPinia>> = []
+
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  afterEach(() => {
+    for (const pinia of pinias.splice(0))
+      disposePinia(pinia)
+    localStorage.clear()
+  })
+
+  /** Starts the app again on the cards and keys that `localStorage` holds. */
+  async function launch() {
+    const pinia = createPinia()
+    createApp({}).use(pinia).use(PiniaColada)
+    pinias.push(pinia)
+    setActivePinia(pinia)
+    const cardStore = useAiriCardStore()
+    await cardStore.initialize()
+    // The card map writes to `localStorage` in a watcher. Let it flush before the next launch.
+    await nextTick()
+    return cardStore
+  }
+
+  // https://github.com/moeru-ai/airi/issues/3124
+  // ROOT CAUSE:
+  //
+  // The store started the selection from a constant, so every launch picked the
+  // built-in Character. Nothing read or wrote the key.
+  //
+  //   const activeCardId = shallowRef('default')
+  //
+  // We fixed this by reading the key when the store is created, and writing it in
+  // the actions that change the selection.
+  it('issue #3124 restores the Character that was active before the restart', async () => {
+    const firstRun = await launch()
+    const cardId = await firstRun.addCard({ name: 'Second Character', version: '1.0.0', description: 'The selected Character.' }, 'scratch')
+    await firstRun.activateCard(cardId)
+
+    expect(localStorage.getItem(activeCardIdKey)).toBe(cardId)
+
+    const secondRun = await launch()
+
+    expect(secondRun.activeCardId).toBe(cardId)
+    expect(secondRun.activeCard?.name).toBe('Second Character')
+  })
+
+  it('starts from the built-in Character when nothing is stored', async () => {
+    const cardStore = await launch()
+
+    expect(cardStore.activeCardId).toBe('default')
+    expect(localStorage.getItem(activeCardIdKey)).toBe('default')
+  })
+
+  it('falls back to the built-in Character when the stored selection is gone', async () => {
+    localStorage.setItem(activeCardIdKey, 'deleted-card')
+
+    const cardStore = await launch()
+
+    expect(cardStore.activeCardId).toBe('default')
+    expect(localStorage.getItem(activeCardIdKey)).toBe('default')
+  })
+
+  it('records the built-in Character after the active card is deleted', async () => {
+    const firstRun = await launch()
+    const cardId = await firstRun.addCard({ name: 'Temporary', version: '1.0.0', description: 'Removed again.' }, 'scratch')
+    await firstRun.activateCard(cardId)
+
+    await firstRun.removeCard(cardId)
+
+    expect(localStorage.getItem(activeCardIdKey)).toBe('default')
+
+    const secondRun = await launch()
+
+    expect(secondRun.activeCardId).toBe('default')
+  })
+
+  it('forgets the selection when all data is reset', async () => {
+    const cardStore = await launch()
+    const cardId = await cardStore.addCard({ name: 'Reset me', version: '1.0.0' }, 'scratch')
+    await cardStore.activateCard(cardId)
+    expect(localStorage.getItem(activeCardIdKey)).toBe(cardId)
+
+    cardStore.resetState()
+
+    expect(localStorage.getItem(activeCardIdKey)).toBeNull()
+  })
+})
+
+// ROOT CAUSE:
+//
+// `initialize()` looked up the module stores after an `await`, through the active Pinia.
+// A stray action of a disposed Pinia could make that one active, so CI failed with `Pinia destroyed`.
+//
+// We fixed this by passing the card store's own Pinia to these lookups.
+describe('airi card store keeps to its own Pinia', () => {
+  afterEach(() => {
+    localStorage.clear()
+  })
+
+  it('initializes while another Pinia becomes active', async () => {
+    const stale = createPinia()
+    createApp({}).use(stale)
+    disposePinia(stale)
+
+    const pinia = createPinia()
+    // Stands in for that stray action: every action of this Pinia hands the active Pinia back to the stale one.
+    pinia.use(({ store }) => {
+      store.$onAction(({ after, onError }) => {
+        after(() => setActivePinia(stale))
+        onError(() => setActivePinia(stale))
+      })
+    })
+    createApp({}).use(pinia).use(PiniaColada)
+    setActivePinia(pinia)
+    const cardStore = useAiriCardStore()
+    const initialized = cardStore.initialize()
+    setActivePinia(stale)
+
+    await expect(initialized).resolves.toBeUndefined()
+    expect(cardStore.cards.has('default')).toBe(true)
+    disposePinia(pinia)
+  })
+})

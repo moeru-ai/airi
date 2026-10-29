@@ -2,6 +2,7 @@ import type { BrowserWindow } from 'electron'
 
 import type { FullscreenMode, FullscreenSurfaceId } from '../shared/eventa'
 import type { FileLoggerHandle } from './app/file-logger'
+import type { AutoUpdater } from './services/electron/auto-updater'
 import type { SettingsWindowManager } from './windows/settings'
 import type { FullscreenPlace } from './windows/shared/fullscreen'
 import type { WorkspaceWindowManager } from './windows/workspace'
@@ -526,7 +527,19 @@ app.whenReady().then(async () => {
     },
   })
 
-  injeca.start().catch(err => log.withError(err).error('Failed to start injeca'))
+  // The update launcher keeps a new bundle only after it reports healthy, and rolls it back otherwise. The updater service
+  // reports it when every module has started and the main window has mounted its page.
+  let updates: AutoUpdater | undefined
+  injeca.invoke({
+    dependsOn: { autoUpdater },
+    callback: (deps) => {
+      updates = deps.autoUpdater
+    },
+  })
+
+  injeca.start()
+    .then(() => updates?.markMainReady())
+    .catch(err => log.withError(err).error('Failed to start injeca'))
 
   // Extra
   openDebugger()

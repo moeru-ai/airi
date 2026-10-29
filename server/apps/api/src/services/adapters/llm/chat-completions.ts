@@ -1,6 +1,7 @@
 import type { GenerationAdapter } from './types'
 
 import { generationProtocols } from '../../../schemas/generation-protocol'
+import { upstreamHeaders } from './headers'
 
 /** Serializes chat-completions requests without interpreting native response bodies. */
 export const chatCompletionsAdapter: GenerationAdapter = {
@@ -10,7 +11,7 @@ export const chatCompletionsAdapter: GenerationAdapter = {
       method: 'POST',
       headers: {
         ...request.headers,
-        'authorization': upstream.headerTemplate.replace('{KEY}', apiKey),
+        ...upstreamHeaders(upstream, apiKey),
         'content-type': 'application/json',
       },
       body: JSON.stringify({ ...request.body, model: upstream.overrideModel ?? request.modelName }),

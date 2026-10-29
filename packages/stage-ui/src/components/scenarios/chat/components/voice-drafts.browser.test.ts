@@ -28,12 +28,12 @@ function renderComposer(attrs: { onPresence?: (visible: boolean) => void, showSi
   cleanups.push(() => container.remove())
   return render(VoiceDrafts, {
     container,
-    props: { variant: 'composer', ...attrs },
+    props: attrs,
     global: { plugins: [pinia, createI18n({ legacy: false, locale: 'en', messages: { en } })] },
   })
 }
 
-describe('voiceDrafts composer variant', () => {
+describe('voiceDrafts', () => {
   it('continues the draft with live speech in one read-only paragraph', async () => {
     const view = renderComposer()
     getSpeechBusContext().emit(voiceSnapshotChanged, {

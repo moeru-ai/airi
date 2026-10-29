@@ -5,11 +5,13 @@ import Tres from '@tresjs/core'
 
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import { PiniaColada } from '@pinia/colada'
+import { settingsSearchModules } from '@proj-airi/stage-pages/settings-search'
 import { pushToTalkTriggerKey } from '@proj-airi/stage-ui/composables/push-to-talk-trigger'
 import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/track-button'
 import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
 import { piniaPluginTracing, setupSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { configureAnalyticsAdapter } from '@proj-airi/stage-ui/libs/product-signals'
+import { settingsSearch } from '@proj-airi/stage-ui/libs/settings-search'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
@@ -19,7 +21,7 @@ import { handleHotUpdate, routes } from 'vue-router/auto-routes'
 
 import App from './App.vue'
 
-import { disposeHostContext, initializeHostContext, installExternalNavigation } from './host-context'
+import { disposeHostContext, initializeHostContext, installExternalNavigation, installMicrophonePermissionStatus } from './host-context'
 import { i18n } from './modules/i18n'
 import { resolveRendererWindowContext } from './window-context'
 
@@ -36,11 +38,11 @@ import '@fontsource-variable/jura/index.css'
 import '@fontsource-variable/quicksand/index.css'
 import '@fontsource-variable/urbanist/index.css'
 import '@fontsource-variable/comfortaa/index.css'
-import '@fontsource/dm-mono/index.css'
 import '@fontsource/dm-serif-display/index.css'
 import '@fontsource/gugi/index.css'
 import '@fontsource/kiwi-maru/index.css'
 import '@fontsource/m-plus-rounded-1c/index.css'
+import '@fontsource/maple-mono/index.css'
 import '@fontsource-variable/nunito/index.css'
 
 configureAnalyticsAdapter(async (options) => {
@@ -49,9 +51,20 @@ configureAnalyticsAdapter(async (options) => {
 })
 registerAuthorizationHandler(browserAuthorizationHandler)
 
+// The settings search lists only what these modules hold. Each module decides at runtime whether it is on.
+for (const [name, source] of Object.entries({
+  ...settingsSearchModules,
+  // This data page has no list of downloaded models.
+  'settings:data': { routes: ['/settings/data'] },
+  'modules:mcp': () => import('./pages/settings/modules/mcp.search'),
+}))
+  settingsSearch.provide(name, source)
+
 const hostContext = initializeHostContext()
 const disposeExternalNavigation = installExternalNavigation()
+const disposeMicrophonePermissionStatus = installMicrophonePermissionStatus()
 function disposeRendererHost() {
+  disposeMicrophonePermissionStatus()
   disposeExternalNavigation()
   disposeHostContext()
 }

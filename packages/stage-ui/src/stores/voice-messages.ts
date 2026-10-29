@@ -63,9 +63,9 @@ export const useVoiceMessagesStore = defineStore('voice-messages', () => {
     return completed ? text.trim() : (text.trim() || undefined)
   }
 
-  /** Returns false for a used ID, and while another window holds a capture lease. */
+  /** Returns false for a used ID, while another window holds a capture lease, and while the microphone is off. */
   function record(command: Extract<VoiceMessageCommand, { type: 'record' }>) {
-    if (opened.has(command.id) || captureLease.held)
+    if (opened.has(command.id) || captureLease.held || devices.off)
       return false
     opened.add(command.id)
     const message = new VoiceMessage(command.id, command.sessionId, devices.input, async (draft) => {
@@ -129,15 +129,17 @@ export const useVoiceMessagesStore = defineStore('voice-messages', () => {
         }
         return { status: 'accepted' }
       }),
-      // A capture lease needs the microphone alone. Keep what the user recorded as a draft that they can send or discard.
-      watch(() => captureLease.held, (held) => {
-        if (!held)
+      // A capture lease needs the microphone alone, and the microphone switch closes it for everyone.
+      // Keep what the user recorded as a draft that they can send or discard.
+      // The watcher is synchronous, so the recording stops before the device store closes the input.
+      watch(() => captureLease.held || devices.off, (stop) => {
+        if (!stop)
           return
         for (const message of messages.values()) {
           if (['pending', 'capturing'].includes(message.snapshot.phase))
             void message.finish()
         }
-      }),
+      }, { flush: 'sync' }),
     ]
     publish()
     return () => {

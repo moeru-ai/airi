@@ -37,7 +37,7 @@ docs:
   'close': 닫기
   'expand': 확장
   'collapse': 접기
-  'login': 가입하기
+  'login': 로그인
   'logging-in': 로그인 중...
   'account': 계정
   'logout': 로그아웃
@@ -101,8 +101,8 @@ about:
       stable: 안정
       alpha: 알파
       beta: 베타
-      nightly: 실험적
       canary: 카나리아
+      nightly: 실험적
     status:
       downloading: 업데이트 다운로드 중...
       error-prefix: 에러

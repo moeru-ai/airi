@@ -13,10 +13,30 @@ env:
   SHERPAW_BUNDLE_MODELS: 'true'
   VERSION: ''
 
+# AIRI has four update channels. `.github/scripts/plan-tamagotchi-updates.ts` has the rules:
+# - dev: each push to main publishes its bundle as an over-the-air update. It builds installers only when the native
+#   version changed, and the release store hosts them.
+# - nightly: the scheduled run publishes its bundle and builds installers. The release store hosts them.
+# - canary: a GitHub pre-release publishes its bundle, and names its installers on canary and dev. This is every tag:
+#   `v0.13.0-rc.1`, `v0.13.0-beta.2`, and `v0.13.0` before it is stable.
+# - stable: when the pre-release becomes a release, the run moves the bundle and the installer of canary to stable.
+#   It builds nothing.
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - apps/stage-tamagotchi/**
+      - packages/**
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - .github/workflows/release-tamagotchi.yml
+  # A pre-release reports `published`: `prereleased` does not fire for a pre-release that was a draft first. A direct
+  # release also reports `published`, with `release.prerelease` false, and the plan skips it.
   release:
     types:
-      - prereleased
+      - published
+      - released
   workflow_dispatch:
     inputs:
       build_only:
@@ -44,12 +64,67 @@ on:
   schedule:
     - cron: '0 0 * * *'
 
+# Only the newest push matters on `dev`, so a push cancels the run of an older push. Other runs never cancel.
+# A cancelled publish is safe: the CLI uploads the files of a bundle before it moves the channel file to it.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'push' && 'dev' || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
+
 jobs:
+  # Decides the update channel of this run, and the release IDs and the version that every build of the run shares, so
+  # the installers ship the bundle that the channel serves. `.github/scripts/plan-tamagotchi-updates.ts` has the rules.
+  updates:
+    name: Plan Updates
+    runs-on: ubuntu-latest
+    outputs:
+      channel: ${{ steps.plan.outputs.channel }}
+      version: ${{ steps.plan.outputs.version }}
+      bundle-release-id: ${{ steps.plan.outputs.bundle-release-id }}
+      installer-release-id: ${{ steps.plan.outputs.installer-release-id }}
+      build-installers: ${{ steps.plan.outputs.build-installers }}
+      installer-channels: ${{ steps.plan.outputs.installer-channels }}
+      installer-files-url: ${{ steps.plan.outputs.installer-files-url }}
+      installer-download-page: ${{ steps.plan.outputs.installer-download-page }}
+      promote-from: ${{ steps.plan.outputs.promote-from }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # pnpm/setup reads the pnpm version from packageManager of the root package.json.
+          sparse-checkout: |
+            /package.json
+            .github/scripts
+            apps/stage-tamagotchi/package.json
+            apps/stage-tamagotchi/ergo.config.ts
+          sparse-checkout-cone-mode: false
+
+      # The script uses only Node.js built-ins, so it needs no install.
+      - uses: pnpm/setup@v2
+        with:
+          runtime: node@^26.12.1
+          install: false
+
+      - id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          ACTION: ${{ github.event.action }}
+          PRERELEASE: ${{ github.event.release.prerelease }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+          BUILD_ONLY: ${{ inputs.build_only }}
+          ARTIFACTS_ONLY: ${{ inputs.artifacts_only }}
+        run: node .github/scripts/plan-tamagotchi-updates.ts
+
   build:
     name: Build
+    needs: updates
+    # The plan decides: a push builds installers only when the native version changed. A pre-release that becomes a
+    # release builds nothing, and promote-to-stable moves canary to stable.
+    if: ${{ needs.updates.outputs.build-installers == 'true' }}
     continue-on-error: ${{ matrix.skip }} # WORKAROUND: Skipping subsequent steps without failing the whole workflow
     env:
       VITE_ENABLE_ANALYTICS: ${{ ((github.event_name == 'release') || (github.event_name == 'workflow_dispatch' && !inputs.build_only)) && 'true' || 'false' }}
+      ERGOSPHERE_IT_RELEASE_ID: ${{ needs.updates.outputs.bundle-release-id }}
+      ERGOSPHERE_IT_INSTALLER_RELEASE_ID: ${{ needs.updates.outputs.installer-release-id }}
+      ERGOSPHERE_IT_VERSION: ${{ needs.updates.outputs.version }}
     strategy:
       matrix:
         include:
@@ -124,7 +199,8 @@ jobs:
       - uses: actions/setup-node@v6
         if: matrix.os == 'macos-15-intel'
         with:
-          node-version: 26.7.0
+          node-version: '^26.12.1'
+          check-latest: true
 
       - name: Install pnpm with npm
         if: matrix.os == 'macos-15-intel'
@@ -147,7 +223,7 @@ jobs:
       - uses: pnpm/setup@v2
         if: matrix.os != 'macos-15-intel'
         with:
-          runtime: node@26.7.0
+          runtime: node@^26.12.1
           cache: true
           install: false
 
@@ -220,6 +296,13 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_DEVELOPER_APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_DEVELOPER_TEAM_ID }}
 
+      # fpm writes the `.MTREE` file of the pacman package with bsdtar.
+      - name: Install Linux Packaging Dependencies (Linux Only)
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libarchive-tools
+
       - name: Build (Linux Only) # Linux
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
         run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }} --publish=${{ (inputs.build_only || inputs.artifacts_only) && 'never' || 'onTagOrDraft' }}
@@ -279,6 +362,8 @@ jobs:
         run: |
           echo "DEB_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename deb)" >> $GITHUB_ENV
           echo "RPM_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename rpm)" >> $GITHUB_ENV
+          echo "PACMAN_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename pacman)" >> $GITHUB_ENV
+          echo "APPIMAGE_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename AppImage)" >> $GITHUB_ENV
           echo "FLATPAK_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename flatpak)" >> $GITHUB_ENV
 
       - name: Upload Artifacts (Nightly + Non-Linux)
@@ -302,6 +387,20 @@ jobs:
         with:
           name: ${{ env.RPM_BUNDLE_NAME }}
           path: apps/stage-tamagotchi/bundle/${{ env.RPM_BUNDLE_NAME }}
+
+      - name: Upload Artifacts (Nightly + Linux pacman)
+        if: ${{ github.event_name == 'schedule' && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.PACMAN_BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/${{ env.PACMAN_BUNDLE_NAME }}
+
+      - name: Upload Artifacts (Nightly + Linux AppImage)
+        if: ${{ github.event_name == 'schedule' && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.APPIMAGE_BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/${{ env.APPIMAGE_BUNDLE_NAME }}
 
       - name: Upload Flatpak Artifact (Nightly + Linux Only)
         if: ${{ github.event_name == 'schedule' && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
@@ -355,12 +454,26 @@ jobs:
       - name: Regenerate Windows latest-x64.yml (Nightly + Windows Only)
         if: ${{ github.event_name == 'schedule' && matrix.os == 'windows-latest' && steps.signpath-nightly-windows.outcome == 'success' }}
         run: |
-          pnpm -F @proj-airi/stage-tamagotchi run regenerate-windows-latest --input apps/stage-tamagotchi/bundle/signed/windows/${{ env.BUNDLE_NAME }} --output apps/stage-tamagotchi/bundle/latest-x64.yml --version ${{ env.VERSION }}
+          pnpm -F @proj-airi/stage-tamagotchi run regenerate-windows-latest --input apps/stage-tamagotchi/bundle/signed/windows/${{ env.BUNDLE_NAME }} --output apps/stage-tamagotchi/bundle/latest-x64.yml --version ${{ env.ERGOSPHERE_IT_VERSION }}
 
       - name: Regenerate Windows latest-x64.yml From Unsigned Artifact (Nightly Fallback)
         if: ${{ github.event_name == 'schedule' && matrix.os == 'windows-latest' && steps.signpath-nightly-windows.outcome != 'success' }}
         run: |
-          pnpm -F @proj-airi/stage-tamagotchi run regenerate-windows-latest --input apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }} --output apps/stage-tamagotchi/bundle/latest-x64.yml --version ${{ env.VERSION }}
+          pnpm -F @proj-airi/stage-tamagotchi run regenerate-windows-latest --input apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }} --output apps/stage-tamagotchi/bundle/latest-x64.yml --version ${{ env.ERGOSPHERE_IT_VERSION }}
+
+      # The release store hosts the installers of a nightly run, and of a push that changed the native version. The
+      # publish-bundle job uploads them with `ergosphere-it register installer --upload-files`.
+      - name: Collect the installers for the release store
+        if: ${{ needs.updates.outputs.installer-channels != '' && needs.updates.outputs.installer-files-url == '' }}
+        run: pnpm -F @proj-airi/stage-tamagotchi run collect-installer-files --dir bundle/signed/windows --dir bundle --dir dist --out installer-files
+
+      - name: Upload the installers for the release store
+        if: ${{ needs.updates.outputs.installer-channels != '' && needs.updates.outputs.installer-files-url == '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: installer-files-${{ matrix.artifact }}
+          path: apps/stage-tamagotchi/installer-files
+          retention-days: 3
 
       # ---------
       # Workflow Dispatch only
@@ -396,6 +509,8 @@ jobs:
         run: |
           echo "DEB_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename deb --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $GITHUB_ENV
           echo "RPM_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename rpm --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $GITHUB_ENV
+          echo "PACMAN_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename pacman --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $GITHUB_ENV
+          echo "APPIMAGE_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename AppImage --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $GITHUB_ENV
           echo "FLATPAK_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename flatpak --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $GITHUB_ENV
 
       - name: Upload Artifacts (Manual + Non-Release + Non-Linux)
@@ -419,6 +534,20 @@ jobs:
         with:
           name: ${{ env.RPM_BUNDLE_NAME }}
           path: apps/stage-tamagotchi/bundle/${{ env.RPM_BUNDLE_NAME }}
+
+      - name: Upload Artifacts (Manual + Non-Release + Linux pacman)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.PACMAN_BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/${{ env.PACMAN_BUNDLE_NAME }}
+
+      - name: Upload Artifacts (Manual + Non-Release + Linux AppImage)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.APPIMAGE_BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/${{ env.APPIMAGE_BUNDLE_NAME }}
 
       - name: Upload Flatpak Artifact (Manual + Non-Release + Linux)
         if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
@@ -480,6 +609,8 @@ jobs:
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.dmg
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.deb
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.rpm
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.pacman
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.AppImage
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.flatpak
             apps/stage-tamagotchi/bundle/latest-*.yml
           append_body: true
@@ -593,14 +724,148 @@ jobs:
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.dmg
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.deb
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.rpm
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.pacman
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.AppImage
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.flatpak
             apps/stage-tamagotchi/bundle/latest-*.yml
           append_body: true
 
+  # Publishes the bundle (main, preload, and renderer) to the channel of the run, as an over-the-air update with
+  # ergosphere-it. Installs on the channel download it, and switch to it on the next start. A release publishes it only
+  # after the installers of every platform built. Then it names the installers of the release on canary and dev. A
+  # change of the native version reaches installs only with a new installer. An install that has no installer to take
+  # tells the user to install the new version by hand.
+  #
+  # Repository settings, in the `Release` environment:
+  # - secret ERGOSPHERE_IT_SIGNING_KEY: the PKCS#8 PEM of the update key. ergo.config.ts has its public key.
+  # - secrets AIRI_UPDATES_R2_ACCESS_KEY_ID and AIRI_UPDATES_R2_SECRET_ACCESS_KEY: an R2 API token that can write the bucket.
+  # - variable AIRI_UPDATES_R2_BUCKET: the bucket behind https://release-updates.airi.build.
+  # - secret AIRI_UPDATES_R2_ENDPOINT: https://<account id>.r2.cloudflarestorage.com. A secret, as it names the account.
+  publish-bundle:
+    name: Publish Bundle
+    needs: [updates, build]
+    # NOTICE: Forks have no secrets, and pull requests never run this workflow: it signs what it builds.
+    # `always()` lets a push run it after the skipped build. A failed build of a release stops it.
+    if: ${{ always() && github.repository == 'moeru-ai/airi' && needs.updates.outputs.channel != '' && needs.updates.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    # The secrets live in the `Release` environment. Only the publish step reads them. `pnpm install` runs the scripts
+    # of every dependency, and the build runs every plugin, so they must not see the signing key.
+    environment: Release
+    env:
+      # The same build as the installers of this run, so the channel serves the bundle that they ship.
+      VITE_ENABLE_ANALYTICS: ${{ ((github.event_name == 'release') || (github.event_name == 'workflow_dispatch' && !inputs.build_only)) && 'true' || 'false' }}
+      ERGOSPHERE_IT_RELEASE_ID: ${{ needs.updates.outputs.bundle-release-id }}
+      ERGOSPHERE_IT_INSTALLER_RELEASE_ID: ${{ needs.updates.outputs.installer-release-id }}
+      ERGOSPHERE_IT_VERSION: ${{ needs.updates.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/setup@v2
+        with:
+          runtime: node@^26.12.1
+          cache: true
+          install: false
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm run build:packages
+
+      - run: pnpm run -F @proj-airi/stage-tamagotchi build
+
+      - name: Publish the bundle
+        working-directory: ./apps/stage-tamagotchi
+        env:
+          CHANNEL: ${{ needs.updates.outputs.channel }}
+          ERGOSPHERE_IT_SIGNING_KEY: ${{ secrets.ERGOSPHERE_IT_SIGNING_KEY }}
+          ERGOSPHERE_IT_STORE: s3://${{ vars.AIRI_UPDATES_R2_BUCKET }}
+          ERGOSPHERE_IT_S3_ENDPOINT: ${{ secrets.AIRI_UPDATES_R2_ENDPOINT }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AIRI_UPDATES_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AIRI_UPDATES_R2_SECRET_ACCESS_KEY }}
+        run: |
+          echo "Publishing $ERGOSPHERE_IT_VERSION to $CHANNEL"
+          pnpm exec ergosphere-it publish bundle --channel "$CHANNEL" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # The build jobs uploaded the installers and their electron-builder feeds to the GitHub Release. The Windows feed
+      # there describes the installer after SignPath signed it.
+      - name: Download the installer feeds of the release
+        if: ${{ needs.updates.outputs.installer-channels != '' && needs.updates.outputs.installer-files-url != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern 'latest*.yml' --dir installer-feeds
+
+      # A run without a GitHub Release: the build jobs collected the feeds and the installer files.
+      - name: Download the installers for the release store
+        if: ${{ needs.updates.outputs.installer-channels != '' && needs.updates.outputs.installer-files-url == '' }}
+        uses: actions/download-artifact@v5
+        with:
+          pattern: installer-files-*
+          merge-multiple: true
+          path: installer-feeds
+
+      - name: Register the installers
+        if: ${{ needs.updates.outputs.installer-channels != '' }}
+        working-directory: ./apps/stage-tamagotchi
+        env:
+          INSTALLER_CHANNELS: ${{ needs.updates.outputs.installer-channels }}
+          FILES_URL: ${{ needs.updates.outputs.installer-files-url }}
+          DOWNLOAD_PAGE: ${{ needs.updates.outputs.installer-download-page }}
+          ERGOSPHERE_IT_SIGNING_KEY: ${{ secrets.ERGOSPHERE_IT_SIGNING_KEY }}
+          ERGOSPHERE_IT_STORE: s3://${{ vars.AIRI_UPDATES_R2_BUCKET }}
+          ERGOSPHERE_IT_S3_ENDPOINT: ${{ secrets.AIRI_UPDATES_R2_ENDPOINT }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AIRI_UPDATES_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AIRI_UPDATES_R2_SECRET_ACCESS_KEY }}
+        run: |
+          for channel in $INSTALLER_CHANNELS; do
+            echo "Registering the installers of $ERGOSPHERE_IT_VERSION on $channel"
+            if [ -n "$FILES_URL" ]; then
+              files=(--files-url "$FILES_URL")
+            else
+              files=(--upload-files)
+            fi
+            pnpm exec ergosphere-it register installer --channel "$channel" --dist ../../installer-feeds \
+              "${files[@]}" --download-page "$DOWNLOAD_PAGE" | tee -a "$GITHUB_STEP_SUMMARY"
+          done
+
+  # Moves the bundle and the installer that canary serves to stable, when a pre-release becomes a release. The plan job
+  # stops the run when canary does not serve the version of the tag.
+  promote-to-stable:
+    name: Promote Canary to Stable
+    needs: updates
+    if: ${{ github.repository == 'moeru-ai/airi' && needs.updates.outputs.promote-from != '' }}
+    runs-on: ubuntu-latest
+    # The secrets live in the `Release` environment. Only the promote step reads them.
+    environment: Release
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/setup@v2
+        with:
+          runtime: node@^26.12.1
+          cache: true
+          install: false
+
+      # The CLI reads publicKeys of ergo.config.ts to verify the channel file that it moves.
+      - run: pnpm install --frozen-lockfile
+
+      - name: Promote
+        working-directory: ./apps/stage-tamagotchi
+        env:
+          FROM: ${{ needs.updates.outputs.promote-from }}
+          VERSION: ${{ needs.updates.outputs.version }}
+          ERGOSPHERE_IT_SIGNING_KEY: ${{ secrets.ERGOSPHERE_IT_SIGNING_KEY }}
+          ERGOSPHERE_IT_STORE: s3://${{ vars.AIRI_UPDATES_R2_BUCKET }}
+          ERGOSPHERE_IT_S3_ENDPOINT: ${{ secrets.AIRI_UPDATES_R2_ENDPOINT }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AIRI_UPDATES_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AIRI_UPDATES_R2_SECRET_ACCESS_KEY }}
+        run: |
+          echo "Moving $VERSION from $FROM to stable"
+          pnpm exec ergosphere-it promote --from "$FROM" --to stable | tee -a "$GITHUB_STEP_SUMMARY"
+
   publish-gitcode-release:
     name: Publish GitCode Release Mirror
     needs: build
-    if: ${{ always() && github.repository == 'moeru-ai/airi' && (github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only && inputs.tag != '')) }}
+    if: ${{ always() && github.repository == 'moeru-ai/airi' && ((github.event_name == 'release' && github.event.action == 'published' && github.event.release.prerelease) || (github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only && inputs.tag != '')) }}
     continue-on-error: true
     runs-on: ubuntu-latest
     steps:
@@ -624,7 +889,7 @@ jobs:
   publish-distribution:
     name: Publish Distribution
     needs: build
-    if: ${{ github.event_name == 'release' }}
+    if: ${{ github.event_name == 'release' && github.event.action == 'published' && github.event.release.prerelease }}
     runs-on: ubuntu-latest
     strategy:
       matrix:

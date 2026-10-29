@@ -7,7 +7,7 @@ import VueRouter from 'vue-router/vite'
 
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
 import { playwright } from '@vitest/browser-playwright'
-import { loadEnv } from 'vite'
+import { loadEnv, normalizePath } from 'vite'
 import { defineConfig } from 'vitest/config'
 
 import unoConfig from './uno.config'
@@ -32,10 +32,10 @@ export default defineConfig({
       content: {
         ...unoConfig.content,
         filesystem: [
-          `${import.meta.dirname}/src/**/*.vue`,
-          `${import.meta.dirname}/../../packages/stage-layouts/src/**/*.vue`,
-          `${import.meta.dirname}/../../packages/stage-ui/src/**/*.vue`,
-          `${import.meta.dirname}/../../packages/ui/src/**/*.vue`,
+          `${normalizePath(import.meta.dirname)}/src/**/*.vue`,
+          `${normalizePath(import.meta.dirname)}/../../packages/stage-layouts/src/**/*.vue`,
+          `${normalizePath(import.meta.dirname)}/../../packages/stage-ui/src/**/*.vue`,
+          `${normalizePath(import.meta.dirname)}/../../packages/ui/src/**/*.vue`,
         ],
       },
     }),

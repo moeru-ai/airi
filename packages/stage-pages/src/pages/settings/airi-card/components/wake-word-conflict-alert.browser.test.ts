@@ -45,6 +45,7 @@ describe('character cards wake word alert', () => {
     await wakeWords.setWords(luna, [{ text: 'Hey AIRI', modelId: kwsModel.id, pronunciations: [SHARED] }], model)
 
     await expect.element(screen.getByTestId('wake-word-conflict-alert')).toHaveTextContent('One shared wake word pronunciation needs a character')
+    await expect.element(screen.getByTestId('wake-word-conflict-alert')).toHaveAttribute('data-tone', 'warning')
     await expect.element(screen.getByRole('link', { name: 'Choose who answers' })).toHaveAttribute('href', '/settings/modules/hearing/wake-words')
 
     wakeWords.chooseOwner(wakeWordKey(kwsModel.id, SHARED), aria)

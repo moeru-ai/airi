@@ -58,6 +58,11 @@ jobs:
           parent: true
           api_key: ${{ secrets.NEON_API_KEY }}
 
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '^26.12.1'
+          check-latest: true
+
       - run: npm install --global @railway/cli@5
 
       # NOTICE:

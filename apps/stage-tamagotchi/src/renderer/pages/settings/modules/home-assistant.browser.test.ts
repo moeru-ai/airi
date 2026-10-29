@@ -7,6 +7,7 @@ import { render } from 'vitest-browser-vue'
 import { page } from 'vitest/browser'
 import { isProxy } from 'vue'
 import { createI18n } from 'vue-i18n'
+import { createMemoryHistory, createRouter } from 'vue-router'
 
 import HomeAssistantSettings from './home-assistant.vue'
 
@@ -63,10 +64,18 @@ function modeControl(mode: 'allow' | 'deny') {
 async function renderPage() {
   const pinia = createPinia()
   setActivePinia(pinia)
+  // The page reads the settings search target from the route, as it does in the app.
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/settings/modules/home-assistant', component: { template: '<div />' } }],
+  })
+  await router.push('/settings/modules/home-assistant')
+  await router.isReady()
   const screen = await render(HomeAssistantSettings, {
     global: {
       plugins: [
         pinia,
+        router,
         createI18n({ legacy: false, locale: 'en', messages: { en: {} }, missingWarn: false, fallbackWarn: false }),
       ],
     },

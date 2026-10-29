@@ -22,6 +22,12 @@ spotlight:
     prefix: 'Something went wrong: {message}'
     shortcutRegistrationFailed: 'Something went wrong: failed to register Spotlight shortcut.'
 pages:
+  connection:
+    apply-error:
+      title: Connection settings not applied
+  models:
+    godot-stage-error:
+      title: Godot Stage error
   modules:
     mcp-server:
       description: Connect and manage MCP server and tools

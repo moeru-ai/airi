@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/testing-audio",
   "type": "module",
-  "version": "0.12.0",
+  "version": "0.14.0",
   "private": true,
   "description": "AIRI Web and Electron audio pipeline tests",
   "author": {
@@ -14,7 +14,7 @@
   "scripts": {
     "build:targets": "pnpm -F @proj-airi/stage-web build && pnpm -F @proj-airi/stage-tamagotchi build",
     "test": "vitest",
-    "test:run": "pnpm run build:targets && vitest run",
+    "test:e2e": "pnpm run build:targets && vitest run",
     "test:existing-builds": "vitest run",
     "typecheck": "tsc --noEmit"
   },

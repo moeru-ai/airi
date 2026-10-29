@@ -632,11 +632,16 @@ pages:
           description: 配置 3D VRM 模型
         scene: 场景
   modules:
+    availability:
+      none: 无
     beat_sync:
       description: 随音源节拍律动
       title: 同步音律
       sections:
         audio_source:
+          no_audio:
+            title: 未检测到音频
+            description: 请确认已授予所需权限，并且音频源正在播放声音。
           actions:
             start_screen_capture: 开始屏幕录制
             stop: 停止
@@ -889,9 +894,13 @@ pages:
             description: 选择合适的语音转文本的服务来源
           microphone:
             title: 麦克风
-            label: 麦克风
-            description: 为听觉打开麦克风。输入模式决定 AIRI 何时聆听。
             error: 麦克风不可用
+          microphone-switch:
+            label: 启用麦克风
+            description: 关闭后，AIRI 的所有功能都不能使用麦克风。
+          listen:
+            label: 聆听
+            description: AIRI 按上面的输入模式聆听。需要启用麦克风。
           input-device:
             label: 输入设备
             description: 选择 AIRI 使用的麦克风。
@@ -917,6 +926,7 @@ pages:
             title: 输入模式
             description: 选择麦克风开启时 AIRI 如何开始聆听。
             label: 开始聆听
+            call-only: 在小屏幕上，AIRI 只在语音通话时聆听。要开始通话，请点聊天输入框旁的添加按钮。
             always-on: 持续聆听
             always-on-description: AIRI 一直聆听，你说话时就会回应。
             push-to-talk: 按住说话
@@ -948,6 +958,7 @@ pages:
             model: 模型
             model-placeholder: 选择模型
           playground:
+            vad-error-title: 语音活动检测错误
             current: 当前转写
             description: 通过当前的听觉管线监听，并在下方保留每一段完成的语音转写。
             empty: 开始监听，然后对着所选麦克风说话。
@@ -1085,6 +1096,7 @@ pages:
             loading: 正在加载语音包...
             title: 语音包
           provider-voice-selection:
+            load_error: 无法加载音色
             custom_model_placeholder: 输入指定模型名称...
             custom_voice_placeholder: 输入指定声线 ID...
             description: 选择合适的语音服务来源
@@ -1426,6 +1438,11 @@ pages:
       description: 让 AIRI 联网搜索最新信息
       enable: 启用网络搜索
       enable-description: 允许 AIRI 在对话中联网搜索
+      provider: 搜索服务
+      deepseek:
+        api-key: DeepSeek API 密钥
+        api-key-description: 输入用于网页搜索的 DeepSeek API 密钥。此密钥独立于聊天服务设置。
+        api-key-placeholder: 输入您的 DeepSeek API 密钥
       api-key: Tavily API 密钥
       api-key-description: 网络搜索由 Tavily 提供支持，可在 tavily.com 免费获取 API 密钥。
       api-key-placeholder: 输入您的 Tavily API 密钥
@@ -1751,6 +1768,16 @@ pages:
         转录（语音转文本）模型服务来源，例如 Whisper.cpp, OpenAI, Azure Speech
     description: LLM，语音合成，语音识别服务来源等
     provider:
+      player2:
+        app-missing:
+          download: '请下载并运行 Player2 应用：{link}'
+          support: '安装后如果问题仍然存在，请在 Discord 联系我们：{link}'
+      mimo:
+        model-behavior:
+          title: MiMo 模型行为
+          preset: '{model} 使用下方的预设音色列表。'
+          voice-design: '{model} 根据风格提示词设计新音色，不接受 {field}。'
+          voice-clone: '{model} 使用你粘贴的音色样本，忽略预设音色选择。'
       sherpaw-transcription:
         description: 使用内置或按需加载的模型进行本地语音识别，无需 API 密钥。
         language:
@@ -2075,6 +2102,18 @@ pages:
         description: Aliyun 智能语音服务
         title: Aliyun 智能语音服务
       browser-web-speech-api:
+        test:
+          unavailable: 此浏览器不支持 Web Speech API。
+          select-device: 请选择音频输入设备以开始测试。
+          error-title: 转写错误
+          streaming-mode: 流式模式：说话时转写结果会实时显示。
+        no-api-key: 无需 API 密钥。Web Speech API 免费且内置于浏览器。
+        intro:
+          title: 浏览器内置的免费语音识别
+          description: Web Speech API 免费且内置于浏览器，无需 API 密钥或外部服务。它使用浏览器自带的语音识别能力。
+        unavailable:
+          title: Web Speech API 不可用
+          description: 此浏览器不支持 Web Speech API。请使用 Chrome、Edge、Safari 或其他基于 Chromium 的浏览器。当前环境无法使用此提供商。
         description: 浏览器原生STT (需要 Chrome/Edge/Safari)
         title: Web 语音API
       prompt-api:
@@ -2194,6 +2233,59 @@ pages:
               markdown-stress:
                 title: Markdown 压力测试
                 description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
+              needs-attention:
+                title: 需要注意
+                description: 调试设置首页的“需要注意”列表：查看提供商检查和每个角色的语音，并故意制造问题
+                timing-label: 检查时机
+                timing-signed-in: '已登录：登录时和之后每 {minutes} 分钟同步一次，同步完检查已添加的提供商'
+                timing-signed-out: '未登录：不会自动检查，只在部分提供商设置页里改配置，或点下面的按钮时检查'
+                timing-periodic: '{names} 另外每 {seconds} 秒检查一次'
+                check-all: 立即全部检查
+                restore-all: '重新显示全部已忽略的（{count}）'
+                empty: 还没有检查过任何提供商。
+                not-checked: 还没检查
+                checked-ago: '{seconds} 秒前'
+                every: '每 {seconds} 秒'
+                measured: '最近 {count} 次平均 {seconds} 秒'
+                dismissed: 已忽略
+                restore-one: 取消忽略
+                simulate: 故意失败
+                simulated-reason: 开发者工具模拟的失败。
+                speech-title: 角色语音
+                speech-off: 语音已关闭
+                speech-ready: 可以发声
+                speech-missing-model: 没选语音合成模型
+                speech-missing-voice: 没选声线
+                speech-missing-model-voice: 没选语音合成模型和声线
+                speech-provider-unusable: '发声模块现在用不了这个提供商，列表里显示提供商那一项'
+                speech-pending: 等目录加载
+                items-title: 列表里的项
+                items-empty: 现在没有需要注意的项。
+                selections-title: 模块的提供商
+                selection-usable: 可以用
+                selection-provider-item: 由提供商那一项报告
+                selection-awaiting-check: '已添加，等检查结果'
+                selection-unusable: 模块用不了它
+                simulate-unusable: 当作不能用
+                voice-input-title: 语音输入
+                voice-input-mic-on: 麦克风已开
+                voice-input-mic-off: 麦克风已关
+                voice-input-ready: 听觉可以转写
+                voice-input-not-ready: 听觉没有转写服务或模型
+                simulate-voice-input: 当作开着但不能转写
+                simulate-speech: 当作没选声线
+                kinds:
+                  chat: 对话
+                  vision: 视觉
+                  speech: 语音合成
+                  transcription: 语音识别
+                  other: 其他
+                status:
+                  unconfigured: 未配置
+                  validating: 检查中
+                  configured: 通过
+                  invalid: 没通过
+                  bypassed: 不检查
               tool-payloads-as-json:
                 title: 以 JSON 显示工具数据
                 description: 聊天里工具调用的参数和结果显示为 JSON 树，不再格式化。回复里的卡片也会提供原始数据。
@@ -2362,6 +2454,29 @@ pages:
     tip:
       label: 提示！
       description: 使用正方形图片将在竖屏模式下应用<b>封面</b>裁剪，聚焦场景中心。
+search:
+  placeholder: 搜索设置
+  empty: '没有找到与“{query}”相关的设置。'
+  not-shown: '“{name}”只在这个页面的其他状态下显示，比如打开某个开关或换一种模型之后。'
+needs-attention:
+  title-one: '{name} 上次检查没通过'
+  title-unconfigured: '{name} 还没配置好'
+  title-many: '{count} 项需要处理'
+  speech-no-model: '{name} 还没选语音合成模型'
+  speech-no-voice: '{name} 还没选声线'
+  speech-no-model-voice: '{name} 还没选语音合成模型和声线'
+  text-only: 现在只回复文字
+  simulated: 开发者工具模拟
+  character-provider-unavailable: '{name} 的{module}提供商不能用'
+  module-provider-unavailable: '{module}的提供商不能用'
+  provider-not-listed: '{provider} 不在可选的提供商里'
+  hearing-no-provider: 语音输入开着，但还没选转写服务
+  hearing-no-model: 语音输入开着，但还没选转写模型
+  not-transcribed: 说的话不会被转写
+  affects: '影响{modules}'
+  used-by: '{modules}在用'
+  fix: 去修改
+  dismiss: 忽略
 sections:
   section:
     general:
@@ -2506,6 +2621,10 @@ tachie:
     title: 渲染
     render-scale: 渲染缩放
     shadow: 主题色动态阴影
+  audit-report:
+    status: 状态：{status}
+    critical-issues: 严重问题
+    warnings: 警告
 websocket-secure-enabled:
   title: 作为安全 WebSocket (WSS) 提供服务
   description: >-

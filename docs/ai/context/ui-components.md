@@ -17,7 +17,8 @@ inner content blur from an external `data-state="open|closed"` lifecycle. The
 lifecycle owner must keep the primitive mounted until the closing animation
 finishes. It can compose with Reka UI content primitives through `as-child`, but
 does not depend on a specific menu, popover, or presence implementation. Visual
-styling remains caller-owned.
+styling remains caller-owned. The content slides 4px from its trigger. With
+`data-side="top"`, which Reka sets on content above its trigger, it slides up.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
@@ -72,6 +73,46 @@ Expandable/collapsible container with trigger button and vertical animation.
 
 **v-model**: `visible: boolean`
 **Slots**: `trigger({ visible, setVisible })`, `default({ visible, setVisible })`
+
+### LinkGroup
+
+Card that groups `LinkGroupItem` links under a small title, such as the settings search results of one category.
+It has the surface and the dot texture of the settings category cards, and its icon shows large and faded in the bottom-right corner.
+When an item has hover or focus, the icon scales up.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `title` | `string?` | — | Name of the group, shown small in the top-left corner |
+| `icon` | `string?` | — | Iconify class. It shows next to the title, and large in the corner |
+
+**Slots**: `default` (the `LinkGroupItem` links)
+**Exposes**: `naturalWidth()`, the narrowest width at which no item cuts its text. A layout can use it to decide how many groups fit side by side.
+
+### LinkGroupItem
+
+One link in a `LinkGroup`: a name on the left, a short detail on the right, and an arrow.
+On hover, the theme color sweeps in from the left and the dots under the item light up.
+The name keeps its width. The detail shrinks and cuts first.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `as` | `PrimitiveProps['as']?` | `'a'` | Element or component to render, such as `RouterLink`. Other attributes, such as `to`, pass to it |
+| `detail` | `string?` | — | Short note on the right, such as where the link goes |
+
+**Slots**: `default` (the name), `detail` (replaces the `detail` prop)
+
+### ProgressiveBlur
+
+Behavior-only overlay that blurs the backdrop more and more toward one edge. It
+stacks several `backdrop-filter` layers, and a mask shows each layer only in its
+own band. Place it as the first child of a positioned surface that floats over
+the stage. It takes no pointer input. The caller supplies any tint.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `edge` | `'top' \| 'bottom'` | `'bottom'` | Edge with the strongest blur |
+| `strength` | `number` | `24` | Blur radius in pixels at that edge |
+| `layers` | `number` | `5` | Number of blur layers. More layers fade more smoothly and paint more |
 
 ### Screen
 
@@ -235,9 +276,32 @@ background, outline, shape, or forced square dimensions. Supply an accessible
 Translucent, backdrop-blurred action without an outline, intended for floating
 controls such as the Tamagotchi Controls Island. Includes all `BasicButton` props.
 
+### Alert
+
+Status message for a result or a current state: an error, a warning, a success, or an operation that runs. Each tone has a fixed palette and a MingCute icon. The surface is an opaque base with a tint and no border, so it stays readable on translucent panels. For introductions and tips that show no status, use `Callout`.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `tone` | `'info' \| 'success' \| 'warning' \| 'danger'` | `'info'` | Status meaning. `info` follows the theme hue |
+| `title` | `string?` | — | Short summary. Without a title, the body uses the tone color |
+| `icon` | `string?` | — | Iconify class that replaces the tone icon |
+| `loading` | `boolean?` | `false` | Replaces the icon with a spinner |
+| `actionsPlacement` | `'end' \| 'bottom'` | `'bottom'` with a title, `'end'` without | Position of the `actions` slot |
+| `dismissible` | `boolean?` | `false` | Shows a close button that emits `dismiss` |
+| `dismissLabel` | `string?` | `'Dismiss'` | Accessible name of the close button. Pass a translated string |
+| `live` | `'off' \| 'polite' \| 'assertive'` | `'off'` | `polite` sets `role="status"`. `assertive` sets `role="alert"`. Use them only for an alert that appears after an action |
+
+**Slots**: `default` (body), `title`, `icon`, `actions`
+
+**Emits**: `dismiss` (the parent owns the visibility)
+
+- The body styles `a`, `code`, `strong`, paragraphs, and lists. For Markdown content, put `MarkdownRenderer` in the body.
+- Put at most two buttons in `actions`, with `size="sm"`. The main button uses the tone color with `variant="primary"`. The other button uses the neutral color.
+- Do not make errors or required warnings dismissible. They disappear when the user fixes the cause.
+
 ### Callout
 
-Alert/callout box with themed accent bar.
+Box with a themed accent bar for introductions, tips, and background information. It shows no status. For errors, warnings, and results, use `Alert`.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
@@ -248,11 +312,13 @@ Alert/callout box with themed accent bar.
 
 ### ContainerError
 
-Error display with copy/feedback buttons and scrollable stack trace.
+Error panel with a title row and a scrollable details area. The title row shows the error name and the copy and feedback buttons. The details area shows the message, the stack, and the cause.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `error` | `unknown?` | — | Error object |
+| `title` | `string?` | — | Replaces the error name in the title row. The error name then starts the message |
+| `description` | `string?` | — | Short context under the title row |
 | `message` | `string?` | — | Custom message |
 | `stack` | `string?` | — | Stack trace |
 | `includeStack` | `boolean?` | `true` | Show stack |
@@ -261,13 +327,14 @@ Error display with copy/feedback buttons and scrollable stack trace.
 | `copyButtonLabel` | `string?` | `'Copy'` | Copy button text |
 | `copiedButtonLabel` | `string?` | `'Copied'` | Copied state text |
 | `feedbackButtonLabel` | `string?` | `'Feedback'` | Feedback button text |
-| `heightPreset` | `'sm' \| 'md' \| 'lg' \| 'xl' \| 'auto'` | `'md'` | Container height |
+| `heightPreset` | `'sm' \| 'md' \| 'lg' \| 'xl' \| 'auto'` | `'md'` | Maximum height of the details area. Short details keep their natural height |
 
+**Slots**: `actions` (buttons at the end of the panel)
 **Emits**: `copy(content: string)`, `feedback()`
 
 ### ErrorBoundary
 
-Catches synchronous render/setup errors in descendants via `onErrorCaptured` and renders a fallback (built-in `ContainerError` + retry button) instead of letting the error propagate. Use to wrap `<RouterView>` or any subtree where partial failure should not blank the host layout. Async/unhandled rejections are NOT captured — use `app.config.errorHandler` for those.
+Catches synchronous render/setup errors in descendants via `onErrorCaptured` and renders a fallback (built-in `ContainerError` with the title, the failed phase, and a retry `Button` in its `actions` slot) instead of letting the error propagate. Use to wrap `<RouterView>` or any subtree where partial failure should not blank the host layout. Async/unhandled rejections are NOT captured — use `app.config.errorHandler` for those.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
@@ -297,6 +364,36 @@ items and their business actions.
 
 **Models**: `open` (`boolean`, default `false`). Bind it to open the menu from code, for example after a hover delay.
 **Slots**: `trigger` (one interactive element), `default` (Reka dropdown-menu items).
+
+### Menu items
+
+Styled rows for the content of a `DropdownMenu`. They wrap Reka UI menu parts,
+keep their props and events, and share one row look, so callers do not copy item
+classes.
+
+| Component | Wraps | Description |
+|-----------|-------|-------------|
+| `MenuItem` | `DropdownMenuItem` | An action row. Slot: `default`. Emits `select` |
+| `MenuRadioItem` | `DropdownMenuRadioItem` | A choice inside a Reka `DropdownMenuRadioGroup`, with a check on the selected row. The menu stays open after a choice |
+| `MenuSwitchItem` | `DropdownMenuCheckboxItem` | A setting with a switch. The whole row toggles it, and the menu stays open. Model: `modelValue` (`boolean`). Prop: `disabled` |
+| `MenuLabel` | `DropdownMenuLabel` | A small group heading |
+| `MenuSeparator` | `DropdownMenuSeparator` | A line between groups |
+
+`menuItemClasses` exports the row classes for a Reka part without a wrapper,
+such as `DropdownMenuSubTrigger`.
+
+### LevelBars
+
+Behavior-only audio level indicator. It draws small round bars in the current
+text color, and each bar stretches with the level by its own weight. It
+animates with transforms, so a level that changes on every frame does not lay
+out the page.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `level` | `number` | — | Level from 0 to 1. Values outside the range are clamped |
+| `weights` | `readonly number[]?` | `[0.4, 0.75, 1, 0.7, 0.45]` | The share of the level for each bar. One entry is one bar |
+| `busy` | `boolean?` | `false` | The bars wave by themselves, for work without a level |
 
 ### DoubleCheckButton
 

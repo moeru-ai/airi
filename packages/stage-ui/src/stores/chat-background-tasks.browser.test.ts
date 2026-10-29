@@ -9,6 +9,7 @@ import { render } from 'vitest-browser-vue'
 import { defineComponent, h } from 'vue'
 import { createI18n } from 'vue-i18n'
 
+import { recipesRepo } from '../database/repos/recipes.repo'
 import { useLLM } from './ai/chat-llm/llm'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useChatStore } from './chat'
@@ -64,7 +65,7 @@ async function setupChat(reply: (prompt: string, options?: StreamOptions) => Pro
   return { pinia, chat: useChatStore(pinia), sessions, recipes: useRecipesStore(pinia), prompts }
 }
 
-afterEach(() => {
+afterEach(async () => {
   vi.restoreAllMocks()
   for (const pinia of pinias.splice(0)) {
     useModsServerChannelStore(pinia).dispose()
@@ -72,6 +73,7 @@ afterEach(() => {
     disposePinia(pinia)
   }
   localStorage.clear()
+  await recipesRepo.clear()
 })
 
 // ROOT CAUSE:
@@ -83,8 +85,8 @@ it('stops a running task without a result, while another task runs on', async ()
       await new Promise<void>(resolve => options?.abortSignal?.addEventListener('abort', () => resolve(), { once: true }))
     return 'done'
   })
-  recipes.add({ name: 'Watch', description: 'Watches a page.', instructions: 'Watch the page.', keywords: [], background: true, enabled: true })
-  recipes.add({ name: 'Sum', description: 'Adds numbers.', instructions: 'Add the numbers.', keywords: [], background: true, enabled: true })
+  await recipes.add({ name: 'Watch', description: 'Watches a page.', instructions: 'Watch the page.', keywords: [], background: true, enabled: true })
+  await recipes.add({ name: 'Sum', description: 'Adds numbers.', instructions: 'Add the numbers.', keywords: [], background: true, enabled: true })
   const [watch, sum] = ['Watch', 'Sum'].map(name => recipes.recipes.find(recipe => recipe.name === name)!)
   const parent = sessions.activeSessionId
 
@@ -109,7 +111,7 @@ it('stops a running task without a result, while another task runs on', async ()
 // Each task kept its own session forever, and deleting one through deleteSession moved the character's selected conversation.
 it('keeps the sessions of only the newest finished tasks, without moving the selected conversation', async () => {
   const { chat, sessions, recipes } = await setupChat(async () => 'checked')
-  recipes.add({ name: 'Check', description: 'Checks the weather.', instructions: 'Check the weather.', keywords: [], background: true, enabled: true })
+  await recipes.add({ name: 'Check', description: 'Checks the weather.', instructions: 'Check the weather.', keywords: [], background: true, enabled: true })
   const check = recipes.recipes.find(recipe => recipe.name === 'Check')!
   const selected = sessions.activeSessionId
   const characterId = sessions.sessionMetas[selected]!.characterId
@@ -132,7 +134,7 @@ it('keeps the sessions of only the newest finished tasks, without moving the sel
 // The result returns as a notice that history keeps, marked as a notice and never as owner speech.
 it('runs a keyword-triggered background recipe and keeps its result as a notice', async () => {
   const { chat, sessions, recipes, prompts } = await setupChat(async prompt => prompt.includes('Ask which game, then start it.') ? 'The owner wants porridge games.' : '')
-  recipes.add({ name: 'Game night', description: 'Starts a game when the owner wants to play.', instructions: 'Ask which game, then start it.', keywords: ['想玩粥了'], background: true, enabled: true })
+  await recipes.add({ name: 'Game night', description: 'Starts a game when the owner wants to play.', instructions: 'Ask which game, then start it.', keywords: ['想玩粥了'], background: true, enabled: true })
   const parent = sessions.activeSessionId
 
   await chat.send({ sessionId: parent, text: '今天想玩粥了' })
@@ -160,7 +162,7 @@ it('runs a recipe with every registered tool', async () => {
     requiresExplicitSelection: true,
     execute: async () => 'ok',
   })
-  recipes.add({ name: 'Tidy up', description: '', instructions: 'Tidy the desktop.', background: true, keywords: [], enabled: true })
+  await recipes.add({ name: 'Tidy up', description: '', instructions: 'Tidy the desktop.', background: true, keywords: [], enabled: true })
   const tidy = recipes.recipes.find(recipe => recipe.name === 'Tidy up')!
 
   await chat.startRecipe(tidy, { parentSessionId: sessions.activeSessionId, task: 'Tidy the desktop now.' })

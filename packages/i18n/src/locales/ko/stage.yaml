@@ -126,7 +126,7 @@ chat:
     delete-short: 삭제
     confirm-delete-short: 삭제 확인
     title: 대화
-    new: + New
+    new: 새 대화
     current: 현재
     confirm-delete: 이 대화와 메시지를 삭제할까요?
     cancel: 취소

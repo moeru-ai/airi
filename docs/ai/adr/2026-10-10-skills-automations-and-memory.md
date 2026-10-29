@@ -20,6 +20,8 @@ A recipe is a skill, like a skill in a coding agent.
 - A keyword in the owner's message works like a slash command. The steps are stored with that message, so later requests keep them without another tool call.
 - A recipe marked `background` runs a task in its own hidden session. Its result reaches the conversation later as a notice.
 - Every recipe run can use every registered tool, computer use included. The owner approved the recipe, or asked for the run.
+- IndexedDB keeps the recipes on the device, one record for each recipe, in the order of addition. A removal leaves a tombstone. After a change, the other windows read the recipes again.
+- A change writes only its own fields onto the stored record, so it keeps the other fields and never brings back a removed recipe. A send waits until the window has read the recipes, so its keywords find them.
 
 ### Decisions
 
@@ -51,7 +53,10 @@ A recipe is a skill, like a skill in a coding agent.
 
 ### Long-term memory
 
-- Memory is an index plus one entry per fact. The index lists every entry by name and description, and joins the identity at the start of each run.
+- Memory is an index plus one entry per fact. The index lists every entry by its id and description, and joins the identity at the start of each run.
+- The store makes a UUIDv7 id when it adds an entry. A write with the id of the card's own entry changes that entry. A write without an id adds an entry.
+- IndexedDB keeps the entries on the device, one record for each entry. A removal leaves a tombstone. After a change, the other windows read the entries again.
+- A write reads the stored entry inside one lock for all windows, so a window that has not read a removal or a make-general never undoes it. A send waits until the window has read the entries.
 - The run reads, writes, and forgets entries with memory tools. It needs no approval.
 - A new entry belongs to the character card of the run. Other cards do not read it.
 - The owner can make an entry general in Settings. Every card then reads it in addition to its own entries. A run cannot change or forget a general entry.

@@ -194,6 +194,22 @@ const notificationsLabel = computed(() => unread.value > 0
 
           <DropdownMenuItem as-child>
             <RouterLink
+              to="/settings/modules/hearing"
+              data-testid="header-hearing-settings"
+              :class="[
+                'group w-full flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2',
+                'text-sm leading-none outline-none text-neutral-700 dark:text-neutral-200',
+                'data-[highlighted]:bg-primary-100/80 dark:data-[highlighted]:bg-primary-900/40',
+                'transition-colors duration-150 ease-in-out',
+              ]"
+            >
+              <div :class="['i-mingcute:ear-line text-lg text-neutral-400 transition group-hover:text-primary-500']" />
+              {{ t('stage.mobile-tools.hearing') }}
+            </RouterLink>
+          </DropdownMenuItem>
+
+          <DropdownMenuItem as-child>
+            <RouterLink
               to="/settings"
               :class="[
                 'group w-full flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2',

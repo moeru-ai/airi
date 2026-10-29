@@ -15,6 +15,8 @@ import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { computed, createApp, nextTick, reactive, ref, toRaw } from 'vue'
 
+import { memoryRepo } from '../database/repos/memory.repo'
+import { recipesRepo } from '../database/repos/recipes.repo'
 import { getAnalytics } from '../libs/product-signals'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
@@ -141,8 +143,10 @@ vi.mock('./chat/context-store', () => ({
   }),
 }))
 
-// IndexedDB is a browser boundary. Browser tests exercise the real sticker repository.
+// IndexedDB is a browser boundary. Browser tests exercise the real sticker and recipe repositories.
 vi.mock('../database/repos/chat-assets.repo')
+vi.mock('../database/repos/memory.repo')
+vi.mock('../database/repos/recipes.repo')
 
 vi.mock('../database/repos/stickers.repo', () => ({
   stickersRepo: { read: async () => ({ records: [], images: [] }) },
@@ -315,7 +319,9 @@ function storedToolImageMessage(): ChatHistoryItem {
 }
 
 describe('chat store contract', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await memoryRepo.clear()
+    await recipesRepo.clear()
     cardPrompt.value = 'system prompt'
     setActivePinia(createPinia())
     vi.spyOn(getAnalytics(), 'emit').mockImplementation((event, properties) => {
@@ -637,7 +643,7 @@ describe('chat store contract', () => {
       prompts.push(JSON.stringify(context))
       await options.onStreamEvent?.({ type: 'finish' })
     })
-    useRecipesStore().add({
+    await useRecipesStore().add({
       name: 'i-have-adhd',
       description: 'ADHD-friendly answers.',
       instructions: 'Start with the next step.',
@@ -667,25 +673,25 @@ describe('chat store contract', () => {
       await options.onStreamEvent({ type: 'finish' })
     })
     const memory = useMemoryStore()
-    memory.write({ name: 'nickname', description: 'What the owner likes to be called.', body: 'Yumeka.' }, 'default')
-    memory.makeGeneral({ name: 'nickname', persona: 'default' })
-    memory.write({ name: 'channel-rules', description: 'Rules of this channel.', body: 'No spoilers.' }, 'discord-host')
-    memory.write({ name: 'focus-steps', description: 'How the focus card answers.', body: 'Next step first.' }, 'focus')
+    const nickname = (await memory.write({ description: 'What the owner likes to be called.', body: 'Yumeka.' }, 'default'))!
+    await memory.makeGeneral(nickname)
+    const rules = (await memory.write({ description: 'Rules of this channel.', body: 'No spoilers.' }, 'discord-host'))!
+    await memory.write({ description: 'How the focus card answers.', body: 'Next step first.' }, 'focus')
 
     await useChatStore().send({ sessionId: 'scene-session', text: 'save a recipe for me' })
 
     expect(toolNames[0]).not.toContain('builtIn_proposeRecipe')
     expect(toolNames[0]).toContain('builtIn_writeMemory')
-    expect(prompt).toContain('- channel-rules: Rules of this channel.')
-    expect(prompt).toContain('- nickname: What the owner likes to be called.')
-    expect(prompt).not.toContain('focus-steps')
+    expect(prompt).toContain(`- ${rules.id}: Rules of this channel.`)
+    expect(prompt).toContain(`- ${nickname.id}: What the owner likes to be called.`)
+    expect(prompt).not.toContain('How the focus card answers.')
 
     // With long-term memory off, no memory tool or index reaches the run.
     memory.enabled = false
     await useChatStore().send({ sessionId: 'scene-session', text: 'hello again' })
 
     expect(toolNames[1]).not.toContain('builtIn_writeMemory')
-    expect(prompt).not.toContain('channel-rules')
+    expect(prompt).not.toContain('Rules of this channel.')
   })
 
   it('preserves image attachments when retrying a failed turn', async () => {
