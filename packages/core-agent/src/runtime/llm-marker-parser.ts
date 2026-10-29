@@ -6,6 +6,7 @@ const ESCAPED_TAG_CLOSE = '{\'|\'}>'
 /** A point in the text. The parser settles it once every literal before it is handled. */
 interface MarkerFlush {
   settle: () => void
+  afterFlush?: () => void
 }
 
 type MarkerToken
@@ -201,12 +202,16 @@ export function useLlmmarkerParser(options: {
   const markerStream = createLlmMarkerStream(stream, { minLiteralEmitLength: options.minLiteralEmitLength })
 
   const processing = readStream(markerStream, async (token) => {
-    if (token.type === 'literal')
+    if (token.type === 'literal') {
       await options.onLiteral?.(token.value)
-    else if (token.type === 'special')
+    }
+    else if (token.type === 'special') {
       await options.onSpecial?.(token.value)
-    else
+    }
+    else {
+      token.flush.afterFlush?.()
       token.flush.settle()
+    }
   })
 
   return {
@@ -224,10 +229,11 @@ export function useLlmmarkerParser(options: {
      * Emits the text that the parser holds back to find a marker, and waits until every literal before this call is handled.
      *
      * Use when the text of a model step ends, for example at a tool call, so the call lands after that text.
+     * `afterFlush` runs in parser order, before any text after this boundary.
      * After `end()`, it settles with the end of parsing.
      */
-    flush() {
-      return Promise.race([new Promise<void>(settle => write({ settle })), processing])
+    flush(afterFlush?: () => void) {
+      return Promise.race([new Promise<void>(settle => write({ settle, afterFlush })), processing])
     },
 
     /**

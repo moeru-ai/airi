@@ -20,6 +20,7 @@ export default defineConfig({
           include: [
             'src-web/src/renderer/host-context/**/*.test.ts',
             'src-web/src/renderer/window-context.test.ts',
+            'src-web/src/renderer/composables/useCaptionItems.test.ts',
             'src-web/src/renderer/stores/tools/builtin/widgets.test.ts',
           ],
           exclude: ['src-web/src/renderer/host-context/**/*.browser.test.ts'],

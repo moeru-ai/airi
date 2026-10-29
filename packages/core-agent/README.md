@@ -77,6 +77,18 @@ Realtime transport is not implemented. A future session adapter can project the 
 
 The stream context carries `speaks`. Only a send that is neither `background` nor `scene` speaks.
 
+## Translation subtitles
+
+`translationLanguage` captures the subtitle locale for one send. An omitted or blank value disables translation interception.
+The runtime adds the translation directive to the system supplement, including each resolved tool step.
+A visible `<|TRANS:|>` marker routes later text to `onTokenTranslation`, not speech hooks or speech categorization.
+Markers inside reasoning do not activate translation. Special tokens inside a translated segment do not execute.
+
+An empty translation hook starts a new segment. Later chunks append without separators.
+A tool-call boundary resets the parser to source mode before the next text chunk.
+The host owns subtitle display, session isolation, cancellation clears, and caption expiry.
+Native generation records retain provider output. Display text and speech contain only the source response.
+
 ## Identity
 
 With `getSystemPrompt`, each run reads the identity of its own session when it starts. Stored system messages are skipped.

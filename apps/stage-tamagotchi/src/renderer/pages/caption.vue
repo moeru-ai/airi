@@ -4,6 +4,7 @@ import type { CaptionChannelEvent } from '@proj-airi/stage-shared'
 import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronMouseAroundWindowBorder, useElectronMouseInWindow } from '@proj-airi/electron-vueuse'
 import { createFadeAnimator, PoppinText } from '@proj-airi/stage-ui/components'
+import { useSettingsGeneral } from '@proj-airi/stage-ui/stores/settings'
 import { refDebounced, useBroadcastChannel } from '@vueuse/core'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
@@ -14,6 +15,7 @@ import { useCaptionItems } from '../composables/useCaptionItems'
 const CAPTION_TEXT_EXPIRY_MS = 10_000
 
 const attached = ref(true)
+const settingsGeneral = useSettingsGeneral()
 
 const { isOutside: isOutsideWindow } = useElectronMouseInWindow()
 const isOutsideWindowFor250Ms = refDebounced(isOutsideWindow, 250)
@@ -32,11 +34,13 @@ const getAttached = defineInvoke(context.value, captionGetIsFollowingWindow)
 const captionAnimatorByType = {
   'caption-speaker': createFadeAnimator({ duration: 180 }),
   'caption-assistant': createFadeAnimator({ duration: 180 }),
+  'caption-translation': createFadeAnimator({ duration: 180 }),
 } satisfies Record<CaptionChannelEvent['type'], ReturnType<typeof createFadeAnimator>>
 
 const captionTypes = [
   'caption-speaker',
   'caption-assistant',
+  'caption-translation',
 ] satisfies CaptionChannelEvent['type'][]
 
 function toCaptionTextSegments(type: CaptionChannelEvent['type']) {
@@ -51,7 +55,19 @@ function toCaptionTextSegments(type: CaptionChannelEvent['type']) {
 const captionTextByType = computed(() => ({
   'caption-speaker': toCaptionTextSegments('caption-speaker'),
   'caption-assistant': toCaptionTextSegments('caption-assistant'),
+  'caption-translation': toCaptionTextSegments('caption-translation'),
 }))
+
+const captionColors = computed(() => ({
+  'caption-speaker': { color: settingsGeneral.captionSpeakerColor, WebkitTextStrokeColor: settingsGeneral.captionSpeakerStrokeColor },
+  'caption-assistant': { color: settingsGeneral.captionAssistantColor, WebkitTextStrokeColor: settingsGeneral.captionAssistantStrokeColor },
+  'caption-translation': { color: settingsGeneral.captionTranslationColor, WebkitTextStrokeColor: settingsGeneral.captionTranslationStrokeColor },
+}))
+
+watch(data, (event) => {
+  if (event && captionTypes.includes(event.type))
+    addCaptionItem(event)
+}, { immediate: true })
 
 onMounted(async () => {
   try {
@@ -66,21 +82,6 @@ onMounted(async () => {
     })
   }
   catch {}
-
-  try {
-    // Update texts from broadcast channel
-    watch(data, (event) => {
-      if (!event)
-        return
-      if (event.type === 'caption-speaker') {
-        addCaptionItem(event)
-      }
-      else if (event.type === 'caption-assistant') {
-        addCaptionItem(event)
-      }
-    }, { immediate: true })
-  }
-  catch {}
 })
 
 onUnmounted(() => {
@@ -89,7 +90,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="pointer-events-none relative h-full w-full flex items-end justify-center">
+  <div :class="['pointer-events-none relative h-full w-full', 'flex items-end justify-center']">
     <div
       :class="[
         shouldFadeOnCursorWithin ? 'op-0' : 'op-100',
@@ -99,27 +100,27 @@ onUnmounted(() => {
     >
       <div
         v-show="!attached"
-        class="[-webkit-app-region:drag] absolute left-1/2 h-[14px] w-[36px] border border-[rgba(125,125,125,0.35)] rounded-[10px] bg-[rgba(125,125,125,0.28)] backdrop-blur-[6px] -top-2 -translate-x-1/2"
+        :class="['[-webkit-app-region:drag] absolute left-1/2 -top-2 -translate-x-1/2', 'h-[14px] w-[36px] rounded-[10px]', 'border border-[rgba(125,125,125,0.35)] bg-[rgba(125,125,125,0.28)] backdrop-blur-[6px]']"
         title="Drag to move"
       >
-        <div class="absolute left-1/2 top-1/2 h-[3px] w-4 rounded-full bg-[rgba(255,255,255,0.85)] -translate-x-1/2 -translate-y-1/2" />
+        <div :class="['absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2', 'h-[3px] w-4 rounded-full bg-[rgba(255,255,255,0.85)]']" />
       </div>
 
-      <div class="max-w-[80vw] flex flex-col gap-1">
+      <div :class="['max-w-[80vw] flex flex-col gap-1']">
         <div
           v-for="type in captionTypes"
-          v-show="captionTextByType[type].length > 0"
+          v-show="captionTextByType[type].length > 0 && (type !== 'caption-translation' || settingsGeneral.translationSubtitleEnabled)"
           :key="type"
           :class="[
-            type === 'caption-speaker' ? 'rounded-md px-2 py-1 text-[1.1rem] text-neutral-50 font-medium text-shadow-lg text-shadow-color-neutral-900/60' : '',
-            type === 'caption-assistant' ? 'rounded-md px-2 py-1 text-[1.35rem] text-primary-50 font-semibold text-stroke-4 text-stroke-primary-300/50 text-shadow-lg text-shadow-color-primary-700/50' : '',
+            'rounded-md px-2 py-1 text-stroke-2 text-shadow-lg text-shadow-color-neutral-900/60',
+            type === 'caption-assistant' ? 'text-[1.35rem] font-semibold' : 'text-[1.1rem] font-medium',
           ]"
-          :style="type === 'caption-assistant' ? { paintOrder: 'stroke fill' } : undefined"
+          :style="{ ...captionColors[type], paintOrder: 'stroke fill' }"
         >
           <PoppinText
             :text="captionTextByType[type]"
             :animator="captionAnimatorByType[type]"
-            :text-class="type === 'caption-assistant' ? 'color-neutral-50! align-middle' : type === 'caption-speaker' ? 'color-neutral-50! align-middle' : ''"
+            text-class="color-inherit! align-middle"
           />
         </div>
       </div>
@@ -133,7 +134,7 @@ onUnmounted(() => {
       leave-from-class="opacity-100"
       leave-to-class="opacity-50"
     >
-      <div v-if="isAroundWindowBorderFor250Ms" class="pointer-events-none absolute left-0 top-0 z-999 h-full w-full">
+      <div v-if="isAroundWindowBorderFor250Ms" :class="['pointer-events-none absolute left-0 top-0 z-999', 'h-full w-full']">
         <div
           :class="[
             'b-primary/50',

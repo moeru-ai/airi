@@ -4,6 +4,6 @@ export interface CaptionChannelEvent {
   operation?: 'append' | 'replace'
   /** Text rendered by the caption overlay. Empty text clears this source. */
   text: string
-  /** Identifies the speaker that owns this caption text. */
-  type: 'caption-speaker' | 'caption-assistant'
+  /** Identifies the caption track. Translations stay separate from the original assistant text. */
+  type: 'caption-speaker' | 'caption-assistant' | 'caption-translation'
 }

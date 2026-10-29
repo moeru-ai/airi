@@ -2854,3 +2854,15 @@ wip:
 streamer-mode:
   title: Streamer mode
   description: Hide microphone and sign-in indicators on the character window.
+translation-subtitle:
+  title: Translation Subtitles
+  description: Show a translation of each response without speaking the translated text.
+  language:
+    title: Target Language
+    description: Choose the language for translation subtitles.
+caption-colors:
+  title: Subtitle Colors
+  speaker: User Subtitle
+  assistant: Assistant Subtitle
+  translation: Translation Subtitle
+  stroke: Stroke Color
