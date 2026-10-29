@@ -292,7 +292,7 @@ const speechStore = useSpeechStore()
 const chatSession = useChatSessionStore()
 const translationCaption = useTranslationCaption(computed(() => chatSession.activeSessionId))
 const { text: translatedCaption } = translationCaption
-const { captionTranslationColor, captionTranslationStrokeColor } = storeToRefs(useSettingsGeneral())
+const { translationSubtitleEnabled, captionTranslationColor, captionTranslationStrokeColor } = storeToRefs(useSettingsGeneral())
 const inlineTranslationCaption = !isStageTamagotchi()
 let detachTranslationAbort: (() => void) | undefined
 
@@ -856,7 +856,7 @@ defineExpose({
       </div>
 
       <p
-        v-if="inlineTranslationCaption && translatedCaption"
+        v-if="inlineTranslationCaption && translationSubtitleEnabled && translatedCaption"
         data-testid="translation-caption"
         role="status"
         :class="[
