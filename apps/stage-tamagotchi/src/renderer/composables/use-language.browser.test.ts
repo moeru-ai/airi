@@ -9,22 +9,10 @@ vi.mock('vue-i18n', () => ({
   }),
 }))
 
-const localStorageMock = (() => {
-  let store: Record<string, string> = {}
-  return {
-    getItem: (key: string) => store[key] ?? null,
-    setItem: (key: string, value: string) => { store[key] = value },
-    removeItem: (key: string) => { delete store[key] },
-    clear: () => { store = {} },
-  }
-})()
-
-Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock })
-
 vi.mock('@proj-airi/stage-shared/composables', () => ({
   useLocalStorageManualReset: vi.fn((key: string, initialValue: string) => {
     // Tests control persisted state by pre-seeding localStorage before each case
-    const stored = localStorageMock.getItem(key)
+    const stored = localStorage.getItem(key)
     const value = stored !== null ? stored : initialValue
     return ref(value)
   }),
@@ -33,7 +21,7 @@ vi.mock('@proj-airi/stage-shared/composables', () => ({
 describe('useLanguage', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
-    localStorageMock.clear()
+    localStorage.clear()
   })
 
   // ROOT CAUSE:

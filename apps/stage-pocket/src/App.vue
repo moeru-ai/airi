@@ -93,6 +93,7 @@ const colors = computed(() => {
 
 watch(settings.language, () => {
   i18n.locale.value = settings.language.value
+  document.documentElement.lang = i18n.locale.value
 })
 
 watch(settings.themeColorsHue, () => {
