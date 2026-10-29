@@ -66,7 +66,28 @@ export const useVoiceStore = defineStore('voice', () => {
   const { stream: microphoneStream, enabled: microphoneEnabled, error: microphoneError } = storeToRefs(devices)
   /** The application tool selection for spoken turns. Without a connection, spoken turns send no tools. */
   let requestTools: (() => readonly ChatToolReference[]) | undefined
-  const { drafts, frontDraftId, acceptSpeech, sendDraft, discardDraft, editDraft, selectDraft } = useVoiceDrafts(report, () => requestTools?.())
+  /**
+   * A voice call is foreground continuous listening that the user started from a chat control.
+   * While it runs, speech starts an input in every Hearing input mode, and every spoken input is sent at once, so no
+   * draft waits for review. `useVoiceListening` reads `callActive` to start and stop listening.
+   */
+  const callActive = shallowRef(false)
+  /** A muted call keeps the microphone open but starts no input, so unmuting is immediate and asks for nothing. */
+  const callMuted = shallowRef(false)
+  /**
+   * Inputs that began during a call, keyed by attempt ID. A call input is sent at once even when it submits after the
+   * call ended, for example a sentence that was still being rephrased at the hang-up. A draft would have no surface.
+   * Submission removes the entry.
+   */
+  const callInputs = new Set<string>()
+  const { drafts, frontDraftId, acceptSpeech, sendDraft, discardDraft, editDraft, selectDraft } = useVoiceDrafts(
+    report,
+    () => requestTools?.(),
+    (submission) => {
+      const fromCall = callInputs.delete(submission.submissionId)
+      return hearing.autoSendEnabled || fromCall || callActive.value
+    },
+  )
   const activeTurns = shallowRef<readonly TurnRef[]>([])
   const responses = new Map<string, { response: VoiceResponse, speech?: SpeechStream }>()
   const audioContext = useAudioContext()
@@ -132,6 +153,10 @@ export const useVoiceStore = defineStore('voice', () => {
 
   controller.onInput((attempt) => {
     presentedInput = { requestId: attempt.id, attempt }
+    if (callActive.value)
+      callInputs.add(attempt.id)
+    // An input that settles without a submission, for example a cancelled one, does not stay in the call set.
+    void attempt.done.finally(() => queueMicrotask(() => callInputs.delete(attempt.id)))
     // A control begins with `control`, and the voice activity rule begins with `speech` or `wake-word`.
     // An input that another caller began without a cause is traced as speech.
     const cause = attempt.cause === 'control' || attempt.cause === 'wake-word' ? attempt.cause : 'speech'
@@ -182,9 +207,12 @@ export const useVoiceStore = defineStore('voice', () => {
     return controller.beginInput(options)
   }
 
-  /** Begins an input that a control ends. Returns nothing while another window holds a capture lease. */
+  /**
+   * Begins an input that a control ends. Returns nothing while another window holds a capture lease, while the
+   * microphone switch is off, or while a call is muted, because a muted call must not send speech.
+   */
   function beginManual(sessionId: string) {
-    if (!hearing.enabled || captureLease.held || devices.off)
+    if (!hearing.enabled || captureLease.held || devices.off || (callActive.value && callMuted.value))
       return undefined
     return beginInput({ sessionId, interruptTurns: activeTurns.value.filter(turn => turn.sessionId === sessionId), start: { kind: 'after-silence' }, cause: 'control' })
   }
@@ -535,14 +563,17 @@ export const useVoiceStore = defineStore('voice', () => {
         inputTracer.activity(activity)
         speakerEvidence.noteActivity(activity)
       },
-      detectWakeWord: options.detectWakeWord ?? wakeWords?.detect,
+      // A muted call reports no wake, so a wake word cannot start a session or a trace while the user is muted.
+      detectWakeWord: muteWakes(options.detectWakeWord ?? wakeWords?.detect),
       // A capture lease, for example a voiceprint enrollment, records speech that can contain a wake word. It must not start an input.
-      enabled: () => !voiceMessages.isRecording && !captureLease.held,
+      // A muted call also stops here, which cancels the speech that it was capturing.
+      enabled: () => !voiceMessages.isRecording && !captureLease.held && (!callActive.value || !callMuted.value),
       silenceMs: () => hearing.endJudgeEnabled ? VOICE_END_SILENCE.pauseMs + VOICE_END_SILENCE.graceMs : VOICE_END_SILENCE.pauseMs,
       // Automatic barge-in requires platform echo cancellation or an external echo classifier.
       acceptSpeech: options.acceptSpeech ?? (async () => !speaking.nowSpeaking || devices.source.echoCancellation),
       // Wake word mode returns no target, so VAD alone cannot start an input. A wake supplies its own target.
-      target: () => sessions.activeSessionId && hearing.configured && startsInputOnSpeech(hearing.inputMode)
+      // A call starts an input on speech in every input mode.
+      target: () => sessions.activeSessionId && hearing.configured && (callActive.value || startsInputOnSpeech(hearing.inputMode))
         ? { sessionId: sessions.activeSessionId, interruptTurns: activeTurns.value.filter(turn => turn.sessionId === sessions.activeSessionId) }
         : undefined,
     })
@@ -599,6 +630,42 @@ export const useVoiceStore = defineStore('voice', () => {
     return { sessionId, interruptTurns: activeTurns.value.filter(turn => turn.sessionId === sessionId) }
   }
 
+  function muteWakes(detect: VoiceActivityOptions['detectWakeWord']): VoiceActivityOptions['detectWakeWord'] {
+    if (!detect)
+      return undefined
+    return async (window, signal, activity) => callActive.value && callMuted.value ? undefined : detect(window, signal, activity)
+  }
+
+  /**
+   * Starts a voice call. `useVoiceListening` then starts listening if it does not run already.
+   * A second call while one runs does nothing.
+   */
+  function startCall() {
+    callMuted.value = false
+    callActive.value = true
+  }
+
+  /** Ends the call and cancels speech that it was capturing. A reply that AIRI is speaking continues. */
+  function endCall() {
+    if (!callActive.value)
+      return
+    callActive.value = false
+    callMuted.value = false
+    cancelInput()
+  }
+
+  /**
+   * Muting cancels the speech that is captured now, also an input that a control began, because the voice activity rule
+   * cancels only the inputs that it began.
+   */
+  function setCallMuted(muted: boolean) {
+    if (!callActive.value)
+      return
+    callMuted.value = muted
+    if (muted)
+      controller.activeInput?.cancel('The call is muted')
+  }
+
   /** Disposing the plugins ends their observations, which releases the microphone if nothing else uses it. */
   async function stopListening() {
     const previous = listening
@@ -612,5 +679,5 @@ export const useVoiceStore = defineStore('voice', () => {
     void stopListening()
   })
 
-  return { controller, state, transcript, error, drafts, activeTurns, beginInput, beginManual, endInput, cancelInput, sendDraft, discardDraft, startResponse, getSpeech, finishResponse, interrupt, connectOutput, connectTools, startListening, stopListening, resolveWakeTarget }
+  return { controller, state, transcript, error, drafts, activeTurns, callActive, callMuted, startCall, endCall, setCallMuted, beginInput, beginManual, endInput, cancelInput, sendDraft, discardDraft, startResponse, getSpeech, finishResponse, interrupt, connectOutput, connectTools, startListening, stopListening, resolveWakeTarget }
 })

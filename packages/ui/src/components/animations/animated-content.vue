@@ -85,6 +85,12 @@ const props = withDefaults(defineProps<AnimatedContentProps>(), {
  */
 .animated-content {
   overflow: clip;
+  /* The content slides in from its trigger. Positioning owners such as Reka set `data-side`. */
+  --animated-content-shift: -4px;
+}
+
+.animated-content[data-side="top"] {
+  --animated-content-shift: 4px;
 }
 
 .animated-content[data-state="open"] {
@@ -121,7 +127,7 @@ const props = withDefaults(defineProps<AnimatedContentProps>(), {
 @keyframes animated-content-fade-expand {
   from {
     opacity: 0;
-    transform: translateY(-4px);
+    transform: translateY(var(--animated-content-shift));
   }
 
   to {
@@ -138,7 +144,7 @@ const props = withDefaults(defineProps<AnimatedContentProps>(), {
 
   to {
     opacity: 0;
-    transform: translateY(-4px);
+    transform: translateY(var(--animated-content-shift));
   }
 }
 
@@ -146,7 +152,7 @@ const props = withDefaults(defineProps<AnimatedContentProps>(), {
   from {
     height: 0;
     opacity: 0;
-    transform: translateY(-4px);
+    transform: translateY(var(--animated-content-shift));
   }
 
   to {
@@ -166,7 +172,7 @@ const props = withDefaults(defineProps<AnimatedContentProps>(), {
   to {
     height: 0;
     opacity: 0;
-    transform: translateY(-4px);
+    transform: translateY(var(--animated-content-shift));
   }
 }
 

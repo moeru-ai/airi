@@ -17,7 +17,8 @@ inner content blur from an external `data-state="open|closed"` lifecycle. The
 lifecycle owner must keep the primitive mounted until the closing animation
 finishes. It can compose with Reka UI content primitives through `as-child`, but
 does not depend on a specific menu, popover, or presence implementation. Visual
-styling remains caller-owned.
+styling remains caller-owned. The content slides 4px from its trigger. With
+`data-side="top"`, which Reka sets on content above its trigger, it slides up.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
@@ -99,6 +100,19 @@ The name keeps its width. The detail shrinks and cuts first.
 | `detail` | `string?` | — | Short note on the right, such as where the link goes |
 
 **Slots**: `default` (the name), `detail` (replaces the `detail` prop)
+
+### ProgressiveBlur
+
+Behavior-only overlay that blurs the backdrop more and more toward one edge. It
+stacks several `backdrop-filter` layers, and a mask shows each layer only in its
+own band. Place it as the first child of a positioned surface that floats over
+the stage. It takes no pointer input. The caller supplies any tint.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `edge` | `'top' \| 'bottom'` | `'bottom'` | Edge with the strongest blur |
+| `strength` | `number` | `24` | Blur radius in pixels at that edge |
+| `layers` | `number` | `5` | Number of blur layers. More layers fade more smoothly and paint more |
 
 ### Screen
 
@@ -350,6 +364,36 @@ items and their business actions.
 
 **Models**: `open` (`boolean`, default `false`). Bind it to open the menu from code, for example after a hover delay.
 **Slots**: `trigger` (one interactive element), `default` (Reka dropdown-menu items).
+
+### Menu items
+
+Styled rows for the content of a `DropdownMenu`. They wrap Reka UI menu parts,
+keep their props and events, and share one row look, so callers do not copy item
+classes.
+
+| Component | Wraps | Description |
+|-----------|-------|-------------|
+| `MenuItem` | `DropdownMenuItem` | An action row. Slot: `default`. Emits `select` |
+| `MenuRadioItem` | `DropdownMenuRadioItem` | A choice inside a Reka `DropdownMenuRadioGroup`, with a check on the selected row. The menu stays open after a choice |
+| `MenuSwitchItem` | `DropdownMenuCheckboxItem` | A setting with a switch. The whole row toggles it, and the menu stays open. Model: `modelValue` (`boolean`). Prop: `disabled` |
+| `MenuLabel` | `DropdownMenuLabel` | A small group heading |
+| `MenuSeparator` | `DropdownMenuSeparator` | A line between groups |
+
+`menuItemClasses` exports the row classes for a Reka part without a wrapper,
+such as `DropdownMenuSubTrigger`.
+
+### LevelBars
+
+Behavior-only audio level indicator. It draws small round bars in the current
+text color, and each bar stretches with the level by its own weight. It
+animates with transforms, so a level that changes on every frame does not lay
+out the page.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `level` | `number` | — | Level from 0 to 1. Values outside the range are clamped |
+| `weights` | `readonly number[]?` | `[0.4, 0.75, 1, 0.7, 0.45]` | The share of the level for each bar. One entry is one bar |
+| `busy` | `boolean?` | `false` | The bars wave by themselves, for work without a level |
 
 ### DoubleCheckButton
 

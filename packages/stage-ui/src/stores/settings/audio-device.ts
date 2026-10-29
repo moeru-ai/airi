@@ -1,7 +1,7 @@
 import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
-import { computed, onScopeDispose, ref, watch } from 'vue'
+import { computed, onScopeDispose, ref, shallowRef, watch } from 'vue'
 
 import { useAudioDevice } from '../../composables/audio'
 import { listensContinuously, useHearingStore } from '../modules/hearing'
@@ -40,11 +40,17 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   /** True while AIRI listens in the Hearing input mode: the microphone is on and the listening preference is on. */
   const listening = computed(() => enabled.value && !off.value)
   /**
+   * Whether this window can listen in the Hearing input mode outside a voice call. `useVoiceListening` sets it from its
+   * `continuous` option. Small web screens set it to false, because they have no control for it and only a call listens
+   * there. Then the preference must not hold the microphone open either. It is runtime state of this window.
+   */
+  const continuousAllowed = shallowRef(true)
+  /**
    * True while the preference keeps the microphone open in the window that initialized this store.
    * Each window computes it from the same persisted settings. A level meter observes the input only while this is
    * true, so a meter alone never opens the microphone.
    */
-  const heldOpen = computed(() => listening.value && listensContinuously(hearing.inputMode))
+  const heldOpen = computed(() => listening.value && continuousAllowed.value && listensContinuously(hearing.inputMode))
 
   /** Holds the current input open. A failure other than release turns the preference off. */
   function hold() {
@@ -119,6 +125,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     enabled,
     off,
     listening,
+    continuousAllowed,
     heldOpen,
     selectedAudioInput,
     audioInputs: device.audioInputs,

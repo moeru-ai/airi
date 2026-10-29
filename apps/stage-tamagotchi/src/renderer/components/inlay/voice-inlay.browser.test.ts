@@ -181,11 +181,11 @@ describe('voice inlay', () => {
     publish({ drafts: [{ ...draft, sending: true }], frontDraftId: 'draft' })
     await expect.poll(inlayView).toBe('sent')
     const card = document.querySelector('[data-testid="voice-inlay"]')!
-    expect(card.classList.contains('inlay-send')).toBe(false)
+    expect(card.classList.contains('voice-presence-send')).toBe(false)
 
     await expect.element(view.getByRole('status')).toHaveTextContent('Hello there.')
     publish({ drafts: [] })
-    await expect.poll(() => card.classList.contains('inlay-send'), { timeout: 3000 }).toBe(true)
+    await expect.poll(() => card.classList.contains('voice-presence-send'), { timeout: 3000 }).toBe(true)
     await expect.poll(inlayView, { timeout: 3000 }).toBe('hidden')
   })
 

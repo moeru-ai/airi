@@ -35,17 +35,19 @@ chat:
     position: Playback position
     no-speech: No speech was recognized, so the voice message was not sent.
   voice-composer:
+    unavailable: The microphone is not available. Check that it is turned on in Hearing.
     audio: Voice message
     transcription: Dictation
-    hold-hint: Hold to record. Click to switch between voice message and dictation. Press Enter to record without holding.
+    walkie: Walkie-talkie
+    mode-hint: Long-press or right-click to choose the voice input
+    hold-to-talk: Hold to talk
+    release-to-send: Release to send
+    release-to-insert: Release to insert the text
+    release-to-cancel: Release to cancel
+    keyboard: Use the keyboard
     listening: Listening…
-    lock: Slide up to lock
-    cancel-hint: Slide left to cancel
     processing: Finishing…
     cancel: Cancel
-    send: Send voice message
-    insert: Insert text
-    retry: Send voice message again
     discard: Discard voice message
     failed: Voice input failed
     configure-title: Set up Hearing
@@ -91,7 +93,28 @@ chat:
     listening: Listening
     finalizing: Finishing…
     sent: Sent
+    dismiss: Dismiss
   voice-input: Voice input
+  composer:
+    add: Add
+    images: Images
+    call: Voice call
+  call:
+    title: Voice call
+    listening: Listening
+    hearing: Hearing you
+    speaking: Speaking
+    muted: Muted
+    mute: Mute the microphone
+    unmute: Unmute the microphone
+    hang-up: Hang up
+    minimize: Minimize the call
+    expand: Return to the call
+    failed: Could not start the voice call
+    microphone-denied: AIRI cannot use the microphone.
+    microphone-off: The microphone is turned off. Turn it on in Hearing to start a voice call.
+    busy: Finish or cancel the recording first, then start the voice call.
+    configure-description: Select a transcription provider and model in Hearing to start a voice call.
   notice:
     label: 'Background report from {name}'
   background-tasks:
