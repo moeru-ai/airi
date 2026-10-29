@@ -2,6 +2,8 @@ import type { TraceAggregate, TraceMetricDefinition } from '../core/define'
 import type { TraceRecord } from '../core/types'
 import type { TraceProjection } from './reader'
 
+import { groupBy, mapValues } from 'es-toolkit'
+
 import { aggregate, ATTR_CENSORED, ATTR_WARMUP } from '../conventions'
 import { matchTrackPath } from '../core/define'
 
@@ -104,14 +106,9 @@ export function summarizeMetric(key: string, samples: readonly MetricSample[], d
 
   let byDimension: MetricSummary['byDimension']
   if (definition?.dimensions?.length) {
-    const groups = new Map<string, number[]>()
-    for (const sample of included) {
-      const group = definition.dimensions.map(dimension => sample.dimensions?.[dimension] ?? '').join('|')
-      const list = groups.get(group) ?? []
-      list.push(sample.value)
-      groups.set(group, list)
-    }
-    byDimension = Object.fromEntries([...groups].map(([group, values]) => [group, aggregate(values, kinds)]))
+    const dimensions = definition.dimensions
+    const groups = groupBy(included, sample => dimensions.map(dimension => sample.dimensions?.[dimension] ?? '').join('|'))
+    byDimension = mapValues(groups, group => aggregate(group.map(sample => sample.value), kinds))
   }
 
   return {

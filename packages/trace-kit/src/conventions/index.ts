@@ -1,6 +1,8 @@
 import type { TraceAggregate, TraceAttributeDefinition } from '../core/define'
 import type { TraceAttributes, TraceRecord } from '../core/types'
 
+import { clamp, mean, percentile as percentileOf, sum } from 'es-toolkit'
+
 import { defineAttribute } from '../core/define'
 import {
   ATTR_GEN_AI_INPUT_MESSAGES,
@@ -186,11 +188,11 @@ const MIN_P95_SAMPLES = 100
  * Returns `undefined` for an empty list, and for p95 and p99 with fewer than 100 samples.
  */
 export function percentile(values: readonly number[], p: number): number | undefined {
+  // es-toolkit returns NaN for an empty list. The guard returns `undefined`, so a summary shows no value.
   if (values.length === 0 || (p >= 95 && values.length < MIN_P95_SAMPLES))
     return undefined
-  const sorted = [...values].sort((a, b) => a - b)
-  const rank = Math.ceil((p / 100) * sorted.length)
-  return sorted[Math.min(sorted.length, Math.max(1, rank)) - 1]
+  // es-toolkit throws for a percentile outside 0 to 100. A clamp gives the minimum or the maximum instead.
+  return percentileOf(values, clamp(p, 0, 100))
 }
 
 /** Aggregates measurements. A ratio metric gives sums, so its ratio is a ratio of sums, not a mean of ratios. */
@@ -208,10 +210,10 @@ export function aggregate(values: readonly number[], kinds: readonly TraceAggreg
         result.p99 = percentile(values, 99)
         break
       case 'mean':
-        result.mean = values.length > 0 ? values.reduce((sum, value) => sum + value, 0) / values.length : undefined
+        result.mean = values.length > 0 ? mean(values) : undefined
         break
       case 'sum':
-        result.sum = values.reduce((sum, value) => sum + value, 0)
+        result.sum = sum(values)
         break
       case 'count':
         result.count = values.length

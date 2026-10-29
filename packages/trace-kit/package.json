@@ -59,6 +59,7 @@
   },
   "dependencies": {
     "@moeru/std": "catalog:",
+    "es-toolkit": "catalog:",
     "valibot": "catalog:"
   },
   "devDependencies": {
