@@ -20,6 +20,7 @@ A recipe is a skill, like a skill in a coding agent.
 - A keyword in the owner's message works like a slash command. The steps are stored with that message, so later requests keep them without another tool call.
 - A recipe marked `background` runs a task in its own hidden session. Its result reaches the conversation later as a notice.
 - Every recipe run can use every registered tool, computer use included. The owner approved the recipe, or asked for the run.
+- IndexedDB keeps the recipes on the device, one record for each recipe, in the order of addition. A removal leaves a tombstone. After a change, the other windows read the recipes again.
 
 ### Decisions
 
