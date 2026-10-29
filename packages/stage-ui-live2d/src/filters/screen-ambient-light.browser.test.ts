@@ -644,7 +644,7 @@ function renderWrap(
     filter.renderSurfaceBloom = input => input
   if (behind.adaptedLevel !== undefined) {
     const level = behind.adaptedLevel
-    filter.exposure.configure(environmentWith({ surround: uniformMap([level, level, level]), contact }), { ...ambientLightDefaults.exposure, enabled: true }, true)
+    filter.exposure.configure(environmentWith({ surround: uniformMap([level, level, level]), contact }), { ...ambientLightDefaults.exposure, darkBase: ambientLightDefaults.filter.darkBase, baseCurve: ambientLightDefaults.filter.baseCurve, enabled: true }, true)
   }
   filter.update({
     environment: environmentWith({ contact }),

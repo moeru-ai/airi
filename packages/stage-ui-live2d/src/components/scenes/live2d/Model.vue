@@ -5,9 +5,9 @@ import type {
   AmbientLightEnvironment,
   AmbientLightExposureOptions,
   AmbientLightFilterOptions,
-  NormalizedRectangle,
   AmbientLightMaterialOptions,
   AmbientLightScreenGeometry,
+  NormalizedRectangle,
   ScreenAmbientLightMode,
 } from '@proj-airi/stage-shared/screen-ambient-light'
 import type { Cubism4ModelSettings } from 'pixi-live2d-display/cubism4'
@@ -696,16 +696,25 @@ function updateAmbientLightFilter() {
   screenAmbientLightFilter.value.renderSurfaceBloom = surfaceLighting && screenAmbientLightMode.value === 'window-gradient'
     ? input => surfaceLighting!.renderBloom(input)
     : undefined
-  screenAmbientLightFilter.value.exposure.configure(screenAmbientLightEnvironment.value, props.screenAmbientLightExposure, physical && screenAmbientLightActive.value)
+  screenAmbientLightFilter.value.exposure.configure(
+    screenAmbientLightEnvironment.value,
+    { ...props.screenAmbientLightExposure, darkBase: options.darkBase, baseCurve: options.baseCurve },
+    physical && screenAmbientLightActive.value,
+  )
+  // The surface shader takes one ambient level. It follows the same floor and
+  // curve as the final filter, from the measured screen level. The physical
+  // trial keeps the floor and lets its adaptive meter supply the rest.
   surfaceLighting?.setExposure(
-    physical ? options.baseBrightness : options.baseBrightness + options.exposureRange * screenAmbientLightEnvironment.value.exposure,
-    options.baseContrast,
+    physical
+      ? options.darkBase
+      : options.darkBase + (1 - options.darkBase) * screenAmbientLightEnvironment.value.exposure ** options.baseCurve,
+    1,
   )
   surfaceLighting?.update(
     screenAmbientLightEnvironment.value,
     screenAmbientLightActive.value,
     screenAmbientLightStrength.value,
-    screenAmbientLightFilterOptions.value.chroma,
+    options.tint,
     screenAmbientLightMode.value,
   )
   if (!screenAmbientLightActive.value)
@@ -720,8 +729,10 @@ function updateAmbientLightFilter() {
     strength: screenAmbientLightStrength.value,
     // Surface shading applies ambient exposure before adding direct light. The
     // final filter retains silhouette wrap and backlight without dimming the highlights.
+    // A floor of 1 switches its dimming off, and no color boost leaves the
+    // surface colors as the surface shader wrote them.
     options: surfaceLighting
-      ? { ...options, chroma: 0, baseBrightness: 1, exposureRange: 0, baseContrast: 1 }
+      ? { ...options, darkBase: 1, colorBoost: 0 }
       : screenAmbientLightFilterOptions.value,
   })
 }

@@ -32,7 +32,7 @@ const options = computed<SurfaceLightPreviewOptions>(() => {
     geometry: { areaLights: settings.screenAmbientLightAreaLights.value, bend: settings.screenAmbientLightBend.value, gap: settings.screenAmbientLightGap.value, flatRadius: settings.screenAmbientLightFlatRadius.value },
     mode: settings.screenAmbientLightMode.value,
     strength: settings.screenAmbientLightStrength.value,
-    chroma: settings.screenAmbientLightChroma.value,
+    chroma: settings.screenAmbientLightTint.value,
     responseCurve: settings.screenAmbientLightResponseCurve.value,
     // Until the stage publishes its bounds, show a square neutral preview.
     aspect: bounds ? bounds.width / bounds.height : 1,

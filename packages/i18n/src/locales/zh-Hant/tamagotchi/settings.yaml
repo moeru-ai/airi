@@ -223,15 +223,9 @@ devtools:
         adaptive-base:
           title: 自動基礎亮度
           description: 以全螢幕平均亮度的平滑值設定環境光，使用下方明暗適應時間。關閉後使用手動基礎亮度。
-        dark-base:
-          title: 暗畫面基礎亮度
-          description: 螢幕全黑時的環境光亮度，先於螢幕光照套用。
         bright-base:
           title: 亮畫面基礎亮度
           description: 螢幕全白時的環境光亮度，不低於暗畫面基礎亮度。
-        base-curve:
-          title: 基礎亮度曲線
-          description: 1 為線性。低於 1 時，暗場景也會較早提高基礎亮度；高於 1 則維持較暗，直到螢幕變亮。
         response-curve:
           title: 暗光色彩增強
           description: 強調微弱彩色光的色彩，不提高受光亮度，也不壓暗基礎色。0 關閉增強。中性光維持原樣，效果受可用色彩空間限制。

@@ -11,7 +11,6 @@ const {
   screenAmbientLightAdaptiveBase,
   screenAmbientLightDarkBase,
   screenAmbientLightBrightBase,
-  screenAmbientLightBaseCurve,
   screenAmbientLightResponseCurve,
   screenAmbientLightPhysicalExposure,
   screenAmbientLightAdaptiveBloom,
@@ -47,16 +46,6 @@ const {
     />
     <div v-if="screenAmbientLightPhysicalExposure && screenAmbientLightAdaptiveBase" :class="['grid gap-5', 'md:grid-cols-3']">
       <FieldRange
-        v-model="screenAmbientLightDarkBase"
-        as="div"
-        :min="0"
-        :max="1"
-        :step="0.01"
-        :default-value="ambientLightDefaults.exposure.darkBase"
-        :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.exposure.dark-base.title')"
-        :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.exposure.dark-base.description')"
-      />
-      <FieldRange
         v-model="screenAmbientLightBrightBase"
         as="div"
         :min="screenAmbientLightDarkBase"
@@ -65,16 +54,6 @@ const {
         :default-value="ambientLightDefaults.exposure.brightBase"
         :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.exposure.bright-base.title')"
         :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.exposure.bright-base.description')"
-      />
-      <FieldRange
-        v-model="screenAmbientLightBaseCurve"
-        as="div"
-        :min="0.1"
-        :max="3"
-        :step="0.1"
-        :default-value="ambientLightDefaults.exposure.baseCurve"
-        :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.exposure.base-curve.title')"
-        :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.exposure.base-curve.description')"
       />
     </div>
     <div v-if="screenAmbientLightPhysicalExposure" :class="['grid gap-5', 'md:grid-cols-2']">

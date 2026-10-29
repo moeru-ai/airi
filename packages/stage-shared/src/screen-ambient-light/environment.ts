@@ -48,12 +48,12 @@ export type ScreenAmbientLightSource = 'screen-capture' | 'forced-color'
 export interface AmbientLightExposureOptions {
   /** Derive ambient fill from the smoothed full-screen mean in physical mode. @default true */
   adaptiveBase: boolean
-  /** Ambient fill under a black screen, from 0 to 1. @default 0.11 */
-  darkBase: number
-  /** Ambient fill under a white screen; never applied below darkBase. @default 1 */
+  /**
+   * Ambient fill under a white screen. It is never applied below the filter
+   * {@link AmbientLightFilterOptions.darkBase}, and the filter
+   * {@link AmbientLightFilterOptions.baseCurve} shapes the rise. @default 1
+   */
   brightBase: number
-  /** Power applied to the smoothed linear mean; below one raises dim scenes. @default 2 */
-  baseCurve: number
   /** Perceptual color emphasis for dim light. Preserves baseline RGB and lit luminance; zero disables it. Range 0 to 100. @default 94 */
   responseCurve: number
   /** Selects the trial; false reproduces the saved surface response. @default true */
@@ -440,7 +440,7 @@ export const ambientLightDefaults = Object.freeze({
   material: Object.freeze<AmbientLightMaterialOptions>({ illustrated: true, faceShadow: 0.5, faceYaw: 45, roughness: 0.7, skinRelief: 0.8, sheen: 1.65, nose: 0.15, softHighlights: true }),
   /** Virtual screen shape used by directional Live2D surface lighting. */
   geometry: Object.freeze<AmbientLightScreenGeometry>({ areaLights: true, gap: 0.11, bend: 5, flatRadius: 0.21 }),
-  exposure: Object.freeze<AmbientLightExposureOptions>({ adaptiveBase: true, darkBase: 0.11, brightBase: 1, baseCurve: 2, responseCurve: 94, enabled: true, screenNits: 450, compensation: -0.2, adaptiveBloom: true, darkSeconds: 0.5, brightSeconds: 0.2 }),
+  exposure: Object.freeze<AmbientLightExposureOptions>({ adaptiveBase: true, brightBase: 1, responseCurve: 94, enabled: true, screenNits: 450, compensation: -0.2, adaptiveBloom: true, darkSeconds: 0.5, brightSeconds: 0.2 }),
   /**
    * Time between screen samples, in milliseconds. It also constrains the
    * capture stream, so the renderer never decodes frames it will not sample.

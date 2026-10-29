@@ -48,9 +48,7 @@ const screenAmbientLightBacklight = useLocalStorageManualReset<number>('settings
 const screenAmbientLightTranslucentWrap = useLocalStorageManualReset<boolean>('settings/screen-ambient-light/translucent-wrap', ambientLightDefaults.filter.translucentWrap)
 
 const screenAmbientLightAdaptiveBase = useLocalStorageManualReset<boolean>('settings/screen-ambient-light/adaptive-base', ambientLightDefaults.exposure.adaptiveBase)
-const screenAmbientLightDarkBase = useLocalStorageManualReset<number>('settings/screen-ambient-light/dark-base', ambientLightDefaults.exposure.darkBase)
 const screenAmbientLightBrightBase = useLocalStorageManualReset<number>('settings/screen-ambient-light/bright-base', ambientLightDefaults.exposure.brightBase)
-const screenAmbientLightBaseCurve = useLocalStorageManualReset<number>('settings/screen-ambient-light/base-curve', ambientLightDefaults.exposure.baseCurve)
 const screenAmbientLightResponseCurve = useLocalStorageManualReset<number>('settings/screen-ambient-light/response-curve', ambientLightDefaults.exposure.responseCurve)
 const screenAmbientLightPhysicalExposure = useLocalStorageManualReset<boolean>('settings/screen-ambient-light/physical-exposure', ambientLightDefaults.exposure.enabled)
 const screenAmbientLightScreenNits = useLocalStorageManualReset<number>('settings/screen-ambient-light/screen-nits', ambientLightDefaults.exposure.screenNits)
@@ -61,9 +59,7 @@ const screenAmbientLightBrightAdaptation = useLocalStorageManualReset<number>('s
 
 function resetState() {
   screenAmbientLightAdaptiveBase.reset()
-  screenAmbientLightDarkBase.reset()
   screenAmbientLightBrightBase.reset()
-  screenAmbientLightBaseCurve.reset()
   screenAmbientLightResponseCurve.reset()
   screenAmbientLightPhysicalExposure.reset()
   screenAmbientLightScreenNits.reset()
@@ -110,9 +106,7 @@ function resetState() {
 export const useSettingsScreenAmbientLight = defineStore('settings-screen-ambient-light', () => {
   return {
     screenAmbientLightAdaptiveBase,
-    screenAmbientLightDarkBase,
     screenAmbientLightBrightBase,
-    screenAmbientLightBaseCurve,
     screenAmbientLightResponseCurve,
     screenAmbientLightPhysicalExposure,
     screenAmbientLightScreenNits,

@@ -5,6 +5,7 @@ import type { NormalAttachment } from './attachment'
 import { Application } from '@pixi/app'
 import { extensions } from '@pixi/extensions'
 import { Ticker, TickerPlugin } from '@pixi/ticker'
+import { ambientLightNeutralEnvironment } from '@proj-airi/stage-shared/screen-ambient-light'
 import { CubismShader_WebGL, Live2DFactory, Live2DModel } from 'pixi-live2d-display/cubism4'
 
 import { SurfaceLighting } from '../filters/surface-lighting'
@@ -71,7 +72,7 @@ export async function reviewNormalAttachment(source: string, modelId: string, at
               map.data.set([1.5, 1.2, 0.9], (y * 32 + x) * 3)
           }
         }
-        lighting.update({ exposure: 0.5, behindLuminance: 0, surround: map, contact: map }, true, 2, 1, 'window-gradient')
+        lighting.update({ ...ambientLightNeutralEnvironment, exposure: 0.5, behindLuminance: 0, surround: map, contact: map }, true, 2, 1, 'window-gradient')
         app.render()
         const gpuError = app.renderer.gl.getError()
         if (gpuError)

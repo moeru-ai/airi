@@ -115,6 +115,8 @@ const {
         :format-value="formatPercent"
         :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.wrap-saturation.title')"
         :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.wrap-saturation.description')"
+      />
+      <FieldRange
         v-model="screenAmbientLightBloom"
         as="div"
         :min="0"

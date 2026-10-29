@@ -63,6 +63,14 @@ export interface SampleRegion {
    * place.
    */
   subject?: NormalizedRectangle
+  /**
+   * Width divided by height of the captured display.
+   *
+   * The full-display emission map uses it to give the stage rectangle its
+   * physical aspect, because the normalized rectangle does not carry it. Omit
+   * it when the frame keeps the display aspect, which the capture does.
+   */
+  displayAspect?: number
 }
 
 /**
@@ -86,6 +94,16 @@ const surroundSigmaSubjectHeights = 0.30
  * grid holds a few thousand cells whatever the frame size is.
  */
 const workingSubjectHeight = 24
+
+/**
+ * Painted opacity below which a pixel counts as the desktop behind the window.
+ *
+ * The mask is coarse: one sample pixel covers a block of tens of screen pixels,
+ * so any block that clips the character carries some opacity. The threshold is
+ * near zero on purpose. Sampling the character would feed the filter its own
+ * output, and the error grows every frame.
+ */
+const seeThroughAlphaCeiling = 4
 
 /**
  * Least blurred weight a map texel may rest on before it falls back.
@@ -167,7 +185,7 @@ export function sampleScreenAmbientLight(
   options: AmbientLightSamplingOptions,
 ): ScreenAmbientLightSamplingResult {
   const stage = region.stage ?? region.exclude
-  const screen = { radiance: sampleDisplayEmission(frame, region, options), stage: { ...stage }, aspect: stage.width * region.displayAspect / stage.height }
+  const screen = { radiance: sampleDisplayEmission(frame, region, options), stage: { ...stage }, aspect: stage.width * (region.displayAspect ?? frame.width / frame.height) / stage.height }
   const subject = subjectOf(region)
   const grid = workingGridFor(frame, subject)
   // Interleaved as weighted linear red, green, and blue, then the weight

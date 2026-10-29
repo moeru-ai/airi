@@ -234,15 +234,9 @@ devtools:
         adaptive-base:
           title: Automatic base brightness
           description: Set ambient fill from the smoothed mean of the full screen. Uses the dark and bright adaptation times below. Disable to use manual Base brightness.
-        dark-base:
-          title: Dark-screen baseline
-          description: Ambient fill when the screen is black, before adding screen light.
         bright-base:
           title: Bright-screen baseline
           description: Ambient fill when the screen is white. Cannot be lower than the dark-screen baseline.
-        base-curve:
-          title: Baseline curve
-          description: 1 is linear. Below 1 raises the baseline sooner in dim scenes; above 1 keeps it darker until the screen brightens.
         response-curve:
           title: Dim-light color boost
           description: Emphasize color from dim, saturated light without increasing lit brightness or darkening the baseline. 0 disables the boost. Neutral light stays unchanged; available color headroom limits the effect.
@@ -254,7 +248,7 @@ devtools:
           description: Assumed display brightness. 200 nits is the reference; capture pixels do not measure physical display brightness.
         compensation:
           title: Exposure compensation (stops)
-          description: '+1 doubles light before highlight roll-off. Ambient fill uses the automatic baseline when enabled; Exposure range is unused in this trial.'
+          description: '+1 doubles light before highlight roll-off. Ambient fill uses the automatic baseline when it is on.'
         dark-seconds:
           title: Dark adaptation (seconds)
           description: Time constant for the baseline to fall and bloom sensitivity to rise after the screen darkens. Larger values respond more slowly.

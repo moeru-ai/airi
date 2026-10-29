@@ -1,6 +1,9 @@
-import type { AmbientLightEnvironment, AmbientLightExposureOptions } from '@proj-airi/stage-shared/screen-ambient-light'
+import type { AmbientLightEnvironment, AmbientLightExposureOptions, AmbientLightFilterOptions } from '@proj-airi/stage-shared/screen-ambient-light'
 
 import { ambientLightDefaults, averageAmbientLightMap } from '@proj-airi/stage-shared/screen-ambient-light'
+
+/** Exposure settings plus the brightness floor and curve that the adaptive base shares with the filter. */
+export type ScreenExposureOptions = AmbientLightExposureOptions & Pick<AmbientLightFilterOptions, 'darkBase' | 'baseCurve'>
 
 /**
  * One renderer's exposure and recent-screen meter. The final filter owns this
@@ -10,7 +13,12 @@ import { ambientLightDefaults, averageAmbientLightMap } from '@proj-airi/stage-s
  * measurement, so a suspended window does not replay a stale lighting change.
  */
 export class ScreenExposure {
-  private options: Readonly<AmbientLightExposureOptions> = ambientLightDefaults.exposure
+  private options: Readonly<ScreenExposureOptions> = {
+    ...ambientLightDefaults.exposure,
+    darkBase: ambientLightDefaults.filter.darkBase,
+    baseCurve: ambientLightDefaults.filter.baseCurve,
+  }
+
   private environment?: AmbientLightEnvironment
   private targetLog = 0
   private adaptedLog = 0
@@ -35,7 +43,7 @@ export class ScreenExposure {
   }
 
   /** Publishes settings and a current linear-light meter reading; timestamps use milliseconds. */
-  configure(environment: AmbientLightEnvironment, options: Readonly<AmbientLightExposureOptions>, active: boolean, now = performance.now()) {
+  configure(environment: AmbientLightEnvironment, options: Readonly<ScreenExposureOptions>, active: boolean, now = performance.now()) {
     const resumed = this.lastTime !== undefined && now - this.lastTime > 2000
     this.advance(now)
     this.options = options
