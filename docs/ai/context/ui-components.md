@@ -17,7 +17,8 @@ inner content blur from an external `data-state="open|closed"` lifecycle. The
 lifecycle owner must keep the primitive mounted until the closing animation
 finishes. It can compose with Reka UI content primitives through `as-child`, but
 does not depend on a specific menu, popover, or presence implementation. Visual
-styling remains caller-owned.
+styling remains caller-owned. The content slides 4px from its trigger. With
+`data-side="top"`, which Reka sets on content above its trigger, it slides up.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
@@ -99,6 +100,19 @@ The name keeps its width. The detail shrinks and cuts first.
 | `detail` | `string?` | — | Short note on the right, such as where the link goes |
 
 **Slots**: `default` (the name), `detail` (replaces the `detail` prop)
+
+### ProgressiveBlur
+
+Behavior-only overlay that blurs the backdrop more and more toward one edge. It
+stacks several `backdrop-filter` layers, and a mask shows each layer only in its
+own band. Place it as the first child of a positioned surface that floats over
+the stage. It takes no pointer input. The caller supplies any tint.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `edge` | `'top' \| 'bottom'` | `'bottom'` | Edge with the strongest blur |
+| `strength` | `number` | `24` | Blur radius in pixels at that edge |
+| `layers` | `number` | `5` | Number of blur layers. More layers fade more smoothly and paint more |
 
 ### Screen
 
