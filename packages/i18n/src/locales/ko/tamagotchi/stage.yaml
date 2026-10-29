@@ -13,6 +13,15 @@ docs:
     navbar:
       appearance:
         title: 스타일 및 모양
+fullscreen-island:
+  settings: 설정
+  chat: 채팅
+  switch-to-dark-mode: 다크 모드로 전환
+  switch-to-system-mode: 시스템 테마 따르기
+  switch-to-light-mode: 라이트 모드로 전환
+  exit: 전체 화면 종료
+fullscreen-surface:
+  resize: 드래그하여 패널 너비 조절
 'controls-island':
   'fade-on-hover':
     enable: 자동 숨기기
@@ -22,7 +31,7 @@ docs:
   'hide-chat': 채팅 숨기기
   'refresh': 새로고침
   'center-main-window': 화면 중앙으로 이동
-  'open-hearing-controls': 듣기 제어 열기
+  'open-hearing-controls': 청각 제어 열기
   'enable-microphone': 마이크 켜기
   'disable-microphone': 마이크 끄기
   'drag-to-move-window': 드레그하여 창 이동
@@ -45,7 +54,17 @@ docs:
   style:
     title: 채팅 창 스타일
     legacy: 클래식 창
+    floating: 플로팅
+    fullscreen: 전체 화면, 캐릭터 옆
+    attached: 캐릭터 옆
   move: 드래그하여 채팅 이동
+  resize-corner:
+    ne: 우측 상단 모서리에서 크기 조절
+    nw: 좌측 상단 모서리에서 크기 조절
+    se: 우측 하단 모서리에서 크기 조절
+    sw: 좌측 하단 모서리에서 크기 조절
+  danmaku: 메시지 피드
+  pin: 맨 위에 고정
   fold: 채팅 숨기기
   composer:
     show: 메시지 입력창 표시
@@ -54,6 +73,7 @@ docs:
     title: 메시지 표시 시간
     hide-read: 읽은 메시지 숨기기
     hide-read-description: 메시지는 읽은 뒤 사라집니다. 음성 응답은 발화가 끝나면 사라집니다.
+    options-hint: 마우스를 올리거나 오른쪽 클릭하여 옵션 보기
     reading-speed: 읽기 속도
     reading-speed-value: '초당 {count}자'
     minimum-time: 최소 시간
@@ -73,7 +93,7 @@ notice:
     intro: 커서가 근처를 돌아다니면 캐릭터가 자동으로 페이드됩니다. 캐릭터가 눈에 띄게 유지되면서 방해 요소를 줄이는 데 도움이 됩니다.
     opacity: 전원을 켜면 커서가 가까이 있을 때 두 {targets} 모두에 대해 불투명도가 {value}으로 떨어집니다.
     toggle: '{controls}에서 마우스를 누른 후 {icon}을 다시 클릭하여 끌 수 있습니다.'
-    controls-label: 제어 섬
+    controls-label: 조작 버튼
     icon-label: eye-slash 아이콘
     targets: 캐릭터 및 UI
     confirm: 확인
@@ -82,8 +102,9 @@ notice:
     read-more: 더 보기
     preview-title: 이게 뭐죠?
 about:
-  subtitle: 데스크탑 버전
+  subtitle: 데스크톱 버전
   current-version: 현재 버전
+  build-origin: "{branch}{'@'}{commit}에서 {time}에 빌드됨"
   common:
     cancel: 취소
   links:
@@ -92,6 +113,9 @@ about:
     documentation: 문서
     github: Github
   update:
+    auto-download:
+      label: 업데이트 자동 다운로드
+      description: 이 기능을 끄면 "업데이트 다운로드"를 선택할 때만 업데이트를 다운로드합니다.
     lane:
       label: 업데이트 라인
       description: 따라갈 릴리즈 채널을 선택하세요
@@ -103,7 +127,9 @@ about:
       beta: 베타
       canary: 카나리아
       nightly: 실험적
+      dev: 개발
     status:
+      manual-install-required: v{version} 버전은 새로 설치해야 합니다. 다운로드한 뒤 직접 설치하세요.
       downloading: 업데이트 다운로드 중...
       error-prefix: 에러
       latest: 최신 버전 (v{version}).
@@ -111,6 +137,7 @@ about:
         windows: 조용히 설치할 준비가 되었어요 (v{version}).
         restart: 재시작시 업데이트를 설치할 준비가 되었어요 (v{version}).
     actions:
+      open-download-page: 다운로드 페이지 열기
       download: 업데이트 다운로드
       download-short: 다운로드
       confirm-download: 다운로드 확인
@@ -127,3 +154,135 @@ about:
       title: 업데이트 사용 가능
       description: 새로운 버전 (v{version})이 이용 가능해요.
       no-release-notes-markdown: _릴리스 노트가 제공되지 않았습니다._
+computer-use-tool-call:
+  help: 도움말
+  status:
+    completed: 완료
+    failed: 실패
+  display: 디스플레이
+  built-in: 내장
+  primary: 주 디스플레이
+  logical-size: 논리 크기
+  pixel-size: 픽셀 크기
+  backend: 캡처 백엔드
+  fallback: 대체 방식 사용 이유
+  file: 파일
+  window: 창
+  region: 영역
+  main: 메인 창
+  hidden: 숨김
+  displays: 디스플레이 1개 | 디스플레이 {count}개
+  windows: 창 1개 | 창 {count}개
+  found: '"{query}" 찾음'
+  matches: 일치 1건 | 일치 {count}건
+  not-found: '"{query}" 찾지 못함'
+  clicked-text: '"{query}" 클릭함'
+  options: 옵션
+  typed: 입력함
+  pasted: 붙여넣음
+  pressed: 누름
+  interval: '{ms} ms마다'
+  hold: '{ms} ms 동안 누름'
+  steps: 단계 1개를 순서대로 실행함 | 단계 {count}개를 순서대로 실행함
+  focused: '"{query}"에 포커스를 맞춤'
+  app: 앱
+  process: 프로세스
+  control: 컨트롤
+  title: 제목
+  value: 내용
+  ax-path: 손쉬운 사용 경로
+  moved: 포인터를 이동함
+  clicked: 클릭함
+  dragged: 드래그함
+  requested: 요청한 위치
+  on-screen: 화면상 위치
+  start: 시작점
+  end: 끝점
+  final: 최종 위치
+  normalized: 정규화된 좌표
+  relative:
+    screen: 화면 기준
+    window: 창 기준
+    display: 디스플레이 기준
+  buttons:
+    left: 왼쪽 버튼
+    right: 오른쪽 버튼
+    middle: 가운데 버튼
+  clicks:
+    single: 한 번 클릭
+    double: 두 번 클릭
+  delivery:
+    path: 전달 방식
+    verified: 효과 확인됨
+    not-verified: 효과 확인 안 됨
+    disturbance: 방해
+    mouse: 마우스
+    focus: 포커스
+    clipboard: 클립보드
+    attempt: '{index}번째 시도'
+    attempt-succeeded: 성공
+    attempt-failed: 실패
+  paths:
+    foreground_system_events: 포그라운드 시스템 이벤트
+    window_targeted_keyboard: 창으로 보낸 키보드 이벤트
+    ax_focus: 손쉬운 사용 포커스
+  disturbances:
+    none: 없음
+    temporary: 일시적
+    foreground: 맨 앞으로 가져옴
+    unknown: 알 수 없음
+  activated: '{app} 앱으로 전환함'
+  in-front: 이제 맨 앞에 있음
+  front-is: '맨 앞에 있는 앱: {app}'
+  front-unknown: 맨 앞에 있는 앱을 확인하지 못함
+  permissions:
+    title: 시스템 권한
+    names:
+      screen_recording: 화면 녹화
+      accessibility: 손쉬운 사용
+      automation_to_system_events: 자동화 (System Events)
+    states:
+      granted: 허용됨
+      missing: 허용되지 않음
+      denied: 거부됨
+      unknown: 알 수 없음
+  media:
+    commands:
+      play: 재생
+      pause: 일시 중지
+      toggle: 재생 또는 일시 중지
+      next: 다음 곡
+      previous: 이전 곡
+    verified: 확인됨
+    not-verified: 확인 안 됨
+    playing: 재생 중
+    paused: 일시 중지됨
+    nothing: 재생 중인 항목 없음
+    liked: 좋아요 표시됨
+    rate: '{rate}배속'
+computer-use-read-image-tool-call:
+  description: 시각 모델의 설명
+  failed: 시각 모델이 이 이미지를 읽지 못했습니다
+tool-call-screenshot:
+  view-full: 원본 크기로 보기
+weather-tool-call:
+  feels-like: 체감
+  humidity: 습도
+  wind: 바람
+  precipitation: 강수 확률
+  high: 최고
+  low: 최저
+  conditions:
+    clear-day: 맑음
+    clear-night: 맑음
+    partly-cloudy-day: 구름 조금
+    partly-cloudy-night: 구름 조금
+    overcast: 흐림
+    fog: 안개
+    drizzle: 이슬비
+    sleet: 진눈깨비
+    rain: 비
+    extreme-rain: 폭우
+    snow: 눈
+    extreme-snow: 폭설
+    thunderstorm: 뇌우

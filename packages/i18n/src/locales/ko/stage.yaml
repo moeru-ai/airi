@@ -17,12 +17,16 @@ mobile-tools:
   about: 정보
   view: 보기
   close-view: 보기 설정을 저장하고 닫기
-  hearing: 청력
+  hearing: 청각
+  menu: 메뉴
+  menu-unread: 메뉴, 읽지 않은 알림 {count}개
 chat:
+  audio:
+    hearing-disabled: '[오디오 녹음: 음성 인식이 꺼져 있습니다.]'
   provider-configuration:
-    title: 채팅 제공업체가 설정되지 않았습니다
-    description: 메시지를 보내기 전에 설정에서 제공업체를 선택하고 확인하세요.
-    action: 제공업체 설정 열기
+    title: 채팅 제공자가 설정되지 않았습니다
+    description: 메시지를 보내기 전에 설정에서 제공자를 선택하고 확인하세요.
+    action: 제공자 설정 열기
   voice-message:
     recording: 녹음 중
     starting: 마이크 시작 중
@@ -44,18 +48,18 @@ chat:
     retry: 음성 메시지 다시 보내기
     discard: 음성 메시지 버리기
     failed: 음성 입력 실패
-    configure-title: 청력 설정
-    configure-description: 받아쓰기를 사용하려면 청력에서 전사 제공자와 모델을 선택하세요.
-    configure-action: 청력 열기
+    configure-title: 청각 설정
+    configure-description: 받아쓰기를 사용하려면 청각에서 음성 인식 제공자와 모델을 선택하세요.
+    configure-action: 청각 열기
     mode: 음성 입력
     auto-send: 녹음이 끝나면 보내기
     input-device: 마이크
     system-default: 시스템 기본값
     listen: 계속 듣기
     push-to-talk: 눌러서 말하기
-    push-to-talk-unavailable: 이 기기에는 눌러서 말하기 키가 없어 AIRI가 듣지 않습니다. 청력 설정에서 입력 모드를 변경하세요.
+    push-to-talk-unavailable: 이 기기에는 눌러서 말하기 키가 없어 AIRI가 듣지 않습니다. 청각 설정에서 입력 모드를 변경하세요.
     wake-word: 호출어 듣기
-    hearing-settings: 청력 설정 더 보기…
+    hearing-settings: 청각 설정 더 보기…
     options-hint: 마우스를 올리거나 오른쪽 클릭하여 옵션 보기
     recording: 녹음 중
     stop: 녹음 중지
@@ -63,7 +67,7 @@ chat:
     play: 녹음 재생
     pause: 일시 중지
   voice-preview:
-    processing: 전사 마무리 중
+    processing: 음성 인식 마무리 중
     device: 오디오 입력 장치
     device-description: 이 녹음에 사용할 마이크를 선택하세요.
     device-placeholder: 마이크 선택
@@ -84,6 +88,84 @@ chat:
     finalizing: 마무리 중…
     sent: 전송됨
   voice-input: 음성 입력
+  notice:
+    label: '{name}의 백그라운드 보고'
+  background-tasks:
+    label: 백그라운드 작업
+    stop: '{name} 중지'
+    dismiss: '{name} 닫기'
+    status:
+      running: 진행 중
+      done: 완료
+      failed: 완료하지 못함
+      interrupted: 중지됨
+  judgment:
+    running: '{name} 판단 중'
+    judged: '{name} 판단함'
+    invalid: '{name} 판단하지 못함'
+  judgment-tool-call:
+    answer: 답
+    next: 그다음
+    reply: 평소처럼 응답
+    stay-quiet: 응답하지 않음
+    hint: '염두에 두고 응답: {text}'
+    recipe-steps: '{name} 레시피 사용'
+    recipe-decision: '{name} 판단'
+    recipe-background: '{name} 레시피에 맡기기'
+  recipe:
+    using: '{name} 레시피 사용 중'
+    loaded: '{name} 레시피 사용함'
+    started: '{name} 레시피에 맡김'
+    pending: '{name} 레시피 승인 대기 중'
+    disabled: '{name} 레시피 꺼짐'
+    unknown: '{name} 레시피를 찾을 수 없음'
+    refused: '{name} 레시피를 시작하지 못함'
+    failed: '{name} 레시피를 시작하지 못함'
+  recipe-tool-call:
+    task: 작업
+    usable: 지금 사용할 수 있는 레시피
+    pending: 이 레시피는 승인을 기다리는 중입니다.
+    disabled: 이 레시피는 꺼져 있습니다.
+    unknown: 이 이름의 레시피가 없습니다.
+    refused: 레시피를 시작하지 못했습니다.
+  invoked-skill:
+    steps: '{name} 레시피 사용함'
+    background: '{name} 레시피에 맡김'
+    decision: '{name} 레시피 사용함'
+    question: 질문
+    yes: 예
+    no: 아니요
+  home-assistant-tool-call:
+    shown: 기기 {total}개 중 {count}개 표시
+  web-search-tool-call:
+    results: '"{query}" 검색 결과 · {count}개'
+  tool-calls:
+    running-one: '{name} 사용 중'
+    failed-one: '{name} 완료되지 않음'
+    combo-running: 콤보 ×{count}
+    combo: '{count}히트 콤보'
+    combo-failed: '{count}히트 콤보, {failed}회 빗나감'
+    arguments: 인수
+    result: 결과
+    copy: 원본 데이터 복사
+    copied: 복사됨
+    raw: 원본 데이터
+    other: 기타 데이터
+    widget: 위젯
+    rerun: 다시 실행
+    card-making: 이 도구의 카드를 만드는 중…
+    card-remaking: 새 카드를 만드는 중…
+    card-regenerate: 새 카드 만들기
+    card-failed: 이 도구의 카드를 만들지 못했습니다
+    card-retry: 다시 시도
+    state:
+      executing: 실행 중
+      done: 완료
+      error: 실패
+  reply-card:
+    drawing: 카드를 만드는 중…
+    raw: 원본 데이터
+    card: 카드
   error-details:
     show: 상세 정보 보기
     hide: 상세 정보 숨기기
@@ -134,6 +216,11 @@ chat:
     cloud-badge: 클라우드에 동기화됨
     new-chat-fallback: 새 채팅
     delete: 대화 삭제
+avatar-model-missing:
+  title: 아직 모델을 선택하지 않았습니다
+  unavailable-title: 이 모델은 이 기기에 없습니다
+  description: 스테이지에 {name} 캐릭터를 표시하려면 모델을 선택하세요.
+  select: 모델 선택
 render-error:
   title: '{renderer}에서 이 모델을 렌더링할 수 없습니다'
   description: 모델이 선택되었지만 스테이지에 표시할 수 없습니다.
@@ -226,11 +313,11 @@ promo-banner:
       cta: 작업 보기
     spring:
       watermark: 봄
-      fallbackLabel: 봄 추첨
+      fallbackLabel: 봄 뽑기
       title: 캡슐 카니발
-      eventName: 봄 추첨에 참여해 말풍선, 장식, 테마 가구를 잠금 해제하세요.
-      reward: 첫 추첨 반값 + 희귀 장식
-      cta: 지금 추첨하기
+      eventName: 봄 뽑기에 참여해 말풍선, 장식, 테마 가구를 잠금 해제하세요.
+      reward: 첫 뽑기 반값 + 희귀 장식
+      cta: 지금 뽑기
     coupon:
       watermark: 대화
       fallbackLabel: 쿠폰
@@ -243,7 +330,7 @@ promo-banner:
       fallbackLabel: 방 테마
       title: 봄 테마 업데이트
       eventName: ........
-      reward: 출석 시 무료 테마 추첨권
+      reward: 출석 시 무료 테마 뽑기권
       cta: 테마 보기
 waiting: 대기 중
 websocket-status:
@@ -257,8 +344,8 @@ status:
   preparing: 마이크 준비 중
   listening: 듣는 중
   paused: AIRI가 말하는 동안 듣기 일시 중지
-  transcribing: 전사 중
-  hearing-error: 오디오를 전사할 수 없습니다
+  transcribing: 음성 인식 중
+  hearing-error: 오디오에서 음성을 인식할 수 없습니다
   no-transcript: 인식된 음성이 여기에 표시됩니다.
   signing-in: 브라우저에서 로그인을 완료하세요
   confirming: 로그인 확인 중
@@ -266,4 +353,25 @@ status:
   sign-in-error: 로그인 실패
   sign-in-unconfirmed: 세션을 확인할 수 없습니다. 다시 로그인하세요.
   dismiss: 무시
-  configure-hearing: 설정에서 청력 제공자를 선택하고 구성하세요.
+  configure-hearing: 설정에서 청각 제공자를 선택하고 구성하세요.
+notifications:
+  title: 알림
+  open: 알림 열기
+  open-unread: 알림 열기, 읽지 않은 알림 {count}개
+  mark-all-read: 모두 읽음으로 표시
+  empty: 아직 알림이 없습니다
+  loading: 알림 불러오는 중
+  back: 뒤로
+  error: 알림을 불러오지 못했습니다.
+  retry: 다시 시도
+  just-now: 방금
+  kinds:
+    flux-granted:
+      title: '{amount} Flux를 받았습니다'
+    subscription-renewed:
+      title: '{plan} 구독이 갱신되었습니다'
+      body: '{periodEnd}까지 이용할 수 있습니다.'
+    subscription-payment-failed:
+      title: 갱신 결제에 실패했습니다
+      body: '{retryAt}에 다시 시도합니다. {plan} 구독을 계속 이용하려면 결제 수단을 업데이트하세요.'
+      body-no-retry: '{plan} 구독을 계속 이용하려면 결제 수단을 업데이트하세요.'
