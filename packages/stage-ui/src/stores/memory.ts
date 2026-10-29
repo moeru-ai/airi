@@ -1,26 +1,37 @@
+import type { MemoryEntry, MemoryWrite } from '../types/memory'
+
+import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
+import { useBroadcastChannel } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed } from 'vue'
+import { v7 as uuidv7 } from 'uuid'
+import { computed, ref, watch } from 'vue'
 
-/** One remembered fact. A character keeps it on its own card. A general memory reaches every card. */
-export interface MemoryEntry {
-  /** Short name in kebab case, unique within its scope. The index lists it, and tools address the entry by it. */
-  name: string
-  /** The index line: the fact itself when it fits in one line, or when the entry matters. */
-  description: string
-  body: string
-  /** The character card that owns this memory. Without it, the owner made the memory general. */
-  persona?: string
-  updatedAt: number
-}
+import { memoryRepo } from '../database/repos/memory.repo'
 
-/** Turns a free name into the kebab-case key that entries use. */
-export function memoryName(name: string) {
-  return name.trim().toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '').slice(0, 64)
+const LEGACY_ENTRIES_STORAGE_KEY = 'memory/entries'
+
+// NOTICE:
+// Up to v0.13.1 the entries were in localStorage under `memory/entries`, keyed by a name that the model chose.
+// localStorage holds a few megabytes, and two facts could share a name. IndexedDB keeps the entries now, with store-made ids.
+// Move them once. The lock keeps two windows that start together from moving them twice.
+// Removal condition: two releases after the release that moves them.
+async function moveLegacyEntries() {
+  if (!globalThis.localStorage?.getItem(LEGACY_ENTRIES_STORAGE_KEY))
+    return
+  await navigator.locks.request('airi:memory-move', async () => {
+    const stored = localStorage.getItem(LEGACY_ENTRIES_STORAGE_KEY)
+    if (!stored)
+      return
+    const legacy: (Omit<MemoryEntry, 'id'> & { name: string })[] = JSON.parse(stored)
+    await memoryRepo.add(legacy.map(({ description, body, persona, updatedAt }) => ({ id: uuidv7(), description, body, persona, updatedAt })))
+    localStorage.removeItem(LEGACY_ENTRIES_STORAGE_KEY)
+  })
 }
 
 /**
  * Long-term memory as a small index and one entry per fact, kept by the character itself.
+ * IndexedDB keeps the entries. After each change, the other windows read them again.
  *
  * Use when:
  * - A run reads the index or an entry, writes or forgets a fact, or Settings lists the memories by card.
@@ -30,81 +41,105 @@ export function memoryName(name: string) {
  * - Only the owner makes a memory general, in Settings. A run writes and forgets only its own card's memories.
  *
  * Returns:
- * - Whether memory is on, entries, the index for a card, and actions that change entries.
+ * - Whether memory is on, entries, `ready` for the first read, the index for a card, and actions that change entries.
  */
 export const useMemoryStore = defineStore('memory', () => {
   const enabled = useLocalStorageManualReset<boolean>('memory/enabled', true)
-  const entries = useLocalStorageManualReset<MemoryEntry[]>('memory/entries', [])
+  const entries = ref<MemoryEntry[]>([])
+  const { data: changed, post } = useBroadcastChannel<string[], string[]>({ name: 'airi:memory' })
+  let pendingLoad = moveLegacyEntries()
+    .catch(error => console.warn('[memory] Failed to move the entries from localStorage:', errorMessageFrom(error)))
 
-  const sorted = computed(() => [...entries.value].sort((left, right) => left.name.localeCompare(right.name)))
-
-  /** General memories and the persona's own. */
-  function visibleTo(personaId: string) {
-    return sorted.value.filter(entry => !entry.persona || entry.persona === personaId)
+  /** Reads the entries again, after the reads that started before. */
+  function load() {
+    pendingLoad = pendingLoad.catch(() => {}).then(async () => {
+      entries.value = await memoryRepo.list()
+    })
+    return pendingLoad
   }
 
-  /** The index for a card: its own memories, then general ones, each as a name and its description. */
+  /**
+   * Resolves after every read that started before the call, the first read and the move from localStorage included.
+   * Until then, `entries` is empty because nothing is read yet, not because nothing is remembered.
+   */
+  function ready() {
+    return pendingLoad.catch(() => {})
+  }
+
+  /** Reads the entries again after a change, and tells the other windows. */
+  async function publish(ids: string[]) {
+    await load()
+    post(ids)
+  }
+
+  /**
+   * The index for a card: its own memories, then general ones, each as an id and its description.
+   * A run reads it when it starts, from the entries that the window read last.
+   */
   function indexFor(personaId: string) {
-    const line = (entry: MemoryEntry) => `- ${entry.name}: ${entry.description}`
-    const byName = (left: MemoryEntry, right: MemoryEntry) => left.name.localeCompare(right.name)
-    const own = sorted.value.filter(entry => entry.persona === personaId).sort(byName).map(line)
-    const general = sorted.value.filter(entry => !entry.persona).sort(byName).map(line)
+    const line = (entry: MemoryEntry) => `- ${entry.id}: ${entry.description}`
+    const own = entries.value.filter(entry => entry.persona === personaId).map(line)
+    const general = entries.value.filter(entry => !entry.persona).map(line)
     return [
       ...(own.length ? [`Your own:\n${own.join('\n')}`] : []),
       ...(general.length ? [`General:\n${general.join('\n')}`] : []),
     ].join('\n')
   }
 
-  /** Reads an entry by name. The persona's own entry wins over a general one with the same name. */
-  function read(name: string, personaId: string) {
-    const key = memoryName(name)
-    const matches = visibleTo(personaId).filter(entry => entry.name === key)
-    return matches.find(entry => entry.persona === personaId) ?? matches[0]
+  /** Reads an entry that the persona can see by its id: one of its own, or a general one. */
+  function read(id: string, personaId: string) {
+    return entries.value.find(entry => entry.id === id && (!entry.persona || entry.persona === personaId))
   }
 
-  /** Creates or replaces an entry of the card by name. Returns the stored entry, or undefined for an empty name or body. */
-  function write(entry: Pick<MemoryEntry, 'name' | 'description' | 'body'>, personaId: string) {
-    const name = memoryName(entry.name)
-    if (!name || !entry.body.trim())
+  /**
+   * Saves a fact on the card. An id of the card's own entry replaces that entry. Any other id, for example of a general
+   * entry that only the owner changes, adds a new entry. Resolves to the stored entry, or undefined for an empty body.
+   */
+  async function write(input: MemoryWrite, personaId: string) {
+    const body = input.body.trim()
+    if (!body)
       return undefined
-    const next: MemoryEntry = { name, description: entry.description.trim(), body: entry.body.trim(), persona: personaId, updatedAt: Date.now() }
-    entries.value = [...entries.value.filter(existing => existing.name !== name || existing.persona !== personaId), next]
-    return next
+    const entry = await memoryRepo.write({ id: input.id, description: input.description.trim(), body }, personaId, Date.now())
+    await publish([entry.id])
+    return entry
   }
 
-  /** Makes a card's memory general, so every card reads it. A general memory with the same name gives way. */
-  function makeGeneral(entry: Pick<MemoryEntry, 'name' | 'persona'>) {
-    const source = entries.value.find(existing => existing.name === entry.name && existing.persona === entry.persona)
-    if (!source?.persona)
-      return
-    const { persona: _card, ...general } = source
-    entries.value = [...entries.value.filter(existing => existing !== source && (existing.name !== source.name || existing.persona)), { ...general, updatedAt: Date.now() }]
+  /** Makes a card's memory general, so every card reads it. */
+  async function makeGeneral(entry: Pick<MemoryEntry, 'id'>) {
+    if (await memoryRepo.makeGeneral(entry.id, Date.now()))
+      await publish([entry.id])
   }
 
-  /** Removes one entry, from a tool or from Settings. */
-  function remove(entry: Pick<MemoryEntry, 'name' | 'persona'>) {
-    entries.value = entries.value.filter(existing => existing.name !== entry.name || existing.persona !== entry.persona)
+  /** Removes one entry from Settings. */
+  async function remove(entry: Pick<MemoryEntry, 'id'>) {
+    await memoryRepo.remove([entry.id], Date.now())
+    await publish([entry.id])
   }
 
-  /** Forgets an entry of the card by name. General memories belong to the owner, so a run cannot forget them. */
-  function forget(name: string, personaId: string) {
-    const key = memoryName(name)
-    const target = entries.value.find(entry => entry.name === key && entry.persona === personaId)
-    if (!target)
+  /** Forgets an entry of the card by its id. General memories belong to the owner, so a run cannot forget them. */
+  async function forget(id: string, personaId: string) {
+    if (!await memoryRepo.forget(id, personaId, Date.now()))
       return false
-    remove(target)
+    await publish([id])
     return true
   }
 
-  function resetState() {
+  async function resetState() {
     enabled.reset()
-    entries.reset()
+    await memoryRepo.clear()
+    await publish([])
   }
+
+  function reload() {
+    void load().catch(error => console.warn('[memory] Failed to read the entries:', errorMessageFrom(error)))
+  }
+  watch(changed, reload)
+  reload()
 
   return {
     enabled,
-    entries: sorted,
-    visibleTo,
+    entries: computed(() => entries.value),
+    ready,
     indexFor,
     read,
     write,
