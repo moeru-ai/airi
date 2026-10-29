@@ -2,134 +2,83 @@ name: Release Tamagotchi Kirie (artifacts only)
 
 permissions:
   contents: read
-  actions: write
-
-env:
-  PRODUCT_NAME: 'AIRI-Kirie'
-  GODOT_VERSION: '4.7.2'
-  APP_DIR: apps/stage-tamagotchi-kirie
-  # Not named VERSION: MSBuild would treat nightly-* as $(Version) → NU1105.
-  KIRIE_VERSION: ''
-  ARTIFACT_NAME: ''
-  MISE_EXEC_AUTO_INSTALL: 'false'
-  MISE_NOT_FOUND_AUTO_INSTALL: 'false'
-  MISE_TASK_RUN_AUTO_INSTALL: 'false'
-  MISE_WINDOWS_DEFAULT_INLINE_SHELL_ARGS: 'bash -c'
 
 on:
   push:
     branches:
       - ci/tamagotchi-kirie-artifacts
   workflow_dispatch:
-    inputs:
-      build_only:
-        description: Build/export only (skip artifact upload)
-        required: false
-        default: false
-        type: boolean
-      tag:
-        description: Version override (e.g. v0.12.0). Empty → nightly-YYYYMMDD-<sha7>
-        required: false
-        type: string
-      platform:
-        description: Platform
-        type: choice
-        options: [all, windows, macos, linux, android, ios]
-        default: all
   schedule:
     - cron: '0 2 * * *'
 
 concurrency:
-  group: release-tamagotchi-kirie-${{ github.ref }}-${{ github.event_name }}-${{ inputs.platform || 'all' }}
+  group: release-tamagotchi-kirie-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  GODOT_VERSION: '4.7.2'
+  # Not VERSION: MSBuild picks it up as $(Version) (NU1105).
+  KIRIE_VERSION: ''
 
 jobs:
   build:
     name: ${{ matrix.name }}
-    continue-on-error: ${{ matrix.skip || matrix.experimental }}
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - name: Windows x64
             os: windows-latest
-            platform: windows
-            arch: x64
+            target: windows-x64
             preset: Windows Desktop
-            export_mode: release
+            output: AIRI-Kirie.exe
             experimental: false
-            skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'windows' }}
           - name: macOS universal
             os: macos-26
-            platform: macos
-            arch: universal
+            target: macos-universal
             preset: macOS
-            export_mode: release
+            output: AIRI-Kirie.app
             experimental: false
-            skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'macos' }}
           - name: Linux x64
             os: ubuntu-latest
-            platform: linux
-            arch: x64
+            target: linux-x64
             preset: Linux/X11
-            export_mode: release
+            output: AIRI-Kirie
             experimental: false
-            skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'linux' }}
           - name: Linux arm64
             os: ubuntu-24.04-arm
-            platform: linux
-            arch: arm64
+            target: linux-arm64
             preset: Linux/X11 arm64
-            export_mode: release
+            output: AIRI-Kirie
             experimental: true
-            skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'linux' }}
           - name: Android
             os: ubuntu-latest
-            platform: android
-            arch: arm64
-            preset: Android
-            export_mode: debug
+            target: android
             experimental: true
-            skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'android' }}
           - name: iOS (unsigned)
             os: macos-26
-            platform: ios
-            arch: arm64
-            preset: iOS
-            export_mode: debug
+            target: ios
             experimental: true
-            skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'ios' }}
-
-    runs-on: ${{ matrix.os }}
     defaults:
       run:
         shell: bash
-
+        working-directory: apps/stage-tamagotchi-kirie
+    env:
+      ARTIFACT_NAME: AIRI-Kirie-${{ matrix.target }}
     steps:
-      - if: ${{ matrix.skip }}
-        run: exit 1
-
-      - if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
+      - if: runner.os == 'Linux'
         uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
         with:
           android: false
 
       - uses: actions/checkout@v6
 
-      - if: runner.os != 'Windows'
-        uses: jdx/mise-action@v3
+      - uses: jdx/mise-action@v3
         with:
-          working_directory: ${{ env.APP_DIR }}
-          install: true
-          install_args: nodejs pnpm java godot
-          cache: true
-
-      - if: runner.os == 'Windows'
-        uses: jdx/mise-action@v3
-        with:
-          working_directory: ${{ env.APP_DIR }}
-          install: true
-          install_args: nodejs pnpm java
+          working_directory: apps/stage-tamagotchi-kirie
+          install_args: nodejs pnpm java ${{ runner.os != 'Windows' && 'godot' || '' }}
           cache: true
 
       - if: runner.os == 'Windows'
@@ -140,88 +89,52 @@ jobs:
           include-templates: true
 
       - if: runner.os == 'Windows'
-        run: |
-          godot_exe="$HOME/godot/Godot_v${GODOT_VERSION}-stable_mono_win64/Godot_v${GODOT_VERSION}-stable_mono_win64.exe"
-          test -f "$godot_exe"
-          echo "GODOT=$(cygpath -w "$godot_exe")" >> "$GITHUB_ENV"
+        run: echo "GODOT=$(cygpath -w "$HOME/godot/Godot_v${GODOT_VERSION}-stable_mono_win64/Godot_v${GODOT_VERSION}-stable_mono_win64.exe")" >> "$GITHUB_ENV"
 
       - if: runner.os != 'Windows'
-        working-directory: ${{ env.APP_DIR }}
-        run: bash scripts/ci-install-templates.sh
+        run: |
+          dir="$HOME/.local/share/godot/export_templates"
+          [ "$RUNNER_OS" = macOS ] && dir="$HOME/Library/Application Support/Godot/export_templates"
+          curl -fsSL -o /tmp/t.tpz "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_mono_export_templates.tpz"
+          unzip -q /tmp/t.tpz -d /tmp/t && mkdir -p "$dir" && mv /tmp/t/templates "$dir/${GODOT_VERSION}.stable.mono"
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
 
-      - if: matrix.platform == 'android'
+      - if: matrix.target == 'android'
         uses: android-actions/setup-android@v4
         with:
-          packages: |
-            platform-tools
-            platforms;android-35
-            platforms;android-36
-            build-tools;36.0.0
+          packages: platform-tools platforms;android-36 build-tools;36.0.0
 
       - if: runner.os == 'macOS'
         run: brew install pkg-config cairo pango jpeg giflib librsvg || true
 
-      - run: mise x -- pnpm install --frozen-lockfile
-      - run: mise x -- pnpm run build:packages
-
-      - name: Resolve version
-        working-directory: ${{ env.APP_DIR }}
-        env:
-          INPUT_TAG: ${{ inputs.tag }}
-        run: |
-          TAG_ARGS=()
-          [ -n "${INPUT_TAG:-}" ] && TAG_ARGS=(--tag "$INPUT_TAG")
-          echo "KIRIE_VERSION=$(mise x -- node scripts/artifacts-version.mjs --get-version "${TAG_ARGS[@]}")" >> "$GITHUB_ENV"
-          echo "ARTIFACT_NAME=$(mise x -- node scripts/artifacts-version.mjs --get-artifact-name --platform '${{ matrix.platform }}' --arch '${{ matrix.arch }}' "${TAG_ARGS[@]}")" >> "$GITHUB_ENV"
-
-      - working-directory: ${{ env.APP_DIR }}
-        run: |
+      - run: |
+          echo "KIRIE_VERSION=nightly-$(date -u +%Y%m%d)-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          mise x -- pnpm install --frozen-lockfile
           mise x -- pnpm kirie doctor --fix plugin:core
           mise x -- pnpm kirie doctor --fix plugin:notifications
+          mise x -- pnpm run build
+          "${GODOT:-godot}" --headless --import || true
+          "${GODOT:-godot}" --headless --import || true
 
-      - if: matrix.platform == 'android'
-        working-directory: ${{ env.APP_DIR }}
-        run: bash scripts/ci-fetch-aar.sh
+      - if: matrix.preset
+        run: mkdir -p "dist/ci/$ARTIFACT_NAME" && "${GODOT:-godot}" --headless --export-release "${{ matrix.preset }}" "dist/ci/$ARTIFACT_NAME/${{ matrix.output }}"
 
-      - if: matrix.platform == 'ios'
-        working-directory: ${{ env.APP_DIR }}
-        run: bash scripts/ci-overlay-ios.sh
+      - if: matrix.target == 'android'
+        run: mise x -- pnpm kirie export android -o "dist/ci/$ARTIFACT_NAME/AIRI-Kirie.apk"
 
-      - working-directory: ${{ env.APP_DIR }}
+      - if: matrix.target == 'ios'
         run: |
-          rm -rf .godot/mono/temp/obj obj bin
-          dotnet restore StageTamagotchiKirie.csproj --force --force-evaluate
+          sed -i '' 's/^application\/app_store_team_id=""/application\/app_store_team_id="0000000000"/' export_presets.cfg
+          mkdir -p "dist/ci/$ARTIFACT_NAME" && godot --headless --export-debug iOS "dist/ci/$ARTIFACT_NAME/AIRI-Kirie.xcodeproj"
 
-      - working-directory: ${{ env.APP_DIR }}
-        run: mise x -- pnpm run build
+      - run: cd dist/ci && if command -v zip >/dev/null; then zip -qry "$ARTIFACT_NAME.zip" "$ARTIFACT_NAME"; else 7z a "$ARTIFACT_NAME.zip" "$ARTIFACT_NAME"; fi
 
-      - working-directory: ${{ env.APP_DIR }}
-        timeout-minutes: 10
-        run: |
-          GODOT="$(bash scripts/ci-godot.sh)"
-          "$GODOT" --headless --import || true
-          "$GODOT" --headless --import || true
-
-      - if: matrix.platform == 'windows' || matrix.platform == 'macos' || matrix.platform == 'linux'
-        working-directory: ${{ env.APP_DIR }}
-        run: bash scripts/ci-export-desktop.sh '${{ matrix.platform }}' '${{ matrix.arch }}' '${{ matrix.preset }}' '${{ matrix.export_mode }}' '${{ env.ARTIFACT_NAME }}'
-
-      - if: matrix.platform == 'android'
-        working-directory: ${{ env.APP_DIR }}
-        run: bash scripts/ci-export-android.sh '${{ env.ARTIFACT_NAME }}'
-
-      - if: matrix.platform == 'ios'
-        working-directory: ${{ env.APP_DIR }}
-        run: bash scripts/ci-export-ios.sh '${{ env.ARTIFACT_NAME }}'
-
-      - if: ${{ github.event_name == 'schedule' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.build_only) }}
-        uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7
         with:
-          name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ env.APP_DIR }}/bundle/${{ env.ARTIFACT_NAME }}.zip
+          name: ${{ env.ARTIFACT_NAME }}-${{ env.KIRIE_VERSION }}
+          path: apps/stage-tamagotchi-kirie/dist/ci/${{ env.ARTIFACT_NAME }}.zip
           if-no-files-found: error
           retention-days: 14
