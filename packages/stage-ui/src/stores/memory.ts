@@ -101,6 +101,11 @@ export const useMemoryStore = defineStore('memory', () => {
     entries.reset()
   }
 
+  function restoreState(state: { enabled: boolean, entries: MemoryEntry[] }) {
+    enabled.value = state.enabled
+    entries.value = state.entries
+  }
+
   return {
     enabled,
     entries: sorted,
@@ -112,5 +117,6 @@ export const useMemoryStore = defineStore('memory', () => {
     forget,
     remove,
     resetState,
+    restoreState,
   }
 })

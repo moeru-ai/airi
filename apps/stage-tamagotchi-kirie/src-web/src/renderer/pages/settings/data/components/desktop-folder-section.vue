@@ -8,7 +8,7 @@ import { useI18n } from 'vue-i18n'
 
 const emit = defineEmits<DataSettingsStatusEmits>()
 const { t } = useI18n()
-const { handleActionError } = createDataSettingsStatusHelpers(emit)
+const { handleActionError } = createDataSettingsStatusHelpers(emit, t('settings.pages.data.status.action_error'))
 
 async function triggerOpenDesktopUserDataFolder() {
   try {

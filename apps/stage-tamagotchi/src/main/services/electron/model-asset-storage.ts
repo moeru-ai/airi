@@ -108,6 +108,41 @@ export class FileModelAssetStorage implements ModelAssetStorage {
     }
   }
 
+  async restore(model: ModelAsset, files: Readonly<Record<string, Uint8Array>>, onProgress: (progress: ModelAssetProgress) => void): Promise<void> {
+    const parent = join(this.directory, encodeURIComponent(model.id))
+    await mkdir(parent, { recursive: true })
+    for (const entry of await readdir(parent)) {
+      if (entry.startsWith(STAGING_PREFIX))
+        await rm(join(parent, entry), { recursive: true, force: true })
+    }
+    const temporary = join(parent, `${STAGING_PREFIX}${encodeURIComponent(model.revision)}`)
+    await mkdir(temporary)
+    const sizes: Record<string, number> = {}
+    try {
+      for (const file of model.files) {
+        const content = files[file.name]
+        await writeFile(join(temporary, file.name), content, { flag: 'wx' })
+        sizes[file.name] = content.byteLength
+        onProgress({ file: file.name, loaded: content.byteLength, total: content.byteLength })
+      }
+
+      await writeFile(join(temporary, 'installed.json'), JSON.stringify({
+        revision: model.revision,
+        files: sizes,
+      } satisfies v.InferOutput<typeof markerSchema>))
+      const installed = this.modelDirectory(model)
+      await rm(installed, { recursive: true, force: true })
+      await rename(temporary, installed)
+      for (const entry of await readdir(parent)) {
+        if (entry !== encodeURIComponent(model.revision))
+          await rm(join(parent, entry), { recursive: true, force: true })
+      }
+    }
+    finally {
+      await rm(temporary, { recursive: true, force: true })
+    }
+  }
+
   async open(model: ModelAsset, file: ModelAssetFile): Promise<Response> {
     return net.fetch(pathToFileURL(join(this.modelDirectory(model), file.name)).href)
   }

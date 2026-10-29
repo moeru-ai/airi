@@ -13,6 +13,7 @@ import {
   electronModelAssetCancel,
   electronModelAssetEnsure,
   electronModelAssetRemove,
+  electronModelAssetRestore,
   electronModelAssetsClear,
   electronModelAssetsList,
   electronModelAssetStatusChanged,
@@ -72,6 +73,9 @@ export function setupSherpawModelAssets(context: ReturnType<typeof createContext
   defineInvokeHandler(context, electronModelAssetEnsure, id => repository.ensureAvailable(id))
   defineInvokeHandler(context, electronModelAssetCancel, id => repository.cancel(id))
   defineInvokeHandler(context, electronModelAssetRemove, id => repository.remove(id))
+  defineInvokeHandler(context, electronModelAssetRestore, async ({ id, revision, files }) => {
+    await repository.restore(id, revision, Object.fromEntries(Object.entries(files).map(([name, bytes]) => [name, new Uint8Array(bytes)])))
+  })
   defineInvokeHandler(context, electronModelAssetsClear, () => repository.clear())
 
   protocol.handle('airi-model', async (request) => {
