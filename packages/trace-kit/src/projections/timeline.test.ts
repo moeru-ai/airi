@@ -215,6 +215,23 @@ describe('metrics', () => {
     expect(summary.excluded.failed).toBe(1)
   })
 
+  it('forgets the open speech of a lost source for later floor transfers', () => {
+    const lostEpoch = createRecordStamper({ epoch: 'e1' })
+    const nextEpoch = createRecordStamper({ epoch: 'e2' })
+    const collectorRecord = createRecordStamper({ source: 'collector', epoch: 'c1' })
+    const floor = createFloorTransferProjection()
+    const reader = new TraceReader([floor])
+    reader.handleRecords([
+      lostEpoch({ type: 'span.begin', ts: 0, track: 'participants/user/speech', spanId: 'u1', name: 'speech' }),
+      collectorRecord({ type: 'source.lost', ts: 500, of: { source: 'window:main', epoch: 'e1', lastSeq: 0 }, reason: 'ipc-closed' }),
+      nextEpoch({ type: 'span.begin', ts: 1000, track: 'participants/user/speech', spanId: 'u2', name: 'speech' }),
+      nextEpoch({ type: 'span.end', ts: 2000, track: 'participants/user/speech', spanId: 'u2', status: 'ok' }),
+      nextEpoch({ type: 'span.begin', ts: 2600, track: 'participants/airi/playback', spanId: 'p1', name: 'playback' }),
+    ])
+
+    expect(reader.view(floor)['voice.response_latency']).toEqual([{ time: 2600, value: 600, dimensions: { from: 'user', to: 'airi' } }])
+  })
+
   it('derives floor transfers between participants', () => {
     const record = createRecordStamper()
     const floor = createFloorTransferProjection()

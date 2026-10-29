@@ -236,8 +236,8 @@ function speakerOf(track: string): string | undefined {
 interface FloorState {
   /** The participant who spoke last, and the end of that speech. `end` is undefined while the speech runs. */
   last?: { actor: string, end?: number }
-  /** Open speech spans by span key, so an end finds its actor. */
-  open: Map<string, string>
+  /** Open speech spans by span key, so an end finds its actor. A stopped or lost epoch removes its spans. */
+  open: Map<string, { actor: string, source: string, epoch: string }>
   samples: MetricSamples
 }
 
@@ -254,6 +254,16 @@ export function createFloorTransferProjection(): TraceProjection<FloorState, Met
     key: 'voice.floor-transfer',
     reset: () => ({ open: new Map(), samples: {} }),
     handleRecord(state, record: TraceRecord, context) {
+      // An abandoned span never ends. Without this, its actor stays speaking, and the next transfer from it is missing.
+      // The last speech end stays unknown, so no transfer starts from the abandoned speech.
+      if (record.type === 'source.stopped' || record.type === 'source.lost') {
+        const { source, epoch } = record.type === 'source.lost' ? record.of : record
+        for (const [key, open] of state.open) {
+          if (open.source === source && open.epoch === epoch)
+            state.open.delete(key)
+        }
+        return state
+      }
       if (record.type !== 'span.begin' && record.type !== 'span.end')
         return state
       const actor = speakerOf(record.track)
@@ -264,7 +274,7 @@ export function createFloorTransferProjection(): TraceProjection<FloorState, Met
       if (record.type === 'span.begin') {
         if (state.open.has(key))
           return state
-        state.open.set(key, actor)
+        state.open.set(key, { actor, source: record.source, epoch: record.epoch })
         const last = state.last
         if (last && last.actor !== actor && last.end !== undefined) {
           const sample: MetricSample = { time: context.time, value: context.time - last.end, dimensions: { from: last.actor, to: actor } }
@@ -279,7 +289,7 @@ export function createFloorTransferProjection(): TraceProjection<FloorState, Met
 
       if (!state.open.delete(key))
         return state
-      const stillSpeaking = [...state.open.values()].includes(actor)
+      const stillSpeaking = [...state.open.values()].some(open => open.actor === actor)
       if (state.last?.actor === actor && !stillSpeaking)
         state.last.end = context.time
       return state
