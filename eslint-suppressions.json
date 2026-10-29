@@ -319,11 +319,6 @@
       "count": 17
     }
   },
-  "integrations/minecraft/src/skills/inventory.ts": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
   "integrations/minecraft/src/skills/patched-goto.ts": {
     "ts/no-explicit-any": {
       "count": 2
@@ -680,16 +675,6 @@
     }
   },
   "packages/stage-ui/src/components/menu/voice-card-many-select.vue": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "packages/stage-ui/src/components/misc/alert.vue": {
-    "ts/no-explicit-any": {
-      "count": 4
-    }
-  },
-  "packages/stage-ui/src/components/misc/error-container.vue": {
     "ts/no-explicit-any": {
       "count": 1
     }
