@@ -251,4 +251,20 @@ describe('metrics', () => {
     const samples = reader.view(floor)
     expect(samples['voice.response_latency']).toEqual([{ time: 1800, value: 800, dimensions: { from: 'user', to: 'airi' } }])
   })
+
+  it('derives floor transfers from complete speech and playback spans', () => {
+    const record = createRecordStamper()
+    const floor = createFloorTransferProjection()
+    const reader = new TraceReader([floor])
+    reader.handleRecords([
+      record({ type: 'span.complete', ts: 0, track: 'participants/user/speech', spanId: 'u1', name: 'speech', durationMs: 1000, status: 'ok' }),
+      record({ type: 'span.complete', ts: 1800, track: 'participants/airi/playback', spanId: 'p1', name: 'playback', durationMs: 700, status: 'ok' }),
+      record({ type: 'span.begin', ts: 3000, track: 'participants/user/speech', spanId: 'u2', name: 'speech' }),
+    ])
+
+    expect(reader.view(floor)['voice.floor_transfer_offset']).toEqual([
+      { time: 1800, value: 800, dimensions: { from: 'user', to: 'airi' } },
+      { time: 3000, value: 500, dimensions: { from: 'airi', to: 'user' } },
+    ])
+  })
 })

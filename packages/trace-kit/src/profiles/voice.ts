@@ -241,6 +241,30 @@ interface FloorState {
   samples: MetricSamples
 }
 
+/** Opens the speech of a span. A start after the speech of another participant is a floor transfer. */
+function beginSpeech(state: FloorState, key: string, open: { actor: string, source: string, epoch: string }, time: number): void {
+  state.open.set(key, open)
+  const { actor } = open
+  const last = state.last
+  if (last && last.actor !== actor && last.end !== undefined) {
+    const sample: MetricSample = { time, value: time - last.end, dimensions: { from: last.actor, to: actor } }
+    ;(state.samples['voice.floor_transfer_offset'] ??= []).push(sample)
+    if (sample.value >= 0)
+      (state.samples['voice.response_latency'] ??= []).push(sample)
+  }
+  if (!last || last.actor !== actor || last.end !== undefined)
+    state.last = { actor, end: undefined }
+}
+
+/** Closes the speech of a span. The speech of its actor ends when no other span of that actor is open. */
+function endSpeech(state: FloorState, key: string, actor: string, time: number): void {
+  if (!state.open.delete(key))
+    return
+  const stillSpeaking = [...state.open.values()].some(open => open.actor === actor)
+  if (state.last?.actor === actor && !stillSpeaking)
+    state.last.end = time
+}
+
 /**
  * Derives floor transfers from speech and playback spans.
  *
@@ -264,34 +288,23 @@ export function createFloorTransferProjection(): TraceProjection<FloorState, Met
         }
         return state
       }
-      if (record.type !== 'span.begin' && record.type !== 'span.end')
+      if (record.type !== 'span.begin' && record.type !== 'span.end' && record.type !== 'span.complete')
         return state
       const actor = speakerOf(record.track)
       if (!actor)
         return state
       const key = spanKeyOf(record.source, record.epoch, record.spanId)
 
-      if (record.type === 'span.begin') {
-        if (state.open.has(key))
-          return state
-        state.open.set(key, { actor, source: record.source, epoch: record.epoch })
-        const last = state.last
-        if (last && last.actor !== actor && last.end !== undefined) {
-          const sample: MetricSample = { time: context.time, value: context.time - last.end, dimensions: { from: last.actor, to: actor } }
-          ;(state.samples['voice.floor_transfer_offset'] ??= []).push(sample)
-          if (sample.value >= 0)
-            (state.samples['voice.response_latency'] ??= []).push(sample)
-        }
-        if (!last || last.actor !== actor || last.end !== undefined)
-          state.last = { actor, end: undefined }
+      if (record.type === 'span.end') {
+        endSpeech(state, key, actor, context.time)
         return state
       }
-
-      if (!state.open.delete(key))
+      if (state.open.has(key))
         return state
-      const stillSpeaking = [...state.open.values()].some(open => open.actor === actor)
-      if (state.last?.actor === actor && !stillSpeaking)
-        state.last.end = context.time
+      beginSpeech(state, key, { actor, source: record.source, epoch: record.epoch }, context.time)
+      // A complete span holds its start and its duration, so it begins and ends here.
+      if (record.type === 'span.complete')
+        endSpeech(state, key, actor, context.time + record.durationMs)
       return state
     },
     evict(state, range) {
