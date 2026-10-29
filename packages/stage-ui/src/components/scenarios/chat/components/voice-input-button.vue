@@ -76,7 +76,7 @@ const listenLabelKeys = {
   'wake-word': 'stage.chat.voice-composer.wake-word',
 } as const satisfies Record<HearingInputMode, string>
 const devices = useSettingsAudioDevice()
-const { audioInputOptions, permission, selectedAudioInput, enabled: listening } = storeToRefs(devices)
+const { audioInputOptions, heldOpen, off: microphoneOff, permission, selectedAudioInput, enabled: listening } = storeToRefs(devices)
 const controls = useVoiceControlsStore()
 
 /** Composer text before dictation started. The live transcript is shown after it until the input ends. */
@@ -129,6 +129,14 @@ watch(transcript, (text) => {
 async function toggle() {
   menu.close()
   if (!active.value) {
+    // The microphone switch is off, so nothing records. The toast tells why and turns the microphone on only on request.
+    if (microphoneOff.value) {
+      toast(t('stage.chat.voice-composer.microphone-off'), {
+        description: t('stage.chat.voice-composer.microphone-off-description'),
+        action: { label: t('stage.chat.voice-composer.turn-on-microphone'), onClick: () => microphoneOff.value = false },
+      })
+      return
+    }
     if (mode.value === 'transcription' && !voice.transcriptionConfigured.value) {
       toast(t('stage.chat.voice-composer.configure-title'), {
         description: t('stage.chat.voice-composer.configure-description'),
@@ -165,32 +173,22 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
     void cancel()
 })
 
-// NOTICE:
-// A browser resumes the microphone AudioContext only after a user activation, and a hover is none.
-// So the meter waits for sticky activation. Electron plays without a gesture.
-// Source: `microphoneSource` in packages/audio/src/browser/sources.ts awaits `context.resume()`.
-// Remove when that source stops waiting for resume.
-const monitor = useIntervalFn(() => {
-  if (navigator.userActivation?.hasBeenActive ?? true)
-    controls.monitorLevel(LEVEL_MONITOR_RENEW_MS * 1.5)
-}, LEVEL_MONITOR_RENEW_MS, { immediate: false, immediateCallback: true })
-watch(menuOpen, async (open) => {
-  monitor.pause()
-  if (!open)
-    return
-  // The meter must not cause a permission prompt on hover. Without granted permission it stays empty.
-  const permission = await navigator.permissions?.query({ name: 'microphone' as PermissionName }).catch(() => undefined)
-  if (menuOpen.value && (!permission || permission.state === 'granted'))
-    monitor.resume()
-})
+/**
+ * The meter shows only while the microphone preference already holds the microphone open.
+ * A hover opens the menu, and a hover must never open the microphone, cause a permission prompt, or turn on the system
+ * microphone indicator. While the microphone is closed, the menu shows the device without a meter.
+ */
+const meterVisible = computed(() => menuOpen.value && heldOpen.value)
+const monitor = useIntervalFn(() => controls.monitorLevel(LEVEL_MONITOR_RENEW_MS * 1.5), LEVEL_MONITOR_RENEW_MS, { immediate: false, immediateCallback: true })
+watch(meterVisible, visible => visible ? monitor.resume() : monitor.pause(), { immediate: true })
 
-/** Level of the selected microphone while the menu is open. The host's level from an earlier capture is not shown. */
+/** Level of the selected microphone while the meter shows. The host's level from an earlier capture is not shown. */
 const meterLevel = shallowRef(0)
 watch(() => controls.level, (value) => {
-  if (menuOpen.value)
+  if (meterVisible.value)
     meterLevel.value = value
 })
-watch(menuOpen, () => meterLevel.value = 0)
+watch(meterVisible, () => meterLevel.value = 0)
 
 const currentDevice = computed(() => {
   const option = audioInputOptions.value.find(item => item.value === selectedAudioInput.value)
@@ -235,10 +233,14 @@ const iconClass = computed(() => {
     return 'i-svg-spinners:ring-resize'
   if (active.value)
     return 'i-solar:stop-bold'
+  if (microphoneOff.value)
+    return 'i-mingcute:mic-off-fill'
   return activeMode.value === 'audio' ? 'i-solar:microphone-3-bold' : 'i-solar:text-field-focus-linear'
 })
 
 const buttonLabel = computed(() => {
+  if (!active.value && microphoneOff.value)
+    return t('stage.chat.voice-composer.microphone-off')
   if (!active.value)
     return t(`stage.chat.voice-composer.${mode.value}`)
   return t(autoSendEnabled.value ? 'stage.chat.voice-composer.stop-send' : 'stage.chat.voice-composer.stop')
@@ -248,6 +250,7 @@ const itemClasses = [
   'w-full flex cursor-pointer select-none items-center gap-2 rounded-lg px-3 py-2 text-left',
   'text-sm leading-none outline-none text-neutral-700 dark:text-neutral-200',
   'data-[highlighted]:bg-primary-100/80 dark:data-[highlighted]:bg-primary-900/40',
+  'data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50',
   'transition-colors duration-150 ease-in-out',
 ]
 const radioItemClasses = [
@@ -330,12 +333,25 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
         <DropdownMenuLabel :class="labelClasses">
           {{ t('stage.chat.voice-composer.input-device') }}
         </DropdownMenuLabel>
-        <!-- The current microphone and its live level. Its submenu lists the other devices. -->
+        <!-- The microphone switch. Off closes the microphone for every feature, and nothing records until it is on again. -->
+        <DropdownMenuCheckboxItem
+          :model-value="!microphoneOff"
+          data-testid="voice-menu-microphone"
+          :class="itemClasses"
+          @update:model-value="value => microphoneOff = !value"
+          @select.prevent
+        >
+          <span :class="['flex-1']">{{ t('stage.chat.voice-composer.use-microphone') }}</span>
+          <span aria-hidden="true" :class="switchTrackClasses(!microphoneOff)">
+            <span :class="switchThumbClasses(!microphoneOff)" />
+          </span>
+        </DropdownMenuCheckboxItem>
+        <!-- The current microphone, with its live level while the microphone is open. Its submenu lists the other devices. -->
         <DropdownMenuSub>
           <DropdownMenuSubTrigger data-testid="voice-menu-device" :class="[itemClasses, 'py-1.5']">
             <span :class="['min-w-0 flex flex-1 flex-col gap-1.5']">
               <span :class="['truncate']">{{ currentDevice }}</span>
-              <span aria-hidden="true" :class="['h-1 w-full overflow-hidden rounded-full bg-neutral-900/10 dark:bg-white/10']">
+              <span v-if="meterVisible" aria-hidden="true" :class="['h-1 w-full overflow-hidden rounded-full bg-neutral-900/10 dark:bg-white/10']">
                 <span
                   data-testid="voice-menu-level"
                   :class="['block h-full rounded-full bg-primary-500 transition-[width] duration-75 motion-reduce:transition-none']"
@@ -390,8 +406,8 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
             <span :class="switchThumbClasses(autoSendEnabled)" />
           </span>
         </DropdownMenuCheckboxItem>
-        <DropdownMenuCheckboxItem :model-value="listening" data-testid="voice-menu-listen" :class="itemClasses" @update:model-value="setListening" @select.prevent>
-          <!-- The switch turns on the Hearing input mode. The mode itself is chosen in Hearing settings. -->
+        <DropdownMenuCheckboxItem :model-value="listening" :disabled="microphoneOff" data-testid="voice-menu-listen" :class="itemClasses" @update:model-value="setListening" @select.prevent>
+          <!-- The switch turns on the Hearing input mode. The mode itself is chosen in Hearing settings. It waits while the microphone is off. -->
           <span :class="['flex-1']">{{ t(listenLabelKeys[inputMode]) }}</span>
           <span aria-hidden="true" :class="switchTrackClasses(listening)">
             <span :class="switchThumbClasses(listening)" />

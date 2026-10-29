@@ -940,9 +940,13 @@ pages:
             description: Select the suitable speech recognition provider
           microphone:
             title: Microphone
-            label: Microphone
-            description: Turn on the microphone for Hearing. The input mode controls when AIRI listens.
             error: The microphone is not available
+          microphone-switch:
+            label: Use microphone
+            description: When this is off, no feature in AIRI can use the microphone.
+          listen:
+            label: Listen
+            description: AIRI listens in the input mode above. This needs the microphone.
           input-device:
             label: Input device
             description: Select the microphone that AIRI uses.

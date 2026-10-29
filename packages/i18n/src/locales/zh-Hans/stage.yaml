@@ -60,6 +60,10 @@ chat:
     push-to-talk-unavailable: 当前设备没有「按住说话」按键，所以 AIRI 不会聆听。请在听觉设置中更改输入模式。
     wake-word: 监听唤醒词
     hearing-settings: 更多听觉设置…
+    use-microphone: 启用麦克风
+    microphone-off: 麦克风已关闭
+    microphone-off-description: 打开麦克风后才能录音。
+    turn-on-microphone: 打开
     options-hint: 悬停或右键查看选项
     recording: 正在录音
     stop: 停止录音

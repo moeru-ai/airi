@@ -95,6 +95,29 @@ describe('hearing config audio device ownership', () => {
     localStorage.clear()
   })
 
+  // The island and the mobile Hearing drawer show these controls. Users must be able to close the microphone there.
+  it('turns the microphone off for every feature, and keeps listening waiting until it is on again', async () => {
+    const { app, host } = mountHearingConfig()
+    const offSwitch = () => host.querySelector<HTMLButtonElement>('[data-testid="hearing-microphone-off-switch"] [role="switch"]')!
+    await nextTick()
+    expect(offSwitch().getAttribute('aria-checked')).toBe('true')
+
+    offSwitch().click()
+
+    await expect.poll(() => offSwitch().getAttribute('aria-checked')).toBe('false')
+    expect(localStorage.getItem('settings/audio/input/off')).toBe('true')
+    expect(microphoneSwitch(host).disabled).toBe(true)
+
+    offSwitch().click()
+
+    await expect.poll(() => offSwitch().getAttribute('aria-checked')).toBe('true')
+    expect(microphoneSwitch(host).disabled).toBe(false)
+    expect(audioDeviceMocks.storeAskPermission).not.toHaveBeenCalled()
+
+    app.unmount()
+    host.remove()
+  })
+
   it('does not request microphone permission when the controls render', async () => {
     const { app, host } = mountHearingConfig()
     await nextTick()
