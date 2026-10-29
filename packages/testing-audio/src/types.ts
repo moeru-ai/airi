@@ -102,8 +102,6 @@ export interface AudioInputObservations {
   }) => Promise<AudioInputTurn>
   /** Returns the Pinia action events collected by the runtime probe. */
   piniaActionEvents: () => Promise<PiniaActionEvent[]>
-  /** Waits until the VAD audio graph is connected to the microphone stream. */
-  waitForVadReady: () => Promise<void>
   /** Waits until a streaming transcription transport accepts microphone audio. */
   waitForStreamingTranscriptionReady: () => Promise<void>
   /**

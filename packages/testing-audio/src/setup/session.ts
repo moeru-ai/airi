@@ -51,7 +51,6 @@ export function createSession(options: {
           probeInstalled: Boolean(window.__airiAudioInputE2E),
           streamingTranscriptionReady: window.__airiAudioInputE2E?.streamingTranscriptionReady ?? false,
           url: window.location.href,
-          vadReady: window.__airiAudioInputE2E?.vadReady ?? false,
         }))
         throw new Error(`Timed out waiting for captured transcription audio: ${JSON.stringify(runtimeState)}`, { cause: error })
       }
@@ -97,9 +96,6 @@ export function createSession(options: {
       return turn
     },
     piniaActionEvents: () => options.page.evaluate(() => window.__airiAudioInputE2E?.piniaActionEvents ?? []),
-    async waitForVadReady() {
-      await options.page.waitForFunction(() => window.__airiAudioInputE2E?.vadReady === true, undefined, { timeout: 30_000 })
-    },
     async waitForStreamingTranscriptionReady() {
       await options.page.waitForFunction(() => window.__airiAudioInputE2E?.streamingTranscriptionReady === true, undefined, { timeout: 30_000 })
     },
