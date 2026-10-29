@@ -152,17 +152,17 @@ export class TraceReader {
   }
 
   private apply(record: TraceRecord, pinned: boolean, late: boolean): void {
+    // A pinned record can arrive again from the buffer. The first copy wins, so a metric counts it once and a clock
+    // snapshot weighs once in the fit. The collector sends the pinned copy first, with its updates merged.
+    if (!this.indexes.byKey.add(record))
+      return
+
     if (record.type === 'clock.snapshot')
       this.clocks.addSnapshot(record.values, record.uncertaintyMs, record.attrs?.estimated === true)
     else if (record.type === 'clock.discontinuity')
       this.clocks.addDiscontinuity(record.of)
     else if (record.type === 'stream.started' && record.rate)
       this.clocks.setUnitsPerMs(streamClockOf(record.streamId), record.rate / 1000)
-
-    // A pinned open span can also arrive later from the buffer. The first copy wins, and the projections see it once,
-    // so a metric does not count it twice. The collector sends the pinned copy first, with its updates merged.
-    if (!this.indexes.byKey.add(record))
-      return
     if ((record.type === 'span.begin' || record.type === 'span.complete') && !this.indexes.bySpanId.has(record.spanId))
       this.indexes.bySpanId.set(record.spanId, record)
     if ('links' in record) {
