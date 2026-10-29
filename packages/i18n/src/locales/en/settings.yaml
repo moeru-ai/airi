@@ -975,6 +975,7 @@ pages:
             title: Input mode
             description: Choose how AIRI starts to listen while the microphone is on.
             label: Start listening
+            call-only: On a small screen, AIRI listens only during a voice call. To start one, use the add button next to the chat input.
             always-on: Always on
             always-on-description: AIRI listens all the time and replies when you speak.
             push-to-talk: Push to Talk

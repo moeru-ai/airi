@@ -89,7 +89,9 @@ function microphoneSwitch(host: HTMLElement) {
 }
 
 describe('hearing config audio device ownership', () => {
-  beforeEach(() => {
+  // The microphone switch exists on a wide screen. A small web screen listens only during a voice call.
+  beforeEach(async () => {
+    await page.viewport(1280, 800)
     audioDeviceMocks.componentAskPermission.mockClear()
     audioDeviceMocks.storeAskPermission.mockClear()
     localStorage.clear()
@@ -164,6 +166,19 @@ describe('hearing config audio device ownership', () => {
     await expect.poll(() => host.querySelector('[data-testid="microphone-picker"]')?.getAttribute('data-layout')).toBe('list')
     expect(host.querySelector('input[role="combobox"]')).toBeNull()
     expect(host.querySelector('[data-testid="microphone-picker"] [role="radio"][data-state="checked"]')?.textContent).toContain('Store microphone')
+
+    app.unmount()
+    host.remove()
+  })
+
+  it('hides continuous listening on a small web screen, where only a voice call listens', async () => {
+    await page.viewport(390, 844)
+    const { app, host } = mountHearingConfig()
+
+    await expect.poll(() => host.querySelector('[data-testid="hearing-call-only"]')).not.toBeNull()
+    expect(host.querySelector('[data-testid="hearing-microphone-switch"]')).toBeNull()
+    expect(host.querySelector('[data-testid="hearing-input-mode"]')).toBeNull()
+    expect(host.querySelector('[data-testid="microphone-picker"]')).not.toBeNull()
 
     app.unmount()
     host.remove()

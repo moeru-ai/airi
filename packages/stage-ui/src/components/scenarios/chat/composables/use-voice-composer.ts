@@ -140,6 +140,18 @@ export function useVoiceComposer(options: UseVoiceComposerOptions) {
     }
   })
 
+  // The input can settle before this control finished it. Another control can cancel it, for example Escape on the
+  // voice presence card. The host can also fail to capture, for example when microphone access is denied. The control
+  // is free again either way. The host clears its error when an input begins, so an error now belongs to this input.
+  watch(() => input.value?.phase, (inputPhase) => {
+    const recording = active.value
+    if (inputPhase !== 'settled' || recording?.mode !== 'transcription' || recording.finishing)
+      return
+    active.value = undefined
+    if (controls.snapshot.error)
+      options.onError(controls.snapshot.error)
+  })
+
   // A sent message can leave the chat again when its transcript has no speech. Only the recording control reports it.
   const recorded = new Set<string>()
   const stopDropped = getSpeechBusContext().on(voiceMessageDropped, ({ body }) => {

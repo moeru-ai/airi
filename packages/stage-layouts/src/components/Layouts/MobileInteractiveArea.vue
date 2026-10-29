@@ -3,8 +3,8 @@ import type { ChatHistoryReplyPayload, ChatImageAttachment } from '@proj-airi/st
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
-import { CharacterSwitcherDrawer, ChatBackgroundTasks, ChatHistory, HearingConfig, HearingStatus } from '@proj-airi/stage-ui/components'
-import { ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSessionsDrawer, useChatComposer, useChatImages, VoiceComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { CharacterSwitcherDrawer, ChatBackgroundTasks, ChatHistory, HearingStatus } from '@proj-airi/stage-ui/components'
+import { ChatComposerAddMenu, ChatComposerVoiceInput, ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSessionsDrawer, useChatComposer, useChatImages, useStartVoiceCall, VoiceCallCapsule, VoicePresence } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -15,7 +15,8 @@ import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/conte
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
-import { BasicButton, BasicTextarea, BottomDrawer } from '@proj-airi/ui'
+import { useVoiceCallStore } from '@proj-airi/stage-ui/stores/voice-call'
+import { BasicButton, BasicTextarea, ProgressiveBlur } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -71,9 +72,18 @@ const {
 } = composer
 const { addFiles, selectFiles, error: imageError, pending: pendingImages } = useChatImages(composer, () => activeSessionId.value)
 const imageInput = useTemplateRef<HTMLInputElement>('imageInput')
-/** Recording UI covers the input bubble. Text, attachments, and send stay hidden and inactive until it closes. */
-const voiceActive = shallowRef(false)
+/** A recording bar or the walkie-talkie bar covers the input bubble, so the text is hidden under it. */
+const voiceCovering = shallowRef(false)
+/** A recording is open. Its transcript is not in the text yet, so send waits until it closes. */
+const voiceRecording = shallowRef(false)
+/** A recorded voice message waits for the send button. It can be sent without text. */
+const voicePending = shallowRef(false)
+const voiceInput = useTemplateRef<InstanceType<typeof ChatComposerVoiceInput>>('voiceInput')
+const voiceAttachment = useTemplateRef<HTMLElement>('voiceAttachment')
+const voiceSurface = useTemplateRef<HTMLElement>('voiceSurface')
 const router = useRouter()
+const call = useVoiceCallStore()
+const startVoiceCall = useStartVoiceCall(route => router.push(route))
 const hasSubmission = computed(() => !!messageInput.value.trim() || attachments.value.length > 0)
 const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useChatInterruption({
   sessionId: activeSessionId,
@@ -106,7 +116,6 @@ async function handleRetryMessage(index: number) {
 }
 
 const sessionsDrawerOpen = shallowRef(false)
-const hearingOpen = shallowRef(false)
 const mobileInteractiveArea = useTemplateRef<HTMLElement>('mobileInteractiveArea')
 const messageComposer = useTemplateRef<HTMLElement>('messageComposer')
 const inputBubble = useTemplateRef<HTMLElement>('inputBubble')
@@ -167,13 +176,6 @@ const viewControlsEnabled = computed(() => {
 })
 const settingsAudioDevice = useSettingsAudioDevice()
 const { listening, stream } = storeToRefs(settingsAudioDevice)
-
-function restoreComposerFocus(event: Event) {
-  event.preventDefault()
-  const target = mobileInteractiveArea.value?.querySelector<HTMLButtonElement>('[data-testid="mobile-voice-button"]')
-    ?? inputBubble.value?.querySelector<HTMLTextAreaElement>('textarea')
-  target?.focus({ preventScroll: true })
-}
 
 const { t } = useI18n()
 const { audioContext } = useAudioContext()
@@ -262,8 +264,17 @@ async function handleSubmit() {
 
 async function handleSend() {
   // The draft stays in the composer while the setup callout is shown.
-  if (!voiceActive.value && !pendingImages.value && chatReady.value)
-    await submitInterruptingResponse()
+  if (voiceRecording.value || pendingImages.value || !chatReady.value)
+    return
+
+  // A waiting voice message takes the composer text into the same user message.
+  const voice = await voiceInput.value?.sendPending(messageInput.value)
+  if (voice === 'sent')
+    messageInput.value = ''
+  if (voice === 'sent' || voice === 'failed')
+    return
+
+  await submitInterruptingResponse()
 }
 
 function teardownAnalyzer() {
@@ -377,10 +388,18 @@ onUnmounted(() => {
         'pointer-events-auto relative w-full shrink-0 self-end',
       ]"
     >
+      <!--
+        The stage shows through the input area with a blur that grows toward the bottom edge, so the composer and a call
+        stay readable over any character or background. It reaches above the controls to fade in softly.
+      -->
+      <div aria-hidden="true" data-testid="mobile-input-backdrop" :class="['pointer-events-none absolute inset-x-0 bottom-0 -top-16 -z-1']">
+        <ProgressiveBlur edge="bottom" :strength="call.active ? 32 : 16" />
+        <div :class="['absolute inset-0 bg-gradient-to-b from-transparent to-neutral-50/60 dark:to-neutral-950/60']" />
+      </div>
       <div :class="['absolute left-0 top-2 z-30 -translate-y-full px-3 font-sans']">
         <div :class="['flex flex-col gap-1']">
           <slot name="status" />
-          <HearingStatus />
+          <HearingStatus v-if="!call.active" />
         </div>
       </div>
       <div
@@ -398,6 +417,10 @@ onUnmounted(() => {
           <ChatSessionsDrawer v-model="sessionsDrawerOpen" />
         </div>
       </div>
+      <!-- Speech and drafts show above the composer, also during a call. The call itself is the capsule at the top. -->
+      <div :class="['flex justify-center px-3 pb-1 empty:hidden']">
+        <VoicePresence />
+      </div>
       <ChatProviderSetupCallout
         v-if="!chatReady"
         :class="['mx-3']"
@@ -412,41 +435,17 @@ onUnmounted(() => {
         ]"
         :style="messageComposerStyle"
       >
-        <button
-          type="button"
-          :aria-label="t('stage.chat.images.attach')"
+        <ChatComposerAddMenu
+          size="md"
+          :in-call="call.active"
           :class="[
-            'size-10 shrink-0 flex items-center justify-center self-end rounded-full',
-            'border-2 border-solid border-neutral-200/60 bg-neutral-100/80 text-primary-600 backdrop-blur-md',
-            'dark:border-neutral-700/60 dark:bg-neutral-950/80 dark:text-primary-300',
-            'transition-colors duration-200 hover:bg-primary-100/80 dark:hover:bg-primary-900/60 motion-reduce:transition-none',
+            'self-end backdrop-blur-md',
+            'border-2 border-solid border-neutral-200/60 bg-neutral-100/80',
+            'dark:border-neutral-700/60 dark:bg-neutral-950/80',
           ]"
-          @click="imageInput?.click()"
-        >
-          <span :class="['i-solar:paperclip-bold-duotone size-5']" />
-        </button>
-        <BasicButton
-          size="unset"
-          type="button"
-          data-testid="mobile-voice-button"
-          :title="t('stage.mobile-tools.hearing')"
-          :aria-label="t('stage.mobile-tools.hearing')"
-          aria-haspopup="dialog"
-          :aria-expanded="hearingOpen"
-          :class="[
-            'size-10 shrink-0 self-end rounded-full backdrop-blur-md',
-            'border-2 border-solid border-neutral-200/60 bg-neutral-100/80 text-primary-600',
-            'dark:border-neutral-700/60 dark:bg-neutral-950/80 dark:text-primary-300',
-            'hover:bg-primary-100/80 dark:hover:bg-primary-900/60',
-            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
-          ]"
-          @click="hearingOpen = true"
-        >
-          <span
-            aria-hidden="true"
-            :class="[listening ? 'i-solar:soundwave-bold' : 'i-solar:soundwave-linear', 'size-5']"
-          />
-        </BasicButton>
+          @attach-images="imageInput?.click()"
+          @call="startVoiceCall"
+        />
         <input ref="imageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple :class="['hidden']" @change="selectFiles">
         <div
           ref="inputBubble"
@@ -459,47 +458,92 @@ onUnmounted(() => {
         >
           <ChatReplyPreview
             :target="replyTarget"
-            :class="['w-full', voiceActive && 'invisible']"
+            :class="['w-full', voiceCovering && 'invisible']"
             @cancel="handleCancelReply"
           />
           <ChatBackgroundTasks :tasks="backgroundTasks" @stop="task => chatOrchestrator.stopBackgroundTask(task.sessionId)" @dismiss="task => chatOrchestrator.dismissBackgroundTask(task.sessionId)" />
-          <div v-if="attachments.length" :class="['flex gap-2 overflow-x-auto p-2', voiceActive && 'invisible']">
+          <div v-if="attachments.length" :class="['flex gap-2 overflow-x-auto p-2', voiceCovering && 'invisible']">
             <ChatImageAttachmentPreview v-for="(attachment, index) in attachments" :key="attachment.previewId" :file="attachment.file" @remove="removeAttachment(index)" />
           </div>
+          <div ref="voiceAttachment" :class="['px-2 pt-2 empty:hidden', voiceCovering && 'invisible']" />
           <p v-if="imageError" role="alert" :class="['px-3 py-1 text-xs text-red-600 dark:text-red-400']">
             {{ imageError }}
           </p>
           <p v-if="pendingImages" role="status" :class="['px-3 py-1 text-xs text-neutral-500']">
             {{ t('stage.chat.images.reading') }}
           </p>
-          <BasicTextarea
-            v-model="messageInput"
-            autocomplete="off"
-            autocapitalize="off"
-            autocorrect="off"
-            :spellcheck="false"
-            :placeholder="t('stage.message')"
-            :class="[
-              'font-cute',
-              'max-h-[10lh] min-h-[calc(1lh+4px+4px)] w-full resize-none overflow-y-scroll scrollbar-none',
-              'border-2 border-solid border-transparent bg-transparent px-4 py-0.5 outline-none',
-              'text-neutral-500 dark:text-neutral-100',
-              'transition-colors duration-250 ease-in-out hover:text-neutral-600 dark:hover:text-neutral-200',
-              'placeholder:text-[14px] placeholder:vertical-middle placeholder:leading-6 placeholder:text-neutral-400',
-              'placeholder:transition-all placeholder:duration-250 placeholder:ease-in-out placeholder:hover:text-neutral-500 dark:placeholder:text-neutral-500 dark:placeholder:hover:text-neutral-400',
-              themeColorsHueDynamic ? 'transition-colors-none placeholder:transition-colors-none' : undefined,
-              voiceActive && 'invisible',
-            ]"
-            default-height="1lh"
-            @submit="handleSubmit"
-            @paste-file="addFiles"
-            @compositionstart="isComposing = true"
-            @compositionend="isComposing = false"
-          />
+          <div :class="['flex items-end']">
+            <!-- The recording status and the walkie-talkie bar cover the text here. The microphone stays beside it. -->
+            <div ref="voiceSurface" :class="['relative min-w-0 flex flex-1 rounded-[1lh]']">
+              <BasicTextarea
+                v-model="messageInput"
+                autocomplete="off"
+                autocapitalize="off"
+                autocorrect="off"
+                :spellcheck="false"
+                :placeholder="t('stage.message')"
+                :class="[
+                  'font-cute',
+                  'max-h-[10lh] min-h-[calc(1lh+4px+4px)] min-w-0 flex-1 resize-none overflow-y-scroll scrollbar-none',
+                  // The 2px margins center one line of text against the 36px microphone in the bubble.
+                  'my-0.5 border-2 border-solid border-transparent bg-transparent py-0.5 pl-4 pr-1 outline-none',
+                  'text-neutral-500 dark:text-neutral-100',
+                  'transition-colors duration-250 ease-in-out hover:text-neutral-600 dark:hover:text-neutral-200',
+                  'placeholder:text-[14px] placeholder:vertical-middle placeholder:leading-6 placeholder:text-neutral-400',
+                  'placeholder:transition-all placeholder:duration-250 placeholder:ease-in-out placeholder:hover:text-neutral-500 dark:placeholder:text-neutral-500 dark:placeholder:hover:text-neutral-400',
+                  themeColorsHueDynamic ? 'transition-colors-none placeholder:transition-colors-none' : undefined,
+                  voiceCovering && 'invisible',
+                ]"
+                default-height="1lh"
+                @submit="handleSubmit"
+                @paste-file="addFiles"
+                @compositionstart="isComposing = true"
+                @compositionend="isComposing = false"
+              />
+            </div>
+            <!-- A call listens already, so the microphone becomes the mute button of the call. -->
+            <BasicButton
+              v-if="call.active"
+              size="unset"
+              type="button"
+              data-testid="mobile-call-mute"
+              :aria-pressed="call.muted"
+              :aria-label="t(call.muted ? 'stage.chat.call.unmute' : 'stage.chat.call.mute')"
+              :title="t(call.muted ? 'stage.chat.call.unmute' : 'stage.chat.call.mute')"
+              :class="[
+                'mr-0.5 size-9 shrink-0 flex items-center justify-center rounded-full outline-none',
+                'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary-500',
+                'transition-colors duration-150 motion-reduce:transition-none',
+                call.muted
+                  ? 'bg-neutral-700 text-white dark:bg-white/20 dark:text-white'
+                  : 'text-neutral-500 hover:bg-neutral-900/8 dark:text-neutral-400 dark:hover:bg-white/10',
+              ]"
+              @click="call.toggleMuted()"
+            >
+              <span aria-hidden="true" :class="[call.muted ? 'i-mingcute:mic-off-line' : 'i-mingcute:mic-line', 'size-5']" />
+            </BasicButton>
+            <ChatComposerVoiceInput
+              v-else
+              ref="voiceInput"
+              v-model="messageInput"
+              size="md"
+              :class="['mr-0.5']"
+              :surface="voiceSurface"
+              :attachment-element="voiceAttachment"
+              :session-id="activeSessionId"
+              :reply-to-message-id="replyTarget?.message.id"
+              @active-change="voiceCovering = $event"
+              @recording-change="voiceRecording = $event"
+              @pending-change="voicePending = $event"
+              @sent="composer.clearReply()"
+              @submit="handleSend"
+              @configure="route => router.push(route)"
+            />
+          </div>
         </div>
-        <div :class="['min-w-10 shrink-0 flex items-end justify-end gap-1']">
+        <div :class="['shrink-0 flex items-end']">
           <button
-            v-if="showStopAction && !voiceActive"
+            v-if="showStopAction"
             data-testid="stop-speaking-button"
             :class="[
               'size-10 flex items-center justify-center rounded-full outline-none backdrop-blur-md',
@@ -515,38 +559,22 @@ onUnmounted(() => {
             <div :class="['i-solar:stop-outline size-5']" />
           </button>
           <button
-            v-else-if="hasSubmission && !voiceActive"
-            :disabled="!!pendingImages"
+            v-else
+            data-testid="mobile-send-button"
+            :disabled="voiceRecording || !!pendingImages || (!hasSubmission && !voicePending)"
             :aria-label="t('stage.chat.actions.send')"
             :class="[
-              'size-10 flex items-center justify-center rounded-full bg-primary-500 text-white outline-none backdrop-blur-md',
-              'transition-colors duration-200 hover:bg-primary-600 disabled:opacity-40 motion-reduce:transition-none',
+              'size-10 flex items-center justify-center rounded-full bg-primary-500 text-white outline-none',
+              'transition-[background-color,opacity] duration-200 hover:bg-primary-600 disabled:opacity-40 motion-reduce:transition-none',
             ]"
             @click="handleSend"
           >
-            <div :class="['i-solar:arrow-up-outline size-5']" />
+            <div :class="['i-mingcute:arrow-up-line size-5']" />
           </button>
-          <VoiceComposer
-            v-else
-            v-model="messageInput"
-            size="large"
-            :input-element="inputBubble"
-            :session-id="activeSessionId"
-            :reply-to-message-id="replyTarget?.message.id"
-            @recording-change="voiceActive = $event"
-            @sent="composer.clearReply()"
-            @configure="router.push('/settings/modules/hearing/transcriber')"
-          />
         </div>
       </div>
     </div>
-    <BottomDrawer
-      v-model="hearingOpen"
-      :title="t('stage.mobile-tools.hearing')"
-      @close-auto-focus="restoreComposerFocus"
-    >
-      <HearingConfig />
-    </BottomDrawer>
+    <VoiceCallCapsule persistent />
     <div
       v-show="viewControlsEnabled"
       data-testid="view-controls-toolbar"

@@ -265,6 +265,21 @@ const characterVoiceIcon = computed(() => {
               @touchmove.stop
             />
           </div>
+          <div :class="['mx-4 border-t border-neutral-100 dark:border-neutral-700/50']" />
+          <!-- Hearing details live in settings, so the composer keeps only the voice input mode. -->
+          <RouterLink
+            to="/settings/modules/hearing"
+            data-testid="mobile-hearing-settings"
+            :class="[
+              'min-h-13 flex items-center gap-3 px-4 py-3 text-sm',
+              'mobile-tool-row hover:bg-primary-500/10 focus-visible:outline-2 focus-visible:outline-primary-500',
+            ]"
+            @click="settingsOpen = false"
+          >
+            <span aria-hidden="true" :class="['i-mingcute:ear-line size-5 shrink-0 text-neutral-400']" />
+            <span :class="['flex-1']">{{ t('stage.mobile-tools.hearing') }}</span>
+            <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 text-neutral-400']" />
+          </RouterLink>
         </div>
       </section>
       <section :class="['mb-4']">
