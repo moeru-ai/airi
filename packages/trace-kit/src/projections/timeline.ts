@@ -122,8 +122,11 @@ export interface TimelineState {
   start: number
   end: number
   counters: { records: number, late: number, orphanUpdates: number, reordered: number }
-  /** Updates without their begin, by span key. They wait for the begin within the reader window. */
-  pendingUpdates: Map<string, TraceAttributes>
+  /**
+   * Updates without their begin, by span key, with the time of the newest update. They wait for the begin for the
+   * allowed lateness, then they go. `counters.orphanUpdates` counts them.
+   */
+  pendingUpdates: Map<string, { attrs: TraceAttributes, time: number }>
 }
 
 function emptyState(): TimelineState {
@@ -294,7 +297,7 @@ function beginSpan(state: TimelineState, record: Extract<TraceRecord, { type: 's
   const parent = parentKey ? state.spans.get(parentKey) : undefined
   const depth = parent && parent.track === record.track ? parent.depth + 1 : 0
   const { time, reordered } = repairCausality(context.time, record.links, state, context)
-  const pending = state.pendingUpdates.get(key)
+  const pending = state.pendingUpdates.get(key)?.attrs
   state.pendingUpdates.delete(key)
 
   const span: TimelineSpan = {
@@ -326,10 +329,31 @@ function beginSpan(state: TimelineState, record: Extract<TraceRecord, { type: 's
   return span
 }
 
+/** How long an update without its begin waits, and how far a watermark trails its source. See the ADR on lateness. */
+const ALLOWED_LATENESS_MS = 5000
+
+/** Drops the updates that waited for their begin longer than the allowed lateness. */
+function expirePendingUpdates(state: TimelineState, time: number): void {
+  for (const [key, pending] of state.pendingUpdates) {
+    if (pending.time < time - ALLOWED_LATENESS_MS)
+      state.pendingUpdates.delete(key)
+  }
+}
+
+/** Marks the state tracks of a source unknown, because the source that owns them stopped or was lost. */
+function markOwnedStatesUnknown(state: TimelineState, source: string, key: string, time: number): void {
+  for (const track of state.tracks.values()) {
+    if (track.stateOwner === source && track.states.at(-1)?.value !== 'unknown')
+      track.states.push({ key, track: track.path, time, value: 'unknown', source })
+  }
+}
+
 function handleRecord(state: TimelineState, record: TraceRecord, context: TraceApplyContext): TimelineState {
   state.counters.records++
   if (context.late)
     state.counters.late++
+  if (state.pendingUpdates.size > 0)
+    expirePendingUpdates(state, context.time)
 
   const source = state.sources.get(record.source)
   if (source && source.epoch === record.epoch)
@@ -348,6 +372,8 @@ function handleRecord(state: TimelineState, record: TraceRecord, context: TraceA
       const current = state.sources.get(record.source)
       if (current?.epoch === record.epoch)
         current.live = false
+      // Each source owns its state tracks. A stopped source leaves them unknown, like a lost one.
+      markOwnedStatesUnknown(state, record.source, recordKey(record), context.time)
       break
     }
     case 'source.lost': {
@@ -357,10 +383,7 @@ function handleRecord(state: TimelineState, record: TraceRecord, context: TraceA
         current.live = false
       state.markers.push({ kind: 'source-lost', time: context.time, label: `${record.of.source}: ${record.reason}` })
       // Each source owns its state tracks. A lost source leaves them unknown.
-      for (const track of state.tracks.values()) {
-        if (track.stateOwner === record.of.source && track.states.at(-1)?.value !== 'unknown')
-          track.states.push({ key: recordKey(record), track: track.path, time: context.time, value: 'unknown', source: record.of.source })
-      }
+      markOwnedStatesUnknown(state, record.of.source, recordKey(record), context.time)
       break
     }
     case 'clock.discontinuity': {
@@ -407,7 +430,7 @@ function handleRecord(state: TimelineState, record: TraceRecord, context: TraceA
       }
       else {
         state.counters.orphanUpdates++
-        state.pendingUpdates.set(key, { ...state.pendingUpdates.get(key), ...record.attrs })
+        state.pendingUpdates.set(key, { attrs: { ...state.pendingUpdates.get(key)?.attrs, ...record.attrs }, time: context.time })
       }
       break
     }
@@ -562,7 +585,7 @@ export function createTimelineProjection(): TraceProjection<TimelineState> {
  * The start of the provisional region: the earliest watermark of the live sources.
  * A watermark trails the newest record of its source by the allowed lateness.
  */
-export function provisionalFrom(state: TimelineState, allowedLatenessMs = 5000): number | undefined {
+export function provisionalFrom(state: TimelineState, allowedLatenessMs = ALLOWED_LATENESS_MS): number | undefined {
   let earliest: number | undefined
   for (const source of state.sources.values()) {
     if (!source.live || source.source === 'collector')

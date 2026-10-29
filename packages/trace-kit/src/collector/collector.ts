@@ -450,6 +450,11 @@ export class TraceCollector {
       if (record.source === source && record.epoch === epoch)
         this.pinnedStates.delete(track)
     }
+    // A stream of an ended epoch has ended too, also when the epoch stopped before `stream.stopped`.
+    for (const [streamId, record] of this.pinnedStreams) {
+      if (record.source === source && record.epoch === epoch)
+        this.pinnedStreams.delete(streamId)
+    }
   }
 
   private loseSource(source: string, reason: TraceSourceLostReason): void {

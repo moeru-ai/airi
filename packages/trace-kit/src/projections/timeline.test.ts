@@ -83,6 +83,48 @@ describe('timeline projection', () => {
     expect(view.markers).toEqual([{ kind: 'source-lost', time: 9, label: 'window:main: ipc-closed' }])
   })
 
+  it('leaves the state tracks of a stopped source unknown, like those of a lost source', () => {
+    const record = createRecordStamper()
+    const timeline = createTimelineProjection()
+    const reader = new TraceReader([timeline])
+    reader.handleRecords([
+      record({ type: 'source.started', ts: 0, format: 1, runtime: 'test', profiles: [] }),
+      record({ type: 'state', ts: 1, track: 'participants/user/state', value: 'speaking' }),
+      record({ type: 'source.stopped', ts: 9 }),
+    ])
+
+    const states = reader.view(timeline).tracks.get('participants/user/state')!.states
+    expect(states.map(change => change.value)).toEqual(['speaking', 'unknown'])
+  })
+
+  it('drops an update without its begin after the allowed lateness', () => {
+    const record = createRecordStamper()
+    const timeline = createTimelineProjection()
+    const reader = new TraceReader([timeline])
+    reader.handleRecords([
+      record({ type: 'span.update', ts: 0, track: 't', spanId: 'orphan', attrs: { a: 1 } }),
+      record({ type: 'span.update', ts: 0, track: 't', spanId: 'waiting', attrs: { b: 2 } }),
+      // The begin of `waiting` arrives in time. `orphan` never gets one.
+      record({ type: 'span.begin', ts: 100, track: 't', spanId: 'waiting', name: 'late begin' }),
+      record({ type: 'instant', ts: 6000, track: 't', name: 'later' }),
+    ])
+
+    const view = reader.view(timeline)
+    expect(view.spans.get('window:main/e1/waiting')!.attrs).toEqual({ b: 2 })
+    expect(view.pendingUpdates.size).toBe(0)
+    expect(view.counters.orphanUpdates).toBe(2)
+  })
+
+  it('applies a record that arrives twice one time', () => {
+    const record = createRecordStamper()
+    const timeline = createTimelineProjection()
+    const reader = new TraceReader([timeline])
+    const begin = record({ type: 'span.begin', ts: 0, track: 't', spanId: 's', name: 'pinned and buffered' })
+    reader.handleRecords([begin, begin])
+
+    expect(reader.view(timeline).counters.records).toBe(1)
+  })
+
   it('gives overlapping spans of one depth separate lanes', () => {
     const record = createRecordStamper()
     const timeline = createTimelineProjection()

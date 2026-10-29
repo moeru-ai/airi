@@ -61,6 +61,20 @@ describe('traceCollector', () => {
     expect(collector.stats.openSpans).toBe(0)
   })
 
+  it('forgets the streams of an epoch that ends before its stream.stopped', () => {
+    const { collector, source } = setup()
+    const first = source('window:main')
+    first.emit({ type: 'stream.started', ts: 1000, streamId: 'mic', mediaType: 'audio/pcm', rate: 16000 })
+    // A new epoch of the same source replaces the first one, which never stopped its stream.
+    source('window:main')
+
+    const messages: TraceFeedMessage[] = []
+    collector.subscribe(message => messages.push(message))
+    // The buffer still holds the record. The pinned set, which tells a new viewer what is active, must not.
+    const pinnedStreams = messages.filter(message => message.kind === 'record' && message.pinned && message.record.type === 'stream.started')
+    expect(pinnedStreams).toEqual([])
+  })
+
   it('loses a source after the heartbeat timeout', () => {
     const { collector, source, advance } = setup({ heartbeatTimeoutMs: 1000 })
     source('window:main')

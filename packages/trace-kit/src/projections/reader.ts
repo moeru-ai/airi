@@ -216,17 +216,18 @@ export class TraceReader {
     else if (record.type === 'stream.started' && record.rate)
       this.clocks.setUnitsPerMs(streamClockOf(record.streamId), record.rate / 1000)
 
-    // A pinned open span can also arrive later from the buffer. The first copy wins in the indexes.
-    if (this.indexes.byKey.add(record)) {
-      if ((record.type === 'span.begin' || record.type === 'span.complete') && !this.indexes.bySpanId.has(record.spanId))
-        this.indexes.bySpanId.set(record.spanId, record)
-      if ('links' in record) {
-        for (const link of record.links ?? [])
-          pushTo(this.indexes.linksTo, linkTargetKey(link.to), record)
-      }
-      for (const [idKey, value] of Object.entries(record.ids ?? {}))
-        pushTo(this.indexes.byId, `${idKey}=${value}`, record)
+    // A pinned open span can also arrive later from the buffer. The first copy wins, and the projections see it once,
+    // so a metric does not count it twice. The collector sends the pinned copy first, with its updates merged.
+    if (!this.indexes.byKey.add(record))
+      return
+    if ((record.type === 'span.begin' || record.type === 'span.complete') && !this.indexes.bySpanId.has(record.spanId))
+      this.indexes.bySpanId.set(record.spanId, record)
+    if ('links' in record) {
+      for (const link of record.links ?? [])
+        pushTo(this.indexes.linksTo, linkTargetKey(link.to), record)
     }
+    for (const [idKey, value] of Object.entries(record.ids ?? {}))
+      pushTo(this.indexes.byId, `${idKey}=${value}`, record)
 
     const { time, estimated } = this.timeOf(record)
     const context: TraceApplyContext = { pinned, late, time, estimated, indexes: this.indexes }
