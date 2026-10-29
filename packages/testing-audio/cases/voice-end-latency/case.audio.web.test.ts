@@ -4,6 +4,7 @@ import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared/perf/io-trace
 
 import { describe, expect, it } from '../../src'
 import { configureModuleConsciousness, configureModuleHearing, configureOnboarding, loadCaseEnvironment } from '../shared/configurations'
+import { waitForVoiceDraft } from '../shared/interactions'
 import { aliyunNlsAsr, openaiLlm } from '../shared/providers'
 
 /**
@@ -60,7 +61,7 @@ describe('voice end latency', () => {
     ],
   }, async ({ audio, annotate }) => {
     await audio.waitForVoiceInput({ timeout: 60_000 })
-    await audio.runtimePage.getByRole('region', { name: 'Voice draft', includeHidden: true }).waitFor({ state: 'attached', timeout: 60_000 })
+    await waitForVoiceDraft(audio, { timeout: 60_000 })
 
     const [voiceInput] = await audio.completedSpans(IOSpanNames.VoiceInput)
     expect(voiceInput).toBeDefined()

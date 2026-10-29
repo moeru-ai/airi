@@ -185,7 +185,8 @@ async function handleSend() {
   const voice = await voiceButton.value?.sendPending(messageInput.value)
   if (voice === 'sent')
     messageInput.value = ''
-  if (voice === 'sent' || voice === 'failed')
+  // A failed send keeps the text for a retry. A send that still runs, for example after a double Enter, clears it itself.
+  if (voice && voice !== 'none')
     return
 
   await submitInterruptingResponse()

@@ -6,13 +6,14 @@ import type { HearingTranscriptionResult } from '../../../libs/providers/transcr
 import { errorMessageFrom } from '@moeru/std'
 import { encodeWav } from '@proj-airi/audio/encoding'
 import { capture as captureAudio, observe } from '@proj-airi/pipelines-audio'
-import { Button, FieldRange } from '@proj-airi/ui'
-import { computed, onScopeDispose, ref, watch } from 'vue'
+import { Alert, Button, FieldRange } from '@proj-airi/ui'
+import { computed, onScopeDispose, ref, toRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import MicrophonePicker from '../settings/microphone-picker.vue'
 
 import { useAudioDevice } from '../../../composables/audio/audio-device'
+import { useSettingsAudioDevice } from '../../../stores/settings/audio-device'
 import { LevelMeter, TestDummyMarker, ThresholdMeter } from '../../gadgets'
 
 const props = defineProps<{
@@ -21,7 +22,8 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
-const devices = useAudioDevice()
+// The playground picks its own device, but the microphone switch of AIRI still applies to it.
+const devices = useAudioDevice(ref(''), { off: toRef(useSettingsAudioDevice(), 'off') })
 const { audioInputOptions, permission, selectedAudioInput } = devices
 const speakingThreshold = ref(25)
 const isMonitoring = ref(false)
@@ -144,12 +146,9 @@ onScopeDispose(() => {
     </Button>
 
     <!-- Error message display -->
-    <div v-if="errorMessage" :class="['mb-4 border border-red-200 rounded-lg bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20']">
-      <div :class="['flex items-center gap-2 text-red-700 dark:text-red-400']">
-        <div :class="['i-solar:warning-circle-line-duotone text-lg']" />
-        <span :class="['text-sm font-medium']">{{ errorMessage }}</span>
-      </div>
-    </div>
+    <Alert v-if="errorMessage" tone="danger" live="polite" :class="['mb-4']">
+      {{ errorMessage }}
+    </Alert>
 
     <div>
       <div v-for="recording in recordings" :key="recording.url" :class="['mb-2']">

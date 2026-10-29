@@ -35,17 +35,19 @@ chat:
     position: 播放位置
     no-speech: 没有识别到说话，语音消息没有发送。
   voice-composer:
+    unavailable: 麦克风不可用。请在听觉设置中确认麦克风已打开。
     audio: 语音消息
     transcription: 语音转文字
-    hold-hint: 按住录音。单击在语音消息和语音转文字之间切换。按 Enter 可以免按住录音。
+    walkie: 对讲
+    mode-hint: 长按或右键选择语音输入方式
+    hold-to-talk: 按住说话
+    release-to-send: 松开发送
+    release-to-insert: 松开填入文字
+    release-to-cancel: 松开取消
+    keyboard: 切换到键盘
     listening: 正在聆听…
-    lock: 上滑锁定
-    cancel-hint: 左滑取消
     processing: 正在完成…
     cancel: 取消
-    send: 发送语音消息
-    insert: 插入文字
-    retry: 重新发送语音消息
     discard: 丢弃语音消息
     failed: 语音输入失败
     configure-title: 设置听觉
@@ -60,6 +62,10 @@ chat:
     push-to-talk-unavailable: 当前设备没有「按住说话」按键，所以 AIRI 不会聆听。请在听觉设置中更改输入模式。
     wake-word: 监听唤醒词
     hearing-settings: 更多听觉设置…
+    use-microphone: 启用麦克风
+    microphone-off: 麦克风已关闭
+    microphone-off-description: 打开麦克风后才能录音。
+    turn-on-microphone: 打开
     options-hint: 悬停或右键查看选项
     recording: 正在录音
     stop: 停止录音
@@ -87,7 +93,28 @@ chat:
     listening: 正在聆听
     finalizing: 正在整理……
     sent: 已发送
+    dismiss: 关闭
   voice-input: 语音输入
+  composer:
+    add: 添加
+    images: 图片
+    call: 语音通话
+  call:
+    title: 语音通话
+    listening: 正在聆听
+    hearing: 正在听你说
+    speaking: 正在说话
+    muted: 已静音
+    mute: 麦克风静音
+    unmute: 取消麦克风静音
+    hang-up: 挂断
+    minimize: 收起通话
+    expand: 回到通话
+    failed: 无法开始语音通话
+    microphone-denied: AIRI 无法使用麦克风。
+    microphone-off: 麦克风已关闭。请在听觉设置中打开麦克风，再开始语音通话。
+    busy: 请先结束或取消录音，再开始语音通话。
+    configure-description: 请在听觉设置中选择转录服务和模型，才能开始语音通话。
   notice:
     label: '后台汇报 {name}'
   background-tasks:

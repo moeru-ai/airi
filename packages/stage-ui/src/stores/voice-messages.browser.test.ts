@@ -8,6 +8,7 @@ import { createI18n } from 'vue-i18n'
 
 import { holdCaptureLease } from '../libs/voice/capture-lease'
 import { getSpeechBusContext, voiceMessageCommand, voiceMessagesChanged } from '../services/speech/bus'
+import { useSettingsAudioDevice } from './settings/audio-device'
 import { useVoiceCaptureLeaseStore } from './voice-capture-lease'
 import { useVoiceMessagesStore } from './voice-messages'
 
@@ -44,7 +45,7 @@ function connectHost() {
     disposePinia(pinia)
     element.remove()
   })
-  return { store, leases: useVoiceCaptureLeaseStore(pinia), latest: () => snapshots.at(-1) ?? [] }
+  return { store, leases: useVoiceCaptureLeaseStore(pinia), devices: useSettingsAudioDevice(pinia), latest: () => snapshots.at(-1) ?? [] }
 }
 
 describe('voice messages host', () => {
@@ -104,6 +105,41 @@ describe('voice messages host', () => {
 
     lease.abort()
     await expect.poll(() => leases.held).toBe(false)
+
+    expect(await command({ type: 'record', id: 'message', sessionId: 'alice' })).toEqual({ status: 'accepted' })
+  })
+
+  // The microphone switch in a composer menu or in Hearing controls must stop a recording at once.
+  // The user keeps the audio that was recorded before, as with a capture lease.
+  it('keeps a recording as a draft and closes the microphone when the microphone turns off', async () => {
+    const { store, devices, latest } = connectHost()
+    // The device list decides which device the system default opens. A later list change replaces the input.
+    expect(await devices.askPermission()).toBe(true)
+    await expect.poll(() => devices.selectedAudioInput).not.toBe('')
+    const command = defineInvoke(getSpeechBusContext(), voiceMessageCommand)
+    await command({ type: 'record', id: 'message', sessionId: 'alice' })
+    await expect.poll(() => latest()[0]?.phase).toBe('capturing')
+    await expect.poll(() => devices.stream?.getAudioTracks()[0].readyState).toBe('live')
+    const track = devices.stream!.getAudioTracks()[0]
+
+    devices.off = true
+
+    await expect.poll(() => latest()[0]?.phase).toBe('ready')
+    expect(store.isRecording).toBe(false)
+    await expect.poll(() => track.readyState).toBe('ended')
+    // Browser test files run in parallel and share storage. Turn the persisted switch back at once.
+    devices.off = false
+  })
+
+  it('does not record while the microphone is off', async () => {
+    const { devices } = connectHost()
+    const command = defineInvoke(getSpeechBusContext(), voiceMessageCommand)
+    devices.off = true
+    const refused = await command({ type: 'record', id: 'message', sessionId: 'alice' })
+    // Browser test files run in parallel and share storage. Turn the persisted switch back at once.
+    devices.off = false
+
+    expect(refused).toEqual({ status: 'closed' })
 
     expect(await command({ type: 'record', id: 'message', sessionId: 'alice' })).toEqual({ status: 'accepted' })
   })

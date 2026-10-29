@@ -1895,25 +1895,25 @@ pages:
     description: 웹소켓 서버 연결 구성
     title: 연결
     websocket-url:
-      description: '웹소켓 서버의 전체 주소(예: ws://localhost:6121/ws)'
-      label: 웹소켓 서버 주소
+      description: 이 앱이 로컬 서버에 연결할 때 사용하는 주소입니다.
+      label: 서버 주소
     server-hostname:
-      label: Expose On Network
-      description: Choose whether the AIRI gateway only listens on this device or can be reached from your local network.
+      label: 로컬 네트워크에 공개
+      description: 로컬 네트워크의 다른 기기가 이 서버에 연결할 수 있게 합니다.
     server-auth-token:
-      label: Auth Token
+      label: 페어링 토큰
       description: >-
-        Security token required by remote clients that connect to this gateway. When left empty, AIRI generates a new token automatically.
+        다른 기기가 이 서버와 페어링할 때 이 토큰을 사용합니다. 비워 두면 AIRI가 토큰을 생성합니다.
       placeholder: 자동 생성
     qr:
-      title: Connect from Stage Pocket
+      title: 페어링
       description: >-
-        Scan this QR code from Stage Pocket to try all reachable local network addresses and save the first working one.
+        모바일 버전으로 이 QR 코드를 스캔하세요. 앱이 로컬 주소를 하나씩 시도하고 처음 연결되는 주소를 저장합니다.
       refresh: 새로고침
-      image-alt: AIRI server channel connection QR code
+      image-alt: AIRI 페어링 QR 코드
       candidates: 후보 주소
       token-hint: >-
-        The QR code includes the auth token so Stage Pocket can authenticate after connecting. Do not share it publicly.
+        QR 코드에는 페어링 토큰이 들어 있습니다. QR 코드를 공개된 곳에 공유하지 마세요.
       errors:
         title: QR 코드를 사용할 수 없습니다
         unavailable: 연결 QR 코드를 준비하지 못했습니다.
@@ -2296,9 +2296,9 @@ tachie:
     render-scale: 렌더링 배율
     shadow: 테마 색상의 그림자
 websocket-secure-enabled:
-  title: 보안 웹소켓 (WSS) 활성화
+  title: 보안 웹소켓(WSS)으로 제공
   description: >-
-    개발 모드에서 모바일(pocket)의 HTTPS 연결을 허용하기 위해 WSS(WebSocket Secure)를 활성화합니다. 자체 서명 인증서가 자동으로 생성됩니다.
+    모바일 버전과 안전하게 연결하도록 WSS를 사용합니다. AIRI가 자체 서명 인증서를 생성합니다.
 wip:
   title: 개발 중
   description: >-

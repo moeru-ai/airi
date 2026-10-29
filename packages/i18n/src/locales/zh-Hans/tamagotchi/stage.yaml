@@ -112,6 +112,9 @@ about:
     home: 首页
     documentation: 文档
   update:
+    auto-download:
+      label: 自动下载更新
+      description: 关闭后，只有点击「下载更新」时才会下载更新。
     lane:
       label: 更新频道
       description: 选择更新频道
@@ -150,6 +153,17 @@ about:
       title: 有可用的更新
       description: 有新的 v{version} 版本可用
       no-release-notes-markdown: _无发布日志_
+    notices:
+      admin-required:
+        title: 需要管理员权限
+        description: AIRI 安装在受保护的 Windows 文件夹中，安装更新时 Windows 可能会弹出用户账户控制（UAC）窗口请求管理员权限。
+        path: 安装位置：{path}
+      downgrade-available:
+        title: 此更新是旧版本
+        description: 所选更新频道提供的版本比当前版本更旧。安装此更新会将 AIRI 降级到旧版本。
+      downgrade-downloaded:
+        title: 已下载旧版本
+        description: 从所选更新频道下载的安装包是旧版本。重启 AIRI 后将安装该旧版本。
 computer-use-tool-call:
   help: 帮助
   status:

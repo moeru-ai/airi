@@ -678,6 +678,9 @@ pages:
       title: Beat Sync
       sections:
         audio_source:
+          no_audio:
+            title: No audio detected
+            description: Make sure that you gave the permissions and that the audio source plays sound.
           actions:
             start_screen_capture: Start screen capture
             stop: Stop
@@ -940,9 +943,13 @@ pages:
             description: Select the suitable speech recognition provider
           microphone:
             title: Microphone
-            label: Microphone
-            description: Turn on the microphone for Hearing. The input mode controls when AIRI listens.
             error: The microphone is not available
+          microphone-switch:
+            label: Use microphone
+            description: When this is off, no feature in AIRI can use the microphone.
+          listen:
+            label: Listen
+            description: AIRI listens in the input mode above. This needs the microphone.
           input-device:
             label: Input device
             description: Select the microphone that AIRI uses.
@@ -968,6 +975,7 @@ pages:
             title: Input mode
             description: Choose how AIRI starts to listen while the microphone is on.
             label: Start listening
+            call-only: On a small screen, AIRI listens only during a voice call. To start one, use the add button next to the chat input.
             always-on: Always on
             always-on-description: AIRI listens all the time and replies when you speak.
             push-to-talk: Push to Talk
@@ -999,6 +1007,7 @@ pages:
             model: Model
             model-placeholder: Select a model
           playground:
+            vad-error-title: Voice activity detection error
             current: Current transcript
             description: Listen through the active Hearing pipeline and keep each completed speech segment below.
             empty: Start monitoring and speak into the selected microphone.
@@ -1142,6 +1151,7 @@ pages:
             loading: Loading Voice Packs...
             title: Voice Pack
           provider-voice-selection:
+            load_error: Cannot load voices
             custom_model_placeholder: Enter custom model name...
             custom_voice_placeholder: Enter custom voice ID...
             description: Select the suitable speech provider
@@ -2170,6 +2180,11 @@ pages:
           default-text: Hello! This is a test of MiniMax speech synthesis.
         title: MiniMax Speech
       mimo:
+        model-behavior:
+          title: MiMo model behavior
+          preset: '{model} uses the preset voice list below.'
+          voice-design: '{model} uses the style prompt to design a new voice. It does not accept {field}.'
+          voice-clone: '{model} uses the voice sample that you paste. It ignores the preset voice.'
         description: api.xiaomimimo.com
         title: Xiaomi MiMo
       mistral:
@@ -2215,6 +2230,9 @@ pages:
         description: perplexity.ai
         title: Perplexity
       player2:
+        app-missing:
+          download: 'Download and run the Player2 app: {link}'
+          support: 'If the problem continues after you install it, contact us on Discord: {link}'
         description: player2.game
         title: Player2
       together:
@@ -2276,6 +2294,18 @@ pages:
         description: Aliyun NLS
         title: Aliyun NLS
       browser-web-speech-api:
+        test:
+          unavailable: The Web Speech API is not available in this browser.
+          select-device: Select an audio input device to start the test.
+          error-title: Transcription error
+          streaming-mode: 'Streaming mode: the transcription shows in real time while you speak.'
+        no-api-key: No API key is necessary. The Web Speech API is free and built into your browser.
+        intro:
+          title: Free speech recognition in the browser
+          description: The Web Speech API is free and built into the browser. It needs no API key and no external service. It uses the speech recognition of your browser.
+        unavailable:
+          title: Web Speech API is not available
+          description: This browser does not support the Web Speech API. Use Chrome, Edge, Safari, or another Chromium-based browser. You cannot use this provider in the current environment.
         description: Browser-native STT (requires Chrome/Edge/Safari)
         title: Web Speech API
       prompt-api:
@@ -2806,6 +2836,10 @@ tachie:
     title: Rendering
     render-scale: Render Scale
     shadow: Theme-colored drop shadow
+  audit-report:
+    status: 'Status: {status}'
+    critical-issues: Critical issues
+    warnings: Warnings
 websocket-secure-enabled:
   title: Serve as Secure WebSocket (WSS)
   description: >-

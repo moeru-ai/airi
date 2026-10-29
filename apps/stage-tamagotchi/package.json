@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/stage-tamagotchi",
   "type": "module",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "private": true,
   "description": "LLM powered virtual character",
   "author": {
@@ -66,11 +66,11 @@
     "@fontsource-variable/nunito": "catalog:",
     "@fontsource-variable/quicksand": "catalog:",
     "@fontsource-variable/urbanist": "catalog:",
-    "@fontsource/dm-mono": "catalog:",
     "@fontsource/dm-serif-display": "catalog:",
     "@fontsource/gugi": "catalog:",
     "@fontsource/kiwi-maru": "catalog:",
     "@fontsource/m-plus-rounded-1c": "catalog:",
+    "@fontsource/maple-mono": "catalog:",
     "@formkit/auto-animate": "catalog:",
     "@google/genai": "catalog:",
     "@guiiai/logg": "catalog:",

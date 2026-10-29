@@ -8,7 +8,7 @@ import semver from 'semver'
 import { useHostAutoUpdater, useHostEventaInvoke } from '@proj-airi/stage-host-context'
 import { AboutContent, BugReportDialog, createBugReportPageContext, MarkdownRenderer } from '@proj-airi/stage-ui/components'
 import { useAnalytics, useBreakpoints, useBuildInfo } from '@proj-airi/stage-ui/composables'
-import { Button, ContainerError, DoubleCheckButton, FieldSelect, Progress, ScrollableArea } from '@proj-airi/ui'
+import { Alert, Button, ContainerError, DoubleCheckButton, FieldSelect, Progress, ScrollableArea } from '@proj-airi/ui'
 import { useClipboard } from '@vueuse/core'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { DrawerContent, DrawerDescription, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTitle } from 'vaul-vue'
@@ -293,15 +293,16 @@ onMounted(() => {
 
             <!-- Update Logic -->
             <div :class="['flex flex-col gap-4']">
-              <div
+              <Alert
                 v-if="requiresWindowsAdminUpdatePrompt"
-                :class="['text-sm rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-700 dark:text-amber-200']"
+                tone="warning"
+                :title="t('tamagotchi.stage.about.update.notices.admin-required.title')"
               >
-                AIRI is installed in a protected Windows folder. Update install may require a UAC admin prompt.
-                <div :class="['mt-1 text-xs break-all text-amber-700/80 dark:text-amber-100/80']">
-                  Path: {{ updateInstallDirectory }}
-                </div>
-              </div>
+                <p>{{ t('tamagotchi.stage.about.update.notices.admin-required.description') }}</p>
+                <p :class="['break-all']">
+                  {{ t('tamagotchi.stage.about.update.notices.admin-required.path', { path: updateInstallDirectory }) }}
+                </p>
+              </Alert>
 
               <!-- State: Available -->
               <div v-if="updateState.status === 'available'" :class="['flex flex-col gap-4']">
@@ -310,12 +311,13 @@ onMounted(() => {
                   <div :class="['i-solar:arrow-right-line-duotone text-lg text-neutral-400']" />
                   <span :class="['font-mono text-pink-500 dark:text-pink-400 font-bold']">v{{ updateState.info?.version }}</span>
                 </div>
-                <div
+                <Alert
                   v-if="isDowngradeUpdate"
-                  :class="['text-sm rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-700 dark:text-amber-200']"
+                  tone="warning"
+                  :title="t('tamagotchi.stage.about.update.notices.downgrade-available.title')"
                 >
-                  Selected channel offers an older build than your current version. Installing this update will downgrade AIRI.
-                </div>
+                  {{ t('tamagotchi.stage.about.update.notices.downgrade-available.description') }}
+                </Alert>
                 <div>
                   <Button
 
@@ -344,12 +346,13 @@ onMounted(() => {
                 <div :class="['text-sm text-emerald-600 dark:text-emerald-400']">
                   {{ downloadedStatusText }}
                 </div>
-                <div
+                <Alert
                   v-if="isDowngradeUpdate"
-                  :class="['text-sm rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-700 dark:text-amber-200']"
+                  tone="warning"
+                  :title="t('tamagotchi.stage.about.update.notices.downgrade-downloaded.title')"
                 >
-                  Downgrade package downloaded from selected channel. Restart will install an older version.
-                </div>
+                  {{ t('tamagotchi.stage.about.update.notices.downgrade-downloaded.description') }}
+                </Alert>
                 <div>
                   <DoubleCheckButton
                     color="neutral"

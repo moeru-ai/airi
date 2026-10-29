@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Callout, FieldCheckbox, FieldInput, FieldSelect, SettingsCard } from '@proj-airi/ui'
+import { Alert, FieldCheckbox, FieldInput, FieldSelect, SettingsCard } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 
@@ -45,10 +45,10 @@ const providers = [
       :placeholder="t('settings.pages.modules.web-search.api-key-placeholder')"
     />
 
-    <Callout
+    <Alert
       v-if="configured"
-      theme="lime"
-      :label="t('settings.pages.modules.web-search.configured')"
+      tone="success"
+      :title="t('settings.pages.modules.web-search.configured')"
     />
   </SettingsCard>
 </template>

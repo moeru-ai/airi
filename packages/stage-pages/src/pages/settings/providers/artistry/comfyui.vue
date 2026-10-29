@@ -6,7 +6,7 @@ import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { errorMessageFrom } from '@moeru/std'
 import { artistryTestComfyUIConnection, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
-import { Button, FieldInput, GhostButton, ScrollableArea } from '@proj-airi/ui'
+import { Alert, Button, FieldInput, GhostButton, ScrollableArea } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -313,33 +313,21 @@ function copyToClipboard(text: string) {
             : t('settings.pages.providers.provider.comfyui.settings.connection.test') }}
         </Button>
       </div>
-      <div
+      <Alert
         v-if="connectionInfo"
-        class="rounded-lg px-3 py-2 text-sm"
-        :class="{
-          'bg-green-500/10 text-green-600 dark:text-green-400': connectionStatus === 'connected',
-          'bg-red-500/10 text-red-600 dark:text-red-400': connectionStatus === 'failed',
-        }"
+        :tone="connectionStatus === 'connected' ? 'success' : 'danger'"
+        live="polite"
       >
         {{ connectionInfo }}
-      </div>
+      </Alert>
 
       <!-- CORS Troubleshooting -->
-      <div
-        v-if="isCorsError"
-        class="flex flex-col gap-2 border-2 border-amber-500/20 rounded-xl bg-amber-500/10 p-4"
-      >
-        <div class="flex items-center gap-2 text-sm text-amber-600 font-bold dark:text-amber-400">
-          <div i-solar:shield-warning-bold-duotone />
-          {{ t('settings.pages.providers.provider.comfyui.settings.cors.title') }}
-        </div>
-        <p class="text-xs text-neutral-600 leading-relaxed dark:text-neutral-400">
-          {{ t('settings.pages.providers.provider.comfyui.settings.cors.description') }}
-        </p>
-        <div class="break-all rounded bg-black/5 p-2 text-[10px] text-neutral-500 font-mono dark:bg-black/20 dark:text-neutral-400">
+      <Alert v-if="isCorsError" tone="warning" :title="t('settings.pages.providers.provider.comfyui.settings.cors.title')">
+        <p>{{ t('settings.pages.providers.provider.comfyui.settings.cors.description') }}</p>
+        <div :class="['mt-2 break-all rounded-md p-2', 'bg-black/6 dark:bg-white/10', 'font-mono text-xs']">
           {{ t('settings.pages.providers.provider.comfyui.settings.cors.command') }}
         </div>
-      </div>
+      </Alert>
     </div>
 
     <!-- Saved Workflows -->
@@ -478,9 +466,9 @@ function copyToClipboard(text: string) {
           >
         </div>
 
-        <div v-if="uploadError" class="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-500">
+        <Alert v-if="uploadError" tone="danger" live="polite">
           {{ uploadError }}
-        </div>
+        </Alert>
 
         <!-- Field Picker -->
         <div v-if="parsedWorkflow" class="flex flex-col gap-3">
