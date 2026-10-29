@@ -1,9 +1,3 @@
-/**
- * Version of the record format. A reader upcasts an older minor format and rejects a newer major format.
- * `source.started.format` carries it.
- */
-export const TRACE_FORMAT = 1
-
 /** Binary or large data, stored outside the record. */
 export interface TraceAssetRef {
   $asset: string
@@ -270,49 +264,3 @@ export type TraceDefinitionKind
     | 'pipeline'
     | 'preset'
     | 'profile'
-
-const SYSTEM_TYPES: ReadonlySet<TraceRecordType> = new Set([
-  'source.started',
-  'source.stopped',
-  'source.lost',
-  'clock.snapshot',
-  'clock.discontinuity',
-  'stream.started',
-  'stream.stopped',
-  'definition',
-])
-
-export function isSystemRecord(record: TraceRecord): record is TraceSystemRecord {
-  return SYSTEM_TYPES.has(record.type)
-}
-
-export function isTrackedRecord(record: TraceRecord): record is TraceTrackedRecord {
-  return 'track' in record && typeof record.track === 'string'
-}
-
-/** Stable key of a record: `source/epoch/seq`. */
-export function recordKey(ref: TraceRef): string {
-  return `${ref.source}/${ref.epoch}/${ref.seq}`
-}
-
-/**
- * Stable key of a span: `source/epoch/spanId`. A span ID is unique only inside one epoch of one source.
- *
- * @example
- * spanKeyOf('window:main', 'e1', 'llm-1')
- * // => 'window:main/e1/llm-1'
- */
-export function spanKeyOf(source: string, epoch: string, spanId: string): string {
-  return `${source}/${epoch}/${spanId}`
-}
-
-/**
- * The clock of a media stream. Its values are frame positions, and its snapshots pair them with a monotonic clock.
- *
- * @example
- * streamClockOf('capture:mic')
- * // => 'audio:capture:mic'
- */
-export function streamClockOf(streamId: string): string {
-  return `audio:${streamId}`
-}

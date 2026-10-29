@@ -1,6 +1,6 @@
 import type { TraceFeedMessage } from '../core/feed'
 import type { TraceRecord } from '../core/types'
-import type { FlightRecorderDump } from './collector'
+import type { FlightRecorderDump } from './types'
 
 import { describe, expect, it } from 'vitest'
 

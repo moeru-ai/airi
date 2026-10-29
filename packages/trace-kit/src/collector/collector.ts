@@ -1,4 +1,4 @@
-import type { TraceAttributeDefinition } from '../core/define'
+import type { TraceAttributeDefinition } from '../core/definitions'
 import type { TraceFeedMessage } from '../core/feed'
 import type {
   TraceClockSnapshot,
@@ -11,26 +11,17 @@ import type {
   TraceState,
   TraceStreamStarted,
 } from '../core/types'
+import type { FlightRecorderDump } from './types'
 
 import { safeParse } from 'valibot'
 
 import { applyContentPolicy, conventionAttributes } from '../conventions'
 import { ClockGraph } from '../core/clock'
+import { spanKeyOf, streamClockOf } from '../core/keys'
+import { isTrackedRecord } from '../core/records'
 import { traceRecordSchema } from '../core/schema'
 import { TraceSource } from '../core/sink'
-import { isTrackedRecord, spanKeyOf, streamClockOf } from '../core/types'
 import { SeriesRing } from './series-ring'
-
-export interface FlightRecorderDump {
-  /** The records of the window, in buffer order. With `append`, only the records after the previous dump. */
-  records: TraceRecord[]
-  /** Append to the previous dump file. The window overlaps the previous dump. */
-  append: boolean
-  reason: 'error' | 'overdue'
-  /** The window on the trace clock. */
-  from: number
-  to: number
-}
 
 export interface TraceCollectorOptions {
   /**

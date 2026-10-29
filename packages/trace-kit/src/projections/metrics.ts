@@ -1,33 +1,11 @@
-import type { TraceAggregate, TraceMetricDefinition } from '../core/define'
+import type { TraceMetricDefinition } from '../core/definitions'
 import type { TraceRecord } from '../core/types'
-import type { TraceProjection } from './reader'
+import type { MetricSample, MetricSamples, MetricSummary, TraceProjection } from './types'
 
 import { groupBy, mapValues } from 'es-toolkit'
 
 import { aggregate, ATTR_CENSORED, ATTR_WARMUP } from '../conventions'
 import { matchTrackPath } from '../core/define'
-
-/** One measurement. Censored, warm-up, and failed measurements are counted, but percentiles leave them out. */
-export interface MetricSample {
-  time: number
-  value: number
-  /** Dimension values, for example `{ from: 'user', to: 'airi' }`. */
-  dimensions?: Record<string, string>
-  excluded?: 'censored' | 'warmup' | 'failed'
-}
-
-/** The samples of each metric key. A derived projection selects this shape too. */
-export type MetricSamples = Record<string, MetricSample[]>
-
-export interface MetricSummary {
-  key: string
-  definition?: TraceMetricDefinition
-  values: Partial<Record<TraceAggregate, number>>
-  count: number
-  excluded: { censored: number, warmup: number, failed: number }
-  /** The summary of each dimension combination, keyed by `value|value`. */
-  byDimension?: Record<string, Partial<Record<TraceAggregate, number>>>
-}
 
 interface MetricsState {
   definitions: Map<string, TraceMetricDefinition>

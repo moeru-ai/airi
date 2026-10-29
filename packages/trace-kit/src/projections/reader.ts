@@ -1,8 +1,9 @@
 import type { TraceFeedMessage } from '../core/feed'
 import type { TraceRecord, TraceRef } from '../core/types'
+import type { AnyTraceProjection, TraceApplyContext, TraceIndexes, TraceProjection } from './types'
 
 import { ClockGraph } from '../core/clock'
-import { recordKey, streamClockOf } from '../core/types'
+import { recordKey, streamClockOf } from '../core/keys'
 
 /**
  * Records by source, epoch, and seq.
@@ -45,65 +46,6 @@ export class RecordIndex {
     this.epochs.clear()
     this.count = 0
   }
-}
-
-/** Indexes that every projection of one reader shares. The reader fills them before the projections run. */
-export interface TraceIndexes {
-  /** Records by source, epoch, and seq. */
-  byKey: RecordIndex
-  /** The `span.begin` or `span.complete` record of each span ID. */
-  bySpanId: Map<string, TraceRecord>
-  /** Records that link to a target, by target key: a record key, `span:<id>`, or `id:<key>=<value>`. */
-  linksTo: Map<string, TraceRecord[]>
-  /** Records by `<id key>=<value>`. */
-  byId: Map<string, TraceRecord[]>
-}
-
-export interface TraceApplyContext {
-  /** The record came from the pinned set. */
-  pinned: boolean
-  /** The record arrived after the watermark of its source. */
-  late: boolean
-  /** The event time on the trace clock. Without a clock path, the observed time. */
-  time: number
-  /** The time is estimated: a clock on the path has no measured latency, or no clock path exists. */
-  estimated: boolean
-  indexes: TraceIndexes
-}
-
-/**
- * Turns records into view state.
- *
- * `handleRecord` is pure: no I/O, no clock, and no Vue refs. It tolerates orphans and duplicates. The state is plain
- * objects and typed arrays, and `handleRecord` can mutate it in place for speed. A reader owns the state.
- */
-export interface TraceProjection<State, View = State> {
-  /** A stable key, for example `timeline`, `event-log`, or `voice.floor-transfer`. */
-  key: string
-  reset: () => State
-  handleRecord: (state: State, record: TraceRecord, context: TraceApplyContext) => State
-  /** Points of a series from the collector backlog, on the trace clock. */
-  handleSeries?: (state: State, series: Extract<TraceFeedMessage, { kind: 'series' }>) => State
-  /** The collector evicted records in this range of the trace clock. */
-  evict?: (state: State, range: { from: number, to: number }) => State
-  finalize?: (state: State) => State
-  select: (state: State) => View
-}
-
-/**
- * A projection whose state the reader treats as opaque, so one reader holds projections of different states.
- *
- * The state parameters are `never`: under `strictFunctionTypes`, a function of any state can stand in for them. The
- * reader only passes a state back to the projection that created it.
- */
-export interface AnyTraceProjection {
-  key: string
-  reset: () => unknown
-  handleRecord: (state: never, record: TraceRecord, context: TraceApplyContext) => unknown
-  handleSeries?: (state: never, series: Extract<TraceFeedMessage, { kind: 'series' }>) => unknown
-  evict?: (state: never, range: { from: number, to: number }) => unknown
-  finalize?: (state: never) => unknown
-  select: (state: never) => unknown
 }
 
 /** The index key of a link target. */

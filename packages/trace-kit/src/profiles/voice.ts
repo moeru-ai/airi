@@ -1,6 +1,5 @@
 import type { TraceRecord } from '../core/types'
-import type { MetricSample, MetricSamples } from '../projections/metrics'
-import type { TraceProjection } from '../projections/reader'
+import type { MetricSample, MetricSamples, TraceProjection } from '../projections/types'
 
 import { ATTR_DECISION_LATENCY_MS, TraceEdgeKinds } from '../conventions'
 import {
@@ -14,7 +13,7 @@ import {
   defineTrack,
   matchTrackPath,
 } from '../core/define'
-import { spanKeyOf } from '../core/types'
+import { spanKeyOf } from '../core/keys'
 
 /** Track path patterns of the voice profile. Fill them with `trackPath`. */
 export const VoiceTracks = {

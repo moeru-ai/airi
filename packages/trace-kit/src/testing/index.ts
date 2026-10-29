@@ -1,4 +1,4 @@
-import type { TraceProfileDefinition } from '../core/define'
+import type { TraceProfileDefinition } from '../core/definitions'
 import type { TraceRecord, TraceRecordInput } from '../core/types'
 import type { TimelineState } from '../projections'
 

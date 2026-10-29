@@ -1,4 +1,4 @@
-import type { TraceAggregate, TraceAttributeDefinition } from '../core/define'
+import type { TraceAggregate, TraceAttributeDefinition } from '../core/definitions'
 import type { TraceAttributes, TraceRecord } from '../core/types'
 
 import { clamp, mean, percentile as percentileOf, sum } from 'es-toolkit'

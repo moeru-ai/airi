@@ -1,24 +1,6 @@
-import type { TraceRecord } from '../core/types'
-import type { TraceProjection } from './reader'
+import type { EventLogState, TraceProjection } from './types'
 
-import { recordKey } from '../core/types'
-
-export interface EventLogEntry {
-  key: string
-  time: number
-  record: TraceRecord
-  late?: boolean
-  pinned?: boolean
-  estimated?: boolean
-}
-
-export interface EventLogState {
-  entries: EventLogEntry[]
-  /** Keys of the entries, so a pinned copy and its buffered copy show once. */
-  keys: Set<string>
-  /** Entries that the limit dropped. */
-  dropped: number
-}
+import { recordKey } from '../core/keys'
 
 /**
  * A list of records in apply order, with their converted time. The viewer filters it.

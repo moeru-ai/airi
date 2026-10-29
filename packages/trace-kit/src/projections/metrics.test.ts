@@ -1,4 +1,4 @@
-import type { MetricSample } from './metrics'
+import type { MetricSample } from './types'
 
 import { describe, expect, it } from 'vitest'
 

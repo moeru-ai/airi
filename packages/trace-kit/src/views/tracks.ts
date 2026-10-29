@@ -1,5 +1,5 @@
-import type { TracePresetDefinition } from '../core/define'
-import type { TimelineTrack } from '../projections/timeline'
+import type { TracePresetDefinition } from '../core/definitions'
+import type { TimelineTrack } from '../projections/types'
 
 import { matchTrackPath } from '../core/define'
 

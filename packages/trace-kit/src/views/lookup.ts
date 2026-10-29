@@ -1,15 +1,9 @@
 import type { TraceLink, TraceRecord } from '../core/types'
-import type { TraceIndexes } from '../projections/reader'
-import type { TimelineInstant, TimelineSpan, TimelineState, TimelineStateChange, TimelineTrack } from '../projections/timeline'
+import type { TimelineInstant, TimelineSpan, TimelineState, TimelineStateChange, TimelineTrack, TraceIndexes } from '../projections/types'
+import type { TraceItemRef } from './types'
 
 import { ATTR_GEN_AI_USAGE_INPUT_TOKENS, ATTR_GEN_AI_USAGE_OUTPUT_TOKENS } from '../conventions'
-import { recordKey, spanKeyOf } from '../core/types'
-
-/** What a click, a hover, or a selection points to: a span, an instant, or a state change, by its key. */
-export interface TraceItemRef {
-  kind: 'span' | 'instant' | 'state'
-  key: string
-}
+import { recordKey, spanKeyOf } from '../core/keys'
 
 /** The span that a span ID names. The ID index gives its source and epoch. */
 export function spanOfId(state: TimelineState, indexes: TraceIndexes, spanId: string): TimelineSpan | undefined {

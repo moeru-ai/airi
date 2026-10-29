@@ -1,8 +1,8 @@
-import type { TraceProfileDefinition } from './define'
+import type { TraceProfileDefinition } from './definitions'
 import type { TraceAttributes, TraceIds, TraceLink, TraceRecord, TraceRecordInput, TraceStatus } from './types'
 
 import { definitionRecordsOf } from './define'
-import { TRACE_FORMAT } from './types'
+import { TRACE_FORMAT } from './records'
 
 /**
  * Where producers write trace records.

@@ -1,4 +1,4 @@
-import type { MetricSamples } from '../projections/metrics'
+import type { MetricSamples } from '../projections/types'
 
 import { createFloorTransferProjection } from '../profiles/voice'
 import { createEventLogProjection } from '../projections/event-log'
