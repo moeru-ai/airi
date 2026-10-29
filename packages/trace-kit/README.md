@@ -1,6 +1,6 @@
 # @proj-airi/trace-kit
 
-Trace records, clocks, collection, and projections for AIRI agent and pipeline activity. The design is in [the trace ADR](../../docs/ai/adr/2026-10-22-agent-trace-event-stream.md).
+Trace records, clocks, collection, and projections for AIRI agent and pipeline activity.
 
 The package depends only on `@moeru/std` and `valibot`. Then `core-agent`, `pipelines-audio`, and `plugin-protocol` can depend on it without a cycle.
 

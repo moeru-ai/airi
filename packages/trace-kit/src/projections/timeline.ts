@@ -329,7 +329,7 @@ function beginSpan(state: TimelineState, record: Extract<TraceRecord, { type: 's
   return span
 }
 
-/** How long an update without its begin waits, and how far a watermark trails its source. See the ADR on lateness. */
+/** How long an update without its begin waits, and how far a watermark trails its source. */
 const ALLOWED_LATENESS_MS = 5000
 
 /** Drops the updates that waited for their begin longer than the allowed lateness. */
