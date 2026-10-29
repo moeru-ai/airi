@@ -1,5 +1,6 @@
 import type { TraceAggregate, TraceMetricDefinition, TraceTrackDefinition } from '../core/definitions'
 import type { TraceFeedMessage } from '../core/feed'
+import type { SeriesRetention, SeriesRing } from '../core/series-ring'
 import type { TraceAnnotation, TraceAttributes, TraceIds, TraceLink, TraceRecord, TraceStatus } from '../core/types'
 import type { RecordIndex } from './reader'
 
@@ -128,6 +129,30 @@ export interface TimelineStateChange {
   foreignOwner?: boolean
 }
 
+/**
+ * The points of one series. `times` and `values` are views of its ring. Read them again after the reader handles more
+ * records, because an append or a compaction replaces them.
+ */
+export interface TimelineSeries {
+  readonly times: Float64Array
+  readonly values: Float32Array
+  /**
+   * Changes when points that a reader saw before change: a compaction, an expiry, or a late point. A cache that
+   * appends only new points starts again after a change.
+   */
+  readonly revision: number
+}
+
+/** Options of the timeline projection. */
+export interface TimelineProjectionOptions {
+  /**
+   * The retention of the series. A live viewer keeps the default, so a long session stays bounded. A file replay
+   * passes `false` and keeps every point.
+   * @default DEFAULT_SERIES_RETENTION
+   */
+  seriesRetention?: SeriesRetention | false
+}
+
 export interface TimelineTrack {
   path: string
   /** The track definition whose path pattern matches, if any. */
@@ -137,8 +162,8 @@ export interface TimelineTrack {
   spans: TimelineSpan[]
   instants: TimelineInstant[]
   states: TimelineStateChange[]
-  /** Series points by value key, on the trace clock, in arrival order. */
-  series: Record<string, { times: number[], values: number[] }>
+  /** Series points by value key, on the trace clock, in time order. */
+  series: Record<string, TimelineSeries>
   /** The busy end of each sub-lane at each depth. An open span keeps its lane busy until `Infinity`. */
   lanes: number[][]
   /** A span of the track ended with an error. The viewer keeps the track visible. */
@@ -183,6 +208,11 @@ export interface TimelineState {
    * allowed lateness, then they go. `counters.orphanUpdates` counts them.
    */
   pendingUpdates: Map<string, { attrs: TraceAttributes, time: number }>
+  /** The ring of each series, by track path and value key. `TimelineTrack.series` reads them. */
+  seriesRings: Map<string, SeriesRing>
+  seriesRetention: SeriesRetention | false
+  /** The `end` of the last series compaction. */
+  seriesCompactedAt: number
 }
 
 export interface EventLogEntry {

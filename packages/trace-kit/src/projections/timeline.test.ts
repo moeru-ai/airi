@@ -198,6 +198,33 @@ describe('timeline projection', () => {
   })
 })
 
+describe('timeline series retention', () => {
+  /** Ten minutes of a level at 100 Hz, in chunks of one second, as a connected viewer gets them live. */
+  function liveLevel(timeline: ReturnType<typeof createTimelineProjection>) {
+    const record = createRecordStamper()
+    const reader = new TraceReader([timeline])
+    for (let second = 0; second < 600; second++)
+      reader.handleRecords([record({ type: 'sample.chunk', ts: second * 1000, track: 'participants/user/input', intervalMs: 10, values: { level: Array.from({ length: 100 }, (_, index) => (second + index) % 7) } })])
+    return reader.view(timeline).tracks.get('participants/user/input')!.series.level!
+  }
+
+  it('keeps a bounded series for a connected viewer', () => {
+    const series = liveLevel(createTimelineProjection({ seriesRetention: { maxAgeMs: 120_000, fullRateMs: 10_000 } }))
+
+    // About 10 s at the full rate and 110 s at two points a second, instead of 60,000 points.
+    expect(series.times.length).toBeLessThan(1500)
+    expect(series.times[0]).toBeGreaterThanOrEqual(599_000 - 120_000 - 1000)
+    expect(series.times.at(-1)).toBe(599_990)
+  })
+
+  it('keeps every point without retention, as a file replay does', () => {
+    const series = liveLevel(createTimelineProjection({ seriesRetention: false }))
+
+    expect(series.times.length).toBe(60_000)
+    expect(series.times[0]).toBe(0)
+  })
+})
+
 describe('metrics', () => {
   it('collects attribute metrics and leaves out failed measurements', () => {
     const record = createRecordStamper()

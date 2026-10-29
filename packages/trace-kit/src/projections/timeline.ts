@@ -1,12 +1,17 @@
 import type { TraceTrackDefinition } from '../core/definitions'
+import type { SeriesRetention } from '../core/series-ring'
 import type { TraceAnnotation, TraceAttributes, TraceLink, TraceRecord } from '../core/types'
-import type { TimelineInstant, TimelineSpan, TimelineState, TimelineStateChange, TimelineTrack, TraceApplyContext, TraceProjection } from './types'
+import type { TimelineInstant, TimelineProjectionOptions, TimelineSeries, TimelineSpan, TimelineState, TimelineStateChange, TimelineTrack, TraceApplyContext, TraceProjection } from './types'
 
 import { matchTrackPath } from '../core/define'
 import { recordKey, spanKeyOf } from '../core/keys'
+import { DEFAULT_SERIES_RETENTION, SeriesRing } from '../core/series-ring'
 import { linkTargetKey } from './reader'
 
-function emptyState(): TimelineState {
+/** The series rings compact at most this often, on the trace clock. The collector ticks about as often. */
+const SERIES_COMPACT_INTERVAL_MS = 1000
+
+function emptyState(seriesRetention: SeriesRetention | false = DEFAULT_SERIES_RETENTION): TimelineState {
   return {
     tracks: new Map(),
     spans: new Map(),
@@ -20,7 +25,47 @@ function emptyState(): TimelineState {
     end: Number.NEGATIVE_INFINITY,
     counters: { records: 0, late: 0, orphanUpdates: 0, reordered: 0 },
     pendingUpdates: new Map(),
+    seriesRings: new Map(),
+    seriesRetention,
+    seriesCompactedAt: Number.NEGATIVE_INFINITY,
   }
+}
+
+/** The ring of one series of a track. A new ring also becomes the series that the track shows. */
+function seriesRingOf(state: TimelineState, track: TimelineTrack, valueKey: string): SeriesRing {
+  const ringKey = `${track.path}\u0000${valueKey}`
+  let ring = state.seriesRings.get(ringKey)
+  if (!ring) {
+    const retention = state.seriesRetention
+    const created = retention ? new SeriesRing(retention.maxAgeMs, retention.fullRateMs) : new SeriesRing(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY)
+    state.seriesRings.set(ringKey, created)
+    track.series[valueKey] = seriesView(created)
+    ring = created
+  }
+  return ring
+}
+
+function seriesView(ring: SeriesRing): TimelineSeries {
+  return {
+    get times() {
+      return ring.timesView()
+    },
+    get values() {
+      return ring.valuesView()
+    },
+    get revision() {
+      return ring.revision
+    },
+  }
+}
+
+/** Compacts every series ring at the newest time of the trace, about once a second of trace time. */
+function compactSeries(state: TimelineState): void {
+  if (!state.seriesRetention || state.end - state.seriesCompactedAt < SERIES_COMPACT_INTERVAL_MS)
+    return
+  state.seriesCompactedAt = state.end
+  for (const ring of state.seriesRings.values())
+    ring.compact(state.end)
 }
 
 function trackOf(state: TimelineState, path: string): TimelineTrack {
@@ -405,14 +450,14 @@ function handleRecord(state: TimelineState, record: TraceRecord, context: TraceA
         ? Object.entries(record.values).map(([key, value]) => [key, [value]] as const)
         : Object.entries(record.values)
       for (const [valueKey, values] of entries) {
-        const series = track.series[valueKey] ??= { times: [], values: [] }
+        const ring = seriesRingOf(state, track, valueKey)
         for (const [index, value] of values.entries()) {
           const offset = record.type === 'sample.chunk' ? (record.offsetsMs?.[index] ?? index * (record.intervalMs ?? 0)) : 0
-          series.times.push(context.time + offset)
-          series.values.push(value)
+          ring.append(context.time + offset, value)
         }
       }
       extend(state, context.time)
+      compactSeries(state)
       break
     }
     case 'annotation': {
@@ -440,20 +485,22 @@ function handleRecord(state: TimelineState, record: TraceRecord, context: TraceA
  * The timeline: tracks with spans, instants, state changes, and series, plus global markers and gaps.
  *
  * Display times are converted times. A span keeps the sub-lane that it got at begin, so lanes do not jump while the
- * view is live.
+ * view is live. Each series is a {@link SeriesRing} with the retention of the collector, so a live view of a long
+ * session stays bounded. A file replay passes `seriesRetention: false`.
  */
-export function createTimelineProjection(): TraceProjection<TimelineState> {
+export function createTimelineProjection(options: TimelineProjectionOptions = {}): TraceProjection<TimelineState> {
   return {
     key: 'timeline',
-    reset: emptyState,
+    reset: () => emptyState(options.seriesRetention),
     handleRecord,
     handleSeries: (state, series) => {
       const track = trackOf(state, series.track)
-      const target = track.series[series.key] ??= { times: [], values: [] }
-      target.times.push(...series.times)
-      target.values.push(...series.values)
+      const ring = seriesRingOf(state, track, series.key)
+      for (const [index, time] of series.times.entries())
+        ring.append(time, series.values[index]!)
       if (series.times.length > 0)
         extend(state, series.times.at(-1)!)
+      compactSeries(state)
       return state
     },
     evict: (state, range) => {

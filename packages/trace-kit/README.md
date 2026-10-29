@@ -88,6 +88,8 @@ A viewer that does not own the collector reads a `TraceFeedSource`: the trace cl
 
 To read a file or the records of a test, call `reader.handleRecords(records)`.
 
+The timeline keeps each series in a `SeriesRing` with the retention of the collector: the full rate for 5 minutes, then the minimum and the maximum of each second, for 30 minutes. A live view of a long session stays bounded. A file replay keeps every point with `createTimelineProjection({ seriesRetention: false })` or `createTraceViewReader(traceClock, { seriesRetention: false })`.
+
 ## Clocks
 
 Each record names its clock. A source writes `clock.snapshot` records that pair its clock with another clock, and `clock.discontinuity` after sleep or a device change. `ClockGraph` fits offset and drift for each clock pair, and converts through the shortest path of pairs. A media stream clock counts frames. Declare its rate with `setUnitsPerMs`.

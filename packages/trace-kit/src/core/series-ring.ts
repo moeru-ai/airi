@@ -1,3 +1,14 @@
+/** How long a series keeps its points. */
+export interface SeriesRetention {
+  /** Points older than this go. */
+  maxAgeMs: number
+  /** Points newer than this keep the full rate. Older points keep the minimum and the maximum of each second. */
+  fullRateMs: number
+}
+
+/** The retention of the collector rings, and the default retention of a live timeline. */
+export const DEFAULT_SERIES_RETENTION: Readonly<SeriesRetention> = { maxAgeMs: 30 * 60_000, fullRateMs: 5 * 60_000 }
+
 /**
  * A columnar ring of one series: point times on the trace clock and their values.
  *
@@ -10,11 +21,30 @@ export class SeriesRing {
   private length = 0
   /** Points before this index are already reduced to one second buckets. */
   private compactedUntil = 0
+  private changes = 0
 
   constructor(private readonly maxAgeMs: number, private readonly fullRateMs: number) {}
 
   get size(): number {
     return this.length
+  }
+
+  /**
+   * Changes when points that were already in the ring change: a compaction, an expiry, or a late point inserted
+   * before newer points. A reader that copies points incrementally starts again after a change.
+   */
+  get revision(): number {
+    return this.changes
+  }
+
+  /** The point times, in time order. The view is valid until the next append or compaction. */
+  timesView(): Float64Array {
+    return this.times.subarray(0, this.length)
+  }
+
+  /** The point values, in the order of `timesView`. The view is valid until the next append or compaction. */
+  valuesView(): Float32Array {
+    return this.values.subarray(0, this.length)
   }
 
   append(time: number, value: number): void {
@@ -25,6 +55,7 @@ export class SeriesRing {
     while (index > 0 && this.times[index - 1]! > time)
       index--
     if (index < this.length) {
+      this.changes++
       this.times.copyWithin(index + 1, index, this.length)
       this.values.copyWithin(index + 1, index, this.length)
     }
@@ -74,6 +105,8 @@ export class SeriesRing {
     }
 
     const removed = (end - this.compactedUntil) - reducedTimes.length
+    if (removed > 0)
+      this.changes++
     this.times.set(reducedTimes, this.compactedUntil)
     this.values.set(reducedValues, this.compactedUntil)
     this.times.copyWithin(this.compactedUntil + reducedTimes.length, end, this.length)
@@ -91,6 +124,7 @@ export class SeriesRing {
   }
 
   private shift(count: number): void {
+    this.changes++
     this.times.copyWithin(0, count, this.length)
     this.values.copyWithin(0, count, this.length)
     this.length -= count

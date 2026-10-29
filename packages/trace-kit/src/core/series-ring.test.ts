@@ -22,4 +22,20 @@ describe('seriesRing', () => {
 
     expect(ring.read().times).toEqual([5000])
   })
+
+  it('changes its revision only when points that were in the ring change', () => {
+    const ring = new SeriesRing(60_000, 1000)
+    ring.append(1000, 1)
+    ring.append(1500, 2)
+    ring.append(2000, 3)
+    const appended = ring.revision
+    ring.append(1200, 4)
+    const lateInsert = ring.revision
+    ring.compact(10_000)
+
+    expect(appended).toBe(0)
+    expect(lateInsert).toBe(1)
+    expect(ring.revision).toBe(2)
+    expect(ring.timesView()).toEqual(new Float64Array(ring.read().times))
+  })
 })

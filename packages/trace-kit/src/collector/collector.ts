@@ -24,8 +24,8 @@ import { ClockGraph } from '../core/clock'
 import { spanKeyOf, streamClockOf } from '../core/keys'
 import { isTrackedRecord } from '../core/records'
 import { traceRecordSchema } from '../core/schema'
+import { DEFAULT_SERIES_RETENTION, SeriesRing } from '../core/series-ring'
 import { TraceSource } from '../core/sink'
-import { SeriesRing } from './series-ring'
 
 export interface TraceCollectorOptions {
   /**
@@ -84,9 +84,9 @@ interface BufferEntry {
 
 const DEFAULTS = {
   clock: 'mono:collector',
-  maxAgeMs: 30 * 60_000,
+  maxAgeMs: DEFAULT_SERIES_RETENTION.maxAgeMs,
   maxBytes: 16 * 1024 * 1024,
-  seriesFullRateMs: 5 * 60_000,
+  seriesFullRateMs: DEFAULT_SERIES_RETENTION.fullRateMs,
   allowedLatenessMs: 5_000,
   heartbeatTimeoutMs: 60_000,
   flightWindowMs: 60_000,
