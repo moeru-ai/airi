@@ -5560,7 +5560,7 @@ importers:
         version: 0.1.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+        version: 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.2(crossws@0.4.12(srvx@1.0.5)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -5650,7 +5650,7 @@ importers:
         version: 0.185.1
       valibot:
         specifier: 'catalog:'
-        version: 1.4.2(typescript@6.0.3)
+        version: 1.5.0(typescript@6.0.3)
       vue:
         specifier: 'catalog:'
         version: 3.5.41(typescript@6.0.3)
