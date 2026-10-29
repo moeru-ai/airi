@@ -2,8 +2,8 @@
 import { useClipboard } from '@vueuse/core'
 
 /**
- * A value that the user can copy, for example in a detail panel. The copy button shows on hover and on keyboard focus,
- * and turns into a check for a moment after a copy. The text stays selectable too.
+ * A value that the user can copy, for example in a detail panel. The copy button shows on hover, on keyboard focus,
+ * and always on a touch screen. It turns into a check for a moment after a copy. The text stays selectable too.
  */
 const props = defineProps<{
   /** The text that the button copies. The slot shows it, and can format it. */
@@ -21,9 +21,12 @@ const { copy, copied, isSupported } = useClipboard({ legacy: true, copiedDuring:
       type="button"
       :aria-label="`Copy ${props.value}`"
       :class="[
-        'mt-px flex size-4 shrink-0 items-center justify-center rounded',
+        'relative mt-px flex size-4 shrink-0 items-center justify-center rounded',
+        // The 16 px icon has a 44 px touch target that does not change the layout.
+        'before:absolute before:-inset-3.5 before:content-[\'\']',
         'text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200',
-        copied ? 'opacity-100' : 'opacity-0 group-hover/copy:opacity-100 focus-visible:opacity-100',
+        // A touch screen has no hover, so the button always shows there.
+        copied ? 'opacity-100' : 'opacity-0 group-hover/copy:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100',
       ]"
       @click="copy(props.value)"
     >
