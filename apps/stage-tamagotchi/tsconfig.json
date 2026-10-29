@@ -39,7 +39,8 @@
       "vue-macros/macros-global",
       "electron-vite/node",
       "unplugin-info/client",
-      "@proj-airi/stage-shared/electron-renderer"
+      "@proj-airi/stage-shared/electron-renderer",
+      "@ergosphere-it/electron/virtual"
     ],
     "allowJs": true,
     "strict": true,
@@ -52,6 +53,8 @@
     ]
   },
   "include": [
+    "src/launcher/**/*.ts",
+
     "src/main/**/*.ts",
     "src/main/**/*.d.ts",
     "src/main/**/*.tsx",

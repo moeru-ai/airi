@@ -1,6 +1,6 @@
 import { describe, expect, it } from '../../src'
 import { configureModuleHearing, configureOnboarding, loadCaseEnvironment } from '../shared/configurations'
-import { enableChatMicrophone } from '../shared/interactions'
+import { enableChatMicrophone, waitForVoiceDraft } from '../shared/interactions'
 import { aliyunNlsAsr, openaiAsr } from '../shared/providers'
 
 describe('audio input pipeline', () => {
@@ -48,7 +48,7 @@ describe('audio input pipeline', () => {
     for (const transcript of finalTranscriptions)
       expect(transcript).toMatch(/microphone warm.?up/i)
 
-    await audio.runtimePage.getByRole('region', { name: 'Voice draft', includeHidden: true }).waitFor({ state: 'attached', timeout: 30_000 })
+    await waitForVoiceDraft(audio, { timeout: 30_000 })
   })
 
   it('keeps two Aliyun NLS utterances in transcription', {
@@ -90,6 +90,6 @@ describe('audio input pipeline', () => {
     for (const transcript of finalTranscriptions)
       expect(transcript).toMatch(/microphone warm.?up/i)
 
-    await audio.runtimePage.getByRole('region', { name: 'Voice draft', includeHidden: true }).waitFor({ state: 'attached', timeout: 30_000 })
+    await waitForVoiceDraft(audio, { timeout: 30_000 })
   })
 })

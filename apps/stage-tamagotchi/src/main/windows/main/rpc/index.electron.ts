@@ -21,6 +21,7 @@ import {
   electronCenterMainWindow,
   electronChatButtonStateChanged,
   electronGetChatButtonState,
+  electronMainPageMounted,
   electronOpenChat,
   electronOpenEditor,
   electronOpenInlay,
@@ -71,6 +72,7 @@ export async function setupMainWindowElectronInvokes(params: {
   params.globalShortcut.registerWindow({ context, window: params.window })
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.window })
   createAutoUpdaterService({ context, window: params.window, service: params.autoUpdater })
+  defineInvokeHandler(context, electronMainPageMounted, () => params.autoUpdater.markMainPageMounted())
   createMcpServersService({ context, manager: params.mcpManager })
   createGodotStageService({ context, manager: params.godotStageManager, window: params.window })
   createOnboardingService({ context, onboardingWindowManager: params.onboardingWindowManager, mainWindow: params.window })

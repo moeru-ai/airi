@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/stage-tamagotchi",
   "type": "module",
-  "version": "0.12.0",
+  "version": "0.14.0",
   "private": true,
   "description": "LLM powered virtual character",
   "author": {
@@ -10,7 +10,7 @@
     "url": "https://github.com/moeru-ai"
   },
   "homepage": "https://airi.moeru.ai/docs/",
-  "main": "./out/main/index.js",
+  "main": "./out/launcher/index.mjs",
   "scripts": {
     "lint": "eslint --cache .",
     "typecheck": "vue-tsc --noEmit",
@@ -31,21 +31,22 @@
     "rename-artifacts": "mkdir -p bundle && tsx scripts/rename-artifacts.ts",
     "merge-latest-mac": "tsx scripts/merge-latest-mac.ts",
     "regenerate-windows-latest": "tsx scripts/regenerate-windows-latest.ts",
+    "collect-installer-files": "tsx scripts/collect-installer-files.ts",
     "artifacts-metadata": "tsx scripts/artifacts-metadata.ts",
     "check:reproducible-build": "tsx scripts/check-reproducible-build.ts",
     "smoke:desktop-overlay-live-window": "NODE_OPTIONS='--experimental-websocket' tsx scripts/desktop-overlay-live-window-smoke.ts",
-    "smoke:linux-window-render": "NODE_OPTIONS='--experimental-websocket' tsx scripts/linux-window-render-smoke.ts",
-    "update-test:generate": "tsx scripts/update-test/generate-manifest.ts",
-    "update-test:server": "tsx scripts/update-test/start-server.ts",
-    "update-test:matrix": "bash scripts/update-test/run-matrix.sh"
+    "smoke:linux-window-render": "NODE_OPTIONS='--experimental-websocket' tsx scripts/linux-window-render-smoke.ts"
   },
   "dependencies": {
     "@auv-js/cli": "catalog:",
     "@auv-js/sdk": "catalog:",
+    "@ergosphere-it/electron": "catalog:",
+    "@napi-rs/image": "catalog:",
     "@proj-airi/electron-native-backdrop": "workspace:^",
     "@xsai-apple-speech/transcription-native": "catalog:",
     "@xsai-apple-vision/vision-native": "catalog:",
     "electron-click-drag-plugin": "catalog:",
+    "electron-updater": "^6.8.9",
     "uiohook-napi": "catalog:"
   },
   "optionalDependencies": {
@@ -65,11 +66,11 @@
     "@fontsource-variable/nunito": "catalog:",
     "@fontsource-variable/quicksand": "catalog:",
     "@fontsource-variable/urbanist": "catalog:",
-    "@fontsource/dm-mono": "catalog:",
     "@fontsource/dm-serif-display": "catalog:",
     "@fontsource/gugi": "catalog:",
     "@fontsource/kiwi-maru": "catalog:",
     "@fontsource/m-plus-rounded-1c": "catalog:",
+    "@fontsource/maple-mono": "catalog:",
     "@formkit/auto-animate": "catalog:",
     "@google/genai": "catalog:",
     "@guiiai/logg": "catalog:",
@@ -174,10 +175,10 @@
     "drizzle-orm": "catalog:",
     "electron": "catalog:",
     "electron-builder": "catalog:",
-    "electron-updater": "catalog:",
     "electron-vite": "catalog:",
     "embla-carousel-vue": "catalog:",
     "es-toolkit": "catalog:",
+    "file-type": "catalog:",
     "get-port-please": "catalog:",
     "h3": "catalog:",
     "injeca": "catalog:",

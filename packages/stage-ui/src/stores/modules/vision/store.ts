@@ -13,6 +13,7 @@ export const useVisionStore = defineStore('vision', () => {
   // Pinia synchronization owns live cross-window state. localStorage only
   // loads and saves durable values for this synchronized store.
   const persistenceOptions = { listenToStorageChanges: false }
+  const enabled = useLocalStorageManualReset('settings/vision/enabled', true, persistenceOptions)
 
   const activeProvider = useLocalStorageManualReset('settings/vision/active-provider', '', persistenceOptions)
   const activeModel = useLocalStorageManualReset('settings/vision/active-model', '', persistenceOptions)
@@ -49,7 +50,7 @@ export const useVisionStore = defineStore('vision', () => {
   })
 
   const configured = computed(() => {
-    return !!activeProvider.value && !!activeModel.value
+    return enabled.value && !!activeProvider.value && !!activeModel.value
   })
 
   function resetModelSelection() {
@@ -73,6 +74,7 @@ export const useVisionStore = defineStore('vision', () => {
   }
 
   function resetState() {
+    enabled.reset()
     useForChat.reset()
     useForToolImages.reset()
     activeProvider.reset()
@@ -80,6 +82,7 @@ export const useVisionStore = defineStore('vision', () => {
   }
 
   return {
+    enabled,
     useForChat,
     useForToolImages,
     activeProvider,

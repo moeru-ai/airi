@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { useFeatureFlagsStore } from '@proj-airi/stage-ui/stores/feature-flags'
-import { Button, FieldCheckbox, FieldSelect } from '@proj-airi/ui'
+import { Alert, Button, FieldCheckbox, FieldSelect } from '@proj-airi/ui'
 import { useI18n } from 'vue-i18n'
+
+import { experimentSearchKey } from '../pages/settings/system/experimental.search'
 
 const { t } = useI18n()
 const experiments = useFeatureFlagsStore()
@@ -13,14 +15,14 @@ const prefix = 'settings.pages.system.experimental'
     <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
       {{ t(`${prefix}.notice`) }}
     </p>
-    <div v-if="experiments.error" role="status" :class="['flex items-center justify-between gap-3', 'rounded-xl bg-amber-100 p-4 dark:bg-amber-950']">
-      <p :class="['text-sm']">
-        {{ t(`${prefix}.load-error`) }}
-      </p>
-      <Button :loading="experiments.loading" @click="experiments.refresh()">
-        {{ t(`${prefix}.retry`) }}
-      </Button>
-    </div>
+    <Alert v-if="experiments.error" tone="warning" live="polite">
+      {{ t(`${prefix}.load-error`) }}
+      <template #actions>
+        <Button size="sm" :loading="experiments.loading" @click="experiments.refresh()">
+          {{ t(`${prefix}.retry`) }}
+        </Button>
+      </template>
+    </Alert>
     <div v-if="!experiments.features.length" :class="['rounded-xl bg-neutral-50 p-6 dark:bg-neutral-900', 'flex flex-col items-center gap-2 text-center']">
       <div aria-hidden="true" :class="['i-solar:test-tube-bold-duotone', 'size-8 text-primary-500']" />
       <h2 :class="['font-medium']">
@@ -30,6 +32,7 @@ const prefix = 'settings.pages.system.experimental'
     <section
       v-for="feature in experiments.features"
       :key="feature.key"
+      :data-settings-search="experimentSearchKey(feature.key)"
       :class="['flex flex-col gap-3', 'rounded-xl bg-neutral-50 p-4 dark:bg-neutral-900']"
     >
       <FieldCheckbox

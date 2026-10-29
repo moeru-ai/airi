@@ -364,6 +364,74 @@ describe('configKVService', () => {
       })
   })
 
+  describe('llm upstream headers', () => {
+    function storeUpstream(upstream: Record<string, unknown>) {
+      store._store.set('LLM_ROUTER_CONFIG', JSON.stringify({
+        llm: {
+          models: {
+            'openrouter/small': {
+              upstreams: [{
+                baseURL: 'https://openrouter.ai/api/v1',
+                keys: [{ id: 'key', ciphertext: 'ciphertext' }],
+                ...upstream,
+              }],
+            },
+          },
+        },
+        tts: { models: {} },
+      }))
+    }
+
+    it('defaults headers to an empty object when the upstream omits them', async () => {
+      storeUpstream({})
+
+      const value = await service.getOrThrow('LLM_ROUTER_CONFIG')
+
+      expect(value.llm.models['openrouter/small'].upstreams[0].headers).toEqual({})
+    })
+
+    it('keeps configured headers', async () => {
+      storeUpstream({ headers: { 'HTTP-Referer': 'https://airi.moeru.ai', 'X-Title': 'AIRI' } })
+
+      const value = await service.getOrThrow('LLM_ROUTER_CONFIG')
+
+      expect(value.llm.models['openrouter/small'].upstreams[0].headers).toEqual({
+        'HTTP-Referer': 'https://airi.moeru.ai',
+        'X-Title': 'AIRI',
+      })
+    })
+
+    it.each(['authorization', 'Authorization', 'AUTHORIZATION'])('accepts %s with a {KEY} value', async (name) => {
+      storeUpstream({ headers: { [name]: 'Bearer {KEY}' } })
+
+      const value = await service.getOrThrow('LLM_ROUTER_CONFIG')
+
+      expect(value.llm.models['openrouter/small'].upstreams[0].headers).toEqual({ [name]: 'Bearer {KEY}' })
+    })
+
+    it.each(['content-type', 'Content-Type', 'CONTENT-TYPE'])('rejects the reserved header %s', async (name) => {
+      storeUpstream({ headers: { [name]: 'value' } })
+
+      await expect(service.getOptional('LLM_ROUTER_CONFIG'))
+        .rejects
+        .toMatchObject({
+          statusCode: 503,
+          errorCode: 'CONFIG_INVALID',
+        })
+    })
+
+    it.each(['', 'X Title', 'X-Title:', 'X-Tïtle', 'X-Title\r\n'])('rejects the header name %j because it is not an HTTP token', async (name) => {
+      storeUpstream({ headers: { [name]: 'value' } })
+
+      await expect(service.getOptional('LLM_ROUTER_CONFIG'))
+        .rejects
+        .toMatchObject({
+          statusCode: 503,
+          errorCode: 'CONFIG_INVALID',
+        })
+    })
+  })
+
   it('refresh should bypass the ordinary store read', async () => {
     store._store.set('LLM_MINIMUM_BALANCE', '9')
 

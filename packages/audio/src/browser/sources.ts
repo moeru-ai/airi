@@ -20,6 +20,34 @@ function loadCaptureWorklet(context: AudioContext) {
   return ready
 }
 
+/** Open connections of each shared context. */
+const contexts = new Map<string, { context: AudioContext, connections: number }>()
+
+/**
+ * Returns the shared context for these options. Connections share it, so the capture worklet loads once per page.
+ * A new context loads the worklet again, and that load took up to 1 s while other pages used the CPU.
+ */
+function acquireContext(options: AudioContextOptions | undefined) {
+  const key = JSON.stringify(options ?? {})
+  let entry = contexts.get(key)
+  if (!entry || entry.context.state === 'closed') {
+    entry = { context: new AudioContext(options), connections: 0 }
+    contexts.set(key, entry)
+  }
+  entry.connections += 1
+  return entry.context
+}
+
+/** Suspends a shared context after its last connection, so an idle page renders no audio. */
+function releaseContext(context: AudioContext) {
+  const entry = [...contexts.values()].find(item => item.context === context)
+  if (!entry)
+    return
+  entry.connections -= 1
+  if (entry.connections === 0 && context.state === 'running')
+    return context.suspend()
+}
+
 /**
  * Copies a MediaStream's samples into `output` until `scope` closes.
  *
@@ -90,7 +118,7 @@ export interface MicrophoneSource extends LiveAudioSource {
  * Opens the microphone for each connection.
  *
  * `open` calls getUserMedia and resumes its own AudioContext synchronously, so a click handler keeps the
- * user gesture. Closing the connection stops the tracks, then closes the context.
+ * user gesture. Closing the connection stops the tracks. The last connection of a shared context suspends it.
  */
 export function microphoneSource(constraints: MediaStreamConstraints, options: {
   contextOptions?: AudioContextOptions
@@ -108,11 +136,14 @@ export function microphoneSource(constraints: MediaStreamConstraints, options: {
       return current?.getAudioTracks().some(track => track.getSettings().echoCancellation === true) ?? false
     },
     open: signal => openConnection(signal, async (scope, output) => {
-      const context = new AudioContext(options.contextOptions)
-      scope.defer(() => context.state === 'closed' ? undefined : context.close())
+      const context = acquireContext(options.contextOptions)
+      scope.defer(() => releaseContext(context))
       const resumed = context.resume()
       // Resume can reject before permission resolves. Observe it until permission completes.
       void resumed.catch(() => {})
+      // The worklet loads while the browser opens the device, not after it.
+      const worklet = loadCaptureWorklet(context)
+      void worklet.catch(() => {})
       const stream = await navigator.mediaDevices.getUserMedia(constraints)
       scope.defer(() => {
         stream.getTracks().forEach(track => track.stop())

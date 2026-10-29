@@ -1,11 +1,6 @@
 <script setup lang="ts">
-import { BasicButton, DropdownMenu } from '@proj-airi/ui'
-import {
-  DropdownMenuItemIndicator,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-} from 'reka-ui'
+import { BasicButton, DropdownMenu, MenuLabel, MenuRadioItem } from '@proj-airi/ui'
+import { DropdownMenuRadioGroup } from 'reka-ui'
 import { useI18n } from 'vue-i18n'
 
 import { useHoverMenu } from '../composables/use-hover-menu'
@@ -29,14 +24,6 @@ const menu = useHoverMenu()
 const menuOpen = menu.open
 
 const sendModes: ChatSendMode[] = ['enter', 'ctrl-enter', 'double-enter']
-
-const itemClasses = [
-  'w-full flex cursor-pointer select-none items-center gap-2 rounded-lg px-3 py-2 text-left',
-  'text-sm leading-none outline-none text-neutral-700 dark:text-neutral-200',
-  'data-[highlighted]:bg-primary-100/80 dark:data-[highlighted]:bg-primary-900/40',
-  'data-[state=checked]:text-primary-600 dark:data-[state=checked]:text-primary-300',
-  'transition-colors duration-150 ease-in-out',
-]
 </script>
 
 <template>
@@ -61,22 +48,11 @@ const itemClasses = [
         <span aria-hidden="true" tabindex="-1" :class="['pointer-events-none absolute inset-0']" />
       </template>
       <div @pointerenter="menu.enter()" @pointerleave="menu.leave()">
-        <DropdownMenuLabel :class="['px-3 pb-1 pt-2 text-xs text-neutral-500 dark:text-neutral-400']">
-          {{ t('stage.send-mode.title') }}
-        </DropdownMenuLabel>
+        <MenuLabel>{{ t('stage.send-mode.title') }}</MenuLabel>
         <DropdownMenuRadioGroup v-model="sendMode">
-          <DropdownMenuRadioItem
-            v-for="mode in sendModes"
-            :key="mode"
-            :value="mode"
-            :class="itemClasses"
-            @select.prevent
-          >
+          <MenuRadioItem v-for="mode in sendModes" :key="mode" :value="mode">
             <span :class="['flex-1']">{{ t(`stage.send-mode.${mode}`) }}</span>
-            <DropdownMenuItemIndicator>
-              <span :class="['i-ph:check-bold size-4 shrink-0']" />
-            </DropdownMenuItemIndicator>
-          </DropdownMenuRadioItem>
+          </MenuRadioItem>
         </DropdownMenuRadioGroup>
       </div>
     </DropdownMenu>

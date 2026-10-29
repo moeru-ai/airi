@@ -8,6 +8,8 @@ export type AutoUpdaterStatus
     | 'checking'
     | 'available'
     | 'not-available'
+    /** The channel serves a newer version that this install cannot take. The user must download and install it by hand. */
+    | 'manual-install-required'
     | 'downloading'
     | 'downloaded'
     | 'error'

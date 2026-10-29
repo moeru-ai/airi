@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Callout, FieldCheckbox, FieldSelect } from '@proj-airi/ui'
+import { isStageTamagotchi } from '@proj-airi/stage-shared'
+import { Alert, FieldCheckbox, FieldSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -22,9 +23,15 @@ const { t } = useI18n()
 const { inputMode } = storeToRefs(useHearingStore())
 const { available: pushToTalkAvailable, stranded: pushToTalkStranded } = usePushToTalkTrigger()
 const deviceStore = useSettingsAudioDevice()
-const { audioInputOptions, enabled, error, permission, selectedAudioInput } = storeToRefs(deviceStore)
+const { audioInputOptions, enabled, error, off: microphoneOff, permission, selectedAudioInput } = storeToRefs(deviceStore)
 // A phone shows this config in a bottom drawer. A select there opens a second floating layer, so choices are rows.
 const { isDesktop } = useBreakpoints()
+/**
+ * Small web and mobile screens listen only during a voice call, which the chat composer starts. The stage page does not
+ * run continuous listening there, so the input mode and the microphone switch would change nothing and are hidden.
+ * The desktop app keeps them at every window size, because its stage window listens by itself.
+ */
+const continuousListening = computed(() => isDesktop.value || isStageTamagotchi())
 
 const inputModeOptions = computed(() => [
   {
@@ -53,9 +60,9 @@ const enabling = shallowRef(false)
 
 /**
  * Only this explicit switch action asks for microphone permission. Rendering the controls never opens the microphone.
- * A denied request leaves the switch off. The device store keeps the reason in `error`, which the callout shows.
+ * A denied request leaves the switch off. The device store keeps the reason in `error`, which the alert shows.
  */
-async function setMicrophoneEnabled(value: boolean) {
+async function setListening(value: boolean) {
   if (enabling.value)
     return
   if (!value) {
@@ -78,8 +85,20 @@ async function setMicrophoneEnabled(value: boolean) {
 
 <template>
   <div :class="['flex flex-col gap-4']">
+    <!-- The microphone switch. Off closes the microphone for every feature, so listening below waits until it is on. -->
+    <FieldCheckbox
+      data-testid="hearing-microphone-off-switch"
+      :model-value="!microphoneOff"
+      :label="t('settings.pages.modules.hearing.sections.section.microphone-switch.label')"
+      :description="t('settings.pages.modules.hearing.sections.section.microphone-switch.description')"
+      @update:model-value="value => microphoneOff = !value"
+    />
+
+    <p v-if="!continuousListening" data-testid="hearing-call-only" :class="['text-sm text-neutral-500 dark:text-neutral-400']">
+      {{ t('settings.pages.modules.hearing.sections.section.input-mode.call-only') }}
+    </p>
     <FieldSelect
-      v-if="isDesktop"
+      v-else-if="isDesktop"
       v-model="inputMode"
       data-testid="hearing-input-mode"
       :label="t('settings.pages.modules.hearing.sections.section.input-mode.label')"
@@ -94,23 +113,24 @@ async function setMicrophoneEnabled(value: boolean) {
       </div>
       <OptionList v-model="inputMode" :label="t('settings.pages.modules.hearing.sections.section.input-mode.label')" :options="inputModeOptions" />
     </div>
-    <WakeWordStatus v-if="inputMode === 'wake-word'" />
-    <Callout
-      v-if="pushToTalkStranded"
+    <WakeWordStatus v-if="continuousListening && inputMode === 'wake-word'" />
+    <Alert
+      v-if="continuousListening && pushToTalkStranded"
       data-testid="hearing-input-mode-stranded"
-      theme="orange"
-      :label="t('settings.pages.modules.hearing.sections.section.input-mode.stranded-title')"
+      tone="warning"
+      :title="t('settings.pages.modules.hearing.sections.section.input-mode.stranded-title')"
     >
       {{ t('settings.pages.modules.hearing.sections.section.input-mode.stranded-description') }}
-    </Callout>
+    </Alert>
 
     <FieldCheckbox
+      v-if="continuousListening"
       data-testid="hearing-microphone-switch"
       :model-value="enabled"
-      :disabled="enabling"
-      :label="t('settings.pages.modules.hearing.sections.section.microphone.label')"
-      :description="t('settings.pages.modules.hearing.sections.section.microphone.description')"
-      @update:model-value="setMicrophoneEnabled"
+      :disabled="enabling || microphoneOff"
+      :label="t('settings.pages.modules.hearing.sections.section.listen.label')"
+      :description="t('settings.pages.modules.hearing.sections.section.listen.description')"
+      @update:model-value="setListening"
     />
 
     <MicrophonePicker
@@ -123,13 +143,14 @@ async function setMicrophoneEnabled(value: boolean) {
       :request-access="deviceStore.askPermission"
     />
 
-    <Callout
+    <Alert
       v-if="error"
       data-testid="hearing-microphone-error"
-      theme="orange"
-      :label="t('settings.pages.modules.hearing.sections.section.microphone.error')"
+      tone="danger"
+      live="polite"
+      :title="t('settings.pages.modules.hearing.sections.section.microphone.error')"
     >
       {{ error }}
-    </Callout>
+    </Alert>
   </div>
 </template>

@@ -16,14 +16,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      # NOTICE:
-      # Pin Node.js because 26.8.0 reports 26.8.0-alpha.0.0.0.
-      # sharp 0.29.3 rejects this prerelease version during pnpm install.
-      # Source: https://github.com/nodejs/node/blob/v26.8.0/src/node_version.h
-      # Remove this pin when Node.js 26 reports a stable version.
       - uses: pnpm/setup@v2
         with:
-          runtime: node@26.7.0
+          runtime: node@^26.12.1
           cache: true
           install: false
 
@@ -82,7 +77,7 @@ jobs:
 
       - uses: pnpm/setup@v2
         with:
-          runtime: node@26.7.0
+          runtime: node@^26.12.1
           cache: true
           install: false
 
@@ -132,7 +127,7 @@ jobs:
 
       - uses: pnpm/setup@v2
         with:
-          runtime: node@26.7.0
+          runtime: node@^26.12.1
           cache: true
           install: false
 
@@ -158,14 +153,7 @@ jobs:
 
       - run: pnpm run build:packages
       - run: pnpm run test:root
-      - name: Setup Xvfb
-        run: |
-          if ! command -v xvfb-run >/dev/null; then
-            sudo apt-get update
-            sudo apt-get install --no-install-recommends -y xvfb
-          fi
-
-      - run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24 -nolisten tcp" pnpm run test:run
+      - run: pnpm run test:run
         env:
           NODE_OPTIONS: --no-experimental-webstorage
 
@@ -186,7 +174,7 @@ jobs:
       # Node.js
       - uses: pnpm/setup@v2
         with:
-          runtime: node@26.7.0
+          runtime: node@^26.12.1
           cache: true
           install: false
 

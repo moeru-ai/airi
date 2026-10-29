@@ -233,6 +233,28 @@ describe('card synchronization across windows', () => {
     expect(onError).not.toHaveBeenCalled()
   })
 
+  // https://github.com/moeru-ai/airi/issues/3124
+  //
+  // The selection is leader-owned. `activateCard` is listed in `synced.actions`, so
+  // a follower sends it to the leader. The leader writes the key. A follower that
+  // wrote the key itself would also send a replaceState proposal for state that it
+  // only replicated.
+  //
+  // We record the key inside the action, so the write happens once, in the leader.
+  it('writes the active card id when a follower selects a Character', async () => {
+    const { leader, follower, onError } = await createWindows()
+    const cardId = await leader.cards.addCard({ name: 'Luna', version: '1.0.0' }, 'scratch')
+    await expect.poll(() => follower.cards.cards.has(cardId)).toBe(true)
+    const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
+
+    await follower.cards.activateCard(cardId)
+
+    expect(leader.cards.activeCardId).toBe(cardId)
+    expect(localStorage.getItem('airi-card-active-id')).toBe(cardId)
+    expect(traffic.mock.calls.filter(([message]) => JSON.stringify(message).includes('replaceState'))).toHaveLength(0)
+    expect(onError).not.toHaveBeenCalled()
+  })
+
   // A follower that ran the action itself would write the remote card into its own
   // state and send the plugin a replaceState proposal. The leader must write it.
   it('runs the synchronization that a follower requests in the leader', async () => {

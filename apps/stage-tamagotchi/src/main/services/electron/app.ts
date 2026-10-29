@@ -2,6 +2,7 @@ import type { BrowserWindow } from 'electron'
 
 import { env } from 'node:process'
 
+import { activeBundle } from '@ergosphere-it/electron/main'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { app, ipcMain, shell } from 'electron'
@@ -31,7 +32,8 @@ export function createAppService(params: { context: ReturnType<typeof createCont
 }
 
 /**
- * Serves the app version to the renderer of one window.
+ * Serves the app version to the renderer of one window: the version of the bundle that runs. An update of the bundle
+ * changes it without a new installer, so `app.getVersion()` can be older.
  *
  * The context hears only IPC from this window (`onlySameWindow`). A shared window context hears the IPC of all
  * windows, so one request runs the handler once for each open window. The adapter disposes the context, and with it
@@ -39,5 +41,5 @@ export function createAppService(params: { context: ReturnType<typeof createCont
  */
 export function createAppVersionService(params: { window: BrowserWindow }) {
   const { context } = createContext(ipcMain, params.window, { onlySameWindow: true })
-  defineInvokeHandler(context, electronAppGetVersion, () => app.getVersion())
+  defineInvokeHandler(context, electronAppGetVersion, () => activeBundle.version)
 }

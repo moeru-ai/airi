@@ -2,7 +2,7 @@ import type { PcmBlock } from '@proj-airi/pipelines-audio'
 
 import { AudioInput, capture, Playback } from '@proj-airi/pipelines-audio'
 import { createPushStream } from '@proj-airi/stream-kit'
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 
 import { BrowserPlayback, mediaStreamSource, microphoneSource, toMediaStream } from './browser'
 import { encodeWav, toWav } from './encoding'
@@ -35,6 +35,29 @@ it('keeps microphone tracks alive until the last subscriber leaves', async () =>
 
   await expect.poll(() => track.readyState).toBe('ended')
   expect(microphone.stream).toBeUndefined()
+})
+
+// Each connection created an AudioContext and loaded the capture worklet again. While other pages used the CPU, the
+// load took up to 1 s. The device was already open, so the audio of that time was lost.
+it('loads the capture worklet once and resumes the idle context for a later connection', async () => {
+  const addModule = vi.spyOn(AudioWorklet.prototype, 'addModule')
+  const suspend = vi.spyOn(AudioContext.prototype, 'suspend')
+  // These options are not used by other tests in this file, so this test owns the shared context.
+  const microphone = microphoneSource({ audio: true }, { contextOptions: { sampleRate: 22050 } })
+  const input = new AudioInput(microphone)
+
+  for (const connection of [1, 2]) {
+    const subscription = new AbortController()
+    const reader = input.subscribe({ signal: subscription.signal }).getReader()
+    expect((await reader.read()).done, `connection ${connection} receives audio`).toBe(false)
+    subscription.abort()
+    await expect.poll(() => microphone.stream).toBeUndefined()
+    await expect.poll(() => suspend.mock.calls.length).toBe(connection)
+  }
+
+  expect(addModule).toHaveBeenCalledOnce()
+  addModule.mockRestore()
+  suspend.mockRestore()
 })
 
 it('stops a late permission result when the only subscriber already left', async () => {

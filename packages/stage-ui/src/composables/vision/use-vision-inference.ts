@@ -6,7 +6,7 @@ import type { VisionWorkloadId } from './use-vision-workloads'
 import { errorMessageFrom } from '@moeru/std'
 import { DEFAULT_CONCURRENT_VISION_READS } from '@proj-airi/provider-inference'
 import { storeToRefs } from 'pinia'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 import { useLLM } from '../../stores/ai/chat-llm/llm'
 import { reportActivity, useVisionActivityStore, useVisionStore } from '../../stores/modules/vision'
@@ -57,6 +57,7 @@ export function useVisionInference() {
   async function describeImage(providerId: string, modelId: string, input: VisionInferenceInput) {
     const thinking = ollamaThinkingEnabled.value
     const provider = await providersStore.getChatProviderInstance(providerId)
+    input.abortSignal?.throwIfAborted()
     const workload = getVisionWorkload(input.workloadId)
     const prompt = input.promptOverride ?? workload.prompt
     const { url } = parseDataUrl(input.imageDataUrl)
@@ -112,6 +113,24 @@ export function useVisionInference() {
   }
 
   async function runVisionInference(input: VisionInferenceInput) {
+    if (!visionStore.enabled)
+      throw new DOMException('Vision is disabled', 'AbortError')
+
+    const cancellation = new AbortController()
+    const stop = watch(() => visionStore.enabled, (enabled) => {
+      if (!enabled)
+        cancellation.abort(new DOMException('Vision is disabled', 'AbortError'))
+    }, { flush: 'sync' })
+    const signal = AbortSignal.any([cancellation.signal, ...(input.abortSignal ? [input.abortSignal] : [])])
+    try {
+      return await readImage({ ...input, abortSignal: signal })
+    }
+    finally {
+      stop()
+    }
+  }
+
+  async function readImage(input: VisionInferenceInput) {
     const providerId = input.selection?.provider ?? activeProvider.value
     const modelId = input.selection?.model ?? activeModel.value
     if (!providerId || !modelId)
@@ -133,7 +152,9 @@ export function useVisionInference() {
     }
 
     try {
-      lastText.value = await describeImage(providerId, modelId, input)
+      const text = await describeImage(providerId, modelId, input)
+      input.abortSignal?.throwIfAborted()
+      lastText.value = text
     }
     catch (error) {
       if (!input.abortSignal?.aborted)

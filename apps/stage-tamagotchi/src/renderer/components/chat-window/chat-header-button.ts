@@ -15,6 +15,8 @@ export type ChatHeaderButtonVariant = 'plain' | 'dock'
  *
  * Returns:
  * - The classes for the variant, with the pressed look when `pressed` is `true`.
+ * - Only a pressed button has a theme color icon. Hover shows the background and keeps the icon color, so a button that is
+ *   not pressed never looks pressed.
  */
 export function chatHeaderButtonClass(variant: ChatHeaderButtonVariant, pressed = false) {
   const base = [
@@ -29,7 +31,7 @@ export function chatHeaderButtonClass(variant: ChatHeaderButtonVariant, pressed 
       'hover:bg-neutral-200 dark:hover:bg-neutral-800',
       pressed
         ? 'text-primary-500 dark:text-primary-400'
-        : 'text-neutral-400 hover:text-primary-500 dark:text-neutral-500 dark:hover:text-primary-400',
+        : 'text-neutral-400 dark:text-neutral-500',
     ]
   }
   return [
@@ -37,6 +39,6 @@ export function chatHeaderButtonClass(variant: ChatHeaderButtonVariant, pressed 
     'h-7 w-7 rounded-md',
     pressed
       ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300'
-      : 'text-neutral-400 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400',
+      : 'text-neutral-400 hover:bg-neutral-200 dark:text-neutral-500 dark:hover:bg-neutral-800',
   ]
 }

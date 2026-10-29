@@ -6,7 +6,7 @@ import { createProposeRecipeTool, PROPOSE_RECIPE_TOOL_NAME } from './propose-rec
 
 async function proposeWith(input: unknown) {
   const proposals: Array<Omit<Recipe, 'id' | 'source' | 'approved' | 'enabled'>> = []
-  const propose = vi.fn((recipe: Omit<Recipe, 'id' | 'source' | 'approved' | 'enabled'>): Recipe => {
+  const propose = vi.fn(async (recipe: Omit<Recipe, 'id' | 'source' | 'approved' | 'enabled'>): Promise<Recipe> => {
     proposals.push(recipe)
     return { ...recipe, id: 'model:1', source: 'model', approved: false, enabled: false }
   })

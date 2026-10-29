@@ -620,7 +620,7 @@ export const useChatStore = defineStore('chat', () => {
     const persona = personaOf(sessionId)
     const sourceTools = async () => [
       ...(typeof tools === 'function' ? await tools() ?? [] : tools ?? []),
-      ...memory.enabled ? await createMemoryTools({ read: name => memory.read(name, persona), write: entry => memory.write(entry, persona), forget: name => memory.forget(name, persona) }) : [],
+      ...memory.enabled ? await createMemoryTools({ read: id => memory.read(id, persona), write: entry => memory.write(entry, persona), forget: id => memory.forget(id, persona) }) : [],
     ]
     // A recipe's own session runs only that recipe. It cannot start recipes, save them, or choose silence.
     if (isTaskSession(sessionId))
@@ -770,10 +770,15 @@ export const useChatStore = defineStore('chat', () => {
           }
 
           if (!text) {
+            if (!hearing.enabled) {
+              // Stored recordings stay intact. A text-only model can continue the conversation while recognition is disabled.
+              turn.content[index] = { type: 'text', text: t('stage.chat.audio.hearing-disabled') }
+              continue
+            }
             // The recording belongs to this turn. A voice input of another turn can run at the same time.
-            transcriber ??= hearing.createTranscriber(undefined, { traceParent: turnSpan })
             if (!hearing.configured)
               throw new Error('Configure a transcription provider to send audio to this model')
+            transcriber ??= hearing.createTranscriber(undefined, { traceParent: turnSpan })
 
             const blob = new Blob([new Uint8Array(decodeBase64(part.data))], { type: part.format === 'mp3' ? 'audio/mpeg' : 'audio/wav' })
             let completed = false
@@ -1305,15 +1310,17 @@ export const useChatStore = defineStore('chat', () => {
 
     const abort = new AbortController()
     // A keyword invokes its recipes like slash commands. A decision among them judges with the judgment tool.
-    const invoked = keywordRecipesFor(payload, extra)
-    const prepared = prepareSend({ ...payload, messageId }, abort.signal, voice, { ...extra, skills: invokedSkillsOf(invoked) }, invoked)
+    // The recipes and the memory index come from IndexedDB, so the first send of a window waits until they are read.
+    const invokedRecipes = Promise.all([recipes.ready(), memory.ready()]).then(() => keywordRecipesFor(payload, extra))
+    const prepared = invokedRecipes
+      .then(invoked => prepareSend({ ...payload, messageId }, abort.signal, voice, { ...extra, skills: invokedSkillsOf(invoked) }, invoked))
       .then(options => runtime.submit(payload.text, options, payload.sessionId))
     const request = {
       accepted: prepared.then(value => value.accepted),
       done: prepared.then(value => value.done),
     }
     // A background recipe starts once the owner's message is stored, so its task never runs for a refused send.
-    void request.accepted.then(() => {
+    void request.accepted.then(() => invokedRecipes).then((invoked) => {
       for (const recipe of invoked.filter(isBackgroundRecipe))
         void startRecipe(recipe, { parentSessionId: payload.sessionId, task: `The owner said: ${payload.text}` })
     }).catch(() => {})

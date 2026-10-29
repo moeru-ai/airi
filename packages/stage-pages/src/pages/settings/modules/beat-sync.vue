@@ -10,9 +10,9 @@ import {
   toggleBeatSync,
   updateBeatSyncParameters,
 } from '@proj-airi/stage-shared/beat-sync'
-import { Alert, AudioSpectrumVisualizer } from '@proj-airi/stage-ui/components'
+import { AudioSpectrumVisualizer } from '@proj-airi/stage-ui/components'
 import { useSettingsBeatSync } from '@proj-airi/stage-ui/stores/settings'
-import { Button, FieldCheckbox, FieldRange, SelectTab, SettingsCard } from '@proj-airi/ui'
+import { Alert, Button, FieldCheckbox, FieldRange, SelectTab, SettingsCard } from '@proj-airi/ui'
 import { createTimeline } from 'animejs'
 import { nanoid } from 'nanoid'
 import { storeToRefs } from 'pinia'
@@ -174,14 +174,10 @@ onUnmounted(() => {
 
         <Alert
           v-if="noAudioDetected"
-          type="warning"
+          tone="warning"
+          :title="t('settings.pages.modules.beat_sync.sections.audio_source.no_audio.title')"
         >
-          <template #title>
-            No audio detected
-          </template>
-          <template #content>
-            Please make sure that the correct permissions are granted and the audio source is playing sound.
-          </template>
+          {{ t('settings.pages.modules.beat_sync.sections.audio_source.no_audio.description') }}
         </Alert>
 
         <div flex="~ col gap-4">
