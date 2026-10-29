@@ -138,6 +138,7 @@ export class TraceReader {
     this.indexes.bySpanId.clear()
     this.indexes.linksTo.clear()
     this.indexes.byId.clear()
+    this.clocks.clear()
     for (const projection of this.projections)
       this.states.set(projection.key, projection.reset())
   }

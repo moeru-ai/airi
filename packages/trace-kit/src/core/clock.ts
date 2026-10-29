@@ -88,6 +88,13 @@ export class ClockGraph {
     }
   }
 
+  /** Forgets every unit, snapshot, and discontinuity, for example before a reader reads another trace. */
+  clear(): void {
+    this.unitsPerMs.clear()
+    this.pairs.clear()
+    this.paths.clear()
+  }
+
   /** Converts a value of `clock` to the trace clock. Returns `undefined` when no snapshot path exists. */
   convert(clock: string, value: number): ClockConversion | undefined {
     if (clock === this.traceClock)
