@@ -74,6 +74,17 @@ describe('interval runs', () => {
     expect(intervalRuns(column, view)).toHaveLength(2)
   })
 
+  it('draws open intervals from before the view in start order after a late append', () => {
+    const column = new IntervalColumn()
+    column.append(500, undefined, 0, 'later')
+    // This one starts earlier but arrives last, so the column inserts it before the other open interval.
+    column.append(100, undefined, 1, 'earlier')
+
+    const runs = intervalRuns(column, { start: 1000, end: 2000, width: 1000 })
+    // A later run draws over an earlier one. The interval that starts last is on top, as the hit test prefers it.
+    expect(runs.map(run => column.keys[run.index])).toEqual(['earlier', 'later'])
+  })
+
   it('bounds the work of a zoomed-out view by its width', () => {
     const column = new IntervalColumn()
     for (let index = 0; index < 100_000; index++)

@@ -92,12 +92,13 @@ export function intervalRuns(column: IntervalColumn, view: TimelineView, options
     current.clear()
   }
 
-  // An open interval can start long before the view. It is outside the searched range, so it is taken first.
+  // An open interval can start long before the view. It is outside the searched range, so it is taken first. The set
+  // keeps insertion order, and a late append inserts before other open intervals, so the indices are sorted to start
+  // order.
   const { begin, end } = column.visibleRange(view.start, view.end)
-  for (const index of column.openIndices) {
-    if (index < begin)
-      take(index)
-  }
+  const before = [...column.openIndices].filter(index => index < begin).sort((a, b) => a - b)
+  for (const index of before)
+    take(index)
   flush()
   for (let index = begin; index < end; index++)
     take(index)
