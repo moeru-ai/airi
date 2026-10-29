@@ -215,7 +215,9 @@ describe('voiceDrafts', () => {
     await expect.element(view.getByText('Press esc')).toBeVisible()
     await expect.element(view.getByRole('textbox', { name: 'Voice draft' })).toHaveValue('Hello there.')
     await expect.element(view.getByRole('button', { name: 'Send message' })).toBeEnabled()
-    expect(page.getByText('Permission denied').query()).toBeNull()
+    // A screen reader hears each problem without opening the list.
+    await expect.element(view.getByRole('status').filter({ hasText: 'Microphone: Permission denied.' })).toBeInTheDocument()
+    expect(page.getByRole('list').query()).toBeNull()
 
     await trigger.hover()
     const list = page.getByRole('list')

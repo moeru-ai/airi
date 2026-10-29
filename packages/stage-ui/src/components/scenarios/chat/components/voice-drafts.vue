@@ -285,6 +285,10 @@ function handleKeydown(event: KeyboardEvent) {
     </div>
     <footer :class="['h-11 flex shrink-0 items-center gap-2 px-3']">
       <div :class="['min-w-0 flex flex-1 items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400']">
+        <!-- The list opens only on hover or focus, so a screen reader reads each new problem from this region. -->
+        <span role="status" :class="['sr-only']">
+          <span v-for="issue in issues" :key="issue.key">{{ issue.label }}: {{ issue.message }}. </span>
+        </span>
         <!-- Hover or focus shows the problems. The count stays small, so the draft and the hint keep their room. -->
         <HoverCardRoot v-if="issues.length" :open-delay="120" :close-delay="160">
           <HoverCardTrigger
