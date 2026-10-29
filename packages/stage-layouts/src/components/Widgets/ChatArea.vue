@@ -30,7 +30,7 @@ const voicePending = shallowRef(false)
 const voiceRecording = shallowRef(false)
 const router = useRouter()
 const call = useVoiceCallStore()
-const startVoiceCall = useStartVoiceCall(route => router.push(route))
+const startVoiceCall = useStartVoiceCall(route => router.push(route), () => !voiceRecording.value)
 
 const imageInput = useTemplateRef<HTMLInputElement>('imageInput')
 const chatSession = useChatSessionStore()
@@ -78,7 +78,8 @@ async function handleSend() {
   const voice = await voiceButton.value?.sendPending(messageInput.value)
   if (voice === 'sent')
     messageInput.value = ''
-  if (voice === 'sent' || voice === 'failed')
+  // A failed send keeps the text for a retry. A send that still runs, for example after a double Enter, clears it itself.
+  if (voice && voice !== 'none')
     return
 
   await submitInterruptingResponse()
@@ -219,11 +220,14 @@ watch(replyTarget, async (target) => {
         <ChatComposerAddMenu :in-call="call.active" :recording="voiceRecording" @attach-images="imageInput?.click()" @call="startVoiceCall" />
         <!-- The recording status and the walkie-talkie bar show here, so the composer keeps its height. -->
         <div ref="voiceStatus" data-testid="composer-voice-status" :class="['relative h-9 min-w-0 flex-1 rounded-full']" />
-        <!-- A call listens already, so the microphone is hidden during a call. -->
+        <!--
+          A call listens already, so the microphone is hidden during a call. It stays mounted, so a voice message that
+          waits for the send button can still be sent.
+        -->
         <ChatComposerVoiceInput
-          v-if="!call.active"
           ref="voiceButton"
           v-model="messageInput"
+          :hidden="call.active"
           :surface="voiceStatus"
           :attachment-element="voiceAttachment"
           :session-id="chatSession.activeSessionId"

@@ -83,7 +83,7 @@ const voiceAttachment = useTemplateRef<HTMLElement>('voiceAttachment')
 const voiceSurface = useTemplateRef<HTMLElement>('voiceSurface')
 const router = useRouter()
 const call = useVoiceCallStore()
-const startVoiceCall = useStartVoiceCall(route => router.push(route))
+const startVoiceCall = useStartVoiceCall(route => router.push(route), () => !voiceRecording.value)
 const hasSubmission = computed(() => !!messageInput.value.trim() || attachments.value.length > 0)
 const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useChatInterruption({
   sessionId: activeSessionId,
@@ -271,7 +271,8 @@ async function handleSend() {
   const voice = await voiceInput.value?.sendPending(messageInput.value)
   if (voice === 'sent')
     messageInput.value = ''
-  if (voice === 'sent' || voice === 'failed')
+  // A failed send keeps the text for a retry. A send that still runs, for example after a double Enter, clears it itself.
+  if (voice && voice !== 'none')
     return
 
   await submitInterruptingResponse()
@@ -523,10 +524,11 @@ onUnmounted(() => {
             >
               <span aria-hidden="true" :class="[call.muted ? 'i-mingcute:mic-off-line' : 'i-mingcute:mic-line', 'size-5']" />
             </BasicButton>
+            <!-- The microphone stays mounted during a call, so a voice message that waits for the send button is kept. -->
             <ChatComposerVoiceInput
-              v-else
               ref="voiceInput"
               v-model="messageInput"
+              :hidden="call.active"
               size="md"
               :class="['mr-0.5']"
               :surface="voiceSurface"

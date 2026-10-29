@@ -29,6 +29,10 @@ export function useVoiceListening(options: VoiceListeningOptions = {}) {
   const devices = useSettingsAudioDevice()
   const hearing = useHearingStore()
   const continuous = options.continuous ?? (() => true)
+  // The device store holds the microphone open only where the input mode can listen, so it reads the same decision.
+  watch(continuous, (allowed) => {
+    devices.continuousAllowed = allowed
+  }, { immediate: true, flush: 'sync' })
 
   // The microphone switch closes the microphone for every feature, so a call does not listen while it is off.
   watch(() => hearing.enabled && !devices.off && (voice.callActive || (continuous() && devices.listening && listensContinuously(hearing.inputMode))), (listen) => {

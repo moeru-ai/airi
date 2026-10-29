@@ -7,6 +7,7 @@ import { createI18n } from 'vue-i18n'
 import VoiceCallCapsule from './voice-call-capsule.vue'
 import VoiceCallPanel from './voice-call-panel.vue'
 
+import { useHearingStore } from '../../../../stores/modules/hearing'
 import { useSettingsAudioDevice } from '../../../../stores/settings/audio-device'
 import { useVoiceStore } from '../../../../stores/voice'
 import { useVoiceCallStore } from '../../../../stores/voice-call'
@@ -64,6 +65,37 @@ describe('voice call', () => {
     devices.off = true
 
     await expect.poll(() => voice.callActive).toBe(false)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/3223#discussion_r4410911872
+  // A composer recording that started while the permission prompt was open was cancelled when the call began.
+  it('does not start while the caller reports a busy composer', async () => {
+    localStorage.setItem('settings/hearing/active-provider', 'browser-web-speech-api')
+    const { call, voice } = await mountCall()
+
+    expect(await call.start({ canStart: () => false })).toBe('busy')
+    expect(voice.callActive).toBe(false)
+  })
+
+  it('ends a call when Hearing loses its transcription provider', async () => {
+    localStorage.setItem('settings/hearing/active-provider', 'browser-web-speech-api')
+    const { voice } = await mountCall()
+    const hearing = useHearingStore()
+    voice.startCall()
+
+    hearing.activeTranscriptionProvider = ''
+
+    await expect.poll(() => voice.callActive).toBe(false)
+  })
+
+  // A muted call must not send speech. Push to Talk begins a manual input, which the voice activity rule does not own.
+  it('refuses a manual input while the call is muted', async () => {
+    localStorage.setItem('settings/hearing/active-provider', 'browser-web-speech-api')
+    const { voice } = await mountCall()
+    voice.startCall()
+    voice.setCallMuted(true)
+
+    expect(voice.beginManual('alice')).toBeUndefined()
   })
 
   it('mutes the call on the host and unmutes it again', async () => {

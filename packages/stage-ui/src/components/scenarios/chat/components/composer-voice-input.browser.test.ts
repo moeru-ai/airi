@@ -5,7 +5,7 @@ import { createPinia, disposePinia } from 'pinia'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { userEvent } from 'vitest/browser'
-import { defineComponent, h, ref } from 'vue'
+import { defineComponent, h, ref, shallowRef } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import ComposerVoiceInput from './composer-voice-input.vue'
@@ -23,7 +23,7 @@ afterEach(() => {
 })
 
 /** Mounts the microphone in a positioned input surface, against a scripted voice host that dictates `dictation`. */
-async function mountInput(options: { dictation?: string } = {}) {
+async function mountInput(options: { dictation?: string, hidden?: () => boolean, captures?: boolean, endAfter?: Promise<void> } = {}) {
   // Dictation and walkie-talkie need a transcription provider. Web Speech needs no model.
   localStorage.setItem('settings/hearing/active-provider', 'browser-web-speech-api')
   const commands: Array<VoiceInputCommand | VoiceMessageCommand> = []
@@ -38,14 +38,17 @@ async function mountInput(options: { dictation?: string } = {}) {
       context.emit(voiceMessagesChanged, [])
     return { status: 'accepted' }
   }))
-  cleanups.push(defineInvokeHandler(context, voiceInputCommand, (command) => {
+  cleanups.push(defineInvokeHandler(context, voiceInputCommand, async (command) => {
     commands.push(command)
     if (command.type === 'begin')
-      context.emit(voiceSnapshotChanged, { ...connected, input: { requestId: command.requestId, sessionId: command.sessionId, phase: 'capturing', text: 'how are', segments: [] } })
-    if (command.type === 'end' || command.type === 'cancel')
+      context.emit(voiceSnapshotChanged, { ...connected, input: { requestId: command.requestId, sessionId: command.sessionId, phase: options.captures === false ? 'pending' : 'capturing', text: 'how are', segments: [] } })
+    if (command.type === 'cancel')
       context.emit(voiceSnapshotChanged, connected)
-    if (command.type === 'end')
+    if (command.type === 'end') {
+      await options.endAfter
+      context.emit(voiceSnapshotChanged, connected)
       return { status: 'accepted', text: options.dictation }
+    }
     return { status: 'accepted' }
   }))
 
@@ -67,6 +70,7 @@ async function mountInput(options: { dictation?: string } = {}) {
         'surface': surface.value,
         'attachmentElement': attachment,
         'sessionId': 'alice',
+        'hidden': options.hidden?.() ?? false,
         'onSubmit': () => submitted.push(true),
         'onActiveChange': (value: boolean) => covering.push(value),
       }),
@@ -193,5 +197,56 @@ describe('composerVoiceInput', () => {
     await screen.getByTestId('composer-voice-button').click()
     await expect.poll(() => commands[0]).toMatchObject({ type: 'record', sessionId: 'alice' })
     await expect.element(screen.getByTestId('composer-voice-recording')).toHaveAttribute('data-phase', 'recording')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/3223#discussion_r4410911874
+  // A voice call used to unmount the control. Its cleanup cancelled the recording, and a waiting voice message lost
+  // the owner of `sendPending`. A hidden control stays mounted and keeps both.
+  it('keeps an open recording when the host hides the microphone', async () => {
+    localStorage.setItem('ui/chat/composer-voice-mode', 'audio')
+    const hidden = shallowRef(false)
+    const { screen, commands } = await mountInput({ hidden: () => hidden.value })
+    const microphone = screen.getByTestId('composer-voice-button')
+
+    await microphone.click()
+    await expect.poll(() => commands[0]).toMatchObject({ type: 'record' })
+    hidden.value = true
+
+    await expect.element(microphone).not.toBeVisible()
+    await expect.element(screen.getByTestId('composer-voice-recording')).toBeInTheDocument()
+    expect(commands.filter(command => command.type === 'discard')).toEqual([])
+  })
+
+  // A release before the host captured cancels the input. With Auto send, the old flow then sent the text typed before.
+  it('does not send typed text when a walkie-talkie hold ends before capture starts', async () => {
+    localStorage.setItem('settings/hearing/auto-send-enabled', 'true')
+    localStorage.setItem('ui/chat/composer-voice-mode', 'walkie')
+    const { screen, commands, submitted } = await mountInput({ dictation: 'how are you', captures: false })
+
+    await screen.getByTestId('composer-voice-button').click()
+    const hold = screen.getByTestId('composer-voice-hold')
+    ;(hold.element() as HTMLElement).focus()
+    await userEvent.keyboard('{Space>}')
+    await expect.poll(() => commands[0]).toMatchObject({ type: 'begin' })
+    await userEvent.keyboard('{/Space}')
+
+    await expect.poll(() => commands.at(-1)).toMatchObject({ type: 'cancel' })
+    expect(submitted).toEqual([])
+  })
+
+  it('discards the transcript when the dictation is cancelled while it finishes', async () => {
+    const ended = Promise.withResolvers<void>()
+    const { screen, draft } = await mountInput({ dictation: 'how are you', endAfter: ended.promise })
+    const microphone = screen.getByTestId('composer-voice-button')
+
+    await microphone.click()
+    await expect.element(microphone).toHaveAttribute('data-state', 'recording')
+    await microphone.click()
+    await expect.element(screen.getByTestId('composer-voice-recording')).toHaveAttribute('data-phase', 'processing')
+    await screen.getByTestId('composer-voice-cancel').click()
+    ended.resolve()
+
+    await expect.element(screen.getByTestId('composer-voice-recording')).not.toBeInTheDocument()
+    expect(draft.value).toBe('Hello')
   })
 })

@@ -12,10 +12,10 @@ import { useHearingStore } from '../stores/modules/hearing'
 /**
  * Owns voice draft selection, source evidence, and submission to the chat runtime.
  * `tools` returns the tool references of a sent draft, read once at each send. Without tools, a draft sends none.
- * `autoSend` decides, for each spoken input, whether it is sent at once or kept as a draft for review.
- * Without it, the Hearing auto send setting decides.
+ * `autoSend` decides, for each spoken input, whether it is sent at once or kept as a draft for review. It receives the
+ * submission, so the host can decide by the input that produced it. Without it, the Hearing auto send setting decides.
  */
-export function useVoiceDrafts(report: (cause: unknown) => void, tools: () => readonly ChatToolReference[] | undefined, autoSend?: () => boolean) {
+export function useVoiceDrafts(report: (cause: unknown) => void, tools: () => readonly ChatToolReference[] | undefined, autoSend?: (submission: SpeechSubmission) => boolean) {
   const chat = useChatStore()
   const hearing = useHearingStore()
   const sendsAtOnce = autoSend ?? (() => hearing.autoSendEnabled)
@@ -47,7 +47,7 @@ export function useVoiceDrafts(report: (cause: unknown) => void, tools: () => re
   async function acceptSpeech(submission: SpeechSubmission, signal: AbortSignal) {
     signal.throwIfAborted()
     const text = submission.text.trim()
-    const sendNow = sendsAtOnce()
+    const sendNow = sendsAtOnce(submission)
     const existing = sendNow
       ? undefined
       : drafts.value.find(draft => draft.sessionId === submission.sessionId && !sending.has(draft.id))

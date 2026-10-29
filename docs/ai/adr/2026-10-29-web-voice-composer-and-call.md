@@ -44,7 +44,8 @@ The desktop app already had a designed surface for live speech: the voice inlay 
 
 - A voice call is continuous listening that the user starts from the add menu. The voice host owns it with `callActive` and `callMuted`.
 - During a call, speech starts an input in every Hearing input mode, and each input is sent at once. A call never keeps a draft.
-- Mute keeps the microphone open and turns off the voice activity plugin. Unmuting is immediate and asks for no permission. Mute cancels speech that it was capturing.
+- Mute keeps the microphone open and turns off the voice activity plugin. Unmuting is immediate and asks for no permission. Mute cancels the speech that is captured now, and starts no input from Push to Talk or a wake word.
+- An input that began during a call is sent at once, also when it finishes after the hang-up. A call ends when Hearing turns off or loses its transcription provider.
 - The microphone switch in Hearing closes the microphone for every feature. A call does not start while it is off, and turning it off ends a call.
 - `useVoiceListening` stays the one place that starts and stops listening. It listens during a call, or when the input mode listens and the `continuous` option allows it. When its scope ends, for example when the user leaves the stage page for settings, the call ends too, because that page shows the call controls.
 - The call capsule at the top of the page has a hang-up button on the left and the call time on the right. Behind them, a waveform of the speaker fades out to the right. Only the hang-up button ends the call, so a stray tap does not.
@@ -55,7 +56,7 @@ The desktop app already had a designed surface for live speech: the voice inlay 
 
 - Hearing details are in settings. The desktop web header menu and the mobile settings drawer link to the Hearing page.
 - The mobile soundwave button and its Hearing drawer are removed.
-- Small web and Pocket screens do not listen outside a call. `HearingConfig` hides the input mode and the microphone switch there and says that a call listens.
+- Small web and Pocket screens do not listen outside a call, and the listening preference does not hold the microphone open there. `HearingConfig` hides the input mode and the listening switch there and says that a call listens.
 - The desktop app keeps continuous listening at every window size. A later change can apply the call model there.
 
 ## Consequences

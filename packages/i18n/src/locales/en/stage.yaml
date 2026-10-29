@@ -35,6 +35,7 @@ chat:
     position: Playback position
     no-speech: No speech was recognized, so the voice message was not sent.
   voice-composer:
+    unavailable: The microphone is not available. Check that it is turned on in Hearing.
     audio: Voice message
     transcription: Dictation
     walkie: Walkie-talkie
@@ -112,6 +113,7 @@ chat:
     failed: Could not start the voice call
     microphone-denied: AIRI cannot use the microphone.
     microphone-off: The microphone is turned off. Turn it on in Hearing to start a voice call.
+    busy: Finish or cancel the recording first, then start the voice call.
     configure-description: Select a transcription provider and model in Hearing to start a voice call.
   notice:
     label: 'Background report from {name}'

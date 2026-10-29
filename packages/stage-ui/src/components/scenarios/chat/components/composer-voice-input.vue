@@ -10,6 +10,7 @@
 
 <script setup lang="ts">
 import type { ChatToolReference } from '../../../../types/chat'
+import type { VoiceComposerSend } from '../composables/use-voice-composer'
 
 import { BasicButton, DropdownMenu, MenuItem, MenuLabel, MenuRadioItem, MenuSeparator, MenuSwitchItem } from '@proj-airi/ui'
 import { onLongPress, useEventListener, useLocalStorage } from '@vueuse/core'
@@ -50,7 +51,13 @@ const props = withDefaults(defineProps<{
    * @default 'sm'
    */
   size?: 'sm' | 'md'
-}>(), { size: 'sm' })
+  /**
+   * Hides the microphone, for example during a voice call, which listens by itself. The control stays mounted, so an
+   * open recording and a voice message that waits for the send button are kept, and `sendPending` still works.
+   * @default false
+   */
+  hidden?: boolean
+}>(), { size: 'sm', hidden: false })
 
 const emit = defineEmits<{
   /** The host started to send a voice message. */
@@ -147,11 +154,13 @@ function needsTranscriber(value: ComposerVoiceMode) {
  * The host learns that the recording closed through `recordingChange`. Its send guard reads that flag after this tick.
  */
 async function finishDictation() {
-  await voice.finish()
-  if (!autoSendEnabled.value || !draft.value.trim())
-    return
-  await nextTick()
-  emit('submit')
+  const outcome = await voice.finish()
+  // Only new text is sent. A cancelled, empty, or failed dictation must not send text that was typed before it.
+  if (outcome === 'inserted' && autoSendEnabled.value) {
+    await nextTick()
+    emit('submit')
+  }
+  return outcome
 }
 
 /** Triggering workflow: microphone tap -> act on the mode, or stop the recording that a tap started. */
@@ -186,6 +195,7 @@ function leaveWalkie() {
 
 // A long press on the microphone opens the mode menu. The click that follows the press does not act on the mode.
 const microphone = useTemplateRef<InstanceType<typeof BasicButton>>('microphone')
+// A long press that ends away from the button produces no click, so each new press resets the flag.
 let suppressClick = false
 onLongPress(microphone, () => {
   if (recording.value)
@@ -236,8 +246,8 @@ async function releaseHold() {
     await voice.cancel()
     return
   }
-  await finishDictation()
-  if (!autoSendEnabled.value && draft.value.trim())
+  const outcome = await finishDictation()
+  if (outcome === 'inserted' && !autoSendEnabled.value)
     walkie.value = false
 }
 
@@ -287,11 +297,11 @@ watch(() => !!pendingMessage.value, value => emit('pendingChange', value), { imm
  * `none` means that no voice message waits, so the host sends its composer as usual.
  * The host clears its text only on `sent`. On `failed` the text and the recording stay for a retry.
  */
-async function sendPending(text: string): Promise<'none' | 'sent' | 'failed'> {
+async function sendPending(text: string): Promise<'none' | VoiceComposerSend> {
   const message = pendingMessage.value
   if (!message)
     return 'none'
-  return await voice.send(message.id, text) ? 'sent' : 'failed'
+  return voice.send(message.id, text)
 }
 
 defineExpose({ sendPending })
@@ -345,7 +355,7 @@ const quietButtonClasses = computed(() => [
 
 <template>
   <!-- The slot keeps the size of the microphone, so the smaller stop button stays centered in the same place. -->
-  <div v-bind="$attrs" :class="['relative shrink-0 flex items-center justify-center', sizeClass]">
+  <div v-show="!props.hidden" v-bind="$attrs" :class="['relative shrink-0 flex items-center justify-center', sizeClass]">
     <BasicButton
       ref="microphone"
       size="unset"
@@ -363,6 +373,7 @@ const quietButtonClasses = computed(() => [
         'touch-none select-none [-webkit-touch-callout:none]',
         !tapRecording && 'hover:text-primary-600 dark:hover:text-primary-300',
       ]"
+      @pointerdown="suppressClick = false"
       @click="click"
       @contextmenu.prevent="menuOpen = true"
       @keydown.up.prevent="menuOpen = true"

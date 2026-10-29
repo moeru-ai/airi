@@ -35,6 +35,7 @@ chat:
     position: 播放位置
     no-speech: 没有识别到说话，语音消息没有发送。
   voice-composer:
+    unavailable: 麦克风不可用。请在听觉设置中确认麦克风已打开。
     audio: 语音消息
     transcription: 语音转文字
     walkie: 对讲
@@ -112,6 +113,7 @@ chat:
     failed: 无法开始语音通话
     microphone-denied: AIRI 无法使用麦克风。
     microphone-off: 麦克风已关闭。请在听觉设置中打开麦克风，再开始语音通话。
+    busy: 请先结束或取消录音，再开始语音通话。
     configure-description: 请在听觉设置中选择转录服务和模型，才能开始语音通话。
   notice:
     label: '后台汇报 {name}'

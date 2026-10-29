@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { HearingInputMode } from '../../../../stores/modules/hearing'
 import type { ChatToolReference } from '../../../../types/chat'
-import type { VoiceComposerMode } from '../composables/use-voice-composer'
+import type { VoiceComposerMode, VoiceComposerSend } from '../composables/use-voice-composer'
 
 import { BasicButton, DropdownMenu, MenuItem, menuItemClasses, MenuLabel, MenuRadioItem, MenuSeparator, MenuSwitchItem } from '@proj-airi/ui'
 import { useEventListener, useIntervalFn, useLocalStorage } from '@vueuse/core'
@@ -130,9 +130,9 @@ async function toggle() {
     return
   }
 
-  const dictation = activeMode.value === 'transcription'
-  await voice.finish({ send: autoSendEnabled.value })
-  if (!dictation || !autoSendEnabled.value || !draft.value.trim())
+  const outcome = await voice.finish({ send: autoSendEnabled.value })
+  // Only new dictated text is sent. A cancelled, empty, or failed dictation must not send text that was typed before it.
+  if (outcome !== 'inserted' || !autoSendEnabled.value)
     return
   // The host learns that recording closed through `recordingChange`. Its send guard reads that flag after this tick.
   await nextTick()
@@ -200,11 +200,11 @@ watch(() => !!pendingMessage.value, value => emit('pendingChange', value), { imm
  * `none` means that no voice message waits, so the host sends its composer as usual.
  * The host clears its text only on `sent`. On `failed` the text and the recording stay for a retry.
  */
-async function sendPending(text: string): Promise<'none' | 'sent' | 'failed'> {
+async function sendPending(text: string): Promise<'none' | VoiceComposerSend> {
   const message = pendingMessage.value
   if (!message)
     return 'none'
-  return await voice.send(message.id, text) ? 'sent' : 'failed'
+  return voice.send(message.id, text)
 }
 
 defineExpose({ sendPending })

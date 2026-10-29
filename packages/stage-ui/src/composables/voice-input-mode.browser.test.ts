@@ -88,6 +88,17 @@ describe('useVoiceListening', () => {
     expect(voice.callActive).toBe(false)
   })
 
+  // A small screen has no control for the listening preference. A preference from a wide window or an older release
+  // still held the microphone open there, with the system indicator on while nothing listened.
+  it('does not hold the microphone open on a small screen, even with the listening preference on', async () => {
+    localStorage.setItem('settings/audio/input/enabled', 'true')
+    const { devices } = mountListening(() => false)
+    await nextTick()
+
+    expect(devices.listening).toBe(true)
+    expect(devices.heldOpen).toBe(false)
+  })
+
   it('keeps continuous listening running when a call ends on a large screen', async () => {
     localStorage.setItem('settings/audio/input/enabled', 'true')
     const continuous = shallowRef(true)
