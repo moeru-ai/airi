@@ -84,7 +84,8 @@ function handleReady({ api }: DockviewReadyEvent) {
 @import 'dockview-vue/dist/styles/dockview.css';
 
 .airi-workbench {
-  --airi-workbench-accent: oklch(clamp(0%, calc(74% * var(--chromatic-bri, 1)), 100%) calc(var(--chromatic-chroma-400) * var(--chromatic-sat, 1)) calc(var(--chromatic-hue) + 0));
+  /* The alpha resolves the %alpha placeholder of the Chromatic v2 shade, which a plain theme() leaves in the value. */
+  --airi-workbench-accent: theme('colors.primary.400 / 100%');
   /* The 28 px tabs sit 6 px from the top, the bottom, and the left of their card. */
   --dv-tabs-and-actions-container-height: 2.5rem;
   /* The tab bar has the color of its panel, so a card is one surface. */
