@@ -10,6 +10,7 @@ import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared/perf/io-trace
 import { piniaActionTracingChannelName } from '@proj-airi/stage-shared/types/pinia-action-event'
 
 import { readCompletedSpans } from './browser-probe'
+import { uniqueSpans } from './spans'
 
 /** Creates the runtime session for one audio test. */
 export function createSession(options: {
@@ -72,8 +73,9 @@ export function createSession(options: {
       if (session.page === options.page)
         return runtimeSpans
 
+      // Both windows have the probe and hear the same spans, so each span is in both lists.
       const interactionSpans = await session.page.evaluate(readCompletedSpans, name)
-      return [...runtimeSpans, ...interactionSpans]
+      return uniqueSpans(runtimeSpans, interactionSpans)
     },
     async waitForTurn(waitOptions = {}) {
       const timeout = waitOptions.timeout ?? 60_000
