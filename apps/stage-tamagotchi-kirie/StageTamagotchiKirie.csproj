@@ -10,9 +10,9 @@
   <ItemGroup>
     <Compile Remove="node_modules/**/*.cs" />
     <Compile Remove="tests/**/*.cs" />
-    <PackageReference Include="GdKirie.EventaAdapter" Version="0.15.0" />
+    <PackageReference Include="GdKirie.EventaAdapter" Version="0.15.3" />
     <PackageReference Include="GdKirie.Notifications" Version="0.15.0" />
-    <PackageReference Include="GdKirie.Platform" Version="0.15.0" />
+    <PackageReference Include="GdKirie.Platform" Version="0.15.3" />
     <PackageReference Include="GdKirie.Tray" Version="0.15.0" />
   </ItemGroup>
 

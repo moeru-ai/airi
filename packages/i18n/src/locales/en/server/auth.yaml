@@ -66,6 +66,9 @@ signIn:
     socialOnlyNoPassword: This email was registered with Google or GitHub. Sign in with a button below; you can add a password in account settings after signing in.
     passwordMismatch: Password and confirmation do not match.
     invalidEmail: Please enter a valid email address.
+    noProviders:
+      title: No sign-in providers
+      description: This sign-in page has no providers yet.
   footer:
     prefix: By continuing, you agree to our
     terms: Terms

@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import type { ProviderValidationStep } from '../../../../libs/providers/validators/run'
 
-import { Button } from '@proj-airi/ui'
+import { Alert, Button } from '@proj-airi/ui'
 import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot } from 'vaul-vue'
 import { computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { useBreakpoints } from '../../../../composables/use-breakpoints'
 
@@ -16,6 +17,8 @@ const props = withDefaults(defineProps<{
 }>(), {
   title: 'Validation details',
 })
+
+const { t } = useI18n()
 
 const showDialog = defineModel({ type: Boolean, default: false, required: false })
 
@@ -50,21 +53,14 @@ const selectedSteps = computed(() => {
           <div v-if="selectedSteps.length === 0" :class="['text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
             No failed checks.
           </div>
-          <div
+          <Alert
             v-for="step in selectedSteps"
             :key="step.id"
-            :class="['rounded-lg', 'bg-red-50', 'p-3', 'dark:border-red-800/40', 'dark:bg-red-900/20']"
+            tone="danger"
+            :title="step.label"
           >
-            <div :class="['flex', 'items-center', 'gap-2']">
-              <div :class="['i-solar:close-circle-line-duotone', 'text-lg', 'text-red-600', 'dark:text-red-500']" />
-              <div :class="['text-sm', 'font-medium', 'text-neutral-900', 'dark:text-neutral-100']">
-                {{ step.label }}
-              </div>
-            </div>
-            <div :class="['mt-1', 'text-xs', 'text-neutral-600', 'dark:text-neutral-300']">
-              {{ step.reason || 'Validation failed.' }}
-            </div>
-          </div>
+            {{ step.reason || t('settings.dialogs.onboarding.validationFailed') }}
+          </Alert>
         </div>
       </DialogContent>
     </DialogPortal>
@@ -89,21 +85,14 @@ const selectedSteps = computed(() => {
           <div v-if="selectedSteps.length === 0" :class="['text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
             No failed checks.
           </div>
-          <div
+          <Alert
             v-for="step in selectedSteps"
             :key="step.id"
-            :class="['rounded-lg', 'bg-red-50', 'p-3', 'dark:border-red-800/40', 'dark:bg-red-900/20']"
+            tone="danger"
+            :title="step.label"
           >
-            <div :class="['flex', 'items-center', 'gap-2']">
-              <div :class="['i-solar:close-circle-line-duotone', 'text-lg', 'text-red-600', 'dark:text-red-500']" />
-              <div :class="['text-sm', 'font-medium', 'text-neutral-900', 'dark:text-neutral-100']">
-                {{ step.label }}
-              </div>
-            </div>
-            <div :class="['mt-1', 'text-xs', 'text-neutral-600', 'dark:text-neutral-300']">
-              {{ step.reason || 'Validation failed.' }}
-            </div>
-          </div>
+            {{ step.reason || t('settings.dialogs.onboarding.validationFailed') }}
+          </Alert>
         </div>
       </DrawerContent>
     </DrawerPortal>

@@ -13,13 +13,13 @@ import { useVoiceDrafts } from './voice-drafts'
 
 const cleanups: (() => void)[] = []
 
-function mountDrafts(tools: () => readonly ChatToolReference[] | undefined = () => undefined) {
+function mountDrafts(tools: () => readonly ChatToolReference[] | undefined = () => undefined, autoSend?: () => boolean) {
   // Stubbed actions keep the real store state and replace only the chat transport.
   const pinia = createTestingPinia({ createSpy: vi.fn })
   setActivePinia(pinia)
   let drafts!: ReturnType<typeof useVoiceDrafts>
   const app = createApp(defineComponent({ setup() {
-    drafts = useVoiceDrafts(vi.fn(), tools)
+    drafts = useVoiceDrafts(vi.fn(), tools, autoSend)
     return () => h('div')
   } }))
   app.use(pinia).use(createI18n({ legacy: false, locale: 'en', messages: { en: {} } }))
@@ -116,4 +116,23 @@ it('sends plugin context without the speaker evidence of the same input', async 
   await drafts.sendDraft('draft')
 
   expect(JSON.parse(vi.mocked(chat.submit).mock.calls[0]![0].speechContext!)).toEqual([{ context: [{ plugin: 'calendar', key: 'today', revision: 1, value: 'Friday' }] }])
+})
+
+// A voice call sends each spoken input at once, even with the Hearing Auto send setting off.
+it('sends speech at once when the auto send getter says so, without keeping a draft', async () => {
+  let inCall = true
+  const { drafts, chat } = mountDrafts(undefined, () => inCall)
+  vi.mocked(chat.submit).mockResolvedValue({ sessionId: 'session', messageId: 'draft' })
+
+  const result = await drafts.acceptSpeech(spokenSubmission('hello there'), new AbortController().signal)
+
+  expect(result).toEqual({ status: 'committed', messageId: 'draft' })
+  expect(chat.submit).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 'session', text: 'hello there' }))
+  expect(drafts.drafts.value).toEqual([])
+
+  // After the call, the setting decides again. It is off by default, so the speech waits as a draft.
+  inCall = false
+  const later = { ...spokenSubmission('after the call'), submissionId: 'later' }
+  expect(await drafts.acceptSpeech(later, new AbortController().signal)).toEqual({ status: 'drafted', draftId: 'later' })
+  expect(drafts.drafts.value.map(draft => draft.text)).toEqual(['after the call'])
 })

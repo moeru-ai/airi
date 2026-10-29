@@ -4,8 +4,6 @@ import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import { errorMessageFrom } from '@moeru/std'
 import {
-  Alert,
-  ErrorContainer,
   RadioCardManySelect,
   RadioCardSimple,
   TestDummyMarker,
@@ -18,6 +16,7 @@ import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import {
+  Alert,
   FieldCheckbox,
   FieldInput,
   FieldRange,
@@ -637,7 +636,9 @@ async function handleDeleteProvider(providerId: string) {
 </script>
 
 <template>
-  <ErrorContainer v-if="errorMessage" :error="errorMessage" />
+  <Alert v-if="errorMessage" tone="danger">
+    <pre :class="['whitespace-pre-wrap break-all']">{{ String(errorMessage) }}</pre>
+  </Alert>
   <div flex="~ col md:row gap-6">
     <SettingsCard class="md:w-[40%]">
       <FieldCheckbox v-model="speechStore.enabled" :label="t('settings.pages.modules.speech.title')" />
@@ -747,10 +748,9 @@ async function handleDeleteProvider(providerId: string) {
 
             <!-- Error state -->
             <template v-else-if="displayedModelError">
-              <ErrorContainer
-                :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
-                :error="displayedModelError"
-              />
+              <Alert tone="danger" :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')">
+                <pre :class="['whitespace-pre-wrap break-all']">{{ String(displayedModelError) }}</pre>
+              </Alert>
 
               <FieldInput
                 :model-value="activeSpeechModel || ''"
@@ -763,13 +763,8 @@ async function handleDeleteProvider(providerId: string) {
 
             <!-- No models available -->
             <template v-else-if="displayedProviderModels.length === 0 && !displayedModelsLoading">
-              <Alert type="warning">
-                <template #title>
-                  {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models') }}
-                </template>
-                <template #content>
-                  {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
-                </template>
+              <Alert tone="warning" :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models')">
+                {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
               </Alert>
 
               <FieldInput
@@ -870,27 +865,24 @@ async function handleDeleteProvider(providerId: string) {
             />
           </div>
 
-          <ErrorContainer
+          <Alert
             v-else-if="speechProviderError"
-            class="mb-2"
-            title="Error loading voices"
-            :error="speechProviderError"
-          />
+            tone="danger"
+            :title="t('settings.pages.modules.speech.sections.section.provider-voice-selection.load_error')"
+            :class="['mb-2']"
+          >
+            <pre :class="['whitespace-pre-wrap break-all']">{{ String(speechProviderError) }}</pre>
+          </Alert>
 
           <!-- No voices available -->
           <Alert
             v-else
-            type="warning"
-            icon="i-solar:info-circle-line-duotone"
-            class="mb-2"
+            tone="warning"
+            :title="t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices')"
+            :class="['mb-2']"
           >
-            <template #title>
-              {{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices') }}
-            </template>
-            <template #content>
-              {{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices_description') }}.
-              {{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices_hint') }}
-            </template>
+            {{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices_description') }}.
+            {{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices_hint') }}
           </Alert>
 
           <!-- Voice parameters -->

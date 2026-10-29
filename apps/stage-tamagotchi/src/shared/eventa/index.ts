@@ -336,7 +336,10 @@ export const electronGetServerChannelQrPayload = defineInvokeEventa<ServerChanne
 
 export type ElectronUpdaterChannel = UpdateChannel
 
+/** Every updater preference. A set call sends all of them, and `channel` undefined means auto. */
 export interface ElectronUpdaterPreferences {
+  /** Whether a check downloads the update that it finds. Off, the renderer starts the download. */
+  autoDownload: boolean
   channel?: ElectronUpdaterChannel
 }
 

@@ -31,7 +31,7 @@ API details belong in the [component reference](./docs/ai/context/ui-components.
 
 `neutral` supplies standard surfaces and text. Light and dark modes define separate backgrounds, foregrounds, borders, and opacity values.
 
-Buttons also support independent palettes, such as red, orange, and green. `Callout` supports `primary`, `violet`, `lime`, and `orange`. It has no shared success or error API.
+Buttons also support independent palettes, such as red, orange, and green. `Callout` supports `primary`, `violet`, `lime`, and `orange` as accents only. `Alert` gives the shared status palette: `info` follows `primary`, `success` is green, `warning` is amber, and `danger` is red.
 
 Use text or icons to explain business states. A palette name does not establish a status meaning.
 
@@ -87,6 +87,7 @@ Use neutral surface changes to separate ordinary content. Use translucency and b
 | Standard inputs | Neutral fill, 2px border, `shadow-sm` | Define the editable area without a floating-card appearance. |
 | Overlay controls | Translucent neutral fill and background blur | Preserve a relationship to the stage while keeping actions legible. |
 | Callouts | Tinted surface and a vertical accent bar | Separate contextual guidance from ordinary text. |
+| Alerts | Opaque tinted surface without a border, and a tone icon | Show a status or a result that the user must notice. Stay readable over translucent stage panels. |
 | Bottom drawer | Neutral surface, `shadow-xl`, and `bg-black/35` backdrop | Focus attention on a temporary task. |
 
 Button outlines express interaction, not elevation. Leave space for hover and focus outlines instead of clipping them at a container edge.
@@ -190,9 +191,11 @@ Prefer the corresponding `Field*` component for labels and descriptions. Busines
 
 `Select` popup content uses `z-[10010]`. These are current component values, not a complete global layer scale.
 
-### Callout and SwipeActions
+### Callout, Alert, and SwipeActions
 
-[Callout](./packages/ui/src/components/misc/callout.vue) combines a tinted surface, a vertical accent bar, and an emphasized title. The caller supplies meaningful text.
+[Callout](./packages/ui/src/components/misc/callout.vue) combines a tinted surface, a vertical accent bar, and an emphasized title. Use it for introductions, tips, and background information. The caller supplies meaningful text.
+
+[Alert](./packages/ui/src/components/misc/alert.vue) shows a status: an error, a warning, a success, or an operation that runs. Use it instead of a hand-written tinted `div`. Do not use a `Callout` color to show a status.
 
 [SwipeActions](./packages/ui/src/components/swipe-actions/index.ts) owns swipe regions and gestures. [SwipeActionButton](./packages/ui/src/components/misc/swipe-action-button.vue) owns the pill surface, icon, and label.
 

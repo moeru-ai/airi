@@ -100,7 +100,7 @@ catalog:
   '@electron-toolkit/tsconfig': ^2.0.0
   '@electron-toolkit/utils': ^4.0.0
   '@electron/notarize': ^3.1.1
-  '@ergosphere-it/electron': ^0.0.14
+  '@ergosphere-it/electron': ^0.0.16
   '@esotericsoftware/spine-webgl': ~4.2.0
   '@esotericsoftware/spine-webgl-4-0': npm:@esotericsoftware/spine-webgl@~4.0.31
   '@esotericsoftware/spine-webgl-4-1': npm:@esotericsoftware/spine-webgl@~4.1.56
@@ -111,11 +111,11 @@ catalog:
   '@fontsource-variable/nunito': ^5.3.0
   '@fontsource-variable/quicksand': ^5.3.0
   '@fontsource-variable/urbanist': ^5.3.0
-  '@fontsource/dm-mono': ^5.3.0
   '@fontsource/dm-serif-display': ^5.3.0
   '@fontsource/gugi': ^5.3.0
   '@fontsource/kiwi-maru': ^5.3.0
   '@fontsource/m-plus-rounded-1c': ^5.3.0
+  '@fontsource/maple-mono': ^5.3.0
   '@formkit/auto-animate': ^0.10.0
   '@google/genai': ^2.30.0
   '@grammyjs/files': ^1.2.0

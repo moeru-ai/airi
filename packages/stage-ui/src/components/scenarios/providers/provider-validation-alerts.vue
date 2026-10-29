@@ -1,7 +1,6 @@
 <script setup lang="ts">
+import { Alert, Button } from '@proj-airi/ui'
 import { useI18n } from 'vue-i18n'
-
-import Alert from '../../misc/alert.vue'
 
 const props = defineProps<{
   isValid: boolean
@@ -21,98 +20,49 @@ const { t } = useI18n()
 
 <template>
   <!-- Validation Running -->
-  <Alert v-if="isValidating > 0" type="loading">
-    <template #title>
-      {{ t('settings.dialogs.onboarding.validationRunning') }}
-    </template>
-  </Alert>
+  <Alert v-if="isValidating > 0" tone="info" loading :title="t('settings.dialogs.onboarding.validationRunning')" />
   <!-- Validation Error -->
-  <Alert v-else-if="!isValid && isValidating === 0 && validationMessage" type="error">
-    <template #title>
-      <div :class="['w-full flex items-center justify-between']">
-        <span>{{ t('settings.dialogs.onboarding.validationFailed') }}</span>
-        <button
-          type="button"
-          :class="['ml-2 rounded px-2 py-0.5 text-xs font-medium transition-colors', 'bg-red-100 text-red-600 hover:bg-red-200', 'dark:bg-red-800/30 dark:text-red-300 dark:hover:bg-red-700/40']"
-          @click="props.onForceValid"
-        >
-          {{ t('settings.pages.providers.common.continueAnyway') }}
-        </button>
-      </div>
-    </template>
-    <template v-if="validationMessage" #content>
-      <div :class="['whitespace-pre-wrap break-all']">
-        {{ validationMessage }}
-      </div>
+  <Alert v-else-if="!isValid && isValidating === 0 && validationMessage" tone="danger" :title="t('settings.dialogs.onboarding.validationFailed')">
+    <div :class="['whitespace-pre-wrap break-all']">
+      {{ validationMessage }}
+    </div>
+    <template #actions>
+      <Button size="sm" color="red" @click="props.onForceValid">
+        {{ t('settings.pages.providers.common.continueAnyway') }}
+      </Button>
     </template>
   </Alert>
   <!-- Partial: auto validation passed, manual test not yet attempted -->
-  <Alert v-else-if="isValid && isValidating === 0 && hasManualValidators && !manualTestPassed && !manualTestMessage" type="info">
-    <template #title>
-      <div :class="['w-full flex items-center justify-between']">
-        <span>{{ t('settings.dialogs.onboarding.validationPartial') }}</span>
-        <div :class="['flex items-center gap-2']">
-          <button
-            type="button"
-            :disabled="isManualTesting"
-            :class="['rounded px-2 py-0.5 text-xs font-medium transition-colors', 'bg-blue-100 text-blue-600 hover:bg-blue-200', 'dark:bg-blue-800/30 dark:text-blue-300 dark:hover:bg-blue-700/40', isManualTesting ? 'cursor-not-allowed opacity-50' : '']"
-            @click="props.onRunTest"
-          >
-            {{ isManualTesting ? t('settings.dialogs.onboarding.testGenerationRunning') : t('settings.dialogs.onboarding.testGeneration') }}
-          </button>
-          <button
-            type="button"
-            :class="['rounded px-2 py-0.5 text-xs font-medium transition-colors', 'bg-blue-100 text-blue-600 hover:bg-blue-200', 'dark:bg-blue-800/30 dark:text-blue-300 dark:hover:bg-blue-700/40']"
-            @click="props.onGoToModelSelection"
-          >
-            {{ t('settings.pages.providers.common.goToModelSelection') }}
-          </button>
-        </div>
-      </div>
+  <Alert v-else-if="isValid && isValidating === 0 && hasManualValidators && !manualTestPassed && !manualTestMessage" tone="info" :title="t('settings.dialogs.onboarding.validationPartial')">
+    <template #actions>
+      <Button size="sm" color="primary" variant="primary" :loading="isManualTesting" @click="props.onRunTest">
+        {{ isManualTesting ? t('settings.dialogs.onboarding.testGenerationRunning') : t('settings.dialogs.onboarding.testGeneration') }}
+      </Button>
+      <Button size="sm" @click="props.onGoToModelSelection">
+        {{ t('settings.pages.providers.common.goToModelSelection') }}
+      </Button>
     </template>
   </Alert>
   <!-- Full success -->
-  <Alert v-else-if="isValid && isValidating === 0 && (!hasManualValidators || manualTestPassed)" type="success">
-    <template #title>
-      <div :class="['w-full flex items-center justify-between']">
-        <span>{{ t('settings.dialogs.onboarding.validationSuccess') }}</span>
-        <button
-          type="button"
-          :class="['ml-2 rounded px-2 py-0.5 text-xs font-medium transition-colors', 'bg-green-100 text-green-600 hover:bg-green-200', 'dark:bg-green-800/30 dark:text-green-300 dark:hover:bg-green-700/40']"
-          @click="props.onGoToModelSelection"
-        >
-          {{ t('settings.pages.providers.common.goToModelSelection') }}
-        </button>
-      </div>
+  <Alert v-else-if="isValid && isValidating === 0 && (!hasManualValidators || manualTestPassed)" tone="success" :title="t('settings.dialogs.onboarding.validationSuccess')">
+    <template #actions>
+      <Button size="sm" color="green" variant="primary" @click="props.onGoToModelSelection">
+        {{ t('settings.pages.providers.common.goToModelSelection') }}
+      </Button>
     </template>
   </Alert>
   <!-- Manual test failed -->
-  <Alert v-else-if="hasManualValidators && !manualTestPassed && manualTestMessage && !isManualTesting" type="error">
-    <template #title>
-      <div :class="['w-full flex items-center justify-between']">
-        <span>{{ t('settings.dialogs.onboarding.testGenerationFailed') }}</span>
-        <div :class="['flex items-center gap-2']">
-          <button
-            type="button"
-            :class="['rounded px-2 py-0.5 text-xs font-medium transition-colors', 'bg-red-100 text-red-600 hover:bg-red-200', 'dark:bg-red-800/30 dark:text-red-300 dark:hover:bg-red-700/40']"
-            @click="props.onRunTest"
-          >
-            {{ t('settings.dialogs.onboarding.retryPingCheck') }}
-          </button>
-          <button
-            type="button"
-            :class="['rounded px-2 py-0.5 text-xs font-medium transition-colors', 'bg-red-100 text-red-600 hover:bg-red-200', 'dark:bg-red-800/30 dark:text-red-300 dark:hover:bg-red-700/40']"
-            @click="props.onForceValid"
-          >
-            {{ t('settings.pages.providers.common.continueAnyway') }}
-          </button>
-        </div>
-      </div>
-    </template>
-    <template #content>
-      <div :class="['whitespace-pre-wrap break-all']">
-        {{ manualTestMessage }}
-      </div>
+  <Alert v-else-if="hasManualValidators && !manualTestPassed && manualTestMessage && !isManualTesting" tone="danger" :title="t('settings.dialogs.onboarding.testGenerationFailed')">
+    <div :class="['whitespace-pre-wrap break-all']">
+      {{ manualTestMessage }}
+    </div>
+    <template #actions>
+      <Button size="sm" color="red" variant="primary" @click="props.onRunTest">
+        {{ t('settings.dialogs.onboarding.retryPingCheck') }}
+      </Button>
+      <Button size="sm" @click="props.onForceValid">
+        {{ t('settings.pages.providers.common.continueAnyway') }}
+      </Button>
     </template>
   </Alert>
 </template>

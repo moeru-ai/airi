@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/root",
   "type": "module",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "private": true,
   "packageManager": "pnpm@11.24.0",
   "description": "LLM powered virtual character",
@@ -38,7 +38,7 @@
     "lint": "moeru-lint .",
     "lint:fix": "moeru-lint --fix .",
     "lint:swift": "pnpm -rF @proj-airi/stage-pocket run lint:swift",
-    "capture:tamagotchi": "pnpm exec vishot capture --target electron ./packages/scenarios-stage-tamagotchi-electron/src/scenarios/demo-controls-settings-chat-websocket/index.ts --app-entrypoint ./apps/stage-tamagotchi --cwd . --output-dir ./packages/scenarios-stage-tamagotchi-browser/artifacts/raw --format avif",
+    "capture:tamagotchi": "APP_IGNORE_FOCUS=${APP_IGNORE_FOCUS:-1} pnpm exec vishot capture --target electron ./packages/scenarios-stage-tamagotchi-electron/src/scenarios/demo-controls-settings-chat-websocket/index.ts --app-entrypoint ./apps/stage-tamagotchi --cwd . --output-dir ./packages/scenarios-stage-tamagotchi-browser/artifacts/raw --format avif",
     "sponsors:generate": "sponsorkit --output-dir docs/assets/sponsors",
     "typecheck": "turbo run typecheck -F=\"./packages/*\" -F=\"./apps/*\" -F=\"./server/**\" -F=\"./services/*\"",
     "typecheck:engines": "pnpm -rF=\"./engines/*\" --parallel typecheck",
