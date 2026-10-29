@@ -93,6 +93,11 @@ export default defineConfig({
       target: 'esnext',
     },
   },
+  // UI packages next to stage-ui keep their stories next to their components. This Histoire shows them too.
+  storyMatch: [
+    '**/*.story.vue',
+    '../ui-panes/src/**/*.story.vue',
+  ],
   setupFile: {
     browser: 'stories/setup.ts',
     server: 'stories/setup.server.ts',
