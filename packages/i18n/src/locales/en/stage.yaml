@@ -94,6 +94,11 @@ chat:
     finalizing: Finishing…
     sent: Sent
     dismiss: Dismiss
+    issues:
+      show: Show {count} problem | Show {count} problems
+      voice: Voice input
+      microphone: Microphone
+      wake-words: Wake words
   voice-input: Voice input
   composer:
     add: Add

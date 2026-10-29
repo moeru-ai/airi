@@ -23,11 +23,34 @@ const stateOptions: { label: string, value: State }[] = [
   { label: 'Sent (plays once)', value: 'sent' },
 ]
 
+type Issues = 'none' | 'rephrase' | 'all'
+
+const issueOptions: { label: string, value: Issues }[] = [
+  { label: 'None', value: 'none' },
+  { label: 'Rephrase model missing', value: 'rephrase' },
+  { label: 'Voice, microphone, and wake words', value: 'all' },
+]
+
+/** Problems that the host reports beside a draft. None of them blocks the draft. */
+function issuesOf(value: Issues): Pick<VoiceHostSnapshot, 'error' | 'microphone' | 'wakeWords'> {
+  if (value === 'none')
+    return {}
+  const error = 'No chat model is configured for voice rephrasing'
+  if (value === 'rephrase')
+    return { error }
+  return {
+    error,
+    microphone: { enabled: true, ready: false, error: 'Permission denied by the system' },
+    wakeWords: { preparation: 'error', error: 'The wake word model could not be downloaded' },
+  }
+}
+
 const SESSION_ID = 'story-session'
 
 const { t } = useI18n()
 
 const state = ref<State>('listening')
+const problems = ref<Issues>('none')
 // The desktop app draws native glass behind the card. A CSS blur stands in for it here.
 const glass = ref(true)
 /** Escape keeps a dismissed request or draft hidden. Each replay uses new IDs, so the card shows again. */
@@ -82,6 +105,7 @@ const VoiceHostFixture = defineComponent({
   props: {
     view: { type: String as PropType<State>, required: true },
     attempt: { type: Number, required: true },
+    issues: { type: String as PropType<Issues>, default: 'none' },
   },
   setup(props) {
     const controls = useVoiceControlsStore()
@@ -95,14 +119,20 @@ const VoiceHostFixture = defineComponent({
       controls.level = 0.15 + 0.2 * Math.abs(Math.sin(phase))
     }, 50, { immediate: false })
 
-    watch(() => [props.view, props.attempt] as const, ([value, run]) => {
+    // The controls store copies the host error from each bus snapshot. The fixture writes the store, so it copies it too.
+    function show(snapshot: VoiceHostSnapshot) {
+      controls.snapshot = { ...snapshot, ...issuesOf(props.issues) }
+      controls.error = controls.snapshot.error
+    }
+
+    watch(() => [props.view, props.attempt, props.issues] as const, ([value, run]) => {
       // A `sent` snapshot only animates out after the card was on screen, so it starts from the draft.
       if (value === 'sent') {
-        controls.snapshot = snapshotOf('draft', run)
-        setTimeout(() => controls.snapshot = snapshotOf('sent', run), 600)
+        show(snapshotOf('draft', run))
+        setTimeout(() => show(snapshotOf('sent', run)), 600)
       }
       else {
-        controls.snapshot = snapshotOf(value, run)
+        show(snapshotOf(value, run))
       }
 
       if (value === 'capsule' || value === 'listening')
@@ -120,6 +150,7 @@ const VoiceHostFixture = defineComponent({
   <Story title="Voice Presence" group="chat" auto-props-disabled :layout="{ type: 'grid', width: 600 }">
     <template #controls>
       <HstSelect v-model="state" title="State" :options="stateOptions" />
+      <HstSelect v-model="problems" title="Problems" :options="issueOptions" />
       <HstCheckbox v-model="glass" title="Window glass" />
       <HstButton :class="['m-2 px-3 py-1']" @click="replay++">
         Show again (after Escape)
@@ -145,7 +176,29 @@ const VoiceHostFixture = defineComponent({
               <span>{{ t('tamagotchi.stage.inlay.dismiss') }}</span>
             </template>
           </VoicePresence>
-          <VoiceHostFixture :view="state" :attempt="replay" />
+          <VoiceHostFixture :view="state" :attempt="replay" :issues="problems" />
+        </div>
+      </div>
+    </Variant>
+
+    <Variant id="problems" title="Draft with problems (hover the count)">
+      <div :class="['min-h-80 w-full flex items-end justify-center p-6', 'bg-[linear-gradient(135deg,#0ea5e9_0%,#a855f7_45%,#f97316_100%)]']">
+        <div
+          :class="['h-50 w-130 flex flex-col items-center justify-end px-4 pb-4', 'text-neutral-900 dark:text-neutral-100']"
+        >
+          <VoicePresence :class="glass ? 'backdrop-blur-xl backdrop-saturate-150' : ''">
+            <template #hint>
+              <kbd
+                :class="[
+                  'min-w-6 rounded-md border px-1.5 py-0.5 text-center font-sans text-[11px] leading-none',
+                  'border-neutral-900/15 bg-neutral-900/5 text-neutral-600',
+                  'dark:border-white/15 dark:bg-white/8 dark:text-neutral-300',
+                ]"
+              >esc</kbd>
+              <span>{{ t('tamagotchi.stage.inlay.dismiss') }}</span>
+            </template>
+          </VoicePresence>
+          <VoiceHostFixture view="draft" :attempt="replay" issues="all" />
         </div>
       </div>
     </Variant>

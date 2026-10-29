@@ -94,6 +94,11 @@ chat:
     finalizing: 正在整理……
     sent: 已发送
     dismiss: 关闭
+    issues:
+      show: 查看 {count} 个问题
+      voice: 语音输入
+      microphone: 麦克风
+      wake-words: 唤醒词
   voice-input: 语音输入
   composer:
     add: 添加
