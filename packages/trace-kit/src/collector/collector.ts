@@ -178,7 +178,10 @@ export class TraceCollector {
       maxAgeMs: options.maxAgeMs ?? DEFAULTS.maxAgeMs,
       sizeOf: entry => entry.bytes,
       ageOf: entry => entry.observedAt,
-      onEvict: entries => this.evicted.push(entries),
+      onEvict: (entries) => {
+        this.evicted.push(entries)
+        this.keepLinksOfEvictedUpdates(entries)
+      },
     })
     this.feed = createCatchUpFeed<TraceFeedMessage>({
       backlog: () => this.backlog(),
@@ -501,6 +504,21 @@ export class TraceCollector {
           this.pinnedStates.set(record.track, { record, time })
         break
       }
+    }
+  }
+
+  /**
+   * Moves the links of evicted updates into the pinned copy of their open span. The pinned copy merges the attributes
+   * of each update on arrival. Links append, so they move only when the update leaves the buffer, and a late viewer
+   * does not get a link twice.
+   */
+  private keepLinksOfEvictedUpdates(entries: BufferEntry[]): void {
+    for (const { record } of entries) {
+      if (record.type !== 'span.update' || !record.links?.length)
+        continue
+      const open = this.pinnedSpans.get(spanKeyOf(record.source, record.epoch, record.spanId))
+      if (open)
+        open.updated = { ...open.updated, links: [...open.updated.links ?? [], ...record.links] }
     }
   }
 

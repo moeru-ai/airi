@@ -89,6 +89,23 @@ describe('traceCollector', () => {
     expect(recordsOf(messages).find(record => record.type === 'source.lost')).toMatchObject({ reason: 'heartbeat-timeout' })
   })
 
+  it('keeps the links of an evicted update of an open span for a late viewer', () => {
+    const { collector, source, advance } = setup({ maxAgeMs: 1000 })
+    const window = source('window:main')
+    window.emit({ type: 'span.begin', ts: 1000, track: 't', spanId: 's1', name: 'open' })
+    window.emit({ type: 'span.update', ts: 1000, track: 't', spanId: 's1', links: [{ to: { spanId: 'early' }, rel: 'caused-by' }] })
+    advance(2000)
+    window.emit({ type: 'span.update', ts: 3000, track: 't', spanId: 's1', links: [{ to: { spanId: 'late' }, rel: 'caused-by' }] })
+    // The begin and the first update leave the buffer. The second update stays.
+    collector.tick()
+
+    const timeline = createTimelineProjection()
+    const reader = new TraceReader([timeline])
+    collector.subscribe(message => reader.handle(message))
+    const span = [...reader.view(timeline).spans.values()].find(item => item.name === 'open')
+    expect(span?.links.map(link => 'spanId' in link.to && link.to.spanId)).toEqual(['early', 'late'])
+  })
+
   it('evicts old records and tells viewers about the gap', () => {
     const { collector, source, advance } = setup({ maxAgeMs: 1000 })
     const window = source('window:main')
