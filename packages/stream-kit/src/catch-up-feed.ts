@@ -78,23 +78,31 @@ export function createCatchUpFeed<M>(options: CatchUpFeedOptions<M>): CatchUpFee
       backlog.push(options.caughtUp())
     subscribers.add(subscriber)
 
-    // The caller has no handle to unsubscribe before `subscribe` returns, so the catch-up always completes.
-    for (const message of backlog)
-      listener(message)
-
-    // Messages published during the catch-up go out in publish order. A publish inside this loop appends to `held`.
-    const held = subscriber.held!
-    for (let index = 0; index < held.length; index++)
-      subscriber.deliver(held[index]!)
-    subscriber.held = undefined
-
-    return {
-      unsubscribe() {
-        subscriber.active = false
-        subscriber.held = undefined
-        subscribers.delete(subscriber)
-      },
+    const unsubscribe = () => {
+      subscriber.active = false
+      subscriber.held = undefined
+      subscribers.delete(subscriber)
     }
+
+    // The caller has no handle to unsubscribe before `subscribe` returns, so the catch-up always completes. If a
+    // listener throws during it, the subscriber goes away before the error reaches the caller, so it cannot throw on
+    // later publishes.
+    try {
+      for (const message of backlog)
+        listener(message)
+
+      // Messages published during the catch-up go out in publish order. A publish inside this loop appends to `held`.
+      const held = subscriber.held!
+      for (let index = 0; index < held.length; index++)
+        subscriber.deliver(held[index]!)
+      subscriber.held = undefined
+    }
+    catch (error) {
+      unsubscribe()
+      throw error
+    }
+
+    return { unsubscribe }
   }
 
   return {
