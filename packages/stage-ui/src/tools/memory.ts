@@ -19,7 +19,7 @@ const forgetParameters = strictObject({ id: idSchema })
 // Strict function calling needs every property in `required`, in nested objects too, so a new entry gives a null id.
 const entrySchema = strictObject({
   id: pipe(nullable(string()), description('The id of the entry to change, as the memory index shows it. Null for a new entry.')),
-  description: pipe(string(), maxLength(150), description('One line for the index that names the topic. When the topic fits in one line, write its facts.')),
+  description: pipe(string(), maxLength(150), description('One line for the index that names the topic and its main facts.')),
   body: pipe(string(), minLength(1), maxLength(2000), description('The facts of the topic, with what makes them true or when they were said.')),
 })
 const writeParameters = strictObject({
@@ -36,7 +36,8 @@ export function composeMemoryPrompt(index: string) {
     '',
     'Long-term memory. You keep it yourself, so you remember the user across conversations.',
     'Each index line is one topic: its id, then the topic and its main facts. The entry holds every fact of the topic, each with its date.',
-    `When your reply depends on something from before, find its topic in the index, and read the entry with ${READ_MEMORY_TOOL_NAME} before you answer.`,
+    `When your reply depends on something from before, read every entry whose topic can hold it with ${READ_MEMORY_TOOL_NAME}, before you answer.`,
+    'A list, a count, or a comparison often needs several entries. One call reads them all.',
     'An index line only helps you find an entry. It does not hold all of its facts.',
     `Save with ${WRITE_MEMORY_TOOL_NAME} when someone asks you to remember something, or corrects a remembered fact.`,
     'Other lasting facts about the user are saved for you after each turn.',

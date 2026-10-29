@@ -52,12 +52,13 @@ A recipe is a skill, like a skill in a coding agent.
 ### Long-term memory
 
 - Memory is an index plus one entry per topic. A topic is one person, one pet, one hobby or interest, one place, one job, one project, or one kind of like, never the user as a whole. An entry holds every fact of its topic, each with its date.
-- The index lists every entry by its id and description, and joins the identity at the start of each run. A description names the topic and its main facts, so a run can find the entry from the index. A run reads the entry before it answers from it, because the index line does not hold every fact.
+- The index lists every entry by its id and description, and joins the identity at the start of each run. A description names the topic and its main facts, so a run can find the entry from the index. A run reads every entry that can hold the answer before it answers, because the index line does not hold every fact.
 - The store makes a UUIDv7 id when it adds an entry. A write with the id of an entry changes that entry. A write without an id adds an entry.
 - IndexedDB keeps the entries on the device, one record for each entry. A removal leaves a tombstone. After a change, the other windows read the entries again.
 - The run reads, writes, and forgets entries with memory tools. It needs no approval. It saves only when someone asks it to remember something, or corrects a remembered fact.
 - After each turn that answers the owner, the memory finalizer reads the turn and saves what it tells about the user: states that hold now, such as likes and favorites, and events that happened once. It reads a recording as its transcript. The reply shows what it saved as a folded line.
-- The finalizer reads the time of the user's message. It writes a time that the user tells in relative words, such as "last year", as the date or the year that it means.
+- The finalizer reads the time of the user's message. When the user tells a time in relative words, such as "last year", it keeps the words and adds the date of the turn and the date that they mean.
+- The finalizer keeps the user's own words where it can, and keeps how the user felt about an event or a person as a fact of it.
 - The finalizer reads the entries of the card with their facts. To add a fact to a topic, or to change one, it writes that entry again with its id and keeps the other facts. Only a conversation shows that a fact changed.
 - The finalizer runs of one window go one at a time, so each run reads the writes of the run before. A memory reset stops the runs that started before it, in every window.
 - In Settings, the owner can tidy up the memories of one card. Its chat model merges entries about the same topic into one entry, and keeps the newer of two entries that disagree. It never drops a fact. A reply that loses an entry changes nothing, and so does a tidy-up during which an entry changed.
