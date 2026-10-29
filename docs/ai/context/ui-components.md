@@ -262,9 +262,32 @@ background, outline, shape, or forced square dimensions. Supply an accessible
 Translucent, backdrop-blurred action without an outline, intended for floating
 controls such as the Tamagotchi Controls Island. Includes all `BasicButton` props.
 
+### Alert
+
+Status message for a result or a current state: an error, a warning, a success, or an operation that runs. Each tone has a fixed palette and a MingCute icon. The surface has a tint and no border. For introductions and tips that show no status, use `Callout`.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `tone` | `'info' \| 'success' \| 'warning' \| 'danger'` | `'info'` | Status meaning. `info` follows the theme hue |
+| `title` | `string?` | — | Short summary. Without a title, the body uses the tone color |
+| `icon` | `string?` | — | Iconify class that replaces the tone icon |
+| `loading` | `boolean?` | `false` | Replaces the icon with a spinner |
+| `actionsPlacement` | `'end' \| 'bottom'` | `'bottom'` with a title, `'end'` without | Position of the `actions` slot |
+| `dismissible` | `boolean?` | `false` | Shows a close button that emits `dismiss` |
+| `dismissLabel` | `string?` | `'Dismiss'` | Accessible name of the close button. Pass a translated string |
+| `live` | `'off' \| 'polite' \| 'assertive'` | `'off'` | `polite` sets `role="status"`. `assertive` sets `role="alert"`. Use them only for an alert that appears after an action |
+
+**Slots**: `default` (body), `title`, `icon`, `actions`
+
+**Emits**: `dismiss` (the parent owns the visibility)
+
+- The body styles `a`, `code`, `strong`, paragraphs, and lists. For Markdown content, put `MarkdownRenderer` in the body.
+- Put at most two buttons in `actions`, with `size="sm"`. The main button uses the tone color with `variant="primary"`. The other button uses the neutral color.
+- Do not make errors or required warnings dismissible. They disappear when the user fixes the cause.
+
 ### Callout
 
-Alert/callout box with themed accent bar.
+Box with a themed accent bar for introductions, tips, and background information. It shows no status. For errors, warnings, and results, use `Alert`.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|

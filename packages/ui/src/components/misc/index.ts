@@ -1,3 +1,5 @@
+export { default as Alert } from './alert.vue'
+export type { AlertActionsPlacement, AlertLive, AlertTone } from './alert.vue'
 export { default as Avatar } from './avatar.vue'
 export { default as Badge } from './badge.vue'
 export { default as BasicButton } from './basic-button.vue'
