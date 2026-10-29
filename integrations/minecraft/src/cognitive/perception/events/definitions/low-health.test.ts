@@ -3,8 +3,8 @@ import type { Item as InventoryItem } from 'prismarine-item'
 
 import type { PerceptionContext } from '../types'
 
-import minecraftData from 'minecraft-data'
 import prismarineItem from 'prismarine-item'
+import prismarineRegistry from 'prismarine-registry'
 
 import { describe, expect, it } from 'vitest'
 
@@ -13,8 +13,8 @@ import { lowHealthEvent } from './low-health'
 const filter = lowHealthEvent.mineflayer.filter!
 const extract = lowHealthEvent.mineflayer.extract
 
-const registry = minecraftData('1.21.4')
-const Item = prismarineItem('1.21.4')
+const registry = prismarineRegistry('1.21.4')
+const Item = prismarineItem(registry)
 const bread = new Item(registry.itemsByName.bread.id, 1)
 const rawBeef = new Item(registry.itemsByName.beef.id, 1)
 

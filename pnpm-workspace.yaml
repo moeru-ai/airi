@@ -388,6 +388,7 @@ catalog:
   prismarine-entity: ^2.6.0
   prismarine-item: ^1.18.0
   prismarine-recipe: ^1.5.0
+  prismarine-registry: 1.12.0
   prismarine-viewer: ^1.33.0
   prismarine-windows: ^2.10.0
   publint: ^0.3.24

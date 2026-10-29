@@ -1,15 +1,15 @@
 import type { Bot } from 'mineflayer'
 import type { Item as InventoryItem } from 'prismarine-item'
 
-import minecraftData from 'minecraft-data'
 import prismarineItem from 'prismarine-item'
+import prismarineRegistry from 'prismarine-registry'
 
 import { describe, expect, it } from 'vitest'
 
 import { cookedVariantOf, hasReadyFood, isCookableToHigherSaturation, selectReadyFood } from './foods'
 
-const registry = minecraftData('1.21.4')
-const Item = prismarineItem('1.21.4')
+const registry = prismarineRegistry('1.21.4')
+const Item = prismarineItem(registry)
 
 function item(name: string): InventoryItem {
   return new Item(registry.itemsByName[name].id, 1)
@@ -66,8 +66,8 @@ describe('selectReadyFood', () => {
   })
 
   it.each(['1.20.4', '1.21.4'])('finds ready food by name in the %s registry', (version) => {
-    const versionRegistry = minecraftData(version)
-    const VersionItem = prismarineItem(version)
+    const versionRegistry = prismarineRegistry(version)
+    const VersionItem = prismarineItem(versionRegistry)
     const bread = new VersionItem(versionRegistry.itemsByName.bread.id, 1)
     const bot = { registry: versionRegistry, inventory: { items: () => [bread] } } as Bot
 

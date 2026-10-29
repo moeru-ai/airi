@@ -969,6 +969,9 @@ catalogs:
     prismarine-recipe:
       specifier: ^1.5.0
       version: 1.5.0
+    prismarine-registry:
+      specifier: 1.12.0
+      version: 1.12.0
     prismarine-viewer:
       specifier: ^1.33.0
       version: 1.33.0
@@ -3784,6 +3787,9 @@ importers:
       '@types/ws':
         specifier: 'catalog:'
         version: 8.18.1
+      prismarine-registry:
+        specifier: 'catalog:'
+        version: 1.12.0(supports-color@10.2.2)
 
   integrations/satori-bot:
     dependencies:

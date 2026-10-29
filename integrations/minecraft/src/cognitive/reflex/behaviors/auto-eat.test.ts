@@ -3,16 +3,16 @@ import type { Item as InventoryItem } from 'prismarine-item'
 
 import type { ReflexApi } from '../types/behavior'
 
-import minecraftData from 'minecraft-data'
 import prismarineItem from 'prismarine-item'
+import prismarineRegistry from 'prismarine-registry'
 
 import { describe, expect, it } from 'vitest'
 
 import { ReflexContext } from '../context'
 import { autoEatBehavior } from './auto-eat'
 
-const registry = minecraftData('1.21.4')
-const Item = prismarineItem('1.21.4')
+const registry = prismarineRegistry('1.21.4')
+const Item = prismarineItem(registry)
 const bread = new Item(registry.itemsByName.bread.id, 1)
 const rawBeef = new Item(registry.itemsByName.beef.id, 1)
 
