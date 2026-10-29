@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/testing-audio",
   "type": "module",
-  "version": "0.13.1",
+  "version": "0.14.0",
   "private": true,
   "description": "AIRI Web and Electron audio pipeline tests",
   "author": {

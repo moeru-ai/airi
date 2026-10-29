@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/stream-kit",
   "type": "module",
-  "version": "0.13.1",
+  "version": "0.14.0",
   "private": true,
   "description": "Lifetime, scheduling, and stream utilities for AIRI",
   "author": {

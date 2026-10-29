@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/provider-inference",
   "type": "module",
-  "version": "0.13.1",
+  "version": "0.14.0",
   "private": true,
   "description": "Runtime-neutral provider definitions for AIRI inference",
   "author": {
