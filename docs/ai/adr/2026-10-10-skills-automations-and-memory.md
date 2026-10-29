@@ -55,9 +55,10 @@ A recipe is a skill, like a skill in a coding agent.
 - The store makes a UUIDv7 id when it adds an entry. A write with the id of an entry changes that entry. A write without an id adds an entry.
 - IndexedDB keeps the entries on the device, one record for each entry. A removal leaves a tombstone. After a change, the other windows read the entries again.
 - The run reads, writes, and forgets entries with memory tools. It needs no approval. It saves only when someone asks it to remember something, or corrects a remembered fact.
-- After each turn that answers the owner, the memory finalizer reads the turn and saves the lasting facts that it tells about the user. The reply shows what it saved as a folded line.
-- Only a conversation shows that a fact changed. The finalizer then writes that entry again with its id.
-- In Settings, the owner can tidy up the memories of one card. Its chat model merges entries about the same or a closely related topic into one entry, and keeps the newer of two entries that disagree. It never drops a fact, and a reply that loses an entry changes nothing.
+- After each turn that answers the owner, the memory finalizer reads the turn and saves the lasting facts that it tells about the user. It reads a recording as its transcript. The reply shows what it saved as a folded line.
+- The finalizer reads the entries of the card with their facts. To add a fact to a topic, or to change one, it writes that entry again with its id and keeps the other facts. Only a conversation shows that a fact changed.
+- The finalizer runs of one window go one at a time, so each run reads the writes of the run before. A memory reset stops the runs that started before it, in every window.
+- In Settings, the owner can tidy up the memories of one card. Its chat model merges entries about the same or a closely related topic into one entry, and keeps the newer of two entries that disagree. It never drops a fact. A reply that loses an entry changes nothing, and so does a tidy-up during which an entry changed.
 - A new entry belongs to the character card of the run. Other cards do not read it.
 - The owner can make an entry general in Settings. Every card then reads it in addition to its own entries. A run cannot change or forget a general entry.
 - Settings lists the entries grouped by card. A switch turns long-term memory off, and then no memory reaches a prompt.

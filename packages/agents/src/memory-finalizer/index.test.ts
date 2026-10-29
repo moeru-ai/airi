@@ -26,15 +26,21 @@ describe('parseMemoryFinalizerReply', () => {
 })
 
 describe('createMemoryFinalizerAgent', () => {
-  it('sends the index and the turn as data, and reads the reply', async () => {
+  // A written entry replaces the old one, so the model needs the old bodies to keep their facts.
+  it('sends the remembered entries with their bodies and the turn as data, and reads the reply', async () => {
     const generateText = vi.fn<GenerateText>(async () => '{"entries": []}')
     const agent = createMemoryFinalizerAgent({ generateText })
-    const turn = { index: '- Vx3k: Lives in Bangkok', userText: 'still on an M1 Pro', assistantText: 'It still holds up.' }
+    const turn = {
+      ownMemories: [{ id: 'Vx3k', description: 'Food', body: 'Allergic to peanuts. Eats no meat.' }],
+      generalMemories: [{ id: 'Qw8e', description: 'Lives in Bangkok', body: 'Has lived in Bangkok for years.' }],
+      userText: 'I stopped eating dairy too.',
+      assistantText: 'Noted.',
+    }
 
     await expect(agent.collect(turn, new AbortController().signal)).resolves.toEqual([])
     expect(generateText.mock.calls[0]?.[0]).toMatchObject({ turns: [
       { type: 'system' },
-      { type: 'user', content: [{ text: JSON.stringify({ memoryIndex: turn.index, user: turn.userText, character: turn.assistantText }) }] },
+      { type: 'user', content: [{ text: JSON.stringify({ ownMemories: turn.ownMemories, generalMemories: turn.generalMemories, user: turn.userText, character: turn.assistantText }) }] },
     ] })
   })
 })

@@ -114,8 +114,10 @@ vi.mock('../composables', () => ({
 
 // The finalizer sends its own request after each turn. These tests count the requests of the reply, and the agent
 // tests cover the finalizer.
+const memoryFinalizerMocks = vi.hoisted(() => ({ collect: vi.fn(async () => []) }))
+
 vi.mock('../composables/memory-finalizer', () => ({
-  useMemoryFinalizer: () => ({ collect: async () => [] }),
+  useMemoryFinalizer: () => ({ collect: memoryFinalizerMocks.collect }),
 }))
 
 vi.mock('../composables/use-io-tracer', () => ({
@@ -577,6 +579,24 @@ describe('chat store contract', () => {
     expect(requests[1]?.turns.findLast(turn => turn.type === 'user')?.content).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ type: 'audio' }),
     ]))
+  })
+
+  it('gives the memory finalizer the transcript of a message that is only a recording', async () => {
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    const store = useChatStore()
+    await store.send({
+      sessionId: 'session-1',
+      text: '',
+      attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'UklGRg==', transcript: 'I stopped eating dairy.' }],
+    })
+
+    await vi.waitFor(() => expect(memoryFinalizerMocks.collect).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ userText: 'I stopped eating dairy.' }),
+      expect.anything(),
+    ))
   })
 
   it('uses the target character settings for a voice submission', async () => {

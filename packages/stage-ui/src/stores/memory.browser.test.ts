@@ -65,12 +65,43 @@ describe('memory store', () => {
     const memory = createStore()
     const computer = (await memory.write({ description: 'Uses an M1 Pro', body: 'Still uses an M1 Pro.' }, 'airi'))!
     const old = (await memory.write({ description: 'Has not changed computers for long', body: 'Has not changed computers for a long time.' }, 'airi'))!
-    const replaced = [computer.id, old.id]
+    const replaced = [...memory.entries]
     const saved = (await memory.write({ description: 'Lives in Bangkok', body: 'Has lived in Bangkok for years.' }, 'airi'))!
 
     await memory.consolidate('airi', replaced, [{ ids: [computer.id, old.id], description: 'Still on an M1 Pro', body: 'Has used an M1 Pro for a long time.' }])
 
     expect(memory.indexFor('airi')).toBe(`Your own:\n- ${saved.id}: Lives in Bangkok\n- ${computer.id}: Still on an M1 Pro`)
+  })
+
+  it('rejects a tidy-up and changes nothing when one of its entries changed during it', async () => {
+    const chat = createStore()
+    const settings = createStore()
+    const food = (await chat.write({ description: 'Food', body: 'Allergic to peanuts.' }, 'airi'))!
+    const drinks = (await chat.write({ description: 'Drinks', body: 'Drinks no coffee.' }, 'airi'))!
+    await vi.waitFor(() => expect(settings.entries).toHaveLength(2))
+    const replaced = [...settings.entries]
+
+    // A turn in the chat window adds a fact while the tidy-up waits for its model.
+    await chat.write({ id: food.id, description: 'Food', body: 'Allergic to peanuts. Eats no dairy.' }, 'airi')
+
+    await expect(settings.consolidate('airi', replaced, [{ ids: [food.id, drinks.id], description: 'Food and drinks', body: 'Allergic to peanuts. Drinks no coffee.' }]))
+      .rejects
+      .toThrow('The memories changed during the tidy-up')
+    await vi.waitFor(() => expect(settings.read(food.id, 'airi')?.body).toBe('Allergic to peanuts. Eats no dairy.'))
+    expect(settings.read(drinks.id, 'airi')?.body).toBe('Drinks no coffee.')
+  })
+
+  it('stops the runs that started before a reset, also in another window', async () => {
+    const chat = createStore()
+    const settings = createStore()
+    const signal = chat.resetSignal()
+
+    await settings.resetState()
+
+    await vi.waitFor(() => expect(signal.aborted).toBe(true))
+    await expect(chat.write({ description: 'Food', body: 'Allergic to peanuts.' }, 'airi', signal)).rejects.toThrow()
+    expect(chat.entries).toEqual([])
+    expect(chat.resetSignal().aborted).toBe(false)
   })
 
   it('changes and forgets only the card own entries, and refuses an empty body', async () => {

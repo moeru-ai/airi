@@ -11,7 +11,7 @@ import { useTextGeneration } from './text-generation'
  *
  * Returns:
  * - `consolidate`, which replaces the card's entries with the tidied ones. It rejects when the card has no chat model,
- *   the request fails, or the reply is not valid. The memory stays as it is then.
+ *   the request fails, the reply is not valid, or an entry changed during the request. The memory stays as it is then.
  */
 export function useMemoryConsolidation() {
   const memory = useMemoryStore()
@@ -23,12 +23,10 @@ export function useMemoryConsolidation() {
     if (!provider || !model)
       throw new Error('No chat model is configured for this character')
 
-    const entries = memory.entries
-      .filter(entry => entry.persona === personaId)
-      .map(({ id, description, body }) => ({ id, description, body }))
+    const entries = memory.entries.filter(entry => entry.persona === personaId)
     const agent = createMemoryConsolidationAgent({ generateText: generateText({ providerId: provider, model }) })
-    const results = await agent.consolidate(entries, new AbortController().signal)
-    await memory.consolidate(personaId, entries.map(entry => entry.id), results)
+    const results = await agent.consolidate(entries.map(({ id, description, body }) => ({ id, description, body })), new AbortController().signal)
+    await memory.consolidate(personaId, entries, results)
   }
 
   return { consolidate }

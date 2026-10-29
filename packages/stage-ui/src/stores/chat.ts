@@ -6,6 +6,7 @@ import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
 import type { ChatHistoryItem, ChatToolReference } from '../types/chat'
 import type { ChatSessionTaskStatus, StoredVoiceInterruption } from '../types/chat-session'
+import type { MemoryEntry } from '../types/memory'
 import type { ToolCallRerunPayload } from './tool-call-rerun'
 
 import { errorMessageFrom } from '@moeru/std'
@@ -175,6 +176,29 @@ function waitWithSignal<T>(promise: Promise<T>, signal: AbortSignal) {
   })
 }
 
+/** What the user said in a message, as the chat model read it: the typed text, and each recording as its transcript. */
+function userTextOf(message: ChatHistoryItem) {
+  if (message.role !== 'user' || !Array.isArray(message.content))
+    return extractMessageText(message).trim()
+  // The transcripts follow the order of the audio parts.
+  let audioIndex = 0
+  return message.content
+    .flatMap((part) => {
+      if (part.type === 'text')
+        return [part.text.trim()]
+      if (part.type === 'input_audio')
+        return [message.audioTranscripts?.[audioIndex++]?.trim() ?? '']
+      return []
+    })
+    .filter(Boolean)
+    .join('\n')
+}
+
+/** The fields of a memory entry that the memory finalizer reads. */
+function finalizerMemoryOf({ id, description, body }: MemoryEntry) {
+  return { id, description, body }
+}
+
 /** Whether a consciousness selection can send. The `prompt-api` provider runs without a selected model. */
 function isChatSelectionReady(providerId: string, modelId: string) {
   return !!providerId && (!!modelId || providerId === 'prompt-api')
@@ -302,32 +326,49 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   const memoryFinalizer = useMemoryFinalizer()
+  /** The finalizer run of the last finished turn. Runs go one at a time, so each run reads the writes of the run before. */
+  let lastMemoryRun = Promise.resolve()
 
   /**
    * Saves the facts that a finished turn tells about the user, with the chat model of its character.
    * It runs after the reply, so the next turn does not wait for it. The reply shows what it saved. A failed run saves nothing.
+   * A memory reset stops the run of each turn before it, also while the run waits for the run before it.
    */
-  async function finalizeMemory(sessionId: string, assistantText: string, sessionMessages: ChatHistoryItem[]) {
-    if (!memory.enabled)
+  function finalizeMemory(sessionId: string, assistantText: string, sessionMessages: ChatHistoryItem[]) {
+    const signal = memory.resetSignal()
+    const run = lastMemoryRun.then(() => saveTurnMemories(sessionId, assistantText, sessionMessages, signal))
+    lastMemoryRun = run.catch(() => {})
+    return run
+  }
+
+  async function saveTurnMemories(sessionId: string, assistantText: string, sessionMessages: ChatHistoryItem[], signal: AbortSignal) {
+    if (!memory.enabled || signal.aborted)
       return
 
-    const userMessage = sessionMessages.findLast(message => message.role === 'user')
-    const userText = userMessage ? extractMessageText(userMessage) : ''
+    // A transcript that comes late replaces the stored user message, so the run reads the stored message.
+    const userId = sessionMessages.findLast(message => message.role === 'user')?.id
+    const messages = chatSession.getSessionMessages(sessionId)
+    const userIndex = userId ? messages.findIndex(message => message.role === 'user' && message.id === userId) : -1
+    const userMessage = userIndex < 0 ? undefined : messages[userIndex]
+    const userText = userMessage ? userTextOf(userMessage) : ''
     const persona = personaOf(sessionId)
     const { provider, model } = cardStore.getModules(persona).consciousness
-    if (!userMessage?.id || !userText.trim() || !isChatSelectionReady(provider, model))
+    if (!userText || !isChatSelectionReady(provider, model))
       return
 
     // The reply of this turn is committed before the turn is ready, right after its user message.
-    const messages = chatSession.getSessionMessages(sessionId)
-    const userIndex = messages.findIndex(message => message.id === userMessage.id)
-    const replyId = userIndex < 0 ? undefined : messages.slice(userIndex + 1).find(message => message.role === 'assistant')?.id
+    const replyId = messages.slice(userIndex + 1).find(message => message.role === 'assistant')?.id
 
-    const turn = { index: memory.indexFor(persona), userText, assistantText }
-    const entries = await memoryFinalizer.collect({ providerId: provider, model }, turn, new AbortController().signal)
+    const turn = {
+      ownMemories: memory.entries.filter(entry => entry.persona === persona).map(finalizerMemoryOf),
+      generalMemories: memory.entries.filter(entry => !entry.persona).map(finalizerMemoryOf),
+      userText,
+      assistantText,
+    }
+    const entries = await memoryFinalizer.collect({ providerId: provider, model }, turn, signal)
     const saved: { id: string, description: string }[] = []
     for (const entry of entries) {
-      const stored = await memory.write({ id: entry.id ?? undefined, description: entry.description, body: entry.body }, persona)
+      const stored = await memory.write({ id: entry.id ?? undefined, description: entry.description, body: entry.body }, persona, signal)
       if (stored)
         saved.push({ id: stored.id, description: stored.description })
     }
