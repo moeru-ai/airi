@@ -899,7 +899,7 @@ pages:
           microphone:
             title: 마이크
             label: 마이크
-            description: 청각 모듈의 마이크를 켜세요. 입력 모드에 따라 AIRI가 듣는 시점이 결정됩니다.
+            description: 청력 모듈의 마이크를 켜세요. 입력 모드에 따라 AIRI가 듣는 시점이 결정됩니다.
             error: 마이크를 사용할 수 없습니다
           input-device:
             label: 입력 장치
