@@ -14,6 +14,12 @@ import { useVoiceMessagesStore } from './voice-messages'
 
 const cleanups: (() => void)[] = []
 
+/**
+ * The first recording of a page loads the capture worklet before its first audio block.
+ * The load takes about 10 ms alone, but up to 1.2 s while other browser test files run, so the default 1 s poll fails.
+ */
+const FIRST_AUDIO_TIMEOUT_MS = 5000
+
 afterEach(() => {
   cleanups.splice(0).reverse().forEach(cleanup => cleanup())
   localStorage.clear()
@@ -54,7 +60,7 @@ describe('voice messages host', () => {
     const command = defineInvoke(getSpeechBusContext(), voiceMessageCommand)
 
     await command({ type: 'record', id: 'message', sessionId: 'alice', replyToMessageId: 'reply-target' })
-    await expect.poll(() => latest()[0]?.phase).toBe('capturing')
+    await expect.poll(() => latest()[0]?.phase, { timeout: FIRST_AUDIO_TIMEOUT_MS }).toBe('capturing')
     expect(store.isRecording).toBe(true)
 
     // The test has no chat session or provider, so the send fails after encoding. The host must keep the recording.
@@ -72,7 +78,7 @@ describe('voice messages host', () => {
     const command = defineInvoke(getSpeechBusContext(), voiceMessageCommand)
 
     await command({ type: 'record', id: 'message', sessionId: 'alice' })
-    await expect.poll(() => latest()[0]?.phase).toBe('capturing')
+    await expect.poll(() => latest()[0]?.phase, { timeout: FIRST_AUDIO_TIMEOUT_MS }).toBe('capturing')
     await command({ type: 'finish', id: 'message' })
 
     await expect.poll(() => latest()[0]?.phase).toBe('ready')
@@ -83,7 +89,7 @@ describe('voice messages host', () => {
     const { store, latest } = connectHost()
     const command = defineInvoke(getSpeechBusContext(), voiceMessageCommand)
     await command({ type: 'record', id: 'message', sessionId: 'alice' })
-    await expect.poll(() => latest()[0]?.phase).toBe('capturing')
+    await expect.poll(() => latest()[0]?.phase, { timeout: FIRST_AUDIO_TIMEOUT_MS }).toBe('capturing')
 
     const lease = new AbortController()
     cleanups.push(() => lease.abort())
@@ -118,7 +124,7 @@ describe('voice messages host', () => {
     await expect.poll(() => devices.selectedAudioInput).not.toBe('')
     const command = defineInvoke(getSpeechBusContext(), voiceMessageCommand)
     await command({ type: 'record', id: 'message', sessionId: 'alice' })
-    await expect.poll(() => latest()[0]?.phase).toBe('capturing')
+    await expect.poll(() => latest()[0]?.phase, { timeout: FIRST_AUDIO_TIMEOUT_MS }).toBe('capturing')
     await expect.poll(() => devices.stream?.getAudioTracks()[0].readyState).toBe('live')
     const track = devices.stream!.getAudioTracks()[0]
 
