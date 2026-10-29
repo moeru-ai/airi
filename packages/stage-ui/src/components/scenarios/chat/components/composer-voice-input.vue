@@ -11,19 +11,11 @@
 <script setup lang="ts">
 import type { ChatToolReference } from '../../../../types/chat'
 
-import { BasicButton, DropdownMenu } from '@proj-airi/ui'
-import { useEventListener, useLocalStorage, useNow } from '@vueuse/core'
+import { BasicButton, DropdownMenu, MenuItem, MenuLabel, MenuRadioItem, MenuSeparator, MenuSwitchItem } from '@proj-airi/ui'
+import { onLongPress, useEventListener, useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import {
-  DropdownMenuCheckboxItem,
-  DropdownMenuItem,
-  DropdownMenuItemIndicator,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-} from 'reka-ui'
-import { computed, nextTick, onBeforeUnmount, shallowRef, watch } from 'vue'
+import { DropdownMenuRadioGroup } from 'reka-ui'
+import { computed, nextTick, onBeforeUnmount, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
@@ -108,7 +100,7 @@ const voice = useVoiceComposer({
   onSent: () => emit('sent'),
   onError: message => toast.error(t('stage.chat.voice-composer.failed'), { description: message }),
 })
-const { phase, level, startedAt, pending } = voice
+const { phase, level, elapsed, pending } = voice
 const recording = computed(() => phase.value !== 'idle')
 
 /** The input surface shows the hold-to-talk bar instead of the text. */
@@ -132,20 +124,6 @@ const menuOpen = shallowRef(false)
 watch(recording, (value) => {
   if (value)
     menuOpen.value = false
-})
-
-const now = useNow({ interval: 250 })
-const stoppedAt = shallowRef(0)
-watch(phase, (value) => {
-  if (value === 'processing')
-    stoppedAt.value = Date.now()
-})
-const elapsed = computed(() => {
-  if (!startedAt.value)
-    return '0:00'
-  const end = phase.value === 'processing' ? stoppedAt.value : now.value.getTime()
-  const seconds = Math.max(0, Math.floor((end - startedAt.value) / 1000))
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
 })
 
 const modeIcons = {
@@ -207,21 +185,14 @@ function leaveWalkie() {
 }
 
 // A long press on the microphone opens the mode menu. The click that follows the press does not act on the mode.
-let pressTimer: ReturnType<typeof setTimeout> | undefined
+const microphone = useTemplateRef<InstanceType<typeof BasicButton>>('microphone')
 let suppressClick = false
-function pressStart(event: PointerEvent) {
-  if (!event.isPrimary || event.button !== 0 || recording.value)
+onLongPress(microphone, () => {
+  if (recording.value)
     return
-  suppressClick = false
-  clearTimeout(pressTimer)
-  pressTimer = setTimeout(() => {
-    suppressClick = true
-    menuOpen.value = true
-  }, MENU_PRESS_MS)
-}
-function pressEnd() {
-  clearTimeout(pressTimer)
-}
+  suppressClick = true
+  menuOpen.value = true
+}, { delay: MENU_PRESS_MS })
 function click() {
   if (suppressClick) {
     suppressClick = false
@@ -370,38 +341,13 @@ const quietButtonClasses = computed(() => [
   ...roundButtonClasses.value,
   'text-neutral-500 hover:bg-neutral-900/8 dark:text-neutral-400 dark:hover:bg-white/10',
 ])
-const itemClasses = [
-  'w-full flex cursor-pointer select-none items-center gap-2 rounded-lg px-3 py-2 text-left',
-  'text-sm leading-none outline-none text-neutral-700 dark:text-neutral-200',
-  'data-[highlighted]:bg-primary-100/80 dark:data-[highlighted]:bg-primary-900/40',
-  'transition-colors duration-150 ease-in-out',
-]
-const radioItemClasses = [
-  ...itemClasses,
-  'data-[state=checked]:text-primary-600 dark:data-[state=checked]:text-primary-300',
-]
-const labelClasses = ['px-3 pb-1 pt-2 text-xs text-neutral-500 dark:text-neutral-400']
-const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/80']
-
-function switchTrackClasses(on: boolean) {
-  return [
-    'relative h-4.5 w-8 shrink-0 rounded-full transition-colors duration-200 motion-reduce:transition-none',
-    on ? 'bg-primary-500' : 'bg-neutral-300 dark:bg-neutral-600',
-  ]
-}
-
-function switchThumbClasses(on: boolean) {
-  return [
-    'absolute top-0.5 size-3.5 rounded-full bg-white shadow transition-transform duration-200 motion-reduce:transition-none',
-    on ? 'translate-x-4' : 'translate-x-0.5',
-  ]
-}
 </script>
 
 <template>
   <!-- The slot keeps the size of the microphone, so the smaller stop button stays centered in the same place. -->
   <div v-bind="$attrs" :class="['relative shrink-0 flex items-center justify-center', sizeClass]">
     <BasicButton
+      ref="microphone"
       size="unset"
       type="button"
       data-testid="composer-voice-button"
@@ -417,10 +363,6 @@ function switchThumbClasses(on: boolean) {
         'touch-none select-none [-webkit-touch-callout:none]',
         !tapRecording && 'hover:text-primary-600 dark:hover:text-primary-300',
       ]"
-      @pointerdown="pressStart"
-      @pointerup="pressEnd"
-      @pointerleave="pressEnd"
-      @pointercancel="pressEnd"
       @click="click"
       @contextmenu.prevent="menuOpen = true"
       @keydown.up.prevent="menuOpen = true"
@@ -432,37 +374,22 @@ function switchThumbClasses(on: boolean) {
         <!-- The menu anchors to the microphone. The button keeps its tap for recording, so this anchor takes no pointer input. -->
         <span aria-hidden="true" tabindex="-1" :class="['pointer-events-none absolute inset-0']" />
       </template>
-      <DropdownMenuLabel :class="labelClasses">
-        {{ t('stage.chat.voice-composer.mode') }}
-      </DropdownMenuLabel>
+      <MenuLabel>{{ t('stage.chat.voice-composer.mode') }}</MenuLabel>
       <DropdownMenuRadioGroup v-model="mode">
-        <DropdownMenuRadioItem
-          v-for="item in MODES"
-          :key="item"
-          :value="item"
-          :data-testid="`composer-voice-mode-${item}`"
-          :class="radioItemClasses"
-        >
+        <MenuRadioItem v-for="item in MODES" :key="item" :value="item" :data-testid="`composer-voice-mode-${item}`">
           <span :class="[modeIcons[item], 'size-4 shrink-0']" />
           <span :class="['flex-1']">{{ t(`stage.chat.voice-composer.${item}`) }}</span>
-          <DropdownMenuItemIndicator>
-            <span :class="['i-mingcute:check-line size-4 shrink-0']" />
-          </DropdownMenuItemIndicator>
-        </DropdownMenuRadioItem>
+        </MenuRadioItem>
       </DropdownMenuRadioGroup>
-      <DropdownMenuSeparator :class="separatorClasses" />
-      <!-- The item toggles the switch, so the switch itself takes no input. -->
-      <DropdownMenuCheckboxItem v-model="autoSendEnabled" data-testid="composer-voice-auto-send" :class="itemClasses" @select.prevent>
-        <span :class="['flex-1']">{{ t('stage.chat.voice-composer.auto-send') }}</span>
-        <span aria-hidden="true" :class="switchTrackClasses(autoSendEnabled)">
-          <span :class="switchThumbClasses(autoSendEnabled)" />
-        </span>
-      </DropdownMenuCheckboxItem>
-      <DropdownMenuSeparator :class="separatorClasses" />
-      <DropdownMenuItem :class="itemClasses" @select="emit('configure', '/settings/modules/hearing')">
+      <MenuSeparator />
+      <MenuSwitchItem v-model="autoSendEnabled" data-testid="composer-voice-auto-send">
+        {{ t('stage.chat.voice-composer.auto-send') }}
+      </MenuSwitchItem>
+      <MenuSeparator />
+      <MenuItem @select="emit('configure', '/settings/modules/hearing')">
         <span :class="['flex-1']">{{ t('stage.chat.voice-composer.hearing-settings') }}</span>
         <span :class="['i-mingcute:right-line size-4 shrink-0 opacity-60']" />
-      </DropdownMenuItem>
+      </MenuItem>
     </DropdownMenu>
   </div>
 

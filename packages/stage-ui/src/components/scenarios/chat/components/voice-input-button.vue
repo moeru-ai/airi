@@ -3,18 +3,12 @@ import type { HearingInputMode } from '../../../../stores/modules/hearing'
 import type { ChatToolReference } from '../../../../types/chat'
 import type { VoiceComposerMode } from '../composables/use-voice-composer'
 
-import { BasicButton, DropdownMenu } from '@proj-airi/ui'
-import { useEventListener, useIntervalFn, useLocalStorage, useNow } from '@vueuse/core'
+import { BasicButton, DropdownMenu, MenuItem, menuItemClasses, MenuLabel, MenuRadioItem, MenuSeparator, MenuSwitchItem } from '@proj-airi/ui'
+import { useEventListener, useIntervalFn, useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import {
-  DropdownMenuCheckboxItem,
-  DropdownMenuItem,
-  DropdownMenuItemIndicator,
-  DropdownMenuLabel,
   DropdownMenuPortal,
   DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
@@ -97,26 +91,12 @@ const voice = useVoiceComposer({
   onSent: () => emit('sent'),
   onError: message => toast.error(t('stage.chat.voice-composer.failed'), { description: message }),
 })
-const { phase, transcript, level, startedAt, pending } = voice
+const { phase, transcript, level, elapsed, pending } = voice
 const active = computed(() => phase.value !== 'idle')
 /** The options menu opens on hover, a right-click, or the up arrow. It stays closed while a recording runs. */
 const menu = useHoverMenu({ enabled: () => !active.value })
 const menuOpen = menu.open
 const activeMode = computed(() => voice.mode.value ?? mode.value)
-const now = useNow({ interval: 250 })
-const stoppedAt = shallowRef(0)
-
-const elapsed = computed(() => formatDuration(startedAt.value ? ((phase.value === 'processing' ? stoppedAt.value : now.value.getTime()) - startedAt.value) / 1000 : 0))
-
-function formatDuration(seconds: number) {
-  const whole = Math.max(0, Math.floor(seconds))
-  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`
-}
-
-watch(phase, (value) => {
-  if (value === 'processing')
-    stoppedAt.value = Date.now()
-})
 watch(active, value => emit('recordingChange', value))
 
 // Dictation writes the live transcript into the composer. The final text from the host replaces it when the input ends.
@@ -246,39 +226,12 @@ const buttonLabel = computed(() => {
   return t(autoSendEnabled.value ? 'stage.chat.voice-composer.stop-send' : 'stage.chat.voice-composer.stop')
 })
 
-const itemClasses = [
-  'w-full flex cursor-pointer select-none items-center gap-2 rounded-lg px-3 py-2 text-left',
-  'text-sm leading-none outline-none text-neutral-700 dark:text-neutral-200',
-  'data-[highlighted]:bg-primary-100/80 dark:data-[highlighted]:bg-primary-900/40',
-  'data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50',
-  'transition-colors duration-150 ease-in-out',
-]
-const radioItemClasses = [
-  ...itemClasses,
-  'data-[state=checked]:text-primary-600 dark:data-[state=checked]:text-primary-300',
-]
-const labelClasses = ['px-3 pb-1 pt-2 text-xs text-neutral-500 dark:text-neutral-400']
-
-function switchTrackClasses(on: boolean) {
-  return [
-    'relative h-4.5 w-8 shrink-0 rounded-full transition-colors duration-200 motion-reduce:transition-none',
-    on ? 'bg-primary-500' : 'bg-neutral-300 dark:bg-neutral-600',
-  ]
-}
-
-function switchThumbClasses(on: boolean) {
-  return [
-    'absolute top-0.5 size-3.5 rounded-full bg-white shadow transition-transform duration-200 motion-reduce:transition-none',
-    on ? 'translate-x-4' : 'translate-x-0.5',
-  ]
-}
 /** Buttons in the status row share one size, so the row lines up. */
 const statusButtonClasses = [
   'size-8 shrink-0 flex items-center justify-center rounded-full outline-none',
   'text-neutral-500 hover:bg-neutral-900/10 dark:text-neutral-400 dark:hover:bg-white/10',
   'transition-colors duration-150 motion-reduce:transition-none',
 ]
-const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/80']
 </script>
 
 <template>
@@ -310,45 +263,26 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
         <span aria-hidden="true" tabindex="-1" :class="['pointer-events-none absolute inset-0']" />
       </template>
       <div @pointerenter="menu.enter()" @pointerleave="menu.leave()">
-        <DropdownMenuLabel :class="labelClasses">
-          {{ t('stage.chat.voice-composer.mode') }}
-        </DropdownMenuLabel>
+        <MenuLabel>{{ t('stage.chat.voice-composer.mode') }}</MenuLabel>
         <DropdownMenuRadioGroup v-model="mode">
-          <DropdownMenuRadioItem value="audio" :class="radioItemClasses" @select.prevent>
+          <MenuRadioItem value="audio">
             <span :class="['i-solar:microphone-3-linear size-4 shrink-0']" />
             <span :class="['flex-1']">{{ t('stage.chat.voice-composer.audio') }}</span>
-            <DropdownMenuItemIndicator>
-              <span :class="['i-ph:check-bold size-4 shrink-0']" />
-            </DropdownMenuItemIndicator>
-          </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="transcription" :class="radioItemClasses" @select.prevent>
+          </MenuRadioItem>
+          <MenuRadioItem value="transcription">
             <span :class="['i-solar:text-field-focus-linear size-4 shrink-0']" />
             <span :class="['flex-1']">{{ t('stage.chat.voice-composer.transcription') }}</span>
-            <DropdownMenuItemIndicator>
-              <span :class="['i-ph:check-bold size-4 shrink-0']" />
-            </DropdownMenuItemIndicator>
-          </DropdownMenuRadioItem>
+          </MenuRadioItem>
         </DropdownMenuRadioGroup>
-        <DropdownMenuSeparator :class="separatorClasses" />
-        <DropdownMenuLabel :class="labelClasses">
-          {{ t('stage.chat.voice-composer.input-device') }}
-        </DropdownMenuLabel>
+        <MenuSeparator />
+        <MenuLabel>{{ t('stage.chat.voice-composer.input-device') }}</MenuLabel>
         <!-- The microphone switch. Off closes the microphone for every feature, and nothing records until it is on again. -->
-        <DropdownMenuCheckboxItem
-          :model-value="!microphoneOff"
-          data-testid="voice-menu-microphone"
-          :class="itemClasses"
-          @update:model-value="value => microphoneOff = !value"
-          @select.prevent
-        >
-          <span :class="['flex-1']">{{ t('stage.chat.voice-composer.use-microphone') }}</span>
-          <span aria-hidden="true" :class="switchTrackClasses(!microphoneOff)">
-            <span :class="switchThumbClasses(!microphoneOff)" />
-          </span>
-        </DropdownMenuCheckboxItem>
+        <MenuSwitchItem :model-value="!microphoneOff" data-testid="voice-menu-microphone" @update:model-value="value => microphoneOff = !value">
+          {{ t('stage.chat.voice-composer.use-microphone') }}
+        </MenuSwitchItem>
         <!-- The current microphone, with its live level while the microphone is open. Its submenu lists the other devices. -->
         <DropdownMenuSub>
-          <DropdownMenuSubTrigger data-testid="voice-menu-device" :class="[itemClasses, 'py-1.5']">
+          <DropdownMenuSubTrigger data-testid="voice-menu-device" :class="[menuItemClasses, 'py-1.5']">
             <span :class="['min-w-0 flex flex-1 flex-col gap-1.5']">
               <span :class="['truncate']">{{ currentDevice }}</span>
               <span v-if="meterVisible" aria-hidden="true" :class="['h-1 w-full overflow-hidden rounded-full bg-neutral-900/10 dark:bg-white/10']">
@@ -372,47 +306,31 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
               @pointerenter="menu.enter()"
             >
               <!-- Browsers list microphones only after access. A click in the menu is a user gesture, so it can ask. -->
-              <DropdownMenuItem
+              <MenuItem
                 v-if="audioInputOptions.length === 0"
                 data-testid="voice-menu-device-allow"
-                :class="itemClasses"
                 @select.prevent="allowMicrophone"
               >
                 <span :class="['i-solar:microphone-3-linear size-4 shrink-0']" />
                 <span :class="['flex-1']">{{ permission === 'denied' ? t('settings.pages.modules.hearing.sections.section.input-device.blocked') : t('settings.pages.modules.hearing.sections.section.input-device.allow') }}</span>
-              </DropdownMenuItem>
+              </MenuItem>
               <DropdownMenuRadioGroup v-model="selectedAudioInput">
-                <DropdownMenuRadioItem
-                  v-for="device in audioInputOptions"
-                  :key="device.value"
-                  :value="device.value"
-                  :class="radioItemClasses"
-                  @select.prevent
-                >
+                <MenuRadioItem v-for="device in audioInputOptions" :key="device.value" :value="device.value">
                   <span :class="['flex-1 truncate']">{{ device.label !== device.value ? device.label : t('stage.chat.voice-composer.system-default') }}</span>
-                  <DropdownMenuItemIndicator>
-                    <span :class="['i-ph:check-bold size-4 shrink-0']" />
-                  </DropdownMenuItemIndicator>
-                </DropdownMenuRadioItem>
+                </MenuRadioItem>
               </DropdownMenuRadioGroup>
             </DropdownMenuSubContent>
           </DropdownMenuPortal>
         </DropdownMenuSub>
-        <DropdownMenuSeparator :class="separatorClasses" />
+        <MenuSeparator />
         <!-- Settings that change behavior are switches. The item toggles them, so the switch itself takes no input. -->
-        <DropdownMenuCheckboxItem v-model="autoSendEnabled" data-testid="voice-menu-auto-send" :class="itemClasses" @select.prevent>
-          <span :class="['flex-1']">{{ t('stage.chat.voice-composer.auto-send') }}</span>
-          <span aria-hidden="true" :class="switchTrackClasses(autoSendEnabled)">
-            <span :class="switchThumbClasses(autoSendEnabled)" />
-          </span>
-        </DropdownMenuCheckboxItem>
-        <DropdownMenuCheckboxItem :model-value="listening" :disabled="microphoneOff" data-testid="voice-menu-listen" :class="itemClasses" @update:model-value="setListening" @select.prevent>
-          <!-- The switch turns on the Hearing input mode. The mode itself is chosen in Hearing settings. It waits while the microphone is off. -->
-          <span :class="['flex-1']">{{ t(listenLabelKeys[inputMode]) }}</span>
-          <span aria-hidden="true" :class="switchTrackClasses(listening)">
-            <span :class="switchThumbClasses(listening)" />
-          </span>
-        </DropdownMenuCheckboxItem>
+        <MenuSwitchItem v-model="autoSendEnabled" data-testid="voice-menu-auto-send">
+          {{ t('stage.chat.voice-composer.auto-send') }}
+        </MenuSwitchItem>
+        <!-- The switch turns on the Hearing input mode. The mode itself is chosen in Hearing settings. It waits while the microphone is off. -->
+        <MenuSwitchItem :model-value="listening" :disabled="microphoneOff" data-testid="voice-menu-listen" @update:model-value="setListening">
+          {{ t(listenLabelKeys[inputMode]) }}
+        </MenuSwitchItem>
         <!-- Push to Talk keeps the microphone closed until a hold. Without a hold trigger the switch alone never listens. -->
         <p
           v-if="pushToTalkStranded"
@@ -423,11 +341,11 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
           <span aria-hidden="true" :class="['i-solar:danger-circle-linear mt-0.5 size-4 shrink-0']" />
           <span>{{ t('stage.chat.voice-composer.push-to-talk-unavailable') }}</span>
         </p>
-        <DropdownMenuSeparator :class="separatorClasses" />
-        <DropdownMenuItem :class="itemClasses" @select="emit('configure', '/settings/modules/hearing')">
+        <MenuSeparator />
+        <MenuItem @select="emit('configure', '/settings/modules/hearing')">
           <span :class="['flex-1']">{{ t('stage.chat.voice-composer.hearing-settings') }}</span>
           <span :class="['i-solar:alt-arrow-right-linear size-4 shrink-0 opacity-60']" />
-        </DropdownMenuItem>
+        </MenuItem>
       </div>
     </DropdownMenu>
   </div>

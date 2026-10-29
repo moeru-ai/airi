@@ -10,6 +10,7 @@
 </script>
 
 <script setup lang="ts">
+import { LevelBars } from '@proj-airi/ui'
 import { useEventListener } from '@vueuse/core'
 import { computed, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -42,9 +43,6 @@ const emit = defineEmits<{
   /** The card finished leaving. */
   afterLeave: []
 }>()
-
-/** Bars of the capsule level meter. Each bar scales the same level by its own factor, so the meter looks like a voice. */
-const LEVEL_BARS = [0.55, 0.85, 1, 0.75, 0.5] as const
 
 const { t } = useI18n()
 const controls = useVoiceControlsStore()
@@ -190,14 +188,8 @@ defineExpose({
         role="status"
         :class="['drag-region h-full w-full flex items-center gap-2.5 px-4', 'text-sm text-neutral-600 dark:text-neutral-300']"
       >
-        <span aria-hidden="true" :class="['h-4 flex shrink-0 items-center gap-0.5']">
-          <span
-            v-for="(factor, index) in LEVEL_BARS"
-            :key="index"
-            :class="['w-0.75 rounded-full bg-primary-500', 'transition-[height] duration-100 motion-reduce:transition-none']"
-            :style="{ height: `${Math.round(25 + 75 * Math.min(1, controls.level * factor * 1.6))}%` }"
-          />
-        </span>
+        <!-- The host level is quiet for normal speech, so it is amplified before it fills the bars. -->
+        <LevelBars :level="controls.level * 1.6" :class="['shrink-0 text-primary-500']" />
         <span :class="['min-w-0 truncate']">
           {{ t('stage.chat.voice-draft.listening') }}<template v-if="characterName"> · {{ characterName }}</template>
         </span>

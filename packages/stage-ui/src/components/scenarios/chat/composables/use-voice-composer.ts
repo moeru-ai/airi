@@ -1,6 +1,7 @@
 import type { ChatToolReference } from '../../../../types/chat'
 
 import { errorMessageFrom } from '@moeru/std'
+import { useNow } from '@vueuse/core'
 import { nanoid } from 'nanoid/non-secure'
 import { computed, onScopeDispose, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -8,6 +9,7 @@ import { useI18n } from 'vue-i18n'
 import { getSpeechBusContext, voiceMessageDropped } from '../../../../services/speech/bus'
 import { useHearingStore } from '../../../../stores/modules/hearing'
 import { useVoiceControlsStore } from '../../../../stores/voice-controls'
+import { formatClockDuration } from '../../../../utils/clock-duration'
 
 /**
  * `audio` records a voice message and sends it as an audio attachment.
@@ -96,11 +98,24 @@ export function useVoiceComposer(options: UseVoiceComposerOptions) {
   const transcript = computed(() => input.value?.text ?? '')
   const level = computed(() => phase.value === 'recording' ? controls.level : 0)
 
+  /** When capture ended. The time stops there while the recording finishes. */
+  const stoppedAt = shallowRef<number>()
   watch(phase, (value) => {
     if (value === 'recording')
       startedAt.value ??= Date.now()
-    if (value === 'idle')
+    if (value === 'processing')
+      stoppedAt.value = Date.now()
+    if (value === 'idle') {
       startedAt.value = undefined
+      stoppedAt.value = undefined
+    }
+  })
+  const now = useNow({ interval: 250 })
+  /** The recording time as `m:ss`. It runs while capture runs and stops while the recording finishes. */
+  const elapsed = computed(() => {
+    if (!startedAt.value)
+      return formatClockDuration(0)
+    return formatClockDuration(((stoppedAt.value ?? now.value.getTime()) - startedAt.value) / 1000)
   })
 
   // A voice message leaves the host list after it is sent or discarded. Other terminal states end the control here.
@@ -279,6 +294,7 @@ export function useVoiceComposer(options: UseVoiceComposerOptions) {
     transcript,
     level,
     startedAt,
+    elapsed,
     pending,
     start,
     finish,
