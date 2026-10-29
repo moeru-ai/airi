@@ -157,4 +157,14 @@ describe('traceCollector', () => {
 
     expect(wanted.map(tracks => tracks === '*' ? '*' : [...tracks])).toEqual([['a'], ['a', 'b'], ['b']])
   })
+
+  it('does not tell producers again when the union stays the same', () => {
+    const wanted: Array<ReadonlySet<string> | '*'> = []
+    const { collector } = setup({ onWantedChange: tracks => wanted.push(tracks) })
+    const viewer = collector.subscribe(() => {}, ['a'])
+    viewer.setTracks(['a'])
+    collector.subscribe(() => {}, ['a'])
+
+    expect(wanted.map(tracks => tracks === '*' ? '*' : [...tracks])).toEqual([['a']])
+  })
 })

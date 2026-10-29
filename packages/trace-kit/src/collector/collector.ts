@@ -1,3 +1,5 @@
+import type { CatchUpFeed, Cooldown, Demand, LeaseTable } from '@proj-airi/stream-kit'
+
 import type { TraceAttributeDefinition } from '../core/definitions'
 import type { TraceFeedMessage } from '../core/feed'
 import type {
@@ -13,6 +15,7 @@ import type {
 } from '../core/types'
 import type { FlightRecorderDump } from './types'
 
+import { createCatchUpFeed, createCooldown, createLeaseTable, DemandUnion, RetentionBuffer, SequenceTracker, Watermark } from '@proj-airi/stream-kit'
 import { safeParse } from 'valibot'
 
 import { applyContentPolicy, conventionAttributes } from '../conventions'
@@ -58,14 +61,14 @@ export interface TraceCollectorOptions {
 interface EpochState {
   source: string
   epoch: string
-  /** Every seq below it was seen. */
-  nextSeq: number
-  /** Seen seqs at or above `nextSeq`. A transport that reorders, such as a resend after a leader change, fills it. */
-  ahead: Set<number>
+  /**
+   * The seen seqs. A transport that reorders, such as a resend after a leader change, can deliver them in any order.
+   * `nextSeq - 1` is the cursor of the epoch.
+   */
+  seqs: SequenceTracker
   live: boolean
-  lastSeenAt: number
-  /** The newest event time of the source on the trace clock. The watermark trails it by the allowed lateness. */
-  newestTime: number
+  /** Trails the newest event time of the source on the trace clock by the allowed lateness. */
+  watermark: Watermark
 }
 
 interface BufferEntry {
@@ -74,11 +77,6 @@ interface BufferEntry {
   time: number
   observedAt: number
   bytes: number
-}
-
-interface Subscriber {
-  listener: (message: TraceFeedMessage) => void
-  tracks: ReadonlySet<string> | '*'
 }
 
 const DEFAULTS = {
@@ -100,6 +98,8 @@ const PINNED_SNAPSHOTS_PER_CLOCK_SET = 16
  *
  * State model:
  * - Epochs: one {@link EpochState} for each `source/epoch`. A record with a seen seq is dropped.
+ * - Heartbeats: one lease for each `source/epoch`. Each new record and each `touch` renews it. A live epoch whose
+ *   lease expires is lost.
  * - Event buffer: every record except series, limited by age and bytes. Eviction records a gap.
  * - Series rings: one {@link SeriesRing} for each `track` and value key of `sample` and `sample.chunk` records.
  * - Pinned set: the latest `source.started` of each live epoch, live streams, recent clock snapshots, open spans with
@@ -118,8 +118,10 @@ export class TraceCollector {
   private readonly epochs = new Map<string, EpochState>()
   /** The live epoch of each source. */
   private readonly liveEpochBySource = new Map<string, string>()
-  private buffer: BufferEntry[] = []
-  private bufferBytes = 0
+  private readonly heartbeats: LeaseTable<string>
+  private readonly buffer: RetentionBuffer<BufferEntry>
+  /** The groups that the buffer dropped in the current push or eviction. They become one gap. */
+  private evicted: BufferEntry[][] = []
   private gaps: { from: number, to: number }[] = []
   private readonly seriesRings = new Map<string, { source: string, track: string, key: string, ring: SeriesRing }>()
   private readonly pinnedStarts = new Map<string, TraceSourceStarted>()
@@ -129,9 +131,13 @@ export class TraceCollector {
   private readonly pinnedStates = new Map<string, { record: TraceState, time: number }>()
   private readonly pinnedDefinitions = new Map<string, TraceDefinitionRecord>()
   private readonly attributeSensitivity = new Map<string, TraceAttributeDefinition['sensitivity']>()
-  private readonly subscribers = new Set<Subscriber>()
+  private readonly feed: CatchUpFeed<TraceFeedMessage>
+  /** The tracks of each viewer, by subscription ID. */
+  private readonly demand: DemandUnion<string>
+  private nextSubscriptionId = 0
   private readonly dumpedSpans = new Set<string>()
-  private readonly lastDumpAtBySource = new Map<string, number>()
+  /** The flight recorder cooldown of each source. */
+  private readonly dumpCooldown: Cooldown
   private lastDumpEnd = Number.NEGATIVE_INFINITY
   private lateCount = 0
   private droppedCount = 0
@@ -145,6 +151,21 @@ export class TraceCollector {
     for (const attribute of conventionAttributes)
       this.attributeSensitivity.set(attribute.key, attribute.sensitivity)
 
+    this.heartbeats = createLeaseTable({ ttlMs: options.heartbeatTimeoutMs ?? DEFAULTS.heartbeatTimeoutMs })
+    this.buffer = new RetentionBuffer<BufferEntry>({
+      maxBytes: options.maxBytes ?? DEFAULTS.maxBytes,
+      maxAgeMs: options.maxAgeMs ?? DEFAULTS.maxAgeMs,
+      sizeOf: entry => entry.bytes,
+      ageOf: entry => entry.observedAt,
+      onEvict: entries => this.evicted.push(entries),
+    })
+    this.feed = createCatchUpFeed<TraceFeedMessage>({
+      backlog: () => this.backlog(),
+      caughtUp: () => ({ kind: 'caughtUp', cursor: this.cursor(), traceClock: this.traceClock, now: this.options.now() }),
+    })
+    this.demand = new DemandUnion<string>({ onChange: union => this.options.onWantedChange?.(union) })
+    this.dumpCooldown = createCooldown({ ms: options.flightRecorder?.cooldownMs ?? DEFAULTS.flightCooldownMs })
+
     this.self = new TraceSource({
       source: 'collector',
       clock: this.traceClock,
@@ -157,8 +178,8 @@ export class TraceCollector {
 
   get stats() {
     return {
-      bufferedRecords: this.buffer.length,
-      bufferedBytes: this.bufferBytes,
+      bufferedRecords: this.buffer.size,
+      bufferedBytes: this.buffer.bytes,
       openSpans: this.pinnedSpans.size,
       seriesTracks: this.seriesRings.size,
       late: this.lateCount,
@@ -190,8 +211,7 @@ export class TraceCollector {
     this.buffering = enabled
     if (enabled)
       return
-    this.buffer = []
-    this.bufferBytes = 0
+    this.buffer.clear()
     this.gaps = []
     this.seriesRings.clear()
   }
@@ -209,9 +229,9 @@ export class TraceCollector {
   /** Records that a source is alive without a record, for example on a clock ping. */
   touch(source: string): void {
     const epoch = this.liveEpochBySource.get(source)
-    const state = epoch ? this.epochs.get(`${source}/${epoch}`) : undefined
-    if (state)
-      state.lastSeenAt = this.options.now()
+    const epochKey = `${source}/${epoch}`
+    if (epoch && this.epochs.has(epochKey))
+      this.heartbeats.touch(epochKey, this.options.now())
   }
 
   /** The transport of a source closed. Its live epoch is lost unless it stopped first. */
@@ -224,34 +244,23 @@ export class TraceCollector {
    * record, in that order. Nothing arrives between the backlog and the first live record, because one call does both.
    */
   subscribe(listener: (message: TraceFeedMessage) => void, tracks: Iterable<string> | '*' = '*'): { unsubscribe: () => void, setTracks: (tracks: Iterable<string> | '*') => void } {
-    const subscriber: Subscriber = { listener, tracks: tracks === '*' ? '*' : new Set(tracks) }
-
-    for (const record of this.pinnedRecords())
-      listener({ kind: 'record', record, pinned: true })
-    for (const gap of this.gaps)
-      listener({ kind: 'gap', ...gap })
-    for (const entry of this.buffer)
-      listener({ kind: 'record', record: entry.record })
-    for (const { source, track, key, ring } of this.seriesRings.values()) {
-      const { times, values } = ring.read()
-      if (times.length > 0)
-        listener({ kind: 'series', source, track, key, times, values })
-    }
-    const cursor: Record<string, number> = {}
-    for (const [key, state] of this.epochs)
-      cursor[key] = state.nextSeq - 1
-    listener({ kind: 'caughtUp', cursor, traceClock: this.traceClock, now: this.options.now() })
-
-    this.subscribers.add(subscriber)
-    this.publishWanted()
+    const id = String(this.nextSubscriptionId++)
+    let wanted: Demand<string> = tracks === '*' ? '*' : new Set(tracks)
+    // The filter sees the backlog too. The backlog has no sample records, because the series rings keep them.
+    const { unsubscribe } = this.feed.subscribe((message) => {
+      if (message.kind === 'record' && !wantsRecord(wanted, message.record))
+        return
+      listener(message)
+    })
+    this.demand.set(id, wanted)
     return {
       unsubscribe: () => {
-        this.subscribers.delete(subscriber)
-        this.publishWanted()
+        unsubscribe()
+        this.demand.delete(id)
       },
       setTracks: (next) => {
-        subscriber.tracks = next === '*' ? '*' : new Set(next)
-        this.publishWanted()
+        wanted = next === '*' ? '*' : new Set(next)
+        this.demand.set(id, wanted)
       },
     }
   }
@@ -264,14 +273,13 @@ export class TraceCollector {
     const now = this.options.now()
     for (const { ring } of this.seriesRings.values())
       ring.compact(now)
-    this.evict(now)
+    this.buffer.evict(now)
+    this.reportGap()
 
-    const timeout = this.options.heartbeatTimeoutMs ?? DEFAULTS.heartbeatTimeoutMs
+    // An expired lease of an epoch that is not live anymore only goes away. Live epochs go in the order they started.
+    const expired = new Set(this.heartbeats.expired(now))
     for (const [source, epoch] of this.liveEpochBySource) {
-      if (source === this.self.source)
-        continue
-      const state = this.epochs.get(`${source}/${epoch}`)
-      if (state && now - state.lastSeenAt > timeout)
+      if (source !== this.self.source && expired.has(`${source}/${epoch}`))
         this.loseSource(source, 'heartbeat-timeout')
     }
 
@@ -286,7 +294,7 @@ export class TraceCollector {
 
   /** The current records of the buffer and the pinned set, for a manual save. */
   snapshot(): TraceRecord[] {
-    return [...this.pinnedRecords(), ...this.buffer.map(entry => entry.record)]
+    return [...this.pinnedRecords(), ...Array.from(this.buffer.values(), entry => entry.record)]
   }
 
   /** The sensitivity of an attribute key, from the conventions and the announced definitions. */
@@ -301,25 +309,20 @@ export class TraceCollector {
       const previous = this.liveEpochBySource.get(incoming.source)
       if (previous && previous !== incoming.epoch)
         this.loseSource(incoming.source, 'epoch-replaced')
-      state = { source: incoming.source, epoch: incoming.epoch, nextSeq: 0, ahead: new Set(), live: true, lastSeenAt: now, newestTime: Number.NEGATIVE_INFINITY }
-      this.epochs.set(epochKey, state)
+      state = this.createEpoch(incoming, now)
       this.liveEpochBySource.set(incoming.source, incoming.epoch)
     }
 
     if (!state) {
       // A record before its `source.started`, for example after the collector restarted. Track the epoch anyway.
-      state = { source: incoming.source, epoch: incoming.epoch, nextSeq: 0, ahead: new Set(), live: true, lastSeenAt: now, newestTime: Number.NEGATIVE_INFINITY }
-      this.epochs.set(epochKey, state)
+      state = this.createEpoch(incoming, now)
       if (!this.liveEpochBySource.has(incoming.source))
         this.liveEpochBySource.set(incoming.source, incoming.epoch)
     }
 
-    if (incoming.seq < state.nextSeq || state.ahead.has(incoming.seq))
+    if (!state.seqs.accept(incoming.seq))
       return
-    state.ahead.add(incoming.seq)
-    while (state.ahead.delete(state.nextSeq))
-      state.nextSeq++
-    state.lastSeenAt = now
+    this.heartbeats.touch(epochKey, now)
 
     // The live buffer keeps content and drops secrets. Files on disk and exports apply the full policy.
     const record = applyContentPolicy({ ...incoming, observedTs: now }, { keepContent: true, sensitivityOf: this.sensitivityOf })
@@ -327,10 +330,9 @@ export class TraceCollector {
     this.updateDefinitions(record)
 
     const time = this.timeOf(record) ?? now
-    const late = time < state.newestTime - (this.options.allowedLatenessMs ?? DEFAULTS.allowedLatenessMs)
+    const { late } = state.watermark.observe(time)
     if (late)
       this.lateCount++
-    state.newestTime = Math.max(state.newestTime, time)
 
     this.updatePinned(record, time)
 
@@ -338,6 +340,7 @@ export class TraceCollector {
       state.live = false
       if (this.liveEpochBySource.get(record.source) === record.epoch)
         this.liveEpochBySource.delete(record.source)
+      this.heartbeats.delete(epochKey)
       this.unpinEpoch(record.source, record.epoch)
     }
 
@@ -347,19 +350,57 @@ export class TraceCollector {
     }
     else if (this.buffering) {
       const bytes = JSON.stringify(record).length
+      const overLimit = this.buffer.bytes + bytes > (this.options.maxBytes ?? DEFAULTS.maxBytes)
+      // The push drops the oldest records over the byte limit. Over the limit, the age limit applies too, and both
+      // drops become one gap.
       this.buffer.push({ record, time, observedAt: now, bytes })
-      this.bufferBytes += bytes
-      if (this.bufferBytes > (this.options.maxBytes ?? DEFAULTS.maxBytes))
-        this.evict(now)
+      if (overLimit)
+        this.buffer.evict(now)
+      this.reportGap()
     }
 
-    for (const subscriber of this.subscribers) {
-      if (this.wantsRecord(subscriber, record))
-        subscriber.listener({ kind: 'record', record, ...(late ? { late } : {}) })
-    }
+    this.feed.publish({ kind: 'record', record, ...(late ? { late } : {}) })
 
     if (record.type === 'span.end' && record.status === 'error')
       this.triggerDump(spanKeyOf(record.source, record.epoch, record.spanId), record.source, 'error', now)
+  }
+
+  private createEpoch(record: TraceRecord, now: number): EpochState {
+    const state: EpochState = {
+      source: record.source,
+      epoch: record.epoch,
+      seqs: new SequenceTracker(),
+      live: true,
+      watermark: new Watermark({ allowedLatenessMs: this.options.allowedLatenessMs ?? DEFAULTS.allowedLatenessMs }),
+    }
+    const epochKey = `${record.source}/${record.epoch}`
+    this.epochs.set(epochKey, state)
+    // A new epoch has a lease also when the tracker refuses its first record.
+    this.heartbeats.touch(epochKey, now)
+    return state
+  }
+
+  /** The last seq of each `source/epoch`. */
+  private cursor(): Record<string, number> {
+    const cursor: Record<string, number> = {}
+    for (const [key, state] of this.epochs)
+      cursor[key] = state.seqs.nextSeq - 1
+    return cursor
+  }
+
+  /** The backlog of a new viewer: the pinned set, the gaps, the buffer, and the series. */
+  private* backlog(): Generator<TraceFeedMessage> {
+    for (const record of this.pinnedRecords())
+      yield { kind: 'record', record, pinned: true }
+    for (const gap of this.gaps)
+      yield { kind: 'gap', ...gap }
+    for (const entry of this.buffer.values())
+      yield { kind: 'record', record: entry.record }
+    for (const { source, track, key, ring } of this.seriesRings.values()) {
+      const { times, values } = ring.read()
+      if (times.length > 0)
+        yield { kind: 'series', source, track, key, times, values }
+    }
   }
 
   /** Converts the event time of a record to the trace clock. */
@@ -456,9 +497,10 @@ export class TraceCollector {
     this.liveEpochBySource.delete(source)
     if (state)
       state.live = false
+    this.heartbeats.delete(`${source}/${epoch}`)
     // The open spans of the lost epoch become abandoned in the view. The collector does not invent a `span.end`.
     this.unpinEpoch(source, epoch)
-    this.self.emit({ type: 'source.lost', ts: this.options.now(), of: { source, epoch, lastSeq: (state?.nextSeq ?? 0) - 1 }, reason })
+    this.self.emit({ type: 'source.lost', ts: this.options.now(), of: { source, epoch, lastSeq: (state?.seqs.nextSeq ?? 0) - 1 }, reason })
   }
 
   private appendSeries(record: Extract<TraceRecord, { type: 'sample' | 'sample.chunk' }>, time: number): void {
@@ -488,38 +530,25 @@ export class TraceCollector {
     }
   }
 
-  /** Drops records older than the age limit, then the oldest records over the byte limit. Records the gap. */
-  private evict(now: number): void {
-    const cutoff = now - (this.options.maxAgeMs ?? DEFAULTS.maxAgeMs)
-    const maxBytes = this.options.maxBytes ?? DEFAULTS.maxBytes
-    let count = 0
-    let bytes = this.bufferBytes
-    while (count < this.buffer.length) {
-      const entry = this.buffer[count]!
-      if (entry.observedAt >= cutoff && bytes <= maxBytes)
-        break
-      bytes -= entry.bytes
-      count++
-    }
-    if (count === 0)
+  /** Turns the records that the buffer dropped since the last call into one gap, and tells the viewers. */
+  private reportGap(): void {
+    if (this.evicted.length === 0)
       return
-
-    const evicted = this.buffer.slice(0, count)
-    this.buffer = this.buffer.slice(count)
-    this.bufferBytes = bytes
     let from = Number.POSITIVE_INFINITY
     let to = Number.NEGATIVE_INFINITY
-    for (const entry of evicted) {
-      from = Math.min(from, entry.time)
-      to = Math.max(to, entry.time)
+    for (const group of this.evicted) {
+      for (const entry of group) {
+        from = Math.min(from, entry.time)
+        to = Math.max(to, entry.time)
+      }
     }
+    this.evicted = []
     const last = this.gaps.at(-1)
     if (last && from <= last.to)
       last.to = Math.max(last.to, to)
     else
       this.gaps.push({ from, to })
-    for (const subscriber of this.subscribers)
-      subscriber.listener({ kind: 'gap', from, to })
+    this.feed.publish({ kind: 'gap', from, to })
   }
 
   /**
@@ -532,16 +561,17 @@ export class TraceCollector {
       return
     this.dumpedSpans.add(spanKey)
 
-    const cooldownMs = recorder.cooldownMs ?? DEFAULTS.flightCooldownMs
-    const lastDumpAt = this.lastDumpAtBySource.get(source)
-    if (lastDumpAt !== undefined && now - lastDumpAt < cooldownMs)
+    if (!this.dumpCooldown.tryAcquire(source, now))
       return
-    this.lastDumpAtBySource.set(source, now)
 
     const from = now - (recorder.windowMs ?? DEFAULTS.flightWindowMs)
     const append = from < this.lastDumpEnd
     const start = append ? this.lastDumpEnd : from
-    const records = this.buffer.filter(entry => entry.observedAt > start).map(entry => entry.record)
+    const records: TraceRecord[] = []
+    for (const entry of this.buffer.values()) {
+      if (entry.observedAt > start)
+        records.push(entry.record)
+    }
     this.lastDumpEnd = now
     recorder.onDump({ records: append ? records : [...this.pinnedRecords(), ...records], append, reason, from: start, to: now })
   }
@@ -556,28 +586,13 @@ export class TraceCollector {
       ...[...this.pinnedStates.values()].map(state => state.record),
     ]
   }
+}
 
-  private wantsRecord(subscriber: Subscriber, record: TraceRecord): boolean {
-    if (subscriber.tracks === '*' || !isTrackedRecord(record))
-      return true
-    // A viewer that shows a subset still needs every record that is not a series, for links, metrics, and the log.
-    if (record.type !== 'sample' && record.type !== 'sample.chunk')
-      return true
-    return subscriber.tracks.has(record.track)
-  }
-
-  private publishWanted(): void {
-    if (!this.options.onWantedChange)
-      return
-    const union = new Set<string>()
-    for (const subscriber of this.subscribers) {
-      if (subscriber.tracks === '*') {
-        this.options.onWantedChange('*')
-        return
-      }
-      for (const track of subscriber.tracks)
-        union.add(track)
-    }
-    this.options.onWantedChange(union)
-  }
+function wantsRecord(tracks: Demand<string>, record: TraceRecord): boolean {
+  if (tracks === '*' || !isTrackedRecord(record))
+    return true
+  // A viewer that shows a subset still needs every record that is not a series, for links, metrics, and the log.
+  if (record.type !== 'sample' && record.type !== 'sample.chunk')
+    return true
+  return tracks.has(record.track)
 }

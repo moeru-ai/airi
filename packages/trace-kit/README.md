@@ -82,6 +82,8 @@ reader.view(timeline).tracks
 
 A subscription first gets the pinned set, the gaps, the buffer, and the series rings. Then it gets `caughtUp` and each later record. The host calls `collector.tick()` about once a second.
 
+The collector builds on the event stream primitives of `@proj-airi/stream-kit`: `RetentionBuffer`, `SequenceTracker`, `Watermark`, `DemandUnion`, `createLeaseTable`, `createCooldown`, and `createCatchUpFeed`. `onWantedChange` runs only when the union of the viewer tracks changes.
+
 A viewer that does not own the collector reads a `TraceFeedSource`: the trace clock and a `subscribe` function that sends `TraceFeedMessage` values. A host gives a local collector, a hub in another process, or a fixture as a feed source.
 
 To read a file or the records of a test, call `reader.handleRecords(records)`.
