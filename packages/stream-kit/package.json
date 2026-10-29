@@ -15,6 +15,7 @@
     "url": "https://github.com/moeru-ai/airi.git",
     "directory": "packages/stream-kit"
   },
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.mts",
