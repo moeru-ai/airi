@@ -20,9 +20,9 @@ export class SeriesRing {
   append(time: number, value: number): void {
     if (this.length === this.times.length)
       this.grow()
-    // Points arrive almost in order. A late point is inserted at its place, so reads stay sorted.
+    // Points arrive almost in order. A late point is inserted at its place, so reads stay sorted and expiry finds it.
     let index = this.length
-    while (index > this.compactedUntil && this.times[index - 1]! > time)
+    while (index > 0 && this.times[index - 1]! > time)
       index--
     if (index < this.length) {
       this.times.copyWithin(index + 1, index, this.length)
@@ -31,6 +31,9 @@ export class SeriesRing {
     this.times[index] = time
     this.values[index] = value
     this.length++
+    // A point older than a compacted point joins the compacted prefix as it is. It is one more point in its bucket.
+    if (index < this.compactedUntil)
+      this.compactedUntil++
   }
 
   /** Reduces old points and drops expired points. `now` is on the trace clock. */
