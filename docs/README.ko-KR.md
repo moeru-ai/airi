@@ -182,17 +182,17 @@
 
 ## 최근 DevLog와 이야기
 
-- [DevLog @ 2026.03.23: 모바일 성능과 게임 엔진 탐색](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.23/) - 2026년 3월 23일
-- [DevLog @ 2026.03.14: VRM 스테이지 수명주기, 캐시, 관측성](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.14/) - 2026년 3월 14일
-- [DevLog @ 2026.02.16: Dome Keeper 데이터 수집과 학습 파이프라인](https://airi.moeru.ai/docs/en/blog/DevLog-2026.02.16/) - 2026년 2월 16일
-- [DevLog @ 2026.01.01: AIRI Pocket과 FlowChat 메모리 실험](https://airi.moeru.ai/docs/en/blog/DevLog-2026.01.01/) - 2026년 1월 1일
-- [DevLog @ 2025.10.20: Electron 이전, 새 모델, Moeru AI 업데이트](https://airi.moeru.ai/docs/en/blog/DevLog-2025.10.20/) - 2025년 10월 20일
-- [DevLog @ 2025.08.26: airi-factorio의 순수 비전 방향 진척](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.26/) - 2025년 8월 26일
-- [DevLog @ 2025.08.05: AIRI v0.7 릴리스 하이라이트](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.05/) - 2025년 8월 5일
-- [DevLog @ 2025.08.01: 스트리밍 텍스트 애니메이션과 자소 클러스터](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.01/) - 2025년 8월 1일
-- [DevLog @ 2025.07.18: Factorio Learning Environment로 airi-factorio 다시 보기](https://airi.moeru.ai/docs/en/blog/DevLog-2025.07.18/) - 2025년 7월 18일
-- [DreamLog 0x1: Project AIRI의 시작 이야기](https://airi.moeru.ai/docs/en/blog/DreamLog-0x1/) - 2025년 6월 16일
-- ...더 많은 내용은 [문서 사이트](https://airi.moeru.ai/docs/en/)에서
+- [DevLog @ 2026.03.23: 모바일 성능과 게임 엔진 탐색](https://airi.moeru.ai/docs/ko/blog/DevLog-2026.03.23/) - 2026년 3월 23일
+- [DevLog @ 2026.03.14: VRM 스테이지 수명주기, 캐시, 관측성](https://airi.moeru.ai/docs/ko/blog/DevLog-2026.03.14/) - 2026년 3월 14일
+- [DevLog @ 2026.02.16: Dome Keeper 데이터 수집과 학습 파이프라인](https://airi.moeru.ai/docs/ko/blog/DevLog-2026.02.16/) - 2026년 2월 16일
+- [DevLog @ 2026.01.01: AIRI Pocket과 FlowChat 메모리 실험](https://airi.moeru.ai/docs/ko/blog/DevLog-2026.01.01/) - 2026년 1월 1일
+- [DevLog @ 2025.10.20: Electron 이전, 새 모델, Moeru AI 업데이트](https://airi.moeru.ai/docs/ko/blog/DevLog-2025.10.20/) - 2025년 10월 20일
+- [DevLog @ 2025.08.26: airi-factorio의 순수 비전 방향 진척](https://airi.moeru.ai/docs/ko/blog/DevLog-2025.08.26/) - 2025년 8월 26일
+- [DevLog @ 2025.08.05: AIRI v0.7 릴리스 하이라이트](https://airi.moeru.ai/docs/ko/blog/DevLog-2025.08.05/) - 2025년 8월 5일
+- [DevLog @ 2025.08.01: 스트리밍 텍스트 애니메이션과 자소 클러스터](https://airi.moeru.ai/docs/ko/blog/DevLog-2025.08.01/) - 2025년 8월 1일
+- [DevLog @ 2025.07.18: Factorio Learning Environment로 airi-factorio 다시 보기](https://airi.moeru.ai/docs/ko/blog/DevLog-2025.07.18/) - 2025년 7월 18일
+- [DreamLog 0x1: Project AIRI의 시작 이야기](https://airi.moeru.ai/docs/ko/blog/DreamLog-0x1/) - 2025년 6월 16일
+- ...더 많은 내용은 [문서 사이트](https://airi.moeru.ai/docs/ko/)에서
 
 ## 이 프로젝트의 특별한 점은?
 
@@ -380,7 +380,7 @@ npx bumpp --no-commit --no-tag
 - [Awesome AI VTuber](https://github.com/proj-airi/awesome-ai-vtuber): AI VTuber 및 관련 프로젝트의 큐레이션 목록
 - [`unspeech`](https://github.com/moeru-ai/unspeech): `/audio/transcriptions` 및 `/audio/speech`를 위한 범용 엔드포인트 프록시 서버, LiteLLM과 유사하지만 모든 ASR 및 TTS에 대응
 - [`hfup`](https://github.com/moeru-ai/hfup): HuggingFace Spaces로의 배포 및 번들링을 지원하는 도구
-- [`xsai-transformers`](https://github.com/moeru-ai/xsai-transformers): [xsAI](https://github.com/moeru-ai/xsai)용 실험적 [Transformers.js](https://github.com/huggingface/transformers.js) 프로바이더
+- [`xsai-transformers`](https://github.com/moeru-ai/xsai-transformers): [xsAI](https://github.com/moeru-ai/xsai)용 실험적 [Transformers.js](https://github.com/huggingface/transformers.js) 제공자
 - [WebAI: Realtime Voice Chat](https://github.com/proj-airi/webai-realtime-voice-chat): VAD + STT + LLM + TTS로 ChatGPT 실시간 음성을 처음부터 구현한 완전한 예제
 - [`@proj-airi/drizzle-duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/drizzle-duckdb-wasm/README.md): DuckDB WASM용 Drizzle ORM 드라이버
 - [`@proj-airi/duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/duckdb-wasm/README.md): 사용하기 쉬운 `@duckdb/duckdb-wasm` 래퍼
@@ -391,7 +391,7 @@ npx bumpp --no-commit --no-tag
 - [`tstl-plugin-reload-factorio-mod`](https://github.com/moeru-ai/airi-factorio/tree/main/packages/tstl-plugin-reload-factorio-mod): 개발 중 Factorio 모드 리로드 지원
 - [Velin](https://github.com/luoling8192/velin): Vue SFC와 Markdown으로 관리하기 쉬운 상태 기반 LLM 프롬프트 작성
 - [`demodel`](https://github.com/moeru-ai/demodel): 다양한 추론 런타임에서 모델과 데이터셋 다운로드를 간편하게 가속
-- [`inventory`](https://github.com/moeru-ai/inventory): 중앙 집중식 모델 카탈로그 및 기본 프로바이더 설정 백엔드 서비스
+- [`inventory`](https://github.com/moeru-ai/inventory): 중앙 집중식 모델 카탈로그 및 기본 제공자 설정 백엔드 서비스
 - [MCP Launcher](https://github.com/moeru-ai/mcp-launcher): 모든 MCP 서버를 쉽게 빌드하고 실행하는 런처, 모델 세계의 Ollama 같은 존재!
 - [SAD](https://github.com/moeru-ai/sad): 셀프 호스팅 및 브라우저에서 LLM을 실행하기 위한 문서 및 노트
 
