@@ -66,6 +66,26 @@ describe('recipes store', () => {
     })
   })
 
+  // The editor stays open while the owner switches or approves the recipe, maybe in another window.
+  it('keeps every field of changes that overlap, and never brings a removed recipe back', async () => {
+    const chat = createStore()
+    const settings = createStore()
+    const proposal = await chat.propose({ name: 'Summaries', description: 'Recaps.', instructions: 'List goals.', keywords: [] })
+
+    await Promise.all([
+      settings.update(proposal.id, { name: 'Recap', description: 'When the owner asks.', instructions: 'List goals and decisions.', keywords: ['总结'] }),
+      chat.approve(proposal.id),
+      chat.setEnabled(proposal.id, true),
+    ])
+
+    await vi.waitFor(() => expect(settings.recipes.find(recipe => recipe.id === proposal.id)).toMatchObject({ name: 'Recap', approved: true, enabled: true }))
+
+    await chat.remove(proposal.id)
+    await settings.setEnabled(proposal.id, false)
+
+    expect(await records.getItem(proposal.id)).toEqual({ id: proposal.id, updatedAt: expect.any(Number), deleted: true })
+  })
+
   it('keeps the recipes across restarts and shows a change in every window', async () => {
     const chat = createStore()
     const settings = createStore()
@@ -83,7 +103,7 @@ describe('recipes store', () => {
     expect(await records.getItem(music.id)).toEqual({ id: music.id, updatedAt: expect.any(Number), deleted: true })
   })
 
-  it('moves the recipes from localStorage once, with their ids and order', async () => {
+  it('moves the recipes from localStorage once, with their ids and order, before it is ready', async () => {
     const stored = [
       { id: 'user:b', name: 'Second added first', description: '', instructions: 'B.', keywords: [], source: 'user', enabled: true, approved: true },
       { id: 'model:a', name: 'Added later', description: '', instructions: 'A.', keywords: ['a'], source: 'model', enabled: false, approved: false },
@@ -91,8 +111,9 @@ describe('recipes store', () => {
     localStorage.setItem('recipes/custom', JSON.stringify(stored))
 
     const recipes = createStore()
+    await recipes.ready()
 
-    await vi.waitFor(() => expect(recipes.recipes).toEqual(stored))
+    expect(recipes.recipes).toEqual(stored)
     expect(localStorage.getItem('recipes/custom')).toBeNull()
   })
 })

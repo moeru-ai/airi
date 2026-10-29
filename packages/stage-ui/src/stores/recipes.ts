@@ -22,7 +22,8 @@ const LEGACY_RECIPES_STORAGE_KEY = 'recipes/custom'
 // NOTICE:
 // Up to v0.13.1 the recipes were in localStorage under `recipes/custom`, as one list.
 // localStorage holds a few megabytes, and each change wrote the whole list. IndexedDB keeps one record for each recipe now.
-// Move them once with their ids, in their order. The lock keeps two windows that start together from moving them twice.
+// Move them once with their ids, in their order. The list had no times, so the move time is their creation time.
+// The lock keeps two windows that start together from moving them twice.
 // Removal condition: two releases after the release that moves them.
 async function moveLegacyRecipes() {
   if (!globalThis.localStorage?.getItem(LEGACY_RECIPES_STORAGE_KEY))
@@ -32,9 +33,7 @@ async function moveLegacyRecipes() {
     if (!stored)
       return
     const legacy: Recipe[] = JSON.parse(stored)
-    const movedAt = Date.now()
-    // The list had no times. Each recipe gets the move time plus its place, so the order stays.
-    await recipesRepo.save(legacy.map((recipe, index) => ({ recipe, createdAt: movedAt + index, updatedAt: movedAt })))
+    await recipesRepo.add(legacy, Date.now())
     localStorage.removeItem(LEGACY_RECIPES_STORAGE_KEY)
   })
 }
@@ -50,7 +49,7 @@ async function moveLegacyRecipes() {
  * - Only the owner approves a recipe. A model proposal stays unapproved until then.
  *
  * Returns:
- * - All recipes, the usable ones, and actions that change them.
+ * - All recipes, the usable ones, `ready` for the first read, and actions that change them.
  */
 export const useRecipesStore = defineStore('recipes', () => {
   const records = ref<RecipeRecord[]>([])
@@ -71,30 +70,33 @@ export const useRecipesStore = defineStore('recipes', () => {
     return pendingLoad
   }
 
-  /** The records after every read that started before the call. */
-  async function current() {
-    await pendingLoad.catch(() => {})
-    return records.value
+  /**
+   * Resolves after every read that started before the call, the first read and the move from localStorage included.
+   * Until then, `recipes` is empty because nothing is read yet, not because the owner has no recipes.
+   */
+  function ready() {
+    return pendingLoad.catch(() => {})
   }
 
-  /** Stores the saved and removed recipes, reads them again, and tells the other windows. */
-  async function commit(saved: RecipeRecord[], removed: string[] = []) {
-    await Promise.all([recipesRepo.save(saved), recipesRepo.remove(removed, Date.now())])
+  /** Reads the recipes again after a change, and tells the other windows. */
+  async function publish(ids: string[]) {
     await load()
-    post([...saved.map(record => record.recipe.id), ...removed])
+    post(ids)
   }
 
   /** Adds a recipe at the end of the list. */
   async function insert(recipe: Recipe) {
-    const now = Date.now()
-    await commit([{ recipe, createdAt: now, updatedAt: now }])
+    await recipesRepo.add([recipe], Date.now())
+    await publish([recipe.id])
   }
 
-  /** Changes some fields of one recipe. Its place in the list stays. */
+  /**
+   * Changes some fields of one recipe on its stored record, so a change never brings back an older value of another field.
+   * Its place in the list stays. A removed recipe stays removed.
+   */
   async function change(id: string, fields: Partial<Recipe>) {
-    const record = (await current()).find(entry => entry.recipe.id === id)
-    if (record)
-      await commit([{ ...record, recipe: { ...record.recipe, ...fields }, updatedAt: Date.now() }])
+    if (await recipesRepo.change(id, fields, Date.now()))
+      await publish([id])
   }
 
   async function setEnabled(id: string, enabled: boolean) {
@@ -126,7 +128,8 @@ export const useRecipesStore = defineStore('recipes', () => {
   }
 
   async function remove(id: string) {
-    await commit([], [id])
+    await recipesRepo.remove([id], Date.now())
+    await publish([id])
   }
 
   async function resetState() {
@@ -146,6 +149,7 @@ export const useRecipesStore = defineStore('recipes', () => {
     recipes,
     usable,
     proposalsEnabled,
+    ready,
     setEnabled,
     approve,
     add,

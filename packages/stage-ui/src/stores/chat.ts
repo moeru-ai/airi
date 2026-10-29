@@ -1321,15 +1321,17 @@ export const useChatStore = defineStore('chat', () => {
 
     const abort = new AbortController()
     // A keyword invokes its recipes like slash commands. A decision among them judges with the judgment tool.
-    const invoked = keywordRecipesFor(payload, extra)
-    const prepared = prepareSend({ ...payload, messageId }, abort.signal, voice, { ...extra, skills: invokedSkillsOf(invoked) }, invoked)
+    // The recipes come from IndexedDB, so the first send of a window waits until they are read.
+    const invokedRecipes = recipes.ready().then(() => keywordRecipesFor(payload, extra))
+    const prepared = invokedRecipes
+      .then(invoked => prepareSend({ ...payload, messageId }, abort.signal, voice, { ...extra, skills: invokedSkillsOf(invoked) }, invoked))
       .then(options => runtime.submit(payload.text, options, payload.sessionId))
     const request = {
       accepted: prepared.then(value => value.accepted),
       done: prepared.then(value => value.done),
     }
     // A background recipe starts once the owner's message is stored, so its task never runs for a refused send.
-    void request.accepted.then(() => {
+    void request.accepted.then(() => invokedRecipes).then((invoked) => {
       for (const recipe of invoked.filter(isBackgroundRecipe))
         void startRecipe(recipe, { parentSessionId: payload.sessionId, task: `The owner said: ${payload.text}` })
     }).catch(() => {})
