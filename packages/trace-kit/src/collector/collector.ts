@@ -3,6 +3,7 @@ import type { CatchUpFeed, Cooldown, Demand, LeaseTable } from '@proj-airi/strea
 import type { TraceAttributeDefinition } from '../core/definitions'
 import type { TraceFeedMessage } from '../core/feed'
 import type {
+  TraceClockDiscontinuity,
   TraceClockSnapshot,
   TraceDefinitionRecord,
   TraceRecord,
@@ -73,6 +74,8 @@ interface EpochState {
 
 interface BufferEntry {
   record: TraceRecord
+  /** Arrival order. The buffer is first in, first out, so its first entry tells which older records it dropped. */
+  order: number
   /** Event time on the trace clock, or the observed time when no clock path exists yet. */
   time: number
   observedAt: number
@@ -93,6 +96,12 @@ const DEFAULTS = {
 /** The newest snapshots of each clock set in the pinned set. The drift fit uses this many. */
 const PINNED_SNAPSHOTS_PER_CLOCK_SET = 16
 
+/** A pinned clock record with its arrival order. */
+interface PinnedClockRecord<T> {
+  record: T
+  order: number
+}
+
 /**
  * Receives the records of every source in one place, keeps recent records, and feeds viewers.
  *
@@ -102,9 +111,12 @@ const PINNED_SNAPSHOTS_PER_CLOCK_SET = 16
  *   lease expires is lost.
  * - Event buffer: every record except series, limited by age and bytes. Eviction records a gap.
  * - Series rings: one {@link SeriesRing} for each `track` and value key of `sample` and `sample.chunk` records.
- * - Pinned set: the latest `source.started` of each live epoch, live streams, recent clock snapshots, open spans with
- *   merged updates, the latest state of each state track, and the latest definition of each kind and key.
- *   It stays outside the limits, so a late viewer and a dump can describe themselves.
+ * - Pinned set: the latest `source.started` of each live epoch, live streams, recent clock snapshots and the
+ *   discontinuities between them, open spans with merged updates, the latest state of each state track, and the latest
+ *   definition of each kind and key. It stays outside the limits, so a late viewer and a dump can describe themselves.
+ * - Clock records: a reader picks the clock segment of a value from the snapshots and discontinuities that it applied
+ *   before. So a backlog or a dump sends a pinned clock record only when it does not also send its buffered copy, and
+ *   the clock history keeps its arrival order.
  * - The collector is a source too. It writes `source.lost` with its own identity.
  *
  * The host calls {@link TraceCollector.tick} about once a second. It compacts series, evicts old records, checks
@@ -126,7 +138,9 @@ export class TraceCollector {
   private readonly seriesRings = new Map<string, { source: string, track: string, key: string, ring: SeriesRing }>()
   private readonly pinnedStarts = new Map<string, TraceSourceStarted>()
   private readonly pinnedStreams = new Map<string, TraceStreamStarted>()
-  private readonly pinnedSnapshots = new Map<string, TraceClockSnapshot[]>()
+  private readonly pinnedSnapshots = new Map<string, PinnedClockRecord<TraceClockSnapshot>[]>()
+  private pinnedDiscontinuities: PinnedClockRecord<TraceClockDiscontinuity>[] = []
+  private arrivals = 0
   private readonly pinnedSpans = new Map<string, { begin: TraceSpanBegin, updated: TraceSpanBegin }>()
   private readonly pinnedStates = new Map<string, { record: TraceState, time: number }>()
   private readonly pinnedDefinitions = new Map<string, TraceDefinitionRecord>()
@@ -294,7 +308,8 @@ export class TraceCollector {
 
   /** The current records of the buffer and the pinned set, for a manual save. */
   snapshot(): TraceRecord[] {
-    return [...this.pinnedRecords(), ...Array.from(this.buffer.values(), entry => entry.record)]
+    const entries = [...this.buffer.values()]
+    return [...this.pinnedRecords(entries[0]?.order), ...entries.map(entry => entry.record)]
   }
 
   /** The sensitivity of an attribute key, from the conventions and the announced definitions. */
@@ -334,7 +349,8 @@ export class TraceCollector {
     if (late)
       this.lateCount++
 
-    this.updatePinned(record, time)
+    const order = this.arrivals++
+    this.updatePinned(record, time, order)
 
     if (record.type === 'source.stopped') {
       state.live = false
@@ -353,7 +369,7 @@ export class TraceCollector {
       const overLimit = this.buffer.bytes + bytes > (this.options.maxBytes ?? DEFAULTS.maxBytes)
       // The push drops the oldest records over the byte limit. Over the limit, the age limit applies too, and both
       // drops become one gap.
-      this.buffer.push({ record, time, observedAt: now, bytes })
+      this.buffer.push({ record, order, time, observedAt: now, bytes })
       if (overLimit)
         this.buffer.evict(now)
       this.reportGap()
@@ -390,7 +406,7 @@ export class TraceCollector {
 
   /** The backlog of a new viewer: the pinned set, the gaps, the buffer, and the series. */
   private* backlog(): Generator<TraceFeedMessage> {
-    for (const record of this.pinnedRecords())
+    for (const record of this.pinnedRecords(this.buffer.values().next().value?.order))
       yield { kind: 'record', record, pinned: true }
     for (const gap of this.gaps)
       yield { kind: 'gap', ...gap }
@@ -428,7 +444,7 @@ export class TraceCollector {
     }
   }
 
-  private updatePinned(record: TraceRecord, time: number): void {
+  private updatePinned(record: TraceRecord, time: number, order: number): void {
     const spanKey = 'spanId' in record && record.spanId ? spanKeyOf(record.source, record.epoch, record.spanId) : undefined
     switch (record.type) {
       case 'source.started':
@@ -443,12 +459,18 @@ export class TraceCollector {
       case 'clock.snapshot': {
         const key = record.values.map(value => value.clock).sort().join('|')
         const list = this.pinnedSnapshots.get(key) ?? []
-        list.push(record)
-        if (list.length > PINNED_SNAPSHOTS_PER_CLOCK_SET)
+        list.push({ record, order })
+        if (list.length > PINNED_SNAPSHOTS_PER_CLOCK_SET) {
           list.shift()
+          this.prunePinnedDiscontinuities()
+        }
         this.pinnedSnapshots.set(key, list)
         break
       }
+      case 'clock.discontinuity':
+        this.pinnedDiscontinuities.push({ record, order })
+        this.prunePinnedDiscontinuities()
+        break
       case 'span.begin':
         this.pinnedSpans.set(spanKey!, { begin: record, updated: record })
         break
@@ -470,6 +492,17 @@ export class TraceCollector {
         break
       }
     }
+  }
+
+  /** A discontinuity matters only after a pinned snapshot of its clock. A reader has no earlier segment otherwise. */
+  private prunePinnedDiscontinuities(): void {
+    this.pinnedDiscontinuities = this.pinnedDiscontinuities.filter(({ record, order }) => {
+      for (const list of this.pinnedSnapshots.values()) {
+        if (list[0] && list[0].order < order && list[0].record.values.some(value => value.clock === record.of))
+          return true
+      }
+      return false
+    })
   }
 
   private unpinEpoch(source: string, epoch: string): void {
@@ -567,21 +600,27 @@ export class TraceCollector {
     const from = now - (recorder.windowMs ?? DEFAULTS.flightWindowMs)
     const append = from < this.lastDumpEnd
     const start = append ? this.lastDumpEnd : from
-    const records: TraceRecord[] = []
+    const entries: BufferEntry[] = []
     for (const entry of this.buffer.values()) {
       if (entry.observedAt > start)
-        records.push(entry.record)
+        entries.push(entry)
     }
+    const records = entries.map(entry => entry.record)
     this.lastDumpEnd = now
-    recorder.onDump({ records: append ? records : [...this.pinnedRecords(), ...records], append, reason, from: start, to: now })
+    recorder.onDump({ records: append ? records : [...this.pinnedRecords(entries[0]?.order), ...records], append, reason, from: start, to: now })
   }
 
-  private pinnedRecords(): TraceRecord[] {
+  /**
+   * The pinned set. `sentFrom` is the arrival order of the first buffered record that the caller also sends. A clock
+   * record from that order on is left out, so the reader applies it once, at its place among the buffered records.
+   */
+  private pinnedRecords(sentFrom = Number.POSITIVE_INFINITY): TraceRecord[] {
+    const clockRecords: PinnedClockRecord<TraceClockSnapshot | TraceClockDiscontinuity>[] = [...this.pinnedSnapshots.values(), this.pinnedDiscontinuities].flat()
     return [
       ...this.pinnedStarts.values(),
       ...this.pinnedDefinitions.values(),
       ...this.pinnedStreams.values(),
-      ...[...this.pinnedSnapshots.values()].flat(),
+      ...clockRecords.filter(entry => entry.order < sentFrom).sort((a, b) => a.order - b.order).map(entry => entry.record),
       ...[...this.pinnedSpans.values()].map(span => span.updated),
       ...[...this.pinnedStates.values()].map(state => state.record),
     ]

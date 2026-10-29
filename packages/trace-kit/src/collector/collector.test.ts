@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest'
 
 import { ATTR_GEN_AI_TOOL_CALL_ARGUMENTS } from '../conventions'
 import { TraceSource } from '../core/sink'
+import { createTimelineProjection, TraceReader } from '../projections'
+import { createRecordStamper } from '../testing'
 import { TraceCollector } from './collector'
 
 function setup(options: Partial<ConstructorParameters<typeof TraceCollector>[0]> = {}) {
@@ -146,6 +148,31 @@ describe('traceCollector', () => {
     collector.subscribe(message => messages.push(message))
     expect(messages.find(message => message.kind === 'series')).toEqual({ kind: 'series', source: 'window:main', track: 'participants/user/input', key: 'probability', times: [1000, 1050, 1100], values: [expect.closeTo(0.1), expect.closeTo(0.9), expect.closeTo(0.3)] })
     expect(collector.stats.bufferedRecords).toBe(2)
+  })
+
+  it('gives a late viewer the same times as a live viewer after a backward clock reset', () => {
+    const { collector } = setup()
+    const record = createRecordStamper({ source: 'window:main', clock: 'mono:window' })
+    const viewerOf = () => {
+      const timeline = createTimelineProjection()
+      const reader = new TraceReader([timeline])
+      collector.subscribe(message => reader.handle(message))
+      return () => reader.view(timeline).tracks.get('t')!.instants.map(instant => [instant.name, instant.time])
+    }
+    const live = viewerOf()
+    const snapshot = (window: number, trace: number) => collector.ingest(record({ type: 'clock.snapshot', ts: window, values: [{ clock: 'mono:window', value: window }, { clock: 'mono:collector', value: trace }], uncertaintyMs: 0.1 }))
+
+    snapshot(1000, 1000)
+    snapshot(2000, 2000)
+    collector.ingest(record({ type: 'instant', ts: 1500, track: 't', name: 'before' }))
+    // The window clock restarts from a value below the earlier values.
+    collector.ingest(record({ type: 'clock.discontinuity', ts: 50, of: 'mono:window', reason: 'reset' }))
+    snapshot(50, 10_000)
+    collector.ingest(record({ type: 'instant', ts: 100, track: 't', name: 'after' }))
+    const late = viewerOf()
+
+    expect(live()).toEqual([['before', 1500], ['after', 10_050]])
+    expect(late()).toEqual(live())
   })
 
   it('tells producers the union of the tracks that viewers show', () => {
