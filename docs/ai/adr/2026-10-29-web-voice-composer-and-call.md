@@ -45,6 +45,7 @@ The desktop app already had a designed surface for live speech: the voice inlay 
 - A voice call is continuous listening that the user starts from the add menu. The voice host owns it with `callActive` and `callMuted`.
 - During a call, speech starts an input in every Hearing input mode, and each input is sent at once. A call never keeps a draft.
 - Mute keeps the microphone open and turns off the voice activity plugin. Unmuting is immediate and asks for no permission. Mute cancels speech that it was capturing.
+- The microphone switch in Hearing closes the microphone for every feature. A call does not start while it is off, and turning it off ends a call.
 - `useVoiceListening` stays the one place that starts and stops listening. It listens during a call, or when the input mode listens and the `continuous` option allows it.
 - The call capsule at the top of the page has a hang-up button on the left and the call time on the right. Behind them, a waveform of the speaker fades out to the right. Only the hang-up button ends the call, so a stray tap does not.
 - On the desktop web, a call panel above the composer shows the character, the status, the time, the live speech, a hang-up button, and a mute button. A tap or a downward drag on its handle reduces the call to the capsule. A tap on the capsule body returns to the panel.

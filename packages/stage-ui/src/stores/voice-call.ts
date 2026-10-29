@@ -42,10 +42,11 @@ export const useVoiceCallStore = defineStore('voice-call', () => {
   })
 
   // The microphone switch closes the microphone for every feature. A call cannot listen then, so it ends.
+  // The watcher is synchronous, like the one in the voice store, so the call ends before the microphone closes.
   watch(() => devices.off, (off) => {
     if (off)
       voice.endCall()
-  })
+  }, { flush: 'sync' })
 
   /**
    * Starts a call. It must run from a user gesture, because it can ask for microphone permission.

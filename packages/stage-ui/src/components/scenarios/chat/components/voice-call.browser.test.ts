@@ -39,7 +39,7 @@ async function mountCall(options: { persistent?: boolean } = {}) {
     global: { plugins: [pinia, createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false })] },
   })
   cleanups.push(() => screen.unmount())
-  return { screen, voice: useVoiceStore(pinia), call: useVoiceCallStore(pinia) }
+  return { screen, voice: useVoiceStore(pinia), call: useVoiceCallStore(pinia), devices: useSettingsAudioDevice(pinia) }
 }
 
 describe('voice call', () => {
@@ -52,16 +52,17 @@ describe('voice call', () => {
 
   it('does not start while the microphone switch is off, and turning it off ends a call', async () => {
     localStorage.setItem('settings/hearing/active-provider', 'browser-web-speech-api')
-    localStorage.setItem('settings/audio/input/off', 'true')
-    const { call, voice } = await mountCall()
+    const { call, voice, devices } = await mountCall()
 
+    devices.off = true
     expect(await call.start()).toBe('microphone-off')
     expect(voice.callActive).toBe(false)
 
-    const devices = useSettingsAudioDevice()
     devices.off = false
     voice.startCall()
+    expect(voice.callActive).toBe(true)
     devices.off = true
+
     await expect.poll(() => voice.callActive).toBe(false)
   })
 
