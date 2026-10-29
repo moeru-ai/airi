@@ -1,20 +1,32 @@
+import type { Bot } from 'mineflayer'
+import type { Item as InventoryItem } from 'prismarine-item'
+
+import type { ReflexApi } from '../types/behavior'
+
+import minecraftData from 'minecraft-data'
+import prismarineItem from 'prismarine-item'
+
 import { describe, expect, it } from 'vitest'
 
+import { ReflexContext } from '../context'
 import { autoEatBehavior } from './auto-eat'
 
-/** Minimal reflex snapshot stub: the self fields + autonomy.reflexEngaged auto-eat reads. */
-function snapshot(health: number, food: number, reflexEngaged = false): any {
-  // @example snapshot(6, 10) -> critical health, hungry enough to benefit from eating
-  return { self: { health, food }, autonomy: { reflexEngaged } }
+const registry = minecraftData('1.21.4')
+const Item = prismarineItem('1.21.4')
+const bread = new Item(registry.itemsByName.bread.id, 1)
+const rawBeef = new Item(registry.itemsByName.beef.id, 1)
+
+function snapshot(health: number, food: number, reflexEngaged = false) {
+  const context = new ReflexContext()
+  context.updateSelf({ health, food })
+  context.updateAutonomy({ reflexEngaged })
+  return context.getSnapshot()
 }
 
-/** Minimal ReflexApi stub exposing an inventory for selectReadyFood. */
-function apiWith(items: Array<{ name: string, foodPoints?: number }>): any {
-  return { bot: { bot: { inventory: { items: () => items } } } }
+function apiWith(items: InventoryItem[]): ReflexApi {
+  const bot = { registry, inventory: { items: () => items } } as Bot
+  return { bot: { bot } as ReflexApi['bot'], context: new ReflexContext() }
 }
-
-const bread = { name: 'bread', foodPoints: 5 }
-const rawBeef = { name: 'beef', foodPoints: 3 }
 
 describe('autoEatBehavior.when', () => {
   it('triggers when critically hurt, hungry, and holding ready food', () => {
@@ -43,42 +55,34 @@ describe('autoEatBehavior.when', () => {
   })
 })
 
-/** ReflexApi stub that records reflexEngaged at each step + runs equip/consume hooks. */
 function runApi(opts: { onEquip?: () => void, onConsume?: () => void | Promise<void> }) {
-  const autonomy = { reflexEngaged: false }
+  const api = apiWith([bread])
+  const { context } = api
   const seen: boolean[] = []
-  const api: any = {
-    bot: {
-      bot: {
-        inventory: { items: () => [bread] },
-        equip: async () => {
-          seen.push(autonomy.reflexEngaged)
-          opts.onEquip?.()
-        },
-        consume: async () => {
-          seen.push(autonomy.reflexEngaged)
-          await opts.onConsume?.()
-        },
-      },
-    },
-    context: { updateAutonomy: (p: { reflexEngaged: boolean }) => { autonomy.reflexEngaged = p.reflexEngaged } },
+  api.bot.bot.equip = async () => {
+    seen.push(context.autonomy().reflexEngaged)
+    opts.onEquip?.()
   }
-  return { api, autonomy, seen }
+  api.bot.bot.consume = async () => {
+    seen.push(context.autonomy().reflexEngaged)
+    await opts.onConsume?.()
+  }
+  return { api, context, seen }
 }
 
 describe('autoEatBehavior.run', () => {
   // Regression: the bite must hold reflexEngaged across equip+consume so the defend reflex (which
   // yields on reflexEngaged) cannot re-equip a weapon and cancel it mid-animation.
   it('holds reflexEngaged across equip and consume, then releases it', async () => {
-    const { api, autonomy, seen } = runApi({})
+    const { api, context, seen } = runApi({})
     await autoEatBehavior.run(api)
     expect(seen).toEqual([true, true]) // reflexEngaged was set during both equip and consume
-    expect(autonomy.reflexEngaged).toBe(false) // released afterward
+    expect(context.autonomy().reflexEngaged).toBe(false) // released afterward
   })
 
   it('releases reflexEngaged even when consume throws', async () => {
-    const { api, autonomy } = runApi({ onConsume: () => Promise.reject(new Error('interrupted')) })
+    const { api, context } = runApi({ onConsume: () => Promise.reject(new Error('interrupted')) })
     await expect(autoEatBehavior.run(api)).rejects.toThrow('interrupted')
-    expect(autonomy.reflexEngaged).toBe(false)
+    expect(context.autonomy().reflexEngaged).toBe(false)
   })
 })
