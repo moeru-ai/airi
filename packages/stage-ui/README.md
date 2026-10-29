@@ -116,7 +116,7 @@ Wake word detection runs in every mode that listens continuously. In `always-on`
 The voice host publishes the detector preparation in its snapshot as `wakeWords`, so a settings window can show it.
 
 Each stage page calls `useVoiceListening` once. It is the one place that starts or stops continuous listening.
-A voice call always listens. Outside a call, the `continuous` option decides if the input mode can listen. The web and Pocket stages turn it off on small screens, because they have no control for it there. `HearingConfig` then hides the input mode and the microphone switch outside the desktop app.
+A voice call always listens. Disposing the scope also ends the call, because the stage page that listens shows the call controls. Outside a call, the `continuous` option decides if the input mode can listen. The web and Pocket stages turn it off on small screens, because they have no control for it there. `HearingConfig` then hides the input mode and the microphone switch outside the desktop app.
 `listensContinuously(mode)` in `stores/modules/hearing.ts` decides which modes run detection and keep the microphone open.
 To add a mode, extend `HearingInputMode`, `listensContinuously`, `startsInputOnSpeech`, and `useVoiceListening`.
 

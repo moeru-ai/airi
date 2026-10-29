@@ -21,7 +21,8 @@ export interface VoiceListeningOptions {
  *
  * Each stage page that owns the voice host calls this once. It is the one place that decides whether voice activity
  * detection runs, so a new input mode changes this function and `listensContinuously`, not each app.
- * Scope disposal stops listening.
+ * Scope disposal stops listening and ends a voice call. The page that listens also shows the call controls, so a call
+ * that outlived it would listen again, without its controls, when the page comes back.
  */
 export function useVoiceListening(options: VoiceListeningOptions = {}) {
   const voice = useVoiceStore()
@@ -37,6 +38,7 @@ export function useVoiceListening(options: VoiceListeningOptions = {}) {
       void voice.stopListening()
   }, { immediate: true })
   onScopeDispose(() => {
+    voice.endCall()
     void voice.stopListening()
   })
 }

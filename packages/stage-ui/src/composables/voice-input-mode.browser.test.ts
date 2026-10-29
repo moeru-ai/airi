@@ -19,7 +19,7 @@ afterEach(() => {
  * Runs `useVoiceListening` in a stage page scope. The voice store's listening actions are spied, so the test reads the
  * decision without loading the voice activity model.
  */
-function mountListening(continuous: () => boolean) {
+function mountListening(continuous: () => boolean, options: { onUnmount?: (unmount: () => void) => void } = {}) {
   const pinia = createPinia()
   const app = createApp({ setup() {
     const voice = useVoiceStore()
@@ -29,8 +29,15 @@ function mountListening(continuous: () => boolean) {
     return () => null
   } }).use(pinia).use(createI18n({ legacy: false, locale: 'en', messages: { en: {} }, missingWarn: false, fallbackWarn: false }))
   app.mount(document.createElement('div'))
+  let mounted = true
+  const unmount = () => {
+    if (mounted)
+      app.unmount()
+    mounted = false
+  }
+  options.onUnmount?.(unmount)
   cleanups.push(() => {
-    app.unmount()
+    unmount()
     disposePinia(pinia)
   })
   return { voice: useVoiceStore(pinia), devices: useSettingsAudioDevice(pinia) }
@@ -65,6 +72,20 @@ describe('useVoiceListening', () => {
     voice.endCall()
     await nextTick()
     expect(voice.stopListening).toHaveBeenCalled()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/3223#discussion_r4410478656
+  // Leaving the stage page, for example to settings, disposed listening but kept the call active in the store.
+  // The call then listened again without its controls when the page came back.
+  it('ends the call when the stage page that listens goes away', async () => {
+    let unmount!: () => void
+    const { voice } = mountListening(() => false, { onUnmount: value => unmount = value })
+    voice.startCall()
+    await nextTick()
+
+    unmount()
+
+    expect(voice.callActive).toBe(false)
   })
 
   it('keeps continuous listening running when a call ends on a large screen', async () => {
