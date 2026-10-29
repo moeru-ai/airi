@@ -249,4 +249,19 @@ describe('composerVoiceInput', () => {
     await expect.element(screen.getByTestId('composer-voice-recording')).not.toBeInTheDocument()
     expect(draft.value).toBe('Hello')
   })
+
+  // https://github.com/moeru-ai/airi/pull/3223#discussion_r4411230359
+  // A call hid the microphone, but the walkie-talkie bar stayed over the text field and blocked typing.
+  it('closes the walkie-talkie bar when the host hides the microphone', async () => {
+    localStorage.setItem('ui/chat/composer-voice-mode', 'walkie')
+    const hidden = shallowRef(false)
+    const { screen, covering } = await mountInput({ hidden: () => hidden.value })
+
+    await screen.getByTestId('composer-voice-button').click()
+    await expect.element(screen.getByTestId('composer-voice-hold')).toBeVisible()
+    hidden.value = true
+
+    await expect.element(screen.getByTestId('composer-voice-hold')).not.toBeInTheDocument()
+    expect(covering.at(-1)).toBe(false)
+  })
 })

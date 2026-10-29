@@ -279,6 +279,13 @@ watch(mode, () => {
     leaveWalkie()
 })
 
+// A hidden control shows no microphone, so the hold-to-talk bar that it teleported into the host surface must go too.
+// Otherwise the bar would cover the text field, for example during a voice call. An open recording is kept.
+watch(() => props.hidden, (hidden) => {
+  if (hidden && walkie.value && !recording.value)
+    walkie.value = false
+})
+
 useEventListener(window, 'keydown', (event: KeyboardEvent) => {
   if (event.key !== 'Escape' || event.isComposing || !active.value)
     return

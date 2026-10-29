@@ -81,8 +81,10 @@ export const useVoiceCallStore = defineStore('voice-call', () => {
       return 'busy'
     if (!await devices.askPermission())
       return 'denied'
-    // The permission prompt can stay open for a while. The user can turn the microphone off, start a call from
-    // another control, or start a composer recording before it resolves, so these conditions are read again here.
+    // The permission prompt can stay open for a while. The user can turn Hearing or the microphone off, start a call
+    // from another control, or start a composer recording before it resolves, so these conditions are read again here.
+    if (!hearing.configured)
+      return 'unconfigured'
     if (devices.off)
       return 'microphone-off'
     if (voice.callActive)
