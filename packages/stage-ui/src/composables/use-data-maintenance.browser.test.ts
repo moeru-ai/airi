@@ -132,7 +132,7 @@ it('forgets what the character learned when modules reset', async () => {
   await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
   const memory = useMemoryStore(pinia)
   const recipes = useRecipesStore(pinia)
-  memory.write({ name: 'nickname', description: 'What the owner likes to be called.', body: 'Yumeka.' }, 'default')
+  memory.write({ description: 'What the owner likes to be called.', body: 'Yumeka.' }, 'default')
   recipes.add({ name: 'Check in', description: '', instructions: 'Greet softly.', keywords: [], enabled: true })
 
   await maintenance.resetModulesSettings()

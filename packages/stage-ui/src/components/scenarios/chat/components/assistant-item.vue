@@ -12,6 +12,7 @@ import ChatReplyCard from './reply-card.vue'
 import ChatReplyQuote from './reply-quote.vue'
 import ResponseCitations from './response-citations.vue'
 import ChatResponsePart from './response-part.vue'
+import ChatSavedMemories from './saved-memories.vue'
 import ChatSticker from './sticker.vue'
 import ChatToolCallGroup from './tool-call-group.vue'
 
@@ -198,6 +199,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
             </div>
           </div>
           <ResponseCitations v-if="message.citations?.length" :citations="message.citations" />
+          <ChatSavedMemories v-if="message.savedMemories?.length" :memories="message.savedMemories" />
           <div v-if="!resolvedSlices.length && showLoader" :class="['i-eos-icons:three-dots-loading']" />
         </div>
       </template>

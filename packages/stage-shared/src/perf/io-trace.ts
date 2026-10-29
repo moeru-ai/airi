@@ -9,6 +9,7 @@ export const IOSubsystems = {
   StreamingControl: 'streaming-control',
   TTS: 'tts',
   Playback: 'playback',
+  Memory: 'memory',
 } as const
 export type IOSubsystem = (typeof IOSubsystems)[keyof typeof IOSubsystems]
 
@@ -33,6 +34,8 @@ export const IOSpanNames = {
   StreamingControlDispatch: 'Streaming control dispatch',
   TTSSynthesis: 'TTS synthesis',
   AudioPlayback: 'Audio playback',
+  /** Reads a finished turn and saves what it tells about the user. Its own trace, after the turn. */
+  MemoryFinalizer: 'Memory finalizer',
 } as const
 
 const customPrefix = 'ai.moeru.airi.io'
@@ -59,6 +62,8 @@ export const IOAttributes = {
   EndJudgeTranscriptLength: `${customPrefix}.end_judge.transcript_length`,
   RephraseSegmentCount: `${customPrefix}.rephrase.segment_count`,
   RephraseChangedCount: `${customPrefix}.rephrase.changed_count`,
+  /** The entries that the memory finalizer saved for one turn. */
+  MemoryFinalizerEntryCount: `${customPrefix}.memory.finalizer_entry_count`,
   VADAudioDurationMs: `${customPrefix}.vad.audio_duration_ms`,
   VADAborted: `${customPrefix}.vad.aborted`,
   /** Speaker recognition: the mean cosine between the saved voiceprint and the speech of the input. */

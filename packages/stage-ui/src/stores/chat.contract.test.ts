@@ -111,6 +111,12 @@ vi.mock('../composables', () => ({
   getConversationAnalyticsSurface: () => 'web',
 }))
 
+// The finalizer sends its own request after each turn. These tests count the requests of the reply, and the agent
+// tests cover the finalizer.
+vi.mock('../composables/memory-finalizer', () => ({
+  useMemoryFinalizer: () => ({ collect: async () => [] }),
+}))
+
 vi.mock('../composables/use-io-tracer', () => ({
   registerTurnSpan: ioTracerMocks.registerTurnSpan,
   startSpan: ioTracerMocks.startSpanMock,
@@ -667,25 +673,25 @@ describe('chat store contract', () => {
       await options.onStreamEvent({ type: 'finish' })
     })
     const memory = useMemoryStore()
-    memory.write({ name: 'nickname', description: 'What the owner likes to be called.', body: 'Yumeka.' }, 'default')
-    memory.makeGeneral({ name: 'nickname', persona: 'default' })
-    memory.write({ name: 'channel-rules', description: 'Rules of this channel.', body: 'No spoilers.' }, 'discord-host')
-    memory.write({ name: 'focus-steps', description: 'How the focus card answers.', body: 'Next step first.' }, 'focus')
+    const nickname = memory.write({ description: 'What the owner likes to be called.', body: 'Yumeka.' }, 'default')!
+    memory.makeGeneral(nickname)
+    const rules = memory.write({ description: 'Rules of this channel.', body: 'No spoilers.' }, 'discord-host')!
+    memory.write({ description: 'How the focus card answers.', body: 'Next step first.' }, 'focus')
 
     await useChatStore().send({ sessionId: 'scene-session', text: 'save a recipe for me' })
 
     expect(toolNames[0]).not.toContain('builtIn_proposeRecipe')
     expect(toolNames[0]).toContain('builtIn_writeMemory')
-    expect(prompt).toContain('- channel-rules: Rules of this channel.')
-    expect(prompt).toContain('- nickname: What the owner likes to be called.')
-    expect(prompt).not.toContain('focus-steps')
+    expect(prompt).toContain(`- ${rules.id}: Rules of this channel.`)
+    expect(prompt).toContain(`- ${nickname.id}: What the owner likes to be called.`)
+    expect(prompt).not.toContain('How the focus card answers.')
 
     // With long-term memory off, no memory tool or index reaches the run.
     memory.enabled = false
     await useChatStore().send({ sessionId: 'scene-session', text: 'hello again' })
 
     expect(toolNames[1]).not.toContain('builtIn_writeMemory')
-    expect(prompt).not.toContain('channel-rules')
+    expect(prompt).not.toContain('Rules of this channel.')
   })
 
   it('preserves image attachments when retrying a failed turn', async () => {

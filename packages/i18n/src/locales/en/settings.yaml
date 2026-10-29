@@ -1044,6 +1044,9 @@ pages:
         empty: No memories yet.
         forget: 'Forget {name}'
         make_general: 'Share {name} with every character'
+        consolidate: Tidy up
+        consolidate_hint: 'Merge the memories of {name} that are about one thing, with its chat model'
+        consolidate_failed: 'The tidy-up did not finish, so the memories stay as they were: {error}'
         general: Shared secrets
         entry:
           title: Memories

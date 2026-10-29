@@ -21,6 +21,7 @@ import { computed, shallowRef, toRaw } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { getConversationAnalyticsSurface } from '../composables'
+import { useMemoryFinalizer } from '../composables/memory-finalizer'
 import { useAiriRuntimePrompt } from '../composables/use-airi-runtime-prompt'
 import { registerTurnSpan, startSpan, takeComposerVoiceParent, takeVoiceTurnParent } from '../composables/use-io-tracer'
 import { useChatVision } from '../composables/vision/use-chat-vision'
@@ -298,6 +299,38 @@ export const useChatStore = defineStore('chat', () => {
     const recipeId = chatSession.sessionMetas[sessionId]?.recipeId
     const recipe = recipeId ? recipes.recipes.find(entry => entry.id === recipeId) : undefined
     return recipe ? identity + composeRecipeSpacePrompt(recipe) : identity
+  }
+
+  const memoryFinalizer = useMemoryFinalizer()
+
+  /**
+   * Saves the facts that a finished turn tells about the user, with the chat model of its character.
+   * It runs after the reply, so the next turn does not wait for it. The reply shows what it saved. A failed run saves nothing.
+   */
+  function finalizeMemory(sessionId: string, assistantText: string, sessionMessages: ChatHistoryItem[]) {
+    if (!memory.enabled)
+      return
+
+    const userMessage = sessionMessages.findLast(message => message.role === 'user')
+    const userText = userMessage ? extractMessageText(userMessage) : ''
+    const persona = personaOf(sessionId)
+    const { provider, model } = cardStore.getModules(persona).consciousness
+    if (!userMessage?.id || !userText.trim() || !isChatSelectionReady(provider, model))
+      return
+
+    // The reply of this turn is committed before the turn is ready, right after its user message.
+    const messages = chatSession.getSessionMessages(sessionId)
+    const userIndex = messages.findIndex(message => message.id === userMessage.id)
+    const replyId = userIndex < 0 ? undefined : messages.slice(userIndex + 1).find(message => message.role === 'assistant')?.id
+
+    const turn = { index: memory.indexFor(persona), userText, assistantText }
+    memoryFinalizer.collect({ providerId: provider, model }, turn, new AbortController().signal)
+      .then(async (entries) => {
+        const saved = entries.flatMap(entry => memory.write({ id: entry.id ?? undefined, description: entry.description, body: entry.body }, persona) ?? [])
+        if (replyId && saved.length)
+          await chatSession.updateAssistantMessage(sessionId, replyId, { savedMemories: saved.map(({ id, description }) => ({ id, description })) })
+      })
+      .catch(error => console.warn('[chat] Memory finalizer failed:', errorMessageFrom(error)))
   }
   const wakeWords = useWakeWordsStore()
   const stickersStore = useStickersStore()
@@ -631,7 +664,7 @@ export const useChatStore = defineStore('chat', () => {
     const persona = personaOf(sessionId)
     const sourceTools = async () => [
       ...(typeof tools === 'function' ? await tools() ?? [] : tools ?? []),
-      ...memory.enabled ? await createMemoryTools({ read: name => memory.read(name, persona), write: entry => memory.write(entry, persona), forget: name => memory.forget(name, persona) }) : [],
+      ...memory.enabled ? await createMemoryTools({ read: id => memory.read(id, persona), write: entry => memory.write(entry, persona), forget: id => memory.forget(id, persona) }) : [],
     ]
     // A recipe's own session runs only that recipe. It cannot start recipes, save them, or choose silence.
     if (isTaskSession(sessionId))
@@ -1071,6 +1104,7 @@ export const useChatStore = defineStore('chat', () => {
     onAssistantTurnReady: ({ sessionId, messageText, sessionMessages }) => {
       if (!isOwnerTurn(sessionId, sessionMessages))
         return
+      finalizeMemory(sessionId, messageText, sessionMessages)
       const artistry = sessionCard(sessionId)?.extensions?.airi?.modules?.artistry
       if (artistry?.autonomousEnabled && artistry?.autonomousTarget === 'assistant')
         void artistryAutonomousStore.runArtistTask(messageText, toProviderHistory(sessionMessages))

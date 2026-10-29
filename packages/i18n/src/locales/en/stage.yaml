@@ -162,6 +162,8 @@ chat:
     question: Question
     'yes': 'Yes'
     'no': 'No'
+  saved-memory:
+    label: 'Saved to memory · {count}'
   home-assistant-tool-call:
     shown: 'Showing {count} of {total} devices'
   web-search-tool-call:

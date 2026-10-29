@@ -162,6 +162,8 @@ chat:
     question: 问题
     'yes': '是'
     'no': '否'
+  saved-memory:
+    label: '记住了 {count} 件事'
   home-assistant-tool-call:
     shown: '显示 {count} / {total} 个设备'
   web-search-tool-call:

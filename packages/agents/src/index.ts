@@ -1,5 +1,7 @@
 export * from './generate-text'
 export * from './json-reply'
+export * from './memory-consolidation'
+export * from './memory-finalizer'
 export * from './tool-card'
 export * from './voice-end-judge'
 export * from './voice-transcription-rephrase'

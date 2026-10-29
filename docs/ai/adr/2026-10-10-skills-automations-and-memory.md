@@ -51,8 +51,12 @@ A recipe is a skill, like a skill in a coding agent.
 
 ### Long-term memory
 
-- Memory is an index plus one entry per fact. The index lists every entry by name and description, and joins the identity at the start of each run.
-- The run reads, writes, and forgets entries with memory tools. It needs no approval.
+- Memory is an index plus one entry per topic. An entry holds every fact of its topic. The index lists every entry by its id and description, and joins the identity at the start of each run.
+- The store makes the id when it adds an entry. A write with the id of an entry changes that entry. A write without an id adds an entry.
+- The run reads, writes, and forgets entries with memory tools. It needs no approval. It saves only when someone asks it to remember something, or corrects a remembered fact.
+- After each turn that answers the owner, the memory finalizer reads the turn and saves the lasting facts that it tells about the user. The reply shows what it saved as a folded line.
+- Only a conversation shows that a fact changed. The finalizer then writes that entry again with its id.
+- In Settings, the owner can tidy up the memories of one card. Its chat model merges entries about the same or a closely related topic into one entry, and keeps the newer of two entries that disagree. It never drops a fact, and a reply that loses an entry changes nothing.
 - A new entry belongs to the character card of the run. Other cards do not read it.
 - The owner can make an entry general in Settings. Every card then reads it in addition to its own entries. A run cannot change or forget a general entry.
 - Settings lists the entries grouped by card. A switch turns long-term memory off, and then no memory reaches a prompt.

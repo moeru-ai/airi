@@ -8,6 +8,8 @@ Each agent owns one prompt, one request shape, and one reply parser. An agent do
 
 | Agent | Entry | Use |
 | --- | --- | --- |
+| Memory consolidation | `@proj-airi/agents/memory-consolidation` | Tidies up the long-term memory of one character: merges entries about the same or a closely related topic into one entry. It never drops a fact. |
+| Memory finalizer | `@proj-airi/agents/memory-finalizer` | Picks the facts about the user that one finished turn tells, for long-term memory. |
 | Tool card | `@proj-airi/agents/tool-card` | Writes an OpenUI Lang card that shows the results of one tool. It can search icons with the tools that the caller passes. |
 | Voice end judge | `@proj-airi/agents/voice-end-judge` | Decides whether a paused spoken message is finished. |
 | Voice transcription rephrase | `@proj-airi/agents/voice-transcription-rephrase` | Cleans up the speech recognition text of one spoken message. |

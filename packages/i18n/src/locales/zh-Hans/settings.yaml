@@ -990,6 +990,9 @@ pages:
         empty: 还没有记忆。
         forget: '忘掉{name}'
         make_general: '把{name}共享给所有角色'
+        consolidate: 整理
+        consolidate_hint: '用{name}的聊天模型，合并它讲同一件事的记忆'
+        consolidate_failed: '整理没有完成，记忆保持原样：{error}'
         general: 共享的秘密
         entry:
           title: 记忆

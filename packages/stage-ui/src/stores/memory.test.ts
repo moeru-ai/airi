@@ -1,52 +1,66 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { memoryName, useMemoryStore } from './memory'
+import { useMemoryStore } from './memory'
 
 describe('memory store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
   })
 
-  it('keeps one entry per name on a card and lists it in the index', () => {
+  it('gives each new fact its own id, changes an entry by its id, and lists it in the index', () => {
     const memory = useMemoryStore()
-    memory.write({ name: 'Favorite Game', description: 'What the owner plays.', body: 'Porridge games.' }, 'airi')
-    memory.write({ name: 'favorite-game', description: 'What the owner plays now.', body: 'Minecraft.' }, 'airi')
+    const game = memory.write({ description: 'What the owner plays.', body: 'Porridge games.' }, 'airi')!
+    // Two facts with the same index line stay two entries.
+    const other = memory.write({ description: 'What the owner plays.', body: 'Puzzle games on the train.' }, 'airi')!
+    memory.write({ id: game.id, description: 'What the owner plays now.', body: 'Minecraft.' }, 'airi')
 
-    expect(memory.entries.map(entry => entry.name)).toEqual(['favorite-game'])
-    expect(memory.indexFor('airi')).toBe('Your own:\n- favorite-game: What the owner plays now.')
-    expect(memory.read('Favorite Game', 'airi')?.body).toBe('Minecraft.')
+    expect(other.id).not.toBe(game.id)
+    expect(memory.entries).toHaveLength(2)
+    expect(memory.read(game.id, 'airi')?.body).toBe('Minecraft.')
+    expect(memory.indexFor('airi')).toBe(`Your own:\n- ${other.id}: What the owner plays.\n- ${game.id}: What the owner plays now.`)
   })
 
   // A card keeps its own memories. Only the owner makes one general, and then every card reads it.
   it('keeps memories on their card until the owner makes one general', () => {
     const memory = useMemoryStore()
-    memory.write({ name: 'nickname', description: 'What the owner likes to be called.', body: 'Yumeka.' }, 'airi')
-    memory.write({ name: 'channel-rules', description: 'Rules of the Discord channel.', body: 'No spoilers.' }, 'discord-host')
+    const nickname = memory.write({ description: 'What the owner likes to be called.', body: 'Yumeka.' }, 'airi')!
+    const rules = memory.write({ description: 'Rules of the Discord channel.', body: 'No spoilers.' }, 'discord-host')!
 
-    expect(memory.indexFor('discord-host')).toBe('Your own:\n- channel-rules: Rules of the Discord channel.')
-    expect(memory.read('nickname', 'discord-host')).toBeUndefined()
+    expect(memory.indexFor('discord-host')).toBe(`Your own:\n- ${rules.id}: Rules of the Discord channel.`)
+    expect(memory.read(nickname.id, 'discord-host')).toBeUndefined()
 
-    memory.makeGeneral({ name: 'nickname', persona: 'airi' })
+    memory.makeGeneral(nickname)
 
-    expect(memory.indexFor('discord-host')).toBe('Your own:\n- channel-rules: Rules of the Discord channel.\nGeneral:\n- nickname: What the owner likes to be called.')
-    expect(memory.read('nickname', 'discord-host')?.body).toBe('Yumeka.')
-    expect(memory.entries.filter(entry => entry.name === 'nickname').map(entry => entry.persona)).toEqual([undefined])
+    expect(memory.indexFor('discord-host')).toBe(`Your own:\n- ${rules.id}: Rules of the Discord channel.\nGeneral:\n- ${nickname.id}: What the owner likes to be called.`)
+    expect(memory.read(nickname.id, 'discord-host')?.body).toBe('Yumeka.')
+    expect(memory.entries.find(entry => entry.id === nickname.id)?.persona).toBeUndefined()
   })
 
-  it('prefers the card own entry, forgets only its own, and refuses an empty name or body', () => {
+  it('replaces the tidied entries and keeps one saved during the tidy-up', () => {
     const memory = useMemoryStore()
-    memory.write({ name: 'tone', description: '', body: 'Calm.' }, 'airi')
-    memory.makeGeneral({ name: 'tone', persona: 'airi' })
-    memory.write({ name: 'tone', description: '', body: 'Short sentences.' }, 'focus')
+    const computer = memory.write({ description: 'Uses an M1 Pro', body: 'Still uses an M1 Pro.' }, 'airi')!
+    const old = memory.write({ description: 'Has not changed computers for long', body: 'Has not changed computers for a long time.' }, 'airi')!
+    const replaced = [computer.id, old.id]
+    const saved = memory.write({ description: 'Lives in Bangkok', body: 'Has lived in Bangkok for years.' }, 'airi')!
 
-    expect(memory.read('tone', 'focus')?.body).toBe('Short sentences.')
-    expect(memory.forget('tone', 'focus')).toBe(true)
-    expect(memory.read('tone', 'focus')?.body).toBe('Calm.')
-    // A general memory belongs to the owner, so a run cannot forget it.
-    expect(memory.forget('tone', 'focus')).toBe(false)
-    expect(memory.write({ name: '!!', description: '', body: 'x' }, 'airi')).toBeUndefined()
-    expect(memory.write({ name: 'x', description: '', body: ' ' }, 'airi')).toBeUndefined()
-    expect(memoryName('  我的 猫咪！ ')).toBe('我的-猫咪')
+    memory.consolidate('airi', replaced, [{ ids: [computer.id, old.id], description: 'Still on an M1 Pro', body: 'Has used an M1 Pro for a long time.' }])
+
+    expect(memory.indexFor('airi')).toBe(`Your own:\n- ${saved.id}: Lives in Bangkok\n- ${computer.id}: Still on an M1 Pro`)
+  })
+
+  it('changes and forgets only the card own entries, and refuses an empty body', () => {
+    const memory = useMemoryStore()
+    const tone = memory.write({ description: '', body: 'Calm.' }, 'airi')!
+    memory.makeGeneral(tone)
+    // A general memory belongs to the owner, so a write with its id adds the card's own entry.
+    const own = memory.write({ id: tone.id, description: '', body: 'Short sentences.' }, 'focus')!
+
+    expect(own.id).not.toBe(tone.id)
+    expect(memory.read(tone.id, 'focus')?.body).toBe('Calm.')
+    expect(memory.forget(own.id, 'focus')).toBe(true)
+    // A run cannot forget a general memory either.
+    expect(memory.forget(tone.id, 'focus')).toBe(false)
+    expect(memory.write({ description: '', body: ' ' }, 'airi')).toBeUndefined()
   })
 })

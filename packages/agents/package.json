@@ -17,6 +17,8 @@
   },
   "exports": {
     ".": "./src/index.ts",
+    "./memory-consolidation": "./src/memory-consolidation/index.ts",
+    "./memory-finalizer": "./src/memory-finalizer/index.ts",
     "./tool-card": "./src/tool-card/index.ts",
     "./voice-end-judge": "./src/voice-end-judge/index.ts",
     "./voice-transcription-rephrase": "./src/voice-transcription-rephrase/index.ts"

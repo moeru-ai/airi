@@ -53,6 +53,8 @@ export interface ChatAssistantMessage extends AssistantMessage {
   proactive?: { turnId: string, source: string }
   /** Sources returned by the provider, separate from text consumed by speech. */
   citations?: import('../messages/types').Citation[]
+  /** Long-term memory entries saved after this reply. The chat shows them under the reply, and requests do not read them. */
+  savedMemories?: { id: string, description: string }[]
   search?: { id: string, status: 'in_progress' | 'searching' | 'completed' | 'failed' }
   /**
    * The kind of content that a tool call is about to add, from the moment the model starts the call until the content

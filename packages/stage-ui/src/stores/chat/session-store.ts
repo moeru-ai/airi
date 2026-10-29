@@ -337,6 +337,17 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     await persistSession(sessionId)
   }
 
+  async function updateAssistantMessage(sessionId: string, messageId: string, fields: Partial<Pick<Extract<ChatHistoryItem, { role: 'assistant' }>, 'savedMemories'>>) {
+    const messages = sessionMessages.value[sessionId]
+    const index = messages?.findIndex(message => message.id === messageId) ?? -1
+    const message = messages?.[index]
+    if (!messages || message?.role !== 'assistant')
+      return
+    // Spreading a reactive message copies its nested arrays as proxies, which `structuredClone` rejects later.
+    replaceSessionMessages(sessionId, toRaw(messages).with(index, { ...toRaw(message), ...fields }), { persist: false })
+    await persistSession(sessionId)
+  }
+
   /** Replaces the history of a loaded session. Resolves after durable storage. */
   async function replaceSessionHistory(sessionId: string, next: ChatHistoryItem[]) {
     if (!sessionMetas.value[sessionId])
@@ -1836,6 +1847,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     commitUserMessage,
     storeMessage,
     updateUserMessage,
+    updateAssistantMessage,
     replaceSessionHistory,
     recordInterruption,
     persistSessionMessages,
@@ -1876,6 +1888,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       'replaceSessionHistory',
       'storeMessage',
       'updateUserMessage',
+      'updateAssistantMessage',
       'recordInterruption',
       'createSession',
       'deleteMessage',
