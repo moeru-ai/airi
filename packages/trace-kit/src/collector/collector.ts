@@ -260,9 +260,12 @@ export class TraceCollector {
   subscribe(listener: (message: TraceFeedMessage) => void, tracks: Iterable<string> | '*' = '*'): { unsubscribe: () => void, setTracks: (tracks: Iterable<string> | '*') => void } {
     const id = String(this.nextSubscriptionId++)
     let wanted: Demand<string> = tracks === '*' ? '*' : new Set(tracks)
-    // The filter sees the backlog too. The backlog has no sample records, because the series rings keep them.
+    // The filter sees the backlog too. The backlog has no sample records, because the series rings keep them, so it
+    // filters the series messages of the rings by track.
     const { unsubscribe } = this.feed.subscribe((message) => {
       if (message.kind === 'record' && !wantsRecord(wanted, message.record))
+        return
+      if (message.kind === 'series' && wanted !== '*' && !wanted.has(message.track))
         return
       listener(message)
     })

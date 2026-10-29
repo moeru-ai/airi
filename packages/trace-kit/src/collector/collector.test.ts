@@ -175,6 +175,18 @@ describe('traceCollector', () => {
     expect(late()).toEqual(live())
   })
 
+  it('sends a late viewer only the series of the tracks that it shows', () => {
+    const { collector, source } = setup()
+    const window = source('window:main')
+    window.emit({ type: 'sample', ts: 1000, track: 'shown', values: { level: 1 } })
+    window.emit({ type: 'sample', ts: 1000, track: 'hidden', values: { level: 2 } })
+
+    const messages: TraceFeedMessage[] = []
+    collector.subscribe(message => messages.push(message), ['shown'])
+    const tracks = messages.flatMap(message => message.kind === 'series' ? [message.track] : [])
+    expect(tracks).toEqual(['shown'])
+  })
+
   it('tells producers the union of the tracks that viewers show', () => {
     const wanted: Array<ReadonlySet<string> | '*'> = []
     const { collector } = setup({ onWantedChange: tracks => wanted.push(tracks) })
