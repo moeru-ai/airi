@@ -30,12 +30,14 @@ const { backdrop, returnHome, setIgnoreMouseEvents, registerShortcut, unregister
 // The inlay talks to its Electron window through these IPC composables. The cursor starts outside the page.
 vi.mock('@proj-airi/electron-vueuse', async () => {
   const { shallowRef } = await import('vue')
-  const { electronInlayReturnHome, electronShortcutRegister, electronShortcutUnregister, electronWindowBackdropUpdate } = await import('../../../shared/eventa')
+  const { electronInlayReturnHome, electronAppIsWayland, electronShortcutRegister, electronShortcutUnregister, electronWindowBackdropUpdate } = await import('../../../shared/eventa')
   const invokes = new Map<unknown, unknown>([
     [electronInlayReturnHome, returnHome],
     [electronWindowBackdropUpdate, backdrop],
     [electronShortcutRegister, registerShortcut],
     [electronShortcutUnregister, unregisterShortcut],
+    // Not Wayland: the inlay window can stay click-through around its card.
+    [electronAppIsWayland, () => Promise.resolve(false)],
   ])
   return {
     useElectronEventaInvoke: (eventa: unknown) => invokes.get(eventa) ?? setIgnoreMouseEvents,
