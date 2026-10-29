@@ -129,7 +129,7 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
     clearActiveStream()
 
     const stream = await selectWithSource(
-      () => sourceId,
+      sourceId,
       async () => await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false }),
     )
     if (!isActiveStream(stream)) {

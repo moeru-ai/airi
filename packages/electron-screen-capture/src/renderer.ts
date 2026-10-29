@@ -25,12 +25,11 @@ export function setupElectronScreenCapture(context: ReturnType<typeof createCont
   }
 
   async function selectWithSource<R>(
-    selectFn: (sources: SerializableDesktopCapturerSource[]) => string | Promise<string>,
+    select: string | ((sources: SerializableDesktopCapturerSource[]) => string | Promise<string>),
     useFn: () => R | Promise<R>,
     options: SourceOptionsWithRequest,
   ): Promise<R> {
-    const sources = await getSources(options.sourcesOptions)
-    const sourceId = await selectFn(sources)
+    const sourceId = typeof select === 'string' ? select : await select(await getSources(options.sourcesOptions))
 
     let handle: string | undefined
     try {

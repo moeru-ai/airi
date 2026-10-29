@@ -80,7 +80,7 @@ function getShareLabel(source: ScreenCaptureSource) {
 async function startCapture(source: SerializableDesktopCapturerSource) {
   try {
     await selectWithSource(
-      () => source.id,
+      source.id,
       async () => {
         const stream = await navigator.mediaDevices.getDisplayMedia({
           video: true,

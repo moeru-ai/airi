@@ -203,6 +203,17 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
   const { context } = createContext(ipcMain, window, { onlySameWindow: true })
   const session = sessionModule.defaultSession
 
+  // NOTICE:
+  // Why: Linux source IDs can change between getSources and getDisplayMedia.
+  // Root cause: IDs may differ across queries.
+  // Source: https://github.com/electron/electron/issues/44504
+  // Removal: when Electron keeps IDs stable.
+  // A picker query replaces this set; selecting a displayed ID does not query again.
+  let knownSources = new Map<string, DesktopCapturerSource>()
+  function rememberKnownSources(sources: readonly DesktopCapturerSource[]) {
+    knownSources = new Map(sources.map(source => [source.id, source] as const))
+  }
+
   defineInvokeHandler(context, screenCapture.checkMacOSPermission, async () => checkMacOSScreenCapturePermission())
   defineInvokeHandler(context, screenCapture.requestMacOSPermission, async () => requestMacOSScreenCapturePermission())
 
@@ -213,6 +224,7 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
     // REVIEW(@sumimakito): This has nothing to do with out side, probably related to Electron Bug, you can
     // read more here https://github.com/electron/electron/issues/44504
     const sources = await desktopCapturer.getSources(sourcesOptions)
+    rememberKnownSources(sources)
     return sources.map(source => toSerializableDesktopCapturerSource(source))
   })
 
@@ -235,13 +247,19 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
     screenCaptureSourceMutexHandle = handle
 
     try {
-      session.setDisplayMediaRequestHandler(async (_request, callback) => {
+      let selectedSource = knownSources.get(request.sourceId)
+      if (!selectedSource) {
+        // Fall back to a fresh query for callers that did not use getSources first.
         const sources = await desktopCapturer.getSources(request.options)
-        const source = sources.find(source => source.id === request.sourceId)
-        if (!source) {
-          throw new Error(`Source with id ${request.sourceId} not found.`)
-        }
+        rememberKnownSources(sources)
+        selectedSource = knownSources.get(request.sourceId)
+      }
+      if (!selectedSource) {
+        throw new Error(`Source with id ${request.sourceId} not found.`)
+      }
 
+      const source = selectedSource
+      session.setDisplayMediaRequestHandler(async (_request, callback) => {
         callback({
           video: source,
           audio: options?.loopbackWithMute ? LoopbackAudioTypes.LoopbackWithMute : LoopbackAudioTypes.Loopback,
