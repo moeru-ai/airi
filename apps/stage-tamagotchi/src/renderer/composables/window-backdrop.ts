@@ -1,30 +1,14 @@
 import type { BackdropClip, BackdropRegion } from '@proj-airi/electron-native-backdrop/types'
-import type { MaybeRefOrGetter } from 'vue'
+import type { BackdropSurfaceHost } from '@proj-airi/stage-ui/composables/backdrop-surface'
 
 import type { WindowBackdropStatus } from '../../shared/eventa'
 
-import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { onMounted, onScopeDispose, toValue, watch } from 'vue'
-
-import { electronWindowBackdropUpdate } from '../../shared/eventa'
-
-import './window-backdrop.css'
-
-type SurfaceKind = 'inlay' | 'panel'
 type Update = (request: { regions: BackdropRegion[] }) => Promise<WindowBackdropStatus>
-
-interface Root {
-  element: HTMLElement
-  kind: SurfaceKind
-}
 
 interface Snapshot {
   regions: BackdropRegion[]
-  roots: Root[]
   key: string
 }
-
-const sessions = new WeakMap<Document, WindowBackdrop>()
 
 function pixels(value: string, extent: number) {
   // Chromium writes very small computed lengths in exponent form, for example `7.2e-05%` at the end of a clip-path transition.
@@ -136,7 +120,7 @@ function insetClip(value: string, rect: DOMRect, scale: { x: number, y: number }
  * One IPC request runs at a time. A newer snapshot replaces its queued predecessor, including unmount cleanup.
  */
 class WindowBackdrop {
-  private readonly roots = new Set<Root>()
+  /** Registered surfaces and the IDs that keep their native layers across geometry updates. */
   private readonly surfaces = new Map<HTMLElement, string>()
   private readonly ancestors = new Set<HTMLElement>()
   private readonly animations = new Set<Animation>()
@@ -152,27 +136,25 @@ class WindowBackdrop {
   private stopped = false
   private observing = false
 
-  constructor(private readonly document: Document, private readonly update: Update) {}
+  constructor(private readonly document: Document, private readonly update: Update, private readonly released: () => void) {}
 
-  register(element: HTMLElement, kind: SurfaceKind) {
-    const root = { element, kind }
-    this.roots.add(root)
+  register(element: HTMLElement) {
+    this.surfaces.set(element, this.surfaces.get(element) ?? `surface-${this.nextId++}`)
     if (!this.stopped) {
       this.observe()
       this.targetsDirty = true
       this.invalidate()
     }
     return () => {
-      element.removeAttribute('data-window-backdrop-active')
-      this.roots.delete(root)
+      this.surfaces.delete(element)
       this.targetsDirty = true
-      if (this.roots.size === 0) {
+      if (this.surfaces.size === 0) {
         this.disconnect()
         if (this.stopped) {
           this.release()
         }
         else {
-          this.enqueue({ regions: [], roots: [], key: '[]' })
+          this.enqueue({ regions: [], key: '[]' })
           this.release()
         }
       }
@@ -186,7 +168,7 @@ class WindowBackdrop {
     if (this.observing)
       return
     this.observing = true
-    this.mutationObserver.observe(this.document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'style', 'hidden', 'data-window-backdrop-surface'] })
+    this.mutationObserver.observe(this.document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'style', 'hidden'] })
     this.document.addEventListener('scroll', this.invalidate, true)
     this.document.addEventListener('transitionrun', this.animationChanged, true)
     this.document.addEventListener('transitionend', this.animationChanged, true)
@@ -209,15 +191,15 @@ class WindowBackdrop {
       cancelAnimationFrame(this.frame)
     this.frame = undefined
     this.animations.clear()
-    this.surfaces.clear()
     this.ancestors.clear()
   }
 
   private mutated(records: MutationRecord[]) {
-    const relevant = records.filter(record => record.target instanceof Element && [...this.roots].some(root => root.element.contains(record.target) || (record.target as Element).contains(root.element)))
+    const relevant = records.filter(record => record.target instanceof Element && [...this.surfaces.keys()].some(surface => surface.contains(record.target) || (record.target as Element).contains(surface)))
     if (!relevant.length)
       return
-    if (relevant.some(record => record.type === 'childList' || record.attributeName === 'data-window-backdrop-surface'))
+    // A moved surface has other ancestors, which clip and fade it.
+    if (relevant.some(record => record.type === 'childList'))
       this.targetsDirty = true
     this.invalidate()
   }
@@ -231,25 +213,16 @@ class WindowBackdrop {
   }
 
   private invalidate = () => {
-    if (!this.stopped && this.roots.size && this.frame === undefined)
+    if (!this.stopped && this.surfaces.size && this.frame === undefined)
       this.frame = requestAnimationFrame(() => this.sample())
   }
 
   private collectTargets() {
-    const previous = new Map(this.surfaces)
-    this.surfaces.clear()
     this.ancestors.clear()
     this.resizeObserver.disconnect()
-    for (const root of this.roots) {
-      const targets = root.kind === 'panel'
-        ? [root.element]
-        : [...root.element.querySelectorAll<HTMLElement>('[data-window-backdrop-surface]')]
-      for (const target of targets) {
-        this.surfaces.set(target, previous.get(target) ?? `surface-${this.nextId++}`)
-        for (let ancestor: HTMLElement | null = target; ancestor; ancestor = ancestor.parentElement)
-          this.ancestors.add(ancestor)
-      }
-      this.resizeObserver.observe(root.element)
+    for (const surface of this.surfaces.keys()) {
+      for (let ancestor: HTMLElement | null = surface; ancestor; ancestor = ancestor.parentElement)
+        this.ancestors.add(ancestor)
     }
     for (const ancestor of this.ancestors) {
       this.resizeObserver.observe(ancestor)
@@ -271,20 +244,14 @@ class WindowBackdrop {
         }
       }
       const regions: BackdropRegion[] = []
-      const visibleRoots = new Set<Root>()
       // Share ancestor measurements between concurrent surfaces during a move or fold.
       const measurements = new Map<HTMLElement, { style: CSSStyleDeclaration, rect: DOMRect }>()
       for (const [element, id] of this.surfaces) {
         const region = this.region(element, id, measurements)
-        if (region) {
+        if (region)
           regions.push(region)
-          for (const root of this.roots) {
-            if (root.element.contains(element))
-              visibleRoots.add(root)
-          }
-        }
       }
-      this.enqueue({ regions, roots: [...visibleRoots], key: JSON.stringify(regions) })
+      this.enqueue({ regions, key: JSON.stringify(regions) })
       for (const animation of this.animations) {
         if (animation.playState !== 'running' && !animation.pending)
           this.animations.delete(animation)
@@ -361,23 +328,13 @@ class WindowBackdrop {
     this.submittedKey = snapshot.key
     try {
       const status = await this.update({ regions: snapshot.regions })
-      // Geometry can fail while IPC is pending. That reply cannot reactivate a stopped session before its queued clear.
+      // Geometry can fail while IPC is pending. A stopped session ignores that reply, and its queued clear runs next.
       if (this.stopped)
         return
-      if (status.state === 'active') {
-        for (const root of this.roots) {
-          if (snapshot.roots.includes(root))
-            root.element.setAttribute('data-window-backdrop-active', root.kind)
-          else
-            root.element.removeAttribute('data-window-backdrop-active')
-        }
-      }
-      else if (status.state === 'unsupported') {
+      if (status.state === 'unsupported')
         this.stop()
-      }
-      else {
+      else if (status.state === 'failed')
         this.fail(new Error(status.reason))
-      }
     }
     catch (error) {
       this.fail(error)
@@ -397,14 +354,12 @@ class WindowBackdrop {
     this.stopped = true
     this.pending = undefined
     this.disconnect()
-    for (const root of this.roots)
-      root.element.removeAttribute('data-window-backdrop-active')
   }
 
   private fail(error: unknown) {
-    console.error('[window-backdrop] Native material stopped. Keeping the CSS surface:', error)
+    console.error('[window-backdrop] Native material stopped. Surfaces keep their own fill:', error)
     this.stop()
-    // A geometry failure can occur after a successful frame. Remove that native frame before keeping opaque CSS.
+    // A geometry failure can occur after a successful frame. Remove that native frame, so no stale glass stays.
     this.clearPending = true
     void this.clear()
   }
@@ -427,36 +382,28 @@ class WindowBackdrop {
   }
 
   private release() {
-    if (!this.roots.size && !this.inFlight && !this.pending && !this.clearPending)
-      sessions.delete(this.document)
+    if (!this.surfaces.size && !this.inFlight && !this.pending && !this.clearPending)
+      this.released()
   }
 }
 
 /**
- * Registers a page's local surfaces. The last unmount clears native regions after any pending update.
+ * Draws native window glass behind the surfaces that `useBackdropSurface` declares.
  *
- * `enabled` turns the surface off and on while the page stays mounted. An off surface draws no native material and
- * no CSS fill.
+ * One session for each document collects the regions of all its surfaces and sends them in one request.
+ * The last unregister clears the native regions after any pending update.
  */
-export function useWindowBackdrop(element: MaybeRefOrGetter<HTMLElement | null | undefined>, kind: SurfaceKind, enabled: MaybeRefOrGetter<boolean> = true) {
-  const update = useElectronEventaInvoke(electronWindowBackdropUpdate)
-  let unregister: (() => void) | undefined
-  onMounted(() => {
-    const root = toValue(element)
-    if (!root)
-      throw new Error('The native backdrop root is missing after mount')
-    watch(() => toValue(enabled), (on) => {
-      unregister?.()
-      unregister = undefined
-      if (!on)
-        return
-      let session = sessions.get(root.ownerDocument)
+export function createWindowBackdropHost(update: Update): BackdropSurfaceHost {
+  const sessions = new WeakMap<Document, WindowBackdrop>()
+  return {
+    register(element) {
+      const document = element.ownerDocument
+      let session = sessions.get(document)
       if (!session) {
-        session = new WindowBackdrop(root.ownerDocument, update)
-        sessions.set(root.ownerDocument, session)
+        session = new WindowBackdrop(document, update, () => sessions.delete(document))
+        sessions.set(document, session)
       }
-      unregister = session.register(root, kind)
-    }, { immediate: true })
-  })
-  onScopeDispose(() => unregister?.())
+      return session.register(element)
+    },
+  }
 }

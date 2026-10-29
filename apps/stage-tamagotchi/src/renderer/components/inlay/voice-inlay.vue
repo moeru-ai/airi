@@ -10,16 +10,12 @@ import { useI18n } from 'vue-i18n'
 import { electronInlayReturnHome } from '../../../shared/eventa'
 import { useChatFloatingClickThrough } from '../../composables/use-chat-floating-click-through'
 import { useGlobalEscape } from '../../composables/use-global-escape'
-import { useWindowBackdrop } from '../../composables/use-window-backdrop'
 
 /**
  * Time without content before a dragged inlay returns to its home position.
  * The window paints nothing then, so the move is invisible, and the next capsule appears at home.
  */
 const RETURN_HOME_DELAY_MS = 5000
-
-const backdropRoot = useTemplateRef<HTMLElement>('backdrop-root')
-useWindowBackdrop(backdropRoot, 'inlay')
 
 const { t } = useI18n()
 const presence = useTemplateRef<InstanceType<typeof VoicePresence>>('presence')
@@ -51,11 +47,10 @@ useGlobalEscape('voice-inlay-dismiss', () => shown.value === 'capsule' || shown.
 
 <template>
   <!-- The page anchors the inlay to the bottom edge. The space above it is room for the send animation. -->
-  <main ref="backdrop-root" :class="['h-full w-full flex flex-col items-center justify-end px-4 pb-4', 'bg-transparent text-neutral-900 dark:text-neutral-100']">
+  <main :class="['h-full w-full flex flex-col items-center justify-end px-4 pb-4', 'bg-transparent text-neutral-900 dark:text-neutral-100']">
     <VoicePresence
       ref="presence"
       data-testid="voice-inlay"
-      data-window-backdrop-surface
       @shown-change="shown = $event"
       @after-enter="hitTest()"
       @after-leave="hitTest({ removed: true })"

@@ -5,7 +5,9 @@ import Tres from '@tresjs/core'
 
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import { PiniaColada } from '@pinia/colada'
+import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { settingsSearchModules } from '@proj-airi/stage-pages/settings-search'
+import { backdropSurfaceHostKey } from '@proj-airi/stage-ui/composables/backdrop-surface'
 import { pushToTalkTriggerKey } from '@proj-airi/stage-ui/composables/push-to-talk-trigger'
 import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/track-button'
 import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
@@ -21,7 +23,9 @@ import { handleHotUpdate, routes } from 'vue-router/auto-routes'
 
 import App from './App.vue'
 
+import { electronWindowBackdropUpdate } from '../shared/eventa'
 import { nestFullscreenSurfaces } from './components/fullscreen/surfaces'
+import { createWindowBackdropHost } from './composables/window-backdrop'
 import { i18n } from './modules/i18n'
 import { resolveRendererWindowContext } from './window-context'
 
@@ -101,4 +105,6 @@ createApp(App)
   .use(trackButtonPlugin)
   // The stage window registers a global hold shortcut. Every window shares this app, so the settings window offers the mode too.
   .provide(pushToTalkTriggerKey, true)
+  // Translucent surfaces in every window get native glass where the platform has it.
+  .provide(backdropSurfaceHostKey, createWindowBackdropHost(useElectronEventaInvoke(electronWindowBackdropUpdate)))
   .mount('#app')

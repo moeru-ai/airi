@@ -5,6 +5,7 @@ import type { ChatFloatingState, ChatWindowPreferences } from '../../shared/even
 
 import { getElectronEventaContext, useElectronEventaInvoke, useElectronMouseAroundWindowBorder, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
+import { useBackdropSurface } from '@proj-airi/stage-ui/composables/backdrop-surface'
 import { useDanmakuFeedExpiry } from '@proj-airi/stage-ui/composables/use-danmaku-feed-expiry'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
@@ -32,10 +33,9 @@ import {
 import { chatHeaderButtonClass } from '../components/chat-window/chat-header-button'
 import { useChatDraftHandover } from '../composables/use-chat-draft-handover'
 import { dismissOverlays, useChatFloatingClickThrough } from '../composables/use-chat-floating-click-through'
-import { useWindowBackdrop } from '../composables/use-window-backdrop'
 import { useControlsIslandStore } from '../stores/controls-island'
 
-const backdropRoot = useTemplateRef<HTMLElement>('backdrop-root')
+const panel = useTemplateRef<HTMLElement>('panel')
 
 const { activeCard } = storeToRefs(useAiriCardStore())
 const sessionsDrawerOpen = shallowRef(false)
@@ -68,9 +68,9 @@ useChatDraftHandover(interactiveArea)
 // A free chat stays where the user drags it.
 const freePlacement = computed(() => state.value.placement === 'free')
 const danmaku = computed(() => state.value.danmaku)
-// The message feed has no glass. Its messages float over the desktop, so a
-// feed that fades out leaves nothing behind.
-useWindowBackdrop(backdropRoot, 'panel', () => !danmaku.value)
+// The message feed has no glass and no fill. Its messages float over the
+// desktop, so a feed that fades out leaves nothing behind.
+useBackdropSurface(panel, { enabled: () => !danmaku.value })
 // The danmaku feed starts with its composer folded, because it is mostly read.
 const composerFolded = useLocalStorage('chat-window/danmaku/composer-folded', true)
 // Fade on hover, which the main window's controls island switches, turns the
@@ -458,10 +458,11 @@ function moveByKeyboard(delta: WindowDelta) {
     >
       <div
         v-show="contentShown"
-        ref="backdrop-root"
-        data-window-backdrop-surface
-        data-window-backdrop-floating-background
-        :class="['absolute inset-0 flex flex-col gap-1 rounded-3xl pt-3']"
+        ref="panel"
+        :class="[
+          'absolute inset-0 flex flex-col gap-1 rounded-3xl pt-3',
+          danmaku ? '' : 'bg-white/80 dark:bg-neutral-900/80',
+        ]"
       >
         <!--
           The dock sits on the side away from the character. A character on the left mirrors the row and the dock, so

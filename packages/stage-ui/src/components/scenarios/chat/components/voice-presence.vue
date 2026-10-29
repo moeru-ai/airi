@@ -12,12 +12,13 @@
 <script setup lang="ts">
 import { LevelBars } from '@proj-airi/ui'
 import { useEventListener } from '@vueuse/core'
-import { computed, shallowRef, watch } from 'vue'
+import { computed, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import RewriteText from '../../../widgets/rewrite-text/rewrite-text.vue'
 import VoiceDrafts from './voice-drafts.vue'
 
+import { useBackdropSurface } from '../../../../composables/backdrop-surface'
 import { useChatSessionStore } from '../../../../stores/chat/session-store'
 import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useVoiceControlsStore } from '../../../../stores/voice-controls'
@@ -46,6 +47,8 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const controls = useVoiceControlsStore()
+// The card floats over the desktop in the inlay, so the host can draw native glass behind its translucent fill.
+useBackdropSurface(useTemplateRef<HTMLElement>('surface'))
 const sessions = useChatSessionStore()
 const cards = useAiriCardStore()
 
@@ -170,13 +173,13 @@ defineExpose({
   <Transition :name="`voice-presence-${leave}`" :duration="{ enter: 220, leave: leave === 'dismiss' ? 220 : 160 }" @after-enter="emit('afterEnter')" @after-leave="emit('afterLeave')">
     <div
       v-if="shown !== 'hidden'"
+      ref="surface"
       data-testid="voice-presence"
       v-bind="$attrs"
-      :style="{ '--un-bg-opacity': 0.95 }"
       :data-view="shown"
       :class="[
         'overflow-hidden shadow-lg',
-        'bg-white dark:bg-neutral-900',
+        'bg-white/80 dark:bg-neutral-900/80',
         'transition-[width,height,border-radius] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none',
         shown === 'capsule' ? 'h-11 w-44 rounded-full' : 'h-40 w-full max-w-110 rounded-3xl',
         shown === 'sent' && !sentRewrite ? 'voice-presence-send' : '',
