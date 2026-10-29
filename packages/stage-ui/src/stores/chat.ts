@@ -631,7 +631,7 @@ export const useChatStore = defineStore('chat', () => {
     const persona = personaOf(sessionId)
     const sourceTools = async () => [
       ...(typeof tools === 'function' ? await tools() ?? [] : tools ?? []),
-      ...memory.enabled ? await createMemoryTools({ read: name => memory.read(name, persona), write: entry => memory.write(entry, persona), forget: name => memory.forget(name, persona) }) : [],
+      ...memory.enabled ? await createMemoryTools({ read: id => memory.read(id, persona), write: entry => memory.write(entry, persona), forget: id => memory.forget(id, persona) }) : [],
     ]
     // A recipe's own session runs only that recipe. It cannot start recipes, save them, or choose silence.
     if (isTaskSession(sessionId))
@@ -1321,8 +1321,8 @@ export const useChatStore = defineStore('chat', () => {
 
     const abort = new AbortController()
     // A keyword invokes its recipes like slash commands. A decision among them judges with the judgment tool.
-    // The recipes come from IndexedDB, so the first send of a window waits until they are read.
-    const invokedRecipes = recipes.ready().then(() => keywordRecipesFor(payload, extra))
+    // The recipes and the memory index come from IndexedDB, so the first send of a window waits until they are read.
+    const invokedRecipes = Promise.all([recipes.ready(), memory.ready()]).then(() => keywordRecipesFor(payload, extra))
     const prepared = invokedRecipes
       .then(invoked => prepareSend({ ...payload, messageId }, abort.signal, voice, { ...extra, skills: invokedSkillsOf(invoked) }, invoked))
       .then(options => runtime.submit(payload.text, options, payload.sessionId))

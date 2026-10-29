@@ -53,7 +53,10 @@ A recipe is a skill, like a skill in a coding agent.
 
 ### Long-term memory
 
-- Memory is an index plus one entry per fact. The index lists every entry by name and description, and joins the identity at the start of each run.
+- Memory is an index plus one entry per fact. The index lists every entry by its id and description, and joins the identity at the start of each run.
+- The store makes a UUIDv7 id when it adds an entry. A write with the id of the card's own entry changes that entry. A write without an id adds an entry.
+- IndexedDB keeps the entries on the device, one record for each entry. A removal leaves a tombstone. After a change, the other windows read the entries again.
+- A write reads the stored entry inside one lock for all windows, so a window that has not read a removal or a make-general never undoes it. A send waits until the window has read the entries.
 - The run reads, writes, and forgets entries with memory tools. It needs no approval.
 - A new entry belongs to the character card of the run. Other cards do not read it.
 - The owner can make an entry general in Settings. Every card then reads it in addition to its own entries. A run cannot change or forget a general entry.

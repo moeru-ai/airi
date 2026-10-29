@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { MemoryEntry } from '@proj-airi/stage-ui/stores/memory'
+import type { MemoryEntry } from '@proj-airi/stage-ui/types/memory'
 
 import { useMemoryStore } from '@proj-airi/stage-ui/stores/memory'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
@@ -32,7 +32,7 @@ const groups = computed(() => {
 })
 
 function remove(entry: MemoryEntry) {
-  memory.remove(entry)
+  void memory.remove(entry)
 }
 </script>
 
@@ -55,13 +55,12 @@ function remove(entry: MemoryEntry) {
       <ul v-if="group.entries.length" :class="['flex flex-col', 'gap-2']">
         <li
           v-for="entry in group.entries"
-          :key="entry.name"
+          :key="entry.id"
           :data-settings-search="memorySearchKey(entry)"
           :class="['flex items-start', 'gap-3', 'rounded-lg', 'bg-white dark:bg-neutral-900/60', 'px-3 py-2.5']"
         >
           <div :class="['min-w-0 flex-1', 'flex flex-col', 'gap-0.5']">
-            <span :class="['truncate', 'text-sm font-medium']">{{ entry.name }}</span>
-            <span v-if="entry.description" :class="['text-xs', 'text-neutral-500 dark:text-neutral-400']">{{ entry.description }}</span>
+            <span v-if="entry.description" :class="['text-sm font-medium', 'break-words']">{{ entry.description }}</span>
             <p :class="['pt-1', 'text-sm', 'whitespace-pre-wrap break-words']">
               {{ entry.body }}
             </p>
@@ -70,11 +69,11 @@ function remove(entry: MemoryEntry) {
             v-if="entry.persona"
             size="sm"
             icon="i-solar:global-linear"
-            :aria-label="t(`${KEY}.make_general`, { name: entry.name })"
-            :title="t(`${KEY}.make_general`, { name: entry.name })"
+            :aria-label="t(`${KEY}.make_general`, { name: entry.description || entry.body })"
+            :title="t(`${KEY}.make_general`, { name: entry.description || entry.body })"
             @click="memory.makeGeneral(entry)"
           />
-          <GhostButton size="sm" icon="i-solar:trash-bin-minimalistic-linear" :aria-label="t(`${KEY}.forget`, { name: entry.name })" :title="t(`${KEY}.forget`, { name: entry.name })" @click="remove(entry)" />
+          <GhostButton size="sm" icon="i-solar:trash-bin-minimalistic-linear" :aria-label="t(`${KEY}.forget`, { name: entry.description || entry.body })" :title="t(`${KEY}.forget`, { name: entry.description || entry.body })" @click="remove(entry)" />
         </li>
       </ul>
       <p v-else :class="['text-xs', 'text-neutral-500 dark:text-neutral-400']">
