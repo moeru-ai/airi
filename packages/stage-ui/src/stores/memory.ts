@@ -1,29 +1,37 @@
+import type { MemoryEntry, MemoryWrite } from '../types/memory'
+
+import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
-import { nanoid } from 'nanoid'
+import { useBroadcastChannel } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed } from 'vue'
+import { v7 as uuidv7 } from 'uuid'
+import { computed, ref, watch } from 'vue'
 
-/** One remembered topic and its facts. A character keeps it on its own card. A general memory reaches every card. */
-export interface MemoryEntry {
-  /** Made by the store when the entry is added. The index lists it, and tools address the entry by it. */
-  id: string
-  /** The index line: the fact itself when it fits in one line, or when the entry matters. */
-  description: string
-  body: string
-  /** The character card that owns this memory. Without it, the owner made the memory general. */
-  persona?: string
-  updatedAt: number
-}
+import { memoryRepo } from '../database/repos/memory.repo'
 
-/** A fact to save. The id of one of the card's own entries changes that entry. Without it, the write adds an entry. */
-export interface MemoryWrite {
-  id?: string
-  description: string
-  body: string
+const LEGACY_ENTRIES_STORAGE_KEY = 'memory/entries'
+
+// NOTICE:
+// Up to v0.13.1 the entries were in localStorage under `memory/entries`, keyed by a name that the model chose.
+// localStorage holds a few megabytes, and two facts could share a name. IndexedDB keeps the entries now, with store-made ids.
+// Move them once. The lock keeps two windows that start together from moving them twice.
+// Removal condition: two releases after the release that moves them.
+async function moveLegacyEntries() {
+  if (!globalThis.localStorage?.getItem(LEGACY_ENTRIES_STORAGE_KEY))
+    return
+  await navigator.locks.request('airi:memory-move', async () => {
+    const stored = localStorage.getItem(LEGACY_ENTRIES_STORAGE_KEY)
+    if (!stored)
+      return
+    const legacy: Omit<MemoryEntry, 'id'>[] = JSON.parse(stored)
+    await memoryRepo.save(legacy.map(({ description, body, persona, updatedAt }) => ({ id: uuidv7(), description, body, persona, updatedAt })))
+    localStorage.removeItem(LEGACY_ENTRIES_STORAGE_KEY)
+  })
 }
 
 /**
  * Long-term memory as a small index and one entry per topic, kept by the character itself.
+ * IndexedDB keeps the entries. After each change, the other windows read them again.
  *
  * Use when:
  * - A run reads the index or an entry, writes or forgets a fact, or Settings lists the memories by card.
@@ -37,22 +45,36 @@ export interface MemoryWrite {
  */
 export const useMemoryStore = defineStore('memory', () => {
   const enabled = useLocalStorageManualReset<boolean>('memory/enabled', true)
-  const entries = useLocalStorageManualReset<MemoryEntry[]>('memory/entries', [])
+  const entries = ref<MemoryEntry[]>([])
+  const { data: changed, post } = useBroadcastChannel<string[], string[]>({ name: 'airi:memory' })
+  let pendingLoad = moveLegacyEntries()
+    .catch(error => console.warn('[memory] Failed to move the entries from localStorage:', errorMessageFrom(error)))
 
-  // NOTICE:
-  // Entries saved before this change have the name that the model chose, and no id.
-  // The model-chosen name was the key, so two facts could collide and an edit could add a near copy. The store makes the id now.
-  // Source: the memory store of moeru-ai/airi#2748.
-  // Remove two releases after the release that adds the id.
-  if (entries.value.some(entry => !entry.id))
-    entries.value = entries.value.map(entry => entry.id ? entry : { ...entry, id: nanoid() })
-
-  /** General memories and the persona's own. */
-  function visibleTo(personaId: string) {
-    return entries.value.filter(entry => !entry.persona || entry.persona === personaId)
+  /** Reads the entries again, after the reads that started before. */
+  function load() {
+    pendingLoad = pendingLoad.catch(() => {}).then(async () => {
+      entries.value = await memoryRepo.list()
+    })
+    return pendingLoad
   }
 
-  /** The index for a card: its own memories, then general ones, each as an id and its description. */
+  /** The entries after every read that started before the call. */
+  async function current() {
+    await pendingLoad.catch(() => {})
+    return entries.value
+  }
+
+  /** Stores the saved and removed entries, reads them again, and tells the other windows. */
+  async function commit(saved: MemoryEntry[], removed: string[] = []) {
+    await Promise.all([memoryRepo.save(saved), memoryRepo.remove(removed, Date.now())])
+    await load()
+    post([...saved.map(entry => entry.id), ...removed])
+  }
+
+  /**
+   * The index for a card: its own memories, then general ones, each as an id and its description.
+   * A run reads it when it starts, from the entries that the window read last.
+   */
   function indexFor(personaId: string) {
     const line = (entry: MemoryEntry) => `- ${entry.id}: ${entry.description}`
     const own = entries.value.filter(entry => entry.persona === personaId).map(line)
@@ -63,73 +85,80 @@ export const useMemoryStore = defineStore('memory', () => {
     ].join('\n')
   }
 
-  /** Reads an entry that the persona can see by its id. */
+  /** Reads an entry that the persona can see by its id: one of its own, or a general one. */
   function read(id: string, personaId: string) {
-    return visibleTo(personaId).find(entry => entry.id === id)
+    return entries.value.find(entry => entry.id === id && (!entry.persona || entry.persona === personaId))
   }
 
   /**
    * Saves a fact on the card. An id of the card's own entry replaces that entry. Any other id, for example of a general
-   * entry that only the owner changes, adds a new entry. Returns the stored entry, or undefined for an empty body.
+   * entry that only the owner changes, adds a new entry. Resolves to the stored entry, or undefined for an empty body.
    */
-  function write(input: MemoryWrite, personaId: string) {
+  async function write(input: MemoryWrite, personaId: string) {
     const body = input.body.trim()
     if (!body)
       return undefined
-    const own = entries.value.find(entry => entry.id === input.id && entry.persona === personaId)
-    const next: MemoryEntry = { id: own?.id ?? nanoid(), description: input.description.trim(), body, persona: personaId, updatedAt: Date.now() }
-    entries.value = [...entries.value.filter(entry => entry !== own), next]
-    return next
+    const own = (await current()).find(entry => entry.id === input.id && entry.persona === personaId)
+    const entry: MemoryEntry = { id: own?.id ?? uuidv7(), description: input.description.trim(), body, persona: personaId, updatedAt: Date.now() }
+    await commit([entry])
+    return entry
   }
 
   /**
    * Replaces the `replaced` entries of the card with the result of a tidy-up. Each result keeps the id of its first old
    * entry. Entries outside `replaced`, for example ones saved during the tidy-up, stay.
    */
-  function consolidate(personaId: string, replaced: string[], results: { ids: string[], description: string, body: string }[]) {
-    const old = new Set(replaced)
+  async function consolidate(personaId: string, replaced: string[], results: { ids: string[], description: string, body: string }[]) {
+    const all = await current()
     const updatedAt = Date.now()
-    const next = results.map((result): MemoryEntry => {
-      const kept = entries.value.find(entry => entry.id === result.ids[0] && entry.persona === personaId)
+    const saved = results.flatMap((result): MemoryEntry[] => {
+      const kept = all.find(entry => entry.id === result.ids[0] && entry.persona === personaId)
       if (kept && result.ids.length === 1 && kept.description === result.description && kept.body === result.body)
-        return kept
-      return { id: result.ids[0], description: result.description.trim(), body: result.body.trim(), persona: personaId, updatedAt }
+        return []
+      return [{ id: result.ids[0], description: result.description.trim(), body: result.body.trim(), persona: personaId, updatedAt }]
     })
-    entries.value = [...entries.value.filter(entry => entry.persona !== personaId || !old.has(entry.id)), ...next]
+    const keptIds = new Set(results.map(result => result.ids[0]))
+    await commit(saved, replaced.filter(id => !keptIds.has(id)))
   }
 
   /** Makes a card's memory general, so every card reads it. */
-  function makeGeneral(entry: Pick<MemoryEntry, 'id'>) {
-    const source = entries.value.find(existing => existing.id === entry.id)
+  async function makeGeneral(entry: Pick<MemoryEntry, 'id'>) {
+    const source = (await current()).find(existing => existing.id === entry.id)
     if (!source?.persona)
       return
     const { persona: _card, ...general } = source
-    entries.value = [...entries.value.filter(existing => existing !== source), { ...general, updatedAt: Date.now() }]
+    await commit([{ ...general, updatedAt: Date.now() }])
   }
 
   /** Removes one entry, from a tool or from Settings. */
-  function remove(entry: Pick<MemoryEntry, 'id'>) {
-    entries.value = entries.value.filter(existing => existing.id !== entry.id)
+  async function remove(entry: Pick<MemoryEntry, 'id'>) {
+    await commit([], [entry.id])
   }
 
   /** Forgets an entry of the card by its id. General memories belong to the owner, so a run cannot forget them. */
-  function forget(id: string, personaId: string) {
-    const target = entries.value.find(entry => entry.id === id && entry.persona === personaId)
-    if (!target)
+  async function forget(id: string, personaId: string) {
+    if (!(await current()).some(entry => entry.id === id && entry.persona === personaId))
       return false
-    remove(target)
+    await remove({ id })
     return true
   }
 
-  function resetState() {
+  async function resetState() {
     enabled.reset()
-    entries.reset()
+    await memoryRepo.clear()
+    await load()
+    post([])
   }
+
+  function reload() {
+    void load().catch(error => console.warn('[memory] Failed to read the entries:', errorMessageFrom(error)))
+  }
+  watch(changed, reload)
+  reload()
 
   return {
     enabled,
     entries: computed(() => entries.value),
-    visibleTo,
     indexFor,
     read,
     write,

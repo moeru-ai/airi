@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { MemoryEntry } from '@proj-airi/stage-ui/stores/memory'
+import type { MemoryEntry } from '@proj-airi/stage-ui/types/memory'
 
 import { errorMessageFrom } from '@moeru/std'
 import { useMemoryConsolidation } from '@proj-airi/stage-ui/composables/memory-consolidation'
@@ -34,7 +34,7 @@ const groups = computed(() => {
 })
 
 function remove(entry: MemoryEntry) {
-  memory.remove(entry)
+  void memory.remove(entry)
 }
 
 const { consolidate } = useMemoryConsolidation()

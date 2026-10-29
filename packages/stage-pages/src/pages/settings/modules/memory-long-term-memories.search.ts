@@ -1,5 +1,5 @@
 import type { SettingsSearchModule } from '@proj-airi/stage-ui/libs/settings-search'
-import type { MemoryEntry } from '@proj-airi/stage-ui/stores/memory'
+import type { MemoryEntry } from '@proj-airi/stage-ui/types/memory'
 
 import { settingsSearchItemKey } from '@proj-airi/stage-shared/settings-search'
 import { useMemoryStore } from '@proj-airi/stage-ui/stores/memory'

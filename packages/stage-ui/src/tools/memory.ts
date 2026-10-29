@@ -1,6 +1,6 @@
 import type { Tool } from '@xsai/shared-chat'
 
-import type { MemoryEntry, MemoryWrite } from '../stores/memory'
+import type { MemoryEntry, MemoryWrite } from '../types/memory'
 
 import { rawTool } from '@xsai/tool'
 import { array, description, maxLength, minLength, nullable, pipe, safeParse, strictObject, string } from 'valibot'
@@ -49,8 +49,8 @@ export function composeMemoryPrompt(index: string) {
 /** What the memory tools change. The caller binds them to the run's character card. */
 interface CreateMemoryToolsOptions {
   read: (id: string) => MemoryEntry | undefined
-  write: (entry: MemoryWrite) => MemoryEntry | undefined
-  forget: (id: string) => boolean
+  write: (entry: MemoryWrite) => Promise<MemoryEntry | undefined>
+  forget: (id: string) => Promise<boolean>
 }
 
 /** Creates the memory tools for one run. The run reads its card's memories and the general ones, and changes only its card's. */
@@ -78,10 +78,12 @@ export async function createMemoryTools(options: CreateMemoryToolsOptions): Prom
         const parsed = safeParse(writeParameters, rawInput)
         if (!parsed.success)
           return 'Memory not saved: each entry needs an id or null, and a body.'
-        return parsed.output.entries.map((input) => {
-          const entry = options.write({ id: input.id ?? undefined, description: input.description, body: input.body })
-          return entry ? `Saved memory "${entry.id}".` : 'Memory not saved: it needs a body.'
-        }).join('\n')
+        const lines: string[] = []
+        for (const input of parsed.output.entries) {
+          const entry = await options.write({ id: input.id ?? undefined, description: input.description, body: input.body })
+          lines.push(entry ? `Saved memory "${entry.id}".` : 'Memory not saved: it needs a body.')
+        }
+        return lines.join('\n')
       },
     }),
     rawTool({
@@ -90,7 +92,7 @@ export async function createMemoryTools(options: CreateMemoryToolsOptions): Prom
       parameters: await toJsonSchema(forgetParameters),
       execute: async (rawInput) => {
         const parsed = safeParse(forgetParameters, rawInput)
-        return parsed.success && options.forget(parsed.output.id) ? `Forgot memory "${parsed.output.id}".` : 'No memory entry with that id.'
+        return parsed.success && await options.forget(parsed.output.id) ? `Forgot memory "${parsed.output.id}".` : 'No memory entry with that id.'
       },
     }),
   ]

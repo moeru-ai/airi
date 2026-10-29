@@ -28,7 +28,7 @@ export function useMemoryConsolidation() {
       .map(({ id, description, body }) => ({ id, description, body }))
     const agent = createMemoryConsolidationAgent({ generateText: generateText({ providerId: provider, model }) })
     const results = await agent.consolidate(entries, new AbortController().signal)
-    memory.consolidate(personaId, entries.map(entry => entry.id), results)
+    await memory.consolidate(personaId, entries.map(entry => entry.id), results)
   }
 
   return { consolidate }

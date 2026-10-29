@@ -1,4 +1,4 @@
-import type { MemoryEntry, MemoryWrite } from '../stores/memory'
+import type { MemoryEntry, MemoryWrite } from '../types/memory'
 
 import { describe, expect, it, vi } from 'vitest'
 
@@ -9,8 +9,8 @@ const entry: MemoryEntry = { id: 'nick', description: 'What the owner likes to b
 function options() {
   return {
     read: vi.fn((id: string) => id === 'nick' ? entry : undefined),
-    write: vi.fn((input: MemoryWrite): MemoryEntry => ({ ...input, id: input.id ?? 'new', updatedAt: 0 })),
-    forget: vi.fn(() => true),
+    write: vi.fn(async (input: MemoryWrite): Promise<MemoryEntry> => ({ ...input, id: input.id ?? 'new', updatedAt: 0 })),
+    forget: vi.fn(async () => true),
   }
 }
 

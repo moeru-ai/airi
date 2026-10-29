@@ -15,6 +15,7 @@ import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { computed, createApp, nextTick, reactive, ref, toRaw } from 'vue'
 
+import { memoryRepo } from '../database/repos/memory.repo'
 import { getAnalytics } from '../libs/product-signals'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
@@ -147,8 +148,9 @@ vi.mock('./chat/context-store', () => ({
   }),
 }))
 
-// IndexedDB is a browser boundary. Browser tests exercise the real sticker repository.
+// IndexedDB is a browser boundary. Browser tests exercise the real sticker and memory repositories.
 vi.mock('../database/repos/chat-assets.repo')
+vi.mock('../database/repos/memory.repo')
 
 vi.mock('../database/repos/stickers.repo', () => ({
   stickersRepo: { read: async () => ({ records: [], images: [] }) },
@@ -321,7 +323,8 @@ function storedToolImageMessage(): ChatHistoryItem {
 }
 
 describe('chat store contract', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await memoryRepo.clear()
     cardPrompt.value = 'system prompt'
     setActivePinia(createPinia())
     vi.spyOn(getAnalytics(), 'emit').mockImplementation((event, properties) => {
@@ -673,10 +676,10 @@ describe('chat store contract', () => {
       await options.onStreamEvent({ type: 'finish' })
     })
     const memory = useMemoryStore()
-    const nickname = memory.write({ description: 'What the owner likes to be called.', body: 'Yumeka.' }, 'default')!
-    memory.makeGeneral(nickname)
-    const rules = memory.write({ description: 'Rules of this channel.', body: 'No spoilers.' }, 'discord-host')!
-    memory.write({ description: 'How the focus card answers.', body: 'Next step first.' }, 'focus')
+    const nickname = (await memory.write({ description: 'What the owner likes to be called.', body: 'Yumeka.' }, 'default'))!
+    await memory.makeGeneral(nickname)
+    const rules = (await memory.write({ description: 'Rules of this channel.', body: 'No spoilers.' }, 'discord-host'))!
+    await memory.write({ description: 'How the focus card answers.', body: 'Next step first.' }, 'focus')
 
     await useChatStore().send({ sessionId: 'scene-session', text: 'save a recipe for me' })
 

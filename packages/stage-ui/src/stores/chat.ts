@@ -307,7 +307,7 @@ export const useChatStore = defineStore('chat', () => {
    * Saves the facts that a finished turn tells about the user, with the chat model of its character.
    * It runs after the reply, so the next turn does not wait for it. The reply shows what it saved. A failed run saves nothing.
    */
-  function finalizeMemory(sessionId: string, assistantText: string, sessionMessages: ChatHistoryItem[]) {
+  async function finalizeMemory(sessionId: string, assistantText: string, sessionMessages: ChatHistoryItem[]) {
     if (!memory.enabled)
       return
 
@@ -324,13 +324,15 @@ export const useChatStore = defineStore('chat', () => {
     const replyId = userIndex < 0 ? undefined : messages.slice(userIndex + 1).find(message => message.role === 'assistant')?.id
 
     const turn = { index: memory.indexFor(persona), userText, assistantText }
-    memoryFinalizer.collect({ providerId: provider, model }, turn, new AbortController().signal)
-      .then(async (entries) => {
-        const saved = entries.flatMap(entry => memory.write({ id: entry.id ?? undefined, description: entry.description, body: entry.body }, persona) ?? [])
-        if (replyId && saved.length)
-          await chatSession.updateAssistantMessage(sessionId, replyId, { savedMemories: saved.map(({ id, description }) => ({ id, description })) })
-      })
-      .catch(error => console.warn('[chat] Memory finalizer failed:', errorMessageFrom(error)))
+    const entries = await memoryFinalizer.collect({ providerId: provider, model }, turn, new AbortController().signal)
+    const saved: { id: string, description: string }[] = []
+    for (const entry of entries) {
+      const stored = await memory.write({ id: entry.id ?? undefined, description: entry.description, body: entry.body }, persona)
+      if (stored)
+        saved.push({ id: stored.id, description: stored.description })
+    }
+    if (replyId && saved.length)
+      await chatSession.updateAssistantMessage(sessionId, replyId, { savedMemories: saved })
   }
   const wakeWords = useWakeWordsStore()
   const stickersStore = useStickersStore()
@@ -1104,7 +1106,8 @@ export const useChatStore = defineStore('chat', () => {
     onAssistantTurnReady: ({ sessionId, messageText, sessionMessages }) => {
       if (!isOwnerTurn(sessionId, sessionMessages))
         return
-      finalizeMemory(sessionId, messageText, sessionMessages)
+      void finalizeMemory(sessionId, messageText, sessionMessages)
+        .catch(error => console.warn('[chat] Memory finalizer failed:', errorMessageFrom(error)))
       const artistry = sessionCard(sessionId)?.extensions?.airi?.modules?.artistry
       if (artistry?.autonomousEnabled && artistry?.autonomousTarget === 'assistant')
         void artistryAutonomousStore.runArtistTask(messageText, toProviderHistory(sessionMessages))
