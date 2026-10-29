@@ -15,6 +15,7 @@ import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { computed, createApp, nextTick, reactive, ref, toRaw } from 'vue'
 
+import { recipesRepo } from '../database/repos/recipes.repo'
 import { getAnalytics } from '../libs/product-signals'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
@@ -141,8 +142,9 @@ vi.mock('./chat/context-store', () => ({
   }),
 }))
 
-// IndexedDB is a browser boundary. Browser tests exercise the real sticker repository.
+// IndexedDB is a browser boundary. Browser tests exercise the real sticker and recipe repositories.
 vi.mock('../database/repos/chat-assets.repo')
+vi.mock('../database/repos/recipes.repo')
 
 vi.mock('../database/repos/stickers.repo', () => ({
   stickersRepo: { read: async () => ({ records: [], images: [] }) },
@@ -315,7 +317,8 @@ function storedToolImageMessage(): ChatHistoryItem {
 }
 
 describe('chat store contract', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await recipesRepo.clear()
     cardPrompt.value = 'system prompt'
     setActivePinia(createPinia())
     vi.spyOn(getAnalytics(), 'emit').mockImplementation((event, properties) => {
@@ -637,7 +640,7 @@ describe('chat store contract', () => {
       prompts.push(JSON.stringify(context))
       await options.onStreamEvent?.({ type: 'finish' })
     })
-    useRecipesStore().add({
+    await useRecipesStore().add({
       name: 'i-have-adhd',
       description: 'ADHD-friendly answers.',
       instructions: 'Start with the next step.',
