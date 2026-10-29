@@ -223,6 +223,7 @@ describe('centerWindowOnDisplay', () => {
       isDestroyed: () => false,
       setBounds,
       show,
+      showInactive: vi.fn(),
     })
 
     expect(result).toEqual({ x: 495, y: 162, width: 450, height: 600 })
@@ -251,6 +252,7 @@ describe('centerWindowOnDisplay', () => {
       isDestroyed: () => true,
       setBounds: vi.fn(),
       show: vi.fn(),
+      showInactive: vi.fn(),
     })).toThrowError('Main AIRI window is not available.')
     expect(getBounds).not.toHaveBeenCalled()
   })

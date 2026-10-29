@@ -32,6 +32,7 @@ import {
   electronOpenSettings,
   electronWorkspaceWindowGetOpenRequest,
 } from '../../../shared/eventa'
+import { focusWindow, isWindowFocusIgnored, showWindow } from '../../libs/electron/focus'
 import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createWindowContext } from '../../libs/electron/window-context'
 import { createReusableWindow } from '../../libs/electron/window-manager'
@@ -125,7 +126,7 @@ export function setupWorkspaceWindowManager(params: {
     })
 
     params.onWindowCreated?.(window)
-    window.on('ready-to-show', () => window.show())
+    window.on('ready-to-show', () => showWindow(window))
     protectPrivilegedWindowNavigation(window)
 
     // Settings pages show here, so the window answers what they ask of the settings window.
@@ -204,14 +205,14 @@ export function setupWorkspaceWindowManager(params: {
       context.emit(electronFullscreenOpen, { surface: next, route, pack })
       if (existing.isMinimized())
         existing.restore()
-      existing.show()
-      existing.focus()
+      focusWindow(existing)
       return
     }
 
     first = { surface: next, route, pack }
     const window = await reusable.getWindow()
-    window.focus()
+    if (!isWindowFocusIgnored())
+      window.focus()
   }
 
   const place: FullscreenPlace = {
