@@ -1,20 +1,28 @@
 import type { BackdropRegion } from '@proj-airi/electron-native-backdrop/types'
+import type { Component } from 'vue'
 
 import type { WindowBackdropStatus } from '../../shared/eventa'
 
+import { backdropSurfaceHostKey, useBackdropSurface } from '@proj-airi/stage-ui/composables/backdrop-surface'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { defineComponent, shallowRef, useTemplateRef } from 'vue'
 
-import { useWindowBackdrop } from './use-window-backdrop'
+import { createWindowBackdropHost } from './window-backdrop'
 
 import 'virtual:uno.css'
 
-const { update } = vi.hoisted(() => ({
-  update: vi.fn<(request: { regions: BackdropRegion[] }) => Promise<WindowBackdropStatus>>(),
-}))
+const update = vi.fn<(request: { regions: BackdropRegion[] }) => Promise<WindowBackdropStatus>>()
+const host = createWindowBackdropHost(update)
 
-vi.mock('@proj-airi/electron-vueuse', () => ({ useElectronEventaInvoke: () => update }))
+/** One declared glass surface, as a component declares it with `useBackdropSurface`. */
+const Surface = defineComponent({
+  props: { enabled: { type: Boolean, default: true } },
+  setup(props) {
+    useBackdropSurface(useTemplateRef<HTMLElement>('root'), { enabled: () => props.enabled })
+  },
+  template: '<div ref="root" data-surface><slot /></div>',
+})
 
 const views: { unmount: () => void }[] = []
 
@@ -22,15 +30,19 @@ function nextFrame() {
   return new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
 }
 
-async function mountSurface(content: string, kind: 'inlay' | 'panel' = 'inlay', style = '') {
-  const view = await render(defineComponent({
-    setup() {
-      useWindowBackdrop(useTemplateRef<HTMLElement>('root'), kind)
-    },
-    template: `<div ref="root" data-testid="backdrop-root" data-window-backdrop-surface style="position:fixed;left:20px;top:30px;width:300px;height:250px;${style}">${content}</div>`,
-  }))
+async function mount(component: Component) {
+  const view = await render(component, { global: { components: { Surface }, provide: { [backdropSurfaceHostKey as symbol]: host } } })
   views.push(view)
-  return view.container.querySelector<HTMLElement>('[data-testid="backdrop-root"]')!
+  return view
+}
+
+/** Mounts a fixed 300 by 250 root at (20, 30). A `page` root is a surface itself, like a chat page background. */
+async function mountSurface(content: string, options: { page?: boolean, style?: string } = {}) {
+  const tag = options.page ? 'Surface' : 'div'
+  const view = await mount(defineComponent({
+    template: `<${tag} style="position:fixed;left:20px;top:30px;width:300px;height:250px;${options.style ?? ''}">${content}</${tag}>`,
+  }))
+  return view.container.firstElementChild as HTMLElement
 }
 
 function regions() {
@@ -50,15 +62,14 @@ afterEach(async () => {
 })
 
 describe('window native backdrop', () => {
-  it('gives chat one continuous page background while preserving header, bubble, and composer fills', async () => {
+  it('draws one region for a page surface and leaves its header, bubble, and composer fills alone', async () => {
     let acknowledge: ((status: WindowBackdropStatus) => void) | undefined
     update.mockImplementationOnce(() => new Promise(resolve => acknowledge = resolve))
     const root = await mountSurface(`
       <header class="bg-white" style="height:40px">Chat header</header>
       <div class="chat-message-item-container bg-neutral-100" style="margin-top:20px;width:180px;height:60px;border-radius:12px">Message</div>
       <div class="bg-neutral-900" style="margin-top:30px;height:50px;border-radius:16px">Composer</div>
-    `, 'panel', 'border-radius:24px')
-    root.setAttribute('data-window-backdrop-floating-background', '')
+    `, { page: true, style: 'border-radius:24px' })
     await expect.poll(() => update.mock.calls.length).toBe(1)
     expect(regions()).toHaveLength(1)
     expect(regions()[0]).toMatchObject({ x: 20, y: 30, width: 300, height: 250, radius: 24 })
@@ -67,7 +78,9 @@ describe('window native backdrop', () => {
     expect(colors).toEqual(['rgb(255, 255, 255)', 'rgb(245, 245, 245)', 'rgb(23, 23, 23)'])
 
     acknowledge!({ state: 'active' })
-    await expect.poll(() => getComputedStyle(root).backgroundColor).toBe('rgba(255, 255, 255, 0.3)')
+    await nextFrame()
+    // Native glass draws only the material. Each element keeps its own fill.
+    expect(getComputedStyle(root).backgroundColor).toBe('rgba(0, 0, 0, 0)')
     expect([...root.children].map(child => getComputedStyle(child).backgroundColor)).toEqual(colors)
     expect(regions()).toHaveLength(1)
     const bubble = root.children[1] as HTMLElement
@@ -79,23 +92,22 @@ describe('window native backdrop', () => {
     await expect.poll(() => regions()).toEqual([])
   })
 
-  it('waits for native success before lowering inlay fill and keeps gaps out of its regions', async () => {
+  it('sends one region for each surface, keeps gaps out of the regions, and leaves fills alone', async () => {
     let acknowledge: ((status: WindowBackdropStatus) => void) | undefined
     update.mockImplementationOnce(() => new Promise(resolve => acknowledge = resolve))
     const root = await mountSurface(`
-      <div data-window-backdrop-surface class="bg-white" style="width:100px;height:40px;border-radius:20px"></div>
-      <div data-window-backdrop-surface class="bg-neutral-100" style="margin-top:20px;width:180px;height:80px;border-radius:16px"></div>
+      <Surface class="bg-white" style="width:100px;height:40px;border-radius:20px"></Surface>
+      <Surface class="bg-neutral-100" style="margin-top:20px;width:180px;height:80px;border-radius:16px"></Surface>
     `)
     const surface = root.children[0] as HTMLElement
     await expect.poll(() => update.mock.calls.length).toBe(1)
-    expect(getComputedStyle(surface).backgroundColor).toBe('rgb(255, 255, 255)')
-    expect(root.hasAttribute('data-window-backdrop-active')).toBe(false)
     expect(regions().map(({ x, y, width, height, radius }) => ({ x, y, width, height, radius }))).toEqual([
       { x: 20, y: 30, width: 100, height: 40, radius: 20 },
       { x: 20, y: 90, width: 180, height: 80, radius: 16 },
     ])
     acknowledge!({ state: 'active' })
-    await expect.poll(() => getComputedStyle(surface).backgroundColor).toBe('rgba(255, 255, 255, 0.3)')
+    await nextFrame()
+    expect(getComputedStyle(surface).backgroundColor).toBe('rgb(255, 255, 255)')
     const calls = update.mock.calls.length
     await nextFrame()
     await nextFrame()
@@ -107,7 +119,7 @@ describe('window native backdrop', () => {
       <div data-fold style="width:300px;height:250px;clip-path:inset(10% 20% 0 0 round 24px);opacity:.5">
         <div data-scroll style="position:absolute;left:10px;top:20px;width:200px;height:120px;overflow:auto;border-radius:12px">
           <div style="height:300px;opacity:.5">
-            <div data-window-backdrop-surface class="bg-white" style="height:80px;width:180px;border-radius:16px;opacity:.8"></div>
+            <Surface class="bg-white" style="height:80px;width:180px;border-radius:16px;opacity:.8"></Surface>
           </div>
         </div>
       </div>
@@ -133,7 +145,7 @@ describe('window native backdrop', () => {
   it('accepts exponent lengths that Chromium computes near the end of a fold transition', async () => {
     await mountSurface(`
       <div style="width:300px;height:250px;clip-path:inset(7.23473e-05% 0px 0px 7.23473e-05% round 24px)">
-        <div data-window-backdrop-surface class="bg-white" style="width:300px;height:250px"></div>
+        <Surface class="bg-white" style="width:300px;height:250px"></Surface>
       </div>
     `)
     await expect.poll(() => regions().length).toBe(1)
@@ -141,7 +153,7 @@ describe('window native backdrop', () => {
   })
 
   it('tracks transforms and opacity for the complete surface animation, then removes hidden content', async () => {
-    const root = await mountSurface('<div data-window-backdrop-surface class="bg-white" style="width:100px;height:40px;border-radius:20px"></div>')
+    const root = await mountSurface('<Surface class="bg-white" style="width:100px;height:40px;border-radius:20px"></Surface>')
     await expect.poll(() => regions().length).toBe(1)
     const surface = root.firstElementChild as HTMLElement
     surface.animate([
@@ -163,21 +175,16 @@ describe('window native backdrop', () => {
     // An overflow ancestor opens from an empty clipping area, then closes back to it.
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
-      const view = await render(defineComponent({
-        setup() {
-          useWindowBackdrop(useTemplateRef<HTMLElement>('root'), 'panel')
-        },
+      const view = await mount(defineComponent({
         template: `
-          <div data-testid="clip-area" style="position:fixed;left:20px;top:30px;width:${dimension === 'width' ? 0 : 300}px;height:${dimension === 'height' ? 0 : 250}px;overflow:hidden">
+          <div style="position:fixed;left:20px;top:30px;width:${dimension === 'width' ? 0 : 300}px;height:${dimension === 'height' ? 0 : 250}px;overflow:hidden">
             <div style="width:300px;height:250px">
-              <div ref="root" data-testid="chat-background" data-window-backdrop-surface class="bg-neutral-50" style="width:240px;height:160px"></div>
+              <Surface class="bg-neutral-50" style="width:240px;height:160px" />
             </div>
           </div>
         `,
       }))
-      views.push(view)
-      const area = view.container.querySelector<HTMLElement>('[data-testid="clip-area"]')!
-      const background = view.container.querySelector<HTMLElement>('[data-testid="chat-background"]')!
+      const area = view.container.firstElementChild as HTMLElement
       const extent = dimension === 'width' ? 300 : 250
       const areaClip = (region: BackdropRegion) => region.clips.find(clip => clip.x === 20 && clip.y === 30 && clip.radius === 0 && (dimension === 'width' ? clip.height === 250 : clip.width === 300))
       await expect.poll(() => update.mock.calls.length).toBe(1)
@@ -188,7 +195,6 @@ describe('window native backdrop', () => {
       area.getBoundingClientRect()
       area.style[dimension] = `${extent}px`
       await expect.poll(() => regions()[0] && areaClip(regions()[0])?.[dimension]).toBe(extent)
-      expect(background.getAttribute('data-window-backdrop-active')).toBe('panel')
       expect(update.mock.calls.some(([request]) => request.regions.some((region) => {
         const clip = areaClip(region)
         return clip !== undefined && clip[dimension] > 0 && clip[dimension] < extent
@@ -197,11 +203,9 @@ describe('window native backdrop', () => {
       area.style[dimension] = '0px'
       await expect.poll(() => area.getBoundingClientRect()[dimension]).toBe(0)
       await expect.poll(() => regions()).toEqual([])
-      expect(background.hasAttribute('data-window-backdrop-active')).toBe(false)
 
       area.style[dimension] = `${extent}px`
       await expect.poll(() => regions()[0] && areaClip(regions()[0])?.[dimension]).toBe(extent)
-      expect(background.getAttribute('data-window-backdrop-active')).toBe('panel')
       expect(error).not.toHaveBeenCalled()
     }
     finally {
@@ -210,21 +214,19 @@ describe('window native backdrop', () => {
   })
 
   it('normalizes rounded-full radii before scaling fractional capsule dimensions', async () => {
-    const root = await mountSurface('<div data-window-backdrop-surface class="bg-white" style="width:100.5px;height:40.25px;border-radius:9999px;transform:scale(.94)"></div>')
+    const root = await mountSurface('<Surface class="bg-white" style="width:100.5px;height:40.25px;border-radius:9999px;transform:scale(.94)"></Surface>')
     const surface = root.firstElementChild as HTMLElement
     const rect = surface.getBoundingClientRect()
     await expect.poll(() => regions().length).toBe(1)
     expect(regions()[0].width).toBeCloseTo(rect.width, 1)
     expect(regions()[0].height).toBeCloseTo(rect.height, 1)
     expect(regions()[0].radius).toBeCloseTo(rect.height / 2, 1)
-    expect(root.getAttribute('data-window-backdrop-active')).toBe('inlay')
-    expect(getComputedStyle(surface).backgroundColor).toBe('rgba(255, 255, 255, 0.3)')
   })
 
   it('coalesces changing geometry behind one invoke and sends empty regions after unmount', async () => {
     const acknowledgements: ((status: WindowBackdropStatus) => void)[] = []
     update.mockImplementation(() => new Promise(resolve => acknowledgements.push(resolve)))
-    const root = await mountSurface('<div data-window-backdrop-surface style="width:100px;height:40px;border-radius:20px"></div>')
+    const root = await mountSurface('<Surface style="width:100px;height:40px;border-radius:20px"></Surface>')
     await expect.poll(() => update.mock.calls.length).toBe(1)
     const surface = root.firstElementChild as HTMLElement
     surface.style.width = '150px'
@@ -245,10 +247,10 @@ describe('window native backdrop', () => {
     acknowledgements.shift()!({ state: 'active' })
   })
 
-  it('combines concurrent roots in one window and removes only the unmounted surface', async () => {
-    await mountSurface('<div data-window-backdrop-surface style="width:100px;height:40px"></div>')
+  it('combines concurrent surfaces in one window and removes only the unmounted surface', async () => {
+    await mountSurface('<Surface style="width:100px;height:40px"></Surface>')
     await expect.poll(() => regions().length).toBe(1)
-    await mountSurface('', 'panel', 'left:400px')
+    await mountSurface('', { page: true, style: 'left:400px' })
     await expect.poll(() => regions().length).toBe(2)
     expect(new Set(regions().map(region => region.id)).size).toBe(2)
     views.shift()!.unmount()
@@ -258,38 +260,30 @@ describe('window native backdrop', () => {
 
   it('clears a surface that turns off while mounted, and draws it again once it turns on', async () => {
     const enabled = shallowRef(true)
-    const view = await render(defineComponent({
-      setup() {
-        useWindowBackdrop(useTemplateRef<HTMLElement>('root'), 'panel', enabled)
-      },
-      template: `<div ref="root" data-testid="backdrop-root" data-window-backdrop-surface data-window-backdrop-floating-background style="position:fixed;left:20px;top:30px;width:300px;height:250px"></div>`,
+    await mount(defineComponent({
+      setup: () => ({ enabled }),
+      template: `<Surface :enabled="enabled" style="position:fixed;left:20px;top:30px;width:300px;height:250px" />`,
     }))
-    views.push(view)
-    const root = view.container.querySelector<HTMLElement>('[data-testid="backdrop-root"]')!
-    await expect.poll(() => root.getAttribute('data-window-backdrop-active')).toBe('panel')
-    expect(regions()).toHaveLength(1)
+    await expect.poll(() => regions()).toHaveLength(1)
 
     enabled.value = false
     await expect.poll(() => regions()).toEqual([])
-    expect(root.hasAttribute('data-window-backdrop-active')).toBe(false)
-    expect(getComputedStyle(root).backgroundColor).toBe('rgba(0, 0, 0, 0)')
 
     enabled.value = true
     await expect.poll(() => regions()).toHaveLength(1)
   })
 
-  it('restores CSS and clears native regions after a failure, without retrying on later mutations', async () => {
+  it('clears native regions after a failure, without retrying on later mutations', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
-      const root = await mountSurface('<div data-window-backdrop-surface class="bg-white" style="width:100px;height:40px"></div>')
-      await expect.poll(() => root.getAttribute('data-window-backdrop-active')).toBe('inlay')
+      const root = await mountSurface('<Surface class="bg-white" style="width:100px;height:40px"></Surface>')
+      await expect.poll(() => regions()).toHaveLength(1)
       update.mockResolvedValueOnce({ state: 'failed', reason: 'Native layer failed' })
       const surface = root.firstElementChild as HTMLElement
       surface.style.width = '110px'
-      await expect.poll(() => root.hasAttribute('data-window-backdrop-active')).toBe(false)
+      await expect.poll(() => error.mock.calls.length).toBe(1)
       await expect.poll(() => regions()).toEqual([])
-      expect(getComputedStyle(surface).backgroundColor).toBe('rgb(255, 255, 255)')
-      expect(error).toHaveBeenCalledWith('[window-backdrop] Native material stopped. Keeping the CSS surface:', expect.objectContaining({ message: 'Native layer failed' }))
+      expect(error).toHaveBeenCalledWith('[window-backdrop] Native material stopped. Surfaces keep their own fill:', expect.objectContaining({ message: 'Native layer failed' }))
       const calls = update.mock.calls.length
       surface.style.width = '140px'
       await nextFrame()
@@ -301,48 +295,39 @@ describe('window native backdrop', () => {
     }
   })
 
-  it('keeps opaque CSS when the platform does not support native material', async () => {
+  it('stops sending regions when the platform does not support native material', async () => {
     update.mockResolvedValue({ state: 'unsupported', reason: 'Not macOS' })
-    const root = await mountSurface('<div data-window-backdrop-surface class="bg-white" style="width:100px;height:40px"></div>')
+    const root = await mountSurface('<Surface class="bg-white" style="width:100px;height:40px"></Surface>')
     await expect.poll(() => update.mock.calls.length).toBe(1)
-    expect(root.hasAttribute('data-window-backdrop-active')).toBe(false)
-    expect(getComputedStyle(root.firstElementChild!).backgroundColor).toBe('rgb(255, 255, 255)')
     root.style.width = '320px'
     await nextFrame()
     await nextFrame()
     expect(update.mock.calls.length).toBe(1)
   })
 
-  it('preserves the floating chat transparent background when native material is unavailable', async () => {
-    update.mockResolvedValue({ state: 'unsupported', reason: 'Not macOS' })
-    const root = await mountSurface('<header class="bg-white">Chat header</header><div class="chat-message-item-container bg-neutral-100">Message</div>', 'panel', 'border-radius:24px')
-    root.setAttribute('data-window-backdrop-floating-background', '')
-    await expect.poll(() => update.mock.calls.length).toBe(1)
-    expect(root.hasAttribute('data-window-backdrop-active')).toBe(false)
-    expect(getComputedStyle(root).backgroundColor).toBe('rgba(0, 0, 0, 0)')
-    expect(getComputedStyle(root.firstElementChild!).backgroundColor).toBe('rgb(255, 255, 255)')
-    expect(regions()).toHaveLength(1)
-  })
-
-  it('keeps CSS opaque when an older active reply arrives after a geometry failure', async () => {
+  it('stays stopped when an older active reply arrives after a geometry failure', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
-      const root = await mountSurface('<div data-window-backdrop-surface class="bg-white" style="width:100px;height:40px"></div>')
-      await expect.poll(() => root.getAttribute('data-window-backdrop-active')).toBe('inlay')
+      const root = await mountSurface('<Surface class="bg-white" style="width:100px;height:40px"></Surface>')
+      await expect.poll(() => regions()).toHaveLength(1)
       let acknowledge: ((status: WindowBackdropStatus) => void) | undefined
       update.mockImplementationOnce(() => new Promise(resolve => acknowledge = resolve))
       const surface = root.firstElementChild as HTMLElement
       surface.style.width = '110px'
       await expect.poll(() => update.mock.calls.length).toBe(2)
       surface.style.clipPath = 'polygon(0 0, 100% 0, 100% 100%)'
-      await expect.poll(() => root.hasAttribute('data-window-backdrop-active')).toBe(false)
+      await expect.poll(() => error.mock.calls.length).toBe(1)
       expect(update.mock.calls.length).toBe(2)
       acknowledge!({ state: 'active' })
       await expect.poll(() => update.mock.calls.length).toBe(3)
       expect(regions()).toEqual([])
-      expect(root.hasAttribute('data-window-backdrop-active')).toBe(false)
-      expect(getComputedStyle(surface).backgroundColor).toBe('rgb(255, 255, 255)')
-      expect(error).toHaveBeenCalledWith('[window-backdrop] Native material stopped. Keeping the CSS surface:', expect.objectContaining({ message: 'Unsupported backdrop clip-path: polygon(0px 0px, 100% 0px, 100% 100%)' }))
+      // The late reply does not restart the session. Later geometry changes send nothing.
+      surface.style.clipPath = 'none'
+      surface.style.width = '140px'
+      await nextFrame()
+      await nextFrame()
+      expect(update.mock.calls.length).toBe(3)
+      expect(error).toHaveBeenCalledWith('[window-backdrop] Native material stopped. Surfaces keep their own fill:', expect.objectContaining({ message: 'Unsupported backdrop clip-path: polygon(0px 0px, 100% 0px, 100% 100%)' }))
     }
     finally {
       error.mockRestore()
