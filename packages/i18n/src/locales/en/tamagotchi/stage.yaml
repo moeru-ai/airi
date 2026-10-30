@@ -20,6 +20,10 @@ docs:
   switch-to-system-mode: Follow the system theme
   switch-to-light-mode: Switch to light mode
   exit: Exit fullscreen
+  account: Open the account
+  sign-in: Sign in
+  notifications: Notifications
+  notifications-unread: 'Notifications, {count} unread'
 'fullscreen-surface':
   resize: Drag to resize the panel
 'controls-island':
