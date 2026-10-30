@@ -7,6 +7,7 @@ import { defineStore } from 'pinia'
 import { markRaw, shallowRef } from 'vue'
 
 import { getTraceFeedSource } from '../../composables/use-trace'
+import { seriesAsSampleChunks } from './io-tracer-export'
 
 /**
  * Views read the projections at most this often. Records can arrive at hundreds per second, and each view update
@@ -122,9 +123,15 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
     selection.value = next
   }
 
-  /** The records of the event log as JSON lines. The trace clock and the record format make them readable later. */
+  /**
+   * The records of the event log and the series of the timeline as JSON lines. The event log has no samples, so the
+   * series follow as chunks on the trace clock. The record format makes the file readable later.
+   */
   function recordsAsJsonLines(): string {
-    const records: TraceRecord[] = eventLogView().entries.map(entry => entry.record)
+    const records: TraceRecord[] = [
+      ...eventLogView().entries.map(entry => entry.record),
+      ...seriesAsSampleChunks(timelineView().tracks.values(), feed.traceClock, crypto.randomUUID()),
+    ]
     return records.map(record => JSON.stringify(record)).join('\n')
   }
 
