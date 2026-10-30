@@ -5,9 +5,11 @@ import type { FlightRecorderDump } from '@proj-airi/trace-kit/collector'
 import { appendFile, mkdir, readdir, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
+import { utc } from '@date-fns/utc'
 import { errorMessageFrom } from '@moeru/std'
 import { applyContentPolicy } from '@proj-airi/trace-kit'
 import { Mutex } from 'async-mutex'
+import { format } from 'date-fns'
 
 const RETENTION_MS = 7 * 24 * 60 * 60 * 1000
 
@@ -25,8 +27,9 @@ interface IOTraceRecordingServiceOptions {
 /** Files keep timing, counts, and IDs. User content stays in the live buffer only. */
 const FILE_KEEPS_CONTENT = false
 
+/** The file name of a recording that starts now, in UTC, for example `flight-error-2026-10-30T09-41-07-512Z.jsonl`. */
 function fileName(prefix: string): string {
-  return `${prefix}${new Date().toISOString().replace(/[:.]/g, '-')}.jsonl`
+  return `${prefix}${format(utc(Date.now()), 'yyyy-MM-dd\'T\'HH-mm-ss-SSS\'Z\'')}.jsonl`
 }
 
 /**
