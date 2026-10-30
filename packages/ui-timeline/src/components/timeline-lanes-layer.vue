@@ -11,6 +11,7 @@ import { computed, shallowRef, watch } from 'vue'
 
 import { injectTimelineRootContext, TimelineCanvas, TimelineItemList, TimelineLanes } from '../headless'
 import { pointRingBoxes } from '../utils/point-rings'
+import { rowItem } from '../utils/row-item'
 import { RowModelCache } from '../utils/row-model-cache'
 
 /**
@@ -83,8 +84,27 @@ const colors = computed(() => isDark.value
 type MarkKind = 'selected' | 'related' | 'hovered' | 'focused'
 let marks: { x0: number, x1: number, top: number, height: number, radius: number, color: string, kind: MarkKind }[] = []
 
-/** The hovered item and where its hover card points. */
-const hover = shallowRef<{ target: Item, clientX: number, clientY: number, top: number, height: number }>()
+/** The hovered item, the key of its row, and where its hover card points. */
+const hover = shallowRef<{ target: Item, row: string, clientX: number, clientY: number, top: number, height: number }>()
+
+/** The models of the last frame. A new map means the items are new objects. */
+let drawnModels: Map<string, RowModel<Item>> | undefined
+
+/**
+ * Points the hover card at the item of the same key in rebuilt row models, so the card shows the new fields while
+ * the pointer stays still. An item that left its row closes the card.
+ */
+function refreshHover(models: Map<string, RowModel<Item>>) {
+  if (models === drawnModels)
+    return
+  drawnModels = models
+  const current = hover.value
+  if (!current)
+    return
+  const target = rowItem(models.get(current.row), current.target.key)
+  if (target !== current.target)
+    hover.value = target ? { ...current, target } : undefined
+}
 
 function verticalLine(ctx: CanvasRenderingContext2D, x: number, color: string, height: number, width = 1) {
   ctx.fillStyle = color
@@ -94,6 +114,7 @@ function verticalLine(ctx: CanvasRenderingContext2D, x: number, color: string, h
 function draw(ctx: CanvasRenderingContext2D, frame: TimelineCanvasFrame) {
   const { view, width, height, scrollTop, now } = frame
   const models = ensureModels(now)
+  refreshHover(models)
   const palette = colors.value
   const x = (time: number) => timeToX(view, time)
 
@@ -241,7 +262,7 @@ function drawConnectors(ctx: CanvasRenderingContext2D, view: TimelineView, scrol
 }
 
 /** The item under a point in canvas coordinates, with the canvas rectangle of its row. */
-function hitAt(x: number, y: number): { target: Item, top: number, height: number } | undefined {
+function hitAt(x: number, y: number): { target: Item, row: string, top: number, height: number } | undefined {
   const scrollTop = context.scrollTop.value
   const contentY = y + scrollTop
   const placed = props.rows[firstRowBelow(contentY)]
@@ -257,16 +278,16 @@ function hitAt(x: number, y: number): { target: Item, top: number, height: numbe
 
   const point = model.points.count > 0 ? hitPoint(model.points, view, x) : undefined
   if (point !== undefined)
-    return { target: model.pointTargets[point]!, ...geometry }
+    return { target: model.pointTargets[point]!, row: row.key, ...geometry }
   // The top layer draws last, so it wins.
   for (const layer of [...model.layers].reverse()) {
     const hit = layer.column.count > 0 ? hitInterval(layer.column, view, x, { now }) : undefined
     if (hit !== undefined)
-      return { target: layer.targets[hit]!, ...geometry }
+      return { target: layer.targets[hit]!, row: row.key, ...geometry }
   }
   const state = model.states.column.count > 0 ? hitInterval(model.states.column, view, x, { now }) : undefined
   if (state !== undefined)
-    return { target: model.states.targets[state]!, top: top - scrollTop, height: row.height }
+    return { target: model.states.targets[state]!, row: row.key, top: top - scrollTop, height: row.height }
   return undefined
 }
 
@@ -296,7 +317,7 @@ function onPointerMove(event: PointerEvent) {
   setCursor(hit !== undefined)
   if (hit?.target.key === hover.value?.target.key)
     return
-  hover.value = hit && rect ? { target: hit.target, clientX: event.clientX, clientY: event.clientY, top: rect.top + hit.top, height: hit.height } : undefined
+  hover.value = hit && rect ? { target: hit.target, row: hit.row, clientX: event.clientX, clientY: event.clientY, top: rect.top + hit.top, height: hit.height } : undefined
 }
 
 function onPointerLeave() {
@@ -322,7 +343,7 @@ function onItemFocus(item: ListedItem<Item>) {
     const x0 = Math.max(0, timeToX(view, item.start))
     const x1 = Math.min(view.width, timeToX(view, item.end ?? context.now() ?? view.end))
     const visible = itemGeometry(placed.row, placed.top - context.scrollTop.value)
-    hover.value = { target: item.target, clientX: rect.left + (x0 + x1) / 2, clientY: rect.top + visible.top, top: rect.top + visible.top, height: visible.height }
+    hover.value = { target: item.target, row: placed.row.key, clientX: rect.left + (x0 + x1) / 2, clientY: rect.top + visible.top, top: rect.top + visible.top, height: visible.height }
   })
 }
 
