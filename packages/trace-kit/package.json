@@ -1,0 +1,68 @@
+{
+  "name": "@proj-airi/trace-kit",
+  "type": "module",
+  "version": "0.12.0",
+  "private": true,
+  "description": "Trace records, clocks, collection, and projections for AIRI agent and pipeline activity",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/trace-kit"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./collector": {
+      "types": "./dist/collector/index.d.mts",
+      "default": "./dist/collector/index.mjs"
+    },
+    "./projections": {
+      "types": "./dist/projections/index.d.mts",
+      "default": "./dist/projections/index.mjs"
+    },
+    "./voice": {
+      "types": "./dist/profiles/voice.d.mts",
+      "default": "./dist/profiles/voice.mjs"
+    },
+    "./agent": {
+      "types": "./dist/profiles/agent.d.mts",
+      "default": "./dist/profiles/agent.mjs"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.mts",
+      "default": "./dist/testing/index.mjs"
+    },
+    "./views": {
+      "types": "./dist/views/index.d.mts",
+      "default": "./dist/views/index.mjs"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "test:run": "vitest run --config vitest.config.ts",
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@proj-airi/stream-kit": "workspace:^",
+    "es-toolkit": "catalog:",
+    "valibot": "catalog:"
+  },
+  "devDependencies": {
+    "@opentelemetry/semantic-conventions": "catalog:"
+  }
+}

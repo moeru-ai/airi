@@ -5939,6 +5939,22 @@ importers:
         specifier: 'catalog:'
         version: 26.2.0
 
+  packages/trace-kit:
+    dependencies:
+      '@proj-airi/stream-kit':
+        specifier: workspace:^
+        version: link:../stream-kit
+      es-toolkit:
+        specifier: 'catalog:'
+        version: 1.51.0
+      valibot:
+        specifier: 'catalog:'
+        version: 1.5.0(typescript@6.0.3)
+    devDependencies:
+      '@opentelemetry/semantic-conventions':
+        specifier: 'catalog:'
+        version: 1.43.0
+
   packages/ui:
     dependencies:
       '@moeru/std':
