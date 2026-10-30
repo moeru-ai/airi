@@ -78,13 +78,19 @@ const syncIcon = computed(() => props.syncState ? syncIcons[props.syncState] : u
           </div>
           <div
             v-if="props.pricing"
-            text="[10px] neutral-600 dark:neutral-300" border="1 neutral-200 dark:neutral-700" rounded-md px-1.5 py-0.5 font-bold tracking-wider uppercase
+            :class="[
+              'rounded-md px-1.5 py-0.5 text-[10px] font-bold tracking-wider uppercase',
+              'bg-neutral-500/10 text-neutral-600 dark:bg-neutral-400/15 dark:text-neutral-300',
+            ]"
           >
             {{ $t(`settings.pages.providers.filters.${props.pricing}`) }}
           </div>
           <div
             v-if="props.deployment"
-            text="[10px] neutral-600 dark:neutral-300" border="1 neutral-200 dark:neutral-700" rounded-md px-1.5 py-0.5 font-bold tracking-wider uppercase
+            :class="[
+              'rounded-md px-1.5 py-0.5 text-[10px] font-bold tracking-wider uppercase',
+              'bg-neutral-500/10 text-neutral-600 dark:bg-neutral-400/15 dark:text-neutral-300',
+            ]"
           >
             {{ $t(`settings.pages.providers.filters.${props.deployment}`) }}
           </div>
