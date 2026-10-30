@@ -174,9 +174,14 @@ export async function setupBaseWindowElectronInvokes(params: {
   window: BrowserWindow
   serverChannel: ServerChannel
   i18n: I18n
+  signal?: AbortSignal
   /** Owns the window's pin instead of the renderer request applying it directly. */
   setAlwaysOnTop?: (flag: boolean) => void
 }) {
+  if (params.signal?.aborted || params.window.isDestroyed?.()) {
+    throw new Error('Window was closed before base invokes setup')
+  }
+
   createScreenService({ context: params.context, window: params.window })
   createWindowService({ context: params.context, window: params.window, setAlwaysOnTop: params.setAlwaysOnTop })
   createAppService({ context: params.context, window: params.window })
@@ -185,7 +190,16 @@ export async function setupBaseWindowElectronInvokes(params: {
   createSystemPreferencesService({ context: params.context, window: params.window })
   WindowBackdropService.install(params.window)
 
-  await createI18nService({ context: params.context, window: params.window, i18n: params.i18n })
+  await createI18nService({
+    context: params.context,
+    window: params.window,
+    i18n: params.i18n,
+    signal: params.signal,
+  })
+
+  if (params.signal?.aborted || params.window.isDestroyed?.()) {
+    throw new Error('Window was closed during base invokes setup')
+  }
 
   createServerChannelService({ serverChannel: params.serverChannel })
 }
