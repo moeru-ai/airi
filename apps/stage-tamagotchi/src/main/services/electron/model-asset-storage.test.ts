@@ -57,6 +57,14 @@ describe('electron model asset storage', () => {
     expect(await store.has(model)).toBe(false)
   })
 
+  it('does not retry a file that the host reports as missing', async () => {
+    const download = vi.fn(async () => new Response('missing', { status: 404 }))
+    const { store } = await storage(download)
+
+    await expect(store.install(model, () => {}, new AbortController().signal)).rejects.toMatchObject({ reason: 'server', status: 404 })
+    expect(download).toHaveBeenCalledOnce()
+  })
+
   it('reports a connection failure as a network failure', async () => {
     // Node fetch rejects with this TypeError when it cannot reach the host.
     const download = vi.fn(async () => {
@@ -65,6 +73,8 @@ describe('electron model asset storage', () => {
     const { store } = await storage(download)
 
     await expect(store.install(model, () => {}, new AbortController().signal)).rejects.toMatchObject({ reason: 'network', host: 'example.test' })
+    // ofetch retries a failed connection one time before it gives up.
+    expect(download).toHaveBeenCalledTimes(2)
     expect(await store.has(model)).toBe(false)
   })
 

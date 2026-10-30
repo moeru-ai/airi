@@ -43,6 +43,7 @@
     "@moeru/std": "catalog:",
     "@vueuse/core": "catalog:",
     "gpuu": "catalog:",
+    "ofetch": "catalog:",
     "pinia": "catalog:",
     "valibot": "catalog:",
     "vue": "catalog:"

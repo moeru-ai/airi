@@ -1,4 +1,5 @@
 import { errorMessageFrom } from '@moeru/std'
+import { createFetch, FetchError } from 'ofetch'
 
 /** One version of a model and the files required to load it. */
 export interface ModelAsset {
@@ -74,21 +75,27 @@ export class ModelAssetDownloadError extends Error {
 /**
  * Requests one model file for a storage adapter.
  *
+ * ofetch retries one time, at once, after a connection failure or a 408, 409, 425, 429, 500, 502, 503, or 504 status.
  * Aborting `signal` rethrows the abort reason unchanged.
- * A connection failure or a status other than 2xx throws {@link ModelAssetDownloadError}.
+ * Other failures throw {@link ModelAssetDownloadError}.
+ *
+ * @param download The fetch that sends the request. Tests and the Electron main process pass their own.
  */
 export async function requestModelAssetFile(download: typeof fetch, url: string, signal: AbortSignal): Promise<Response> {
-  let response: Response
   try {
-    response = await download(url, { signal })
+    // `stream` keeps the body unread, so the adapter can write it to storage chunk by chunk.
+    return await createFetch({ fetch: download }).raw(url, { signal, responseType: 'stream' })
   }
   catch (error) {
+    // ofetch wraps an abort in a FetchError. The repository expects the abort reason itself.
     signal.throwIfAborted()
-    throw new ModelAssetDownloadError('network', url, { cause: error })
+    if (!(error instanceof FetchError))
+      throw error
+    // ofetch gives a status only when the host answered.
+    if (error.statusCode !== undefined)
+      throw new ModelAssetDownloadError('server', url, { status: error.statusCode, cause: error })
+    throw new ModelAssetDownloadError('network', url, { cause: error.cause ?? error })
   }
-  if (!response.ok)
-    throw new ModelAssetDownloadError('server', url, { status: response.status })
-  return response
 }
 
 /**
