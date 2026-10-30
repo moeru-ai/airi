@@ -1,6 +1,6 @@
 import type { BillingService, CapacitorPeriod } from '../domain/billing/billing-service'
 import type { ConfigDefinitions, ConfigKVService } from './config-kv'
-import type { RevenuecatSubscriberClient } from './revenuecat-subscriber'
+import type { RevenuecatSubscriberClient, SubscriberEntitlement } from './revenuecat-subscriber'
 
 import { useLogger } from '@guiiai/logg'
 
@@ -11,6 +11,26 @@ export interface CapacitorCatalog {
   capacitors: { productId: string, quota: number }[]
   /** Null means that the Capacitor refills at each renewal. */
   resetInterval: NonNullable<ConfigDefinitions['CAPACITOR_RESET_INTERVAL']> | null
+}
+
+/**
+ * The Capacitor quota of one entitlement, or null when it grants no Capacitor.
+ * A store subscription uses the quota of its product, if the product grants this entitlement.
+ * A promotional subscription has no product. It uses the one quota that the products of its entitlement share.
+ * When those products have different quotas, the grant names no Capacitor, so it grants none.
+ */
+export function capacitorQuota(
+  capacitors: NonNullable<ConfigDefinitions['REVENUECAT_CAPACITORS']>,
+  entitlement: Pick<SubscriberEntitlement, 'entitlementId' | 'productId'>,
+): number | null {
+  if (entitlement.productId !== null) {
+    const capacitor = capacitors[entitlement.productId]
+    return capacitor?.entitlementId === entitlement.entitlementId ? capacitor.quota : null
+  }
+  const quotas = new Set(Object.values(capacitors)
+    .filter(capacitor => capacitor.entitlementId === entitlement.entitlementId)
+    .map(capacitor => capacitor.quota))
+  return quotas.size === 1 ? [...quotas][0]! : null
 }
 
 /**
@@ -36,14 +56,17 @@ export function createRevenuecatSubscriptionSync(
       // The latest purchase wins when two capacitors are active, so an upgrade
       // replaces the old capacitor. Capacitors without an expiry are not sold.
       const [current] = (await subscriber.fetchEntitlements(userId))
-        .filter(item => capacitors[item.productId]?.entitlementId === item.entitlementId)
         .filter(item => item.accessUntil != null && item.accessUntil > now)
+        .flatMap((item) => {
+          const quota = capacitorQuota(capacitors, item)
+          return quota === null ? [] : [{ ...item, quota }]
+        })
         .sort((left, right) => right.purchasedAt.getTime() - left.purchasedAt.getTime())
       if (!current)
         return null
 
       return {
-        quota: capacitors[current.productId]!.quota,
+        quota: current.quota,
         periodStart: current.purchasedAt,
         expiresAt: current.accessUntil!,
       }
