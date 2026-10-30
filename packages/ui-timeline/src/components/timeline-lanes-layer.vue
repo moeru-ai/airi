@@ -10,6 +10,8 @@ import { PopoverAnchor, PopoverContent, PopoverPortal, PopoverRoot } from 'reka-
 import { computed, shallowRef, watch } from 'vue'
 
 import { injectTimelineRootContext, TimelineCanvas, TimelineItemList, TimelineLanes } from '../headless'
+import { pointRingBoxes } from '../utils/point-rings'
+import { RowModelCache } from '../utils/row-model-cache'
 
 /**
  * The lanes of `Timeline`: one canvas over the visible part of the lanes, the hidden item list, and the hover card.
@@ -44,28 +46,13 @@ const context = injectTimelineRootContext<Item>()
 const { isDark } = useTheme()
 
 /**
- * Row models by row key. A model rebuilds when the data, the selection, the second of now, or the `model` function
- * changes. A consumer passes a new function when its look changes, for example the theme.
+ * Row models by row key. A model rebuilds when the rows, the data, the selection, the second of now, or the `model`
+ * function changes. A consumer passes a new function when its look changes, for example the theme.
  */
-let models = new Map<string, RowModel<Item>>()
-let modelsBuilder: unknown
-let modelsVersion = -1
-let modelsSelection: string | undefined
-let modelsSecond = -1
+const modelCache = new RowModelCache<Item, Row>()
 
-function ensureModels(now: number | undefined) {
-  const second = now === undefined ? -1 : Math.floor(now / 1000)
-  const selection = context.selection.value?.key
-  if (props.model === modelsBuilder && props.version === modelsVersion && selection === modelsSelection && second === modelsSecond)
-    return
-  const next = new Map<string, RowModel<Item>>()
-  for (const { row } of props.rows)
-    next.set(row.key, props.model(row, { now }))
-  models = next
-  modelsBuilder = props.model
-  modelsVersion = props.version
-  modelsSelection = selection
-  modelsSecond = second
+function ensureModels(now: number | undefined): Map<string, RowModel<Item>> {
+  return modelCache.get({ rows: props.rows, model: props.model, version: props.version, selection: context.selection.value?.key, now })
 }
 
 /** The first row whose bottom is below `y`. Rows are sorted by top. */
@@ -106,7 +93,7 @@ function verticalLine(ctx: CanvasRenderingContext2D, x: number, color: string, h
 
 function draw(ctx: CanvasRenderingContext2D, frame: TimelineCanvasFrame) {
   const { view, width, height, scrollTop, now } = frame
-  ensureModels(now)
+  const models = ensureModels(now)
   const palette = colors.value
   const x = (time: number) => timeToX(view, time)
 
@@ -160,6 +147,7 @@ function draw(ctx: CanvasRenderingContext2D, frame: TimelineCanvasFrame) {
       collectMarks(drawn.layers[layerIndex]!, layer.targets, model.styles, markedKeys, geometry, row.kind === 'detail')
     // State bands get the same rings as items, so a hovered state shows which band the card names.
     collectMarks(drawn.states, model.states.targets, model.styles, markedKeys, stateBandGeometry(y, row.height), row.kind === 'detail')
+    collectPointMarks(model, markedKeys, view, geometry, row.kind === 'detail')
   }
 
   drawConnectors(ctx, view, scrollTop, height)
@@ -196,15 +184,24 @@ function collectMarks(runs: IntervalRun[], targets: Item[], styles: readonly Ite
     if (!key)
       continue
     // A ring keeps the corners of its item.
-    const item = { x0: run.x0, x1: run.x1, top: geometry.top, height: geometry.height, radius: itemRadius(run.x1 - run.x0, geometry.height, geometry.radius), color: styles[run.style]?.color ?? colors.value.hover }
-    if (key === keys.selected)
-      marks.push({ ...item, kind: detail ? 'selected' : 'related' })
-    // A lane row repeats the item of a detail row, so hover and focus mark only the detail row, where the pointer is.
-    if (key === keys.hovered && key !== keys.selected && detail)
-      marks.push({ ...item, kind: 'hovered' })
-    if (key === keys.focused && detail)
-      marks.push({ ...item, kind: 'focused' })
+    pushMarks(key, { x0: run.x0, x1: run.x1, top: geometry.top, height: geometry.height, radius: itemRadius(run.x1 - run.x0, geometry.height, geometry.radius), color: styles[run.style]?.color ?? colors.value.hover }, keys, detail)
   }
+}
+
+function pushMarks(key: string, item: { x0: number, x1: number, top: number, height: number, radius: number, color: string }, keys: { selected?: string, hovered?: string, focused?: string }, detail: boolean) {
+  if (key === keys.selected)
+    marks.push({ ...item, kind: detail ? 'selected' : 'related' })
+  // A lane row repeats the item of a detail row, so hover and focus mark only the detail row, where the pointer is.
+  if (key === keys.hovered && key !== keys.selected && detail)
+    marks.push({ ...item, kind: 'hovered' })
+  if (key === keys.focused && detail)
+    marks.push({ ...item, kind: 'focused' })
+}
+
+/** The rings of marked points. Points are hit and selected like items, so they get the same rings. */
+function collectPointMarks(model: RowModel<Item>, keys: { selected?: string, hovered?: string, focused?: string }, view: TimelineView, geometry: RowGeometry, detail: boolean) {
+  for (const box of pointRingBoxes(model.points, model.pointTargets, [keys.selected, keys.hovered, keys.focused], view, geometry))
+    pushMarks(box.key, { ...box, color: model.styles[model.points.styles[box.index]!]?.color ?? colors.value.hover }, keys, detail)
 }
 
 function drawConnectors(ctx: CanvasRenderingContext2D, view: TimelineView, scrollTop: number, height: number) {
@@ -251,7 +248,7 @@ function hitAt(x: number, y: number): { target: Item, top: number, height: numbe
   if (!placed || contentY < placed.top)
     return undefined
   const { row, top } = placed
-  const model = models.get(row.key)
+  const model = modelCache.current().get(row.key)
   if (!model)
     return undefined
   const view = context.currentView()
