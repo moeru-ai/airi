@@ -2,15 +2,16 @@ import type { PiniaActionEvent } from '@proj-airi/stage-shared/types/pinia-actio
 import type { AudioCapture } from '@proj-airi/vitest-plugin-fakemic'
 import type { ElectronApplication, Page } from 'playwright'
 
-import type { AudioInputChatMessage, AudioInputSession, AudioInputTarget, AudioInputTurn } from '../types'
+import type { AudioInputChatMessage, AudioInputSession, AudioInputSpan, AudioInputTarget, AudioInputTurn } from '../types'
 
 import { Buffer } from 'node:buffer'
 
-import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared/perf/io-trace'
 import { piniaActionTracingChannelName } from '@proj-airi/stage-shared/types/pinia-action-event'
+import { AgentAttributes, AgentNames } from '@proj-airi/trace-kit/agent'
+import { VoiceAttributes, VoiceIdKeys, VoiceNames } from '@proj-airi/trace-kit/voice'
 
-import { readCompletedSpans } from './browser-probe'
-import { uniqueSpans } from './spans'
+import { readTraceRecords } from './browser-probe'
+import { completedSpansOf } from './trace-spans'
 
 /** Creates the runtime session for one audio test. */
 export function createSession(options: {
@@ -68,13 +69,12 @@ export function createSession(options: {
       return options.page.evaluate(() => window.__airiAudioInputE2E?.transcriptionResults ?? [])
     },
     async completedSpans(name) {
-      const runtimeSpans = await options.page.evaluate(readCompletedSpans, name)
+      const runtimeRecords = await options.page.evaluate(readTraceRecords)
       if (session.page === options.page)
-        return runtimeSpans
+        return completedSpansOf(runtimeRecords, name)
 
-      // Both windows have the probe and hear the same spans, so each span is in both lists.
-      const interactionSpans = await session.page.evaluate(readCompletedSpans, name)
-      return uniqueSpans(runtimeSpans, interactionSpans)
+      const interactionRecords = await session.page.evaluate(readTraceRecords)
+      return completedSpansOf([...runtimeRecords, ...interactionRecords], name)
     },
     async waitForTurn(waitOptions = {}) {
       const timeout = waitOptions.timeout ?? 60_000
@@ -87,8 +87,8 @@ export function createSession(options: {
       }
 
       if (!turn) {
-        // The turn joins SpeechTurn and LLMInference spans by TurnId. List what did complete, so a missing span or a mismatched ID is visible.
-        const completed = (await session.completedSpans()).map(span => `${span.name}${span.attributes[IOAttributes.TurnId] ? ` [${String(span.attributes[IOAttributes.TurnId])}]` : ''}`)
+        // The turn joins the speech output and model request spans by the turn ID. List what did complete, so a missing span or a mismatched ID is visible.
+        const completed = (await session.completedSpans()).map(span => `${span.name}${span.ids[VoiceIdKeys.Turn] ? ` [${String(span.ids[VoiceIdKeys.Turn])}]` : ''}`)
         throw new Error(`Timed out waiting for a completed LLM and speech turn. Completed spans: ${completed.join(', ') || 'none'}`)
       }
 
@@ -146,7 +146,7 @@ export function createSession(options: {
         : await session.page.evaluate(() => window.__airiAudioInputE2E)
       return {
         piniaActionEvents: runtimeState?.piniaActionEvents ?? [],
-        spans: runtimeState?.spans ?? [],
+        records: runtimeState?.records ?? [],
         streamingTranscriptionUpdates: interactionState?.streamingTranscriptionUpdates ?? [],
         transcriptionResults: runtimeState?.transcriptionResults ?? [],
         voiceInputs: runtimeState?.voiceInputs ?? [],
@@ -158,30 +158,29 @@ export function createSession(options: {
   return session
 }
 
-function createTurnObservation(spans: Awaited<ReturnType<AudioInputSession['completedSpans']>>): AudioInputTurn | undefined {
-  const speechTurnSpan = spans.findLast(span => span.name === IOSpanNames.SpeechTurn)
-  if (!speechTurnSpan)
+function createTurnObservation(spans: AudioInputSpan[]): AudioInputTurn | undefined {
+  const speechOutputSpan = spans.findLast(span => span.name === VoiceNames.SpeechOutput)
+  if (!speechOutputSpan)
     return undefined
 
-  const turnId = stringAttribute(speechTurnSpan, IOAttributes.TurnId)
+  const turnId = idOf(speechOutputSpan, VoiceIdKeys.Turn)
   const llmSpan = spans.findLast(span => (
-    span.name === IOSpanNames.LLMInference
-    && stringAttribute(span, IOAttributes.TurnId) === turnId
+    span.name === AgentNames.ModelRequest
+    && idOf(span, VoiceIdKeys.Turn) === turnId
   ))
   if (!turnId || !llmSpan)
     return undefined
 
-  const inputMessageRoles = stringArrayAttribute(llmSpan, IOAttributes.LLMInputMessageRoles)
-  const outputChunkLengths = numberArrayAttribute(llmSpan, IOAttributes.LLMOutputChunkLengths)
+  const inputMessageRoles = stringArrayAttribute(llmSpan, AgentAttributes.LLMInputMessageRoles)
+  const outputChunkLengths = numberArrayAttribute(llmSpan, AgentAttributes.LLMOutputChunkLengths)
   const audioSegments = spans
     .filter(span => (
-      span.name === IOSpanNames.TTSSynthesis
-      && stringAttribute(span, IOAttributes.TurnId) === turnId
+      span.name === VoiceNames.TTSRequest
+      && idOf(span, VoiceIdKeys.Turn) === turnId
     ))
-    .toSorted((left, right) => Number(left.startTimeNano) - Number(right.startTimeNano))
     .map(span => ({
-      durationMs: numberAttribute(span, IOAttributes.TTSAudioDurationMs),
-      text: stringAttribute(span, IOAttributes.TTSText),
+      durationMs: numberAttribute(span, VoiceAttributes.TTSAudioDurationMs),
+      text: stringAttribute(span, VoiceAttributes.TTSText),
     }))
 
   return {
@@ -189,7 +188,7 @@ function createTurnObservation(spans: Awaited<ReturnType<AudioInputSession['comp
     chat: { messages: [] },
     llm: {
       inputMessages: inputMessageRoles.map(role => ({ role })),
-      outputCharacters: numberAttribute(llmSpan, IOAttributes.LLMTextLength),
+      outputCharacters: numberAttribute(llmSpan, AgentAttributes.LLMTextLength),
       outputChunks: outputChunkLengths.map(characters => ({ characters })),
     },
     tts: { audioSegments },
@@ -206,22 +205,27 @@ async function readChatMessages(page: Page): Promise<AudioInputChatMessage[]> {
   }))
 }
 
-function numberAttribute(span: Awaited<ReturnType<AudioInputSession['completedSpans']>>[number], name: string): number {
-  const value = span.attributes[name]
+function idOf(span: AudioInputSpan, key: string): string {
+  const value = span.ids[key]
+  return value === undefined ? '' : String(value)
+}
+
+function numberAttribute(span: AudioInputSpan, name: string): number {
+  const value = span.attrs[name]
   return typeof value === 'number' ? value : 0
 }
 
-function numberArrayAttribute(span: Awaited<ReturnType<AudioInputSession['completedSpans']>>[number], name: string): number[] {
-  const value = span.attributes[name]
+function numberArrayAttribute(span: AudioInputSpan, name: string): number[] {
+  const value = span.attrs[name]
   return Array.isArray(value) ? value.filter(item => typeof item === 'number') : []
 }
 
-function stringAttribute(span: Awaited<ReturnType<AudioInputSession['completedSpans']>>[number], name: string): string {
-  const value = span.attributes[name]
+function stringAttribute(span: AudioInputSpan, name: string): string {
+  const value = span.attrs[name]
   return typeof value === 'string' ? value : ''
 }
 
-function stringArrayAttribute(span: Awaited<ReturnType<AudioInputSession['completedSpans']>>[number], name: string): string[] {
-  const value = span.attributes[name]
+function stringArrayAttribute(span: AudioInputSpan, name: string): string[] {
+  const value = span.attrs[name]
   return Array.isArray(value) ? value.filter(item => typeof item === 'string') : []
 }

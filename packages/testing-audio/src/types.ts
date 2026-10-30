@@ -1,5 +1,5 @@
-import type { SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
 import type { PiniaActionEvent, PiniaActionEventStatus } from '@proj-airi/stage-shared/types/pinia-action-event'
+import type { TraceAttributes, TraceIds, TraceRecord, TraceStatus } from '@proj-airi/trace-kit'
 import type { AudioCapture, AudioCaptureFormat, AudioTestCase, AudioTestPreflightCallback, AudioTestSession } from '@proj-airi/vitest-plugin-fakemic'
 import type { ElectronApplication, Page } from 'playwright'
 
@@ -33,10 +33,25 @@ export interface AudioInputTestCase extends AudioTestCase<AudioInputPreflightCon
   pipelines?: readonly AudioInputPipeline[]
 }
 
+/** One ended span, folded from the trace records of the pages. Times are on the clock of the page that wrote it. */
+export interface AudioInputSpan {
+  spanId: string
+  name: string
+  track: string
+  ids: TraceIds
+  /** Merged attributes of the begin, updates, and end. */
+  attrs: TraceAttributes
+  start: number
+  end: number
+  status: TraceStatus
+  message?: string
+}
+
 /** Snapshot of the observable AIRI audio pipeline state. */
 export interface AudioInputSnapshot {
   piniaActionEvents: PiniaActionEvent[]
-  spans: SerializedIOSpan[]
+  /** Trace records that the probes of the pages received. */
+  records: TraceRecord[]
   streamingTranscriptionUpdates: string[]
   transcriptionResults: string[]
   voiceInputs: AudioInputVoiceInput[]
@@ -94,7 +109,8 @@ export interface AudioInputObservations {
   capturedTranscriptionAudio: (count: number) => Promise<AudioCapture[]>
   streamingTranscriptionUpdates: () => Promise<string[]>
   transcriptionResults: (count: number) => Promise<string[]>
-  completedSpans: (name?: string) => Promise<SerializedIOSpan[]>
+  /** Ended spans of the trace records of the pages, in start order. */
+  completedSpans: (name?: string) => Promise<AudioInputSpan[]>
   /** Waits until all speech work for the latest LLM turn is complete. */
   waitForTurn: (options?: {
     /** @default 60000 */

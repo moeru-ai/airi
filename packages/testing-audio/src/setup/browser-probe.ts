@@ -1,13 +1,15 @@
-import type { SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
 import type { PiniaActionEvent } from '@proj-airi/stage-shared/types/pinia-action-event'
 import type { VoiceHostSnapshot } from '@proj-airi/stage-ui/services/speech/bus'
 
 import { piniaActionTracingChannelName } from '@proj-airi/stage-shared/types/pinia-action-event'
+import { TRACE_BROADCAST_CHANNEL } from '@proj-airi/stage-ui/composables/use-trace'
 import { voiceSnapshotChanged } from '@proj-airi/stage-ui/services/speech/bus'
 
 /** Application event names that the probe reads. Playwright serializes this value into the page. */
 export interface BrowserProbeOptions {
   piniaActionChannelName: string
+  /** The channel on which a page in local trace mode posts each of its trace records. */
+  traceChannelName: string
   /** Eventa ID of the voice host snapshot on the speech bus. */
   voiceSnapshotEventId: string
 }
@@ -15,6 +17,7 @@ export interface BrowserProbeOptions {
 /** The application owns these names. The runtime prepare modules pass them to {@link stubForBrowser}. */
 export const browserProbeOptions: BrowserProbeOptions = {
   piniaActionChannelName: piniaActionTracingChannelName,
+  traceChannelName: TRACE_BROADCAST_CHANNEL,
   voiceSnapshotEventId: voiceSnapshotChanged.id,
 }
 
@@ -37,7 +40,7 @@ export const browserProbeOptions: BrowserProbeOptions = {
  * - `window.__airiAudioInputE2E`
  */
 export function stubForBrowser(options: BrowserProbeOptions) {
-  const state: BrowserAudioInputState = { piniaActionEvents: [], spans: [], streamingTranscriptionReady: false, streamingTranscriptionUpdates: [], transcriptionAudio: [], transcriptionResults: [], voiceInputs: [] }
+  const state: BrowserAudioInputState = { piniaActionEvents: [], records: [], streamingTranscriptionReady: false, streamingTranscriptionUpdates: [], transcriptionAudio: [], transcriptionResults: [], voiceInputs: [] }
   window.__airiAudioInputE2E = state
 
   const piniaActionChannel = new BroadcastChannel(options.piniaActionChannelName)
@@ -190,29 +193,29 @@ export function stubForBrowser(options: BrowserProbeOptions) {
 
   window.WebSocket = CaptureAliyunNlsWebSocket
 
-  const channel = new BroadcastChannel('io-tracer-channel')
+  const traceChannel = new BroadcastChannel(options.traceChannelName)
 
   /**
-   * Stores completed I/O spans for the case artifact.
+   * Stores trace records for the case artifact. The test folds them into spans in Node.
    *
    * Triggering workflow:
    *
-   * `BroadcastChannel('io-tracer-channel')`
+   * `BroadcastChannel(options.traceChannelName)`
    *   -> `message`
-   *     -> captureSpan
+   *     -> captureTraceRecord
    *
    * Upstream:
-   * - The AIRI I/O trace exporter.
+   * - The trace source of a page in local trace mode, which posts each record on the channel.
    *
    * Downstream:
-   * - `window.__airiAudioInputE2E.spans`
+   * - `window.__airiAudioInputE2E.records`
    */
-  const captureSpan = (event: MessageEvent) => {
-    if (event.data?.type === 'span' && event.data.span?.ended)
-      state.spans.push(event.data.span as SerializedIOSpan)
+  const captureTraceRecord = (event: MessageEvent) => {
+    if (event.data?.type === 'record' && event.data.record)
+      state.records.push(event.data.record)
   }
 
-  channel.addEventListener('message', captureSpan)
+  traceChannel.addEventListener('message', captureTraceRecord)
 
   // NOTICE:
   // The speech bus does not export its channel name, so the probe repeats it.
@@ -254,8 +257,7 @@ export function stubForBrowser(options: BrowserProbeOptions) {
   voiceChannel.addEventListener('message', captureVoiceSnapshot)
 }
 
-/** Returns the completed browser spans that match the optional span name. */
-export function readCompletedSpans(name?: string) {
-  const spans = window.__airiAudioInputE2E?.spans ?? []
-  return name ? spans.filter(span => span.name === name) : spans
+/** Returns the trace records that the probe of this page received. */
+export function readTraceRecords() {
+  return window.__airiAudioInputE2E?.records ?? []
 }
