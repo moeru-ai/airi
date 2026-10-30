@@ -1,6 +1,7 @@
 import type { TraceFeedSource, TraceProfileDefinition, TraceRecord, TraceSink, TraceSpan } from '@proj-airi/trace-kit'
 
 import { errorMessageFrom } from '@moeru/std'
+import { createLeaseTable, DemandUnion } from '@proj-airi/stream-kit'
 import { TraceSource } from '@proj-airi/trace-kit'
 import { agentProfile } from '@proj-airi/trace-kit/agent'
 import { TraceCollector } from '@proj-airi/trace-kit/collector'
@@ -71,29 +72,30 @@ const WantedMessageSchema = v.union([
  */
 export class SharedWantedTracks {
   private own: WantedTracks = new Set()
-  private readonly others = new Map<string, { tracks: WantedTracks, at: number }>()
+  /** The tracks of each tab, this one included, under the tab name. */
+  private readonly demand: DemandUnion<string>
+  /** The other tabs that still repeat their tracks. */
+  private readonly others = createLeaseTable<string>({ ttlMs: WANTED_EXPIRE_MS })
   private sinceAnnounceMs = 0
 
   constructor(
     private readonly tab: string,
     private readonly channel: BroadcastChannel | undefined,
-    private readonly apply: (tracks: WantedTracks) => void,
+    apply: (tracks: WantedTracks) => void,
   ) {
+    this.demand = new DemandUnion<string>({ onChange: apply })
     channel?.postMessage({ type: 'wanted-query' })
   }
 
   /** The union of the tracks that the viewers of every tab want. */
   get current(): WantedTracks {
-    const all = [this.own, ...[...this.others.values()].map(entry => entry.tracks)]
-    if (all.includes('*'))
-      return '*'
-    return new Set(all.flatMap(tracks => [...tracks as ReadonlySet<string>]))
+    return this.demand.union
   }
 
   setOwn(tracks: WantedTracks) {
     this.own = tracks
     this.announce()
-    this.apply(this.current)
+    this.demand.set(this.tab, tracks)
   }
 
   /** Handles a message of the trace channel. Returns false for a message of another kind. */
@@ -106,11 +108,14 @@ export class SharedWantedTracks {
       this.announce()
       return true
     }
-    if (message.tracks.length === 0)
+    if (message.tracks.length === 0) {
       this.others.delete(message.tab)
-    else
-      this.others.set(message.tab, { tracks: message.tracks === '*' ? '*' : new Set(message.tracks), at: now })
-    this.apply(this.current)
+      this.demand.delete(message.tab)
+    }
+    else {
+      this.others.touch(message.tab, now)
+      this.demand.set(message.tab, message.tracks)
+    }
     return true
   }
 
@@ -122,15 +127,8 @@ export class SharedWantedTracks {
       if (this.own === '*' || this.own.size > 0)
         this.announce()
     }
-    let dropped = false
-    for (const [tab, entry] of this.others) {
-      if (now - entry.at > WANTED_EXPIRE_MS) {
-        this.others.delete(tab)
-        dropped = true
-      }
-    }
-    if (dropped)
-      this.apply(this.current)
+    for (const tab of this.others.expired(now))
+      this.demand.delete(tab)
   }
 
   /** Tells the other tabs that this tab wants nothing, for example when it unloads. */
