@@ -46,6 +46,9 @@ export default defineConfig({
         filesystem: [
           `${normalizePath(import.meta.dirname)}/src/**/*.vue`,
           `${normalizePath(import.meta.dirname)}/../ui/src/**/*.vue`,
+          `${normalizePath(import.meta.dirname)}/../ui-panes/src/**/*.vue`,
+          `${normalizePath(import.meta.dirname)}/../ui-timeline/src/**/*.vue`,
+          `${normalizePath(import.meta.dirname)}/../ui-trace/src/**/*.vue`,
         ],
       },
     }])),

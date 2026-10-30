@@ -200,6 +200,28 @@ describe('traceCollector', () => {
     expect(dumps[2]!.append).toBe(false)
   })
 
+  it('keeps a flight window while buffering is off, so a dump holds the failed span and the events before it', () => {
+    const dumps: FlightRecorderDump[] = []
+    const messages: TraceFeedMessage[] = []
+    const { collector, source, advance } = setup({ flightRecorder: { windowMs: 60_000, onDump: dump => dumps.push(dump) } })
+    collector.setBuffering(false)
+    const window = source('window:main')
+    window.emit({ type: 'instant', ts: 0, track: 't', name: 'too-old' })
+    advance(61_000)
+    collector.tick()
+    window.emit({ type: 'instant', ts: 0, track: 't', name: 'before' })
+    window.emit({ type: 'span.begin', ts: 0, track: 't', spanId: 'failed', name: 'request' })
+    window.emit({ type: 'span.end', ts: 0, track: 't', spanId: 'failed', status: 'error' })
+
+    expect(dumps).toHaveLength(1)
+    const names = dumps[0]!.records.flatMap(record => record.type === 'instant' ? [record.name] : record.type === 'span.begin' || record.type === 'span.end' ? [`${record.type}:${record.spanId}`] : [])
+    expect(names).toEqual(['before', 'span.begin:failed', 'span.end:failed'])
+
+    // A viewer that opens while buffering is off still gets no history, only the pinned set.
+    collector.subscribe(message => messages.push(message), '*')
+    expect(recordsOf(messages).some(record => record.type === 'instant')).toBe(false)
+  })
+
   it('forgets the dump guard of a span after the span ends or its epoch ends', () => {
     const { collector, source, advance } = setup({ flightRecorder: { onDump: () => {} } })
     const window = source('window:main')

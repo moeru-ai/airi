@@ -1,13 +1,16 @@
-import type { Span } from '@opentelemetry/api'
+import type { TraceSpan } from '@proj-airi/trace-kit'
 import type { MaybeRefOrGetter } from 'vue'
 
 import type { BaseVADConfig } from '../../../libs/audio/vad'
 
 import { merge } from '@moeru/std'
-import { errorMessageFromValue, IOAttributes, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
+import { beginSpan, TraceEndReasons, trackPath } from '@proj-airi/trace-kit'
+import { VoiceAttributes, VoiceIdKeys, VoiceNames, VoiceTracks } from '@proj-airi/trace-kit/voice'
 import { ref, toRef, watch } from 'vue'
 
-import { startSpan } from '../../../composables/use-io-tracer'
+import { getTraceSink } from '../../../composables/use-trace'
+import { LOCAL_USER_ACTOR } from '../../../composables/voice-input-trace'
 import { createVAD, createVADStates } from '../../../workers/vad'
 
 interface UseVADOptions {
@@ -66,7 +69,7 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
 
   const loaded = ref(false)
   const loading = ref(false)
-  let activeSpan: Span | undefined
+  let activeSpan: TraceSpan | undefined
   let initialization: Promise<void> | undefined
   let generation = 0
 
@@ -74,9 +77,7 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
     if (!activeSpan)
       return
 
-    if (aborted)
-      activeSpan.setAttribute(IOAttributes.VADAborted, true)
-    activeSpan.end()
+    activeSpan.end(aborted ? { status: 'cancelled', reason: TraceEndReasons.Aborted, attrs: { [VoiceAttributes.VADAborted]: true } } : undefined)
     activeSpan = undefined
   }
 
@@ -114,8 +115,10 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
       // Set up event handlers
       createdVad.on('speech-start', () => {
         finishActiveSpan(true)
-        activeSpan = startSpan(IOSpanNames.VoiceActivityDetection, undefined, {
-          [IOAttributes.Subsystem]: IOSubsystems.VAD,
+        activeSpan = beginSpan(getTraceSink(), {
+          track: trackPath(VoiceTracks.Speech, { actor: LOCAL_USER_ACTOR }),
+          name: VoiceNames.SpeechSegment,
+          ids: { [VoiceIdKeys.Actor]: LOCAL_USER_ACTOR },
         })
         isSpeech.value = true
         options?.onSpeechStart?.()
@@ -137,7 +140,7 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
       })
 
       createdVad.on('speech-ready', (event) => {
-        activeSpan?.setAttribute(IOAttributes.VADAudioDurationMs, event.duration)
+        activeSpan?.update({ [VoiceAttributes.SpeechDurationMs]: event.duration })
         finishActiveSpan(false)
         options?.onSpeechReady?.(event)
       })

@@ -1,12 +1,16 @@
-import type { Span } from '@opentelemetry/api'
 import type { SpeechInputAttempt, SpeechInputAttemptOutcome, WriteResult } from '@proj-airi/core-agent'
+import type { TraceAttributes, TraceSink, TraceSpan } from '@proj-airi/trace-kit'
 
 import type { SpeakerEvidenceUpdate } from '../libs/voice/speaker-evidence-plugin'
 
-import { SpanStatusCode } from '@opentelemetry/api'
-import { IOAttributes, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
+import { beginSpan, SeriesWriter, TraceLinkRelations, trackPath } from '@proj-airi/trace-kit'
+import { VoiceAttributes, VoiceIdKeys, VoiceNames, VoiceSeries, VoiceTracks } from '@proj-airi/trace-kit/voice'
 
-import { activeVoiceInputSpan, linkComposerVoice, linkVoiceTurn, startSpan } from './use-io-tracer'
+import { levelOf } from '../libs/voice/input-level'
+import { activeVoiceInput, getTraceSink } from './use-trace'
+
+/** The actor ID of the local user in the voice profile. */
+export const LOCAL_USER_ACTOR = 'user'
 
 /**
  * What started a speech input.
@@ -23,11 +27,12 @@ export type VoiceInputTrigger = 'control' | 'speech' | 'wake-word'
  */
 const SEGMENT_PAUSE_MS = 300
 
+/** Chunk length of the window series. Ten records each second keep the live waveform smooth and cost little. */
+const LIVE_CHUNK_MS = 100
+
 interface TracedInput {
-  readonly span: Span
-  segment?: { span: Span, speechMs: number, silenceMs: number, lastSpeechAt: number }
-  /** The session of a composer dictation. Its text returns to the composer instead of a draft. */
-  composerSessionId?: string
+  readonly span: TraceSpan
+  segment?: { span: TraceSpan, speechMs: number, silenceMs: number, lastSpeechAt: number }
   /** The newest speaker evidence, and the updates that the input rejected. */
   speaker?: { update: SpeakerEvidenceUpdate, rejected: number }
 }
@@ -40,39 +45,46 @@ function roundScore(value: number) {
 /**
  * Traces the speech inputs of one voice host.
  *
- * Each input gets a `Voice input` span. It is the trace root, or the child of the `Wake word` span that started it.
- * While the input runs, `activeVoiceInputSpan` points to it, so speech recognition, end judgements, and the rephrase
- * become its children. VAD results become `Voice activity detection` child spans, one for each speech segment.
- * The input ID is also the turn ID of the chat turn that its submission starts, so that turn continues the trace.
+ * Each input gets a span on the input track of the local user, with its input ID. The input ID is also the turn ID of
+ * the chat turn that its submission starts, so the chat turn links to the input by that ID. A draft that merged into an
+ * earlier draft links to the input of that draft.
+ * While the input runs, `activeVoiceInput` holds its ID, so speech recognition, end judgements, and the rephrase carry it.
+ * VAD results become speech spans, one for each speech segment. Each detector window adds a VAD probability and a
+ * microphone level sample.
  *
  * With speaker recognition on, the input span also gets the speaker score of its speech.
  *
  * State: `inputs` holds the open inputs by ID. The input outcome ends the input span and its open segment.
  */
-export function createVoiceInputTracer() {
+export function createVoiceInputTracer(sink: () => TraceSink = getTraceSink) {
   const inputs = new Map<string, TracedInput>()
+  const actorIds = { [VoiceIdKeys.Actor]: LOCAL_USER_ACTOR }
+  const inputTrack = trackPath(VoiceTracks.Input, { actor: LOCAL_USER_ACTOR })
+  // The level and the VAD probability of each detector window. The viewer draws the level as the input waveform, and
+  // the probability as the opacity of its bars. Short chunks let the live waveform grow smoothly. The
+  // writer drops its samples while no viewer shows the input track.
+  const windowSeries = new SeriesWriter(sink, { track: inputTrack, ids: actorIds, chunkMs: LIVE_CHUNK_MS })
 
-  /** Starts the trace of an input that the controller has just begun. */
-  function start(attempt: Pick<SpeechInputAttempt, 'id' | 'done'>, trigger: VoiceInputTrigger, parent?: Span) {
-    const span = startSpan(IOSpanNames.VoiceInput, parent, {
-      [IOAttributes.Subsystem]: IOSubsystems.VoiceInput,
-      [IOAttributes.VoiceInputId]: attempt.id,
-      [IOAttributes.VoiceInputTrigger]: trigger,
-    })
-    inputs.set(attempt.id, { span })
-    activeVoiceInputSpan.value = span
-    linkVoiceTurn(attempt.id, span)
-    void attempt.done.then(outcome => settle(attempt.id, outcome))
+  /** Records the speech probability and the level of one detector window. */
+  function window(channels: readonly Float32Array[], probability: number) {
+    windowSeries.push({ [VoiceSeries.Level]: levelOf(channels), [VoiceSeries.Probability]: probability })
   }
 
   /**
-   * Marks an input as a composer dictation. Its trace then waits for the next turn of the session, because the
-   * composer sends the dictated text later under a new message ID.
+   * Starts the trace of an input that the controller has just begun.
+   * `wakeSpanId` is the span of the wake word that began the input. The input links to it as its cause.
    */
-  function markComposer(inputId: string, sessionId: string) {
-    const input = inputs.get(inputId)
-    if (input)
-      input.composerSessionId = sessionId
+  function start(attempt: Pick<SpeechInputAttempt, 'id' | 'sessionId' | 'done'>, trigger: VoiceInputTrigger, wakeSpanId?: string) {
+    const span = beginSpan(sink(), {
+      track: inputTrack,
+      name: VoiceNames.VoiceInput,
+      ids: { ...actorIds, [VoiceIdKeys.Input]: attempt.id, [VoiceIdKeys.Conversation]: attempt.sessionId },
+      attrs: { [VoiceAttributes.InputTrigger]: trigger },
+      ...(wakeSpanId ? { links: [{ rel: TraceLinkRelations.CausedBy, to: { spanId: wakeSpanId } }] } : {}),
+    })
+    inputs.set(attempt.id, { span })
+    activeVoiceInput.value = { inputId: attempt.id, sessionId: attempt.sessionId }
+    void attempt.done.then(outcome => settle(attempt.id, outcome))
   }
 
   /**
@@ -84,10 +96,16 @@ export function createVoiceInputTracer() {
     if (!input)
       return
 
-    const now = performance.now()
+    const target = sink()
+    const now = target.now()
     if (event.speech) {
       input.segment ??= {
-        span: startSpan(IOSpanNames.VoiceActivityDetection, input.span, { [IOAttributes.Subsystem]: IOSubsystems.VAD }),
+        span: beginSpan(target, {
+          track: trackPath(VoiceTracks.Speech, { actor: LOCAL_USER_ACTOR }),
+          name: VoiceNames.SpeechSegment,
+          ids: { ...actorIds, [VoiceIdKeys.Input]: event.inputId },
+          ts: now,
+        }),
         speechMs: 0,
         silenceMs: 0,
         lastSpeechAt: now,
@@ -123,8 +141,8 @@ export function createVoiceInputTracer() {
     if (!segment)
       return
     input.segment = undefined
-    segment.span.setAttribute(IOAttributes.VADAudioDurationMs, Math.round(segment.speechMs))
-    segment.span.end(segment.lastSpeechAt)
+    // The segment ends at its last speech window. The pause after it is not speech.
+    segment.span.end({ ts: segment.lastSpeechAt, attrs: { [VoiceAttributes.SpeechDurationMs]: Math.round(segment.speechMs) } })
   }
 
   function settle(inputId: string, outcome: SpeechInputAttemptOutcome) {
@@ -133,35 +151,35 @@ export function createVoiceInputTracer() {
       return
     inputs.delete(inputId)
     closeSegment(input)
+    // The input ended, so its last samples show now, not with the next chunk.
+    windowSeries.flush()
 
+    const attrs: TraceAttributes = { [VoiceAttributes.InputOutcome]: outcome.status }
     if (input.speaker) {
       const { update, rejected } = input.speaker
-      input.span.setAttributes({
-        [IOAttributes.SpeakerScore]: roundScore(update.value.candidates[0].score),
-        [IOAttributes.SpeakerScores]: update.scores.map(roundScore),
-        [IOAttributes.SpeakerVoicedMs]: Math.round(update.value.voicedMs),
-        [IOAttributes.SpeakerRejectedCount]: rejected,
-      })
+      attrs[VoiceAttributes.SpeakerScore] = roundScore(update.value.candidates[0].score)
+      attrs[VoiceAttributes.SpeakerScores] = update.scores.map(roundScore)
+      attrs[VoiceAttributes.SpeakerVoicedMs] = Math.round(update.value.voicedMs)
+      attrs[VoiceAttributes.SpeakerRejectedCount] = rejected
     }
 
-    input.span.setAttribute(IOAttributes.VoiceInputOutcome, outcome.status)
-    if (outcome.status === 'cancelled')
-      input.span.setAttribute(IOAttributes.VoiceInputReason, outcome.reason)
-    if (outcome.status === 'failed') {
-      input.span.setAttribute(IOAttributes.VoiceInputReason, outcome.stage)
-      input.span.setStatus({ code: SpanStatusCode.ERROR, message: outcome.error.message })
+    if (outcome.status === 'cancelled') {
+      input.span.end({ status: 'cancelled', reason: outcome.reason, attrs })
     }
-    // A dictation that produced text continues in the next composer turn of its session.
-    if (input.composerSessionId && outcome.status === 'drafted')
-      linkComposerVoice(input.composerSessionId, input.span)
-    // A draft that merged into an earlier draft is sent later under that draft's ID.
-    else if (outcome.status === 'drafted' && outcome.draftId !== inputId)
-      linkVoiceTurn(outcome.draftId, input.span)
+    else if (outcome.status === 'failed') {
+      input.span.end({ status: 'error', reason: outcome.stage, message: outcome.error.message, attrs })
+    }
+    else if (outcome.status === 'drafted' && outcome.draftId !== inputId) {
+      // The merged draft is sent later under the ID of the earlier draft. The link joins this input to that turn.
+      input.span.end({ attrs, links: [{ rel: TraceLinkRelations.SameEntity, to: { key: VoiceIdKeys.Input, id: outcome.draftId } }] })
+    }
+    else {
+      input.span.end({ attrs })
+    }
 
-    input.span.end()
-    if (activeVoiceInputSpan.value === input.span)
-      activeVoiceInputSpan.value = undefined
+    if (activeVoiceInput.value?.inputId === inputId)
+      activeVoiceInput.value = undefined
   }
 
-  return { start, markComposer, activity, speakerEvidence }
+  return { start, activity, speakerEvidence, window }
 }

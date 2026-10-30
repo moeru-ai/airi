@@ -17,7 +17,7 @@ import type {
   StageViewSnapshotPayload,
 } from '@proj-airi/stage-shared/godot-stage'
 import type { ServerChannelQrPayload } from '@proj-airi/stage-shared/server-channel-qr'
-import type { IOTraceHubState, IOTraceRecordingState, SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
+import type { IOTraceHubState, IOTraceRecordingState } from '@proj-airi/stage-shared/types/io-trace'
 import type {
   ThreeHitTestReadTracePayload,
   ThreeSceneRenderInfoTracePayload,
@@ -29,6 +29,7 @@ import type {
   VrmUpdateFrameTracePayload,
 } from '@proj-airi/stage-ui-three/trace'
 import type { ChatHistoryReplyPayload } from '@proj-airi/stage-ui/components/scenarios/chat'
+import type { TraceFeedMessage } from '@proj-airi/trace-kit'
 import type { Rectangle } from 'electron'
 
 import type { UpdateChannel } from '../update-channels'
@@ -147,14 +148,31 @@ export const ioTraceRecordingChanged = defineEventa<IOTraceRecordingState>('even
 export const ioTraceRecordingGet = defineInvokeEventa<IOTraceRecordingState>('eventa:invoke:electron:io-trace-recording:get')
 export const ioTraceRecordingSetEnabled = defineInvokeEventa<IOTraceRecordingState, { enabled: boolean }>('eventa:invoke:electron:io-trace-recording:set-enabled')
 
-/** Sends an ended IO span of this window to the IO trace hub in the main process. */
-export const ioTraceHubPublish = defineInvokeEventa<void, SerializedIOSpan>('eventa:invoke:electron:io-trace-hub:publish')
+/**
+ * Sends a batch of trace records of this window to the trace hub in the main process.
+ * The hub validates each record, so a bad record of one window cannot break the views of the others.
+ */
+export const ioTraceHubEmit = defineInvokeEventa<void, { records: unknown[] }>('eventa:invoke:electron:io-trace-hub:emit')
+/** Returns the value of the hub clock now. A window pairs it with its own clock in a clock snapshot. */
+export const ioTraceHubPing = defineInvokeEventa<number>('eventa:invoke:electron:io-trace-hub:ping')
 export const ioTraceHubGet = defineInvokeEventa<IOTraceHubState>('eventa:invoke:electron:io-trace-hub:get')
 export const ioTraceHubSetCollecting = defineInvokeEventa<IOTraceHubState, { collecting: boolean }>('eventa:invoke:electron:io-trace-hub:set-collecting')
-/** Returns the spans that the hub keeps, and sends each later span to this window as `ioTraceHubSpan`. */
-export const ioTraceHubSubscribe = defineInvokeEventa<SerializedIOSpan[]>('eventa:invoke:electron:io-trace-hub:subscribe')
+/**
+ * Returns the backlog of the hub feed, and sends each later feed message to this window as `ioTraceHubFeed`.
+ * `tracks` are the track paths that the view of this window shows.
+ */
+export const ioTraceHubSubscribe = defineInvokeEventa<{ messages: TraceFeedMessage[], traceClock: string }, { tracks: string[] | '*' }>('eventa:invoke:electron:io-trace-hub:subscribe')
+export const ioTraceHubSetTracks = defineInvokeEventa<void, { tracks: string[] | '*' }>('eventa:invoke:electron:io-trace-hub:set-tracks')
 export const ioTraceHubUnsubscribe = defineInvokeEventa<void>('eventa:invoke:electron:io-trace-hub:unsubscribe')
-export const ioTraceHubSpan = defineEventa<SerializedIOSpan>('eventa:event:electron:io-trace-hub:span')
+/** Later feed messages for a subscribed window, in feed order. */
+export const ioTraceHubFeed = defineEventa<TraceFeedMessage[]>('eventa:event:electron:io-trace-hub:feed')
+/** The tracks that viewers show now. Each window skips costly series of other tracks. */
+export const ioTraceHubWanted = defineEventa<{ tracks: string[] | '*' }>('eventa:event:electron:io-trace-hub:wanted')
+/**
+ * The system resumed from sleep. Monotonic clocks can stop or continue through sleep, so each window writes a clock
+ * discontinuity and measures its clock again.
+ */
+export const ioTraceHubResync = defineEventa<void>('eventa:event:electron:io-trace-hub:resync')
 
 /**
  * Where the Controls Island chat button opens the chat.

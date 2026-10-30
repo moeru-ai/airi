@@ -14,17 +14,27 @@ const LEVEL_FLOOR_DB = -60
  * Each level is the root mean square of all channels in one window, mapped linearly in decibels to the range 0 to 1.
  */
 export function observeInputLevel(input: AudioInput, signal: AbortSignal, onLevel: (level: number) => void): Observer {
-  return observe(input, { windowMs: LEVEL_WINDOW_MS, hopMs: LEVEL_WINDOW_MS, signal }, async (window) => {
-    let sum = 0
-    let count = 0
-    for (const channel of window.channels) {
-      for (const sample of channel)
-        sum += sample * sample
-      count += channel.length
-    }
-    if (!count || !sum)
-      return 0
-    const decibels = 10 * Math.log10(sum / count)
-    return Math.min(1, Math.max(0, (decibels - LEVEL_FLOOR_DB) / -LEVEL_FLOOR_DB))
-  }, result => onLevel(result.value))
+  return observe(input, { windowMs: LEVEL_WINDOW_MS, hopMs: LEVEL_WINDOW_MS, signal }, async window => levelOf(window.channels), result => onLevel(result.value))
+}
+
+/**
+ * The level of some audio: the root mean square of all channels, mapped linearly in decibels from -60 dBFS (0) to full
+ * scale (1).
+ *
+ * @example
+ * levelOf([new Float32Array([0.5, -0.5])])
+ * // => 0.9 (-6 dBFS)
+ */
+export function levelOf(channels: readonly Float32Array[]): number {
+  let sum = 0
+  let count = 0
+  for (const channel of channels) {
+    for (const sample of channel)
+      sum += sample * sample
+    count += channel.length
+  }
+  if (!count || !sum)
+    return 0
+  const decibels = 10 * Math.log10(sum / count)
+  return Math.min(1, Math.max(0, (decibels - LEVEL_FLOOR_DB) / -LEVEL_FLOOR_DB))
 }

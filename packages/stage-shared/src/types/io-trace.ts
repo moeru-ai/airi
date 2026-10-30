@@ -1,34 +1,22 @@
-/**
- * A tracing span that can cross the browser `BroadcastChannel` boundary.
- * Nanosecond timestamps use strings because structured clone cannot preserve the source integer format.
- */
-export interface SerializedIOSpan {
-  traceId: string
-  spanId: string
-  parentSpanId: string
-  name: string
-  kind: number
-  startTimeNano: string
-  endTimeNano: string
-  attributes: Record<string, unknown>
-  events: Array<{ name: string, timeNano: string, attributes: Record<string, unknown> }>
-  status: { code: number, message: string }
-  ended: boolean
-}
-
-/** Runtime state of the IO trace hub that the Electron main process owns. */
+/** Runtime state of the trace hub that the Electron main process owns. */
 export interface IOTraceHubState {
-  /** When true, the hub keeps recent spans in memory, so a tracer window that opens later can show them. */
+  /** When true, the hub keeps recent records in memory, so a tracer window that opens later can show them. */
   collecting: boolean
-  /** Number of spans in memory. */
-  bufferedSpans: number
-  /** The hub drops the oldest span when it has more spans than this. */
-  maxSpans: number
-  /** The hub drops spans that ended earlier than this many milliseconds ago. */
+  /** Number of records in the event buffer. Series points are in separate rings. */
+  bufferedRecords: number
+  /** JSON bytes of the event buffer. */
+  bufferedBytes: number
+  /** The hub drops the oldest records when the buffer has more bytes than this. */
+  maxBytes: number
+  /** The hub drops records that it received earlier than this many milliseconds ago. */
   maxAgeMs: number
+  /** Records that arrived after the watermark of their source. */
+  late: number
+  /** Records that failed the schema check. */
+  dropped: number
 }
 
-/** Runtime state for Electron-owned IO trace recording. */
+/** Runtime state for Electron-owned trace recording. */
 export interface IOTraceRecordingState {
   directory: string
   enabled: boolean

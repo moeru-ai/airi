@@ -51,6 +51,8 @@ export interface TraceCollectorOptions {
     windowMs?: number
     /** A trigger from the same source in this time does not start a new dump. @default 60 seconds */
     cooldownMs?: number
+    /** UTF-8 bytes of the flight window that the collector keeps while buffering is off. @default 2 MB */
+    maxBytes?: number
     onDump: (dump: FlightRecorderDump) => void
   }
   /** Receives the union of the tracks that viewers show. Producers skip costly series that no reader wants. */
@@ -91,6 +93,7 @@ const DEFAULTS = {
   heartbeatTimeoutMs: 60_000,
   flightWindowMs: 60_000,
   flightCooldownMs: 60_000,
+  flightMaxBytes: 2 * 1024 * 1024,
 }
 
 /** Counts the JSON bytes of a buffered record. UTF-16 length undercounts CJK text up to three times. */
@@ -165,8 +168,13 @@ export class TraceCollector {
   private lastDumpEnd = Number.NEGATIVE_INFINITY
   private lateCount = 0
   private droppedCount = 0
-  /** Off: the collector forwards records to viewers but keeps only the pinned set. */
+  /** Off: the collector forwards records to viewers but keeps only the pinned set and the flight window. */
   private buffering = true
+  /**
+   * The records of the last flight window while buffering is off, for the flight recorder only. Viewers never read it,
+   * so a view that opens while buffering is off still has no history.
+   */
+  private readonly flightWindow?: RetentionBuffer<BufferEntry>
 
   constructor(options: TraceCollectorOptions) {
     this.options = options
@@ -192,6 +200,14 @@ export class TraceCollector {
     })
     this.demand = new DemandUnion<string>({ onChange: union => this.options.onWantedChange?.(union) })
     this.dumpCooldown = createCooldown({ ms: options.flightRecorder?.cooldownMs ?? DEFAULTS.flightCooldownMs })
+    if (options.flightRecorder) {
+      this.flightWindow = new RetentionBuffer<BufferEntry>({
+        maxBytes: options.flightRecorder.maxBytes ?? DEFAULTS.flightMaxBytes,
+        maxAgeMs: options.flightRecorder.windowMs ?? DEFAULTS.flightWindowMs,
+        sizeOf: entry => entry.bytes,
+        ageOf: entry => entry.observedAt,
+      })
+    }
 
     this.self = new TraceSource({
       source: 'collector',
@@ -232,10 +248,12 @@ export class TraceCollector {
 
   /**
    * Turns the event buffer and the series rings on or off. Off drops what they hold. Viewers still get live records,
-   * and the pinned set stays, so a viewer that opens later still knows the live sources and open spans.
+   * and the pinned set stays, so a viewer that opens later still knows the live sources and open spans. With a flight
+   * recorder, off keeps the last flight window of events for dumps only.
    */
   setBuffering(enabled: boolean): void {
     this.buffering = enabled
+    this.flightWindow?.clear()
     if (enabled)
       return
     this.buffer.clear()
@@ -303,6 +321,7 @@ export class TraceCollector {
     for (const { ring } of this.seriesRings.values())
       ring.compact(now)
     this.buffer.evict(now)
+    this.flightWindow?.evict(now)
     this.reportGap()
 
     // An expired lease of an epoch that is not live anymore only goes away. Live epochs go in the order they started.
@@ -382,11 +401,18 @@ export class TraceCollector {
       this.unpinEpoch(record.source, record.epoch)
     }
 
-    // With buffering off, nothing is kept. The record still goes to the live viewers below.
-    if (this.buffering && (record.type === 'sample' || record.type === 'sample.chunk')) {
+    // With buffering off, only the flight window keeps events. The record still goes to the live viewers below.
+    const isSample = record.type === 'sample' || record.type === 'sample.chunk'
+    if (!this.buffering) {
+      if (!isSample && this.flightWindow) {
+        this.flightWindow.push({ record, order, time, observedAt: now, bytes: utf8.encode(JSON.stringify(record)).byteLength })
+        this.flightWindow.evict(now)
+      }
+    }
+    else if (isSample) {
       this.appendSeries(record, time)
     }
-    else if (this.buffering) {
+    else {
       const bytes = utf8.encode(JSON.stringify(record)).byteLength
       const overLimit = this.buffer.bytes + bytes > (this.options.maxBytes ?? DEFAULTS.maxBytes)
       // The push drops the oldest records over the byte limit. Over the limit, the age limit applies too, and both
@@ -654,7 +680,7 @@ export class TraceCollector {
     const append = from < this.lastDumpEnd
     const start = append ? this.lastDumpEnd : from
     const entries: BufferEntry[] = []
-    for (const entry of this.buffer.values()) {
+    for (const entry of (this.buffering ? this.buffer : this.flightWindow ?? this.buffer).values()) {
       if (entry.observedAt > start)
         entries.push(entry)
     }

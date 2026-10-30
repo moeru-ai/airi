@@ -1,111 +1,106 @@
 import type { SpeechInputAttemptOutcome } from '@proj-airi/core-agent'
+import type { TraceRecord } from '@proj-airi/trace-kit'
 
-import type { ReadableSpan } from './use-io-tracer'
+import { beginSpan } from '@proj-airi/trace-kit'
+import { createTimelineProjection, TraceReader } from '@proj-airi/trace-kit/projections'
+import { VoiceAttributes, VoiceIdKeys, VoiceNames, VoiceSeries } from '@proj-airi/trace-kit/voice'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { SpanStatusCode } from '@opentelemetry/api'
-import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-
-import { activeVoiceInputSpan, onIOSpan, runInSpan, startSpan, takeComposerVoiceParent, takeVoiceTurnParent } from './use-io-tracer'
+import { activeVoiceInput, configureTraceTransport, getTraceSink, getTraceSource, runInTraceSpan } from './use-trace'
 import { createVoiceInputTracer } from './voice-input-trace'
 
-const spans: ReadableSpan[] = []
-onIOSpan(span => spans.push(span))
+const records: TraceRecord[] = []
+let stopTransport: (() => void) | undefined
+
+beforeEach(() => {
+  stopTransport = configureTraceTransport({ source: 'test', clock: 'mono:test', runtime: 'test', send: record => records.push(record) })
+})
 
 afterEach(() => {
-  spans.length = 0
+  stopTransport?.()
+  records.length = 0
 })
 
 function spansNamed(name: string) {
-  return spans.filter(span => span.name === name)
+  const timeline = createTimelineProjection()
+  const reader = new TraceReader([timeline], 'mono:test')
+  reader.handleRecords(records)
+  return [...reader.view(timeline).spans.values()].filter(span => span.name === name)
 }
 
-/** An input whose outcome the test settles. Only the ID and the outcome reach the tracer. */
+function endedInputs() {
+  return spansNamed(VoiceNames.VoiceInput).filter(span => span.end !== undefined)
+}
+
+/** An input whose outcome the test settles. Only the ID, the session, and the outcome reach the tracer. */
 function attempt(id: string) {
   const done = Promise.withResolvers<SpeechInputAttemptOutcome>()
-  return { id, done: done.promise, settle: done.resolve }
+  return { id, sessionId: 'alice', done: done.promise, settle: done.resolve }
 }
 
 describe('createVoiceInputTracer', () => {
-  it('traces an input from start to outcome and makes it the parent of its recognition', async () => {
+  it('traces an input from start to outcome and exposes it as the active input while it runs', async () => {
     const tracer = createVoiceInputTracer()
     const input = attempt('input-1')
 
     tracer.start(input, 'speech')
-    const recognition = startSpan(IOSpanNames.SpeechRecognition, activeVoiceInputSpan.value)
-    recognition.end()
+    expect(activeVoiceInput.value).toEqual({ inputId: 'input-1', sessionId: 'alice' })
     input.settle({ status: 'committed', messageId: 'input-1' })
 
-    await vi.waitFor(() => expect(spansNamed(IOSpanNames.VoiceInput)).toHaveLength(1))
-    const span = spansNamed(IOSpanNames.VoiceInput)[0]!
-    expect(span.attributes[IOAttributes.VoiceInputTrigger]).toBe('speech')
-    expect(span.attributes[IOAttributes.VoiceInputOutcome]).toBe('committed')
-    expect(spansNamed(IOSpanNames.SpeechRecognition)[0]!.parentSpanContext?.spanId).toBe(span.spanContext().spanId)
-    expect(activeVoiceInputSpan.value).toBeUndefined()
+    await vi.waitFor(() => expect(endedInputs()).toHaveLength(1))
+    const span = endedInputs()[0]!
+    expect(span.track).toBe('participants/user/input')
+    expect(span.ids?.[VoiceIdKeys.Input]).toBe('input-1')
+    expect(span.ids?.[VoiceIdKeys.Conversation]).toBe('alice')
+    expect(span.attrs[VoiceAttributes.InputTrigger]).toBe('speech')
+    expect(span.attrs[VoiceAttributes.InputOutcome]).toBe('committed')
+    expect(activeVoiceInput.value).toBeUndefined()
   })
 
-  it('continues the trace of the wake that started the input', async () => {
+  it('writes the level and the VAD probability of each window to the input track', async () => {
+    // A viewer shows every track, so the writer keeps its samples.
+    getTraceSource().setWanted('*')
     const tracer = createVoiceInputTracer()
-    const wake = startSpan(IOSpanNames.WakeWord)
-    wake.end()
+    const input = attempt('input-1')
+
+    tracer.start(input, 'speech')
+    tracer.window([new Float32Array([0.5, -0.5])], 0.9)
+    tracer.window([new Float32Array([0, 0])], 0.1)
+    input.settle({ status: 'committed', messageId: 'input-1' })
+
+    await vi.waitFor(() => expect(records.some(record => record.type === 'sample.chunk')).toBe(true))
+    const chunks = records.filter(record => record.type === 'sample.chunk')
+    expect(chunks.map(chunk => chunk.track)).toEqual(['participants/user/input'])
+    expect(Object.keys(chunks[0]!.values).sort()).toEqual([VoiceSeries.Level, VoiceSeries.Probability].sort())
+    expect(chunks[0]!.values[VoiceSeries.Probability]).toEqual([expect.closeTo(0.9), expect.closeTo(0.1)])
+  })
+
+  it('links the input to the wake that started it', async () => {
+    const tracer = createVoiceInputTracer()
     const input = attempt('input-2')
 
-    tracer.start(input, 'wake-word', wake)
+    tracer.start(input, 'wake-word', 'wake-span')
     input.settle({ status: 'cancelled', reason: 'Speech segment was too short' })
 
-    await vi.waitFor(() => expect(spansNamed(IOSpanNames.VoiceInput)).toHaveLength(1))
-    const span = spansNamed(IOSpanNames.VoiceInput)[0]!
-    expect(span.spanContext().traceId).toBe(wake.spanContext().traceId)
-    expect(span.parentSpanContext?.spanId).toBe(wake.spanContext().spanId)
-    expect(span.attributes[IOAttributes.VoiceInputReason]).toBe('Speech segment was too short')
+    await vi.waitFor(() => expect(endedInputs()).toHaveLength(1))
+    const span = endedInputs()[0]!
+    expect(span.links).toContainEqual({ rel: 'caused-by', to: { spanId: 'wake-span' } })
+    expect(span.status).toBe('cancelled')
+    expect(span.reason).toBe('Speech segment was too short')
   })
 
-  it('links the chat turn of the submission, and of a draft that the input merged into', async () => {
+  it('links an input that merged into an earlier draft to the input of that draft', async () => {
     const tracer = createVoiceInputTracer()
     const input = attempt('input-3')
 
     tracer.start(input, 'control')
-    const span = activeVoiceInputSpan.value
     input.settle({ status: 'drafted', draftId: 'earlier-draft' })
-    await vi.waitFor(() => expect(spansNamed(IOSpanNames.VoiceInput)).toHaveLength(1))
 
-    expect(takeVoiceTurnParent('input-3')).toBe(span)
-    expect(takeVoiceTurnParent('earlier-draft')).toBe(span)
-    // A turn takes its parent once.
-    expect(takeVoiceTurnParent('earlier-draft')).toBeUndefined()
+    await vi.waitFor(() => expect(endedInputs()).toHaveLength(1))
+    expect(endedInputs()[0]!.links).toContainEqual({ rel: 'same-entity', to: { key: VoiceIdKeys.Input, id: 'earlier-draft' } })
   })
 
-  // Codex review on PR #2939: the composer sends dictated text under a new message ID, so the input ID never matches.
-  it('links a composer dictation to the next turn of its session, once and only for a short time', async () => {
-    const tracer = createVoiceInputTracer()
-    const first = attempt('dictation-1')
-    tracer.start(first, 'control')
-    const span = activeVoiceInputSpan.value
-    tracer.markComposer('dictation-1', 'alice')
-    first.settle({ status: 'drafted', draftId: 'dictation-1' })
-    await vi.waitFor(() => expect(spansNamed(IOSpanNames.VoiceInput)).toHaveLength(1))
-
-    expect(takeComposerVoiceParent('bob')).toBeUndefined()
-    expect(takeComposerVoiceParent('alice')).toBe(span)
-    expect(takeComposerVoiceParent('alice')).toBeUndefined()
-
-    vi.useFakeTimers()
-    try {
-      const second = attempt('dictation-2')
-      tracer.start(second, 'control')
-      tracer.markComposer('dictation-2', 'alice')
-      second.settle({ status: 'drafted', draftId: 'dictation-2' })
-      await vi.waitFor(() => expect(spansNamed(IOSpanNames.VoiceInput)).toHaveLength(2))
-      vi.advanceTimersByTime(61_000)
-
-      expect(takeComposerVoiceParent('alice')).toBeUndefined()
-    }
-    finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('records one VAD span for each speech segment, and closes an open segment with the input', async () => {
+  it('records one speech span for each speech segment, and closes an open segment with the input', async () => {
     const tracer = createVoiceInputTracer()
     const input = attempt('input-4')
     tracer.start(input, 'speech')
@@ -122,23 +117,24 @@ describe('createVoiceInputTracer', () => {
     window(true)
     input.settle({ status: 'committed', messageId: 'input-4' })
 
-    await vi.waitFor(() => expect(spansNamed(IOSpanNames.VoiceInput)).toHaveLength(1))
-    const segments = spansNamed(IOSpanNames.VoiceActivityDetection)
-    expect(segments.map(segment => segment.attributes[IOAttributes.VADAudioDurationMs])).toEqual([300, 100])
-    expect(segments.every(segment => segment.parentSpanContext?.spanId === spansNamed(IOSpanNames.VoiceInput)[0]!.spanContext().spanId)).toBe(true)
+    await vi.waitFor(() => expect(endedInputs()).toHaveLength(1))
+    const segments = spansNamed(VoiceNames.SpeechSegment)
+    expect(segments.map(segment => segment.attrs[VoiceAttributes.SpeechDurationMs])).toEqual([300, 100])
+    expect(segments.every(segment => segment.ids?.[VoiceIdKeys.Input] === 'input-4')).toBe(true)
   })
 
-  it('marks a failed input as an error', async () => {
+  it('ends a failed input with an error', async () => {
     const tracer = createVoiceInputTracer()
     const input = attempt('input-5')
 
     tracer.start(input, 'speech')
     input.settle({ status: 'failed', stage: 'transcription', error: new Error('provider down') })
 
-    await vi.waitFor(() => expect(spansNamed(IOSpanNames.VoiceInput)).toHaveLength(1))
-    const span = spansNamed(IOSpanNames.VoiceInput)[0]!
-    expect(span.status).toEqual({ code: SpanStatusCode.ERROR, message: 'provider down' })
-    expect(span.attributes[IOAttributes.VoiceInputReason]).toBe('transcription')
+    await vi.waitFor(() => expect(endedInputs()).toHaveLength(1))
+    const span = endedInputs()[0]!
+    expect(span.status).toBe('error')
+    expect(span.message).toBe('provider down')
+    expect(span.reason).toBe('transcription')
   })
 
   it('records the newest speaker score of an input and counts the rejected updates', async () => {
@@ -152,12 +148,12 @@ describe('createVoiceInputTracer', () => {
     tracer.speakerEvidence({ inputId: 'input-6', range, value: { candidates: [{ speakerId: 'owner', score: 0.55 }], voicedMs: 1500 }, scores: [0.61234, 0.48766] }, { status: 'rejected', reason: 'closed' })
     input.settle({ status: 'committed', messageId: 'input-6' })
 
-    await vi.waitFor(() => expect(spansNamed(IOSpanNames.VoiceInput)).toHaveLength(1))
-    const span = spansNamed(IOSpanNames.VoiceInput)[0]!
-    expect(span.attributes[IOAttributes.SpeakerScore]).toBe(0.55)
-    expect(span.attributes[IOAttributes.SpeakerScores]).toEqual([0.612, 0.488])
-    expect(span.attributes[IOAttributes.SpeakerVoicedMs]).toBe(1500)
-    expect(span.attributes[IOAttributes.SpeakerRejectedCount]).toBe(1)
+    await vi.waitFor(() => expect(endedInputs()).toHaveLength(1))
+    const span = endedInputs()[0]!
+    expect(span.attrs[VoiceAttributes.SpeakerScore]).toBe(0.55)
+    expect(span.attrs[VoiceAttributes.SpeakerScores]).toEqual([0.612, 0.488])
+    expect(span.attrs[VoiceAttributes.SpeakerVoicedMs]).toBe(1500)
+    expect(span.attrs[VoiceAttributes.SpeakerRejectedCount]).toBe(1)
   })
 
   it('adds no speaker attributes to an input without speaker evidence', async () => {
@@ -167,31 +163,31 @@ describe('createVoiceInputTracer', () => {
     tracer.start(input, 'control')
     input.settle({ status: 'committed', messageId: 'input-7' })
 
-    await vi.waitFor(() => expect(spansNamed(IOSpanNames.VoiceInput)).toHaveLength(1))
-    expect(spansNamed(IOSpanNames.VoiceInput)[0]!.attributes[IOAttributes.SpeakerScore]).toBeUndefined()
+    await vi.waitFor(() => expect(endedInputs()).toHaveLength(1))
+    expect(endedInputs()[0]!.attrs[VoiceAttributes.SpeakerScore]).toBeUndefined()
   })
 })
 
-describe('runInSpan', () => {
+describe('runInTraceSpan', () => {
   it('ends the span with the result, an error status, or a cancellation', async () => {
-    const ok = startSpan('ok')
-    const failed = startSpan('failed')
-    const cancelled = startSpan('cancelled')
+    const sink = getTraceSink()
+    const ok = beginSpan(sink, { track: 't', name: 'ok' })
+    const failed = beginSpan(sink, { track: 't', name: 'failed' })
+    const cancelled = beginSpan(sink, { track: 't', name: 'cancelled' })
     const abort = new AbortController()
 
-    await expect(runInSpan(ok, abort.signal, async () => 'done')).resolves.toBe('done')
-    await expect(runInSpan(failed, abort.signal, async () => {
+    await expect(runInTraceSpan(ok, abort.signal, async () => 'done')).resolves.toBe('done')
+    await expect(runInTraceSpan(failed, abort.signal, async () => {
       throw new Error('model unavailable')
     })).rejects.toThrow('model unavailable')
     abort.abort('Speech evidence changed')
-    await expect(runInSpan(cancelled, abort.signal, async () => {
+    await expect(runInTraceSpan(cancelled, abort.signal, async () => {
       throw abort.signal.reason
     })).rejects.toBe('Speech evidence changed')
 
-    await vi.waitFor(() => expect(spans).toHaveLength(3))
-    expect(spansNamed('ok')[0]!.status.code).toBe(SpanStatusCode.UNSET)
-    expect(spansNamed('failed')[0]!.status).toEqual({ code: SpanStatusCode.ERROR, message: 'model unavailable' })
-    expect(spansNamed('cancelled')[0]!.status.code).toBe(SpanStatusCode.UNSET)
-    expect(spansNamed('cancelled')[0]!.attributes[IOAttributes.Cancelled]).toBe(true)
+    expect(spansNamed('ok')[0]!.status).toBe('ok')
+    expect(spansNamed('failed')[0]!.status).toBe('error')
+    expect(spansNamed('failed')[0]!.message).toBe('model unavailable')
+    expect(spansNamed('cancelled')[0]!.status).toBe('cancelled')
   })
 })
