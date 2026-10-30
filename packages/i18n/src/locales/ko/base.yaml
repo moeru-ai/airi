@@ -1,5 +1,5 @@
 edition:
-  desktop: 데스크탑 버전.
+  desktop: 데스크톱 버전.
   mobile: 모바일 버전.
   web: 웹 버전.
 prompt:
