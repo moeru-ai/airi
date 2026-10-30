@@ -46,6 +46,19 @@ describe('traceCollector', () => {
     expect(collector.ingestUntrusted(instant('a', 'c'))).toBe(true)
   })
 
+  it('counts the UTF-8 bytes of a record for the buffer limit', () => {
+    const { collector, source } = setup()
+    const window = source('window:main')
+    const sizeAfter = (name: string) => {
+      const before = collector.stats.bufferedBytes
+      window.emit({ type: 'instant', ts: 0, track: 't', name })
+      return collector.stats.bufferedBytes - before
+    }
+
+    // Both names have 5 UTF-16 units. The Chinese name has 15 UTF-8 bytes.
+    expect(sizeAfter('你好世界啊') - sizeAfter('hello')).toBe(10)
+  })
+
   it('drops a record with a seen sequence number', () => {
     const { collector } = setup()
     const record: TraceRecord = { type: 'instant', source: 'w', epoch: 'x', seq: 0, ts: 1, clock: 'mono:collector', track: 't', name: 'a' }

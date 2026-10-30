@@ -37,7 +37,7 @@ export interface TraceCollectorOptions {
   now: () => number
   /** @default 30 minutes */
   maxAgeMs?: number
-  /** JSON bytes of the event buffer. Objects in memory are often 2 to 3 times larger. @default 16 MB */
+  /** UTF-8 bytes of the JSON of the event buffer. Objects in memory are often 2 to 3 times larger. @default 16 MB */
   maxBytes?: number
   /** Series rings keep the full rate for this time, then the min and max of each second. @default 5 minutes */
   seriesFullRateMs?: number
@@ -92,6 +92,9 @@ const DEFAULTS = {
   flightWindowMs: 60_000,
   flightCooldownMs: 60_000,
 }
+
+/** Counts the JSON bytes of a buffered record. UTF-16 length undercounts CJK text up to three times. */
+const utf8 = new TextEncoder()
 
 /** The newest snapshots of each clock set in the pinned set. The drift fit uses this many. */
 const PINNED_SNAPSHOTS_PER_CLOCK_SET = 16
@@ -384,7 +387,7 @@ export class TraceCollector {
       this.appendSeries(record, time)
     }
     else if (this.buffering) {
-      const bytes = JSON.stringify(record).length
+      const bytes = utf8.encode(JSON.stringify(record)).byteLength
       const overLimit = this.buffer.bytes + bytes > (this.options.maxBytes ?? DEFAULTS.maxBytes)
       // The push drops the oldest records over the byte limit. Over the limit, the age limit applies too, and both
       // drops become one gap.
