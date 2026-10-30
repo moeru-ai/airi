@@ -249,6 +249,11 @@ chat:
     cloud-badge: Synced to cloud
     new-chat-fallback: New chat
     delete: Delete conversation
+    rename: Rename conversation
+    rename-input: Conversation name
+    rename-placeholder: Enter a conversation name
+    save-rename: Save conversation name
+    cancel-rename: Cancel renaming
 avatar-model-missing:
   title: No model selected
   unavailable-title: This model is not on this device

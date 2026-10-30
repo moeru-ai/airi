@@ -248,6 +248,11 @@ chat:
     cloud-badge: 已同步到云
     new-chat-fallback: 新建对话
     delete: 删除对话
+    rename: 重命名对话
+    rename-input: 对话名称
+    rename-placeholder: 输入对话名称
+    save-rename: 保存对话名称
+    cancel-rename: 取消重命名
 avatar-model-missing:
   title: 还没有选择模型
   unavailable-title: 这台设备上没有这个模型

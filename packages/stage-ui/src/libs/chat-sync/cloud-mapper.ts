@@ -75,6 +75,8 @@ export interface CloudChatMapper {
    * the existing remote chat is returned.
    */
   createChat: (input: CreateRemoteChatInput) => Promise<RemoteChat>
+  /** PATCH /api/v1/chats/:id - updates the chat title. */
+  updateChat: (chatId: string, updates: { title: string }) => Promise<RemoteChat>
   /**
    * DELETE /api/v1/chats/:id — server soft-deletes the chat. Other devices
    * stop seeing it on next `listChats`; live ones won't get a push event in
@@ -130,8 +132,8 @@ async function throwOnError(res: Response): Promise<void> {
  *
  * Returns:
  * - A handle exposing `listChats`, `createChat` (with idempotent 409
- *   handling), and `deleteChat`. All throw on non-2xx outside the documented
- *   idempotency window.
+ *   handling), `updateChat`, and `deleteChat`. All throw on non-2xx outside
+ *   the documented idempotency window.
  */
 export function createCloudChatMapper(options: CreateCloudChatMapperOptions): CloudChatMapper {
   const fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis)
@@ -189,6 +191,15 @@ export function createCloudChatMapper(options: CreateCloudChatMapperOptions): Cl
       }
       return await readJsonOrThrow(res, RemoteChatSchema)
     },
+    async updateChat(chatId, updates) {
+      const res = await fetchImpl(endpoint(`/api/v1/chats/${encodeURIComponent(chatId)}`), {
+        method: 'PATCH',
+        headers: jsonHeaders(),
+        body: JSON.stringify(updates),
+        signal: timeoutSignal(),
+      })
+      return await readJsonOrThrow(res, RemoteChatSchema)
+    },
     async deleteChat(chatId) {
       const res = await fetchImpl(endpoint(`/api/v1/chats/${encodeURIComponent(chatId)}`), {
         method: 'DELETE',
@@ -215,7 +226,7 @@ export function createCloudChatMapper(options: CreateCloudChatMapperOptions): Cl
  */
 export interface ReconcilePlan {
   claim: Array<{ sessionId: string, cloudChatId: string }>
-  create: Array<{ sessionId: string, characterId: string }>
+  create: Array<{ sessionId: string, characterId: string, title?: string }>
   adopt: ListedRemoteChat[]
   reassign: Array<{ sessionId: string, characterId: string }>
 }
@@ -284,7 +295,12 @@ export function reconcileLocalAndRemote(
       continue
     }
 
-    create.push({ sessionId: meta.sessionId, characterId: meta.characterId })
+    const title = meta.cloudTitlePending ?? meta.title
+    create.push({
+      sessionId: meta.sessionId,
+      characterId: meta.characterId,
+      ...(title !== undefined ? { title } : {}),
+    })
   }
 
   const adopt: ListedRemoteChat[] = []
@@ -331,7 +347,7 @@ export function reconcileLocalAndRemote(
 export async function applyCreateActions(
   mapper: CloudChatMapper,
   actions: ReconcilePlan['create'],
-): Promise<Array<{ sessionId: string, cloudChatId?: string, error?: string }>> {
+): Promise<Array<{ sessionId: string, cloudChatId?: string, remoteTitle?: string | null, error?: string }>> {
   return await Promise.all(actions.map(async (action) => {
     try {
       const remote = await mapper.createChat({
@@ -340,9 +356,14 @@ export async function applyCreateActions(
         // us to the punch.
         id: action.sessionId,
         type: 'bot',
+        ...(action.title !== undefined ? { title: action.title } : {}),
         members: [{ type: 'character', characterId: action.characterId }],
       })
-      return { sessionId: action.sessionId, cloudChatId: remote.id }
+      return {
+        sessionId: action.sessionId,
+        cloudChatId: remote.id,
+        ...(action.title !== undefined ? { remoteTitle: remote.title } : {}),
+      }
     }
     catch (err) {
       return { sessionId: action.sessionId, error: errorMessageFrom(err) ?? 'unknown' }
