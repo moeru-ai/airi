@@ -92,4 +92,70 @@ describe('fluxTransactionService', () => {
     expect(secondPage.records).toEqual([expect.objectContaining({ id: 'round-1-b', amount: 2 })])
     expect(secondPage.hasMore).toBe(false)
   })
+
+  describe('getDailyUsage', () => {
+    const now = new Date('2026-10-25T12:00:00Z')
+
+    function usage(userId: string, sourceType: string, sourceId: string, amountMicroFlux: number, createdAt: string) {
+      return { userId, sourceType, sourceId, amountMicroFlux, createdAt: new Date(createdAt) }
+    }
+
+    function request(userId: string, sessionId: string | null, createdAt: string) {
+      return { userId, sessionId, model: 'chat-model', status: 200, durationMs: 10, createdAt: new Date(createdAt) }
+    }
+
+    it('returns 365 zero-filled local days and puts fees on the day of the caller time zone', async () => {
+      await db.insert(schema.fluxUsage).values([
+        usage('user-daily', 'llm', 'llm-1', 2_000_000, '2026-10-24T17:00:00Z'),
+        usage('user-daily', 'llm', 'llm-2', 1_000_000, '2026-10-24T10:00:00Z'),
+        usage('user-daily', 'tts', 'tts-1', 500_000, '2026-10-25T02:00:00Z'),
+      ])
+
+      const shanghai = await service.getDailyUsage('user-daily', 'Asia/Shanghai', now)
+      const utc = await service.getDailyUsage('user-daily', 'UTC', now)
+      const dayOf = (result: typeof shanghai, date: string) => result.days.find(day => day.date === date)
+
+      expect(shanghai.days).toHaveLength(365)
+      expect(shanghai.days[0]!.date).toBe('2025-10-26')
+      expect(shanghai.days.at(-1)!.date).toBe('2026-10-25')
+      expect(dayOf(shanghai, '2026-10-24')).toMatchObject({ llmMicroFlux: 1_000_000, ttsMicroFlux: 0 })
+      expect(dayOf(shanghai, '2026-10-25')).toMatchObject({ llmMicroFlux: 2_000_000, ttsMicroFlux: 500_000 })
+      expect(dayOf(shanghai, '2026-10-23')).toMatchObject({ llmMicroFlux: 0, ttsMicroFlux: 0, newSessionCount: 0 })
+      expect(dayOf(utc, '2026-10-24')).toMatchObject({ llmMicroFlux: 3_000_000, ttsMicroFlux: 0 })
+      expect(dayOf(utc, '2026-10-25')).toMatchObject({ llmMicroFlux: 0, ttsMicroFlux: 500_000 })
+    })
+
+    it('ignores other users, other source types, and fees before the window', async () => {
+      await db.insert(schema.fluxUsage).values([
+        usage('user-daily-scope', 'llm', 'in-window', 1_000_000, '2026-10-20T01:00:00Z'),
+        usage('user-daily-scope', 'llm', 'too-old', 9_000_000, '2025-10-01T01:00:00Z'),
+        usage('user-daily-scope', 'image', 'other-type', 9_000_000, '2026-10-20T01:00:00Z'),
+        usage('user-daily-other', 'llm', 'other-user', 9_000_000, '2026-10-20T01:00:00Z'),
+      ])
+
+      const { days } = await service.getDailyUsage('user-daily-scope', 'UTC', now)
+
+      expect(days.reduce((total, day) => total + day.llmMicroFlux, 0)).toBe(1_000_000)
+    })
+
+    it('counts a session once on the day of its first request and measures the longest session', async () => {
+      await db.insert(schema.llmRequestLog).values([
+        request('user-sessions', 'long', '2026-10-20T16:30:00Z'),
+        request('user-sessions', 'long', '2026-10-21T16:30:00Z'),
+        request('user-sessions', 'single', '2026-10-21T02:00:00Z'),
+        request('user-sessions', null, '2026-10-21T03:00:00Z'),
+        request('user-sessions', 'before-window', '2025-01-01T00:00:00Z'),
+        request('user-sessions', 'before-window', '2026-10-22T00:00:00Z'),
+        request('user-other', 'foreign', '2026-10-21T02:00:00Z'),
+      ])
+
+      const shanghai = await service.getDailyUsage('user-sessions', 'Asia/Shanghai', now)
+      const utc = await service.getDailyUsage('user-sessions', 'UTC', now)
+      const countsOf = (result: typeof shanghai) => result.days.filter(day => day.newSessionCount > 0).map(day => [day.date, day.newSessionCount])
+
+      expect(countsOf(shanghai)).toEqual([['2026-10-21', 2]])
+      expect(countsOf(utc)).toEqual([['2026-10-20', 1], ['2026-10-21', 1]])
+      expect(shanghai.longestSessionMs).toBe(24 * 60 * 60 * 1000)
+    })
+  })
 })

@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import type { DailyUsageSummary } from '@proj-airi/stage-ui/components/scenarios/flux'
 import type { FluxBalanceBucket } from '@proj-airi/stage-ui/composables/use-analytics'
 
 import { isFluxPurchaseDisabled, isStageTamagotchi } from '@proj-airi/stage-shared'
+import { FluxUsageOverview } from '@proj-airi/stage-ui/components/scenarios/flux'
 import { client } from '@proj-airi/stage-ui/composables/api'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { AIRI_PRIVACY_URL, AIRI_TERMS_URL } from '@proj-airi/stage-ui/constants/public-links'
@@ -130,6 +132,8 @@ const auditHasMore = ref(false)
 const auditOffset = ref(0)
 const AUDIT_PAGE_SIZE = 20
 
+const usageSummary = ref<DailyUsageSummary | null>(null)
+
 const capacity = ref(0)
 
 const fluxPercentage = computed(() => {
@@ -146,9 +150,18 @@ async function fetchStats() {
       capacity.value = data.capacity
     }
   }
-  catch {
-    // silently fail
+  catch {}
+}
+
+async function fetchDailyUsage() {
+  try {
+    const res = await client.api.v1.flux.usage.daily.$get({
+      query: { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+    })
+    if (res.ok)
+      usageSummary.value = await res.json() as DailyUsageSummary
   }
+  catch {}
 }
 
 async function fetchAuditHistory(loadMore = false) {
@@ -170,9 +183,7 @@ async function fetchAuditHistory(loadMore = false) {
       auditOffset.value = offset + data.records.length
     }
   }
-  catch {
-    // silently fail
-  }
+  catch {}
   finally {
     auditLoading.value = false
   }
@@ -280,6 +291,7 @@ function showCheckoutReturnMessage(type: 'success' | 'error', text: string) {
 watch(isAuthenticated, async (authenticated) => {
   if (!authenticated) {
     capacity.value = 0
+    usageSummary.value = null
     auditRecords.value = []
     auditHasMore.value = false
     auditOffset.value = 0
@@ -289,6 +301,7 @@ watch(isAuthenticated, async (authenticated) => {
   await Promise.allSettled([
     authStore.updateCredits(),
     fetchStats(),
+    fetchDailyUsage(),
     fetchAuditHistory(),
   ])
 
@@ -496,6 +509,8 @@ async function handleBuy(stripePriceId: string) {
         </button>
       </div>
     </div>
+
+    <FluxUsageOverview v-if="isAuthenticated && usageSummary" :summary="usageSummary" />
 
     <!-- Audit History -->
     <div v-if="isAuthenticated" flex="~ col gap-3">
