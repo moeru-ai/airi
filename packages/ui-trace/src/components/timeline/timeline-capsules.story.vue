@@ -9,7 +9,6 @@ const BLUE = '#3b82f6'
 const RED = '#ef4444'
 const AMBER = '#f59e0b'
 const GREEN = '#22c55e'
-const ROSE = '#f87171'
 const INDIGO = '#6366f1'
 const SKY = '#0ea5e9'
 
@@ -65,7 +64,7 @@ const variants: StoryVariant[] = [
       { name: 'Speech', items: [{ start: 1084, end: 2748, color: AMBER }, { start: 3964, end: 4764, color: AMBER }] },
       { name: 'Speech recognition', items: [{ start: 4764, end: 5150, color: BLUE, activity: 'thinking', failed: true }, { start: 5150, end: 5500, color: BLUE, activity: 'thinking', retry: true }] },
       { name: 'Agent', kind: 'lane', now: 12_000, items: [{ start: 5500, end: 7000, color: VIOLET, activity: 'waiting' }, { start: 7000, end: 10_000, color: VIOLET }, { start: 10_200, color: VIOLET, activity: 'thinking' }] },
-      { name: 'Playback', items: [{ start: 7000, end: 10_000, color: ROSE }], content: { kind: 'waveform', ...recordingAt(7000 - 884) } },
+      { name: 'Playback', items: [{ start: 7000, end: 10_000, color: SKY }], content: { kind: 'waveform', ...recordingAt(7000 - 884) } },
       { name: 'Chat turn', items: [{ start: 5500, end: 7000, color: VIOLET, activity: 'waiting' }] },
       { name: 'Model', now: 12_000, items: [{ start: 5550, end: 6800, color: VIOLET, activity: 'thinking' }, { start: 10_200, color: VIOLET, activity: 'thinking' }] },
       { name: 'Events', points: [300, 5550, 7000, 10_200].map(time => ({ time, color: BLUE })).concat({ time: 4764, color: RED }) },
@@ -122,7 +121,7 @@ const variants: StoryVariant[] = [
     title: 'Waveform',
     description: 'An audio level draws as bars inside its spans: white on a solid item, the item color on a striped one. The VAD probability sets the opacity of each bar, so speech is solid and noise fades.',
     rows: [
-      { name: 'Playback', view: RECORDING_VIEW, items: [{ start: 600, end: 2600, color: ROSE }, { start: 2800, end: 4900, color: ROSE }], content: { kind: 'waveform', level: input.level } },
+      { name: 'Playback', view: RECORDING_VIEW, items: [{ start: 600, end: 2600, color: SKY }, { start: 2800, end: 4900, color: SKY }], content: { kind: 'waveform', level: input.level } },
       { name: 'Voice input', view: RECORDING_VIEW, items: [{ start: 100, end: 5200, color: INDIGO, activity: 'waiting' }], content: inputContent },
       { name: '600 ms', view: { start: 700, end: 1300 }, items: [{ start: 100, end: 5200, color: INDIGO, activity: 'waiting' }], content: inputContent },
     ],
