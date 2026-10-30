@@ -1,11 +1,14 @@
 <script setup lang="ts">
+import { speakerModel } from '@proj-airi/stage-shared/speaker-model'
+import { useModelAssetFailureMessage, useModelAssetStatus } from '@proj-airi/stage-ui/composables/use-model-asset-status'
 import { useVoiceEnrollment } from '@proj-airi/stage-ui/composables/use-voice-enrollment'
+import { isSherpawModelBundled } from '@proj-airi/stage-ui/libs/providers/providers/sherpaw/model-assets'
 import { MIN_ENROLLMENT_SPEECH_SECONDS } from '@proj-airi/stage-ui/libs/voice/voice-enrollment'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useVoiceprintStore } from '@proj-airi/stage-ui/stores/voiceprint'
 import { Button, DoubleCheckButton, FieldCheckbox, Progress, SettingsCard } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed } from 'vue'
+import { computed, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t, locale } = useI18n()
@@ -13,6 +16,19 @@ const voiceprints = useVoiceprintStore()
 const { speakerRecognitionEnabled } = storeToRefs(useHearingStore())
 // The enrollment belongs to this page. It ends when the user leaves the page or closes the window.
 const { state: enrollment, busy, begin, finish, cancel } = useVoiceEnrollment()
+const { models } = useModelAssetStatus()
+const failureMessage = useModelAssetFailureMessage()
+// A bundled model needs no download, so the page does not announce one.
+const modelBundled = isSherpawModelBundled(speakerModel.id)
+// The model loads only while an enrollment enrolls. A download failure from an earlier enrollment must not explain a microphone error.
+const modelRequested = shallowRef(false)
+watch(() => enrollment.value.phase, (phase) => {
+  if (phase === 'recording')
+    modelRequested.value = false
+  else if (phase === 'enrolling')
+    modelRequested.value = true
+})
+const modelFailure = computed(() => modelRequested.value ? models.value.find(model => model.id === speakerModel.id)?.error : undefined)
 
 const sentences = computed(() => [1, 2, 3].map(index => t(`settings.pages.modules.hearing.voiceprint.sentence-${index}`)))
 const speechSeconds = computed(() => enrollment.value.phase === 'idle' ? 0 : enrollment.value.speechSeconds)
@@ -44,7 +60,8 @@ const result = computed(() => {
     case 'failed':
       return value.failure === 'too-short'
         ? { tone: 'orange', text: t('settings.pages.modules.hearing.voiceprint.result.too-short', { seconds: value.speechSeconds.toFixed(1), min: MIN_ENROLLMENT_SPEECH_SECONDS }) } as const
-        : { tone: 'orange', text: t('settings.pages.modules.hearing.voiceprint.result.error', { error: value.error ?? '' }) } as const
+        // A failed model download also fails the enrollment with a raw message. The download failure explains it better.
+        : { tone: 'orange', text: t('settings.pages.modules.hearing.voiceprint.result.error', { error: modelFailure.value ? failureMessage(modelFailure.value) : value.error ?? '' }) } as const
     default:
       return undefined
   }
@@ -139,7 +156,7 @@ const resultClasses = {
         </template>
       </div>
 
-      <p v-if="!voiceprints.record" :class="['text-xs', 'text-neutral-400 dark:text-neutral-500']">
+      <p v-if="!voiceprints.record && !modelBundled" :class="['text-xs', 'text-neutral-400 dark:text-neutral-500']">
         {{ t('settings.pages.modules.hearing.voiceprint.download') }}
       </p>
     </SettingsCard>
