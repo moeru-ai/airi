@@ -3,7 +3,7 @@ import type { SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
 import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared/perf/io-trace'
 
 import { describe, expect, it } from '../../src'
-import { configureModuleConsciousness, configureModuleHearing, configureOnboarding, loadCaseEnvironment } from '../shared/configurations'
+import { audioCaseLive2D, configureLive2D, configureModuleConsciousness, configureModuleHearing, configureOnboarding, loadCaseEnvironment } from '../shared/configurations'
 import { waitForVoiceDraft } from '../shared/interactions'
 import { aliyunNlsAsr, openaiLlm } from '../shared/providers'
 
@@ -25,6 +25,7 @@ describe('voice end latency', () => {
     input: new URL('./input.test.wav', import.meta.url),
     preflight: [
       configureOnboarding(() => ({ completed: true })),
+      configureLive2D(() => audioCaseLive2D),
       configureModuleHearing(async (context) => {
         const environment = await loadCaseEnvironment(context.env)
         const provider = environment.TESTING_AUDIO_ASR_ALIYUN_NLS_PROVIDER
