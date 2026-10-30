@@ -3,7 +3,10 @@ import type { Application } from '@pixi/app'
 import type { Filter } from '@pixi/core'
 import type {
   AmbientLightEnvironment,
+  AmbientLightExposureOptions,
   AmbientLightFilterOptions,
+  AmbientLightMaterialOptions,
+  AmbientLightScreenGeometry,
   NormalizedRectangle,
   ScreenAmbientLightMode,
 } from '@proj-airi/stage-shared/screen-ambient-light'
@@ -21,7 +24,7 @@ import { formatHex } from 'culori'
 import { Mutex } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
 import { DropShadowFilter } from 'pixi-filters'
-import { Live2DFactory, Live2DModel, MotionPriority } from 'pixi-live2d-display/cubism4'
+import { Cubism4InternalModel, Live2DFactory, Live2DModel, MotionPriority } from 'pixi-live2d-display/cubism4'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
 
 import Live2DExpression from '../../live2d/expression.vue'
@@ -47,6 +50,8 @@ import { useFitModel } from '../../../composables/live2d/fit-model'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
 import { useLive2D } from '../../../contexts/live2d'
 import { ScreenAmbientLightFilter } from '../../../filters/screen-ambient-light'
+import { SurfaceLighting } from '../../../filters/surface-lighting'
+import { registerNormalPipeline } from '../../../lighting/channel'
 import { getLive2DMotionControlModelOffset, useL2dViewControl, useLive2DMotionControl, useLive2dParams } from '../../../stores'
 
 const props = withDefaults(defineProps<{
@@ -72,11 +77,14 @@ const props = withDefaults(defineProps<{
   live2dShadowEnabled?: boolean
   screenAmbientLightActive?: boolean
   screenAmbientLightFilterOptions?: AmbientLightFilterOptions
+  screenAmbientLightExposure?: AmbientLightExposureOptions
   screenAmbientLightEnvironment?: AmbientLightEnvironment
   screenAmbientLightSubject?: NormalizedRectangle
   screenAmbientLightMode?: ScreenAmbientLightMode
   screenAmbientLightStrength?: number
   screenAmbientLightSquint?: number
+  screenAmbientLightMaterial?: AmbientLightMaterialOptions
+  screenAmbientLightGeometry?: AmbientLightScreenGeometry
 }>(), {
   mouthOpenSize: 0,
   nowSpeaking: false,
@@ -95,12 +103,15 @@ const props = withDefaults(defineProps<{
   live2dExpressionEnabled: true,
   live2dShadowEnabled: true,
   screenAmbientLightActive: false,
+  screenAmbientLightExposure: () => ({ ...ambientLightDefaults.exposure }),
   screenAmbientLightFilterOptions: () => ({ ...ambientLightDefaults.filter }),
   screenAmbientLightEnvironment: () => ambientLightNeutralEnvironment,
   screenAmbientLightSubject: () => wholeWindowRectangle,
   screenAmbientLightMode: ambientLightDefaults.mode,
   screenAmbientLightStrength: ambientLightDefaults.strength,
   screenAmbientLightSquint: ambientLightDefaults.squint,
+  screenAmbientLightMaterial: () => ({ ...ambientLightDefaults.material }),
+  screenAmbientLightGeometry: () => ({ ...ambientLightDefaults.geometry }),
 })
 
 const emits = defineEmits<{
@@ -172,6 +183,8 @@ const dropShadowFilter = shallowRef(new DropShadowFilter({
   rotation: 45,
 }))
 const screenAmbientLightFilter = shallowRef(new ScreenAmbientLightFilter())
+let surfaceLighting: SurfaceLighting | undefined
+let stopNormalPipeline: (() => void) | undefined
 
 let resizeAnimation: ReturnType<typeof animate> | undefined
 
@@ -262,6 +275,8 @@ const screenAmbientLightFilterOptions = toRef(() => props.screenAmbientLightFilt
 const screenAmbientLightEnvironment = toRef(() => props.screenAmbientLightEnvironment)
 const screenAmbientLightSubject = toRef(() => props.screenAmbientLightSubject)
 const screenAmbientLightMode = toRef(() => props.screenAmbientLightMode)
+const screenAmbientLightMaterial = toRef(() => props.screenAmbientLightMaterial)
+const screenAmbientLightGeometry = toRef(() => props.screenAmbientLightGeometry)
 const screenAmbientLightStrength = toRef(() => props.screenAmbientLightStrength)
 const screenAmbientLightSquint = toRef(() => props.screenAmbientLightSquint)
 
@@ -328,6 +343,10 @@ async function performModelLoad() {
 
   // REVIEW: here as await until(...) guarded the pixiApp and stage to be valid.
   if (model.value) {
+    stopNormalPipeline?.()
+    stopNormalPipeline = undefined
+    surfaceLighting?.dispose()
+    surfaceLighting = undefined
     expressionReferences.value = []
     expressionLoader.value = undefined
     destroyRenderedModel()
@@ -364,6 +383,33 @@ async function performModelLoad() {
         motionMap.value[motion.fileName] = EmotionNeutralMotionName
       }
     })
+
+    if (live2DModel.internalModel instanceof Cubism4InternalModel) {
+      const lighting = new SurfaceLighting(live2DModel.internalModel, pixiApp.value!.renderer)
+      surfaceLighting = lighting
+      try {
+        lighting.setPhotometry(screenAmbientLightFilter.value.exposure)
+        lighting.setMaterial(screenAmbientLightMaterial.value)
+        lighting.setScreenGeometry(screenAmbientLightGeometry.value)
+        stopNormalPipeline = registerNormalPipeline(live2DModel.internalModel, lighting, modelSrcRef.value, props.modelId ?? 'live2d')
+      }
+      catch (error) {
+        lighting.dispose()
+        surfaceLighting = undefined
+        destroyModel(live2DModel)
+        throw error
+      }
+    }
+
+    // Loading the authored textures can finish after the scene has unmounted.
+    if (isUnmounted) {
+      stopNormalPipeline?.()
+      stopNormalPipeline = undefined
+      surfaceLighting?.dispose()
+      surfaceLighting = undefined
+      destroyModel(live2DModel)
+      return
+    }
 
     // --- Scene
 
@@ -645,6 +691,32 @@ const dropShadowColorComputer = ref<HTMLDivElement>()
 const dropShadowAnimationId = ref(0)
 
 function updateAmbientLightFilter() {
+  const options = screenAmbientLightFilterOptions.value
+  const physical = props.screenAmbientLightExposure.enabled && screenAmbientLightMode.value === 'window-gradient' && !!surfaceLighting
+  screenAmbientLightFilter.value.renderSurfaceBloom = surfaceLighting && screenAmbientLightMode.value === 'window-gradient'
+    ? input => surfaceLighting!.renderBloom(input)
+    : undefined
+  screenAmbientLightFilter.value.exposure.configure(
+    screenAmbientLightEnvironment.value,
+    { ...props.screenAmbientLightExposure, darkBase: options.darkBase, baseCurve: options.baseCurve },
+    physical && screenAmbientLightActive.value,
+  )
+  // The surface shader takes one ambient level. It follows the same floor and
+  // curve as the final filter, from the measured screen level. The physical
+  // trial keeps the floor and lets its adaptive meter supply the rest.
+  surfaceLighting?.setExposure(
+    physical
+      ? options.darkBase
+      : options.darkBase + (1 - options.darkBase) * screenAmbientLightEnvironment.value.exposure ** options.baseCurve,
+    1,
+  )
+  surfaceLighting?.update(
+    screenAmbientLightEnvironment.value,
+    screenAmbientLightActive.value,
+    screenAmbientLightStrength.value,
+    options.tint,
+    screenAmbientLightMode.value,
+  )
   if (!screenAmbientLightActive.value)
     return
 
@@ -655,7 +727,13 @@ function updateAmbientLightFilter() {
     subject: screenAmbientLightSubject.value,
     mode: screenAmbientLightMode.value,
     strength: screenAmbientLightStrength.value,
-    options: screenAmbientLightFilterOptions.value,
+    // Surface shading applies ambient exposure before adding direct light. The
+    // final filter retains silhouette wrap and backlight without dimming the highlights.
+    // A floor of 1 switches its dimming off, and no color boost leaves the
+    // surface colors as the surface shader wrote them.
+    options: surfaceLighting
+      ? { ...options, darkBase: 1, colorBoost: 0 }
+      : screenAmbientLightFilterOptions.value,
   })
 }
 
@@ -701,6 +779,9 @@ function updateModelFilters() {
   updateFilterStack()
 }
 
+// Geometry follows settings changes, independently of the screen capture cadence.
+watch(screenAmbientLightMaterial, material => surfaceLighting?.setMaterial(material))
+watch(screenAmbientLightGeometry, geometry => surfaceLighting?.setScreenGeometry(geometry))
 watch(modelSrcRef, async () => await loadModel(), { immediate: true })
 watch(dark, updateModelFilters, { immediate: true })
 watch([model, themeColorsHue], updateModelFilters)
@@ -709,6 +790,7 @@ watch(
   [
     screenAmbientLightActive,
     screenAmbientLightFilterOptions,
+    () => props.screenAmbientLightExposure,
     screenAmbientLightEnvironment,
     screenAmbientLightMode,
     screenAmbientLightStrength,
@@ -938,6 +1020,10 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  stopNormalPipeline?.()
+  stopNormalPipeline = undefined
+  surfaceLighting?.dispose()
+  surfaceLighting = undefined
   isUnmounted = true
   resizeAnimation?.pause()
   disposeShouldUpdateView?.()
@@ -995,6 +1081,7 @@ function headAnchor() {
 }
 
 defineExpose({
+  characterBounds: () => surfaceLighting ? { ...surfaceLighting.characterBounds } : undefined,
   setMotion,
   listMotionGroups,
   modelNormalizeParams,
