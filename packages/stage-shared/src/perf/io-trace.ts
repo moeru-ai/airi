@@ -6,6 +6,8 @@ export const IOSubsystems = {
   EndJudge: 'end-judge',
   Rephrase: 'rephrase',
   LLM: 'llm',
+  LLMRequest: 'llm-request',
+  Tool: 'tool',
   StreamingControl: 'streaming-control',
   TTS: 'tts',
   Playback: 'playback',
@@ -30,6 +32,9 @@ export const IOSpanNames = {
   VoiceActivityDetection: 'Voice activity detection',
   SpeechRecognition: 'Speech recognition',
   LLMInference: 'LLM inference',
+  /** One HTTP request to the official chat API. A child of `LLM inference`. A turn with tool calls has one for each step. */
+  LLMRequest: 'LLM request',
+  ToolExecution: 'Tool execution',
   StreamingControlDispatch: 'Streaming control dispatch',
   TTSSynthesis: 'TTS synthesis',
   AudioPlayback: 'Audio playback',
@@ -41,6 +46,9 @@ export const IOAttributes = {
   GenAIRequestModel: 'gen_ai.request.model',
   GenAIProviderName: 'gen_ai.provider.name',
   GenAIConversationId: 'gen_ai.conversation.id',
+  GenAIToolName: 'gen_ai.tool.name',
+  GenAIToolCallId: 'gen_ai.tool.call.id',
+  ErrorType: 'error.type',
 
   // Non-standard
   Subsystem: `${customPrefix}.subsystem`,
@@ -77,6 +85,10 @@ export const IOAttributes = {
   LLMOutputChunkCount: `${customPrefix}.llm.output_chunk_count`,
   LLMOutputChunkLengths: `${customPrefix}.llm.output_chunk_lengths`,
   LLMTextLength: `${customPrefix}.llm.text_length`,
+  /** The position of an `LLM request` in its `LLM inference`, from 0. */
+  LLMStepIndex: `${customPrefix}.llm.step_index`,
+  /** The `x-airi-request-id` of the gateway response, which equals `llm_request_log.request_id`. */
+  RequestId: `${customPrefix}.request_id`,
   StreamingControlCallName: `${customPrefix}.streaming_control.call_name`,
   StreamingControlHandlerCount: `${customPrefix}.streaming_control.handler_count`,
   StreamingControlMatched: `${customPrefix}.streaming_control.matched`,

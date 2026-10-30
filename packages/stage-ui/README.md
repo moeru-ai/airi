@@ -260,7 +260,11 @@ Before each model request, the turn reads its character's settings again. A tool
 Each request rebuilds the analytics correlation headers for its provider.
 Tool and content-array compatibility failures belong to the model of the failing request, not the first model of the turn.
 Session resets and autonomous artistry hooks also use the session character.
-Each concurrent turn owns its IO trace. `activeTurnSpan` points to the most recently started turn that is still running.
+Each concurrent turn owns its IO trace. `registerTurnSpan` keeps the open `Interaction turn` span of each turn by turn ID.
+A span that starts outside the chat store, such as a streaming control dispatch, finds its parent with `turnSpanOf`.
+`LLM inference` is the parent of one `LLM request` span for each official provider request, and one `Tool execution` span for each tool call.
+The official provider fetch finds that parent with `nextLlmRequestParent`, by the session ID and round ID headers of the request.
+These two spans record no message or tool content.
 
 A tracer view reads spans from the source that `setIOTraceSource` sets. Without a source, as in stage-web, it reads
 the spans of its own window and the spans that other windows broadcast.
