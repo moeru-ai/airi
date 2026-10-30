@@ -271,6 +271,35 @@ It directly uses `BasicButton`, removes its padding, and does not add a
 background, outline, shape, or forced square dimensions. Supply an accessible
 `aria-label`. Props: `icon`, `disabled`, and `loading`.
 
+### UtilityButton
+
+Compact icon button for a toolbar. Its `label` shows as a tooltip and is the
+accessible name. Use it inside a Reka UI `TooltipProvider`. Attributes such as
+`class` and `aria-*` go to the button, because the root is the tooltip.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `icon` | `string` | *(required)* | Icon class, for example `i-mingcute:fullscreen-line` |
+| `label` | `string` | *(required)* | Tooltip text and accessible name |
+| `pressed` | `boolean?` | — | State of a toggle. An active toggle has the primary tint. Leave it unset for a plain action |
+| `disabled` | `boolean?` | — | Disables the button |
+| `iconClass` | `string?` | — | Extra classes of the icon, for example a color |
+| `description` | `string?` | — | Longer text under the label in the tooltip |
+
+**Emits**: `click()`
+
+### CopyableLabel
+
+Selectable text with a copy button. The button shows on hover, on keyboard
+focus, and always on a touch screen. Its touch target is 24 px there. It shows a check
+for a moment after a copy. It does not render without a clipboard.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `value` | `string` | *(required)* | Text that the button copies |
+
+**Slots**: `default` (the shown text, which can format the value). The default is `value`.
+
 ### OverlayButton
 
 Translucent, backdrop-blurred action without an outline, intended for floating
