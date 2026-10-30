@@ -1,0 +1,41 @@
+{
+  "name": "@proj-airi/ui-timeline",
+  "type": "module",
+  "private": true,
+  "description": "Timeline UI for Vue: headless parts for view, zoom, cursor, and keyboard, and the AIRI-styled timeline",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/ui-timeline"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./headless": "./src/headless/index.ts"
+  },
+  "scripts": {
+    "test:run": "vitest run",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@proj-airi/timeline-canvas": "workspace:^",
+    "@proj-airi/ui": "workspace:^",
+    "@vueuse/core": "catalog:",
+    "reka-ui": "catalog:",
+    "vue": "catalog:"
+  },
+  "devDependencies": {
+    "@histoire/plugin-vue": "catalog:",
+    "@vitejs/plugin-vue": "catalog:",
+    "@vitest/browser-playwright": "catalog:vitest",
+    "unocss": "catalog:",
+    "vitest": "catalog:vitest",
+    "vitest-browser-vue": "catalog:",
+    "vue-tsc": "catalog:"
+  }
+}
