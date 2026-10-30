@@ -139,7 +139,8 @@ export function buildEntityLanes(state: TimelineState, indexes: TraceIndexes, hi
   }
 
   const ordered = [...lanes.values()]
-    .filter(lane => lane.tracks.some(track => track.spans.length > 0 || track.instants.length > 0 || track.states.length > 0))
+    // A lane shows when a track has anything that a row draws, the same test as the empty rows of `buildRows`.
+    .filter(lane => lane.tracks.some(track => track.spans.length > 0 || track.instants.length > 0 || track.states.length > 0 || Object.keys(track.series).length > 0))
     .sort((a, b) => {
       if (a.kind !== b.kind)
         return KIND_ORDER[a.kind] - KIND_ORDER[b.kind]

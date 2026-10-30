@@ -95,6 +95,12 @@ describe('timeline model', () => {
     expect(peak()).toBeCloseTo(0.9)
   })
 
+  it('keeps the lane of a track that has only samples', () => {
+    const { state, indexes } = timelineOf([{ type: 'sample.chunk', ts: 0, track: 'participants/user/input', offsetsMs: [0, 100], values: { level: [0.2, 0.4] } }])
+    const { lanes } = buildEntityLanes(state, indexes)
+    expect(lanes.map(lane => lane.label)).toEqual(['User'])
+  })
+
   it('gives the first row of an audio track room for its waveform once it has samples', () => {
     const records: Parameters<typeof timelineOf>[0] = [
       { type: 'span.begin', ts: 0, track: 'participants/user/input', spanId: 'i1', name: 'voice-input' },
