@@ -13,6 +13,7 @@ import { onScopeDispose, shallowRef, watch } from 'vue'
 
 import { useVoiceController } from '../composables/audio/voice-controller'
 import { traceSpeechOutput } from '../composables/speech-output-trace'
+import { LOCAL_AGENT_ACTOR } from '../composables/use-trace'
 import { useVoiceDrafts } from '../composables/voice-drafts'
 import { useVoiceEndJudge } from '../composables/voice-end-judge'
 import { createVoiceInputTracer } from '../composables/voice-input-trace'
@@ -112,7 +113,7 @@ export const useVoiceStore = defineStore('voice', () => {
       if (!output)
         throw new Error('Voice output host is not connected')
 
-      const trace = traceSpeechOutput(turn, chat.openTurnSpan(turn), output(turn), async audio => audioContext.audioContext.decodeAudioData(await audio.arrayBuffer()))
+      const trace = traceSpeechOutput(turn, LOCAL_AGENT_ACTOR, output(turn), async audio => audioContext.audioContext.decodeAudioData(await audio.arrayBuffer()))
       speechTraces.set(turnKey(turn), trace)
       return trace.output
     },
@@ -122,9 +123,6 @@ export const useVoiceStore = defineStore('voice', () => {
 
       // The composer owns this text as its own draft. No voice draft or message is created.
       composerInputs.set(submission.submissionId, submission.text)
-      // The composer sends dictated text later. Empty text gives the composer nothing to send.
-      if (submission.text.trim())
-        inputTracer.markComposer(submission.submissionId, submission.sessionId)
       return { status: 'drafted', draftId: submission.submissionId }
     },
     recordInterruption: async (event) => {
@@ -558,7 +556,11 @@ export const useVoiceStore = defineStore('voice', () => {
       },
     })
     const plugin = createVoiceActivityPlugin({
-      detect: (window, signal) => model.score(window, signal),
+      detect: async (window, signal) => {
+        const probability = await model.score(window, signal)
+        inputTracer.window(window.channels, probability)
+        return probability
+      },
       onActivity: (activity) => {
         inputTracer.activity(activity)
         speakerEvidence.noteActivity(activity)
