@@ -22,10 +22,10 @@ const { copy, copied, isSupported } = useClipboard({ legacy: true, copiedDuring:
       :aria-label="`Copy ${props.value}`"
       :class="[
         // A touch screen gets a real 24 px box, so the target does not cover the text next to it.
-        'mt-px flex size-4 shrink-0 items-center justify-center rounded [@media(pointer:coarse)]:size-6',
+        'mt-px flex size-4 shrink-0 items-center justify-center rounded [@media(any-pointer:coarse)]:size-6',
         'text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200',
-        // A touch screen has no hover, so the button always shows there.
-        copied ? 'opacity-100' : 'opacity-0 group-hover/copy:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100',
+        // Any touch input, also the second input of a laptop with a trackpad, shows the button, because a tap cannot hover.
+        copied ? 'opacity-100' : 'opacity-0 group-hover/copy:opacity-100 focus-visible:opacity-100 [@media(any-pointer:coarse)]:opacity-100',
       ]"
       @click="copy(props.value)"
     >
