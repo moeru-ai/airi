@@ -33,15 +33,9 @@ chat:
   voice-composer:
     audio: 語音訊息
     transcription: 聽寫
-    hold-hint: 按住以錄音。點一下可切換語音訊息與聽寫，按 Enter 可在不按住的情況下錄音。
     listening: 正在聆聽…
-    lock: 向上滑動以鎖定錄音
-    cancel-hint: 向左滑動以取消
     processing: 正在完成…
     cancel: 取消
-    send: 傳送語音訊息
-    insert: 插入文字
-    retry: 重新傳送語音訊息
     discard: 捨棄語音訊息
     failed: 語音輸入失敗
     configure-title: 設定聽覺

@@ -13,14 +13,14 @@ docs:
     navbar:
       appearance:
         title: 스타일 및 모양
-fullscreen-island:
+'fullscreen-island':
   settings: 설정
   chat: 채팅
   switch-to-dark-mode: 다크 모드로 전환
   switch-to-system-mode: 시스템 테마 따르기
   switch-to-light-mode: 라이트 모드로 전환
   exit: 전체 화면 종료
-fullscreen-surface:
+'fullscreen-surface':
   resize: 드래그하여 패널 너비 조절
 'controls-island':
   'fade-on-hover':
@@ -171,10 +171,10 @@ computer-use-tool-call:
   region: 영역
   main: 메인 창
   hidden: 숨김
-  displays: 디스플레이 1개 | 디스플레이 {count}개
-  windows: 창 1개 | 창 {count}개
+  displays: '디스플레이 1개 | 디스플레이 {count}개'
+  windows: '창 1개 | 창 {count}개'
   found: '"{query}" 찾음'
-  matches: 일치 1건 | 일치 {count}건
+  matches: '일치 1건 | 일치 {count}건'
   not-found: '"{query}" 찾지 못함'
   clicked-text: '"{query}" 클릭함'
   options: 옵션
@@ -183,7 +183,7 @@ computer-use-tool-call:
   pressed: 누름
   interval: '{ms} ms마다'
   hold: '{ms} ms 동안 누름'
-  steps: 단계 1개를 순서대로 실행함 | 단계 {count}개를 순서대로 실행함
+  steps: '단계 1개를 순서대로 실행함 | 단계 {count}개를 순서대로 실행함'
   focused: '"{query}"에 포커스를 맞춤'
   app: 앱
   process: 프로세스

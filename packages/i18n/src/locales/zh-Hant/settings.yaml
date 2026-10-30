@@ -832,8 +832,6 @@ pages:
             description: 選擇合適的語音辨識提供者
           microphone:
             title: 麥克風
-            label: 麥克風
-            description: 開啟聽覺模組的麥克風。輸入模式控制 AIRI 何時聆聽。
             error: 無法使用麥克風
           input-device:
             label: 輸入裝置

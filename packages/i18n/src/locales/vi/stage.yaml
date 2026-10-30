@@ -33,15 +33,9 @@ chat:
   voice-composer:
     audio: Tin nhắn thoại
     transcription: Đọc chính tả
-    hold-hint: Giữ để ghi âm. Nhấp để đổi giữa tin nhắn thoại và đọc chính tả. Nhấn Enter để ghi mà không cần giữ.
     listening: Đang lắng nghe…
-    lock: Vuốt lên để khóa
-    cancel-hint: Vuốt sang trái để hủy
     processing: Đang hoàn tất…
     cancel: Hủy
-    send: Gửi tin nhắn thoại
-    insert: Chèn văn bản
-    retry: Gửi lại tin nhắn thoại
     discard: Bỏ tin nhắn thoại
     failed: Nhập giọng nói thất bại
     configure-title: Thiết lập Nghe

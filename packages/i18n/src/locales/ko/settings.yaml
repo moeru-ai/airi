@@ -258,7 +258,7 @@ live2d:
       비활성화해도 SDK 표정 관리자와 눈 깜박임은 유지됩니다.
     no-expression: 이 모델에는 사용 가능한 표정이 없습니다.
     reset: 모든 표정 초기화
-    parameter-count: 매개변수 {count}개
+    parameter-count: '매개변수 {count}개'
     actions:
       activate: '{name} 활성화'
       deactivate: '{name} 비활성화'
@@ -880,7 +880,7 @@ pages:
         sentence-1: 오늘은 날씨를 확인하고, 메시지를 읽고, 남은 하루를 계획하려고 해요.
         sentence-2: 저는 보통 방이 조용하고 시간이 나는 저녁에 AIRI와 이야기해요.
         sentence-3: 제 목소리를 기억해 주세요. 그래야 말하는 사람이 저인지 알 수 있어요.
-        progress: 말한 시간 {seconds}초. 등록하려면 최소 {min}초가 필요합니다.
+        progress: '말한 시간 {seconds}초. 등록하려면 최소 {min}초가 필요합니다.'
         start: 녹음 시작
         again: 다시 등록
         finish: 완료
@@ -890,7 +890,7 @@ pages:
         result:
           enrolled: 음성 지문을 저장했습니다.
           cancelled: 등록을 취소했습니다.
-          too-short: 녹음에 담긴 말은 {seconds}초였습니다. 등록하려면 최소 {min}초가 필요합니다. 다시 녹음하세요.
+          too-short: '녹음에 담긴 말은 {seconds}초였습니다. 등록하려면 최소 {min}초가 필요합니다. 다시 녹음하세요.'
           error: '등록하지 못했습니다: {error}'
       sections:
         section:
@@ -898,8 +898,6 @@ pages:
             description: 적절한 음성 인식 제공자 선택
           microphone:
             title: 마이크
-            label: 마이크
-            description: 청력 모듈의 마이크를 켜세요. 입력 모드에 따라 AIRI가 듣는 시점이 결정됩니다.
             error: 마이크를 사용할 수 없습니다
           input-device:
             label: 입력 장치
@@ -987,7 +985,7 @@ pages:
         description: 캐릭터마다 자신만의 비밀을 기억해 두며, 다른 캐릭터는 그 비밀을 볼 수 없습니다. 비밀을 공유하면 모든 캐릭터가 알게 되고, 되돌릴 수 없습니다. 비밀은 삭제할 수 있지만 수정할 수는 없습니다.
         empty: 아직 기억이 없습니다.
         forget: '{name} 잊기'
-        make_general: 모든 캐릭터에게 {name} 공유
+        make_general: '모든 캐릭터에게 {name} 공유'
         general: 공유한 비밀
         entry:
           title: 기억
@@ -1583,9 +1581,9 @@ pages:
     expiresAt: '{date}에 만료'
     change: Capacitor 변경
     quota:
-      day: 매일 {quota} Flux
-      week: 매주 {quota} Flux
-      month: 매월 {quota} Flux
+      day: '매일 {quota} Flux'
+      week: '매주 {quota} Flux'
+      month: '매월 {quota} Flux'
     perMonth: / 월
     currentPackage: 현재
     install: 설치
@@ -2185,12 +2183,12 @@ pages:
                 timing-signed-out: '로그인하지 않은 상태: 자동으로 검증하지 않습니다. 일부 제공자 설정 페이지에서, 또는 아래 버튼을 누를 때만 검증합니다.'
                 timing-periodic: '{names}: {seconds}초마다 추가로 검증합니다'
                 check-all: 지금 모두 검증
-                restore-all: 다시 보지 않기로 한 항목 모두 표시({count})
+                restore-all: '다시 보지 않기로 한 항목 모두 표시({count})'
                 empty: 아직 검증한 제공자가 없습니다.
                 not-checked: 아직 검증하지 않음
                 checked-ago: '{seconds}초 전'
                 every: '{seconds}초마다'
-                measured: 최근 {count}회 검증, 평균 {seconds}초 간격
+                measured: '최근 {count}회 검증, 평균 {seconds}초 간격'
                 dismissed: 다시 보지 않음
                 restore-one: 다시 보지 않기 취소
                 simulate: 일부러 실패시키기
@@ -2201,14 +2199,14 @@ pages:
                 speech-missing-model: 발성 모델이 없습니다
                 speech-missing-voice: 음성이 없습니다
                 speech-missing-model-voice: 발성 모델과 음성이 없습니다
-                speech-provider-unusable: 발성 모듈이 지금 이 제공자를 사용할 수 없어 목록에는 대신 제공자 항목이 표시됩니다
+                speech-provider-unusable: '발성 모듈이 지금 이 제공자를 사용할 수 없어 목록에는 대신 제공자 항목이 표시됩니다'
                 speech-pending: 모델 또는 음성 목록을 불러오는 중입니다
                 items-title: 목록에 있는 항목
                 items-empty: 지금은 조치가 필요한 항목이 없습니다.
                 selections-title: 모듈 제공자
                 selection-usable: 사용할 수 있습니다
                 selection-provider-item: 제공자 항목이 보고합니다
-                selection-awaiting-check: 추가했으며 검증을 기다리는 중입니다
+                selection-awaiting-check: '추가했으며 검증을 기다리는 중입니다'
                 selection-unusable: 모듈에서 사용할 수 없습니다
                 simulate-unusable: 사용할 수 없는 것으로 처리
                 voice-input-title: 음성 입력
@@ -2413,7 +2411,7 @@ needs-attention:
   simulated: 개발자 도구에서 시뮬레이션함
   character-provider-unavailable: '{name}의 {module} 제공자를 사용할 수 없습니다'
   module-provider-unavailable: '{module} 제공자를 사용할 수 없습니다'
-  provider-not-listed: 제공자 목록에 {provider} 항목이 없습니다
+  provider-not-listed: '제공자 목록에 {provider} 항목이 없습니다'
   hearing-no-provider: 음성 입력이 켜져 있지만 음성 인식 제공자가 선택되지 않았습니다
   hearing-no-model: 음성 입력이 켜져 있지만 음성 인식 모델이 선택되지 않았습니다
   not-transcribed: 말을 글로 바꾸지 않습니다

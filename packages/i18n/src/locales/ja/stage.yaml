@@ -33,15 +33,9 @@ chat:
   voice-composer:
     audio: 音声メッセージ
     transcription: 音声入力
-    hold-hint: 長押しで録音します。クリックで音声メッセージと音声入力を切り替えます。Enter を押すと、長押しせずに録音できます。
     listening: 聞き取り中…
-    lock: 上にスライドして録音を固定
-    cancel-hint: 左にスライドしてキャンセル
     processing: 処理を完了しています…
     cancel: キャンセル
-    send: 音声メッセージを送信
-    insert: テキストを挿入
-    retry: 音声メッセージを再送信
     discard: 音声メッセージを破棄
     failed: 音声入力に失敗しました
     configure-title: 聴覚を設定

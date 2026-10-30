@@ -811,7 +811,6 @@ pages:
           provider-selection:
             description: Sélectionnez le fournisseur de reconnaissance vocale approprié
           microphone:
-            description: Activez le microphone pour l’audition. Le mode d’entrée détermine quand AIRI écoute.
             error: Le microphone est indisponible
           input-device:
             label: Périphérique d’entrée

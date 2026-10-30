@@ -37,15 +37,9 @@ chat:
   voice-composer:
     audio: 음성 메시지
     transcription: 받아쓰기
-    hold-hint: 길게 눌러 녹음하세요. 클릭하면 음성 메시지와 받아쓰기 사이를 전환합니다. Enter를 누르면 길게 누르지 않고 녹음할 수 있습니다.
     listening: 듣는 중…
-    lock: 위로 밀어 녹음 고정
-    cancel-hint: 왼쪽으로 밀어 취소
     processing: 마무리 중…
     cancel: 취소
-    send: 음성 메시지 보내기
-    insert: 텍스트 삽입
-    retry: 음성 메시지 다시 보내기
     discard: 음성 메시지 버리기
     failed: 음성 입력 실패
     configure-title: 청각 설정
@@ -133,16 +127,16 @@ chat:
     background: '{name} 레시피에 맡김'
     decision: '{name} 레시피 사용함'
     question: 질문
-    yes: 예
-    no: 아니요
+    'yes': '예'
+    'no': '아니요'
   home-assistant-tool-call:
-    shown: 기기 {total}개 중 {count}개 표시
+    shown: '기기 {total}개 중 {count}개 표시'
   web-search-tool-call:
     results: '"{query}" 검색 결과 · {count}개'
   tool-calls:
     running-one: '{name} 사용 중'
     failed-one: '{name} 완료되지 않음'
-    combo-running: 콤보 ×{count}
+    combo-running: '콤보 ×{count}'
     combo: '{count}히트 콤보'
     combo-failed: '{count}히트 콤보, {failed}회 빗나감'
     arguments: 인수
