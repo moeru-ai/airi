@@ -43,6 +43,13 @@ export interface TtsInputChunkOptions {
   minimumWords?: number
   /** @default 12 */
   maximumWords?: number
+  /**
+   * Remove emoji presentation from emitted speech text. Raw chunks remain unchanged.
+   * Playback captions that use speech segment text also receive the filtered text.
+   *
+   * @default false
+   */
+  stripEmoji?: boolean
   stripNarrative?: boolean
   keepNarrativeText?: boolean
 }
@@ -225,22 +232,56 @@ export async function* chunkTtsInput(
   }
 }
 
+/**
+ * Emits speech chunks without internal markers. `stripEmoji` also removes emoji presentation.
+ * Empty speech chunks are skipped. Special tokens still reach the handler in order.
+ * This does not change the caller's literal tokens or the raw chunker output.
+ */
 export async function chunkEmitter(
   reader: ReaderLike,
   pendingSpecials: string[],
   options: TtsInputChunkOptions | undefined,
   handler: (ttsSegment: TtsChunkItem) => Promise<void> | void,
 ) {
-  function sanitizeChunk(text: string) {
-    return text
+  const segmenter = options?.stripEmoji
+    ? new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+    : undefined
+
+  /**
+   * Cleans final speech text without removing ordinary symbols or non-emoji joiners.
+   *
+   * @example
+   * cleanSpeechText('你好👩‍💻，选1️⃣！')
+   * // => '你好，选1！'
+   */
+  function cleanSpeechText(text: string) {
+    const literal = text
       .replaceAll(TTS_SPECIAL_TOKEN, '')
       .replaceAll(TTS_FLUSH_INSTRUCTION, '')
-      .trim()
+    if (!segmenter)
+      return literal.trim()
+
+    let speech = ''
+    for (const { segment } of segmenter.segment(literal)) {
+      // Keep the number or symbol that a keycap decorates.
+      if (/^[0-9#*]\uFE0F?\u20E3$/u.test(segment)) {
+        speech += segment.slice(0, 1)
+        continue
+      }
+
+      // Remove complete emoji clusters, including their modifiers, joiners, and tags.
+      // An explicit text selector preserves a symbol even if its default is emoji.
+      if (!segment.includes('\uFE0E') && (/\p{Emoji_Presentation}/u.test(segment) || /\p{Extended_Pictographic}\uFE0F/u.test(segment)))
+        continue
+
+      speech += segment
+    }
+    return speech.trim()
   }
 
   try {
     for await (const chunk of chunkTtsInput(reader, options)) {
-      const cleanedText = sanitizeChunk(chunk.text)
+      const cleanedText = cleanSpeechText(chunk.text)
       if (!cleanedText && chunk.reason !== 'special') {
         continue
       }
