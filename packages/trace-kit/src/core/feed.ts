@@ -1,5 +1,15 @@
 import type { TraceRecord } from './types'
 
+/** The kept points of one series, on the trace clock. Old points are reduced to the min and max of each second. */
+export interface TraceSeriesMessage {
+  kind: 'series'
+  source: string
+  track: string
+  key: string
+  times: number[]
+  values: number[]
+}
+
 /**
  * One message of a collector feed to a viewer.
  *
@@ -18,8 +28,7 @@ export type TraceFeedMessage
   }
   /** The buffer evicted records in this range of the trace clock. */
   | { kind: 'gap', from: number, to: number }
-  /** The kept points of one series, on the trace clock. Old points are reduced to the min and max of each second. */
-  | { kind: 'series', source: string, track: string, key: string, times: number[], values: number[] }
+  | TraceSeriesMessage
   /**
    * The end of the backlog. `cursor` has the last `seq` of each `source/epoch`. `now` is the trace clock at that moment,
    * so a viewer can run a live clock before the next record arrives.

@@ -79,7 +79,7 @@ describe('traceCollector', () => {
     first.emit({ type: 'span.begin', ts: 1000, track: 't', spanId: 's1', name: 'open' })
     source('window:main')
 
-    const lost = collector.snapshot().find(record => record.type === 'source.lost')
+    const lost = collector.snapshot().records.find(record => record.type === 'source.lost')
     expect(lost).toMatchObject({ source: 'collector', reason: 'epoch-replaced', of: { source: 'window:main', epoch: first.epoch } })
     expect(collector.stats.openSpans).toBe(0)
   })
@@ -207,7 +207,7 @@ describe('traceCollector', () => {
     const { collector, source } = setup()
     source('window:main').emit({ type: 'instant', ts: 0, track: 't', name: 'tool', attrs: { [ATTR_GEN_AI_TOOL_CALL_ARGUMENTS]: 'say hi', error: 'Authorization: Bearer abcdefghijklmnopqrstu' } })
 
-    const instant = collector.snapshot().find(record => record.type === 'instant')
+    const instant = collector.snapshot().records.find(record => record.type === 'instant')
     expect(instant?.attrs).toEqual({ [ATTR_GEN_AI_TOOL_CALL_ARGUMENTS]: 'say hi', error: 'Authorization: [secret]' })
   })
 
@@ -219,6 +219,15 @@ describe('traceCollector', () => {
     collector.subscribe(message => messages.push(message))
     expect(messages.find(message => message.kind === 'series')).toEqual({ kind: 'series', source: 'window:main', track: 'participants/user/input', key: 'probability', times: [1000, 1050, 1100], values: [expect.closeTo(0.1), expect.closeTo(0.9), expect.closeTo(0.3)] })
     expect(collector.stats.bufferedRecords).toBe(2)
+  })
+
+  it('keeps the series in a manual snapshot', () => {
+    const { collector, source } = setup()
+    source('window:main').emit({ type: 'sample.chunk', ts: 1000, track: 'participants/user/input', intervalMs: 50, values: { probability: [0.1, 0.9, 0.3] } })
+
+    // A sample goes to a series ring, not to the buffer, so the records alone lose it.
+    expect(collector.snapshot().records.some(record => record.type === 'sample.chunk')).toBe(false)
+    expect(collector.snapshot().series).toEqual([{ kind: 'series', source: 'window:main', track: 'participants/user/input', key: 'probability', times: [1000, 1050, 1100], values: [expect.closeTo(0.1), expect.closeTo(0.9), expect.closeTo(0.3)] }])
   })
 
   it('gives a late viewer the same times as a live viewer after a backward clock reset', () => {

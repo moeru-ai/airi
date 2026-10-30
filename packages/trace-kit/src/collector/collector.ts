@@ -1,7 +1,7 @@
 import type { CatchUpFeed, Cooldown, Demand, LeaseTable } from '@proj-airi/stream-kit'
 
 import type { TraceAttributeDefinition } from '../core/definitions'
-import type { TraceFeedMessage } from '../core/feed'
+import type { TraceFeedMessage, TraceSeriesMessage } from '../core/feed'
 import type {
   TraceClockDiscontinuity,
   TraceClockSnapshot,
@@ -14,7 +14,7 @@ import type {
   TraceState,
   TraceStreamStarted,
 } from '../core/types'
-import type { FlightRecorderDump } from './types'
+import type { CollectorSnapshot, FlightRecorderDump } from './types'
 
 import { createCatchUpFeed, createCooldown, createLeaseTable, DemandUnion, RetentionBuffer, SequenceTracker, Watermark } from '@proj-airi/stream-kit'
 import { safeParse } from 'valibot'
@@ -318,10 +318,17 @@ export class TraceCollector {
     }
   }
 
-  /** The current records of the buffer and the pinned set, for a manual save. */
-  snapshot(): TraceRecord[] {
+  /**
+   * The current state for a manual save: the pinned set and the buffer as records, and the series rings in the shape
+   * of the backlog. Samples go to the rings, not to the buffer, so the records alone do not hold them. A reader
+   * replays the save with `handleRecords(records)` and then `handle(message)` for each series message.
+   */
+  snapshot(): CollectorSnapshot {
     const entries = [...this.buffer.values()]
-    return [...this.pinnedRecords(entries[0]?.order), ...entries.map(entry => entry.record)]
+    return {
+      records: [...this.pinnedRecords(entries[0]?.order), ...entries.map(entry => entry.record)],
+      series: [...this.seriesMessages()],
+    }
   }
 
   /** The sensitivity of an attribute key, from the conventions and the announced definitions. */
@@ -424,6 +431,11 @@ export class TraceCollector {
       yield { kind: 'gap', ...gap }
     for (const entry of this.buffer.values())
       yield { kind: 'record', record: entry.record }
+    yield* this.seriesMessages()
+  }
+
+  /** One message for each series ring that has points. */
+  private* seriesMessages(): Generator<TraceSeriesMessage> {
     for (const { source, track, key, ring } of this.seriesRings.values()) {
       const { times, values } = ring.read()
       if (times.length > 0)
