@@ -432,8 +432,10 @@ async function handleBuy(stripePriceId: string) {
         <template v-if="packagesLoading">
           <div
             v-for="i in 3" :key="i"
-            flex="~ row sm:col items-center justify-between sm:justify-center gap-4 sm:gap-3"
-            border="2 neutral-200 dark:neutral-800" rounded-2xl bg-white p-6 dark:bg-neutral-900
+            :class="[
+              'flex flex-row sm:flex-col items-center justify-between sm:justify-center gap-4 sm:gap-3',
+              'rounded-2xl p-6 bg-neutral-50 dark:bg-neutral-900',
+            ]"
           >
             <div flex="~ col sm:items-center gap-2" w-full>
               <Skeleton h-4 w-20 rounded-md />
@@ -447,10 +449,10 @@ async function handleBuy(stripePriceId: string) {
           :disabled="loadingPriceId !== null"
           :class="[
             'group relative flex flex-row sm:flex-col items-center justify-between sm:justify-center overflow-hidden text-left sm:text-center gap-4 sm:gap-2',
-            'rounded-2xl border-2 bg-white p-6 transition-all duration-300 ease-out',
-            pkg.recommended ? 'border-primary-400 dark:border-primary-500 shadow-sm' : 'border-neutral-200 dark:border-neutral-800',
-            'dark:bg-neutral-900',
-            'hover:-translate-y-1 hover:border-primary-400 hover:shadow-md dark:hover:border-primary-500 active:translate-y-0 active:scale-[0.99]',
+            'rounded-2xl p-6 transition-all duration-300 ease-out',
+            // The badge marks the recommended package. A tinted fill sets it apart without a border.
+            pkg.recommended ? 'bg-primary-50 dark:bg-primary-900/30 shadow-sm' : 'bg-neutral-50 dark:bg-neutral-900',
+            'hover:-translate-y-1 hover:shadow-md active:translate-y-0 active:scale-[0.99]',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
             loadingPriceId !== null && loadingPriceId !== pkg.stripePriceId ? 'opacity-50 grayscale-50 cursor-not-allowed' : 'cursor-pointer',
           ]"
