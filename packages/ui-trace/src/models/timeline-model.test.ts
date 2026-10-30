@@ -2,7 +2,8 @@ import type { TraceRecordInput } from '@proj-airi/trace-kit'
 
 import { ROW_GEOMETRY } from '@proj-airi/timeline-canvas'
 import { agentProfile } from '@proj-airi/trace-kit/agent'
-import { readTimeline } from '@proj-airi/trace-kit/testing'
+import { createRecordStamper, readTimeline } from '@proj-airi/trace-kit/testing'
+import { createTraceViewReader } from '@proj-airi/trace-kit/views'
 import { voiceProfile } from '@proj-airi/trace-kit/voice'
 import { describe, expect, it } from 'vitest'
 
@@ -63,13 +64,16 @@ describe('timeline model', () => {
   })
 
   it('reveals new samples of a live series smoothly, and old samples at once', () => {
-    const records: TraceRecordInput[] = [{ type: 'sample.chunk', ts: 0, track: 'participants/user/input', offsetsMs: [0, 100], values: { level: [0.5, 0.5] } }]
+    // A live view reads one reader, and its series grows in place.
+    const stamp = createRecordStamper()
+    const trace = createTraceViewReader('mono:collector', { seriesRetention: false })
+    const track = () => trace.timelineView().tracks.get('participants/user/input')!
+    trace.reader.handleRecords([stamp({ type: 'sample.chunk', ts: 0, track: 'participants/user/input', offsetsMs: [0, 100], values: { level: [0.5, 0.5] } })])
     const cache = new SeriesCache()
-    const track = () => timelineOf(records).state.tracks.get('participants/user/input')!
     cache.get(track(), 'level')
     expect(cache.reveal(track(), 'level', 10)).toBe(110)
 
-    records.push({ type: 'sample.chunk', ts: 200, track: 'participants/user/input', offsetsMs: [0, 100], values: { level: [0.5, 0.5] } })
+    trace.reader.handleRecords([stamp({ type: 'sample.chunk', ts: 200, track: 'participants/user/input', offsetsMs: [0, 100], values: { level: [0.5, 0.5] } })])
     const next = track()
     cache.get(next, 'level')
     const first = cache.reveal(next, 'level', 10)
@@ -93,6 +97,16 @@ describe('timeline model', () => {
     const series = track.series.level!
     track.series.level = { times: series.times, values: Float32Array.from([0.1, 0.9, 0.1]), revision: series.revision + 1 }
     expect(peak()).toBeCloseTo(0.9)
+  })
+
+  it('rebuilds the pyramid of a series when a new reader reads the same track', () => {
+    const chunk = (level: number): TraceRecordInput => ({ type: 'sample.chunk', ts: 0, track: 'participants/user/input', offsetsMs: [0, 100, 200], values: { level: [0.1, level, 0.1] } })
+    const cache = new SeriesCache()
+    const peak = (records: TraceRecordInput[]) => Math.max(...cache.get(timelineOf(records).state.tracks.get('participants/user/input')!, 'level').envelope({ start: 0, end: 300, width: 3 }).maxs)
+    expect(peak([chunk(0.2)])).toBeCloseTo(0.2)
+
+    // The next trace has the same path, first time, count, and revision, but other values.
+    expect(peak([chunk(0.9)])).toBeCloseTo(0.9)
   })
 
   it('keeps the lane of a track that has only samples', () => {

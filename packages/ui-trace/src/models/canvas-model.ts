@@ -1,5 +1,5 @@
 import type { ItemStyle } from '@proj-airi/timeline-canvas'
-import type { TimelineTrack } from '@proj-airi/trace-kit/projections'
+import type { TimelineSeries, TimelineTrack } from '@proj-airi/trace-kit/projections'
 import type { TraceItemRef } from '@proj-airi/trace-kit/views'
 import type { IntervalLayer, RowModel } from '@proj-airi/ui-timeline'
 
@@ -155,18 +155,20 @@ const REVEAL_SMOOTHING = 0.15
  * The sample series of the tracks, as pyramids that grow with new samples.
  *
  * A pyramid appends only the new samples. It rebuilds when the series changes points that it saw before, that is when
- * its `revision` changes after a compaction, an expiry, or a late point. It also rebuilds when the first sample
- * changes or the series gets shorter, for example after a reset of the reader.
+ * its `revision` changes after a compaction, an expiry, or a late point. It also rebuilds for a new series object, which
+ * a new reader makes, when the first sample changes, or when the series gets shorter.
  */
 export class SeriesCache {
-  private readonly entries = new Map<string, { pyramid: SeriesPyramid, first: number, count: number, revision: number, shown?: number }>()
+  private readonly entries = new Map<string, { pyramid: SeriesPyramid, series: TimelineSeries, first: number, count: number, revision: number, shown?: number }>()
 
   get(track: TimelineTrack, key: string): SeriesPyramid {
     const series = track.series[key]!
     const id = `${track.path}\u0000${key}`
     let entry = this.entries.get(id)
-    if (!entry || series.revision !== entry.revision || series.times[0] !== entry.first || series.times.length < entry.count) {
-      entry = { pyramid: new SeriesPyramid(), first: series.times[0] ?? Number.NaN, count: 0, revision: series.revision, shown: entry?.shown }
+    if (!entry || series !== entry.series || series.revision !== entry.revision || series.times[0] !== entry.first || series.times.length < entry.count) {
+      // A new series object is another trace, so its samples show at once. A new revision keeps the reveal edge.
+      const shown = entry?.series === series ? entry.shown : undefined
+      entry = { pyramid: new SeriesPyramid(), series, first: series.times[0] ?? Number.NaN, count: 0, revision: series.revision, shown }
       this.entries.set(id, entry)
     }
     for (let index = entry.count; index < series.times.length; index++)
