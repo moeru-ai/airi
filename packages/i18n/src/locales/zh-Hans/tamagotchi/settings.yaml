@@ -545,18 +545,47 @@ devtools:
       description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
     io-tracer:
       title: IO 追踪
+      description: 把语音、对话和 Agent 的活动画在同一条时间轴上。
       actions:
+        back: 返回
+        record: 录制
+        pause: 暂停
+        start-from-now: 从现在开始
+        start-from-now-description: 清空已有记录，从现在开始跟随。
+        export: 导出 JSONL
+        fit: 适应窗口
         show: 显示 {name}
         hide: 隐藏 {name}
+        clear-cursor: 清除游标
+      toggles:
+        follow: 跟随
+      panels:
+        timeline: 时间轴
+        pipeline: 流水线
+        log: 事件日志
+        detail: 详情
+        metrics: 指标
       view:
         label: 视图
         all: 全部 track
+      detail:
+        empty: 在时间轴上选择一个 span、事件或状态。
+      status:
+        paused: 已暂停
+        duration: 时长
+        running: 运行中
+        idle: 空闲
+        records: '{count} 条记录'
+        tokens: '{count} tokens'
+        late: '{count} 条迟到'
+        reordered: '{count} 条乱序'
+        reordered-description: 时钟换算后排到了起因之前的记录数。
       collection:
         title: 在内存中保留最近的 IO Trace
-        description: 保留最近 30 分钟内最多 5000 个 IO span，打开 IO 追踪时也能看到之前发生的事件。
+        description: 保留最近 30 分钟、最多 16 MB 的追踪记录，打开 IO 追踪时也能看到之前发生的事件。
       recording:
         title: 自动记录 IO Trace
-        description: 把已结束的 IO span 以 JSON Lines 保存在应用数据目录，供 Agent 分析。七天前的文件会被自动删除。
+        description: 把追踪记录以 JSON Lines 保存在应用数据目录，供 Agent 分析。七天前的文件会被自动删除。
     widgets-calling:
       title: 小组件调用
 screen-capture:
