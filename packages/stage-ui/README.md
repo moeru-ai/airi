@@ -19,7 +19,9 @@ Disabling Speech stops its producers and playback. Text generation and tool work
 Register flags in `libs/feature-flags.ts`. Read their state through `useFeatureFlagsStore().isEnabled(key)`.
 Set `availability` to `local` or `cloud`. Local flags expose device switches without Cloud access.
 Cloud decides whether each granted Cloud flag allows account opt-in or uses direct control. Client registrations do not duplicate this mode.
-`cloud-opt-in` flags expose switches only after Cloud grants access to a verified account. They start disabled and retain choices per account on this device.
+`cloud-opt-in` flags expose switches only after Cloud grants access to a verified account. They retain choices per account on this device.
+A `cloud-opt-in` policy can send `defaultEnabled`. It sets the state before the user makes a choice. A missing value means off.
+A saved choice always wins over the Cloud default. **Use default** removes the saved choice and restores the Cloud default.
 `cloud-controlled` flags follow Cloud grants directly and never expose a switch.
 Missing Cloud grants disable Cloud features. Refresh failures and account changes clear grants, not local choices.
 `useCloudFetch()` in `composables/cloud.ts` shares the Cloud origin and authenticated fetch boundary. The store reads `GET /v1/feature-flags`.
