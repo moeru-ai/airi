@@ -304,21 +304,29 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     if (!client.value && !initializing.value)
       void initialize()
 
-    if (client.value && connected.value) {
-      client.value.send(data as WebSocketEvent)
-    }
-    else {
-      pendingSend.value.push(data as WebSocketEvent)
-    }
+    // The SDK refuses sends until its handshake has finished, and `module:authenticated`
+    // arrives before that, so an event it does not take yet is queued for the next flush
+    // instead of being dropped.
+    if (client.value && connected.value && client.value.send(data as WebSocketEvent))
+      return
+
+    pendingSend.value.push(data as WebSocketEvent)
   }
 
   function flush() {
-    if (client.value && connected.value) {
-      for (const update of pendingSend.value) {
-        client.value.send(update)
-      }
+    if (!client.value || !connected.value)
+      return
 
-      pendingSend.value = []
+    const queued = pendingSend.value
+    pendingSend.value = []
+
+    for (const [index, update] of queued.entries()) {
+      if (client.value.send(update))
+        continue
+
+      // Keep this event and the ones after it in order for the next flush.
+      pendingSend.value.push(...queued.slice(index))
+      break
     }
   }
 
@@ -353,6 +361,11 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     connectionAttempt += 1
     connectionIdentity = null
     flush()
+    // Whatever the SDK still refuses at this point was meant for the client that is being
+    // torn down, so it is dropped instead of being sent on the next connection. Events
+    // queued while the channel was disconnected stay queued.
+    if (connected.value)
+      pendingSend.value = []
     hasEverConnected.value = false
     connected.value = false
     initializing.value = null
