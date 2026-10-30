@@ -74,6 +74,28 @@ describe('microphone picker', () => {
     expect(requestAccess).toHaveBeenCalledOnce()
   })
 
+  // Android WebView reports `prompt` after the system granted the microphone, so the mobile app showed Allow on each
+  // visit. The mobile app now requests access when the picker opens.
+  it('requests access without a click in the mobile app', async () => {
+    vi.stubEnv('RUNTIME_ENVIRONMENT', 'capacitor')
+    const requestAccess = vi.fn(async () => true)
+    try {
+      await renderPicker({ requestAccess })
+    }
+    finally {
+      vi.unstubAllEnvs()
+    }
+
+    expect(requestAccess).toHaveBeenCalledOnce()
+  })
+
+  it('waits for a click in a browser', async () => {
+    const requestAccess = vi.fn(async () => true)
+    await renderPicker({ requestAccess })
+
+    expect(requestAccess).not.toHaveBeenCalled()
+  })
+
   it('explains a denied request in place', async () => {
     const screen = await renderPicker({ requestAccess: async () => false })
 
