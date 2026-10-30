@@ -71,6 +71,11 @@ const viewportHeight = ref(0)
 /** The visible window on the clock. The frame loop writes it to CSS variables, not to Vue state. */
 const view = { start: 0, end: 10_000 }
 const renderRange = shallowRef<TimelineRange>({ from: 0, to: 10_000 })
+/**
+ * The tick step of the view. The view is not Vue state, so the frame loop writes the step here. It changes only at
+ * fixed steps, so a zoom renders new ticks only when the step changes.
+ */
+const tickInterval = shallowRef(tickIntervalMs(view.end - view.start, 0))
 let smoothedWindowMs = 10_000
 
 const origin = computed(() => {
@@ -98,6 +103,9 @@ function writeView() {
 
   const range = renderRange.value
   const length = view.end - view.start
+  const interval = tickIntervalMs(length, lanesWidth.value)
+  if (interval !== tickInterval.value)
+    tickInterval.value = interval
   if (view.start < range.from || view.end > range.to || range.to - range.from > length * 6)
     renderRange.value = { from: view.start - length, to: view.end + length }
 }
@@ -245,8 +253,7 @@ function fit() {
 const ticks = computed(() => {
   void props.version
   const range = renderRange.value
-  const length = view.end - view.start
-  const interval = tickIntervalMs(length, lanesWidth.value)
+  const interval = tickInterval.value
   const first = Math.ceil((range.from - origin.value) / interval) * interval + origin.value
   const result: TimelineTick[] = []
   for (let time = first; time <= range.to && result.length < MAX_TICKS; time += interval)
