@@ -34,7 +34,7 @@ export interface FullscreenSurface {
 
 export const fullscreenSurfaces: Record<FullscreenSurfaceId, FullscreenSurface> = {
   settings: {
-    icon: 'i-solar:settings-minimalistic-outline',
+    icon: 'i-solar:settings-minimalistic-bold-duotone',
     label: 'tamagotchi.stage.fullscreen-island.settings',
     panel: defineAsyncComponent(() => import('./settings-panel.vue')),
     // Devtools pages open from the developer settings, so they show in the same surface.
@@ -50,7 +50,7 @@ export const fullscreenSurfaces: Record<FullscreenSurfaceId, FullscreenSurface> 
     },
   },
   chat: {
-    icon: 'i-solar:chat-line-outline',
+    icon: 'i-solar:chat-line-bold-duotone',
     label: 'tamagotchi.stage.fullscreen-island.chat',
     panel: defineAsyncComponent(() => import('./chat-panel.vue')),
   },
