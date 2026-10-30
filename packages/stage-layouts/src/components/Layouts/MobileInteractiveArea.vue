@@ -17,6 +17,7 @@ import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { useVoiceCallStore } from '@proj-airi/stage-ui/stores/voice-call'
 import { BasicButton, BasicTextarea, ProgressiveBlur } from '@proj-airi/ui'
+import { useFocusWithin } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -119,6 +120,12 @@ const sessionsDrawerOpen = shallowRef(false)
 const mobileInteractiveArea = useTemplateRef<HTMLElement>('mobileInteractiveArea')
 const messageComposer = useTemplateRef<HTMLElement>('messageComposer')
 const inputBubble = useTemplateRef<HTMLElement>('inputBubble')
+const { focused: inputBubbleFocused } = useFocusWithin(inputBubble)
+/**
+ * An idle composer is narrower, so more of the stage shows. It widens while the user types or a draft, a reply, or a
+ * recording is in it. Then the text does not reflow when the keyboard closes.
+ */
+const composerExpanded = computed(() => inputBubbleFocused.value || hasSubmission.value || !!replyTarget.value || voiceCovering.value || voicePending.value || call.active)
 const interactionControls = useTemplateRef<HTMLElement>('interactionControls')
 const controlsIsland = useTemplateRef<HTMLElement>('controlsIsland')
 const controlsIslandContent = useTemplateRef<HTMLElement>('controlsIslandContent')
@@ -431,7 +438,9 @@ onUnmounted(() => {
         data-testid="mobile-message-composer"
         :class="[
           'max-h-100dvh max-w-100dvw w-full',
-          'flex gap-2 px-3 pt-2',
+          'flex gap-2 pt-2',
+          '[transition-property:padding-left,padding-right] duration-250 ease-out motion-reduce:transition-none',
+          composerExpanded ? 'px-3' : 'px-7',
         ]"
         :style="messageComposerStyle"
       >
