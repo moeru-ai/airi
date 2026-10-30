@@ -3,13 +3,20 @@ import type { ModelAssetStatus } from '@proj-airi/stage-shared/model-assets'
 
 import { formatSherpawModelName, sherpawModels } from '@proj-airi/provider-inference'
 import { speakerModel } from '@proj-airi/stage-shared/speaker-model'
-import { formatBytes } from '@proj-airi/stage-ui/libs/inference'
-import { Progress } from '@proj-airi/ui'
+import { GhostButton, Progress } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { useModelAssetFailureMessage } from '../../../composables/use-model-asset-status'
+import { formatBytes } from '../../../libs/inference/format-bytes'
+
 const props = defineProps<{ statuses: ModelAssetStatus[] }>()
+const emit = defineEmits<{
+  /** The user asked to download a failed model again. The host starts the install for this model ID. */
+  retry: [id: string]
+}>()
 const { t, locale } = useI18n()
+const failureMessage = useModelAssetFailureMessage()
 
 const rows = computed(() => props.statuses.map((status) => {
   const model = Object.values(sherpawModels).find(candidate => candidate.id === status.id)
@@ -33,9 +40,16 @@ const rows = computed(() => props.statuses.map((status) => {
         <div v-if="model.state === 'downloading'" :class="['i-svg-spinners:pulse-ring', 'shrink-0']" />
         <div v-else :class="['i-solar:danger-triangle-bold-duotone', 'shrink-0 text-orange-500']" />
         <span :class="['truncate font-medium']">{{ model.name }}</span>
+        <GhostButton
+          v-if="model.state === 'error'"
+          size="sm"
+          :label="t('stage.model-assets.retry')"
+          :class="['ml-auto shrink-0']"
+          @click="emit('retry', model.id)"
+        />
       </div>
       <p v-if="model.state === 'error'" :class="['m-0 text-xs', 'text-red-600 dark:text-red-400']">
-        {{ model.error || t('tamagotchi.stage.resource-island.failed') }}
+        {{ model.error ? failureMessage(model.error) : t('tamagotchi.stage.resource-island.failed') }}
       </p>
       <template v-else>
         <div :class="['flex justify-between gap-3', 'text-xs text-neutral-600 dark:text-neutral-400']">

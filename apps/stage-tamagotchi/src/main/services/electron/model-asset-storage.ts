@@ -4,6 +4,7 @@ import { mkdir, open, readdir, readFile, rename, rm, stat, writeFile } from 'nod
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
+import { ModelAssetDownloadError, readModelAssetChunk, requestModelAssetFile } from '@proj-airi/stage-shared/model-assets'
 import { net } from 'electron'
 
 import * as v from 'valibot'
@@ -60,15 +61,19 @@ export class FileModelAssetStorage implements ModelAssetStorage {
     try {
       for (const file of model.files) {
         signal.throwIfAborted()
-        const response = await this.download(file.url, { signal })
-        if (!response.ok || !response.body)
-          throw new Error(`Model asset download failed: ${response.status} ${file.url}`)
+        const response = await requestModelAssetFile(this.download, file.url, signal)
+        if (!response.body)
+          throw new ModelAssetDownloadError('incomplete', file.url)
         const parsedTotal = Number(response.headers.get('content-length'))
         const total = Number.isFinite(parsedTotal) && parsedTotal > 0 ? parsedTotal : undefined
         const handle = await open(join(temporary, file.name), 'wx')
+        const reader = response.body.getReader()
         let loaded = 0
         try {
-          for await (const chunk of response.body) {
+          while (true) {
+            const { done, value: chunk } = await readModelAssetChunk(reader, file.url, signal)
+            if (done)
+              break
             signal.throwIfAborted()
             let offset = 0
             while (offset < chunk.byteLength) {
@@ -82,10 +87,14 @@ export class FileModelAssetStorage implements ModelAssetStorage {
           }
         }
         finally {
+          // A write error or abort leaves the body unread. Cancel it, so the connection closes now and not at garbage collection.
+          // Cancel does nothing after the stream ends, and rejects on a stream that already failed.
+          await reader.cancel().catch(() => {})
+          reader.releaseLock()
           await handle.close()
         }
         if (loaded === 0 || (total !== undefined && loaded !== total))
-          throw new Error(`Incomplete model asset: ${model.id}/${file.name}`)
+          throw new ModelAssetDownloadError('incomplete', file.url)
         sizes[file.name] = loaded
       }
 

@@ -385,6 +385,13 @@ status:
   sign-in-unconfirmed: 未能确认登录会话，请重新登录。
   dismiss: 关闭提示
   configure-hearing: 请先在设置中选择并配置听觉服务。
+model-assets:
+  retry: 重试
+  errors:
+    network: 无法连接到 {host}。请检查网络或代理设置。
+    server: '{host} 返回了错误（HTTP {status}）。'
+    incomplete: 从 {host} 下载时中断了，模型文件不完整。
+    unknown: '下载因错误中止：{error}'
 notifications:
   title: 通知
   open: 打开通知

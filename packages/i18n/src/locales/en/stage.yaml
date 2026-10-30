@@ -396,6 +396,14 @@ status:
   dismiss: Dismiss
   configure-hearing: Select and configure a Hearing provider in Settings.
 
+model-assets:
+  retry: Retry
+  errors:
+    network: Could not connect to {host}. Check your network or proxy settings.
+    server: '{host} returned an error (HTTP {status}).'
+    incomplete: The download from {host} stopped before it finished.
+    unknown: 'The download stopped with an error: {error}'
+
 notifications:
   title: Notifications
   open: Open notifications
