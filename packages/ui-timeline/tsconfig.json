@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ESNext"
+    ],
+    "types": [],
+    "strict": true
+  },
+  "include": [
+    "env.d.ts",
+    "vitest.config.ts",
+    "src/**/*.ts",
+    "src/**/*.vue"
+  ]
+}
