@@ -419,7 +419,7 @@ onUnmounted(() => {
                 :class="[
                   'relative min-w-50 w-fit flex flex-col items-center justify-center rounded-xl p-4',
                   'border-2 border-solid border-neutral-100 bg-white dark:border-neutral-900 dark:bg-neutral-900/20',
-                  'hover:border-primary-500/30 dark:hover:border-primary-400/30',
+                  'hover:bg-neutral-50 dark:hover:bg-neutral-900/50',
                   'transition-all duration-200 ease-in-out',
                 ]"
               >
@@ -435,7 +435,6 @@ onUnmounted(() => {
                 to="/settings/providers"
                 :class="[
                   'flex items-center gap-3 rounded-lg p-4',
-                  'border-2 border-dashed border-neutral-200 dark:border-neutral-800',
                   'bg-neutral-50 dark:bg-neutral-800',
                   'transition-colors duration-200 ease-in-out',
                 ]"

@@ -160,14 +160,16 @@ defineExpose({
 
       <!-- Playground actions -->
       <button
-        border="neutral-800 dark:neutral-200 solid 2" transition="border duration-250 ease-in-out"
-        rounded-lg px-3 text="neutral-100 dark:neutral-900" py-1.5 text-sm
         :disabled="isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !apiKeyConfigured"
-        :class="{ 'opacity-50 cursor-not-allowed': isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !apiKeyConfigured }"
-        bg="neutral-700 dark:neutral-300" @click="handleGenerateTestSpeech"
+        :class="[
+          'rounded-lg px-3 py-1.5 text-sm transition-colors duration-250 ease-in-out',
+          'bg-neutral-700 text-neutral-100 dark:bg-neutral-300 dark:text-neutral-900',
+          { 'opacity-50 cursor-not-allowed': isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !apiKeyConfigured },
+        ]"
+        @click="handleGenerateTestSpeech"
       >
-        <div flex="~ row" items-center gap-2>
-          <div i-solar:play-circle-bold-duotone />
+        <div :class="['flex flex-row items-center gap-2']">
+          <div :class="['i-solar:play-circle-bold-duotone']" />
           <span>{{ isGenerating ? t('settings.pages.providers.provider.elevenlabs.playground.buttons.button.test-voice.generating') : t('settings.pages.providers.provider.elevenlabs.playground.buttons.button.test-voice.label') }}</span>
         </div>
       </button>

@@ -213,10 +213,10 @@ function formatRelativeTime(timestamp: number | null) {
                 'transition',
                 'duration-200',
                 'ease-in-out',
-                'hover:border-primary-500/30',
+                'hover:bg-neutral-50',
                 'dark:border-neutral-900',
                 'dark:bg-neutral-900/20',
-                'dark:hover:border-primary-400/30',
+                'dark:hover:bg-neutral-900/50',
                 'flex',
                 'items-center',
                 'justify-center',
@@ -237,15 +237,11 @@ function formatRelativeTime(timestamp: number | null) {
                 'items-center',
                 'gap-3',
                 'rounded-lg',
-                'border-2',
-                'border-dashed',
-                'border-neutral-200',
                 'bg-neutral-50',
                 'p-4',
                 'transition',
                 'duration-200',
                 'ease-in-out',
-                'dark:border-neutral-800',
                 'dark:bg-neutral-800',
               ]"
             >
@@ -383,7 +379,7 @@ function formatRelativeTime(timestamp: number | null) {
         />
 
         <div :class="['grid', 'gap-4', 'md:grid-cols-3']">
-          <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
+          <div :class="['rounded-lg p-3', 'bg-neutral-100/70 dark:bg-neutral-800/50']">
             <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
               {{ t('settings.pages.modules.vision.stats.captures') }}
             </div>
@@ -395,7 +391,7 @@ function formatRelativeTime(timestamp: number | null) {
             </div>
           </div>
 
-          <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
+          <div :class="['rounded-lg p-3', 'bg-neutral-100/70 dark:bg-neutral-800/50']">
             <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
               {{ t('settings.pages.modules.vision.stats.context-updates') }}
             </div>
@@ -407,7 +403,7 @@ function formatRelativeTime(timestamp: number | null) {
             </div>
           </div>
 
-          <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
+          <div :class="['rounded-lg p-3', 'bg-neutral-100/70 dark:bg-neutral-800/50']">
             <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
               {{ t('settings.pages.modules.vision.stats.inferences') }}
             </div>
@@ -419,7 +415,7 @@ function formatRelativeTime(timestamp: number | null) {
             </div>
           </div>
 
-          <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
+          <div :class="['rounded-lg p-3', 'bg-neutral-100/70 dark:bg-neutral-800/50']">
             <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
               {{ t('settings.pages.modules.vision.stats.failed-inferences') }}
             </div>
@@ -431,7 +427,7 @@ function formatRelativeTime(timestamp: number | null) {
             </div>
           </div>
 
-          <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
+          <div :class="['rounded-lg p-3', 'bg-neutral-100/70 dark:bg-neutral-800/50']">
             <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
               {{ t('settings.pages.modules.vision.stats.last-inference') }}
             </div>
