@@ -96,6 +96,21 @@ Check translucent controls against bright, dark, and detailed backgrounds. A blu
 
 Use existing popup and drawer layering. Do not increase local `z-index` values to compensate for an unclear stacking relationship.
 
+### Borders
+
+A border separates a surface only when a fill change is not enough. Keep it quiet.
+
+| Case | Use | Do not use |
+| --- | --- | --- |
+| Idle cards and inputs | A neutral border no brighter than `neutral-100` in light mode and `neutral-900` in dark mode | `neutral-200` or `neutral-300` solid borders, or a `neutral-700` solid border in dark mode |
+| Selected or active item | A tinted fill and an indicator, such as a radio dot, a check icon, or a badge | A border color change on top of the fill and the indicator |
+| Selected image thumbnail | `border-transparent` or no ring when idle, and a primary border or ring when selected | A neutral border on every thumbnail |
+| Hover | A fill change | A border color change |
+| Decoration | A tinted fill or no frame | Primary-colored frames, or a border inside another border |
+| Dashed border | A real drop zone only | Buttons and empty states. Use a fill and a short text for an empty state. |
+
+Keep `focus-visible` outlines. They show keyboard focus.
+
 ## Shapes
 
 Rounded rectangles are the default for everyday controls. Pills and circles distinguish compact actions and switches. Larger drawer corners frame a separate interaction surface.
@@ -167,6 +182,8 @@ Padding and text sizes do not guarantee touch target dimensions. Check the final
 | [Checkbox](./packages/ui/src/components/form/checkbox/checkbox.vue) | `h-7 w-12.5` pill track and `size-6` thumb | Boolean switch, implemented with Reka Switch |
 
 Inputs use `neutral-50` backgrounds in light mode and `neutral-950` in dark mode. Focus borders use `primary-300` and `primary-400/50`, respectively.
+
+Input, Select, and Combobox triggers share the idle border `neutral-100` in light mode and `neutral-900` in dark mode. Their popups use a 1px `neutral-100` or `neutral-800` border and a shadow.
 
 The `Input` variants `primary` and `secondary` currently look identical. `primary-dimmed` omits the shadow class.
 
