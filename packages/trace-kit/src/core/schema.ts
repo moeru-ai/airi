@@ -5,9 +5,11 @@ import type { TraceRecord } from './types'
 import {
   array,
   boolean,
+  check,
   finite,
   integer,
   literal,
+  maxLength,
   minValue,
   nonEmpty,
   number,
@@ -23,6 +25,12 @@ import {
 } from 'valibot'
 
 const nonEmptyString = pipe(string(), nonEmpty())
+
+/**
+ * The most points in one `sample.chunk`, over all its series. A chunk holds about one second, so this is above 4 kHz
+ * for one series. Series rings sit outside the byte limit of the buffer, so an untrusted chunk must be bounded here.
+ */
+export const MAX_CHUNK_POINTS = 4096
 const finiteNumber = pipe(number(), finite())
 
 const assetRef = object({ $asset: nonEmptyString, mediaType: nonEmptyString, bytes: pipe(number(), integer(), minValue(0)) })
@@ -72,7 +80,7 @@ export const traceRecordSchema = variant('type', [
   object({ ...tracked, type: literal('instant'), name: string(), spanId: optional(nonEmptyString) }),
   object({ ...tracked, type: literal('state'), value: string(), from: optional(string()) }),
   object({ ...tracked, type: literal('sample'), values: record(string(), finiteNumber) }),
-  object({ ...tracked, type: literal('sample.chunk'), intervalMs: optional(pipe(finiteNumber, minValue(0))), offsetsMs: optional(array(finiteNumber)), values: record(string(), array(finiteNumber)) }),
+  object({ ...tracked, type: literal('sample.chunk'), intervalMs: optional(pipe(finiteNumber, minValue(0))), offsetsMs: optional(pipe(array(finiteNumber), maxLength(MAX_CHUNK_POINTS))), values: pipe(record(string(), array(finiteNumber)), check(values => Object.values(values).reduce((count, list) => count + list.length, 0) <= MAX_CHUNK_POINTS, `A sample chunk holds at most ${MAX_CHUNK_POINTS} points.`)) }),
   object({ ...tracked, type: literal('log'), level: picklist(['debug', 'info', 'warn', 'error']), message: string() }),
   object({ ...untracked, type: literal('definition'), kind: picklist(['track', 'attribute', 'id-key', 'link', 'end-reason', 'clock', 'metric', 'score', 'pipeline', 'preset', 'profile']), key: nonEmptyString, data: unknown() }),
   object({

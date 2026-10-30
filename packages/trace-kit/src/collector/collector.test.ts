@@ -5,6 +5,7 @@ import type { FlightRecorderDump } from './types'
 import { describe, expect, it } from 'vitest'
 
 import { ATTR_GEN_AI_TOOL_CALL_ARGUMENTS } from '../conventions'
+import { MAX_CHUNK_POINTS } from '../core/schema'
 import { TraceSource } from '../core/sink'
 import { createTimelineProjection, TraceReader } from '../projections'
 import { createRecordStamper } from '../testing'
@@ -26,6 +27,15 @@ function recordsOf(messages: TraceFeedMessage[]): TraceRecord[] {
 }
 
 describe('traceCollector', () => {
+  it('refuses an untrusted sample chunk with more points than one chunk can hold', () => {
+    const { collector } = setup()
+    const chunk = (points: number) => ({ type: 'sample.chunk', source: 'plugin:x', epoch: 'p1', seq: points, ts: 1, clock: 'mono:collector', track: 't', intervalMs: 1, values: { level: Array.from({ length: points }).fill(0.5) } })
+
+    expect(collector.ingestUntrusted(chunk(MAX_CHUNK_POINTS))).toBe(true)
+    expect(collector.ingestUntrusted(chunk(MAX_CHUNK_POINTS + 1))).toBe(false)
+    expect(collector.stats.dropped).toBe(1)
+  })
+
   it('drops a record with a seen sequence number', () => {
     const { collector } = setup()
     const record: TraceRecord = { type: 'instant', source: 'w', epoch: 'x', seq: 0, ts: 1, clock: 'mono:collector', track: 't', name: 'a' }
