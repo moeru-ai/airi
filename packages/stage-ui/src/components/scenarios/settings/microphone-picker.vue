@@ -2,8 +2,9 @@
 import type { MicrophonePermission } from '../../../composables/audio/audio-device'
 
 import { errorMessageFrom } from '@moeru/std'
+import { isStageCapacitor } from '@proj-airi/stage-shared'
 import { Alert, Button, FieldCombobox } from '@proj-airi/ui'
-import { computed, shallowRef } from 'vue'
+import { computed, onMounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import OptionList from './option-list.vue'
@@ -76,6 +77,16 @@ async function allow() {
     requesting.value = false
   }
 }
+
+onMounted(() => {
+  // NOTICE:
+  // The mobile app requests access on open, so the user does not tap Allow on each visit.
+  // Android WebView reports `prompt` after the system granted RECORD_AUDIO.
+  // Source: Capacitor `BridgeWebChromeClient.onPermissionRequest`.
+  // Removal condition: Android WebView reports the system permission state.
+  if (isStageCapacitor() && state.value === 'ask')
+    void allow()
+})
 </script>
 
 <template>
