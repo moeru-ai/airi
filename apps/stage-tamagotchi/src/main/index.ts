@@ -46,6 +46,7 @@ import { setupBuiltInServer } from './services/airi/http-server'
 import { IOTraceHub } from './services/airi/io-trace-hub'
 import { registerIOTraceHub } from './services/airi/io-trace-hub/register'
 import { IOTraceRecordingService } from './services/airi/io-trace-recording'
+import { recordHubRecords } from './services/airi/io-trace-recording/hub'
 import { setupMcpManager } from './services/airi/mcp-servers'
 import { setupExtensionHost } from './services/airi/plugins'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
@@ -342,17 +343,9 @@ app.whenReady().then(async () => {
       const stopFlightDumps = dependsOn.hub.onFlightDump((dump) => {
         service.writeFlightDump(dump).catch(error => log.withError(error).error('Failed to write trace flight dump'))
       })
-      // The hub receives the records of every window, so the files have the records of every window. The backlog
-      // before `caughtUp` was recorded when it arrived, or it arrived while recording was off.
-      let live = false
-      const { unsubscribe } = dependsOn.hub.subscribe((message) => {
-        if (message.kind === 'caughtUp')
-          live = true
-        else if (live && message.kind === 'record')
-          service.recordRecord(message.record).catch(error => log.withError(error).error('Failed to record trace record'))
-      }, '*')
+      const stopRecording = recordHubRecords(dependsOn.hub, service, error => log.withError(error).error('Failed to record trace record'))
       dependsOn.lifecycle.appHooks.onStop(() => {
-        unsubscribe()
+        stopRecording()
         stopFlightDumps()
       })
       dependsOn.lifecycle.appHooks.onStart(async () => {
