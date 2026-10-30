@@ -41,8 +41,8 @@ const CLIP_MARGIN_PX = 8
  * The work is linear in the number of visible intervals, and the output is bounded by the view width times the number
  * of styles, because narrow intervals merge. That keeps a million intervals drawable when zoomed out.
  *
- * The shapes of one style come out in start order. Shapes of different styles can interleave out of order.
- * Wider intervals can overlap, and a later run draws over an earlier one.
+ * The shapes come out in the start order of their first interval, across styles. Wider intervals can overlap, and a
+ * later run draws over an earlier one, so the top shape is the interval that `hitInterval` picks.
  */
 export function intervalRuns(column: IntervalColumn, view: TimelineView, options: IntervalRunOptions = {}): IntervalRun[] {
   const mergeBelowPx = options.mergeBelowPx ?? 2
@@ -103,7 +103,9 @@ export function intervalRuns(column: IntervalColumn, view: TimelineView, options
   for (let index = begin; index < end; index++)
     take(index)
   flush()
-  return runs
+  // A narrow run waits for its neighbors, while a wide run of another style goes out at once. The indices follow the
+  // start order of the column, so a sort by the first index puts every run in start order.
+  return runs.sort((a, b) => a.index - b.index)
 }
 
 /** A point, or a bucket of points too dense to draw one by one. */

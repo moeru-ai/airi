@@ -85,6 +85,19 @@ describe('interval runs', () => {
     expect(runs.map(run => column.keys[run.index])).toEqual(['earlier', 'later'])
   })
 
+  it('draws runs of different styles in start order, so the top run is the one that a click hits', () => {
+    const column = new IntervalColumn()
+    // A narrow interval waits to merge with its neighbors. A wide interval of another style starts on it.
+    column.append(0, 1, 0, 'narrow')
+    column.append(0.5, 200, 1, 'wide')
+
+    const runs = intervalRuns(column, view)
+    expect(runs.map(run => column.keys[run.index])).toEqual(['narrow', 'wide'])
+    // The last run drawn at an x is on top, and the hit test picks the same item there.
+    const top = runs.findLast(run => run.x0 <= 0.75 && run.x1 >= 0.75)!
+    expect(column.keys[top.index]).toBe(column.keys[hitInterval(column, view, 0.75)!])
+  })
+
   it('bounds the work of a zoomed-out view by its width', () => {
     const column = new IntervalColumn()
     for (let index = 0; index < 100_000; index++)
