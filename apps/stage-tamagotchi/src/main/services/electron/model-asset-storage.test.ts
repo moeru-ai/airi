@@ -83,6 +83,23 @@ describe('electron model asset storage', () => {
     expect(await store.has(model)).toBe(false)
   })
 
+  it('cancels the response body when the install stops before the body ends', async () => {
+    const cancel = vi.fn()
+    const download = vi.fn(async () => new Response(new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.enqueue(new TextEncoder().encode('part'))
+      },
+      cancel,
+    })))
+    const { store } = await storage(download)
+    const controller = new AbortController()
+
+    // The mocked download ignores the signal, so only the storage can close the body.
+    await expect(store.install(model, () => controller.abort(), controller.signal)).rejects.toThrow()
+    expect(cancel).toHaveBeenCalledOnce()
+    expect(await store.has(model)).toBe(false)
+  })
+
   it('reports a transfer shorter than its content length as incomplete', async () => {
     const download = vi.fn(async () => new Response('part', { headers: { 'content-length': '100' } }))
     const { store } = await storage(download)

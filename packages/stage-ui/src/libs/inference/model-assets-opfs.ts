@@ -82,6 +82,9 @@ export class OpfsModelAssetStorage implements ModelAssetStorage {
               }
             }
             finally {
+              // A write error or abort leaves the body unread. Cancel it, so the connection closes now and not at garbage collection.
+              // Cancel does nothing after the stream ends, and rejects on a stream that already failed.
+              await reader.cancel().catch(() => {})
               reader.releaseLock()
             }
           }
