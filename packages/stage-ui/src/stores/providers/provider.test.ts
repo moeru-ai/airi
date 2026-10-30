@@ -413,6 +413,7 @@ describe('provider store synchronization boundary', () => {
     expect(store.providerRuntimeState['official-provider']?.modelError).toBeNull()
     expect(store.providerRuntimeState['official-provider']?.models).toEqual([
       expect.objectContaining({ id: 'auto' }),
+      expect.objectContaining({ id: 'asr-rewrite' }),
     ])
   })
 

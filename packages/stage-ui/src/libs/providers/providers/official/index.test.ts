@@ -4,7 +4,7 @@ import { isGenerationProvider } from '@proj-airi/provider-inference'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
-import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID, providerOfficialChat, providerOfficialSpeech, providerOfficialSpeechStreaming, providerOfficialTranscription } from './index'
+import { OFFICIAL_CHAT_PROVIDER_ID, OFFICIAL_TRANSCRIPTION_PROVIDER_ID, providerOfficialChat, providerOfficialSpeech, providerOfficialSpeechStreaming, providerOfficialTranscription } from './index'
 
 interface OfficialSpeechOptions {
   speed?: number
@@ -43,6 +43,41 @@ describe('official chat provider', () => {
       protocol: 'responses',
       webSearch: true,
       config: { model: 'auto' },
+    })
+  })
+
+  /**
+   * @example
+   * providerOfficialChat.extraMethods.listModels(config, provider, { t })
+   */
+  it('lists the transcript rewrite alias after auto with a localized name', async () => {
+    const provider = await providerOfficialChat.createProvider({})
+    const models = await providerOfficialChat.extraMethods?.listModels?.({}, provider, { t: key => `t:${key}` })
+
+    expect(models).toEqual([
+      {
+        id: 'auto',
+        name: 'Auto',
+        provider: OFFICIAL_CHAT_PROVIDER_ID,
+        description: 'Automatically routed by AI Gateway',
+      },
+      {
+        id: 'asr-rewrite',
+        name: 't:settings.pages.providers.provider.official.models.asr-rewrite',
+        provider: OFFICIAL_CHAT_PROVIDER_ID,
+        description: 'Rewrites voice transcripts. Routed by AI Gateway',
+      },
+    ])
+  })
+
+  it('sends the transcript rewrite alias as the request model', async () => {
+    const provider = await providerOfficialChat.createProvider({})
+    if (!isGenerationProvider(provider))
+      throw new Error('Expected generation')
+
+    expect(provider.generation('asr-rewrite')).toMatchObject({
+      protocol: 'chat-completions',
+      config: { model: 'asr-rewrite' },
     })
   })
 
