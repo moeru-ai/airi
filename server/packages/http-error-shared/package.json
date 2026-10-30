@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/http-error-shared",
   "type": "module",
-  "version": "0.14.0",
+  "version": "0.14.1",
   "private": true,
   "description": "Shared HTTP error model and JSON error response for AIRI services",
   "exports": "./src/index.ts",
