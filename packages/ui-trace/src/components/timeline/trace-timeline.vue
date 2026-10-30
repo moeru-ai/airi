@@ -13,7 +13,7 @@ import type { TraceHoverInfo } from './trace-hover-card.vue'
 import { pixelsPerMs, ROW_GEOMETRY, timeToX, WAVEFORM_BAR_PITCH_PX, WAVEFORM_REVEAL_PX } from '@proj-airi/timeline-canvas'
 import { ATTR_GEN_AI_REQUEST_MODEL } from '@proj-airi/trace-kit'
 import { provisionalFrom } from '@proj-airi/trace-kit/projections'
-import { findItem, relatedSpanKeys, spansOfLink, spanTokens, trackSummary } from '@proj-airi/trace-kit/views'
+import { findItem, relatedSpanKeys, spanTokens, trackSummary } from '@proj-airi/trace-kit/views'
 import { VoiceSeries } from '@proj-airi/trace-kit/voice'
 import { useTheme } from '@proj-airi/ui'
 import { Timeline } from '@proj-airi/ui-timeline'
@@ -26,7 +26,7 @@ import TraceHoverCard from './trace-hover-card.vue'
 
 import { detailRowModel, laneRowModel, SeriesCache } from '../../models/canvas-model'
 import { rowHeightOf, rowListItems } from '../../models/timeline-model'
-import { linkRelationLabel, spanFacts } from '../../models/trace-lookup'
+import { linkRelationLabel, linkTargets, spanFacts } from '../../models/trace-lookup'
 import { themedColor } from '../../utils/colors'
 import { iconGlyph, loadIconGlyphs } from '../../utils/icon-glyphs'
 
@@ -214,11 +214,12 @@ function listItems(range: TimelineRange): ListedItem<TraceItemRef>[] {
   return items
 }
 
-/** The name of the span that a link points to, or the raw target when the trace does not hold it. */
+/** The name of the item that a link points to, or the raw target when the trace does not hold it. */
 function linkTarget(link: TraceLink): string {
-  const target = spansOfLink(link, props.state, props.indexes)[0]
-  if (target)
-    return target.name
+  const { spans, items } = linkTargets(link, props.state, props.indexes)
+  const name = spans[0]?.name ?? items[0]?.label
+  if (name !== undefined)
+    return name
   return 'spanId' in link.to ? link.to.spanId : 'key' in link.to ? `${link.to.key} ${link.to.id}` : 'record'
 }
 
