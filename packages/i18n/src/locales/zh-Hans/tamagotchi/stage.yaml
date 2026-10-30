@@ -20,6 +20,10 @@ docs:
   switch-to-system-mode: 跟随系统主题
   switch-to-light-mode: 切换到亮色模式
   exit: 退出全屏
+  account: 打开账号
+  sign-in: 登录
+  notifications: 通知
+  notifications-unread: '通知，{count} 条未读'
 'fullscreen-surface':
   resize: 拖动调整面板宽度
 'controls-island':
