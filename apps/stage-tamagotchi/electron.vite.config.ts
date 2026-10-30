@@ -332,12 +332,13 @@ export default defineConfig({
         fullInstall: true,
       }),
 
-      // Main downloads remote transcription and voiceprint models. Every build bundles the small wake word model,
-      // and development serves it from the cache, because main's model asset service does not serve it.
+      // Main downloads remote transcription models. Every build bundles the wake word and voiceprint models,
+      // and development serves them from the cache, because main's model asset service does not serve them.
+      // The voiceprint model adds about 28 MB, but users then enroll without a download that can fail.
       Sherpaw({
         models: [...sherpawModels, kwsModel, speakerModel],
-        developmentModels: [kwsModel],
-        bundledModels: env.SHERPAW_BUNDLE_MODELS === 'true' ? [xAsrBilingualZhEnInt8, kwsModel] : [kwsModel],
+        developmentModels: [kwsModel, speakerModel],
+        bundledModels: env.SHERPAW_BUNDLE_MODELS === 'true' ? [xAsrBilingualZhEnInt8, kwsModel, speakerModel] : [kwsModel, speakerModel],
         cacheDir: sharedCacheDir,
         endpoint: sherpawModelEndpoint,
       }),
