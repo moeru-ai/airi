@@ -18,6 +18,7 @@ import {
   picklist,
   pipe,
   record,
+  regex,
   string,
   union,
   unknown,
@@ -32,11 +33,13 @@ const nonEmptyString = pipe(string(), nonEmpty())
  */
 export const MAX_CHUNK_POINTS = 4096
 const finiteNumber = pipe(number(), finite())
+/** A source or an epoch. Keys join them with `/`, so a `/` inside would make two keys equal. */
+const keyPart = pipe(string(), nonEmpty(), regex(/^[^/]+$/, 'A source or an epoch must not contain "/".'))
 
 const assetRef = object({ $asset: nonEmptyString, mediaType: nonEmptyString, bytes: pipe(number(), integer(), minValue(0)) })
 const value = union([string(), finiteNumber, boolean(), array(string()), array(finiteNumber), assetRef])
 const ids = record(string(), union([string(), finiteNumber]))
-const ref = object({ source: nonEmptyString, epoch: nonEmptyString, seq: pipe(number(), integer(), minValue(0)) })
+const ref = object({ source: keyPart, epoch: keyPart, seq: pipe(number(), integer(), minValue(0)) })
 const link = object({
   to: union([ref, object({ spanId: nonEmptyString }), object({ key: nonEmptyString, id: union([string(), finiteNumber]) })]),
   rel: nonEmptyString,
@@ -44,8 +47,8 @@ const link = object({
 const status = picklist(['ok', 'error', 'cancelled'])
 
 const untracked = {
-  source: nonEmptyString,
-  epoch: nonEmptyString,
+  source: keyPart,
+  epoch: keyPart,
   seq: pipe(number(), integer(), minValue(0)),
   ts: finiteNumber,
   clock: nonEmptyString,
@@ -68,7 +71,7 @@ const tracked = {
 export const traceRecordSchema = variant('type', [
   object({ ...untracked, type: literal('source.started'), format: pipe(number(), integer()), runtime: string(), profiles: array(object({ key: nonEmptyString, version: string() })) }),
   object({ ...untracked, type: literal('source.stopped') }),
-  object({ ...untracked, type: literal('source.lost'), of: object({ source: nonEmptyString, epoch: nonEmptyString, lastSeq: number() }), reason: picklist(['ipc-closed', 'heartbeat-timeout', 'epoch-replaced']) }),
+  object({ ...untracked, type: literal('source.lost'), of: object({ source: keyPart, epoch: keyPart, lastSeq: number() }), reason: picklist(['ipc-closed', 'heartbeat-timeout', 'epoch-replaced']) }),
   object({ ...untracked, type: literal('clock.snapshot'), values: array(object({ clock: nonEmptyString, value: finiteNumber })), uncertaintyMs: pipe(finiteNumber, minValue(0)) }),
   object({ ...untracked, type: literal('clock.discontinuity'), of: nonEmptyString, reason: string() }),
   object({ ...untracked, type: literal('stream.started'), streamId: nonEmptyString, mediaType: nonEmptyString, rate: optional(finiteNumber), channels: optional(pipe(number(), integer())), uri: optional(string()) }),

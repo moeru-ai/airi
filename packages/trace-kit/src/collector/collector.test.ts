@@ -36,6 +36,16 @@ describe('traceCollector', () => {
     expect(collector.stats.dropped).toBe(1)
   })
 
+  it('refuses an untrusted source or epoch with a slash, so two epochs cannot share a key', () => {
+    const { collector } = setup()
+    const instant = (source: string, epoch: string) => ({ type: 'instant', source, epoch, seq: 0, ts: 1, clock: 'mono:collector', track: 't', name: 'a' })
+
+    // Both would have the epoch key `a/b/c`, and the second record would look like a repeat of the first.
+    expect(collector.ingestUntrusted(instant('a/b', 'c'))).toBe(false)
+    expect(collector.ingestUntrusted(instant('a', 'b/c'))).toBe(false)
+    expect(collector.ingestUntrusted(instant('a', 'c'))).toBe(true)
+  })
+
   it('drops a record with a seen sequence number', () => {
     const { collector } = setup()
     const record: TraceRecord = { type: 'instant', source: 'w', epoch: 'x', seq: 0, ts: 1, clock: 'mono:collector', track: 't', name: 'a' }

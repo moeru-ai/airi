@@ -3,7 +3,7 @@ import type { TraceRecord, TraceRef } from '../core/types'
 import type { AnyTraceProjection, TraceApplyContext, TraceIndexes, TraceProjection } from './types'
 
 import { ClockGraph } from '../core/clock'
-import { recordKey, streamClockOf } from '../core/keys'
+import { epochKeyOf, recordKey, streamClockOf } from '../core/keys'
 
 /**
  * Records by source, epoch, and seq.
@@ -20,16 +20,16 @@ export class RecordIndex {
   }
 
   get(ref: TraceRef): TraceRecord | undefined {
-    return this.epochs.get(`${ref.source}/${ref.epoch}`)?.get(ref.seq)
+    return this.epochs.get(epochKeyOf(ref.source, ref.epoch))?.get(ref.seq)
   }
 
   has(ref: TraceRef): boolean {
-    return this.epochs.get(`${ref.source}/${ref.epoch}`)?.has(ref.seq) ?? false
+    return this.epochs.get(epochKeyOf(ref.source, ref.epoch))?.has(ref.seq) ?? false
   }
 
   /** Adds a record. A record with the same source, epoch, and seq stays, and the call returns false. */
   add(record: TraceRecord): boolean {
-    const epochKey = `${record.source}/${record.epoch}`
+    const epochKey = epochKeyOf(record.source, record.epoch)
     let records = this.epochs.get(epochKey)
     if (!records) {
       records = new Map()

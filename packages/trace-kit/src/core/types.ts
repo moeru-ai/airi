@@ -32,9 +32,12 @@ export interface TraceLink {
 
 /** Fields of a record without a track: a system record or an annotation. */
 export interface TraceUntrackedRecordBase {
-  /** Stable ID of one producer, for example `window:main`, `main`, `collector`, `plugin:minecraft`, or `server:api`. */
+  /**
+   * Stable ID of one producer, for example `window:main`, `main`, `collector`, `plugin:minecraft`, or `server:api`.
+   * It must not contain `/`, because record, span, and epoch keys join their parts with `/`.
+   */
   source: string
-  /** One run of the source. A window reload or a plugin reconnect starts a new epoch. */
+  /** One run of the source. A window reload or a plugin reconnect starts a new epoch. It must not contain `/`. */
   epoch: string
   /** Emit order in the epoch, from 0. */
   seq: number

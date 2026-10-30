@@ -21,7 +21,7 @@ import { safeParse } from 'valibot'
 
 import { applyContentPolicy, conventionAttributes } from '../conventions'
 import { ClockGraph } from '../core/clock'
-import { spanKeyOf, streamClockOf } from '../core/keys'
+import { epochKeyOf, spanKeyOf, streamClockOf } from '../core/keys'
 import { isTrackedRecord } from '../core/records'
 import { traceRecordSchema } from '../core/schema'
 import { DEFAULT_SERIES_RETENTION, SeriesRing } from '../core/series-ring'
@@ -253,9 +253,8 @@ export class TraceCollector {
   /** Records that a source is alive without a record, for example on a clock ping. */
   touch(source: string): void {
     const epoch = this.liveEpochBySource.get(source)
-    const epochKey = `${source}/${epoch}`
-    if (epoch && this.epochs.has(epochKey))
-      this.heartbeats.touch(epochKey, this.options.now())
+    if (epoch && this.epochs.has(epochKeyOf(source, epoch)))
+      this.heartbeats.touch(epochKeyOf(source, epoch), this.options.now())
   }
 
   /** The transport of a source closed. Its live epoch is lost unless it stopped first. */
@@ -306,7 +305,7 @@ export class TraceCollector {
     // An expired lease of an epoch that is not live anymore only goes away. Live epochs go in the order they started.
     const expired = new Set(this.heartbeats.expired(now))
     for (const [source, epoch] of this.liveEpochBySource) {
-      if (source !== this.self.source && expired.has(`${source}/${epoch}`))
+      if (source !== this.self.source && expired.has(epochKeyOf(source, epoch)))
         this.loseSource(source, 'heartbeat-timeout')
     }
 
@@ -330,7 +329,7 @@ export class TraceCollector {
 
   private accept(incoming: TraceRecord): void {
     const now = this.options.now()
-    const epochKey = `${incoming.source}/${incoming.epoch}`
+    const epochKey = epochKeyOf(incoming.source, incoming.epoch)
     let state = this.epochs.get(epochKey)
 
     if (incoming.type === 'source.started' && !state) {
@@ -402,7 +401,7 @@ export class TraceCollector {
       live: true,
       watermark: new Watermark({ allowedLatenessMs: this.options.allowedLatenessMs ?? DEFAULTS.allowedLatenessMs }),
     }
-    const epochKey = `${record.source}/${record.epoch}`
+    const epochKey = epochKeyOf(record.source, record.epoch)
     this.epochs.set(epochKey, state)
     // A new epoch has a lease also when the tracker refuses its first record.
     this.heartbeats.touch(epochKey, now)
@@ -461,7 +460,7 @@ export class TraceCollector {
     const spanKey = 'spanId' in record && record.spanId ? spanKeyOf(record.source, record.epoch, record.spanId) : undefined
     switch (record.type) {
       case 'source.started':
-        this.pinnedStarts.set(`${record.source}/${record.epoch}`, record)
+        this.pinnedStarts.set(epochKeyOf(record.source, record.epoch), record)
         break
       case 'stream.started':
         this.pinnedStreams.set(record.streamId, record)
@@ -534,7 +533,7 @@ export class TraceCollector {
   }
 
   private unpinEpoch(source: string, epoch: string): void {
-    this.pinnedStarts.delete(`${source}/${epoch}`)
+    this.pinnedStarts.delete(epochKeyOf(source, epoch))
     for (const [key, { begin }] of this.pinnedSpans) {
       if (begin.source === source && begin.epoch === epoch) {
         this.pinnedSpans.delete(key)
@@ -556,11 +555,11 @@ export class TraceCollector {
     const epoch = this.liveEpochBySource.get(source)
     if (!epoch || source === this.self.source)
       return
-    const state = this.epochs.get(`${source}/${epoch}`)
+    const state = this.epochs.get(epochKeyOf(source, epoch))
     this.liveEpochBySource.delete(source)
     if (state)
       state.live = false
-    this.heartbeats.delete(`${source}/${epoch}`)
+    this.heartbeats.delete(epochKeyOf(source, epoch))
     // The open spans of the lost epoch become abandoned in the view. The collector does not invent a `span.end`.
     this.unpinEpoch(source, epoch)
     this.self.emit({ type: 'source.lost', ts: this.options.now(), of: { source, epoch, lastSeq: (state?.seqs.nextSeq ?? 0) - 1 }, reason })

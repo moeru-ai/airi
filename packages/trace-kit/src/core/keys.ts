@@ -1,5 +1,13 @@
 import type { TraceRef } from './types'
 
+/**
+ * Key of one epoch of a source: `source/epoch`. The cursor of `caughtUp` uses it. A source and an epoch do not
+ * contain `/`, so the key is unambiguous.
+ */
+export function epochKeyOf(source: string, epoch: string): string {
+  return `${source}/${epoch}`
+}
+
 /** Stable key of a record: `source/epoch/seq`. */
 export function recordKey(ref: TraceRef): string {
   return `${ref.source}/${ref.epoch}/${ref.seq}`
