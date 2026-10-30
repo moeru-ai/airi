@@ -440,7 +440,7 @@ onUnmounted(() => {
         :class="[
           'max-h-100dvh max-w-100dvw w-full',
           'flex gap-2 pt-2',
-          'transition-[padding] duration-250 ease-out motion-reduce:transition-none',
+          '[transition-property:padding-left,padding-right] duration-250 ease-out motion-reduce:transition-none',
           composerExpanded ? 'px-3' : 'px-7',
         ]"
         :style="messageComposerStyle"
