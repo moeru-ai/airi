@@ -1,9 +1,12 @@
+import type { TraceRecord } from '@proj-airi/trace-kit'
+
 import { agentProfile } from '@proj-airi/trace-kit/agent'
 import { readTimeline } from '@proj-airi/trace-kit/testing'
+import { spansOfLink } from '@proj-airi/trace-kit/views'
 import { voiceProfile } from '@proj-airi/trace-kit/voice'
 import { describe, expect, it } from 'vitest'
 
-import { spanFacts } from './trace-lookup'
+import { linkTargets, spanFacts } from './trace-lookup'
 
 function trace() {
   return readTimeline([
@@ -24,5 +27,18 @@ describe('trace lookup', () => {
     expect(spanFacts(asr, state.tracks.get(asr.track))).toEqual({ activity: 'thinking', duration: '500 ms', status: 'error: timeout' })
     expect(spanFacts(llm, state.tracks.get(llm.track), 1900).duration).toBe('running 1.00 s')
     expect(spanFacts(llm, state.tracks.get(llm.track)).duration).toBe('running')
+  })
+
+  it('finds the span or the item of a link to a record of this trace', () => {
+    const { state, indexes, records } = trace()
+    const refOf = (record: TraceRecord) => ({ source: record.source, epoch: record.epoch, seq: record.seq })
+    const inputBegin = records.find(record => record.type === 'span.begin' && record.spanId === 'input')!
+    const firstChunk = records.find(record => record.type === 'instant')!
+
+    // Before, the panel used `spansOfLink` alone, which finds nothing for a record reference.
+    expect(spansOfLink({ rel: 'caused-by', to: refOf(inputBegin) }, state, indexes)).toEqual([])
+    expect(linkTargets({ rel: 'caused-by', to: refOf(inputBegin) }, state, indexes).spans.map(span => span.spanId)).toEqual(['input'])
+    expect(linkTargets({ rel: 'caused-by', to: refOf(firstChunk) }, state, indexes)).toMatchObject({ spans: [], items: [{ kind: 'instant', label: 'llm.first_chunk' }] })
+    expect(linkTargets({ rel: 'caused-by', to: { ...refOf(firstChunk), seq: 999 } }, state, indexes)).toEqual({ spans: [], items: [] })
   })
 })

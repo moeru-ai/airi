@@ -5,7 +5,7 @@ import type { TraceItemRef } from '@proj-airi/trace-kit/views'
 
 import { spanKeyOf } from '@proj-airi/trace-kit'
 import { linkTargetKey } from '@proj-airi/trace-kit/projections'
-import { childSpans, findItem, spansOfLink, spansOfRecords } from '@proj-airi/trace-kit/views'
+import { childSpans, findItem, spansOfRecords } from '@proj-airi/trace-kit/views'
 import { CopyableLabel, IconButton } from '@proj-airi/ui'
 import { formatDuration, formatOffset } from '@proj-airi/ui-timeline/headless'
 import { useClipboard } from '@vueuse/core'
@@ -13,7 +13,7 @@ import { computed, useId } from 'vue'
 
 import SpanLinkCard from './span-link-card.vue'
 
-import { linkRelationLabel } from '../../models/trace-lookup'
+import { linkRelationLabel, linkTargets } from '../../models/trace-lookup'
 
 const props = defineProps<{
   state: TimelineState
@@ -59,7 +59,7 @@ const outgoing = computed(() => {
   void props.version
   const span = selected.value.span
   const links = span?.links ?? selected.value.instant?.links ?? selected.value.change?.links ?? []
-  return links.map(link => ({ link, targets: spansOfLink(link, props.state, props.indexes) }))
+  return links.map(link => ({ link, ...linkTargets(link, props.state, props.indexes) }))
 })
 
 const incoming = computed(() => {
@@ -316,14 +316,23 @@ function entriesOf(attrs: TraceAttributes | undefined): [string, string][] {
       <div v-for="(entry, index) in outgoing" :key="index" :class="['mb-2 flex flex-col gap-1 last:mb-0']">
         <span :class="['text-neutral-500']">{{ linkRelationLabel(entry.link.rel) }}</span>
         <SpanLinkCard
-          v-for="target in entry.targets"
+          v-for="target in entry.spans"
           :key="target.key"
           :span="target"
           :track="props.state.tracks.get(target.track)"
           @select="emit('select', { kind: 'span', key: target.key })"
         />
+        <button
+          v-for="target in entry.items"
+          :key="target.key"
+          type="button"
+          :class="['rounded-lg px-2 py-1.5 text-left', 'bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-900 dark:hover:bg-neutral-800']"
+          @click="emit('select', { kind: target.kind, key: target.key })"
+        >
+          {{ target.label }}
+        </button>
         <div
-          v-if="entry.targets.length === 0"
+          v-if="entry.spans.length === 0 && entry.items.length === 0"
           :class="['rounded-lg px-2 py-1.5 text-neutral-500', 'border border-dashed border-neutral-300 dark:border-neutral-700']"
         >
           <CopyableLabel :value="linkLabel(entry.link)" :class="['font-mono']" />
