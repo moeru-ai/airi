@@ -25,6 +25,7 @@ import { useAiriRuntimePrompt } from '../composables/use-airi-runtime-prompt'
 import { registerLlmInference, registerTurnSpan, startSpan, takeComposerVoiceParent, takeVoiceTurnParent } from '../composables/use-io-tracer'
 import { useChatVision } from '../composables/vision/use-chat-vision'
 import { useVisionInference } from '../composables/vision/use-vision-inference'
+import { markAgentTraceStep } from '../libs/agent-trace'
 import { chatAssetIdFrom, inlineConversationAssets, storeChatAttachments } from '../libs/chat-assets'
 import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
 import { syncedRoles } from '../libs/pinia/synced-context'
@@ -668,7 +669,11 @@ export const useChatStore = defineStore('chat', () => {
     // Analytics correlation goes only to the official provider. A resolved step can change the provider, so each request rebuilds it.
     function requestHeaders(providerId: string | undefined) {
       const headers = { ...options?.headers }
-      if (getProviderMode(providerId ?? activeProvider.value) === 'official' && options?.requestCorrelation) {
+      const official = getProviderMode(providerId ?? activeProvider.value) === 'official'
+      // The trace of a turn uploads only when every step used the official provider.
+      if (correlation && turnSpan)
+        markAgentTraceStep(turnSpan.spanContext().traceId, official)
+      if (official && options?.requestCorrelation) {
         headers[AIRI_CHAT_SESSION_ID_HEADER] = options.requestCorrelation.conversationId
         headers[AIRI_CHAT_ROUND_ID_HEADER] = options.requestCorrelation.turnId
         headers[AIRI_CHAT_APP_SURFACE_HEADER] = getConversationAnalyticsSurface()
@@ -874,9 +879,10 @@ export const useChatStore = defineStore('chat', () => {
             llmOutputChunkLengths.push(event.text.length)
             if (!llmFirstTokenEmitted) {
               llmFirstTokenEmitted = true
-              llmSpan.addEvent(IOEvents.LLMFirstToken, {
-                [IOAttributes.LLM_TTFT]: performance.now() - llmRequestTs,
-              })
+              const ttft = performance.now() - llmRequestTs
+              llmSpan.addEvent(IOEvents.LLMFirstToken, { [IOAttributes.LLM_TTFT]: ttft })
+              // The trace upload has no events, so the attribute carries the value too.
+              llmSpan.setAttribute(IOAttributes.LLM_TTFT, ttft)
             }
             llmTextLength += event.text.length
           }
