@@ -7,7 +7,7 @@ import { createI18n } from 'vue-i18n'
 
 import IOTracerDevtools from './io-tracer-devtools.vue'
 
-import { getTraceSink } from '../../../composables/use-trace'
+import { getTraceSink, getTraceSource } from '../../../composables/use-trace'
 import { useIOTracerStore } from '../../../stores/devtools/io-tracer'
 
 describe('io tracer page', () => {
@@ -244,6 +244,20 @@ describe('io tracer page', () => {
 
     ;(visibility.element() as HTMLElement).click()
     await expect.poll(listed).toBe(1)
+  })
+
+  it('wants a track that appears after the user hid another track, so its producer keeps sending', async () => {
+    const screen = await renderPage()
+    beginSpan(getTraceSink(), { track: 'participants/user/input', name: 'early-input' }).end()
+    await expect.poll(() => itemsOf(screen).getByRole('button', { name: /early-input/ }).elements().length).toBe(1)
+
+    ;(screen.getByTitle('participants/user/input', { exact: true }).getByRole('button').element() as HTMLElement).click()
+    await expect.poll(() => getTraceSource().wants('participants/user/input')).toBe(false)
+
+    // The first playback track appears only now. A producer of its series checks `wants` before it sends.
+    beginSpan(getTraceSink(), { track: 'participants/agent/playback', name: 'first-clip' }).end()
+    await expect.poll(() => itemsOf(screen).getByRole('button', { name: /first-clip/ }).elements().length).toBe(1)
+    await expect.poll(() => getTraceSource().wants('participants/agent/playback')).toBe(true)
   })
 
   it('starts from now: drops the records so far and keeps recording', async () => {

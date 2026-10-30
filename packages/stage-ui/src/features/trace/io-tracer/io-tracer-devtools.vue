@@ -9,6 +9,7 @@ import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useIOTracerStore } from '../../../stores/devtools/io-tracer'
+import { sameVisibleTracks, visibleTracksOf } from './visible-tracks'
 
 const PANELS = ['timeline', 'pipeline', 'log', 'detail', 'metrics'] as const
 
@@ -28,15 +29,15 @@ const state = computed(() => {
 
 const { presetKey, presets, hiddenTracks, setVisibility, entities, toggleLane, details, summary } = useTracerView({ state, indexes: () => store.reader.indexes, version, locale })
 
-// Producers skip costly series of tracks that no view shows.
-watch(hiddenTracks, (hidden, previous) => {
-  if (previous && hidden.size === previous.size && [...hidden].every(path => previous.has(path)))
+// Producers skip costly series of tracks that no view shows. The list follows the hidden set and the known tracks, so
+// a track that appears later is wanted. A new value goes out only when it selects other tracks.
+let sentTracks: string[] | '*' | undefined
+watch([hiddenTracks, state], ([hidden, current]) => {
+  const next = visibleTracksOf(current.tracks.keys(), hidden)
+  if (sameVisibleTracks(sentTracks, next))
     return
-  if (hidden.size === 0) {
-    store.setVisibleTracks('*')
-    return
-  }
-  store.setVisibleTracks([...state.value.tracks.keys()].filter(path => !hidden.has(path)))
+  sentTracks = next
+  store.setVisibleTracks(next)
 })
 
 const counters = computed(() => {
