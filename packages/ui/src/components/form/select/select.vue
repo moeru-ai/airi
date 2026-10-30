@@ -114,7 +114,8 @@ function toCssSize(value?: string | number): string | undefined {
         props.variant === 'blurry' ? 'bg-neutral-50/70 dark:bg-neutral-800/70 disabled:bg-neutral-100 hover:bg-neutral-100 dark:disabled:bg-neutral-900 dark:hover:bg-neutral-800' : '',
         props.variant === 'blurry' ? 'backdrop-blur-md' : '',
         'border-2 border-solid focus:border-primary-300 dark:focus:border-primary-400/50',
-        props.variant === 'default' ? 'border-neutral-200 dark:border-neutral-800' : '',
+        // The default trigger uses the same idle border as Input.
+        props.variant === 'default' ? 'border-neutral-100 dark:border-neutral-900' : '',
         props.variant === 'blurry' ? 'border-neutral-100/60 dark:border-neutral-800/30' : '',
         'shadow-sm focus:shadow-[0_0_0_2px] focus:shadow-black/10 dark:focus:shadow-black/30',
         'transition-colors duration-200 ease-in-out',
@@ -170,7 +171,7 @@ function toCssSize(value?: string | number): string | undefined {
           'overflow-hidden rounded-xl shadow-sm border will-change-[opacity,transform]',
           'data-[side=top]:animate-slideDownAndFade data-[side=right]:animate-slideLeftAndFade data-[side=bottom]:animate-slideUpAndFade data-[side=left]:animate-slideRightAndFade',
           'bg-white dark:bg-neutral-900',
-          'border-neutral-200 dark:border-neutral-800 border-solid border-2',
+          'border-neutral-100 dark:border-neutral-800 border-solid border',
         ]"
         :style="{
           width: toCssSize(props.contentWidth) ?? 'var(--reka-select-trigger-width)',
