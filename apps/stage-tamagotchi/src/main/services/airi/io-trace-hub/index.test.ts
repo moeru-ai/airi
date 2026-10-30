@@ -105,6 +105,24 @@ describe('ioTraceHub', () => {
     expect(dumps[0]!.reason).toBe('error')
   })
 
+  it('writes the failed span and the events before it to a flight dump while collecting is off', () => {
+    const { hub } = createHub({ collecting: false })
+    const dumps: FlightRecorderDump[] = []
+    hub.onFlightDump(dump => dumps.push(dump))
+    const record = windowRecords()
+
+    hub.ingest([
+      record({ type: 'instant', track: 't', name: 'before' }),
+      record({ type: 'span.begin', track: 't', spanId: 's', name: 'request' }),
+      record({ type: 'span.end', track: 't', spanId: 's', status: 'error' }),
+    ])
+
+    expect(dumps).toHaveLength(1)
+    expect(dumps[0]!.records.map(item => item.type)).toEqual(expect.arrayContaining(['instant', 'span.begin', 'span.end']))
+    // Collecting off keeps no history for viewers. The flight window is only for dumps.
+    expect(hub.getState().bufferedRecords).toBe(0)
+  })
+
   it('tells listeners the tracks that viewers show', () => {
     const { hub } = createHub()
     const wanted: Array<string[] | '*'> = []
