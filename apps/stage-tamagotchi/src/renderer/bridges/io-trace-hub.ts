@@ -1,4 +1,4 @@
-import type { EventContext } from '@moeru/eventa'
+import type { getElectronEventaContext } from '@proj-airi/electron-vueuse'
 import type { TraceFeedMessage, TraceRecord } from '@proj-airi/trace-kit'
 
 import { useLogg } from '@guiiai/logg'
@@ -67,7 +67,7 @@ function windowSourceId(): string {
  *
  * Returns a function that stops the bridge. It writes `source.stopped` and removes the timers and listeners.
  */
-export function initializeIOTraceHubBridge(context: EventContext<any, any>): () => void {
+export function initializeIOTraceHubBridge(context: ReturnType<typeof getElectronEventaContext>): () => void {
   const emit = defineInvoke(context, ioTraceHubEmit)
   const ping = defineInvoke(context, ioTraceHubPing)
   const subscribe = defineInvoke(context, ioTraceHubSubscribe)
