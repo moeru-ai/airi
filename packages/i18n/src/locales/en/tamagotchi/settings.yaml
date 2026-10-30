@@ -546,6 +546,12 @@ devtools:
       description: Stress markdown parsing and rendering with heavy chat payloads
     io-tracer:
       title: IO Tracer
+      actions:
+        show: Show {name}
+        hide: Hide {name}
+      view:
+        label: View
+        all: All tracks
       collection:
         title: Keep recent IO traces in memory
         description: Keep the IO spans of the last 30 minutes, up to 5000, so the IO Tracer can show what happened before it opened.

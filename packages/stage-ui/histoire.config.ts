@@ -97,6 +97,7 @@ export default defineConfig({
   storyMatch: [
     '**/*.story.vue',
     '../ui-panes/src/**/*.story.vue',
+    '../ui-trace/src/**/*.story.vue',
   ],
   setupFile: {
     browser: 'stories/setup.ts',

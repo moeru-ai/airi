@@ -545,6 +545,12 @@ devtools:
       description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
     io-tracer:
       title: IO 追踪
+      actions:
+        show: 显示 {name}
+        hide: 隐藏 {name}
+      view:
+        label: 视图
+        all: 全部 track
       collection:
         title: 在内存中保留最近的 IO Trace
         description: 保留最近 30 分钟内最多 5000 个 IO span，打开 IO 追踪时也能看到之前发生的事件。
