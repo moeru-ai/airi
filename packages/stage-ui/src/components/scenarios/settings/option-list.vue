@@ -30,8 +30,9 @@ const selected = defineModel<T>({ required: true })
         'outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
         'data-[disabled]:opacity-50 data-[disabled]:cursor-not-allowed',
         'border-neutral-100 bg-white dark:border-neutral-800 dark:bg-neutral-900/30',
-        'data-[state=checked]:border-primary-200 data-[state=checked]:bg-primary-50',
-        'dark:data-[state=checked]:border-primary-800 dark:data-[state=checked]:bg-primary-900/20',
+        // The tinted fill and the radio dot show the selection, so a checked option hides its border.
+        'data-[state=checked]:border-transparent data-[state=checked]:bg-primary-50',
+        'dark:data-[state=checked]:border-transparent dark:data-[state=checked]:bg-primary-900/20',
       ]"
     >
       <span

@@ -229,11 +229,15 @@ async function applySelection(isImport = false) {
             v-for="option in mergedOptions"
             :key="option.id"
             type="button"
-            class="background-option group relative border-2 rounded-xl bg-neutral-100/80 p-2 text-left transition-colors dark:bg-neutral-900/80"
-            :class="[option.id === selectedId ? 'selected border-primary-500/80 shadow-primary-500/10 shadow-lg' : 'border-neutral-200 dark:border-neutral-800']"
+            :class="[
+              'background-option group relative rounded-xl p-2 text-left transition-colors',
+              'border-2 bg-neutral-100/80 dark:bg-neutral-900/80',
+              // Only the selected option draws a border. The others keep a transparent one, so selection does not move the layout.
+              option.id === selectedId ? 'selected border-primary-500/80 shadow-primary-500/10 shadow-lg' : 'border-transparent',
+            ]"
             @click="selectedId = option.id"
           >
-            <div class="aspect-video w-full overflow-hidden border border-neutral-200 rounded-lg bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-800/70">
+            <div :class="['aspect-video w-full overflow-hidden rounded-lg', 'bg-neutral-50 dark:bg-neutral-800/70']">
               <component
                 :is="option.component"
                 v-if="option.component"
@@ -270,14 +274,19 @@ async function applySelection(isImport = false) {
 
         <div v-if="allowUpload" class="flex flex-wrap gap-2">
           <BasicInputFile v-model="uploadingFiles" class="cursor-pointer">
-            <div class="upload-button flex items-center gap-2 border border-neutral-300 rounded-lg border-dashed px-3 py-2 text-sm text-neutral-600 transition-colors dark:border-neutral-700 dark:text-neutral-300">
-              <div i-solar:add-square-linear />
+            <div
+              :class="[
+                'upload-button flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
+                'bg-neutral-100 text-neutral-600 dark:bg-neutral-800/70 dark:text-neutral-300',
+              ]"
+            >
+              <div :class="['i-mingcute:add-line']" />
               <span>Add custom background</span>
             </div>
           </BasicInputFile>
         </div>
 
-        <div class="border border-neutral-200 rounded-xl bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900/70">
+        <div :class="['rounded-xl p-3', 'bg-neutral-50 dark:bg-neutral-900/70']">
           <p class="mb-2 text-sm text-neutral-600 dark:text-neutral-300">
             Preview
           </p>
@@ -290,7 +299,7 @@ async function applySelection(isImport = false) {
           </label>
           <div
             ref="previewRef"
-            class="relative h-48 overflow-hidden border border-neutral-200 rounded-xl bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-800"
+            :class="['relative h-48 overflow-hidden rounded-xl', 'bg-neutral-100 dark:bg-neutral-800']"
           >
             <div
               class="h-full w-full transition-all duration-300"
@@ -331,7 +340,7 @@ async function applySelection(isImport = false) {
 <style scoped>
 @media (hover: hover) {
   .background-option:hover:not(.selected) {
-    --at-apply: border-primary-400/80;
+    --at-apply: bg-neutral-200/80 dark:bg-neutral-800/80;
   }
 
   .background-option:hover .trash-button {
@@ -343,7 +352,7 @@ async function applySelection(isImport = false) {
   }
 
   .upload-button:hover {
-    --at-apply: border-primary-400 text-primary-500 dark:border-primary-400 dark:text-primary-400;
+    --at-apply: bg-neutral-200 text-primary-500 dark:bg-neutral-800 dark:text-primary-400;
   }
 
   .apply-button:hover:not(:disabled) {
