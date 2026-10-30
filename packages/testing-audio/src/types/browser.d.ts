@@ -12,7 +12,6 @@ declare global {
     streamingTranscriptionUpdates: string[]
     transcriptionAudio: Array<{ base64: string, format: 'pcm' | 'wav' }>
     transcriptionResults: string[]
-    vadReady: boolean
     voiceInputs: AudioInputVoiceInput[]
     /** Latest wake word preparation that the voice host published. It is undefined before the first snapshot. */
     wakeWordPreparation?: WakeWordPreparation

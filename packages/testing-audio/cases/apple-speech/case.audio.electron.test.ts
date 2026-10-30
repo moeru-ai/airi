@@ -84,7 +84,6 @@ describe('Apple Speech audio input', () => {
         probeInstalled: Boolean(window.__airiAudioInputE2E),
         streamingTranscriptionReady: window.__airiAudioInputE2E?.streamingTranscriptionReady ?? false,
         streamingTranscriptionUpdates: window.__airiAudioInputE2E?.streamingTranscriptionUpdates ?? [],
-        vadReady: window.__airiAudioInputE2E?.vadReady ?? false,
       }))
       throw new Error(`Apple Speech did not produce a transcript: ${JSON.stringify(diagnostics)}`, { cause: error })
     }

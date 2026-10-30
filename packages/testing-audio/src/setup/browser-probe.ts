@@ -37,20 +37,13 @@ export const browserProbeOptions: BrowserProbeOptions = {
  * - `window.__airiAudioInputE2E`
  */
 export function stubForBrowser(options: BrowserProbeOptions) {
-  const state: BrowserAudioInputState = { piniaActionEvents: [], spans: [], streamingTranscriptionReady: false, streamingTranscriptionUpdates: [], transcriptionAudio: [], transcriptionResults: [], vadReady: false, voiceInputs: [] }
+  const state: BrowserAudioInputState = { piniaActionEvents: [], spans: [], streamingTranscriptionReady: false, streamingTranscriptionUpdates: [], transcriptionAudio: [], transcriptionResults: [], voiceInputs: [] }
   window.__airiAudioInputE2E = state
 
   const piniaActionChannel = new BroadcastChannel(options.piniaActionChannelName)
   piniaActionChannel.addEventListener('message', (message: MessageEvent<PiniaActionEvent>) => {
     state.piniaActionEvents.push(message.data)
   })
-
-  const originalConsoleInfo = console.info.bind(console)
-  console.info = (...values: unknown[]) => {
-    if (typeof values[0] === 'string' && values[0].startsWith('[Voice Input] vad-ready:'))
-      state.vadReady = true
-    originalConsoleInfo(...values)
-  }
 
   const originalFetch = window.fetch.bind(window)
 
