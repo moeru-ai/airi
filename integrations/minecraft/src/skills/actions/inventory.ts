@@ -1,3 +1,4 @@
+import type { EquipmentDestination } from 'mineflayer'
 import type { Item } from 'prismarine-item'
 
 import type { Mineflayer } from '../../libs/mineflayer'
@@ -24,15 +25,17 @@ export async function equip(mineflayer: Mineflayer, itemName: string): Promise<v
     logger.log(`You do not have any ${itemName} to equip.`)
     throw new ActionError('ITEM_NOT_FOUND', `You do not have any ${itemName} to equip`, { item: itemName })
   }
-  let destination: 'hand' | 'head' | 'torso' | 'legs' | 'feet' = 'hand'
+  let destination: EquipmentDestination = 'hand'
   if (itemName.includes('leggings'))
     destination = 'legs'
   else if (itemName.includes('boots'))
     destination = 'feet'
   else if (itemName.includes('helmet'))
     destination = 'head'
-  else if (itemName.includes('chestplate'))
+  else if (itemName.includes('chestplate') || itemName === 'elytra')
     destination = 'torso'
+  else if (itemName === 'shield')
+    destination = 'off-hand'
 
   await mineflayer.bot.equip(item, destination)
   logger.log(`Equipped ${itemName}.`)
