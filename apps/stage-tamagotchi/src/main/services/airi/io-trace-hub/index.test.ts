@@ -1,105 +1,119 @@
-import type { SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
+import type { TraceFeedMessage, TraceRecord } from '@proj-airi/trace-kit'
+import type { FlightRecorderDump } from '@proj-airi/trace-kit/collector'
 
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import { IOTraceHub } from '.'
 
-function span(spanId: string, endMs: number): SerializedIOSpan {
-  return {
-    attributes: {},
-    ended: true,
-    endTimeNano: String(endMs * 1e6),
-    events: [],
-    kind: 0,
-    name: 'LLM inference',
-    parentSpanId: '',
-    spanId,
-    startTimeNano: String((endMs - 10) * 1e6),
-    status: { code: 0, message: '' },
-    traceId: 'trace-1',
-  }
-}
-
-function createHub(options: { collecting?: boolean, maxSpans?: number, maxAgeMs?: number, now?: () => number } = {}) {
+function createHub(options: { collecting?: boolean, now?: () => number } = {}) {
   let stored = options.collecting ?? true
   const hub = new IOTraceHub({
     getStoredCollecting: () => stored,
     setStoredCollecting: (collecting) => {
       stored = collecting
     },
-    maxSpans: options.maxSpans,
-    maxAgeMs: options.maxAgeMs,
-    now: options.now ?? (() => 1_000_000),
+    now: options.now ?? (() => 1000),
   })
   return { hub, stored: () => stored }
 }
 
+function windowRecords(source = 'window:a', epoch = 'e1') {
+  let seq = 0
+  return (record: Record<string, unknown>) => ({ source, epoch, seq: seq++, ts: 1000, clock: 'mono:collector', ...record }) as TraceRecord
+}
+
+function recordsOf(messages: TraceFeedMessage[]): TraceRecord[] {
+  return messages.flatMap(message => message.kind === 'record' ? [message.record] : [])
+}
+
 describe('ioTraceHub', () => {
-  it('returns the spans that ended before a subscription', () => {
+  it('ingests valid records, returns their sources, and drops invalid ones', () => {
     const { hub } = createHub()
-    hub.publish(span('a', 999_000))
-    hub.publish(span('b', 999_500))
+    const record = windowRecords()
 
-    const { spans } = hub.subscribe(vi.fn())
+    const sources = hub.ingest([
+      record({ type: 'source.started', format: 1, runtime: 'electron-renderer', profiles: [] }),
+      record({ type: 'instant', track: 't', name: 'a' }),
+      { type: 'instant', source: 'window:b' },
+    ])
 
-    expect(spans.map(s => s.spanId)).toEqual(['a', 'b'])
+    expect([...sources]).toEqual(['window:a'])
+    expect(hub.getState().dropped).toBe(1)
   })
 
-  it('sends each later span to a subscriber, and nothing after it unsubscribes', () => {
+  it('sends the backlog, then caughtUp, then later records to a subscriber', () => {
     const { hub } = createHub()
-    const listener = vi.fn()
-    const { unsubscribe } = hub.subscribe(listener)
+    const record = windowRecords()
+    hub.ingest([record({ type: 'instant', track: 't', name: 'before' })])
 
-    hub.publish(span('a', 999_000))
+    const messages: TraceFeedMessage[] = []
+    const { unsubscribe } = hub.subscribe(message => messages.push(message), '*')
+    hub.ingest([record({ type: 'instant', track: 't', name: 'live' })])
     unsubscribe()
-    hub.publish(span('b', 999_500))
+    hub.ingest([record({ type: 'instant', track: 't', name: 'after' })])
 
-    expect(listener).toHaveBeenCalledTimes(1)
-    expect(listener).toHaveBeenCalledWith(span('a', 999_000))
+    const names = messages.map(message => message.kind === 'record' && message.record.type === 'instant' ? message.record.name : message.kind)
+    expect(names.filter(name => name !== 'record')).toEqual(['before', 'caughtUp', 'live'])
   })
 
-  it('keeps no spans while collecting is off, but still sends them to subscribers', () => {
+  it('keeps no records while collecting is off, but still sends them to subscribers', () => {
     const { hub } = createHub({ collecting: false })
-    const listener = vi.fn()
-    hub.subscribe(listener)
+    const messages: TraceFeedMessage[] = []
+    hub.subscribe(message => messages.push(message), '*')
 
-    hub.publish(span('a', 999_000))
+    hub.ingest([windowRecords()({ type: 'instant', track: 't', name: 'a' })])
 
-    expect(listener).toHaveBeenCalledTimes(1)
-    expect(hub.getState().bufferedSpans).toBe(0)
+    expect(recordsOf(messages).some(record => record.type === 'instant')).toBe(true)
+    expect(hub.getState().bufferedRecords).toBe(0)
   })
 
-  it('drops the oldest spans above the span limit', () => {
-    const { hub } = createHub({ maxSpans: 2 })
-    hub.publish(span('a', 999_000))
-    hub.publish(span('b', 999_100))
-    hub.publish(span('c', 999_200))
-
-    const { spans } = hub.subscribe(vi.fn())
-
-    expect(spans.map(s => s.spanId)).toEqual(['b', 'c'])
-  })
-
-  it('drops spans that ended earlier than the age limit', () => {
-    let now = 1_000_000
-    const { hub } = createHub({ maxAgeMs: 1000, now: () => now })
-    hub.publish(span('old', 999_500))
-    hub.publish(span('new', 999_900))
-    now = 1_000_600
-
-    const { spans } = hub.subscribe(vi.fn())
-
-    expect(spans.map(s => s.spanId)).toEqual(['new'])
-  })
-
-  it('stores the collecting setting and clears kept spans when collecting stops', () => {
+  it('stores the collecting setting and clears kept records when collecting stops', () => {
     const { hub, stored } = createHub()
-    hub.publish(span('a', 999_000))
+    hub.ingest([windowRecords()({ type: 'instant', track: 't', name: 'a' })])
+    expect(hub.getState().bufferedRecords).toBeGreaterThan(0)
 
     const state = hub.setCollecting(false)
 
     expect(state.collecting).toBe(false)
-    expect(state.bufferedSpans).toBe(0)
+    expect(state.bufferedRecords).toBe(0)
     expect(stored()).toBe(false)
+  })
+
+  it('reports a closed source as lost', () => {
+    const { hub } = createHub()
+    hub.ingest([windowRecords()({ type: 'source.started', format: 1, runtime: 'electron-renderer', profiles: [] })])
+
+    hub.closeSource('window:a')
+
+    const messages: TraceFeedMessage[] = []
+    hub.subscribe(message => messages.push(message), '*')
+    expect(recordsOf(messages).find(record => record.type === 'source.lost')).toMatchObject({ reason: 'ipc-closed', of: { source: 'window:a', epoch: 'e1' } })
+  })
+
+  it('sends a flight dump when a span fails', () => {
+    const { hub } = createHub()
+    const dumps: FlightRecorderDump[] = []
+    hub.onFlightDump(dump => dumps.push(dump))
+    const record = windowRecords()
+
+    hub.ingest([
+      record({ type: 'span.begin', track: 't', spanId: 's', name: 'request' }),
+      record({ type: 'span.end', track: 't', spanId: 's', status: 'error' }),
+    ])
+
+    expect(dumps).toHaveLength(1)
+    expect(dumps[0]!.reason).toBe('error')
+  })
+
+  it('tells listeners the tracks that viewers show', () => {
+    const { hub } = createHub()
+    const wanted: Array<string[] | '*'> = []
+    hub.onWantedChange(tracks => wanted.push(tracks))
+
+    const viewer = hub.subscribe(() => {}, ['participants/user/input'])
+
+    expect(hub.wantedTracks).toEqual(['participants/user/input'])
+    viewer.unsubscribe()
+    expect(wanted).toEqual([[], ['participants/user/input'], []])
   })
 })

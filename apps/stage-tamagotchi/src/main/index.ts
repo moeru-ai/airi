@@ -337,13 +337,23 @@ app.whenReady().then(async () => {
         directory: join(app.getPath('userData'), 'io-traces'),
         getStoredEnabled: () => dependsOn.config.get()?.enabled ?? false,
         setStoredEnabled: enabled => dependsOn.config.update({ enabled }),
+        sensitivityOf: dependsOn.hub.collector.sensitivityOf,
       })
-      // The hub receives the spans of every window, so the files have the spans of every window.
-      const { unsubscribe } = dependsOn.hub.subscribe((span) => {
-        service.recordSpan(span).catch(error => log.withError(error).error('Failed to record IO trace span'))
+      const stopFlightDumps = dependsOn.hub.onFlightDump((dump) => {
+        service.writeFlightDump(dump).catch(error => log.withError(error).error('Failed to write trace flight dump'))
       })
+      // The hub receives the records of every window, so the files have the records of every window. The backlog
+      // before `caughtUp` was recorded when it arrived, or it arrived while recording was off.
+      let live = false
+      const { unsubscribe } = dependsOn.hub.subscribe((message) => {
+        if (message.kind === 'caughtUp')
+          live = true
+        else if (live && message.kind === 'record')
+          service.recordRecord(message.record).catch(error => log.withError(error).error('Failed to record trace record'))
+      }, '*')
       dependsOn.lifecycle.appHooks.onStop(() => {
         unsubscribe()
+        stopFlightDumps()
       })
       dependsOn.lifecycle.appHooks.onStart(async () => {
         try {
