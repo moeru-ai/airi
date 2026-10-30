@@ -520,10 +520,12 @@ it('keeps the profile creation form open for pointer interaction (PR #2474)', as
     expect(form.getBoundingClientRect().left).toBeGreaterThanOrEqual(8)
     expect(form.getBoundingClientRect().top).toBeGreaterThanOrEqual(8)
   }
+  // The cursor comes back before Save. Save ends the creation that blocked the collapse, and a cursor that is still
+  // outside lets the next collapse check close the menu before the selector opens again.
+  isOutside.value = false
   await page.getByRole('button', { name: i18n.global.t('stage.profile-switcher.save-as-new'), exact: true }).click()
   await expect.poll(() => cards.activeCard?.name).toBe('New profile')
   await expect.element(input).not.toBeInTheDocument()
-  isOutside.value = false
 
   // ROOT CAUSE:
   // Reopening the selector while creation was active changed the selected
