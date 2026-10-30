@@ -829,8 +829,6 @@ pages:
             description: Chọn nhà cung cấp nhận diện giọng nói phù hợp
           microphone:
             title: Micrô
-            label: Micrô
-            description: Bật micrô cho mô-đun Nghe. Chế độ đầu vào quyết định khi nào AIRI lắng nghe.
             error: Micrô không khả dụng
           input-device:
             label: Thiết bị đầu vào

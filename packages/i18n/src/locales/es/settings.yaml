@@ -829,8 +829,6 @@ pages:
             description: Selecciona el proveedor de reconocimiento de voz adecuado
           microphone:
             title: Micrófono
-            label: Micrófono
-            description: Enciende el micrófono para Audición. El modo de entrada controla cuándo escucha AIRI.
             error: El micrófono no está disponible
           input-device:
             label: Dispositivo de entrada

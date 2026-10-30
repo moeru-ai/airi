@@ -830,8 +830,6 @@ pages:
             description: 適切な音声認識プロバイダーを選択
           microphone:
             title: マイク
-            label: マイク
-            description: 聴覚用のマイクを有効にしてください。入力モードによって AIRI が聞き取るタイミングを決めます。
             error: マイクを利用できません
           input-device:
             label: 入力デバイス

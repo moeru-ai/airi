@@ -1768,16 +1768,6 @@ pages:
         转录（语音转文本）模型服务来源，例如 Whisper.cpp, OpenAI, Azure Speech
     description: LLM，语音合成，语音识别服务来源等
     provider:
-      player2:
-        app-missing:
-          download: '请下载并运行 Player2 应用：{link}'
-          support: '安装后如果问题仍然存在，请在 Discord 联系我们：{link}'
-      mimo:
-        model-behavior:
-          title: MiMo 模型行为
-          preset: '{model} 使用下方的预设音色列表。'
-          voice-design: '{model} 根据风格提示词设计新音色，不接受 {field}。'
-          voice-clone: '{model} 使用你粘贴的音色样本，忽略预设音色选择。'
       sherpaw-transcription:
         description: 使用内置或按需加载的模型进行本地语音识别，无需 API 密钥。
         language:
@@ -2063,6 +2053,12 @@ pages:
               placeholder: 选择一个 MiniMax 模型...
         playground:
           default-text: 您好！这是 MiniMax 语音合成测试。
+      mimo:
+        model-behavior:
+          title: MiMo 模型行为
+          preset: '{model} 使用下方的预设音色列表。'
+          voice-design: '{model} 根据风格提示词设计新音色，不接受 {field}。'
+          voice-clone: '{model} 使用你粘贴的音色样本，忽略预设音色选择。'
       moonshot:
         description: Moonshot.ai
         title: 月之暗面
@@ -2079,6 +2075,10 @@ pages:
         description: OpenRouter.ai
       openrouter-audio-speech:
         description: OpenRouter.ai
+      player2:
+        app-missing:
+          download: '请下载并运行 Player2 应用：{link}'
+          support: '安装后如果问题仍然存在，请在 Discord 联系我们：{link}'
       volcengine:
         fields:
           field:
@@ -2106,7 +2106,7 @@ pages:
           unavailable: 此浏览器不支持 Web Speech API。
           select-device: 请选择音频输入设备以开始测试。
           error-title: 转写错误
-          streaming-mode: 流式模式：说话时转写结果会实时显示。
+          streaming-mode: '流式模式：说话时转写结果会实时显示。'
         no-api-key: 无需 API 密钥。Web Speech API 免费且内置于浏览器。
         intro:
           title: 浏览器内置的免费语音识别
@@ -2622,7 +2622,7 @@ tachie:
     render-scale: 渲染缩放
     shadow: 主题色动态阴影
   audit-report:
-    status: 状态：{status}
+    status: '状态：{status}'
     critical-issues: 严重问题
     warnings: 警告
 websocket-secure-enabled:

@@ -157,7 +157,7 @@ about:
       admin-required:
         title: 需要管理员权限
         description: AIRI 安装在受保护的 Windows 文件夹中，安装更新时 Windows 可能会弹出用户账户控制（UAC）窗口请求管理员权限。
-        path: 安装位置：{path}
+        path: '安装位置：{path}'
       downgrade-available:
         title: 此更新是旧版本
         description: 所选更新频道提供的版本比当前版本更旧。安装此更新会将 AIRI 降级到旧版本。

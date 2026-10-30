@@ -33,15 +33,9 @@ chat:
   voice-composer:
     audio: Mensaje de voz
     transcription: Dictado
-    hold-hint: Mantén pulsado para grabar. Haz clic para cambiar entre mensaje de voz y dictado. Pulsa Enter para grabar sin mantener pulsado.
     listening: Escuchando…
-    lock: Desliza hacia arriba para bloquear
-    cancel-hint: Desliza hacia la izquierda para cancelar
     processing: Finalizando…
     cancel: Cancelar
-    send: Enviar mensaje de voz
-    insert: Insertar texto
-    retry: Volver a enviar el mensaje de voz
     discard: Descartar mensaje de voz
     failed: La entrada de voz falló
     configure-title: Configurar Audición
