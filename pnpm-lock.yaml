@@ -2495,17 +2495,17 @@ importers:
         specifier: 'catalog:'
         version: 0.10.0(vue@3.5.41(typescript@6.0.3))
       '@gd-kirie/ipc':
-        specifier: 0.15.3
-        version: 0.15.3
+        specifier: 0.16.0
+        version: 0.16.0
       '@gd-kirie/ipc-eventa':
-        specifier: 0.15.3
-        version: 0.15.3(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+        specifier: 0.16.0
+        version: 0.16.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
       '@gd-kirie/notifications':
         specifier: 0.15.0
         version: 0.15.0(@types/node@26.2.0)(electron@43.8.4(supports-color@10.2.2))(esbuild@0.28.2)(hono@4.13.3)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(web-worker@1.5.0)(yaml@2.9.1)
       '@gd-kirie/platform':
-        specifier: 0.15.3
-        version: 0.15.3(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+        specifier: 0.16.0
+        version: 0.16.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
       '@guiiai/logg':
         specifier: 'catalog:'
         version: 1.2.12
@@ -2797,7 +2797,7 @@ importers:
     devDependencies:
       '@gd-kirie/tray':
         specifier: 0.15.0
-        version: 0.15.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(kirie@0.15.3(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)))(web-worker@1.5.0)
+        version: 0.15.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(kirie@0.16.0(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)))(web-worker@1.5.0)
       '@iconify-json/carbon':
         specifier: 'catalog:'
         version: 1.2.25
@@ -2913,8 +2913,8 @@ importers:
         specifier: 'catalog:'
         version: 43.8.4(supports-color@10.2.2)
       kirie:
-        specifier: 0.15.3
-        version: 0.15.3(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))
+        specifier: 0.16.0
+        version: 0.16.0(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))
       less:
         specifier: 'catalog:'
         version: 4.9.0(supports-color@10.2.2)
@@ -8726,28 +8726,28 @@ packages:
   '@gd-kirie/build@0.15.0':
     resolution: {integrity: sha512-ezOakWa9yhJ+oLCqERNM2nTOBt6uhV1A0zTfQ8mTy03CYQdJ0XFtTFitgkOYh0P7wB53MUsIVdvnMTmqurf71A==}
 
-  '@gd-kirie/build@0.15.3':
-    resolution: {integrity: sha512-1LPjM5Voqi6/MOM0+wZoBukok5FkXQTxPAujIN8ry/DUjauGIZT21r2HR2pm1+x5+997karNDtlSIQuNcpHVsQ==}
+  '@gd-kirie/build@0.16.0':
+    resolution: {integrity: sha512-2aurwk7JFibPQm44O8AHLzkVDqGXosW9x3mL+dg+whb2JyhOlHjupfWaNNREKVfn2MGqf6PGwXvSYrbtYmJ0/g==}
     peerDependencies:
       vite: ^7.0.0 || ^8.0.0
 
   '@gd-kirie/ipc-eventa@0.15.0':
     resolution: {integrity: sha512-FVMfU0Jbodxab7ZGLpdQkYNR07/TX6Jwhe34wv+i9LndRviO1m/7MqA9ZEZrc/XZ+PpZWXTKO1zh+p899GJuIA==}
 
-  '@gd-kirie/ipc-eventa@0.15.3':
-    resolution: {integrity: sha512-FqZV/VB3KFV6SYHn7at8IDJmnK1IeQzUP6v99jniVGhuT7Lo1Ql1jt7lpKtN+KIfJ4y6ptS06OXjuEbvb/L+TA==}
+  '@gd-kirie/ipc-eventa@0.16.0':
+    resolution: {integrity: sha512-9/FMbE38sTnCCmHuaVtXyvelnvwz+OjmaRQI20ifzB/YzvsGxskcv4dMRTxUojzc6PkDUUsjZ1JGZhpzoTQWAw==}
 
   '@gd-kirie/ipc@0.15.0':
     resolution: {integrity: sha512-FRBzqVob7d31sEzwjbBC/DANBAOSt4ZTiH7O9qzrGs6Q5P9GNUX+H4ppSVMtiEzya5PVc53Vc+ap2D667ZeX+w==}
 
-  '@gd-kirie/ipc@0.15.3':
-    resolution: {integrity: sha512-n7KxGKK3atRGSnsPbcFrcTf7r8TsBbzuaKhLuBBSsZR/oOlsKm9yMYmpg+yeSmChCiBsC30blkCGQuTehyWLpw==}
+  '@gd-kirie/ipc@0.16.0':
+    resolution: {integrity: sha512-n3bgdi6e2IwMgwG6YcQX6xx4W4UwaNYthVbP+1RDSJEyKTipYDHS/voTumnkQJdk3VhPCXOf5oZt9w2+NEHALQ==}
 
   '@gd-kirie/notifications@0.15.0':
     resolution: {integrity: sha512-1EEsf/5mul2C0Zl/ogws6/DryDdDGeuRRnbwqyOSO3p9hMQ+vJaOwl42pm3yRdm8VhYzMIeLombmxBHcCzzrzg==}
 
-  '@gd-kirie/platform@0.15.3':
-    resolution: {integrity: sha512-5vUn/2zb3dI2/tHFo7YBOiNwEIRyKBrOicgV3EMrr+ayPNQwqR/2O6Nl+6yJshPqcUKsBg+8GFzva/RazC2XPQ==}
+  '@gd-kirie/platform@0.16.0':
+    resolution: {integrity: sha512-DvEJlIWRhyp5pfr/psMhHj0nz/gjyAF6n9hau0OG2iNy0dchBfaz/nWrggH9I55NnmpMrKOouVQ+AEoOrPW8Sg==}
 
   '@gd-kirie/tray@0.15.0':
     resolution: {integrity: sha512-CQ2TQX+lAYIrg2htpeTPJI+GwbOBt6aCbSsQB6RbXJPykAzQgwa1+mIz/kiyrurGf9Ae2F7okt3m2OvLanxXfA==}
@@ -17031,8 +17031,8 @@ packages:
     resolution: {integrity: sha512-C73UtJrsXjM8MJZ+eCGGt4cOiXa2cpniHgp+KBgYsKZxebWBK4zGGOexT2f5bBg6sHWAVW0iy28mNwGIubskCg==}
     hasBin: true
 
-  kirie@0.15.3:
-    resolution: {integrity: sha512-Gxyl8qNgDvQepH78C3C/avssr737L3/XaB+q4rgTUeOaaPyuKkH6866vOqgnY9ucDjDiBdHjHQBeJ7jTG2K93w==}
+  kirie@0.16.0:
+    resolution: {integrity: sha512-S9ffSssf3TZMBL7eKf6O2wJgn4jz8R6lqEkg3feHPxjFuIF2DXVDOi1s6VW/Bv8b9CHg9V8D1ZGwIS+HXy+W9Q==}
     hasBin: true
     peerDependencies:
       vite: ^7.0.0 || ^8.0.0
@@ -23633,7 +23633,7 @@ snapshots:
       - tsx
       - yaml
 
-  '@gd-kirie/build@0.15.3(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))':
+  '@gd-kirie/build@0.16.0(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))':
     dependencies:
       execa: 9.6.1
       ini: 7.0.0
@@ -23650,9 +23650,9 @@ snapshots:
       - hono
       - web-worker
 
-  '@gd-kirie/ipc-eventa@0.15.3(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
+  '@gd-kirie/ipc-eventa@0.16.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
-      '@gd-kirie/ipc': 0.15.3
+      '@gd-kirie/ipc': 0.16.0
       '@moeru/eventa': 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.2(crossws@0.4.12(srvx@1.0.5)))(hono@4.13.3)(web-worker@1.5.0)
     transitivePeerDependencies:
       - '@tauri-apps/api'
@@ -23665,7 +23665,7 @@ snapshots:
     dependencies:
       cborg: 4.5.8
 
-  '@gd-kirie/ipc@0.15.3':
+  '@gd-kirie/ipc@0.16.0':
     dependencies:
       cborg: 4.5.8
 
@@ -23693,9 +23693,9 @@ snapshots:
       - web-worker
       - yaml
 
-  '@gd-kirie/platform@0.15.3(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
+  '@gd-kirie/platform@0.16.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
-      '@gd-kirie/ipc-eventa': 0.15.3(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+      '@gd-kirie/ipc-eventa': 0.16.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/eventa': 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.2(crossws@0.4.12(srvx@1.0.5)))(hono@4.13.3)(web-worker@1.5.0)
     transitivePeerDependencies:
       - '@tauri-apps/api'
@@ -23704,11 +23704,11 @@ snapshots:
       - hono
       - web-worker
 
-  '@gd-kirie/tray@0.15.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(kirie@0.15.3(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)))(web-worker@1.5.0)':
+  '@gd-kirie/tray@0.15.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(kirie@0.16.0(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)))(web-worker@1.5.0)':
     dependencies:
       '@gd-kirie/ipc-eventa': 0.15.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/eventa': 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.2(crossws@0.4.12(srvx@1.0.5)))(hono@4.13.3)(web-worker@1.5.0)
-      kirie: 0.15.3(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))
+      kirie: 0.16.0(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))
     transitivePeerDependencies:
       - '@tauri-apps/api'
       - electron
@@ -32517,9 +32517,9 @@ snapshots:
       - tsx
       - yaml
 
-  kirie@0.15.3(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)):
+  kirie@0.16.0(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)):
     dependencies:
-      '@gd-kirie/build': 0.15.3(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))
+      '@gd-kirie/build': 0.16.0(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))
       citty: 0.2.2
       execa: 9.6.1
       giget: 3.3.0
