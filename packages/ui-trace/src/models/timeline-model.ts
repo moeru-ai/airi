@@ -1,9 +1,13 @@
 import type { TracePresetDefinition } from '@proj-airi/trace-kit'
 import type { TimelineSpan, TimelineState, TimelineTrack } from '@proj-airi/trace-kit/projections'
+import type { TraceItemRef } from '@proj-airi/trace-kit/views'
+import type { ListedItem, TimelineRange } from '@proj-airi/ui-timeline/headless'
 
 import { ROW_GEOMETRY } from '@proj-airi/timeline-canvas'
 import { localize } from '@proj-airi/trace-kit'
 import { hashColor, presetMatches } from '@proj-airi/trace-kit/views'
+
+import { spanFacts } from './trace-lookup'
 
 /** One drawn row of the timeline. A span track has one row for each nesting depth and sub-lane. */
 export interface TimelineRow {
@@ -128,4 +132,41 @@ export function rowHeightOf(row: TimelineRow): number {
 /** Whether a span is drawn in a row. */
 export function spanInRow(span: TimelineSpan, row: TimelineRow): boolean {
   return span.depth === row.depth && span.lane === row.lane
+}
+
+/**
+ * The items of a row in a range, for the hidden item list that keyboards and screen readers use. It lists what the
+ * canvas of the row can select: the spans of the row, and on the first row also the state bands and the instants
+ * outside spans. An unknown state draws no band, and an instant of a span belongs to its span.
+ */
+export function rowListItems(row: TimelineRow, rowIndex: number, range: TimelineRange, limit: number): ListedItem<TraceItemRef>[] {
+  const items: ListedItem<TraceItemRef>[] = []
+  if (row.hidden)
+    return items
+  for (const span of row.track.spans) {
+    if (items.length >= limit)
+      return items
+    if (!spanInRow(span, row) || span.start > range.to || (span.end ?? Number.POSITIVE_INFINITY) < range.from)
+      continue
+    const facts = spanFacts(span, row.track)
+    items.push({ target: { kind: 'span', key: span.key }, label: [span.name, facts.activity, facts.duration, facts.status].filter(Boolean).join(' · '), row: rowIndex, start: span.start, end: span.end })
+  }
+  if (!row.primary)
+    return items
+  for (const [index, change] of row.track.states.entries()) {
+    if (items.length >= limit)
+      return items
+    const end = row.track.states[index + 1]?.time
+    if (change.value === 'unknown' || change.time > range.to || (end ?? Number.POSITIVE_INFINITY) < range.from)
+      continue
+    items.push({ target: { kind: 'state', key: change.key }, label: `State: ${change.value}`, row: rowIndex, start: change.time, end })
+  }
+  for (const instant of row.track.instants) {
+    if (items.length >= limit)
+      return items
+    if (instant.spanKey || instant.time < range.from || instant.time > range.to)
+      continue
+    items.push({ target: { kind: 'instant', key: instant.key }, label: instant.name, row: rowIndex, start: instant.time, end: instant.time })
+  }
+  return items
 }

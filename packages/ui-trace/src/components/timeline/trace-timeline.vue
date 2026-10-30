@@ -25,7 +25,7 @@ import { useI18n } from 'vue-i18n'
 import TraceHoverCard from './trace-hover-card.vue'
 
 import { detailRowModel, laneRowModel, SeriesCache } from '../../models/canvas-model'
-import { rowHeightOf } from '../../models/timeline-model'
+import { rowHeightOf, rowListItems } from '../../models/timeline-model'
 import { linkRelationLabel, spanFacts } from '../../models/trace-lookup'
 import { themedColor } from '../../utils/colors'
 import { iconGlyph, loadIconGlyphs } from '../../utils/icon-glyphs'
@@ -201,20 +201,15 @@ function capsuleContentOf(entry: TraceRowEntry, view: TimelineView): CapsuleCont
   return key === undefined ? undefined : { kind: 'chart', series: seriesCache.get(track, key) }
 }
 
-/** The spans of the visible detail rows in a range, for the hidden item list that screen readers and tests read. */
+/** The items of the visible detail rows in a range, for the hidden item list that keyboards and screen readers use. */
 function listItems(range: TimelineRange): ListedItem<TraceItemRef>[] {
   const items: ListedItem<TraceItemRef>[] = []
   for (const [index, entry] of rows.value.entries()) {
-    if (entry.kind !== 'detail' || entry.row.hidden)
+    if (entry.kind !== 'detail')
       continue
-    for (const span of entry.row.track.spans) {
-      if (items.length >= MAX_LISTED_ITEMS)
-        return items
-      if (span.depth !== entry.row.depth || span.lane !== entry.row.lane || span.start > range.to || (span.end ?? Number.POSITIVE_INFINITY) < range.from)
-        continue
-      const facts = spanFacts(span, entry.row.track)
-      items.push({ target: { kind: 'span', key: span.key }, label: [span.name, facts.activity, facts.duration, facts.status].filter(Boolean).join(' · '), row: index, start: span.start, end: span.end })
-    }
+    items.push(...rowListItems(entry.row, index, range, MAX_LISTED_ITEMS - items.length))
+    if (items.length >= MAX_LISTED_ITEMS)
+      break
   }
   return items
 }

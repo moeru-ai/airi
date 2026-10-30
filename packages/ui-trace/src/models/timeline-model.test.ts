@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest'
 
 import { detailRowModel, SeriesCache } from './canvas-model'
 import { buildEntityLanes } from './entity-lanes'
-import { buildRows, rowHeightOf } from './timeline-model'
+import { buildRows, rowHeightOf, rowListItems } from './timeline-model'
 
 function timelineOf(inputs: TraceRecordInput[]) {
   return readTimeline(inputs, { profiles: [voiceProfile, agentProfile] })
@@ -107,6 +107,26 @@ describe('timeline model', () => {
 
     // The next trace has the same path, first time, count, and revision, but other values.
     expect(peak([chunk(0.9)])).toBeCloseTo(0.9)
+  })
+
+  it('lists the states and the instants that the first row of a track draws, so a keyboard can reach them', () => {
+    const { state } = timelineOf([
+      { type: 'state', ts: 0, track: 'participants/user/vad', value: 'speaking' },
+      { type: 'state', ts: 500, track: 'participants/user/vad', value: 'unknown' },
+      { type: 'instant', ts: 200, track: 'participants/user/vad', name: 'vad.peak' },
+      { type: 'span.begin', ts: 100, track: 'participants/user/vad', spanId: 's', name: 'segment' },
+      { type: 'instant', ts: 150, track: 'participants/user/vad', spanId: 's', name: 'inside.span' },
+    ])
+    const rows = buildRows(state, { locale: 'en', hideEmpty: true }).filter(row => row.track.path === 'participants/user/vad')
+    const items = rows.flatMap((row, index) => rowListItems(row, index, { from: 0, to: 1000 }, 100))
+
+    // The canvas draws no band for an unknown state, and an instant of a span belongs to the span.
+    expect(items.map(item => [item.target.kind, item.label])).toEqual([
+      ['span', expect.stringContaining('segment')],
+      ['state', 'State: speaking'],
+      ['instant', 'vad.peak'],
+    ])
+    expect(items.find(item => item.target.kind === 'state')).toMatchObject({ start: 0, end: 500 })
   })
 
   it('keeps the lane of a track that has only samples', () => {
