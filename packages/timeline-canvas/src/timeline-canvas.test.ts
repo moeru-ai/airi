@@ -252,6 +252,32 @@ describe('capsules', () => {
     expect(table.styles).toHaveLength(2)
   })
 
+  it('rejects a style index that a column cannot store, and leaves the column unchanged', () => {
+    const intervals = new IntervalColumn()
+    expect(() => intervals.append(0, 10, 65_536, 'a')).toThrow(RangeError)
+    expect(() => intervals.append(0, 10, -1, 'a')).toThrow(RangeError)
+    expect(intervals.count).toBe(0)
+    expect(intervals.keys).toEqual([])
+    intervals.append(0, 10, 65_535, 'a')
+    expect(intervals.styles[0]).toBe(65_535)
+    expect(() => intervals.setStyle(0, 65_536)).toThrow(RangeError)
+    expect(intervals.styles[0]).toBe(65_535)
+
+    const points = new PointColumn()
+    expect(() => points.append(0, 65_536, 'a')).toThrow(RangeError)
+    expect(points.count).toBe(0)
+  })
+
+  it('stores at most as many styles as a column can index', () => {
+    const table = new StyleTable()
+    for (let index = 0; index < 65_536; index++)
+      table.index({ color: `#${index.toString(16).padStart(6, '0')}` })
+    // A known style still resolves when the table is full.
+    expect(table.index({ color: '#000000' })).toBe(0)
+    expect(() => table.index({ color: '#ffffff' })).toThrow(RangeError)
+    expect(table.styles).toHaveLength(65_536)
+  })
+
   it('centers lane items and insets detail items', () => {
     expect(rowItemGeometry('lane', 100, ROW_GEOMETRY.height.lane)).toEqual({ top: 112, height: 30, radius: 6 })
     expect(rowItemGeometry('detail', 100, ROW_GEOMETRY.height.detail)).toEqual({ top: 104, height: 26, radius: 4 })

@@ -4,6 +4,18 @@ import { lowerBound, upperBound } from './search'
 const GROWTH = 2
 const INITIAL_CAPACITY = 64
 
+/**
+ * The largest style index that a column stores. The styles are a `Uint16Array`, so a million items take 2 MB of styles.
+ * A row needs a few dozen styles.
+ */
+export const MAX_STYLE_INDEX = 0xFFFF
+
+/** Rejects a style index that a `Uint16Array` cannot hold, because the array would wrap it to another style. */
+export function assertStyleIndex(style: number): void {
+  if (!Number.isInteger(style) || style < 0 || style > MAX_STYLE_INDEX)
+    throw new RangeError(`Style index ${style} is not an integer from 0 to ${MAX_STYLE_INDEX}`)
+}
+
 /** A copy of a typed array with more capacity. */
 export function grow<T extends Float64Array | Float32Array | Uint16Array>(array: T, capacity: number): T {
   const next = new (array.constructor as new (length: number) => T)(capacity)
@@ -33,6 +45,7 @@ export class IntervalColumn {
   readonly openIndices = new Set<number>()
 
   append(start: number, end: number | undefined, style: number, key: string): number {
+    assertStyleIndex(style)
     this.ensureCapacity(this.count + 1)
     let index = this.count
     if (index > 0 && this.starts[index - 1]! > start) {
@@ -65,6 +78,7 @@ export class IntervalColumn {
   }
 
   setStyle(index: number, style: number): void {
+    assertStyleIndex(style)
     this.styles[index] = style
   }
 
@@ -104,6 +118,7 @@ export class PointColumn {
   count = 0
 
   append(time: number, style: number, key: string): number {
+    assertStyleIndex(style)
     if (this.count + 1 > this.times.length) {
       const next = this.times.length * GROWTH
       this.times = grow(this.times, next)

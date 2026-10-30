@@ -1,5 +1,7 @@
 import type { ItemStyle } from './draw'
 
+import { MAX_STYLE_INDEX } from './columns'
+
 /** Colors of the capsule states that do not come from the item. */
 export const CAPSULE_COLORS = {
   /** The failure dot and failure text. */
@@ -96,7 +98,8 @@ export function laneCapsuleStyle(state: CapsuleState): ItemStyle {
 }
 
 /**
- * A table that stores each distinct style once, so columns store small style indices.
+ * A table that stores each distinct style once, so columns store small style indices. It holds at most
+ * {@link MAX_STYLE_INDEX} + 1 styles, and a new style past that throws a `RangeError`.
  *
  * @example
  * const table = new StyleTable()
@@ -112,6 +115,8 @@ export class StyleTable {
     let index = this.indices.get(key)
     if (index === undefined) {
       index = this.styles.length
+      if (index > MAX_STYLE_INDEX)
+        throw new RangeError(`A style table holds at most ${MAX_STYLE_INDEX + 1} styles, the most that a column can index`)
       this.styles.push(style)
       this.indices.set(key, index)
     }
