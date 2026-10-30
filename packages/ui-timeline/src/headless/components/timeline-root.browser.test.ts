@@ -43,4 +43,18 @@ describe('timeline root', () => {
     context().zoomAt(5000, 0.25)
     await expect.element(page.getByText(`Tick step ${zoomed}`)).toBeInTheDocument()
   })
+
+  it('keeps the keyboard focus of an item after a quiet focus of the item that has focus', async () => {
+    const context = mountTimeline()
+    const item = page.getByRole('button', { name: 'Item a' })
+    ;(item.element() as HTMLElement).focus()
+    await expect.element(page.getByText('Keyboard focus a')).toBeInTheDocument()
+
+    // A click on the canvas item of the focused button focuses it quietly. The button has focus, so no focus event fires.
+    context().focusItem('a', { quiet: true })
+    ;(page.getByRole('button', { name: 'Item b' }).element() as HTMLElement).focus()
+    ;(item.element() as HTMLElement).focus()
+
+    await expect.element(page.getByText('Keyboard focus a')).toBeInTheDocument()
+  })
 })

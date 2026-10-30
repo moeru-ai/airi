@@ -271,10 +271,14 @@ const focusedKey = shallowRef<string>()
 
 function focusItem(key: string, options: { quiet?: boolean } = {}) {
   const button = itemListElement.value?.querySelector<HTMLElement>(`[data-item-key="${CSS.escape(key)}"]`)
-  if (!button)
+  // A button that has focus fires no focus event, so a quiet mark for it stays. It keeps its keyboard focus.
+  if (!button || button === document.activeElement)
     return
   quietKey = options.quiet ? key : undefined
   button.focus({ preventScroll: true })
+  // The focus event takes the mark. A focus that did not land fires no event, so the mark goes here.
+  if (document.activeElement !== button)
+    quietKey = undefined
 }
 
 function takeQuietFocus(key: string): boolean {
