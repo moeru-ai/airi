@@ -2,7 +2,7 @@ import type { Page } from 'playwright'
 
 import { describe, expect, it } from '../../src'
 import { configureModuleHearing, configureOnboarding } from '../shared/configurations'
-import { enableHearingPlaygroundMicrophone, readHearingPlaygroundTranscriptions } from '../shared/interactions'
+import { enableHearingPlaygroundMicrophone, openHearingPlayground, readHearingPlaygroundTranscriptions } from '../shared/interactions'
 import { appleSpeechAsr } from '../shared/providers'
 
 // ROOT CAUSE:
@@ -38,13 +38,8 @@ async function waitForStoredLocale(page: Page, locale: string) {
 
 describe('Apple Speech audio input', () => {
   it('configures the native locale and transcribes through the Electron Provider', { input, preflight }, async ({ audio }) => {
-    const page = audio.runtimePage
+    const page = await openHearingPlayground(audio)
     audio.activatePage(page)
-    await page.evaluate(() => {
-      window.location.hash = '/settings/modules/hearing/transcriber'
-    })
-    await page.waitForURL(/#\/settings\/modules\/hearing/)
-    await page.getByTestId('hearing-playground-monitor-toggle').waitFor({ state: 'visible', timeout: 60_000 })
     const localeCombobox = page.getByTestId('apple-speech-locale').getByRole('combobox')
     try {
       await localeCombobox.waitFor({ state: 'visible', timeout: 10_000 })
