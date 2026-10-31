@@ -1046,6 +1046,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     if (ownerId === 'local' || !cloudSyncEnabled.value)
       return
 
+    await migratePreIruCard()
+
     syncClient ??= createDocumentSyncClient({ serverUrl: SERVER_URL, path: CARDS_PATH, fetch: authedFetch })
     // The cloud state of the earlier account does not describe this account.
     if (syncedOwnerId !== ownerId) {
@@ -1228,6 +1230,36 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   // reports it. The store has no actions during setup, so wait for it.
   queueMicrotask(requestCardSynchronization)
 
+  // NOTICE:
+  // The stored `default` card is a copy of the built-in ReLU card.
+  // Give it the name and the description of Iru, except the parts that the user edited.
+  // Source: https://github.com/moeru-ai/airi/pull/3287
+  // Removal condition: two stable releases after the release in which every locale names Iru.
+  /**
+   * Runs in the leader at the end of `initialize` and before each card sync run.
+   * Sync can run before `initialize`, and an unmigrated card sends `ReLU` as a name edit.
+   * A second call changes nothing.
+   */
+  async function migratePreIruCard() {
+    const description = cards.value.get('default')?.description ?? ''
+    const builtInDescription = preIruBuiltInDescriptionHashes.has(await sha256Hex(description))
+    // A sync run can change the card during the digest. Read it again, so the write keeps that change.
+    const card = toRaw(cards.value.get('default'))
+    if (!card)
+      return
+
+    const renamed = card.name === 'ReLU'
+    const describedBuiltIn = builtInDescription && (card.description ?? '') === description
+    if (!renamed && !describedBuiltIn)
+      return
+
+    cards.value.set('default', {
+      ...card,
+      name: renamed ? builtInCard.value.name : card.name,
+      description: describedBuiltIn ? builtInCard.value.description : card.description,
+    })
+  }
+
   /** Applies the initial card while preserving setup context when no auth work is pending. */
   async function initialize() {
     // Awaiting undefined would leave component setup before the first runtime
@@ -1313,24 +1345,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
     await applyActiveCardSettings()
 
-    // NOTICE:
-    // The stored `default` card is a copy of the built-in ReLU card.
-    // Give it the name and the description of Iru, except the parts that the user edited.
-    // The hash awaits, so it runs after the runtime stores bind i18n above.
-    // Source: https://github.com/moeru-ai/airi/pull/3287
-    // Removal condition: two stable releases after the release in which every locale names Iru.
-    const preIruCard = toRaw(cards.value.get('default'))
-    if (preIruCard) {
-      const renamed = preIruCard.name === 'ReLU'
-      const builtInDescription = preIruBuiltInDescriptionHashes.has(await sha256Hex(preIruCard.description ?? ''))
-      if (renamed || builtInDescription) {
-        cards.value.set('default', {
-          ...preIruCard,
-          name: renamed ? builtInCard.value.name : preIruCard.name,
-          description: builtInDescription ? builtInCard.value.description : preIruCard.description,
-        })
-      }
-    }
+    await migratePreIruCard()
 
     ready.value = true
   }

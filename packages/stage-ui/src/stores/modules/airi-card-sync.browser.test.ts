@@ -233,6 +233,29 @@ describe('card synchronization across windows', () => {
     expect(onError).not.toHaveBeenCalled()
   })
 
+  // Found in the review of https://github.com/moeru-ai/airi/pull/3287
+  // ROOT CAUSE:
+  //
+  // Only `initialize` migrated the stored ReLU card. A sync run that started
+  // before `initialize` compared it with the Iru built-in card and sent `ReLU`
+  // as a name edit.
+  //
+  // We fixed this by migrating the card before each sync run.
+  it('sends no name for a stored ReLU card when sync runs before initialize', async () => {
+    const leaderRuntime = createSyncedPiniaPlugin({ namespace: `card-sync-${crypto.randomUUID()}`, leadership: 'leader-only', onError: vi.fn() })
+    const leader = createContext(leaderRuntime)
+    leaders.push(leader.cards)
+    await expect.poll(() => leaderRuntime.isLeader()).toBe(true)
+    leader.cards.cards.set('default', { name: 'ReLU', version: '1.0.0', description: 'My own story', extensions: leader.cards.builtInCard.extensions })
+
+    signIn(leader.auth, accountId())
+    await leader.cards.synchronizeCards()
+
+    expect(leader.cards.cards.get('default')).toMatchObject({ name: 'Iru', description: 'My own story' })
+    expect(server.documents.get('default')?.fields.has('/name')).not.toBe(true)
+    expect(server.documents.get('default')?.fields.get('/description')?.value).toBe('My own story')
+  })
+
   // https://github.com/moeru-ai/airi/issues/3124
   //
   // The selection is leader-owned. `activateCard` is listed in `synced.actions`, so
