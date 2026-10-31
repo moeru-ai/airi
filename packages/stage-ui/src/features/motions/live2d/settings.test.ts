@@ -27,27 +27,31 @@ describe('live2d MAGIC settings', () => {
     const { useLive2DMotionMagicSettings } = await import('./settings')
     const settings = useLive2DMotionMagicSettings()
 
-    expect(settings.profileId).toBe('speaking-excited')
+    expect(settings.idleProfileId).toBe('idle-calm')
+    expect(settings.speakingProfileId).toBe('speaking-excited')
+    expect(settings.followSpeech).toBe(true)
     expect(settings.skipMouthOpen).toBe(true)
     expect(settings.forceViewTarget).toBe(true)
 
+    settings.idleProfileId = 'speaking-excited'
+    settings.followSpeech = false
     settings.skipMouthOpen = false
     settings.forceViewTarget = false
     settings.resetState()
 
-    expect(settings.profileId).toBe('speaking-excited')
+    expect(settings.idleProfileId).toBe('idle-calm')
+    expect(settings.followSpeech).toBe(true)
     expect(settings.skipMouthOpen).toBe(true)
     expect(settings.forceViewTarget).toBe(true)
   })
 
   it('loads the bundled idle-calm profile', async () => {
-    persistedValues.set('settings/live2d/magic/profile', 'idle-calm')
     const { live2dMotionMagicProfiles, useLive2DMotionMagicSettings } = await import('./index')
 
     const settings = useLive2DMotionMagicSettings()
-    const dataset = live2dMotionMagicProfiles[settings.profileId].dataset
+    const dataset = live2dMotionMagicProfiles[settings.idleProfileId].dataset
 
-    expect(settings.profileId).toBe('idle-calm')
+    expect(settings.idleProfileId).toBe('idle-calm')
     expect(dataset.format).toBe('airi-live2d-motion/v6')
     expect(dataset.durationMs).toBe(64501)
     expect(dataset.samples).toHaveLength(1871)
@@ -63,12 +67,14 @@ describe('live2d MAGIC settings', () => {
   // Before the fix, the store returned `idle-excited` unchanged.
   // We fixed this by resetting unknown persisted profile IDs at the storage boundary.
   it('resets a persisted profile ID that is not in the profile registry', async () => {
-    persistedValues.set('settings/live2d/magic/profile', 'idle-excited')
+    persistedValues.set('settings/live2d/magic/idle-profile', 'idle-excited')
+    persistedValues.set('settings/live2d/magic/speaking-profile', 'idle-excited')
     const { live2dMotionMagicProfiles, useLive2DMotionMagicSettings } = await import('./index')
 
     const settings = useLive2DMotionMagicSettings()
 
-    expect(() => live2dMotionMagicProfiles[settings.profileId].dataset).not.toThrow()
-    expect(settings.profileId).toBe('speaking-excited')
+    expect(() => live2dMotionMagicProfiles[settings.idleProfileId].dataset).not.toThrow()
+    expect(settings.idleProfileId).toBe('idle-calm')
+    expect(settings.speakingProfileId).toBe('speaking-excited')
   })
 })

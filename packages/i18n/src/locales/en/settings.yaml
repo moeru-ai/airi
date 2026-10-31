@@ -218,9 +218,16 @@ live2d:
           title: MAGIC
           description: Generate motion from the bundled MAGIC dataset.
       magic:
+        idle-profile:
+          title: Idle profile
+          description: Select the motion dataset that MAGIC plays while AIRI does not speak.
+        speaking-profile:
+          title: Speaking profile
+          description: Select the motion dataset that MAGIC plays while AIRI replies.
+        follow-speech:
+          title: Follow speech
+          description: Blend to the speaking profile while the voice of AIRI plays. Blend back to the idle profile after the voice stops.
         profile:
-          title: MAGIC profile
-          description: Select the bundled motion dataset that fits the MAGIC driver.
           options:
             idle-calm:
               title: Idle / calm
