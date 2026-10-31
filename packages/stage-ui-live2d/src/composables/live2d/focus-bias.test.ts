@@ -5,16 +5,23 @@ import {
   applyLive2DFocusBias,
   createLive2DFocusBias,
   live2DFocusTargetFromModelPoint,
+  live2DPoseAngleDegrees,
 } from './focus-bias'
 
 describe('applyLive2DFocusBias', () => {
-  it('turns the head part of the way and the eyes the rest', () => {
-    const pose = applyLive2DFocusBias(neutralPose, { x: 1, y: 0, weight: 1 }, { headGain: 0.5, bodyGain: 0.2 })
+  it('turns the head and the body part of the way and the eyes the rest', () => {
+    // ROOT CAUSE:
+    //
+    // The eye residual subtracted only the head turn. The body turn also carries the head, so the gaze passed the target.
+    //
+    // We fixed this by subtracting the body turn at its own angle scale.
+    const pose = applyLive2DFocusBias(neutralPose, { x: 1, y: 0, weight: 1 }, { headGain: 0.5, bodyGain: 0.3 })
+    const bodyInHeadUnits = pose.bodyX * live2DPoseAngleDegrees.body / live2DPoseAngleDegrees.head
 
     expect(pose.headX).toBeCloseTo(0.5)
-    expect(pose.bodyX).toBeCloseTo(0.2)
-    expect(pose.eyeX).toBeCloseTo(0.5)
-    expect(pose.headX + pose.eyeX).toBeCloseTo(1)
+    expect(pose.bodyX).toBeCloseTo(0.3)
+    expect(pose.eyeX).toBeCloseTo(0.4)
+    expect(pose.headX + bodyInHeadUnits + pose.eyeX).toBeCloseTo(1)
   })
 
   it('keeps the generated motion under the bias', () => {

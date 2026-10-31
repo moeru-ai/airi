@@ -8,6 +8,16 @@ export interface Live2DFocusTarget {
   y: number
 }
 
+/**
+ * Degrees of the Cubism angle parameters for one unit of a normalized pose axis.
+ *
+ * The manual control plugin writes `ParamAngle*` and `ParamBodyAngle*` with these scales, so the gaze math uses them too.
+ */
+export const live2DPoseAngleDegrees = Object.freeze({ head: 30, body: 10 })
+
+/** The body turn in units of the head turn. */
+const bodyToHead = live2DPoseAngleDegrees.body / live2DPoseAngleDegrees.head
+
 /** How strongly a focus target biases a generated pose. */
 export interface Live2DFocusBiasOptions {
   /** Share of the target that the head turns to. The eyes turn the remaining share. @default 0.55 */
@@ -60,8 +70,9 @@ function smoothingFactor(elapsedSeconds: number, timeConstantSeconds: number): n
  * Biases a generated pose toward a focus target.
  *
  * The head and the body turn a part of the way to the target. The eyes cover
- * the rest, measured from the turned head, so the gaze lands on the target
- * while the generated motion continues around it.
+ * the rest, measured from the turned head and body, so the gaze lands on the
+ * target while the generated motion continues around it. The body turns the
+ * head with it, so its angle counts at its own scale.
  */
 export function applyLive2DFocusBias(
   pose: Pose,
@@ -74,14 +85,15 @@ export function applyLive2DFocusBias(
 
   const headX = clampAxis(pose.headX + bias.x * options.headGain * weight)
   const headY = clampAxis(pose.headY + bias.y * options.headGain * weight)
-  const gazeX = clampAxis(bias.x - headX)
+  const bodyX = clampAxis(pose.bodyX + bias.x * options.bodyGain * weight)
+  const gazeX = clampAxis(bias.x - headX - bodyX * bodyToHead)
   const gazeY = clampAxis(bias.y - headY)
 
   return {
     ...pose,
     headX,
     headY,
-    bodyX: clampAxis(pose.bodyX + bias.x * options.bodyGain * weight),
+    bodyX,
     eyeX: pose.eyeX + (gazeX - pose.eyeX) * weight,
     eyeY: pose.eyeY + (gazeY - pose.eyeY) * weight,
   }

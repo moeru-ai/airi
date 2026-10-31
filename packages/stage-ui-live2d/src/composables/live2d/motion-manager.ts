@@ -9,6 +9,7 @@ import type { Live2DMotionSpringController } from './motion-control-spring'
 
 import { sampleLive2DBreath } from '../../stores/motion-control'
 import { useLive2DIdleEyeFocus } from './animation'
+import { live2DPoseAngleDegrees } from './focus-bias'
 
 type CubismModel = Cubism4InternalModel['coreModel']
 type CubismEyeBlink = Cubism4InternalModel['eyeBlink']
@@ -739,12 +740,12 @@ export function useMotionUpdatePluginManualControl(
     const remainingEyeOpen = 1 - eyeSquint
     ctx.model.setParameterValueById('ParamEyeLOpen', ctx.model.getParameterValueById('ParamEyeLOpen') * remainingEyeOpen)
     ctx.model.setParameterValueById('ParamEyeROpen', ctx.model.getParameterValueById('ParamEyeROpen') * remainingEyeOpen)
-    ctx.model.setParameterValueById('ParamAngleX', headX * 30)
-    ctx.model.setParameterValueById('ParamAngleY', headY * 30)
-    ctx.model.setParameterValueById('ParamAngleZ', headZ * 30)
-    ctx.model.setParameterValueById('ParamBodyAngleX', bodyX * 10)
-    ctx.model.setParameterValueById('ParamBodyAngleY', bodyY * 10)
-    ctx.model.setParameterValueById('ParamBodyAngleZ', bodyZ * 10)
+    ctx.model.setParameterValueById('ParamAngleX', headX * live2DPoseAngleDegrees.head)
+    ctx.model.setParameterValueById('ParamAngleY', headY * live2DPoseAngleDegrees.head)
+    ctx.model.setParameterValueById('ParamAngleZ', headZ * live2DPoseAngleDegrees.head)
+    ctx.model.setParameterValueById('ParamBodyAngleX', bodyX * live2DPoseAngleDegrees.body)
+    ctx.model.setParameterValueById('ParamBodyAngleY', bodyY * live2DPoseAngleDegrees.body)
+    ctx.model.setParameterValueById('ParamBodyAngleZ', bodyZ * live2DPoseAngleDegrees.body)
     ctx.model.setParameterValueById('ParamMouthForm', mouthForm)
     ctx.model.setParameterValueById('ParamMouthOpenY', mouthOpen)
   }
