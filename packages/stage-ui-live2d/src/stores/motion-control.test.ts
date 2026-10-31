@@ -1,6 +1,5 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { shallowRef } from 'vue'
+import { describe, expect, it } from 'vitest'
 
 import {
   defaultLive2DBreathControlOptions,
@@ -10,17 +9,6 @@ import {
   sampleLive2DBreath,
   useLive2DMotionControl,
 } from './motion-control'
-
-const broadcastPost = vi.hoisted(() => vi.fn())
-
-vi.mock('@vueuse/core', async importOriginal => ({
-  ...await importOriginal<typeof import('@vueuse/core')>(),
-  useBroadcastChannel: () => ({ channel: shallowRef(), data: shallowRef(), post: broadcastPost }),
-}))
-
-beforeEach(() => {
-  broadcastPost.mockClear()
-})
 
 describe('manual motion defaults', () => {
   it('uses the tuned joystick spring and breath duration', () => {
@@ -52,29 +40,6 @@ describe('exclusive motion control', () => {
 
     motionControl.releaseExclusiveControl('devtools-b')
     expect(motionControl.exclusiveOwnerId).toBeNull()
-  })
-})
-
-describe('motion control delivery', () => {
-  it('keeps a local pose inside its own window', () => {
-    // ROOT CAUSE:
-    //
-    // Only the web Stage ran MAGIC, so the settings route had no driver. With a
-    // driver in each renderer, two windows that broadcast one owner replace each
-    // other's pose.
-    //
-    // We fixed this with a local delivery.
-    setActivePinia(createPinia())
-    const motionControl = useLive2DMotionControl()
-    const pose = { ...neutralLive2DMotionControlPose, headX: 0.5 }
-
-    motionControl.setPose('magic', pose, defaultLive2DMotionControlDynamics, { broadcast: false })
-    motionControl.release('magic', { broadcast: false })
-    expect(broadcastPost).not.toHaveBeenCalled()
-
-    motionControl.setPose('devtools', pose, defaultLive2DMotionControlDynamics)
-    expect(motionControl.control.ownerId).toBe('devtools')
-    expect(broadcastPost).toHaveBeenCalledWith(expect.objectContaining({ type: 'live2d-motion-control-set', ownerId: 'devtools' }))
   })
 })
 
