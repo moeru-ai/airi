@@ -2046,6 +2046,9 @@ pages:
         callout_model_switch: GPT-SoVITS 不使用标准 TTS 的 model 字段；如需切换模型，请填写下方 GPT / SoVITS 权重路径，AIRI 会调用 api_v2.py 的切换接口。
         callout_no_api_key: GPT-SoVITS 不需要 API Key，上方字段留空即可。
         fields:
+          validation:
+            baseUrlRequired: 需要填写服务地址
+            refAudioRequired: 需要填写参考音频路径
           baseUrl:
             description: GPT-SoVITS api_v2.py 服务器的 Base URL
             label: Base URL

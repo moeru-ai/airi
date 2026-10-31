@@ -105,14 +105,21 @@ export const providerGptSovits = defineProvider<GptSovitsConfig, 'gpt-sovits'>({
       validator: async (config) => {
         const errors = []
         if (!config.baseUrl)
-          errors.push({ error: new Error('Base URL is required') })
+          errors.push({ error: new Error(t('settings.pages.providers.provider.gpt-sovits.validation.baseUrlRequired')) })
         if (!config.refAudioPath)
-          errors.push({ error: new Error('Reference audio path is required') })
+          errors.push({ error: new Error(t('settings.pages.providers.provider.gpt-sovits.validation.refAudioRequired')) })
         if (errors.length)
           return { errors, reason: errors.map(item => item.error.message).join(', '), reasonKey: '', valid: false }
         try {
-          const response = await electronFetch(`${String(config.baseUrl).replace(TRAILING_SLASH_RE, '')}/`)
-          return { errors: response.ok ? [] : [{ error: new Error(`HTTP ${response.status}`) }], reason: response.ok ? '' : `HTTP ${response.status}`, reasonKey: '', valid: response.ok }
+          const controller = new AbortController()
+          const timeout = setTimeout(() => controller.abort(), 10_000)
+          try {
+            const response = await electronFetch(`${String(config.baseUrl).replace(TRAILING_SLASH_RE, '')}/`, { signal: controller.signal })
+            return { errors: response.ok ? [] : [{ error: new Error(`HTTP ${response.status}`) }], reason: response.ok ? '' : `HTTP ${response.status}`, reasonKey: '', valid: response.ok }
+          }
+          finally {
+            clearTimeout(timeout)
+          }
         }
         catch (error) {
           return { errors: [{ error: error instanceof Error ? error : new Error(String(error)) }], reason: 'GPT-SoVITS is unreachable', reasonKey: '', valid: false }
@@ -122,6 +129,11 @@ export const providerGptSovits = defineProvider<GptSovitsConfig, 'gpt-sovits'>({
   },
   extraMethods: {
     listModels: async () => [{ id: 'gpt-sovits', name: 'GPT-SoVITS', provider: 'gpt-sovits', description: 'GPT-SoVITS voice cloning model', contextLength: 0, deprecated: false }],
-    listVoices: async () => [{ id: 'default', name: 'Configured reference audio', provider: 'gpt-sovits', languages: [{ code: 'zh', title: 'Chinese' }, { code: 'en', title: 'English' }, { code: 'ja', title: 'Japanese' }] }],
+    listVoices: async (config) => {
+      const languageTitles: Record<string, string> = { zh: 'Chinese', en: 'English', ja: 'Japanese', ko: 'Korean', yue: 'Cantonese' }
+      const selected = config.textLang in languageTitles ? config.textLang : 'zh'
+      const languages = [selected, ...Object.keys(languageTitles).filter(code => code !== selected)].map(code => ({ code, title: languageTitles[code] }))
+      return [{ id: 'default', name: 'Configured reference audio', provider: 'gpt-sovits', languages }]
+    },
   },
 })

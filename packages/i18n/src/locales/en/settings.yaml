@@ -2159,6 +2159,9 @@ pages:
         callout_model_switch: GPT-SoVITS does not use the standard TTS model field. To switch models, fill in the GPT / SoVITS weight paths below and AIRI will call the api_v2.py switching endpoints.
         callout_no_api_key: GPT-SoVITS does not require an API key. The field above can be left blank.
         fields:
+          validation:
+            baseUrlRequired: Base URL is required
+            refAudioRequired: Reference audio path is required
           baseUrl:
             description: Base URL of the GPT-SoVITS api_v2.py server
             label: Base URL
