@@ -296,7 +296,7 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
     >
       <span :class="[iconClass, 'size-5']" aria-hidden="true" />
     </BasicButton>
-    <DropdownMenu v-model:open="menuOpen" :modal="false" side="top" align="end" variant="blurry" :content-class="['min-w-[240px]']">
+    <DropdownMenu v-model:open="menuOpen" :modal="false" side="top" align="end" variant="blurry" :content-class="['min-w-[240px]', 'max-w-[var(--reka-dropdown-menu-content-available-width)]']">
       <template #trigger>
         <!-- The menu anchors to the button area. The button keeps its click for recording, so this anchor takes no pointer input. -->
         <span aria-hidden="true" tabindex="-1" :class="['pointer-events-none absolute inset-0']" />
