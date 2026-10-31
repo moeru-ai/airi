@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
 import { neutralLive2DMotionControlPose } from '../../stores/motion-control'
+import { createLive2DFocusBias } from './focus-bias'
 import { createLive2DMotionSpring } from './motion-control-spring'
 import {
   disableLive2DSdkBreath,
@@ -14,7 +15,6 @@ import {
   useMotionUpdatePluginLightSquint,
   useMotionUpdatePluginManualControl,
 } from './motion-manager'
-import { createLive2DPoseAttention } from './pose-attention'
 
 vi.mock('./animation', () => ({
   useLive2DIdleEyeFocus: () => ({ update: vi.fn() }),
@@ -312,7 +312,7 @@ describe('live2d motion manager plugins', () => {
     expect(context.model.getParameterValueById('ParamMouthForm')).toBeCloseTo(-0.25)
   })
 
-  it('turns a manual pose toward the attention target and back after it goes away', () => {
+  it('biases a manual pose toward the focus target and back after it goes away', () => {
     const context = createContext({ timeDelta: 1 / 60 })
     const target = ref<{ x: number, y: number }>()
     const plugin = useMotionUpdatePluginManualControl(ref({
@@ -321,7 +321,7 @@ describe('live2d motion manager plugins', () => {
       pose: neutralLive2DMotionControlPose,
       dynamics: { follow: 1, inertia: 0.6 },
     }), createLive2DMotionSpring(), {
-      controller: createLive2DPoseAttention({ headGain: 0.5, bodyGain: 0, fadeSeconds: 0.1, followSeconds: 0.05 }),
+      controller: createLive2DFocusBias({ headGain: 0.5, bodyGain: 0, fadeSeconds: 0.1, followSeconds: 0.05 }),
       target: () => target.value,
     })
 

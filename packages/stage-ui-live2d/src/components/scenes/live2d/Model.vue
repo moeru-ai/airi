@@ -9,7 +9,7 @@ import type {
 } from '@proj-airi/stage-shared/screen-ambient-light'
 import type { Cubism4ModelSettings } from 'pixi-live2d-display/cubism4'
 
-import type { Live2DPoseAttentionTarget, PixiLive2DInternalModel } from '../../../composables/live2d'
+import type { Live2DFocusTarget, PixiLive2DInternalModel } from '../../../composables/live2d'
 import type { Live2DExpressionControl } from '../../../controls/manifest'
 
 import { Point } from '@pixi/math'
@@ -29,12 +29,12 @@ import Live2DExpression from '../../live2d/expression.vue'
 
 import {
   createBeatSyncController,
+  createLive2DFocusBias,
   createLive2DHeadTracker,
   createLive2DMotionSpring,
-  createLive2DPoseAttention,
   disableLive2DSdkBreath,
-  live2DAttentionTargetFromModelPoint,
   live2DCanvasRectToParent,
+  live2DFocusTargetFromModelPoint,
   resolveLive2DFocusTargetMode,
   useLive2DMotionManagerUpdate,
   useMotionUpdatePluginAutoEyeBlink,
@@ -67,7 +67,7 @@ const props = withDefaults(defineProps<{
   eyeTracking?: boolean
   eyeFocusSourceActive?: boolean
   /** Turns a manual pose, for example a MAGIC pose, toward `focusAt` while the focus source is active. */
-  poseAttention?: boolean
+  focusBias?: boolean
   themeColorsHue?: number
   themeColorsHueDynamic?: boolean
   live2dIdleAnimationEnabled?: boolean
@@ -90,7 +90,7 @@ const props = withDefaults(defineProps<{
   focusAt: () => ({ x: 0, y: 0 }),
   eyeTracking: false,
   eyeFocusSourceActive: false,
-  poseAttention: false,
+  focusBias: false,
   disableFocusAt: false,
   scale: 1,
   themeColorsHue: 220.44,
@@ -132,7 +132,7 @@ let isUnmounted = false
 const modelLoadMutex = new Mutex()
 
 const manualMotionSpring = createLive2DMotionSpring()
-const manualPoseAttention = createLive2DPoseAttention()
+const manualFocusBias = createLive2DFocusBias()
 const manualControlOffset = computed(() => getLive2DMotionControlModelOffset(manualMotionSpring.output.value))
 const offset = computed(() => ({
   x: (position.value.x / 100) * props.width + manualControlOffset.value.x,
@@ -493,8 +493,8 @@ async function performModelLoad() {
       'final',
     )
     motionManagerUpdate.register(useMotionUpdatePluginManualControl(manualMotionControl, manualMotionSpring, {
-      controller: manualPoseAttention,
-      target: poseAttentionTarget,
+      controller: manualFocusBias,
+      target: focusBiasTarget,
     }), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginLipSync(mouthOpenSize, nowSpeaking), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginBreathControl(manualBreathControl), 'final')
@@ -958,19 +958,19 @@ function updateFocusTarget() {
 watch([model, focusAt, live2dEyeTrackingEnabled, live2dEyeFocusSourceActive, live2dForceIdleEyeAnimation], updateFocusTarget)
 
 /**
- * The attention target of a manual pose for the current frame.
+ * The focus target that biases a manual pose in the current frame.
  *
  * A devtools window that owns the model exclusively drives the pose by hand,
- * so the attention stays off for it.
+ * so the bias stays off for it.
  */
-function poseAttentionTarget(): Live2DPoseAttentionTarget | undefined {
+function focusBiasTarget(): Live2DFocusTarget | undefined {
   const current = model.value
-  if (!current || !props.poseAttention || !props.eyeFocusSourceActive || manualExclusiveOwnerId.value !== null)
+  if (!current || !props.focusBias || !props.eyeFocusSourceActive || manualExclusiveOwnerId.value !== null)
     return undefined
 
   const internalModel = current.internalModel
   const point = current.toModelPosition(new Point(focusAt.value.x, focusAt.value.y))
-  return live2DAttentionTargetFromModelPoint(point, {
+  return live2DFocusTargetFromModelPoint(point, {
     width: internalModel.originalWidth,
     height: internalModel.originalHeight,
   })

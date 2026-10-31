@@ -30,8 +30,8 @@ await live2d.motions.execute('motions/wave.motion3.json')
   `resolveLive2DFocusTargetMode` selects the mode.
 - A manual pose, for example a MAGIC pose, comes from `useLive2DMotionControl`. Pass
   `{ broadcast: false }` to `setPose` for a source that runs in each renderer.
-- With `poseAttention`, the scene turns a manual pose toward the cursor. `createLive2DPoseAttention` owns the fade and the gains.
-  The head turns part of the way, and the eyes cover the rest. The generated motion continues under the attention.
+- With `focusBias`, the scene biases a manual pose toward the cursor. `createLive2DFocusBias` owns the fade and the gains.
+  The head turns part of the way, and the eyes cover the rest. The generated motion continues under the bias.
 
 ## Do not use this package
 

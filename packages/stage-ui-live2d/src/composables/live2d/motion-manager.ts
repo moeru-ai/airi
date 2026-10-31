@@ -4,8 +4,8 @@ import type { Ref } from 'vue'
 import type { Live2DExpressionsContext } from '../../contexts/expressions'
 import type { Live2DBreathControlState, Live2DMotionControlState } from '../../stores/motion-control'
 import type { BeatSyncController } from './beat-sync'
+import type { Live2DFocusBiasController, Live2DFocusTarget } from './focus-bias'
 import type { Live2DMotionSpringController } from './motion-control-spring'
-import type { Live2DPoseAttentionController, Live2DPoseAttentionTarget } from './pose-attention'
 
 import { sampleLive2DBreath } from '../../stores/motion-control'
 import { useLive2DIdleEyeFocus } from './animation'
@@ -703,11 +703,11 @@ export function useMotionUpdatePluginExpression(
   }
 }
 
-/** An attention layer that turns the manual pose toward a target before the spring. */
-export interface Live2DManualControlAttention {
-  controller: Live2DPoseAttentionController
-  /** The current target, or undefined when nothing holds the attention. */
-  target: () => Live2DPoseAttentionTarget | undefined
+/** A focus bias that turns the manual pose toward a target before the spring. */
+export interface Live2DManualControlFocusBias {
+  controller: Live2DFocusBiasController
+  /** The current target, or undefined when nothing holds the focus. */
+  target: () => Live2DFocusTarget | undefined
 }
 
 /**
@@ -719,14 +719,14 @@ export interface Live2DManualControlAttention {
 export function useMotionUpdatePluginManualControl(
   control: Ref<Live2DMotionControlState>,
   spring: Live2DMotionSpringController,
-  attention?: Live2DManualControlAttention,
+  focusBias?: Live2DManualControlFocusBias,
 ): MotionManagerPlugin {
   return (ctx) => {
     let state = control.value
-    if (attention) {
-      attention.controller.step(state.active ? attention.target() : undefined, ctx.timeDelta)
+    if (focusBias) {
+      focusBias.controller.step(state.active ? focusBias.target() : undefined, ctx.timeDelta)
       if (state.active)
-        state = { ...state, pose: attention.controller.apply(state.pose) }
+        state = { ...state, pose: focusBias.controller.apply(state.pose) }
     }
 
     const output = spring.step(state, ctx.timeDelta)
