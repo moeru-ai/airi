@@ -21,3 +21,17 @@ pnpm patch @xsai-ext/responses@0.5.1
 # Edit the directory printed by pnpm.
 pnpm patch-commit <directory>
 ```
+
+## @moeru/three-mmd 0.2.0-beta.2
+
+The toon shader multiplied sphere colors by diffuse lighting before both sphere blend modes.
+Multiply mode then multiplied the complete shaded surface by that result, applying lighting twice and darkening skin and emissive glow.
+
+The patch applies the extra lighting factor only to additive sphere maps.
+Multiply sphere maps apply their color directly, so a white sphere map leaves the surface unchanged.
+
+The browser regression in `packages/stage-ui-mmd/src/utils/mmd-sphere.browser.test.ts` compares rendered pixels with and without a white multiply sphere map.
+It covers dim lighting with and without emissive glow.
+
+The patch changes compiled code because the published package contains no source files.
+Remove it when an upstream release passes this regression.
