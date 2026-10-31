@@ -3,7 +3,7 @@ import type { Latest, Task } from '@proj-airi/stream-kit'
 import type { SpeechInput } from '../input/speech-input'
 import type { WriteResult } from '../input/transcript'
 import type { SpeechContextEntry, TranscriptDocument } from '../input/types'
-import type { FinalizeContext, FinalizeOptions, SpeechInputControl, SpeechInputScope, VoicePlugin, VoicePluginError, VoicePluginScope } from './types'
+import type { FinalizeContext, FinalizeOptions, SpeechInputControl, SpeechInputScope, VoicePluginError } from './types'
 
 import { createLatest, createTask, runTask } from '@proj-airi/stream-kit'
 
@@ -11,10 +11,10 @@ import { errorFromCause } from '../../utils/error'
 
 /** What one input needs from a plugin installation. The registry implements it. */
 export interface InputPluginInstallation {
-  readonly plugin: VoicePlugin
+  readonly name: string
   /** Aborts when the plugin is disposed. */
   readonly signal: AbortSignal
-  readonly installers: readonly Parameters<VoicePluginScope['onSpeechInput']>[0][]
+  readonly installers: readonly ((ctx: SpeechInputScope) => void | Promise<void>)[]
   /** The registry disposes these inputs when the plugin is disposed. */
   readonly inputs: Set<PluginInput>
   /** Returns undefined without the `input-control` grant. `live` turns false when the calling scope closes. */
@@ -44,7 +44,7 @@ export class PluginInput {
   }
 
   get name(): string {
-    return this.installation.plugin.name
+    return this.installation.name
   }
 
   install() {

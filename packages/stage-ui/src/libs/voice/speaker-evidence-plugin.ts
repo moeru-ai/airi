@@ -163,7 +163,7 @@ export function createSpeakerEvidencePlugin(options: SpeakerEvidenceOptions): Sp
       publish(evidence)
     },
     setup(scope) {
-      scope.observeAudio(COMPARISON, async (ctx) => {
+      scope.input.observe(COMPARISON, async (ctx) => {
         if (!options.enabled())
           return
         // A window before the start or after the end of the input is not its audio, and the input rejects it.

@@ -41,7 +41,7 @@ export function createVoiceRephrasePlugin(options: VoiceRephraseOptions): VoiceP
   return {
     name: 'voice-rephrase',
     setup(scope) {
-      scope.onSpeechInput((input) => {
+      scope.onInput((input) => {
         if (!options.enabled())
           return
 

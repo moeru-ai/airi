@@ -3,10 +3,10 @@ import type { TraceAttributes, TraceSink, TraceSpan } from '@proj-airi/trace-kit
 
 import type { SpeakerEvidenceUpdate } from '../libs/voice/speaker-evidence-plugin'
 
+import { levelOf } from '@proj-airi/pipelines-audio'
 import { beginSpan, SeriesWriter, TraceLinkRelations, trackPath } from '@proj-airi/trace-kit'
 import { VoiceAttributes, VoiceIdKeys, VoiceNames, VoiceSeries, VoiceTracks } from '@proj-airi/trace-kit/voice'
 
-import { levelOf } from '../libs/voice/input-level'
 import { activeVoiceInput, getTraceSink } from './use-trace'
 
 /** The actor ID of the local user in the voice profile. */

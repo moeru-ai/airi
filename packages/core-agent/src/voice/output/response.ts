@@ -1,4 +1,4 @@
-import type { AudioPlayback, IntentHandle, PcmBlock, PlaybackGroup, PlaybackItem, PlaybackReceipt, SpeechPipelineEvents, SpeechPipelineOptions } from '@proj-airi/pipelines-audio'
+import type { AudioPlayback, IntentHandle, PcmBlock, PlaybackGroup, PlaybackItem, PlaybackReceipt, SpeechPipelineEvents, SpeechPipelineOptions, TtsRequest } from '@proj-airi/pipelines-audio'
 import type { Outcome } from '@proj-airi/stream-kit'
 
 import type { TurnRef } from '../turn'
@@ -57,6 +57,52 @@ export type SpeechOutput = {
  * It is a Unicode private use character. Model text does not contain it, and producer text is stripped of it.
  */
 const controlMarker = '\uE000'
+
+/**
+ * What happens to the speech of one response, in order. Output plugins receive these events.
+ *
+ * `segmentId` joins the synthesis and the playback of one text segment. A streaming provider has no text segments:
+ * its whole stream is one `tts-request`, and each audio part that it returns plays with its own ID.
+ */
+export type SpeechOutputEvent
+  = | {
+    /** Synthesis of one text segment starts. */
+    readonly type: 'tts-request'
+    readonly segmentId: string
+    readonly text: string
+    /** The chunker boundary that ended the segment. A streaming provider has none. */
+    readonly reason?: TtsRequest['reason']
+  }
+  | {
+    /** Synthesis of one text segment ends. `no-audio` means that the provider returned nothing, for example muted speech. */
+    readonly type: 'tts-result'
+    readonly segmentId: string
+    readonly status: 'audio' | 'no-audio' | 'cancelled' | 'failed'
+    readonly error?: Error
+  }
+  | {
+    /** The first audio of a segment is scheduled on the playback clock. */
+    readonly type: 'playback-start'
+    readonly segmentId: string
+    readonly text: string
+  }
+  | {
+    /** A started segment ends, stops, or fails. A stop carries the abort reason of the producer or the response. */
+    readonly type: 'playback-end'
+    readonly segmentId: string
+    readonly text: string
+    readonly status: SpeechClipEnd['status']
+    readonly reason?: string
+  }
+  | {
+    /**
+     * Playback reaches a special token, for example an expression marker. The chunker orders it after the audio
+     * before it. A streaming provider has no segments, so its special tokens arrive when the text is written.
+     */
+    readonly type: 'token-special'
+    readonly segmentId?: string
+    readonly special: string
+  }
 
 type SpeechControl = { readonly type: 'special', readonly value: string } | { readonly type: 'flush' }
 
@@ -123,12 +169,18 @@ export class SpeechStream {
 
     const pipeline = createSpeechPipeline<Blob>({
       tts: async (request, signal) => {
+        const { segmentId } = request
+        response.emit({ type: 'tts-request', segmentId, text: request.text, reason: request.reason })
         try {
           const audio = await output.synthesize(request, AbortSignal.any([signal, this.signal, response.signal]))
-          return this.signal.aborted || response.signal.aborted ? null : audio
+          const aborted = signal.aborted || this.signal.aborted || response.signal.aborted
+          response.emit({ type: 'tts-result', segmentId, status: aborted ? 'cancelled' : audio ? 'audio' : 'no-audio' })
+          return aborted ? null : audio
         }
         catch (cause) {
-          this.fail(errorFromCause(cause, 'Speech synthesis failed'))
+          const error = errorFromCause(cause, 'Speech synthesis failed')
+          response.emit({ type: 'tts-result', segmentId, status: 'failed', error })
+          this.fail(error)
           return null
         }
       },
@@ -149,13 +201,17 @@ export class SpeechStream {
                 onStart: () => {
                   started = true
                   listeners.start.forEach(listener => listener({ item, startedAt: Date.now() }))
+                  response.emit({ type: 'playback-start', segmentId: clip.id, text: clip.text })
                   output.onPlaybackStart?.(clip)
                 },
               })
             })
             .then((result) => {
-              if (started)
-                output.onPlaybackEnd?.(clip, this.clipEnd(result))
+              if (started) {
+                const end = this.clipEnd(result)
+                response.emit({ type: 'playback-end', segmentId: clip.id, text: clip.text, ...end })
+                output.onPlaybackEnd?.(clip, end)
+              }
 
               if (!pending.delete(item))
                 return
@@ -190,7 +246,12 @@ export class SpeechStream {
       },
     })
 
-    pipeline.on('onSpecial', segment => segment.special && output.onSpecial?.(segment.special))
+    pipeline.on('onSpecial', (segment) => {
+      if (!segment.special)
+        return
+      response.emit({ type: 'token-special', segmentId: segment.segmentId, special: segment.special })
+      output.onSpecial?.(segment.special)
+    })
     pipeline.on('onIntentEnd', () => this.settle({ status: 'finished', value: undefined }))
 
     this.intent = pipeline.openIntent({ turnId: response.turn.turnId, ownerId: response.turn.sessionId })
@@ -198,8 +259,19 @@ export class SpeechStream {
 
   /** Triggering workflow: VoiceController response → provider text stream → reserved playback slot → producer completion. */
   private async playStream(previous: Promise<unknown>, synthesize: Extract<SpeechOutput, { stream: unknown }>['stream']) {
+    const requestId = nanoid()
+    this.response.emit({ type: 'tts-request', segmentId: requestId, text: '' })
     try {
-      const audio = await synthesize(this.text!.stream, AbortSignal.any([this.signal, this.response.signal]))
+      let audio: ReadableStream<SpeechAudio>
+      try {
+        audio = await synthesize(this.text!.stream, AbortSignal.any([this.signal, this.response.signal]))
+      }
+      catch (cause) {
+        const error = errorFromCause(cause, 'Streaming speech failed')
+        this.response.emit({ type: 'tts-result', segmentId: requestId, status: 'failed', error })
+        throw error
+      }
+      this.response.emit({ type: 'tts-result', segmentId: requestId, status: this.signal.aborted || this.response.signal.aborted ? 'cancelled' : 'audio' })
       await Promise.race([previous, this.done])
       if (this.signal.aborted || this.response.signal.aborted) {
         await audio.cancel('Speech producer closed')
@@ -222,11 +294,15 @@ export class SpeechStream {
           signal: this.signal,
           onStart: () => {
             started = true
+            this.response.emit({ type: 'playback-start', segmentId: clip.id, text: clip.text })
             this.output.onPlaybackStart?.(clip)
           },
         }).then((status) => {
-          if (started)
-            this.output.onPlaybackEnd?.(clip, this.clipEnd(status))
+          if (started) {
+            const end = this.clipEnd(status)
+            this.response.emit({ type: 'playback-end', segmentId: clip.id, text: clip.text, ...end })
+            this.output.onPlaybackEnd?.(clip, end)
+          }
           if (status === 'failed')
             this.fail(new Error('Speech playback failed'))
         }))
@@ -340,12 +416,16 @@ export class SpeechStream {
 
   /** The chunker orders special tokens with the audio. Streaming providers handle them outside their text transport. */
   private deliverControl(control: SpeechControl) {
-    if (control.type === 'flush')
+    if (control.type === 'flush') {
       this.intent?.writeFlush()
-    else if (this.intent)
+    }
+    else if (this.intent) {
       this.intent.writeSpecial(control.value)
-    else
+    }
+    else {
+      this.response.emit({ type: 'token-special', special: control.value })
       this.output.onSpecial?.(control.value)
+    }
   }
 
   cancel(reason: string) {
@@ -384,6 +464,8 @@ export class SpeechStream {
 /** Speech producers synthesize concurrently. Their reserved playback order follows creation order. */
 export class VoiceResponse {
   private readonly abort = new AbortController()
+  private readonly lifetime = new AbortController()
+  private readonly listeners = new Set<(event: SpeechOutputEvent) => void>()
   private readonly streams: SpeechStream[] = []
   private ordered: Promise<unknown> = Promise.resolve()
   private sealed = false
@@ -391,6 +473,8 @@ export class VoiceResponse {
   private finishing: Promise<'finished' | 'cancelled' | 'interrupted' | 'failed'> | undefined
   private silence: Promise<PlaybackReceipt> | undefined
   readonly signal = this.abort.signal
+  /** Aborts after the response closes: its producers settled and its playback is silent. `signal` aborts only on a stop. */
+  readonly closedSignal = this.lifetime.signal
   readonly playback: PlaybackGroup
   readonly turn: TurnRef
 
@@ -400,6 +484,24 @@ export class VoiceResponse {
   }
 
   get closed(): boolean { return this.outcome !== undefined }
+
+  /** Receives the speech events of this response until the returned function runs. */
+  subscribe(listener: (event: SpeechOutputEvent) => void): () => void {
+    this.listeners.add(listener)
+    return () => this.listeners.delete(listener)
+  }
+
+  /** The producers of this response report their speech here. A failing listener does not stop the speech. */
+  emit(event: SpeechOutputEvent) {
+    for (const listener of this.listeners) {
+      try {
+        listener(event)
+      }
+      catch (cause) {
+        console.error('[VoiceResponse] Speech event listener failed', cause)
+      }
+    }
+  }
 
   openSpeech(settings: { purpose: string, deadlineMs?: number }): SpeechStream {
     if (this.sealed)
@@ -429,7 +531,12 @@ export class VoiceResponse {
       return this.outcome
     })()
 
-    void this.finishing.then(this.onClosed, this.onClosed)
+    const close = () => {
+      this.lifetime.abort('Response closed')
+      this.listeners.clear()
+      this.onClosed()
+    }
+    void this.finishing.then(close, close)
     return this.finishing
   }
 

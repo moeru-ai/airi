@@ -1,8 +1,9 @@
-import type { PlaybackClip, PlayedAudio } from './index'
+import type { LiveAudioSource, PcmBlock, PlaybackClip, PlayedAudio } from './index'
 
+import { createPushStream } from '@proj-airi/stream-kit'
 import { describe, expect, it, vi } from 'vitest'
 
-import { Playback } from './index'
+import { observeLevel, Playback } from './index'
 
 describe('playback', () => {
   it('releases readable audio when the playback driver cannot start', async () => {
@@ -84,5 +85,49 @@ describe('playback', () => {
 
     expect(() => group.enqueue({ id: 'clip', audio: new ReadableStream({ cancel: cancelled }), startAtMs: Number.NaN })).toThrow('Clip start time must be finite')
     expect(cancelled).toHaveBeenCalledOnce()
+  })
+
+  it('exposes the driver output as a shared input that opens only while observed', async () => {
+    let opened = 0
+    let pushed: ReturnType<typeof createPushStream<PcmBlock>> | undefined
+    const output: LiveAudioSource = {
+      live: true,
+      open: (signal) => {
+        opened += 1
+        pushed = createPushStream<PcmBlock>()
+        signal.addEventListener('abort', () => pushed?.close(), { once: true })
+        return pushed.stream
+      },
+    }
+    const play = () => ({ done: new Promise<never>(() => {}), stop: async () => ({ throughMs: 0 }) })
+
+    expect(new Playback({ nowMs: () => 0, play }).output).toBeUndefined()
+
+    const playback = new Playback({ nowMs: () => 0, play, output })
+    expect(opened).toBe(0)
+
+    const abort = new AbortController()
+    const levels: number[] = []
+    const observer = observeLevel(playback.output!, abort.signal, level => levels.push(level))
+    expect(opened).toBe(1)
+    pushed!.write({ range: { sourceId: 'speech', startFrame: 0, endFrame: 50 }, sampleRate: 1000, channels: [new Float32Array(50).fill(1)] })
+    await expect.poll(() => levels).toEqual([1])
+
+    abort.abort()
+    await observer.done
+  })
+
+  it('forwards graph connections to the driver', () => {
+    const disconnect = vi.fn()
+    const connect = vi.fn((_node: string) => disconnect)
+    const play = () => ({ done: new Promise<never>(() => {}), stop: async () => ({ throughMs: 0 }) })
+
+    expect(new Playback({ nowMs: () => 0, play }).connect).toBeUndefined()
+
+    const playback = new Playback<string>({ nowMs: () => 0, play, connect })
+    playback.connect!('lip-sync')()
+
+    expect(connect).toHaveBeenCalledWith('lip-sync')
+    expect(disconnect).toHaveBeenCalledOnce()
   })
 })
