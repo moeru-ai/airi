@@ -6,8 +6,9 @@ import {
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { FieldInput } from '@proj-airi/ui'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
+import { FieldInput, FieldSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -16,10 +17,12 @@ const { t } = useI18n()
 
 const providerId = 'gpt-sovits'
 const defaultModel = 'gpt-sovits'
+const languageOptions = ['auto', 'auto_yue', 'en', 'zh', 'ja', 'yue', 'ko', 'all_zh', 'all_ja', 'all_yue', 'all_ko'].map(code => ({ label: code, value: code }))
 
 const speechStore = useSpeechStore()
-const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore)
+const providersStore = useProviderStore()
+const providerConfigStore = useProviderConfigStore()
+const { configs: providers } = storeToRefs(providerConfigStore)
 
 const refAudioPath = computed({
   get: () => providers.value[providerId]?.refAudioPath as string | undefined || '',
@@ -83,7 +86,7 @@ onMounted(async () => {
   await speechStore.loadVoicesForProvider(providerId)
 })
 
-watch([apiKeyConfigured], async () => {
+watch([apiKeyConfigured, textLang], async () => {
   await speechStore.loadVoicesForProvider(providerId)
 })
 
@@ -92,7 +95,7 @@ async function handleGenerateSpeech(input: string, voiceId: string) {
   if (!provider)
     throw new Error('Failed to initialize speech provider')
 
-  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerConfig = providerConfigStore.getProviderConfig(providerId)
 
   return await speechStore.speech(provider, defaultModel, input, voiceId, providerConfig)
 }
@@ -139,19 +142,17 @@ async function handleGenerateSpeech(input: string, voiceId: string) {
     </template>
 
     <template #voice-settings>
-      <FieldInput
+      <FieldSelect
         v-model="promptLang"
         :label="t('settings.pages.providers.provider.gpt-sovits.fields.promptLang.label')"
         :description="t('settings.pages.providers.provider.gpt-sovits.fields.promptLang.description')"
-        placeholder="zh"
-        type="text"
+        :options="languageOptions"
       />
-      <FieldInput
+      <FieldSelect
         v-model="textLang"
         :label="t('settings.pages.providers.provider.gpt-sovits.fields.textLang.label')"
         :description="t('settings.pages.providers.provider.gpt-sovits.fields.textLang.description')"
-        placeholder="zh"
-        type="text"
+        :options="languageOptions"
       />
     </template>
 

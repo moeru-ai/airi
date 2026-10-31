@@ -2155,11 +2155,13 @@ pages:
       gpt-sovits:
         description: github.com/RVC-Boss/GPT-SoVITS
         title: GPT-SoVITS
+        referenceVoice: Configured reference audio
         callout_no_model_title: No model field support
         callout_model_switch: GPT-SoVITS does not use the standard TTS model field. To switch models, fill in the GPT / SoVITS weight paths below and AIRI will call the api_v2.py switching endpoints.
         callout_no_api_key: GPT-SoVITS does not require an API key. The field above can be left blank.
         fields:
           validation:
+            languageUnsupported: Select a supported language code
             baseUrlRequired: Base URL is required
             refAudioRequired: Reference audio path is required
           baseUrl:

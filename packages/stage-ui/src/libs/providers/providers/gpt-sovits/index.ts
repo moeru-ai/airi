@@ -3,6 +3,8 @@ import { z } from 'zod'
 
 import { defineProvider } from '../registry'
 
+const languageCodes = ['auto', 'auto_yue', 'en', 'zh', 'ja', 'yue', 'ko', 'all_zh', 'all_ja', 'all_yue', 'all_ko'] as const
+
 const TRAILING_SLASH_RE = /\/+$/
 
 interface GptSovitsConfig {
@@ -65,8 +67,8 @@ export const providerGptSovits = defineProvider<GptSovitsConfig, 'gpt-sovits'>({
     baseUrl: z.string().default('http://127.0.0.1:9880'),
     refAudioPath: z.string().default(''),
     promptText: z.string().default(''),
-    promptLang: z.string().default('zh'),
-    textLang: z.string().default('zh'),
+    promptLang: z.enum(languageCodes).default('zh'),
+    textLang: z.enum(languageCodes).default('zh'),
     gptWeightsPath: z.string().default(''),
     sovitsWeightsPath: z.string().default(''),
   }),
@@ -105,16 +107,18 @@ export const providerGptSovits = defineProvider<GptSovitsConfig, 'gpt-sovits'>({
       validator: async (config) => {
         const errors = []
         if (!config.baseUrl)
-          errors.push({ error: new Error(t('settings.pages.providers.provider.gpt-sovits.validation.baseUrlRequired')) })
+          errors.push({ error: new Error(t('settings.pages.providers.provider.gpt-sovits.fields.validation.baseUrlRequired')) })
         if (!config.refAudioPath)
-          errors.push({ error: new Error(t('settings.pages.providers.provider.gpt-sovits.validation.refAudioRequired')) })
+          errors.push({ error: new Error(t('settings.pages.providers.provider.gpt-sovits.fields.validation.refAudioRequired')) })
+        if (!z.enum(languageCodes).safeParse(config.textLang).success || !z.enum(languageCodes).safeParse(config.promptLang).success)
+          errors.push({ error: new Error(t('settings.pages.providers.provider.gpt-sovits.fields.validation.languageUnsupported')) })
         if (errors.length)
           return { errors, reason: errors.map(item => item.error.message).join(', '), reasonKey: '', valid: false }
         try {
           const controller = new AbortController()
           const timeout = setTimeout(() => controller.abort(), 10_000)
           try {
-            const response = await electronFetch(`${String(config.baseUrl).replace(TRAILING_SLASH_RE, '')}/`, { signal: controller.signal })
+            const response = await electronFetch(`${String(config.baseUrl).replace(TRAILING_SLASH_RE, '')}/openapi.json`, { signal: controller.signal })
             return { errors: response.ok ? [] : [{ error: new Error(`HTTP ${response.status}`) }], reason: response.ok ? '' : `HTTP ${response.status}`, reasonKey: '', valid: response.ok }
           }
           finally {
