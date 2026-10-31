@@ -2053,12 +2053,14 @@ pages:
             description: 服务器上参考音频文件的绝对路径
             label: 参考音频路径
           promptText:
+            placeholder: 参考音频中说的文字（可选）
             description: 参考音频中说的文字内容，可留空
             label: 参考音频文本
           promptLang:
             description: 参考音频的语言（zh / en / ja / ko / yue）
             label: 参考音频语言
           textLang:
+            playground-default-text: 你好，我是 AIRI，很高兴认识你！
             description: 需要合成的文本语言（zh / en / ja / ko / yue）
             label: 合成语言
           gptWeightsPath:

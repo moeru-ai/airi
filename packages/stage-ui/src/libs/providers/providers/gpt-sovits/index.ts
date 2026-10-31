@@ -1,3 +1,4 @@
+import { errorMessageFrom } from '@moeru/std'
 import { z } from 'zod'
 
 import { defineProvider } from '../registry'
@@ -14,7 +15,7 @@ interface GptSovitsConfig {
   sovitsWeightsPath: string
 }
 
-async function electronFetch(url: string, init?: RequestInit): Promise<Response> {
+async function electronFetch(url: string, init?: RequestInit & { requestId?: string }): Promise<Response> {
   const electron = typeof window !== 'undefined' ? (window as Window & { electron?: { ipcRenderer?: { invoke: (channel: string, payload: unknown) => Promise<any> } } }).electron : undefined
   if (!electron?.ipcRenderer)
     return globalThis.fetch(url, init)
@@ -33,12 +34,18 @@ async function electronFetch(url: string, init?: RequestInit): Promise<Response>
     Object.assign(headers, init.headers)
   }
 
+  const requestId = init?.requestId ?? crypto.randomUUID()
+  const cancel = () => {
+    void electron.ipcRenderer?.invoke('airi:electron:fetch-cancel', requestId)
+  }
+  init?.signal?.addEventListener('abort', cancel, { once: true })
   const result = await electron.ipcRenderer.invoke('airi:electron:fetch', {
     url,
     method: init?.method ?? 'GET',
     headers: Object.keys(headers).length ? headers : undefined,
     body: typeof init?.body === 'string' ? init.body : undefined,
-  })
+    requestId,
+  }).finally(() => init?.signal?.removeEventListener('abort', cancel))
   const body = result.bodyBase64
     ? Uint8Array.from(atob(result.bodyBase64), char => char.charCodeAt(0))
     : result.body
@@ -65,10 +72,15 @@ export const providerGptSovits = defineProvider<GptSovitsConfig, 'gpt-sovits'>({
   }),
   async createProvider(config) {
     const baseUrl = config.baseUrl.replace(TRAILING_SLASH_RE, '')
+    const switchWeights = async (path: string, endpoint: string) => {
+      const response = await electronFetch(`${baseUrl}/${endpoint}?weights_path=${encodeURIComponent(path)}`)
+      if (!response.ok)
+        throw new Error(`${endpoint} failed with HTTP ${response.status}`)
+    }
     if (config.gptWeightsPath)
-      await electronFetch(`${baseUrl}/set_gpt_weights?weights_path=${encodeURIComponent(config.gptWeightsPath)}`).catch(() => {})
+      await switchWeights(config.gptWeightsPath, 'set_gpt_weights')
     if (config.sovitsWeightsPath)
-      await electronFetch(`${baseUrl}/set_sovits_weights?weights_path=${encodeURIComponent(config.sovitsWeightsPath)}`).catch(() => {})
+      await switchWeights(config.sovitsWeightsPath, 'set_sovits_weights')
     return { speech: () => ({
       baseURL: `${baseUrl}/`,
       model: 'gpt-sovits',
@@ -78,6 +90,9 @@ export const providerGptSovits = defineProvider<GptSovitsConfig, 'gpt-sovits'>({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text: body.input ?? '', text_lang: config.textLang, ref_audio_path: config.refAudioPath, prompt_text: config.promptText, prompt_lang: config.promptLang, media_type: 'wav', streaming_mode: false }),
+          signal: init?.signal,
+        }).catch((error) => {
+          throw new Error(errorMessageFrom(error) ?? 'GPT-SoVITS synthesis failed')
         })
       },
     }) }
@@ -96,7 +111,7 @@ export const providerGptSovits = defineProvider<GptSovitsConfig, 'gpt-sovits'>({
         if (errors.length)
           return { errors, reason: errors.map(item => item.error.message).join(', '), reasonKey: '', valid: false }
         try {
-          const response = await electronFetch(`${String(config.baseUrl).replace(TRAILING_SLASH_RE, '')}/set_gpt_weights`)
+          const response = await electronFetch(`${String(config.baseUrl).replace(TRAILING_SLASH_RE, '')}/`)
           return { errors: response.ok ? [] : [{ error: new Error(`HTTP ${response.status}`) }], reason: response.ok ? '' : `HTTP ${response.status}`, reasonKey: '', valid: response.ok }
         }
         catch (error) {

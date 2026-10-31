@@ -2166,12 +2166,14 @@ pages:
             description: Absolute path to reference audio file on the server
             label: Reference Audio Path
           promptText:
+            placeholder: Enter text spoken in the reference audio (optional)
             description: The text spoken in the reference audio, optional
             label: Reference Audio Text
           promptLang:
             description: Language of the reference audio (zh / en / ja / ko / yue)
             label: Reference Audio Language
           textLang:
+            playground-default-text: Hello, I am AIRI. It is nice to meet you!
             description: Language of the text to synthesize (zh / en / ja / ko / yue)
             label: Synthesis Language
           gptWeightsPath:

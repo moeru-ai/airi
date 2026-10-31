@@ -119,7 +119,7 @@ async function handleGenerateSpeech(input: string, voiceId: string) {
         v-model="promptText"
         :label="t('settings.pages.providers.provider.gpt-sovits.fields.promptText.label')"
         :description="t('settings.pages.providers.provider.gpt-sovits.fields.promptText.description')"
-        placeholder="参考音频中说的文字（可选）"
+        :placeholder="t('settings.pages.providers.provider.gpt-sovits.fields.promptText.placeholder')"
         type="text"
       />
       <FieldInput
@@ -161,7 +161,7 @@ async function handleGenerateSpeech(input: string, voiceId: string) {
         :generate-speech="handleGenerateSpeech"
         :api-key-configured="apiKeyConfigured"
         :use-ssml="false"
-        default-text="你好，我是 AIRI，很高兴认识你！"
+        :default-text="t('settings.pages.providers.provider.gpt-sovits.fields.textLang.playground-default-text')"
       />
     </template>
   </SpeechProviderSettings>
