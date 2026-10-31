@@ -5,6 +5,7 @@ import type { Live2DExpressionsContext } from '../../contexts/expressions'
 import type { Live2DBreathControlState, Live2DMotionControlState } from '../../stores/motion-control'
 import type { BeatSyncController } from './beat-sync'
 import type { Live2DMotionSpringController } from './motion-control-spring'
+import type { Live2DPoseAttentionController, Live2DPoseAttentionTarget } from './pose-attention'
 
 import { sampleLive2DBreath } from '../../stores/motion-control'
 import { useLive2DIdleEyeFocus } from './animation'
@@ -702,6 +703,13 @@ export function useMotionUpdatePluginExpression(
   }
 }
 
+/** An attention layer that turns the manual pose toward a target before the spring. */
+export interface Live2DManualControlAttention {
+  controller: Live2DPoseAttentionController
+  /** The current target, or undefined when nothing holds the attention. */
+  target: () => Live2DPoseAttentionTarget | undefined
+}
+
 /**
  * Applies the active manual pose after normal Live2D motion updates.
  *
@@ -711,9 +719,17 @@ export function useMotionUpdatePluginExpression(
 export function useMotionUpdatePluginManualControl(
   control: Ref<Live2DMotionControlState>,
   spring: Live2DMotionSpringController,
+  attention?: Live2DManualControlAttention,
 ): MotionManagerPlugin {
   return (ctx) => {
-    const output = spring.step(control.value, ctx.timeDelta)
+    let state = control.value
+    if (attention) {
+      attention.controller.step(state.active ? attention.target() : undefined, ctx.timeDelta)
+      if (state.active)
+        state = { ...state, pose: attention.controller.apply(state.pose) }
+    }
+
+    const output = spring.step(state, ctx.timeDelta)
     if (!output.active)
       return
 

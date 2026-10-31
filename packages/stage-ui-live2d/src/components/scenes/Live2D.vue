@@ -74,6 +74,7 @@ const {
   live2dShadowEnabled,
 } = storeToRefs(useSettingsLive2d())
 const universalMotionEnabled = computed(() => live2dMotionDriver.value === 'universal')
+const magicMotionEnabled = computed(() => live2dMotionDriver.value === 'magic')
 const {
   screenAmbientLightBacklight,
   screenAmbientLightBaseCurve,
@@ -174,7 +175,8 @@ defineExpose({
         :paused="paused"
         :focus-at="mouseFocus"
         :eye-tracking="universalMotionEnabled && live2dEyeTracking"
-        :eye-focus-source-active="universalMotionEnabled && !!activeCursorPosition"
+        :eye-focus-source-active="!!activeCursorPosition"
+        :pose-attention="magicMotionEnabled && live2dEyeTracking"
         :theme-colors-hue="themeColorsHue"
         :theme-colors-hue-dynamic="themeColorsHueDynamic"
         :live2d-idle-animation-enabled="universalMotionEnabled && live2dIdleAnimationEnabled"
