@@ -2,6 +2,8 @@ import type { Rectangle } from 'electron'
 import type { InferOutput } from 'valibot'
 
 import type { FullscreenMode, FullscreenOpenRequest, FullscreenSurfaceId } from '../../../shared/eventa'
+import type { globalAppConfigSchema } from '../../configs/global'
+import type { Config } from '../../libs/electron/persistence'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { GodotStageManager } from '../../services/airi/godot-stage'
@@ -40,6 +42,7 @@ import { createConfig } from '../../libs/electron/persistence'
 import { createWindowContext } from '../../libs/electron/window-context'
 import { setupSettingsPageInvokes } from '../settings/rpc/index.electron'
 import { protectPrivilegedWindowNavigation, setWindowAlwaysOnTop, transparentWindowConfig } from '../shared'
+import { showWindowOnAllWorkspaces } from '../shared/app-icon'
 import { centerWindowOnDisplay, computeCenteredWindowBounds } from '../shared/display'
 import { hideOnClose } from './hide-on-close'
 import { setupMainWindowElectronInvokes } from './rpc/index.electron'
@@ -73,6 +76,7 @@ export async function setupMainWindow(params: {
   ioTraceRecording: IOTraceRecordingService
   globalShortcut: GlobalShortcutService
   inlayWindow: () => Promise<BrowserWindow>
+  appConfig: Config<typeof globalAppConfigSchema>
   devtoolsWindow: DevtoolsWindowManager
   spotlightWindow: SpotlightWindowManager
   /**
@@ -203,7 +207,9 @@ export async function setupMainWindow(params: {
   //
   // https://github.com/electron/electron/issues/10078#issuecomment-3410164802
   // https://stackoverflow.com/questions/39835282/set-browserwindow-always-on-top-even-other-app-is-in-fullscreen-electron-mac
-  window.setVisibleOnAllWorkspaces(true)
+  showWindowOnAllWorkspaces(window, {
+    hideAppIcon: params.appConfig.get()?.hideAppIcon,
+  })
   if (isMacOS) {
     window.setFullScreenable(false)
     window.setWindowButtonVisibility(false)
