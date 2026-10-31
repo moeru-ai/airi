@@ -24,8 +24,7 @@ await live2d.motions.execute('motions/wave.motion3.json')
 
 ## Motion layers
 
-`Live2DScene` combines several motion sources on one model. The
-[motion layers ADR](../../docs/ai/adr/2026-10-31-live2d-motion-layers.md) gives the design.
+`Live2DScene` combines several motion sources on one model.
 
 - The focus target of Pixi follows the cursor, follows the idle eye focus, or goes back to the center.
   `resolveLive2DFocusTargetMode` selects the mode.
