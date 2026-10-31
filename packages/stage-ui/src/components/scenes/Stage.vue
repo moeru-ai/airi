@@ -13,7 +13,7 @@ import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { normalizeActPayload, Playback } from '@proj-airi/pipelines-audio'
 import { presenceBubbleIdle, presenceBubbleThinking } from '@proj-airi/stage-shared'
-import { createLive2D, defaultLive2DMotionControlDynamics, Live2DScene, useLive2DMotionControl, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
+import { createLive2D, Live2DScene, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { MMDScene } from '@proj-airi/stage-ui-mmd'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
 import { TachieScene } from '@proj-airi/stage-ui-tachie'
@@ -33,7 +33,7 @@ import StageRenderError from './stage-render-error.vue'
 
 // import { useDuckDb } from '../../composables/use-duck-db'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
-import { live2dMotionMagicProfiles, useLive2DMotionMagic, useLive2DMotionMagicSettings } from '../../features/motions/live2d'
+import { useLive2DStageMotionMagic } from '../../features/motions/live2d/use-live2d-stage-motion-magic'
 import { syncedRoles, usePiniaSynced } from '../../libs/pinia/synced-context'
 import { getSpeechBusContext, speechOutputGetPlaybackState, speechOutputPlaybackStateChangedEvent } from '../../services/speech/bus'
 import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-control'
@@ -94,49 +94,9 @@ const {
   live2dMaxFps,
   live2dRenderScale,
 } = storeToRefs(useSettingsLive2d())
-const live2dMotionControl = useLive2DMotionControl()
-const { exclusiveOwnerId: live2dMotionControlOwnerId } = storeToRefs(live2dMotionControl)
-const {
-  forceViewTarget: live2dMagicForceViewTarget,
-  profileId: live2dMagicProfileId,
-  skipMouthOpen: live2dMagicSkipMouthOpen,
-} = storeToRefs(useLive2DMotionMagicSettings())
-const live2dMagicMotion = useLive2DMotionMagic({
-  dataset: () => live2dMotionMagicProfiles[live2dMagicProfileId.value].dataset,
-  forceViewTarget: live2dMagicForceViewTarget,
-  skipMouthOpen: live2dMagicSkipMouthOpen,
-  disabled: () => live2dMotionControlOwnerId.value !== null,
-  publishPose: pose => live2dMotionControl.setPose('stage:live2d-motion-magic', pose, defaultLive2DMotionControlDynamics),
-  releasePose: () => live2dMotionControl.release('stage:live2d-motion-magic'),
+useLive2DStageMotionMagic({
+  active: () => stageModelRenderer.value === 'live2d' && live2dMotionDriver.value === 'magic' && !props.paused,
 })
-let live2dMagicActivationRequest = 0
-
-watch(
-  [stageModelRenderer, live2dMotionDriver, live2dMagicProfileId, () => props.paused, live2dMotionControlOwnerId],
-  async ([renderer, driver, , paused, controlOwnerId]) => {
-    const request = ++live2dMagicActivationRequest
-    if (renderer !== 'live2d' || driver !== 'magic' || paused || controlOwnerId !== null) {
-      live2dMagicMotion.stop()
-      return
-    }
-
-    if (live2dMagicMotion.status.value === 'idle')
-      await live2dMagicMotion.initialize()
-
-    if (
-      request !== live2dMagicActivationRequest
-      || stageModelRenderer.value !== 'live2d'
-      || live2dMotionDriver.value !== 'magic'
-      || props.paused
-      || live2dMotionControlOwnerId.value !== null
-    ) {
-      return
-    }
-
-    live2dMagicMotion.start()
-  },
-  { immediate: true },
-)
 const {
   spinePremultipliedAlpha,
   spineDefaultMixDuration,
