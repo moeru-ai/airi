@@ -88,8 +88,13 @@ export const providerGptSovits = defineProvider<GptSovitsConfig, 'gpt-sovits'>({
       id: 'gpt-sovits:check-config',
       name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-config.title'),
       validator: async (config) => {
+        const errors = []
         if (!config.baseUrl)
-          return { errors: [{ error: new Error('Base URL is required') }], reason: 'Base URL is required', reasonKey: '', valid: false }
+          errors.push({ error: new Error('Base URL is required') })
+        if (!config.refAudioPath)
+          errors.push({ error: new Error('Reference audio path is required') })
+        if (errors.length)
+          return { errors, reason: errors.map(item => item.error.message).join(', '), reasonKey: '', valid: false }
         try {
           const response = await electronFetch(`${String(config.baseUrl).replace(TRAILING_SLASH_RE, '')}/set_gpt_weights`)
           return { errors: response.ok ? [] : [{ error: new Error(`HTTP ${response.status}`) }], reason: response.ok ? '' : `HTTP ${response.status}`, reasonKey: '', valid: response.ok }
