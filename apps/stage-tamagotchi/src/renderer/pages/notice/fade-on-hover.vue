@@ -9,6 +9,7 @@ import { useRoute } from 'vue-router'
 
 import VideoTutorialFadeOnHoverDark from '../../assets/videos/tutorial/tutorial-fade-on-hover.dark.mp4'
 import VideoTutorialFadeOnHoverLight from '../../assets/videos/tutorial/tutorial-fade-on-hover.light.mp4'
+import WindowTitleBar from '../../components/Window/TitleBar.vue'
 
 import { noticeWindowEventa } from '../../../shared/eventa'
 import { useControlsIslandStore } from '../../stores/controls-island'
@@ -85,6 +86,7 @@ async function handleAction(action: 'confirm' | 'cancel' | 'close') {
 
 <template>
   <div class="h-100dvh w-100dvw">
+    <WindowTitleBar transparent />
     <div class="relative h-full w-full flex flex-col gap-4 text-neutral-900 dark:text-neutral-100">
       <div class="absolute inset-0 z-0 h-full w-full overflow-hidden text-xs text-neutral-600 dark:text-neutral-400">
         <video :src="isDark ? VideoTutorialFadeOnHoverDark : VideoTutorialFadeOnHoverLight" autoplay muted loop class="h-full w-full object-cover" />
@@ -97,7 +99,7 @@ async function handleAction(action: 'confirm' | 'cancel' | 'close') {
         class="heading-backdrop"
       />
       <div class="relative z-1 h-full w-full flex flex-col">
-        <div class="mb-2 flex items-center justify-between gap-2 px-4 pt-4">
+        <div class="mb-2 flex items-center justify-between gap-2 px-4 pt-12">
           <div
             v-motion
             :initial="{ opacity: 0 }"

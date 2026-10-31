@@ -9,7 +9,7 @@ import icon from '../../../../resources/icon.png?asset'
 import { showWindow } from '../../libs/electron/focus'
 import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
-import { protectPrivilegedWindowNavigation } from '../shared'
+import { customTitleBarWindowConfig, protectPrivilegedWindowNavigation } from '../shared'
 import { setupAboutWindowElectronInvokes } from './rpc/index.electron'
 
 export function setupAboutWindowReusable(params: {
@@ -27,6 +27,7 @@ export function setupAboutWindowReusable(params: {
       maximizable: false,
       minimizable: false,
       icon,
+      ...customTitleBarWindowConfig(),
       webPreferences: {
         preload: getPreloadPath(),
         sandbox: false,

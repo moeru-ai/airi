@@ -91,6 +91,15 @@ widgets:
 inlay:
   dismiss: Dismiss
 
+window:
+  minimize: Minimize
+  maximize: Maximize
+  restore: Restore
+  close: Close
+  titles:
+    about: About AIRI
+    editor: AIRI Editor
+
 notice:
   'fade-on-hover':
     title: Fade on Hover
