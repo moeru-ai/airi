@@ -77,3 +77,26 @@ describe('useLive2DEyeFocusFor', () => {
     expect(focus.value).toEqual({ x: 1000, y: 1000 })
   })
 })
+
+describe('resolveLive2DFocusTargetMode', () => {
+  it('centers the target when neither the cursor nor the idle focus drives it', async () => {
+    const { resolveLive2DFocusTargetMode } = await import('./eye-tracking')
+
+    // ROOT CAUSE:
+    //
+    // Pixi adds the last focus target to the head angles on every frame. Turning
+    // off mouse tracking and idle eye movement kept that target, so the model
+    // and MAGIC poses stayed turned.
+    //
+    // We fixed this by centering the target.
+    expect(resolveLive2DFocusTargetMode({ eyeTracking: false, sourceActive: true, idleEyeFocus: false })).toBe('center')
+    expect(resolveLive2DFocusTargetMode({ eyeTracking: true, sourceActive: false, idleEyeFocus: false })).toBe('center')
+  })
+
+  it('follows an active cursor before the idle focus', async () => {
+    const { resolveLive2DFocusTargetMode } = await import('./eye-tracking')
+
+    expect(resolveLive2DFocusTargetMode({ eyeTracking: true, sourceActive: true, idleEyeFocus: true })).toBe('follow')
+    expect(resolveLive2DFocusTargetMode({ eyeTracking: true, sourceActive: false, idleEyeFocus: true })).toBe('idle')
+  })
+})

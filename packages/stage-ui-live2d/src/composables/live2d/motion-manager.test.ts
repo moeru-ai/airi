@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
 import { neutralLive2DMotionControlPose } from '../../stores/motion-control'
+import { createLive2DFocusBias } from './focus-bias'
 import { createLive2DMotionSpring } from './motion-control-spring'
 import {
   disableLive2DSdkBreath,
@@ -309,6 +310,31 @@ describe('live2d motion manager plugins', () => {
     expect(context.model.getParameterValueById('ParamBodyAngleY')).toBeCloseTo(7.5)
     expect(context.model.getParameterValueById('ParamBodyAngleZ')).toBeCloseTo(10)
     expect(context.model.getParameterValueById('ParamMouthForm')).toBeCloseTo(-0.25)
+  })
+
+  it('biases a manual pose toward the focus target and back after it goes away', () => {
+    const context = createContext({ timeDelta: 1 / 60 })
+    const target = ref<{ x: number, y: number }>()
+    const plugin = useMotionUpdatePluginManualControl(ref({
+      active: true,
+      ownerId: 'magic',
+      pose: neutralLive2DMotionControlPose,
+      dynamics: { follow: 1, inertia: 0.6 },
+    }), createLive2DMotionSpring(), {
+      controller: createLive2DFocusBias({ headGain: 0.5, bodyGain: 0, fadeSeconds: 0.1, followSeconds: 0.05 }),
+      target: () => target.value,
+    })
+
+    target.value = { x: 1, y: 0 }
+    for (let frame = 0; frame < 240; frame += 1)
+      plugin(context)
+    expect(context.model.getParameterValueById('ParamAngleX')).toBeCloseTo(15, 0)
+    expect(context.model.getParameterValueById('ParamEyeBallX')).toBeCloseTo(0.5, 1)
+
+    target.value = undefined
+    for (let frame = 0; frame < 240; frame += 1)
+      plugin(context)
+    expect(context.model.getParameterValueById('ParamAngleX')).toBeCloseTo(0, 0)
   })
 
   it('leaves motion parameters unchanged after manual control is released', () => {

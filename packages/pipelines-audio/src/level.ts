@@ -1,6 +1,7 @@
-import type { AudioInput, Observer } from '@proj-airi/pipelines-audio'
+import type { AudioInput } from './audio-input'
+import type { Observer } from './observe'
 
-import { observe } from '@proj-airi/pipelines-audio'
+import { observe } from './observe'
 
 /** One level per window gives a 20 Hz meter, which is smooth enough for a volume halo. */
 const LEVEL_WINDOW_MS = 50
@@ -8,12 +9,13 @@ const LEVEL_WINDOW_MS = 50
 const LEVEL_FLOOR_DB = -60
 
 /**
- * Publishes the microphone level until `signal` aborts.
+ * Publishes the level of an input until `signal` aborts, one value for each 50 ms window.
  *
- * The observation subscribes to `input`, so it keeps the microphone open. Run it only while a control already captures audio.
+ * The input can be a microphone or the output of a playback, see `Playback.output`. The observation subscribes to
+ * `input`, so it keeps the source open. Run it only while the level is needed.
  * Each level is the root mean square of all channels in one window, mapped linearly in decibels to the range 0 to 1.
  */
-export function observeInputLevel(input: AudioInput, signal: AbortSignal, onLevel: (level: number) => void): Observer {
+export function observeLevel(input: AudioInput, signal: AbortSignal, onLevel: (level: number) => void): Observer {
   return observe(input, { windowMs: LEVEL_WINDOW_MS, hopMs: LEVEL_WINDOW_MS, signal }, async window => levelOf(window.channels), result => onLevel(result.value))
 }
 

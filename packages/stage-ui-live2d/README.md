@@ -22,6 +22,17 @@ await live2d.expressions.execute({ name: 'happy', duration: 3 })
 await live2d.motions.execute('motions/wave.motion3.json')
 ```
 
+## Motion layers
+
+`Live2DScene` combines several motion sources on one model.
+
+- The focus target of Pixi follows the cursor, follows the idle eye focus, or goes back to the center.
+  `resolveLive2DFocusTargetMode` selects the mode.
+- A manual pose, for example a MAGIC pose, comes from `useLive2DMotionControl`. Pass
+  `{ broadcast: false }` to `setPose` for a source that runs in each renderer.
+- With `focusBias`, the scene biases a manual pose toward the cursor. `createLive2DFocusBias` owns the fade and the gains.
+  The head turns part of the way, and the eyes cover the rest. The generated motion continues under the bias.
+
 ## Do not use this package
 
 Do not store Character state or cross-window state in this package. Keep that

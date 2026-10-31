@@ -57,7 +57,7 @@ export function createVoiceActivityPlugin(options: VoiceActivityOptions): VoiceP
     // SileroVad requires 512 samples at 16 kHz, so each window lasts 32 ms.
     // The constraint is in workers/vad/silero-vad.ts.
     // Remove this fixed size when detectors supply their own window requirements.
-    scope.observeAudio({ windowMs: 32, hopMs: 32, scheduling: 'ordered', preRollMs }, async (ctx) => {
+    scope.input.observe({ windowMs: 32, hopMs: 32, scheduling: 'ordered', preRollMs }, async (ctx) => {
       const { window } = ctx
       const score = await options.detect(window, ctx.signal)
       const durationMs = (window.range.endFrame - window.range.startFrame) * 1000 / window.sampleRate
