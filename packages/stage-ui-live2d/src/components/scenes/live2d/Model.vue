@@ -32,6 +32,7 @@ import {
   createLive2DMotionSpring,
   disableLive2DSdkBreath,
   live2DCanvasRectToParent,
+  resolveLive2DFocusTargetMode,
   useLive2DMotionManagerUpdate,
   useMotionUpdatePluginAutoEyeBlink,
   useMotionUpdatePluginBeatSync,
@@ -919,14 +920,31 @@ watch(live2dExpressionEnabled, (enabled) => {
   }
 })
 
-watch(focusAt, (value) => {
-  if (!model.value)
-    return
-  if (!props.eyeTracking)
+/**
+ * Sets the target of the Pixi focus controller.
+ *
+ * Pixi keeps the last target and adds it to the head, body, and eye angles on
+ * every frame. Without a reset, the model stays turned after tracking stops,
+ * and the turn also adds to a MAGIC pose. `Live2DModel.focus` always puts the
+ * target on the unit circle, so the center needs a direct `focus(0, 0)`.
+ */
+function updateFocusTarget() {
+  const current = model.value
+  if (!current)
     return
 
-  model.value.focus(value.x, value.y)
-})
+  const mode = resolveLive2DFocusTargetMode({
+    eyeTracking: props.eyeTracking,
+    sourceActive: props.eyeFocusSourceActive,
+    idleEyeFocus: props.live2dForceIdleEyeAnimation,
+  })
+  if (mode === 'follow')
+    current.focus(focusAt.value.x, focusAt.value.y)
+  else if (mode === 'center')
+    current.internalModel.focusController.focus(0, 0)
+}
+
+watch([model, focusAt, live2dEyeTrackingEnabled, live2dEyeFocusSourceActive, live2dForceIdleEyeAnimation], updateFocusTarget)
 
 onMounted(() => {
   const removeListener = listenBeatSyncBeatSignal(() => beatSync.scheduleBeat())
