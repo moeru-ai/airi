@@ -27,7 +27,7 @@ import devIcon from '../../resources/icon-dev.png?asset'
 
 import { openDebugger, setupDebugger } from './app/debugger'
 import { nullFileLoggerHandle, setupFileLogger } from './app/file-logger'
-import { resolveIsWayland } from './app/ozone'
+import { resolveGpuCompositingSwitches, resolveIsWayland } from './app/ozone'
 import { installSingleInstanceGuard } from './app/single-instance'
 import { createArtistryConfig } from './configs/artistry'
 import { createGlobalAppConfig } from './configs/global'
@@ -126,11 +126,12 @@ if (isLinux) {
   // When running with XWayland (e.g. '--ozone-platform=x11'), session variables like WAYLAND_DISPLAY
   // are still inherited from the Wayland desktop, but Chromium uses the explicitly specified Ozone backend.
   // Treat explicit 'auto' as an unresolved platform selection and resolve using session environment variables.
-  const isWayland = resolveIsWayland({
+  const ozoneSelection = {
     explicitOzonePlatform: app.commandLine.getSwitchValue('ozone-platform'),
     ozonePlatformHint: app.commandLine.getSwitchValue('ozone-platform-hint'),
     env,
-  })
+  }
+  const isWayland = resolveIsWayland(ozoneSelection)
 
   if (isWayland) {
     enabledFeatures.push('GlobalShortcutsPortal', 'UseOzonePlatform', 'WaylandWindowDecorations')
@@ -150,6 +151,13 @@ if (isLinux) {
     // Removal condition: when Chromium/Electron supports Vulkan with the Wayland
     // Ozone backend, drop the isWayland guard and always push 'Vulkan'.
     enabledFeatures.push('Vulkan')
+  }
+
+  for (const compositingSwitch of resolveGpuCompositingSwitches({
+    isLinux,
+    ...ozoneSelection,
+  })) {
+    app.commandLine.appendSwitch(compositingSwitch)
   }
 
   app.commandLine.appendSwitch('enable-features', enabledFeatures.join(','))
