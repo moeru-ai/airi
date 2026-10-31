@@ -2042,6 +2042,7 @@ pages:
       gpt-sovits:
         description: github.com/RVC-Boss/GPT-SoVITS
         title: GPT-SoVITS
+        modelDescription: GPT-SoVITS 音色克隆模型
         referenceVoice: 已配置的参考音频
         callout_no_model_title: 不支持请求内模型字段
         callout_model_switch: GPT-SoVITS 不使用标准 TTS 的 model 字段；如需切换模型，请填写下方 GPT / SoVITS 权重路径，AIRI 会调用 api_v2.py 的切换接口。

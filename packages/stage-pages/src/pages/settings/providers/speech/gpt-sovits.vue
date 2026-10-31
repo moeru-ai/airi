@@ -26,7 +26,6 @@ const { configs: providers } = storeToRefs(providerConfigStore)
 
 function setConfigField(field: string, value: string) {
   void providerConfigStore.patchProviderConfig(providerId, { [field]: value })
-  void providersStore.validateProvider(providerId, { force: true })
 }
 
 const refAudioPath = computed({
