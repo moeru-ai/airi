@@ -2636,3 +2636,15 @@ wip:
 streamer-mode:
   title: 直播模式
   description: 隐藏角色窗口中的麦克风和登录提示。
+translation-subtitle:
+  title: 翻译字幕
+  description: 显示每条回复的翻译字幕，不朗读翻译文本。
+  language:
+    title: 目标语言
+    description: 选择翻译字幕的目标语言。
+caption-colors:
+  title: 字幕颜色
+  speaker: 用户字幕
+  assistant: AI 原文字幕
+  translation: 翻译字幕
+  stroke: 描边颜色

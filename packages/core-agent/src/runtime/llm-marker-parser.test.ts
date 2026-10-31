@@ -88,4 +88,21 @@ describe('useLlmmarkerParser', () => {
     await parser.end()
     expect(collectedLiterals.join('')).toBe('查曼谷和上海未来三天的天气。第 1/3 步完成。')
   })
+
+  it('runs a flush transition before text already queued after the boundary', async () => {
+    const parts: string[] = []
+    let mode = 'source'
+    const parser = useLlmmarkerParser({
+      onLiteral: (text) => { parts.push(`${mode}:${text}`) },
+    })
+    void parser.consume('before')
+    const boundary = parser.flush(() => {
+      mode = 'translation'
+    })
+    void parser.consume('after')
+    await boundary
+    await parser.end()
+    expect(parts.filter(part => part.startsWith('source:')).map(part => part.slice(7)).join('')).toBe('before')
+    expect(parts.filter(part => part.startsWith('translation:')).map(part => part.slice(12)).join('')).toBe('after')
+  })
 })

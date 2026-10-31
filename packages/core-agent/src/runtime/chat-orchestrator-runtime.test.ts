@@ -167,6 +167,165 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
 }
 
 describe('createChatOrchestratorRuntime', () => {
+  // https://github.com/moeru-ai/airi/pull/1518#discussion_r3043960205
+  // ROOT CAUSE:
+  // The old platform-specific return sent translated literals into speech on Web and Pocket.
+  // Translation now has its own hook before the shared speech path, without a platform exception.
+  it.each(Array.from({ length: 11 }, (_, index) => index))('keeps translation out of speech with a marker split at %s', async (split) => {
+    const harness = createHarness()
+    const speech: string[] = []
+    const translation: string[] = []
+    const specials: string[] = []
+    harness.runtime.hooks.onTokenLiteral(async (text) => {
+      speech.push(text)
+    })
+    harness.runtime.hooks.onTokenTranslation(async (text) => {
+      translation.push(text)
+    })
+    harness.runtime.hooks.onTokenSpecial(async (text) => {
+      specials.push(text)
+    })
+    harness.stream.mockImplementationOnce(async (_model, _provider, _context, options) => {
+      const marker = '<|TRANS:|>'
+      for (const text of ['Hello ', 'world.', marker.slice(0, split), marker.slice(split), '你好', '世界。', '<|STICKER heart|>', '<|DELAY:1|>'])
+        await options?.onStreamEvent?.({ type: 'text-delta', text })
+    })
+    await harness.runtime.ingest('reply', { model: 'test', chatProvider: provider, translationLanguage: 'zh-Hans', stickers: [{ id: 'heart', description: 'A heart' }] })
+    expect(speech.join('')).toBe('Hello world.')
+    expect(translation.join('')).toBe('你好世界。')
+    expect(specials).toEqual([])
+    const saved = harness.sessionMessages['session-1'].findLast(message => message.role === 'assistant')
+    expect(saved?.content).toBe('Hello world.')
+    expect(saved?.role === 'assistant' && saved.categorization?.speech).toBe('Hello world.')
+    expect(saved?.role === 'assistant' && saved.slices).toEqual([{ type: 'text', text: 'Hello world.' }])
+    const prompt = conversationToChatMessages(harness.stream.mock.calls[0][2])
+    expect(prompt.some(message => message.role === 'system' && String(message.content).includes('zh-Hans'))).toBe(true)
+    expect(prompt.at(-1)?.role).toBe('user')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/1518
+  // ROOT CAUSE:
+  // Final callbacks used the raw stream after translated tokens left the speech path.
+  // Source text now feeds display callbacks. Native continuation retains the provider response.
+  it('keeps final projections source-only and preserves native continuation', async () => {
+    const harness = createHarness()
+    const responseEnd = vi.fn(async () => {})
+    const assistantMessage = vi.fn(async () => {})
+    const turnComplete = vi.fn(async () => {})
+    harness.runtime.hooks.onAssistantResponseEnd(responseEnd)
+    harness.runtime.hooks.onAssistantMessage(assistantMessage)
+    harness.runtime.hooks.onChatTurnComplete(turnComplete)
+    const raw = 'Hello<|TRANS:|>你好'
+    const [nativeTurn] = chatMessagesToTurns([{ role: 'assistant', content: raw }])
+    if (nativeTurn.type !== 'assistant')
+      throw new Error('Expected assistant turn')
+    harness.stream.mockImplementationOnce(async (_model, _provider, _context, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: raw })
+      await options?.onGeneratedTurn?.(nativeTurn)
+    })
+    await harness.runtime.ingest('reply', { model: 'test', chatProvider: provider, translationLanguage: 'zh-Hans' })
+    expect(responseEnd).toHaveBeenCalledWith('Hello', expect.any(Object))
+    expect(assistantMessage).toHaveBeenCalledWith(expect.objectContaining({ content: 'Hello' }), 'Hello', expect.any(Object))
+    expect(turnComplete).toHaveBeenCalledWith(expect.objectContaining({ outputText: 'Hello' }), expect.any(Object))
+    expect(harness.assistantAppended).toEqual([expect.objectContaining({ messageText: 'Hello' })])
+    expect(harness.assistantTurns).toEqual([expect.objectContaining({ messageText: 'Hello' })])
+    const saved = harness.sessionMessages['session-1'].findLast(message => message.role === 'assistant')
+    expect(saved?.role === 'assistant' && saved.generationTranscript).toEqual(nativeTurn)
+  })
+
+  it('preserves literal speech after a translation marker when subtitles are disabled', async () => {
+    const harness = createHarness()
+    const speech: string[] = []
+    const translated = vi.fn(async () => {})
+    harness.runtime.hooks.onTokenLiteral(async (text) => {
+      speech.push(text)
+    })
+    harness.runtime.hooks.onTokenTranslation(translated)
+    harness.stream.mockImplementationOnce(async (_model, _provider, _context, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'Hello<|TRANS:|>world' })
+    })
+    await harness.runtime.ingest('reply', { model: 'test', chatProvider: provider })
+    expect(speech.join('')).toBe('Helloworld')
+    expect(translated).not.toHaveBeenCalled()
+  })
+
+  it('ignores translation markers inside reasoning', async () => {
+    const harness = createHarness()
+    const translation: string[] = []
+    harness.runtime.hooks.onTokenTranslation(async (text) => {
+      translation.push(text)
+    })
+    harness.stream.mockImplementationOnce(async (_model, _provider, _context, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: '<think>consider <|TRANS:|> a marker</think>Hello<|TRANS:|>你好' })
+    })
+    await harness.runtime.ingest('reply', { model: 'test', chatProvider: provider, translationLanguage: 'zh-Hans' })
+    expect(translation.join('')).toBe('你好')
+    const saved = harness.sessionMessages['session-1'].findLast(message => message.role === 'assistant')
+    expect(saved?.content).toBe('Hello')
+  })
+
+  it('resumes source speech after a tool round with concurrent events', async () => {
+    const harness = createHarness()
+    const speech: string[] = []
+    const translation: string[] = []
+    harness.runtime.hooks.onTokenLiteral(async (text) => {
+      speech.push(text)
+    })
+    harness.runtime.hooks.onTokenTranslation(async (text) => {
+      translation.push(text)
+    })
+    harness.stream.mockImplementationOnce(async (_model, _provider, _context, options) => {
+      void options?.onStreamEvent?.({ type: 'text-delta', text: 'Checking.<|TRANS:|>检查。' })
+      void options?.onStreamEvent?.({ type: 'tool-call', toolCallId: 'weather', toolCallType: 'function', toolName: 'weather', args: '{}' })
+      void options?.onStreamEvent?.({ type: 'tool-result', toolCallId: 'weather', result: 'sunny' })
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'Sunny.<|TRANS:|>晴天。' })
+    })
+    await harness.runtime.ingest('weather', { model: 'test', chatProvider: provider, translationLanguage: 'zh-Hans' })
+    expect(speech.join('')).toBe('Checking.Sunny.')
+    expect(translation.join('')).toBe('检查。晴天。')
+    const saved = harness.sessionMessages['session-1'].findLast(message => message.role === 'assistant')
+    expect(saved?.role === 'assistant' && saved.categorization?.speech).toBe('Checking.Sunny.')
+  })
+
+  it('keeps the captured translation locale across resolved tool steps', async () => {
+    const harness = createHarness()
+    const resolveStep = vi.fn(async () => ({ model: 'test', chatProvider: provider, providerId: 'mock-provider', systemPrompt: 'new identity' }))
+    const options = { model: 'test', chatProvider: provider, translationLanguage: 'zh-Hans', resolveStep }
+    const ready = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
+    harness.stream.mockImplementationOnce(async (_model, _provider, _context, streamOptions) => {
+      ready.resolve()
+      await release.promise
+      const step = await streamOptions?.resolveStep?.()
+      expect(step?.systemPrompt).toContain('zh-Hans')
+      expect(step?.systemPrompt).not.toContain('ja-JP')
+      await streamOptions?.onStreamEvent?.({ type: 'text-delta', text: 'Hello<|TRANS:|>你好' })
+    })
+    const done = harness.runtime.ingest('reply', options)
+    await ready.promise
+    options.translationLanguage = 'ja-JP'
+    release.resolve()
+    await done
+  })
+
+  it('stops translated chunks after cancellation inside a translation hook', async () => {
+    const harness = createHarness()
+    const chunks: string[] = []
+    harness.runtime.hooks.onTokenTranslation(async (text, context) => {
+      if (!text)
+        return
+      chunks.push(text)
+      harness.runtime.cancelTurn({ sessionId: context.sessionId, turnId: context.turnId })
+    })
+    harness.stream.mockImplementationOnce(async (_model, _provider, _context, options) => {
+      for (const text of ['Hello<|TRANS:|>', '第一部分足够长', '第二部分不可见'])
+        await options?.onStreamEvent?.({ type: 'text-delta', text })
+    })
+    await harness.runtime.ingest('reply', { model: 'test', chatProvider: provider, translationLanguage: 'zh-Hans' })
+    expect(chunks).toHaveLength(1)
+    expect(chunks.join('')).not.toContain('第二')
+  })
+
   // https://github.com/moeru-ai/airi/issues/2899
   // ROOT CAUSE:
   //

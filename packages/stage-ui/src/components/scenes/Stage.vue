@@ -12,7 +12,7 @@ import { BrowserPlayback } from '@proj-airi/audio/browser'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { normalizeActPayload, Playback } from '@proj-airi/pipelines-audio'
-import { presenceBubbleIdle, presenceBubbleThinking } from '@proj-airi/stage-shared'
+import { isStageTamagotchi, presenceBubbleIdle, presenceBubbleThinking } from '@proj-airi/stage-shared'
 import { createLive2D, defaultLive2DMotionControlDynamics, Live2DScene, useLive2DMotionControl, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { MMDScene } from '@proj-airi/stage-ui-mmd'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
@@ -26,16 +26,17 @@ import { useBroadcastChannel, useEventListener } from '@vueuse/core'
 // import embedWorkerURL from '@xsai-transformers/embed/worker?worker&url'
 // import { embed } from '@xsai/embed'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onUnmounted, ref, shallowRef, watch } from 'vue'
 
 import StageAvatarModelMissing from './stage-avatar-model-missing.vue'
 import StageRenderError from './stage-render-error.vue'
 
 // import { useDuckDb } from '../../composables/use-duck-db'
+import { useTranslationCaption } from '../../composables/use-translation-caption'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { live2dMotionMagicProfiles, useLive2DMotionMagic, useLive2DMotionMagicSettings } from '../../features/motions/live2d'
 import { syncedRoles, usePiniaSynced } from '../../libs/pinia/synced-context'
-import { getSpeechBusContext, speechOutputGetPlaybackState, speechOutputPlaybackStateChangedEvent } from '../../services/speech/bus'
+import { getSpeechBusContext, speechOutputGetPlaybackState, speechOutputPlaybackStateChangedEvent, voiceGenerationEnded } from '../../services/speech/bus'
 import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-control'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
@@ -46,6 +47,7 @@ import { useAiriCardStore } from '../../stores/modules/airi-card'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useSettingsPresenceBubble } from '../../stores/presence-bubble'
 import { useSettings } from '../../stores/settings'
+import { useSettingsGeneral } from '../../stores/settings/general'
 import { useSettingsStageModel } from '../../stores/settings/stage-model'
 import { useSpeechOutputControlStore } from '../../stores/speech-output-control'
 import { useVoiceStore } from '../../stores/voice'
@@ -181,7 +183,7 @@ function onVRMInteract(target: VrmInteractionTarget) {
   vrmViewerRef.value?.setExpression(getVrmInteractionExpression(target), 1)
 }
 
-const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
+const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onTokenTranslation, onStreamEnd, onAssistantResponseEnd } = useChatStore()
 // This context registers the hooks that speak a reply, so chat actions must run here.
 const releaseSpeechPlayerRole = usePiniaSynced().addRole(syncedRoles.speechPlayer)
 const chatHookCleanups: Array<() => void> = []
@@ -288,6 +290,29 @@ const chatPresence = computed<PresenceBubbleState>(() => chatSending.value ? pre
 const presenceBubble = computed<PresenceBubbleState>(() => presenceOverride.value ?? chatPresence.value)
 const speechStore = useSpeechStore()
 const chatSession = useChatSessionStore()
+const translationCaption = useTranslationCaption(computed(() => chatSession.activeSessionId))
+const { text: translatedCaption } = translationCaption
+const { translationSubtitleEnabled, captionTranslationColor, captionTranslationStrokeColor } = storeToRefs(useSettingsGeneral())
+const inlineTranslationCaption = !isStageTamagotchi()
+let detachTranslationAbort: (() => void) | undefined
+
+watch(translatedCaption, (text) => {
+  try {
+    postCaption({ type: 'caption-translation', operation: 'replace', text })
+  }
+  catch (error) {
+    console.warn('Failed to post translated caption:', errorMessageFrom(error))
+  }
+}, { flush: 'sync' })
+watch(() => chatSession.getSessionGenerationValue(chatSession.activeSessionId), translationCaption.clear, { flush: 'sync' })
+chatHookCleanups.push(getSpeechBusContext().on(voiceGenerationEnded, ({ body }) => {
+  if (body && body.status !== 'finished')
+    translationCaption.cancel(body)
+}))
+onBeforeUnmount(() => {
+  translationCaption.clear()
+  detachTranslationAbort?.()
+})
 const backgroundStore = useBackgroundStore()
 const { activeBackgroundUrl } = storeToRefs(backgroundStore)
 
@@ -574,8 +599,15 @@ chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   if (!holdsVoice(context))
     return
   voice.startResponse(context)
-  if (context.sessionId === chatSession.activeSessionId)
+  if (context.sessionId === chatSession.activeSessionId) {
     resetAssistantSpeechSurface('new-message')
+    translationCaption.begin(context)
+    detachTranslationAbort?.()
+    const signal = voice.getSpeech(context)?.response.signal
+    const cancelCaption = () => translationCaption.cancel(context)
+    signal?.addEventListener('abort', cancelCaption, { once: true })
+    detachTranslationAbort = () => signal?.removeEventListener('abort', cancelCaption)
+  }
   setupAnalyser()
   await setupLipSync()
 }))
@@ -588,6 +620,10 @@ chatHookCleanups.push(onBeforeSend(async (_message, context) => {
 chatHookCleanups.push(onTokenLiteral(async (literal, context) => {
   if (holdsVoice(context) && !speechMuted.value)
     await voice.getSpeech(context)?.write(literal)
+}))
+
+chatHookCleanups.push(onTokenTranslation(async (literal, context) => {
+  translationCaption.append(literal, context)
 }))
 
 chatHookCleanups.push(onTokenSpecial(async (special, context) => {
@@ -712,16 +748,15 @@ defineExpose({
 </script>
 
 <template>
-  <div relative h-full w-full>
-    <div relative h-full w-full>
+  <div :class="['relative h-full w-full']">
+    <div :class="['relative h-full w-full']">
       <Live2DScene
         v-if="stageModelRenderer === 'live2d' && showStage"
         ref="live2dSceneRef"
         v-model:state="componentState"
         :context="live2d"
         :presence="presenceBubble"
-        min-w="50% <lg:full"
-        h-full w-full flex-1
+        :class="['min-w-1/2 <lg:min-w-full', 'h-full w-full flex-1']"
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
         :background-url="activeBackgroundUrl"
@@ -742,7 +777,7 @@ defineExpose({
         v-model:state="componentState"
         :presence="presenceBubble"
         :background-url="activeBackgroundUrl"
-        min-w="50% <lg:full" h-full w-full flex-1
+        :class="['min-w-1/2 <lg:min-w-full', 'h-full w-full flex-1']"
         :model-id="stageModelSelected"
         :model-src="stageModelSelectedUrl"
         :cursor-position="cursorPosition"
@@ -760,8 +795,7 @@ defineExpose({
         ref="spineSceneRef"
         v-model:state="componentState"
         :background-url="activeBackgroundUrl"
-        min-w="50% <lg:full"
-        h-full w-full flex-1
+        :class="['min-w-1/2 <lg:min-w-full', 'h-full w-full flex-1']"
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
         :paused="paused"
@@ -777,8 +811,7 @@ defineExpose({
         ref="tachieSceneRef"
         v-model:state="componentState"
         :background-url="activeBackgroundUrl"
-        min-w="50% <lg:full"
-        h-full w-full flex-1
+        :class="['min-w-1/2 <lg:min-w-full', 'h-full w-full flex-1']"
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
         :paused="paused"
@@ -791,8 +824,7 @@ defineExpose({
         ref="mmdSceneRef"
         v-model:state="componentState"
         :background-url="activeBackgroundUrl"
-        min-w="50% <lg:full"
-        h-full w-full flex-1
+        :class="['min-w-1/2 <lg:min-w-full', 'h-full w-full flex-1']"
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
         :paused="paused"
@@ -823,6 +855,22 @@ defineExpose({
         </div>
       </div>
 
+      <p
+        v-if="inlineTranslationCaption && translationSubtitleEnabled && translatedCaption"
+        data-testid="translation-caption"
+        role="status"
+        :class="[
+          'pointer-events-none absolute inset-x-4 bottom-20 z-10',
+          'm-0 max-h-40 overflow-hidden text-center text-lg font-semibold whitespace-pre-wrap break-words',
+        ]"
+        :style="{
+          color: captionTranslationColor,
+          WebkitTextStroke: `3px ${captionTranslationStrokeColor}`,
+          paintOrder: 'stroke fill',
+        }"
+      >
+        {{ translatedCaption }}
+      </p>
       <StageAvatarModelMissing
         v-if="avatarModelPrompt"
         :reason="avatarModelPrompt"

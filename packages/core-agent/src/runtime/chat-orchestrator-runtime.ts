@@ -132,6 +132,8 @@ export interface ChatOrchestratorSendOptions {
   supportsVisionInput?: boolean
   /** Request-owned character instructions, captured before waiting in the session queue. */
   systemPromptSupplement?: string
+  /** Captured subtitle locale. Omission or an empty value keeps the normal speech path. */
+  translationLanguage?: string
   /** Eligible catalog for this request. Omission disables stickers. The queue copies entries before waiting. */
   stickers?: readonly { id: string, description: string }[]
   /** Stable user-message identity. Retries acknowledge the existing message without generating another reply. */
@@ -849,12 +851,23 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       let speechStarted = false
       const stickers = options.stickers
       let stickerEmitted = false
+      const translationLanguage = options.translationLanguage?.trim()
+      // Each model step starts in source mode. Only a visible marker enters subtitle mode.
+      // The parser resets the mode at tool boundaries before it handles the next step.
+      let inTranslationMode = false
+      let sourceText = ''
 
       const parser = useLlmmarkerParser({
         onLiteral: async (literal) => {
           if (shouldAbort())
             return
 
+          if (inTranslationMode) {
+            await hooks.emitTokenTranslationHooks(literal, streamingMessageContext)
+            return
+          }
+
+          sourceText += literal
           categorizer.consume(literal)
 
           let speechOnly = categorizer.filterToSpeech(literal, streamPosition)
@@ -897,6 +910,20 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           if (shouldAbort())
             return
 
+          if (inTranslationMode)
+            return
+
+          if (special === '<|TRANS:|>' && translationLanguage) {
+            // Reasoning can quote a marker. It cannot change the visible response mode.
+            if (categorizer.filterToSpeech(special, streamPosition)) {
+              inTranslationMode = true
+              await hooks.emitTokenTranslationHooks('', streamingMessageContext)
+              return
+            }
+          }
+
+          sourceText += special
+
           if (/^<\|STICKER\b/.test(special)) {
             // Text-based reasoning can contain markers too. Only visible speech can select an image.
             if (!categorizer.filterToSpeech(special, streamPosition))
@@ -918,7 +945,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
             return
 
           // Strip only sticker markers, including the escaped form accepted by the parser.
-          const speechText = fullText.replace(/<(?:\||\{'\|'\})STICKER\b[\s\S]*?(?:(?:\||\{'\|'\})>|$)/g, '')
+          const speechText = (translationLanguage ? sourceText : fullText).replace(/<(?:\||\{'\|'\})STICKER\b[\s\S]*?(?:(?:\||\{'\|'\})>|$)/g, '')
           const finalCategorization = categorizeResponse(speechText, activeProvider)
 
           const reasoningContentField = buildingMessage.categorization?.reasoning?.trim()
@@ -983,7 +1010,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
             ...stickers.map(sticker => `<|STICKER ${sticker.id}|>: ${sticker.description}`),
           ].join('\n')
         : ''
-      const systemPromptSupplement = [options.systemPromptSupplement?.trim(), stickerPrompt].filter(Boolean).join('\n\n')
+      const translationPrompt = translationLanguage
+        ? `After each normal response, append <|TRANS:|> and its translation into ${translationLanguage}. Keep control markers and tool calls out of the translation. Do not explain the translation.`
+        : ''
+      const systemPromptSupplement = [options.systemPromptSupplement?.trim(), stickerPrompt, translationPrompt].filter(Boolean).join('\n\n')
       if (systemPromptSupplement) {
         const systemMessage = context.turns.find(turn => turn.type === 'system' && turn.authority === 'system')
         if (systemMessage?.type === 'system')
@@ -1101,7 +1131,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
               const content = deps.toolContents?.[event.toolName]
               if (content) {
                 // The content joins when the result arrives, after the flush, so the text before the call stays in front of it.
-                const flushed = parser.flush().catch(() => undefined)
+                const flushed = parser.flush(() => {
+                  inTranslationMode = false
+                }).catch(() => undefined)
                 contentCalls.set(event.toolCallId, { content, args: event.args, flushed })
                 openContentCalls.add(event.toolCallId)
                 buildingMessage.pendingContent = content.kind
@@ -1115,7 +1147,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
                 if (pendingSlices.has(call))
                   toolCallQueue.enqueue(call)
               }
-              void parser.flush().then(enqueue, enqueue)
+              void parser.flush(() => {
+                inTranslationMode = false
+              }).then(enqueue, enqueue)
               break
             }
             case 'tool-result': {
@@ -1201,6 +1235,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (shouldAbort())
         return
 
+      // Display hooks receive source text. Native continuation keeps the complete provider response.
+      const responseText = translationLanguage ? sourceText : fullText
       generationCompleted = true
       buildingMessage.generationTranscript = generatedTurn
       try {
@@ -1229,7 +1265,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           sessionId,
           roundId,
           message: finalAssistant,
-          messageText: fullText,
+          messageText: responseText,
         })
       }
 
@@ -1238,7 +1274,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       await hooks.emitStreamEndHooks(streamingMessageContext)
       if (shouldAbort())
         return
-      await hooks.emitAssistantResponseEndHooks(fullText, streamingMessageContext)
+      await hooks.emitAssistantResponseEndHooks(responseText, streamingMessageContext)
 
       if (shouldAbort())
         return
@@ -1246,12 +1282,12 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (shouldAbort())
         return
       if (!silent)
-        await hooks.emitAssistantMessageHooks({ ...buildingMessage }, fullText, streamingMessageContext)
+        await hooks.emitAssistantMessageHooks({ ...buildingMessage }, responseText, streamingMessageContext)
       if (shouldAbort())
         return
       await hooks.emitChatTurnCompleteHooks({
         output: { ...buildingMessage },
-        outputText: fullText,
+        outputText: responseText,
         toolCalls: sessionMessagesForSend.filter(msg => msg.role === 'tool') as ToolMessage[],
       }, streamingMessageContext)
 
@@ -1259,7 +1295,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         return
       deps.onAssistantTurnReady?.({
         sessionId,
-        messageText: fullText,
+        messageText: responseText,
         sessionMessages: sessionMessagesForSend,
       })
 

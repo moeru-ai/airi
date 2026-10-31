@@ -9,6 +9,7 @@ export function createChatHooks(): ChatHookRegistry {
   const onBeforeSendHooks: Array<(message: string, context: ChatStreamEventContext) => Promise<void>> = []
   const onAfterSendHooks: Array<(message: string, context: ChatStreamEventContext) => Promise<void>> = []
   const onTokenLiteralHooks: Array<(literal: string, context: ChatStreamEventContext) => Promise<void>> = []
+  const onTokenTranslationHooks: Array<(literal: string, context: ChatStreamEventContext) => Promise<void>> = []
   const onTokenSpecialHooks: Array<(special: string, context: ChatStreamEventContext) => Promise<void>> = []
   const onStreamEndHooks: Array<(context: ChatStreamEventContext) => Promise<void>> = []
   const onAssistantResponseEndHooks: Array<(message: string, context: ChatStreamEventContext) => Promise<void>> = []
@@ -57,6 +58,15 @@ export function createChatHooks(): ChatHookRegistry {
       const index = onTokenLiteralHooks.indexOf(cb)
       if (index >= 0)
         onTokenLiteralHooks.splice(index, 1)
+    }
+  }
+
+  function onTokenTranslation(cb: (literal: string, context: ChatStreamEventContext) => Promise<void>) {
+    onTokenTranslationHooks.push(cb)
+    return () => {
+      const index = onTokenTranslationHooks.indexOf(cb)
+      if (index >= 0)
+        onTokenTranslationHooks.splice(index, 1)
     }
   }
 
@@ -111,6 +121,7 @@ export function createChatHooks(): ChatHookRegistry {
     onBeforeSendHooks.length = 0
     onAfterSendHooks.length = 0
     onTokenLiteralHooks.length = 0
+    onTokenTranslationHooks.length = 0
     onTokenSpecialHooks.length = 0
     onStreamEndHooks.length = 0
     onAssistantResponseEndHooks.length = 0
@@ -140,6 +151,11 @@ export function createChatHooks(): ChatHookRegistry {
 
   async function emitTokenLiteralHooks(literal: string, context: ChatStreamEventContext) {
     for (const hook of onTokenLiteralHooks)
+      await hook(literal, context)
+  }
+
+  async function emitTokenTranslationHooks(literal: string, context: ChatStreamEventContext) {
+    for (const hook of onTokenTranslationHooks)
       await hook(literal, context)
   }
 
@@ -174,6 +190,7 @@ export function createChatHooks(): ChatHookRegistry {
     onBeforeSend,
     onAfterSend,
     onTokenLiteral,
+    onTokenTranslation,
     onTokenSpecial,
     onStreamEnd,
     onAssistantResponseEnd,
@@ -184,6 +201,7 @@ export function createChatHooks(): ChatHookRegistry {
     emitBeforeSendHooks,
     emitAfterSendHooks,
     emitTokenLiteralHooks,
+    emitTokenTranslationHooks,
     emitTokenSpecialHooks,
     emitStreamEndHooks,
     emitAssistantResponseEndHooks,
@@ -199,6 +217,7 @@ export function createAgentHooks<TContext, TAssistantMessage, TToolCall>(): Agen
   const onBeforeSendHooks: Array<(message: string, context: TContext) => Promise<void>> = []
   const onAfterSendHooks: Array<(message: string, context: TContext) => Promise<void>> = []
   const onTokenLiteralHooks: Array<(literal: string, context: TContext) => Promise<void>> = []
+  const onTokenTranslationHooks: Array<(literal: string, context: TContext) => Promise<void>> = []
   const onTokenSpecialHooks: Array<(special: string, context: TContext) => Promise<void>> = []
   const onStreamEndHooks: Array<(context: TContext) => Promise<void>> = []
   const onAssistantResponseEndHooks: Array<(message: string, context: TContext) => Promise<void>> = []
@@ -220,6 +239,7 @@ export function createAgentHooks<TContext, TAssistantMessage, TToolCall>(): Agen
     onBeforeSendHooks.length = 0
     onAfterSendHooks.length = 0
     onTokenLiteralHooks.length = 0
+    onTokenTranslationHooks.length = 0
     onTokenSpecialHooks.length = 0
     onStreamEndHooks.length = 0
     onAssistantResponseEndHooks.length = 0
@@ -227,7 +247,7 @@ export function createAgentHooks<TContext, TAssistantMessage, TToolCall>(): Agen
     onChatTurnCompleteHooks.length = 0
   }
 
-  async function emitHooks<T extends any[]>(hooks: Array<(...args: T) => Promise<void>>, ...args: T) {
+  async function emitHooks<T extends unknown[]>(hooks: Array<(...args: T) => Promise<void>>, ...args: T) {
     for (const hook of hooks)
       await hook(...args)
   }
@@ -238,6 +258,7 @@ export function createAgentHooks<TContext, TAssistantMessage, TToolCall>(): Agen
     onBeforeSend: cb => createSubscribe(onBeforeSendHooks, cb),
     onAfterSend: cb => createSubscribe(onAfterSendHooks, cb),
     onTokenLiteral: cb => createSubscribe(onTokenLiteralHooks, cb),
+    onTokenTranslation: cb => createSubscribe(onTokenTranslationHooks, cb),
     onTokenSpecial: cb => createSubscribe(onTokenSpecialHooks, cb),
     onStreamEnd: cb => createSubscribe(onStreamEndHooks, cb),
     onAssistantResponseEnd: cb => createSubscribe(onAssistantResponseEndHooks, cb),
@@ -249,6 +270,7 @@ export function createAgentHooks<TContext, TAssistantMessage, TToolCall>(): Agen
     emitBeforeSendHooks: (message, context) => emitHooks(onBeforeSendHooks, message, context),
     emitAfterSendHooks: (message, context) => emitHooks(onAfterSendHooks, message, context),
     emitTokenLiteralHooks: (literal, context) => emitHooks(onTokenLiteralHooks, literal, context),
+    emitTokenTranslationHooks: (literal, context) => emitHooks(onTokenTranslationHooks, literal, context),
     emitTokenSpecialHooks: (special, context) => emitHooks(onTokenSpecialHooks, special, context),
     emitStreamEndHooks: context => emitHooks(onStreamEndHooks, context),
     emitAssistantResponseEndHooks: (message, context) => emitHooks(onAssistantResponseEndHooks, message, context),

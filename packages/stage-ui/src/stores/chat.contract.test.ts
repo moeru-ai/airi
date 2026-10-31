@@ -34,6 +34,7 @@ import { useContextObservabilityStore } from './devtools/context-observability'
 import { useMemoryStore } from './memory'
 import { useConsciousnessSettingsStore } from './modules/consciousness-settings'
 import { useRecipesStore } from './recipes'
+import { useSettingsGeneral } from './settings/general'
 
 const traceRecords: TraceRecord[] = []
 let stopTraceTransport: (() => void) | undefined
@@ -451,6 +452,38 @@ describe('chat store contract', () => {
     expect(getChatProviderInstanceMock).not.toHaveBeenCalledWith('mock-provider', expect.anything())
     expect(llmStreamMock.mock.calls[0]?.[0]).toBe('bob-model')
     expect(activeSessionIdRef.value).toBe('session-1')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/1518#discussion_r3024780536
+  // ROOT CAUSE:
+  // Live settings changed routing after a request already asked for translation.
+  // Each send now captures its locale before asynchronous preparation.
+  it.each(['ingest', 'send'] as const)('captures subtitle settings before %s preparation for PR #1518', async (method) => {
+    const settings = useSettingsGeneral()
+    settings.translationSubtitleEnabled = true
+    settings.translationLanguage = 'zh-Hans'
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'text-delta', text: 'Hello<|TRANS:|>你好' })
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    const store = useChatStore()
+    let spoken = ''
+    let translated = ''
+    store.onTokenLiteral(async (literal) => {
+      spoken += literal
+    })
+    store.onTokenTranslation(async (literal) => {
+      translated += literal
+    })
+    const pending = method === 'ingest'
+      ? store.ingest('Hello', { model: 'gpt-test', chatProvider: provider })
+      : store.send({ sessionId: 'session-1', text: 'Hello' })
+    settings.translationSubtitleEnabled = false
+    settings.translationLanguage = 'ja'
+    await pending
+    expect(JSON.stringify(llmStreamMock.mock.calls[0]?.[2])).toContain('zh-Hans')
+    expect(spoken).toBe('Hello')
+    expect(translated).toBe('你好')
   })
 
   it('keeps a queued typed turn on its session character after the active card changes', async () => {

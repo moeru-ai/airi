@@ -2,8 +2,8 @@
 import { all } from '@proj-airi/i18n'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/product-signals'
-import { useSettings } from '@proj-airi/stage-ui/stores/settings'
-import { FieldCheckbox, FieldCombobox, useTheme } from '@proj-airi/ui'
+import { useSettings, useSettingsGeneral } from '@proj-airi/stage-ui/stores/settings'
+import { FieldCheckbox, FieldCombobox, Input, useTheme } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -14,6 +14,7 @@ const props = withDefaults(defineProps<{
 })
 
 const settings = useSettings()
+const settingsGeneral = useSettingsGeneral()
 const showStreamerMode = import.meta.env.RUNTIME_ENVIRONMENT === 'electron'
 
 const showControlsIsland = computed(() => props.needsControlsIslandIconSizeSetting)
@@ -33,7 +34,7 @@ const languages = computed(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-4 rounded-lg bg-neutral-50 p-4 dark:bg-neutral-800">
+  <div :class="['flex flex-col gap-4', 'rounded-lg p-4', 'bg-neutral-50 dark:bg-neutral-800']">
     <FieldCombobox
       v-model="themeMode"
       v-motion
@@ -120,6 +121,75 @@ const languages = computed(() => {
         </div>
       </template>
     </FieldCheckbox>
+
+    <FieldCheckbox
+      v-model="settingsGeneral.translationSubtitleEnabled"
+      :label="t('settings.translation-subtitle.title')"
+      :description="t('settings.translation-subtitle.description')"
+    />
+
+    <FieldCombobox
+      v-if="settingsGeneral.translationSubtitleEnabled"
+      v-model="settingsGeneral.translationLanguage"
+      :label="t('settings.translation-subtitle.language.title')"
+      :description="t('settings.translation-subtitle.language.description')"
+      layout="horizontal"
+      :options="languages"
+    />
+
+    <fieldset :class="['flex flex-col gap-3']">
+      <legend :class="['mb-3 text-sm font-medium', 'text-neutral-800 dark:text-neutral-200']">
+        {{ t('settings.caption-colors.title') }}
+      </legend>
+      <div :class="['flex flex-col overflow-hidden rounded-lg', 'border border-neutral-200 dark:border-neutral-700']">
+        <label :class="['flex items-center justify-between gap-4 p-3', 'text-sm text-neutral-600 dark:text-neutral-400']">
+          <span>{{ t('settings.caption-colors.speaker') }}</span>
+          <Input v-model="settingsGeneral.captionSpeakerColor" type="color" :class="['h-9 w-14 cursor-pointer']" />
+        </label>
+        <details :class="['group border-t border-neutral-200 dark:border-neutral-700']">
+          <summary :class="['flex cursor-pointer list-none items-center justify-between px-3 py-2', 'text-xs text-neutral-500', 'hover:bg-neutral-100 dark:hover:bg-neutral-700']">
+            <span>{{ t('settings.caption-colors.stroke') }}</span>
+            <div :class="['i-solar:alt-arrow-down-linear', 'transition-transform duration-200 group-open:rotate-180']" />
+          </summary>
+          <label :class="['flex items-center justify-between gap-4 p-3', 'text-sm text-neutral-600 dark:text-neutral-400']">
+            <span>{{ t('settings.caption-colors.speaker') }} — {{ t('settings.caption-colors.stroke') }}</span>
+            <Input v-model="settingsGeneral.captionSpeakerStrokeColor" type="color" :class="['h-9 w-14 cursor-pointer']" />
+          </label>
+        </details>
+      </div>
+      <div :class="['flex flex-col overflow-hidden rounded-lg', 'border border-neutral-200 dark:border-neutral-700']">
+        <label :class="['flex items-center justify-between gap-4 p-3', 'text-sm text-neutral-600 dark:text-neutral-400']">
+          <span>{{ t('settings.caption-colors.assistant') }}</span>
+          <Input v-model="settingsGeneral.captionAssistantColor" type="color" :class="['h-9 w-14 cursor-pointer']" />
+        </label>
+        <details :class="['group border-t border-neutral-200 dark:border-neutral-700']">
+          <summary :class="['flex cursor-pointer list-none items-center justify-between px-3 py-2', 'text-xs text-neutral-500', 'hover:bg-neutral-100 dark:hover:bg-neutral-700']">
+            <span>{{ t('settings.caption-colors.stroke') }}</span>
+            <div :class="['i-solar:alt-arrow-down-linear', 'transition-transform duration-200 group-open:rotate-180']" />
+          </summary>
+          <label :class="['flex items-center justify-between gap-4 p-3', 'text-sm text-neutral-600 dark:text-neutral-400']">
+            <span>{{ t('settings.caption-colors.assistant') }} — {{ t('settings.caption-colors.stroke') }}</span>
+            <Input v-model="settingsGeneral.captionAssistantStrokeColor" type="color" :class="['h-9 w-14 cursor-pointer']" />
+          </label>
+        </details>
+      </div>
+      <div :class="['flex flex-col overflow-hidden rounded-lg', 'border border-neutral-200 dark:border-neutral-700']">
+        <label :class="['flex items-center justify-between gap-4 p-3', 'text-sm text-neutral-600 dark:text-neutral-400']">
+          <span>{{ t('settings.caption-colors.translation') }}</span>
+          <Input v-model="settingsGeneral.captionTranslationColor" type="color" :class="['h-9 w-14 cursor-pointer']" />
+        </label>
+        <details :class="['group border-t border-neutral-200 dark:border-neutral-700']">
+          <summary :class="['flex cursor-pointer list-none items-center justify-between px-3 py-2', 'text-xs text-neutral-500', 'hover:bg-neutral-100 dark:hover:bg-neutral-700']">
+            <span>{{ t('settings.caption-colors.stroke') }}</span>
+            <div :class="['i-solar:alt-arrow-down-linear', 'transition-transform duration-200 group-open:rotate-180']" />
+          </summary>
+          <label :class="['flex items-center justify-between gap-4 p-3', 'text-sm text-neutral-600 dark:text-neutral-400']">
+            <span>{{ t('settings.caption-colors.translation') }} — {{ t('settings.caption-colors.stroke') }}</span>
+            <Input v-model="settingsGeneral.captionTranslationStrokeColor" type="color" :class="['h-9 w-14 cursor-pointer']" />
+          </label>
+        </details>
+      </div>
+    </fieldset>
 
     <slot name="additional-fields" />
 

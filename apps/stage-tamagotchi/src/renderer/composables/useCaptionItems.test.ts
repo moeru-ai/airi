@@ -78,4 +78,46 @@ describe('useCaptionItems', () => {
       vi.useRealTimers()
     }
   })
+  it('keeps translated replacements separate from source captions and expires the latest text', () => {
+    vi.useFakeTimers()
+
+    try {
+      const captions = useCaptionItems({ ttlMs: 1000 })
+      captions.add({ type: 'caption-speaker', text: 'Question' })
+      captions.add({ type: 'caption-assistant', text: 'Hello world' })
+      captions.add({ type: 'caption-translation', operation: 'replace', text: '你好' })
+      const translationId = captions.items.value.at(-1)?.id
+      vi.advanceTimersByTime(500)
+      captions.add({ type: 'caption-translation', operation: 'replace', text: '你好世界' })
+
+      expect(captions.items.value.map(item => item.text)).toEqual(['Question', 'Hello world', '你好世界'])
+      expect(captions.items.value.at(-1)?.id).toBe(translationId)
+      vi.advanceTimersByTime(500)
+      expect(captions.items.value.map(item => item.text)).toEqual(['你好世界'])
+      vi.advanceTimersByTime(500)
+      expect(captions.items.value).toEqual([])
+    }
+    finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('clears a translated response without clearing the source captions', () => {
+    vi.useFakeTimers()
+
+    try {
+      const captions = useCaptionItems({ ttlMs: 1000 })
+      captions.add({ type: 'caption-assistant', text: 'Hello world' })
+      captions.add({ type: 'caption-translation', operation: 'replace', text: '你好世界' })
+      captions.add({ type: 'caption-translation', operation: 'replace', text: '' })
+
+      expect(captions.items.value.map(item => item.text)).toEqual(['Hello world'])
+      captions.dispose()
+      expect(captions.items.value).toEqual([])
+      expect(vi.getTimerCount()).toBe(0)
+    }
+    finally {
+      vi.useRealTimers()
+    }
+  })
 })

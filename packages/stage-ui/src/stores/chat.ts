@@ -66,6 +66,7 @@ import { useStickersStore } from './modules/stickers'
 import { useVisionStore } from './modules/vision'
 import { useWebSearchStore } from './modules/web-search'
 import { useRecipesStore } from './recipes'
+import { useSettingsGeneral } from './settings/general'
 import { executeToolCallRerun } from './tool-call-rerun'
 import { useToolCardsStore } from './tool-cards'
 import { useWakeWordsStore } from './wake-words'
@@ -265,6 +266,7 @@ export const useChatStore = defineStore('chat', () => {
   const llmStore = useLLM()
   const llmToolsStore = useLlmToolsStore()
   const llmToolsetPromptsStore = useLlmToolsetPromptsStore()
+  const settingsGeneral = useSettingsGeneral()
   // Instantiate the web-search store eagerly so its `configured` watcher registers
   // WEB_SEARCH_TOOLSET_PROMPT before getSystemPromptSupplement is read below. The
   // tool resolver that would otherwise be the first to create this store runs after
@@ -1141,6 +1143,11 @@ export const useChatStore = defineStore('chat', () => {
       messageId,
       providerId: options.providerId ?? activeProvider.value,
       systemPromptSupplement: options.systemPromptSupplement ?? llmToolsetPromptsStore.activeToolsetPrompt,
+      translationLanguage: options.translationLanguage ?? (
+        settingsGeneral.translationSubtitleEnabled && !options.background && !options.scene
+          ? settingsGeneral.translationLanguage
+          : undefined
+      ),
       signal: options.signal ? AbortSignal.any([options.signal, abort.signal]) : abort.signal,
     }
     const prepared = (async () => {
@@ -1345,12 +1352,16 @@ export const useChatStore = defineStore('chat', () => {
       return existing.request
 
     const abort = new AbortController()
+    // Preparation and queued turns keep the subtitle setting from the original request.
+    const translationLanguage = settingsGeneral.translationSubtitleEnabled && !extra.background && isOwnerSession(payload.sessionId)
+      ? settingsGeneral.translationLanguage
+      : undefined
     // A keyword invokes its recipes like slash commands. A decision among them judges with the judgment tool.
     // The recipes and the memory index come from IndexedDB, so the first send of a window waits until they are read.
     const invokedRecipes = Promise.all([recipes.ready(), memory.ready()]).then(() => keywordRecipesFor(payload, extra))
     const prepared = invokedRecipes
       .then(invoked => prepareSend({ ...payload, messageId }, abort.signal, voice, { ...extra, skills: invokedSkillsOf(invoked) }, invoked))
-      .then(options => runtime.submit(payload.text, options, payload.sessionId))
+      .then(options => runtime.submit(payload.text, { ...options, translationLanguage }, payload.sessionId))
     const request = {
       accepted: prepared.then(value => value.accepted),
       done: prepared.then(value => value.done),
@@ -1582,6 +1593,7 @@ export const useChatStore = defineStore('chat', () => {
     emitAfterSendHooks: runtime.hooks.emitAfterSendHooks,
     emitTokenLiteralHooks: runtime.hooks.emitTokenLiteralHooks,
     emitTokenSpecialHooks: runtime.hooks.emitTokenSpecialHooks,
+    emitTokenTranslationHooks: runtime.hooks.emitTokenTranslationHooks,
     emitStreamEndHooks: runtime.hooks.emitStreamEndHooks,
     emitAssistantResponseEndHooks: runtime.hooks.emitAssistantResponseEndHooks,
     emitAssistantMessageHooks: runtime.hooks.emitAssistantMessageHooks,
@@ -1593,6 +1605,7 @@ export const useChatStore = defineStore('chat', () => {
     onAfterSend: runtime.hooks.onAfterSend,
     onTokenLiteral: runtime.hooks.onTokenLiteral,
     onTokenSpecial: runtime.hooks.onTokenSpecial,
+    onTokenTranslation: runtime.hooks.onTokenTranslation,
     onStreamEnd: runtime.hooks.onStreamEnd,
     onAssistantResponseEnd: runtime.hooks.onAssistantResponseEnd,
     onAssistantMessage: runtime.hooks.onAssistantMessage,
