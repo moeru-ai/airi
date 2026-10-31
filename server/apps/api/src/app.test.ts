@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { buildApp } from './app'
+import { AIRI_REQUEST_ID_HEADER } from './routes/openai/v1/analytics'
 
 function createTestDeps(webAppUrl = 'https://airi.moeru.ai') {
   const redisSubscriber = {
@@ -62,6 +63,12 @@ function createTestDeps(webAppUrl = 'https://airi.moeru.ai') {
 }
 
 describe('business API app', () => {
+  it('lets a trusted browser origin read the gateway request ID header', async () => {
+    const { app } = await buildApp(createTestDeps())
+    const response = await app.request('/api/v1/openai/chat/completions', { headers: { Origin: 'https://airi.moeru.ai' } })
+    expect(response.headers.get('access-control-expose-headers')).toContain(AIRI_REQUEST_ID_HEADER)
+  })
+
   it('does not expose management routes', async () => {
     const { app } = await buildApp(createTestDeps())
 

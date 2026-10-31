@@ -62,6 +62,7 @@ Affected files:
 server/apps/api/
   src/app.ts
   src/routes/llm-requests/index.ts
+  src/routes/openai/v1/{index,analytics}.ts
   src/routes/openai/v1/{model-routing,operations}/
   src/services/domain/request-log.ts
   src/services/domain/llm-router/{attempt,router,types}.ts
@@ -86,6 +87,15 @@ Every request and attempt query includes user ownership. This API does not expos
 DTOs omit raw evidence, credential references and internal price snapshots.
 The list uses bounded offset pagination. No admin cross-user API or Activity UI is included.
 
+## Request ID response header
+
+The Chat Completions and Responses routes create the request ID when they parse the request.
+The operation logs and bills with that ID, so it is equal to `llm_request_log.request_id`.
+Every response of these two routes has the `x-airi-request-id` header, upstream and app errors included.
+CORS exposes the header, so a browser client can read it.
+A client can use the ID to name the request log row of its request, for example in a trace span.
+The header adds no migration and no change to billing or logging.
+
 ## Rollout and non-goals
 
 Merge this PR first. The billing PR adds its separate 0027 migration afterward.
@@ -108,5 +118,6 @@ preserves the same interaction dimensions as Chat Completions.
 - Diagnostic writes and retention never change wallet or ledger state.
 - Tracking compiles and runs without settlement storage.
 - Apply both migrations in order, preserve historical rows and settled accounting.
+- `x-airi-request-id` equals the logged request ID for Chat bodies, Chat streams, upstream errors, app errors and Responses.
 - Real HTTP routes with PGlite, billing regression suite, workspace typecheck and lint.
 - Live provider traffic and production deployment remain unverified.

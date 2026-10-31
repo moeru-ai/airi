@@ -4,6 +4,8 @@ export type ChatAppSurface = 'web' | 'mobile' | 'electron'
 export const AIRI_CHAT_SESSION_ID_HEADER = 'x-airi-session-id'
 export const AIRI_CHAT_ROUND_ID_HEADER = 'x-airi-round-id'
 export const AIRI_CHAT_APP_SURFACE_HEADER = 'x-airi-app-surface'
+/** Returns `llm_request_log.request_id` to the client, so a client trace span can name the row that its request wrote. */
+export const AIRI_REQUEST_ID_HEADER = 'x-airi-request-id'
 
 const CLIENT_CHAT_ANALYTICS_SURFACES = new Set<ChatAppSurface>(['web', 'mobile', 'electron'])
 
