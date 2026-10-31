@@ -328,6 +328,8 @@ export interface ChatOrchestratorRuntimeDeps {
    * With it, history carries no identity. Stored system messages are skipped, so a persona edit or switch reaches the next send of its own sessions only.
    */
   getSystemPrompt?: (sessionId: string) => string | undefined
+  /** Returns the maximum number of stored history messages sent to the model. `-1` keeps the full history. */
+  getContextWindow?: (sessionId: string) => number | undefined
   /** Runtime context providers ingested immediately before prompt composition. */
   runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
   /**
@@ -632,6 +634,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       return turns
     })
     return { turns }
+  }
+
+  function trimConversationHistory(history: ChatHistoryItem[], contextWindow: number | undefined) {
+    if (contextWindow === undefined || !Number.isFinite(contextWindow) || contextWindow < 0 || history.length <= contextWindow)
+      return history
+
+    const retainedLength = Math.max(1, Math.floor(contextWindow * 0.9))
+    return history.slice(-retainedLength)
   }
 
   async function performSend(
@@ -965,7 +975,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       // Identity comes from the session's persona at request time. Without a host identity, the stored history keeps its own system message.
       const systemPrompt = deps.getSystemPrompt?.(sessionId)
-      const context = buildContext(deps.getSystemPrompt ? sessionMessagesForSend.filter(message => message.role !== 'system') : sessionMessagesForSend)
+      const history = trimConversationHistory(
+        deps.getSystemPrompt ? sessionMessagesForSend.filter(message => message.role !== 'system') : sessionMessagesForSend,
+        deps.getContextWindow?.(sessionId),
+      )
+      const context = buildContext(history)
       // The stored notice ends the history. Only this request tells the model that it can stay quiet about it.
       if (options.notice) {
         const lastTurn = context.turns.at(-1)

@@ -58,6 +58,7 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
   const ids = ['stream-context', 'assistant-id', 'user-id', 'fallback-id']
   let nextId = 0
   let systemPromptSupplement: string | undefined
+  let contextWindow = -1
   let nowValue = new Date(2026, 3, 25, 18, 47).getTime()
   let monotonicNowValues = [1000]
   let generation = 1
@@ -94,6 +95,7 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
     getActiveSessionId: () => 'session-1',
     getActiveProvider,
     getSystemPromptSupplement: () => systemPromptSupplement,
+    getContextWindow: () => contextWindow,
     now: () => nowValue,
     monotonicNow: () => monotonicNowValues.shift() ?? 1000,
     createId: () => ids.shift() ?? `generated-${nextId++}`,
@@ -132,6 +134,11 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
     },
     assistantTurns,
     contextSnapshot,
+    contextWindow: {
+      set: (next: number) => {
+        contextWindow = next
+      },
+    },
     foregroundPatches,
     foregroundResets,
     generation: {
@@ -167,6 +174,30 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
 }
 
 describe('createChatOrchestratorRuntime', () => {
+  it('keeps the newest 90 percent of history when a card context window is exceeded', async () => {
+    const harness = createHarness()
+    harness.contextWindow.set(10)
+    for (let index = 0; index < 10; index++) {
+      if (index % 2 === 0) {
+        harness.sessionMessages['session-1'].push({ role: 'user', content: `history-${index}`, id: `history-${index}` })
+      }
+      else {
+        harness.sessionMessages['session-1'].push({ role: 'assistant', content: `history-${index}`, id: `history-${index}`, slices: [], tool_results: [] })
+      }
+    }
+
+    await harness.runtime.ingest('latest message', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    const turns = harness.stream.mock.calls[0]![2].turns
+    expect(turns).toHaveLength(9)
+    expect(turns.at(-1)?.type).toBe('user')
+    expect(JSON.stringify(turns)).toContain('latest message')
+    expect(JSON.stringify(turns)).not.toContain('history-0')
+  })
+
   // https://github.com/moeru-ai/airi/issues/2899
   // ROOT CAUSE:
   //

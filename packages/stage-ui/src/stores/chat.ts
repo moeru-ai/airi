@@ -1025,6 +1025,7 @@ export const useChatStore = defineStore('chat', () => {
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
     // Identity follows the session's persona at request time, so a card switch never rewrites another session.
     getSystemPrompt: sessionSystemPrompt,
+    getContextWindow: sessionId => cardStore.getCard(personaOf(sessionId))?.extensions.airi.contextWindow ?? -1,
     runtimeContextProviders: [
       () => createRuntimePromptContext(runtimePrompt.value),
       createMinecraftContext,

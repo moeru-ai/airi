@@ -11,6 +11,9 @@ import type { CharacterAvatarModelReference } from './avatar-model'
  * losing each other's configuration.
  */
 export interface AiriExtension {
+  /** Maximum number of stored history messages sent to the model. `-1` keeps the full history. */
+  contextWindow?: number
+
   wakeWords?: WakeWord[]
 
   /** Character-owned references to stored display-model resources. */
@@ -74,6 +77,19 @@ export interface AiriExtension {
     prompt: string
     enabled?: boolean
   }>
+}
+
+/**
+ * Normalizes a character card context window.
+ *
+ * @example
+ * normalizeContextWindow(undefined)
+ * // => -1
+ */
+export function normalizeContextWindow(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && value >= -1
+    ? value
+    : -1
 }
 
 /** Character card normalized with the AIRI extension required by the runtime. */
