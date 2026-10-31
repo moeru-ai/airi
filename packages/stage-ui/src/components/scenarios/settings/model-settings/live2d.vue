@@ -475,7 +475,6 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
       v-model="live2dEyeTracking"
       :label="t('settings.live2d.animation.focus.title')"
       :description="t('settings.live2d.animation.focus.description')"
-      :disabled="live2dMotionDriver === 'magic'"
       placement="right"
     />
     <div v-if="live2dMotionDriver === 'universal' && live2dEyeTracking" :class="['grid grid-cols-4']">
