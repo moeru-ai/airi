@@ -20,6 +20,7 @@ import { injectKeyPiniaSynced } from '../../libs/pinia/synced-context'
 import { getDefinedProvider } from '../../libs/providers/providers'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, pickOfficialSpeechVoice, picksSpeechVoiceAutomatically } from '../../libs/providers/providers/official'
 import { streamSpeech } from '../../libs/speech/streaming-pipeline'
+import { collectVoiceLanguages, voicesForLanguage, voiceSpeaksLanguage } from '../../libs/speech/voice-language'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 
@@ -101,6 +102,8 @@ interface SpeechInputOptions {
   providerConfig?: Record<string, unknown>
   forceSSML?: boolean
   supportsSSML?: boolean
+  /** The language the character speaks. SSML carries it as `xml:lang`. */
+  language?: string
 }
 
 interface SpeechInput {
@@ -161,6 +164,9 @@ export const useSpeechStore = defineStore('speech', () => {
   const activeSpeechModel = useLocalStorageManualReset<string>('settings/speech/active-model', '', persistenceOptions)
   const activeSpeechVoiceId = useLocalStorageManualReset<string>('settings/speech/voice', '', persistenceOptions)
   const activeSpeechVoice = refManualReset<VoiceInfo | undefined>(undefined)
+  // The language the character speaks. An empty value keeps every catalog voice,
+  // so the list stays complete until the user narrows it.
+  const activeSpeechLanguage = useLocalStorageManualReset<string>('settings/speech/language', '', persistenceOptions)
 
   const pitch = useLocalStorageManualReset<number>('settings/speech/pitch', 0, persistenceOptions)
   const rate = useLocalStorageManualReset<number>('settings/speech/rate', 1, persistenceOptions)
@@ -170,6 +176,10 @@ export const useSpeechStore = defineStore('speech', () => {
   const isLoadingSpeechProviderVoices = computed(() => voiceCatalogStatus.value[activeSpeechProvider.value]?.loading ?? false)
   const speechProviderError = computed(() => voiceCatalogStatus.value[activeSpeechProvider.value]?.error ?? null)
   const modelSearchQuery = refManualReset<string>('')
+
+  // The catalog owns the language list. A provider that offers one language
+  // contributes one entry, and a multilingual voice contributes each of them.
+  const speechLanguages = computed(() => collectVoiceLanguages(availableVoices.value[activeSpeechProvider.value] ?? []))
 
   // Computed properties
   const availableSpeechProvidersMetadata = computed(() => allAudioSpeechProvidersMetadata.value)
@@ -564,6 +574,17 @@ export const useSpeechStore = defineStore('speech', () => {
     })
     if (selected)
       activeSpeechVoiceId.value = selected
+    // A chosen language narrows the catalog. A voice that cannot speak it must
+    // be replaced here, or the next sentence arrives in the wrong language.
+    if (activeSpeechLanguage.value) {
+      const catalog = availableVoices.value[activeSpeechProvider.value] ?? []
+      const current = catalog.find(voice => voice.id === activeSpeechVoiceId.value)
+      if (current && !voiceSpeaksLanguage(current, activeSpeechLanguage.value)) {
+        const replacement = voicesForLanguage(catalog, activeSpeechLanguage.value)[0]
+        if (replacement)
+          activeSpeechVoiceId.value = replacement.id
+      }
+    }
     const voiceId = activeSpeechVoiceId.value
     const voices = availableVoices.value
     if (!voiceId)
@@ -643,7 +664,9 @@ export const useSpeechStore = defineStore('speech', () => {
     const useSSML = ssmlEnabled.value
     const canUseSSML = ['elevenlabs', 'microsoft-speech', 'azure-speech'].includes(providerId) || (providerId === 'alibaba-cloud-model-studio' && model === 'cosyvoice-v2')
     const pitchValue = pitch.value
-    const language = voice?.languages[0]?.code
+    // The chosen language wins. Without a choice the response uses the first
+    // locale that the voice declares, which is what the host reported before.
+    const language = activeSpeechLanguage.value || voice?.languages[0]?.code
     const voiceType = providerId === OFFICIAL_SPEECH_PROVIDER_ID || providerId === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
       ? 'official_selected' as const
       : 'custom_configured' as const
@@ -671,7 +694,7 @@ export const useSpeechStore = defineStore('speech', () => {
       signal.throwIfAborted()
       const client = await provider
       signal.throwIfAborted()
-      const input = voice && useSSML && canUseSSML ? generateSSML(request.text, voice, { ...config, pitch: pitchValue }) : request.text
+      const input = voice && useSSML && canUseSSML ? generateSSML(request.text, voice, { ...config, pitch: pitchValue }, language) : request.text
       const settings = providerId === OFFICIAL_SPEECH_PROVIDER_ID
         ? { ...config, extraBody: { ...(config.extraBody as Record<string, unknown> | undefined), airi_analytics: { trigger: 'auto', source: 'chat_auto_tts', voice_type: voiceType, turn_id: turn.turnId } } }
         : config
@@ -706,6 +729,7 @@ export const useSpeechStore = defineStore('speech', () => {
     text: string,
     voice: VoiceInfo,
     providerConfig?: Record<string, unknown>,
+    language?: string,
   ): string {
     const pitch = providerConfig?.pitch
     const speed = providerConfig?.speed
@@ -727,7 +751,11 @@ export const useSpeechStore = defineStore('speech', () => {
 
     const hasProsody = Object.values(prosody).some(value => value != null)
 
-    const ssmlXast = x('speak', { 'version': '1.0', 'xmlns': 'http://www.w3.org/2001/10/synthesis', 'xml:lang': voice.languages[0]?.code || 'en-US' }, [
+    // The selected language wins over the voice's first locale. A multilingual
+    // voice declares several, and SSML needs the one the text uses.
+    const speakingLanguage = String(language ?? '').trim() || voice.languages[0]?.code || 'en-US'
+
+    const ssmlXast = x('speak', { 'version': '1.0', 'xmlns': 'http://www.w3.org/2001/10/synthesis', 'xml:lang': speakingLanguage }, [
       x('voice', { name: voice.id, gender: voice.gender || 'neutral' }, [
         hasProsody
           ? x('prosody', {
@@ -750,7 +778,7 @@ export const useSpeechStore = defineStore('speech', () => {
 
     return {
       input: options.forceSSML === true && canUseSSML
-        ? generateSSML(options.text, options.voice, providerConfig)
+        ? generateSSML(options.text, options.voice, providerConfig, options.language)
         : options.text,
       providerConfig,
     }
@@ -793,6 +821,7 @@ export const useSpeechStore = defineStore('speech', () => {
     activeSpeechModel.reset()
     activeSpeechVoiceId.reset()
     activeSpeechVoice.reset()
+    activeSpeechLanguage.reset()
     pitch.reset()
     rate.reset()
     ssmlEnabled.reset()
@@ -812,6 +841,8 @@ export const useSpeechStore = defineStore('speech', () => {
     activeSpeechModel,
     activeSpeechVoice,
     activeSpeechVoiceId,
+    activeSpeechLanguage,
+    speechLanguages,
     pitch,
     rate,
     ssmlEnabled,

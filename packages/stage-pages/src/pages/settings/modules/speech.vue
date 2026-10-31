@@ -11,6 +11,7 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '@proj-airi/stage-ui/libs/providers/providers/official'
+import { filterVoicesByLanguage, voicesForLanguage, voiceSpeaksLanguage } from '@proj-airi/stage-ui/libs/speech/voice-language'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
@@ -18,6 +19,7 @@ import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import {
   Alert,
   FieldCheckbox,
+  FieldCombobox,
   FieldInput,
   FieldRange,
   SettingsCard,
@@ -43,6 +45,8 @@ const {
   activeSpeechModel,
   activeSpeechVoice,
   activeSpeechVoiceId,
+  activeSpeechLanguage,
+  speechLanguages,
   pitch,
   isLoadingSpeechProviderVoices,
   supportsModelListing,
@@ -198,7 +202,10 @@ const displayedModelError = computed(() => {
 })
 
 const displayedVoiceOptions = computed(() => {
-  return (availableVoices.value[activeSpeechProvider.value] ?? [])
+  const catalog = availableVoices.value[activeSpeechProvider.value] ?? []
+  // The language narrows the list before the model filter, because a language
+  // applies to the whole provider catalog.
+  return filterVoicesByLanguage(catalog, activeSpeechLanguage.value)
     .filter((voice) => {
       if (!activeSpeechModel.value)
         return true
@@ -212,6 +219,48 @@ const displayedVoiceOptions = computed(() => {
       customizable: false,
     }))
 })
+
+// The catalog names a language, so the selector offers one entry per language.
+// `all` is a sentinel because a combobox drops an option with an empty value.
+const ALL_LANGUAGES = 'all'
+
+const speechLanguageOptions = computed(() => [
+  { value: ALL_LANGUAGES, label: t('settings.pages.modules.speech.sections.section.voice-settings.language.all') },
+  ...speechLanguages.value.map(language => ({ value: language.code, label: language.title })),
+])
+
+const displayedSpeechLanguage = computed({
+  get: () => activeSpeechLanguage.value || ALL_LANGUAGES,
+  set: (value: string) => {
+    void updateSpeechLanguage(value === ALL_LANGUAGES ? '' : value)
+  },
+})
+
+/** True when no voice of the provider catalog speaks the chosen language. */
+const languageHidesVoices = computed(() => {
+  const catalog = availableVoices.value[activeSpeechProvider.value] ?? []
+  return !!activeSpeechLanguage.value
+    && catalog.length > 0
+    && voicesForLanguage(catalog, activeSpeechLanguage.value).length === 0
+})
+
+/**
+ * Commits the language and moves off a voice that cannot speak it.
+ *
+ * Filtering alone would keep a silent mismatch: the list would show no voices
+ * while the saved voice still speaks the old language.
+ */
+async function updateSpeechLanguage(language: string | undefined) {
+  activeSpeechLanguage.value = language ?? ''
+  const catalog = availableVoices.value[activeSpeechProvider.value] ?? []
+  const current = catalog.find(voice => voice.id === activeSpeechVoiceId.value)
+  if (current && !voiceSpeaksLanguage(current, activeSpeechLanguage.value)) {
+    const replacement = voicesForLanguage(catalog, activeSpeechLanguage.value)[0]
+    if (replacement)
+      activeSpeechVoiceId.value = replacement.id
+  }
+  await persistSelection()
+}
 
 const displayedSpeechVoiceId = computed({
   get: () => activeSpeechVoiceId.value,
@@ -500,6 +549,7 @@ async function generateTestSpeech() {
       : speechStore.resolveSpeechInput({
           text: testText.value,
           voice,
+          language: activeSpeechLanguage.value,
           providerConfig: {
             ...providerConfig,
             pitch: ssmlEnabled.value ? pitch.value : undefined,
@@ -815,6 +865,17 @@ async function handleDeleteProvider(providerId: string) {
             </div>
           </div>
 
+          <!-- The language decides which voices the catalog shows. A catalog with
+               one language needs no choice, because every voice answers it. -->
+          <FieldCombobox
+            v-if="activeSpeechProvider !== 'openai-compatible-audio-speech' && speechLanguages.length > 1"
+            v-model="displayedSpeechLanguage"
+            :options="speechLanguageOptions"
+            :label="t('settings.pages.modules.speech.sections.section.voice-settings.language.label')"
+            :description="t('settings.pages.modules.speech.sections.section.voice-settings.language.description')"
+            layout="vertical"
+          />
+
           <!-- Loading state -->
           <div v-if="isLoadingSpeechProviderVoices">
             <div class="flex flex-col gap-4">
@@ -879,11 +940,18 @@ async function handleDeleteProvider(providerId: string) {
           <Alert
             v-else
             tone="warning"
-            :title="t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices')"
+            :title="languageHidesVoices
+              ? t('settings.pages.modules.speech.sections.section.voice-settings.language.no-voices-title')
+              : t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices')"
             :class="['mb-2']"
           >
-            {{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices_description') }}.
-            {{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices_hint') }}
+            <template v-if="languageHidesVoices">
+              {{ t('settings.pages.modules.speech.sections.section.voice-settings.language.no-voices') }}
+            </template>
+            <template v-else>
+              {{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices_description') }}.
+              {{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices_hint') }}
+            </template>
           </Alert>
 
           <!-- Voice parameters -->

@@ -249,3 +249,41 @@ it('shows a manual model transport failure in the settings page', async () => {
   expect(follower.container.textContent).toContain('Model selection transport unavailable')
   expect(leader.speech.activeSpeechModel).toBe('tts-1')
 })
+
+// A language choice must change what the page shows. A stored setting that no
+// surface reads would leave the user with a selector that does nothing.
+it('narrows the voice list to the chosen language', async () => {
+  localStorage.clear()
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({
+    voices: [
+      { id: 'zh-voice', name: 'Chinese Voice', languages: [{ code: 'zh-CN', title: 'Chinese (Mandarin)' }] },
+      { id: 'ja-voice', name: 'Japanese Voice', languages: [{ code: 'ja-JP', title: 'Japanese' }] },
+    ],
+    models: [],
+    flux: 0,
+  })))
+  const namespace = `speech-settings:${crypto.randomUUID()}`
+  const leader = mountRenderer(namespace)
+  await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+  await useProviderConfigStore(leader.pinia).ensureProvider('microsoft-speech', 'microsoft-speech', {
+    apiKey: 'key',
+    baseUrl: 'https://voices.invalid/v1/',
+    region: 'eastasia',
+  })
+  await useProviderStore(leader.pinia).forceProviderConfigured('microsoft-speech')
+  await leader.speech.selectProviderModel('microsoft-speech', 'v1')
+  await vi.waitFor(() => expect(leader.speech.availableVoices['microsoft-speech']).toHaveLength(2))
+
+  const follower = mountRenderer(namespace, SpeechSettings)
+  await vi.waitFor(() => expect(follower.speech.activeSpeechProvider).toBe('microsoft-speech'))
+  await vi.waitFor(() => expect(follower.container.textContent).toContain('Voice language'))
+  expect(follower.container.textContent).toContain('Show only the voices that speak this language.')
+  await vi.waitFor(() => expect(follower.container.textContent).toContain('Chinese Voice'))
+  expect(follower.container.textContent).toContain('Japanese Voice')
+
+  follower.speech.activeSpeechLanguage = 'ja'
+  await vi.waitFor(() => expect(follower.container.textContent).not.toContain('Chinese Voice'))
+  expect(follower.container.textContent).toContain('Japanese Voice')
+  // The choice survives a reload of the page, because the store persists it.
+  expect(localStorage.getItem('settings/speech/language')).toBe('ja')
+})

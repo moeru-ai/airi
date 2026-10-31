@@ -1178,6 +1178,12 @@ pages:
           voice-settings:
             input-ssml:
               placeholder: Enter SSML text...
+            language:
+              all: All languages
+              description: Show only the voices that speak this language.
+              label: Voice language
+              no-voices: Every voice of this model speaks another language. Choose another language, or another model.
+              no-voices-title: No voice speaks this language
             use-ssml:
               description: Enable to input raw SSML instead of plain text
               label: Use Custom SSML

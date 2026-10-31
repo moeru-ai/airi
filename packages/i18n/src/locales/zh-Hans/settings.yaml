@@ -1120,6 +1120,12 @@ pages:
           voice-settings:
             input-ssml:
               placeholder: 请输入 SSML 文本
+            language:
+              all: 全部语言
+              description: 只显示会说这个语言的声线。
+              label: 声线语言
+              no-voices: 该模型的声线都不会说这个语言。请换一个语言，或换一个模型。
+              no-voices-title: 没有会说这个语言的声线
             use-ssml:
               description: 启用后可以输入原始 SSML 而不是纯文本
               label: 选用自定义 SSML
