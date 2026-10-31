@@ -172,6 +172,18 @@ const result = await input.end()
 
 ### Trusted plugins
 
+A plugin gets one `onXxx` hook for each stage of a turn, and the audio of both sides for its whole life:
+
+| API | Runs |
+| --- | --- |
+| `onInput(install)` | Once for each accepted speech input. It gives `watch` and `finalize`. |
+| `onOutput(install)` | Once for each response that speaks. It gives the speech events of that response. |
+| `input.observe(window, run)` | For the life of the plugin, on windows of the microphone. |
+| `output.observe(window, run)` | For the life of the plugin, on windows of the played speech. |
+| `output.connect(node)` | For the life of the plugin, connects a graph node of the platform to the played speech. |
+
+A replaced microphone (`replaceAudio`) or playback (`replacePlayback`) moves the observations and the connections to it.
+
 A speech input has two phases, and a plugin can take part in both.
 
 - While the provider transcribes, the document changes. `watch` runs work for the newest document only, like a language server analysis. A newer key aborts the active run.
@@ -183,7 +195,7 @@ Use `watch` for speculative work that a stage reuses, so the stage does not wait
 voice.use({
   name: 'memory',
   setup(plugin) {
-    plugin.onSpeechInput((input) => {
+    plugin.onInput((input) => {
       let speculation: { text: string, matches: Promise<Match[]> } | undefined
 
       input.watch((document, signal) => {
@@ -205,7 +217,7 @@ voice.use({
 - A stage writes with `ctx.patch(edits)` and `ctx.attach(key, value)`. Writes after the stage ends or times out are rejected.
 - A failed stage is reported through `onError` with the stage `finalize`. The next stage still runs. A timeout skips the stage without an error.
 - Plugin corrections apply only during finalization. During capture, only a user correction through `correctInput` changes the corrected text.
-- `onSpeechInput` can be asynchronous. Finalization waits for pending installs.
+- `onInput` can be asynchronous. Finalization waits for pending installs.
 - `input.control` gives input commands, such as `end`, to a plugin with the `input-control` grant.
 
 VAD, PTT, wake words, speaker models, turn detection, memory search, and rewrite models remain external policy or adapters.
@@ -228,7 +240,7 @@ voice.use({
   name: 'voice-activity',
   setup(scope) {
     scope.rule(createSpeechActivityRule({ target: () => ({ sessionId, interruptTurns: [] }) }))
-    scope.observeAudio({ windowMs: 32, hopMs: 32, scheduling: 'ordered' }, async ({ window, signal }) => {
+    scope.input.observe({ windowMs: 32, hopMs: 32, scheduling: 'ordered' }, async ({ window, signal }) => {
       const score = await vad.score(window, signal)
       scope.emit(speechActivitySignal, { range: window.range, durationMs: 32, score, discontinuity: window.discontinuity, accepted: true })
     })
@@ -245,6 +257,46 @@ voice.use({
   `cancel` wins.
 - First-party rules: `createSpeechActivityRule` (VAD begin, silence limit, minimum speech), `createPauseRule`
   (emits `paused`), and `createEndJudgementRule` (seals on a current `complete` judgement).
+
+### Output plugins
+
+`onOutput` runs once for each response that opens. The scope gives the turn, a signal that aborts when the response
+closes, the controls of the plugin grants, and these events in order:
+
+| Event | When |
+| --- | --- |
+| `tts-request` | Synthesis of one text segment starts. It carries `segmentId`, the text, and the chunker `reason`. |
+| `tts-result` | Synthesis ends with `audio`, `no-audio`, `cancelled`, or `failed`. |
+| `playback-start` | The first audio of the segment is scheduled. |
+| `playback-end` | The segment ends, stops, or fails. A stop carries its reason. |
+| `token-special` | Playback reaches a special token, for example an expression marker. |
+
+`segmentId` joins the synthesis and the playback of one segment. A streaming provider has no segments: its stream is
+one `tts-request`, and each audio part plays with its own ID.
+
+```ts
+const voice = new VoiceController<AudioNode>({ playback, speech: turn => speechOutputFor(turn) })
+
+voice.use({
+  name: 'speech-level',
+  setup(scope) {
+    scope.onOutput((output) => {
+      output.on('playback-start', () => startMeter())
+      output.onDispose(() => stopMeter())
+    })
+    return undefined
+  },
+})
+
+// A lip sync worklet hears the played speech after the clip fades and before the user volume.
+const lipSync: VoicePlugin<AudioNode> = { name: 'lip-sync', setup(scope) {
+  scope.output.connect?.(lipSyncNode)
+  return undefined
+} }
+```
+
+`TNode` is the node type of the platform audio graph. A plugin that needs no graph is a `VoicePlugin`, which installs
+on every host. A `VoicePlugin<AudioNode>` installs only on a host whose playback is a Web Audio graph.
 
 ### Output without voice input
 

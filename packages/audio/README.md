@@ -18,6 +18,7 @@ A source is an `AudioSource`. Its `open(signal)` call returns a PCM stream. Abor
 | --- | --- | --- | --- |
 | `microphoneSource(constraints, options)` | `@proj-airi/audio/browser` | Yes | The source. It stops the tracks and closes its AudioContext. |
 | `mediaStreamSource(stream, context)` | `@proj-airi/audio/browser` | Yes | The caller. The source disconnects only its own nodes. |
+| `audioNodeSource(node, context)` | `@proj-airi/audio/browser` | Yes | The caller. Each connection adds a muted tap to the node and removes only that tap. |
 | `fileSource(blob)` | `@proj-airi/audio/encoding` | No | The caller. Mediabunny decodes the file for each connection. |
 
 A live source cannot wait for its readers. Wrap a live source in an `AudioInput` to share it. Each consumer subscribes with its own signal.
@@ -63,6 +64,7 @@ const receipt = await group.stop({ fadeMs: 100 })
 The stop receipt follows the audio clock and source completion. It does not rely on a UI timer.
 `BrowserPlayback` uses `audioContext.currentTime` as the playback clock. `startAtMs` and the receipt `interval` are in milliseconds on that clock.
 The caller owns `audioContext` and closes it after its consumers finish.
+`BrowserPlayback` plays every clip into one mix node, which connects to `destination`. Its `output` is an `audioNodeSource` of that mix, so `playback.output` reads what plays before any volume after `destination`.
 
 ## Do not use it for
 
@@ -73,4 +75,4 @@ The caller owns `audioContext` and closes it after its consumers finish.
 ## Checks
 
 Run `pnpm -F @proj-airi/audio typecheck` and its Vitest projects.
-Node tests cover WAV encoding and file decoding. Browser tests cover Web Audio, microphone sharing, late permission, and track cleanup.
+Node tests cover WAV encoding and file decoding. Browser tests cover Web Audio, microphone sharing, late permission, track cleanup, and the level of the playback output.

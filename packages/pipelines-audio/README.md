@@ -36,6 +36,7 @@ for await (const event of output)
 - `capture(input, { from, signal, maxBufferedMs })` adds `started`, `finish()`, `cancel(reason)`, and a gap check.
 - `retain(signal)` returns a lease. Its holder calls `hold(position)` to keep history from that position.
 - `observe(input, options, detector, onResult)` runs a detector over windows with `ordered` or `latest` scheduling.
+- `observeLevel(input, signal, onLevel)` publishes one level for each 50 ms window. `levelOf(channels)` maps the root mean square from -60 dBFS (0) to full scale (1). A microphone and a playback output use the same scale.
 - `audioWindows(shape)` is the windowing transform alone, for callers that schedule their own work.
 - Lifetime and stream helpers, such as `createScope` and `createPushStream`, are in `@proj-airi/stream-kit`.
 
@@ -60,6 +61,12 @@ A clip can set `startAtMs` on that clock. The group still starts clips in order.
 Each receipt entry reports `throughMs` and the rendered `interval` on the same clock.
 A caller can start the next output relative to that interval, for example 2 seconds after a clip ends.
 A group does not mix clips or schedule lanes against each other.
+A driver can set `output`, a live source of the mixed audio that it plays. `playback.output` shares it as an `AudioInput`, so `observe` and `observeLevel` work on played audio as on a microphone. The first observer opens the tap of the driver, and the last one closes it.
+
+```ts
+const observer = observeLevel(playback.output!, signal, level => showSpeechLevel(level))
+```
+
 Playback knows no chat session, turn, or agent notification contract.
 `Response` in core-agent supplies those conversation boundaries and producer ordering.
 

@@ -1,10 +1,10 @@
-import type { LiveAudioSource, PcmBlock } from '@proj-airi/pipelines-audio'
+import type { LiveAudioSource, PcmBlock } from './audio-input'
 
-import { AudioInput } from '@proj-airi/pipelines-audio'
 import { createPushStream } from '@proj-airi/stream-kit'
 import { describe, expect, it } from 'vitest'
 
-import { observeInputLevel } from './input-level'
+import { AudioInput } from './audio-input'
+import { observeLevel } from './level'
 
 function pushSource() {
   let pushed: ReturnType<typeof createPushStream<PcmBlock>> | undefined
@@ -25,12 +25,12 @@ function pushSource() {
   }
 }
 
-describe('observeInputLevel', () => {
+describe('observeLevel', () => {
   it('maps silence to 0, -30 dBFS to 0.5, and full scale to 1', async () => {
     const mic = pushSource()
     const abort = new AbortController()
     const levels: number[] = []
-    observeInputLevel(mic.input, abort.signal, level => levels.push(level))
+    observeLevel(mic.input, abort.signal, level => levels.push(level))
 
     mic.write(0)
     mic.write(10 ** (-30 / 20))
@@ -47,7 +47,7 @@ describe('observeInputLevel', () => {
     const mic = pushSource()
     const abort = new AbortController()
     const levels: number[] = []
-    const observer = observeInputLevel(mic.input, abort.signal, level => levels.push(level))
+    const observer = observeLevel(mic.input, abort.signal, level => levels.push(level))
     mic.write(1)
     await expect.poll(() => levels.length).toBe(1)
 
