@@ -54,6 +54,8 @@ export interface Live2DFocusBiasController {
   apply: (pose: Pose) => Pose
   /** The current smoothed state. */
   state: () => Live2DFocusBiasState
+  /** Drops the bias at once, without a fade. */
+  reset: () => void
 }
 
 function clampAxis(value: number): number {
@@ -131,6 +133,11 @@ export function createLive2DFocusBias(
     step,
     apply: pose => applyLive2DFocusBias(pose, current, options),
     state: () => ({ ...current }),
+    reset: () => {
+      current.x = 0
+      current.y = 0
+      current.weight = 0
+    },
   }
 }
 

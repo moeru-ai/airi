@@ -54,6 +54,17 @@ describe('createLive2DFocusBias', () => {
     expect(bias.apply(neutralPose)).toBe(neutralPose)
   })
 
+  it('drops the bias at once on reset', () => {
+    const bias = createLive2DFocusBias()
+    for (let index = 0; index < 60; index += 1)
+      bias.step({ x: 0.6, y: 0 }, 1 / 60)
+    expect(bias.state().weight).toBeGreaterThan(0.9)
+
+    bias.reset()
+    expect(bias.state()).toEqual({ x: 0, y: 0, weight: 0 })
+    expect(bias.apply(neutralPose)).toBe(neutralPose)
+  })
+
   it('starts at the first target instead of sweeping from the center', () => {
     const bias = createLive2DFocusBias()
     const state = bias.step({ x: -0.8, y: 0.3 }, 1 / 60)
