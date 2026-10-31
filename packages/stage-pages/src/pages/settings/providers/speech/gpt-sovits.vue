@@ -24,58 +24,39 @@ const providersStore = useProviderStore()
 const providerConfigStore = useProviderConfigStore()
 const { configs: providers } = storeToRefs(providerConfigStore)
 
+function setConfigField(field: string, value: string) {
+  void providerConfigStore.patchProviderConfig(providerId, { [field]: value })
+  void providersStore.validateProvider(providerId, { force: true })
+}
+
 const refAudioPath = computed({
   get: () => providers.value[providerId]?.refAudioPath as string | undefined || '',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].refAudioPath = value
-  },
+  set: value => setConfigField('refAudioPath', value),
 })
 
 const promptText = computed({
   get: () => providers.value[providerId]?.promptText as string | undefined || '',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].promptText = value
-  },
+  set: value => setConfigField('promptText', value),
 })
 
 const promptLang = computed({
   get: () => providers.value[providerId]?.promptLang as string | undefined || 'zh',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].promptLang = value
-  },
+  set: value => setConfigField('promptLang', value),
 })
 
 const textLang = computed({
   get: () => providers.value[providerId]?.textLang as string | undefined || 'zh',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].textLang = value
-  },
+  set: value => setConfigField('textLang', value),
 })
 
 const gptWeightsPath = computed({
   get: () => providers.value[providerId]?.gptWeightsPath as string | undefined || '',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].gptWeightsPath = value
-  },
+  set: value => setConfigField('gptWeightsPath', value),
 })
 
 const sovitsWeightsPath = computed({
   get: () => providers.value[providerId]?.sovitsWeightsPath as string | undefined || '',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].sovitsWeightsPath = value
-  },
+  set: value => setConfigField('sovitsWeightsPath', value),
 })
 
 const apiKeyConfigured = computed(() => !!providers.value[providerId]?.baseUrl)

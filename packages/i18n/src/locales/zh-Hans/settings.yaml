@@ -2048,6 +2048,7 @@ pages:
         callout_no_api_key: GPT-SoVITS 不需要 API Key，上方字段留空即可。
         fields:
           validation:
+            unreachable: 无法连接 GPT-SoVITS
             languageUnsupported: 请选择支持的语言代码
             baseUrlRequired: 需要填写服务地址
             refAudioRequired: 需要填写参考音频路径

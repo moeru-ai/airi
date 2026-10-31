@@ -2161,6 +2161,7 @@ pages:
         callout_no_api_key: GPT-SoVITS does not require an API key. The field above can be left blank.
         fields:
           validation:
+            unreachable: GPT-SoVITS is unreachable
             languageUnsupported: Select a supported language code
             baseUrlRequired: Base URL is required
             refAudioRequired: Reference audio path is required

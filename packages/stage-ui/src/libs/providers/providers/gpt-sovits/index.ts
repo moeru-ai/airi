@@ -126,7 +126,7 @@ export const providerGptSovits = defineProvider<GptSovitsConfig, 'gpt-sovits'>({
           }
         }
         catch (error) {
-          return { errors: [{ error: error instanceof Error ? error : new Error(String(error)) }], reason: 'GPT-SoVITS is unreachable', reasonKey: '', valid: false }
+          return { errors: [{ error: error instanceof Error ? error : new Error(String(error)) }], reason: t('settings.pages.providers.provider.gpt-sovits.fields.validation.unreachable'), reasonKey: '', valid: false }
         }
       },
     })],
@@ -135,7 +135,8 @@ export const providerGptSovits = defineProvider<GptSovitsConfig, 'gpt-sovits'>({
     listModels: async () => [{ id: 'gpt-sovits', name: 'GPT-SoVITS', provider: 'gpt-sovits', description: 'GPT-SoVITS voice cloning model', contextLength: 0, deprecated: false }],
     listVoices: async (config) => {
       const languageTitles: Record<string, string> = { zh: 'Chinese', en: 'English', ja: 'Japanese', ko: 'Korean', yue: 'Cantonese' }
-      const selected = config.textLang in languageTitles ? config.textLang : 'zh'
+      const aliases: Record<string, string> = { all_zh: 'zh', all_ja: 'ja', all_yue: 'yue', all_ko: 'ko' }
+      const selected = aliases[config.textLang] ?? (config.textLang in languageTitles ? config.textLang : 'zh')
       const languages = [selected, ...Object.keys(languageTitles).filter(code => code !== selected)].map(code => ({ code, title: languageTitles[code] }))
       return [{ id: 'default', name: 'Configured reference audio', provider: 'gpt-sovits', languages }]
     },
