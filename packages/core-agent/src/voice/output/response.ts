@@ -179,7 +179,9 @@ export class SpeechStream {
         }
         catch (cause) {
           const error = errorFromCause(cause, 'Speech synthesis failed')
-          response.emit({ type: 'tts-result', segmentId, status: 'failed', error })
+          // A provider rejects when its signal aborts. A stop or an interruption is a cancellation, not a failure.
+          const aborted = signal.aborted || this.signal.aborted || response.signal.aborted
+          response.emit(aborted ? { type: 'tts-result', segmentId, status: 'cancelled' } : { type: 'tts-result', segmentId, status: 'failed', error })
           this.fail(error)
           return null
         }
@@ -268,7 +270,8 @@ export class SpeechStream {
       }
       catch (cause) {
         const error = errorFromCause(cause, 'Streaming speech failed')
-        this.response.emit({ type: 'tts-result', segmentId: requestId, status: 'failed', error })
+        const aborted = this.signal.aborted || this.response.signal.aborted
+        this.response.emit(aborted ? { type: 'tts-result', segmentId: requestId, status: 'cancelled' } : { type: 'tts-result', segmentId: requestId, status: 'failed', error })
         throw error
       }
       this.response.emit({ type: 'tts-result', segmentId: requestId, status: this.signal.aborted || this.response.signal.aborted ? 'cancelled' : 'audio' })

@@ -140,4 +140,60 @@ describe('voice output plugins', () => {
     expect(() => controller.use(neutral)).not.toThrow()
     await controller.close()
   })
+
+  it('delivers the events from the start to an installer that awaits before it listens', async () => {
+    // ROOT CAUSE:
+    //
+    // An installer that awaited before it called `on` missed the events that the response emitted meanwhile.
+    //
+    // We fixed this by holding the events until every installer of the plugin settles.
+    const ready = Promise.withResolvers<void>()
+    const events: SpeechOutputEvent['type'][] = []
+    const playback = finishedPlayback()
+    const controller = new VoiceController({ speech: () => ({ playback, synthesize: async () => new Blob(['speech']) }) })
+    controller.use({ name: 'late', setup(scope) {
+      scope.onOutput(async (output) => {
+        await ready.promise
+        output.on('tts-request', event => events.push(event.type))
+        output.on('playback-end', event => events.push(event.type))
+      })
+      return undefined
+    } })
+
+    const response = controller.openResponse({ sessionId: 'alice', turnId: 'late' })
+    const speech = response.openSpeech({ purpose: 'answer' })
+    speech.write('Hello.')
+    speech.end()
+    await response.finish()
+    expect(events).toEqual([])
+
+    ready.resolve()
+    await expect.poll(() => events).toEqual(['tts-request', 'playback-end'])
+    await controller.close()
+  })
+
+  it('reports synthesis that an interruption aborts as cancelled', async () => {
+    const results: string[] = []
+    const requested = Promise.withResolvers<void>()
+    const playback = finishedPlayback()
+    const controller = new VoiceController({ speech: () => ({ playback, synthesize: (_request, signal) => {
+      requested.resolve()
+      return new Promise<Blob>((_resolve, reject) => signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true }))
+    } }) })
+    controller.use({ name: 'results', setup(scope) {
+      scope.onOutput(output => output.on('tts-result', event => results.push(event.status)))
+      return undefined
+    } })
+
+    const turn = { sessionId: 'alice', turnId: 'interrupted' }
+    const response = controller.openResponse(turn)
+    const speech = response.openSpeech({ purpose: 'answer' })
+    speech.write('Hello.')
+    speech.end()
+    await requested.promise
+    await controller.interrupt({ turns: [turn], cause: 'speech-input' }).silenced
+
+    await expect.poll(() => results).toEqual(['cancelled'])
+    await controller.close()
+  })
 })
