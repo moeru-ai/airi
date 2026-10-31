@@ -1,3 +1,5 @@
+import { Buffer } from 'node:buffer'
+
 import { ipcMain } from 'electron'
 
 export const ELECTRON_FETCH_IPC_CHANNEL = 'airi:electron:fetch'
