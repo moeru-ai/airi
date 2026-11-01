@@ -1,11 +1,16 @@
 import type { InferOutput } from 'valibot'
 
-import { array, boolean, object, picklist, record, string } from 'valibot'
+import { array, boolean, object, optional, picklist, record, string } from 'valibot'
 
 export const featureFlagPolicySchema = object({
   key: string(),
   mode: picklist(['cloud-opt-in', 'cloud-controlled']),
   source: picklist(['global', 'account']),
+  /**
+   * The state of a `cloud-opt-in` flag before the user makes a choice. A saved choice always wins. A missing value
+   * means off. `cloud-controlled` flags ignore it.
+   */
+  defaultEnabled: optional(boolean()),
 })
 
 export const featureFlagResponseSchema = object({ flags: array(featureFlagPolicySchema) })
@@ -83,8 +88,20 @@ export const FULLSCREEN_WORKSPACE_FLAG = {
   },
 } as const satisfies FeatureFlag
 
+/**
+ * Gates the Responses API preference of the official chat provider. The Cloud policy decides if an account gets the
+ * switch and its state before the user makes a choice. The registration stays off, so a missing grant keeps it off.
+ */
+export const OFFICIAL_RESPONSES_FLAG: FeatureFlag = {
+  key: 'official-responses',
+  titleKey: 'settings.pages.system.experimental.features.official_responses.title',
+  descriptionKey: 'settings.pages.system.experimental.features.official_responses.description',
+  defaultEnabled: false,
+  availability: 'cloud',
+}
+
 /** Only implemented experiments belong here. An empty catalog produces an empty settings page. */
-export const featureFlags: readonly FeatureFlag[] = [CHARACTER_CARD_SYNC_FLAG, DISPLAY_MODEL_SYNC_FLAG, FULLSCREEN_WORKSPACE_FLAG]
+export const featureFlags: readonly FeatureFlag[] = [CHARACTER_CARD_SYNC_FLAG, DISPLAY_MODEL_SYNC_FLAG, FULLSCREEN_WORKSPACE_FLAG, OFFICIAL_RESPONSES_FLAG]
 
 /** The variant of a feature: the saved one while the feature still offers it, otherwise the first one. */
 export function resolveFeatureVariant(feature: FeatureFlag | undefined, saved: string | undefined): string | undefined {
@@ -99,7 +116,10 @@ export function offeredFeatureFlags(desktop: boolean): readonly FeatureFlag[] {
   return featureFlags.filter(feature => desktop || !feature.desktopOnly)
 }
 
-/** Missing cloud grants disable features. Only local and account-granted opt-in features expose settings. */
+/**
+ * Missing cloud grants disable features. Only local and account-granted opt-in features expose settings.
+ * For a `cloud-opt-in` grant, the saved choice wins over the Cloud default, and the Cloud default wins over off.
+ */
 export function resolveFeatureFlag(feature: FeatureFlag, preference: boolean | undefined, policy: InferOutput<typeof featureFlagPolicySchema> | undefined, authenticated: boolean): FeatureFlagDecision {
   if (feature.availability === 'local')
     return { enabled: preference ?? feature.defaultEnabled, source: preference === undefined ? 'default' : 'local', selectable: true }
@@ -113,5 +133,8 @@ export function resolveFeatureFlag(feature: FeatureFlag, preference: boolean | u
   if (!authenticated)
     return { enabled: false, source: 'default', selectable: false }
 
-  return { enabled: preference ?? false, source: preference === undefined ? policy.source : 'local', selectable: true }
+  if (preference === undefined)
+    return { enabled: policy.defaultEnabled ?? false, source: policy.source, selectable: true }
+
+  return { enabled: preference, source: 'local', selectable: true }
 }
