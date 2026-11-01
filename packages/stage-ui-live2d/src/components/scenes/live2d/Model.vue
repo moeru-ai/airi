@@ -1054,10 +1054,18 @@ function touchAt(stagePoint: { x: number, y: number }): Omit<Live2DTouch, 'gestu
   }
 }
 
-/** Plays the procedural reaction of the model to one touch, at once. */
+/**
+ * Plays the procedural reaction of the model to one touch, at once.
+ *
+ * The reaction plugin samples with the motion clock, `ctx.now`, which comes
+ * from `Live2DModel.elapsedTime`. That clock falls behind `performance.now()`
+ * whenever the Pixi ticker clamps a long frame, for example after the tab was
+ * hidden. The trigger uses the same clock as the samples, so the reaction
+ * starts on the next frame and not after the drift.
+ */
 function react(touch: Live2DTouch) {
   if (model.value)
-    touchReaction.trigger(touch, performance.now() / 1000)
+    touchReaction.trigger(touch, lastUpdateTime.value)
 }
 
 /** Plays the touch motion group of the model, for example `TapBody`, when the model has one. */
