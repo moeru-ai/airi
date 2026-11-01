@@ -126,7 +126,7 @@ describe('createLocalShellRunner', () => {
     mkdirSync(testDir, { recursive: true })
 
     try {
-      const runner = createLocalShellRunner(createTestConfig())
+      const runner = createLocalShellRunner(createTestConfig({ terminalShell: isWindows ? 'pwsh.exe' : '/bin/sh' }))
       const checkCwdCommand = isWindows ? '(Get-Location).Path' : 'pwd'
 
       const first = await runner.execute({
@@ -150,7 +150,7 @@ describe('createLocalShellRunner', () => {
   }, 15_000)
 
   it('returns non-zero exit codes without throwing', async () => {
-    const runner = createLocalShellRunner(createTestConfig())
+    const runner = createLocalShellRunner(createTestConfig({ terminalShell: isWindows ? 'pwsh.exe' : '/bin/sh' }))
     const result = await runner.execute({
       command: 'exit 7',
     })
@@ -160,7 +160,7 @@ describe('createLocalShellRunner', () => {
   })
 
   it('bounds captured stdout and stderr for large command output', async () => {
-    const runner = createLocalShellRunner(createTestConfig())
+    const runner = createLocalShellRunner(createTestConfig({ terminalShell: isWindows ? 'pwsh.exe' : '/bin/sh' }))
     const command = isWindows
       ? '[Console]::Out.Write((\'o\' * 20000)); [Console]::Error.Write((\'e\' * 20000))'
       : `${JSON.stringify(execPath)} -e "process.stdout.write('o'.repeat(20000)); process.stderr.write('e'.repeat(20000))"`
@@ -179,7 +179,7 @@ describe('createLocalShellRunner', () => {
   })
 
   it('resets the tracked state', async () => {
-    const runner = createLocalShellRunner(createTestConfig())
+    const runner = createLocalShellRunner(createTestConfig({ terminalShell: isWindows ? 'pwsh.exe' : '/bin/sh' }))
     const checkCwdCommand = isWindows ? '(Get-Location).Path' : 'pwd'
     await runner.execute({
       command: checkCwdCommand,
@@ -196,7 +196,7 @@ describe('createLocalShellRunner', () => {
   // timeout to reap background grandchildren rather than leaving them orphaned.
   it('reaps background grandchildren when a command times out', { skip: isWindows }, async () => {
     const runner = createLocalShellRunner(createTestConfig({
-      terminalShell: '/bin/zsh',
+      terminalShell: '/bin/sh',
       timeoutMs: 300,
     }))
 
