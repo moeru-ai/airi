@@ -11,6 +11,7 @@ import { providerBytePlus } from './cloud/byteplus'
 import { providerBytePlusCodingPlan } from './cloud/byteplus-coding-plan'
 import { providerCerebrasAI } from './cloud/cerebras-ai'
 import { providerCloudflareWorkersAI } from './cloud/cloudflare-workers-ai'
+import { providerCloudgpu } from './cloud/cloudgpu'
 import { providerCometAPI, providerCometAPISpeech, providerCometAPITranscription } from './cloud/comet-api'
 import { providerDeepSeek } from './cloud/deepseek'
 import { providerElevenLabs } from './cloud/elevenlabs'
@@ -97,6 +98,7 @@ export const portableProviderDefinitions = eraseProviderDefinitions(
   providerBytePlusCodingPlan,
   providerCerebrasAI,
   providerCloudflareWorkersAI,
+  providerCloudgpu,
   providerCometAPI,
   providerCometAPISpeech,
   providerCometAPITranscription,
