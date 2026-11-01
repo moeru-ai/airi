@@ -19,9 +19,8 @@ import { computed, nextTick, onUnmounted, shallowRef, useTemplateRef, watch } fr
 import { useI18n } from 'vue-i18n'
 
 import InputHints from './input-hints.vue'
+import MotionTimeline from './motion-timeline.vue'
 import PlaybackControls from './playback-controls.vue'
-import TimelineRuler from './timeline-ruler.vue'
-import TrackRow from './track-row.vue'
 
 import {
   createDefaultLive2DMotionProject,
@@ -57,8 +56,9 @@ const project = shallowRef<Live2DMotionProject>(createDefaultLive2DMotionProject
 const activeTrack = shallowRef<Live2DMotionEditableTrackId>('headX')
 const selectedOverlayId = shallowRef<string>()
 const playheadMs = shallowRef(0)
+/** The part of the motion that the timeline shows. The crop action keeps it. The timeline reports each change. */
 const viewport = shallowRef<readonly [number, number]>([0, project.value.durationMs])
-const rulerKey = shallowRef(0)
+const timeline = useTemplateRef<{ resetView: () => void }>('timeline')
 const playing = shallowRef(false)
 const importError = shallowRef('')
 const importFileInput = useTemplateRef<HTMLInputElement>('importFileInput')
@@ -71,8 +71,6 @@ let playbackStartedAt = 0
 let playbackStartMs = 0
 let lastEmittedRecordingJson = ''
 
-const currentTime = computed(() => `${(playheadMs.value / 1000).toFixed(2)}s`)
-const duration = computed(() => `${(project.value.durationMs / 1000).toFixed(2)}s`)
 const editingDisabled = computed(() => props.disabled || props.recordingActive)
 const gamepadFamily = computed(() => props.gamepad?.family ?? 'unknown')
 const timelineInputHints = computed(() => {
@@ -302,7 +300,7 @@ function runHistoryAction(action: () => void) {
 
 function resetViewport() {
   viewport.value = [0, project.value.durationMs]
-  rulerKey.value++
+  timeline.value?.resetView()
 }
 
 useLive2DMotionGamepadActions({
@@ -474,50 +472,25 @@ onUnmounted(() => {
       />
     </div>
 
-    <div
-      data-testid="motion-timeline-ruler-row"
-      :class="[
-        'grid grid-cols-[calc(12rem+0.75rem)_minmax(0,1fr)] pr-3',
-        'border-y border-neutral-200/80 dark:border-neutral-800/80',
-      ]"
-    >
-      <div :class="['flex items-center px-3 font-mono text-xs text-neutral-500']">
-        {{ currentTime }} / {{ duration }}
-      </div>
-      <TimelineRuler
-        :key="rulerKey"
-        :duration-ms="project.durationMs"
-        :playhead-ms="playheadMs"
-        :viewport="viewport"
-        :disabled="editingDisabled"
-        @scrub="publish"
-        @viewport="viewport = $event"
-      />
-    </div>
-
-    <div data-testid="motion-timeline-track-list" :class="['max-h-[52rem] space-y-2 overflow-y-auto p-3']">
-      <TrackRow
-        v-for="trackId in live2dMotionEditableTrackIds"
-        :key="trackId"
-        :project="project"
-        :track-id="trackId"
-        :label="t(`tamagotchi.settings.devtools.pages.live2d-motion.editor.tracks.${trackId}`)"
-        :active="activeTrack === trackId"
-        :selected-overlay-id="selectedOverlayId"
-        :playhead-ms="playheadMs"
-        :viewport="viewport"
-        :disabled="editingDisabled"
-        @activate="selectTrack(trackId)"
-        @add-overlay="addOverlay(trackId, $event)"
-        @select-overlay="selectedOverlayId = $event"
-        @remove-overlay="removeOverlay"
-        @update-overlay="updateOverlay"
-        @add-point="addPoint"
-        @move-point="movePoint"
-        @remove-point="removePoint"
-        @scrub="publish"
-      />
-    </div>
+    <MotionTimeline
+      ref="timeline"
+      :project="project"
+      :active-track="activeTrack"
+      :selected-overlay-id="selectedOverlayId"
+      :playhead-ms="playheadMs"
+      :disabled="editingDisabled"
+      :class="['border-t border-neutral-100 dark:border-neutral-900']"
+      @activate="selectTrack"
+      @add-overlay="addOverlay"
+      @select-overlay="selectedOverlayId = $event"
+      @remove-overlay="removeOverlay"
+      @update-overlay="updateOverlay"
+      @add-point="addPoint"
+      @move-point="movePoint"
+      @remove-point="removePoint"
+      @scrub="publish"
+      @viewport="viewport = $event"
+    />
 
     <div :class="['flex items-center justify-between gap-3 border-t border-neutral-200/80 px-4 py-2 text-xs text-neutral-500 dark:border-neutral-800/80']">
       <span>{{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.timeline-help') }}</span>

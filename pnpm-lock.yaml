@@ -5155,6 +5155,9 @@ importers:
       '@proj-airi/stage-ui-three':
         specifier: workspace:^
         version: link:../stage-ui-three
+      '@proj-airi/timeline-canvas':
+        specifier: workspace:^
+        version: link:../timeline-canvas
       '@proj-airi/trace-kit':
         specifier: workspace:^
         version: link:../trace-kit
