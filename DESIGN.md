@@ -139,6 +139,7 @@ Keep parallelogram styling in the existing button shape. Preserve its counter-sk
 | [GhostButton](./packages/ui/src/components/misc/ghost-button.vue) | Transparent at rest. Interaction adds a faint primary surface. Keyboard focus has an outline. | Toolbars and low-emphasis actions. |
 | [IconButton](./packages/ui/src/components/misc/icon-button.vue) | Removes padding. No built-in surface, shape, or fixed square size. | Favorite, copy, retry, and other icon actions. |
 | [OverlayButton](./packages/ui/src/components/misc/overlay-button.vue) | Translucent neutral surface, background blur, and `rounded-xl`. | Actions over the stage. |
+| [DockButton](./packages/ui/src/components/misc/dock/dock-button.vue) | Round icon button in a `Dock`. A toggle that is on shows only a theme-color icon. The label shows as a tooltip. | Docks, such as the floating chat dock and the fullscreen island. |
 
 `Button` defaults are `color="neutral"`, `variant="secondary"`, `shape="rect"`, `size="md"`, and `outline=true`.
 
@@ -226,6 +227,7 @@ Use an opaque background for swipe content. If the visible label is hidden, pres
 | `Checkbox` thumb | 250ms translation, `ease-in-out` |
 | [TransitionVertical](./packages/ui/src/components/animations/transition-vertical.vue) | Default 250ms height and opacity transition |
 | [TransitionHorizontal](./packages/ui/src/components/animations/transition-horizontal.vue) | 500ms width and opacity transition |
+| [TransitionBud](./packages/ui/src/components/animations/transition-bud.vue) | Buds out with a spring (bounce 0.45, perceived 520ms, 1300ms in all). Merges back in 220ms with an ease-in quad |
 | [AnimatedContent](./packages/ui/src/components/animations/animated-content.vue) | 220ms enter, 160ms exit, and 6px inner blur transition |
 | Shared UnoCSS animations | Overlay 300ms, content 150ms, directional entrance 400ms, fade 200ms |
 | [Blur fade](./packages/stage-ui/src/components/widgets/poppin-text/animators/blur-fade.ts) | Each grapheme fades and sharpens from 3px blur over 500ms. Starts are 40ms apart, at most 600ms in total |
@@ -235,7 +237,7 @@ Use an opaque background for swipe content. If the visible label is hidden, pres
 
 Live voice text appears with the blur fade through `PoppinText`. A rewrite of spoken text, for example by the rephrase plugin, plays `RewriteText`, so only the changed words move.
 
-`AnimatedContent`, `BottomDrawer`, and the blur fade explicitly handle reduced-motion preferences. Check other controls individually instead of assuming library-wide support.
+`AnimatedContent`, `BottomDrawer`, `TransitionBud`, and the blur fade explicitly handle reduced-motion preferences. Check other controls individually instead of assuming library-wide support.
 
 Icons use Iconify. Existing components and stories use sets such as Solar and Phosphor. The repository does not require one exclusive icon set.
 

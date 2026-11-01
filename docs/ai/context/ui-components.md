@@ -38,6 +38,21 @@ Bidirectional Vue `<Transition>` wrapper with customizable CSS classes.
 
 **Slots**: `default`
 
+### TransitionBud
+
+Buds an element off a neighbor, such as an island off its `Dock`, and merges
+it back under the neighbor when it leaves. The element starts small under the
+neighbor and springs out with a bounce. Put the element after its neighbor in
+the same row or column, and keep the neighbor above it with `z-index`.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `from` | `'left' \| 'right' \| 'top' \| 'bottom'` | *(required)* | Side of the element where its neighbor is |
+| `gap` | `number?` | `8` | Space between the neighbor and the element, in pixels |
+| `delay` | `number?` | `0` | Wait before the element buds, in milliseconds |
+
+**Slots**: `default` (one element with `v-if`)
+
 ### TransitionHorizontal
 
 Horizontal slide/fade transition (0.5s hardcoded).
@@ -287,6 +302,70 @@ accessible name. Use it inside a Reka UI `TooltipProvider`. Attributes such as
 | `description` | `string?` | — | Longer text under the label in the tooltip |
 
 **Emits**: `click()`
+
+### Dock
+
+A pill that holds icon buttons, such as the dock of the floating chat and the
+fullscreen island. Its `DockButton` and `DockSeparator` children take their
+size, tooltip side, and tooltip surface from it.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `orientation` | `'horizontal' \| 'vertical'?` | `'horizontal'` | Direction of the buttons |
+| `size` | `'sm' \| 'md'?` | `'sm'` | Button size: 28 px or 36 px |
+| `variant` | `'default' \| 'blurry'?` | `'default'` | Opaque or translucent surface. `blurry` is optional. It lets the background show through, for a dock over the stage |
+| `opacity` | `number?` | `0.8` | Opacity of a `blurry` dock and its tooltips, from 0 to 1. Dark mode uses 0.1 less, as `OverlayButton` does |
+| `blur` | `number?` | `12` | Background blur of a `blurry` dock and its tooltips, in pixels |
+| `tooltipSide` | `TooltipContentProps['side']?` | `'bottom'`, or `'right'` when vertical | Side of the button tooltips. Pick the side that faces into the window |
+| `shadow` | `boolean?` | `true` | Turn it off when a parent draws the shadow, for example around a clipped dock |
+
+**Slots**: `default` (`DockButton`, `DockSeparator`, or custom items in a `Tooltip`).
+
+A custom item, such as a drag handle or a name, takes `dockItemClasses(variant, pressed)`.
+It returns the hover background and the icon color of `DockButton`, so the item matches its neighbors.
+
+### DockButton
+
+Round icon button of a `Dock`. Its `label` is the accessible name and the
+tooltip. A toggle that is on shows only a theme-color icon, with no background.
+A hover shows the same neutral background on every button. On a `blurry`
+dock, icons at rest have the colors of the Controls Island icons. Attributes such as
+`class` and listeners go to the button, so it can be the trigger of a
+`DropdownMenu`. Outside a `Dock`, it uses the `Dock` defaults.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `label` | `string` | *(required)* | Accessible name and tooltip text |
+| `icon` | `string?` | — | Icon class. The default slot replaces the icon |
+| `pressedIcon` | `string?` | `icon` | Icon of a toggle that is on |
+| `pressed` | `boolean?` | — | State of a toggle. Leave it unset for a plain action, which has no `aria-pressed` |
+| `tooltip` | `boolean?` | `true` | Shows the tooltip. Turn it off while a menu of the button covers its place |
+| `tooltipSide` | `TooltipContentProps['side']?` | side of the `Dock` | Side of the tooltip |
+| `disabled` | `boolean?` | `false` | Disables the button |
+| `loading` | `boolean?` | `false` | Shows a spinner and disables the button |
+
+**Emits**: native button events through attributes, for example `click`.
+
+### DockSeparator
+
+A line between groups of buttons in a `Dock`. It runs across the dock.
+
+### Tooltip
+
+A short label beside one control. It opens at once on hover, and only on
+keyboard focus, so it does not come back when a menu returns the focus. The
+slot holds one control. Attributes go to the control, so the trigger of a menu
+can wrap the tooltip.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `label` | `string` | *(required)* | Text of the tooltip. The control keeps its own accessible name |
+| `side` | `TooltipContentProps['side']?` | `'bottom'` | Preferred side before collision handling |
+| `sideOffset` | `number?` | `6` | Space between the control and the tooltip |
+| `variant` | `'default' \| 'blurry'?` | `'default'` | Opaque or translucent surface |
+| `opacity` | `number?` | `0.8` | Opacity of a `blurry` tooltip, from 0 to 1. Dark mode uses 0.1 less |
+| `blur` | `number?` | `12` | Background blur of a `blurry` tooltip, in pixels |
+| `disabled` | `boolean?` | `false` | Closes the tooltip and keeps it closed |
 
 ### CopyableLabel
 
