@@ -11,7 +11,7 @@ import type { CharacterAvatarModelReference } from './avatar-model'
  * losing each other's configuration.
  */
 export interface AiriExtension {
-  /** Maximum number of stored history messages sent to the model. `-1` keeps the full history. */
+  /** Message limit, including current input. Missing or `-1` keeps all history. `0` sends only current input. System messages are exempt. */
   contextWindow?: number
 
   wakeWords?: WakeWord[]

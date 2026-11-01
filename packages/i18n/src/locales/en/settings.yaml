@@ -536,7 +536,7 @@ pages:
         greetings: How your character should say "hello" ?
         systemprompt: Explain here to the AI LLM how it should answer when prompted.
         posthistoryinstructions: Place here anything the AI LLM should read after the messages history.
-        context_window: Maximum number of history messages sent to the model. Use -1 to keep the full conversation. When exceeded, the oldest 10% is removed.
+        context_window: 'Message limit, including your current message. Leave empty for All. Use 0 to send only your current message. When exceeded, older turns are removed in blocks. Saved chats stay intact.'
         version: >-
           Card version, you should increase this if you are making changes from
           a previous card.
@@ -561,7 +561,8 @@ pages:
     no_results: No matching cards found
     personality: Personality
     posthistoryinstructions: Post-History Instructions
-    context_window: Context Window
+    context_window: Messages to remember
+    context_window_all: All
     recent: Recently Added
     scenario: Scenario
     search: Search cards...

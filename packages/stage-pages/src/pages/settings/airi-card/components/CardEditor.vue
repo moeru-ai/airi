@@ -92,6 +92,14 @@ const selectedSpeechVoiceId = ref<string>('')
 const previewVoices = ref<VoiceInfo[]>([])
 const selectedDisplayModelId = ref<string>('')
 const selectedContextWindow = ref<number>(-1)
+const contextWindowInput = computed<number | undefined>({
+  get: () => selectedContextWindow.value < 0 ? undefined : selectedContextWindow.value,
+  set: (value) => {
+    selectedContextWindow.value = typeof value === 'number' && Number.isFinite(value)
+      ? Math.max(0, Math.floor(value))
+      : -1
+  },
+})
 
 // NOTICE:
 // The editor needs a non-empty option value for inherited settings.
@@ -1050,8 +1058,9 @@ function handleBack() {
             <!-- Settings -->
             <div v-else-if="activeSection === 'settings'" :class="['flex flex-col gap-5']">
               <FieldInput
-                v-model="selectedContextWindow"
+                v-model="contextWindowInput"
                 type="number"
+                :placeholder="t('settings.pages.card.context_window_all')"
                 :label="t('settings.pages.card.context_window')"
                 :description="t('settings.pages.card.creation.fields_info.context_window')"
               />
