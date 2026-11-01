@@ -785,9 +785,7 @@ export const useProviderStore = defineStore('provider', () => {
         const voices = await listVoices(config, provider, model, controller?.signal)
         if (sessionEpoch !== undefined && sessionEpoch !== voiceSessionEpoch)
           return undefined
-        return definition.id === 'gpt-sovits'
-          ? voices.map(voice => ({ ...voice, name: t('settings.pages.providers.provider.gpt-sovits.referenceVoice') }))
-          : voices
+        return voices
       }
       catch (error) {
         // An expired session's 401 must not replace the new session's catalog error.
