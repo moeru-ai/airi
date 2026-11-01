@@ -15,7 +15,7 @@ describe('voiceController input', () => {
     const controller = new VoiceController({ audio: new AudioInput(source), transcriber: vi.fn(), submit: vi.fn() })
     const cancelled = AbortSignal.abort('Plugin no longer needs audio')
     controller.use({ name: 'cancelled-detector', setup(scope) {
-      scope.observeAudio({ windowMs: 32, hopMs: 32, signal: cancelled }, async () => {})
+      scope.input.observe({ windowMs: 32, hopMs: 32, signal: cancelled }, async () => {})
     } })
     expect(source.open).not.toHaveBeenCalled()
     await controller.close()
@@ -88,7 +88,7 @@ describe('voiceController input', () => {
     const independent = vi.fn(async () => {})
     const other = observe(audio, { windowMs: 4, hopMs: 4 }, independent, () => {})
     controller.use({ name: 'detector', setup(scope) {
-      scope.observeAudio({ windowMs: 4, hopMs: 4 }, detected)
+      scope.input.observe({ windowMs: 4, hopMs: 4 }, detected)
     } })
 
     controller.replaceAudio(next)
@@ -109,7 +109,7 @@ describe('voiceController input', () => {
     const controller = new VoiceController({ audio: oldAudio })
     const detected = vi.fn(async (_task: AudioPluginTask) => {})
     controller.use({ name: 'detector', setup(scope) {
-      scope.observeAudio({ windowMs: 4, hopMs: 4 }, detected)
+      scope.input.observe({ windowMs: 4, hopMs: 4 }, detected)
     } })
 
     controller.replaceAudio(nextAudio)
@@ -144,7 +144,7 @@ describe('voiceController input', () => {
     const later = vi.fn()
     const controller = new VoiceController({ audio, transcriber: () => ({ transcribe: () => output.stream }), submit })
     controller.use({ name: 'memory', setup(plugin) {
-      plugin.onSpeechInput((input) => {
+      plugin.onInput((input) => {
         input.finalize(() => {
           throw new Error('Memory unavailable')
         })
@@ -176,7 +176,7 @@ describe('voiceController input', () => {
     const writes: WriteResult[] = []
     const controller = new VoiceController({ audio, transcriber: () => ({ transcribe: () => output.stream }), submit })
     controller.use({ name: 'memory', setup(plugin) {
-      plugin.onSpeechInput((input) => {
+      plugin.onInput((input) => {
         input.finalize(async (ctx) => {
           stage.resolve(ctx.signal)
           await release.promise
@@ -208,7 +208,7 @@ describe('voiceController input', () => {
     const finish = Promise.withResolvers<void>()
     const controller = new VoiceController({ audio, transcriber: () => ({ transcribe: () => output.stream }), submit: async () => ({ status: 'drafted', draftId: 'draft' }) })
     controller.use({ name: 'memory', setup(plugin) {
-      plugin.onSpeechInput((input) => {
+      plugin.onInput((input) => {
         input.finalize(async () => {
           waiting.resolve()
           await finish.promise
@@ -242,7 +242,7 @@ describe('voiceController input', () => {
     let observation: import('@proj-airi/pipelines-audio').Observer | undefined
     const observing = Promise.withResolvers<void>()
     controller.use({ name: 'speaker', setup(plugin) {
-      observation = plugin.observeAudio({ windowMs: 4, hopMs: 4 }, async () => {
+      observation = plugin.input.observe({ windowMs: 4, hopMs: 4 }, async () => {
         throw new Error('Model failed')
       })
       observing.resolve()
@@ -288,12 +288,12 @@ describe('voiceController input', () => {
     let retained: SpeechInputControl | undefined
     let withoutGrant: SpeechInputControl | undefined
     controller.use({ name: 'controls', setup(plugin) {
-      plugin.onSpeechInput((input) => {
+      plugin.onInput((input) => {
         retained = input.control
       })
     } }, { grants: ['input-control', 'cancel-input'] })
     controller.use({ name: 'reader', setup(plugin) {
-      plugin.onSpeechInput((input) => {
+      plugin.onInput((input) => {
         withoutGrant = input.control
       })
     } })
@@ -317,7 +317,7 @@ describe('voiceController input', () => {
     const submit = vi.fn(async () => ({ status: 'drafted' as const, draftId: 'draft' }))
     const controller = new VoiceController({ audio, transcriber: () => ({ transcribe: () => output.stream }), submit })
     controller.use({ name: 'rewrite', setup(plugin) {
-      plugin.onSpeechInput(async (input) => {
+      plugin.onInput(async (input) => {
         // An asynchronous install still registers its stage before finalization.
         await Promise.resolve()
         input.finalize((ctx) => {
@@ -327,7 +327,7 @@ describe('voiceController input', () => {
       })
     } })
     controller.use({ name: 'memory', setup(plugin) {
-      plugin.onSpeechInput((input) => {
+      plugin.onInput((input) => {
         input.finalize((ctx) => {
           seen.push(`memory:${ctx.document.corrected.text}`)
           ctx.attach('matches', ['AIRI'])
@@ -379,7 +379,7 @@ describe('voiceController input', () => {
     const submit = vi.fn(async () => ({ status: 'committed' as const, messageId: 'message' }))
     const controller = new VoiceController({ audio, transcriber: () => ({ transcribe: () => output.stream }), submit })
     controller.use({ name: 'memory', setup(plugin) {
-      plugin.onSpeechInput((input) => {
+      plugin.onInput((input) => {
         input.watch(async (document, signal) => {
           const text = document.raw.text
           if (!text)

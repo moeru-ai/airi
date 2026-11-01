@@ -60,7 +60,7 @@ import {
 } from '../../utils/mmd-materials'
 
 const props = withDefaults(defineProps<{
-  /** The context that owns `currentAudioSource`. */
+  /** The context that creates the lip sync node. It must be the context of the played speech. */
   audioContext?: AudioContext
   modelSrc?: string
   modelId?: string
@@ -71,7 +71,8 @@ const props = withDefaults(defineProps<{
    * readback answers for the whole stage.
    */
   backgroundUrl?: string | null
-  currentAudioSource?: AudioBufferSourceNode
+  /** Connects the lip sync node to the played speech and returns the disconnection. */
+  connectSpeech?: (node: AudioNode) => () => void
   enableOrbitControls?: boolean
 }>(), {
   paused: false,
@@ -133,7 +134,7 @@ let rafHandle = 0
 // Lip-sync owns Vue lifecycle hooks, so it must be created during setup.
 const lipSync = useMMDLipSync(
   toRef(props, 'audioContext'),
-  toRef(props, 'currentAudioSource'),
+  toRef(props, 'connectSpeech'),
 )
 const blink = useMMDBlink()
 let gaze: ReturnType<typeof createGazeController> | undefined

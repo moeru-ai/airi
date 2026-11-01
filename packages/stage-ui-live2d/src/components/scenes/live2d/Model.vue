@@ -9,9 +9,10 @@ import type {
 } from '@proj-airi/stage-shared/screen-ambient-light'
 import type { Cubism4ModelSettings } from 'pixi-live2d-display/cubism4'
 
-import type { PixiLive2DInternalModel } from '../../../composables/live2d'
+import type { Live2DFocusTarget, PixiLive2DInternalModel } from '../../../composables/live2d'
 import type { Live2DExpressionControl } from '../../../controls/manifest'
 
+import { Point } from '@pixi/math'
 import { listenBeatSyncBeatSignal } from '@proj-airi/stage-shared/beat-sync'
 import { ambientLightDefaults, ambientLightNeutralEnvironment, ambientLightPerceptualLevel, wholeWindowRectangle } from '@proj-airi/stage-shared/screen-ambient-light'
 import { useTheme } from '@proj-airi/ui'
@@ -28,10 +29,13 @@ import Live2DExpression from '../../live2d/expression.vue'
 
 import {
   createBeatSyncController,
+  createLive2DFocusBias,
   createLive2DHeadTracker,
   createLive2DMotionSpring,
   disableLive2DSdkBreath,
   live2DCanvasRectToParent,
+  live2DFocusTargetFromModelPoint,
+  resolveLive2DFocusTargetMode,
   useLive2DMotionManagerUpdate,
   useMotionUpdatePluginAutoEyeBlink,
   useMotionUpdatePluginBeatSync,
@@ -62,6 +66,8 @@ const props = withDefaults(defineProps<{
   focusAt?: { x: number, y: number }
   eyeTracking?: boolean
   eyeFocusSourceActive?: boolean
+  /** Turns a manual pose, for example a MAGIC pose, toward `focusAt` while the focus source is active. */
+  focusBias?: boolean
   themeColorsHue?: number
   themeColorsHueDynamic?: boolean
   live2dIdleAnimationEnabled?: boolean
@@ -84,6 +90,7 @@ const props = withDefaults(defineProps<{
   focusAt: () => ({ x: 0, y: 0 }),
   eyeTracking: false,
   eyeFocusSourceActive: false,
+  focusBias: false,
   disableFocusAt: false,
   scale: 1,
   themeColorsHue: 220.44,
@@ -113,6 +120,7 @@ const { position, scale } = useL2dViewControl()
 const {
   breathControl: manualBreathControl,
   control: manualMotionControl,
+  exclusiveOwnerId: manualExclusiveOwnerId,
 } = storeToRefs(useLive2DMotionControl())
 
 const modelSrcRef = toRef(() => props.modelSrc)
@@ -124,6 +132,7 @@ let isUnmounted = false
 const modelLoadMutex = new Mutex()
 
 const manualMotionSpring = createLive2DMotionSpring()
+const manualFocusBias = createLive2DFocusBias()
 const manualControlOffset = computed(() => getLive2DMotionControlModelOffset(manualMotionSpring.output.value))
 const offset = computed(() => ({
   x: (position.value.x / 100) * props.width + manualControlOffset.value.x,
@@ -483,7 +492,10 @@ async function performModelLoad() {
       ),
       'final',
     )
-    motionManagerUpdate.register(useMotionUpdatePluginManualControl(manualMotionControl, manualMotionSpring), 'final')
+    motionManagerUpdate.register(useMotionUpdatePluginManualControl(manualMotionControl, manualMotionSpring, {
+      controller: manualFocusBias,
+      target: focusBiasTarget,
+    }), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginLipSync(mouthOpenSize, nowSpeaking), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginBreathControl(manualBreathControl), 'final')
 
@@ -919,14 +931,56 @@ watch(live2dExpressionEnabled, (enabled) => {
   }
 })
 
-watch(focusAt, (value) => {
-  if (!model.value)
-    return
-  if (!props.eyeTracking)
+/**
+ * Sets the target of the Pixi focus controller.
+ *
+ * Pixi keeps the last target and adds it to the head, body, and eye angles on
+ * every frame. Without a reset, the model stays turned after tracking stops,
+ * and the turn also adds to a MAGIC pose. `Live2DModel.focus` always puts the
+ * target on the unit circle, so the center needs a direct `focus(0, 0)`.
+ */
+function updateFocusTarget() {
+  const current = model.value
+  if (!current)
     return
 
-  model.value.focus(value.x, value.y)
+  const mode = resolveLive2DFocusTargetMode({
+    eyeTracking: props.eyeTracking,
+    sourceActive: props.eyeFocusSourceActive,
+    idleEyeFocus: props.live2dForceIdleEyeAnimation,
+  })
+  if (mode === 'follow')
+    current.focus(focusAt.value.x, focusAt.value.y)
+  else if (mode === 'center')
+    current.internalModel.focusController.focus(0, 0)
+}
+
+watch([model, focusAt, live2dEyeTrackingEnabled, live2dEyeFocusSourceActive, live2dForceIdleEyeAnimation], updateFocusTarget)
+
+/**
+ * The focus target that biases a manual pose in the current frame.
+ *
+ * A devtools window that owns the model exclusively drives the pose by hand,
+ * so the bias stays off for it.
+ */
+// A devtools window that takes exclusive control gets the joystick pose without a fading cursor bias.
+watch(manualExclusiveOwnerId, (owner) => {
+  if (owner !== null)
+    manualFocusBias.reset()
 })
+
+function focusBiasTarget(): Live2DFocusTarget | undefined {
+  const current = model.value
+  if (!current || !props.focusBias || !props.eyeFocusSourceActive || manualExclusiveOwnerId.value !== null)
+    return undefined
+
+  const internalModel = current.internalModel
+  const point = current.toModelPosition(new Point(focusAt.value.x, focusAt.value.y))
+  return live2DFocusTargetFromModelPoint(point, {
+    width: internalModel.originalWidth,
+    height: internalModel.originalHeight,
+  })
+}
 
 onMounted(() => {
   const removeListener = listenBeatSyncBeatSignal(() => beatSync.scheduleBeat())
