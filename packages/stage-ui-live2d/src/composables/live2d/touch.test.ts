@@ -5,6 +5,7 @@ import {
   createLive2DTouchReaction,
   defaultLive2DTouchGestureOptions,
   findLive2DTouchMotionGroup,
+  isPointInLive2DMesh,
   resolveLive2DTouchRegion,
 } from './touch'
 
@@ -18,6 +19,32 @@ describe('resolveLive2DTouchRegion', () => {
     expect(resolveLive2DTouchRegion({ hitAreaNames: [], insideHead: true, insideDrawable: true })).toBe('head')
     expect(resolveLive2DTouchRegion({ hitAreaNames: [], insideHead: false, insideDrawable: true })).toBe('body')
     expect(resolveLive2DTouchRegion({ hitAreaNames: [], insideHead: false, insideDrawable: false })).toBeUndefined()
+  })
+
+  it('ignores the empty corners of the head box', () => {
+    expect(resolveLive2DTouchRegion({ hitAreaNames: [], insideHead: true, insideDrawable: false })).toBeUndefined()
+  })
+})
+
+describe('isPointInLive2DMesh', () => {
+  // An L shape from two triangles: the lower-left half of a 10 x 10 square, and a strip on the right.
+  const vertices = [0, 0, 0, 10, 10, 10, 9, 0, 10, 0]
+  const indices = [0, 1, 2, 3, 4, 2]
+
+  it('finds a point inside a triangle of the mesh', () => {
+    expect(isPointInLive2DMesh({ x: 2, y: 8 }, vertices, indices)).toBe(true)
+    expect(isPointInLive2DMesh({ x: 9.5, y: 2 }, vertices, indices)).toBe(true)
+  })
+
+  it('rejects a point inside the bounds but outside every triangle', () => {
+    // ROOT CAUSE:
+    //
+    // The box of all vertices covers 0..10 on both axes, so a box test counts this empty corner as the model.
+    expect(isPointInLive2DMesh({ x: 6, y: 2 }, vertices, indices)).toBe(false)
+  })
+
+  it('ignores triangles that a deformer collapsed', () => {
+    expect(isPointInLive2DMesh({ x: 50, y: 50 }, [5, 5, 5, 5, 5, 5], [0, 1, 2])).toBe(false)
   })
 })
 

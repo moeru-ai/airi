@@ -150,13 +150,27 @@ function emitTouch(touch: Live2DTouch | undefined) {
 // One gesture at a time. `isPrimary` holds for each pointer type, so a mouse and a touch can both be primary.
 // A new press during a gesture is ignored, and pointer capture makes sure the release of the gesture arrives.
 let gesturePointerId: number | undefined
+/** True when the press of the current gesture landed on the character. */
+let gestureOnCharacter = false
 
 function endGesture() {
   gesturePointerId = undefined
+  gestureOnCharacter = false
 }
 
+function cancelGesture() {
+  endGesture()
+  touchGestures.cancel()
+}
+
+// A paused stage does not advance the motion clock, so a reaction would wait and then play late.
+watch(() => props.paused, (paused) => {
+  if (paused)
+    cancelGesture()
+})
+
 useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'pointerdown', (event: PointerEvent) => {
-  if (gesturePointerId !== undefined || !event.isPrimary || event.button !== 0)
+  if (props.paused || gesturePointerId !== undefined || !event.isPrimary || event.button !== 0)
     return
   gesturePointerId = event.pointerId
   try {
@@ -166,6 +180,7 @@ useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'pointerdown', (e
     // A pointer that already ended cannot be captured. Its release does not come, and lostpointercapture ends the gesture.
   }
   const sample = touchSampleOf(event)
+  gestureOnCharacter = !!sample.hit
   touchGestures.down(sample)
   // A tap is known only on release, about 100 ms later. The reaction starts on the press, so it does not lag.
   if (sample.hit)
@@ -190,11 +205,15 @@ useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'pointerup', (eve
   emitTouch(tap)
 })
 useEventListener(() => live2dCanvasRef.value?.canvasElement(), ['pointercancel', 'lostpointercapture'], (event: PointerEvent) => {
-  if (event.pointerId !== gesturePointerId)
-    return
-  endGesture()
-  touchGestures.cancel()
+  if (event.pointerId === gesturePointerId)
+    cancelGesture()
 })
+// A pan of the page cancels the pointer and ends the pat. Only a touch on the character holds the page.
+// `touch-action: none` would also stop the scroll over the empty canvas. touchstart comes after pointerdown.
+useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'touchstart', (event: TouchEvent) => {
+  if (gestureOnCharacter && event.cancelable)
+    event.preventDefault()
+}, { passive: false })
 
 onUnmounted(() => {
   if (clearCursorFocusTimeout)

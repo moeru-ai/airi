@@ -35,6 +35,7 @@ import {
   createLive2DTouchReaction,
   disableLive2DSdkBreath,
   findLive2DTouchMotionGroup,
+  isPointInLive2DMesh,
   live2DCanvasRectToParent,
   live2DFocusTargetFromModelPoint,
   resolveLive2DFocusTargetMode,
@@ -1019,7 +1020,10 @@ onUnmounted(() => {
  * Finds the part of the character under a point of the Pixi stage.
  *
  * Hit areas of the author come first. Most models have none, so the head box
- * of the head tracker and the bounds of the visible drawables are the fallback.
+ * of the head tracker and the meshes of the visible drawables are the fallback.
+ *
+ * A hit area is a drawable that the author draws with a transparent texture,
+ * so it is tested by its mesh and never counts as a painted part.
  */
 function touchAt(stagePoint: { x: number, y: number }): Omit<Live2DTouch, 'gesture'> | undefined {
   const current = model.value
@@ -1027,23 +1031,33 @@ function touchAt(stagePoint: { x: number, y: number }): Omit<Live2DTouch, 'gestu
     return undefined
 
   const internalModel = current.internalModel
+  const coreModel = internalModel.coreModel
   const point = current.toModelPosition(new Point(stagePoint.x, stagePoint.y))
+
+  function insideMesh(index: number) {
+    // The box is a cheap first test. The mesh decides, so the empty space inside the box does not count.
+    const bounds = internalModel.getDrawableBounds(index)
+    if (point.x < bounds.x || point.x > bounds.x + bounds.width || point.y < bounds.y || point.y > bounds.y + bounds.height)
+      return false
+    return isPointInLive2DMesh(point, internalModel.getDrawableVertices(index), coreModel.getDrawableVertexIndices(index))
+  }
+
+  const hitAreas = Object.values(internalModel.hitAreas)
+  const hitAreaIndices = new Set(hitAreas.map(area => area.index))
   const headRect = headTracker.bounds(internalModel)
   const insideHead = !!headRect
     && point.x >= headRect.x && point.x <= headRect.x + headRect.width
     && point.y >= headRect.y && point.y <= headRect.y + headRect.height
   let insideDrawable = false
-  const drawableCount = internalModel.coreModel.getDrawableCount()
+  const drawableCount = coreModel.getDrawableCount()
   for (let index = 0; index < drawableCount && !insideDrawable; index += 1) {
-    if (internalModel.coreModel.getDrawableOpacity(index) <= 0)
+    if (hitAreaIndices.has(index) || !coreModel.getDrawableDynamicFlagIsVisible(index) || coreModel.getDrawableOpacity(index) <= 0)
       continue
-    const bounds = internalModel.getDrawableBounds(index)
-    insideDrawable = point.x >= bounds.x && point.x <= bounds.x + bounds.width
-      && point.y >= bounds.y && point.y <= bounds.y + bounds.height
+    insideDrawable = insideMesh(index)
   }
 
   const region = resolveLive2DTouchRegion({
-    hitAreaNames: internalModel.hitTest(point.x, point.y),
+    hitAreaNames: hitAreas.filter(area => insideMesh(area.index)).map(area => area.name),
     insideHead,
     insideDrawable,
   })

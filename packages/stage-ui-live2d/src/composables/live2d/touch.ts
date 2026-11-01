@@ -18,30 +18,62 @@ export interface Live2DTouchHitInput {
   hitAreaNames: readonly string[]
   /** True when the head box of the model contains the point. */
   insideHead: boolean
-  /** True when a visible drawable of the model contains the point. */
+  /** True when the mesh of a visible drawable contains the point. */
   insideDrawable: boolean
 }
 
 const headAreaPattern = /head|face/i
-const bodyAreaPattern = /body|chest|bust|belly|torso/i
 
 /**
  * Resolves the region of a touch.
  *
  * Author hit areas win when the model declares them. Many models declare
- * none, so the head box of the head tracker and the drawable bounds are the
- * fallback.
+ * none, so the head box of the head tracker and the drawable meshes are the
+ * fallback. The head box is a rectangle, so a point in it must also be on a
+ * drawable. Otherwise the empty corners beside the face are the head.
  */
 export function resolveLive2DTouchRegion(input: Live2DTouchHitInput): Live2DTouchRegion | undefined {
   if (input.hitAreaNames.some(name => headAreaPattern.test(name)))
     return 'head'
-  if (input.hitAreaNames.some(name => bodyAreaPattern.test(name)))
+  // An author area that is not the head, for example `Body` or `Arm`, is the body.
+  if (input.hitAreaNames.length > 0)
     return 'body'
-  if (input.insideHead)
-    return 'head'
-  if (input.insideDrawable || input.hitAreaNames.length > 0)
-    return 'body'
-  return undefined
+  if (!input.insideDrawable)
+    return undefined
+  return input.insideHead ? 'head' : 'body'
+}
+
+/**
+ * Tells whether a point is inside the mesh of one drawable.
+ *
+ * The bounds of a drawable are a box around all its vertices, so a box test
+ * counts the empty space between a raised arm and the body as the body. The
+ * mesh is the triangles that the drawable paints, and it follows the outline.
+ *
+ * `vertices` holds x, y pairs in the space of the point. `indices` holds three
+ * vertex indices for each triangle.
+ */
+export function isPointInLive2DMesh(point: { x: number, y: number }, vertices: ArrayLike<number>, indices: ArrayLike<number>): boolean {
+  for (let index = 0; index + 2 < indices.length; index += 3) {
+    const ax = vertices[indices[index] * 2]
+    const ay = vertices[indices[index] * 2 + 1]
+    const bx = vertices[indices[index + 1] * 2]
+    const by = vertices[indices[index + 1] * 2 + 1]
+    const cx = vertices[indices[index + 2] * 2]
+    const cy = vertices[indices[index + 2] * 2 + 1]
+
+    // A deformer can collapse a triangle to a line or a point. Its edge tests are all 0 for any point, so it must be skipped.
+    if ((bx - ax) * (cy - ay) - (by - ay) * (cx - ax) === 0)
+      continue
+
+    // The point is inside when it is on the same side of all three edges. The winding of the triangle does not matter.
+    const ab = (bx - ax) * (point.y - ay) - (by - ay) * (point.x - ax)
+    const bc = (cx - bx) * (point.y - by) - (cy - by) * (point.x - bx)
+    const ca = (ax - cx) * (point.y - cy) - (ay - cy) * (point.x - cx)
+    if ((ab >= 0 && bc >= 0 && ca >= 0) || (ab <= 0 && bc <= 0 && ca <= 0))
+      return true
+  }
+  return false
 }
 
 /** Limits of the gesture recognition, in CSS pixels and milliseconds. */
