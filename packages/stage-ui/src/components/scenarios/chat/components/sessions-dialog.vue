@@ -20,6 +20,7 @@ withDefaults(defineProps<{
 const emit = defineEmits<{
   'deleteSession': [sessionId: string]
   'newSession': []
+  'renameSession': [payload: { sessionId: string, title: string }]
   'selectSession': [sessionId: string]
   'update:open': [open: boolean]
 }>()
@@ -46,6 +47,7 @@ function preserveTriggerFocus(event: Event) {
       :rows="rows"
       :is-creating-session="isCreatingSession"
       @new-session="emit('newSession')"
+      @rename-session="emit('renameSession', $event)"
       @select-session="emit('selectSession', $event)"
       @delete-session="emit('deleteSession', $event)"
     />
@@ -86,6 +88,7 @@ function preserveTriggerFocus(event: Event) {
           :rows="rows"
           :is-creating-session="isCreatingSession"
           @new-session="emit('newSession')"
+          @rename-session="emit('renameSession', $event)"
           @select-session="emit('selectSession', $event)"
           @delete-session="emit('deleteSession', $event)"
         />
@@ -113,6 +116,7 @@ function preserveTriggerFocus(event: Event) {
           :rows="rows"
           :is-creating-session="isCreatingSession"
           @new-session="emit('newSession')"
+          @rename-session="emit('renameSession', $event)"
           @select-session="emit('selectSession', $event)"
           @delete-session="emit('deleteSession', $event)"
         />

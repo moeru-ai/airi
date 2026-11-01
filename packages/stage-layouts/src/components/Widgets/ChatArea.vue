@@ -164,19 +164,21 @@ watch(replyTarget, async (target) => {
       </template>
     </VoicePresence>
   </div>
-  <ChatProviderSetupCallout
+  <div
     v-if="!chatReady"
     :class="[
-      'mb-1',
+      'mb-1 px-4',
       // The callout takes the panel width. Its content must not widen the panel.
       'w-0 min-w-full',
     ]"
-    @configure="router.push('/settings/providers')"
-  />
-  <div ref="composer" :class="['flex gap-2 <md:h-full', 'ph-no-capture']">
+  >
+    <ChatProviderSetupCallout @configure="router.push('/settings/providers')" />
+  </div>
+  <!-- The composer keeps a 1rem inset from the panel edges, like the stage-tamagotchi composer. -->
+  <div ref="composer" :class="['flex gap-2 px-4 pb-4 <md:h-full', 'ph-no-capture']">
     <div
       :class="[
-        'relative w-full overflow-hidden rounded-t-xl',
+        'relative w-full overflow-hidden rounded-xl',
         'border-t-2 border-solid border-primary-200/20 bg-primary-100/50 backdrop-blur-md',
         'dark:border-primary-400/20 dark:bg-primary-900/70',
       ]"

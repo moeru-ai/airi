@@ -6,7 +6,7 @@ import { PiniaColada } from '@pinia/colada'
 import { createPinia, disposePinia } from 'pinia'
 import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { afterEach, expect, it, vi } from 'vitest'
-import { createApp } from 'vue'
+import { createApp, nextTick, toRaw } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import { injectKeyPiniaSynced } from '../libs/pinia/synced-context'
@@ -14,6 +14,7 @@ import { toStoredVoiceprint } from '../libs/voice/voiceprint'
 import { useDisplayModelsStore } from '../stores/display-models'
 import { useMemoryStore } from '../stores/memory'
 import { useModsServerChannelStore } from '../stores/mods/api/channel-server'
+import { useAiriCardStore } from '../stores/modules/airi-card'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useConsciousnessSettingsStore } from '../stores/modules/consciousness-settings'
 import { useDiscordStore } from '../stores/modules/discord'
@@ -23,10 +24,22 @@ import { useHearingStore } from '../stores/modules/hearing'
 import { useHomeAssistantStore } from '../stores/modules/home-assistant'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useTwitterStore } from '../stores/modules/twitter'
+import { useVisionStore } from '../stores/modules/vision'
 import { useWebSearchStore } from '../stores/modules/web-search'
+import { useProviderConfigStore } from '../stores/providers/config'
+import { useProviderStore } from '../stores/providers/provider'
 import { useRecipesStore } from '../stores/recipes'
 import { useVoiceprintStore } from '../stores/voiceprint'
 import { useDataMaintenance } from './use-data-maintenance'
+
+// Keep the model runtime outside this store regression. Voice selection needs no model download.
+vi.mock('../libs/inference/adapters/kokoro', () => ({
+  getKokoroAdapter: async () => ({
+    state: 'ready',
+    loadModel: vi.fn(async () => undefined),
+    getVoices: () => ({ af_heart: { language: 'en-us', name: 'Heart', gender: 'Female' } }),
+  }),
+}))
 
 const cleanups: Array<() => void> = []
 
@@ -72,6 +85,184 @@ afterEach(() => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
   localStorage.clear()
+})
+
+// https://github.com/moeru-ai/airi/issues/3154
+// ROOT CAUSE:
+// Reset removed provider settings but kept module defaults and card overrides.
+// Clear unavailable selections in leader actions, including inactive cards, without changing consciousness.
+it.each(['leader-only', 'follower-only'] as const)('clears unavailable module providers on every card from %s (Issue #3154)', async (leadership) => {
+  localStorage.clear()
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [], data: [] })))
+  const namespace = `maintenance:${crypto.randomUUID()}`
+  const leader = mountMaintenance(namespace, 'leader-only')
+  await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+  const { pinia } = leader
+  const providers = useProviderConfigStore(pinia)
+  for (const definitionId of ['openai', 'openai-audio-speech', 'openai-audio-transcription']) {
+    providers.providers[definitionId] = {
+      id: definitionId,
+      definitionId,
+      config: { apiKey: 'test-key' },
+      status: 'configured',
+      configuredBy: 'user',
+    }
+  }
+  const consciousness = useConsciousnessStore(pinia)
+  consciousness.activeProvider = 'openai'
+  consciousness.activeModel = 'chat-model'
+  const vision = useVisionStore(pinia)
+  vision.activeProvider = 'vision-openai'
+  vision.activeModel = 'vision-model'
+  vision.customModelName = 'custom-vision-model'
+  const speech = useSpeechStore(pinia)
+  await speech.selectProviderModel('openai-audio-speech', 'tts-1', 'alloy')
+  speech.pitch = 2
+  const hearing = useHearingStore(pinia)
+  hearing.activeTranscriptionProvider = 'openai-audio-transcription'
+  hearing.activeTranscriptionModel = 'whisper-1'
+  hearing.activeCustomModelName = 'custom-transcription-model'
+  hearing.autoSendDelay = 1234
+  const cards = useAiriCardStore(pinia)
+  await cards.initialize()
+  const inheritedId = await cards.addCard(structuredClone(toRaw(cards.activeCard!)), 'duplicate')
+  const partial = structuredClone(toRaw(cards.activeCard!))
+  partial.extensions.airi.modules.vision.model = 'card-vision-model'
+  partial.extensions.airi.modules.speech.model = 'tts-1'
+  partial.extensions.airi.modules.speech.voice_id = 'echo'
+  const partialId = await cards.addCard(partial, 'duplicate')
+  const explicit = structuredClone(toRaw(cards.activeCard!))
+  explicit.extensions.airi.modules = {
+    ...explicit.extensions.airi.modules,
+    consciousness: { provider: 'openai', model: 'card-chat-model' },
+    vision: { provider: 'vision-openai', model: 'card-vision-model' },
+    speech: { provider: 'openai-audio-speech', model: 'tts-1', voice_id: 'echo' },
+  }
+  const inactiveId = await cards.addCard(explicit, 'duplicate')
+  const activeId = await cards.addCard(explicit, 'duplicate')
+  await cards.activateCard(activeId)
+  const caller = leadership === 'leader-only' ? leader : mountMaintenance(namespace, leadership)
+  await vi.waitFor(() => expect(caller.runtime.getLeaderId()).toBe(leader.runtime.participantId))
+  await vi.waitFor(() => expect(useAiriCardStore(caller.pinia).activeCardId).toBe(activeId))
+  const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
+
+  await caller.maintenance.resetProvidersSettings()
+
+  expect(providers.providers.openai).toBeUndefined()
+  expect(vision.activeProvider).toBe('')
+  expect(vision.activeModel).toBe('')
+  expect(vision.customModelName).toBe('')
+  expect(speech.activeSpeechProvider).toBe('speech-noop')
+  expect(speech.activeSpeechModel).toBe('')
+  expect(speech.activeSpeechVoiceId).toBe('')
+  expect(hearing.activeTranscriptionProvider).toBe('')
+  expect(hearing.activeTranscriptionModel).toBe('')
+  expect(hearing.activeCustomModelName).toBe('')
+  expect(hearing.autoSendDelay).toBe(1234)
+  expect(speech.pitch).toBe(2)
+  expect(consciousness.activeProvider).toBe('openai')
+  expect(consciousness.activeModel).toBe('card-chat-model')
+  expect(cards.moduleDefaults?.consciousness).toEqual({ provider: 'openai', model: 'chat-model' })
+  for (const id of [activeId, inactiveId, inheritedId, partialId]) {
+    expect(cards.getModules(id)?.vision).toEqual({ provider: '', model: '' })
+    expect(cards.getModules(id)?.speech).toEqual({ provider: 'speech-noop', model: '', voice_id: '' })
+  }
+  expect(cards.getCard(inactiveId)?.extensions.airi.modules.consciousness).toEqual({ provider: 'openai', model: 'card-chat-model' })
+  expect(cards.getCard(partialId)?.extensions.airi.modules.speech).toEqual({ provider: '', model: '', voice_id: '' })
+  await cards.activateCard(inactiveId)
+  expect(speech.activeSpeechProvider).toBe('speech-noop')
+  await cards.activateCard(inheritedId)
+  expect(vision.activeProvider).toBe('')
+  expect(consciousness.activeModel).toBe('chat-model')
+  await vi.waitFor(() => expect(useHearingStore(caller.pinia).activeTranscriptionProvider).toBe(''))
+  await vi.waitFor(() => expect(useSpeechStore(caller.pinia).activeSpeechProvider).toBe('speech-noop'))
+  await nextTick()
+  expect(traffic.mock.calls.filter(([message]) => JSON.stringify(message).includes('replaceState'))).toHaveLength(0)
+})
+
+// https://github.com/moeru-ai/airi/issues/3154
+// ROOT CAUSE:
+// Clearing every selection also removes usable local providers. Clear only providers that need removed settings.
+// An unavailable explicit override becomes None instead of inheriting a different voice.
+it('preserves usable local selections and disables unavailable card overrides (Issue #3154)', async () => {
+  localStorage.clear()
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [], data: [] })))
+  const { pinia, runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
+  await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
+  const speech = useSpeechStore(pinia)
+  await speech.selectProviderModel('kokoro-local', 'fp32', 'af_heart')
+  const hearing = useHearingStore(pinia)
+  hearing.activeTranscriptionProvider = 'browser-web-speech-api'
+  hearing.activeTranscriptionModel = 'web-speech-api'
+  const cards = useAiriCardStore(pinia)
+  await cards.initialize()
+  await vi.waitFor(() => expect(useProviderStore(pinia).moduleSpeechProvidersMetadata.some(provider => provider.id === 'kokoro-local')).toBe(true))
+  const explicit = structuredClone(toRaw(cards.activeCard!))
+  explicit.extensions.airi.modules.speech = { provider: 'openai-audio-speech', model: 'tts-1', voice_id: 'alloy' }
+  const unavailableId = await cards.addCard(explicit, 'duplicate')
+
+  await maintenance.resetProvidersSettings()
+
+  expect(speech.activeSpeechProvider).toBe('kokoro-local')
+  expect(speech.activeSpeechModel).toBe('fp32')
+  expect(speech.activeSpeechVoiceId).toBe('af_heart')
+  expect(hearing.activeTranscriptionProvider).toBe('browser-web-speech-api')
+  expect(hearing.activeTranscriptionModel).toBe('web-speech-api')
+  expect(cards.getModules(unavailableId)?.speech).toEqual({ provider: 'speech-noop', model: '', voice_id: '' })
+  const snapshot = structuredClone(toRaw(cards.cards))
+  await maintenance.resetProvidersSettings()
+  await nextTick()
+  expect(toRaw(cards.cards)).toEqual(snapshot)
+  expect(speech.activeSpeechVoiceId).toBe('af_heart')
+})
+
+// https://github.com/moeru-ai/airi/issues/3154
+// ROOT CAUSE:
+// Custom provider IDs lose their definitions after reset. Account-owned providers also lose settings despite needing no API key.
+// Clear both selections before a card initializes, and keep consciousness unchanged.
+it('clears removed custom IDs and account-owned providers before card initialization (Issue #3154)', async () => {
+  localStorage.clear()
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [], data: [] })))
+  const { pinia, runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
+  await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
+  const providers = useProviderConfigStore(pinia)
+  providers.providers['custom-speech'] = {
+    id: 'custom-speech',
+    definitionId: 'openai-audio-speech',
+    config: { apiKey: 'test-key' },
+    status: 'configured',
+    configuredBy: 'user',
+  }
+  providers.providers['custom-vision'] = {
+    id: 'custom-vision',
+    definitionId: 'openai',
+    config: { apiKey: 'test-key' },
+    status: 'configured',
+    configuredBy: 'user',
+  }
+  const consciousness = useConsciousnessStore(pinia)
+  consciousness.activeProvider = 'openai'
+  consciousness.activeModel = 'chat-model'
+  const speech = useSpeechStore(pinia)
+  await speech.selectProviderModel('custom-speech', 'tts-1', 'alloy')
+  const vision = useVisionStore(pinia)
+  vision.activeProvider = 'custom-vision'
+  vision.activeModel = 'vision-model'
+  const hearing = useHearingStore(pinia)
+  hearing.activeTranscriptionProvider = 'official-provider-transcription'
+  hearing.activeTranscriptionModel = 'auto'
+  expect(useAiriCardStore(pinia).activeCard).toBeUndefined()
+
+  await maintenance.resetProvidersSettings()
+
+  expect(speech.activeSpeechProvider).toBe('speech-noop')
+  expect(speech.activeSpeechVoiceId).toBe('')
+  expect(vision.activeProvider).toBe('')
+  expect(vision.activeModel).toBe('')
+  expect(hearing.activeTranscriptionProvider).toBe('')
+  expect(hearing.activeTranscriptionModel).toBe('')
+  expect(consciousness.activeProvider).toBe('openai')
+  expect(consciousness.activeModel).toBe('chat-model')
 })
 
 // https://github.com/moeru-ai/airi/pull/2490#discussion_r3968502055

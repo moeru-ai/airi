@@ -328,6 +328,8 @@ export interface ChatOrchestratorRuntimeDeps {
    * With it, history carries no identity. Stored system messages are skipped, so a persona edit or switch reaches the next send of its own sessions only.
    */
   getSystemPrompt?: (sessionId: string) => string | undefined
+  /** Returns the message limit, including current input. `-1` keeps all history. `0` sends only current input. System messages are exempt. */
+  getContextWindow?: (sessionId: string) => number | undefined
   /** Runtime context providers ingested immediately before prompt composition. */
   runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
   /**
@@ -523,6 +525,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     message?: StreamingAssistantMessage
   }>()
   const sendQueues = new Map<string, ReturnType<typeof createQueue<QueuedSend>>>()
+  // Runtime-only cuts belong to sessions. A stable start permits prefix cache reuse between trims.
+  // Changed limits, session generations, or removed anchors invalidate the cut. Session cancellation releases it.
+  const historyCuts = new Map<string, { limit: number, generation: number, start: ChatHistoryItem }>()
   const hooks = createChatHooks()
   const now = deps.now ?? (() => Date.now())
   const monotonicNow = deps.monotonicNow ?? (() => globalThis.performance?.now?.() ?? Date.now())
@@ -632,6 +637,37 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       return turns
     })
     return { turns }
+  }
+
+  function trimConversationHistory(sessionId: string, generation: number, history: ChatHistoryItem[], contextWindow: number | undefined) {
+    if (contextWindow === undefined || !Number.isInteger(contextWindow) || contextWindow < 0) {
+      historyCuts.delete(sessionId)
+      return history
+    }
+
+    const systemMessages = history.filter(message => message.role === 'system')
+    const messages = history.filter(message => message.role !== 'system')
+    const previous = historyCuts.get(sessionId)
+    let start = previous?.limit === contextWindow && previous.generation === generation
+      ? messages.findIndex(message => previous.start.id ? message.id === previous.start.id : message === previous.start)
+      : 0
+    start = Math.max(0, start)
+
+    if (messages.length - start > contextWindow) {
+      // Leave room for new messages before the next trim. Current input is retained even when the limit is zero.
+      const retainedLength = Math.max(1, Math.floor(contextWindow * 0.9))
+      start = Math.max(0, messages.length - retainedLength)
+    }
+    // A user boundary excludes orphaned assistant replies and tool results from the beginning of the request.
+    while (start < messages.length && messages[start]?.role !== 'user')
+      start++
+
+    const anchor = messages[start]
+    if (anchor)
+      historyCuts.set(sessionId, { limit: contextWindow, generation, start: anchor })
+    else
+      historyCuts.delete(sessionId)
+    return [...systemMessages, ...messages.slice(start)]
   }
 
   async function performSend(
@@ -965,7 +1001,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       // Identity comes from the session's persona at request time. Without a host identity, the stored history keeps its own system message.
       const systemPrompt = deps.getSystemPrompt?.(sessionId)
-      const context = buildContext(deps.getSystemPrompt ? sessionMessagesForSend.filter(message => message.role !== 'system') : sessionMessagesForSend)
+      const history = trimConversationHistory(
+        sessionId,
+        generation,
+        deps.getSystemPrompt ? sessionMessagesForSend.filter(message => message.role !== 'system') : sessionMessagesForSend,
+        deps.getContextWindow?.(sessionId),
+      )
+      const context = buildContext(history)
       // The stored notice ends the history. Only this request tells the model that it can stay quiet about it.
       if (options.notice) {
         const lastTurn = context.turns.at(-1)
@@ -1432,6 +1474,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   }
 
   function cancelPendingSends(sessionId?: string) {
+    if (sessionId)
+      historyCuts.delete(sessionId)
+    else
+      historyCuts.clear()
+
     for (const [activeSessionId, active] of activeSends) {
       if (!sessionId || sessionId === activeSessionId)
         active.controller.abort(new Error('Chat session send was cancelled'))

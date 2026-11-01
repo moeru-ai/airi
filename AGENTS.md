@@ -171,6 +171,7 @@ Skills are in `.agents/skills/<name>/SKILL.md`. Read the listed file before you 
 | Analyze why a chat, speech, or audio turn was slow or failed, using saved IO traces | [`analyze-io-traces`](.agents/skills/analyze-io-traces/SKILL.md) |
 | Create or prepare a pull request | [`create-pr`](.agents/skills/create-pr/SKILL.md) |
 | Upload a local file through a file input or a file chooser in a web or Electron app | [`use-agent-browser-with-input-file`](.agents/skills/use-agent-browser-with-input-file/SKILL.md) and [`agent-browser`](.agents/skills/agent-browser/SKILL.md). For Electron, also read [`agent-browser-electron`](.agents/skills/agent-browser-electron/SKILL.md). |
+| Write or review motion, reactions, animations, or springs that a Pixi, TresJS, or Three render loop samples | [`enforce-rules-for-render-loops`](.agents/skills/enforce-rules-for-render-loops/SKILL.md) |
 | Test Live2D, VRM, or MMD import and rendering in stage-web, stage-tamagotchi, or stage-pocket | [`use-agent-browser-for-airi`](.agents/skills/use-agent-browser-for-airi/SKILL.md) |
 
 These directories also have their own `AGENTS.md`. Read it before you work in the directory:

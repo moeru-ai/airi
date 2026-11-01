@@ -11,7 +11,7 @@ const completeCard = {
   spec: 'chara_card_v3',
   spec_version: '3.0',
   data: {
-    name: 'ReLU',
+    name: 'Iru',
     description: 'A curious AI.',
     personality: 'Warm and precise.',
     scenario: 'A quiet observatory.',
@@ -84,7 +84,7 @@ describe('character card V3 codec', () => {
   it('parses JSON text through the same validation boundary', () => {
     const result = parseCharacterCardV3(JSON.stringify(completeCard))
 
-    expect(result.card.data.name).toBe('ReLU')
+    expect(result.card.data.name).toBe('Iru')
     expect(result.compatibility).toBe('current')
   })
 

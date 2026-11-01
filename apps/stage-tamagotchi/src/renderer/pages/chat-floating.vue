@@ -5,6 +5,7 @@ import type { TooltipContentProps } from 'reka-ui'
 import type { ChatFloatingState, ChatWindowPreferences } from '../../shared/eventa'
 
 import { getElectronEventaContext, useElectronEventaInvoke, useElectronMouseAroundWindowBorder, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
+import { isElectronWindow } from '@proj-airi/stage-shared'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
 import { useBackdropSurface } from '@proj-airi/stage-ui/composables/backdrop-surface'
 import { useDanmakuFeedExpiry } from '@proj-airi/stage-ui/composables/use-danmaku-feed-expiry'
@@ -72,6 +73,8 @@ const danmaku = computed(() => state.value.danmaku)
 // The message feed has no glass and no fill. Its messages float over the
 // desktop, so a feed that fades out leaves nothing behind.
 useBackdropSurface(panel, { enabled: () => !danmaku.value })
+// The window draws native glass only on macOS. See `services/electron/window-backdrop.ts`.
+const glassBackdrop = computed(() => isElectronWindow(window) && window.platform === 'darwin' && !danmaku.value)
 // The danmaku feed starts with its composer folded, because it is mostly read.
 const composerFolded = useLocalStorage('chat-window/danmaku/composer-folded', true)
 // Fade on hover, which the main window's controls island switches, turns the
@@ -605,10 +608,15 @@ function moveByKeyboard(delta: WindowDelta) {
         </div>
 
         <div :class="['relative min-h-0 flex-1']">
+          <!--
+            TODO: When Windows and Linux draw native glass behind a transparent window, the floating panel there can
+            use the chat window surfaces too. Then `glassBackdrop` only needs to check the danmaku feed.
+          -->
           <InteractiveArea
             ref="interactive-area"
             v-model:composer-folded="composerFolded"
             floating
+            :glass-backdrop="glassBackdrop"
             :composer-foldable="danmaku"
             :dock-side="verticalDock && dockOpen ? (characterOnLeft ? 'left' : 'right') : undefined"
             :right-resize-band="state.resizeEdges.includes('e') ? RESIZE_BAND : undefined"

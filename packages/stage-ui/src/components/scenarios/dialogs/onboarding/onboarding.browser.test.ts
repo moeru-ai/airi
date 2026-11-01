@@ -1,6 +1,8 @@
 import type { LeadershipMode, SyncedPiniaRuntime } from 'pinia-plugin-synced'
 import type { App } from 'vue'
 
+import type { OnboardingStepLaterHandler, OnboardingStepNextHandler } from './types'
+
 import en from '@proj-airi/i18n/locales/en'
 
 import { PiniaColada } from '@pinia/colada'
@@ -9,13 +11,14 @@ import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { page } from 'vitest/browser'
-import { createApp } from 'vue'
+import { createApp, defineComponent, h } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import OnboardingDialog from './onboarding.vue'
 import StepProviderConfiguration from './step-provider-configuration.vue'
 
 import { useAuthStore } from '../../../../stores/auth'
+import { sharedOnboardingSteps, useOnboardingStore } from '../../../../stores/onboarding'
 import { useProviderConfigStore } from '../../../../stores/providers/config'
 import { useProviderStore } from '../../../../stores/providers/provider'
 
@@ -202,4 +205,91 @@ it('rehydrates the configuration form from the saved provider configuration', as
 
   await expect.element(page.getByPlaceholder('API Key')).toHaveValue('sk-saved-key')
   await expect.element(page.getByPlaceholder('https://api.openai.com/v1')).toHaveValue('https://saved.example.com/v1')
+})
+
+/** A host step with one button for each handler that the flow gives it. */
+const HostStep = defineComponent(
+  (props: { onNext: OnboardingStepNextHandler, onLater?: OnboardingStepLaterHandler }) => () => h('div', [
+    h('button', { onClick: () => props.onNext() }, 'Continue'),
+    props.onLater ? h('button', { onClick: () => props.onLater?.() }, 'Later') : null,
+  ]),
+  { props: ['onNext', 'onLater'] },
+)
+
+/** Records every shared step as done, as a device that finished the first onboarding. */
+function seedFinishedSharedSteps() {
+  localStorage.setItem('onboarding/steps', JSON.stringify(Object.fromEntries(
+    sharedOnboardingSteps.map(step => [step.id, { version: step.version, outcome: 'done', at: 0 }]),
+  )))
+}
+
+function readStepRecords() {
+  return JSON.parse(localStorage.getItem('onboarding/steps') ?? '{}')
+}
+
+it('shows only the host step whose version increased, and records it through the leader at the finish', async () => {
+  seedFinishedSharedSteps()
+  localStorage.setItem('onboarding/steps', JSON.stringify({ ...readStepRecords(), 'host-notice': { version: 1, outcome: 'done', at: 0 } }))
+  // The desktop onboarding window is a follower. The leader must persist the records.
+  const namespace = `onboarding-versions:${crypto.randomUUID()}`
+  const leader = createSyncedContext(namespace, 'leader-only')
+  await expect.poll(() => leader.runtime.isLeader()).toBe(true)
+  // The main window creates the onboarding store at startup, so the leader can answer the follower.
+  useOnboardingStore(leader.pinia)
+  const follower = createSyncedContext(namespace, 'follower-only')
+  await expect.poll(() => follower.runtime.getLeaderId()).toBe(leader.runtime.participantId)
+  const configured = vi.fn()
+
+  const screen = await render(OnboardingDialog, {
+    props: { extraSteps: [{ id: 'host-notice', version: 2, component: HostStep }], onConfigured: configured },
+    global: { plugins: [follower.pinia, PiniaColada, createTestI18n()] },
+  })
+
+  await expect.element(screen.getByRole('button', { name: 'Sign in' })).not.toBeInTheDocument()
+  await expect.element(screen.getByRole('button', { name: 'Later' })).not.toBeInTheDocument()
+  await screen.getByRole('button', { name: 'Continue' }).click()
+
+  await vi.waitFor(() => expect(configured).toHaveBeenCalled())
+  expect(readStepRecords()['host-notice']).toMatchObject({ version: 2, outcome: 'done' })
+})
+
+it('keeps the later record of an optional step that the user postponed', async () => {
+  seedFinishedSharedSteps()
+  const context = createSyncedContext(`onboarding-later:${crypto.randomUUID()}`, 'leader-only')
+  await expect.poll(() => context.runtime.isLeader()).toBe(true)
+  const configured = vi.fn()
+
+  const screen = await render(OnboardingDialog, {
+    props: { extraSteps: [{ id: 'host-permissions', version: 2, optional: true, component: HostStep }], onConfigured: configured },
+    global: { plugins: [context.pinia, PiniaColada, createTestI18n()] },
+  })
+
+  await screen.getByRole('button', { name: 'Later' }).click()
+
+  await vi.waitFor(() => expect(configured).toHaveBeenCalled())
+  expect(readStepRecords()['host-permissions']).toMatchObject({ version: 2, outcome: 'later' })
+})
+
+// Found in the review of https://github.com/moeru-ai/airi/pull/3296
+// ROOT CAUSE:
+//
+// The Sign in button hid the dialog before sign-in finished. Pocket opens sign-in outside
+// the app, so a canceled sign-in returned to no dialog, and local setup waited for the next start.
+//
+// We fixed this by keeping the dialog open until `closeAfterAuthentication`.
+it('keeps the dialog open after the Sign in click', async () => {
+  // Electron consumes the login request through IPC, so the test does not open a browser sign-in.
+  vi.stubEnv('RUNTIME_ENVIRONMENT', 'electron')
+  const context = createSyncedContext(`onboarding-sign-in:${crypto.randomUUID()}`, 'leader-only')
+  await expect.poll(() => context.runtime.isLeader()).toBe(true)
+  const store = useOnboardingStore(context.pinia)
+  store.forceShowSetup()
+
+  const screen = await render(OnboardingDialog, {
+    global: { plugins: [context.pinia, PiniaColada, createTestI18n()] },
+  })
+  await screen.getByRole('button', { name: 'Sign in' }).click()
+
+  await expect.poll(() => useAuthStore(context.pinia).needsLogin).toBe(true)
+  expect(store.showingSetup).toBe(true)
 })

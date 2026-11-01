@@ -6,6 +6,7 @@ import type { Live2DBreathControlState, Live2DMotionControlState } from '../../s
 import type { BeatSyncController } from './beat-sync'
 import type { Live2DFocusBiasController, Live2DFocusTarget } from './focus-bias'
 import type { Live2DMotionSpringController } from './motion-control-spring'
+import type { Live2DTouchReactionOffsets } from './touch'
 
 import { sampleLive2DBreath } from '../../stores/motion-control'
 import { useLive2DIdleEyeFocus } from './animation'
@@ -813,5 +814,34 @@ export function useMotionUpdatePluginLipSync(
     const blended = lastForcedValue * (1 - blend) + motionValue * blend
 
     ctx.model.setParameterValueById('ParamMouthOpenY', blended)
+  }
+}
+
+/**
+ * Final-phase plugin that adds the touch reaction on top of all other motion.
+ *
+ * It adds to the parameters instead of writing them, so a pat tilts the head
+ * of an idle motion, a MAGIC pose, and a manual pose the same way.
+ */
+export function useMotionUpdatePluginTouchReaction(
+  sample: (nowSeconds: number) => Live2DTouchReactionOffsets,
+): MotionManagerPlugin {
+  return (ctx) => {
+    const offsets = sample(ctx.now)
+    if (offsets.angleX)
+      ctx.model.addParameterValueById('ParamAngleX', offsets.angleX)
+    if (offsets.angleY)
+      ctx.model.addParameterValueById('ParamAngleY', offsets.angleY)
+    if (offsets.angleZ)
+      ctx.model.addParameterValueById('ParamAngleZ', offsets.angleZ)
+    if (offsets.bodyAngleX)
+      ctx.model.addParameterValueById('ParamBodyAngleX', offsets.bodyAngleX)
+    if (offsets.bodyAngleY)
+      ctx.model.addParameterValueById('ParamBodyAngleY', offsets.bodyAngleY)
+    if (offsets.eyeSquint) {
+      const remaining = 1 - offsets.eyeSquint
+      ctx.model.setParameterValueById('ParamEyeLOpen', ctx.model.getParameterValueById('ParamEyeLOpen') * remaining)
+      ctx.model.setParameterValueById('ParamEyeROpen', ctx.model.getParameterValueById('ParamEyeROpen') * remaining)
+    }
   }
 }

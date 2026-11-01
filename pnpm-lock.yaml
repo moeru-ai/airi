@@ -28,11 +28,11 @@ catalogs:
       specifier: ^0.18.5
       version: 0.18.5
     '@auv-js/cli':
-      specifier: 0.0.38
-      version: 0.0.38
+      specifier: 0.0.40
+      version: 0.0.40
     '@auv-js/sdk':
-      specifier: 0.0.38
-      version: 0.0.38
+      specifier: 0.0.40
+      version: 0.0.40
     '@aws-sdk/client-s3':
       specifier: ^3.1135.0
       version: 3.1139.0
@@ -1879,10 +1879,10 @@ importers:
     dependencies:
       '@auv-js/cli':
         specifier: 'catalog:'
-        version: 0.0.38
+        version: 0.0.40
       '@auv-js/sdk':
         specifier: 'catalog:'
-        version: 0.0.38
+        version: 0.0.40
       '@ergosphere-it/electron':
         specifier: 'catalog:'
         version: 0.0.16(electron-updater@6.8.9(supports-color@10.2.2))(electron-vite@6.0.0(supports-color@10.2.2)(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)))(electron@43.8.4(supports-color@10.2.2))(typescript@6.0.3)(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))
@@ -5155,6 +5155,9 @@ importers:
       '@proj-airi/stage-ui-three':
         specifier: workspace:^
         version: link:../stage-ui-three
+      '@proj-airi/timeline-canvas':
+        specifier: workspace:^
+        version: link:../timeline-canvas
       '@proj-airi/trace-kit':
         specifier: workspace:^
         version: link:../trace-kit
@@ -7001,53 +7004,53 @@ packages:
   '@asamuzakjp/nwsapi@2.3.9':
     resolution: {integrity: sha512-n8GuYSrI9bF7FFZ/SjhwevlHc8xaVlb/7HmHelnc/PZXBD2ZR49NnN9sMMuDdEGPeeRQ5d0hqlSlEpgCX3Wl0Q==}
 
-  '@auv-js/api-client@0.0.38':
-    resolution: {integrity: sha512-5TWH9YTxtN18MnyUtWw0bpYCMycAbSkZMJGIC+LlRIdHNFdD4b6JydU0Ptb/HfZWt221gOH+4BBptBrWaVdQ0w==}
+  '@auv-js/api-client@0.0.40':
+    resolution: {integrity: sha512-z9gSVFxj5BkP/miWACdYO0r86HjMRE31DRAJYTAaLGE3YLuqwJdYaQ3+0uYYN6igMRGUPqanfXUezKBHRabotw==}
 
-  '@auv-js/cli-darwin-arm64@0.0.38':
-    resolution: {integrity: sha512-2jOUDX5Z9Ya3B0yOJYpYDTB/0uMS2PZrSellXxoUPYnVq2zNcDSKnT14XK+HP5puUt2K+1vBKfeawNUFw1xUrA==}
+  '@auv-js/cli-darwin-arm64@0.0.40':
+    resolution: {integrity: sha512-ORvyOl+y/P/XQ5uQeaNiclqfF5ADhkj9mDBcPi7khEpRBV/ypOSxc6IIS5Kr8wUPJ0nKOvVEMPiVdttuyjZXWw==}
     engines: {node: '>=20.19.0'}
     cpu: [arm64]
     os: [darwin]
 
-  '@auv-js/cli-darwin-x64@0.0.38':
-    resolution: {integrity: sha512-zfSYeQMJkCh2MvRuCFXFZd2C6JLBYp0VOCyLZnBqvQbkh0Y8LZfb0LUCEykLgNOUyZ9v3eO5YWT6vceOEXwj4A==}
+  '@auv-js/cli-darwin-x64@0.0.40':
+    resolution: {integrity: sha512-pTOBsEunZ1S6sUvQX1N/PVith+7Pe8GnkioYD0rC19B+ySzi3DEek/YznbE4v/W0MvM1uh8LnHTcZo7TiGhAgw==}
     engines: {node: '>=20.19.0'}
     cpu: [x64]
     os: [darwin]
 
-  '@auv-js/cli-linux-arm64-gnu@0.0.38':
-    resolution: {integrity: sha512-EAKqJpT2vh0RW186vpjZeStkgz89dSfZlVok7f6XlXEDzJRMO2D7Op2YsXh2qnjQe4VsntvQJ8x1WeT5i0z7dg==}
+  '@auv-js/cli-linux-arm64-gnu@0.0.40':
+    resolution: {integrity: sha512-U+hjQF4+vhPQRqDqJSdvO65/u4qNm2D7OrvsGzD5W4v8sjrf555UvBzqSMApIZtDsGZVKckjPxRUcd+qC5pDuA==}
     engines: {node: '>=20.19.0'}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
 
-  '@auv-js/cli-linux-x64-gnu@0.0.38':
-    resolution: {integrity: sha512-gDjiTdWhraVDRYtCRCjpQGT1S6pUoc3x3Ex4cu+DzhlqqBEdzZCG3R3kp2OfPHj5c7wYZ5jTVYlse8fgKnJiEg==}
+  '@auv-js/cli-linux-x64-gnu@0.0.40':
+    resolution: {integrity: sha512-ZIKAZhoYRv1aPLiioKPjZVUZgk8URnVlw7DDFRIko9n3EMbXq6BcTR8bMJHloYorpMejjWKvNVwQ0wVdTg++Gg==}
     engines: {node: '>=20.19.0'}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@auv-js/cli-win32-arm64-msvc@0.0.38':
-    resolution: {integrity: sha512-ASacCa5ID4q+PcWEte2pwhGExX8N4+/z0u5oHba88EOJv7gcTkxvqE+bcGtB++q2PshOUjWXSw8bVjXirquvvA==}
+  '@auv-js/cli-win32-arm64-msvc@0.0.40':
+    resolution: {integrity: sha512-sCy1hEvZdqLSO8UmMSKfOAQTrqmjN21731raVgeeXC8iW1EWbdIvEb3zWwlmsq5I+EqDDuksCfU8O1C+YqQz4g==}
     engines: {node: '>=20.19.0'}
     cpu: [arm64]
     os: [win32]
 
-  '@auv-js/cli-win32-x64-msvc@0.0.38':
-    resolution: {integrity: sha512-11XZT8y0Lqel9koA0saOqdRw9PX7zOkqwM5iOl1Z8yMmpnMiV0XOvTUskUjPeKlseipUfKfk0kBVXMBbTGlbrg==}
+  '@auv-js/cli-win32-x64-msvc@0.0.40':
+    resolution: {integrity: sha512-PzmeEnbKtFWSsnmLh7Yvl1tB3LCvgUR4Hqw4FriRYMBAgtkn1trnSy2WRX1tY7rUiG+WWxehl8X4JCoatgj6lw==}
     engines: {node: '>=20.19.0'}
     cpu: [x64]
     os: [win32]
 
-  '@auv-js/cli@0.0.38':
-    resolution: {integrity: sha512-Onm/Wy0eYdikZOvjyuajn5QaqGuOdGeKe4YXf3XlMc6GO7AY9izsIdlYFnM/qGEfYKtfvMXvSJUjkoPlTVZkKQ==}
+  '@auv-js/cli@0.0.40':
+    resolution: {integrity: sha512-ca/8G+rRmmOK76WYzXX6Vs5c9Q4xn+1OqyXCSl1uqq4+6L0rE3QDZ4X0SrmEuF05QYwtDYblOqgzZNiEgihNrw==}
     hasBin: true
 
-  '@auv-js/sdk@0.0.38':
-    resolution: {integrity: sha512-yK6nuWUwVTnUp2UHB+VXU8FF8f8G/64JbihCxNUr8QTJvdrxGkD4GPGkxlpGJpNWVEIILNQrFCAc+EasCHg6EA==}
+  '@auv-js/sdk@0.0.40':
+    resolution: {integrity: sha512-qiGJhR+rlbHDbCsWL2Xy3+bEvhuDVp4cWHSBefzyTikcPxRdbQW64NnWzUEWGFA2UbMbRa7O02srH401IHuohA==}
 
   '@aws-sdk/checksums@3.1001.1':
     resolution: {integrity: sha512-x12Q17KYlJAd3nKf8LV5LV0vt8sh8/6YfQLGPtrGnQf/tW4jqxPGq5GPpuVitpQYM3eUR4XB7CbxZf751NMbLw==}
@@ -17990,8 +17993,8 @@ packages:
     resolution: {integrity: sha512-dRB78srN/l6gqWulah9SrxeYnxeddIG30+GOqK/9OlLVyLg3HPnr6SqOWTWOXKRwC2eGYCkZ59NNuSgvSrpgOA==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
-  node-forge@1.4.0:
-    resolution: {integrity: sha512-LarFH0+6VfriEhqMMcLX2F7SwSXeWwnEAJEsYm5QKWchiVYVvJyV9v7UDvUv+w5HO23ZpQTXDv/GxdDdMyOuoQ==}
+  node-forge@1.4.2:
+    resolution: {integrity: sha512-rRtAR5XLJ8gCKd9du4qrKAsgCG1ObGP4gLeNJMa4vYSeq4bmBMOJk5IHkrviBV0q7uoAJlVd8HEQYQSVUb4FGQ==}
     engines: {node: '>= 6.13.0'}
 
   node-gyp-build@4.8.4:
@@ -21629,40 +21632,40 @@ snapshots:
 
   '@asamuzakjp/nwsapi@2.3.9': {}
 
-  '@auv-js/api-client@0.0.38': {}
+  '@auv-js/api-client@0.0.40': {}
 
-  '@auv-js/cli-darwin-arm64@0.0.38':
+  '@auv-js/cli-darwin-arm64@0.0.40':
     optional: true
 
-  '@auv-js/cli-darwin-x64@0.0.38':
+  '@auv-js/cli-darwin-x64@0.0.40':
     optional: true
 
-  '@auv-js/cli-linux-arm64-gnu@0.0.38':
+  '@auv-js/cli-linux-arm64-gnu@0.0.40':
     optional: true
 
-  '@auv-js/cli-linux-x64-gnu@0.0.38':
+  '@auv-js/cli-linux-x64-gnu@0.0.40':
     optional: true
 
-  '@auv-js/cli-win32-arm64-msvc@0.0.38':
+  '@auv-js/cli-win32-arm64-msvc@0.0.40':
     optional: true
 
-  '@auv-js/cli-win32-x64-msvc@0.0.38':
+  '@auv-js/cli-win32-x64-msvc@0.0.40':
     optional: true
 
-  '@auv-js/cli@0.0.38':
+  '@auv-js/cli@0.0.40':
     dependencies:
       std-env: 4.2.0
     optionalDependencies:
-      '@auv-js/cli-darwin-arm64': 0.0.38
-      '@auv-js/cli-darwin-x64': 0.0.38
-      '@auv-js/cli-linux-arm64-gnu': 0.0.38
-      '@auv-js/cli-linux-x64-gnu': 0.0.38
-      '@auv-js/cli-win32-arm64-msvc': 0.0.38
-      '@auv-js/cli-win32-x64-msvc': 0.0.38
+      '@auv-js/cli-darwin-arm64': 0.0.40
+      '@auv-js/cli-darwin-x64': 0.0.40
+      '@auv-js/cli-linux-arm64-gnu': 0.0.40
+      '@auv-js/cli-linux-x64-gnu': 0.0.40
+      '@auv-js/cli-win32-arm64-msvc': 0.0.40
+      '@auv-js/cli-win32-x64-msvc': 0.0.40
 
-  '@auv-js/sdk@0.0.38':
+  '@auv-js/sdk@0.0.40':
     dependencies:
-      '@auv-js/api-client': 0.0.38
+      '@auv-js/api-client': 0.0.40
       '@bufbuild/protobuf': 2.13.0
       '@grpc/grpc-js': 1.14.4
       '@moeru/std': 0.1.0-beta.20
@@ -33590,7 +33593,7 @@ snapshots:
   mkcert@3.2.0:
     dependencies:
       commander: 11.1.0
-      node-forge: 1.4.0
+      node-forge: 1.4.2
 
   mkdirp-classic@0.5.3: {}
 
@@ -33738,7 +33741,7 @@ snapshots:
       fetch-blob: 3.2.0
       formdata-polyfill: 4.0.10
 
-  node-forge@1.4.0: {}
+  node-forge@1.4.2: {}
 
   node-gyp-build@4.8.4: {}
 

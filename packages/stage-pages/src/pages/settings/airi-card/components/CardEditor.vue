@@ -91,6 +91,15 @@ const selectedSpeechModel = ref<string>('')
 const selectedSpeechVoiceId = ref<string>('')
 const previewVoices = ref<VoiceInfo[]>([])
 const selectedDisplayModelId = ref<string>('')
+const selectedContextWindow = ref<number>(-1)
+const contextWindowInput = computed<number | undefined>({
+  get: () => selectedContextWindow.value < 0 ? undefined : selectedContextWindow.value,
+  set: (value) => {
+    selectedContextWindow.value = typeof value === 'number' && Number.isFinite(value)
+      ? Math.max(0, Math.floor(value))
+      : -1
+  },
+})
 
 // NOTICE:
 // The editor needs a non-empty option value for inherited settings.
@@ -459,6 +468,7 @@ function initializeCard(): Card {
   selectedSpeechModel.value = moduleSettings.speech.model
   selectedSpeechVoiceId.value = moduleSettings.speech.voice_id
   selectedDisplayModelId.value = moduleSettings.displayModelId ?? ''
+  selectedContextWindow.value = moduleSettings.contextWindow
 
   // NOTICE: keep legacy `extensions.airi.artistry` fallback so existing cards continue to load.
   const artistrySettings = airiExt?.modules?.artistry || airiExt?.artistry
@@ -504,6 +514,7 @@ interface EditorSnapshot {
     voiceId: string
   }
   displayModelId: string
+  contextWindow: number
   artistry: {
     provider: string
     model: string
@@ -534,6 +545,7 @@ function createEditorSnapshot(): EditorSnapshot {
       voiceId: selectedSpeechVoiceId.value,
     },
     displayModelId: selectedDisplayModelId.value,
+    contextWindow: selectedContextWindow.value,
     artistry: {
       provider: selectedArtistryProvider.value,
       model: selectedArtistryModel.value,
@@ -672,6 +684,7 @@ async function handleSave(activate: boolean) {
         model: selectedSpeechModel.value,
         voice_id: selectedSpeechVoiceId.value,
       },
+      contextWindow: selectedContextWindow.value,
       artistry: {
         provider: selectedArtistryProvider.value,
         model: selectedArtistryModel.value,
@@ -1044,6 +1057,13 @@ function handleBack() {
             </div>
             <!-- Settings -->
             <div v-else-if="activeSection === 'settings'" :class="['flex flex-col gap-5']">
+              <FieldInput
+                v-model="contextWindowInput"
+                type="number"
+                :placeholder="t('settings.pages.card.context_window_all')"
+                :label="t('settings.pages.card.context_window')"
+                :description="t('settings.pages.card.creation.fields_info.context_window')"
+              />
               <div :class="['grid grid-cols-1 gap-5', 'xl:grid-cols-2']">
                 <FieldInput v-model="cardSystemPrompt" :label="t('settings.pages.card.systemprompt')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.systemprompt')" :input-class="editorLongTextareaClass" />
                 <FieldInput v-model="cardPostHistoryInstructions" :label="t('settings.pages.card.posthistoryinstructions')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.posthistoryinstructions')" :input-class="editorLongTextareaClass" />

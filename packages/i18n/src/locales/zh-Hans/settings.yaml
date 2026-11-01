@@ -500,6 +500,7 @@ pages:
         greetings: 您的角色应该如何说“你好”？
         systemprompt: 在这里向 AI LLM 解释当被提示时应该如何回应。
         posthistoryinstructions: 在消息历史之后，放入 AI LLM 应该阅读的内容。
+        context_window: 消息数量上限，包含当前输入。留空表示全部，0 表示仅发送当前输入。超出上限时，按完整轮次分批移除较早消息。已保存的聊天记录不受影响。
         version: >-
           卡片版本，如果您从之前的卡片做了更改，应当增加此版本号。
         consciousness_model: 为这个角色选择 AI 模型。
@@ -523,6 +524,8 @@ pages:
     no_results: 没有找到匹配的角色卡
     personality: 性格
     posthistoryinstructions: 历史提示指令
+    context_window: 记住的消息数量
+    context_window_all: 全部
     recent: 最近添加
     scenario: 场景
     search: 搜索角色卡...
@@ -622,6 +625,48 @@ pages:
       desktop_window_centered: 桌面窗口已移至屏幕中央。
       desktop_reset: 桌面数据重置。
   models:
+    editor:
+      model:
+        all-models: 全部模型
+      tabs:
+        model: 模型
+        placement: 位置
+        motion: 动作
+        look: 外观
+        display: 显示
+      tools:
+        size: 大小
+        position: 位置
+        look-at: 视线
+        eyes: 眼睛
+        idle-motion: 空闲动画
+        motion-source: 动作驱动器
+        expressions: 表情
+        shadow: 投影
+        theme-color: 主题颜色
+      position:
+        horizontal: 水平
+        vertical: 垂直
+        description: 在舞台上拖动角色，或者使用下面的刻度尺。
+      look-at:
+        title: 角色看向哪里
+        options:
+          cursor: 跟随鼠标
+          off: 看向前方
+      eyes:
+        look-around: 空闲时四处看
+        blink: 眨眼
+        blink-options:
+          off: 关闭
+          model: 使用模型自带
+          airi: AIRI 计时
+      reset: 重置
+      back: 返回
+      clear-cache-confirm:
+        title: 清除模型缓存？
+        description: 这台设备上所有 Live2D 模型的文件都会被删除。下次加载时会重新下载每个模型。
+        confirm: 清除
+        cancel: 取消
     description: 切换角色的 Live2D、VRM、Spine 模型
     title: 角色模型
     sections:

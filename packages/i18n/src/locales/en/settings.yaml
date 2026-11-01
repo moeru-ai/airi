@@ -218,9 +218,16 @@ live2d:
           title: MAGIC
           description: Generate motion from the bundled MAGIC dataset.
       magic:
+        idle-profile:
+          title: Idle profile
+          description: Select the motion dataset that MAGIC plays while AIRI does not speak.
+        speaking-profile:
+          title: Speaking profile
+          description: Select the motion dataset that MAGIC plays while AIRI replies.
+        follow-speech:
+          title: Follow speech
+          description: Blend to the speaking profile while the voice of AIRI plays. Blend back to the idle profile after the voice stops.
         profile:
-          title: MAGIC profile
-          description: Select the bundled motion dataset that fits the MAGIC driver.
           options:
             idle-calm:
               title: Idle / calm
@@ -536,6 +543,7 @@ pages:
         greetings: How your character should say "hello" ?
         systemprompt: Explain here to the AI LLM how it should answer when prompted.
         posthistoryinstructions: Place here anything the AI LLM should read after the messages history.
+        context_window: 'Message limit, including your current message. Leave empty for All. Use 0 to send only your current message. When exceeded, older turns are removed in blocks. Saved chats stay intact.'
         version: >-
           Card version, you should increase this if you are making changes from
           a previous card.
@@ -560,6 +568,8 @@ pages:
     no_results: No matching cards found
     personality: Personality
     posthistoryinstructions: Post-History Instructions
+    context_window: Messages to remember
+    context_window_all: All
     recent: Recently Added
     scenario: Scenario
     search: Search cards...
@@ -659,6 +669,48 @@ pages:
       desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: Desktop data reset.
   models:
+    editor:
+      model:
+        all-models: All models
+      tabs:
+        model: Model
+        placement: Placement
+        motion: Motion
+        look: Look
+        display: Display
+      tools:
+        size: Size
+        position: Position
+        look-at: Look at
+        eyes: Eyes
+        idle-motion: Idle motion
+        motion-source: Motion source
+        expressions: Expressions
+        shadow: Shadow
+        theme-color: Theme color
+      position:
+        horizontal: Horizontal
+        vertical: Vertical
+        description: Drag the character on the stage, or use the rulers below.
+      look-at:
+        title: Where the character looks
+        options:
+          cursor: Cursor
+          off: Straight ahead
+      eyes:
+        look-around: Look around when idle
+        blink: Blink
+        blink-options:
+          off: 'Off'
+          model: From the model
+          airi: AIRI timer
+      reset: Reset
+      back: Back
+      clear-cache-confirm:
+        title: Clear the model cache?
+        description: The files of all Live2D models are deleted from this device. Each model downloads again the next time it loads.
+        confirm: Clear
+        cancel: Cancel
     description: Live2D, VRM, Spine, MMD, etc.
     title: Models
     sections:

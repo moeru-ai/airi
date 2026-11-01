@@ -40,12 +40,18 @@ import { weatherToolCallWidget } from './chat-tool-renderers/weather-tool-call-w
 const props = withDefaults(defineProps<{
   /**
    * `true` in the transparent floating chat window, which draws nothing
-   * behind the chat. Bubbles, the composer and the welcome card then paint
-   * solid backgrounds that keep their contrast over any desktop, and the
-   * history scrollbar shows on hover, because the wheel over the empty
-   * history reaches the app below instead.
+   * behind the chat. The history scrollbar shows on hover, because the wheel
+   * over the empty history reaches the app below instead. Without
+   * `glassBackdrop`, bubbles, the composer and the welcome card paint solid
+   * backgrounds that keep their contrast over any desktop.
    */
   floating?: boolean
+  /**
+   * `true` when the window draws native glass behind the floating chat, such
+   * as the floating panel on macOS. The chat then looks the same as in the
+   * chat window.
+   */
+  glassBackdrop?: boolean
   /**
    * `true` adds a tab at the bottom edge that folds the composer away, so
    * the history reaches the bottom. The folded composer stays mounted, so an
@@ -77,10 +83,14 @@ const props = withDefaults(defineProps<{
   rightResizeBand?: number
 }>(), {
   floating: false,
+  glassBackdrop: false,
   composerFoldable: false,
   passive: false,
   expiredBefore: 0,
 })
+
+// A translucent fill over the bare desktop loses its contrast, so a floating chat without glass paints solid surfaces.
+const solidSurfaces = computed(() => props.floating && !props.glassBackdrop)
 
 /** Whether a foldable composer is folded away. */
 const composerFolded = defineModel<boolean>('composerFolded', { default: false })
@@ -403,7 +413,7 @@ defineExpose({
         <div
           :class="[
             'flex flex-col items-center gap-3 text-center',
-            props.floating ? 'pointer-events-auto rounded-2xl bg-white px-6 py-6 shadow-md dark:bg-neutral-900' : '',
+            solidSurfaces ? 'pointer-events-auto rounded-2xl bg-white px-6 py-6 shadow-md dark:bg-neutral-900' : '',
           ]"
         >
           <div :class="['chat-empty-state-icon size-14 flex items-center justify-center rounded-2xl bg-primary-100/60 text-primary-500 dark:bg-primary-900/30']">
@@ -423,7 +433,7 @@ defineExpose({
         :tail-inset="tailInset"
         :tool-call-renderers="toolCallRenderers"
         :tool-call-widgets="toolCallWidgets"
-        :surface="props.floating ? 'opaque' : 'translucent'"
+        :surface="solidSurfaces ? 'opaque' : 'translucent'"
         :scrollbar="props.floating ? 'hover' : 'scroll'"
         :passive="props.passive"
         :class="['transition-[padding] duration-300 ease-out motion-reduce:transition-none', props.dockSide && { left: 'pl-12', right: 'pr-12' }[props.dockSide]]"
@@ -466,7 +476,7 @@ defineExpose({
           props.composerFoldable && composerFolded ? 'chat-composer-folded' : '',
           // The composer layer clips overflow, which would cut a ring or a
           // shadow; a border stays inside the box.
-          props.floating
+          solidSurfaces
             ? 'border border-neutral-200 bg-white p-2 dark:border-neutral-800 dark:bg-neutral-900'
             : [
               'bg-neutral-100/70 p-2 backdrop-blur-xl dark:bg-neutral-900/65',
@@ -545,7 +555,7 @@ defineExpose({
             :class="[
               'ph-no-capture w-full resize-none overflow-y-auto border-0 bg-transparent px-2 font-medium outline-none [scrollbar-gutter:stable]',
               'max-h-[10lh]',
-              props.floating ? 'min-h-[2lh] py-2' : 'min-h-[1lh] py-1',
+              solidSurfaces ? 'min-h-[2lh] py-2' : 'min-h-[1lh] py-1',
               'text-neutral-700 placeholder:text-neutral-400 dark:text-neutral-200 dark:placeholder:text-neutral-500',
               'transition-colors duration-200 ease-out motion-reduce:transition-none',
             ]"
