@@ -61,7 +61,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
   <div
     :class="[
       'max-w-[min(28rem,calc(100vw-2rem))] flex flex-col',
-      variant === 'mobile' ? 'mr-0' : 'mr-12',
+      'mr-12',
       'font-cute',
     ]"
   >
