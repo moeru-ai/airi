@@ -321,3 +321,30 @@ it('shows the requested step when the request reaches the window after the flow 
   expect(await result).toEqual({ 'host-permissions': 'done' })
   await vi.waitFor(() => expect(configured).toHaveBeenCalled())
 })
+
+// Found in the review of https://github.com/moeru-ai/airi/pull/3296
+// ROOT CAUSE:
+//
+// The Sign in button removed the provider steps before sign-in finished. Pocket opens sign-in
+// outside the app, so a canceled sign-in returned to a closed dialog, and local setup could not continue.
+//
+// We fixed this by keeping the request open until `closeAfterAuthentication`.
+it('keeps the provider request open after the Sign in click', async () => {
+  // Electron consumes the login request through IPC, so the test does not open a browser sign-in.
+  vi.stubEnv('RUNTIME_ENVIRONMENT', 'electron')
+  const context = createSyncedContext(`onboarding-sign-in:${crypto.randomUUID()}`, 'leader-only')
+  await expect.poll(() => context.runtime.isLeader()).toBe(true)
+  const store = useOnboardingStore(context.pinia)
+  const result = store.request({ source: 'startup' })
+  await expect.poll(() => store.activeRequest).not.toBeNull()
+
+  const screen = await render(OnboardingDialog, {
+    global: { plugins: [context.pinia, PiniaColada, createTestI18n()] },
+  })
+  await screen.getByRole('button', { name: 'Sign in' }).click()
+
+  await expect.poll(() => useAuthStore(context.pinia).needsLogin).toBe(true)
+  expect(store.activeRequest?.source).toBe('startup')
+  await store.dismissActiveRequest()
+  await result
+})

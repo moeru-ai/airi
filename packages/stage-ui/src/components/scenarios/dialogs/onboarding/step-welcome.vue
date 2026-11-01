@@ -13,7 +13,6 @@ import onboardingLogo from '../../../../assets/onboarding.avif'
 import { AIRI_FLUX_URL, AIRI_TERMS_URL } from '../../../../constants/public-links'
 import { useAuthStore } from '../../../../stores/auth'
 import { useAiriCardStore } from '../../../../stores/modules/airi-card'
-import { useOnboardingStore } from '../../../../stores/onboarding'
 import { useSettingsGeneral } from '../../../../stores/settings'
 
 interface Props {
@@ -24,7 +23,6 @@ interface Props {
 const props = defineProps<Props>()
 const { t } = useI18n()
 const authStore = useAuthStore()
-const onboardingStore = useOnboardingStore()
 const settingsStore = useSettingsGeneral()
 const { language } = storeToRefs(settingsStore)
 const cardStore = useAiriCardStore()
@@ -42,10 +40,8 @@ watch(() => cardStore.builtInCard.description, (description, previous) => {
 })
 
 async function handleLogin() {
-  // Sign-in replaces provider setup, not the other requested steps. On desktop, the onboarding window
-  // stays open until sign-in finishes.
-  if (onboardingStore.activeRequest)
-    await onboardingStore.dropProviderSetupSteps()
+  // The flow stays open during sign-in. A canceled sign-in returns to it, and a finished
+  // sign-in removes the provider steps through `closeAfterAuthentication`.
   await authStore.requestLogin()
 }
 

@@ -394,11 +394,6 @@ export const useOnboardingStore = defineStore('onboarding', () => {
     return onboardingStateStore.closeAfterAuthentication(providerSetupStepIds.value)
   }
 
-  /** Removes the provider steps from the queued requests when the user starts sign-in. Other steps stay. */
-  function dropProviderSetupSteps() {
-    return onboardingStateStore.dropSteps(providerSetupStepIds.value)
-  }
-
   function resetSetupState() {
     return onboardingStateStore.resetSetupState()
   }
@@ -415,7 +410,6 @@ export const useOnboardingStore = defineStore('onboarding', () => {
     registerHostSteps,
     request,
     dismissActiveRequest,
-    dropProviderSetupSteps,
     settleRequest,
     recordSteps,
     closeAfterAuthentication,

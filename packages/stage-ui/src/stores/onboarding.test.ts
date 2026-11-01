@@ -297,8 +297,8 @@ describe('onboarding requests after sign-in', () => {
   // Found in the review of https://github.com/moeru-ai/airi/pull/3296
   // ROOT CAUSE:
   //
-  // Sign-in removed the first queued request. When the welcome step had already ended the
-  // provider request, that was a request for a device step, and its flow never opened.
+  // Sign-in removed the first queued request, whatever its steps were. A request for a
+  // device step could be first, and its flow never opened.
   //
   // We fixed this by removing only the provider steps from the queued requests.
   it('keeps a queued request for a device step after sign-in', async () => {
@@ -307,9 +307,10 @@ describe('onboarding requests after sign-in', () => {
     const startup = store.request({ steps: ['welcome'], source: 'startup' })
     const permissions = store.request({ steps: ['permissions'], source: 'wake-word-toggle' })
     await vi.waitFor(() => expect(store.activeRequest?.source).toBe('startup'))
-
-    await store.dropProviderSetupSteps()
+    // The user closes the provider flow. The device request is first when sign-in finishes later.
+    await store.dismissActiveRequest()
     await startup
+
     await store.closeAfterAuthentication()
 
     expect(store.activeRequest).toMatchObject({ source: 'wake-word-toggle', stepIds: ['permissions'] })
