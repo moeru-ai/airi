@@ -12,8 +12,7 @@ trace format. A view, for example the IO tracer, fills the columns from its own 
 ## Do not use it for
 
 - A few dozen items with rich content. DOM elements are simpler there.
-- Editing clips, trims, or keyframes. This package draws read-only lanes. An editor keeps its own pointer layer, and
-  it can use `valueToY`, `yToValue`, and the hit tests to map a pointer to its data.
+- Editing clips, trims, or keyframes. This package draws read-only lanes.
 
 ## How it works
 
@@ -25,8 +24,6 @@ trace format. A view, for example the IO tracer, fills the columns from its own 
 | `SeriesPyramid` | Samples with a min/max pyramid. An envelope reads the coarsest level that still has two buckets per pixel. |
 | `hitInterval`, `hitPoint` | The item under an x offset, with a pixel tolerance. |
 | `drawIntervalRuns`, `drawPointMarks`, `drawEnvelope` | Trace-view drawing: capsules, a soft tint for thinking, stripes for waiting, a red tint, outline, and status dot for errors, a shimmer for open work, waveforms, and lines. A capsule draws a glyph at its start and a trailing text, for example its duration, at its end. The consumer gives the glyph paths through `glyphs`, so any icon set works. |
-| `drawLine` | A line through sparse points, for example keyframes. It joins the nearest point outside each side of the view. `curve: 'step'` holds each value until the next point. |
-| `valueToY`, `yToValue` | The value axis of a row: the low end of a range at the bottom, the high end at the top. |
 | `capsuleStyle`, `laneCapsuleStyle`, `StyleTable` | The look of a capsule from its state: activity, open, failed, retry, cancelled, abandoned, overdue, and dimmed. |
 | `drawTimelineRow`, `ROW_GEOMETRY` | One row from state bands, item layers, instants, and an optional series inside the items: a waveform or a chart. |
 

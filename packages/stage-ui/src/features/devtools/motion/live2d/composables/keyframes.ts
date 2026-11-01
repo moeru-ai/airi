@@ -178,8 +178,7 @@ function evaluateHeldLive2DMotionKeyframes(points: readonly Live2DMotionKeyframe
   return rightIndex < 0 ? points.at(-1)!.value : points[rightIndex - 1].value
 }
 
-/** The value of an overlay curve at a time: held keys for a view-target track, linear keys for other tracks. */
-export function evaluateLive2DMotionOverlay(overlay: Live2DMotionOverlay, atMs: number): number {
+function evaluateOverlay(overlay: Live2DMotionOverlay, atMs: number): number {
   return isLive2DMotionViewTargetTrackId(overlay.trackId)
     ? evaluateHeldLive2DMotionKeyframes(overlay.points, atMs)
     : evaluateLive2DMotionKeyframes(overlay.points, atMs)
@@ -281,7 +280,7 @@ export function cropLive2DMotionProject(
         points: pointTimes.map(atMs => ({
           id: overlay.points.find(point => point.atMs === atMs)?.id ?? createLive2DMotionId(),
           atMs: atMs - startMs,
-          value: evaluateLive2DMotionOverlay(overlay, atMs),
+          value: evaluateOverlay(overlay, atMs),
         })),
       }
     })
@@ -343,7 +342,7 @@ export function evaluateLive2DMotionProject(project: Live2DMotionProject, atMs: 
       continue
 
     const sourceValue = getLive2DMotionTrackValue(pose, overlay.trackId)
-    const overlayValue = evaluateLive2DMotionOverlay(overlay, atMs)
+    const overlayValue = evaluateOverlay(overlay, atMs)
     const value = overlay.blendMode === 'add'
       ? sourceValue + overlayValue * overlay.weight
       : sourceValue + (overlayValue - sourceValue) * overlay.weight
@@ -359,7 +358,7 @@ export function evaluateLive2DMotionEyeView(project: Live2DMotionProject, atMs: 
     if (!isLive2DMotionViewTargetTrackId(overlay.trackId) || atMs < overlay.startMs || atMs > overlay.endMs || overlay.points.length === 0)
       continue
 
-    const value = clampViewTarget(evaluateLive2DMotionOverlay(overlay, atMs) * overlay.weight)
+    const value = clampViewTarget(evaluateOverlay(overlay, atMs) * overlay.weight)
     if (overlay.trackId === 'viewTargetX')
       target.x = value
     else
