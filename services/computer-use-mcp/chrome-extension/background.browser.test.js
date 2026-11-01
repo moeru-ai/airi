@@ -44,14 +44,16 @@ async function sendCommand(serverUrl, command) {
 
 // https://github.com/moeru-ai/airi/pull/3300#discussion_r4435711446
 // https://github.com/moeru-ai/airi/pull/3300#discussion_r4435711448
+// https://github.com/moeru-ai/airi/pull/3300#discussion_r4436233437
 // ROOT CAUSE:
 //
-// Async commands outlive their socket. The old handler used the global socket,
-// so a late reply reached the replacement server. Overlapping startup reads also
-// let stale configuration start a default connection.
+// A refresh advances the revision while storage loads. The old post-command
+// guard drops replies from a retained socket.
 //
-// The fix binds replies to their socket, coalesces startup reads, and rejects
-// stale configuration revisions.
+// if (socket !== bridgeSocket || bridgeSocketRevision !== bridgeConfigRevision)
+//   return
+//
+// The fix drops replies only after the source socket is replaced.
 it('keeps replies on their source socket and ignores stale initialization reads', async () => {
   const servers = inject('bridgeTestServers')
   const storageListeners = []
@@ -60,6 +62,7 @@ it('keeps replies on their source socket and ignores stale initialization reads'
   const pendingStorageReads = []
   const settings = {}
   let resolveSlowTabQuery
+  let resolveSameEndpointTabQuery
 
   const storageGet = vi.fn((keys) => {
     const snapshot = { ...settings }
@@ -73,6 +76,12 @@ it('keeps replies on their source socket and ignores stale initialization reads'
     if (tabsQuery.mock.calls.length === 1) {
       return new Promise((resolve) => {
         resolveSlowTabQuery = resolve
+      })
+    }
+
+    if (tabsQuery.mock.calls.length === 3) {
+      return new Promise((resolve) => {
+        resolveSameEndpointTabQuery = resolve
       })
     }
 
@@ -172,6 +181,37 @@ it('keeps replies on their source socket and ignores stale initialization reads'
     ok: true,
     result: { id: 42, url: 'https://fresh.example', title: 'Fresh' },
   })
+
+  const connectionCount = defaultAfterFreshReply.connectionCount
+  const sameEndpointCommandDelivery = await sendCommand(servers.defaultUrl, { id: 'same-endpoint-read', action: 'getActiveTab' })
+  expect(sameEndpointCommandDelivery.sent).toBe(1)
+  await waitFor(() => tabsQuery.mock.calls.length === 3, 'pending same-endpoint tab query')
+
+  delete settings.browserDomBridgeHost
+  for (const listener of storageListeners) {
+    listener({ browserDomBridgeHost: { oldValue: '127.0.0.1' } }, 'local')
+  }
+  await waitFor(() => pendingStorageReads.length === 4, 'same-endpoint settings refresh')
+
+  resolveSameEndpointTabQuery([{ id: 42, url: 'https://same-endpoint.example', title: 'Same endpoint' }])
+  const stateDuringRefresh = await waitForServerState(
+    servers.defaultUrl,
+    state => state.messages.some(message => message.id === 'same-endpoint-read'),
+    'in-flight command response during settings refresh',
+  )
+  expect(stateDuringRefresh.messages.find(message => message.id === 'same-endpoint-read')).toMatchObject({
+    id: 'same-endpoint-read',
+    ok: true,
+    result: { id: 42, url: 'https://same-endpoint.example', title: 'Same endpoint' },
+  })
+
+  pendingStorageReads[3]()
+  const stateAfterRefresh = await waitForServerState(
+    servers.defaultUrl,
+    state => state.openConnectionCount === 1,
+    'retained bridge connection',
+  )
+  expect(stateAfterRefresh.connectionCount).toBe(connectionCount)
 }, 15_000)
 
 afterEach(() => {
