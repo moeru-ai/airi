@@ -32,6 +32,8 @@ const extraSteps = computed(() => {
     ? [{ id: 'analytics-notice', component: OnboardingStepAnalyticsNotice }]
     : []
 })
+// This flow has no request, so it shows the pending steps. Host steps count only after registration.
+onboardingStore.registerHostSteps(extraSteps.value)
 
 // The flow records its steps before it emits `configured`.
 async function handleConfigured() {

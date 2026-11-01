@@ -42,7 +42,9 @@ watch(() => cardStore.builtInCard.description, (description, previous) => {
 })
 
 async function handleLogin() {
-  onboardingStore.showingSetup = false
+  // Sign-in replaces the flow. On desktop, the onboarding window stays open until sign-in finishes.
+  if (onboardingStore.activeRequest)
+    await onboardingStore.dismissActiveRequest()
   await authStore.requestLogin()
 }
 

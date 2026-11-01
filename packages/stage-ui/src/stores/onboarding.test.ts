@@ -58,7 +58,8 @@ describe('onboarding store', () => {
   it('keeps onboarding open when a provider becomes configured during setup', async () => {
     const providerStore = useProviderConfigStore()
     const store = useOnboardingStore()
-    store.forceShowSetup()
+    const result = store.request({ source: 'startup' })
+    await vi.waitFor(() => expect(store.activeRequest).not.toBeNull())
 
     expect(store.needsOnboarding).toBe(true)
 
@@ -67,7 +68,10 @@ describe('onboarding store', () => {
 
     expect(store.hasEssentialProviderConfigured).toBe(true)
     expect(store.needsOnboarding).toBe(true)
-    expect(store.showingSetup).toBe(true)
+    expect(store.activeRequest).not.toBeNull()
+
+    await store.dismissActiveRequest()
+    await result
   })
 
   // ROOT CAUSE:
@@ -126,7 +130,7 @@ describe('onboarding store', () => {
 
     const store = useOnboardingStore()
 
-    expect(store.pendingSharedSteps.map(step => step.id)).toContain(firstStep.id)
+    expect(store.pendingSteps.map(step => step.id)).toContain(firstStep.id)
     expect(store.needsOnboarding).toBe(true)
   })
 
@@ -146,7 +150,7 @@ describe('onboarding store', () => {
 
     const store = useOnboardingStore()
 
-    expect(store.pendingSharedSteps.map(step => step.id)).toEqual(sharedOnboardingSteps.filter(step => step.scope === 'provider-setup').map(step => step.id))
+    expect(store.pendingSteps.map(step => step.id)).toEqual(sharedOnboardingSteps.filter(step => step.scope === 'provider-setup').map(step => step.id))
   })
 
   it('treats an unreadable record value as no records', () => {
@@ -167,6 +171,120 @@ describe('onboarding store', () => {
 
     expect(store.needsOnboarding).toBe(true)
     expect(localStorage.getItem('onboarding/steps')).toBeNull()
+  })
+})
+
+describe('onboarding requests', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    setActivePinia(createPinia())
+  })
+
+  /** Records every shared step as done, as a device that finished the first onboarding. */
+  function seedFinishedSharedSteps() {
+    localStorage.setItem('onboarding/steps', JSON.stringify(Object.fromEntries(
+      sharedOnboardingSteps.map(step => [step.id, { version: step.version, outcome: 'done', at: 0 }]),
+    )))
+  }
+
+  it('resolves with the outcome of each step after the flow records them', async () => {
+    const store = useOnboardingStore()
+    const result = store.request({ source: 'startup' })
+    await vi.waitFor(() => expect(store.activeRequest).not.toBeNull())
+
+    expect(store.activeRequest?.stepIds).toEqual(sharedOnboardingSteps.map(step => step.id))
+    await store.recordSteps(sharedOnboardingSteps.slice(0, 3), 'done')
+    await store.recordSteps(sharedOnboardingSteps.slice(3), 'later')
+    await store.settleRequest(store.activeRequest!.id)
+
+    expect(await result).toEqual({
+      'welcome': 'done',
+      'provider-selection': 'done',
+      'provider-configuration': 'done',
+      'model-selection': 'later',
+    })
+  })
+
+  it('resolves with pending steps when the user closes the flow', async () => {
+    const store = useOnboardingStore()
+    const result = store.request({ source: 'startup' })
+    await vi.waitFor(() => expect(store.activeRequest).not.toBeNull())
+
+    await store.dismissActiveRequest()
+
+    expect(Object.values(await result)).toEqual(sharedOnboardingSteps.map(() => 'pending'))
+    expect(store.activeRequest).toBeNull()
+  })
+
+  it('opens no flow when no requested step is pending, and opens it with force', async () => {
+    seedFinishedSharedSteps()
+    const store = useOnboardingStore()
+
+    expect(await store.request({ steps: ['model-selection'], source: 'settings' })).toEqual({})
+    expect(store.activeRequest).toBeNull()
+
+    const forced = store.request({ steps: ['model-selection'], source: 'settings', force: true })
+    await vi.waitFor(() => expect(store.activeRequest).not.toBeNull())
+    // Model selection needs the provider steps, so the request adds them.
+    expect(store.activeRequest?.stepIds).toEqual(sharedOnboardingSteps.map(step => step.id))
+    await store.dismissActiveRequest()
+    await forced
+  })
+
+  it('adds the required steps of a host step', async () => {
+    seedFinishedSharedSteps()
+    const store = useOnboardingStore()
+    store.registerHostSteps([
+      { id: 'permissions', scope: 'device' },
+      { id: 'microphone-check', scope: 'device', requires: ['permissions'] },
+    ])
+
+    const result = store.request({ steps: ['microphone-check'], source: 'wake-word-toggle' })
+    await vi.waitFor(() => expect(store.activeRequest).not.toBeNull())
+
+    expect(store.activeRequest?.stepIds).toEqual(['permissions', 'microphone-check'])
+    await store.dismissActiveRequest()
+    await result
+  })
+
+  it('opens a queued request after the open flow closes', async () => {
+    seedFinishedSharedSteps()
+    const store = useOnboardingStore()
+    store.registerHostSteps([{ id: 'permissions', scope: 'device' }, { id: 'microphone-check', scope: 'device' }])
+
+    const first = store.request({ steps: ['permissions'], source: 'first' })
+    const second = store.request({ steps: ['microphone-check'], source: 'second' })
+    await vi.waitFor(() => expect(store.activeRequest?.source).toBe('first'))
+
+    await store.dismissActiveRequest()
+    await first
+
+    expect(store.activeRequest?.source).toBe('second')
+    await store.dismissActiveRequest()
+    await second
+  })
+
+  it('opens onboarding at startup for a device step after sign-in or provider setup', () => {
+    const providerStore = useProviderConfigStore()
+    providerStore.configuredProviders.openai = true
+    const store = useOnboardingStore()
+
+    expect(store.needsOnboarding).toBe(false)
+    store.registerHostSteps([{ id: 'permissions', scope: 'device' }])
+
+    expect(store.pendingSteps.map(step => step.id)).toEqual(['permissions'])
+    expect(store.needsOnboarding).toBe(true)
+  })
+
+  it('ends the open flow after authentication', async () => {
+    const store = useOnboardingStore()
+    const result = store.request({ source: 'startup' })
+    await vi.waitFor(() => expect(store.activeRequest).not.toBeNull())
+
+    await store.closeAfterAuthentication()
+
+    expect(Object.values(await result)).toEqual(sharedOnboardingSteps.map(() => 'done'))
+    expect(store.activeRequest).toBeNull()
   })
 })
 

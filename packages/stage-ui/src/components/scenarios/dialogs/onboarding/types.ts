@@ -1,5 +1,7 @@
 import type { Component } from 'vue'
 
+import type { HostOnboardingStep } from '../../../../stores/onboarding'
+
 export type OnboardingStepGuard = () => Promise<boolean>
 export type OnboardingStepPrevHandler = () => Promise<void> | void
 
@@ -14,15 +16,11 @@ export type OnboardingStepNextHandler = (configData?: ProviderConfigData) => Pro
 /** Postpones an optional step. The flow records it as `later` and moves on without the `beforeNext` guard. */
 export type OnboardingStepLaterHandler = () => Promise<void> | void
 
-export interface OnboardingStep {
-  id: string
-  /**
-   * A higher version shows the step again to a user who finished an older version.
-   * A shared step takes its version from `sharedOnboardingSteps`.
-   *
-   * @default 1
-   */
-  version?: number
+/**
+ * A step with its component. A host step also registers its `id`, `version`, `scope`, and
+ * `requires` with `registerHostSteps`. A shared step takes them from `sharedOnboardingSteps`.
+ */
+export interface OnboardingStep extends HostOnboardingStep {
   /** When true, the step receives `onLater`, and the user can postpone it. */
   optional?: boolean
   component: Component<{

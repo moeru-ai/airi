@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { OnboardingScreen, OnboardingStepAnalyticsNotice } from '@proj-airi/stage-ui/components'
-import { isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/product-signals'
+import { OnboardingScreen } from '@proj-airi/stage-ui/components'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useTheme } from '@proj-airi/ui'
@@ -11,6 +10,7 @@ import { computed } from 'vue'
 import { electronAuthStartLogin, electronOnboardingClose } from '../../shared/eventa'
 import { useOnboardingAuthentication } from '../composables/use-onboarding-authentication'
 import { useAuthStatusStore } from '../stores/auth-status'
+import { onboardingHostSteps } from '../utils/onboarding-host-steps'
 
 const authStore = useAuthStore()
 const { needsLogin, isAuthenticated } = storeToRefs(authStore)
@@ -32,11 +32,8 @@ const { closeOnboardingWindow } = useOnboardingAuthentication({
 })
 
 const bgClass = computed(() => isDark.value ? 'bg-[#0f0f0f]' : 'bg-white')
-const extraSteps = computed(() => {
-  return isAnalyticsAvailableInBuild()
-    ? [{ id: 'analytics-notice', component: OnboardingStepAnalyticsNotice }]
-    : []
-})
+const extraSteps = onboardingHostSteps()
+onboardingStore.registerHostSteps(extraSteps)
 
 // The flow records its steps before it emits `configured`.
 async function handleConfigured() {

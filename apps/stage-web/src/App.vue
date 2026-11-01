@@ -48,7 +48,7 @@ const syncedPinia = usePiniaSynced()
 const serverChannelStore = useModsServerChannelStore()
 const characterOrchestratorStore = useCharacterOrchestratorStore()
 const settingsAudioDeviceStore = useSettingsAudioDevice()
-const { showingSetup } = storeToRefs(onboardingStore)
+const { activeRequest } = storeToRefs(onboardingStore)
 const { isDark } = useTheme()
 const cardStore = useAiriCardStore()
 useArtistryStore()
@@ -85,8 +85,8 @@ startup.reset()
 startup.register(['auth', 'modelIndex', 'card', 'chat', 'services', 'modelData', 'modelSelection', 'audio', 'route', 'model'])
 useStartupResourceTimeout('model', 120_000, () => i18n.t('stage.startup.model-timeout'))
 const startupOnboarding = ref(false)
-watch(showingSetup, (visible) => {
-  if (!visible)
+watch(activeRequest, (request) => {
+  if (!request)
     startupOnboarding.value = false
 })
 
@@ -120,6 +120,7 @@ const onboardingExtraSteps = computed(() => {
     ? [{ id: 'analytics-notice', component: OnboardingStepAnalyticsNotice }]
     : []
 })
+onboardingStore.registerHostSteps(onboardingExtraSteps.value)
 
 watch(settings.language, () => {
   i18n.locale.value = settings.language.value
@@ -194,7 +195,7 @@ function openOnboardingAfterStartup() {
 
   if (onboardingStore.needsOnboarding) {
     startupOnboarding.value = true
-    onboardingStore.showingSetup = true
+    void onboardingStore.request({ source: 'startup' })
   }
 }
 </script>
@@ -233,11 +234,11 @@ function openOnboardingAfterStartup() {
 
     <!-- First Time Setup Dialog -->
     <OnboardingDialog
-      v-model="showingSetup"
+      :model-value="activeRequest !== null"
       :scale-background="false"
       :instant-open="startupOnboarding"
       :extra-steps="onboardingExtraSteps"
-      @configured="showingSetup = false"
+      @update:model-value="open => open || onboardingStore.dismissActiveRequest()"
     />
 
     <PerformanceOverlay />

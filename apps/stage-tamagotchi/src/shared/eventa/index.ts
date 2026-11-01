@@ -790,6 +790,8 @@ export const widgetsIframeRequestResultEvent = defineEventa<WidgetsIframeRequest
 // Onboarding window events
 export const electronOnboardingClose = defineInvokeEventa('eventa:invoke:electron:windows:onboarding:close')
 export const electronOpenOnboarding = defineInvokeEventa('eventa:invoke:electron:windows:onboarding:open')
+/** Main sends it to the stage window after each close of the onboarding window. */
+export const electronOnboardingWindowClosed = defineEventa('eventa:event:electron:windows:onboarding:closed')
 
 // Auth — OIDC Authorization Code + PKCE flow via system browser
 export interface ElectronAuthTokens {

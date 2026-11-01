@@ -21,7 +21,7 @@ import StepWelcome from './step-welcome.vue'
 
 import { useAnalytics } from '../../../../composables/use-analytics'
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
-import { isStepPending, sharedOnboardingSteps, useOnboardingStore } from '../../../../stores/onboarding'
+import { sharedOnboardingSteps, useOnboardingStore } from '../../../../stores/onboarding'
 import { useProviderConfigStore } from '../../../../stores/providers/config'
 import { useProviderStore } from '../../../../stores/providers/provider'
 
@@ -180,15 +180,11 @@ const allSteps = computed<OnboardingStep[]>(() => {
   return coreSteps
 })
 
-// The flow shows the pending shared steps, and the host steps that this device has no record of.
-// The list is fixed when the flow starts. A `later` record during the flow does not move the step index.
-const sharedStepIds = new Set(sharedOnboardingSteps.map(sharedStep => sharedStep.id))
-const pendingSharedStepIds = new Set(onboardingStore.pendingSharedSteps.map(sharedStep => sharedStep.id))
-const flowStepIds = new Set(allSteps.value
-  .filter(flowStep => sharedStepIds.has(flowStep.id)
-    ? pendingSharedStepIds.has(flowStep.id)
-    : isStepPending(onboardingStore.stepRecords, { id: flowStep.id, version: flowStep.version ?? 1 }))
-  .map(flowStep => flowStep.id))
+// The flow shows the steps of the open request, or the pending steps without one.
+// The list is fixed at the start, so a `later` record does not move the step index.
+// A requested step without a component in this window does not show.
+const flowRequestId = onboardingStore.activeRequest?.id
+const flowStepIds = new Set(onboardingStore.activeRequest?.stepIds ?? onboardingStore.pendingSteps.map(pendingStep => pendingStep.id))
 const flowSteps = computed(() => allSteps.value.filter(flowStep => flowStepIds.has(flowStep.id)))
 /** Steps that the user postponed in this flow. The finish keeps their `later` record. */
 const postponedStepIds = new Set<string>()
@@ -204,6 +200,8 @@ async function handleSave() {
     flowSteps.value.filter(flowStep => !postponedStepIds.has(flowStep.id)).map(flowStep => ({ id: flowStep.id, version: flowStep.version ?? 1 })),
     'done',
   )
+  if (flowRequestId)
+    await onboardingStore.settleRequest(flowRequestId)
   trackOnboardingStepCompleted(currentStep.value?.id ?? 'unknown')
   trackOnboardingCompleted({
     selected_provider_type: selectedProviderType.value,

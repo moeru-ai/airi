@@ -77,6 +77,7 @@ import {
   useTamagotchiMcpToolsStore,
   useTamagotchiPluginToolsStore,
 } from './stores/tools'
+import { onboardingHostSteps } from './utils/onboarding-host-steps'
 import { resolveInitialRendererRoutePath, resolveRendererWindowContext } from './window-context'
 
 const { isDark: dark } = useTheme()
@@ -156,6 +157,7 @@ const stopLeadershipListener = syncedPinia.onLeadershipChange((isLeader) => {
 function createFullStageRuntime() {
   const authStore = useAuthStore()
   const onboardingStore = useOnboardingStore()
+  onboardingStore.registerHostSteps(onboardingHostSteps())
   const contextBridgeStore = useContextBridgeStore()
   const displayModelsStore = useDisplayModelsStore()
   const serverChannelSettingsStore = useServerChannelSettingsStore()

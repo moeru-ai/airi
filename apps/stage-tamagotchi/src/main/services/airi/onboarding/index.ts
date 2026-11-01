@@ -6,7 +6,7 @@ import type { OnboardingWindowManager } from '../../../windows/onboarding'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { screen } from 'electron'
 
-import { electronOpenOnboarding } from '../../../../shared/eventa'
+import { electronOnboardingWindowClosed, electronOpenOnboarding } from '../../../../shared/eventa'
 import { Animator } from '../../../windows/shared/animator'
 import { computeAdjacentPosition } from '../../../windows/shared/display'
 
@@ -19,6 +19,9 @@ export function createOnboardingService(params: {
 }) {
   const mainWindowAnimator = new Animator(params.mainWindow)
   let cleanupOnClosed: (() => void) | undefined
+
+  // The stage window ends a request that is still open when the user closes the onboarding window.
+  params.onboardingWindowManager.onClosed(() => params.context.emit(electronOnboardingWindowClosed, undefined))
 
   defineInvokeHandler(params.context, electronOpenOnboarding, async () => {
     const savedBounds = params.mainWindow.getBounds()

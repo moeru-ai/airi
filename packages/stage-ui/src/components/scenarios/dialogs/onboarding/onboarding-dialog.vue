@@ -4,11 +4,12 @@ import type { OnboardingStep } from './types'
 import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, VisuallyHidden } from 'reka-ui'
 import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot } from 'vaul-vue'
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 
 import Onboarding from './onboarding.vue'
 
 import { useBreakpoints } from '../../../../composables/use-breakpoints'
+import { useOnboardingStore } from '../../../../stores/onboarding'
 
 const props = withDefaults(defineProps<{
   extraSteps?: OnboardingStep[]
@@ -23,6 +24,10 @@ const emit = defineEmits<{
 }>()
 
 const showDialog = defineModel({ type: Boolean, default: false, required: false })
+
+const onboardingStore = useOnboardingStore()
+// A queued request opens right after the previous flow. A new key starts its flow from its first step.
+const flowKey = computed(() => onboardingStore.activeRequest?.id ?? 'pending-steps')
 
 const { isDesktop } = useBreakpoints()
 const screenSafeArea = useScreenSafeArea()
@@ -40,7 +45,7 @@ onMounted(() => screenSafeArea.update())
           <DialogTitle>Onboarding</DialogTitle>
         </VisuallyHidden>
         <div class="min-h-0 min-w-0 w-full flex flex-1 flex-col">
-          <Onboarding :extra-steps="props.extraSteps" @configured="emit('configured')" />
+          <Onboarding :key="flowKey" :extra-steps="props.extraSteps" @configured="emit('configured')" />
         </div>
       </DialogContent>
     </DialogPortal>
@@ -73,7 +78,7 @@ onMounted(() => screenSafeArea.update())
           ]"
         />
         <div class="min-h-0 min-w-0 w-full flex flex-1 flex-col">
-          <Onboarding :extra-steps="props.extraSteps" @configured="emit('configured')" />
+          <Onboarding :key="flowKey" :extra-steps="props.extraSteps" @configured="emit('configured')" />
         </div>
       </DrawerContent>
     </DrawerPortal>

@@ -227,21 +227,28 @@ function readStepRecords() {
   return JSON.parse(localStorage.getItem('onboarding/steps') ?? '{}')
 }
 
-it('shows only the host step whose version increased, and records it through the leader at the finish', async () => {
+it('shows only the host step whose version increased, and resolves the request of the main window', async () => {
   seedFinishedSharedSteps()
   localStorage.setItem('onboarding/steps', JSON.stringify({ ...readStepRecords(), 'host-notice': { version: 1, outcome: 'done', at: 0 } }))
-  // The desktop onboarding window is a follower. The leader must persist the records.
+  // On desktop, the main window is the leader and requests the flow. The onboarding window is a follower and renders it.
+  const hostSteps = [{ id: 'host-notice', version: 2, component: HostStep }]
   const namespace = `onboarding-versions:${crypto.randomUUID()}`
   const leader = createSyncedContext(namespace, 'leader-only')
   await expect.poll(() => leader.runtime.isLeader()).toBe(true)
-  // The main window creates the onboarding store at startup, so the leader can answer the follower.
-  useOnboardingStore(leader.pinia)
+  const mainWindow = useOnboardingStore(leader.pinia)
+  mainWindow.registerHostSteps(hostSteps)
   const follower = createSyncedContext(namespace, 'follower-only')
   await expect.poll(() => follower.runtime.getLeaderId()).toBe(leader.runtime.participantId)
+  const onboardingWindow = useOnboardingStore(follower.pinia)
+  onboardingWindow.registerHostSteps(hostSteps)
+
+  expect(mainWindow.needsOnboarding).toBe(true)
+  const result = mainWindow.request({ source: 'startup' })
+  await expect.poll(() => onboardingWindow.activeRequest?.stepIds).toEqual(['host-notice'])
   const configured = vi.fn()
 
   const screen = await render(OnboardingDialog, {
-    props: { extraSteps: [{ id: 'host-notice', version: 2, component: HostStep }], onConfigured: configured },
+    props: { extraSteps: hostSteps, onConfigured: configured },
     global: { plugins: [follower.pinia, PiniaColada, createTestI18n()] },
   })
 
@@ -249,23 +256,33 @@ it('shows only the host step whose version increased, and records it through the
   await expect.element(screen.getByRole('button', { name: 'Later' })).not.toBeInTheDocument()
   await screen.getByRole('button', { name: 'Continue' }).click()
 
+  expect(await result).toEqual({ 'host-notice': 'done' })
+  // The leader ends the request before the settle call returns to the onboarding window.
   await vi.waitFor(() => expect(configured).toHaveBeenCalled())
   expect(readStepRecords()['host-notice']).toMatchObject({ version: 2, outcome: 'done' })
 })
 
 it('keeps the later record of an optional step that the user postponed', async () => {
   seedFinishedSharedSteps()
+  const hostSteps = [{ id: 'host-permissions', version: 2, optional: true, scope: 'device' as const, component: HostStep }]
   const context = createSyncedContext(`onboarding-later:${crypto.randomUUID()}`, 'leader-only')
   await expect.poll(() => context.runtime.isLeader()).toBe(true)
+  const store = useOnboardingStore(context.pinia)
+  store.registerHostSteps(hostSteps)
+  const result = store.request({ steps: ['host-permissions'], source: 'settings' })
+  await expect.poll(() => store.activeRequest).not.toBeNull()
+
   const configured = vi.fn()
 
   const screen = await render(OnboardingDialog, {
-    props: { extraSteps: [{ id: 'host-permissions', version: 2, optional: true, component: HostStep }], onConfigured: configured },
+    props: { extraSteps: hostSteps, onConfigured: configured },
     global: { plugins: [context.pinia, PiniaColada, createTestI18n()] },
   })
 
   await screen.getByRole('button', { name: 'Later' }).click()
 
+  expect(await result).toEqual({ 'host-permissions': 'later' })
+  // The request ends inside the settle call. Wait for the flow to finish before teardown.
   await vi.waitFor(() => expect(configured).toHaveBeenCalled())
   expect(readStepRecords()['host-permissions']).toMatchObject({ version: 2, outcome: 'later' })
 })
