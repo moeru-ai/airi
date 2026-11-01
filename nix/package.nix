@@ -93,13 +93,6 @@ in
       # The icon is actually 1500x1500... install it anyway
       install -Dm644 resources/icon.png "$out/share/icons/hicolor/64x64/apps/airi.png"
 
-      # Patch the asar to include the assets
-      cd "$out/opt/AIRI/resources"
-      asar extract app.asar app
-      rm -r app.asar.unpacked
-      cp -r "$assets"/{vrm,live2d} app/out/renderer/assets
-      asar pack app app.asar
-
       # DevTools opens since nix build is not packaged, therefore considered
       # as dev build. Set MAIN_APP_DEBUG to 0 by default to disable DevTools.
       # See src/main/libs/electron/devtools.ts
