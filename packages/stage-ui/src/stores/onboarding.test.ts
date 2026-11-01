@@ -130,6 +130,25 @@ describe('onboarding store', () => {
     expect(store.needsOnboarding).toBe(true)
   })
 
+  // Found in the review of https://github.com/moeru-ai/airi/pull/3293
+  // ROOT CAUSE:
+  //
+  // A new version of only the provider configuration step showed that step alone.
+  // It had no selected provider, so the user could not finish or go back.
+  //
+  // We fixed this by showing every provider setup step when one of them is pending.
+  it('shows every provider setup step when only one of them has a new version', () => {
+    const providerConfiguration = sharedOnboardingSteps.find(step => step.id === 'provider-configuration')!
+    localStorage.setItem('onboarding/steps', JSON.stringify(Object.fromEntries(sharedOnboardingSteps.map(step => [
+      step.id,
+      { version: step === providerConfiguration ? step.version - 1 : step.version, outcome: 'done', at: 0 },
+    ]))))
+
+    const store = useOnboardingStore()
+
+    expect(store.pendingSharedSteps.map(step => step.id)).toEqual(sharedOnboardingSteps.filter(step => step.scope === 'provider-setup').map(step => step.id))
+  })
+
   it('treats an unreadable record value as no records', () => {
     localStorage.setItem('onboarding/steps', '{not json')
 

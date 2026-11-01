@@ -194,7 +194,13 @@ export const useOnboardingStore = defineStore('onboarding', () => {
   }
 
   /** The shared steps that the flow shows, in flow order. */
-  const pendingSharedSteps = computed(() => sharedOnboardingSteps.filter(step => appliesToDevice(step) && isStepPending(stepRecords.value, step)))
+  const pendingSharedSteps = computed(() => {
+    const applicableSteps = sharedOnboardingSteps.filter(appliesToDevice)
+    // The provider steps share state in memory. Configuration needs the selected provider, and
+    // model selection needs its models. So a new version of one of them shows the whole group.
+    const providerSetupPending = applicableSteps.some(step => step.scope === 'provider-setup' && isStepPending(stepRecords.value, step))
+    return applicableSteps.filter(step => isStepPending(stepRecords.value, step) || (providerSetupPending && step.scope === 'provider-setup'))
+  })
 
   // Check if first-time setup should be shown
   const skipOnboardingPath = ['/auth/callback']
