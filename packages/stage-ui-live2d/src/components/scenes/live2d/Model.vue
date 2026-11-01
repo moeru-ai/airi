@@ -9,7 +9,7 @@ import type {
 } from '@proj-airi/stage-shared/screen-ambient-light'
 import type { Cubism4ModelSettings } from 'pixi-live2d-display/cubism4'
 
-import type { Live2DFocusTarget, PixiLive2DInternalModel } from '../../../composables/live2d'
+import type { Live2DFocusTarget, Live2DTouch, PixiLive2DInternalModel } from '../../../composables/live2d'
 import type { Live2DExpressionControl } from '../../../controls/manifest'
 
 import { Point } from '@pixi/math'
@@ -32,10 +32,13 @@ import {
   createLive2DFocusBias,
   createLive2DHeadTracker,
   createLive2DMotionSpring,
+  createLive2DTouchReaction,
   disableLive2DSdkBreath,
+  findLive2DTouchMotionGroup,
   live2DCanvasRectToParent,
   live2DFocusTargetFromModelPoint,
   resolveLive2DFocusTargetMode,
+  resolveLive2DTouchRegion,
   useLive2DMotionManagerUpdate,
   useMotionUpdatePluginAutoEyeBlink,
   useMotionUpdatePluginBeatSync,
@@ -46,6 +49,7 @@ import {
   useMotionUpdatePluginLightSquint,
   useMotionUpdatePluginLipSync,
   useMotionUpdatePluginManualControl,
+  useMotionUpdatePluginTouchReaction,
 } from '../../../composables/live2d'
 import { useFitModel } from '../../../composables/live2d/fit-model'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
@@ -133,6 +137,7 @@ const modelLoadMutex = new Mutex()
 
 const manualMotionSpring = createLive2DMotionSpring()
 const manualFocusBias = createLive2DFocusBias()
+const touchReaction = createLive2DTouchReaction()
 const manualControlOffset = computed(() => getLive2DMotionControlModelOffset(manualMotionSpring.output.value))
 const offset = computed(() => ({
   x: (position.value.x / 100) * props.width + manualControlOffset.value.x,
@@ -384,13 +389,6 @@ async function performModelLoad() {
     model.value.anchor.set(0.5, 0.5)
     setScaleAndPosition()
 
-    // --- Interaction
-
-    model.value.on('hit', (hitAreas) => {
-      if (model.value && hitAreas.includes('body'))
-        model.value.motion('tap_body')
-    })
-
     // --- Motion
 
     const internalModel = model.value.internalModel
@@ -498,6 +496,7 @@ async function performModelLoad() {
     }), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginLipSync(mouthOpenSize, nowSpeaking), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginBreathControl(manualBreathControl), 'final')
+    motionManagerUpdate.register(useMotionUpdatePluginTouchReaction(touchReaction.sample), 'final')
 
     const hookedUpdate = motionManager.update as (model: PixiLive2DInternalModel['coreModel'], now: number) => boolean
     motionManager.update = function (model: PixiLive2DInternalModel['coreModel'], now: number) {
@@ -1014,6 +1013,63 @@ onUnmounted(() => {
   destroyRenderedModel()
 })
 
+/**
+ * Finds the part of the character under a point of the Pixi stage.
+ *
+ * Hit areas of the author come first. Most models have none, so the head box
+ * of the head tracker and the bounds of the visible drawables are the fallback.
+ */
+function touchAt(stagePoint: { x: number, y: number }): Omit<Live2DTouch, 'gesture'> | undefined {
+  const current = model.value
+  if (!current)
+    return undefined
+
+  const internalModel = current.internalModel
+  const point = current.toModelPosition(new Point(stagePoint.x, stagePoint.y))
+  const headRect = headTracker.bounds(internalModel)
+  const insideHead = !!headRect
+    && point.x >= headRect.x && point.x <= headRect.x + headRect.width
+    && point.y >= headRect.y && point.y <= headRect.y + headRect.height
+  let insideDrawable = false
+  const drawableCount = internalModel.coreModel.getDrawableCount()
+  for (let index = 0; index < drawableCount && !insideDrawable; index += 1) {
+    if (internalModel.coreModel.getDrawableOpacity(index) <= 0)
+      continue
+    const bounds = internalModel.getDrawableBounds(index)
+    insideDrawable = point.x >= bounds.x && point.x <= bounds.x + bounds.width
+      && point.y >= bounds.y && point.y <= bounds.y + bounds.height
+  }
+
+  const region = resolveLive2DTouchRegion({
+    hitAreaNames: internalModel.hitTest(point.x, point.y),
+    insideHead,
+    insideDrawable,
+  })
+  if (!region)
+    return undefined
+
+  return {
+    region,
+    side: Math.min(1, Math.max(-1, point.x / internalModel.originalWidth * 2 - 1)),
+  }
+}
+
+/** Plays the reaction of the model to one touch. */
+function react(touch: Live2DTouch) {
+  const current = model.value
+  if (!current)
+    return
+
+  touchReaction.trigger(touch, performance.now() / 1000)
+  // A pat repeats while the pointer strokes, so only a tap starts a model motion.
+  if (touch.gesture !== 'tap')
+    return
+
+  const group = findLive2DTouchMotionGroup(Object.keys(current.internalModel.motionManager.definitions), touch.region)
+  if (group)
+    void current.motion(group, undefined, MotionPriority.NORMAL)
+}
+
 function listMotionGroups() {
   return availableMotions.value
 }
@@ -1055,6 +1111,8 @@ defineExpose({
   initialModelHeight,
   initialModelWidth,
   headAnchor,
+  touchAt,
+  react,
 })
 
 import.meta.hot?.dispose(() => {

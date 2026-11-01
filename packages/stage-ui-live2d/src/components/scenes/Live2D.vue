@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import type { PresenceBubbleState } from '@proj-airi/stage-shared'
 
-import type { Live2DEyeFocusSource } from '../../composables/live2d'
+import type { Live2DEyeFocusSource, Live2DTouch } from '../../composables/live2d'
 import type { Live2DContext } from '../../contexts/live2d'
 
 import { presenceBubbleIdle } from '@proj-airi/stage-shared'
 import { useScreenAmbientLightEnvironment, useSettingsScreenAmbientLight } from '@proj-airi/stage-shared/stores/screen-ambient-light'
 import { Screen } from '@proj-airi/ui'
+import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onUnmounted, ref, watch } from 'vue'
 
@@ -14,7 +15,7 @@ import Live2DCanvas from './live2d/Canvas.vue'
 import Live2DModel from './live2d/Model.vue'
 import Live2DPresenceBubble from './live2d/presence-bubble.vue'
 
-import { useLive2DEyeFocusFor, useSettingsLive2d } from '../../composables/live2d'
+import { createLive2DTouchGestureTracker, useLive2DEyeFocusFor, useSettingsLive2d } from '../../composables/live2d'
 import { createLive2D, provideLive2D } from '../../contexts/live2d'
 
 import '../../utils/live2d-zip-loader'
@@ -47,6 +48,8 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   error: [error: Error]
+  /** A pointer tapped the character, or stroked its head. The model already plays its own reaction. */
+  touch: [touch: Live2DTouch]
 }>()
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
@@ -125,6 +128,40 @@ watch(() => props.cursorPosition, (cursorPosition) => {
     activeCursorPosition.value = null
   }, 1000)
 })
+
+const touchGestures = createLive2DTouchGestureTracker()
+
+function touchSampleOf(event: PointerEvent) {
+  const rect = live2dCanvasRef.value?.canvasElement()?.getBoundingClientRect()
+  const hit = rect
+    ? live2dModelRef.value?.touchAt({
+        x: (event.clientX - rect.left) * live2dRenderScale.value,
+        y: (event.clientY - rect.top) * live2dRenderScale.value,
+      })
+    : undefined
+  return { x: event.clientX, y: event.clientY, atMs: event.timeStamp, hit }
+}
+
+function playTouch(touch: Live2DTouch | undefined) {
+  if (!touch)
+    return
+  live2dModelRef.value?.react(touch)
+  emit('touch', touch)
+}
+
+useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'pointerdown', (event: PointerEvent) => {
+  if (event.button === 0)
+    touchGestures.down(touchSampleOf(event))
+})
+useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'pointermove', (event: PointerEvent) => {
+  // The primary button is held while the pointer strokes.
+  if (event.buttons % 2 === 1)
+    playTouch(touchGestures.move(touchSampleOf(event)))
+})
+useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'pointerup', (event: PointerEvent) => {
+  playTouch(touchGestures.up(touchSampleOf(event)))
+})
+useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'pointercancel', () => touchGestures.cancel())
 
 onUnmounted(() => {
   if (clearCursorFocusTimeout)
