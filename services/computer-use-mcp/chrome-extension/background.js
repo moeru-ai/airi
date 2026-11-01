@@ -20,7 +20,8 @@
 
 /* global chrome */
 
-const AIRI_BRIDGE_URL = 'ws://127.0.0.1:8765'
+import { DEFAULT_BRIDGE_URL, resolveBridgeUrl } from './bridge-config.js'
+
 const AIRI_BRIDGE_HELLO = {
   type: 'hello',
   source: 'airi-chrome-extension',
@@ -32,6 +33,8 @@ const SEND_CU_ACTION_TIMEOUT_MS = 8_000
 const WAIT_FOR_ELEMENT_POLL_INTERVAL_MS = 500
 
 let bridgeSocket = null
+let bridgeUrl = DEFAULT_BRIDGE_URL
+let bridgeConfigRevision = 0
 let bridgeReconnectDelayMs = BRIDGE_RECONNECT_MIN_MS
 let bridgeReconnectTimer = null
 
@@ -134,7 +137,7 @@ async function ensureBridgeConnected() {
   clearBridgeReconnectTimer()
 
   try {
-    const socket = new WebSocket(AIRI_BRIDGE_URL)
+    const socket = new WebSocket(bridgeUrl)
     bridgeSocket = socket
 
     socket.addEventListener('open', () => {
@@ -147,9 +150,10 @@ async function ensureBridgeConnected() {
     })
 
     socket.addEventListener('close', () => {
-      if (bridgeSocket === socket) {
-        bridgeSocket = null
-      }
+      if (bridgeSocket !== socket)
+        return
+
+      bridgeSocket = null
       scheduleBridgeReconnect()
     })
 
@@ -165,6 +169,47 @@ async function ensureBridgeConnected() {
   catch {
     scheduleBridgeReconnect()
   }
+}
+
+async function refreshBridgeConfig() {
+  const revision = ++bridgeConfigRevision
+  const settings = await chrome.storage.local.get([
+    'browserDomBridgeHost',
+    'browserDomBridgePort',
+  ])
+  if (revision !== bridgeConfigRevision)
+    return
+
+  const nextBridgeUrl = resolveBridgeUrl(settings)
+
+  if (nextBridgeUrl === bridgeUrl)
+    return
+
+  bridgeUrl = nextBridgeUrl
+  bridgeReconnectDelayMs = BRIDGE_RECONNECT_MIN_MS
+  clearBridgeReconnectTimer()
+
+  const previousSocket = bridgeSocket
+  bridgeSocket = null
+  if (previousSocket && previousSocket.readyState < WebSocket.CLOSING) {
+    try {
+      previousSocket.close()
+    }
+    catch {
+      // Ignore close failures; the new endpoint should still be attempted.
+    }
+  }
+}
+
+async function initializeBridge() {
+  try {
+    await refreshBridgeConfig()
+  }
+  catch (error) {
+    console.warn('Failed to load browser DOM bridge settings; using the default endpoint.', error)
+  }
+
+  ensureBridgeConnected().catch(() => {})
 }
 
 // ---- Tab / Frame utilities ----
@@ -591,12 +636,26 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   return false
 })
 
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== 'local')
+    return
+
+  if (!('browserDomBridgeHost' in changes) && !('browserDomBridgePort' in changes))
+    return
+
+  refreshBridgeConfig()
+    .then(() => ensureBridgeConnected())
+    .catch((error) => {
+      console.warn('Failed to apply browser DOM bridge settings.', error)
+    })
+})
+
 chrome.runtime.onStartup?.addListener(() => {
-  ensureBridgeConnected().catch(() => {})
+  initializeBridge()
 })
 
 chrome.runtime.onInstalled?.addListener(() => {
-  ensureBridgeConnected().catch(() => {})
+  initializeBridge()
 })
 
-ensureBridgeConnected().catch(() => {})
+initializeBridge()
