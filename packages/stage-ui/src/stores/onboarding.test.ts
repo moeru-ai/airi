@@ -4,7 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
-import { useOnboardingStore } from './onboarding'
+import { isStepPending, sharedOnboardingSteps, useOnboardingStore } from './onboarding'
 import { useProviderConfigStore } from './providers/config'
 
 vi.mock('./auth', async () => {
@@ -94,17 +94,67 @@ describe('onboarding store', () => {
   //
   // The authenticated command now persists completion and publishes a
   // monotonic close request through synchronized Pinia state.
-  it('publishes a close request after authentication', () => {
+  it('publishes a close request after authentication', async () => {
     const store = useOnboardingStore()
 
-    store.closeAfterAuthentication()
+    await store.closeAfterAuthentication()
 
-    expect(store.hasCompletedSetup).toBe(true)
-    expect(store.hasSkippedSetup).toBe(false)
     expect(store.closeRequestId).toBe(1)
+    expect(store.needsOnboarding).toBe(false)
     expect(store.$state).not.toHaveProperty('closeRequestId')
-    expect(store.$state).not.toHaveProperty('hasCompletedSetup')
-    expect(localStorage.getItem('onboarding/completed')).toBe('true')
-    expect(localStorage.getItem('onboarding/skipped')).toBe('false')
+    expect(store.$state).not.toHaveProperty('stepRecords')
+    const records = JSON.parse(localStorage.getItem('onboarding/steps') ?? '{}')
+    for (const step of sharedOnboardingSteps)
+      expect(records[step.id]).toMatchObject({ version: step.version, outcome: 'done' })
+  })
+
+  it('records the shared steps as done when an upgrade finds the completed flag', () => {
+    localStorage.setItem('onboarding/completed', 'true')
+    localStorage.setItem('onboarding/skipped', 'false')
+
+    const store = useOnboardingStore()
+
+    expect(store.needsOnboarding).toBe(false)
+    expect(store.stepRecords['analytics-notice']).toMatchObject({ version: 1, outcome: 'done' })
+    expect(localStorage.getItem('onboarding/completed')).toBeNull()
+    expect(localStorage.getItem('onboarding/skipped')).toBeNull()
+  })
+
+  it('opens onboarding again for a shared step whose version increased', () => {
+    const [firstStep] = sharedOnboardingSteps
+    localStorage.setItem('onboarding/steps', JSON.stringify({ [firstStep.id]: { version: firstStep.version - 1, outcome: 'done', at: 0 } }))
+
+    const store = useOnboardingStore()
+
+    expect(store.pendingSharedSteps.map(step => step.id)).toContain(firstStep.id)
+    expect(store.needsOnboarding).toBe(true)
+  })
+
+  it('treats an unreadable record value as no records', () => {
+    localStorage.setItem('onboarding/steps', '{not json')
+
+    const store = useOnboardingStore()
+
+    expect(store.stepRecords).toEqual({})
+    expect(store.needsOnboarding).toBe(true)
+  })
+
+  it('opens onboarding again after a reset', async () => {
+    const store = useOnboardingStore()
+    await store.recordSteps(sharedOnboardingSteps, 'done')
+    expect(store.needsOnboarding).toBe(false)
+
+    await store.resetSetupState()
+
+    expect(store.needsOnboarding).toBe(true)
+    expect(localStorage.getItem('onboarding/steps')).toBeNull()
+  })
+})
+
+describe('isStepPending', () => {
+  it('is pending without a record and with a record of an older version', () => {
+    expect(isStepPending({}, { id: 'notice', version: 1 })).toBe(true)
+    expect(isStepPending({ notice: { version: 1, outcome: 'later', at: 0 } }, { id: 'notice', version: 2 })).toBe(true)
+    expect(isStepPending({ notice: { version: 2, outcome: 'later', at: 0 } }, { id: 'notice', version: 2 })).toBe(false)
   })
 })

@@ -203,8 +203,7 @@ const extraSteps = computed(() => [
       :scale-background="false"
       :instant-open="startupOnboarding"
       :extra-steps="extraSteps"
-      @configured="onboardingStore.markSetupCompleted()"
-      @skipped="onboardingStore.markSetupSkipped()"
+      @configured="showingSetup = false"
     />
   </StartupOverlay>
 </template>

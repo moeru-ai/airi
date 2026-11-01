@@ -124,7 +124,7 @@ export function useDataMaintenance() {
     screenAmbientLightSettingsStore.resetState()
     threeStore.resetModelStore()
     mcpStore.resetState()
-    onboardingStore.resetSetupState()
+    await onboardingStore.resetSetupState()
     airiCardStore.resetState()
   }
 

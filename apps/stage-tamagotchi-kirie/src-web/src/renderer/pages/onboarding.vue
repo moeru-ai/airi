@@ -33,13 +33,8 @@ const extraSteps = computed(() => {
     : []
 })
 
-async function handleSkipped() {
-  onboardingStore.markSetupSkipped()
-  await closeOnboardingWindow()
-}
-
+// The flow records its steps before it emits `configured`.
 async function handleConfigured() {
-  onboardingStore.markSetupCompleted()
   await closeOnboardingWindow()
 }
 </script>
@@ -52,7 +47,7 @@ async function handleConfigured() {
   >
     <div class="min-h-8 w-full flex-shrink-0 select-none" :class="bgClass" />
     <div class="mx-8 mb-8 mt-2 min-h-0 flex flex-1 flex-col">
-      <OnboardingScreen :extra-steps="extraSteps" @skipped="handleSkipped" @configured="handleConfigured" />
+      <OnboardingScreen :extra-steps="extraSteps" @configured="handleConfigured" />
     </div>
   </div>
 </template>
