@@ -269,3 +269,27 @@ it('keeps the later record of an optional step that the user postponed', async (
   await vi.waitFor(() => expect(configured).toHaveBeenCalled())
   expect(readStepRecords()['host-permissions']).toMatchObject({ version: 2, outcome: 'later' })
 })
+
+// Found in the review of https://github.com/moeru-ai/airi/pull/3296
+// ROOT CAUSE:
+//
+// The Sign in button hid the dialog before sign-in finished. Pocket opens sign-in outside
+// the app, so a canceled sign-in returned to no dialog, and local setup waited for the next start.
+//
+// We fixed this by keeping the dialog open until `closeAfterAuthentication`.
+it('keeps the dialog open after the Sign in click', async () => {
+  // Electron consumes the login request through IPC, so the test does not open a browser sign-in.
+  vi.stubEnv('RUNTIME_ENVIRONMENT', 'electron')
+  const context = createSyncedContext(`onboarding-sign-in:${crypto.randomUUID()}`, 'leader-only')
+  await expect.poll(() => context.runtime.isLeader()).toBe(true)
+  const store = useOnboardingStore(context.pinia)
+  store.forceShowSetup()
+
+  const screen = await render(OnboardingDialog, {
+    global: { plugins: [context.pinia, PiniaColada, createTestI18n()] },
+  })
+  await screen.getByRole('button', { name: 'Sign in' }).click()
+
+  await expect.poll(() => useAuthStore(context.pinia).needsLogin).toBe(true)
+  expect(store.showingSetup).toBe(true)
+})
