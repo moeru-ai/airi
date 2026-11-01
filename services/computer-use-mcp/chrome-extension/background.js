@@ -20,6 +20,7 @@
 
 /* global chrome */
 
+// eslint-disable-next-line no-restricted-syntax -- Chrome MV3 service workers require file extensions for ESM imports.
 import { DEFAULT_BRIDGE_URL, resolveBridgeUrl } from './bridge-config.js'
 
 const AIRI_BRIDGE_HELLO = {
@@ -35,6 +36,10 @@ const WAIT_FOR_ELEMENT_POLL_INTERVAL_MS = 500
 let bridgeSocket = null
 let bridgeUrl = DEFAULT_BRIDGE_URL
 let bridgeConfigRevision = 0
+// A socket accepts commands only after the latest storage read applies.
+let bridgeSocketRevision = 0
+// Module startup, onStartup, and onInstalled share one initialization read.
+let bridgeInitializationPromise = null
 let bridgeReconnectDelayMs = BRIDGE_RECONNECT_MIN_MS
 let bridgeReconnectTimer = null
 
@@ -93,27 +98,30 @@ function clearBridgeReconnectTimer() {
   bridgeReconnectTimer = null
 }
 
-function scheduleBridgeReconnect() {
-  if (bridgeReconnectTimer)
+function scheduleBridgeReconnect(revision = bridgeSocketRevision) {
+  if (revision !== bridgeConfigRevision || bridgeReconnectTimer)
     return
 
   const delay = bridgeReconnectDelayMs
   bridgeReconnectDelayMs = Math.min(bridgeReconnectDelayMs * 2, BRIDGE_RECONNECT_MAX_MS)
   bridgeReconnectTimer = setTimeout(() => {
     bridgeReconnectTimer = null
-    ensureBridgeConnected().catch(() => {})
+    ensureBridgeConnected(revision).catch(() => {})
   }, delay)
 }
 
-function sendBridgePayload(payload) {
-  if (!bridgeSocket || bridgeSocket.readyState !== WebSocket.OPEN)
+function sendBridgePayload(payload, socket) {
+  if (!socket || socket !== bridgeSocket || socket.readyState !== WebSocket.OPEN)
     return false
 
-  bridgeSocket.send(JSON.stringify(payload))
+  socket.send(JSON.stringify(payload))
   return true
 }
 
-async function handleBridgeSocketMessage(raw) {
+async function handleBridgeSocketMessage(raw, socket) {
+  if (socket !== bridgeSocket || bridgeSocketRevision !== bridgeConfigRevision)
+    return
+
   let data
   try {
     data = JSON.parse(String(raw))
@@ -126,11 +134,18 @@ async function handleBridgeSocketMessage(raw) {
     return
 
   const response = await handleCommand(data)
-  sendBridgePayload(response)
+  if (socket !== bridgeSocket || bridgeSocketRevision !== bridgeConfigRevision)
+    return
+
+  sendBridgePayload(response, socket)
 }
 
-async function ensureBridgeConnected() {
+async function ensureBridgeConnected(revision = bridgeConfigRevision) {
+  if (revision !== bridgeConfigRevision)
+    return
+
   if (bridgeSocket && (bridgeSocket.readyState === WebSocket.OPEN || bridgeSocket.readyState === WebSocket.CONNECTING)) {
+    bridgeSocketRevision = revision
     return
   }
 
@@ -139,14 +154,21 @@ async function ensureBridgeConnected() {
   try {
     const socket = new WebSocket(bridgeUrl)
     bridgeSocket = socket
+    bridgeSocketRevision = revision
 
     socket.addEventListener('open', () => {
+      if (bridgeSocket !== socket)
+        return
+
       bridgeReconnectDelayMs = BRIDGE_RECONNECT_MIN_MS
-      sendBridgePayload(AIRI_BRIDGE_HELLO)
+      sendBridgePayload(AIRI_BRIDGE_HELLO, socket)
     })
 
     socket.addEventListener('message', (event) => {
-      handleBridgeSocketMessage(event.data).catch(() => {})
+      if (bridgeSocket !== socket)
+        return
+
+      handleBridgeSocketMessage(event.data, socket).catch(() => {})
     })
 
     socket.addEventListener('close', () => {
@@ -154,10 +176,13 @@ async function ensureBridgeConnected() {
         return
 
       bridgeSocket = null
-      scheduleBridgeReconnect()
+      scheduleBridgeReconnect(bridgeSocketRevision)
     })
 
     socket.addEventListener('error', () => {
+      if (bridgeSocket !== socket)
+        return
+
       try {
         socket.close()
       }
@@ -167,7 +192,7 @@ async function ensureBridgeConnected() {
     })
   }
   catch {
-    scheduleBridgeReconnect()
+    scheduleBridgeReconnect(revision)
   }
 }
 
@@ -178,16 +203,17 @@ async function refreshBridgeConfig() {
     'browserDomBridgePort',
   ])
   if (revision !== bridgeConfigRevision)
-    return
+    return null
 
   const nextBridgeUrl = resolveBridgeUrl(settings)
+  bridgeSocketRevision = revision
+  clearBridgeReconnectTimer()
 
   if (nextBridgeUrl === bridgeUrl)
-    return
+    return revision
 
   bridgeUrl = nextBridgeUrl
   bridgeReconnectDelayMs = BRIDGE_RECONNECT_MIN_MS
-  clearBridgeReconnectTimer()
 
   const previousSocket = bridgeSocket
   bridgeSocket = null
@@ -199,17 +225,34 @@ async function refreshBridgeConfig() {
       // Ignore close failures; the new endpoint should still be attempted.
     }
   }
+
+  return revision
 }
 
-async function initializeBridge() {
-  try {
-    await refreshBridgeConfig()
-  }
-  catch (error) {
-    console.warn('Failed to load browser DOM bridge settings; using the default endpoint.', error)
-  }
+function initializeBridge() {
+  if (bridgeInitializationPromise)
+    return bridgeInitializationPromise
 
-  ensureBridgeConnected().catch(() => {})
+  const revision = bridgeConfigRevision + 1
+  const initialization = refreshBridgeConfig()
+    .then((appliedRevision) => {
+      if (appliedRevision !== null)
+        ensureBridgeConnected(appliedRevision)
+    })
+    .catch((error) => {
+      console.warn('Failed to load browser DOM bridge settings; using the default endpoint.', error)
+      if (revision === bridgeConfigRevision) {
+        bridgeSocketRevision = revision
+        ensureBridgeConnected(revision)
+      }
+    })
+    .finally(() => {
+      if (bridgeInitializationPromise === initialization)
+        bridgeInitializationPromise = null
+    })
+
+  bridgeInitializationPromise = initialization
+  return initialization
 }
 
 // ---- Tab / Frame utilities ----
@@ -643,10 +686,18 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   if (!('browserDomBridgeHost' in changes) && !('browserDomBridgePort' in changes))
     return
 
+  const revision = bridgeConfigRevision + 1
   refreshBridgeConfig()
-    .then(() => ensureBridgeConnected())
+    .then((appliedRevision) => {
+      if (appliedRevision !== null)
+        ensureBridgeConnected(appliedRevision)
+    })
     .catch((error) => {
       console.warn('Failed to apply browser DOM bridge settings.', error)
+      if (revision === bridgeConfigRevision) {
+        bridgeSocketRevision = revision
+        ensureBridgeConnected(revision)
+      }
     })
 })
 

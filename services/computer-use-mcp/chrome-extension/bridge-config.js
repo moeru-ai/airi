@@ -20,7 +20,7 @@ export function resolveBridgeUrl(settings = {}) {
     : DEFAULT_BRIDGE_PORT
 
   // URL requires IPv6 literals to be wrapped in square brackets.
-  const urlHost = host.includes(':') && !(host.startsWith('[') && host.endsWith(']'))
+  const urlHost = host.includes(':') && (!host.startsWith('[') || !host.endsWith(']'))
     ? `[${host}]`
     : host
 
