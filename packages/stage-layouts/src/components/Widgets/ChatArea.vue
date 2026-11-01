@@ -176,7 +176,7 @@ watch(replyTarget, async (target) => {
   <div ref="composer" :class="['flex gap-2 <md:h-full', 'ph-no-capture']">
     <div
       :class="[
-        'relative w-full overflow-hidden rounded-t-xl',
+        'relative w-full overflow-hidden rounded-xl',
         'border-t-2 border-solid border-primary-200/20 bg-primary-100/50 backdrop-blur-md',
         'dark:border-primary-400/20 dark:bg-primary-900/70',
       ]"
