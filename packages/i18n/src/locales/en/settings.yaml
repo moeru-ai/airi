@@ -2320,6 +2320,8 @@ pages:
         speech-streaming-description: Official low-latency text-to-speech provider by AIRI (bidirectional WebSocket).
         transcription-title: Official Transcription Provider
         transcription-description: Official speech-to-text provider by AIRI.
+        models:
+          asr-rewrite: Transcript rewrite
       transcriptions:
         playground:
           title: Transcription Playground
