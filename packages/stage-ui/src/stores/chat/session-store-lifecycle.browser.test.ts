@@ -44,6 +44,7 @@ const removeTombstonesMock = vi.fn<(uid: string, ids: string[]) => Promise<void>
 const addTombstoneMock = vi.fn<(uid: string, id: string) => Promise<void>>()
 const deleteCloudChatMock = vi.fn<(id: string) => Promise<void>>()
 const listChatsMock = vi.fn()
+const updateChatMock = vi.fn()
 const pullMessagesMock = vi.fn()
 const connectCloudWsMock = vi.fn()
 let cloudWsStatus: 'idle' | 'open' = 'idle'
@@ -87,7 +88,8 @@ vi.mock('../../libs/chat-sync', async importOriginal => ({
   createCloudChatMapper: () => ({
     listChats: () => listChatsMock(),
     deleteChat: (id: string) => deleteCloudChatMock(id),
-    createChat: async (options: { id: string }) => ({ id: options.id, type: 'bot', title: null, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' }),
+    updateChat: (id: string, updates: { title: string }) => updateChatMock(id, updates),
+    createChat: async (options: { id: string, title?: string }) => ({ id: options.id, type: 'bot', title: options.title ?? null, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' }),
   }),
   createChatWsClient: () => ({
     status: () => cloudWsStatus,
@@ -146,6 +148,7 @@ beforeEach(() => {
   addTombstoneMock.mockReset().mockResolvedValue(undefined)
   deleteCloudChatMock.mockReset().mockResolvedValue(undefined)
   listChatsMock.mockReset().mockResolvedValue([])
+  updateChatMock.mockReset().mockResolvedValue({ id: '', type: 'bot', title: null, createdAt: '', updatedAt: '' })
   pullMessagesMock.mockReset().mockResolvedValue({ messages: [], seq: 0 })
   connectCloudWsMock.mockReset()
   cloudWsStatus = 'idle'
@@ -547,6 +550,100 @@ describe('chat-session-store · cloud placeholder hydration', () => {
     await store.setActiveSession(remoteChat.id)
 
     expect(pullMessagesMock.mock.calls.filter(([request]) => request.chatId === remoteChat.id)).toHaveLength(2)
+  })
+})
+
+describe('chat-session-store · cloud title reconciliation', () => {
+  function remoteChat(title: string | null) {
+    return {
+      id: 'cloud-session',
+      type: 'bot' as const,
+      title,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      members: [],
+    }
+  }
+
+  async function reconcileWith(meta: ChatSessionMeta, remote: ReturnType<typeof remoteChat> | null) {
+    userIdRef.value = 'cloud-user'
+    getIndexMock.mockResolvedValue({
+      userId: 'cloud-user',
+      characters: {
+        default: {
+          activeSessionId: meta.sessionId,
+          sessions: { [meta.sessionId]: meta },
+        },
+      },
+    })
+    getSessionMock.mockResolvedValue({ meta, messages: [] })
+    listChatsMock.mockResolvedValue(remote ? [remote] : [])
+
+    const store = useChatSessionStore()
+    await store.initialize()
+    cloudWsStatus = 'open'
+    cloudStatusListener?.('open')
+    await vi.waitFor(() => expect(store.cloudSyncReady).toBe(true))
+    return store
+  }
+
+  it('applies a remote title to an already-mapped local session', async () => {
+    const meta: ChatSessionMeta = {
+      sessionId: 'cloud-session',
+      userId: 'cloud-user',
+      characterId: 'default',
+      title: 'Old title',
+      cloudChatId: 'cloud-session',
+      createdAt: 1,
+      updatedAt: 1,
+    }
+
+    const store = await reconcileWith(meta, remoteChat('Renamed elsewhere'))
+
+    expect(store.sessionMetas[meta.sessionId].title).toBe('Renamed elsewhere')
+  })
+
+  it('retries a failed title update on the next reconciliation', async () => {
+    const meta: ChatSessionMeta = {
+      sessionId: 'cloud-session',
+      userId: 'cloud-user',
+      characterId: 'default',
+      title: 'Desired title',
+      cloudTitlePending: 'Desired title',
+      cloudChatId: 'cloud-session',
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    updateChatMock
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValue({ id: 'cloud-session', type: 'bot', title: 'Desired title', createdAt: '', updatedAt: '' })
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    const store = await reconcileWith(meta, remoteChat('Old title'))
+    expect(store.sessionMetas[meta.sessionId].cloudTitlePending).toBe('Desired title')
+
+    cloudStatusListener?.('open')
+    await vi.waitFor(() => expect(store.sessionMetas[meta.sessionId].cloudTitlePending).toBeUndefined())
+    expect(updateChatMock).toHaveBeenCalledTimes(2)
+    expect(updateChatMock).toHaveBeenLastCalledWith('cloud-session', { title: 'Desired title' })
+  })
+
+  it('includes a pending title when an unmapped session is created', async () => {
+    const meta: ChatSessionMeta = {
+      sessionId: 'cloud-session',
+      userId: 'cloud-user',
+      characterId: 'default',
+      title: 'Offline title',
+      cloudTitlePending: 'Offline title',
+      createdAt: 1,
+      updatedAt: 1,
+    }
+
+    const store = await reconcileWith(meta, null)
+
+    expect(store.sessionMetas[meta.sessionId].cloudChatId).toBe(meta.sessionId)
+    expect(store.sessionMetas[meta.sessionId].cloudTitlePending).toBeUndefined()
+    expect(store.sessionMetas[meta.sessionId].title).toBe('Offline title')
   })
 })
 
