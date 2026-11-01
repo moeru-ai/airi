@@ -15,6 +15,7 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
 
 import StepModelSelection from './step-model-selection.vue'
+import StepPermissions from './step-permissions.vue'
 import StepProviderConfiguration from './step-provider-configuration.vue'
 import StepProviderSelection from './step-provider-selection.vue'
 import StepWelcome from './step-welcome.vue'
@@ -175,6 +176,12 @@ const allSteps = computed<OnboardingStep[]>(() => {
       version: sharedVersionOf('model-selection'),
       component: StepModelSelection,
     },
+    {
+      id: 'permissions',
+      version: sharedVersionOf('permissions'),
+      optional: true,
+      component: StepPermissions,
+    },
   ]
 
   return coreSteps
@@ -278,7 +285,7 @@ onMounted(() => {
         class="flex flex-1 flex-col"
         v-bind="currentStepProps"
         :on-next="requestNextStep"
-        :on-previous="requestPreviousStep"
+        :on-previous="step > 0 ? requestPreviousStep : undefined"
         :on-later="currentStep.optional ? requestLater : undefined"
       />
     </Transition>

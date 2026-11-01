@@ -5,6 +5,7 @@ import { number, object, picklist, record, safeParse, string } from 'valibot'
 import { computed, ref, watch } from 'vue'
 
 import { useAuthStore } from './auth'
+import { useDevicePermissionsStore } from './device-permissions'
 import { useProviderConfigStore } from './providers/config'
 
 const essentialProviderIds = ['openai', 'azure-openai', 'anthropic', 'google-generative-ai', 'openrouter-ai', 'ollama', 'deepseek', 'openai-compatible', 'official-provider'] as const
@@ -32,7 +33,7 @@ export interface OnboardingStepRecord {
 /**
  * When a shared step applies:
  * - `provider-setup`: only while the device needs a chat provider. A signed-in user or a provider configured at startup skips it.
- * - `device`: on every device, for example a permission. Signing in does not skip it.
+ * - `device`: on every device that has something to set up for it, for example permissions. Signing in does not skip it.
  */
 export type OnboardingStepScope = 'provider-setup' | 'device'
 
@@ -50,6 +51,7 @@ export const sharedOnboardingSteps: readonly SharedOnboardingStep[] = Object.fre
   { id: 'provider-selection', version: 1, scope: 'provider-setup' },
   { id: 'provider-configuration', version: 1, scope: 'provider-setup' },
   { id: 'model-selection', version: 1, scope: 'provider-setup' },
+  { id: 'permissions', version: 1, scope: 'device' },
 ])
 
 const stepRecordsKey = 'onboarding/steps'
@@ -80,8 +82,9 @@ function readStepRecords(): Record<string, OnboardingStepRecord> {
   if (legacyCompleted || legacySkipped) {
     const at = Date.now()
     const outcome: OnboardingStepOutcome = legacyCompleted ? 'done' : 'later'
-    // `analytics-notice` and `step-permissions` are host steps that existed at the same time.
-    const legacyStepIds = [...sharedOnboardingSteps.map(step => step.id), 'analytics-notice', 'step-permissions']
+    // The steps of that time, not the current shared steps. A step added later, for example
+    // `permissions`, must stay pending. `analytics-notice` and `step-permissions` were host steps.
+    const legacyStepIds = ['welcome', 'provider-selection', 'provider-configuration', 'model-selection', 'analytics-notice', 'step-permissions']
     const migrated = Object.fromEntries(legacyStepIds.map(id => [id, { version: 1, outcome, at }]))
     localStorage.setItem(stepRecordsKey, JSON.stringify({ ...migrated, ...parseStepRecords() }))
     localStorage.removeItem('onboarding/completed')
@@ -152,6 +155,7 @@ export const useOnboardingStore = defineStore('onboarding', () => {
   const providerStore = useProviderConfigStore()
   const authStore = useAuthStore()
   const onboardingStateStore = useOnboardingStateStore()
+  const devicePermissionsStore = useDevicePermissionsStore()
   const closeRequestId = computed(() => onboardingStateStore.closeRequestId)
   const stepRecords = computed(() => onboardingStateStore.stepRecords)
 
@@ -191,7 +195,13 @@ export const useOnboardingStore = defineStore('onboarding', () => {
 
   /** True when the step concerns the user now. It does not read the records. See `OnboardingStepScope`. */
   function isApplicable(step: SharedOnboardingStep) {
-    return step.scope === 'device' || needsProviderSetup.value
+    if (step.scope === 'provider-setup')
+      return needsProviderSetup.value
+    // A device step needs something to set up on this device. The permissions step needs the
+    // permissions that the host registered. The web and Linux desktop register none.
+    if (step.id === 'permissions')
+      return devicePermissionsStore.permissions.length > 0
+    return true
   }
 
   /** The shared steps that the flow shows, in flow order. */
