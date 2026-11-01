@@ -14,6 +14,7 @@ import {
   useMotionUpdatePluginIdleDisable,
   useMotionUpdatePluginLightSquint,
   useMotionUpdatePluginManualControl,
+  useMotionUpdatePluginTouchReaction,
 } from './motion-manager'
 
 vi.mock('./animation', () => ({
@@ -26,6 +27,9 @@ function createModel(initialValues: Record<string, number> = {}) {
     getParameterValueById: vi.fn((id: string) => values.get(id) ?? 1),
     setParameterValueById: vi.fn((id: string, value: number) => {
       values.set(id, value)
+    }),
+    addParameterValueById: vi.fn((id: string, value: number) => {
+      values.set(id, (values.get(id) ?? 0) + value)
     }),
     values,
   }
@@ -348,6 +352,24 @@ describe('live2d motion manager plugins', () => {
     }), createLive2DMotionSpring())(context)
 
     expect(context.model.setParameterValueById).not.toHaveBeenCalled()
+  })
+})
+
+describe('touch reaction plugin', () => {
+  it('adds the reaction on top of the other motion and narrows the eyes', () => {
+    const context = createContext({ now: 12 })
+    context.model.setParameterValueById('ParamAngleY', 4)
+    context.model.setParameterValueById('ParamAngleZ', -2)
+    context.model.setParameterValueById('ParamEyeROpen', 0.8)
+    const sample = vi.fn(() => ({ angleX: 0, angleY: -6, angleZ: 5, bodyAngleX: 0, bodyAngleY: 0, eyeSquint: 0.5 }))
+
+    useMotionUpdatePluginTouchReaction(sample)(context)
+
+    expect(sample).toHaveBeenCalledWith(12)
+    expect(context.model.getParameterValueById('ParamAngleY')).toBe(-2)
+    expect(context.model.getParameterValueById('ParamAngleZ')).toBe(3)
+    expect(context.model.getParameterValueById('ParamEyeLOpen')).toBe(0.5)
+    expect(context.model.getParameterValueById('ParamEyeROpen')).toBeCloseTo(0.4)
   })
 })
 

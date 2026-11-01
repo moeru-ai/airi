@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import type { PresenceBubbleState } from '@proj-airi/stage-shared'
 
-import type { Live2DEyeFocusSource } from '../../composables/live2d'
+import type { Live2DEyeFocusSource, Live2DTouch } from '../../composables/live2d'
 import type { Live2DContext } from '../../contexts/live2d'
 
 import { presenceBubbleIdle } from '@proj-airi/stage-shared'
 import { useScreenAmbientLightEnvironment, useSettingsScreenAmbientLight } from '@proj-airi/stage-shared/stores/screen-ambient-light'
 import { Screen } from '@proj-airi/ui'
+import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onUnmounted, ref, watch } from 'vue'
 
@@ -14,7 +15,7 @@ import Live2DCanvas from './live2d/Canvas.vue'
 import Live2DModel from './live2d/Model.vue'
 import Live2DPresenceBubble from './live2d/presence-bubble.vue'
 
-import { useLive2DEyeFocusFor, useSettingsLive2d } from '../../composables/live2d'
+import { createLive2DTouchGestureTracker, useLive2DEyeFocusFor, useSettingsLive2d } from '../../composables/live2d'
 import { createLive2D, provideLive2D } from '../../contexts/live2d'
 
 import '../../utils/live2d-zip-loader'
@@ -47,6 +48,8 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   error: [error: Error]
+  /** A pointer tapped the character, or stroked its head. The model already plays its own reaction from the press. */
+  touch: [touch: Live2DTouch]
 }>()
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
@@ -125,6 +128,92 @@ watch(() => props.cursorPosition, (cursorPosition) => {
     activeCursorPosition.value = null
   }, 1000)
 })
+
+const touchGestures = createLive2DTouchGestureTracker()
+
+function touchSampleOf(event: PointerEvent) {
+  const rect = live2dCanvasRef.value?.canvasElement()?.getBoundingClientRect()
+  const hit = rect
+    ? live2dModelRef.value?.touchAt({
+        x: (event.clientX - rect.left) * live2dRenderScale.value,
+        y: (event.clientY - rect.top) * live2dRenderScale.value,
+      })
+    : undefined
+  return { x: event.clientX, y: event.clientY, atMs: event.timeStamp, hit }
+}
+
+function emitTouch(touch: Live2DTouch | undefined) {
+  if (touch)
+    emit('touch', touch)
+}
+
+// One gesture at a time. `isPrimary` holds for each pointer type, so a mouse and a touch can both be primary.
+// A new press during a gesture is ignored, and pointer capture makes sure the release of the gesture arrives.
+let gesturePointerId: number | undefined
+/** True when the press of the current gesture landed on the character. */
+let gestureOnCharacter = false
+
+function endGesture() {
+  gesturePointerId = undefined
+  gestureOnCharacter = false
+}
+
+function cancelGesture() {
+  endGesture()
+  touchGestures.cancel()
+}
+
+// A paused stage does not advance the motion clock, so a reaction would wait and then play late.
+watch(() => props.paused, (paused) => {
+  if (paused)
+    cancelGesture()
+})
+
+useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'pointerdown', (event: PointerEvent) => {
+  if (props.paused || gesturePointerId !== undefined || !event.isPrimary || event.button !== 0)
+    return
+  gesturePointerId = event.pointerId
+  try {
+    (event.currentTarget as HTMLCanvasElement).setPointerCapture(event.pointerId)
+  }
+  catch {
+    // A pointer that already ended cannot be captured. Its release does not come, and lostpointercapture ends the gesture.
+  }
+  const sample = touchSampleOf(event)
+  gestureOnCharacter = !!sample.hit
+  touchGestures.down(sample)
+  // A tap is known only on release, about 100 ms later. The reaction starts on the press, so it does not lag.
+  if (sample.hit)
+    live2dModelRef.value?.react({ ...sample.hit, gesture: 'tap' })
+})
+useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'pointermove', (event: PointerEvent) => {
+  // The primary button is held while the pointer strokes.
+  if (event.pointerId !== gesturePointerId || event.buttons % 2 !== 1)
+    return
+  const pat = touchGestures.move(touchSampleOf(event))
+  if (pat)
+    live2dModelRef.value?.react(pat)
+  emitTouch(pat)
+})
+useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'pointerup', (event: PointerEvent) => {
+  if (event.pointerId !== gesturePointerId)
+    return
+  endGesture()
+  const tap = touchGestures.up(touchSampleOf(event))
+  if (tap)
+    live2dModelRef.value?.playTouchMotion(tap.region)
+  emitTouch(tap)
+})
+useEventListener(() => live2dCanvasRef.value?.canvasElement(), ['pointercancel', 'lostpointercapture'], (event: PointerEvent) => {
+  if (event.pointerId === gesturePointerId)
+    cancelGesture()
+})
+// A pan of the page cancels the pointer and ends the pat. Only a touch on the character holds the page.
+// `touch-action: none` would also stop the scroll over the empty canvas. touchstart comes after pointerdown.
+useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'touchstart', (event: TouchEvent) => {
+  if (gestureOnCharacter && event.cancelable)
+    event.preventDefault()
+}, { passive: false })
 
 onUnmounted(() => {
   if (clearCursorFocusTimeout)
