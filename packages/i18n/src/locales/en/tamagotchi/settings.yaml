@@ -321,7 +321,10 @@ devtools:
           previous-track: Select previous track
           next-track: Select next track
         timeline-label: Motion timeline
-        timeline-help: Drag the ruler to scrub. Use the wheel to zoom. Hold Shift and drag to pan. Double-click a selected curve to add a point. Each view-target key holds until the next key.
+        timeline-help: Drag the ruler to scrub. Use the wheel to zoom, and drag an empty part of the tracks to pan. Double-click a selected curve to add a point, or a point to remove it. Each view-target key holds until the next key.
+        playhead: Playhead
+        resize-labels: Resize the track labels
+        keyframe-item: Keyframe at {time}, value {value}
         overlay-count: '{count} overlays'
         controls:
           add: Add
