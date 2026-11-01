@@ -3,7 +3,7 @@ import type { DisplayModel } from '../../../../../stores/display-models'
 
 import { usePreferredReducedMotion, useResizeObserver } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useDisplayModelsStore } from '../../../../../stores/display-models'
@@ -36,60 +36,40 @@ const models = computed(() => [
 ])
 
 /**
- * The model that the user tapped, before the caller selects it. The thumbnail shows as selected at once,
- * so the bar can move while the stage still shows the old model.
+ * Counts picks. A download that finishes after a newer pick is dropped, so the latest pick always wins.
+ * A thumbnail tap, a pick in the full model selector, and a selection from outside each start a new pick.
  */
-const pendingId = ref<string>()
-const shownSelectedId = computed(() => pendingId.value ?? props.selectedId)
+let generation = 0
 
-// A selection from outside replaces any tap that is still pending.
 watch(() => props.selectedId, () => {
-  pendingId.value = undefined
+  generation++
 })
+
+async function pick(id: string) {
+  if (id === props.selectedId)
+    return
+
+  const current = ++generation
+  try {
+    const model = await displayModelStore.ensureDisplayModelAvailable(id)
+    if (model && current === generation)
+      emit('pick', model)
+  }
+  catch (error) {
+    console.error('[model-strip] failed to download the selected model:', error)
+  }
+}
 
 const selectorOpen = ref(false)
 const selectedModel = computed(() => displayModels.value.find(model => model.id === props.selectedId))
 
-/** A pick in the full model selector replaces any tap that is still pending, also when it confirms the same model. */
 function pickFromSelector(model: DisplayModel | undefined) {
-  pendingId.value = undefined
+  generation++
   emit('pick', model)
 }
 
-/** The running stretch of the bar, if any. */
-let indicatorAnimation: Animation | undefined
-
-async function pick(id: string) {
-  if (id === shownSelectedId.value)
-    return
-
-  pendingId.value = id
-  // NOTICE:
-  // The pick waits for the stretch to end. A model load during the stretch freezes the bar.
-  // Root cause: stage-ui-live2d Model.vue parses on the main thread, and the bar animates layout.
-  // Removal condition: the model parses off the main thread, or the bar animates only compositor properties.
-  await nextTick()
-  await indicatorAnimation?.finished.catch(() => undefined)
-  // A later tap or an outside selection replaced this tap while it waited.
-  if (pendingId.value !== id)
-    return
-
-  try {
-    const model = await displayModelStore.ensureDisplayModelAvailable(id)
-    // A download can take long. Only the latest tap can pick its model.
-    if (pendingId.value !== id)
-      return
-
-    if (model)
-      emit('pick', model)
-    else
-      pendingId.value = undefined
-  }
-  catch (error) {
-    if (pendingId.value === id)
-      pendingId.value = undefined
-    console.error('[model-strip] failed to download the selected model:', error)
-  }
+function isBusy(id: string) {
+  return id === props.loadingId || syncStatuses.value[id] === 'downloading'
 }
 
 const list = useTemplateRef<HTMLElement>('list')
@@ -119,14 +99,14 @@ function placeIndicator(options: { stretch: boolean }) {
 
   const start = Math.min(from, to)
   const span = Math.abs(to - from) + INDICATOR_WIDTH
-  indicatorAnimation = indicator.value?.animate([
+  indicator.value?.animate([
     { left: `${from}px`, width: `${INDICATOR_WIDTH}px`, easing: 'cubic-bezier(0.3, 0, 0.8, 0.15)' },
     { left: `${start}px`, width: `${span}px`, offset: 0.4, easing: 'cubic-bezier(0.05, 0.7, 0.1, 1)' },
     { left: `${to}px`, width: `${INDICATOR_WIDTH}px` },
   ], { duration: 480 })
 }
 
-watch(shownSelectedId, () => placeIndicator({ stretch: true }), { flush: 'post' })
+watch(() => props.selectedId, () => placeIndicator({ stretch: true }), { flush: 'post' })
 watch(models, () => placeIndicator({ stretch: false }), { flush: 'post' })
 useResizeObserver(list, () => placeIndicator({ stretch: false }))
 
@@ -150,9 +130,9 @@ onMounted(() => {
         :key="model.id"
         type="button"
         role="radio"
-        :aria-checked="model.id === shownSelectedId"
+        :aria-checked="model.id === selectedId"
         :aria-label="model.name"
-        :aria-busy="model.id === pendingId || model.id === loadingId"
+        :aria-busy="isBusy(model.id)"
         :class="[
           'shrink-0 snap-start rounded-xl',
           'outline-none focus-visible:ring-2 focus-visible:ring-primary-400/60',
@@ -179,10 +159,9 @@ onMounted(() => {
             :class="[
               model.cloudOnly ? 'i-mingcute:cloud-line' : 'i-mingcute:user-3-line',
               'size-6 text-neutral-500 dark:text-neutral-400',
-              syncStatuses[model.id] === 'downloading' ? 'animate-pulse motion-reduce:animate-none' : '',
             ]"
           />
-          <!-- A spinner covers the thumbnail from the tap until the stage shows the model. -->
+          <!-- A spinner covers the thumbnail while the model downloads and while the stage loads it. -->
           <Transition
             enter-active-class="transition-opacity duration-200"
             enter-from-class="opacity-0"
@@ -190,7 +169,7 @@ onMounted(() => {
             leave-to-class="opacity-0"
           >
             <span
-              v-if="model.id === pendingId || model.id === loadingId"
+              v-if="isBusy(model.id)"
               aria-hidden="true"
               :class="['absolute inset-0 flex items-center justify-center', 'bg-neutral-50/60 dark:bg-neutral-900/60']"
             >
