@@ -4,6 +4,7 @@ import { cleanup, render } from 'vitest-browser-vue'
 import { page, userEvent } from 'vitest/browser'
 import { defineComponent, ref } from 'vue'
 
+import '@unocss/reset/tailwind.css'
 import 'virtual:uno.css'
 
 function tooltipWrapper() {
@@ -105,6 +106,36 @@ describe('dock', () => {
     tooltip.value = false
 
     await expect.poll(tooltipText).toBeNull()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/3295#discussion_r4435068574
+  it('stays inside a narrow parent, so a long name truncates', async () => {
+    // ROOT CAUSE:
+    //
+    // If the name is long, the dock overflows its parent and pushes its buttons out of the window.
+    // This happens because `w-fit` never goes below the min-content width of the dock.
+    //
+    // We fixed this by adding `max-w-full` to the dock.
+    const screen = render(defineComponent({
+      components: { Dock, DockButton },
+      template: `
+        <div data-testid="row" style="width: 200px; display: flex">
+          <div style="min-width: 0">
+            <Dock data-testid="dock">
+              <DockButton icon="i-lucide:minimize-2" label="Hide chat" />
+              <button style="min-width: 0; display: flex">
+                <span data-testid="name" class="truncate">A very long character name that does not fit</span>
+              </button>
+            </Dock>
+          </div>
+        </div>
+      `,
+    }))
+    const row = screen.getByTestId('row').element().getBoundingClientRect()
+    const name = screen.getByTestId('name').element()
+
+    expect(screen.getByTestId('dock').element().getBoundingClientRect().right).toBeLessThanOrEqual(row.right)
+    expect(name.clientWidth).toBeLessThan(name.scrollWidth)
   })
 
   it('lets the background through a blurry dock with the given opacity and blur', async () => {

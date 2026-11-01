@@ -72,9 +72,10 @@ const surfaceStyle = computed(() => props.variant === 'blurry'
   <div
     :style="surfaceStyle"
     :class="[
-      // The dock wraps its buttons, also in a parent that stretches its children. The buttons sit with no gap: the
-      // space between two icons is the padding of their hover backgrounds, which can just meet.
-      'w-fit flex items-center rounded-full p-0.5',
+      // The dock wraps its buttons, also in a parent that stretches its children, and stays inside its parent, so an
+      // item with `min-w-0`, such as a long name, can shrink. The buttons sit with no gap: the space between two icons
+      // is the padding of their hover backgrounds, which can just meet.
+      'w-fit max-w-full flex items-center rounded-full p-0.5',
       props.orientation === 'vertical' ? 'flex-col' : '',
       props.shadow ? 'shadow-md' : '',
       // A blurry dock has the fill of the other controls over the stage, such as `OverlayButton`.
