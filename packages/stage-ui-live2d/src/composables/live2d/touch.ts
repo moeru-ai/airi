@@ -52,12 +52,30 @@ export interface Live2DTouchGestureOptions {
   tapMaxDurationMs: number
   /** Pointer travel over the head for each pat. @default 70 */
   patTravel: number
+  /**
+   * Length of one direction sample of a stroke. @default 8
+   *
+   * A pointer reports many small steps, and a step of 1 or 2 pixels can point
+   * anywhere because of jitter. The tracker measures the direction only over
+   * this much travel, so jitter does not look like a turn.
+   */
+  directionSegment: number
+  /**
+   * Cosine of the smallest angle between the first direction and a later
+   * direction that counts as a turn back. @default -0.5
+   *
+   * -0.5 is 120 degrees. A straight stroke stays near 0 degrees. A stroke that
+   * goes back and forth, or around in a circle, reaches 180 degrees.
+   */
+  turnBackCosine: number
 }
 
 export const defaultLive2DTouchGestureOptions: Live2DTouchGestureOptions = Object.freeze({
   tapMaxTravel: 8,
   tapMaxDurationMs: 450,
   patTravel: 70,
+  directionSegment: 8,
+  turnBackCosine: -0.5,
 })
 
 /** A pointer sample for the gesture tracker. */
@@ -69,18 +87,99 @@ export interface Live2DTouchPointerSample {
   hit: Omit<Live2DTouch, 'gesture'> | undefined
 }
 
+/** A unit vector of a stroke direction. */
+interface Direction {
+  x: number
+  y: number
+}
+
+/** State of one press, from `down` until `up` or `cancel`. */
+interface Press {
+  /** The sample of the press. A tap uses its region. */
+  start: Live2DTouchPointerSample
+  /** The previous sample, for the length of each step. */
+  last: Live2DTouchPointerSample
+  /** All travel of the press, inside and outside the character. A tap must keep it small. */
+  travel: number
+  /** Travel over the head since the last pat. */
+  patTravel: number
+  /** The point where the current direction sample started. */
+  segmentStart: { x: number, y: number }
+  /** The direction of the first sample over the head. Later samples compare with it. */
+  firstDirection: Direction | undefined
+  /** True after the stroke turned back from its first direction. Only then a pat counts. */
+  turnedBack: boolean
+  /** True after the first pat. The release of a press with a pat is not a tap. */
+  patted: boolean
+}
+
 /**
  * Recognizes taps and pats from one pointer.
  *
- * A press and a release with little travel is a tap on the region under the
- * press. A press that moves over the head gives one pat for each `patTravel`
- * of travel, and its release gives no tap.
+ * A **tap** is a press and a release with at most `tapMaxTravel` of travel and
+ * at most `tapMaxDurationMs` between them. It belongs to the region under the
+ * press.
+ *
+ * A **pat** is a stroke over the head that turns back. Each `patTravel` of
+ * travel over the head gives one pat, so a longer stroke gives more pats. The
+ * shape of the stroke does not matter, with one exception: a straight stroke,
+ * for example a drag from the head down to the body, never turns back, so it
+ * gives no pat.
+ *
+ * How the turn back is found:
+ *
+ * 1. The travel over the head is cut into direction samples of
+ *    `directionSegment` pixels. A sample is the unit vector from its start
+ *    point to its end point.
+ * 2. The first sample is the first direction of the stroke.
+ * 3. Each later sample is compared with the first direction by their dot
+ *    product, which is the cosine of the angle between them. When the cosine
+ *    is at most `turnBackCosine`, the stroke turned back.
+ *
+ * The comparison is with the first direction, not with the previous sample.
+ * A circle turns only a few degrees between two samples, so two neighbors
+ * never look opposite. Against the first direction, a circle turns back after
+ * about half a turn, and a back-and-forth rub turns back at its first reverse.
+ *
+ * Travel before the turn back still counts, so the first pat can come right at
+ * the turn. The release of a press with a pat gives no tap.
  */
 export function createLive2DTouchGestureTracker(options: Live2DTouchGestureOptions = defaultLive2DTouchGestureOptions) {
-  let press: { start: Live2DTouchPointerSample, last: Live2DTouchPointerSample, travel: number, patTravel: number, patted: boolean } | undefined
+  let press: Press | undefined
 
   function down(sample: Live2DTouchPointerSample) {
-    press = sample.hit ? { start: sample, last: sample, travel: 0, patTravel: 0, patted: false } : undefined
+    press = sample.hit
+      ? {
+          start: sample,
+          last: sample,
+          travel: 0,
+          patTravel: 0,
+          segmentStart: { x: sample.x, y: sample.y },
+          firstDirection: undefined,
+          turnedBack: false,
+          patted: false,
+        }
+      : undefined
+  }
+
+  /** Closes a direction sample when it is long enough, and checks it against the first direction. */
+  function sampleDirection(current: Press, sample: Live2DTouchPointerSample) {
+    const dx = sample.x - current.segmentStart.x
+    const dy = sample.y - current.segmentStart.y
+    const length = Math.hypot(dx, dy)
+    if (length < options.directionSegment)
+      return
+
+    const direction = { x: dx / length, y: dy / length }
+    current.segmentStart = { x: sample.x, y: sample.y }
+    if (!current.firstDirection) {
+      current.firstDirection = direction
+      return
+    }
+
+    const cosine = direction.x * current.firstDirection.x + direction.y * current.firstDirection.y
+    if (cosine <= options.turnBackCosine)
+      current.turnedBack = true
   }
 
   function move(sample: Live2DTouchPointerSample): Live2DTouch | undefined {
@@ -90,11 +189,15 @@ export function createLive2DTouchGestureTracker(options: Live2DTouchGestureOptio
     const step = Math.hypot(sample.x - press.last.x, sample.y - press.last.y)
     press.travel += step
     press.last = sample
-    if (sample.hit?.region !== 'head')
+    if (sample.hit?.region !== 'head') {
+      // Directions are measured only over the head. Leaving the head restarts the current sample.
+      press.segmentStart = { x: sample.x, y: sample.y }
       return undefined
+    }
 
     press.patTravel += step
-    if (press.patTravel < options.patTravel)
+    sampleDirection(press, sample)
+    if (!press.turnedBack || press.patTravel < options.patTravel)
       return undefined
 
     press.patTravel = 0

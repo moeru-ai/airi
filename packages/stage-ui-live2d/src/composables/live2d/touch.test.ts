@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   createLive2DTouchGestureTracker,
   createLive2DTouchReaction,
+  defaultLive2DTouchGestureOptions,
   findLive2DTouchMotionGroup,
   resolveLive2DTouchRegion,
 } from './touch'
@@ -41,14 +42,63 @@ describe('createLive2DTouchGestureTracker', () => {
     expect(tracker.up({ x: 0, y: 0, atMs: 900, hit: body })).toBeUndefined()
   })
 
-  it('reports one pat for each stroke length over the head', () => {
-    const tracker = createLive2DTouchGestureTracker({ tapMaxTravel: 8, tapMaxDurationMs: 450, patTravel: 50 })
+  /** Moves the tracker through points, and returns the pats. */
+  function strokeOver(tracker: ReturnType<typeof createLive2DTouchGestureTracker>, points: readonly [number, number][]) {
+    return points.map(([x, y], index) => tracker.move({ x, y, atMs: index * 16, hit: head })).filter(Boolean)
+  }
+
+  it('reports pats for a rub that goes back and forth over the head', () => {
+    const tracker = createLive2DTouchGestureTracker({ ...defaultLive2DTouchGestureOptions, patTravel: 50 })
     tracker.down({ x: 0, y: 0, atMs: 0, hit: head })
 
-    const pats = [30, 60, 90, 120, 150].map((x, index) => tracker.move({ x, y: 0, atMs: index * 16, hit: head }))
-    expect(pats.filter(Boolean)).toHaveLength(2)
-    expect(pats.find(Boolean)).toEqual({ ...head, gesture: 'pat' })
-    expect(tracker.up({ x: 150, y: 0, atMs: 100, hit: head })).toBeUndefined()
+    // Right 60 px, then left 60 px, then right 60 px: 180 px of travel with two reverses.
+    const rub: [number, number][] = []
+    for (let x = 10; x <= 60; x += 10) rub.push([x, 0])
+    for (let x = 50; x >= 0; x -= 10) rub.push([x, 0])
+    for (let x = 10; x <= 60; x += 10) rub.push([x, 0])
+    const pats = strokeOver(tracker, rub)
+
+    expect(pats.length).toBeGreaterThanOrEqual(2)
+    expect(pats[0]).toEqual({ ...head, gesture: 'pat' })
+    expect(tracker.up({ x: 60, y: 0, atMs: 400, hit: head })).toBeUndefined()
+  })
+
+  it('reports pats for a circle over the head', () => {
+    const tracker = createLive2DTouchGestureTracker({ ...defaultLive2DTouchGestureOptions, patTravel: 50 })
+    tracker.down({ x: 30, y: 0, atMs: 0, hit: head })
+
+    // One turn of a circle with a 30 px radius, in 24 steps: about 188 px.
+    const circle = Array.from({ length: 24 }, (_, index) => {
+      const angle = (index + 1) / 24 * Math.PI * 2
+      return [Math.cos(angle) * 30, Math.sin(angle) * 30] as [number, number]
+    })
+
+    expect(strokeOver(tracker, circle).length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('reports no pat for a straight stroke across the head', () => {
+    // ROOT CAUSE:
+    //
+    // Pats counted only the travel over the head, so a straight drag, for example
+    // from the head down to the body, also patted the head.
+    //
+    // We fixed this by counting pats only after the stroke turns back.
+    const tracker = createLive2DTouchGestureTracker()
+    tracker.down({ x: 0, y: 0, atMs: 0, hit: head })
+
+    const straight = Array.from({ length: 30 }, (_, index) => [0, (index + 1) * 10] as [number, number])
+
+    expect(strokeOver(tracker, straight)).toEqual([])
+  })
+
+  it('ignores jitter shorter than one direction sample', () => {
+    const tracker = createLive2DTouchGestureTracker({ ...defaultLive2DTouchGestureOptions, patTravel: 20 })
+    tracker.down({ x: 0, y: 0, atMs: 0, hit: head })
+
+    // A straight stroke with 2 px of sideways jitter on each step.
+    const jittery = Array.from({ length: 40 }, (_, index) => [index % 2 === 0 ? 2 : -2, (index + 1) * 4] as [number, number])
+
+    expect(strokeOver(tracker, jittery)).toEqual([])
   })
 
   it('does not start outside the character', () => {
