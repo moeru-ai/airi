@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { PageHeader } from '@proj-airi/stage-ui/components'
+import { settingsFullBleedHostKey } from '@proj-airi/stage-ui/composables/settings-full-bleed'
 import { useSettingsSearchReveal } from '@proj-airi/stage-ui/composables/use-settings-search'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useTheme } from '@proj-airi/ui'
-import { computed, onMounted, useTemplateRef, watch } from 'vue'
+import { computed, onMounted, provide, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute } from 'vue-router'
 
@@ -23,6 +24,23 @@ watch(() => route.path, () => {
 }, { flush: 'post' })
 // A search result opens its page with the setting in the query. Scroll to that row and highlight it.
 useSettingsSearchReveal(scrollContainer)
+
+// A page that fills the screen, for example the phone model editor, claims the area under the header.
+const fullBleedClaims = ref(0)
+const fullBleed = computed(() => fullBleedClaims.value > 0)
+provide(settingsFullBleedHostKey, {
+  claim() {
+    fullBleedClaims.value++
+    let released = false
+    return () => {
+      if (released)
+        return
+
+      released = true
+      fullBleedClaims.value--
+    }
+  },
+})
 
 const { isDark: dark } = useTheme()
 const { t } = useI18n()
@@ -98,16 +116,33 @@ onMounted(() => updateThemeColor())
     <div
       :class="[
         'px-3 py-0 2xl:max-w-screen-2xl md:py-0 xl:px-4',
-        isStageTamagotchi() ? 'sm:max-h-[calc(100%)] max-h-[calc(100%)]' : 'sm:max-h-[calc(100%-56px)] max-h-[calc(100%-40px)]',
-        'mx-auto flex min-h-0 w-full flex-1 flex-col',
+        isStageTamagotchi() ? 'sm:max-h-[calc(100%)] max-h-[calc(100%)]' : 'sm:max-h-[calc(100%-56px)] max-h-full',
+        'relative mx-auto flex min-h-0 w-full flex-1 flex-col',
       ]"
     >
-      <PageHeader
-        :title="routeHeaderMetadata?.title || ''"
-        :subtitle="routeHeaderMetadata?.subtitle"
-        :disable-back-button="routeMeta.disableBackButton || (isStageTamagotchi() && route.path === '/settings')"
-      />
-      <div id="settings-scroll-container" ref="scrollContainer" :class="['relative', 'min-h-0', 'flex-1', 'overflow-y-auto', 'scrollbar-none']">
+      <!-- Over a full-bleed page, the header floats on top. Only its buttons take input, so the page under it stays usable. -->
+      <div
+        :class="[
+          fullBleed ? 'pointer-events-none absolute inset-x-3 top-0 z-10 xl:inset-x-4 [&_button]:pointer-events-auto' : '',
+        ]"
+      >
+        <PageHeader
+          :title="routeHeaderMetadata?.title || ''"
+          :subtitle="routeHeaderMetadata?.subtitle"
+          :disable-back-button="routeMeta.disableBackButton || (isStageTamagotchi() && route.path === '/settings')"
+          :transparent="fullBleed"
+        />
+      </div>
+      <!-- The scroll area reaches the screen edges and pads its content instead. A full-bleed page gets no padding. -->
+      <div
+        id="settings-scroll-container"
+        ref="scrollContainer"
+        :class="[
+          'relative', 'min-h-0', 'flex-1', 'overflow-y-auto', 'scrollbar-none',
+          '-mx-3 xl:-mx-4',
+          fullBleed ? '' : 'px-3 xl:px-4',
+        ]"
+      >
         <RouterView />
       </div>
     </div>
