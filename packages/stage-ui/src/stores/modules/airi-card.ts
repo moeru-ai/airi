@@ -76,6 +76,30 @@ const builtInDescriptions = Object.values(localeMessages).flatMap((messages) => 
   return parsed.success ? [parsed.output.base.prompt.prefix] : []
 })
 
+/**
+ * SHA-256 of the built-in description in each language before the built-in character changed from ReLU to Iru.
+ * A stored `default` card with one of these descriptions has no description edit, so `initialize` gives it the current text.
+ * Each hash is of the text that `t('base.prompt.prefix')` returned. It differs from the raw message where the message has
+ * literal interpolations such as `{'|'}`.
+ */
+const preIruBuiltInDescriptionHashes = new Set([
+  '2a371f367e4330f4cec6b615ea6ea5e7d910d98dd5a14800a805f1c5d84d2ea5', // en
+  '47db7cdf33e9e15f9f90f3343ee74207e840a772a7fabe4257d885f7496a7617', // es
+  '1013da06f671c9e87fe5e68fbe196d53c30d3b2fcd50d8c7e90548482b9c5ae1', // fr
+  '616be7ae1d5355326964f2b80bbade01b75c74738a0db1ef134e084bf93a4bf3', // ja
+  '62487a8739eddca4d52e3c5be4aed3915040e49cb0c10a60905e9db4ace5d9e9', // ko
+  'bf1bc35154aabe38048ad356485c451bf55d6964e7ec022c321a3d6a9244306e', // ru
+  '8247a1cb7013a289a578f5e18e037f0d9bd9a38f607ddec838224769b5671aaa', // th
+  '229ca59d6e5c49af637c8b870024de987645f56d02969bacb9d0b66e2267acdb', // vi
+  '9df316e297f4cbac131c42eb79ab2177cd31232cb8f3229f47d9888ca80476a9', // zh-Hans
+  '97cbaec5ee5ad2589a16499385ca61044c6e9f69d17adf435b14d73be6299e85', // zh-Hant
+])
+
+async function sha256Hex(text: string) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
+}
+
 /** The members that every card needs before `newAiriCard` can normalize it. */
 const synchronizedCardSchema = looseObject({ name: string(), version: string() })
 
@@ -843,7 +867,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
    * find the edits of the user.
    */
   const builtInCard = computed(() => newAiriCard({
-    name: 'ReLU',
+    name: 'Iru',
     version: '1.0.0',
     description: t('base.prompt.prefix'),
     extensions: {
@@ -1021,6 +1045,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   async function runCardSynchronization(ownerId: string) {
     if (ownerId === 'local' || !cloudSyncEnabled.value)
       return
+
+    await migratePreIruCard()
 
     syncClient ??= createDocumentSyncClient({ serverUrl: SERVER_URL, path: CARDS_PATH, fetch: authedFetch })
     // The cloud state of the earlier account does not describe this account.
@@ -1204,6 +1230,36 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   // reports it. The store has no actions during setup, so wait for it.
   queueMicrotask(requestCardSynchronization)
 
+  // NOTICE:
+  // The stored `default` card is a copy of the built-in ReLU card.
+  // Give it the name and the description of Iru, except the parts that the user edited.
+  // Source: https://github.com/moeru-ai/airi/pull/3287
+  // Removal condition: two stable releases after the release in which every locale names Iru.
+  /**
+   * Runs in the leader at the end of `initialize` and before each card sync run.
+   * Sync can run before `initialize`, and an unmigrated card sends `ReLU` as a name edit.
+   * A second call changes nothing.
+   */
+  async function migratePreIruCard() {
+    const description = cards.value.get('default')?.description ?? ''
+    const builtInDescription = preIruBuiltInDescriptionHashes.has(await sha256Hex(description))
+    // A sync run can change the card during the digest. Read it again, so the write keeps that change.
+    const card = toRaw(cards.value.get('default'))
+    if (!card)
+      return
+
+    const renamed = card.name === 'ReLU'
+    const describedBuiltIn = builtInDescription && (card.description ?? '') === description
+    if (!renamed && !describedBuiltIn)
+      return
+
+    cards.value.set('default', {
+      ...card,
+      name: renamed ? builtInCard.value.name : card.name,
+      description: describedBuiltIn ? builtInCard.value.description : card.description,
+    })
+  }
+
   /** Applies the initial card while preserving setup context when no auth work is pending. */
   async function initialize() {
     // Awaiting undefined would leave component setup before the first runtime
@@ -1288,6 +1344,9 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       selectedAvatarModelId.value = resolveDefaultAvatarModelId()
 
     await applyActiveCardSettings()
+
+    await migratePreIruCard()
+
     ready.value = true
   }
 

@@ -19,7 +19,7 @@ describe('airi card editor validation', () => {
     // boundary fields through the shared Valibot schema.
     const result = safeParseAiriCardDraft({
       ...createCard(),
-      name: '  ReLU Chan  ',
+      name: '  Iru Chan  ',
       description: '',
       personality: '',
       scenario: '',
@@ -31,7 +31,7 @@ describe('airi card editor validation', () => {
     if (!result.success)
       return
 
-    expect(result.output.card.name).toBe('ReLU Chan')
+    expect(result.output.card.name).toBe('Iru Chan')
     expect(result.output.card.description).toBe('')
     expect(result.output.card.personality).toBe('')
     expect(result.output.card.scenario).toBe('')
@@ -226,7 +226,7 @@ describe('airi card editor validation', () => {
 
 function createCard(): Card {
   return {
-    name: 'ReLU',
+    name: 'Iru',
     version: '1.0',
     greetings: [],
     messageExample: [],
