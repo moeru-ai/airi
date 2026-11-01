@@ -28,14 +28,14 @@ const provider: GenerationProvider = {
  * Mounts the chat with real stores. Only the model boundary is replaced: provider resolution and the stream.
  * `reply` answers each request from its prompt, and the returned prompts list every request in order.
  */
-async function setupChat(reply: (prompt: string, options?: StreamOptions) => Promise<string>) {
+async function setupChat(reply: (prompt: string, options?: StreamOptions) => Promise<string>, contextWindow = -1) {
   // A send reads the provider and model of the session character. The card store reads them from storage when it starts.
   const modules = {
     consciousness: { provider: 'openai', model: 'test-model' },
     vision: { provider: '', model: '' },
     speech: { provider: '', model: '', voice_id: '' },
   }
-  localStorage.setItem('airi-cards', JSON.stringify([['default', { name: 'Character', version: '1.0', extensions: { airi: { agents: {}, modules } } }]]))
+  localStorage.setItem('airi-cards', JSON.stringify([['default', { name: 'Character', version: '1.0', extensions: { airi: { agents: {}, modules, contextWindow } } }]]))
   localStorage.setItem('airi-card-module-defaults', JSON.stringify(modules))
   const pinia = createPinia()
   pinias.push(pinia)
@@ -109,8 +109,8 @@ it('stops a running task without a result, while another task runs on', async ()
 
 // ROOT CAUSE:
 // Each task kept its own session forever, and deleting one through deleteSession moved the character's selected conversation.
-it('keeps the sessions of only the newest finished tasks, without moving the selected conversation', async () => {
-  const { chat, sessions, recipes } = await setupChat(async () => 'checked')
+it.each([-1, 4])('keeps only the newest finished tasks without moving the selected conversation, with message limit %i', async (contextWindow) => {
+  const { chat, sessions, recipes } = await setupChat(async () => 'checked', contextWindow)
   await recipes.add({ name: 'Check', description: 'Checks the weather.', instructions: 'Check the weather.', keywords: [], background: true, enabled: true })
   const check = recipes.recipes.find(recipe => recipe.name === 'Check')!
   const selected = sessions.activeSessionId
