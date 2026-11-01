@@ -149,19 +149,32 @@ function playTouch(touch: Live2DTouch | undefined) {
   emit('touch', touch)
 }
 
+// One gesture at a time, from the primary pointer that started it. A second finger cannot end or retarget it.
+let gesturePointerId: number | undefined
+
 useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'pointerdown', (event: PointerEvent) => {
-  if (event.button === 0)
-    touchGestures.down(touchSampleOf(event))
+  if (!event.isPrimary || event.button !== 0)
+    return
+  gesturePointerId = event.pointerId
+  touchGestures.down(touchSampleOf(event))
 })
 useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'pointermove', (event: PointerEvent) => {
   // The primary button is held while the pointer strokes.
-  if (event.buttons % 2 === 1)
+  if (event.pointerId === gesturePointerId && event.buttons % 2 === 1)
     playTouch(touchGestures.move(touchSampleOf(event)))
 })
 useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'pointerup', (event: PointerEvent) => {
+  if (event.pointerId !== gesturePointerId)
+    return
+  gesturePointerId = undefined
   playTouch(touchGestures.up(touchSampleOf(event)))
 })
-useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'pointercancel', () => touchGestures.cancel())
+useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'pointercancel', (event: PointerEvent) => {
+  if (event.pointerId !== gesturePointerId)
+    return
+  gesturePointerId = undefined
+  touchGestures.cancel()
+})
 
 onUnmounted(() => {
   if (clearCursorFocusTimeout)
