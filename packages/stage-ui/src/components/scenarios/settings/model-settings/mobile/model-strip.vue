@@ -40,9 +40,9 @@ const models = computed(() => [
 const pendingId = ref<string>()
 const shownSelectedId = computed(() => pendingId.value ?? props.selectedId)
 
-watch(() => props.selectedId, (id) => {
-  if (id === pendingId.value)
-    pendingId.value = undefined
+// A selection from outside, for example from the full model selector, replaces any tap that is still pending.
+watch(() => props.selectedId, () => {
+  pendingId.value = undefined
 })
 
 /** The running stretch of the bar, if any. */
@@ -59,12 +59,19 @@ async function pick(id: string) {
   // Removal condition: the model parses off the main thread, or the bar animates only compositor properties.
   await nextTick()
   await indicatorAnimation?.finished.catch(() => undefined)
+  // A later tap or an outside selection replaced this tap while it waited.
+  if (pendingId.value !== id)
+    return
 
   try {
     const model = await displayModelStore.ensureDisplayModelAvailable(id)
+    // A download can take long. Only the latest tap can pick its model.
+    if (pendingId.value !== id)
+      return
+
     if (model)
       emit('pick', model)
-    else if (pendingId.value === id)
+    else
       pendingId.value = undefined
   }
   catch (error) {
