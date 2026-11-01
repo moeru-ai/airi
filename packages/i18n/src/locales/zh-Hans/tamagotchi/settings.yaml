@@ -576,7 +576,6 @@ devtools:
         running: 运行中
         idle: 空闲
         records: '{count} 条记录'
-        tokens: '{count} tokens'
         late: '{count} 条迟到'
         reordered: '{count} 条乱序'
         reordered-description: 时钟换算后排到了起因之前的记录数。
