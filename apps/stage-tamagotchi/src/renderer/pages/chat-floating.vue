@@ -568,7 +568,7 @@ function moveByKeyboard(delta: WindowDelta) {
                 </button>
               </Tooltip>
               <DockSeparator />
-              <div :class="['flex shrink-0 items-center gap-0.5', verticalDock ? 'flex-col' : characterOnLeft ? 'flex-row-reverse' : '']">
+              <div :class="['flex shrink-0 items-center', verticalDock ? 'flex-col' : characterOnLeft ? 'flex-row-reverse' : '']">
                 <ChatSpeechMuteButton variant="dock" />
                 <DockButton
                   icon="i-mingcute:subtitle-line"

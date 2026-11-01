@@ -307,7 +307,8 @@ accessible name. Use it inside a Reka UI `TooltipProvider`. Attributes such as
 
 A pill that holds icon buttons, such as the dock of the floating chat and the
 fullscreen island. Its `DockButton` and `DockSeparator` children take their
-size, tooltip side, and tooltip surface from it.
+size, tooltip side, and tooltip surface from it. The buttons sit with no gap,
+so the space between two icons is the padding of their hover backgrounds.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
