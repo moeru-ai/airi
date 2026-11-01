@@ -23,7 +23,7 @@ import { layoutMotionTracks } from '../composables/timeline-geometry'
  *
  * The root owns the view window, zoom, pan, and the cursor keys. The cursor is the playhead. The axis scrubs it, and a
  * click on empty lanes moves it. The label column over the left of the lanes holds one header for each track. The lanes
- * draw every track in one SVG and edit the active track.
+ * draw every track on one canvas and edit the active track.
  */
 const props = defineProps<{
   project: Live2DMotionProject
@@ -67,11 +67,11 @@ const cursor = computed<number | undefined>({
   },
 })
 
-/** The selected overlay as the selection of the timeline. */
+/** The selected overlay as the selection of the timeline. A selected keyframe selects its overlay. */
 const selection = computed<MotionTimelineItem | undefined>({
   get: (): MotionTimelineItem | undefined => {
     const overlay = props.project.overlays.find(item => item.id === props.selectedOverlayId)
-    return overlay ? { key: overlay.id, overlayId: overlay.id, trackId: overlay.trackId } : undefined
+    return overlay ? { key: overlay.id, kind: 'overlay', overlayId: overlay.id, trackId: overlay.trackId } : undefined
   },
   set: (item) => {
     // A click on empty lanes clears the selection of the timeline. The editor keeps its overlay, like a track header.
@@ -166,6 +166,7 @@ defineExpose({ resetView })
           :active-track="activeTrack"
           :selected-overlay-id="selectedOverlayId"
           :disabled="disabled"
+          :track-label="trackLabel"
           @activate="emit('activate', $event)"
           @update-overlay="(overlayId, patch, commit) => emit('updateOverlay', overlayId, patch, commit)"
           @add-point="(overlayId, point) => emit('addPoint', overlayId, point)"
