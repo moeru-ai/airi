@@ -5,7 +5,7 @@ import type { ChatHeaderButtonVariant } from './chat-header-button'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { FULLSCREEN_WORKSPACE_FLAG } from '@proj-airi/stage-ui/libs/feature-flags'
 import { useFeatureFlagsStore } from '@proj-airi/stage-ui/stores/feature-flags'
-import { DropdownMenu } from '@proj-airi/ui'
+import { DockButton, DropdownMenu } from '@proj-airi/ui'
 import {
   DropdownMenuCheckboxItem,
   DropdownMenuItemIndicator,
@@ -98,10 +98,18 @@ const itemClasses = [
     :disabled="!preferences"
   >
     <template #trigger>
+      <DockButton
+        v-if="variant === 'dock'"
+        v-bind="$attrs"
+        icon="i-mingcute:layers-line"
+        :label="t('tamagotchi.stage.chat-window.style.title')"
+        :disabled="!preferences"
+      />
       <button
+        v-else
         v-bind="$attrs"
         :disabled="!preferences"
-        :class="chatHeaderButtonClass(variant)"
+        :class="chatHeaderButtonClass()"
         :title="t('tamagotchi.stage.chat-window.style.title')"
         :aria-label="t('tamagotchi.stage.chat-window.style.title')"
       >
