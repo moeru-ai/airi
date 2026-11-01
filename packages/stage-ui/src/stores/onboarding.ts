@@ -189,13 +189,14 @@ export const useOnboardingStore = defineStore('onboarding', () => {
     && !hadEssentialProviderConfiguredAtStartup,
   )
 
-  function appliesToDevice(step: SharedOnboardingStep) {
+  /** True when the step concerns the user now. It does not read the records. See `OnboardingStepScope`. */
+  function isApplicable(step: SharedOnboardingStep) {
     return step.scope === 'device' || needsProviderSetup.value
   }
 
   /** The shared steps that the flow shows, in flow order. */
   const pendingSharedSteps = computed(() => {
-    const applicableSteps = sharedOnboardingSteps.filter(appliesToDevice)
+    const applicableSteps = sharedOnboardingSteps.filter(isApplicable)
     // The provider steps share state in memory. Configuration needs the selected provider, and
     // model selection needs its models. So a new version of one of them shows the whole group.
     const providerSetupPending = applicableSteps.some(step => step.scope === 'provider-setup' && isStepPending(stepRecords.value, step))
