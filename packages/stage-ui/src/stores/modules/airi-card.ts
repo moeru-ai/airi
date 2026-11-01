@@ -7,7 +7,7 @@ import type {
 import type { Live2DControlPolicy } from '@proj-airi/stage-ui-live2d/types/avatar-model'
 
 import type { DocumentFields, DocumentSnapshot, DocumentSyncClient, LocalDocumentChanges } from '../../libs/document-sync'
-import type { CardModuleDefaults } from '../../services/airi-card-modules'
+import type { CardModuleDefaults, CardProviderModule } from '../../services/airi-card-modules'
 import type { AiriCard, AiriExtension } from '../../types/airiCard'
 import type { CharacterAvatarModelReference } from '../../types/avatar-model'
 
@@ -36,7 +36,7 @@ import { CHARACTER_CARD_SYNC_FLAG } from '../../libs/feature-flags'
 import { captureAnalyticsEvent } from '../../libs/product-signals'
 import { SERVER_URL } from '../../libs/server'
 import { wakeWordSchema } from '../../libs/voice/wake-words'
-import { resolveModuleSelection } from '../../services/airi-card-modules'
+import { clearModuleSelections, resolveModuleSelection } from '../../services/airi-card-modules'
 import { createAvatarModelReference } from '../../services/avatar-model'
 import { useAuthStore } from '../auth'
 import { useDisplayModelsStore } from '../display-models'
@@ -320,6 +320,9 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     // resolved model and voice afterwards, including empty values.
     consciousness.activeProvider = modules.consciousness.provider
     consciousness.activeModel = modules.consciousness.model
+    // The vision store keeps a custom model name per selection. It does not clear that name when the provider changes.
+    if (vision.activeProvider !== modules.vision.provider)
+      vision.resetModelSelection()
     vision.activeProvider = modules.vision.provider
     vision.activeModel = modules.vision.model
     await speech.selectProviderModel(modules.speech.provider, modules.speech.model, modules.speech.voice_id)
@@ -695,82 +698,42 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return updated
   }
 
-  /** Clears a removed provider from defaults and the active card, not other cards. */
-  async function clearProviderSelections(providerId: string) {
+  /** Clears matching selections from defaults and every card, then reapplies the active card. */
+  async function clearModuleProviders(modules: readonly CardProviderModule[], shouldClear: (providerId: string) => boolean) {
     await pendingAuthenticationSetup
     rememberInheritedSettings()
-    const defaults = moduleDefaults.value
-    if (!defaults)
-      return
-    const next = structuredClone(toRaw(defaults))
-    for (const module of ['consciousness', 'vision', 'speech'] as const) {
-      if (next[module].provider === providerId) {
-        next[module].provider = module === 'speech' ? 'speech-noop' : ''
-        next[module].model = ''
-        if (module === 'speech')
-          next.speech.voice_id = ''
-      }
-    }
-    moduleDefaults.value = next
-    updateActiveCardModules(({ modules }) => ({
-      consciousness: modules.consciousness.provider === providerId ? { provider: '', model: '' } : modules.consciousness,
-      vision: modules.vision.provider === providerId ? { provider: '', model: '' } : modules.vision,
-      speech: modules.speech.provider === providerId ? { ...modules.speech, provider: '', model: '', voice_id: '' } : modules.speech,
-    }))
-    appliedModules = undefined
-    await applyActiveCardSettings()
-  }
-
-  /** Clears unavailable vision and speech selections after a provider reset, including defaults and inactive cards. Consciousness stays unchanged. */
-  async function clearUnavailableProviderSelections() {
-    await pendingAuthenticationSetup
-    rememberInheritedSettings()
-    const providers = useProviderStore(pinia)
-
-    function clearUnavailableSelections(modules: Pick<CardModuleDefaults, 'vision' | 'speech'>, inherited?: CardModuleDefaults) {
-      const visionProvider = modules.vision.provider || inherited?.vision.provider
-      const speechProvider = modules.speech.provider || inherited?.speech.provider
-      const clearVision = !!(modules.vision.provider || modules.vision.model) && !!visionProvider && !providers.isProviderAvailableWithoutConfiguration(visionProvider)
-      const clearSpeech = !!(modules.speech.provider || modules.speech.model || modules.speech.voice_id) && !!speechProvider && !providers.isProviderAvailableWithoutConfiguration(speechProvider)
-      if (!clearVision && !clearSpeech)
-        return modules
-
-      return {
-        vision: clearVision ? { ...modules.vision, provider: '', model: '' } : modules.vision,
-        // An explicit None replaces a removed provider override. Model-only overrides keep their provider inheritance.
-        speech: clearSpeech ? { ...modules.speech, provider: modules.speech.provider ? 'speech-noop' : '', model: '', voice_id: '' } : modules.speech,
-      }
-    }
-
     const defaults = moduleDefaults.value
     if (defaults) {
-      const selections = clearUnavailableSelections(defaults)
-      if (selections !== defaults)
-        moduleDefaults.value = { ...defaults, ...selections }
+      const next = clearModuleSelections(defaults, modules, shouldClear)
+      if (next !== defaults)
+        moduleDefaults.value = next
     }
     for (const [id, storedCard] of cards.value) {
       const card = toRaw(storedCard)
       const extension = card.extensions.airi
-      const selections = clearUnavailableSelections(extension.modules, defaults ?? undefined)
-      if (selections === extension.modules)
+      const next = clearModuleSelections(extension.modules, modules, shouldClear, defaults ?? undefined)
+      if (next === extension.modules)
         continue
-      cards.value.set(id, {
-        ...card,
-        extensions: {
-          ...card.extensions,
-          airi: { ...extension, modules: { ...extension.modules, ...selections } },
-        },
-      })
+      cards.value.set(id, { ...card, extensions: { ...card.extensions, airi: { ...extension, modules: next } } })
     }
 
-    const vision = useVisionStore(pinia)
-    if (vision.activeProvider && !providers.isProviderAvailableWithoutConfiguration(vision.activeProvider))
-      vision.resetModelSelection()
     appliedModules = undefined
     if (activeCard.value)
       await applyActiveCardSettings()
+    // A reset can run before the cards initialize. The runtime modules still hold the removed providers.
     else if (moduleDefaults.value)
       await writeRuntimeModules(moduleDefaults.value)
+  }
+
+  /** Clears a deleted provider from defaults and every card. */
+  async function clearProviderSelections(providerId: string) {
+    await clearModuleProviders(['consciousness', 'vision', 'speech'], id => id === providerId)
+  }
+
+  /** Clears vision and speech selections whose provider lost its settings in a reset. Consciousness stays unchanged. */
+  async function clearUnavailableProviderSelections() {
+    const providers = useProviderStore(pinia)
+    await clearModuleProviders(['vision', 'speech'], id => !providers.isProviderAvailableWithoutConfiguration(id))
   }
 
   function resolveAiriExtension(card: Card | ccv3.CharacterCardV3): AiriExtension {
