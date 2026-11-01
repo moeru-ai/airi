@@ -134,7 +134,9 @@ async function handleBridgeSocketMessage(raw, socket) {
     return
 
   const response = await handleCommand(data)
-  if (socket !== bridgeSocket || bridgeSocketRevision !== bridgeConfigRevision)
+  // A settings refresh can advance the revision without replacing this socket.
+  // Keep the reply on its source socket until that socket is replaced.
+  if (socket !== bridgeSocket)
     return
 
   sendBridgePayload(response, socket)
