@@ -140,7 +140,7 @@ catalog:
   '@iconify-json/tabler': ^1.2.38
   '@iconify-json/vscode-icons': ^1.2.74
   '@iconify/utils': ^3.1.4
-  '@intlify/core': ^11.4.9
+  '@intlify/core': ^11.4.14
   '@intlify/unplugin-vue-i18n': ^11.2.5
   '@laplace.live/event-bridge-sdk': ^1.1.0
   '@laplace.live/event-types': ^2.0.21
@@ -453,7 +453,7 @@ catalog:
   vscode-ext-gen: ^1.6.0
   vue: ^3.5.41
   vue-demi: ^0.14.10
-  vue-i18n: ^11.4.9
+  vue-i18n: ^11.4.14
   vue-json-pretty: ^2.6.0
   vue-macros: ^3.1.4
   vue-router: ^5.2.0
