@@ -9,6 +9,7 @@ import { SpeechClient as Speech } from '../../services/speech/speech-client'
 import { useChatSessionStore } from '../chat/session-store'
 import { useAiriCardStore } from '../modules'
 
+export * from './avatar-touch'
 export * from './notebook'
 export * from './orchestrator'
 
