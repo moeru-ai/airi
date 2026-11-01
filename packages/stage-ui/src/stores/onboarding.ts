@@ -167,6 +167,22 @@ const useOnboardingStateStore = defineStore('onboarding-state', () => {
     requests.value = requests.value.filter(request => request.id !== requestId)
   }
 
+  /**
+   * Removes steps from every queued request, for example the provider steps that sign-in replaces.
+   * A request without steps left ends. A changed open request gets a new ID, so its flow and the
+   * desktop window open again with the steps that are left. A second call changes nothing.
+   */
+  async function dropSteps(stepIds: readonly string[]) {
+    requests.value = requests.value
+      .map((request) => {
+        const remaining = request.stepIds.filter(id => !stepIds.includes(id))
+        if (remaining.length === request.stepIds.length)
+          return request
+        return { ...request, id: crypto.randomUUID(), stepIds: remaining }
+      })
+      .filter(request => request.stepIds.length > 0)
+  }
+
   async function recordSteps(steps: readonly OnboardingStepVersion[], outcome: OnboardingStepOutcome) {
     const at = Date.now()
     stepRecords.value = {
@@ -177,10 +193,11 @@ const useOnboardingStateStore = defineStore('onboarding-state', () => {
   }
 
   /** Sign-in replaces provider setup, so its steps count as done. A later sign-out does not open them again. */
-  async function closeAfterAuthentication() {
+  /** `providerSetupStepIds` names every `provider-setup` step, host steps included. Only the leader knows the host steps of its window. */
+  async function closeAfterAuthentication(providerSetupStepIds: readonly string[]) {
     await recordSteps(sharedOnboardingSteps.filter(step => step.scope === 'provider-setup'), 'done')
-    // Sign-in replaces the open flow. A queued request opens next.
-    requests.value = requests.value.slice(1)
+    // Sign-in replaces only provider setup. A request for a device step stays queued.
+    await dropSteps(providerSetupStepIds)
     closeRequestId.value += 1
   }
 
@@ -192,6 +209,7 @@ const useOnboardingStateStore = defineStore('onboarding-state', () => {
   return {
     closeAfterAuthentication,
     closeRequestId,
+    dropSteps,
     openRequest,
     recordSteps,
     requests,
@@ -203,6 +221,7 @@ const useOnboardingStateStore = defineStore('onboarding-state', () => {
   synced: {
     actions: [
       'closeAfterAuthentication',
+      'dropSteps',
       'openRequest',
       'recordSteps',
       'resetSetupState',
@@ -369,8 +388,15 @@ export const useOnboardingStore = defineStore('onboarding', () => {
     return onboardingStateStore.recordSteps(steps, outcome)
   }
 
+  const providerSetupStepIds = computed(() => allSteps.value.filter(step => step.scope === 'provider-setup').map(step => step.id))
+
   function closeAfterAuthentication() {
-    return onboardingStateStore.closeAfterAuthentication()
+    return onboardingStateStore.closeAfterAuthentication(providerSetupStepIds.value)
+  }
+
+  /** Removes the provider steps from the queued requests when the user starts sign-in. Other steps stay. */
+  function dropProviderSetupSteps() {
+    return onboardingStateStore.dropSteps(providerSetupStepIds.value)
   }
 
   function resetSetupState() {
@@ -389,6 +415,7 @@ export const useOnboardingStore = defineStore('onboarding', () => {
     registerHostSteps,
     request,
     dismissActiveRequest,
+    dropProviderSetupSteps,
     settleRequest,
     recordSteps,
     closeAfterAuthentication,

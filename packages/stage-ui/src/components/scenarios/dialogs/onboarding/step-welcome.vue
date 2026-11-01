@@ -42,9 +42,10 @@ watch(() => cardStore.builtInCard.description, (description, previous) => {
 })
 
 async function handleLogin() {
-  // Sign-in replaces the flow. On desktop, the onboarding window stays open until sign-in finishes.
+  // Sign-in replaces provider setup, not the other requested steps. On desktop, the onboarding window
+  // stays open until sign-in finishes.
   if (onboardingStore.activeRequest)
-    await onboardingStore.dismissActiveRequest()
+    await onboardingStore.dropProviderSetupSteps()
   await authStore.requestLogin()
 }
 

@@ -180,12 +180,12 @@ const allSteps = computed<OnboardingStep[]>(() => {
   return coreSteps
 })
 
-// The flow shows the steps of the open request, or the pending steps without one.
-// The list is fixed at the start, so a `later` record does not move the step index.
-// A requested step without a component in this window does not show.
-const flowRequestId = onboardingStore.activeRequest?.id
-const flowStepIds = new Set(onboardingStore.activeRequest?.stepIds ?? onboardingStore.pendingSteps.map(pendingStep => pendingStep.id))
-const flowSteps = computed(() => allSteps.value.filter(flowStep => flowStepIds.has(flowStep.id)))
+// The list follows the open request, because on desktop it can arrive after mount.
+// Records do not change a request, so `later` does not move the index.
+// Without a request, the pending steps show, fixed at mount for the same reason.
+const pendingStepIdsAtMount = onboardingStore.pendingSteps.map(pendingStep => pendingStep.id)
+const flowStepIds = computed(() => new Set(onboardingStore.activeRequest?.stepIds ?? pendingStepIdsAtMount))
+const flowSteps = computed(() => allSteps.value.filter(flowStep => flowStepIds.value.has(flowStep.id)))
 /** Steps that the user postponed in this flow. The finish keeps their `later` record. */
 const postponedStepIds = new Set<string>()
 
@@ -200,8 +200,9 @@ async function handleSave() {
     flowSteps.value.filter(flowStep => !postponedStepIds.has(flowStep.id)).map(flowStep => ({ id: flowStep.id, version: flowStep.version ?? 1 })),
     'done',
   )
-  if (flowRequestId)
-    await onboardingStore.settleRequest(flowRequestId)
+  // The flow remounts for each request ID, so the open request is the request of this flow.
+  if (onboardingStore.activeRequest)
+    await onboardingStore.settleRequest(onboardingStore.activeRequest.id)
   trackOnboardingStepCompleted(currentStep.value?.id ?? 'unknown')
   trackOnboardingCompleted({
     selected_provider_type: selectedProviderType.value,

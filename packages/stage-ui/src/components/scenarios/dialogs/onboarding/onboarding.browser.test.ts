@@ -286,3 +286,38 @@ it('keeps the later record of an optional step that the user postponed', async (
   await vi.waitFor(() => expect(configured).toHaveBeenCalled())
   expect(readStepRecords()['host-permissions']).toMatchObject({ version: 2, outcome: 'later' })
 })
+
+// Found in the review of https://github.com/moeru-ai/airi/pull/3296
+// ROOT CAUSE:
+//
+// The flow read the open request once at mount. The desktop onboarding window can mount before the
+// request reaches it, so a request for one step showed an empty flow that could not finish.
+//
+// We fixed this by following the open request.
+it('shows the requested step when the request reaches the window after the flow mounts', async () => {
+  seedFinishedSharedSteps()
+  // Its record is current, so no step is pending when the flow mounts.
+  localStorage.setItem('onboarding/steps', JSON.stringify({ ...readStepRecords(), 'host-permissions': { version: 1, outcome: 'done', at: 0 } }))
+  const hostSteps = [{ id: 'host-permissions', scope: 'device' as const, component: HostStep }]
+  const namespace = `onboarding-late-request:${crypto.randomUUID()}`
+  const leader = createSyncedContext(namespace, 'leader-only')
+  await expect.poll(() => leader.runtime.isLeader()).toBe(true)
+  const mainWindow = useOnboardingStore(leader.pinia)
+  mainWindow.registerHostSteps(hostSteps)
+  const follower = createSyncedContext(namespace, 'follower-only')
+  await expect.poll(() => follower.runtime.getLeaderId()).toBe(leader.runtime.participantId)
+  useOnboardingStore(follower.pinia).registerHostSteps(hostSteps)
+  const configured = vi.fn()
+
+  const screen = await render(OnboardingDialog, {
+    props: { extraSteps: hostSteps, onConfigured: configured },
+    global: { plugins: [follower.pinia, PiniaColada, createTestI18n()] },
+  })
+  await expect.element(screen.getByRole('button', { name: 'Continue' })).not.toBeInTheDocument()
+
+  const result = mainWindow.request({ steps: ['host-permissions'], source: 'settings', force: true })
+  await screen.getByRole('button', { name: 'Continue' }).click()
+
+  expect(await result).toEqual({ 'host-permissions': 'done' })
+  await vi.waitFor(() => expect(configured).toHaveBeenCalled())
+})

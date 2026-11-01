@@ -288,6 +288,53 @@ describe('onboarding requests', () => {
   })
 })
 
+describe('onboarding requests after sign-in', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    setActivePinia(createPinia())
+  })
+
+  // Found in the review of https://github.com/moeru-ai/airi/pull/3296
+  // ROOT CAUSE:
+  //
+  // Sign-in removed the first queued request. When the welcome step had already ended the
+  // provider request, that was a request for a device step, and its flow never opened.
+  //
+  // We fixed this by removing only the provider steps from the queued requests.
+  it('keeps a queued request for a device step after sign-in', async () => {
+    const store = useOnboardingStore()
+    store.registerHostSteps([{ id: 'permissions', scope: 'device' }])
+    const startup = store.request({ steps: ['welcome'], source: 'startup' })
+    const permissions = store.request({ steps: ['permissions'], source: 'wake-word-toggle' })
+    await vi.waitFor(() => expect(store.activeRequest?.source).toBe('startup'))
+
+    await store.dropProviderSetupSteps()
+    await startup
+    await store.closeAfterAuthentication()
+
+    expect(store.activeRequest).toMatchObject({ source: 'wake-word-toggle', stepIds: ['permissions'] })
+    await store.dismissActiveRequest()
+    expect(await permissions).toEqual({ permissions: 'pending' })
+  })
+
+  it('keeps the device steps of a mixed request under a new ID after sign-in', async () => {
+    const store = useOnboardingStore()
+    store.registerHostSteps([{ id: 'permissions', scope: 'device' }])
+    const result = store.request({ source: 'startup' })
+    await vi.waitFor(() => expect(store.activeRequest).not.toBeNull())
+    const firstId = store.activeRequest!.id
+
+    await store.closeAfterAuthentication()
+
+    expect(store.activeRequest?.stepIds).toEqual(['permissions'])
+    // A new ID tells the dialog and the desktop presenter to open the flow again.
+    expect(store.activeRequest?.id).not.toBe(firstId)
+    await store.dismissActiveRequest()
+    // The caller's request ID left the queue, so it resolves after sign-in.
+    expect((await result)['model-selection']).toBe('done')
+  })
+})
+
 describe('isStepPending', () => {
   it('is pending without a record and with a record of an older version', () => {
     expect(isStepPending({}, { id: 'notice', version: 1 })).toBe(true)
