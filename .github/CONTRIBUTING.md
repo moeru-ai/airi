@@ -308,6 +308,26 @@ pnpm to-avif <PATH_TO_IMAGE_OR_DIRECTORY1> <PATH_2> <PATH_3> ...
 > nr lint && nr typecheck
 > ```
 
+Then run the unit tests the way CI runs them.
+Node.js 26 has its own `localStorage`, and it replaces the `localStorage` of the test environment.
+CI turns it off with `--no-experimental-webstorage`:
+
+```shell
+pnpm run build:packages
+NODE_OPTIONS=--no-experimental-webstorage pnpm run test:run
+```
+
+In Windows PowerShell, set the option first:
+
+```powershell
+pnpm run build:packages
+$env:NODE_OPTIONS = '--no-experimental-webstorage'
+pnpm run test:run
+```
+
+Without this option, some tests fail with `Cannot read properties of undefined (reading 'clear')`.
+For example, `packages/stage-ui/src/stores/onboarding.test.ts` fails.
+
 ### Commit
 
 ```shell
