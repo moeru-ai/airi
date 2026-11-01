@@ -1,12 +1,11 @@
-import type { TimelineView } from '@proj-airi/timeline-canvas'
+import type { RowGeometry, TimelineView, ValueRange } from '@proj-airi/timeline-canvas'
 import type { TimelineItemRef } from '@proj-airi/ui-timeline/headless'
 
-import type { Live2DMotionEditableTrackId, Live2DMotionProject } from './keyframes'
+import type { Live2DMotionEditableTrackId, Live2DMotionKeyframe, Live2DMotionOverlay } from './keyframes'
 
-import { xToTime } from '@proj-airi/timeline-canvas'
-import { scaleLinear } from 'd3'
+import { timeToX, valueToY, xToTime, yToValue } from '@proj-airi/timeline-canvas'
 
-import { getLive2DMotionTrackRange } from './keyframes'
+import { evaluateLive2DMotionOverlay } from './keyframes'
 
 /** Row heights of the motion timeline. The active track expands, so its curve has room for keyframe edits. */
 export const motionTrackHeights = { active: 300, idle: 64 } as const
@@ -20,17 +19,22 @@ const GRAPH_INSET_PX = 12
  */
 const VIEW_PADDING_PX = 12
 
-/** Overlay colors in project order. The track header and the lanes give one overlay the same color. */
-const overlayColors = ['#0ea5e9', '#f59e0b', '#a855f7', '#10b981', '#f43f5e']
+/** The pointer distances in CSS pixels that still hit a target of the motion timeline. */
+const hitTolerancePx = {
+  /** The radius of a keyframe dot, with a little room around it. */
+  keyframe: 8,
+  /** Half the width of the drag handle at each end of an overlay. */
+  edge: 6,
+  /** The distance from an overlay curve that selects the overlay. */
+  curve: 6,
+} as const
 
-/** The color of an overlay by its place in the project, so it stays stable while other tracks change. */
-export function motionOverlayColor(project: Live2DMotionProject, overlayId: string): string {
-  const index = project.overlays.findIndex(overlay => overlay.id === overlayId)
-  return overlayColors[Math.max(0, index) % overlayColors.length]!
-}
-
-/** An overlay of the motion timeline. A selected item selects its overlay in the editor. */
+/**
+ * An item of the motion timeline: an overlay, or a keyframe of the selected overlay. The timeline selects and lists
+ * items by `key`. A selected item selects its overlay in the editor.
+ */
 export interface MotionTimelineItem extends TimelineItemRef {
+  kind: 'overlay' | 'keyframe'
   overlayId: string
   trackId: Live2DMotionEditableTrackId
 }
@@ -57,12 +61,17 @@ export function layoutMotionTracks(
   return { rows, height: top }
 }
 
-/** The y offset of a track value inside its row: the high end of the range at the top, the low end at the bottom. */
-export function motionValueScale(row: MotionTrackRow) {
-  return scaleLinear()
-    .domain(getLive2DMotionTrackRange(row.trackId))
-    .range([row.height - GRAPH_INSET_PX, GRAPH_INSET_PX])
-    .clamp(true)
+/** The row at a y offset in the scroll content, or undefined below the last row. */
+export function motionTrackAt(rows: readonly MotionTrackRow[], contentY: number): MotionTrackRow | undefined {
+  return rows.find(row => contentY >= row.top && contentY < row.top + row.height)
+}
+
+/**
+ * Where the curve graph of a row draws on the canvas. The canvas sits at the scroll position of the lanes, so a row
+ * top in the scroll content minus `scrollTop` is a canvas y offset.
+ */
+export function motionGraphGeometry(row: MotionTrackRow, scrollTop: number): RowGeometry {
+  return { top: row.top - scrollTop + GRAPH_INSET_PX, height: row.height - GRAPH_INSET_PX * 2 }
 }
 
 /**
@@ -86,4 +95,81 @@ export function fullMotionView(durationMs: number, width: number, labelWidth: nu
  */
 export function visibleMotionRange(view: TimelineView, labelWidth: number, durationMs: number): readonly [number, number] {
   return [Math.max(0, xToTime(view, labelWidth)), Math.min(durationMs, view.end)]
+}
+
+/** The ID of the keyframe whose dot is nearest to a canvas position, or undefined when no dot is in reach. */
+export function keyframeAt(
+  points: readonly Live2DMotionKeyframe[],
+  view: TimelineView,
+  geometry: RowGeometry,
+  range: ValueRange,
+  x: number,
+  y: number,
+): string | undefined {
+  let nearest: string | undefined
+  let nearestDistance: number = hitTolerancePx.keyframe
+  for (const point of points) {
+    const distance = Math.hypot(timeToX(view, point.atMs) - x, valueToY(range, geometry, point.value) - y)
+    if (distance <= nearestDistance) {
+      nearest = point.id
+      nearestDistance = distance
+    }
+  }
+  return nearest
+}
+
+/** The end of an overlay whose drag handle is under a canvas x offset. The nearer end wins when both are in reach. */
+export function overlayEdgeAt(overlay: Pick<Live2DMotionOverlay, 'startMs' | 'endMs'>, view: TimelineView, x: number): 'start' | 'end' | undefined {
+  const startDistance = Math.abs(timeToX(view, overlay.startMs) - x)
+  const endDistance = Math.abs(timeToX(view, overlay.endMs) - x)
+  if (Math.min(startDistance, endDistance) > hitTolerancePx.edge)
+    return undefined
+  return startDistance <= endDistance ? 'start' : 'end'
+}
+
+/**
+ * The overlay whose curve passes near a canvas position. Overlays later in the list draw on top, so they win. Only an
+ * overlay whose span holds the pointer time can be hit.
+ */
+export function overlayCurveAt<Overlay extends Live2DMotionOverlay>(
+  overlays: readonly Overlay[],
+  view: TimelineView,
+  geometry: RowGeometry,
+  range: ValueRange,
+  x: number,
+  y: number,
+): Overlay | undefined {
+  const atMs = xToTime(view, x)
+  for (let index = overlays.length - 1; index >= 0; index--) {
+    const overlay = overlays[index]!
+    if (overlay.points.length === 0 || atMs < overlay.startMs || atMs > overlay.endMs)
+      continue
+    const [low, high] = range
+    const value = Math.min(high, Math.max(low, evaluateLive2DMotionOverlay(overlay, atMs)))
+    if (Math.abs(valueToY(range, geometry, value) - y) <= hitTolerancePx.curve)
+      return overlay
+  }
+  return undefined
+}
+
+/**
+ * The keyframe time and value at a canvas position. The time rounds to whole milliseconds, like the stored keyframes.
+ * The value clamps to the track range, so a drag past the graph edge holds the key at the edge.
+ *
+ * @example
+ * keyframeFromPointer({ start: 0, end: 1000, width: 1000 }, { top: 0, height: 100 }, [-1, 1], 250.4, -20)
+ * // => { atMs: 250, value: 1 }
+ */
+export function keyframeFromPointer(
+  view: TimelineView,
+  geometry: RowGeometry,
+  range: ValueRange,
+  x: number,
+  y: number,
+): { atMs: number, value: number } {
+  const [low, high] = range
+  return {
+    atMs: Math.round(xToTime(view, x)),
+    value: Math.min(high, Math.max(low, yToValue(range, geometry, y))),
+  }
 }

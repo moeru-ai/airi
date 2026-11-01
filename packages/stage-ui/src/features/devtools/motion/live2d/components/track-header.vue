@@ -11,7 +11,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { isLive2DMotionViewTargetTrackId } from '../composables/keyframes'
-import { motionOverlayColor } from '../composables/timeline-geometry'
+import { motionOverlayColor } from '../composables/timeline-draw'
 
 /**
  * The label of one track in the label column of the motion timeline: the track name, its overlays, and on the active

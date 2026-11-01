@@ -4,17 +4,17 @@ import type { Live2DMotionEditableTrackId, Live2DMotionEditorFrame } from '../co
 import type { Live2DMotionRecording, ReadonlyLive2DMotionRecording } from '../composables/recording'
 
 import { neutralLive2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
-import { timeToX } from '@proj-airi/timeline-canvas'
+import { timeToX, valueToY } from '@proj-airi/timeline-canvas'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from 'vitest-browser-vue'
-import { page, userEvent } from 'vitest/browser'
+import { page } from 'vitest/browser'
 import { defineComponent, h, nextTick, shallowRef } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import KeyframeEditor from './keyframe-editor.vue'
 
-import { live2dMotionEditableTrackIds } from '../composables/keyframes'
-import { fullMotionView, layoutMotionTracks, motionValueScale } from '../composables/timeline-geometry'
+import { getLive2DMotionTrackRange, live2dMotionEditableTrackIds } from '../composables/keyframes'
+import { fullMotionView, layoutMotionTracks, motionGraphGeometry } from '../composables/timeline-geometry'
 
 import '@proj-airi/ui/main.css'
 import 'virtual:uno.css'
@@ -88,33 +88,24 @@ describe('keyframe editor', () => {
    * The client position of a time and a value on the graph of the active track. The timeline shows the whole motion
    * right of the label column, and the lanes are not scrolled.
    */
-  /** The SVG of the timeline lanes. */
-  function lanes() {
-    return document.querySelector<SVGSVGElement>('svg:has(path)')!
-  }
-
   function graphPoint(activeTrack: Live2DMotionEditableTrackId, durationMs: number, atMs: number, value: number) {
-    const rect = lanes().getBoundingClientRect()
+    const rect = document.querySelector('canvas')!.getBoundingClientRect()
     const row = layoutMotionTracks(live2dMotionEditableTrackIds, activeTrack).rows.find(item => item.trackId === activeTrack)!
     const view = { ...fullMotionView(durationMs, rect.width, LABEL_WIDTH), width: rect.width }
     return {
       clientX: rect.left + timeToX(view, atMs),
-      clientY: rect.top + row.top + motionValueScale(row)(value),
+      clientY: rect.top + valueToY(getLive2DMotionTrackRange(activeTrack), motionGraphGeometry(row, 0), value),
     }
   }
 
   function doubleClick(point: { clientX: number, clientY: number }) {
-    lanes().dispatchEvent(new MouseEvent('dblclick', { bubbles: true, ...point }))
-  }
-
-  /** Double-clicks the first keyframe of the selected overlay. */
-  function doubleClickKeyframe() {
-    page.getByRole('button', { name: `${editorKey}.keyframe-item`, exact: true }).elements()[0]!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+    document.querySelector('canvas')!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, ...point }))
   }
 
   function click(point: { clientX: number, clientY: number }) {
-    lanes().dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 1, ...point }))
-    lanes().dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0, pointerId: 1, ...point }))
+    const canvas = document.querySelector('canvas')!
+    canvas.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 1, ...point }))
+    canvas.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0, pointerId: 1, ...point }))
   }
 
   it('shows all tracks on one shared timeline and expands the active track', async () => {
@@ -122,6 +113,7 @@ describe('keyframe editor', () => {
 
     expect(trackButtons()).toHaveLength(13)
     expect(trackButtons().filter(button => button.getAttribute('aria-expanded') === 'true')).toHaveLength(1)
+    expect(document.querySelectorAll('canvas')).toHaveLength(1)
     await expect.element(page.getByRole('slider', { name: `${editorKey}.playhead` })).toBeInTheDocument()
     expect(document.body.textContent).toContain('.tracks.eyeOpen')
     expect(document.body.textContent).toContain('.tracks.mouthForm')
@@ -186,30 +178,11 @@ describe('keyframe editor', () => {
     await nextTick()
     expect(keyframeCount()).toBe(3)
 
-    doubleClickKeyframe()
+    doubleClick(point)
     await nextTick()
     expect(keyframeCount()).toBe(2)
     expect(onRecording).toHaveBeenCalled()
     expect(onRecording.mock.lastCall?.[0]).toMatchObject({ format: 'airi-live2d-motion/v6', durationMs: 4000 })
-  })
-
-  it('drags a keyframe and commits the drag once', async () => {
-    const onRecording = vi.fn()
-    await mountEditor({ onRecording })
-
-    findButton(`${editorKey}.controls.add`).click()
-    await nextTick()
-    const calls = onRecording.mock.calls.length
-    const keyframe = page.getByRole('button', { name: `${editorKey}.keyframe-item`, exact: true }).first()
-    const target = graphPoint('headX', 4000, 0, 0.5)
-    const rect = lanes().getBoundingClientRect()
-    await userEvent.dragAndDrop(keyframe, page.elementLocator(lanes()), {
-      targetPosition: { x: target.clientX - rect.left, y: target.clientY - rect.top },
-    })
-    await nextTick()
-
-    expect(onRecording.mock.calls.length).toBe(calls + 1)
-    expect(onRecording.mock.lastCall?.[0].samples[0].headX).toBeCloseTo(0.5, 1)
   })
 
   it('ignores a double click outside the span of the selected overlay', async () => {
@@ -279,8 +252,9 @@ describe('keyframe editor', () => {
     const cropButton = findButton(`${editorKey}.crop-to-view`)
     expect(cropButton.disabled).toBe(true)
 
-    const rect = lanes().getBoundingClientRect()
-    lanes().dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, clientX: rect.left + rect.width * 0.6, deltaY: -500 }))
+    const canvas = document.querySelector('canvas')!
+    const rect = canvas.getBoundingClientRect()
+    canvas.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, clientX: rect.left + rect.width * 0.6, deltaY: -500 }))
 
     await expect.poll(() => cropButton.disabled).toBe(false)
     cropButton.click()

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { TimelineView } from '@proj-airi/timeline-canvas'
+import type { ListedItem, TimelineCanvasFrame } from '@proj-airi/ui-timeline/headless'
 
 import type {
   Live2DMotionEditableTrackId,
@@ -10,26 +10,37 @@ import type {
 import type { MotionTimelineItem, MotionTrackRow } from '../composables/timeline-geometry'
 
 import { timeToX, xToTime } from '@proj-airi/timeline-canvas'
-import { injectTimelineRootContext, TimelineLanes } from '@proj-airi/ui-timeline/headless'
+import { useTheme } from '@proj-airi/ui'
+import { injectTimelineRootContext, TimelineCanvas, TimelineItemList, TimelineLanes } from '@proj-airi/ui-timeline/headless'
 import { useRafFn } from '@vueuse/core'
-import { curveLinear, curveStepAfter, line } from 'd3'
-import { computed, shallowRef, useTemplateRef } from 'vue'
+import { computed, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import {
   createLive2DMotionId,
-  getLive2DMotionCompositePoints,
-  getLive2DMotionSourcePoints,
+  getLive2DMotionTrackRange,
   isLive2DMotionViewTargetTrackId,
+  live2dMotionEditableTrackIds,
 } from '../composables/keyframes'
-import { fullMotionView, motionOverlayColor, motionValueScale, visibleMotionRange } from '../composables/timeline-geometry'
+import { createMotionTrackModel, drawMotionTrack, motionTimelinePalettes } from '../composables/timeline-draw'
+import {
+  fullMotionView,
+  keyframeAt,
+  keyframeFromPointer,
+  motionGraphGeometry,
+  motionTrackAt,
+  overlayCurveAt,
+  overlayEdgeAt,
+  visibleMotionRange,
+} from '../composables/timeline-geometry'
 
 /**
- * The lanes of the motion timeline: one SVG with a row for each track.
+ * The lanes of the motion timeline: one canvas that draws every visible track, the hidden item list, and the pointer
+ * layer that edits the active track.
  *
- * The lanes of `@proj-airi/ui-timeline` pan on a drag, zoom on the wheel, and move the playhead on a click. A press on
- * a keyframe or an overlay edge stops there, so it drags that target instead. A double click on the active track adds
- * a keyframe to the selected overlay. A double click on a keyframe removes it.
+ * The lanes of `@proj-airi/ui-timeline` pan on a drag and move the playhead on a click. The pointer layer takes a press
+ * on a keyframe or on an overlay edge before the lanes see it, so that press drags the keyframe or the edge instead. A
+ * double click adds a keyframe to the selected overlay, or removes the keyframe under the pointer.
  */
 const props = defineProps<{
   project: Live2DMotionProject
@@ -39,6 +50,7 @@ const props = defineProps<{
   activeTrack: Live2DMotionEditableTrackId
   selectedOverlayId?: string
   disabled?: boolean
+  trackLabel: (trackId: Live2DMotionEditableTrackId) => string
 }>()
 const emit = defineEmits<{
   activate: [trackId: Live2DMotionEditableTrackId]
@@ -51,15 +63,51 @@ const emit = defineEmits<{
 }>()
 
 const context = injectTimelineRootContext<MotionTimelineItem>()
+const { isDark } = useTheme()
 const { t } = useI18n()
-const svg = useTemplateRef<SVGSVGElement>('svg')
+const layer = useTemplateRef<HTMLDivElement>('layer')
 
-/** The view of the timeline root. The root moves its view without a render, so each frame copies it for the SVG. */
-const view = shallowRef<TimelineView>(context.currentView())
-/** The overlay that the active track edits: the selected overlay, when it belongs to the active track. */
+/** The canvas content of each track. It rebuilds only when the project changes, not when the active track changes. */
+const models = computed(() => new Map(live2dMotionEditableTrackIds.map(trackId => [trackId, createMotionTrackModel(props.project, trackId)])))
+const activeRow = computed(() => props.rows.find(row => row.trackId === props.activeTrack))
+/** The overlay that the pointer layer edits: the selected overlay, when it belongs to the active track. */
 const editedOverlay = computed(() => props.project.overlays.find(overlay => overlay.id === props.selectedOverlayId && overlay.trackId === props.activeTrack))
 
-/** A reset waits for a frame, because the lanes width is known only after a render. */
+function draw(ctx: CanvasRenderingContext2D, frame: TimelineCanvasFrame) {
+  const palette = motionTimelinePalettes[isDark.value ? 'dark' : 'light']
+  const { view, width, height, scrollTop } = frame
+
+  ctx.fillStyle = palette.grid
+  for (const tick of context.ticks.value)
+    ctx.fillRect(Math.round(timeToX(view, tick.time)), 0, 1, height)
+
+  for (const row of props.rows) {
+    const top = row.top - scrollTop
+    if (top >= height)
+      break
+    const model = models.value.get(row.trackId)
+    if (top + row.height <= 0 || !model)
+      continue
+    drawMotionTrack(ctx, model, {
+      view,
+      row: { top, height: row.height },
+      graph: motionGraphGeometry(row, scrollTop),
+      width,
+      labelLeft: context.labelWidth.value,
+    }, { active: row.trackId === props.activeTrack, selectedOverlayId: props.selectedOverlayId }, palette)
+  }
+
+  const cursor = context.cursor.value
+  if (cursor !== undefined) {
+    ctx.fillStyle = palette.playhead
+    ctx.fillRect(Math.round(timeToX(view, cursor) - 1), 0, 2, height)
+  }
+}
+
+/**
+ * The view state that the frame loop owns. A reset waits for a frame, because the lanes width and the new duration
+ * are known only after a render. The last viewport keeps the `viewport` event to real changes.
+ */
 let pendingReset = true
 let lastViewport: readonly [number, number] | undefined
 
@@ -72,10 +120,7 @@ useRafFn(() => {
     context.setView(next.start, next.end)
     pendingReset = false
   }
-  const current = context.currentView()
-  if (current.start !== view.value.start || current.end !== view.value.end || current.width !== view.value.width)
-    view.value = current
-  const viewport = visibleMotionRange(current, context.labelWidth.value, props.project.durationMs)
+  const viewport = visibleMotionRange(context.currentView(), context.labelWidth.value, props.project.durationMs)
   if (lastViewport?.[0] === viewport[0] && lastViewport[1] === viewport[1])
     return
   lastViewport = viewport
@@ -89,195 +134,241 @@ function resetView() {
 
 defineExpose({ resetView })
 
-function x(atMs: number) {
-  return timeToX(view.value, atMs)
+/** A pointer position on the canvas, and the track row under it. */
+interface PointerHit {
+  x: number
+  y: number
+  row: MotionTrackRow
 }
 
-/** What each row draws. The paths follow the view, so they rebuild on each pan or zoom. */
-const tracks = computed(() => props.rows.map((row) => {
-  const y = motionValueScale(row)
-  const viewTarget = isLive2DMotionViewTargetTrackId(row.trackId)
-  // The source is a dense recording. Keyframe curves of a view-target track hold each key until the next one.
-  const source = line<Live2DMotionKeyframe>().x(point => x(point.atMs)).y(point => y(point.value))
-  const steps = line<Live2DMotionKeyframe>().x(point => x(point.atMs)).y(point => y(point.value)).curve(viewTarget ? curveStepAfter : curveLinear)
-  return {
-    row,
-    y,
-    viewTarget,
-    zeroY: y.domain()[0]! < 0 ? y(0) : undefined,
-    source: source(getLive2DMotionSourcePoints(props.project, row.trackId)) ?? '',
-    composite: steps(getLive2DMotionCompositePoints(props.project, row.trackId)) ?? '',
-    overlays: props.project.overlays
-      .filter(overlay => overlay.trackId === row.trackId)
-      .map(overlay => ({ overlay, color: motionOverlayColor(props.project, overlay.id), path: steps(overlay.points) ?? '' })),
-  }
-}))
-const activeTrackView = computed(() => tracks.value.find(track => track.row.trackId === props.activeTrack))
+function pointerPosition(event: MouseEvent): { x: number, y: number } | undefined {
+  const rect = layer.value?.getBoundingClientRect()
+  return rect ? { x: event.clientX - rect.left, y: event.clientY - rect.top } : undefined
+}
 
-/** The keyframe time and value under a pointer on the active track. The value clamps to the track range. */
-function pointAt(event: MouseEvent): { atMs: number, value: number } | undefined {
-  const rect = svg.value?.getBoundingClientRect()
-  const track = activeTrackView.value
-  if (!rect || !track)
+function hitAt(event: MouseEvent): PointerHit | undefined {
+  const position = pointerPosition(event)
+  const row = position && motionTrackAt(props.rows, position.y + context.scrollTop.value)
+  return position && row ? { ...position, row } : undefined
+}
+
+function graphOf(row: MotionTrackRow) {
+  return {
+    view: context.currentView(),
+    geometry: motionGraphGeometry(row, context.scrollTop.value),
+    range: getLive2DMotionTrackRange(row.trackId),
+  }
+}
+
+/** What a press on the active track drags: a keyframe of the selected overlay, or one end of its span. */
+type EditTarget = { kind: 'keyframe', pointId: string } | { kind: 'edge', edge: 'start' | 'end' }
+
+/** The keyframe or the overlay edge under the pointer on the active track, the targets that a press drags. */
+function editTargetAt(hit: PointerHit): EditTarget | undefined {
+  const overlay = editedOverlay.value
+  if (props.disabled || !overlay || hit.row.trackId !== props.activeTrack)
     return undefined
-  return {
-    atMs: Math.round(xToTime(view.value, event.clientX - rect.left)),
-    value: track.y.invert(event.clientY - rect.top - track.row.top),
-  }
+  const { view, geometry, range } = graphOf(hit.row)
+  const pointId = keyframeAt(overlay.points, view, geometry, range, hit.x, hit.y)
+  if (pointId !== undefined)
+    return { kind: 'keyframe', pointId }
+  // A view-target overlay always spans the whole motion, so it has no edges to drag.
+  const edge = isLive2DMotionViewTargetTrackId(overlay.trackId) ? undefined : overlayEdgeAt(overlay, view, hit.x)
+  return edge ? { kind: 'edge', edge } : undefined
 }
 
-/** The drag of a keyframe or an overlay edge. Moves emit uncommitted changes. The release commits one history entry. */
-let drag: { pointerId: number, overlayId: string, target: { pointId: string } | { edge: 'start' | 'end' }, moved: boolean } | undefined
+/**
+ * The drag in progress. It starts on a press on an edit target and ends on the release or cancel of the same
+ * pointer. Moves emit uncommitted changes. The release commits one history entry, only when the pointer moved.
+ */
+let edit: { pointerId: number, overlayId: string, target: EditTarget, moved: boolean } | undefined
 
-function startDrag(event: PointerEvent, overlayId: string, target: { pointId: string } | { edge: 'start' | 'end' }) {
-  if (props.disabled || event.button !== 0)
+function setCursor(cursor: string) {
+  if (layer.value)
+    layer.value.style.cursor = cursor
+}
+
+function onPointerDown(event: PointerEvent) {
+  if (event.button !== 0)
+    return
+  const hit = hitAt(event)
+  if (!hit)
+    return
+  if (hit.row.trackId !== props.activeTrack) {
+    // The press still reaches the lanes, so a click on another track also moves the playhead.
+    emit('activate', hit.row.trackId)
+    return
+  }
+  const target = editTargetAt(hit)
+  const overlay = editedOverlay.value
+  if (!target || !overlay)
     return
   // The lanes must not see this press, or they pan the view and move the playhead on release.
   event.stopPropagation()
-  ;(event.currentTarget as Element).setPointerCapture(event.pointerId)
-  drag = { pointerId: event.pointerId, overlayId, target, moved: false }
+  layer.value?.setPointerCapture(event.pointerId)
+  edit = { pointerId: event.pointerId, overlayId: overlay.id, target, moved: false }
+  setCursor(target.kind === 'keyframe' ? 'grabbing' : 'ew-resize')
 }
 
-function moveDrag(event: PointerEvent) {
-  const overlay = drag && event.pointerId === drag.pointerId && props.project.overlays.find(item => item.id === drag!.overlayId)
-  const point = overlay && pointAt(event)
-  if (!drag || !overlay || !point)
-    return
-  drag.moved = true
-  if ('pointId' in drag.target) {
-    emit('movePoint', overlay.id, drag.target.pointId, Math.min(overlay.endMs, Math.max(overlay.startMs, point.atMs)), point.value, false)
+function onPointerMove(event: PointerEvent) {
+  if (!edit || event.pointerId !== edit.pointerId) {
+    if (event.buttons === 0)
+      setCursor(hoverCursor(event))
     return
   }
-  const atMs = Math.min(props.project.durationMs, Math.max(0, point.atMs))
-  emit('updateOverlay', overlay.id, drag.target.edge === 'start' ? { startMs: Math.min(overlay.endMs - 1, atMs) } : { endMs: Math.max(overlay.startMs + 1, atMs) }, false)
+  event.stopPropagation()
+  const overlay = props.project.overlays.find(item => item.id === edit!.overlayId)
+  const position = pointerPosition(event)
+  const row = activeRow.value
+  if (!overlay || !position || !row)
+    return
+  edit.moved = true
+  const { view, geometry, range } = graphOf(row)
+  if (edit.target.kind === 'keyframe') {
+    const next = keyframeFromPointer(view, geometry, range, position.x, position.y)
+    const atMs = Math.min(overlay.endMs, Math.max(overlay.startMs, next.atMs))
+    emit('movePoint', overlay.id, edit.target.pointId, atMs, next.value, false)
+    return
+  }
+  const atMs = Math.min(props.project.durationMs, Math.max(0, Math.round(xToTime(view, position.x))))
+  const patch = edit.target.edge === 'start'
+    ? { startMs: Math.min(overlay.endMs - 1, atMs) }
+    : { endMs: Math.max(overlay.startMs + 1, atMs) }
+  emit('updateOverlay', overlay.id, patch, false)
 }
 
-function endDrag(event: PointerEvent) {
-  if (!drag || event.pointerId !== drag.pointerId)
+function onPointerUp(event: PointerEvent) {
+  if (!edit || event.pointerId !== edit.pointerId)
     return
-  // The release ends the drag. The lanes must not read it as a click.
   event.stopPropagation()
-  const done = drag
-  drag = undefined
+  const done = edit
+  edit = undefined
+  setCursor(hoverCursor(event))
   const overlay = props.project.overlays.find(item => item.id === done.overlayId)
   if (!done.moved || !overlay)
     return
-  if ('edge' in done.target) {
+  if (done.target.kind === 'edge') {
     emit('updateOverlay', overlay.id, {}, true)
     return
   }
-  const point = overlay.points.find(item => item.id === (done.target as { pointId: string }).pointId)
+  const pointId = done.target.pointId
+  const point = overlay.points.find(item => item.id === pointId)
   if (point)
     emit('movePoint', overlay.id, point.id, point.atMs, point.value, true)
 }
 
 function onDoubleClick(event: MouseEvent) {
+  const hit = hitAt(event)
   const overlay = editedOverlay.value
-  const track = activeTrackView.value
-  const point = pointAt(event)
-  const rowY = event.clientY - (svg.value?.getBoundingClientRect().top ?? 0) - (track?.row.top ?? 0)
-  if (props.disabled || !overlay || !track || !point || rowY < 0 || rowY > track.row.height)
+  if (!hit || !overlay || props.disabled || hit.row.trackId !== props.activeTrack)
     return
+  const target = editTargetAt(hit)
+  if (target?.kind === 'keyframe') {
+    emit('removePoint', overlay.id, target.pointId)
+    return
+  }
+  // A double click on an edge handle is a press on the handle, not a new keyframe.
+  if (target?.kind === 'edge')
+    return
+  const { view, geometry, range } = graphOf(hit.row)
+  const point = keyframeFromPointer(view, geometry, range, hit.x, hit.y)
   if (point.atMs < overlay.startMs || point.atMs > overlay.endMs)
     return
   emit('addPoint', overlay.id, { id: createLive2DMotionId(), ...point })
 }
 
-/** The overlay under a click of the lanes. A click on an overlay curve selects the overlay instead of moving the playhead. */
-function hitItem(event: PointerEvent): MotionTimelineItem | undefined {
-  const overlayId = (event.target as Element | null)?.closest('[data-overlay-id]')?.getAttribute('data-overlay-id')
-  const overlay = props.project.overlays.find(item => item.id === overlayId)
-  return overlay ? { key: overlay.id, overlayId: overlay.id, trackId: overlay.trackId } : undefined
+/** The overlay whose curve is under the pointer, for a click that selects it. */
+function overlayAt(hit: PointerHit) {
+  const { view, geometry, range } = graphOf(hit.row)
+  const overlays = props.project.overlays.filter(overlay => overlay.trackId === hit.row.trackId)
+  return overlayCurveAt(overlays, view, geometry, range, hit.x, hit.y)
 }
 
-function keyframeLabel(point: Live2DMotionKeyframe) {
-  return t('tamagotchi.settings.devtools.pages.live2d-motion.editor.keyframe-item', {
-    time: `${(point.atMs / 1000).toFixed(2)}s`,
-    value: point.value.toFixed(2),
+function hoverCursor(event: MouseEvent): string {
+  const hit = hitAt(event)
+  if (!hit)
+    return 'default'
+  if (hit.row.trackId !== props.activeTrack)
+    return 'pointer'
+  const target = editTargetAt(hit)
+  if (target)
+    return target.kind === 'keyframe' ? 'grab' : 'ew-resize'
+  return overlayAt(hit) ? 'pointer' : 'crosshair'
+}
+
+/** The item under a click of the lanes. A click on an overlay curve selects the overlay instead of moving the playhead. */
+function hitItem(event: PointerEvent): MotionTimelineItem | undefined {
+  const hit = hitAt(event)
+  const overlay = hit && overlayAt(hit)
+  return overlay ? { key: overlay.id, kind: 'overlay', overlayId: overlay.id, trackId: overlay.trackId } : undefined
+}
+
+/** The overlays of every track and the keyframes of the selected overlay, for keyboards and screen readers. */
+const listedItems = computed(() => {
+  const items: ListedItem<MotionTimelineItem>[] = []
+  props.rows.forEach((row, index) => {
+    for (const overlay of props.project.overlays) {
+      if (overlay.trackId !== row.trackId)
+        continue
+      const viewTarget = isLive2DMotionViewTargetTrackId(overlay.trackId)
+      items.push({
+        target: { key: overlay.id, kind: 'overlay', overlayId: overlay.id, trackId: overlay.trackId },
+        label: viewTarget ? props.trackLabel(overlay.trackId) : `${overlay.name} · ${overlay.blendMode}`,
+        row: index,
+        start: overlay.startMs,
+        end: overlay.endMs,
+      })
+      if (overlay.id !== editedOverlay.value?.id)
+        continue
+      for (const point of overlay.points) {
+        items.push({
+          target: { key: `${overlay.id}:${point.id}`, kind: 'keyframe', overlayId: overlay.id, trackId: overlay.trackId },
+          label: t('tamagotchi.settings.devtools.pages.live2d-motion.editor.keyframe-item', {
+            time: `${(point.atMs / 1000).toFixed(2)}s`,
+            value: point.value.toFixed(2),
+          }),
+          row: index,
+          start: point.atMs,
+          end: point.atMs,
+        })
+      }
+    }
   })
+  return items
+})
+
+function onItemFocus(item: ListedItem<MotionTimelineItem>) {
+  const row = props.rows[item.row]
+  if (row)
+    context.reveal({ start: item.start, end: item.end, top: row.top, height: row.height })
 }
 </script>
 
 <template>
   <TimelineLanes :hit-test="hitItem" :class="['relative touch-none']" :style="{ height: `${contentHeight}px` }">
-    <svg ref="svg" :class="['absolute inset-0 size-full overflow-hidden']" @dblclick="onDoubleClick">
-      <line
-        v-for="tick in context.ticks.value"
-        :key="tick.time"
-        :x1="x(tick.time)" :x2="x(tick.time)" y1="0" y2="100%"
-        :class="['stroke-neutral-200/90 dark:stroke-neutral-800/60']"
-      />
-
-      <g
-        v-for="track in tracks"
-        :key="track.row.trackId"
-        :transform="`translate(0 ${track.row.top})`"
-        :class="[track.row.trackId === activeTrack ? 'cursor-crosshair' : 'cursor-pointer']"
-        @pointerdown="track.row.trackId !== activeTrack && emit('activate', track.row.trackId)"
+    <!--
+      One canvas over the visible part of the lanes. It moves with the scroll position, so it stays in view. The clip
+      keeps it out of the scroll size, so it cannot grow the scroll area.
+    -->
+    <div :class="['absolute inset-0 overflow-hidden pointer-events-none']">
+      <div
+        ref="layer"
+        :class="['absolute inset-x-0 pointer-events-auto cursor-crosshair']"
+        :style="{ top: `${context.scrollTop.value}px`, height: `${context.viewportHeight.value}px` }"
+        @pointerdown="onPointerDown"
+        @pointermove="onPointerMove"
+        @pointerup="onPointerUp"
+        @pointercancel="onPointerUp"
+        @pointerleave="setCursor('default')"
+        @dblclick="onDoubleClick"
       >
-        <rect
-          width="100%" :height="track.row.height"
-          :class="[track.row.trackId === activeTrack ? 'fill-black/4.5 dark:fill-white/5' : 'fill-black/2 dark:fill-neutral-900/40']"
+        <TimelineCanvas :draw="draw" :class="['block size-full']" />
+        <TimelineItemList
+          :items="listedItems"
+          :aria-label="t('tamagotchi.settings.devtools.pages.live2d-motion.editor.timeline-items')"
+          @focus="onItemFocus"
         />
-        <line x1="0" x2="100%" :y1="track.row.height - 0.5" :y2="track.row.height - 0.5" :class="['stroke-neutral-200/90 dark:stroke-neutral-800/35']" />
-        <rect
-          v-for="{ overlay, color } in track.overlays"
-          :key="`span:${overlay.id}`"
-          :x="x(overlay.startMs)" y="2" :width="Math.max(0, x(overlay.endMs) - x(overlay.startMs))" :height="track.row.height - 5" rx="6"
-          :fill="color" fill-opacity="0.1"
-          :stroke="overlay.id === selectedOverlayId ? color : 'none'" stroke-opacity="0.7"
-        />
-        <line v-if="track.zeroY !== undefined" x1="0" x2="100%" :y1="track.zeroY" :y2="track.zeroY" :class="['stroke-neutral-200 dark:stroke-neutral-800']" />
-        <path :d="track.source" fill="none" stroke-width="2" :class="['stroke-neutral-400 dark:stroke-neutral-600']" />
-        <path :d="track.composite" fill="none" stroke-width="2" :class="['stroke-neutral-900 dark:stroke-neutral-100']" />
-        <path
-          v-for="{ overlay, color, path } in track.overlays"
-          :key="overlay.id"
-          :d="path" fill="none" :stroke="color" :stroke-width="overlay.id === selectedOverlayId ? 3.5 : 2"
-          :data-overlay-id="overlay.id"
-          :class="['cursor-pointer']"
-        />
-
-        <template v-if="track.row.trackId === activeTrack && editedOverlay">
-          <!-- A view-target overlay always spans the whole motion, so it has no edges to drag. -->
-          <template v-if="!track.viewTarget">
-            <rect
-              v-for="edge in (['start', 'end'] as const)"
-              :key="edge"
-              :x="x(edge === 'start' ? editedOverlay.startMs : editedOverlay.endMs) - 6" y="0" width="12" :height="track.row.height"
-              :fill="motionOverlayColor(project, editedOverlay.id)" fill-opacity="0.22"
-              :class="['cursor-ew-resize']"
-              @pointerdown="startDrag($event, editedOverlay.id, { edge })"
-              @pointermove="moveDrag"
-              @pointerup="endDrag"
-              @pointercancel="endDrag"
-              @dblclick.stop
-            />
-          </template>
-          <circle
-            v-for="point in editedOverlay.points"
-            :key="point.id"
-            role="button"
-            tabindex="0"
-            :aria-label="keyframeLabel(point)"
-            :cx="x(point.atMs)" :cy="track.y(point.value)" r="6"
-            :fill="motionOverlayColor(project, editedOverlay.id)" stroke-width="2"
-            :class="['stroke-white dark:stroke-neutral-950 cursor-grab active:cursor-grabbing outline-none']"
-            @pointerdown="startDrag($event, editedOverlay.id, { pointId: point.id })"
-            @pointermove="moveDrag"
-            @pointerup="endDrag"
-            @pointercancel="endDrag"
-            @dblclick.stop="!disabled && emit('removePoint', editedOverlay.id, point.id)"
-            @keydown.delete.prevent="!disabled && emit('removePoint', editedOverlay.id, point.id)"
-          />
-        </template>
-      </g>
-
-      <line
-        v-if="context.cursor.value !== undefined"
-        :x1="x(context.cursor.value)" :x2="x(context.cursor.value)" y1="0" y2="100%"
-        stroke-width="2" :class="['stroke-amber-500 dark:stroke-amber-400 pointer-events-none']"
-      />
-    </svg>
+      </div>
+    </div>
   </TimelineLanes>
 </template>
