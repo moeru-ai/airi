@@ -8,7 +8,6 @@ import type { ChatDraftHandover } from '../../shared/eventa'
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useChatInterruption } from '@proj-airi/stage-layouts/composables/use-chat-interruption'
-import { isElectronWindow } from '@proj-airi/stage-shared'
 import { ChatBackgroundTasks, ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
 import { ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSendButton, useChatComposer, useChatImages, VoiceInputButton } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
@@ -42,12 +41,17 @@ const props = withDefaults(defineProps<{
   /**
    * `true` in the transparent floating chat window, which draws nothing
    * behind the chat. The history scrollbar shows on hover, because the wheel
-   * over the empty history reaches the app below instead. On macOS the chat
-   * looks the same as in the chat window. On other platforms, bubbles, the
-   * composer and the welcome card paint solid backgrounds that keep their
-   * contrast over any desktop.
+   * over the empty history reaches the app below instead. Without
+   * `glassBackdrop`, bubbles, the composer and the welcome card paint solid
+   * backgrounds that keep their contrast over any desktop.
    */
   floating?: boolean
+  /**
+   * `true` when the window draws native glass behind the floating chat, such
+   * as the floating panel on macOS. The chat then looks the same as in the
+   * chat window.
+   */
+  glassBackdrop?: boolean
   /**
    * `true` adds a tab at the bottom edge that folds the composer away, so
    * the history reaches the bottom. The folded composer stays mounted, so an
@@ -79,15 +83,14 @@ const props = withDefaults(defineProps<{
   rightResizeBand?: number
 }>(), {
   floating: false,
+  glassBackdrop: false,
   composerFoldable: false,
   passive: false,
   expiredBefore: 0,
 })
 
-// Only macOS blurs the desktop behind a transparent window. Other platforms show the desktop through a translucent
-// fill as it is, so the floating chat paints solid surfaces there.
-const macOSWindow = isElectronWindow(window) && window.platform === 'darwin'
-const solidSurfaces = props.floating && !macOSWindow
+// A translucent fill over the bare desktop loses its contrast, so a floating chat without glass paints solid surfaces.
+const solidSurfaces = computed(() => props.floating && !props.glassBackdrop)
 
 /** Whether a foldable composer is folded away. */
 const composerFolded = defineModel<boolean>('composerFolded', { default: false })
@@ -464,10 +467,6 @@ defineExpose({
         :class="['mx-2 mb-1']"
         @configure="openSettings({ route: '/settings/providers' })"
       />
-      <!--
-        TODO: When Windows and Linux blur the desktop behind a transparent window, the floating chat can use the
-        translucent surfaces there too. Then remove `solidSurfaces`.
-      -->
       <div
         ref="message-composer"
         :class="[
