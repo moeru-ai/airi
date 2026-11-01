@@ -164,7 +164,7 @@ function impulseFor(touch: Live2DTouch, startedAt: number): Impulse {
   if (touch.region === 'head') {
     return {
       startedAt,
-      attack: 0.08,
+      attack: 0.05,
       decay: 0.35,
       peak: { ...zeroOffsets, angleX: -side * 4, angleY: -7, angleZ: side * 6, eyeSquint: 0.45 },
     }

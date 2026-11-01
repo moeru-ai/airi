@@ -48,7 +48,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   error: [error: Error]
-  /** A pointer tapped the character, or stroked its head. The model already plays its own reaction. */
+  /** A pointer tapped the character, or stroked its head. The model already plays its own reaction from the press. */
   touch: [touch: Live2DTouch]
 }>()
 
@@ -142,11 +142,9 @@ function touchSampleOf(event: PointerEvent) {
   return { x: event.clientX, y: event.clientY, atMs: event.timeStamp, hit }
 }
 
-function playTouch(touch: Live2DTouch | undefined) {
-  if (!touch)
-    return
-  live2dModelRef.value?.react(touch)
-  emit('touch', touch)
+function emitTouch(touch: Live2DTouch | undefined) {
+  if (touch)
+    emit('touch', touch)
 }
 
 // One gesture at a time, from the primary pointer that started it. A second finger cannot end or retarget it.
@@ -156,18 +154,29 @@ useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'pointerdown', (e
   if (!event.isPrimary || event.button !== 0)
     return
   gesturePointerId = event.pointerId
-  touchGestures.down(touchSampleOf(event))
+  const sample = touchSampleOf(event)
+  touchGestures.down(sample)
+  // A tap is known only on release, about 100 ms later. The reaction starts on the press, so it does not lag.
+  if (sample.hit)
+    live2dModelRef.value?.react({ ...sample.hit, gesture: 'tap' })
 })
 useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'pointermove', (event: PointerEvent) => {
   // The primary button is held while the pointer strokes.
-  if (event.pointerId === gesturePointerId && event.buttons % 2 === 1)
-    playTouch(touchGestures.move(touchSampleOf(event)))
+  if (event.pointerId !== gesturePointerId || event.buttons % 2 !== 1)
+    return
+  const pat = touchGestures.move(touchSampleOf(event))
+  if (pat)
+    live2dModelRef.value?.react(pat)
+  emitTouch(pat)
 })
 useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'pointerup', (event: PointerEvent) => {
   if (event.pointerId !== gesturePointerId)
     return
   gesturePointerId = undefined
-  playTouch(touchGestures.up(touchSampleOf(event)))
+  const tap = touchGestures.up(touchSampleOf(event))
+  if (tap)
+    live2dModelRef.value?.playTouchMotion(tap.region)
+  emitTouch(tap)
 })
 useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'pointercancel', (event: PointerEvent) => {
   if (event.pointerId !== gesturePointerId)

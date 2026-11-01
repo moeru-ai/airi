@@ -65,7 +65,7 @@ describe('createLive2DTouchReaction', () => {
     reaction.trigger({ region: 'head', gesture: 'tap', side: 1 }, 10)
 
     expect(reaction.sample(10).angleY).toBe(0)
-    const peak = reaction.sample(10.08)
+    const peak = reaction.sample(10.05)
     expect(peak.angleY).toBeCloseTo(-7)
     expect(peak.angleZ).toBeCloseTo(6)
     expect(peak.eyeSquint).toBeGreaterThan(0.4)

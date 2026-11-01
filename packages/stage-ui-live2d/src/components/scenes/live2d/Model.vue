@@ -1054,18 +1054,19 @@ function touchAt(stagePoint: { x: number, y: number }): Omit<Live2DTouch, 'gestu
   }
 }
 
-/** Plays the reaction of the model to one touch. */
+/** Plays the procedural reaction of the model to one touch, at once. */
 function react(touch: Live2DTouch) {
+  if (model.value)
+    touchReaction.trigger(touch, performance.now() / 1000)
+}
+
+/** Plays the touch motion group of the model, for example `TapBody`, when the model has one. */
+function playTouchMotion(region: Live2DTouch['region']) {
   const current = model.value
   if (!current)
     return
 
-  touchReaction.trigger(touch, performance.now() / 1000)
-  // A pat repeats while the pointer strokes, so only a tap starts a model motion.
-  if (touch.gesture !== 'tap')
-    return
-
-  const group = findLive2DTouchMotionGroup(Object.keys(current.internalModel.motionManager.definitions), touch.region)
+  const group = findLive2DTouchMotionGroup(Object.keys(current.internalModel.motionManager.definitions), region)
   if (group)
     void current.motion(group, undefined, MotionPriority.NORMAL)
 }
@@ -1113,6 +1114,7 @@ defineExpose({
   headAnchor,
   touchAt,
   react,
+  playTouchMotion,
 })
 
 import.meta.hot?.dispose(() => {
