@@ -2057,6 +2057,7 @@ pages:
             description: GPT-SoVITS api_v2.py 服务器的 Base URL
             label: Base URL
           refAudioPath:
+            placeholder: 服务器上的 reference.wav 绝对路径
             description: 服务器上参考音频文件的绝对路径
             label: 参考音频路径
           promptText:
@@ -2071,9 +2072,11 @@ pages:
             description: 需要合成的文本语言（zh / en / ja / ko / yue）
             label: 合成语言
           gptWeightsPath:
+            placeholder: 服务器上的 gpt.ckpt 绝对路径
             description: GPT 权重路径；填写后会调用 /set_gpt_weights 切换
             label: GPT 权重路径
           sovitsWeightsPath:
+            placeholder: 服务器上的 sovits.pth 绝对路径
             description: SoVITS 权重路径；填写后会调用 /set_sovits_weights 切换
             label: SoVITS 权重路径
       index-tts-vllm:

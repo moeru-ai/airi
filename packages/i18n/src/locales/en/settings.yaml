@@ -2170,6 +2170,7 @@ pages:
             description: Base URL of the GPT-SoVITS api_v2.py server
             label: Base URL
           refAudioPath:
+            placeholder: Absolute path to reference.wav on the server
             description: Absolute path to reference audio file on the server
             label: Reference Audio Path
           promptText:
@@ -2184,9 +2185,11 @@ pages:
             description: Language of the text to synthesize (zh / en / ja / ko / yue)
             label: Synthesis Language
           gptWeightsPath:
+            placeholder: Absolute path to gpt.ckpt on the server
             description: GPT weights path. If filled, AIRI will call /set_gpt_weights.
             label: GPT Weights Path
           sovitsWeightsPath:
+            placeholder: Absolute path to sovits.pth on the server
             description: SoVITS weights path. If filled, AIRI will call /set_sovits_weights.
             label: SoVITS Weights Path
       index-tts-vllm:

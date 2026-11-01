@@ -8,7 +8,7 @@ import {
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
-import { FieldInput, FieldSelect } from '@proj-airi/ui'
+import { Callout, FieldInput, FieldSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -84,9 +84,9 @@ async function handleGenerateSpeech(input: string, voiceId: string) {
 <template>
   <SpeechProviderSettings :provider-id="providerId" :default-model="defaultModel">
     <template #basic-settings>
-      <p :class="['text-sm', 'text-blue-500', 'dark:text-blue-400', 'px-1']">
-        ⓘ {{ t('settings.pages.providers.provider.gpt-sovits.callout_model_switch') }}
-      </p>
+      <Callout :label="t('settings.pages.providers.provider.gpt-sovits.callout_no_model_title')">
+        {{ t('settings.pages.providers.provider.gpt-sovits.callout_model_switch') }}
+      </Callout>
       <p :class="['text-sm', 'text-neutral-400', 'dark:text-neutral-500', 'px-1']">
         ⓘ {{ t('settings.pages.providers.provider.gpt-sovits.callout_no_api_key') }}
       </p>
@@ -94,7 +94,7 @@ async function handleGenerateSpeech(input: string, voiceId: string) {
         v-model="refAudioPath"
         :label="t('settings.pages.providers.provider.gpt-sovits.fields.refAudioPath.label')"
         :description="t('settings.pages.providers.provider.gpt-sovits.fields.refAudioPath.description')"
-        placeholder="/path/to/reference.wav"
+        :placeholder="t('settings.pages.providers.provider.gpt-sovits.fields.refAudioPath.placeholder')"
         required
         type="text"
       />
@@ -109,14 +109,14 @@ async function handleGenerateSpeech(input: string, voiceId: string) {
         v-model="gptWeightsPath"
         :label="t('settings.pages.providers.provider.gpt-sovits.fields.gptWeightsPath.label')"
         :description="t('settings.pages.providers.provider.gpt-sovits.fields.gptWeightsPath.description')"
-        placeholder="/path/to/gpt.ckpt"
+        :placeholder="t('settings.pages.providers.provider.gpt-sovits.fields.gptWeightsPath.placeholder')"
         type="text"
       />
       <FieldInput
         v-model="sovitsWeightsPath"
         :label="t('settings.pages.providers.provider.gpt-sovits.fields.sovitsWeightsPath.label')"
         :description="t('settings.pages.providers.provider.gpt-sovits.fields.sovitsWeightsPath.description')"
-        placeholder="/path/to/sovits.pth"
+        :placeholder="t('settings.pages.providers.provider.gpt-sovits.fields.sovitsWeightsPath.placeholder')"
         type="text"
       />
     </template>
