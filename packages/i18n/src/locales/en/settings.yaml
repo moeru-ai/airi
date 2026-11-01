@@ -666,6 +666,48 @@ pages:
       desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: Desktop data reset.
   models:
+    editor:
+      model:
+        all-models: All models
+      tabs:
+        model: Model
+        placement: Placement
+        motion: Motion
+        look: Look
+        display: Display
+      tools:
+        size: Size
+        position: Position
+        look-at: Look at
+        eyes: Eyes
+        idle-motion: Idle motion
+        motion-source: Motion source
+        expressions: Expressions
+        shadow: Shadow
+        theme-color: Theme color
+      position:
+        horizontal: Horizontal
+        vertical: Vertical
+        description: Drag the character on the stage, or use the rulers below.
+      look-at:
+        title: Where the character looks
+        options:
+          cursor: Cursor
+          off: Straight ahead
+      eyes:
+        look-around: Look around when idle
+        blink: Blink
+        blink-options:
+          off: 'Off'
+          model: From the model
+          airi: AIRI timer
+      reset: Reset
+      back: Back
+      clear-cache-confirm:
+        title: Clear the model cache?
+        description: The files of all Live2D models are deleted from this device. Each model downloads again the next time it loads.
+        confirm: Clear
+        cancel: Cancel
     description: Live2D, VRM, Spine, MMD, etc.
     title: Models
     sections:
