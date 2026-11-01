@@ -21,7 +21,6 @@ import { useSettingsFullBleed } from '../../../../../composables/settings-full-b
 import { useAiriCardStore } from '../../../../../stores/modules/airi-card'
 import { useSettings } from '../../../../../stores/settings'
 import { ColorPalette } from '../../../../widgets'
-import { ModelSelectorDialog } from '../../../dialogs/model-selector'
 import { createEmptyModelSettingsRuntimeSnapshot } from '../runtime'
 import { useLive2DModelSettings } from '../use-live2d-model-settings'
 
@@ -252,8 +251,6 @@ function onStagePointerMove(event: PointerEvent) {
   }
 }
 
-const modelSelectorOpen = ref(false)
-
 /**
  * After a pick, the model name shows over the stage, because the thumbnails have no names.
  * It stays while the stage loads the model, then hides after a moment.
@@ -378,25 +375,7 @@ defineExpose({
 
       <ToolPanel v-model="activeTool" :label="activeTabLabel" :tools="panelTools">
         <template #model>
-          <ModelStrip :selected-id="stageModelSelectedDisplayModel?.id" :loading-id="loadingModelId" @pick="pickModel">
-            <template #actions>
-              <ModelSelectorDialog v-model:show="modelSelectorOpen" :selected-model="stageModelSelectedDisplayModel" @pick="pickModel">
-                <button
-                  type="button"
-                  :aria-label="t('settings.pages.models.editor.model.all-models')"
-                  :class="[
-                    'size-10 shrink-0 rounded-full',
-                    'flex items-center justify-center',
-                    'text-neutral-600 dark:text-neutral-300',
-                    'outline-none transition-colors duration-200 hover:bg-primary-500/10',
-                    'focus-visible:ring-2 focus-visible:ring-primary-400/60',
-                  ]"
-                >
-                  <span :class="['i-mingcute:up-line size-5']" />
-                </button>
-              </ModelSelectorDialog>
-            </template>
-          </ModelStrip>
+          <ModelStrip :selected-id="stageModelSelectedDisplayModel?.id" :loading-id="loadingModelId" @pick="pickModel" />
         </template>
 
         <template #size>

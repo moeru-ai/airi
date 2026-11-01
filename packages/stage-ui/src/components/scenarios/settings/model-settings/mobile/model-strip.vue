@@ -7,11 +7,12 @@ import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useDisplayModelsStore } from '../../../../../stores/display-models'
+import { ModelSelectorDialog } from '../../../dialogs/model-selector'
 
 /**
  * A row of model thumbnails that scrolls sideways. A tap picks the model.
- * A model that is only in the account downloads first. Import, rename, and delete stay in the full model selector,
- * which the caller opens from the `actions` slot.
+ * A model that is only in the account downloads first. The up arrow opens the full model selector for import,
+ * rename, and delete. Both ways to pick go through this component, so the latest pick always wins.
  */
 const props = defineProps<{
   selectedId?: string
@@ -20,7 +21,8 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  pick: [model: DisplayModel]
+  /** `undefined` comes from the full model selector, when the user clears the model. */
+  pick: [model: DisplayModel | undefined]
 }>()
 
 const { t } = useI18n()
@@ -40,10 +42,19 @@ const models = computed(() => [
 const pendingId = ref<string>()
 const shownSelectedId = computed(() => pendingId.value ?? props.selectedId)
 
-// A selection from outside, for example from the full model selector, replaces any tap that is still pending.
+// A selection from outside replaces any tap that is still pending.
 watch(() => props.selectedId, () => {
   pendingId.value = undefined
 })
+
+const selectorOpen = ref(false)
+const selectedModel = computed(() => displayModels.value.find(model => model.id === props.selectedId))
+
+/** A pick in the full model selector replaces any tap that is still pending, also when it confirms the same model. */
+function pickFromSelector(model: DisplayModel | undefined) {
+  pendingId.value = undefined
+  emit('pick', model)
+}
 
 /** The running stretch of the bar, if any. */
 let indicatorAnimation: Animation | undefined
@@ -199,7 +210,20 @@ onMounted(() => {
       />
     </div>
 
-    <!-- Actions after the thumbnails, for example a button that opens the full model selector. -->
-    <slot name="actions" />
+    <ModelSelectorDialog v-model:show="selectorOpen" :selected-model="selectedModel" @pick="pickFromSelector">
+      <button
+        type="button"
+        :aria-label="t('settings.pages.models.editor.model.all-models')"
+        :class="[
+          'size-10 shrink-0 rounded-full',
+          'flex items-center justify-center',
+          'text-neutral-600 dark:text-neutral-300',
+          'outline-none transition-colors duration-200 hover:bg-primary-500/10',
+          'focus-visible:ring-2 focus-visible:ring-primary-400/60',
+        ]"
+      >
+        <span :class="['i-mingcute:up-line size-5']" />
+      </button>
+    </ModelSelectorDialog>
   </div>
 </template>
