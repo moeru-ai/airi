@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_BRIDGE_URL, resolveBridgeUrl } from './bridge-config.js'
+import { DEFAULT_BRIDGE_URL, resolveBridgeUrl } from './bridge-config'
 
 describe('resolveBridgeUrl', () => {
   it('uses the local default when no settings are stored', () => {
