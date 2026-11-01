@@ -112,13 +112,21 @@ watch(contentShown, (shown) => {
 // Measured with Electron 43.8.4.
 // Removal condition: Electron keeps the focus across a parent change.
 let focusedBeforeBlur = document.activeElement
-useEventListener(window, 'blur', () => focusedBeforeBlur = document.activeElement)
+// The focus comes back with its focus ring only if it had one, as after the Tab key. `:focus-visible` stops matching
+// once the window blurs, so the focus ring is read when the focus arrives.
+let focusRing = false
+let focusRingBeforeBlur = false
+useEventListener(document, 'focusin', event => focusRing = event.target instanceof Element && event.target.matches(':focus-visible'), { capture: true })
+useEventListener(window, 'blur', () => {
+  focusedBeforeBlur = document.activeElement
+  focusRingBeforeBlur = focusRing
+})
 useEventListener(window, 'focus', () => {
   const focused = document.activeElement
   if (focused === focusedBeforeBlur)
     return
   if (focusedBeforeBlur instanceof HTMLElement && focusedBeforeBlur !== document.body && focusedBeforeBlur.isConnected)
-    focusedBeforeBlur.focus({ preventScroll: true, focusVisible: false })
+    focusedBeforeBlur.focus({ preventScroll: true, focusVisible: focusRingBeforeBlur })
   else if (focused instanceof HTMLElement)
     focused.blur()
 })
