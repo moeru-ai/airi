@@ -32,6 +32,8 @@ dialogs:
     skipForNow: 暂时跳过
     saveAndContinue: 保存并继续
     next: 下一步
+    back: 返回
+    later: 稍后
     retry: 重试
     credentialsSafeLabel: 保证您的 API 密钥和凭据的安全！
     credentialsSafeLocal: >-
@@ -59,7 +61,12 @@ dialogs:
       notificationsDescription: 允许提醒以及重要的状态更新。
       microphoneTitle: 麦克风
       microphoneDescription: 允许 AIRI 使用麦克风进行语音输入和转写。
+      accessibilityTitle: 辅助功能
+      accessibilityDescription: 让「按住说话」快捷键在其他应用处于前台时也能使用。
+      screenRecordingTitle: 屏幕录制
+      screenRecordingDescription: 在你让 AIRI 看屏幕时，允许它看到你的屏幕。
       requestAction: 请求获取
+      openSettingsAction: 打开系统设置
       optionalHint: 即使没有授予这些权限，您也可以继续。
       stateGranted: 已授权
       stateNotGranted: 未授权

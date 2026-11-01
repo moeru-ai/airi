@@ -18,6 +18,7 @@ import OnboardingDialog from './onboarding.vue'
 import StepProviderConfiguration from './step-provider-configuration.vue'
 
 import { useAuthStore } from '../../../../stores/auth'
+import { useDevicePermissionsStore } from '../../../../stores/device-permissions'
 import { sharedOnboardingSteps, useOnboardingStore } from '../../../../stores/onboarding'
 import { useProviderConfigStore } from '../../../../stores/providers/config'
 import { useProviderStore } from '../../../../stores/providers/provider'
@@ -292,4 +293,46 @@ it('keeps the dialog open after the Sign in click', async () => {
 
   await expect.poll(() => useAuthStore(context.pinia).needsLogin).toBe(true)
   expect(store.showingSetup).toBe(true)
+})
+
+/** Renders the flow for a user who finished provider setup, on a host with one microphone permission. */
+async function renderPermissionsFlow() {
+  localStorage.setItem('onboarding/steps', JSON.stringify(Object.fromEntries(
+    sharedOnboardingSteps.filter(step => step.scope === 'provider-setup').map(step => [step.id, { version: step.version, outcome: 'done', at: 0 }]),
+  )))
+  const context = createSyncedContext(`onboarding-permissions:${crypto.randomUUID()}`, 'leader-only')
+  await expect.poll(() => context.runtime.isLeader()).toBe(true)
+  useDevicePermissionsStore(context.pinia).register([{
+    id: 'microphone',
+    titleKey: 'settings.dialogs.onboarding.permissions.microphoneTitle',
+    descriptionKey: 'settings.dialogs.onboarding.permissions.microphoneDescription',
+    check: async () => 'not-determined',
+    request: async () => {},
+  }])
+  const configured = vi.fn()
+  const screen = await render(OnboardingDialog, {
+    props: { onConfigured: configured },
+    global: { plugins: [context.pinia, PiniaColada, createTestI18n()] },
+  })
+  return { screen, configured }
+}
+
+it('shows only the permissions step to a user who finished provider setup, and records Later', async () => {
+  const { screen, configured } = await renderPermissionsFlow()
+
+  await expect.element(screen.getByRole('heading', { name: 'Permission management' })).toBeInTheDocument()
+  await expect.element(screen.getByRole('heading', { name: 'Microphone' })).toBeInTheDocument()
+  await screen.getByRole('button', { name: 'Later' }).click()
+
+  await vi.waitFor(() => expect(configured).toHaveBeenCalled())
+  expect(readStepRecords().permissions).toMatchObject({ version: 1, outcome: 'later' })
+})
+
+it('records the permissions step as done after Next', async () => {
+  const { screen, configured } = await renderPermissionsFlow()
+
+  await screen.getByRole('button', { name: 'Next' }).click()
+
+  await vi.waitFor(() => expect(configured).toHaveBeenCalled())
+  expect(readStepRecords().permissions).toMatchObject({ version: 1, outcome: 'done' })
 })
