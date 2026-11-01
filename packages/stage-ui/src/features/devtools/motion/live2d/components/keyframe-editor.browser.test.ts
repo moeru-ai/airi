@@ -7,7 +7,7 @@ import { neutralLive2DMotionControlPose } from '@proj-airi/stage-ui-live2d/store
 import { timeToX, valueToY } from '@proj-airi/timeline-canvas'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from 'vitest-browser-vue'
-import { page } from 'vitest/browser'
+import { page, userEvent } from 'vitest/browser'
 import { defineComponent, h, nextTick, shallowRef } from 'vue'
 import { createI18n } from 'vue-i18n'
 
@@ -183,6 +183,28 @@ describe('keyframe editor', () => {
     expect(keyframeCount()).toBe(2)
     expect(onRecording).toHaveBeenCalled()
     expect(onRecording.mock.lastCall?.[0]).toMatchObject({ format: 'airi-live2d-motion/v6', durationMs: 4000 })
+  })
+
+  it('drags a keyframe and commits the drag once', async () => {
+    const onRecording = vi.fn()
+    await mountEditor({ onRecording })
+
+    findButton(`${editorKey}.controls.add`).click()
+    await nextTick()
+    const calls = onRecording.mock.calls.length
+    // The new overlay starts with a key at 0 ms and value 0.
+    const canvas = document.querySelector('canvas')!
+    const rect = canvas.getBoundingClientRect()
+    const from = graphPoint('headX', 4000, 0, 0)
+    const to = graphPoint('headX', 4000, 0, 0.5)
+    await userEvent.dragAndDrop(page.elementLocator(canvas), page.elementLocator(canvas), {
+      sourcePosition: { x: from.clientX - rect.left, y: from.clientY - rect.top },
+      targetPosition: { x: to.clientX - rect.left, y: to.clientY - rect.top },
+    })
+    await nextTick()
+
+    expect(onRecording.mock.calls.length).toBe(calls + 1)
+    expect(onRecording.mock.lastCall?.[0].samples[0].headX).toBeCloseTo(0.5, 1)
   })
 
   it('ignores a double click outside the span of the selected overlay', async () => {
