@@ -47,7 +47,8 @@
     "mcp:inspector": "pnpx @modelcontextprotocol/inspector pnpm -F @proj-airi/computer-use-mcp start",
     "build": "tsdown",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --config ./vitest.config.ts"
+    "test": "vitest run --config ./vitest.config.ts",
+    "test:run": "vitest run --config ./vitest.config.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "catalog:",

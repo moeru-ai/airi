@@ -26,7 +26,9 @@ async function expectProcessReaped(pid: number, timeoutMs = 3_000): Promise<void
 describe('createLocalShellRunner', () => {
   it('executes commands and keeps cwd sticky across calls', async () => {
     const runner = createLocalShellRunner(createTestConfig({
-      terminalShell: '/bin/zsh',
+      // These tests cover POSIX shell behavior, not zsh-specific features.
+      // `/bin/sh` is available on the Linux CI runner and macOS developers' machines.
+      terminalShell: '/bin/sh',
     }))
 
     const first = await runner.execute({
@@ -45,7 +47,9 @@ describe('createLocalShellRunner', () => {
   })
 
   it('returns non-zero exit codes without throwing', async () => {
-    const runner = createLocalShellRunner(createTestConfig())
+    const runner = createLocalShellRunner(createTestConfig({
+      terminalShell: '/bin/sh',
+    }))
     const result = await runner.execute({
       command: 'exit 7',
     })
@@ -55,7 +59,9 @@ describe('createLocalShellRunner', () => {
   })
 
   it('bounds captured stdout and stderr for large command output', async () => {
-    const runner = createLocalShellRunner(createTestConfig())
+    const runner = createLocalShellRunner(createTestConfig({
+      terminalShell: '/bin/sh',
+    }))
     const result = await runner.execute({
       command: `${JSON.stringify(execPath)} -e "process.stdout.write('o'.repeat(20000)); process.stderr.write('e'.repeat(20000))"`,
     })
@@ -70,7 +76,9 @@ describe('createLocalShellRunner', () => {
   })
 
   it('resets the tracked state', async () => {
-    const runner = createLocalShellRunner(createTestConfig())
+    const runner = createLocalShellRunner(createTestConfig({
+      terminalShell: '/bin/sh',
+    }))
     await runner.execute({
       command: 'pwd',
       cwd: '/tmp',
@@ -82,19 +90,13 @@ describe('createLocalShellRunner', () => {
     expect(reset.lastCommandSummary).toBeUndefined()
   })
 
-  // ROOT CAUSE:
-  //
-  // `terminal_exec` ran commands under `shell -lc "..."` without `detached`, so
-  // the shell shared the runner's process group. On timeout the runner called
-  // `child.kill('SIGTERM')`, which signals only the shell PID. A command that
-  // had forked a background grandchild (`cmd &`, `nohup`, a server) left that
-  // grandchild reparented to init instead of being reaped.
-  //
-  // We fixed this by spawning the shell `detached` (making it a process-group
-  // leader) and signalling the whole group on timeout, so background
-  // grandchildren are reaped together with the shell.
+  // Run the shell in its own process group so timeout handling can reap
+  // background grandchildren (`cmd &`, `nohup`, servers) along with the shell.
   it('reaps background grandchildren when a command times out', async () => {
-    const runner = createLocalShellRunner(createTestConfig({ timeoutMs: 300 }))
+    const runner = createLocalShellRunner(createTestConfig({
+      terminalShell: '/bin/sh',
+      timeoutMs: 300,
+    }))
 
     // `sleep 30 &` forks a background grandchild; `$!` is its pid. The trailing
     // `sleep 30` keeps the shell busy so the runner hits its timeout.
