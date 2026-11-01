@@ -123,6 +123,15 @@ describe('createLive2DTouchReaction', () => {
     expect(reaction.sample(20)).toEqual({ angleX: 0, angleY: 0, angleZ: 0, bodyAngleX: 0, bodyAngleY: 0, eyeSquint: 0 })
   })
 
+  it('drops every impulse on reset', () => {
+    const reaction = createLive2DTouchReaction()
+    reaction.trigger({ region: 'head', gesture: 'pat', side: 1 }, 10)
+    expect(reaction.sample(10.1).eyeSquint).toBeGreaterThan(0)
+
+    reaction.reset()
+    expect(reaction.sample(10.1)).toEqual({ angleX: 0, angleY: 0, angleZ: 0, bodyAngleX: 0, bodyAngleY: 0, eyeSquint: 0 })
+  })
+
   it('bounds overlapping pats', () => {
     const reaction = createLive2DTouchReaction()
     for (let index = 0; index < 20; index += 1)
