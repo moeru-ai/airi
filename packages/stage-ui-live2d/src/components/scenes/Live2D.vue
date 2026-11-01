@@ -147,13 +147,24 @@ function emitTouch(touch: Live2DTouch | undefined) {
     emit('touch', touch)
 }
 
-// One gesture at a time, from the primary pointer that started it. A second finger cannot end or retarget it.
+// One gesture at a time. `isPrimary` holds for each pointer type, so a mouse and a touch can both be primary.
+// A new press during a gesture is ignored, and pointer capture makes sure the release of the gesture arrives.
 let gesturePointerId: number | undefined
 
+function endGesture() {
+  gesturePointerId = undefined
+}
+
 useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'pointerdown', (event: PointerEvent) => {
-  if (!event.isPrimary || event.button !== 0)
+  if (gesturePointerId !== undefined || !event.isPrimary || event.button !== 0)
     return
   gesturePointerId = event.pointerId
+  try {
+    (event.currentTarget as HTMLCanvasElement).setPointerCapture(event.pointerId)
+  }
+  catch {
+    // A pointer that already ended cannot be captured. Its release does not come, and lostpointercapture ends the gesture.
+  }
   const sample = touchSampleOf(event)
   touchGestures.down(sample)
   // A tap is known only on release, about 100 ms later. The reaction starts on the press, so it does not lag.
@@ -172,16 +183,16 @@ useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'pointermove', (e
 useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'pointerup', (event: PointerEvent) => {
   if (event.pointerId !== gesturePointerId)
     return
-  gesturePointerId = undefined
+  endGesture()
   const tap = touchGestures.up(touchSampleOf(event))
   if (tap)
     live2dModelRef.value?.playTouchMotion(tap.region)
   emitTouch(tap)
 })
-useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'pointercancel', (event: PointerEvent) => {
+useEventListener(() => live2dCanvasRef.value?.canvasElement(), ['pointercancel', 'lostpointercapture'], (event: PointerEvent) => {
   if (event.pointerId !== gesturePointerId)
     return
-  gesturePointerId = undefined
+  endGesture()
   touchGestures.cancel()
 })
 
