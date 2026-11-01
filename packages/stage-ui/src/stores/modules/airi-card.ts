@@ -721,6 +721,58 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     await applyActiveCardSettings()
   }
 
+  /** Clears unavailable vision and speech selections after a provider reset, including defaults and inactive cards. Consciousness stays unchanged. */
+  async function clearUnavailableProviderSelections() {
+    await pendingAuthenticationSetup
+    rememberInheritedSettings()
+    const providers = useProviderStore(pinia)
+
+    function clearUnavailableSelections(modules: Pick<CardModuleDefaults, 'vision' | 'speech'>, inherited?: CardModuleDefaults) {
+      const visionProvider = modules.vision.provider || inherited?.vision.provider
+      const speechProvider = modules.speech.provider || inherited?.speech.provider
+      const clearVision = !!(modules.vision.provider || modules.vision.model) && !!visionProvider && !providers.isProviderAvailableWithoutConfiguration(visionProvider)
+      const clearSpeech = !!(modules.speech.provider || modules.speech.model || modules.speech.voice_id) && !!speechProvider && !providers.isProviderAvailableWithoutConfiguration(speechProvider)
+      if (!clearVision && !clearSpeech)
+        return modules
+
+      return {
+        vision: clearVision ? { ...modules.vision, provider: '', model: '' } : modules.vision,
+        // An explicit None replaces a removed provider override. Model-only overrides keep their provider inheritance.
+        speech: clearSpeech ? { ...modules.speech, provider: modules.speech.provider ? 'speech-noop' : '', model: '', voice_id: '' } : modules.speech,
+      }
+    }
+
+    const defaults = moduleDefaults.value
+    if (defaults) {
+      const selections = clearUnavailableSelections(defaults)
+      if (selections !== defaults)
+        moduleDefaults.value = { ...defaults, ...selections }
+    }
+    for (const [id, storedCard] of cards.value) {
+      const card = toRaw(storedCard)
+      const extension = card.extensions.airi
+      const selections = clearUnavailableSelections(extension.modules, defaults ?? undefined)
+      if (selections === extension.modules)
+        continue
+      cards.value.set(id, {
+        ...card,
+        extensions: {
+          ...card.extensions,
+          airi: { ...extension, modules: { ...extension.modules, ...selections } },
+        },
+      })
+    }
+
+    const vision = useVisionStore(pinia)
+    if (vision.activeProvider && !providers.isProviderAvailableWithoutConfiguration(vision.activeProvider))
+      vision.resetModelSelection()
+    appliedModules = undefined
+    if (activeCard.value)
+      await applyActiveCardSettings()
+    else if (moduleDefaults.value)
+      await writeRuntimeModules(moduleDefaults.value)
+  }
+
   function resolveAiriExtension(card: Card | ccv3.CharacterCardV3): AiriExtension {
     // Get existing extension if available
     const existingExtension = ('data' in card
@@ -1571,6 +1623,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     activateCard,
     configureForAuthentication,
     clearProviderSelections,
+    clearUnavailableProviderSelections,
 
     currentModels: computed(() => {
       const {
@@ -1610,6 +1663,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       'initialize',
       'configureForAuthentication',
       'clearProviderSelections',
+      'clearUnavailableProviderSelections',
       'removeCard',
       'selectAvatarModel',
       'updateActiveCardConsciousness',

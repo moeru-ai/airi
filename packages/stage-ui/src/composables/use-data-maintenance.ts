@@ -66,6 +66,8 @@ export function useDataMaintenance() {
 
   async function resetProvidersSettings() {
     await providersStore.resetProviderSettings()
+    await airiCardStore.clearUnavailableProviderSelections()
+    await hearingStore.clearUnavailableProviderSelection()
   }
 
   /** Attempts every independent reset and reports the first failure only after all operations settle. */
