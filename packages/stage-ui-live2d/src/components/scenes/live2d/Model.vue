@@ -346,6 +346,8 @@ async function performModelLoad() {
     expressionLoader.value = undefined
     destroyRenderedModel()
     headTracker.reset()
+    // A touch on the previous model must not play on the next one.
+    touchReaction.reset()
   }
   if (!modelSource) {
     console.warn('No Live2D model source provided.')
