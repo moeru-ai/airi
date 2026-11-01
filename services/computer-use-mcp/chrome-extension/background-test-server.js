@@ -2,7 +2,7 @@ import { createServer } from 'node:http'
 
 import { WebSocket, WebSocketServer } from 'ws'
 
-async function createBridgeTestServer(port) {
+async function createBridgeTestServer() {
   const clients = new Set()
   const messages = []
   let connectionCount = 0
@@ -56,6 +56,15 @@ async function createBridgeTestServer(port) {
     response.writeHead(404).end()
   })
 
+  await new Promise((resolve, reject) => {
+    const onError = error => reject(error)
+    httpServer.once('error', onError)
+    httpServer.listen(0, '127.0.0.1', () => {
+      httpServer.off('error', onError)
+      resolve()
+    })
+  })
+
   const webSocketServer = new WebSocketServer({ server: httpServer })
   webSocketServer.on('connection', (socket) => {
     connectionCount += 1
@@ -69,15 +78,6 @@ async function createBridgeTestServer(port) {
       }
     })
     socket.on('close', () => clients.delete(socket))
-  })
-
-  await new Promise((resolve, reject) => {
-    const onError = error => reject(error)
-    httpServer.once('error', onError)
-    httpServer.listen(port, '127.0.0.1', () => {
-      httpServer.off('error', onError)
-      resolve()
-    })
   })
 
   const address = httpServer.address()
@@ -108,14 +108,15 @@ export default async function setup(project) {
   const servers = []
 
   try {
-    const defaultServer = await createBridgeTestServer(8765)
+    const defaultServer = await createBridgeTestServer()
     servers.push(defaultServer)
 
-    const customServer = await createBridgeTestServer(0)
+    const customServer = await createBridgeTestServer()
     servers.push(customServer)
 
     project.provide('bridgeTestServers', {
       defaultUrl: defaultServer.url,
+      defaultPort: defaultServer.port,
       customUrl: customServer.url,
       customPort: customServer.port,
     })

@@ -42,25 +42,27 @@ async function sendCommand(serverUrl, command) {
   return response.json()
 }
 
-// https://github.com/moeru-ai/airi/pull/3300#discussion_r4435711446
-// https://github.com/moeru-ai/airi/pull/3300#discussion_r4435711448
-// https://github.com/moeru-ai/airi/pull/3300#discussion_r4436233437
+// https://github.com/moeru-ai/airi/pull/3300#discussion_r4436557679
 // ROOT CAUSE:
 //
-// A refresh advances the revision while storage loads. The old post-command
-// guard drops replies from a retained socket.
+// A settings read advances the revision before its endpoint is known.
+// The old guard drops messages from a retained socket.
 //
 // if (socket !== bridgeSocket || bridgeSocketRevision !== bridgeConfigRevision)
 //   return
 //
-// The fix drops replies only after the source socket is replaced.
-it('keeps replies on their source socket and ignores stale initialization reads', async () => {
+// Wait for the latest read, then check socket identity.
+// Retained sockets process queued messages. Replaced sockets drop them.
+it('queues commands across settings refreshes and isolates replaced sockets', async () => {
   const servers = inject('bridgeTestServers')
   const storageListeners = []
   const startupListeners = []
   const installedListeners = []
   const pendingStorageReads = []
-  const settings = {}
+  const settings = {
+    browserDomBridgeHost: '127.0.0.1',
+    browserDomBridgePort: servers.defaultPort,
+  }
   let resolveSlowTabQuery
   let resolveSameEndpointTabQuery
 
@@ -147,9 +149,15 @@ it('keeps replies on their source socket and ignores stale initialization reads'
 
   updateSettings({
     browserDomBridgeHost: '127.0.0.1',
-    browserDomBridgePort: 8765,
+    browserDomBridgePort: servers.defaultPort,
   })
   await waitFor(() => pendingStorageReads.length === 3, 'second endpoint storage read')
+
+  const staleQueuedDelivery = await sendCommand(servers.customUrl, { id: 'queued-stale-read', action: 'getActiveTab' })
+  expect(staleQueuedDelivery.sent).toBe(1)
+  await new Promise(resolve => setTimeout(resolve, 100))
+  expect(tabsQuery).toHaveBeenCalledTimes(1)
+
   pendingStorageReads[2]()
 
   await waitForServerState(
@@ -162,6 +170,7 @@ it('keeps replies on their source socket and ignores stale initialization reads'
     state => state.openConnectionCount === 0,
     'old bridge connection to close',
   )
+  expect(tabsQuery).toHaveBeenCalledTimes(1)
 
   resolveSlowTabQuery([{ id: 7, url: 'https://old.example', title: 'Old' }])
   await new Promise(resolve => setTimeout(resolve, 150))
@@ -193,6 +202,18 @@ it('keeps replies on their source socket and ignores stale initialization reads'
   }
   await waitFor(() => pendingStorageReads.length === 4, 'same-endpoint settings refresh')
 
+  const queuedCommandDelivery = await sendCommand(servers.defaultUrl, { id: 'queued-read', action: 'getActiveTab' })
+  expect(queuedCommandDelivery.sent).toBe(1)
+  await new Promise(resolve => setTimeout(resolve, 100))
+  expect(tabsQuery).toHaveBeenCalledTimes(3)
+
+  updateSettings({ browserDomBridgePort: String(servers.defaultPort) })
+  await waitFor(() => pendingStorageReads.length === 5, 'overlapping same-endpoint settings refresh')
+
+  pendingStorageReads[3]()
+  await new Promise(resolve => setTimeout(resolve, 100))
+  expect(tabsQuery).toHaveBeenCalledTimes(3)
+
   resolveSameEndpointTabQuery([{ id: 42, url: 'https://same-endpoint.example', title: 'Same endpoint' }])
   const stateDuringRefresh = await waitForServerState(
     servers.defaultUrl,
@@ -205,7 +226,19 @@ it('keeps replies on their source socket and ignores stale initialization reads'
     result: { id: 42, url: 'https://same-endpoint.example', title: 'Same endpoint' },
   })
 
-  pendingStorageReads[3]()
+  pendingStorageReads[4]()
+  await waitFor(() => tabsQuery.mock.calls.length === 4, 'queued tab query after settings refresh')
+  const stateAfterQueuedReply = await waitForServerState(
+    servers.defaultUrl,
+    state => state.messages.some(message => message.id === 'queued-read'),
+    'queued command response after settings refresh',
+  )
+  expect(stateAfterQueuedReply.messages.find(message => message.id === 'queued-read')).toMatchObject({
+    id: 'queued-read',
+    ok: true,
+    result: { id: 42, url: 'https://fresh.example', title: 'Fresh' },
+  })
+
   const stateAfterRefresh = await waitForServerState(
     servers.defaultUrl,
     state => state.openConnectionCount === 1,

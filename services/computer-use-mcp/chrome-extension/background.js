@@ -40,6 +40,8 @@ let bridgeConfigRevision = 0
 let bridgeSocketRevision = 0
 // Module startup, onStartup, and onInstalled share one initialization read.
 let bridgeInitializationPromise = null
+// WebSocket commands wait for the latest settings read before they execute.
+let bridgeConfigRefreshPromise = null
 let bridgeReconnectDelayMs = BRIDGE_RECONNECT_MIN_MS
 let bridgeReconnectTimer = null
 
@@ -118,8 +120,18 @@ function sendBridgePayload(payload, socket) {
   return true
 }
 
+async function waitForBridgeConfigRefresh() {
+  let pendingRefresh
+  do {
+    pendingRefresh = bridgeConfigRefreshPromise
+    // Refresh callers log failures and keep the existing endpoint active.
+    if (pendingRefresh)
+      await pendingRefresh.catch(() => {})
+  } while (pendingRefresh)
+}
+
 async function handleBridgeSocketMessage(raw, socket) {
-  if (socket !== bridgeSocket || bridgeSocketRevision !== bridgeConfigRevision)
+  if (socket !== bridgeSocket)
     return
 
   let data
@@ -133,9 +145,11 @@ async function handleBridgeSocketMessage(raw, socket) {
   if (!data || typeof data !== 'object' || typeof data.id !== 'string')
     return
 
+  await waitForBridgeConfigRefresh()
+  if (socket !== bridgeSocket || socket.readyState !== WebSocket.OPEN)
+    return
+
   const response = await handleCommand(data)
-  // A settings refresh can advance the revision without replacing this socket.
-  // Keep the reply on its source socket until that socket is replaced.
   if (socket !== bridgeSocket)
     return
 
@@ -198,37 +212,47 @@ async function ensureBridgeConnected(revision = bridgeConfigRevision) {
   }
 }
 
-async function refreshBridgeConfig() {
+function refreshBridgeConfig() {
   const revision = ++bridgeConfigRevision
-  const settings = await chrome.storage.local.get([
-    'browserDomBridgeHost',
-    'browserDomBridgePort',
-  ])
-  if (revision !== bridgeConfigRevision)
-    return null
+  const refreshPromise = Promise.resolve()
+    .then(() => chrome.storage.local.get([
+      'browserDomBridgeHost',
+      'browserDomBridgePort',
+    ]))
+    .then((settings) => {
+      if (revision !== bridgeConfigRevision)
+        return null
 
-  const nextBridgeUrl = resolveBridgeUrl(settings)
-  bridgeSocketRevision = revision
-  clearBridgeReconnectTimer()
+      const nextBridgeUrl = resolveBridgeUrl(settings)
+      bridgeSocketRevision = revision
+      clearBridgeReconnectTimer()
 
-  if (nextBridgeUrl === bridgeUrl)
-    return revision
+      if (nextBridgeUrl === bridgeUrl)
+        return revision
 
-  bridgeUrl = nextBridgeUrl
-  bridgeReconnectDelayMs = BRIDGE_RECONNECT_MIN_MS
+      bridgeUrl = nextBridgeUrl
+      bridgeReconnectDelayMs = BRIDGE_RECONNECT_MIN_MS
 
-  const previousSocket = bridgeSocket
-  bridgeSocket = null
-  if (previousSocket && previousSocket.readyState < WebSocket.CLOSING) {
-    try {
-      previousSocket.close()
-    }
-    catch {
-      // Ignore close failures; the new endpoint should still be attempted.
-    }
-  }
+      const previousSocket = bridgeSocket
+      bridgeSocket = null
+      if (previousSocket && previousSocket.readyState < WebSocket.CLOSING) {
+        try {
+          previousSocket.close()
+        }
+        catch {
+          // Ignore close failures; the new endpoint should still be attempted.
+        }
+      }
 
-  return revision
+      return revision
+    })
+  const trackedRefreshPromise = refreshPromise.finally(() => {
+    if (bridgeConfigRevision === revision)
+      bridgeConfigRefreshPromise = null
+  })
+
+  bridgeConfigRefreshPromise = trackedRefreshPromise
+  return trackedRefreshPromise
 }
 
 function initializeBridge() {
