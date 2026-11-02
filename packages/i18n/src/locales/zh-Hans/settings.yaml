@@ -199,8 +199,6 @@ live2d:
           description: 使用内置 MAGIC 数据集生成动作。
       magic:
         profile:
-          title: MAGIC 配置
-          description: 选择用于拟合 MAGIC 驱动器的内置动作数据集。
           options:
             idle-calm:
               title: 空闲 / 平静
@@ -500,7 +498,7 @@ pages:
         greetings: 您的角色应该如何说“你好”？
         systemprompt: 在这里向 AI LLM 解释当被提示时应该如何回应。
         posthistoryinstructions: 在消息历史之后，放入 AI LLM 应该阅读的内容。
-        context_window: 消息数量上限，包含当前输入。留空表示全部，0 表示仅发送当前输入。超出上限时，按完整轮次分批移除较早消息。已保存的聊天记录不受影响。
+        context_window: '消息数量上限，包含当前输入。留空表示全部，0 表示仅发送当前输入。超出上限时，按完整轮次分批移除较早消息。已保存的聊天记录不受影响。'
         version: >-
           卡片版本，如果您从之前的卡片做了更改，应当增加此版本号。
         consciousness_model: 为这个角色选择 AI 模型。
@@ -657,7 +655,7 @@ pages:
         look-around: 空闲时四处看
         blink: 眨眼
         blink-options:
-          off: 关闭
+          off: '关闭'
           model: 使用模型自带
           airi: AIRI 计时
       reset: 重置

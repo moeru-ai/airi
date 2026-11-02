@@ -182,8 +182,6 @@ live2d:
           description: Génère des mouvements à partir du jeu de données MAGIC fourni.
       magic:
         profile:
-          title: Profil MAGIC
-          description: Sélectionnez le jeu de données de mouvement fourni pour le pilote MAGIC.
           options:
             idle-calm:
               title: Repos / calme

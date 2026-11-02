@@ -187,8 +187,6 @@ live2d:
           description: 付属の MAGIC データセットからモーションを生成します。
       magic:
         profile:
-          title: MAGIC プロファイル
-          description: MAGIC ドライバーに適した付属のモーションデータセットを選択してください。
           options:
             idle-calm:
               title: 待機 / 落ち着き
