@@ -70,6 +70,41 @@ dialogs:
       optionalHint: 即使没有授予这些权限，您也可以继续。
       stateGranted: 已授权
       stateNotGranted: 未授权
+      flow:
+        position: 第 {current} 项权限，共 {total} 项
+        setUpLater: 稍后设置
+        allow: 允许
+        continue: 继续
+        listening: 正在聆听…
+        skip: 跳过
+        done: 完成
+        microphone:
+          title: 让角色听见你？
+          body: 用于语音聊天和唤醒词。
+        microphone-testing:
+          title: 说点什么吧
+          body: 试试说「你好」。
+          quiet: 没有反应？检查是否静音，或换一个输入设备。
+        microphone-heard:
+          title: 听到你了
+          body: 麦克风工作正常。
+        accessibility:
+          title: 在任何应用里按住说话
+          body: 其他应用在前台时也能说话。
+          off: 请为 AIRI 打开辅助功能。
+          on: 在所有应用里都能用。
+        screen-recording:
+          title: 让角色看到你的屏幕？
+          body: 只在你要求时。
+          hidden: 角色看不到
+          visible: 你要求时可见
+        notifications:
+          title: 接收通知？
+          body: 提醒和状态更新。
+        summary:
+          title: 都设置好了
+          body: 之后可以在设置里修改。
+          skipped: 已跳过
   bug-report:
     title: Bug 汇报 (´;ω;`)ヾ(･∀･`)
     subtitle: 坏哦，看起来我们不小心搞砸了一些东西。可以分享一下遇到了什么问题吗？

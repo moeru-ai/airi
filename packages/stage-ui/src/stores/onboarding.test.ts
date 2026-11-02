@@ -179,6 +179,7 @@ describe('onboarding permissions step', () => {
   /** A permission that the test host registers. Its functions do nothing, because the store only counts permissions. */
   const microphone: DevicePermission = {
     id: 'microphone',
+    kind: 'microphone',
     titleKey: 'settings.dialogs.onboarding.permissions.microphoneTitle',
     descriptionKey: 'settings.dialogs.onboarding.permissions.microphoneDescription',
     check: async () => 'not-determined',

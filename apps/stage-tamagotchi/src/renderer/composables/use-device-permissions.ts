@@ -2,6 +2,9 @@ import type { DevicePermission, DevicePermissionStatus } from '@proj-airi/stage-
 
 import { electron } from '@proj-airi/electron-eventa'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { formatAccelerator } from '@proj-airi/stage-shared/global-shortcut'
+
+import { usePushToTalkShortcutSettings } from './use-push-to-talk-shortcut'
 
 /** Maps an Electron media access status. `restricted` comes from a policy that the user cannot change in AIRI. */
 function toPermissionStatus(status: string): DevicePermissionStatus {
@@ -27,12 +30,14 @@ export function useDevicePermissions(): DevicePermission[] {
   const askForMediaAccess = useElectronEventaInvoke(electron.systemPreferences.askForMediaAccess)
   const isTrustedAccessibilityClient = useElectronEventaInvoke(electron.systemPreferences.isTrustedAccessibilityClient)
   const openPrivacySettings = useElectronEventaInvoke(electron.systemPreferences.openPrivacySettings)
+  const { accelerator } = usePushToTalkShortcutSettings()
 
   const isMacOS = /Macintosh|Mac OS X/.test(navigator.userAgent)
   const isWindows = /Windows/.test(navigator.userAgent)
 
   const microphone: DevicePermission = {
     id: 'microphone',
+    kind: 'microphone',
     titleKey: 'settings.dialogs.onboarding.permissions.microphoneTitle',
     descriptionKey: 'settings.dialogs.onboarding.permissions.microphoneDescription',
     check: async () => toPermissionStatus(await getMediaAccessStatus(['microphone'])),
@@ -54,8 +59,11 @@ export function useDevicePermissions(): DevicePermission[] {
     microphone,
     {
       id: 'accessibility',
+      kind: 'accessibility',
       titleKey: 'settings.dialogs.onboarding.permissions.accessibilityTitle',
       descriptionKey: 'settings.dialogs.onboarding.permissions.accessibilityDescription',
+      // Accessibility lets the Push to Talk shortcut work in other apps, so the step shows that shortcut.
+      shortcutKeys: () => formatAccelerator(accelerator.value).replaceAll('Key', '').replaceAll('Digit', '').split('+'),
       // macOS does not report a denial. An untrusted app looks the same before and after the prompt.
       check: async () => await isTrustedAccessibilityClient([false]) ? 'granted' : 'not-determined',
       // The prompt adds AIRI to the Accessibility list and offers to open System Settings.
@@ -65,6 +73,7 @@ export function useDevicePermissions(): DevicePermission[] {
     },
     {
       id: 'screen-recording',
+      kind: 'screen-recording',
       titleKey: 'settings.dialogs.onboarding.permissions.screenRecordingTitle',
       descriptionKey: 'settings.dialogs.onboarding.permissions.screenRecordingDescription',
       check: async () => toPermissionStatus(await getMediaAccessStatus(['screen'])),

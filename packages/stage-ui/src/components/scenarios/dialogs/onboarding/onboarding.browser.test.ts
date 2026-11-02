@@ -1,6 +1,7 @@
 import type { LeadershipMode, SyncedPiniaRuntime } from 'pinia-plugin-synced'
 import type { App } from 'vue'
 
+import type { DevicePermissionStatus } from '../../../../stores/device-permissions'
 import type { OnboardingStepLaterHandler, OnboardingStepNextHandler } from './types'
 
 import en from '@proj-airi/i18n/locales/en'
@@ -295,19 +296,26 @@ it('keeps the dialog open after the Sign in click', async () => {
   expect(store.showingSetup).toBe(true)
 })
 
-/** Renders the flow for a user who finished provider setup, on a host with one microphone permission. */
+/**
+ * Renders the flow for a user who finished provider setup, on a host with one notifications permission.
+ * `request` grants it, as a user who allows the system prompt.
+ */
 async function renderPermissionsFlow() {
   localStorage.setItem('onboarding/steps', JSON.stringify(Object.fromEntries(
     sharedOnboardingSteps.filter(step => step.scope === 'provider-setup').map(step => [step.id, { version: step.version, outcome: 'done', at: 0 }]),
   )))
   const context = createSyncedContext(`onboarding-permissions:${crypto.randomUUID()}`, 'leader-only')
   await expect.poll(() => context.runtime.isLeader()).toBe(true)
+  let status: DevicePermissionStatus = 'not-determined'
   useDevicePermissionsStore(context.pinia).register([{
-    id: 'microphone',
-    titleKey: 'settings.dialogs.onboarding.permissions.microphoneTitle',
-    descriptionKey: 'settings.dialogs.onboarding.permissions.microphoneDescription',
-    check: async () => 'not-determined',
-    request: async () => {},
+    id: 'notifications',
+    kind: 'notifications',
+    titleKey: 'settings.dialogs.onboarding.permissions.notificationsTitle',
+    descriptionKey: 'settings.dialogs.onboarding.permissions.notificationsDescription',
+    check: async () => status,
+    request: async () => {
+      status = 'granted'
+    },
   }])
   const configured = vi.fn()
   const screen = await render(OnboardingDialog, {
@@ -317,22 +325,35 @@ async function renderPermissionsFlow() {
   return { screen, configured }
 }
 
-it('shows only the permissions step to a user who finished provider setup, and records Later', async () => {
+it('shows only the permissions step to a user who finished provider setup, and records Set up later', async () => {
   const { screen, configured } = await renderPermissionsFlow()
 
-  await expect.element(screen.getByRole('heading', { name: 'Permission management' })).toBeInTheDocument()
-  await expect.element(screen.getByRole('heading', { name: 'Microphone' })).toBeInTheDocument()
-  await screen.getByRole('button', { name: 'Later' }).click()
+  await expect.element(screen.getByRole('heading', { name: 'Stay in the loop?' })).toBeInTheDocument()
+  await screen.getByRole('button', { name: 'Set up later' }).click()
 
   await vi.waitFor(() => expect(configured).toHaveBeenCalled())
   expect(readStepRecords().permissions).toMatchObject({ version: 1, outcome: 'later' })
 })
 
-it('records the permissions step as done after Next', async () => {
+it('shows a skipped permission in the summary, and records the step as done', async () => {
   const { screen, configured } = await renderPermissionsFlow()
 
-  await screen.getByRole('button', { name: 'Next' }).click()
+  await screen.getByRole('button', { name: 'Skip' }).click()
+  await expect.element(screen.getByRole('heading', { name: 'You\'re all set' })).toBeInTheDocument()
+  await expect.element(screen.getByText('Skipped')).toBeInTheDocument()
+  await screen.getByRole('button', { name: 'Done' }).click()
 
   await vi.waitFor(() => expect(configured).toHaveBeenCalled())
   expect(readStepRecords().permissions).toMatchObject({ version: 1, outcome: 'done' })
+})
+
+it('continues after the user allows a permission, and shows it as granted in the summary', async () => {
+  const { screen } = await renderPermissionsFlow()
+
+  await screen.getByRole('button', { name: 'Allow' }).click()
+  await screen.getByRole('button', { name: 'Continue' }).click()
+
+  await expect.element(screen.getByRole('img', { name: 'Granted' })).toBeInTheDocument()
+  await screen.getByRole('button', { name: 'Back' }).click()
+  await expect.element(screen.getByRole('heading', { name: 'Stay in the loop?' })).toBeInTheDocument()
 })

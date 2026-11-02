@@ -33,6 +33,7 @@ export function useDevicePermissions(): DevicePermission[] {
   return [
     {
       id: 'notifications',
+      kind: 'notifications',
       titleKey: 'settings.dialogs.onboarding.permissions.notificationsTitle',
       descriptionKey: 'settings.dialogs.onboarding.permissions.notificationsDescription',
       check: async () => {
@@ -54,6 +55,7 @@ export function useDevicePermissions(): DevicePermission[] {
     },
     {
       id: 'microphone',
+      kind: 'microphone',
       titleKey: 'settings.dialogs.onboarding.permissions.microphoneTitle',
       descriptionKey: 'settings.dialogs.onboarding.permissions.microphoneDescription',
       check: async (): Promise<DevicePermissionStatus> => {

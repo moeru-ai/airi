@@ -77,6 +77,41 @@ dialogs:
       optionalHint: You can continue even if these permissions are not granted.
       stateGranted: Granted
       stateNotGranted: Not granted
+      flow:
+        position: Permission {current} of {total}
+        setUpLater: Set up later
+        allow: Allow
+        continue: Continue
+        listening: Listening…
+        skip: Skip
+        done: Done
+        microphone:
+          title: Can your character hear you?
+          body: For voice chat and wake words.
+        microphone-testing:
+          title: Say something
+          body: Try "Hello".
+          quiet: Nothing? Check mute, or pick another input.
+        microphone-heard:
+          title: We can hear you
+          body: Your microphone works.
+        accessibility:
+          title: Hold to talk, from any app
+          body: Talk while another app is in front.
+          off: Turn on Accessibility for AIRI.
+          on: Works in every app.
+        screen-recording:
+          title: Let your character see your screen?
+          body: Only when you ask.
+          hidden: Hidden from your character
+          visible: Visible when you ask
+        notifications:
+          title: Stay in the loop?
+          body: Reminders and status updates.
+        summary:
+          title: You're all set
+          body: Change these in Settings.
+          skipped: Skipped
   bug-report:
     title: Bug report (´;ω;`)ヾ(･∀･`)
     subtitle: Oops, sorry we made something wrong. Would you mind telling us what

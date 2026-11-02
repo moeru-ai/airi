@@ -8,9 +8,16 @@ import { shallowRef } from 'vue'
  */
 export type DevicePermissionStatus = 'granted' | 'denied' | 'not-determined'
 
+/**
+ * What a permission gives access to. The onboarding flow shows one page layout for each kind:
+ * a microphone test, the Push to Talk keys, a screen preview, or a plain request.
+ */
+export type DevicePermissionKind = 'microphone' | 'accessibility' | 'screen-recording' | 'notifications'
+
 /** One operating system permission that the host can check and request. */
 export interface DevicePermission {
   id: string
+  kind: DevicePermissionKind
   /** i18n key of the title. */
   titleKey: string
   /** i18n key of the reason that AIRI needs the permission. */
@@ -18,6 +25,8 @@ export interface DevicePermission {
   check: () => Promise<DevicePermissionStatus>
   /** Shows the system prompt, or opens the system settings when the system does not ask again. */
   request: () => Promise<void>
+  /** The keys of the shortcut that the permission enables, for example `['Ctrl', 'Shift', 'Space']`. Only `accessibility` uses it. */
+  shortcutKeys?: () => readonly string[]
 }
 
 /**

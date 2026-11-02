@@ -19,6 +19,7 @@ function fakePermission(id: string, titleKey: string, initial: DevicePermissionS
   let status = initial
   const permission: DevicePermission = {
     id,
+    kind: 'notifications',
     titleKey,
     descriptionKey: 'settings.dialogs.onboarding.permissions.microphoneDescription',
     check: vi.fn(async () => status),
