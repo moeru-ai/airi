@@ -19,6 +19,8 @@
  * intercepts real user or OS-level click events.
  */
 
+import type { globalAppConfigSchema } from '../../configs/global'
+import type { Config } from '../../libs/electron/persistence'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { McpManager } from '../../services/airi/mcp-servers'
@@ -67,6 +69,7 @@ export async function setupDesktopOverlayWindow(params: {
   mcpManager: McpManager
   serverChannel: ServerChannel
   i18n: I18n
+  appConfig: Config<typeof globalAppConfigSchema>
 }): Promise<BrowserWindow | null> {
   if (!isDesktopOverlayEnabled()) {
     return null
@@ -82,7 +85,9 @@ export async function setupDesktopOverlayWindow(params: {
     preloadPath,
   }))
   protectPrivilegedWindowNavigation(overlayWindow)
-  applyDesktopOverlayInputIsolation(overlayWindow)
+  applyDesktopOverlayInputIsolation(overlayWindow, {
+    hideAppIcon: params.appConfig.get()?.hideAppIcon,
+  })
 
   overlayWindow.on('ready-to-show', () => {
     if (overlayWindow)
