@@ -420,6 +420,52 @@ describe('display models store', () => {
       expect(store.syncStatuses[modelId]).toBe('synced')
     })
 
+    // https://github.com/moeru-ai/airi/pull/3343
+    // ROOT CAUSE:
+    //
+    // The account watcher only queued a run, and a directory request can hold the active run.
+    // Meanwhile an upload of the previous account sent its next request with the new token.
+    //
+    // We fixed this by stopping the queue in the same task as the account change.
+    it('aborts an upload in the task of an account change, during an active run', async () => {
+      const store = await startWithModel()
+      let uploadSignal: AbortSignal | undefined
+      vi.mocked(reserveDisplayModelUpload).mockImplementation((_input, signal) => {
+        uploadSignal = signal
+        return new Promise(() => {})
+      })
+      await store.uploadDisplayModel(modelId)
+      await vi.waitFor(() => expect(uploadSignal).toBeDefined())
+      vi.mocked(listCloudDisplayModels).mockImplementation(() => new Promise(() => {}))
+      void store.refreshCloudModels()
+      await vi.waitFor(() => expect(listCloudDisplayModels).toHaveBeenCalled())
+
+      signIn('owner-b')
+
+      expect(uploadSignal?.aborted).toBe(true)
+    })
+
+    // `completeSignIn` replaces the token first. `user` still names the previous account until the session request answers.
+    it('aborts an upload and starts no run while a new sign-in has no verified user', async () => {
+      const store = await startWithModel()
+      let uploadSignal: AbortSignal | undefined
+      vi.mocked(reserveDisplayModelUpload).mockImplementation((_input, signal) => {
+        uploadSignal = signal
+        return new Promise(() => {})
+      })
+      await store.uploadDisplayModel(modelId)
+      await vi.waitFor(() => expect(uploadSignal).toBeDefined())
+      vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
+      vi.mocked(listCloudDisplayModels).mockClear()
+
+      void useAuthStore().completeSignIn({ accessToken: 'token-b', refreshToken: 'refresh-b', idToken: 'id-b', clientId: 'client', expiresIn: 3600 })
+      expect(uploadSignal?.aborted).toBe(true)
+
+      await store.refreshCloudModels()
+      expect(listCloudDisplayModels).not.toHaveBeenCalled()
+      expect(useDisplayModelCloudStore().uploads).toEqual({})
+    })
+
     // ROOT CAUSE:
     //
     // A removal reported a model as deleted unless the loaded directory listed it. With sync off,

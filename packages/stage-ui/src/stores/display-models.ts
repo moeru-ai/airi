@@ -447,7 +447,8 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
 
     const authStore = useAuthStore()
     storeScope?.run(() => {
-      watch(() => resolveCloudOwnerId(pinia), abortDownloads)
+      // In the same task as the change, because the next request of a download sends the token of the new account.
+      watch(() => resolveCloudOwnerId(pinia), abortDownloads, { flush: 'sync' })
       watch(() => authStore.isAuthenticated ? authStore.userId : undefined, () => loadDisplayModelsFromIndexedDB())
     })
   }

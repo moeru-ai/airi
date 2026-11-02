@@ -10,7 +10,7 @@ import { createEventHook } from '@vueuse/core'
 import { isEqual } from 'es-toolkit'
 import { nanoid } from 'nanoid'
 import { defineStore, getActivePinia } from 'pinia'
-import { effectScope, onScopeDispose, ref } from 'vue'
+import { effectScope, onScopeDispose, ref, watch } from 'vue'
 
 import * as v from 'valibot'
 
@@ -38,10 +38,14 @@ const METADATA_REQUEST_TIMEOUT_MS = 10_000
 /** Another device can add a model while this window has focus and stays visible. */
 const POLL_INTERVAL_MS = 10 * 60 * 1000
 
-/** The account that sync runs for in this window. Undefined when no account is signed in or the feature is off. */
+/**
+ * The account that sync runs for in this window. Undefined when no account is signed in, the feature is off,
+ * or the token can belong to another account during a sign-in. `authedFetch` sends the current token,
+ * so a request made in that state can write the files of one account into another.
+ */
 export function resolveCloudOwnerId(pinia?: Pinia) {
   const auth = useAuthStore(pinia)
-  return auth.isAuthenticated && useFeatureFlagsStore(pinia).isEnabled(DISPLAY_MODEL_SYNC_FLAG.key) ? auth.userId : undefined
+  return auth.isAuthenticated && auth.isSessionVerified && useFeatureFlagsStore(pinia).isEnabled(DISPLAY_MODEL_SYNC_FLAG.key) ? auth.userId : undefined
 }
 
 /**
@@ -96,10 +100,12 @@ export const useDisplayModelCloudStore = defineStore('display-model-cloud', () =
   // The account of the queue in this window. It is not state: `ownerId` replicates to a new leader,
   // whose queue still has to start and load the persisted tasks.
   let queueOwnerId: string | undefined
+  let stopOwnerGuard: (() => void) | undefined
   let triggers: EffectScope | undefined
   let disposed = false
   onScopeDispose(() => {
     disposed = true
+    stopOwnerGuard?.()
     triggers?.stop()
     runner.dispose()
     transferQueue.deactivate()
@@ -116,7 +122,26 @@ export const useDisplayModelCloudStore = defineStore('display-model-cloud', () =
     errors.value = rest
   }
 
+  /**
+   * Stops the queue in the same task as an account change. A queued run comes too late, because
+   * an active upload sends its next request with the token of the new account.
+   * Only the window that owns the queue installs this, so the state writes stay in the leader.
+   */
+  function guardQueueOwner(owner: string) {
+    stopOwnerGuard?.()
+    stopOwnerGuard = watch(() => resolveCloudOwnerId(pinia), (current) => {
+      if (current === owner)
+        return
+      stopOwnerGuard?.()
+      stopOwnerGuard = undefined
+      queueOwnerId = undefined
+      transferQueue.deactivate()
+    }, { flush: 'sync' })
+  }
+
   async function switchOwner(next: string | undefined) {
+    stopOwnerGuard?.()
+    stopOwnerGuard = undefined
     transferQueue.deactivate()
     queueOwnerId = next
     // A new leader of the same account keeps the replicated directory.
@@ -126,8 +151,10 @@ export const useDisplayModelCloudStore = defineStore('display-model-cloud', () =
       directoryLoaded.value = false
       errors.value = {}
     }
-    if (next)
+    if (next) {
+      guardQueueOwner(next)
       await transferQueue.activate(next)
+    }
   }
 
   async function reconcile() {
@@ -138,7 +165,7 @@ export const useDisplayModelCloudStore = defineStore('display-model-cloud', () =
       return
 
     const listed = await listCloudDisplayModels(AbortSignal.timeout(METADATA_REQUEST_TIMEOUT_MS))
-    // The account changed during the request. The trigger of that change runs again for the new account.
+    // The account changed during the request. The trigger of that change queues a run for the new account.
     if (disposed || resolveCloudOwnerId(pinia) !== owner)
       return
 
@@ -161,6 +188,9 @@ export const useDisplayModelCloudStore = defineStore('display-model-cloud', () =
   async function reconcileLocalCopies(owner: string, deletedIds: Set<string>) {
     let changed = false
     for (const record of await displayModelsRepo.list()) {
+      // The account changed during this run. A rename would go out with the token of the new account.
+      if (resolveCloudOwnerId(pinia) !== owner)
+        return
       if (record.cloudOwnerId !== owner)
         continue
 
