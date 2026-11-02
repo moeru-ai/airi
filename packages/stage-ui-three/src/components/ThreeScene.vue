@@ -66,6 +66,8 @@ const props = withDefaults(defineProps<{
   audioContext?: AudioContext
   /** Connects the lip sync node to the played speech and returns the disconnection. */
   connectSpeech?: (node: AudioNode) => () => void
+  /** Whether speech is currently audible. Clears lip-sync visemes when false. */
+  speechActive?: boolean
   cursorPosition?: { x: number, y: number }
   /**
    * Scene painted behind the model, inside this canvas rather than under it, so one
@@ -1079,6 +1081,7 @@ defineExpose({
         ref="modelRef"
         :audio-context="props.audioContext"
         :connect-speech="props.connectSpeech"
+        :speech-active="props.speechActive"
         :cursor-position="props.cursorPosition"
         :last-committed-model-id="lastCommittedModelId"
         :model-id="requestedModelIdentity?.modelId ?? props.modelId"

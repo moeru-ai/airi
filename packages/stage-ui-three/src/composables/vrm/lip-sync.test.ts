@@ -10,6 +10,21 @@ vi.mock('@proj-airi/model-driver-lipsync/runtime/wlipsync', () => ({
 }))
 
 describe('useVRMLipSync', () => {
+  it('zeroes visemes when speech is no longer active', () => {
+    const speechActive = shallowRef(false)
+    const setValue = vi.fn()
+    const scope = effectScope()
+    const lipSync = scope.run(() => useVRMLipSync(shallowRef({} as AudioContext), shallowRef(undefined), speechActive))!
+    // eslint-disable-next-line slop/no-chained-type-assertions
+    const vrm = { expressionManager: { setValue } } as unknown as Parameters<typeof lipSync.update>[0]
+
+    lipSync.update(vrm, 0.016)
+
+    expect(setValue).toHaveBeenCalledWith('aa', 0)
+    expect(setValue).toHaveBeenCalledWith('ou', 0)
+    scope.stop()
+  })
+
   it('connects its node to the played speech and moves it to a new connection', async () => {
     // ROOT CAUSE:
     //

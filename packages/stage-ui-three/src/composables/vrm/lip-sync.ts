@@ -27,6 +27,7 @@ const VRM_EXPRESSION_BY_VOWEL: Record<WLipSyncVowel, string> = {
 export function useVRMLipSync(
   audioContext: Readonly<Ref<AudioContext | undefined>>,
   connectSpeech: Readonly<Ref<((node: AudioNode) => () => void) | undefined>>,
+  speechActive?: Readonly<Ref<boolean | undefined>>,
 ) {
   const isLipSyncActive = ref(false)
   const lipSyncNode = shallowRef<WLipSyncAudioNode>()
@@ -73,10 +74,20 @@ export function useVRMLipSync(
     }
   }, { immediate: true })
 
+  function clearVisemes(vrm?: VRMCore) {
+    if (!vrm?.expressionManager)
+      return
+    for (const vowel of WLIP_SYNC_VOWELS)
+      vrm.expressionManager.setValue(VRM_EXPRESSION_BY_VOWEL[vowel], 0)
+  }
+
   function update(vrm?: VRMCore, delta = 0.016) {
     const node = lipSyncNode.value
-    if (!vrm?.expressionManager || !node) {
+    const speechIsActive = speechActive?.value !== false
+    if (!vrm?.expressionManager || !node || !speechIsActive) {
       isLipSyncActive.value = false
+      vowelDriver.reset()
+      clearVisemes(vrm)
       return
     }
 

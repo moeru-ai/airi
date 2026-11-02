@@ -716,6 +716,7 @@ defineExpose({
         :enable-orbit-controls="props.enableOrbitControls"
         :audio-context="audioContext"
         :connect-speech="connectSpeech"
+        :speech-active="nowSpeaking"
         @error="reportStageRenderError"
         @vrm-interact="onVRMInteract"
       />
