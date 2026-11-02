@@ -29,6 +29,7 @@ import { openDebugger, setupDebugger } from './app/debugger'
 import { nullFileLoggerHandle, setupFileLogger } from './app/file-logger'
 import { resolveIsWayland } from './app/ozone'
 import { installSingleInstanceGuard } from './app/single-instance'
+import { trustSystemCACertificates } from './app/system-ca'
 import { createArtistryConfig } from './configs/artistry'
 import { createGlobalAppConfig } from './configs/global'
 import { createIOTraceHubConfig } from './configs/io-trace-hub'
@@ -89,6 +90,7 @@ protocol.registerSchemesAsPrivileged([{
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)
 setupDebugger()
+trustSystemCACertificates()
 
 const log = useLogg('main').useGlobalConfig()
 
