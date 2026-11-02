@@ -546,7 +546,7 @@ export interface ChatEventAttachment {
 interface OutputSource {
   'gen-ai:chat': {
     message: UserMessage
-    contexts: Record<string, ContextUpdate<Record<string, any>, unknown>[]>
+    contexts: Record<string, ContextUpdate<Record<string, unknown>, unknown>[]>
     composedMessage: Array<Message>
     input?: InputEventEnvelope
     /** Images and recordings of the user message of this turn. `message` holds only its text. */
@@ -573,9 +573,8 @@ export type ContextUpdateDestinationFilter
     | ContextUpdateDestinationList
 
 export interface ContextUpdate<
-  Metadata extends Record<string, any> = Record<string, unknown>,
-  // eslint-disable-next-line ts/no-unnecessary-type-constraint
-  Content extends any = undefined,
+  Metadata extends Record<string, unknown> = Record<string, unknown>,
+  Content = undefined,
 > {
   id: string
   /**
