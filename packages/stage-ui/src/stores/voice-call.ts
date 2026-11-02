@@ -28,7 +28,7 @@ export interface VoiceCallStartOptions {
  * Owns the voice call that a chat control starts and ends.
  *
  * The voice host owns listening, muting, and sending (`callActive`, `callMuted`). This store adds what the call UI
- * needs: when the call started, and whether the user minimized it to the status capsule.
+ * needs: when the call started.
  * Use it only in the window that owns the voice host, because it calls the voice store directly.
  */
 export const useVoiceCallStore = defineStore('voice-call', () => {
@@ -37,8 +37,6 @@ export const useVoiceCallStore = defineStore('voice-call', () => {
   const devices = useSettingsAudioDevice()
 
   const startedAt = shallowRef<number>()
-  /** The call UI is reduced to the status capsule. The call itself continues. */
-  const minimized = shallowRef(false)
 
   const active = computed(() => voice.callActive)
   const muted = computed(() => voice.callMuted)
@@ -48,7 +46,6 @@ export const useVoiceCallStore = defineStore('voice-call', () => {
     if (value)
       return
     startedAt.value = undefined
-    minimized.value = false
   })
 
   // Without a transcription provider, or with Hearing off, a call starts no input. Its controls would say that it
@@ -93,7 +90,6 @@ export const useVoiceCallStore = defineStore('voice-call', () => {
       return 'busy'
 
     startedAt.value = Date.now()
-    minimized.value = false
     voice.startCall()
     return undefined
   }
@@ -106,14 +102,5 @@ export const useVoiceCallStore = defineStore('voice-call', () => {
     voice.setCallMuted(!voice.callMuted)
   }
 
-  function minimize() {
-    if (voice.callActive)
-      minimized.value = true
-  }
-
-  function expand() {
-    minimized.value = false
-  }
-
-  return { active, muted, minimized, startedAt, start, hangUp, toggleMuted, minimize, expand }
+  return { active, muted, startedAt, start, hangUp, toggleMuted }
 })

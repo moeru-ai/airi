@@ -187,8 +187,6 @@ live2d:
           description: Tạo chuyển động từ bộ dữ liệu MAGIC đi kèm.
       magic:
         profile:
-          title: Hồ sơ MAGIC
-          description: Chọn bộ dữ liệu chuyển động đi kèm phù hợp với bộ điều khiển MAGIC.
           options:
             idle-calm:
               title: Nghỉ / bình tĩnh

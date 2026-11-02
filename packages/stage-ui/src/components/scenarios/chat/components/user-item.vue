@@ -76,7 +76,8 @@ const voiceOnly = computed(() => audio.value.length > 0 && !images.value.length 
 
 const containerClasses = computed(() => [
   'flex',
-  props.variant === 'mobile' ? 'ml-0 flex-row' : 'ml-12 flex-row-reverse',
+  // Mobile messages all start at the left edge. The gap on the right keeps them from the full width.
+  props.variant === 'mobile' ? 'mr-12 flex-row' : 'ml-12 flex-row-reverse',
 ])
 
 const boxClasses = computed(() => {

@@ -114,6 +114,7 @@
     "@proj-airi/stage-ui-spine": "workspace:^",
     "@proj-airi/stage-ui-tachie": "workspace:^",
     "@proj-airi/stage-ui-three": "workspace:^",
+    "@proj-airi/timeline-canvas": "workspace:^",
     "@proj-airi/trace-kit": "workspace:^",
     "@proj-airi/ui": "workspace:^",
     "@proj-airi/ui-loading-screens": "workspace:^",

@@ -3,6 +3,7 @@ import en from '@proj-airi/i18n/locales/en'
 import { CHARACTER_CARD_SYNC_FLAG } from '@proj-airi/stage-ui/libs/feature-flags'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
+import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useFeatureFlagsStore } from '@proj-airi/stage-ui/stores/feature-flags'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { createPinia, disposePinia } from 'pinia'
@@ -26,6 +27,9 @@ describe('card detail history', () => {
   beforeEach(() => {
     localStorage.clear()
     pinia = createPinia()
+    // A signed-in user starts background requests. A real server can answer
+    // after the test ends, and a 401 then runs auth actions on a disposed Pinia.
+    vi.stubGlobal('fetch', async () => new Response(null, { status: 404 }))
   })
 
   afterEach(() => {
@@ -48,6 +52,8 @@ describe('card detail history', () => {
     })
     const cardId = await useAiriCardStore(pinia).addCard({ name: 'Luna', version: '1.0.0' }, 'scratch')
     await screen.rerender({ cardId })
+    // The detail loads the display models on mount. The test must not end before it.
+    await expect.poll(() => useDisplayModelsStore(pinia).displayModels.length).toBeGreaterThan(0)
     return { screen, cardId }
   }
 
@@ -90,6 +96,8 @@ describe('card detail history', () => {
     await screen.getByRole('button', { name: 'Restore', exact: true }).click()
 
     await expect.poll(() => useAiriCardStore(pinia).cards.get(cardId)?.name).toBe('Nova')
+    // The restore then reloads the history. Its button stays disabled until the reload ends.
+    await expect.element(screen.getByRole('button', { name: 'Restore this version' })).toBeEnabled()
   })
 
   it('does not offer history for a signed-in user who has not turned cloud sync on', async () => {

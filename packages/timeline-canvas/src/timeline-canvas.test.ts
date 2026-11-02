@@ -3,10 +3,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { intervalRuns, pointMarks } from './aggregate'
 import { CAPSULE_COLORS, capsuleStyle, laneCapsuleStyle, laneLayerOf, StyleTable } from './capsule'
 import { IntervalColumn, PointColumn } from './columns'
+import { drawLine } from './draw'
 import { hitInterval, hitPoint } from './hit'
 import { drawTimelineRow, ROW_GEOMETRY, rowItemGeometry } from './row'
 import { lowerBound, upperBound } from './search'
 import { SeriesPyramid, waveformColumns } from './series'
+import { valueToY, yToValue } from './value'
 
 const view = { start: 0, end: 1000, width: 1000 }
 
@@ -357,5 +359,77 @@ describe('rows with content', () => {
     const bars = calls.slice(calls.lastIndexOf(arcs.at(-1)!) + 1).filter(call => call.name === 'roundRect')
     expect(bars.length).toBeGreaterThan(0)
     expect(Math.min(...bars.map(call => call.args[1] as number))).toBeGreaterThanOrEqual(dotBottom)
+  })
+})
+
+describe('value axis', () => {
+  const geometry = { top: 10, height: 100 }
+
+  it('puts the low end of the range at the bottom of the row and the high end at the top', () => {
+    expect(valueToY([-1, 1], geometry, -1)).toBe(110)
+    expect(valueToY([-1, 1], geometry, 1)).toBe(10)
+    expect(valueToY([0, 1], geometry, 0.25)).toBe(85)
+  })
+
+  it('maps a y offset back to its value', () => {
+    expect(yToValue([-1, 1], geometry, 60)).toBe(0)
+    expect(yToValue([0, 1], geometry, valueToY([0, 1], geometry, 0.3))).toBeCloseTo(0.3)
+  })
+
+  it('does not clamp a position outside the row', () => {
+    expect(yToValue([0, 1], geometry, 0)).toBeCloseTo(1.1)
+  })
+})
+
+describe('lines', () => {
+  /** A 2D context that records the path calls of a line. */
+  function pathContext() {
+    const points: [string, number, number][] = []
+    const ctx = new Proxy<Partial<CanvasRenderingContext2D>>({}, {
+      get(target, key) {
+        if (key === 'moveTo' || key === 'lineTo')
+          return (x: number, y: number) => points.push([key, x, y])
+        if (key in target)
+          return Reflect.get(target, key)
+        return () => {}
+      },
+      set(target, key, value) {
+        return Reflect.set(target, key, value)
+      },
+    })
+    return { ctx: ctx as CanvasRenderingContext2D, points }
+  }
+
+  const lineView = { start: 0, end: 100, width: 100 }
+  const geometry = { top: 0, height: 10 }
+
+  it('joins the points that lead into and out of the view', () => {
+    const { ctx, points } = pathContext()
+    drawLine(ctx, [-100, 50, 300], [0, 1, 0], { view: lineView, ...geometry, color: '#000' })
+    expect(points).toEqual([['moveTo', -100, 10], ['lineTo', 50, 0], ['lineTo', 300, 10]])
+  })
+
+  it('draws a segment that crosses the view without a point inside it', () => {
+    const { ctx, points } = pathContext()
+    drawLine(ctx, [-50, 150], [0, 1], { view: lineView, ...geometry, color: '#000' })
+    expect(points).toEqual([['moveTo', -50, 10], ['lineTo', 150, 0]])
+  })
+
+  it('leaves out the points beyond the nearest point on each side', () => {
+    const { ctx, points } = pathContext()
+    drawLine(ctx, [-200, -100, 50, 200, 300], [0, 0, 1, 0, 0], { view: lineView, ...geometry, color: '#000' })
+    expect(points.map(([, x]) => x)).toEqual([-100, 50, 200])
+  })
+
+  it('holds each value until the next point in step mode', () => {
+    const { ctx, points } = pathContext()
+    drawLine(ctx, [0, 50], [0, 1], { view: lineView, ...geometry, color: '#000', curve: 'step' })
+    expect(points).toEqual([['moveTo', 0, 10], ['lineTo', 50, 10], ['lineTo', 50, 0]])
+  })
+
+  it('draws values outside the range at the edge of the row', () => {
+    const { ctx, points } = pathContext()
+    drawLine(ctx, [0, 50], [-2, 2], { view: lineView, ...geometry, color: '#000', range: [-1, 1] })
+    expect(points.map(([, , y]) => y)).toEqual([10, 0])
   })
 })

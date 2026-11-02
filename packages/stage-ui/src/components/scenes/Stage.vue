@@ -34,11 +34,13 @@ import StageRenderError from './stage-render-error.vue'
 // import { useDuckDb } from '../../composables/use-duck-db'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { useLive2DStageMotionMagic } from '../../features/motions/live2d/use-live2d-stage-motion-magic'
+import { createAvatarTouchAggregator } from '../../libs/avatar-touch/notify'
 import { syncedRoles, usePiniaSynced } from '../../libs/pinia/synced-context'
 import { getSpeechBusContext, speechOutputGetPlaybackState, speechOutputPlaybackStateChangedEvent } from '../../services/speech/bus'
 import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-control'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
+import { useAvatarTouchStore } from '../../stores/character/avatar-touch'
 import { useChatStore } from '../../stores/chat'
 import { useChatSessionStore } from '../../stores/chat/session-store'
 import { useSharedLive2DExpressionPreview } from '../../stores/live2d'
@@ -369,6 +371,17 @@ let disconnectLipSync: (() => void) | undefined
 let disconnectAnalyser: (() => void) | undefined
 
 const voice = useVoiceStore()
+const avatarTouch = useAvatarTouchStore()
+// A burst of touches on the avatar becomes one notification for the character.
+// The avatar already plays its own reaction, so a skipped notification still shows the touch.
+const avatarTouchAggregator = createAvatarTouchAggregator({
+  onSummary: (summary) => {
+    // A reply in progress keeps the floor. A notification reply would play over it.
+    if (voice.activeTurns.length > 0)
+      return
+    void avatarTouch.notifyTouch(summary).catch(error => console.error('Avatar touch notification failed', error))
+  },
+})
 // Lip sync and the spectrum analyser connect to the playback through voice output plugins.
 // The playback connects them before this volume, so a low volume does not change the mouth or the analyser.
 const speechDestination = audioContext.createGain()
@@ -633,6 +646,7 @@ async function captureCharacterFrame() {
 }
 
 onUnmounted(() => {
+  avatarTouchAggregator.dispose()
   live2d.dispose()
   disposePlaybackStateHandler()
   resetLive2dLipSync()
@@ -684,6 +698,7 @@ defineExpose({
         :live2d-max-fps="live2dMaxFps"
         :live2d-render-scale="live2dRenderScale"
         @error="handleStageRenderError"
+        @touch="avatarTouchAggregator.record"
       />
       <ThreeScene
         v-if="stageModelRenderer === 'vrm' && showStage"

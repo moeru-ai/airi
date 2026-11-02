@@ -187,8 +187,6 @@ live2d:
           description: สร้างท่าทางจากชุดข้อมูล MAGIC ที่มาพร้อมแอป
       magic:
         profile:
-          title: โปรไฟล์ MAGIC
-          description: เลือกชุดข้อมูลท่าทางที่มาพร้อมแอปซึ่งเหมาะกับตัวขับเคลื่อน MAGIC
           options:
             idle-calm:
               title: อยู่นิ่ง / สงบ

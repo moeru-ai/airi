@@ -58,6 +58,7 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
   const ids = ['stream-context', 'assistant-id', 'user-id', 'fallback-id']
   let nextId = 0
   let systemPromptSupplement: string | undefined
+  let contextWindow = -1
   let nowValue = new Date(2026, 3, 25, 18, 47).getTime()
   let monotonicNowValues = [1000]
   let generation = 1
@@ -94,6 +95,7 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
     getActiveSessionId: () => 'session-1',
     getActiveProvider,
     getSystemPromptSupplement: () => systemPromptSupplement,
+    getContextWindow: () => contextWindow,
     now: () => nowValue,
     monotonicNow: () => monotonicNowValues.shift() ?? 1000,
     createId: () => ids.shift() ?? `generated-${nextId++}`,
@@ -132,6 +134,11 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
     },
     assistantTurns,
     contextSnapshot,
+    contextWindow: {
+      set: (next: number) => {
+        contextWindow = next
+      },
+    },
     foregroundPatches,
     foregroundResets,
     generation: {
@@ -167,6 +174,137 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
 }
 
 describe('createChatOrchestratorRuntime', () => {
+  it('keeps the newest 90 percent of history when a card context window is exceeded', async () => {
+    const harness = createHarness()
+    harness.contextWindow.set(10)
+    for (let index = 0; index < 10; index++) {
+      if (index % 2 === 0) {
+        harness.sessionMessages['session-1'].push({ role: 'user', content: `history-${index}`, id: `history-${index}` })
+      }
+      else {
+        harness.sessionMessages['session-1'].push({ role: 'assistant', content: `history-${index}`, id: `history-${index}`, slices: [], tool_results: [] })
+      }
+    }
+
+    await harness.runtime.ingest('latest message', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    const turns = harness.stream.mock.calls[0]![2].turns
+    expect(turns.filter(turn => turn.type !== 'system')).toHaveLength(9)
+    expect(turns[0]?.type).toBe('system')
+    expect(turns[1]?.type).toBe('user')
+    expect(turns.at(-1)?.type).toBe('user')
+    expect(JSON.stringify(turns)).toContain('latest message')
+    expect(JSON.stringify(turns)).not.toContain('history-0')
+  })
+
+  it('holds the history prefix until the retained messages exceed the limit again', async () => {
+    const harness = createHarness()
+    harness.contextWindow.set(20)
+    for (let index = 0; index < 20; index++) {
+      harness.sessionMessages['session-1'].push(index % 2 === 0
+        ? { role: 'user', content: `history-${index}`, id: `history-${index}` }
+        : { role: 'assistant', content: `history-${index}`, id: `history-${index}`, slices: [], tool_results: [] })
+    }
+    const originalIds = harness.sessionMessages['session-1'].map(message => message.id)
+    for (let index = 0; index < 3; index++)
+      await harness.runtime.ingest(`new-${index}`, { model: 'gpt-test', chatProvider: provider })
+
+    const requests = harness.stream.mock.calls.map(call => call[2].turns.filter(turn => turn.type !== 'system'))
+    expect(requests.map(turns => turns.length)).toEqual([17, 19, 17])
+    expect(requests[0]?.[0]?.id).toBe('history-4-0')
+    expect(requests[1]?.slice(0, 17)).toEqual(requests[0])
+    expect(requests[2]?.[0]?.id).toBe('history-8-0')
+    expect(harness.sessionMessages['session-1'].slice(0, originalIds.length).map(message => message.id)).toEqual(originalIds)
+  })
+
+  it('skips assistant and tool messages at the cut and preserves complete later tool exchanges', async () => {
+    const harness = createHarness()
+    harness.contextWindow.set(5)
+    harness.sessionMessages['session-1'].push(
+      { role: 'user', content: 'old user', id: 'old-user' },
+      { role: 'assistant', content: '', id: 'old-call', slices: [], tool_results: [], tool_calls: [{ id: 'old-tool', type: 'function', function: { name: 'weather', arguments: '{}' } }] },
+      { role: 'tool', content: 'old result', tool_call_id: 'old-tool', id: 'old-result' },
+      { role: 'user', content: 'kept user', id: 'kept-user' },
+      {
+        role: 'assistant',
+        content: 'weather reply',
+        id: 'kept-call',
+        slices: [],
+        tool_results: [],
+        providerTranscript: [
+          { role: 'assistant', content: '', tool_calls: [{ id: 'kept-tool', type: 'function', function: { name: 'weather', arguments: '{}' } }] },
+          { role: 'tool', content: 'kept result', tool_call_id: 'kept-tool' },
+          { role: 'assistant', content: 'weather reply' },
+        ],
+      },
+    )
+    await harness.runtime.ingest('latest', { model: 'gpt-test', chatProvider: provider })
+
+    const request = harness.stream.mock.calls[0]![2]
+    expect(request.turns[0]?.type).toBe('system')
+    expect(request.turns[1]?.id).toBe('kept-user-0')
+    expect(JSON.stringify(request)).not.toContain('old-tool')
+    expect(JSON.stringify(request)).toContain('kept-tool')
+    expect(JSON.stringify(request)).toContain('kept result')
+  })
+
+  it('sends only the system prompt and current input when the limit is zero', async () => {
+    const harness = createHarness()
+    harness.contextWindow.set(0)
+    await harness.runtime.ingest('old input', { model: 'gpt-test', chatProvider: provider })
+    await harness.runtime.ingest('current input', { model: 'gpt-test', chatProvider: provider })
+
+    const request = harness.stream.mock.calls[1]![2]
+    expect(request.turns.map(turn => turn.type)).toEqual(['system', 'user'])
+    expect(JSON.stringify(request)).toContain('current input')
+    expect(JSON.stringify(request)).not.toContain('old input')
+  })
+
+  it('isolates history cuts by session and resets them when the limit changes', async () => {
+    const harness = createHarness()
+    harness.contextWindow.set(4)
+    for (let index = 0; index < 3; index++)
+      await harness.runtime.ingest(`first-${index}`, { model: 'gpt-test', chatProvider: provider })
+    await harness.runtime.ingest('second session', { model: 'gpt-test', chatProvider: provider }, 'session-2')
+    expect(JSON.stringify(harness.stream.mock.calls[3]![2])).toContain('second session')
+    expect(JSON.stringify(harness.stream.mock.calls[3]![2])).not.toContain('first-')
+
+    harness.contextWindow.set(20)
+    await harness.runtime.ingest('larger limit', { model: 'gpt-test', chatProvider: provider })
+    expect(JSON.stringify(harness.stream.mock.calls[4]![2])).toContain('first-0')
+    harness.contextWindow.set(-1)
+    await harness.runtime.ingest('all history', { model: 'gpt-test', chatProvider: provider })
+    expect(JSON.stringify(harness.stream.mock.calls[5]![2])).toContain('first-0')
+  })
+
+  it('recomputes the cut after the retained start is removed from history', async () => {
+    const harness = createHarness()
+    harness.contextWindow.set(4)
+    for (let index = 0; index < 3; index++)
+      await harness.runtime.ingest(`old-${index}`, { model: 'gpt-test', chatProvider: provider })
+    harness.sessionMessages['session-1'] = [{ role: 'user', content: 'replacement', id: 'replacement' }]
+    await harness.runtime.ingest('new input', { model: 'gpt-test', chatProvider: provider })
+    expect(harness.stream.mock.calls[3]![2].turns[0]?.id).toBe('replacement-0')
+  })
+
+  it.each(['generation', 'cancellation'] as const)('resets the cut on session %s', async (reset) => {
+    const harness = createHarness()
+    harness.contextWindow.set(4)
+    for (let index = 0; index < 3; index++)
+      await harness.runtime.ingest(`old-${index}`, { model: 'gpt-test', chatProvider: provider })
+    // Retain the anchor but shorten the conversation, as when history is edited or restored.
+    harness.sessionMessages['session-1'] = harness.sessionMessages['session-1'].filter(message => message.role === 'user').slice(0, 2)
+    if (reset === 'generation')
+      harness.generation.set(2)
+    else
+      harness.runtime.cancelPendingSends('session-1')
+    await harness.runtime.ingest('after reset', { model: 'gpt-test', chatProvider: provider })
+    expect(JSON.stringify(harness.stream.mock.calls[3]![2])).toContain('old-0')
+  })
+
   // https://github.com/moeru-ai/airi/issues/2899
   // ROOT CAUSE:
   //

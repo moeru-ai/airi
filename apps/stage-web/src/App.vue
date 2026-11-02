@@ -237,8 +237,7 @@ function openOnboardingAfterStartup() {
       :scale-background="false"
       :instant-open="startupOnboarding"
       :extra-steps="onboardingExtraSteps"
-      @configured="onboardingStore.markSetupCompleted()"
-      @skipped="onboardingStore.markSetupSkipped()"
+      @configured="showingSetup = false"
     />
 
     <PerformanceOverlay />

@@ -8,6 +8,7 @@ import MobileInteractiveArea from '@proj-airi/stage-layouts/components/Layouts/M
 import { PiniaColada } from '@pinia/colada'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
+import { trackPendingActions } from '@proj-airi/stage-ui/libs/pinia/pending-actions'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
@@ -59,7 +60,13 @@ async function renderArea(component: Component = InteractiveArea, options: { pro
     updatedAt: 2,
   }
   const pinia = createPinia()
-  onTestFinished(() => disposePinia(pinia))
+  // The area reloads backgrounds when it mounts. Let each load end before its
+  // Pinia is destroyed.
+  const pendingBackgroundLoads = trackPendingActions(pinia, (storeId, action) => storeId === 'background-entries' && action === 'initializeStore')
+  onTestFinished(async () => {
+    await expect.poll(pendingBackgroundLoads).toBe(0)
+    disposePinia(pinia)
+  })
   pinia.state.value = {
     'chat-session-selection': { activeSessionId: 'session-b' },
     'chat-session': {

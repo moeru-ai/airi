@@ -32,6 +32,8 @@ await live2d.motions.execute('motions/wave.motion3.json')
   `{ broadcast: false }` to `setPose` for a source that runs in each renderer.
 - With `focusBias`, the scene biases a manual pose toward the cursor. `createLive2DFocusBias` owns the fade and the gains.
   The head turns part of the way, and the eyes cover the rest. The generated motion continues under the bias.
+- A tap or a pat on the canvas plays a reaction from `createLive2DTouchReaction`, and the scene emits `touch`.
+  `Model.touchAt` resolves the head or the body from the author hit areas, the head box, or the drawable bounds.
 
 ## Do not use this package
 

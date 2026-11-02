@@ -119,7 +119,6 @@ const drawingCard = computed(() => props.streaming && props.message.pendingConte
 const sliceEntries = computed(() => groupToolCallSlices(resolvedSlices.value, toolName => Boolean(props.toolCallRenderers[toolName])))
 
 const showLoader = computed(() => props.showPlaceholder && resolvedSlices.value.length === 0)
-const containerClass = computed(() => props.variant === 'mobile' ? 'mr-0' : 'mr-12')
 const boxClasses = computed(() => {
   const spacing = props.variant === 'mobile' ? 'px-2 py-2 text-sm' : 'px-3 py-3'
   if (props.surface === 'opaque')
@@ -136,7 +135,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
 </script>
 
 <template>
-  <div :class="['flex font-cute ph-no-capture', containerClass]">
+  <div :class="['mr-12 flex font-cute ph-no-capture']">
     <ChatActionMenu
       :copy-text="copyText"
       :can-reply="canReply"

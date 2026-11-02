@@ -105,16 +105,9 @@ chat:
     images: Images
     call: Voice call
   call:
-    title: Voice call
-    listening: Listening
-    hearing: Hearing you
-    speaking: Speaking
-    muted: Muted
     mute: Mute the microphone
     unmute: Unmute the microphone
     hang-up: Hang up
-    minimize: Minimize the call
-    expand: Return to the call
     failed: Could not start the voice call
     microphone-denied: AIRI cannot use the microphone.
     microphone-off: The microphone is turned off. Turn it on in Hearing to start a voice call.
@@ -249,6 +242,11 @@ chat:
     cloud-badge: Synced to cloud
     new-chat-fallback: New chat
     delete: Delete conversation
+    rename: Rename conversation
+    rename-input: Conversation name
+    rename-placeholder: Enter a conversation name
+    save-rename: Save conversation name
+    cancel-rename: Cancel renaming
 avatar-model-missing:
   title: No model selected
   unavailable-title: This model is not on this device

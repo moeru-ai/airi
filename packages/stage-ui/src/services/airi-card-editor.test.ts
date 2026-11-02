@@ -172,6 +172,7 @@ describe('airi card editor validation', () => {
         },
       },
     }, {
+      contextWindow: 42,
       consciousness: { provider: 'new-chat', model: 'new-chat-model' },
       vision: { provider: 'new-vision', model: 'new-vision-model' },
       speech: { provider: 'new-speech', model: 'new-speech-model', voice_id: 'new-voice' },
