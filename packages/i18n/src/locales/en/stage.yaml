@@ -105,16 +105,9 @@ chat:
     images: Images
     call: Voice call
   call:
-    title: Voice call
-    listening: Listening
-    hearing: Hearing you
-    speaking: Speaking
-    muted: Muted
     mute: Mute the microphone
     unmute: Unmute the microphone
     hang-up: Hang up
-    minimize: Minimize the call
-    expand: Return to the call
     failed: Could not start the voice call
     microphone-denied: AIRI cannot use the microphone.
     microphone-off: The microphone is turned off. Turn it on in Hearing to start a voice call.
