@@ -7,8 +7,8 @@ import { createI18n } from 'vue-i18n'
 import VoiceCallCapsule from './voice-call-capsule.vue'
 import VoiceCallPanel from './voice-call-panel.vue'
 
+import { trackPendingActions } from '../../../../libs/pinia/pending-actions'
 import { useHearingStore } from '../../../../stores/modules/hearing'
-import { useSpeechStore } from '../../../../stores/modules/speech'
 import { useSettingsAudioDevice } from '../../../../stores/settings/audio-device'
 import { useVoiceStore } from '../../../../stores/voice'
 import { useVoiceCallStore } from '../../../../stores/voice-call'
@@ -30,6 +30,8 @@ afterEach(async () => {
  */
 async function mountCall(options: { persistent?: boolean } = {}) {
   const pinia = createPinia()
+  // The speech store loads the voice catalog when it starts. Disposing first leaves that load running into the next test.
+  const pendingCatalogLoads = trackPendingActions(pinia, storeId => storeId === 'speech')
   cleanups.push(() => disposePinia(pinia))
   const component = defineComponent({ setup() {
     const call = useVoiceCallStore()
@@ -42,10 +44,8 @@ async function mountCall(options: { persistent?: boolean } = {}) {
     global: { plugins: [pinia, createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false })] },
   })
   cleanups.push(() => screen.unmount())
-  // The speech store loads the voice catalog when it starts. Disposing first leaves that load running into the next test.
-  const speech = useSpeechStore(pinia)
   cleanups.push(async () => {
-    await expect.poll(() => speech.voiceCatalogStatus[speech.activeSpeechProvider]?.loading).toBe(false)
+    await expect.poll(pendingCatalogLoads).toBe(0)
   })
   return { screen, voice: useVoiceStore(pinia), call: useVoiceCallStore(pinia), devices: useSettingsAudioDevice(pinia) }
 }

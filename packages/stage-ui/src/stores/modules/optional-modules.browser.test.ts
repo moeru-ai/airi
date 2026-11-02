@@ -8,6 +8,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { createApp, nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
 
+import { trackPendingActions } from '../../libs/pinia/pending-actions'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { useProviderConfigStore } from '../providers/config'
 import { useHearingStore } from './hearing'
@@ -16,10 +17,12 @@ import { useVisionStore } from './vision/store'
 
 vi.mock('@xsai/generate-transcription', () => ({ generateTranscription: vi.fn() }))
 
-const contexts: { pinia: ReturnType<typeof createPinia>, runtime?: SyncedPiniaRuntime, speech: ReturnType<typeof useSpeechStore>, unmount: () => void }[] = []
+const contexts: { pinia: ReturnType<typeof createPinia>, runtime?: SyncedPiniaRuntime, pendingCatalogLoads: () => number, unmount: () => void }[] = []
 
 function createContext(namespace?: string, leadership?: LeadershipMode) {
   const pinia = createPinia()
+  // The speech store loads the voice catalog when it starts, and a follower waits for the leader. Disposing first leaves that load running into the next test.
+  const pendingCatalogLoads = trackPendingActions(pinia, storeId => storeId === 'speech')
   const runtime = namespace ? createSyncedPiniaPlugin({ namespace, leadership, callTimeout: 1000 }) : undefined
   if (runtime)
     pinia.use(runtime.plugin)
@@ -35,19 +38,12 @@ function createContext(namespace?: string, leadership?: LeadershipMode) {
     },
   }).use(createI18n({ legacy: false, locale: 'en', messages: { en: {} }, missingWarn: false, fallbackWarn: false })).use(pinia)
   app.mount(document.createElement('div'))
-  contexts.push({ pinia, runtime, speech, unmount: () => app.unmount() })
+  contexts.push({ pinia, runtime, pendingCatalogLoads, unmount: () => app.unmount() })
   return { pinia, runtime, hearing, vision, speech }
 }
 
-/** Whether every voice catalog load has settled, including the load that the speech store starts for its provider. */
-function catalogLoadsSettled(speech: ReturnType<typeof useSpeechStore>) {
-  const status = speech.voiceCatalogStatus
-  return status[speech.activeSpeechProvider]?.loading === false && Object.values(status).every(entry => !entry.loading)
-}
-
 afterEach(async () => {
-  // The speech store loads the voice catalog when it starts. Disposing first leaves that load running into the next test.
-  await expect.poll(() => contexts.every(({ speech }) => catalogLoadsSettled(speech))).toBe(true)
+  await expect.poll(() => contexts.map(({ pendingCatalogLoads }) => pendingCatalogLoads())).toEqual(contexts.map(() => 0))
   for (const { pinia, runtime, unmount } of contexts.splice(0)) {
     unmount()
     runtime?.dispose()
