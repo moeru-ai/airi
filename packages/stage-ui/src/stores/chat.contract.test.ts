@@ -9,8 +9,8 @@ import type { ChatSessionMeta } from '../types/chat-session'
 import type { LlmStreamOptions } from './ai/chat-llm/llm'
 
 import { errorMessageFrom } from '@moeru/std'
-import { ATTR_GEN_AI_CONVERSATION_ID } from '@proj-airi/trace-kit'
-import { AgentAttributes, AgentNames } from '@proj-airi/trace-kit/agent'
+import { ATTR_GEN_AI_CONVERSATION_ID, ATTR_GEN_AI_OPERATION_NAME, ATTR_GEN_AI_TOOL_NAME } from '@proj-airi/trace-kit'
+import { AgentAttributes, AgentIdKeys, AgentNames } from '@proj-airi/trace-kit/agent'
 import { VoiceIdKeys } from '@proj-airi/trace-kit/voice'
 import { createPinia, defineStore, disposePinia, setActivePinia } from 'pinia'
 import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
@@ -856,6 +856,35 @@ describe('chat store contract', () => {
         content: expect.stringContaining('A red square.'),
       }),
     ]))
+  })
+
+  it('traces each tool call of a model request as a span on the tools track', async () => {
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'tool-call-start', toolCallId: 'call-1', toolName: 'home_assistant_list_entities' })
+      await options.onStreamEvent?.({ type: 'tool-call', toolCallId: 'call-1', toolCallType: 'function', toolName: 'home_assistant_list_entities', args: '{"domain":"light"}' })
+      await options.onStreamEvent?.({ type: 'tool-error', toolCallId: 'call-1', result: 'Could not reach Home Assistant: fetch failed', isError: true })
+      await options.onStreamEvent?.({ type: 'tool-call', toolCallId: 'call-2', toolCallType: 'function', toolName: 'web_search', args: '{}' })
+      await options.onStreamEvent?.({ type: 'tool-result', toolCallId: 'call-2', result: 'ok' })
+      await options.onStreamEvent?.({ type: 'tool-call', toolCallId: 'call-3', toolCallType: 'function', toolName: 'web_search', args: '{}' })
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await useChatStore().send({ sessionId: 'session-1', text: 'Turn on the lights' })
+
+    const [llm] = spanBegins(AgentNames.ModelRequest)
+    const [failed] = spanBegins('home_assistant_list_entities')
+    const [succeeded, unanswered] = spanBegins('web_search')
+    expect(failed).toMatchObject({
+      track: 'agents/agent/tools',
+      parentSpanId: llm.spanId,
+      ids: { [AgentIdKeys.ToolCall]: 'call-1' },
+      attrs: { [ATTR_GEN_AI_OPERATION_NAME]: AgentNames.ToolCall, [ATTR_GEN_AI_TOOL_NAME]: 'home_assistant_list_entities' },
+    })
+    expect(spanEnds(failed.spanId)).toEqual([expect.objectContaining({ status: 'error', message: 'Could not reach Home Assistant: fetch failed' })])
+    expect(spanEnds(succeeded.spanId)).toEqual([expect.objectContaining({ status: 'ok' })])
+    expect(spanEnds(unanswered.spanId)).toEqual([expect.objectContaining({ status: 'cancelled' })])
+    // The first tool call is the first output of the model, so it ends the time to first token.
+    expect(spanEnds(llm.spanId)[0]?.attrs?.[AgentAttributes.LLMTtftMs]).toEqual(expect.any(Number))
   })
 
   it('reuses a persisted image description on later turns', async () => {
