@@ -675,7 +675,7 @@ function resetMainWindowPosition() {
               <span v-if="hearingIssue" :id="hearingIssueId" :class="['sr-only']">{{ hearingIssue }}</span>
             </ControlButton>
             <template #tooltip>
-              {{ hearingIssue ?? microphoneLabel }}
+              <span :class="['text-left']">{{ hearingIssue ?? microphoneLabel }}</span>
             </template>
           </ControlButtonTooltip>
 
