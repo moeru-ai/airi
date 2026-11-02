@@ -65,6 +65,15 @@ async function setupChat(reply: (prompt: string, options?: StreamOptions) => Pro
   return { pinia, chat: useChatStore(pinia), sessions, recipes: useRecipesStore(pinia), prompts }
 }
 
+/**
+ * Waits until the conversation holds `count` notices and no turn runs.
+ * A finished task sends its notice in the background, so a test that ends sooner leaves the send running into the next test.
+ */
+async function waitForNotices(chat: ReturnType<typeof useChatStore>, sessions: ReturnType<typeof useChatSessionStore>, sessionId: string, count: number) {
+  const notices = () => sessions.getSessionMessages(sessionId).filter(message => message.role === 'user' && message.notice).length
+  await expect.poll(() => [notices(), chat.activeTurns.length]).toEqual([count, 0])
+}
+
 afterEach(async () => {
   vi.restoreAllMocks()
   for (const pinia of pinias.splice(0)) {
@@ -104,6 +113,7 @@ it('stops a running task without a result, while another task runs on', async ()
   await chat.stopBackgroundTask(watching.sessionId)
 
   await expect.poll(() => sessions.sessionMetas[watching.sessionId]?.task?.status).toBe('interrupted')
+  await waitForNotices(chat, sessions, parent, 1)
   expect(prompts.some(prompt => prompt.includes('The background task \\"Watch\\"'))).toBe(false)
 })
 
@@ -128,6 +138,7 @@ it.each([-1, 4])('keeps only the newest finished tasks without moving the select
   expect(chat.backgroundTasks).toHaveLength(2)
   expect(sessions.activeSessionId).toBe(selected)
   expect(sessions.index?.characters[characterId]?.activeSessionId).toBe(selected)
+  await waitForNotices(chat, sessions, selected, 5)
 })
 
 // A background recipe runs in its own session, so its steps never enter the conversation.
@@ -140,7 +151,7 @@ it('runs a keyword-triggered background recipe and keeps its result as a notice'
   await chat.send({ sessionId: parent, text: '今天想玩粥了' })
 
   const ownerMessages = () => sessions.getSessionMessages(parent).filter(message => message.role === 'user')
-  await expect.poll(() => ownerMessages().filter(message => message.role === 'user' && message.notice).length).toBe(1)
+  await waitForNotices(chat, sessions, parent, 1)
   expect(ownerMessages().filter(message => message.role === 'user' && !message.notice)).toHaveLength(1)
   expect(ownerMessages().find(message => message.role === 'user' && message.notice)).toMatchObject({ notice: { source: 'recipe:Game night' } })
   expect(prompts.find(prompt => prompt.includes('Ask which game, then start it.'))).toContain('The owner said: 今天想玩粥了')
@@ -165,8 +176,10 @@ it('runs a recipe with every registered tool', async () => {
   await recipes.add({ name: 'Tidy up', description: '', instructions: 'Tidy the desktop.', background: true, keywords: [], enabled: true })
   const tidy = recipes.recipes.find(recipe => recipe.name === 'Tidy up')!
 
-  await chat.startRecipe(tidy, { parentSessionId: sessions.activeSessionId, task: 'Tidy the desktop now.' })
+  const parent = sessions.activeSessionId
+  await chat.startRecipe(tidy, { parentSessionId: parent, task: 'Tidy the desktop now.' })
 
   const task = () => Object.values(sessions.sessionMetas).find(meta => meta.recipeId === tidy.id)
   await expect.poll(() => task() && sessions.getSessionMessages(task()!.sessionId).find(message => message.role === 'user')?.tools).toContainEqual({ name: 'computer_use' })
+  await waitForNotices(chat, sessions, parent, 1)
 })

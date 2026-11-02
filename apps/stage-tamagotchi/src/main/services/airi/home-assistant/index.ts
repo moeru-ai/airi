@@ -3,12 +3,11 @@ import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { HomeAssistantStoredConfig } from './request'
 
 import { defineInvokeHandler } from '@moeru/eventa'
-import { errorMessageFrom } from '@moeru/std'
 import { object, string } from 'valibot'
 
 import { homeAssistantGetConfig, homeAssistantRequest, homeAssistantSetConfig } from '../../../../shared/eventa/home-assistant'
 import { createConfig } from '../../../libs/electron/persistence'
-import { readBody, requestTimeoutMs, resolveConfigUpdate, resolveRequestUrl, toRequestError, toTokenPreview } from './request'
+import { readBody, requestTimeoutMs, resolveConfigUpdate, resolveRequestUrl, toNetworkError, toRequestError, toTokenPreview } from './request'
 
 const configSchema = object({
   baseUrl: string(),
@@ -96,7 +95,7 @@ export function setupHomeAssistant(context: ReturnType<typeof createContext>['co
       })
     }
     catch (error) {
-      throw new Error(`Could not reach Home Assistant at ${current.baseUrl}: ${errorMessageFrom(error) ?? 'unknown network error'}`)
+      throw toNetworkError(current.baseUrl, error)
     }
 
     if (!response.ok)

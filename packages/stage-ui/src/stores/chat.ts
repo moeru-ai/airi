@@ -13,12 +13,12 @@ import { errorMessageFrom } from '@moeru/std'
 import { decodeBase64 } from '@moeru/std/base64'
 import { fileSource } from '@proj-airi/audio/encoding'
 import { createChatOrchestratorRuntime, isBackgroundRecipe, matchKeywordRecipes, renderConversationPreview } from '@proj-airi/core-agent'
-import { ATTR_GEN_AI_AGENT_ID, ATTR_GEN_AI_CONVERSATION_ID, ATTR_GEN_AI_OPERATION_NAME, ATTR_GEN_AI_PROVIDER_NAME, ATTR_GEN_AI_REQUEST_MODEL, beginSpan, TraceLinkRelations, trackPath } from '@proj-airi/trace-kit'
-import { AgentAttributes, AgentNames, AgentTracks } from '@proj-airi/trace-kit/agent'
+import { ATTR_GEN_AI_AGENT_ID, ATTR_GEN_AI_CONVERSATION_ID, ATTR_GEN_AI_OPERATION_NAME, ATTR_GEN_AI_PROVIDER_NAME, ATTR_GEN_AI_REQUEST_MODEL, ATTR_GEN_AI_TOOL_CALL_ARGUMENTS, ATTR_GEN_AI_TOOL_CALL_ID, ATTR_GEN_AI_TOOL_CALL_RESULT, ATTR_GEN_AI_TOOL_NAME, beginSpan, TraceLinkRelations, trackPath } from '@proj-airi/trace-kit'
+import { AgentAttributes, AgentIdKeys, AgentNames, AgentTracks } from '@proj-airi/trace-kit/agent'
 import { VoiceIdKeys } from '@proj-airi/trace-kit/voice'
 import { isEqual } from 'es-toolkit'
 import { nanoid } from 'nanoid'
-import { defineStore, storeToRefs } from 'pinia'
+import { defineStore, getActivePinia, storeToRefs } from 'pinia'
 import { computed, shallowRef, toRaw } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -259,6 +259,9 @@ const UNREADABLE_EARLIER_IMAGE = 'The user attached an image here earlier. The v
 const inSpeechPlayer = { roles: [syncedRoles.speechPlayer] }
 
 export const useChatStore = defineStore('chat', () => {
+  // A watcher or an await runs outside the setup of this store. The active
+  // Pinia can then be another one, so keep the Pinia that owns this store.
+  const pinia = getActivePinia()
   const { t } = useI18n()
   const runtimePrompt = useAiriRuntimePrompt()
   const authStore = useAuthStore()
@@ -684,7 +687,7 @@ export const useChatStore = defineStore('chat', () => {
     // Stored messages reference their images and recordings. The provider request carries the bytes.
     context = await inlineConversationAssets(context)
 
-    const visionStore = useVisionStore()
+    const visionStore = useVisionStore(pinia)
     // NOTICE:
     // These image decisions read the model of the first step and hold for the stream.
     // `resolveStep` (#2709) can change the model between steps. Audio follows each step
@@ -755,7 +758,7 @@ export const useChatStore = defineStore('chat', () => {
       if (!source.turns.some(turn => turn.type === 'user' && turn.content.some(part => part.type === 'audio')))
         return source
 
-      const hearing = useHearingStore()
+      const hearing = useHearingStore(pinia)
       const signal = options?.abortSignal ?? new AbortController().signal
 
       // Project a request copy. Stored messages retain recordings and reusable ASR results.
@@ -850,6 +853,15 @@ export const useChatStore = defineStore('chat', () => {
     const llmRequestTs = sink.now()
     let llmTtftMs: number | undefined
     let llmError: unknown
+    // A call runs from its complete arguments to its result. Its ID pairs the two events.
+    const toolSpans = new Map<string, TraceSpan>()
+    const markFirstChunk = () => {
+      if (llmTtftMs !== undefined)
+        return
+      const firstChunkAt = sink.now()
+      llmTtftMs = Math.round(firstChunkAt - llmRequestTs)
+      llmSpan.instant(AgentNames.LLMFirstChunk, undefined, firstChunkAt)
+    }
 
     try {
       await llmStore.stream(model, chatProvider, providerContext, {
@@ -880,12 +892,35 @@ export const useChatStore = defineStore('chat', () => {
           if (isTextDelta(event)) {
             llmOutputChunkCount += 1
             llmOutputChunkLengths.push(event.text.length)
-            if (llmTtftMs === undefined) {
-              const firstChunkAt = sink.now()
-              llmTtftMs = Math.round(firstChunkAt - llmRequestTs)
-              llmSpan.instant(AgentNames.LLMFirstChunk, undefined, firstChunkAt)
-            }
+            markFirstChunk()
             llmTextLength += event.text.length
+          }
+          else if (event.type === 'tool-call-start') {
+            markFirstChunk()
+          }
+          else if (event.type === 'tool-call') {
+            toolSpans.set(event.toolCallId, beginSpan(sink, {
+              track: trackPath(AgentTracks.Tools, { agent: LOCAL_AGENT_ACTOR }),
+              name: event.toolName,
+              parent: llmSpan,
+              ids: { ...turnIds, [AgentIdKeys.ToolCall]: event.toolCallId },
+              attrs: {
+                [ATTR_GEN_AI_OPERATION_NAME]: AgentNames.ToolCall,
+                [ATTR_GEN_AI_TOOL_NAME]: event.toolName,
+                [ATTR_GEN_AI_TOOL_CALL_ID]: event.toolCallId,
+                [ATTR_GEN_AI_TOOL_CALL_ARGUMENTS]: event.args,
+              },
+            }))
+          }
+          else if (event.type === 'tool-result' || event.type === 'tool-error') {
+            const toolSpan = toolSpans.get(event.toolCallId)
+            toolSpans.delete(event.toolCallId)
+            const result = typeof event.result === 'string' ? event.result : undefined
+            const attrs = result === undefined ? undefined : { [ATTR_GEN_AI_TOOL_CALL_RESULT]: result }
+            if (event.type === 'tool-error')
+              toolSpan?.end({ status: 'error', message: result ?? 'Tool call failed', attrs })
+            else
+              toolSpan?.end({ attrs })
           }
 
           await options?.onStreamEvent?.(event)
@@ -902,6 +937,13 @@ export const useChatStore = defineStore('chat', () => {
         [AgentAttributes.LLMOutputChunkLengths]: llmOutputChunkLengths,
         [AgentAttributes.LLMTextLength]: llmTextLength,
         ...(llmTtftMs !== undefined ? { [AgentAttributes.LLMTtftMs]: llmTtftMs } : {}),
+      }
+      // A call without a result ends with its request.
+      for (const toolSpan of toolSpans.values()) {
+        if (llmError !== undefined && !options?.abortSignal?.aborted)
+          toolSpan.end({ status: 'error', message: errorMessageFrom(llmError) ?? 'Model request failed' })
+        else
+          toolSpan.end({ status: 'cancelled', reason: 'aborted' })
       }
       if (llmError === undefined)
         llmSpan.end({ attrs })

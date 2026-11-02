@@ -1,12 +1,11 @@
 import { createPinia, disposePinia } from 'pinia'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-vue'
-import { defineComponent, h } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import VoiceCallCapsule from './voice-call-capsule.vue'
-import VoiceCallPanel from './voice-call-panel.vue'
 
+import { trackPendingActions } from '../../../../libs/pinia/pending-actions'
 import { useHearingStore } from '../../../../stores/modules/hearing'
 import { useSettingsAudioDevice } from '../../../../stores/settings/audio-device'
 import { useVoiceStore } from '../../../../stores/voice'
@@ -15,31 +14,27 @@ import { useVoiceCallStore } from '../../../../stores/voice-call'
 import '@unocss/reset/tailwind.css'
 import 'virtual:uno.css'
 
-const cleanups: (() => void)[] = []
+const cleanups: (() => void | Promise<void>)[] = []
 
-afterEach(() => {
-  cleanups.splice(0).reverse().forEach(cleanup => cleanup())
+afterEach(async () => {
+  for (const cleanup of cleanups.splice(0).reverse())
+    await cleanup()
   localStorage.clear()
 })
 
-/**
- * Mounts the call panel and capsule the way the desktop composer does: the panel while expanded, the capsule always.
- * A `persistent` capsule is the whole call UI, like on a touch layout.
- */
-async function mountCall(options: { persistent?: boolean } = {}) {
+/** Mounts the call capsule, which is the call UI of every layout. The composer owns the mute button. */
+async function mountCall() {
   const pinia = createPinia()
+  // The speech store loads the voice catalog when it starts. Disposing first leaves that load running into the next test.
+  const pendingCatalogLoads = trackPendingActions(pinia, storeId => storeId === 'speech')
   cleanups.push(() => disposePinia(pinia))
-  const component = defineComponent({ setup() {
-    const call = useVoiceCallStore()
-    return () => [
-      !options.persistent && call.active && !call.minimized ? h(VoiceCallPanel) : null,
-      h(VoiceCallCapsule, { persistent: options.persistent }),
-    ]
-  } })
-  const screen = await render(component, {
+  const screen = await render(VoiceCallCapsule, {
     global: { plugins: [pinia, createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false })] },
   })
   cleanups.push(() => screen.unmount())
+  cleanups.push(async () => {
+    await expect.poll(pendingCatalogLoads).toBe(0)
+  })
   return { screen, voice: useVoiceStore(pinia), call: useVoiceCallStore(pinia), devices: useSettingsAudioDevice(pinia) }
 }
 
@@ -99,67 +94,39 @@ describe('voice call', () => {
   })
 
   it('mutes the call on the host and unmutes it again', async () => {
-    const { screen, voice } = await mountCall()
+    const { voice, call } = await mountCall()
     voice.startCall()
 
-    const mute = screen.getByTestId('voice-call-mute')
-    await expect.element(mute).toHaveAttribute('aria-pressed', 'false')
-    await mute.click()
-
+    call.toggleMuted()
     expect(voice.callMuted).toBe(true)
-    await expect.element(mute).toHaveAttribute('aria-pressed', 'true')
-    await expect.element(screen.getByTestId('voice-call-status')).toHaveTextContent('stage.chat.call.muted')
-    await mute.click()
+    expect(call.muted).toBe(true)
+
+    call.toggleMuted()
     expect(voice.callMuted).toBe(false)
   })
 
-  it('minimizes to the capsule, and a tap on the capsule body returns to the call', async () => {
+  it('shows the capsule for the whole call, with the time', async () => {
     const { screen, voice } = await mountCall()
-    voice.startCall()
-
-    await screen.getByTestId('voice-call-minimize').click()
-    await expect.element(screen.getByTestId('voice-call-panel')).not.toBeInTheDocument()
-    await expect.element(screen.getByTestId('voice-call-capsule')).toBeVisible()
-
-    await screen.getByTestId('voice-call-capsule-expand').click()
-
-    expect(voice.callActive).toBe(true)
-    await expect.element(screen.getByTestId('voice-call-panel')).toBeVisible()
     await expect.element(screen.getByTestId('voice-call-capsule')).not.toBeInTheDocument()
-  })
 
-  it('hangs up only from the red button of the capsule', async () => {
-    const { screen, voice, call } = await mountCall()
-    voice.startCall()
-    call.minimize()
-
-    await screen.getByTestId('voice-call-capsule-hang-up').click()
-
-    expect(voice.callActive).toBe(false)
-    await expect.element(screen.getByTestId('voice-call-capsule')).not.toBeInTheDocument()
-    expect(call.minimized).toBe(false)
-  })
-
-  it('hangs up from the panel and clears the call time', async () => {
-    const { screen, voice, call } = await mountCall()
-    voice.startCall()
-
-    await screen.getByTestId('voice-call-hang-up').click()
-
-    expect(voice.callActive).toBe(false)
-    expect(call.startedAt).toBeUndefined()
-    await expect.element(screen.getByTestId('voice-call-panel')).not.toBeInTheDocument()
-  })
-
-  it('shows a persistent capsule for the whole call, with the time and no way to expand', async () => {
-    const { screen, voice } = await mountCall({ persistent: true })
     voice.startCall()
 
     await expect.element(screen.getByTestId('voice-call-capsule')).toBeVisible()
     await expect.element(screen.getByTestId('voice-call-capsule-duration')).toHaveTextContent('0:00')
-    expect(screen.getByTestId('voice-call-capsule-expand').query()).toBeNull()
+  })
+
+  it('hangs up only from the red button of the capsule, and clears the call time', async () => {
+    const { screen, voice, call } = await mountCall()
+    voice.startCall()
+
+    // A stray tap on the capsule body keeps the call.
+    await screen.getByTestId('voice-call-capsule-duration').click({ force: true })
+    expect(voice.callActive).toBe(true)
 
     await screen.getByTestId('voice-call-capsule-hang-up').click()
+
     expect(voice.callActive).toBe(false)
+    expect(call.startedAt).toBeUndefined()
+    await expect.element(screen.getByTestId('voice-call-capsule')).not.toBeInTheDocument()
   })
 })

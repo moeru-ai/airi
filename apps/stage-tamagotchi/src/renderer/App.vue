@@ -36,6 +36,7 @@ import { RouterView, useRoute, useRouter } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
 
 import ResizeHandler from './components/ResizeHandler.vue'
+import SettingsWindowFrame from './components/Window/settings-window-frame.vue'
 
 import {
   electronGetServerChannelConfig,
@@ -429,7 +430,9 @@ onUnmounted(() => {
     <Toaster />
   </ToasterRoot>
   <ResizeHandler v-if="!isSpotlightWindow && !isFloatingChatWindow && !mainWindowFullscreen" />
-  <RouterView />
+  <SettingsWindowFrame :enabled="!windowContext.fullscreenHost">
+    <RouterView />
+  </SettingsWindowFrame>
 </template>
 
 <style>

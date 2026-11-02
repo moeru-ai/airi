@@ -1,19 +1,23 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { BrowserWindow } from 'electron'
 
-import type { ElectronWindowLifecycleState } from '../../../shared/eventa'
+import type { ElectronWindowControlsState, ElectronWindowLifecycleState } from '../../../shared/eventa'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { bounds, startLoopGetBounds } from '@proj-airi/electron-eventa'
 import { createRendererLoop, safeClose } from '@proj-airi/electron-vueuse/main'
-import { isWindows } from 'std-env'
+import { isMacOS, isWindows } from 'std-env'
 
 import {
   electron,
+  electronGetWindowControlsState,
   electronGetWindowLifecycleState,
   electronWindowClose,
+  electronWindowControlsStateChanged,
   electronWindowLifecycleChanged,
+  electronWindowMinimize,
   electronWindowSetAlwaysOnTop,
+  electronWindowToggleMaximize,
 } from '../../../shared/eventa'
 import { onAppBeforeQuit, onAppWindowAllClosed } from '../../libs/bootkit/lifecycle'
 import { resizeWindowByDelta, setWindowAlwaysOnTop } from '../../windows/shared/window'
@@ -36,6 +40,21 @@ export function createWindowService(params: {
 
   function emitWindowLifecycle(reason: ElectronWindowLifecycleState['reason']) {
     params.context.emit(electronWindowLifecycleChanged, getWindowLifecycleState(reason))
+  }
+
+  function getWindowControlsState(): ElectronWindowControlsState {
+    return {
+      systemControls: isMacOS,
+      fullscreen: params.window.isFullScreen(),
+      maximized: params.window.isMaximized(),
+      minimizable: params.window.isMinimizable(),
+      maximizable: params.window.isMaximizable(),
+      closable: params.window.isClosable(),
+    }
+  }
+
+  function emitWindowControlsState() {
+    params.context.emit(electronWindowControlsStateChanged, getWindowControlsState())
   }
 
   const { start, stop } = createRendererLoop({
@@ -64,6 +83,11 @@ export function createWindowService(params: {
   params.window.on('restore', () => emitWindowLifecycle('restore'))
   params.window.on('focus', () => emitWindowLifecycle('focus'))
   params.window.on('blur', () => emitWindowLifecycle('blur'))
+
+  params.window.on('maximize', emitWindowControlsState)
+  params.window.on('unmaximize', emitWindowControlsState)
+  params.window.on('enter-full-screen', emitWindowControlsState)
+  params.window.on('leave-full-screen', emitWindowControlsState)
 
   defineInvokeHandler(params.context, electron.window.getBounds, (_, options) => {
     if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
@@ -128,5 +152,27 @@ export function createWindowService(params: {
     if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
       safeClose(params.window)
     }
+  })
+
+  defineInvokeHandler(params.context, electronWindowMinimize, (_, options) => {
+    if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
+      params.window.minimize()
+    }
+  })
+
+  defineInvokeHandler(params.context, electronWindowToggleMaximize, (_, options) => {
+    if (params.window.webContents.id !== options?.raw.ipcMainEvent.sender.id) {
+      return
+    }
+
+    if (params.window.isMaximized())
+      params.window.unmaximize()
+    else
+      params.window.maximize()
+  })
+
+  defineInvokeHandler(params.context, electronGetWindowControlsState, (_, options) => {
+    if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id)
+      return getWindowControlsState()
   })
 }
