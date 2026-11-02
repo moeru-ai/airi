@@ -4,6 +4,18 @@ on:
   pull_request:
     branches:
       - main
+    # This workflow has no required checks, so a filter cannot block a pull request.
+    paths-ignore:
+      - 'docs/**'
+      - '.agents/**'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/*.md'
+      - '**/docs/**/*.md'
+      - '**/README*.md'
+      - '**/AGENTS.md'
+      - '**/CLAUDE.md'
+      - 'DESIGN.md'
+      - 'LICENSE'
 
   workflow_dispatch:
 
