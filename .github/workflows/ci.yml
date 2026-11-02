@@ -63,6 +63,7 @@ jobs:
           CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
           HEAD_LABEL: ${{ github.event.pull_request.head.label }}
         run: |
+          exit 1
           docs_only=false godot=true swift=true lockfile=true markdown='[]'
 
           if [ "$EVENT_NAME" = pull_request ]; then
