@@ -18,7 +18,7 @@ import { AgentAttributes, AgentNames, AgentTracks } from '@proj-airi/trace-kit/a
 import { VoiceIdKeys } from '@proj-airi/trace-kit/voice'
 import { isEqual } from 'es-toolkit'
 import { nanoid } from 'nanoid'
-import { defineStore, storeToRefs } from 'pinia'
+import { defineStore, getActivePinia, storeToRefs } from 'pinia'
 import { computed, shallowRef, toRaw } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -259,6 +259,9 @@ const UNREADABLE_EARLIER_IMAGE = 'The user attached an image here earlier. The v
 const inSpeechPlayer = { roles: [syncedRoles.speechPlayer] }
 
 export const useChatStore = defineStore('chat', () => {
+  // A watcher or an await runs outside the setup of this store. The active
+  // Pinia can then be another one, so keep the Pinia that owns this store.
+  const pinia = getActivePinia()
   const { t } = useI18n()
   const runtimePrompt = useAiriRuntimePrompt()
   const authStore = useAuthStore()
@@ -684,7 +687,7 @@ export const useChatStore = defineStore('chat', () => {
     // Stored messages reference their images and recordings. The provider request carries the bytes.
     context = await inlineConversationAssets(context)
 
-    const visionStore = useVisionStore()
+    const visionStore = useVisionStore(pinia)
     // NOTICE:
     // These image decisions read the model of the first step and hold for the stream.
     // `resolveStep` (#2709) can change the model between steps. Audio follows each step
@@ -755,7 +758,7 @@ export const useChatStore = defineStore('chat', () => {
       if (!source.turns.some(turn => turn.type === 'user' && turn.content.some(part => part.type === 'audio')))
         return source
 
-      const hearing = useHearingStore()
+      const hearing = useHearingStore(pinia)
       const signal = options?.abortSignal ?? new AbortController().signal
 
       // Project a request copy. Stored messages retain recordings and reusable ASR results.
