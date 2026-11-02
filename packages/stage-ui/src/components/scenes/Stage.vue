@@ -659,6 +659,7 @@ onUnmounted(() => {
 })
 
 defineExpose({
+  characterBounds: () => live2dSceneRef.value?.characterBounds(),
   canvasElement,
   /**
    * The frame already carries the scene: every renderer paints it into the canvas it

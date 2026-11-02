@@ -1,0 +1,8 @@
+{
+  "model": "prs-eth/marigold-normals-v1-1",
+  "revision": "09cfdd258cb281fa006cf1afcd2284376d16687d",
+  "steps": 4,
+  "seed": 17,
+  "device": "cpu",
+  "seconds": 33.08489720799844
+}
