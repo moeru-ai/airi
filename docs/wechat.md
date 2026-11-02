@@ -5,7 +5,3 @@
 ![](./assets/wechat-qr.avif)
 
 Probe line for a CI test.
-
-```ts
-const a=1
-```
