@@ -108,7 +108,8 @@ async function streamOnce({
     : []
   const mergedTools = supportedTools ? [...builtinTools, ...customTools] : []
   const tools = mergedTools.length > 0 ? mergedTools : undefined
-  if (!tools && (request.protocol !== 'responses' || !supportedTools || !request.webSearch) && toolChoiceRequiresTools(options?.toolChoice))
+  const webSearchEnabled = request.protocol === 'responses' && supportedTools && options?.providerTools !== false && request.webSearch
+  if (!tools && !webSearchEnabled && toolChoiceRequiresTools(options?.toolChoice))
     throw new Error('Cannot satisfy a required tool choice because no tools are available for this request.')
   guard.addTools(mergedTools)
   if (options?.supportsTools !== false || toolCallGuardNames)
@@ -177,7 +178,7 @@ async function streamOnce({
 
     try {
       const streamResult = request.protocol === 'responses'
-        ? streamResponses({ config: request.config, webSearch: supportedTools && options?.providerTools !== false && request.webSearch, conversation, scope, options, tools, initialStep, onEvent, onStepBoundary, onNativeToolCall: notifyNativeToolCall, onToolsResolved: tools => guard.addTools(tools) })
+        ? streamResponses({ config: request.config, webSearch: webSearchEnabled, conversation, scope, options, tools, initialStep, onEvent, onStepBoundary, onNativeToolCall: notifyNativeToolCall, onToolsResolved: tools => guard.addTools(tools) })
         : streamChatCompletions({ config: request.config, conversation, scope, options, tools, initialStep, onEvent, onStepBoundary, onNativeToolCall: notifyNativeToolCall, onToolsResolved: tools => guard.addTools(tools), supportsContentArray: contentArraySupported })
 
       // NOTICE:

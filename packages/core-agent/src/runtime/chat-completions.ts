@@ -50,7 +50,7 @@ export function streamChatCompletions(input: {
       if (!resolveStep) {
         scopes.push(input.scope)
         generation.prepareStep({ input: current })
-        return { toolChoice: callerToolChoice(steps) }
+        return { toolChoice: input.tools ? callerToolChoice(steps) : undefined }
       }
       return (async () => {
         const firstStep = scopes.length === 0 && input.initialStep

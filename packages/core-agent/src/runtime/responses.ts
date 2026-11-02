@@ -198,7 +198,7 @@ export function streamResponses(input: {
       if (!resolveStep) {
         scopes.push(input.scope)
         generation.prepareStep({ input: current })
-        return { toolChoice: toolChoice(callerToolChoice(steps)) }
+        return { toolChoice: input.tools || input.webSearch ? toolChoice(callerToolChoice(steps)) : undefined }
       }
       return (async () => {
         const firstStep = scopes.length === 0 && input.initialStep

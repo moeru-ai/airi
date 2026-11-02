@@ -400,7 +400,8 @@ describe('isToolRelatedError', () => {
   // Step boundaries also released partial calls or misclassified partial outer examples.
   // Inspect joined candidates after the tool round.
   // https://github.com/moeru-ai/airi/pull/2459#discussion_r3954079834
-  it.runIf(env.AIRI_TEST_REAL_SSE === '1').each(['native-text', 'native-reasoning', 'native-safe', 'native-split-text', 'native-split-reasoning', 'native-split-example', 'native-split-failure', 'tools-first', 'arrays-first'] as const)('checks %s with real xsAI and HTTP/SSE for Issue #2161', async (scenario) => {
+  // A retry without tools must also omit tool_choice. Task retries must retain their isolated tool list.
+  it.runIf(env.AIRI_TEST_REAL_SSE === '1').each(['native-text', 'native-reasoning', 'native-safe', 'native-split-text', 'native-split-reasoning', 'native-split-example', 'native-split-failure', 'tools-first', 'arrays-first', 'task-tools-first', 'task-arrays-first'] as const)('checks %s with real xsAI and HTTP/SSE for Issue #2161', async (scenario) => {
     const { streamText } = await vi.importActual<typeof import('@xsai/stream-text')>('@xsai/stream-text')
     const sdkResults: StreamTextResult[] = []
     streamTextMock.mockImplementation((options: Parameters<typeof streamText>[0]) => {
@@ -411,6 +412,8 @@ describe('isToolRelatedError', () => {
     const requests: Pick<StreamTextOptions, 'messages' | 'tools'>[] = []
     const call = '{"name":"builtIn_emitSparkCommand","arguments":{}}'
     const native = scenario.startsWith('native')
+    const isolatedTask = scenario.startsWith('task-')
+    const order = scenario.replace('task-', '')
     const onStreamEvent = vi.fn()
     const onGeneratedTurn = vi.fn()
     const tool = createSparkTool()
@@ -427,7 +430,7 @@ describe('isToolRelatedError', () => {
           response.end(JSON.stringify({ error: { message: 'fixture failed after a tool round' } }))
           return
         }
-        if (!native && attempt === (scenario === 'tools-first' ? 2 : 1)) {
+        if (!native && attempt === (order === 'tools-first' ? 2 : 1)) {
           response.writeHead(400, { 'Content-Type': 'application/json' })
           response.end(JSON.stringify({ error: { message: 'messages[0]: invalid type: sequence, expected a string' } }))
           return
@@ -463,7 +466,7 @@ describe('isToolRelatedError', () => {
         else {
           if (scenario === 'native-split-example')
             send({ role: 'assistant', reasoning_content: '}' })
-          const leakAttempt = !native && attempt === (scenario === 'tools-first' ? 1 : 2)
+          const leakAttempt = !native && attempt === (order === 'tools-first' ? 1 : 2)
           send({ role: 'assistant', content: leakAttempt ? call : 'Recovered.' })
         }
         response.end('data: [DONE]\n\n')
@@ -480,13 +483,15 @@ describe('isToolRelatedError', () => {
       const outcome = await useLLM().stream('fixture', localProvider, { turns: chatMessagesToTurns([{ role: 'user', content: [
         { type: 'text', text: 'Play.' },
         { type: 'image_url', image_url: { url: 'https://example.com/game.png' } },
-      ] }]) }, { tools: [tool], abortSignal: controller.signal, onStreamEvent, onGeneratedTurn }).then(() => undefined, error => error)
+      ] }]) }, { ...(isolatedTask ? { taskTools: [tool] } : { tools: [tool] }), toolChoice: 'auto', abortSignal: controller.signal, onStreamEvent, onGeneratedTurn }).then(() => undefined, error => error)
       // The SDK can finish its tool round after the guard rejects UI output.
       await Promise.allSettled(sdkResults.map(result => result.steps))
       if (native) {
         expect(tool.execute).toHaveBeenCalledTimes(1)
         expect(streamTextMock).toHaveBeenCalledTimes(1)
         expect(requests).toHaveLength(2)
+        expect(requests[0]).toHaveProperty('tool_choice', 'auto')
+        expect(requests[1]).not.toHaveProperty('tool_choice')
         expect(requests[1].messages).toContainEqual(expect.objectContaining({ role: 'tool', tool_call_id: 'call-1' }))
         if (scenario === 'native-safe' || scenario === 'native-split-example') {
           expect(outcome).toBeUndefined()
@@ -509,13 +514,25 @@ describe('isToolRelatedError', () => {
         expect(streamTextMock).toHaveBeenCalledTimes(3)
         expect(requests.map(body => ({ tools: !!body.tools, array: Array.isArray(body.messages[0].content) }))).toEqual([
           { tools: true, array: true },
-          { tools: scenario === 'arrays-first', array: scenario === 'tools-first' },
+          { tools: order === 'arrays-first', array: order === 'tools-first' },
           { tools: false, array: false },
         ])
         expect(onStreamEvent.mock.calls.map(([event]) => event)).toEqual([
           { type: 'text-delta', text: 'Recovered.' },
           { type: 'finish' },
         ])
+        for (const body of requests) {
+          if (body.tools)
+            expect(body).toHaveProperty('tool_choice', 'auto')
+          else
+            expect(body).not.toHaveProperty('tool_choice')
+        }
+        if (isolatedTask) {
+          expect(requests[0].tools).toHaveLength(1)
+          expect(mcpMock).not.toHaveBeenCalled()
+          expect(debugMock).not.toHaveBeenCalled()
+          expect(createSparkCommandToolMock).not.toHaveBeenCalled()
+        }
         expect(onGeneratedTurn).toHaveBeenCalledTimes(1)
       }
     }
@@ -664,7 +681,7 @@ describe('isToolRelatedError', () => {
       tools: [createSparkTool()],
     })).rejects.toThrow('as plain text')
     expect(streamTextMock).toHaveBeenCalledTimes(2)
-    expect(streamTextMock.mock.calls[1][0].toolChoice).toBe('required')
+    expect((await streamTextMock.mock.calls[1][0].prepareStep({ input: [], steps: [] })).toolChoice).toBe('required')
     expect(streamTextMock.mock.calls[1][0].tools.map(toolNameFrom)).toContain('builtIn_emitSparkCommand')
   })
 
@@ -703,9 +720,9 @@ describe('isToolRelatedError', () => {
 
     expect(streamTextMock).toHaveBeenCalledTimes(2)
     expect(streamTextMock.mock.calls[0]?.[0]?.tools?.map(toolNameFrom)).toContain('builtIn_emitSparkCommand')
-    expect(streamTextMock.mock.calls[0]?.[0]?.toolChoice).toBe('auto')
+    expect((await streamTextMock.mock.calls[0][0].prepareStep({ input: [], steps: [] })).toolChoice).toBe('auto')
     expect(streamTextMock.mock.calls[1]?.[0]?.tools).toBeUndefined()
-    expect(streamTextMock.mock.calls[1]?.[0]?.toolChoice).toBeUndefined()
+    expect((await streamTextMock.mock.calls[1][0].prepareStep({ input: [], steps: [] })).toolChoice).toBeUndefined()
     expect(events
       .filter((event): event is { type: 'text-delta', text: string } => (
         typeof event === 'object' && event !== null && (event as { type?: unknown }).type === 'text-delta'
@@ -722,7 +739,7 @@ describe('isToolRelatedError', () => {
 
     expect(streamTextMock).toHaveBeenCalledTimes(3)
     expect(streamTextMock.mock.calls[2]?.[0]?.tools).toBeUndefined()
-    expect(streamTextMock.mock.calls[2]?.[0]?.toolChoice).toBeUndefined()
+    expect((await streamTextMock.mock.calls[2][0].prepareStep({ input: [], steps: [] })).toolChoice).toBeUndefined()
   })
 
   // ROOT CAUSE:
@@ -777,7 +794,7 @@ describe('isToolRelatedError', () => {
 
     expect(streamTextMock).toHaveBeenCalledTimes(2)
     expect(streamTextMock.mock.calls[1]?.[0]?.tools).toBeUndefined()
-    expect(streamTextMock.mock.calls[1]?.[0]?.toolChoice).toBeUndefined()
+    expect((await streamTextMock.mock.calls[1][0].prepareStep({ input: [], steps: [] })).toolChoice).toBeUndefined()
   })
 
   // ROOT CAUSE:
@@ -818,7 +835,7 @@ describe('isToolRelatedError', () => {
 
     expect(streamTextMock).toHaveBeenCalledTimes(2)
     expect(streamTextMock.mock.calls[1]?.[0]?.tools?.map(toolNameFrom)).toContain('builtIn_emitSparkCommand')
-    expect(streamTextMock.mock.calls[1]?.[0]?.toolChoice).toEqual(options.toolChoice)
+    expect((await streamTextMock.mock.calls[1][0].prepareStep({ input: [], steps: [] })).toolChoice).toEqual(options.toolChoice)
   })
 
   // ROOT CAUSE:
@@ -844,7 +861,7 @@ describe('isToolRelatedError', () => {
     expect(streamTextMock).toHaveBeenCalledTimes(2)
     expect(streamTextMock.mock.calls[0]?.[0]?.tools?.map(toolNameFrom)).toContain('builtIn_emitSparkCommand')
     expect(streamTextMock.mock.calls[1]?.[0]?.tools).toBeUndefined()
-    expect(streamTextMock.mock.calls[1]?.[0]?.toolChoice).toBeUndefined()
+    expect((await streamTextMock.mock.calls[1][0].prepareStep({ input: [], steps: [] })).toolChoice).toBeUndefined()
     expect(customTools).toHaveBeenCalledTimes(1)
     expect(customTool.execute).not.toHaveBeenCalled()
     expect(onStreamEvent).not.toHaveBeenCalled()
@@ -940,7 +957,7 @@ describe('isToolRelatedError', () => {
 
     expect(streamTextMock).toHaveBeenCalledTimes(3)
     expect(streamTextMock.mock.calls[2]?.[0]?.tools).toBeUndefined()
-    expect(streamTextMock.mock.calls[2]?.[0]?.toolChoice).toBeUndefined()
+    expect((await streamTextMock.mock.calls[2][0].prepareStep({ input: [], steps: [] })).toolChoice).toBeUndefined()
     expect(createSparkCommandToolMock).toHaveBeenCalledTimes(2)
     expect(sparkTool.execute).not.toHaveBeenCalled()
     expect(onStreamEvent).not.toHaveBeenCalled()

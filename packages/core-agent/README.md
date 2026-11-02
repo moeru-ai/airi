@@ -33,6 +33,9 @@ Chat callbacks remain under the owned queue because that SDK does not await them
 
 The stage-ui LLM store retries a plain-text call without tools only before output, generated-turn persistence, or native tool activity. Tool and content-array fallbacks each apply at most once, in either order. A required tool choice keeps tools despite a learned incompatibility. An explicit `supportsTools: false` wins, and a required choice without available tools rejects before the request. An explicit content-array override stays intact.
 
+Tool choices apply only to the generation's first model request. A retry without tools also omits `tool_choice`.
+Task streams retain `taskTools` and exclude chat and provider tools during compatibility retries.
+
 `toolCallGuardNames` retains known names from earlier attempts of one generation and enables inspection of current resolved tools during internal tool-free retries. Cached tool-disabled requests inspect current tool names. Explicit tool-free requests omit this set and skip builtin tool resolution. Spark forced-text prompts omit unavailable command instructions.
 
 Already emitted output and executed tools cannot be rolled back. Active consumer callbacks must eventually settle. Highly malformed ordinary JSON can exhaust the inspection budget and fail.
