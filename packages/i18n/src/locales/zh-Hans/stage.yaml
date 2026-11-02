@@ -319,7 +319,7 @@ viewers:
       neutral: '🙂 日常'
       question: '🤔 疑问'
       sad: '😫 难过'
-      surprised: '🤯 惊喜'
+      surprised: '🤯 惊讶'
       think: '🤨 思考'
     vrm:
       camera: 摄像机
@@ -371,7 +371,7 @@ promo-banner:
 waiting: 等待中
 websocket-status:
   connected: 已连接
-  disconnected: 无网络连接
+  disconnected: 未连接
   open-settings: 打开连接设置
 computer-use:
   label: 使用电脑
