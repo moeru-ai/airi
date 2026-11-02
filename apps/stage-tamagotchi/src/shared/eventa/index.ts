@@ -631,6 +631,30 @@ export const widgetsPrepareWindow = defineInvokeEventa<string | undefined, { id?
 export const widgetsIframePublish = defineInvokeEventa<void, { id: string, event: Record<string, unknown> }>('eventa:invoke:electron:windows:widgets:iframe-publish')
 
 export const electronWindowClose = defineInvokeEventa<void>('eventa:invoke:electron:window:close')
+export const electronWindowMinimize = defineInvokeEventa<void>('eventa:invoke:electron:window:minimize')
+export const electronWindowToggleMaximize = defineInvokeEventa<void>('eventa:invoke:electron:window:toggle-maximize')
+
+/**
+ * What the self-drawn title bar shows for its window. The main process owns these values.
+ */
+export interface ElectronWindowControlsState {
+  /** The system draws the window buttons, so the title bar draws none and leaves room for them. Only true on macOS. */
+  systemControls: boolean
+  /** On macOS, the traffic lights hide in fullscreen, so the title bar stops leaving room for them. */
+  fullscreen: boolean
+  /** Selects the restore or the maximize button. */
+  maximized: boolean
+  /** Hides the minimize button when false. Linux always reports true. */
+  minimizable: boolean
+  /** Hides the maximize button when false. Linux always reports true. */
+  maximizable: boolean
+  /** Hides the close button when false. */
+  closable: boolean
+}
+
+export const electronGetWindowControlsState = defineInvokeEventa<ElectronWindowControlsState>('eventa:invoke:electron:window:get-controls-state')
+export const electronWindowControlsStateChanged = defineEventa<ElectronWindowControlsState>('eventa:event:electron:window:controls-state-changed')
+
 export type ElectronWindowLifecycleReason
   = | 'initial'
     | 'snapshot'
