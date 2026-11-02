@@ -114,3 +114,4 @@ export const useLLM = defineStore('llm', () => {
     stream,
   }
 })
+// probe ui
