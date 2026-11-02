@@ -809,16 +809,6 @@
       "count": 9
     }
   },
-  "packages/ui-loading-screens/src/components/LoadingSciFiCircle/index.vue": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "packages/ui-transitions/src/components/StageTransitionGroup.vue": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
   "packages/ui/src/components/animations/transition-horizontal.vue": {
     "ts/no-explicit-any": {
       "count": 5
@@ -832,16 +822,6 @@
   "plugins/airi-plugin-claude-code/src/utils/general.ts": {
     "ts/no-explicit-any": {
       "count": 4
-    }
-  },
-  "server/apps/api/src/libs/mock-db.ts": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "server/apps/api/src/services/domain/characters.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
     }
   },
   "services/computer-use-mcp/src/bin/e2e-airi-chat-observable.ts": {
