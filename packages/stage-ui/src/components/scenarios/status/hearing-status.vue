@@ -10,7 +10,11 @@ import { useAudioAnalyzer } from '../../../composables/audio/audio-analyzer'
 import { useHearingStore } from '../../../stores/modules/hearing'
 import { useVoiceControlsStore } from '../../../stores/voice-controls'
 
-defineProps<{ align?: 'start' | 'center' }>()
+const props = defineProps<{
+  align?: 'start' | 'center'
+  /** Shows the capsule only for a problem, not while hearing works. */
+  issuesOnly?: boolean
+}>()
 
 const { t } = useI18n()
 const { error, snapshot } = storeToRefs(useVoiceControlsStore())
@@ -54,7 +58,7 @@ const label = computed(() => {
 
 <template>
   <StatusCapsule
-    v-if="hearingEnabled && (enabled || issue || isTranscribing)"
+    v-if="hearingEnabled && (props.issuesOnly ? issue : (enabled || issue || isTranscribing))"
     :align="align"
     :data-status="state"
     :tone="issue ? 'error' : 'neutral'"

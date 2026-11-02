@@ -355,7 +355,8 @@ and Kokoro. Sherpaw file pairs use the shared model asset repository.
 `HearingStatus` shows the shared, always-on microphone session. Place it above a
 mobile composer or at the bottom of a desktop Stage. It reads local request
 activity, microphone amplitude, the last transcript, and device or provider
-errors.
+errors. Set `issuesOnly` to show it only for a problem. The desktop Stage does
+this, because a capsule that is always shown covers the character.
 
 `StatusCapsule` owns the capsule surface and expandable details. Its indicator
 slot receives business content: Hearing owns the audio bars, while sign-in owns

@@ -13,7 +13,7 @@ import {
   useElectronRelativeMouse,
 } from '@proj-airi/electron-vueuse'
 import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
-import { HoloCoupon } from '@proj-airi/stage-ui/components'
+import { HearingStatus, HoloCoupon } from '@proj-airi/stage-ui/components'
 import {
   createEmptyModelSettingsRuntimeSnapshot,
   resolveComponentStateToRuntimePhase,
@@ -55,7 +55,9 @@ import { useToolSelectionStore } from '../stores/tools'
 import { resolveFadeOnHoverInteraction } from '../utils/fade-on-hover'
 import { shouldSampleStageTransparency } from '../utils/stage-three-transparency'
 
+const hearingStatusElement = ref<HTMLElement>()
 const authStatusElement = ref<HTMLElement>()
+const { isOutside: outsideHearingStatus } = useElectronMouseInElement(hearingStatusElement)
 const { isOutside: outsideAuthStatus } = useElectronMouseInElement(authStatusElement)
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
 const controlsIslandInteractionActive = shallowRef(false)
@@ -592,7 +594,7 @@ function handleFadeOnHoverInteractionChange() {
     return
   }
 
-  if (controlsOverlayActive.value || !outsideAuthStatus.value) {
+  if (controlsOverlayActive.value || !outsideHearingStatus.value || !outsideAuthStatus.value) {
     // Portaled controls must receive clicks even outside the Island's bounds.
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
@@ -635,7 +637,7 @@ function handleFadeOnHoverInteractionChange() {
 }
 
 watch(
-  [outsideAuthStatus, isOutside, isOutsideFor250Ms, isPointerOverStageCanvas, isAroundWindowBorder, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, alwaysOnTop, stagePaused, isWayland, fullscreenActive],
+  [outsideHearingStatus, outsideAuthStatus, isOutside, isOutsideFor250Ms, isPointerOverStageCanvas, isAroundWindowBorder, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, alwaysOnTop, stagePaused, isWayland, fullscreenActive],
   handleFadeOnHoverInteractionChange,
   { immediate: true },
 )
@@ -693,6 +695,10 @@ const cursorPosition = computed(() => ({
     relative z-2 h-full overflow-hidden rounded-xl
     transition="opacity duration-500 ease-in-out"
   >
+    <div v-show="!settingsStore.streamerMode && !fullscreenActive" ref="hearingStatusElement" :class="['absolute bottom-3 left-1/2 z-30 w-fit -translate-x-1/2']">
+      <!-- The capsule covers the character, so the stage shows it only when hearing has a problem. -->
+      <HearingStatus align="center" issues-only />
+    </div>
     <div v-show="!settingsStore.streamerMode && !fullscreenActive" ref="authStatusElement" :class="['absolute left-1/2 top-3 z-40 w-fit -translate-x-1/2']">
       <AuthStatusIsland />
     </div>
