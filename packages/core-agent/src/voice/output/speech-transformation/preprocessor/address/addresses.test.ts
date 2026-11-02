@@ -10,6 +10,8 @@ describe('speakAddresses', () => {
     ['See example.com/docs.', 'en', 'See example dot com slash docs.'],
     ['访问 https://a.io/x?token=1#top 吧', 'zh', '访问 https a 点 io 斜杠 x 吧'],
     ['(see https://a.io)', 'en', '(see https a dot io)'],
+    ['See example.com?token=1 now.', 'en', 'See example dot com now.'],
+    ['Is it example.com?', 'en', 'Is it example dot com?'],
   ] as const)('reads the address in %s', (text, language, speech) => {
     expect(speakAddresses(text, language)).toBe(speech)
   })
@@ -17,6 +19,12 @@ describe('speakAddresses', () => {
   it('keeps numbers, versions, and abbreviations', () => {
     expect(speakAddresses('Pi is 3.14, v1.2.3 is out, e.g. this.', 'en')).toBe('Pi is 3.14, v1.2.3 is out, e.g. this.')
     expect(speakAddresses('Mail me at neko@ihome.cat', 'en')).toBe('Mail me at neko@ihome.cat')
+  })
+
+  it('keeps the marker of a special token in a query', () => {
+    const marker = '\uE000'
+
+    expect(speakAddresses(`Open https://a.io/x?q=${marker}1 now.`, 'en')).toBe(`Open https a dot io slash x${marker} now.`)
   })
 
   it('reads the words of another language in English', () => {

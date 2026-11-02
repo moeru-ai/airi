@@ -12,7 +12,7 @@ const pathCharacters = String.raw`[^\s<>"'\x60，。、；：！？）」』]*`
  */
 const addresses = new RegExp([
   String.raw`[a-z][a-z0-9+.-]*:\/\/${host}(?::\d+)?(?:[/?#]${pathCharacters})?`,
-  String.raw`(?<![\w@./-])${domain}(?::\d+)?(?:\/${pathCharacters})?(?![\w-])`,
+  String.raw`(?<![\w@./-])${domain}(?::\d+)?(?:[/?#]${pathCharacters})?(?![\w-])`,
 ].join('|'), 'giu')
 /** Punctuation that ends the sentence around an address, not the address. */
 const trailingPunctuation = /[.,;:!?)\]]+$/
@@ -21,8 +21,12 @@ const trailingPunctuation = /[.,;:!?)\]]+$/
 function speakAddress(address: string, language: string): string {
   const words = addressLocale(language)
   const scheme = /^([a-z][a-z0-9+.-]*):\/\//i.exec(address)
-  // A query or a fragment has no words that a listener can use.
-  const location = (scheme ? address.slice(scheme[0].length) : address).split(/[?#]/)[0]!
+  const withoutScheme = scheme ? address.slice(scheme[0].length) : address
+  const queryStart = withoutScheme.search(/[?#]/)
+  // A query or a fragment has no words that a listener can use. Its private use characters stay, because the speech
+  // stream marks the place of a special token with one, see `controlMarker` in ../../../response.
+  const location = queryStart === -1 ? withoutScheme : withoutScheme.slice(0, queryStart)
+  const markers = queryStart === -1 ? '' : withoutScheme.slice(queryStart).match(/\p{Co}/gu)?.join('') ?? ''
   const [authority = '', ...segments] = location.split('/')
   const [hostname = '', port] = authority.split(':')
   const dotted = (text: string) => text.split('.').join(` ${words.dot} `)
@@ -32,7 +36,7 @@ function speakAddress(address: string, language: string): string {
     dotted(hostname),
     ...(port ? [`${words.port} ${port}`] : []),
     ...segments.filter(Boolean).flatMap(segment => [words.slash, dotted(segment)]),
-  ].join(' ')
+  ].join(' ') + markers
 }
 
 /**
