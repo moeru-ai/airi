@@ -798,7 +798,7 @@ pages:
         section:
           provider-model-selection:
             collapse: 折叠
-            custom_model_placeholder: 输入自定模型名称
+            custom_model_placeholder: 输入自定义模型名称
             current_model_label: '当前模型：'
             description: 为意识选择合适的大语言模型服务来源
             error: 获取出错啦
