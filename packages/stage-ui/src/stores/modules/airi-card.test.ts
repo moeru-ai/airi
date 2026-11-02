@@ -109,7 +109,8 @@ describe('airi-card store', () => {
     })
   })
 
-  // A store action makes its Pinia active. Work that outlives a test must not make the next test read stale stores.
+  // A store action makes its Pinia active, so work that outlives a test can change the active Pinia.
+  // Read a store after an await through `testPinia`. Production has one Pinia, so this affects only tests.
   afterEach(() => {
     disposePinia(testPinia)
   })
@@ -558,7 +559,7 @@ describe('airi-card store', () => {
 
     await cardStore.activateCard('default')
     await cardStore.activateCard(cardId)
-    expect(useSettingsStageModel().stageModelSelected).toBe('preset-live2d-1')
+    expect(useSettingsStageModel(testPinia).stageModelSelected).toBe('preset-live2d-1')
   })
 
   it('selects an available model after deleting the built-in default', async () => {
@@ -570,7 +571,7 @@ describe('airi-card store', () => {
 
     expect(cardStore.activeCard?.extensions.airi.avatarModels.some(model => model.displayModelId === 'preset-live2d-1')).toBe(false)
     expect(cardStore.selectedAvatarModel?.displayModelId).toBe('preset-live2d-2')
-    expect(useSettingsStageModel().stageModelSelected).toBe('preset-live2d-2')
+    expect(useSettingsStageModel(testPinia).stageModelSelected).toBe('preset-live2d-2')
   })
 
   // ROOT CAUSE:
@@ -607,14 +608,14 @@ describe('airi-card store', () => {
     await cardStore.activateCard(cardId)
 
     expect(cardStore.selectedAvatarModel?.displayModelId).toBe('display-model-on-other-device')
-    expect(useSettingsStageModel().stageModelSelected).toBe('display-model-on-other-device')
+    expect(useSettingsStageModel(testPinia).stageModelSelected).toBe('display-model-on-other-device')
 
     await cardStore.removeDeletedAvatarModels(['display-model-local'], ['preset-live2d-1', 'preset-vrm-1'])
 
     expect(cardStore.getCard(cardId)?.extensions.airi.avatarModels.map(model => model.id)).toEqual(['remote-avatar'])
     expect(cardStore.getCard(cardId)?.extensions.airi.defaultAvatarModelId).toBe('remote-avatar')
     expect(cardStore.selectedAvatarModelId).toBe('remote-avatar')
-    expect(useSettingsStageModel().stageModelSelected).toBe('display-model-on-other-device')
+    expect(useSettingsStageModel(testPinia).stageModelSelected).toBe('display-model-on-other-device')
   })
 
   it('removes the references to a model only when the model is gone from the account', async () => {
@@ -704,7 +705,7 @@ describe('airi-card store', () => {
 
     expect(cardStore.activeCard?.extensions.airi.defaultAvatarModelId).toBeUndefined()
     expect(cardStore.selectedAvatarModelId).toBeUndefined()
-    expect(useSettingsStageModel().stageModelSelected).toBe('')
+    expect(useSettingsStageModel(testPinia).stageModelSelected).toBe('')
   })
 
   it('keeps the runtime model empty when a Character has no default Avatar Model', async () => {
@@ -736,7 +737,7 @@ describe('airi-card store', () => {
 
     expect(cardStore.activeCard?.extensions.airi.defaultAvatarModelId).toBeUndefined()
     expect(cardStore.selectedAvatarModelId).toBeUndefined()
-    expect(useSettingsStageModel().stageModelSelected).toBe('')
+    expect(useSettingsStageModel(testPinia).stageModelSelected).toBe('')
   })
 
   it('stores Live2D control policy on the selected Avatar Model', async () => {
