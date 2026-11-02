@@ -25,6 +25,7 @@ on:
   pull_request:
     branches:
       - main
+      - rainbowbird/ci/speedup
 
   workflow_dispatch:
 
