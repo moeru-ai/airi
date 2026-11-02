@@ -11,7 +11,7 @@ import {
   useHostRelativeMouse,
 } from '@proj-airi/stage-host-context'
 import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
-import { HearingStatus, HoloCoupon, VoiceDrafts } from '@proj-airi/stage-ui/components'
+import { HearingStatus, HoloCoupon } from '@proj-airi/stage-ui/components'
 import {
   createEmptyModelSettingsRuntimeSnapshot,
   resolveComponentStateToRuntimePhase,
@@ -379,7 +379,6 @@ const cursorPosition = computed(() => ({
   >
     <div v-show="!settingsStore.streamerMode" ref="hearingStatusElement" :class="['absolute bottom-3 left-1/2 z-30 flex w-fit -translate-x-1/2 flex-col items-center gap-2']">
       <HearingStatus align="center" />
-      <VoiceDrafts />
     </div>
     <!-- Stage is always in DOM so TresCanvas can measure dimensions -->
     <div

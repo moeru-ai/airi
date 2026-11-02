@@ -29,6 +29,7 @@ import { openDebugger, setupDebugger } from './app/debugger'
 import { nullFileLoggerHandle, setupFileLogger } from './app/file-logger'
 import { resolveIsWayland } from './app/ozone'
 import { installSingleInstanceGuard } from './app/single-instance'
+import { trustSystemCACertificates } from './app/system-ca'
 import { createArtistryConfig } from './configs/artistry'
 import { createGlobalAppConfig } from './configs/global'
 import { createIOTraceHubConfig } from './configs/io-trace-hub'
@@ -46,6 +47,7 @@ import { setupBuiltInServer } from './services/airi/http-server'
 import { IOTraceHub } from './services/airi/io-trace-hub'
 import { registerIOTraceHub } from './services/airi/io-trace-hub/register'
 import { IOTraceRecordingService } from './services/airi/io-trace-recording'
+import { recordHubRecords } from './services/airi/io-trace-recording/hub'
 import { setupMcpManager } from './services/airi/mcp-servers'
 import { setupExtensionHost } from './services/airi/plugins'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
@@ -88,6 +90,7 @@ protocol.registerSchemesAsPrivileged([{
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)
 setupDebugger()
+trustSystemCACertificates()
 
 const log = useLogg('main').useGlobalConfig()
 
@@ -337,13 +340,15 @@ app.whenReady().then(async () => {
         directory: join(app.getPath('userData'), 'io-traces'),
         getStoredEnabled: () => dependsOn.config.get()?.enabled ?? false,
         setStoredEnabled: enabled => dependsOn.config.update({ enabled }),
+        sensitivityOf: dependsOn.hub.collector.sensitivityOf,
       })
-      // The hub receives the spans of every window, so the files have the spans of every window.
-      const { unsubscribe } = dependsOn.hub.subscribe((span) => {
-        service.recordSpan(span).catch(error => log.withError(error).error('Failed to record IO trace span'))
+      const stopFlightDumps = dependsOn.hub.onFlightDump((dump) => {
+        service.writeFlightDump(dump).catch(error => log.withError(error).error('Failed to write trace flight dump'))
       })
+      const stopRecording = recordHubRecords(dependsOn.hub, service, error => log.withError(error).error('Failed to record trace record'))
       dependsOn.lifecycle.appHooks.onStop(() => {
-        unsubscribe()
+        stopRecording()
+        stopFlightDumps()
       })
       dependsOn.lifecycle.appHooks.onStart(async () => {
         try {

@@ -134,6 +134,8 @@ export function useDataMaintenance() {
 
   async function resetProvidersSettings() {
     await providersStore.resetProviderSettings()
+    await airiCardStore.clearUnavailableProviderSelections()
+    await hearingStore.clearUnavailableProviderSelection()
   }
 
   /** Attempts every independent reset and reports the first failure only after all operations settle. */
@@ -174,7 +176,7 @@ export function useDataMaintenance() {
     screenAmbientLightSettingsStore.resetState()
     threeStore.resetModelStore()
     mcpStore.resetState()
-    onboardingStore.resetSetupState()
+    await onboardingStore.resetSetupState()
     airiCardStore.resetState()
   }
 
@@ -240,7 +242,10 @@ export function useDataMaintenance() {
     owners: Record<string, StoreStateOwner>,
     containsSensitiveInformation?: (bundle: ExportStoreBundle) => boolean,
   ): DataExportAdapter<ExportStoreBundle> {
-    const read = async () => Object.fromEntries(Object.entries(owners).map(([key, owner]) => [key, v.parse(serializedStoreStateSchema, owner.state())]))
+    const read = async () => {
+      await memoryStore.ready()
+      return Object.fromEntries(Object.entries(owners).map(([key, owner]) => [key, v.parse(serializedStoreStateSchema, owner.state())]))
+    }
     const format = schema.entries.format.literal
     const adapter = createJsonDataExportAdapter(format, read, containsSensitiveInformation)
     return {

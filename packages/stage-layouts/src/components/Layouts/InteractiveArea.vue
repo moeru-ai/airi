@@ -3,7 +3,7 @@ import type { ChatImageAttachment } from '@proj-airi/stage-ui/components/scenari
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { ChatBackgroundTasks, ChatHistory } from '@proj-airi/stage-ui/components'
-import { useChatComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { useChatComposer, VoiceCallCapsule } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
@@ -99,6 +99,7 @@ async function handleRetryMessage(index: number) {
     </div>
 
     <ChatActionButtons />
+    <VoiceCallCapsule />
   </div>
 </template>
 

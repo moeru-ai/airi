@@ -32,15 +32,9 @@ chat:
   voice-composer:
     audio: Message vocal
     transcription: Dictée
-    hold-hint: Maintenez le bouton pour enregistrer. Cliquez pour alterner entre message vocal et dictée. Appuyez sur Entrée pour enregistrer sans maintenir le bouton.
     listening: À l’écoute…
-    lock: Glissez vers le haut pour verrouiller
-    cancel-hint: Glissez vers la gauche pour annuler
     processing: Finalisation…
     cancel: Annuler
-    send: Envoyer le message vocal
-    insert: Insérer le texte
-    retry: Renvoyer le message vocal
     discard: Supprimer le message vocal
     failed: La saisie vocale a échoué
     configure-title: Configurer l’Audition

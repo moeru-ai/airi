@@ -68,7 +68,8 @@ const { stageModelRenderer } = storeToRefs(useSettings())
 const { syncBackgroundTheme } = useBackgroundThemeColor({ backgroundSurface, selectedOption, sampledColor })
 onMounted(() => syncBackgroundTheme())
 
-useVoiceListening()
+// Small screens offer no control for continuous listening, so only a voice call listens there.
+useVoiceListening({ continuous: () => !isMobile.value })
 // The page has no global shortcut, so Push to Talk uses Space while the stage page has focus.
 useVoiceHoldKey(useVoicePushToTalk({
   onUnconfigured: () => toast(t('stage.chat.voice-composer.configure-title'), { description: t('stage.chat.voice-composer.configure-description') }),
@@ -123,7 +124,8 @@ const router = useRouter()
             @select-avatar-model="router.push('/settings/models')"
           />
         </div>
-        <InteractiveArea v-if="!isMobile" h="85dvh" absolute right-4 flex flex-1 flex-col max-w="500px" min-w="30%" />
+        <!-- A fixed width keeps the chat panel narrow on wide screens. A percentage minimum overrode the maximum there. -->
+        <InteractiveArea v-if="!isMobile" :class="['absolute right-4 h-[85dvh] w-[min(440px,45%)] flex flex-col']" />
       </div>
       <HoloCoupon />
     </div>

@@ -3,7 +3,7 @@ import type { ComfyUIWorkflowTemplate } from '@proj-airi/stage-ui/stores/modules
 
 import { REPLICATE_IMAGEGEN_PRESETS } from '@proj-airi/stage-shared'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
-import { Button, Checkbox, FieldInput, FieldRange, IconButton, Select } from '@proj-airi/ui'
+import { Alert, Button, Checkbox, FieldInput, FieldRange, IconButton, Select } from '@proj-airi/ui'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -193,15 +193,9 @@ function openReplicateModel() {
         v-if="selectedArtistryProvider === 'comfyui'"
         class="mb-2 flex flex-col gap-3"
       >
-        <div
-          v-if="comfyuiWorkflows.length === 0"
-          :class="['flex flex-row items-center gap-3 rounded-xl border-2 border-amber-500/20 bg-amber-500/5 p-4 text-sm text-amber-600 dark:text-amber-400']"
-        >
-          <div i-solar:info-circle-bold-duotone class="shrink-0 text-lg" />
-          <p>
-            {{ t('settings.pages.modules.artistry.card.comfyui_empty') }}
-          </p>
-        </div>
+        <Alert v-if="comfyuiWorkflows.length === 0" tone="warning">
+          {{ t('settings.pages.modules.artistry.card.comfyui_empty') }}
+        </Alert>
         <div v-else class="grid grid-cols-2 gap-3">
           <Button
             v-for="wf in comfyuiWorkflows"

@@ -74,10 +74,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-turbo-
 
-      # Same Node.js pin as ci.yml; see the NOTICE there for why it is pinned.
       - uses: pnpm/setup@v2
         with:
-          runtime: node@26.7.0
+          runtime: node@^26.12.1
           cache: true
           install: false
 
@@ -151,7 +150,7 @@ jobs:
 
       - uses: pnpm/setup@v2
         with:
-          runtime: node@26.7.0
+          runtime: node@^26.12.1
           cache: true
           install: false
 

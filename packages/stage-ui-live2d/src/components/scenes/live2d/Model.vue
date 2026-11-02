@@ -9,9 +9,10 @@ import type {
 } from '@proj-airi/stage-shared/screen-ambient-light'
 import type { Cubism4ModelSettings } from 'pixi-live2d-display/cubism4'
 
-import type { PixiLive2DInternalModel } from '../../../composables/live2d'
+import type { Live2DFocusTarget, Live2DTouch, PixiLive2DInternalModel } from '../../../composables/live2d'
 import type { Live2DExpressionControl } from '../../../controls/manifest'
 
+import { Point } from '@pixi/math'
 import { listenBeatSyncBeatSignal } from '@proj-airi/stage-shared/beat-sync'
 import { ambientLightDefaults, ambientLightNeutralEnvironment, ambientLightPerceptualLevel, wholeWindowRectangle } from '@proj-airi/stage-shared/screen-ambient-light'
 import { useTheme } from '@proj-airi/ui'
@@ -28,10 +29,17 @@ import Live2DExpression from '../../live2d/expression.vue'
 
 import {
   createBeatSyncController,
+  createLive2DFocusBias,
   createLive2DHeadTracker,
   createLive2DMotionSpring,
+  createLive2DTouchReaction,
   disableLive2DSdkBreath,
+  findLive2DTouchMotionGroup,
+  isPointInLive2DMesh,
   live2DCanvasRectToParent,
+  live2DFocusTargetFromModelPoint,
+  resolveLive2DFocusTargetMode,
+  resolveLive2DTouchRegion,
   useLive2DMotionManagerUpdate,
   useMotionUpdatePluginAutoEyeBlink,
   useMotionUpdatePluginBeatSync,
@@ -42,6 +50,7 @@ import {
   useMotionUpdatePluginLightSquint,
   useMotionUpdatePluginLipSync,
   useMotionUpdatePluginManualControl,
+  useMotionUpdatePluginTouchReaction,
 } from '../../../composables/live2d'
 import { useFitModel } from '../../../composables/live2d/fit-model'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
@@ -62,6 +71,8 @@ const props = withDefaults(defineProps<{
   focusAt?: { x: number, y: number }
   eyeTracking?: boolean
   eyeFocusSourceActive?: boolean
+  /** Turns a manual pose, for example a MAGIC pose, toward `focusAt` while the focus source is active. */
+  focusBias?: boolean
   themeColorsHue?: number
   themeColorsHueDynamic?: boolean
   live2dIdleAnimationEnabled?: boolean
@@ -84,6 +95,7 @@ const props = withDefaults(defineProps<{
   focusAt: () => ({ x: 0, y: 0 }),
   eyeTracking: false,
   eyeFocusSourceActive: false,
+  focusBias: false,
   disableFocusAt: false,
   scale: 1,
   themeColorsHue: 220.44,
@@ -113,6 +125,7 @@ const { position, scale } = useL2dViewControl()
 const {
   breathControl: manualBreathControl,
   control: manualMotionControl,
+  exclusiveOwnerId: manualExclusiveOwnerId,
 } = storeToRefs(useLive2DMotionControl())
 
 const modelSrcRef = toRef(() => props.modelSrc)
@@ -124,6 +137,8 @@ let isUnmounted = false
 const modelLoadMutex = new Mutex()
 
 const manualMotionSpring = createLive2DMotionSpring()
+const manualFocusBias = createLive2DFocusBias()
+const touchReaction = createLive2DTouchReaction()
 const manualControlOffset = computed(() => getLive2DMotionControlModelOffset(manualMotionSpring.output.value))
 const offset = computed(() => ({
   x: (position.value.x / 100) * props.width + manualControlOffset.value.x,
@@ -332,6 +347,8 @@ async function performModelLoad() {
     expressionLoader.value = undefined
     destroyRenderedModel()
     headTracker.reset()
+    // A touch on the previous model must not play on the next one.
+    touchReaction.reset()
   }
   if (!modelSource) {
     console.warn('No Live2D model source provided.')
@@ -374,13 +391,6 @@ async function performModelLoad() {
     initialModelHeight.value = model.value.height
     model.value.anchor.set(0.5, 0.5)
     setScaleAndPosition()
-
-    // --- Interaction
-
-    model.value.on('hit', (hitAreas) => {
-      if (model.value && hitAreas.includes('body'))
-        model.value.motion('tap_body')
-    })
 
     // --- Motion
 
@@ -483,9 +493,13 @@ async function performModelLoad() {
       ),
       'final',
     )
-    motionManagerUpdate.register(useMotionUpdatePluginManualControl(manualMotionControl, manualMotionSpring), 'final')
+    motionManagerUpdate.register(useMotionUpdatePluginManualControl(manualMotionControl, manualMotionSpring, {
+      controller: manualFocusBias,
+      target: focusBiasTarget,
+    }), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginLipSync(mouthOpenSize, nowSpeaking), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginBreathControl(manualBreathControl), 'final')
+    motionManagerUpdate.register(useMotionUpdatePluginTouchReaction(touchReaction.sample), 'final')
 
     const hookedUpdate = motionManager.update as (model: PixiLive2DInternalModel['coreModel'], now: number) => boolean
     motionManager.update = function (model: PixiLive2DInternalModel['coreModel'], now: number) {
@@ -919,14 +933,56 @@ watch(live2dExpressionEnabled, (enabled) => {
   }
 })
 
-watch(focusAt, (value) => {
-  if (!model.value)
-    return
-  if (!props.eyeTracking)
+/**
+ * Sets the target of the Pixi focus controller.
+ *
+ * Pixi keeps the last target and adds it to the head, body, and eye angles on
+ * every frame. Without a reset, the model stays turned after tracking stops,
+ * and the turn also adds to a MAGIC pose. `Live2DModel.focus` always puts the
+ * target on the unit circle, so the center needs a direct `focus(0, 0)`.
+ */
+function updateFocusTarget() {
+  const current = model.value
+  if (!current)
     return
 
-  model.value.focus(value.x, value.y)
+  const mode = resolveLive2DFocusTargetMode({
+    eyeTracking: props.eyeTracking,
+    sourceActive: props.eyeFocusSourceActive,
+    idleEyeFocus: props.live2dForceIdleEyeAnimation,
+  })
+  if (mode === 'follow')
+    current.focus(focusAt.value.x, focusAt.value.y)
+  else if (mode === 'center')
+    current.internalModel.focusController.focus(0, 0)
+}
+
+watch([model, focusAt, live2dEyeTrackingEnabled, live2dEyeFocusSourceActive, live2dForceIdleEyeAnimation], updateFocusTarget)
+
+/**
+ * The focus target that biases a manual pose in the current frame.
+ *
+ * A devtools window that owns the model exclusively drives the pose by hand,
+ * so the bias stays off for it.
+ */
+// A devtools window that takes exclusive control gets the joystick pose without a fading cursor bias.
+watch(manualExclusiveOwnerId, (owner) => {
+  if (owner !== null)
+    manualFocusBias.reset()
 })
+
+function focusBiasTarget(): Live2DFocusTarget | undefined {
+  const current = model.value
+  if (!current || !props.focusBias || !props.eyeFocusSourceActive || manualExclusiveOwnerId.value !== null)
+    return undefined
+
+  const internalModel = current.internalModel
+  const point = current.toModelPosition(new Point(focusAt.value.x, focusAt.value.y))
+  return live2DFocusTargetFromModelPoint(point, {
+    width: internalModel.originalWidth,
+    height: internalModel.originalHeight,
+  })
+}
 
 onMounted(() => {
   const removeListener = listenBeatSyncBeatSignal(() => beatSync.scheduleBeat())
@@ -959,6 +1015,85 @@ onUnmounted(() => {
   // before the canvas, so the stage still exists here.
   destroyRenderedModel()
 })
+
+/**
+ * Finds the part of the character under a point of the Pixi stage.
+ *
+ * Hit areas of the author come first. Most models have none, so the head box
+ * of the head tracker and the meshes of the visible drawables are the fallback.
+ *
+ * A hit area is a drawable that the author draws with a transparent texture,
+ * so it is tested by its mesh and never counts as a painted part.
+ */
+function touchAt(stagePoint: { x: number, y: number }): Omit<Live2DTouch, 'gesture'> | undefined {
+  const current = model.value
+  if (!current)
+    return undefined
+
+  const internalModel = current.internalModel
+  const coreModel = internalModel.coreModel
+  const point = current.toModelPosition(new Point(stagePoint.x, stagePoint.y))
+
+  function insideMesh(index: number) {
+    // The box is a cheap first test. The mesh decides, so the empty space inside the box does not count.
+    const bounds = internalModel.getDrawableBounds(index)
+    if (point.x < bounds.x || point.x > bounds.x + bounds.width || point.y < bounds.y || point.y > bounds.y + bounds.height)
+      return false
+    return isPointInLive2DMesh(point, internalModel.getDrawableVertices(index), coreModel.getDrawableVertexIndices(index))
+  }
+
+  const hitAreas = Object.values(internalModel.hitAreas)
+  const hitAreaIndices = new Set(hitAreas.map(area => area.index))
+  const headRect = headTracker.bounds(internalModel)
+  const insideHead = !!headRect
+    && point.x >= headRect.x && point.x <= headRect.x + headRect.width
+    && point.y >= headRect.y && point.y <= headRect.y + headRect.height
+  let insideDrawable = false
+  const drawableCount = coreModel.getDrawableCount()
+  for (let index = 0; index < drawableCount && !insideDrawable; index += 1) {
+    if (hitAreaIndices.has(index) || !coreModel.getDrawableDynamicFlagIsVisible(index) || coreModel.getDrawableOpacity(index) <= 0)
+      continue
+    insideDrawable = insideMesh(index)
+  }
+
+  const region = resolveLive2DTouchRegion({
+    hitAreaNames: hitAreas.filter(area => insideMesh(area.index)).map(area => area.name),
+    insideHead,
+    insideDrawable,
+  })
+  if (!region)
+    return undefined
+
+  return {
+    region,
+    side: Math.min(1, Math.max(-1, point.x / internalModel.originalWidth * 2 - 1)),
+  }
+}
+
+/**
+ * Plays the procedural reaction of the model to one touch, at once.
+ *
+ * The reaction plugin samples with the motion clock, `ctx.now`, which comes
+ * from `Live2DModel.elapsedTime`. That clock falls behind `performance.now()`
+ * whenever the Pixi ticker clamps a long frame, for example after the tab was
+ * hidden. The trigger uses the same clock as the samples, so the reaction
+ * starts on the next frame and not after the drift.
+ */
+function react(touch: Live2DTouch) {
+  if (model.value)
+    touchReaction.trigger(touch, lastUpdateTime.value)
+}
+
+/** Plays the touch motion group of the model, for example `TapBody`, when the model has one. */
+function playTouchMotion(region: Live2DTouch['region']) {
+  const current = model.value
+  if (!current)
+    return
+
+  const group = findLive2DTouchMotionGroup(Object.keys(current.internalModel.motionManager.definitions), region)
+  if (group)
+    void current.motion(group, undefined, MotionPriority.NORMAL)
+}
 
 function listMotionGroups() {
   return availableMotions.value
@@ -1001,6 +1136,9 @@ defineExpose({
   initialModelHeight,
   initialModelWidth,
   headAnchor,
+  touchAt,
+  react,
+  playTouchMotion,
 })
 
 import.meta.hot?.dispose(() => {

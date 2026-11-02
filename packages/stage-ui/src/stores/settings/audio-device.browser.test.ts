@@ -1,5 +1,5 @@
 import { createPinia, disposePinia } from 'pinia'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp, defineComponent, h } from 'vue'
 import { createI18n } from 'vue-i18n'
 
@@ -30,6 +30,7 @@ function mountDevices() {
 
 afterEach(() => {
   cleanups.splice(0).forEach(cleanup => cleanup())
+  vi.restoreAllMocks()
   localStorage.clear()
 })
 
@@ -127,6 +128,21 @@ describe('microphone settings through the browser adapter', () => {
 
     hearing.inputMode = 'push-to-talk'
     await expect.poll(() => track.readyState).toBe('ended')
+  })
+
+  // Turning microphone input on asked for access first, then opened the microphone again for the hold.
+  // The system microphone indicator then flashed on, off, and on.
+  it('opens no microphone to ask for access that is already granted', async () => {
+    const devices = mountDevices()
+    expect(await devices.askPermission()).toBe(true)
+    await expect.poll(() => devices.permission).toBe('granted')
+    await expect.poll(() => devices.stream).toBeUndefined()
+    const openMicrophone = vi.spyOn(navigator.mediaDevices, 'getUserMedia')
+
+    expect(await devices.askPermission()).toBe(true)
+
+    expect(openMicrophone).not.toHaveBeenCalled()
+    expect(devices.audioInputOptions.length).toBeGreaterThan(0)
   })
 
   it('keeps the selected device and exposes unavailable-device failures', async () => {

@@ -1,0 +1,47 @@
+{
+  "name": "@proj-airi/ui-trace",
+  "type": "module",
+  "private": true,
+  "description": "Trace UI for AIRI: the trace timeline, the panels, the toolbar, and the row models of entity lanes and tracks",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/ui-trace"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./stories": "./src/stories/index.ts"
+  },
+  "scripts": {
+    "test:run": "vitest run",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@iconify-json/mingcute": "catalog:",
+    "@proj-airi/chromatic": "catalog:",
+    "@proj-airi/timeline-canvas": "workspace:^",
+    "@proj-airi/trace-kit": "workspace:^",
+    "@proj-airi/ui": "workspace:^",
+    "@proj-airi/ui-timeline": "workspace:^",
+    "@vueuse/core": "catalog:",
+    "culori": "catalog:",
+    "es-toolkit": "catalog:",
+    "reka-ui": "catalog:",
+    "virtua": "catalog:",
+    "vue": "catalog:",
+    "vue-i18n": "catalog:"
+  },
+  "devDependencies": {
+    "@histoire/plugin-vue": "catalog:",
+    "@types/culori": "catalog:",
+    "@vitejs/plugin-vue": "catalog:",
+    "vitest": "catalog:vitest",
+    "vue-tsc": "catalog:"
+  }
+}

@@ -4,7 +4,7 @@ import type {} from 'pinia-plugin-synced'
 import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useTimeoutFn, whenever } from '@vueuse/core'
-import { defineStore } from 'pinia'
+import { defineStore, getActivePinia } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
 import { client } from '../composables/api'
@@ -69,6 +69,9 @@ export interface AuthTokenSet {
  * `providers` to safely depend on it without creating a circular import.
  */
 export const useAuthStore = defineStore('auth', () => {
+  // A watcher or an await runs outside the setup of this store. The active
+  // Pinia can then be another one, so keep the Pinia that owns this store.
+  const pinia = getActivePinia()
   const storage = createLocalStorageForAuth()
 
   // Pinia owns live auth state. Persistence is command-driven so a state patch
@@ -212,7 +215,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   const { start: startRefreshTimer, stop: stopRefreshTimer } = useTimeoutFn(
-    () => { void useAuthStore().refreshTokenNow() },
+    () => { void useAuthStore(pinia).refreshTokenNow() },
     refreshDelayMs,
     { immediate: false },
   )

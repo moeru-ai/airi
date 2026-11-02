@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/testing-audio",
   "type": "module",
-  "version": "0.13.0",
+  "version": "0.14.1",
   "private": true,
   "description": "AIRI Web and Electron audio pipeline tests",
   "author": {
@@ -24,6 +24,7 @@
     "@proj-airi/provider-inference": "workspace:^",
     "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/stage-ui": "workspace:^",
+    "@proj-airi/trace-kit": "workspace:^",
     "@proj-airi/vitest-plugin-fakemic": "workspace:^",
     "playwright": "catalog:",
     "vite": "catalog:",

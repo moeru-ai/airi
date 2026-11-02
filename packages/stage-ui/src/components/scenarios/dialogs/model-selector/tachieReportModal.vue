@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import type { TachieValidationReport } from '@proj-airi/stage-ui-tachie'
+import type { AlertTone } from '@proj-airi/ui'
 
-import { Button } from '@proj-airi/ui'
+import { Alert, Button } from '@proj-airi/ui'
 import { useMediaQuery, useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot } from 'vaul-vue'
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 
-defineProps<{
+const props = defineProps<{
   report: TachieValidationReport | null
 }>()
 
@@ -15,6 +17,15 @@ const emit = defineEmits<{
   close: []
   confirm: []
 }>()
+
+const { t } = useI18n()
+
+const statusTones: Record<TachieValidationReport['status'], AlertTone> = {
+  VALID: 'success',
+  WARNING: 'warning',
+  INVALID: 'danger',
+}
+const statusTone = computed(() => props.report ? statusTones[props.report.status] : 'info')
 
 const open = defineModel<boolean>('open', { default: false })
 const isDesktop = useMediaQuery('(min-width: 768px)')
@@ -63,22 +74,9 @@ function confirm() {
         </div>
 
         <div v-if="report" :class="['flex flex-col gap-4']">
-          <div
-            :class="[
-              'flex items-center gap-3 rounded-lg p-4 font-bold',
-              report.status === 'VALID' ? 'bg-green-100/50 text-green-700 dark:bg-green-900/30 dark:text-green-400' : '',
-              report.status === 'WARNING' ? 'bg-yellow-100/50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : '',
-              report.status === 'INVALID' ? 'bg-red-100/50 text-red-700 dark:bg-red-900/30 dark:text-red-400' : '',
-            ]"
-          >
-            <div v-if="report.status === 'VALID'" i-solar:check-circle-bold-duotone text-2xl />
-            <div v-else-if="report.status === 'WARNING'" i-solar:danger-bold-duotone text-2xl />
-            <div v-else i-solar:close-circle-bold-duotone text-2xl />
-            <div :class="['flex flex-col']">
-              <span>Status: {{ report.status }}</span>
-              <span class="text-xs opacity-80">{{ report.fileName }}</span>
-            </div>
-          </div>
+          <Alert :tone="statusTone" :title="t('settings.tachie.audit-report.status', { status: report.status })">
+            {{ report.fileName }}
+          </Alert>
 
           <div :class="['grid grid-cols-2 gap-2', 'rounded bg-neutral-100/50 p-2 text-sm dark:bg-neutral-800/50']">
             <div>
@@ -96,37 +94,21 @@ function confirm() {
             </div>
           </div>
 
-          <div v-if="report.errors.length > 0" :class="['flex flex-col gap-1']">
-            <div class="flex items-center gap-1 text-red-600 font-bold dark:text-red-400">
-              <div i-solar:bug-bold-duotone />
-              Critical Issues
-            </div>
-            <ul :class="['list-none p-0', 'flex flex-col gap-1']">
-              <li
-                v-for="error in report.errors"
-                :key="error"
-                class="rounded bg-red-50/50 p-2 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300"
-              >
+          <Alert v-if="report.errors.length > 0" tone="danger" :title="t('settings.tachie.audit-report.critical-issues')">
+            <ul>
+              <li v-for="error in report.errors" :key="error">
                 {{ error }}
               </li>
             </ul>
-          </div>
+          </Alert>
 
-          <div v-if="report.warnings.length > 0" :class="['flex flex-col gap-1']">
-            <div class="flex items-center gap-1 text-yellow-600 font-bold dark:text-yellow-400">
-              <div i-solar:danger-bold-duotone />
-              Warnings
-            </div>
-            <ul :class="['list-none p-0', 'flex flex-col gap-1']">
-              <li
-                v-for="warning in report.warnings"
-                :key="warning"
-                class="rounded bg-yellow-50/50 p-2 text-sm text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300"
-              >
+          <Alert v-if="report.warnings.length > 0" tone="warning" :title="t('settings.tachie.audit-report.warnings')">
+            <ul>
+              <li v-for="warning in report.warnings" :key="warning">
                 {{ warning }}
               </li>
             </ul>
-          </div>
+          </Alert>
 
           <div v-if="report.ignoredEntries.length > 0" class="text-xs text-neutral-500 dark:text-neutral-400">
             Ignored: {{ report.ignoredEntries.join(', ') }}
@@ -167,34 +149,23 @@ function confirm() {
         </div>
 
         <div v-if="report" :class="['flex flex-1 flex-col gap-4 overflow-y-auto pb-4']">
-          <div
-            :class="[
-              'rounded-lg p-4 font-bold',
-              report.status === 'VALID' ? 'bg-green-100/50 text-green-700 dark:bg-green-900/30' : '',
-              report.status === 'WARNING' ? 'bg-yellow-100/50 text-yellow-700 dark:bg-yellow-900/30' : '',
-              report.status === 'INVALID' ? 'bg-red-100/50 text-red-700 dark:bg-red-900/30' : '',
-            ]"
-          >
-            {{ report.status }}: {{ report.fileName }}
-          </div>
-          <ul v-if="report.errors.length > 0" :class="['list-none p-0', 'flex flex-col gap-1']">
-            <li
-              v-for="error in report.errors"
-              :key="error"
-              class="rounded bg-red-50/50 p-2 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300"
-            >
-              {{ error }}
-            </li>
-          </ul>
-          <ul v-if="report.warnings.length > 0" :class="['list-none p-0', 'flex flex-col gap-1']">
-            <li
-              v-for="warning in report.warnings"
-              :key="warning"
-              class="rounded bg-yellow-50/50 p-2 text-sm text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300"
-            >
-              {{ warning }}
-            </li>
-          </ul>
+          <Alert :tone="statusTone" :title="t('settings.tachie.audit-report.status', { status: report.status })">
+            {{ report.fileName }}
+          </Alert>
+          <Alert v-if="report.errors.length > 0" tone="danger" :title="t('settings.tachie.audit-report.critical-issues')">
+            <ul>
+              <li v-for="error in report.errors" :key="error">
+                {{ error }}
+              </li>
+            </ul>
+          </Alert>
+          <Alert v-if="report.warnings.length > 0" tone="warning" :title="t('settings.tachie.audit-report.warnings')">
+            <ul>
+              <li v-for="warning in report.warnings" :key="warning">
+                {{ warning }}
+              </li>
+            </ul>
+          </Alert>
           <div :class="['mt-auto', 'flex flex-col gap-2 pt-4']">
             <Button v-if="report.status !== 'INVALID'" @click="confirm">
               {{ report.status === 'WARNING' ? 'Import Anyway' : 'Confirm Import' }}

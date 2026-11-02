@@ -8,6 +8,7 @@ import MobileInteractiveArea from '@proj-airi/stage-layouts/components/Layouts/M
 import { PiniaColada } from '@pinia/colada'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
+import { trackPendingActions } from '@proj-airi/stage-ui/libs/pinia/pending-actions'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
@@ -59,7 +60,13 @@ async function renderArea(component: Component = InteractiveArea, options: { pro
     updatedAt: 2,
   }
   const pinia = createPinia()
-  onTestFinished(() => disposePinia(pinia))
+  // The area reloads backgrounds when it mounts. Let each load end before its
+  // Pinia is destroyed.
+  const pendingBackgroundLoads = trackPendingActions(pinia, (storeId, action) => storeId === 'background-entries' && action === 'initializeStore')
+  onTestFinished(async () => {
+    await expect.poll(pendingBackgroundLoads).toBe(0)
+    disposePinia(pinia)
+  })
   pinia.state.value = {
     'chat-session-selection': { activeSessionId: 'session-b' },
     'chat-session': {
@@ -220,11 +227,12 @@ describe('interactive area synchronized state', () => {
     }
   })
 
-  it('places the mobile attachment control beside the input bubble', async () => {
+  // Images are attached from the add menu, so its button takes the place of the attachment control.
+  it('places the mobile add control beside the input bubble', async () => {
     await page.viewport(390, 844)
     const { screen } = await renderArea(MobileInteractiveArea)
     const bubble = screen.getByTestId('mobile-input-bubble').element()
-    const attach = screen.getByRole('button', { name: 'stage.chat.images.attach' }).element()
+    const attach = screen.getByRole('button', { name: 'stage.chat.composer.add' }).element()
     expect(bubble.contains(attach)).toBe(false)
     expect(attach.getBoundingClientRect().right).toBeLessThan(bubble.getBoundingClientRect().left)
     expect(attach.getBoundingClientRect().bottom).toBe(bubble.getBoundingClientRect().bottom)
@@ -455,21 +463,14 @@ describe('interactive area synchronized state', () => {
     }
   })
 
-  // https://github.com/moeru-ai/airi/pull/2832
-  // ROOT CAUSE:
-  //
-  // The mobile composer now owns the Hearing drawer. The old test still looked
-  // for the removed settings-menu entry and timed out before testing the drawer.
-  //
-  // Test the composer trigger and its focus restoration after the drawer closes.
-  it('closes hearing and restores focus to the mobile voice button', async () => {
+  // Hearing details moved from the composer drawer into settings. The composer keeps only the voice input mode.
+  it('opens Hearing settings from the mobile settings drawer', async () => {
     const { screen } = await renderArea(MobileInteractiveArea)
-    const voiceButton = screen.getByTestId('mobile-voice-button')
-    await voiceButton.click()
-    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.hearing' })).toBeVisible()
-    await userEvent.keyboard('{Escape}')
-    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.hearing' })).not.toBeInTheDocument()
-    await expect.element(voiceButton).toHaveFocus()
+    expect(screen.container.querySelector('[data-testid="mobile-voice-button"]')).toBeNull()
+    await screen.getByTestId('mobile-settings-button').click()
+    const hearing = screen.getByTestId('mobile-hearing-settings')
+    await expect.element(hearing).toBeVisible()
+    await expect.element(hearing).toHaveAttribute('href', '/settings/modules/hearing')
   })
 
   it('expands the Electron input bubble around a reply preview', async () => {

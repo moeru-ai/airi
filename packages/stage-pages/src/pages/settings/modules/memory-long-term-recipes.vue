@@ -91,18 +91,18 @@ function grantsOf(recipe: Recipe) {
   return parts
 }
 
-function addRecipe(fields: RecipeFields) {
-  recipesStore.add({ ...fields, enabled: true })
+async function addRecipe(fields: RecipeFields) {
+  await recipesStore.add({ ...fields, enabled: true })
   closeForms()
 }
 
-function saveRecipe(id: string, fields: RecipeFields) {
-  recipesStore.update(id, fields)
+async function saveRecipe(id: string, fields: RecipeFields) {
+  await recipesStore.update(id, fields)
   closeForms()
 }
 
-function removeRecipe(id: string) {
-  recipesStore.remove(id)
+async function removeRecipe(id: string) {
+  await recipesStore.remove(id)
   closeForms()
 }
 </script>

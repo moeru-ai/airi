@@ -1,15 +1,15 @@
 import type { PcmBlock } from '@proj-airi/pipelines-audio'
+import type { TraceRecord } from '@proj-airi/trace-kit'
 
-import type { ReadableSpan } from '../../composables/use-io-tracer'
 import type { AIRIStreamTranscriptionDelta } from '../providers/stream-transcription'
 
 import { VoiceController } from '@proj-airi/core-agent'
 import { AudioInput } from '@proj-airi/pipelines-audio'
-import { IOSpanNames } from '@proj-airi/stage-shared'
 import { createPushStream } from '@proj-airi/stream-kit'
+import { VoiceIdKeys, VoiceNames } from '@proj-airi/trace-kit/voice'
 import { expect, it, vi } from 'vitest'
 
-import { activeVoiceInputSpan, startSpan, subscribeIOSpan } from '../../composables/use-io-tracer'
+import { activeVoiceInput, configureTraceTransport } from '../../composables/use-trace'
 import { createHearingTranscriber } from './hearing-transcriber'
 
 it('streams provider updates before capture ends and preserves the final response after normal finish', async () => {
@@ -117,24 +117,24 @@ it('aborts all provider outputs when standalone transcription fails', async () =
   expect(releasedEvents).toHaveBeenCalledOnce()
 })
 
-it('records speech recognition under the parent that the caller names, before the voice input that runs now', async () => {
-  const recorded: ReadableSpan[] = []
-  const unsubscribe = subscribeIOSpan(span => recorded.push(span))
-  const turn = startSpan(IOSpanNames.InteractionTurn)
-  const otherVoiceInput = startSpan(IOSpanNames.VoiceInput)
-  activeVoiceInputSpan.value = otherVoiceInput
+it('records speech recognition with the IDs that the caller names, before the voice input that runs now', async () => {
+  const recorded: TraceRecord[] = []
+  const stopTransport = configureTraceTransport({ source: 'test', clock: 'mono:test', runtime: 'test', send: record => recorded.push(record) })
+  activeVoiceInput.value = { inputId: 'other-input', sessionId: 'alice' }
   try {
     const transcriber = createHearingTranscriber(async () => {
       throw new Error('provider failed')
-    }, { traceParent: turn })
+    }, { ids: { [VoiceIdKeys.Conversation]: 'alice', [VoiceIdKeys.Turn]: 'turn-1' } })
     const reader = transcriber.transcribe({ audio: new ReadableStream<PcmBlock>(), signal: new AbortController().signal }).getReader()
     await expect(reader.read()).rejects.toThrow('provider failed')
   }
   finally {
-    activeVoiceInputSpan.value = undefined
-    unsubscribe()
+    activeVoiceInput.value = undefined
+    stopTransport()
   }
 
-  const recognition = recorded.find(span => span.name === IOSpanNames.SpeechRecognition)!
-  expect(recognition.parentSpanContext?.spanId).toBe(turn.spanContext().spanId)
+  const recognition = recorded.find(record => record.type === 'span.begin' && record.name === VoiceNames.SpeechRecognition)!
+  expect(recognition.ids).toEqual({ [VoiceIdKeys.Conversation]: 'alice', [VoiceIdKeys.Turn]: 'turn-1' })
+  const end = recorded.find(record => record.type === 'span.end')
+  expect(end?.type === 'span.end' && end.status).toBe('error')
 })

@@ -155,7 +155,7 @@ const NAME_TAGS = /^(?:h[1-6]|label|legend)$/
  */
 const OVERLAY_PART = /^(?:Teleport|(?:Dialog|AlertDialog|Drawer|Popover|DropdownMenu|ContextMenu|HoverCard|Tooltip|Select|Combobox|Menubar|NavigationMenu|Toast)(?:Portal|Content))$/
 /** Notices describe a state, such as an error or a tip. Their titles do not name a setting. */
-const NOTICE = /^(?:Callout|Alert|ErrorContainer)$/
+const NOTICE = /^(?:Callout|Alert|ContainerError)$/
 /** The translation functions of a template. */
 const TRANSLATE = new Set(['t', '$t'])
 const I18N_KEY = /^[\w.-]+$/

@@ -70,7 +70,7 @@ describe('joinCard', () => {
 
 describe('the built-in card', () => {
   const builtIn: AiriCard = {
-    name: 'ReLU',
+    name: 'Iru',
     version: '1.0.0',
     description: 'Built-in description',
     extensions: { airi: { avatarModels: [], modules: { consciousness: { provider: '', model: '' }, speech: { provider: '', model: '', voice_id: '' }, vision: { provider: '', model: '' } }, agents: {} } },
@@ -96,7 +96,7 @@ describe('the built-in card', () => {
   it('takes the parts that the fields lack from the built-in card', () => {
     const joined = joinCard({ '/systemPrompt': 'Be kind' }, builtIn)
 
-    expect(joined).toMatchObject({ name: 'ReLU', description: 'Built-in description', systemPrompt: 'Be kind' })
+    expect(joined).toMatchObject({ name: 'Iru', description: 'Built-in description', systemPrompt: 'Be kind' })
     expect(joinCard(splitCard({ ...builtIn, name: 'Mine' }, [builtIn]), builtIn)).toEqual(JSON.parse(JSON.stringify({ ...builtIn, name: 'Mine' })))
   })
 })

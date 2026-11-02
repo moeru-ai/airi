@@ -62,8 +62,8 @@ const open = defineModel<boolean>('open', { default: false })
             : [],
           props.variant === 'default'
             ? [
-              'border-neutral-200 bg-white text-neutral-700',
-              'dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100',
+              'border-neutral-100 bg-white text-neutral-700',
+              'dark:border-neutral-700/50 dark:bg-neutral-800 dark:text-neutral-100',
             ]
             : [],
           props.contentClass,

@@ -27,7 +27,7 @@ jobs:
           sparse-checkout: packages/i18n/src/locales
       - uses: pnpm/setup@v3
         with:
-          runtime: node@26.7.0
+          runtime: node@^26.12.1
           cache: true
           install: false
       - run: pnpm install --frozen-lockfile --filter @proj-airi/root --ignore-scripts

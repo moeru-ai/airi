@@ -66,6 +66,12 @@ describe('audio input pipeline', () => {
 
 A case can independently choose its VAD behavior, ASR, LLM, and TTS configuration. A configuration callback can read its own environment, write local storage, use another persistence mechanism, or deliberately leave onboarding incomplete.
 
+## Lower the Live2D settings
+
+Headless Chromium renders WebGL on the CPU. With the default Live2D settings, the main thread is busy, and voice activity detection falls behind real time. The Web cases then time out before an input starts.
+
+If a case tests audio and not rendering, add `configureLive2D(() => audioCaseLive2D)`. It sets **Maximum FPS** to 15 and **Render Scale** to 1. A user can change the same settings on the Live2D settings page.
+
 ## Script the LLM reply
 
 When a case tests the output side of the pipeline, the reply must not depend on a model. Use `startScriptedLlm` from `cases/shared/providers`. It starts an OpenAI-compatible chat completion endpoint on `127.0.0.1` and streams a fixed reply in small chunks. AIRI receives the reply as model output, so the chat shows it and the speech output reads it. The case needs no LLM key.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from '../../src'
-import { configureModuleConsciousness, configureModuleHearing, configureModuleSpeech, configureOnboarding, loadCaseEnvironment } from '../shared/configurations'
+import { audioCaseLive2D, configureLive2D, configureModuleConsciousness, configureModuleHearing, configureModuleSpeech, configureOnboarding, loadCaseEnvironment } from '../shared/configurations'
 import { enableChatMicrophone } from '../shared/interactions'
 import { aliyunNlsAsr, openaiAsr, openaiLlm, openaiTts } from '../shared/providers'
 
@@ -12,6 +12,7 @@ describe('audio input pipeline', () => {
     // This case keeps AIRI's default VAD and selects every remote Provider explicitly.
     preflight: [
       configureOnboarding(() => ({ completed: true })),
+      configureLive2D(() => audioCaseLive2D),
       configureModuleHearing(async (context) => {
         const environment = await loadCaseEnvironment(context.env)
         const apiKey = environment.TESTING_AUDIO_ASR_API_KEY
@@ -96,6 +97,7 @@ describe('audio input pipeline', () => {
     input: new URL('./input.test.wav', import.meta.url),
     preflight: [
       configureOnboarding(() => ({ completed: true })),
+      configureLive2D(() => audioCaseLive2D),
       configureModuleHearing(async (context) => {
         const environment = await loadCaseEnvironment(context.env)
         const provider = environment.TESTING_AUDIO_ASR_ALIYUN_NLS_PROVIDER

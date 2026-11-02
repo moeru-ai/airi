@@ -62,9 +62,10 @@ import { presenceBubblePaletteKey } from './presence-bubble-palette'
 const props = withDefaults(defineProps<{
   /** Drives the bubble above the character. */
   presence?: PresenceBubbleState
-  /** The context that owns `currentAudioSource`. */
+  /** The context that creates the lip sync node. It must be the context of the played speech. */
   audioContext?: AudioContext
-  currentAudioSource?: AudioBufferSourceNode
+  /** Connects the lip sync node to the played speech and returns the disconnection. */
+  connectSpeech?: (node: AudioNode) => () => void
   cursorPosition?: { x: number, y: number }
   /**
    * Scene painted behind the model, inside this canvas rather than under it, so one
@@ -1077,7 +1078,7 @@ defineExpose({
       <VRMModel
         ref="modelRef"
         :audio-context="props.audioContext"
-        :current-audio-source="props.currentAudioSource"
+        :connect-speech="props.connectSpeech"
         :cursor-position="props.cursorPosition"
         :last-committed-model-id="lastCommittedModelId"
         :model-id="requestedModelIdentity?.modelId ?? props.modelId"

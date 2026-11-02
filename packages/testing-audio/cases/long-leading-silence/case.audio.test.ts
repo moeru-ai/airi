@@ -1,6 +1,6 @@
 import { describe, expect, it } from '../../src'
-import { configureModuleHearing, configureOnboarding, loadCaseEnvironment } from '../shared/configurations'
-import { enableChatMicrophone } from '../shared/interactions'
+import { audioCaseLive2D, configureLive2D, configureModuleHearing, configureOnboarding, loadCaseEnvironment } from '../shared/configurations'
+import { enableChatMicrophone, waitForVoiceDraft } from '../shared/interactions'
 import { aliyunNlsAsr, openaiAsr } from '../shared/providers'
 
 describe('audio input pipeline', () => {
@@ -11,6 +11,7 @@ describe('audio input pipeline', () => {
     // This regression isolates AIRI's default VAD and one explicit ASR Provider.
     preflight: [
       configureOnboarding(() => ({ completed: true })),
+      configureLive2D(() => audioCaseLive2D),
       configureModuleHearing(async (context) => {
         const environment = await loadCaseEnvironment(context.env)
         const apiKey = environment.TESTING_AUDIO_ASR_API_KEY
@@ -42,13 +43,14 @@ describe('audio input pipeline', () => {
     await expect(audio).toHaveTranscriptions([
       ['There is no meaning to your existence, just let go.'],
     ])
-    await audio.runtimePage.getByRole('region', { name: 'Voice draft', includeHidden: true }).waitFor({ state: 'attached', timeout: 30_000 })
+    await waitForVoiceDraft(audio, { timeout: 30_000 })
   })
 
   it('still truncates the phrase with Aliyun NLS', {
     input: new URL('./input.test.wav', import.meta.url),
     preflight: [
       configureOnboarding(() => ({ completed: true })),
+      configureLive2D(() => audioCaseLive2D),
       configureModuleHearing(async (context) => {
         const environment = await loadCaseEnvironment(context.env)
         const provider = environment.TESTING_AUDIO_ASR_ALIYUN_NLS_PROVIDER
@@ -81,6 +83,6 @@ describe('audio input pipeline', () => {
     await expect(audio).not.toHaveTranscriptions([
       ['There is no meaning to your existence, just let go.'],
     ])
-    await audio.runtimePage.getByRole('region', { name: 'Voice draft', includeHidden: true }).waitFor({ state: 'attached', timeout: 30_000 })
+    await waitForVoiceDraft(audio, { timeout: 30_000 })
   })
 })

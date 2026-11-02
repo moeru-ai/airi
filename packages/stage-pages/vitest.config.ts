@@ -6,6 +6,7 @@ import Info from 'unplugin-info/vite'
 import VueRouter from 'vue-router/vite'
 
 import { playwright } from '@vitest/browser-playwright'
+import { normalizePath } from 'vite'
 import { defineConfig } from 'vitest/config'
 
 import { sharedUnoConfig } from '../../uno.config'
@@ -26,9 +27,9 @@ export default defineConfig({
       configFile: false,
       content: {
         filesystem: [
-          `${import.meta.dirname}/src/**/*.vue`,
-          `${import.meta.dirname}/../stage-ui/src/**/*.vue`,
-          `${import.meta.dirname}/../ui/src/**/*.vue`,
+          `${normalizePath(import.meta.dirname)}/src/**/*.vue`,
+          `${normalizePath(import.meta.dirname)}/../stage-ui/src/**/*.vue`,
+          `${normalizePath(import.meta.dirname)}/../ui/src/**/*.vue`,
         ],
       },
     }),

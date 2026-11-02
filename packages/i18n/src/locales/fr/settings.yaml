@@ -182,8 +182,6 @@ live2d:
           description: Génère des mouvements à partir du jeu de données MAGIC fourni.
       magic:
         profile:
-          title: Profil MAGIC
-          description: Sélectionnez le jeu de données de mouvement fourni pour le pilote MAGIC.
           options:
             idle-calm:
               title: Repos / calme
@@ -811,7 +809,6 @@ pages:
           provider-selection:
             description: Sélectionnez le fournisseur de reconnaissance vocale approprié
           microphone:
-            description: Activez le microphone pour l’audition. Le mode d’entrée détermine quand AIRI écoute.
             error: Le microphone est indisponible
           input-device:
             label: Périphérique d’entrée

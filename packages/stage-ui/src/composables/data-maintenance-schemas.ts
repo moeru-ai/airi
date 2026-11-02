@@ -1,9 +1,7 @@
 import * as v from 'valibot'
 
-import { memoryName } from '../stores/memory'
-
 const memoryEntrySchema = v.strictObject({
-  name: v.pipe(v.string(), v.minLength(1), v.maxLength(64)),
+  id: v.pipe(v.string(), v.minLength(1)),
   description: v.string(),
   body: v.pipe(v.string(), v.trim(), v.minLength(1)),
   persona: v.optional(v.string()),
@@ -17,11 +15,10 @@ export const memoryStateSchema = v.pipe(
   }),
   v.check((state) => {
     const seen = new Set<string>()
-    return state.entries.every((entry) => {
-      const key = `${entry.persona ?? ''}\u0000${entry.name}`
-      if (entry.name !== memoryName(entry.name) || seen.has(key))
+    return state.entries.every(({ id }) => {
+      if (seen.has(id))
         return false
-      seen.add(key)
+      seen.add(id)
       return true
     })
   }),

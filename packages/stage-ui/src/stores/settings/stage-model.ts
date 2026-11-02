@@ -42,6 +42,8 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   let disposed = false
   onScopeDispose(() => {
     disposed = true
+    // Cancel a pending update. Its next store action would make this disposed Pinia active again.
+    stageModelUpdateSequence++
   })
   const stageModelSelected = computed<string>({
     get: () => stageModelSelectedState.value,

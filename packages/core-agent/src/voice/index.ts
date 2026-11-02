@@ -25,7 +25,7 @@ export type {
 } from './input/types'
 export type { Interruption, VoiceInterruptionEvent } from './interruption'
 export { SpeechStream, VoiceResponse } from './output/response'
-export type { SpeechAudio, SpeechClip, SpeechClipEnd, SpeechOutput } from './output/response'
+export type { SpeechAudio, SpeechClip, SpeechClipEnd, SpeechOutput, SpeechOutputEvent } from './output/response'
 export { defaultSpeechPreprocessors, toSpeechText } from './output/speech-transformation'
 export type { SpeechTextOptions } from './output/speech-transformation'
 export { mathSpeech, mathSpeechPreprocessor, moneySpeechPreprocessor, speakMath, toMathJson } from './output/speech-transformation/preprocessor'
@@ -36,11 +36,14 @@ export type {
   FinalizeOptions,
   SpeechInputControl,
   SpeechInputScope,
+  SpeechOutputScope,
   TranscriptWatchOptions,
   VoicePlugin,
+  VoicePluginAudio,
   VoicePluginControls,
   VoicePluginError,
   VoicePluginHandle,
+  VoicePluginOutputAudio,
   VoicePluginScope,
   VoicePluginSettings,
 } from './plugins/types'

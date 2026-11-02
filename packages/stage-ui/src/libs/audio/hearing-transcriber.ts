@@ -1,29 +1,30 @@
-import type { Span } from '@opentelemetry/api'
 import type { StreamingTranscriber, TranscriptionEvent, TranscriptSegment } from '@proj-airi/core-agent'
+import type { TraceIds } from '@proj-airi/trace-kit'
 
 import type { AIRIStreamTranscriptionDelta } from '../providers/stream-transcription'
 import type { HearingTranscriptionResult } from '../providers/transcription-types'
 
 import { errorMessageFrom } from '@moeru/std'
-import { SpanStatusCode } from '@opentelemetry/api'
-import { IOAttributes, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
+import { beginSpan, TraceEndReasons, trackPath } from '@proj-airi/trace-kit'
+import { VoiceAttributes, VoiceIdKeys, VoiceNames, VoiceTracks } from '@proj-airi/trace-kit/voice'
 
-import { activeVoiceInputSpan, startSpan } from '../../composables/use-io-tracer'
+import { activeVoiceInput, getTraceSink } from '../../composables/use-trace'
+import { LOCAL_USER_ACTOR } from '../../composables/voice-input-trace'
 
 export interface HearingTranscriberTraceOptions {
   /**
-   * The span that each speech recognition span starts under.
+   * The domain IDs of what each recognition transcribes, for example the turn of a voice message.
    *
-   * @default the voice input that runs now
+   * @default the IDs of the voice input that runs now
    */
-  traceParent?: Span
+  ids?: TraceIds
 }
 
 /**
  * Converts provider output into complete transcript revisions. Each adapter owns its segmenters and cancellation.
  *
- * Each request records one speech recognition span. Completion records the final text, caller abort marks
- * the span as aborted, and a provider failure marks it as an error. Devtools and audio tests read this span.
+ * Each request records one span on the recognition track of the local user. Completion records the final text, caller
+ * abort ends the span as cancelled, and a provider failure ends it with an error. The tracer and audio tests read it.
  */
 export function createHearingTranscriber(
   invoke: (audio: Parameters<StreamingTranscriber['transcribe']>[0]['audio'], signal: AbortSignal) => Promise<HearingTranscriptionResult>,
@@ -39,7 +40,9 @@ export function createHearingTranscriber(
     let closed = false
     // Recognition belongs to what it transcribes: the turn that the caller names, such as the turn of a voice
     // message, or else the voice input that runs now. The microphone has one voice input at a time.
-    const span = startSpan(IOSpanNames.SpeechRecognition, options.traceParent ?? activeVoiceInputSpan.value, { [IOAttributes.Subsystem]: IOSubsystems.ASR })
+    const input = activeVoiceInput.value
+    const ids = options.ids ?? (input ? { [VoiceIdKeys.Input]: input.inputId, [VoiceIdKeys.Conversation]: input.sessionId } : undefined)
+    const span = beginSpan(getTraceSink(), { track: trackPath(VoiceTracks.ASR, { actor: LOCAL_USER_ACTOR }), name: VoiceNames.SpeechRecognition, ids })
 
     return new ReadableStream<TranscriptionEvent>({
       start: (output) => {
@@ -49,10 +52,9 @@ export function createHearingTranscriber(
 
           closed = true
           if (request.signal.aborted)
-            span.setAttribute(IOAttributes.ASRAbort, true)
+            span.end({ status: 'cancelled', reason: TraceEndReasons.Aborted })
           else
-            span.setStatus({ code: SpanStatusCode.ERROR, message: errorMessageFrom(error) ?? 'Speech recognition failed' })
-          span.end()
+            span.end({ status: 'error', message: errorMessageFrom(error) ?? 'Speech recognition failed' })
           output.error(error)
           cancelled.abort(error)
           void reader?.cancel(error).catch(() => {})
@@ -120,8 +122,7 @@ export function createHearingTranscriber(
 
             output.enqueue({ type: 'complete', revision })
             closed = true
-            span.setAttribute(IOAttributes.ASRText, text)
-            span.end()
+            span.end({ attrs: { [VoiceAttributes.ASRText]: text } })
             output.close()
           }
           catch (error) {

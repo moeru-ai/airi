@@ -4,11 +4,13 @@ import type { ResizeDirection } from '@proj-airi/electron-eventa'
 import type { ChatFloatingState, ChatWindowPreferences } from '../../shared/eventa'
 
 import { getElectronEventaContext, useElectronEventaInvoke, useElectronMouseAroundWindowBorder, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
+import { isElectronWindow } from '@proj-airi/stage-shared'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
+import { useBackdropSurface } from '@proj-airi/stage-ui/composables/backdrop-surface'
 import { useDanmakuFeedExpiry } from '@proj-airi/stage-ui/composables/use-danmaku-feed-expiry'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
-import { refDebounced, useEventListener, useFocusWithin, useLocalStorage, useMutationObserver, usePreferredReducedMotion } from '@vueuse/core'
+import { refDebounced, useElementSize, useEventListener, useFocusWithin, useLocalStorage, useMutationObserver, usePreferredReducedMotion } from '@vueuse/core'
 import { animate, createSpring } from 'animejs'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, onScopeDispose, shallowRef, useTemplateRef, watch } from 'vue'
@@ -32,10 +34,9 @@ import {
 import { chatHeaderButtonClass } from '../components/chat-window/chat-header-button'
 import { useChatDraftHandover } from '../composables/use-chat-draft-handover'
 import { dismissOverlays, useChatFloatingClickThrough } from '../composables/use-chat-floating-click-through'
-import { useWindowBackdrop } from '../composables/use-window-backdrop'
 import { useControlsIslandStore } from '../stores/controls-island'
 
-const backdropRoot = useTemplateRef<HTMLElement>('backdrop-root')
+const panel = useTemplateRef<HTMLElement>('panel')
 
 const { activeCard } = storeToRefs(useAiriCardStore())
 const sessionsDrawerOpen = shallowRef(false)
@@ -68,9 +69,11 @@ useChatDraftHandover(interactiveArea)
 // A free chat stays where the user drags it.
 const freePlacement = computed(() => state.value.placement === 'free')
 const danmaku = computed(() => state.value.danmaku)
-// The message feed has no glass. Its messages float over the desktop, so a
-// feed that fades out leaves nothing behind.
-useWindowBackdrop(backdropRoot, 'panel', () => !danmaku.value)
+// The message feed has no glass and no fill. Its messages float over the
+// desktop, so a feed that fades out leaves nothing behind.
+useBackdropSurface(panel, { enabled: () => !danmaku.value })
+// The window draws native glass only on macOS. See `services/electron/window-backdrop.ts`.
+const glassBackdrop = computed(() => isElectronWindow(window) && window.platform === 'darwin' && !danmaku.value)
 // The danmaku feed starts with its composer folded, because it is mostly read.
 const composerFolded = useLocalStorage('chat-window/danmaku/composer-folded', true)
 // Fade on hover, which the main window's controls island switches, turns the
@@ -120,11 +123,12 @@ const reducedMotion = usePreferredReducedMotion()
 // its dock up along the side of the character instead. A free chat has no character beside it.
 const verticalDock = computed(() => danmaku.value && state.value.placement === 'attached')
 
-// A dock that stands up rests as a narrow bar, as the home indicator of a phone, and opens when the cursor comes near.
-// The zone around it is transparent, so the page lets clicks through there. The main process reports where the cursor is.
+// A dock that stands up rests as a narrow bar, as the home indicator of a phone, and opens when the cursor reaches the
+// bar. The zone around it is transparent, so the page lets clicks through there. The main process reports where the
+// cursor is.
 const dockZone = useTemplateRef<HTMLElement>('dock-zone')
 const { isOutside: cursorAwayFromDock } = useElectronMouseInElement(dockZone)
-const cursorNearDock = computed(() => !cursorAwayFromDock.value)
+const cursorNearDock = shallowRef(false)
 // The dock waits a moment before it closes, so a cursor that slips off its edge does not make it flicker.
 const cursorNearDockLately = refDebounced(cursorNearDock, 400)
 const { focused: focusInDock } = useFocusWithin(dockZone)
@@ -142,20 +146,57 @@ useMutationObserver(dockZone, () => {
 const dockOpen = computed(() => !verticalDock.value || cursorNearDock.value || cursorNearDockLately.value || dockFocused.value || dockMenuOpen.value)
 
 const dockElement = useTemplateRef<HTMLElement>('dock')
+
+/** The padding of the zone along a dock that stands up, in pixels. It matches the `py-4` of the zone. */
+const DOCK_ZONE_PADDING = 16
+// A dock that stands up centers on the dock alone. The island below it only makes the zone longer, so the dock does
+// not move when the island buds off or goes back.
+const { height: dockHeight } = useElementSize(dockElement, undefined, { box: 'border-box' })
+const verticalDockZoneStyle = computed(() => ({ transform: `translateY(${-(DOCK_ZONE_PADDING + dockHeight.value / 2)}px)` }))
 /**
- * The bar of a closed dock: 3px wide and 56px tall, at the middle of the dock, on its side of the window edge.
+ * The bar of a closed dock: 8px wide and 56px tall, at the middle of the dock, on its side of the window edge.
  * The dock stands 10px from the edge, just past the hover scrollbar, so the bar sits between the scrollbar and the messages.
  */
-const DOCK_BAR = { width: 3, height: 56, edgeInset: 0 }
-const DOCK_OPEN_CLIP = 'inset(0px 0px 0px 0px round 999px)'
+const DOCK_BAR = { width: 8, height: 56, edgeInset: 0 }
+/**
+ * The clip of an open dock. It reaches 4px past the dock, so the focus ring of a button is not cut. The ring is 2px
+ * wide and 2px from the button, and the button is 2px inside the dock.
+ */
+const DOCK_OPEN_CLIP = 'inset(-4px -4px -4px -4px round 999px)'
+
+/** Where the bar of a closed dock sits in the dock, in pixels from its top left corner. */
+function dockBarBox(dock: HTMLElement) {
+  const top = (dock.offsetHeight - DOCK_BAR.height) / 2
+  const left = characterOnLeft.value ? DOCK_BAR.edgeInset : dock.offsetWidth - DOCK_BAR.edgeInset - DOCK_BAR.width
+  return { top, left, width: DOCK_BAR.width, height: DOCK_BAR.height }
+}
 
 /** The clip that leaves only the bar of the dock. */
 function dockBarClip(dock: HTMLElement) {
-  const along = (dock.offsetHeight - DOCK_BAR.height) / 2
-  const across = dock.offsetWidth - DOCK_BAR.edgeInset - DOCK_BAR.width
-  const [left, right] = characterOnLeft.value ? [DOCK_BAR.edgeInset, across] : [across, DOCK_BAR.edgeInset]
-  return `inset(${along}px ${right}px ${along}px ${left}px round 999px)`
+  const bar = dockBarBox(dock)
+  const right = dock.offsetWidth - bar.left - bar.width
+  const bottom = dock.offsetHeight - bar.top - bar.height
+  return `inset(${bar.top}px ${right}px ${bottom}px ${bar.left}px round 999px)`
 }
+
+// A closed dock opens only on its bar. The zone around the bar reaches over the edge of the messages, for example over
+// the actions button of a message, and an open dock slides the messages aside. An open dock stays open in the whole
+// zone, so the cursor can move from the bar onto the items and the island, and come back from one of its menus.
+const { elementX: cursorInDockX, elementY: cursorInDockY } = useElectronMouseInElement(dockElement)
+const cursorOnDockBar = computed(() => {
+  const dock = dockElement.value
+  if (!dock)
+    return false
+  const bar = dockBarBox(dock)
+  return cursorInDockX.value >= bar.left && cursorInDockX.value <= bar.left + bar.width
+    && cursorInDockY.value >= bar.top && cursorInDockY.value <= bar.top + bar.height
+})
+watch([cursorOnDockBar, cursorAwayFromDock], ([onBar, away]) => {
+  if (away)
+    cursorNearDock.value = false
+  else if (onBar || dockOpen.value)
+    cursorNearDock.value = true
+})
 
 /** The items of the dock in their order along it: the buttons, the separator, and the buttons of the group. */
 function dockItems(dock: HTMLElement) {
@@ -174,8 +215,11 @@ let dockAnimations: Array<ReturnType<typeof animate>> = []
  * dock from under the cursor, so the window lets clicks through there at once.
  *
  * The bar sits on the side of the dock toward the character, so a switch of the attached side moves it too.
+ *
+ * The content hides while the chat folds or moves, and a hidden dock has no size, so its bar has no place. The dock
+ * takes its state once it shows and has its size again.
  */
-watch([verticalDock, dockOpen, characterOnLeft], async ([vertical, open, onLeft], previous) => {
+watch([verticalDock, dockOpen, characterOnLeft, dockHeight], async ([vertical, open, onLeft, height], previous) => {
   await nextTick()
   const dock = dockElement.value
   if (!dock)
@@ -194,9 +238,12 @@ watch([verticalDock, dockOpen, characterOnLeft], async ([vertical, open, onLeft]
   }
   // The items never move. A transform left by an animation that stopped early would shift them.
   items.forEach(item => item.style.removeProperty('transform'))
+  if (!height)
+    return
   const target = open ? DOCK_OPEN_CLIP : dockBarClip(dock)
-  // A dock that only now stands up, a dock that changes sides, or a reduced motion takes the state at once.
-  if (!previous?.[0] || previous[2] !== onLeft || reducedMotion.value === 'reduce') {
+  // A dock that only now stands up or shows, a dock that changes sides or size, or a reduced motion takes the state at
+  // once.
+  if (!previous?.[0] || previous[2] !== onLeft || previous[3] !== height || reducedMotion.value === 'reduce') {
     dock.style.clipPath = target
     items.forEach(item => item.style.opacity = open ? '' : '0')
     hitTest({ removed: !open })
@@ -447,24 +494,26 @@ function moveByKeyboard(delta: WindowDelta) {
     >
       <div
         v-show="contentShown"
-        ref="backdrop-root"
-        data-window-backdrop-surface
-        data-window-backdrop-floating-background
-        :class="['absolute inset-0 flex flex-col gap-1 rounded-3xl pt-3']"
+        ref="panel"
+        :class="[
+          'absolute inset-0 flex flex-col gap-1 rounded-3xl pt-3',
+          danmaku ? '' : 'bg-white/80 dark:bg-neutral-900/80',
+        ]"
       >
         <!--
           The dock sits on the side away from the character. A character on the left mirrors the row and the dock, so
           the fold button stays at the outer end. A dock that stands up sits at the middle of the side of the character,
           with the island of the feed below it. Closed, it shrinks into a narrow bar. The dock stands 10px from the window
-          edge, past the 10px hover scrollbar there, so it never covers the scrollbar. Its 16px padding on the other
-          sides is the zone where the cursor opens it, so the scrollbar never opens it. The zone takes no pointer, so the
-          history under it still takes hover, wheel, and clicks.
+          edge, past the 10px hover scrollbar there, so it never covers the scrollbar. Closed, only its bar opens it. Its
+          16px padding on the other sides is the zone that keeps an open dock open, and the scrollbar is outside it. The
+          zone takes no pointer, so the history under it still takes hover, wheel, and clicks.
         -->
         <div
           ref="dock-zone"
           :class="verticalDock
-            ? ['pointer-events-none absolute top-1/2 z-10 w-12 flex flex-col items-center gap-2 py-4 -translate-y-1/2', characterOnLeft ? 'left-2.5 pr-4' : 'right-2.5 pl-4']
+            ? ['pointer-events-none absolute top-1/2 z-10 w-12 flex flex-col items-center gap-2 py-4', characterOnLeft ? 'left-2.5 pr-4' : 'right-2.5 pl-4']
             : ['flex items-center gap-2 px-4', characterOnLeft ? 'flex-row-reverse' : '']"
+          :style="verticalDock ? verticalDockZoneStyle : undefined"
         >
           <!--
             The dock stays over the island, so the island can hide under its edge. A dock that stands up draws its
@@ -574,10 +623,15 @@ function moveByKeyboard(delta: WindowDelta) {
         </div>
 
         <div :class="['relative min-h-0 flex-1']">
+          <!--
+            TODO: When Windows and Linux draw native glass behind a transparent window, the floating panel there can
+            use the chat window surfaces too. Then `glassBackdrop` only needs to check the danmaku feed.
+          -->
           <InteractiveArea
             ref="interactive-area"
             v-model:composer-folded="composerFolded"
             floating
+            :glass-backdrop="glassBackdrop"
             :composer-foldable="danmaku"
             :dock-side="verticalDock && dockOpen ? (characterOnLeft ? 'left' : 'right') : undefined"
             :right-resize-band="state.resizeEdges.includes('e') ? RESIZE_BAND : undefined"

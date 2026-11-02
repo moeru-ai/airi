@@ -1,6 +1,12 @@
 catalogMode: prefer
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
+  # NOTICE:
+  # Install the CVE-2026-111497 fix before the release-age delay ends.
+  # Electron 43.8.4 includes the patched Node.js 24.22.1 runtime.
+  # Source: https://releases.electronjs.org/release/v43.8.4
+  # Remove this exception after 2026-10-30T18:05:12Z.
+  - electron@43.8.4
   # Packages from the AIRI team must always be trusted
   - '@auv-js/*'
   - '@gd-kirie/*'
@@ -65,8 +71,8 @@ catalog:
   '@anthropic-ai/claude-code': ^2.1.241
   '@apple/app-store-server-library': ^3.1.0
   '@arethetypeswrong/core': ^0.18.5
-  '@auv-js/cli': 0.0.38
-  '@auv-js/sdk': 0.0.38
+  '@auv-js/cli': 0.0.40
+  '@auv-js/sdk': 0.0.40
   '@aws-sdk/client-s3': ^3.1135.0
   '@aws-sdk/s3-request-presigner': ^3.1135.0
   '@ax-llm/ax': ^24.0.5
@@ -94,7 +100,7 @@ catalog:
   '@electron-toolkit/tsconfig': ^2.0.0
   '@electron-toolkit/utils': ^4.0.0
   '@electron/notarize': ^3.1.1
-  '@ergosphere-it/electron': ^0.0.12
+  '@ergosphere-it/electron': ^0.0.16
   '@esotericsoftware/spine-webgl': ~4.2.0
   '@esotericsoftware/spine-webgl-4-0': npm:@esotericsoftware/spine-webgl@~4.0.31
   '@esotericsoftware/spine-webgl-4-1': npm:@esotericsoftware/spine-webgl@~4.1.56
@@ -105,11 +111,11 @@ catalog:
   '@fontsource-variable/nunito': ^5.3.0
   '@fontsource-variable/quicksand': ^5.3.0
   '@fontsource-variable/urbanist': ^5.3.0
-  '@fontsource/dm-mono': ^5.3.0
   '@fontsource/dm-serif-display': ^5.3.0
   '@fontsource/gugi': ^5.3.0
   '@fontsource/kiwi-maru': ^5.3.0
   '@fontsource/m-plus-rounded-1c': ^5.3.0
+  '@fontsource/maple-mono': ^5.3.0
   '@formkit/auto-animate': ^0.10.0
   '@google/genai': ^2.30.0
   '@grammyjs/files': ^1.2.0
@@ -153,7 +159,6 @@ catalog:
   '@opentelemetry/api': ^1.9.1
   '@opentelemetry/api-logs': ^0.221.0
   '@opentelemetry/auto-instrumentations-node': ^0.79.0
-  '@opentelemetry/core': ^2.10.0
   '@opentelemetry/exporter-logs-otlp-proto': ^0.221.0
   '@opentelemetry/exporter-metrics-otlp-proto': ^0.221.0
   '@opentelemetry/exporter-trace-otlp-proto': ^0.221.0
@@ -167,7 +172,6 @@ catalog:
   '@opentelemetry/sdk-logs': ^0.221.0
   '@opentelemetry/sdk-metrics': ^2.10.0
   '@opentelemetry/sdk-node': ^0.221.0
-  '@opentelemetry/sdk-trace-base': ^2.10.0
   '@opentelemetry/sdk-trace-node': ^2.10.0
   '@opentelemetry/semantic-conventions': ^1.43.0
   '@openuidev/lang-core': 0.4.1
@@ -190,11 +194,11 @@ catalog:
   '@pixiv/three-vrm-animation': ^3.5.5
   '@pixiv/three-vrm-core': ^3.5.5
   '@pnpm/find-workspace-dir': ^1000.1.5
-  '@proj-airi/chromatic': ^1.1.4
+  '@proj-airi/chromatic': ^2.0.1
   '@proj-airi/drizzle-duckdb-wasm': ^0.6.0
   '@proj-airi/iconify-meteocons': ^0.1.5
   '@proj-airi/lobe-icons': ^1.0.19
-  '@proj-airi/unocss-preset-chromatic': ^1.1.4
+  '@proj-airi/unocss-preset-chromatic': ^2.0.1
   '@proj-airi/unplugin-fetch': ^0.2.3
   '@proj-airi/unplugin-live2d-sdk': ^0.1.7
   '@revenuecat/purchases-js': ^1.15.0
@@ -303,7 +307,7 @@ catalog:
   drizzle-kit: ^0.31.10
   drizzle-orm: ^0.45.2
   drizzle-valibot: ^0.4.2
-  electron: ^43.4.1
+  electron: ^43.8.4
   electron-builder: ^26.16.1
   electron-click-drag-plugin: ^2.0.2
   electron-vite: ^6.0.0
@@ -371,7 +375,7 @@ catalog:
   p-limit: ^7.3.1
   pg: ^8.23.0
   pinia: ^4.0.3
-  pinia-plugin-synced: ^0.1.6
+  pinia-plugin-synced: ^0.1.7
   pixi-filters: ^4.2.0
   pixi-live2d-display: ^0.4.0
   playwright: ^1.62.1

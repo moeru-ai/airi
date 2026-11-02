@@ -57,6 +57,7 @@ vi.mock('../../libs/chat-sync', async importOriginal => ({
   ...await importOriginal<typeof import('../../libs/chat-sync')>(),
   createCloudChatMapper: () => ({
     deleteChat: vi.fn().mockResolvedValue(undefined),
+    updateChat: vi.fn().mockResolvedValue(undefined),
     createChat: async (options: { id: string }) => ({ id: options.id, type: 'bot', title: null, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' }),
     listChats: vi.fn().mockResolvedValue([]),
   }),
