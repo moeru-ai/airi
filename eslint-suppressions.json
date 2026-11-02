@@ -104,11 +104,6 @@
       "count": 1
     }
   },
-  "apps/stage-tamagotchi/src/renderer/bridges/io-trace-hub.ts": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
   "apps/stage-tamagotchi/src/renderer/pages/devtools/use-electron-all-displays.vue": {
     "ts/no-explicit-any": {
       "count": 1
@@ -584,11 +579,6 @@
       "count": 1
     }
   },
-  "packages/stage-shared/src/perf/io-trace.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
   "packages/stage-shared/src/perf/tracer.ts": {
     "ts/no-explicit-any": {
       "count": 5
@@ -709,11 +699,6 @@
       "count": 6
     }
   },
-  "packages/stage-ui/src/composables/use-io-tracer.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
   "packages/stage-ui/src/composables/use-provider-validation.ts": {
     "ts/no-explicit-any": {
       "count": 2
@@ -760,11 +745,6 @@
     }
   },
   "packages/stage-ui/src/stores/background.ts": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "packages/stage-ui/src/stores/devtools/io-tracer.ts": {
     "ts/no-explicit-any": {
       "count": 2
     }
