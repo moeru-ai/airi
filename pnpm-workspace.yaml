@@ -80,12 +80,12 @@ catalog:
   '@better-auth/drizzle-adapter': 1.6.25
   '@better-auth/oauth-provider': 1.6.25
   '@better-fetch/fetch': ^1.3.1
-  '@capacitor/android': ^8.5.0
+  '@capacitor/android': ^8.6.0
   '@capacitor/app': ^8.1.1
   '@capacitor/barcode-scanner': ^3.1.1
-  '@capacitor/cli': ^8.5.0
-  '@capacitor/core': ^8.5.0
-  '@capacitor/ios': ^8.5.0
+  '@capacitor/cli': ^8.6.0
+  '@capacitor/core': ^8.6.0
+  '@capacitor/ios': ^8.6.0
   '@capacitor/keyboard': ^8.0.5
   '@capacitor/local-notifications': ^8.3.1
   '@cortex-js/compute-engine': ^0.153.0
