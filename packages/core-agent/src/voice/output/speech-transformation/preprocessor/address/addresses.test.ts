@@ -11,6 +11,8 @@ describe('speakAddress', () => {
     ['https://a.io/x?token=1#top', 'zh', 'https a 点 io 斜杠 x'],
     ['example.com?token=1', 'en', 'example dot com'],
     ['http://localhost:8123', 'en', 'http localhost port 8123'],
+    ['http://[::1]:8123', 'en', 'http [::1] port 8123'],
+    ['file:///home/user/notes.md', 'en', 'file slash home slash user slash notes dot md'],
     ['https://example.com/文档/指南', 'zh', 'https example 点 com 斜杠 文档 斜杠 指南'],
   ] as const)('reads %s in %s', (text, language, speech) => {
     expect(speakAddress(text, language)).toBe(speech)
