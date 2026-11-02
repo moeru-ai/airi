@@ -151,6 +151,10 @@ Use pnpm workspace filters to limit a command to one workspace. Replace `<packag
 - Use Conventional Commits, for example `feat(<package name>): add runner reconnect backoff`. Do not use gitmoji.
 - Name branches `username/feat/short-name`.
 - Rebase when you pull.
+- Use HTTPS for all GitHub access. Do not use SSH remotes. `gh` supplies the credentials.
+- If `origin` uses SSH, run `git remote set-url origin https://github.com/moeru-ai/airi.git`.
+- To update `main` and `origin/main`, run `gh repo sync --source moeru-ai/airi --branch main` in the main checkout. Then rebase on `origin/main`.
+- To push a branch, run `git push` to the HTTPS `origin`, because `gh` has no push command.
 - To create, open, publish, or prepare a pull request, use the [`create-pr`](.agents/skills/create-pr/SKILL.md) skill. It also covers visual evidence and review follow-up.
 
 ## Task Routing
