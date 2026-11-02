@@ -60,7 +60,7 @@ export {
   pausedSignal,
   speechActivitySignal,
 } from './policy/events'
-export { createEndJudgementRule, createPauseRule, createSpeechActivityRule } from './policy/rules'
+export { createEndJudgementRule, createPauseRule, createSpeechActivityRule, DEFAULT_SPEECH_THRESHOLD } from './policy/rules'
 export type { PauseRuleOptions, SpeechActivityRuleOptions } from './policy/rules'
 export type { Emission, InputRevisions, RevisionMetadata, RuleContext, RuleStep, VoiceCommand, VoiceRule } from './policy/types'
 export { turnKey } from './turn'

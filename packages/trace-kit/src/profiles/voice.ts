@@ -91,6 +91,8 @@ export const VoiceAttributes = {
   WakeTokens: 'voice.wake.tokens',
   SpeechDurationMs: 'voice.speech.duration_ms',
   VADAborted: 'voice.vad.aborted',
+  /** The VAD probability that begins speech, on the input span. The viewer draws it as a dashed line over the probability. */
+  VADThreshold: 'voice.vad.threshold',
   SpeakerScore: 'voice.speaker.score',
   SpeakerScores: 'voice.speaker.scores',
   SpeakerVoicedMs: 'voice.speaker.voiced_ms',
