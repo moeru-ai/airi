@@ -142,12 +142,22 @@ describe('toSpeechText', () => {
   })
 
   it('reads a web address in code with the words of its sentence', () => {
-    // The TTS chunker split `assistant.ihome.cat` at each dot, and the voice read the parts with a pause after each.
-    expect(toSpeechText('连接 Home Assistant 地址 `https://assistant.ihome.cat` 时，网络请求失败（`fetch failed`）。'))
-      .toBe('连接 Home Assistant 地址 https assistant 点 ihome 点 cat 时，网络请求失败（fetch failed）。')
-    expect(toSpeechText('Open `https://assistant.ihome.cat` now.')).toBe('Open https assistant dot ihome dot cat now.')
-    expect(toSpeechText('链接 <https://assistant.ihome.cat> 在这。')).toBe('链接 https assistant 点 ihome 点 cat 在这。')
-    expect(toSpeechText('看 [https://assistant.ihome.cat](https://assistant.ihome.cat) 这页。')).toBe('看 https assistant 点 ihome 点 cat 这页。')
+    // The TTS chunker split `home.example.com` at each dot, and the voice read the parts with a pause after each.
+    expect(toSpeechText('连接 Home Assistant 地址 `https://home.example.com` 时，网络请求失败（`fetch failed`）。'))
+      .toBe('连接 Home Assistant 地址 https home 点 example 点 com 时，网络请求失败（fetch failed）。')
+    expect(toSpeechText('Open `https://home.example.com` now.')).toBe('Open https home dot example dot com now.')
+    expect(toSpeechText('链接 <https://home.example.com> 在这。')).toBe('链接 https home 点 example 点 com 在这。')
+    expect(toSpeechText('看 [https://home.example.com](https://home.example.com) 这页。')).toBe('看 https home 点 example 点 com 这页。')
+  })
+
+  it('reads an address in the language of a one-character sentence', () => {
+    expect(toSpeechText('看 `https://a.io`。', { language: 'zh' })).toBe('看 https a 点 io。')
+    expect(toSpeechText('看 <https://a.io>。', { language: 'zh' })).toBe('看 https a 点 io。')
+  })
+
+  it('reads a formula in the language of a one-character sentence', () => {
+    // A voice in English read this formula in English before, because 看 alone was not a sentence.
+    expect(toSpeechText('看 $x^2$。', { language: 'en' })).toBe('看 x的平方。')
   })
 
   it('keeps an address in prose and code that is more than one address', () => {
@@ -172,7 +182,7 @@ describe('toSpeechText', () => {
   })
 
   it('reads the display text of a link, without its attributes', () => {
-    expect(toSpeechText('看 [配置说明 | 显示 {.note}](https://assistant.ihome.cat/config) 这一页。')).toBe('看 显示 这一页。')
+    expect(toSpeechText('看 [配置说明 | 显示 {.note}](https://home.example.com/config) 这一页。')).toBe('看 显示 这一页。')
     expect(toSpeechText('Read [the guide](https://e.com){.note #intro} first.')).toBe('Read the guide first.')
     expect(toSpeechText('Keep {braces} in prose.')).toBe('Keep {braces} in prose.')
   })

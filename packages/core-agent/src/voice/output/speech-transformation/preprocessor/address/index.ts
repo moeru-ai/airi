@@ -6,7 +6,7 @@ export { speakAddress } from './addresses'
 
 /**
  * Reads an inline code or a link text that is one web address as words of its sentence, for example
- * `https://assistant.ihome.cat` as `https assistant 点 ihome 点 cat`. An address in prose stays as written.
+ * `https://home.example.com` as `https home 点 example 点 com`. An address in prose stays as written.
  */
 export function addressSpeechPreprocessor(): SpeechPreprocessor {
   return {

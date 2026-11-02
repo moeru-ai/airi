@@ -4,9 +4,9 @@ import { speakAddress } from './addresses'
 
 describe('speakAddress', () => {
   it.each([
-    ['https://assistant.ihome.cat', 'zh', 'https assistant 点 ihome 点 cat'],
-    ['https://assistant.ihome.cat', 'en', 'https assistant dot ihome dot cat'],
-    ['http://10.0.0.9:8123/config/areas', 'zh', 'http 10 点 0 点 0 点 9 端口 8123 斜杠 config 斜杠 areas'],
+    ['https://home.example.com', 'zh', 'https home 点 example 点 com'],
+    ['https://home.example.com', 'en', 'https home dot example dot com'],
+    ['http://192.0.2.10:8123/config/areas', 'zh', 'http 192 点 0 点 2 点 10 端口 8123 斜杠 config 斜杠 areas'],
     ['example.com/docs', 'en', 'example dot com slash docs'],
     ['https://a.io/x?token=1#top', 'zh', 'https a 点 io 斜杠 x'],
     ['example.com?token=1', 'en', 'example dot com'],
@@ -18,7 +18,7 @@ describe('speakAddress', () => {
     expect(speakAddress('curl https://a.io', 'en')).toBeUndefined()
     expect(speakAddress('3.14', 'en')).toBeUndefined()
     expect(speakAddress('v1.2.3', 'en')).toBeUndefined()
-    expect(speakAddress('neko@ihome.cat', 'en')).toBeUndefined()
+    expect(speakAddress('user@example.com', 'en')).toBeUndefined()
     expect(speakAddress('fetch failed', 'en')).toBeUndefined()
   })
 

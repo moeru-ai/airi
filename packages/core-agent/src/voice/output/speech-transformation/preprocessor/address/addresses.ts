@@ -7,7 +7,7 @@ const host = String.raw`(?:${domain}|localhost|\d{1,3}(?:\.\d{1,3}){3})`
 /** A path, query, or fragment ends at a space, a quote, or CJK punctuation. */
 const pathCharacters = String.raw`[^\s<>"'\x60，。、；：！？）」』]*`
 /**
- * A text that is one address: with a scheme, for example `https://assistant.ihome.cat:8123/config`, or a domain without
+ * A text that is one address: with a scheme, for example `https://home.example.com:8123/config`, or a domain without
  * one, for example `example.com/docs`. A domain without a scheme needs a top-level domain, so `3.14` is not an address.
  */
 const address = new RegExp(String.raw`^(?:[a-z][a-z0-9+.-]*:\/\/${host}|${domain})(?::\d+)?(?:[/?#]${pathCharacters})?$`, 'iu')
@@ -37,7 +37,7 @@ function speakParts(text: string, language: string): string {
 /**
  * Reads a text that is one web address as words of `language`, or returns `undefined` for other text.
  *
- * The TTS chunker ends a chunk at each `.`, so `assistant.ihome.cat` was three requests with a pause after each part.
+ * The TTS chunker ends a chunk at each `.`, so `home.example.com` was three requests with a pause after each part.
  */
 export function speakAddress(text: string, language: string): string | undefined {
   const trimmed = text.trim()

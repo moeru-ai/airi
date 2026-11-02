@@ -50,6 +50,8 @@ export function defaultSpeechPreprocessors(): SpeechPreprocessor[] {
 const asciiOperand = /^[A-Z0-9]$/i
 /** A sentence ends at these characters. The words of the sentence select the language of its formulas. */
 const sentenceEnd = /[.!?。！？\n]/
+/** A word is two letters, or one CJK character, which can be a word alone, as 看. */
+const word = /\p{L}{2,}|[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u
 /** One Pandoc or markdown-it attribute, for example `.note`, `#intro`, or `width=300`. */
 const attributeSource = String.raw`(?:[.#][\w-]+|[\w-]+=[^\s}]*)`
 /** An attribute list, for example `{.note #intro}`. It has no sound. */
@@ -172,9 +174,9 @@ function compile(tree: Root, source: string, options: SpeechTextOptions | undefi
     const before = nodes.slice(0, index).map(plain).join('')
     const after = nodes.slice(index + 1).map(plain).join('')
     const sentence = before.split(sentenceEnd).at(-1)! + after.split(sentenceEnd)[0]!
-    if (/\p{L}{2,}/u.test(sentence))
+    if (word.test(sentence))
       return sentence
-    return /\p{L}{2,}/u.test(before + after) ? before + after : options?.before ?? ''
+    return word.test(before + after) ? before + after : options?.before ?? ''
   }
 
   function blocks(nodes: readonly RootContent[]): string {
@@ -213,8 +215,7 @@ function compile(tree: Root, source: string, options: SpeechTextOptions | undefi
 
   function inline(node: PhrasingContent, siblings: readonly PhrasingContent[], index: number, outer: string, link: boolean): string {
     const around = () => sentenceAround(siblings, index) + outer
-    // A single-character word, as 看 in `看 ![[clip.mp4]]`, is not a sentence for `sentenceAround`.
-    const language = () => detectSpeechLanguage(around() + siblings.map(plain).join(''), fallback)
+    const language = () => detectSpeechLanguage(around(), fallback)
 
     switch (node.type) {
       case 'text': {

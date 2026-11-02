@@ -318,7 +318,7 @@ A producer streams its text to TTS by segments. `MarkdownSegmenter` ends a segme
 So an answer starts to speak after its first sentence, and a formula that later writes complete is still read as one formula.
 Symbols that markdown keeps as text, for example `2 * 3` and `x ~= 3`, stay in the speech text.
 TeX formulas, `\ce{}` chemistry, units, and dollar prices are read as words of the sentence language: Chinese, English, Japanese, or Korean.
-An inline code or a link text that is one web address is read as words, for example `https://assistant.ihome.cat` as `https assistant 点 ihome 点 cat` in Chinese and `https assistant dot ihome dot cat` in English. Other languages use the English words. An address in prose stays as written.
+An inline code or a link text that is one web address is read as words, for example `https://home.example.com` as `https home 点 example 点 com` in Chinese and `https home dot example dot com` in English. Other languages use the English words. An address in prose stays as written.
 Obsidian links read as the text that Obsidian shows. `[[Note|Alias]]` reads `Alias`, `[[Note#Heading]]` reads `Note Heading`, and `![[shot.png]]` reads the word for an image, audio, video, or PDF file. An image without alternative text also reads as an image.
 The rules are in [`@proj-airi/speech-transformer-math`](../speech-transformer-math) and [`@proj-airi/speech-transformer-chem`](../speech-transformer-chem), see [the ADR](../../docs/ai/adr/2026-10-20-speech-text-preprocessor.md).
 `mathSpeech` is the instance that AIRI uses: the built-in locale packs, with chemistry.
