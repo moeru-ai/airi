@@ -1,7 +1,7 @@
 import type { AiriCard } from './airi-card'
 
-import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createPinia, disposePinia, setActivePinia } from 'pinia'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { toRaw } from 'vue'
 
 import { splitCard } from '../../libs/character-card-sync'
@@ -96,14 +96,22 @@ vi.mock('vue-i18n', () => ({
 }))
 
 describe('airi-card store', () => {
+  let testPinia: ReturnType<typeof createPinia>
+
   beforeEach(() => {
-    setActivePinia(createPinia())
+    testPinia = createPinia()
+    setActivePinia(testPinia)
     resetArtistryToGlobal.mockClear()
     useSpeechStore().$patch({
       activeSpeechProvider: 'mock-speech-provider',
       activeSpeechModel: 'mock-speech-model',
       activeSpeechVoiceId: 'mock-speech-voice',
     })
+  })
+
+  // A store action makes its Pinia active. Work that outlives a test must not make the next test read stale stores.
+  afterEach(() => {
+    disposePinia(testPinia)
   })
 
   // ROOT CAUSE:

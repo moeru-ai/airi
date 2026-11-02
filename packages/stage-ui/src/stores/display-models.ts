@@ -343,9 +343,10 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   /** Queues a local model for upload. Calling it again after a failure retries the upload. */
   async function uploadDisplayModel(id: string) {
     const model = displayModels.value.find(item => item.id === id)
-    if (model?.type !== 'file' || !syncableFormats.includes(model.format))
+    const ownerId = resolveCloudOwnerId(pinia)
+    if (!ownerId || model?.type !== 'file' || !syncableFormats.includes(model.format))
       return
-    await cloud.queueUpload(id)
+    await cloud.queueUpload(id, ownerId)
   }
 
   /**

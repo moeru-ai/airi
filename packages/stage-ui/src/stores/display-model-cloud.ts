@@ -286,11 +286,15 @@ export const useDisplayModelCloudStore = defineStore('display-model-cloud', () =
     await runner.request()
   }
 
-  /** Queues a local model for upload. Calling it again after a failure retries the upload. */
-  async function queueUpload(id: string) {
-    if (!queueOwnerId)
+  /**
+   * Queues a local model for upload. Calling it again after a failure retries the upload.
+   * The caller names the account that requested the upload. The session can change while
+   * this action waits for a run, and the queue must not take the file for another account.
+   */
+  async function queueUpload(id: string, requestedOwnerId: string) {
+    if (queueOwnerId !== requestedOwnerId)
       await runner.request()
-    if (!queueOwnerId)
+    if (queueOwnerId !== requestedOwnerId)
       return
 
     if (uploads.value[id] === 'failed') {

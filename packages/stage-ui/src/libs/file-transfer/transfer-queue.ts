@@ -81,7 +81,11 @@ export class TransferQueue {
     if (!this.ownerId)
       throw new Error('The transfer queue has no active account')
     const task: TransferTask = { ...input, ownerId: this.ownerId, status: 'queued' }
+    const generation = this.generation
     await this.storage.save(task)
+    // The account changed during the write. The task stays stored for its own account.
+    if (generation !== this.generation)
+      return
     this.track(task)
     void this.drain()
   }

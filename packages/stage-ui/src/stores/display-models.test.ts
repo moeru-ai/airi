@@ -445,6 +445,18 @@ describe('display models store', () => {
       expect(uploadSignal?.aborted).toBe(true)
     })
 
+    // The queue action can wait for a run, and the session can change before it continues.
+    it('does not queue a file of one account for another account', async () => {
+      await startWithModel()
+      signIn('owner-b')
+
+      await useDisplayModelCloudStore().queueUpload(modelId, 'owner-a')
+      await flush()
+
+      expect(reserveDisplayModelUpload).not.toHaveBeenCalled()
+      expect(useDisplayModelCloudStore().uploads).toEqual({})
+    })
+
     it('clears the directory of the previous account after a sign-out', async () => {
       const store = await startWithModel({}, [directoryEntry()])
       expect(store.cloudModels).toHaveLength(1)

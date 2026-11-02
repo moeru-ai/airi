@@ -142,4 +142,27 @@ describe('transferQueue', () => {
     await vi.waitFor(() => expect(statuses.get('transient')).toBe('removed'))
     expect(statuses.get('refused')).toBe('failed')
   })
+
+  it('does not run a task under another account when the account changes during its first write', async () => {
+    const { saved, storage } = createStorage()
+    const write = deferred()
+    const handler = vi.fn(async () => {})
+    const queue = new TransferQueue({ upload: handler }, {
+      ...storage,
+      save: async (task) => {
+        await write.promise
+        await storage.save(task)
+      },
+    })
+    await queue.activate('owner-a')
+
+    const enqueued = queue.enqueue({ id: 'task', kind: 'upload', payload: null })
+    await queue.activate('owner-b')
+    write.resolve()
+    await enqueued
+    await flush()
+
+    expect(handler).not.toHaveBeenCalled()
+    expect(saved.get('task')?.ownerId).toBe('owner-a')
+  })
 })
