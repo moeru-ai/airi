@@ -5,8 +5,10 @@ import icon from '../../../../resources/icon.png?asset'
 
 import { showWindow } from '../../libs/electron/focus'
 import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
+import { createWindowContext } from '../../libs/electron/window-context'
 import { createReusableWindow } from '../../libs/electron/window-manager'
-import { protectPrivilegedWindowNavigation } from '../shared'
+import { createWindowService } from '../../services/electron'
+import { customTitleBarWindowConfig, protectPrivilegedWindowNavigation } from '../shared'
 
 export interface OpenDevtoolsWindowParams extends Partial<Electron.Rectangle> {
   key: string
@@ -35,6 +37,7 @@ export function setupDevtoolsWindow(): DevtoolsWindowManager {
         minHeight: 480,
         show: false,
         icon,
+        ...customTitleBarWindowConfig(),
         webPreferences: {
           preload: getPreloadPath(),
           // Preload exposes Electron APIs and needs Node access.
@@ -49,6 +52,10 @@ export function setupDevtoolsWindow(): DevtoolsWindowManager {
       })
       protectPrivilegedWindowNavigation(window)
       initScreenCaptureForWindow(window)
+
+      // The self-drawn title bar is the only way to close this window, so its page must reach the window controls.
+      const { context } = createWindowContext(window)
+      createWindowService({ context, window })
 
       await load(window, withHashRoute(baseUrl(getRendererRoot()), route, {
         query: { 'synced-leader': 'false' },

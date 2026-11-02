@@ -15,6 +15,8 @@ import { DrawerContent, DrawerDescription, DrawerHandle, DrawerOverlay, DrawerPo
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import WindowTitleBar from '../components/Window/TitleBar.vue'
+
 import { electronAppGetVersion, electronGetUpdaterPreferences, electronSetUpdaterPreferences } from '../../shared/eventa'
 import { channelOfVersion, updateChannels } from '../../shared/update-channels'
 
@@ -323,12 +325,14 @@ onMounted(() => {
     :class="[
       'min-h-100dvh',
       'min-w-100dvw',
+      'pt-11',
       'bg-neutral-50/80',
       'text-neutral-800',
       'dark:bg-neutral-900',
       'dark:text-neutral-100',
     ]"
   >
+    <WindowTitleBar :title="t('tamagotchi.stage.window.titles.about')" icon="i-solar:info-circle-bold" />
     <div :class="['mx-auto max-w-[min(960px,calc(100%-2rem))]', 'p-6']">
       <AboutContent
         title="Project"
