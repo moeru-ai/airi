@@ -66,6 +66,7 @@ docs:
   danmaku: 弹幕机
   pin: 保持置顶
   fold: 收起聊天
+  conversations: 对话
   composer:
     show: 展开输入框
     hide: 收起输入框
@@ -87,6 +88,14 @@ widgets:
   waiting: 正在等待小部件 "{id}" 的数据…
 inlay:
   dismiss: 关闭
+window:
+  minimize: 最小化
+  maximize: 最大化
+  restore: 还原
+  close: 关闭
+  titles:
+    about: 关于 AIRI
+    editor: AIRI 编辑器
 notice:
   'fade-on-hover':
     title: 悬停淡出

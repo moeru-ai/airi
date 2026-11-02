@@ -585,7 +585,7 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
-    <VoiceCallCapsule persistent />
+    <VoiceCallCapsule placement="below-header" />
     <div
       v-show="viewControlsEnabled"
       data-testid="view-controls-toolbar"

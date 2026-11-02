@@ -67,6 +67,7 @@ docs:
   danmaku: Message feed
   pin: Keep on top
   fold: Hide chat
+  conversations: Conversations
   composer:
     show: Show the message box
     hide: Hide the message box
@@ -90,6 +91,15 @@ widgets:
 
 inlay:
   dismiss: Dismiss
+
+window:
+  minimize: Minimize
+  maximize: Maximize
+  restore: Restore
+  close: Close
+  titles:
+    about: About AIRI
+    editor: AIRI Editor
 
 notice:
   'fade-on-hover':

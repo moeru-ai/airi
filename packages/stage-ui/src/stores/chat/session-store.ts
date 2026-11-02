@@ -9,7 +9,7 @@ import type { ChatSessionMeta, ChatSessionRecord, ChatSessionsExport, ChatSessio
 import { errorMessageFrom } from '@moeru/std'
 import { cloneDeep } from 'es-toolkit'
 import { nanoid } from 'nanoid'
-import { defineStore, storeToRefs } from 'pinia'
+import { defineStore, getActivePinia, storeToRefs } from 'pinia'
 import { computed, ref, toRaw, watch } from 'vue'
 
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
@@ -65,6 +65,9 @@ const useChatSessionSelectionStore = defineStore('chat-session-selection', () =>
 })
 
 export const useChatSessionStore = defineStore('chat-session', () => {
+  // A watcher or an await runs outside the setup of this store. The active
+  // Pinia can then be another one, so keep the Pinia that owns this store.
+  const pinia = getActivePinia()
   const { userId, token: authToken } = storeToRefs(useAuthStore())
   const cards = useAiriCardStore()
   const { activeCardId } = storeToRefs(cards)
@@ -810,7 +813,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       activeSessionId.value = characterIndex.activeSessionId
       // Use the public action so follower hydration is routed to the elected
       // leader instead of becoming a stale full-state proposal.
-      await useChatSessionStore().loadSession(characterIndex.activeSessionId)
+      await useChatSessionStore(pinia).loadSession(characterIndex.activeSessionId)
       return characterIndex.activeSessionId
     })()
     try {
@@ -1542,7 +1545,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
     initializing.value = true
     initializePromise = (async () => {
-      const sessionId = await useChatSessionStore().ensureCurrentSession()
+      const sessionId = await useChatSessionStore(pinia).ensureCurrentSession()
       if (sessionId)
         activeSessionId.value = sessionId
       else
@@ -1610,7 +1613,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     activeSessionId.value = sessionId
 
     if (ready.value)
-      await useChatSessionStore().loadSession(sessionId)
+      await useChatSessionStore(pinia).loadSession(sessionId)
     else if (!hasKnownSession(sessionId))
       ensureSession(sessionId)
   }
@@ -1907,7 +1910,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       return
 
     try {
-      const sessionId = await useChatSessionStore().ensureCurrentSession()
+      const sessionId = await useChatSessionStore(pinia).ensureCurrentSession()
       if (sessionId)
         activeSessionId.value = sessionId
     }
@@ -1920,7 +1923,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   // the leader so followers never write synchronized chat state directly.
   watch(userId, async () => {
     try {
-      await useChatSessionStore().activateCurrentUser()
+      await useChatSessionStore(pinia).activateCurrentUser()
     }
     catch (error) {
       console.error('[chat-session] Failed to activate the current user:', error)
