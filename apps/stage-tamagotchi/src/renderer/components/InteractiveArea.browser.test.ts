@@ -586,6 +586,28 @@ describe('interactive area synchronized state', () => {
     await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/settings/providers'))
   })
 
+  it('keeps the draft when a fold or a resize replaces the layout', async () => {
+    // ROOT CAUSE:
+    //
+    // Each layout created a composer, and unfolding a device replaces one layout with the other.
+    //
+    // Before the fix, the new layout started with an empty draft.
+    //
+    // We fixed this by moving the composer to a store that outlives both layouts.
+    const layoutSwitch = defineComponent({
+      props: { mobile: { type: Boolean, default: true } },
+      setup: props => () => h(props.mobile ? MobileInteractiveArea : SharedInteractiveArea),
+    })
+    const { screen } = await renderArea(layoutSwitch)
+    await screen.getByRole('textbox').fill('typed on the outer display')
+
+    await screen.rerender({ mobile: false })
+    await expect.element(screen.getByRole('textbox')).toHaveValue('typed on the outer display')
+
+    await screen.rerender({ mobile: true })
+    await expect.element(screen.getByRole('textbox')).toHaveValue('typed on the outer display')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2399
   it('keeps the input visible when a short window contains many attachments', async () => {
     // ROOT CAUSE:

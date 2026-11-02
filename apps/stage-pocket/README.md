@@ -24,3 +24,23 @@ Design constraints:
 - only implement the WebSocket bridge needed by `@proj-airi/server-sdk`
 - native owns socket I/O; `server-sdk` owns reconnect, heartbeat, authentication, and connection state
 - the bridge only forwards `connect`, `send`, `close`, `open`, `message`, `error`, and `close`
+
+## Foldable Devices
+
+Stage Pocket selects its layout from the available width. It does not use the device type or the orientation.
+Android folds and iPhone Duo use the same layout rules as other devices.
+
+Foreground content stays inside each safe area edge separately. The insets are not symmetric on iPhone Duo. The background fills the full display.
+
+The iOS app uses the UIScene lifecycle, which Xcode 27 requires. Scene callbacks replace the `AppDelegate` URL and foreground callbacks.
+Put new URL handling or lifecycle logic in `SceneDelegate.swift`.
+
+The SDK that builds the app controls how iPhone Duo shows it:
+
+| Build SDK | Result on iPhone Duo |
+| --- | --- |
+| iOS 26 | Fixed size, centered, with empty space around the app. |
+| iOS 27 | Resizes, and stops at the status bar on the inner display. |
+| iOS 27.1 | Fills the display edge to edge. |
+
+The web layout does not avoid the fold. `WKWebView` does not expose the Viewport Segments or Device Posture APIs, and safe area insets do not include the fold.
