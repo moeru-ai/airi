@@ -5,6 +5,7 @@ import type { UploadTarget } from '../libs/file-transfer/transfer'
 import * as v from 'valibot'
 
 import { authedFetch } from '../libs/auth-fetch'
+import { TransferRequestError } from '../libs/file-transfer/request-error'
 import { SERVER_URL } from '../libs/server'
 
 const CloudDisplayModelSchema = v.object({
@@ -39,6 +40,7 @@ export type CloudDisplayModel = InferOutput<typeof CloudDisplayModelSchema>
 
 export interface ReserveUploadInput {
   id: string
+  /** Idempotency key of one attempt. The server returns the same session for the same key. */
   requestId: string
   format: CloudDisplayModel['format']
   name: string
@@ -51,7 +53,7 @@ const base = `${SERVER_URL}/api/v1/display-models`
 
 async function readJson<TSchema extends v.GenericSchema>(response: Response, schema: TSchema): Promise<v.InferOutput<TSchema>> {
   if (!response.ok)
-    throw new Error(`Display model request failed with status ${response.status}: ${(await response.text()).slice(0, 200)}`)
+    throw new TransferRequestError(response.status, `Display model request failed with status ${response.status}: ${(await response.text()).slice(0, 200)}`)
   return v.parse(schema, await response.json())
 }
 
@@ -79,12 +81,12 @@ export async function requestDisplayModelDownload(id: string, signal?: AbortSign
   return readJson(await authedFetch(`${base}/${encodeURIComponent(id)}/download`, { method: 'POST', signal }), DownloadResponseSchema)
 }
 
-export async function renameCloudDisplayModel(id: string, name: string, revision: number) {
-  return readJson(await authedFetch(`${base}/${encodeURIComponent(id)}`, jsonRequest('PATCH', { name, revision })), CloudDisplayModelSchema)
+export async function renameCloudDisplayModel(id: string, name: string, revision: number, signal?: AbortSignal) {
+  return readJson(await authedFetch(`${base}/${encodeURIComponent(id)}`, jsonRequest('PATCH', { name, revision }, signal)), CloudDisplayModelSchema)
 }
 
 export async function deleteCloudDisplayModel(id: string, revision: number) {
   const response = await authedFetch(`${base}/${encodeURIComponent(id)}?revision=${revision}`, { method: 'DELETE' })
   if (!response.ok)
-    throw new Error(`Display model delete failed with status ${response.status}`)
+    throw new TransferRequestError(response.status, `Display model delete failed with status ${response.status}`)
 }

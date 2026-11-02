@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { toRaw } from 'vue'
 
 import { splitCard } from '../../libs/character-card-sync'
+import { useDisplayModelCloudStore } from '../display-model-cloud'
 import { useDisplayModelsStore } from '../display-models'
 import { useProviderStore } from '../providers/provider'
 import { useSettingsStageModel } from '../settings/stage-model'
@@ -634,7 +635,7 @@ describe('airi-card store', () => {
       },
     }, 'import')
     const referencedModels = () => cardStore.getCard(cardId)?.extensions.airi.avatarModels.map(model => model.displayModelId)
-    displayModelsStore.cloudModels = [{
+    useDisplayModelCloudStore().models = [{
       id: 'display-model-cloud',
       format: 'vrm',
       name: 'Cloud model',

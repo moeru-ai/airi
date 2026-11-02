@@ -17,12 +17,12 @@ import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { inspectLive2DModelControls } from '@proj-airi/stage-ui-live2d/controls/manifest'
 import { isLive2DControlEnabled } from '@proj-airi/stage-ui-live2d/controls/policy'
-import { StorageSerializers, useDocumentVisibility, watchDebounced } from '@vueuse/core'
+import { StorageSerializers } from '@vueuse/core'
 import { isEqual } from 'es-toolkit'
 import { nanoid } from 'nanoid'
 import { defineStore, getActivePinia, storeToRefs } from 'pinia'
 import { array, looseObject, object, parse, safeParse, string } from 'valibot'
-import { computed, getCurrentScope, ref, shallowRef, toRaw, watch } from 'vue'
+import { computed, getCurrentScope, onScopeDispose, ref, shallowRef, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
@@ -35,6 +35,7 @@ import { createDocumentSyncClient, syncedValues, synchronize } from '../../libs/
 import { CHARACTER_CARD_SYNC_FLAG } from '../../libs/feature-flags'
 import { captureAnalyticsEvent } from '../../libs/product-signals'
 import { SERVER_URL } from '../../libs/server'
+import { SyncRunner, watchSyncTriggers } from '../../libs/sync-runner'
 import { wakeWordSchema } from '../../libs/voice/wake-words'
 import { clearModuleSelections, resolveModuleSelection } from '../../services/airi-card-modules'
 import { createAvatarModelReference } from '../../services/avatar-model'
@@ -1021,43 +1022,22 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   let syncClient: DocumentSyncClient | undefined
   /** The account that `syncedCardFields` belongs to. Only the leader sets it. */
   let syncedOwnerId: string | undefined
-  let activeSynchronization: Promise<void> | undefined
-  let hasQueuedSynchronization = false
+  const cardSyncRunner = new SyncRunner(() => runCardSynchronization(userId.value), {
+    onError: error => console.error('[character-card-sync] Synchronization failed:', errorMessageFrom(error)),
+  })
+  onScopeDispose(() => cardSyncRunner.dispose())
 
   /**
    * Compares the local cards with the server and exchanges the changes. The
    * selected card is not synchronized, so each device keeps its own selection.
    *
-   * A call during a run queues one more run and returns with the active run.
-   * Errors are logged. The next request sends the same changes again. A user
-   * without an account never sends a request.
+   * A failed run sends the same changes again on the next request or retry.
+   * A user without an account never sends a request.
    *
    * This synchronized action executes in the leader, one run at a time.
    */
   async function synchronizeCards() {
-    if (activeSynchronization) {
-      hasQueuedSynchronization = true
-      return activeSynchronization
-    }
-
-    activeSynchronization = (async () => {
-      do {
-        hasQueuedSynchronization = false
-        try {
-          await runCardSynchronization(userId.value)
-        }
-        catch (error) {
-          console.error('[character-card-sync] Synchronization failed:', errorMessageFrom(error))
-        }
-      } while (hasQueuedSynchronization)
-    })()
-
-    try {
-      await activeSynchronization
-    }
-    finally {
-      activeSynchronization = undefined
-    }
+    await cardSyncRunner.request()
   }
 
   async function runCardSynchronization(ownerId: string) {
@@ -1230,23 +1210,12 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
   // Each renderer observes the synchronized identity and cards. The requests
   // go to the leader. A run that finds no difference changes nothing, so the
-  // request that follows a remote change ends the sequence.
-  watch(userId, requestCardSynchronization)
-  watchDebounced(cards, requestCardSynchronization, { debounce: 1500, deep: true })
-  // Turning the experimental flag on is itself a reason to run, because none
-  // of the watchers above fired while it was off.
-  watch(cloudSyncEnabled, (enabled) => {
-    if (enabled)
-      void requestCardSynchronization()
+  // request that follows a remote change ends the sequence. Turning the
+  // experimental flag on is a reason to run, because no other source fired while it was off.
+  watchSyncTriggers(requestCardSynchronization, {
+    sources: [userId, cloudSyncEnabled],
+    changes: cards,
   })
-  const visibility = useDocumentVisibility()
-  watch(visibility, async (state) => {
-    if (state === 'visible')
-      await requestCardSynchronization()
-  })
-  // A restored session has its user id before this store exists, so no watcher
-  // reports it. The store has no actions during setup, so wait for it.
-  queueMicrotask(requestCardSynchronization)
 
   // NOTICE:
   // The stored `default` card is a copy of the built-in ReLU card.

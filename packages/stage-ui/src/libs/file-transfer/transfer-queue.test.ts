@@ -1,6 +1,6 @@
 import type { TransferTask, TransferTaskStorage } from './transfer-queue'
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { TransferQueue } from './transfer-queue'
 
@@ -116,5 +116,30 @@ describe('transferQueue', () => {
     const queue = new TransferQueue({}, createStorage().storage)
 
     await expect(queue.enqueue({ id: 'a', kind: 'copy', payload: null })).rejects.toThrow('no active account')
+  })
+
+  it('retries failed tasks in the background, except those that another attempt cannot complete', async () => {
+    const handler = vi.fn(async (task: TransferTask) => {
+      if (task.id === 'refused')
+        throw new Error('refused')
+    })
+    handler.mockRejectedValueOnce(new Error('network'))
+    const statuses = new Map<string, string>()
+    const queue = new TransferQueue(
+      { upload: handler },
+      createStorage().storage,
+      (task, removed) => statuses.set(task.id, removed ? 'removed' : task.status),
+      error => (error as Error).message !== 'refused',
+    )
+    await queue.activate('owner')
+
+    await queue.enqueue({ id: 'transient', kind: 'upload', payload: null })
+    await vi.waitFor(() => expect(statuses.get('transient')).toBe('failed'))
+    await queue.enqueue({ id: 'refused', kind: 'upload', payload: null })
+    await vi.waitFor(() => expect(statuses.get('refused')).toBe('failed'))
+    await queue.retryFailed()
+
+    await vi.waitFor(() => expect(statuses.get('transient')).toBe('removed'))
+    expect(statuses.get('refused')).toBe('failed')
   })
 })
