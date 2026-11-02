@@ -51,9 +51,13 @@ export interface ReserveUploadInput {
 
 const base = `${SERVER_URL}/api/v1/display-models`
 
-async function readJson<TSchema extends v.GenericSchema>(response: Response, schema: TSchema): Promise<v.InferOutput<TSchema>> {
-  if (!response.ok)
-    throw new TransferRequestError(response.status, `Display model request failed with status ${response.status}: ${(await response.text()).slice(0, 200)}`)
+async function readJson<TSchema extends v.GenericSchema>(response: Response, schema: TSchema, retryableStatuses: number[] = []): Promise<v.InferOutput<TSchema>> {
+  if (!response.ok) {
+    const message = `Display model request failed with status ${response.status}: ${(await response.text()).slice(0, 200)}`
+    if (retryableStatuses.includes(response.status))
+      throw new TransferRequestError(response.status, message, false)
+    throw new TransferRequestError(response.status, message)
+  }
   return v.parse(schema, await response.json())
 }
 
@@ -74,7 +78,8 @@ export async function reserveDisplayModelUpload(input: ReserveUploadInput, signa
 }
 
 export async function completeDisplayModelUpload(uploadId: string, signal?: AbortSignal) {
-  return readJson(await authedFetch(`${base}/uploads/${encodeURIComponent(uploadId)}/complete`, { method: 'POST', signal }), CloudDisplayModelSchema)
+  // On this route, 409 means that the bytes have not reached storage. On the reservation route, it is a final refusal.
+  return readJson(await authedFetch(`${base}/uploads/${encodeURIComponent(uploadId)}/complete`, { method: 'POST', signal }), CloudDisplayModelSchema, [409])
 }
 
 export async function requestDisplayModelDownload(id: string, signal?: AbortSignal) {

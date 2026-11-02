@@ -187,7 +187,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   // Pinia can then be another one, so keep the Pinia that owns this store.
   const pinia = getActivePinia()
   const { t } = useI18n()
-  const { userId } = storeToRefs(useAuthStore())
+  const authStore = useAuthStore()
+  const { userId } = storeToRefs(authStore)
   const featureFlagsStore = useFeatureFlagsStore()
   /** Cloud sync is a device choice, off by default. Settings > System > Experimental Features owns it. */
   const cloudSyncEnabled = computed(() => featureFlagsStore.isEnabled(CHARACTER_CARD_SYNC_FLAG.key))
@@ -1041,8 +1042,11 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   }
 
   async function runCardSynchronization(ownerId: string) {
-    if (ownerId === 'local' || !cloudSyncEnabled.value)
+    // During a sign-in, `userId` still names the previous account while requests send the new token.
+    // A run in that state can write the cards of one account into another.
+    if (ownerId === 'local' || !cloudSyncEnabled.value || !authStore.isSessionVerified)
       return
+    const sessionVersion = authStore.sessionVersion
 
     await migratePreIruCard()
 
@@ -1058,7 +1062,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       client: syncClient,
       state: await documentSyncRepo.getState(SYNC_STATE_NAME, ownerId) ?? { documents: {} },
       // The new account starts its own run from the `userId` watcher.
-      isCurrent: () => userId.value === ownerId,
+      isCurrent: () => userId.value === ownerId && authStore.sessionVersion === sessionVersion,
       saveState: state => documentSyncRepo.saveState(SYNC_STATE_NAME, ownerId, state),
       // Each device creates the built-in card in its own language. Only its edits are synchronized.
       readLocal: () => Object.fromEntries([...toRaw(cards.value)].map(([id, card]) => [id, splitCard(toRaw(card), id === 'default' ? builtInVariants.value : [])])),
@@ -1213,7 +1217,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   // request that follows a remote change ends the sequence. Turning the
   // experimental flag on is a reason to run, because no other source fired while it was off.
   watchSyncTriggers(requestCardSynchronization, {
-    sources: [userId, cloudSyncEnabled],
+    sources: [userId, cloudSyncEnabled, () => authStore.isSessionVerified],
     changes: cards,
   })
 

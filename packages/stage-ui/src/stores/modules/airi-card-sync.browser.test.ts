@@ -222,6 +222,29 @@ describe('card synchronization across windows', () => {
     return { leader, follower, onError }
   }
 
+  // `completeSignIn` replaces the token first. `userId` still names the previous account until the session request answers.
+  it('sends nothing while a new sign-in has no verified user', async () => {
+    const { leader, onError } = await createWindows()
+    signIn(leader.auth, accountId())
+    await expect.poll(() => server.requests.list).toBeGreaterThan(0)
+    await leader.cards.synchronizeCards()
+    stubServerFetch((input, init) => {
+      const url = input instanceof Request ? input.url : String(input)
+      return url.includes('/get-session') ? new Promise<Response>(() => {}) : server.fetchCards(input, init)
+    })
+    const pushesBefore = server.requests.push
+
+    // The session answer never arrives, so the runtime rejects this call during teardown.
+    void leader.auth.completeSignIn({ accessToken: 'token-b', refreshToken: 'refresh-b', idToken: 'id-b', clientId: 'client', expiresIn: 3600 }).catch(() => {})
+    await expect.poll(() => leader.auth.isSessionVerified).toBe(false)
+    const cardId = await leader.cards.addCard({ name: 'Luna', version: '1.0.0', description: 'Calm' }, 'scratch')
+    await leader.cards.synchronizeCards()
+
+    expect(server.requests.push).toBe(pushesBefore)
+    expect(server.documents.has(cardId)).toBe(false)
+    expect(onError).not.toHaveBeenCalled()
+  })
+
   it('sends a card that a follower added to the server', async () => {
     const { leader, follower, onError } = await createWindows()
     signIn(leader.auth, accountId())

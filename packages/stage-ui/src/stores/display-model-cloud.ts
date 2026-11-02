@@ -159,7 +159,8 @@ export const useDisplayModelCloudStore = defineStore('display-model-cloud', () =
 
   async function reconcile() {
     const owner = resolveCloudOwnerId(pinia)
-    if (owner !== queueOwnerId)
+    // Compare both. The guard clears only the queue owner, and the replicated directory of the previous account must go too.
+    if (owner !== queueOwnerId || owner !== ownerId.value)
       await switchOwner(owner)
     if (!owner)
       return

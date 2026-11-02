@@ -24,16 +24,20 @@ function directoryEntry(name: string) {
 
 /** A network boundary. Each request records its route, so a test can count the uploads. */
 function createFakeServer() {
-  const state = { directory: [] as ReturnType<typeof directoryEntry>[], reservations: 0, holdReservation: undefined as Promise<void> | undefined }
+  const state = { directory: [] as ReturnType<typeof directoryEntry>[], reservations: 0, reservationSignal: undefined as AbortSignal | undefined, holdReservation: undefined as Promise<void> | undefined }
   vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
     if (url.includes('/uploads') && init?.method === 'POST') {
       state.reservations++
+      state.reservationSignal = init.signal ?? undefined
       await state.holdReservation
       return Response.json({ upload: null })
     }
     if (url.includes('/display-models'))
       return Response.json({ models: state.directory })
+    // The answer of a new sign-in stays pending, so `user` still names the previous account.
+    if (url.includes('/get-session'))
+      return new Promise<Response>(() => {})
     return Response.json({})
   }))
   return state
@@ -105,6 +109,25 @@ describe('display model sync across windows', () => {
     await vi.waitFor(() => expect(leader.syncStatuses[modelId]).toBe('synced'))
     await vi.waitFor(() => expect(follower.syncStatuses[modelId]).toBe('synced'))
     expect(server.reservations).toBe(1)
+  })
+
+  // `completeSignIn` replaces the token first. `user` still names the previous account until the session request answers.
+  it('aborts an upload and starts no other while a new sign-in has no verified user', async () => {
+    const server = createFakeServer()
+    server.holdReservation = new Promise(() => {})
+    await localforage.setItem(modelId, { id: modelId, format: DisplayModelFormat.VRM, type: 'file', file: new File(['m'], 'x.vrm'), name: 'x.vrm', importedAt: 1 })
+    await localforage.setItem(`transfer-task-${modelId}`, { id: modelId, kind: 'upload-display-model', ownerId: 'owner-a', payload: { modelId }, status: 'queued' })
+    const store = await openWindow(createSyncedPiniaPlugin({ namespace, leadership: 'leader-only' }))
+    await vi.waitFor(() => expect(server.reservations).toBe(1))
+
+    // The session answer never arrives, so the runtime rejects this call during teardown.
+    void useAuthStore(pinias[0]).completeSignIn({ accessToken: 'token-b', refreshToken: 'refresh-b', idToken: 'id-b', clientId: 'client', expiresIn: 3600 }).catch(() => {})
+
+    await expect.poll(() => server.reservationSignal?.aborted).toBe(true)
+    await store.refreshCloudModels()
+    expect(server.reservations).toBe(1)
+    expect(store.syncStatuses).toEqual({})
+    expect(store.cloudModels).toEqual([])
   })
 
   it('resumes a persisted upload in the window that becomes the leader', async () => {

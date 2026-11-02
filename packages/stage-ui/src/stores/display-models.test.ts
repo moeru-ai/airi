@@ -445,25 +445,29 @@ describe('display models store', () => {
       expect(uploadSignal?.aborted).toBe(true)
     })
 
-    // `completeSignIn` replaces the token first. `user` still names the previous account until the session request answers.
-    it('aborts an upload and starts no run while a new sign-in has no verified user', async () => {
+    it('clears the directory of the previous account after a sign-out', async () => {
+      const store = await startWithModel({}, [directoryEntry()])
+      expect(store.cloudModels).toHaveLength(1)
+
+      useAuthStore().user = null
+
+      await vi.waitFor(() => expect(store.cloudModels).toEqual([]))
+      expect(store.cloudOnlyModels).toEqual([])
+      expect(useDisplayModelCloudStore().ownerId).toBeUndefined()
+    })
+
+    it('runs an upload again after its session expired', async () => {
       const store = await startWithModel()
-      let uploadSignal: AbortSignal | undefined
-      vi.mocked(reserveDisplayModelUpload).mockImplementation((_input, signal) => {
-        uploadSignal = signal
-        return new Promise(() => {})
-      })
+      vi.mocked(reserveDisplayModelUpload)
+        .mockRejectedValueOnce(new TransferRequestError(410, 'expired'))
+        .mockResolvedValue(null)
+
       await store.uploadDisplayModel(modelId)
-      await vi.waitFor(() => expect(uploadSignal).toBeDefined())
-      vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
-      vi.mocked(listCloudDisplayModels).mockClear()
-
-      void useAuthStore().completeSignIn({ accessToken: 'token-b', refreshToken: 'refresh-b', idToken: 'id-b', clientId: 'client', expiresIn: 3600 })
-      expect(uploadSignal?.aborted).toBe(true)
-
+      await vi.waitFor(() => expect(store.syncStatuses[modelId]).toBe('failed'))
+      vi.mocked(listCloudDisplayModels).mockResolvedValue([directoryEntry()])
       await store.refreshCloudModels()
-      expect(listCloudDisplayModels).not.toHaveBeenCalled()
-      expect(useDisplayModelCloudStore().uploads).toEqual({})
+
+      await vi.waitFor(() => expect(store.syncStatuses[modelId]).toBe('synced'))
     })
 
     // ROOT CAUSE:
