@@ -13,6 +13,7 @@ export default defineConfig({
   vue: true,
 }, {
   ignores: [
+    'eslint-suppressions.json',
     'cspell.config.yaml',
     'cspell.config.yml',
     'crowdin.yaml',
@@ -57,6 +58,15 @@ export default defineConfig({
     'slop/no-trivial-type-aliases': 'off',
     // The autofix workflow must preserve existing comment syntax.
     'slop/prefer-jsdoc': 'off',
+  },
+}, {
+  files: ['**/*.{ts,tsx,mts,cts,vue}'],
+  ignores: [
+    '**/*.{test,spec,story}.{ts,tsx,mts,cts,vue}',
+    '**/stories/**',
+  ],
+  rules: {
+    'ts/no-explicit-any': 'error',
   },
 }, {
   rules: {
