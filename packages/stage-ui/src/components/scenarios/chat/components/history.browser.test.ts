@@ -391,9 +391,12 @@ describe('chat history', () => {
     if (!history || messages.length !== 2)
       throw new Error('Expected a sent message and its streaming placeholder.')
 
-    const historyBottom = history.getBoundingClientRect().bottom
-    expect(historyBottom - messages[1].getBoundingClientRect().bottom).toBeLessThanOrEqual(16)
-    expect(historyBottom - messages[0].getBoundingClientRect().bottom).toBeLessThanOrEqual(64)
+    // Virtua measures the viewport asynchronously; wait for its ResizeObserver/RAF layout pass.
+    await vi.waitFor(() => {
+      const historyBottom = history.getBoundingClientRect().bottom
+      expect(historyBottom - messages[1].getBoundingClientRect().bottom).toBeLessThanOrEqual(16)
+      expect(historyBottom - messages[0].getBoundingClientRect().bottom).toBeLessThanOrEqual(64)
+    }, { timeout: 5_000, interval: 20 })
   })
 
   // ROOT CAUSE:
