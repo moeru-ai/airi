@@ -310,17 +310,22 @@ pnpm to-avif <PATH_TO_IMAGE_OR_DIRECTORY1> <PATH_2> <PATH_3> ...
 
 Then run the unit tests the way CI runs them.
 Node.js 26 has its own `localStorage`, and it replaces the `localStorage` of the test environment.
-CI turns it off with `--no-experimental-webstorage`:
+CI turns it off with `--no-experimental-webstorage` for `test:run`.
+The browser projects need Chromium, and `test:root` runs the tests of `.github/scripts`:
 
 ```shell
+pnpm exec playwright install chromium
 pnpm run build:packages
+pnpm run test:root
 NODE_OPTIONS=--no-experimental-webstorage pnpm run test:run
 ```
 
-In Windows PowerShell, set the option first:
+In Windows PowerShell, set the option before `test:run`:
 
 ```powershell
+pnpm exec playwright install chromium
 pnpm run build:packages
+pnpm run test:root
 $env:NODE_OPTIONS = '--no-experimental-webstorage'
 pnpm run test:run
 ```
