@@ -93,14 +93,24 @@ describe('capacitor Flux bucket', () => {
       expect(await db.select().from(fluxTransaction).where(eq(fluxTransaction.description, 'capacitor_refill'))).toHaveLength(1)
     })
 
+    // ROOT CAUSE:
+    // Real time passed the fixed renewal date, so the initial refill appeared newer than the renewal.
+    // Advance the Date clock between periods to preserve the renewal sequence.
     it('resets the bucket for another period and records the forfeited Flux', async () => {
-      await billing.syncCapacitor('wallet', async () => activeCapacitor(100))
-      await spend('a', 30_000_000)
-      await billing.syncCapacitor('wallet', async () => activeCapacitor(100, nextPeriodStart))
+      vi.useFakeTimers({ toFake: ['Date'], now: periodStart })
+      try {
+        await billing.syncCapacitor('wallet', async () => activeCapacitor(100))
+        await spend('a', 30_000_000)
+        vi.setSystemTime(nextPeriodStart)
+        await billing.syncCapacitor('wallet', async () => activeCapacitor(100, nextPeriodStart))
 
-      expect(await wallet()).toMatchObject({ capacitorFlux: 100, capacitorQuota: 100 })
-      const grants = await db.select().from(fluxTransaction).where(eq(fluxTransaction.description, 'capacitor_refill'))
-      expect(grants.map(grant => grant.balanceBefore).sort()).toEqual([0, 70])
+        expect(await wallet()).toMatchObject({ capacitorFlux: 100, capacitorQuota: 100 })
+        const grants = await db.select().from(fluxTransaction).where(eq(fluxTransaction.description, 'capacitor_refill'))
+        expect(grants.map(grant => grant.balanceBefore).sort()).toEqual([0, 70])
+      }
+      finally {
+        vi.useRealTimers()
+      }
     })
 
     it('expires the capacitor now when no capacitor is active', async () => {
@@ -112,19 +122,28 @@ describe('capacitor Flux bucket', () => {
       expect(availableMicroFlux(row)).toBe(10_000_000n)
     })
 
-    // A refund of an upgrade makes RevenueCat report the older period again.
+    // ROOT CAUSE:
+    // Real time passed the fixed upgrade date, so the initial refill prevented the upgrade grant.
+    // Advance the Date clock before the upgrade. A refund then makes RevenueCat report the older period again.
     it('keeps the spent amount when an earlier period returns', async () => {
-      await billing.syncCapacitor('wallet', async () => activeCapacitor(100))
-      await spend('a', 30_000_000)
-      await billing.syncCapacitor('wallet', async () => activeCapacitor(500, nextPeriodStart))
-      await billing.syncCapacitor('wallet', async () => activeCapacitor(100))
+      vi.useFakeTimers({ toFake: ['Date'], now: periodStart })
+      try {
+        await billing.syncCapacitor('wallet', async () => activeCapacitor(100))
+        await spend('a', 30_000_000)
+        vi.setSystemTime(nextPeriodStart)
+        await billing.syncCapacitor('wallet', async () => activeCapacitor(500, nextPeriodStart))
+        await billing.syncCapacitor('wallet', async () => activeCapacitor(100))
 
-      expect(await wallet()).toMatchObject({ capacitorFlux: 100, capacitorQuota: 100 })
-      expect(await db.select().from(fluxTransaction).where(eq(fluxTransaction.description, 'capacitor_refill'))).toHaveLength(2)
-      // The cap from 500 to 100 has a ledger row, so each capacitor row starts where the last one ended.
-      expect(await db.select().from(fluxTransaction).where(eq(fluxTransaction.description, 'capacitor_quota_cap'))).toMatchObject([
-        { type: 'debit', pool: 'capacitor', amount: 400, balanceBefore: 500, balanceAfter: 100 },
-      ])
+        expect(await wallet()).toMatchObject({ capacitorFlux: 100, capacitorQuota: 100 })
+        expect(await db.select().from(fluxTransaction).where(eq(fluxTransaction.description, 'capacitor_refill'))).toHaveLength(2)
+        // The cap from 500 to 100 has a ledger row, so each capacitor row starts where the last one ended.
+        expect(await db.select().from(fluxTransaction).where(eq(fluxTransaction.description, 'capacitor_quota_cap'))).toMatchObject([
+          { type: 'debit', pool: 'capacitor', amount: 400, balanceBefore: 500, balanceAfter: 100 },
+        ])
+      }
+      finally {
+        vi.useRealTimers()
+      }
     })
 
     it('creates no wallet for a user without a capacitor', async () => {
