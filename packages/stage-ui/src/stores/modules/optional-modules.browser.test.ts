@@ -16,7 +16,7 @@ import { useVisionStore } from './vision/store'
 
 vi.mock('@xsai/generate-transcription', () => ({ generateTranscription: vi.fn() }))
 
-const contexts: { pinia: ReturnType<typeof createPinia>, runtime?: SyncedPiniaRuntime, unmount: () => void }[] = []
+const contexts: { pinia: ReturnType<typeof createPinia>, runtime?: SyncedPiniaRuntime, speech: ReturnType<typeof useSpeechStore>, unmount: () => void }[] = []
 
 function createContext(namespace?: string, leadership?: LeadershipMode) {
   const pinia = createPinia()
@@ -35,11 +35,19 @@ function createContext(namespace?: string, leadership?: LeadershipMode) {
     },
   }).use(createI18n({ legacy: false, locale: 'en', messages: { en: {} }, missingWarn: false, fallbackWarn: false })).use(pinia)
   app.mount(document.createElement('div'))
-  contexts.push({ pinia, runtime, unmount: () => app.unmount() })
+  contexts.push({ pinia, runtime, speech, unmount: () => app.unmount() })
   return { pinia, runtime, hearing, vision, speech }
 }
 
-afterEach(() => {
+/** Whether every voice catalog load has settled, including the load that the speech store starts for its provider. */
+function catalogLoadsSettled(speech: ReturnType<typeof useSpeechStore>) {
+  const status = speech.voiceCatalogStatus
+  return status[speech.activeSpeechProvider]?.loading === false && Object.values(status).every(entry => !entry.loading)
+}
+
+afterEach(async () => {
+  // The speech store loads the voice catalog when it starts. Disposing first leaves that load running into the next test.
+  await expect.poll(() => contexts.every(({ speech }) => catalogLoadsSettled(speech))).toBe(true)
   for (const { pinia, runtime, unmount } of contexts.splice(0)) {
     unmount()
     runtime?.dispose()

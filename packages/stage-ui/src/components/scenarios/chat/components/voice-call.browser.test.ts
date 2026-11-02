@@ -8,6 +8,7 @@ import VoiceCallCapsule from './voice-call-capsule.vue'
 import VoiceCallPanel from './voice-call-panel.vue'
 
 import { useHearingStore } from '../../../../stores/modules/hearing'
+import { useSpeechStore } from '../../../../stores/modules/speech'
 import { useSettingsAudioDevice } from '../../../../stores/settings/audio-device'
 import { useVoiceStore } from '../../../../stores/voice'
 import { useVoiceCallStore } from '../../../../stores/voice-call'
@@ -15,10 +16,11 @@ import { useVoiceCallStore } from '../../../../stores/voice-call'
 import '@unocss/reset/tailwind.css'
 import 'virtual:uno.css'
 
-const cleanups: (() => void)[] = []
+const cleanups: (() => void | Promise<void>)[] = []
 
-afterEach(() => {
-  cleanups.splice(0).reverse().forEach(cleanup => cleanup())
+afterEach(async () => {
+  for (const cleanup of cleanups.splice(0).reverse())
+    await cleanup()
   localStorage.clear()
 })
 
@@ -40,6 +42,11 @@ async function mountCall(options: { persistent?: boolean } = {}) {
     global: { plugins: [pinia, createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false })] },
   })
   cleanups.push(() => screen.unmount())
+  // The speech store loads the voice catalog when it starts. Disposing first leaves that load running into the next test.
+  const speech = useSpeechStore(pinia)
+  cleanups.push(async () => {
+    await expect.poll(() => speech.voiceCatalogStatus[speech.activeSpeechProvider]?.loading).toBe(false)
+  })
   return { screen, voice: useVoiceStore(pinia), call: useVoiceCallStore(pinia), devices: useSettingsAudioDevice(pinia) }
 }
 

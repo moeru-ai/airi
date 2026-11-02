@@ -3,14 +3,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick, shallowRef } from 'vue'
 import { createI18n } from 'vue-i18n'
 
+import { useSpeechStore } from '../stores/modules/speech'
 import { useSettingsAudioDevice } from '../stores/settings/audio-device'
 import { useVoiceStore } from '../stores/voice'
 import { useVoiceListening } from './voice-input-mode'
 
-const cleanups: (() => void)[] = []
+const cleanups: (() => Promise<void>)[] = []
 
-afterEach(() => {
-  cleanups.splice(0).reverse().forEach(cleanup => cleanup())
+afterEach(async () => {
+  for (const cleanup of cleanups.splice(0).reverse())
+    await cleanup()
   vi.restoreAllMocks()
   localStorage.clear()
 })
@@ -36,7 +38,10 @@ function mountListening(continuous: () => boolean, options: { onUnmount?: (unmou
     mounted = false
   }
   options.onUnmount?.(unmount)
-  cleanups.push(() => {
+  cleanups.push(async () => {
+    // The speech store loads the voice catalog when it starts. Disposing first leaves that load running into the next test.
+    const speech = useSpeechStore(pinia)
+    await expect.poll(() => speech.voiceCatalogStatus[speech.activeSpeechProvider]?.loading).toBe(false)
     unmount()
     disposePinia(pinia)
   })
