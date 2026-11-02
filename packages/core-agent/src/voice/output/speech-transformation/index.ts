@@ -7,12 +7,11 @@ import remarkWikiLink from '@flowershow/remark-wiki-link'
 import remarkMath from 'remark-math'
 import remarkParse from 'remark-parse'
 
-import { toString } from 'mdast-util-to-string'
 import { unified } from 'unified'
 
 import { detectSpeechLanguage, toSpeechLanguage } from './language'
 import { normalizeMathDelimiters } from './markdown'
-import { addressSpeechPreprocessor, mathSpeechPreprocessor, moneySpeechPreprocessor } from './preprocessor'
+import { mathSpeechPreprocessor, moneySpeechPreprocessor, tokenSpeechPreprocessor } from './preprocessor'
 import { embedWord, imageWord, speakWikiTarget } from './wiki-link'
 
 export interface SpeechTextOptions {
@@ -33,18 +32,18 @@ export interface SpeechTextOptions {
   before?: string
   /**
    * The preprocessor plugins, in the order that their hooks run.
-   * The default is the address, money, and math plugins, in that order. A list replaces the default, so it includes
+   * The default is the token, money, and math plugins, in that order. A list replaces the default, so it includes
    * them to keep them.
    */
   preprocessors?: readonly SpeechPreprocessor[]
 }
 
 /**
- * The default preprocessor plugins. Addresses read first, so the other plugins do not read the parts of a URL.
+ * The default preprocessor plugins. Tokens such as addresses read first, so the other plugins do not read their parts.
  * Money reads before math, so a price reads before the math plugin looks for bare TeX.
  */
 export function defaultSpeechPreprocessors(): SpeechPreprocessor[] {
-  return [addressSpeechPreprocessor(), moneySpeechPreprocessor(), mathSpeechPreprocessor()]
+  return [tokenSpeechPreprocessor(), moneySpeechPreprocessor(), mathSpeechPreprocessor()]
 }
 
 /** A delimiter between two ASCII operands is an operator, for example `x**2` or `a*b*c`, not emphasis. */
@@ -149,9 +148,9 @@ function compile(tree: Root, source: string, options: SpeechTextOptions | undefi
   }
 
   /** Runs the prose hooks over a run of text. `context` is the words of its sentence. */
-  function speakProse(text: string, kind: 'text' | 'code', context: string, link = false): string {
+  function speakProse(text: string, kind: 'text' | 'code', context: string): string {
     const language = detectSpeechLanguage(context, fallback)
-    return preprocessors.reduce((rest, preprocessor) => preprocessor.prose?.(rest, { language, fallback, kind, link, readFormula: speakFormula }) ?? rest, text)
+    return preprocessors.reduce((rest, preprocessor) => preprocessor.prose?.(rest, { language, fallback, kind, readFormula: speakFormula }) ?? rest, text)
   }
 
   /**
@@ -244,12 +243,8 @@ function compile(tree: Root, source: string, options: SpeechTextOptions | undefi
         return isOperator(node) ? range(node) : phrasing(node.children, around())
       case 'link':
       case 'linkReference': {
-        // A hook reads the whole link text when it is one item, for example one address, also with formatting, as in
-        // `[*a.io*](url)`. Other link text reads node by node, so `[about *a.io*](url)` keeps its words.
-        const label = toString(node)
-        const whole = speakProse(label, 'text', around() + label, true)
-        const spoken = whole !== speakProse(label, 'text', around() + label) ? whole : phrasing(node.children, around())
         // `[target | Display](url)` reads its display text, as `[[target|Display]]` does.
+        const spoken = phrasing(node.children, around())
         const display = spoken.slice(spoken.lastIndexOf('|') + 1).replace(attributeLists, '').trim()
         return keepMarkers(node, display)
       }

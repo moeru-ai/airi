@@ -126,12 +126,13 @@ describe('toSpeechText', () => {
     expect(toSpeechText('也写成 $2^10$。')).toBe('也写成 2的1次方0。')
   })
 
-  it('reads prices as words, and keeps paths and code that only look like TeX', () => {
+  it('reads prices as words, and keeps code that only looks like TeX', () => {
     expect(toSpeechText('It costs $5 and $10 today.')).toBe('It costs five dollars and ten dollars today.')
     expect(toSpeechText('价格$5，另一个$10。')).toBe('价格5美元，另一个10美元。')
     expect(toSpeechText('A ticket is $5, and the area is $x^2$.')).toBe('A ticket is five dollars, and the area is x squared.')
     expect(toSpeechText('チケットは $5、面積は $x^2$ です。')).toBe('チケットは ごドル、面積は エックスの二乗 です。')
-    expect(toSpeechText('Open C:\\Users\\neko now.')).toBe('Open C:\\Users\\neko now.')
+    // A Windows path is not TeX. It reads as a path.
+    expect(toSpeechText('Open C:\\Users\\user now.')).toBe('Open C colon backslash Users backslash user now.')
     expect(toSpeechText('Before.\n\n```tex\n\\(x\\)\n```\n\nAfter.')).toBe('Before.\nAfter.')
   })
 
@@ -160,14 +161,15 @@ describe('toSpeechText', () => {
     expect(toSpeechText('看 $x^2$。', { language: 'en' })).toBe('看 x的平方。')
   })
 
-  it('reads a link text as an address only when the whole text is one address', () => {
-    expect(toSpeechText('Read [about *example.com*](https://docs.example.com).')).toBe('Read about example.com.')
+  it('reads an address in link text, also with formatting', () => {
+    expect(toSpeechText('Read [about *example.com*](https://docs.example.com).')).toBe('Read about example dot com.')
     expect(toSpeechText('Open [*https://a.io*](https://a.io) now.')).toBe('Open https a dot io now.')
   })
 
-  it('keeps an address in prose and code that is more than one address', () => {
-    expect(toSpeechText('Is it example.com? See https://a.io now.')).toBe('Is it example.com? See https://a.io now.')
-    expect(toSpeechText('Run `curl https://a.io` now.')).toBe('Run curl https://a.io now.')
+  it('reads addresses and file paths in prose and in code that has other words', () => {
+    expect(toSpeechText('Is it example.com? See https://a.io now.')).toBe('Is it example dot com? See https a dot io now.')
+    expect(toSpeechText('Run `curl https://a.io` now.')).toBe('Run curl https a dot io now.')
+    expect(toSpeechText('打开 `./src/index.ts` 看看。')).toBe('打开 点 斜杠 src 斜杠 index 点 ts 看看。')
   })
 
   it.each([

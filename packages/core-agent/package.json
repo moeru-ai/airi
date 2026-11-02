@@ -64,7 +64,6 @@
     "@xsai/shared-chat": "catalog:",
     "@xsai/stream-text": "catalog:",
     "@xsai/tool": "catalog:",
-    "mdast-util-to-string": "catalog:",
     "nanoid": "catalog:",
     "rehype-parse": "catalog:",
     "rehype-stringify": "catalog:",

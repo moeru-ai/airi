@@ -1,16 +1,29 @@
 import type { SpeechPreprocessor } from '../types'
+import type { SpeechTokenReader } from './types'
 
-import { speakAddress } from './addresses'
+import { addressReader } from './address'
+import { pathReader } from './path'
+import { speakTokens } from './tokens'
 
-export { speakAddress } from './addresses'
+export { addressReader } from './address'
+export { pathReader } from './path'
+export { speakTokens } from './tokens'
+export type { SpeechTokenContext, SpeechTokenReader } from './types'
+
+/** The default token readers: addresses first, because `example.com/docs` is also a valid relative path. */
+export function defaultTokenReaders(): SpeechTokenReader[] {
+  return [addressReader, pathReader]
+}
 
 /**
- * Reads an inline code or a link text that is one web address as words of its sentence, for example
- * `https://home.example.com` as `https home 点 example 点 com`. An address in prose stays as written.
+ * Reads tokens such as web addresses and file paths as words of their sentence, in prose, inline code, and link text.
+ * For example `https://home.example.com` reads as `https home 点 example 点 com`. A token that no reader recognizes
+ * stays as written. To add a reading, pass `readers: [myReader, ...defaultTokenReaders()]`.
  */
-export function addressSpeechPreprocessor(): SpeechPreprocessor {
+export function tokenSpeechPreprocessor(options?: { readers?: readonly SpeechTokenReader[] }): SpeechPreprocessor {
+  const readers = options?.readers ?? defaultTokenReaders()
   return {
-    name: 'address',
-    prose: (text, { kind, link, language }) => (kind === 'code' || link ? speakAddress(text, language) : undefined) ?? text,
+    name: 'token',
+    prose: (text, { kind, language }) => speakTokens(text, { kind, language }, readers),
   }
 }

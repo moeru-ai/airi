@@ -1,4 +1,5 @@
-export { addressSpeechPreprocessor, speakAddress } from './address'
 export { mathSpeech, mathSpeechPreprocessor, speakMath, toMathJson } from './math'
 export { moneySpeechPreprocessor } from './money'
+export { addressReader, defaultTokenReaders, pathReader, speakTokens, tokenSpeechPreprocessor } from './token'
+export type { SpeechTokenContext, SpeechTokenReader } from './token'
 export type { SpeechFormulaContext, SpeechPreprocessor, SpeechProseContext } from './types'

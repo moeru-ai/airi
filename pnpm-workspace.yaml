@@ -350,7 +350,6 @@ catalog:
   less: ^4.9.0
   libsodium-wrappers: ^0.8.4
   localforage: ^1.10.0
-  mdast-util-to-string: ^4.0.0
   mediabunny: ^1.55.2
   meta-png: ^1.0.6
   mhchemparser: ^4.2.1

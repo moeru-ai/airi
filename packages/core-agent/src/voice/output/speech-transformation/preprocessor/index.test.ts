@@ -7,7 +7,7 @@ import { defaultSpeechPreprocessors, toSpeechText } from '..'
 
 describe('speech preprocessor host', () => {
   it('reads formulas and prices with the default plugins', () => {
-    expect(defaultSpeechPreprocessors().map(preprocessor => preprocessor.name)).toEqual(['address', 'money', 'math'])
+    expect(defaultSpeechPreprocessors().map(preprocessor => preprocessor.name)).toEqual(['token', 'money', 'math'])
     expect(toSpeechText('Apples cost $3, and $x^2$ is a square.')).toBe('Apples cost three dollars, and x squared is a square.')
   })
 

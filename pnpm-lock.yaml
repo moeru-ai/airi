@@ -858,9 +858,6 @@ catalogs:
     localforage:
       specifier: ^1.10.0
       version: 1.10.0
-    mdast-util-to-string:
-      specifier: ^4.0.0
-      version: 4.0.0
     mediabunny:
       specifier: ^1.55.2
       version: 1.55.2
@@ -4169,9 +4166,6 @@ importers:
       '@xsai/tool':
         specifier: 'catalog:'
         version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.5.0(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
-      mdast-util-to-string:
-        specifier: 'catalog:'
-        version: 4.0.0
       nanoid:
         specifier: 'catalog:'
         version: 6.0.1
