@@ -1617,6 +1617,26 @@ pages:
       loadMore: 更多信息
       delayHint: Flux 电量历史记录是缓慢更新的，可能有延迟
       ttsRequests: 请求
+    usage:
+      title: 用量
+      empty: 还没有用量记录
+      today: 今天
+      fluxAmount: '{amount} Flux'
+      heatmapLabel: 今年每天消耗的 Flux
+      newSessions: '没有新会话 | 1 个新会话 | {count} 个新会话'
+      layers:
+        llm: LLM
+        speech: 语音
+      summary:
+        longestSession: 最长会话
+        sessions: 会话数
+        flux: 消耗 Flux
+        longestStreak: 最长连续
+        currentStreak: 当前连续
+      areaChart:
+        title: 消耗 Flux
+      sessionChart:
+        title: 新会话
     packages:
       title: Flux 电池包
       buy: 充值

@@ -35,6 +35,10 @@ function createMockFluxTransactionService(): FluxTransactionService {
       }],
       hasMore: false,
     })),
+    getDailyUsage: vi.fn(async () => ({
+      days: [{ date: '2026-03-27', llmMicroFlux: 1_000_000, ttsMicroFlux: 550_000, newSessionCount: 2 }],
+      longestSessionMs: 60_000,
+    })),
   }
 }
 
@@ -102,6 +106,40 @@ describe('fluxRoutes', () => {
     const response = await app.request('/api/v1/flux/usage')
     expect(response.status).toBe(401)
     expect(transactions.getUsageHistory).not.toHaveBeenCalled()
+  })
+
+  it('returns the daily usage of the authenticated wallet in the requested time zone', async () => {
+    const transactions = createMockFluxTransactionService()
+    const app = createTestApp(createMockFluxService(), transactions)
+    const response = await app.request('/api/v1/flux/usage/daily?timeZone=Asia/Shanghai')
+    expect(response.status).toBe(200)
+    expect(transactions.getDailyUsage).toHaveBeenCalledWith('user-1', 'Asia/Shanghai')
+    expect(await response.json()).toEqual({
+      days: [{ date: '2026-03-27', llmMicroFlux: 1_000_000, ttsMicroFlux: 550_000, newSessionCount: 2 }],
+      longestSessionMs: 60_000,
+    })
+  })
+
+  it.each([
+    ['a missing name', ''],
+    ['an unknown name', '?timeZone=Mars/Olympus'],
+    ['an offset', '?timeZone=%2B08:00'],
+    ['an injected statement', '?timeZone=UTC%27;drop%20table%20flux_usage;--'],
+  ])('rejects %s as the time zone', async (_label, query) => {
+    const transactions = createMockFluxTransactionService()
+    const app = createTestApp(createMockFluxService(), transactions)
+    const response = await app.request(`/api/v1/flux/usage/daily${query}`)
+    expect(response.status).toBe(400)
+    expect(await response.json()).toMatchObject({ error: 'INVALID_TIME_ZONE' })
+    expect(transactions.getDailyUsage).not.toHaveBeenCalled()
+  })
+
+  it('rejects unauthenticated daily usage requests before reading the database', async () => {
+    const transactions = createMockFluxTransactionService()
+    const app = createTestApp(createMockFluxService(), transactions, false)
+    const response = await app.request('/api/v1/flux/usage/daily?timeZone=UTC')
+    expect(response.status).toBe(401)
+    expect(transactions.getDailyUsage).not.toHaveBeenCalled()
   })
 
   it('saves the fallback choice for the authenticated wallet', async () => {

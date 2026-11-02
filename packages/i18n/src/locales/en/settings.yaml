@@ -1687,6 +1687,26 @@ pages:
       loadMore: Load More
       delayHint: Usage records may be delayed by up to 1 minute
       ttsRequests: requests
+    usage:
+      title: Usage
+      empty: No usage yet.
+      today: Today
+      fluxAmount: '{amount} Flux'
+      heatmapLabel: Flux used on each day of this year
+      newSessions: 'No new sessions | 1 new session | {count} new sessions'
+      layers:
+        llm: LLM
+        speech: Speech
+      summary:
+        longestSession: Longest session
+        sessions: Sessions
+        flux: Flux used
+        longestStreak: Longest streak
+        currentStreak: Current streak
+      areaChart:
+        title: Flux used
+      sessionChart:
+        title: New sessions
     packages:
       title: Flux Packages
       buy: Charge
