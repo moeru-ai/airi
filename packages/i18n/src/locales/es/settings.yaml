@@ -187,8 +187,6 @@ live2d:
           description: Genera movimientos con el conjunto de datos MAGIC incluido.
       magic:
         profile:
-          title: Perfil de MAGIC
-          description: Elige el conjunto de datos de movimiento incluido para el controlador MAGIC.
           options:
             idle-calm:
               title: Reposo / calma

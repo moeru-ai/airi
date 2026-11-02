@@ -187,8 +187,6 @@ live2d:
           description: 使用內建 MAGIC 資料集產生動作。
       magic:
         profile:
-          title: MAGIC 設定檔
-          description: 選擇適合 MAGIC 驅動器的內建動作資料集。
           options:
             idle-calm:
               title: 待機 / 平靜

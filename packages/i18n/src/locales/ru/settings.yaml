@@ -187,8 +187,6 @@ live2d:
           description: Создаёт движения из встроенного набора данных MAGIC.
       magic:
         profile:
-          title: Профиль MAGIC
-          description: Выберите встроенный набор движений для драйвера MAGIC.
           options:
             idle-calm:
               title: Покой / спокойствие
