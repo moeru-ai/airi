@@ -31,7 +31,11 @@ export async function mockDB(schema: Record<string, unknown>): Promise<Database>
   await db.execute?.(sql`CREATE EXTENSION IF NOT EXISTS vector;`)
 
   // Sync the in-memory DB with the provided schema definition
-  // pushSchema's declaration does not accept the actual schema type.
+  // NOTICE:
+  // Drizzle Kit 0.31.10's `pushSchema` declaration rejects the PGlite database type used here.
+  // Its `drizzle-kit/api` declaration targets database types that exclude PGlite.
+  // Source: `drizzle-kit/api` from Drizzle Kit 0.31.10.
+  // Remove this cast when the declaration accepts the PGlite database type.
   // eslint-disable-next-line ts/no-explicit-any
   const { apply } = await pushSchema(schema, db as any)
   await apply()
