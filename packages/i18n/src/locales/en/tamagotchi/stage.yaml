@@ -67,6 +67,7 @@ docs:
   danmaku: Message feed
   pin: Keep on top
   fold: Hide chat
+  conversations: Conversations
   composer:
     show: Show the message box
     hide: Hide the message box
