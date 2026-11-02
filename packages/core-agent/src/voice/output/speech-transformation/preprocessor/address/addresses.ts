@@ -7,21 +7,16 @@ const host = String.raw`(?:${domain}|localhost|\d{1,3}(?:\.\d{1,3}){3})`
 /** A path, query, or fragment ends at a space, a quote, or CJK punctuation. */
 const pathCharacters = String.raw`[^\s<>"'\x60，。、；：！？）」』]*`
 /**
- * An address with a scheme, for example `https://assistant.ihome.cat:8123/config`, or a domain without one, for
- * example `example.com/docs`. A domain without a scheme needs a top-level domain, so `3.14` stays a number.
+ * A text that is one address: with a scheme, for example `https://assistant.ihome.cat:8123/config`, or a domain without
+ * one, for example `example.com/docs`. A domain without a scheme needs a top-level domain, so `3.14` is not an address.
  */
-const addresses = new RegExp([
-  String.raw`[a-z][a-z0-9+.-]*:\/\/${host}(?::\d+)?(?:[/?#]${pathCharacters})?`,
-  String.raw`(?<![\w@./-])${domain}(?::\d+)?(?:[/?#]${pathCharacters})?(?![\w-])`,
-].join('|'), 'giu')
-/** Punctuation that ends the sentence around an address, not the address. */
-const trailingPunctuation = /[.,;:!?)\]]+$/
+const address = new RegExp(String.raw`^(?:[a-z][a-z0-9+.-]*:\/\/${host}|${domain})(?::\d+)?(?:[/?#]${pathCharacters})?$`, 'iu')
 
 /** Reads one address as words, for example `https://a.io:8123/b` as `https a 点 io 端口 8123 斜杠 b`. */
-function speakAddress(address: string, language: string): string {
+function speakParts(text: string, language: string): string {
   const words = addressLocale(language)
-  const scheme = /^([a-z][a-z0-9+.-]*):\/\//i.exec(address)
-  const withoutScheme = scheme ? address.slice(scheme[0].length) : address
+  const scheme = /^([a-z][a-z0-9+.-]*):\/\//i.exec(text)
+  const withoutScheme = scheme ? text.slice(scheme[0].length) : text
   const queryStart = withoutScheme.search(/[?#]/)
   // A query or a fragment has no words that a listener can use. Its private use characters stay, because the speech
   // stream marks the place of a special token with one, see `controlMarker` in ../../../response.
@@ -29,7 +24,7 @@ function speakAddress(address: string, language: string): string {
   const markers = queryStart === -1 ? '' : withoutScheme.slice(queryStart).match(/\p{Co}/gu)?.join('') ?? ''
   const [authority = '', ...segments] = location.split('/')
   const [hostname = '', port] = authority.split(':')
-  const dotted = (text: string) => text.split('.').join(` ${words.dot} `)
+  const dotted = (part: string) => part.split('.').join(` ${words.dot} `)
 
   return [
     ...(scheme ? [scheme[1]!] : []),
@@ -40,13 +35,12 @@ function speakAddress(address: string, language: string): string {
 }
 
 /**
- * Reads the web addresses of a text as words of `language`.
+ * Reads a text that is one web address as words of `language`, or returns `undefined` for other text.
  *
  * The TTS chunker ends a chunk at each `.`, so `assistant.ihome.cat` was three requests with a pause after each part.
  */
-export function speakAddresses(text: string, language: string): string {
-  return text.replace(addresses, (match) => {
-    const punctuation = trailingPunctuation.exec(match)?.[0] ?? ''
-    return speakAddress(match.slice(0, match.length - punctuation.length), language) + punctuation
-  })
+export function speakAddress(text: string, language: string): string | undefined {
+  const trimmed = text.trim()
+  // The speech stream marks a special token with a private use character, which can be anywhere in the address.
+  return address.test(trimmed.replace(/\p{Co}/gu, '')) ? speakParts(trimmed, language) : undefined
 }

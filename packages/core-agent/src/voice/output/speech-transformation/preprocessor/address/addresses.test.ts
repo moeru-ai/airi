@@ -1,33 +1,34 @@
 import { describe, expect, it } from 'vitest'
 
-import { speakAddresses } from './addresses'
+import { speakAddress } from './addresses'
 
-describe('speakAddresses', () => {
+describe('speakAddress', () => {
   it.each([
-    ['连接 https://assistant.ihome.cat 时', 'zh', '连接 https assistant 点 ihome 点 cat 时'],
-    ['Open https://assistant.ihome.cat now.', 'en', 'Open https assistant dot ihome dot cat now.'],
-    ['地址是 http://10.0.0.9:8123/config/areas', 'zh', '地址是 http 10 点 0 点 0 点 9 端口 8123 斜杠 config 斜杠 areas'],
-    ['See example.com/docs.', 'en', 'See example dot com slash docs.'],
-    ['访问 https://a.io/x?token=1#top 吧', 'zh', '访问 https a 点 io 斜杠 x 吧'],
-    ['(see https://a.io)', 'en', '(see https a dot io)'],
-    ['See example.com?token=1 now.', 'en', 'See example dot com now.'],
-    ['Is it example.com?', 'en', 'Is it example dot com?'],
-  ] as const)('reads the address in %s', (text, language, speech) => {
-    expect(speakAddresses(text, language)).toBe(speech)
+    ['https://assistant.ihome.cat', 'zh', 'https assistant 点 ihome 点 cat'],
+    ['https://assistant.ihome.cat', 'en', 'https assistant dot ihome dot cat'],
+    ['http://10.0.0.9:8123/config/areas', 'zh', 'http 10 点 0 点 0 点 9 端口 8123 斜杠 config 斜杠 areas'],
+    ['example.com/docs', 'en', 'example dot com slash docs'],
+    ['https://a.io/x?token=1#top', 'zh', 'https a 点 io 斜杠 x'],
+    ['example.com?token=1', 'en', 'example dot com'],
+  ] as const)('reads %s in %s', (text, language, speech) => {
+    expect(speakAddress(text, language)).toBe(speech)
   })
 
-  it('keeps numbers, versions, and abbreviations', () => {
-    expect(speakAddresses('Pi is 3.14, v1.2.3 is out, e.g. this.', 'en')).toBe('Pi is 3.14, v1.2.3 is out, e.g. this.')
-    expect(speakAddresses('Mail me at neko@ihome.cat', 'en')).toBe('Mail me at neko@ihome.cat')
+  it('reads only a text that is one address', () => {
+    expect(speakAddress('curl https://a.io', 'en')).toBeUndefined()
+    expect(speakAddress('3.14', 'en')).toBeUndefined()
+    expect(speakAddress('v1.2.3', 'en')).toBeUndefined()
+    expect(speakAddress('neko@ihome.cat', 'en')).toBeUndefined()
+    expect(speakAddress('fetch failed', 'en')).toBeUndefined()
   })
 
   it('keeps the marker of a special token in a query', () => {
-    const marker = '\uE000'
+    const marker = ''
 
-    expect(speakAddresses(`Open https://a.io/x?q=${marker}1 now.`, 'en')).toBe(`Open https a dot io slash x${marker} now.`)
+    expect(speakAddress(`https://a.io/x?q=${marker}1`, 'en')).toBe(`https a dot io slash x${marker}`)
   })
 
   it('reads the words of another language in English', () => {
-    expect(speakAddresses('https://a.io', 'ja')).toBe('https a dot io')
+    expect(speakAddress('https://a.io', 'ja')).toBe('https a dot io')
   })
 })

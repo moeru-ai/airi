@@ -147,7 +147,12 @@ describe('toSpeechText', () => {
       .toBe('连接 Home Assistant 地址 https assistant 点 ihome 点 cat 时，网络请求失败（fetch failed）。')
     expect(toSpeechText('Open `https://assistant.ihome.cat` now.')).toBe('Open https assistant dot ihome dot cat now.')
     expect(toSpeechText('链接 <https://assistant.ihome.cat> 在这。')).toBe('链接 https assistant 点 ihome 点 cat 在这。')
-    expect(toSpeechText('裸链接 https://assistant.ihome.cat 在这。')).toBe('裸链接 https assistant 点 ihome 点 cat 在这。')
+    expect(toSpeechText('看 [https://assistant.ihome.cat](https://assistant.ihome.cat) 这页。')).toBe('看 https assistant 点 ihome 点 cat 这页。')
+  })
+
+  it('keeps an address in prose and code that is more than one address', () => {
+    expect(toSpeechText('Is it example.com? See https://a.io now.')).toBe('Is it example.com? See https://a.io now.')
+    expect(toSpeechText('Run `curl https://a.io` now.')).toBe('Run curl https://a.io now.')
   })
 
   it.each([

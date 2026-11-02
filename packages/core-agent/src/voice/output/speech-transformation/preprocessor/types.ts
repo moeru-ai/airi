@@ -12,6 +12,8 @@ export interface SpeechProseContext {
   fallback?: string
   /** `text` for plain text, `code` for inline code. The text of inline code keeps its symbols. */
   kind: 'text' | 'code'
+  /** Whether the text is the text of a link, as the URL of `<https://a.io>`. */
+  link: boolean
   /** Reads a formula found in the text through the formula hooks. `context` is the words around it. */
   readFormula: (tex: string, context: string) => string
 }

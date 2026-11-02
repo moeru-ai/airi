@@ -1,16 +1,16 @@
 import type { SpeechPreprocessor } from '../types'
 
-import { speakAddresses } from './addresses'
+import { speakAddress } from './addresses'
 
-export { speakAddresses } from './addresses'
+export { speakAddress } from './addresses'
 
 /**
- * Reads web addresses in prose and in inline code as words of their sentence, for example
- * `https://assistant.ihome.cat` as `https assistant 点 ihome 点 cat`.
+ * Reads an inline code or a link text that is one web address as words of its sentence, for example
+ * `https://assistant.ihome.cat` as `https assistant 点 ihome 点 cat`. An address in prose stays as written.
  */
 export function addressSpeechPreprocessor(): SpeechPreprocessor {
   return {
     name: 'address',
-    prose: (text, { language }) => speakAddresses(text, language),
+    prose: (text, { kind, link, language }) => (kind === 'code' || link ? speakAddress(text, language) : undefined) ?? text,
   }
 }
