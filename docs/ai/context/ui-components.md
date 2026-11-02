@@ -45,6 +45,9 @@ it back under the neighbor when it leaves. The element starts small under the
 neighbor and springs out with a bounce. Put the element after its neighbor in
 the same row or column, and keep the neighbor above it with `z-index`.
 
+The spring is a CSS `linear()` easing. The browser must support it: Chromium
+113, Firefox 112, Safari 17.2, or later.
+
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `from` | `'left' \| 'right' \| 'top' \| 'bottom'` | *(required)* | Side of the element where its neighbor is |

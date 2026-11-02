@@ -1,15 +1,3 @@
-<script lang="ts">
-/**
- * Samples a spring into a CSS `linear()` easing. The spring has the model of SwiftUI and anime.js: a perceived duration
- * and a bounce from 0 (no overshoot) to 1. The easing runs until the spring rests, so its duration is longer than the
- * perceived one.
- *
- * @example
- * springEasing(0.45, 520)
- * // => { easing: 'linear(0.0000, …, 1.0000)', duration: 1300 }
- */
-</script>
-
 <script setup lang="ts">
 import { usePreferredReducedMotion } from '@vueuse/core'
 
@@ -32,6 +20,15 @@ const props = withDefaults(defineProps<{
   delay: 0,
 })
 
+/**
+ * Samples a spring into a CSS `linear()` easing. The spring has the model of SwiftUI and anime.js: a perceived duration
+ * and a bounce from 0 (no overshoot) to 1. The easing runs until the spring rests, so its duration is longer than the
+ * perceived one.
+ *
+ * @example
+ * springEasing(0.45, 520)
+ * // => { easing: 'linear(0.0000, …, 1.0000)', duration: 1300 }
+ */
 function springEasing(bounce: number, perceivedMs: number) {
   const zeta = 1 - bounce
   const omega = (2 * Math.PI) / (perceivedMs / 1000)
@@ -85,13 +82,11 @@ function play(element: Element, keyframes: Keyframe[], options: KeyframeAnimatio
 }
 
 function bud(element: Element, done: () => void) {
-  // A browser without `linear()` easing gets a plain ease-out of the same length.
-  const easing = typeof CSS !== 'undefined' && CSS.supports('animation-timing-function', 'linear(0, 1)') ? BUD_SPRING.easing : 'ease-out'
   // `backwards` keeps the element clear and under its neighbor while it waits.
   play(element, [
     { transform: underNeighbor(element as HTMLElement), opacity: 0 },
     { transform: 'none', opacity: 1 },
-  ], { duration: BUD_SPRING.duration, delay: props.delay, easing, fill: 'backwards' }, done)
+  ], { duration: BUD_SPRING.duration, delay: props.delay, easing: BUD_SPRING.easing, fill: 'backwards' }, done)
 }
 
 function merge(element: Element, done: () => void) {
