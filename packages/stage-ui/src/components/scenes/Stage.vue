@@ -205,9 +205,11 @@ const lipSyncStarted = ref(false)
 const lipSyncLoopId = ref<number>()
 const live2dLipSync = ref<Live2DLipSync>()
 const live2dLipSyncOptions: Live2DLipSyncOptions = { mouthUpdateIntervalMs: 50, mouthLerpWindowMs: 50 }
+let playingCount = 0
 
 function resetAssistantSpeechSurface(source: string) {
-  nowSpeaking.value = false
+  if (playingCount === 0)
+    nowSpeaking.value = false
   mouthOpenSize.value = 0
   assistantCaption.value = ''
 
@@ -393,7 +395,6 @@ watch(speechVolume, (volume) => {
   speechDestination.gain.setTargetAtTime(volume, audioContext.currentTime, 0.05)
 }, { immediate: true })
 const playback = new Playback(new BrowserPlayback(audioContext, { destination: speechDestination }))
-let playingCount = 0
 
 function resetSpeakingState() {
   nowSpeaking.value = false

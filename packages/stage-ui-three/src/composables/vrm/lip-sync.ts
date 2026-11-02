@@ -27,10 +27,11 @@ const VRM_EXPRESSION_BY_VOWEL: Record<WLipSyncVowel, string> = {
 export function useVRMLipSync(
   audioContext: Readonly<Ref<AudioContext | undefined>>,
   connectSpeech: Readonly<Ref<((node: AudioNode) => () => void) | undefined>>,
-  speechActive?: Readonly<Ref<boolean | undefined>>,
+  speechActive: Readonly<Ref<boolean | undefined>>,
 ) {
   const isLipSyncActive = ref(false)
   const lipSyncNode = shallowRef<WLipSyncAudioNode>()
+  const ownsVisemes = ref(false)
   const vowelDriver = createWLipSyncVowelDriver()
 
   watch(audioContext, (context, _, onCleanup) => {
@@ -81,16 +82,26 @@ export function useVRMLipSync(
       vrm.expressionManager.setValue(VRM_EXPRESSION_BY_VOWEL[vowel], 0)
   }
 
+  function releaseVisemes(vrm?: VRMCore) {
+    if (!ownsVisemes.value)
+      return
+    ownsVisemes.value = false
+    clearVisemes(vrm)
+  }
+
   function update(vrm?: VRMCore, delta = 0.016) {
+    if (!vrm?.expressionManager)
+      return
+
     const node = lipSyncNode.value
-    const speechIsActive = speechActive?.value !== false
-    if (!vrm?.expressionManager || !node || !speechIsActive) {
+    if (!node || speechActive.value === false) {
       isLipSyncActive.value = false
       vowelDriver.reset()
-      clearVisemes(vrm)
+      releaseVisemes(vrm)
       return
     }
 
+    ownsVisemes.value = true
     const weights = vowelDriver.update(node, delta)
     let hasActiveVisemes = false
     for (const vowel of WLIP_SYNC_VOWELS) {

@@ -282,6 +282,7 @@ onUnmounted(() => {
           :idle-animation="animations.idleLoop.toString()"
           :audio-context="audioContext"
           :connect-speech="connectSpeech"
+          :speech-active="nowSpeaking"
           :show-axes="stageViewControlsEnabled"
           :paused="false"
           @error="console.error"

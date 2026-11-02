@@ -114,7 +114,7 @@ const props = withDefaults(defineProps<{
   audioContext?: AudioContext
   /** Connects the lip sync node to the played speech and returns the disconnection. */
   connectSpeech?: (node: AudioNode) => () => void
-  /** Whether speech is currently audible. Clears lip-sync visemes when false. */
+  /** Whether speech is currently audible. Required when `connectSpeech` is set. */
   speechActive?: boolean
   cursorPosition?: { x: number, y: number }
   /** The stable identity of the last model that completed scene binding. */
