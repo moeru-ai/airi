@@ -39,7 +39,7 @@ dialogs:
     credentialsSafeOpenSource: >-
       AIRI 在 {github} 开源，如果您想确认我们如何存储您的凭据，您可以自由浏览源码。
     enableChatCheck: >-
-      允许 AIRI 向第一个可用的聊天模式发送「ping」消息以检查可用性
+      允许 AIRI 向第一个可用的聊天模型发送「ping」消息，以检查模型是否可用。
     start: 开始吧！
     loginPrompt: 登录并使用 AIRI 官方提供的服务以获得最佳体验。
     loginAction: 登录
@@ -69,7 +69,7 @@ dialogs:
     trigger-label: 报告程序错误
     submit-label: 发送错误报告
     triage-description: 包括屏幕截图和页面上的上下文来帮助我们对这个问题进行分析。
-    description-placeholder: 复制的步骤，预期的行为和实际行为
+    description-placeholder: 复现步骤、预期行为和实际行为
     include-current-page-screenshot: 包含当前页面截图
     manual-media:
       label: 手动选择屏幕截图/录屏
@@ -264,10 +264,10 @@ pages:
     notLoggedIn: 登录以查看您的帐户并访问所有功能
     login: 登录
     logout: 登出
-    fluxBalance: 剩余通量
+    fluxBalance: Flux 余额
     viewFluxDetails: 查看详情
     viewCapacitor: 查看
-    signedInAs: 登录 为
+    signedInAs: 当前登录账号
     profile:
       tab: 个人资料
       title: 个人资料
@@ -311,7 +311,7 @@ pages:
       tab: 安全
       title: 安全
       description: 更新密码后，其他已登入的设备将会被自动登出
-      setDescription: 由于先前是通过其他的第三方平台登录的，暂时没有设置的密码，我们将会发送一个安全的重设链接来帮助你设定一个
+      setDescription: 从第三方登录的账号没有设置密码。我们会通过邮件发送安全链接，供你设置密码。
       currentPassword:
         label: 当前密码
         placeholder: 输入你当前的密码
@@ -390,7 +390,7 @@ pages:
           personality: 性格
           scenario: 场景
           systemPrompt: 系统提示词
-          postHistoryInstructions: 历史后指令
+          postHistoryInstructions: 消息历史后指令
           notes: 创作者备注
           greetings: 问候语
           tags: 标签
@@ -473,11 +473,11 @@ pages:
       defaults:
         name: 名字
         personality: 你是一个普通人，对一切都充满好奇。
-        scenario: 你最近醒来，忘记了之前的所有生活。
+        scenario: 你最近醒来，忘记了过去生活中的一切。
         systemprompt: 你将收到消息，请像真实人类一样回复。
         posthistoryinstructions: 记得模仿人类的行为。
       modules_info: >-
-        配置此角色卡的模块。留空会继承全局设置。
+        配置此角色卡的模块。聊天、视觉和语音字段留空时使用全局设置。选择无身体模型会禁用角色渲染。
       sections:
         chat: 聊天
         vision: 视觉
@@ -488,31 +488,31 @@ pages:
       inherit_global_settings: 继承全局设置
       fields_info:
         subtitle: >-
-          您可以在这里填写有关您正在创建的角色的一些详细信息，解释他的背景和情境，以及应该如何回应您的互动。
-        name: 是该角色的正式名称。
-        nickname: 您也可以提供一个昵称，它将被优先使用。
+          填写角色的背景、所处情境，以及角色与你互动时的回应方式。
+        name: 该角色的正式名称。
+        nickname: 设置后优先使用昵称。
         description: 该角色的描述。
-        notes: 如果您想添加一些个人备注。
+        notes: 可填写个人备注。
         personality: >-
-          在这里描述您的角色的个性。例如：害羞？好奇？其他？
+          描述角色的性格，例如害羞、好奇或其他特点。
         scenario: 周围环境是怎样的？当前的情境是什么？
         greetings_field: 问候语
-        greetings: 您的角色应该如何说“你好”？
-        systemprompt: 在这里向 AI LLM 解释当被提示时应该如何回应。
-        posthistoryinstructions: 在消息历史之后，放入 AI LLM 应该阅读的内容。
+        greetings: 角色会如何向你打招呼？
+        systemprompt: 填写对大模型的指令，说明角色应如何回应。
+        posthistoryinstructions: 填写发送给大模型的附加指令，这些指令会放在聊天记录之后。
         context_window: 消息数量上限，包含当前输入。留空表示全部，0 表示仅发送当前输入。超出上限时，按完整轮次分批移除较早消息。已保存的聊天记录不受影响。
         version: >-
-          卡片版本，如果您从之前的卡片做了更改，应当增加此版本号。
+          修改已有角色卡时，请提高版本号。
         consciousness_model: 为这个角色选择 AI 模型。
         speech_model: 为此角色指定语音合成模型与音色。
       errors:
         model_required: 请为指定的提供商选择模型，不能继承其他提供商的模型。
-        name: 错误：你必须提供一个有效的名称！
+        name: 错误：请提供一个有效的名称！
         version: '错误：版本号无效！'
-        description: '错误：你必须为此卡片提供描述。'
+        description: '错误：必须为此卡片提供描述。'
         personality: '错误：必须为该角色提供性格描述。'
         scenario: '错误：必须提供一个情境。'
-        systemprompt: '错误：请提供系统提示。'
+        systemprompt: '错误：请提供系统提示词。'
         posthistoryinstructions: '错误：必须提供消息历史后的提示。'
         invalid_artistry_json: '错误：绘图提供商选项包含无效 JSON。'
       none: 无
@@ -523,7 +523,7 @@ pages:
     no_cards: 还没有任何角色卡，点击上方按钮上传一个吧！
     no_results: 没有找到匹配的角色卡
     personality: 性格
-    posthistoryinstructions: 历史提示指令
+    posthistoryinstructions: 消息历史后指令
     context_window: 记住的消息数量
     context_window_all: 全部
     recent: 最近添加
@@ -561,8 +561,8 @@ pages:
     upload: 上传
     upload_desc: 点击或拖动 AIRI 角色卡包以导入
   memory:
-    description: 存放记忆的地方，以及策略
-    title: 记忆体
+    description: 查看和管理角色的记忆
+    title: 记忆
   data:
     title: 数据
     description: 管理存储 AIRI 数据、导出和重置
@@ -575,7 +575,7 @@ pages:
         delete: 删除所有聊天会话
       models:
         title: 模型
-        description: 删除导入的Live2D/VRM模型。
+        description: 删除导入的 Live2D、VRM、Spine 和 MMD 模型。
         delete: 删除所有模型
       model-downloads:
         title: 已下载的语音模型
@@ -620,7 +620,7 @@ pages:
       model_download_cancelled: 已取消模型下载。
       model_download_removed: 已删除下载的模型。
       modules_reset: 重置模块设置。
-      providers_reset: 服务端设置重置。
+      providers_reset: 提供商设置已重置。
       all_deleted: 已删除所有本地数据。
       desktop_window_centered: 桌面窗口已移至屏幕中央。
       desktop_reset: 桌面数据重置。
@@ -798,13 +798,13 @@ pages:
         section:
           provider-model-selection:
             collapse: 折叠
-            custom_model_placeholder: 输入自订模型名称
+            custom_model_placeholder: 输入自定模型名称
             current_model_label: '当前模型：'
-            description: 为意识选择合适的 LLM 服务来源
+            description: 为意识选择合适的大语言模型服务来源
             error: 获取出错啦
             health_check_failed: 健康检查失败
             no_providers_configured_title: 没有配置服务来源
-            no_providers_configured_description: 点击这里设置您的 LLM 服务来源
+            no_providers_configured_description: 点击这里设置您的大语言模型服务来源
             expand: 展开
             loading: 获取模型中...
             manual_model_name: 模型名字
@@ -817,8 +817,8 @@ pages:
             not_supported_description: 此服务来源不支持列出模型的功能
             search_placeholder: 搜索模型...
             search_results: 找到 {count} / {total} 个模型
-            show_less: 显示更多
-            show_more: 收起
+            show_less: 收起
+            show_more: 更多
             temperature_label: 温度
             temperature_enabled: 自定义温度
             top_p_enabled: 自定义 Top P
@@ -839,10 +839,10 @@ pages:
       description: 一起玩 Factorio！
       title: 异星工厂 Factorio
       enable: 启用异星工厂集成
-      enable-description: 允许AIRI与异星工厂游戏互动
+      enable-description: 允许 AIRI 与异星工厂游戏互动
       server-address: 服务器地址
       server-address-description: 异星工厂服务器的IP地址或主机名
-      server-address-placeholder: 输入服务器地址（例如：localhost或192.168.1.100）
+      server-address-placeholder: 输入服务器地址（例如：localhost 或 192.168.1.100）
       server-port: 服务器端口
       server-port-description: 异星工厂服务器的端口号（默认 34197）
       username: 用户名
@@ -1117,11 +1117,11 @@ pages:
       title: 短期记忆
     messaging-discord:
       description: Discord 发消息和语音聊天
-      enable: 启用Discord集成
-      enable-description: 允许AIRI通过Discord进行互动
+      enable: 启用 Discord 集成
+      enable-description: 允许 AIRI 通过 Discord 进行互动
       token: 机器人令牌
-      token-description: 您的Discord机器人令牌
-      token-placeholder: 输入您的Discord机器人令牌
+      token-description: 您的 Discord 机器人令牌
+      token-placeholder: 输入您的 Discord 机器人令牌
       configured: Discord已正确配置！
     speech:
       description: 语音合成
@@ -1151,7 +1151,7 @@ pages:
             no_voices_description: 该服务来源的声线列表没有返回任何的数据
             no_voices_hint: 可以在下方输入自定义声线名字
             pause: 暂停
-            play_sample: Play
+            play_sample: 播放
             search_models_placeholder: 搜索模型...
             search_models_results: 找到 {count} / {total} 个模型
             search_voices_placeholder: 搜索声线...
@@ -1159,8 +1159,8 @@ pages:
             unsupported_voice_warning_title: 没有支持的声线
             unsupported_voice_warning_content: >-
               我们正在尽快支持该模型的所有音色，如果你迫切希望支持该模型音色，请在 GitHub 上联系我们 https://github.com/moeru-ai/airi/issues
-            show_less: 显示更少
-            show_more: 显示更多
+            show_less: 收起
+            show_more: 更多
             title: 选择语音合成服务来源
           voice-settings:
             input-ssml:
@@ -1201,21 +1201,21 @@ pages:
           description: '开启时，通过 Ollama 发送的视觉请求带有 `think: true`；关闭时带有 `think: false`。'
     x:
       description: X / Twitter 的浏览和使用
-      enable: 启用X / Twitter集成
-      enable-description: 允许AIRI与X / Twitter互动
-      api-key: API密钥
-      api-key-description: 您的X / Twitter API密钥
-      api-key-placeholder: 输入您的X / Twitter API密钥
-      api-secret: API密钥密文
-      api-secret-description: 您的X / Twitter API密钥密文
-      api-secret-placeholder: 输入您的X / Twitter API密钥密文
+      enable: 启用 X / Twitter 集成
+      enable-description: 允许 AIRI 与 X / Twitter 互动
+      api-key: API 密钥
+      api-key-description: 您的 X / Twitter API 密钥
+      api-key-placeholder: 输入您的 X / Twitter API 密钥
+      api-secret: API 密钥密文
+      api-secret-description: 您的 X / Twitter API 密钥密文
+      api-secret-placeholder: 输入您的 X / Twitter API 密钥密文
       access-token: 访问令牌
-      access-token-description: 您的X / Twitter访问令牌
-      access-token-placeholder: 输入您的X / Twitter访问令牌
+      access-token-description: 您的 X / Twitter 访问令牌
+      access-token-placeholder: 输入您的 X / Twitter 访问令牌
       access-token-secret: 访问令牌密文
-      access-token-secret-description: 您的X / Twitter访问令牌密文
-      access-token-secret-placeholder: 输入您的X / Twitter访问令牌密文
-      configured: X / Twitter已正确配置！
+      access-token-secret-description: 您的 X / Twitter 访问令牌密文
+      access-token-secret-placeholder: 输入您的 X / Twitter 访问令牌密文
+      configured: X / Twitter 已正确配置！
     stickers:
       frequency: 表情包频率
       frequency-description: 按此比例允许回复发送表情包。角色仍会判断表情是否适合当前对话。
@@ -1599,7 +1599,7 @@ pages:
     privacy: 隐私政策
     packagesError: 暂时无法获取可用的 Flux 电量包。可以之后再试试吗？
     checkout:
-      success: 谢谢你！你的 Flux 通量已经更新好啦～
+      success: 谢谢你！你的 Flux 余额已经更新好啦～
       canceled: 支付被取消
       error: 哎呀，出错了，请稍后再试
     audit:
@@ -1683,7 +1683,7 @@ pages:
                 base-url:
                   label: 基础 URL
                   description: >-
-                    用于连接远程服务的 baseUrl。通常看起来像是 http://localhost:11434/v1 或 https://example.com/v1。
+                    用于连接远程服务的端点。通常看起来像是 http://localhost:11434/v1 或 https://example.com/v1。
                   placeholder: 基础 Url……
                 download-model:
                   label: 下载模型
@@ -1698,7 +1698,7 @@ pages:
                 thinking-mode:
                   label: 深度思考模式
                   description: >
-                    控制 Olama 深度思考的开关。GPT-OSS 只支持低/中/高水平。
+                    控制 Ollama 深度思考的开关。GPT-OSS 只支持低/中/高水平。
                   options:
                     auto: 自动（默认服务来源）
                     disable: 禁用
@@ -1736,9 +1736,9 @@ pages:
               troubleshooting:
                 validators:
                   openai-compatible-check-connectivity:
-                    label: Ollama需要额外的配置
+                    label: Ollama 需要额外的配置
                     content: >-
-                      很抱歉，Ollama 连接检查失败。不要担心，如果是 Ollama，需要额外配置才能通过 Ollama。 您需要在启动 Olama 应用程序或 Ollama CLI 服务器时明确设置 <code>OLLAMA_HOST</code> 详情，请检查 <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama 集成指南</a>。
+                      抱歉，Ollama 连接检查失败。Ollama 通常需要额外配置。启动 Ollama 应用程序或 Ollama CLI 服务器时，请明确设置 <code>OLLAMA_HOST</code>。详情请参考 <a href="https://airi.moeru.ai/docs/zh-Hans/docs/manual/config/providers/consciousness/ollama">Ollama 集成指南</a>。
     common:
       continueAnyway: 仍然继续
       goToModelSelection: 选择模型→
@@ -1811,7 +1811,7 @@ pages:
       Speech: 语音（文本转语音）模型服务来源，例如 ElevenLabs, Azure Speech
       Transcription: >-
         转录（语音转文本）模型服务来源，例如 Whisper.cpp, OpenAI, Azure Speech
-    description: LLM，语音合成，语音识别服务来源等
+    description: 大语言模型，语音合成，语音识别服务来源等
     provider:
       sherpaw-transcription:
         description: 使用内置或按需加载的模型进行本地语音识别，无需 API 密钥。
@@ -1873,8 +1873,8 @@ pages:
             part4: >-
               与 OpenAI SDK 不一致，目前无法在浏览器中使用此提供程序。
             part5: >-
-              如果您确实需要使用此提供程序，则需要一个专用的代理后端，例如在
-            part6: 上运行的Serverless Function，或者一些绕过 CORS 的服务，以绕过 CORS 限制。
+              如果确实需要使用此提供商，请配置专用代理后端，例如无服务器函数（Serverless Function）
+            part6: ，或使用其他可绕过 CORS 限制的服务。
       cloudflare-workers-ai:
         description: Cloudflare.com
         fields:
