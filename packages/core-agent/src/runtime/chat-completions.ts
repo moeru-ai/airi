@@ -141,7 +141,7 @@ export function streamChatCompletions(input: {
       scopes.push(input.scope)
       generation.prepareStep({ input: sdkInput, model: next?.model })
 
-      return { input: current, model: next?.model ?? input.config.model, toolChoice: !next || requestOptions.tools?.length ? callerToolChoice(steps) : undefined }
+      return { input: current, model: next?.model ?? input.config.model, toolChoice: requestOptions.tools?.length ? callerToolChoice(steps) : undefined }
     },
     abortSignal: input.options?.abortSignal,
     temperature: input.options?.temperature,

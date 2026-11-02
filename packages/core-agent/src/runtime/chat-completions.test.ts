@@ -147,7 +147,7 @@ it.each(['auto', 'required'] as const)('applies the new Chat model compatibility
   expect(Array.isArray(requests[0].messages[0].content)).toBe(true)
   if (choice === 'required') {
     expect(requests[1].tools).toHaveLength(1)
-    expect(requests[1].tool_choice).toBe('required')
+    expect(requests[1].tool_choice).toBeUndefined()
   }
   else {
     expect(requests[1].tools).toBeUndefined()

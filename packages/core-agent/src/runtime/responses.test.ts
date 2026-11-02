@@ -238,7 +238,7 @@ it.each(['auto', 'required'] as const)('applies local and hosted tool compatibil
   expect(requests[0].tool_choice).toBe(choice)
   if (choice === 'required') {
     expect(requests[1].tools).toHaveLength(2)
-    expect(requests[1].tool_choice).toBe('required')
+    expect(requests[1].tool_choice).toBeUndefined()
   }
   else {
     expect(requests[1].tools).toBeUndefined()
@@ -453,20 +453,40 @@ it.each([
 })
 
 // https://github.com/moeru-ai/airi/pull/2477#discussion_r4005498799
+// https://github.com/moeru-ai/airi/issues/2161
+// ROOT CAUSE:
+// The required-tool check counted hosted search even when providerTools disabled it.
+// Count only available tools, so an impossible required choice fails before the request.
+it('rejects a required choice without local or enabled provider tools for Issue #2161', async () => {
+  const fetch = vi.fn<typeof globalThis.fetch>(async () => sse(completed([])))
+  const chatProvider: GenerationProvider = {
+    generation: model => ({ protocol: 'responses', webSearch: true, config: { model, baseURL: 'https://example.test/v1/', fetch } }),
+  }
+  await expect(streamFrom({
+    model: 'test',
+    chatProvider,
+    conversation: { turns: [] },
+    options: { providerTools: false, toolChoice: 'required' },
+  })).rejects.toThrow('Cannot satisfy a required tool choice because no tools are available')
+  expect(fetch).not.toHaveBeenCalled()
+})
+
 it.each(['explicit', 'compatibility'] as const)('disables hosted search under the %s tool policy (PR #2477)', async (policy) => {
   // ROOT CAUSE:
   // The runtime removed local tools but forwarded hosted search unchanged.
   // The resolved tool policy must govern both kinds of tools.
+  // A request without tools must also omit the automatic tool choice.
   const fetch = vi.fn<typeof globalThis.fetch>(async (_url, init) => {
     expect(JSON.parse(String(init?.body))).not.toHaveProperty('tools')
+    expect(JSON.parse(String(init?.body))).not.toHaveProperty('tool_choice')
     return sse(completed([]))
   })
   const chatProvider: GenerationProvider = {
     generation: model => ({ protocol: 'responses', webSearch: true, config: { model, baseURL: 'https://example.test/v1/', fetch } }),
   }
   await streamFrom({ model: 'test', chatProvider, conversation: { turns: [] }, options: policy === 'explicit'
-    ? { supportsTools: false }
-    : { toolsCompatibility: new Map([['responses:https://example.test/v1/-test', false]]) } })
+    ? { supportsTools: false, toolChoice: 'auto' }
+    : { toolsCompatibility: new Map([['responses:https://example.test/v1/-test', false]]), toolChoice: 'auto' } })
   expect(fetch).toHaveBeenCalledTimes(1)
 })
 
