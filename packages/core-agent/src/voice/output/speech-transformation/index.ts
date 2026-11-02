@@ -7,6 +7,7 @@ import remarkWikiLink from '@flowershow/remark-wiki-link'
 import remarkMath from 'remark-math'
 import remarkParse from 'remark-parse'
 
+import { toString } from 'mdast-util-to-string'
 import { unified } from 'unified'
 
 import { detectSpeechLanguage, toSpeechLanguage } from './language'
@@ -205,15 +206,12 @@ function compile(tree: Root, source: string, options: SpeechTextOptions | undefi
     }
   }
 
-  /**
-   * `outer` is the sentence around the parent node, for example around a link whose text is a URL.
-   * `link` is true inside the text of a link.
-   */
-  function phrasing(nodes: readonly PhrasingContent[], outer = '', link = false): string {
-    return nodes.map((node, index) => inline(node, nodes, index, outer, link)).join('')
+  /** `outer` is the sentence around the parent node, for example around a link. */
+  function phrasing(nodes: readonly PhrasingContent[], outer = ''): string {
+    return nodes.map((node, index) => inline(node, nodes, index, outer)).join('')
   }
 
-  function inline(node: PhrasingContent, siblings: readonly PhrasingContent[], index: number, outer: string, link: boolean): string {
+  function inline(node: PhrasingContent, siblings: readonly PhrasingContent[], index: number, outer: string): string {
     const around = () => sentenceAround(siblings, index) + outer
     const language = () => detectSpeechLanguage(around(), fallback)
 
@@ -223,7 +221,7 @@ function compile(tree: Root, source: string, options: SpeechTextOptions | undefi
         const previous = siblings[index - 1]?.type
         const value = previous === 'link' || previous === 'image' ? node.value.replace(leadingAttributeList, '') : node.value
         // A voice can read `$5` in another language, so a price is read as words of its sentence.
-        return speakProse(value, 'text', around() + value, link)
+        return speakProse(value, 'text', around() + value)
       }
       case 'inlineCode':
         // An address in code reads in the language of its sentence, not in the language of the code.
@@ -243,11 +241,15 @@ function compile(tree: Root, source: string, options: SpeechTextOptions | undefi
       case 'delete':
         // CommonMark reads `x**2 + y**2` as strong text, but the writer meant two powers.
         // The source text, delimiters included, keeps the operators.
-        return isOperator(node) ? range(node) : phrasing(node.children, around(), link)
+        return isOperator(node) ? range(node) : phrasing(node.children, around())
       case 'link':
       case 'linkReference': {
+        // A hook reads the whole link text when it is one item, for example one address, also with formatting, as in
+        // `[*a.io*](url)`. Other link text reads node by node, so `[about *a.io*](url)` keeps its words.
+        const label = toString(node)
+        const whole = speakProse(label, 'text', around() + label, true)
+        const spoken = whole !== speakProse(label, 'text', around() + label) ? whole : phrasing(node.children, around())
         // `[target | Display](url)` reads its display text, as `[[target|Display]]` does.
-        const spoken = phrasing(node.children, around(), true)
         const display = spoken.slice(spoken.lastIndexOf('|') + 1).replace(attributeLists, '').trim()
         return keepMarkers(node, display)
       }

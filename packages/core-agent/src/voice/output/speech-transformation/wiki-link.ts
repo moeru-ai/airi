@@ -60,7 +60,8 @@ const embedWords: Readonly<Record<string, Record<EmbedKind, string>>> = {
 
 /** The word for an embedded file in `language`, or `undefined` for a note, which reads as its name. */
 export function embedWord(target: string, language: string): string | undefined {
-  const kind = embedKinds[target.split('.').at(-1)?.toLowerCase() ?? '']
+  // A target can have a fragment, as in `Document.pdf#page=3`. The path of a URL drops it.
+  const kind = embedKinds[new URL(target, 'file:///').pathname.split('.').at(-1)?.toLowerCase() ?? '']
   return kind && (embedWords[language] ?? embedWords.en!)[kind]
 }
 

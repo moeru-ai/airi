@@ -160,6 +160,11 @@ describe('toSpeechText', () => {
     expect(toSpeechText('看 $x^2$。', { language: 'en' })).toBe('看 x的平方。')
   })
 
+  it('reads a link text as an address only when the whole text is one address', () => {
+    expect(toSpeechText('Read [about *example.com*](https://docs.example.com).')).toBe('Read about example.com.')
+    expect(toSpeechText('Open [*https://a.io*](https://a.io) now.')).toBe('Open https a dot io now.')
+  })
+
   it('keeps an address in prose and code that is more than one address', () => {
     expect(toSpeechText('Is it example.com? See https://a.io now.')).toBe('Is it example.com? See https://a.io now.')
     expect(toSpeechText('Run `curl https://a.io` now.')).toBe('Run curl https://a.io now.')
@@ -174,6 +179,7 @@ describe('toSpeechText', () => {
     ['图 ![[shot.png|截图]] 在这。', '图 截图 在这。'],
     ['图 ![[shot.png|300]] 在这。', '图 图片 在这。'],
     ['听 ![[voice.mp3]]，看 ![[clip.mp4]]，读 ![[doc.pdf]]。', '听 音频，看 视频，读 PDF 文件。'],
+    ['读 ![[doc.pdf#page=3]]。', '读 PDF 文件。'],
     ['笔记 ![[Home Assistant 配置]] 嵌入。', '笔记 Home Assistant 配置 嵌入。'],
     ['See ![[shot.png]] here.', 'See image here.'],
     ['代码 `[[not a link]]` 里。', '代码 [[not a link]] 里。'],

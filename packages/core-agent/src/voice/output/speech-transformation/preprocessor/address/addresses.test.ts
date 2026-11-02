@@ -10,6 +10,8 @@ describe('speakAddress', () => {
     ['example.com/docs', 'en', 'example dot com slash docs'],
     ['https://a.io/x?token=1#top', 'zh', 'https a 点 io 斜杠 x'],
     ['example.com?token=1', 'en', 'example dot com'],
+    ['http://localhost:8123', 'en', 'http localhost port 8123'],
+    ['https://example.com/文档/指南', 'zh', 'https example 点 com 斜杠 文档 斜杠 指南'],
   ] as const)('reads %s in %s', (text, language, speech) => {
     expect(speakAddress(text, language)).toBe(speech)
   })
@@ -20,6 +22,9 @@ describe('speakAddress', () => {
     expect(speakAddress('v1.2.3', 'en')).toBeUndefined()
     expect(speakAddress('user@example.com', 'en')).toBeUndefined()
     expect(speakAddress('fetch failed', 'en')).toBeUndefined()
+    expect(speakAddress('mailto:user@example.com', 'en')).toBeUndefined()
+    expect(speakAddress('a:b', 'en')).toBeUndefined()
+    expect(speakAddress('localhost:8123', 'en')).toBeUndefined()
   })
 
   it('keeps the marker of a special token in a query', () => {
