@@ -280,12 +280,12 @@ const icons: Record<DevicePermission['kind'], string> = {
 
     <div :class="['mx-auto w-full max-w-90 flex flex-col gap-2']">
       <template v-if="onSummary">
-        <Button variant="primary" size="lg" :label="t('settings.dialogs.onboarding.permissions.flow.done')" @click="props.onNext()" />
+        <Button variant="primary" color="primary" :label="t('settings.dialogs.onboarding.permissions.flow.done')" @click="props.onNext()" />
       </template>
       <template v-else>
         <Button
           variant="primary"
-          size="lg"
+          color="primary"
           :label="primaryLabel"
           :loading="busyId === current?.id"
           :disabled="!status || (granted && !ready)"
@@ -293,8 +293,6 @@ const icons: Record<DevicePermission['kind'], string> = {
         />
         <Button
           variant="secondary"
-          size="lg"
-          :class="['bg-transparent! text-neutral-500! dark:text-neutral-400!']"
           :label="t('settings.dialogs.onboarding.permissions.flow.skip')"
           @click="skip"
         />
