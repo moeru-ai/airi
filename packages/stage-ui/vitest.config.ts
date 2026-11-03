@@ -63,6 +63,8 @@ export default defineConfig({
           include: ['src/**/*.test.ts'],
           exclude: ['src/**/*.browser.test.ts'],
           hookTimeout: 20_000,
+          // The browser project runs at the same time. More workers starve the slow store imports.
+          maxWorkers: 2,
           testTimeout: 20_000,
         },
       },
