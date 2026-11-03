@@ -9,6 +9,7 @@ import { BrowserDomExtensionBridge } from '../browser-dom/extension-bridge'
 import { createChromeSessionManager } from '../chrome-session-manager'
 import { resolveComputerUseConfig } from '../config'
 import { createDesktopSessionController } from '../desktop-session'
+import { createAuvExecutor } from '../executors/auv'
 import { createDryRunExecutor } from '../executors/dry-run'
 import { createLinuxX11Executor } from '../executors/linux-x11'
 import { createMacOSLocalExecutor } from '../executors/macos-local'
@@ -46,6 +47,13 @@ function createExecutor(config: ComputerUseConfig, options: ComputerUseServerOpt
 
   if (config.executor === 'macos-local' && platform !== 'darwin') {
     throw new Error(`macos-local executor requires a darwin host, current platform is ${platform}`)
+  }
+
+  if (config.executor === 'auv') {
+    if (platform !== 'win32') {
+      throw new Error(`auv executor requires a win32 host, current platform is ${platform}`)
+    }
+    return createAuvExecutor(config)
   }
 
   if (config.executor === 'linux-x11')

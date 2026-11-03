@@ -100,6 +100,10 @@ export function getRuntimePreflight(params: {
     }
   }
 
+  if (params.config.executor === 'auv') {
+    mutationReadinessIssues.push('auv executor is in read-only observation mode; mutating actions are not supported')
+  }
+
   return {
     launchContext,
     coordinateSpace,

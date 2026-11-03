@@ -106,7 +106,7 @@ function parseBounds(value: string | undefined): Bounds | undefined {
 }
 
 function parseExecutor(value: string | undefined): ExecutorKind {
-  if (value === 'linux-x11' || value === 'macos-local')
+  if (value === 'auv' || value === 'linux-x11' || value === 'macos-local')
     return value
   return 'dry-run'
 }
@@ -210,7 +210,9 @@ export function resolveComputerUseConfig(): ComputerUseConfig {
         ? `${launchHostProcess} -> ssh -> remote desktop-runner`
         : executor === 'macos-local'
           ? `${launchHostProcess} -> swift/quartz + open`
-          : `${launchHostProcess} -> local dry-run`),
+          : executor === 'auv'
+            ? `${launchHostProcess} -> auv daemon -> auv.runner`
+            : `${launchHostProcess} -> local dry-run`),
     requireSessionTagForMutatingActions,
     requireAllowedBoundsForMutatingActions,
     requireCoordinateAlignmentForMutatingActions,
@@ -231,6 +233,12 @@ export function resolveComputerUseConfig(): ComputerUseConfig {
       host: env.COMPUTER_USE_BROWSER_DOM_BRIDGE_HOST?.trim() || '127.0.0.1',
       port: parseInteger(env.COMPUTER_USE_BROWSER_DOM_BRIDGE_PORT, 8765),
       requestTimeoutMs: parseInteger(env.COMPUTER_USE_BROWSER_DOM_BRIDGE_TIMEOUT_MS, 10_000),
+    },
+    auv: {
+      binaryPath: env.COMPUTER_USE_AUV_BINARY_PATH?.trim() || undefined,
+      storeRoot: env.COMPUTER_USE_AUV_STORE_ROOT?.trim() || join(sessionRoot, 'auv'),
+      startupTimeoutMs: parseInteger(env.COMPUTER_USE_AUV_STARTUP_TIMEOUT_MS, 10_000),
+      shutdownTimeoutMs: parseInteger(env.COMPUTER_USE_AUV_SHUTDOWN_TIMEOUT_MS, 5_000),
     },
     binaries: {
       swift: env.COMPUTER_USE_SWIFT_BINARY?.trim() || 'swift',

@@ -203,8 +203,12 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
             ? 'NSWorkspace + CGWindowList + Quartz'
             : runtime.config.executor === 'linux-x11'
               ? 'remote X11 runner'
-              : 'dry-run',
-          supportedAppsForOpenFocus: runtime.config.openableApps,
+              : runtime.config.executor === 'auv'
+                ? 'auv runner.windows (read-only window observation)'
+                : 'dry-run',
+          supportedAppsForOpenFocus: runtime.config.executor === 'auv'
+            ? []
+            : runtime.config.openableApps,
           approvalUx: 'electron-dialog',
           coordScope: 'global-screen',
           appPolicy: 'deny-only',

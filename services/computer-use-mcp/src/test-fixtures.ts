@@ -50,6 +50,11 @@ export function createTestConfig(overrides: Partial<ComputerUseConfig> = {}): Co
       port: 8765,
       requestTimeoutMs: 10_000,
     },
+    auv: {
+      storeRoot: '/tmp/computer-use-mcp/auv',
+      startupTimeoutMs: 10_000,
+      shutdownTimeoutMs: 5_000,
+    },
     binaries: {
       swift: 'swift',
       osascript: 'osascript',

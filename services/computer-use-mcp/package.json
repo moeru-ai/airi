@@ -50,6 +50,8 @@
     "test": "vitest run --config ./vitest.config.ts"
   },
   "dependencies": {
+    "@auv-js/cli": "catalog:",
+    "@auv-js/sdk": "catalog:",
     "@modelcontextprotocol/sdk": "catalog:",
     "@moeru/std": "catalog:",
     "node-pty": "catalog:",
