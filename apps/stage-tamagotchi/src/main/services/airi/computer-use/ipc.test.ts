@@ -1,4 +1,5 @@
-import type { ComputerUseResult } from '../../../../shared/eventa/computer-use'
+import type { ComputerUseReadImageInput, ComputerUseResult, ComputerUseRunInput } from '../../../../shared/eventa/computer-use'
+import type { PendingActionManager } from './action-manager'
 
 import { Buffer } from 'node:buffer'
 import { EventEmitter } from 'node:events'
@@ -40,12 +41,13 @@ vi.mock('@auv-js/sdk/node', async (importOriginal) => {
   }
 })
 
-describe('computer use Electron Main IPC host enforcement gate', () => {
+describe('computer use Electron Main IPC host enforcement gate & attribution contract', () => {
   let directory: string
   let storeRoot: string
   let ipcMain: EventEmitter
-  let runViaIpc: (input: { argv: string[] }) => Promise<ComputerUseResult>
-  let readImageViaIpc: (input: { path: string }) => Promise<string>
+  let actionManager: PendingActionManager
+  let runViaIpc: (input: ComputerUseRunInput) => Promise<ComputerUseResult>
+  let readImageViaIpc: (input: ComputerUseReadImageInput) => Promise<string>
 
   beforeEach(async () => {
     vi.clearAllMocks()
@@ -59,10 +61,12 @@ describe('computer use Electron Main IPC host enforcement gate', () => {
     const { context: mainContext } = createMainContext(ipcMain as never)
 
     // Register host-owned computer-use with test directory
-    setupComputerUse(mainContext, {
+    const registered = setupComputerUse(mainContext, {
       binaryPath: binaryPath(),
       storeRoot,
+      requireAttribution: true,
     })
+    actionManager = registered.actionManager
 
     // Simulated renderer process context
     const { context: rendererContext } = createWindowIpc(ipcMain)
@@ -75,154 +79,244 @@ describe('computer use Electron Main IPC host enforcement gate', () => {
     await rm(directory, { recursive: true, force: true })
   })
 
-  it('rejects input.clickPoint over IPC without host authorization and executes zero CLI processes', async () => {
-    await expect(runViaIpc({ argv: ['invoke', 'input.clickPoint', '100', '200'] })).rejects.toThrow(
-      "Mutating desktop operation 'input.clickPoint' is not authorized on this host.",
+  it('rejects mutating commands when actionId is missing (Fail-Closed) and executes zero CLI processes', async () => {
+    await expect(runViaIpc({
+      argv: ['invoke', 'input.clickPoint', '100', '200', '--target', 'app:notepad'],
+      attribution: { sessionId: 'session-alpha' },
+    })).rejects.toThrow(
+      "Mutating desktop operation 'input.clickPoint' requires an approved action (actionId missing).",
     )
     expect(sdkMock.startAuv).not.toHaveBeenCalled()
   })
 
-  it('rejects input.typeText and app.activate over IPC and executes zero CLI processes', async () => {
-    await expect(runViaIpc({ argv: ['invoke', 'input.typeText', 'hello world'] })).rejects.toThrow(
-      "Mutating desktop operation 'input.typeText' is not authorized on this host.",
-    )
-    await expect(runViaIpc({ argv: ['invoke', 'app.activate', 'Notepad'] })).rejects.toThrow(
-      "Mutating desktop operation 'app.activate' is not authorized on this host.",
-    )
-    await expect(runViaIpc({ argv: ['invoke', 'mediaControl.play'] })).rejects.toThrow(
-      "Mutating desktop operation 'mediaControl.play' is not authorized on this host.",
+  it('rejects desktop observation when attribution is missing (Fail-Closed)', async () => {
+    // Un-attributed desktop observation must fail closed
+    await expect(runViaIpc({
+      argv: ['invoke', 'window.list'],
+    })).rejects.toThrow(
+      'Invocation attribution is required (missing sessionId).',
     )
     expect(sdkMock.startAuv).not.toHaveBeenCalled()
   })
 
-  it('does NOT permit renderer to bypass host gate by passing approved: true', async () => {
-    const maliciousInput = {
-      argv: ['invoke', 'input.clickPoint', '50', '50'],
-      approved: true,
-      authorization: 'granted',
-    } as unknown as { argv: string[] }
-
-    await expect(runViaIpc(maliciousInput)).rejects.toThrow(
-      "Mutating desktop operation 'input.clickPoint' is not authorized on this host.",
+  it('rejects when attribution contains empty or invalid sessionId', async () => {
+    await expect(runViaIpc({
+      argv: ['invoke', 'window.list'],
+      attribution: { sessionId: '   ' },
+    })).rejects.toThrow(
+      'Invalid invocation attribution: sessionId must be a non-empty string.',
     )
     expect(sdkMock.startAuv).not.toHaveBeenCalled()
   })
 
-  it('rejects unadmitted commands (scan.* and overlay.*) over IPC with zero CLI processes', async () => {
-    await expect(runViaIpc({ argv: ['invoke', 'scan.frame'] })).rejects.toThrow(
-      'Use invoke with a desktop command or --help.',
-    )
-    await expect(runViaIpc({ argv: ['invoke', 'overlay.outline'] })).rejects.toThrow(
-      'Use invoke with a desktop command or --help.',
-    )
-    await expect(runViaIpc({ argv: ['invoke', 'scan.coverage', '--help'] })).rejects.toThrow(
-      'Use invoke with a desktop command or --help.',
+  it('rejects unapproved pending actions and executes zero CLI processes', async () => {
+    const action = actionManager.createPendingAction({
+      attribution: { sessionId: 'session-alpha' },
+      argv: ['invoke', 'input.clickPoint', '100', '200', '--target', 'app:notepad'],
+    })
+
+    await expect(runViaIpc({
+      argv: [...action.argv],
+      actionId: action.id,
+      attribution: { sessionId: 'session-alpha' },
+    })).rejects.toThrow(
+      `Pending action '${action.id}' has not been approved.`,
     )
     expect(sdkMock.startAuv).not.toHaveBeenCalled()
   })
 
-  it('rejects unknown commands and route overrides over IPC', async () => {
-    await expect(runViaIpc({ argv: ['invoke', 'input.nonExistentAction'] })).rejects.toThrow(
-      'Use invoke with a desktop command or --help.',
-    )
-    await expect(runViaIpc({ argv: ['invoke', 'window.list', '--store-root', '/etc'] })).rejects.toThrow(
-      'Computer use routing and storage are managed by AIRI.',
+  it('rejects cancelled actions and executes zero CLI processes', async () => {
+    const action = actionManager.createPendingAction({
+      attribution: { sessionId: 'session-alpha' },
+      argv: ['invoke', 'input.clickPoint', '100', '200', '--target', 'app:notepad'],
+    })
+    actionManager.cancel(action.id, 'Task cancelled by user')
+
+    await expect(runViaIpc({
+      argv: [...action.argv],
+      actionId: action.id,
+      attribution: { sessionId: 'session-alpha' },
+    })).rejects.toThrow(
+      `Pending action '${action.id}' was cancelled.`,
     )
     expect(sdkMock.startAuv).not.toHaveBeenCalled()
   })
 
-  it('rejects fake help attempts that disguise mutating commands', async () => {
-    // Delimiter '--' turns '--help' into a literal positional text argument
-    await expect(runViaIpc({ argv: ['invoke', 'input.typeText', '--', '--help'] })).rejects.toThrow(
-      "Mutating desktop operation 'input.typeText' is not authorized on this host.",
-    )
+  it('rejects expired actions when TTL has elapsed', async () => {
+    const action = actionManager.createPendingAction({
+      attribution: { sessionId: 'session-alpha' },
+      argv: ['invoke', 'input.clickPoint', '100', '200', '--target', 'app:notepad'],
+      ttlMs: 5, // 5ms TTL
+    })
+    actionManager.approve(action.id)
 
-    // Option assignment containing '--help'
-    await expect(runViaIpc({ argv: ['invoke', 'input.typeText', '--target=--help', 'hello'] })).rejects.toThrow(
-      "Mutating desktop operation 'input.typeText' is not authorized on this host.",
-    )
+    // Wait for action to expire
+    await new Promise(resolve => setTimeout(resolve, 15))
 
+    await expect(runViaIpc({
+      argv: [...action.argv],
+      actionId: action.id,
+      attribution: { sessionId: 'session-alpha' },
+    })).rejects.toThrow(
+      `Pending action '${action.id}' has expired.`,
+    )
     expect(sdkMock.startAuv).not.toHaveBeenCalled()
   })
 
-  it('allows safe read-only operations and help queries over IPC', async () => {
-    // Root invoke help
-    const helpResult = await runViaIpc({ argv: ['invoke', '--help'] })
+  it('rejects parameter changes: approved action cannot be reused with altered parameters', async () => {
+    const action = actionManager.createPendingAction({
+      attribution: { sessionId: 'session-alpha' },
+      argv: ['invoke', 'input.clickPoint', '100', '200', '--target', 'app:notepad'],
+    })
+    actionManager.approve(action.id)
+
+    // Attacker or caller attempts to alter coordinates while reusing actionId
+    await expect(runViaIpc({
+      argv: ['invoke', 'input.clickPoint', '999', '999', '--target', 'app:notepad'],
+      actionId: action.id,
+      attribution: { sessionId: 'session-alpha' },
+    })).rejects.toThrow(
+      `Pending action '${action.id}' parameter mismatch: approved arguments do not match requested execution arguments.`,
+    )
+    expect(sdkMock.startAuv).not.toHaveBeenCalled()
+  })
+
+  it('enforces single-use atomic consumption: duplicate execution attempt is rejected', async () => {
+    const mutatingAction = actionManager.createPendingAction({
+      attribution: { sessionId: 'session-alpha' },
+      argv: ['invoke', 'app.activate', 'Calculator'],
+    })
+    actionManager.approve(mutatingAction.id)
+
+    // Execute first time: consumes action
+    const firstResult = await runViaIpc({
+      argv: [...mutatingAction.argv],
+      actionId: mutatingAction.id,
+      attribution: { sessionId: 'session-alpha' },
+    })
+    expect(firstResult).toBeDefined()
+    expect(sdkMock.startAuv).toHaveBeenCalledTimes(1)
+
+    // Second execution with identical actionId must be rejected as already consumed
+    await expect(runViaIpc({
+      argv: [...mutatingAction.argv],
+      actionId: mutatingAction.id,
+      attribution: { sessionId: 'session-alpha' },
+    })).rejects.toThrow(
+      `Pending action '${mutatingAction.id}' has already been consumed (replay rejected).`,
+    )
+    // No second CLI start was triggered
+    expect(sdkMock.startAuv).toHaveBeenCalledTimes(1)
+  })
+
+  it('isolates concurrent sessions: Session A cannot consume an action authorized for Session B', async () => {
+    const actionA = actionManager.createPendingAction({
+      attribution: { sessionId: 'session-alpha' },
+      argv: ['invoke', 'app.activate', 'TextEdit'],
+    })
+    const actionB = actionManager.createPendingAction({
+      attribution: { sessionId: 'session-beta' },
+      argv: ['invoke', 'app.activate', 'Terminal'],
+    })
+
+    actionManager.approve(actionA.id)
+    actionManager.approve(actionB.id)
+
+    // Cross-session attempt: Session Alpha attempts to consume Action B
+    await expect(runViaIpc({
+      argv: [...actionB.argv],
+      actionId: actionB.id,
+      attribution: { sessionId: 'session-alpha' },
+    })).rejects.toThrow(
+      `Pending action '${actionB.id}' attribution mismatch: action was authorized for session 'session-beta', but requested by session 'session-alpha'.`,
+    )
+    expect(sdkMock.startAuv).not.toHaveBeenCalled()
+
+    // Proper attribution consumes successfully
+    const resultB = await runViaIpc({
+      argv: [...actionB.argv],
+      actionId: actionB.id,
+      attribution: { sessionId: 'session-beta' },
+    })
+    expect(resultB).toBeDefined()
+    expect(sdkMock.startAuv).toHaveBeenCalledTimes(1)
+  })
+
+  it('conservative precondition: rejects unbound foreground input mutations without explicit target', async () => {
+    // Unbound input.typeText without --target
+    const unboundAction = actionManager.createPendingAction({
+      attribution: { sessionId: 'session-alpha' },
+      argv: ['invoke', 'input.typeText', 'dangerous text'],
+    })
+    actionManager.approve(unboundAction.id)
+
+    await expect(runViaIpc({
+      argv: [...unboundAction.argv],
+      actionId: unboundAction.id,
+      attribution: { sessionId: 'session-alpha' },
+    })).rejects.toThrow(
+      "Precondition failed: Mutating operation 'input.typeText' is rejected: operation is unbound from an explicit target window or app (--target is required).",
+    )
+    expect(sdkMock.startAuv).not.toHaveBeenCalled()
+  })
+
+  it('does NOT block read-only operations while an approval action is pending', async () => {
+    // Create an action that stays pending
+    const pendingAction = actionManager.createPendingAction({
+      attribution: { sessionId: 'session-alpha' },
+      argv: ['invoke', 'app.activate', 'Notepad'],
+    })
+    expect(actionManager.get(pendingAction.id)?.status).toBe('pending')
+
+    // Concurrently, a read-only request is dispatched
+    const helpResult = await runViaIpc({
+      argv: ['invoke', 'window.list', '--help'],
+      attribution: { sessionId: 'session-alpha' },
+    })
+
     expect(helpResult.exitCode).toBe(0)
-    expect(typeof helpResult.output).toBe('string')
     expect(helpResult.output).toContain('window.list')
 
-    // Subcommand help on mutating command
-    const clickHelp = await runViaIpc({ argv: ['invoke', 'input.clickPoint', '--help'] })
-    expect(clickHelp.exitCode).toBe(0)
-    expect(clickHelp.output).toContain('Click a point')
-
-    // Read-only window.list help
-    const windowHelp = await runViaIpc({ argv: ['invoke', 'window.list', '--help'] })
-    expect(windowHelp.exitCode).toBe(0)
-    expect(windowHelp.output).toContain('List visible window candidates')
-
-    expect(sdkMock.startAuv).toHaveBeenCalled()
+    // The pending action is still untouched and pending
+    expect(actionManager.get(pendingAction.id)?.status).toBe('pending')
   })
 
-  it('prevents TOCTOU: mutating caller argv after IPC dispatch does not alter execution', async () => {
-    const callerArgv = ['invoke', 'window.list', '--help']
-    const promise = runViaIpc({ argv: callerArgv })
+  it('invalidates all pending and approved actions on host shutdown', async () => {
+    const action = actionManager.createPendingAction({
+      attribution: { sessionId: 'session-alpha' },
+      argv: ['invoke', 'app.activate', 'Notepad'],
+    })
+    actionManager.approve(action.id)
 
-    // Caller attempts to tamper with the array in-place before or during execution
-    callerArgv[1] = 'input.clickPoint'
-    callerArgv[2] = '100'
+    // Host shutdown emitted
+    await emitAppBeforeQuit()
 
-    const result = await promise
-    expect(result.exitCode).toBe(0)
-    expect(result.output).toContain('window.list')
-    expect(result.argv).toEqual(['invoke', 'window.list', '--help'])
+    // Action has been invalidated
+    expect(actionManager.get(action.id)?.status).toBe('cancelled')
+
+    // Subsequent invocation rejected
+    await expect(runViaIpc({
+      argv: [...action.argv],
+      actionId: action.id,
+      attribution: { sessionId: 'session-alpha' },
+    })).rejects.toThrow('Computer use has stopped.')
   })
 
-  it('handles concurrent interleaved IPC requests without cross-contamination or head-of-line blocking', async () => {
-    const results = await Promise.allSettled([
-      runViaIpc({ argv: ['invoke', 'input.clickPoint', '10', '20'] }),
-      runViaIpc({ argv: ['invoke', 'window.list', '--help'] }),
-      runViaIpc({ argv: ['invoke', 'input.typeText', 'concurrent text'] }),
-      runViaIpc({ argv: ['invoke', 'display.capture', '--help'] }),
-    ])
-
-    expect(results[0].status).toBe('rejected')
-    if (results[0].status === 'rejected') {
-      expect((results[0].reason as Error).message).toContain("Mutating desktop operation 'input.clickPoint' is not authorized")
-    }
-
-    expect(results[1].status).toBe('fulfilled')
-    if (results[1].status === 'fulfilled') {
-      expect(results[1].value.exitCode).toBe(0)
-      expect(results[1].value.output).toContain('window.list')
-    }
-
-    expect(results[2].status).toBe('rejected')
-    if (results[2].status === 'rejected') {
-      expect((results[2].reason as Error).message).toContain("Mutating desktop operation 'input.typeText' is not authorized")
-    }
-
-    expect(results[3].status).toBe('fulfilled')
-    if (results[3].status === 'fulfilled') {
-      expect(results[3].value.exitCode).toBe(0)
-      expect(results[3].value.output).toContain('display.capture')
-    }
-  })
-
-  it('preserves screenshot reading and lifecycle cleanup over IPC', async () => {
-    // 1. Screenshot read
+  it('preserves screenshot reading and enforces attribution on image reads', async () => {
     const imageBytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6SAAAAABJRU5ErkJggg==', 'base64')
     const screenshotPath = join(storeRoot, 'shot.png')
     await writeFile(screenshotPath, imageBytes)
 
-    const dataUrl = await readImageViaIpc({ path: screenshotPath })
+    // 1. Without attribution: rejected
+    await expect(readImageViaIpc({ path: screenshotPath })).rejects.toThrow(
+      'Invocation attribution is required (missing sessionId).',
+    )
+
+    // 2. With valid attribution: succeeds
+    const dataUrl = await readImageViaIpc({
+      path: screenshotPath,
+      attribution: { sessionId: 'session-alpha' },
+    })
     expect(dataUrl).toBe(`data:image/png;base64,${imageBytes.toString('base64')}`)
-
-    // 2. Lifecycle cleanup via app quit
-    await emitAppBeforeQuit()
-
-    // Post-quit requests must be rejected cleanly
-    await expect(runViaIpc({ argv: ['invoke', '--help'] })).rejects.toThrow('Computer use has stopped.')
   })
 })

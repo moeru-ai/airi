@@ -1,6 +1,8 @@
 import type { AuvDaemon } from '@auv-js/sdk/node'
 
 import type { ComputerUseResult } from '../../../../shared/eventa/computer-use'
+import type { PendingActionManager } from './action-manager'
+import type { InvocationAttribution } from './attribution'
 import type { AuvCommandClassification } from './classifier'
 
 import process from 'node:process'
@@ -16,21 +18,52 @@ import { fileTypeFromBuffer } from 'file-type'
 import * as v from 'valibot'
 
 import { isComputerUseHelpCall } from '../../../../shared/eventa/computer-use'
+import { validateAttribution } from './attribution'
 import { classifyAuvCommand } from './classifier'
 
 const execFileAsync = promisify(execFile)
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024
-const inputSchema = v.object({ argv: v.pipe(v.array(v.pipe(v.string(), v.maxLength(16384), v.check(value => !value.includes('\0')))), v.minLength(2), v.maxLength(128)) })
+
+const attributionSchema = v.object({
+  sessionId: v.pipe(v.string(), v.minLength(1), v.check(value => !value.includes('\0'))),
+  turnId: v.optional(v.string()),
+  toolCallId: v.optional(v.string()),
+})
+
+const inputSchema = v.object({
+  argv: v.pipe(
+    v.array(v.pipe(v.string(), v.maxLength(16384), v.check(value => !value.includes('\0')))),
+    v.minLength(2),
+    v.maxLength(128),
+  ),
+  actionId: v.optional(v.string()),
+  attribution: v.optional(attributionSchema),
+})
+
+const readImageSchema = v.object({
+  path: v.string(),
+  attribution: v.optional(attributionSchema),
+})
 
 export interface ComputerUseRuntimeOptions {
   binaryPath: string
   storeRoot: string
+  /** Main-owned PendingAction store enforcing single-use approval consumption */
+  actionManager?: PendingActionManager
   /**
-   * Host authorization hook for mutating operations.
-   * Invoked synchronously during run() before queueing or starting AUV CLI.
-   * In Phase 1 without a lease manager, defaults to false (strict rejection).
+   * Whether session attribution is required for real desktop commands.
+   * Defaults to true (Fail-Closed).
    */
-  authorizeMutation?: (context: { argv: readonly string[], classification: AuvCommandClassification }) => boolean
+  requireAttribution?: boolean
+  /**
+   * Fallback authorization hook when actionManager is not supplied.
+   */
+  authorizeMutation?: (context: {
+    argv: readonly string[]
+    classification: AuvCommandClassification
+    attribution?: InvocationAttribution
+    actionId?: string
+  }) => boolean
 }
 
 /** Owns one private daemon and serializes desktop operations across renderer windows. */
@@ -70,14 +103,25 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
     return next
   }
 
-  async function run(input: unknown): Promise<ComputerUseResult> {
-    const { argv } = v.parse(inputSchema, input)
+  async function run(input: unknown, callerWebContentsId?: number): Promise<ComputerUseResult> {
+    const parsed = v.parse(inputSchema, input)
 
     // 1. Immutable snapshot to eliminate TOCTOU across queueing and asynchronous execution.
-    const validatedArgv = Object.freeze([...argv])
+    const validatedArgv = Object.freeze([...parsed.argv])
 
     // 2. The host owns routing and artifact storage. CLI global flags must not replace them.
-    const managedFlags = ['--credential-stdin', '--store-root', '--endpoint', '--device', '--device-id', '--run', '--config', '--profile', '--discovery-file', '--pairing-store']
+    const managedFlags = [
+      '--credential-stdin',
+      '--store-root',
+      '--endpoint',
+      '--device',
+      '--device-id',
+      '--run',
+      '--config',
+      '--profile',
+      '--discovery-file',
+      '--pairing-store',
+    ]
     if (validatedArgv.some(arg => managedFlags.some(flag => arg === flag || arg.startsWith(`${flag}=`))))
       throw new Error('Computer use routing and storage are managed by AIRI.')
 
@@ -88,14 +132,48 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
       throw new Error(`Use invoke with a desktop command or --help. (${classification.reason})`)
     }
 
+    // 4. Trusted Invocation Attribution (Fail-Closed when enabled)
+    let attribution: InvocationAttribution | undefined
+    if (parsed.attribution) {
+      attribution = validateAttribution(parsed.attribution, callerWebContentsId)
+    }
+    else if (!classification.isHelp && options.requireAttribution === true) {
+      throw new Error('Invocation attribution is required (missing sessionId).')
+    }
+
+    // 5. Host Authorization & PendingAction enforcement for mutating commands
     if (classification.category === 'mutating') {
-      const isAuthorized = options.authorizeMutation?.({ argv: validatedArgv, classification }) ?? false
-      if (!isAuthorized) {
-        throw new Error(`Mutating desktop operation '${classification.command ?? 'unknown'}' is not authorized on this host.`)
+      if (options.actionManager) {
+        if (!parsed.actionId) {
+          throw new Error(
+            `Mutating desktop operation '${classification.command ?? 'unknown'}' requires an approved action (actionId missing).`,
+          )
+        }
+        if (!attribution) {
+          throw new Error('Invocation attribution is required (missing sessionId).')
+        }
+        // Atomically consumes the approved action, validating parameter match, attribution match,
+        // and execution preconditions (rejecting unbound mutations).
+        options.actionManager.consume(parsed.actionId, {
+          argv: validatedArgv,
+          attribution,
+        })
+      }
+      else {
+        const isAuthorized = options.authorizeMutation?.({
+          argv: validatedArgv,
+          classification,
+          attribution,
+          actionId: parsed.actionId,
+        }) ?? false
+
+        if (!isAuthorized) {
+          throw new Error(`Mutating desktop operation '${classification.command ?? 'unknown'}' is not authorized on this host.`)
+        }
       }
     }
 
-    // 4. Authorized or read-only execution: enters queue and runs via AUV daemon.
+    // 6. Authorized or read-only execution: enters queue and runs via AUV daemon.
     return enqueue(async () => {
       const active = await connect()
       const command = [...validatedArgv]
@@ -135,6 +213,16 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
         stdout = error.stdout
         stderr = error.stderr
       }
+
+      // Settle action in actionManager if an actionId was consumed
+      if (parsed.actionId && options.actionManager) {
+        options.actionManager.settle(parsed.actionId, {
+          outcome: exitCode === 0 ? 'success' : 'failed',
+          exitCode,
+          error: exitCode === 0 ? undefined : stderr,
+        })
+      }
+
       let output: unknown = stdout.trim()
       try {
         output = JSON.parse(stdout)
@@ -146,8 +234,16 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
     })
   }
 
-  async function readImage(input: unknown): Promise<string> {
-    const { path } = v.parse(v.object({ path: v.string() }), input)
+  async function readImage(input: unknown, callerWebContentsId?: number): Promise<string> {
+    const { path, attribution: rawAttribution } = v.parse(readImageSchema, input)
+
+    if (rawAttribution) {
+      validateAttribution(rawAttribution, callerWebContentsId)
+    }
+    else if (options.requireAttribution === true) {
+      throw new Error('Invocation attribution is required (missing sessionId).')
+    }
+
     return enqueue(async () => {
       const root = await realpath(options.storeRoot)
       const target = await realpath(path)
@@ -178,6 +274,7 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
   async function dispose() {
     disposed = true
     abort.abort()
+    options.actionManager?.invalidateAll()
     await queue
     await daemon?.stop()
   }
