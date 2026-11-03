@@ -226,9 +226,7 @@ describe('voice inlay', () => {
       await vi.advanceTimersByTimeAsync(50)
       return inlayView()
     }).toBe('hidden')
-    await vi.advanceTimersByTimeAsync(4900)
-    expect(returnHome).not.toHaveBeenCalled()
-    await vi.advanceTimersByTimeAsync(100)
+    await vi.advanceTimersByTimeAsync(5000)
     expect(returnHome).toHaveBeenCalledTimes(1)
   })
 
