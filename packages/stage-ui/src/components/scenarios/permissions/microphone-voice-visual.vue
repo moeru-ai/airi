@@ -7,14 +7,12 @@ import { computed, onScopeDispose, shallowRef, watch } from 'vue'
 const props = defineProps<{
   /** What the visual shows, for assistive technology. */
   label: string
-  /** The level of each voice band from 0 to 1, from the lowest band to the highest, about 30 times a second. */
+  /** How much a voice stands out in each band, from 0 to 1, from the lowest band to the highest, about 30 times a second. */
   bands: readonly number[]
   /** True while the microphone listens. Otherwise the waves rest as thin gray lines. */
   active: boolean
 }>()
 
-/** A quiet room reads up to about this level in a band. The waves react only above it. */
-const NOISE_FLOOR = 0.15
 /** A listening wave keeps this much height, so the user sees that it listens. */
 const IDLE_HEIGHT = 0.05
 /** A frame after a stall counts at most this long, so the waves do not jump. */
@@ -36,7 +34,7 @@ const layers = [
 ]
 
 /** A rising wave follows the voice at once, and a falling wave settles slowly, so the layers swell and breathe. */
-const RISE_MS = 140
+const RISE_MS = 200
 const FALL_MS = 480
 
 /**
@@ -48,8 +46,7 @@ const tweens = heights.map(height => createAnimatable(height, { value: 0, ease: 
 
 watch(() => [props.bands, props.active] as const, ([bands, active]) => {
   tweens.forEach((tween, index) => {
-    const voice = Math.max(0, (bands[index] ?? 0) - NOISE_FLOOR) / (1 - NOISE_FLOOR)
-    const target = active ? IDLE_HEIGHT + voice * (1 - IDLE_HEIGHT) : 0
+    const target = active ? IDLE_HEIGHT + (bands[index] ?? 0) * (1 - IDLE_HEIGHT) : 0
     tween.value(target, target > heights[index].value ? RISE_MS : FALL_MS)
   })
 }, { immediate: true })

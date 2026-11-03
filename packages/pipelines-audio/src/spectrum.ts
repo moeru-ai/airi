@@ -19,9 +19,15 @@ export const voiceBands: readonly SpectrumBand[] = [
   { fromHz: 3000, toHz: 8000 },
 ]
 
-/** About 30 updates a second, for a visual that follows the voice. */
+/** About 30 updates a second, for a visual that follows the voice. Each update moves the audio forward by one hop. */
 const SPECTRUM_WINDOW_MS = 40
-const SPECTRUM_HOP_MS = 33
+export const SPECTRUM_HOP_MS = 33
+/**
+ * The published power of a band is the mean of this many windows (the Welch method). The power of one window of noise
+ * varies about as much as its mean, so a visual of single windows flickers. A mean of 4 halves that variation, and
+ * 4 hops are about 130 ms, which is shorter than a syllable.
+ */
+const AVERAGED_WINDOWS = 4
 /** Band levels map this range of decibels to 0 and 1. A band of a quiet room reads near 0, and loud speech near 1. */
 const BAND_FLOOR_DB = -80
 const BAND_CEILING_DB = -20
@@ -39,16 +45,11 @@ function transformOf(size: number) {
 }
 
 /**
- * The level of each band in some audio, from 0 to 1.
+ * The mean power of each band in some audio, relative to a sine of full scale.
  *
- * The channels are mixed to one, shaped with a Hann window, and zero-padded to a power of two. Each level is the mean
- * power of the frequency bins in the band, mapped linearly in decibels from -80 dB (0) to -20 dB (1).
- *
- * @example
- * bandLevelsOf([sineAt150Hz], 48000, voiceBands)
- * // => [0.9, 0.1, 0, 0]
+ * The channels are mixed to one, shaped with a Hann window, and zero-padded to a power of two.
  */
-export function bandLevelsOf(channels: readonly Float32Array[], sampleRate: number, bands: readonly SpectrumBand[] = voiceBands): number[] {
+export function bandPowersOf(channels: readonly Float32Array[], sampleRate: number, bands: readonly SpectrumBand[] = voiceBands): number[] {
   const frames = channels[0]?.length ?? 0
   if (!frames)
     return bands.map(() => 0)
@@ -81,18 +82,35 @@ export function bandLevelsOf(channels: readonly Float32Array[], sampleRate: numb
       const imaginary = spectrum[bin * 2 + 1] * scale
       power += real * real + imaginary * imaginary
     }
-    const meanPower = power / (lastBin - firstBin + 1)
-    if (!meanPower)
-      return 0
-    const decibels = 10 * Math.log10(meanPower)
-    return Math.min(1, Math.max(0, (decibels - BAND_FLOOR_DB) / (BAND_CEILING_DB - BAND_FLOOR_DB)))
+    return power / (lastBin - firstBin + 1)
   })
 }
 
+/** Maps a band power linearly in decibels from -80 dB (0) to -20 dB (1). */
+export function levelOfBandPower(power: number): number {
+  if (!power)
+    return 0
+  const decibels = 10 * Math.log10(power)
+  return Math.min(1, Math.max(0, (decibels - BAND_FLOOR_DB) / (BAND_CEILING_DB - BAND_FLOOR_DB)))
+}
+
 /**
- * Publishes the level of each band of an input until `signal` aborts, about 30 times a second.
+ * The level of each band in some audio, from 0 to 1.
  *
- * Like `observeLevel`, the observation subscribes to `input` and keeps the source open. Run it only while a visual needs it.
+ * @example
+ * bandLevelsOf([sineAt150Hz], 48000, voiceBands)
+ * // => [0.9, 0.1, 0, 0]
+ */
+export function bandLevelsOf(channels: readonly Float32Array[], sampleRate: number, bands: readonly SpectrumBand[] = voiceBands): number[] {
+  return bandPowersOf(channels, sampleRate, bands).map(levelOfBandPower)
+}
+
+/**
+ * Publishes the level of each band of an input until `signal` aborts, one value for each 33 ms hop.
+ *
+ * Each level comes from the mean power of the last 4 windows, so noise does not flicker. A gap in the audio starts the
+ * mean again. Like `observeLevel`, the observation subscribes to `input` and keeps the source open. Run it only while a
+ * visual needs it.
  */
 export function observeSpectrum(
   input: AudioInput,
@@ -100,10 +118,16 @@ export function observeSpectrum(
   onBands: (levels: number[]) => void,
   bands: readonly SpectrumBand[] = voiceBands,
 ): Observer {
+  let recent: number[][] = []
   return observe(
     input,
-    { windowMs: SPECTRUM_WINDOW_MS, hopMs: SPECTRUM_HOP_MS, signal },
-    async window => bandLevelsOf(window.channels, window.sampleRate, bands),
-    result => onBands(result.value),
+    { windowMs: SPECTRUM_WINDOW_MS, hopMs: SPECTRUM_HOP_MS, signal, scheduling: 'ordered' },
+    async window => ({ powers: bandPowersOf(window.channels, window.sampleRate, bands), discontinuity: window.discontinuity }),
+    (result) => {
+      if (result.value.discontinuity)
+        recent = []
+      recent = [...recent.slice(1 - AVERAGED_WINDOWS), result.value.powers]
+      onBands(bands.map((_, index) => levelOfBandPower(recent.reduce((sum, powers) => sum + powers[index], 0) / recent.length)))
+    },
   )
 }
