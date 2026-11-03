@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ProgressiveBlur } from '@proj-airi/ui'
 import { useRafFn } from '@vueuse/core'
-import { computed, shallowRef } from 'vue'
+import { createAnimatable } from 'animejs'
+import { computed, onScopeDispose, shallowRef, watch } from 'vue'
 
 const props = defineProps<{
   /** What the visual shows, for assistive technology. */
   label: string
-  /** The smoothed level of each voice band from 0 to 1, from the lowest band to the highest. */
+  /** The level of each voice band from 0 to 1, from the lowest band to the highest, about 30 times a second. */
   bands: readonly number[]
   /** True while the microphone listens. Otherwise the waves rest as thin gray lines. */
   active: boolean
@@ -34,18 +35,33 @@ const layers = [
   { cycles: 4.6, radiansPerSecond: -3, color: 'text-primary-600 dark:text-primary-200', opacity: 0.3 },
 ]
 
-/** The phase of each layer in radians, and its drawn height from 0 to 1. The bands arrive at 30 Hz, and frames ease toward them. */
+/** A rising wave follows the voice at once, and a falling wave settles slowly, so the layers swell and breathe. */
+const RISE_MS = 140
+const FALL_MS = 480
+
+/**
+ * The drawn height of each layer from 0 to 1. Each band update retargets a running tween, so a height glides from where it
+ * is to the new level instead of jumping at 30 Hz.
+ */
+const heights = layers.map(() => ({ value: 0 }))
+const tweens = heights.map(height => createAnimatable(height, { value: 0, ease: 'out(3)' }))
+
+watch(() => [props.bands, props.active] as const, ([bands, active]) => {
+  tweens.forEach((tween, index) => {
+    const voice = Math.max(0, (bands[index] ?? 0) - NOISE_FLOOR) / (1 - NOISE_FLOOR)
+    const target = active ? IDLE_HEIGHT + voice * (1 - IDLE_HEIGHT) : 0
+    tween.value(target, target > heights[index].value ? RISE_MS : FALL_MS)
+  })
+}, { immediate: true })
+onScopeDispose(() => tweens.forEach(tween => tween.revert()))
+
+/** The phase of each layer in radians. It moves on each frame, and the shapes read the heights of the same frame. */
 const phasesRadians = shallowRef(layers.map((_, index) => index * 1.7))
-const heights = shallowRef(layers.map(() => 0))
+const frameHeights = shallowRef(heights.map(height => height.value))
 
 useRafFn(({ delta }) => {
   const frameSeconds = Math.min(Math.max(delta, 0) / 1000, MAX_FRAME_SECONDS)
-  const ease = Math.min(1, frameSeconds * 12)
-  heights.value = heights.value.map((height, index) => {
-    const voice = Math.max(0, (props.bands[index] ?? 0) - NOISE_FLOOR) / (1 - NOISE_FLOOR)
-    const target = props.active ? IDLE_HEIGHT + voice * (1 - IDLE_HEIGHT) : 0
-    return height + (target - height) * ease
-  })
+  frameHeights.value = heights.map(height => height.value)
   if (props.active)
     phasesRadians.value = phasesRadians.value.map((phase, index) => phase + layers[index].radiansPerSecond * frameSeconds)
 })
@@ -73,7 +89,7 @@ function mirroredWave(cycles: number, height: number, phaseRadians: number) {
 }
 
 const shapes = computed(() => layers.map((layer, index) => ({
-  d: mirroredWave(layer.cycles, heights.value[index], phasesRadians.value[index]),
+  d: mirroredWave(layer.cycles, frameHeights.value[index], phasesRadians.value[index]),
   color: props.active ? layer.color : 'text-neutral-400 dark:text-neutral-600',
   opacity: layer.opacity,
 })))
