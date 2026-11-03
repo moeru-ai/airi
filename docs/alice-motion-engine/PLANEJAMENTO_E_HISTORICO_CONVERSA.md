@@ -637,5 +637,235 @@ Se a prioridade for aproximar a pesquisa do funcionamento do Ani-2, eu concentra
 
 A distinção é importante: conseguimos identificar componentes locais capazes de reproduzir boa parte do comportamento visual e funcional, mas **não há evidência suficiente para afirmar que algum deles, isoladamente, iguala a qualidade ou a eficiência computacional do Ani-2**.
 
+
+## Registro 2 — Kindroid, Character.AI e plataformas de IA companion (segunda saída)
+
+# Pesquisa: sistemas de companheiros virtuais com IA, avatares animados e memória
+
+Análise das três páginas fornecidas e pesquisa complementar | Novembro de 2026.
+
+### 1. Principal descoberta: Kindroid já oferece avatar animado em chamadas ao vivo
+
+O recurso mais importante para o seu projeto Alice não é apenas a conversa com personagens virtuais, mas a combinação de **personalidade persistente, voz, expressões faciais e movimentos corporais em tempo real**.
+
+**Kindroid — sistema comercial, nuvem, personalização de personagens.**
+
+O sistema oferece personagens com personalidade configurável, memória de longo prazo, vozes personalizadas, selfies e videochamadas. [Site oficial](https://kindroid.ai/).
+
+**Recurso Live Avatar:** desde a atualização documentada de outubro de 2026, o Kindroid permite animar um personagem durante chamadas, com sincronização labial, gestos espontâneos, expressões reativas e movimentos solicitados pelo usuário.
+
+O usuário pode fornecer uma imagem personalizada para o avatar. A documentação recomenda imagem frontal da cintura para cima, com mãos visíveis. Existem modalidades Standard e Premium, ambas baseadas em créditos de áudio e disponíveis para assinantes.
+
+Isso faz do Kindroid uma referência particularmente relevante para o comportamento conversacional que você deseja reproduzir.
+
+Existe, contudo, uma diferença técnica: o Kindroid descreve seu Live Avatar como um sistema que anima uma imagem fornecida. **Não há comprovação pública de que disponibilize um personagem 3D articulado, com esqueleto exportável em GLB, ou um motor de movimento neural instalável localmente.**
+
+> Elemento visual da resposta original: imagem de demonstração do Kindroid Live Avatar.
+
+### 2. Leitura integral do artigo AI Companion Guides
+
+O artigo [Best AI Anime Girlfriend Apps in 2026](https://aicompanionguides.com/blog/best-ai-anime-girlfriend-apps-2026/), publicado em 28 de fevereiro de 2026, compara oito plataformas. Examinei as classificações, as análises individuais, a metodologia dos testes, as recomendações, as perguntas frequentes e a conclusão.
+
+A classificação publicada é a seguinte:
+
+| Plataforma | Nota do artigo | Principal diferencial |
+|---|---:|---|
+| Character.AI | 4,5/5 | Conversação e diversidade de personagens |
+| Candy AI | 4,2/5 | Imagens personalizadas |
+| SpicyChat AI | 4,1/5 | Interpretação de personagens |
+| Kindroid | 4,0/5 | Personalização de personalidade e voz |
+| CrushOn.AI | 3,8/5 | Conversação com poucos filtros |
+| Nomi AI | 3,7/5 | Memória e continuidade |
+| Talkie | 3,5/5 | Personagens estilizados |
+| OurDream.ai | 3,3/5 | Geração de imagens de personagens |
+
+Essas são avaliações subjetivas do autor, não resultados de um benchmark acadêmico. O artigo também informa que contém links de afiliados.
+
+#### O que o artigo efetivamente avaliou
+
+Os cinco critérios foram fidelidade à personalidade, qualidade visual de anime, profundidade do roleplay, personalização e custo-benefício.
+
+**Ele não avaliou** geração de poses 3D, latência de animação, FPS, cinemática inversa, sincronização corporal ou execução local.
+
+Portanto, a classificação não identifica necessariamente os melhores sistemas para reproduzir o Ani-2.
+
+Outro ponto importante: algumas descrições e preços de fevereiro já estão desatualizados. A documentação atual do Kindroid, por exemplo, registra novos recursos de Live Avatar e alterações no acesso gratuito.
+
+### 3. Character.AI: conversa, vídeo generativo e uma mudança importante em 2026
+
+**Character.AI — plataforma proprietária, chat, voz e geração de vídeo.**
+
+- [Site oficial](https://character.ai/)
+- [Pesquisa TalkingMachines](https://blog.character.ai/character-ais-real-time-video-breakthrough/)
+
+A página principal não disponibilizou conteúdo textual legível ao mecanismo de consulta, então examinei a documentação oficial, os artigos técnicos e os comunicados da empresa.
+
+A tecnologia de vídeo da Character.AI é mais avançada do que o artigo comparativo indica.
+
+**AvatarFX**, anunciado em abril de 2025, utiliza modelos generativos para animar personagens a partir de imagens e produzir vídeo sincronizado com áudio. A plataforma passou a oferecer criação de vídeos AvatarFX, além de chamadas de voz, Scenes e Streams.
+
+Mais importante para sua pesquisa é o **TalkingMachines**, anunciado em julho de 2025.
+
+#### Arquitetura do TalkingMachines
+
+| Item | Descrição |
+|---|---|
+| Base generativa | Diffusion Transformer (DiT) |
+| Condicionamento | Imagem + áudio em tempo real |
+| Aceleração | Destilação para duas etapas |
+| Continuidade | Atenção causal esparsa |
+
+Segundo os autores, o sistema gera vídeo de forma autoregressiva, acompanhando fala, silêncio, movimento dos olhos, cabeça e gestos. A demonstração de tempo real utiliza duas GPUs, sem especificar que o desempenho se mantém em hardware doméstico.
+
+Essa abordagem é diferente da geração de um esqueleto 3D, mas pode produzir uma aparência de personagem muito fluido na tela. Os modelos completos do AvatarFX e TalkingMachines não foram disponibilizados para instalação local nas fontes oficiais examinadas.
+
+#### Situação atual da empresa
+
+Em **12 de outubro de 2026**, a Character.AI entrou voluntariamente com pedido de proteção judicial sob o Chapter 11 nos Estados Unidos, iniciando um processo de venda de ativos. A plataforma continua operando, mas a própria empresa reconheceu que poderá encerrá-la caso a venda não viabilize sua continuidade.
+
+Isso torna a Character.AI uma referência técnica relevante, porém uma base arriscada para construir um produto que dependa permanentemente de sua infraestrutura.
+
+> Elemento visual da resposta original: demonstração Character.AI AvatarFX.
+
+### 4. Outros sistemas comerciais semelhantes
+
+Além das plataformas presentes no artigo, encontrei produtos relevantes para comparar animação, voz e comportamento.
+
+#### Replika
+
+Avatar 3D personalizável, memória, conversas por voz, realidade aumentada e suporte a dispositivos Meta Quest. É uma das melhores referências comerciais para um personagem com corpo 3D dentro de um ambiente interativo.
+
+[Site oficial](https://replika.com/).
+
+#### Ayra / Kizuna
+
+Companheira virtual com modelo VRM 3D, lip-sync, expressões, memória persistente e capacidade de assistir a vídeos e reagir com o usuário. É mais próxima da estética anime que você procura do que várias plataformas de chat tradicionais.
+
+[Experimentar Ayra](https://kizuna.ayraverse.com/).
+
+#### Nomi AI
+
+Destaca-se pelo modelo de memória, adaptação de personalidade, conversação por voz, mensagens proativas, conversas em grupo e selfies contextualizadas.
+
+É uma boa referência para o comportamento cognitivo da Alice, embora não ofereça a mesma proposta de personagem 3D articulado do Replika.
+
+[Site oficial](https://nomi.ai/).
+
+O artigo comparativo contém uma informação incorreta ou desatualizada sobre o Nomi: afirma que não oferece geração de imagens, enquanto o site oficial documenta selfies geradas a partir do contexto da conversa.
+
+> Elementos visuais da resposta original: imagens de demonstração de Replika, Ayra/Kizuna e Nomi AI.
+
+### 5. Os projetos de código aberto mais relevantes para a Alice
+
+Esta foi a parte mais produtiva da pesquisa. Encontrei alternativas que oferecem **avatar 3D real, código-fonte, memória persistente e integração com modelos locais**.
+
+#### 5.1. Utsuwa — melhor ponto de partida no Linux
+
+Avatar 3D com expressões, gestos e integração de voz.
+
+[GitHub](https://github.com/JuiceBoxxGames/utsuwa).
+
+O Utsuwa é um dos projetos mais completos encontrados. Possui suporte oficial a Linux, Windows e macOS, além de uma aplicação de navegador.
+
+Os recursos incluem avatar VRM, memória semântica local, expressões emocionais, movimento de cabelos e roupas, reconhecimento de fala, TTS local e controle de movimentos por meio de arquivos \`.vrma\`.
+
+O mecanismo de animação permite definir movimentos de espera, reflexão e gestos selecionados de acordo com o contexto da resposta. Também pode receber um LLM por API compatível com OpenAI, incluindo vLLM.
+
+**Vantagens para seu projeto:**
+
+- Aplicação de desktop com janela transparente.
+- Suporte a modelos 3D personalizados.
+- Integração com LLM local e armazenamento próprio.
+- Biblioteca de movimentos expansível.
+- Serviço OmniVoice com instalação documentada em Docker.
+- Licença AGPL-3.0 para as versões atuais.
+
+**Limitação:** seus gestos dependem principalmente de animações registradas e controle semântico. Não possui, por padrão, geração neural equivalente ao Ani-2.
+
+[Instaladores para Linux](https://www.utsuwa.ai/download) · [Docker do OmniVoice](https://www.utsuwa.ai/docs/guides/omnivoice).
+
+> Elemento visual da resposta original: captura do Utsuwa com avatar 3D.
+
+#### 5.2. Project AIRI — melhor plataforma extensível
+
+O [Project AIRI](https://github.com/moeru-ai/airi) é desenvolvido como alternativa auto-hospedada a assistentes virtuais como Grok Companion e VTubers interativos.
+
+A documentação atual confirma suporte a Live2D, VRM 3D, Spine, MMD e personagens estilizados. A plataforma utiliza tecnologias WebGPU, WebAudio e WebSocket, com aplicações para navegador e desktop.
+
+Possui conversação por voz, compatibilidade com serviços locais de inferência e experimentos de agentes capazes de interagir com aplicações e jogos.
+
+É particularmente interessante como base arquitetural de um agente multimodal. Por outro lado, ainda está em desenvolvimento ativo, e nem todos os recursos do roadmap devem ser tratados como completos.
+
+> Elemento visual da resposta original: demonstração AIRI desktop.
+
+#### 5.3. xiaoke.ai — melhor compatibilidade direta com GLB
+
+Um dos projetos mais interessantes para reaproveitar seu avatar atual.
+
+[Repositório GitHub](https://github.com/liupig/xiaokeai).
+
+O xiaoke.ai implementa um palco 3D com suporte a arquivos **VRM, PMX e GLB**, animação facial, movimentos, câmera, memória de longo prazo e conversação por voz.
+
+Sua arquitetura utiliza Vue 3, Three.js, FastAPI, Electron, mem0 e armazenamento vetorial local. Também implementa reconhecimento de fala offline com SenseVoice e síntese de voz local com Qwen3-TTS.
+
+Há suporte adicional a movimentos VMD, física de roupas/cabelos e captura de movimento por MediaPipe. Essa última funcionalidade é opcional; não significa que o sistema dependa de captura para todas as animações.
+
+**Pontos de atenção:** os modelos e as animações de terceiros não são distribuídos com o código, e a documentação de execução está fortemente orientada ao Windows. Não encontrei um pacote Linux validado equivalente ao disponibilizado pelo Utsuwa.
+
+> Elemento visual da resposta original: captura de avatar xiaoke.ai.
+
+#### 5.4. Outras opções locais
+
+| Projeto | Tecnologia | Diferencial |
+|---|---|---|
+| [Amica](https://github.com/semperai/amica) | Three.js / VRM | Base leve para avatar 3D com voz e expressões |
+| [Miko](https://github.com/danukim/Miko) | Unity / Ollama | Avatar 3D de desktop com GPT-SoVITS local |
+| [Aikeya](https://github.com/aikeyaorg/aikeya) | VRM / Tauri | Personalidade, memória e relacionamento, com desktop inicialmente focado em macOS |
+| [Open-LLM-VTuber](https://github.com/Open-LLM-VTuber/Open-LLM-VTuber) | Live2D | Conversação por voz e interrupções em tempo real |
+| [ARPA AVATAR](https://github.com/ARPAHLS/avatar) | VRM / VRMA | Avatar animado que reage ao áudio do computador |
+
+### 6. Comparação final para seu objetivo
+
+A tabela diferencia a presença de um corpo 3D real da mera geração de imagens ou vídeos.
+
+| Sistema | Avatar 3D articulado | Movimento ao vivo | Execução local |
+|---|---|---|---|
+| Kindroid Live Avatar | Não confirmado | Sim, vídeo generativo | Não |
+| Character.AI | Não como modelo exportável | Vídeo gerativo; TalkingMachines demonstrado | Não |
+| Replika | Sim | Sim, animação 3D | Não |
+| Ayra | Sim, VRM | Sim | Não documentada |
+| Utsuwa | Sim, VRM | Sim, animação por gestos | Sim |
+| AIRI | Sim, VRM | Sim, animação de avatar | Sim |
+| xiaoke.ai | Sim, VRM/GLB/PMX | Sim, animação e movimentos | Sim |
+| Miko | Sim, VRM/Unity | Sim | Sim, configuração específica |
+
+“Movimento ao vivo” indica animação durante a interação, não necessariamente geração neural inédita de poses em tempo real. As capacidades são as documentadas pelos desenvolvedores; não realizei benchmarks locais de latência e FPS.
+
+### 7. Arquitetura que recomendo investigar para sua Alice
+
+Para alcançar o comportamento do Kindroid, a presença tridimensional do Replika e a fluidez do Ani-2 sem depender de infraestrutura proprietária, a combinação mais promissora é:
+
+\`\`\`text
+Alice: personalidade + memória
+LLM local via vLLM + memória vetorial/estruturada
+                |
+     Voz e Comportamento
+     ASR local / TTS / lip-sync
+     Emoção / intenção / gesto / estado
+                |
+   Motor híbrido de movimento
+   Utsuwa ou AIRI + StreamTalk/ARDY + procedural
+                |
+             Alice 3D
+Blender -> VRM/GLB -> Three.js, física, renderização
+\`\`\`
+
+A distinção fundamental é que **Utsuwa, AIRI e xiaoke.ai oferecem a infraestrutura do personagem**, enquanto os modelos de movimento estudados anteriormente podem acrescentar geração neural de gestos e poses. Essa integração ainda exige engenharia e validação, especialmente para retargeting, sincronização e controle de latência.
+
+Para seu ambiente com RTX 3090 e RTX 4060 Ti, minha ordem de investigação seria **Utsuwa primeiro, xiaoke.ai segundo e AIRI terceiro**. O Utsuwa apresenta o caminho mais bem documentado para Linux, API vLLM e TTS em Docker; o xiaoke.ai oferece compatibilidade GLB direta e uma estrutura de animação mais diversificada.
+
+**Conclusão:** o Kindroid e o TalkingMachines são as melhores referências comerciais de animação conversacional generativa encontradas nesta pesquisa. Para construir uma alternativa verdadeiramente local, o Utsuwa é a base de software mais adequada, mas será necessário complementar seu motor de movimento para alcançar a fluidez corporal do Ani-2.
+
 <!-- HISTORICO_PENDENTE -->
+
 
