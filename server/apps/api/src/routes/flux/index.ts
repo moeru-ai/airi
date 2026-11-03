@@ -8,6 +8,7 @@ import { Hono } from 'hono'
 import { boolean, check, object, parse, pipe, safeParse, string } from 'valibot'
 
 import { authGuard } from '../../middlewares/auth'
+import { DailyUsageSummarySchema } from '../../types/flux-usage'
 import { LimitOffsetPaginationQuerySchema } from '../../utils/http-query'
 
 const FallbackBodySchema = object({ fallbackToFlux: boolean() })
@@ -69,7 +70,7 @@ export function createFluxRoutes(
       const query = safeParse(TimeZoneQuerySchema, { timeZone: c.req.query('timeZone') })
       if (!query.success)
         throw createBadRequestError('Invalid time zone', 'INVALID_TIME_ZONE', query.issues)
-      return c.json(await fluxTransactionService.getDailyUsage(user.id, query.output.timeZone))
+      return c.json(parse(DailyUsageSummarySchema, await fluxTransactionService.getDailyUsage(user.id, query.output.timeZone)))
     })
     .get('/stats', async (c) => {
       const user = c.get('user')!

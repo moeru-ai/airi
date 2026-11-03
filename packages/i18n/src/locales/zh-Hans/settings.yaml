@@ -1616,25 +1616,27 @@ pages:
       delayHint: Flux 电量历史记录是缓慢更新的，可能有延迟
       ttsRequests: 请求
     usage:
-      title: 用量
+      title: Flux 用量
       empty: 还没有用量记录
-      today: 今天
       fluxAmount: '{amount} Flux'
-      heatmapLabel: 今年每天消耗的 Flux
-      newSessions: '没有新会话 | 1 个新会话 | {count} 个新会话'
-      layers:
-        llm: LLM
-        speech: 语音
+      viewLabel: 用量视图
+      chartLabel: 最近 365 天的 Flux 用量
+      keyboardHint: 使用方向键查看用量。Home 和 End 选择首个和最后一个时段，Escape 隐藏详情。
+      throughDate: '截至 {date}'
+      views:
+        daily: 每日
+        weekly: 每周
+        cumulative: 累计
+      labels:
+        daily: 每日 Flux 用量
+        weekly: 每周 Flux 用量
+        cumulative: 累计 Flux 用量
       summary:
         longestSession: 最长会话
-        sessions: 会话数
+        peakFlux: 单日最高 Flux
         flux: 消耗 Flux
         longestStreak: 最长连续
         currentStreak: 当前连续
-      areaChart:
-        title: 消耗 Flux
-      sessionChart:
-        title: 新会话
     packages:
       title: Flux 电池包
       buy: 充值

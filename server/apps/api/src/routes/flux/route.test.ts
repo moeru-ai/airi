@@ -36,7 +36,7 @@ function createMockFluxTransactionService(): FluxTransactionService {
       hasMore: false,
     })),
     getDailyUsage: vi.fn(async () => ({
-      days: [{ date: '2026-03-27', llmMicroFlux: 1_000_000, ttsMicroFlux: 550_000, newSessionCount: 2 }],
+      days: [{ date: '2026-03-27', microFlux: 1_550_000 }],
       longestSessionMs: 60_000,
     })),
   }
@@ -115,7 +115,7 @@ describe('fluxRoutes', () => {
     expect(response.status).toBe(200)
     expect(transactions.getDailyUsage).toHaveBeenCalledWith('user-1', 'Asia/Shanghai')
     expect(await response.json()).toEqual({
-      days: [{ date: '2026-03-27', llmMicroFlux: 1_000_000, ttsMicroFlux: 550_000, newSessionCount: 2 }],
+      days: [{ date: '2026-03-27', microFlux: 1_550_000 }],
       longestSessionMs: 60_000,
     })
   })

@@ -1,7 +1,8 @@
 import type { Database } from '../../libs/db'
+import type { DailyUsageSummary } from '../../types/flux-usage'
 
 import { useLogger } from '@guiiai/logg'
-import { and, desc, eq, getTableColumns, gte, inArray, isNotNull, sql, sum } from 'drizzle-orm'
+import { and, desc, eq, getTableColumns, gte, inArray, isNotNull, lte, sql, sum } from 'drizzle-orm'
 
 import { fluxUsage } from '../../schemas/flux-usage'
 import { llmRequestLog } from '../../schemas/llm-request-log'
@@ -13,7 +14,12 @@ const logger = useLogger('flux-transaction')
 const DAILY_USAGE_DAYS = 365
 const MILLISECONDS_PER_DAY = 86_400_000
 
-/** Formats an instant as the `YYYY-MM-DD` calendar day in an IANA time zone. */
+/**
+ * Formats an instant as a local calendar date without changing its time zone.
+ * @example
+ * localDate(new Date('2026-10-24T17:00:00Z'), 'Asia/Shanghai')
+ * // => '2026-10-25'
+ */
 function localDate(instant: Date, timeZone: string): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(instant)
 }
@@ -50,25 +56,24 @@ export function createFluxTransactionService(db: Database) {
     },
 
     /**
-     * Sums confirmed LLM and speech fees by local day and counts the sessions that started on each day.
+     * Sums confirmed LLM and speech fees by local day.
      * Returns every day of the last 365 local days, with zero for a day without usage.
-     * Speech requests write no request log row, so only LLM requests start sessions.
+     * Only sessions that started within this window contribute to the longest duration.
      */
-    async getDailyUsage(userId: string, timeZone: string, now = new Date()) {
+    async getDailyUsage(userId: string, timeZone: string, now = new Date()): Promise<DailyUsageSummary> {
       const lastDate = localDate(now, timeZone)
       const firstDate = shiftDate(lastDate, 1 - DAILY_USAGE_DAYS)
-      // A local day starts at most 14 hours before the same UTC day, so one day of margin covers every time zone.
-      // The local-date filter below makes the window exact.
+      // One UTC day of margin covers every local midnight. The local-date filter makes the window exact.
       const scanStart = new Date(new Date(`${firstDate}T00:00:00Z`).getTime() - MILLISECONDS_PER_DAY)
 
       // NOTICE:
-      // `created_at` is a `timestamp` without time zone, and Drizzle writes it as UTC.
-      // Read it as UTC first, then convert to the caller zone. This needs a database `now()` default in UTC.
+      // Read timestamps as UTC before conversion because the ledger stores timestamps without a time zone.
+      // Source: src/schemas/flux-usage.ts and src/schemas/llm-request-log.ts.
+      // Remove the UTC interpretation when both tables use timestamptz.
       const localDay = sql<string>`to_char((${fluxUsage.createdAt} AT TIME ZONE 'UTC') AT TIME ZONE ${timeZone}, 'YYYY-MM-DD')`
       // A subquery keeps the zone bind parameter out of GROUP BY, where PostgreSQL does not match repeated placeholders.
       const usageByRequest = db.select({
         date: localDay.as('local_date'),
-        sourceType: fluxUsage.sourceType,
         amountMicroFlux: fluxUsage.amountMicroFlux,
       })
         .from(fluxUsage)
@@ -76,48 +81,42 @@ export function createFluxTransactionService(db: Database) {
           eq(fluxUsage.userId, userId),
           inArray(fluxUsage.sourceType, ['llm', 'tts']),
           gte(fluxUsage.createdAt, scanStart),
+          lte(fluxUsage.createdAt, now),
         ))
         .as('usage_by_request')
-      const fluxRows = await db.select({
+      const fluxQuery = db.select({
         date: usageByRequest.date,
-        sourceType: usageByRequest.sourceType,
         microFlux: sum(usageByRequest.amountMicroFlux).mapWith(Number),
       })
         .from(usageByRequest)
         .where(gte(usageByRequest.date, firstDate))
-        .groupBy(usageByRequest.date, usageByRequest.sourceType)
+        .groupBy(usageByRequest.date)
 
-      // The first request of a session can be older than the window, so the oldest request comes from the full history of the user.
-      const firstRequestAt = sql<Date>`min(${llmRequestLog.createdAt})`.mapWith(llmRequestLog.createdAt)
-      const lastRequestAt = sql<Date>`max(${llmRequestLog.createdAt})`.mapWith(llmRequestLog.createdAt)
-      const sessionRows = await db.select({ firstRequestAt, lastRequestAt })
+      // Read each session's full history to exclude sessions that started before this window.
+      const sessionDurations = db.select({
+        durationMs: sql<number>`extract(epoch from (max(${llmRequestLog.createdAt}) - min(${llmRequestLog.createdAt}))) * 1000`.as('duration_ms'),
+      })
         .from(llmRequestLog)
-        .where(and(eq(llmRequestLog.userId, userId), isNotNull(llmRequestLog.sessionId)))
+        .where(and(eq(llmRequestLog.userId, userId), isNotNull(llmRequestLog.sessionId), lte(llmRequestLog.createdAt, now)))
         .groupBy(llmRequestLog.sessionId)
-        .having(sql`min(${llmRequestLog.createdAt}) >= ${scanStart.toISOString()}`)
+        .having(sql`to_char((min(${llmRequestLog.createdAt}) AT TIME ZONE 'UTC') AT TIME ZONE ${timeZone}, 'YYYY-MM-DD') >= ${firstDate}`)
+        .as('session_durations')
 
-      const newSessionsByDate = new Map<string, number>()
-      let longestSessionMs = 0
-      for (const session of sessionRows) {
-        const startDate = localDate(session.firstRequestAt, timeZone)
-        if (startDate < firstDate)
-          continue
-        newSessionsByDate.set(startDate, (newSessionsByDate.get(startDate) ?? 0) + 1)
-        longestSessionMs = Math.max(longestSessionMs, session.lastRequestAt.getTime() - session.firstRequestAt.getTime())
-      }
+      const [fluxRows, sessionRows] = await Promise.all([
+        fluxQuery,
+        db.select({ longestSessionMs: sql<number>`coalesce(max(${sessionDurations.durationMs}), 0)`.mapWith(Number) }).from(sessionDurations),
+      ])
 
-      const microFluxBySourceAndDate = new Map(fluxRows.map(row => [`${row.sourceType}:${row.date}`, row.microFlux]))
+      const microFluxByDate = new Map(fluxRows.map(row => [row.date, row.microFlux]))
       const days = Array.from({ length: DAILY_USAGE_DAYS }, (_, index) => {
         const date = shiftDate(firstDate, index)
         return {
           date,
-          llmMicroFlux: microFluxBySourceAndDate.get(`llm:${date}`) ?? 0,
-          ttsMicroFlux: microFluxBySourceAndDate.get(`tts:${date}`) ?? 0,
-          newSessionCount: newSessionsByDate.get(date) ?? 0,
+          microFlux: microFluxByDate.get(date) ?? 0,
         }
       })
 
-      return { days, longestSessionMs }
+      return { days, longestSessionMs: sessionRows[0]!.longestSessionMs }
     },
 
     async log(entry: TransactionEntry) {

@@ -6,7 +6,7 @@ import { createFluxTransactionService } from './flux-transaction'
 import * as schema from '../../schemas'
 
 describe('fluxTransactionService', () => {
-  let db: any
+  let db: Awaited<ReturnType<typeof mockDB>>
   let service: ReturnType<typeof createFluxTransactionService>
 
   beforeAll(async () => {
@@ -118,11 +118,12 @@ describe('fluxTransactionService', () => {
       expect(shanghai.days).toHaveLength(365)
       expect(shanghai.days[0]!.date).toBe('2025-10-26')
       expect(shanghai.days.at(-1)!.date).toBe('2026-10-25')
-      expect(dayOf(shanghai, '2026-10-24')).toMatchObject({ llmMicroFlux: 1_000_000, ttsMicroFlux: 0 })
-      expect(dayOf(shanghai, '2026-10-25')).toMatchObject({ llmMicroFlux: 2_000_000, ttsMicroFlux: 500_000 })
-      expect(dayOf(shanghai, '2026-10-23')).toMatchObject({ llmMicroFlux: 0, ttsMicroFlux: 0, newSessionCount: 0 })
-      expect(dayOf(utc, '2026-10-24')).toMatchObject({ llmMicroFlux: 3_000_000, ttsMicroFlux: 0 })
-      expect(dayOf(utc, '2026-10-25')).toMatchObject({ llmMicroFlux: 0, ttsMicroFlux: 500_000 })
+      expect(dayOf(shanghai, '2026-10-24')).toEqual({ date: '2026-10-24', microFlux: 1_000_000 })
+      expect(dayOf(shanghai, '2026-10-25')).toEqual({ date: '2026-10-25', microFlux: 2_500_000 })
+      expect(dayOf(shanghai, '2026-10-23')).toEqual({ date: '2026-10-23', microFlux: 0 })
+      expect(dayOf(utc, '2026-10-24')).toMatchObject({ microFlux: 3_000_000 })
+      expect(dayOf(utc, '2026-10-25')).toMatchObject({ microFlux: 500_000 })
+      expect(shanghai.longestSessionMs).toBe(0)
     })
 
     it('ignores other users, other source types, and fees before the window', async () => {
@@ -131,14 +132,15 @@ describe('fluxTransactionService', () => {
         usage('user-daily-scope', 'llm', 'too-old', 9_000_000, '2025-10-01T01:00:00Z'),
         usage('user-daily-scope', 'image', 'other-type', 9_000_000, '2026-10-20T01:00:00Z'),
         usage('user-daily-other', 'llm', 'other-user', 9_000_000, '2026-10-20T01:00:00Z'),
+        usage('user-daily-scope', 'llm', 'future', 9_000_000, '2026-10-26T01:00:00Z'),
       ])
 
       const { days } = await service.getDailyUsage('user-daily-scope', 'UTC', now)
 
-      expect(days.reduce((total, day) => total + day.llmMicroFlux, 0)).toBe(1_000_000)
+      expect(days.reduce((total, day) => total + day.microFlux, 0)).toBe(1_000_000)
     })
 
-    it('counts a session once on the day of its first request and measures the longest session', async () => {
+    it('measures sessions in the window and ignores older sessions and other users', async () => {
       await db.insert(schema.llmRequestLog).values([
         request('user-sessions', 'long', '2026-10-20T16:30:00Z'),
         request('user-sessions', 'long', '2026-10-21T16:30:00Z'),
@@ -151,11 +153,21 @@ describe('fluxTransactionService', () => {
 
       const shanghai = await service.getDailyUsage('user-sessions', 'Asia/Shanghai', now)
       const utc = await service.getDailyUsage('user-sessions', 'UTC', now)
-      const countsOf = (result: typeof shanghai) => result.days.filter(day => day.newSessionCount > 0).map(day => [day.date, day.newSessionCount])
-
-      expect(countsOf(shanghai)).toEqual([['2026-10-21', 2]])
-      expect(countsOf(utc)).toEqual([['2026-10-20', 1], ['2026-10-21', 1]])
       expect(shanghai.longestSessionMs).toBe(24 * 60 * 60 * 1000)
+      expect(utc.longestSessionMs).toBe(24 * 60 * 60 * 1000)
+    })
+
+    it('uses the exact local first day for sessions across a daylight-saving boundary', async () => {
+      await db.insert(schema.llmRequestLog).values([
+        request('user-window', 'boundary', '2025-10-26T03:30:00Z'),
+        request('user-window', 'boundary', '2025-10-26T05:30:00Z'),
+      ])
+
+      const utc = await service.getDailyUsage('user-window', 'UTC', now)
+      const newYork = await service.getDailyUsage('user-window', 'America/New_York', now)
+
+      expect(utc.longestSessionMs).toBe(2 * 3_600_000)
+      expect(newYork.longestSessionMs).toBe(0)
     })
   })
 })
