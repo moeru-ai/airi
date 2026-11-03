@@ -363,6 +363,7 @@ catalog:
   mineflayer-tool: ^1.2.0
   mkcert: ^3.2.0
   model-bank: 1.0.20260904203849
+  mqtt: ^5.16.1
   nano-staged: ^1.0.2
   nanoid: ^6.0.1
   node-pty: npm:@lydell/node-pty@^1.2.0-beta.15

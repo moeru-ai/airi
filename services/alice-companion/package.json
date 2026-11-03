@@ -1,0 +1,31 @@
+{
+  "name": "@proj-airi/alice-companion",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Single authority for the Alice companion state. It reads the existing mood over MQTT and publishes the state over MQTT.",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "scripts": {
+    "dev": "tsx ./src/bin/run.ts",
+    "start": "tsx ./src/bin/run.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config ./vitest.config.ts",
+    "test:run": "vitest run --config ./vitest.config.ts"
+  },
+  "dependencies": {
+    "@guiiai/logg": "catalog:",
+    "@moeru/std": "catalog:",
+    "injeca": "catalog:",
+    "mqtt": "catalog:",
+    "tsx": "catalog:",
+    "valibot": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  }
+}

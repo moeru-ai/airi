@@ -23,9 +23,9 @@
 
 ---
 
-# PARTE A — ANÁLISE
+## PARTE A — ANÁLISE
 
-## A1. Verificação das referências de código dos planos
+### A1. Verificação das referências de código dos planos
 
 Todos os caminhos do AIRI citados nos dois planos existem no fork atual.
 
@@ -46,7 +46,7 @@ Todos os caminhos do AIRI citados nos dois planos existem no fork atual.
 
 Conclusão: os planos descrevem o AIRI corretamente. As lacunas estão na relação com o sistema que roda hoje.
 
-## A2. O sistema atual da Alice (o que os planos não descrevem)
+### A2. O sistema atual da Alice (o que os planos não descrevem)
 
 | Componente | Estado verificado |
 | --- | --- |
@@ -63,7 +63,7 @@ Observação sobre a sessão: o repositório `overcyber/TalkingHead-1KH` é o da
 
 Limitação do TalkingHead que confirma a motivação do Plano 01: `playAnimation` recria o `AnimationMixer` a cada chamada. Um gesto (`playGesture`) sobrepõe rotações de braço sobre a pose. Então há um clipe por vez mais um gesto por vez. Não há máscara por osso nem mistura aditiva.
 
-## A3. Pontos fortes dos planos
+### A3. Pontos fortes dos planos
 
 1. Plano 01 não substitui o AIRI. Ele adiciona pacotes novos (`alice-motion`) e preserva a API atual do `animation-manager`. Isso reduz o risco de regressão e de conflito com o upstream.
 2. Plano 01 separa intenção (`MotionIntent`) de execução (`MotionCue`). O LLM não controla ossos por frame.
@@ -73,7 +73,7 @@ Limitação do TalkingHead que confirma a motivação do Plano 01: `playAnimatio
 6. Plano 02 define o contrato com o Plano 01 (seção 13): afeto gera sinais, o movimento não escreve no relacionamento.
 7. Os dois planos tratam licenças (Utsuwa AGPL-3.0, xiaoke Apache-2.0, assets PMX/VMD).
 
-## A4. Lacunas e riscos encontrados
+### A4. Lacunas e riscos encontrados
 
 | ID | Lacuna | Evidência | Impacto | Ação proposta |
 | --- | --- | --- | --- | --- |
@@ -89,7 +89,7 @@ Limitação do TalkingHead que confirma a motivação do Plano 01: `playAnimatio
 | L10 | Regras do monorepo AIRI não citadas. | `AGENTS.md`: Valibot para schema, `injeca` para DI, `eventa` para IPC, `README.md` por pacote, kebab-case, `// NOTICE:` para workaround, perguntar antes de nova dependência. | Revisão de PR e lint podem falhar. | Aplicar em todas as sprints de código. |
 | L11 | O fork recebe merges do upstream. | Último commit de `main`: merge de `moeru-ai:main`. | Mudanças no `animation-manager` ou em `MMD.vue` podem gerar conflitos. | Manter alterações em pacotes novos. Fazer cada mudança em arquivo existente pequena e com teste de contrato. |
 
-## A5. Dependências entre os planos
+### A5. Dependências entre os planos
 
 ```mermaid
 flowchart LR
@@ -115,11 +115,11 @@ Regra principal: o Plano 02 só emite sinais para o Plano 01 depois que o contra
 
 ---
 
-# PARTE B — PROTOCOLO OBRIGATÓRIO POR SPRINT
+## PARTE B — PROTOCOLO OBRIGATÓRIO POR SPRINT
 
 Cada sprint segue os mesmos 6 passos. Não pule passos. Se um passo falhar, execute o rollback e pare.
 
-## B1. Os 6 passos
+### B1. Os 6 passos
 
 1. **Backup.** Crie um ponto de restauração antes de qualquer alteração (comandos em B2).
 2. **Teste antes.** Execute os testes e o teste de fumaça antes da mudança. Salve a saída. Ela é a referência.
@@ -128,7 +128,7 @@ Cada sprint segue os mesmos 6 passos. Não pule passos. Se um passo falhar, exec
 5. **Validação.** Confira cada critério de aceite da sprint. Grave evidência: log, captura ou vídeo.
 6. **Fechamento.** Se tudo passou, crie a tag `sprint/<ID>-ok`. Se algo falhou, execute o rollback (B4).
 
-## B2. Backup
+### B2. Backup
 
 Em cada repositório que a sprint altera, crie uma tag de restauração:
 
@@ -160,7 +160,7 @@ timeout 300 mosquitto_sub -h <BROKER> -v -t 'neoalice/v1/#' > mqtt-ref-<ID>.log
 
 Para dados do AIRI no navegador (IndexedDB), use a exportação do próprio AIRI quando ela existir para o dado alterado. Se não existir, a sprint deve criar a exportação antes de alterar o schema.
 
-## B3. Testes padrão
+### B3. Testes padrão
 
 AIRI, por pacote alterado:
 
@@ -216,7 +216,7 @@ timeout 30 mosquitto_sub -h <BROKER> -v -t "neoalice/v1/<SITE>/evt/state"
 
 Resultado esperado: o avatar fala, muda de humor, faz o gesto, muda a pose, anda e o heartbeat aparece em `evt/state`.
 
-## B4. Rollback
+### B4. Rollback
 
 ```bash
 git checkout backup/<ID>-pre
@@ -232,20 +232,20 @@ docker image tag talkinghead:backup-<ID> talkinghead:latest && docker compose up
 
 Depois do rollback, execute o teste de fumaça (B3) e confirme que o espelho voltou ao estado anterior.
 
-## B5. Regras gerais
+### B5. Regras gerais
 
 - O espelho em produção continua com o TalkingHead até a sprint S16. Até lá, o AIRI roda em paralelo com `<SITE_AIRI>`.
 - Toda função nova no AIRI fica atrás de uma opção desligada por padrão.
 - Nenhuma sprint mistura alteração em produção com alteração no AIRI.
-- Nenhuma sprint de código começa sem os contratos da S02.
+- Nenhuma sprint de código começa sem os contratos da S02. Exceção decidida em 03/11/2026: a S05 foi antecipada a pedido do responsável. Os contratos dela (mensagens MQTT e estado) estão em `services/alice-companion/README.md` e `src/contracts.ts`. A S02 passa a referenciar esses contratos e não os redefine.
 
 ---
 
-# PARTE C — ROTEIRO DE SPRINTS EM ORDEM
+## PARTE C — ROTEIRO DE SPRINTS EM ORDEM
 
 Legenda de risco para produção: **Nenhum** (não toca o espelho), **Baixo** (altera o espelho com mudança pequena e reversível), **Médio** (altera fluxo de dados do espelho).
 
-## Resumo
+### Resumo
 
 | Ordem | Sprint | Origem | Toca produção | Risco |
 | --- | --- | --- | --- | --- |
@@ -254,7 +254,7 @@ Legenda de risco para produção: **Nenhum** (não toca o espelho), **Baixo** (a
 | 3 | S02 Baseline AIRI, contratos v1 e decisões D1/D2 | P0 parte 1 + B0 + L3 | Não | Nenhum |
 | 4 | S03 MotionDirector isolado | P1 | Não | Nenhum |
 | 5 | S04 MotionScheduler isolado | P2 | Não | Nenhum |
-| 6 | S05 MoodAdapter e reducer do companion | B1 + B2 | Não | Nenhum |
+| 6 | S05 MoodAdapter e reducer do companion (implementada, ver S05) | B1 + B2 | Não | Nenhum |
 | 7 | S06 Fixture, telemetria e vídeo de referência | P0 parte 2 | Não | Nenhum |
 | 8 | S07 Máscaras por osso e mistura aditiva | P3 | Não | Nenhum |
 | 9 | S08 Ponte MQTT para o AIRI em modo sombra | Novo (L2) | Só leitura | Nenhum |
@@ -273,7 +273,7 @@ S03 e S04 podem rodar em paralelo com S05. As três são pacotes novos sem rende
 
 ---
 
-## S00 — Backup geral e baseline de produção
+### S00 — Backup geral e baseline de produção
 
 **Objetivo:** ter um ponto de restauração completo e uma referência do comportamento atual.
 **Repositórios:** `MMM-avatar-3d`, `talkinghead-neoalice`, `airi`. Ambiente do MagicMirror e do broker.
@@ -286,7 +286,7 @@ S03 e S04 podem rodar em paralelo com S05. As três são pacotes novos sem rende
 | Validação | Gravar vídeo de 2 minutos do espelho: fala, 8 humores, 3 gestos, 2 poses, 1 animação. Anotar versões: TalkingHead, Three.js, MagicMirror, Node, `mqtt`. |
 | Saída | Tag `sprint/S00-ok`. Restauração testada uma vez numa cópia. |
 
-## S01 — Inventário do humor e correção do `mapMood`
+### S01 — Inventário do humor e correção do `mapMood`
 
 **Objetivo:** cumprir o B0 do Plano 02 e corrigir a perda dos humores `love`, `fear` e `disgust` (L4).
 **Repositórios:** `MMM-avatar-3d`. Leitura do serviço NeoAlice que publica o humor.
@@ -299,7 +299,7 @@ S03 e S04 podem rodar em paralelo com S05. As três são pacotes novos sem rende
 | Validação | `love` mostra suspiros e cabeça inclinada. `fear` mostra varredura ampla de cabeça. `disgust` mostra nariz franzido. Os humores antigos continuam iguais ao vídeo da S00. Valor desconhecido continua virando `neutral`. |
 | Saída | Documento de inventário do humor. Tag `sprint/S01-ok`. |
 
-## S02 — Baseline AIRI, contratos v1 e decisões
+### S02 — Baseline AIRI, contratos v1 e decisões
 
 **Objetivo:** P0 parte 1 do Plano 01. Congelar os contratos que os dois planos compartilham.
 **Repositório:** `airi`.
@@ -320,11 +320,18 @@ S03 e S04 podem rodar em paralelo com S05. As três são pacotes novos sem rende
 | B. Eva em VRM (antecipar parte do P6) | Preserva a identidade visual. VRM é glTF, próximo do GLB atual. | O renderer VRM do AIRI tem menos recursos de movimento. O mixer teria de nascer no VRM. |
 | C. A para desenvolver o mixer, B a partir da S15 | Mantém a ordem do Plano 01 e garante a Eva no fim. | Dois avatares durante o desenvolvimento. |
 
-Recomendação: **C**. O núcleo (S03, S04, S05) é agnóstico de renderer, então essa escolha não bloqueia o início.
+**D1 decidida em 03/11/2026:**
 
-**Decisão D2 — onde fica a autoridade do estado do companion.** Opções: no AIRI (IndexedDB) ou num serviço único publicado por MQTT. Recomendação: serviço único, porque o espelho e o AIRI são clientes diferentes (L6).
+- Os modelos originais do AIRI ficam como estão: Hiyori (Live2D) e AvatarSample A/B (VRM). Nenhuma sprint altera, remove ou substitui esses presets.
+- O responsável tem vários modelos VRM. Eles são os modelos de teste das sprints de renderer. Ficam fora do repositório (licença e privacidade) e são importados pela tela de modelos do AIRI.
+- O arquivo GLB da Eva é convertido para VRM na S15.
+- Consequência para a S06 e a S07: o AIRI não tem PMX de fábrica. Se nenhum PMX com licença for escolhido (D4), o mixer por camadas começa no renderer VRM. O núcleo (S03, S04) não muda, porque é agnóstico de renderer.
 
-## S03 — MotionDirector isolado (P1)
+**Decisão D2 — onde fica a autoridade do estado do companion.** Decidida em 03/11/2026: serviço único publicado por MQTT, porque o espelho e o AIRI são clientes diferentes (L6). Implementado em `services/alice-companion`. ADR: `docs/ai/adr/2026-11-03-alice-companion-state-service.md`.
+
+**Decisão D3 — biblioteca MQTT.** Decidida em 03/11/2026: `mqtt` (MQTT.js 5), adicionada ao catálogo do `pnpm-workspace.yaml`. O módulo do MagicMirror já usa a mesma biblioteca. Ela funciona em Node e no navegador por WebSocket, então a ponte da S08 usa a mesma dependência.
+
+### S03 — MotionDirector isolado (P1)
 
 **Repositório:** `airi`, pacote novo `packages/alice-motion`.
 
@@ -336,7 +343,7 @@ Recomendação: **C**. O núcleo (S03, S04, S05) é agnóstico de renderer, ent�
 | Validação | Mesma semente gera a mesma sequência. Interrupção não duplica gesto. Nenhuma chamada a LLM no loop. Nenhum pacote existente mudou de comportamento. |
 | Saída | Tag `sprint/S03-ok`. |
 
-## S04 — MotionScheduler isolado (P2)
+### S04 — MotionScheduler isolado (P2)
 
 **Repositório:** `airi`, `packages/alice-motion`.
 
@@ -348,9 +355,26 @@ Recomendação: **C**. O núcleo (S03, S04, S05) é agnóstico de renderer, ent�
 | Validação | Locomoção não é bloqueada por gesto de braço. Ação de corpo inteiro libera os canais ao terminar. Mesmo empate gera sempre o mesmo vencedor. |
 | Saída | Tag `sprint/S04-ok`. |
 
-## S05 — MoodAdapter e reducer do companion (B1 + B2)
+### S05 — MoodAdapter e reducer do companion (B1 + B2)
 
-**Repositório:** `airi`, pacote novo `packages/alice-companion` (ou serviço único, conforme D2).
+**Repositório:** `airi`, serviço novo `services/alice-companion` (D2).
+
+**Estado: implementada em 03/11/2026.** Resumo do que foi feito:
+
+| Passo | Resultado |
+| --- | --- |
+| Backup | O espelho não foi tocado. O ponto de volta no AIRI é o commit anterior do branch. O serviço é um diretório novo, então remover o diretório desfaz a sprint. O próprio serviço grava `state.json.bak` antes de cada escrita. |
+| Alteração | Serviço Node com MQTT: lê `evt/mood` e `cmd/evt/mood` sem alterar o humor, conta turnos (explícitos em `evt/companion/interaction` ou derivados de `evt/stt/final` + `cmd/tts/say`), aplica propostas de métrica com limites, publica o estado retido em `neoalice/v1/companion/evt/companion/state`, o afeto em `.../evt/companion/affect` e o status em `.../evt/companion/status`. |
+| Teste | 57 testes de unidade (typecheck e lint sem erro). Teste de ponta a ponta com Mosquitto local: humor `love` preservado, turno derivado contado, proposta limitada, proposta repetida recusada, segunda instância recusada, estado mantido após reinício, trava liberada na parada, status `online` e `offline`. |
+| Validação pendente no seu ambiente | Rodar o serviço apontando para o broker real por 1 dia, sem mudar o espelho. Conferir em `audit.jsonl` se os turnos derivados batem com as conversas reais. |
+
+Diferenças em relação ao texto original da S05:
+
+- Intensidade e causa ausentes ficam `null` e lista vazia, não `unknown`. O efeito é o mesmo: nada é inventado.
+- Decaimento por ausência não foi implementado. O consentimento `timeDecay` fica desligado.
+- Horário de verão: não há teste específico. A data local vem do banco de fusos IANA do Node, então segue a regra de horário de verão que esse banco tiver. Os testes cobrem a virada de data UTC em `America/Sao_Paulo`.
+
+Texto original da sprint:
 
 | Passo | Conteúdo |
 | --- | --- |
@@ -360,7 +384,7 @@ Recomendação: **C**. O núcleo (S03, S04, S05) é agnóstico de renderer, ent�
 | Validação | Uma só fonte de humor. Nenhuma escrita circular. Campos sem dado ficam `unknown`, sem causa inventada. |
 | Saída | Tag `sprint/S05-ok`. |
 
-## S06 — Fixture, telemetria e vídeo de referência (P0 parte 2)
+### S06 — Fixture, telemetria e vídeo de referência (P0 parte 2)
 
 **Repositório:** `airi`.
 
@@ -372,7 +396,7 @@ Recomendação: **C**. O núcleo (S03, S04, S05) é agnóstico de renderer, ent�
 | Validação | Os 3 clipes tocam sem regressão. Vídeo "antes" gravado. FPS e tempos medidos e registrados. Esses números substituem as metas não medidas dos planos. |
 | Saída | Tag `sprint/S06-ok`. |
 
-## S07 — Máscaras por osso e mistura aditiva (P3)
+### S07 — Máscaras por osso e mistura aditiva (P3)
 
 **Repositório:** `airi`, `animation-manager.ts` e `packages/alice-motion/src/mixer`.
 
@@ -384,19 +408,19 @@ Recomendação: **C**. O núcleo (S03, S04, S05) é agnóstico de renderer, ent�
 | Validação | `walk + left_arm_wave + gaze` ao mesmo tempo. Quadril e pernas não se movem pelo gesto. A API antiga funciona igual. Comparar FPS com a S06. |
 | Saída | Tag `sprint/S07-ok`. |
 
-## S08 — Ponte MQTT para o AIRI em modo sombra
+### S08 — Ponte MQTT para o AIRI em modo sombra
 
 **Repositório:** `airi`. Lado do broker só recebe um cliente novo.
 
 | Passo | Conteúdo |
 | --- | --- |
 | Backup | Tag `backup/S08-pre`. Cópia da configuração do Mosquitto (ACL, usuários). |
-| Alteração | Cliente MQTT por WebSocket que assina só `neoalice/v1/<SITE_AIRI>/#` e, em modo leitura, `neoalice/v1/<SITE>/evt/mood`. Converte tópicos NeoAlice em eventos `eventa` e em `MotionIntent`. Não publica em `<SITE>`. A nova dependência MQTT exige sua aprovação antes (regra do `AGENTS.md`). |
+| Alteração | Cliente MQTT por WebSocket que assina só `neoalice/v1/<SITE_AIRI>/#` e, em modo leitura, `neoalice/v1/<SITE>/evt/mood`. Converte tópicos NeoAlice em eventos `eventa` e em `MotionIntent`. Lê também o estado retido do serviço de companion (`neoalice/v1/companion/evt/companion/state`). Não publica em `<SITE>`. Usa a biblioteca `mqtt` (D3). |
 | Teste | Reproduzir `mqtt-ref-S00.log` contra `<SITE_AIRI>`. Teste de fumaça do espelho antes e depois. |
 | Validação | O espelho não muda de comportamento. O AIRI reage ao mesmo tráfego. Mensagem inválida não derruba a ponte. Reconexão descarta cues de sessão antiga. |
 | Saída | Tag `sprint/S08-ok`. |
 
-## S09 — Voz, face, prosódia e física (P4)
+### S09 — Voz, face, prosódia e física (P4)
 
 **Repositório:** `airi`.
 
@@ -408,7 +432,7 @@ Recomendação: **C**. O núcleo (S03, S04, S05) é agnóstico de renderer, ent�
 | Validação | Boca segue a voz. Física estável depois de 100 interrupções. Silêncio mantém idle. Gesto alinhado ao áudio tocado, não ao texto. |
 | Saída | Tag `sprint/S09-ok`. |
 
-## S10 — Painel de estado (B3)
+### S10 — Painel de estado (B3)
 
 **Repositórios:** `airi` (`packages/stage-ui`, `packages/i18n`).
 
@@ -420,7 +444,7 @@ Recomendação: **C**. O núcleo (S03, S04, S05) é agnóstico de renderer, ent�
 | Validação | Os valores na tela batem com o banco. Reset apaga só o escopo escolhido. O painel funciona sem avatar carregado. |
 | Saída | Tag `sprint/S10-ok`. |
 
-## S11 — Estágios, modos e memória factual (B4 + B5)
+### S11 — Estágios, modos e memória factual (B4 + B5)
 
 | Passo | Conteúdo |
 | --- | --- |
@@ -430,7 +454,7 @@ Recomendação: **C**. O núcleo (S03, S04, S05) é agnóstico de renderer, ent�
 | Validação | Modo `companion` não dispara evento romântico. Nenhuma memória gravada duas vezes. Memória antiga continua legível. |
 | Saída | Tag `sprint/S11-ok`. |
 
-## S12 — Eventos e marcos (B6)
+### S12 — Eventos e marcos (B6)
 
 | Passo | Conteúdo |
 | --- | --- |
@@ -440,7 +464,7 @@ Recomendação: **C**. O núcleo (S03, S04, S05) é agnóstico de renderer, ent�
 | Validação | Efeitos nos indicadores são determinísticos. O texto do LLM não altera números. |
 | Saída | Tag `sprint/S12-ok`. |
 
-## S13 — Afeto para movimento e proatividade (B8 + B7)
+### S13 — Afeto para movimento e proatividade (B8 + B7)
 
 | Passo | Conteúdo |
 | --- | --- |
@@ -450,7 +474,7 @@ Recomendação: **C**. O núcleo (S03, S04, S05) é agnóstico de renderer, ent�
 | Validação | O movimento não escreve no estado do relacionamento. Com a função desligada, voz e chat ficam iguais à S12. |
 | Saída | Tag `sprint/S13-ok`. |
 
-## S14 — Catálogo semântico e editor de camadas (P5)
+### S14 — Catálogo semântico e editor de camadas (P5)
 
 | Passo | Conteúdo |
 | --- | --- |
@@ -460,7 +484,7 @@ Recomendação: **C**. O núcleo (S03, S04, S05) é agnóstico de renderer, ent�
 | Validação | Um VMD novo é importado, descrito e ligado a um evento sem mudar código. Asset inválido mostra mensagem específica. |
 | Saída | Tag `sprint/S14-ok`. |
 
-## S15 — Adaptador VRM e avatar Eva (P6)
+### S15 — Adaptador VRM e avatar Eva (P6)
 
 | Passo | Conteúdo |
 | --- | --- |
@@ -470,7 +494,7 @@ Recomendação: **C**. O núcleo (S03, S04, S05) é agnóstico de renderer, ent�
 | Validação | O director não muda entre PMX e VRM. A Eva mantém aparência e lip-sync. |
 | Saída | Tag `sprint/S15-ok`. |
 
-## S16 — Transição do espelho
+### S16 — Transição do espelho
 
 **Objetivo:** levar o resultado ao MagicMirror com caminho de volta garantido.
 **Repositórios:** `MMM-avatar-3d` e, se necessário, `talkinghead-neoalice`.
@@ -483,7 +507,7 @@ Recomendação: **C**. O núcleo (S03, S04, S05) é agnóstico de renderer, ent�
 | Validação | Tudo do vídeo da S00 continua funcionando. Os ganhos dos Planos 01 e 02 aparecem. Rollback testado uma vez. |
 | Saída | Tag `sprint/S16-ok`. |
 
-## S17 — Laboratório neural e recursos experienciáveis (P7 + B9)
+### S17 — Laboratório neural e recursos experienciáveis (P7 + B9)
 
 Experimental. Só começa depois da S16 estável.
 
@@ -495,22 +519,22 @@ Experimental. Só começa depois da S16 estável.
 | Validação | Sem o serviço neural, o avatar funciona como na S16. |
 | Saída | Tag `sprint/S17-ok`. |
 
-## S-H — Hardening contínuo (B10)
+### S-H — Hardening contínuo (B10)
 
 Em toda sprint: revisar licenças de assets e código, procurar dados privados no diff, atualizar `README.md` dos pacotes, registrar métricas medidas e manter o rebase com o upstream.
 
 ---
 
-# PARTE D — DECISÕES PENDENTES
+## PARTE D — DECISÕES
 
 | ID | Pergunta | Sprint que bloqueia | Recomendação |
 | --- | --- | --- | --- |
-| D1 | Formato do avatar no AIRI: PMX novo, Eva em VRM, ou os dois em sequência? | S06 | Opção C |
-| D2 | Onde fica a autoridade do estado do companion? | S05 | Serviço único publicado por MQTT |
-| D3 | Qual biblioteca MQTT usar no AIRI? | S08 | Comparar opções antes de adicionar dependência |
+| D1 | Formato do avatar no AIRI | S06 | **Decidida:** presets do AIRI intactos, VRMs do responsável como modelos de teste, Eva convertida na S15 |
+| D2 | Onde fica a autoridade do estado do companion? | S05 | **Decidida e implementada:** `services/alice-companion` |
+| D3 | Qual biblioteca MQTT usar no AIRI? | S08 | **Decidida:** `mqtt` (MQTT.js 5) |
 | D4 | Qual modelo PMX e quais VMD têm licença para a fixture? | S06 | Escolher antes da S06 |
 | D5 | Rota final do espelho: AIRI no espelho ou TalkingHead comandado pelo director? | S16 | Decidir com medições da S06 e da S09 |
 
 ---
 
-**Status:** análise e roteiro documentados. Nenhum código foi alterado. Os Planos 01 e 02 permanecem sem alteração.
+**Status:** análise e roteiro documentados. D1, D2 e D3 decididas. S05 implementada em `services/alice-companion`. O espelho em produção não foi alterado. Os Planos 01 e 02 permanecem sem alteração.
