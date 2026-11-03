@@ -9,6 +9,9 @@ export const TTS_FLUSH_INSTRUCTION = '\u200B'
 export const TTS_SPECIAL_TOKEN = '\u2063'
 
 const regexpAnySingleDigit = /\d/
+/** A character that continues a token after a `.`, as in an address or a file path. */
+const regexpTokenContinuation = /[\p{L}\p{N}_~/\\%@-]/u
+const regexpCjk = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u
 
 /**
  * A chunk without a letter, a digit, or an emoji, as a lone closing quote `”`, has no sound and is not a TTS request.
@@ -103,24 +106,24 @@ export async function* chunkTtsInput(
       switch (value) {
         case '.':
         case ',': {
-          if (previousValue !== undefined && regexpAnySingleDigit.test(previousValue)) {
-            next = await iterator.next()
-            if (!next.done && next.value && regexpAnySingleDigit.test(next.value)) {
-              buffer += value
-              current = next
-              next = undefined
-              continue
-            }
+          next = await iterator.next()
+          const following = next.done ? undefined : next.value
+          // `3.14` and `1,000` are numbers. A `.` before a letter, as in `example.com`, `index.ts`, or `U.S`, is inside
+          // a token, so it does not end a sentence either. A `.` before a space, punctuation, CJK text, or the end does.
+          const inNumber = previousValue !== undefined && regexpAnySingleDigit.test(previousValue) && following !== undefined && regexpAnySingleDigit.test(following)
+          const inToken = value === '.' && following !== undefined && regexpTokenContinuation.test(following) && !regexpCjk.test(following)
+          if (inNumber || inToken) {
+            buffer += value
+            current = next
+            next = undefined
+            continue
           }
-          else if (value === '.') {
-            next = await iterator.next()
-            if (!next.done && next.value && next.value === '.') {
-              afterNext = await iterator.next()
-              if (!afterNext.done && afterNext.value && afterNext.value === '.') {
-                value = '…'
-                next = undefined
-                afterNext = undefined
-              }
+          if (value === '.' && following === '.') {
+            afterNext = await iterator.next()
+            if (!afterNext.done && afterNext.value && afterNext.value === '.') {
+              value = '…'
+              next = undefined
+              afterNext = undefined
             }
           }
         }

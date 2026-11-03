@@ -46,11 +46,13 @@ export function stateBandGeometry(top: number, height: number): RowGeometry & { 
  * A series that shows inside the capsules of a row, so a capsule shows what happened during its span.
  *
  * - `waveform`: an audio level as symmetric bars. `intensity`, from 0 to 1, sets the opacity of each bar, for example a
- *   VAD probability. Bars right of `revealX` do not draw yet, so a live waveform grows smoothly.
+ *   VAD probability. `curve`, from 0 to 1, draws as a line over the bars, with an optional dashed `curveThreshold`, for
+ *   example the VAD probability and its speech threshold. Bars and the curve right of `revealX` do not draw yet, so a
+ *   live waveform grows smoothly.
  * - `chart`: a value as a line in `range`, with an optional dashed `threshold`.
  */
 export type CapsuleContent
-  = | { kind: 'waveform', level: SeriesPyramid, intensity?: SeriesPyramid, revealX?: number }
+  = | { kind: 'waveform', level: SeriesPyramid, intensity?: SeriesPyramid, curve?: SeriesPyramid, curveThreshold?: number, revealX?: number }
     | { kind: 'chart', series: SeriesPyramid, range?: [number, number], threshold?: number }
 
 export interface TimelineRowLayer {
@@ -178,15 +180,30 @@ function drawSeries(ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingCont
       intensity: content.intensity?.envelope(view, WAVEFORM_BAR_PITCH_PX),
       revealX: content.revealX,
     })
+    if (content.curve) {
+      ctx.save()
+      // The curve stops at the reveal edge with the bars, so it does not run ahead of the live waveform.
+      if (content.revealX !== undefined) {
+        ctx.beginPath()
+        ctx.rect(0, band.top, Math.max(0, content.revealX), band.height)
+        ctx.clip()
+      }
+      drawLineSeries(ctx, content.curve, { view, band, color, range: [0, 1], threshold: content.curveThreshold })
+      ctx.restore()
+    }
     return
   }
-  drawEnvelope(ctx, content.series.envelope(view, 2), {
-    ...band,
-    color,
+  drawLineSeries(ctx, content.series, { view, band, color, range: content.range, threshold: content.threshold })
+}
+
+function drawLineSeries(ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, series: SeriesPyramid, options: { view: TimelineView, band: RowGeometry, color: string, range?: [number, number], threshold?: number }) {
+  drawEnvelope(ctx, series.envelope(options.view, 2), {
+    ...options.band,
+    color: options.color,
     columnPx: 2,
     mode: 'line',
-    range: content.range,
-    threshold: content.threshold,
-    bridgePx: content.series.bridgePx(view),
+    range: options.range,
+    threshold: options.threshold,
+    bridgePx: series.bridgePx(options.view),
   })
 }

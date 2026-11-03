@@ -126,12 +126,13 @@ describe('toSpeechText', () => {
     expect(toSpeechText('也写成 $2^10$。')).toBe('也写成 2的1次方0。')
   })
 
-  it('reads prices as words, and keeps paths and code that only look like TeX', () => {
+  it('reads prices as words, and keeps code that only looks like TeX', () => {
     expect(toSpeechText('It costs $5 and $10 today.')).toBe('It costs five dollars and ten dollars today.')
     expect(toSpeechText('价格$5，另一个$10。')).toBe('价格5美元，另一个10美元。')
     expect(toSpeechText('A ticket is $5, and the area is $x^2$.')).toBe('A ticket is five dollars, and the area is x squared.')
     expect(toSpeechText('チケットは $5、面積は $x^2$ です。')).toBe('チケットは ごドル、面積は エックスの二乗 です。')
-    expect(toSpeechText('Open C:\\Users\\neko now.')).toBe('Open C:\\Users\\neko now.')
+    // A Windows path is not TeX. It reads as a path.
+    expect(toSpeechText('Open C:\\Users\\user now.')).toBe('Open C colon backslash Users backslash user now.')
     expect(toSpeechText('Before.\n\n```tex\n\\(x\\)\n```\n\nAfter.')).toBe('Before.\nAfter.')
   })
 
@@ -139,5 +140,70 @@ describe('toSpeechText', () => {
     const marker = '\uE000'
 
     expect(toSpeechText(`$a ${marker}\\leq b$ ok.`, { marker })).toBe(`a is less than or equal to b${marker} ok.`)
+  })
+
+  it('reads a web address in code with the words of its sentence', () => {
+    // The TTS chunker split `home.example.com` at each dot, and the voice read the parts with a pause after each.
+    expect(toSpeechText('连接 Home Assistant 地址 `https://home.example.com` 时，网络请求失败（`fetch failed`）。'))
+      .toBe('连接 Home Assistant 地址 https home 点 example 点 com 时，网络请求失败（fetch failed）。')
+    expect(toSpeechText('Open `https://home.example.com` now.')).toBe('Open https home dot example dot com now.')
+    expect(toSpeechText('链接 <https://home.example.com> 在这。')).toBe('链接 https home 点 example 点 com 在这。')
+    expect(toSpeechText('看 [https://home.example.com](https://home.example.com) 这页。')).toBe('看 https home 点 example 点 com 这页。')
+  })
+
+  it('reads an address in the language of a one-character sentence', () => {
+    expect(toSpeechText('看 `https://a.io`。', { language: 'zh' })).toBe('看 https a 点 io。')
+    expect(toSpeechText('看 <https://a.io>。', { language: 'zh' })).toBe('看 https a 点 io。')
+  })
+
+  it('reads a formula in the language of a one-character sentence', () => {
+    // A voice in English read this formula in English before, because 看 alone was not a sentence.
+    expect(toSpeechText('看 $x^2$。', { language: 'en' })).toBe('看 x的平方。')
+  })
+
+  it('reads an address in link text, also with formatting', () => {
+    expect(toSpeechText('Read [about *example.com*](https://docs.example.com).')).toBe('Read about example dot com.')
+    expect(toSpeechText('Open [*https://a.io*](https://a.io) now.')).toBe('Open https a dot io now.')
+  })
+
+  it('reads addresses and file paths in prose and in code that has other words', () => {
+    expect(toSpeechText('Is it example.com? See https://a.io now.')).toBe('Is it example dot com? See https a dot io now.')
+    expect(toSpeechText('Run `curl https://a.io` now.')).toBe('Run curl https a dot io now.')
+    expect(toSpeechText('打开 `./src/index.ts` 看看。')).toBe('打开 点 斜杠 src 斜杠 index 点 ts 看看。')
+  })
+
+  it.each([
+    ['看 [[Home Assistant 配置]] 这页。', '看 Home Assistant 配置 这页。'],
+    ['看 [[Home Assistant 配置|配置说明]] 这页。', '看 配置说明 这页。'],
+    ['看 [[Home Assistant 配置#网络]] 这页。', '看 Home Assistant 配置 网络 这页。'],
+    ['看 [[Home Assistant 配置#^a1b2]] 这页。', '看 Home Assistant 配置 这页。'],
+    ['图 ![[shot.png]] 在这。', '图 图片 在这。'],
+    ['图 ![[shot.png|截图]] 在这。', '图 截图 在这。'],
+    ['图 ![[shot.png|300]] 在这。', '图 图片 在这。'],
+    ['听 ![[voice.mp3]]，看 ![[clip.mp4]]，读 ![[doc.pdf]]。', '听 音频，看 视频，读 PDF 文件。'],
+    ['读 ![[doc.pdf#page=3]]。', '读 PDF 文件。'],
+    ['笔记 ![[Home Assistant 配置]] 嵌入。', '笔记 Home Assistant 配置 嵌入。'],
+    ['See ![[shot.png]] here.', 'See image here.'],
+    ['代码 `[[not a link]]` 里。', '代码 [[not a link]] 里。'],
+  ] as const)('reads the Obsidian link in %s as the text that Obsidian shows', (markdown, speech) => {
+    expect(toSpeechText(markdown)).toBe(speech)
+  })
+
+  it('reads the display text of a link, without its attributes', () => {
+    expect(toSpeechText('看 [配置说明 | 显示 {.note}](https://home.example.com/config) 这一页。')).toBe('看 显示 这一页。')
+    expect(toSpeechText('Read [the guide](https://e.com){.note #intro} first.')).toBe('Read the guide first.')
+    expect(toSpeechText('Keep {braces} in prose.')).toBe('Keep {braces} in prose.')
+  })
+
+  it('reads an image without alternative text as an image, and drops an Obsidian size', () => {
+    expect(toSpeechText('看 ![](shot.png) 这张。')).toBe('看 图片 这张。')
+    expect(toSpeechText('See ![](shot.png) here.')).toBe('See image here.')
+    expect(toSpeechText('看 ![截图|300](shot.png) 这张。')).toBe('看 截图 这张。')
+  })
+
+  it('keeps the markers of a wiki link', () => {
+    const marker = ''
+
+    expect(toSpeechText(`See [[Note|Alias]]${marker} now.`, { marker })).toBe(`See Alias${marker} now.`)
   })
 })

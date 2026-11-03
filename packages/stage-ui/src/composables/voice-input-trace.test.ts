@@ -57,6 +57,17 @@ describe('createVoiceInputTracer', () => {
     expect(activeVoiceInput.value).toBeUndefined()
   })
 
+  it('records the VAD speech threshold on each input span', async () => {
+    const tracer = createVoiceInputTracer({ speechThreshold: 0.6 })
+    const input = attempt('input-1')
+
+    tracer.start(input, 'speech')
+    input.settle({ status: 'committed', messageId: 'input-1' })
+
+    await vi.waitFor(() => expect(endedInputs()).toHaveLength(1))
+    expect(endedInputs()[0]!.attrs[VoiceAttributes.VADThreshold]).toBe(0.6)
+  })
+
   it('writes the level and the VAD probability of each window to the input track', async () => {
     // A viewer shows every track, so the writer keeps its samples.
     getTraceSource().setWanted('*')
