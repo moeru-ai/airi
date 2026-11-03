@@ -4,7 +4,7 @@
 **Projeto:** Alice / fork [overcyber/airi](https://github.com/overcyber/airi)  
 **Data da pesquisa:** 03/11/2026  
 **Natureza:** segundo planejamento de melhoria; somente documentação, sem implementação.  
-**Preservação obrigatória:** este documento NÃO substitui, edita ou reordena \`docs/alice-motion-engine/PLANEJAMENTO_E_HISTORICO_CONVERSA.md\`. O plano anterior é o **Plano 01 — Motion Director e Motion Mixer**.  
+**Preservação obrigatória:** este documento NÃO substitui, edita ou reordena `docs/alice-motion-engine/PLANEJAMENTO_E_HISTORICO_CONVERSA.md`. O plano anterior é o **Plano 01 — Motion Director e Motion Mixer**.  
 **Condição fornecida pelo responsável:** a IA Alice **já possui sistema de humores**; integrar esse sistema, não criar outro mecanismo conflitante.  
 **Condição de plataforma:** preservar AIRI e a diversidade de provedores, incluindo **NVIDIA NIM no AIRI Desktop**, OpenAI-compatible, vLLM, Ollama, LM Studio, áudio, ferramentas, MCP e automações.  
 **Estado das afirmações:** identificação estática de recursos a partir de código e documentação, sem executar os aplicativos nem inferir que todo recurso do README está pronto. A ausência indicada abaixo quer dizer *não localizado como recurso equivalente nas partes inspecionadas do AIRI*; não prova inexistência absoluta.
@@ -46,18 +46,18 @@ Durante conversas e períodos de ausência, Alice:
 
 | Capacidade AIRI | Evidência de código/documentação | Decisão |
 |---|---|---|
-| Diversos provedores de inferência | \`packages/provider-inference/src/providers/index.ts\`: 59 definições portáteis; registro desktop adicional | **Preservar**; nenhuma migração para Utsuwa/xiaoke |
-| NVIDIA NIM | \`packages/stage-ui/src/libs/providers/providers/nvidia/index.ts\`; chat e validação, \`isStageTamagotchi\` | **Preservar**; documentar escopo desktop; não recriar |
-| Provedores locais | \`provider-inference/src/providers/local/\` e \`cloud/openai-compatible/\` | Reutilizar |
-| Memória de longo prazo | \`packages/stage-ui/src/stores/memory.ts\`, \`src/database/repos/memory.repo.ts\`, \`src/tools/memory.ts\` | **Estender** em vez de implementar memória paralela |
-| MCP | \`packages/stage-ui/src/stores/mcp.ts\`, \`src/tools/mcp.ts\` | Reutilizar grants/segurança existentes |
-| Skills/recipes/automations | \`packages/core-agent/README.md\`; runtime e recipes | Consumir motor de eventos já previsto, não criar segundo scheduler geral |
-| Emoções e expressão do avatar | \`packages/stage-ui/src/constants/emotions.ts\`, \`stage-ui-mmd/src/constants/emotions.ts\` | Mapear humores existentes → expressões; não substituir |
-| MMD, VRM, Live2D, outros renderizadores | \`stage-ui-mmd\`, \`stage-ui-three\`, \`stage-ui-live2d\` | Estado emocional deve ser renderer-agnostic |
-| Orquestração de turnos, tools e voz | \`packages/core-agent/README.md\` | Utilizar eventos existentes; não acoplar à UI |
+| Diversos provedores de inferência | `packages/provider-inference/src/providers/index.ts`: 59 definições portáteis; registro desktop adicional | **Preservar**; nenhuma migração para Utsuwa/xiaoke |
+| NVIDIA NIM | `packages/stage-ui/src/libs/providers/providers/nvidia/index.ts`; chat e validação, `isStageTamagotchi` | **Preservar**; documentar escopo desktop; não recriar |
+| Provedores locais | `provider-inference/src/providers/local/` e `cloud/openai-compatible/` | Reutilizar |
+| Memória de longo prazo | `packages/stage-ui/src/stores/memory.ts`, `src/database/repos/memory.repo.ts`, `src/tools/memory.ts` | **Estender** em vez de implementar memória paralela |
+| MCP | `packages/stage-ui/src/stores/mcp.ts`, `src/tools/mcp.ts` | Reutilizar grants/segurança existentes |
+| Skills/recipes/automations | `packages/core-agent/README.md`; runtime e recipes | Consumir motor de eventos já previsto, não criar segundo scheduler geral |
+| Emoções e expressão do avatar | `packages/stage-ui/src/constants/emotions.ts`, `stage-ui-mmd/src/constants/emotions.ts` | Mapear humores existentes → expressões; não substituir |
+| MMD, VRM, Live2D, outros renderizadores | `stage-ui-mmd`, `stage-ui-three`, `stage-ui-live2d` | Estado emocional deve ser renderer-agnostic |
+| Orquestração de turnos, tools e voz | `packages/core-agent/README.md` | Utilizar eventos existentes; não acoplar à UI |
 | Proposta de movimento em camadas | Plano 01, arquivo independente | Não alterar nem copiar integralmente para o Plano 02 |
 
-**Atenção:** o AIRI usa o termo “emotions” para mapear ações/expressões, mas isso **não implica**, por si, um \`CharacterRelationshipState\` persistente com as cinco métricas, progressão temporal e eventos. O estado afetivo existente na Alice pode estar em serviços próprios que não são parte do fork; exigir descoberta de sua API antes de programar.
+**Atenção:** o AIRI usa o termo “emotions” para mapear ações/expressões, mas isso **não implica**, por si, um `CharacterRelationshipState` persistente com as cinco métricas, progressão temporal e eventos. O estado afetivo existente na Alice pode estar em serviços próprios que não são parte do fork; exigir descoberta de sua API antes de programar.
 
 ## 2.2. Inventário de diferenças e melhorias
 
@@ -65,16 +65,16 @@ Legenda: **E** = existe no AIRI; **P** = parcial ou equivalente diferente; **L**
 
 | ID | Recurso a avaliar | AIRI | Referência identificada | Prioridade |
 |---|---|---|---|---|
-| C01 | Humor persistente com intensidade e causas (últimos motivos) | P: emoções; humor do sistema da Alice existe fora do escopo verificado | Utsuwa \`MoodState\` | P0 |
-| C02 | Estado de **energia** separado do humor | L | Utsuwa \`CharacterState.energy\` | P0 |
+| C01 | Humor persistente com intensidade e causas (últimos motivos) | P: emoções; humor do sistema da Alice existe fora do escopo verificado | Utsuwa `MoodState` | P0 |
+| C02 | Estado de **energia** separado do humor | L | Utsuwa `CharacterState.energy` | P0 |
 | C03 | Cinco eixos: affection/trust/intimacy/comfort/respect | L | Utsuwa character/stages | P0 |
 | C04 | Estágios e requisitos verificáveis, sem depender de “vontade do LLM” | L | Utsuwa stages | P1 |
 | C05 | Dois modos: companion (sem mecânica romântica) e relacionamento configurável | L | Utsuwa appMode | P0 |
 | C06 | Histórico de primeiro contato, dias, interações, day streak/best streak | L | Utsuwa streak/character | P0 |
 | C07 | Atualizações de estado: heurísticas + sugestão do LLM validada | L | Utsuwa state-updates/response-parser | P0 |
-| C08 | Eventos por estágio, tempo, humor, marco, escolha, condições | P: automações gerais não são progressão relacional | Utsuwa \`events\` | P1 |
+| C08 | Eventos por estágio, tempo, humor, marco, escolha, condições | P: automações gerais não são progressão relacional | Utsuwa `events` | P1 |
 | C09 | Registros de marcos, achievements e histórico de eventos | L | Utsuwa StatsPanel/milestones | P1 |
-| C10 | Histerese em mudança de estágio | L | Utsuwa \`DEMOTION_HYSTERESIS\` | P1 |
+| C10 | Histerese em mudança de estágio | L | Utsuwa `DEMOTION_HYSTERESIS` | P1 |
 | C11 | Recuperação da energia após ausência | L | Utsuwa time decay | P1 |
 | C12 | Políticas de decaimento temporal **opcionais** e auditáveis | L | Utsuwa time decay | P1 |
 | C13 | Painel “Right now / Relationship / Time together” | L | Utsuwa StatsPanel | P0 |
@@ -106,7 +106,7 @@ Legenda: **E** = existe no AIRI; **P** = parcial ou equivalente diferente; **L**
 | C39 | Suporte ampliado a provedores de voz | E: AIRI já tem vários | Open-LLM-VTuber | Sem duplicação |
 | C40 | Controle de relacionamento por personagem e múltiplos perfis | V: Utsuwa é single-companion; AIRI lida com personas | Extensão própria | P1 |
 
-**Regra de auditoria:** antes de implementar cada linha \`P\`, \`L\` ou \`V\`, registrar evidência de funcionalidade equivalente no AIRI atual. Se já existir, construir um adapter. Não apagar ou refatorar recursos maduros por preferência estética.
+**Regra de auditoria:** antes de implementar cada linha `P`, `L` ou `V`, registrar evidência de funcionalidade equivalente no AIRI atual. Se já existir, construir um adapter. Não apagar ou refatorar recursos maduros por preferência estética.
 
 # 3. SISTEMA AFETIVO E DE RELACIONAMENTO — INSPIRAÇÃO PRINCIPAL: UTSUWA
 
@@ -114,7 +114,7 @@ Legenda: **E** = existe no AIRI; **P** = parcial ou equivalente diferente; **L**
 
 A interface de referência Utsuwa apresenta:
 
-\`\`\`text
+```text
 RIGHT NOW
 Mood: Neutral                Cause: Just normal
 Energy: 100%
@@ -133,9 +133,9 @@ Days together: 0
 Interactions: 0
 Day streak: 0
 Best streak: 0
-\`\`\`
+```
 
-O objeto persistente **não deve armazenar apenas os percentuais da UI**. A referência Utsuwa mantém \`affection\` na escala 0–1000, enquanto as outras quatro métricas, \`energy\` e \`mood.intensity\` têm escala 0–100. A apresentação pode normalizar tudo para percentuais, documentando a conversão. O progresso não deve subir apenas por repetição mecânica de mensagens.
+O objeto persistente **não deve armazenar apenas os percentuais da UI**. A referência Utsuwa mantém `affection` na escala 0–1000, enquanto as outras quatro métricas, `energy` e `mood.intensity` têm escala 0–100. A apresentação pode normalizar tudo para percentuais, documentando a conversão. O progresso não deve subir apenas por repetição mecânica de mensagens.
 
 O estado efetivo possui 3 planos:
 - **emocional transitório:** humor primário/secundário, intensidade, causas e energia;
@@ -147,23 +147,23 @@ O estado efetivo possui 3 planos:
 Princípio central reproduzível do Utsuwa: **o aplicativo é a autoridade sobre números e eventos**. O modelo gera fala e sugere mudanças; a camada de validação limita ou rejeita sugestões. Mesmo que o modelo afirme ter “100% de confiança”, a persistência precisa seguir fatos observáveis, regras, consentimentos e limites.
 
 **Mecanismo a construir:**
-1. evento \`interaction.completed\` é emitido somente após finalização confirmada;
-2. \`MoodAdapter\` lê o **sistema de humores já existente** da IA;
-3. heurísticas leves propõem \`StateProposal\` com evidência;
+1. evento `interaction.completed` é emitido somente após finalização confirmada;
+2. `MoodAdapter` lê o **sistema de humores já existente** da IA;
+3. heurísticas leves propõem `StateProposal` com evidência;
 4. extração estruturada do LLM é **opcional**; se falhar, usar heurísticas, jamais bloquear resposta;
 5. validador normaliza escala, idioma, limites, IDs e motivos;
 6. reducer determinístico aplica a proposta com limites e idempotência;
-7. transação registra estado final e \`StateChangeAudit\`;
+7. transação registra estado final e `StateChangeAudit`;
 8. renderizador e Motion Director recebem apenas eventos de apresentação;
 9. UI lê estado consolidado, sem controlar diretamente o número por prompt.
 
 ## 3.3. Reaproveitar o humor já implementado na Alice
 
-**Não criar um segundo \`mood\` que disputa prioridade com o atual.**
+**Não criar um segundo `mood` que disputa prioridade com o atual.**
 
 Implementar um contrato de adapter bidirecional, mas com **uma autoridade configurável**, preferencialmente o sistema atual:
 
-\`\`\`ts
+```ts
 export interface MoodSnapshot {
   version: 1;
   primary: string;
@@ -178,11 +178,11 @@ export interface ExistingMoodAdapter {
   proposeChange(personaId: string, proposal: MoodProposal): Promise<void>;
   subscribe(personaId: string, handler: (snapshot: MoodSnapshot) => void): () => void;
 }
-\`\`\`
+```
 
-O novo motor **não envia mudanças para si mesmo** (evitar loops), usa \`sourceEventId\`, \`revision\` e \`origin\`, e só escreve em um backend de humor caso essa opção esteja habilitada. A UI de relação é leitora do snapshot consolidado.
+O novo motor **não envia mudanças para si mesmo** (evitar loops), usa `sourceEventId`, `revision` e `origin`, e só escreve em um backend de humor caso essa opção esteja habilitada. A UI de relação é leitora do snapshot consolidado.
 
-Usar mapeamento configurável \`mood → behaviorIntent → expression/motion/TTS\`; nenhum renderer decide o valor de carinho/confiança. A intensidade afeta expressão, cadência e *motion energy*, mas não deve superar os limites de segurança do rig.
+Usar mapeamento configurável `mood → behaviorIntent → expression/motion/TTS`; nenhum renderer decide o valor de carinho/confiança. A intensidade afeta expressão, cadência e *motion energy*, mas não deve superar os limites de segurança do rig.
 
 ## 3.4. Eixos relacionais independentes
 
@@ -201,37 +201,37 @@ As dimensões **não** devem inferir estados psicológicos reais do usuário, ne
 ## 3.5. Estágios inspirados no Utsuwa
 
 Referência de oito estágios no Dating Sim Mode:
-\`Stranger → Acquaintance → Friend → Close Friend → Romantic Interest → Dating → Committed → Soulmate\`.
-Existe também um estágio técnico \`companion\` para modo não romântico.
+`Stranger → Acquaintance → Friend → Close Friend → Romantic Interest → Dating → Committed → Soulmate`.
+Existe também um estágio técnico `companion` para modo não romântico.
 
 Implementar políticas versionadas, **não copiar rigidamente como mecânica universal**:
 - estágio deriva de condições sobre os cinco eixos, idade da relação, quantidade de interações e marcos;
 - promoções somente quando **todas** as condições pertinentes passam;
 - rebaixamentos com histerese (Utsuwa usa 85% do piso do estágio); a proposta deve ter opção de desligar regressão por ausência;
 - eventos de avanço que dependem de escolha só produzem progresso com resposta voluntária e explícita;
-- switches \`companion\`, \`relationship\` e \`dating-sim\` podem ser distintos na Alice; padrão não romântico;
-- metadata \`policyVersion\`, \`stageSince\`, \`lastTransitionReason\` e \`grantedMilestones\`;
+- switches `companion`, `relationship` e `dating-sim` podem ser distintos na Alice; padrão não romântico;
+- metadata `policyVersion`, `stageSince`, `lastTransitionReason` e `grantedMilestones`;
 - manter histórico reversível de transições;
 - não considerar IA ou o usuário obrigados a cumprir metas.
 
-O modo \`companion\` mantém humor e energia ativos, memória disponível e relacionamento opcionalmente congelado, sem cenas românticas automáticas. Ao retornar a outro modo, preservar progressão anterior sem conceder estágio novo por suposição.
+O modo `companion` mantém humor e energia ativos, memória disponível e relacionamento opcionalmente congelado, sem cenas românticas automáticas. Ao retornar a outro modo, preservar progressão anterior sem conceder estágio novo por suposição.
 
 ## 3.6. Regras temporais, sem penalização obrigatória
 
 O Utsuwa implementa recuperação de energia após 6 horas, decaimento de afeto depois de 48 horas, confiança depois de 7 dias e variação de humor após 3 dias de ausência. Esses valores são úteis como referência de implementação **e não como defaults obrigatórios** da Alice.
 
 Proposta:
-- \`EnergyPolicy\` controla custo por interação, recuperação, pausa; configuração \`simulation | disabled\`;
-- \`AbsencePolicy\` padrão \`no-relationship-penalty\`; saudação contextual sem insistência;
-- \`DecayPolicy\` em \`opt_in\` para experiências de simulação; auditável e reversível;
-- \`lastDecayAt\` + trava/compare-and-swap para não aplicar duas vezes entre abas;
-- tempo com \`America/Sao_Paulo\` configurável para streak; contabilizar calendário local, não blocos fixos de 24h;
+- `EnergyPolicy` controla custo por interação, recuperação, pausa; configuração `simulation | disabled`;
+- `AbsencePolicy` padrão `no-relationship-penalty`; saudação contextual sem insistência;
+- `DecayPolicy` em `opt_in` para experiências de simulação; auditável e reversível;
+- `lastDecayAt` + trava/compare-and-swap para não aplicar duas vezes entre abas;
+- tempo com `America/Sao_Paulo` configurável para streak; contabilizar calendário local, não blocos fixos de 24h;
 - relógio alterado para trás, viagens e horário de verão não podem duplicar punições nem inflar streak;
 - gestos e fala de retorno podem refletir ausência sem acusar o usuário por não conversar.
 
 ## 3.7. Eventos e marcos pessoais
 
-Criar **\`CompanionEventEngine\`** como **domínio sobre o scheduler/automations existente do AIRI**. Não implementar um scheduler de sistema separado.
+Criar **`CompanionEventEngine`** como **domínio sobre o scheduler/automations existente do AIRI**. Não implementar um scheduler de sistema separado.
 
 Categorias de evento:
 - marcos: primeira conversa, primeiro encontro com personagem, sessões sucessivas, aniversário, marco de confiança;
@@ -241,7 +241,7 @@ Categorias de evento:
 - opcional relacional: etapas afetivas, somente no modo explicitamente escolhido.
 
 Contrato:
-\`\`\`ts
+```ts
 interface CompanionEventPolicy {
   id: string;
   version: number;
@@ -254,17 +254,17 @@ interface CompanionEventPolicy {
   effectPolicyId?: string;            // efeitos determinísticos, nunca ditados pelo texto gerado
   sceneTemplateId?: string;
 }
-\`\`\`
+```
 
 Um evento leva estado e contexto verificados ao LLM para redigir o diálogo. O **texto** pode ser personalizado; efeitos sobre os indicadores, marcos, concessões e escolhas permanecem determinísticos.
 
-Reusar IDs de automação/recipe e logs para rastreabilidade; \`idempotencyKey\` impede replay duplo. Durante recuperação de falha, não disparar o mesmo marco novamente.
+Reusar IDs de automação/recipe e logs para rastreabilidade; `idempotencyKey` impede replay duplo. Durante recuperação de falha, não disparar o mesmo marco novamente.
 
 ## 3.8. Painel de transparência
 
 Nova área no AIRI Desktop/Web, sem remover configurações atuais:
 
-\`\`\`text
+```text
 Alice / Estado agora
   Humor: curioso (intensidade 63%)
   Causas: conversa técnica recente
@@ -282,7 +282,7 @@ Convivência
   Dias juntos / interações / sequência atual / melhor sequência
   Marcos e eventos concluídos
   Exportar dados / apagar dados / perfil ativo
-\`\`\`
+```
 
 Exibir estado **real**; não animar medidores com valores falsos. Explicar que métricas são variáveis internas de simulação do personagem, não medidas da emoção de uma pessoa real.
 
@@ -301,13 +301,13 @@ AIRI já tem memória de longo prazo em IndexedDB, index por persona e ferrament
 - backup com merge/replace, com limites documentados sobre assets;
 - proteção contra fatos inventados e seleção de memórias com proveniência.
 
-**Proposta:** criar \`CompanionMemoryAdapter\` que integra o backend AIRI e uma camada opcional de embeddings, **sem gravar a mesma memória duas vezes**.
+**Proposta:** criar `CompanionMemoryAdapter` que integra o backend AIRI e uma camada opcional de embeddings, **sem gravar a mesma memória duas vezes**.
 
 Um possível serviço semântico externo usa Qdrant e um embedder já disponível (ex.: bge-m3 se estiver configurado), mas a escolha deve ser descoberta no ambiente real. Não instanciar outro Qdrant/modelo por conveniência.
 
 ## 4.2. Estrutura de fatos e episódios
 
-\`\`\`ts
+```ts
 interface CompanionMemory {
   id: string;
   personaId: string;
@@ -324,28 +324,28 @@ interface CompanionMemory {
   tombstone?: boolean;
   embeddingRef?: string;
 }
-\`\`\`
+```
 
-Regra: somente fatos fornecidos ou confirmados podem ser exibidos como lembranças certas. O LLM pode sugerir uma lembrança; \`MemoryValidator\` verifica suporte em mensagens/fatos e grava a origem. Incerteza implica linguagem condicional ou revisão do usuário.
+Regra: somente fatos fornecidos ou confirmados podem ser exibidos como lembranças certas. O LLM pode sugerir uma lembrança; `MemoryValidator` verifica suporte em mensagens/fatos e grava a origem. Incerteza implica linguagem condicional ou revisão do usuário.
 
-Separar **fatos do usuário** de **estado do personagem**: afeto e humor pertencem ao \`CharacterState\`, não são evidência de experiências reais.
+Separar **fatos do usuário** de **estado do personagem**: afeto e humor pertencem ao `CharacterState`, não são evidência de experiências reais.
 
 ## 4.3. Busca, grafo e orçamento de contexto
 
-- \`retrieve\`: busca por embedding, reranking por relevância/importance/recência conforme categoria;
-- \`dedup\`: distância textual/semântica e normalização, com undo e auditoria;
-- \`sessionSummary\`: resumo por sessão com proveniência e versionamento;
-- \`semanticGraph\`: nós = memórias, arestas = similaridade acima de limiar e/ou vínculos explícitos, editor de exclusão;
-- \`budget\`: orçamento explícito de tokens (modelo pequeno vs modelo grande), sem sacrificar mensagem atual ou instruções superiores;
-- \`portuguese\`: testar expressões em português; não transplantar heurísticas baseadas exclusivamente em keywords em inglês do Utsuwa;
-- \`offline\`: embeddings locais quando disponível; fallback seguro a fatos importantes/keywords quando não;
-- \`conflicts\`: memórias contraditórias não devem ser mescladas silenciosamente.
+- `retrieve`: busca por embedding, reranking por relevância/importance/recência conforme categoria;
+- `dedup`: distância textual/semântica e normalização, com undo e auditoria;
+- `sessionSummary`: resumo por sessão com proveniência e versionamento;
+- `semanticGraph`: nós = memórias, arestas = similaridade acima de limiar e/ou vínculos explícitos, editor de exclusão;
+- `budget`: orçamento explícito de tokens (modelo pequeno vs modelo grande), sem sacrificar mensagem atual ou instruções superiores;
+- `portuguese`: testar expressões em português; não transplantar heurísticas baseadas exclusivamente em keywords em inglês do Utsuwa;
+- `offline`: embeddings locais quando disponível; fallback seguro a fatos importantes/keywords quando não;
+- `conflicts`: memórias contraditórias não devem ser mescladas silenciosamente.
 
 Grafo é recurso de inspeção, **não autoridade para criar fatos**.
 
 ## 4.4. Álbum de experiências e recordações visuais
 
-Utsuwa possui \`Photoboard\` e referências a fotos apresentadas. xiaoke inclui registros \`keepsake\`.
+Utsuwa possui `Photoboard` e referências a fotos apresentadas. xiaoke inclui registros `keepsake`.
 
 Fase opcional:
 - anexar mídia por ação explícita, com armazenamento local, título, data, vínculo de sessão e evento;
@@ -360,7 +360,7 @@ Fase opcional:
 ## 5.1. Reações a contexto e prosódia
 
 O Planejamento 01 responde pela composição dos movimentos. O Plano 02 emite sinais:
-\`\`\`json
+```json
 {
   "eventType": "companion.affect.updated",
   "personaId": "alice",
@@ -373,9 +373,9 @@ O Planejamento 01 responde pela composição dos movimentos. O Plano 02 emite si
   "motionIntentHint": "subtle_explain",
   "sourceEventId": "evt-123"
 }
-\`\`\`
+```
 
-O adaptador de movimento interpreta \`motionIntentHint\`, mas **não tem permissão para modificar \`relationshipState\`**.
+O adaptador de movimento interpreta `motionIntentHint`, mas **não tem permissão para modificar `relationshipState`**.
 
 Variações compatíveis com xiaoke: estado idle/listening/thinking/speaking; mudança de olhar; ênfase vocal; pequenas respostas a toque; escolha de câmera; movimento de espera e silêncio natural. Dados de humor são sinais semânticos, não trajetórias de ossos.
 
@@ -383,10 +383,10 @@ Variações compatíveis com xiaoke: estado idle/listening/thinking/speaking; mu
 
 AIRI já oferece subsistema de voz e hooks/streams. Comparar com xiaoke antes de desenvolver:
 - falas em segmentos e interrupção por nova fala;
-- políticas configuráveis de \`barge-in\` (\`interrupt\`, \`queue\`, \`finish\`);
+- políticas configuráveis de `barge-in` (`interrupt`, `queue`, `finish`);
 - detecção de eco/VAD;
 - sincronização áudio, mensagem e cue;
-- cancelamento de episódio/cue por \`sessionId\`;
+- cancelamento de episódio/cue por `sessionId`;
 - continuidade do estado após interrupção sem aplicar dois delta de relacionamento.
 
 O sistema de relação **só recebe evento de turno concluído**. Tentativas, geração parcial e TTS cancelado não devem automaticamente virar interação válida.
@@ -396,9 +396,9 @@ O sistema de relação **só recebe evento de turno concluído**. Tentativas, ge
 AIRI já possui automações e avisos; xiaoke oferece comportamento de retomada do diálogo após silêncio com limites.
 
 Adicionar política de **presença** distinta de tarefas agendadas:
-- \`proactive.enabled = false\` por padrão;
-- intervalos máximos diários, horário de silêncio, foco de trabalho e \`do_not_disturb\`;
-- canal e contexto explícitos (\`desktop\`, \`chat\`, \`notification\`);
+- `proactive.enabled = false` por padrão;
+- intervalos máximos diários, horário de silêncio, foco de trabalho e `do_not_disturb`;
+- canal e contexto explícitos (`desktop`, `chat`, `notification`);
 - priorizar eventos relevantes confirmados (ex.: lembrete pedido), não mensagens para aumentar engajamento;
 - sem culpa pela ausência, recompensas afetivas condicionadas a retorno nem mensagens possessivas;
 - respeitar conversas já em andamento, áudio tocando ou LLM indisponível.
@@ -407,7 +407,7 @@ Adicionar política de **presença** distinta de tarefas agendadas:
 
 Utsuwa tem eventos com cenas determinísticas e palavras personalizadas; xiaoke dispõe de cenas, enquadramentos e estados cênicos.
 
-Proposta \`SceneContext\`:
+Proposta `SceneContext`:
 - local ficcional/sala/ambiente selecionado, sem geolocalização silenciosa;
 - clima/iluminação/música por evento ou seleção explícita;
 - associação de cena à memória de episódio e aos gestos (Plano 01);
@@ -431,7 +431,7 @@ Esses recursos não devem receber prioridade sobre o estado afetivo. Confirmaç�
 
 ## 6.1. Desenho lógico
 
-\`\`\`mermaid
+```mermaid
 flowchart TB
   A[AIRI Core Agent / Voice / Providers / MCP] --> B[Companion Event Adapter]
   M[Humor já existente na Alice] <--> C[MoodAdapter: uma fonte de verdade]
@@ -446,11 +446,11 @@ flowchart TB
   I --> J[Dashboard: Right Now / Relationship / Time Together]
   I --> K[Companion Affect → Motion Intent]
   K --> L[Plano 01 Motion Director / Mixer / Renderers]
-\`\`\`
+```
 
 ## 6.2. Estrutura nova sugerida (não criada nesta etapa)
 
-\`\`\`text
+```text
 packages/alice-companion/
   package.json
   src/
@@ -496,13 +496,13 @@ packages/alice-companion/
 
 packages/stage-ui/
   src/components/... (nova tela de estado; seguir estrutura real após P0)
-\`\`\`
+```
 
-Mudar nomes/paths se o monorepo exigir. O pacote não deve importar diretamente \`stage-ui-mmd\`, \`three\`, \`pixiv/three-vrm\` nem SDK do provedor LLM.
+Mudar nomes/paths se o monorepo exigir. O pacote não deve importar diretamente `stage-ui-mmd`, `three`, `pixiv/three-vrm` nem SDK do provedor LLM.
 
 ## 6.3. Estado persistente proposto
 
-\`\`\`ts
+```ts
 type CompanionMode = 'companion' | 'relationship' | 'dating_sim';
 
 interface RelationshipMetrics {
@@ -544,14 +544,14 @@ interface CompanionProfileState {
   revision: number;
   updatedAt: string;
 }
-\`\`\`
+```
 
-Preferir armazenar \`moodSnapshot\` como **cache de leitura** se o humor da IA já possui persistência própria. Se houver energia no sistema atual, usar a mesma fonte e não replicar.
+Preferir armazenar `moodSnapshot` como **cache de leitura** se o humor da IA já possui persistência própria. Se houver energia no sistema atual, usar a mesma fonte e não replicar.
 
 ## 6.4. Isolamento dos modelos e provedores
 
 Exemplo de contrato de sugestão, sem depender de provider:
-\`\`\`ts
+```ts
 interface StateProposal {
   schemaVersion: 1;
   eventId: string;
@@ -561,17 +561,17 @@ interface StateProposal {
   memoryCandidates?: Array<{ text: string; sourceIds: string[] }>;
   confidence?: number;
 }
-\`\`\`
+```
 
 O validador aplica limites de delta por interação e checa evidências. O LLM pode produzir em JSON via schema/tool calling quando suportado, ou uma segunda chamada para extração quando necessário. Nunca confiar em texto de pensamento do modelo como alteração de estado.
 
-Para NVIDIA NIM, vLLM e outros endpoints, reutilizar as APIs já expostas pelo AIRI. **Não forçar suporte a \`response_format\` ou tool calling em modelos que não o implementam**: negociar capacidades e usar fallback sem bloquear chat.
+Para NVIDIA NIM, vLLM e outros endpoints, reutilizar as APIs já expostas pelo AIRI. **Não forçar suporte a `response_format` ou tool calling em modelos que não o implementam**: negociar capacidades e usar fallback sem bloquear chat.
 
 # 7. FLUXOS END-TO-END
 
 ## 7.1. Uma conversa comum
 
-\`\`\`text
+```text
 Usuário → AIRI recebe mensagem
        → ASR, se voz
        → contexto + memória já disponível
@@ -585,34 +585,34 @@ Usuário → AIRI recebe mensagem
        → atualização de painel
        → emitir affect/motion event
        → Plano 01 expressa gesto/face/voz
-\`\`\`
+```
 
 Se LLM falhar, nenhuma métrica precisa mudar por acaso. Se a resposta for interrompida, registrar evento adequado e não duplicar contadores.
 
 ## 7.2. Retorno após ausência
 
-\`\`\`text
+```text
 login/sessionResume → relógio local + lastInteractionAt
   → aplica recuperação de energia, uma vez
   → verifica políticas de ausência opt-in
   → recupera sessão anterior / fatos relevantes
   → evento de retorno contextual, se não estiver em cooldown
   → apresentação conforme humor atual, sem acusações
-\`\`\`
+```
 
 ## 7.3. Marco pessoal
 
-\`\`\`text
+```text
 events → condition evaluator → milestone candidate
   → idempotency/consent/mode gate
   → opcional geração de texto para cena, com fatos autorizados
   → usuário pode ignorar/aceitar
   → efeitos determinísticos e histórico
-\`\`\`
+```
 
 ## 7.4. Convivência multi-janela e vários perfis
 
-O Utsuwa é orientado a um companion único; o AIRI pode trabalhar com múltiplas personas. Não colapsar \`ownerProfileId\` e \`personaId\`. Eventos devem ter \`profileId/personaId/sessionId/revision\`, locks de atualização e transações idempotentes. Sincronização entre abas não deve reaplicar decrementos ou marcos.
+O Utsuwa é orientado a um companion único; o AIRI pode trabalhar com múltiplas personas. Não colapsar `ownerProfileId` e `personaId`. Eventos devem ter `profileId/personaId/sessionId/revision`, locks de atualização e transações idempotentes. Sincronização entre abas não deve reaplicar decrementos ou marcos.
 
 # 8. FASES DE IMPLEMENTAÇÃO (NOVO BACKLOG)
 
@@ -638,12 +638,12 @@ Não iniciar com a cópia de código AGPL do Utsuwa. Primeiro escrever contratos
 
 ## 9.1. Consistência de humor
 - [ ] Humor da IA existente muda → painel e avatar refletem a mudança sem escrita circular.
-- [ ] Exposição de mudança com \`cause\` e \`eventId\`; nenhuma causa inventada.
-- [ ] \`intensity\` limitado a 0..100, \`energy\` a 0..100 e ausência de NaN.
+- [ ] Exposição de mudança com `cause` e `eventId`; nenhuma causa inventada.
+- [ ] `intensity` limitado a 0..100, `energy` a 0..100 e ausência de NaN.
 - [ ] Mudança de renderer não altera humor ou confiança.
 
 ## 9.2. Relacionamento
-- [ ] \`affection\` 0..1000 e demais eixos 0..100; UI normaliza corretamente.
+- [ ] `affection` 0..1000 e demais eixos 0..100; UI normaliza corretamente.
 - [ ] Fala repetida não inflaciona automaticamente afeto/confiança.
 - [ ] Modo Companion não dispara evento romântico.
 - [ ] Alteração de modo com dados antigos preservados; reset explícito apaga apenas escopo selecionado.
@@ -669,21 +669,21 @@ Não iniciar com a cópia de código AGPL do Utsuwa. Primeiro escrever contratos
 - [ ] NVIDIA NIM existente não sofre regressão no Desktop.
 - [ ] Endpoint OpenAI-compatible permanece funcional com vLLM e outros provedores.
 - [ ] TTS/ASR existentes não mudam quando recurso de relacionamento está desabilitado.
-- [ ] Motion Director recebe eventos com \`schemaVersion\`, \`eventId\`, \`personaId\`.
+- [ ] Motion Director recebe eventos com `schemaVersion`, `eventId`, `personaId`.
 - [ ] Painel de estado funciona mesmo sem avatar carregado.
 - [ ] Em caso de falha do serviço afetivo, chat/voz continuam operacionais.
 
 # 10. MÉTRICAS E CRITÉRIOS DE QUALIDADE
 
 Métricas de engenharia (metas a calibrar; **nenhuma foi medida**):
-- p95 de \`StateReducer\` local ≤ 20 ms em fixture controlada;
+- p95 de `StateReducer` local ≤ 20 ms em fixture controlada;
 - update idempotente em 100% dos testes de repetição;
 - zero mudanças de estado originadas por resposta de LLM não validada;
 - taxa de falsos duplicados e falsos positivos da memória por avaliação manual estratificada;
 - precisão de recuperação de fatos e sessões em PT-BR, inglês e outros idiomas;
 - zero chamadas externas quando modo offline está habilitado e os modelos já estão em cache;
 - consistência entre 2+ janelas desktop/browser;
-- observabilidade: \`state_revision\`, \`mood_source\`, \`relationship_transition_reason\`, \`event_dedup\`, \`proactive_suppressed_reason\`, \`memory_provenance\`;
+- observabilidade: `state_revision`, `mood_source`, `relationship_transition_reason`, `event_dedup`, `proactive_suppressed_reason`, `memory_provenance`;
 - latência de UI, memória/CPU e uso de rede com backend local;
 - análise qualitativa de coerência de humor, sem confundir resposta carinhosa com aumento automático de afeto.
 
@@ -741,15 +741,15 @@ Registrar logs sem conteúdo sensível sempre que possível. Telemetria de senti
 
 # 13. CONTRATO COM O PLANEJAMENTO ANTERIOR
 
-**Plano 01: \`PLANEJAMENTO_E_HISTORICO_CONVERSA.md\`**
+**Plano 01: `PLANEJAMENTO_E_HISTORICO_CONVERSA.md`**
 - Dono: geração, seleção, temporização e composição de movimento 3D;
-- Entrada: \`MotionIntent\` e eventos de fala/estado;
+- Entrada: `MotionIntent` e eventos de fala/estado;
 - Não decide se um relacionamento avança, não grava memórias.
 
 **Plano 02: este documento**
 - Dono: estado afetivo-relacional persistente, causa, evolução, memórias experienciáveis, eventos e painel;
 - Entrada: eventos de interação e snapshots do motor de humor existente;
-- Saída: eventos \`companion.affect.updated\`, \`companion.event.triggered\`, \`companion.memory.retrieved\` e \`companion.scene.suggested\`;
+- Saída: eventos `companion.affect.updated`, `companion.event.triggered`, `companion.memory.retrieved` e `companion.scene.suggested`;
 - Não escreve diretamente em ossos, morphs, arquivo VMD/VRMA nem no código do Motion Mixer.
 
 **Critério de conclusão do planejamento:** o segundo arquivo está salvo isoladamente no GitHub; o documento anterior permanece byte-a-byte inalterado; a implementação fica para fase posterior, com baseline e testes antes de qualquer refatoração.
