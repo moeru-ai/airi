@@ -780,6 +780,9 @@ catalogs:
     fflate:
       specifier: ^0.8.3
       version: 0.8.3
+    fft.js:
+      specifier: ^4.0.4
+      version: 4.0.4
     file-type:
       specifier: ^22.2.0
       version: 22.2.0
@@ -4447,6 +4450,9 @@ importers:
       clustr:
         specifier: 'catalog:'
         version: 1.0.2
+      fft.js:
+        specifier: 'catalog:'
+        version: 4.0.4
       nanoid:
         specifier: 'catalog:'
         version: 6.0.1
@@ -16076,6 +16082,9 @@ packages:
 
   fflate@0.8.3:
     resolution: {integrity: sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==}
+
+  fft.js@4.0.4:
+    resolution: {integrity: sha512-f9c00hphOgeQTlDyavwTtu6RiK8AIFjD6+jvXkNkpeQ7rirK3uFWVpalkoS4LAwbdX7mfZ8aoBfFVQX1Re/8aw==}
 
   figures@6.1.0:
     resolution: {integrity: sha512-d+l3qxjSesT4V7v2fh+QnmFnUWv9lSpjarhShNTgBOfA0ttejbQUAlHLitbjkoRiDulW0OPoQPYIGhIC8ohejg==}
@@ -31293,6 +31302,8 @@ snapshots:
   fflate@0.6.11: {}
 
   fflate@0.8.3: {}
+
+  fft.js@4.0.4: {}
 
   figures@6.1.0:
     dependencies:
