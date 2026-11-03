@@ -45,27 +45,41 @@ describe('chunkTtsInput sentence ends', () => {
 })
 
 describe('chunkTtsInput length limit', () => {
+  async function collectReasonsAndText(text: string) {
+    return (await collectChunks(text)).map(chunk => [chunk.reason, chunk.text])
+  }
+
   // ROOT CAUSE:
   //
   // The length limit ended a chunk at any soft punctuation, also at the Chinese `、` between list items. So
   // 网络、地址解析 became two TTS requests, and the voice paused in the middle of the list.
-  // The reply opens with two clauses, so the boost chunks end before the list and the length limit decides.
+  // Each case opens with two sentences, so the boost chunks end before the length limit decides.
   it('does not end a chunk at a Chinese list separator', async () => {
-    const chunks = await collectChunkText('我这里只能看到工具返回的错误：连接 Home Assistant 地址时，网络请求失败。它没有提供更具体的原因或 HTTP 状态码，所以我没法判断究竟是网络、地址解析还是服务端暂时不可用。')
-
-    expect(chunks.at(-1)).toBe('所以我没法判断究竟是网络、地址解析还是服务端暂时不可用。')
-    expect(chunks.filter(chunk => chunk.endsWith('、'))).toEqual([])
+    expect(await collectReasonsAndText('我这里只能看到工具返回的错误：连接 Home Assistant 地址时，网络请求失败。它没有提供更具体的原因或 HTTP 状态码，所以我没法判断究竟是网络、地址解析还是服务端暂时不可用。')).toEqual([
+      ['boost', '我这里只能看到工具返回的错误：'],
+      ['boost', '连接 Home Assistant 地址时，'],
+      ['hard', '网络请求失败。'],
+      ['limit', '它没有提供更具体的原因或 HTTP 状态码，'],
+      ['hard', '所以我没法判断究竟是网络、地址解析还是服务端暂时不可用。'],
+    ])
   })
 
-  it('still ends a chunk at a Japanese comma, and at a list separator after twice the word limit', async () => {
-    const japanese = await collectChunkText('今日は晴れです。散歩しました。公園へ行って、少し散歩してから、カフェでコーヒーを飲んで、本を読みました。')
-    expect(japanese.some(chunk => chunk.endsWith('、'))).toBe(true)
+  it('ends a chunk at a Japanese comma', async () => {
+    expect(await collectReasonsAndText('今日は晴れです。散歩しました。公園へ行って、少し散歩してから、カフェでコーヒーを飲んで、本を読みました。')).toEqual([
+      ['hard', '今日は晴れです。'],
+      ['hard', '散歩しました。'],
+      ['limit', '公園へ行って、少し散歩してから、'],
+      ['hard', 'カフェでコーヒーを飲んで、本を読みました。'],
+    ])
+  })
 
-    const list = Array.from({ length: 30 }, (_, index) => `项目${index}`).join('、')
-    const chunks = await collectChunks(`这是第一句。这是第二句。${list}。`)
-    expect(chunks.length).toBeGreaterThan(3)
-    for (const chunk of chunks)
-      expect(chunk.words, chunk.text).toBeLessThanOrEqual(2 * 12 + 2)
+  it('ends a chunk at a Chinese list separator after twice the word limit', async () => {
+    expect(await collectReasonsAndText('这是第一句。这是第二句。支持的格式有 PNG、JPEG、WebP、GIF、AVIF、BMP、TIFF、SVG、HEIC、ICO、PSD、RAW、EXR、HDR、TGA、DDS、JXL、QOI、PCX、WBMP、XBM、XPM、CUR、ANI、EPS、AI、PDF、DNG、CR2、NEF 等等。')).toEqual([
+      ['hard', '这是第一句。'],
+      ['hard', '这是第二句。'],
+      ['limit', '支持的格式有 PNG、JPEG、WebP、GIF、AVIF、BMP、TIFF、SVG、HEIC、ICO、PSD、RAW、EXR、HDR、TGA、DDS、JXL、QOI、PCX、WBMP、'],
+      ['hard', 'XBM、XPM、CUR、ANI、EPS、AI、PDF、DNG、CR2、NEF 等等。'],
+    ])
   })
 })
 
