@@ -29,8 +29,8 @@ function detailOf(permission: DevicePermission) {
 </script>
 
 <template>
-  <!-- The width of this page decides the layout, as on the other pages. A narrow page stacks and centers the parts. -->
   <div :class="['@container min-h-0 flex flex-1 flex-col']">
+    <!-- No comment before this root, as in the page layout. A narrow page stacks and centers the parts. -->
     <div :class="['min-h-0 flex flex-1 flex-col items-center justify-center gap-6 text-center @3xl:grid @3xl:grid-cols-[minmax(0,1fr)_minmax(0,420px)] @3xl:items-center @3xl:gap-12 @3xl:text-left']">
       <div :class="['flex flex-col gap-3.5']">
         <h2 :class="['m-0 text-2xl text-neutral-900 font-bold leading-tight @3xl:text-3xl dark:text-neutral-50']">
