@@ -63,8 +63,12 @@ export default defineConfig({
           include: ['src/**/*.test.ts'],
           exclude: ['src/**/*.browser.test.ts'],
           hookTimeout: 20_000,
-          // The browser project runs at the same time. More workers starve the slow store imports.
+          // Two workers leave CPU for other packages that Turbo runs at the same time.
+          // More workers make the slow store imports exceed their timeouts.
           maxWorkers: 2,
+          // Vitest needs a separate group for a project with its own worker limit.
+          // The browser group starts after this group ends.
+          sequence: { groupOrder: 0 },
           testTimeout: 20_000,
         },
       },
@@ -72,6 +76,7 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'browser',
+          sequence: { groupOrder: 1 },
           include: ['src/**/*.browser.test.ts'],
           exclude: ['**/node_modules/**'],
           browser: {
