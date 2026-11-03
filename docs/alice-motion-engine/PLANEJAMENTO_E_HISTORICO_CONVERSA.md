@@ -411,4 +411,231 @@ Capturar por frame: \`frame_time_ms\`, \`mixer_ms\`, \`physics_ms\`, \`director_
 
 Esta parte registra, em ordem cronológica, a pesquisa anterior sobre Ani-2, plataformas de companheiros virtuais, auditoria dos sete repositórios e comparação final. **Preserva a informação textual, as tabelas, os links, os códigos e as conclusões; elementos visuais carregados dinamicamente pelo chat são representados pelas legendas/descrições, não como binários incorporados.** O planejamento acima é novo e não representa uma execução dos passos abaixo.
 
+
+## Registro 1 — Pesquisa Ani-2 e alternativas locais (primeira saída)
+
+# Pesquisa técnica: alternativas locais ao Ani-2 para avatares 3D em tempo real
+
+Pesquisa em 3 de novembro de 2026 | Análise do vídeo enviado e dos projetos de código aberto.
+
+### 1. O que é o Ani-2 e qual tecnologia precisamos reproduzir?
+
+O **Ani-2** é um modelo proprietário da [Animation Inc.](https://www.animation.inc/) desenvolvido para gerar movimentos corporais tridimensionais em tempo real, diretamente no dispositivo.
+
+A empresa anuncia:
+
+- Geração de movimentos de corpo inteiro sem captura de movimento tradicional.
+- Inferência local, sem necessidade de processamento na nuvem.
+- Movimentos que respondem à interação do personagem.
+- Inferência declarada de **2,5 ms por quadro**, sem divulgar um benchmark independente que permita reproduzir esse resultado.
+
+O modelo não é apresentado publicamente como um projeto de código aberto. Também não encontrei documentação pública suficiente para reproduzir seu treinamento, arquitetura ou desempenho.
+
+### 2. Análise do vídeo enviado
+
+Examinei os aproximadamente 9,6 segundos do vídeo, com resolução de 320 × 694 pixels e taxa próxima de 30 FPS.
+
+> Elemento visual da resposta original: referência ilustrativa ao avatar anime demonstrado para o Ani-2; não é incluído como arquivo binário neste Markdown.
+
+O personagem apresenta um conjunto de características que precisam ser reproduzidas conjuntamente:
+
+| Componente | Comportamento observado |
+|---|---|
+| Cabeça e pescoço | Inclinações e rotações suaves |
+| Tronco | Oscilações e mudanças de postura |
+| Braços e mãos | Gestos coordenados e posicionamento natural |
+| Quadril e pernas | Ajustes discretos de pose e transferência de peso |
+| Rosto | Mudanças expressivas associadas ao movimento |
+| Cabelos e roupas | Movimentos secundários que aumentam a naturalidade |
+| Continuidade | Transições progressivas, sem cortes aparentes entre as poses |
+
+**O ponto importante:** a fluidez não depende apenas de um modelo de IA que produz posições das articulações. Ela resulta da combinação entre geração de movimento, continuidade temporal, animação facial, deformação do modelo 3D e movimentos secundários.
+
+Portanto, substituir o Ani-2 por um simples gerador de gestos, uma biblioteca de animações prontas ou um sistema de lip-sync não reproduz integralmente o efeito apresentado.
+
+### 3. As melhores alternativas encontradas
+
+A comparação abaixo considera quatro requisitos: execução local, geração de movimento, funcionamento contínuo em tempo real e integração com avatares 3D personalizados.
+
+| Projeto | Principal capacidade | Código e pesos | Adequação |
+|---|---|---|---|
+| **StreamTalk (2026)** | Gestos corporais e faciais gerados a partir da fala, em streaming | Disponíveis | Muito alta |
+| **ARDY, NVIDIA (2026)** | Movimento 3D contínuo condicionado por texto e restrições espaciais | Disponíveis | Muito alta |
+| **FloodDiffusion 2 (2026)** | Geração contínua de movimento corporal com controle de trajetória | Disponíveis | Alta |
+| **EMAGE / PantoMatrix** | Corpo, mãos e rosto a partir de áudio | Disponíveis | Alta, mas não é streaming nativo |
+| **DLP3D / Digital Life Project 2** | Avatar conversacional completo com movimentos, rosto e física | Código disponível; requer assets | Muito alta como plataforma |
+| **TalkingHead + MotionEngine** | Gestos, expressões, lip-sync e animação procedural | Disponíveis | Muito alta para implementação |
+| **GestureFAR (2026)** | Gestos generativos associados à fala em tempo real | Repositório ainda vazio | Promissora, não pronta |
+| **LiveGesture (CVPR 2026)** | Geração causal de gestos de corpo inteiro | Publicação disponível; implementação não confirmada | Promissora |
+
+Os projetos mais interessantes são os seguintes.
+
+#### 3.1. StreamTalk
+
+**Minha primeira escolha para gerar movimentos naturalmente associados à fala.**
+
+ECCV 2026 · Universidade de Tóquio e Alibaba Tongyi Lab.
+
+- [Código-fonte](https://github.com/Xiangyue-Zhang/StreamTalk)
+- [Pesos do modelo](https://huggingface.co/X-Zhang/StreamTalk)
+
+O StreamTalk utiliza geração por janelas de movimento, busca de poses plausíveis e refinamento das transições. Isso reduz o acúmulo de erros durante animações prolongadas.
+
+O projeto informa **76 FPS em uma NVIDIA V100 de 16 GB**. Trata-se de desempenho relatado pelos autores, não de uma medição em RTX 3090. Os movimentos são produzidos em representação SMPL-X, com sequências exportáveis a 30 FPS.
+
+Os pesos e o código de inferência foram disponibilizados. Entretanto, a instalação exige WavLM, o modelo SMPL-X e dados de referência BEAT2 para recuperação de poses.
+
+**Limitação:** gera principalmente gestos relacionados à fala. Não substitui sozinho um controlador de comportamento autônomo para momentos de silêncio, espera ou exploração do ambiente.
+
+#### 3.2. ARDY
+
+**Melhor opção para gerar novos movimentos corporais a partir de comandos.**
+
+NVIDIA e ETH Zürich · SIGGRAPH 2026.
+
+- [GitHub](https://github.com/nv-tlabs/ardy)
+- [Demonstrações oficiais](https://research.nvidia.com/labs/sil/projects/ardy/)
+
+O ARDY é particularmente interessante porque não se limita a recuperar animações preexistentes. Ele gera movimento autoregressivo a partir de condicionamento textual e cinemático, incluindo trajetórias, posições de articulações e poses completas.
+
+A implementação disponibiliza uma demonstração interativa. Em outubro de 2026, também foram publicados checkpoints SOMA com saída de **30 FPS**, além de modelos anteriores de 20 e 25 FPS.
+
+O código utiliza Apache 2.0, enquanto os checkpoints estão sob licença NVIDIA Open Model. Os testes publicados pelos desenvolvedores utilizaram principalmente RTX 4090.
+
+**Limitação:** não é um modelo especializado em sincronização de fala com rosto e gestos. Deve funcionar como gerador complementar de movimentos corporais.
+
+#### 3.3. FloodDiffusion 2
+
+**Alternativa de pesquisa mais interessante em velocidade de inferência.**
+
+2026 · Movimento contínuo condicionado por texto e trajetória.
+
+- [Código e instalação](https://github.com/caiyy17/FloodDiffusion2)
+- [Artigo](https://arxiv.org/abs/2609.33167)
+
+O FloodDiffusion 2 incorpora atenção parcial, cache KV e condicionamento de trajetória. Os autores relatam **2,303 ms por atualização** em sequências longas na RTX 4090, com configuração experimental específica.
+
+Esse resultado chama atenção por ser numericamente próximo dos 2,5 ms/quadro anunciados para o Ani-2, mas **não representa uma comparação direta**. Os modelos executam tarefas e procedimentos de medição diferentes.
+
+Há código, checkpoints e instruções de instalação. A dependência do encoder UMT5-XXL e a necessidade de integrar o fluxo de poses tornam a implementação mais complexa.
+
+**Limitação:** seu condicionamento é principalmente textual e espacial. Não produz automaticamente gestos conversacionais sincronizados com áudio.
+
+#### 3.4. EMAGE
+
+O projeto [PantoMatrix / character-policy](https://github.com/haiyangliu0/character-policy) reúne implementações e referências para geração de animações faciais e corporais a partir de áudio.
+
+O EMAGE produz parâmetros do corpo e do rosto, incluindo mãos e expressões, utilizando SMPL-X e FLAME. Possui pesos e ferramentas de integração com Blender.
+
+É uma boa base para produzir animações naturais e estudar retargeting, mas não é a minha primeira escolha para geração contínua de baixa latência. Seu fluxo original é orientado à geração por segmentos, e não a streaming causal nativo.
+
+#### 3.5. DLP3D
+
+> Elemento visual da resposta original: demonstração do Digital Life Project 2 (DLP3D), avatar conversacional 3D.
+
+SIGGRAPH Asia 2025 · Sistema conversacional 3D completo.
+
+[Repositório](https://github.com/dlp3d-ai/dlp3d.ai)
+
+O DLP3D reúne interface 3D, agentes conversacionais, animação facial, movimento corporal e mecanismos de reprodução sincronizada.
+
+A diferença importante é que seu Speech2Motion utiliza principalmente **seleção de movimentos baseada em conteúdo, palavras-chave e banco de animações**, com interpolação e blending. Não é equivalente a um modelo que sintetiza cada nova pose corporal neuralmente.
+
+Há documentação de implantação local e imagens Docker para serviços específicos, mas a configuração padrão admite provedores externos de ASR, LLM e TTS. Para funcionar inteiramente offline, esses serviços precisam ser substituídos ou configurados localmente.
+
+#### 3.6. TalkingHead + MotionEngine
+
+**O caminho mais prático para reproduzir rapidamente o visual do vídeo.**
+
+- [TalkingHead](https://github.com/met4citizen/talkinghead)
+- [MotionEngine](https://github.com/lhupyn/motion-engine)
+
+O TalkingHead suporta GLB, animação corporal, lip-sync, expressões faciais e simulação de cabelos com Dynamic Bones.
+
+O MotionEngine acrescenta uma camada semântica para selecionar movimentos, expressões e gestos durante o diálogo.
+
+Entretanto, **não equivale a um gerador neural de movimento**: os gestos são baseados em animações e poses configuradas.
+
+O MotionEngine utiliza um classificador remoto por padrão, mas permite substituí-lo por um classificador local. O TalkingHead também pode receber TTS externo local no lugar do serviço de nuvem utilizado nos exemplos.
+
+### 4. Qual escolher para reproduzir o vídeo?
+
+Considerando que seu objetivo é um avatar 3D próprio, personalizado e exportável em GLB, utilizaria duas camadas de animação: uma para a presença contínua do personagem e outra para movimentos gerativos.
+
+| Requisito | Solução que eu utilizaria |
+|---|---|
+| Movimentação natural quando está em silêncio | Procedural idle + MotionEngine |
+| Gestos gerados durante a fala | StreamTalk |
+| Movimentos acionados por comandos | ARDY |
+| Animação facial e boca | TalkingHead ou DLP3D Audio2Face |
+| Física de cabelos e roupas | Dynamic Bones ou simulação própria |
+| Renderização do avatar | Three.js com GLB |
+| Exportação e personalização | Blender |
+| Conversação e decisões | LLM local |
+| Infraestrutura | Docker e WebSocket local |
+
+**Não escolheria apenas StreamTalk ou ARDY isoladamente.** O aspecto mais convincente do vídeo é a combinação de microgestos contínuos, movimentos suaves de cabeça e tronco, expressões e simulação secundária.
+
+Esses elementos precisam continuar funcionando mesmo quando o modelo generativo não está produzindo um movimento novo.
+
+### 5. Arquitetura proposta para o seu avatar Alice
+
+\`\`\`text
+LLM local + controlador de comportamento
+    | intenção / emoção / diálogo / estado / comandos
+    +-- StreamTalk ------ gestos gerativos de fala
+    +-- ARDY ------------ movimento condicionado por comandos
+    +-- MotionEngine ---- idle, posturas e microgestos
+    +-- Audio2Face ------ lip-sync e expressões faciais
+             |
+       Motion Mixer / Retargeting
+       interpolação, quaternions, IK, foot locking
+             |
+          Alice.glb
+       Three.js / Blender + física de cabelo e roupas
+\`\`\`
+
+A vantagem dessa arquitetura é separar a geração de movimento da renderização. Assim, os modelos de IA trabalham em frequências próprias, enquanto o avatar continua sendo atualizado a 30 ou 60 FPS, com interpolação no mecanismo de animação.
+
+Para manter a qualidade do vídeo, o Motion Mixer deve tratar especificamente a continuidade de velocidade e aceleração, limites articulares, transições entre animações e movimentos dos pés em contato com o solo.
+
+#### Distribuição nas suas GPUs
+
+Considerando sua RTX 3090 de 24 GB e RTX 4060 Ti de 16 GB, proponho inicialmente:
+
+| Hardware | Função |
+|---|---|
+| RTX 3090 24 GB | Inferência StreamTalk, testes com ARDY ou FloodDiffusion 2 |
+| RTX 4060 Ti 16 GB | LLM auxiliar, TTS e/ou animação facial |
+| CPU + navegador | Three.js, controlador de estados, interpolação e física leve |
+
+Essa é uma proposta de alocação, não uma configuração já validada. ARDY e FloodDiffusion 2 podem exigir ajustes consideráveis de memória, principalmente em seus encoders textuais. Não assumiria execução simultânea de todos os modelos sem medir VRAM, latência e utilização da GPU.
+
+#### Integração com Blender e GLB
+
+É fundamental preparar o avatar com uma armadura humanoide consistente, mãos articuladas, morph targets faciais e ossos auxiliares para cabelo e roupas.
+
+O TalkingHead documenta um rig compatível com Mixamo, 52 blendshapes ARKit e 15 visemas Oculus. Para um avatar criado no Blender, essas convenções oferecem uma base objetiva para integração.
+
+Os modelos que geram parâmetros SMPL-X precisarão de retargeting para a armadura da Alice. Os dados não podem ser simplesmente aplicados a um GLB qualquer.
+
+Também existe uma restrição de licenciamento: o pacote acadêmico SMPL-X possui limitações de uso, especialmente comercial. Isso deve ser verificado antes de distribuir o sistema ou os assets derivados.
+
+### 6. Projetos que merecem acompanhamento
+
+**GestureFAR**, apresentado em setembro de 2026, é especialmente relevante por utilizar geração autoregressiva em espaço latente contínuo, com destilação para reduzir o custo de inferência em streaming. O artigo relata resultados superiores em determinadas métricas de gestos conversacionais. Entretanto, o repositório GitHub associado ainda está vazio, portanto não é uma alternativa imediatamente instalável.
+
+**LiveGesture**, publicado na CVPR 2026, oferece outra abordagem relevante: geração de gestos corporais a partir de áudio em fluxo causal, sem olhar para amostras futuras. A proposta é tecnicamente adequada para um avatar conversacional, mas não confirmei a disponibilização pública de uma implementação completa e pesos utilizáveis.
+
+### 7. Conclusão
+
+**A alternativa local mais próxima do que você busca não é um único modelo, mas uma arquitetura híbrida.**
+
+Minha escolha para começar seria **StreamTalk + TalkingHead + MotionEngine**, adicionando o ARDY para movimentos condicionados por comandos. Essa combinação oferece um caminho verificável para ter um avatar fluido e independente de serviços de nuvem.
+
+Se a prioridade for aproximar a pesquisa do funcionamento do Ani-2, eu concentraria os experimentos no **ARDY e no FloodDiffusion 2**, pois ambos trabalham diretamente com geração contínua de movimento, em vez de depender exclusivamente de uma biblioteca de animações.
+
+A distinção é importante: conseguimos identificar componentes locais capazes de reproduzir boa parte do comportamento visual e funcional, mas **não há evidência suficiente para afirmar que algum deles, isoladamente, iguala a qualidade ou a eficiência computacional do Ani-2**.
+
 <!-- HISTORICO_PENDENTE -->
+
