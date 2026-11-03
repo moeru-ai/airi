@@ -1,7 +1,5 @@
 import type { DailyUsage } from '@proj-airi/api-server/types/flux-usage'
 
-export type { DailyUsage, DailyUsageSummary } from '@proj-airi/api-server/types/flux-usage'
-
 export type ActivityView = 'daily' | 'weekly' | 'cumulative'
 
 /** The tooltip describes one day, one week, or usage through the end of a week. */
@@ -51,7 +49,7 @@ export function computeStreaks(days: readonly DailyUsage[]): { longest: number, 
 export function buildActivity(days: readonly DailyUsage[], view: ActivityView) {
   const firstDay = days[0]
   if (!firstDay)
-    return { cells: [] as ActivityCell[], groups: [] as ActivityGroup[], weekCount: 0, monthLabels: [] as { column: number, date: string }[] }
+    return { cells: [], groups: [], weekCount: 0, monthLabels: [] }
 
   const offset = weekdayOf(firstDay.date)
   const weekCount = Math.ceil((offset + days.length) / 7)

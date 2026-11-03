@@ -92,7 +92,6 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleString()
 }
 
-// Group consecutive TTS debit records into collapsible rows
 type GroupedRow = {
   type: 'single'
   record: DisplayRecord
@@ -100,7 +99,6 @@ type GroupedRow = {
   type: 'group'
   key: string
   description: string
-  count: number
   totalAmount: number
   lastTime: string
   records: DisplayRecord[]
@@ -117,39 +115,36 @@ function toggleGroup(key: string) {
 
 const groupedRows = computed<GroupedRow[]>(() => {
   const rows: GroupedRow[] = []
-  let i = 0
   const records = auditRecords.value.map(record => ({ ...record, details: describeMetadata(record) }))
 
-  while (i < records.length) {
-    const record = records[i]
-    if (record.type === 'debit' && record.description?.startsWith('tts:')) {
-      const group: DisplayRecord[] = [record]
-      while (i + 1 < records.length
-        && records[i + 1].type === 'debit'
-        && records[i + 1].description === record.description) {
-        i++
-        group.push(records[i])
-      }
-
-      if (group.length > 1) {
-        rows.push({
-          type: 'group',
-          key: `tts-group-${record.id}`,
-          description: record.description,
-          count: group.length,
-          totalAmount: group.reduce((sum, r) => sum + r.amount, 0),
-          lastTime: group[0].createdAt,
-          records: group,
-        })
-      }
-      else {
-        rows.push({ type: 'single', record })
-      }
-    }
-    else {
+  for (let index = 0; index < records.length; index++) {
+    const record = records[index]
+    if (record.type !== 'debit' || !record.description?.startsWith('tts:')) {
       rows.push({ type: 'single', record })
+      continue
     }
-    i++
+
+    const group: DisplayRecord[] = [record]
+    while (index + 1 < records.length
+      && records[index + 1].type === 'debit'
+      && records[index + 1].description === record.description) {
+      index++
+      group.push(records[index])
+    }
+
+    if (group.length === 1) {
+      rows.push({ type: 'single', record })
+      continue
+    }
+
+    rows.push({
+      type: 'group',
+      key: `tts-group-${record.id}`,
+      description: record.description,
+      totalAmount: group.reduce((sum, entry) => sum + entry.amount, 0),
+      lastTime: record.createdAt,
+      records: group,
+    })
   }
 
   return rows
@@ -169,8 +164,7 @@ watch(owner, (value, _previous, onCleanup) => {
   activeRequest = request
   onCleanup(() => {
     request.abort()
-    if (activeRequest === request)
-      activeRequest = undefined
+    activeRequest = undefined
   })
   void fetchAuditHistory()
 }, { immediate: true })
@@ -196,7 +190,6 @@ watch(owner, (value, _previous, onCleanup) => {
       {{ t('settings.pages.flux.audit.empty') }}
     </div>
 
-    <!-- Desktop: table -->
     <div v-if="auditRecords.length > 0" :class="['border-1 border-neutral-100 dark:border-neutral-900 overflow-x-auto rounded-xl hidden sm:block']">
       <table :class="['w-full text-sm']">
         <thead :class="['border-b border-neutral-100 dark:border-neutral-900']">
@@ -217,7 +210,6 @@ watch(owner, (value, _previous, onCleanup) => {
         </thead>
         <tbody>
           <template v-for="row in groupedRows" :key="row.type === 'single' ? row.record.id : row.key">
-            <!-- Single record -->
             <tr
               v-if="row.type === 'single'"
               :class="['border-b border-neutral-100 dark:border-neutral-900/50 last:border-none']"
@@ -250,7 +242,6 @@ watch(owner, (value, _previous, onCleanup) => {
               </td>
             </tr>
 
-            <!-- Grouped TTS records -->
             <tr
               v-else
               :class="['border-b border-neutral-100 dark:border-neutral-900/50']"
@@ -273,7 +264,7 @@ watch(owner, (value, _previous, onCleanup) => {
                   />
                   {{ row.description }}
                   <span :class="['ml-1 text-xs text-neutral-400']">
-                    ({{ row.count }} {{ t('settings.pages.flux.audit.ttsRequests') }})
+                    ({{ row.records.length }} {{ t('settings.pages.flux.audit.ttsRequests') }})
                   </span>
                 </GhostButton>
               </td>
@@ -284,7 +275,6 @@ watch(owner, (value, _previous, onCleanup) => {
               </td>
             </tr>
 
-            <!-- Expanded group children -->
             <tr
               v-for="child in (row.type === 'group' && expandedGroups.has(row.key) ? row.records : [])"
               :key="child.id"
@@ -306,10 +296,8 @@ watch(owner, (value, _previous, onCleanup) => {
       </table>
     </div>
 
-    <!-- Mobile: card list -->
     <div v-if="auditRecords.length > 0" role="list" :class="['flex flex-col gap-2 sm:hidden']">
       <template v-for="row in groupedRows" :key="row.type === 'single' ? row.record.id : row.key">
-        <!-- Single record card -->
         <div
           v-if="row.type === 'single'"
           role="listitem"
@@ -341,7 +329,6 @@ watch(owner, (value, _previous, onCleanup) => {
           </div>
         </div>
 
-        <!-- Grouped TTS card -->
         <div
           v-else
           role="listitem"
@@ -363,14 +350,13 @@ watch(owner, (value, _previous, onCleanup) => {
               :class="['inline-block size-4 text-neutral-400', expandedGroups.has(row.key) ? 'i-solar:alt-arrow-down-line-duotone' : 'i-solar:alt-arrow-right-line-duotone']"
             />
             {{ row.description }}
-            <span :class="['text-xs text-neutral-400']">({{ row.count }} {{ t('settings.pages.flux.audit.ttsRequests') }})</span>
+            <span :class="['text-xs text-neutral-400']">({{ row.records.length }} {{ t('settings.pages.flux.audit.ttsRequests') }})</span>
           </GhostButton>
           <div :class="['text-xs text-neutral-400']">
             {{ formatDate(row.lastTime) }}
           </div>
 
-          <!-- Expanded children -->
-          <div v-if="row.type === 'group' && expandedGroups.has(row.key)" :class="['flex flex-col gap-1 mt-1 border-t border-neutral-100 dark:border-neutral-900 pt-2']">
+          <div v-if="expandedGroups.has(row.key)" :class="['flex flex-col gap-1 mt-1 border-t border-neutral-100 dark:border-neutral-900 pt-2']">
             <div
               v-for="child in row.records"
               :key="child.id" :class="['flex items-center justify-between text-xs text-neutral-400']"

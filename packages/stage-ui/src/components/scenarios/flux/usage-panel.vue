@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DailyUsageSummary } from './usage-stats'
+import type { DailyUsageSummary } from '@proj-airi/api-server/types/flux-usage'
 
 import { Alert, Button, Skeleton } from '@proj-airi/ui'
 import { computed, ref, shallowRef, watch } from 'vue'
@@ -22,11 +22,11 @@ const failed = ref(false)
 const reload = ref(0)
 
 // A session owns its summary. Navigation, sign-out, and account changes cancel pending requests and discard old data.
-watch([owner, reload], async ([user], _previous, onCleanup) => {
+watch([owner, reload], async ([session], _previous, onCleanup) => {
   summary.value = null
   failed.value = false
   loading.value = false
-  if (!user)
+  if (!session)
     return
   const request = new AbortController()
   onCleanup(() => request.abort())

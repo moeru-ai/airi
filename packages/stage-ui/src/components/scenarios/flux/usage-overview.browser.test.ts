@@ -1,4 +1,4 @@
-import type { DailyUsage, DailyUsageSummary } from './usage-stats'
+import type { DailyUsage, DailyUsageSummary } from '@proj-airi/api-server/types/flux-usage'
 
 import en from '@proj-airi/i18n/locales/en'
 

@@ -1,4 +1,4 @@
-import type { DailyUsage } from './usage-stats'
+import type { DailyUsage } from '@proj-airi/api-server/types/flux-usage'
 
 import { describe, expect, it } from 'vitest'
 
