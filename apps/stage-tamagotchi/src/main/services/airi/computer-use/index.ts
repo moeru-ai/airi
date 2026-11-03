@@ -1,5 +1,7 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 
+import type { ComputerUseRuntimeOptions } from './runtime'
+
 import { join, sep } from 'node:path'
 
 import { binaryPath } from '@auv-js/cli/binary'
@@ -11,7 +13,10 @@ import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
 import { createComputerUseRuntime } from './runtime'
 
 /** Registers host-owned computer use. The executable is resolved only on the first call. */
-export function setupComputerUse(context: ReturnType<typeof createContext>['context']) {
+export function setupComputerUse(
+  context: ReturnType<typeof createContext>['context'],
+  options?: Partial<ComputerUseRuntimeOptions>,
+) {
   let runtime: ReturnType<typeof createComputerUseRuntime> | undefined
   let stopped = false
   function getRuntime() {
@@ -21,8 +26,9 @@ export function setupComputerUse(context: ReturnType<typeof createContext>['cont
       const executable = binaryPath()
       runtime = createComputerUseRuntime({
         // Native executables cannot run inside Electron's archive.
-        binaryPath: app.isPackaged ? executable.replace(`${sep}app.asar${sep}`, `${sep}app.asar.unpacked${sep}`) : executable,
-        storeRoot: join(app.getPath('userData'), 'computer-use'),
+        binaryPath: options?.binaryPath ?? (app.isPackaged ? executable.replace(`${sep}app.asar${sep}`, `${sep}app.asar.unpacked${sep}`) : executable),
+        storeRoot: options?.storeRoot ?? join(app.getPath('userData'), 'computer-use'),
+        authorizeMutation: options?.authorizeMutation,
       })
     }
     return runtime

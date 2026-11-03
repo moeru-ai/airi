@@ -1,6 +1,7 @@
 import type { AuvDaemon } from '@auv-js/sdk/node'
 
 import type { ComputerUseResult } from '../../../../shared/eventa/computer-use'
+import type { AuvCommandClassification } from './classifier'
 
 import process from 'node:process'
 
@@ -15,13 +16,25 @@ import { fileTypeFromBuffer } from 'file-type'
 import * as v from 'valibot'
 
 import { isComputerUseHelpCall } from '../../../../shared/eventa/computer-use'
+import { classifyAuvCommand } from './classifier'
 
 const execFileAsync = promisify(execFile)
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024
 const inputSchema = v.object({ argv: v.pipe(v.array(v.pipe(v.string(), v.maxLength(16384), v.check(value => !value.includes('\0')))), v.minLength(2), v.maxLength(128)) })
 
+export interface ComputerUseRuntimeOptions {
+  binaryPath: string
+  storeRoot: string
+  /**
+   * Host authorization hook for mutating operations.
+   * Invoked synchronously during run() before queueing or starting AUV CLI.
+   * In Phase 1 without a lease manager, defaults to false (strict rejection).
+   */
+  authorizeMutation?: (context: { argv: readonly string[], classification: AuvCommandClassification }) => boolean
+}
+
 /** Owns one private daemon and serializes desktop operations across renderer windows. */
-export function createComputerUseRuntime(options: { binaryPath: string, storeRoot: string }) {
+export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
   let daemon: AuvDaemon | undefined
   let disposed = false
   let queue: Promise<unknown> = Promise.resolve()
@@ -59,17 +72,33 @@ export function createComputerUseRuntime(options: { binaryPath: string, storeRoo
 
   async function run(input: unknown): Promise<ComputerUseResult> {
     const { argv } = v.parse(inputSchema, input)
-    if (argv[0] !== 'invoke' || !/^(?:--help|-h|help|(?:app|display|screen|window|input|mediaControl)\.[a-zA-Z]+)$/.test(argv[1]))
-      throw new Error('Use invoke with a desktop command or --help.')
 
-    // The host owns routing and artifact storage. CLI global flags must not replace them.
+    // 1. Immutable snapshot to eliminate TOCTOU across queueing and asynchronous execution.
+    const validatedArgv = Object.freeze([...argv])
+
+    // 2. The host owns routing and artifact storage. CLI global flags must not replace them.
     const managedFlags = ['--credential-stdin', '--store-root', '--endpoint', '--device', '--device-id', '--run', '--config', '--profile', '--discovery-file', '--pairing-store']
-    if (argv.some(arg => managedFlags.some(flag => arg === flag || arg.startsWith(`${flag}=`))))
+    if (validatedArgv.some(arg => managedFlags.some(flag => arg === flag || arg.startsWith(`${flag}=`))))
       throw new Error('Computer use routing and storage are managed by AIRI.')
 
+    // 3. Host Enforcement Gate: evaluate command classification on the frozen argv.
+    const classification = classifyAuvCommand(validatedArgv)
+
+    if (classification.category === 'unknown') {
+      throw new Error(`Use invoke with a desktop command or --help. (${classification.reason})`)
+    }
+
+    if (classification.category === 'mutating') {
+      const isAuthorized = options.authorizeMutation?.({ argv: validatedArgv, classification }) ?? false
+      if (!isAuthorized) {
+        throw new Error(`Mutating desktop operation '${classification.command ?? 'unknown'}' is not authorized on this host.`)
+      }
+    }
+
+    // 4. Authorized or read-only execution: enters queue and runs via AUV daemon.
     return enqueue(async () => {
       const active = await connect()
-      const command = [...argv]
+      const command = [...validatedArgv]
       if (!command.includes('--json') && !isComputerUseHelpCall(command))
         command.push('--json')
       command.push('--store-root', options.storeRoot)
@@ -113,7 +142,7 @@ export function createComputerUseRuntime(options: { binaryPath: string, storeRoo
       catch {
         // Help output is text. Keep it intact for command discovery.
       }
-      return { argv, exitCode, output, stderr }
+      return { argv: [...validatedArgv], exitCode, output, stderr }
     })
   }
 

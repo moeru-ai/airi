@@ -1,5 +1,5 @@
 /**
- * Pure function classifier for AUV CLI commands.
+ * Pure function classifier for AUV CLI commands admitted by AIRI Host.
  * Categorizes commands as 'read_only', 'mutating', or 'unknown' (fail-closed).
  */
 
@@ -17,8 +17,8 @@ export interface AuvCommandClassification {
 }
 
 /**
- * Commands that strictly read, capture, or observe desktop state without mutating.
- * Tested against AUV 0.0.38 and 0.0.40 CLI specifications.
+ * Commands that strictly read, capture, or observe desktop state without mutating,
+ * admitted by the AIRI desktop computer-use runtime.
  */
 export const READ_ONLY_COMMANDS = new Set<string>([
   'display.capture',
@@ -33,13 +33,11 @@ export const READ_ONLY_COMMANDS = new Set<string>([
   'input.pointerPosition',
   'app.probePermissions',
   'mediaControl.nowPlaying',
-  'scan.frame',
-  'scan.coverage',
 ])
 
 /**
- * Commands that inject user input, alter window state/focus, present overlays,
- * or control media playback. Requires explicit authorization.
+ * Commands that inject user input, alter window state/focus, or control media playback,
+ * admitted by the AIRI desktop computer-use runtime. Requires explicit authorization.
  */
 export const MUTATING_COMMANDS = new Set<string>([
   'screen.clickText',
@@ -60,16 +58,26 @@ export const MUTATING_COMMANDS = new Set<string>([
   'input.scroll',
   'input.scrollUntil',
   'app.activate',
-  'overlay.outline',
-  'overlay.cursor',
-  'overlay.status',
-  'overlay.captureFrame',
-  'overlay.clickTarget',
   'mediaControl.play',
   'mediaControl.pause',
   'mediaControl.togglePlayPause',
   'mediaControl.next',
   'mediaControl.previous',
+])
+
+/**
+ * Commands that exist in AUV CLI (e.g. test fixture tools or visual debug overlays)
+ * but are NOT admitted or exposed by the AIRI host runtime.
+ * Explicitly cataloged to unify admission boundaries and prevent drift.
+ */
+export const UNADMITTED_COMMANDS = new Set<string>([
+  'scan.frame',
+  'scan.coverage',
+  'overlay.outline',
+  'overlay.cursor',
+  'overlay.status',
+  'overlay.captureFrame',
+  'overlay.clickTarget',
 ])
 
 /**
@@ -109,7 +117,7 @@ function hasHelpFlag(args: readonly string[]): boolean {
  * Classifies an AUV CLI invocation into 'read_only', 'mutating', or 'unknown'.
  *
  * Security principles:
- * 1. Fail-closed: Anything unrecognized or malformed is classified as 'unknown'.
+ * 1. Fail-closed: Anything unrecognized, unadmitted, or malformed is classified as 'unknown'.
  * 2. Concrete matching: Subcommands are checked against explicit allowlists, never by broad prefix.
  * 3. Semantic awareness: Full argv is checked for delimiter boundaries, help flags, and managed flags.
  * 4. Pure function: Contains no state, side-effects, or external dependencies.
@@ -178,6 +186,14 @@ export function classifyAuvCommand(argv: unknown): AuvCommandClassification {
           reason: `Help invocation for command '${target}'`,
         }
       }
+      if (UNADMITTED_COMMANDS.has(target)) {
+        return {
+          category: 'unknown',
+          command: target,
+          isHelp: true,
+          reason: `Command '${target}' is not admitted or supported by AIRI host`,
+        }
+      }
       return {
         category: 'unknown',
         command: target,
@@ -192,7 +208,17 @@ export function classifyAuvCommand(argv: unknown): AuvCommandClassification {
     }
   }
 
-  // Check if subcommand is recognized
+  // Explicitly reject commands not admitted by the AIRI host
+  if (UNADMITTED_COMMANDS.has(sub)) {
+    return {
+      category: 'unknown',
+      command: sub,
+      isHelp: hasHelpFlag(args.slice(2)),
+      reason: `AUV command '${sub}' is not admitted or supported by AIRI host`,
+    }
+  }
+
+  // Check if subcommand is recognized and admitted
   const isReadOnly = READ_ONLY_COMMANDS.has(sub)
   const isMutating = MUTATING_COMMANDS.has(sub)
 

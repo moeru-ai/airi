@@ -4,10 +4,11 @@ import {
   classifyAuvCommand,
   MUTATING_COMMANDS,
   READ_ONLY_COMMANDS,
+  UNADMITTED_COMMANDS,
 } from './classifier'
 
 describe('classifyAuvCommand', () => {
-  describe('read-only commands', () => {
+  describe('admitted read-only commands (12 commands)', () => {
     it.each(Array.from(READ_ONLY_COMMANDS))('classifies %s as read_only', (cmd) => {
       const result = classifyAuvCommand(['invoke', cmd])
       expect(result.category).toBe('read_only')
@@ -23,7 +24,7 @@ describe('classifyAuvCommand', () => {
     })
   })
 
-  describe('mutating commands', () => {
+  describe('admitted mutating commands (23 commands)', () => {
     it.each(Array.from(MUTATING_COMMANDS))('classifies %s as mutating', (cmd) => {
       const result = classifyAuvCommand(['invoke', cmd])
       expect(result.category).toBe('mutating')
@@ -43,6 +44,29 @@ describe('classifyAuvCommand', () => {
       expect(result.category).toBe('mutating')
       expect(result.command).toBe('input.typeText')
       expect(result.isHelp).toBe(false)
+    })
+  })
+
+  describe('unadmitted AUV commands (scan.* and overlay.*)', () => {
+    it.each(Array.from(UNADMITTED_COMMANDS))('rejects %s as unknown (not admitted by AIRI host)', (cmd) => {
+      const result = classifyAuvCommand(['invoke', cmd])
+      expect(result.category).toBe('unknown')
+      expect(result.command).toBe(cmd)
+      expect(result.reason).toContain('not admitted or supported by AIRI host')
+    })
+
+    it.each(Array.from(UNADMITTED_COMMANDS))('rejects %s even with --help as unknown', (cmd) => {
+      const result = classifyAuvCommand(['invoke', cmd, '--help'])
+      expect(result.category).toBe('unknown')
+      expect(result.command).toBe(cmd)
+      expect(result.reason).toContain('not admitted or supported by AIRI host')
+    })
+
+    it.each(Array.from(UNADMITTED_COMMANDS))('rejects invoke help %s as unknown', (cmd) => {
+      const result = classifyAuvCommand(['invoke', 'help', cmd])
+      expect(result.category).toBe('unknown')
+      expect(result.command).toBe(cmd)
+      expect(result.reason).toContain('not admitted or supported by AIRI host')
     })
   })
 
@@ -122,7 +146,7 @@ describe('classifyAuvCommand', () => {
       expect(classifyAuvCommand(['invoke', 'help']).isHelp).toBe(true)
     })
 
-    it('handles subcommand help flags', () => {
+    it('handles subcommand help flags for admitted commands', () => {
       const clickHelp = classifyAuvCommand(['invoke', 'input.clickPoint', '--help'])
       expect(clickHelp.category).toBe('read_only')
       expect(clickHelp.command).toBe('input.clickPoint')
@@ -139,7 +163,7 @@ describe('classifyAuvCommand', () => {
       expect(windowHelp.isHelp).toBe(true)
     })
 
-    it('handles invoke help <command> syntax', () => {
+    it('handles invoke help <command> syntax for admitted commands', () => {
       const helpSub = classifyAuvCommand(['invoke', 'help', 'input.clickPoint'])
       expect(helpSub.category).toBe('read_only')
       expect(helpSub.command).toBe('input.clickPoint')
