@@ -41,6 +41,8 @@ function recordingAt(offsetMs: number) {
 
 const input = recordingAt(0)
 const inputContent: PreviewContent = { kind: 'waveform', level: input.level, intensity: input.probability }
+/** The voice input of the IO tracer: the VAD probability also draws as a curve, with a dashed line at its threshold. */
+const inputWithCurveContent: PreviewContent = { ...inputContent, curve: input.probability, curveThreshold: 0.6 }
 
 /** Ten thousand 20 ms items over 400 s. Zoomed out, touching items of one style merge into runs. */
 const denseItems: PreviewItem[] = Array.from({ length: 10_000 }, (_, index) => ({
@@ -60,7 +62,7 @@ const variants: StoryVariant[] = [
     description: 'One voice turn with every capsule kind, in the sizes of the IO tracer. The voice input is a real recording with its real VAD.',
     rows: [
       { name: 'User', kind: 'lane', items: [{ start: 1084, end: 4764, color: BLUE }, { start: 4764, end: 5500, color: BLUE, activity: 'thinking', failed: true }] },
-      { name: 'Voice input', items: [{ start: 200, end: 5500, color: INDIGO, activity: 'waiting' }], content: { kind: 'waveform', level: overviewInput.level, intensity: overviewInput.probability } },
+      { name: 'Voice input', items: [{ start: 200, end: 5500, color: INDIGO, activity: 'waiting' }], content: { kind: 'waveform', level: overviewInput.level, intensity: overviewInput.probability, curve: overviewInput.probability, curveThreshold: 0.6 } },
       { name: 'Speech', items: [{ start: 1084, end: 2748, color: AMBER }, { start: 3964, end: 4764, color: AMBER }] },
       { name: 'Speech recognition', items: [{ start: 4764, end: 5150, color: BLUE, activity: 'thinking', failed: true }, { start: 5150, end: 5500, color: BLUE, activity: 'thinking', retry: true }] },
       { name: 'Agent', kind: 'lane', now: 12_000, items: [{ start: 5500, end: 7000, color: VIOLET, activity: 'waiting' }, { start: 7000, end: 10_000, color: VIOLET }, { start: 10_200, color: VIOLET, activity: 'thinking' }] },
@@ -124,6 +126,16 @@ const variants: StoryVariant[] = [
       { name: 'Playback', view: RECORDING_VIEW, items: [{ start: 600, end: 2600, color: SKY }, { start: 2800, end: 4900, color: SKY }], content: { kind: 'waveform', level: input.level } },
       { name: 'Voice input', view: RECORDING_VIEW, items: [{ start: 100, end: 5200, color: INDIGO, activity: 'waiting' }], content: inputContent },
       { name: '600 ms', view: { start: 700, end: 1300 }, items: [{ start: 100, end: 5200, color: INDIGO, activity: 'waiting' }], content: inputContent },
+    ],
+  },
+  {
+    id: 'waveform-curve',
+    title: 'Waveform with VAD curve',
+    description: 'The voice input of the IO tracer. The VAD probability also draws as a line over the bars, and its speech threshold draws as a dashed line.',
+    rows: [
+      { name: 'Voice input', view: RECORDING_VIEW, items: [{ start: 100, end: 5200, color: INDIGO, activity: 'waiting' }], content: inputWithCurveContent },
+      { name: 'Striped', view: RECORDING_VIEW, items: [{ start: 100, end: 5200, color: INDIGO, activity: 'thinking' }], content: inputWithCurveContent },
+      { name: '600 ms', view: { start: 700, end: 1300 }, items: [{ start: 100, end: 5200, color: INDIGO, activity: 'waiting' }], content: inputWithCurveContent },
     ],
   },
   {

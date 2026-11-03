@@ -331,7 +331,7 @@ describe('rows with content', () => {
     vi.unstubAllGlobals()
   })
 
-  function drawWaveformRow(style: ReturnType<typeof capsuleStyle>) {
+  function drawWaveformRow(style: ReturnType<typeof capsuleStyle>, extra: { curve?: SeriesPyramid, curveThreshold?: number, revealX?: number } = {}) {
     vi.stubGlobal('Path2D', FakePath2D)
     const column = new IntervalColumn()
     column.append(0, 1000, 0, 'item')
@@ -340,9 +340,29 @@ describe('rows with content', () => {
       level.append(index, 1)
     const { ctx, calls } = recordingContext()
     const frame = { view, kind: 'detail' as const, top: 0, height: ROW_GEOMETRY.height.detail }
-    drawTimelineRow(ctx, { styles: [style], layers: [{ column }], content: { kind: 'waveform', level } }, frame)
+    drawTimelineRow(ctx, { styles: [style], layers: [{ column }], content: { kind: 'waveform', level, ...extra } }, frame)
     return { calls, geometry: rowItemGeometry('detail', 0, ROW_GEOMETRY.height.detail) }
   }
+
+  it('draws a curve and its dashed threshold over the waveform, only up to the reveal edge', () => {
+    const curve = new SeriesPyramid()
+    for (let index = 0; index < 1000; index++)
+      curve.append(index, index < 500 ? 0.1 : 0.9)
+    const { calls } = drawWaveformRow(capsuleStyle({ color: '#6366f1' }), { curve, curveThreshold: 0.6, revealX: 50 })
+
+    // The bars draw first, then the curve as one stroked line, then the dashed threshold.
+    const lastBar = calls.findLastIndex(call => call.name === 'roundRect')
+    const after = calls.slice(lastBar + 1)
+    expect(after.filter(call => call.name === 'lineTo').length).toBeGreaterThan(0)
+    expect(after.some(call => call.name === 'setLineDash' && (call.args[0] as number[]).length > 0)).toBe(true)
+    // The curve clips at the reveal edge, so it does not run ahead of the live bars.
+    expect(after.some(call => call.name === 'rect' && call.args[0] === 0 && call.args[2] === 50)).toBe(true)
+  })
+
+  it('draws no curve over a waveform without one', () => {
+    const { calls } = drawWaveformRow(capsuleStyle({ color: '#6366f1' }))
+    expect(calls.some(call => call.name === 'lineTo')).toBe(false)
+  })
 
   it('draws the retry icon of an item that has a waveform and no label', () => {
     const { calls } = drawWaveformRow(capsuleStyle({ color: '#3b82f6', retry: true }))
