@@ -1,0 +1,516 @@
+# Planejamento 03 — Análise dos Planos 01 e 02 e roteiro de sprints
+
+**Projeto:** Alice / fork [overcyber/airi](https://github.com/overcyber/airi)
+**Data:** 03/11/2026
+**Natureza:** análise e ordenação. Este documento não altera o Plano 01 nem o Plano 02.
+**Entradas analisadas:**
+
+- Plano 01: `PLANEJAMENTO_E_HISTORICO_CONVERSA.md` (Motion Director e Motion Mixer, fases P0 a P7).
+- Plano 02: `PLANEJAMENTO_02_ESTADO_AFETIVO_RELACIONAMENTO_E_COMPANION.md` (Companion State, fases B0 a B10).
+- Sistema em produção hoje: `overcyber/MMM-avatar-3d` (módulo MagicMirror `MMM-AvatarMQTT`) e `overcyber/talkinghead-neoalice` (servidor TalkingHead, avatares GLB, animações FBX).
+
+**Método:** leitura estática de código e documentação. Nenhum aplicativo foi executado. Nenhum teste foi executado. Nenhum valor de FPS ou latência foi medido.
+
+**Convenção de privacidade:** este arquivo não contém endereços, hosts nem caminhos reais. Use os marcadores abaixo:
+
+| Marcador | Significado |
+| --- | --- |
+| `<BROKER>` | Host do broker MQTT |
+| `<MM_DIR>` | Diretório de instalação do MagicMirror |
+| `<TH_DIR>` | Diretório do servidor TalkingHead |
+| `<SITE>` | `siteId` em produção (hoje o espelho usa um `siteId` próprio) |
+| `<SITE_AIRI>` | `siteId` novo e exclusivo para o AIRI em paralelo, por exemplo `airi-lab` |
+
+---
+
+# PARTE A — ANÁLISE
+
+## A1. Verificação das referências de código dos planos
+
+Todos os caminhos do AIRI citados nos dois planos existem no fork atual.
+
+| Caminho citado | Existe | Observação verificada |
+| --- | --- | --- |
+| `packages/stage-ui-mmd/src/composables/mmd/animation-manager.ts` | Sim | Mantém uma `idleAction` e uma `currentAction`. `playAction` faz crossfade. Não há camadas nem máscaras. Confirma a lacuna do Plano 01. |
+| `packages/stage-ui-mmd/src/components/scenes/MMD.vue` | Sim | `renderLoop` chama `animation.update(delta)` uma vez, depois `emote`, `blink`, `lipSync`, `gaze`. O comentário confirma a ordem mixer, IK, grant, física. |
+| `packages/stage-ui-mmd/src/stores/mmd.ts` | Sim | Usa `useBroadcastChannel` com o evento `mmd-play-one-shot` e `localforage`. |
+| `packages/stage-ui/src/components/scenarios/settings/model-settings/mmd.vue` | Sim | Tela de configuração MMD. |
+| `packages/stage-ui-three/src/components/Model/VRMModel.vue` | Sim | Renderer VRM. |
+| `packages/motion-driver-magic` | Sim | Pacote presente. |
+| `packages/stage-ui/src/stores/memory.ts`, `database/repos/memory.repo.ts`, `tools/memory.ts` | Sim | Memória longa existe. Plano 02 manda estender, não duplicar. Correto. |
+| `packages/stage-ui/src/stores/mcp.ts`, `tools/mcp.ts` | Sim | |
+| `packages/provider-inference/src/providers/index.ts` | Sim | |
+| `packages/stage-ui/src/libs/providers/providers/nvidia/index.ts` | Sim | |
+| `packages/core-agent/README.md` | Sim | |
+| `packages/stage-ui/src/constants/emotions.ts`, `stage-ui-mmd/src/constants/emotions.ts` | Sim | Vocabulário AIRI de 9 emoções. Ver A4. |
+
+Conclusão: os planos descrevem o AIRI corretamente. As lacunas estão na relação com o sistema que roda hoje.
+
+## A2. O sistema atual da Alice (o que os planos não descrevem)
+
+| Componente | Estado verificado |
+| --- | --- |
+| Renderer | TalkingHead 1.7 (`modules/talkinghead.mjs`), Three.js, avatar GLB com rig Mixamo/ReadyPlayerMe e blendshapes ARKit. |
+| Avatares | `avatars/*.glb`, por exemplo `eva-ruiva-arkit.glb`. Nenhum PMX e nenhum VRM. |
+| Movimentos | 21 animações FBX Mixamo (`animations/`, `animations_arkit/`), gestos e poses por rotação de osso em `custom_moves.json`, despachante `neoalice_moves.mjs`. |
+| Humor no renderer | TalkingHead tem 8 humores: `neutral`, `happy`, `angry`, `sad`, `fear`, `disgust`, `love`, `sleep`. Cada humor altera pose, respiração, cabeça, face e voz. |
+| Transporte | MQTT, tópicos `neoalice/v1/{siteId}/...`. Comandos `cmd/tts/say`, `cmd/tts/audio`, `cmd/tts/stop`, `cmd/avatar/gesture`, `cmd/avatar/emoji`, `cmd/avatar/pose`, `cmd/avatar/animation`. Eventos `evt/mood`, `cmd/evt/mood`, `evt/stt/final`. Heartbeat em `evt/state`. Também tópicos Hermes (Rhasspy). |
+| Exibição | Módulo MagicMirror `MMM-AvatarMQTT` (frontend + `node_helper.js`) e uma página independente (`index.html`) com a mesma lógica. |
+| TTS | Google Cloud TTS (decisão registrada em `decisoes_usuario.md`). |
+| Fonte do humor | Um serviço externo da NeoAlice publica `{"mood": "..."}` ou `{"state": {"mood": "..."}}`. Esse serviço não está em nenhum dos repositórios analisados. |
+
+Observação sobre a sessão: o repositório `overcyber/TalkingHead-1KH` é o dataset de vídeos da NVIDIA (face-vid2vid). Ele não tem relação com o avatar. O repositório do avatar é `overcyber/talkinghead-neoalice`.
+
+Limitação do TalkingHead que confirma a motivação do Plano 01: `playAnimation` recria o `AnimationMixer` a cada chamada. Um gesto (`playGesture`) sobrepõe rotações de braço sobre a pose. Então há um clipe por vez mais um gesto por vez. Não há máscara por osso nem mistura aditiva.
+
+## A3. Pontos fortes dos planos
+
+1. Plano 01 não substitui o AIRI. Ele adiciona pacotes novos (`alice-motion`) e preserva a API atual do `animation-manager`. Isso reduz o risco de regressão e de conflito com o upstream.
+2. Plano 01 separa intenção (`MotionIntent`) de execução (`MotionCue`). O LLM não controla ossos por frame.
+3. Plano 01 respeita a ordem mixer, IK, grant, física. O código atual confirma essa ordem.
+4. Plano 02 define uma fonte única de humor e manda reutilizar o humor existente. O sistema atual confirma que esse humor existe e chega por MQTT.
+5. Plano 02 coloca a autoridade dos números na aplicação, não no LLM. Usa reducer determinístico, idempotência e auditoria.
+6. Plano 02 define o contrato com o Plano 01 (seção 13): afeto gera sinais, o movimento não escreve no relacionamento.
+7. Os dois planos tratam licenças (Utsuwa AGPL-3.0, xiaoke Apache-2.0, assets PMX/VMD).
+
+## A4. Lacunas e riscos encontrados
+
+| ID | Lacuna | Evidência | Impacto | Ação proposta |
+| --- | --- | --- | --- | --- |
+| L1 | Plano 01 começa em PMX/MMD. A Alice hoje é GLB (Mixamo/ARKit) com FBX. | Plano 01 seção 4. Avatares e animações em `talkinghead-neoalice`. | P0 exige um modelo PMX novo. A biblioteca FBX e `custom_moves.json` não rodam no MMD sem retargeting. | Decisão D1 na sprint S02. O núcleo (director, scheduler) fica agnóstico de renderer. |
+| L2 | Nenhum plano integra MQTT nem MagicMirror. | O AIRI não tem dependência `mqtt`. O espelho e o NeoAlice usam só MQTT. | Sem ponte, o AIRI não recebe fala, humor nem gestos do NeoAlice. | Sprint S08: ponte MQTT com `siteId` próprio, em modo sombra. |
+| L3 | Três vocabulários de humor diferentes. | NeoAlice: `happy`, `playful`, `excited`, `sad`, `annoyed`, `angry`, `tired`, `sleep`, `calm`, `neutral`. TalkingHead: 8 humores. AIRI: `happy`, `sad`, `angry`, `think`, `surprised`, `awkward`, `question`, `curious`, `neutral`. | O cenário de aceite do Plano 01 usa `mood=curious`, que o TalkingHead não tem. | Sprint S02: tabela única de vocabulário, versionada. |
+| L4 | Falha no mapeamento atual de humor. | `MMM-AvatarMQTT.js` e `js/avatar-controller.js`, função `mapMood`: não mapeia `love`, `fear` nem `disgust`. Esses valores viram `neutral`. `HUMORES_E_MOVIMENTOS.md` documenta `love` como funcional. | O humor `love` enviado pelo NeoAlice não aparece no espelho. | Sprint S01: correção pequena e isolada, com backup e teste. |
+| L5 | O humor existente não tem intensidade, causa nem energia no payload. | Payload `{mood}` ou `{state:{mood}}`. | O `MoodSnapshot` do Plano 02 exige `intensity` e `causes`. | O adapter usa valores padrão marcados como `unknown`. Ele não inventa causas (regra do próprio Plano 02). |
+| L6 | Estado do companion em vários dispositivos. | Memória do AIRI usa IndexedDB por cliente. O espelho é outro cliente. | Dois clientes geram dois estados divergentes. O Plano 02 trata várias janelas, não vários dispositivos. | Decisão D2 na sprint S05: a autoridade do estado fica num serviço único (por exemplo, junto ao NeoAlice) e publica por MQTT. |
+| L7 | Dois barramentos de evento propostos. | Plano 01 "Motion Event Bus". Plano 02 "Companion Event Adapter". | Duplicação e ordem de eventos inconsistente. | Um barramento: `@moeru/eventa` dentro do AIRI (regra do `AGENTS.md`) e MQTT fora dele, ligados pela ponte. |
+| L8 | TTS diferente do plano. | Plano 01 seção 9 cita Qwen3-TTS e GPT-SoVITS. Produção usa Google TTS. | P4 (sincronia de prosódia) depende de timestamps do TTS. | Na sprint S09, medir o que o TTS em uso fornece. Não presumir timestamps. |
+| L9 | Os planos não definem backup, rollback nem teste de fumaça do sistema em produção. | Os critérios de aceite falam só do AIRI. | Uma mudança pode quebrar o espelho sem detecção. | Protocolo por sprint (Parte B) e teste de fumaça MQTT (B3). |
+| L10 | Regras do monorepo AIRI não citadas. | `AGENTS.md`: Valibot para schema, `injeca` para DI, `eventa` para IPC, `README.md` por pacote, kebab-case, `// NOTICE:` para workaround, perguntar antes de nova dependência. | Revisão de PR e lint podem falhar. | Aplicar em todas as sprints de código. |
+| L11 | O fork recebe merges do upstream. | Último commit de `main`: merge de `moeru-ai:main`. | Mudanças no `animation-manager` ou em `MMD.vue` podem gerar conflitos. | Manter alterações em pacotes novos. Fazer cada mudança em arquivo existente pequena e com teste de contrato. |
+
+## A5. Dependências entre os planos
+
+```mermaid
+flowchart LR
+  S02[Contratos v1 e vocabulário] --> P1[P1 MotionDirector]
+  S02 --> B1[B1 MoodAdapter]
+  P1 --> P2[P2 Scheduler]
+  B1 --> B2[B2 Reducer e tempo]
+  P2 --> P3[P3 Máscaras e aditivo]
+  P0[P0 Baseline e fixture] --> P3
+  P3 --> P4[P4 Voz, face, física]
+  B2 --> B3[B3 Painel]
+  B2 --> B4[B4 Estágios e modos]
+  B2 --> B5[B5 Fatos e sessões]
+  B4 --> B6[B6 Eventos e marcos]
+  P2 --> B8[B8 Afeto para movimento]
+  B2 --> B8
+  P4 --> P5[P5 Catálogo UX]
+  P5 --> P6[P6 VRM]
+  P6 --> P7[P7 Neural]
+```
+
+Regra principal: o Plano 02 só emite sinais para o Plano 01 depois que o contrato `MotionIntent` estiver congelado (S02) e o scheduler existir (P2).
+
+---
+
+# PARTE B — PROTOCOLO OBRIGATÓRIO POR SPRINT
+
+Cada sprint segue os mesmos 6 passos. Não pule passos. Se um passo falhar, execute o rollback e pare.
+
+## B1. Os 6 passos
+
+1. **Backup.** Crie um ponto de restauração antes de qualquer alteração (comandos em B2).
+2. **Teste antes.** Execute os testes e o teste de fumaça antes da mudança. Salve a saída. Ela é a referência.
+3. **Alteração.** Faça a mudança no branch da sprint. Um commit por assunto. Use Conventional Commits.
+4. **Teste depois.** Execute os mesmos testes e o mesmo teste de fumaça. Compare com a referência.
+5. **Validação.** Confira cada critério de aceite da sprint. Grave evidência: log, captura ou vídeo.
+6. **Fechamento.** Se tudo passou, crie a tag `sprint/<ID>-ok`. Se algo falhou, execute o rollback (B4).
+
+## B2. Backup
+
+Em cada repositório que a sprint altera, crie uma tag de restauração:
+
+```bash
+git tag -a backup/<ID>-pre -m "Backup antes da sprint <ID>"
+```
+
+```bash
+git push origin backup/<ID>-pre
+```
+
+Para arquivos fora do git (configuração do MagicMirror, módulo instalado), crie um arquivo compactado:
+
+```bash
+tar czf backup-<ID>-$(date +%Y%m%d-%H%M).tar.gz <MM_DIR>/config/config.js <MM_DIR>/modules/MMM-AvatarMQTT --exclude=node_modules
+```
+
+Para a imagem Docker do TalkingHead, crie uma tag de imagem:
+
+```bash
+docker image tag talkinghead:latest talkinghead:backup-<ID>
+```
+
+Para o tráfego MQTT, grave uma amostra de referência. Ela serve para reproduzir o mesmo cenário depois:
+
+```bash
+timeout 300 mosquitto_sub -h <BROKER> -v -t 'neoalice/v1/#' > mqtt-ref-<ID>.log
+```
+
+Para dados do AIRI no navegador (IndexedDB), use a exportação do próprio AIRI quando ela existir para o dado alterado. Se não existir, a sprint deve criar a exportação antes de alterar o schema.
+
+## B3. Testes padrão
+
+AIRI, por pacote alterado:
+
+```bash
+pnpm -F <nome do pacote> typecheck
+```
+
+```bash
+pnpm -F <nome do pacote> exec vitest run
+```
+
+```bash
+pnpm lint
+```
+
+AIRI, todos os pacotes afetados pelo branch:
+
+```bash
+base=$(git merge-base origin/main HEAD) && TURBO_SCM_BASE="$base" pnpm exec turbo run test:run --affected
+```
+
+Se a sprint alterar um pacote compartilhado ou um tipo exportado, execute também:
+
+```bash
+pnpm typecheck
+```
+
+Teste de fumaça do sistema em produção (espelho). Execute cada comando e confira o efeito no avatar:
+
+```bash
+mosquitto_pub -h <BROKER> -t "neoalice/v1/<SITE>/cmd/tts/say" -m '{"text":"Teste de fumaca","lang":"pt-br"}'
+```
+
+```bash
+mosquitto_pub -h <BROKER> -t "neoalice/v1/<SITE>/cmd/evt/mood" -m '{"mood":"happy"}'
+```
+
+```bash
+mosquitto_pub -h <BROKER> -t "neoalice/v1/<SITE>/cmd/avatar/gesture" -m '{"gesture":"thumbup","duration":3}'
+```
+
+```bash
+mosquitto_pub -h <BROKER> -t "neoalice/v1/<SITE>/cmd/avatar/pose" -m '{"pose":"straight"}'
+```
+
+```bash
+mosquitto_pub -h <BROKER> -t "neoalice/v1/<SITE>/cmd/avatar/animation" -m '{"url":"./animations/walking.fbx","duration":5}'
+```
+
+```bash
+timeout 30 mosquitto_sub -h <BROKER> -v -t "neoalice/v1/<SITE>/evt/state"
+```
+
+Resultado esperado: o avatar fala, muda de humor, faz o gesto, muda a pose, anda e o heartbeat aparece em `evt/state`.
+
+## B4. Rollback
+
+```bash
+git checkout backup/<ID>-pre
+```
+
+```bash
+tar xzf backup-<ID>-<data>.tar.gz -C /
+```
+
+```bash
+docker image tag talkinghead:backup-<ID> talkinghead:latest && docker compose up -d
+```
+
+Depois do rollback, execute o teste de fumaça (B3) e confirme que o espelho voltou ao estado anterior.
+
+## B5. Regras gerais
+
+- O espelho em produção continua com o TalkingHead até a sprint S16. Até lá, o AIRI roda em paralelo com `<SITE_AIRI>`.
+- Toda função nova no AIRI fica atrás de uma opção desligada por padrão.
+- Nenhuma sprint mistura alteração em produção com alteração no AIRI.
+- Nenhuma sprint de código começa sem os contratos da S02.
+
+---
+
+# PARTE C — ROTEIRO DE SPRINTS EM ORDEM
+
+Legenda de risco para produção: **Nenhum** (não toca o espelho), **Baixo** (altera o espelho com mudança pequena e reversível), **Médio** (altera fluxo de dados do espelho).
+
+## Resumo
+
+| Ordem | Sprint | Origem | Toca produção | Risco |
+| --- | --- | --- | --- | --- |
+| 1 | S00 Backup geral e baseline de produção | Novo (L9) | Só leitura | Nenhum |
+| 2 | S01 Inventário do humor e correção do `mapMood` | B0 + L4 | Sim | Baixo |
+| 3 | S02 Baseline AIRI, contratos v1 e decisões D1/D2 | P0 parte 1 + B0 + L3 | Não | Nenhum |
+| 4 | S03 MotionDirector isolado | P1 | Não | Nenhum |
+| 5 | S04 MotionScheduler isolado | P2 | Não | Nenhum |
+| 6 | S05 MoodAdapter e reducer do companion | B1 + B2 | Não | Nenhum |
+| 7 | S06 Fixture, telemetria e vídeo de referência | P0 parte 2 | Não | Nenhum |
+| 8 | S07 Máscaras por osso e mistura aditiva | P3 | Não | Nenhum |
+| 9 | S08 Ponte MQTT para o AIRI em modo sombra | Novo (L2) | Só leitura | Nenhum |
+| 10 | S09 Voz, face, prosódia e física | P4 | Não | Nenhum |
+| 11 | S10 Painel de estado | B3 | Não | Nenhum |
+| 12 | S11 Estágios, modos e memória factual | B4 + B5 | Não | Nenhum |
+| 13 | S12 Eventos e marcos | B6 | Não | Nenhum |
+| 14 | S13 Afeto para movimento e proatividade | B8 + B7 | Não | Nenhum |
+| 15 | S14 Catálogo semântico e editor de camadas | P5 | Não | Nenhum |
+| 16 | S15 Adaptador VRM e avatar Eva | P6 | Não | Nenhum |
+| 17 | S16 Transição do espelho | Novo | Sim | Médio |
+| 18 | S17 Laboratório neural e recursos experienciáveis | P7 + B9 | Não | Nenhum |
+| Contínua | S-H Hardening | B10 | Não | Nenhum |
+
+S03 e S04 podem rodar em paralelo com S05. As três são pacotes novos sem renderer.
+
+---
+
+## S00 — Backup geral e baseline de produção
+
+**Objetivo:** ter um ponto de restauração completo e uma referência do comportamento atual.
+**Repositórios:** `MMM-avatar-3d`, `talkinghead-neoalice`, `airi`. Ambiente do MagicMirror e do broker.
+
+| Passo | Conteúdo |
+| --- | --- |
+| Backup | Tag `backup/S00-pre` nos 3 repositórios. `tar` da configuração do MagicMirror e do módulo instalado. Tag de imagem Docker do TalkingHead. Cópia da configuração do Mosquitto. |
+| Alteração | Nenhuma no código. Criar o roteiro do teste de fumaça (B3) como script no repositório `MMM-avatar-3d`. |
+| Teste | Executar o teste de fumaça. Gravar `mqtt-ref-S00.log` por 5 minutos com uma conversa real. |
+| Validação | Gravar vídeo de 2 minutos do espelho: fala, 8 humores, 3 gestos, 2 poses, 1 animação. Anotar versões: TalkingHead, Three.js, MagicMirror, Node, `mqtt`. |
+| Saída | Tag `sprint/S00-ok`. Restauração testada uma vez numa cópia. |
+
+## S01 — Inventário do humor e correção do `mapMood`
+
+**Objetivo:** cumprir o B0 do Plano 02 e corrigir a perda dos humores `love`, `fear` e `disgust` (L4).
+**Repositórios:** `MMM-avatar-3d`. Leitura do serviço NeoAlice que publica o humor.
+
+| Passo | Conteúdo |
+| --- | --- |
+| Backup | Tag `backup/S01-pre` em `MMM-avatar-3d`. `tar` do módulo instalado. |
+| Alteração | 1) Documentar onde o humor nasce no NeoAlice: serviço, vocabulário completo, frequência, se existe intensidade. 2) Adicionar `love`, `fear` e `disgust` ao `mapMood` em `MMM-AvatarMQTT/MMM-AvatarMQTT.js` e em `js/avatar-controller.js`. Os dois arquivos têm o mesmo mapa com a mesma falha. Um commit só para isso. |
+| Teste | Teste de fumaça (B3). Publicar cada um dos 8 humores do TalkingHead e cada humor do vocabulário NeoAlice. |
+| Validação | `love` mostra suspiros e cabeça inclinada. `fear` mostra varredura ampla de cabeça. `disgust` mostra nariz franzido. Os humores antigos continuam iguais ao vídeo da S00. Valor desconhecido continua virando `neutral`. |
+| Saída | Documento de inventário do humor. Tag `sprint/S01-ok`. |
+
+## S02 — Baseline AIRI, contratos v1 e decisões
+
+**Objetivo:** P0 parte 1 do Plano 01. Congelar os contratos que os dois planos compartilham.
+**Repositório:** `airi`.
+
+| Passo | Conteúdo |
+| --- | --- |
+| Backup | Tag `backup/S02-pre`. |
+| Alteração | 1) `pnpm install`, typecheck e testes de todo o monorepo. Registrar commit, versão do Three.js e de `@moeru/three-mmd`. 2) Criar ADR em `docs/ai/adr/` com os contratos v1: `MotionIntent`, `MotionCue`, `MoodSnapshot`, `companion.affect.updated`, e o mapeamento de tópicos MQTT. 3) Criar a tabela única de vocabulário de humor: NeoAlice, TalkingHead, AIRI e intenção de movimento. Os schemas usam Valibot. 4) Registrar as decisões D1 e D2. |
+| Teste | Typecheck e testes do monorepo inteiro antes e depois. A saída deve ser igual, porque só há documentação e tipos. |
+| Validação | Os dois planos citam os mesmos nomes de campo. Cada humor dos 3 vocabulários tem destino definido. |
+| Saída | Contratos v1 aprovados por você. Tag `sprint/S02-ok`. |
+
+**Decisão D1 — formato do avatar no AIRI.** Opções:
+
+| Opção | Vantagem | Custo |
+| --- | --- | --- |
+| A. PMX novo (Plano 01 original) | MMD já tem VMD, IK, grant e física no AIRI. Caminho mais curto para o mixer. | Avatar diferente da Eva. FBX e `custom_moves.json` não servem sem retargeting. Licença do PMX. |
+| B. Eva em VRM (antecipar parte do P6) | Preserva a identidade visual. VRM é glTF, próximo do GLB atual. | O renderer VRM do AIRI tem menos recursos de movimento. O mixer teria de nascer no VRM. |
+| C. A para desenvolver o mixer, B a partir da S15 | Mantém a ordem do Plano 01 e garante a Eva no fim. | Dois avatares durante o desenvolvimento. |
+
+Recomendação: **C**. O núcleo (S03, S04, S05) é agnóstico de renderer, então essa escolha não bloqueia o início.
+
+**Decisão D2 — onde fica a autoridade do estado do companion.** Opções: no AIRI (IndexedDB) ou num serviço único publicado por MQTT. Recomendação: serviço único, porque o espelho e o AIRI são clientes diferentes (L6).
+
+## S03 — MotionDirector isolado (P1)
+
+**Repositório:** `airi`, pacote novo `packages/alice-motion`.
+
+| Passo | Conteúdo |
+| --- | --- |
+| Backup | Tag `backup/S03-pre`. |
+| Alteração | Pacote novo com `README.md`. Máquina de estados `idle`, `listening`, `thinking`, `speaking`, `walking`, `acting`, `interrupted`. Política de idle com gerador aleatório com semente. Saída: lista de `MotionIntent`. Sem Three.js, sem Vue. |
+| Teste | Testes com relógio simulado e semente fixa. Interrupção e retomada. Testes do monorepo afetado antes e depois. |
+| Validação | Mesma semente gera a mesma sequência. Interrupção não duplica gesto. Nenhuma chamada a LLM no loop. Nenhum pacote existente mudou de comportamento. |
+| Saída | Tag `sprint/S03-ok`. |
+
+## S04 — MotionScheduler isolado (P2)
+
+**Repositório:** `airi`, `packages/alice-motion`.
+
+| Passo | Conteúdo |
+| --- | --- |
+| Backup | Tag `backup/S04-pre`. |
+| Alteração | Arbitragem por prioridade, reserva de canais, TTL, idempotência por `id`, cancelamento por `sessionId`, conversão `MotionIntent` para `MotionCue`. |
+| Teste | Casos `walk + wave`, `walk + sit`, dois gestos no mesmo braço, um gesto em cada braço, reconexão com sessão antiga. |
+| Validação | Locomoção não é bloqueada por gesto de braço. Ação de corpo inteiro libera os canais ao terminar. Mesmo empate gera sempre o mesmo vencedor. |
+| Saída | Tag `sprint/S04-ok`. |
+
+## S05 — MoodAdapter e reducer do companion (B1 + B2)
+
+**Repositório:** `airi`, pacote novo `packages/alice-companion` (ou serviço único, conforme D2).
+
+| Passo | Conteúdo |
+| --- | --- |
+| Backup | Tag `backup/S05-pre`. Exportação de dados se algum store existente for lido. |
+| Alteração | `ExistingMoodAdapter` que lê o humor do NeoAlice (formato da S01). Reducer determinístico: 5 métricas, energia, dias, interações, sequência diária, auditoria. Políticas de ausência e decaimento desligadas por padrão. Fuso configurável. |
+| Teste | Limites (`affection` 0..1000, outros 0..100), sem NaN, idempotência, duas janelas, relógio para trás, horário de verão, ausência de 7 dias aplicada uma vez. |
+| Validação | Uma só fonte de humor. Nenhuma escrita circular. Campos sem dado ficam `unknown`, sem causa inventada. |
+| Saída | Tag `sprint/S05-ok`. |
+
+## S06 — Fixture, telemetria e vídeo de referência (P0 parte 2)
+
+**Repositório:** `airi`.
+
+| Passo | Conteúdo |
+| --- | --- |
+| Backup | Tag `backup/S06-pre`. |
+| Alteração | Fixture com modelo escolhido em D1 e clipes idle, walk, wave com licença verificada. Harness de reprodução determinística. Telemetria por frame (`frame_time_ms`, `mixer_ms`, `physics_ms`, contagem de `AnimationAction`). Saída `motion_trace.jsonl`. Telemetria desligada por padrão. |
+| Teste | Testes existentes do `stage-ui-mmd` antes e depois. Abrir o modelo no stage-web e no stage-tamagotchi. |
+| Validação | Os 3 clipes tocam sem regressão. Vídeo "antes" gravado. FPS e tempos medidos e registrados. Esses números substituem as metas não medidas dos planos. |
+| Saída | Tag `sprint/S06-ok`. |
+
+## S07 — Máscaras por osso e mistura aditiva (P3)
+
+**Repositório:** `airi`, `animation-manager.ts` e `packages/alice-motion/src/mixer`.
+
+| Passo | Conteúdo |
+| --- | --- |
+| Backup | Tag `backup/S07-pre`. |
+| Alteração | Tabela de alias de ossos, `maskClip`, API de ações por camada no `animation-manager` sem remover `playAction`, `playIdle` nem `setIdleMotion`. Mistura normal e aditiva. Ainda uma só chamada a `mixer.update` por frame. |
+| Teste | Testes de máscara, quaternion dentro da tolerância, ordem por frame, VMD com ossos ausentes. Todos os testes antigos do `stage-ui-mmd`. |
+| Validação | `walk + left_arm_wave + gaze` ao mesmo tempo. Quadril e pernas não se movem pelo gesto. A API antiga funciona igual. Comparar FPS com a S06. |
+| Saída | Tag `sprint/S07-ok`. |
+
+## S08 — Ponte MQTT para o AIRI em modo sombra
+
+**Repositório:** `airi`. Lado do broker só recebe um cliente novo.
+
+| Passo | Conteúdo |
+| --- | --- |
+| Backup | Tag `backup/S08-pre`. Cópia da configuração do Mosquitto (ACL, usuários). |
+| Alteração | Cliente MQTT por WebSocket que assina só `neoalice/v1/<SITE_AIRI>/#` e, em modo leitura, `neoalice/v1/<SITE>/evt/mood`. Converte tópicos NeoAlice em eventos `eventa` e em `MotionIntent`. Não publica em `<SITE>`. A nova dependência MQTT exige sua aprovação antes (regra do `AGENTS.md`). |
+| Teste | Reproduzir `mqtt-ref-S00.log` contra `<SITE_AIRI>`. Teste de fumaça do espelho antes e depois. |
+| Validação | O espelho não muda de comportamento. O AIRI reage ao mesmo tráfego. Mensagem inválida não derruba a ponte. Reconexão descarta cues de sessão antiga. |
+| Saída | Tag `sprint/S08-ok`. |
+
+## S09 — Voz, face, prosódia e física (P4)
+
+**Repositório:** `airi`.
+
+| Passo | Conteúdo |
+| --- | --- |
+| Backup | Tag `backup/S09-pre`. |
+| Alteração | Medir os timestamps que o TTS em uso fornece (L8). Microbeats vocais. Prioridade de morphs: visemas têm dono exclusivo durante a fala. Gaze final com limites. Foot lock inicial. |
+| Teste | 100 interrupções seguidas. Variação de `dt` em 30, 60 e 120 FPS. Testes antigos de lip-sync e blink. |
+| Validação | Boca segue a voz. Física estável depois de 100 interrupções. Silêncio mantém idle. Gesto alinhado ao áudio tocado, não ao texto. |
+| Saída | Tag `sprint/S09-ok`. |
+
+## S10 — Painel de estado (B3)
+
+**Repositórios:** `airi` (`packages/stage-ui`, `packages/i18n`).
+
+| Passo | Conteúdo |
+| --- | --- |
+| Backup | Tag `backup/S10-pre`. |
+| Alteração | Página de configurações nova: Estado agora, Relacionamento (desligável), Convivência. Textos em `packages/i18n` (inglês e português). Registrar rota e ícone no layout de configurações. |
+| Teste | Testes de componente. Testes de navegador afetados. Lint. |
+| Validação | Os valores na tela batem com o banco. Reset apaga só o escopo escolhido. O painel funciona sem avatar carregado. |
+| Saída | Tag `sprint/S10-ok`. |
+
+## S11 — Estágios, modos e memória factual (B4 + B5)
+
+| Passo | Conteúdo |
+| --- | --- |
+| Backup | Tag `backup/S11-pre`. Exportação da memória longa do AIRI antes de qualquer mudança de schema. |
+| Alteração | Estágios versionados com histerese. Modo `companion` como padrão, modos românticos só com consentimento. `CompanionMemoryAdapter` que estende `memory.ts`, sem segunda gravação. Categorias, proveniência, deduplicação. |
+| Teste | Limiares e histerese. Busca em português e inglês. Exclusão remove registro e índice. |
+| Validação | Modo `companion` não dispara evento romântico. Nenhuma memória gravada duas vezes. Memória antiga continua legível. |
+| Saída | Tag `sprint/S11-ok`. |
+
+## S12 — Eventos e marcos (B6)
+
+| Passo | Conteúdo |
+| --- | --- |
+| Backup | Tag `backup/S12-pre`. |
+| Alteração | `CompanionEventEngine` sobre as automações existentes do `core-agent`. Condições, cooldown, `idempotencyKey`. |
+| Teste | Reload não repete marco. Falha e recuperação não repetem marco. |
+| Validação | Efeitos nos indicadores são determinísticos. O texto do LLM não altera números. |
+| Saída | Tag `sprint/S12-ok`. |
+
+## S13 — Afeto para movimento e proatividade (B8 + B7)
+
+| Passo | Conteúdo |
+| --- | --- |
+| Backup | Tag `backup/S13-pre`. |
+| Alteração | `companion.affect.updated` vira entrada do MotionDirector. Proatividade desligada por padrão, com horário de silêncio e limite diário. |
+| Teste | Mudança de humor muda o comportamento do director sem mexer no mixer. Proatividade não fala durante áudio ativo. |
+| Validação | O movimento não escreve no estado do relacionamento. Com a função desligada, voz e chat ficam iguais à S12. |
+| Saída | Tag `sprint/S13-ok`. |
+
+## S14 — Catálogo semântico e editor de camadas (P5)
+
+| Passo | Conteúdo |
+| --- | --- |
+| Backup | Tag `backup/S14-pre`. Exportação dos VMD salvos no IndexedDB. |
+| Alteração | Catálogo com metadados (licença, canais, máscara, emoção, ação semântica). Prévia por camada. Visualização de conflitos. Tela `mmd.vue` estendida sem remover funções. |
+| Teste | Importar VMD válido e inválido. Testes de navegador da tela MMD. |
+| Validação | Um VMD novo é importado, descrito e ligado a um evento sem mudar código. Asset inválido mostra mensagem específica. |
+| Saída | Tag `sprint/S14-ok`. |
+
+## S15 — Adaptador VRM e avatar Eva (P6)
+
+| Passo | Conteúdo |
+| --- | --- |
+| Backup | Tag `backup/S15-pre`. Cópia dos GLB originais da Eva. |
+| Alteração | Converter a Eva GLB para VRM (mapear blendshapes ARKit para expressões VRM). Adaptador VRM do mixer. Mapeamento humanoide. Avaliar retargeting das FBX Mixamo para VRMA. |
+| Teste | Cenário andar, gesticular, olhar e falar em dois rigs. Testes do `stage-ui-three`. |
+| Validação | O director não muda entre PMX e VRM. A Eva mantém aparência e lip-sync. |
+| Saída | Tag `sprint/S15-ok`. |
+
+## S16 — Transição do espelho
+
+**Objetivo:** levar o resultado ao MagicMirror com caminho de volta garantido.
+**Repositórios:** `MMM-avatar-3d` e, se necessário, `talkinghead-neoalice`.
+
+| Passo | Conteúdo |
+| --- | --- |
+| Backup | Backup completo como na S00. Tag `backup/S16-pre` nos 3 repositórios. |
+| Alteração | Escolher uma de duas rotas: 1) o módulo exibe o stage-web do AIRI com `<SITE>`, ou 2) o TalkingHead continua no espelho e recebe os comandos do director pelos tópicos MQTT atuais. Opção de configuração para voltar ao modo antigo sem reinstalar. |
+| Teste | Teste de fumaça completo. Sessão de 30 minutos. 100 trocas de humor. Teste de memória e CPU do hardware do espelho. |
+| Validação | Tudo do vídeo da S00 continua funcionando. Os ganhos dos Planos 01 e 02 aparecem. Rollback testado uma vez. |
+| Saída | Tag `sprint/S16-ok`. |
+
+## S17 — Laboratório neural e recursos experienciáveis (P7 + B9)
+
+Experimental. Só começa depois da S16 estável.
+
+| Passo | Conteúdo |
+| --- | --- |
+| Backup | Tag `backup/S17-pre`. |
+| Alteração | Interface `MotionStreamProvider`. Protótipos StreamTalk e ARDY num serviço separado com GPU. Grafo de memória, álbum, toque e cenas, cada um atrás de opção própria. |
+| Teste | Medição de VRAM e tempo. Fallback determinístico quando o serviço cai. |
+| Validação | Sem o serviço neural, o avatar funciona como na S16. |
+| Saída | Tag `sprint/S17-ok`. |
+
+## S-H — Hardening contínuo (B10)
+
+Em toda sprint: revisar licenças de assets e código, procurar dados privados no diff, atualizar `README.md` dos pacotes, registrar métricas medidas e manter o rebase com o upstream.
+
+---
+
+# PARTE D — DECISÕES PENDENTES
+
+| ID | Pergunta | Sprint que bloqueia | Recomendação |
+| --- | --- | --- | --- |
+| D1 | Formato do avatar no AIRI: PMX novo, Eva em VRM, ou os dois em sequência? | S06 | Opção C |
+| D2 | Onde fica a autoridade do estado do companion? | S05 | Serviço único publicado por MQTT |
+| D3 | Qual biblioteca MQTT usar no AIRI? | S08 | Comparar opções antes de adicionar dependência |
+| D4 | Qual modelo PMX e quais VMD têm licença para a fixture? | S06 | Escolher antes da S06 |
+| D5 | Rota final do espelho: AIRI no espelho ou TalkingHead comandado pelo director? | S16 | Decidir com medições da S06 e da S09 |
+
+---
+
+**Status:** análise e roteiro documentados. Nenhum código foi alterado. Os Planos 01 e 02 permanecem sem alteração.
