@@ -866,6 +866,374 @@ Para seu ambiente com RTX 3090 e RTX 4060 Ti, minha ordem de investigação seri
 
 **Conclusão:** o Kindroid e o TalkingMachines são as melhores referências comerciais de animação conversacional generativa encontradas nesta pesquisa. Para construir uma alternativa verdadeiramente local, o Utsuwa é a base de software mais adequada, mas será necessário complementar seu motor de movimento para alcançar a fluidez corporal do Ani-2.
 
+
+## Registro 3 — Auditoria técnica dos repositórios AIRI, xiaoke, Utsuwa e alternativas (terceira saída)
+
+# Auditoria técnica: qual projeto permite mais gestos e melhor integração com a Alice?
+
+Pesquisa em 3 de novembro de 2026 | Repositórios, documentação e implementação dos motores de animação.
+
+### 1. Resultado inicial da auditoria
+
+**Para variedade de gestos e movimentos corporais, o xiaoke.ai é o mais interessante dos projetos analisados. Para construir uma plataforma extensível de IA local, o AIRI oferece uma base arquitetural mais ampla.**
+
+Entretanto, existe uma distinção fundamental:
+
+- **Mais movimentos disponíveis:** capacidade de carregar bibliotecas extensas de animações.
+- **Mais liberdade de movimento:** capacidade de combinar poses, controlar articulações e gerar novos movimentos dinamicamente.
+
+Nenhum dos sete projetos demonstrou, em sua implementação padrão, liberdade de movimento neural equivalente ao Ani-2. Todos dependem, em algum grau, de animações existentes, controle procedural, modelos preparados ou captura de movimento.
+
+#### Classificação técnica preliminar
+
+| Projeto | Variedade de gestos | Integração com IA local | Avaliação |
+|---|---|---|---|
+| [xiaoke.ai](https://github.com/liupig/xiaokeai) | Muito alta com biblioteca MMD/VMD | Alta | Melhor motor de performances |
+| [Seu AIRI](https://github.com/overcyber/airi) | Extensível, exige trabalho para ampliar a expressividade | Muito alta | Melhor base arquitetural |
+| [Utsuwa](https://github.com/JuiceBoxxGames/utsuwa) | Biblioteca VRMA expansível, com restrições de acionamento | Muito alta | Melhor solução VRM pronta |
+| [Open-LLM-VTuber](https://github.com/Open-LLM-VTuber/Open-LLM-VTuber) | Dependente dos movimentos do modelo Live2D | Muito alta | Melhor alternativa 2D |
+| [Riko](https://github.com/rayenfeng/riko_project) | Muito limitada na edição pública | Média | Protótipo simples |
+| [LLM-Live2D Desktop](https://github.com/ylxmf2005/LLM-Live2D-Desktop-Assitant) | Dependente do rig Live2D | Não recomendada | Repositório bloqueado |
+
+Classificação qualitativa de capacidade de extensão e recursos documentados, não benchmark de qualidade visual, FPS ou quantidade de animações incluídas.
+
+### 2. Seu repositório AIRI: estado real
+
+Consultei o repositório [overcyber/airi](https://github.com/overcyber/airi) e comparei sua árvore com a origem [moeru-ai/airi](https://github.com/moeru-ai/airi).
+
+A verificação identificou:
+
+| Propriedade | Resultado |
+|---|---|
+| Repositório | \`overcyber/airi\` |
+| Origem | \`moeru-ai/airi\` |
+| Branch | \`main\` |
+| Criação do fork | 03/11/2026 |
+| Commits exclusivos no fork | 0 |
+| Commits pendentes da origem na consulta | 1 |
+| Licença principal | MIT |
+
+Portanto, **seu fork ainda corresponde praticamente ao AIRI original**. Não encontrei alterações próprias no motor de animação. Isso é positivo para desenvolver a integração sem precisar resolver divergências prévias.
+
+O AIRI já trabalha com VRM, Live2D, Spine e um renderer Godot experimental. A documentação de outubro de 2026 confirma esses formatos e ressalta que o renderer Godot ainda está em desenvolvimento.
+
+> Observação editorial de novembro de 2026: os números da tabela descrevem a consulta histórica feita *antes* dos novos commits de planejamento; após a criação deste documento, o fork naturalmente possui commits próprios.
+
+### 3. Descoberta importante: o AIRI já possui suporte MMD nativo
+
+Isso muda a estratégia de integração.
+
+O projeto AIRI implementou suporte a MMD/PMX em agosto de 2026. A documentação atual confirma importação de modelos \`.pmx\` e \`.pmd\`, além de VRM, Live2D e Spine.
+
+Ao examinar o código de \`packages/stage-ui-mmd\`, identifiquei:
+
+- Importação e registro de animações VMD.
+- Execução de animações únicas e em loop.
+- Transições entre movimentos utilizando *crossfade*.
+- Retorno à animação de espera ao finalizar um gesto.
+- Controle de cinemática inversa (IK).
+- Controle de *append bones* e gravidade.
+- Física de cabelos e roupas via Ammo.
+- Expressões faciais e lip-sync.
+- Associação entre emoções do personagem e movimentos corporais.
+- Solicitações de animação através de um barramento de ações, inclusive entre janelas Electron.
+
+Os principais pontos de implementação são:
+
+- [animation-manager.ts](https://github.com/moeru-ai/airi/blob/main/packages/stage-ui-mmd/src/composables/mmd/animation-manager.ts): Registry, playAction, playIdle, crossfade, IK e física.
+- [MMD.vue](https://github.com/moeru-ai/airi/blob/main/packages/stage-ui-mmd/src/components/scenes/MMD.vue): Pipeline de renderização, expressões, VMD e animação.
+- [stores/mmd.ts](https://github.com/moeru-ai/airi/blob/main/packages/stage-ui-mmd/src/stores/mmd.ts): Solicitações de animação, BroadcastChannel e persistência.
+
+#### O problema que ainda existe no AIRI
+
+O mecanismo MMD possui os recursos para reproduzir movimentos variados, mas ainda não oferece um diretor conversacional tão sofisticado quanto o xiaoke.ai.
+
+Atualmente, o \`MMD.vue\` pode selecionar uma animação associada a uma emoção e receber solicitações de execução pelo barramento interno. Isso não equivale a gerar gestos espontâneos continuamente a partir da fala.
+
+No renderer VRM, a limitação é mais evidente. O \`VRMModel.vue\` carrega uma animação de espera \`.vrma\` e inicia um \`AnimationMixer\`. Há expressões, movimentos oculares e lip-sync, mas não um compositor completo de gestos corporais conversacionais.
+
+[Examinar implementação VRM](https://github.com/moeru-ai/airi/blob/main/packages/stage-ui-three/src/components/Model/VRMModel.vue).
+
+**Consequência:** manter seu fork AIRI e ampliar o mecanismo MMD é tecnicamente mais interessante do que abandonar toda a plataforma para utilizar outro projeto.
+
+### 4. xiaoke.ai: o sistema com o comportamento corporal mais elaborado
+
+> Elemento visual da resposta original: demonstração do xiaoke.ai usando avatar PMX/MMD.
+
+O xiaoke.ai não oferece apenas uma lista de gestos. Ele possui uma camada chamada \`PerformanceDirector\`, responsável por controlar continuamente a presença do personagem.
+
+#### Mecanismos encontrados no código
+
+| Mecanismo | Implementação identificada |
+|---|---|
+| Estados comportamentais | \`idle\`, \`listening\`, \`thinking\`, \`speaking\` |
+| Cabeça | Inclinações, rotações e pequenos acenos |
+| Olhar | Desvios temporários, retorno ao observador |
+| Fala | Pequenos movimentos associados à intensidade do áudio |
+| Expressões | Intensidade emocional variável e decaimento |
+| Gestos | Acionamento por intenção, por eventos ou por nome |
+| Espera | Movimentos escolhidos periodicamente de um repertório |
+| Interação física | Reações procedurais ao toque |
+| Dança | Animação VMD com música e câmera |
+| Transições | Interpolação de posições e quaternions |
+
+Esses mecanismos estão implementados em [director.ts](https://github.com/liupig/xiaokeai/blob/master/companion/frontend/src/engine/director.ts), [motion.ts](https://github.com/liupig/xiaokeai/blob/master/companion/frontend/src/engine/motion.ts) e [orchestrator.ts](https://github.com/liupig/xiaokeai/blob/master/companion/frontend/src/features/performance/orchestrator.ts).
+
+O diretor acrescenta, por exemplo, pequenos acenos em pontos de maior intensidade vocal, olhar desviado durante o pensamento e novos gestos em intervalos variáveis durante a fala.
+
+#### Uma limitação relevante descoberta no código
+
+A leitura de \`stage.ts\` mostra que o mecanismo de reprodução VMD (\`MotionPlayer\`) é vinculado diretamente ao \`SkinnedMesh\` MMD durante \`setupMMD()\`.
+
+Para modelos VRM e GLB, o sistema utiliza outros adaptadores de esqueleto, expressões e movimento procedural, mas **não registra o mesmo MotionPlayer VMD**.
+
+Na prática:
+
+| Formato | Movimento procedural | Reprodução VMD pelo MotionPlayer |
+|---|---|---|
+| PMX/MMD | Sim | Sim |
+| VRM | Sim | Não, na implementação examinada |
+| GLB | Sim, com rig compatível | Não, na implementação examinada |
+
+Portanto, se escolhermos xiaoke.ai pelo repertório de movimentos, **eu utilizaria um avatar PMX**, e não um GLB carregado diretamente.
+
+Essa diferença não aparece claramente no marketing do projeto. Ela é importante para evitar uma integração que carrega o personagem corretamente, mas não consegue executar as animações esperadas.
+
+### 5. Utsuwa: amplo catálogo VRMA, mas com limites no uso automático
+
+**Utsuwa — SvelteKit, Tauri, VRM e VRMA.**
+
+- [Repositório](https://github.com/JuiceBoxxGames/utsuwa)
+- [Documentação de animações](https://github.com/JuiceBoxxGames/utsuwa/blob/main/src/content/docs/guides/animations.md)
+
+O Utsuwa permite carregar movimentos VRMA personalizados, descrevê-los para que o LLM compreenda quando utilizá-los e configurar animações de espera, pensamento e fala.
+
+A documentação confirma **sete emotes incluídos e cinco animações de espera**, além da possibilidade de importar outros arquivos. Cada animação importada deve ter até 25 MB e duração máxima de 60 segundos.
+
+Entretanto, o mecanismo de acionamento possui restrições explícitas:
+
+| Restrição | Comportamento |
+|---|---|
+| Gestos automáticos por resposta | Um emote por resposta |
+| Repetição do mesmo gesto | Intervalo mínimo de 20 segundos |
+| Execução de outro emote | Intervalo global de 8 segundos |
+| Emote em execução | Nova solicitação pode ser descartada |
+| Controle corporal simultâneo | Limitado pela lógica de reprodução existente |
+
+O código também possui uma ferramenta de gestos sincronizados a segmentos de fala, mas ela utiliza apenas seis categorias: \`smile\`, \`laugh\`, \`surprise\`, \`nod\`, \`shake_head\` e \`wave\`. Essas categorias não equivalem ao catálogo completo de animações VRMA.
+
+O Utsuwa, portanto, **não é limitado a sete animações**, mas a organização atual do comportamento conversacional restringe a frequência e a combinação dos gestos.
+
+Para modificar isso, seria necessário alterar \`action-gate.ts\`, o agendador da fala e a política de concorrência entre as animações.
+
+O ponto positivo é que sua integração com LLM e voz locais é bastante direta, e existe suporte a Linux. O ponto negativo para desenvolvimento de um sistema próprio é o licenciamento AGPL-3.0 da versão atual, que exige cuidados adicionais caso você distribua uma versão modificada ou disponibilize o software como serviço.
+
+### 6. Open-LLM-VTuber: excelente infraestrutura de voz, menor liberdade corporal
+
+O [Open-LLM-VTuber](https://github.com/Open-LLM-VTuber/Open-LLM-VTuber) utiliza modelos Live2D em vez de personagens tridimensionais com esqueleto humanoide completo.
+
+> Elemento visual da resposta original: captura do Open-LLM-VTuber.
+
+A implementação oferece integração direta com provedores OpenAI-compatible, vLLM, Ollama, Faster-Whisper, sherpa-onnx, GPT-SoVITS e outros mecanismos de TTS. Possui comunicação em tempo real, percepção de câmera ou tela e interrupção da fala.
+
+No código de \`src/open_llm_vtuber/live2d_model.py\`, o sistema traduz marcadores emocionais em expressões configuradas no modelo Live2D. Os movimentos corporais dependem dos parâmetros, deformadores, expressões e animações que o artista criou no rig.
+
+Isso significa que um personagem Live2D bem preparado pode parecer muito natural, especialmente em enquadramentos de rosto e tronco. Entretanto, a quantidade de movimentos disponíveis é limitada pela estrutura artística e pelos parâmetros do modelo.
+
+**Não o escolheria para a Alice se o requisito prioritário for movimento tridimensional de corpo inteiro**, mas é uma alternativa válida se você optar por personagens 2D com expressividade facial elevada e menor custo computacional de renderização.
+
+#### AIRI + MAGIC pode superar o Live2D convencional?
+
+Há uma possibilidade interessante no seu fork AIRI.
+
+O pacote [motion-driver-magic](https://github.com/moeru-ai/airi/blob/main/packages/motion-driver-magic/README.md) implementa geração procedural baseada em modelos VAR e AR-HMM, com transições entre perfis de movimento.
+
+Diferentemente de simplesmente repetir uma animação fixa, o MAGIC pode produzir variações contínuas de parâmetros Live2D aprendidos a partir de sequências previamente fornecidas.
+
+Isso pode reduzir a sensação de repetição durante períodos prolongados de espera e conversação, mas **não cria movimentos 3D inéditos** nem substitui um gerador generativo corporal.
+
+### 7. Riko e LLM-Live2D-Desktop-Assitant
+
+#### Riko Project
+
+[Riko Project](https://github.com/rayenfeng/riko_project) — Python, Three.js, VRM, Faster-Whisper e GPT-SoVITS.
+
+A edição pública do Riko é deliberadamente um protótipo pequeno. Ao verificar seu \`client/index.html\`, encontrei um avatar VRM com posicionamento estático dos braços e sincronização labial baseada na amplitude do áudio.
+
+Não encontrei um controlador de gestos corporais autônomos nessa implementação pública.
+
+A própria documentação esclarece que as versões mais recentes, com expressões e animações escolhidas pelo personagem, fazem parte das versões Full Source e Desktop distribuídas separadamente pelo desenvolvedor.
+
+É apropriado para aprender a integração básica entre Python, voz e VRM, mas não para ser a base do projeto de animação mais avançado.
+
+> Elemento visual da resposta original: demonstração do Riko.
+
+#### LLM-Live2D-Desktop-Assitant
+
+O acesso ao repositório foi bloqueado pelo GitHub com status HTTP 451 devido a uma reclamação de direitos autorais apresentada pela Live2D Inc. em julho de 2026.
+
+A reclamação aponta redistribuição não autorizada de arquivos proprietários do SDK Cubism e de materiais do modelo de exemplo Shizuku. Trata-se de uma alegação registrada no processo DMCA, não de uma decisão judicial que eu tenha verificado.
+
+Além disso, a documentação anteriormente indexada informa que o autor pretendia transferir seus recursos Electron para o projeto Open-LLM-VTuber principal e provavelmente interromperia sua manutenção.
+
+**Eu excluiria esse repositório da arquitetura da Alice.**
+
+### 8. Comparação específica de liberdade de movimento
+
+Esta é a classificação que considero mais relevante para sua decisão.
+
+| Capacidade | AIRI MMD | xiaoke PMX | Utsuwa VRM | AIRI Live2D + MAGIC | Open-LLM-VTuber |
+|---|---|---|---|---|---|
+| Importar movimentos adicionais | Sim, VMD | Sim, VMD | Sim, VRMA | Perfis e motions Live2D | Dependente do rig |
+| Gestos disparados pelo LLM | Parcial, via emoção/ações | Sim, eventos e intenção | Sim, com restrições | Via controle e eventos | Principalmente expressões |
+| Microgestos durante a fala | Limitados por padrão | Sim | Alguns | Sim, procedural | Dependente do rig |
+| Movimento de cabeça/olhar contínuo | Sim | Sim | Sim | Sim | Sim |
+| Física de cabelo/roupa | Sim | Sim, PMX | Sim | Deformação 2D | Física 2D, conforme rig |
+| Controle corporal completo | Via VMD/IK | Via VMD/IK | Via VRMA | Não 3D | Não 3D |
+| Criação neural de novas poses | Não | Não | Não | Não 3D | Não |
+| Facilidade de ampliar animações | Alta | Muito alta | Alta | Alta, exige perfis | Dependente da modelagem |
+
+**Resultado:** xiaoke.ai possui a melhor direção de performance conversacional pronta. AIRI MMD possui infraestrutura suficiente para implementar uma direção equivalente sem substituir sua plataforma inteira.
+
+Há, porém, uma limitação comum aos dois: a execução tradicional de uma animação de corpo inteiro pode interromper temporariamente os microgestos procedurais. No xiaoke, por exemplo, o \`PerformanceDirector\` evita disputar ossos com o VMD enquanto uma animação está ativa.
+
+Para atingir a fluidez do Ani-2, eu não me limitaria a copiar o seletor de movimentos. Implementaria também um compositor de movimento por regiões do corpo.
+
+### 9. Arquitetura recomendada para integrar tudo ao seu AIRI
+
+\`\`\`text
+AIRI: interface e agente conversacional
+seu fork overcyber/airi — chat, personalidade, contexto e eventos
+                   |
+        +-----------------------+
+        |                       |
+    Serviços de IA        Motion Director
+    vLLM, STT, TTS,       estados, emoções, gestos,
+    memória, visão        prioridades, comportamento
+        |                       |
+        +-----------------------+
+                   |
+       Motion Mixer: novo módulo
+       camadas corporais, crossfade, IK,
+       estabilização de pés, interpolação
+                   |
+          Renderer AIRI MMD
+          PMX + VMD + morphs + física +
+          áudio + renderização local
+\`\`\`
+
+#### Etapa 1: aproveitar os módulos existentes
+
+AIRI já possui um registro de movimentos no \`MMDAnimationManager\`. Não precisaria criar outro mecanismo básico de leitura VMD.
+
+Eu acrescentaria um serviço \`MotionDirector\` com a lógica comportamental adaptada do xiaoke, responsável por observar o estado do diálogo, a intensidade da voz, as intenções reconhecidas, a emoção predominante e as animações disponíveis.
+
+A comunicação com o mecanismo atual poderia utilizar \`useMMD().playOneShotAction(...)\`, cujo caminho de execução foi confirmado na store MMD e no \`MMD.vue\`.
+
+#### Etapa 2: adicionar combinação por partes do corpo
+
+Essa é a melhoria técnica com maior impacto visual.
+
+| Camada | Comportamento |
+|---|---|
+| Camada base | Respiração e postura |
+| Cabeça e olhos | Olhar e atenção |
+| Braços e mãos | Gestos conversacionais |
+| Rosto | Emoção e lip-sync |
+
+O compositor aplicaria máscaras articulares e prioridades de animação para evitar que uma camada sobrescreva indevidamente outra.
+
+O resultado esperado é permitir que Alice mantenha a postura corporal, mova a cabeça, olhe para o observador, gesticule com uma das mãos e fale, simultaneamente.
+
+Isso exige trabalho adicional porque não basta executar dois arquivos VMD completos. É necessário decompor os movimentos em camadas, identificar ossos afetados, normalizar as poses e resolver conflitos cinemáticos.
+
+#### Etapa 3: usar eventos estruturados, não apenas palavras-chave
+
+Em vez de depender exclusivamente de marcadores como \`[act:wave]\`, o agente enviaria eventos semânticos ao controlador.
+
+Exemplo de contrato proposto:
+
+\`\`\`json
+{
+  "event": "motion.intent",
+  "state": "speaking",
+  "emotion": "curious",
+  "intensity": 0.65,
+  "gesture": "explain_left_hand",
+  "start_offset_ms": 750,
+  "duration_ms": 1600,
+  "priority": 40,
+  "body_mask": ["spine", "left_arm", "left_hand"],
+  "blend_in_ms": 220,
+  "blend_out_ms": 350
+}
+\`\`\`
+
+O LLM decidiria **o que o personagem pretende expressar**, não a rotação exata de cada osso. O Motion Director decidiria como representar essa intenção com segurança e continuidade.
+
+Isso também evita utilizar o LLM para controlar diretamente todos os quadros de animação, o que seria computacionalmente caro e sensível à latência de geração de tokens.
+
+### 10. Como ultrapassar o limite das bibliotecas VMD e VRMA?
+
+Se o requisito final for criar continuamente movimentos corporais novos, apenas ampliar uma biblioteca não será suficiente.
+
+A próxima camada seria um serviço dedicado à geração neural, mantendo o AIRI responsável pela renderização.
+
+#### ARDY
+
+Gera movimento corporal condicionado por texto, trajetória e restrições articulares. O repositório fornece checkpoints, geração autoregressiva e demonstração interativa.
+
+[Código-fonte](https://github.com/nv-tlabs/ardy).
+
+#### StreamTalk
+
+Especializado em gerar gestos relacionados ao áudio. É mais adequado que ARDY para movimentos espontâneos durante conversas.
+
+[Código-fonte](https://github.com/Xiangyue-Zhang/StreamTalk).
+
+Ambos exigem uma camada adicional de **retargeting de esqueleto** antes de enviar os movimentos para um personagem PMX, VRM ou GLB. Também precisam ser testados na RTX 3090 e integrados ao mecanismo de animação; a existência de um checkpoint não demonstra compatibilidade direta com AIRI.
+
+Eu priorizaria StreamTalk para gestos durante a fala e ARDY para movimentos comandados, como caminhar, mudar de postura, sentar e executar ações corporais mais longas.
+
+### 11. Compatibilidade com seus serviços locais
+
+| Subsistema | Implementação proposta | Decisão |
+|---|---|---|
+| Interface e identidade | Seu fork AIRI | Manter |
+| Modelo conversacional | vLLM local | Manter serviço separado |
+| Memória persistente | Sistema local de memória estruturada/vetorial | Integrar via API |
+| STT | Faster-Whisper ou SenseVoice | Serviço separado |
+| TTS | Qwen3-TTS ou GPT-SoVITS | Serviço separado |
+| Renderização | AIRI MMD, usando PMX | Adotar inicialmente |
+| Direção de gestos | Adaptar PerformanceDirector do xiaoke | Implementar no AIRI |
+| Biblioteca de movimentos | VMD, com catálogo semântico | Expandir |
+| Geração neural | StreamTalk/ARDY | Experimento posterior |
+| Transporte | WebSocket/eventos locais | Padronizar |
+| Empacotamento | Docker para IA e backend; desktop/browser para renderer | Separar responsabilidades |
+
+Os serviços de inferência podem ser distribuídos entre suas GPUs, mas a compatibilidade real dependerá dos modelos carregados simultaneamente. Eu não presumiria que StreamTalk, ARDY, vLLM e TTS poderão compartilhar as duas GPUs sem um planejamento de memória e testes de latência.
+
+Para testar a evolução, utilizaria medições de FPS, tempo entre áudio e gesto, latência de acionamento, utilização de GPU, sobreposição de animações, deslizamento dos pés, descontinuidades articulares e repetição de gestos em sessões longas.
+
+### 12. Decisão final
+
+**BASE DEFINITIVA RECOMENDADA: AIRI + MMD + Motion Director**
+
+Aproveitar seu fork, manter a infraestrutura conversacional e desenvolver a fluidez corporal no renderer MMD.
+
+**REFERÊNCIA DE ANIMAÇÃO: xiaoke.ai**
+
+Reutilizar conceitos e, quando apropriado, partes do código do diretor de performance, sincronização de movimentos e seleção de repertório.
+
+**Eu não substituiria seu AIRI pelo Utsuwa, Riko ou Open-LLM-VTuber.** O xiaoke é o único que justificaria uma migração completa se sua prioridade absoluta fosse aproveitar imediatamente seu motor de performances em PMX, com menos desenvolvimento próprio.
+
+Mas seu AIRI já possui MMD, VMD, física, IK, controle facial e integração modular com IA. A maior lacuna está na **orquestração contínua e na composição dos movimentos**, e não na ausência de um renderer adequado.
+
+O caminho mais eficiente é preservar a plataforma AIRI, incorporar a lógica de comportamento do xiaoke e construir um Motion Mixer por camadas. Depois, integrar um gerador neural para ultrapassar a limitação das animações prontas.
+
+**Limite desta auditoria:** examinei documentação, configuração e arquivos específicos de implementação dos repositórios, mas não executei os aplicativos nem fiz benchmarks na sua máquina. As classificações refletem capacidades verificadas no código e esforço estimado de integração, não medições empíricas de qualidade visual.
+
 <!-- HISTORICO_PENDENTE -->
+
 
 
