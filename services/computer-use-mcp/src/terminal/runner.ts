@@ -18,31 +18,19 @@ export const TERMINAL_OUTPUT_MAX_CHARS = 16_384
 export const POWERSHELL_SHELL_NAME_RE = /^(?:powershell|powershell_?core|pwsh)(?:\.exe)?$/i
 
 /**
- * PowerShell writes console output in the active codepage (for example GBK on
- * zh-CN hosts), which the runner decodes as UTF-8. Forcing UTF-8 first keeps
- * captured stdout decodable.
+ * Forces UTF-8 console output encoding on Windows PowerShell so captured
+ * stdout does not get mangled by OEM codepages like GBK.
  */
-export const WINDOWS_POWERSHELL_OUTPUT_PREFIX = '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; '
+export const WINDOWS_POWERSHELL_OUTPUT_PREFIX = '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8\n'
 
 /**
- * PowerShell exit code wrapper:
- * In PowerShell 5.1/7, cmdlet failures surface only through `$?` ($False) and
- * do not update `$LASTEXITCODE`. Native executables update `$LASTEXITCODE`.
- *
- * Cmdlets do not reset an earlier `$LASTEXITCODE`. If a command executes a
- * failing native command followed by a successful statement, `$LASTEXITCODE`
- * remains non-zero even though the final statement succeeded ($? is $True).
- *
- * To avoid false-positive failures from stale `$LASTEXITCODE`, test `$?` ($ok) first:
- * - If the final statement succeeded ($ok), exit with 0.
- * - Otherwise ($ok is false): if a native exit code was recorded and is non-zero, exit with that code.
- * - Otherwise (cmdlet failure where $LASTEXITCODE is 0 or null), exit with 1.
- *
- * If the user's command explicitly calls `exit N`, PowerShell exits immediately and this
- * suffix is not reached.
+ * Normalizes PowerShell exit codes across cmdlets and native executables.
+ * Begins with a newline so trailing comments in user scripts cannot comment
+ * out this wrapper. Tests $? ($ok) before $LASTEXITCODE to avoid stale exit
+ * codes after subsequent successful statements.
  */
 export const POWERSHELL_EXIT_CODE_SUFFIX
-  = '; $ok = $?; if ($ok) { exit 0 } elseif ($LASTEXITCODE -is [int] -and $LASTEXITCODE -ne 0) { exit $LASTEXITCODE } else { exit 1 }'
+  = '\n$ok = $?; if ($ok) { exit 0 } elseif ($LASTEXITCODE -is [int] -and $LASTEXITCODE -ne 0) { exit $LASTEXITCODE } else { exit 1 }'
 
 export function isPowershellShell(shell: string): boolean {
   return POWERSHELL_SHELL_NAME_RE.test(basename(shell.trim()))
@@ -55,23 +43,8 @@ export interface ShellInvocation {
 }
 
 /**
- * Resolves how a command reaches the configured shell, decoupling shell dialect
- * from host operating system.
- *
- * - PowerShell on Windows (`hostPlatform === 'win32'`):
- *   PowerShell 5.1/7 rejects POSIX login flags (`-lc`). Under Node.js on Windows,
- *   `detached: true` causes PowerShell to exit 0 immediately without executing the
- *   command. We pass `-NoProfile -NonInteractive -Command`, prepend UTF-8 encoding
- *   configuration, append exit code normalization, and set `detached: false, windowsHide: true`.
- *
- * - PowerShell on POSIX (`hostPlatform !== 'win32'`, e.g. `pwsh` on Linux/macOS):
- *   Accepts `-NoProfile -NonInteractive -Command` and exit code suffix, but preserves
- *   POSIX process-group detachment (`detached: true, windowsHide: false`) so process-group
- *   timeout reaping works.
- *
- * - POSIX shells (`/bin/zsh`, `/bin/bash`, `sh`, etc.):
- *   Keep standard login-shell invocation `['-lc', command]`, with `detached: true` on POSIX
- *   for process-group leadership.
+ * Resolves shell invocation arguments and process spawning flags.
+ * Rejects non-PowerShell shells on Windows to prevent passing POSIX login flags.
  */
 export function resolveShellInvocation(
   shell: string,
@@ -88,10 +61,14 @@ export function resolveShellInvocation(
     }
   }
 
+  if (isWin) {
+    throw new Error(`unsupported terminal shell on Windows: "${shell}". Local shell execution on Windows requires PowerShell (powershell.exe or pwsh).`)
+  }
+
   return {
     args: ['-lc', command],
-    detached: !isWin,
-    windowsHide: isWin,
+    detached: true,
+    windowsHide: false,
   }
 }
 
@@ -103,24 +80,13 @@ export function resolveShellInvocation(
 const PROCESS_GROUP_KILL_GRACE_MS = 5_000
 
 /**
- * Signals the timed-out command's entire process group instead of only the
- * shell process on POSIX systems.
- *
- * The shell is spawned `detached`, which makes it a process-group leader on
- * POSIX, so a negative PID reaches every descendant — including background
- * grandchildren (`cmd &`, `nohup`, long-lived servers) that a bare
- * `child.kill()` would leave orphaned when the command times out.
+ * Signals the process group on POSIX systems.
  *
  * Windows Process Cleanup Boundary:
- * On Windows (`win32`), Node's `child_process` lacks POSIX process group support.
- * Calling `killProcess(-pid, signal)` throws EINVAL on Windows.
- * Calling `child.kill(signal)` invokes Win32 `TerminateProcess` on the immediate
- * child process handle. Direct child processes attached to the shell terminate
- * or exit when standard IO closes. However, background grandchildren spawned
- * asynchronously (e.g. `Start-Process`, `cmd /c start`) are detached into
- * independent Win32 processes and will NOT be reaped without Windows Job
- * Objects or `taskkill /F /T`. Callers must not assume complete grandchild
- * reaping on Windows.
+ * On Windows, child.kill() invokes Win32 TerminateProcess on the shell PID.
+ * This terminates powershell.exe, but Windows does not terminate descendant
+ * processes. Subprocesses spawned by the shell survive as orphans unless Job
+ * Objects or taskkill /T are used. Callers must not assume full tree cleanup.
  */
 function signalProcessGroup(child: ChildProcess, signal: NodeJS.Signals) {
   const pid = child.pid

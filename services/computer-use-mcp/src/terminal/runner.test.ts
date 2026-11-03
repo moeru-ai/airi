@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process'
 import { mkdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -35,6 +36,23 @@ async function expectProcessReaped(pid: number, timeoutMs = 3_000): Promise<void
   throw new Error(`process ${pid} still alive after ${timeoutMs}ms — process was not reaped`)
 }
 
+function queryChildPids(parentPid: number): number[] {
+  try {
+    const stdout = execSync(
+      `powershell.exe -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.ParentProcessId -eq ${parentPid} } | Select-Object -ExpandProperty ProcessId"`,
+      { encoding: 'utf8', timeout: 5_000 },
+    )
+    return stdout
+      .trim()
+      .split(/\s+/)
+      .map(Number)
+      .filter(n => Number.isInteger(n) && n > 0)
+  }
+  catch {
+    return []
+  }
+}
+
 describe('isPowershellShell', () => {
   it('identifies Windows and Core PowerShell shell variants', () => {
     expect(isPowershellShell('powershell')).toBe(true)
@@ -70,7 +88,6 @@ describe('resolveShellInvocation', () => {
       '-Command',
       `echo ok${POWERSHELL_EXIT_CODE_SUFFIX}`,
     ])
-    // Preserves process-group detachment on POSIX for timeout reaping
     expect(invocation.detached).toBe(true)
     expect(invocation.windowsHide).toBe(false)
   })
@@ -83,7 +100,6 @@ describe('resolveShellInvocation', () => {
       '-Command',
       `${WINDOWS_POWERSHELL_OUTPUT_PREFIX}echo ok${POWERSHELL_EXIT_CODE_SUFFIX}`,
     ])
-    // On Windows, detached: true causes PowerShell 5.1 to exit 0 immediately without executing
     expect(invocation.detached).toBe(false)
     expect(invocation.windowsHide).toBe(true)
   })
@@ -92,6 +108,18 @@ describe('resolveShellInvocation', () => {
     const invocation = resolveShellInvocation('pwsh.exe', 'echo ok', 'win32')
     expect(invocation.detached).toBe(false)
     expect(invocation.windowsHide).toBe(true)
+  })
+
+  it('clearly rejects unsupported shells on Windows instead of passing POSIX login flags', () => {
+    expect(() => resolveShellInvocation('cmd.exe', 'dir', 'win32')).toThrow(
+      /unsupported terminal shell on Windows: "cmd\.exe"/,
+    )
+    expect(() => resolveShellInvocation('cmd', 'dir', 'win32')).toThrow(
+      /unsupported terminal shell on Windows: "cmd"/,
+    )
+    expect(() => resolveShellInvocation('bash.exe', 'ls', 'win32')).toThrow(
+      /unsupported terminal shell on Windows: "bash\.exe"/,
+    )
   })
 })
 
@@ -206,6 +234,14 @@ describe('createLocalShellRunner', () => {
       expect(runner.getState().lastExitCode).toBe(0)
     })
 
+    it('rejects execution when configured with an unsupported shell on Windows', async () => {
+      const runner = createLocalShellRunner(createTestConfig({ terminalShell: 'cmd.exe' }))
+
+      await expect(runner.execute({ command: 'dir' })).rejects.toThrow(
+        /unsupported terminal shell on Windows: "cmd\.exe"/,
+      )
+    })
+
     it('propagates explicit exit codes in PowerShell scripts', async () => {
       const runner = createLocalShellRunner(createTestConfig({ terminalShell: 'powershell.exe' }))
 
@@ -231,8 +267,6 @@ describe('createLocalShellRunner', () => {
     it('does not produce false-positive failures from stale $LASTEXITCODE after successful command', async () => {
       const runner = createLocalShellRunner(createTestConfig({ terminalShell: 'powershell.exe' }))
 
-      // A native command fails (setting $LASTEXITCODE = 8), but the subsequent statement succeeds ($? is true).
-      // The exit code wrapper must exit 0 and not falsely report 8.
       const result = await runner.execute({
         command: 'cmd.exe /c exit 8; Write-Output "subsequent-success"',
       })
@@ -240,6 +274,51 @@ describe('createLocalShellRunner', () => {
       expect(result.exitCode).toBe(0)
       expect(result.stdout).toContain('subsequent-success')
       expect(runner.getState().lastExitCode).toBe(0)
+    })
+
+    it('handles trailing comments on native commands without swallowing exit wrapper', async () => {
+      const runner = createLocalShellRunner(createTestConfig({ terminalShell: 'powershell.exe' }))
+
+      // Trailing comment on native failure must still propagate exit code 8
+      const failWithComment = await runner.execute({
+        command: 'cmd.exe /c exit 8 # trailing comment on failure',
+      })
+      expect(failWithComment.exitCode).toBe(8)
+
+      // Trailing comment on success must succeed
+      const okWithComment = await runner.execute({
+        command: 'Write-Output "comment-ok" # trailing comment',
+      })
+      expect(okWithComment.exitCode).toBe(0)
+      expect(okWithComment.stdout).toContain('comment-ok')
+    })
+
+    it('handles multiline scripts with comments and preserves status of final statement', async () => {
+      const runner = createLocalShellRunner(createTestConfig({ terminalShell: 'powershell.exe' }))
+
+      // Multiline script where final statement succeeds
+      const multilineSuccess = await runner.execute({
+        command: 'Write-Output "line1" # comment 1\ncmd.exe /c exit 8 # comment 2\nWrite-Output "line3" # comment 3',
+      })
+      expect(multilineSuccess.exitCode).toBe(0)
+      expect(multilineSuccess.stdout).toContain('line1')
+      expect(multilineSuccess.stdout).toContain('line3')
+
+      // Multiline script ending with a failing native command
+      const multilineFail = await runner.execute({
+        command: 'Write-Output "step 1" # ok\ncmd.exe /c exit 9 # failed at end',
+      })
+      expect(multilineFail.exitCode).toBe(9)
+    })
+
+    it('handles trailing newlines without altering command exit status', async () => {
+      const runner = createLocalShellRunner(createTestConfig({ terminalShell: 'powershell.exe' }))
+
+      const trailingNewlines = await runner.execute({
+        command: 'Write-Output "newlines-ok"\n\n\n',
+      })
+      expect(trailingNewlines.exitCode).toBe(0)
+      expect(trailingNewlines.stdout).toContain('newlines-ok')
     })
 
     it('reports cmdlet failures as non-zero exit codes', async () => {
@@ -312,11 +391,70 @@ describe('createLocalShellRunner', () => {
 
       const followUp = await runner.execute({
         command: 'Write-Output "still-alive"',
-        // PowerShell cold start may take up to 2 seconds
         timeoutMs: 5_000,
       })
       expect(followUp.exitCode).toBe(0)
       expect(followUp.stdout).toContain('still-alive')
+    })
+
+    it('documents Windows timeout process reaping boundary: reaps shell but records surviving child processes', async () => {
+      // Spawn a controlled child process through PowerShell.
+      // On Windows, child.kill() invokes TerminateProcess on powershell.exe, but
+      // child processes spawned by powershell survive as orphans.
+      const childScript = `& "${execPath}" -e "setInterval(()=>{}, 1000)"`
+      const prefix = WINDOWS_POWERSHELL_OUTPUT_PREFIX
+      const suffix = POWERSHELL_EXIT_CODE_SUFFIX
+
+      const { spawn: rawSpawn } = await import('node:child_process')
+      const child = rawSpawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `${prefix}${childScript}${suffix}`], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        windowsHide: true,
+      })
+
+      const psPid = child.pid
+      expect(psPid).toBeDefined()
+
+      let childPids: number[] = []
+      try {
+        // Wait for child to spawn
+        await new Promise(r => setTimeout(r, 1_500))
+        if (psPid != null) {
+          childPids = queryChildPids(psPid)
+        }
+
+        // Direct shell process termination:
+        child.kill('SIGTERM')
+        await new Promise(r => setTimeout(r, 500))
+
+        // Direct PowerShell process is reaped
+        if (psPid != null) {
+          await expectProcessReaped(psPid, 2_000)
+        }
+
+        // Document empirical boundary: child processes survived TerminateProcess
+        if (childPids.length > 0) {
+          const survivingPids = childPids.filter((pid) => {
+            try {
+              process.kill(pid, 0)
+              return true
+            }
+            catch {
+              return false
+            }
+          })
+          // At least one child (node.exe or conhost.exe) survives on Windows without Job Objects
+          expect(survivingPids.length).toBeGreaterThan(0)
+        }
+      }
+      finally {
+        // Strictly clean up any residual child processes so tests never leak
+        for (const pid of childPids) {
+          try {
+            execSync(`taskkill /F /PID ${pid} > nul 2>&1`)
+          }
+          catch {}
+        }
+      }
     })
   })
 })
