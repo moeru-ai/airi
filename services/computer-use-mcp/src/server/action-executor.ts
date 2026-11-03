@@ -307,7 +307,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       return buildDeniedResponse(deniedDecision, context, executionTarget)
     }
 
-    if (isMutatingAction(normalizedAction) && preflight.mutationReadinessIssues.length > 0) {
+    if (isMutatingAction(normalizedAction) && normalizedAction.kind !== 'terminal_exec' && preflight.mutationReadinessIssues.length > 0) {
       const deniedDecision = buildDeniedDecision({
         decision,
         issues: preflight.mutationReadinessIssues,

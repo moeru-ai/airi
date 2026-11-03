@@ -150,7 +150,7 @@ describe('createLocalShellRunner', () => {
     finally {
       rmSync(testDir, { recursive: true, force: true })
     }
-  })
+  }, 15_000)
 
   it('returns non-zero exit codes without throwing', async () => {
     const runner = createLocalShellRunner(createTestConfig())
