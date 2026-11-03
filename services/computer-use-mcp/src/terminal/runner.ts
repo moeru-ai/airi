@@ -10,9 +10,90 @@ import type {
 } from '../types'
 
 import { spawn } from 'node:child_process'
-import { env, kill as killProcess, cwd as processCwd } from 'node:process'
+import { basename } from 'node:path'
+import { env, kill as killProcess, platform, cwd as processCwd } from 'node:process'
 
 export const TERMINAL_OUTPUT_MAX_CHARS = 16_384
+
+export const POWERSHELL_SHELL_NAME_RE = /^(?:powershell|powershell_?core|pwsh)(?:\.exe)?$/i
+
+/**
+ * PowerShell writes console output in the active codepage (for example GBK on
+ * zh-CN hosts), which the runner decodes as UTF-8. Forcing UTF-8 first keeps
+ * captured stdout decodable.
+ */
+export const WINDOWS_POWERSHELL_OUTPUT_PREFIX = '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; '
+
+/**
+ * PowerShell exit code wrapper:
+ * In PowerShell 5.1/7, cmdlet failures surface only through `$?` ($False) and
+ * do not update `$LASTEXITCODE`. Native executables update `$LASTEXITCODE`.
+ *
+ * Cmdlets do not reset an earlier `$LASTEXITCODE`. If a command executes a
+ * failing native command followed by a successful statement, `$LASTEXITCODE`
+ * remains non-zero even though the final statement succeeded ($? is $True).
+ *
+ * To avoid false-positive failures from stale `$LASTEXITCODE`, test `$?` ($ok) first:
+ * - If the final statement succeeded ($ok), exit with 0.
+ * - Otherwise ($ok is false): if a native exit code was recorded and is non-zero, exit with that code.
+ * - Otherwise (cmdlet failure where $LASTEXITCODE is 0 or null), exit with 1.
+ *
+ * If the user's command explicitly calls `exit N`, PowerShell exits immediately and this
+ * suffix is not reached.
+ */
+export const POWERSHELL_EXIT_CODE_SUFFIX
+  = '; $ok = $?; if ($ok) { exit 0 } elseif ($LASTEXITCODE -is [int] -and $LASTEXITCODE -ne 0) { exit $LASTEXITCODE } else { exit 1 }'
+
+export function isPowershellShell(shell: string): boolean {
+  return POWERSHELL_SHELL_NAME_RE.test(basename(shell.trim()))
+}
+
+export interface ShellInvocation {
+  args: string[]
+  detached: boolean
+  windowsHide: boolean
+}
+
+/**
+ * Resolves how a command reaches the configured shell, decoupling shell dialect
+ * from host operating system.
+ *
+ * - PowerShell on Windows (`hostPlatform === 'win32'`):
+ *   PowerShell 5.1/7 rejects POSIX login flags (`-lc`). Under Node.js on Windows,
+ *   `detached: true` causes PowerShell to exit 0 immediately without executing the
+ *   command. We pass `-NoProfile -NonInteractive -Command`, prepend UTF-8 encoding
+ *   configuration, append exit code normalization, and set `detached: false, windowsHide: true`.
+ *
+ * - PowerShell on POSIX (`hostPlatform !== 'win32'`, e.g. `pwsh` on Linux/macOS):
+ *   Accepts `-NoProfile -NonInteractive -Command` and exit code suffix, but preserves
+ *   POSIX process-group detachment (`detached: true, windowsHide: false`) so process-group
+ *   timeout reaping works.
+ *
+ * - POSIX shells (`/bin/zsh`, `/bin/bash`, `sh`, etc.):
+ *   Keep standard login-shell invocation `['-lc', command]`, with `detached: true` on POSIX
+ *   for process-group leadership.
+ */
+export function resolveShellInvocation(
+  shell: string,
+  command: string,
+  hostPlatform: NodeJS.Platform = platform,
+): ShellInvocation {
+  const isWin = hostPlatform === 'win32'
+  if (isPowershellShell(shell)) {
+    const prefix = isWin ? WINDOWS_POWERSHELL_OUTPUT_PREFIX : ''
+    return {
+      args: ['-NoProfile', '-NonInteractive', '-Command', `${prefix}${command}${POWERSHELL_EXIT_CODE_SUFFIX}`],
+      detached: !isWin,
+      windowsHide: isWin,
+    }
+  }
+
+  return {
+    args: ['-lc', command],
+    detached: !isWin,
+    windowsHide: isWin,
+  }
+}
 
 /**
  * Grace period between SIGTERM and SIGKILL when reaping a timed-out command's
@@ -23,21 +104,27 @@ const PROCESS_GROUP_KILL_GRACE_MS = 5_000
 
 /**
  * Signals the timed-out command's entire process group instead of only the
- * shell process.
+ * shell process on POSIX systems.
  *
  * The shell is spawned `detached`, which makes it a process-group leader on
  * POSIX, so a negative PID reaches every descendant — including background
  * grandchildren (`cmd &`, `nohup`, long-lived servers) that a bare
  * `child.kill()` would leave orphaned when the command times out.
  *
- * Falls back to signalling just the shell process when group signalling is
- * unavailable: the group already exited, or the platform has no POSIX process
- * groups (e.g. Windows, where the detached child still receives the direct
- * signal).
+ * Windows Process Cleanup Boundary:
+ * On Windows (`win32`), Node's `child_process` lacks POSIX process group support.
+ * Calling `killProcess(-pid, signal)` throws EINVAL on Windows.
+ * Calling `child.kill(signal)` invokes Win32 `TerminateProcess` on the immediate
+ * child process handle. Direct child processes attached to the shell terminate
+ * or exit when standard IO closes. However, background grandchildren spawned
+ * asynchronously (e.g. `Start-Process`, `cmd /c start`) are detached into
+ * independent Win32 processes and will NOT be reaped without Windows Job
+ * Objects or `taskkill /F /T`. Callers must not assume complete grandchild
+ * reaping on Windows.
  */
 function signalProcessGroup(child: ChildProcess, signal: NodeJS.Signals) {
   const pid = child.pid
-  if (pid != null) {
+  if (pid != null && platform !== 'win32') {
     try {
       killProcess(-pid, signal)
       return
@@ -124,16 +211,20 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
     execute: async (input: TerminalExecActionInput) => {
       const effectiveCwd = input.cwd?.trim() || state.effectiveCwd || processCwd()
       const timeoutMs = Math.max(1, input.timeoutMs ?? config.timeoutMs)
+      const invocation = resolveShellInvocation(config.terminalShell, input.command)
 
       const startedAt = Date.now()
       const result = await new Promise<TerminalCommandResult>((resolve, reject) => {
-        const child = spawn(config.terminalShell, ['-lc', input.command], {
+        const child = spawn(config.terminalShell, invocation.args, {
           cwd: effectiveCwd,
           env,
           stdio: ['ignore', 'pipe', 'pipe'],
           // Become a process-group leader so a timeout can reap the whole group
-          // (the shell plus any background grandchildren), not just the shell.
-          detached: true,
+          // on POSIX (the shell plus any background grandchildren).
+          // POSIX shells only: detached PowerShell on Windows exits 0 immediately,
+          // and Windows has no POSIX process groups.
+          detached: invocation.detached,
+          windowsHide: invocation.windowsHide,
         })
 
         const stdout = createOutputCapture()
@@ -149,9 +240,8 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
           timedOut = true
           finished = true
 
-          // Reap the command's whole process group, not just the shell, so
-          // background grandchildren don't outlive the timeout. Escalate to
-          // SIGKILL after a grace period if the group ignores SIGTERM.
+          // Reap the command's process group on POSIX, or direct child on Windows.
+          // Escalate to SIGKILL after a grace period if the group ignores SIGTERM.
           signalProcessGroup(child, 'SIGTERM')
           escalationTimer = setTimeout(signalProcessGroup, PROCESS_GROUP_KILL_GRACE_MS, child, 'SIGKILL')
           escalationTimer.unref()

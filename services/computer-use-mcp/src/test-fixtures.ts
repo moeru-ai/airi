@@ -7,6 +7,8 @@ import type {
   TerminalState,
 } from './types'
 
+import { platform } from 'node:process'
+
 export function createTestConfig(overrides: Partial<ComputerUseConfig> = {}): ComputerUseConfig {
   const baseConfig: ComputerUseConfig = {
     sessionRoot: '/tmp/computer-use-mcp',
@@ -30,7 +32,7 @@ export function createTestConfig(overrides: Partial<ComputerUseConfig> = {}): Co
     requireSessionTagForMutatingActions: true,
     requireAllowedBoundsForMutatingActions: true,
     requireCoordinateAlignmentForMutatingActions: true,
-    terminalShell: '/bin/zsh',
+    terminalShell: platform === 'win32' ? 'powershell.exe' : '/bin/zsh',
     remoteSshHost: '20.196.212.37',
     remoteSshUser: 'airi',
     remoteSshPort: 22,
