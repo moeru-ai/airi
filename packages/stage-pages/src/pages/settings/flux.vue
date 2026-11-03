@@ -266,20 +266,6 @@ async function handleBuy(stripePriceId: string) {
       </div>
     </div>
 
-    <RouterLink
-      v-if="isAuthenticated"
-      to="/settings/usage"
-      :class="[
-        'inline-flex min-h-9 items-center gap-2 self-end rounded-lg px-3 py-1.5 text-sm',
-        'text-primary-600 hover:bg-primary-500/10 dark:text-primary-400',
-        'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2',
-      ]"
-    >
-      <span aria-hidden="true" :class="['i-solar:chart-square-bold-duotone size-5']" />
-      {{ t('settings.pages.flux.usage.details') }}
-      <span aria-hidden="true" :class="['i-solar:alt-arrow-right-linear size-4']" />
-    </RouterLink>
-
     <div v-if="!fluxPurchaseDisabled" :class="['flex flex-col gap-4']">
       <!-- Currency selector -->
       <Skeleton v-if="packagesLoading" :class="['h-9 w-40 rounded-lg']" />
@@ -359,6 +345,25 @@ async function handleBuy(stripePriceId: string) {
         </button>
       </div>
     </div>
+
+    <RouterLink
+      v-if="isAuthenticated"
+      to="/settings/usage"
+      :class="[
+        '-mx-2 flex min-h-10 items-center gap-2 rounded-md px-2 py-1.5',
+        'text-sm text-inherit no-underline',
+        'transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-800/40',
+        'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2',
+      ]"
+    >
+      <span :class="['text-neutral-500 dark:text-neutral-400']">
+        {{ t('settings.pages.flux.audit.title') }}
+      </span>
+      <span :class="['ml-auto flex items-center gap-1 text-primary-600 dark:text-primary-400']">
+        {{ t('settings.pages.flux.usage.details') }}
+        <span aria-hidden="true" :class="['i-solar:alt-arrow-right-linear size-4']" />
+      </span>
+    </RouterLink>
 
     <div v-if="!isAuthenticated" :class="['flex flex-wrap items-center justify-center gap-x-5 gap-y-2 mt-auto pb-2 pt-6 text-xs text-neutral-500']">
       <a :class="['hover:text-primary-500']" :href="AIRI_TERMS_URL" target="_blank" rel="noreferrer">
