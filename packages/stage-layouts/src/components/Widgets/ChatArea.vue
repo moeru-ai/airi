@@ -2,6 +2,7 @@
 import type { ChatComposerController, ChatImageAttachment } from '@proj-airi/stage-ui/components/scenarios/chat'
 
 import { ChatComposerAddMenu, ChatComposerVoiceInput, ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSendButton, useChatImages, useStartVoiceCall, VoicePresence } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
@@ -47,6 +48,7 @@ const lastEnterTime = ref(0)
 
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
 const { chatReady } = storeToRefs(useConsciousnessStore())
+const authStore = useAuthStore()
 
 const replyTarget = props.composer.replyTarget
 const { t } = useI18n()
@@ -171,7 +173,7 @@ watch(replyTarget, async (target) => {
       'w-0 min-w-full',
     ]"
   >
-    <ChatProviderSetupCallout @configure="router.push('/settings/providers')" />
+    <ChatProviderSetupCallout @configure="router.push('/settings/providers')" @sign-in="authStore.requestLogin()" />
   </div>
   <!--
     The composer keeps a 0.5rem inset from the panel edges, like the chat history above it.
