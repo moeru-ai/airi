@@ -1,10 +1,12 @@
-import type { DevicePermission, DevicePermissionStatus } from '@proj-airi/stage-ui/stores/device-permissions'
+import type { DevicePermission, DevicePermissionStatus, ScreenPreview } from '@proj-airi/stage-ui/stores/device-permissions'
 
 import { electron } from '@proj-airi/electron-eventa'
-import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { useElectronScreenCapture } from '@proj-airi/electron-screen-capture/vue'
+import { getElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { formatAccelerator } from '@proj-airi/stage-shared/global-shortcut'
 
-import { usePushToTalkShortcutSettings } from './use-push-to-talk-shortcut'
+import { createObjectUrlFromBytes } from '../utils/create-object-url-from-bytes'
+import { usePushToTalkShortcutSettings, usePushToTalkTry } from './use-push-to-talk-shortcut'
 
 /** Maps an Electron media access status. `restricted` comes from a policy that the user cannot change in AIRI. */
 function toPermissionStatus(status: string): DevicePermissionStatus {
@@ -31,6 +33,23 @@ export function useDevicePermissions(): DevicePermission[] {
   const isTrustedAccessibilityClient = useElectronEventaInvoke(electron.systemPreferences.isTrustedAccessibilityClient)
   const openPrivacySettings = useElectronEventaInvoke(electron.systemPreferences.openPrivacySettings)
   const { accelerator } = usePushToTalkShortcutSettings()
+  const isTrusted = async () => await isTrustedAccessibilityClient([false])
+  const tryShortcut = usePushToTalkTry(isTrusted)
+  let screenCapture: ReturnType<typeof useElectronScreenCapture> | undefined
+  /** The preview URLs of the last capture. The next capture revokes them, so a refreshing preview does not leak. */
+  let previewUrls: string[] = []
+
+  async function captureScreens(): Promise<ScreenPreview[]> {
+    screenCapture ??= useElectronScreenCapture(getElectronEventaContext(), { types: ['screen'], thumbnailSize: { width: 960, height: 600 } })
+    const sources = await screenCapture.getSources()
+    const previews = sources
+      .filter(source => source.thumbnail && source.thumbnail.length > 0)
+      .map(source => ({ id: source.id, name: source.name, imageUrl: createObjectUrlFromBytes(source.thumbnail!, 'image/jpeg') }))
+    for (const url of previewUrls)
+      URL.revokeObjectURL(url)
+    previewUrls = previews.map(preview => preview.imageUrl)
+    return previews
+  }
 
   const isMacOS = /Macintosh|Mac OS X/.test(navigator.userAgent)
   const isWindows = /Windows/.test(navigator.userAgent)
@@ -62,10 +81,12 @@ export function useDevicePermissions(): DevicePermission[] {
       kind: 'accessibility',
       titleKey: 'settings.dialogs.onboarding.permissions.accessibilityTitle',
       descriptionKey: 'settings.dialogs.onboarding.permissions.accessibilityDescription',
+      settingsLocationKey: 'settings.dialogs.onboarding.permissions.flow.accessibility.location',
       // Accessibility lets the Push to Talk shortcut work in other apps, so the step shows that shortcut.
       shortcutKeys: () => formatAccelerator(accelerator.value).replaceAll('Key', '').replaceAll('Digit', '').split('+'),
+      tryShortcut,
       // macOS does not report a denial. An untrusted app looks the same before and after the prompt.
-      check: async () => await isTrustedAccessibilityClient([false]) ? 'granted' : 'not-determined',
+      check: async () => await isTrusted() ? 'granted' : 'not-determined',
       // The prompt adds AIRI to the Accessibility list and offers to open System Settings.
       request: async () => {
         await isTrustedAccessibilityClient([true])
@@ -76,6 +97,8 @@ export function useDevicePermissions(): DevicePermission[] {
       kind: 'screen-recording',
       titleKey: 'settings.dialogs.onboarding.permissions.screenRecordingTitle',
       descriptionKey: 'settings.dialogs.onboarding.permissions.screenRecordingDescription',
+      settingsLocationKey: 'settings.dialogs.onboarding.permissions.flow.screen-recording.location',
+      captureScreens,
       check: async () => toPermissionStatus(await getMediaAccessStatus(['screen'])),
       // macOS has no Screen Recording prompt for an app. The user turns it on in System Settings.
       request: async () => {

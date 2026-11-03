@@ -11,13 +11,14 @@ import { render } from 'vitest-browser-vue'
 import { defineComponent } from 'vue'
 import { createI18n } from 'vue-i18n'
 
-import { electronShortcutRegister, electronShortcutTriggered } from '../../shared/eventa'
-import { usePushToTalkShortcut, usePushToTalkShortcutSettings } from './use-push-to-talk-shortcut'
+import { electronShortcutList, electronShortcutRegister, electronShortcutTriggered } from '../../shared/eventa'
+import { PUSH_TO_TALK_TRY_SHORTCUT_ID, usePushToTalkShortcut, usePushToTalkShortcutSettings, usePushToTalkTry } from './use-push-to-talk-shortcut'
 
 const mocks = vi.hoisted(() => ({
   context: undefined as ReturnType<typeof createContext> | undefined,
   register: vi.fn<(binding: ShortcutBinding) => Promise<ShortcutRegistrationResult>>(),
   unregister: vi.fn<(payload: { id: string }) => Promise<void>>(),
+  list: vi.fn<() => Promise<ShortcutBinding[]>>(),
 }))
 
 // NOTICE:
@@ -29,13 +30,18 @@ vi.mock('@proj-airi/electron-vueuse', async () => {
   mocks.context = createContext()
   return {
     getElectronEventaContext: () => mocks.context,
-    useElectronEventaInvoke: (event: unknown) => event === electronShortcutRegister ? mocks.register : mocks.unregister,
+    useElectronEventaInvoke: (event: unknown) => {
+      if (event === electronShortcutRegister)
+        return mocks.register
+      return event === electronShortcutList ? mocks.list : mocks.unregister
+    },
   }
 })
 
 beforeEach(() => {
   mocks.register.mockImplementation(async binding => ({ id: binding.id, ok: true }))
   mocks.unregister.mockResolvedValue(undefined)
+  mocks.list.mockResolvedValue([])
 })
 
 afterEach(() => {
@@ -147,5 +153,92 @@ describe('usePushToTalkShortcut', () => {
     trigger('down')
 
     expect(beginManual).not.toHaveBeenCalled()
+  })
+})
+
+describe('usePushToTalkTry', () => {
+  async function startTry(trusted: boolean) {
+    const events: string[] = []
+    let stop: (() => void) | undefined
+    const screen = await render(defineComponent({
+      setup() {
+        const tryShortcut = usePushToTalkTry(async () => trusted)
+        stop = tryShortcut(event => events.push(`${event.phase}:${event.reach}`))
+        return () => null
+      },
+    }))
+    onTestFinished(() => screen.unmount())
+    return { events, stop: () => stop?.() }
+  }
+
+  function pressKeys() {
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', key: ' ', ctrlKey: true, shiftKey: true }))
+    window.dispatchEvent(new KeyboardEvent('keyup', { code: 'Space', key: ' ', ctrlKey: true, shiftKey: true }))
+  }
+
+  it('reports key presses of this window without Accessibility, and registers nothing', async () => {
+    const { events } = await startTry(false)
+
+    pressKeys()
+
+    expect(events).toEqual(['down:this-app', 'up:this-app'])
+    await Promise.resolve()
+    expect(mocks.register).not.toHaveBeenCalled()
+  })
+
+  it('registers a try binding with Accessibility, reports its triggers, and removes it when stopped', async () => {
+    const { events, stop } = await startTry(true)
+    await vi.waitFor(() => expect(mocks.register).toHaveBeenCalledWith(expect.objectContaining({ id: PUSH_TO_TALK_TRY_SHORTCUT_ID, scope: 'global', receiveKeyUps: true })))
+
+    // The global hook also sees presses in this window, so the window does not report them twice.
+    pressKeys()
+    trigger('down', PUSH_TO_TALK_TRY_SHORTCUT_ID)
+    trigger('up', PUSH_TO_TALK_TRY_SHORTCUT_ID)
+    expect(events).toEqual(['down:every-app', 'up:every-app'])
+
+    stop()
+    expect(mocks.unregister).toHaveBeenLastCalledWith({ id: PUSH_TO_TALK_TRY_SHORTCUT_ID })
+  })
+
+  it('keeps the binding of a new try when an earlier try stops while it registers', async () => {
+    // The page starts a new try when the status changes. Both tries use one ID, so their calls must not interleave.
+    const registered = new Set<string>()
+    mocks.register.mockImplementation(async (binding) => {
+      registered.add(binding.id)
+      return { id: binding.id, ok: true }
+    })
+    mocks.unregister.mockImplementation(async ({ id }) => {
+      registered.delete(id)
+    })
+    let tryShortcut: ReturnType<typeof usePushToTalkTry> | undefined
+    const screen = await render(defineComponent({
+      setup() {
+        tryShortcut = usePushToTalkTry(async () => true)
+        return () => null
+      },
+    }))
+    onTestFinished(() => screen.unmount())
+
+    const stopFirst = tryShortcut!(() => {})
+    stopFirst()
+    tryShortcut!(() => {})
+
+    await vi.waitFor(() => expect(mocks.register).toHaveBeenCalledTimes(1))
+    await vi.waitFor(() => expect(registered.has(PUSH_TO_TALK_TRY_SHORTCUT_ID)).toBe(true))
+  })
+
+  it('follows the Push to Talk binding when the stage window already holds the keys', async () => {
+    mocks.register.mockImplementation(async binding => ({ id: binding.id, ok: false, reason: 'conflict' }))
+    mocks.list.mockResolvedValue([{ id: 'voice-push-to-talk', accelerator: { modifiers: ['ctrl', 'shift'], key: 'Space' }, scope: 'global', receiveKeyUps: true }])
+    const { events, stop } = await startTry(true)
+    await vi.waitFor(() => expect(mocks.list).toHaveBeenCalled())
+    await vi.waitFor(() => {
+      trigger('down')
+      expect(events).toContain('down:every-app')
+    })
+
+    stop()
+    // The try does not own that binding, so it leaves it registered.
+    expect(mocks.unregister).not.toHaveBeenCalledWith({ id: 'voice-push-to-talk' })
   })
 })

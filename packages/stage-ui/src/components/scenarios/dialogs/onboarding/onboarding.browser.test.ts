@@ -328,7 +328,7 @@ async function renderPermissionsFlow() {
 it('shows only the permissions step to a user who finished provider setup, and records Set up later', async () => {
   const { screen, configured } = await renderPermissionsFlow()
 
-  await expect.element(screen.getByRole('heading', { name: 'Stay in the loop?' })).toBeInTheDocument()
+  await expect.element(screen.getByRole('heading', { name: 'Get reminders from your character' })).toBeInTheDocument()
   await screen.getByRole('button', { name: 'Set up later' }).click()
 
   await vi.waitFor(() => expect(configured).toHaveBeenCalled())
@@ -339,8 +339,9 @@ it('shows a skipped permission in the summary, and records the step as done', as
   const { screen, configured } = await renderPermissionsFlow()
 
   await screen.getByRole('button', { name: 'Skip' }).click()
-  await expect.element(screen.getByRole('heading', { name: 'You\'re all set' })).toBeInTheDocument()
-  await expect.element(screen.getByText('Skipped')).toBeInTheDocument()
+  await expect.element(screen.getByRole('heading', { name: 'Almost there' })).toBeInTheDocument()
+  await expect.element(screen.getByText('Skipped. You do not get reminders.')).toBeInTheDocument()
+  await expect.element(screen.getByRole('button', { name: 'Notifications, Skipped' })).toBeInTheDocument()
   await screen.getByRole('button', { name: 'Done' }).click()
 
   await vi.waitFor(() => expect(configured).toHaveBeenCalled())
@@ -353,7 +354,18 @@ it('continues after the user allows a permission, and shows it as granted in the
   await screen.getByRole('button', { name: 'Allow' }).click()
   await screen.getByRole('button', { name: 'Continue' }).click()
 
+  await expect.element(screen.getByRole('heading', { name: 'You\'re all set' })).toBeInTheDocument()
   await expect.element(screen.getByRole('img', { name: 'Granted' })).toBeInTheDocument()
-  await screen.getByRole('button', { name: 'Back' }).click()
-  await expect.element(screen.getByRole('heading', { name: 'Stay in the loop?' })).toBeInTheDocument()
+  // The steps are buttons, so the user can go back to a permission from the summary.
+  await screen.getByRole('button', { name: 'Notifications, Allowed' }).click()
+  await expect.element(screen.getByRole('heading', { name: 'Get reminders from your character' })).toBeInTheDocument()
+})
+
+it('opens a skipped permission again from the summary', async () => {
+  const { screen } = await renderPermissionsFlow()
+
+  await screen.getByRole('button', { name: 'Skip' }).click()
+  await screen.getByRole('button', { name: 'Set up Notifications' }).click()
+
+  await expect.element(screen.getByRole('heading', { name: 'Get reminders from your character' })).toBeInTheDocument()
 })

@@ -78,40 +78,66 @@ dialogs:
       stateGranted: Granted
       stateNotGranted: Not granted
       flow:
-        position: Permission {current} of {total}
+        steps: Permissions
         setUpLater: Set up later
         allow: Allow
         continue: Continue
-        listening: Listening…
         skip: Skip
         done: Done
-        microphone:
-          title: Can your character hear you?
-          body: For voice chat and wake words.
-        microphone-testing:
-          title: Say something
-          body: Try "Hello".
-          quiet: Nothing? Check mute, or pick another input.
-        microphone-heard:
-          title: We can hear you
-          body: Your microphone works.
-        accessibility:
-          title: Hold to talk, from any app
-          body: Talk while another app is in front.
-          off: Turn on Accessibility for AIRI.
-          on: Works in every app.
-        screen-recording:
-          title: Let your character see your screen?
-          body: Only when you ask.
-          hidden: Hidden from your character
-          visible: Visible when you ask
-        notifications:
-          title: Stay in the loop?
-          body: Reminders and status updates.
-        summary:
-          title: You're all set
-          body: Change these in Settings.
+        state:
+          granted: Allowed
           skipped: Skipped
+          todo: Not set up
+          review: Review
+        microphone:
+          title: Let your character hear you
+          body: Voice chat and wake words use it.
+          allow: Allow microphone
+          device: 'Input device: {device}'
+          testing: Say something, like "Hello".
+          quiet: Nothing yet? Check mute, or pick another input.
+          heard: We can hear you.
+          level: Microphone input level
+          on: Voice chat and wake words are on.
+          off: Voice chat stays off. You can still type.
+        accessibility:
+          title: Talk while you use other apps
+          body: Hold the shortcut, speak, and let go. macOS calls this permission Accessibility.
+          with: With Accessibility
+          withBody: The shortcut works in every app.
+          without: Without it
+          withoutBody: It works only while AIRI is in front.
+          try: Hold the keys to try.
+          listening: Listening
+          worksEverywhere: It works. Try it in another app too.
+          worksHere: It works here. Other apps need Accessibility.
+          location: Turn on AIRI in Privacy & Security › Accessibility.
+          on: The shortcut works in every app.
+          off: The shortcut works only while AIRI is in front.
+        screen-recording:
+          title: Let your character see your screen
+          body: Only when you ask, for example "What is on my screen?"
+          visible: This is what your character sees.
+          hidden: Hidden from your character
+          live: Live preview
+          display: Display
+          previewOf: 'Preview of {screen}'
+          location: Turn on AIRI in Privacy & Security › Screen Recording.
+          on: Your character sees your screen when you ask.
+          off: Your character cannot see your screen.
+        notifications:
+          title: Get reminders from your character
+          body: Reminders and status updates.
+          on: Notifications are on.
+          off: You do not get reminders.
+        summary:
+          name: Summary
+          title: You're all set
+          almost: Almost there
+          body: You can change these in Settings at any time.
+          skipped: 'Skipped. {consequence}'
+          setUp: Set up
+          setUpOne: 'Set up {permission}'
   bug-report:
     title: Bug report (´;ω;`)ヾ(･∀･`)
     subtitle: Oops, sorry we made something wrong. Would you mind telling us what

@@ -71,40 +71,66 @@ dialogs:
       stateGranted: 已授权
       stateNotGranted: 未授权
       flow:
-        position: 第 {current} 项权限，共 {total} 项
+        steps: 权限
         setUpLater: 稍后设置
         allow: 允许
         continue: 继续
-        listening: 正在聆听…
         skip: 跳过
         done: 完成
-        microphone:
-          title: 让角色听见你？
-          body: 用于语音聊天和唤醒词。
-        microphone-testing:
-          title: 说点什么吧
-          body: 试试说「你好」。
-          quiet: 没有反应？检查是否静音，或换一个输入设备。
-        microphone-heard:
-          title: 听到你了
-          body: 麦克风工作正常。
-        accessibility:
-          title: 在任何应用里按住说话
-          body: 其他应用在前台时也能说话。
-          off: 请为 AIRI 打开辅助功能。
-          on: 在所有应用里都能用。
-        screen-recording:
-          title: 让角色看到你的屏幕？
-          body: 只在你要求时。
-          hidden: 角色看不到
-          visible: 你要求时可见
-        notifications:
-          title: 接收通知？
-          body: 提醒和状态更新。
-        summary:
-          title: 都设置好了
-          body: 之后可以在设置里修改。
+        state:
+          granted: 已允许
           skipped: 已跳过
+          todo: 未设置
+          review: 查看
+        microphone:
+          title: 让角色听见你
+          body: 语音聊天和唤醒词需要它。
+          allow: 允许使用麦克风
+          device: 输入设备：{device}
+          testing: 说点什么，比如「你好」。
+          quiet: 还没有声音？检查是否静音，或换一个输入设备。
+          heard: 听到你了。
+          level: 麦克风输入音量
+          on: 语音聊天和唤醒词已开启。
+          off: 语音聊天保持关闭，你仍然可以打字。
+        accessibility:
+          title: 在其他应用里也能说话
+          body: 按住快捷键，说话，然后松开。macOS 把这个权限叫作「辅助功能」。
+          with: 有辅助功能权限
+          withBody: 快捷键在所有应用里都能用。
+          without: 没有这个权限
+          withoutBody: 只有 AIRI 在前台时才能用。
+          try: 按住这些键试试。
+          listening: 正在聆听
+          worksEverywhere: 可以用了。也去其他应用里试试吧。
+          worksHere: 在这里可以用。其他应用需要辅助功能权限。
+          location: 在「隐私与安全性 › 辅助功能」中打开 AIRI。
+          on: 快捷键在所有应用里都能用。
+          off: 快捷键只在 AIRI 处于前台时可用。
+        screen-recording:
+          title: 让角色看到你的屏幕
+          body: 只在你要求时，比如问「我的屏幕上有什么？」
+          visible: 这就是角色能看到的画面。
+          hidden: 角色看不到
+          live: 实时预览
+          display: 显示器
+          previewOf: '{screen} 的预览'
+          location: 在「隐私与安全性 › 录屏与系统录音」中打开 AIRI。
+          on: 你要求时，角色可以看到你的屏幕。
+          off: 角色看不到你的屏幕。
+        notifications:
+          title: 接收角色的提醒
+          body: 提醒和状态更新。
+          on: 通知已开启。
+          off: 你不会收到提醒。
+        summary:
+          name: 总结
+          title: 都设置好了
+          almost: 就差一点了
+          body: 之后可以随时在设置里修改。
+          skipped: 已跳过。{consequence}
+          setUp: 去设置
+          setUpOne: 设置{permission}
   bug-report:
     title: Bug 汇报 (´;ω;`)ヾ(･∀･`)
     subtitle: 坏哦，看起来我们不小心搞砸了一些东西。可以分享一下遇到了什么问题吗？

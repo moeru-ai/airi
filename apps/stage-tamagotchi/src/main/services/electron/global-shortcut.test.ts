@@ -416,7 +416,8 @@ describe('setupGlobalShortcutService', () => {
     const winA = registerMockWindow(service, ctxA)
     registerMockWindow(service, ctxB)
 
-    const handler = ctxA.invokeHandlers.get('eventa:invoke:electron:shortcut:register')!
+    // ctxB owns the binding, so closing ctxA's window keeps it registered.
+    const handler = ctxB.invokeHandlers.get('eventa:invoke:electron:shortcut:register')!
     handler(exampleBinding('toggle'))
 
     // ctxA's window closes; subsequent triggers should only reach ctxB
@@ -429,6 +430,27 @@ describe('setupGlobalShortcutService', () => {
       expect.objectContaining({ id: 'eventa:event:electron:shortcut:triggered' }),
       { id: 'toggle', phase: 'down' },
     )
+  })
+
+  it('releases the bindings of a window when the window closes', async () => {
+    const m = await setupMocks()
+    const service = m.setupGlobalShortcutService()
+    const ctxA = createMockContext()
+    const ctxB = createMockContext()
+    const winA = registerMockWindow(service, ctxA)
+    registerMockWindow(service, ctxB)
+
+    ctxA.invokeHandlers.get('eventa:invoke:electron:shortcut:register')!(exampleBinding('a', 'KeyA'))
+    ctxB.invokeHandlers.get('eventa:invoke:electron:shortcut:register')!(exampleBinding('b', 'KeyB'))
+    winA.close()
+
+    expect(m.unregisterMock).toHaveBeenCalledWith('CmdOrCtrl+Shift+A')
+    expect(m.unregisterMock).not.toHaveBeenCalledWith('CmdOrCtrl+Shift+B')
+    const list = ctxB.invokeHandlers.get('eventa:invoke:electron:shortcut:list')!
+    expect((list(undefined) as ShortcutBinding[]).map(binding => binding.id)).toEqual(['b'])
+    // The key combination of the closed window is free again.
+    const result = ctxB.invokeHandlers.get('eventa:invoke:electron:shortcut:register')!(exampleBinding('c', 'KeyA')) as { ok: boolean }
+    expect(result.ok).toBe(true)
   })
 
   it('hooks dispose into onAppBeforeQuit and clears state on call', async () => {
