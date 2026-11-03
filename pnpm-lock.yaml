@@ -4406,9 +4406,6 @@ importers:
       '@mediapipe/tasks-vision':
         specifier: 'catalog:'
         version: 1.0.1
-      '@moeru/std':
-        specifier: 'catalog:'
-        version: 0.1.0-beta.17
       '@pixiv/three-vrm':
         specifier: 'catalog:'
         version: 3.5.5(@types/three@0.185.4)(three@0.185.1)
@@ -4422,12 +4419,6 @@ importers:
       '@types/three':
         specifier: 'catalog:'
         version: 0.185.4
-      ofetch:
-        specifier: 'catalog:'
-        version: 1.5.1
-      tsx:
-        specifier: 'catalog:'
-        version: 4.23.12
 
   packages/motion-driver-magic:
     dependencies:
