@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { settingsSearchLocation } from '@proj-airi/stage-shared/settings-search'
 import { SettingsSearchField } from '@proj-airi/stage-ui/components'
 import { getAiriCardEditorModuleSettings } from '@proj-airi/stage-ui/services/airi-card-editor'
 import { AiriCardPackageError, importAiriCardPackage } from '@proj-airi/stage-ui/services/airi-card-import-export'
@@ -17,7 +16,6 @@ import { toast } from 'vue-sonner'
 import CardListItem from './components/card-list-item.vue'
 import WakeWordConflictAlert from './components/wake-word-conflict-alert.vue'
 
-import { syncSearchKey } from '../account/index.search'
 import { formatRelativeTime } from './composables/relative-time'
 
 const { t, locale } = useI18n()
@@ -301,14 +299,6 @@ async function handleRestoreDeletedCard(card: DeletedCard) {
         </div>
       </div>
     </div>
-
-    <p v-else-if="isAuthenticated" :class="['flex flex-wrap items-center gap-2 text-sm', 'text-neutral-500 dark:text-neutral-400']">
-      <span :class="['i-solar:cloud-cross-outline shrink-0']" />
-      {{ t('settings.pages.card.sync.off_notice') }}
-      <RouterLink :to="settingsSearchLocation('/settings/account', { keys: [syncSearchKey('character-cards')] })" :class="['text-primary-600 dark:text-primary-400 hover:underline']">
-        {{ t('settings.pages.card.sync.off_notice_link') }}
-      </RouterLink>
-    </p>
 
     <div :class="['flex flex-wrap items-center gap-3']">
       <SettingsSearchField
