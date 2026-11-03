@@ -369,24 +369,9 @@
       "count": 2
     }
   },
-  "packages/core-agent/src/agents/spark-notify/tools.ts": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "packages/core-agent/src/runtime/agent-hooks.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
   "packages/model-driver-mediapipe/src/three/apply-pose-to-vrm.ts": {
     "ts/no-explicit-any": {
       "count": 4
-    }
-  },
-  "packages/plugin-protocol/src/types/events.ts": {
-    "ts/no-explicit-any": {
-      "count": 3
     }
   },
   "packages/plugin-sdk/src/channels/index.ts": {
