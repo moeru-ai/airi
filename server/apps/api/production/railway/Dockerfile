@@ -16,6 +16,10 @@ COPY server/packages/server-sdk-shared/package.json server/packages/server-sdk-s
 
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
+# The image holds a trimmed workspace, so the root patchedDependencies list has unused patches.
+# Skip the pre-run dependency check, which would otherwise start a second install and fail.
+RUN printf '\nverifyDepsBeforeRun: false\n' >> pnpm-workspace.yaml
+
 COPY server/apps/api server/apps/api
 COPY server/packages/auth-shared server/packages/auth-shared
 COPY server/packages/http-error-shared server/packages/http-error-shared
