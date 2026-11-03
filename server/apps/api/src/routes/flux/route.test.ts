@@ -25,16 +25,6 @@ function createMockFluxTransactionService(): FluxTransactionService {
       records: [{ id: 'tx-1', type: 'credit', amount: 5, description: 'Top up', metadata: { source: 'test' }, createdAt: new Date('2026-03-27T10:00:00.000Z') }],
       hasMore: limit === 100 && offset === 0,
     })),
-    getUsageHistory: vi.fn(async () => ({
-      records: [{
-        id: 'usage-1',
-        sourceType: 'tts',
-        sourceId: 'request-1',
-        amountMicroFlux: 550_000,
-        createdAt: new Date('2026-03-27T10:00:00.000Z'),
-      }],
-      hasMore: false,
-    })),
     getDailyUsage: vi.fn(async () => ({
       days: [{ date: '2026-03-27', microFlux: 1_550_000 }],
       longestSessionMs: 60_000,
@@ -88,24 +78,13 @@ describe('fluxRoutes', () => {
     })
   })
 
-  it('returns service fees separately and scopes the query to the authenticated wallet', async () => {
+  it('does not expose the removed per-request fee listing', async () => {
     const transactions = createMockFluxTransactionService()
     const app = createTestApp(createMockFluxService(), transactions)
     const response = await app.request('/api/v1/flux/usage?limit=20&offset=5')
-    expect(response.status).toBe(200)
-    expect(transactions.getUsageHistory).toHaveBeenCalledWith('user-1', 20, 5)
-    expect(await response.json()).toMatchObject({
-      records: [{ sourceType: 'tts', amountMicroFlux: 550_000, createdAt: '2026-03-27T10:00:00.000Z' }],
-      hasMore: false,
-    })
-  })
-
-  it('rejects unauthenticated fee history requests before reading the database', async () => {
-    const transactions = createMockFluxTransactionService()
-    const app = createTestApp(createMockFluxService(), transactions, false)
-    const response = await app.request('/api/v1/flux/usage')
-    expect(response.status).toBe(401)
-    expect(transactions.getUsageHistory).not.toHaveBeenCalled()
+    expect(response.status).toBe(404)
+    expect(transactions.getDailyUsage).not.toHaveBeenCalled()
+    expect(transactions.getHistory).not.toHaveBeenCalled()
   })
 
   it('returns the daily usage of the authenticated wallet in the requested time zone', async () => {

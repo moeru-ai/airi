@@ -50,21 +50,6 @@ export function createFluxRoutes(
       await billingService.setFallbackToFlux(user.id, body.output.fallbackToFlux)
       return c.json({ fallbackToFlux: body.output.fallbackToFlux })
     })
-    .get('/usage', async (c) => {
-      const user = c.get('user')!
-      const { limit, offset } = parse(LimitOffsetPaginationQuerySchema, {
-        limit: c.req.query('limit'),
-        offset: c.req.query('offset'),
-      })
-      const result = await fluxTransactionService.getUsageHistory(user.id, limit, offset)
-      return c.json({
-        records: result.records.map(record => ({
-          ...record,
-          createdAt: record.createdAt.toISOString(),
-        })),
-        hasMore: result.hasMore,
-      })
-    })
     .get('/usage/daily', async (c) => {
       const user = c.get('user')!
       const query = safeParse(TimeZoneQuerySchema, { timeZone: c.req.query('timeZone') })
