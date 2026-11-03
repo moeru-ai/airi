@@ -1,4 +1,5 @@
-import { beforeAll, describe, expect, it } from 'vitest'
+import { eq } from 'drizzle-orm'
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { mockDB } from '../../libs/mock-db'
 import { createFluxTransactionService } from './flux-transaction'
@@ -19,62 +20,30 @@ describe('fluxTransactionService', () => {
     service = createFluxTransactionService(db)
   })
 
-  it('log should insert a single transaction entry', async () => {
-    await service.log({
-      userId: 'user-tx',
-      type: 'credit',
-      amount: 500,
-      balanceBefore: 0,
-      balanceAfter: 500,
-      description: 'Stripe payment',
-      metadata: { stripeSessionId: 'sess_123' },
-    })
-
-    const { records } = await service.getHistory('user-tx', 10, 0)
-    expect(records).toHaveLength(1)
-    expect(records[0].type).toBe('credit')
-    expect(records[0].amount).toBe(500)
-  })
-
-  it('logBatch should insert multiple entries', async () => {
-    await service.logBatch([
-      { userId: 'user-tx', type: 'debit', amount: 10, balanceBefore: 500, balanceAfter: 490, description: 'gpt-4o' },
-      { userId: 'user-tx', type: 'debit', amount: 5, balanceBefore: 490, balanceAfter: 485, description: 'gpt-4o-mini' },
+  beforeEach(async () => {
+    await db.delete(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-tx'))
+    await db.insert(schema.fluxTransaction).values([
+      { id: 'history-credit', userId: 'user-tx', type: 'credit', amount: 500, balanceBefore: 0, balanceAfter: 500, description: 'Stripe payment', createdAt: new Date('2026-10-20T10:00:00Z') },
+      { id: 'history-debit-1', userId: 'user-tx', type: 'debit', amount: 10, balanceBefore: 500, balanceAfter: 490, description: 'usage_settlement', createdAt: new Date('2026-10-20T11:00:00Z') },
+      { id: 'history-debit-2', userId: 'user-tx', type: 'debit', amount: 5, balanceBefore: 490, balanceAfter: 485, description: 'usage_settlement', createdAt: new Date('2026-10-20T12:00:00Z') },
     ])
-
-    const { records } = await service.getHistory('user-tx', 10, 0)
-    expect(records).toHaveLength(3) // 1 from previous test + 2 batch
   })
 
-  it('logBatch with empty array should be a no-op', async () => {
-    await service.logBatch([])
-    const { records } = await service.getHistory('user-tx', 10, 0)
-    expect(records).toHaveLength(3)
-  })
-
-  it('getHistory should paginate correctly with hasMore', async () => {
+  it('returns the newest records with a next-page marker', async () => {
     const { records, hasMore } = await service.getHistory('user-tx', 2, 0)
-    expect(records).toHaveLength(2)
+    expect(records.map(record => record.id)).toEqual(['history-debit-2', 'history-debit-1'])
     expect(hasMore).toBe(true)
   })
 
-  it('getHistory should return hasMore=false on last page', async () => {
+  it('returns the complete history in descending order without a next-page marker', async () => {
     const { records, hasMore } = await service.getHistory('user-tx', 10, 0)
-    expect(records).toHaveLength(3)
+    expect(records.map(record => record.id)).toEqual(['history-debit-2', 'history-debit-1', 'history-credit'])
     expect(hasMore).toBe(false)
   })
 
-  it('getHistory should respect offset', async () => {
+  it('resumes history at the requested offset', async () => {
     const { records } = await service.getHistory('user-tx', 10, 2)
-    expect(records).toHaveLength(1)
-  })
-
-  it('getHistory should return records ordered by createdAt desc', async () => {
-    const { records } = await service.getHistory('user-tx', 10, 0)
-    for (let i = 1; i < records.length; i++) {
-      expect(new Date(records[i - 1].createdAt).getTime())
-        .toBeGreaterThanOrEqual(new Date(records[i].createdAt).getTime())
-    }
+    expect(records.map(record => record.id)).toEqual(['history-credit'])
   })
 
   it('groups one turn before pagination', async () => {

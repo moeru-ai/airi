@@ -77,7 +77,6 @@ describe('public Flux page', () => {
     // The subscription and the balance belong to an account, so a signed-out visitor sees only the packs.
     expect(screen.getByTestId('flux-subscription').elements()).toHaveLength(0)
     expect(screen.getByTestId('flux-balance').elements()).toHaveLength(0)
-    expect(screen.getByText('No usage yet.').elements()).toHaveLength(0)
 
     await screen.getByRole('button', { name: '500 Flux $3.00' }).click()
 

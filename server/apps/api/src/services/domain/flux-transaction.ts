@@ -1,15 +1,12 @@
 import type { Database } from '../../libs/db'
 import type { DailyUsageSummary } from '../../types/flux-usage'
 
-import { useLogger } from '@guiiai/logg'
 import { and, desc, eq, getTableColumns, gte, inArray, isNotNull, lte, sql, sum } from 'drizzle-orm'
 
 import { fluxUsage } from '../../schemas/flux-usage'
 import { llmRequestLog } from '../../schemas/llm-request-log'
 
 import * as schema from '../../schemas/flux-transaction'
-
-const logger = useLogger('flux-transaction')
 
 const DAILY_USAGE_DAYS = 365
 const MILLISECONDS_PER_DAY = 86_400_000
@@ -28,17 +25,6 @@ function shiftDate(date: string, days: number): string {
   const shifted = new Date(`${date}T00:00:00Z`)
   shifted.setUTCDate(shifted.getUTCDate() + days)
   return shifted.toISOString().slice(0, 10)
-}
-
-export interface TransactionEntry {
-  userId: string
-  type: 'credit' | 'debit' | 'initial' | 'promo'
-  amount: number
-  balanceBefore: number
-  balanceAfter: number
-  requestId?: string
-  description: string
-  metadata?: Record<string, unknown>
 }
 
 export function createFluxTransactionService(db: Database) {
@@ -105,18 +91,6 @@ export function createFluxTransactionService(db: Database) {
       })
 
       return { days, longestSessionMs: sessionRows[0]!.longestSessionMs }
-    },
-
-    async log(entry: TransactionEntry) {
-      await db.insert(schema.fluxTransaction).values(entry)
-      logger.withFields({ userId: entry.userId, type: entry.type, amount: entry.amount }).log('Transaction recorded')
-    },
-
-    async logBatch(entries: TransactionEntry[]) {
-      if (entries.length === 0)
-        return
-      await db.insert(schema.fluxTransaction).values(entries)
-      logger.withFields({ count: entries.length }).log('Transaction batch recorded')
     },
 
     async getHistory(userId: string, limit: number, offset: number) {
