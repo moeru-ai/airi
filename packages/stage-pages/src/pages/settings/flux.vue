@@ -158,7 +158,7 @@ async function fetchDailyUsage() {
       query: { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
     })
     if (res.ok)
-      usageSummary.value = await res.json() as DailyUsageSummary
+      usageSummary.value = await res.json()
   }
   catch {}
 }

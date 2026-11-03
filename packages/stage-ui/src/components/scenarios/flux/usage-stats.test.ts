@@ -2,142 +2,99 @@ import type { DailyUsage } from './usage-stats'
 
 import { describe, expect, it } from 'vitest'
 
-import { buildHeatmap, computeStreaks, daysOfCalendarYear, formatDay, formatDuration, formatFlux, lastDays, totalMicroFlux } from './usage-stats'
+import { buildActivity, computeStreaks, formatDay, formatDuration, formatFlux } from './usage-stats'
 
 function daysFrom(firstDate: string, totals: number[]): DailyUsage[] {
-  return totals.map((total, index) => {
+  return totals.map((microFlux, index) => {
     const date = new Date(`${firstDate}T00:00:00Z`)
     date.setUTCDate(date.getUTCDate() + index)
-    return { date: date.toISOString().slice(0, 10), llmMicroFlux: total, ttsMicroFlux: 0, newSessionCount: 0 }
+    return { date: date.toISOString().slice(0, 10), microFlux }
   })
 }
 
 describe('usage stats', () => {
-  it('adds both layers of a day', () => {
-    expect(totalMicroFlux({ date: '2026-10-25', llmMicroFlux: 1_000_000, ttsMicroFlux: 500_000, newSessionCount: 0 })).toBe(1_500_000)
-  })
-
-  it('keeps the newest days', () => {
-    const days = daysFrom('2026-10-20', [1, 2, 3, 4, 5, 6])
-    expect(lastDays(days, 2).map(day => day.date)).toEqual(['2026-10-24', '2026-10-25'])
-    expect(lastDays(days, 99)).toHaveLength(6)
-  })
-
   describe('computeStreaks', () => {
     it('finds the longest run and the run that ends on the last day', () => {
       expect(computeStreaks(daysFrom('2026-10-01', [1, 1, 1, 1, 0, 1, 1]))).toEqual({ longest: 4, current: 2 })
     })
 
-    it('keeps the current streak when only the last day is empty', () => {
+    it('keeps the current streak when only today is empty', () => {
       expect(computeStreaks(daysFrom('2026-10-01', [0, 1, 1, 1, 0]))).toEqual({ longest: 3, current: 3 })
     })
 
-    it('ends the current streak after one empty day before the last day', () => {
+    it('ends the current streak after an empty yesterday', () => {
       expect(computeStreaks(daysFrom('2026-10-01', [1, 1, 0, 0]))).toEqual({ longest: 2, current: 0 })
     })
 
-    it('returns zero for no days and for days without usage', () => {
+    it('returns zero for no days and days without usage', () => {
       expect(computeStreaks([])).toEqual({ longest: 0, current: 0 })
       expect(computeStreaks(daysFrom('2026-10-01', [0, 0, 0]))).toEqual({ longest: 0, current: 0 })
     })
   })
 
-  describe('daysOfCalendarYear', () => {
-    it('keeps the year and adds the days that have not happened', () => {
-      const days = daysFrom('2025-12-31', [8, 3])
-      const year = daysOfCalendarYear(days, 2026)
-
-      expect(year).toHaveLength(365)
-      expect(year[0]).toEqual({ date: '2026-01-01', llmMicroFlux: 3, ttsMicroFlux: 0, newSessionCount: 0 })
-      expect(year[1]).toEqual({ date: '2026-01-02', llmMicroFlux: 0, ttsMicroFlux: 0, newSessionCount: 0 })
-      expect(year.at(-1)?.date).toBe('2026-12-31')
-      expect(year.some(day => day.date.startsWith('2025'))).toBe(false)
+  describe('buildActivity', () => {
+    it('keeps partial weeks and groups fees from Monday through Sunday', () => {
+      const days = daysFrom('2026-10-04', [2, 1, 2, 3, 4, 5, 6, 7, 8])
+      const weekly = buildActivity(days, 'weekly')
+      expect(weekly.groups.map(group => [group.date, group.endDate, group.microFlux])).toEqual([
+        ['2026-10-04', '2026-10-04', 2],
+        ['2026-10-05', '2026-10-11', 28],
+        ['2026-10-12', '2026-10-12', 8],
+      ])
+      expect(weekly.weekCount).toBe(3)
     })
 
-    it('includes February 29 in a leap year', () => {
-      const year = daysOfCalendarYear([], 2024)
+    it('accumulates weekly totals without losing edge days', () => {
+      const cumulative = buildActivity(daysFrom('2026-10-04', [2, 1, 2, 3, 4, 5, 6, 7, 8]), 'cumulative')
+      expect(cumulative.groups.map(group => group.microFlux)).toEqual([2, 30, 38])
+      const heights = cumulative.groups.map(group => cumulative.cells.filter(cell => cell.column === group.column && cell.visible).length)
+      expect(heights).toEqual([1, 6, 7])
+    })
 
-      expect(year).toHaveLength(366)
-      expect(year.some(day => day.date === '2024-02-29')).toBe(true)
+    it('keeps tile identities across modes and places daily dates in weekday rows', () => {
+      const days = daysFrom('2026-10-04', [1, 2, 3])
+      const daily = buildActivity(days, 'daily')
+      const weekly = buildActivity(days, 'weekly')
+      expect(daily.cells.map(cell => cell.id)).toEqual(weekly.cells.map(cell => cell.id))
+      expect(daily.groups.map(group => [group.column, group.row])).toEqual([[0, 6], [1, 0], [1, 1]])
+      expect(daily.cells.filter(cell => cell.visible)).toHaveLength(3)
+    })
+
+    it('uses quartiles so one very busy day does not hide quieter days', () => {
+      const { cells } = buildActivity(daysFrom('2026-10-05', [0, 10, 11, 12, 13, 1_000_000]), 'daily')
+      expect(cells[0]!.level).toBe(0)
+      expect(cells[1]!.level).toBeGreaterThan(0)
+      expect(cells[5]!.level).toBeGreaterThan(cells[4]!.level)
+    })
+
+    it('handles leap day and the year boundary without changing calendar dates', () => {
+      expect(buildActivity(daysFrom('2024-02-28', [1, 2, 3]), 'daily').groups.map(group => group.date)).toEqual(['2024-02-28', '2024-02-29', '2024-03-01'])
+      expect(buildActivity(daysFrom('2025-12-31', [1, 2]), 'weekly').groups[0]!.microFlux).toBe(3)
+    })
+
+    it('hides zero bars and returns an empty layout for no days', () => {
+      expect(buildActivity(daysFrom('2026-10-05', [0, 0]), 'weekly').cells.every(cell => !cell.visible)).toBe(true)
+      expect(buildActivity([], 'daily').groups).toEqual([])
+    })
+
+    it('keeps the rolling year and drops a crowded first month label', () => {
+      const days = daysFrom('2025-11-30', Array.from<number>({ length: 365 }).fill(1))
+      const layout = buildActivity(days, 'daily')
+      expect(layout.groups).toHaveLength(365)
+      expect(layout.groups[0]!.date).toBe('2025-11-30')
+      expect(layout.groups.at(-1)!.date).toBe('2026-11-29')
+      expect(layout.monthLabels[0]!.date).toBe('2025-12-01')
+      expect(layout.monthLabels.at(-1)!.date).toBe('2026-11-01')
     })
   })
 
-  describe('buildHeatmap', () => {
-    it('returns an empty layout for no days', () => {
-      expect(buildHeatmap([])).toEqual({ cells: [], weekCount: 0, monthLabels: [] })
-    })
-
-    it('starts a calendar year on January 1 and keeps later empty days', () => {
-      const { cells } = buildHeatmap(daysOfCalendarYear(daysFrom('2025-12-31', [1, 2]), 2026))
-
-      expect(cells[0]).toMatchObject({ date: '2026-01-01', weekIndex: 0, weekday: 4, level: 1 })
-      expect(cells.at(-1)).toMatchObject({ date: '2026-12-31', level: 0 })
-      expect(cells).toHaveLength(365)
-    })
-
-    it('puts Sunday in row 0 and starts the first column on the weekday of the oldest day', () => {
-      // 2026-10-22 is a Thursday.
-      const { cells, weekCount } = buildHeatmap(daysFrom('2026-10-22', [1, 1, 1, 1, 1, 1]))
-
-      expect(cells.map(cell => [cell.date, cell.weekIndex, cell.weekday])).toEqual([
-        ['2026-10-22', 0, 4],
-        ['2026-10-23', 0, 5],
-        ['2026-10-24', 0, 6],
-        ['2026-10-25', 1, 0],
-        ['2026-10-26', 1, 1],
-        ['2026-10-27', 1, 2],
-      ])
-      expect(weekCount).toBe(2)
-    })
-
-    it('gives a day without usage level 0 and spreads busy days across higher levels', () => {
-      const { cells } = buildHeatmap(daysFrom('2026-10-04', [0, 10, 20, 30, 40]))
-      const levels = cells.map(cell => cell.level)
-
-      expect(levels[0]).toBe(0)
-      expect(levels.slice(1).every(level => level >= 1 && level <= 4)).toBe(true)
-      expect(new Set(levels.slice(1)).size).toBeGreaterThan(1)
-    })
-
-    it('does not let one very busy day hide the other days', () => {
-      const { cells } = buildHeatmap(daysFrom('2026-10-04', [10, 11, 12, 13, 1_000_000]))
-      const levels = cells.map(cell => cell.level)
-      const quieter = levels.slice(0, -1)
-
-      expect(quieter.every(level => level > 0)).toBe(true)
-      expect(levels.at(-1)).toBeGreaterThan(Math.max(...quieter))
-    })
-
-    it('labels each new month at its first column and drops a first label that has no room', () => {
-      // The oldest day is Saturday 2026-10-31. Its column and the next column start in different months.
-      const crowded = buildHeatmap(daysFrom('2026-10-31', Array.from<number>({ length: 90 }).fill(1)))
-      expect(crowded.monthLabels[0]).toEqual({ weekIndex: 1, month: 11 })
-
-      const roomy = buildHeatmap(daysFrom('2026-10-04', Array.from<number>({ length: 90 }).fill(1)))
-      expect(roomy.monthLabels).toEqual([
-        { weekIndex: 0, month: 10 },
-        { weekIndex: 4, month: 11 },
-        { weekIndex: 9, month: 12 },
-      ])
-    })
-  })
-
-  describe('formatting', () => {
-    it('keeps the calendar day whatever the time zone of the viewer', () => {
-      expect(formatDay('2026-10-25', 'en')).toBe('Oct 25')
-      expect(formatDay('2026-01-01', 'en')).toBe('Jan 1')
-    })
-
-    it('shows at most two decimals below 100 Flux and whole Flux from 100', () => {
-      expect(formatFlux(1_234_567, 'en')).toBe('1.23')
-      expect(formatFlux(0, 'en')).toBe('0')
-      expect(formatFlux(1_234_567_000, 'en')).toBe('1,235')
-    })
-
-    it('picks the largest fitting unit for a duration', () => {
-      expect(formatDuration(42 * 60_000, 'en')).toBe('42m')
-      expect(formatDuration(3.7 * 3_600_000, 'en')).toBe('3.7h')
-      expect(formatDuration(50 * 3_600_000, 'en')).toBe('2.1d')
-    })
+  it('formats local days, Flux, and durations', () => {
+    expect(formatDay('2026-10-25', 'en')).toBe('Oct 25, 2026')
+    expect(formatFlux(1_234_567, 'en')).toBe('1.23')
+    expect(formatFlux(0, 'en')).toBe('0')
+    expect(formatFlux(1_234_567_000, 'en')).toBe('1,235')
+    expect(formatDuration(42 * 60_000, 'en')).toBe('42m')
+    expect(formatDuration(3.7 * 3_600_000, 'en')).toBe('3.7h')
+    expect(formatDuration(50 * 3_600_000, 'en')).toBe('2.1d')
   })
 })

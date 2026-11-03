@@ -4,7 +4,8 @@
   "version": "0.15.4",
   "private": true,
   "exports": {
-    "./app-type": "./src/app-type.ts"
+    "./app-type": "./src/app-type.ts",
+    "./types/flux-usage": "./src/types/flux-usage.ts"
   },
   "scripts": {
     "test:run": "vitest run --config vitest.config.ts",
