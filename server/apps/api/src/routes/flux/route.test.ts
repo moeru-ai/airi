@@ -66,7 +66,7 @@ describe('fluxRoutes', () => {
     const app = createTestApp(createMockFluxService(), transactions)
     const response = await app.request('/api/v1/flux/history')
     expect(response.status).toBe(200)
-    expect((await response.json()).records[0].metadata).toEqual(metadata)
+    expect(await response.json()).toMatchObject({ records: [{ metadata }] })
   })
 
   it('returns both buckets with the capacitor percent and the fallback choice', async () => {
