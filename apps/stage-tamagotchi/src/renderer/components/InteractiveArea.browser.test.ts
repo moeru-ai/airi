@@ -190,9 +190,11 @@ async function expectElectronReplyBubble(screen: Awaited<ReturnType<typeof rende
   expect(cancelButton.parentElement?.getAttribute('aria-hidden')).toBe('true')
   expect(bubble.getBoundingClientRect().height).toBeGreaterThan(collapsedHeight)
   expect(bubble.getBoundingClientRect().height).toBeCloseTo(expandedHeight, 0)
-  await new Promise(resolve => setTimeout(resolve, 50))
-  expect(bubble.getBoundingClientRect().height).toBeGreaterThan(collapsedHeight)
-  expect(bubble.getBoundingClientRect().height).toBeLessThan(expandedHeight)
+  await vi.waitFor(() => {
+    const height = bubble.getBoundingClientRect().height
+    expect(height).toBeGreaterThan(collapsedHeight)
+    expect(height).toBeLessThan(expandedHeight)
+  })
   await vi.waitFor(() => {
     expect(bubble.getBoundingClientRect().height).toBeCloseTo(collapsedHeight, 0)
   })
