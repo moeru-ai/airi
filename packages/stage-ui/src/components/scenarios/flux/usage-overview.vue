@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DailyUsageSummary } from './usage-stats'
 
+import { SettingsCard } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -31,18 +32,18 @@ const cards = computed(() => {
       {{ t('settings.pages.flux.usage.empty') }}
     </p>
     <template v-else>
-      <dl :class="['grid grid-cols-2 gap-y-5 sm:grid-cols-5', 'border-y border-neutral-100 py-4 dark:border-neutral-900']">
-        <div
+      <dl :class="['grid grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),1fr))] gap-3']">
+        <SettingsCard
           v-for="card in cards" :key="card.key"
-          :class="['flex flex-col-reverse items-center gap-1 px-3 text-center', 'sm:not-first:border-l sm:border-neutral-100 dark:sm:border-neutral-900']"
+          :class="['box-border min-w-0']"
         >
-          <dt :class="['text-xs text-neutral-500 dark:text-neutral-400']">
+          <dt :class="['text-sm text-neutral-500 dark:text-neutral-400']">
             {{ t(`settings.pages.flux.usage.summary.${card.key}`) }}
           </dt>
-          <dd :class="['text-sm font-medium tabular-nums']">
+          <dd :class="['text-2xl text-neutral-900 font-bold tracking-tight tabular-nums dark:text-neutral-50']">
             {{ card.value }}
           </dd>
-        </div>
+        </SettingsCard>
       </dl>
       <UsageActivityChart :days="summary.days" />
     </template>
