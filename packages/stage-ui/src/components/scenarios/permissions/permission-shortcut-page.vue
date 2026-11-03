@@ -94,23 +94,28 @@ onScopeDispose(() => stopListening?.())
 
     <template #stage>
       <div :class="['flex items-end gap-2.5']" role="img" :aria-label="keycaps.map(keycap => keycap.name).join(' + ')">
-        <!-- A keycap is a base with a face on top. A press moves the face down into the base. Each key moves on its own. -->
+        <!--
+          A keycap is a face with its depth drawn below it as a solid shadow. A press moves the face down by that depth
+          and removes the shadow, so the key sinks flush without an edge above or below. The pressed face is lighter.
+        -->
         <span
           v-for="keycap in keycaps"
           :key="keycap.token"
-          :class="[
-            'h-19.5 flex rounded-[14px] pb-1.5 transition-colors duration-100',
-            keycap.wide ? 'w-42' : 'w-21.5',
-            pressing || held.has(keycap.token) ? 'bg-primary-500 dark:bg-primary-600' : 'bg-neutral-300 dark:bg-neutral-950',
-          ]"
+          :class="['h-19.5 flex pb-1.5', keycap.wide ? 'w-42' : 'w-21.5']"
         >
           <span
             :class="[
-              'flex flex-1 flex-col justify-between rounded-xl px-3 py-2.5 transition-[transform,background-color,color] duration-75 ease-out',
-              'shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]',
+              'flex flex-1 flex-col justify-between rounded-xl px-3 py-2.5 transition-[transform,box-shadow,background-color,color] duration-75 ease-out',
               pressing || held.has(keycap.token)
-                ? 'translate-y-1 bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-100'
-                : 'bg-neutral-50 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100',
+                ? [
+                  'translate-y-1.5',
+                  'bg-primary-100 text-primary-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]',
+                  'dark:bg-primary-700 dark:text-white dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]',
+                ]
+                : [
+                  'bg-neutral-50 text-neutral-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_6px_0_#d4d4d4]',
+                  'dark:bg-neutral-800 dark:text-neutral-100 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_6px_0_#0a0a0a]',
+                ],
             ]"
           >
             <!-- Apple keyboards print the symbol at the top right and the name at the bottom left. -->
