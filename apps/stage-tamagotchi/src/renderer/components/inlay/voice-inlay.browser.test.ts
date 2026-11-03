@@ -214,11 +214,22 @@ describe('voice inlay', () => {
     publish({ drafts: [], input: { ...capturing, text: '', segments: [] } })
     await expect.poll(inlayView).toBe('capsule')
 
-    await new Promise(resolve => setTimeout(resolve, 5500))
+    // Fake timers move the clock past the 5 s delay without a real wait.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    cleanups.push(() => vi.useRealTimers())
+    await vi.advanceTimersByTimeAsync(5500)
     expect(returnHome).not.toHaveBeenCalled()
 
     publish({ drafts: [] })
-    await expect.poll(() => returnHome.mock.calls.length, { timeout: 7000 }).toBe(1)
+    // The leave transition ends on a timer too, so each poll moves the clock forward a little.
+    await expect.poll(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+      return inlayView()
+    }).toBe('hidden')
+    await vi.advanceTimersByTimeAsync(4900)
+    expect(returnHome).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(100)
+    expect(returnHome).toHaveBeenCalledTimes(1)
   })
 
   it('cancels live speech on Escape and shrinks away', async () => {
