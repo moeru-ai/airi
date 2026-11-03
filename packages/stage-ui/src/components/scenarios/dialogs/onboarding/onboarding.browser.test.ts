@@ -361,6 +361,16 @@ it('continues after the user allows a permission, and shows it as granted in the
   await expect.element(screen.getByRole('heading', { name: 'Get reminders from your character' })).toBeInTheDocument()
 })
 
+it('goes back to the previous permission page from the summary', async () => {
+  const { screen } = await renderPermissionsFlow()
+
+  await screen.getByRole('button', { name: 'Skip' }).click()
+  await expect.element(screen.getByRole('heading', { name: 'Almost there' })).toBeInTheDocument()
+  await screen.getByRole('button', { name: 'Back' }).click()
+
+  await expect.element(screen.getByRole('heading', { name: 'Get reminders from your character' })).toBeInTheDocument()
+})
+
 it('opens a skipped permission again from the summary', async () => {
   const { screen } = await renderPermissionsFlow()
 

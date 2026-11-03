@@ -95,6 +95,17 @@ const primaryLabel = computed(() => {
   return t(`${flowKey}.allow`)
 })
 
+/** A back step exists on each page after the first, and on the first page when the onboarding has an earlier step. */
+const canGoBack = computed(() => page.value > 0 || !!props.onPrevious)
+
+async function back() {
+  if (page.value > 0) {
+    go(page.value - 1)
+    return
+  }
+  await props.onPrevious?.()
+}
+
 async function primary() {
   const permission = current.value
   if (!permission) {
@@ -114,6 +125,16 @@ async function primary() {
   <div :class="['h-full flex flex-col gap-5']">
     <div :class="['h-9 flex items-center justify-between gap-4']">
       <div :class="['flex items-center gap-3.5']">
+        <!-- On a narrow window, for example a phone, Back sits at the start of the top bar, as in a navigation bar. -->
+        <button
+          v-if="canGoBack"
+          type="button"
+          :aria-label="t('settings.dialogs.onboarding.back')"
+          :class="['-ml-1.5 size-8 flex items-center justify-center rounded-full outline-none md:hidden', 'text-neutral-600 hover:bg-neutral-900/5 dark:text-neutral-300 dark:hover:bg-white/10', 'focus-visible:ring-2 focus-visible:ring-primary-400/60']"
+          @click="back"
+        >
+          <span :class="['i-mingcute:left-line', 'size-5']" aria-hidden="true" />
+        </button>
         <PermissionSteps :steps="steps" :current="page" :label="t(`${flowKey}.steps`)" @select="go" />
         <span :class="['text-[13px] text-neutral-500 dark:text-neutral-400']">{{ steps[page]?.name }}</span>
       </div>
@@ -158,6 +179,14 @@ async function primary() {
     </Transition>
 
     <div :class="['flex items-center justify-end gap-2.5']">
+      <!-- On a wide window, Back sits at the bottom left, across from the actions that move forward. -->
+      <GhostButton
+        v-if="canGoBack"
+        icon="i-mingcute:left-line"
+        :label="t('settings.dialogs.onboarding.back')"
+        :class="['mr-auto hidden md:flex']"
+        @click="back"
+      />
       <TooltipProvider v-if="current" :delay-duration="200">
         <TooltipRoot>
           <TooltipTrigger as-child>

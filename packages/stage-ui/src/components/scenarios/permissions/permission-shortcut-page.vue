@@ -101,7 +101,7 @@ onScopeDispose(() => stopListening?.())
         <span
           v-for="keycap in keycaps"
           :key="keycap.token"
-          :class="['h-19.5 flex pb-1.5', keycap.wide ? 'w-42' : 'w-21.5']"
+          :class="['h-16 flex pb-1.5 md:h-19.5', keycap.wide ? 'w-28 md:w-42' : 'w-16 md:w-21.5']"
         >
           <span
             :class="[
