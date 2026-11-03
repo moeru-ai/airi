@@ -159,7 +159,7 @@ describe('account usage navigation', () => {
     expect(screen.getByRole('img').elements()).toHaveLength(0)
     expect(screen.getByRole('table').elements()).toHaveLength(0)
 
-    await screen.getByRole('link', { name: 'View detailed usage', exact: true }).click()
+    await screen.getByRole('link', { name: 'Transaction History View detailed usage', exact: true }).click()
     await expect.poll(() => router.currentRoute.value.path).toBe('/settings/usage')
     await expect.element(screen.getByRole('table')).toBeVisible()
     expect(screen.getByRole('img').elements()).toHaveLength(0)
